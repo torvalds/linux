@@ -987,7 +987,6 @@ err_regfb:
 	fb_dealloc_cmap(&info->cmap);
 err_cmap:
 	fb_deferred_io_cleanup(info);
-	kfree(info->fbdefio);
 err_defio:
 	vfree((void *)info->screen_base);
 err_irq:
@@ -1022,7 +1021,6 @@ int  __devexit auok190x_common_remove(struct platform_device *pdev)
 	fb_dealloc_cmap(&info->cmap);
 
 	fb_deferred_io_cleanup(info);
-	kfree(info->fbdefio);
 
 	vfree((void *)info->screen_base);
 

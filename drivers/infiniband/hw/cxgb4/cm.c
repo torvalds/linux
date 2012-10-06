@@ -1361,11 +1361,11 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct tid_info *t = dev->rdev.lldi.tids;
 
 	ep = lookup_tid(t, tid);
-	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	if (!ep) {
 		printk(KERN_WARNING MOD "Abort rpl to freed endpoint\n");
 		return 0;
 	}
+	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:

@@ -1148,11 +1148,15 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 	reply = port->rxfis + RX_FIS_D2H_REG;
 	task_file_data = readl(port->mmio+PORT_TFDATA);
 
-	if ((task_file_data & 1) || (fis->command == ATA_CMD_SEC_ERASE_UNIT))
+	if (fis->command == ATA_CMD_SEC_ERASE_UNIT)
+		clear_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
+
+	if ((task_file_data & 1))
 		return false;
 
 	if (fis->command == ATA_CMD_SEC_ERASE_PREP) {
 		set_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
+		set_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
 		port->ic_pause_timer = jiffies;
 		return true;
 	} else if ((fis->command == ATA_CMD_DOWNLOAD_MICRO) &&
@@ -1900,7 +1904,7 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 	int rv = 0, xfer_sz = command[3];
 
 	if (xfer_sz) {
-		if (user_buffer)
+		if (!user_buffer)
 			return -EFAULT;
 
 		buf = dmam_alloc_coherent(&port->dd->pdev->dev,
@@ -2043,7 +2047,7 @@ static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
 		*timeout = 240000; /* 4 minutes */
 		break;
 	case ATA_CMD_STANDBYNOW1:
-		*timeout = 10000;  /* 10 seconds */
+		*timeout = 120000;  /* 2 minutes */
 		break;
 	case 0xF7:
 	case 0xFA:
@@ -2588,9 +2592,6 @@ static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 	if (!len || size)
 		return 0;
 
-	if (size < 0)
-		return -EINVAL;
-
 	size += sprintf(&buf[size], "H/ S ACTive      : [ 0x");
 
 	for (n = dd->slot_groups-1; n >= 0; n--)
@@ -2659,9 +2660,6 @@ static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 
 	if (!len || size)
 		return 0;
-
-	if (size < 0)
-		return -EINVAL;
 
 	size += sprintf(&buf[size], "Flag-port : [ %08lX ]\n",
 							dd->port->flags);
@@ -3214,8 +3212,8 @@ static int mtip_hw_init(struct driver_data *dd)
 				"Unable to check write protect progress\n");
 	else
 		dev_info(&dd->pdev->dev,
-				"Write protect progress: %d%% (%d blocks)\n",
-				attr242.cur, attr242.data);
+				"Write protect progress: %u%% (%u blocks)\n",
+				attr242.cur, le32_to_cpu(attr242.data));
 	return rv;
 
 out3:
@@ -3616,6 +3614,10 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		if (unlikely(test_bit(MTIP_DDF_WRITE_PROTECT_BIT,
 							&dd->dd_flag) &&
 				bio_data_dir(bio))) {
+			bio_endio(bio, -ENODATA);
+			return;
+		}
+		if (unlikely(test_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag))) {
 			bio_endio(bio, -ENODATA);
 			return;
 		}
@@ -4168,7 +4170,13 @@ static void mtip_pci_shutdown(struct pci_dev *pdev)
 
 /* Table of device ids supported by this driver. */
 static DEFINE_PCI_DEVICE_TABLE(mtip_pci_tbl) = {
-	{  PCI_DEVICE(PCI_VENDOR_ID_MICRON, P320_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P320H_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P320M_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P320S_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P325M_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P420H_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P420M_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MICRON, P425M_DEVICE_ID) },
 	{ 0 }
 };
 
@@ -4199,12 +4207,12 @@ static int __init mtip_init(void)
 {
 	int error;
 
-	printk(KERN_INFO MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
+	pr_info(MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
 
 	/* Allocate a major block device number to use with this driver. */
 	error = register_blkdev(0, MTIP_DRV_NAME);
 	if (error <= 0) {
-		printk(KERN_ERR "Unable to register block device (%d)\n",
+		pr_err("Unable to register block device (%d)\n",
 		error);
 		return -EBUSY;
 	}
@@ -4213,7 +4221,7 @@ static int __init mtip_init(void)
 	if (!dfs_parent) {
 		dfs_parent = debugfs_create_dir("rssd", NULL);
 		if (IS_ERR_OR_NULL(dfs_parent)) {
-			printk(KERN_WARNING "Error creating debugfs parent\n");
+			pr_warn("Error creating debugfs parent\n");
 			dfs_parent = NULL;
 		}
 	}

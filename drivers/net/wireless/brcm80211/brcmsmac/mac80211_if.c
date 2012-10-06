@@ -1233,6 +1233,9 @@ uint brcms_reset(struct brcms_info *wl)
 	/* dpc will not be rescheduled */
 	wl->resched = false;
 
+	/* inform publicly that interface is down */
+	wl->pub->up = false;
+
 	return 0;
 }
 

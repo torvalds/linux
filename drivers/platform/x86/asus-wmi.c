@@ -47,9 +47,7 @@
 #include <linux/thermal.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
-#ifdef CONFIG_ACPI_VIDEO
 #include <acpi/video.h>
-#endif
 
 #include "asus-wmi.h"
 
@@ -1704,10 +1702,8 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (asus->driver->quirks->wmi_backlight_power)
 		acpi_video_dmi_promote_vendor();
 	if (!acpi_video_backlight_support()) {
-#ifdef CONFIG_ACPI_VIDEO
 		pr_info("Disabling ACPI video driver\n");
 		acpi_video_unregister();
-#endif
 		err = asus_wmi_backlight_init(asus);
 		if (err && err != -ENODEV)
 			goto fail_backlight;

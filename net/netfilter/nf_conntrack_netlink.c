@@ -2790,7 +2790,8 @@ static int __init ctnetlink_init(void)
 		goto err_unreg_subsys;
 	}
 
-	if (register_pernet_subsys(&ctnetlink_net_ops)) {
+	ret = register_pernet_subsys(&ctnetlink_net_ops);
+	if (ret < 0) {
 		pr_err("ctnetlink_init: cannot register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}

@@ -2172,7 +2172,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
 
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 
 	/* get clocks, power */
 	res->hdmi = clk_get(dev, "hdmi");
@@ -2204,7 +2204,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 
 	res->regul_bulk = kzalloc(ARRAY_SIZE(supply) *
-		sizeof res->regul_bulk[0], GFP_KERNEL);
+		sizeof(res->regul_bulk[0]), GFP_KERNEL);
 	if (!res->regul_bulk) {
 		DRM_ERROR("failed to get memory for regulators\n");
 		goto fail;
@@ -2243,7 +2243,7 @@ static int hdmi_resources_cleanup(struct hdmi_context *hdata)
 		clk_put(res->sclk_hdmi);
 	if (!IS_ERR_OR_NULL(res->hdmi))
 		clk_put(res->hdmi);
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 
 	return 0;
 }
@@ -2312,11 +2312,6 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("failed to find registers\n");
-		ret = -ENOENT;
-		goto err_resource;
-	}
 
 	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hdata->regs) {

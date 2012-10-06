@@ -202,11 +202,6 @@ EXPORT_SYMBOL(ip_tos2prio);
 static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
 #define RT_CACHE_STAT_INC(field) __this_cpu_inc(rt_cache_stat.field)
 
-static inline int rt_genid(struct net *net)
-{
-	return atomic_read(&net->ipv4.rt_genid);
-}
-
 #ifdef CONFIG_PROC_FS
 static void *rt_cache_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -447,27 +442,9 @@ static inline bool rt_is_expired(const struct rtable *rth)
 	return rth->rt_genid != rt_genid(dev_net(rth->dst.dev));
 }
 
-/*
- * Perturbation of rt_genid by a small quantity [1..256]
- * Using 8 bits of shuffling ensure we can call rt_cache_invalidate()
- * many times (2^24) without giving recent rt_genid.
- * Jenkins hash is strong enough that litle changes of rt_genid are OK.
- */
-static void rt_cache_invalidate(struct net *net)
+void rt_cache_flush(struct net *net)
 {
-	unsigned char shuffle;
-
-	get_random_bytes(&shuffle, sizeof(shuffle));
-	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
-}
-
-/*
- * delay < 0  : invalidate cache (fast : entries will be deleted later)
- * delay >= 0 : invalidate & flush cache (can be long)
- */
-void rt_cache_flush(struct net *net, int delay)
-{
-	rt_cache_invalidate(net);
+	rt_genid_bump(net);
 }
 
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
@@ -934,12 +911,14 @@ static u32 __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 	if (mtu < ip_rt_min_pmtu)
 		mtu = ip_rt_min_pmtu;
 
+	rcu_read_lock();
 	if (fib_lookup(dev_net(rt->dst.dev), fl4, &res) == 0) {
 		struct fib_nh *nh = &FIB_RES_NH(res);
 
 		update_or_create_fnhe(nh, fl4->daddr, 0, mtu,
 				      jiffies + ip_rt_mtu_expires);
 	}
+	rcu_read_unlock();
 	return mtu;
 }
 
@@ -956,7 +935,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 		dst->obsolete = DST_OBSOLETE_KILL;
 	} else {
 		rt->rt_pmtu = mtu;
-		dst_set_expires(&rt->dst, ip_rt_mtu_expires);
+		rt->dst.expires = max(1UL, jiffies + ip_rt_mtu_expires);
 	}
 }
 
@@ -1263,7 +1242,7 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
-	if (dst->flags & DST_NOCACHE) {
+	if (!list_empty(&rt->rt_uncached)) {
 		spin_lock_bh(&rt_uncached_lock);
 		list_del(&rt->rt_uncached);
 		spin_unlock_bh(&rt_uncached_lock);
@@ -2343,7 +2322,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 
 void ip_rt_multicast_event(struct in_device *in_dev)
 {
-	rt_cache_flush(dev_net(in_dev->dev), 0);
+	rt_cache_flush(dev_net(in_dev->dev));
 }
 
 #ifdef CONFIG_SYSCTL
@@ -2352,16 +2331,7 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 					size_t *lenp, loff_t *ppos)
 {
 	if (write) {
-		int flush_delay;
-		ctl_table ctl;
-		struct net *net;
-
-		memcpy(&ctl, __ctl, sizeof(ctl));
-		ctl.data = &flush_delay;
-		proc_dointvec(&ctl, write, buffer, lenp, ppos);
-
-		net = (struct net *)__ctl->extra1;
-		rt_cache_flush(net, flush_delay);
+		rt_cache_flush((struct net *)__ctl->extra1);
 		return 0;
 	}
 
@@ -2531,8 +2501,7 @@ static __net_initdata struct pernet_operations sysctl_route_ops = {
 
 static __net_init int rt_genid_init(struct net *net)
 {
-	get_random_bytes(&net->ipv4.rt_genid,
-			 sizeof(net->ipv4.rt_genid));
+	atomic_set(&net->rt_genid, 0);
 	get_random_bytes(&net->ipv4.dev_addr_genid,
 			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;

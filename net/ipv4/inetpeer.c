@@ -510,7 +510,10 @@ relookup:
 					secure_ipv6_id(daddr->addr.a6));
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;
-		p->rate_last = 0;
+		/* 60*HZ is arbitrary, but chosen enough high so that the first
+		 * calculation of tokens is at its maximum.
+		 */
+		p->rate_last = jiffies - 60*HZ;
 		INIT_LIST_HEAD(&p->gc_list);
 
 		/* Link the node. */

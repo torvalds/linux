@@ -81,6 +81,7 @@ struct atmel_mci_caps {
 	bool	has_bad_data_ordering;
 	bool	need_reset_after_xfer;
 	bool	need_blksz_mul_4;
+	bool	need_notbusy_for_read_ops;
 };
 
 struct atmel_mci_dma {
@@ -1625,7 +1626,8 @@ static void atmci_tasklet_func(unsigned long priv)
 				__func__);
 			atmci_set_completed(host, EVENT_XFER_COMPLETE);
 
-			if (host->data->flags & MMC_DATA_WRITE) {
+			if (host->caps.need_notbusy_for_read_ops ||
+			   (host->data->flags & MMC_DATA_WRITE)) {
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			} else if (host->mrq->stop) {
@@ -2218,6 +2220,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	host->caps.has_bad_data_ordering = 1;
 	host->caps.need_reset_after_xfer = 1;
 	host->caps.need_blksz_mul_4 = 1;
+	host->caps.need_notbusy_for_read_ops = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
@@ -2238,6 +2241,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	case 0x200:
 		host->caps.has_rwproof = 1;
 		host->caps.need_blksz_mul_4 = 0;
+		host->caps.need_notbusy_for_read_ops = 1;
 	case 0x100:
 		host->caps.has_bad_data_ordering = 0;
 		host->caps.need_reset_after_xfer = 0;

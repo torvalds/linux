@@ -669,13 +669,18 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	}
 	info->dev = &pdev->dev;
 	info->max77693 = max77693;
-	info->max77693->regmap_muic = regmap_init_i2c(info->max77693->muic,
-					 &max77693_muic_regmap_config);
-	if (IS_ERR(info->max77693->regmap_muic)) {
-		ret = PTR_ERR(info->max77693->regmap_muic);
-		dev_err(max77693->dev,
-			"failed to allocate register map: %d\n", ret);
-		goto err_regmap;
+	if (info->max77693->regmap_muic)
+		dev_dbg(&pdev->dev, "allocate register map\n");
+	else {
+		info->max77693->regmap_muic = devm_regmap_init_i2c(
+						info->max77693->muic,
+						&max77693_muic_regmap_config);
+		if (IS_ERR(info->max77693->regmap_muic)) {
+			ret = PTR_ERR(info->max77693->regmap_muic);
+			dev_err(max77693->dev,
+				"failed to allocate register map: %d\n", ret);
+			goto err_regmap;
+		}
 	}
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);

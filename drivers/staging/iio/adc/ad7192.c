@@ -647,6 +647,8 @@ static ssize_t ad7192_write_frequency(struct device *dev,
 	ret = strict_strtoul(buf, 10, &lval);
 	if (ret)
 		return ret;
+	if (lval == 0)
+		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
 	if (iio_buffer_enabled(indio_dev)) {

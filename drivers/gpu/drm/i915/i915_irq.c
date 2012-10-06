@@ -2700,9 +2700,6 @@ void intel_irq_init(struct drm_device *dev)
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_uninstall;
 		} else if (INTEL_INFO(dev)->gen == 3) {
-			/* IIR "flip pending" means done if this bit is set */
-			I915_WRITE(ECOSKPD, _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
-
 			dev->driver->irq_preinstall = i915_irq_preinstall;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;

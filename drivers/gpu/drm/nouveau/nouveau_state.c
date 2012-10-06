@@ -736,9 +736,11 @@ nouveau_card_init(struct drm_device *dev)
 			}
 			break;
 		case NV_C0:
-			nvc0_copy_create(dev, 1);
+			if (!(nv_rd32(dev, 0x022500) & 0x00000200))
+				nvc0_copy_create(dev, 1);
 		case NV_D0:
-			nvc0_copy_create(dev, 0);
+			if (!(nv_rd32(dev, 0x022500) & 0x00000100))
+				nvc0_copy_create(dev, 0);
 			break;
 		default:
 			break;

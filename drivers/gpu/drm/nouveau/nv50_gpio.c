@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/dmi.h>
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
@@ -110,10 +111,25 @@ nv50_gpio_isr(struct drm_device *dev)
 		nv_wr32(dev, 0xe074, intr1);
 }
 
+static struct dmi_system_id gpio_reset_ids[] = {
+	{
+		.ident = "Apple Macbook 10,1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro10,1"),
+		}
+	},
+	{ }
+};
+
 int
 nv50_gpio_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/* initialise gpios and routing to vbios defaults */
+	if (dmi_check_system(gpio_reset_ids))
+		nouveau_gpio_reset(dev);
 
 	/* disable, and ack any pending gpio interrupts */
 	nv_wr32(dev, 0xe050, 0x00000000);

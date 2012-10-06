@@ -67,7 +67,7 @@ static struct smsc911x_platform_config smsc911x_platdata = {
 
 static struct platform_device eth_device = {
 	.name		= "smsc911x",
-	.id		= 0,
+	.id		= -1,
 	.dev  = {
 		.platform_data = &smsc911x_platdata,
 	},

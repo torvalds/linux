@@ -535,6 +535,15 @@ void timer_interrupt(struct pt_regs * regs)
 	trace_timer_interrupt_exit(regs);
 }
 
+/*
+ * Hypervisor decrementer interrupts shouldn't occur but are sometimes
+ * left pending on exit from a KVM guest.  We don't need to do anything
+ * to clear them, as they are edge-triggered.
+ */
+void hdec_interrupt(struct pt_regs *regs)
+{
+}
+
 #ifdef CONFIG_SUSPEND
 static void generic_suspend_disable_irqs(void)
 {
