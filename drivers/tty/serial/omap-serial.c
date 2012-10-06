@@ -912,8 +912,11 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		/* Enable AUTORTS and AUTOCTS */
 		up->efr |= UART_EFR_CTS | UART_EFR_RTS;
 
+		/* Ensure MCR RTS is asserted */
+		up->mcr |= UART_MCR_RTS;
+
 		/* Disable access to TCR/TLR */
-		serial_out(up, UART_MCR, up->mcr | UART_MCR_RTS);
+		serial_out(up, UART_MCR, up->mcr);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_out(up, UART_EFR, up->efr);
 		serial_out(up, UART_LCR, cval);
@@ -928,10 +931,8 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Software Flow Control Configuration */
 	if (up->port.flags & UPF_SOFT_FLOW) {
-		up->lcr = serial_in(up, UART_LCR);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		up->efr = serial_in(up, UART_EFR);
-		serial_out(up, UART_EFR, up->efr & ~UART_EFR_ECB);
+		serial_out(up, UART_EFR, up->efr);
 
 		serial_out(up, UART_XON1, termios->c_cc[VSTART]);
 		serial_out(up, UART_XOFF1, termios->c_cc[VSTOP]);
@@ -958,8 +959,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 
-		up->mcr = serial_in(up, UART_MCR);
-
 		/*
 		 * IXANY Flag:
 		 * Enable any character to restart output.
@@ -975,7 +974,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
-		serial_out(up, UART_MCR, up->mcr & ~UART_MCR_TCRTLR);
+		serial_out(up, UART_MCR, up->mcr);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_out(up, UART_EFR, up->efr);
 		serial_out(up, UART_LCR, up->lcr);
