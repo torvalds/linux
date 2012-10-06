@@ -386,8 +386,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 		    (readw(dev_private->me_regbase +
 			   ME_READ_AD_FIFO) ^ 0x800) & 0x0FFF;
 	} else {
-		printk(KERN_ERR "comedi%d: Cannot get single value\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "Cannot get single value\n");
 		return -EIO;
 	}
 
@@ -573,8 +572,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	if (value & 0x20) {
 		/* Disable interrupt */
 		writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
-		printk(KERN_ERR "comedi%d: Xilinx download failed\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "Xilinx download failed\n");
 		return -EIO;
 	}
 
@@ -665,8 +663,8 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pcidev, dev->board_name) < 0) {
-		printk(KERN_ERR "comedi%d: Failed to enable PCI device and "
-		       "request regions\n", dev->minor);
+		dev_err(dev->class_dev,
+			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
@@ -677,7 +675,7 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	    ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 	dev_private->plx_regbase_size = plx_regbase_size_tmp;
 	if (!dev_private->plx_regbase) {
-		printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
+		dev_err(dev->class_dev, "Failed to remap I/O memory\n");
 		return -ENOMEM;
 	}
 
@@ -687,11 +685,11 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	swap_regbase_size_tmp = pci_resource_len(pcidev, 5);
 
 	if (!swap_regbase_tmp)
-		printk(KERN_ERR "comedi%d: Swap not present\n", dev->minor);
+		dev_err(dev->class_dev, "Swap not present\n");
 
 	/*---------------------------------------------- Workaround start ---*/
 	if (plx_regbase_tmp & 0x0080) {
-		printk(KERN_ERR "comedi%d: PLX-Bug detected\n", dev->minor);
+		dev_err(dev->class_dev, "PLX-Bug detected\n");
 
 		if (swap_regbase_tmp) {
 			regbase_tmp = plx_regbase_tmp;
@@ -727,8 +725,7 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	dev_private->me_regbase_size = me_regbase_size_tmp;
 	dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 	if (!dev_private->me_regbase) {
-		printk(KERN_ERR "comedi%d: Failed to remap I/O memory\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "Failed to remap I/O memory\n");
 		return -ENOMEM;
 	}
 
