@@ -23,17 +23,19 @@ supports an "invariant" TSC, plus the APERF and MPERF MSRs.
 on processors that additionally support C-state residency counters.
 
 .SS Options
-The \fB-s\fP option limits output to a 1-line system summary for each interval.
+The \fB-p\fP option limits output to the 1st thread in 1st core of each package.
 .PP
-The \fB-c\fP option limits output to the 1st thread in each core.
+The \fB-P\fP option limits output to the 1st thread in each Package.
 .PP
-The \fB-p\fP option limits output to the 1st thread in each package.
+The \fB-S\fP option limits output to a 1-line System Summary for each interval.
 .PP
 The \fB-v\fP option increases verbosity.
 .PP
-The \fB-d MSR#\fP option includes the delta of the specified 32-bit MSR counter.
+The \fB-s\fP option prints the SMI counter, equivalent to "-c 0x34"
 .PP
-The \fB-D MSR#\fP option includes the delta of the specified 64-bit MSR counter.
+The \fB-c MSR#\fP option includes the delta of the specified 32-bit MSR counter.
+.PP
+The \fB-C MSR#\fP option includes the delta of the specified 64-bit MSR counter.
 .PP
 The \fB-m MSR#\fP option includes the the specified 32-bit MSR value.
 .PP

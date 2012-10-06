@@ -230,9 +230,9 @@ void print_header(void)
 		outp += sprintf(outp, "  GHz");
 	outp += sprintf(outp, "  TSC");
 	if (extra_delta_offset32)
-		outp += sprintf(outp, "  delta 0x%03X", extra_delta_offset32);
+		outp += sprintf(outp, "  count 0x%03X", extra_delta_offset32);
 	if (extra_delta_offset64)
-		outp += sprintf(outp, "  DELTA 0x%03X", extra_delta_offset64);
+		outp += sprintf(outp, "  COUNT 0x%03X", extra_delta_offset64);
 	if (extra_msr_offset32)
 		outp += sprintf(outp, "   MSR 0x%03X", extra_msr_offset32);
 	if (extra_msr_offset64)
@@ -1304,7 +1304,7 @@ void check_cpuid()
 
 void usage()
 {
-	fprintf(stderr, "%s: [-v][-d MSR#][-D MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
+	fprintf(stderr, "%s: [-v][-p|-P|-S][-c MSR# | -s]][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
 		progname);
 	exit(1);
 }
@@ -1594,15 +1594,15 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+cpsvid:D:m:M:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPSvisc:sC:m:M:")) != -1) {
 		switch (opt) {
-		case 'c':
+		case 'p':
 			show_core_only++;
 			break;
-		case 'p':
+		case 'P':
 			show_pkg_only++;
 			break;
-		case 's':
+		case 'S':
 			summary_only++;
 			break;
 		case 'v':
@@ -1611,10 +1611,13 @@ void cmdline(int argc, char **argv)
 		case 'i':
 			interval_sec = atoi(optarg);
 			break;
-		case 'd':
+		case 'c':
 			sscanf(optarg, "%x", &extra_delta_offset32);
 			break;
-		case 'D':
+		case 's':
+			extra_delta_offset32 = 0x34;	/* SMI counter */
+			break;
+		case 'C':
 			sscanf(optarg, "%x", &extra_delta_offset64);
 			break;
 		case 'm':
@@ -1634,7 +1637,7 @@ int main(int argc, char **argv)
 	cmdline(argc, argv);
 
 	if (verbose > 1)
-		fprintf(stderr, "turbostat v2.0 May 16, 2012"
+		fprintf(stderr, "turbostat v2.1 October 6, 2012"
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();
