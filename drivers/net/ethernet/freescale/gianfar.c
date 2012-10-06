@@ -1037,7 +1037,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
 		dev->hw_features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		dev->features |= NETIF_F_HW_VLAN_RX;
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
@@ -2065,10 +2065,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		/* Steal sock reference for processing TX time stamps */
-		swap(skb_new->sk, skb->sk);
-		swap(skb_new->destructor, skb->destructor);
-		kfree_skb(skb);
+		if (skb->sk)
+			skb_set_owner_w(skb_new, skb->sk);
+		consume_skb(skb);
 		skb = skb_new;
 	}
 

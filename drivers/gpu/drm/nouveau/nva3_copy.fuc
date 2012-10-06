@@ -119,9 +119,9 @@ dispatch_dma:
 // mthd 0x030c-0x0340, various stuff
 .b16 0xc3 14
 .b32 #ctx_src_address_high           ~0x000000ff
-.b32 #ctx_src_address_low            ~0xfffffff0
+.b32 #ctx_src_address_low            ~0xffffffff
 .b32 #ctx_dst_address_high           ~0x000000ff
-.b32 #ctx_dst_address_low            ~0xfffffff0
+.b32 #ctx_dst_address_low            ~0xffffffff
 .b32 #ctx_src_pitch                  ~0x0007ffff
 .b32 #ctx_dst_pitch                  ~0x0007ffff
 .b32 #ctx_xcnt                       ~0x0000ffff
