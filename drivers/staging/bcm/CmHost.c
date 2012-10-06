@@ -1573,36 +1573,36 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 
 static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UINT16 tid)
 {
-	ULONG ulTargetDSXBufferAddress;
-	ULONG ulTargetDsxBufferIndexToUse, ulMaxTry;
+	ULONG dsx_buf;
+	ULONG idx, max_try;
 
 	if ((Adapter->ulTotalTargetBuffersAvailable == 0) || (Adapter->ulFreeTargetBufferCnt == 0)) {
 		ClearTargetDSXBuffer(Adapter, tid, FALSE);
 		return 0;
 	}
 
-	ulTargetDsxBufferIndexToUse = Adapter->ulCurrentTargetBuffer;
-	ulMaxTry = Adapter->ulTotalTargetBuffersAvailable;
-	while ((ulMaxTry) && (Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].valid != 1)) {
-		ulTargetDsxBufferIndexToUse = (ulTargetDsxBufferIndexToUse+1) % Adapter->ulTotalTargetBuffersAvailable;
-		ulMaxTry--;
+	idx = Adapter->ulCurrentTargetBuffer;
+	max_try = Adapter->ulTotalTargetBuffersAvailable;
+	while ((max_try) && (Adapter->astTargetDsxBuffer[idx].valid != 1)) {
+		idx = (idx+1) % Adapter->ulTotalTargetBuffersAvailable;
+		max_try--;
 	}
 
-	if (ulMaxTry == 0) {
+	if (max_try == 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "\n GetNextTargetBufferLocation : Error No Free Target DSX Buffers FreeCnt : %lx ", Adapter->ulFreeTargetBufferCnt);
 		ClearTargetDSXBuffer(Adapter, tid, FALSE);
 		return 0;
 	}
 
-	ulTargetDSXBufferAddress = Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].ulTargetDsxBuffer;
-	Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].valid = 0;
-	Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].tid = tid;
+	dsx_buf = Adapter->astTargetDsxBuffer[idx].ulTargetDsxBuffer;
+	Adapter->astTargetDsxBuffer[idx].valid = 0;
+	Adapter->astTargetDsxBuffer[idx].tid = tid;
 	Adapter->ulFreeTargetBufferCnt--;
-	ulTargetDsxBufferIndexToUse = (ulTargetDsxBufferIndexToUse+1)%Adapter->ulTotalTargetBuffersAvailable;
-	Adapter->ulCurrentTargetBuffer = ulTargetDsxBufferIndexToUse;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "GetNextTargetBufferLocation :Returning address %lx tid %d\n", ulTargetDSXBufferAddress, tid);
+	idx = (idx+1)%Adapter->ulTotalTargetBuffersAvailable;
+	Adapter->ulCurrentTargetBuffer = idx;
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "GetNextTargetBufferLocation :Returning address %lx tid %d\n", dsx_buf, tid);
 
-	return ulTargetDSXBufferAddress;
+	return dsx_buf;
 }
 
 int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
