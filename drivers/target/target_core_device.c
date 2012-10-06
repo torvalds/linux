@@ -669,6 +669,13 @@ int target_report_luns(struct se_cmd *se_cmd)
 	unsigned char *buf;
 	u32 lun_count = 0, offset = 8, i;
 
+	if (se_cmd->data_length < 16) {
+		pr_warn("REPORT LUNS allocation length %u too small\n",
+			se_cmd->data_length);
+		se_cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -EINVAL;
+	}
+
 	buf = transport_kmap_data_sg(se_cmd);
 	if (!buf)
 		return -ENOMEM;

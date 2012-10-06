@@ -1773,6 +1773,7 @@ static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 }
 
 int gfar_phc_index = -1;
+EXPORT_SYMBOL(gfar_phc_index);
 
 static int gfar_get_ts_info(struct net_device *dev,
 			    struct ethtool_ts_info *info)

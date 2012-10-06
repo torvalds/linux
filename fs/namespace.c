@@ -1886,8 +1886,14 @@ static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 		return err;
 
 	err = -EINVAL;
-	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(real_mount(path->mnt)))
-		goto unlock;
+	if (unlikely(!check_mnt(real_mount(path->mnt)))) {
+		/* that's acceptable only for automounts done in private ns */
+		if (!(mnt_flags & MNT_SHRINKABLE))
+			goto unlock;
+		/* ... and for those we'd better have mountpoint still alive */
+		if (!real_mount(path->mnt)->mnt_ns)
+			goto unlock;
+	}
 
 	/* Refuse the same filesystem on the same mount point */
 	err = -EBUSY;

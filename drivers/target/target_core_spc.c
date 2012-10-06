@@ -877,9 +877,11 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 static int spc_emulate_request_sense(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
-	unsigned char *buf;
+	unsigned char *rbuf;
 	u8 ua_asc = 0, ua_ascq = 0;
-	int err = 0;
+	unsigned char buf[SE_SENSE_BUF];
+
+	memset(buf, 0, SE_SENSE_BUF);
 
 	if (cdb[1] & 0x01) {
 		pr_err("REQUEST_SENSE description emulation not"
@@ -888,20 +890,21 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 		return -ENOSYS;
 	}
 
-	buf = transport_kmap_data_sg(cmd);
-
-	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
+	rbuf = transport_kmap_data_sg(cmd);
+	if (cmd->scsi_sense_reason != 0) {
+		/*
+		 * Out of memory.  We will fail with CHECK CONDITION, so
+		 * we must not clear the unit attention condition.
+		 */
+		target_complete_cmd(cmd, CHECK_CONDITION);
+		return 0;
+	} else if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
 		/*
 		 * CURRENT ERROR, UNIT ATTENTION
 		 */
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = UNIT_ATTENTION;
 
-		if (cmd->data_length < 18) {
-			buf[7] = 0x00;
-			err = -EINVAL;
-			goto end;
-		}
 		/*
 		 * The Additional Sense Code (ASC) from the UNIT ATTENTION
 		 */
@@ -915,11 +918,6 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = NO_SENSE;
 
-		if (cmd->data_length < 18) {
-			buf[7] = 0x00;
-			err = -EINVAL;
-			goto end;
-		}
 		/*
 		 * NO ADDITIONAL SENSE INFORMATION
 		 */
@@ -927,8 +925,11 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 		buf[7] = 0x0A;
 	}
 
-end:
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
+
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }

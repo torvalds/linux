@@ -131,7 +131,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
  */
 void radeon_fence_process(struct radeon_device *rdev, int ring)
 {
-	uint64_t seq, last_seq;
+	uint64_t seq, last_seq, last_emitted;
 	unsigned count_loop = 0;
 	bool wake = false;
 
@@ -158,13 +158,15 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 	 */
 	last_seq = atomic64_read(&rdev->fence_drv[ring].last_seq);
 	do {
+		last_emitted = rdev->fence_drv[ring].sync_seq[ring];
 		seq = radeon_fence_read(rdev, ring);
 		seq |= last_seq & 0xffffffff00000000LL;
 		if (seq < last_seq) {
-			seq += 0x100000000LL;
+			seq &= 0xffffffff;
+			seq |= last_emitted & 0xffffffff00000000LL;
 		}
 
-		if (seq == last_seq) {
+		if (seq <= last_seq || seq > last_emitted) {
 			break;
 		}
 		/* If we loop over we don't want to return without

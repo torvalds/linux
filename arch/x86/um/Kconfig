@@ -21,6 +21,7 @@ config 64BIT
 config X86_32
 	def_bool !64BIT
 	select HAVE_AOUT
+	select ARCH_WANT_IPC_PARSE_VERSION
 
 config X86_64
 	def_bool 64BIT
