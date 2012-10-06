@@ -30,9 +30,6 @@
  */
 #define OMAP_SERIAL_NAME	"ttyO"
 
-#define OMAP_UART_SYSC_RESET	0X07
-#define OMAP_UART_FIFO_CLR	0X06
-
 struct omap_uart_port_info {
 	bool			dma_enabled;	/* To specify DMA Mode */
 	unsigned int		uartclk;	/* UART clock rate */
