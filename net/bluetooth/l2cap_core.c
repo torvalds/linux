@@ -1299,7 +1299,7 @@ static void l2cap_conn_unreliable(struct l2cap_conn *conn, int err)
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
 		if (test_bit(FLAG_FORCE_RELIABLE, &chan->flags))
-			__l2cap_chan_set_err(chan, err);
+			l2cap_chan_set_err(chan, err);
 	}
 
 	mutex_unlock(&conn->chan_lock);
