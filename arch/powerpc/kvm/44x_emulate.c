@@ -46,6 +46,7 @@ static int emulate_mtdcr(struct kvm_vcpu *vcpu, int rs, int dcrn)
 		vcpu->run->dcr.dcrn = dcrn;
 		vcpu->run->dcr.data = kvmppc_get_gpr(vcpu, rs);
 		vcpu->run->dcr.is_write = 1;
+		vcpu->arch.dcr_is_write = 1;
 		vcpu->arch.dcr_needed = 1;
 		kvmppc_account_exit(vcpu, DCR_EXITS);
 		return EMULATE_DO_DCR;
@@ -80,6 +81,7 @@ static int emulate_mfdcr(struct kvm_vcpu *vcpu, int rt, int dcrn)
 		vcpu->run->dcr.dcrn = dcrn;
 		vcpu->run->dcr.data =  0;
 		vcpu->run->dcr.is_write = 0;
+		vcpu->arch.dcr_is_write = 0;
 		vcpu->arch.io_gpr = rt;
 		vcpu->arch.dcr_needed = 1;
 		kvmppc_account_exit(vcpu, DCR_EXITS);
