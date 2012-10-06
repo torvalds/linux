@@ -168,7 +168,8 @@ static void wm0010_halt(struct snd_soc_codec *codec)
 	case WM0010_STAGE2:
 	case WM0010_FIRMWARE:
 		/* Remember to put chip back into reset */
-		gpio_set_value(wm0010->gpio_reset, wm0010->gpio_reset_value);
+		gpio_set_value_cansleep(wm0010->gpio_reset,
+					wm0010->gpio_reset_value);
 		/* Disable the regulators */
 		regulator_disable(wm0010->dbvdd);
 		regulator_bulk_disable(ARRAY_SIZE(wm0010->core_supplies),
@@ -387,7 +388,7 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	}
 
 	/* Release reset */
-	gpio_set_value(wm0010->gpio_reset, !wm0010->gpio_reset_value);
+	gpio_set_value_cansleep(wm0010->gpio_reset, !wm0010->gpio_reset_value);
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
@@ -809,7 +810,6 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 
 static int __devinit wm0010_spi_probe(struct spi_device *spi)
 {
-	unsigned long flags;
 	unsigned long gpio_flags;
 	int ret;
 	int trigger;
@@ -876,6 +876,8 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	wm0010->state = WM0010_POWER_OFF;
+
 	irq = spi->irq;
 	if (wm0010->pdata.irq_flags)
 		trigger = wm0010->pdata.irq_flags;
@@ -897,10 +899,6 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 	else
 		wm0010->board_max_spi_speed = 0;
 
-	spin_lock_irqsave(&wm0010->irq_lock, flags);
-	wm0010->state = WM0010_POWER_OFF;
-	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
-
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm0010, wm0010_dai,
 				     ARRAY_SIZE(wm0010_dai));
@@ -916,10 +914,8 @@ static int __devexit wm0010_spi_remove(struct spi_device *spi)
 
 	snd_soc_unregister_codec(&spi->dev);
 
-	if (wm0010->gpio_reset) {
-		/* Remember to put chip back into reset */
-		gpio_set_value(wm0010->gpio_reset, wm0010->gpio_reset_value);
-	}
+	gpio_set_value_cansleep(wm0010->gpio_reset,
+				wm0010->gpio_reset_value);
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);

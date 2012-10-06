@@ -1017,10 +1017,29 @@ EXPORT_SYMBOL_GPL(dapm_reg_event);
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event))
+	int ret;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+			ret = regulator_allow_bypass(w->regulator, true);
+			if (ret != 0)
+				dev_warn(w->dapm->dev,
+					 "Failed to bypass %s: %d\n",
+					 w->name, ret);
+		}
+
 		return regulator_enable(w->regulator);
-	else
+	} else {
+		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+			ret = regulator_allow_bypass(w->regulator, false);
+			if (ret != 0)
+				dev_warn(w->dapm->dev,
+					 "Failed to unbypass %s: %d\n",
+					 w->name, ret);
+		}
+
 		return regulator_disable_deferred(w->regulator, w->shift);
+	}
 }
 EXPORT_SYMBOL_GPL(dapm_regulator_event);
 

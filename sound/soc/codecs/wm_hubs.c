@@ -681,6 +681,11 @@ void wm_hubs_update_class_w(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, WM8993_CLASS_W_0,
 			    WM8993_CP_DYN_V | WM8993_CP_DYN_FREQ, enable);
+
+	snd_soc_write(codec, WM8993_LEFT_OUTPUT_VOLUME,
+		      snd_soc_read(codec, WM8993_LEFT_OUTPUT_VOLUME));
+	snd_soc_write(codec, WM8993_RIGHT_OUTPUT_VOLUME,
+		      snd_soc_read(codec, WM8993_RIGHT_OUTPUT_VOLUME));
 }
 EXPORT_SYMBOL_GPL(wm_hubs_update_class_w);
 
