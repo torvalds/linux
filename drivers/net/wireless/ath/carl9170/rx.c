@@ -164,9 +164,6 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 	struct carl9170_rsp *cmd = buf;
 	struct ieee80211_vif *vif;
 
-	if (carl9170_check_sequence(ar, cmd->hdr.seq))
-		return;
-
 	if ((cmd->hdr.cmd & CARL9170_RSP_FLAG) != CARL9170_RSP_FLAG) {
 		if (!(cmd->hdr.cmd & CARL9170_CMD_ASYNC_FLAG))
 			carl9170_cmd_callback(ar, len, buf);
@@ -818,6 +815,9 @@ static void carl9170_rx_untie_cmds(struct ar9170 *ar, const u8 *respbuf,
 
 		i += cmd->hdr.len + 4;
 		if (unlikely(i > resplen))
+			break;
+
+		if (carl9170_check_sequence(ar, cmd->hdr.seq))
 			break;
 
 		carl9170_handle_command_response(ar, cmd, cmd->hdr.len + 4);
