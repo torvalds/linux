@@ -898,15 +898,19 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		serial_out(up, UART_OMAP_MDR1, up->mdr1);
 
-	/* Enable access to TCR/TLR */
+	/* Configure flow control */
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
+	/* XON1/XOFF1 accessible mode B, TCRTLR=0, ECB=0 */
+	serial_out(up, UART_XON1, termios->c_cc[VSTART]);
+	serial_out(up, UART_XOFF1, termios->c_cc[VSTOP]);
+
+	/* Enable access to TCR/TLR */
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 
 	serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
-
-	/* Hardware Flow Control Configuration */
 
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
 		/* Enable AUTORTS and AUTOCTS */
@@ -924,9 +928,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_MCR, up->mcr);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_out(up, UART_EFR, up->efr);
-
-		serial_out(up, UART_XON1, termios->c_cc[VSTART]);
-		serial_out(up, UART_XOFF1, termios->c_cc[VSTOP]);
 
 		/* clear SW control mode bits */
 		up->efr &= OMAP_UART_SW_CLR;
