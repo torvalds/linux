@@ -335,6 +335,17 @@ config REGULATOR_PALMAS
 	  on the muxing. This is handled automatically in the driver by
 	  reading the mux info from OTP.
 
+config REGULATOR_TPS51632
+	tristate "TI TPS51632 Power Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TPS51632 voltage regulator chip.
+	  The TPS52632 is 3-2-1 Phase D-Cap+ Step Down Driverless Controller
+	  with Serial VID control and DVFS.
+	  The voltage output can be configure through I2C interface or PWM
+	  interface.
+
 config REGULATOR_TPS6105X
 	tristate "TI TPS6105X Power regulators"
 	depends on TPS6105X
