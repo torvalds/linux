@@ -32,6 +32,9 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 #define arch_ptrace_stop(exit_code, info) \
 	synchronize_user_stack()
 
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
+
 struct global_reg_snapshot {
 	unsigned long		tstate;
 	unsigned long		tpc;

@@ -112,11 +112,16 @@ sys_clone:
 ret_from_syscall:
 	/* Clear current_thread_info()->new_child. */
 	stb	%g0, [%g6 + TI_NEW_CHILD]
-	ldx	[%g6 + TI_FLAGS], %l0
 	call	schedule_tail
 	 mov	%g7, %o0
-	ba,pt	%xcc, ret_sys_call
-	 ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
+	ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
+	brnz,a,pt	%o0, ret_sys_call
+	 ldx	[%g6 + TI_FLAGS], %l0
+	ldx	[%sp + PTREGS_OFF + PT_V9_G1], %l0
+	call	%l0
+	 ldx	[%sp + PTREGS_OFF + PT_V9_G2], %o0
+	call	do_exit	! will not return
+	 mov	0,%o0
 
 	.globl	sparc_exit
 	.type	sparc_exit,#function
