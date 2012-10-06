@@ -102,14 +102,14 @@ static int perf_event__repipe_mmap(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_task(struct perf_tool *tool,
+static int perf_event__repipe_fork(struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
 {
 	int err;
 
-	err = perf_event__process_task(tool, event, sample, machine);
+	err = perf_event__process_fork(tool, event, sample, machine);
 	perf_event__repipe(tool, event, sample, machine);
 
 	return err;
@@ -227,7 +227,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (inject->build_ids) {
 		inject->tool.sample	  = perf_event__inject_buildid;
 		inject->tool.mmap	  = perf_event__repipe_mmap;
-		inject->tool.fork	  = perf_event__repipe_task;
+		inject->tool.fork	  = perf_event__repipe_fork;
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 

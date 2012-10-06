@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include "event.h"
 #include "debug.h"
+#include "machine.h"
 #include "sort.h"
 #include "string.h"
 #include "strlist.h"
@@ -702,10 +703,10 @@ size_t perf_event__fprintf_task(union perf_event *event, FILE *fp)
 		       event->fork.ppid, event->fork.ptid);
 }
 
-int perf_event__process_task(struct perf_tool *tool __maybe_unused,
+int perf_event__process_fork(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_sample *sample __maybe_unused,
-			      struct machine *machine)
+			     struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
 	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
@@ -713,16 +714,27 @@ int perf_event__process_task(struct perf_tool *tool __maybe_unused,
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 
-	if (event->header.type == PERF_RECORD_EXIT) {
-		machine__remove_thread(machine, thread);
-		return 0;
-	}
-
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent) < 0) {
 		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
 		return -1;
 	}
+
+	return 0;
+}
+
+int perf_event__process_exit(struct perf_tool *tool __maybe_unused,
+			     union perf_event *event,
+			     struct perf_sample *sample __maybe_unused,
+			     struct machine *machine)
+{
+	struct thread *thread = machine__find_thread(machine, event->fork.tid);
+
+	if (dump_trace)
+		perf_event__fprintf_task(event, stdout);
+
+	if (thread != NULL)
+		machine__remove_thread(machine, thread);
 
 	return 0;
 }
@@ -761,8 +773,10 @@ int perf_event__process(struct perf_tool *tool, union perf_event *event,
 		perf_event__process_mmap(tool, event, sample, machine);
 		break;
 	case PERF_RECORD_FORK:
+		perf_event__process_fork(tool, event, sample, machine);
+		break;
 	case PERF_RECORD_EXIT:
-		perf_event__process_task(tool, event, sample, machine);
+		perf_event__process_exit(tool, event, sample, machine);
 		break;
 	case PERF_RECORD_LOST:
 		perf_event__process_lost(tool, event, sample, machine);
