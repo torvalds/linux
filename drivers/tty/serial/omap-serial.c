@@ -924,11 +924,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	if (up->port.flags & UPF_SOFT_FLOW) {
-		/* Disable access to TCR/TLR */
-		serial_out(up, UART_MCR, up->mcr);
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_out(up, UART_EFR, up->efr);
-
 		/* clear SW control mode bits */
 		up->efr &= OMAP_UART_SW_CLR;
 
@@ -948,9 +943,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_iflag & IXOFF)
 			up->efr |= OMAP_UART_SW_RX;
 
-		serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
-
 		/*
 		 * IXANY Flag:
 		 * Enable any character to restart output.
@@ -962,7 +954,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		else
 			up->mcr &= ~UART_MCR_XONANY;
 	}
-
 	serial_out(up, UART_MCR, up->mcr);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, up->efr);
