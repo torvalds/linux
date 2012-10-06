@@ -35,7 +35,8 @@
 #define COMPAT_HWCAP_IDIVT	(1 << 18)
 #define COMPAT_HWCAP_IDIV	(COMPAT_HWCAP_IDIVA|COMPAT_HWCAP_IDIVT)
 
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this cpu supports.
@@ -48,6 +49,7 @@
 				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
 
 extern unsigned int elf_hwcap;
+#endif
 #endif
 
 #endif

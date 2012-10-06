@@ -18,7 +18,8 @@
 
 #include <asm-generic/stat.h>
 
-#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
 
 #include <asm/compat.h>
 
@@ -57,6 +58,7 @@ struct stat64 {
 	compat_u64	st_ino;
 };
 
+#endif
 #endif
 
 #endif

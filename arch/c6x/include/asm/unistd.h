@@ -13,8 +13,6 @@
  *   NON INFRINGEMENT.	See the GNU General Public License for
  *   more details.
  */
-#if !defined(_ASM_C6X_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_C6X_UNISTD_H
 
 /* Use the standard ABI for syscalls. */
 #include <asm-generic/unistd.h>
@@ -22,5 +20,3 @@
 /* C6X-specific syscalls. */
 #define __NR_cache_sync	(__NR_arch_specific_syscall + 0)
 __SYSCALL(__NR_cache_sync, sys_cache_sync)
-
-#endif /* _ASM_C6X_UNISTD_H */
