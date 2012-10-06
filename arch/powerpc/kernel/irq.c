@@ -489,9 +489,9 @@ void do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned int irq;
 
-	trace_irq_entry(regs);
-
 	irq_enter();
+
+	trace_irq_entry(regs);
 
 	check_stack_overflow();
 
@@ -511,10 +511,10 @@ void do_IRQ(struct pt_regs *regs)
 	else
 		__get_cpu_var(irq_stat).spurious_irqs++;
 
+	trace_irq_exit(regs);
+
 	irq_exit();
 	set_irq_regs(old_regs);
-
-	trace_irq_exit(regs);
 }
 
 void __init init_IRQ(void)

@@ -1,0 +1,16 @@
+#
+# Magnetometer sensors
+#
+menu "Magnetometer sensors"
+
+config HID_SENSOR_MAGNETOMETER_3D
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	tristate "HID Magenetometer 3D"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Magnetometer 3D.
+
+endmenu

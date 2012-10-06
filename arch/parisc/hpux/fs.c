@@ -109,33 +109,32 @@ Efault:
 
 int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned int count)
 {
-	struct file * file;
+	struct fd arg;
 	struct hpux_dirent __user * lastdirent;
 	struct getdents_callback buf;
-	int error = -EBADF;
+	int error;
 
-	file = fget(fd);
-	if (!file)
-		goto out;
+	arg = fdget(fd);
+	if (!arg.file)
+		return -EBADF;
 
 	buf.current_dir = dirent;
 	buf.previous = NULL;
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, filldir, &buf);
+	error = vfs_readdir(arg.file, filldir, &buf);
 	if (error >= 0)
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		if (put_user(file->f_pos, &lastdirent->d_off))
+		if (put_user(arg.file->f_pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
 	}
 
-	fput(file);
-out:
+	fdput(arg);
 	return error;
 }
 

@@ -1,13 +1,30 @@
+config ZCACHE2
+	bool "Dynamic compression of swap pages and clean pagecache pages"
+	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP && !ZCACHE 
+	select CRYPTO_LZO
+	default n
+	help
+	  Zcache2 doubles RAM efficiency while providing a significant
+	  performance boosts on many workloads.  Zcache2 uses
+	  compression and an in-kernel implementation of transcendent
+	  memory to store clean page cache pages and swap in RAM,
+	  providing a noticeable reduction in disk I/O.  Zcache2
+	  is a complete rewrite of the older zcache; it was intended to
+	  be a merge but that has been blocked due to political and
+	  technical disagreements.  It is intended that they will merge
+	  again in the future.  Until then, zcache2 is a single-node
+	  version of ramster.
+
 config RAMSTER
 	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-	depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=y && !ZCACHE && !XVMALLOC && !HIGHMEM && NET
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE2=y
+	# must ensure struct page is 8-byte aligned
+	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
 	default n
 	help
 	  RAMster allows RAM on other machines in a cluster to be utilized
 	  dynamically and symmetrically instead of swapping to a local swap
 	  disk, thus improving performance on memory-constrained workloads
 	  while minimizing total RAM across the cluster.  RAMster, like
-	  zcache, compresses swap pages into local RAM, but then remotifies
+	  zcache2, compresses swap pages into local RAM, but then remotifies
 	  the compressed pages to another node in the RAMster cluster.

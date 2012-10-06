@@ -13,6 +13,14 @@
  * Copyright (C) 2009 Jason Wessel <jason.wessel@windriver.com>
  */
 
+typedef enum {
+	KDB_REPEAT_NONE = 0,	/* Do not repeat this command */
+	KDB_REPEAT_NO_ARGS,	/* Repeat the command without arguments */
+	KDB_REPEAT_WITH_ARGS,	/* Repeat the command including its arguments */
+} kdb_repeat_t;
+
+typedef int (*kdb_func_t)(int, const char **);
+
 #ifdef	CONFIG_KGDB_KDB
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -31,14 +39,6 @@ extern atomic_t kdb_event;
 /* Types and messages used for dynamically added kdb shell commands */
 
 #define KDB_MAXARGS    16 /* Maximum number of arguments to a function  */
-
-typedef enum {
-	KDB_REPEAT_NONE = 0,	/* Do not repeat this command */
-	KDB_REPEAT_NO_ARGS,	/* Repeat the command without arguments */
-	KDB_REPEAT_WITH_ARGS,	/* Repeat the command including its arguments */
-} kdb_repeat_t;
-
-typedef int (*kdb_func_t)(int, const char **);
 
 /* KDB return codes from a command or internal kdb function */
 #define KDB_NOTFOUND	(-1)
@@ -149,11 +149,14 @@ extern int kdb_register_repeat(char *, kdb_func_t, char *, char *,
 			       short, kdb_repeat_t);
 extern int kdb_unregister(char *);
 #else /* ! CONFIG_KGDB_KDB */
-#define kdb_printf(...)
-#define kdb_init(x)
-#define kdb_register(...)
-#define kdb_register_repeat(...)
-#define kdb_uregister(x)
+static inline __printf(1, 2) int kdb_printf(const char *fmt, ...) { return 0; }
+static inline void kdb_init(int level) {}
+static inline int kdb_register(char *cmd, kdb_func_t func, char *usage,
+			       char *help, short minlen) { return 0; }
+static inline int kdb_register_repeat(char *cmd, kdb_func_t func, char *usage,
+				      char *help, short minlen,
+				      kdb_repeat_t repeat) { return 0; }
+static inline int kdb_unregister(char *cmd) { return 0; }
 #endif	/* CONFIG_KGDB_KDB */
 enum {
 	KDB_NOT_INITIALIZED,

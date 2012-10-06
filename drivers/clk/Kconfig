@@ -40,4 +40,17 @@ config COMMON_CLK_WM831X
           Supports the clocking subsystem of the WM831x/2x series of
 	  PMICs from Wolfson Microlectronics.
 
+config COMMON_CLK_VERSATILE
+	bool "Clock driver for ARM Reference designs"
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW
+	---help---
+          Supports clocking on ARM Reference designs Integrator/AP,
+	  Integrator/CP, RealView PB1176, EB, PB11MP and PBX.
+
+config COMMON_CLK_MAX77686
+	tristate "Clock driver for Maxim 77686 MFD"
+	depends on MFD_MAX77686
+	---help---
+	  This driver supports Maxim 77686 crystal oscillator clock. 
+
 endmenu

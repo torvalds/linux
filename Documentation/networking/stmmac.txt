@@ -173,7 +173,6 @@ Where:
 For MDIO bus The we have:
 
  struct stmmac_mdio_bus_data {
-	int bus_id;
 	int (*phy_reset)(void *priv);
 	unsigned int phy_mask;
 	int *irqs;
@@ -181,7 +180,6 @@ For MDIO bus The we have:
  };
 
 Where:
- o bus_id: bus identifier;
  o phy_reset: hook to reset the phy device attached to the bus.
  o phy_mask: phy mask passed when register the MDIO bus within the driver.
  o irqs: list of IRQs, one per PHY.
@@ -230,9 +228,6 @@ there are two MAC cores: one MAC is for MDIO Bus/PHY emulation
 with fixed_link support.
 
 static struct stmmac_mdio_bus_data stmmac1_mdio_bus = {
-	.bus_id = 1,
-		|
-		|-> phy device on the bus_id 1
 	.phy_reset = phy_reset;
 		|
 		|-> function to provide the phy_reset on this board

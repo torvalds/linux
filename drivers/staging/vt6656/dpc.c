@@ -200,7 +200,7 @@ s_vProcessRxMACHeader (
     } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
         pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
-	if ((*pwType == cpu_to_le16(ETH_P_IPX)) ||
+	if ((*pwType == cpu_to_be16(ETH_P_IPX)) ||
 	    (*pwType == cpu_to_le16(0xF380))) {
 		cbHeaderSize -= 8;
             pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
@@ -748,7 +748,7 @@ RXbBulkInProcessData (
     if ((*pbyRSSI != 0) &&
         (pMgmt->pCurrBSS!=NULL)) {
         RFvRSSITodBm(pDevice, *pbyRSSI, &ldBm);
-        // Moniter if RSSI is too strong.
+        // Monitor if RSSI is too strong.
         pMgmt->pCurrBSS->byRSSIStatCnt++;
         pMgmt->pCurrBSS->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pMgmt->pCurrBSS->ldBmAverage[pMgmt->pCurrBSS->byRSSIStatCnt] = ldBm;

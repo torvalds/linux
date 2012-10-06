@@ -13,9 +13,7 @@
 #include <plat/serial.h>
 #include <plat/dma.h>
 #include <plat/common.h>
-#include <plat/hdq1w.h>
-
-#include <mach/irqs.h>
+#include "hdq1w.h"
 
 #include "omap_hwmod_common_data.h"
 
@@ -182,126 +180,126 @@ struct omap_hwmod_class iva_hwmod_class = {
 /* Common MPU IRQ line data */
 
 struct omap_hwmod_irq_info omap2_timer1_mpu_irqs[] = {
-	{ .irq = 37, },
-	{ .irq = -1 }
+	{ .irq = 37 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer2_mpu_irqs[] = {
-	{ .irq = 38, },
-	{ .irq = -1 }
+	{ .irq = 38 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer3_mpu_irqs[] = {
-	{ .irq = 39, },
-	{ .irq = -1 }
+	{ .irq = 39 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer4_mpu_irqs[] = {
-	{ .irq = 40, },
-	{ .irq = -1 }
+	{ .irq = 40 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer5_mpu_irqs[] = {
-	{ .irq = 41, },
-	{ .irq = -1 }
+	{ .irq = 41 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer6_mpu_irqs[] = {
-	{ .irq = 42, },
-	{ .irq = -1 }
+	{ .irq = 42 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer7_mpu_irqs[] = {
-	{ .irq = 43, },
-	{ .irq = -1 }
+	{ .irq = 43 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer8_mpu_irqs[] = {
-	{ .irq = 44, },
-	{ .irq = -1 }
+	{ .irq = 44 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer9_mpu_irqs[] = {
-	{ .irq = 45, },
-	{ .irq = -1 }
+	{ .irq = 45 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer10_mpu_irqs[] = {
-	{ .irq = 46, },
-	{ .irq = -1 }
+	{ .irq = 46 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_timer11_mpu_irqs[] = {
-	{ .irq = 47, },
-	{ .irq = -1 }
+	{ .irq = 47 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_uart1_mpu_irqs[] = {
-	{ .irq = INT_24XX_UART1_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 72 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_uart2_mpu_irqs[] = {
-	{ .irq = INT_24XX_UART2_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 73 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_uart3_mpu_irqs[] = {
-	{ .irq = INT_24XX_UART3_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 74 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_dispc_irqs[] = {
-	{ .irq = 25 },
-	{ .irq = -1 }
+	{ .irq = 25 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_i2c1_mpu_irqs[] = {
-	{ .irq = INT_24XX_I2C1_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 56 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_i2c2_mpu_irqs[] = {
-	{ .irq = INT_24XX_I2C2_IRQ, },
-	{ .irq = -1 }
+	{ .irq = 57 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_gpio1_irqs[] = {
-	{ .irq = 29 }, /* INT_24XX_GPIO_BANK1 */
-	{ .irq = -1 }
+	{ .irq = 29 + OMAP_INTC_START, }, /* INT_24XX_GPIO_BANK1 */
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_gpio2_irqs[] = {
-	{ .irq = 30 }, /* INT_24XX_GPIO_BANK2 */
-	{ .irq = -1 }
+	{ .irq = 30 + OMAP_INTC_START, }, /* INT_24XX_GPIO_BANK2 */
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_gpio3_irqs[] = {
-	{ .irq = 31 }, /* INT_24XX_GPIO_BANK3 */
-	{ .irq = -1 }
+	{ .irq = 31 + OMAP_INTC_START, }, /* INT_24XX_GPIO_BANK3 */
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_gpio4_irqs[] = {
-	{ .irq = 32 }, /* INT_24XX_GPIO_BANK4 */
-	{ .irq = -1 }
+	{ .irq = 32 + OMAP_INTC_START, }, /* INT_24XX_GPIO_BANK4 */
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_dma_system_irqs[] = {
-	{ .name = "0", .irq = 12 }, /* INT_24XX_SDMA_IRQ0 */
-	{ .name = "1", .irq = 13 }, /* INT_24XX_SDMA_IRQ1 */
-	{ .name = "2", .irq = 14 }, /* INT_24XX_SDMA_IRQ2 */
-	{ .name = "3", .irq = 15 }, /* INT_24XX_SDMA_IRQ3 */
-	{ .irq = -1 }
+	{ .name = "0", .irq = 12 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ0 */
+	{ .name = "1", .irq = 13 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ1 */
+	{ .name = "2", .irq = 14 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ2 */
+	{ .name = "3", .irq = 15 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ3 */
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_mcspi1_mpu_irqs[] = {
-	{ .irq = 65 },
-	{ .irq = -1 }
+	{ .irq = 65 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_irq_info omap2_mcspi2_mpu_irqs[] = {
-	{ .irq = 66 },
-	{ .irq = -1 }
+	{ .irq = 66 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc = {
@@ -320,7 +318,7 @@ struct omap_hwmod_class omap2_hdq1w_class = {
 };
 
 struct omap_hwmod_irq_info omap2_hdq1w_mpu_irqs[] = {
-	{ .irq = 58, },
-	{ .irq = -1 }
+	{ .irq = 58 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 

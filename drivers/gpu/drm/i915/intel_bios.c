@@ -26,9 +26,8 @@
  */
 #include <linux/dmi.h>
 #include <drm/drm_dp_helper.h>
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "intel_bios.h"
 

@@ -43,7 +43,7 @@
 #include <mach/regs-lcd.h>
 
 #include <mach/h1940.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <mach/fb.h>
 
 #include <plat/clock.h>

@@ -230,6 +230,7 @@ my $dohighlight = "";
 
 my $verbose = 0;
 my $output_mode = "man";
+my $output_preformatted = 0;
 my $no_doc_sections = 0;
 my %highlights = %highlights_man;
 my $blankline = $blankline_man;
@@ -280,9 +281,10 @@ my $doc_special = "\@\%\$\&";
 my $doc_start = '^/\*\*\s*$'; # Allow whitespace at end of comment start.
 my $doc_end = '\*/';
 my $doc_com = '\s*\*\s*';
+my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
 my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
-my $doc_content = $doc_com . '(.*)';
+my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 
 my %constants;
@@ -459,8 +461,13 @@ sub output_highlight {
 #   print STDERR "contents af:$contents\n";
 
     foreach $line (split "\n", $contents) {
+	if (! $output_preformatted) {
+	    $line =~ s/^\s*//;
+	}
 	if ($line eq ""){
-	    print $lineprefix, local_unescape($blankline);
+	    if (! $output_preformatted) {
+		print $lineprefix, local_unescape($blankline);
+	    }
 	} else {
 	    $line =~ s/\\\\\\/\&/g;
 	    if ($output_mode eq "man" && substr($line, 0, 1) eq ".") {
@@ -643,10 +650,12 @@ sub output_section_xml(%) {
 	print "<title>$section</title>\n";
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<informalexample><programlisting>\n";
+	    $output_preformatted = 1;
 	} else {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
+	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</programlisting></informalexample>\n";
 	} else {
@@ -949,10 +958,12 @@ sub output_blockhead_xml(%) {
 	}
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><para>\n";
+	    $output_preformatted = 1;
 	} else {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
+	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</para></example>\n";
 	} else {
@@ -1028,10 +1039,12 @@ sub output_function_gnome {
 	print "<simplesect>\n <title>$section</title>\n";
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><programlisting>\n";
+	    $output_preformatted = 1;
 	} else {
 	}
 	print "<para>\n";
 	output_highlight($args{'sections'}{$section});
+	$output_preformatted = 0;
 	print "</para>\n";
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</programlisting></example>\n";
@@ -2046,6 +2059,9 @@ sub process_file($) {
 
     $section_counter = 0;
     while (<IN>) {
+	while (s/\\\s*$//) {
+	    $_ .= <IN>;
+	}
 	if ($state == 0) {
 	    if (/$doc_start/o) {
 		$state = 1;		# next line is always the function name
@@ -2073,7 +2089,7 @@ sub process_file($) {
 		    $descr= $1;
 		    $descr =~ s/^\s*//;
 		    $descr =~ s/\s*$//;
-		    $descr =~ s/\s+/ /;
+		    $descr =~ s/\s+/ /g;
 		    $declaration_purpose = xml_escape($descr);
 		    $in_purpose = 1;
 		} else {
@@ -2165,6 +2181,7 @@ sub process_file($) {
 		    # Continued declaration purpose
 		    chomp($declaration_purpose);
 		    $declaration_purpose .= " " . xml_escape($1);
+		    $declaration_purpose =~ s/\s+/ /g;
 		} else {
 		    $contents .= $1 . "\n";
 		}

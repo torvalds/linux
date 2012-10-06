@@ -1487,6 +1487,7 @@ static const char *ata_err_string(unsigned int err_mask)
 /**
  *	ata_read_log_page - read a specific log page
  *	@dev: target device
+ *	@log: log to read
  *	@page: page to read
  *	@buf: buffer to store read page
  *	@sectors: number of sectors to read
@@ -1499,17 +1500,18 @@ static const char *ata_err_string(unsigned int err_mask)
  *	RETURNS:
  *	0 on success, AC_ERR_* mask otherwise.
  */
-static unsigned int ata_read_log_page(struct ata_device *dev,
-				      u8 page, void *buf, unsigned int sectors)
+unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
+			       u8 page, void *buf, unsigned int sectors)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
 
-	DPRINTK("read log page - page %d\n", page);
+	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
 
 	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_READ_LOG_EXT;
-	tf.lbal = page;
+	tf.lbal = log;
+	tf.lbam = page;
 	tf.nsect = sectors;
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
@@ -1545,7 +1547,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	u8 csum;
 	int i;
 
-	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, buf, 1);
+	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, 0, buf, 1);
 	if (err_mask)
 		return -EIO;
 
@@ -2623,6 +2625,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	 */
 	while (ata_eh_reset_timeouts[max_tries] != ULONG_MAX)
 		max_tries++;
+	if (link->flags & ATA_LFLAG_RST_ONCE)
+		max_tries = 1;
 	if (link->flags & ATA_LFLAG_NO_HRST)
 		hardreset = NULL;
 	if (link->flags & ATA_LFLAG_NO_SRST)

@@ -314,8 +314,9 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset,
-				pages, true);
+	err = gnttab_unmap_refs(map->unmap_ops + offset,
+			use_ptemod ? map->kmap_ops + offset : NULL, map->pages + offset,
+			pages);
 	if (err)
 		return err;
 
@@ -445,7 +446,7 @@ static void mn_release(struct mmu_notifier *mn,
 	spin_unlock(&priv->lock);
 }
 
-struct mmu_notifier_ops gntdev_mmu_ops = {
+static struct mmu_notifier_ops gntdev_mmu_ops = {
 	.release                = mn_release,
 	.invalidate_page        = mn_invl_page,
 	.invalidate_range_start = mn_invl_range_start,

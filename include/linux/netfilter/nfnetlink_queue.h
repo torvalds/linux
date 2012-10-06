@@ -44,6 +44,7 @@ enum nfqnl_attr_type {
 	NFQA_PAYLOAD,			/* opaque data payload */
 	NFQA_CT,			/* nf_conntrack_netlink.h */
 	NFQA_CT_INFO,			/* enum ip_conntrack_info */
+	NFQA_CAP_LEN,			/* __u32 length of captured packet */
 
 	__NFQA_MAX
 };

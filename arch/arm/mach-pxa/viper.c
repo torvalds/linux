@@ -48,9 +48,9 @@
 
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/regs-uart.h>
-#include <mach/arcom-pcmcia.h>
+#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
 #include <mach/viper.h>
 
 #include <asm/setup.h>

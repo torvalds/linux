@@ -373,13 +373,15 @@ static int tomoyo_path_chmod(struct path *path, umode_t mode)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
+static int tomoyo_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 {
 	int error = 0;
-	if (uid != (uid_t) -1)
-		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHOWN, path, uid);
-	if (!error && gid != (gid_t) -1)
-		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHGRP, path, gid);
+	if (uid_valid(uid))
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHOWN, path,
+						from_kuid(&init_user_ns, uid));
+	if (!error && gid_valid(gid))
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHGRP, path,
+						from_kgid(&init_user_ns, gid));
 	return error;
 }
 

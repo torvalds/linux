@@ -91,7 +91,7 @@ define_machine(p5020_ds) {
 #endif
 };
 
-machine_device_initcall(p5020_ds, corenet_ds_publish_devices);
+machine_arch_initcall(p5020_ds, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(p5020_ds, swiotlb_setup_bus_notifier);

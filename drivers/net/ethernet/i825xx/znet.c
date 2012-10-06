@@ -139,8 +139,11 @@ struct znet_private {
 /* Only one can be built-in;-> */
 static struct net_device *znet_dev;
 
+#define NETIDBLK_MAGIC		"NETIDBLK"
+#define NETIDBLK_MAGIC_SIZE	8
+
 struct netidblk {
-	char magic[8];		/* The magic number (string) "NETIDBLK" */
+	char magic[NETIDBLK_MAGIC_SIZE];	/* The magic number (string) "NETIDBLK" */
 	unsigned char netid[8]; /* The physical station address */
 	char nettype, globalopt;
 	char vendor[8];		/* The machine vendor and product name. */
@@ -373,14 +376,16 @@ static int __init znet_probe (void)
 	struct znet_private *znet;
 	struct net_device *dev;
 	char *p;
+	char *plast = phys_to_virt(0x100000 - NETIDBLK_MAGIC_SIZE);
 	int err = -ENOMEM;
 
 	/* This code scans the region 0xf0000 to 0xfffff for a "NETIDBLK". */
-	for(p = (char *)phys_to_virt(0xf0000); p < (char *)phys_to_virt(0x100000); p++)
-		if (*p == 'N'  &&  strncmp(p, "NETIDBLK", 8) == 0)
+	for(p = (char *)phys_to_virt(0xf0000); p <= plast; p++)
+		if (*p == 'N' &&
+		    strncmp(p, NETIDBLK_MAGIC, NETIDBLK_MAGIC_SIZE) == 0)
 			break;
 
-	if (p >= (char *)phys_to_virt(0x100000)) {
+	if (p > plast) {
 		if (znet_debug > 1)
 			printk(KERN_INFO "No Z-Note ethernet adaptor found.\n");
 		return -ENODEV;
@@ -860,14 +865,14 @@ static void hardware_init(struct net_device *dev)
 	disable_dma(znet->rx_dma); 		/* reset by an interrupting task. */
 	clear_dma_ff(znet->rx_dma);
 	set_dma_mode(znet->rx_dma, DMA_RX_MODE);
-	set_dma_addr(znet->rx_dma, (unsigned int) znet->rx_start);
+	set_dma_addr(znet->rx_dma, isa_virt_to_bus(znet->rx_start));
 	set_dma_count(znet->rx_dma, RX_BUF_SIZE);
 	enable_dma(znet->rx_dma);
 	/* Now set up the Tx channel. */
 	disable_dma(znet->tx_dma);
 	clear_dma_ff(znet->tx_dma);
 	set_dma_mode(znet->tx_dma, DMA_TX_MODE);
-	set_dma_addr(znet->tx_dma, (unsigned int) znet->tx_start);
+	set_dma_addr(znet->tx_dma, isa_virt_to_bus(znet->tx_start));
 	set_dma_count(znet->tx_dma, znet->tx_buf_len<<1);
 	enable_dma(znet->tx_dma);
 	release_dma_lock(flags);

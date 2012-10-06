@@ -1,7 +1,7 @@
 /*
  * sht15.c - support for the SHT15 Temperature and Humidity Sensor
  *
- * Portions Copyright (c) 2010-2011 Savoir-faire Linux Inc.
+ * Portions Copyright (c) 2010-2012 Savoir-faire Linux Inc.
  *          Jerome Oufella <jerome.oufella@savoirfairelinux.com>
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
@@ -24,12 +24,12 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/mutex.h>
+#include <linux/platform_data/sht15.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
-#include <linux/sht15.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
@@ -52,6 +52,9 @@
 #define SHT15_STATUS_NO_OTP_RELOAD	0x02
 #define SHT15_STATUS_HEATER		0x04
 #define SHT15_STATUS_LOW_BATTERY	0x40
+
+/* List of supported chips */
+enum sht15_chips { sht10, sht11, sht15, sht71, sht75 };
 
 /* Actions the driver may be doing */
 enum sht15_state {
@@ -884,14 +887,12 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 static int __devinit sht15_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct sht15_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
+	struct sht15_data *data;
 	u8 status = 0;
 
-	if (!data) {
-		ret = -ENOMEM;
-		dev_err(&pdev->dev, "kzalloc failed\n");
-		goto error_ret;
-	}
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	INIT_WORK(&data->read_work, sht15_bh_read_data);
 	INIT_WORK(&data->update_supply_work, sht15_update_voltage);
@@ -901,9 +902,8 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 	init_waitqueue_head(&data->wait_queue);
 
 	if (pdev->dev.platform_data == NULL) {
-		ret = -EINVAL;
 		dev_err(&pdev->dev, "no platform data supplied\n");
-		goto err_free_data;
+		return -EINVAL;
 	}
 	data->pdata = pdev->dev.platform_data;
 	data->supply_uV = data->pdata->supply_mv * 1000;
@@ -918,7 +918,7 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 	 * If a regulator is available,
 	 * query what the supply voltage actually is!
 	 */
-	data->reg = regulator_get(data->dev, "vcc");
+	data->reg = devm_regulator_get(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
 		int voltage;
 
@@ -937,51 +937,51 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"regulator notifier request failed\n");
 			regulator_disable(data->reg);
-			regulator_put(data->reg);
-			goto err_free_data;
+			return ret;
 		}
 	}
 
 	/* Try requesting the GPIOs */
-	ret = gpio_request(data->pdata->gpio_sck, "SHT15 sck");
+	ret = devm_gpio_request(&pdev->dev, data->pdata->gpio_sck, "SHT15 sck");
 	if (ret) {
 		dev_err(&pdev->dev, "gpio request failed\n");
 		goto err_release_reg;
 	}
 	gpio_direction_output(data->pdata->gpio_sck, 0);
 
-	ret = gpio_request(data->pdata->gpio_data, "SHT15 data");
+	ret = devm_gpio_request(&pdev->dev, data->pdata->gpio_data,
+				"SHT15 data");
 	if (ret) {
 		dev_err(&pdev->dev, "gpio request failed\n");
-		goto err_release_gpio_sck;
+		goto err_release_reg;
 	}
 
-	ret = request_irq(gpio_to_irq(data->pdata->gpio_data),
-			  sht15_interrupt_fired,
-			  IRQF_TRIGGER_FALLING,
-			  "sht15 data",
-			  data);
+	ret = devm_request_irq(&pdev->dev, gpio_to_irq(data->pdata->gpio_data),
+			       sht15_interrupt_fired,
+			       IRQF_TRIGGER_FALLING,
+			       "sht15 data",
+			       data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get irq for data line\n");
-		goto err_release_gpio_data;
+		goto err_release_reg;
 	}
 	disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
 	sht15_connection_reset(data);
 	ret = sht15_soft_reset(data);
 	if (ret)
-		goto err_release_irq;
+		goto err_release_reg;
 
 	/* write status with platform data options */
 	if (status) {
 		ret = sht15_send_status(data, status);
 		if (ret)
-			goto err_release_irq;
+			goto err_release_reg;
 	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &sht15_attr_group);
 	if (ret) {
 		dev_err(&pdev->dev, "sysfs create failed\n");
-		goto err_release_irq;
+		goto err_release_reg;
 	}
 
 	data->hwmon_dev = hwmon_device_register(data->dev);
@@ -994,21 +994,11 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 
 err_release_sysfs_group:
 	sysfs_remove_group(&pdev->dev.kobj, &sht15_attr_group);
-err_release_irq:
-	free_irq(gpio_to_irq(data->pdata->gpio_data), data);
-err_release_gpio_data:
-	gpio_free(data->pdata->gpio_data);
-err_release_gpio_sck:
-	gpio_free(data->pdata->gpio_sck);
 err_release_reg:
 	if (!IS_ERR(data->reg)) {
 		regulator_unregister_notifier(data->reg, &data->nb);
 		regulator_disable(data->reg);
-		regulator_put(data->reg);
 	}
-err_free_data:
-	kfree(data);
-error_ret:
 	return ret;
 }
 
@@ -1030,89 +1020,33 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 	if (!IS_ERR(data->reg)) {
 		regulator_unregister_notifier(data->reg, &data->nb);
 		regulator_disable(data->reg);
-		regulator_put(data->reg);
 	}
 
-	free_irq(gpio_to_irq(data->pdata->gpio_data), data);
-	gpio_free(data->pdata->gpio_data);
-	gpio_free(data->pdata->gpio_sck);
 	mutex_unlock(&data->read_lock);
-	kfree(data);
 
 	return 0;
 }
 
-/*
- * sht_drivers simultaneously refers to __devinit and __devexit function
- * which causes spurious section mismatch warning. So use __refdata to
- * get rid from this.
- */
-static struct platform_driver __refdata sht_drivers[] = {
-	{
-		.driver = {
-			.name = "sht10",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht11",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht15",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht71",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht75",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	},
+static struct platform_device_id sht15_device_ids[] = {
+	{ "sht10", sht10 },
+	{ "sht11", sht11 },
+	{ "sht15", sht15 },
+	{ "sht71", sht71 },
+	{ "sht75", sht75 },
+	{ }
 };
+MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 
-static int __init sht15_init(void)
-{
-	int ret;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(sht_drivers); i++) {
-		ret = platform_driver_register(&sht_drivers[i]);
-		if (ret)
-			goto error_unreg;
-	}
-
-	return 0;
-
-error_unreg:
-	while (--i >= 0)
-		platform_driver_unregister(&sht_drivers[i]);
-
-	return ret;
-}
-module_init(sht15_init);
-
-static void __exit sht15_exit(void)
-{
-	int i;
-	for (i = ARRAY_SIZE(sht_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(&sht_drivers[i]);
-}
-module_exit(sht15_exit);
+static struct platform_driver sht15_driver = {
+	.driver = {
+		.name = "sht15",
+		.owner = THIS_MODULE,
+	},
+	.probe = sht15_probe,
+	.remove = __devexit_p(sht15_remove),
+	.id_table = sht15_device_ids,
+};
+module_platform_driver(sht15_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Sensirion SHT15 temperature and humidity sensor driver");

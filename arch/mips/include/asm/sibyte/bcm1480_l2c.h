@@ -33,7 +33,7 @@
 #ifndef _BCM1480_L2C_H
 #define _BCM1480_L2C_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*
  * Format of level 2 cache management address (Table 55)

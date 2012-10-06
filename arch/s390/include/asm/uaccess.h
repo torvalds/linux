@@ -76,8 +76,21 @@ static inline int __range_ok(unsigned long addr, unsigned long size)
 
 struct exception_table_entry
 {
-        unsigned long insn, fixup;
+	int insn, fixup;
 };
+
+static inline unsigned long extable_insn(const struct exception_table_entry *x)
+{
+	return (unsigned long)&x->insn + x->insn;
+}
+
+static inline unsigned long extable_fixup(const struct exception_table_entry *x)
+{
+	return (unsigned long)&x->fixup + x->fixup;
+}
+
+#define ARCH_HAS_SORT_EXTABLE
+#define ARCH_HAS_SEARCH_EXTABLE
 
 struct uaccess_ops {
 	size_t (*copy_from_user)(size_t, const void __user *, void *);

@@ -49,6 +49,7 @@ enum {
 	IP_VS_RT_MODE_RDR	= 4, /* Allow redirect from remote daddr to
 				      * local
 				      */
+	IP_VS_RT_MODE_CONNECT	= 8, /* Always bind route to saddr */
 };
 
 /*
@@ -84,6 +85,58 @@ __ip_vs_dst_check(struct ip_vs_dest *dest, u32 rtos)
 	return dst;
 }
 
+static inline bool
+__mtu_check_toobig_v6(const struct sk_buff *skb, u32 mtu)
+{
+	if (IP6CB(skb)->frag_max_size) {
+		/* frag_max_size tell us that, this packet have been
+		 * defragmented by netfilter IPv6 conntrack module.
+		 */
+		if (IP6CB(skb)->frag_max_size > mtu)
+			return true; /* largest fragment violate MTU */
+	}
+	else if (skb->len > mtu && !skb_is_gso(skb)) {
+		return true; /* Packet size violate MTU size */
+	}
+	return false;
+}
+
+/* Get route to daddr, update *saddr, optionally bind route to saddr */
+static struct rtable *do_output_route4(struct net *net, __be32 daddr,
+				       u32 rtos, int rt_mode, __be32 *saddr)
+{
+	struct flowi4 fl4;
+	struct rtable *rt;
+	int loop = 0;
+
+	memset(&fl4, 0, sizeof(fl4));
+	fl4.daddr = daddr;
+	fl4.saddr = (rt_mode & IP_VS_RT_MODE_CONNECT) ? *saddr : 0;
+	fl4.flowi4_tos = rtos;
+
+retry:
+	rt = ip_route_output_key(net, &fl4);
+	if (IS_ERR(rt)) {
+		/* Invalid saddr ? */
+		if (PTR_ERR(rt) == -EINVAL && *saddr &&
+		    rt_mode & IP_VS_RT_MODE_CONNECT && !loop) {
+			*saddr = 0;
+			flowi4_update_output(&fl4, 0, rtos, daddr, 0);
+			goto retry;
+		}
+		IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n", &daddr);
+		return NULL;
+	} else if (!*saddr && rt_mode & IP_VS_RT_MODE_CONNECT && fl4.saddr) {
+		ip_rt_put(rt);
+		*saddr = fl4.saddr;
+		flowi4_update_output(&fl4, 0, rtos, daddr, fl4.saddr);
+		loop++;
+		goto retry;
+	}
+	*saddr = fl4.saddr;
+	return rt;
+}
+
 /* Get route to destination or remote server */
 static struct rtable *
 __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
@@ -98,20 +151,13 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		spin_lock(&dest->dst_lock);
 		if (!(rt = (struct rtable *)
 		      __ip_vs_dst_check(dest, rtos))) {
-			struct flowi4 fl4;
-
-			memset(&fl4, 0, sizeof(fl4));
-			fl4.daddr = dest->addr.ip;
-			fl4.flowi4_tos = rtos;
-			rt = ip_route_output_key(net, &fl4);
-			if (IS_ERR(rt)) {
+			rt = do_output_route4(net, dest->addr.ip, rtos,
+					      rt_mode, &dest->dst_saddr.ip);
+			if (!rt) {
 				spin_unlock(&dest->dst_lock);
-				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
-					     &dest->addr.ip);
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, rtos, dst_clone(&rt->dst), 0);
-			dest->dst_saddr.ip = fl4.saddr;
 			IP_VS_DBG(10, "new dst %pI4, src %pI4, refcnt=%d, "
 				  "rtos=%X\n",
 				  &dest->addr.ip, &dest->dst_saddr.ip,
@@ -122,19 +168,17 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 			*ret_saddr = dest->dst_saddr.ip;
 		spin_unlock(&dest->dst_lock);
 	} else {
-		struct flowi4 fl4;
+		__be32 saddr = htonl(INADDR_ANY);
 
-		memset(&fl4, 0, sizeof(fl4));
-		fl4.daddr = daddr;
-		fl4.flowi4_tos = rtos;
-		rt = ip_route_output_key(net, &fl4);
-		if (IS_ERR(rt)) {
-			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
-				     &daddr);
+		/* For such unconfigured boxes avoid many route lookups
+		 * for performance reasons because we do not remember saddr
+		 */
+		rt_mode &= ~IP_VS_RT_MODE_CONNECT;
+		rt = do_output_route4(net, daddr, rtos, rt_mode, &saddr);
+		if (!rt)
 			return NULL;
-		}
 		if (ret_saddr)
-			*ret_saddr = fl4.saddr;
+			*ret_saddr = saddr;
 	}
 
 	local = rt->rt_flags & RTCF_LOCAL;
@@ -331,6 +375,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 	old_dst = dest->dst_cache;
 	dest->dst_cache = NULL;
 	dst_release(old_dst);
+	dest->dst_saddr.ip = 0;
 }
 
 #define IP_VS_XMIT_TUNNEL(skb, cp)				\
@@ -462,7 +507,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu && !skb_is_gso(skb)) {
+	if (__mtu_check_toobig_v6(skb, mtu)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -683,7 +728,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu && !skb_is_gso(skb)) {
+	if (__mtu_check_toobig_v6(skb, mtu)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -766,12 +811,13 @@ int
 ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		  struct ip_vs_protocol *pp)
 {
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 	struct rtable *rt;			/* Route to the other host */
 	__be32 saddr;				/* Source for tunnel */
 	struct net_device *tdev;		/* Device to other host */
 	struct iphdr  *old_iph = ip_hdr(skb);
 	u8     tos = old_iph->tos;
-	__be16 df = old_iph->frag_off;
+	__be16 df;
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	int    mtu;
@@ -781,7 +827,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
 				      RT_TOS(tos), IP_VS_RT_MODE_LOCAL |
-						   IP_VS_RT_MODE_NON_LOCAL,
+						   IP_VS_RT_MODE_NON_LOCAL |
+						   IP_VS_RT_MODE_CONNECT,
 						   &saddr)))
 		goto tx_error_icmp;
 	if (rt->rt_flags & RTCF_LOCAL) {
@@ -796,13 +843,13 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		IP_VS_DBG_RL("%s(): mtu less than 68\n", __func__);
 		goto tx_error_put;
 	}
-	if (skb_dst(skb))
+	if (rt_is_output_route(skb_rtable(skb)))
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
-	df |= (old_iph->frag_off & htons(IP_DF));
+	/* Copy DF, reset fragment offset and MF */
+	df = sysctl_pmtu_disc(ipvs) ? old_iph->frag_off & htons(IP_DF) : 0;
 
-	if ((old_iph->frag_off & htons(IP_DF) &&
-	    mtu < ntohs(old_iph->tot_len) && !skb_is_gso(skb))) {
+	if (df && mtu < ntohs(old_iph->tot_len) && !skb_is_gso(skb)) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
@@ -915,8 +962,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (skb_dst(skb))
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
-	if (mtu < ntohs(old_iph->payload_len) + sizeof(struct ipv6hdr) &&
-	    !skb_is_gso(skb)) {
+	/* MTU checking: Notice that 'mtu' have been adjusted before hand */
+	if (__mtu_check_toobig_v6(skb, mtu)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -1082,7 +1129,7 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu) {
+	if (__mtu_check_toobig_v6(skb, mtu)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -1318,7 +1365,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu && !skb_is_gso(skb)) {
+	if (__mtu_check_toobig_v6(skb, mtu)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 

@@ -224,8 +224,8 @@ vxfs_iinit(struct inode *ip, struct vxfs_inode_info *vip)
 {
 
 	ip->i_mode = vxfs_transmod(vip);
-	ip->i_uid = (uid_t)vip->vii_uid;
-	ip->i_gid = (gid_t)vip->vii_gid;
+	i_uid_write(ip, (uid_t)vip->vii_uid);
+	i_gid_write(ip, (gid_t)vip->vii_gid);
 
 	set_nlink(ip, vip->vii_nlink);
 	ip->i_size = vip->vii_size;

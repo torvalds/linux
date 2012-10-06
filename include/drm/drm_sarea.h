@@ -32,11 +32,13 @@
 #ifndef _DRM_SAREA_H_
 #define _DRM_SAREA_H_
 
-#include "drm.h"
+#include <drm/drm.h>
 
 /* SAREA area needs to be at least a page */
 #if defined(__alpha__)
 #define SAREA_MAX                       0x2000U
+#elif defined(__mips__)
+#define SAREA_MAX                       0x4000U
 #elif defined(__ia64__)
 #define SAREA_MAX                       0x10000U	/* 64kB */
 #else

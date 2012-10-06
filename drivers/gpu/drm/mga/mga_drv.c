@@ -31,12 +31,11 @@
 
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "mga_drm.h"
+#include <drm/drmP.h>
+#include <drm/mga_drm.h>
 #include "mga_drv.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 
 static int mga_driver_device_is_agp(struct drm_device *dev);
 

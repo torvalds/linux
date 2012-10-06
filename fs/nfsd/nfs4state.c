@@ -2837,8 +2837,7 @@ static int nfs4_setlease(struct nfs4_delegation *dp, int flag)
 		return -ENOMEM;
 	}
 	fp->fi_lease = fl;
-	fp->fi_deleg_file = fl->fl_file;
-	get_file(fp->fi_deleg_file);
+	fp->fi_deleg_file = get_file(fl->fl_file);
 	atomic_set(&fp->fi_delegees, 1);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	return 0;

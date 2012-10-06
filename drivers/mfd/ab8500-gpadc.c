@@ -342,7 +342,7 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 
 		 /*
 		  * Delay might be needed for ABB8500 cut 3.0, if not, remove
-		  * when hardware will be availible
+		  * when hardware will be available
 		  */
 			msleep(1);
 			break;

@@ -1204,31 +1204,31 @@ static void armv7pmu_reset(void *info)
 
 static int armv7_a8_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a8_perf_map,
+	return armpmu_map_event(event, &armv7_a8_perf_map,
 				&armv7_a8_perf_cache_map, 0xFF);
 }
 
 static int armv7_a9_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a9_perf_map,
+	return armpmu_map_event(event, &armv7_a9_perf_map,
 				&armv7_a9_perf_cache_map, 0xFF);
 }
 
 static int armv7_a5_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a5_perf_map,
+	return armpmu_map_event(event, &armv7_a5_perf_map,
 				&armv7_a5_perf_cache_map, 0xFF);
 }
 
 static int armv7_a15_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a15_perf_map,
+	return armpmu_map_event(event, &armv7_a15_perf_map,
 				&armv7_a15_perf_cache_map, 0xFF);
 }
 
 static int armv7_a7_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a7_perf_map,
+	return armpmu_map_event(event, &armv7_a7_perf_map,
 				&armv7_a7_perf_cache_map, 0xFF);
 }
 
@@ -1245,7 +1245,7 @@ static struct arm_pmu armv7pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-static u32 __init armv7_read_num_pmnc_events(void)
+static u32 __devinit armv7_read_num_pmnc_events(void)
 {
 	u32 nb_cnt;
 
@@ -1256,7 +1256,7 @@ static u32 __init armv7_read_num_pmnc_events(void)
 	return nb_cnt + 1;
 }
 
-static struct arm_pmu *__init armv7_a8_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a8_pmu_init(void)
 {
 	armv7pmu.name		= "ARMv7 Cortex-A8";
 	armv7pmu.map_event	= armv7_a8_map_event;
@@ -1264,7 +1264,7 @@ static struct arm_pmu *__init armv7_a8_pmu_init(void)
 	return &armv7pmu;
 }
 
-static struct arm_pmu *__init armv7_a9_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a9_pmu_init(void)
 {
 	armv7pmu.name		= "ARMv7 Cortex-A9";
 	armv7pmu.map_event	= armv7_a9_map_event;
@@ -1272,7 +1272,7 @@ static struct arm_pmu *__init armv7_a9_pmu_init(void)
 	return &armv7pmu;
 }
 
-static struct arm_pmu *__init armv7_a5_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a5_pmu_init(void)
 {
 	armv7pmu.name		= "ARMv7 Cortex-A5";
 	armv7pmu.map_event	= armv7_a5_map_event;
@@ -1280,7 +1280,7 @@ static struct arm_pmu *__init armv7_a5_pmu_init(void)
 	return &armv7pmu;
 }
 
-static struct arm_pmu *__init armv7_a15_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a15_pmu_init(void)
 {
 	armv7pmu.name		= "ARMv7 Cortex-A15";
 	armv7pmu.map_event	= armv7_a15_map_event;
@@ -1289,7 +1289,7 @@ static struct arm_pmu *__init armv7_a15_pmu_init(void)
 	return &armv7pmu;
 }
 
-static struct arm_pmu *__init armv7_a7_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a7_pmu_init(void)
 {
 	armv7pmu.name		= "ARMv7 Cortex-A7";
 	armv7pmu.map_event	= armv7_a7_map_event;
@@ -1298,27 +1298,27 @@ static struct arm_pmu *__init armv7_a7_pmu_init(void)
 	return &armv7pmu;
 }
 #else
-static struct arm_pmu *__init armv7_a8_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a8_pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init armv7_a9_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a9_pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init armv7_a5_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a5_pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init armv7_a15_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a15_pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init armv7_a7_pmu_init(void)
+static struct arm_pmu *__devinit armv7_a7_pmu_init(void)
 {
 	return NULL;
 }

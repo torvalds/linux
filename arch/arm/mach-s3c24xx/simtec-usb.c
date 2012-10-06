@@ -34,7 +34,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <plat/usb-control.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/devs.h>
 
 #include "simtec.h"

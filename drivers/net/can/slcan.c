@@ -56,7 +56,7 @@
 #include <linux/kernel.h>
 #include <linux/can.h>
 
-static __initdata const char banner[] =
+static __initconst const char banner[] =
 	KERN_INFO "slcan: serial line CAN interface driver\n";
 
 MODULE_ALIAS_LDISC(N_SLCAN);

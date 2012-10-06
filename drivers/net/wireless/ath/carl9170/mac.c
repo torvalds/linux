@@ -304,7 +304,8 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 	struct ath_common *common = &ar->common;
 	u8 *mac_addr, *bssid;
 	u32 cam_mode = AR9170_MAC_CAM_DEFAULTS;
-	u32 enc_mode = AR9170_MAC_ENCRYPTION_DEFAULTS;
+	u32 enc_mode = AR9170_MAC_ENCRYPTION_DEFAULTS |
+		AR9170_MAC_ENCRYPTION_MGMT_RX_SOFTWARE;
 	u32 rx_ctrl = AR9170_MAC_RX_CTRL_DEAGG |
 		      AR9170_MAC_RX_CTRL_SHORT_FILTER;
 	u32 sniffer = AR9170_MAC_SNIFFER_DEFAULTS;
@@ -318,10 +319,10 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 		bssid = common->curbssid;
 
 		switch (vif->type) {
-		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_ADHOC:
 			cam_mode |= AR9170_MAC_CAM_IBSS;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			cam_mode |= AR9170_MAC_CAM_AP;
 

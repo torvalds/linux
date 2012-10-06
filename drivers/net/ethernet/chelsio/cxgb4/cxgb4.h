@@ -43,6 +43,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/vmalloc.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 #include "t4_hw.h"
@@ -67,12 +68,12 @@ enum {
 };
 
 enum {
-	MEMWIN0_APERTURE = 65536,
-	MEMWIN0_BASE     = 0x30000,
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
 	MEMWIN1_APERTURE = 32768,
 	MEMWIN1_BASE     = 0x28000,
-	MEMWIN2_APERTURE = 2048,
-	MEMWIN2_BASE     = 0x1b800,
+	MEMWIN2_APERTURE = 65536,
+	MEMWIN2_BASE     = 0x30000,
 };
 
 enum dev_master {
@@ -211,6 +212,9 @@ struct tp_err_stats {
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
+
+	uint32_t dack_re;            /* DACK timer resolution */
+	unsigned short tx_modq[NCHAN];	/* channel to modulation queue map */
 };
 
 struct vpd_params {
@@ -315,6 +319,10 @@ enum {                                 /* adapter flags */
 	USING_MSI          = (1 << 1),
 	USING_MSIX         = (1 << 2),
 	FW_OK              = (1 << 4),
+	RSS_TNLALLLOOKUP   = (1 << 5),
+	USING_SOFT_PARAMS  = (1 << 6),
+	MASTER_PF          = (1 << 7),
+	FW_OFLD_CONN       = (1 << 9),
 };
 
 struct rx_sw_desc;
@@ -467,6 +475,11 @@ struct sge {
 	u16 rdma_rxq[NCHAN];
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
+	u32 fl_pg_order;            /* large page allocation size */
+	u32 stat_len;               /* length of status page at ring end */
+	u32 pktshift;               /* padding between CPL & packet data */
+	u32 fl_align;               /* response queue message alignment */
+	u32 fl_starve_thres;        /* Free List starvation threshold */
 	unsigned int starve_thres;
 	u8 idma_state[2];
 	unsigned int egr_start;
@@ -511,6 +524,8 @@ struct adapter {
 	struct net_device *port[MAX_NPORTS];
 	u8 chan_map[NCHAN];                   /* channel -> port map */
 
+	unsigned int l2t_start;
+	unsigned int l2t_end;
 	struct l2t_data *l2t;
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
@@ -619,7 +634,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 			  struct net_device *dev, unsigned int iqid);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
-void t4_sge_init(struct adapter *adap);
+int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 extern int dbfifo_int_thresh;
@@ -636,6 +651,14 @@ static inline unsigned int us_to_core_ticks(const struct adapter *adap,
 					    unsigned int us)
 {
 	return (us * adap->params.vpd.cclk) / 1000;
+}
+
+static inline unsigned int core_ticks_to_us(const struct adapter *adapter,
+					    unsigned int ticks)
+{
+	/* add Core Clock / 2 to round ticks to nearest uS */
+	return ((ticks * 1000 + adapter->params.vpd.cclk/2) /
+		adapter->params.vpd.cclk);
 }
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask,
@@ -656,6 +679,9 @@ static inline int t4_wr_mbox_ns(struct adapter *adap, int mbox, const void *cmd,
 	return t4_wr_mbox_meat(adap, mbox, cmd, size, rpl, false);
 }
 
+void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
+		       unsigned int data_reg, const u32 *vals,
+		       unsigned int nregs, unsigned int start_idx);
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
@@ -664,8 +690,12 @@ int t4_wait_dev_ready(struct adapter *adap);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
+int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
+		    __be32 *buf);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
+int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
@@ -680,6 +710,8 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
+void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
+			    unsigned int mask, unsigned int val);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
@@ -695,6 +727,16 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 int t4_fw_bye(struct adapter *adap, unsigned int mbox);
 int t4_early_init(struct adapter *adap, unsigned int mbox);
 int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force);
+int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force);
+int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
+		      unsigned int mtype, unsigned int maddr,
+		      u32 *finiver, u32 *finicsum, u32 *cfcsum);
+int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
+			  unsigned int cache_line_size);
+int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);

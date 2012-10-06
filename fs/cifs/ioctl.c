@@ -28,8 +28,6 @@
 #include "cifs_debug.h"
 #include "cifsfs.h"
 
-#define CIFS_IOC_CHECKUMOUNT _IO(0xCF, 2)
-
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = filep->f_dentry->d_inode;
@@ -51,23 +49,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	cifs_sb = CIFS_SB(inode->i_sb);
 
 	switch (command) {
-		static bool warned = false;
-		case CIFS_IOC_CHECKUMOUNT:
-			if (!warned) {
-				warned = true;
-				cERROR(1, "the CIFS_IOC_CHECKMOUNT ioctl will "
-					  "be deprecated in 3.7. Please "
-					  "migrate away from the use of "
-					  "umount.cifs");
-			}
-			cFYI(1, "User unmount attempted");
-			if (cifs_sb->mnt_uid == current_uid())
-				rc = 0;
-			else {
-				rc = -EACCES;
-				cFYI(1, "uids do not match");
-			}
-			break;
 #ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
 			if (pSMBFile == NULL)
@@ -75,8 +56,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			tcon = tlink_tcon(pSMBFile->tlink);
 			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
-					&ExtAttrBits, &ExtAttrMask);
+				rc = CIFSGetExtAttr(xid, tcon,
+						    pSMBFile->fid.netfid,
+						    &ExtAttrBits, &ExtAttrMask);
 				if (rc == 0)
 					rc = put_user(ExtAttrBits &
 						FS_FL_USER_VISIBLE,
@@ -94,8 +76,12 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 					rc = -EFAULT;
 					break;
 				}
-				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
-					extAttrBits, &ExtAttrMask);*/
+				/*
+				 * rc = CIFSGetExtAttr(xid, tcon,
+				 *		       pSMBFile->fid.netfid,
+				 *		       extAttrBits,
+				 *		       &ExtAttrMask);
+				 */
 			}
 			cFYI(1, "set flags not implemented yet");
 			break;

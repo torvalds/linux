@@ -273,10 +273,9 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
 		    struct qib_msix_entry *entry)
 {
 	u16 linkstat, speed;
-	int pos = 0, pose, ret = 1;
+	int pos = 0, ret = 1;
 
-	pose = pci_pcie_cap(dd->pcidev);
-	if (!pose) {
+	if (!pci_is_pcie(dd->pcidev)) {
 		qib_dev_err(dd, "Can't find PCI Express capability!\n");
 		/* set up something... */
 		dd->lbus_width = 1;
@@ -298,7 +297,7 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
 	if (!pos)
 		qib_enable_intx(dd->pcidev);
 
-	pci_read_config_word(dd->pcidev, pose + PCI_EXP_LNKSTA, &linkstat);
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKSTA, &linkstat);
 	/*
 	 * speed is bits 0-3, linkwidth is bits 4-8
 	 * no defines for them in headers
@@ -516,7 +515,6 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 {
 	int r;
 	struct pci_dev *parent;
-	int ppos;
 	u16 devid;
 	u32 mask, bits, val;
 
@@ -529,8 +527,7 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 		qib_devinfo(dd->pcidev, "Parent not root\n");
 		return 1;
 	}
-	ppos = pci_pcie_cap(parent);
-	if (!ppos)
+	if (!pci_is_pcie(parent))
 		return 1;
 	if (parent->vendor != 0x8086)
 		return 1;
@@ -587,7 +584,6 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 {
 	int ret = 1; /* Assume the worst */
 	struct pci_dev *parent;
-	int ppos, epos;
 	u16 pcaps, pctl, ecaps, ectl;
 	int rc_sup, ep_sup;
 	int rc_cur, ep_cur;
@@ -598,19 +594,15 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		qib_devinfo(dd->pcidev, "Parent not root\n");
 		goto bail;
 	}
-	ppos = pci_pcie_cap(parent);
-	if (ppos) {
-		pci_read_config_word(parent, ppos + PCI_EXP_DEVCAP, &pcaps);
-		pci_read_config_word(parent, ppos + PCI_EXP_DEVCTL, &pctl);
-	} else
+
+	if (!pci_is_pcie(parent) || !pci_is_pcie(dd->pcidev))
 		goto bail;
+	pcie_capability_read_word(parent, PCI_EXP_DEVCAP, &pcaps);
+	pcie_capability_read_word(parent, PCI_EXP_DEVCTL, &pctl);
 	/* Find out supported and configured values for endpoint (us) */
-	epos = pci_pcie_cap(dd->pcidev);
-	if (epos) {
-		pci_read_config_word(dd->pcidev, epos + PCI_EXP_DEVCAP, &ecaps);
-		pci_read_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, &ectl);
-	} else
-		goto bail;
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCAP, &ecaps);
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &ectl);
+
 	ret = 0;
 	/* Find max payload supported by root, endpoint */
 	rc_sup = fld2val(pcaps, PCI_EXP_DEVCAP_PAYLOAD);
@@ -629,14 +621,14 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		rc_cur = rc_sup;
 		pctl = (pctl & ~PCI_EXP_DEVCTL_PAYLOAD) |
 			val2fld(rc_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pci_write_config_word(parent, ppos + PCI_EXP_DEVCTL, pctl);
+		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
 	}
 	/* If less than (allowed, supported), bump endpoint payload */
 	if (rc_sup > ep_cur) {
 		ep_cur = rc_sup;
 		ectl = (ectl & ~PCI_EXP_DEVCTL_PAYLOAD) |
 			val2fld(ep_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pci_write_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, ectl);
+		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
 	}
 
 	/*
@@ -654,13 +646,13 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		rc_cur = rc_sup;
 		pctl = (pctl & ~PCI_EXP_DEVCTL_READRQ) |
 			val2fld(rc_cur, PCI_EXP_DEVCTL_READRQ);
-		pci_write_config_word(parent, ppos + PCI_EXP_DEVCTL, pctl);
+		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
 	}
 	if (rc_sup > ep_cur) {
 		ep_cur = rc_sup;
 		ectl = (ectl & ~PCI_EXP_DEVCTL_READRQ) |
 			val2fld(ep_cur, PCI_EXP_DEVCTL_READRQ);
-		pci_write_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, ectl);
+		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
 	}
 bail:
 	return ret;
@@ -753,7 +745,7 @@ qib_pci_resume(struct pci_dev *pdev)
 	qib_init(dd, 1); /* same as re-init after reset */
 }
 
-struct pci_error_handlers qib_pci_err_handler = {
+const struct pci_error_handlers qib_pci_err_handler = {
 	.error_detected = qib_pci_error_detected,
 	.mmio_enabled = qib_pci_mmio_enabled,
 	.link_reset = qib_pci_link_reset,

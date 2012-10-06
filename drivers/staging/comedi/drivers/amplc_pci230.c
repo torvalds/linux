@@ -193,6 +193,7 @@ for (or detection of) various hardware problems added by Ian Abbott.
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 #include "8255.h"
 
@@ -958,23 +959,11 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	unsigned int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* Step 1: make sure trigger sources are trivially valid.
-	 * "invalid source" returned by comedilib to user mode process
-	 * if this fails. */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT);
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
+	tmp = TRIG_TIMER | TRIG_INT;
 	if ((thisboard->min_hwver > 0) && (devpriv->hwver >= 2)) {
 		/*
 		 * For PCI230+ hardware version 2 onwards, allow external
@@ -990,46 +979,23 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		 * scan_begin_src==TRIG_EXT support to be a bonus rather than a
 		 * guarantee!
 		 */
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
-	} else {
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT;
+		tmp |= TRIG_EXT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
 
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually compatible
-	 * "source conflict" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1610,75 +1576,45 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	unsigned int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4,5 or 0, depending on which tests
-	 * the command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* Step 1: make sure trigger sources are trivially valid.
-	 * "invalid source" returned by comedilib to user mode process
-	 * if this fails. */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	/* Unfortunately, we cannot trigger a scan off an external source
-	 * on the PCI260 board, since it uses the PPIC0 (DIO) input, which
-	 * isn't present on the PCI260.  For PCI260+ we can use the
-	 * EXTTRIG/EXTCONVCLK input on pin 17 instead. */
+	tmp = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
 	if ((thisboard->have_dio) || (thisboard->min_hwver > 0)) {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
-		    | TRIG_EXT;
-	} else {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
+		/*
+		 * Unfortunately, we cannot trigger a scan off an external
+		 * source on the PCI260 board, since it uses the PPIC0 (DIO)
+		 * input, which isn't present on the PCI260.  For PCI260+
+		 * we can use the EXTTRIG/EXTCONVCLK input on pin 17 instead.
+		 */
+		tmp |= TRIG_EXT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually compatible
-	 * "source conflict" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/* If scan_begin_src is not TRIG_FOLLOW, then a monostable will be
-	 * set up to generate a fixed number of timed conversion pulses. */
+	/* Step 2b : and mutually compatible */
+
+	/*
+	 * If scan_begin_src is not TRIG_FOLLOW, then a monostable will be
+	 * set up to generate a fixed number of timed conversion pulses.
+	 */
 	if ((cmd->scan_begin_src != TRIG_FOLLOW)
 	    && (cmd->convert_src != TRIG_TIMER))
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -2838,7 +2774,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	if (rc)
 		return rc;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
@@ -2855,7 +2791,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 		s->do_cmdtest = &pci230_ai_cmdtest;
 		s->cancel = pci230_ai_cancel;
 	}
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	if (thisboard->ao_chans > 0) {
 		s->type = COMEDI_SUBD_AO;
@@ -2878,7 +2814,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
@@ -2925,6 +2861,13 @@ static int __devinit pci230_attach_pci(struct comedi_device *dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci230_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via pci230_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pci_dev);
 	return pci230_attach_common(dev, pci_dev);
 }
 
@@ -2934,7 +2877,7 @@ static void pci230_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (pcidev) {

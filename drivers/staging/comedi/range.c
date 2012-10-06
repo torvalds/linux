@@ -68,7 +68,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 		return -EINVAL;
 	if (subd >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + subd;
+	s = &dev->subdevices[subd];
 	if (s->range_table) {
 		lr = s->range_table;
 	} else if (s->range_table_list) {
@@ -131,6 +131,7 @@ static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
 int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 			  unsigned int *chanlist)
 {
+	struct comedi_device *dev = s->device;
 	int i;
 	int chan;
 
@@ -139,10 +140,10 @@ int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 			if (CR_CHAN(chanlist[i]) >= s->n_chan ||
 			    CR_RANGE(chanlist[i]) >= s->range_table->length
 			    || aref_invalid(s, chanlist[i])) {
-				printk(KERN_ERR "bad chanlist[%d]=0x%08x "
-				       "in_chan=%d range length=%d\n", i,
-				       chanlist[i], s->n_chan,
-				       s->range_table->length);
+				dev_warn(dev->class_dev,
+					 "bad chanlist[%d]=0x%08x in_chan=%d range length=%d\n",
+					 i, chanlist[i], s->n_chan,
+					 s->range_table->length);
 				return -EINVAL;
 			}
 	} else if (s->range_table_list) {
@@ -152,13 +153,14 @@ int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 			    CR_RANGE(chanlist[i]) >=
 			    s->range_table_list[chan]->length
 			    || aref_invalid(s, chanlist[i])) {
-				printk(KERN_ERR "bad chanlist[%d]=0x%08x\n",
-				       i, chanlist[i]);
+				dev_warn(dev->class_dev,
+					 "bad chanlist[%d]=0x%08x\n",
+					 i, chanlist[i]);
 				return -EINVAL;
 			}
 		}
 	} else {
-		printk(KERN_ERR "comedi: (bug) no range type list!\n");
+		dev_err(dev->class_dev, "(bug) no range type list!\n");
 		return -EINVAL;
 	}
 	return 0;

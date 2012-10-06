@@ -18,6 +18,8 @@
 #include <linux/spinlock.h>
 
 #include "virt-dma.h"
+
+#include <plat/cpu.h>
 #include <plat/dma.h>
 
 struct omap_dmadev {

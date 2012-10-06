@@ -89,7 +89,7 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
             ADD_ONE_WITH_WRAP_AROUND(uIndex, DUPLICATE_RX_CACHE_LENGTH);
         }
     }
-    /* Not fount in cache - insert */
+    /* Not found in cache - insert */
     pCacheEntry = &pCache->asCacheEntry[pCache->uInPtr];
     pCacheEntry->wFmSequence = pMACHeader->wSeqCtl;
     memcpy(&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0]), ETH_ALEN);

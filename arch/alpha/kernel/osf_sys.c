@@ -145,27 +145,24 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 		long __user *, basep)
 {
 	int error;
-	struct file *file;
+	struct fd arg = fdget(fd);
 	struct osf_dirent_callback buf;
 
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
+	if (!arg.file)
+		return -EBADF;
 
 	buf.dirent = dirent;
 	buf.basep = basep;
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, osf_filldir, &buf);
+	error = vfs_readdir(arg.file, osf_filldir, &buf);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
-	fput(file);
- out:
+	fdput(arg);
 	return error;
 }
 
@@ -278,8 +275,8 @@ linux_to_osf_stat(struct kstat *lstat, struct osf_stat __user *osf_stat)
 	tmp.st_dev	= lstat->dev;
 	tmp.st_mode	= lstat->mode;
 	tmp.st_nlink	= lstat->nlink;
-	tmp.st_uid	= lstat->uid;
-	tmp.st_gid	= lstat->gid;
+	tmp.st_uid	= from_kuid_munged(current_user_ns(), lstat->uid);
+	tmp.st_gid	= from_kgid_munged(current_user_ns(), lstat->gid);
 	tmp.st_rdev	= lstat->rdev;
 	tmp.st_ldev	= lstat->rdev;
 	tmp.st_size	= lstat->size;

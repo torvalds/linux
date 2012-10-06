@@ -266,7 +266,7 @@ static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
 
 static int iommu_init_device(struct device *dev)
 {
-	struct pci_dev *dma_pdev, *pdev = to_pci_dev(dev);
+	struct pci_dev *dma_pdev = NULL, *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
 	struct iommu_group *group;
 	u16 alias;
@@ -293,7 +293,9 @@ static int iommu_init_device(struct device *dev)
 		dev_data->alias_data = alias_data;
 
 		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
-	} else
+	}
+
+	if (dma_pdev == NULL)
 		dma_pdev = pci_dev_get(pdev);
 
 	/* Account for quirked devices */

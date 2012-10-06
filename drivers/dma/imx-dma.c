@@ -28,7 +28,7 @@
 #include <linux/module.h>
 
 #include <asm/irq.h>
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx.h>
 #include <mach/hardware.h>
 
 #include "dmaengine.h"
@@ -572,8 +572,8 @@ static void imxdma_tasklet(unsigned long data)
 	if (desc->desc.callback)
 		desc->desc.callback(desc->desc.callback_param);
 
-	/* If we are dealing with a cyclic descriptor keep it on ld_active
-	 * and dont mark the descripor as complete.
+	/* If we are dealing with a cyclic descriptor, keep it on ld_active
+	 * and dont mark the descriptor as complete.
 	 * Only in non-cyclic cases it would be marked as complete
 	 */
 	if (imxdma_chan_is_doing_cyclic(imxdmac))

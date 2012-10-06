@@ -304,7 +304,6 @@ static int vti_err(struct sk_buff *skb, u32 info)
 
 	err = -ENOENT;
 
-	rcu_read_lock();
 	t = vti_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL)
 		goto out;
@@ -326,7 +325,6 @@ static int vti_err(struct sk_buff *skb, u32 info)
 		t->err_count = 1;
 	t->err_time = jiffies;
 out:
-	rcu_read_unlock();
 	return err;
 }
 
@@ -336,7 +334,6 @@ static int vti_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph = ip_hdr(skb);
 
-	rcu_read_lock();
 	tunnel = vti_tunnel_lookup(dev_net(skb->dev), iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
@@ -348,10 +345,8 @@ static int vti_rcv(struct sk_buff *skb)
 		u64_stats_update_end(&tstats->syncp);
 
 		skb->dev = tunnel->dev;
-		rcu_read_unlock();
 		return 1;
 	}
-	rcu_read_unlock();
 
 	return -1;
 }

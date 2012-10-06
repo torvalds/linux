@@ -88,4 +88,18 @@
 #define VERS_MAXTL	_AC(0x000000000000ff00,UL) /* Max Trap Level.	*/
 #define VERS_MAXWIN	_AC(0x000000000000001f,UL) /* Max RegWindow Idx.*/
 
+/* Compatability Feature Register (%asr26), SPARC-T4 and later  */
+#define CFR_AES		_AC(0x0000000000000001,UL) /* Supports AES opcodes     */
+#define CFR_DES		_AC(0x0000000000000002,UL) /* Supports DES opcodes     */
+#define CFR_KASUMI	_AC(0x0000000000000004,UL) /* Supports KASUMI opcodes  */
+#define CFR_CAMELLIA	_AC(0x0000000000000008,UL) /* Supports CAMELLIA opcodes*/
+#define CFR_MD5		_AC(0x0000000000000010,UL) /* Supports MD5 opcodes     */
+#define CFR_SHA1	_AC(0x0000000000000020,UL) /* Supports SHA1 opcodes    */
+#define CFR_SHA256	_AC(0x0000000000000040,UL) /* Supports SHA256 opcodes  */
+#define CFR_SHA512	_AC(0x0000000000000080,UL) /* Supports SHA512 opcodes  */
+#define CFR_MPMUL	_AC(0x0000000000000100,UL) /* Supports MPMUL opcodes   */
+#define CFR_MONTMUL	_AC(0x0000000000000200,UL) /* Supports MONTMUL opcodes */
+#define CFR_MONTSQR	_AC(0x0000000000000400,UL) /* Supports MONTSQR opcodes */
+#define CFR_CRC32C	_AC(0x0000000000000800,UL) /* Supports CRC32C opcodes  */
+
 #endif /* !(_SPARC64_PSTATE_H) */

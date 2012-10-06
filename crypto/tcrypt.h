@@ -47,6 +47,7 @@ static struct cipher_speed_template des3_speed_template[] = {
  */
 static u8 speed_template_8[] = {8, 0};
 static u8 speed_template_24[] = {24, 0};
+static u8 speed_template_8_16[] = {8, 16, 0};
 static u8 speed_template_8_32[] = {8, 32, 0};
 static u8 speed_template_16_32[] = {16, 32, 0};
 static u8 speed_template_16_24_32[] = {16, 24, 32, 0};

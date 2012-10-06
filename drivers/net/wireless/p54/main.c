@@ -139,6 +139,7 @@ static int p54_beacon_format_ie_tim(struct sk_buff *skb)
 static int p54_beacon_update(struct p54_common *priv,
 			struct ieee80211_vif *vif)
 {
+	struct ieee80211_tx_control control = { };
 	struct sk_buff *beacon;
 	int ret;
 
@@ -158,7 +159,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	 * to cancel the old beacon template by hand, instead the firmware
 	 * will release the previous one through the feedback mechanism.
 	 */
-	p54_tx_80211(priv->hw, beacon);
+	p54_tx_80211(priv->hw, &control, beacon);
 	priv->tsf_high32 = 0;
 	priv->tsf_low32 = 0;
 
@@ -514,6 +515,17 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	if (modparam_nohwcrypt)
 		return -EOPNOTSUPP;
 
+	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
+		/*
+		 * Unfortunately most/all firmwares are trying to decrypt
+		 * incoming management frames if a suitable key can be found.
+		 * However, in doing so the data in these frames gets
+		 * corrupted. So, we can't have firmware supported crypto
+		 * offload in this case.
+		 */
+		return -EOPNOTSUPP;
+	}
+
 	mutex_lock(&priv->conf_mutex);
 	if (cmd == SET_KEY) {
 		switch (key->cipher) {
@@ -737,6 +749,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
+		     IEEE80211_HW_MFP_CAPABLE |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |

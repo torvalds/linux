@@ -443,7 +443,7 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -453,10 +453,8 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	init_usb_anchor(&data->rx_anchor);
 
 	hdev = hci_alloc_dev();
-	if (!hdev) {
-		kfree(data);
+	if (!hdev)
 		return -ENOMEM;
-	}
 
 	hdev->bus = HCI_USB;
 	hci_set_drvdata(hdev, data);
@@ -475,7 +473,6 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	err = hci_register_dev(hdev);
 	if (err < 0) {
 		hci_free_dev(hdev);
-		kfree(data);
 		return err;
 	}
 
@@ -500,7 +497,6 @@ static void bpa10x_disconnect(struct usb_interface *intf)
 	hci_free_dev(data->hdev);
 	kfree_skb(data->rx_skb[0]);
 	kfree_skb(data->rx_skb[1]);
-	kfree(data);
 }
 
 static struct usb_driver bpa10x_driver = {

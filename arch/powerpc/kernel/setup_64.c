@@ -208,6 +208,8 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
+	/* Allow percpu accesses to "work" until we setup percpu data */
+	get_paca()->data_offset = 0;
 
 	/* Probe the machine type */
 	probe_machine();

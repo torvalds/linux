@@ -141,11 +141,12 @@ static struct spi_board_info ek_spi_devices[] = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PE18,
-	.wp_pin		= AT91_PIN_PE19,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata mci1_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PE18,
+		.wp_pin		= AT91_PIN_PE19,
+	},
 };
 
 
@@ -420,7 +421,7 @@ static void __init ek_board_init(void)
 	/* Touchscreen */
 	ek_add_device_ts();
 	/* MMC */
-	at91_add_device_mmc(1, &ek_mmc_data);
+	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* NAND */

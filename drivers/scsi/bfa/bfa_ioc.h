@@ -530,7 +530,7 @@ struct bfa_diag_results_fwping {
 
 struct bfa_diag_qtest_result_s {
 	u32	status;
-	u16	count;	/* sucessful queue test count */
+	u16	count;	/* successful queue test count */
 	u8	queue;
 	u8	rsvd;	/* 64-bit align */
 };
@@ -820,6 +820,7 @@ void bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa,
 		struct bfa_ioc_cbfn_s *cbfn, struct bfa_timer_mod_s *timer_mod);
 void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
 void bfa_ioc_detach(struct bfa_ioc_s *ioc);
+void bfa_ioc_suspend(struct bfa_ioc_s *ioc);
 void bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 		enum bfi_pcifn_class clscode);
 void bfa_ioc_mem_claim(struct bfa_ioc_s *ioc,  u8 *dm_kva, u64 dm_pa);
@@ -866,6 +867,7 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 void bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event);
 bfa_status_t bfa_ioc_fw_stats_get(struct bfa_ioc_s *ioc, void *stats);
 bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
+void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
 
 /*
  * asic block configuration related APIs

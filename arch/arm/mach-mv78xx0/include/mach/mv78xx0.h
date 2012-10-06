@@ -29,15 +29,15 @@
  *
  * virt		phys		size
  * fe400000	f102x000	16K	core-specific peripheral registers
- * fe700000	f0800000	1M	PCIe #0 I/O space
- * fe800000	f0900000	1M	PCIe #1 I/O space
- * fe900000	f0a00000	1M	PCIe #2 I/O space
- * fea00000	f0b00000	1M	PCIe #3 I/O space
- * feb00000	f0c00000	1M	PCIe #4 I/O space
- * fec00000	f0d00000	1M	PCIe #5 I/O space
- * fed00000	f0e00000	1M	PCIe #6 I/O space
- * fee00000	f0f00000	1M	PCIe #7 I/O space
- * fef00000	f1000000	1M	on-chip peripheral registers
+ * fee00000	f0800000	64K	PCIe #0 I/O space
+ * fee10000	f0900000	64K	PCIe #1 I/O space
+ * fee20000	f0a00000	64K	PCIe #2 I/O space
+ * fee30000	f0b00000	64K	PCIe #3 I/O space
+ * fee40000	f0c00000	64K	PCIe #4 I/O space
+ * fee50000	f0d00000	64K	PCIe #5 I/O space
+ * fee60000	f0e00000	64K	PCIe #6 I/O space
+ * fee70000	f0f00000	64K	PCIe #7 I/O space
+ * fd000000	f1000000	1M	on-chip peripheral registers
  */
 #define MV78XX0_CORE0_REGS_PHYS_BASE	0xf1020000
 #define MV78XX0_CORE1_REGS_PHYS_BASE	0xf1024000
@@ -46,11 +46,10 @@
 #define MV78XX0_CORE_REGS_SIZE		SZ_16K
 
 #define MV78XX0_PCIE_IO_PHYS_BASE(i)	(0xf0800000 + ((i) << 20))
-#define MV78XX0_PCIE_IO_VIRT_BASE(i)	(0xfe700000 + ((i) << 20))
 #define MV78XX0_PCIE_IO_SIZE		SZ_1M
 
 #define MV78XX0_REGS_PHYS_BASE		0xf1000000
-#define MV78XX0_REGS_VIRT_BASE		0xfef00000
+#define MV78XX0_REGS_VIRT_BASE		0xfd000000
 #define MV78XX0_REGS_SIZE		SZ_1M
 
 #define MV78XX0_PCIE_MEM_PHYS_BASE	0xc0000000

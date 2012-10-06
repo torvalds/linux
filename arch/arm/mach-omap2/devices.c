@@ -17,21 +17,20 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/platform_data/omap4-keypad.h>
 
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
-#include <asm/pmu.h>
 
 #include "iomap.h"
-#include <plat/board.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
-#include <plat/omap4-keypad.h>
+#include "omap4-keypad.h"
 
+#include "soc.h"
+#include "common.h"
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
@@ -112,7 +111,7 @@ static struct resource omap2cam_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= INT_24XX_CAM_IRQ,
+		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
 };
@@ -201,7 +200,7 @@ static struct resource omap3isp_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= INT_34XX_CAM_IRQ,
+		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
 };
@@ -385,7 +384,7 @@ static inline void omap_init_hdmi_audio(void) {}
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 static int __init omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {
@@ -435,20 +434,18 @@ static inline void omap_init_mcspi(void) {}
 #endif
 
 static struct resource omap2_pmu_resource = {
-	.start	= 3,
-	.end	= 3,
+	.start	= 3 + OMAP_INTC_START,
 	.flags	= IORESOURCE_IRQ,
 };
 
 static struct resource omap3_pmu_resource = {
-	.start	= INT_34XX_BENCH_MPU_EMUL,
-	.end	= INT_34XX_BENCH_MPU_EMUL,
+	.start	= 3 + OMAP_INTC_START,
 	.flags	= IORESOURCE_IRQ,
 };
 
 static struct platform_device omap_pmu_device = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.num_resources	= 1,
 };
 
@@ -475,7 +472,7 @@ static struct resource omap2_sham_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_24XX_SHA1MD5,
+		.start	= 51 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -493,7 +490,7 @@ static struct resource omap3_sham_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_34XX_SHA1MD52_IRQ,
+		.start	= 49 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
@@ -631,6 +628,10 @@ static inline void omap_init_vout(void) {}
 
 static int __init omap2_init_devices(void)
 {
+	/* Enable dummy states for those platforms without pinctrl support */
+	if (!of_have_populated_dt())
+		pinctrl_provide_dummies();
+
 	/*
 	 * please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.

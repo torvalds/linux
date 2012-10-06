@@ -162,19 +162,12 @@ static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
 	return val;
 }
 
-u32 intel_panel_get_max_backlight(struct drm_device *dev)
+static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 max;
 
 	max = i915_read_blc_pwm_ctl(dev_priv);
-	if (max == 0) {
-		/* XXX add code here to query mode clock or hardware clock
-		 * and program max PWM appropriately.
-		 */
-		pr_warn_once("fixme: max PWM is zero\n");
-		return 1;
-	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		max >>= 16;
@@ -186,6 +179,22 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 
 		if (is_backlight_combination_mode(dev))
 			max *= 0xff;
+	}
+
+	return max;
+}
+
+u32 intel_panel_get_max_backlight(struct drm_device *dev)
+{
+	u32 max;
+
+	max = _intel_panel_get_max_backlight(dev);
+	if (max == 0) {
+		/* XXX add code here to query mode clock or hardware clock
+		 * and program max PWM appropriately.
+		 */
+		pr_warn_once("fixme: max PWM is zero\n");
+		return 1;
 	}
 
 	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
@@ -424,7 +433,11 @@ int intel_panel_setup_backlight(struct drm_device *dev)
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
-	props.max_brightness = intel_panel_get_max_backlight(dev);
+	props.max_brightness = _intel_panel_get_max_backlight(dev);
+	if (props.max_brightness == 0) {
+		DRM_ERROR("Failed to get maximum backlight value\n");
+		return -ENODEV;
+	}
 	dev_priv->backlight =
 		backlight_device_register("intel_backlight",
 					  &connector->kdev, dev,

@@ -24,7 +24,19 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
-#include <mach/regs-timer.h>
+
+#define KS8695_TMR_OFFSET	(0xF0000 + 0xE400)
+#define KS8695_TMR_VA		(KS8695_IO_VA + KS8695_TMR_OFFSET)
+
+/*
+ * Timer registers
+ */
+#define KS8695_TMCON		(0x00)		/* Timer Control Register */
+#define KS8695_T0TC		(0x08)		/* Timer 0 Timeout Count Register */
+#define TMCON_T0EN		(1 << 0)	/* Timer 0 Enable */
+
+/* Timer0 Timeout Counter Register */
+#define T0TC_WATCHDOG		(0xff)		/* Enable watchdog mode */
 
 #define WDT_DEFAULT_TIME	5	/* seconds */
 #define WDT_MAX_TIME		171	/* seconds */

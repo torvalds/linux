@@ -369,10 +369,12 @@ struct intel_uncore_type {
 	struct intel_uncore_pmu *pmus;
 	struct intel_uncore_ops *ops;
 	struct uncore_event_desc *event_descs;
-	const struct attribute_group *attr_groups[3];
+	const struct attribute_group *attr_groups[4];
 };
 
-#define format_group attr_groups[0]
+#define pmu_group attr_groups[0]
+#define format_group attr_groups[1]
+#define events_group attr_groups[2]
 
 struct intel_uncore_ops {
 	void (*init_box)(struct intel_uncore_box *);

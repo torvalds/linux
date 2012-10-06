@@ -11,6 +11,7 @@ config UX500_SOC_COMMON
 	select CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_NOMADIK
+	select COMMON_CLK
 
 config UX500_SOC_DB8500
 	bool
@@ -28,6 +29,7 @@ config MACH_MOP500
 	select I2C
 	select I2C_NOMADIK
 	select SOC_BUS
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  Include support for the MOP500 development platform.
 

@@ -400,7 +400,7 @@ void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 		spin_unlock_irqrestore(&hp->lock, flags);
 
 		/* Clear our own DTR */
-		if (!pv->tty || (pv->tty->termios->c_cflag & HUPCL))
+		if (!pv->tty || (pv->tty->termios.c_cflag & HUPCL))
 			hvsilib_write_mctrl(pv, 0);
 
 		/* Tear down the connection */

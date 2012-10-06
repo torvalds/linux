@@ -28,10 +28,10 @@
 
 #include <linux/export.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_placement.h>
 
 #define VMW_DIRTY_DELAY (HZ / 30)
 
@@ -594,7 +594,7 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	par->dirty.active = false;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
 
-	flush_delayed_work_sync(&info->deferred_work);
+	flush_delayed_work(&info->deferred_work);
 
 	par->bo_ptr = NULL;
 	ttm_bo_kunmap(&par->map);

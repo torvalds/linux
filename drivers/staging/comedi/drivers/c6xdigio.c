@@ -447,7 +447,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	else if (irq == 0)
 		printk(KERN_DEBUG "comedi%d: no irq\n", dev->minor);
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* pwm output subdevice */
 	s->type = COMEDI_SUBD_AO;	/*  Not sure what to put here */
 	s->subdev_flags = SDF_WRITEABLE;
@@ -458,7 +458,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->maxdata = 500;
 	s->range_table = &range_bipolar10;	/*  A suitable lie */
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* encoder (counter) subdevice */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
@@ -468,7 +468,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->maxdata = 0xffffff;
 	s->range_table = &range_unknown;
 
-	/*	s = dev->subdevices + 2; */
+	/*	s = &dev->subdevices[2]; */
 	/* pwm output subdevice */
 	/*	s->type = COMEDI_SUBD_COUNTER;  // Not sure what to put here */
 	/*	s->subdev_flags = SDF_WRITEABLE; */

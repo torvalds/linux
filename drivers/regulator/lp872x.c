@@ -86,6 +86,10 @@
 #define EXTERN_DVS_USED			0
 #define MAX_DELAY			6
 
+/* Default DVS Mode */
+#define LP8720_DEFAULT_DVS		0
+#define LP8725_DEFAULT_DVS		BIT(2)
+
 /* dump registers in regmap-debugfs */
 #define MAX_REGISTERS			0x0F
 
@@ -269,9 +273,9 @@ static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 	return val > MAX_DELAY ? 0 : val * time_step_us;
 }
 
-static void lp872x_set_dvs(struct lp872x *lp, int gpio)
+static void lp872x_set_dvs(struct lp872x *lp, enum lp872x_dvs_sel dvs_sel,
+			int gpio)
 {
-	enum lp872x_dvs_sel dvs_sel = lp->pdata->dvs->vsel;
 	enum lp872x_dvs_state state;
 
 	state = dvs_sel == SEL_V1 ? DVS_HIGH : DVS_LOW;
@@ -339,10 +343,10 @@ static int lp872x_buck_set_voltage_sel(struct regulator_dev *rdev,
 	struct lp872x *lp = rdev_get_drvdata(rdev);
 	enum lp872x_regulator_id buck = rdev_get_id(rdev);
 	u8 addr, mask = LP872X_VOUT_M;
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
+	struct lp872x_dvs *dvs = lp->pdata ? lp->pdata->dvs : NULL;
 
 	if (dvs && gpio_is_valid(dvs->gpio))
-		lp872x_set_dvs(lp, dvs->gpio);
+		lp872x_set_dvs(lp, dvs->vsel, dvs->gpio);
 
 	addr = lp872x_select_buck_vout_addr(lp, buck);
 	if (!lp872x_is_valid_buck_addr(addr))
@@ -374,8 +378,8 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 {
 	struct lp872x *lp = rdev_get_drvdata(rdev);
 	enum lp872x_regulator_id buck = rdev_get_id(rdev);
-	int i, max = ARRAY_SIZE(lp8725_buck_uA);
-	u8 addr, val;
+	int i;
+	u8 addr;
 
 	switch (buck) {
 	case LP8725_ID_BUCK1:
@@ -388,17 +392,15 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	for (i = 0 ; i < max ; i++)
+	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1 ; i >= 0; i--) {
 		if (lp8725_buck_uA[i] >= min_uA &&
 			lp8725_buck_uA[i] <= max_uA)
-			break;
+			return lp872x_update_bits(lp, addr,
+						  LP8725_BUCK_CL_M,
+						  i << LP8725_BUCK_CL_S);
+	}
 
-	if (i == max)
-		return -EINVAL;
-
-	val = i << LP8725_BUCK_CL_S;
-
-	return lp872x_update_bits(lp, addr, LP8725_BUCK_CL_M, val);
+	return -EINVAL;
 }
 
 static int lp8725_buck_get_current_limit(struct regulator_dev *rdev)
@@ -727,39 +729,16 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 };
 
-static int lp872x_check_dvs_validity(struct lp872x *lp)
-{
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
-	u8 val = 0;
-	int ret;
-
-	ret = lp872x_read_byte(lp, LP872X_GENERAL_CFG, &val);
-	if (ret)
-		return ret;
-
-	ret = 0;
-	if (lp->chipid == LP8720) {
-		if (val & LP8720_EXT_DVS_M)
-			ret = dvs ? 0 : -EINVAL;
-	} else {
-		if ((val & LP8725_DVS1_M) == EXTERN_DVS_USED)
-			ret = dvs ? 0 : -EINVAL;
-	}
-
-	return ret;
-}
-
 static int lp872x_init_dvs(struct lp872x *lp)
 {
 	int ret, gpio;
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
+	struct lp872x_dvs *dvs = lp->pdata ? lp->pdata->dvs : NULL;
 	enum lp872x_dvs_state pinstate;
+	u8 mask[] = { LP8720_EXT_DVS_M, LP8725_DVS1_M | LP8725_DVS2_M };
+	u8 default_dvs_mode[] = { LP8720_DEFAULT_DVS, LP8725_DEFAULT_DVS };
 
-	ret = lp872x_check_dvs_validity(lp);
-	if (ret) {
-		dev_warn(lp->dev, "invalid dvs data: %d\n", ret);
-		return ret;
-	}
+	if (!dvs)
+		goto set_default_dvs_mode;
 
 	gpio = dvs->gpio;
 	if (!gpio_is_valid(gpio)) {
@@ -778,6 +757,10 @@ static int lp872x_init_dvs(struct lp872x *lp)
 	lp->dvs_gpio = gpio;
 
 	return 0;
+
+set_default_dvs_mode:
+	return lp872x_update_bits(lp, LP872X_GENERAL_CFG, mask[lp->chipid],
+				default_dvs_mode[lp->chipid]);
 }
 
 static int lp872x_config(struct lp872x *lp)
@@ -785,24 +768,29 @@ static int lp872x_config(struct lp872x *lp)
 	struct lp872x_platform_data *pdata = lp->pdata;
 	int ret;
 
-	if (!pdata->update_config)
-		return 0;
+	if (!pdata || !pdata->update_config)
+		goto init_dvs;
 
 	ret = lp872x_write_byte(lp, LP872X_GENERAL_CFG, pdata->general_config);
 	if (ret)
 		return ret;
 
+init_dvs:
 	return lp872x_init_dvs(lp);
 }
 
 static struct regulator_init_data
 *lp872x_find_regulator_init_data(int id, struct lp872x *lp)
 {
+	struct lp872x_platform_data *pdata = lp->pdata;
 	int i;
 
+	if (!pdata)
+		return NULL;
+
 	for (i = 0; i < lp->num_regulators; i++) {
-		if (lp->pdata->regulator_data[i].id == id)
-			return lp->pdata->regulator_data[i].init_data;
+		if (pdata->regulator_data[i].id == id)
+			return pdata->regulator_data[i].init_data;
 	}
 
 	return NULL;
@@ -863,17 +851,11 @@ static const struct regmap_config lp872x_regmap_config = {
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
-	struct lp872x_platform_data *pdata = cl->dev.platform_data;
 	int ret, size, num_regulators;
 	const int lp872x_num_regulators[] = {
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
-
-	if (!pdata) {
-		dev_err(&cl->dev, "no platform data\n");
-		return -EINVAL;
-	}
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
@@ -894,7 +876,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	lp->dev = &cl->dev;
-	lp->pdata = pdata;
+	lp->pdata = cl->dev.platform_data;
 	lp->chipid = id->driver_data;
 	lp->num_regulators = num_regulators;
 	i2c_set_clientdata(cl, lp);

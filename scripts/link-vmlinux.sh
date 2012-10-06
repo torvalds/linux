@@ -74,8 +74,13 @@ kallsyms()
 	info KSYM ${2}
 	local kallsymopt;
 
+	if [ -n "${CONFIG_SYMBOL_PREFIX}" ]; then
+		kallsymopt="${kallsymopt} \
+			    --symbol-prefix=${CONFIG_SYMBOL_PREFIX}"
+	fi
+
 	if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
-		kallsymopt=--all-symbols
+		kallsymopt="${kallsymopt} --all-symbols"
 	fi
 
 	local aflags="${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL}               \
@@ -211,7 +216,7 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 
 	if ! cmp -s System.map .tmp_System.map; then
 		echo >&2 Inconsistent kallsyms data
-		echo >&2 echo Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
+		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
 		cleanup
 		exit 1
 	fi

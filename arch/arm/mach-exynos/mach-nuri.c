@@ -45,14 +45,14 @@
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/mfc.h>
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
-#include <plat/mipi_csis.h>
+#include <linux/platform_data/mipi-csis.h>
 
 #include <mach/map.h>
 
@@ -1383,6 +1383,7 @@ static void __init nuri_machine_init(void)
 MACHINE_START(NURI, "NURI")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= nuri_map_io,
 	.handle_irq	= gic_handle_irq,

@@ -346,11 +346,13 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;	/* ptr to DCD mgr */
 	struct cod_libraryobj *lib = NULL;
 	int status = 0;
+	int len;
 	u32 ul_addr = 0;	/* Used by cod_get_section */
 	u32 ul_len = 0;		/* Used by cod_get_section */
 	u32 dw_buf_size;	/* Used by REG functions */
 	char sz_reg_key[DCD_MAXPATHLENGTH];
 	char *sz_uuid;		/*[MAXUUIDLEN]; */
+	char *tmp;
 	struct dcd_key_elem *dcd_key = NULL;
 	char sz_sect_name[MAXUUIDLEN + 2];	/* ".[UUID]\0" */
 	char *psz_coff_buf;
@@ -395,7 +397,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 		}
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string(obj_uuid, sz_uuid, MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pUL", obj_uuid);
 
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
@@ -429,12 +431,27 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	}
 
 	/* Ensure sz_uuid + 1 is not greater than sizeof sz_sect_name. */
+	len = strlen(sz_uuid);
+	if (len + 1 > sizeof(sz_sect_name)) {
+		status = -EPERM;
+		goto func_end;
+	}
 
 	/* Create section name based on node UUID. A period is
 	 * pre-pended to the UUID string to form the section name.
 	 * I.e. ".24BC8D90_BB45_11d4_B756_006008BDB66F" */
+
+	len -= 4;	/* uuid has 4 delimiters '-' */
+	tmp = sz_uuid;
+
 	strncpy(sz_sect_name, ".", 2);
-	strncat(sz_sect_name, sz_uuid, strlen(sz_uuid));
+	do {
+		char *uuid = strsep(&tmp, "-");
+		if (!uuid)
+			break;
+		len -= strlen(uuid);
+		strncat(sz_sect_name, uuid, strlen(uuid) + 1);
+	} while (len && strncat(sz_sect_name, "_", 2));
 
 	/* Get section information. */
 	status = cod_get_section(lib, sz_sect_name, &ul_addr, &ul_len);
@@ -463,7 +480,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	status = cod_read_section(lib, sz_sect_name, psz_coff_buf, ul_len);
 #endif
 	if (!status) {
-		/* Compres DSP buffer to conform to PC format. */
+		/* Compress DSP buffer to conform to PC format. */
 		if (strstr(dcd_key->path, "iva") == NULL) {
 			compress_buf(psz_coff_buf, ul_len, DSPWORDSIZE);
 		} else {
@@ -666,7 +683,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 			status = -EPERM;
 		}
 		/* Create UUID value to find match in registry. */
-		uuid_uuid_to_string(uuid_obj, sz_uuid, MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pUL", uuid_obj);
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
 		else
@@ -706,7 +723,7 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		} else {
 			status = -EPERM;
 		}
-		uuid_uuid_to_string(uuid_obj, sz_uuid, MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pUL", uuid_obj);
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
 		else
@@ -797,7 +814,7 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 			status = -EPERM;
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string(uuid_obj, sz_uuid, MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pUL", uuid_obj);
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
 		else

@@ -1,12 +1,13 @@
 /*
  *  zcrypt 2.1.0
  *
- *  Copyright IBM Corp. 2001, 2006
+ *  Copyright IBM Corp. 2001, 2012
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

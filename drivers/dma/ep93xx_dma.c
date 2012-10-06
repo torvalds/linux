@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 
 #include "dmaengine.h"
 
@@ -1118,7 +1118,7 @@ fail:
  * @chan: channel
  * @dma_addr: DMA mapped address of the buffer
  * @buf_len: length of the buffer (in bytes)
- * @period_len: lenght of a single period
+ * @period_len: length of a single period
  * @dir: direction of the operation
  * @context: operation context (ignored)
  *
