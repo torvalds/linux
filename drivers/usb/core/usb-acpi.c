@@ -52,18 +52,19 @@ out:
 static int usb_acpi_check_pld(struct usb_device *udev, acpi_handle handle)
 {
 	acpi_status status;
-	struct acpi_pld pld;
+	struct acpi_pld_info *pld;
 
 	status = acpi_get_physical_device_location(handle, &pld);
 
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	if (pld.user_visible)
+	if (pld->user_visible)
 		udev->removable = USB_DEVICE_REMOVABLE;
 	else
 		udev->removable = USB_DEVICE_FIXED;
 
+	ACPI_FREE(pld);
 	return 0;
 }
 
