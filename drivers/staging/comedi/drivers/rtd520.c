@@ -507,15 +507,14 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		}
 	}
 	if (i == limit) {
-		printk(KERN_INFO "\ncomedi: %s: failed to probe fifo size.\n",
-		       DRV_NAME);
+		dev_info(dev->class_dev, "failed to probe fifo size.\n");
 		return -EIO;
 	}
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	if (fifo_size != 0x400 && fifo_size != 0x2000) {
-		printk
-		    (KERN_INFO "\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
-		     DRV_NAME, fifo_size);
+		dev_info(dev->class_dev,
+			 "unexpected fifo size of %i, expected 1024 or 8192.\n",
+			 fifo_size);
 		return -EIO;
 	}
 	return fifo_size;
@@ -1600,7 +1599,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int index;
 #endif
 
-	printk(KERN_INFO "comedi%d: rtd520 attaching.\n", dev->minor);
+	dev_info(dev->class_dev, "rtd520 attaching.\n");
 
 #if defined(CONFIG_COMEDI_DEBUG) && defined(USE_DMA)
 	/* You can set this a load time: modprobe comedi comedi_debug=1 */
@@ -1623,7 +1622,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = comedi_pci_enable(pcidev, DRV_NAME);
 	if (ret < 0) {
-		printk(KERN_INFO "Failed to enable PCI device and request regions.\n");
+		dev_info(dev->class_dev,
+			 "Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
 	dev->iobase = 1;	/* the "detach" needs this */
@@ -1650,8 +1650,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		pci_read_config_byte(pcidev,
 				     PCI_LATENCY_TIMER, &pci_latency);
 		if (pci_latency < 32) {
-			printk(KERN_INFO "%s: PCI latency changed from %d to %d\n",
-			       dev->board_name, pci_latency, 32);
+			dev_info(dev->class_dev,
+				 "PCI latency changed from %d to %d\n",
+				 pci_latency, 32);
 			pci_write_config_byte(pcidev,
 					      PCI_LATENCY_TIMER, 32);
 		} else {
@@ -1672,7 +1673,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Show board configuration */
-	printk(KERN_INFO "%s:", dev->board_name);
+	dev_info(dev->class_dev, "%s:", dev->board_name);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -1764,7 +1765,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 	}
 	dev->irq = pcidev->irq;
-	printk(KERN_INFO "( irq=%u )", dev->irq);
+	dev_info(dev->class_dev, "( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
 	if (ret < 0)
@@ -1841,7 +1842,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* set DMA trigger source */
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
 	} else {
-		printk(KERN_INFO "( no IRQ->no DMA )");
+		dev_info(dev->class_dev, "( no IRQ->no DMA )");
 	}
 #endif /* USE_DMA */
 
