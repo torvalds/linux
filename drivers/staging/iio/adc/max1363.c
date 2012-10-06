@@ -1531,28 +1531,29 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *reg;
-
-	reg = regulator_get(&client->dev, "vcc");
-	if (IS_ERR(reg)) {
-		ret = PTR_ERR(reg);
-		goto error_out;
-	}
-
-	ret = regulator_enable(reg);
-	if (ret)
-		goto error_put_reg;
 
 	indio_dev = iio_device_alloc(sizeof(struct max1363_state));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
-		goto error_disable_reg;
+		goto error_out;
 	}
+
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
 		goto error_free_device;
+
 	st = iio_priv(indio_dev);
-	st->reg = reg;
+
+	st->reg = regulator_get(&client->dev, "vcc");
+	if (IS_ERR(st->reg)) {
+		ret = PTR_ERR(st->reg);
+		goto error_unregister_map;
+	}
+
+	ret = regulator_enable(st->reg);
+	if (ret)
+		goto error_put_reg;
+
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 
@@ -1561,7 +1562,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 
 	ret = max1363_alloc_scan_masks(indio_dev);
 	if (ret)
-		goto error_unregister_map;
+		goto error_disable_reg;
 
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
@@ -1613,12 +1614,12 @@ error_free_available_scan_masks:
 	kfree(indio_dev->available_scan_masks);
 error_unregister_map:
 	iio_map_array_unregister(indio_dev, client->dev.platform_data);
+error_disable_reg:
+	regulator_disable(st->reg);
+error_put_reg:
+	regulator_put(st->reg);
 error_free_device:
 	iio_device_free(indio_dev);
-error_disable_reg:
-	regulator_disable(reg);
-error_put_reg:
-	regulator_put(reg);
 error_out:
 	return ret;
 }
@@ -1627,7 +1628,6 @@ static int __devexit max1363_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max1363_state *st = iio_priv(indio_dev);
-	struct regulator *reg = st->reg;
 
 	iio_device_unregister(indio_dev);
 	if (client->irq)
@@ -1635,9 +1635,9 @@ static int __devexit max1363_remove(struct i2c_client *client)
 	iio_buffer_unregister(indio_dev);
 	max1363_buffer_cleanup(indio_dev);
 	kfree(indio_dev->available_scan_masks);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
 	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 	iio_device_free(indio_dev);
