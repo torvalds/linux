@@ -765,9 +765,9 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 				     u64 event_code)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
-
 	int val;
 	int number = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
+
 	mutex_lock(&indio_dev->mlock);
 	if (IIO_EVENT_CODE_EXTRACT_DIR(event_code) == IIO_EV_DIR_FALLING)
 		val = (1 << number) & st->mask_low;
@@ -968,8 +968,6 @@ static struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
 	.name = "events",
 };
-
-#define MAX1363_EVENT_FUNCS						\
 
 static int max1363_update_scan_mode(struct iio_dev *indio_dev,
 				    const unsigned long *scan_mask)
@@ -1387,8 +1385,6 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.num_channels = ARRAY_SIZE(max11646_channels),
 	},
 };
-
-
 
 static int max1363_initial_setup(struct max1363_state *st)
 {
