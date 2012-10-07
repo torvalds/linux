@@ -26,4 +26,131 @@ struct dvb_net_if {
 <title>DVB net Function Calls</title>
 <para>To be written&#x2026;
 </para>
+
+<section id="NET_ADD_IF"
+role="subsection"><title>NET_ADD_IF</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = NET_ADD_IF,
+ struct dvb_net_if *if);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals NET_ADD_IF for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct dvb_net_if *if
+</para>
+</entry><entry
+ align="char">
+<para>Undocumented.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="NET_REMOVE_IF"
+role="subsection"><title>NET_REMOVE_IF</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = NET_REMOVE_IF);
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals NET_REMOVE_IF for this command.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="NET_GET_IF"
+role="subsection"><title>NET_GET_IF</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = NET_GET_IF,
+ struct dvb_net_if *if);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals NET_GET_IF for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct dvb_net_if *if
+</para>
+</entry><entry
+ align="char">
+<para>Undocumented.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
 </section>

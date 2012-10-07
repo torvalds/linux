@@ -1217,9 +1217,10 @@ static int __devinit redrat3_dev_probe(struct usb_interface *intf,
 	rr3->carrier = 38000;
 
 	rr3->rc = redrat3_init_rc_dev(rr3);
-	if (!rr3->rc)
+	if (!rr3->rc) {
+		retval = -ENOMEM;
 		goto error;
-
+	}
 	setup_timer(&rr3->rx_timeout, redrat3_rx_timeout, (unsigned long)rr3);
 
 	/* we can register the device now, as it is ready */
