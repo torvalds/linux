@@ -160,6 +160,7 @@ static struct sys_timer imx28_timer = {
 enum mac_oui {
 	OUI_FSL,
 	OUI_DENX,
+	OUI_CRYSTALFONTZ,
 };
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
@@ -204,6 +205,11 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 			macaddr[0] = 0xc0;
 			macaddr[1] = 0xe5;
 			macaddr[2] = 0x4e;
+			break;
+		case OUI_CRYSTALFONTZ:
+			macaddr[0] = 0x58;
+			macaddr[1] = 0xb9;
+			macaddr[2] = 0xe1;
 			break;
 		}
 		val = ocotp[i];
@@ -355,6 +361,12 @@ static void __init tx28_post_init(void)
 	pinctrl_put(pctl);
 }
 
+static void __init cfa10049_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+}
+
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
@@ -365,6 +377,8 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
+		cfa10049_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
