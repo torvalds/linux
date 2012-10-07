@@ -235,7 +235,7 @@ static int sensor_report_value(struct i2c_client *client)
 		axis.y = axis_average.y_average / axis_average.count;	
 		axis.z = axis_average.z_average / axis_average.count;
 		
-		printk( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
+		DBG( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
 		
 		memset(&axis_average, 0, sizeof(struct sensor_axis_average));
 		
