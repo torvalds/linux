@@ -109,7 +109,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.4.07 The last modify date is 2012-09-27"
+#define RK29_SDMMC_VERSION "Ver.4.08 The last modify date is 2012-10-07"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -2847,6 +2847,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 	    cmd->error = -ENOMEM;
 	    host->mrq->cmd->error = cmd->error;
         output = SDM_BUSY_TIMEOUT;
+        host->errorstep = 0x1E;
 
         //rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RTO);
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,0xFFFFFFFF);  //modifyed by xbw at 2011-08-15
@@ -2898,14 +2899,13 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 	    }
 	}
 
-     #if 0 
-       //debug	
+     #if 1	
 	if(cmd->error)
 	{
 	    del_timer_sync(&host->DTO_timer);
 
         //trace error
-	    if((0==cmd->retries) && (host->error_times++%RK29_ERROR_PRINTK_INTERVAL == 0) && (12 != cmd->opcode))
+	    if((0==cmd->retries) && (host->error_times++%(RK29_ERROR_PRINTK_INTERVAL*3) == 0) && (12 != cmd->opcode))
 	    {
 	        if( ((RK29_CTRL_SDMMC_ID==host->pdev->id)&&(MMC_SLEEP_AWAKE!=cmd->opcode)) || 
 	             ((RK29_CTRL_SDMMC_ID!=host->pdev->id)&&(MMC_SEND_EXT_CSD!=cmd->opcode))  )
@@ -3480,12 +3480,13 @@ static void rk29_sdmmc_detect_change_work(struct work_struct *work)
 
     rk28_send_wakeup_key();
 	rk29_sdmmc_detect_change(host);
-
+#if 0
 	free_irq(host->gpio_irq, host);
 	ret = request_irq(host->gpio_irq,det_keys_isr,
                 	 rk29_sdmmc_get_cd(host->mmc)?IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING,
                 	 "sd_detect",
                 	 host);
+#endif                	 
 }
 #endif
 
@@ -3496,6 +3497,7 @@ static irqreturn_t det_keys_isr(int irq, void *dev_id)
 #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
 	bool present;
 	bool present_old;
+	int value;
 
     present = rk29_sdmmc_get_cd(host->mmc);
     present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
@@ -3505,14 +3507,19 @@ static irqreturn_t det_keys_isr(int irq, void *dev_id)
         printk(KERN_INFO "\n******************\n%s: present Old=%d ==> New=%d . [%s]\n",\
                 __FUNCTION__,  present_old, present,  host->dma_name);
 
-    	disable_irq_nosync(host->gpio_irq);
-
+    #if 1
+        value = gpio_get_value(host->gpio_det) ?IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
+    
+	    irq_set_irq_type(host->gpio_irq, value);
+    #endif
+    
         #if 1
         del_timer(&host->request_timer);
         del_timer(&host->DTO_timer);
         rk29_sdmmc_dealwith_timeout(host);              
         #endif
-            
+        enable_irq_wake(host->gpio_irq);
+		    
     	if(present)
     	{
     	    set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
