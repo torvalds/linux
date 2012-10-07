@@ -65,11 +65,6 @@ extern u8 mb_enable_debug;
 #define MB_DEFAULT_MIN_TO_SCAN		10
 
 /*
- * How many groups mballoc will scan looking for the best chunk
- */
-#define MB_DEFAULT_MAX_GROUPS_TO_SCAN	5
-
-/*
  * with 'ext4_mb_stats' allocator will collect stats that will be
  * shown at umount. The collecting costs though!
  */
