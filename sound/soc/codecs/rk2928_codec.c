@@ -57,8 +57,8 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DACR", "HIFI Playback", CODEC_REG_POWER, 4, 1),
 	SND_SOC_DAPM_PGA("DACL Amp", CODEC_REG_DAC_GAIN, 2, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("DACR Amp", CODEC_REG_DAC_GAIN, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("DACL Drv", CODEC_REG_DAC_MUTE, 1, 1, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
+//	SND_SOC_DAPM_OUT_DRV("DACL Drv", CODEC_REG_DAC_MUTE, 1, 1, NULL, 0),
+//	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
 	#ifndef CONFIG_MACH_RK2928_A720
@@ -110,13 +110,13 @@ void codec_set_spk(bool on)
 	if(on == 0) {
 		DBG("%s speaker is disabled\n", __FUNCTION__);
 		rk2928_data.hdmi_enable = 1;
-		if(rk2928_data.mute = 0)
+		if(rk2928_data.mute == 0)
 			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 	}
 	else {
 		DBG("%s speaker is enabled\n", __FUNCTION__);
 		rk2928_data.hdmi_enable = 0;
-		if(rk2928_data.mute = 0)
+		if(rk2928_data.mute == 0)
 			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 	}
 }
@@ -154,6 +154,7 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 				rk2928_data.mute = 0;
 				if(rk2928_data.spkctl != INVALID_GPIO) {
+					msleep(80);
 					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
 				}
 			}
