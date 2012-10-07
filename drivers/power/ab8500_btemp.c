@@ -1014,6 +1014,7 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 		create_singlethread_workqueue("ab8500_btemp_wq");
 	if (di->btemp_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
+		ret = -ENOMEM;
 		goto free_device_info;
 	}
 
