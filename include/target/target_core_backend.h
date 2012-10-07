@@ -52,6 +52,7 @@ void	target_complete_cmd(struct se_cmd *, u8);
 
 int	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
+int	spc_emulate_report_luns(struct se_cmd *cmd);
 int	spc_get_write_same_sectors(struct se_cmd *cmd);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);

@@ -985,8 +985,6 @@ static inline void pscsi_clear_cdb_lun(unsigned char *cdb)
 static int pscsi_parse_cdb(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
-	unsigned int dummy_size;
-	int ret;
 
 	if (cmd->se_cmd_flags & SCF_BIDI) {
 		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
@@ -1003,10 +1001,7 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 	 */
 	switch (cdb[0]) {
 	case REPORT_LUNS:
-		ret = spc_parse_cdb(cmd, &dummy_size);
-		if (ret)
-			return ret;
-		break;
+		return spc_emulate_report_luns(cmd);
 	case READ_6:
 	case READ_10:
 	case READ_12:
@@ -1020,10 +1015,8 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 		/* FALLTHROUGH*/
 	default:
 		cmd->execute_cmd = pscsi_execute_cmd;
-		break;
+		return 0;
 	}
-
-	return 0;
 }
 
 static int pscsi_execute_cmd(struct se_cmd *cmd)
