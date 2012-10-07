@@ -61,7 +61,16 @@
 #define MMA7660_BOUNDARY		(0x1 << (MMA7660_PRECISION - 1))
 #define MMA7660_GRAVITY_STEP		(MMA7660_RANGE / MMA7660_BOUNDARY)
 
+#define MMA7660_COUNT_AVERAGE	2
 
+struct sensor_axis_average {
+		int x_average;
+		int y_average;
+		int z_average;
+		int count;
+};
+
+static struct sensor_axis_average axis_average;
 
 /****************operate according to sensor chip:start************/
 
@@ -110,7 +119,14 @@ static int sensor_init(struct i2c_client *client)
 	
 	sensor->status_cur = SENSOR_OFF;
 
-	printk("%s:MMA7660_REG_TILT=0x%x\n",__func__,sensor_read_reg(client, MMA7660_REG_TILT));
+	DBG("%s:MMA7660_REG_TILT=0x%x\n",__func__,sensor_read_reg(client, MMA7660_REG_TILT));
+
+	result = sensor_write_reg(client, MMA7660_REG_SR, (0x01<<5)| 0x02);	//32 Samples/Second Active and Auto-Sleep Mode
+	if(result)
+	{
+		printk("%s:line=%d,error\n",__func__,__LINE__);
+		return result;
+	}
 
 	if(sensor->pdata->irq_enable)	//open interrupt
 	{
@@ -129,6 +145,9 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
+
+	
+	memset(&axis_average, 0, sizeof(struct sensor_axis_average));
 
 	return result;
 }
@@ -166,7 +185,7 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 	return 0;
 }
 
-#define GSENSOR_MIN  		10
+#define GSENSOR_MIN  		2
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
@@ -204,19 +223,34 @@ static int sensor_report_value(struct i2c_client *client)
 	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z; 
 	axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 
-	DBG( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
-
-	//Report event only while value is changed to save some power
-	if((abs(sensor->axis.x - axis.x) > GSENSOR_MIN) || (abs(sensor->axis.y - axis.y) > GSENSOR_MIN) || (abs(sensor->axis.z - axis.z) > GSENSOR_MIN))
+	
+	axis_average.x_average += axis.x;
+	axis_average.y_average += axis.y;
+	axis_average.z_average += axis.z;
+	axis_average.count++;
+	
+	if(axis_average.count >= MMA7660_COUNT_AVERAGE)
 	{
-		gsensor_report_value(client, &axis);
+		axis.x = axis_average.x_average / axis_average.count;	
+		axis.y = axis_average.y_average / axis_average.count;	
+		axis.z = axis_average.z_average / axis_average.count;
+		
+		printk( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
+		
+		memset(&axis_average, 0, sizeof(struct sensor_axis_average));
+		
+		//Report event only while value is changed to save some power
+		if((abs(sensor->axis.x - axis.x) > GSENSOR_MIN) || (abs(sensor->axis.y - axis.y) > GSENSOR_MIN) || (abs(sensor->axis.z - axis.z) > GSENSOR_MIN))
+		{
+			gsensor_report_value(client, &axis);
 
-		/* 互斥地缓存数据. */
-		mutex_lock(&(sensor->data_mutex) );
-		sensor->axis = axis;
-		mutex_unlock(&(sensor->data_mutex) );
+			/* 互斥地缓存数据. */
+			mutex_lock(&(sensor->data_mutex) );
+			sensor->axis = axis;
+			mutex_unlock(&(sensor->data_mutex) );
+		}
 	}
-
+	
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
 		
