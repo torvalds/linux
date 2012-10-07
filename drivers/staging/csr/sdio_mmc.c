@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
-#include <linux/version.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>

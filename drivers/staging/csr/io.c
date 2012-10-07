@@ -31,7 +31,6 @@
  * ---------------------------------------------------------------------------
  */
 #include <linux/proc_fs.h>
-#include <linux/version.h>
 
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifiversion.h"

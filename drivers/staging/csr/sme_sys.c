@@ -14,7 +14,6 @@
  * ---------------------------------------------------------------------------
  */
 
-#include <linux/version.h>
 #include "csr_wifi_hip_unifiversion.h"
 #include "unifi_priv.h"
 #include "csr_wifi_hip_conversions.h"

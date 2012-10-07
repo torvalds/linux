@@ -10,7 +10,6 @@
  * ---------------------------------------------------------------------------
  */
 
-#include <linux/version.h>
 #include "unifi_priv.h"
 
 #ifdef UNIFI_SNIFF_ARPHRD

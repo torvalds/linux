@@ -17,7 +17,6 @@
 #ifndef __LINUX_UNIFI_PRIV_H__
 #define __LINUX_UNIFI_PRIV_H__ 1
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/errno.h>

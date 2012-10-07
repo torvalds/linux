@@ -47,7 +47,6 @@
 #include <linux/etherdevice.h>
 #include <linux/mutex.h>
 #include <linux/semaphore.h>
-#include <linux/version.h>
 #include <linux/vmalloc.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
