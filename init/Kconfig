@@ -582,14 +582,13 @@ config RCU_FAST_NO_HZ
 	depends on NO_HZ && SMP
 	default n
 	help
-	  This option causes RCU to attempt to accelerate grace periods
-	  in order to allow CPUs to enter dynticks-idle state more
-	  quickly.  On the other hand, this option increases the overhead
-	  of the dynticks-idle checking, particularly on systems with
-	  large numbers of CPUs.
+	  This option causes RCU to attempt to accelerate grace periods in
+	  order to allow CPUs to enter dynticks-idle state more quickly.
+	  On the other hand, this option increases the overhead of the
+	  dynticks-idle checking, thus degrading scheduling latency.
 
-	  Say Y if energy efficiency is critically important, particularly
-	  	if you have relatively few CPUs.
+	  Say Y if energy efficiency is critically important, and you don't
+	  	care about real-time response.
 
 	  Say N if you are unsure.
 
