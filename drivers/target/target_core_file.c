@@ -528,14 +528,14 @@ static sector_t fd_get_blocks(struct se_device *dev)
 	return div_u64(dev_size, dev->dev_attrib.block_size);
 }
 
-static struct spc_ops fd_spc_ops = {
+static struct sbc_ops fd_sbc_ops = {
 	.execute_rw		= fd_execute_rw,
 	.execute_sync_cache	= fd_execute_sync_cache,
 };
 
 static int fd_parse_cdb(struct se_cmd *cmd)
 {
-	return sbc_parse_cdb(cmd, &fd_spc_ops);
+	return sbc_parse_cdb(cmd, &fd_sbc_ops);
 }
 
 static struct se_subsystem_api fileio_template = {

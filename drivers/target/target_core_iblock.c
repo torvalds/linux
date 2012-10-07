@@ -709,7 +709,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 	iblock_complete_cmd(cmd);
 }
 
-static struct spc_ops iblock_spc_ops = {
+static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
 	.execute_write_same	= iblock_execute_write_same,
@@ -718,7 +718,7 @@ static struct spc_ops iblock_spc_ops = {
 
 static int iblock_parse_cdb(struct se_cmd *cmd)
 {
-	return sbc_parse_cdb(cmd, &iblock_spc_ops);
+	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
 }
 
 static struct se_subsystem_api iblock_template = {

@@ -38,7 +38,7 @@ struct se_subsystem_api {
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 };
 
-struct spc_ops {
+struct sbc_ops {
 	int (*execute_rw)(struct se_cmd *cmd);
 	int (*execute_sync_cache)(struct se_cmd *cmd);
 	int (*execute_write_same)(struct se_cmd *cmd);
@@ -50,7 +50,7 @@ void	transport_subsystem_release(struct se_subsystem_api *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
 
-int	sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops);
+int	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 int	spc_get_write_same_sectors(struct se_cmd *cmd);
 

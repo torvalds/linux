@@ -437,13 +437,13 @@ static sector_t rd_get_blocks(struct se_device *dev)
 	return blocks_long;
 }
 
-static struct spc_ops rd_spc_ops = {
+static struct sbc_ops rd_sbc_ops = {
 	.execute_rw		= rd_execute_rw,
 };
 
 static int rd_parse_cdb(struct se_cmd *cmd)
 {
-	return sbc_parse_cdb(cmd, &rd_spc_ops);
+	return sbc_parse_cdb(cmd, &rd_sbc_ops);
 }
 
 static struct se_subsystem_api rd_mcp_template = {
