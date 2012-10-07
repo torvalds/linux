@@ -28,7 +28,6 @@
 #include <linux/igmp.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
-#include <linux/version.h>
 #include <linux/hash.h>
 #include <net/ip.h>
 #include <net/icmp.h>
