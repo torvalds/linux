@@ -908,6 +908,69 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 	return 0;
 }
 
+static int spc_emulate_report_luns(struct se_cmd *cmd)
+{
+	struct se_dev_entry *deve;
+	struct se_session *sess = cmd->se_sess;
+	unsigned char *buf;
+	u32 lun_count = 0, offset = 8, i;
+
+	if (cmd->data_length < 16) {
+		pr_warn("REPORT LUNS allocation length %u too small\n",
+			cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -EINVAL;
+	}
+
+	buf = transport_kmap_data_sg(cmd);
+	if (!buf)
+		return -ENOMEM;
+
+	/*
+	 * If no struct se_session pointer is present, this struct se_cmd is
+	 * coming via a target_core_mod PASSTHROUGH op, and not through
+	 * a $FABRIC_MOD.  In that case, report LUN=0 only.
+	 */
+	if (!sess) {
+		int_to_scsilun(0, (struct scsi_lun *)&buf[offset]);
+		lun_count = 1;
+		goto done;
+	}
+
+	spin_lock_irq(&sess->se_node_acl->device_list_lock);
+	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
+		deve = sess->se_node_acl->device_list[i];
+		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
+			continue;
+		/*
+		 * We determine the correct LUN LIST LENGTH even once we
+		 * have reached the initial allocation length.
+		 * See SPC2-R20 7.19.
+		 */
+		lun_count++;
+		if ((offset + 8) > cmd->data_length)
+			continue;
+
+		int_to_scsilun(deve->mapped_lun, (struct scsi_lun *)&buf[offset]);
+		offset += 8;
+	}
+	spin_unlock_irq(&sess->se_node_acl->device_list_lock);
+
+	/*
+	 * See SPC3 r07, page 159.
+	 */
+done:
+	lun_count *= 8;
+	buf[0] = ((lun_count >> 24) & 0xff);
+	buf[1] = ((lun_count >> 16) & 0xff);
+	buf[2] = ((lun_count >> 8) & 0xff);
+	buf[3] = (lun_count & 0xff);
+	transport_kunmap_data_sg(cmd);
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
 static int spc_emulate_testunitready(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
@@ -1013,7 +1076,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
 		break;
 	case REPORT_LUNS:
-		cmd->execute_cmd = target_report_luns;
+		cmd->execute_cmd = spc_emulate_report_luns;
 		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		/*
 		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
