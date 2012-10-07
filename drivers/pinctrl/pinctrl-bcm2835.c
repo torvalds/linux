@@ -29,7 +29,6 @@
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/irqdomain.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
