@@ -258,10 +258,17 @@ static int __devexit ak4104_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id ak4104_of_match[] = {
+	{ .compatible = "asahi-kasei,ak4104", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ak4104_of_match);
+
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
+		.of_match_table = ak4104_of_match,
 	},
 	.probe  = ak4104_spi_probe,
 	.remove = __devexit_p(ak4104_spi_remove),

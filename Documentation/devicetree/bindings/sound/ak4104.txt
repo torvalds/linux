@@ -1,0 +1,17 @@
+AK4104 S/PDIF transmitter
+
+This device supports SPI mode only.
+
+Required properties:
+
+  - compatible : "asahi-kasei,ak4104"
+
+  - reg : The chip select number on the SPI bus
+
+Example:
+
+spdif: ak4104@0 {
+	compatible = "asahi-kasei,ak4104";
+	reg = <0>;
+	spi-max-frequency = <5000000>;
+};
