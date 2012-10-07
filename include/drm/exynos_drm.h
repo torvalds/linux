@@ -30,7 +30,6 @@
 
 #include <uapi/drm/exynos_drm.h>
 
-
 /**
  * A structure for lcd panel information.
  *
