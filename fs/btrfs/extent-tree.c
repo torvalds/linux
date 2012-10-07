@@ -2252,6 +2252,16 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		}
 
 		/*
+		 * We need to try and merge add/drops of the same ref since we
+		 * can run into issues with relocate dropping the implicit ref
+		 * and then it being added back again before the drop can
+		 * finish.  If we merged anything we need to re-loop so we can
+		 * get a good ref.
+		 */
+		btrfs_merge_delayed_refs(trans, fs_info, delayed_refs,
+					 locked_ref);
+
+		/*
 		 * locked_ref is the head node, so we have to go one
 		 * node back for any delayed ref updates
 		 */
@@ -2318,12 +2328,23 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
-		/*
-		 * we modified num_entries, but as we're currently running
-		 * delayed refs, skip
-		 *     wake_up(&delayed_refs->seq_wait);
-		 * here.
-		 */
+		if (locked_ref) {
+			/*
+			 * when we play the delayed ref, also correct the
+			 * ref_mod on head
+			 */
+			switch (ref->action) {
+			case BTRFS_ADD_DELAYED_REF:
+			case BTRFS_ADD_DELAYED_EXTENT:
+				locked_ref->node.ref_mod -= ref->ref_mod;
+				break;
+			case BTRFS_DROP_DELAYED_REF:
+				locked_ref->node.ref_mod += ref->ref_mod;
+				break;
+			default:
+				WARN_ON(1);
+			}
+		}
 		spin_unlock(&delayed_refs->lock);
 
 		ret = run_one_delayed_ref(trans, root, ref, extent_op,
@@ -2348,22 +2369,6 @@ next:
 		spin_lock(&delayed_refs->lock);
 	}
 	return count;
-}
-
-static void wait_for_more_refs(struct btrfs_fs_info *fs_info,
-			       struct btrfs_delayed_ref_root *delayed_refs,
-			       unsigned long num_refs,
-			       struct list_head *first_seq)
-{
-	spin_unlock(&delayed_refs->lock);
-	pr_debug("waiting for more refs (num %ld, first %p)\n",
-		 num_refs, first_seq);
-	wait_event(fs_info->tree_mod_seq_wait,
-		   num_refs != delayed_refs->num_entries ||
-		   fs_info->tree_mod_seq_list.next != first_seq);
-	pr_debug("done waiting for more refs (num %ld, first %p)\n",
-		 delayed_refs->num_entries, fs_info->tree_mod_seq_list.next);
-	spin_lock(&delayed_refs->lock);
 }
 
 #ifdef SCRAMBLE_DELAYED_REFS
@@ -2460,13 +2465,11 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_node *ref;
 	struct list_head cluster;
-	struct list_head *first_seq = NULL;
 	int ret;
 	u64 delayed_start;
 	int run_all = count == (unsigned long)-1;
 	int run_most = 0;
-	unsigned long num_refs = 0;
-	int consider_waiting;
+	int loops;
 
 	/* We'll clean this up in btrfs_cleanup_transaction */
 	if (trans->aborted)
@@ -2484,7 +2487,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
 again:
-	consider_waiting = 0;
+	loops = 0;
 	spin_lock(&delayed_refs->lock);
 
 #ifdef SCRAMBLE_DELAYED_REFS
@@ -2512,31 +2515,6 @@ again:
 		if (ret)
 			break;
 
-		if (delayed_start >= delayed_refs->run_delayed_start) {
-			if (consider_waiting == 0) {
-				/*
-				 * btrfs_find_ref_cluster looped. let's do one
-				 * more cycle. if we don't run any delayed ref
-				 * during that cycle (because we can't because
-				 * all of them are blocked) and if the number of
-				 * refs doesn't change, we avoid busy waiting.
-				 */
-				consider_waiting = 1;
-				num_refs = delayed_refs->num_entries;
-				first_seq = root->fs_info->tree_mod_seq_list.next;
-			} else {
-				wait_for_more_refs(root->fs_info, delayed_refs,
-						   num_refs, first_seq);
-				/*
-				 * after waiting, things have changed. we
-				 * dropped the lock and someone else might have
-				 * run some refs, built new clusters and so on.
-				 * therefore, we restart staleness detection.
-				 */
-				consider_waiting = 0;
-			}
-		}
-
 		ret = run_clustered_refs(trans, root, &cluster);
 		if (ret < 0) {
 			spin_unlock(&delayed_refs->lock);
@@ -2549,9 +2527,26 @@ again:
 		if (count == 0)
 			break;
 
-		if (ret || delayed_refs->run_delayed_start == 0) {
+		if (delayed_start >= delayed_refs->run_delayed_start) {
+			if (loops == 0) {
+				/*
+				 * btrfs_find_ref_cluster looped. let's do one
+				 * more cycle. if we don't run any delayed ref
+				 * during that cycle (because we can't because
+				 * all of them are blocked), bail out.
+				 */
+				loops = 1;
+			} else {
+				/*
+				 * no runnable refs left, stop trying
+				 */
+				BUG_ON(run_all);
+				break;
+			}
+		}
+		if (ret) {
 			/* refs were run, let's reset staleness detection */
-			consider_waiting = 0;
+			loops = 0;
 		}
 	}
 
@@ -3007,17 +3002,16 @@ again:
 	}
 	spin_unlock(&block_group->lock);
 
-	num_pages = (int)div64_u64(block_group->key.offset, 1024 * 1024 * 1024);
+	/*
+	 * Try to preallocate enough space based on how big the block group is.
+	 * Keep in mind this has to include any pinned space which could end up
+	 * taking up quite a bit since it's not folded into the other space
+	 * cache.
+	 */
+	num_pages = (int)div64_u64(block_group->key.offset, 256 * 1024 * 1024);
 	if (!num_pages)
 		num_pages = 1;
 
-	/*
-	 * Just to make absolutely sure we have enough space, we're going to
-	 * preallocate 12 pages worth of space for each block group.  In
-	 * practice we ought to use at most 8, but we need extra space so we can
-	 * add our header and have a terminator between the extents and the
-	 * bitmaps.
-	 */
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
@@ -4571,8 +4565,10 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	if (root->fs_info->quota_enabled) {
 		ret = btrfs_qgroup_reserve(root, num_bytes +
 					   nr_extents * root->leafsize);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 			return ret;
+		}
 	}
 
 	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
@@ -5294,9 +5290,6 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
 
 	delayed_refs->num_entries--;
-	smp_mb();
-	if (waitqueue_active(&root->fs_info->tree_mod_seq_wait))
-		wake_up(&root->fs_info->tree_mod_seq_wait);
 
 	/*
 	 * we don't take a ref on the node because we're removing it from the

@@ -152,7 +152,7 @@ static void das6402_setcounter(struct comedi_device *dev)
 static irqreturn_t intr_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	if (!dev->attached || devpriv->das6402_ignoreirq) {
 		dev_warn(dev->class_dev, "BUG: spurious interrupt\n");
@@ -312,7 +312,7 @@ static int das6402_attach(struct comedi_device *dev,
 		return ret;
 
 	/* ai subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 8;

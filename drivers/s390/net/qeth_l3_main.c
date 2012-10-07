@@ -794,6 +794,7 @@ int qeth_l3_add_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
 		rc = -EEXIST;
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 	if (rc) {
+		kfree(ipaddr);
 		return rc;
 	}
 	if (!qeth_l3_add_ip(card, ipaddr))
@@ -858,6 +859,7 @@ int qeth_l3_add_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
 		rc = -EEXIST;
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 	if (rc) {
+		kfree(ipaddr);
 		return rc;
 	}
 	if (!qeth_l3_add_ip(card, ipaddr))

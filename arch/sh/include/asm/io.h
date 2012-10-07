@@ -134,7 +134,7 @@ __BUILD_MEMORY_STRING(__raw_, q, u64)
  * load/store instructions. sh_io_port_base is the virtual address to
  * which all ports are being mapped.
  */
-extern const unsigned long sh_io_port_base;
+extern unsigned long sh_io_port_base;
 
 static inline void __set_io_port_base(unsigned long pbase)
 {

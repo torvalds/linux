@@ -423,7 +423,6 @@ DECLARE_INIT_PER_CPU(irq_stack_union);
 
 DECLARE_PER_CPU(char *, irq_stack_ptr);
 DECLARE_PER_CPU(unsigned int, irq_count);
-extern unsigned long kernel_eflags;
 extern asmlinkage void ignore_sysret(void);
 #else	/* X86_64 */
 #ifdef CONFIG_CC_STACKPROTECTOR
@@ -758,6 +757,8 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 #endif
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 }
+
+extern void set_task_blockstep(struct task_struct *task, bool on);
 
 /*
  * from system description table in BIOS. Mostly for MCA use, but

@@ -211,9 +211,10 @@ void caif_client_register_refcnt(struct cflayer *adapt_layer,
 					void (*put)(struct cflayer *lyr))
 {
 	struct cfsrvl *service;
-	service = container_of(adapt_layer->dn, struct cfsrvl, layer);
 
-	WARN_ON(adapt_layer == NULL || adapt_layer->dn == NULL);
+	if (WARN_ON(adapt_layer == NULL || adapt_layer->dn == NULL))
+		return;
+	service = container_of(adapt_layer->dn, struct cfsrvl, layer);
 	service->hold = hold;
 	service->put = put;
 }

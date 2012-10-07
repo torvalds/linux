@@ -76,7 +76,7 @@ config HVC_XEN_FRONTEND
 
 config HVC_UDBG
        bool "udbg based fake hypervisor console"
-       depends on PPC && EXPERIMENTAL
+       depends on PPC
        select HVC_DRIVER
        default n
        help

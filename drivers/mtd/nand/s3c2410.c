@@ -46,7 +46,7 @@
 #include <asm/io.h>
 
 #include <plat/regs-nand.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int hardware_ecc = 1;

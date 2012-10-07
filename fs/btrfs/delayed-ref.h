@@ -18,7 +18,7 @@
 #ifndef __DELAYED_REF__
 #define __DELAYED_REF__
 
-/* these are the possible values of struct btrfs_delayed_ref->action */
+/* these are the possible values of struct btrfs_delayed_ref_node->action */
 #define BTRFS_ADD_DELAYED_REF    1 /* add one backref to the tree */
 #define BTRFS_DROP_DELAYED_REF   2 /* delete one backref from the tree */
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
@@ -167,6 +167,10 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 				struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op);
+void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
+			      struct btrfs_fs_info *fs_info,
+			      struct btrfs_delayed_ref_root *delayed_refs,
+			      struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);

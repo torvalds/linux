@@ -49,7 +49,7 @@
 #include <linux/slab.h>
 #include <net/rtnetlink.h>
 
-static __initdata const char banner[] =
+static __initconst const char banner[] =
 	KERN_INFO "vcan: Virtual CAN interface driver\n";
 
 MODULE_DESCRIPTION("virtual CAN interface");

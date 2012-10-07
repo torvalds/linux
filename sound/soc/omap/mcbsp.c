@@ -25,7 +25,9 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+
+#include <plat/cpu.h>
 
 #include "mcbsp.h"
 

@@ -34,22 +34,6 @@ enum {
 	PM8606_ID_MAX,
 };
 
-enum {
-	PM8606_BACKLIGHT1 = 0,
-	PM8606_BACKLIGHT2,
-	PM8606_BACKLIGHT3,
-};
-
-enum {
-	PM8606_LED1_RED = 0,
-	PM8606_LED1_GREEN,
-	PM8606_LED1_BLUE,
-	PM8606_LED2_RED,
-	PM8606_LED2_GREEN,
-	PM8606_LED2_BLUE,
-	PM8607_LED_VIBRATOR,
-};
-
 
 /* 8606 Registers */
 #define PM8606_DCM_BOOST		(0x00)
@@ -322,7 +306,7 @@ struct pm860x_chip {
 	struct regmap           *regmap_companion;
 
 	int			buck3_double;	/* DVC ramp slope double */
-	unsigned short		companion_addr;
+	int			companion_addr;
 	unsigned short		osc_vote;
 	int			id;
 	int			irq_mode;
@@ -340,16 +324,12 @@ enum {
 };
 
 struct pm860x_backlight_pdata {
-	int		id;
 	int		pwm;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_led_pdata {
-	int		id;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_rtc_pdata {
@@ -379,15 +359,29 @@ struct pm860x_platform_data {
 	struct pm860x_rtc_pdata		*rtc;
 	struct pm860x_touch_pdata	*touch;
 	struct pm860x_power_pdata	*power;
-	struct regulator_init_data	*regulator;
+	struct regulator_init_data	*buck1;
+	struct regulator_init_data	*buck2;
+	struct regulator_init_data	*buck3;
+	struct regulator_init_data	*ldo1;
+	struct regulator_init_data	*ldo2;
+	struct regulator_init_data	*ldo3;
+	struct regulator_init_data	*ldo4;
+	struct regulator_init_data	*ldo5;
+	struct regulator_init_data	*ldo6;
+	struct regulator_init_data	*ldo7;
+	struct regulator_init_data	*ldo8;
+	struct regulator_init_data	*ldo9;
+	struct regulator_init_data	*ldo10;
+	struct regulator_init_data	*ldo12;
+	struct regulator_init_data	*ldo_vibrator;
+	struct regulator_init_data	*ldo14;
 
-	unsigned short	companion_addr;	/* I2C address of companion chip */
+	int 		companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	int		irq_base;	/* IRQ base number of 88pm860x */
 	int		num_leds;
 	int		num_backlights;
-	int		num_regulators;
 };
 
 extern int pm8606_osc_enable(struct pm860x_chip *, unsigned short);
@@ -407,9 +401,5 @@ extern int pm860x_page_bulk_write(struct i2c_client *, int, int,
 				  unsigned char *);
 extern int pm860x_page_set_bits(struct i2c_client *, int, unsigned char,
 				unsigned char);
-
-extern int pm860x_device_init(struct pm860x_chip *chip,
-			      struct pm860x_platform_data *pdata) __devinit ;
-extern void pm860x_device_exit(struct pm860x_chip *chip) __devexit ;
 
 #endif /* __LINUX_MFD_88PM860X_H */

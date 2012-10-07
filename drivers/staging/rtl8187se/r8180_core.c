@@ -2377,7 +2377,7 @@ void rtl8180_wmm_param_update(struct work_struct *work)
 				u8		u1bAIFS;
 				u32		u4bAcParam;
 				pAcParam = (PAC_PARAM)(&AcParam);
-				/* Retrieve paramters to update. */
+				/* Retrieve parameters to update. */
 				u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * (((mode&IEEE_G) == IEEE_G) ? 9 : 20) + aSifsTime;
 				u4bAcParam = ((((u32)(pAcParam->f.TXOPLimit))<<AC_PARAM_TXOP_LIMIT_OFFSET)|
 					      (((u32)(pAcParam->f.Ecw.f.ECWmax))<<AC_PARAM_ECW_MAX_OFFSET)|
@@ -2413,7 +2413,7 @@ void rtl8180_wmm_param_update(struct work_struct *work)
 			u8		u1bAIFS;
 			u32		u4bAcParam;
 
-			/* Retrieve paramters to update. */
+			/* Retrieve parameters to update. */
 			eACI = pAcParam->f.AciAifsn.f.ACI;
 			/* Mode G/A: slotTimeTimer = 9; Mode B: 20 */
 			u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * (((mode&IEEE_G) == IEEE_G) ? 9 : 20) + aSifsTime;

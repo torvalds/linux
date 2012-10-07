@@ -13,7 +13,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
-extern volatile int pen_release;
+#include "common.h"
 
 static inline void cpu_enter_lowpower(void)
 {
@@ -57,17 +57,12 @@ static inline void platform_do_lowpower(unsigned int cpu)
 	}
 }
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	return 1;
-}
-
 /*
  * platform-specific code to shutdown a CPU
  *
  * Called with IRQs disabled
  */
-void platform_cpu_die(unsigned int cpu)
+void __ref msm_cpu_die(unsigned int cpu)
 {
 	/*
 	 * we're ready for shutdown now, so do it
@@ -80,13 +75,4 @@ void platform_cpu_die(unsigned int cpu)
 	 * coherency, and then restore interrupts
 	 */
 	cpu_leave_lowpower();
-}
-
-int platform_cpu_disable(unsigned int cpu)
-{
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
 }

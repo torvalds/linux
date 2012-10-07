@@ -257,12 +257,14 @@ static int __init msr_init(void)
 		goto out_chrdev;
 	}
 	msr_class->devnode = msr_devnode;
+	get_online_cpus();
 	for_each_online_cpu(i) {
 		err = msr_device_create(i);
 		if (err != 0)
 			goto out_class;
 	}
 	register_hotcpu_notifier(&msr_class_cpu_notifier);
+	put_online_cpus();
 
 	err = 0;
 	goto out;
@@ -271,6 +273,7 @@ out_class:
 	i = 0;
 	for_each_online_cpu(i)
 		msr_device_destroy(i);
+	put_online_cpus();
 	class_destroy(msr_class);
 out_chrdev:
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
@@ -281,11 +284,13 @@ out:
 static void __exit msr_exit(void)
 {
 	int cpu = 0;
+	get_online_cpus();
 	for_each_online_cpu(cpu)
 		msr_device_destroy(cpu);
 	class_destroy(msr_class);
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
 	unregister_hotcpu_notifier(&msr_class_cpu_notifier);
+	put_online_cpus();
 }
 
 module_init(msr_init);

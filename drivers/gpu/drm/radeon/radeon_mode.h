@@ -30,12 +30,11 @@
 #ifndef RADEON_MODE_H
 #define RADEON_MODE_H
 
-#include <drm_crtc.h>
-#include <drm_mode.h>
-#include <drm_edid.h>
-#include <drm_dp_helper.h>
-#include <drm_fixed.h>
-#include <drm_crtc_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_fixed.h>
+#include <drm/drm_crtc_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
@@ -252,7 +251,22 @@ struct radeon_mode_info {
 
 	/* pointer to fbdev info structure */
 	struct radeon_fbdev *rfbdev;
+	/* firmware flags */
+	u16 firmware_flags;
+	/* pointer to backlight encoder */
+	struct radeon_encoder *bl_encoder;
 };
+
+#define RADEON_MAX_BL_LEVEL 0xFF
+
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+struct radeon_backlight_privdata {
+	struct radeon_encoder *encoder;
+	uint8_t negative;
+};
+
+#endif
 
 #define MAX_H_CODE_TIMING_LEN 32
 #define MAX_V_CODE_TIMING_LEN 32
@@ -267,6 +281,18 @@ struct radeon_tv_regs {
 	uint32_t frestart;
 	uint16_t h_code_timing[MAX_H_CODE_TIMING_LEN];
 	uint16_t v_code_timing[MAX_V_CODE_TIMING_LEN];
+};
+
+struct radeon_atom_ss {
+	uint16_t percentage;
+	uint8_t type;
+	uint16_t step;
+	uint8_t delay;
+	uint8_t range;
+	uint8_t refdiv;
+	/* asic_ss */
+	uint16_t rate;
+	uint16_t amount;
 };
 
 struct radeon_crtc {
@@ -293,6 +319,16 @@ struct radeon_crtc {
 	/* page flipping */
 	struct radeon_unpin_work *unpin_work;
 	int deferred_flip_completion;
+	/* pll sharing */
+	struct radeon_atom_ss ss;
+	bool ss_enabled;
+	u32 adjusted_clock;
+	int bpc;
+	u32 pll_reference_div;
+	u32 pll_post_div;
+	u32 pll_flags;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 };
 
 struct radeon_encoder_primary_dac {
@@ -346,18 +382,6 @@ struct radeon_encoder_ext_tmds {
 };
 
 /* spread spectrum */
-struct radeon_atom_ss {
-	uint16_t percentage;
-	uint8_t type;
-	uint16_t step;
-	uint8_t delay;
-	uint8_t range;
-	uint8_t refdiv;
-	/* asic_ss */
-	uint16_t rate;
-	uint16_t amount;
-};
-
 struct radeon_encoder_atom_dig {
 	bool linkb;
 	/* atom dig */

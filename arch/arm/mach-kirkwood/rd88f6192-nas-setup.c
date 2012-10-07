@@ -19,6 +19,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 
 #define RD88F6192_GPIO_USB_VBUS		10

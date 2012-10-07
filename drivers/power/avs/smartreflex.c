@@ -27,6 +27,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/power/smartreflex.h>
 
+#include <plat/cpu.h>
+
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
 #define SR_DISABLE_TIMEOUT	200

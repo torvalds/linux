@@ -270,8 +270,8 @@ static int vtbl_check(const struct ubi_device *ubi,
 
 			if (len1 > 0 && len1 == len2 &&
 			    !strncmp(vtbl[i].name, vtbl[n].name, len1)) {
-				ubi_err("volumes %d and %d have the same name"
-					" \"%s\"", i, n, vtbl[i].name);
+				ubi_err("volumes %d and %d have the same name \"%s\"",
+					i, n, vtbl[i].name);
 				ubi_dump_vtbl_record(&vtbl[i], i);
 				ubi_dump_vtbl_record(&vtbl[n], n);
 				return -EINVAL;
@@ -304,7 +304,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	struct ubi_vid_hdr *vid_hdr;
 	struct ubi_ainf_peb *new_aeb;
 
-	ubi_msg("create volume table (copy #%d)", copy + 1);
+	dbg_gen("create volume table (copy #%d)", copy + 1);
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vid_hdr)
@@ -340,7 +340,7 @@ retry:
 	 * of this LEB as it will be deleted and freed in 'ubi_add_to_av()'.
 	 */
 	err = ubi_add_to_av(ubi, ai, new_aeb->pnum, new_aeb->ec, vid_hdr, 0);
-	kfree(new_aeb);
+	kmem_cache_free(ai->aeb_slab_cache, new_aeb);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
 
@@ -353,7 +353,7 @@ write_error:
 		list_add(&new_aeb->u.list, &ai->erase);
 		goto retry;
 	}
-	kfree(new_aeb);
+	kmem_cache_free(ai->aeb_slab_cache, new_aeb);
 out_free:
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
@@ -562,8 +562,8 @@ static int init_volumes(struct ubi_device *ubi,
 		if (vtbl[i].flags & UBI_VTBL_AUTORESIZE_FLG) {
 			/* Auto re-size flag may be set only for one volume */
 			if (ubi->autoresize_vol_id != -1) {
-				ubi_err("more than one auto-resize volume (%d "
-					"and %d)", ubi->autoresize_vol_id, i);
+				ubi_err("more than one auto-resize volume (%d and %d)",
+					ubi->autoresize_vol_id, i);
 				kfree(vol);
 				return -EINVAL;
 			}

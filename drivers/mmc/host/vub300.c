@@ -806,7 +806,7 @@ static void command_res_completed(struct urb *urb)
 		 * we suspect a buggy USB host controller
 		 */
 	} else if (!vub300->data) {
-		/* this means that the command (typically CMD52) suceeded */
+		/* this means that the command (typically CMD52) succeeded */
 	} else if (vub300->resp.common.header_type != 0x02) {
 		/*
 		 * this is an error response from the VUB300 chip

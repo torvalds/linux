@@ -264,7 +264,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	input_set_abs_params(pm->dev, ABS_Y, 0, max_y, 0, 0);
 
 	if (pm->maxcontacts > 1) {
-		input_mt_init_slots(pm->dev, pm->maxcontacts);
+		input_mt_init_slots(pm->dev, pm->maxcontacts, 0);
 		input_set_abs_params(pm->dev,
 				     ABS_MT_POSITION_X, 0, max_x, 0, 0);
 		input_set_abs_params(pm->dev,

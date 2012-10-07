@@ -39,7 +39,6 @@
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/serial.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
@@ -826,7 +825,7 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 						struct ktermios *termios_old)
 {
 	struct acm *acm = tty->driver_data;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	struct usb_cdc_line_coding newline;
 	int newctrl = acm->ctrlout;
 
@@ -1299,7 +1298,8 @@ skip_countries:
 	usb_set_intfdata(data_interface, acm);
 
 	usb_get_intf(control_interface);
-	tty_register_device(acm_tty_driver, minor, &control_interface->dev);
+	tty_port_register_device(&acm->port, acm_tty_driver, minor,
+			&control_interface->dev);
 
 	return 0;
 alloc_fail7:

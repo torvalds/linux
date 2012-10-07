@@ -20,6 +20,7 @@
 #include <linux/compat.h>
 #include <linux/init.h>
 
+#include <asm/css_chars.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
@@ -31,8 +32,6 @@
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
-#include "../cio/chsc.h"
-
 
 #ifdef PRINTK_HEADER
 #undef PRINTK_HEADER
@@ -140,6 +139,10 @@ dasd_eckd_set_online(struct ccw_device *cdev)
 static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
 
+/* head and record addresses of count_area read in analysis ccw */
+static const int count_area_head[] = { 0, 0, 0, 0, 2 };
+static const int count_area_rec[] = { 1, 2, 3, 4, 1 };
+
 static inline unsigned int
 round_up_multiple(unsigned int no, unsigned int mult)
 {
@@ -212,7 +215,7 @@ check_XRC (struct ccw1         *de_ccw,
 
 	rc = get_sync_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 
 	de_ccw->count = sizeof(struct DE_eckd_data);
@@ -323,7 +326,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 
 	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 	return rc;
 }
@@ -1507,7 +1510,8 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
  * call might change behaviour of DASD devices.
  */
 static int
-dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
+dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav,
+		  unsigned long flags)
 {
 	struct dasd_ccw_req *cqr;
 	int rc;
@@ -1516,10 +1520,19 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);
 
+	/*
+	 * set flags e.g. turn on failfast, to prevent blocking
+	 * the calling function should handle failed requests
+	 */
+	cqr->flags |= flags;
+
 	rc = dasd_sleep_on(cqr);
 	if (!rc)
 		/* trigger CIO to reprobe devices */
 		css_schedule_reprobe();
+	else if (cqr->intrc == -EAGAIN)
+		rc = -EAGAIN;
+
 	dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
@@ -1527,7 +1540,8 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
 /*
  * Valide storage server of current device.
  */
-static void dasd_eckd_validate_server(struct dasd_device *device)
+static int dasd_eckd_validate_server(struct dasd_device *device,
+				     unsigned long flags)
 {
 	int rc;
 	struct dasd_eckd_private *private;
@@ -1536,17 +1550,18 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 	private = (struct dasd_eckd_private *) device->private;
 	if (private->uid.type == UA_BASE_PAV_ALIAS ||
 	    private->uid.type == UA_HYPER_PAV_ALIAS)
-		return;
+		return 0;
 	if (dasd_nopav || MACHINE_IS_VM)
 		enable_pav = 0;
 	else
 		enable_pav = 1;
-	rc = dasd_eckd_psf_ssc(device, enable_pav);
+	rc = dasd_eckd_psf_ssc(device, enable_pav, flags);
 
 	/* may be requested feature is not available on server,
 	 * therefore just report error and go ahead */
 	DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "PSF-SSC for SSID %04x "
 			"returned rc=%d", private->uid.ssid, rc);
+	return rc;
 }
 
 /*
@@ -1556,7 +1571,13 @@ static void dasd_eckd_do_validate_server(struct work_struct *work)
 {
 	struct dasd_device *device = container_of(work, struct dasd_device,
 						  kick_validate);
-	dasd_eckd_validate_server(device);
+	if (dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST)
+	    == -EAGAIN) {
+		/* schedule worker again if failed */
+		schedule_work(&device->kick_validate);
+		return;
+	}
+
 	dasd_put_device(device);
 }
 
@@ -1685,7 +1706,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	if (rc)
 		goto out_err2;
 
-	dasd_eckd_validate_server(device);
+	dasd_eckd_validate_server(device, 0);
 
 	/* device may report different configuration data after LCU setup */
 	rc = dasd_eckd_read_conf(device);
@@ -1922,7 +1943,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 	count_area = NULL;
 	for (i = 0; i < 3; i++) {
 		if (private->count_area[i].kl != 4 ||
-		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4) {
+		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4 ||
+		    private->count_area[i].cyl != 0 ||
+		    private->count_area[i].head != count_area_head[i] ||
+		    private->count_area[i].record != count_area_rec[i]) {
 			private->uses_cdl = 0;
 			break;
 		}
@@ -1934,7 +1958,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		for (i = 0; i < 5; i++) {
 			if ((private->count_area[i].kl != 0) ||
 			    (private->count_area[i].dl !=
-			     private->count_area[0].dl))
+			     private->count_area[0].dl) ||
+			    private->count_area[i].cyl !=  0 ||
+			    private->count_area[i].head != count_area_head[i] ||
+			    private->count_area[i].record != count_area_rec[i])
 				break;
 		}
 		if (i == 5)
@@ -3804,7 +3831,7 @@ dasd_eckd_ioctl(struct dasd_block *block, unsigned int cmd, void __user *argp)
 	case BIODASDSYMMIO:
 		return dasd_symm_io(device, argp);
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 
@@ -4153,7 +4180,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	rc = dasd_alias_make_device_known_to_lcu(device);
 	if (rc)
 		return rc;
-	dasd_eckd_validate_server(device);
+	dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST);
 
 	/* RE-Read Configuration Data */
 	rc = dasd_eckd_read_conf(device);

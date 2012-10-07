@@ -263,7 +263,7 @@ extern int proc_get_processor_id(void *proc, u32 * proc_id);
  *  Returns:
  *      0     :   Success.
  *      -EFAULT :   Invalid processor handle.
- *      -EPERM   :   General failure while retireving processor trace
+ *      -EPERM   :   General failure while retrieving processor trace
  *		      Buffer.
  *  Requires:
  *      pbuf is not NULL

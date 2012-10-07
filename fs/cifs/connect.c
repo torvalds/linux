@@ -82,8 +82,7 @@ enum {
 	Opt_serverino, Opt_noserverino,
 	Opt_rwpidforward, Opt_cifsacl, Opt_nocifsacl,
 	Opt_acl, Opt_noacl, Opt_locallease,
-	Opt_sign, Opt_seal, Opt_direct,
-	Opt_strictcache, Opt_noac,
+	Opt_sign, Opt_seal, Opt_noac,
 	Opt_fsc, Opt_mfsymlinks,
 	Opt_multiuser, Opt_sloppy,
 
@@ -160,10 +159,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_locallease, "locallease" },
 	{ Opt_sign, "sign" },
 	{ Opt_seal, "seal" },
-	{ Opt_direct, "direct" },
-	{ Opt_direct, "directio" },
-	{ Opt_direct, "forcedirectio" },
-	{ Opt_strictcache, "strictcache" },
 	{ Opt_noac, "noac" },
 	{ Opt_fsc, "fsc" },
 	{ Opt_mfsymlinks, "mfsymlinks" },
@@ -277,6 +272,7 @@ static const match_table_t cifs_cacheflavor_tokens = {
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
 	{ Smb_21, SMB21_VERSION_STRING },
+	{ Smb_30, SMB30_VERSION_STRING },
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -819,6 +815,10 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
 
+	if (server->ops->is_status_pending &&
+	    server->ops->is_status_pending(buf, server, length))
+		return -1;
+
 	if (!mid)
 		return length;
 
@@ -1075,6 +1075,10 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		vol->ops = &smb21_operations;
 		vol->vals = &smb21_values;
 		break;
+	case Smb_30:
+		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->vals = &smb30_values;
+		break;
 #endif
 	default:
 		cERROR(1, "Unknown vers= option specified: %s", value);
@@ -1101,8 +1105,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	char *string = NULL;
 	char *tmp_end, *value;
 	char delim;
-	bool cache_specified = false;
-	static bool cache_warned = false;
 
 	separator[0] = ',';
 	separator[1] = 0;
@@ -1133,6 +1135,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->posix_paths = 1;
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
+
+	/* default is to use strict cifs caching semantics */
+	vol->strict_io = true;
 
 	vol->actimeo = CIFS_DEF_ACTIMEO;
 
@@ -1316,22 +1321,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 * vol->secFlg |= CIFSSEC_MUST_SEAL;
 			 */
 			vol->seal = 1;
-			break;
-		case Opt_direct:
-			cache_specified = true;
-			vol->direct_io = true;
-			vol->strict_io = false;
-			cERROR(1, "The \"directio\" option will be removed in "
-				  "3.7. Please switch to the \"cache=none\" "
-				  "option.");
-			break;
-		case Opt_strictcache:
-			cache_specified = true;
-			vol->direct_io = false;
-			vol->strict_io = true;
-			cERROR(1, "The \"strictcache\" option will be removed "
-				"in 3.7. Please switch to the \"cache=strict\" "
-				"option.");
 			break;
 		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
@@ -1676,8 +1665,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnicmp(string, "TCP_NODELAY", 11) == 0)
+			if (strnicmp(string, "TCP_NODELAY", 11) == 0) {
+				printk(KERN_WARNING "CIFS: the "
+					"sockopt=TCP_NODELAY option has been "
+					"deprecated and will be removed "
+					"in 3.9\n");
 				vol->sockopt_tcp_nodelay = 1;
+			}
 			break;
 		case Opt_netbiosname:
 			string = match_strdup(args);
@@ -1762,7 +1756,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			break;
 		case Opt_cache:
-			cache_specified = true;
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
@@ -1812,14 +1805,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	else if (override_gid == 1)
 		printk(KERN_NOTICE "CIFS: ignoring forcegid mount option "
 				   "specified with no gid= option.\n");
-
-	/* FIXME: remove this block in 3.7 */
-	if (!cache_specified && !cache_warned) {
-		cache_warned = true;
-		printk(KERN_NOTICE "CIFS: no cache= option specified, using "
-				   "\"cache=loose\". This default will change "
-				   "to \"cache=strict\" in 3.7.\n");
-	}
 
 	kfree(mountdata_copy);
 	return 0;
@@ -2636,6 +2621,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
 	tcon->local_lease = volume_info->local_lease;
+	INIT_LIST_HEAD(&tcon->pending_opens);
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
@@ -3261,146 +3247,6 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			   "mount option supported");
 }
 
-/*
- * When the server supports very large reads and writes via POSIX extensions,
- * we can allow up to 2^24-1, minus the size of a READ/WRITE_AND_X header, not
- * including the RFC1001 length.
- *
- * Note that this might make for "interesting" allocation problems during
- * writeback however as we have to allocate an array of pointers for the
- * pages. A 16M write means ~32kb page array with PAGE_CACHE_SIZE == 4096.
- *
- * For reads, there is a similar problem as we need to allocate an array
- * of kvecs to handle the receive, though that should only need to be done
- * once.
- */
-#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP) + 4)
-
-/*
- * When the server doesn't allow large posix writes, only allow a rsize/wsize
- * of 2^17-1 minus the size of the call header. That allows for a read or
- * write up to the maximum size described by RFC1002.
- */
-#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
-
-/*
- * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_CACHE_SIZE == 4k, this means we can fill
- * a single wsize request with a single call.
- */
-#define CIFS_DEFAULT_IOSIZE (1024 * 1024)
-
-/*
- * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
- * those values when posix extensions aren't in force. In actuality here, we
- * use 65536 to allow for a write that is a multiple of 4k. Most servers seem
- * to be ok with the extra byte even though Windows doesn't send writes that
- * are that large.
- *
- * Citation:
- *
- * http://blogs.msdn.com/b/openspecification/archive/2009/04/10/smb-maximum-transmit-buffer-size-and-performance-tuning.aspx
- */
-#define CIFS_DEFAULT_NON_POSIX_RSIZE (60 * 1024)
-#define CIFS_DEFAULT_NON_POSIX_WSIZE (65536)
-
-/*
- * On hosts with high memory, we can't currently support wsize/rsize that are
- * larger than we can kmap at once. Cap the rsize/wsize at
- * LAST_PKMAP * PAGE_SIZE. We'll never be able to fill a read or write request
- * larger than that anyway.
- */
-#ifdef CONFIG_HIGHMEM
-#define CIFS_KMAP_SIZE_LIMIT	(LAST_PKMAP * PAGE_CACHE_SIZE)
-#else /* CONFIG_HIGHMEM */
-#define CIFS_KMAP_SIZE_LIMIT	(1<<24)
-#endif /* CONFIG_HIGHMEM */
-
-static unsigned int
-cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
-{
-	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	struct TCP_Server_Info *server = tcon->ses->server;
-	unsigned int wsize;
-
-	/* start with specified wsize, or default */
-	if (pvolume_info->wsize)
-		wsize = pvolume_info->wsize;
-	else if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
-		wsize = CIFS_DEFAULT_IOSIZE;
-	else
-		wsize = CIFS_DEFAULT_NON_POSIX_WSIZE;
-
-	/* can server support 24-bit write sizes? (via UNIX extensions) */
-	if (!tcon->unix_ext || !(unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
-		wsize = min_t(unsigned int, wsize, CIFS_MAX_RFC1002_WSIZE);
-
-	/*
-	 * no CAP_LARGE_WRITE_X or is signing enabled without CAP_UNIX set?
-	 * Limit it to max buffer offered by the server, minus the size of the
-	 * WRITEX header, not including the 4 byte RFC1001 length.
-	 */
-	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
-	    (!(server->capabilities & CAP_UNIX) &&
-	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
-		wsize = min_t(unsigned int, wsize,
-				server->maxBuf - sizeof(WRITE_REQ) + 4);
-
-	/* limit to the amount that we can kmap at once */
-	wsize = min_t(unsigned int, wsize, CIFS_KMAP_SIZE_LIMIT);
-
-	/* hard limit of CIFS_MAX_WSIZE */
-	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
-
-	return wsize;
-}
-
-static unsigned int
-cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
-{
-	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	struct TCP_Server_Info *server = tcon->ses->server;
-	unsigned int rsize, defsize;
-
-	/*
-	 * Set default value...
-	 *
-	 * HACK alert! Ancient servers have very small buffers. Even though
-	 * MS-CIFS indicates that servers are only limited by the client's
-	 * bufsize for reads, testing against win98se shows that it throws
-	 * INVALID_PARAMETER errors if you try to request too large a read.
-	 * OS/2 just sends back short reads.
-	 *
-	 * If the server doesn't advertise CAP_LARGE_READ_X, then assume that
-	 * it can't handle a read request larger than its MaxBufferSize either.
-	 */
-	if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_READ_CAP))
-		defsize = CIFS_DEFAULT_IOSIZE;
-	else if (server->capabilities & CAP_LARGE_READ_X)
-		defsize = CIFS_DEFAULT_NON_POSIX_RSIZE;
-	else
-		defsize = server->maxBuf - sizeof(READ_RSP);
-
-	rsize = pvolume_info->rsize ? pvolume_info->rsize : defsize;
-
-	/*
-	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
-	 * the client's MaxBufferSize.
-	 */
-	if (!(server->capabilities & CAP_LARGE_READ_X))
-		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
-
-	/* limit to the amount that we can kmap at once */
-	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
-
-	/* hard limit of CIFS_MAX_RSIZE */
-	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
-
-	return rsize;
-}
-
 static void
 cleanup_volume_info_contents(struct smb_vol *volume_info)
 {
@@ -3651,8 +3497,8 @@ try_mount_again:
 	if (!tcon->ipc && server->ops->qfs_tcon)
 		server->ops->qfs_tcon(xid, tcon);
 
-	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
-	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
+	cifs_sb->wsize = server->ops->negotiate_wsize(tcon, volume_info);
+	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, volume_info);
 
 	/* tune readahead according to rsize */
 	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;

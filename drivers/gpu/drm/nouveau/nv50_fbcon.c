@@ -22,20 +22,16 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
-#include "nouveau_mm.h"
 
 int
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct drm_device *dev = nfbdev->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->channel;
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
+	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
 	ret = RING_SPACE(chan, rect->rop == ROP_COPY ? 7 : 11);
@@ -69,9 +65,8 @@ int
 nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct drm_device *dev = nfbdev->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->channel;
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
+	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
 	ret = RING_SPACE(chan, 12);
@@ -98,9 +93,8 @@ int
 nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct drm_device *dev = nfbdev->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->channel;
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
+	struct nouveau_channel *chan = drm->channel;
 	uint32_t width, dwords, *data = (uint32_t *)image->data;
 	uint32_t mask = ~(~0 >> (32 - info->var.bits_per_pixel));
 	uint32_t *palette = info->pseudo_palette;
@@ -156,10 +150,11 @@ int
 nv50_fbcon_accel_init(struct fb_info *info)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct drm_device *dev = nfbdev->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan = dev_priv->channel;
 	struct nouveau_framebuffer *fb = &nfbdev->nouveau_fb;
+	struct drm_device *dev = nfbdev->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_channel *chan = drm->channel;
+	struct nouveau_object *object;
 	int ret, format;
 
 	switch (info->var.bits_per_pixel) {
@@ -189,7 +184,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nouveau_gpuobj_gr_new(dev_priv->channel, Nv2D, 0x502d);
+	ret = nouveau_object_new(nv_object(chan->cli), NVDRM_CHAN, Nv2D,
+				 0x502d, NULL, 0, &object);
 	if (ret)
 		return ret;
 
@@ -202,9 +198,9 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	BEGIN_NV04(chan, NvSub2D, 0x0000, 1);
 	OUT_RING(chan, Nv2D);
 	BEGIN_NV04(chan, NvSub2D, 0x0184, 3);
-	OUT_RING(chan, chan->vram_handle);
-	OUT_RING(chan, chan->vram_handle);
-	OUT_RING(chan, chan->vram_handle);
+	OUT_RING(chan, NvDmaFB);
+	OUT_RING(chan, NvDmaFB);
+	OUT_RING(chan, NvDmaFB);
 	BEGIN_NV04(chan, NvSub2D, 0x0290, 1);
 	OUT_RING(chan, 0);
 	BEGIN_NV04(chan, NvSub2D, 0x0888, 1);

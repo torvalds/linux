@@ -42,6 +42,8 @@
 
 #include <trace/events/scsi.h>
 
+static void scsi_eh_done(struct scsi_cmnd *scmd);
+
 #define SENSE_TIMEOUT		(10*HZ)
 
 /*
@@ -240,6 +242,14 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 
 	if (! scsi_command_normalize_sense(scmd, &sshdr))
 		return FAILED;	/* no valid sense data */
+
+	if (scmd->cmnd[0] == TEST_UNIT_READY && scmd->scsi_done != scsi_eh_done)
+		/*
+		 * nasty: for mid-layer issued TURs, we need to return the
+		 * actual sense data without any recovery attempt.  For eh
+		 * issued ones, we need to try to recover and interpret
+		 */
+		return SUCCESS;
 
 	if (scsi_sense_is_deferred(&sshdr))
 		return NEEDS_RETRY;

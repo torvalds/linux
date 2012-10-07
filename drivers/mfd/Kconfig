@@ -298,16 +298,6 @@ config MFD_TWL4030_AUDIO
 	select MFD_CORE
 	default n
 
-config TWL6030_PWM
-	tristate "TWL6030 PWM (Pulse Width Modulator) Support"
-	depends on TWL4030_CORE
-	select HAVE_PWM
-	depends on !PWM
-	default n
-	help
-	  Say yes here if you want support for TWL6030 PWM.
-	  This is used to control charging LED brightness.
-
 config TWL6040_CORE
 	bool "Support for TWL6040 audio codec"
 	depends on I2C=y && GENERIC_HARDIRQS
@@ -385,6 +375,18 @@ config MFD_T7L66XB
 	help
 	  Support for Toshiba Mobile IO Controller T7L66XB
 
+config MFD_SMSC
+       bool "Support for the SMSC ECE1099 series chips"
+       depends on I2C=y
+       select MFD_CORE
+       select REGMAP_I2C
+       help
+        If you say yes here you get support for the
+        ece1099 chips from SMSC.
+
+        To compile this driver as a module, choose M here: the
+        module will be called smsc.
+
 config MFD_TC6387XB
 	bool "Support Toshiba TC6387XB"
 	depends on ARM && HAVE_CLK
@@ -441,6 +443,23 @@ config MFD_DA9052_I2C
 	  for accessing the device, additional drivers must be enabled in
 	  order to use the functionality of the device.
 
+config MFD_DA9055
+	bool "Dialog Semiconductor DA9055 PMIC Support"
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select PMIC_DA9055
+	select MFD_CORE
+	depends on I2C=y
+	help
+	  Say yes here for support of Dialog Semiconductor DA9055. This is
+	  a Power Management IC. This driver provides common support for
+	  accessing the device as well as the I2C interface to the chip itself.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "da9055"
+
 config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y
@@ -450,6 +469,16 @@ config PMIC_ADP5520
 	  the I2C driver and the core APIs _only_, you have to select
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
+
+config MFD_LP8788
+	bool "Texas Instruments LP8788 Power Management Unit Driver"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  TI LP8788 PMU supports regulators, battery charger, RTC,
+	  ADC, backlight driver and current sinks.
 
 config MFD_MAX77686
 	bool "Maxim Semiconductor MAX77686 PMIC Support"
@@ -476,6 +505,18 @@ config MFD_MAX77693
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_MAX8907
+	tristate "Maxim Semiconductor MAX8907 PMIC Support"
+	select MFD_CORE
+	depends on I2C=y && GENERIC_HARDIRQS
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8907. This is
+	  a Power Management IC. This driver provides common support for
+	  accessing the device; additional drivers must be enabled in order
+	  to use the functionality of the device.
 
 config MFD_MAX8925
 	bool "Maxim Semiconductor MAX8925 PMIC Support"
@@ -896,7 +937,7 @@ config MFD_WL1273_CORE
 	  audio codec.
 
 config MFD_OMAP_USB_HOST
-	bool "Support OMAP USBHS core driver"
+	bool "Support OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
 	default y
 	help
@@ -985,13 +1026,13 @@ config MFD_STA2X11
 	depends on STA2X11
 	select MFD_CORE
 
-config MFD_ANATOP
-	bool "Support for Freescale i.MX on-chip ANATOP controller"
-	depends on SOC_IMX6Q
+config MFD_SYSCON
+	bool "System Controller Register R/W Based on Regmap"
+	depends on OF
+	select REGMAP_MMIO
 	help
-	  Select this option to enable Freescale i.MX on-chip ANATOP
-	  MFD controller. This controller embeds regulator and
-	  thermal devices for Freescale i.MX platforms.
+	  Select this option to enable accessing system control registers
+	  via regmap.
 
 config MFD_PALMAS
 	bool "Support for the TI Palmas series chips"

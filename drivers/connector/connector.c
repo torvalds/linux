@@ -264,8 +264,7 @@ static int __devinit cn_init(void)
 		.input	= dev->input,
 	};
 
-	dev->nls = netlink_kernel_create(&init_net, NETLINK_CONNECTOR,
-					 THIS_MODULE, &cfg);
+	dev->nls = netlink_kernel_create(&init_net, NETLINK_CONNECTOR, &cfg);
 	if (!dev->nls)
 		return -EIO;
 

@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 
 #include <mach/msm_iomap.h>
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 #include <linux/platform_device.h>
 #include <linux/export.h>
 
@@ -257,19 +257,17 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	    unsigned long *start, unsigned long *len,
 	    struct file **filep)
 {
-	int put_needed, ret = 0;
-	struct file *file;
-
-	file = fget_light(img->memory_id, &put_needed);
-	if (file == NULL)
+	int ret = 0;
+	struct fd f = fdget(img->memory_id);
+	if (f.file == NULL)
 		return -1;
 
-	if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
+	if (MAJOR(f.file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
 	} else
 		ret = -1;
-	fput_light(file, put_needed);
+	fdput(f);
 
 	return ret;
 }

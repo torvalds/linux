@@ -315,6 +315,11 @@ enum {
 	LONG_INSN_POPCNT,
 	LONG_INSN_RISBHG,
 	LONG_INSN_RISBLG,
+	LONG_INSN_RINEXT,
+	LONG_INSN_RIEMIT,
+	LONG_INSN_TABORT,
+	LONG_INSN_TBEGIN,
+	LONG_INSN_TBEGINC,
 };
 
 static char *long_insn_name[] = {
@@ -329,7 +334,12 @@ static char *long_insn_name[] = {
 	[LONG_INSN_LLGHRL] = "llghrl",
 	[LONG_INSN_POPCNT] = "popcnt",
 	[LONG_INSN_RISBHG] = "risbhg",
-	[LONG_INSN_RISBLG] = "risblk",
+	[LONG_INSN_RISBLG] = "risblg",
+	[LONG_INSN_RINEXT] = "rinext",
+	[LONG_INSN_RIEMIT] = "riemit",
+	[LONG_INSN_TABORT] = "tabort",
+	[LONG_INSN_TBEGIN] = "tbegin",
+	[LONG_INSN_TBEGINC] = "tbeginc",
 };
 
 static struct insn opcode[] = {
@@ -582,6 +592,17 @@ static struct insn opcode_a7[] = {
 	{ "", 0, INSTR_INVALID }
 };
 
+static struct insn opcode_aa[] = {
+#ifdef CONFIG_64BIT
+	{ { 0, LONG_INSN_RINEXT }, 0x00, INSTR_RI_RI },
+	{ "rion", 0x01, INSTR_RI_RI },
+	{ "tric", 0x02, INSTR_RI_RI },
+	{ "rioff", 0x03, INSTR_RI_RI },
+	{ { 0, LONG_INSN_RIEMIT }, 0x04, INSTR_RI_RI },
+#endif
+	{ "", 0, INSTR_INVALID }
+};
+
 static struct insn opcode_b2[] = {
 #ifdef CONFIG_64BIT
 	{ "sske", 0x2b, INSTR_RRF_M0RR },
@@ -594,6 +615,9 @@ static struct insn opcode_b2[] = {
 	{ "lpswe", 0xb2, INSTR_S_RD },
 	{ "srnmt", 0xb9, INSTR_S_RD },
 	{ "lfas", 0xbd, INSTR_S_RD },
+	{ "etndg", 0xec, INSTR_RRE_R0 },
+	{ { 0, LONG_INSN_TABORT }, 0xfc, INSTR_S_RD },
+	{ "tend", 0xf8, INSTR_S_RD },
 #endif
 	{ "stidp", 0x02, INSTR_S_RD },
 	{ "sck", 0x04, INSTR_S_RD },
@@ -1150,6 +1174,7 @@ static struct insn opcode_e3[] = {
 	{ "stfh", 0xcb, INSTR_RXY_RRRD },
 	{ "chf", 0xcd, INSTR_RXY_RRRD },
 	{ "clhf", 0xcf, INSTR_RXY_RRRD },
+	{ "ntstg", 0x25, INSTR_RXY_RRRD },
 #endif
 	{ "lrv", 0x1e, INSTR_RXY_RRRD },
 	{ "lrvh", 0x1f, INSTR_RXY_RRRD },
@@ -1173,6 +1198,8 @@ static struct insn opcode_e5[] = {
 	{ "mvhhi", 0x44, INSTR_SIL_RDI },
 	{ "mvhi", 0x4c, INSTR_SIL_RDI },
 	{ "mvghi", 0x48, INSTR_SIL_RDI },
+	{ { 0, LONG_INSN_TBEGIN }, 0x60, INSTR_SIL_RDU },
+	{ { 0, LONG_INSN_TBEGINC }, 0x61, INSTR_SIL_RDU },
 #endif
 	{ "lasp", 0x00, INSTR_SSE_RDRD },
 	{ "tprot", 0x01, INSTR_SSE_RDRD },
@@ -1210,6 +1237,9 @@ static struct insn opcode_eb[] = {
 	{ "cliy", 0x55, INSTR_SIY_URD },
 	{ "oiy", 0x56, INSTR_SIY_URD },
 	{ "xiy", 0x57, INSTR_SIY_URD },
+	{ "lric", 0x60, INSTR_RSY_RDRM },
+	{ "stric", 0x61, INSTR_RSY_RDRM },
+	{ "mric", 0x62, INSTR_RSY_RDRM },
 	{ "icmh", 0x80, INSTR_RSE_RURD },
 	{ "icmh", 0x80, INSTR_RSY_RURD },
 	{ "icmy", 0x81, INSTR_RSY_RURD },
@@ -1408,6 +1438,9 @@ static struct insn *find_insn(unsigned char *code)
 	case 0xa7:
 		table = opcode_a7;
 		break;
+	case 0xaa:
+		table = opcode_aa;
+		break;
 	case 0xb2:
 		table = opcode_b2;
 		break;
@@ -1467,6 +1500,33 @@ static struct insn *find_insn(unsigned char *code)
 	}
 	return NULL;
 }
+
+/**
+ * insn_to_mnemonic - decode an s390 instruction
+ * @instruction: instruction to decode
+ * @buf: buffer to fill with mnemonic
+ *
+ * Decode the instruction at @instruction and store the corresponding
+ * mnemonic into @buf.
+ * @buf is left unchanged if the instruction could not be decoded.
+ * Returns:
+ *  %0 on success, %-ENOENT if the instruction was not found.
+ */
+int insn_to_mnemonic(unsigned char *instruction, char buf[8])
+{
+	struct insn *insn;
+
+	insn = find_insn(instruction);
+	if (!insn)
+		return -ENOENT;
+	if (insn->name[0] == '\0')
+		snprintf(buf, sizeof(buf), "%s",
+			 long_insn_name[(int) insn->name[1]]);
+	else
+		snprintf(buf, sizeof(buf), "%.5s", insn->name);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(insn_to_mnemonic);
 
 static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 {
@@ -1600,4 +1660,27 @@ void show_code(struct pt_regs *regs)
 		hops++;
 	}
 	printk("\n");
+}
+
+void print_fn_code(unsigned char *code, unsigned long len)
+{
+	char buffer[64], *ptr;
+	int opsize, i;
+
+	while (len) {
+		ptr = buffer;
+		opsize = insn_length(*code);
+		ptr += sprintf(ptr, "%p: ", code);
+		for (i = 0; i < opsize; i++)
+			ptr += sprintf(ptr, "%02x", code[i]);
+		*ptr++ = '\t';
+		if (i < 4)
+			*ptr++ = '\t';
+		ptr += print_insn(ptr, code, (unsigned long) code);
+		*ptr++ = '\n';
+		*ptr++ = 0;
+		printk(buffer);
+		code += opsize;
+		len -= opsize;
+	}
 }

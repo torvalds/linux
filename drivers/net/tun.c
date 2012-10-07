@@ -68,6 +68,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
+#include <net/cls_cgroup.h>
 
 #include <asm/uaccess.h>
 
@@ -120,8 +121,8 @@ struct tun_sock;
 struct tun_struct {
 	struct tun_file		*tfile;
 	unsigned int 		flags;
-	uid_t			owner;
-	gid_t			group;
+	kuid_t			owner;
+	kgid_t			group;
 
 	struct net_device	*dev;
 	netdev_features_t	set_features;
@@ -1031,8 +1032,8 @@ static void tun_setup(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
-	tun->owner = -1;
-	tun->group = -1;
+	tun->owner = INVALID_UID;
+	tun->group = INVALID_GID;
 
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = tun_free_netdev;
@@ -1155,14 +1156,20 @@ static ssize_t tun_show_owner(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
-	return sprintf(buf, "%d\n", tun->owner);
+	return uid_valid(tun->owner)?
+		sprintf(buf, "%u\n",
+			from_kuid_munged(current_user_ns(), tun->owner)):
+		sprintf(buf, "-1\n");
 }
 
 static ssize_t tun_show_group(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
-	return sprintf(buf, "%d\n", tun->group);
+	return gid_valid(tun->group) ?
+		sprintf(buf, "%u\n",
+			from_kgid_munged(current_user_ns(), tun->group)):
+		sprintf(buf, "-1\n");
 }
 
 static DEVICE_ATTR(tun_flags, 0444, tun_show_flags, NULL);
@@ -1189,8 +1196,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		else
 			return -EINVAL;
 
-		if (((tun->owner != -1 && cred->euid != tun->owner) ||
-		     (tun->group != -1 && !in_egroup_p(tun->group))) &&
+		if (((uid_valid(tun->owner) && !uid_eq(cred->euid, tun->owner)) ||
+		     (gid_valid(tun->group) && !in_egroup_p(tun->group))) &&
 		    !capable(CAP_NET_ADMIN))
 			return -EPERM;
 		err = security_tun_dev_attach(tun->socket.sk);
@@ -1374,6 +1381,8 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	void __user* argp = (void __user*)arg;
 	struct sock_fprog fprog;
 	struct ifreq ifr;
+	kuid_t owner;
+	kgid_t group;
 	int sndbuf;
 	int vnet_hdr_sz;
 	int ret;
@@ -1447,16 +1456,26 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 
 	case TUNSETOWNER:
 		/* Set owner of the device */
-		tun->owner = (uid_t) arg;
-
-		tun_debug(KERN_INFO, tun, "owner set to %d\n", tun->owner);
+		owner = make_kuid(current_user_ns(), arg);
+		if (!uid_valid(owner)) {
+			ret = -EINVAL;
+			break;
+		}
+		tun->owner = owner;
+		tun_debug(KERN_INFO, tun, "owner set to %d\n",
+			  from_kuid(&init_user_ns, tun->owner));
 		break;
 
 	case TUNSETGROUP:
 		/* Set group of the device */
-		tun->group= (gid_t) arg;
-
-		tun_debug(KERN_INFO, tun, "group set to %d\n", tun->group);
+		group = make_kgid(current_user_ns(), arg);
+		if (!gid_valid(group)) {
+			ret = -EINVAL;
+			break;
+		}
+		tun->group = group;
+		tun_debug(KERN_INFO, tun, "group set to %d\n",
+			  from_kgid(&init_user_ns, tun->group));
 		break;
 
 	case TUNSETLINK:

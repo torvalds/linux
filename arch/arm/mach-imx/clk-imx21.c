@@ -23,7 +23,6 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/clkdev.h>
 #include <linux/err.h>
 
 #include <mach/hardware.h>

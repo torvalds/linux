@@ -9,9 +9,9 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
-#include "exynos_drm.h"
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_fb.h"
@@ -29,7 +29,6 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV12M,
 	DRM_FORMAT_NV12MT,
 };
 

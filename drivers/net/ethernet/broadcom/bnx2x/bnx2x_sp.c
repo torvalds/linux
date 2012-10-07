@@ -229,8 +229,7 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 			 */
 			list_add_tail(&spacer.link, &o->pending_comp);
 			mb();
-			list_del(&elem->link);
-			list_add_tail(&elem->link, &o->pending_comp);
+			list_move_tail(&elem->link, &o->pending_comp);
 			list_del(&spacer.link);
 		} else
 			break;
@@ -5620,7 +5619,7 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	memset(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
-	rdata->function_mode = cpu_to_le16(start_params->mf_mode);
+	rdata->function_mode = (u8)start_params->mf_mode;
 	rdata->sd_vlan_tag   = cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id       = BP_PATH(bp);
 	rdata->network_cos_mode = start_params->network_cos_mode;

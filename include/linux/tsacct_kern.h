@@ -10,9 +10,13 @@
 #include <linux/taskstats.h>
 
 #ifdef CONFIG_TASKSTATS
-extern void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk);
+extern void bacct_add_tsk(struct user_namespace *user_ns,
+			  struct pid_namespace *pid_ns,
+			  struct taskstats *stats, struct task_struct *tsk);
 #else
-static inline void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
+static inline void bacct_add_tsk(struct user_namespace *user_ns,
+				 struct pid_namespace *pid_ns,
+				 struct taskstats *stats, struct task_struct *tsk)
 {}
 #endif /* CONFIG_TASKSTATS */
 

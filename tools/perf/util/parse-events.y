@@ -27,10 +27,11 @@ do { \
 
 %token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
+%token PE_EVENT_NAME
 %token PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
-%token PE_PREFIX_MEM PE_PREFIX_RAW
+%token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
 %token PE_ERROR
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
@@ -42,6 +43,7 @@ do { \
 %type <str> PE_NAME_CACHE_OP_RESULT
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
+%type <str> PE_EVENT_NAME
 %type <num> value_sym
 %type <head> event_config
 %type <term> event_term
@@ -53,44 +55,125 @@ do { \
 %type <head> event_legacy_numeric
 %type <head> event_legacy_raw
 %type <head> event_def
+%type <head> event_mod
+%type <head> event_name
+%type <head> event
+%type <head> events
+%type <head> group_def
+%type <head> group
+%type <head> groups
 
 %union
 {
 	char *str;
-	unsigned long num;
+	u64 num;
 	struct list_head *head;
 	struct parse_events__term *term;
 }
 %%
 
 start:
-PE_START_EVENTS events
+PE_START_EVENTS start_events
 |
-PE_START_TERMS  terms
+PE_START_TERMS  start_terms
 
-events:
-events ',' event | event
-
-event:
-event_def PE_MODIFIER_EVENT
+start_events: groups
 {
 	struct parse_events_data__events *data = _data;
+
+	parse_events_update_lists($1, &data->list);
+}
+
+groups:
+groups ',' group
+{
+	struct list_head *list  = $1;
+	struct list_head *group = $3;
+
+	parse_events_update_lists(group, list);
+	$$ = list;
+}
+|
+groups ',' event
+{
+	struct list_head *list  = $1;
+	struct list_head *event = $3;
+
+	parse_events_update_lists(event, list);
+	$$ = list;
+}
+|
+group
+|
+event
+
+group:
+group_def ':' PE_MODIFIER_EVENT
+{
+	struct list_head *list = $1;
+
+	ABORT_ON(parse_events__modifier_group(list, $3));
+	$$ = list;
+}
+|
+group_def
+
+group_def:
+PE_NAME '{' events '}'
+{
+	struct list_head *list = $3;
+
+	parse_events__set_leader($1, list);
+	$$ = list;
+}
+|
+'{' events '}'
+{
+	struct list_head *list = $2;
+
+	parse_events__set_leader(NULL, list);
+	$$ = list;
+}
+
+events:
+events ',' event
+{
+	struct list_head *event = $3;
+	struct list_head *list  = $1;
+
+	parse_events_update_lists(event, list);
+	$$ = list;
+}
+|
+event
+
+event: event_mod
+
+event_mod:
+event_name PE_MODIFIER_EVENT
+{
+	struct list_head *list = $1;
 
 	/*
 	 * Apply modifier on all events added by single event definition
 	 * (there could be more events added for multiple tracepoint
 	 * definitions via '*?'.
 	 */
-	ABORT_ON(parse_events_modifier($1, $2));
-	parse_events_update_lists($1, &data->list);
+	ABORT_ON(parse_events__modifier_event(list, $2, false));
+	$$ = list;
+}
+|
+event_name
+
+event_name:
+PE_EVENT_NAME event_def
+{
+	ABORT_ON(parse_events_name($2, $1));
+	free($1);
+	$$ = $2;
 }
 |
 event_def
-{
-	struct parse_events_data__events *data = _data;
-
-	parse_events_update_lists($1, &data->list);
-}
 
 event_def: event_pmu |
 	   event_legacy_symbol |
@@ -207,7 +290,7 @@ PE_VALUE ':' PE_VALUE
 	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_numeric(&list, &data->idx, $1, $3, NULL));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx, (u32)$1, $3, NULL));
 	$$ = list;
 }
 
@@ -222,7 +305,7 @@ PE_RAW
 	$$ = list;
 }
 
-terms: event_config
+start_terms: event_config
 {
 	struct parse_events_data__terms *data = _data;
 	data->terms = $1;
@@ -282,7 +365,7 @@ PE_TERM '=' PE_NAME
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_str(&term, $1, NULL, $3));
+	ABORT_ON(parse_events__term_str(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
@@ -290,7 +373,7 @@ PE_TERM '=' PE_VALUE
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_num(&term, $1, NULL, $3));
+	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
@@ -298,7 +381,7 @@ PE_TERM
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_num(&term, $1, NULL, 1));
+	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, 1));
 	$$ = term;
 }
 
@@ -308,7 +391,7 @@ sep_slash_dc: '/' | ':' |
 
 %%
 
-void parse_events_error(void *data __used, void *scanner __used,
-			char const *msg __used)
+void parse_events_error(void *data __maybe_unused, void *scanner __maybe_unused,
+			char const *msg __maybe_unused)
 {
 }

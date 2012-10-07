@@ -1,0 +1,29 @@
+SPI-GPIO devicetree bindings
+
+Required properties:
+
+ - compatible: should be set to "spi-gpio"
+ - #address-cells: should be set to <0x1>
+ - ranges
+ - gpio-sck: GPIO spec for the SCK line to use
+ - gpio-miso: GPIO spec for the MISO line to use
+ - gpio-mosi: GPIO spec for the MOSI line to use
+ - cs-gpios: GPIOs to use for chipselect lines
+ - num-chipselects: number of chipselect lines
+
+Example:
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <0x1>;
+		ranges;
+
+		gpio-sck = <&gpio 95 0>;
+		gpio-miso = <&gpio 98 0>;
+		gpio-mosi = <&gpio 97 0>;
+		cs-gpios = <&gpio 125 0>;
+		num-chipselects = <1>;
+
+		/* clients */
+	};
+

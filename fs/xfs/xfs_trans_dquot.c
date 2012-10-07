@@ -578,9 +578,11 @@ xfs_quota_warn(
 	/* no warnings for project quotas - we just return ENOSPC later */
 	if (dqp->dq_flags & XFS_DQ_PROJ)
 		return;
-	quota_send_warning((dqp->dq_flags & XFS_DQ_USER) ? USRQUOTA : GRPQUOTA,
-			   be32_to_cpu(dqp->q_core.d_id), mp->m_super->s_dev,
-			   type);
+	quota_send_warning(make_kqid(&init_user_ns,
+				     (dqp->dq_flags & XFS_DQ_USER) ?
+				     USRQUOTA : GRPQUOTA,
+				     be32_to_cpu(dqp->q_core.d_id)),
+			   mp->m_super->s_dev, type);
 }
 
 /*

@@ -711,7 +711,7 @@ static long joydev_ioctl(struct file *file,
 
 	case JS_SET_ALL:
 		retval = copy_from_user(&joydev->glue, argp,
-					sizeof(joydev->glue)) ? -EFAULT: 0;
+					sizeof(joydev->glue)) ? -EFAULT : 0;
 		break;
 
 	case JS_GET_ALL:

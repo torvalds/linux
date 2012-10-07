@@ -32,11 +32,10 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include "drm.h"
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_edid.h"
-#include "drm_fourcc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
@@ -294,6 +293,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
+	kref_init(&fb->refcount);
+
 	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
 	if (ret)
 		return ret;
@@ -307,6 +308,38 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, refcount);
+	fb->funcs->destroy(fb);
+}
+
+/**
+ * drm_framebuffer_unreference - unref a framebuffer
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ */
+void drm_framebuffer_unreference(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	kref_put(&fb->refcount, drm_framebuffer_free);
+}
+EXPORT_SYMBOL(drm_framebuffer_unreference);
+
+/**
+ * drm_framebuffer_reference - incr the fb refcnt
+ */
+void drm_framebuffer_reference(struct drm_framebuffer *fb)
+{
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
+	kref_get(&fb->refcount);
+}
+EXPORT_SYMBOL(drm_framebuffer_reference);
+
 /**
  * drm_framebuffer_cleanup - remove a framebuffer object
  * @fb: framebuffer to remove
@@ -318,6 +351,32 @@ EXPORT_SYMBOL(drm_framebuffer_init);
  * it, setting it to NULL.
  */
 void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	/*
+	 * This could be moved to drm_framebuffer_remove(), but for
+	 * debugging is nice to keep around the list of fb's that are
+	 * no longer associated w/ a drm_file but are not unreferenced
+	 * yet.  (i915 and omapdrm have debugfs files which will show
+	 * this.)
+	 */
+	drm_mode_object_put(dev, &fb->base);
+	list_del(&fb->head);
+	dev->mode_config.num_fb--;
+}
+EXPORT_SYMBOL(drm_framebuffer_cleanup);
+
+/**
+ * drm_framebuffer_remove - remove and unreference a framebuffer object
+ * @fb: framebuffer to remove
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ *
+ * Scans all the CRTCs and planes in @dev's mode_config.  If they're
+ * using @fb, removes it, setting it to NULL.
+ */
+void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_crtc *crtc;
@@ -350,11 +409,11 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 		}
 	}
 
-	drm_mode_object_put(dev, &fb->base);
-	list_del(&fb->head);
-	dev->mode_config.num_fb--;
+	list_del(&fb->filp_head);
+
+	drm_framebuffer_unreference(fb);
 }
-EXPORT_SYMBOL(drm_framebuffer_cleanup);
+EXPORT_SYMBOL(drm_framebuffer_remove);
 
 /**
  * drm_crtc_init - Initialise a new CRTC object
@@ -377,6 +436,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
+	crtc->invert_dimensions = false;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -1031,16 +1091,16 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		fb->funcs->destroy(fb);
-	}
-
-	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
-		crtc->funcs->destroy(crtc);
+		drm_framebuffer_remove(fb);
 	}
 
 	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
 				 head) {
 		plane->funcs->destroy(plane);
+	}
+
+	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
+		crtc->funcs->destroy(crtc);
 	}
 
 	idr_remove_all(&dev->mode_config.crtc_idr);
@@ -1852,6 +1912,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	if (crtc_req->mode_valid) {
+		int hdisplay, vdisplay;
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
@@ -1887,14 +1948,20 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
-		if (mode->hdisplay > fb->width ||
-		    mode->vdisplay > fb->height ||
-		    crtc_req->x > fb->width - mode->hdisplay ||
-		    crtc_req->y > fb->height - mode->vdisplay) {
-			DRM_DEBUG_KMS("Invalid CRTC viewport %ux%u+%u+%u for fb size %ux%u.\n",
-				      mode->hdisplay, mode->vdisplay,
-				      crtc_req->x, crtc_req->y,
-				      fb->width, fb->height);
+		hdisplay = mode->hdisplay;
+		vdisplay = mode->vdisplay;
+
+		if (crtc->invert_dimensions)
+			swap(hdisplay, vdisplay);
+
+		if (hdisplay > fb->width ||
+		    vdisplay > fb->height ||
+		    crtc_req->x > fb->width - hdisplay ||
+		    crtc_req->y > fb->height - vdisplay) {
+			DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+				      fb->width, fb->height,
+				      hdisplay, vdisplay, crtc_req->x, crtc_req->y,
+				      crtc->invert_dimensions ? " (inverted)" : "");
 			ret = -ENOSPC;
 			goto out;
 		}
@@ -1981,7 +2048,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if (!req->flags)
+	if (!req->flags || (~DRM_MODE_CURSOR_FLAGS & req->flags))
 		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -2169,6 +2236,8 @@ static int format_check(const struct drm_mode_fb_cmd2 *r)
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 	case DRM_FORMAT_YUV410:
 	case DRM_FORMAT_YVU410:
 	case DRM_FORMAT_YUV411:
@@ -2335,11 +2404,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 		goto out;
 	}
 
-	/* TODO release all crtc connected to the framebuffer */
-	/* TODO unhock the destructor from the buffer object */
-
-	list_del(&fb->filp_head);
-	fb->funcs->destroy(fb);
+	drm_framebuffer_remove(fb);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2489,8 +2554,7 @@ void drm_fb_release(struct drm_file *priv)
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-		list_del(&fb->filp_head);
-		fb->funcs->destroy(fb);
+		drm_framebuffer_remove(fb);
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 }
@@ -3489,6 +3553,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
+	int hdisplay, vdisplay;
 	int ret = -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
@@ -3518,14 +3583,19 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	fb = obj_to_fb(obj);
 
-	if (crtc->mode.hdisplay > fb->width ||
-	    crtc->mode.vdisplay > fb->height ||
-	    crtc->x > fb->width - crtc->mode.hdisplay ||
-	    crtc->y > fb->height - crtc->mode.vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d.\n",
-			      fb->width, fb->height,
-			      crtc->mode.hdisplay, crtc->mode.vdisplay,
-			      crtc->x, crtc->y);
+	hdisplay = crtc->mode.hdisplay;
+	vdisplay = crtc->mode.vdisplay;
+
+	if (crtc->invert_dimensions)
+		swap(hdisplay, vdisplay);
+
+	if (hdisplay > fb->width ||
+	    vdisplay > fb->height ||
+	    crtc->x > fb->width - hdisplay ||
+	    crtc->y > fb->height - vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+			      fb->width, fb->height, hdisplay, vdisplay, crtc->x, crtc->y,
+			      crtc->invert_dimensions ? " (inverted)" : "");
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -3718,6 +3788,8 @@ int drm_format_num_planes(uint32_t format)
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 		return 2;
 	default:
 		return 1;
@@ -3751,6 +3823,8 @@ int drm_format_plane_cpp(uint32_t format, int plane)
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 		return plane ? 2 : 1;
 	case DRM_FORMAT_YUV410:
 	case DRM_FORMAT_YVU410:

@@ -94,27 +94,27 @@ void put_request_value(struct net_device *dev, long lvalue);
 u16 hdr_checksum(struct pseudo_hdr *pHdr);
 
 struct dsp_file_hdr {
-	u32  version_id;	// Version ID of this image format.
-	u32  package_id;	// Package ID of code release.
-	u32  build_date;	// Date/time stamp when file was built.
-	u32  commands_offset;	// Offset to attached commands in Pseudo Hdr format.
-	u32  loader_offset;	// Offset to bootloader code.
-	u32  loader_code_address;	// Start address of bootloader.
-	u32  loader_code_end;	// Where bootloader code ends.
+	u32  version_id;	/* Version ID of this image format. */
+	u32  package_id;	/* Package ID of code release. */
+	u32  build_date;	/* Date/time stamp when file was built. */
+	u32  commands_offset;	/* Offset to attached commands in Pseudo Hdr format. */
+	u32  loader_offset;	/* Offset to bootloader code. */
+	u32  loader_code_address;	/* Start address of bootloader. */
+	u32  loader_code_end;	/* Where bootloader code ends. */
 	u32  loader_code_size;
-	u32  version_data_offset;	// Offset were scrambled version data begins.
-	u32  version_data_size;	// Size, in words, of scrambled version data.
-	u32  nDspImages;	// Number of DSP images in file.
+	u32  version_data_offset;	/* Offset were scrambled version data begins. */
+	u32  version_data_size;	/* Size, in words, of scrambled version data. */
+	u32  nDspImages;	/* Number of DSP images in file. */
 } __attribute__ ((packed));
 
 struct dsp_image_info {
-	u32  coff_date;		// Date/time when DSP Coff image was built.
-	u32  begin_offset;	// Offset in file where image begins.
-	u32  end_offset;	// Offset in file where image begins.
-	u32  run_address;	// On chip Start address of DSP code.
-	u32  image_size;	// Size of image.
-	u32  version;		// Embedded version # of DSP code.
-	unsigned short checksum;	// Dsp File checksum
+	u32  coff_date;		/* Date/time when DSP Coff image was built. */
+	u32  begin_offset;	/* Offset in file where image begins. */
+	u32  end_offset;	/* Offset in file where image begins. */
+	u32  run_address;	/* On chip Start address of DSP code. */
+	u32  image_size;	/* Size of image. */
+	u32  version;		/* Embedded version # of DSP code. */
+	unsigned short checksum;	/* Dsp File checksum */
 	unsigned short pad1;
 } __attribute__ ((packed));
 

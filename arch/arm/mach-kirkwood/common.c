@@ -26,15 +26,15 @@
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
 #include <mach/bridge-regs.h>
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/mvsdio.h>
-#include <plat/orion_nand.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/mmc-mvsdio.h>
+#include <linux/platform_data/mtd-orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/common.h>
 #include <plat/time.h>
 #include <plat/addr-map.h>
-#include <plat/mv_xor.h>
+#include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -42,16 +42,6 @@
  ****************************************************************************/
 static struct map_desc kirkwood_io_desc[] __initdata = {
 	{
-		.virtual	= KIRKWOOD_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= KIRKWOOD_PCIE1_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE1_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE1_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= KIRKWOOD_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
 		.length		= KIRKWOOD_REGS_SIZE,
@@ -517,6 +507,13 @@ void __init kirkwood_wdt_init(void)
 void __init kirkwood_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/*
+	 * Some Kirkwood devices allocate their coherent buffers from atomic
+	 * context. Increase size of atomic coherent pool to make sure such
+	 * the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int kirkwood_tclk;

@@ -33,7 +33,7 @@
 #define MMC_TX_INTR		0x00000108	/* MMC TX Interrupt */
 #define MMC_RX_INTR_MASK	0x0000010c	/* MMC Interrupt Mask */
 #define MMC_TX_INTR_MASK	0x00000110	/* MMC Interrupt Mask */
-#define MMC_DEFAUL_MASK		0xffffffff
+#define MMC_DEFAULT_MASK		0xffffffff
 
 /* MMC TX counter registers */
 
@@ -147,8 +147,8 @@ void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode)
 /* To mask all all interrupts.*/
 void dwmac_mmc_intr_all_mask(void __iomem *ioaddr)
 {
-	writel(MMC_DEFAUL_MASK, ioaddr + MMC_RX_INTR_MASK);
-	writel(MMC_DEFAUL_MASK, ioaddr + MMC_TX_INTR_MASK);
+	writel(MMC_DEFAULT_MASK, ioaddr + MMC_RX_INTR_MASK);
+	writel(MMC_DEFAULT_MASK, ioaddr + MMC_TX_INTR_MASK);
 }
 
 /* This reads the MAC core counters (if actaully supported).

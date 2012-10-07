@@ -7,6 +7,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
+#include <linux/etherdevice.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include <net/cfg80211-wext.h>
@@ -159,15 +160,13 @@ static int orinoco_ioctl_setwap(struct net_device *dev,
 	struct orinoco_private *priv = ndev_priv(dev);
 	int err = -EINPROGRESS;		/* Call commit handler */
 	unsigned long flags;
-	static const u8 off_addr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	static const u8 any_addr[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
 	/* Enable automatic roaming - no sanity checks are needed */
-	if (memcmp(&ap_addr->sa_data, off_addr, ETH_ALEN) == 0 ||
-	    memcmp(&ap_addr->sa_data, any_addr, ETH_ALEN) == 0) {
+	if (is_zero_ether_addr(ap_addr->sa_data) ||
+	    is_broadcast_ether_addr(ap_addr->sa_data)) {
 		priv->bssid_fixed = 0;
 		memset(priv->desired_bssid, 0, ETH_ALEN);
 

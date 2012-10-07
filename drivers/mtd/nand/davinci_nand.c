@@ -34,8 +34,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 
-#include <mach/nand.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 /*
  * This is a device driver for the NAND flash controller found on the

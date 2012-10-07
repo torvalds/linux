@@ -1074,7 +1074,11 @@ struct file_handle {
 	unsigned char f_handle[0];
 };
 
-#define get_file(x)	atomic_long_inc(&(x)->f_count)
+static inline struct file *get_file(struct file *f)
+{
+	atomic_long_inc(&f->f_count);
+	return f;
+}
 #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
 #define file_count(x)	atomic_long_read(&(x)->f_count)
 
@@ -1126,9 +1130,9 @@ static inline int file_check_writeable(struct file *filp)
 /* Page cache limit. The filesystems should put that into their s_maxbytes 
    limits, otherwise bad things can happen in VM. */ 
 #if BITS_PER_LONG==32
-#define MAX_LFS_FILESIZE	(((u64)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1) 
+#define MAX_LFS_FILESIZE	(((loff_t)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1) 
 #elif BITS_PER_LONG==64
-#define MAX_LFS_FILESIZE 	0x7fffffffffffffffUL
+#define MAX_LFS_FILESIZE 	((loff_t)0x7fffffffffffffff)
 #endif
 
 #define FL_POSIX	1

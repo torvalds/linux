@@ -44,7 +44,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/smemc.h>
@@ -52,7 +52,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mfd/da903x.h>
-#include <linux/sht15.h>
+#include <linux/platform_data/sht15.h>
 
 #include "devices.h"
 #include "generic.h"

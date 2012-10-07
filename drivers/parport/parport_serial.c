@@ -62,6 +62,7 @@ enum parport_pc_pci_cards {
 	timedia_9079a,
 	timedia_9079b,
 	timedia_9079c,
+	wch_ch353_2s1p,
 };
 
 /* each element directly indexed from enum list, above */
@@ -145,6 +146,7 @@ static struct parport_pc_pci cards[] __devinitdata = {
 	/* timedia_9079a */             { 1, { { 2, 3 }, } },
 	/* timedia_9079b */             { 1, { { 2, 3 }, } },
 	/* timedia_9079c */             { 1, { { 2, 3 }, } },
+	/* wch_ch353_2s1p*/             { 1, { { 2, -1}, } },
 };
 
 static struct pci_device_id parport_serial_pci_tbl[] = {
@@ -243,7 +245,8 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	{ 0x1409, 0x7168, 0x1409, 0xb079, 0, 0, timedia_9079a },
 	{ 0x1409, 0x7168, 0x1409, 0xc079, 0, 0, timedia_9079b },
 	{ 0x1409, 0x7168, 0x1409, 0xd079, 0, 0, timedia_9079c },
-
+	/* WCH CARDS */
+	{ 0x4348, 0x7053, 0x4348, 0x3253, 0, 0, wch_ch353_2s1p},
 	{ 0, } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci,parport_serial_pci_tbl);
@@ -459,6 +462,12 @@ static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
 		.num_ports	= 1,
 		.base_baud	= 921600,
 		.uart_offset	= 8,
+	},
+	[wch_ch353_2s1p] = {
+		.flags          = FL_BASE0|FL_BASE_BARS,
+		.num_ports      = 2,
+		.base_baud      = 115200,
+		.uart_offset    = 8,
 	},
 };
 

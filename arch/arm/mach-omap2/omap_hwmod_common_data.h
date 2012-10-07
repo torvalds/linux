@@ -16,6 +16,7 @@
 
 #include <plat/omap_hwmod.h>
 
+#include "common.h"
 #include "display.h"
 
 /* Common address space across OMAP2xxx */

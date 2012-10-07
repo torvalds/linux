@@ -258,6 +258,7 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 {
 	siginfo_t info;
 
+	current->thread.trap_nr = signal_code;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -275,6 +276,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 {
 	siginfo_t info;
 
+	current->thread.trap_nr = TRAP_HWBKPT;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -283,7 +285,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 		return;
 
 	/* Clear the DABR */
-	set_dabr(0);
+	set_dabr(0, 0);
 
 	/* Deliver the signal to userspace */
 	info.si_signo = SIGTRAP;
@@ -364,18 +366,19 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	if (thread->dabr) {
 		thread->dabr = 0;
-		set_dabr(0);
+		thread->dabrx = 0;
+		set_dabr(0, 0);
 	}
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
-int set_dabr(unsigned long dabr)
+int set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	__get_cpu_var(current_dabr) = dabr;
 
 	if (ppc_md.set_dabr)
-		return ppc_md.set_dabr(dabr);
+		return ppc_md.set_dabr(dabr, dabrx);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -385,9 +388,8 @@ int set_dabr(unsigned long dabr)
 #endif
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
+	mtspr(SPRN_DABRX, dabrx);
 #endif
-
-
 	return 0;
 }
 
@@ -480,7 +482,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
+		set_dabr(new->thread.dabr, new->thread.dabrx);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
@@ -513,9 +515,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	local_irq_save(flags);
-
-	account_system_vtime(current);
-	account_process_vtime(current);
 
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
@@ -802,16 +801,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif /* CONFIG_PPC_STD_MMU_64 */
 #ifdef CONFIG_PPC64 
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
-		if (current->thread.dscr_inherit) {
-			p->thread.dscr_inherit = 1;
-			p->thread.dscr = current->thread.dscr;
-		} else if (0 != dscr_default) {
-			p->thread.dscr_inherit = 1;
-			p->thread.dscr = dscr_default;
-		} else {
-			p->thread.dscr_inherit = 0;
-			p->thread.dscr = 0;
-		}
+		p->thread.dscr_inherit = current->thread.dscr_inherit;
+		p->thread.dscr = current->thread.dscr;
 	}
 #endif
 

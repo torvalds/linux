@@ -1625,15 +1625,13 @@ EXPORT_SYMBOL(flock_lock_file_wait);
  */
 SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
-	struct file *filp;
-	int fput_needed;
+	struct fd f = fdget(fd);
 	struct file_lock *lock;
 	int can_sleep, unlock;
 	int error;
 
 	error = -EBADF;
-	filp = fget_light(fd, &fput_needed);
-	if (!filp)
+	if (!f.file)
 		goto out;
 
 	can_sleep = !(cmd & LOCK_NB);
@@ -1641,31 +1639,31 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	unlock = (cmd == LOCK_UN);
 
 	if (!unlock && !(cmd & LOCK_MAND) &&
-	    !(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
+	    !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
 
-	error = flock_make_lock(filp, &lock, cmd);
+	error = flock_make_lock(f.file, &lock, cmd);
 	if (error)
 		goto out_putf;
 	if (can_sleep)
 		lock->fl_flags |= FL_SLEEP;
 
-	error = security_file_lock(filp, lock->fl_type);
+	error = security_file_lock(f.file, lock->fl_type);
 	if (error)
 		goto out_free;
 
-	if (filp->f_op && filp->f_op->flock)
-		error = filp->f_op->flock(filp,
+	if (f.file->f_op && f.file->f_op->flock)
+		error = f.file->f_op->flock(f.file,
 					  (can_sleep) ? F_SETLKW : F_SETLK,
 					  lock);
 	else
-		error = flock_lock_file_wait(filp, lock);
+		error = flock_lock_file_wait(f.file, lock);
 
  out_free:
 	locks_free_lock(lock);
 
  out_putf:
-	fput_light(filp, fput_needed);
+	fdput(f);
  out:
 	return error;
 }

@@ -37,7 +37,7 @@ static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 			return ERR_PTR(-ENOMEM);
 		size = v9fs_fid_xattr_get(fid, name, value, size);
 		if (size > 0) {
-			acl = posix_acl_from_xattr(value, size);
+			acl = posix_acl_from_xattr(&init_user_ns, value, size);
 			if (IS_ERR(acl))
 				goto err_out;
 		}
@@ -131,7 +131,7 @@ static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
-	retval = posix_acl_to_xattr(acl, buffer, size);
+	retval = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	if (retval < 0)
 		goto err_free_out;
 	switch (type) {
@@ -251,7 +251,7 @@ static int v9fs_xattr_get_acl(struct dentry *dentry, const char *name,
 		return PTR_ERR(acl);
 	if (acl == NULL)
 		return -ENODATA;
-	error = posix_acl_to_xattr(acl, buffer, size);
+	error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
 
 	return error;
@@ -304,7 +304,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 		return -EPERM;
 	if (value) {
 		/* update the cached acl value */
-		acl = posix_acl_from_xattr(value, size);
+		acl = posix_acl_from_xattr(&init_user_ns, value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		else if (acl) {

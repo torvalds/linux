@@ -174,9 +174,9 @@
 #endif
 
 #ifdef CONFIG_X86_32
-# include "pgtable_32_types.h"
+# include <asm/pgtable_32_types.h>
 #else
-# include "pgtable_64_types.h"
+# include <asm/pgtable_64_types.h>
 #endif
 
 #ifndef __ASSEMBLY__
@@ -303,11 +303,9 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 
 extern void native_pagetable_reserve(u64 start, u64 end);
 #ifdef CONFIG_X86_32
-extern void native_pagetable_setup_start(pgd_t *base);
-extern void native_pagetable_setup_done(pgd_t *base);
+extern void native_pagetable_init(void);
 #else
-#define native_pagetable_setup_start x86_init_pgd_noop
-#define native_pagetable_setup_done  x86_init_pgd_noop
+#define native_pagetable_init        paging_init
 #endif
 
 struct seq_file;

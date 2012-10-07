@@ -372,6 +372,12 @@ typedef struct elf64_shdr {
 #define NT_PRPSINFO	3
 #define NT_TASKSTRUCT	4
 #define NT_AUXV		6
+/*
+ * Note to userspace developers: size of NT_SIGINFO note may increase
+ * in the future to accomodate more fields, don't assume it is fixed!
+ */
+#define NT_SIGINFO      0x53494749
+#define NT_FILE         0x46494c45
 #define NT_PRXFPREG     0x46e62b7f      /* copied from gdb5.1/include/elf/common.h */
 #define NT_PPC_VMX	0x100		/* PowerPC Altivec/VMX registers */
 #define NT_PPC_SPE	0x101		/* PowerPC SPE/EVR registers */
@@ -387,7 +393,11 @@ typedef struct elf64_shdr {
 #define NT_S390_PREFIX	0x305		/* s390 prefix register */
 #define NT_S390_LAST_BREAK	0x306	/* s390 breaking event address */
 #define NT_S390_SYSTEM_CALL	0x307	/* s390 system call restart data */
+#define NT_S390_TDB	0x308		/* s390 transaction diagnostic block */
 #define NT_ARM_VFP	0x400		/* ARM VFP/NEON registers */
+#define NT_ARM_TLS	0x401		/* ARM TLS register */
+#define NT_ARM_HW_BREAK	0x402		/* ARM hardware breakpoint registers */
+#define NT_ARM_HW_WATCH	0x403		/* ARM hardware watchpoint registers */
 
 
 /* Note header in a PT_NOTE section */

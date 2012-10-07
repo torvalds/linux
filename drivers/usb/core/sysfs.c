@@ -196,7 +196,7 @@ show_avoid_reset_quirk(struct device *dev, struct device_attribute *attr, char *
 	struct usb_device *udev;
 
 	udev = to_usb_device(dev);
-	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET_MORPHS));
+	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET));
 }
 
 static ssize_t
@@ -204,15 +204,15 @@ set_avoid_reset_quirk(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device	*udev = to_usb_device(dev);
-	int			config;
+	int			val;
 
-	if (sscanf(buf, "%d", &config) != 1 || config < 0 || config > 1)
+	if (sscanf(buf, "%d", &val) != 1 || val < 0 || val > 1)
 		return -EINVAL;
 	usb_lock_device(udev);
-	if (config)
-		udev->quirks |= USB_QUIRK_RESET_MORPHS;
+	if (val)
+		udev->quirks |= USB_QUIRK_RESET;
 	else
-		udev->quirks &= ~USB_QUIRK_RESET_MORPHS;
+		udev->quirks &= ~USB_QUIRK_RESET;
 	usb_unlock_device(udev);
 	return count;
 }

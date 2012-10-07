@@ -2197,7 +2197,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 	/* issue soft reset */
 	writel(GRSTCTL_CSftRst, hsotg->regs + GRSTCTL);
 
-	timeout = 1000;
+	timeout = 10000;
 	do {
 		grstctl = readl(hsotg->regs + GRSTCTL);
 	} while ((grstctl & GRSTCTL_CSftRst) && timeout-- > 0);
@@ -2207,7 +2207,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 		return -EINVAL;
 	}
 
-	timeout = 1000;
+	timeout = 10000;
 
 	while (1) {
 		u32 grstctl = readl(hsotg->regs + GRSTCTL);
@@ -3516,7 +3516,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->dev = dev;
 	hsotg->plat = plat;
 
-	hsotg->clk = clk_get(&pdev->dev, "otg");
+	hsotg->clk = devm_clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
 		return PTR_ERR(hsotg->clk);
@@ -3599,6 +3599,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	if (hsotg->num_of_eps == 0) {
 		dev_err(dev, "wrong number of EPs (zero)\n");
+		ret = -EINVAL;
 		goto err_supplies;
 	}
 
@@ -3606,6 +3607,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 		      GFP_KERNEL);
 	if (!eps) {
 		dev_err(dev, "cannot get memory\n");
+		ret = -ENOMEM;
 		goto err_supplies;
 	}
 
@@ -3622,6 +3624,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 						     GFP_KERNEL);
 	if (!hsotg->ctrl_req) {
 		dev_err(dev, "failed to allocate ctrl req\n");
+		ret = -ENOMEM;
 		goto err_ep_mem;
 	}
 
@@ -3664,7 +3667,6 @@ err_supplies:
 
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
 	return ret;
 }
@@ -3690,7 +3692,6 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
 	device_unregister(&hsotg->gadget.dev);
 	return 0;

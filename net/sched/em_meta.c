@@ -461,7 +461,7 @@ META_COLLECTOR(int_sk_sndtimeo)
 META_COLLECTOR(int_sk_sendmsg_off)
 {
 	SKIP_NONLOCAL(skb);
-	dst->value = skb->sk->sk_sndmsg_off;
+	dst->value = skb->sk->sk_frag.offset;
 }
 
 META_COLLECTOR(int_sk_write_pend)

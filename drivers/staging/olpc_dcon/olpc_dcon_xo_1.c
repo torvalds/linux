@@ -10,6 +10,9 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cs5535.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
@@ -22,23 +25,23 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	unsigned char lob;
 
 	if (gpio_request(OLPC_GPIO_DCON_STAT0, "OLPC-DCON")) {
-		printk(KERN_ERR "olpc-dcon: failed to request STAT0 GPIO\n");
+		pr_err("failed to request STAT0 GPIO\n");
 		return -EIO;
 	}
 	if (gpio_request(OLPC_GPIO_DCON_STAT1, "OLPC-DCON")) {
-		printk(KERN_ERR "olpc-dcon: failed to request STAT1 GPIO\n");
+		pr_err("failed to request STAT1 GPIO\n");
 		goto err_gp_stat1;
 	}
 	if (gpio_request(OLPC_GPIO_DCON_IRQ, "OLPC-DCON")) {
-		printk(KERN_ERR "olpc-dcon: failed to request IRQ GPIO\n");
+		pr_err("failed to request IRQ GPIO\n");
 		goto err_gp_irq;
 	}
 	if (gpio_request(OLPC_GPIO_DCON_LOAD, "OLPC-DCON")) {
-		printk(KERN_ERR "olpc-dcon: failed to request LOAD GPIO\n");
+		pr_err("failed to request LOAD GPIO\n");
 		goto err_gp_load;
 	}
 	if (gpio_request(OLPC_GPIO_DCON_BLANK, "OLPC-DCON")) {
-		printk(KERN_ERR "olpc-dcon: failed to request BLANK GPIO\n");
+		pr_err("failed to request BLANK GPIO\n");
 		goto err_gp_blank;
 	}
 
@@ -83,7 +86,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 
 	/* Register the interrupt handler */
 	if (request_irq(DCON_IRQ, &dcon_interrupt, 0, "DCON", dcon)) {
-		printk(KERN_ERR "olpc-dcon: failed to request DCON's irq\n");
+		pr_err("failed to request DCON's irq\n");
 		goto err_req_irq;
 	}
 

@@ -1448,14 +1448,9 @@ static ssize_t show_mode(struct device *d, struct device_attribute *attr,
 		return sprintf(buf, "datagram\n");
 }
 
-static ssize_t set_mode(struct device *d, struct device_attribute *attr,
-			const char *buf, size_t count)
+int ipoib_set_mode(struct net_device *dev, const char *buf)
 {
-	struct net_device *dev = to_net_dev(d);
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
 
 	/* flush paths if we switch modes so that connections are restarted */
 	if (IPOIB_CM_SUPPORTED(dev->dev_addr) && !strcmp(buf, "connected\n")) {
@@ -1467,7 +1462,8 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 		ipoib_flush_paths(dev);
-		return count;
+		rtnl_lock();
+		return 0;
 	}
 
 	if (!strcmp(buf, "datagram\n")) {
@@ -1476,12 +1472,30 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		dev_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
 		rtnl_unlock();
 		ipoib_flush_paths(dev);
-
-		return count;
+		rtnl_lock();
+		return 0;
 	}
-	rtnl_unlock();
 
 	return -EINVAL;
+}
+
+static ssize_t set_mode(struct device *d, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct net_device *dev = to_net_dev(d);
+	int ret;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = ipoib_set_mode(dev, buf);
+
+	rtnl_unlock();
+
+	if (!ret)
+		return count;
+
+	return ret;
 }
 
 static DEVICE_ATTR(mode, S_IWUSR | S_IRUGO, show_mode, set_mode);

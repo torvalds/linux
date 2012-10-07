@@ -387,8 +387,8 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		printk(KERN_WARNING "mtdoops: could not unregister kmsg_dumper\n");
 
 	cxt->mtd = NULL;
-	flush_work_sync(&cxt->work_erase);
-	flush_work_sync(&cxt->work_write);
+	flush_work(&cxt->work_erase);
+	flush_work(&cxt->work_write);
 }
 
 

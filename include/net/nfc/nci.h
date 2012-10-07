@@ -32,6 +32,7 @@
 #define NCI_MAX_NUM_MAPPING_CONFIGS				10
 #define NCI_MAX_NUM_RF_CONFIGS					10
 #define NCI_MAX_NUM_CONN					10
+#define NCI_MAX_PARAM_LEN					251
 
 /* NCI Status Codes */
 #define NCI_STATUS_OK						0x00
@@ -101,6 +102,9 @@
 #define NCI_RF_INTERFACE_FRAME					0x01
 #define NCI_RF_INTERFACE_ISO_DEP				0x02
 #define NCI_RF_INTERFACE_NFC_DEP				0x03
+
+/* NCI Configuration Parameter Tags */
+#define NCI_PN_ATR_REQ_GEN_BYTES				0x29
 
 /* NCI Reset types */
 #define NCI_RESET_TYPE_KEEP_CONFIG				0x00
@@ -188,6 +192,18 @@ struct nci_core_reset_cmd {
 
 #define NCI_OP_CORE_INIT_CMD		nci_opcode_pack(NCI_GID_CORE, 0x01)
 
+#define NCI_OP_CORE_SET_CONFIG_CMD	nci_opcode_pack(NCI_GID_CORE, 0x02)
+struct set_config_param {
+	__u8	id;
+	__u8	len;
+	__u8	val[NCI_MAX_PARAM_LEN];
+} __packed;
+
+struct nci_core_set_config_cmd {
+	__u8	num_params;
+	struct	set_config_param param; /* support 1 param per cmd is enough */
+} __packed;
+
 #define NCI_OP_RF_DISCOVER_MAP_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 struct disc_map_config {
 	__u8	rf_protocol;
@@ -250,6 +266,13 @@ struct nci_core_init_rsp_2 {
 	__le16	max_size_for_large_params;
 	__u8	manufact_id;
 	__le32	manufact_specific_info;
+} __packed;
+
+#define NCI_OP_CORE_SET_CONFIG_RSP	nci_opcode_pack(NCI_GID_CORE, 0x02)
+struct nci_core_set_config_rsp {
+	__u8	status;
+	__u8	num_params;
+	__u8	params_id[0];	/* variable size array */
 } __packed;
 
 #define NCI_OP_RF_DISCOVER_MAP_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
@@ -328,6 +351,11 @@ struct activation_params_nfcb_poll_iso_dep {
 	__u8	attrib_res[50];
 };
 
+struct activation_params_poll_nfc_dep {
+	__u8	atr_res_len;
+	__u8	atr_res[63];
+};
+
 struct nci_rf_intf_activated_ntf {
 	__u8	rf_discovery_id;
 	__u8	rf_interface;
@@ -351,6 +379,7 @@ struct nci_rf_intf_activated_ntf {
 	union {
 		struct activation_params_nfca_poll_iso_dep nfca_poll_iso_dep;
 		struct activation_params_nfcb_poll_iso_dep nfcb_poll_iso_dep;
+		struct activation_params_poll_nfc_dep poll_nfc_dep;
 	} activation_params;
 
 } __packed;

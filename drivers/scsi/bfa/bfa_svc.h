@@ -97,10 +97,13 @@ struct bfa_fcxp_mod_s {
 	struct bfa_s      *bfa;		/* backpointer to BFA */
 	struct bfa_fcxp_s *fcxp_list;	/* array of FCXPs */
 	u16	num_fcxps;	/* max num FCXP requests */
-	struct list_head  fcxp_free_q;	/* free FCXPs */
-	struct list_head  fcxp_active_q;	/* active FCXPs */
-	struct list_head  wait_q;		/* wait queue for free fcxp */
-	struct list_head fcxp_unused_q; /* unused fcxps */
+	struct list_head fcxp_req_free_q; /* free FCXPs used for sending req */
+	struct list_head fcxp_rsp_free_q; /* free FCXPs used for sending req */
+	struct list_head fcxp_active_q;	/* active FCXPs */
+	struct list_head req_wait_q;	/* wait queue for free req_fcxp */
+	struct list_head rsp_wait_q;	/* wait queue for free rsp_fcxp */
+	struct list_head fcxp_req_unused_q;	/* unused req_fcxps */
+	struct list_head fcxp_rsp_unused_q;	/* unused rsp_fcxps */
 	u32	req_pld_sz;
 	u32	rsp_pld_sz;
 	struct bfa_mem_dma_s dma_seg[BFA_FCXP_DMA_SEGS];
@@ -197,6 +200,7 @@ struct bfa_fcxp_s {
 	struct bfa_cb_qe_s    hcb_qe;	/*  comp: callback qelem */
 	struct bfa_reqq_wait_s	reqq_wqe;
 	bfa_boolean_t	reqq_waiting;
+	bfa_boolean_t	req_rsp;	/* Used to track req/rsp fcxp */
 };
 
 struct bfa_fcxp_wqe_s {
@@ -586,20 +590,22 @@ void	bfa_rport_unset_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp);
 /*
  * bfa fcxp API functions
  */
-struct bfa_fcxp_s *bfa_fcxp_alloc(void *bfad_fcxp, struct bfa_s *bfa,
+struct bfa_fcxp_s *bfa_fcxp_req_rsp_alloc(void *bfad_fcxp, struct bfa_s *bfa,
 				  int nreq_sgles, int nrsp_sgles,
 				  bfa_fcxp_get_sgaddr_t get_req_sga,
 				  bfa_fcxp_get_sglen_t get_req_sglen,
 				  bfa_fcxp_get_sgaddr_t get_rsp_sga,
-				  bfa_fcxp_get_sglen_t get_rsp_sglen);
-void bfa_fcxp_alloc_wait(struct bfa_s *bfa, struct bfa_fcxp_wqe_s *wqe,
+				  bfa_fcxp_get_sglen_t get_rsp_sglen,
+				  bfa_boolean_t req);
+void bfa_fcxp_req_rsp_alloc_wait(struct bfa_s *bfa, struct bfa_fcxp_wqe_s *wqe,
 				bfa_fcxp_alloc_cbfn_t alloc_cbfn,
 				void *cbarg, void *bfad_fcxp,
 				int nreq_sgles, int nrsp_sgles,
 				bfa_fcxp_get_sgaddr_t get_req_sga,
 				bfa_fcxp_get_sglen_t get_req_sglen,
 				bfa_fcxp_get_sgaddr_t get_rsp_sga,
-				bfa_fcxp_get_sglen_t get_rsp_sglen);
+				bfa_fcxp_get_sglen_t get_rsp_sglen,
+				bfa_boolean_t req);
 void bfa_fcxp_walloc_cancel(struct bfa_s *bfa,
 			    struct bfa_fcxp_wqe_s *wqe);
 void bfa_fcxp_discard(struct bfa_fcxp_s *fcxp);
@@ -658,6 +664,7 @@ u8 bfa_lps_get_fwtag(struct bfa_s *bfa, u8 lp_tag);
 u32 bfa_lps_get_base_pid(struct bfa_s *bfa);
 u8 bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid);
 void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);
+void bfa_cb_lps_flogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_cvl_event(void *bfad, void *uarg);

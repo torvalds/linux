@@ -77,7 +77,8 @@ typedef struct {
 	int action;
 } sctp_sm_command_t;
 
-typedef sctp_disposition_t (sctp_state_fn_t) (const struct sctp_endpoint *,
+typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
+					      const struct sctp_endpoint *,
 					      const struct sctp_association *,
 					      const sctp_subtype_t type,
 					      void *arg,
@@ -178,7 +179,8 @@ sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t,
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *,
+					    sctp_event_t,
 					    sctp_state_t,
 					    sctp_subtype_t);
 int sctp_chunk_iif(const struct sctp_chunk *);
@@ -268,7 +270,7 @@ void sctp_chunk_assign_ssn(struct sctp_chunk *);
 
 /* Prototypes for statetable processing. */
 
-int sctp_do_sm(sctp_event_t event_type, sctp_subtype_t subtype,
+int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
 	       sctp_state_t state,
                struct sctp_endpoint *,
                struct sctp_association *asoc,

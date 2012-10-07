@@ -380,7 +380,7 @@ void dma_controller_destroy(struct dma_controller *c)
 	kfree(controller);
 }
 
-struct dma_controller *__init
+struct dma_controller *__devinit
 dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct musb_dma_controller *controller;
@@ -388,7 +388,7 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 	struct platform_device *pdev = to_platform_device(dev);
 	int irq = platform_get_irq_byname(pdev, "dma");
 
-	if (irq == 0) {
+	if (irq <= 0) {
 		dev_err(dev, "No DMA interrupt line!\n");
 		return NULL;
 	}

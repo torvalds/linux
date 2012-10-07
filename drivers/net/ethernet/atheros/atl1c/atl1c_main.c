@@ -149,7 +149,7 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 	data &= ~(PCI_ERR_UNC_DLP | PCI_ERR_UNC_FCP);
 	pci_write_config_dword(pdev, pos + PCI_ERR_UNCOR_SEVER, data);
 	/* clear error status */
-	pci_write_config_word(pdev, pci_pcie_cap(pdev) + PCI_EXP_DEVSTA,
+	pcie_capability_write_word(pdev, PCI_EXP_DEVSTA,
 			PCI_EXP_DEVSTA_NFED |
 			PCI_EXP_DEVSTA_FED |
 			PCI_EXP_DEVSTA_CED |
@@ -702,7 +702,7 @@ struct atl1c_platform_patch {
 	u32 patch_flag;
 #define ATL1C_LINK_PATCH	0x1
 };
-static const struct atl1c_platform_patch plats[] __devinitdata = {
+static const struct atl1c_platform_patch plats[] __devinitconst = {
 {0x2060, 0xC1, 0x1019, 0x8152, 0x1},
 {0x2060, 0xC1, 0x1019, 0x2060, 0x1},
 {0x2060, 0xC1, 0x1019, 0xE000, 0x1},
@@ -2685,7 +2685,7 @@ static void atl1c_io_resume(struct pci_dev *pdev)
 	netif_device_attach(netdev);
 }
 
-static struct pci_error_handlers atl1c_err_handler = {
+static const struct pci_error_handlers atl1c_err_handler = {
 	.error_detected = atl1c_io_error_detected,
 	.slot_reset = atl1c_io_slot_reset,
 	.resume = atl1c_io_resume,

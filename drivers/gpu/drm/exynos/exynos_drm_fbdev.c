@@ -26,10 +26,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
@@ -266,8 +266,8 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
 		fb = fb_helper->fb;
-		if (fb && fb->funcs->destroy)
-			fb->funcs->destroy(fb);
+		if (fb)
+			drm_framebuffer_remove(fb);
 	}
 
 	/* release linux framebuffer */
