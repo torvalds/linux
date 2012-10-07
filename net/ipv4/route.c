@@ -904,22 +904,29 @@ out:	kfree_skb(skb);
 	return 0;
 }
 
-static u32 __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
+static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 {
+	struct dst_entry *dst = &rt->dst;
 	struct fib_result res;
 
 	if (mtu < ip_rt_min_pmtu)
 		mtu = ip_rt_min_pmtu;
 
+	if (!rt->rt_pmtu) {
+		dst->obsolete = DST_OBSOLETE_KILL;
+	} else {
+		rt->rt_pmtu = mtu;
+		dst->expires = max(1UL, jiffies + ip_rt_mtu_expires);
+	}
+
 	rcu_read_lock();
-	if (fib_lookup(dev_net(rt->dst.dev), fl4, &res) == 0) {
+	if (fib_lookup(dev_net(dst->dev), fl4, &res) == 0) {
 		struct fib_nh *nh = &FIB_RES_NH(res);
 
 		update_or_create_fnhe(nh, fl4->daddr, 0, mtu,
 				      jiffies + ip_rt_mtu_expires);
 	}
 	rcu_read_unlock();
-	return mtu;
 }
 
 static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
@@ -929,14 +936,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 	struct flowi4 fl4;
 
 	ip_rt_build_flow_key(&fl4, sk, skb);
-	mtu = __ip_rt_update_pmtu(rt, &fl4, mtu);
-
-	if (!rt->rt_pmtu) {
-		dst->obsolete = DST_OBSOLETE_KILL;
-	} else {
-		rt->rt_pmtu = mtu;
-		rt->dst.expires = max(1UL, jiffies + ip_rt_mtu_expires);
-	}
+	__ip_rt_update_pmtu(rt, &fl4, mtu);
 }
 
 void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
