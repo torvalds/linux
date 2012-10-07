@@ -86,5 +86,6 @@ void __init kirkwood_setup_cpu_mbus(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	orion_setup_cpu_mbus_target(&addr_map_cfg, DDR_WINDOW_CPU_BASE);
+	orion_setup_cpu_mbus_target(&addr_map_cfg,
+				    (void __iomem *) DDR_WINDOW_CPU_BASE);
 }

@@ -78,7 +78,7 @@ static void _omap2_module_wait_ready(struct clk *clk)
 	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit, &idlest_val);
 
 	omap2_cm_wait_idlest(idlest_reg, (1 << idlest_bit), idlest_val,
-			     clk->name);
+			     __clk_get_name(clk));
 }
 
 /* Public functions */
@@ -94,18 +94,21 @@ static void _omap2_module_wait_ready(struct clk *clk)
 void omap2_init_clk_clkdm(struct clk *clk)
 {
 	struct clockdomain *clkdm;
+	const char *clk_name;
 
 	if (!clk->clkdm_name)
 		return;
 
+	clk_name = __clk_get_name(clk);
+
 	clkdm = clkdm_lookup(clk->clkdm_name);
 	if (clkdm) {
 		pr_debug("clock: associated clk %s to clkdm %s\n",
-			 clk->name, clk->clkdm_name);
+			 clk_name, clk->clkdm_name);
 		clk->clkdm = clkdm;
 	} else {
 		pr_debug("clock: could not associate clk %s to clkdm %s\n",
-			 clk->name, clk->clkdm_name);
+			 clk_name, clk->clkdm_name);
 	}
 }
 

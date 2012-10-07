@@ -261,10 +261,10 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 		return;
 	}
 
-	r = omap_clk_get_by_name(clk_name);
+	r = clk_get(NULL, clk_name);
 	if (IS_ERR(r)) {
 		dev_err(&od->pdev->dev,
-			"omap_clk_get_by_name for %s failed\n", clk_name);
+			"clk_get for %s failed\n", clk_name);
 		return;
 	}
 
@@ -978,6 +978,61 @@ int omap_device_shutdown(struct platform_device *pdev)
 		omap_hwmod_shutdown(od->hwmods[i]);
 
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
+
+	return ret;
+}
+
+/**
+ * omap_device_assert_hardreset - set a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Set the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return value
+ * of omap_hwmod_assert_hardreset() in the event of any failure, or
+ * returns 0 upon success.
+ */
+int omap_device_assert_hardreset(struct platform_device *pdev, const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_assert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/**
+ * omap_device_deassert_hardreset - release a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Release the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return
+ * value of omap_hwmod_deassert_hardreset() in the event of any
+ * failure, or returns 0 upon success.
+ */
+int omap_device_deassert_hardreset(struct platform_device *pdev,
+				   const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_deassert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }

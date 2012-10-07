@@ -33,6 +33,7 @@ struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
 	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
 	OF_DEV_AUXDATA("marvell,orion-nand", 0xf4000000, "orion_nand", NULL),
+	OF_DEV_AUXDATA("marvell,orion-crypto", 0xf1030000, "mv_crypto", NULL),
 	{},
 };
 
@@ -60,7 +61,6 @@ static void __init kirkwood_dt_init(void)
 	/* internal devices that every board has */
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
-	kirkwood_crypto_init();
 
 #ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
@@ -81,11 +81,20 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("qnap,ts219"))
 		qnap_dt_ts219_init();
 
+	if (of_machine_is_compatible("seagate,dockstar"))
+		dockstar_dt_init();
+
 	if (of_machine_is_compatible("seagate,goflexnet"))
 		goflexnet_init();
 
 	if (of_machine_is_compatible("buffalo,lsxl"))
 		lsxl_init();
+
+	if (of_machine_is_compatible("iom,ix2-200"))
+		iomega_ix2_200_init();
+
+	if (of_machine_is_compatible("keymile,km_kirkwood"))
+		km_kirkwood_init();
 
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
@@ -98,8 +107,11 @@ static const char *kirkwood_dt_board_compat[] = {
 	"iom,iconnect",
 	"raidsonic,ib-nas62x0",
 	"qnap,ts219",
+	"seagate,dockstar",
 	"seagate,goflexnet",
 	"buffalo,lsxl",
+	"iom,ix2-200",
+	"keymile,km_kirkwood",
 	NULL
 };
 
