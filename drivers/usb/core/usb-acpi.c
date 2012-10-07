@@ -87,7 +87,7 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *upc;
-	struct acpi_pld pld;
+	struct acpi_pld_info *pld;
 	int ret = 0;
 
 	/*
@@ -111,16 +111,17 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	}
 
 	if (upc->package.elements[0].integer.value)
-		if (pld.user_visible)
+		if (pld->user_visible)
 			usb_set_hub_port_connect_type(hdev, port1,
 				USB_PORT_CONNECT_TYPE_HOT_PLUG);
 		else
 			usb_set_hub_port_connect_type(hdev, port1,
 				USB_PORT_CONNECT_TYPE_HARD_WIRED);
-	else if (!pld.user_visible)
+	else if (!pld->user_visible)
 		usb_set_hub_port_connect_type(hdev, port1, USB_PORT_NOT_USED);
 
 out:
+	ACPI_FREE(pld);
 	kfree(upc);
 	return ret;
 }

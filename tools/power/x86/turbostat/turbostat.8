@@ -4,15 +4,11 @@ turbostat \- Report processor frequency and idle statistics
 .SH SYNOPSIS
 .ft B
 .B turbostat
-.RB [ "\-s" ]
-.RB [ "\-v" ]
-.RB [ "\-M MSR#" ]
+.RB [ Options ]
 .RB command
 .br
 .B turbostat
-.RB [ "\-s" ]
-.RB [ "\-v" ]
-.RB [ "\-M MSR#" ]
+.RB [ Options ]
 .RB [ "\-i interval_sec" ]
 .SH DESCRIPTION
 \fBturbostat \fP reports processor topology, frequency
@@ -27,16 +23,23 @@ supports an "invariant" TSC, plus the APERF and MPERF MSRs.
 on processors that additionally support C-state residency counters.
 
 .SS Options
-The \fB-s\fP option limits output to a 1-line system summary for each interval.
+The \fB-p\fP option limits output to the 1st thread in 1st core of each package.
 .PP
-The \fB-c\fP option limits output to the 1st thread in each core.
+The \fB-P\fP option limits output to the 1st thread in each Package.
 .PP
-The \fB-p\fP option limits output to the 1st thread in each package.
+The \fB-S\fP option limits output to a 1-line System Summary for each interval.
 .PP
 The \fB-v\fP option increases verbosity.
 .PP
-The \fB-M MSR#\fP option dumps the specified MSR,
-in addition to the usual frequency and idle statistics.
+The \fB-s\fP option prints the SMI counter, equivalent to "-c 0x34"
+.PP
+The \fB-c MSR#\fP option includes the delta of the specified 32-bit MSR counter.
+.PP
+The \fB-C MSR#\fP option includes the delta of the specified 64-bit MSR counter.
+.PP
+The \fB-m MSR#\fP option includes the the specified 32-bit MSR value.
+.PP
+The \fB-M MSR#\fP option includes the the specified 64-bit MSR value.
 .PP
 The \fB-i interval_sec\fP option prints statistics every \fiinterval_sec\fP seconds.
 The default is 5 seconds.
@@ -150,6 +153,29 @@ Note that turbostat reports average GHz of 3.63, while
 the arithmetic average of the GHz column above is lower.
 This is a weighted average, where the weight is %c0.  ie. it is the total number of
 un-halted cycles elapsed per time divided by the number of CPUs.
+.SH SMI COUNTING EXAMPLE
+On Intel Nehalem and newer processors, MSR 0x34 is a System Management Mode Interrupt (SMI) counter.
+Using the -m option, you can display how many SMIs have fired since reset, or if there
+are SMIs during the measurement interval, you can display the delta using the -d option.
+.nf
+[root@x980 ~]# turbostat -m 0x34
+cor CPU    %c0  GHz  TSC   MSR 0x034    %c1    %c3    %c6   %pc3   %pc6
+          1.41 1.82 3.38  0x00000000   8.92  37.82  51.85  17.37   0.55
+  0   0   3.73 2.03 3.38  0x00000055   1.72  48.25  46.31  17.38   0.55
+  0   6   0.14 1.63 3.38  0x00000056   5.30
+  1   2   2.51 1.80 3.38  0x00000056  15.65  29.33  52.52
+  1   8   0.10 1.65 3.38  0x00000056  18.05
+  2   4   1.16 1.68 3.38  0x00000056   5.87  24.47  68.50
+  2  10   0.10 1.63 3.38  0x00000056   6.93
+  8   1   3.84 1.91 3.38  0x00000056   1.36  50.65  44.16
+  8   7   0.08 1.64 3.38  0x00000056   5.12
+  9   3   1.82 1.73 3.38  0x00000056   7.59  24.21  66.38
+  9   9   0.09 1.68 3.38  0x00000056   9.32
+ 10   5   1.66 1.65 3.38  0x00000056  15.10  50.00  33.23
+ 10  11   1.72 1.65 3.38  0x00000056  15.05
+^C
+[root@x980 ~]# 
+.fi
 .SH NOTES
 
 .B "turbostat "
@@ -164,6 +190,13 @@ multiple invocations of itself.
 may work poorly on Linux-2.6.20 through 2.6.29,
 as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF
 in those kernels.
+
+If the TSC column does not make sense, then
+the other numbers will also make no sense.
+Turbostat is lightweight, and its data collection is not atomic.
+These issues are usually caused by an extremely short measurement
+interval (much less than 1 second), or system activity that prevents
+turbostat from being able to run on all CPUS to quickly collect data.
 
 The APERF, MPERF MSRs are defined to count non-halted cycles.
 Although it is not guaranteed by the architecture, turbostat assumes

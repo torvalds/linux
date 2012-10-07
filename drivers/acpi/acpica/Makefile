@@ -158,5 +158,6 @@ acpi-y +=		\
 	utresrc.o	\
 	utstate.o	\
 	utxface.o	\
+	utxfinit.o	\
 	utxferror.o	\
 	utxfmutex.o
