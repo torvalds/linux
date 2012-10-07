@@ -49,6 +49,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx51-babbage.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
 	imx6q-arm2.dtb \
+	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
