@@ -418,7 +418,6 @@ typedef struct __device_info {
     struct net_device*          dev;
     struct net_device_stats     stats;
 
-    const struct firmware	*firmware;
 
     OPTIONS                     sOpts;
 

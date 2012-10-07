@@ -1219,7 +1219,6 @@ static void __devexit vt6656_disconnect(struct usb_interface *intf)
 	}
 
 	device_release_WPADEV(device);
-	release_firmware(device->firmware);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));

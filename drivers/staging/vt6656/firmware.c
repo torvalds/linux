@@ -61,28 +61,24 @@ FIRMWAREbDownload(
      PSDevice pDevice
     )
 {
+	struct device *dev = &pDevice->usb->dev;
 	const struct firmware *fw;
 	int NdisStatus;
 	void *pBuffer = NULL;
 	BOOL result = FALSE;
 	u16 wLength;
-	int ii;
+	int ii, rc;
+
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
 	spin_unlock_irq(&pDevice->lock);
 
-	if (!pDevice->firmware) {
-		struct device *dev = &pDevice->usb->dev;
-		int rc;
-
-		rc = request_firmware(&pDevice->firmware, FIRMWARE_NAME, dev);
-		if (rc) {
-			dev_err(dev, "firmware file %s request failed (%d)\n",
-				FIRMWARE_NAME, rc);
+	rc = request_firmware(&fw, FIRMWARE_NAME, dev);
+	if (rc) {
+		dev_err(dev, "firmware file %s request failed (%d)\n",
+			FIRMWARE_NAME, rc);
 			goto out;
-		}
 	}
-	fw = pDevice->firmware;
 
 	pBuffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
 	if (!pBuffer)
@@ -103,10 +99,12 @@ FIRMWAREbDownload(
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO"Download firmware...%d %zu\n", ii, fw->size);
 		if (NdisStatus != STATUS_SUCCESS)
-			goto out;
+			goto free_fw;
         }
 
 	result = TRUE;
+free_fw:
+	release_firmware(fw);
 
 out:
 	kfree(pBuffer);
