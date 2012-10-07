@@ -559,17 +559,17 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 	/* Sanity checks */
 	if (skb == NULL) {	/* bad skb */
 		pr_debug("Called w/ null skb.\n");
-		goto exit;
+		return;
 	}
 	frmmeta = P80211SKB_FRMMETA(skb);
 	if (frmmeta == NULL) {	/* no magic */
 		pr_debug("Called w/ bad frmmeta magic.\n");
-		goto exit;
+		return;
 	}
 	rxmeta = frmmeta->rx;
 	if (rxmeta == NULL) {	/* bad meta ptr */
 		pr_debug("Called w/ bad rxmeta ptr.\n");
-		goto exit;
+		return;
 	}
 
 	/* Free rxmeta */
@@ -577,8 +577,6 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 
 	/* Clear skb->cb */
 	memset(skb->cb, 0, sizeof(skb->cb));
-exit:
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -660,5 +658,4 @@ void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 	else
 		printk(KERN_ERR "Freeing an skb (%p) w/ no frmmeta.\n", skb);
 	dev_kfree_skb(skb);
-	return;
 }

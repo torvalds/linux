@@ -256,7 +256,7 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 	struct matrix_keymap_data *keymap_data;
 	uint32_t *keymap, num_rows = 0, num_cols = 0;
 	struct device_node *np = dev->of_node, *key_np;
-	unsigned int key_count = 0;
+	unsigned int key_count;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -280,9 +280,7 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 	}
 	pdata->keymap_data = keymap_data;
 
-	for_each_child_of_node(np, key_np)
-		key_count++;
-
+	key_count = of_get_child_count(np);
 	keymap_data->keymap_size = key_count;
 	keymap = devm_kzalloc(dev, sizeof(uint32_t) * key_count, GFP_KERNEL);
 	if (!keymap) {
@@ -662,8 +660,6 @@ static const struct of_device_id samsung_keypad_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
-#else
-#define samsung_keypad_dt_match NULL
 #endif
 
 static struct platform_device_id samsung_keypad_driver_ids[] = {
@@ -684,7 +680,7 @@ static struct platform_driver samsung_keypad_driver = {
 	.driver		= {
 		.name	= "samsung-keypad",
 		.owner	= THIS_MODULE,
-		.of_match_table = samsung_keypad_dt_match,
+		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
 		.pm	= &samsung_keypad_pm_ops,
 	},
 	.id_table	= samsung_keypad_driver_ids,

@@ -67,6 +67,9 @@ struct team_port {
 	struct netpoll *np;
 #endif
 
+	s32 priority; /* lower number ~ higher priority */
+	u16 queue_id;
+	struct list_head qom_list; /* node in queue override mapping list */
 	long mode_priv[0];
 };
 
@@ -105,7 +108,7 @@ struct team_mode_ops {
 	bool (*transmit)(struct team *team, struct sk_buff *skb);
 	int (*port_enter)(struct team *team, struct team_port *port);
 	void (*port_leave)(struct team *team, struct team_port *port);
-	void (*port_change_mac)(struct team *team, struct team_port *port);
+	void (*port_change_dev_addr)(struct team *team, struct team_port *port);
 	void (*port_enabled)(struct team *team, struct team_port *port);
 	void (*port_disabled)(struct team *team, struct team_port *port);
 };
@@ -115,6 +118,7 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_STRING,
 	TEAM_OPTION_TYPE_BINARY,
 	TEAM_OPTION_TYPE_BOOL,
+	TEAM_OPTION_TYPE_S32,
 };
 
 struct team_option_inst_info {
@@ -131,6 +135,7 @@ struct team_gsetter_ctx {
 			u32 len;
 		} bin_val;
 		bool bool_val;
+		s32 s32_val;
 	} data;
 	struct team_option_inst_info *info;
 };
@@ -182,6 +187,8 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool queue_override_enabled;
+	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
@@ -231,7 +238,7 @@ static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 	return NULL;
 }
 
-extern int team_port_set_team_mac(struct team_port *port);
+extern int team_port_set_team_dev_addr(struct team_port *port);
 extern int team_options_register(struct team *team,
 				 const struct team_option *option,
 				 size_t option_count);

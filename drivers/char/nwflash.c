@@ -30,7 +30,6 @@
 
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 
@@ -179,9 +178,6 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 	written = 0;
 
-	leds_event(led_claim);
-	leds_event(led_green_on);
-
 	nBlock = (int) p >> 16;	//block # of 64K bytes
 
 	/*
@@ -258,11 +254,6 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 			printk(KERN_DEBUG "flash_write: written 0x%X bytes OK.\n", written);
 	}
 
-	/*
-	 * restore reg on exit
-	 */
-	leds_event(led_release);
-
 	mutex_unlock(&nwflash_mutex);
 
 	return written;
@@ -332,11 +323,6 @@ static int erase_block(int nBlock)
 	volatile unsigned char *pWritePtr;
 	unsigned long timeout;
 	int temp, temp1;
-
-	/*
-	 * orange LED == erase
-	 */
-	leds_event(led_amber_on);
 
 	/*
 	 * reset footbridge to the correct offset 0 (...0..3)
@@ -446,12 +432,6 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 	unsigned long timeout;
 	unsigned long timeout1;
 
-	/*
-	 * red LED == write
-	 */
-	leds_event(led_amber_off);
-	leds_event(led_red_on);
-
 	pWritePtr = (unsigned char *) ((unsigned int) (FLASH_BASE + p));
 
 	/*
@@ -558,17 +538,9 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 					       pWritePtr - FLASH_BASE);
 
 				/*
-				 * no LED == waiting
-				 */
-				leds_event(led_amber_off);
-				/*
 				 * wait couple ms
 				 */
 				msleep(10);
-				/*
-				 * red LED == write
-				 */
-				leds_event(led_red_on);
 
 				goto WriteRetry;
 			} else {
@@ -582,12 +554,6 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 			}
 		}
 	}
-
-	/*
-	 * green LED == read/verify
-	 */
-	leds_event(led_amber_off);
-	leds_event(led_green_on);
 
 	msleep(10);
 

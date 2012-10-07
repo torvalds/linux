@@ -1,0 +1,9 @@
+config DGRP
+       tristate "Digi Realport driver"
+       default n
+       depends on SYSFS
+       ---help---
+       Support for Digi Realport devices.  These devices allow you to
+       access remote serial ports as if they are local tty devices.  This
+       will build the kernel driver, you will still need the userspace
+       component to make your Realport device work.

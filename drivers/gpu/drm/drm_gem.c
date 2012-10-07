@@ -36,7 +36,7 @@
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /** @file drm_gem.c
  *

@@ -6,6 +6,7 @@
 
 #ifdef CONFIG_OF_ADDRESS
 extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
+extern bool of_can_translate_address(struct device_node *dev);
 extern int of_address_to_resource(struct device_node *dev, int index,
 				  struct resource *r);
 extern struct device_node *of_find_matching_node_by_address(

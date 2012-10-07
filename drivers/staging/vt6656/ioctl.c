@@ -526,11 +526,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			pMgmt->abyIBSSSuppRates[3] |= BIT7;
 		}
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %x %x %x %x\n",
-			pMgmt->abyIBSSSuppRates[2],
-			pMgmt->abyIBSSSuppRates[3],
-			pMgmt->abyIBSSSuppRates[4],
-			pMgmt->abyIBSSSuppRates[5]);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %*ph\n",
+			4, pMgmt->abyIBSSSuppRates + 2);
 
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
@@ -620,7 +617,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -EFAULT;
 			break;
 		}
-		/* for some AP maybe good authenticate */
+		/* for some AP's maybe a good authentication */
 		if (wpa_Result.key_mgmt == 0x20)
 			pMgmt->Cisco_cckm = 1;
 		else
@@ -644,7 +641,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	default:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not supported..\n");
 	}
 
 	return result;

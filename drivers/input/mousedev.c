@@ -551,17 +551,16 @@ static int mousedev_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	error = mutex_lock_interruptible(&mousedev_table_mutex);
-	if (error) {
+	if (error)
 		return error;
-	}
+
 	mousedev = mousedev_table[i];
 	if (mousedev)
 		get_device(&mousedev->dev);
 	mutex_unlock(&mousedev_table_mutex);
 
-	if (!mousedev) {
+	if (!mousedev)
 		return -ENODEV;
-	}
 
 	client = kzalloc(sizeof(struct mousedev_client), GFP_KERNEL);
 	if (!client) {
@@ -1088,7 +1087,7 @@ static int __init mousedev_init(void)
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
 	error = misc_register(&psaux_mouse);
 	if (error)
-		pr_warning("could not register psaux device, error: %d\n",
+		pr_warn("could not register psaux device, error: %d\n",
 			   error);
 	else
 		psaux_registered = 1;

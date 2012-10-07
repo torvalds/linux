@@ -15,6 +15,7 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <plat/addr-map.h>
+#include <mach/mv78xx0.h>
 #include "common.h"
 
 struct pcie_port {
@@ -23,16 +24,13 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*base;
 	spinlock_t		conf_lock;
-	char			io_space_name[16];
 	char			mem_space_name[16];
-	struct resource		res[2];
+	struct resource		res;
 };
 
 static struct pcie_port pcie_port[8];
 static int num_pcie_ports;
 static struct resource pcie_io_space;
-static struct resource pcie_mem_space;
-
 
 void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
 {
@@ -40,102 +38,59 @@ void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
 	*rev = orion_pcie_rev((void __iomem *)PCIE00_VIRT_BASE);
 }
 
+u32 pcie_port_size[8] = {
+	0,
+	0x30000000,
+	0x10000000,
+	0x10000000,
+	0x08000000,
+	0x08000000,
+	0x08000000,
+	0x04000000,
+};
+
 static void __init mv78xx0_pcie_preinit(void)
 {
 	int i;
 	u32 size_each;
 	u32 start;
-	int win;
+	int win = 0;
 
 	pcie_io_space.name = "PCIe I/O Space";
 	pcie_io_space.start = MV78XX0_PCIE_IO_PHYS_BASE(0);
 	pcie_io_space.end =
 		MV78XX0_PCIE_IO_PHYS_BASE(0) + MV78XX0_PCIE_IO_SIZE * 8 - 1;
-	pcie_io_space.flags = IORESOURCE_IO;
+	pcie_io_space.flags = IORESOURCE_MEM;
 	if (request_resource(&iomem_resource, &pcie_io_space))
 		panic("can't allocate PCIe I/O space");
 
-	pcie_mem_space.name = "PCIe MEM Space";
-	pcie_mem_space.start = MV78XX0_PCIE_MEM_PHYS_BASE;
-	pcie_mem_space.end =
-		MV78XX0_PCIE_MEM_PHYS_BASE + MV78XX0_PCIE_MEM_SIZE - 1;
-	pcie_mem_space.flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, &pcie_mem_space))
-		panic("can't allocate PCIe MEM space");
-
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
-
-		snprintf(pp->io_space_name, sizeof(pp->io_space_name),
-			"PCIe %d.%d I/O", pp->maj, pp->min);
-		pp->io_space_name[sizeof(pp->io_space_name) - 1] = 0;
-		pp->res[0].name = pp->io_space_name;
-		pp->res[0].start = MV78XX0_PCIE_IO_PHYS_BASE(i);
-		pp->res[0].end = pp->res[0].start + MV78XX0_PCIE_IO_SIZE - 1;
-		pp->res[0].flags = IORESOURCE_IO;
-
-		snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
-			"PCIe %d.%d MEM", pp->maj, pp->min);
-		pp->mem_space_name[sizeof(pp->mem_space_name) - 1] = 0;
-		pp->res[1].name = pp->mem_space_name;
-		pp->res[1].flags = IORESOURCE_MEM;
-	}
-
-	switch (num_pcie_ports) {
-	case 0:
-		size_each = 0;
-		break;
-
-	case 1:
-		size_each = 0x30000000;
-		break;
-
-	case 2 ... 3:
-		size_each = 0x10000000;
-		break;
-
-	case 4 ... 6:
-		size_each = 0x08000000;
-		break;
-
-	case 7:
-		size_each = 0x04000000;
-		break;
-
-	default:
+	if (num_pcie_ports > 7)
 		panic("invalid number of PCIe ports");
-	}
+
+	size_each = pcie_port_size[num_pcie_ports];
 
 	start = MV78XX0_PCIE_MEM_PHYS_BASE;
 	for (i = 0; i < num_pcie_ports; i++) {
 		struct pcie_port *pp = pcie_port + i;
 
-		pp->res[1].start = start;
-		pp->res[1].end = start + size_each - 1;
+		snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
+			"PCIe %d.%d MEM", pp->maj, pp->min);
+		pp->mem_space_name[sizeof(pp->mem_space_name) - 1] = 0;
+		pp->res.name = pp->mem_space_name;
+		pp->res.flags = IORESOURCE_MEM;
+		pp->res.start = start;
+		pp->res.end = start + size_each - 1;
 		start += size_each;
-	}
 
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
-
-		if (request_resource(&pcie_io_space, &pp->res[0]))
-			panic("can't allocate PCIe I/O sub-space");
-
-		if (request_resource(&pcie_mem_space, &pp->res[1]))
+		if (request_resource(&iomem_resource, &pp->res))
 			panic("can't allocate PCIe MEM sub-space");
-	}
 
-	win = 0;
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
-
-		mv78xx0_setup_pcie_io_win(win++, pp->res[0].start,
-					  resource_size(&pp->res[0]),
-					  pp->maj, pp->min);
-
-		mv78xx0_setup_pcie_mem_win(win++, pp->res[1].start,
-					   resource_size(&pp->res[1]),
+		mv78xx0_setup_pcie_mem_win(win + i + 8, pp->res.start,
+					   resource_size(&pp->res),
 					   pp->maj, pp->min);
+
+		mv78xx0_setup_pcie_io_win(win + i, i * SZ_64K, SZ_64K,
+					  pp->maj, pp->min);
 	}
 }
 
@@ -156,8 +111,9 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 	orion_pcie_setup(pp->base);
 
-	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
-	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
+	pci_ioremap_io(nr * SZ_64K, MV78XX0_PCIE_IO_PHYS_BASE(nr));
+
+	pci_add_resource_offset(&sys->resources, &pp->res, sys->mem_offset);
 
 	return 1;
 }
@@ -281,7 +237,7 @@ static void __init add_pcie_port(int maj, int min, unsigned long base)
 		pp->root_bus_nr = -1;
 		pp->base = (void __iomem *)base;
 		spin_lock_init(&pp->conf_lock);
-		memset(pp->res, 0, sizeof(pp->res));
+		memset(&pp->res, 0, sizeof(pp->res));
 	} else {
 		printk("link down, ignoring\n");
 	}

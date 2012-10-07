@@ -9,9 +9,9 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
-#include "exynos_drm.h"
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_fb.h"

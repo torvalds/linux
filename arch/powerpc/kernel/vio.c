@@ -33,7 +33,6 @@
 #include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
-#include <asm/abs_addr.h>
 #include <asm/page.h>
 #include <asm/hvcall.h>
 

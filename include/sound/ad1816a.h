@@ -20,9 +20,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include "control.h"
-#include "pcm.h"
-#include "timer.h"
+#include <sound/control.h>
+#include <sound/pcm.h>
+#include <sound/timer.h>
 
 #define AD1816A_REG(r)			(chip->port + r)
 

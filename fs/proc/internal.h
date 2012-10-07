@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/sched.h>
 #include <linux/proc_fs.h>
 struct  ctl_table_header;
 
@@ -65,6 +66,7 @@ extern const struct file_operations proc_clear_refs_operations;
 extern const struct file_operations proc_pagemap_operations;
 extern const struct file_operations proc_net_operations;
 extern const struct inode_operations proc_net_inode_operations;
+extern const struct inode_operations proc_pid_link_inode_operations;
 
 struct proc_maps_private {
 	struct pid *pid;
@@ -89,6 +91,52 @@ static inline struct task_struct *get_proc_task(struct inode *inode)
 static inline int proc_fd(struct inode *inode)
 {
 	return PROC_I(inode)->fd;
+}
+
+static inline int task_dumpable(struct task_struct *task)
+{
+	int dumpable = 0;
+	struct mm_struct *mm;
+
+	task_lock(task);
+	mm = task->mm;
+	if (mm)
+		dumpable = get_dumpable(mm);
+	task_unlock(task);
+	if (dumpable == SUID_DUMPABLE_ENABLED)
+		return 1;
+	return 0;
+}
+
+static inline int pid_delete_dentry(const struct dentry * dentry)
+{
+	/* Is the task we represent dead?
+	 * If so, then don't put the dentry on the lru list,
+	 * kill it immediately.
+	 */
+	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
+}
+
+static inline unsigned name_to_int(struct dentry *dentry)
+{
+	const char *name = dentry->d_name.name;
+	int len = dentry->d_name.len;
+	unsigned n = 0;
+
+	if (len > 1 && *name == '0')
+		goto out;
+	while (len-- > 0) {
+		unsigned c = *name++ - '0';
+		if (c > 9)
+			goto out;
+		if (n >= (~0U-9)/10)
+			goto out;
+		n *= 10;
+		n += c;
+	}
+	return n;
+out:
+	return ~0U;
 }
 
 struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *ino,

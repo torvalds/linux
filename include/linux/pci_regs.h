@@ -549,6 +549,7 @@
 #define  PCI_EXP_LNKCAP2_SLS_8_0GB 0x04	/* Current Link Speed 8.0GT/s */
 #define  PCI_EXP_LNKCAP2_CROSSLINK 0x100 /* Crosslink supported */
 #define PCI_EXP_LNKCTL2		48	/* Link Control 2 */
+#define PCI_EXP_LNKSTA2		50	/* Link Status 2 */
 #define PCI_EXP_SLTCTL2		56	/* Slot Control 2 */
 
 /* Extended Capabilities (PCI-X 2.0 and Express) */
@@ -676,6 +677,12 @@
 #define PCI_PWR_CAP		12	/* Capability */
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
 #define PCI_EXT_CAP_PWR_SIZEOF	16
+
+/* Vendor-Specific (VSEC, PCI_EXT_CAP_ID_VNDR) */
+#define PCI_VNDR_HEADER		4	/* Vendor-Specific Header */
+#define  PCI_VNDR_HEADER_ID(x)	((x) & 0xffff)
+#define  PCI_VNDR_HEADER_REV(x)	(((x) >> 16) & 0xf)
+#define  PCI_VNDR_HEADER_LEN(x)	(((x) >> 20) & 0xfff)
 
 /*
  * Hypertransport sub capability types

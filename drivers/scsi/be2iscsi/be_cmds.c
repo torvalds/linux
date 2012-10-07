@@ -48,7 +48,8 @@ int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
 	}
 
 	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR "Soft Reset  did not deassert\n");
+		printk(KERN_ERR DRV_NAME
+		       " Soft Reset  did not deassert\n");
 		return -EIO;
 	}
 	pconline1 = BE2_MPU_IRAM_ONLINE;
@@ -67,7 +68,8 @@ int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
 		i++;
 	}
 	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR "MPU Online Soft Reset did not deassert\n");
+		printk(KERN_ERR DRV_NAME
+		       " MPU Online Soft Reset did not deassert\n");
 		return -EIO;
 	}
 	return 0;
@@ -93,8 +95,9 @@ int be_chk_reset_complete(struct beiscsi_hba *phba)
 	}
 
 	if ((status & 0x80000000) || (!num_loop)) {
-		printk(KERN_ERR "Failed in be_chk_reset_complete"
-		"status = 0x%x\n", status);
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : Failed in be_chk_reset_complete"
+			    "status = 0x%x\n", status);
 		return -EIO;
 	}
 
@@ -169,6 +172,7 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 				struct be_mcc_compl *compl)
 {
 	u16 compl_status, extd_status;
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 
 	be_dws_le_to_cpu(compl, 4);
 
@@ -177,9 +181,12 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 	if (compl_status != MCC_STATUS_SUCCESS) {
 		extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
 						CQE_STATUS_EXTD_MASK;
-		dev_err(&ctrl->pdev->dev,
-			"error in cmd completion: status(compl/extd)=%d/%d\n",
-			compl_status, extd_status);
+
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : error in cmd completion: status(compl/extd)=%d/%d\n",
+			    compl_status, extd_status);
+
 		return -EBUSY;
 	}
 	return 0;
@@ -233,22 +240,29 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 {
 	switch (evt->port_link_status) {
 	case ASYNC_EVENT_LINK_DOWN:
-		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d\n",
-				     evt->physical_port);
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
+			    "BC_%d : Link Down on Physical Port %d\n",
+			    evt->physical_port);
+
 		phba->state |= BE_ADAPTER_LINK_DOWN;
 		iscsi_host_for_each_session(phba->shost,
 					    be2iscsi_fail_session);
 		break;
 	case ASYNC_EVENT_LINK_UP:
 		phba->state = BE_ADAPTER_UP;
-		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d\n",
-						evt->physical_port);
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
+			    "BC_%d : Link UP on Physical Port %d\n",
+			    evt->physical_port);
 		break;
 	default:
-		SE_DEBUG(DBG_LVL_1, "Unexpected Async Notification %d on"
-				    "Physical Port %d\n",
-				     evt->port_link_status,
-				     evt->physical_port);
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
+			    "BC_%d : Unexpected Async Notification %d on"
+			    "Physical Port %d\n",
+			    evt->port_link_status,
+			    evt->physical_port);
 	}
 }
 
@@ -279,9 +293,11 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 				beiscsi_async_link_state_process(phba,
 				   (struct be_async_event_link_state *) compl);
 			else
-				SE_DEBUG(DBG_LVL_1,
-					 " Unsupported Async Event, flags"
-					 " = 0x%08x\n", compl->flags);
+				beiscsi_log(phba, KERN_ERR,
+					    BEISCSI_LOG_CONFIG |
+					    BEISCSI_LOG_MBOX,
+					    "BC_%d : Unsupported Async Event, flags"
+					    " = 0x%08x\n", compl->flags);
 
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				status = be_mcc_compl_process(ctrl, compl);
@@ -312,7 +328,10 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 		udelay(100);
 	}
 	if (i == mcc_timeout) {
-		dev_err(&phba->pcidev->dev, "mccq poll timed out\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : mccq poll timed out\n");
+
 		return -EBUSY;
 	}
 	return 0;
@@ -338,7 +357,11 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 			break;
 
 		if (cnt > 12000000) {
-			dev_err(&ctrl->pdev->dev, "mbox_db poll timed out\n");
+			struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+				    "BC_%d : mbox_db poll timed out\n");
+
 			return -EBUSY;
 		}
 
@@ -360,6 +383,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	struct be_dma_mem *mbox_mem = &ctrl->mbox_mem;
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 
 	val &= ~MPU_MAILBOX_DB_RDY_MASK;
 	val |= MPU_MAILBOX_DB_HI_MASK;
@@ -368,7 +392,10 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : be_mbox_db_ready_wait failed\n");
+
 		return status;
 	}
 	val = 0;
@@ -379,18 +406,27 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : be_mbox_db_ready_wait failed\n");
+
 		return status;
 	}
 	if (be_mcc_compl_is_new(compl)) {
 		status = be_mcc_compl_process(ctrl, &mbox->compl);
 		be_mcc_compl_use(compl);
 		if (status) {
-			SE_DEBUG(DBG_LVL_1, "After be_mcc_compl_process\n");
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+				    "BC_%d : After be_mcc_compl_process\n");
+
 			return status;
 		}
 	} else {
-		dev_err(&ctrl->pdev->dev, "invalid mailbox completion\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : Invalid Mailbox Completion\n");
+
 		return -EBUSY;
 	}
 	return 0;
@@ -436,7 +472,10 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 		if (status)
 			return status;
 	} else {
-		dev_err(&phba->pcidev->dev, "invalid mailbox completion\n");
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : invalid mailbox completion\n");
+
 		return -EBUSY;
 	}
 	return 0;
@@ -528,7 +567,6 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 	struct be_dma_mem *q_mem = &eq->dma_mem;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_eq_create\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -563,10 +601,10 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	int status;
 	u8 *endian_check;
 
-	SE_DEBUG(DBG_LVL_8, "In be_cmd_fw_initialize\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -583,7 +621,8 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_notify(ctrl);
 	if (status)
-		SE_DEBUG(DBG_LVL_1, "be_cmd_fw_initialize Failed\n");
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : be_cmd_fw_initialize Failed\n");
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
@@ -596,11 +635,11 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_cmd_req_cq_create *req = embedded_payload(wrb);
 	struct be_cmd_resp_cq_create *resp = embedded_payload(wrb);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	struct be_dma_mem *q_mem = &cq->dma_mem;
 	void *ctxt = &req->context;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_cq_create\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -608,8 +647,6 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			OPCODE_COMMON_CQ_CREATE, sizeof(*req));
-	if (!q_mem->va)
-		SE_DEBUG(DBG_LVL_1, "uninitialized q_mem->va\n");
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
 
@@ -633,8 +670,10 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 		cq->id = le16_to_cpu(resp->cq_id);
 		cq->created = true;
 	} else
-		SE_DEBUG(DBG_LVL_1, "In be_cmd_cq_create, status=ox%08x\n",
-			status);
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : In be_cmd_cq_create, status=ox%08x\n",
+			    status);
+
 	spin_unlock(&ctrl->mbox_lock);
 
 	return status;
@@ -700,10 +739,14 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_cmd_req_q_destroy *req = embedded_payload(wrb);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	u8 subsys = 0, opcode = 0;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_q_destroy\n");
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+		    "BC_%d : In beiscsi_cmd_q_destroy "
+		    "queue_type : %d\n", queue_type);
+
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
@@ -759,7 +802,6 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 	void *ctxt = &req->context;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In be_cmd_create_default_pdu_queue\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -830,6 +872,7 @@ int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_post_sgl_pages_req *req = embedded_payload(wrb);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	int status;
 	unsigned int curr_pages;
 	u32 internal_page_offset = 0;
@@ -860,8 +903,9 @@ int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 
 		status = be_mbox_notify(ctrl);
 		if (status) {
-			SE_DEBUG(DBG_LVL_1,
-				 "FW CMD to map iscsi frags failed.\n");
+			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+				    "BC_%d : FW CMD to map iscsi frags failed.\n");
+
 			goto error;
 		}
 	} while (num_pages > 0);
@@ -889,4 +933,46 @@ int beiscsi_cmd_reset_function(struct beiscsi_hba  *phba)
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
+}
+
+/**
+ * be_cmd_set_vlan()- Configure VLAN paramters on the adapter
+ * @phba: device priv structure instance
+ * @vlan_tag: TAG to be set
+ *
+ * Set the VLAN_TAG for the adapter or Disable VLAN on adapter
+ *
+ * returns
+ *	TAG for the MBX Cmd
+ * **/
+int be_cmd_set_vlan(struct beiscsi_hba *phba,
+		     uint16_t vlan_tag)
+{
+	unsigned int tag = 0;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_set_vlan_req *req;
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*wrb), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
+			   OPCODE_COMMON_ISCSI_NTWK_SET_VLAN,
+			   sizeof(*req));
+
+	req->interface_hndl = phba->interface_handle;
+	req->vlan_priority = vlan_tag;
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+
+	return tag;
 }

@@ -80,6 +80,8 @@
 #include "smp.h"
 #include "multicalls.h"
 
+#include <xen/events.h>
+
 EXPORT_SYMBOL_GPL(hypercall_page);
 
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
@@ -1288,7 +1290,6 @@ asmlinkage void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	int rc;
-	pgd_t *pgd;
 
 	if (!xen_start_info)
 		return;
@@ -1380,8 +1381,6 @@ asmlinkage void __init xen_start_kernel(void)
 	acpi_numa = -1;
 #endif
 
-	pgd = (pgd_t *)xen_start_info->pt_base;
-
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
@@ -1390,7 +1389,7 @@ asmlinkage void __init xen_start_kernel(void)
 	early_boot_irqs_disabled = true;
 
 	xen_raw_console_write("mapping kernel into physical memory\n");
-	pgd = xen_setup_kernel_pagetable(pgd, xen_start_info->nr_pages);
+	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base, xen_start_info->nr_pages);
 
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
@@ -1441,10 +1440,18 @@ asmlinkage void __init xen_start_kernel(void)
 		const struct dom0_vga_console_info *info =
 			(void *)((char *)xen_start_info +
 				 xen_start_info->console.dom0.info_off);
+		struct xen_platform_op op = {
+			.cmd = XENPF_firmware_info,
+			.interface_version = XENPF_INTERFACE_VERSION,
+			.u.firmware_info.type = XEN_FW_KBD_SHIFT_FLAGS,
+		};
 
 		xen_init_vga(info, xen_start_info->console.dom0.info_size);
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
+
+		if (HYPERVISOR_dom0_op(&op) == 0)
+			boot_params.kbd_status = op.u.firmware_info.u.kbd_shift_flags;
 
 		xen_init_apic();
 

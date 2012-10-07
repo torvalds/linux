@@ -133,6 +133,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address)
 	up_read(&current->mm->mmap_sem);
 
 	if (user_mode(regs)) {
+		current->thread.trap_nr = BUS_ADRERR;
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = BUS_ADRERR;
@@ -470,7 +471,7 @@ bad_area_nosemaphore:
 	if (is_exec && (error_code & DSISR_PROTFAULT))
 		printk_ratelimited(KERN_CRIT "kernel tried to execute NX-protected"
 				   " page (%lx) - exploit attempt? (uid: %d)\n",
-				   address, current_uid());
+				   address, from_kuid(&init_user_ns, current_uid()));
 
 	return SIGSEGV;
 

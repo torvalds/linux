@@ -765,6 +765,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	struct gfs2_holder *ghs, i_gh;
 	unsigned int qx, x;
 	struct gfs2_quota_data *qd;
+	unsigned reserved;
 	loff_t offset;
 	unsigned int nalloc = 0, blocks;
 	int error;
@@ -781,7 +782,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		return -ENOMEM;
 
 	sort(qda, num_qd, sizeof(struct gfs2_quota_data *), sort_qd, NULL);
-	mutex_lock_nested(&ip->i_inode.i_mutex, I_MUTEX_QUOTA);
+	mutex_lock(&ip->i_inode.i_mutex);
 	for (qx = 0; qx < num_qd; qx++) {
 		error = gfs2_glock_nq_init(qda[qx]->qd_gl, LM_ST_EXCLUSIVE,
 					   GL_NOCACHE, &ghs[qx]);
@@ -811,13 +812,13 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	 * two blocks need to be updated instead of 1 */
 	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 3;
 
-	error = gfs2_inplace_reserve(ip, 1 +
-				     (nalloc * (data_blocks + ind_blocks)));
+	reserved = 1 + (nalloc * (data_blocks + ind_blocks));
+	error = gfs2_inplace_reserve(ip, reserved);
 	if (error)
 		goto out_alloc;
 
 	if (nalloc)
-		blocks += gfs2_rg_blocks(ip) + nalloc * ind_blocks + RES_STATFS;
+		blocks += gfs2_rg_blocks(ip, reserved) + nalloc * ind_blocks + RES_STATFS;
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
@@ -1070,8 +1071,10 @@ int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
 
 		if (be64_to_cpu(qd->qd_qb.qb_limit) && (s64)be64_to_cpu(qd->qd_qb.qb_limit) < value) {
 			print_message(qd, "exceeded");
-			quota_send_warning(test_bit(QDF_USER, &qd->qd_flags) ?
-					   USRQUOTA : GRPQUOTA, qd->qd_id,
+			quota_send_warning(make_kqid(&init_user_ns,
+						     test_bit(QDF_USER, &qd->qd_flags) ?
+						     USRQUOTA : GRPQUOTA,
+						     qd->qd_id),
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BHARDWARN);
 
 			error = -EDQUOT;
@@ -1081,8 +1084,10 @@ int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
 			   time_after_eq(jiffies, qd->qd_last_warn +
 					 gfs2_tune_get(sdp,
 						gt_quota_warn_period) * HZ)) {
-			quota_send_warning(test_bit(QDF_USER, &qd->qd_flags) ?
-					   USRQUOTA : GRPQUOTA, qd->qd_id,
+			quota_send_warning(make_kqid(&init_user_ns,
+						     test_bit(QDF_USER, &qd->qd_flags) ?
+						     USRQUOTA : GRPQUOTA,
+						     qd->qd_id),
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BSOFTWARN);
 			error = print_message(qd, "warning");
 			qd->qd_last_warn = jiffies;
@@ -1469,7 +1474,7 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 	return 0;
 }
 
-static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
+static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 			  struct fs_disk_quota *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
@@ -1477,20 +1482,21 @@ static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
 	struct gfs2_quota_data *qd;
 	struct gfs2_holder q_gh;
 	int error;
+	int type;
 
 	memset(fdq, 0, sizeof(struct fs_disk_quota));
 
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return -ESRCH; /* Crazy XFS error code */
 
-	if (type == USRQUOTA)
+	if (qid.type == USRQUOTA)
 		type = QUOTA_USER;
-	else if (type == GRPQUOTA)
+	else if (qid.type == GRPQUOTA)
 		type = QUOTA_GROUP;
 	else
 		return -EINVAL;
 
-	error = qd_get(sdp, type, id, &qd);
+	error = qd_get(sdp, type, from_kqid(&init_user_ns, qid), &qd);
 	if (error)
 		return error;
 	error = do_glock(qd, FORCE, &q_gh);
@@ -1500,7 +1506,7 @@ static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
 	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
 	fdq->d_version = FS_DQUOT_VERSION;
 	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
-	fdq->d_id = id;
+	fdq->d_id = from_kqid(&init_user_ns, qid);
 	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_fsb2bb_shift;
 	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_fsb2bb_shift;
 	fdq->d_bcount = be64_to_cpu(qlvb->qb_value) << sdp->sd_fsb2bb_shift;
@@ -1514,7 +1520,7 @@ out:
 /* GFS2 only supports a subset of the XFS fields */
 #define GFS2_FIELDMASK (FS_DQ_BSOFT|FS_DQ_BHARD|FS_DQ_BCOUNT)
 
-static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
+static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 			  struct fs_disk_quota *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
@@ -1526,11 +1532,12 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 	int alloc_required;
 	loff_t offset;
 	int error;
+	int type;
 
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return -ESRCH; /* Crazy XFS error code */
 
-	switch(type) {
+	switch(qid.type) {
 	case USRQUOTA:
 		type = QUOTA_USER;
 		if (fdq->d_flags != FS_USER_QUOTA)
@@ -1547,10 +1554,10 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 
 	if (fdq->d_fieldmask & ~GFS2_FIELDMASK)
 		return -EINVAL;
-	if (fdq->d_id != id)
+	if (fdq->d_id != from_kqid(&init_user_ns, qid))
 		return -EINVAL;
 
-	error = qd_get(sdp, type, id, &qd);
+	error = qd_get(sdp, type, from_kqid(&init_user_ns, qid), &qd);
 	if (error)
 		return error;
 
@@ -1598,7 +1605,7 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 		error = gfs2_inplace_reserve(ip, blocks);
 		if (error)
 			goto out_i;
-		blocks += gfs2_rg_blocks(ip);
+		blocks += gfs2_rg_blocks(ip, blocks);
 	}
 
 	/* Some quotas span block boundaries and can update two blocks,

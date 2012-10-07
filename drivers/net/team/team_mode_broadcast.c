@@ -48,18 +48,18 @@ static bool bc_transmit(struct team *team, struct sk_buff *skb)
 
 static int bc_port_enter(struct team *team, struct team_port *port)
 {
-	return team_port_set_team_mac(port);
+	return team_port_set_team_dev_addr(port);
 }
 
-static void bc_port_change_mac(struct team *team, struct team_port *port)
+static void bc_port_change_dev_addr(struct team *team, struct team_port *port)
 {
-	team_port_set_team_mac(port);
+	team_port_set_team_dev_addr(port);
 }
 
 static const struct team_mode_ops bc_mode_ops = {
 	.transmit		= bc_transmit,
 	.port_enter		= bc_port_enter,
-	.port_change_mac	= bc_port_change_mac,
+	.port_change_dev_addr	= bc_port_change_dev_addr,
 };
 
 static const struct team_mode bc_mode = {

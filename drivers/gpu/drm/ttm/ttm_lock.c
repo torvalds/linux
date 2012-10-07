@@ -28,8 +28,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include "ttm/ttm_lock.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_lock.h>
+#include <drm/ttm/ttm_module.h>
 #include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/wait.h>

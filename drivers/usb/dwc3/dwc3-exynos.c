@@ -19,15 +19,73 @@
 #include <linux/platform_data/dwc3-exynos.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include "core.h"
 
 struct dwc3_exynos {
 	struct platform_device	*dwc3;
+	struct platform_device	*usb2_phy;
+	struct platform_device	*usb3_phy;
 	struct device		*dev;
 
 	struct clk		*clk;
 };
+
+static int __devinit dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
+{
+	struct nop_usb_xceiv_platform_data pdata;
+	struct platform_device	*pdev;
+	int			ret;
+
+	memset(&pdata, 0x00, sizeof(pdata));
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 0);
+	if (!pdev)
+		return -ENOMEM;
+
+	exynos->usb2_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB2;
+
+	ret = platform_device_add_data(exynos->usb2_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err1;
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 1);
+	if (!pdev) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	exynos->usb3_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB3;
+
+	ret = platform_device_add_data(exynos->usb3_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(exynos->usb2_phy);
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(exynos->usb3_phy);
+	if (ret)
+		goto err3;
+
+	return 0;
+
+err3:
+	platform_device_del(exynos->usb2_phy);
+
+err2:
+	platform_device_put(exynos->usb3_phy);
+
+err1:
+	platform_device_put(exynos->usb2_phy);
+
+	return ret;
+}
 
 static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 {
@@ -50,6 +108,12 @@ static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 	devid = dwc3_get_device_id();
 	if (devid < 0)
 		goto err1;
+
+	ret = dwc3_exynos_register_phys(exynos);
+	if (ret) {
+		dev_err(&pdev->dev, "couldn't register PHYs\n");
+		goto err1;
+	}
 
 	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
@@ -120,6 +184,8 @@ static int __devexit dwc3_exynos_remove(struct platform_device *pdev)
 	struct dwc3_exynos_data *pdata = pdev->dev.platform_data;
 
 	platform_device_unregister(exynos->dwc3);
+	platform_device_unregister(exynos->usb2_phy);
+	platform_device_unregister(exynos->usb3_phy);
 
 	dwc3_put_device_id(exynos->dwc3->id);
 

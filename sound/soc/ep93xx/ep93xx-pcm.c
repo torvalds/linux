@@ -25,7 +25,7 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 #include <mach/hardware.h>
 #include <mach/ep93xx-regs.h>
 

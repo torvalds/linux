@@ -1152,7 +1152,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 
 	/* For multi touch */
 	num_mt_slots = data->T9_reportid_max - data->T9_reportid_min + 1;
-	error = input_mt_init_slots(input_dev, num_mt_slots);
+	error = input_mt_init_slots(input_dev, num_mt_slots, 0);
 	if (error)
 		goto err_free_object;
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,

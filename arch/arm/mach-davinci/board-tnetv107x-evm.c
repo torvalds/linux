@@ -88,7 +88,7 @@ static struct davinci_mmc_config mmc_config = {
 	.version	= MMC_CTLR_VERSION_1,
 };
 
-static const short sdio1_pins[] __initdata = {
+static const short sdio1_pins[] __initconst = {
 	TNETV107X_SDIO1_CLK_1,		TNETV107X_SDIO1_CMD_1,
 	TNETV107X_SDIO1_DATA0_1,	TNETV107X_SDIO1_DATA1_1,
 	TNETV107X_SDIO1_DATA2_1,	TNETV107X_SDIO1_DATA3_1,
@@ -96,12 +96,12 @@ static const short sdio1_pins[] __initdata = {
 	-1
 };
 
-static const short uart1_pins[] __initdata = {
+static const short uart1_pins[] __initconst = {
 	TNETV107X_UART1_RD,		TNETV107X_UART1_TD,
 	-1
 };
 
-static const short ssp_pins[] __initdata = {
+static const short ssp_pins[] __initconst = {
 	TNETV107X_SSP0_0, TNETV107X_SSP0_1, TNETV107X_SSP0_2,
 	TNETV107X_SSP1_0, TNETV107X_SSP1_1, TNETV107X_SSP1_2,
 	TNETV107X_SSP1_3, -1

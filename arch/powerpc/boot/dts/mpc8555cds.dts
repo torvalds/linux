@@ -11,6 +11,8 @@
 
 /dts-v1/;
 
+/include/ "fsl/e500v2_power_isa.dtsi"
+
 / {
 	model = "MPC8555CDS";
 	compatible = "MPC8555CDS", "MPC85xxCDS";

@@ -26,7 +26,7 @@ if PCH_GBE
 config PCH_PTP
 	bool "PCH PTP clock support"
 	default n
-	depends on PTP_1588_CLOCK_PCH
+	select PTP_1588_CLOCK_PCH
 	---help---
 	  Say Y here if you want to use Precision Time Protocol (PTP) in the
 	  driver. PTP is a method to precisely synchronize distributed clocks

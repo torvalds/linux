@@ -200,14 +200,11 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 			drm_mode_connector_update_edid_property(
 					connector, edid);
 			n = drm_add_edid_modes(connector, edid);
-			kfree(connector->display_info.raw_edid);
-			connector->display_info.raw_edid = edid;
 		} else {
 			drm_mode_connector_update_edid_property(
 					connector, NULL);
-			connector->display_info.raw_edid = NULL;
-			kfree(edid);
 		}
+		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
 		struct omap_video_timings timings = {0};

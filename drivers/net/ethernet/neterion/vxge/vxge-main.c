@@ -3521,7 +3521,7 @@ static void vxge_device_unregister(struct __vxge_hw_device *hldev)
 
 	strncpy(buf, dev->name, IFNAMSIZ);
 
-	flush_work_sync(&vdev->reset_task);
+	flush_work(&vdev->reset_task);
 
 	/* in 2.6 will call stop() if device is up */
 	unregister_netdev(dev);
@@ -4799,7 +4799,7 @@ static void __devexit vxge_remove(struct pci_dev *pdev)
 			     __LINE__);
 }
 
-static struct pci_error_handlers vxge_err_handler = {
+static const struct pci_error_handlers vxge_err_handler = {
 	.error_detected = vxge_io_error_detected,
 	.slot_reset = vxge_io_slot_reset,
 	.resume = vxge_io_resume,

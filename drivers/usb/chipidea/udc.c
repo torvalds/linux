@@ -305,6 +305,18 @@ static u32 hw_test_and_clear_intr_active(struct ci13xxx *ci)
 	return reg;
 }
 
+static void hw_enable_vbus_intr(struct ci13xxx *ci)
+{
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIS, OTGSC_AVVIS);
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIE, OTGSC_AVVIE);
+	queue_work(ci->wq, &ci->vbus_work);
+}
+
+static void hw_disable_vbus_intr(struct ci13xxx *ci)
+{
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIE, 0);
+}
+
 /**
  * hw_test_and_clear_setup_guard: test & clear setup guard (execute without
  *                                interruption)
@@ -369,6 +381,16 @@ static int hw_usb_reset(struct ci13xxx *ci)
 	   no need to verify the port reset status (ESS does it) */
 
 	return 0;
+}
+
+static void vbus_work(struct work_struct *work)
+{
+	struct ci13xxx *ci = container_of(work, struct ci13xxx, vbus_work);
+
+	if (hw_read(ci, OP_OTGSC, OTGSC_AVV))
+		usb_gadget_vbus_connect(&ci->gadget);
+	else
+		usb_gadget_vbus_disconnect(&ci->gadget);
 }
 
 /******************************************************************************
@@ -1370,6 +1392,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 		if (is_active) {
 			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(ci, USBMODE_CM_DC);
+			hw_enable_vbus_intr(ci);
 			hw_device_state(ci, ci->ep0out->qh.dma);
 		} else {
 			hw_device_state(ci, 0);
@@ -1544,8 +1567,10 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->platdata->flags & CI13XXX_PULLUP_ON_VBUS) {
 		if (ci->vbus_active) {
-			if (ci->platdata->flags & CI13XXX_REGS_SHARED)
+			if (ci->platdata->flags & CI13XXX_REGS_SHARED) {
 				hw_device_reset(ci, USBMODE_CM_DC);
+				hw_enable_vbus_intr(ci);
+			}
 		} else {
 			pm_runtime_put_sync(&ci->gadget.dev);
 			goto done;
@@ -1651,6 +1676,13 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
 	} else {
 		retval = IRQ_NONE;
 	}
+
+	intr = hw_read(ci, OP_OTGSC, ~0);
+	hw_write(ci, OP_OTGSC, ~0, intr);
+
+	if (intr & (OTGSC_AVVIE & OTGSC_AVVIS))
+		queue_work(ci->wq, &ci->vbus_work);
+
 	spin_unlock(&ci->lock);
 
 	return retval;
@@ -1726,6 +1758,7 @@ static int udc_start(struct ci13xxx *ci)
 		retval = hw_device_reset(ci, USBMODE_CM_DC);
 		if (retval)
 			goto put_transceiver;
+		hw_enable_vbus_intr(ci);
 	}
 
 	retval = device_register(&ci->gadget.dev);
@@ -1788,6 +1821,9 @@ static void udc_stop(struct ci13xxx *ci)
 	if (ci == NULL)
 		return;
 
+	hw_disable_vbus_intr(ci);
+	cancel_work_sync(&ci->vbus_work);
+
 	usb_del_gadget_udc(&ci->gadget);
 
 	destroy_eps(ci);
@@ -1828,6 +1864,7 @@ int ci_hdrc_gadget_init(struct ci13xxx *ci)
 	rdrv->irq	= udc_irq;
 	rdrv->name	= "gadget";
 	ci->roles[CI_ROLE_GADGET] = rdrv;
+	INIT_WORK(&ci->vbus_work, vbus_work);
 
 	return 0;
 }

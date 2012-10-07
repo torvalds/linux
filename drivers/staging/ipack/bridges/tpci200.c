@@ -14,38 +14,32 @@
 #include <linux/module.h>
 #include "tpci200.h"
 
-static struct ipack_bus_ops tpci200_bus_ops;
-
-/* TPCI200 controls registers */
-static int control_reg[] = {
-	TPCI200_CONTROL_A_REG,
-	TPCI200_CONTROL_B_REG,
-	TPCI200_CONTROL_C_REG,
-	TPCI200_CONTROL_D_REG
+static u16 tpci200_status_timeout[] = {
+	TPCI200_A_TIMEOUT,
+	TPCI200_B_TIMEOUT,
+	TPCI200_C_TIMEOUT,
+	TPCI200_D_TIMEOUT,
 };
 
-/* Linked list to save the registered devices */
-static LIST_HEAD(tpci200_list);
-
-static int tpci200_slot_unregister(struct ipack_device *dev);
+static u16 tpci200_status_error[] = {
+	TPCI200_A_ERROR,
+	TPCI200_B_ERROR,
+	TPCI200_C_ERROR,
+	TPCI200_D_ERROR,
+};
 
 static struct tpci200_board *check_slot(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200;
-	int found = 0;
 
 	if (dev == NULL)
 		return NULL;
 
-	list_for_each_entry(tpci200, &tpci200_list, list) {
-		if (tpci200->number == dev->bus_nr) {
-			found = 1;
-			break;
-		}
-	}
 
-	if (!found) {
-		dev_err(&dev->dev, "Carrier not found\n");
+	tpci200 = dev_get_drvdata(dev->bus->parent);
+
+	if (tpci200 == NULL) {
+		dev_info(&dev->dev, "carrier board not found\n");
 		return NULL;
 	}
 
@@ -59,216 +53,22 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 	return tpci200;
 }
 
-static inline unsigned char __tpci200_read8(void __iomem *address,
-					    unsigned long offset)
+static void tpci200_clear_mask(struct tpci200_board *tpci200,
+			       __le16 __iomem *addr, u16 mask)
 {
-	return ioread8(address + (offset^1));
+	unsigned long flags;
+	spin_lock_irqsave(&tpci200->regs_lock, flags);
+	iowrite16(ioread16(addr) & (~mask), addr);
+	spin_unlock_irqrestore(&tpci200->regs_lock, flags);
 }
 
-static inline unsigned short __tpci200_read16(void __iomem *address,
-					      unsigned long offset)
+static void tpci200_set_mask(struct tpci200_board *tpci200,
+			     __le16 __iomem *addr, u16 mask)
 {
-	return ioread16(address + offset);
-}
-
-static inline unsigned int __tpci200_read32(void __iomem *address,
-					    unsigned long offset)
-{
-	return swahw32(ioread32(address + offset));
-}
-
-static inline void __tpci200_write8(unsigned char value,
-				    void __iomem *address, unsigned long offset)
-{
-	iowrite8(value, address+(offset^1));
-}
-
-static inline void __tpci200_write16(unsigned short value,
-				     void __iomem *address,
-				     unsigned long offset)
-{
-	iowrite16(value, address+offset);
-}
-
-static inline void __tpci200_write32(unsigned int value,
-				     void __iomem *address,
-				     unsigned long offset)
-{
-	iowrite32(swahw32(value), address+offset);
-}
-
-static struct ipack_addr_space *get_slot_address_space(struct ipack_device *dev,
-						       int space)
-{
-	struct ipack_addr_space *addr;
-
-	switch (space) {
-	case IPACK_IO_SPACE:
-		addr = &dev->io_space;
-		break;
-	case IPACK_ID_SPACE:
-		addr = &dev->id_space;
-		break;
-	case IPACK_MEM_SPACE:
-		addr = &dev->mem_space;
-		break;
-	default:
-		dev_err(&dev->dev,
-			"Slot [%d:%d] space number %d doesn't exist !\n",
-			dev->bus_nr, dev->slot, space);
-		return NULL;
-		break;
-	}
-
-	if ((addr->size == 0) || (addr->address == NULL)) {
-		dev_err(&dev->dev, "Error, slot space not mapped !\n");
-		return NULL;
-	}
-
-	return addr;
-}
-
-static int tpci200_read8(struct ipack_device *dev, int space,
-			 unsigned long offset, unsigned char *value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if (offset >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-
-	*value = __tpci200_read8(addr->address, offset);
-
-	return 0;
-}
-
-static int tpci200_read16(struct ipack_device *dev, int space,
-			  unsigned long offset, unsigned short *value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if ((offset+2) >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-	*value = __tpci200_read16(addr->address, offset);
-
-	return 0;
-}
-
-static int tpci200_read32(struct ipack_device *dev, int space,
-			  unsigned long offset, unsigned int *value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if ((offset+4) >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-
-	*value = __tpci200_read32(addr->address, offset);
-
-	return 0;
-}
-
-static int tpci200_write8(struct ipack_device *dev, int space,
-			  unsigned long offset, unsigned char value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if (offset >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-
-	__tpci200_write8(value, addr->address, offset);
-
-	return 0;
-}
-
-static int tpci200_write16(struct ipack_device *dev, int space,
-			   unsigned long offset, unsigned short value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if ((offset+2) >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-
-	__tpci200_write16(value, addr->address, offset);
-
-	return 0;
-}
-
-static int tpci200_write32(struct ipack_device *dev, int space,
-			   unsigned long offset, unsigned int value)
-{
-	struct ipack_addr_space *addr;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	addr = get_slot_address_space(dev, space);
-	if (addr == NULL)
-		return -EINVAL;
-
-	if ((offset+4) >= addr->size) {
-		dev_err(&dev->dev, "Error, slot space offset error !\n");
-		return -EFAULT;
-	}
-
-	__tpci200_write32(value, addr->address, offset);
-
-	return 0;
+	unsigned long flags;
+	spin_lock_irqsave(&tpci200->regs_lock, flags);
+	iowrite16(ioread16(addr) | mask, addr);
+	spin_unlock_irqrestore(&tpci200->regs_lock, flags);
 }
 
 static void tpci200_unregister(struct tpci200_board *tpci200)
@@ -280,10 +80,12 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	pci_iounmap(tpci200->info->pdev, tpci200->info->interface_regs);
 	pci_iounmap(tpci200->info->pdev, tpci200->info->ioidint_space);
 	pci_iounmap(tpci200->info->pdev, tpci200->info->mem8_space);
+	pci_iounmap(tpci200->info->pdev, tpci200->info->cfg_regs);
 
 	pci_release_region(tpci200->info->pdev, TPCI200_IP_INTERFACE_BAR);
 	pci_release_region(tpci200->info->pdev, TPCI200_IO_ID_INT_SPACES_BAR);
 	pci_release_region(tpci200->info->pdev, TPCI200_MEM8_SPACE_BAR);
+	pci_release_region(tpci200->info->pdev, TPCI200_CFG_MEM_BAR);
 
 	pci_disable_device(tpci200->info->pdev);
 	pci_dev_put(tpci200->info->pdev);
@@ -293,62 +95,148 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 		tpci200->slots[i].io_phys.size = 0;
 		tpci200->slots[i].id_phys.address = NULL;
 		tpci200->slots[i].id_phys.size = 0;
+		tpci200->slots[i].int_phys.address = NULL;
+		tpci200->slots[i].int_phys.size = 0;
 		tpci200->slots[i].mem_phys.address = NULL;
 		tpci200->slots[i].mem_phys.size = 0;
 	}
 }
 
+static void tpci200_enable_irq(struct tpci200_board *tpci200,
+			       int islot)
+{
+	tpci200_set_mask(tpci200,
+			&tpci200->info->interface_regs->control[islot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
+}
+
+static void tpci200_disable_irq(struct tpci200_board *tpci200,
+				int islot)
+{
+	tpci200_clear_mask(tpci200,
+			&tpci200->info->interface_regs->control[islot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
+}
+
+static irqreturn_t tpci200_slot_irq(struct slot_irq *slot_irq)
+{
+	irqreturn_t ret;
+
+	if (!slot_irq)
+		return -ENODEV;
+	ret = slot_irq->handler(slot_irq->arg);
+
+	return ret;
+}
+
 static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 {
 	struct tpci200_board *tpci200 = (struct tpci200_board *) dev_id;
+	struct slot_irq *slot_irq;
+	irqreturn_t ret;
+	u16 status_reg;
 	int i;
-	unsigned short status_reg, reg_value;
-	unsigned short unhandled_ints = 0;
-	irqreturn_t ret = IRQ_NONE;
 
 	/* Read status register */
-	status_reg = readw(tpci200->info->interface_regs +
-			   TPCI200_STATUS_REG);
+	status_reg = ioread16(&tpci200->info->interface_regs->status);
 
-	if (status_reg & TPCI200_SLOT_INT_MASK) {
-		unhandled_ints = status_reg & TPCI200_SLOT_INT_MASK;
-		/* callback to the IRQ handler for the corresponding slot */
-		for (i = 0; i < TPCI200_NB_SLOT; i++) {
-			if ((tpci200->slots[i].irq != NULL) &&
-			    (status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)))) {
+	/* Did we cause the interrupt? */
+	if (!(status_reg & TPCI200_SLOT_INT_MASK))
+		return IRQ_NONE;
 
-				ret = tpci200->slots[i].irq->handler(tpci200->slots[i].irq->arg);
-
-				/* Dummy reads */
-				readw(tpci200->slots[i].dev->io_space.address +
-				      0xC0);
-				readw(tpci200->slots[i].dev->io_space.address +
-				      0xC2);
-
-				unhandled_ints &= ~(((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)));
-			}
+	/* callback to the IRQ handler for the corresponding slot */
+	rcu_read_lock();
+	for (i = 0; i < TPCI200_NB_SLOT; i++) {
+		if (!(status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2 * i))))
+			continue;
+		slot_irq = rcu_dereference(tpci200->slots[i].irq);
+		ret = tpci200_slot_irq(slot_irq);
+		if (ret == -ENODEV) {
+			dev_info(&tpci200->info->pdev->dev,
+				 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
+				 tpci200->number, i);
+			tpci200_disable_irq(tpci200, i);
 		}
 	}
-	/* Interrupt not handled are disabled */
-	if (unhandled_ints) {
-		for (i = 0; i < TPCI200_NB_SLOT; i++) {
-			if (unhandled_ints & ((TPCI200_INT0_EN | TPCI200_INT1_EN) << (2*i))) {
-				dev_info(&tpci200->slots[i].dev->dev,
-					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
-					 tpci200->number, i);
-				reg_value = readw(
-					tpci200->info->interface_regs +
-					control_reg[i]);
-				reg_value &=
-					~(TPCI200_INT0_EN | TPCI200_INT1_EN);
-				writew(reg_value,
-				       (tpci200->info->interface_regs +
-					control_reg[i]));
-			}
-		}
+	rcu_read_unlock();
+
+	return IRQ_HANDLED;
+}
+
+static int tpci200_free_irq(struct ipack_device *dev)
+{
+	struct slot_irq *slot_irq;
+	struct tpci200_board *tpci200;
+
+	tpci200 = check_slot(dev);
+	if (tpci200 == NULL)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
+
+	if (tpci200->slots[dev->slot].irq == NULL) {
+		mutex_unlock(&tpci200->mutex);
+		return -EINVAL;
 	}
 
-	return ret;
+	tpci200_disable_irq(tpci200, dev->slot);
+	slot_irq = tpci200->slots[dev->slot].irq;
+	/* uninstall handler */
+	RCU_INIT_POINTER(tpci200->slots[dev->slot].irq, NULL);
+	synchronize_rcu();
+	kfree(slot_irq);
+	mutex_unlock(&tpci200->mutex);
+	return 0;
+}
+
+static int tpci200_request_irq(struct ipack_device *dev,
+			       irqreturn_t (*handler)(void *), void *arg)
+{
+	int res = 0;
+	struct slot_irq *slot_irq;
+	struct tpci200_board *tpci200;
+
+	tpci200 = check_slot(dev);
+	if (tpci200 == NULL)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
+
+	if (tpci200->slots[dev->slot].irq != NULL) {
+		dev_err(&dev->dev,
+			"Slot [%d:%d] IRQ already registered !\n", dev->bus_nr,
+			dev->slot);
+		res = -EINVAL;
+		goto out_unlock;
+	}
+
+	slot_irq = kzalloc(sizeof(struct slot_irq), GFP_KERNEL);
+	if (slot_irq == NULL) {
+		dev_err(&dev->dev,
+			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
+			dev->bus_nr, dev->slot);
+		res = -ENOMEM;
+		goto out_unlock;
+	}
+
+	/*
+	 * WARNING: Setup Interrupt Vector in the IndustryPack device
+	 * before an IRQ request.
+	 * Read the User Manual of your IndustryPack device to know
+	 * where to write the vector in memory.
+	 */
+	slot_irq->handler = handler;
+	slot_irq->arg = arg;
+	slot_irq->holder = dev;
+
+	rcu_assign_pointer(tpci200->slots[dev->slot].irq, slot_irq);
+	tpci200_enable_irq(tpci200, dev->slot);
+
+out_unlock:
+	mutex_unlock(&tpci200->mutex);
+	return res;
 }
 
 static int tpci200_register(struct tpci200_board *tpci200)
@@ -398,17 +286,20 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Map internal tpci200 driver user space */
 	tpci200->info->interface_regs =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IP_INTERFACE_BAR),
 			TPCI200_IFACE_SIZE);
 	tpci200->info->ioidint_space =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IO_ID_INT_SPACES_BAR),
 			TPCI200_IOIDINT_SIZE);
 	tpci200->info->mem8_space =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_MEM8_SPACE_BAR),
 			TPCI200_MEM8_SIZE);
+
+	/* Initialize lock that protects interface_regs */
+	spin_lock_init(&tpci200->regs_lock);
 
 	ioidint_base = pci_resource_start(tpci200->info->pdev,
 					  TPCI200_IO_ID_INT_SPACES_BAR);
@@ -437,12 +328,16 @@ static int tpci200_register(struct tpci200_board *tpci200)
 			TPCI200_ID_SPACE_OFF + TPCI200_ID_SPACE_GAP*i;
 		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
 
+		tpci200->slots[i].int_phys.address =
+			(void __iomem *)ioidint_base +
+			TPCI200_INT_SPACE_OFF + TPCI200_INT_SPACE_GAP * i;
+		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
+
 		tpci200->slots[i].mem_phys.address =
 			(void __iomem *)mem_base + TPCI200_MEM8_GAP*i;
 		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
 
-		writew(slot_ctrl, (tpci200->info->interface_regs +
-				   control_reg[i]));
+		writew(slot_ctrl, &tpci200->info->interface_regs->control[i]);
 	}
 
 	res = request_irq(tpci200->info->pdev->irq,
@@ -465,70 +360,6 @@ out_release_ip_space:
 out_disable_pci:
 	pci_disable_device(tpci200->info->pdev);
 	return res;
-}
-
-static int __tpci200_request_irq(struct tpci200_board *tpci200,
-				 struct ipack_device *dev)
-{
-	unsigned short slot_ctrl;
-
-	/* Set the default parameters of the slot
-	 * INT0 enabled, level sensitive
-	 * INT1 enabled, level sensitive
-	 * error interrupt disabled
-	 * timeout interrupt disabled
-	 * recover time disabled
-	 * clock rate 8 MHz
-	 */
-	slot_ctrl = TPCI200_INT0_EN | TPCI200_INT1_EN;
-	writew(slot_ctrl, (tpci200->info->interface_regs +
-			   control_reg[dev->slot]));
-
-	return 0;
-}
-
-static void __tpci200_free_irq(struct tpci200_board *tpci200,
-			       struct ipack_device *dev)
-{
-	unsigned short slot_ctrl;
-
-	/* Set the default parameters of the slot
-	 * INT0 disabled, level sensitive
-	 * INT1 disabled, level sensitive
-	 * error interrupt disabled
-	 * timeout interrupt disabled
-	 * recover time disabled
-	 * clock rate 8 MHz
-	 */
-	slot_ctrl = 0;
-	writew(slot_ctrl, (tpci200->info->interface_regs +
-			   control_reg[dev->slot]));
-}
-
-static int tpci200_free_irq(struct ipack_device *dev)
-{
-	struct slot_irq *slot_irq;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	if (tpci200->slots[dev->slot].irq == NULL) {
-		mutex_unlock(&tpci200->mutex);
-		return -EINVAL;
-	}
-
-	__tpci200_free_irq(tpci200, dev);
-	slot_irq = tpci200->slots[dev->slot].irq;
-	tpci200->slots[dev->slot].irq = NULL;
-	kfree(slot_irq);
-
-	mutex_unlock(&tpci200->mutex);
-	return 0;
 }
 
 static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
@@ -562,6 +393,15 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		}
 		virt_addr_space = &dev->id_space;
 		break;
+	case IPACK_INT_SPACE:
+		if (dev->int_space.address == NULL) {
+			dev_info(&dev->dev,
+				 "Slot [%d:%d] INT space not mapped !\n",
+				 dev->bus_nr, dev->slot);
+			goto out_unlock;
+		}
+		virt_addr_space = &dev->int_space;
+		break;
 	case IPACK_MEM_SPACE:
 		if (dev->mem_space.address == NULL) {
 			dev_info(&dev->dev,
@@ -585,29 +425,6 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 	virt_addr_space->size = 0;
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
-	return 0;
-}
-
-static int tpci200_slot_unregister(struct ipack_device *dev)
-{
-	struct tpci200_board *tpci200;
-
-	if (dev == NULL)
-		return -ENODEV;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	tpci200_free_irq(dev);
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	ipack_device_unregister(dev);
-	tpci200->slots[dev->slot].dev = NULL;
-	mutex_unlock(&tpci200->mutex);
-
 	return 0;
 }
 
@@ -654,6 +471,19 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 		phys_address = tpci200->slots[dev->slot].id_phys.address;
 		size_to_map = tpci200->slots[dev->slot].id_phys.size;
 		break;
+	case IPACK_INT_SPACE:
+		if (dev->int_space.address != NULL) {
+			dev_err(&dev->dev,
+				"Slot [%d:%d] INT space already mapped !\n",
+				tpci200->number, dev->slot);
+			res = -EINVAL;
+			goto out_unlock;
+		}
+		virt_addr_space = &dev->int_space;
+
+		phys_address = tpci200->slots[dev->slot].int_phys.address;
+		size_to_map = tpci200->slots[dev->slot].int_phys.size;
+		break;
 	case IPACK_MEM_SPACE:
 		if (dev->mem_space.address != NULL) {
 			dev_err(&dev->dev,
@@ -685,85 +515,109 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 
 	virt_addr_space->size = size_to_map;
 	virt_addr_space->address =
-		ioremap((unsigned long)phys_address, size_to_map);
+		ioremap_nocache((unsigned long)phys_address, size_to_map);
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
 	return res;
 }
 
-static int tpci200_request_irq(struct ipack_device *dev, int vector,
-			       int (*handler)(void *), void *arg)
+static int tpci200_get_clockrate(struct ipack_device *dev)
 {
-	int res;
-	struct slot_irq *slot_irq;
-	struct tpci200_board *tpci200;
+	struct tpci200_board *tpci200 = check_slot(dev);
+	__le16 __iomem *addr;
 
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->control[dev->slot];
+	return (ioread16(addr) & TPCI200_CLK32) ? 32 : 8;
+}
+
+static int tpci200_set_clockrate(struct ipack_device *dev, int mherz)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	__le16 __iomem *addr;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->control[dev->slot];
+
+	switch (mherz) {
+	case 8:
+		tpci200_clear_mask(tpci200, addr, TPCI200_CLK32);
+		break;
+	case 32:
+		tpci200_set_mask(tpci200, addr, TPCI200_CLK32);
+		break;
+	default:
 		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	if (tpci200->slots[dev->slot].irq != NULL) {
-		dev_err(&dev->dev,
-			"Slot [%d:%d] IRQ already registered !\n", dev->bus_nr,
-			dev->slot);
-		res = -EINVAL;
-		goto out_unlock;
 	}
+	return 0;
+}
 
-	slot_irq = kzalloc(sizeof(struct slot_irq), GFP_KERNEL);
-	if (slot_irq == NULL) {
-		dev_err(&dev->dev,
-			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
-			dev->bus_nr, dev->slot);
-		res = -ENOMEM;
-		goto out_unlock;
-	}
+static int tpci200_get_error(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	__le16 __iomem *addr;
+	u16 mask;
 
-	/*
-	 * WARNING: Setup Interrupt Vector in the IndustryPack device
-	 * before an IRQ request.
-	 * Read the User Manual of your IndustryPack device to know
-	 * where to write the vector in memory.
-	 */
-	slot_irq->vector = vector;
-	slot_irq->handler = handler;
-	slot_irq->arg = arg;
+	if (!tpci200)
+		return -ENODEV;
 
-	tpci200->slots[dev->slot].irq = slot_irq;
-	res = __tpci200_request_irq(tpci200, dev);
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_error[dev->slot];
+	return (ioread16(addr) & mask) ? 1 : 0;
+}
 
-out_unlock:
-	mutex_unlock(&tpci200->mutex);
-	return res;
+static int tpci200_get_timeout(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	__le16 __iomem *addr;
+	u16 mask;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_timeout[dev->slot];
+
+	return (ioread16(addr) & mask) ? 1 : 0;
+}
+
+static int tpci200_reset_timeout(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	__le16 __iomem *addr;
+	u16 mask;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_timeout[dev->slot];
+
+	iowrite16(mask, addr);
+	return 0;
 }
 
 static void tpci200_uninstall(struct tpci200_board *tpci200)
 {
-	int i;
-
-	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		tpci200_slot_unregister(tpci200->slots[i].dev);
-
 	tpci200_unregister(tpci200);
 	kfree(tpci200->slots);
 }
 
-static struct ipack_bus_ops tpci200_bus_ops = {
+static const struct ipack_bus_ops tpci200_bus_ops = {
 	.map_space = tpci200_slot_map_space,
 	.unmap_space = tpci200_slot_unmap_space,
 	.request_irq = tpci200_request_irq,
 	.free_irq = tpci200_free_irq,
-	.read8 = tpci200_read8,
-	.read16 = tpci200_read16,
-	.read32 = tpci200_read32,
-	.write8 = tpci200_write8,
-	.write16 = tpci200_write16,
-	.write32 = tpci200_write32,
-	.remove_device = tpci200_slot_unregister,
+	.get_clockrate = tpci200_get_clockrate,
+	.set_clockrate = tpci200_set_clockrate,
+	.get_error     = tpci200_get_error,
+	.get_timeout   = tpci200_get_timeout,
+	.reset_timeout = tpci200_reset_timeout,
 };
 
 static int tpci200_install(struct tpci200_board *tpci200)
@@ -786,11 +640,12 @@ static int tpci200_install(struct tpci200_board *tpci200)
 	return 0;
 }
 
-static int tpci200_pciprobe(struct pci_dev *pdev,
-			    const struct pci_device_id *id)
+static int tpci200_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
 {
 	int ret, i;
 	struct tpci200_board *tpci200;
+	u32 reg32;
 
 	tpci200 = kzalloc(sizeof(struct tpci200_board), GFP_KERNEL);
 	if (!tpci200)
@@ -798,9 +653,39 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 
 	tpci200->info = kzalloc(sizeof(struct tpci200_infos), GFP_KERNEL);
 	if (!tpci200->info) {
-		kfree(tpci200);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_err_info;
 	}
+
+	pci_dev_get(pdev);
+
+	/* Obtain a mapping of the carrier's PCI configuration registers */
+	ret = pci_request_region(pdev, TPCI200_CFG_MEM_BAR,
+				 KBUILD_MODNAME " Configuration Memory");
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to allocate PCI Configuration Memory");
+		ret = -EBUSY;
+		goto out_err_pci_request;
+	}
+	tpci200->info->cfg_regs = ioremap_nocache(
+			pci_resource_start(pdev, TPCI200_CFG_MEM_BAR),
+			pci_resource_len(pdev, TPCI200_CFG_MEM_BAR));
+	if (!tpci200->info->cfg_regs) {
+		dev_err(&pdev->dev, "Failed to map PCI Configuration Memory");
+		ret = -EFAULT;
+		goto out_err_ioremap;
+	}
+
+	/* Disable byte swapping for 16 bit IP module access. This will ensure
+	 * that the Industrypack big endian byte order is preserved by the
+	 * carrier. */
+	reg32 = ioread32(tpci200->info->cfg_regs + LAS1_DESC);
+	reg32 |= 1 << LAS_BIT_BIGENDIAN;
+	iowrite32(reg32, tpci200->info->cfg_regs + LAS1_DESC);
+
+	reg32 = ioread32(tpci200->info->cfg_regs + LAS2_DESC);
+	reg32 |= 1 << LAS_BIT_BIGENDIAN;
+	iowrite32(reg32, tpci200->info->cfg_regs + LAS2_DESC);
 
 	/* Save struct pci_dev pointer */
 	tpci200->info->pdev = pdev;
@@ -809,10 +694,9 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 	/* register the device and initialize it */
 	ret = tpci200_install(tpci200);
 	if (ret) {
-		dev_err(&pdev->dev, "Error during tpci200 install !\n");
-		kfree(tpci200->info);
-		kfree(tpci200);
-		return -ENODEV;
+		dev_err(&pdev->dev, "error during tpci200 install\n");
+		ret = -ENODEV;
+		goto out_err_install;
 	}
 
 	/* Register the carrier in the industry pack bus driver */
@@ -822,48 +706,46 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 	if (!tpci200->info->ipack_bus) {
 		dev_err(&pdev->dev,
 			"error registering the carrier on ipack driver\n");
-		tpci200_uninstall(tpci200);
-		kfree(tpci200->info);
-		kfree(tpci200);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto out_err_bus_register;
 	}
 
 	/* save the bus number given by ipack to logging purpose */
 	tpci200->number = tpci200->info->ipack_bus->bus_nr;
 	dev_set_drvdata(&pdev->dev, tpci200);
-	/* add the registered device in an internal linked list */
-	list_add_tail(&tpci200->list, &tpci200_list);
 
-	/*
-	 * Give the same IRQ number as the slot number.
-	 * The TPCI200 has assigned his own two IRQ by PCI bus driver
-	 */
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		tpci200->slots[i].dev =
-			ipack_device_register(tpci200->info->ipack_bus, i, i);
+		ipack_device_register(tpci200->info->ipack_bus, i);
+	return 0;
+
+out_err_bus_register:
+	tpci200_uninstall(tpci200);
+out_err_install:
+	iounmap(tpci200->info->cfg_regs);
+out_err_ioremap:
+	pci_release_region(pdev, TPCI200_CFG_MEM_BAR);
+out_err_pci_request:
+	pci_dev_put(pdev);
+	kfree(tpci200->info);
+out_err_info:
+	kfree(tpci200);
 	return ret;
 }
 
 static void __tpci200_pci_remove(struct tpci200_board *tpci200)
 {
-	tpci200_uninstall(tpci200);
-	list_del(&tpci200->list);
 	ipack_bus_unregister(tpci200->info->ipack_bus);
+	tpci200_uninstall(tpci200);
+
 	kfree(tpci200->info);
 	kfree(tpci200);
 }
 
 static void __devexit tpci200_pci_remove(struct pci_dev *dev)
 {
-	struct tpci200_board *tpci200, *next;
+	struct tpci200_board *tpci200 = pci_get_drvdata(dev);
 
-	/* Search the registered device to uninstall it */
-	list_for_each_entry_safe(tpci200, next, &tpci200_list, list) {
-		if (tpci200->info->pdev == dev) {
-			__tpci200_pci_remove(tpci200);
-			break;
-		}
-	}
+	__tpci200_pci_remove(tpci200);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(tpci200_idtable) = {
@@ -877,7 +759,7 @@ MODULE_DEVICE_TABLE(pci, tpci200_idtable);
 static struct pci_driver tpci200_pci_drv = {
 	.name = "tpci200",
 	.id_table = tpci200_idtable,
-	.probe = tpci200_pciprobe,
+	.probe = tpci200_pci_probe,
 	.remove = __devexit_p(tpci200_pci_remove),
 };
 
@@ -888,11 +770,6 @@ static int __init tpci200_drvr_init_module(void)
 
 static void __exit tpci200_drvr_exit_module(void)
 {
-	struct tpci200_board *tpci200, *next;
-
-	list_for_each_entry_safe(tpci200, next, &tpci200_list, list)
-		__tpci200_pci_remove(tpci200);
-
 	pci_unregister_driver(&tpci200_pci_drv);
 }
 

@@ -163,7 +163,7 @@ static const struct ide_port_ops cy82c693_port_ops = {
 	.set_dma_mode		= cy82c693_set_dma_mode,
 };
 
-static const struct ide_port_info cy82c693_chipset __devinitdata = {
+static const struct ide_port_info cy82c693_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,

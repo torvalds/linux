@@ -17,28 +17,6 @@ menuconfig HOTPLUG_PCI
 
 if HOTPLUG_PCI
 
-config HOTPLUG_PCI_FAKE
-	tristate "Fake PCI Hotplug driver"
-	help
-	  Say Y here if you want to use the fake PCI hotplug driver. It can
-	  be used to simulate PCI hotplug events if even if your system is
-	  not PCI hotplug capable.
-
-	  This driver will "emulate" removing PCI devices from the system.
-	  If the "power" file is written to with "0" then the specified PCI
-	  device will be completely removed from the kernel.
-
-	  WARNING, this does NOT turn off the power to the PCI device.
-	  This is a "logical" removal, not a physical or electrical
-	  removal.
-
-	  Use this module at your own risk.  You have been warned!
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fakephp.
-
-	  When in doubt, say N.
-
 config HOTPLUG_PCI_COMPAQ
 	tristate "Compaq PCI Hotplug driver"
 	depends on X86 && PCI_BIOS
@@ -143,7 +121,7 @@ config HOTPLUG_PCI_SHPC
 
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
-	depends on PPC_PSERIES && EEH && !HOTPLUG_PCI_FAKE
+	depends on PPC_PSERIES && EEH
 	help
 	  Say Y here if you have a RPA system that supports PCI Hotplug.
 

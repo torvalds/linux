@@ -71,8 +71,8 @@ static const struct clksel *_get_clksel_by_parent(struct clk *clk,
 
 	if (!clks->parent) {
 		/* This indicates a data problem */
-		WARN(1, "clock: Could not find parent clock %s in clksel array "
-		     "of clock %s\n", src_clk->name, clk->name);
+		WARN(1, "clock: %s: could not find parent clock %s in clksel array\n",
+		     clk->name, src_clk->name);
 		return NULL;
 	}
 
@@ -126,8 +126,8 @@ static u8 _get_div_and_fieldval(struct clk *src_clk, struct clk *clk,
 
 	if (max_div == 0) {
 		/* This indicates an error in the clksel data */
-		WARN(1, "clock: Could not find divisor for clock %s parent %s"
-		     "\n", clk->name, src_clk->parent->name);
+		WARN(1, "clock: %s: could not find divisor for parent %s\n",
+		     clk->name, src_clk->parent->name);
 		return 0;
 	}
 
@@ -191,8 +191,8 @@ static u32 _clksel_to_divisor(struct clk *clk, u32 field_val)
 
 	if (!clkr->div) {
 		/* This indicates a data error */
-		WARN(1, "clock: Could not find fieldval %d for clock %s parent "
-		     "%s\n", field_val, clk->name, clk->parent->name);
+		WARN(1, "clock: %s: could not find fieldval %d parent %s\n",
+		     clk->name, field_val, clk->parent->name);
 		return 0;
 	}
 
@@ -230,8 +230,8 @@ static u32 _divisor_to_clksel(struct clk *clk, u32 div)
 	}
 
 	if (!clkr->div) {
-		pr_err("clock: Could not find divisor %d for clock %s parent "
-		       "%s\n", div, clk->name, clk->parent->name);
+		pr_err("clock: %s: could not find divisor %d parent %s\n",
+		       clk->name, div, clk->parent->name);
 		return ~0;
 	}
 
@@ -300,8 +300,8 @@ u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,
 
 		/* Sanity check */
 		if (clkr->div <= last_div)
-			pr_err("clock: clksel_rate table not sorted "
-			       "for clock %s", clk->name);
+			pr_err("clock: %s: clksel_rate table not sorted",
+			       clk->name);
 
 		last_div = clkr->div;
 
@@ -312,9 +312,8 @@ u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,
 	}
 
 	if (!clkr->div) {
-		pr_err("clock: Could not find divisor for target "
-		       "rate %ld for clock %s parent %s\n", target_rate,
-		       clk->name, clk->parent->name);
+		pr_err("clock: %s: could not find divisor for target rate %ld parent %s\n",
+		       clk->name, target_rate, clk->parent->name);
 		return ~0;
 	}
 
@@ -359,8 +358,7 @@ void omap2_init_clksel_parent(struct clk *clk)
 
 			if (clkr->val == r) {
 				if (clk->parent != clks->parent) {
-					pr_debug("clock: inited %s parent "
-						 "to %s (was %s)\n",
+					pr_debug("clock: %s: inited parent to %s (was %s)\n",
 						 clk->name, clks->parent->name,
 						 ((clk->parent) ?
 						  clk->parent->name : "NULL"));

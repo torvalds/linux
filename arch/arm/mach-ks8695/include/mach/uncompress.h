@@ -19,15 +19,15 @@
 
 static void putc(char c)
 {
-	while (!(__raw_readl(KS8695_UART_PA + KS8695_URLS) & URLS_URTHRE))
+	while (!(__raw_readl((void __iomem*)KS8695_UART_PA + KS8695_URLS) & URLS_URTHRE))
 		barrier();
 
-	__raw_writel(c, KS8695_UART_PA + KS8695_URTH);
+	__raw_writel(c, (void __iomem*)KS8695_UART_PA + KS8695_URTH);
 }
 
 static inline void flush(void)
 {
-	while (!(__raw_readl(KS8695_UART_PA + KS8695_URLS) & URLS_URTE))
+	while (!(__raw_readl((void __iomem*)KS8695_UART_PA + KS8695_URLS) & URLS_URTE))
 		barrier();
 }
 
