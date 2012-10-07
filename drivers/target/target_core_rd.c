@@ -417,16 +417,6 @@ static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
 	return bl;
 }
 
-static u32 rd_get_device_rev(struct se_device *dev)
-{
-	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
-}
-
-static u32 rd_get_device_type(struct se_device *dev)
-{
-	return TYPE_DISK;
-}
-
 static sector_t rd_get_blocks(struct se_device *dev)
 {
 	struct rd_dev *rd_dev = RD_DEV(dev);
@@ -459,8 +449,8 @@ static struct se_subsystem_api rd_mcp_template = {
 	.parse_cdb		= rd_parse_cdb,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
-	.get_device_rev		= rd_get_device_rev,
-	.get_device_type	= rd_get_device_type,
+	.get_device_rev		= sbc_get_device_rev,
+	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= rd_get_blocks,
 };
 

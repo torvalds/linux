@@ -491,24 +491,6 @@ static ssize_t fd_show_configfs_dev_params(struct se_device *dev, char *b)
 	return bl;
 }
 
-/*	fd_get_device_rev(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static u32 fd_get_device_rev(struct se_device *dev)
-{
-	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
-}
-
-/*	fd_get_device_type(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static u32 fd_get_device_type(struct se_device *dev)
-{
-	return TYPE_DISK;
-}
-
 static sector_t fd_get_blocks(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = FD_DEV(dev);
@@ -552,8 +534,8 @@ static struct se_subsystem_api fileio_template = {
 	.parse_cdb		= fd_parse_cdb,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
-	.get_device_rev		= fd_get_device_rev,
-	.get_device_type	= fd_get_device_type,
+	.get_device_rev		= sbc_get_device_rev,
+	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= fd_get_blocks,
 };
 

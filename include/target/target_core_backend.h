@@ -50,10 +50,13 @@ void	transport_subsystem_release(struct se_subsystem_api *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
 
-int	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 int	spc_emulate_report_luns(struct se_cmd *cmd);
 int	spc_get_write_same_sectors(struct se_cmd *cmd);
+
+int	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
+u32	sbc_get_device_rev(struct se_device *dev);
+u32	sbc_get_device_type(struct se_device *dev);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);

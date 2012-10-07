@@ -664,16 +664,6 @@ fail:
 	return -ENOMEM;
 }
 
-static u32 iblock_get_device_rev(struct se_device *dev)
-{
-	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
-}
-
-static u32 iblock_get_device_type(struct se_device *dev)
-{
-	return TYPE_DISK;
-}
-
 static sector_t iblock_get_blocks(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
@@ -735,8 +725,8 @@ static struct se_subsystem_api iblock_template = {
 	.parse_cdb		= iblock_parse_cdb,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
-	.get_device_rev		= iblock_get_device_rev,
-	.get_device_type	= iblock_get_device_type,
+	.get_device_rev		= sbc_get_device_rev,
+	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
 };
 
