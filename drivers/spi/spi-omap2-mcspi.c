@@ -39,7 +39,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/err.h>
 
 #include <linux/spi/spi.h>
 
