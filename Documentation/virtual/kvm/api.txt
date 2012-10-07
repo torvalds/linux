@@ -2183,7 +2183,8 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO and KVM_EXIT_OSI, the corresponding
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR
+      and KVM_EXIT_PAPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
