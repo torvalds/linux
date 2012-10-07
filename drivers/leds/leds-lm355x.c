@@ -408,7 +408,7 @@ static ssize_t lm3556_indicator_pattern_store(struct device *dev,
 	return size;
 out:
 	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 }
 
 static DEVICE_ATTR(pattern, 0666, NULL, lm3556_indicator_pattern_store);
