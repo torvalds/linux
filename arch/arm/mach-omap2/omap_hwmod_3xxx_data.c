@@ -94,7 +94,7 @@ static struct omap_hwmod omap3xxx_l4_sec_hwmod = {
 
 /* MPU */
 static struct omap_hwmod_irq_info omap3xxx_mpu_irqs[] = {
-	{ .name = "pmu", .irq = 3 },
+	{ .name = "pmu", .irq = 3 + OMAP_INTC_START },
 	{ .irq = -1 }
 };
 
