@@ -855,20 +855,17 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 }	/* xfs_log_unmount_write */
 
 /*
- * Shut down and release the AIL and Log.
- *
- * During unmount, we need to ensure we flush all the dirty metadata objects
- * from the AIL so that the log is empty before we write the unmount record to
- * the log.
+ * Empty the log for unmount/freeze.
  *
  * To do this, we first need to shut down the background log work so it is not
  * trying to cover the log as we clean up. We then need to unpin all objects in
  * the log so we can then flush them out. Once they have completed their IO and
  * run the callbacks removing themselves from the AIL, we can write the unmount
- * record, tear down the AIL and finally free the log.
+ * record.
  */
 void
-xfs_log_unmount(xfs_mount_t *mp)
+xfs_log_quiesce(
+	struct xfs_mount	*mp)
 {
 	cancel_delayed_work_sync(&mp->m_log->l_work);
 	xfs_log_force(mp, XFS_LOG_SYNC);
@@ -886,6 +883,20 @@ xfs_log_unmount(xfs_mount_t *mp)
 	xfs_buf_unlock(mp->m_sb_bp);
 
 	xfs_log_unmount_write(mp);
+}
+
+/*
+ * Shut down and release the AIL and Log.
+ *
+ * During unmount, we need to ensure we flush all the dirty metadata objects
+ * from the AIL so that the log is empty before we write the unmount record to
+ * the log. Once this is done, we can tear down the AIL and the log.
+ */
+void
+xfs_log_unmount(
+	struct xfs_mount	*mp)
+{
+	xfs_log_quiesce(mp);
 
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
