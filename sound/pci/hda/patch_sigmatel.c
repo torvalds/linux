@@ -103,6 +103,7 @@ enum {
 	STAC_HP_ZEPHYR,
 	STAC_92HD83XXX_HP_LED,
 	STAC_92HD83XXX_HP_INV_LED,
+	STAC_92HD83XXX_HP_MIC_LED,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -214,6 +215,9 @@ struct sigmatel_spec {
 	unsigned int gpio_led_polarity;
 	unsigned int vref_mute_led_nid; /* pin NID for mute-LED vref control */
 	unsigned int vref_led;
+
+	unsigned int mic_mute_led_gpio; /* capture mute LED GPIO */
+	bool mic_mute_led_on; /* current mic mute state */
 
 	/* stream */
 	unsigned int stream_delay;
@@ -1679,6 +1683,7 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_HP_ZEPHYR] = "hp-zephyr",
 	[STAC_92HD83XXX_HP_LED] = "hp-led",
 	[STAC_92HD83XXX_HP_INV_LED] = "hp-inv-led",
+	[STAC_92HD83XXX_HP_MIC_LED] = "hp-mic-led",
 };
 
 static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1703,6 +1708,8 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x165B,
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x18df,
+			  "HP Folio", STAC_92HD83XXX_HP_MIC_LED),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3388,
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3389,
@@ -2791,18 +2798,27 @@ stac_control_new(struct sigmatel_spec *spec,
 	return knew;
 }
 
+static struct snd_kcontrol_new *
+add_control_temp(struct sigmatel_spec *spec,
+		 const struct snd_kcontrol_new *ktemp,
+		 int idx, const char *name,
+		 unsigned long val)
+{
+	struct snd_kcontrol_new *knew = stac_control_new(spec, ktemp, name,
+							 HDA_SUBDEV_AMP_FLAG);
+	if (!knew)
+		return NULL;
+	knew->index = idx;
+	knew->private_value = val;
+	return knew;
+}
+
 static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
 				     const struct snd_kcontrol_new *ktemp,
 				     int idx, const char *name,
 				     unsigned long val)
 {
-	struct snd_kcontrol_new *knew = stac_control_new(spec, ktemp, name,
-							 HDA_SUBDEV_AMP_FLAG);
-	if (!knew)
-		return -ENOMEM;
-	knew->index = idx;
-	knew->private_value = val;
-	return 0;
+	return add_control_temp(spec, ktemp, idx, name, val) ? 0 : -ENOMEM;
 }
 
 static inline int stac92xx_add_control_idx(struct sigmatel_spec *spec,
@@ -3226,9 +3242,12 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 				idx = i;
 				break;
 			case AUTO_PIN_SPEAKER_OUT:
-				name = "Speaker";
-				idx = i;
-				break;
+				if (num_outs <= 1) {
+					name = "Speaker";
+					idx = i;
+					break;
+				}
+				/* Fall through in case of multi speaker outs */
 			default:
 				name = chname[i];
 				idx = 0;
@@ -3242,18 +3261,56 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 	return 0;
 }
 
+static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
+			  unsigned int dir_mask, unsigned int data);
+
+/* hook for controlling mic-mute LED GPIO */
+static int stac92xx_capture_sw_put_led(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	int err;
+	bool mute;
+
+	err = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+	if (err <= 0)
+		return err;
+	mute = !(ucontrol->value.integer.value[0] &&
+		 ucontrol->value.integer.value[1]);
+	if (spec->mic_mute_led_on != mute) {
+		spec->mic_mute_led_on = mute;
+		if (mute)
+			spec->gpio_data |= spec->mic_mute_led_gpio;
+		else
+			spec->gpio_data &= ~spec->mic_mute_led_gpio;
+		stac_gpio_set(codec, spec->gpio_mask,
+			      spec->gpio_dir, spec->gpio_data);
+	}
+	return err;
+}
+
 static int stac92xx_add_capvol_ctls(struct hda_codec *codec, unsigned long vol,
 				    unsigned long sw, int idx)
 {
+	struct sigmatel_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew;
 	int err;
+
 	err = stac92xx_add_control_idx(codec->spec, STAC_CTL_WIDGET_VOL, idx,
 				       "Capture Volume", vol);
 	if (err < 0)
 		return err;
-	err = stac92xx_add_control_idx(codec->spec, STAC_CTL_WIDGET_MUTE, idx,
-				       "Capture Switch", sw);
-	if (err < 0)
-		return err;
+
+	knew = add_control_temp(spec,
+				&stac92xx_control_templates[STAC_CTL_WIDGET_MUTE],
+				idx, "Capture Switch", sw);
+	if (!knew)
+		return -ENOMEM;
+	/* add a LED hook for some HP laptops */
+	if (spec->mic_mute_led_gpio)
+		knew->put = stac92xx_capture_sw_put_led;
+
 	return 0;
 }
 
@@ -4155,6 +4212,9 @@ static int stac_add_event(struct hda_codec *codec, hda_nid_t nid,
 	return 0;
 }
 
+static void handle_unsol_event(struct hda_codec *codec,
+			       struct hda_jack_tbl *event);
+
 /* check if given nid is a valid pin and no other events are assigned
  * to it.  If OK, assign the event, set the unsol flag, and returns 1.
  * Otherwise, returns zero.
@@ -4172,6 +4232,7 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 	if (event->action && event->action != type)
 		return 0;
 	event->action = type;
+	event->callback = handle_unsol_event;
 	snd_hda_jack_detect_enable(codec, nid, 0);
 	return 1;
 }
@@ -4417,8 +4478,6 @@ static int stac92xx_init(struct hda_codec *codec)
 		/* none of the above, turn the port OFF */
 		stac_toggle_power_map(codec, nid, 0);
 	}
-
-	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
 	if (spec->gpio_led) {
@@ -4812,20 +4871,6 @@ static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
 	handle_unsol_event(codec, event);
 }
 
-static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
-{
-	struct hda_jack_tbl *event;
-	int tag;
-
-	tag = (res >> 26) & 0x7f;
-	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
-	if (!event)
-		return;
-	event->jack_dirty = 1;
-	handle_unsol_event(codec, event);
-	snd_hda_jack_report_sync(codec);
-}
-
 static int hp_blike_system(u32 subsystem_id);
 
 static void set_hp_led_gpio(struct hda_codec *codec)
@@ -5076,7 +5121,7 @@ static const struct hda_codec_ops stac92xx_patch_ops = {
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
 	.free = stac92xx_free,
-	.unsol_event = stac92xx_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
@@ -5578,6 +5623,9 @@ again:
 	case STAC_92HD83XXX_HP_INV_LED:
 		default_polarity = 1;
 		break;
+	case STAC_92HD83XXX_HP_MIC_LED:
+		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
+		break;
 	}
 
 	if (find_mute_led_cfg(codec, default_polarity))
@@ -5594,6 +5642,13 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
+	}
+
+	if (spec->mic_mute_led_gpio) {
+		spec->gpio_mask |= spec->mic_mute_led_gpio;
+		spec->gpio_dir |= spec->mic_mute_led_gpio;
+		spec->mic_mute_led_on = true;
+		spec->gpio_data |= spec->mic_mute_led_gpio;
 	}
 
 	err = stac92xx_parse_auto_config(codec);
