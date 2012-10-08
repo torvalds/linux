@@ -39,7 +39,8 @@ nvd0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		 struct nouveau_dmaobj *dmaobj,
 		 struct nouveau_gpuobj **pgpuobj)
 {
-	int ret = 0;
+	u32 flags0 = 0x00000000;
+	int ret;
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
 		switch (nv_mclass(parent->parent)) {
@@ -49,6 +50,38 @@ nvd0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		}
 	} else
 		return 0;
+
+	if (!(dmaobj->conf0 & NVD0_DMA_CONF0_ENABLE)) {
+		if (dmaobj->target == NV_MEM_TARGET_VM) {
+			dmaobj->conf0 |= NVD0_DMA_CONF0_TYPE_VM;
+			dmaobj->conf0 |= NVD0_DMA_CONF0_PAGE_LP;
+		} else {
+			dmaobj->conf0 |= NVD0_DMA_CONF0_TYPE_LINEAR;
+			dmaobj->conf0 |= NVD0_DMA_CONF0_PAGE_SP;
+		}
+	}
+
+	flags0 |= (dmaobj->conf0 & NVD0_DMA_CONF0_TYPE) << 20;
+	flags0 |= (dmaobj->conf0 & NVD0_DMA_CONF0_PAGE) >> 4;
+
+	switch (dmaobj->target) {
+	case NV_MEM_TARGET_VRAM:
+		flags0 |= 0x00000009;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	ret = nouveau_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
+	if (ret == 0) {
+		nv_wo32(*pgpuobj, 0x00, flags0);
+		nv_wo32(*pgpuobj, 0x04, dmaobj->start >> 8);
+		nv_wo32(*pgpuobj, 0x08, dmaobj->limit >> 8);
+		nv_wo32(*pgpuobj, 0x0c, 0x00000000);
+		nv_wo32(*pgpuobj, 0x10, 0x00000000);
+		nv_wo32(*pgpuobj, 0x14, 0x00000000);
+	}
 
 	return ret;
 }

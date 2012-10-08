@@ -80,6 +80,15 @@ struct nv_device_class {
 #define NVC0_DMA_CONF0_TYPE_LINEAR                                   0x00000000
 #define NVC0_DMA_CONF0_TYPE_VM                                       0x000000ff
 
+/* NVD9- */
+#define NVD0_DMA_CONF0_ENABLE                                        0x80000000
+#define NVD0_DMA_CONF0_PAGE                                          0x00000400
+#define NVD0_DMA_CONF0_PAGE_LP                                       0x00000000
+#define NVD0_DMA_CONF0_PAGE_SP                                       0x00000400
+#define NVD0_DMA_CONF0_TYPE                                          0x000000ff
+#define NVD0_DMA_CONF0_TYPE_LINEAR                                   0x00000000
+#define NVD0_DMA_CONF0_TYPE_VM                                       0x000000ff
+
 struct nv_dma_class {
 	u32 flags;
 	u32 pad0;
