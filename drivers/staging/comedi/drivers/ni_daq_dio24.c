@@ -202,7 +202,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 {
 	struct local_info_t *local;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
 	dev_dbg(&link->dev, "dio24_cs_attach()\n");
 
@@ -242,7 +242,7 @@ static void dio24_config(struct pcmcia_device *link)
 {
 	int ret;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO! - config\n");
 
 	dev_dbg(&link->dev, "dio24_config\n");
 
@@ -265,7 +265,7 @@ static void dio24_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	printk(KERN_INFO "Fallo");
+	dev_info(&link->dev, "Fallo");
 	dio24_release(link);
 
 }				/* dio24_config */
