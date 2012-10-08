@@ -5690,7 +5690,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 		if (list_empty(&cc->migratepages)) {
 			cc->nr_migratepages = 0;
 			pfn = isolate_migratepages_range(cc->zone, cc,
-							 pfn, end);
+							 pfn, end, true);
 			if (!pfn) {
 				ret = -EINTR;
 				break;
