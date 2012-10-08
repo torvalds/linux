@@ -2371,7 +2371,8 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
  * prior to moving page table entries, to effect an mremap move.
  */
 struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
-	unsigned long addr, unsigned long len, pgoff_t pgoff)
+	unsigned long addr, unsigned long len, pgoff_t pgoff,
+	bool *need_rmap_locks)
 {
 	struct vm_area_struct *vma = *vmap;
 	unsigned long vma_start = vma->vm_start;
@@ -2413,8 +2414,9 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			 * linear if there are no pages mapped yet.
 			 */
 			VM_BUG_ON(faulted_in_anon_vma);
-			*vmap = new_vma;
+			*vmap = vma = new_vma;
 		}
+		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
 	} else {
 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (new_vma) {
@@ -2434,6 +2436,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			if (new_vma->vm_ops && new_vma->vm_ops->open)
 				new_vma->vm_ops->open(new_vma);
 			vma_link(mm, new_vma, prev, rb_link, rb_parent);
+			*need_rmap_locks = false;
 		}
 	}
 	return new_vma;
