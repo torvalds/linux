@@ -51,8 +51,6 @@ typedef struct xfs_trans_reservations {
 
 #else /* __KERNEL__ */
 
-#include "xfs_sync.h"
-
 struct xlog;
 struct xfs_inode;
 struct xfs_mru_cache;

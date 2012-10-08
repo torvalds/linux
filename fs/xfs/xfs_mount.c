@@ -42,6 +42,7 @@
 #include "xfs_fsops.h"
 #include "xfs_utils.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 
 #ifdef HAVE_PERCPU_SB

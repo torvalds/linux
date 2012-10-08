@@ -38,6 +38,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 
 /*
