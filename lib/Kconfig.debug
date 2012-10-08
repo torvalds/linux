@@ -1289,6 +1289,18 @@ config RBTREE_TEST
 	  A benchmark measuring the performance of the rbtree library.
 	  Also includes rbtree invariant checks.
 
+config PRIO_TREE_TEST
+	tristate "Prio tree test"
+	depends on m && DEBUG_KERNEL
+	help
+	  A benchmark measuring the performance of the prio tree library
+
+config INTERVAL_TREE_TEST
+	tristate "Interval tree test"
+	depends on m && DEBUG_KERNEL
+	help
+	  A benchmark measuring the performance of the interval tree library
+
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"
 	depends on PCI && X86

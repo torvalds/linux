@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/prio_tree.h>
+#include <linux/export.h>
 
 /*
  * A clever mix of heap and radix trees forms a radix priority search tree (PST)
@@ -241,6 +242,7 @@ struct prio_tree_node *prio_tree_insert(struct prio_tree_root *root,
 	BUG();
 	return NULL;
 }
+EXPORT_SYMBOL(prio_tree_insert);
 
 /*
  * Remove a prio_tree_node @node from a radix priority search tree @root. The
@@ -290,6 +292,7 @@ void prio_tree_remove(struct prio_tree_root *root, struct prio_tree_node *node)
 	while (cur != node)
 		cur = prio_tree_replace(root, cur->parent, cur);
 }
+EXPORT_SYMBOL(prio_tree_remove);
 
 static void iter_walk_down(struct prio_tree_iter *iter)
 {
@@ -464,3 +467,4 @@ repeat:
 
 	goto repeat;
 }
+EXPORT_SYMBOL(prio_tree_next);
