@@ -167,7 +167,6 @@ __xip_unmap (struct address_space * mapping,
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
-	struct prio_tree_iter iter;
 	unsigned long address;
 	pte_t *pte;
 	pte_t pteval;
@@ -184,7 +183,7 @@ __xip_unmap (struct address_space * mapping,
 
 retry:
 	mutex_lock(&mapping->i_mmap_mutex);
-	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);

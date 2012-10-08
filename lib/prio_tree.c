@@ -44,27 +44,12 @@
  * The following macros are used for implementing prio_tree for i_mmap
  */
 
-#define RADIX_INDEX(vma)  ((vma)->vm_pgoff)
-#define VMA_SIZE(vma)	  (((vma)->vm_end - (vma)->vm_start) >> PAGE_SHIFT)
-/* avoid overflow */
-#define HEAP_INDEX(vma)	  ((vma)->vm_pgoff + (VMA_SIZE(vma) - 1))
-
-
 static void get_index(const struct prio_tree_root *root,
     const struct prio_tree_node *node,
     unsigned long *radix, unsigned long *heap)
 {
-	if (root->raw) {
-		struct vm_area_struct *vma = prio_tree_entry(
-		    node, struct vm_area_struct, shared.prio_tree_node);
-
-		*radix = RADIX_INDEX(vma);
-		*heap = HEAP_INDEX(vma);
-	}
-	else {
-		*radix = node->start;
-		*heap = node->last;
-	}
+	*radix = node->start;
+	*heap = node->last;
 }
 
 static unsigned long index_bits_to_maxindex[BITS_PER_LONG];

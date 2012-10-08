@@ -431,7 +431,6 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
-	struct prio_tree_iter iter;
 	struct address_space *mapping = page->mapping;
 
 	mutex_lock(&mapping->i_mmap_mutex);
@@ -442,7 +441,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 		if (!task_early_kill(tsk))
 			continue;
 
-		vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff,
+		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff,
 				      pgoff) {
 			/*
 			 * Send early kill signal to tasks where a vma covers
