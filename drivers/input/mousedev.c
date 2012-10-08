@@ -782,14 +782,14 @@ static unsigned int mousedev_poll(struct file *file, poll_table *wait)
 }
 
 static const struct file_operations mousedev_fops = {
-	.owner =	THIS_MODULE,
-	.read =		mousedev_read,
-	.write =	mousedev_write,
-	.poll =		mousedev_poll,
-	.open =		mousedev_open,
-	.release =	mousedev_release,
-	.fasync =	mousedev_fasync,
-	.llseek = noop_llseek,
+	.owner		= THIS_MODULE,
+	.read		= mousedev_read,
+	.write		= mousedev_write,
+	.poll		= mousedev_poll,
+	.open		= mousedev_open,
+	.release	= mousedev_release,
+	.fasync		= mousedev_fasync,
+	.llseek		= noop_llseek,
 };
 
 static int mousedev_install_chrdev(struct mousedev *mousedev)
@@ -1051,13 +1051,13 @@ static const struct input_device_id mousedev_ids[] = {
 MODULE_DEVICE_TABLE(input, mousedev_ids);
 
 static struct input_handler mousedev_handler = {
-	.event =	mousedev_event,
-	.connect =	mousedev_connect,
-	.disconnect =	mousedev_disconnect,
-	.fops =		&mousedev_fops,
-	.minor =	MOUSEDEV_MINOR_BASE,
-	.name =		"mousedev",
-	.id_table =	mousedev_ids,
+	.event		= mousedev_event,
+	.connect	= mousedev_connect,
+	.disconnect	= mousedev_disconnect,
+	.fops		= &mousedev_fops,
+	.minor		= MOUSEDEV_MINOR_BASE,
+	.name		= "mousedev",
+	.id_table	= mousedev_ids,
 };
 
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
