@@ -19,6 +19,8 @@
   include/linux/interval_tree_tmpl.h
 */
 
+#include <linux/rbtree_augmented.h>
+
 /*
  * Template for implementing interval trees
  *
@@ -57,7 +59,8 @@ static inline ITTYPE IT(compute_subtree_last)(ITSTRUCT *node)
 	return max;
 }
 
-static void IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
+static inline void
+IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
 {
 	while (rb != stop) {
 		ITSTRUCT *node = rb_entry(rb, ITSTRUCT, ITRB);
@@ -69,7 +72,8 @@ static void IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
 	}
 }
 
-static void IT(augment_copy)(struct rb_node *rb_old, struct rb_node *rb_new)
+static inline void
+IT(augment_copy)(struct rb_node *rb_old, struct rb_node *rb_new)
 {
 	ITSTRUCT *old = rb_entry(rb_old, ITSTRUCT, ITRB);
 	ITSTRUCT *new = rb_entry(rb_new, ITSTRUCT, ITRB);

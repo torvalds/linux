@@ -202,6 +202,14 @@ An rbtree user who wants this feature will have to call the augmentation
 functions with the user provided augmentation callback when inserting
 and erasing nodes.
 
+C files implementing augmented rbtree manipulation must include
+<linux/rbtree_augmented.h> instead of <linus/rbtree.h>. Note that
+linux/rbtree_augmented.h exposes some rbtree implementations details
+you are not expected to rely on; please stick to the documented APIs
+there and do not include <linux/rbtree_augmented.h> from header files
+either so as to minimize chances of your users accidentally relying on
+such implementation details.
+
 On insertion, the user must update the augmented information on the path
 leading to the inserted node, then call rb_link_node() as usual and
 rb_augment_inserted() instead of the usual rb_insert_color() call.
@@ -226,6 +234,11 @@ In both cases, the callbacks are provided through struct rb_augment_callbacks.
 - A tree rotation callback, which copies the augmented value for a given
   subtree to a newly assigned subtree root AND recomputes the augmented
   information for the former subtree root.
+
+The compiled code for rb_erase_augmented() may inline the propagation and
+copy callbacks, which results in a large function, so each augmented rbtree
+user should have a single rb_erase_augmented() call site in order to limit
+compiled code size.
 
 
 Sample usage:

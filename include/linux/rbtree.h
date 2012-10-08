@@ -62,54 +62,6 @@ extern void rb_insert_color(struct rb_node *, struct rb_root *);
 extern void rb_erase(struct rb_node *, struct rb_root *);
 
 
-struct rb_augment_callbacks {
-	void (*propagate)(struct rb_node *node, struct rb_node *stop);
-	void (*copy)(struct rb_node *old, struct rb_node *new);
-	void (*rotate)(struct rb_node *old, struct rb_node *new);
-};
-
-extern void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-	void (*augment_rotate)(struct rb_node *old, struct rb_node *new));
-extern void rb_erase_augmented(struct rb_node *node, struct rb_root *root,
-			       const struct rb_augment_callbacks *augment);
-static inline void
-rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-		    const struct rb_augment_callbacks *augment)
-{
-	__rb_insert_augmented(node, root, augment->rotate);
-}
-
-#define RB_DECLARE_CALLBACKS(rbstatic, rbname, rbstruct, rbfield,	      \
-			     rbtype, rbaugmented, rbcompute)		      \
-static void rbname ## _propagate(struct rb_node *rb, struct rb_node *stop)    \
-{									      \
-	while (rb != stop) {						      \
-		rbstruct *node = rb_entry(rb, rbstruct, rbfield);	      \
-		rbtype augmented = rbcompute(node);			      \
-		if (node->rbaugmented == augmented)			      \
-			break;						      \
-		node->rbaugmented = augmented;				      \
-		rb = rb_parent(&node->rbfield);				      \
-	}								      \
-}									      \
-static void rbname ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)   \
-{									      \
-	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
-	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
-	new->rbaugmented = old->rbaugmented;				      \
-}									      \
-static void rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new) \
-{									      \
-	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
-	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
-	new->rbaugmented = old->rbaugmented;				      \
-	old->rbaugmented = rbcompute(old);				      \
-}									      \
-rbstatic const struct rb_augment_callbacks rbname = {			      \
-	rbname ## _propagate, rbname ## _copy, rbname ## _rotate	      \
-};
-
-
 /* Find logical next and previous nodes in a tree */
 extern struct rb_node *rb_next(const struct rb_node *);
 extern struct rb_node *rb_prev(const struct rb_node *);

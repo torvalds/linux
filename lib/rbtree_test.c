@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/rbtree.h>
+#include <linux/rbtree_augmented.h>
 #include <linux/random.h>
 #include <asm/timex.h>
 
