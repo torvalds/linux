@@ -69,7 +69,7 @@ bool regmap_precious(struct regmap *map, unsigned int reg)
 }
 
 static bool regmap_volatile_range(struct regmap *map, unsigned int reg,
-	unsigned int num)
+	size_t num)
 {
 	unsigned int i;
 
