@@ -383,9 +383,8 @@ struct rcu_state {
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	raw_spinlock_t onofflock ____cacheline_internodealigned_in_smp;
-						/* exclude on/offline and */
-						/*  starting new GP. */
+	raw_spinlock_t orphan_lock ____cacheline_internodealigned_in_smp;
+						/* Protect following fields. */
 	struct rcu_head *orphan_nxtlist;	/* Orphaned callbacks that */
 						/*  need a grace period. */
 	struct rcu_head **orphan_nxttail;	/* Tail of above. */
@@ -394,7 +393,7 @@ struct rcu_state {
 	struct rcu_head **orphan_donetail;	/* Tail of above. */
 	long qlen_lazy;				/* Number of lazy callbacks. */
 	long qlen;				/* Total number of callbacks. */
-	/* End of fields guarded by onofflock. */
+	/* End of fields guarded by orphan_lock. */
 
 	struct mutex onoff_mutex;		/* Coordinate hotplug & GPs. */
 

@@ -757,7 +757,8 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
  * grace period for the specified rcu_node structure.  If there are no such
  * tasks, report it up the rcu_node hierarchy.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex and rsp->onofflock.
+ * Caller must hold sync_rcu_preempt_exp_mutex and must exclude
+ * CPU hotplug operations.
  */
 static void
 sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
