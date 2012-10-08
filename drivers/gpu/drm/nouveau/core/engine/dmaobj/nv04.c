@@ -49,6 +49,18 @@ nv04_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 	u32 length = dmaobj->limit - dmaobj->start;
 	int ret;
 
+	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
+		switch (nv_mclass(parent->parent)) {
+		case NV03_CHANNEL_DMA_CLASS:
+		case NV10_CHANNEL_DMA_CLASS:
+		case NV17_CHANNEL_DMA_CLASS:
+		case NV40_CHANNEL_DMA_CLASS:
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
 	if (dmaobj->target == NV_MEM_TARGET_VM) {
 		if (nv_object(vmm)->oclass == &nv04_vmmgr_oclass) {
 			struct nouveau_gpuobj *pgt = vmm->vm->pgt[0].obj[0];

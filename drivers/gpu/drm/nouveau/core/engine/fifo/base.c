@@ -24,6 +24,7 @@
 
 #include <core/object.h>
 #include <core/handle.h>
+#include <core/class.h>
 
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
@@ -56,15 +57,16 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 
 	dmaeng = (void *)chan->pushdma->base.engine;
 	switch (chan->pushdma->base.oclass->handle) {
-	case 0x0002:
-	case 0x003d:
+	case NV_DMA_FROM_MEMORY_CLASS:
+	case NV_DMA_IN_MEMORY_CLASS:
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	if (dmaeng->bind) {
-		ret = dmaeng->bind(dmaeng, parent, chan->pushdma, &chan->pushgpu);
+		ret = dmaeng->bind(dmaeng, parent, chan->pushdma,
+				  &chan->pushgpu);
 		if (ret)
 			return ret;
 	}

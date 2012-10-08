@@ -41,6 +41,18 @@ nv50_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 	u32 flags = nv_mclass(dmaobj);
 	int ret;
 
+	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
+		switch (nv_mclass(parent->parent)) {
+		case NV50_CHANNEL_DMA_CLASS:
+		case NV84_CHANNEL_DMA_CLASS:
+		case NV50_CHANNEL_IND_CLASS:
+		case NV84_CHANNEL_IND_CLASS:
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
 	switch (dmaobj->target) {
 	case NV_MEM_TARGET_VM:
 		flags |= 0x00000000;

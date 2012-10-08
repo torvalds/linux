@@ -88,21 +88,15 @@ nouveau_dmaobj_ctor(struct nouveau_object *parent,
 
 	switch (nv_mclass(parent)) {
 	case NV_DEVICE_CLASS:
-		break;
-	case NV03_CHANNEL_DMA_CLASS:
-	case NV10_CHANNEL_DMA_CLASS:
-	case NV17_CHANNEL_DMA_CLASS:
-	case NV40_CHANNEL_DMA_CLASS:
-	case NV50_CHANNEL_DMA_CLASS:
-	case NV84_CHANNEL_DMA_CLASS:
-	case NV50_CHANNEL_IND_CLASS:
-	case NV84_CHANNEL_IND_CLASS:
-		ret = dmaeng->bind(dmaeng, *pobject, dmaobj, &gpuobj);
-		nouveau_object_ref(NULL, pobject);
-		*pobject = nv_object(gpuobj);
+		/* delayed, or no, binding */
 		break;
 	default:
-		return -EINVAL;
+		ret = dmaeng->bind(dmaeng, *pobject, dmaobj, &gpuobj);
+		if (ret == 0) {
+			nouveau_object_ref(NULL, pobject);
+			*pobject = nv_object(gpuobj);
+		}
+		break;
 	}
 
 	return ret;
