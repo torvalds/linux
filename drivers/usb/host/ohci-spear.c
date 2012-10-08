@@ -231,7 +231,7 @@ static int spear_ohci_hcd_drv_resume(struct platform_device *dev)
 	ohci->next_statechange = jiffies;
 
 	spear_start_ohci(ohci_p);
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 #endif

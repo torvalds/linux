@@ -524,8 +524,7 @@ static int ohci_hcd_s3c2410_drv_resume(struct device *dev)
 
 	s3c2410_start_hc(pdev, hcd);
 
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 
 	return 0;
 }

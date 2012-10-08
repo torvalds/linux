@@ -591,7 +591,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 	/* Select Power Management Mode */
 	pxa27x_ohci_select_pmm(ohci, inf->port_mode);
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 

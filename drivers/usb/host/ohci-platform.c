@@ -203,7 +203,7 @@ static int ohci_platform_resume(struct device *dev)
 			return err;
 	}
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 
