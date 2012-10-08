@@ -1005,7 +1005,6 @@ xfs_fs_put_super(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	cancel_delayed_work_sync(&mp->m_sync_work);
 	cancel_work_sync(&mp->m_flush_work);
 
 	xfs_filestream_unmount(mp);
@@ -1040,10 +1039,10 @@ xfs_fs_sync_fs(
 	if (laptop_mode) {
 		/*
 		 * The disk must be active because we're syncing.
-		 * We schedule xfssyncd now (now that the disk is
+		 * We schedule log work now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		flush_delayed_work(&mp->m_sync_work);
+		flush_delayed_work(&mp->m_log->l_work);
 	}
 
 	return 0;
@@ -1200,7 +1199,7 @@ xfs_fs_remount(
 		 * value if it is non-zero, otherwise go with the default.
 		 */
 		xfs_restore_resvblks(mp);
-		xfs_syncd_queue_sync(mp);
+		xfs_log_work_queue(mp);
 	}
 
 	/* rw -> ro */
@@ -1246,7 +1245,7 @@ xfs_fs_unfreeze(
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_restore_resvblks(mp);
-	xfs_syncd_queue_sync(mp);
+	xfs_log_work_queue(mp);
 	return 0;
 }
 
@@ -1326,7 +1325,6 @@ xfs_fs_fill_super(
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
 	INIT_WORK(&mp->m_flush_work, xfs_flush_worker);
-	INIT_DELAYED_WORK(&mp->m_sync_work, xfs_sync_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 
 	mp->m_super = sb;
@@ -1409,12 +1407,6 @@ xfs_fs_fill_super(
 		error = ENOMEM;
 		goto out_unmount;
 	}
-
-	/*
-	 * The filesystem is successfully mounted, so we can start background
-	 * sync work now.
-	 */
-	xfs_syncd_queue_sync(mp);
 
 	return 0;
 

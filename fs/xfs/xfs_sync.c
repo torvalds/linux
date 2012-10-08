@@ -19,6 +19,7 @@
 #include "xfs_fs.h"
 #include "xfs_types.h"
 #include "xfs_log.h"
+#include "xfs_log_priv.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -344,8 +345,8 @@ xfs_quiesce_attr(
 	/* flush all pending changes from the AIL */
 	xfs_ail_push_all_sync(mp->m_ail);
 
-	/* stop background sync work */
-	cancel_delayed_work_sync(&mp->m_sync_work);
+	/* stop background log work */
+	cancel_delayed_work_sync(&mp->m_log->l_work);
 
 	/*
 	 * Just warn here till VFS can correctly support
@@ -374,40 +375,6 @@ xfs_quiesce_attr(
 	 */
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_unlock(mp->m_sb_bp);
-}
-
-void
-xfs_syncd_queue_sync(
-	struct xfs_mount        *mp)
-{
-	queue_delayed_work(xfs_syncd_wq, &mp->m_sync_work,
-				msecs_to_jiffies(xfs_syncd_centisecs * 10));
-}
-
-/*
- * Every sync period we need to push dirty metadata and try to cover the log
- * to indicate the filesystem is idle and not frozen.
- */
-void
-xfs_sync_worker(
-	struct work_struct *work)
-{
-	struct xfs_mount *mp = container_of(to_delayed_work(work),
-					struct xfs_mount, m_sync_work);
-	int		error;
-
-	/* dgc: errors ignored here */
-	if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
-	    xfs_log_need_covered(mp))
-		error = xfs_fs_log_dummy(mp);
-	else
-		xfs_log_force(mp, 0);
-
-	/* start pushing all the metadata that is currently dirty */
-	xfs_ail_push_all(mp->m_ail);
-
-	/* queue us up again */
-	xfs_syncd_queue_sync(mp);
 }
 
 /*

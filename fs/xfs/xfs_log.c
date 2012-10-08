@@ -34,6 +34,7 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
+#include "xfs_fsops.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -679,24 +680,28 @@ out:
 }
 
 /*
- * Finish the recovery of the file system.  This is separate from
- * the xfs_log_mount() call, because it depends on the code in
- * xfs_mountfs() to read in the root and real-time bitmap inodes
- * between calling xfs_log_mount() and here.
+ * Finish the recovery of the file system.  This is separate from the
+ * xfs_log_mount() call, because it depends on the code in xfs_mountfs() to read
+ * in the root and real-time bitmap inodes between calling xfs_log_mount() and
+ * here.
  *
- * mp		- ubiquitous xfs mount point structure
+ * If we finish recovery successfully, start the background log work. If we are
+ * not doing recovery, then we have a RO filesystem and we don't need to start
+ * it.
  */
 int
 xfs_log_mount_finish(xfs_mount_t *mp)
 {
-	int	error;
+	int	error = 0;
 
-	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
+	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
 		error = xlog_recover_finish(mp->m_log);
-	else {
-		error = 0;
+		if (!error)
+			xfs_log_work_queue(mp);
+	} else {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
+
 
 	return error;
 }
@@ -858,7 +863,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 void
 xfs_log_unmount(xfs_mount_t *mp)
 {
-	cancel_delayed_work_sync(&mp->m_sync_work);
+	cancel_delayed_work_sync(&mp->m_log->l_work);
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
 }
@@ -1161,6 +1166,40 @@ done:
 }	/* xlog_get_iclog_buffer_size */
 
 
+void
+xfs_log_work_queue(
+	struct xfs_mount        *mp)
+{
+	queue_delayed_work(xfs_syncd_wq, &mp->m_log->l_work,
+				msecs_to_jiffies(xfs_syncd_centisecs * 10));
+}
+
+/*
+ * Every sync period we need to unpin all items in the AIL and push them to
+ * disk. If there is nothing dirty, then we might need to cover the log to
+ * indicate that the filesystem is idle.
+ */
+void
+xfs_log_worker(
+	struct work_struct	*work)
+{
+	struct xlog		*log = container_of(to_delayed_work(work),
+						struct xlog, l_work);
+	struct xfs_mount	*mp = log->l_mp;
+
+	/* dgc: errors ignored - not fatal and nowhere to report them */
+	if (xfs_log_need_covered(mp))
+		xfs_fs_log_dummy(mp);
+	else
+		xfs_log_force(mp, 0);
+
+	/* start pushing all the metadata that is currently dirty */
+	xfs_ail_push_all(mp->m_ail);
+
+	/* queue us up again */
+	xfs_log_work_queue(mp);
+}
+
 /*
  * This routine initializes some of the log structure for a given mount point.
  * Its primary purpose is to fill in enough, so recovery can occur.  However,
@@ -1195,6 +1234,7 @@ xlog_alloc_log(
 	log->l_logBBsize   = num_bblks;
 	log->l_covered_state = XLOG_STATE_COVER_IDLE;
 	log->l_flags	   |= XLOG_ACTIVE_RECOVERY;
+	INIT_DELAYED_WORK(&log->l_work, xfs_log_worker);
 
 	log->l_prev_block  = -1;
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
@@ -3700,3 +3740,4 @@ xlog_iclogs_empty(
 	} while (iclog != log->l_iclog);
 	return 1;
 }
+
