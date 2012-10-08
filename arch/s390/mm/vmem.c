@@ -109,8 +109,8 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		pm_dir = pmd_offset(pu_dir, address);
 
 #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
-		if (MACHINE_HAS_EDAT1 && address && !(address & ~PMD_MASK) &&
-		    (address + PMD_SIZE <= end)) {
+		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
+		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
 			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
 			pmd_val(*pm_dir) = pte_val(pte);
 			address += PMD_SIZE;
@@ -151,12 +151,20 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pte_val(pte) = _PAGE_TYPE_EMPTY;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
+		if (pgd_none(*pg_dir)) {
+			address += PGDIR_SIZE;
+			continue;
+		}
 		pu_dir = pud_offset(pg_dir, address);
-		if (pud_none(*pu_dir))
+		if (pud_none(*pu_dir)) {
+			address += PUD_SIZE;
 			continue;
+		}
 		pm_dir = pmd_offset(pu_dir, address);
-		if (pmd_none(*pm_dir))
+		if (pmd_none(*pm_dir)) {
+			address += PMD_SIZE;
 			continue;
+		}
 		if (pmd_large(*pm_dir)) {
 			pmd_clear(pm_dir);
 			address += PMD_SIZE;
