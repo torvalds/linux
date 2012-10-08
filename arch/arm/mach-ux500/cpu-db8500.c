@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/machine.h>
@@ -319,6 +320,8 @@ static void __init u8500_init_machine(void)
 		snowball_pinmaps_init();
 	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
+	else if (of_machine_is_compatible("st-ericsson,u9540")) {}
+		/* TODO: Add u9540 pinmaps. */
 
 	/* TODO: Export SoC, USB, cpu-freq and DMA40 */
 	parent = u8500_of_init_devices();
@@ -331,6 +334,7 @@ static const char * u8500_dt_board_compat[] = {
 	"calaosystems,snowball-a9500",
 	"st-ericsson,hrefv60+",
 	"st-ericsson,mop500",
+	"st-ericsson,u9540",
 	NULL,
 };
 
@@ -338,6 +342,16 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson U8500 platform (Device Tree Support)")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
+	.timer		= &ux500_timer,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= u8500_init_machine,
+	.init_late	= NULL,
+	.dt_compat      = u8500_dt_board_compat,
+MACHINE_END
+
+DT_MACHINE_START(U9540_DT, "ST-Ericsson 9540 platform (Device Tree Support)")
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= u8500_init_machine,
