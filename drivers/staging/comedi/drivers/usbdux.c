@@ -2386,14 +2386,12 @@ static int usbdux_attach_usb(struct comedi_device *dev,
 	down(&start_stop_sem);
 	this_usbduxsub = usb_get_intfdata(uinterf);
 	if (!this_usbduxsub || !this_usbduxsub->probed) {
-		printk(KERN_ERR
-		       "comedi%d: usbdux: error: attach_usb failed, not connected\n",
-		       dev->minor);
+		dev_err(dev->class_dev,
+			"usbdux: error: attach_usb failed, not connected\n");
 		ret = -ENODEV;
 	} else if (this_usbduxsub->attached) {
-		printk(KERN_ERR
-		       "comedi%d: usbdux: error: attach_usb failed, already attached\n",
-		       dev->minor);
+		dev_err(dev->class_dev,
+			"error: attach_usb failed, already attached\n");
 		ret = -ENODEV;
 	} else
 		ret = usbdux_attach_common(dev, this_usbduxsub);
