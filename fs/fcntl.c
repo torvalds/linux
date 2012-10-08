@@ -258,7 +258,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		err = f_dupfd(arg, filp, 0);
 		break;
 	case F_DUPFD_CLOEXEC:
-		err = f_dupfd(arg, filp, FD_CLOEXEC);
+		err = f_dupfd(arg, filp, O_CLOEXEC);
 		break;
 	case F_GETFD:
 		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;
