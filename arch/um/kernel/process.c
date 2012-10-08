@@ -23,10 +23,10 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/uaccess.h>
-#include "as-layout.h"
-#include "kern_util.h"
-#include "os.h"
-#include "skas.h"
+#include <as-layout.h>
+#include <kern_util.h>
+#include <os.h>
+#include <skas.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only

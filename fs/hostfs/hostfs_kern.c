@@ -16,8 +16,8 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include "hostfs.h"
-#include "init.h"
-#include "kern.h"
+#include <init.h>
+#include <kern.h>
 
 struct hostfs_inode_info {
 	int fd;

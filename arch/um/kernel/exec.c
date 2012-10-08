@@ -12,10 +12,10 @@
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
-#include "as-layout.h"
-#include "mem_user.h"
-#include "skas.h"
-#include "os.h"
+#include <as-layout.h>
+#include <mem_user.h>
+#include <skas.h>
+#include <os.h>
 #include "internal.h"
 
 void flush_thread(void)
