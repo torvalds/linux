@@ -246,50 +246,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 		__mmu_notifier_mm_destroy(mm);
 }
 
-/*
- * These two macros will sometime replace ptep_clear_flush.
- * ptep_clear_flush is implemented as macro itself, so this also is
- * implemented as a macro until ptep_clear_flush will converted to an
- * inline function, to diminish the risk of compilation failure. The
- * invalidate_page method over time can be moved outside the PT lock
- * and these two macros can be later removed.
- */
-#define ptep_clear_flush_notify(__vma, __address, __ptep)		\
-({									\
-	pte_t __pte;							\
-	struct vm_area_struct *___vma = __vma;				\
-	unsigned long ___address = __address;				\
-	__pte = ptep_clear_flush(___vma, ___address, __ptep);		\
-	mmu_notifier_invalidate_page(___vma->vm_mm, ___address);	\
-	__pte;								\
-})
-
-#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
-({									\
-	pmd_t __pmd;							\
-	struct vm_area_struct *___vma = __vma;				\
-	unsigned long ___address = __address;				\
-	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-					    (__address)+HPAGE_PMD_SIZE);\
-	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
-	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-					  (__address)+HPAGE_PMD_SIZE);	\
-	__pmd;								\
-})
-
-#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
-({									\
-	struct vm_area_struct *___vma = __vma;				\
-	unsigned long ___address = __address;				\
-	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-					    (__address)+HPAGE_PMD_SIZE);\
-	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
-	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-					  (__address)+HPAGE_PMD_SIZE);	\
-})
-
 #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
 ({									\
 	int __young;							\
@@ -380,9 +336,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 
 #define ptep_clear_flush_young_notify ptep_clear_flush_young
 #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
-#define ptep_clear_flush_notify ptep_clear_flush
-#define pmdp_clear_flush_notify pmdp_clear_flush
-#define pmdp_splitting_flush_notify pmdp_splitting_flush
 #define set_pte_at_notify set_pte_at
 
 #endif /* CONFIG_MMU_NOTIFIER */
