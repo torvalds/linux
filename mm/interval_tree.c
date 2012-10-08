@@ -8,40 +8,38 @@
 
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/interval_tree_generic.h>
 
-#define ITSTRUCT   struct vm_area_struct
-#define ITRB       shared.linear.rb
-#define ITTYPE     unsigned long
-#define ITSUBTREE  shared.linear.rb_subtree_last
-#define ITSTART(n) ((n)->vm_pgoff)
-#define ITLAST(n)  ((n)->vm_pgoff + \
-		    (((n)->vm_end - (n)->vm_start) >> PAGE_SHIFT) - 1)
-#define ITSTATIC
-#define ITPREFIX   vma_interval_tree
+static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff;
+}
 
-#include <linux/interval_tree_tmpl.h>
+static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
+}
 
-/* Insert old immediately after vma in the interval tree */
-void vma_interval_tree_add(struct vm_area_struct *vma,
-			   struct vm_area_struct *old,
-			   struct address_space *mapping)
+INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.linear.rb,
+		     unsigned long, shared.linear.rb_subtree_last,
+		     vma_start_pgoff, vma_last_pgoff,, vma_interval_tree)
+
+/* Insert node immediately after prev in the interval tree */
+void vma_interval_tree_insert_after(struct vm_area_struct *node,
+				    struct vm_area_struct *prev,
+				    struct rb_root *root)
 {
 	struct rb_node **link;
 	struct vm_area_struct *parent;
-	unsigned long last;
+	unsigned long last = vma_last_pgoff(node);
 
-	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
-		list_add(&vma->shared.nonlinear, &old->shared.nonlinear);
-		return;
-	}
+	VM_BUG_ON(vma_start_pgoff(node) != vma_start_pgoff(prev));
 
-	last = ITLAST(vma);
-
-	if (!old->shared.linear.rb.rb_right) {
-		parent = old;
-		link = &old->shared.linear.rb.rb_right;
+	if (!prev->shared.linear.rb.rb_right) {
+		parent = prev;
+		link = &prev->shared.linear.rb.rb_right;
 	} else {
-		parent = rb_entry(old->shared.linear.rb.rb_right,
+		parent = rb_entry(prev->shared.linear.rb.rb_right,
 				  struct vm_area_struct, shared.linear.rb);
 		if (parent->shared.linear.rb_subtree_last < last)
 			parent->shared.linear.rb_subtree_last = last;
@@ -54,8 +52,8 @@ void vma_interval_tree_add(struct vm_area_struct *vma,
 		link = &parent->shared.linear.rb.rb_left;
 	}
 
-	vma->shared.linear.rb_subtree_last = last;
-	rb_link_node(&vma->shared.linear.rb, &parent->shared.linear.rb, link);
-	rb_insert_augmented(&vma->shared.linear.rb, &mapping->i_mmap,
-			    &vma_interval_tree_augment_callbacks);
+	node->shared.linear.rb_subtree_last = last;
+	rb_link_node(&node->shared.linear.rb, &parent->shared.linear.rb, link);
+	rb_insert_augmented(&node->shared.linear.rb, root,
+			    &vma_interval_tree_augment);
 }

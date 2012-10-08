@@ -1355,11 +1355,11 @@ extern atomic_long_t mmap_pages_allocated;
 extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
 
 /* interval_tree.c */
-void vma_interval_tree_add(struct vm_area_struct *vma,
-			   struct vm_area_struct *old,
-			   struct address_space *mapping);
 void vma_interval_tree_insert(struct vm_area_struct *node,
 			      struct rb_root *root);
+void vma_interval_tree_insert_after(struct vm_area_struct *node,
+				    struct vm_area_struct *prev,
+				    struct rb_root *root);
 void vma_interval_tree_remove(struct vm_area_struct *node,
 			      struct rb_root *root);
 struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root *root,

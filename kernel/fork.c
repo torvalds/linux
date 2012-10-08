@@ -423,7 +423,12 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 				mapping->i_mmap_writable++;
 			flush_dcache_mmap_lock(mapping);
 			/* insert tmp into the share list, just after mpnt */
-			vma_interval_tree_add(tmp, mpnt, mapping);
+			if (unlikely(tmp->vm_flags & VM_NONLINEAR))
+				vma_nonlinear_insert(tmp,
+						&mapping->i_mmap_nonlinear);
+			else
+				vma_interval_tree_insert_after(tmp, mpnt,
+							&mapping->i_mmap);
 			flush_dcache_mmap_unlock(mapping);
 			mutex_unlock(&mapping->i_mmap_mutex);
 		}
