@@ -2378,8 +2378,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			 */
 			VM_BUG_ON(faulted_in_anon_vma);
 			*vmap = new_vma;
-		} else
-			anon_vma_moveto_tail(new_vma);
+		}
 	} else {
 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (new_vma) {
