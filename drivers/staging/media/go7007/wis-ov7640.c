@@ -92,17 +92,6 @@ static struct i2c_driver wis_ov7640_driver = {
 	.id_table	= wis_ov7640_id,
 };
 
-static int __init wis_ov7640_init(void)
-{
-	return i2c_add_driver(&wis_ov7640_driver);
-}
-
-static void __exit wis_ov7640_cleanup(void)
-{
-	i2c_del_driver(&wis_ov7640_driver);
-}
-
-module_init(wis_ov7640_init);
-module_exit(wis_ov7640_cleanup);
+module_i2c_driver(wis_ov7640_driver);
 
 MODULE_LICENSE("GPL v2");

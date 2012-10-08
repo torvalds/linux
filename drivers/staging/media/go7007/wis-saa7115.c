@@ -453,17 +453,6 @@ static struct i2c_driver wis_saa7115_driver = {
 	.id_table	= wis_saa7115_id,
 };
 
-static int __init wis_saa7115_init(void)
-{
-	return i2c_add_driver(&wis_saa7115_driver);
-}
-
-static void __exit wis_saa7115_cleanup(void)
-{
-	i2c_del_driver(&wis_saa7115_driver);
-}
-
-module_init(wis_saa7115_init);
-module_exit(wis_saa7115_cleanup);
+module_i2c_driver(wis_saa7115_driver);
 
 MODULE_LICENSE("GPL v2");
