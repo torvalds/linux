@@ -863,8 +863,23 @@ xfs_init_mount_workqueues(
 			WQ_MEM_RECLAIM, 0, mp->m_fsname);
 	if (!mp->m_cil_workqueue)
 		goto out_destroy_unwritten;
+
+	mp->m_reclaim_workqueue = alloc_workqueue("xfs-reclaim/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_reclaim_workqueue)
+		goto out_destroy_cil;
+
+	mp->m_log_workqueue = alloc_workqueue("xfs-log/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_log_workqueue)
+		goto out_destroy_reclaim;
+
 	return 0;
 
+out_destroy_reclaim:
+	destroy_workqueue(mp->m_reclaim_workqueue);
+out_destroy_cil:
+	destroy_workqueue(mp->m_cil_workqueue);
 out_destroy_unwritten:
 	destroy_workqueue(mp->m_unwritten_workqueue);
 out_destroy_data_iodone_queue:
@@ -877,6 +892,8 @@ STATIC void
 xfs_destroy_mount_workqueues(
 	struct xfs_mount	*mp)
 {
+	destroy_workqueue(mp->m_log_workqueue);
+	destroy_workqueue(mp->m_reclaim_workqueue);
 	destroy_workqueue(mp->m_cil_workqueue);
 	destroy_workqueue(mp->m_data_workqueue);
 	destroy_workqueue(mp->m_unwritten_workqueue);
@@ -1391,10 +1408,6 @@ xfs_fs_fill_super(
 	/*
 	 * we must configure the block size in the superblock before we run the
 	 * full mount process as the mount process can lookup and cache inodes.
-	 * For the same reason we must also initialise the syncd and register
-	 * the inode cache shrinker so that inodes can be reclaimed during
-	 * operations like a quotacheck that iterate all inodes in the
-	 * filesystem.
 	 */
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
@@ -1639,16 +1652,6 @@ STATIC int __init
 xfs_init_workqueues(void)
 {
 	/*
-	 * We never want to the same work item to run twice, reclaiming inodes
-	 * or idling the log is not going to get any faster by multiple CPUs
-	 * competing for ressources.  Use the default large max_active value
-	 * so that even lots of filesystems can perform these task in parallel.
-	 */
-	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_NON_REENTRANT, 0);
-	if (!xfs_syncd_wq)
-		return -ENOMEM;
-
-	/*
 	 * The allocation workqueue can be used in memory reclaim situations
 	 * (writepage path), and parallelism is only limited by the number of
 	 * AGs in all the filesystems mounted. Hence use the default large
@@ -1656,20 +1659,15 @@ xfs_init_workqueues(void)
 	 */
 	xfs_alloc_wq = alloc_workqueue("xfsalloc", WQ_MEM_RECLAIM, 0);
 	if (!xfs_alloc_wq)
-		goto out_destroy_syncd;
+		return -ENOMEM;
 
 	return 0;
-
-out_destroy_syncd:
-	destroy_workqueue(xfs_syncd_wq);
-	return -ENOMEM;
 }
 
 STATIC void
 xfs_destroy_workqueues(void)
 {
 	destroy_workqueue(xfs_alloc_wq);
-	destroy_workqueue(xfs_syncd_wq);
 }
 
 STATIC int __init

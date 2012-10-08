@@ -40,8 +40,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
-
 /*
  * The inode lookup is done in batches to keep the amount of lock traffic and
  * radix tree lookups to a minimum. The batch size is a trade off between
@@ -335,18 +333,18 @@ xfs_quiesce_attr(
 /*
  * Queue a new inode reclaim pass if there are reclaimable inodes and there
  * isn't a reclaim pass already in progress. By default it runs every 5s based
- * on the xfs syncd work default of 30s. Perhaps this should have it's own
+ * on the xfs periodic sync default of 30s. Perhaps this should have it's own
  * tunable, but that can be done if this method proves to be ineffective or too
  * aggressive.
  */
 static void
-xfs_syncd_queue_reclaim(
+xfs_reclaim_work_queue(
 	struct xfs_mount        *mp)
 {
 
 	rcu_read_lock();
 	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
-		queue_delayed_work(xfs_syncd_wq, &mp->m_reclaim_work,
+		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
 			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
 	}
 	rcu_read_unlock();
@@ -367,7 +365,7 @@ xfs_reclaim_worker(
 					struct xfs_mount, m_reclaim_work);
 
 	xfs_reclaim_inodes(mp, SYNC_TRYLOCK);
-	xfs_syncd_queue_reclaim(mp);
+	xfs_reclaim_work_queue(mp);
 }
 
 void
@@ -388,7 +386,7 @@ __xfs_inode_set_reclaim_tag(
 		spin_unlock(&ip->i_mount->m_perag_lock);
 
 		/* schedule periodic background inode reclaim */
-		xfs_syncd_queue_reclaim(ip->i_mount);
+		xfs_reclaim_work_queue(ip->i_mount);
 
 		trace_xfs_perag_set_reclaim(ip->i_mount, pag->pag_agno,
 							-1, _RET_IP_);
@@ -646,9 +644,9 @@ out:
 	/*
 	 * We could return EAGAIN here to make reclaim rescan the inode tree in
 	 * a short while. However, this just burns CPU time scanning the tree
-	 * waiting for IO to complete and xfssyncd never goes back to the idle
-	 * state. Instead, return 0 to let the next scheduled background reclaim
-	 * attempt to reclaim the inode again.
+	 * waiting for IO to complete and the reclaim work never goes back to
+	 * the idle state. Instead, return 0 to let the next scheduled
+	 * background reclaim attempt to reclaim the inode again.
 	 */
 	return 0;
 }
@@ -804,7 +802,7 @@ xfs_reclaim_inodes_nr(
 	int			nr_to_scan)
 {
 	/* kick background reclaimer and push the AIL */
-	xfs_syncd_queue_reclaim(mp);
+	xfs_reclaim_work_queue(mp);
 	xfs_ail_push_all(mp->m_ail);
 
 	xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT, &nr_to_scan);
