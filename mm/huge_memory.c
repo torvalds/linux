@@ -140,10 +140,7 @@ static int start_khugepaged(void)
 	int err = 0;
 	if (khugepaged_enabled()) {
 		int wakeup;
-		if (unlikely(!mm_slot_cache || !mm_slots_hash)) {
-			err = -ENOMEM;
-			goto out;
-		}
+
 		mutex_lock(&khugepaged_mutex);
 		if (!khugepaged_thread)
 			khugepaged_thread = kthread_run(khugepaged, NULL,
@@ -163,7 +160,7 @@ static int start_khugepaged(void)
 	} else
 		/* wakeup to exit */
 		wake_up_interruptible(&khugepaged_wait);
-out:
+
 	return err;
 }
 
