@@ -134,7 +134,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 	unsigned int plldiv;
 #endif
 	unsigned int index, cpu;
-	unsigned long flags, cclk_hz;
+	unsigned long cclk_hz;
 	struct cpufreq_freqs freqs;
 	static unsigned long lpj_ref;
 	static unsigned int  lpj_ref_freq;
@@ -165,7 +165,6 @@ static int bfin_target(struct cpufreq_policy *poli,
 
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 		if (cpu == CPUFREQ_CPU) {
-			flags = hard_local_irq_save();
 #ifndef CONFIG_BF60x
 			plldiv = (bfin_read_PLL_DIV() & SSEL) |
 						dpm_state_table[index].csel;
@@ -194,7 +193,6 @@ static int bfin_target(struct cpufreq_policy *poli,
 				loops_per_jiffy = cpufreq_scale(lpj_ref,
 						lpj_ref_freq, freqs.new);
 			}
-			hard_local_irq_restore(flags);
 		}
 		/* TODO: just test case for cycles clock source, remove later */
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
