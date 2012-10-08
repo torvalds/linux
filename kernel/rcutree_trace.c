@@ -241,7 +241,7 @@ static const struct file_operations rcu_node_boost_fops = {
 	.owner = THIS_MODULE,
 	.open = rcu_node_boost_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
+	.llseek = no_llseek,
 	.release = single_release,
 };
 
@@ -459,6 +459,15 @@ static int __init rcutree_trace_init(void)
 					rspdir, rsp, &new_rcubarrier_fops);
 			if (!retval)
 				goto free_out;
+
+#ifdef CONFIG_RCU_BOOST
+			if (rsp == &rcu_preempt_state) {
+				retval = debugfs_create_file("rcuboost", 0444,
+					rspdir, NULL, &rcu_node_boost_fops);
+				if (!retval)
+					goto free_out;
+			}
+#endif
 	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
