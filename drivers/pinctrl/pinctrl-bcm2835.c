@@ -960,7 +960,7 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->base = devm_request_and_ioremap(&pdev->dev, &iomem);
+	pc->base = devm_request_and_ioremap(dev, &iomem);
 	if (!pc->base)
 		return -EADDRNOTAVAIL;
 
