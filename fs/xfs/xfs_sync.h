@@ -26,13 +26,10 @@ struct xfs_perag;
 
 extern struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
 
-void xfs_flush_worker(struct work_struct *work);
 void xfs_reclaim_worker(struct work_struct *work);
 
 int xfs_quiesce_data(struct xfs_mount *mp);
 void xfs_quiesce_attr(struct xfs_mount *mp);
-
-void xfs_flush_inodes(struct xfs_inode *ip);
 
 int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
 int xfs_reclaim_inodes_count(struct xfs_mount *mp);

@@ -882,6 +882,24 @@ xfs_destroy_mount_workqueues(
 	destroy_workqueue(mp->m_unwritten_workqueue);
 }
 
+/*
+ * Flush all dirty data to disk. Must not be called while holding an XFS_ILOCK
+ * or a page lock. We use sync_inodes_sb() here to ensure we block while waiting
+ * for IO to complete so that we effectively throttle multiple callers to the
+ * rate at which IO is completing.
+ */
+void
+xfs_flush_inodes(
+	struct xfs_mount	*mp)
+{
+	struct super_block	*sb = mp->m_super;
+
+	if (down_read_trylock(&sb->s_umount)) {
+		sync_inodes_sb(sb);
+		up_read(&sb->s_umount);
+	}
+}
+
 /* Catch misguided souls that try to use this interface on XFS */
 STATIC struct inode *
 xfs_fs_alloc_inode(
@@ -1004,8 +1022,6 @@ xfs_fs_put_super(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-
-	cancel_work_sync(&mp->m_flush_work);
 
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
@@ -1324,7 +1340,6 @@ xfs_fs_fill_super(
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
-	INIT_WORK(&mp->m_flush_work, xfs_flush_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 
 	mp->m_super = sb;

@@ -728,16 +728,17 @@ xfs_file_buffered_aio_write(
 write_retry:
 	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
 	ret = generic_file_buffered_write(iocb, iovp, nr_segs,
-			pos, &iocb->ki_pos, count, ret);
+			pos, &iocb->ki_pos, count, 0);
+
 	/*
-	 * if we just got an ENOSPC, flush the inode now we aren't holding any
-	 * page locks and retry *once*
+	 * If we just got an ENOSPC, try to write back all dirty inodes to
+	 * convert delalloc space to free up some of the excess reserved
+	 * metadata space.
 	 */
 	if (ret == -ENOSPC && !enospc) {
 		enospc = 1;
-		ret = -xfs_flush_pages(ip, 0, -1, 0, FI_NONE);
-		if (!ret)
-			goto write_retry;
+		xfs_flush_inodes(ip->i_mount);
+		goto write_retry;
 	}
 
 	current->backing_dev_info = NULL;

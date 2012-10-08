@@ -217,51 +217,6 @@ xfs_inode_ag_iterator(
 }
 
 STATIC int
-xfs_sync_inode_data(
-	struct xfs_inode	*ip,
-	struct xfs_perag	*pag,
-	int			flags)
-{
-	struct inode		*inode = VFS_I(ip);
-	struct address_space *mapping = inode->i_mapping;
-	int			error = 0;
-
-	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		return 0;
-
-	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
-		if (flags & SYNC_TRYLOCK)
-			return 0;
-		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	}
-
-	error = xfs_flush_pages(ip, 0, -1, (flags & SYNC_WAIT) ?
-				0 : XBF_ASYNC, FI_NONE);
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-	return error;
-}
-
-/*
- * Write out pagecache data for the whole filesystem.
- */
-STATIC int
-xfs_sync_data(
-	struct xfs_mount	*mp,
-	int			flags)
-{
-	int			error;
-
-	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
-
-	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags);
-	if (error)
-		return XFS_ERROR(error);
-
-	xfs_log_force(mp, (flags & SYNC_WAIT) ? XFS_LOG_SYNC : 0);
-	return 0;
-}
-
-STATIC int
 xfs_sync_fsdata(
 	struct xfs_mount	*mp)
 {
@@ -413,39 +368,6 @@ xfs_reclaim_worker(
 
 	xfs_reclaim_inodes(mp, SYNC_TRYLOCK);
 	xfs_syncd_queue_reclaim(mp);
-}
-
-/*
- * Flush delayed allocate data, attempting to free up reserved space
- * from existing allocations.  At this point a new allocation attempt
- * has failed with ENOSPC and we are in the process of scratching our
- * heads, looking about for more room.
- *
- * Queue a new data flush if there isn't one already in progress and
- * wait for completion of the flush. This means that we only ever have one
- * inode flush in progress no matter how many ENOSPC events are occurring and
- * so will prevent the system from bogging down due to every concurrent
- * ENOSPC event scanning all the active inodes in the system for writeback.
- */
-void
-xfs_flush_inodes(
-	struct xfs_inode	*ip)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-
-	queue_work(xfs_syncd_wq, &mp->m_flush_work);
-	flush_work(&mp->m_flush_work);
-}
-
-void
-xfs_flush_worker(
-	struct work_struct *work)
-{
-	struct xfs_mount *mp = container_of(work,
-					struct xfs_mount, m_flush_work);
-
-	xfs_sync_data(mp, SYNC_TRYLOCK);
-	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_WAIT);
 }
 
 void
