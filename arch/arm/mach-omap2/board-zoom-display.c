@@ -16,7 +16,7 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "common.h"
 

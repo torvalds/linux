@@ -20,7 +20,7 @@
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "soc.h"
 #include "common.h"

@@ -24,7 +24,7 @@
 #include "common.h"
 #include <plat/usb.h>
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "board-flash.h"
 #include "mux.h"
