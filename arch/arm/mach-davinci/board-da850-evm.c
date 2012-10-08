@@ -31,6 +31,7 @@
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_data/uio_pruss.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
 #include <linux/spi/spi.h>
@@ -1514,6 +1515,11 @@ static __init void da850_evm_init(void)
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
 	if (ret)
 		pr_warning("da850_evm_init: lcdcntl mux setup failed: %d\n",
+				ret);
+
+	ret = da8xx_register_uio_pruss();
+	if (ret)
+		pr_warn("da850_evm_init: pruss initialization failed: %d\n",
 				ret);
 
 	/* Handle board specific muxing for LCD here */
