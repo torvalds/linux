@@ -5674,7 +5674,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 					unsigned long start, unsigned long end)
 {
 	/* This function is based on compact_zone() from compaction.c. */
-
+	unsigned long nr_reclaimed;
 	unsigned long pfn = start;
 	unsigned int tries = 0;
 	int ret = 0;
@@ -5701,7 +5701,9 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 			break;
 		}
 
-		reclaim_clean_pages_from_list(cc->zone, &cc->migratepages);
+		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
+							&cc->migratepages);
+		cc->nr_migratepages -= nr_reclaimed;
 
 		ret = migrate_pages(&cc->migratepages,
 				    alloc_migrate_target,
