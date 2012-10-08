@@ -44,19 +44,6 @@ Configuration Options:
 #define AIO_IIRO_16_RELAY_8_15	0x04
 #define AIO_IIRO_16_INPUT_8_15	0x05
 
-struct aio_iiro_16_board {
-	const char *name;
-	int do_;
-	int di;
-};
-
-static const struct aio_iiro_16_board aio_iiro_16_boards[] = {
-	{
-	 .name = "aio_iiro_16",
-	 .di = 16,
-	 .do_ = 16},
-};
-
 static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   struct comedi_insn *insn,
@@ -90,14 +77,13 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 static int aio_iiro_16_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	const struct aio_iiro_16_board *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
 	int ret;
 
 	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
 
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
 
@@ -144,9 +130,6 @@ static struct comedi_driver aio_iiro_16_driver = {
 	.module		= THIS_MODULE,
 	.attach		= aio_iiro_16_attach,
 	.detach		= aio_iiro_16_detach,
-	.board_name	= &aio_iiro_16_boards[0].name,
-	.offset		= sizeof(struct aio_iiro_16_board),
-	.num_names	= ARRAY_SIZE(aio_iiro_16_boards),
 };
 module_comedi_driver(aio_iiro_16_driver);
 
