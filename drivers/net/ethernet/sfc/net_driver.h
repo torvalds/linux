@@ -356,6 +356,7 @@ enum efx_rx_alloc_method {
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
  * @type: Channel type definition
+ * @eventq_init: Event queue initialised flag
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -387,6 +388,7 @@ struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
 	const struct efx_channel_type *type;
+	bool eventq_init;
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
