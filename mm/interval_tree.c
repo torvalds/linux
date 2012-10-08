@@ -8,6 +8,7 @@
 
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/rmap.h>
 #include <linux/interval_tree_generic.h>
 
 static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
@@ -57,3 +58,16 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 	rb_insert_augmented(&node->shared.linear.rb, root,
 			    &vma_interval_tree_augment);
 }
+
+static inline unsigned long avc_start_pgoff(struct anon_vma_chain *avc)
+{
+	return vma_start_pgoff(avc->vma);
+}
+
+static inline unsigned long avc_last_pgoff(struct anon_vma_chain *avc)
+{
+	return vma_last_pgoff(avc->vma);
+}
+
+INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,
+		     avc_start_pgoff, avc_last_pgoff,, anon_vma_interval_tree)

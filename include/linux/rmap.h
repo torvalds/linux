@@ -37,14 +37,14 @@ struct anon_vma {
 	atomic_t refcount;
 
 	/*
-	 * NOTE: the LSB of the head.next is set by
+	 * NOTE: the LSB of the rb_root.rb_node is set by
 	 * mm_take_all_locks() _after_ taking the above lock. So the
-	 * head must only be read/written after taking the above lock
+	 * rb_root must only be read/written after taking the above lock
 	 * to be sure to see a valid next pointer. The LSB bit itself
 	 * is serialized by a system wide lock only visible to
 	 * mm_take_all_locks() (mm_all_locks_mutex).
 	 */
-	struct list_head head;	/* Chain of private "related" vmas */
+	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
 };
 
 /*
@@ -57,14 +57,15 @@ struct anon_vma {
  * with a VMA, or the VMAs associated with an anon_vma.
  * The "same_vma" list contains the anon_vma_chains linking
  * all the anon_vmas associated with this VMA.
- * The "same_anon_vma" list contains the anon_vma_chains
+ * The "rb" field indexes on an interval tree the anon_vma_chains
  * which link all the VMAs associated with this anon_vma.
  */
 struct anon_vma_chain {
 	struct vm_area_struct *vma;
 	struct anon_vma *anon_vma;
 	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
-	struct list_head same_anon_vma;	/* locked by anon_vma->mutex */
+	struct rb_node rb;			/* locked by anon_vma->mutex */
+	unsigned long rb_subtree_last;
 };
 
 #ifdef CONFIG_MMU

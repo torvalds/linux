@@ -400,18 +400,21 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct anon_vma *av;
+	pgoff_t pgoff;
 
 	av = page_lock_anon_vma(page);
 	if (av == NULL)	/* Not actually mapped anymore */
 		return;
 
+	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 	read_lock(&tasklist_lock);
 	for_each_process (tsk) {
 		struct anon_vma_chain *vmac;
 
 		if (!task_early_kill(tsk))
 			continue;
-		list_for_each_entry(vmac, &av->head, same_anon_vma) {
+		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
+					       pgoff, pgoff) {
 			vma = vmac->vma;
 			if (!page_mapped_in_vma(page, vma))
 				continue;

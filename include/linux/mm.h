@@ -20,6 +20,7 @@
 
 struct mempolicy;
 struct anon_vma;
+struct anon_vma_chain;
 struct file_ra_state;
 struct user_struct;
 struct writeback_control;
@@ -1376,6 +1377,19 @@ static inline void vma_nonlinear_insert(struct vm_area_struct *vma,
 {
 	list_add_tail(&vma->shared.nonlinear, list);
 }
+
+void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
+				   struct rb_root *root);
+void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
+				   struct rb_root *root);
+struct anon_vma_chain *anon_vma_interval_tree_iter_first(
+	struct rb_root *root, unsigned long start, unsigned long last);
+struct anon_vma_chain *anon_vma_interval_tree_iter_next(
+	struct anon_vma_chain *node, unsigned long start, unsigned long last);
+
+#define anon_vma_interval_tree_foreach(avc, root, start, last)		 \
+	for (avc = anon_vma_interval_tree_iter_first(root, start, last); \
+	     avc; avc = anon_vma_interval_tree_iter_next(avc, start, last))
 
 /* mmap.c */
 extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
