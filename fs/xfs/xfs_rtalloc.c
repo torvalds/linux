@@ -38,6 +38,7 @@
 #include "xfs_utils.h"
 #include "xfs_trace.h"
 #include "xfs_buf.h"
+#include "xfs_icache.h"
 
 
 /*

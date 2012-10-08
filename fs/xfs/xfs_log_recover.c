@@ -42,6 +42,7 @@
 #include "xfs_quota.h"
 #include "xfs_utils.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 STATIC int
 xlog_find_zeroed(

@@ -34,6 +34,7 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 STATIC int
 xfs_internal_inum(

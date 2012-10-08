@@ -40,7 +40,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_fs_subr.o \
 				   xfs_globals.o \
 				   xfs_icache.o \
-				   xfs_iget.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
