@@ -52,11 +52,29 @@ struct nv_device_class {
 #define NV_DMA_ACCESS_WR                                             0x00000200
 #define NV_DMA_ACCESS_RDWR                                           0x00000300
 
+/* NV50:NVC0 */
+#define NV50_DMA_CONF0_ENABLE                                        0x80000000
+#define NV50_DMA_CONF0_PRIV                                          0x00300000
+#define NV50_DMA_CONF0_PRIV_VM                                       0x00000000
+#define NV50_DMA_CONF0_PRIV_US                                       0x00100000
+#define NV50_DMA_CONF0_PRIV__S                                       0x00200000
+#define NV50_DMA_CONF0_PART                                          0x00030000
+#define NV50_DMA_CONF0_PART_VM                                       0x00000000
+#define NV50_DMA_CONF0_PART_256                                      0x00010000
+#define NV50_DMA_CONF0_PART_1KB                                      0x00020000
+#define NV50_DMA_CONF0_COMP                                          0x00000180
+#define NV50_DMA_CONF0_COMP_NONE                                     0x00000000
+#define NV50_DMA_CONF0_COMP_VM                                       0x00000180
+#define NV50_DMA_CONF0_TYPE                                          0x0000007f
+#define NV50_DMA_CONF0_TYPE_LINEAR                                   0x00000000
+#define NV50_DMA_CONF0_TYPE_VM                                       0x0000007f
+
 struct nv_dma_class {
 	u32 flags;
 	u32 pad0;
 	u64 start;
 	u64 limit;
+	u32 conf0;
 };
 
 /* DMA FIFO channel classes

@@ -378,7 +378,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16_chan *chan, *temp;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nouveau_object *object;
-	struct nv_dma_class args;
+	struct nv_dma_class args = {};
 	int ret;
 
 	if (unlikely(!abi16))

@@ -85,6 +85,7 @@ nouveau_dmaobj_ctor(struct nouveau_object *parent,
 
 	dmaobj->start = args->start;
 	dmaobj->limit = args->limit;
+	dmaobj->conf0 = args->conf0;
 
 	switch (nv_mclass(parent)) {
 	case NV_DEVICE_CLASS:

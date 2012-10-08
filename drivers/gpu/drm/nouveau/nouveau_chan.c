@@ -267,7 +267,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nouveau_fb *pfb = nouveau_fb(device);
 	struct nouveau_software_chan *swch;
 	struct nouveau_object *object;
-	struct nv_dma_class args;
+	struct nv_dma_class args = {};
 	int ret, i;
 
 	/* allocate dma objects to cover all allowed vram, and gart */
