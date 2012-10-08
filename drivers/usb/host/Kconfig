@@ -400,9 +400,13 @@ config USB_OHCI_EXYNOS
 	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 
 config USB_CNS3XXX_OHCI
-	bool "Cavium CNS3XXX OHCI Module"
+	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
 	depends on USB_OHCI_HCD && ARCH_CNS3XXX
+	select USB_OHCI_HCD_PLATFORM
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
 	  It is needed for low-speed USB 1.0 device support.
 

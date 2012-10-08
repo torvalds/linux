@@ -1196,11 +1196,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_tilegx_driver
 #endif
 
-#ifdef CONFIG_USB_CNS3XXX_OHCI
-#include "ohci-cns3xxx.c"
-#define PLATFORM_DRIVER		ohci_hcd_cns3xxx_driver
-#endif
-
 #ifdef CONFIG_CPU_XLR
 #include "ohci-xls.c"
 #define PLATFORM_DRIVER		ohci_xls_driver
