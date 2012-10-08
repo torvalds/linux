@@ -13,16 +13,19 @@ choice
 
 config AW_AXP18
 	bool "AXP18 driver"
+	select INPUT
 	---help---
 	  AXP18 driver
 
 config AW_AXP19
 	bool "AXP19 driver"
+	select INPUT
 	---help---
 	  AXP19 driver
 
 config AW_AXP20
 	bool "AXP20 driver"
+	select INPUT
 	---help---
 	  AXP20 driver
 
