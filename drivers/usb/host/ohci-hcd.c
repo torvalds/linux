@@ -1067,11 +1067,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_pnx8550_driver
 #endif
 
-#ifdef CONFIG_USB_OHCI_HCD_PPC_SOC
-#include "ohci-ppc-soc.c"
-#define PLATFORM_DRIVER		ohci_hcd_ppc_soc_driver
-#endif
-
 #ifdef CONFIG_ARCH_AT91
 #include "ohci-at91.c"
 #define PLATFORM_DRIVER		ohci_hcd_at91_driver
