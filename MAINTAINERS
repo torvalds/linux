@@ -7457,6 +7457,12 @@ F:	drivers/mtd/ubi/
 F:	include/linux/mtd/ubi.h
 F:	include/mtd/ubi-user.h
 
+UNSORTED BLOCK IMAGES (UBI) Fastmap
+M:	Richard Weinberger <richard@nod.at>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/ubi/fastmap.c
+
 USB ACM DRIVER
 M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
