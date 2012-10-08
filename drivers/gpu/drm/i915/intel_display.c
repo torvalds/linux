@@ -6921,8 +6921,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
-	struct drm_pending_vblank_event *e;
-	struct timeval tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
@@ -6938,17 +6936,8 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	intel_crtc->unpin_work = NULL;
 
-	if (work->event) {
-		e = work->event;
-		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
-
-		e->event.tv_sec = tvbl.tv_sec;
-		e->event.tv_usec = tvbl.tv_usec;
-
-		list_add_tail(&e->base.link,
-			      &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
+	if (work->event)
+		drm_send_vblank_event(dev, intel_crtc->pipe, work->event);
 
 	drm_vblank_put(dev, intel_crtc->pipe);
 
