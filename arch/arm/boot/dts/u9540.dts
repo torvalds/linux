@@ -21,6 +21,17 @@
 	};
 
 	soc-u9500 {
-	};
 
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+	};
 };
