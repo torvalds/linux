@@ -577,6 +577,27 @@ static void siena_stop_nic_stats(struct efx_nic *efx)
 	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 0);
 }
 
+static int siena_mac_reconfigure(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
+		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
+		     sizeof(efx->multicast_hash));
+
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
+	rc = efx_mcdi_set_mac(efx);
+	if (rc != 0)
+		return rc;
+
+	memcpy(MCDI_PTR(inbuf, SET_MCAST_HASH_IN_HASH0),
+	       efx->multicast_hash.byte, sizeof(efx->multicast_hash));
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
+			    inbuf, sizeof(inbuf), NULL, 0, NULL);
+}
+
 /**************************************************************************
  *
  * Wake on LAN
@@ -679,7 +700,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.stop_stats = siena_stop_nic_stats,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = siena_push_irq_moderation,
-	.reconfigure_mac = efx_mcdi_mac_reconfigure,
+	.reconfigure_mac = siena_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_phy_reconfigure,
 	.get_wol = siena_get_wol,

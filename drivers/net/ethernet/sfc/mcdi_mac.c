@@ -112,24 +112,3 @@ fail:
 		  __func__, enable ? "enable" : "disable", rc);
 	return rc;
 }
-
-int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
-	int rc;
-
-	BUILD_BUG_ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
-		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
-		     sizeof(efx->multicast_hash));
-
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	rc = efx_mcdi_set_mac(efx);
-	if (rc != 0)
-		return rc;
-
-	memcpy(MCDI_PTR(inbuf, SET_MCAST_HASH_IN_HASH0),
-	       efx->multicast_hash.byte, sizeof(efx->multicast_hash));
-	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
-			    inbuf, sizeof(inbuf), NULL, 0, NULL);
-}
