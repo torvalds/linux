@@ -2187,8 +2187,18 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 	    nla_put_be32(skb, RTA_GATEWAY, rt->rt_gateway))
 		goto nla_put_failure;
 
+	expires = rt->dst.expires;
+	if (expires) {
+		unsigned long now = jiffies;
+
+		if (time_before(now, expires))
+			expires -= now;
+		else
+			expires = 0;
+	}
+
 	memcpy(metrics, dst_metrics_ptr(&rt->dst), sizeof(metrics));
-	if (rt->rt_pmtu)
+	if (rt->rt_pmtu && expires)
 		metrics[RTAX_MTU - 1] = rt->rt_pmtu;
 	if (rtnetlink_put_metrics(skb, metrics) < 0)
 		goto nla_put_failure;
@@ -2198,13 +2208,6 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 		goto nla_put_failure;
 
 	error = rt->dst.error;
-	expires = rt->dst.expires;
-	if (expires) {
-		if (time_before(jiffies, expires))
-			expires -= jiffies;
-		else
-			expires = 0;
-	}
 
 	if (rt_is_input_route(rt)) {
 		if (nla_put_u32(skb, RTA_IIF, rt->rt_iif))
