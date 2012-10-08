@@ -753,6 +753,12 @@ ifndef NO_STRLCPY
 	endif
 endif
 
+ifndef NO_ON_EXIT
+	ifeq ($(call try-cc,$(SOURCE_ON_EXIT),),y)
+		BASIC_CFLAGS += -DHAVE_ON_EXIT
+	endif
+endif
+
 ifndef NO_BACKTRACE
        ifeq ($(call try-cc,$(SOURCE_BACKTRACE),),y)
                BASIC_CFLAGS += -DBACKTRACE_SUPPORT

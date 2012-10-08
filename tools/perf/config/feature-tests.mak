@@ -204,3 +204,12 @@ int main(void)
 }
 endef
 endif
+
+define SOURCE_ON_EXIT
+#include <stdio.h>
+
+int main(void)
+{
+	return on_exit(NULL, NULL);
+}
+endef
