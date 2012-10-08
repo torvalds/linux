@@ -970,8 +970,13 @@ repeat:
 
 	init_per_zone_wmark_min();
 
-	if (!populated_zone(zone))
+	if (!populated_zone(zone)) {
 		zone_pcp_reset(zone);
+		mutex_lock(&zonelists_mutex);
+		build_all_zonelists(NULL, NULL);
+		mutex_unlock(&zonelists_mutex);
+	} else
+		zone_pcp_update(zone);
 
 	if (!node_present_pages(node)) {
 		node_clear_state(node, N_HIGH_MEMORY);
