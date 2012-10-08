@@ -567,10 +567,6 @@ static int __devinit vt8500_serial_probe(struct platform_device *pdev)
 	if (!mmres || !irqres)
 		return -ENODEV;
 
-	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
-	if (!vt8500_port)
-		return -ENOMEM;
-
 	if (np)
 		port = of_alias_get_id(np, "serial");
 		if (port > VT8500_MAX_PORTS)
@@ -592,6 +588,10 @@ static int __devinit vt8500_serial_probe(struct platform_device *pdev)
 		/* port already in use - shouldn't really happen */
 		return -EBUSY;
 	}
+
+	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
+	if (!vt8500_port)
+		return -ENOMEM;
 
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
