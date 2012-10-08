@@ -1014,11 +1014,42 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 
 int remove_memory(u64 start, u64 size)
 {
+	struct memory_block *mem = NULL;
+	struct mem_section *section;
 	unsigned long start_pfn, end_pfn;
+	unsigned long pfn, section_nr;
+	int ret;
 
 	start_pfn = PFN_DOWN(start);
 	end_pfn = start_pfn + PFN_DOWN(size);
-	return __offline_pages(start_pfn, end_pfn, 120 * HZ);
+
+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+		section_nr = pfn_to_section_nr(pfn);
+		if (!present_section_nr(section_nr))
+			continue;
+
+		section = __nr_to_section(section_nr);
+		/* same memblock? */
+		if (mem)
+			if ((section_nr >= mem->start_section_nr) &&
+			    (section_nr <= mem->end_section_nr))
+				continue;
+
+		mem = find_memory_block_hinted(section, mem);
+		if (!mem)
+			continue;
+
+		ret = offline_memory_block(mem);
+		if (ret) {
+			kobject_put(&mem->dev.kobj);
+			return ret;
+		}
+	}
+
+	if (mem)
+		kobject_put(&mem->dev.kobj);
+
+	return 0;
 }
 #else
 int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
