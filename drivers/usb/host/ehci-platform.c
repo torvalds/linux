@@ -38,6 +38,8 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	if (pdata->no_io_watchdog)
+		ehci->need_io_watchdog = 0;
 	if (pdata->port_power_on)
 		ehci_port_power(ehci, 1);
 	if (pdata->port_power_off)
