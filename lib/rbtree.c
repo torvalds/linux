@@ -107,8 +107,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 
 		gparent = rb_red_parent(parent);
 
-		if (parent == gparent->rb_left) {
-			tmp = gparent->rb_right;
+		tmp = gparent->rb_right;
+		if (parent != tmp) {	/* parent == gparent->rb_left */
 			if (tmp && rb_is_red(tmp)) {
 				/*
 				 * Case 1 - color flips
@@ -131,7 +131,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 				continue;
 			}
 
-			if (parent->rb_right == node) {
+			tmp = parent->rb_right;
+			if (node == tmp) {
 				/*
 				 * Case 2 - left rotate at parent
 				 *
@@ -151,6 +152,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 							    RB_BLACK);
 				rb_set_parent_color(parent, node, RB_RED);
 				parent = node;
+				tmp = node->rb_right;
 			}
 
 			/*
@@ -162,7 +164,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 			 *     /                 \
 			 *    n                   U
 			 */
-			gparent->rb_left = tmp = parent->rb_right;
+			gparent->rb_left = tmp;  /* == parent->rb_right */
 			parent->rb_right = gparent;
 			if (tmp)
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
@@ -180,7 +182,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 				continue;
 			}
 
-			if (parent->rb_left == node) {
+			tmp = parent->rb_left;
+			if (node == tmp) {
 				/* Case 2 - right rotate at parent */
 				parent->rb_left = tmp = node->rb_right;
 				node->rb_right = parent;
@@ -189,10 +192,11 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 							    RB_BLACK);
 				rb_set_parent_color(parent, node, RB_RED);
 				parent = node;
+				tmp = node->rb_left;
 			}
 
 			/* Case 3 - left rotate at gparent */
-			gparent->rb_right = tmp = parent->rb_left;
+			gparent->rb_right = tmp;  /* == parent->rb_left */
 			parent->rb_left = gparent;
 			if (tmp)
 				rb_set_parent_color(tmp, gparent, RB_BLACK);
@@ -223,8 +227,9 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 			break;
 		} else if (!parent) {
 			break;
-		} else if (parent->rb_left == node) {
-			sibling = parent->rb_right;
+		}
+		sibling = parent->rb_right;
+		if (node != sibling) {	/* node == parent->rb_left */
 			if (rb_is_red(sibling)) {
 				/*
 				 * Case 1 - left rotate at parent
