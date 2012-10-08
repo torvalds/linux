@@ -1843,11 +1843,11 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	 * need this to proceed.
 	 */
 	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
-		if (!nmk_gpio_chips[i]) {
+		if (!nmk_gpio_chips[npct->soc->gpio_ranges[i].id]) {
 			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
 			return -EPROBE_DEFER;
 		}
-		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;
+		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[npct->soc->gpio_ranges[i].id]->chip;
 	}
 
 	nmk_pinctrl_desc.pins = npct->soc->pins;
