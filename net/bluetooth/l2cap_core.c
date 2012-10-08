@@ -504,7 +504,7 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	chan->local_msdu	= L2CAP_DEFAULT_MAX_SDU_SIZE;
 	chan->local_sdu_itime	= L2CAP_DEFAULT_SDU_ITIME;
 	chan->local_acc_lat	= L2CAP_DEFAULT_ACC_LAT;
-	chan->local_flush_to	= L2CAP_DEFAULT_FLUSH_TO;
+	chan->local_flush_to	= L2CAP_EFS_DEFAULT_FLUSH_TO;
 
 	l2cap_chan_hold(chan);
 
@@ -2727,7 +2727,7 @@ static void l2cap_add_opt_efs(void **ptr, struct l2cap_chan *chan)
 		efs.msdu	= cpu_to_le16(chan->local_msdu);
 		efs.sdu_itime	= cpu_to_le32(chan->local_sdu_itime);
 		efs.acc_lat	= __constant_cpu_to_le32(L2CAP_DEFAULT_ACC_LAT);
-		efs.flush_to	= __constant_cpu_to_le32(L2CAP_DEFAULT_FLUSH_TO);
+		efs.flush_to	= __constant_cpu_to_le32(L2CAP_EFS_DEFAULT_FLUSH_TO);
 		break;
 
 	case L2CAP_MODE_STREAMING:
@@ -2744,7 +2744,7 @@ static void l2cap_add_opt_efs(void **ptr, struct l2cap_chan *chan)
 	}
 
 	l2cap_add_conf_opt(ptr, L2CAP_CONF_EFS, sizeof(efs),
-							(unsigned long) &efs);
+			   (unsigned long) &efs);
 }
 
 static void l2cap_ack_timeout(struct work_struct *work)
