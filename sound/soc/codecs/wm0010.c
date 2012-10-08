@@ -862,7 +862,6 @@ static irqreturn_t wm0010_irq(int irq, void *data)
 	struct wm0010_priv *wm0010 = data;
 
 	switch (wm0010->state) {
-	case WM0010_POWER_OFF:
 	case WM0010_OUT_OF_RESET:
 	case WM0010_BOOTROM:
 	case WM0010_STAGE2:
