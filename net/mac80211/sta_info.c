@@ -893,8 +893,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			continue;
 
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
-			ibss_dbg(sdata, "expiring inactive STA %pM\n",
-				 sta->sta.addr);
+			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
+				sta->sta.addr);
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
