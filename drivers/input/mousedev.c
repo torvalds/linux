@@ -25,9 +25,6 @@
 #include <linux/major.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
-#include <linux/miscdevice.h>
-#endif
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Mouse (ExplorerPS/2) device interfaces");
@@ -1064,10 +1061,36 @@ static struct input_handler mousedev_handler = {
 };
 
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
+#include <linux/miscdevice.h>
+
 static struct miscdevice psaux_mouse = {
-	PSMOUSE_MINOR, "psaux", &mousedev_fops
+	.minor	= PSMOUSE_MINOR,
+	.name	= "psaux",
+	.fops	= &mousedev_fops,
 };
-static int psaux_registered;
+
+static bool psaux_registered;
+
+static void __init mousedev_psaux_register(void)
+{
+	int error;
+
+	error = misc_register(&psaux_mouse);
+	if (error)
+		pr_warn("could not register psaux device, error: %d\n",
+			   error);
+	else
+		psaux_registered = true;
+}
+
+static void __exit mousedev_psaux_unregister(void)
+{
+	if (psaux_registered)
+		misc_deregister(&psaux_mouse);
+}
+#else
+static inline void mousedev_psaux_register(void) { }
+static inline void mousedev_psaux_unregister(void) { }
 #endif
 
 static int __init mousedev_init(void)
@@ -1084,14 +1107,7 @@ static int __init mousedev_init(void)
 		return error;
 	}
 
-#ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
-	error = misc_register(&psaux_mouse);
-	if (error)
-		pr_warn("could not register psaux device, error: %d\n",
-			   error);
-	else
-		psaux_registered = 1;
-#endif
+	mousedev_psaux_register();
 
 	pr_info("PS/2 mouse device common for all mice\n");
 
@@ -1100,10 +1116,7 @@ static int __init mousedev_init(void)
 
 static void __exit mousedev_exit(void)
 {
-#ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
-	if (psaux_registered)
-		misc_deregister(&psaux_mouse);
-#endif
+	mousedev_psaux_unregister();
 	input_unregister_handler(&mousedev_handler);
 	mousedev_destroy(mousedev_mix);
 }
