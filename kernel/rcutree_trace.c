@@ -316,6 +316,26 @@ static const struct file_operations rcuhier_fops = {
 	.release = single_release,
 };
 
+static int new_show_rcuhier(struct seq_file *m, void *v)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	print_one_rcu_state(m, rsp);
+	return 0;
+}
+
+static int new_rcuhier_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, new_show_rcuhier, inode->i_private);
+}
+
+static const struct file_operations new_rcuhier_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcuhier_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
+};
+
 static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 {
 	unsigned long flags;
@@ -494,6 +514,10 @@ static int __init rcutree_trace_init(void)
 			if (!retval)
 				goto free_out;
 
+			retval = debugfs_create_file("rcuhier", 0444,
+					rspdir, rsp, &new_rcuhier_fops);
+			if (!retval)
+				goto free_out;
 	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
