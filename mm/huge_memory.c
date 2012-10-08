@@ -971,11 +971,12 @@ out_unlock:
 	return ret;
 }
 
-struct page *follow_trans_huge_pmd(struct mm_struct *mm,
+struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 				   unsigned long addr,
 				   pmd_t *pmd,
 				   unsigned int flags)
 {
+	struct mm_struct *mm = vma->vm_mm;
 	struct page *page = NULL;
 
 	assert_spin_locked(&mm->page_table_lock);
@@ -997,6 +998,14 @@ struct page *follow_trans_huge_pmd(struct mm_struct *mm,
 		 */
 		_pmd = pmd_mkyoung(pmd_mkdirty(*pmd));
 		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmd, _pmd);
+	}
+	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
+		if (page->mapping && trylock_page(page)) {
+			lru_add_drain();
+			if (page->mapping)
+				mlock_vma_page(page);
+			unlock_page(page);
+		}
 	}
 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
 	VM_BUG_ON(!PageCompound(page));
