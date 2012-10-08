@@ -1249,11 +1249,6 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_orion_driver
 #endif
 
-#ifdef CONFIG_ARCH_IXP4XX
-#include "ehci-ixp4xx.c"
-#define	PLATFORM_DRIVER		ixp4xx_ehci_driver
-#endif
-
 #ifdef CONFIG_USB_W90X900_EHCI
 #include "ehci-w90x900.c"
 #define	PLATFORM_DRIVER		ehci_hcd_w90x900_driver
