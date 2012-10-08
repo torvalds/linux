@@ -113,7 +113,6 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	INIT_LIST_HEAD(&hba->hba_dev_list);
 	spin_lock_init(&hba->device_lock);
 	mutex_init(&hba->hba_access_mutex);
 
@@ -152,8 +151,7 @@ out_free_hba:
 int
 core_delete_hba(struct se_hba *hba)
 {
-	if (!list_empty(&hba->hba_dev_list))
-		dump_stack();
+	WARN_ON(hba->dev_count);
 
 	hba->transport->detach_hba(hba);
 

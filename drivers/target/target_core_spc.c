@@ -95,14 +95,14 @@ static int spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
 	 */
-	if (dev->se_sub_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
+	if (dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
 		spc_fill_alua_data(lun->lun_sep, buf);
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
 	snprintf(&buf[8], 8, "LIO-ORG");
-	snprintf(&buf[16], 16, "%s", dev->se_sub_dev->t10_wwn.model);
-	snprintf(&buf[32], 4, "%s", dev->se_sub_dev->t10_wwn.revision);
+	snprintf(&buf[16], 16, "%s", dev->t10_wwn.model);
+	snprintf(&buf[32], 4, "%s", dev->t10_wwn.revision);
 	buf[4] = 31; /* Set additional length to 31 */
 
 	return 0;
@@ -114,15 +114,13 @@ static int spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 	u16 len = 0;
 
-	if (dev->se_sub_dev->su_dev_flags &
-			SDF_EMULATED_VPD_UNIT_SERIAL) {
+	if (dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL) {
 		u32 unit_serial_len;
 
-		unit_serial_len = strlen(dev->se_sub_dev->t10_wwn.unit_serial);
+		unit_serial_len = strlen(dev->t10_wwn.unit_serial);
 		unit_serial_len++; /* For NULL Terminator */
 
-		len += sprintf(&buf[4], "%s",
-			dev->se_sub_dev->t10_wwn.unit_serial);
+		len += sprintf(&buf[4], "%s", dev->t10_wwn.unit_serial);
 		len++; /* Extra Byte for NULL Terminator */
 		buf[3] = len;
 	}
@@ -132,7 +130,7 @@ static int spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
 		unsigned char *buf)
 {
-	unsigned char *p = &dev->se_sub_dev->t10_wwn.unit_serial[0];
+	unsigned char *p = &dev->t10_wwn.unit_serial[0];
 	int cnt;
 	bool next = true;
 
@@ -173,7 +171,7 @@ static int spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-	unsigned char *prod = &dev->se_sub_dev->t10_wwn.model[0];
+	unsigned char *prod = &dev->t10_wwn.model[0];
 	u32 prod_len;
 	u32 unit_serial_len, off = 0;
 	u16 len = 0, id_len;
@@ -188,7 +186,7 @@ static int spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	 * /sys/kernel/config/target/core/$HBA/$DEV/wwn/vpd_unit_serial
 	 * value in order to return the NAA id.
 	 */
-	if (!(dev->se_sub_dev->su_dev_flags & SDF_EMULATED_VPD_UNIT_SERIAL))
+	if (!(dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL))
 		goto check_t10_vend_desc;
 
 	/* CODE SET == Binary */
@@ -236,14 +234,12 @@ check_t10_vend_desc:
 	prod_len += strlen(prod);
 	prod_len++; /* For : */
 
-	if (dev->se_sub_dev->su_dev_flags &
-			SDF_EMULATED_VPD_UNIT_SERIAL) {
-		unit_serial_len =
-			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+	if (dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL) {
+		unit_serial_len = strlen(&dev->t10_wwn.unit_serial[0]);
 		unit_serial_len++; /* For NULL Terminator */
 
 		id_len += sprintf(&buf[off+12], "%s:%s", prod,
-				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+				&dev->t10_wwn.unit_serial[0]);
 	}
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
@@ -298,8 +294,7 @@ check_t10_vend_desc:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		if (dev->se_sub_dev->t10_alua.alua_type !=
-				SPC3_ALUA_EMULATED)
+		if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED)
 			goto check_scsi_name;
 
 		tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
@@ -422,7 +417,7 @@ static int spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	buf[5] = 0x07;
 
 	/* If WriteCache emulation is enabled, set V_SUP */
-	if (cmd->se_dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0)
+	if (cmd->se_dev->dev_attrib.emulate_write_cache > 0)
 		buf[6] = 0x01;
 	return 0;
 }
@@ -439,7 +434,7 @@ static int spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	 * emulate_tpu=1 or emulate_tpws=1 we will be expect a
 	 * different page length for Thin Provisioning.
 	 */
-	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
+	if (dev->dev_attrib.emulate_tpu || dev->dev_attrib.emulate_tpws)
 		have_tp = 1;
 
 	buf[0] = dev->transport->get_device_type(dev);
@@ -456,14 +451,14 @@ static int spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
 	 */
-	max_sectors = min(dev->se_sub_dev->se_dev_attrib.fabric_max_sectors,
-			  dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
+	max_sectors = min(dev->dev_attrib.fabric_max_sectors,
+			  dev->dev_attrib.hw_max_sectors);
 	put_unaligned_be32(max_sectors, &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.optimal_sectors, &buf[12]);
+	put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
 	 * Exit now if we don't support TP.
@@ -474,25 +469,25 @@ static int spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM UNMAP LBA COUNT
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count, &buf[20]);
+	put_unaligned_be32(dev->dev_attrib.max_unmap_lba_count, &buf[20]);
 
 	/*
 	 * Set MAXIMUM UNMAP BLOCK DESCRIPTOR COUNT
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count,
+	put_unaligned_be32(dev->dev_attrib.max_unmap_block_desc_count,
 			   &buf[24]);
 
 	/*
 	 * Set OPTIMAL UNMAP GRANULARITY
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.unmap_granularity, &buf[28]);
+	put_unaligned_be32(dev->dev_attrib.unmap_granularity, &buf[28]);
 
 	/*
 	 * UNMAP GRANULARITY ALIGNMENT
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment,
+	put_unaligned_be32(dev->dev_attrib.unmap_granularity_alignment,
 			   &buf[32]);
-	if (dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment != 0)
+	if (dev->dev_attrib.unmap_granularity_alignment != 0)
 		buf[32] |= 0x80; /* Set the UGAVALID bit */
 
 	return 0;
@@ -505,7 +500,7 @@ static int spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = 0x3c;
-	buf[5] = dev->se_sub_dev->se_dev_attrib.is_nonrot ? 1 : 0;
+	buf[5] = dev->dev_attrib.is_nonrot ? 1 : 0;
 
 	return 0;
 }
@@ -546,7 +541,7 @@ static int spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * the UNMAP command (see 5.25). A TPU bit set to zero indicates
 	 * that the device server does not support the UNMAP command.
 	 */
-	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu != 0)
+	if (dev->dev_attrib.emulate_tpu != 0)
 		buf[5] = 0x80;
 
 	/*
@@ -555,7 +550,7 @@ static int spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * A TPWS bit set to zero indicates that the device server does not
 	 * support the use of the WRITE SAME (16) command to unmap LBAs.
 	 */
-	if (dev->se_sub_dev->se_dev_attrib.emulate_tpws != 0)
+	if (dev->dev_attrib.emulate_tpws != 0)
 		buf[5] |= 0x40;
 
 	return 0;
@@ -586,8 +581,7 @@ static int spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 	 * Registered Extended LUN WWN has been set via ConfigFS
 	 * during device creation/restart.
 	 */
-	if (cmd->se_dev->se_sub_dev->su_dev_flags &
-			SDF_EMULATED_VPD_UNIT_SERIAL) {
+	if (cmd->se_dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL) {
 		buf[3] = ARRAY_SIZE(evpd_handlers);
 		for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p)
 			buf[p + 4] = evpd_handlers[p].page;
@@ -690,7 +684,7 @@ static int spc_modesense_control(struct se_device *dev, unsigned char *p)
 	 * command sequence order shall be explicitly handled by the application client
 	 * through the selection of appropriate ommands and task attributes.
 	 */
-	p[3] = (dev->se_sub_dev->se_dev_attrib.emulate_rest_reord == 1) ? 0x00 : 0x10;
+	p[3] = (dev->dev_attrib.emulate_rest_reord == 1) ? 0x00 : 0x10;
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
@@ -720,8 +714,8 @@ static int spc_modesense_control(struct se_device *dev, unsigned char *p)
 	 * for a BUSY, TASK SET FULL, or RESERVATION CONFLICT status regardless
 	 * to the number of commands completed with one of those status codes.
 	 */
-	p[4] = (dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 2) ? 0x30 :
-	       (dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
+	p[4] = (dev->dev_attrib.emulate_ua_intlck_ctrl == 2) ? 0x30 :
+	       (dev->dev_attrib.emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
@@ -734,7 +728,7 @@ static int spc_modesense_control(struct se_device *dev, unsigned char *p)
 	 * which the command was received shall be completed with TASK ABORTED
 	 * status (see SAM-4).
 	 */
-	p[5] = (dev->se_sub_dev->se_dev_attrib.emulate_tas) ? 0x40 : 0x00;
+	p[5] = (dev->dev_attrib.emulate_tas) ? 0x40 : 0x00;
 	p[8] = 0xff;
 	p[9] = 0xff;
 	p[11] = 30;
@@ -746,7 +740,7 @@ static int spc_modesense_caching(struct se_device *dev, unsigned char *p)
 {
 	p[0] = 0x08;
 	p[1] = 0x12;
-	if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0)
+	if (dev->dev_attrib.emulate_write_cache > 0)
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
@@ -826,8 +820,8 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 			spc_modesense_write_protect(&buf[3], type);
 
-		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
-		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
+		if ((dev->dev_attrib.emulate_write_cache > 0) &&
+		    (dev->dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[3], type);
 	} else {
 		offset -= 1;
@@ -839,8 +833,8 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 			spc_modesense_write_protect(&buf[2], type);
 
-		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
-		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
+		if ((dev->dev_attrib.emulate_write_cache > 0) &&
+		    (dev->dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[2], type);
 	}
 
@@ -923,7 +917,6 @@ static int spc_emulate_testunitready(struct se_cmd *cmd)
 int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
 
 	switch (cdb[0]) {
@@ -946,12 +939,12 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[7] << 8) + cdb[8];
 		break;
 	case PERSISTENT_RESERVE_IN:
-		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
+		if (dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
 			cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		*size = (cdb[7] << 8) + cdb[8];
 		break;
 	case PERSISTENT_RESERVE_OUT:
-		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
+		if (dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
 			cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		*size = (cdb[7] << 8) + cdb[8];
 		break;
@@ -962,7 +955,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		else
 			*size = cmd->data_length;
 
-		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
+		if (dev->t10_pr.res_type != SPC_PASSTHROUGH)
 			cmd->execute_cmd = target_scsi2_reservation_release;
 		break;
 	case RESERVE:
@@ -983,7 +976,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		 * is running in SPC_PASSTHROUGH, and wants reservations
 		 * emulation disabled.
 		 */
-		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
+		if (dev->t10_pr.res_type != SPC_PASSTHROUGH)
 			cmd->execute_cmd = target_scsi2_reservation_reserve;
 		break;
 	case REQUEST_SENSE:
@@ -1040,7 +1033,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 			 * Check for emulated MI_REPORT_TARGET_PGS
 			 */
 			if ((cdb[1] & 0x1f) == MI_REPORT_TARGET_PGS &&
-			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+			    dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
 				cmd->execute_cmd =
 					target_emulate_report_target_port_groups;
 			}
@@ -1059,7 +1052,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 			 * Check for emulated MO_SET_TARGET_PGS.
 			 */
 			if (cdb[1] == MO_SET_TARGET_PGS &&
-			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+			    dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
 				cmd->execute_cmd =
 					target_emulate_set_target_port_groups;
 			}

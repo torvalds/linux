@@ -41,7 +41,10 @@
 
 #include "target_core_file.h"
 
-static struct se_subsystem_api fileio_template;
+static inline struct fd_dev *FD_DEV(struct se_device *dev)
+{
+	return container_of(dev, struct fd_dev, dev);
+}
 
 /*	fd_attach_hba(): (Part of se_subsystem_api_t template)
  *
@@ -82,7 +85,7 @@ static void fd_detach_hba(struct se_hba *hba)
 	hba->hba_ptr = NULL;
 }
 
-static void *fd_allocate_virtdevice(struct se_hba *hba, const char *name)
+static struct se_device *fd_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct fd_dev *fd_dev;
 	struct fd_host *fd_host = hba->hba_ptr;
@@ -97,34 +100,28 @@ static void *fd_allocate_virtdevice(struct se_hba *hba, const char *name)
 
 	pr_debug("FILEIO: Allocated fd_dev for %p\n", name);
 
-	return fd_dev;
+	return &fd_dev->dev;
 }
 
-/*	fd_create_virtdevice(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static struct se_device *fd_create_virtdevice(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	void *p)
+static int fd_configure_device(struct se_device *dev)
 {
-	struct se_device *dev;
-	struct se_dev_limits dev_limits;
-	struct queue_limits *limits;
-	struct fd_dev *fd_dev = p;
-	struct fd_host *fd_host = hba->hba_ptr;
+	struct fd_dev *fd_dev = FD_DEV(dev);
+	struct fd_host *fd_host = dev->se_hba->hba_ptr;
 	struct file *file;
 	struct inode *inode = NULL;
-	int dev_flags = 0, flags, ret = -EINVAL;
+	int flags, ret = -EINVAL;
 
-	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
+	if (!(fd_dev->fbd_flags & FBDF_HAS_PATH)) {
+		pr_err("Missing fd_dev_name=\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Use O_DSYNC by default instead of O_SYNC to forgo syncing
 	 * of pure timestamp updates.
 	 */
 	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
+
 	/*
 	 * Optionally allow fd_buffered_io=1 to be enabled for people
 	 * who want use the fs buffer cache as an WriteCache mechanism.
@@ -154,22 +151,17 @@ static struct se_device *fd_create_virtdevice(
 	 */
 	inode = file->f_mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
-		struct request_queue *q;
+		struct request_queue *q = bdev_get_queue(inode->i_bdev);
 		unsigned long long dev_size;
-		/*
-		 * Setup the local scope queue_limits from struct request_queue->limits
-		 * to pass into transport_add_device_to_core_hba() as struct se_dev_limits.
-		 */
-		q = bdev_get_queue(inode->i_bdev);
-		limits = &dev_limits.limits;
-		limits->logical_block_size = bdev_logical_block_size(inode->i_bdev);
-		limits->max_hw_sectors = queue_max_hw_sectors(q);
-		limits->max_sectors = queue_max_sectors(q);
+
+		dev->dev_attrib.hw_block_size =
+			bdev_logical_block_size(inode->i_bdev);
+		dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
+
 		/*
 		 * Determine the number of bytes from i_size_read() minus
 		 * one (1) logical sector from underlying struct block_device
 		 */
-		fd_dev->fd_block_size = bdev_logical_block_size(inode->i_bdev);
 		dev_size = (i_size_read(file->f_mapping->host) -
 				       fd_dev->fd_block_size);
 
@@ -185,26 +177,18 @@ static struct se_device *fd_create_virtdevice(
 			goto fail;
 		}
 
-		limits = &dev_limits.limits;
-		limits->logical_block_size = FD_BLOCKSIZE;
-		limits->max_hw_sectors = FD_MAX_SECTORS;
-		limits->max_sectors = FD_MAX_SECTORS;
-		fd_dev->fd_block_size = FD_BLOCKSIZE;
+		dev->dev_attrib.hw_block_size = FD_BLOCKSIZE;
+		dev->dev_attrib.hw_max_sectors = FD_MAX_SECTORS;
 	}
 
-	dev_limits.hw_queue_depth = FD_MAX_DEVICE_QUEUE_DEPTH;
-	dev_limits.queue_depth = FD_DEVICE_QUEUE_DEPTH;
+	fd_dev->fd_block_size = dev->dev_attrib.hw_block_size;
 
-	dev = transport_add_device_to_core_hba(hba, &fileio_template,
-				se_dev, dev_flags, fd_dev,
-				&dev_limits, "FILEIO", FD_VERSION);
-	if (!dev)
-		goto fail;
+	dev->dev_attrib.hw_queue_depth = FD_MAX_DEVICE_QUEUE_DEPTH;
 
 	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
 		pr_debug("FILEIO: Forcing setting of emulate_write_cache=1"
 			" with FDBD_HAS_BUFFERED_IO_WCE\n");
-		dev->se_sub_dev->se_dev_attrib.emulate_write_cache = 1;
+		dev->dev_attrib.emulate_write_cache = 1;
 	}
 
 	fd_dev->fd_dev_id = fd_host->fd_host_dev_id_count++;
@@ -214,22 +198,18 @@ static struct se_device *fd_create_virtdevice(
 		" %llu total bytes\n", fd_host->fd_host_id, fd_dev->fd_dev_id,
 			fd_dev->fd_dev_name, fd_dev->fd_dev_size);
 
-	return dev;
+	return 0;
 fail:
 	if (fd_dev->fd_file) {
 		filp_close(fd_dev->fd_file, NULL);
 		fd_dev->fd_file = NULL;
 	}
-	return ERR_PTR(ret);
+	return ret;
 }
 
-/*	fd_free_device(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static void fd_free_device(void *p)
+static void fd_free_device(struct se_device *dev)
 {
-	struct fd_dev *fd_dev = p;
+	struct fd_dev *fd_dev = FD_DEV(dev);
 
 	if (fd_dev->fd_file) {
 		filp_close(fd_dev->fd_file, NULL);
@@ -243,13 +223,12 @@ static int fd_do_readv(struct se_cmd *cmd, struct scatterlist *sgl,
 		u32 sgl_nents)
 {
 	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *dev = se_dev->dev_ptr;
+	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (cmd->t_task_lba *
-		      se_dev->se_sub_dev->se_dev_attrib.block_size);
+	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
 	int ret = 0, i;
 
 	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
@@ -296,13 +275,12 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 		u32 sgl_nents)
 {
 	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *dev = se_dev->dev_ptr;
+	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (cmd->t_task_lba *
-		      se_dev->se_sub_dev->se_dev_attrib.block_size);
+	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
 	int ret, i = 0;
 
 	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
@@ -334,7 +312,7 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 static int fd_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct fd_dev *fd_dev = dev->dev_ptr;
+	struct fd_dev *fd_dev = FD_DEV(dev);
 	int immed = (cmd->t_task_cdb[1] & 0x2);
 	loff_t start, end;
 	int ret;
@@ -353,7 +331,7 @@ static int fd_execute_sync_cache(struct se_cmd *cmd)
 		start = 0;
 		end = LLONG_MAX;
 	} else {
-		start = cmd->t_task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
+		start = cmd->t_task_lba * dev->dev_attrib.block_size;
 		if (cmd->data_length)
 			end = start + cmd->data_length;
 		else
@@ -399,11 +377,11 @@ static int fd_execute_rw(struct se_cmd *cmd)
 		 * Allow this to happen independent of WCE=0 setting.
 		 */
 		if (ret > 0 &&
-		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
+		    dev->dev_attrib.emulate_fua_write > 0 &&
 		    (cmd->se_cmd_flags & SCF_FUA)) {
-			struct fd_dev *fd_dev = dev->dev_ptr;
+			struct fd_dev *fd_dev = FD_DEV(dev);
 			loff_t start = cmd->t_task_lba *
-				dev->se_sub_dev->se_dev_attrib.block_size;
+				dev->dev_attrib.block_size;
 			loff_t end = start + cmd->data_length;
 
 			vfs_fsync_range(fd_dev->fd_file, start, end, 1);
@@ -430,12 +408,10 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static ssize_t fd_set_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	const char *page, ssize_t count)
+static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
+		const char *page, ssize_t count)
 {
-	struct fd_dev *fd_dev = se_dev->se_dev_su_ptr;
+	struct fd_dev *fd_dev = FD_DEV(dev);
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, arg, token;
@@ -502,24 +478,9 @@ out:
 	return (!ret) ? count : ret;
 }
 
-static ssize_t fd_check_configfs_dev_params(struct se_hba *hba, struct se_subsystem_dev *se_dev)
+static ssize_t fd_show_configfs_dev_params(struct se_device *dev, char *b)
 {
-	struct fd_dev *fd_dev = se_dev->se_dev_su_ptr;
-
-	if (!(fd_dev->fbd_flags & FBDF_HAS_PATH)) {
-		pr_err("Missing fd_dev_name=\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static ssize_t fd_show_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	char *b)
-{
-	struct fd_dev *fd_dev = se_dev->se_dev_su_ptr;
+	struct fd_dev *fd_dev = FD_DEV(dev);
 	ssize_t bl = 0;
 
 	bl = sprintf(b + bl, "TCM FILEIO ID: %u", fd_dev->fd_dev_id);
@@ -550,7 +511,7 @@ static u32 fd_get_device_type(struct se_device *dev)
 
 static sector_t fd_get_blocks(struct se_device *dev)
 {
-	struct fd_dev *fd_dev = dev->dev_ptr;
+	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct file *f = fd_dev->fd_file;
 	struct inode *i = f->f_mapping->host;
 	unsigned long long dev_size;
@@ -564,7 +525,7 @@ static sector_t fd_get_blocks(struct se_device *dev)
 	else
 		dev_size = fd_dev->fd_dev_size;
 
-	return div_u64(dev_size, dev->se_sub_dev->se_dev_attrib.block_size);
+	return div_u64(dev_size, dev->dev_attrib.block_size);
 }
 
 static struct spc_ops fd_spc_ops = {
@@ -579,15 +540,16 @@ static int fd_parse_cdb(struct se_cmd *cmd)
 
 static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
+	.inquiry_prod		= "FILEIO",
+	.inquiry_rev		= FD_VERSION,
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
 	.attach_hba		= fd_attach_hba,
 	.detach_hba		= fd_detach_hba,
-	.allocate_virtdevice	= fd_allocate_virtdevice,
-	.create_virtdevice	= fd_create_virtdevice,
+	.alloc_device		= fd_alloc_device,
+	.configure_device	= fd_configure_device,
 	.free_device		= fd_free_device,
 	.parse_cdb		= fd_parse_cdb,
-	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
 	.get_device_rev		= fd_get_device_rev,

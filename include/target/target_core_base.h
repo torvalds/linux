@@ -62,20 +62,6 @@
 
 #define PYX_TRANSPORT_STATUS_INTERVAL		5 /* In seconds */
 
-/*
- * struct se_subsystem_dev->su_dev_flags
-*/
-#define SDF_FIRMWARE_VPD_UNIT_SERIAL		0x00000001
-#define SDF_EMULATED_VPD_UNIT_SERIAL		0x00000002
-#define SDF_USING_UDEV_PATH			0x00000004
-#define SDF_USING_ALIAS				0x00000008
-
-/*
- * struct se_device->dev_flags
- */
-#define DF_SPC2_RESERVATIONS			0x00000001
-#define DF_SPC2_RESERVATIONS_WITH_ISID		0x00000002
-
 /* struct se_dev_attrib sanity values */
 /* Default max_unmap_lba_count */
 #define DA_MAX_UNMAP_LBA_COUNT			0
@@ -182,16 +168,6 @@ enum transport_lunflags_table {
 	TRANSPORT_LUNFLAGS_READ_WRITE		= 0x04,
 };
 
-/* struct se_device->dev_status */
-enum transport_device_status_table {
-	TRANSPORT_DEVICE_ACTIVATED		= 0x01,
-	TRANSPORT_DEVICE_DEACTIVATED		= 0x02,
-	TRANSPORT_DEVICE_QUEUE_FULL		= 0x04,
-	TRANSPORT_DEVICE_SHUTDOWN		= 0x08,
-	TRANSPORT_DEVICE_OFFLINE_ACTIVATED	= 0x10,
-	TRANSPORT_DEVICE_OFFLINE_DEACTIVATED	= 0x20,
-};
-
 /*
  * Used by transport_send_check_condition_and_sense() and se_cmd->scsi_sense_reason
  * to signal which ASC/ASCQ sense payload should be built.
@@ -246,10 +222,6 @@ enum tcm_tmrsp_table {
 	TMR_FUNCTION_REJECTED		= 255,
 };
 
-struct se_obj {
-	atomic_t obj_access_count;
-};
-
 /*
  * Used by TCM Core internally to signal if ALUA emulation is enabled or
  * disabled, or running in with TCM/pSCSI passthrough mode
@@ -288,7 +260,7 @@ struct t10_alua {
 	u16	alua_tg_pt_gps_counter;
 	u32	alua_tg_pt_gps_count;
 	spinlock_t tg_pt_gps_lock;
-	struct se_subsystem_dev *t10_sub_dev;
+	struct se_device *t10_dev;
 	/* Used for default ALUA Target Port Group */
 	struct t10_alua_tg_pt_gp *default_tg_pt_gp;
 	/* Used for default ALUA Target Port Group ConfigFS group */
@@ -335,7 +307,7 @@ struct t10_alua_tg_pt_gp {
 	atomic_t tg_pt_gp_ref_cnt;
 	spinlock_t tg_pt_gp_lock;
 	struct mutex tg_pt_gp_md_mutex;
-	struct se_subsystem_dev *tg_pt_gp_su_dev;
+	struct se_device *tg_pt_gp_dev;
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_mem_list;
@@ -366,7 +338,7 @@ struct t10_wwn {
 	char revision[4];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
 	spinlock_t t10_vpd_lock;
-	struct se_subsystem_dev *t10_sub_dev;
+	struct se_device *t10_dev;
 	struct config_group t10_wwn_group;
 	struct list_head t10_vpd_list;
 };
@@ -662,15 +634,6 @@ struct se_dev_entry {
 	struct list_head	ua_list;
 };
 
-struct se_dev_limits {
-	/* Max supported HW queue depth */
-	u32		hw_queue_depth;
-	/* Max supported virtual queue depth */
-	u32		queue_depth;
-	/* From include/linux/blkdev.h for the other HW/SW limits. */
-	struct queue_limits limits;
-};
-
 struct se_dev_attrib {
 	int		emulate_dpo;
 	int		emulate_fua_write;
@@ -696,7 +659,7 @@ struct se_dev_attrib {
 	u32		max_unmap_block_desc_count;
 	u32		unmap_granularity;
 	u32		unmap_granularity_alignment;
-	struct se_subsystem_dev *da_sub_dev;
+	struct se_device *da_dev;
 	struct config_group da_group;
 };
 
@@ -707,48 +670,24 @@ struct se_dev_stat_grps {
 	struct config_group scsi_lu_group;
 };
 
-struct se_subsystem_dev {
-/* Used for struct se_subsystem_dev-->se_dev_alias, must be less than PAGE_SIZE */
-#define SE_DEV_ALIAS_LEN		512
-	unsigned char	se_dev_alias[SE_DEV_ALIAS_LEN];
-/* Used for struct se_subsystem_dev->se_dev_udev_path[], must be less than PAGE_SIZE */
-#define SE_UDEV_PATH_LEN		512
-	unsigned char	se_dev_udev_path[SE_UDEV_PATH_LEN];
-	u32		su_dev_flags;
-	struct se_hba *se_dev_hba;
-	struct se_device *se_dev_ptr;
-	struct se_dev_attrib se_dev_attrib;
-	/* T10 Asymmetric Logical Unit Assignment for Target Ports */
-	struct t10_alua	t10_alua;
-	/* T10 Inquiry and VPD WWN Information */
-	struct t10_wwn	t10_wwn;
-	/* T10 SPC-2 + SPC-3 Reservations */
-	struct t10_reservation t10_pr;
-	spinlock_t      se_dev_lock;
-	void            *se_dev_su_ptr;
-	struct config_group se_dev_group;
-	/* For T10 Reservations */
-	struct config_group se_dev_pr_group;
-	/* For target_core_stat.c groups */
-	struct se_dev_stat_grps dev_stat_grps;
-};
-
 struct se_device {
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
 	u32			dev_cur_ordered_id;
 	u32			dev_flags;
+#define DF_CONFIGURED				0x00000001
+#define DF_FIRMWARE_VPD_UNIT_SERIAL		0x00000002
+#define DF_EMULATED_VPD_UNIT_SERIAL		0x00000004
+#define DF_USING_UDEV_PATH			0x00000008
+#define DF_USING_ALIAS				0x00000010
 	u32			dev_port_count;
-	/* See transport_device_status_table */
-	u32			dev_status;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
 	u64			dev_res_bin_isid;
 	t10_task_attr_index_t	dev_task_attr_type;
 	/* Pointer to transport specific device structure */
-	void 			*dev_ptr;
 	u32			dev_index;
 	u64			creation_time;
 	u32			num_resets;
@@ -761,13 +700,13 @@ struct se_device {
 	atomic_t		dev_ordered_id;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
-	struct se_obj		dev_obj;
-	struct se_obj		dev_access_obj;
-	struct se_obj		dev_export_obj;
+	int			export_count;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		dev_reservation_lock;
-	spinlock_t		dev_status_lock;
+	unsigned int		dev_reservation_flags;
+#define DRF_SPC2_RESERVATIONS			0x00000001
+#define DRF_SPC2_RESERVATIONS_WITH_ISID		0x00000002
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
@@ -786,7 +725,20 @@ struct se_device {
 	struct list_head	qf_cmd_list;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;
-	struct se_subsystem_dev *se_sub_dev;
+	/* T10 Inquiry and VPD WWN Information */
+	struct t10_wwn		t10_wwn;
+	/* T10 Asymmetric Logical Unit Assignment for Target Ports */
+	struct t10_alua		t10_alua;
+	/* T10 SPC-2 + SPC-3 Reservations */
+	struct t10_reservation	t10_pr;
+	struct se_dev_attrib	dev_attrib;
+	struct config_group	dev_group;
+	struct config_group	dev_pr_group;
+	struct se_dev_stat_grps dev_stat_grps;
+#define SE_DEV_ALIAS_LEN 512		/* must be less than PAGE_SIZE */
+	unsigned char		dev_alias[SE_DEV_ALIAS_LEN];
+#define SE_UDEV_PATH_LEN 512		/* must be less than PAGE_SIZE */
+	unsigned char		udev_path[SE_UDEV_PATH_LEN];
 	/* Pointer to template of function pointers for transport */
 	struct se_subsystem_api *transport;
 	/* Linked list for struct se_hba struct se_device list */
@@ -803,8 +755,6 @@ struct se_hba {
 	u32			hba_index;
 	/* Pointer to transport specific host structure. */
 	void			*hba_ptr;
-	/* Linked list for struct se_device */
-	struct list_head	hba_dev_list;
 	struct list_head	hba_node;
 	spinlock_t		device_lock;
 	struct config_group	hba_group;

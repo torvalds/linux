@@ -54,10 +54,10 @@ static int sbc_emulate_readcapacity(struct se_cmd *cmd)
 	buf[1] = (blocks >> 16) & 0xff;
 	buf[2] = (blocks >> 8) & 0xff;
 	buf[3] = blocks & 0xff;
-	buf[4] = (dev->se_sub_dev->se_dev_attrib.block_size >> 24) & 0xff;
-	buf[5] = (dev->se_sub_dev->se_dev_attrib.block_size >> 16) & 0xff;
-	buf[6] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
-	buf[7] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
+	buf[4] = (dev->dev_attrib.block_size >> 24) & 0xff;
+	buf[5] = (dev->dev_attrib.block_size >> 16) & 0xff;
+	buf[6] = (dev->dev_attrib.block_size >> 8) & 0xff;
+	buf[7] = dev->dev_attrib.block_size & 0xff;
 
 	rbuf = transport_kmap_data_sg(cmd);
 	if (rbuf) {
@@ -85,15 +85,15 @@ static int sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	buf[5] = (blocks >> 16) & 0xff;
 	buf[6] = (blocks >> 8) & 0xff;
 	buf[7] = blocks & 0xff;
-	buf[8] = (dev->se_sub_dev->se_dev_attrib.block_size >> 24) & 0xff;
-	buf[9] = (dev->se_sub_dev->se_dev_attrib.block_size >> 16) & 0xff;
-	buf[10] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
-	buf[11] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
+	buf[8] = (dev->dev_attrib.block_size >> 24) & 0xff;
+	buf[9] = (dev->dev_attrib.block_size >> 16) & 0xff;
+	buf[10] = (dev->dev_attrib.block_size >> 8) & 0xff;
+	buf[11] = dev->dev_attrib.block_size & 0xff;
 	/*
 	 * Set Thin Provisioning Enable bit following sbc3r22 in section
 	 * READ CAPACITY (16) byte 14 if emulate_tpu or emulate_tpws is enabled.
 	 */
-	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
+	if (dev->dev_attrib.emulate_tpu || dev->dev_attrib.emulate_tpws)
 		buf[14] = 0x80;
 
 	rbuf = transport_kmap_data_sg(cmd);
@@ -143,7 +143,7 @@ static int sbc_emulate_noop(struct se_cmd *cmd)
 
 static inline u32 sbc_get_size(struct se_cmd *cmd, u32 sectors)
 {
-	return cmd->se_dev->se_sub_dev->se_dev_attrib.block_size * sectors;
+	return cmd->se_dev->dev_attrib.block_size * sectors;
 }
 
 static int sbc_check_valid_sectors(struct se_cmd *cmd)
@@ -152,7 +152,7 @@ static int sbc_check_valid_sectors(struct se_cmd *cmd)
 	unsigned long long end_lba;
 	u32 sectors;
 
-	sectors = cmd->data_length / dev->se_sub_dev->se_dev_attrib.block_size;
+	sectors = cmd->data_length / dev->dev_attrib.block_size;
 	end_lba = dev->transport->get_blocks(dev) + 1;
 
 	if (cmd->t_task_lba + sectors > end_lba) {
@@ -315,7 +315,6 @@ out:
 
 int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 {
-	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned int size;
@@ -562,18 +561,18 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
 		unsigned long long end_lba;
 
-		if (sectors > su_dev->se_dev_attrib.fabric_max_sectors) {
+		if (sectors > dev->dev_attrib.fabric_max_sectors) {
 			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
 				" big sectors %u exceeds fabric_max_sectors:"
 				" %u\n", cdb[0], sectors,
-				su_dev->se_dev_attrib.fabric_max_sectors);
+				dev->dev_attrib.fabric_max_sectors);
 			goto out_invalid_cdb_field;
 		}
-		if (sectors > su_dev->se_dev_attrib.hw_max_sectors) {
+		if (sectors > dev->dev_attrib.hw_max_sectors) {
 			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
 				" big sectors %u exceeds backend hw_max_sectors:"
 				" %u\n", cdb[0], sectors,
-				su_dev->se_dev_attrib.hw_max_sectors);
+				dev->dev_attrib.hw_max_sectors);
 			goto out_invalid_cdb_field;
 		}
 

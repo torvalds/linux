@@ -50,6 +50,12 @@
 #define IBLOCK_MAX_BIO_PER_TASK	 32	/* max # of bios to submit at a time */
 #define IBLOCK_BIO_POOL_SIZE	128
 
+static inline struct iblock_dev *IBLOCK_DEV(struct se_device *dev)
+{
+	return container_of(dev, struct iblock_dev, dev);
+}
+
+
 static struct se_subsystem_api iblock_template;
 
 static void iblock_bio_done(struct bio *, int);
@@ -70,7 +76,7 @@ static void iblock_detach_hba(struct se_hba *hba)
 {
 }
 
-static void *iblock_allocate_virtdevice(struct se_hba *hba, const char *name)
+static struct se_device *iblock_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct iblock_dev *ib_dev = NULL;
 
@@ -82,40 +88,28 @@ static void *iblock_allocate_virtdevice(struct se_hba *hba, const char *name)
 
 	pr_debug( "IBLOCK: Allocated ib_dev for %s\n", name);
 
-	return ib_dev;
+	return &ib_dev->dev;
 }
 
-static struct se_device *iblock_create_virtdevice(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	void *p)
+static int iblock_configure_device(struct se_device *dev)
 {
-	struct iblock_dev *ib_dev = p;
-	struct se_device *dev;
-	struct se_dev_limits dev_limits;
-	struct block_device *bd = NULL;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	struct request_queue *q;
-	struct queue_limits *limits;
-	u32 dev_flags = 0;
+	struct block_device *bd = NULL;
 	fmode_t mode;
-	int ret = -EINVAL;
+	int ret = -ENOMEM;
 
-	if (!ib_dev) {
-		pr_err("Unable to locate struct iblock_dev parameter\n");
-		return ERR_PTR(ret);
+	if (!(ib_dev->ibd_flags & IBDF_HAS_UDEV_PATH)) {
+		pr_err("Missing udev_path= parameters for IBLOCK\n");
+		return -EINVAL;
 	}
-	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 
 	ib_dev->ibd_bio_set = bioset_create(IBLOCK_BIO_POOL_SIZE, 0);
 	if (!ib_dev->ibd_bio_set) {
-		pr_err("IBLOCK: Unable to create bioset()\n");
-		return ERR_PTR(-ENOMEM);
+		pr_err("IBLOCK: Unable to create bioset\n");
+		goto out;
 	}
-	pr_debug("IBLOCK: Created bio_set()\n");
-	/*
-	 * iblock_check_configfs_dev_params() ensures that ib_dev->ibd_udev_path
-	 * must already have been set in order for echo 1 > $HBA/$DEV/enable to run.
-	 */
+
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
@@ -126,27 +120,15 @@ static struct se_device *iblock_create_virtdevice(
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
-		goto failed;
+		goto out_free_bioset;
 	}
-	/*
-	 * Setup the local scope queue_limits from struct request_queue->limits
-	 * to pass into transport_add_device_to_core_hba() as struct se_dev_limits.
-	 */
-	q = bdev_get_queue(bd);
-	limits = &dev_limits.limits;
-	limits->logical_block_size = bdev_logical_block_size(bd);
-	limits->max_hw_sectors = UINT_MAX;
-	limits->max_sectors = UINT_MAX;
-	dev_limits.hw_queue_depth = q->nr_requests;
-	dev_limits.queue_depth = q->nr_requests;
-
 	ib_dev->ibd_bd = bd;
 
-	dev = transport_add_device_to_core_hba(hba,
-			&iblock_template, se_dev, dev_flags, ib_dev,
-			&dev_limits, "IBLOCK", IBLOCK_VERSION);
-	if (!dev)
-		goto failed;
+	q = bdev_get_queue(bd);
+
+	dev->dev_attrib.hw_block_size = bdev_logical_block_size(bd);
+	dev->dev_attrib.hw_max_sectors = UINT_MAX;
+	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
 	/*
 	 * Check if the underlying struct block_device request_queue supports
@@ -154,15 +136,16 @@ static struct se_device *iblock_create_virtdevice(
 	 * in ATA and we need to set TPE=1
 	 */
 	if (blk_queue_discard(q)) {
-		dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count =
+		dev->dev_attrib.max_unmap_lba_count =
 				q->limits.max_discard_sectors;
+
 		/*
 		 * Currently hardcoded to 1 in Linux/SCSI code..
 		 */
-		dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count = 1;
-		dev->se_sub_dev->se_dev_attrib.unmap_granularity =
+		dev->dev_attrib.max_unmap_block_desc_count = 1;
+		dev->dev_attrib.unmap_granularity =
 				q->limits.discard_granularity >> 9;
-		dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment =
+		dev->dev_attrib.unmap_granularity_alignment =
 				q->limits.discard_alignment;
 
 		pr_debug("IBLOCK: BLOCK Discard support available,"
@@ -170,22 +153,19 @@ static struct se_device *iblock_create_virtdevice(
 	}
 
 	if (blk_queue_nonrot(q))
-		dev->se_sub_dev->se_dev_attrib.is_nonrot = 1;
+		dev->dev_attrib.is_nonrot = 1;
+	return 0;
 
-	return dev;
-
-failed:
-	if (ib_dev->ibd_bio_set) {
-		bioset_free(ib_dev->ibd_bio_set);
-		ib_dev->ibd_bio_set = NULL;
-	}
-	ib_dev->ibd_bd = NULL;
-	return ERR_PTR(ret);
+out_free_bioset:
+	bioset_free(ib_dev->ibd_bio_set);
+	ib_dev->ibd_bio_set = NULL;
+out:
+	return ret;
 }
 
-static void iblock_free_device(void *p)
+static void iblock_free_device(struct se_device *dev)
 {
-	struct iblock_dev *ib_dev = p;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
@@ -203,12 +183,12 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 					bdev_logical_block_size(bd)) - 1);
 	u32 block_size = bdev_logical_block_size(bd);
 
-	if (block_size == dev->se_sub_dev->se_dev_attrib.block_size)
+	if (block_size == dev->dev_attrib.block_size)
 		return blocks_long;
 
 	switch (block_size) {
 	case 4096:
-		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
+		switch (dev->dev_attrib.block_size) {
 		case 2048:
 			blocks_long <<= 1;
 			break;
@@ -222,7 +202,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 2048:
-		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
+		switch (dev->dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 1;
 			break;
@@ -237,7 +217,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 1024:
-		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
+		switch (dev->dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 2;
 			break;
@@ -252,7 +232,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 512:
-		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
+		switch (dev->dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 3;
 			break;
@@ -299,7 +279,7 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  */
 static int iblock_execute_sync_cache(struct se_cmd *cmd)
 {
-	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	int immed = (cmd->t_task_cdb[1] & 0x2);
 	struct bio *bio;
 
@@ -322,7 +302,7 @@ static int iblock_execute_sync_cache(struct se_cmd *cmd)
 static int iblock_execute_unmap(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct iblock_dev *ibd = dev->dev_ptr;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;
 	int size;
@@ -349,7 +329,7 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 	else
 		size = bd_dl;
 
-	if (size / 16 > dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
 		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
 		ret = -EINVAL;
 		goto err;
@@ -366,7 +346,7 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
-		if (range > dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count) {
+		if (range > dev->dev_attrib.max_unmap_lba_count) {
 			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
 			ret = -EINVAL;
 			goto err;
@@ -378,7 +358,7 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 			goto err;
 		}
 
-		ret = blkdev_issue_discard(ibd->ibd_bd, lba, range,
+		ret = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
 					   GFP_KERNEL, 0);
 		if (ret < 0) {
 			pr_err("blkdev_issue_discard() failed: %d\n",
@@ -399,10 +379,10 @@ err:
 
 static int iblock_execute_write_same(struct se_cmd *cmd)
 {
-	struct iblock_dev *ibd = cmd->se_dev->dev_ptr;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	int ret;
 
-	ret = blkdev_issue_discard(ibd->ibd_bd, cmd->t_task_lba,
+	ret = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
 				   spc_get_write_same_sectors(cmd), GFP_KERNEL,
 				   0);
 	if (ret < 0) {
@@ -425,11 +405,10 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
-					       struct se_subsystem_dev *se_dev,
-					       const char *page, ssize_t count)
+static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
+		const char *page, ssize_t count)
 {
-	struct iblock_dev *ib_dev = se_dev->se_dev_su_ptr;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
@@ -491,43 +470,26 @@ out:
 	return (!ret) ? count : ret;
 }
 
-static ssize_t iblock_check_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev)
+static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 {
-	struct iblock_dev *ibd = se_dev->se_dev_su_ptr;
-
-	if (!(ibd->ibd_flags & IBDF_HAS_UDEV_PATH)) {
-		pr_err("Missing udev_path= parameters for IBLOCK\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static ssize_t iblock_show_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	char *b)
-{
-	struct iblock_dev *ibd = se_dev->se_dev_su_ptr;
-	struct block_device *bd = ibd->ibd_bd;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
 	char buf[BDEVNAME_SIZE];
 	ssize_t bl = 0;
 
 	if (bd)
 		bl += sprintf(b + bl, "iBlock device: %s",
 				bdevname(bd, buf));
-	if (ibd->ibd_flags & IBDF_HAS_UDEV_PATH)
+	if (ib_dev->ibd_flags & IBDF_HAS_UDEV_PATH)
 		bl += sprintf(b + bl, "  UDEV PATH: %s",
-				ibd->ibd_udev_path);
-	bl += sprintf(b + bl, "  readonly: %d\n", ibd->ibd_readonly);
+				ib_dev->ibd_udev_path);
+	bl += sprintf(b + bl, "  readonly: %d\n", ib_dev->ibd_readonly);
 
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
 		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
 			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
-			"" : (bd->bd_holder == ibd) ?
+			"" : (bd->bd_holder == ib_dev) ?
 			"CLAIMED: IBLOCK" : "CLAIMED: OS");
 	} else {
 		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
@@ -556,7 +518,7 @@ static void iblock_complete_cmd(struct se_cmd *cmd)
 static struct bio *
 iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 {
-	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	struct bio *bio;
 
 	/*
@@ -611,8 +573,8 @@ static int iblock_execute_rw(struct se_cmd *cmd)
 		 * Force data to disk if we pretend to not have a volatile
 		 * write cache, or the initiator set the Force Unit Access bit.
 		 */
-		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
-		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
+		if (dev->dev_attrib.emulate_write_cache == 0 ||
+		    (dev->dev_attrib.emulate_fua_write > 0 &&
 		     (cmd->se_cmd_flags & SCF_FUA)))
 			rw = WRITE_FUA;
 		else
@@ -625,17 +587,17 @@ static int iblock_execute_rw(struct se_cmd *cmd)
 	 * Convert the blocksize advertised to the initiator to the 512 byte
 	 * units unconditionally used by the Linux block layer.
 	 */
-	if (dev->se_sub_dev->se_dev_attrib.block_size == 4096)
+	if (dev->dev_attrib.block_size == 4096)
 		block_lba = (cmd->t_task_lba << 3);
-	else if (dev->se_sub_dev->se_dev_attrib.block_size == 2048)
+	else if (dev->dev_attrib.block_size == 2048)
 		block_lba = (cmd->t_task_lba << 2);
-	else if (dev->se_sub_dev->se_dev_attrib.block_size == 1024)
+	else if (dev->dev_attrib.block_size == 1024)
 		block_lba = (cmd->t_task_lba << 1);
-	else if (dev->se_sub_dev->se_dev_attrib.block_size == 512)
+	else if (dev->dev_attrib.block_size == 512)
 		block_lba = cmd->t_task_lba;
 	else {
 		pr_err("Unsupported SCSI -> BLOCK LBA conversion:"
-				" %u\n", dev->se_sub_dev->se_dev_attrib.block_size);
+				" %u\n", dev->dev_attrib.block_size);
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return -ENOSYS;
 	}
@@ -714,8 +676,8 @@ static u32 iblock_get_device_type(struct se_device *dev)
 
 static sector_t iblock_get_blocks(struct se_device *dev)
 {
-	struct iblock_dev *ibd = dev->dev_ptr;
-	struct block_device *bd = ibd->ibd_bd;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
 	struct request_queue *q = bdev_get_queue(bd);
 
 	return iblock_emulate_read_cap_with_block_size(dev, bd, q);
@@ -761,15 +723,16 @@ static int iblock_parse_cdb(struct se_cmd *cmd)
 
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
+	.inquiry_prod		= "IBLOCK",
+	.inquiry_rev		= IBLOCK_VERSION,
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
-	.allocate_virtdevice	= iblock_allocate_virtdevice,
-	.create_virtdevice	= iblock_create_virtdevice,
+	.alloc_device		= iblock_alloc_device,
+	.configure_device	= iblock_configure_device,
 	.free_device		= iblock_free_device,
 	.parse_cdb		= iblock_parse_cdb,
-	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
 	.get_device_rev		= iblock_get_device_rev,

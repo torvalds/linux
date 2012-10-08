@@ -41,7 +41,10 @@
 
 #include "target_core_rd.h"
 
-static struct se_subsystem_api rd_mcp_template;
+static inline struct rd_dev *RD_DEV(struct se_device *dev)
+{
+	return container_of(dev, struct rd_dev, dev);
+}
 
 /*	rd_attach_hba(): (Part of se_subsystem_api_t template)
  *
@@ -196,7 +199,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	return 0;
 }
 
-static void *rd_allocate_virtdevice(struct se_hba *hba, const char *name)
+static struct se_device *rd_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct rd_dev *rd_dev;
 	struct rd_host *rd_host = hba->hba_ptr;
@@ -209,39 +212,27 @@ static void *rd_allocate_virtdevice(struct se_hba *hba, const char *name)
 
 	rd_dev->rd_host = rd_host;
 
-	return rd_dev;
+	return &rd_dev->dev;
 }
 
-static struct se_device *rd_create_virtdevice(struct se_hba *hba,
-		struct se_subsystem_dev *se_dev, void *p)
+static int rd_configure_device(struct se_device *dev)
 {
-	struct se_device *dev;
-	struct se_dev_limits dev_limits;
-	struct rd_dev *rd_dev = p;
-	struct rd_host *rd_host = hba->hba_ptr;
-	int dev_flags = 0, ret;
-	char prod[16], rev[4];
+	struct rd_dev *rd_dev = RD_DEV(dev);
+	struct rd_host *rd_host = dev->se_hba->hba_ptr;
+	int ret;
 
-	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
+	if (!(rd_dev->rd_flags & RDF_HAS_PAGE_COUNT)) {
+		pr_debug("Missing rd_pages= parameter\n");
+		return -EINVAL;
+	}
 
 	ret = rd_build_device_space(rd_dev);
 	if (ret < 0)
 		goto fail;
 
-	snprintf(prod, 16, "RAMDISK-MCP");
-	snprintf(rev, 4, "%s", RD_MCP_VERSION);
-
-	dev_limits.limits.logical_block_size = RD_BLOCKSIZE;
-	dev_limits.limits.max_hw_sectors = UINT_MAX;
-	dev_limits.limits.max_sectors = UINT_MAX;
-	dev_limits.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
-	dev_limits.queue_depth = RD_DEVICE_QUEUE_DEPTH;
-
-	dev = transport_add_device_to_core_hba(hba,
-			&rd_mcp_template, se_dev, dev_flags, rd_dev,
-			&dev_limits, prod, rev);
-	if (!dev)
-		goto fail;
+	dev->dev_attrib.hw_block_size = RD_BLOCKSIZE;
+	dev->dev_attrib.hw_max_sectors = UINT_MAX;
+	dev->dev_attrib.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
 
 	rd_dev->rd_dev_id = rd_host->rd_host_dev_id_count++;
 
@@ -251,16 +242,16 @@ static struct se_device *rd_create_virtdevice(struct se_hba *hba,
 		rd_dev->sg_table_count,
 		(unsigned long)(rd_dev->rd_page_count * PAGE_SIZE));
 
-	return dev;
+	return 0;
 
 fail:
 	rd_release_device_space(rd_dev);
-	return ERR_PTR(ret);
+	return ret;
 }
 
-static void rd_free_device(void *p)
+static void rd_free_device(struct se_device *dev)
 {
-	struct rd_dev *rd_dev = p;
+	struct rd_dev *rd_dev = RD_DEV(dev);
 
 	rd_release_device_space(rd_dev);
 	kfree(rd_dev);
@@ -290,7 +281,7 @@ static int rd_execute_rw(struct se_cmd *cmd)
 	u32 sgl_nents = cmd->t_data_nents;
 	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *se_dev = cmd->se_dev;
-	struct rd_dev *dev = se_dev->dev_ptr;
+	struct rd_dev *dev = RD_DEV(se_dev);
 	struct rd_dev_sg_table *table;
 	struct scatterlist *rd_sg;
 	struct sg_mapping_iter m;
@@ -300,7 +291,7 @@ static int rd_execute_rw(struct se_cmd *cmd)
 	u32 src_len;
 	u64 tmp;
 
-	tmp = cmd->t_task_lba * se_dev->se_sub_dev->se_dev_attrib.block_size;
+	tmp = cmd->t_task_lba * se_dev->dev_attrib.block_size;
 	rd_offset = do_div(tmp, PAGE_SIZE);
 	rd_page = tmp;
 	rd_size = cmd->data_length;
@@ -378,13 +369,10 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static ssize_t rd_set_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	const char *page,
-	ssize_t count)
+static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
+		const char *page, ssize_t count)
 {
-	struct rd_dev *rd_dev = se_dev->se_dev_su_ptr;
+	struct rd_dev *rd_dev = RD_DEV(dev);
 	char *orig, *ptr, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, arg, token;
@@ -417,24 +405,10 @@ static ssize_t rd_set_configfs_dev_params(
 	return (!ret) ? count : ret;
 }
 
-static ssize_t rd_check_configfs_dev_params(struct se_hba *hba, struct se_subsystem_dev *se_dev)
+static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
 {
-	struct rd_dev *rd_dev = se_dev->se_dev_su_ptr;
+	struct rd_dev *rd_dev = RD_DEV(dev);
 
-	if (!(rd_dev->rd_flags & RDF_HAS_PAGE_COUNT)) {
-		pr_debug("Missing rd_pages= parameter\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static ssize_t rd_show_configfs_dev_params(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	char *b)
-{
-	struct rd_dev *rd_dev = se_dev->se_dev_su_ptr;
 	ssize_t bl = sprintf(b, "TCM RamDisk ID: %u  RamDisk Makeup: rd_mcp\n",
 			rd_dev->rd_dev_id);
 	bl += sprintf(b + bl, "        PAGES/PAGE_SIZE: %u*%lu"
@@ -455,9 +429,10 @@ static u32 rd_get_device_type(struct se_device *dev)
 
 static sector_t rd_get_blocks(struct se_device *dev)
 {
-	struct rd_dev *rd_dev = dev->dev_ptr;
+	struct rd_dev *rd_dev = RD_DEV(dev);
+
 	unsigned long long blocks_long = ((rd_dev->rd_page_count * PAGE_SIZE) /
-			dev->se_sub_dev->se_dev_attrib.block_size) - 1;
+			dev->dev_attrib.block_size) - 1;
 
 	return blocks_long;
 }
@@ -473,14 +448,15 @@ static int rd_parse_cdb(struct se_cmd *cmd)
 
 static struct se_subsystem_api rd_mcp_template = {
 	.name			= "rd_mcp",
+	.inquiry_prod		= "RAMDISK-MCP",
+	.inquiry_rev		= RD_MCP_VERSION,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_VDEV,
 	.attach_hba		= rd_attach_hba,
 	.detach_hba		= rd_detach_hba,
-	.allocate_virtdevice	= rd_allocate_virtdevice,
-	.create_virtdevice	= rd_create_virtdevice,
+	.alloc_device		= rd_alloc_device,
+	.configure_device	= rd_configure_device,
 	.free_device		= rd_free_device,
 	.parse_cdb		= rd_parse_cdb,
-	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
 	.get_device_rev		= rd_get_device_rev,

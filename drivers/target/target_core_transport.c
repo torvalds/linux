@@ -659,7 +659,7 @@ static void target_add_to_state_list(struct se_cmd *cmd)
 static void transport_write_pending_qf(struct se_cmd *cmd);
 static void transport_complete_qf(struct se_cmd *cmd);
 
-static void target_qf_do_work(struct work_struct *work)
+void target_qf_do_work(struct work_struct *work)
 {
 	struct se_device *dev = container_of(work, struct se_device,
 					qf_work_queue);
@@ -712,29 +712,15 @@ void transport_dump_dev_state(
 	int *bl)
 {
 	*bl += sprintf(b + *bl, "Status: ");
-	switch (dev->dev_status) {
-	case TRANSPORT_DEVICE_ACTIVATED:
+	if (dev->export_count)
 		*bl += sprintf(b + *bl, "ACTIVATED");
-		break;
-	case TRANSPORT_DEVICE_DEACTIVATED:
+	else
 		*bl += sprintf(b + *bl, "DEACTIVATED");
-		break;
-	case TRANSPORT_DEVICE_SHUTDOWN:
-		*bl += sprintf(b + *bl, "SHUTDOWN");
-		break;
-	case TRANSPORT_DEVICE_OFFLINE_ACTIVATED:
-	case TRANSPORT_DEVICE_OFFLINE_DEACTIVATED:
-		*bl += sprintf(b + *bl, "OFFLINE");
-		break;
-	default:
-		*bl += sprintf(b + *bl, "UNKNOWN=%d", dev->dev_status);
-		break;
-	}
 
 	*bl += sprintf(b + *bl, "  Max Queue Depth: %d", dev->queue_depth);
 	*bl += sprintf(b + *bl, "  SectorSize: %u  HwMaxSectors: %u\n",
-		dev->se_sub_dev->se_dev_attrib.block_size,
-		dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
+		dev->dev_attrib.block_size,
+		dev->dev_attrib.hw_max_sectors);
 	*bl += sprintf(b + *bl, "        ");
 }
 
@@ -991,185 +977,6 @@ transport_set_vpd_ident(struct t10_vpd *vpd, unsigned char *page_83)
 }
 EXPORT_SYMBOL(transport_set_vpd_ident);
 
-static void core_setup_task_attr_emulation(struct se_device *dev)
-{
-	/*
-	 * If this device is from Target_Core_Mod/pSCSI, disable the
-	 * SAM Task Attribute emulation.
-	 *
-	 * This is currently not available in upsream Linux/SCSI Target
-	 * mode code, and is assumed to be disabled while using TCM/pSCSI.
-	 */
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		dev->dev_task_attr_type = SAM_TASK_ATTR_PASSTHROUGH;
-		return;
-	}
-
-	dev->dev_task_attr_type = SAM_TASK_ATTR_EMULATED;
-	pr_debug("%s: Using SAM_TASK_ATTR_EMULATED for SPC: 0x%02x"
-		" device\n", dev->transport->name,
-		dev->transport->get_device_rev(dev));
-}
-
-static void scsi_dump_inquiry(struct se_device *dev)
-{
-	struct t10_wwn *wwn = &dev->se_sub_dev->t10_wwn;
-	char buf[17];
-	int i, device_type;
-	/*
-	 * Print Linux/SCSI style INQUIRY formatting to the kernel ring buffer
-	 */
-	for (i = 0; i < 8; i++)
-		if (wwn->vendor[i] >= 0x20)
-			buf[i] = wwn->vendor[i];
-		else
-			buf[i] = ' ';
-	buf[i] = '\0';
-	pr_debug("  Vendor: %s\n", buf);
-
-	for (i = 0; i < 16; i++)
-		if (wwn->model[i] >= 0x20)
-			buf[i] = wwn->model[i];
-		else
-			buf[i] = ' ';
-	buf[i] = '\0';
-	pr_debug("  Model: %s\n", buf);
-
-	for (i = 0; i < 4; i++)
-		if (wwn->revision[i] >= 0x20)
-			buf[i] = wwn->revision[i];
-		else
-			buf[i] = ' ';
-	buf[i] = '\0';
-	pr_debug("  Revision: %s\n", buf);
-
-	device_type = dev->transport->get_device_type(dev);
-	pr_debug("  Type:   %s ", scsi_device_type(device_type));
-	pr_debug("                 ANSI SCSI revision: %02x\n",
-				dev->transport->get_device_rev(dev));
-}
-
-struct se_device *transport_add_device_to_core_hba(
-	struct se_hba *hba,
-	struct se_subsystem_api *transport,
-	struct se_subsystem_dev *se_dev,
-	u32 device_flags,
-	void *transport_dev,
-	struct se_dev_limits *dev_limits,
-	const char *inquiry_prod,
-	const char *inquiry_rev)
-{
-	int force_pt;
-	struct se_device  *dev;
-
-	dev = kzalloc(sizeof(struct se_device), GFP_KERNEL);
-	if (!dev) {
-		pr_err("Unable to allocate memory for se_dev_t\n");
-		return NULL;
-	}
-
-	dev->dev_flags		= device_flags;
-	dev->dev_status		|= TRANSPORT_DEVICE_DEACTIVATED;
-	dev->dev_ptr		= transport_dev;
-	dev->se_hba		= hba;
-	dev->se_sub_dev		= se_dev;
-	dev->transport		= transport;
-	INIT_LIST_HEAD(&dev->dev_list);
-	INIT_LIST_HEAD(&dev->dev_sep_list);
-	INIT_LIST_HEAD(&dev->dev_tmr_list);
-	INIT_LIST_HEAD(&dev->delayed_cmd_list);
-	INIT_LIST_HEAD(&dev->state_list);
-	INIT_LIST_HEAD(&dev->qf_cmd_list);
-	spin_lock_init(&dev->execute_task_lock);
-	spin_lock_init(&dev->delayed_cmd_lock);
-	spin_lock_init(&dev->dev_reservation_lock);
-	spin_lock_init(&dev->dev_status_lock);
-	spin_lock_init(&dev->se_port_lock);
-	spin_lock_init(&dev->se_tmr_lock);
-	spin_lock_init(&dev->qf_cmd_lock);
-	atomic_set(&dev->dev_ordered_id, 0);
-
-	se_dev_set_default_attribs(dev, dev_limits);
-
-	dev->dev_index = scsi_get_new_index(SCSI_DEVICE_INDEX);
-	dev->creation_time = get_jiffies_64();
-	spin_lock_init(&dev->stats_lock);
-
-	spin_lock(&hba->device_lock);
-	list_add_tail(&dev->dev_list, &hba->hba_dev_list);
-	hba->dev_count++;
-	spin_unlock(&hba->device_lock);
-	/*
-	 * Setup the SAM Task Attribute emulation for struct se_device
-	 */
-	core_setup_task_attr_emulation(dev);
-	/*
-	 * Force PR and ALUA passthrough emulation with internal object use.
-	 */
-	force_pt = (hba->hba_flags & HBA_FLAGS_INTERNAL_USE);
-	/*
-	 * Setup the Reservations infrastructure for struct se_device
-	 */
-	core_setup_reservations(dev, force_pt);
-	/*
-	 * Setup the Asymmetric Logical Unit Assignment for struct se_device
-	 */
-	if (core_setup_alua(dev, force_pt) < 0)
-		goto err_dev_list;
-
-	/*
-	 * Startup the struct se_device processing thread
-	 */
-	dev->tmr_wq = alloc_workqueue("tmr-%s", WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
-				      dev->transport->name);
-	if (!dev->tmr_wq) {
-		pr_err("Unable to create tmr workqueue for %s\n",
-			dev->transport->name);
-		goto err_dev_list;
-	}
-	/*
-	 * Setup work_queue for QUEUE_FULL
-	 */
-	INIT_WORK(&dev->qf_work_queue, target_qf_do_work);
-	/*
-	 * Preload the initial INQUIRY const values if we are doing
-	 * anything virtual (IBLOCK, FILEIO, RAMDISK), but not for TCM/pSCSI
-	 * passthrough because this is being provided by the backend LLD.
-	 * This is required so that transport_get_inquiry() copies these
-	 * originals once back into DEV_T10_WWN(dev) for the virtual device
-	 * setup.
-	 */
-	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (!inquiry_prod || !inquiry_rev) {
-			pr_err("All non TCM/pSCSI plugins require"
-				" INQUIRY consts\n");
-			goto err_wq;
-		}
-
-		strncpy(&dev->se_sub_dev->t10_wwn.vendor[0], "LIO-ORG", 8);
-		strncpy(&dev->se_sub_dev->t10_wwn.model[0], inquiry_prod, 16);
-		strncpy(&dev->se_sub_dev->t10_wwn.revision[0], inquiry_rev, 4);
-	}
-	scsi_dump_inquiry(dev);
-
-	return dev;
-
-err_wq:
-	destroy_workqueue(dev->tmr_wq);
-err_dev_list:
-	spin_lock(&hba->device_lock);
-	list_del(&dev->dev_list);
-	hba->dev_count--;
-	spin_unlock(&hba->device_lock);
-
-	se_release_vpd_for_dev(dev);
-
-	kfree(dev);
-
-	return NULL;
-}
-EXPORT_SYMBOL(transport_add_device_to_core_hba);
-
 int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1191,7 +998,7 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 		 * Reject READ_* or WRITE_* with overflow/underflow for
 		 * type SCF_SCSI_DATA_CDB.
 		 */
-		if (dev->se_sub_dev->se_dev_attrib.block_size != 512)  {
+		if (dev->dev_attrib.block_size != 512)  {
 			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
 				" CDB on non 512-byte sector setup subsystem"
 				" plugin: %s\n", dev->transport->name);
@@ -1293,7 +1100,7 @@ int target_setup_cmd_from_cdb(
 	struct se_cmd *cmd,
 	unsigned char *cdb)
 {
-	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
+	struct se_device *dev = cmd->se_dev;
 	u32 pr_reg_type = 0;
 	u8 alua_ascq = 0;
 	unsigned long flags;
@@ -1345,7 +1152,7 @@ int target_setup_cmd_from_cdb(
 		return -EINVAL;
 	}
 
-	ret = su_dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
+	ret = dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
 	if (ret != 0) {
 		/*
 		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
@@ -1371,8 +1178,8 @@ int target_setup_cmd_from_cdb(
 	/*
 	 * Check status for SPC-3 Persistent Reservations
 	 */
-	if (su_dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type)) {
-		if (su_dev->t10_pr.pr_ops.t10_seq_non_holder(
+	if (dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type)) {
+		if (dev->t10_pr.pr_ops.t10_seq_non_holder(
 					cmd, cdb, pr_reg_type) != 0) {
 			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
@@ -1387,7 +1194,7 @@ int target_setup_cmd_from_cdb(
 		 */
 	}
 
-	ret = cmd->se_dev->transport->parse_cdb(cmd);
+	ret = dev->transport->parse_cdb(cmd);
 	if (ret < 0)
 		return ret;
 
@@ -1759,7 +1566,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 		 * See spc4r17, section 7.4.6 Control Mode Page, Table 349
 		 */
 		if (cmd->se_sess &&
-		    cmd->se_dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 2)
+		    cmd->se_dev->dev_attrib.emulate_ua_intlck_ctrl == 2)
 			core_scsi3_ua_allocate(cmd->se_sess->se_node_acl,
 				cmd->orig_fe_lun, 0x2C,
 				ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);

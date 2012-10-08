@@ -61,7 +61,7 @@ struct t10_alua_lu_gp *default_lu_gp;
  */
 int target_emulate_report_target_port_groups(struct se_cmd *cmd)
 {
-	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
@@ -86,8 +86,8 @@ int target_emulate_report_target_port_groups(struct se_cmd *cmd)
 	}
 	buf = transport_kmap_data_sg(cmd);
 
-	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
-	list_for_each_entry(tg_pt_gp, &su_dev->t10_alua.tg_pt_gps_list,
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
+	list_for_each_entry(tg_pt_gp, &dev->t10_alua.tg_pt_gps_list,
 			tg_pt_gp_list) {
 		/*
 		 * Check if the Target port group and Target port descriptor list
@@ -160,7 +160,7 @@ int target_emulate_report_target_port_groups(struct se_cmd *cmd)
 		}
 		spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 	}
-	spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 	/*
 	 * Set the RETURN DATA LENGTH set in the header of the DataIN Payload
 	 */
@@ -203,7 +203,6 @@ int target_emulate_report_target_port_groups(struct se_cmd *cmd)
 int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_port *port, *l_port = cmd->se_lun->lun_sep;
 	struct se_node_acl *nacl = cmd->se_sess->se_node_acl;
 	struct t10_alua_tg_pt_gp *tg_pt_gp = NULL, *l_tg_pt_gp;
@@ -303,9 +302,9 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 * Locate the matching target port group ID from
 			 * the global tg_pt_gp list
 			 */
-			spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 			list_for_each_entry(tg_pt_gp,
-					&su_dev->t10_alua.tg_pt_gps_list,
+					&dev->t10_alua.tg_pt_gps_list,
 					tg_pt_gp_list) {
 				if (!tg_pt_gp->tg_pt_gp_valid_id)
 					continue;
@@ -315,18 +314,18 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 
 				atomic_inc(&tg_pt_gp->tg_pt_gp_ref_cnt);
 				smp_mb__after_atomic_inc();
-				spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+				spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 				rc = core_alua_do_port_transition(tg_pt_gp,
 						dev, l_port, nacl,
 						alua_access_state, 1);
 
-				spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+				spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 				atomic_dec(&tg_pt_gp->tg_pt_gp_ref_cnt);
 				smp_mb__after_atomic_dec();
 				break;
 			}
-			spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 			/*
 			 * If not matching target port group ID can be located
 			 * throw an exception with ASCQ: INVALID_PARAMETER_LIST
@@ -758,8 +757,7 @@ static int core_alua_update_tpg_primary_metadata(
 	int primary_state,
 	unsigned char *md_buf)
 {
-	struct se_subsystem_dev *su_dev = tg_pt_gp->tg_pt_gp_su_dev;
-	struct t10_wwn *wwn = &su_dev->t10_wwn;
+	struct t10_wwn *wwn = &tg_pt_gp->tg_pt_gp_dev->t10_wwn;
 	char path[ALUA_METADATA_PATH_LEN];
 	int len;
 
@@ -899,7 +897,6 @@ int core_alua_do_port_transition(
 {
 	struct se_device *dev;
 	struct se_port *port;
-	struct se_subsystem_dev *su_dev;
 	struct se_node_acl *nacl;
 	struct t10_alua_lu_gp *lu_gp;
 	struct t10_alua_lu_gp_member *lu_gp_mem, *local_lu_gp_mem;
@@ -949,14 +946,13 @@ int core_alua_do_port_transition(
 				lu_gp_mem_list) {
 
 		dev = lu_gp_mem->lu_gp_mem_dev;
-		su_dev = dev->se_sub_dev;
 		atomic_inc(&lu_gp_mem->lu_gp_mem_ref_cnt);
 		smp_mb__after_atomic_inc();
 		spin_unlock(&lu_gp->lu_gp_lock);
 
-		spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+		spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 		list_for_each_entry(tg_pt_gp,
-				&su_dev->t10_alua.tg_pt_gps_list,
+				&dev->t10_alua.tg_pt_gps_list,
 				tg_pt_gp_list) {
 
 			if (!tg_pt_gp->tg_pt_gp_valid_id)
@@ -981,7 +977,7 @@ int core_alua_do_port_transition(
 			}
 			atomic_inc(&tg_pt_gp->tg_pt_gp_ref_cnt);
 			smp_mb__after_atomic_inc();
-			spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 			/*
 			 * core_alua_do_transition_tg_pt() will always return
 			 * success.
@@ -989,11 +985,11 @@ int core_alua_do_port_transition(
 			core_alua_do_transition_tg_pt(tg_pt_gp, port,
 					nacl, md_buf, new_state, explict);
 
-			spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 			atomic_dec(&tg_pt_gp->tg_pt_gp_ref_cnt);
 			smp_mb__after_atomic_dec();
 		}
-		spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+		spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 		spin_lock(&lu_gp->lu_gp_lock);
 		atomic_dec(&lu_gp_mem->lu_gp_mem_ref_cnt);
@@ -1268,8 +1264,7 @@ void core_alua_free_lu_gp(struct t10_alua_lu_gp *lu_gp)
 
 void core_alua_free_lu_gp_mem(struct se_device *dev)
 {
-	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
-	struct t10_alua *alua = &su_dev->t10_alua;
+	struct t10_alua *alua = &dev->t10_alua;
 	struct t10_alua_lu_gp *lu_gp;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 
@@ -1358,10 +1353,8 @@ void __core_alua_drop_lu_gp_mem(
 	spin_unlock(&lu_gp->lu_gp_lock);
 }
 
-struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(
-	struct se_subsystem_dev *su_dev,
-	const char *name,
-	int def_group)
+struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
+		const char *name, int def_group)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 
@@ -1375,7 +1368,7 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(
 	mutex_init(&tg_pt_gp->tg_pt_gp_md_mutex);
 	spin_lock_init(&tg_pt_gp->tg_pt_gp_lock);
 	atomic_set(&tg_pt_gp->tg_pt_gp_ref_cnt, 0);
-	tg_pt_gp->tg_pt_gp_su_dev = su_dev;
+	tg_pt_gp->tg_pt_gp_dev = dev;
 	tg_pt_gp->tg_pt_gp_md_buf_len = ALUA_MD_BUF_LEN;
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 		ALUA_ACCESS_STATE_ACTIVE_OPTMIZED);
@@ -1392,14 +1385,14 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(
 	tg_pt_gp->tg_pt_gp_implict_trans_secs = ALUA_DEFAULT_IMPLICT_TRANS_SECS;
 
 	if (def_group) {
-		spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+		spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 		tg_pt_gp->tg_pt_gp_id =
-				su_dev->t10_alua.alua_tg_pt_gps_counter++;
+				dev->t10_alua.alua_tg_pt_gps_counter++;
 		tg_pt_gp->tg_pt_gp_valid_id = 1;
-		su_dev->t10_alua.alua_tg_pt_gps_count++;
+		dev->t10_alua.alua_tg_pt_gps_count++;
 		list_add_tail(&tg_pt_gp->tg_pt_gp_list,
-			      &su_dev->t10_alua.tg_pt_gps_list);
-		spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			      &dev->t10_alua.tg_pt_gps_list);
+		spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 	}
 
 	return tg_pt_gp;
@@ -1409,9 +1402,10 @@ int core_alua_set_tg_pt_gp_id(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	u16 tg_pt_gp_id)
 {
-	struct se_subsystem_dev *su_dev = tg_pt_gp->tg_pt_gp_su_dev;
+	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 	struct t10_alua_tg_pt_gp *tg_pt_gp_tmp;
 	u16 tg_pt_gp_id_tmp;
+
 	/*
 	 * The tg_pt_gp->tg_pt_gp_id may only be set once..
 	 */
@@ -1421,19 +1415,19 @@ int core_alua_set_tg_pt_gp_id(
 		return -EINVAL;
 	}
 
-	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
-	if (su_dev->t10_alua.alua_tg_pt_gps_count == 0x0000ffff) {
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
+	if (dev->t10_alua.alua_tg_pt_gps_count == 0x0000ffff) {
 		pr_err("Maximum ALUA alua_tg_pt_gps_count:"
 			" 0x0000ffff reached\n");
-		spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+		spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 		kmem_cache_free(t10_alua_tg_pt_gp_cache, tg_pt_gp);
 		return -ENOSPC;
 	}
 again:
 	tg_pt_gp_id_tmp = (tg_pt_gp_id != 0) ? tg_pt_gp_id :
-			su_dev->t10_alua.alua_tg_pt_gps_counter++;
+			dev->t10_alua.alua_tg_pt_gps_counter++;
 
-	list_for_each_entry(tg_pt_gp_tmp, &su_dev->t10_alua.tg_pt_gps_list,
+	list_for_each_entry(tg_pt_gp_tmp, &dev->t10_alua.tg_pt_gps_list,
 			tg_pt_gp_list) {
 		if (tg_pt_gp_tmp->tg_pt_gp_id == tg_pt_gp_id_tmp) {
 			if (!tg_pt_gp_id)
@@ -1441,7 +1435,7 @@ again:
 
 			pr_err("ALUA Target Port Group ID: %hu already"
 				" exists, ignoring request\n", tg_pt_gp_id);
-			spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 			return -EINVAL;
 		}
 	}
@@ -1449,9 +1443,9 @@ again:
 	tg_pt_gp->tg_pt_gp_id = tg_pt_gp_id_tmp;
 	tg_pt_gp->tg_pt_gp_valid_id = 1;
 	list_add_tail(&tg_pt_gp->tg_pt_gp_list,
-			&su_dev->t10_alua.tg_pt_gps_list);
-	su_dev->t10_alua.alua_tg_pt_gps_count++;
-	spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			&dev->t10_alua.tg_pt_gps_list);
+	dev->t10_alua.alua_tg_pt_gps_count++;
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 	return 0;
 }
@@ -1480,8 +1474,9 @@ struct t10_alua_tg_pt_gp_member *core_alua_allocate_tg_pt_gp_mem(
 void core_alua_free_tg_pt_gp(
 	struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
-	struct se_subsystem_dev *su_dev = tg_pt_gp->tg_pt_gp_su_dev;
+	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem, *tg_pt_gp_mem_tmp;
+
 	/*
 	 * Once we have reached this point, config_item_put() has already
 	 * been called from target_core_alua_drop_tg_pt_gp().
@@ -1490,10 +1485,11 @@ void core_alua_free_tg_pt_gp(
 	 * no assications *OR* explict ALUA via SET_TARGET_PORT_GROUPS
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
-	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 	list_del(&tg_pt_gp->tg_pt_gp_list);
-	su_dev->t10_alua.alua_tg_pt_gps_counter--;
-	spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+	dev->t10_alua.alua_tg_pt_gps_counter--;
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
+
 	/*
 	 * Allow a struct t10_alua_tg_pt_gp_member * referenced by
 	 * core_alua_get_tg_pt_gp_by_name() in
@@ -1502,6 +1498,7 @@ void core_alua_free_tg_pt_gp(
 	 */
 	while (atomic_read(&tg_pt_gp->tg_pt_gp_ref_cnt))
 		cpu_relax();
+
 	/*
 	 * Release reference to struct t10_alua_tg_pt_gp from all associated
 	 * struct se_port.
@@ -1525,9 +1522,9 @@ void core_alua_free_tg_pt_gp(
 		 * default_tg_pt_gp.
 		 */
 		spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
-		if (tg_pt_gp != su_dev->t10_alua.default_tg_pt_gp) {
+		if (tg_pt_gp != dev->t10_alua.default_tg_pt_gp) {
 			__core_alua_attach_tg_pt_gp_mem(tg_pt_gp_mem,
-					su_dev->t10_alua.default_tg_pt_gp);
+					dev->t10_alua.default_tg_pt_gp);
 		} else
 			tg_pt_gp_mem->tg_pt_gp = NULL;
 		spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
@@ -1541,8 +1538,7 @@ void core_alua_free_tg_pt_gp(
 
 void core_alua_free_tg_pt_gp_mem(struct se_port *port)
 {
-	struct se_subsystem_dev *su_dev = port->sep_lun->lun_se_dev->se_sub_dev;
-	struct t10_alua *alua = &su_dev->t10_alua;
+	struct t10_alua *alua = &port->sep_lun->lun_se_dev->t10_alua;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 
@@ -1574,25 +1570,24 @@ void core_alua_free_tg_pt_gp_mem(struct se_port *port)
 }
 
 static struct t10_alua_tg_pt_gp *core_alua_get_tg_pt_gp_by_name(
-	struct se_subsystem_dev *su_dev,
-	const char *name)
+		struct se_device *dev, const char *name)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct config_item *ci;
 
-	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
-	list_for_each_entry(tg_pt_gp, &su_dev->t10_alua.tg_pt_gps_list,
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
+	list_for_each_entry(tg_pt_gp, &dev->t10_alua.tg_pt_gps_list,
 			tg_pt_gp_list) {
 		if (!tg_pt_gp->tg_pt_gp_valid_id)
 			continue;
 		ci = &tg_pt_gp->tg_pt_gp_group.cg_item;
 		if (!strcmp(config_item_name(ci), name)) {
 			atomic_inc(&tg_pt_gp->tg_pt_gp_ref_cnt);
-			spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+			spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 			return tg_pt_gp;
 		}
 	}
-	spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 	return NULL;
 }
@@ -1600,11 +1595,11 @@ static struct t10_alua_tg_pt_gp *core_alua_get_tg_pt_gp_by_name(
 static void core_alua_put_tg_pt_gp_from_name(
 	struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
-	struct se_subsystem_dev *su_dev = tg_pt_gp->tg_pt_gp_su_dev;
+	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 
-	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
+	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 	atomic_dec(&tg_pt_gp->tg_pt_gp_ref_cnt);
-	spin_unlock(&su_dev->t10_alua.tg_pt_gps_lock);
+	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 }
 
 /*
@@ -1640,9 +1635,8 @@ static void __core_alua_drop_tg_pt_gp_mem(
 
 ssize_t core_alua_show_tg_pt_gp_info(struct se_port *port, char *page)
 {
-	struct se_subsystem_dev *su_dev = port->sep_lun->lun_se_dev->se_sub_dev;
 	struct config_item *tg_pt_ci;
-	struct t10_alua *alua = &su_dev->t10_alua;
+	struct t10_alua *alua = &port->sep_lun->lun_se_dev->t10_alua;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	ssize_t len = 0;
@@ -1683,7 +1677,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 {
 	struct se_portal_group *tpg;
 	struct se_lun *lun;
-	struct se_subsystem_dev *su_dev = port->sep_lun->lun_se_dev->se_sub_dev;
+	struct se_device *dev = port->sep_lun->lun_se_dev;
 	struct t10_alua_tg_pt_gp *tg_pt_gp = NULL, *tg_pt_gp_new = NULL;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	unsigned char buf[TG_PT_GROUP_NAME_BUF];
@@ -1692,7 +1686,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 	tpg = port->sep_tpg;
 	lun = port->sep_lun;
 
-	if (su_dev->t10_alua.alua_type != SPC3_ALUA_EMULATED) {
+	if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED) {
 		pr_warn("SPC3_ALUA_EMULATED not enabled for"
 			" %s/tpgt_%hu/%s\n", tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 			tpg->se_tpg_tfo->tpg_get_tag(tpg),
@@ -1716,7 +1710,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 		 * struct t10_alua_tg_pt_gp.  This reference is released with
 		 * core_alua_put_tg_pt_gp_from_name() below.
 		 */
-		tg_pt_gp_new = core_alua_get_tg_pt_gp_by_name(su_dev,
+		tg_pt_gp_new = core_alua_get_tg_pt_gp_by_name(dev,
 					strstrip(buf));
 		if (!tg_pt_gp_new)
 			return -ENODEV;
@@ -1750,7 +1744,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 
 			__core_alua_drop_tg_pt_gp_mem(tg_pt_gp_mem, tg_pt_gp);
 			__core_alua_attach_tg_pt_gp_mem(tg_pt_gp_mem,
-					su_dev->t10_alua.default_tg_pt_gp);
+					dev->t10_alua.default_tg_pt_gp);
 			spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 
 			return count;
@@ -2054,32 +2048,29 @@ ssize_t core_alua_store_secondary_write_metadata(
 	return count;
 }
 
-int core_setup_alua(struct se_device *dev, int force_pt)
+int core_setup_alua(struct se_device *dev)
 {
-	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
-	struct t10_alua *alua = &su_dev->t10_alua;
+	struct t10_alua *alua = &dev->t10_alua;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
+
 	/*
 	 * If this device is from Target_Core_Mod/pSCSI, use the ALUA logic
 	 * of the Underlying SCSI hardware.  In Linux/SCSI terms, this can
 	 * cause a problem because libata and some SATA RAID HBAs appear
 	 * under Linux/SCSI, but emulate SCSI logic themselves.
 	 */
-	if (((dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) &&
-	    !(dev->se_sub_dev->se_dev_attrib.emulate_alua)) || force_pt) {
-		alua->alua_type = SPC_ALUA_PASSTHROUGH;
-		alua->alua_state_check = &core_alua_state_check_nop;
+	if ((dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE) ||
+	    (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV &&
+	     !dev->dev_attrib.emulate_alua)) {
 		pr_debug("%s: Using SPC_ALUA_PASSTHROUGH, no ALUA"
 			" emulation\n", dev->transport->name);
-		return 0;
-	}
-	/*
-	 * If SPC-3 or above is reported by real or emulated struct se_device,
-	 * use emulated ALUA.
-	 */
-	if (dev->transport->get_device_rev(dev) >= SCSI_3) {
+
+		alua->alua_type = SPC_ALUA_PASSTHROUGH;
+		alua->alua_state_check = &core_alua_state_check_nop;
+	} else if (dev->transport->get_device_rev(dev) >= SCSI_3) {
 		pr_debug("%s: Enabling ALUA Emulation for SPC-3"
 			" device\n", dev->transport->name);
+
 		/*
 		 * Associate this struct se_device with the default ALUA
 		 * LUN Group.
@@ -2099,10 +2090,11 @@ int core_setup_alua(struct se_device *dev, int force_pt)
 			" core/alua/lu_gps/default_lu_gp\n",
 			dev->transport->name);
 	} else {
-		alua->alua_type = SPC2_ALUA_DISABLED;
-		alua->alua_state_check = &core_alua_state_check_nop;
 		pr_debug("%s: Disabling ALUA Emulation for SPC-2"
 			" device\n", dev->transport->name);
+
+		alua->alua_type = SPC2_ALUA_DISABLED;
+		alua->alua_state_check = &core_alua_state_check_nop;
 	}
 
 	return 0;
