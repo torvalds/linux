@@ -90,6 +90,9 @@ static int rk2928_write(struct snd_soc_codec *codec, unsigned int reg, unsigned 
 {
 	DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, reg, value);
 	writel(value, rk2928_data.regbase + reg*4);
+	if( (reg == CODEC_REG_POWER) && ( (value & m_PD_DAC) == 0)) {
+		msleep(80);
+	}
 	return 0;
 }
 
@@ -154,7 +157,6 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 				rk2928_data.mute = 0;
 				if(rk2928_data.spkctl != INVALID_GPIO) {
-					msleep(80);
 					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
 				}
 			}
