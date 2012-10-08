@@ -102,10 +102,7 @@ static int set_recommended_min_free_kbytes(void)
 	unsigned long recommended_min;
 	extern int min_free_kbytes;
 
-	if (!test_bit(TRANSPARENT_HUGEPAGE_FLAG,
-		      &transparent_hugepage_flags) &&
-	    !test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-		      &transparent_hugepage_flags))
+	if (!khugepaged_enabled())
 		return 0;
 
 	for_each_populated_zone(zone)
@@ -228,11 +225,7 @@ static ssize_t enabled_store(struct kobject *kobj,
 			ret = err;
 	}
 
-	if (ret > 0 &&
-	    (test_bit(TRANSPARENT_HUGEPAGE_FLAG,
-		      &transparent_hugepage_flags) ||
-	     test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-		      &transparent_hugepage_flags)))
+	if (ret > 0 && khugepaged_enabled())
 		set_recommended_min_free_kbytes();
 
 	return ret;
