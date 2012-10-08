@@ -14,6 +14,8 @@
  *
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+
+#include <linux/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/gpio-omap.h>
 
@@ -22,7 +24,6 @@
 #include <plat/serial.h>
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
-#include <plat/i2c.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
@@ -36,6 +37,7 @@
 #include "cm-regbits-34xx.h"
 
 #include "dma.h"
+#include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"
 

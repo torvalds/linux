@@ -28,13 +28,17 @@
 
 #include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/i2c.h>
 #include <linux/i2c/twl.h>
+#include <linux/i2c-omap.h>
 
 #include <asm/proc-fns.h>
 
 #include <plat/cpu.h>
 #include <plat/serial.h>
 #include <plat/common.h>
+
+#include "i2c.h"
 
 #define OMAP_INTC_START		NR_IRQS
 

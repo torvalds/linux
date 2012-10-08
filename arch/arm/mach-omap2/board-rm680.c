@@ -22,7 +22,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <plat/i2c.h>
 #include <plat/usb.h>
 #include "gpmc.h"
 #include "common.h"
