@@ -313,9 +313,9 @@ struct vcpu_event_record {
 
 static void init_kvm_event_record(struct perf_kvm *kvm)
 {
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < (int)EVENTS_CACHE_SIZE; i++)
+	for (i = 0; i < EVENTS_CACHE_SIZE; i++)
 		INIT_LIST_HEAD(&kvm->kvm_events_cache[i]);
 }
 
