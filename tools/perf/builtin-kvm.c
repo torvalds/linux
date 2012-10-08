@@ -416,7 +416,10 @@ static double kvm_event_rel_stddev(int vcpu_id, struct kvm_event *event)
 static bool update_kvm_event(struct kvm_event *event, int vcpu_id,
 			     u64 time_diff)
 {
-	kvm_update_event_stats(&event->total, time_diff);
+	if (vcpu_id == -1) {
+		kvm_update_event_stats(&event->total, time_diff);
+		return true;
+	}
 
 	if (!kvm_event_expand(event, vcpu_id))
 		return false;
@@ -432,6 +435,12 @@ static bool handle_end_event(struct perf_kvm *kvm,
 {
 	struct kvm_event *event;
 	u64 time_begin, time_diff;
+	int vcpu;
+
+	if (kvm->trace_vcpu == -1)
+		vcpu = -1;
+	else
+		vcpu = vcpu_record->vcpu_id;
 
 	event = vcpu_record->last_event;
 	time_begin = vcpu_record->start_time;
@@ -461,7 +470,7 @@ static bool handle_end_event(struct perf_kvm *kvm,
 	BUG_ON(timestamp < time_begin);
 
 	time_diff = timestamp - time_begin;
-	return update_kvm_event(event, vcpu_record->vcpu_id, time_diff);
+	return update_kvm_event(event, vcpu, time_diff);
 }
 
 static
@@ -496,6 +505,11 @@ static bool handle_kvm_event(struct perf_kvm *kvm,
 
 	vcpu_record = per_vcpu_record(thread, evsel, sample);
 	if (!vcpu_record)
+		return true;
+
+	/* only process events for vcpus user cares about */
+	if ((kvm->trace_vcpu != -1) &&
+	    (kvm->trace_vcpu != vcpu_record->vcpu_id))
 		return true;
 
 	if (kvm->events_ops->is_begin_event(evsel, sample, &key))
