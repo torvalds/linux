@@ -110,13 +110,13 @@ static const struct wm8958_micd_rate jackdet_rates[] = {
 static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = wm8994->wm8994;
 	int best, i, sysclk, val;
 	bool idle;
 	const struct wm8958_micd_rate *rates;
 	int num_rates;
 
-	if (!(wm8994->pdata && wm8994->pdata->micd_rates) &&
-	    wm8994->jack_cb != wm8958_default_micdet)
+	if (wm8994->jack_cb != wm8958_default_micdet)
 		return;
 
 	idle = !wm8994->jack_mic;
@@ -127,9 +127,9 @@ static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 	else
 		sysclk = wm8994->aifclk[0];
 
-	if (wm8994->pdata && wm8994->pdata->micd_rates) {
-		rates = wm8994->pdata->micd_rates;
-		num_rates = wm8994->pdata->num_micd_rates;
+	if (control->pdata.micd_rates) {
+		rates = control->pdata.micd_rates;
+		num_rates = control->pdata.num_micd_rates;
 	} else if (wm8994->jackdet) {
 		rates = jackdet_rates;
 		num_rates = ARRAY_SIZE(jackdet_rates);
@@ -326,7 +326,8 @@ static int wm8994_put_drc_sw(struct snd_kcontrol *kcontrol,
 static void wm8994_set_drc(struct snd_soc_codec *codec, int drc)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int base = wm8994_drc_base[drc];
 	int cfg = wm8994->drc_cfg[drc];
 	int save, i;
@@ -362,7 +363,8 @@ static int wm8994_put_drc_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int drc = wm8994_get_drc(kcontrol->id.name);
 	int value = ucontrol->value.integer.value[0];
 
@@ -394,7 +396,8 @@ static int wm8994_get_drc_enum(struct snd_kcontrol *kcontrol,
 static void wm8994_set_retune_mobile(struct snd_soc_codec *codec, int block)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int base = wm8994_retune_mobile_base[block];
 	int iface, best, best_val, save, i, cfg;
 
@@ -465,7 +468,8 @@ static int wm8994_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
 	int value = ucontrol->value.integer.value[0];
 
@@ -3076,7 +3080,8 @@ static int wm8994_codec_resume(struct snd_soc_codec *codec)
 static void wm8994_handle_retune_mobile_pdata(struct wm8994_priv *wm8994)
 {
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	struct snd_kcontrol_new controls[] = {
 		SOC_ENUM_EXT("AIF1.1 EQ Mode",
 			     wm8994->retune_mobile_enum,
@@ -3143,7 +3148,8 @@ static void wm8994_handle_retune_mobile_pdata(struct wm8994_priv *wm8994)
 static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 {
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int ret, i;
 
 	if (!pdata)
@@ -3445,7 +3451,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 			mutex_unlock(&wm8994->accdet_lock);
 
-			if (wm8994->pdata->jd_ext_cap)
+			if (wm8994->wm8994->pdata.jd_ext_cap)
 				snd_soc_dapm_disable_pin(&codec->dapm,
 							 "MICBIAS2");
 		}
@@ -3485,12 +3491,13 @@ static void wm1811_mic_work(struct work_struct *work)
 {
 	struct wm8994_priv *wm8994 = container_of(work, struct wm8994_priv,
 						  mic_work.work);
+	struct wm8994 *control = wm8994->wm8994;
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
 
 	pm_runtime_get_sync(codec->dev);
 
 	/* If required for an external cap force MICBIAS on */
-	if (wm8994->pdata->jd_ext_cap) {
+	if (control->pdata.jd_ext_cap) {
 		snd_soc_dapm_force_enable_pin(&codec->dapm,
 					      "MICBIAS2");
 		snd_soc_dapm_sync(&codec->dapm);
@@ -3518,6 +3525,7 @@ static void wm1811_mic_work(struct work_struct *work)
 static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 {
 	struct wm8994_priv *wm8994 = data;
+	struct wm8994 *control = wm8994->wm8994;
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
 	int reg, delay;
 	bool present;
@@ -3550,7 +3558,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 		snd_soc_update_bits(codec, WM1811_JACKDET_CTRL,
 				    WM1811_JACKDET_DB, 0);
 
-		delay = wm8994->pdata->micdet_delay;
+		delay = control->pdata.micdet_delay;
 		schedule_delayed_work(&wm8994->mic_work,
 				      msecs_to_jiffies(delay));
 	} else {
@@ -3575,7 +3583,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 	mutex_unlock(&wm8994->accdet_lock);
 
 	/* Turn off MICBIAS if it was on for an external cap */
-	if (wm8994->pdata->jd_ext_cap && !present)
+	if (control->pdata.jd_ext_cap && !present)
 		snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS2");
 
 	if (present)
@@ -3653,8 +3661,8 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		wm8958_micd_set_rate(codec);
 
 		/* Detect microphones and short circuits by default */
-		if (wm8994->pdata->micd_lvl_sel)
-			micd_lvl_sel = wm8994->pdata->micd_lvl_sel;
+		if (control->pdata.micd_lvl_sel)
+			micd_lvl_sel = control->pdata.micd_lvl_sel;
 		else
 			micd_lvl_sel = 0x41;
 
@@ -3816,8 +3824,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		init_completion(&wm8994->fll_locked[i]);
 
-	if (wm8994->pdata && wm8994->pdata->micdet_irq)
-		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
+	wm8994->micdet_irq = control->pdata.micdet_irq;
 
 	pm_runtime_enable(codec->dev);
 	pm_runtime_idle(codec->dev);
@@ -3830,8 +3837,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	switch (control->type) {
 	case WM8994:
 		/* Single ended line outputs should have VMID on. */
-		if (!wm8994->pdata->lineout1_diff ||
-		    !wm8994->pdata->lineout2_diff)
+		if (!control->pdata.lineout1_diff ||
+		    !control->pdata.lineout2_diff)
 			codec->dapm.idle_bias_off = 0;
 
 		switch (wm8994->revision) {
@@ -4266,7 +4273,6 @@ static int __devinit wm8994_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wm8994);
 
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
-	wm8994->pdata = dev_get_platdata(pdev->dev.parent);
 
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8994,
 			wm8994_dai, ARRAY_SIZE(wm8994_dai));

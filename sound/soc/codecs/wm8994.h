@@ -142,7 +142,6 @@ struct wm8994_priv {
 	int micdet_irq;
 
 	int revision;
-	struct wm8994_pdata *pdata;
 
 	unsigned int aif1clk_enable:1;
 	unsigned int aif2clk_enable:1;

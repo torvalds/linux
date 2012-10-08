@@ -195,7 +195,7 @@ ok:
 static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
 	/* If the DSP is already running then noop */
@@ -210,9 +210,9 @@ static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 			    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
 
 	/* If we've got user supplied MBC settings use them */
-	if (pdata && pdata->num_mbc_cfgs) {
+	if (control->pdata.num_mbc_cfgs) {
 		struct wm8958_mbc_cfg *cfg
-			= &pdata->mbc_cfgs[wm8994->mbc_cfg];
+			= &control->pdata.mbc_cfgs[wm8994->mbc_cfg];
 
 		for (i = 0; i < ARRAY_SIZE(cfg->coeff_regs); i++)
 			snd_soc_write(codec, i + WM8958_MBC_BAND_1_K_1,
@@ -239,7 +239,7 @@ static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 static void wm8958_dsp_start_vss(struct snd_soc_codec *codec, int path)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int i, ena;
 
 	if (wm8994->mbc_vss)
@@ -249,26 +249,26 @@ static void wm8958_dsp_start_vss(struct snd_soc_codec *codec, int path)
 			    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
 
 	/* If we've got user supplied settings use them */
-	if (pdata && pdata->num_mbc_cfgs) {
+	if (control->pdata.num_mbc_cfgs) {
 		struct wm8958_mbc_cfg *cfg
-			= &pdata->mbc_cfgs[wm8994->mbc_cfg];
+			= &control->pdata.mbc_cfgs[wm8994->mbc_cfg];
 
 		for (i = 0; i < ARRAY_SIZE(cfg->combined_regs); i++)
 			snd_soc_write(codec, i + 0x2800,
 				      cfg->combined_regs[i]);
 	}
 
-	if (pdata && pdata->num_vss_cfgs) {
+	if (control->pdata.num_vss_cfgs) {
 		struct wm8958_vss_cfg *cfg
-			= &pdata->vss_cfgs[wm8994->vss_cfg];
+			= &control->pdata.vss_cfgs[wm8994->vss_cfg];
 
 		for (i = 0; i < ARRAY_SIZE(cfg->regs); i++)
 			snd_soc_write(codec, i + 0x2600, cfg->regs[i]);
 	}
 
-	if (pdata && pdata->num_vss_hpf_cfgs) {
+	if (control->pdata.num_vss_hpf_cfgs) {
 		struct wm8958_vss_hpf_cfg *cfg
-			= &pdata->vss_hpf_cfgs[wm8994->vss_hpf_cfg];
+			= &control->pdata.vss_hpf_cfgs[wm8994->vss_hpf_cfg];
 
 		for (i = 0; i < ARRAY_SIZE(cfg->regs); i++)
 			snd_soc_write(codec, i + 0x2400, cfg->regs[i]);
@@ -300,7 +300,7 @@ static void wm8958_dsp_start_vss(struct snd_soc_codec *codec, int path)
 static void wm8958_dsp_start_enh_eq(struct snd_soc_codec *codec, int path)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
 	wm8958_dsp2_fw(codec, "ENH_EQ", wm8994->enh_eq, false);
@@ -309,9 +309,9 @@ static void wm8958_dsp_start_enh_eq(struct snd_soc_codec *codec, int path)
 			    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
 
 	/* If we've got user supplied settings use them */
-	if (pdata && pdata->num_enh_eq_cfgs) {
+	if (control->pdata.num_enh_eq_cfgs) {
 		struct wm8958_enh_eq_cfg *cfg
-			= &pdata->enh_eq_cfgs[wm8994->enh_eq_cfg];
+			= &control->pdata.enh_eq_cfgs[wm8994->enh_eq_cfg];
 
 		for (i = 0; i < ARRAY_SIZE(cfg->regs); i++)
 			snd_soc_write(codec, i + 0x2200,
@@ -458,7 +458,7 @@ static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.integer.value[0];
 	int reg;
 
@@ -467,7 +467,7 @@ static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
-	if (value >= pdata->num_mbc_cfgs)
+	if (value >= control->pdata.num_mbc_cfgs)
 		return -EINVAL;
 
 	wm8994->mbc_cfg = value;
@@ -548,7 +548,7 @@ static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.integer.value[0];
 	int reg;
 
@@ -557,7 +557,7 @@ static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
-	if (value >= pdata->num_vss_cfgs)
+	if (value >= control->pdata.num_vss_cfgs)
 		return -EINVAL;
 
 	wm8994->vss_cfg = value;
@@ -581,7 +581,7 @@ static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.integer.value[0];
 	int reg;
 
@@ -590,7 +590,7 @@ static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
-	if (value >= pdata->num_vss_hpf_cfgs)
+	if (value >= control->pdata.num_vss_hpf_cfgs)
 		return -EINVAL;
 
 	wm8994->vss_hpf_cfg = value;
@@ -748,7 +748,7 @@ static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.integer.value[0];
 	int reg;
 
@@ -757,7 +757,7 @@ static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
-	if (value >= pdata->num_enh_eq_cfgs)
+	if (value >= control->pdata.num_enh_eq_cfgs)
 		return -EINVAL;
 
 	wm8994->enh_eq_cfg = value;
@@ -900,7 +900,8 @@ static void wm8958_mbc_loaded(const struct firmware *fw, void *context)
 void wm8958_dsp2_init(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994 *control = wm8994->wm8994;
+	struct wm8994_pdata *pdata = &control->pdata;
 	int ret, i;
 
 	wm8994->dsp_active = -1;
@@ -923,9 +924,6 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				"wm8958_enh_eq.wfw", codec->dev, GFP_KERNEL,
 				codec, wm8958_enh_eq_loaded);
-
-	if (!pdata)
-		return;
 
 	if (pdata->num_mbc_cfgs) {
 		struct snd_kcontrol_new control[] = {
