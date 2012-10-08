@@ -330,7 +330,6 @@ static void __init u8500_init_machine(void)
 static const char * u8500_dt_board_compat[] = {
 	"calaosystems,snowball-a9500",
 	"st-ericsson,hrefv60+",
-	"st-ericsson,u8500",
 	"st-ericsson,mop500",
 	NULL,
 };
