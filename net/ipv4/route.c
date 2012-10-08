@@ -1126,7 +1126,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	mtu = dst->dev->mtu;
 
 	if (unlikely(dst_metric_locked(dst, RTAX_MTU))) {
-		if (rt->rt_gateway && mtu > 576)
+		if (rt->rt_uses_gateway && mtu > 576)
 			mtu = 576;
 	}
 
@@ -1177,7 +1177,9 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 		if (fnhe->fnhe_gw) {
 			rt->rt_flags |= RTCF_REDIRECTED;
 			rt->rt_gateway = fnhe->fnhe_gw;
-		}
+			rt->rt_uses_gateway = 1;
+		} else if (!rt->rt_gateway)
+			rt->rt_gateway = daddr;
 
 		orig = rcu_dereference(fnhe->fnhe_rth);
 		rcu_assign_pointer(fnhe->fnhe_rth, rt);
@@ -1186,13 +1188,6 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 
 		fnhe->fnhe_stamp = jiffies;
 		ret = true;
-	} else {
-		/* Routes we intend to cache in nexthop exception have
-		 * the DST_NOCACHE bit clear.  However, if we are
-		 * unsuccessful at storing this route into the cache
-		 * we really need to set it.
-		 */
-		rt->dst.flags |= DST_NOCACHE;
 	}
 	spin_unlock_bh(&fnhe_lock);
 
@@ -1215,15 +1210,8 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 	if (prev == orig) {
 		if (orig)
 			rt_free(orig);
-	} else {
-		/* Routes we intend to cache in the FIB nexthop have
-		 * the DST_NOCACHE bit clear.  However, if we are
-		 * unsuccessful at storing this route into the cache
-		 * we really need to set it.
-		 */
-		rt->dst.flags |= DST_NOCACHE;
+	} else
 		ret = false;
-	}
 
 	return ret;
 }
@@ -1284,8 +1272,10 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 	if (fi) {
 		struct fib_nh *nh = &FIB_RES_NH(*res);
 
-		if (nh->nh_gw && nh->nh_scope == RT_SCOPE_LINK)
+		if (nh->nh_gw && nh->nh_scope == RT_SCOPE_LINK) {
 			rt->rt_gateway = nh->nh_gw;
+			rt->rt_uses_gateway = 1;
+		}
 		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
@@ -1294,8 +1284,18 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			cached = rt_bind_exception(rt, fnhe, daddr);
 		else if (!(rt->dst.flags & DST_NOCACHE))
 			cached = rt_cache_route(nh, rt);
-	}
-	if (unlikely(!cached))
+		if (unlikely(!cached)) {
+			/* Routes we intend to cache in nexthop exception or
+			 * FIB nexthop have the DST_NOCACHE bit clear.
+			 * However, if we are unsuccessful at storing this
+			 * route into the cache we really need to set it.
+			 */
+			rt->dst.flags |= DST_NOCACHE;
+			if (!rt->rt_gateway)
+				rt->rt_gateway = daddr;
+			rt_add_uncached_list(rt);
+		}
+	} else
 		rt_add_uncached_list(rt);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -1363,6 +1363,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->rt_iif	= 0;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
+	rth->rt_uses_gateway = 0;
 	INIT_LIST_HEAD(&rth->rt_uncached);
 	if (our) {
 		rth->dst.input= ip_local_deliver;
@@ -1432,7 +1433,6 @@ static int __mkroute_input(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-
 	err = fib_validate_source(skb, saddr, daddr, tos, FIB_RES_OIF(*res),
 				  in_dev->dev, in_dev, &itag);
 	if (err < 0) {
@@ -1488,6 +1488,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_iif 	= 0;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
+	rth->rt_uses_gateway = 0;
 	INIT_LIST_HEAD(&rth->rt_uncached);
 
 	rth->dst.input = ip_forward;
@@ -1658,6 +1659,7 @@ local_input:
 	rth->rt_iif	= 0;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
+	rth->rt_uses_gateway = 0;
 	INIT_LIST_HEAD(&rth->rt_uncached);
 	if (res.type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
@@ -1826,6 +1828,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_iif	= orig_oif ? : 0;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway = 0;
+	rth->rt_uses_gateway = 0;
 	INIT_LIST_HEAD(&rth->rt_uncached);
 
 	RT_CACHE_STAT_INC(out_slow_tot);
@@ -2104,6 +2107,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;
 		rt->rt_gateway = ort->rt_gateway;
+		rt->rt_uses_gateway = ort->rt_uses_gateway;
 
 		INIT_LIST_HEAD(&rt->rt_uncached);
 
@@ -2182,7 +2186,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 		if (nla_put_be32(skb, RTA_PREFSRC, fl4->saddr))
 			goto nla_put_failure;
 	}
-	if (rt->rt_gateway &&
+	if (rt->rt_uses_gateway &&
 	    nla_put_be32(skb, RTA_GATEWAY, rt->rt_gateway))
 		goto nla_put_failure;
 
