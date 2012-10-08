@@ -855,15 +855,38 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 }	/* xfs_log_unmount_write */
 
 /*
- * Deallocate log structures for unmount/relocation.
+ * Shut down and release the AIL and Log.
  *
- * We need to stop the aild from running before we destroy
- * and deallocate the log as the aild references the log.
+ * During unmount, we need to ensure we flush all the dirty metadata objects
+ * from the AIL so that the log is empty before we write the unmount record to
+ * the log.
+ *
+ * To do this, we first need to shut down the background log work so it is not
+ * trying to cover the log as we clean up. We then need to unpin all objects in
+ * the log so we can then flush them out. Once they have completed their IO and
+ * run the callbacks removing themselves from the AIL, we can write the unmount
+ * record, tear down the AIL and finally free the log.
  */
 void
 xfs_log_unmount(xfs_mount_t *mp)
 {
 	cancel_delayed_work_sync(&mp->m_log->l_work);
+	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * The superblock buffer is uncached and while xfs_ail_push_all_sync()
+	 * will push it, xfs_wait_buftarg() will not wait for it. Further,
+	 * xfs_buf_iowait() cannot be used because it was pushed with the
+	 * XBF_ASYNC flag set, so we need to use a lock/unlock pair to wait for
+	 * the IO to complete.
+	 */
+	xfs_ail_push_all_sync(mp->m_ail);
+	xfs_wait_buftarg(mp->m_ddev_targp);
+	xfs_buf_lock(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
+
+	xfs_log_unmount_write(mp);
+
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
 }

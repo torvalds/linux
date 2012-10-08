@@ -1460,13 +1460,6 @@ xfs_unmountfs(
 	xfs_qm_unmount(mp);
 
 	/*
-	 * Flush out the log synchronously so that we know for sure
-	 * that nothing is pinned.  This is important because bflush()
-	 * will skip pinned buffers.
-	 */
-	xfs_log_force(mp, XFS_LOG_SYNC);
-
-	/*
 	 * Unreserve any blocks we have so that when we unmount we don't account
 	 * the reserved free space as used. This is really only necessary for
 	 * lazy superblock counting because it trusts the incore superblock
@@ -1491,23 +1484,6 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 
-	/*
-	 * At this point we might have modified the superblock again and thus
-	 * added an item to the AIL, thus flush it again.
-	 */
-	xfs_ail_push_all_sync(mp->m_ail);
-	xfs_wait_buftarg(mp->m_ddev_targp);
-
-	/*
-	 * The superblock buffer is uncached and xfsaild_push() will lock and
-	 * set the XBF_ASYNC flag on the buffer. We cannot do xfs_buf_iowait()
-	 * here but a lock on the superblock buffer will block until iodone()
-	 * has completed.
-	 */
-	xfs_buf_lock(mp->m_sb_bp);
-	xfs_buf_unlock(mp->m_sb_bp);
-
-	xfs_log_unmount_write(mp);
 	xfs_log_unmount(mp);
 	xfs_uuid_unmount(mp);
 
