@@ -68,7 +68,7 @@ struct mousedev {
 	bool exist;
 
 	struct list_head mixdev_node;
-	int mixdev_open;
+	bool opened_by_mixdev;
 
 	struct mousedev_hw_data packet;
 	unsigned int pkt_count;
@@ -469,11 +469,11 @@ static void mixdev_open_devices(void)
 		return;
 
 	list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_node) {
-		if (!mousedev->mixdev_open) {
+		if (!mousedev->opened_by_mixdev) {
 			if (mousedev_open_device(mousedev))
 				continue;
 
-			mousedev->mixdev_open = 1;
+			mousedev->opened_by_mixdev = true;
 		}
 	}
 }
@@ -491,8 +491,8 @@ static void mixdev_close_devices(void)
 		return;
 
 	list_for_each_entry(mousedev, &mousedev_mix_list, mixdev_node) {
-		if (mousedev->mixdev_open) {
-			mousedev->mixdev_open = 0;
+		if (mousedev->opened_by_mixdev) {
+			mousedev->opened_by_mixdev = false;
 			mousedev_close_device(mousedev);
 		}
 	}
@@ -935,7 +935,7 @@ static int mixdev_add_device(struct mousedev *mousedev)
 		if (retval)
 			goto out;
 
-		mousedev->mixdev_open = 1;
+		mousedev->opened_by_mixdev = true;
 	}
 
 	get_device(&mousedev->dev);
@@ -950,8 +950,8 @@ static void mixdev_remove_device(struct mousedev *mousedev)
 {
 	mutex_lock(&mousedev_mix->mutex);
 
-	if (mousedev->mixdev_open) {
-		mousedev->mixdev_open = 0;
+	if (mousedev->opened_by_mixdev) {
+		mousedev->opened_by_mixdev = false;
 		mousedev_close_device(mousedev);
 	}
 
