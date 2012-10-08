@@ -180,7 +180,8 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
 		return 0;
 
 	if (!TestSetPageMlocked(page)) {
-		inc_zone_page_state(page, NR_MLOCK);
+		mod_zone_page_state(page_zone(page), NR_MLOCK,
+				    hpage_nr_pages(page));
 		count_vm_event(UNEVICTABLE_PGMLOCKED);
 	}
 	return 1;
