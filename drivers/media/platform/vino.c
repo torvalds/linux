@@ -3950,7 +3950,7 @@ found:
 
 	fb->map_count = 1;
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_flags &= ~VM_IO;
 	vma->vm_private_data = fb;
 	vma->vm_file = file;
