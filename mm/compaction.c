@@ -75,8 +75,6 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 		}
 
 		cond_resched();
-		if (fatal_signal_pending(current))
-			return false;
 	}
 
 	if (!locked)
@@ -363,7 +361,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		/* Check if it is ok to still hold the lock */
 		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
 								locked, cc);
-		if (!locked)
+		if (!locked || fatal_signal_pending(current))
 			break;
 
 		/*
