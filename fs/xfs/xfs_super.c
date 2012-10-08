@@ -1200,6 +1200,7 @@ xfs_fs_remount(
 		 * value if it is non-zero, otherwise go with the default.
 		 */
 		xfs_restore_resvblks(mp);
+		xfs_syncd_queue_sync(mp);
 	}
 
 	/* rw -> ro */
@@ -1245,6 +1246,7 @@ xfs_fs_unfreeze(
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_restore_resvblks(mp);
+	xfs_syncd_queue_sync(mp);
 	return 0;
 }
 

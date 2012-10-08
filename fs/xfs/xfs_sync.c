@@ -323,6 +323,9 @@ xfs_quiesce_data(
  * Second stage of a quiesce. The data is already synced, now we have to take
  * care of the metadata. New transactions are already blocked, so we need to
  * wait for any remaining transactions to drain out before proceeding.
+ *
+ * Note: this stops background sync work - the callers must ensure it is started
+ * again when appropriate.
  */
 void
 xfs_quiesce_attr(
@@ -340,6 +343,9 @@ xfs_quiesce_attr(
 
 	/* flush all pending changes from the AIL */
 	xfs_ail_push_all_sync(mp->m_ail);
+
+	/* stop background sync work */
+	cancel_delayed_work_sync(&mp->m_sync_work);
 
 	/*
 	 * Just warn here till VFS can correctly support
@@ -379,9 +385,8 @@ xfs_syncd_queue_sync(
 }
 
 /*
- * Every sync period we need to unpin all items in the AIL and push them to
- * disk. If there is nothing dirty, then we might need to cover the log to
- * indicate that the filesystem is idle and not frozen.
+ * Every sync period we need to push dirty metadata and try to cover the log
+ * to indicate the filesystem is idle and not frozen.
  */
 void
 xfs_sync_worker(
@@ -391,17 +396,15 @@ xfs_sync_worker(
 					struct xfs_mount, m_sync_work);
 	int		error;
 
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		/* dgc: errors ignored here */
-		if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
-		    xfs_log_need_covered(mp))
-			error = xfs_fs_log_dummy(mp);
-		else
-			xfs_log_force(mp, 0);
+	/* dgc: errors ignored here */
+	if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
+	    xfs_log_need_covered(mp))
+		error = xfs_fs_log_dummy(mp);
+	else
+		xfs_log_force(mp, 0);
 
-		/* start pushing all the metadata that is currently dirty */
-		xfs_ail_push_all(mp->m_ail);
-	}
+	/* start pushing all the metadata that is currently dirty */
+	xfs_ail_push_all(mp->m_ail);
 
 	/* queue us up again */
 	xfs_syncd_queue_sync(mp);
