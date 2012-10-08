@@ -26,9 +26,6 @@ struct xfs_perag;
 
 void xfs_reclaim_worker(struct work_struct *work);
 
-int xfs_quiesce_data(struct xfs_mount *mp);
-void xfs_quiesce_attr(struct xfs_mount *mp);
-
 int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
 int xfs_reclaim_inodes_count(struct xfs_mount *mp);
 void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);

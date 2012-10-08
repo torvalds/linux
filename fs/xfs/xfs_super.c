@@ -1148,6 +1148,73 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 	xfs_reserve_blocks(mp, &resblks, NULL);
 }
 
+/*
+ * Trigger writeback of all the dirty metadata in the file system.
+ *
+ * This ensures that the metadata is written to their location on disk rather
+ * than just existing in transactions in the log. This means after a quiesce
+ * there is no log replay required to write the inodes to disk (this is the main
+ * difference between a sync and a quiesce).
+ *
+ * This shoul deffectively mimic the code in xfs_unmountfs() and
+ * xfs_log_umount() but without tearing down any structures.
+ * XXX: bug fixes needed!
+ *
+ * Note: this stops background log work - the callers must ensure it is started
+ * again when appropriate.
+ */
+void
+xfs_quiesce_attr(
+	struct xfs_mount	*mp)
+{
+	int	error = 0;
+
+	/* wait for all modifications to complete */
+	while (atomic_read(&mp->m_active_trans) > 0)
+		delay(100);
+
+	/* force the log to unpin objects from the now complete transactions */
+	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/* reclaim inodes to do any IO before the freeze completes */
+	xfs_reclaim_inodes(mp, 0);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
+
+	/* flush all pending changes from the AIL */
+	xfs_ail_push_all_sync(mp->m_ail);
+
+	/* stop background log work */
+	cancel_delayed_work_sync(&mp->m_log->l_work);
+
+	/*
+	 * Just warn here till VFS can correctly support
+	 * read-only remount without racing.
+	 */
+	WARN_ON(atomic_read(&mp->m_active_trans) != 0);
+
+	/* Push the superblock and write an unmount record */
+	error = xfs_log_sbcount(mp);
+	if (error)
+		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
+				"Frozen image may not be consistent.");
+	xfs_log_unmount_write(mp);
+
+	/*
+	 * At this point we might have modified the superblock again and thus
+	 * added an item to the AIL, thus flush it again.
+	 */
+	xfs_ail_push_all_sync(mp->m_ail);
+
+	/*
+	 * The superblock buffer is uncached and xfsaild_push() will lock and
+	 * set the XBF_ASYNC flag on the buffer. We cannot do xfs_buf_iowait()
+	 * here but a lock on the superblock buffer will block until iodone()
+	 * has completed.
+	 */
+	xfs_buf_lock(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
+}
+
 STATIC int
 xfs_fs_remount(
 	struct super_block	*sb,
