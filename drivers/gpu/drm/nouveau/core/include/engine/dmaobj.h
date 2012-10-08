@@ -40,6 +40,7 @@ struct nouveau_dmaeng {
 extern struct nouveau_oclass nv04_dmaeng_oclass;
 extern struct nouveau_oclass nv50_dmaeng_oclass;
 extern struct nouveau_oclass nvc0_dmaeng_oclass;
+extern struct nouveau_oclass nvd0_dmaeng_oclass;
 
 extern struct nouveau_oclass nouveau_dmaobj_sclass[];
 
