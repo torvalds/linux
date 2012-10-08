@@ -360,6 +360,26 @@ static const struct file_operations rcugp_fops = {
 	.release = single_release,
 };
 
+static int new_show_rcugp(struct seq_file *m, void *v)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	show_one_rcugp(m, rsp);
+	return 0;
+}
+
+static int new_rcugp_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, new_show_rcugp, inode->i_private);
+}
+
+static const struct file_operations new_rcugp_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcugp_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
+};
+
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
@@ -468,6 +488,12 @@ static int __init rcutree_trace_init(void)
 					goto free_out;
 			}
 #endif
+
+			retval = debugfs_create_file("rcugp", 0444,
+					rspdir, rsp, &new_rcugp_fops);
+			if (!retval)
+				goto free_out;
+
 	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
