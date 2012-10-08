@@ -23,12 +23,34 @@
  */
 
 #include <core/device.h>
+#include <core/gpuobj.h>
+#include <core/class.h>
 
+#include <subdev/fb.h>
 #include <engine/dmaobj.h>
 
 struct nvc0_dmaeng_priv {
 	struct nouveau_dmaeng base;
 };
+
+static int
+nvc0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
+		 struct nouveau_object *parent,
+		 struct nouveau_dmaobj *dmaobj,
+		 struct nouveau_gpuobj **pgpuobj)
+{
+	int ret = 0;
+
+	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
+		switch (nv_mclass(parent->parent)) {
+		default:
+			return -EINVAL;
+		}
+	} else
+		return 0;
+
+	return ret;
+}
 
 static int
 nvc0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -44,6 +66,7 @@ nvc0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
+	priv->base.bind = nvc0_dmaobj_bind;
 	return 0;
 }
 

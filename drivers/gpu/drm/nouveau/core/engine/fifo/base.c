@@ -64,12 +64,9 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 		return -EINVAL;
 	}
 
-	if (dmaeng->bind) {
-		ret = dmaeng->bind(dmaeng, parent, chan->pushdma,
-				  &chan->pushgpu);
-		if (ret)
-			return ret;
-	}
+	ret = dmaeng->bind(dmaeng, parent, chan->pushdma, &chan->pushgpu);
+	if (ret)
+		return ret;
 
 	/* find a free fifo channel */
 	spin_lock_irqsave(&priv->lock, flags);
