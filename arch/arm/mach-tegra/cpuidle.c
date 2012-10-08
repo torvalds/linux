@@ -23,57 +23,21 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/cpu.h>
 #include <linux/cpuidle.h>
-#include <linux/hrtimer.h>
 
-#include <asm/proc-fns.h>
-
-static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index);
+#include <asm/cpuidle.h>
 
 struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
+	.en_core_tk_irqen = 1,
 	.state_count = 1,
 	.states = {
-		[0] = {
-			.enter			= tegra_idle_enter_lp3,
-			.exit_latency		= 10,
-			.target_residency	= 10,
-			.power_usage		= 600,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
-			.name			= "LP3",
-			.desc			= "CPU flow-controlled",
-		},
+		[0] = ARM_CPUIDLE_WFI_STATE_PWR(600),
 	},
 };
 
 static DEFINE_PER_CPU(struct cpuidle_device, tegra_idle_device);
-
-static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
-	struct cpuidle_driver *drv, int index)
-{
-	ktime_t enter, exit;
-	s64 us;
-
-	local_irq_disable();
-	local_fiq_disable();
-
-	enter = ktime_get();
-
-	cpu_do_idle();
-
-	exit = ktime_sub(ktime_get(), enter);
-	us = ktime_to_us(exit);
-
-	local_fiq_enable();
-	local_irq_enable();
-
-	dev->last_residency = us;
-
-	return index;
-}
 
 static int __init tegra_cpuidle_init(void)
 {
