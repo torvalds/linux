@@ -63,6 +63,14 @@
 #error Page table parameters do not cover virtual address space properly.
 #endif
 
+/* PMDs point to PTE tables which are 4K aligned.  */
+#define PMD_PADDR	_AC(0xfffffffe,UL)
+#define PMD_PADDR_SHIFT	_AC(11,UL)
+
+/* PGDs point to PMD tables which are 8K aligned.  */
+#define PGD_PADDR	_AC(0xfffffffc,UL)
+#define PGD_PADDR_SHIFT	_AC(11,UL)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/sched.h>
@@ -581,14 +589,14 @@ static inline unsigned long pte_special(pte_t pte)
 }
 
 #define pmd_set(pmdp, ptep)	\
-	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> 11UL))
+	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> PMD_PADDR_SHIFT))
 #define pud_set(pudp, pmdp)	\
-	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> 11UL))
+	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> PGD_PADDR_SHIFT))
 #define __pmd_page(pmd)		\
-	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<11UL)))
+	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<PMD_PADDR_SHIFT)))
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
 #define pud_page_vaddr(pud)		\
-	((unsigned long) __va((((unsigned long)pud_val(pud))<<11UL)))
+	((unsigned long) __va((((unsigned long)pud_val(pud))<<PGD_PADDR_SHIFT)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_none(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(0)
