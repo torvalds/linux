@@ -103,6 +103,28 @@ static const struct file_operations rcubarrier_fops = {
 	.release = single_release,
 };
 
+static int new_show_rcubarrier(struct seq_file *m, void *v)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	seq_printf(m, "bcc: %d nbd: %lu\n",
+		   atomic_read(&rsp->barrier_cpu_count),
+		   rsp->n_barrier_done);
+	return 0;
+}
+
+static int new_rcubarrier_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, new_show_rcubarrier, inode->i_private);
+}
+
+static const struct file_operations new_rcubarrier_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcubarrier_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
+};
+
 #ifdef CONFIG_RCU_BOOST
 
 static char convert_kthread_status(unsigned int kthread_status)
@@ -430,6 +452,11 @@ static int __init rcutree_trace_init(void)
 
 			retval = debugfs_create_file("rcu_pending", 0444,
 					rspdir, rsp, &rcu_pending_fops);
+			if (!retval)
+				goto free_out;
+
+			retval = debugfs_create_file("rcubarrier", 0444,
+					rspdir, rsp, &new_rcubarrier_fops);
 			if (!retval)
 				goto free_out;
 	}
