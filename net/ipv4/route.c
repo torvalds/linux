@@ -802,7 +802,8 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	net = dev_net(rt->dst.dev);
 	peer = inet_getpeer_v4(net->ipv4.peers, ip_hdr(skb)->saddr, 1);
 	if (!peer) {
-		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
+		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST,
+			  rt_nexthop(rt, ip_hdr(skb)->daddr));
 		return;
 	}
 
@@ -827,7 +828,9 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	    time_after(jiffies,
 		       (peer->rate_last +
 			(ip_rt_redirect_load << peer->rate_tokens)))) {
-		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
+		__be32 gw = rt_nexthop(rt, ip_hdr(skb)->daddr);
+
+		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, gw);
 		peer->rate_last = jiffies;
 		++peer->rate_tokens;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
@@ -835,7 +838,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		    peer->rate_tokens == ip_rt_redirect_number)
 			net_warn_ratelimited("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
 					     &ip_hdr(skb)->saddr, inet_iif(skb),
-					     &ip_hdr(skb)->daddr, &rt->rt_gateway);
+					     &ip_hdr(skb)->daddr, &gw);
 #endif
 	}
 out_put_peer:
@@ -1442,10 +1445,13 @@ static int __mkroute_input(struct sk_buff *skb,
 		goto cleanup;
 	}
 
-	if (out_dev == in_dev && err &&
+	do_cache = res->fi && !itag;
+	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
-	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res))))
+	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res)))) {
 		flags |= RTCF_DOREDIRECT;
+		do_cache = false;
+	}
 
 	if (skb->protocol != htons(ETH_P_IP)) {
 		/* Not IP (i.e. ARP). Do not create route, if it is
@@ -1462,15 +1468,11 @@ static int __mkroute_input(struct sk_buff *skb,
 		}
 	}
 
-	do_cache = false;
-	if (res->fi) {
-		if (!itag) {
-			rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);
-			if (rt_cache_valid(rth)) {
-				skb_dst_set_noref(skb, &rth->dst);
-				goto out;
-			}
-			do_cache = true;
+	if (do_cache) {
+		rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);
+		if (rt_cache_valid(rth)) {
+			skb_dst_set_noref(skb, &rth->dst);
+			goto out;
 		}
 	}
 
