@@ -51,13 +51,10 @@ EXPORT_SYMBOL(can_do_mlock);
 /*
  *  LRU accounting for clear_page_mlock()
  */
-void __clear_page_mlock(struct page *page)
+void clear_page_mlock(struct page *page)
 {
-	VM_BUG_ON(!PageLocked(page));
-
-	if (!page->mapping) {	/* truncated ? */
+	if (!TestClearPageMlocked(page))
 		return;
-	}
 
 	dec_zone_page_state(page, NR_MLOCK);
 	count_vm_event(UNEVICTABLE_PGCLEARED);
@@ -290,14 +287,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
 		if (page && !IS_ERR(page)) {
 			lock_page(page);
-			/*
-			 * Like in __mlock_vma_pages_range(),
-			 * because we lock page here and migration is
-			 * blocked by the elevated reference, we need
-			 * only check for file-cache page truncation.
-			 */
-			if (page->mapping)
-				munlock_vma_page(page);
+			munlock_vma_page(page);
 			unlock_page(page);
 			put_page(page);
 		}
