@@ -186,6 +186,15 @@ struct sensor_platform_data {
 	int (*power_off)(void);
 };
 
+/* Platform data for the board id */
+struct board_id_platform_data {
+	int gpio_pin[32];
+	int num_gpio;
+	int (*init_platform_hw)(void);	
+	int (*exit_platform_hw)(void);	
+};
+
+
 
 struct goodix_platform_data {
 	int model ;
