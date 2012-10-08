@@ -770,6 +770,10 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(0x15DC, 0);
 
 	/* empty context1-7 */
+	/* Assign the pt base to something valid for now; the pts used for
+	 * the VMs are determined by the application and setup and assigned
+	 * on the fly in the vm part of radeon_gart.c
+	 */
 	for (i = 1; i < 8; i++) {
 		WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (i << 2), 0);
 		WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (i << 2), 0);
