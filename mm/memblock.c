@@ -41,7 +41,8 @@ static int memblock_memory_in_slab __initdata_memblock = 0;
 static int memblock_reserved_in_slab __initdata_memblock = 0;
 
 /* inline so we don't get a warning when pr_debug is compiled out */
-static inline const char *memblock_type_name(struct memblock_type *type)
+static __init_memblock const char *
+memblock_type_name(struct memblock_type *type)
 {
 	if (type == &memblock.memory)
 		return "memory";
