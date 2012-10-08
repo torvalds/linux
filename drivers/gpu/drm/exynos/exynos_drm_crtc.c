@@ -217,7 +217,6 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		ret = drm_vblank_get(dev, exynos_crtc->pipe);
 		if (ret) {
 			DRM_DEBUG("failed to acquire vblank counter\n");
-			list_del(&event->base.link);
 
 			goto out;
 		}
