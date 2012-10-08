@@ -139,9 +139,6 @@ static int start_khugepaged(void)
 {
 	int err = 0;
 	if (khugepaged_enabled()) {
-		int wakeup;
-
-		mutex_lock(&khugepaged_mutex);
 		if (!khugepaged_thread)
 			khugepaged_thread = kthread_run(khugepaged, NULL,
 							"khugepaged");
@@ -151,15 +148,17 @@ static int start_khugepaged(void)
 			err = PTR_ERR(khugepaged_thread);
 			khugepaged_thread = NULL;
 		}
-		wakeup = !list_empty(&khugepaged_scan.mm_head);
-		mutex_unlock(&khugepaged_mutex);
-		if (wakeup)
+
+		if (!list_empty(&khugepaged_scan.mm_head))
 			wake_up_interruptible(&khugepaged_wait);
 
 		set_recommended_min_free_kbytes();
-	} else
+	} else if (khugepaged_thread) {
 		/* wakeup to exit */
 		wake_up_interruptible(&khugepaged_wait);
+		kthread_stop(khugepaged_thread);
+		khugepaged_thread = NULL;
+	}
 
 	return err;
 }
@@ -221,7 +220,12 @@ static ssize_t enabled_store(struct kobject *kobj,
 				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
 
 	if (ret > 0) {
-		int err = start_khugepaged();
+		int err;
+
+		mutex_lock(&khugepaged_mutex);
+		err = start_khugepaged();
+		mutex_unlock(&khugepaged_mutex);
+
 		if (err)
 			ret = err;
 	}
@@ -2329,20 +2333,10 @@ static int khugepaged(void *none)
 	set_freezable();
 	set_user_nice(current, 19);
 
-	/* serialize with start_khugepaged() */
-	mutex_lock(&khugepaged_mutex);
-
-	for (;;) {
-		mutex_unlock(&khugepaged_mutex);
+	while (!kthread_should_stop()) {
 		VM_BUG_ON(khugepaged_thread != current);
 		khugepaged_loop();
 		VM_BUG_ON(khugepaged_thread != current);
-
-		mutex_lock(&khugepaged_mutex);
-		if (!khugepaged_enabled())
-			break;
-		if (unlikely(kthread_should_stop()))
-			break;
 	}
 
 	spin_lock(&khugepaged_mm_lock);
@@ -2351,10 +2345,6 @@ static int khugepaged(void *none)
 	if (mm_slot)
 		collect_mm_slot(mm_slot);
 	spin_unlock(&khugepaged_mm_lock);
-
-	khugepaged_thread = NULL;
-	mutex_unlock(&khugepaged_mutex);
-
 	return 0;
 }
 
