@@ -201,10 +201,10 @@ static ssize_t lm3642_torch_pin_store(struct device *dev,
 	return size;
 out:
 	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 out_strtoint:
 	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return size;
+	return ret;
 }
 
 static DEVICE_ATTR(torch_pin, 0666, NULL, lm3642_torch_pin_store);
@@ -258,10 +258,10 @@ static ssize_t lm3642_strobe_pin_store(struct device *dev,
 	return size;
 out:
 	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 out_strtoint:
 	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return size;
+	return ret;
 }
 
 static DEVICE_ATTR(strobe_pin, 0666, NULL, lm3642_strobe_pin_store);
