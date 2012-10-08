@@ -253,8 +253,10 @@ static irqreturn_t aw_clkevt_irq(int irq, void *handle)
         CLKSRC_DBG("aw_clkevt_irq!\n");
         /* clear pending */
         TMR_REG_IRQ_STAT = (1<<1);
+
         /* clock event interrupt handled */
-        aw_clock_event.event_handler(&aw_clock_event);
+	if(likely(aw_clock_event.event_handler != NULL))
+		aw_clock_event.event_handler(&aw_clock_event);
 
         return IRQ_HANDLED;
     }
