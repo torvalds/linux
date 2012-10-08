@@ -140,6 +140,8 @@ $(foreach file, $(libfdt_files), \
 	$(eval CFLAGS_$(file) = -I$(src)/../scripts/dtc/libfdt))
 lib-$(CONFIG_LIBFDT) += $(libfdt_files)
 
+obj-$(CONFIG_RBTREE_TEST) += rbtree_test.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
