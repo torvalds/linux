@@ -1057,7 +1057,6 @@ xfs_fs_sync_fs(
 	int			wait)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	int			error;
 
 	/*
 	 * Doing anything during the async pass would be counterproductive.
@@ -1065,10 +1064,7 @@ xfs_fs_sync_fs(
 	if (!wait)
 		return 0;
 
-	error = xfs_quiesce_data(mp);
-	if (error)
-		return -error;
-
+	xfs_log_force(mp, XFS_LOG_SYNC);
 	if (laptop_mode) {
 		/*
 		 * The disk must be active because we're syncing.
@@ -1238,15 +1234,12 @@ xfs_fs_remount(
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
 		/*
-		 * After we have synced the data but before we sync the
-		 * metadata, we need to free up the reserve block pool so that
-		 * the used block count in the superblock on disk is correct at
-		 * the end of the remount. Stash the current reserve pool size
-		 * so that if we get remounted rw, we can return it to the same
-		 * size.
+		 * Before we sync the metadata, we need to free up the reserve
+		 * block pool so that the used block count in the superblock on
+		 * disk is correct at the end of the remount. Stash the current
+		 * reserve pool size so that if we get remounted rw, we can
+		 * return it to the same size.
 		 */
-
-		xfs_quiesce_data(mp);
 		xfs_save_resvblks(mp);
 		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;

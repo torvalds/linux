@@ -214,69 +214,15 @@ xfs_inode_ag_iterator(
 	return XFS_ERROR(last_error);
 }
 
-STATIC int
-xfs_sync_fsdata(
-	struct xfs_mount	*mp)
-{
-	struct xfs_buf		*bp;
-	int			error;
-
-	/*
-	 * If the buffer is pinned then push on the log so we won't get stuck
-	 * waiting in the write for someone, maybe ourselves, to flush the log.
-	 *
-	 * Even though we just pushed the log above, we did not have the
-	 * superblock buffer locked at that point so it can become pinned in
-	 * between there and here.
-	 */
-	bp = xfs_getsb(mp, 0);
-	if (xfs_buf_ispinned(bp))
-		xfs_log_force(mp, 0);
-	error = xfs_bwrite(bp);
-	xfs_buf_relse(bp);
-	return error;
-}
-
-/*
- * When remounting a filesystem read-only or freezing the filesystem, we have
- * two phases to execute. This first phase is syncing the data before we
- * quiesce the filesystem, and the second is flushing all the inodes out after
- * we've waited for all the transactions created by the first phase to
- * complete. The second phase ensures that the inodes are written to their
- * location on disk rather than just existing in transactions in the log. This
- * means after a quiesce there is no log replay required to write the inodes to
- * disk (this is the main difference between a sync and a quiesce).
- */
-/*
- * First stage of freeze - no writers will make progress now we are here,
- * so we flush delwri and delalloc buffers here, then wait for all I/O to
- * complete.  Data is frozen at that point. Metadata is not frozen,
- * transactions can still occur here so don't bother emptying the AIL
- * because it'll just get dirty again.
- */
-int
-xfs_quiesce_data(
-	struct xfs_mount	*mp)
-{
-	int			error, error2 = 0;
-
-	/* force out the log */
-	xfs_log_force(mp, XFS_LOG_SYNC);
-
-	/* write superblock and hoover up shutdown errors */
-	error = xfs_sync_fsdata(mp);
-
-	/* mark the log as covered if needed */
-	if (xfs_log_need_covered(mp))
-		error2 = xfs_fs_log_dummy(mp);
-
-	return error ? error : error2;
-}
-
 /*
  * Second stage of a quiesce. The data is already synced, now we have to take
  * care of the metadata. New transactions are already blocked, so we need to
  * wait for any remaining transactions to drain out before proceeding.
+ *
+ * The second phase ensures that the inodes are written to their
+ * location on disk rather than just existing in transactions in the log. This
+ * means after a quiesce there is no log replay required to write the inodes to
+ * disk (this is the main difference between a sync and a quiesce).
  *
  * Note: this stops background sync work - the callers must ensure it is started
  * again when appropriate.
@@ -290,6 +236,9 @@ xfs_quiesce_attr(
 	/* wait for all modifications to complete */
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
+
+	/* force the log to unpin objects from the now complete transactions */
+	xfs_log_force(mp, XFS_LOG_SYNC);
 
 	/* reclaim inodes to do any IO before the freeze completes */
 	xfs_reclaim_inodes(mp, 0);
