@@ -193,7 +193,6 @@ static void ath_mci_ftp_adjust(struct ath_softc *sc)
 	struct ath_mci_profile *mci = &btcoex->mci;
 	struct ath_hw *ah = sc->sc_ah;
 
-	btcoex->bt_wait_time += btcoex->btcoex_period;
 	if (btcoex->bt_wait_time > ATH_BTCOEX_RX_WAIT_TIME) {
 		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP) &&
 		    (mci->num_pan || mci->num_other_acl))
@@ -222,6 +221,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP) {
+		btcoex->bt_wait_time += btcoex->btcoex_period;
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 		goto skip_hw_wakeup;
 	}
