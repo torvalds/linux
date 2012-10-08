@@ -100,7 +100,13 @@ struct trace {
 	struct machine		host;
 	u64			base_time;
 	bool			multiple_threads;
+	double			duration_filter;
 };
+
+static bool trace__filter_duration(struct trace *trace, double t)
+{
+	return t < (trace->duration_filter * NSEC_PER_MSEC);
+}
 
 static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 {
@@ -307,8 +313,10 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,  args);
 
 	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
-		trace__fprintf_entry_head(trace, thread, 1, sample->time, stdout);
-		printf("%-70s\n", ttrace->entry_str);
+		if (!trace->duration_filter) {
+			trace__fprintf_entry_head(trace, thread, 1, sample->time, stdout);
+			printf("%-70s\n", ttrace->entry_str);
+		}
 	} else
 		ttrace->entry_pending = true;
 
@@ -333,8 +341,12 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ttrace->exit_time = sample->time;
 
-	if (ttrace->entry_time)
+	if (ttrace->entry_time) {
 		duration = sample->time - ttrace->entry_time;
+		if (trace__filter_duration(trace, duration))
+			goto out;
+	} else if (trace->duration_filter)
+		goto out;
 
 	trace__fprintf_entry_head(trace, thread, duration, sample->time, stdout);
 
@@ -358,7 +370,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		printf(") = %d", ret);
 
 	putchar('\n');
-
+out:
 	ttrace->entry_pending = false;
 
 	return 0;
@@ -495,6 +507,15 @@ out:
 	return err;
 }
 
+static int trace__set_duration(const struct option *opt, const char *str,
+			       int unset __maybe_unused)
+{
+	struct trace *trace = opt->value;
+
+	trace->duration_filter = atof(str);
+	return 0;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const trace_usage[] = {
@@ -533,6 +554,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "number of mmap data pages"),
 	OPT_STRING(0, "uid", &trace.opts.target.uid_str, "user",
 		   "user to profile"),
+	OPT_CALLBACK(0, "duration", &trace, "float",
+		     "show only events with duration > N.M ms",
+		     trace__set_duration),
 	OPT_END()
 	};
 	int err;
