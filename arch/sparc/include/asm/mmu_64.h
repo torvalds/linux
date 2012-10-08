@@ -30,22 +30,8 @@
 #define CTX_PGSZ_MASK		((CTX_PGSZ_BITS << CTX_PGSZ0_SHIFT) | \
 				 (CTX_PGSZ_BITS << CTX_PGSZ1_SHIFT))
 
-#if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)
 #define CTX_PGSZ_BASE	CTX_PGSZ_8KB
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
-#define CTX_PGSZ_BASE	CTX_PGSZ_64KB
-#else
-#error No page size specified in kernel configuration
-#endif
-
-#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
-#define CTX_PGSZ_HUGE		CTX_PGSZ_4MB
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
-#define CTX_PGSZ_HUGE		CTX_PGSZ_512KB
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
-#define CTX_PGSZ_HUGE		CTX_PGSZ_64KB
-#endif
-
+#define CTX_PGSZ_HUGE	CTX_PGSZ_4MB
 #define CTX_PGSZ_KERN	CTX_PGSZ_4MB
 
 /* Thus, when running on UltraSPARC-III+ and later, we use the following

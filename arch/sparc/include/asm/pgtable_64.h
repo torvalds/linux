@@ -160,26 +160,11 @@
 #define _PAGE_SZ8K_4V	  _AC(0x0000000000000000,UL) /* 8K Page              */
 #define _PAGE_SZALL_4V	  _AC(0x0000000000000007,UL) /* All pgsz bits        */
 
-#if PAGE_SHIFT == 13
 #define _PAGE_SZBITS_4U	_PAGE_SZ8K_4U
 #define _PAGE_SZBITS_4V	_PAGE_SZ8K_4V
-#elif PAGE_SHIFT == 16
-#define _PAGE_SZBITS_4U	_PAGE_SZ64K_4U
-#define _PAGE_SZBITS_4V	_PAGE_SZ64K_4V
-#else
-#error Wrong PAGE_SHIFT specified
-#endif
 
-#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
 #define _PAGE_SZHUGE_4U	_PAGE_SZ4MB_4U
 #define _PAGE_SZHUGE_4V	_PAGE_SZ4MB_4V
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
-#define _PAGE_SZHUGE_4U	_PAGE_SZ512K_4U
-#define _PAGE_SZHUGE_4V	_PAGE_SZ512K_4V
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
-#define _PAGE_SZHUGE_4U	_PAGE_SZ64K_4U
-#define _PAGE_SZHUGE_4V	_PAGE_SZ64K_4V
-#endif
 
 /* These are actually filled in at boot time by sun4{u,v}_pgprot_init() */
 #define __P000	__pgprot(0)
@@ -218,7 +203,6 @@ extern unsigned long _PAGE_CACHE;
 
 extern unsigned long pg_iobits;
 extern unsigned long _PAGE_ALL_SZ_BITS;
-extern unsigned long _PAGE_SZBITS;
 
 extern struct page *mem_map_zero;
 #define ZERO_PAGE(vaddr)	(mem_map_zero)
@@ -231,22 +215,9 @@ extern struct page *mem_map_zero;
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 {
 	unsigned long paddr = pfn << PAGE_SHIFT;
-	unsigned long sz_bits;
 
-	sz_bits = 0UL;
-	if (_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL) {
-		__asm__ __volatile__(
-		"\n661:	sethi		%%uhi(%1), %0\n"
-		"	sllx		%0, 32, %0\n"
-		"	.section	.sun4v_2insn_patch, \"ax\"\n"
-		"	.word		661b\n"
-		"	mov		%2, %0\n"
-		"	nop\n"
-		"	.previous\n"
-		: "=r" (sz_bits)
-		: "i" (_PAGE_SZBITS_4U), "i" (_PAGE_SZBITS_4V));
-	}
-	return __pte(paddr | sz_bits | pgprot_val(prot));
+	BUILD_BUG_ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
+	return __pte(paddr | pgprot_val(prot));
 }
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
@@ -286,6 +257,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	 * Note: We encode this into 3 sun4v 2-insn patch sequences.
 	 */
 
+	BUILD_BUG_ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
 	__asm__ __volatile__(
 	"\n661:	sethi		%%uhi(%2), %1\n"
 	"	sethi		%%hi(%2), %0\n"
@@ -307,10 +279,10 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	: "=r" (mask), "=r" (tmp)
 	: "i" (_PAGE_PADDR_4U | _PAGE_MODIFIED_4U | _PAGE_ACCESSED_4U |
 	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_E_4U | _PAGE_PRESENT_4U |
-	       _PAGE_SZBITS_4U | _PAGE_SPECIAL),
+	       _PAGE_SPECIAL),
 	  "i" (_PAGE_PADDR_4V | _PAGE_MODIFIED_4V | _PAGE_ACCESSED_4V |
 	       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_E_4V | _PAGE_PRESENT_4V |
-	       _PAGE_SZBITS_4V | _PAGE_SPECIAL));
+	       _PAGE_SPECIAL));
 
 	return __pte((pte_val(pte) & mask) | (pgprot_val(prot) & ~mask));
 }

@@ -276,7 +276,6 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 }
 
 unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
-unsigned long _PAGE_SZBITS __read_mostly;
 
 static void flush_dcache(unsigned long pfn)
 {
@@ -2275,8 +2274,7 @@ static void __init sun4u_pgprot_init(void)
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4U) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ 0xfffff80000000000UL;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
 		0xfffff80000000000UL;
@@ -2287,7 +2285,6 @@ static void __init sun4u_pgprot_init(void)
 	for (i = 1; i < 4; i++)
 		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4U;
 	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
 			      _PAGE_SZ64K_4U | _PAGE_SZ8K_4U |
 			      _PAGE_SZ32MB_4U | _PAGE_SZ256MB_4U);
@@ -2324,8 +2321,7 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_CACHE = _PAGE_CACHE_4V;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ 0xfffff80000000000UL;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
 		0xfffff80000000000UL;
@@ -2339,7 +2335,6 @@ static void __init sun4v_pgprot_init(void)
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
 		     __ACCESS_BITS_4V | _PAGE_E_4V);
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4V;
 	_PAGE_ALL_SZ_BITS = (_PAGE_SZ16GB_4V | _PAGE_SZ2GB_4V |
 			     _PAGE_SZ256MB_4V | _PAGE_SZ32MB_4V |
 			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |

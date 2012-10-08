@@ -90,29 +90,12 @@ void flush_tsb_user(struct tlb_batch *tb)
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
-#if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)
 #define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_8K
 #define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_8K
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
-#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_64K
-#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_64K
-#else
-#error Broken base page size setting...
-#endif
 
 #ifdef CONFIG_HUGETLB_PAGE
-#if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
-#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_64K
-#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_64K
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
-#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_512K
-#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_512K
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
 #define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_4MB
 #define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_4MB
-#else
-#error Broken huge page size setting...
-#endif
 #endif
 
 static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsigned long tsb_bytes)
