@@ -155,15 +155,15 @@ SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
 -include config/feature-tests.mak
 
-ifeq ($(call try-cc,$(SOURCE_HELLO),-Werror -fstack-protector-all),y)
+ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all),y)
 	CFLAGS := $(CFLAGS) -fstack-protector-all
 endif
 
-ifeq ($(call try-cc,$(SOURCE_HELLO),-Werror -Wstack-protector),y)
+ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -Wstack-protector),y)
        CFLAGS := $(CFLAGS) -Wstack-protector
 endif
 
-ifeq ($(call try-cc,$(SOURCE_HELLO),-Werror -Wvolatile-register-var),y)
+ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -Wvolatile-register-var),y)
        CFLAGS := $(CFLAGS) -Wvolatile-register-var
 endif
 
@@ -171,6 +171,13 @@ endif
 
 BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)util -I$(TRACE_EVENT_DIR) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 BASIC_LDFLAGS =
+
+ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS)),y)
+	BIONIC := 1
+	EXTLIBS := $(filter-out -lrt,$(EXTLIBS))
+	EXTLIBS := $(filter-out -lpthread,$(EXTLIBS))
+	BASIC_CFLAGS += -I.
+endif
 
 # Guard against environment variables
 BUILTIN_OBJS =
@@ -469,12 +476,18 @@ else
 FLAGS_LIBELF=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
 ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF)),y)
 	FLAGS_GLIBC=$(ALL_CFLAGS) $(ALL_LDFLAGS)
-	ifneq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC)),y)
-		msg := $(error No gnu/libc-version.h found, please install glibc-dev[el]/glibc-static);
-	else
+	ifeq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC)),y)
+		LIBC_SUPPORT := 1
+	endif
+	ifeq ($(BIONIC),1)
+		LIBC_SUPPORT := 1
+	endif
+	ifeq ($(LIBC_SUPPORT),1)
 		NO_LIBELF := 1
 		NO_DWARF := 1
 		NO_DEMANGLE := 1
+	else
+		msg := $(error No gnu/libc-version.h found, please install glibc-dev[el]/glibc-static);
 	endif
 else
 	FLAGS_DWARF=$(ALL_CFLAGS) -ldw -lelf $(ALL_LDFLAGS) $(EXTLIBS)

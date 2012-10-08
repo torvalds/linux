@@ -43,6 +43,15 @@ int main(void)
 }
 endef
 
+define SOURCE_BIONIC
+#include <android/api-level.h>
+
+int main(void)
+{
+	return __ANDROID_API__;
+}
+endef
+
 define SOURCE_ELF_MMAP
 #include <libelf.h>
 int main(void)
