@@ -714,8 +714,8 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 	return 0;
 }
 
-void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
-				struct sk_buff *skb)
+static void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
+					u8 event, struct sk_buff *skb)
 {
 	struct sk_buff *rgb_skb = NULL;
 	int r = 0;

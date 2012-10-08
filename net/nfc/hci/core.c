@@ -650,7 +650,7 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	return r;
 }
 
-int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
+static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
