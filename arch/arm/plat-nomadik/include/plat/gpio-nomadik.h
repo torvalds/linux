@@ -18,6 +18,9 @@
  * the "gpio" namespace for generic and cross-machine functions
  */
 
+#define GPIO_BLOCK_SHIFT 5
+#define NMK_GPIO_PER_CHIP (1 << GPIO_BLOCK_SHIFT)
+
 /* Register in the logic block */
 #define NMK_GPIO_DAT	0x00
 #define NMK_GPIO_DATS	0x04
