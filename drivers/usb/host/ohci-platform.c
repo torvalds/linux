@@ -31,6 +31,10 @@ static int ohci_platform_reset(struct usb_hcd *hcd)
 		ohci->flags |= OHCI_QUIRK_FRAME_NO;
 
 	ohci_hcd_init(ohci);
+
+	if (pdata->num_ports)
+		ohci->num_ports = pdata->num_ports;
+
 	err = ohci_init(ohci);
 
 	return err;
