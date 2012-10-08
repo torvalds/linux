@@ -910,18 +910,7 @@ static struct i2c_driver vs6624_driver = {
 	.id_table       = vs6624_id,
 };
 
-static __init int vs6624_init(void)
-{
-	return i2c_add_driver(&vs6624_driver);
-}
-
-static __exit void vs6624_exit(void)
-{
-	i2c_del_driver(&vs6624_driver);
-}
-
-module_init(vs6624_init);
-module_exit(vs6624_exit);
+module_i2c_driver(vs6624_driver);
 
 MODULE_DESCRIPTION("VS6624 sensor driver");
 MODULE_AUTHOR("Scott Jiang <Scott.Jiang.Linux@gmail.com>");
