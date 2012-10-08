@@ -42,7 +42,7 @@ enum efx_mcdi_mode {
  *	Serialised by @lock
  * @credits: Number of spurious MCDI completion events allowed before we
  *	trigger a fatal error. Protected by @lock
- * @resprc: Returned MCDI completion
+ * @resprc: Response error/success code (Linux numbering)
  * @resplen: Returned payload length
  */
 struct efx_mcdi_iface {
@@ -52,7 +52,7 @@ struct efx_mcdi_iface {
 	enum efx_mcdi_mode mode;
 	unsigned int credits;
 	unsigned int seqno;
-	unsigned int resprc;
+	int resprc;
 	size_t resplen;
 };
 
