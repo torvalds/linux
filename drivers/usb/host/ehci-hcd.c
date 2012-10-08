@@ -1319,11 +1319,6 @@ MODULE_LICENSE ("GPL");
 #define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
-#ifdef CONFIG_MACH_LOONGSON1
-#include "ehci-ls1x.c"
-#define PLATFORM_DRIVER		ehci_ls1x_driver
-#endif
-
 #ifdef CONFIG_MIPS_SEAD3
 #include "ehci-sead3.c"
 #define	PLATFORM_DRIVER		ehci_hcd_sead3_driver
