@@ -80,44 +80,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 #define RESID_COUNT_H 13
 #define RESID_COUNT_L 14
 
-/* Board description */
-struct cb_pcimdas_board {
-	const char *name;
-	unsigned short device_id;
-	int ai_se_chans;	/*  Inputs in single-ended mode */
-	int ai_diff_chans;	/*  Inputs in differential mode */
-	int ai_bits;		/*  analog input resolution */
-	int ai_speed;		/*  fastest conversion period in ns */
-	int ao_nchan;		/*  number of analog out channels */
-	int ao_bits;		/*  analogue output resolution */
-	int has_ao_fifo;	/*  analog output has fifo */
-	int ao_scan_speed;	/*  analog output speed for 1602 series (for a scan, not conversion) */
-	int fifo_size;		/*  number of samples fifo can hold */
-	int dio_bits;		/*  number of dio bits */
-	int has_dio;		/*  has DIO */
-	const struct comedi_lrange *ranges;
-};
-
-static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
-	{
-	 .name = "PCIM-DAS1602/16",
-	 .device_id = 0x56,
-	 .ai_se_chans = 16,
-	 .ai_diff_chans = 8,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,	/* ?? */
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .has_ao_fifo = 0,	/* ?? */
-	 .ao_scan_speed = 10000,
-	 /* ?? */
-	 .fifo_size = 1024,
-	 .dio_bits = 24,
-	 .has_dio = 1,
-/*	.ranges = &cb_pcimdas_ranges, */
-	 },
-};
-
 /*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -140,7 +102,6 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct cb_pcimdas_board *thisboard = comedi_board(dev);
 	struct cb_pcimdas_private *devpriv = dev->private;
 	int n, i;
 	unsigned int d;
@@ -153,9 +114,9 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 
 	/* check channel number */
 	if ((inb(devpriv->BADR3 + 2) & 0x20) == 0)	/* differential mode */
-		maxchans = thisboard->ai_diff_chans;
+		maxchans = s->n_chan / 2;
 	else
-		maxchans = thisboard->ai_se_chans;
+		maxchans = s->n_chan;
 
 	if (chan > (maxchans - 1))
 		return -ETIMEDOUT;	/* *** Wrong error code. Fixme. */
@@ -195,12 +156,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return -ETIMEDOUT;
 		}
 		/* read data */
-		d = inw(dev->iobase + 0);
-
-		/* mangle the data as necessary */
-		/* d ^= 1<<(thisboard->ai_bits-1); // 16 bit data from ADC, so no mangle needed. */
-
-		data[n] = d;
+		data[n] = inw(dev->iobase + 0);
 	}
 
 	/* return the number of samples read/written */
@@ -251,24 +207,9 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-static const void *cb_pcimdas_find_boardinfo(struct comedi_device *dev,
-					     struct pci_dev *pcidev)
-{
-	const struct cb_pcimdas_board *thisboard;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(cb_pcimdas_boards); i++) {
-		thisboard = &cb_pcimdas_boards[i];
-		if (thisboard->device_id == pcidev->device)
-			return thisboard;
-	}
-	return NULL;
-}
-
 static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 				 struct pci_dev *pcidev)
 {
-	const struct cb_pcimdas_board *thisboard;
 	struct cb_pcimdas_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase_8255;
@@ -276,26 +217,12 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	thisboard = cb_pcimdas_find_boardinfo(dev, pcidev);
-	if (!thisboard)
-		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
 		return ret;
 	devpriv = dev->private;
-
-	/*  Warn about non-tested features */
-	switch (thisboard->device_id) {
-	case 0x56:
-		break;
-	default:
-		dev_dbg(dev->class_dev, "THIS CARD IS UNSUPPORTED.\n");
-		dev_dbg(dev->class_dev,
-			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
-	}
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -323,8 +250,8 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	/*  analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = thisboard->ai_se_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->n_chan = 16;
+	s->maxdata = 0xffff;
 	s->range_table = &range_unknown;
 	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
 	/*  the board can handle */
@@ -334,8 +261,8 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	/*  analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->ao_nchan;
-	s->maxdata = 1 << thisboard->ao_bits;
+	s->n_chan = 2;
+	s->maxdata = 0xfff;
 	/* ranges are hardware settable, but not software readable. */
 	s->range_table = &range_unknown;
 	s->insn_write = &cb_pcimdas_ao_winsn;
@@ -343,10 +270,7 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	if (thisboard->has_dio)
-		subdev_8255_init(dev, s, NULL, iobase_8255);
-	else
-		s->type = COMEDI_SUBD_UNUSED;
+	subdev_8255_init(dev, s, NULL, iobase_8255);
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
