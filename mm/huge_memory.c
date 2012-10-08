@@ -154,8 +154,6 @@ static int start_khugepaged(void)
 
 		set_recommended_min_free_kbytes();
 	} else if (khugepaged_thread) {
-		/* wakeup to exit */
-		wake_up_interruptible(&khugepaged_wait);
 		kthread_stop(khugepaged_thread);
 		khugepaged_thread = NULL;
 	}
@@ -2221,7 +2219,7 @@ static int khugepaged_has_work(void)
 static int khugepaged_wait_event(void)
 {
 	return !list_empty(&khugepaged_scan.mm_head) ||
-		!khugepaged_enabled();
+		kthread_should_stop();
 }
 
 static void khugepaged_do_scan(struct page **hpage)
@@ -2288,6 +2286,24 @@ static struct page *khugepaged_alloc_hugepage(void)
 }
 #endif
 
+static void khugepaged_wait_work(void)
+{
+	try_to_freeze();
+
+	if (khugepaged_has_work()) {
+		if (!khugepaged_scan_sleep_millisecs)
+			return;
+
+		wait_event_freezable_timeout(khugepaged_wait,
+					     kthread_should_stop(),
+			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
+		return;
+	}
+
+	if (khugepaged_enabled())
+		wait_event_freezable(khugepaged_wait, khugepaged_wait_event());
+}
+
 static void khugepaged_loop(void)
 {
 	struct page *hpage;
@@ -2312,17 +2328,8 @@ static void khugepaged_loop(void)
 		if (hpage)
 			put_page(hpage);
 #endif
-		try_to_freeze();
-		if (unlikely(kthread_should_stop()))
-			break;
-		if (khugepaged_has_work()) {
-			if (!khugepaged_scan_sleep_millisecs)
-				continue;
-			wait_event_freezable_timeout(khugepaged_wait, false,
-			    msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
-		} else if (khugepaged_enabled())
-			wait_event_freezable(khugepaged_wait,
-					     khugepaged_wait_event());
+
+		khugepaged_wait_work();
 	}
 }
 
