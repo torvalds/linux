@@ -26,8 +26,10 @@ struct xfs_perag;
 
 extern struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
 
-int xfs_syncd_init(struct xfs_mount *mp);
-void xfs_syncd_stop(struct xfs_mount *mp);
+void xfs_syncd_queue_sync(struct xfs_mount *mp);
+void xfs_sync_worker(struct work_struct *work);
+void xfs_flush_worker(struct work_struct *work);
+void xfs_reclaim_worker(struct work_struct *work);
 
 int xfs_quiesce_data(struct xfs_mount *mp);
 void xfs_quiesce_attr(struct xfs_mount *mp);

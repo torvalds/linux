@@ -370,7 +370,7 @@ xfs_quiesce_attr(
 	xfs_buf_unlock(mp->m_sb_bp);
 }
 
-static void
+void
 xfs_syncd_queue_sync(
 	struct xfs_mount        *mp)
 {
@@ -383,7 +383,7 @@ xfs_syncd_queue_sync(
  * disk quotas.  We might need to cover the log to indicate that the
  * filesystem is idle and not frozen.
  */
-STATIC void
+void
 xfs_sync_worker(
 	struct work_struct *work)
 {
@@ -445,7 +445,7 @@ xfs_syncd_queue_reclaim(
  * goes low. It scans as quickly as possible avoiding locked inodes or those
  * already being flushed, and once done schedules a future pass.
  */
-STATIC void
+void
 xfs_reclaim_worker(
 	struct work_struct *work)
 {
@@ -478,7 +478,7 @@ xfs_flush_inodes(
 	flush_work(&mp->m_flush_work);
 }
 
-STATIC void
+void
 xfs_flush_worker(
 	struct work_struct *work)
 {
@@ -487,28 +487,6 @@ xfs_flush_worker(
 
 	xfs_sync_data(mp, SYNC_TRYLOCK);
 	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_WAIT);
-}
-
-int
-xfs_syncd_init(
-	struct xfs_mount	*mp)
-{
-	INIT_WORK(&mp->m_flush_work, xfs_flush_worker);
-	INIT_DELAYED_WORK(&mp->m_sync_work, xfs_sync_worker);
-	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
-
-	xfs_syncd_queue_sync(mp);
-
-	return 0;
-}
-
-void
-xfs_syncd_stop(
-	struct xfs_mount	*mp)
-{
-	cancel_delayed_work_sync(&mp->m_sync_work);
-	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	cancel_work_sync(&mp->m_flush_work);
 }
 
 void
