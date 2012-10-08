@@ -2467,3 +2467,104 @@ void __flush_tlb_all(void)
 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
 			     : : "r" (pstate));
 }
+
+static pte_t *get_from_cache(struct mm_struct *mm)
+{
+	struct page *page;
+	pte_t *ret;
+
+	spin_lock(&mm->page_table_lock);
+	page = mm->context.pgtable_page;
+	ret = NULL;
+	if (page) {
+		void *p = page_address(page);
+
+		mm->context.pgtable_page = NULL;
+
+		ret = (pte_t *) (p + (PAGE_SIZE / 2));
+	}
+	spin_unlock(&mm->page_table_lock);
+
+	return ret;
+}
+
+static struct page *__alloc_for_cache(struct mm_struct *mm)
+{
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+
+	if (page) {
+		spin_lock(&mm->page_table_lock);
+		if (!mm->context.pgtable_page) {
+			atomic_set(&page->_count, 2);
+			mm->context.pgtable_page = page;
+		}
+		spin_unlock(&mm->page_table_lock);
+	}
+	return page;
+}
+
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+			    unsigned long address)
+{
+	struct page *page;
+	pte_t *pte;
+
+	pte = get_from_cache(mm);
+	if (pte)
+		return pte;
+
+	page = __alloc_for_cache(mm);
+	if (page)
+		pte = (pte_t *) page_address(page);
+
+	return pte;
+}
+
+pgtable_t pte_alloc_one(struct mm_struct *mm,
+			unsigned long address)
+{
+	struct page *page;
+	pte_t *pte;
+
+	pte = get_from_cache(mm);
+	if (pte)
+		return pte;
+
+	page = __alloc_for_cache(mm);
+	if (page) {
+		pgtable_page_ctor(page);
+		pte = (pte_t *) page_address(page);
+	}
+
+	return pte;
+}
+
+void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+{
+	struct page *page = virt_to_page(pte);
+	if (put_page_testzero(page))
+		free_hot_cold_page(page, 0);
+}
+
+static void __pte_free(pgtable_t pte)
+{
+	struct page *page = virt_to_page(pte);
+	if (put_page_testzero(page)) {
+		pgtable_page_dtor(page);
+		free_hot_cold_page(page, 0);
+	}
+}
+
+void pte_free(struct mm_struct *mm, pgtable_t pte)
+{
+	__pte_free(pte);
+}
+
+void pgtable_free(void *table, bool is_page)
+{
+	if (is_page)
+		__pte_free(table);
+	else
+		kmem_cache_free(pgtable_cache, table);
+}
