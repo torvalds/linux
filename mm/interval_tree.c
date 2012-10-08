@@ -70,4 +70,43 @@ static inline unsigned long avc_last_pgoff(struct anon_vma_chain *avc)
 }
 
 INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,
-		     avc_start_pgoff, avc_last_pgoff,, anon_vma_interval_tree)
+		     avc_start_pgoff, avc_last_pgoff,
+		     static inline, __anon_vma_interval_tree)
+
+void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
+				   struct rb_root *root)
+{
+#ifdef CONFIG_DEBUG_VM_RB
+	node->cached_vma_start = avc_start_pgoff(node);
+	node->cached_vma_last = avc_last_pgoff(node);
+#endif
+	__anon_vma_interval_tree_insert(node, root);
+}
+
+void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
+				   struct rb_root *root)
+{
+	__anon_vma_interval_tree_remove(node, root);
+}
+
+struct anon_vma_chain *
+anon_vma_interval_tree_iter_first(struct rb_root *root,
+				  unsigned long first, unsigned long last)
+{
+	return __anon_vma_interval_tree_iter_first(root, first, last);
+}
+
+struct anon_vma_chain *
+anon_vma_interval_tree_iter_next(struct anon_vma_chain *node,
+				 unsigned long first, unsigned long last)
+{
+	return __anon_vma_interval_tree_iter_next(node, first, last);
+}
+
+#ifdef CONFIG_DEBUG_VM_RB
+void anon_vma_interval_tree_verify(struct anon_vma_chain *node)
+{
+	WARN_ON_ONCE(node->cached_vma_start != avc_start_pgoff(node));
+	WARN_ON_ONCE(node->cached_vma_last != avc_last_pgoff(node));
+}
+#endif

@@ -66,6 +66,9 @@ struct anon_vma_chain {
 	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
 	struct rb_node rb;			/* locked by anon_vma->mutex */
 	unsigned long rb_subtree_last;
+#ifdef CONFIG_DEBUG_VM_RB
+	unsigned long cached_vma_start, cached_vma_last;
+#endif
 };
 
 #ifdef CONFIG_MMU
