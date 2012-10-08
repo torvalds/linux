@@ -334,6 +334,16 @@ config SENSORS_DA9052_ADC
 	  This driver can also be built as module. If so, the module
 	  will be called da9052-hwmon.
 
+config SENSORS_DA9055
+	tristate "Dialog Semiconductor DA9055 ADC"
+	depends on MFD_DA9055
+	help
+	  If you say yes here you get support for ADC on the Dialog
+	  Semiconductor DA9055 PMIC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called da9055-hwmon.
+
 config SENSORS_I5K_AMB
 	tristate "FB-DIMM AMB temperature sensor on Intel 5000 series chipsets"
 	depends on PCI
