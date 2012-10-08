@@ -673,8 +673,8 @@ static void print_result(struct perf_kvm *kvm)
 		pr_info("\n");
 	}
 
-	pr_info("\nTotal Samples:%lld, Total events handled time:%.2fus.\n\n",
-		(unsigned long long)kvm->total_count, kvm->total_time / 1e3);
+	pr_info("\nTotal Samples:%" PRIu64 ", Total events handled time:%.2fus.\n\n",
+		kvm->total_count, kvm->total_time / 1e3);
 }
 
 static int process_sample_event(struct perf_tool *tool,
