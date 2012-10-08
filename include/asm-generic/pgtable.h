@@ -381,48 +381,57 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
 
 #ifndef __HAVE_PFNMAP_TRACKING
 /*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
- * track_pfn_vma_new is called when a _new_ pfn mapping is being established
- * for physical range indicated by pfn and size.
+ * Interfaces that can be used by architecture code to keep track of
+ * memory type of pfn mappings specified by the remap_pfn_range,
+ * vm_insert_pfn.
  */
-static inline int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
-					unsigned long pfn, unsigned long size)
+
+/*
+ * track_pfn_remap is called when a _new_ pfn mapping is being established
+ * by remap_pfn_range() for physical range indicated by pfn and size.
+ */
+static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+				  unsigned long pfn, unsigned long size)
 {
 	return 0;
 }
 
 /*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
- * track_pfn_vma_copy is called when vma that is covering the pfnmap gets
+ * track_pfn_insert is called when a _new_ single pfn is established
+ * by vm_insert_pfn().
+ */
+static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+				   unsigned long pfn)
+{
+	return 0;
+}
+
+/*
+ * track_pfn_copy is called when vma that is covering the pfnmap gets
  * copied through copy_page_range().
  */
-static inline int track_pfn_vma_copy(struct vm_area_struct *vma)
+static inline int track_pfn_copy(struct vm_area_struct *vma)
 {
 	return 0;
 }
 
 /*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
  * untrack_pfn_vma is called while unmapping a pfnmap for a region.
  * untrack can be called for a specific region indicated by pfn and size or
- * can be for the entire vma (in which case size can be zero).
+ * can be for the entire vma (in which case pfn, size are zero).
  */
-static inline void untrack_pfn_vma(struct vm_area_struct *vma,
-					unsigned long pfn, unsigned long size)
+static inline void untrack_pfn(struct vm_area_struct *vma,
+			       unsigned long pfn, unsigned long size)
 {
 }
 #else
-extern int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
-				unsigned long pfn, unsigned long size);
-extern int track_pfn_vma_copy(struct vm_area_struct *vma);
-extern void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
-				unsigned long size);
+extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+			   unsigned long pfn, unsigned long size);
+extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+			    unsigned long pfn);
+extern int track_pfn_copy(struct vm_area_struct *vma);
+extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+			unsigned long size);
 #endif
 
 #ifdef CONFIG_MMU
