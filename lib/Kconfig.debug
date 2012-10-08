@@ -751,12 +751,12 @@ config DEBUG_HIGHMEM
 	  This options enables addition error checking for high memory systems.
 	  Disable for production systems.
 
+config HAVE_DEBUG_BUGVERBOSE
+	bool
+
 config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
-	depends on BUG
-	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
-		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300 || \
-		   TILE || ARM64
+	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
 	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
