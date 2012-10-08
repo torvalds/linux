@@ -2333,11 +2333,8 @@ static int khugepaged(void *none)
 	set_freezable();
 	set_user_nice(current, 19);
 
-	while (!kthread_should_stop()) {
-		VM_BUG_ON(khugepaged_thread != current);
+	while (!kthread_should_stop())
 		khugepaged_loop();
-		VM_BUG_ON(khugepaged_thread != current);
-	}
 
 	spin_lock(&khugepaged_mm_lock);
 	mm_slot = khugepaged_scan.mm_slot;
