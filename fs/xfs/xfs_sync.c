@@ -379,9 +379,9 @@ xfs_syncd_queue_sync(
 }
 
 /*
- * Every sync period we need to unpin all items, reclaim inodes and sync
- * disk quotas.  We might need to cover the log to indicate that the
- * filesystem is idle and not frozen.
+ * Every sync period we need to unpin all items in the AIL and push them to
+ * disk. If there is nothing dirty, then we might need to cover the log to
+ * indicate that the filesystem is idle and not frozen.
  */
 void
 xfs_sync_worker(
@@ -391,17 +391,7 @@ xfs_sync_worker(
 					struct xfs_mount, m_sync_work);
 	int		error;
 
-	/*
-	 * We shouldn't write/force the log if we are in the mount/unmount
-	 * process or on a read only filesystem. The workqueue still needs to be
-	 * active in both cases, however, because it is used for inode reclaim
-	 * during these times.  Use the MS_ACTIVE flag to avoid doing anything
-	 * during mount.  Doing work during unmount is avoided by calling
-	 * cancel_delayed_work_sync on this work queue before tearing down
-	 * the ail and the log in xfs_log_unmount.
-	 */
-	if (!(mp->m_super->s_flags & MS_ACTIVE) &&
-	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		/* dgc: errors ignored here */
 		if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
 		    xfs_log_need_covered(mp))
@@ -409,8 +399,7 @@ xfs_sync_worker(
 		else
 			xfs_log_force(mp, 0);
 
-		/* start pushing all the metadata that is currently
-		 * dirty */
+		/* start pushing all the metadata that is currently dirty */
 		xfs_ail_push_all(mp->m_ail);
 	}
 

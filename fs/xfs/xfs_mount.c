@@ -1450,9 +1450,11 @@ xfs_unmountfs(
 
 	/*
 	 * And reclaim all inodes.  At this point there should be no dirty
-	 * inode, and none should be pinned or locked, but use synchronous
-	 * reclaim just to be sure.
+	 * inodes and none should be pinned or locked, but use synchronous
+	 * reclaim just to be sure. We can stop background inode reclaim
+	 * here as well if it is still running.
 	 */
+	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);
