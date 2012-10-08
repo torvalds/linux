@@ -1259,11 +1259,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_octeon_driver
 #endif
 
-#ifdef CONFIG_USB_CNS3XXX_EHCI
-#include "ehci-cns3xxx.c"
-#define PLATFORM_DRIVER		cns3xxx_ehci_driver
-#endif
-
 #ifdef CONFIG_ARCH_VT8500
 #include "ehci-vt8500.c"
 #define	PLATFORM_DRIVER		vt8500_ehci_driver

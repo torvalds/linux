@@ -215,9 +215,13 @@ config USB_W90X900_EHCI
 		Enables support for the W90X900 USB controller
 
 config USB_CNS3XXX_EHCI
-	bool "Cavium CNS3XXX EHCI Module"
+	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
 	depends on USB_EHCI_HCD && ARCH_CNS3XXX
+	select USB_EHCI_HCD_PLATFORM
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_EHCI_HCD_PLATFORM instead.
+
 	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
 	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
 	  support.
