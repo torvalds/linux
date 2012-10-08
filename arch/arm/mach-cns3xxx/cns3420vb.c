@@ -25,6 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/gic.h>
@@ -127,7 +128,7 @@ static struct resource cns3xxx_usb_ehci_resources[] = {
 
 static u64 cns3xxx_usb_ehci_dma_mask = DMA_BIT_MASK(32);
 
-static int csn3xxx_usb_ehci_power_on(struct platform_device *pdev)
+static int csn3xxx_usb_power_on(struct platform_device *pdev)
 {
 	/*
 	 * EHCI and OHCI share the same clock and power,
@@ -148,7 +149,7 @@ static int csn3xxx_usb_ehci_power_on(struct platform_device *pdev)
 	return 0;
 }
 
-static void csn3xxx_usb_ehci_power_off(struct platform_device *pdev)
+static void csn3xxx_usb_power_off(struct platform_device *pdev)
 {
 	/*
 	 * EHCI and OHCI share the same clock and power,
@@ -162,8 +163,8 @@ static void csn3xxx_usb_ehci_power_off(struct platform_device *pdev)
 
 static struct usb_ehci_pdata cns3xxx_usb_ehci_pdata = {
 	.port_power_off	= 1,
-	.power_on	= csn3xxx_usb_ehci_power_on,
-	.power_off	= csn3xxx_usb_ehci_power_off,
+	.power_on	= csn3xxx_usb_power_on,
+	.power_off	= csn3xxx_usb_power_off,
 };
 
 static struct platform_device cns3xxx_usb_ehci_device = {
@@ -191,13 +192,20 @@ static struct resource cns3xxx_usb_ohci_resources[] = {
 
 static u64 cns3xxx_usb_ohci_dma_mask = DMA_BIT_MASK(32);
 
+static struct usb_ohci_pdata cns3xxx_usb_ohci_pdata = {
+	.num_ports	= 1,
+	.power_on	= csn3xxx_usb_power_on,
+	.power_off	= csn3xxx_usb_power_off,
+};
+
 static struct platform_device cns3xxx_usb_ohci_device = {
-	.name          = "cns3xxx-ohci",
+	.name          = "ohci-platform",
 	.num_resources = ARRAY_SIZE(cns3xxx_usb_ohci_resources),
 	.resource      = cns3xxx_usb_ohci_resources,
 	.dev           = {
 		.dma_mask          = &cns3xxx_usb_ohci_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data	   = &cns3xxx_usb_ohci_pdata,
 	},
 };
 
