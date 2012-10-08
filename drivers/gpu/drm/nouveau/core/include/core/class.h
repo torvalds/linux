@@ -69,6 +69,17 @@ struct nv_device_class {
 #define NV50_DMA_CONF0_TYPE_LINEAR                                   0x00000000
 #define NV50_DMA_CONF0_TYPE_VM                                       0x0000007f
 
+/* NVC0:NVD9 */
+#define NVC0_DMA_CONF0_ENABLE                                        0x80000000
+#define NVC0_DMA_CONF0_PRIV                                          0x00300000
+#define NVC0_DMA_CONF0_PRIV_VM                                       0x00000000
+#define NVC0_DMA_CONF0_PRIV_US                                       0x00100000
+#define NVC0_DMA_CONF0_PRIV__S                                       0x00200000
+#define NVC0_DMA_CONF0_UNKN /* PART? */                              0x00030000
+#define NVC0_DMA_CONF0_TYPE                                          0x000000ff
+#define NVC0_DMA_CONF0_TYPE_LINEAR                                   0x00000000
+#define NVC0_DMA_CONF0_TYPE_VM                                       0x000000ff
+
 struct nv_dma_class {
 	u32 flags;
 	u32 pad0;
