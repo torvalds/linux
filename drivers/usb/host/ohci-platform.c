@@ -107,7 +107,7 @@ static int __devinit ohci_platform_probe(struct platform_device *dev)
 
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&dev->dev, "no memory recourse provided");
+		dev_err(&dev->dev, "no memory resource provided");
 		return -ENXIO;
 	}
 
