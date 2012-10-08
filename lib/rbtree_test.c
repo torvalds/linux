@@ -61,35 +61,65 @@ static inline u32 augment_recompute(struct test_node *node)
 	return max;
 }
 
-static void augment_callback(struct rb_node *rb, void *unused)
+static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
 {
-	struct test_node *node = rb_entry(rb, struct test_node, rb);
-	node->augmented = augment_recompute(node);
+	while (rb != stop) {
+		struct test_node *node = rb_entry(rb, struct test_node, rb);
+		u32 augmented = augment_recompute(node);
+		if (node->augmented == augmented)
+			break;
+		node->augmented = augmented;
+		rb = rb_parent(&node->rb);
+	}
 }
+
+static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
+{
+	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
+	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
+	new->augmented = old->augmented;
+}
+
+static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
+{
+	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
+	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
+
+	/* Rotation doesn't change subtree's augmented value */
+	new->augmented = old->augmented;
+	old->augmented = augment_recompute(old);
+}
+
+static const struct rb_augment_callbacks augment_callbacks = {
+	augment_propagate, augment_copy, augment_rotate
+};
 
 static void insert_augmented(struct test_node *node, struct rb_root *root)
 {
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	struct rb_node **new = &root->rb_node, *rb_parent = NULL;
 	u32 key = node->key;
+	u32 val = node->val;
+	struct test_node *parent;
 
 	while (*new) {
-		parent = *new;
-		if (key < rb_entry(parent, struct test_node, rb)->key)
-			new = &parent->rb_left;
+		rb_parent = *new;
+		parent = rb_entry(rb_parent, struct test_node, rb);
+		if (parent->augmented < val)
+			parent->augmented = val;
+		if (key < parent->key)
+			new = &parent->rb.rb_left;
 		else
-			new = &parent->rb_right;
+			new = &parent->rb.rb_right;
 	}
 
-	rb_link_node(&node->rb, parent, new);
-	rb_insert_color(&node->rb, root);
-	rb_augment_insert(&node->rb, augment_callback, NULL);
+	node->augmented = val;
+	rb_link_node(&node->rb, rb_parent, new);
+	rb_insert_augmented(&node->rb, root, &augment_callbacks);
 }
 
 static void erase_augmented(struct test_node *node, struct rb_root *root)
 {
-	struct rb_node *deepest = rb_augment_erase_begin(&node->rb);
-	rb_erase(&node->rb, root);
-	rb_augment_erase_end(deepest, augment_callback, NULL);
+	rb_erase_augmented(&node->rb, root, &augment_callbacks);
 }
 
 static void init(void)
