@@ -89,6 +89,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 	int ret = -ENOMEM;
 
 	while (address < end) {
+		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
 			pu_dir = vmem_pud_alloc();
@@ -96,18 +97,24 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 				goto out;
 			pgd_populate(&init_mm, pg_dir, pu_dir);
 		}
-
 		pu_dir = pud_offset(pg_dir, address);
+#if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
+		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
+		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
+			pte_val(pte) |= _REGION3_ENTRY_LARGE;
+			pte_val(pte) |= _REGION_ENTRY_TYPE_R3;
+			pud_val(*pu_dir) = pte_val(pte);
+			address += PUD_SIZE;
+			continue;
+		}
+#endif
 		if (pud_none(*pu_dir)) {
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
 				goto out;
 			pud_populate(&init_mm, pu_dir, pm_dir);
 		}
-
-		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
 		pm_dir = pmd_offset(pu_dir, address);
-
 #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
@@ -157,6 +164,11 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		}
 		pu_dir = pud_offset(pg_dir, address);
 		if (pud_none(*pu_dir)) {
+			address += PUD_SIZE;
+			continue;
+		}
+		if (pud_large(*pu_dir)) {
+			pud_clear(pu_dir);
 			address += PUD_SIZE;
 			continue;
 		}

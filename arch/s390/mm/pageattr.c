@@ -19,7 +19,7 @@ static pte_t *walk_page_table(unsigned long addr)
 	if (pgd_none(*pgdp))
 		return NULL;
 	pudp = pud_offset(pgdp, addr);
-	if (pud_none(*pudp))
+	if (pud_none(*pudp) || pud_large(*pudp))
 		return NULL;
 	pmdp = pmd_offset(pudp, addr);
 	if (pmd_none(*pmdp) || pmd_large(*pmdp))
