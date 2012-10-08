@@ -1762,6 +1762,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	struct in_device *in_dev;
 	u16 type = res->type;
 	struct rtable *rth;
+	bool do_cache;
 
 	in_dev = __in_dev_get_rcu(dev_out);
 	if (!in_dev)
@@ -1798,24 +1799,36 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	}
 
 	fnhe = NULL;
+	do_cache = fi != NULL;
 	if (fi) {
 		struct rtable __rcu **prth;
+		struct fib_nh *nh = &FIB_RES_NH(*res);
 
-		fnhe = find_exception(&FIB_RES_NH(*res), fl4->daddr);
+		fnhe = find_exception(nh, fl4->daddr);
 		if (fnhe)
 			prth = &fnhe->fnhe_rth;
-		else
-			prth = __this_cpu_ptr(FIB_RES_NH(*res).nh_pcpu_rth_output);
+		else {
+			if (unlikely(fl4->flowi4_flags &
+				     FLOWI_FLAG_KNOWN_NH &&
+				     !(nh->nh_gw &&
+				       nh->nh_scope == RT_SCOPE_LINK))) {
+				do_cache = false;
+				goto add;
+			}
+			prth = __this_cpu_ptr(nh->nh_pcpu_rth_output);
+		}
 		rth = rcu_dereference(*prth);
 		if (rt_cache_valid(rth)) {
 			dst_hold(&rth->dst);
 			return rth;
 		}
 	}
+
+add:
 	rth = rt_dst_alloc(dev_out,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(in_dev, NOXFRM),
-			   fi);
+			   do_cache);
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
 
