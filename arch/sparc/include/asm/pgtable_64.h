@@ -63,9 +63,30 @@
 #error Page table parameters do not cover virtual address space properly.
 #endif
 
+#if (PMD_SHIFT != HPAGE_SHIFT)
+#error PMD_SHIFT must equal HPAGE_SHIFT for transparent huge pages.
+#endif
+
 /* PMDs point to PTE tables which are 4K aligned.  */
 #define PMD_PADDR	_AC(0xfffffffe,UL)
 #define PMD_PADDR_SHIFT	_AC(11,UL)
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define PMD_ISHUGE	_AC(0x00000001,UL)
+
+/* This is the PMD layout when PMD_ISHUGE is set.  With 4MB huge
+ * pages, this frees up a bunch of bits in the layout that we can
+ * use for the protection settings and software metadata.
+ */
+#define PMD_HUGE_PADDR		_AC(0xfffff800,UL)
+#define PMD_HUGE_PROTBITS	_AC(0x000007ff,UL)
+#define PMD_HUGE_PRESENT	_AC(0x00000400,UL)
+#define PMD_HUGE_WRITE		_AC(0x00000200,UL)
+#define PMD_HUGE_DIRTY		_AC(0x00000100,UL)
+#define PMD_HUGE_ACCESSED	_AC(0x00000080,UL)
+#define PMD_HUGE_EXEC		_AC(0x00000040,UL)
+#define PMD_HUGE_SPLITTING	_AC(0x00000020,UL)
+#endif
 
 /* PGDs point to PMD tables which are 8K aligned.  */
 #define PGD_PADDR	_AC(0xfffffffc,UL)
@@ -218,6 +239,19 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 	return __pte(paddr | pgprot_val(prot));
 }
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot);
+#define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
+
+extern pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot);
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	/* Do nothing, mk_pmd() does this part.  */
+	return pmd;
+}
+#endif
 
 /* This one can be done with two shifts.  */
 static inline unsigned long pte_pfn(pte_t pte)
@@ -588,19 +622,130 @@ static inline unsigned long pte_special(pte_t pte)
 	return pte_val(pte) & _PAGE_SPECIAL;
 }
 
-#define pmd_set(pmdp, ptep)	\
-	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> PMD_PADDR_SHIFT))
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline int pmd_young(pmd_t pmd)
+{
+	return pmd_val(pmd) & PMD_HUGE_ACCESSED;
+}
+
+static inline int pmd_write(pmd_t pmd)
+{
+	return pmd_val(pmd) & PMD_HUGE_WRITE;
+}
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	unsigned long val = pmd_val(pmd) & PMD_HUGE_PADDR;
+
+	return val >> (PAGE_SHIFT - PMD_PADDR_SHIFT);
+}
+
+static inline int pmd_large(pmd_t pmd)
+{
+	return (pmd_val(pmd) & (PMD_ISHUGE | PMD_HUGE_PRESENT)) ==
+		(PMD_ISHUGE | PMD_HUGE_PRESENT);
+}
+
+static inline int pmd_trans_splitting(pmd_t pmd)
+{
+	return (pmd_val(pmd) & (PMD_ISHUGE|PMD_HUGE_SPLITTING)) ==
+		(PMD_ISHUGE|PMD_HUGE_SPLITTING);
+}
+
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	return pmd_val(pmd) & PMD_ISHUGE;
+}
+
+#define has_transparent_hugepage() 1
+
+static inline pmd_t pmd_mkold(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~PMD_HUGE_ACCESSED;
+	return pmd;
+}
+
+static inline pmd_t pmd_wrprotect(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~PMD_HUGE_WRITE;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkdirty(pmd_t pmd)
+{
+	pmd_val(pmd) |= PMD_HUGE_DIRTY;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkyoung(pmd_t pmd)
+{
+	pmd_val(pmd) |= PMD_HUGE_ACCESSED;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkwrite(pmd_t pmd)
+{
+	pmd_val(pmd) |= PMD_HUGE_WRITE;
+	return pmd;
+}
+
+static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~PMD_HUGE_PRESENT;
+	return pmd;
+}
+
+static inline pmd_t pmd_mksplitting(pmd_t pmd)
+{
+	pmd_val(pmd) |= PMD_HUGE_SPLITTING;
+	return pmd;
+}
+
+extern pgprot_t pmd_pgprot(pmd_t entry);
+#endif
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return pmd_val(pmd) != 0U;
+}
+
+#define pmd_none(pmd)			(!pmd_val(pmd))
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+		       pmd_t *pmdp, pmd_t pmd);
+#else
+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+			      pmd_t *pmdp, pmd_t pmd)
+{
+	*pmdp = pmd;
+}
+#endif
+
+static inline void pmd_set(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
+{
+	unsigned long val = __pa((unsigned long) (ptep)) >> PMD_PADDR_SHIFT;
+
+	pmd_val(*pmdp) = val;
+}
+
 #define pud_set(pudp, pmdp)	\
 	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> PGD_PADDR_SHIFT))
-#define __pmd_page(pmd)		\
-	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<PMD_PADDR_SHIFT)))
+static inline unsigned long __pmd_page(pmd_t pmd)
+{
+	unsigned long paddr = (unsigned long) pmd_val(pmd);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	if (pmd_val(pmd) & PMD_ISHUGE)
+		paddr &= PMD_HUGE_PADDR;
+#endif
+	paddr <<= PMD_PADDR_SHIFT;
+	return ((unsigned long) __va(paddr));
+}
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
 #define pud_page_vaddr(pud)		\
 	((unsigned long) __va((((unsigned long)pud_val(pud))<<PGD_PADDR_SHIFT)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
-#define pmd_none(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(0)
-#define pmd_present(pmd)		(pmd_val(pmd) != 0U)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0U)
 #define pud_none(pud)			(!pud_val(pud))
 #define pud_bad(pud)			(0)
@@ -633,6 +778,16 @@ static inline unsigned long pte_special(pte_t pte)
 /* Actual page table PTE updates.  */
 extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 			  pte_t *ptep, pte_t orig, int fullmm);
+
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+				       unsigned long addr,
+				       pmd_t *pmdp)
+{
+	pmd_t pmd = *pmdp;
+	set_pmd_at(mm, addr, pmdp, __pmd(0U));
+	return pmd;
+}
 
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 			     pte_t *ptep, pte_t pte, int fullmm)
@@ -689,6 +844,16 @@ extern void mmu_info(struct seq_file *);
 
 struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+				 pmd_t *pmd);
+
+#define __HAVE_ARCH_PGTABLE_DEPOSIT
+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
+
+#define __HAVE_ARCH_PGTABLE_WITHDRAW
+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
+#endif
 
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> PAGE_SHIFT) & 0xffUL)

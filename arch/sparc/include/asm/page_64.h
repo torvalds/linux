@@ -17,7 +17,7 @@
 
 #define HPAGE_SHIFT		22
 
-#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 #define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1UL))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
@@ -25,6 +25,11 @@
 #endif
 
 #ifndef __ASSEMBLY__
+
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+struct mm_struct;
+extern void hugetlb_setup(struct mm_struct *mm);
+#endif
 
 #define WANT_PAGE_VIRTUAL
 
