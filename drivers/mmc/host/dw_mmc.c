@@ -2228,6 +2228,21 @@ int dw_mci_probe(struct dw_mci *host)
 	else
 		host->num_slots = ((mci_readl(host, HCON) >> 1) & 0x1F) + 1;
 
+	/*
+	 * Enable interrupts for command done, data over, data empty, card det,
+	 * receive ready and error such as transmit, receive timeout, crc error
+	 */
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
+		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
+		   DW_MCI_ERROR_FLAGS | SDMMC_INT_CD);
+	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE); /* Enable mci interrupt */
+
+	dev_info(host->dev, "DW MMC controller at irq %d, "
+		 "%d bit host data width, "
+		 "%u deep fifo\n",
+		 host->irq, width, fifo_size);
+
 	/* We need at least one slot to succeed */
 	for (i = 0; i < host->num_slots; i++) {
 		ret = dw_mci_init_slot(host, i);
@@ -2257,20 +2272,6 @@ int dw_mci_probe(struct dw_mci *host)
 	else
 		host->data_offset = DATA_240A_OFFSET;
 
-	/*
-	 * Enable interrupts for command done, data over, data empty, card det,
-	 * receive ready and error such as transmit, receive timeout, crc error
-	 */
-	mci_writel(host, RINTSTS, 0xFFFFFFFF);
-	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
-		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
-		   DW_MCI_ERROR_FLAGS | SDMMC_INT_CD);
-	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE); /* Enable mci interrupt */
-
-	dev_info(host->dev, "DW MMC controller at irq %d, "
-		 "%d bit host data width, "
-		 "%u deep fifo\n",
-		 host->irq, width, fifo_size);
 	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO)
 		dev_info(host->dev, "Internal DMAC interrupt fix enabled.\n");
 
