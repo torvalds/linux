@@ -1140,6 +1140,12 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	int processed = urb->transfer_buffer_length / stride;
 	int est_delay;
 
+	/* ignore the delay accounting when procssed=0 is given, i.e.
+	 * silent payloads are procssed before handling the actual data
+	 */
+	if (!processed)
+		return;
+
 	spin_lock_irqsave(&subs->lock, flags);
 	est_delay = snd_usb_pcm_delay(subs, runtime->rate);
 	/* update delay with exact number of samples played */

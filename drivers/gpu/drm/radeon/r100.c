@@ -1182,7 +1182,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	ring->ready = true;
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
-	if (radeon_ring_supports_scratch_reg(rdev, ring)) {
+	if (!ring->rptr_save_reg /* not resuming from suspend */
+	    && radeon_ring_supports_scratch_reg(rdev, ring)) {
 		r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
 		if (r) {
 			DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);

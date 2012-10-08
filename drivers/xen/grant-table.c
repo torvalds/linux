@@ -870,7 +870,8 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
 
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct page **pages, unsigned int count, bool clear_pte)
+		      struct gnttab_map_grant_ref *kmap_ops,
+		      struct page **pages, unsigned int count)
 {
 	int i, ret;
 	bool lazy = false;
@@ -888,7 +889,8 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	}
 
 	for (i = 0; i < count; i++) {
-		ret = m2p_remove_override(pages[i], clear_pte);
+		ret = m2p_remove_override(pages[i], kmap_ops ?
+				       &kmap_ops[i] : NULL);
 		if (ret)
 			return ret;
 	}

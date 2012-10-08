@@ -3242,7 +3242,8 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	BUG_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
+	if (WARN_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
+		return -EBUSY;
 
 	if (obj->gtt_space != NULL) {
 		if ((alignment && obj->gtt_offset & (alignment - 1)) ||

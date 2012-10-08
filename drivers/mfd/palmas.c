@@ -453,7 +453,8 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 
 	ret = mfd_add_devices(palmas->dev, -1,
 			      children, ARRAY_SIZE(palmas_children),
-			      NULL, regmap_irq_chip_get_base(palmas->irq_data));
+			      NULL, regmap_irq_chip_get_base(palmas->irq_data),
+			      NULL);
 	kfree(children);
 
 	if (ret < 0)

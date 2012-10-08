@@ -298,6 +298,13 @@ static int __devinit pc263_attach_pci(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pc263_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via pc263_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pci_dev);
 	return pc263_pci_common_attach(dev, pci_dev);
 }
 

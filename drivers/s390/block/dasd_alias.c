@@ -384,6 +384,29 @@ static void _remove_device_from_lcu(struct alias_lcu *lcu,
 		group->next = NULL;
 };
 
+static int
+suborder_not_supported(struct dasd_ccw_req *cqr)
+{
+	char *sense;
+	char reason;
+	char msg_format;
+	char msg_no;
+
+	sense = dasd_get_sense(&cqr->irb);
+	if (!sense)
+		return 0;
+
+	reason = sense[0];
+	msg_format = (sense[7] & 0xF0);
+	msg_no = (sense[7] & 0x0F);
+
+	/* command reject, Format 0 MSG 4 - invalid parameter */
+	if ((reason == 0x80) && (msg_format == 0x00) && (msg_no == 0x04))
+		return 1;
+
+	return 0;
+}
+
 static int read_unit_address_configuration(struct dasd_device *device,
 					   struct alias_lcu *lcu)
 {
@@ -435,6 +458,8 @@ static int read_unit_address_configuration(struct dasd_device *device,
 
 	do {
 		rc = dasd_sleep_on(cqr);
+		if (rc && suborder_not_supported(cqr))
+			return -EOPNOTSUPP;
 	} while (rc && (cqr->retries > 0));
 	if (rc) {
 		spin_lock_irqsave(&lcu->lock, flags);
@@ -521,7 +546,7 @@ static void lcu_update_work(struct work_struct *work)
 	 * processing the data
 	 */
 	spin_lock_irqsave(&lcu->lock, flags);
-	if (rc || (lcu->flags & NEED_UAC_UPDATE)) {
+	if ((rc && (rc != -EOPNOTSUPP)) || (lcu->flags & NEED_UAC_UPDATE)) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "could not update"
 			    " alias data in lcu (rc = %d), retry later", rc);
 		schedule_delayed_work(&lcu->ruac_data.dwork, 30*HZ);

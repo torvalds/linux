@@ -137,6 +137,9 @@ static void max77693_irq_mask(struct irq_data *data)
 	const struct max77693_irq_data *irq_data =
 				irq_to_max77693_irq(max77693, data->irq);
 
+	if (irq_data->group >= MAX77693_IRQ_GROUP_NR)
+		return;
+
 	if (irq_data->group >= MUIC_INT1 && irq_data->group <= MUIC_INT3)
 		max77693->irq_masks_cur[irq_data->group] &= ~irq_data->mask;
 	else
@@ -148,6 +151,9 @@ static void max77693_irq_unmask(struct irq_data *data)
 	struct max77693_dev *max77693 = irq_get_chip_data(data->irq);
 	const struct max77693_irq_data *irq_data =
 	    irq_to_max77693_irq(max77693, data->irq);
+
+	if (irq_data->group >= MAX77693_IRQ_GROUP_NR)
+		return;
 
 	if (irq_data->group >= MUIC_INT1 && irq_data->group <= MUIC_INT3)
 		max77693->irq_masks_cur[irq_data->group] |= irq_data->mask;
@@ -200,7 +206,7 @@ static irqreturn_t max77693_irq_thread(int irq, void *data)
 
 	if (irq_src & MAX77693_IRQSRC_MUIC)
 		/* MUIC INT1 ~ INT3 */
-		max77693_bulk_read(max77693->regmap, MAX77693_MUIC_REG_INT1,
+		max77693_bulk_read(max77693->regmap_muic, MAX77693_MUIC_REG_INT1,
 			MAX77693_NUM_IRQ_MUIC_REGS, &irq_reg[MUIC_INT1]);
 
 	/* Apply masking */
@@ -255,7 +261,8 @@ int max77693_irq_init(struct max77693_dev *max77693)
 {
 	struct irq_domain *domain;
 	int i;
-	int ret;
+	int ret = 0;
+	u8 intsrc_mask;
 
 	mutex_init(&max77693->irqlock);
 
@@ -287,19 +294,38 @@ int max77693_irq_init(struct max77693_dev *max77693)
 					&max77693_irq_domain_ops, max77693);
 	if (!domain) {
 		dev_err(max77693->dev, "could not create irq domain\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_irq;
 	}
 	max77693->irq_domain = domain;
+
+	/* Unmask max77693 interrupt */
+	ret = max77693_read_reg(max77693->regmap,
+			MAX77693_PMIC_REG_INTSRC_MASK, &intsrc_mask);
+	if (ret < 0) {
+		dev_err(max77693->dev, "fail to read PMIC register\n");
+		goto err_irq;
+	}
+
+	intsrc_mask &= ~(MAX77693_IRQSRC_CHG);
+	intsrc_mask &= ~(MAX77693_IRQSRC_FLASH);
+	intsrc_mask &= ~(MAX77693_IRQSRC_MUIC);
+	ret = max77693_write_reg(max77693->regmap,
+			MAX77693_PMIC_REG_INTSRC_MASK, intsrc_mask);
+	if (ret < 0) {
+		dev_err(max77693->dev, "fail to write PMIC register\n");
+		goto err_irq;
+	}
 
 	ret = request_threaded_irq(max77693->irq, NULL, max77693_irq_thread,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   "max77693-irq", max77693);
-
 	if (ret)
 		dev_err(max77693->dev, "Failed to request IRQ %d: %d\n",
 			max77693->irq, ret);
 
-	return 0;
+err_irq:
+	return ret;
 }
 
 void max77693_irq_exit(struct max77693_dev *max77693)

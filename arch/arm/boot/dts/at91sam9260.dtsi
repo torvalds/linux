@@ -105,6 +105,7 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			pioB: gpio@fffff600 {
@@ -114,6 +115,7 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			pioC: gpio@fffff800 {
@@ -123,6 +125,7 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			dbgu: serial@fffff200 {

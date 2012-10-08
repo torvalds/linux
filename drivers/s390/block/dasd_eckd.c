@@ -1507,7 +1507,8 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
  * call might change behaviour of DASD devices.
  */
 static int
-dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
+dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav,
+		  unsigned long flags)
 {
 	struct dasd_ccw_req *cqr;
 	int rc;
@@ -1516,10 +1517,19 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);
 
+	/*
+	 * set flags e.g. turn on failfast, to prevent blocking
+	 * the calling function should handle failed requests
+	 */
+	cqr->flags |= flags;
+
 	rc = dasd_sleep_on(cqr);
 	if (!rc)
 		/* trigger CIO to reprobe devices */
 		css_schedule_reprobe();
+	else if (cqr->intrc == -EAGAIN)
+		rc = -EAGAIN;
+
 	dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
@@ -1527,7 +1537,8 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
 /*
  * Valide storage server of current device.
  */
-static void dasd_eckd_validate_server(struct dasd_device *device)
+static int dasd_eckd_validate_server(struct dasd_device *device,
+				     unsigned long flags)
 {
 	int rc;
 	struct dasd_eckd_private *private;
@@ -1536,17 +1547,18 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 	private = (struct dasd_eckd_private *) device->private;
 	if (private->uid.type == UA_BASE_PAV_ALIAS ||
 	    private->uid.type == UA_HYPER_PAV_ALIAS)
-		return;
+		return 0;
 	if (dasd_nopav || MACHINE_IS_VM)
 		enable_pav = 0;
 	else
 		enable_pav = 1;
-	rc = dasd_eckd_psf_ssc(device, enable_pav);
+	rc = dasd_eckd_psf_ssc(device, enable_pav, flags);
 
 	/* may be requested feature is not available on server,
 	 * therefore just report error and go ahead */
 	DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "PSF-SSC for SSID %04x "
 			"returned rc=%d", private->uid.ssid, rc);
+	return rc;
 }
 
 /*
@@ -1556,7 +1568,13 @@ static void dasd_eckd_do_validate_server(struct work_struct *work)
 {
 	struct dasd_device *device = container_of(work, struct dasd_device,
 						  kick_validate);
-	dasd_eckd_validate_server(device);
+	if (dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST)
+	    == -EAGAIN) {
+		/* schedule worker again if failed */
+		schedule_work(&device->kick_validate);
+		return;
+	}
+
 	dasd_put_device(device);
 }
 
@@ -1685,7 +1703,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	if (rc)
 		goto out_err2;
 
-	dasd_eckd_validate_server(device);
+	dasd_eckd_validate_server(device, 0);
 
 	/* device may report different configuration data after LCU setup */
 	rc = dasd_eckd_read_conf(device);
@@ -4153,7 +4171,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	rc = dasd_alias_make_device_known_to_lcu(device);
 	if (rc)
 		return rc;
-	dasd_eckd_validate_server(device);
+	dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST);
 
 	/* RE-Read Configuration Data */
 	rc = dasd_eckd_read_conf(device);

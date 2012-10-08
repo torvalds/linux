@@ -2925,6 +2925,13 @@ static int __devinit pci230_attach_pci(struct comedi_device *dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci230_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via pci230_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pci_dev);
 	return pci230_attach_common(dev, pci_dev);
 }
 
