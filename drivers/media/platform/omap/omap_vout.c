@@ -46,7 +46,7 @@
 
 #include <plat/cpu.h>
 #include <plat/dma.h>
-#include <plat/vrfb.h>
+#include <video/omapvrfb.h>
 #include <video/omapdss.h>
 
 #include "omap_voutlib.h"

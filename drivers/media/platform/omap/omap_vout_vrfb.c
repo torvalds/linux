@@ -17,7 +17,7 @@
 #include <media/v4l2-device.h>
 
 #include <plat/dma.h>
-#include <plat/vrfb.h>
+#include <video/omapvrfb.h>
 
 #include "omap_voutdef.h"
 #include "omap_voutlib.h"

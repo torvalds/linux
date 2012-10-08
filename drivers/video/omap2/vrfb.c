@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 
-#include <plat/vrfb.h>
+#include <video/omapvrfb.h>
 
 #ifdef DEBUG
 #define DBG(format, ...) pr_debug("VRFB: " format, ## __VA_ARGS__)
