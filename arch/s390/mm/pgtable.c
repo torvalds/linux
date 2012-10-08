@@ -898,6 +898,28 @@ bool kernel_page_present(struct page *page)
 #endif /* CONFIG_HIBERNATION && CONFIG_DEBUG_PAGEALLOC */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,
+			   pmd_t *pmdp)
+{
+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	/* No need to flush TLB
+	 * On s390 reference bits are in storage key and never in TLB */
+	return pmdp_test_and_clear_young(vma, address, pmdp);
+}
+
+int pmdp_set_access_flags(struct vm_area_struct *vma,
+			  unsigned long address, pmd_t *pmdp,
+			  pmd_t entry, int dirty)
+{
+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+
+	if (pmd_same(*pmdp, entry))
+		return 0;
+	pmdp_invalidate(vma, address, pmdp);
+	set_pmd_at(vma->vm_mm, address, pmdp, entry);
+	return 1;
+}
+
 static void pmdp_splitting_flush_sync(void *arg)
 {
 	/* Simply deliver the interrupt */
