@@ -387,9 +387,13 @@ config USB_OHCI_HCD_SSB
 	  If unsure, say N.
 
 config USB_OHCI_SH
-	bool "OHCI support for SuperH USB controller"
+	bool "OHCI support for SuperH USB controller (DEPRECATED)"
 	depends on USB_OHCI_HCD && SUPERH
+	select USB_OHCI_HCD_PLATFORM
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enables support for the on-chip OHCI controller on the SuperH.
 	  If you use the PCI OHCI controller, this option is not necessary.
 
