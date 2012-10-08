@@ -369,9 +369,10 @@ static struct kvm_event *find_create_kvm_event(struct perf_kvm *kvm,
 	BUG_ON(key->key == INVALID_KEY);
 
 	head = &kvm->kvm_events_cache[kvm_events_hash_fn(key->key)];
-	list_for_each_entry(event, head, hash_entry)
+	list_for_each_entry(event, head, hash_entry) {
 		if (event->key.key == key->key && event->key.info == key->info)
 			return event;
+	}
 
 	event = kvm_alloc_init_event(key);
 	if (!event)
@@ -610,13 +611,15 @@ static void sort_result(struct perf_kvm *kvm)
 	int vcpu = kvm->trace_vcpu;
 	struct kvm_event *event;
 
-	for (i = 0; i < EVENTS_CACHE_SIZE; i++)
-		list_for_each_entry(event, &kvm->kvm_events_cache[i], hash_entry)
+	for (i = 0; i < EVENTS_CACHE_SIZE; i++) {
+		list_for_each_entry(event, &kvm->kvm_events_cache[i], hash_entry) {
 			if (event_is_valid(event, vcpu)) {
 				update_total_count(kvm, event);
 				insert_to_result(&kvm->result, event,
 						 kvm->compare, vcpu);
 			}
+		}
+	}
 }
 
 /* returns left most element of result, and erase it */
