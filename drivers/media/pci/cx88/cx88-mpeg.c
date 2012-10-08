@@ -217,8 +217,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				return 0;
 			buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
 			if (NULL == prev) {
-				list_del(&buf->vb.queue);
-				list_add_tail(&buf->vb.queue,&q->active);
+				list_move_tail(&buf->vb.queue, &q->active);
 				cx8802_start_dma(dev, q, buf);
 				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
@@ -229,8 +228,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 			} else if (prev->vb.width  == buf->vb.width  &&
 				   prev->vb.height == buf->vb.height &&
 				   prev->fmt       == buf->fmt) {
-				list_del(&buf->vb.queue);
-				list_add_tail(&buf->vb.queue,&q->active);
+				list_move_tail(&buf->vb.queue, &q->active);
 				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
