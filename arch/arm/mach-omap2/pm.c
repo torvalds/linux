@@ -16,6 +16,7 @@
 #include <linux/opp.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
+#include <linux/cpu.h>
 
 #include <asm/system_misc.h>
 
@@ -169,7 +170,15 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	dev = omap_device_get_by_hwmod_name(oh_name);
+	if (!strncmp(oh_name, "mpu", 3))
+		/* 
+		 * All current OMAPs share voltage rail and clock
+		 * source, so CPU0 is used to represent the MPU-SS.
+		 */
+		dev = get_cpu_device(0);
+	else
+		dev = omap_device_get_by_hwmod_name(oh_name);
+
 	if (IS_ERR(dev)) {
 		pr_err("%s: Unable to get dev pointer for hwmod %s\n",
 			__func__, oh_name);
