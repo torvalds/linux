@@ -352,8 +352,7 @@ static int restart_video_queue(struct viu_dmaqueue *vidq)
 			return 0;
 		buf = list_entry(vidq->queued.next, struct viu_buf, vb.queue);
 		if (prev == NULL) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &vidq->active);
+			list_move_tail(&buf->vb.queue, &vidq->active);
 
 			dprintk(1, "Restarting video dma\n");
 			viu_stop_dma(vidq->dev);
@@ -367,8 +366,7 @@ static int restart_video_queue(struct viu_dmaqueue *vidq)
 		} else if (prev->vb.width  == buf->vb.width  &&
 			   prev->vb.height == buf->vb.height &&
 			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &vidq->active);
+			list_move_tail(&buf->vb.queue, &vidq->active);
 			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(2, "[%p/%d] restart_queue - move to active\n",
 				buf, buf->vb.i);
