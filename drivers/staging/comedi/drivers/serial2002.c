@@ -43,10 +43,6 @@ Status: in development
 #include <linux/serial.h>
 #include <linux/poll.h>
 
-struct serial2002_board {
-	const char *name;
-};
-
 struct serial2002_range_table_t {
 
 	/*  HACK... */
@@ -780,12 +776,11 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 static int serial2002_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
-	const struct serial2002_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev_dbg(dev->class_dev, "serial2002: attach\n");
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
 		return -ENOMEM;
 	dev->open = serial_2002_open;
@@ -860,20 +855,11 @@ static void serial2002_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct serial2002_board serial2002_boards[] = {
-	{
-		.name	= "serial2002"
-	},
-};
-
 static struct comedi_driver serial2002_driver = {
 	.driver_name	= "serial2002",
 	.module		= THIS_MODULE,
 	.attach		= serial2002_attach,
 	.detach		= serial2002_detach,
-	.board_name	= &serial2002_boards[0].name,
-	.offset		= sizeof(struct serial2002_board),
-	.num_names	= ARRAY_SIZE(serial2002_boards),
 };
 module_comedi_driver(serial2002_driver);
 
