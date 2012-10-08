@@ -433,10 +433,6 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 		WARN_ON(1);
 		return 0;
 	}
-	if (eb->pages[0] != page) {
-		WARN_ON(1);
-		return 0;
-	}
 	if (!PageUptodate(page)) {
 		WARN_ON(1);
 		return 0;
