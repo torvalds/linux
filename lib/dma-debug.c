@@ -45,6 +45,12 @@ enum {
 	dma_debug_coherent,
 };
 
+enum map_err_types {
+	MAP_ERR_CHECK_NOT_APPLICABLE,
+	MAP_ERR_NOT_CHECKED,
+	MAP_ERR_CHECKED,
+};
+
 #define DMA_DEBUG_STACKTRACE_ENTRIES 5
 
 struct dma_debug_entry {
@@ -57,6 +63,7 @@ struct dma_debug_entry {
 	int              direction;
 	int		 sg_call_ents;
 	int		 sg_mapped_ents;
+	enum map_err_types  map_err_type;
 #ifdef CONFIG_STACKTRACE
 	struct		 stack_trace stacktrace;
 	unsigned long	 st_entries[DMA_DEBUG_STACKTRACE_ENTRIES];
@@ -113,6 +120,12 @@ static char                  current_driver_name[NAME_MAX_LEN] __read_mostly;
 static struct device_driver *current_driver                    __read_mostly;
 
 static DEFINE_RWLOCK(driver_name_lock);
+
+static const char *const maperr2str[] = {
+	[MAP_ERR_CHECK_NOT_APPLICABLE] = "dma map error check not applicable",
+	[MAP_ERR_NOT_CHECKED] = "dma map error not checked",
+	[MAP_ERR_CHECKED] = "dma map error checked",
+};
 
 static const char *type2name[4] = { "single", "page",
 				    "scather-gather", "coherent" };
@@ -376,11 +389,12 @@ void debug_dma_dump_mappings(struct device *dev)
 		list_for_each_entry(entry, &bucket->list, list) {
 			if (!dev || dev == entry->dev) {
 				dev_info(entry->dev,
-					 "%s idx %d P=%Lx D=%Lx L=%Lx %s\n",
+					 "%s idx %d P=%Lx D=%Lx L=%Lx %s %s\n",
 					 type2name[entry->type], idx,
 					 (unsigned long long)entry->paddr,
 					 entry->dev_addr, entry->size,
-					 dir2name[entry->direction]);
+					 dir2name[entry->direction],
+					 maperr2str[entry->map_err_type]);
 			}
 		}
 
@@ -838,13 +852,28 @@ static __init int dma_debug_entries_cmdline(char *str)
 __setup("dma_debug=", dma_debug_cmdline);
 __setup("dma_debug_entries=", dma_debug_entries_cmdline);
 
+/* Calling dma_mapping_error() from dma-debug api will result in calling
+   debug_dma_mapping_error() - need internal mapping error routine to
+   avoid debug checks */
+#ifndef DMA_ERROR_CODE
+#define DMA_ERROR_CODE 0
+#endif
+static inline int has_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	if (ops->mapping_error)
+		return ops->mapping_error(dev, dma_addr);
+
+	return (dma_addr == DMA_ERROR_CODE);
+}
+
 static void check_unmap(struct dma_debug_entry *ref)
 {
 	struct dma_debug_entry *entry;
 	struct hash_bucket *bucket;
 	unsigned long flags;
 
-	if (dma_mapping_error(ref->dev, ref->dev_addr)) {
+	if (unlikely(has_mapping_error(ref->dev, ref->dev_addr))) {
 		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
 			   "to free an invalid DMA memory address\n");
 		return;
@@ -908,6 +937,15 @@ static void check_unmap(struct dma_debug_entry *ref)
 			   ref->dev_addr, ref->size,
 			   dir2name[entry->direction],
 			   dir2name[ref->direction]);
+	}
+
+	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+		err_printk(ref->dev, entry,
+			   "DMA-API: device driver failed to check map error"
+			   "[device address=0x%016llx] [size=%llu bytes] "
+			   "[mapped as %s]",
+			   ref->dev_addr, ref->size,
+			   type2name[entry->type]);
 	}
 
 	hash_bucket_del(entry);
@@ -1017,7 +1055,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	if (unlikely(global_disable))
 		return;
 
-	if (unlikely(dma_mapping_error(dev, dma_addr)))
+	if (unlikely(has_mapping_error(dev, dma_addr)))
 		return;
 
 	entry = dma_entry_alloc();
@@ -1030,6 +1068,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	entry->dev_addr  = dma_addr;
 	entry->size      = size;
 	entry->direction = direction;
+	entry->map_err_type = MAP_ERR_NOT_CHECKED;
 
 	if (map_single)
 		entry->type = dma_debug_single;
@@ -1044,6 +1083,30 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	add_dma_entry(entry);
 }
 EXPORT_SYMBOL(debug_dma_map_page);
+
+void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	struct dma_debug_entry ref;
+	struct dma_debug_entry *entry;
+	struct hash_bucket *bucket;
+	unsigned long flags;
+
+	if (unlikely(global_disable))
+		return;
+
+	ref.dev = dev;
+	ref.dev_addr = dma_addr;
+	bucket = get_hash_bucket(&ref, &flags);
+	entry = bucket_find_exact(bucket, &ref);
+
+	if (!entry)
+		goto out;
+
+	entry->map_err_type = MAP_ERR_CHECKED;
+out:
+	put_hash_bucket(bucket, &flags);
+}
+EXPORT_SYMBOL(debug_dma_mapping_error);
 
 void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 			  size_t size, int direction, bool map_single)
