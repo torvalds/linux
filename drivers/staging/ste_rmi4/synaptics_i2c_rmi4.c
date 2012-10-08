@@ -1143,30 +1143,8 @@ static struct i2c_driver synaptics_rmi4_driver = {
 	.remove		=	__devexit_p(synaptics_rmi4_remove),
 	.id_table	=	synaptics_rmi4_id_table,
 };
-/**
- * synaptics_rmi4_init() - Initialize the touchscreen driver
- *
- * This function uses to initializes the synaptics
- * touchscreen driver and returns integer.
- */
-static int __init synaptics_rmi4_init(void)
-{
-	return i2c_add_driver(&synaptics_rmi4_driver);
-}
-/**
- * synaptics_rmi4_exit() - De-initialize the touchscreen driver
- *
- * This function uses to de-initialize the synaptics
- * touchscreen driver and returns none.
- */
-static void __exit synaptics_rmi4_exit(void)
-{
-	i2c_del_driver(&synaptics_rmi4_driver);
-}
 
-
-module_init(synaptics_rmi4_init);
-module_exit(synaptics_rmi4_exit);
+module_i2c_driver(synaptics_rmi4_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("naveen.gaddipati@stericsson.com, js.ha@stericsson.com");
