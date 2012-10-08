@@ -732,13 +732,13 @@ void __sramfunc rk30_pwm_logic_resume_voltage(void)
 #ifdef CONFIG_RK30_PWM_REGULATOR
 #ifdef CONFIG_MACH_RK2926_M713
 	writel_relaxed((1<<22)|gpio0d3_iomux, GRF_GPIO0D_IOMUX);
-//	gpio_writel(gpio0d3_dir, GPIO_SWPORTA_DDR);
-//	gpio_writel(gpio0d3_do, GPIO_SWPORTA_DR);
+	gpio0_writel(gpio0d3_dir, GPIO_SWPORTA_DDR);
+	gpio0_writel(gpio0d3_do, GPIO_SWPORTA_DR);
 	sram_udelay(10000);
 #else
 	writel_relaxed((1<<24)|gpio0d4_iomux, GRF_GPIO0D_IOMUX);
-	gpio_writel(gpio0d4_dir, GPIO_SWPORTA_DDR);
-	gpio_writel(gpio0d4_do, GPIO_SWPORTA_DR);
+	gpio0_writel(gpio0d4_dir, GPIO_SWPORTA_DDR);
+	gpio0_writel(gpio0d4_do, GPIO_SWPORTA_DR);
 	sram_udelay(10000);
 #endif
 
