@@ -152,7 +152,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
-	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
+	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
 	sllx		REG1, 11, REG1; \
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1;
@@ -177,7 +177,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
-	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
+	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
 	sllx		REG1, 11, REG1; \
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1;

@@ -45,40 +45,30 @@
 
 #define vmemmap			((struct page *)VMEMMAP_BASE)
 
-/* XXX All of this needs to be rethought so we can take advantage
- * XXX cheetah's full 64-bit virtual address space, ie. no more hole
- * XXX in the middle like on spitfire. -DaveM
- */
-/*
- * Given a virtual address, the lowest PAGE_SHIFT bits determine offset
- * into the page; the next higher PAGE_SHIFT-3 bits determine the pte#
- * in the proper pagetable (the -3 is from the 8 byte ptes, and each page
- * table is a single page long). The next higher PMD_BITS determine pmd#
- * in the proper pmdtable (where we must have PMD_BITS <= (PAGE_SHIFT-2)
- * since the pmd entries are 4 bytes, and each pmd page is a single page
- * long). Finally, the higher few bits determine pgde#.
- */
-
 /* PMD_SHIFT determines the size of the area a second-level page
  * table can map
  */
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4))
 #define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #define PMD_BITS	(PAGE_SHIFT - 2)
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
+#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4) + PMD_BITS)
 #define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PGDIR_BITS	(PAGE_SHIFT - 2)
+
+#if (PGDIR_SHIFT + PGDIR_BITS) != 44
+#error Page table parameters do not cover virtual address space properly.
+#endif
 
 #ifndef __ASSEMBLY__
 
 #include <linux/sched.h>
 
 /* Entries per page directory level. */
-#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
+#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-4))
 #define PTRS_PER_PMD	(1UL << PMD_BITS)
 #define PTRS_PER_PGD	(1UL << PGDIR_BITS)
 
