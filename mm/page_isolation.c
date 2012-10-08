@@ -201,8 +201,20 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
 		}
 		page = pfn_to_page(pfn);
 		if (PageBuddy(page)) {
-			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE)
-				break;
+			/*
+			 * If race between isolatation and allocation happens,
+			 * some free pages could be in MIGRATE_MOVABLE list
+			 * although pageblock's migratation type of the page
+			 * is MIGRATE_ISOLATE. Catch it and move the page into
+			 * MIGRATE_ISOLATE list.
+			 */
+			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
+				struct page *end_page;
+
+				end_page = page + (1 << page_order(page)) - 1;
+				move_freepages(page_zone(page), page, end_page,
+						MIGRATE_ISOLATE);
+			}
 			pfn += 1 << page_order(page);
 		}
 		else if (page_count(page) == 0 &&
