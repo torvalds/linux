@@ -69,41 +69,8 @@ static u64 compute_subtree_max_end(struct memtype *data)
 	return max_end;
 }
 
-/* Update 'subtree_max_end' for node and its parents */
-static void memtype_rb_propagate_cb(struct rb_node *node, struct rb_node *stop)
-{
-	while (node != stop) {
-		struct memtype *data = container_of(node, struct memtype, rb);
-		u64 subtree_max_end = compute_subtree_max_end(data);
-		if (data->subtree_max_end == subtree_max_end)
-			break;
-		data->subtree_max_end = subtree_max_end;
-		node = rb_parent(&data->rb);
-	}
-}
-
-static void memtype_rb_copy_cb(struct rb_node *old, struct rb_node *new)
-{
-	struct memtype *old_data = container_of(old, struct memtype, rb);
-	struct memtype *new_data = container_of(new, struct memtype, rb);
-
-	new_data->subtree_max_end = old_data->subtree_max_end;
-}
-
-/* Update 'subtree_max_end' after tree rotation. old and new are the
- * former and current subtree roots */
-static void memtype_rb_rotate_cb(struct rb_node *old, struct rb_node *new)
-{
-	struct memtype *old_data = container_of(old, struct memtype, rb);
-	struct memtype *new_data = container_of(new, struct memtype, rb);
-
-	new_data->subtree_max_end = old_data->subtree_max_end;
-	old_data->subtree_max_end = compute_subtree_max_end(old_data);
-}
-
-static const struct rb_augment_callbacks memtype_rb_augment_cb = {
-	memtype_rb_propagate_cb, memtype_rb_copy_cb, memtype_rb_rotate_cb
-};
+RB_DECLARE_CALLBACKS(static, memtype_rb_augment_cb, struct memtype, rb,
+		     u64, subtree_max_end, compute_subtree_max_end)
 
 /* Find the first (lowest start addr) overlapping range from rb tree */
 static struct memtype *memtype_rb_lowest_match(struct rb_root *root,

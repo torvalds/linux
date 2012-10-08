@@ -61,38 +61,8 @@ static inline u32 augment_recompute(struct test_node *node)
 	return max;
 }
 
-static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
-{
-	while (rb != stop) {
-		struct test_node *node = rb_entry(rb, struct test_node, rb);
-		u32 augmented = augment_recompute(node);
-		if (node->augmented == augmented)
-			break;
-		node->augmented = augmented;
-		rb = rb_parent(&node->rb);
-	}
-}
-
-static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
-{
-	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
-	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
-	new->augmented = old->augmented;
-}
-
-static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
-{
-	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
-	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
-
-	/* Rotation doesn't change subtree's augmented value */
-	new->augmented = old->augmented;
-	old->augmented = augment_recompute(old);
-}
-
-static const struct rb_augment_callbacks augment_callbacks = {
-	augment_propagate, augment_copy, augment_rotate
-};
+RB_DECLARE_CALLBACKS(static, augment_callbacks, struct test_node, rb,
+		     u32, augmented, augment_recompute)
 
 static void insert_augmented(struct test_node *node, struct rb_root *root)
 {
