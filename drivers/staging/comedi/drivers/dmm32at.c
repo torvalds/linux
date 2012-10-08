@@ -158,10 +158,6 @@ static const struct comedi_lrange dmm32at_aoranges = {
 	 }
 };
 
-struct dmm32at_board {
-	const char *name;
-};
-
 struct dmm32at_private {
 
 	int data;
@@ -718,13 +714,14 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 static int dmm32at_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct dmm32at_board *board = comedi_board(dev);
 	struct dmm32at_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 	unsigned long iobase;
 	unsigned int irq;
+
+	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
 	irq = it->options[1];
@@ -734,7 +731,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	       iobase, irq);
 
 	/* register address space */
-	if (!request_region(iobase, DMM32AT_MEMSIZE, board->name)) {
+	if (!request_region(iobase, DMM32AT_MEMSIZE, dev->board_name)) {
 		printk(KERN_ERR "comedi%d: dmm32at: I/O port conflict\n",
 		       dev->minor);
 		return -EIO;
@@ -788,15 +785,13 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	/* board is there, register interrupt */
 	if (irq) {
-		ret = request_irq(irq, dmm32at_isr, 0, board->name, dev);
+		ret = request_irq(irq, dmm32at_isr, 0, dev->board_name, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "dmm32at: irq conflict\n");
 			return ret;
 		}
 		dev->irq = irq;
 	}
-
-	dev->board_name = board->name;
 
 	if (alloc_private(dev, sizeof(*devpriv)) < 0)
 		return -ENOMEM;
@@ -867,20 +862,11 @@ static void dmm32at_detach(struct comedi_device *dev)
 		release_region(dev->iobase, DMM32AT_MEMSIZE);
 }
 
-static const struct dmm32at_board dmm32at_boards[] = {
-	{
-		.name		= "dmm32at",
-	},
-};
-
 static struct comedi_driver dmm32at_driver = {
 	.driver_name	= "dmm32at",
 	.module		= THIS_MODULE,
 	.attach		= dmm32at_attach,
 	.detach		= dmm32at_detach,
-	.board_name	= &dmm32at_boards[0].name,
-	.offset		= sizeof(struct dmm32at_board),
-	.num_names	= ARRAY_SIZE(dmm32at_boards),
 };
 module_comedi_driver(dmm32at_driver);
 
