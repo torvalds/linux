@@ -133,11 +133,6 @@ if [ "$ARCH" = "um" ] ; then
 else 
 	cp System.map "$tmpdir/boot/System.map-$version"
 	cp $KCONFIG_CONFIG "$tmpdir/boot/config-$version"
-	# Copy device tree files if generated
-	stat arch/$ARCH/boot/*.dtb && {
-		mkdir -p "$tmpdir/boot/dt-$version"
-		cp arch/$ARCH/boot/*.dtb "$tmpdir/boot/dt-$version"
-	}
 fi
 # Not all arches include the boot path in KBUILD_IMAGE
 if [ -e $KBUILD_IMAGE ]; then
@@ -330,6 +325,12 @@ EOF
 
 	create_package "$fwpackagename" "$fwdir"
 fi
+
+# Copy device tree files if generated
+stat arch/$ARCH/boot/*.dtb && {
+	mkdir -p "$tmpdir/lib/firmware/$version/device-tree"
+	cp arch/$ARCH/boot/*.dtb "$tmpdir/lib/firmware/$version/device-tree"
+}
 
 cat <<EOF >> debian/control
 
