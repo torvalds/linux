@@ -1152,6 +1152,11 @@ config SYSCTL_SYSCALL
 
 	  If unsure say N here.
 
+config SYSCTL_EXCEPTION_TRACE
+	bool
+	help
+	  Enable support for /proc/sys/debug/exception-trace.
+
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
 	 default y
