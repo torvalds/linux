@@ -651,6 +651,8 @@ out:
 static int __devinit max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
+	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
 	int ret, i;
 	u8 id;
@@ -719,6 +721,31 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_extcon;
+	}
+
+	/* Initialize MUIC register by using platform data */
+	for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
+		enum max77693_irq_source irq_src = MAX77693_IRQ_GROUP_NR;
+
+		max77693_write_reg(info->max77693->regmap_muic,
+				muic_pdata->init_data[i].addr,
+				muic_pdata->init_data[i].data);
+
+		switch (muic_pdata->init_data[i].addr) {
+		case MAX77693_MUIC_REG_INTMASK1:
+			irq_src = MUIC_INT1;
+			break;
+		case MAX77693_MUIC_REG_INTMASK2:
+			irq_src = MUIC_INT2;
+			break;
+		case MAX77693_MUIC_REG_INTMASK3:
+			irq_src = MUIC_INT3;
+			break;
+		}
+
+		if (irq_src < MAX77693_IRQ_GROUP_NR)
+			info->max77693->irq_masks_cur[irq_src]
+				= muic_pdata->init_data[i].data;
 	}
 
 	/* Check revision number of MUIC device*/
