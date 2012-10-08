@@ -2,7 +2,8 @@
   Red Black Trees
   (C) 1999  Andrea Arcangeli <andrea@suse.de>
   (C) 2002  David Woodhouse <dwmw2@infradead.org>
-  
+  (C) 2012  Michel Lespinasse <walken@google.com>
+
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
@@ -49,6 +50,11 @@
 #define rb_color(r)   ((r)->__rb_parent_color & 1)
 #define rb_is_red(r)   (!rb_color(r))
 #define rb_is_black(r) rb_color(r)
+
+static inline void rb_set_black(struct rb_node *rb)
+{
+	rb->__rb_parent_color |= RB_BLACK;
+}
 
 static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
 {
@@ -214,27 +220,18 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
 }
 EXPORT_SYMBOL(rb_insert_color);
 
-static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
-			     struct rb_root *root)
+static void __rb_erase_color(struct rb_node *parent, struct rb_root *root)
 {
-	struct rb_node *sibling, *tmp1, *tmp2;
+	struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
 
 	while (true) {
 		/*
-		 * Loop invariant: all leaf paths going through node have a
-		 * black node count that is 1 lower than other leaf paths.
-		 *
-		 * If node is red, we can flip it to black to adjust.
-		 * If node is the root, all leaf paths go through it.
-		 * Otherwise, we need to adjust the tree through color flips
-		 * and tree rotations as per one of the 4 cases below.
+		 * Loop invariants:
+		 * - node is black (or NULL on first iteration)
+		 * - node is not the root (parent is not NULL)
+		 * - All leaf paths going through parent and node have a
+		 *   black node count that is 1 lower than other leaf paths.
 		 */
-		if (node && rb_is_red(node)) {
-			rb_set_parent_color(node, parent, RB_BLACK);
-			break;
-		} else if (!parent) {
-			break;
-		}
 		sibling = parent->rb_right;
 		if (node != sibling) {	/* node == parent->rb_left */
 			if (rb_is_red(sibling)) {
@@ -268,17 +265,22 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 					 *      / \           / \
 					 *     Sl  Sr        Sl  Sr
 					 *
-					 * This leaves us violating 5), so
-					 * recurse at p. If p is red, the
-					 * recursion will just flip it to black
-					 * and exit. If coming from Case 1,
-					 * p is known to be red.
+					 * This leaves us violating 5) which
+					 * can be fixed by flipping p to black
+					 * if it was red, or by recursing at p.
+					 * p is red when coming from Case 1.
 					 */
 					rb_set_parent_color(sibling, parent,
 							    RB_RED);
-					node = parent;
-					parent = rb_parent(node);
-					continue;
+					if (rb_is_red(parent))
+						rb_set_black(parent);
+					else {
+						node = parent;
+						parent = rb_parent(node);
+						if (parent)
+							continue;
+					}
+					break;
 				}
 				/*
 				 * Case 3 - right rotate at sibling
@@ -339,9 +341,15 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 					/* Case 2 - sibling color flip */
 					rb_set_parent_color(sibling, parent,
 							    RB_RED);
-					node = parent;
-					parent = rb_parent(node);
-					continue;
+					if (rb_is_red(parent))
+						rb_set_black(parent);
+					else {
+						node = parent;
+						parent = rb_parent(node);
+						if (parent)
+							continue;
+					}
+					break;
 				}
 				/* Case 3 - right rotate at sibling */
 				sibling->rb_right = tmp1 = tmp2->rb_left;
@@ -369,23 +377,31 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 void rb_erase(struct rb_node *node, struct rb_root *root)
 {
 	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
-	struct rb_node *parent;
-	int color;
+	struct rb_node *parent, *rebalance;
 
 	if (!tmp) {
-	case1:
-		/* Case 1: node to erase has no more than 1 child (easy!) */
+		/*
+		 * Case 1: node to erase has no more than 1 child (easy!)
+		 *
+		 * Note that if there is one child it must be red due to 5)
+		 * and node must be black due to 4). We adjust colors locally
+		 * so as to bypass __rb_erase_color() later on.
+		 */
 
 		parent = rb_parent(node);
-		color = rb_color(node);
-
-		if (child)
-			rb_set_parent(child, parent);
 		__rb_change_child(node, child, parent, root);
+		if (child) {
+			rb_set_parent_color(child, parent, RB_BLACK);
+			rebalance = NULL;
+		} else {
+			rebalance = rb_is_black(node) ? parent : NULL;
+		}
 	} else if (!child) {
 		/* Still case 1, but this time the child is node->rb_left */
-		child = tmp;
-		goto case1;
+		parent = rb_parent(node);
+		__rb_change_child(node, tmp, parent, root);
+		rb_set_parent_color(tmp, parent, RB_BLACK);
+		rebalance = NULL;
 	} else {
 		struct rb_node *old = node, *left;
 
@@ -397,26 +413,29 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 
 		child = node->rb_right;
 		parent = rb_parent(node);
-		color = rb_color(node);
 
 		if (parent == old) {
 			parent = node;
 		} else {
-			if (child)
-				rb_set_parent(child, parent);
 			parent->rb_left = child;
 
 			node->rb_right = old->rb_right;
 			rb_set_parent(old->rb_right, node);
 		}
 
+		if (child) {
+			rb_set_parent_color(child, parent, RB_BLACK);
+			rebalance = NULL;
+		} else {
+			rebalance = rb_is_black(node) ? parent : NULL;
+		}
 		node->__rb_parent_color = old->__rb_parent_color;
 		node->rb_left = old->rb_left;
 		rb_set_parent(old->rb_left, node);
 	}
 
-	if (color == RB_BLACK)
-		__rb_erase_color(child, parent, root);
+	if (rebalance)
+		__rb_erase_color(rebalance, root);
 }
 EXPORT_SYMBOL(rb_erase);
 
