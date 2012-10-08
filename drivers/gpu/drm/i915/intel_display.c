@@ -2806,12 +2806,33 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 }
 
+static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	bool pending;
+
+	if (atomic_read(&dev_priv->mm.wedged))
+		return false;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = to_intel_crtc(crtc)->unpin_work != NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (crtc->fb == NULL)
 		return;
+
+	wait_event(dev_priv->pending_flip_queue,
+		   !intel_crtc_has_pending_flip(crtc));
 
 	mutex_lock(&dev->struct_mutex);
 	intel_finish_fb(crtc->fb);
@@ -4370,7 +4391,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* default to 8bpc */
 	pipeconf &= ~(PIPECONF_BPP_MASK | PIPECONF_DITHER_EN);
 	if (is_dp) {
-		if (mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
 			pipeconf |= PIPECONF_BPP_6 |
 				    PIPECONF_DITHER_EN |
 				    PIPECONF_DITHER_TYPE_SP;
@@ -4802,7 +4823,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		target_clock = adjusted_mode->clock;
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp, mode);
+	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp,
+					      adjusted_mode);
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
@@ -6159,14 +6181,12 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
 	struct drm_pending_vblank_event *e;
-	struct timeval tnow, tvbl;
+	struct timeval tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
 	if (intel_crtc == NULL)
 		return;
-
-	do_gettimeofday(&tnow);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
@@ -6180,25 +6200,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	if (work->event) {
 		e = work->event;
 		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
-
-		/* Called before vblank count and timestamps have
-		 * been updated for the vblank interval of flip
-		 * completion? Need to increment vblank count and
-		 * add one videorefresh duration to returned timestamp
-		 * to account for this. We assume this happened if we
-		 * get called over 0.9 frame durations after the last
-		 * timestamped vblank.
-		 *
-		 * This calculation can not be used with vrefresh rates
-		 * below 5Hz (10Hz to be on the safe side) without
-		 * promoting to 64 integers.
-		 */
-		if (10 * (timeval_to_ns(&tnow) - timeval_to_ns(&tvbl)) >
-		    9 * crtc->framedur_ns) {
-			e->event.sequence++;
-			tvbl = ns_to_timeval(timeval_to_ns(&tvbl) +
-					     crtc->framedur_ns);
-		}
 
 		e->event.tv_sec = tvbl.tv_sec;
 		e->event.tv_usec = tvbl.tv_usec;
@@ -6216,9 +6217,8 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	atomic_clear_mask(1 << intel_crtc->plane,
 			  &obj->pending_flip.counter);
-	if (atomic_read(&obj->pending_flip) == 0)
-		wake_up(&dev_priv->pending_flip_queue);
 
+	wake_up(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 
 	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
