@@ -1259,6 +1259,7 @@ void tpm_remove_hardware(struct device *dev)
 
 	misc_deregister(&chip->vendor.miscdev);
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
+	tpm_remove_ppi(&dev->kobj);
 	tpm_bios_log_teardown(chip->bios_dir);
 
 	/* write it this way to be explicit (chip->dev == dev) */
@@ -1476,7 +1477,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto put_device;
 	}
 
-	if (sys_add_ppi(&dev->kobj)) {
+	if (tpm_add_ppi(&dev->kobj)) {
 		misc_deregister(&chip->vendor.miscdev);
 		goto put_device;
 	}
