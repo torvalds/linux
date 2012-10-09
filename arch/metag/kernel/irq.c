@@ -6,6 +6,8 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/irqchip/metag-ext.h>
+#include <linux/irqchip/metag.h>
 #include <linux/irqdomain.h>
 #include <linux/ratelimit.h>
 
@@ -257,6 +259,9 @@ void __init init_IRQ(void)
 		panic("init_IRQ: cannot add root IRQ domain");
 
 	irq_ctx_init(smp_processor_id());
+
+	init_internal_IRQ();
+	init_external_IRQ();
 
 	if (machine_desc->init_irq)
 		machine_desc->init_irq();
