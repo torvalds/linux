@@ -8,6 +8,5 @@ extern int xmon_getchar(void);
 extern void xmon_puts(const char *);
 extern char *xmon_gets(char *, int);
 extern void xmon_printf(const char *, ...);
-extern void xmon_map_scc(void);
 extern int xmon_write(const void *ptr, int nb);
 extern int xmon_readchar(void);

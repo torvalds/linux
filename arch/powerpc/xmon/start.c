@@ -10,10 +10,6 @@
 #include <asm/udbg.h>
 #include "nonstdio.h"
 
-void xmon_map_scc(void)
-{
-}
-
 int xmon_write(const void *ptr, int nb)
 {
 	return udbg_write(ptr, nb);
