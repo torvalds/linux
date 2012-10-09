@@ -2037,21 +2037,15 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 	memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, ETH_ALEN);
 
 	if (pkt_dev->flags & F_IPV6) {
+		int i, set = 0, err = 1;
+		struct inet6_dev *idev;
+
 		if (pkt_dev->min_pkt_size == 0) {
 			pkt_dev->min_pkt_size = 14 + sizeof(struct ipv6hdr)
 						+ sizeof(struct udphdr)
 						+ sizeof(struct pktgen_hdr)
 						+ pkt_dev->pkt_overhead;
 		}
-
-		/*
-		 * Skip this automatic address setting until locks or functions
-		 * gets exported
-		 */
-
-#ifdef NOTNOW
-		int i, set = 0, err = 1;
-		struct inet6_dev *idev;
 
 		for (i = 0; i < IN6_ADDR_HSIZE; i++)
 			if (pkt_dev->cur_in6_saddr.s6_addr[i]) {
@@ -2073,9 +2067,8 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 				struct inet6_ifaddr *ifp;
 
 				read_lock_bh(&idev->lock);
-				for (ifp = idev->addr_list; ifp;
-				     ifp = ifp->if_next) {
-					if (ifp->scope == IFA_LINK &&
+				list_for_each_entry(ifp, &idev->addr_list, if_list) {
+					if ((ifp->scope & IFA_LINK) &&
 					    !(ifp->flags & IFA_F_TENTATIVE)) {
 						pkt_dev->cur_in6_saddr = ifp->addr;
 						err = 0;
@@ -2088,7 +2081,6 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 			if (err)
 				pr_err("ERROR: IPv6 link address not available\n");
 		}
-#endif
 	} else {
 		if (pkt_dev->min_pkt_size == 0) {
 			pkt_dev->min_pkt_size = 14 + sizeof(struct iphdr)
