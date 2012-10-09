@@ -120,9 +120,7 @@ struct pll_clk_set {
 	.pllcon0 = PLL_SET_POSTDIV1(_postdiv1) | PLL_SET_FBDIV(_fbdiv),	\
 	.pllcon1 = PLL_SET_DSMPD(_dsmpd) | PLL_SET_POSTDIV2(_postdiv2) | PLL_SET_REFDIV(_refdiv),	\
 	.pllcon2 = PLL_SET_FRAC(_frac),	\
-	.clksel0 = ACLK_CPU_DIV(RATIO_##_axi_div),\
-	.clksel1 = PCLK_CPU_DIV(RATIO_##_apb_div) | HCLK_CPU_DIV(RATIO_##_ahb_div) \
-	| ACLK_CORE_DIV(RATIO_##_aclk_core_div) | CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
+	.clksel1 = ACLK_CORE_DIV(RATIO_##_aclk_core_div) | CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
 	.lpj	= (CLK_LOOPS_JIFFY_REF * _mhz) / CLK_LOOPS_RATE_REF,	\
 }
 
@@ -2457,6 +2455,31 @@ static void periph_clk_set_init(void)
 	clk_set_rate_nolock(&peri_pclk, pclk_p);
 }
 
+static void cpu_axi_init(void)
+{
+	unsigned long aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate;
+	unsigned long gpll_rate = general_pll_clk.rate;
+
+	switch (gpll_rate) {
+		case 297 * MHZ:
+			aclk_cpu_rate = gpll_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+
+		default:
+			aclk_cpu_rate = 150 * MHZ;
+			hclk_cpu_rate = 150 * MHZ;
+			pclk_cpu_rate = 75 * MHZ;
+			break;
+	}
+
+	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
+	clk_set_rate_nolock(&clk_cpu_div, gpll_rate);
+	clk_set_rate_nolock(&aclk_cpu_pre, aclk_cpu_rate);
+	clk_set_rate_nolock(&hclk_cpu_pre, hclk_cpu_rate);
+	clk_set_rate_nolock(&pclk_cpu_pre, pclk_cpu_rate);
+}
 
 #define CLK_FLG_MAX_I2S_12288KHZ 	(1<<1)
 #define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
@@ -2503,11 +2526,15 @@ void rk2928_clock_common_i2s_init(void)
 static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
 {
 
-	clk_set_rate_nolock(&clk_core_pre, 600 * MHZ);//816?
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
+	
+	cpu_axi_init();
+	
+	clk_set_rate_nolock(&clk_core_pre, 600 * MHZ);
+	
 	//periph clk
 	periph_clk_set_init();
 
@@ -2563,8 +2590,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned lon
 	clk_set_rate_nolock(&aclk_vdpu, 300*MHZ);
 	//gpu auto sel
 	//clk_set_parent_nolock(&clk_gpu_pre, &general_pll_clk);
-	
-	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
+	clk_set_rate_nolock(&clk_gpu_pre, 133 * MHZ);
 	
 	clk_set_parent_nolock(&clk_sdmmc0, &general_pll_clk);
 	clk_set_parent_nolock(&clk_sdio, &general_pll_clk);
