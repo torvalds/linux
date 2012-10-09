@@ -617,9 +617,6 @@ int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 
 	if (vm->page_directory != NULL) {
-		/* update lru */
-		list_del_init(&vm->list);
-		list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
 		return 0;
 	}
 
@@ -653,8 +650,23 @@ retry:
 		return -ENOMEM;
 	}
 
-	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
 	return 0;
+}
+
+/**
+ * radeon_vm_add_to_lru - add VMs page table to LRU list
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to add to LRU
+ *
+ * Add the allocated page table to the LRU list (cayman+).
+ *
+ * Global mutex must be locked!
+ */
+void radeon_vm_add_to_lru(struct radeon_device *rdev, struct radeon_vm *vm)
+{
+	list_del_init(&vm->list);
+	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
 }
 
 /**
