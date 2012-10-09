@@ -43,6 +43,12 @@ static inline struct port_config get_port_config(unsigned int value)
         return port;
 }
 void gpio_set_iomux(int gpio);
+int port_output_init(unsigned int value, int on, char *name);
+void port_output_on(unsigned int value);
+void port_output_off(unsigned int value);
+int port_input_init(unsigned int value, char *name);
+int port_get_value(unsigned int value);
+void port_deinit(unsigned int value);
 
 typedef enum eGPIOPinLevel
 {

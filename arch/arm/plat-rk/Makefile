@@ -8,6 +8,7 @@ obj-$(CONFIG_FIQ) += fiq.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_RK_EARLY_PRINTK) += early_printk.o ../kernel/debug.o
 obj-y += mem_reserve.o
+obj-y += config.o
 obj-y += sram.o
 CFLAGS_sram.o += -mthumb
 obj-$(CONFIG_DDR_TEST) += memtester.o
