@@ -18,6 +18,7 @@
  */
 #include <linux/module.h>
 #include <linux/opp.h>
+#include <linux/cpu.h>
 
 #include <plat/omap_device.h>
 
@@ -62,13 +63,23 @@ int __init omap_init_opp_table(struct omap_opp_def *opp_def,
 				__func__, i);
 			return -EINVAL;
 		}
-		oh = omap_hwmod_lookup(opp_def->hwmod_name);
-		if (!oh || !oh->od) {
-			pr_debug("%s: no hwmod or odev for %s, [%d] cannot add OPPs.\n",
-				 __func__, opp_def->hwmod_name, i);
-			continue;
+
+		if (!strncmp(opp_def->hwmod_name, "mpu", 3)) {
+			/* 
+			 * All current OMAPs share voltage rail and
+			 * clock source, so CPU0 is used to represent
+			 * the MPU-SS.
+			 */
+			dev = get_cpu_device(0);
+		} else {
+			oh = omap_hwmod_lookup(opp_def->hwmod_name);
+			if (!oh || !oh->od) {
+				pr_debug("%s: no hwmod or odev for %s, [%d] cannot add OPPs.\n",
+					 __func__, opp_def->hwmod_name, i);
+				continue;
+			}
+			dev = &oh->od->pdev->dev;
 		}
-		dev = &oh->od->pdev->dev;
 
 		r = opp_add(dev, opp_def->freq, opp_def->u_volt);
 		if (r) {

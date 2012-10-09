@@ -30,20 +30,12 @@
 #include <asm/smp_plat.h>
 #include <asm/cpu.h>
 
-#include <plat/clock.h>
-#include <plat/omap-pm.h>
-#include <plat/common.h>
-#include <plat/omap_device.h>
-
-#include <mach/hardware.h>
-
 /* OPP tolerance in percentage */
 #define	OPP_TOLERANCE	4
 
 static struct cpufreq_frequency_table *freq_table;
 static atomic_t freq_table_users = ATOMIC_INIT(0);
 static struct clk *mpu_clk;
-static char *mpu_clk_name;
 static struct device *mpu_dev;
 static struct regulator *mpu_reg;
 
@@ -108,6 +100,14 @@ static int omap_target(struct cpufreq_policy *policy,
 	}
 
 	freq = freqs.new * 1000;
+	ret = clk_round_rate(mpu_clk, freq);
+	if (IS_ERR_VALUE(ret)) {
+		dev_warn(mpu_dev,
+			 "CPUfreq: Cannot find matching frequency for %lu\n",
+			 freq);
+		return ret;
+	}
+	freq = ret;
 
 	if (mpu_reg) {
 		opp = opp_find_freq_ceil(mpu_dev, &freq);
@@ -172,7 +172,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 
-	mpu_clk = clk_get(NULL, mpu_clk_name);
+	mpu_clk = clk_get(NULL, "cpufreq_ck");
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
@@ -253,22 +253,10 @@ static struct cpufreq_driver omap_driver = {
 
 static int __init omap_cpufreq_init(void)
 {
-	if (cpu_is_omap24xx())
-		mpu_clk_name = "virt_prcm_set";
-	else if (cpu_is_omap34xx())
-		mpu_clk_name = "dpll1_ck";
-	else if (cpu_is_omap44xx())
-		mpu_clk_name = "dpll_mpu_ck";
-
-	if (!mpu_clk_name) {
-		pr_err("%s: unsupported Silicon?\n", __func__);
-		return -EINVAL;
-	}
-
-	mpu_dev = omap_device_get_by_hwmod_name("mpu");
-	if (IS_ERR(mpu_dev)) {
+	mpu_dev = get_cpu_device(0);
+	if (!mpu_dev) {
 		pr_warning("%s: unable to get the mpu device\n", __func__);
-		return PTR_ERR(mpu_dev);
+		return -EINVAL;
 	}
 
 	mpu_reg = regulator_get(mpu_dev, "vcc");
