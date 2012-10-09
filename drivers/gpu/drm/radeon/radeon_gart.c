@@ -602,7 +602,6 @@ int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
  * @vm: vm to bind
  *
  * Allocate a page table for the requested vm (cayman+).
- * Also starts to populate the page table.
  * Returns 0 for success, error for failure.
  *
  * Global and local mutex must be locked!
@@ -655,8 +654,7 @@ retry:
 	}
 
 	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
-	return radeon_vm_bo_update_pte(rdev, vm, rdev->ring_tmp_bo.bo,
-				       &rdev->ring_tmp_bo.bo->tbo.mem);
+	return 0;
 }
 
 /**
@@ -1241,30 +1239,15 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
  * @rdev: radeon_device pointer
  * @vm: requested vm
  *
- * Init @vm (cayman+).
- * Map the IB pool and any other shared objects into the VM
- * by default as it's used by all VMs.
- * Returns 0 for success, error for failure.
+ * Init @vm fields (cayman+).
  */
-int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
+void radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	struct radeon_bo_va *bo_va;
-	int r;
-
 	vm->id = 0;
 	vm->fence = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);
 	INIT_LIST_HEAD(&vm->va);
-
-	/* map the ib pool buffer at 0 in virtual address space, set
-	 * read only
-	 */
-	bo_va = radeon_vm_bo_add(rdev, vm, rdev->ring_tmp_bo.bo);
-	r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
-				  RADEON_VM_PAGE_READABLE |
-				  RADEON_VM_PAGE_SNOOPED);
-	return r;
 }
 
 /**
@@ -1286,17 +1269,6 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	radeon_vm_free_pt(rdev, vm);
 	mutex_unlock(&rdev->vm_manager.lock);
 
-	/* remove all bo at this point non are busy any more because unbind
-	 * waited for the last vm fence to signal
-	 */
-	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-	if (!r) {
-		bo_va = radeon_vm_bo_find(vm, rdev->ring_tmp_bo.bo);
-		list_del_init(&bo_va->bo_list);
-		list_del_init(&bo_va->vm_list);
-		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
-		kfree(bo_va);
-	}
 	if (!list_empty(&vm->va)) {
 		dev_err(rdev->dev, "still active bo inside vm\n");
 	}
