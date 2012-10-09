@@ -595,7 +595,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 			j = ipc->num / (sizeof(long) * 8);
 			i = ipc->num % (sizeof(long) * 8);
 			if (j < 8)
-				protos[j] |= (0x1 << i);
+				protos[j] |= (1UL << i);
 			ipc = ipc->next;
 		}
 		if ((r = set_arg(argp, protos, 8 * sizeof(long))))
