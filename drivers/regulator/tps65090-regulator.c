@@ -37,6 +37,9 @@ static struct regulator_ops tps65090_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
+static struct regulator_ops tps65090_ldo_ops = {
+};
+
 #define tps65090_REG_DESC(_id, _sname, _en_reg, _ops)	\
 {							\
 	.name = "TPS65090_RAILS"#_id,			\
@@ -60,6 +63,8 @@ static struct regulator_desc tps65090_regulator_desc[] = {
 	tps65090_REG_DESC(FET5,  "infet5",  0x13, tps65090_ops),
 	tps65090_REG_DESC(FET6,  "infet6",  0x14, tps65090_ops),
 	tps65090_REG_DESC(FET7,  "infet7",  0x15, tps65090_ops),
+	tps65090_REG_DESC(LDO1,  "vsys_l1", 0,    tps65090_ldo_ops),
+	tps65090_REG_DESC(LDO2,  "vsys_l2", 0,    tps65090_ldo_ops),
 };
 
 static inline bool is_dcdc(int id)
