@@ -479,7 +479,7 @@ C_ENTRY(sys_fork_wrapper):
    saved context).  */
 C_ENTRY(ret_from_fork):
 	bralid	r15, schedule_tail; /* ...which is schedule_tail's arg */
-	add	r3, r5, r0;	/* switch_thread returns the prev task */
+	add	r5, r3, r0;	/* switch_thread returns the prev task */
 				/* ( in the delay slot ) */
 	brid	ret_from_trap;	/* Do normal trap return */
 	add	r3, r0, r0;	/* Child's fork call should return 0. */
