@@ -121,7 +121,10 @@ define SOURCE_PYTHON_VERSION
 #if PY_VERSION_HEX >= 0x03000000
 	#error
 #endif
-int main(void){}
+int main(void)
+{
+	return 0;
+}
 endef
 define SOURCE_PYTHON_EMBED
 #include <Python.h>
