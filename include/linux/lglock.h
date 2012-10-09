@@ -32,7 +32,8 @@
 #define br_write_lock(name)	lg_global_lock(name)
 #define br_write_unlock(name)	lg_global_unlock(name)
 
-#define DEFINE_BRLOCK(name)	DEFINE_LGLOCK(name)
+#define DEFINE_BRLOCK(name)		DEFINE_LGLOCK(name)
+#define DEFINE_STATIC_BRLOCK(name)	DEFINE_STATIC_LGLOCK(name)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define LOCKDEP_INIT_MAP lockdep_init_map
@@ -52,6 +53,11 @@ struct lglock {
 	static DEFINE_PER_CPU(arch_spinlock_t, name ## _lock)		\
 	= __ARCH_SPIN_LOCK_UNLOCKED;					\
 	struct lglock name = { .lock = &name ## _lock }
+
+#define DEFINE_STATIC_LGLOCK(name)					\
+	static DEFINE_PER_CPU(arch_spinlock_t, name ## _lock)		\
+	= __ARCH_SPIN_LOCK_UNLOCKED;					\
+	static struct lglock name = { .lock = &name ## _lock }
 
 void lg_lock_init(struct lglock *lg, char *name);
 void lg_local_lock(struct lglock *lg);
