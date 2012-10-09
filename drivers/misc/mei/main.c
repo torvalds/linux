@@ -621,10 +621,26 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	mutex_lock(&dev->device_lock);
 
 	if (dev->dev_state != MEI_DEV_ENABLED) {
-		mutex_unlock(&dev->device_lock);
-		return -ENODEV;
+		rets = -ENODEV;
+		goto unlock_dev;
 	}
 
+	i = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (i < 0) {
+		rets = -ENODEV;
+		goto unlock_dev;
+	}
+	if (length > dev->me_clients[i].props.max_msg_length || length <= 0) {
+		rets = -EMSGSIZE;
+		goto unlock_dev;
+	}
+
+	if (cl->state != MEI_FILE_CONNECTED) {
+		rets = -ENODEV;
+		dev_err(&dev->pdev->dev, "host client = %d,  is not connected to ME client = %d",
+			cl->host_client_id, cl->me_client_id);
+		goto unlock_dev;
+	}
 	if (cl == &dev->iamthif_cl) {
 		write_cb = find_amthi_read_list_entry(dev, file);
 
@@ -633,11 +649,11 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 					msecs_to_jiffies(IAMTHIF_READ_TIMER);
 
 			if (time_after(jiffies, timeout) ||
-				 cl->reading_state == MEI_READ_COMPLETE) {
-					*offset = 0;
-					list_del(&write_cb->cb_list);
-					mei_free_cb_private(write_cb);
-					write_cb = NULL;
+			    cl->reading_state == MEI_READ_COMPLETE) {
+				*offset = 0;
+				list_del(&write_cb->cb_list);
+				mei_free_cb_private(write_cb);
+				write_cb = NULL;
 			}
 		}
 	}
@@ -670,8 +686,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	dev_dbg(&dev->pdev->dev, "cb request size = %zd\n", length);
 
-	rets = -EFAULT;
-	if (copy_from_user(write_cb->request_buffer.data, ubuf, length))
+	rets = copy_from_user(write_cb->request_buffer.data, ubuf, length);
+	if (rets)
 		goto unlock_dev;
 
 	cl->sm_state = 0;
@@ -685,29 +701,11 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		cl->sm_state |= MEI_WD_STATE_INDEPENDENCE_MSG_SENT;
 
 	if (cl == &dev->iamthif_cl) {
-		if (dev->dev_state != MEI_DEV_ENABLED) {
-			rets = -ENODEV;
-			goto unlock_dev;
-		}
-		i = mei_me_cl_by_id(dev, dev->iamthif_cl.me_client_id);
-		if (i < 0) {
-			rets = -ENODEV;
-			goto unlock_dev;
-		}
-		if (length > dev->me_clients[i].props.max_msg_length ||
-			   length <= 0) {
-			rets = -EMSGSIZE;
-			goto unlock_dev;
-		}
 		rets = mei_io_cb_alloc_resp_buf(write_cb, dev->iamthif_mtu);
 		if (rets)
 			goto unlock_dev;
 
 		write_cb->major_file_operations = MEI_IOCTL;
-		if (dev->iamthif_cl.state != MEI_FILE_CONNECTED) {
-			rets = -ENODEV;
-			goto unlock_dev;
-		}
 
 		if (!list_empty(&dev->amthi_cmd_list.mei_cb.cb_list) ||
 				dev->iamthif_state != MEI_IAMTHIF_IDLE) {
@@ -716,43 +714,24 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			dev_dbg(&dev->pdev->dev, "add amthi cb to amthi cmd waiting list\n");
 			list_add_tail(&write_cb->cb_list,
 					&dev->amthi_cmd_list.mei_cb.cb_list);
-			rets = length;
 		} else {
 			dev_dbg(&dev->pdev->dev, "call amthi write\n");
 			rets = amthi_write(dev, write_cb);
 
 			if (rets) {
-				dev_dbg(&dev->pdev->dev, "amthi write failed with status = %d\n",
+				dev_err(&dev->pdev->dev, "amthi write failed with status = %d\n",
 				    rets);
 				goto unlock_dev;
 			}
-			rets = length;
 		}
 		mutex_unlock(&dev->device_lock);
-		return rets;
+		return length;
 	}
 
 	write_cb->major_file_operations = MEI_WRITE;
 
 	dev_dbg(&dev->pdev->dev, "host client = %d, ME client = %d\n",
 	    cl->host_client_id, cl->me_client_id);
-	if (cl->state != MEI_FILE_CONNECTED) {
-		rets = -ENODEV;
-		dev_dbg(&dev->pdev->dev, "host client = %d,  is not connected to ME client = %d",
-		    cl->host_client_id,
-		    cl->me_client_id);
-		goto unlock_dev;
-	}
-	i = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (i < 0) {
-		rets = -ENODEV;
-		goto unlock_dev;
-	}
-	if (length > dev->me_clients[i].props.max_msg_length || length <= 0) {
-		rets = -EINVAL;
-		goto unlock_dev;
-	}
-
 	rets = mei_flow_ctrl_creds(dev, cl);
 	if (rets < 0)
 		goto unlock_dev;
