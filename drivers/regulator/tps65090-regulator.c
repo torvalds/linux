@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -31,10 +32,13 @@ struct tps65090_regulator {
 	struct regulator_dev	*rdev;
 };
 
-static struct regulator_ops tps65090_ops = {
-	.enable = regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
-	.is_enabled = regulator_is_enabled_regmap,
+static struct regulator_ops tps65090_ext_control_ops = {
+};
+
+static struct regulator_ops tps65090_reg_contol_ops = {
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
 };
 
 static struct regulator_ops tps65090_ldo_ops = {
@@ -53,16 +57,16 @@ static struct regulator_ops tps65090_ldo_ops = {
 }
 
 static struct regulator_desc tps65090_regulator_desc[] = {
-	tps65090_REG_DESC(DCDC1, "vsys1",   0x0C, tps65090_ops),
-	tps65090_REG_DESC(DCDC2, "vsys2",   0x0D, tps65090_ops),
-	tps65090_REG_DESC(DCDC3, "vsys3",   0x0E, tps65090_ops),
-	tps65090_REG_DESC(FET1,  "infet1",  0x0F, tps65090_ops),
-	tps65090_REG_DESC(FET2,  "infet2",  0x10, tps65090_ops),
-	tps65090_REG_DESC(FET3,  "infet3",  0x11, tps65090_ops),
-	tps65090_REG_DESC(FET4,  "infet4",  0x12, tps65090_ops),
-	tps65090_REG_DESC(FET5,  "infet5",  0x13, tps65090_ops),
-	tps65090_REG_DESC(FET6,  "infet6",  0x14, tps65090_ops),
-	tps65090_REG_DESC(FET7,  "infet7",  0x15, tps65090_ops),
+	tps65090_REG_DESC(DCDC1, "vsys1",   0x0C, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(DCDC2, "vsys2",   0x0D, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(DCDC3, "vsys3",   0x0E, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET1,  "infet1",  0x0F, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET2,  "infet2",  0x10, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET3,  "infet3",  0x11, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET4,  "infet4",  0x12, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET5,  "infet5",  0x13, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET6,  "infet6",  0x14, tps65090_reg_contol_ops),
+	tps65090_REG_DESC(FET7,  "infet7",  0x15, tps65090_reg_contol_ops),
 	tps65090_REG_DESC(LDO1,  "vsys_l1", 0,    tps65090_ldo_ops),
 	tps65090_REG_DESC(LDO2,  "vsys_l2", 0,    tps65090_ldo_ops),
 };
@@ -118,6 +122,22 @@ static int __devinit tps65090_regulator_disable_ext_control(
 	return tps65090_config_ext_control(ri, false);
 }
 
+static void __devinit tps65090_configure_regulator_config(
+		struct tps65090_regulator_plat_data *tps_pdata,
+		struct regulator_config *config)
+{
+	if (gpio_is_valid(tps_pdata->gpio)) {
+		int gpio_flag = GPIOF_OUT_INIT_LOW;
+
+		if (tps_pdata->reg_init_data->constraints.always_on ||
+				tps_pdata->reg_init_data->constraints.boot_on)
+			gpio_flag = GPIOF_OUT_INIT_HIGH;
+
+		config->ena_gpio = tps_pdata->gpio;
+		config->ena_gpio_flags = gpio_flag;
+	}
+}
+
 static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65090 *tps65090_mfd = dev_get_drvdata(pdev->dev.parent);
@@ -154,18 +174,24 @@ static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 
 		/*
 		 * TPS5090 DCDC support the control from external digital input.
-		 * It may be possible that during boot, the external control is
-		 * enabled. Disabling external control for DCDC.
+		 * Configure it as per platform data.
 		 */
 		if (tps_pdata && is_dcdc(num) && tps_pdata->reg_init_data) {
-			ret = tps65090_regulator_disable_ext_control(
+			if (tps_pdata->enable_ext_control) {
+				tps65090_configure_regulator_config(
+						tps_pdata, &config);
+				ri->desc->ops = &tps65090_ext_control_ops;
+			} else {
+				ret = tps65090_regulator_disable_ext_control(
 						ri, tps_pdata);
-			if (ret < 0) {
-				dev_err(&pdev->dev,
+				if (ret < 0) {
+					dev_err(&pdev->dev,
 						"failed disable ext control\n");
-				goto scrub;
+					goto scrub;
+				}
 			}
 		}
+
 		config.dev = &pdev->dev;
 		config.driver_data = ri;
 		config.regmap = tps65090_mfd->rmap;
@@ -182,6 +208,17 @@ static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 			goto scrub;
 		}
 		ri->rdev = rdev;
+
+		/* Enable external control if it is require */
+		if (tps_pdata && is_dcdc(num) && tps_pdata->reg_init_data &&
+				tps_pdata->enable_ext_control) {
+			ret = tps65090_config_ext_control(ri, true);
+			if (ret < 0) {
+				/* Increment num to get unregister rdev */
+				num++;
+				goto scrub;
+			}
+		}
 	}
 
 	platform_set_drvdata(pdev, pmic);
