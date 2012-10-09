@@ -22,7 +22,10 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <plat/board.h>
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+  
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
@@ -42,6 +45,7 @@ struct act8931 {
 	struct i2c_client *i2c;
 	int num_regulators;
 	struct regulator_dev **rdev;
+	struct early_suspend act8931_suspend;
 };
 
 static u8 act8931_reg_read(struct act8931 *act8931, u8 reg);
@@ -586,6 +590,12 @@ static irqreturn_t act8931_irq_thread(unsigned int irq, void *dev_id)
 	rk28_send_wakeup_key();
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+__weak void act8931_early_suspend(struct early_suspend *h) {}
+__weak void act8931_late_resume(struct early_suspend *h) {}
+#endif
+
 static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct act8931 *act8931;	
@@ -657,6 +667,14 @@ static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	}	
 
 	enable_irq_wake(act8931->irq);
+
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	act8931->act8931_suspend.suspend = act8931_early_suspend,
+	act8931->act8931_suspend.resume = act8931_late_resume,
+	act8931->act8931_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
+	register_early_suspend(&act8931->act8931_suspend);
+	#endif
+
 	return 0;
 
 err:

@@ -8,12 +8,16 @@
 
 #ifdef CONFIG_REGULATOR_ACT8931
 
+#define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
+#define ACT8931_CHGSEL_VALUE GPIO_LOW /* Decline to 20% current */
+
 extern int platform_device_register(struct platform_device *pdev);
 
 static int act8931_set_init(struct act8931 *act8931)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
+	int ret;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
 	g_pmic_type = PMIC_TYPE_ACT8931;
@@ -73,6 +77,10 @@ static int act8931_set_init(struct act8931 *act8931)
 	regulator_put(dcdc);
 	udelay(100);
 	
+	ret = gpio_request(ACT8931_CHGSEL_PIN, "ACT8931_CHGSEL");
+	if (ret != 0)
+		gpio_free(ACT8931_CHGSEL_PIN);
+	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
 
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	
@@ -273,9 +281,19 @@ static struct act8931_platform_data act8931_data={
 	.set_init=act8931_set_init,
 	.num_regulators=7,
 	.regulators=act8931_regulator_subdev_id,
-	
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+void act8931_early_suspend(struct early_suspend *h)
+{
+	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
+}
+
+void act8931_late_resume(struct early_suspend *h)
+{
+	gpio_direction_output(ACT8931_CHGSEL_PIN, !ACT8931_CHGSEL_VALUE);
+}
+#endif
 
 #endif
 
