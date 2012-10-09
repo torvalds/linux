@@ -159,6 +159,11 @@ static struct of_device_id omap_timer_match[] __initdata = {
 	{ }
 };
 
+static struct of_device_id omap_counter_match[] __initdata = {
+	{ .compatible = "ti,omap-counter32k", },
+	{ }
+};
+
 /**
  * omap_get_timer_dt - get a timer using device-tree
  * @match	- device-tree match structure for matching a device type
@@ -377,9 +382,24 @@ static u32 notrace dmtimer_read_sched_clock(void)
 static int __init omap2_sync32k_clocksource_init(void)
 {
 	int ret;
+	struct device_node *np = NULL;
 	struct omap_hwmod *oh;
 	void __iomem *vbase;
 	const char *oh_name = "counter_32k";
+
+	/*
+	 * If device-tree is present, then search the DT blob
+	 * to see if the 32kHz counter is supported.
+	 */
+	if (of_have_populated_dt()) {
+		np = omap_get_timer_dt(omap_counter_match, NULL);
+		if (!np)
+			return -ENODEV;
+
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		if (!oh_name)
+			return -ENODEV;
+	}
 
 	/*
 	 * First check hwmod data is available for sync32k counter
@@ -390,7 +410,13 @@ static int __init omap2_sync32k_clocksource_init(void)
 
 	omap_hwmod_setup_one(oh_name);
 
-	vbase = omap_hwmod_get_mpu_rt_va(oh);
+	if (np) {
+		vbase = of_iomap(np, 0);
+		of_node_put(np);
+	} else {
+		vbase = omap_hwmod_get_mpu_rt_va(oh);
+	}
+
 	if (!vbase) {
 		pr_warn("%s: failed to get counter_32k resource\n", __func__);
 		return -ENXIO;
