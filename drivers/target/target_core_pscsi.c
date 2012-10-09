@@ -461,7 +461,7 @@ static int pscsi_create_type_other(struct se_device *dev,
 	return 0;
 }
 
-int pscsi_configure_device(struct se_device *dev)
+static int pscsi_configure_device(struct se_device *dev)
 {
 	struct se_hba *hba = dev->se_hba;
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);

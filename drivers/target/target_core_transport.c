@@ -297,7 +297,7 @@ void transport_register_session(
 }
 EXPORT_SYMBOL(transport_register_session);
 
-void target_release_session(struct kref *kref)
+static void target_release_session(struct kref *kref)
 {
 	struct se_session *se_sess = container_of(kref,
 			struct se_session, sess_kref);
