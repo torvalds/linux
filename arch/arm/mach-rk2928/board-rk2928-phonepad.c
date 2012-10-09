@@ -661,8 +661,8 @@ static struct resource resources_acodec[] = {
 		.flags 	= IORESOURCE_MEM,
 	},
 	{
-		.start	= RK2928_PIN1_PA0,
-		.end	= RK2928_PIN1_PA0,
+		.start	= RK2928_PIN3_PD4,
+		.end	= RK2928_PIN3_PD4,
 		.flags	= IORESOURCE_IO,
 	},
 };
