@@ -3173,6 +3173,9 @@ dgrp_tty_init(struct nd_struct *nd)
 	 */
 
 	nd->nd_serial_ttdriver = alloc_tty_driver(CHAN_MAX);
+	if (!nd->nd_serial_ttdriver)
+		return -ENOMEM;
+
 	sprintf(nd->nd_serial_name,  "tty_dgrp_%s_", id);
 
 	nd->nd_serial_ttdriver->owner = THIS_MODULE;
@@ -3232,6 +3235,9 @@ dgrp_tty_init(struct nd_struct *nd)
 	}
 
 	nd->nd_callout_ttdriver = alloc_tty_driver(CHAN_MAX);
+	if (!nd->nd_callout_ttdriver)
+		return -ENOMEM;
+
 	sprintf(nd->nd_callout_name, "cu_dgrp_%s_",  id);
 
 	nd->nd_callout_ttdriver->owner = THIS_MODULE;
@@ -3269,6 +3275,9 @@ dgrp_tty_init(struct nd_struct *nd)
 
 
 	nd->nd_xprint_ttdriver = alloc_tty_driver(CHAN_MAX);
+	if (!nd->nd_xprint_ttdriver)
+		return -ENOMEM;
+
 	sprintf(nd->nd_xprint_name,  "pr_dgrp_%s_", id);
 
 	nd->nd_xprint_ttdriver->owner = THIS_MODULE;
