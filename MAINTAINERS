@@ -4640,13 +4640,16 @@ S:	Maintained
 F:	fs/logfs/
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
-M:	Eric Moore <Eric.Moore@lsi.com>
+M:	Nagalakshmi Nandigama <Nagalakshmi.Nandigama@lsi.com>
+M:	Sreekanth Reddy <Sreekanth.Reddy@lsi.com>
 M:	support@lsi.com
 L:	DL-MPTFusionLinux@lsi.com
 L:	linux-scsi@vger.kernel.org
 W:	http://www.lsilogic.com/support
 S:	Supported
 F:	drivers/message/fusion/
+F:	drivers/scsi/mpt2sas/
+F:	drivers/scsi/mpt3sas/
 
 LSILOGIC/SYMBIOS/NCR 53C8XX and 53C1010 PCI-SCSI drivers
 M:	Matthew Wilcox <matthew@wil.cx>
