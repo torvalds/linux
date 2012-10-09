@@ -118,6 +118,12 @@ extern struct nouveau_oclass nv25_fb_oclass;
 extern struct nouveau_oclass nv30_fb_oclass;
 extern struct nouveau_oclass nv35_fb_oclass;
 extern struct nouveau_oclass nv40_fb_oclass;
+extern struct nouveau_oclass nv41_fb_oclass;
+extern struct nouveau_oclass nv44_fb_oclass;
+extern struct nouveau_oclass nv46_fb_oclass;
+extern struct nouveau_oclass nv47_fb_oclass;
+extern struct nouveau_oclass nv49_fb_oclass;
+extern struct nouveau_oclass nv4e_fb_oclass;
 extern struct nouveau_oclass nv50_fb_oclass;
 extern struct nouveau_oclass nvc0_fb_oclass;
 
@@ -137,6 +143,10 @@ int  nv30_fb_init(struct nouveau_object *);
 void nv30_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
 void nv30_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
+
+int  nv41_fb_init(struct nouveau_object *);
+int  nv44_fb_init(struct nouveau_object *);
+void nv41_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
 
 void nv50_fb_vram_del(struct nouveau_fb *, struct nouveau_mem **);
 void nv50_fb_trap(struct nouveau_fb *, int display);

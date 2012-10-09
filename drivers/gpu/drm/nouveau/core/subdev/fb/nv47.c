@@ -26,32 +26,18 @@
 
 #include <subdev/fb.h>
 
-struct nv40_fb_priv {
+struct nv47_fb_priv {
 	struct nouveau_fb base;
 };
 
 static int
-nv40_fb_init(struct nouveau_object *object)
-{
-	struct nv40_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_fb_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_mask(priv, 0x10033c, 0x00008000, 0x00000000);
-	return 0;
-}
-
-static int
-nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv47_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
 	struct nouveau_device *device = nv_device(parent);
-	struct nv40_fb_priv *priv;
-	u32 pbus1218;
+	struct nv47_fb_priv *priv;
+	u32 pfb474;
 	int ret;
 
 	ret = nouveau_fb_create(parent, engine, oclass, &priv);
@@ -59,32 +45,32 @@ nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	pbus1218 = nv_rd32(priv, 0x001218);
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: priv->base.ram.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: priv->base.ram.type = NV_MEM_TYPE_DDR2; break;
-	}
+	pfb474 = nv_rd32(priv, 0x100474);
+	if (pfb474 & 0x00000004)
+		priv->base.ram.type = NV_MEM_TYPE_GDDR3;
+	if (pfb474 & 0x00000002)
+		priv->base.ram.type = NV_MEM_TYPE_DDR2;
+	if (pfb474 & 0x00000001)
+		priv->base.ram.type = NV_MEM_TYPE_DDR1;
 
 	priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.tile.regions = 8;
+	priv->base.tile.regions = 15;
 	priv->base.tile.init = nv30_fb_tile_init;
 	priv->base.tile.fini = nv30_fb_tile_fini;
-	priv->base.tile.prog = nv10_fb_tile_prog;
+	priv->base.tile.prog = nv41_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);
 }
 
 
 struct nouveau_oclass
-nv40_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x40),
+nv47_fb_oclass = {
+	.handle = NV_SUBDEV(FB, 0x47),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv40_fb_ctor,
+		.ctor = nv47_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
-		.init = nv40_fb_init,
+		.init = nv41_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
 };
