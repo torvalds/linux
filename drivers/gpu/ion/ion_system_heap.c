@@ -328,9 +328,12 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	int i;
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
-		seq_printf(s, "%d order %u pages in pool = %lu total\n",
-			   pool->count, pool->order,
-			   (1 << pool->order) * PAGE_SIZE * pool->count);
+		seq_printf(s, "%d order %u highmem pages in pool = %lu total\n",
+			   pool->high_count, pool->order,
+			   (1 << pool->order) * PAGE_SIZE * pool->high_count);
+		seq_printf(s, "%d order %u lowmem pages in pool = %lu total\n",
+			   pool->low_count, pool->order,
+			   (1 << pool->order) * PAGE_SIZE * pool->low_count);
 	}
 	return 0;
 }
