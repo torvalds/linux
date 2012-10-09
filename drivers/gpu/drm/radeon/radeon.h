@@ -663,9 +663,14 @@ struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
 	unsigned			id;
-	unsigned			last_pfn;
-	u64				pd_gpu_addr;
-	struct radeon_sa_bo		*sa_bo;
+
+	/* contains the page directory */
+	struct radeon_sa_bo		*page_directory;
+	uint64_t			pd_gpu_addr;
+
+	/* array of page tables, one for each page directory entry */
+	struct radeon_sa_bo		**page_tables;
+
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
 	struct radeon_fence		*fence;

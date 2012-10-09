@@ -1580,7 +1580,7 @@ void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, 0);
 
 	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (vm->id << 2), 0));
-	radeon_ring_write(ring, vm->last_pfn);
+	radeon_ring_write(ring, rdev->vm_manager.max_pfn);
 
 	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2), 0));
 	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
