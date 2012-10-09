@@ -70,6 +70,14 @@
 #define RBD_IMAGE_ID_LEN_MAX	64
 #define RBD_OBJ_PREFIX_LEN_MAX	64
 
+/* Feature bits */
+
+#define RBD_FEATURE_LAYERING      1
+
+/* Features supported by this (client software) implementation. */
+
+#define RBD_FEATURES_ALL          (0)
+
 /*
  * An RBD device name will be "rbd#", where the "rbd" comes from
  * RBD_DRV_NAME above, and # is a unique integer identifier.
@@ -2226,6 +2234,7 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 		__le64 features;
 		__le64 incompat;
 	} features_buf = { 0 };
+	u64 incompat;
 	int ret;
 
 	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
@@ -2236,6 +2245,11 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
+
+	incompat = le64_to_cpu(features_buf.incompat);
+	if (incompat & ~RBD_FEATURES_ALL)
+		return -ENOTSUPP;
+
 	*snap_features = le64_to_cpu(features_buf.features);
 
 	dout("  snap_id 0x%016llx features = 0x%016llx incompat = 0x%016llx\n",
@@ -2977,7 +2991,7 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	if (ret < 0)
 		goto out_err;
 
-	/* Get the features for the image */
+	/* Get the and check features for the image */
 
 	ret = rbd_dev_v2_features(rbd_dev);
 	if (ret < 0)
