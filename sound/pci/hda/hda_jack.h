@@ -13,12 +13,16 @@
 #define __SOUND_HDA_JACK_H
 
 struct auto_pin_cfg;
+struct hda_jack_tbl;
+
+typedef void (*hda_jack_callback) (struct hda_codec *, struct hda_jack_tbl *);
 
 struct hda_jack_tbl {
 	hda_nid_t nid;
 	unsigned char action;		/* event action (0 = none) */
 	unsigned char tag;		/* unsol event tag */
 	unsigned int private_data;	/* arbitrary data */
+	hda_jack_callback callback;
 	/* jack-detection stuff */
 	unsigned int pin_sense;		/* cached pin-sense value */
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
@@ -61,6 +65,10 @@ void snd_hda_jack_set_dirty_all(struct hda_codec *codec);
 
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
 			       unsigned char action);
+int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
+					unsigned char action,
+					hda_jack_callback cb);
+
 
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
@@ -74,5 +82,6 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 
 void snd_hda_jack_report_sync(struct hda_codec *codec);
 
+void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res);
 
 #endif /* __SOUND_HDA_JACK_H */

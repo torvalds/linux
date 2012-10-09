@@ -603,7 +603,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	 * process cleanup to remove whatever mess we made.
 	 */
 	if (length != move_page_tables(vma, old_start,
-				       vma, new_start, length))
+				       vma, new_start, length, false))
 		return -ENOMEM;
 
 	lru_add_drain();
@@ -878,9 +878,11 @@ static int de_thread(struct task_struct *tsk)
 		sig->notify_count--;
 
 	while (sig->notify_count) {
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
+		if (unlikely(__fatal_signal_pending(tsk)))
+			goto killed;
 		spin_lock_irq(lock);
 	}
 	spin_unlock_irq(lock);
@@ -898,9 +900,11 @@ static int de_thread(struct task_struct *tsk)
 			write_lock_irq(&tasklist_lock);
 			if (likely(leader->exit_state))
 				break;
-			__set_current_state(TASK_UNINTERRUPTIBLE);
+			__set_current_state(TASK_KILLABLE);
 			write_unlock_irq(&tasklist_lock);
 			schedule();
+			if (unlikely(__fatal_signal_pending(tsk)))
+				goto killed;
 		}
 
 		/*
@@ -994,6 +998,14 @@ no_thread_group:
 
 	BUG_ON(!thread_group_leader(tsk));
 	return 0;
+
+killed:
+	/* protects against exit_notify() and __exit_signal() */
+	read_lock(&tasklist_lock);
+	sig->group_exit_task = NULL;
+	sig->notify_count = 0;
+	read_unlock(&tasklist_lock);
+	return -EAGAIN;
 }
 
 char *get_task_comm(char *buf, struct task_struct *tsk)

@@ -211,6 +211,9 @@ ENTRY(v7_coherent_user_range)
  * isn't mapped, fail with -EFAULT.
  */
 9001:
+#ifdef CONFIG_ARM_ERRATA_775420
+	dsb
+#endif
 	mov	r0, #-EFAULT
 	mov	pc, lr
  UNWIND(.fnend		)

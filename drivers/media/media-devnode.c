@@ -30,6 +30,8 @@
  * counting.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -215,7 +217,7 @@ int __must_check media_devnode_register(struct media_devnode *mdev)
 	minor = find_next_zero_bit(media_devnode_nums, MEDIA_NUM_DEVICES, 0);
 	if (minor == MEDIA_NUM_DEVICES) {
 		mutex_unlock(&media_devnode_lock);
-		printk(KERN_ERR "could not get a free minor\n");
+		pr_err("could not get a free minor\n");
 		return -ENFILE;
 	}
 
@@ -230,7 +232,7 @@ int __must_check media_devnode_register(struct media_devnode *mdev)
 
 	ret = cdev_add(&mdev->cdev, MKDEV(MAJOR(media_dev_t), mdev->minor), 1);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: cdev_add failed\n", __func__);
+		pr_err("%s: cdev_add failed\n", __func__);
 		goto error;
 	}
 
@@ -243,7 +245,7 @@ int __must_check media_devnode_register(struct media_devnode *mdev)
 	dev_set_name(&mdev->dev, "media%d", mdev->minor);
 	ret = device_register(&mdev->dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: device_register failed\n", __func__);
+		pr_err("%s: device_register failed\n", __func__);
 		goto error;
 	}
 
@@ -287,18 +289,18 @@ static int __init media_devnode_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Linux media interface: v0.10\n");
+	pr_info("Linux media interface: v0.10\n");
 	ret = alloc_chrdev_region(&media_dev_t, 0, MEDIA_NUM_DEVICES,
 				  MEDIA_NAME);
 	if (ret < 0) {
-		printk(KERN_WARNING "media: unable to allocate major\n");
+		pr_warn("unable to allocate major\n");
 		return ret;
 	}
 
 	ret = bus_register(&media_bus_type);
 	if (ret < 0) {
 		unregister_chrdev_region(media_dev_t, MEDIA_NUM_DEVICES);
-		printk(KERN_WARNING "media: bus_register failed\n");
+		pr_warn("bus_register failed\n");
 		return -EIO;
 	}
 

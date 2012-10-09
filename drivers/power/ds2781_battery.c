@@ -755,11 +755,9 @@ static int __devinit ds2781_battery_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct ds2781_device_info *dev_info;
 
-	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
-	if (!dev_info) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	dev_info = devm_kzalloc(&pdev->dev, sizeof(*dev_info), GFP_KERNEL);
+	if (!dev_info)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, dev_info);
 
@@ -774,7 +772,7 @@ static int __devinit ds2781_battery_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &dev_info->bat);
 	if (ret) {
 		dev_err(dev_info->dev, "failed to register battery\n");
-		goto fail_free_info;
+		goto fail;
 	}
 
 	ret = sysfs_create_group(&dev_info->bat.dev->kobj, &ds2781_attr_group);
@@ -808,8 +806,6 @@ fail_remove_group:
 	sysfs_remove_group(&dev_info->bat.dev->kobj, &ds2781_attr_group);
 fail_unregister:
 	power_supply_unregister(&dev_info->bat);
-fail_free_info:
-	kfree(dev_info);
 fail:
 	return ret;
 }
@@ -823,7 +819,6 @@ static int __devexit ds2781_battery_remove(struct platform_device *pdev)
 
 	power_supply_unregister(&dev_info->bat);
 
-	kfree(dev_info);
 	return 0;
 }
 
@@ -834,20 +829,7 @@ static struct platform_driver ds2781_battery_driver = {
 	.probe	  = ds2781_battery_probe,
 	.remove   = __devexit_p(ds2781_battery_remove),
 };
-
-static int __init ds2781_battery_init(void)
-{
-	return platform_driver_register(&ds2781_battery_driver);
-}
-
-static void __exit ds2781_battery_exit(void)
-{
-	platform_driver_unregister(&ds2781_battery_driver);
-}
-
-module_init(ds2781_battery_init);
-module_exit(ds2781_battery_exit);
-
+module_platform_driver(ds2781_battery_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");

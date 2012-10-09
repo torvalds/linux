@@ -215,6 +215,37 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+int ipoib_set_mode(struct net_device *dev, const char *buf)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	/* flush paths if we switch modes so that connections are restarted */
+	if (IPOIB_CM_SUPPORTED(dev->dev_addr) && !strcmp(buf, "connected\n")) {
+		set_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+		ipoib_warn(priv, "enabling connected mode "
+			   "will cause multicast packet drops\n");
+		netdev_update_features(dev);
+		rtnl_unlock();
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+
+		ipoib_flush_paths(dev);
+		rtnl_lock();
+		return 0;
+	}
+
+	if (!strcmp(buf, "datagram\n")) {
+		clear_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+		netdev_update_features(dev);
+		dev_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
+		rtnl_unlock();
+		ipoib_flush_paths(dev);
+		rtnl_lock();
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static struct ipoib_path *__path_find(struct net_device *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);

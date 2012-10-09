@@ -1205,7 +1205,7 @@ static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 	int dump_ok;
 
 	/* Do not dump I/O mapped devices or special mappings */
-	if (vma->vm_flags & (VM_IO | VM_RESERVED)) {
+	if (vma->vm_flags & VM_IO) {
 		kdcore("%08lx: %08lx: no (IO)", vma->vm_start, vma->vm_flags);
 		return 0;
 	}

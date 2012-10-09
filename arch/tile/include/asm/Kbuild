@@ -8,6 +8,7 @@ header-y += hardwall.h
 
 generic-y += bug.h
 generic-y += bugs.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += div64.h
 generic-y += emergency-restart.h

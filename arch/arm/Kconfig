@@ -16,6 +16,7 @@ config ARM
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
@@ -24,6 +25,7 @@ config ARM
 	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
@@ -38,6 +40,7 @@ config ARM
 	select HARDIRQS_SW_RESEND
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select HAVE_UID16
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select HARDIRQS_SW_RESEND
 	select CPU_PM if (SUSPEND || CPU_IDLE)
@@ -529,10 +532,11 @@ config ARCH_IXP4XX
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select CPU_V7
-	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select PLAT_ORION
+	select MIGHT_HAVE_PCI
+	select PLAT_ORION_LEGACY
+	select USB_ARCH_HAS_EHCI
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -542,7 +546,7 @@ config ARCH_KIRKWOOD
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select PLAT_ORION
+	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
@@ -568,7 +572,7 @@ config ARCH_MV78XX0
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select PLAT_ORION
+	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
 	  MV781x0, MV782x0.
@@ -580,7 +584,7 @@ config ARCH_ORION5X
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select PLAT_ORION
+	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
@@ -1138,6 +1142,10 @@ config PLAT_ORION
 	select IRQ_DOMAIN
 	select COMMON_CLK
 
+config PLAT_ORION_LEGACY
+	bool
+	select PLAT_ORION
+
 config PLAT_PXA
 	bool
 
@@ -1396,6 +1404,16 @@ config PL310_ERRATA_769419
 	  This option adds a write barrier to the cpu_idle loop so that,
 	  on systems with an outer cache, the store buffer is drained
 	  explicitly.
+
+config ARM_ERRATA_775420
+       bool "ARM errata: A data cache maintenance operation which aborts, might lead to deadlock"
+       depends on CPU_V7
+       help
+	 This option enables the workaround for the 775420 Cortex-A9 (r2p2,
+	 r2p6,r2p8,r2p10,r3p0) erratum. In case a date cache maintenance
+	 operation aborts with MMU exception, it might cause the processor
+	 to deadlock. This workaround puts DSB before executing ISB if
+	 an abort may occur on cache maintenance.
 
 endmenu
 
@@ -1781,8 +1799,8 @@ config ALIGNMENT_TRAP
 	  configuration it is safe to say N, otherwise say Y.
 
 config UACCESS_WITH_MEMCPY
-	bool "Use kernel mem{cpy,set}() for {copy_to,clear}_user() (EXPERIMENTAL)"
-	depends on MMU && EXPERIMENTAL
+	bool "Use kernel mem{cpy,set}() for {copy_to,clear}_user()"
+	depends on MMU
 	default y if CPU_FEROCEON
 	help
 	  Implement faster copy_to_user and clear_user methods for CPU
@@ -1823,12 +1841,6 @@ config CC_STACKPROTECTOR
 	  neutralized via a kernel panic.
 	  This feature requires gcc version 4.2 or above.
 
-config DEPRECATED_PARAM_STRUCT
-	bool "Provide old way to pass kernel parameters"
-	help
-	  This was deprecated in 2001 and announced to live on for 5 years.
-	  Some old boot loaders still use this way.
-
 config XEN_DOM0
 	def_bool y
 	depends on XEN
@@ -1850,6 +1862,23 @@ config USE_OF
 	select IRQ_DOMAIN
 	help
 	  Include support for flattened device tree machine descriptions.
+
+config ATAGS
+	bool "Support for the traditional ATAGS boot data passing" if USE_OF
+	default y
+	help
+	  This is the traditional way of passing data to the kernel at boot
+	  time. If you are solely relying on the flattened device tree (or
+	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
+	  to remove ATAGS support from your kernel binary.  If unsure,
+	  leave this to y.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	depends on ATAGS
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
 
 # Compressed boot loader in ROM.  Yes, we really want to ask about
 # TEXT and BSS so we preserve their values in the config files.
@@ -1977,6 +2006,7 @@ config CMDLINE
 choice
 	prompt "Kernel command line type" if CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
+	depends on ATAGS
 
 config CMDLINE_FROM_BOOTLOADER
 	bool "Use bootloader kernel arguments if available"
@@ -2046,7 +2076,7 @@ config KEXEC
 
 config ATAGS_PROC
 	bool "Export atags in procfs"
-	depends on KEXEC
+	depends on ATAGS && KEXEC
 	default y
 	help
 	  Should the atags used to boot the kernel be exported in an "atags"

@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
@@ -161,7 +162,7 @@ static int __init ts41x_pci_init(void)
 		 * (Marvell 88sx7042/sata_mv) is known to stop working
 		 * after a few minutes.
 		 */
-		orion_pcie_reset((void __iomem *)PCIE_VIRT_BASE);
+		orion_pcie_reset(PCIE_VIRT_BASE);
 
 		kirkwood_pcie_id(&dev, &rev);
 		if (dev == MV88F6282_DEV_ID)

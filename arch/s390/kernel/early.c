@@ -388,6 +388,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
 	if (test_facility(50) && test_facility(73))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
+	if (test_facility(66))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_RRBM;
 #endif
 }
 

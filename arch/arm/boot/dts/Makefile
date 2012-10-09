@@ -17,6 +17,9 @@ dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb \
 	usb_a9263.dtb \
 	usb_a9g20.dtb
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
+dtb-$(CONFIG_ARCH_DOVE) += dove-cm-a510.dtb \
+	dove-cubox.dtb \
+	dove-dove-db.dtb
 dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
 	exynos4210-trats.dtb \
@@ -33,10 +36,13 @@ dtb-$(CONFIG_SOC_IMX6Q) += imx6q-arm2.dtb \
 dtb-$(CONFIG_ARCH_LPC32XX) += ea3250.dtb phy3250.dtb
 dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-dns320.dtb \
 	kirkwood-dns325.dtb \
+	kirkwood-dockstar.dtb \
 	kirkwood-dreamplug.dtb \
 	kirkwood-goflexnet.dtb \
 	kirkwood-ib62x0.dtb \
 	kirkwood-iconnect.dtb \
+	kirkwood-iomega_ix2_200.dtb \
+	kirkwood-km_kirkwood.dtb \
 	kirkwood-lschlv2.dtb \
 	kirkwood-lsxhl.dtb \
 	kirkwood-ts219-6281.dtb \

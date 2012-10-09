@@ -165,7 +165,8 @@ static inline int vring_need_event(__u16 event_idx, __u16 new_idx, __u16 old)
 struct virtio_device;
 struct virtqueue;
 
-struct virtqueue *vring_new_virtqueue(unsigned int num,
+struct virtqueue *vring_new_virtqueue(unsigned int index,
+				      unsigned int num,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,

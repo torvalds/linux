@@ -1182,7 +1182,7 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 			return -EINVAL;
 		if (set_vm_offset(vma, off) < 0)
 			return -EINVAL;
-		vma->vm_flags |= VM_IO | VM_RESERVED;
+		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 #ifdef pgprot_noncached
 		if (file->f_flags & O_DSYNC || off >= __pa(high_memory))

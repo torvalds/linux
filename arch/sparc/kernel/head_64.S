@@ -576,7 +576,7 @@ niagara_tlb_fixup:
 niagara4_patch:
 	call	niagara4_patch_copyops
 	 nop
-	call	niagara_patch_bzero
+	call	niagara4_patch_bzero
 	 nop
 	call	niagara4_patch_pageops
 	 nop

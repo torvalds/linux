@@ -1310,7 +1310,7 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 			runtime->hw.channels_min =
 				runtime->hw.channels_max = 16;
 			break;
-		};
+		}
 #endif
 #if 0
 		/* For 96kHz */

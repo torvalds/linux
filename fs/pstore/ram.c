@@ -32,6 +32,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/compiler.h>
 #include <linux/pstore_ram.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
@@ -181,12 +182,11 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 	return len;
 }
 
-
-static int ramoops_pstore_write_buf(enum pstore_type_id type,
-				    enum kmsg_dump_reason reason,
-				    u64 *id, unsigned int part,
-				    const char *buf, size_t size,
-				    struct pstore_info *psi)
+static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
+					    enum kmsg_dump_reason reason,
+					    u64 *id, unsigned int part,
+					    const char *buf, size_t size,
+					    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz = cxt->przs[cxt->dump_write_cnt];
@@ -406,7 +406,7 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 		goto fail_init_fprz;
 
 	if (!cxt->przs && !cxt->cprz && !cxt->fprz) {
-		pr_err("memory size too small, minimum is %lu\n",
+		pr_err("memory size too small, minimum is %zu\n",
 			cxt->console_size + cxt->record_size +
 			cxt->ftrace_size);
 		goto fail_cnt;
@@ -414,13 +414,14 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 
 	cxt->pstore.data = cxt;
 	/*
-	 * Console can handle any buffer size, so prefer dumps buffer
-	 * size since usually it is smaller.
+	 * Console can handle any buffer size, so prefer LOG_LINE_MAX. If we
+	 * have to handle dumps, we must have at least record_size buffer. And
+	 * for ftrace, bufsize is irrelevant (if bufsize is 0, buf will be
+	 * ZERO_SIZE_PTR).
 	 */
-	if (cxt->przs)
-		cxt->pstore.bufsize = cxt->przs[0]->buffer_size;
-	else
-		cxt->pstore.bufsize = cxt->cprz->buffer_size;
+	if (cxt->console_size)
+		cxt->pstore.bufsize = 1024; /* LOG_LINE_MAX */
+	cxt->pstore.bufsize = max(cxt->record_size, cxt->pstore.bufsize);
 	cxt->pstore.buf = kmalloc(cxt->pstore.bufsize, GFP_KERNEL);
 	spin_lock_init(&cxt->pstore.buf_lock);
 	if (!cxt->pstore.buf) {
@@ -537,6 +538,7 @@ postcore_initcall(ramoops_init);
 static void __exit ramoops_exit(void)
 {
 	platform_driver_unregister(&ramoops_driver);
+	platform_device_unregister(dummy);
 	kfree(dummy_data);
 }
 module_exit(ramoops_exit);

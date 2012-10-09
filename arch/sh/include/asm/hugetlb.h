@@ -1,6 +1,7 @@
 #ifndef _ASM_SH_HUGETLB_H
 #define _ASM_SH_HUGETLB_H
 
+#include <asm/cacheflush.h>
 #include <asm/page.h>
 
 
@@ -87,6 +88,11 @@ static inline int arch_prepare_hugepage(struct page *page)
 
 static inline void arch_release_hugepage(struct page *page)
 {
+}
+
+static inline void arch_clear_hugepage_flags(struct page *page)
+{
+	clear_bit(PG_dcache_clean, &page->flags);
 }
 
 #endif /* _ASM_SH_HUGETLB_H */
