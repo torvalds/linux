@@ -203,7 +203,7 @@ sys_call_table:
 	PTR	sys_creat
 	PTR	sys_link
 	PTR	sys_unlink			/* 4010 */
-	PTR	sys32_execve
+	PTR	compat_sys_execve
 	PTR	sys_chdir
 	PTR	compat_sys_time
 	PTR	sys_mknod
