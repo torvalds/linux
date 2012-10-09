@@ -140,6 +140,9 @@ static void free_dev_data(struct iommu_dev_data *dev_data)
 	list_del(&dev_data->dev_data_list);
 	spin_unlock_irqrestore(&dev_data_list_lock, flags);
 
+	if (dev_data->group)
+		iommu_group_put(dev_data->group);
+
 	kfree(dev_data);
 }
 
@@ -343,11 +346,25 @@ static int use_pdev_iommu_group(struct pci_dev *pdev, struct device *dev)
 	return ret;
 }
 
+static int use_dev_data_iommu_group(struct iommu_dev_data *dev_data,
+				    struct device *dev)
+{
+	if (!dev_data->group) {
+		struct iommu_group *group = iommu_group_alloc();
+		if (IS_ERR(group))
+			return PTR_ERR(group);
+
+		dev_data->group = group;
+	}
+
+	return iommu_group_add_device(dev_data->group, dev);
+}
+
 static int init_iommu_group(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
 	struct iommu_group *group;
-	struct pci_dev *dma_pdev = NULL;
+	struct pci_dev *dma_pdev;
 	int ret;
 
 	group = iommu_group_get(dev);
@@ -362,18 +379,52 @@ static int init_iommu_group(struct device *dev)
 
 	if (dev_data->alias_data) {
 		u16 alias;
+		struct pci_bus *bus;
 
+		if (dev_data->alias_data->group)
+			goto use_group;
+
+		/*
+		 * If the alias device exists, it's effectively just a first
+		 * level quirk for finding the DMA source.
+		 */
 		alias = amd_iommu_alias_table[dev_data->devid];
 		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
+		if (dma_pdev) {
+			dma_pdev = get_isolation_root(dma_pdev);
+			goto use_pdev;
+		}
+
+		/*
+		 * If the alias is virtual, try to find a parent device
+		 * and test whether the IOMMU group is actualy rooted above
+		 * the alias.  Be careful to also test the parent device if
+		 * we think the alias is the root of the group.
+		 */
+		bus = pci_find_bus(0, alias >> 8);
+		if (!bus)
+			goto use_group;
+
+		bus = find_hosted_bus(bus);
+		if (IS_ERR(bus) || !bus->self)
+			goto use_group;
+
+		dma_pdev = get_isolation_root(pci_dev_get(bus->self));
+		if (dma_pdev != bus->self || (dma_pdev->multifunction &&
+		    !pci_acs_enabled(dma_pdev, REQ_ACS_FLAGS)))
+			goto use_pdev;
+
+		pci_dev_put(dma_pdev);
+		goto use_group;
 	}
 
-	if (!dma_pdev)
-		dma_pdev = pci_dev_get(to_pci_dev(dev));
-
-	dma_pdev = get_isolation_root(dma_pdev);
+	dma_pdev = get_isolation_root(pci_dev_get(to_pci_dev(dev)));
+use_pdev:
 	ret = use_pdev_iommu_group(dma_pdev, dev);
 	pci_dev_put(dma_pdev);
 	return ret;
+use_group:
+	return use_dev_data_iommu_group(dev_data->alias_data, dev);
 }
 
 static int iommu_init_device(struct device *dev)
