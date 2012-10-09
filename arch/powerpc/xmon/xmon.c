@@ -52,9 +52,6 @@
 #include "nonstdio.h"
 #include "dis-asm.h"
 
-#define scanhex	xmon_scanhex
-#define skipbl	xmon_skipbl
-
 #ifdef CONFIG_SMP
 static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
