@@ -49,7 +49,7 @@ struct lglock {
 };
 
 #define DEFINE_LGLOCK(name)						\
-	DEFINE_PER_CPU(arch_spinlock_t, name ## _lock)			\
+	static DEFINE_PER_CPU(arch_spinlock_t, name ## _lock)		\
 	= __ARCH_SPIN_LOCK_UNLOCKED;					\
 	struct lglock name = { .lock = &name ## _lock }
 
