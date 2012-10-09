@@ -250,19 +250,20 @@ static int opt_set_filter(const struct option *opt __maybe_unused,
 	return 0;
 }
 
-static const char * const probe_usage[] = {
-	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
-	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
-	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
-	"perf probe --list",
+int cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
+{
+	const char * const probe_usage[] = {
+		"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
+		"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
+		"perf probe [<options>] --del '[GROUP:]EVENT' ...",
+		"perf probe --list",
 #ifdef DWARF_SUPPORT
-	"perf probe [<options>] --line 'LINEDESC'",
-	"perf probe [<options>] --vars 'PROBEPOINT'",
+		"perf probe [<options>] --line 'LINEDESC'",
+		"perf probe [<options>] --vars 'PROBEPOINT'",
 #endif
-	NULL
+		NULL
 };
-
-static const struct option options[] = {
+	const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('l', "list", &params.list_events,
@@ -325,10 +326,7 @@ static const struct option options[] = {
 	OPT_CALLBACK('x', "exec", NULL, "executable|path",
 			"target executable name or path", opt_set_target),
 	OPT_END()
-};
-
-int cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
-{
+	};
 	int ret;
 
 	argc = parse_options(argc, argv, options, probe_usage,

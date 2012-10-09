@@ -26,6 +26,7 @@
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/machine.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
@@ -316,7 +317,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(&top->sym_evsel->hists,
 				     top->winsize.ws_row - 3);
 	putchar('\n');
-	hists__fprintf(&top->sym_evsel->hists, NULL, false, false,
+	hists__fprintf(&top->sym_evsel->hists, false,
 		       top->winsize.ws_row - 4 - printed, win_width, stdout);
 }
 
@@ -871,7 +872,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 						   &sample, machine);
 		} else if (event->header.type < PERF_RECORD_MAX) {
 			hists__inc_nr_events(&evsel->hists, event->header.type);
-			perf_event__process(&top->tool, event, &sample, machine);
+			machine__process_event(machine, event);
 		} else
 			++session->hists.stats.nr_unknown_events;
 	}
@@ -1159,11 +1160,6 @@ setup:
 	return 0;
 }
 
-static const char * const top_usage[] = {
-	"perf top [<options>]",
-	NULL
-};
-
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_evsel *pos;
@@ -1249,6 +1245,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING('u', "uid", &top.target.uid_str, "user", "user to profile"),
 	OPT_END()
+	};
+	const char * const top_usage[] = {
+		"perf top [<options>]",
+		NULL
 	};
 
 	top.evlist = perf_evlist__new(NULL, NULL);

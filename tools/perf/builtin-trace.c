@@ -52,6 +52,13 @@ struct trace {
 	struct perf_record_opts opts;
 };
 
+static bool done = false;
+
+static void sig_handler(int sig __maybe_unused)
+{
+	done = true;
+}
+
 static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
@@ -114,32 +121,98 @@ static size_t syscall__fprintf_args(struct syscall *sc, unsigned long *args, FIL
 	return printed;
 }
 
-static int trace__run(struct trace *trace)
+typedef int (*tracepoint_handler)(struct trace *trace, struct perf_evsel *evsel,
+				  struct perf_sample *sample);
+
+static struct syscall *trace__syscall_info(struct trace *trace,
+					   struct perf_evsel *evsel,
+					   struct perf_sample *sample)
+{
+	int id = perf_evsel__intval(evsel, sample, "id");
+
+	if (id < 0) {
+		printf("Invalid syscall %d id, skipping...\n", id);
+		return NULL;
+	}
+
+	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
+	    trace__read_syscall_info(trace, id))
+		goto out_cant_read;
+
+	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL))
+		goto out_cant_read;
+
+	return &trace->syscalls.table[id];
+
+out_cant_read:
+	printf("Problems reading syscall %d information\n", id);
+	return NULL;
+}
+
+static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
+			    struct perf_sample *sample)
+{
+	void *args;
+	struct syscall *sc = trace__syscall_info(trace, evsel, sample);
+
+	if (sc == NULL)
+		return -1;
+
+	args = perf_evsel__rawptr(evsel, sample, "args");
+	if (args == NULL) {
+		printf("Problems reading syscall arguments\n");
+		return -1;
+	}
+
+	printf("%s(", sc->name);
+	syscall__fprintf_args(sc, args, stdout);
+
+	return 0;
+}
+
+static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
+			   struct perf_sample *sample)
+{
+	int ret;
+	struct syscall *sc = trace__syscall_info(trace, evsel, sample);
+
+	if (sc == NULL)
+		return -1;
+
+	ret = perf_evsel__intval(evsel, sample, "ret");
+
+	if (ret < 0 && sc->fmt && sc->fmt->errmsg) {
+		char bf[256];
+		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
+			   *e = audit_errno_to_name(-ret);
+
+		printf(") = -1 %s %s", e, emsg);
+	} else if (ret == 0 && sc->fmt && sc->fmt->timeout)
+		printf(") = 0 Timeout");
+	else
+		printf(") = %d", ret);
+
+	putchar('\n');
+	return 0;
+}
+
+static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
-	struct perf_evsel *evsel, *evsel_enter, *evsel_exit;
+	struct perf_evsel *evsel;
 	int err = -1, i, nr_events = 0, before;
+	const bool forks = argc > 0;
 
 	if (evlist == NULL) {
 		printf("Not enough memory to run!\n");
 		goto out;
 	}
 
-	evsel_enter = perf_evsel__newtp("raw_syscalls", "sys_enter", 0);
-	if (evsel_enter == NULL) {
-		printf("Couldn't read the raw_syscalls:sys_enter tracepoint information!\n");
+	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
+	    perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit)) {
+		printf("Couldn't read the raw_syscalls tracepoints information!\n");
 		goto out_delete_evlist;
 	}
-
-	perf_evlist__add(evlist, evsel_enter);
-
-	evsel_exit = perf_evsel__newtp("raw_syscalls", "sys_exit", 1);
-	if (evsel_exit == NULL) {
-		printf("Couldn't read the raw_syscalls:sys_exit tracepoint information!\n");
-		goto out_delete_evlist;
-	}
-
-	perf_evlist__add(evlist, evsel_exit);
 
 	err = perf_evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
@@ -148,6 +221,17 @@ static int trace__run(struct trace *trace)
 	}
 
 	perf_evlist__config_attrs(evlist, &trace->opts);
+
+	signal(SIGCHLD, sig_handler);
+	signal(SIGINT, sig_handler);
+
+	if (forks) {
+		err = perf_evlist__prepare_workload(evlist, &trace->opts, argv);
+		if (err < 0) {
+			printf("Couldn't run the workload!\n");
+			goto out_delete_evlist;
+		}
+	}
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
@@ -162,6 +246,10 @@ static int trace__run(struct trace *trace)
 	}
 
 	perf_evlist__enable(evlist);
+
+	if (forks)
+		perf_evlist__start_workload(evlist);
+
 again:
 	before = nr_events;
 
@@ -170,9 +258,8 @@ again:
 
 		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
 			const u32 type = event->header.type;
-			struct syscall *sc;
+			tracepoint_handler handler;
 			struct perf_sample sample;
-			int id;
 
 			++nr_events;
 
@@ -200,50 +287,23 @@ again:
 				continue;
 			}
 
-			id = perf_evsel__intval(evsel, &sample, "id");
-			if (id < 0) {
-				printf("Invalid syscall %d id, skipping...\n", id);
-				continue;
-			}
-
-			if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
-			    trace__read_syscall_info(trace, id))
-				continue;
-
-			if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL))
-				continue;
-
-			sc = &trace->syscalls.table[id];
-
 			if (evlist->threads->map[0] == -1 || evlist->threads->nr > 1)
 				printf("%d ", sample.tid);
 
-			if (evsel == evsel_enter) {
-				void *args = perf_evsel__rawptr(evsel, &sample, "args");
-
-				printf("%s(", sc->name);
-				syscall__fprintf_args(sc, args, stdout);
-			} else if (evsel == evsel_exit) {
-				int ret = perf_evsel__intval(evsel, &sample, "ret");
-
-				if (ret < 0 && sc->fmt && sc->fmt->errmsg) {
-					char bf[256];
-					const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
-						   *e = audit_errno_to_name(-ret);
-
-					printf(") = -1 %s %s", e, emsg);
-				} else if (ret == 0 && sc->fmt && sc->fmt->timeout)
-					printf(") = 0 Timeout");
-				else
-					printf(") = %d", ret);
-
-				putchar('\n');
-			}
+			handler = evsel->handler.func;
+			handler(trace, evsel, &sample);
 		}
 	}
 
-	if (nr_events == before)
+	if (nr_events == before) {
+		if (done)
+			goto out_delete_evlist;
+
 		poll(evlist->pollfd, evlist->nr_fds, -1);
+	}
+
+	if (done)
+		perf_evlist__disable(evlist);
 
 	goto again;
 
@@ -256,7 +316,8 @@ out:
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const trace_usage[] = {
-		"perf trace [<options>]",
+		"perf trace [<options>] [<command>]",
+		"perf trace [<options>] -- <command> [<options>]",
 		NULL
 	};
 	struct trace trace = {
@@ -293,18 +354,26 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 	int err;
+	char bf[BUFSIZ];
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
-	if (argc)
-		usage_with_options(trace_usage, trace_options);
 
-	err = perf_target__parse_uid(&trace.opts.target);
+	err = perf_target__validate(&trace.opts.target);
 	if (err) {
-		char bf[BUFSIZ];
 		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		printf("%s", bf);
 		return err;
 	}
 
-	return trace__run(&trace);
+	err = perf_target__parse_uid(&trace.opts.target);
+	if (err) {
+		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		printf("%s", bf);
+		return err;
+	}
+
+	if (!argc && perf_target__none(&trace.opts.target))
+		trace.opts.target.system_wide = true;
+
+	return trace__run(&trace, argc, argv);
 }

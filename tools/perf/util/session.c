@@ -1375,14 +1375,12 @@ int __perf_session__process_events(struct perf_session *session,
 {
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
-	size_t	page_size, mmap_size;
+	size_t	mmap_size;
 	char *buf, *mmaps[8];
 	union perf_event *event;
 	uint32_t size;
 
 	perf_tool__fill_defaults(tool);
-
-	page_size = sysconf(_SC_PAGESIZE);
 
 	page_offset = page_size * (data_offset / page_size);
 	file_offset = page_offset;

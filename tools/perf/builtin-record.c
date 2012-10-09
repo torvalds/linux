@@ -31,13 +31,36 @@
 #include <sched.h>
 #include <sys/mman.h>
 
-#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
+#ifndef HAVE_ON_EXIT
+#ifndef ATEXIT_MAX
+#define ATEXIT_MAX 32
+#endif
+static int __on_exit_count = 0;
+typedef void (*on_exit_func_t) (int, void *);
+static on_exit_func_t __on_exit_funcs[ATEXIT_MAX];
+static void *__on_exit_args[ATEXIT_MAX];
+static int __exitcode = 0;
+static void __handle_on_exit_funcs(void);
+static int on_exit(on_exit_func_t function, void *arg);
+#define exit(x) (exit)(__exitcode = (x))
 
-#ifdef NO_LIBUNWIND_SUPPORT
-static char callchain_help[] = CALLCHAIN_HELP "[fp]";
-#else
-static unsigned long default_stack_dump_size = 8192;
-static char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+static int on_exit(on_exit_func_t function, void *arg)
+{
+	if (__on_exit_count == ATEXIT_MAX)
+		return -ENOMEM;
+	else if (__on_exit_count == 0)
+		atexit(__handle_on_exit_funcs);
+	__on_exit_funcs[__on_exit_count] = function;
+	__on_exit_args[__on_exit_count++] = arg;
+	return 0;
+}
+
+static void __handle_on_exit_funcs(void)
+{
+	int i;
+	for (i = 0; i < __on_exit_count; i++)
+		__on_exit_funcs[i] (__exitcode, __on_exit_args[i]);
+}
 #endif
 
 enum write_mode_t {
@@ -800,7 +823,7 @@ error:
 	return ret;
 }
 
-#ifndef NO_LIBUNWIND_SUPPORT
+#ifdef LIBUNWIND_SUPPORT
 static int get_stack_size(char *str, unsigned long *_size)
 {
 	char *endptr;
@@ -826,7 +849,7 @@ static int get_stack_size(char *str, unsigned long *_size)
 	       max_size, str);
 	return -1;
 }
-#endif /* !NO_LIBUNWIND_SUPPORT */
+#endif /* LIBUNWIND_SUPPORT */
 
 static int
 parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
@@ -865,9 +888,11 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 				       "needed for -g fp\n");
 			break;
 
-#ifndef NO_LIBUNWIND_SUPPORT
+#ifdef LIBUNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
 			ret = 0;
 			rec->opts.call_graph = CALLCHAIN_DWARF;
 			rec->opts.stack_dump_size = default_stack_dump_size;
@@ -883,7 +908,7 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 			if (!ret)
 				pr_debug("callchain: stack dump size %d\n",
 					 rec->opts.stack_dump_size);
-#endif /* !NO_LIBUNWIND_SUPPORT */
+#endif /* LIBUNWIND_SUPPORT */
 		} else {
 			pr_err("callchain: Unknown -g option "
 			       "value: %s\n", arg);
@@ -929,6 +954,14 @@ static struct perf_record record = {
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,
 };
+
+#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
+
+#ifdef LIBUNWIND_SUPPORT
+static const char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+#else
+static const char callchain_help[] = CALLCHAIN_HELP "[fp]";
+#endif
 
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing

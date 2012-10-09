@@ -320,7 +320,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		const char *evname = perf_evsel__name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
-		hists__fprintf(hists, NULL, false, true, 0, 0, stdout);
+		hists__fprintf(hists, true, 0, 0, stdout);
 		fprintf(stdout, "\n\n");
 	}
 
@@ -556,8 +556,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
 			.comm		 = perf_event__process_comm,
-			.exit		 = perf_event__process_task,
-			.fork		 = perf_event__process_task,
+			.exit		 = perf_event__process_exit,
+			.fork		 = perf_event__process_fork,
 			.lost		 = perf_event__process_lost,
 			.read		 = process_read_event,
 			.attr		 = perf_event__process_attr,
@@ -691,7 +691,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		setup_browser(true);
 	else {
 		use_browser = 0;
-		perf_hpp__init(false, false);
+		perf_hpp__init();
 	}
 
 	setup_sorting(report_usage, options);
