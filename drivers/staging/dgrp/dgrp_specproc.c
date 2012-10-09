@@ -229,6 +229,9 @@ static void register_proc_table(struct dgrp_proc_entry *table,
 	int len;
 	mode_t mode;
 
+	if (table == NULL)
+		return;
+
 	for (; table->id; table++) {
 		/* Can't do anything without a proc name. */
 		if (!table->name)
@@ -296,6 +299,9 @@ static void unregister_proc_table(struct dgrp_proc_entry *table,
 {
 	struct proc_dir_entry *de;
 	struct nd_struct *tmp;
+
+	if (table == NULL)
+		return;
 
 	list_for_each_entry(tmp, &nd_struct_list, list) {
 		if ((table == dgrp_net_table) && (tmp->nd_net_de)) {
