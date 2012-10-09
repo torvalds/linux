@@ -2739,21 +2739,6 @@ static void __init machine_rk30_board_init(void)
 	rk30_mux_api_set(GPIO4D7_SMCDATA15_TRACEDATA15_NAME, GPIO4D_GPIO4D7);
 	gpio_direction_output(RK30_PIN4_PD7, GPIO_HIGH);
 	
-#if defined(CONFIG_RKWIFI)
-	//for c8003
-	rk30_mux_api_set(GPIO3D0_SDMMC1PWREN_NAME, GPIO3D_GPIO3D0);
-	gpio_request(RK30_PIN3_PD0, "wifi_on");
-	gpio_direction_output(RK30_PIN3_PD0, GPIO_HIGH);
-
-	gpio_request(RK30_PIN3_PC0, "mmc1-cmd");
-	gpio_request(RK30_PIN3_PC1, "mmc1-clk");
-	gpio_request(RK30_PIN3_PC2, "mmc1-data0");
-	gpio_request(RK30_PIN3_PC3, "mmc1-data1");
-	gpio_request(RK30_PIN3_PC4, "mmc1-data2");
-	gpio_request(RK30_PIN3_PC5, "mmc1-data3");
-	       
-#endif
-
 	pm_power_off = rk30_pm_power_off;
 	
 	rk30_i2c_register_board_info();
