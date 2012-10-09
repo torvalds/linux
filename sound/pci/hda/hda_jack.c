@@ -439,3 +439,25 @@ void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 }
 EXPORT_SYMBOL_HDA(snd_hda_jack_unsol_event);
 
+void snd_hda_jack_poll_all(struct hda_codec *codec)
+{
+	struct hda_jack_tbl *jack = codec->jacktbl.list;
+	int i, changes = 0;
+
+	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+		unsigned int old_sense;
+		if (!jack->nid || !jack->jack_dirty || jack->phantom_jack)
+			continue;
+		old_sense = get_jack_plug_state(jack->pin_sense);
+		jack_detect_update(codec, jack);
+		if (old_sense == get_jack_plug_state(jack->pin_sense))
+			continue;
+		changes = 1;
+		if (jack->callback)
+			jack->callback(codec, jack);
+	}
+	if (changes)
+		snd_hda_jack_report_sync(codec);
+}
+EXPORT_SYMBOL_HDA(snd_hda_jack_poll_all);
+

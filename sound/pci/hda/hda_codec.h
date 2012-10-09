@@ -884,6 +884,8 @@ struct hda_codec {
 
 	/* jack detection */
 	struct snd_array jacktbl;
+	unsigned long jackpoll_interval; /* In jiffies. Zero means no poll, rely on unsol events */
+	struct delayed_work jackpoll_work;
 
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	/* jack detection */
