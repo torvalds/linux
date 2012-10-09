@@ -274,6 +274,18 @@ static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
 	*from = to;
 }
 
+static struct pci_bus *find_hosted_bus(struct pci_bus *bus)
+{
+	while (!bus->self) {
+		if (!pci_is_root_bus(bus))
+			bus = bus->parent;
+		else
+			return ERR_PTR(-ENODEV);
+	}
+
+	return bus;
+}
+
 #define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
 
 static struct pci_dev *get_isolation_root(struct pci_dev *pdev)
@@ -300,14 +312,9 @@ static struct pci_dev *get_isolation_root(struct pci_dev *pdev)
 	 * Finding the next device may require skipping virtual buses.
 	 */
 	while (!pci_is_root_bus(dma_pdev->bus)) {
-		struct pci_bus *bus = dma_pdev->bus;
-
-		while (!bus->self) {
-			if (!pci_is_root_bus(bus))
-				bus = bus->parent;
-			else
-				goto root_bus;
-		}
+		struct pci_bus *bus = find_hosted_bus(dma_pdev->bus);
+		if (IS_ERR(bus))
+			break;
 
 		if (pci_acs_path_enabled(bus->self, NULL, REQ_ACS_FLAGS))
 			break;
@@ -315,7 +322,6 @@ static struct pci_dev *get_isolation_root(struct pci_dev *pdev)
 		swap_pci_ref(&dma_pdev, pci_dev_get(bus->self));
 	}
 
-root_bus:
 	return dma_pdev;
 }
 
