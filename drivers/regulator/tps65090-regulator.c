@@ -41,7 +41,7 @@ static struct regulator_ops tps65090_ops = {
 {							\
 	.name = "TPS65090_RAILS"#_id,			\
 	.supply_name = _sname,				\
-	.id = TPS65090_ID_##_id,			\
+	.id = TPS65090_REGULATOR_##_id,			\
 	.ops = &_ops,					\
 	.enable_reg = _en_reg,				\
 	.enable_mask = BIT(0),				\
@@ -65,9 +65,9 @@ static struct regulator_desc tps65090_regulator_desc[] = {
 static inline bool is_dcdc(int id)
 {
 	switch (id) {
-	case TPS65090_ID_DCDC1:
-	case TPS65090_ID_DCDC2:
-	case TPS65090_ID_DCDC3:
+	case TPS65090_REGULATOR_DCDC1:
+	case TPS65090_REGULATOR_DCDC2:
+	case TPS65090_REGULATOR_DCDC3:
 		return true;
 	default:
 		return false;
@@ -133,14 +133,14 @@ static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pmic = devm_kzalloc(&pdev->dev, TPS65090_ID_MAX * sizeof(*pmic),
+	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
 			GFP_KERNEL);
 	if (!pmic) {
 		dev_err(&pdev->dev, "mem alloc for pmic failed\n");
 		return -ENOMEM;
 	}
 
-	for (num = 0; num < TPS65090_ID_MAX; num++) {
+	for (num = 0; num < TPS65090_REGULATOR_MAX; num++) {
 		tps_pdata = tps65090_pdata->reg_pdata[num];
 
 		ri = &pmic[num];
@@ -196,7 +196,7 @@ static int __devexit tps65090_regulator_remove(struct platform_device *pdev)
 	struct tps65090_regulator *ri;
 	int num;
 
-	for (num = 0; num < TPS65090_ID_MAX; ++num) {
+	for (num = 0; num < TPS65090_REGULATOR_MAX; ++num) {
 		ri = &pmic[num];
 		regulator_unregister(ri->rdev);
 	}
@@ -205,7 +205,7 @@ static int __devexit tps65090_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver tps65090_regulator_driver = {
 	.driver	= {
-		.name	= "tps65090-regulator",
+		.name	= "tps65090-pmic",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps65090_regulator_probe,
