@@ -116,8 +116,6 @@ struct firmware_cache {
 	spinlock_t name_lock;
 	struct list_head fw_names;
 
-	wait_queue_head_t wait_queue;
-	int cnt;
 	struct delayed_work work;
 
 	struct notifier_block   pm_notify;
@@ -1166,6 +1164,8 @@ int uncache_firmware(const char *fw_name)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
+
 static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
 {
 	struct fw_cache_entry *fce;
@@ -1232,12 +1232,6 @@ static void __async_dev_cache_fw_image(void *fw_entry,
 
 		free_fw_cache_entry(fce);
 	}
-
-	spin_lock(&fwc->name_lock);
-	fwc->cnt--;
-	spin_unlock(&fwc->name_lock);
-
-	wake_up(&fwc->wait_queue);
 }
 
 /* called with dev->devres_lock held */
@@ -1278,7 +1272,6 @@ static void dev_cache_fw_image(struct device *dev, void *data)
 		spin_lock(&fwc->name_lock);
 		/* only one cache entry for one firmware */
 		if (!__fw_entry_found(fce->name)) {
-			fwc->cnt++;
 			list_add(&fce->list, &fwc->fw_names);
 		} else {
 			free_fw_cache_entry(fce);
@@ -1287,8 +1280,9 @@ static void dev_cache_fw_image(struct device *dev, void *data)
 		spin_unlock(&fwc->name_lock);
 
 		if (fce)
-			async_schedule(__async_dev_cache_fw_image,
-				       (void *)fce);
+			async_schedule_domain(__async_dev_cache_fw_image,
+					      (void *)fce,
+					      &fw_cache_domain);
 	}
 }
 
@@ -1350,21 +1344,7 @@ static void device_cache_fw_images(void)
 	mutex_unlock(&fw_lock);
 
 	/* wait for completion of caching firmware for all devices */
-	spin_lock(&fwc->name_lock);
-	for (;;) {
-		prepare_to_wait(&fwc->wait_queue, &wait,
-				TASK_UNINTERRUPTIBLE);
-		if (!fwc->cnt)
-			break;
-
-		spin_unlock(&fwc->name_lock);
-
-		schedule();
-
-		spin_lock(&fwc->name_lock);
-	}
-	spin_unlock(&fwc->name_lock);
-	finish_wait(&fwc->wait_queue, &wait);
+	async_synchronize_full_domain(&fw_cache_domain);
 
 	loading_timeout = old_timeout;
 }
@@ -1452,9 +1432,7 @@ static void __init fw_cache_init(void)
 #ifdef CONFIG_PM_SLEEP
 	spin_lock_init(&fw_cache.name_lock);
 	INIT_LIST_HEAD(&fw_cache.fw_names);
-	fw_cache.cnt = 0;
 
-	init_waitqueue_head(&fw_cache.wait_queue);
 	INIT_DELAYED_WORK(&fw_cache.work,
 			  device_uncache_fw_images_work);
 
