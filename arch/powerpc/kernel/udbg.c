@@ -122,29 +122,6 @@ int udbg_write(const char *s, int n)
 	return n - remain;
 }
 
-int udbg_read(char *buf, int buflen)
-{
-	char *p = buf;
-	int i, c;
-
-	if (!udbg_getc)
-		return 0;
-
-	for (i = 0; i < buflen; ++i) {
-		do {
-			c = udbg_getc();
-			if (c == -1 && i == 0)
-				return -1;
-
-		} while (c == 0x11 || c == 0x13);
-		if (c == 0 || c == -1)
-			break;
-		*p++ = c;
-	}
-
-	return i;
-}
-
 #define UDBG_BUFSIZE 256
 void udbg_printf(const char *fmt, ...)
 {
