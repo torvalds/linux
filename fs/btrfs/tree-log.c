@@ -1033,7 +1033,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	int log_ref_ver = 0;
 	u64 parent_objectid;
 	u64 inode_objectid;
-	u64 ref_index;
+	u64 ref_index = 0;
 	int ref_struct_size;
 
 	ref_ptr = btrfs_item_ptr_offset(eb, slot);
