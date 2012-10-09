@@ -58,3 +58,8 @@ config CLKSRC_ARM_GENERIC
 	def_bool y if ARM64
 	help
 	  This option enables support for the ARM generic timer.
+
+config CLKSRC_METAG_GENERIC
+	def_bool y if METAG
+	help
+	  This option enables support for the Meta per-thread timers.

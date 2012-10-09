@@ -16,10 +16,13 @@
 
 #include <linux/stddef.h>
 
+#include <asm/clock.h>
+
 /**
  * struct machine_desc - Describes a board controlled by a Meta.
  * @name:		Board/SoC name.
  * @dt_compat:		Array of device tree 'compatible' strings.
+ * @clocks:		Clock callbacks.
  *
  * @nr_irqs:		Maximum number of IRQs.
  *			If 0, defaults to NR_IRQS in asm-generic/irq.h.
@@ -37,6 +40,7 @@
 struct machine_desc {
 	const char		*name;
 	const char		**dt_compat;
+	struct meta_clock_desc	*clocks;
 
 	unsigned int		nr_irqs;
 
