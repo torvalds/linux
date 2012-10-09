@@ -211,6 +211,28 @@ static const struct tjmax __cpuinitconst tjmax_table[] = {
 	{ "CPU CE4170", 110000 },	/* Model 0x1c, stepping 10	*/
 };
 
+struct tjmax_model {
+	u8 model;
+	u8 mask;
+	int tjmax;
+};
+
+#define ANY 0xff
+
+static const struct tjmax_model __cpuinitconst tjmax_model_table[] = {
+	{ 0x1c, 10, 100000 },	/* D4xx, N4xx, D5xx, N5xx */
+	{ 0x1c, ANY, 90000 },	/* Z5xx, N2xx, possibly others
+				 * Note: Also matches 230 and 330,
+				 * which are covered by tjmax_table
+				 */
+	{ 0x26, ANY, 90000 },	/* Atom Tunnel Creek (Exx), Lincroft (Z6xx)
+				 * Note: TjMax for E6xxT is 110C, but CPU type
+				 * is undetectable by software
+				 */
+	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
+	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx) */
+};
+
 static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 				  struct device *dev)
 {
@@ -229,20 +251,11 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 			return tjmax_table[i].tjmax;
 	}
 
-	/* Atom CPUs */
-
-	if (c->x86_model == 0x1c) {
-		/*
-		 * TjMax for stepping 10 CPUs (N4xx, N5xx, D4xx, D5xx)
-		 * is 100 degrees C, for all others it is 90 degrees C.
-		 */
-		if (c->x86_mask == 10)
-			return 100000;
-		return 90000;
-	} else if (c->x86_model == 0x26 || c->x86_model == 0x27) {
-		return 90000;
-	} else if (c->x86_model == 0x36) {
-		return 100000;
+	for (i = 0; i < ARRAY_SIZE(tjmax_model_table); i++) {
+		const struct tjmax_model *tm = &tjmax_model_table[i];
+		if (c->x86_model == tm->model &&
+		    (tm->mask == ANY || c->x86_mask == tm->mask))
+			return tm->tjmax;
 	}
 
 	/* Early chips have no MSR for TjMax */
