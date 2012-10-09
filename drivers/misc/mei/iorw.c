@@ -346,9 +346,9 @@ int amthi_read(struct mei_device *dev, struct file *file,
 		}
 	}
 	/* if the whole message will fit remove it from the list */
-	if (cb->information >= *offset && length >= (cb->information - *offset))
+	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
 		list_del(&cb->cb_list);
-	else if (cb->information > 0 && cb->information <= *offset) {
+	else if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
 		/* end of the message has been reached */
 		list_del(&cb->cb_list);
 		rets = 0;
@@ -360,18 +360,17 @@ int amthi_read(struct mei_device *dev, struct file *file,
 
 	dev_dbg(&dev->pdev->dev, "amthi cb->response_buffer size - %d\n",
 	    cb->response_buffer.size);
-	dev_dbg(&dev->pdev->dev, "amthi cb->information - %lu\n",
-	    cb->information);
+	dev_dbg(&dev->pdev->dev, "amthi cb->buf_idx - %lu\n", cb->buf_idx);
 
 	/* length is being turncated to PAGE_SIZE, however,
-	 * the information may be longer */
-	length = min_t(size_t, length, (cb->information - *offset));
+	 * the buf_idx may point beyond */
+	length = min_t(size_t, length, (cb->buf_idx - *offset));
 
 	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length))
 		rets = -EFAULT;
 	else {
 		rets = length;
-		if ((*offset + length) < cb->information) {
+		if ((*offset + length) < cb->buf_idx) {
 			*offset += length;
 			goto out;
 		}
@@ -432,8 +431,8 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	}
 	dev_dbg(&dev->pdev->dev, "allocation call back data success.\n");
 	cb->major_file_operations = MEI_READ;
-	/* make sure information is zero before we start */
-	cb->information = 0;
+	/* make sure buffer index is zero before we start */
+	cb->buf_idx = 0;
 	cb->file_private = (void *) cl;
 	cl->read_cb = cb;
 	if (dev->mei_host_buffer_is_empty) {

@@ -415,16 +415,15 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl->read_cb && cl->read_cb->information > *offset) {
+	if (cl->read_cb && cl->read_cb->buf_idx > *offset) {
 		cb = cl->read_cb;
 		goto copy_buffer;
-	} else if (cl->read_cb && cl->read_cb->information > 0 &&
-		   cl->read_cb->information <= *offset) {
+	} else if (cl->read_cb && cl->read_cb->buf_idx > 0 &&
+		   cl->read_cb->buf_idx <= *offset) {
 		cb = cl->read_cb;
 		rets = 0;
 		goto free;
-	} else if ((!cl->read_cb || !cl->read_cb->information) &&
-		    *offset > 0) {
+	} else if ((!cl->read_cb || !cl->read_cb->buf_idx) && *offset > 0) {
 		/*Offset needs to be cleaned for contiguous reads*/
 		*offset = 0;
 		rets = 0;
@@ -481,16 +480,15 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 copy_buffer:
 	dev_dbg(&dev->pdev->dev, "cb->response_buffer size - %d\n",
 	    cb->response_buffer.size);
-	dev_dbg(&dev->pdev->dev, "cb->information - %lu\n",
-	    cb->information);
-	if (length == 0 || ubuf == NULL || *offset > cb->information) {
+	dev_dbg(&dev->pdev->dev, "cb->buf_idx - %lu\n", cb->buf_idx);
+	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
 		rets = -EMSGSIZE;
 		goto free;
 	}
 
-	/* length is being truncated to PAGE_SIZE, however, */
-	/* information size may be longer */
-	length = min_t(size_t, length, (cb->information - *offset));
+	/* length is being truncated to PAGE_SIZE,
+	 * however buf_idx may point beyond that */
+	length = min_t(size_t, length, cb->buf_idx - *offset);
 
 	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
 		rets = -EFAULT;
@@ -499,7 +497,7 @@ copy_buffer:
 
 	rets = length;
 	*offset += length;
-	if ((unsigned long)*offset < cb->information)
+	if ((unsigned long)*offset < cb->buf_idx)
 		goto out;
 
 free:
@@ -637,7 +635,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 		write_cb->response_buffer.size = dev->iamthif_mtu;
 		write_cb->major_file_operations = MEI_IOCTL;
-		write_cb->information = 0;
+		write_cb->buf_idx = 0;
 		write_cb->request_buffer.size = length;
 		if (dev->iamthif_cl.state != MEI_FILE_CONNECTED) {
 			rets = -ENODEV;
@@ -668,9 +666,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	}
 
 	write_cb->major_file_operations = MEI_WRITE;
-	/* make sure information is zero before we start */
-
-	write_cb->information = 0;
+	/* make sure buffer index is zero before we start */
+	write_cb->buf_idx = 0;
 	write_cb->request_buffer.size = length;
 
 	dev_dbg(&dev->pdev->dev, "host client = %d, ME client = %d\n",
@@ -719,7 +716,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			goto unlock_dev;
 		}
 		cl->writing_state = MEI_WRITING;
-		write_cb->information = mei_hdr.length;
+		write_cb->buf_idx = mei_hdr.length;
 		if (mei_hdr.msg_complete) {
 			if (mei_flow_ctrl_reduce(dev, cl)) {
 				rets = -ENODEV;
@@ -734,7 +731,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	} else {
 
-		write_cb->information = 0;
+		write_cb->buf_idx = 0;
 		cl->writing_state = MEI_WRITING;
 		list_add_tail(&write_cb->cb_list,
 			      &dev->write_list.mei_cb.cb_list);

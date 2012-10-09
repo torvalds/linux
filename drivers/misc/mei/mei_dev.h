@@ -149,7 +149,7 @@ struct mei_cl_cb {
 	void *file_private;
 	struct mei_message_data request_buffer;
 	struct mei_message_data response_buffer;
-	unsigned long information;
+	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;
 };
