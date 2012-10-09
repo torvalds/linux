@@ -23,33 +23,6 @@ static char line[256];
 static char *lineptr;
 static int lineleft;
 
-int xmon_expect(const char *str, unsigned long timeout)
-{
-	int c;
-	unsigned long t0;
-
-	/* assume 25MHz default timebase if tb_ticks_per_sec not set yet */
-	timeout *= tb_ticks_per_sec? tb_ticks_per_sec: 25000000;
-	t0 = get_tbl();
-	do {
-		lineptr = line;
-		for (;;) {
-			c = xmon_read_poll();
-			if (c == -1) {
-				if (get_tbl() - t0 > timeout)
-					return 0;
-				continue;
-			}
-			if (c == '\n')
-				break;
-			if (c != '\r' && lineptr < &line[sizeof(line) - 1])
-				*lineptr++ = c;
-		}
-		*lineptr = 0;
-	} while (strstr(line, str) == NULL);
-	return 1;
-}
-
 int xmon_getchar(void)
 {
 	int c;

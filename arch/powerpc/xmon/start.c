@@ -25,10 +25,3 @@ int xmon_readchar(void)
 		return udbg_getc();
 	return -1;
 }
-
-int xmon_read_poll(void)
-{
-	if (udbg_getc_poll)
-		return udbg_getc_poll();
-	return -1;
-}
