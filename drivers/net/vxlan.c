@@ -228,9 +228,9 @@ static u32 eth_hash(const unsigned char *addr)
 
 	/* only want 6 bytes */
 #ifdef __BIG_ENDIAN
-	value <<= 16;
-#else
 	value >>= 16;
+#else
+	value <<= 16;
 #endif
 	return hash_64(value, FDB_HASH_BITS);
 }
