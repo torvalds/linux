@@ -276,32 +276,9 @@ static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
 
 #define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
 
-static int init_iommu_group(struct device *dev)
+static struct pci_dev *get_isolation_root(struct pci_dev *pdev)
 {
-	struct iommu_dev_data *dev_data;
-	struct iommu_group *group;
-	struct pci_dev *dma_pdev = NULL;
-	int ret;
-
-	group = iommu_group_get(dev);
-	if (group) {
-		iommu_group_put(group);
-		return 0;
-	}
-
-	dev_data = find_dev_data(get_device_id(dev));
-	if (!dev_data)
-		return -ENOMEM;
-
-	if (dev_data->alias_data) {
-		u16 alias;
-
-		alias = amd_iommu_alias_table[dev_data->devid];
-		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
-	}
-
-	if (!dma_pdev)
-		dma_pdev = pci_dev_get(to_pci_dev(dev));
+	struct pci_dev *dma_pdev = pdev;
 
 	/* Account for quirked devices */
 	swap_pci_ref(&dma_pdev, pci_get_dma_source(dma_pdev));
@@ -339,6 +316,37 @@ static int init_iommu_group(struct device *dev)
 	}
 
 root_bus:
+	return dma_pdev;
+}
+
+static int init_iommu_group(struct device *dev)
+{
+	struct iommu_dev_data *dev_data;
+	struct iommu_group *group;
+	struct pci_dev *dma_pdev = NULL;
+	int ret;
+
+	group = iommu_group_get(dev);
+	if (group) {
+		iommu_group_put(group);
+		return 0;
+	}
+
+	dev_data = find_dev_data(get_device_id(dev));
+	if (!dev_data)
+		return -ENOMEM;
+
+	if (dev_data->alias_data) {
+		u16 alias;
+
+		alias = amd_iommu_alias_table[dev_data->devid];
+		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
+	}
+
+	if (!dma_pdev)
+		dma_pdev = pci_dev_get(to_pci_dev(dev));
+
+	dma_pdev = get_isolation_root(dma_pdev);
 	group = iommu_group_get(&dma_pdev->dev);
 	pci_dev_put(dma_pdev);
 	if (!group) {
