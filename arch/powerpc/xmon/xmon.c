@@ -17,6 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
+#include <linux/kmsg_dump.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/sysrq.h>
@@ -59,6 +60,8 @@ static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
 static int xmon_owner;
 static int xmon_gate;
+#else
+#define xmon_owner 0
 #endif /* CONFIG_SMP */
 
 static unsigned long in_xmon __read_mostly = 0;
@@ -201,7 +204,13 @@ Commands:\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
-  dl    dump the kernel log buffer\n\
+  dl    dump the kernel log buffer\n"
+#ifdef CONFIG_PPC64
+  "\
+  dp[#]	dump paca for current cpu, or cpu #\n\
+  dpa	dump paca for all possible cpus\n"
+#endif
+  "\
   dr	dump stream of raw bytes\n\
   e	print exception information\n\
   f	flush cache\n\
@@ -739,7 +748,7 @@ static void insert_bpts(void)
 static void insert_cpu_bpts(void)
 {
 	if (dabr.enabled)
-		set_dabr(dabr.address | (dabr.enabled & 7));
+		set_dabr(dabr.address | (dabr.enabled & 7), DABRX_ALL);
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
@@ -767,7 +776,7 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_dabr(0);
+	set_dabr(0, 0);
 	if (cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, 0);
 }
@@ -894,13 +903,13 @@ cmds(struct pt_regs *excp)
 #endif
 		default:
 			printf("Unrecognized command: ");
-		        do {
+			do {
 				if (' ' < cmd && cmd <= '~')
 					putchar(cmd);
 				else
 					printf("\\x%x", cmd);
 				cmd = inchar();
-		        } while (cmd != '\n'); 
+			} while (cmd != '\n');
 			printf(" (type ? for help)\n");
 			break;
 		}
@@ -1097,7 +1106,7 @@ static long check_bp_loc(unsigned long addr)
 	return 1;
 }
 
-static char *breakpoint_help_string = 
+static char *breakpoint_help_string =
     "Breakpoint command usage:\n"
     "b                show breakpoints\n"
     "b <addr> [cnt]   set breakpoint at given instr addr\n"
@@ -1193,7 +1202,7 @@ bpt_cmds(void)
 
 	default:
 		termch = cmd;
-	        cmd = skipbl();
+		cmd = skipbl();
 		if (cmd == '?') {
 			printf(breakpoint_help_string);
 			break;
@@ -1359,7 +1368,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 				       sp + REGS_OFFSET);
 				break;
 			}
-                        printf("--- Exception: %lx %s at ", regs.trap,
+			printf("--- Exception: %lx %s at ", regs.trap,
 			       getvecname(TRAP(&regs)));
 			pc = regs.nip;
 			lr = regs.link;
@@ -1623,14 +1632,14 @@ static void super_regs(void)
 
 	cmd = skipbl();
 	if (cmd == '\n') {
-	        unsigned long sp, toc;
+		unsigned long sp, toc;
 		asm("mr %0,1" : "=r" (sp) :);
 		asm("mr %0,2" : "=r" (toc) :);
 
 		printf("msr  = "REG"  sprg0= "REG"\n",
 		       mfmsr(), mfspr(SPRN_SPRG0));
 		printf("pvr  = "REG"  sprg1= "REG"\n",
-		       mfspr(SPRN_PVR), mfspr(SPRN_SPRG1)); 
+		       mfspr(SPRN_PVR), mfspr(SPRN_SPRG1));
 		printf("dec  = "REG"  sprg2= "REG"\n",
 		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
 		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
@@ -1783,7 +1792,7 @@ byterev(unsigned char *val, int size)
 static int brev;
 static int mnoread;
 
-static char *memex_help_string = 
+static char *memex_help_string =
     "Memory examine command usage:\n"
     "m [addr] [flags] examine/change memory\n"
     "  addr is optional.  will start where left off.\n"
@@ -1798,7 +1807,7 @@ static char *memex_help_string =
     "NOTE: flags are saved as defaults\n"
     "";
 
-static char *memex_subcmd_help_string = 
+static char *memex_subcmd_help_string =
     "Memory examine subcommands:\n"
     "  hexval   write this val to current location\n"
     "  'string' write chars from string to this location\n"
@@ -2008,6 +2017,95 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 	printf("\n");
 }
 
+#ifdef CONFIG_PPC64
+static void dump_one_paca(int cpu)
+{
+	struct paca_struct *p;
+
+	if (setjmp(bus_error_jmp) != 0) {
+		printf("*** Error dumping paca for cpu 0x%x!\n", cpu);
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+
+	p = &paca[cpu];
+
+	printf("paca for cpu 0x%x @ %p:\n", cpu, p);
+
+	printf(" %-*s = %s\n", 16, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 16, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 16, "online", cpu_online(cpu) ? "yes" : "no");
+
+#define DUMP(paca, name, format) \
+	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 16, #name, 18, paca->name, \
+		offsetof(struct paca_struct, name));
+
+	DUMP(p, lock_token, "x");
+	DUMP(p, paca_index, "x");
+	DUMP(p, kernel_toc, "lx");
+	DUMP(p, kernelbase, "lx");
+	DUMP(p, kernel_msr, "lx");
+#ifdef CONFIG_PPC_STD_MMU_64
+	DUMP(p, stab_real, "lx");
+	DUMP(p, stab_addr, "lx");
+#endif
+	DUMP(p, emergency_sp, "p");
+	DUMP(p, data_offset, "lx");
+	DUMP(p, hw_cpu_id, "x");
+	DUMP(p, cpu_start, "x");
+	DUMP(p, kexec_state, "x");
+	DUMP(p, __current, "p");
+	DUMP(p, kstack, "lx");
+	DUMP(p, stab_rr, "lx");
+	DUMP(p, saved_r1, "lx");
+	DUMP(p, trap_save, "x");
+	DUMP(p, soft_enabled, "x");
+	DUMP(p, irq_happened, "x");
+	DUMP(p, io_sync, "x");
+	DUMP(p, irq_work_pending, "x");
+	DUMP(p, nap_state_lost, "x");
+
+#undef DUMP
+
+	catch_memory_errors = 0;
+	sync();
+}
+
+static void dump_all_pacas(void)
+{
+	int cpu;
+
+	if (num_possible_cpus() == 0) {
+		printf("No possible cpus, use 'dp #' to dump individual cpus\n");
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		dump_one_paca(cpu);
+}
+
+static void dump_pacas(void)
+{
+	unsigned long num;
+	int c;
+
+	c = inchar();
+	if (c == 'a') {
+		dump_all_pacas();
+		return;
+	}
+
+	termch = c;	/* Put c back, it wasn't 'a' */
+
+	if (scanhex(&num))
+		dump_one_paca(num);
+	else
+		dump_one_paca(xmon_owner);
+}
+#endif
+
 #define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
 			 || ('a' <= (c) && (c) <= 'f') \
 			 || ('A' <= (c) && (c) <= 'F'))
@@ -2017,6 +2115,14 @@ dump(void)
 	int c;
 
 	c = inchar();
+
+#ifdef CONFIG_PPC64
+	if (c == 'p') {
+		dump_pacas();
+		return;
+	}
+#endif
+
 	if ((isxdigit(c) && c != 'f' && c != 'd') || c == '\n')
 		termch = c;
 	scanhex((void *)&adrs);
@@ -2064,7 +2170,7 @@ prdump(unsigned long adrs, long ndump)
 		nr = mread(adrs, temp, r);
 		adrs += nr;
 		for (m = 0; m < r; ++m) {
-		        if ((m & (sizeof(long) - 1)) == 0 && m > 0)
+			if ((m & (sizeof(long) - 1)) == 0 && m > 0)
 				putchar(' ');
 			if (m < nr)
 				printf("%.2x", temp[m]);
@@ -2072,7 +2178,7 @@ prdump(unsigned long adrs, long ndump)
 				printf("%s", fault_chars[fault_type]);
 		}
 		for (; m < 16; ++m) {
-		        if ((m & (sizeof(long) - 1)) == 0)
+			if ((m & (sizeof(long) - 1)) == 0)
 				putchar(' ');
 			printf("  ");
 		}
@@ -2148,45 +2254,28 @@ print_address(unsigned long addr)
 void
 dump_log_buf(void)
 {
-        const unsigned long size = 128;
-        unsigned long end, addr;
-        unsigned char buf[size + 1];
+	struct kmsg_dumper dumper = { .active = 1 };
+	unsigned char buf[128];
+	size_t len;
 
-        addr = 0;
-        buf[size] = '\0';
+	if (setjmp(bus_error_jmp) != 0) {
+		printf("Error dumping printk buffer!\n");
+		return;
+	}
 
-        if (setjmp(bus_error_jmp) != 0) {
-                printf("Unable to lookup symbol __log_buf!\n");
-                return;
-        }
+	catch_memory_errors = 1;
+	sync();
 
-        catch_memory_errors = 1;
-        sync();
-        addr = kallsyms_lookup_name("__log_buf");
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
+		buf[len] = '\0';
+		printf("%s", buf);
+	}
 
-        if (! addr)
-                printf("Symbol __log_buf not found!\n");
-        else {
-                end = addr + (1 << CONFIG_LOG_BUF_SHIFT);
-                while (addr < end) {
-                        if (! mread(addr, buf, size)) {
-                                printf("Can't read memory at address 0x%lx\n", addr);
-                                break;
-                        }
-
-                        printf("%s", buf);
-
-                        if (strlen(buf) < size)
-                                break;
-
-                        addr += size;
-                }
-        }
-
-        sync();
-        /* wait a little while to see if we get a machine check */
-        __delay(200);
-        catch_memory_errors = 0;
+	sync();
+	/* wait a little while to see if we get a machine check */
+	__delay(200);
+	catch_memory_errors = 0;
 }
 
 /*

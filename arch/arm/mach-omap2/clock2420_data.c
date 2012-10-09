@@ -18,9 +18,9 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
-#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "clock2xxx.h"
@@ -1804,6 +1804,7 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"gfx_ick",	&gfx_ick,	CK_242X),
 	/* DSS domain clocks */
 	CLK("omapdss_dss",	"ick",		&dss_ick,	CK_242X),
+	CLK(NULL,	"dss_ick",		&dss_ick,	CK_242X),
 	CLK(NULL,	"dss1_fck",		&dss1_fck,	CK_242X),
 	CLK(NULL,	"dss2_fck",	&dss2_fck,	CK_242X),
 	CLK(NULL,	"dss_54m_fck",	&dss_54m_fck,	CK_242X),
@@ -1843,12 +1844,16 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"gpt12_ick",	&gpt12_ick,	CK_242X),
 	CLK(NULL,	"gpt12_fck",	&gpt12_fck,	CK_242X),
 	CLK("omap-mcbsp.1", "ick",	&mcbsp1_ick,	CK_242X),
+	CLK(NULL,	"mcbsp1_ick",	&mcbsp1_ick,	CK_242X),
 	CLK(NULL,	"mcbsp1_fck",	&mcbsp1_fck,	CK_242X),
 	CLK("omap-mcbsp.2", "ick",	&mcbsp2_ick,	CK_242X),
+	CLK(NULL,	"mcbsp2_ick",	&mcbsp2_ick,	CK_242X),
 	CLK(NULL,	"mcbsp2_fck",	&mcbsp2_fck,	CK_242X),
 	CLK("omap2_mcspi.1", "ick",	&mcspi1_ick,	CK_242X),
+	CLK(NULL,	"mcspi1_ick",	&mcspi1_ick,	CK_242X),
 	CLK(NULL,	"mcspi1_fck",	&mcspi1_fck,	CK_242X),
 	CLK("omap2_mcspi.2", "ick",	&mcspi2_ick,	CK_242X),
+	CLK(NULL,	"mcspi2_ick",	&mcspi2_ick,	CK_242X),
 	CLK(NULL,	"mcspi2_fck",	&mcspi2_fck,	CK_242X),
 	CLK(NULL,	"uart1_ick",	&uart1_ick,	CK_242X),
 	CLK(NULL,	"uart1_fck",	&uart1_fck,	CK_242X),
@@ -1859,12 +1864,15 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"gpios_ick",	&gpios_ick,	CK_242X),
 	CLK(NULL,	"gpios_fck",	&gpios_fck,	CK_242X),
 	CLK("omap_wdt",	"ick",		&mpu_wdt_ick,	CK_242X),
+	CLK(NULL,	"mpu_wdt_ick",		&mpu_wdt_ick,	CK_242X),
 	CLK(NULL,	"mpu_wdt_fck",	&mpu_wdt_fck,	CK_242X),
 	CLK(NULL,	"sync_32k_ick",	&sync_32k_ick,	CK_242X),
 	CLK(NULL,	"wdt1_ick",	&wdt1_ick,	CK_242X),
 	CLK(NULL,	"omapctrl_ick",	&omapctrl_ick,	CK_242X),
 	CLK("omap24xxcam", "fck",	&cam_fck,	CK_242X),
+	CLK(NULL,	"cam_fck",	&cam_fck,	CK_242X),
 	CLK("omap24xxcam", "ick",	&cam_ick,	CK_242X),
+	CLK(NULL,	"cam_ick",	&cam_ick,	CK_242X),
 	CLK(NULL,	"mailboxes_ick", &mailboxes_ick,	CK_242X),
 	CLK(NULL,	"wdt4_ick",	&wdt4_ick,	CK_242X),
 	CLK(NULL,	"wdt4_fck",	&wdt4_fck,	CK_242X),
@@ -1873,16 +1881,22 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"mspro_ick",	&mspro_ick,	CK_242X),
 	CLK(NULL,	"mspro_fck",	&mspro_fck,	CK_242X),
 	CLK("mmci-omap.0", "ick",	&mmc_ick,	CK_242X),
+	CLK(NULL,	"mmc_ick",	&mmc_ick,	CK_242X),
 	CLK("mmci-omap.0", "fck",	&mmc_fck,	CK_242X),
+	CLK(NULL,	"mmc_fck",	&mmc_fck,	CK_242X),
 	CLK(NULL,	"fac_ick",	&fac_ick,	CK_242X),
 	CLK(NULL,	"fac_fck",	&fac_fck,	CK_242X),
 	CLK(NULL,	"eac_ick",	&eac_ick,	CK_242X),
 	CLK(NULL,	"eac_fck",	&eac_fck,	CK_242X),
 	CLK("omap_hdq.0", "ick",	&hdq_ick,	CK_242X),
+	CLK(NULL,	"hdq_ick",	&hdq_ick,	CK_242X),
 	CLK("omap_hdq.0", "fck",	&hdq_fck,	CK_242X),
+	CLK(NULL,	"hdq_fck",	&hdq_fck,	CK_242X),
 	CLK("omap_i2c.1", "ick",	&i2c1_ick,	CK_242X),
+	CLK(NULL,	"i2c1_ick",	&i2c1_ick,	CK_242X),
 	CLK(NULL,	"i2c1_fck",	&i2c1_fck,	CK_242X),
 	CLK("omap_i2c.2", "ick",	&i2c2_ick,	CK_242X),
+	CLK(NULL,	"i2c2_ick",	&i2c2_ick,	CK_242X),
 	CLK(NULL,	"i2c2_fck",	&i2c2_fck,	CK_242X),
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_242X),
 	CLK(NULL,	"sdma_fck",	&sdma_fck,	CK_242X),
@@ -1892,14 +1906,18 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"vlynq_fck",	&vlynq_fck,	CK_242X),
 	CLK(NULL,	"des_ick",	&des_ick,	CK_242X),
 	CLK("omap-sham",	"ick",	&sha_ick,	CK_242X),
+	CLK(NULL,	"sha_ick",	&sha_ick,	CK_242X),
 	CLK("omap_rng",	"ick",		&rng_ick,	CK_242X),
+	CLK(NULL,	"rng_ick",		&rng_ick,	CK_242X),
 	CLK("omap-aes",	"ick",	&aes_ick,	CK_242X),
+	CLK(NULL,	"aes_ick",	&aes_ick,	CK_242X),
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_242X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_242X),
 	CLK("musb-hdrc",	"fck",	&osc_ck,	CK_242X),
-	CLK(NULL,	"timer_32k_ck",	&func_32k_ck,	CK_243X),
-	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_243X),
-	CLK(NULL,	"timer_ext_ck",	&alt_ck,	CK_243X),
+	CLK(NULL,	"timer_32k_ck",	&func_32k_ck,	CK_242X),
+	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_242X),
+	CLK(NULL,	"timer_ext_ck",	&alt_ck,	CK_242X),
+	CLK(NULL,	"cpufreq_ck",	&virt_prcm_set,	CK_242X),
 };
 
 /*

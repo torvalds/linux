@@ -1123,6 +1123,33 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 }
 #endif
 
+static inline unsigned long get_vm_size(struct vm_area_struct *vma)
+{
+	return vma->vm_end - vma->vm_start;
+}
+
+static inline resource_size_t get_vm_offset(struct vm_area_struct *vma)
+{
+	return (resource_size_t) vma->vm_pgoff << PAGE_SHIFT;
+}
+
+/*
+ * Set a new vm offset.
+ *
+ * Verify that the incoming offset really works as a page offset,
+ * and that the offset and size fit in a resource_size_t.
+ */
+static inline int set_vm_offset(struct vm_area_struct *vma, resource_size_t off)
+{
+	pgoff_t pgoff = off >> PAGE_SHIFT;
+	if (off != (resource_size_t) pgoff << PAGE_SHIFT)
+		return -EINVAL;
+	if (off + get_vm_size(vma) - 1 < off)
+		return -EINVAL;
+	vma->vm_pgoff = pgoff;
+	return 0;
+}
+
 /*
  * set up a mapping for shared memory segments
  */
@@ -1132,21 +1159,30 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
 	struct map_info *map = mtd->priv;
-	unsigned long start;
-	unsigned long off;
-	u32 len;
+	resource_size_t start, off;
+	unsigned long len, vma_len;
 
 	if (mtd->type == MTD_RAM || mtd->type == MTD_ROM) {
-		off = vma->vm_pgoff << PAGE_SHIFT;
+		off = get_vm_offset(vma);
 		start = map->phys;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + map->size);
 		start &= PAGE_MASK;
-		if ((vma->vm_end - vma->vm_start + off) > len)
+		vma_len = get_vm_size(vma);
+
+		/* Overflow in off+len? */
+		if (vma_len + off < off)
+			return -EINVAL;
+		/* Does it fit in the mapping? */
+		if (vma_len + off > len)
 			return -EINVAL;
 
 		off += start;
-		vma->vm_pgoff = off >> PAGE_SHIFT;
-		vma->vm_flags |= VM_IO | VM_RESERVED;
+		/* Did that overflow? */
+		if (off < start)
+			return -EINVAL;
+		if (set_vm_offset(vma, off) < 0)
+			return -EINVAL;
+		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 #ifdef pgprot_noncached
 		if (file->f_flags & O_DSYNC || off >= __pa(high_memory))

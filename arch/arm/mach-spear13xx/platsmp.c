@@ -19,18 +19,13 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <mach/spear.h>
+#include <mach/generic.h>
 
-/*
- * control for which core is the next to come out of the secondary
- * boot "holding pen"
- */
-volatile int __cpuinitdata pen_release = -1;
 static DEFINE_SPINLOCK(boot_lock);
 
 static void __iomem *scu_base = IOMEM(VA_SCU_BASE);
-extern void spear13xx_secondary_startup(void);
 
-void __cpuinit platform_secondary_init(unsigned int cpu)
+static void __cpuinit spear13xx_secondary_init(unsigned int cpu)
 {
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -53,7 +48,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int __cpuinit spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
@@ -97,7 +92,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
  */
-void __init smp_init_cpus(void)
+static void __init spear13xx_smp_init_cpus(void)
 {
 	unsigned int i, ncores = scu_get_core_count(scu_base);
 
@@ -113,7 +108,7 @@ void __init smp_init_cpus(void)
 	set_smp_cross_call(gic_raise_softirq);
 }
 
-void __init platform_smp_prepare_cpus(unsigned int max_cpus)
+static void __init spear13xx_smp_prepare_cpus(unsigned int max_cpus)
 {
 
 	scu_enable(scu_base);
@@ -125,3 +120,13 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	__raw_writel(virt_to_phys(spear13xx_secondary_startup), SYS_LOCATION);
 }
+
+struct smp_operations spear13xx_smp_ops __initdata = {
+       .smp_init_cpus		= spear13xx_smp_init_cpus,
+       .smp_prepare_cpus	= spear13xx_smp_prepare_cpus,
+       .smp_secondary_init	= spear13xx_secondary_init,
+       .smp_boot_secondary	= spear13xx_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+       .cpu_die			= spear13xx_cpu_die,
+#endif
+};

@@ -21,13 +21,9 @@ struct thread_struct {
 
 /*
  * User-space process size. This is hardcoded into a few places, so don't
- * changed it unless everything's clear!
+ * change it unless everything's clear!
  */
-#ifndef CONFIG_ETRAX_VCS_SIM
 #define TASK_SIZE	(0xB0000000UL)
-#else
-#define TASK_SIZE	(0xA0000000UL)
-#endif
 
 /* CCS I=1, enable interrupts. */
 #define INIT_THREAD { 0, 0, (1 << I_CCS_BITNR) }

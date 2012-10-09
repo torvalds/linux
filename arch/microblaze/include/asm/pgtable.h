@@ -234,12 +234,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #ifndef _PAGE_SHARED
 #define _PAGE_SHARED	0
 #endif
-#ifndef _PAGE_HWWRITE
-#define _PAGE_HWWRITE	0
-#endif
-#ifndef _PAGE_HWEXEC
-#define _PAGE_HWEXEC	0
-#endif
 #ifndef _PAGE_EXEC
 #define _PAGE_EXEC	0
 #endif

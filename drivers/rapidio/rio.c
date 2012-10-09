@@ -33,6 +33,7 @@
 
 static LIST_HEAD(rio_mports);
 static unsigned char next_portid;
+static DEFINE_SPINLOCK(rio_mmap_lock);
 
 /**
  * rio_local_get_device_id - Get the base/extended device id for a port
@@ -396,6 +397,49 @@ int rio_release_inb_pwrite(struct rio_dev *rdev)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
+
+/**
+ * rio_map_inb_region -- Map inbound memory region.
+ * @mport: Master port.
+ * @lstart: physical address of memory region to be mapped
+ * @rbase: RIO base address assigned to this window
+ * @size: Size of the memory region
+ * @rflags: Flags for mapping.
+ *
+ * Return: 0 -- Success.
+ *
+ * This function will create the mapping from RIO space to local memory.
+ */
+int rio_map_inb_region(struct rio_mport *mport, dma_addr_t local,
+			u64 rbase, u32 size, u32 rflags)
+{
+	int rc = 0;
+	unsigned long flags;
+
+	if (!mport->ops->map_inb)
+		return -1;
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	rc = mport->ops->map_inb(mport, local, rbase, size, rflags);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_map_inb_region);
+
+/**
+ * rio_unmap_inb_region -- Unmap the inbound memory region
+ * @mport: Master port
+ * @lstart: physical address of memory region to be unmapped
+ */
+void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart)
+{
+	unsigned long flags;
+	if (!mport->ops->unmap_inb)
+		return;
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	mport->ops->unmap_inb(mport, lstart);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+}
+EXPORT_SYMBOL_GPL(rio_unmap_inb_region);
 
 /**
  * rio_mport_get_physefb - Helper function that returns register offset
@@ -1216,15 +1260,62 @@ static int __devinit rio_init(void)
 	return 0;
 }
 
+static struct workqueue_struct *rio_wq;
+
+struct rio_disc_work {
+	struct work_struct	work;
+	struct rio_mport	*mport;
+};
+
+static void __devinit disc_work_handler(struct work_struct *_work)
+{
+	struct rio_disc_work *work;
+
+	work = container_of(_work, struct rio_disc_work, work);
+	pr_debug("RIO: discovery work for mport %d %s\n",
+		 work->mport->id, work->mport->name);
+	rio_disc_mport(work->mport);
+
+	kfree(work);
+}
+
 int __devinit rio_init_mports(void)
 {
 	struct rio_mport *port;
+	struct rio_disc_work *work;
+	int no_disc = 0;
 
 	list_for_each_entry(port, &rio_mports, node) {
 		if (port->host_deviceid >= 0)
 			rio_enum_mport(port);
-		else
-			rio_disc_mport(port);
+		else if (!no_disc) {
+			if (!rio_wq) {
+				rio_wq = alloc_workqueue("riodisc", 0, 0);
+				if (!rio_wq) {
+					pr_err("RIO: unable allocate rio_wq\n");
+					no_disc = 1;
+					continue;
+				}
+			}
+
+			work = kzalloc(sizeof *work, GFP_KERNEL);
+			if (!work) {
+				pr_err("RIO: no memory for work struct\n");
+				no_disc = 1;
+				continue;
+			}
+
+			work->mport = port;
+			INIT_WORK(&work->work, disc_work_handler);
+			queue_work(rio_wq, &work->work);
+		}
+	}
+
+	if (rio_wq) {
+		pr_debug("RIO: flush discovery workqueue\n");
+		flush_workqueue(rio_wq);
+		pr_debug("RIO: flush discovery workqueue finished\n");
+		destroy_workqueue(rio_wq);
 	}
 
 	rio_init();

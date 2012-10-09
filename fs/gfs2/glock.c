@@ -186,20 +186,6 @@ static void gfs2_glock_remove_from_lru(struct gfs2_glock *gl)
 }
 
 /**
- * __gfs2_glock_schedule_for_reclaim - Add a glock to the reclaim list
- * @gl: the glock
- *
- * If the glock is demotable, then we add it (or move it) to the end
- * of the glock LRU list.
- */
-
-static void __gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
-{
-	if (demote_ok(gl))
-		gfs2_glock_add_to_lru(gl);
-}
-
-/**
  * gfs2_glock_put_nolock() - Decrement reference count on glock
  * @gl: The glock to put
  *
@@ -883,7 +869,14 @@ static int gfs2_glock_demote_wait(void *word)
 	return 0;
 }
 
-static void wait_on_holder(struct gfs2_holder *gh)
+/**
+ * gfs2_glock_wait - wait on a glock acquisition
+ * @gh: the glock holder
+ *
+ * Returns: 0 on success
+ */
+
+int gfs2_glock_wait(struct gfs2_holder *gh)
 {
 	unsigned long time1 = jiffies;
 
@@ -894,12 +887,7 @@ static void wait_on_holder(struct gfs2_holder *gh)
 		gh->gh_gl->gl_hold_time = min(gh->gh_gl->gl_hold_time +
 					      GL_GLOCK_HOLD_INCR,
 					      GL_GLOCK_MAX_HOLD);
-}
-
-static void wait_on_demote(struct gfs2_glock *gl)
-{
-	might_sleep();
-	wait_on_bit(&gl->gl_flags, GLF_DEMOTE, gfs2_glock_demote_wait, TASK_UNINTERRUPTIBLE);
+	return gh->gh_error;
 }
 
 /**
@@ -927,19 +915,6 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 	if (gl->gl_ops->go_callback)
 		gl->gl_ops->go_callback(gl);
 	trace_gfs2_demote_rq(gl);
-}
-
-/**
- * gfs2_glock_wait - wait on a glock acquisition
- * @gh: the glock holder
- *
- * Returns: 0 on success
- */
-
-int gfs2_glock_wait(struct gfs2_holder *gh)
-{
-	wait_on_holder(gh);
-	return gh->gh_error;
 }
 
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
@@ -979,7 +954,7 @@ __acquires(&gl->gl_spin)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct list_head *insert_pt = NULL;
 	struct gfs2_holder *gh2;
-	int try_lock = 0;
+	int try_futile = 0;
 
 	BUG_ON(gh->gh_owner_pid == NULL);
 	if (test_and_set_bit(HIF_WAIT, &gh->gh_iflags))
@@ -987,7 +962,7 @@ __acquires(&gl->gl_spin)
 
 	if (gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) {
 		if (test_bit(GLF_LOCK, &gl->gl_flags))
-			try_lock = 1;
+			try_futile = !may_grant(gl, gh);
 		if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
 			goto fail;
 	}
@@ -996,9 +971,8 @@ __acquires(&gl->gl_spin)
 		if (unlikely(gh2->gh_owner_pid == gh->gh_owner_pid &&
 		    (gh->gh_gl->gl_ops->go_type != LM_TYPE_FLOCK)))
 			goto trap_recursive;
-		if (try_lock &&
-		    !(gh2->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) &&
-		    !may_grant(gl, gh)) {
+		if (try_futile &&
+		    !(gh2->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB))) {
 fail:
 			gh->gh_error = GLR_TRYFAILED;
 			gfs2_holder_wake(gh);
@@ -1121,8 +1095,9 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
 			fast_path = 1;
 	}
-	if (!test_bit(GLF_LFLUSH, &gl->gl_flags))
-		__gfs2_glock_schedule_for_reclaim(gl);
+	if (!test_bit(GLF_LFLUSH, &gl->gl_flags) && demote_ok(gl))
+		gfs2_glock_add_to_lru(gl);
+
 	trace_gfs2_glock_queue(gh, 0);
 	spin_unlock(&gl->gl_spin);
 	if (likely(fast_path))
@@ -1141,7 +1116,8 @@ void gfs2_glock_dq_wait(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	gfs2_glock_dq(gh);
-	wait_on_demote(gl);
+	might_sleep();
+	wait_on_bit(&gl->gl_flags, GLF_DEMOTE, gfs2_glock_demote_wait, TASK_UNINTERRUPTIBLE);
 }
 
 /**

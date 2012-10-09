@@ -67,10 +67,8 @@ static struct devalarm alarms[ANDROID_ALARM_TYPE_COUNT];
 
 static int is_wakeup(enum android_alarm_type type)
 {
-	if (type == ANDROID_ALARM_RTC_WAKEUP ||
-			type == ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP)
-		return 1;
-	return 0;
+	return (type == ANDROID_ALARM_RTC_WAKEUP ||
+		type == ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP);
 }
 
 
@@ -85,12 +83,9 @@ static void devalarm_start(struct devalarm *alrm, ktime_t exp)
 
 static int devalarm_try_to_cancel(struct devalarm *alrm)
 {
-	int ret;
 	if (is_wakeup(alrm->type))
-		ret = alarm_try_to_cancel(&alrm->u.alrm);
-	else
-		ret = hrtimer_try_to_cancel(&alrm->u.hrt);
-	return ret;
+		return alarm_try_to_cancel(&alrm->u.alrm);
+	return hrtimer_try_to_cancel(&alrm->u.hrt);
 }
 
 static void devalarm_cancel(struct devalarm *alrm)
@@ -223,10 +218,12 @@ from_old_alarm_set:
 		case ANDROID_ALARM_ELAPSED_REALTIME:
 			get_monotonic_boottime(&tmp_time);
 			break;
-		case ANDROID_ALARM_TYPE_COUNT:
 		case ANDROID_ALARM_SYSTEMTIME:
 			ktime_get_ts(&tmp_time);
 			break;
+		default:
+			rv = -EINVAL;
+			goto err1;
 		}
 		if (copy_to_user((void __user *)arg, &tmp_time,
 		    sizeof(tmp_time))) {

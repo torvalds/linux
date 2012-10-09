@@ -76,7 +76,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		u64 size;
 		u64 start;
 		int type;
-		int num;
+		u32 num;
 		int log_num;
 	};
 
@@ -105,7 +105,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	si_meminfo(&si);
 	request->num_mtt =
 		roundup_pow_of_two(max_t(unsigned, request->num_mtt,
-					 min(1UL << 31,
+					 min(1UL << (31 - log_mtts_per_seg),
 					     si.totalram >> (log_mtts_per_seg - 1))));
 
 	profile[MLX4_RES_QP].size     = dev_cap->qpc_entry_sz;

@@ -132,11 +132,15 @@ static unsigned	n_ports;
 
 
 #ifdef VERBOSE_DEBUG
+#ifndef pr_vdebug
 #define pr_vdebug(fmt, arg...) \
 	pr_debug(fmt, ##arg)
+#endif /* pr_vdebug */
 #else
+#ifndef pr_vdebig
 #define pr_vdebug(fmt, arg...) \
 	({ if (0) pr_debug(fmt, ##arg); })
+#endif /* pr_vdebug */
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -1129,7 +1133,8 @@ int gserial_setup(struct usb_gadget *g, unsigned count)
 	for (i = 0; i < count; i++) {
 		struct device	*tty_dev;
 
-		tty_dev = tty_register_device(gs_tty_driver, i, &g->dev);
+		tty_dev = tty_port_register_device(&ports[i].port->port,
+				gs_tty_driver, i, &g->dev);
 		if (IS_ERR(tty_dev))
 			pr_warning("%s: no classdev for port %d, err %ld\n",
 				__func__, i, PTR_ERR(tty_dev));

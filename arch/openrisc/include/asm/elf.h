@@ -110,7 +110,8 @@ extern void dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt);
 
 #define ELF_PLATFORM	(NULL)
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 
 #endif /* __KERNEL__ */
 #endif

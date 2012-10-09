@@ -178,8 +178,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 */
 	vma->vm_ops = &psbfb_vm_ops;
 	vma->vm_private_data = (void *)psbfb;
-	vma->vm_flags |= VM_RESERVED | VM_IO |
-					VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 }
 
@@ -764,6 +763,13 @@ static void psb_setup_outputs(struct drm_device *dev)
 		        crtc_mask = dev_priv->ops->hdmi_mask;
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			crtc_mask = (1 << 0) | (1 << 1);
+			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
+			break;
+		case INTEL_OUTPUT_EDP:
+			crtc_mask = (1 << 1);
+			clone_mask = (1 << INTEL_OUTPUT_EDP);
 		}
 		encoder->possible_crtcs = crtc_mask;
 		encoder->possible_clones =

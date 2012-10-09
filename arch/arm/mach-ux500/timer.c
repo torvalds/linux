@@ -54,7 +54,7 @@ static void __init ux500_timer_init(void)
 	void __iomem *tmp_base;
 	struct device_node *np;
 
-	if (cpu_is_u8500_family()) {
+	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
 		mtu_timer_base = __io_address(U8500_MTU0_BASE);
 		prcmu_timer_base = __io_address(U8500_PRCMU_TIMER_4_BASE);
 	} else {

@@ -273,14 +273,13 @@ static void ci_role_work(struct work_struct *work)
 	struct ci13xxx *ci = container_of(work, struct ci13xxx, work);
 	enum ci_role role = ci_otg_role(ci);
 
-	hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
-
 	if (role != ci->role) {
 		dev_dbg(ci->dev, "switching from %s to %s\n",
 			ci_role(ci)->name, ci->roles[role]->name);
 
 		ci_role_stop(ci);
 		ci_role_start(ci, role);
+		enable_irq(ci->irq);
 	}
 }
 
@@ -320,17 +319,22 @@ static irqreturn_t ci_irq(int irq, void *data)
 {
 	struct ci13xxx *ci = data;
 	irqreturn_t ret = IRQ_NONE;
+	u32 otgsc = 0;
 
-	if (ci->is_otg) {
-		u32 sts = hw_read(ci, OP_OTGSC, ~0);
+	if (ci->is_otg)
+		otgsc = hw_read(ci, OP_OTGSC, ~0);
 
-		if (sts & OTGSC_IDIS) {
-			queue_work(ci->wq, &ci->work);
-			ret = IRQ_HANDLED;
-		}
+	if (ci->role != CI_ROLE_END)
+		ret = ci_role(ci)->irq(ci);
+
+	if (ci->is_otg && (otgsc & OTGSC_IDIS)) {
+		hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
+		disable_irq_nosync(ci->irq);
+		queue_work(ci->wq, &ci->work);
+		ret = IRQ_HANDLED;
 	}
 
-	return ci->role == CI_ROLE_END ? ret : ci_role(ci)->irq(ci);
+	return ret;
 }
 
 static DEFINE_IDA(ci_ida);
@@ -462,6 +466,8 @@ static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 
 	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
 		ci->is_otg = true;
+		/* ID pin needs 1ms debouce time, we delay 2ms for safe */
+		mdelay(2);
 		ci->role = ci_otg_role(ci);
 	} else {
 		ci->role = ci->roles[CI_ROLE_HOST]

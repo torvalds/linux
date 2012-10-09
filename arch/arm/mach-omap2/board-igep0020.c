@@ -29,13 +29,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/usb.h>
+
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -192,7 +192,7 @@ static void __init igep_flash_init(void) {}
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = IGEP2_SMSC911X_CS,
@@ -425,9 +425,6 @@ static int igep_twl_gpio_setup(struct device *dev,
 };
 
 static struct twl4030_gpio_platform_data igep_twl4030_gpio_pdata = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= igep_twl_gpio_setup,
 };
@@ -554,6 +551,8 @@ static const struct usbhs_omap_board_data igep3_usbhs_bdata __initconst = {
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	/* SMSC9221 LAN Controller ETH IRQ (GPIO_176) */
+	OMAP3_MUX(MCSPI1_CS2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -626,6 +625,7 @@ static void __init igep_init(void)
 
 	igep_flash_init();
 	igep_leds_init();
+	omap_twl4030_audio_init("igep2");
 
 	/*
 	 * WLAN-BT combo module from MuRata which has a Marvell WLAN

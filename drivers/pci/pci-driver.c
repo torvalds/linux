@@ -139,7 +139,6 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
-static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 
 /**
  * store_remove_id - remove a PCI device ID from this driver
@@ -185,38 +184,16 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
-static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
-static int
-pci_create_newid_files(struct pci_driver *drv)
-{
-	int error = 0;
+static struct driver_attribute pci_drv_attrs[] = {
+	__ATTR(new_id, S_IWUSR, NULL, store_new_id),
+	__ATTR(remove_id, S_IWUSR, NULL, store_remove_id),
+	__ATTR_NULL,
+};
 
-	if (drv->probe != NULL) {
-		error = driver_create_file(&drv->driver, &driver_attr_new_id);
-		if (error == 0) {
-			error = driver_create_file(&drv->driver,
-					&driver_attr_remove_id);
-			if (error)
-				driver_remove_file(&drv->driver,
-						&driver_attr_new_id);
-		}
-	}
-	return error;
-}
-
-static void pci_remove_newid_files(struct pci_driver *drv)
-{
-	driver_remove_file(&drv->driver, &driver_attr_remove_id);
-	driver_remove_file(&drv->driver, &driver_attr_new_id);
-}
-#else /* !CONFIG_HOTPLUG */
-static inline int pci_create_newid_files(struct pci_driver *drv)
-{
-	return 0;
-}
-static inline void pci_remove_newid_files(struct pci_driver *drv) {}
-#endif
+#else
+#define pci_drv_attrs	NULL
+#endif /* CONFIG_HOTPLUG */
 
 /**
  * pci_match_id - See if a pci device matches a given pci_id table
@@ -280,8 +257,12 @@ static long local_pci_probe(void *_ddi)
 {
 	struct drv_dev_and_id *ddi = _ddi;
 	struct device *dev = &ddi->dev->dev;
+	struct device *parent = dev->parent;
 	int rc;
 
+	/* The parent bridge must be in active state when probing */
+	if (parent)
+		pm_runtime_get_sync(parent);
 	/* Unbound PCI devices are always set to disabled and suspended.
 	 * During probe, the device is set to enabled and active and the
 	 * usage count is incremented.  If the driver supports runtime PM,
@@ -298,6 +279,8 @@ static long local_pci_probe(void *_ddi)
 		pm_runtime_set_suspended(dev);
 		pm_runtime_put_noidle(dev);
 	}
+	if (parent)
+		pm_runtime_put(parent);
 	return rc;
 }
 
@@ -624,21 +607,6 @@ static int pci_pm_prepare(struct device *dev)
 	int error = 0;
 
 	/*
-	 * If a PCI device configured to wake up the system from sleep states
-	 * has been suspended at run time and there's a resume request pending
-	 * for it, this is equivalent to the device signaling wakeup, so the
-	 * system suspend operation should be aborted.
-	 */
-	pm_runtime_get_noresume(dev);
-	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
-		pm_wakeup_event(dev, 0);
-
-	if (pm_wakeup_pending()) {
-		pm_runtime_put_sync(dev);
-		return -EBUSY;
-	}
-
-	/*
 	 * PCI devices suspended at run time need to be resumed at this
 	 * point, because in general it is necessary to reconfigure them for
 	 * system suspend.  Namely, if the device is supposed to wake up the
@@ -661,8 +629,6 @@ static void pci_pm_complete(struct device *dev)
 
 	if (drv && drv->pm && drv->pm->complete)
 		drv->pm->complete(dev);
-
-	pm_runtime_put_sync(dev);
 }
 
 #else /* !CONFIG_PM_SLEEP */
@@ -959,6 +925,13 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 	if (!pci_dev->state_saved && !pci_is_bridge(pci_dev))
 		pci_prepare_to_sleep(pci_dev);
 
+	/*
+	 * The reason for doing this here is the same as for the analogous code
+	 * in pci_pm_suspend_noirq().
+	 */
+	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
+		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
+
 	return 0;
 }
 
@@ -1149,8 +1122,6 @@ const struct dev_pm_ops pci_dev_pm_ops = {
 int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 			  const char *mod_name)
 {
-	int error;
-
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
@@ -1161,19 +1132,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	INIT_LIST_HEAD(&drv->dynids.list);
 
 	/* register with core */
-	error = driver_register(&drv->driver);
-	if (error)
-		goto out;
-
-	error = pci_create_newid_files(drv);
-	if (error)
-		goto out_newid;
-out:
-	return error;
-
-out_newid:
-	driver_unregister(&drv->driver);
-	goto out;
+	return driver_register(&drv->driver);
 }
 
 /**
@@ -1189,7 +1148,6 @@ out_newid:
 void
 pci_unregister_driver(struct pci_driver *drv)
 {
-	pci_remove_newid_files(drv);
 	driver_unregister(&drv->driver);
 	pci_free_dynids(drv);
 }
@@ -1289,6 +1247,7 @@ struct bus_type pci_bus_type = {
 	.shutdown	= pci_device_shutdown,
 	.dev_attrs	= pci_dev_attrs,
 	.bus_attrs	= pci_bus_attrs,
+	.drv_attrs	= pci_drv_attrs,
 	.pm		= PCI_PM_OPS_PTR,
 };
 

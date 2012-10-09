@@ -431,7 +431,7 @@ xfs_ialloc_next_ag(
 
 	spin_lock(&mp->m_agirotor_lock);
 	agno = mp->m_agirotor;
-	if (++mp->m_agirotor == mp->m_maxagi)
+	if (++mp->m_agirotor >= mp->m_maxagi)
 		mp->m_agirotor = 0;
 	spin_unlock(&mp->m_agirotor_lock);
 
@@ -962,23 +962,22 @@ xfs_dialloc(
 		if (!pag->pagi_freecount && !okalloc)
 			goto nextag;
 
+		/*
+		 * Then read in the AGI buffer and recheck with the AGI buffer
+		 * lock held.
+		 */
 		error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
 		if (error)
 			goto out_error;
 
-		/*
-		 * Once the AGI has been read in we have to recheck
-		 * pagi_freecount with the AGI buffer lock held.
-		 */
 		if (pag->pagi_freecount) {
 			xfs_perag_put(pag);
 			goto out_alloc;
 		}
 
-		if (!okalloc) {
-			xfs_trans_brelse(tp, agbp);
-			goto nextag;
-		}
+		if (!okalloc)
+			goto nextag_relse_buffer;
+
 
 		error = xfs_ialloc_ag_alloc(tp, agbp, &ialloced);
 		if (error) {
@@ -1007,6 +1006,8 @@ xfs_dialloc(
 			return 0;
 		}
 
+nextag_relse_buffer:
+		xfs_trans_brelse(tp, agbp);
 nextag:
 		xfs_perag_put(pag);
 		if (++agno == mp->m_sb.sb_agcount)

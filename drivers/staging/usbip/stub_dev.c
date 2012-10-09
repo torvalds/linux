@@ -187,10 +187,14 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* 1. stop threads */
-	if (ud->tcp_rx)
+	if (ud->tcp_rx) {
 		kthread_stop_put(ud->tcp_rx);
-	if (ud->tcp_tx)
+		ud->tcp_rx = NULL;
+	}
+	if (ud->tcp_tx) {
 		kthread_stop_put(ud->tcp_tx);
+		ud->tcp_tx = NULL;
+	}
 
 	/*
 	 * 2. close the socket

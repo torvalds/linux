@@ -246,7 +246,7 @@ static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 					    AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_OUT_UNMUTE);
 	}
-	if (dac)
+	if (dac && (get_wcaps(codec, dac) & AC_WCAP_OUT_AMP))
 		snd_hda_codec_write(codec, dac, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO);
 }
@@ -261,7 +261,7 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 					    AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_IN_UNMUTE(0));
 	}
-	if (adc)
+	if (adc && (get_wcaps(codec, adc) & AC_WCAP_IN_AMP))
 		snd_hda_codec_write(codec, adc, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(0));
 }
@@ -275,6 +275,10 @@ static int _add_switch(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_MUTE_MONO(namestr, nid, chan, 0, type);
+	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_MUTE) == 0) {
+		snd_printdd("Skipping '%s %s Switch' (no mute on node 0x%x)\n", pfx, dirstr[dir], nid);
+		return 0;
+	}
 	sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
@@ -286,6 +290,10 @@ static int _add_volume(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, chan, 0, type);
+	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_NUM_STEPS) == 0) {
+		snd_printdd("Skipping '%s %s Volume' (no amp on node 0x%x)\n", pfx, dirstr[dir], nid);
+		return 0;
+	}
 	sprintf(namestr, "%s %s Volume", pfx, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
@@ -464,50 +472,17 @@ exit:
 }
 
 /*
- * PCM stuffs
- */
-static void ca0132_setup_stream(struct hda_codec *codec, hda_nid_t nid,
-				 u32 stream_tag,
-				 int channel_id, int format)
-{
-	unsigned int oldval, newval;
-
-	if (!nid)
-		return;
-
-	snd_printdd("ca0132_setup_stream: "
-		"NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
-		nid, stream_tag, channel_id, format);
-
-	/* update the format-id if changed */
-	oldval = snd_hda_codec_read(codec, nid, 0,
-				    AC_VERB_GET_STREAM_FORMAT,
-				    0);
-	if (oldval != format) {
-		msleep(20);
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_STREAM_FORMAT,
-				    format);
-	}
-
-	oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-	newval = (stream_tag << 4) | channel_id;
-	if (oldval != newval) {
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_CHANNEL_STREAMID,
-				    newval);
-	}
-}
-
-static void ca0132_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
-{
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
-}
-
-/*
  * PCM callbacks
  */
+static int ca0132_playback_pcm_open(struct hda_pcm_stream *hinfo,
+				    struct hda_codec *codec,
+				    struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
+					     hinfo);
+}
+
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct hda_codec *codec,
 			unsigned int stream_tag,
@@ -515,10 +490,8 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
-
-	return 0;
+	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout,
+						stream_tag, format, substream);
 }
 
 static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
@@ -526,15 +499,20 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dacs[0]);
-
-	return 0;
+	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
 }
 
 /*
  * Digital out
  */
+static int ca0132_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
+}
+
 static int ca0132_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct hda_codec *codec,
 			unsigned int stream_tag,
@@ -542,10 +520,8 @@ static int ca0132_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dig_out, stream_tag, 0, format);
-
-	return 0;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
 }
 
 static int ca0132_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
@@ -553,65 +529,15 @@ static int ca0132_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dig_out);
-
-	return 0;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
 }
 
-/*
- * Analog capture
- */
-static int ca0132_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			unsigned int stream_tag,
-			unsigned int format,
-			struct snd_pcm_substream *substream)
+static int ca0132_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
+					 struct hda_codec *codec,
+					 struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->adcs[substream->number],
-			     stream_tag, 0, format);
-
-	return 0;
-}
-
-static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->adcs[substream->number]);
-
-	return 0;
-}
-
-/*
- * Digital capture
- */
-static int ca0132_dig_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			unsigned int stream_tag,
-			unsigned int format,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dig_in, stream_tag, 0, format);
-
-	return 0;
-}
-
-static int ca0132_dig_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dig_in);
-
-	return 0;
+	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
 /*
@@ -621,6 +547,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.ops = {
+		.open = ca0132_playback_pcm_open,
 		.prepare = ca0132_playback_pcm_prepare,
 		.cleanup = ca0132_playback_pcm_cleanup
 	},
@@ -630,10 +557,6 @@ static struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.ops = {
-		.prepare = ca0132_capture_pcm_prepare,
-		.cleanup = ca0132_capture_pcm_cleanup
-	},
 };
 
 static struct hda_pcm_stream ca0132_pcm_digital_playback = {
@@ -641,6 +564,8 @@ static struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.ops = {
+		.open = ca0132_dig_playback_pcm_open,
+		.close = ca0132_dig_playback_pcm_close,
 		.prepare = ca0132_dig_playback_pcm_prepare,
 		.cleanup = ca0132_dig_playback_pcm_cleanup
 	},
@@ -650,10 +575,6 @@ static struct hda_pcm_stream ca0132_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.ops = {
-		.prepare = ca0132_dig_capture_pcm_prepare,
-		.cleanup = ca0132_dig_capture_pcm_cleanup
-	},
 };
 
 static int ca0132_build_pcms(struct hda_codec *codec)
@@ -928,16 +849,14 @@ static int ca0132_build_controls(struct hda_codec *codec)
 						    spec->dig_out);
 		if (err < 0)
 			return err;
-		err = add_out_volume(codec, spec->dig_out, "IEC958");
+		err = snd_hda_create_spdif_share_sw(codec, &spec->multiout);
 		if (err < 0)
 			return err;
+		/* spec->multiout.share_spdif = 1; */
 	}
 
 	if (spec->dig_in) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
-		if (err < 0)
-			return err;
-		err = add_in_volume(codec, spec->dig_in, "IEC958");
 		if (err < 0)
 			return err;
 	}
@@ -960,6 +879,9 @@ static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
 
 	/* line-outs */
 	cfg->line_outs = 1;
@@ -988,14 +910,24 @@ static void ca0132_config(struct hda_codec *codec)
 
 	/* Mic-in */
 	spec->input_pins[0] = 0x12;
-	spec->input_labels[0] = "Mic-In";
+	spec->input_labels[0] = "Mic";
 	spec->adcs[0] = 0x07;
 
 	/* Line-In */
 	spec->input_pins[1] = 0x11;
-	spec->input_labels[1] = "Line-In";
+	spec->input_labels[1] = "Line";
 	spec->adcs[1] = 0x08;
 	spec->num_inputs = 2;
+
+	/* SPDIF I/O */
+	spec->dig_out = 0x05;
+	spec->multiout.dig_out_nid = spec->dig_out;
+	cfg->dig_out_pins[0] = 0x0c;
+	cfg->dig_outs = 1;
+	cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
+	spec->dig_in = 0x09;
+	cfg->dig_in_pin = 0x0e;
+	cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 }
 
 static void ca0132_init_chip(struct hda_codec *codec)

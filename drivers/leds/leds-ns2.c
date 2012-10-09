@@ -29,7 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/module.h>
-#include <mach/leds-ns2.h>
+#include <linux/platform_data/leds-kirkwood-ns2.h>
 
 /*
  * The Network Space v2 dual-GPIO LED is wired to a CPLD and can blink in

@@ -584,7 +584,7 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (IS_ERR_VALUE(r))
-		return r;
+		goto out;
 
 	r = omap_i2c_wait_for_bb(dev);
 	if (r < 0)
@@ -944,7 +944,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	struct omap_i2c_dev	*dev;
 	struct i2c_adapter	*adap;
 	struct resource		*mem, *irq, *ioarea;
-	struct omap_i2c_bus_platform_data *pdata = pdev->dev.platform_data;
+	const struct omap_i2c_bus_platform_data *pdata =
+		pdev->dev.platform_data;
 	struct device_node	*node = pdev->dev.of_node;
 	const struct of_device_id *match;
 	irq_handler_t isr;

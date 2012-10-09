@@ -483,7 +483,6 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	}
 
 	/* only need to do this once */
-	memset(cmd, 0, fifo_size);
 	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
 	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 
@@ -1688,15 +1687,19 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct drm_framebuffer *old_fb = crtc->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
-	struct drm_file *file_priv = event->base.file_priv;
+	struct drm_file *file_priv ;
 	struct vmw_fence_obj *fence = NULL;
 	struct drm_clip_rect clips;
 	int ret;
+
+	if (event == NULL)
+		return -EINVAL;
 
 	/* require ScreenObject support for page flipping */
 	if (!dev_priv->sou_priv)
 		return -ENOSYS;
 
+	file_priv = event->base.file_priv;
 	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
 		return -EINVAL;
 

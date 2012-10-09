@@ -10,6 +10,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -624,17 +626,8 @@ static int twlfixed_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return info->min_mV * 1000;
 }
 
-static int twlfixed_get_voltage(struct regulator_dev *rdev)
-{
-	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-
-	return info->min_mV * 1000;
-}
-
 static struct regulator_ops twl4030fixed_ops = {
 	.list_voltage	= twlfixed_list_voltage,
-
-	.get_voltage	= twlfixed_get_voltage,
 
 	.enable		= twl4030reg_enable,
 	.disable	= twl4030reg_disable,
@@ -648,21 +641,12 @@ static struct regulator_ops twl4030fixed_ops = {
 static struct regulator_ops twl6030fixed_ops = {
 	.list_voltage	= twlfixed_list_voltage,
 
-	.get_voltage	= twlfixed_get_voltage,
-
 	.enable		= twl6030reg_enable,
 	.disable	= twl6030reg_disable,
 	.is_enabled	= twl6030reg_is_enabled,
 
 	.set_mode	= twl6030reg_set_mode,
 
-	.get_status	= twl6030reg_get_status,
-};
-
-static struct regulator_ops twl6030_fixed_resource = {
-	.enable		= twl6030reg_enable,
-	.disable	= twl6030reg_disable,
-	.is_enabled	= twl6030reg_is_enabled,
 	.get_status	= twl6030reg_get_status,
 };
 
@@ -757,37 +741,32 @@ static int twl6030smps_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return voltage;
 }
 
-static int
-twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
-			unsigned int *selector)
+static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
+				   int max_uV)
 {
-	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-	int	vsel = 0;
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
+	int vsel = 0;
 
 	switch (info->flags) {
 	case 0:
 		if (min_uV == 0)
 			vsel = 0;
 		else if ((min_uV >= 600000) && (min_uV <= 1300000)) {
-			int calc_uV;
 			vsel = DIV_ROUND_UP(min_uV - 600000, 12500);
 			vsel++;
-			calc_uV = twl6030smps_list_voltage(rdev, vsel);
-			if (calc_uV > max_uV)
-				return -EINVAL;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
 		 * values 58..62 are non linear.
 		 */
-		else if ((min_uV > 1900000) && (max_uV >= 2100000))
+		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
-		else if ((min_uV > 1800000) && (max_uV >= 1900000))
+		else if ((min_uV > 1800000) && (min_uV <= 1900000))
 			vsel = 61;
-		else if ((min_uV > 1500000) && (max_uV >= 1800000))
+		else if ((min_uV > 1500000) && (min_uV <= 1800000))
 			vsel = 60;
-		else if ((min_uV > 1350000) && (max_uV >= 1500000))
+		else if ((min_uV > 1350000) && (min_uV <= 1500000))
 			vsel = 59;
-		else if ((min_uV > 1300000) && (max_uV >= 1350000))
+		else if ((min_uV > 1300000) && (min_uV <= 1350000))
 			vsel = 58;
 		else
 			return -EINVAL;
@@ -796,25 +775,21 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 		if (min_uV == 0)
 			vsel = 0;
 		else if ((min_uV >= 700000) && (min_uV <= 1420000)) {
-			int calc_uV;
 			vsel = DIV_ROUND_UP(min_uV - 700000, 12500);
 			vsel++;
-			calc_uV = twl6030smps_list_voltage(rdev, vsel);
-			if (calc_uV > max_uV)
-				return -EINVAL;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
 		 * values 58..62 are non linear.
 		 */
-		else if ((min_uV > 1900000) && (max_uV >= 2100000))
+		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
-		else if ((min_uV > 1800000) && (max_uV >= 1900000))
+		else if ((min_uV > 1800000) && (min_uV <= 1900000))
 			vsel = 61;
-		else if ((min_uV > 1350000) && (max_uV >= 1800000))
+		else if ((min_uV > 1350000) && (min_uV <= 1800000))
 			vsel = 60;
-		else if ((min_uV > 1350000) && (max_uV >= 1500000))
+		else if ((min_uV > 1350000) && (min_uV <= 1500000))
 			vsel = 59;
-		else if ((min_uV > 1300000) && (max_uV >= 1350000))
+		else if ((min_uV > 1300000) && (min_uV <= 1350000))
 			vsel = 58;
 		else
 			return -EINVAL;
@@ -830,17 +805,23 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	case SMPS_OFFSET_EN|SMPS_EXTENDED_EN:
 		if (min_uV == 0) {
 			vsel = 0;
-		} else if ((min_uV >= 2161000) && (max_uV <= 4321000)) {
+		} else if ((min_uV >= 2161000) && (min_uV <= 4321000)) {
 			vsel = DIV_ROUND_UP(min_uV - 2161000, 38600);
 			vsel++;
 		}
 		break;
 	}
 
-	*selector = vsel;
+	return vsel;
+}
+
+static int twl6030smps_set_voltage_sel(struct regulator_dev *rdev,
+				       unsigned int selector)
+{
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
 
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE_SMPS,
-							vsel);
+			    selector);
 }
 
 static int twl6030smps_get_voltage_sel(struct regulator_dev *rdev)
@@ -852,8 +833,9 @@ static int twl6030smps_get_voltage_sel(struct regulator_dev *rdev)
 
 static struct regulator_ops twlsmps_ops = {
 	.list_voltage		= twl6030smps_list_voltage,
+	.map_voltage		= twl6030smps_map_voltage,
 
-	.set_voltage		= twl6030smps_set_voltage,
+	.set_voltage_sel	= twl6030smps_set_voltage_sel,
 	.get_voltage_sel	= twl6030smps_get_voltage_sel,
 
 	.enable			= twl6030reg_enable,
@@ -876,7 +858,7 @@ static struct regulator_ops twlsmps_ops = {
 			0x0, TWL6030, twl6030fixed_ops)
 
 #define TWL4030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf) \
-static struct twlreg_info TWL4030_INFO_##label = { \
+static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
 	.table_len = ARRAY_SIZE(label##_VSEL_table), \
@@ -894,7 +876,7 @@ static struct twlreg_info TWL4030_INFO_##label = { \
 	}
 
 #define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turnon_delay, remap_conf) \
-static struct twlreg_info TWL4030_INFO_##label = { \
+static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
 	.remap = remap_conf, \
@@ -909,7 +891,7 @@ static struct twlreg_info TWL4030_INFO_##label = { \
 	}
 
 #define TWL6030_ADJUSTABLE_SMPS(label) \
-static struct twlreg_info TWL6030_INFO_##label = { \
+static const struct twlreg_info TWL6030_INFO_##label = { \
 	.desc = { \
 		.name = #label, \
 		.id = TWL6030_REG_##label, \
@@ -920,7 +902,7 @@ static struct twlreg_info TWL6030_INFO_##label = { \
 	}
 
 #define TWL6030_ADJUSTABLE_LDO(label, offset, min_mVolts, max_mVolts) \
-static struct twlreg_info TWL6030_INFO_##label = { \
+static const struct twlreg_info TWL6030_INFO_##label = { \
 	.base = offset, \
 	.min_mV = min_mVolts, \
 	.max_mV = max_mVolts, \
@@ -935,7 +917,7 @@ static struct twlreg_info TWL6030_INFO_##label = { \
 	}
 
 #define TWL6025_ADJUSTABLE_LDO(label, offset, min_mVolts, max_mVolts) \
-static struct twlreg_info TWL6025_INFO_##label = { \
+static const struct twlreg_info TWL6025_INFO_##label = { \
 	.base = offset, \
 	.min_mV = min_mVolts, \
 	.max_mV = max_mVolts, \
@@ -951,7 +933,7 @@ static struct twlreg_info TWL6025_INFO_##label = { \
 
 #define TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, remap_conf, \
 		family, operations) \
-static struct twlreg_info TWLFIXED_INFO_##label = { \
+static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
 	.min_mV = mVolts, \
@@ -981,7 +963,7 @@ static struct twlreg_info TWLRES_INFO_##label = { \
 	}
 
 #define TWL6025_ADJUSTABLE_SMPS(label, offset) \
-static struct twlreg_info TWLSMPS_INFO_##label = { \
+static const struct twlreg_info TWLSMPS_INFO_##label = { \
 	.base = offset, \
 	.min_mV = 600, \
 	.max_mV = 2100, \
@@ -1037,7 +1019,7 @@ TWL6025_ADJUSTABLE_LDO(LDO7, 0x74, 1000, 3300);
 TWL6025_ADJUSTABLE_LDO(LDO6, 0x60, 1000, 3300);
 TWL6025_ADJUSTABLE_LDO(LDOLN, 0x64, 1000, 3300);
 TWL6025_ADJUSTABLE_LDO(LDOUSB, 0x70, 1000, 3300);
-TWL4030_FIXED_LDO(VINTANA2, 0x3f, 1500, 11, 100, 0x08);
+TWL4030_FIXED_LDO(VINTANA1, 0x3f, 1500, 11, 100, 0x08);
 TWL4030_FIXED_LDO(VINTDIG, 0x47, 1500, 13, 100, 0x08);
 TWL4030_FIXED_LDO(VUSB1V5, 0x71, 1500, 17, 100, 0x08);
 TWL4030_FIXED_LDO(VUSB1V8, 0x74, 1800, 18, 100, 0x08);
@@ -1048,7 +1030,6 @@ TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 0);
 TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 0);
 TWL6030_FIXED_LDO(V1V8, 0x16, 1800, 0);
 TWL6030_FIXED_LDO(V2V1, 0x1c, 2100, 0);
-TWL6030_FIXED_RESOURCE(CLK32KG, 0x8C, 0);
 TWL6025_ADJUSTABLE_SMPS(SMPS3, 0x34);
 TWL6025_ADJUSTABLE_SMPS(SMPS4, 0x10);
 TWL6025_ADJUSTABLE_SMPS(VIO, 0x16);
@@ -1117,7 +1098,7 @@ static const struct of_device_id twl_of_match[] __devinitconst = {
 	TWL6025_OF_MATCH("ti,twl6025-ldo6", LDO6),
 	TWL6025_OF_MATCH("ti,twl6025-ldoln", LDOLN),
 	TWL6025_OF_MATCH("ti,twl6025-ldousb", LDOUSB),
-	TWLFIXED_OF_MATCH("ti,twl4030-vintana2", VINTANA2),
+	TWLFIXED_OF_MATCH("ti,twl4030-vintana1", VINTANA1),
 	TWLFIXED_OF_MATCH("ti,twl4030-vintdig", VINTDIG),
 	TWLFIXED_OF_MATCH("ti,twl4030-vusb1v5", VUSB1V5),
 	TWLFIXED_OF_MATCH("ti,twl4030-vusb1v8", VUSB1V8),
@@ -1139,6 +1120,7 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 {
 	int				i, id;
 	struct twlreg_info		*info;
+	const struct twlreg_info	*template;
 	struct regulator_init_data	*initdata;
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
@@ -1148,17 +1130,17 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 
 	match = of_match_device(twl_of_match, &pdev->dev);
 	if (match) {
-		info = match->data;
-		id = info->desc.id;
+		template = match->data;
+		id = template->desc.id;
 		initdata = of_get_regulator_init_data(&pdev->dev,
 						      pdev->dev.of_node);
 		drvdata = NULL;
 	} else {
 		id = pdev->id;
 		initdata = pdev->dev.platform_data;
-		for (i = 0, info = NULL; i < ARRAY_SIZE(twl_of_match); i++) {
-			info = twl_of_match[i].data;
-			if (info && info->desc.id == id)
+		for (i = 0, template = NULL; i < ARRAY_SIZE(twl_of_match); i++) {
+			template = twl_of_match[i].data;
+			if (template && template->desc.id == id)
 				break;
 		}
 		if (i == ARRAY_SIZE(twl_of_match))
@@ -1169,11 +1151,15 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 			return -EINVAL;
 	}
 
-	if (!info)
+	if (!template)
 		return -ENODEV;
 
 	if (!initdata)
 		return -EINVAL;
+
+	info = kmemdup(template, sizeof (*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
 	if (drvdata) {
 		/* copy the driver data into regulator data */
@@ -1235,6 +1221,7 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register %s, %ld\n",
 				info->desc.name, PTR_ERR(rdev));
+		kfree(info);
 		return PTR_ERR(rdev);
 	}
 	platform_set_drvdata(pdev, rdev);
@@ -1256,7 +1243,11 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 
 static int __devexit twlreg_remove(struct platform_device *pdev)
 {
-	regulator_unregister(platform_get_drvdata(pdev));
+	struct regulator_dev *rdev = platform_get_drvdata(pdev);
+	struct twlreg_info *info = rdev->reg_data;
+
+	regulator_unregister(rdev);
+	kfree(info);
 	return 0;
 }
 

@@ -302,10 +302,10 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-unsigned int addressing_mode = HOME_SPACE_MODE;
-EXPORT_SYMBOL_GPL(addressing_mode);
+unsigned int s390_user_mode = PRIMARY_SPACE_MODE;
+EXPORT_SYMBOL_GPL(s390_user_mode);
 
-static int set_amode_primary(void)
+static void __init set_user_mode_primary(void)
 {
 	psw_kernel_bits = (psw_kernel_bits & ~PSW_MASK_ASC) | PSW_ASC_HOME;
 	psw_user_bits = (psw_user_bits & ~PSW_MASK_ASC) | PSW_ASC_PRIMARY;
@@ -313,48 +313,30 @@ static int set_amode_primary(void)
 	psw32_user_bits =
 		(psw32_user_bits & ~PSW32_MASK_ASC) | PSW32_ASC_PRIMARY;
 #endif
-
-	if (MACHINE_HAS_MVCOS) {
-		memcpy(&uaccess, &uaccess_mvcos_switch, sizeof(uaccess));
-		return 1;
-	} else {
-		memcpy(&uaccess, &uaccess_pt, sizeof(uaccess));
-		return 0;
-	}
+	uaccess = MACHINE_HAS_MVCOS ? uaccess_mvcos_switch : uaccess_pt;
 }
-
-/*
- * Switch kernel/user addressing modes?
- */
-static int __init early_parse_switch_amode(char *p)
-{
-	addressing_mode = PRIMARY_SPACE_MODE;
-	return 0;
-}
-early_param("switch_amode", early_parse_switch_amode);
 
 static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
-		addressing_mode = PRIMARY_SPACE_MODE;
+		s390_user_mode = PRIMARY_SPACE_MODE;
 	else if (!p || strcmp(p, "home") == 0)
-		addressing_mode = HOME_SPACE_MODE;
+		s390_user_mode = HOME_SPACE_MODE;
 	else
 		return 1;
 	return 0;
 }
 early_param("user_mode", early_parse_user_mode);
 
-static void setup_addressing_mode(void)
+static void __init setup_addressing_mode(void)
 {
-	if (addressing_mode == PRIMARY_SPACE_MODE) {
-		if (set_amode_primary())
-			pr_info("Address spaces switched, "
-				"mvcos available\n");
-		else
-			pr_info("Address spaces switched, "
-				"mvcos not available\n");
-	}
+	if (s390_user_mode != PRIMARY_SPACE_MODE)
+		return;
+	set_user_mode_primary();
+	if (MACHINE_HAS_MVCOS)
+		pr_info("Address spaces switched, mvcos available\n");
+	else
+		pr_info("Address spaces switched, mvcos not available\n");
 }
 
 void *restart_stack __attribute__((__section__(".data")));
@@ -602,9 +584,7 @@ static void __init setup_memory_end(void)
 
 static void __init setup_vmcoreinfo(void)
 {
-#ifdef CONFIG_KEXEC
 	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
-#endif
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -974,11 +954,19 @@ static void __init setup_hwcaps(void)
 	if (MACHINE_HAS_HPAGE)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
+#if defined(CONFIG_64BIT)
 	/*
 	 * 64-bit register support for 31-bit processes
 	 * HWCAP_S390_HIGH_GPRS is bit 9.
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
+
+	/*
+	 * Transactional execution support HWCAP_S390_TE is bit 10.
+	 */
+	if (test_facility(50) && test_facility(73))
+		elf_hwcap |= HWCAP_S390_TE;
+#endif
 
 	get_cpu_id(&cpu_id);
 	switch (cpu_id.machine) {

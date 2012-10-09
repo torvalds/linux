@@ -240,30 +240,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	return c;
 }
 
-
-/*
- * atomic_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic_t
- *
- * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
- */
-static inline int atomic_dec_if_positive(atomic_t *v)
-{
-	int c, old, dec;
-	c = atomic_read(v);
-	for (;;) {
-		dec = c - 1;
-		if (unlikely(dec < 0))
-			break;
-		old = atomic_cmpxchg((v), c, dec);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return dec;
-}
-
 /**
  * atomic_inc_short - increment of a short integer
  * @v: pointer to type int
@@ -309,9 +285,9 @@ static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
 #define smp_mb__after_atomic_inc()	barrier()
 
 #ifdef CONFIG_X86_32
-# include "atomic64_32.h"
+# include <asm/atomic64_32.h>
 #else
-# include "atomic64_64.h"
+# include <asm/atomic64_64.h>
 #endif
 
 #endif /* _ASM_X86_ATOMIC_H */

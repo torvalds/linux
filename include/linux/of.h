@@ -190,9 +190,18 @@ extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_parent(struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
+extern struct device_node *of_get_next_available_child(
+	const struct device_node *node, struct device_node *prev);
+
+extern struct device_node *of_get_child_by_name(const struct device_node *node,
+					const char *name);
 #define for_each_child_of_node(parent, child) \
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
+
+#define for_each_available_child_of_node(parent, child) \
+	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
+	     child = of_get_next_available_child(parent, child))
 
 static inline int of_get_child_count(const struct device_node *np)
 {
@@ -306,6 +315,12 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 static inline const char* of_node_full_name(struct device_node *np)
 {
 	return "<no-node>";
+}
+
+static inline struct device_node *of_find_node_by_name(struct device_node *from,
+	const char *name)
+{
+	return NULL;
 }
 
 static inline bool of_have_populated_dt(void)

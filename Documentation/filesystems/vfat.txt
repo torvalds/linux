@@ -137,6 +137,17 @@ errors=panic|continue|remount-ro
 		 without doing anything or remount the partition in
 		 read-only mode (default behavior).
 
+discard       -- If set, issues discard/TRIM commands to the block
+		 device when blocks are freed. This is useful for SSD devices
+		 and sparse/thinly-provisoned LUNs.
+
+nfs           -- This option maintains an index (cache) of directory
+		 inodes by i_logstart which is used by the nfs-related code to
+		 improve look-ups.
+
+		 Enable this only if you want to export the FAT filesystem
+		 over NFS
+
 <bool>: 0,1,yes,no,true,false
 
 TODO

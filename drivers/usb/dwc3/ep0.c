@@ -125,7 +125,6 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	int			ret = 0;
 
 	req->request.actual	= 0;
 	req->request.status	= -EINPROGRESS;
@@ -156,16 +155,72 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
-	} else if (dwc->delayed_status) {
+
+		return 0;
+	}
+
+	/*
+	 * In case gadget driver asked us to delay the STATUS phase,
+	 * handle it here.
+	 */
+	if (dwc->delayed_status) {
+		unsigned	direction;
+
+		direction = !dwc->ep0_expect_in;
 		dwc->delayed_status = false;
 
 		if (dwc->ep0state == EP0_STATUS_PHASE)
-			__dwc3_ep0_do_control_status(dwc, dwc->eps[1]);
+			__dwc3_ep0_do_control_status(dwc, dwc->eps[direction]);
 		else
 			dev_dbg(dwc->dev, "too early for delayed status\n");
+
+		return 0;
 	}
 
-	return ret;
+	/*
+	 * Unfortunately we have uncovered a limitation wrt the Data Phase.
+	 *
+	 * Section 9.4 says we can wait for the XferNotReady(DATA) event to
+	 * come before issueing Start Transfer command, but if we do, we will
+	 * miss situations where the host starts another SETUP phase instead of
+	 * the DATA phase.  Such cases happen at least on TD.7.6 of the Link
+	 * Layer Compliance Suite.
+	 *
+	 * The problem surfaces due to the fact that in case of back-to-back
+	 * SETUP packets there will be no XferNotReady(DATA) generated and we
+	 * will be stuck waiting for XferNotReady(DATA) forever.
+	 *
+	 * By looking at tables 9-13 and 9-14 of the Databook, we can see that
+	 * it tells us to start Data Phase right away. It also mentions that if
+	 * we receive a SETUP phase instead of the DATA phase, core will issue
+	 * XferComplete for the DATA phase, before actually initiating it in
+	 * the wire, with the TRB's status set to "SETUP_PENDING". Such status
+	 * can only be used to print some debugging logs, as the core expects
+	 * us to go through to the STATUS phase and start a CONTROL_STATUS TRB,
+	 * just so it completes right away, without transferring anything and,
+	 * only then, we can go back to the SETUP phase.
+	 *
+	 * Because of this scenario, SNPS decided to change the programming
+	 * model of control transfers and support on-demand transfers only for
+	 * the STATUS phase. To fix the issue we have now, we will always wait
+	 * for gadget driver to queue the DATA phase's struct usb_request, then
+	 * start it right away.
+	 *
+	 * If we're actually in a 2-stage transfer, we will wait for
+	 * XferNotReady(STATUS).
+	 */
+	if (dwc->three_stage_setup) {
+		unsigned        direction;
+
+		direction = dwc->ep0_expect_in;
+		dwc->ep0state = EP0_DATA_PHASE;
+
+		__dwc3_ep0_do_control_data(dwc, dwc->eps[direction], req);
+
+		dep->flags &= ~DWC3_EP0_DIR_IN;
+	}
+
+	return 0;
 }
 
 int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
@@ -207,9 +262,14 @@ out:
 
 static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 {
-	struct dwc3_ep		*dep = dwc->eps[0];
+	struct dwc3_ep		*dep;
+
+	/* reinitialize physical ep1 */
+	dep = dwc->eps[1];
+	dep->flags = DWC3_EP_ENABLED;
 
 	/* stall is always issued on EP0 */
+	dep = dwc->eps[0];
 	__dwc3_gadget_ep_set_halt(dep, 1);
 	dep->flags = DWC3_EP_ENABLED;
 	dwc->delayed_status = false;
@@ -698,6 +758,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	struct dwc3_trb		*trb;
 	struct dwc3_ep		*ep0;
 	u32			transferred;
+	u32			status;
 	u32			length;
 	u8			epnum;
 
@@ -710,6 +771,17 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	ur = &r->request;
 
 	trb = dwc->ep0_trb;
+
+	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
+	if (status == DWC3_TRBSTS_SETUP_PENDING) {
+		dev_dbg(dwc->dev, "Setup Pending received\n");
+
+		if (r)
+			dwc3_gadget_giveback(ep0, r, -ECONNRESET);
+
+		return;
+	}
+
 	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
@@ -720,7 +792,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		transferred = min_t(u32, ur->length,
 				transfer_size - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
-		dwc->ep0_bounced = false;
 	} else {
 		transferred = ur->length - length;
 	}
@@ -746,8 +817,11 @@ static void dwc3_ep0_complete_status(struct dwc3 *dwc,
 {
 	struct dwc3_request	*r;
 	struct dwc3_ep		*dep;
+	struct dwc3_trb		*trb;
+	u32			status;
 
 	dep = dwc->eps[0];
+	trb = dwc->ep0_trb;
 
 	if (!list_empty(&dep->request_list)) {
 		r = next_request(&dep->request_list);
@@ -766,6 +840,10 @@ static void dwc3_ep0_complete_status(struct dwc3 *dwc,
 			return;
 		}
 	}
+
+	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
+	if (status == DWC3_TRBSTS_SETUP_PENDING)
+		dev_dbg(dwc->dev, "Setup Pending received\n");
 
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
@@ -798,12 +876,6 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 	default:
 		WARN(true, "UNKNOWN ep0state %d\n", dwc->ep0state);
 	}
-}
-
-static void dwc3_ep0_do_control_setup(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event)
-{
-	dwc3_ep0_out_start(dwc);
 }
 
 static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
@@ -858,29 +930,6 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	WARN_ON(ret < 0);
 }
 
-static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event)
-{
-	struct dwc3_ep		*dep;
-	struct dwc3_request	*req;
-
-	dep = dwc->eps[0];
-
-	if (list_empty(&dep->request_list)) {
-		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");
-		dep->flags |= DWC3_EP_PENDING_REQUEST;
-
-		if (event->endpoint_number)
-			dep->flags |= DWC3_EP0_DIR_IN;
-		return;
-	}
-
-	req = next_request(&dep->request_list);
-	dep = dwc->eps[event->endpoint_number];
-
-	__dwc3_ep0_do_control_data(dwc, dep, req);
-}
-
 static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 {
 	struct dwc3		*dwc = dep->dwc;
@@ -912,99 +961,60 @@ static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
 	__dwc3_ep0_do_control_status(dwc, dep);
 }
 
+static void dwc3_ep0_end_control_data(struct dwc3 *dwc, struct dwc3_ep *dep)
+{
+	struct dwc3_gadget_ep_cmd_params params;
+	u32			cmd;
+	int			ret;
+
+	if (!dep->resource_index)
+		return;
+
+	cmd = DWC3_DEPCMD_ENDTRANSFER;
+	cmd |= DWC3_DEPCMD_CMDIOC;
+	cmd |= DWC3_DEPCMD_PARAM(dep->resource_index);
+	memset(&params, 0, sizeof(params));
+	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
+	WARN_ON_ONCE(ret);
+	dep->resource_index = 0;
+}
+
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
 	dwc->setup_packet_pending = true;
 
-	/*
-	 * This part is very tricky: If we have just handled
-	 * XferNotReady(Setup) and we're now expecting a
-	 * XferComplete but, instead, we receive another
-	 * XferNotReady(Setup), we should STALL and restart
-	 * the state machine.
-	 *
-	 * In all other cases, we just continue waiting
-	 * for the XferComplete event.
-	 *
-	 * We are a little bit unsafe here because we're
-	 * not trying to ensure that last event was, indeed,
-	 * XferNotReady(Setup).
-	 *
-	 * Still, we don't expect any condition where that
-	 * should happen and, even if it does, it would be
-	 * another error condition.
-	 */
-	if (dwc->ep0_next_event == DWC3_EP0_COMPLETE) {
-		switch (event->status) {
-		case DEPEVT_STATUS_CONTROL_SETUP:
-			dev_vdbg(dwc->dev, "Unexpected XferNotReady(Setup)\n");
-			dwc3_ep0_stall_and_restart(dwc);
-			break;
-		case DEPEVT_STATUS_CONTROL_DATA:
-			/* FALLTHROUGH */
-		case DEPEVT_STATUS_CONTROL_STATUS:
-			/* FALLTHROUGH */
-		default:
-			dev_vdbg(dwc->dev, "waiting for XferComplete\n");
-		}
-
-		return;
-	}
-
 	switch (event->status) {
-	case DEPEVT_STATUS_CONTROL_SETUP:
-		dev_vdbg(dwc->dev, "Control Setup\n");
-
-		dwc->ep0state = EP0_SETUP_PHASE;
-
-		dwc3_ep0_do_control_setup(dwc, event);
-		break;
-
 	case DEPEVT_STATUS_CONTROL_DATA:
 		dev_vdbg(dwc->dev, "Control Data\n");
 
-		dwc->ep0state = EP0_DATA_PHASE;
-
-		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
-			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					dwc->ep0_next_event,
-					DWC3_EP0_NRDY_DATA);
-
-			dwc3_ep0_stall_and_restart(dwc);
-			return;
-		}
-
 		/*
-		 * One of the possible error cases is when Host _does_
-		 * request for Data Phase, but it does so on the wrong
-		 * direction.
+		 * We already have a DATA transfer in the controller's cache,
+		 * if we receive a XferNotReady(DATA) we will ignore it, unless
+		 * it's for the wrong direction.
 		 *
-		 * Here, we already know ep0_next_event is DATA (see above),
-		 * so we only need to check for direction.
+		 * In that case, we must issue END_TRANSFER command to the Data
+		 * Phase we already have started and issue SetStall on the
+		 * control endpoint.
 		 */
 		if (dwc->ep0_expect_in != event->endpoint_number) {
+			struct dwc3_ep	*dep = dwc->eps[dwc->ep0_expect_in];
+
 			dev_vdbg(dwc->dev, "Wrong direction for Data phase\n");
+			dwc3_ep0_end_control_data(dwc, dep);
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
 		}
 
-		dwc3_ep0_do_control_data(dwc, event);
 		break;
 
 	case DEPEVT_STATUS_CONTROL_STATUS:
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS)
+			return;
+
 		dev_vdbg(dwc->dev, "Control Status\n");
 
 		dwc->ep0state = EP0_STATUS_PHASE;
-
-		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
-			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					dwc->ep0_next_event,
-					DWC3_EP0_NRDY_STATUS);
-
-			dwc3_ep0_stall_and_restart(dwc);
-			return;
-		}
 
 		if (dwc->delayed_status) {
 			WARN_ON_ONCE(event->endpoint_number != 1);

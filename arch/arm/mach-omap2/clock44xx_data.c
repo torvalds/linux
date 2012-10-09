@@ -28,9 +28,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "clock44xx.h"
@@ -3156,6 +3156,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"dss_tv_clk",			&dss_tv_clk,	CK_443X),
 	CLK(NULL,	"dss_48mhz_clk",		&dss_48mhz_clk,	CK_443X),
 	CLK(NULL,	"dss_dss_clk",			&dss_dss_clk,	CK_443X),
+	CLK(NULL,	"dss_fck",			&dss_fck,	CK_443X),
 	CLK("omapdss_dss",	"ick",				&dss_fck,	CK_443X),
 	CLK(NULL,	"efuse_ctrl_cust_fck",		&efuse_ctrl_cust_fck,	CK_443X),
 	CLK(NULL,	"emif1_fck",			&emif1_fck,	CK_443X),
@@ -3212,6 +3213,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"ocp2scp_usb_phy_phy_48m",	&ocp2scp_usb_phy_phy_48m,	CK_443X),
 	CLK(NULL,	"ocp2scp_usb_phy_ick",		&ocp2scp_usb_phy_ick,	CK_443X),
 	CLK(NULL,	"ocp_wp_noc_ick",		&ocp_wp_noc_ick,	CK_443X),
+	CLK(NULL,	"rng_ick",			&rng_ick,	CK_443X),
 	CLK("omap_rng",	"ick",				&rng_ick,	CK_443X),
 	CLK(NULL,	"sha2md5_fck",			&sha2md5_fck,	CK_443X),
 	CLK(NULL,	"sl2if_ick",			&sl2if_ick,	CK_443X),
@@ -3243,6 +3245,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"uart3_fck",			&uart3_fck,	CK_443X),
 	CLK(NULL,	"uart4_fck",			&uart4_fck,	CK_443X),
 	CLK("usbhs_omap",	"fs_fck",		&usb_host_fs_fck,	CK_443X),
+	CLK(NULL,	"usb_host_fs_fck",		&usb_host_fs_fck,	CK_443X),
 	CLK(NULL,	"utmi_p1_gfclk",		&utmi_p1_gfclk,	CK_443X),
 	CLK(NULL,	"usb_host_hs_utmi_p1_clk",	&usb_host_hs_utmi_p1_clk,	CK_443X),
 	CLK(NULL,	"utmi_p2_gfclk",		&utmi_p2_gfclk,	CK_443X),
@@ -3253,15 +3256,19 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"usb_host_hs_hsic60m_p2_clk",	&usb_host_hs_hsic60m_p2_clk,	CK_443X),
 	CLK(NULL,	"usb_host_hs_hsic480m_p2_clk",	&usb_host_hs_hsic480m_p2_clk,	CK_443X),
 	CLK(NULL,	"usb_host_hs_func48mclk",	&usb_host_hs_func48mclk,	CK_443X),
+	CLK(NULL,	"usb_host_hs_fck",		&usb_host_hs_fck,	CK_443X),
 	CLK("usbhs_omap",	"hs_fck",		&usb_host_hs_fck,	CK_443X),
 	CLK(NULL,	"otg_60m_gfclk",		&otg_60m_gfclk,	CK_443X),
 	CLK(NULL,	"usb_otg_hs_xclk",		&usb_otg_hs_xclk,	CK_443X),
+	CLK(NULL,	"usb_otg_hs_ick",		&usb_otg_hs_ick,	CK_443X),
 	CLK("musb-omap2430",	"ick",				&usb_otg_hs_ick,	CK_443X),
 	CLK(NULL,	"usb_phy_cm_clk32k",		&usb_phy_cm_clk32k,	CK_443X),
 	CLK(NULL,	"usb_tll_hs_usb_ch2_clk",	&usb_tll_hs_usb_ch2_clk,	CK_443X),
 	CLK(NULL,	"usb_tll_hs_usb_ch0_clk",	&usb_tll_hs_usb_ch0_clk,	CK_443X),
 	CLK(NULL,	"usb_tll_hs_usb_ch1_clk",	&usb_tll_hs_usb_ch1_clk,	CK_443X),
+	CLK(NULL,	"usb_tll_hs_ick",		&usb_tll_hs_ick,	CK_443X),
 	CLK("usbhs_omap",	"usbtll_ick",		&usb_tll_hs_ick,	CK_443X),
+	CLK("usbhs_tll",	"usbtll_ick",		&usb_tll_hs_ick,	CK_443X),
 	CLK(NULL,	"usim_ck",			&usim_ck,	CK_443X),
 	CLK(NULL,	"usim_fclk",			&usim_fclk,	CK_443X),
 	CLK(NULL,	"usim_fck",			&usim_fck,	CK_443X),
@@ -3312,8 +3319,10 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"uart4_ick",			&dummy_ck,	CK_443X),
 	CLK("usbhs_omap",	"usbhost_ick",		&dummy_ck,		CK_443X),
 	CLK("usbhs_omap",	"usbtll_fck",		&dummy_ck,	CK_443X),
+	CLK("usbhs_tll",	"usbtll_fck",		&dummy_ck,	CK_443X),
 	CLK("omap_wdt",	"ick",				&dummy_ck,	CK_443X),
 	CLK(NULL,	"timer_32k_ck",	&sys_32k_ck,	CK_443X),
+	/* TODO: Remove "omap_timer.X" aliases once DT migration is complete */
 	CLK("omap_timer.1",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("omap_timer.2",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("omap_timer.3",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
@@ -3325,6 +3334,18 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("omap_timer.6",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK("omap_timer.7",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK("omap_timer.8",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4a318000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48032000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48034000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48036000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("4803e000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48086000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48088000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("49038000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903a000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903c000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903e000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK(NULL,	"cpufreq_ck",	&dpll_mpu_ck,	CK_443X),
 };
 
 int __init omap4xxx_clk_init(void)

@@ -421,8 +421,12 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 
 	config3 = read_c0_config3();
 
-	if (config3 & MIPS_CONF3_SM)
+	if (config3 & MIPS_CONF3_SM) {
 		c->ases |= MIPS_ASE_SMARTMIPS;
+		c->options |= MIPS_CPU_RIXI;
+	}
+	if (config3 & MIPS_CONF3_RXI)
+		c->options |= MIPS_CPU_RIXI;
 	if (config3 & MIPS_CONF3_DSP)
 		c->ases |= MIPS_ASE_DSP;
 	if (config3 & MIPS_CONF3_VINT)
@@ -856,6 +860,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_1004K:
 		c->cputype = CPU_1004K;
 		__cpu_name[cpu] = "MIPS 1004Kc";
+		break;
+	case PRID_IMP_1074K:
+		c->cputype = CPU_74K;
+		__cpu_name[cpu] = "MIPS 1074Kc";
 		break;
 	}
 

@@ -60,7 +60,7 @@ void create_mem_hole(struct mem_chunk memory_chunk[], unsigned long addr,
 #define SECONDARY_SPACE_MODE	2
 #define HOME_SPACE_MODE		3
 
-extern unsigned int addressing_mode;
+extern unsigned int s390_user_mode;
 
 /*
  * Machine features detected in head.S
@@ -80,6 +80,8 @@ extern unsigned int addressing_mode;
 #define MACHINE_FLAG_LPAR	(1UL << 12)
 #define MACHINE_FLAG_SPP	(1UL << 13)
 #define MACHINE_FLAG_TOPOLOGY	(1UL << 14)
+#define MACHINE_FLAG_TE		(1UL << 15)
+#define MACHINE_FLAG_RRBM	(1UL << 16)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
@@ -98,6 +100,8 @@ extern unsigned int addressing_mode;
 #define MACHINE_HAS_PFMF	(0)
 #define MACHINE_HAS_SPP		(0)
 #define MACHINE_HAS_TOPOLOGY	(0)
+#define MACHINE_HAS_TE		(0)
+#define MACHINE_HAS_RRBM	(0)
 #else /* CONFIG_64BIT */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
@@ -109,6 +113,8 @@ extern unsigned int addressing_mode;
 #define MACHINE_HAS_PFMF	(S390_lowcore.machine_flags & MACHINE_FLAG_PFMF)
 #define MACHINE_HAS_SPP		(S390_lowcore.machine_flags & MACHINE_FLAG_SPP)
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
+#define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
+#define MACHINE_HAS_RRBM	(S390_lowcore.machine_flags & MACHINE_FLAG_RRBM)
 #endif /* CONFIG_64BIT */
 
 #define ZFCPDUMP_HSA_SIZE	(32UL<<20)

@@ -34,7 +34,6 @@
 #include <sound/asoundef.h>
 #include <video/omapdss.h>
 
-#include <plat/dma.h>
 #include "omap-pcm.h"
 #include "omap-hdmi.h"
 
@@ -68,6 +67,9 @@ static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "audio not supported\n");
 		return -ENODEV;
 	}
+
+	snd_soc_dai_set_dma_data(dai, substream, &priv->dma_params);
+
 	return 0;
 }
 
@@ -86,24 +88,24 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
 	struct snd_aes_iec958 *iec = &priv->iec;
 	struct snd_cea_861_aud_if *cea = &priv->cea;
+	struct omap_pcm_dma_data *dma_data;
 	int err = 0;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		priv->dma_params.packet_size = 16;
+		dma_data->packet_size = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		priv->dma_params.packet_size = 32;
+		dma_data->packet_size = 32;
 		break;
 	default:
 		dev_err(dai->dev, "format not supported!\n");
 		return -EINVAL;
 	}
 
-	priv->dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
-
-	snd_soc_dai_set_dma_data(dai, substream,
-				 &priv->dma_params);
+	dma_data->data_type = 32;
 
 	/*
 	 * fill the IEC-60958 channel status word
@@ -290,7 +292,6 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 
 	hdmi_data->dma_params.dma_req =  hdmi_rsrc->start;
 	hdmi_data->dma_params.name = "HDMI playback";
-	hdmi_data->dma_params.sync_mode = OMAP_DMA_SYNC_PACKET;
 
 	/*
 	 * TODO: We assume that there is only one DSS HDMI device. Future

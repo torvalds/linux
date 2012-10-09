@@ -456,7 +456,9 @@ static void ft_prlo(struct fc_rport_priv *rdata)
 	struct ft_tport *tport;
 
 	mutex_lock(&ft_lport_lock);
-	tport = rcu_dereference(rdata->local_port->prov[FC_TYPE_FCP]);
+	tport = rcu_dereference_protected(rdata->local_port->prov[FC_TYPE_FCP],
+					  lockdep_is_held(&ft_lport_lock));
+
 	if (!tport) {
 		mutex_unlock(&ft_lport_lock);
 		return;

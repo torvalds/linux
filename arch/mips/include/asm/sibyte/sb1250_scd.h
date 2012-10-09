@@ -32,7 +32,7 @@
 #ifndef _SB1250_SCD_H
 #define _SB1250_SCD_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*  *********************************************************************
     *  System control/debug registers

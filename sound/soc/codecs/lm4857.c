@@ -250,17 +250,7 @@ static struct i2c_driver lm4857_i2c_driver = {
 	.id_table = lm4857_i2c_id,
 };
 
-static int __init lm4857_init(void)
-{
-	return i2c_add_driver(&lm4857_i2c_driver);
-}
-module_init(lm4857_init);
-
-static void __exit lm4857_exit(void)
-{
-	i2c_del_driver(&lm4857_i2c_driver);
-}
-module_exit(lm4857_exit);
+module_i2c_driver(lm4857_i2c_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("LM4857 amplifier driver");

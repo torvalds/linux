@@ -44,6 +44,7 @@
 #include <linux/rwsem.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <asm/xen/hypervisor.h>
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include "xenbus_comms.h"
@@ -622,7 +623,7 @@ static void xs_reset_watches(void)
 {
 	int err, supported = 0;
 
-	if (!xen_hvm_domain())
+	if (!xen_hvm_domain() || xen_initial_domain())
 		return;
 
 	err = xenbus_scanf(XBT_NIL, "control",

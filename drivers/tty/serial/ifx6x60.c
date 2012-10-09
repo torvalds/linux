@@ -800,8 +800,8 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 	tty_port_init(pport);
 	pport->ops = &ifx_tty_port_ops;
 	ifx_dev->minor = IFX_SPI_TTY_ID;
-	ifx_dev->tty_dev = tty_register_device(tty_drv, ifx_dev->minor,
-					       &ifx_dev->spi_dev->dev);
+	ifx_dev->tty_dev = tty_port_register_device(pport, tty_drv,
+			ifx_dev->minor, &ifx_dev->spi_dev->dev);
 	if (IS_ERR(ifx_dev->tty_dev)) {
 		dev_dbg(&ifx_dev->spi_dev->dev,
 			"%s: registering tty device failed", __func__);
@@ -1331,7 +1331,7 @@ static const struct spi_device_id ifx_id_table[] = {
 MODULE_DEVICE_TABLE(spi, ifx_id_table);
 
 /* spi operations */
-static const struct spi_driver ifx_spi_driver = {
+static struct spi_driver ifx_spi_driver = {
 	.driver = {
 		.name = DRVNAME,
 		.pm = &ifx_spi_pm,

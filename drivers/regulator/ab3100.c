@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* LDO registers and some handy masking definitions for AB3100 */
@@ -347,17 +348,11 @@ static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 	return abreg->plfdata->external_voltage;
 }
 
-static int ab3100_get_fixed_voltage_regulator(struct regulator_dev *reg)
-{
-	return reg->desc->min_uV;
-}
-
 static struct regulator_ops regulator_ops_fixed = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
-	.get_voltage = ab3100_get_fixed_voltage_regulator,
 };
 
 static struct regulator_ops regulator_ops_variable = {
@@ -486,6 +481,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.id   = AB3100_BUCK,
 		.ops  = &regulator_ops_variable_sleepable,
 		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
+		.volt_table = ldo_e_buck_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 		.enable_time = 1000,

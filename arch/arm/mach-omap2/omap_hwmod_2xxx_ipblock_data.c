@@ -10,12 +10,10 @@
  */
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
-#include <plat/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
-#include <plat/mcspi.h>
-
-#include <mach/irqs.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "omap_hwmod_common_data.h"
 #include "cm-regbits-24xx.h"
@@ -23,8 +21,8 @@
 #include "wd_timer.h"
 
 struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[] = {
-	{ .irq = 48, },
-	{ .irq = -1 }
+	{ .irq = 48 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
@@ -175,6 +173,26 @@ struct omap_hwmod_class omap2xxx_mcspi_class = {
 };
 
 /*
+ * 'gpmc' class
+ * general purpose memory controller
+ */
+
+static struct omap_hwmod_class_sysconfig omap2xxx_gpmc_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_gpmc_hwmod_class = {
+	.name	= "gpmc",
+	.sysc	= &omap2xxx_gpmc_sysc,
+};
+
+/*
  * IP blocks
  */
 
@@ -200,8 +218,14 @@ struct omap_hwmod omap2xxx_l4_wkup_hwmod = {
 };
 
 /* MPU */
+static struct omap_hwmod_irq_info omap2xxx_mpu_irqs[] = {
+	{ .name = "pmu", .irq = 3 },
+	{ .irq = -1 }
+};
+
 struct omap_hwmod omap2xxx_mpu_hwmod = {
 	.name		= "mpu",
+	.mpu_irqs	= omap2xxx_mpu_irqs,
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
 };
@@ -220,6 +244,11 @@ static struct omap_timer_capability_dev_attr capability_alwon_dev_attr = {
 /* pwm timers dev attribute */
 static struct omap_timer_capability_dev_attr capability_pwm_dev_attr = {
 	.timer_capability       = OMAP_TIMER_HAS_PWM,
+};
+
+/* timers with DSP interrupt dev attribute */
+static struct omap_timer_capability_dev_attr capability_dsp_dev_attr = {
+	.timer_capability       = OMAP_TIMER_HAS_DSP_IRQ,
 };
 
 /* timer1 */
@@ -310,6 +339,7 @@ struct omap_hwmod omap2xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT5_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -328,6 +358,7 @@ struct omap_hwmod omap2xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT6_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -346,6 +377,7 @@ struct omap_hwmod omap2xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT7_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -364,6 +396,7 @@ struct omap_hwmod omap2xxx_timer8_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT8_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -726,7 +759,6 @@ struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 	.dev_attr	= &omap_mcspi2_dev_attr,
 };
 
-
 static struct omap_hwmod_class omap2xxx_counter_hwmod_class = {
 	.name	= "counter",
 };
@@ -744,4 +776,78 @@ struct omap_hwmod omap2xxx_counter_32k_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_counter_hwmod_class,
+};
+
+/* gpmc */
+static struct omap_hwmod_irq_info omap2xxx_gpmc_irqs[] = {
+	{ .irq = 20 },
+	{ .irq = -1 }
+};
+
+struct omap_hwmod omap2xxx_gpmc_hwmod = {
+	.name		= "gpmc",
+	.class		= &omap2xxx_gpmc_hwmod_class,
+	.mpu_irqs	= omap2xxx_gpmc_irqs,
+	.main_clk	= "gpmc_fck",
+	/*
+	 * XXX HWMOD_INIT_NO_RESET should not be needed for this IP
+	 * block.  It is not being added due to any known bugs with
+	 * resetting the GPMC IP block, but rather because any timings
+	 * set by the bootloader are not being correctly programmed by
+	 * the kernel from the board file or DT data.
+	 * HWMOD_INIT_NO_RESET should be removed ASAP.
+	 */
+	.flags		= (HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET |
+			   HWMOD_NO_IDLEST),
+	.prcm		= {
+		.omap2	= {
+			.prcm_reg_id = 3,
+			.module_bit = OMAP24XX_EN_GPMC_MASK,
+			.module_offs = CORE_MOD,
+		},
+	},
+};
+
+/* RNG */
+
+static struct omap_hwmod_class_sysconfig omap2_rng_sysc = {
+	.rev_offs	= 0x3c,
+	.sysc_offs	= 0x40,
+	.syss_offs	= 0x44,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2_rng_hwmod_class = {
+	.name		= "rng",
+	.sysc		= &omap2_rng_sysc,
+};
+
+static struct omap_hwmod_irq_info omap2_rng_mpu_irqs[] = {
+	{ .irq = 52 },
+	{ .irq = -1 }
+};
+
+struct omap_hwmod omap2xxx_rng_hwmod = {
+	.name		= "rng",
+	.mpu_irqs	= omap2_rng_mpu_irqs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_RNG_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_RNG_SHIFT,
+		},
+	},
+	/*
+	 * XXX The first read from the SYSSTATUS register of the RNG
+	 * after the SYSCONFIG SOFTRESET bit is set triggers an
+	 * imprecise external abort.  It's unclear why this happens.
+	 * Until this is analyzed, skip the IP block reset.
+	 */
+	.flags		= HWMOD_INIT_NO_RESET,
+	.class		= &omap2_rng_hwmod_class,
 };

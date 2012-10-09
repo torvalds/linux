@@ -612,7 +612,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 	if (!cell.name)
 		return -ENOMEM;
 
-	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0);
+	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0, NULL);
 }
 
 static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
@@ -676,7 +676,6 @@ int mc13xxx_common_init(struct mc13xxx *mc13xxx,
 err_mask:
 err_revision:
 		mc13xxx_unlock(mc13xxx);
-		kfree(mc13xxx);
 		return ret;
 	}
 

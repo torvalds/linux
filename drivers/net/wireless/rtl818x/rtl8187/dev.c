@@ -44,7 +44,7 @@ MODULE_AUTHOR("Larry Finger <Larry.Finger@lwfinger.net>");
 MODULE_DESCRIPTION("RTL8187/RTL8187B USB wireless driver");
 MODULE_LICENSE("GPL");
 
-static struct usb_device_id rtl8187_table[] __devinitdata = {
+static struct usb_device_id rtl8187_table[] = {
 	/* Asus */
 	{USB_DEVICE(0x0b05, 0x171d), .driver_info = DEVICE_RTL8187},
 	/* Belkin */
@@ -228,7 +228,9 @@ static void rtl8187_tx_cb(struct urb *urb)
 	}
 }
 
-static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8187_tx(struct ieee80211_hw *dev,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1076,7 +1078,7 @@ static void rtl8187_beacon_work(struct work_struct *work)
 	/* TODO: use actual beacon queue */
 	skb_set_queue_mapping(skb, 0);
 
-	rtl8187_tx(dev, skb);
+	rtl8187_tx(dev, NULL, skb);
 
 resched:
 	/*

@@ -1,0 +1,5 @@
+# UAPI Header export list
+# User exported sparc header files
+
+include include/uapi/asm-generic/Kbuild.asm
+

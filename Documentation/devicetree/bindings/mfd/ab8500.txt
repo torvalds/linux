@@ -23,6 +23,7 @@ Device                     IRQ Names              Supply Names   Description
 ab8500-bm                :                      :              : Battery Manager
 ab8500-btemp             :                      :              : Battery Temperature
 ab8500-charger           :                      :              : Battery Charger
+ab8500-codec             :                      :              : Audio Codec
 ab8500-fg                :                      :              : Fuel Gauge
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
@@ -51,6 +52,14 @@ Optional child device properties:
 - interrupt-names        : contains names of IRQ resource in the order in which they were
                            supplied in the interrupts property
 - <supply_name>-supply   : contains a phandle to the regulator supply node in Device Tree
+
+Non-standard child device properties:
+ - Audio CODEC:
+   - stericsson,amic[1|2]-type-single-ended : Single-ended Analoge Mic (default: differential)
+   - stericsson,amic1a-bias-vamic2          : Analoge Mic wishes to use a non-standard Vamic
+   - stericsson,amic1b-bias-vamic2          : Analoge Mic wishes to use a non-standard Vamic
+   - stericsson,amic2-bias-vamic1           : Analoge Mic wishes to use a non-standard Vamic
+   - stericsson,earpeice-cmv                : Earpeice voltage (only: 950 | 1100 | 1270 | 1580)
 
 ab8500@5 {
          compatible = "stericsson,ab8500";
@@ -109,6 +118,12 @@ ab8500@5 {
         ab8500-pwm {
                 compatible = "stericsson,ab8500-pwm";
         };
+
+	codec: ab8500-codec {
+		compatible = "stericsson,ab8500-codec";
+
+		stericsson,earpeice-cmv = <950>; /* Units in mV. */
+	};
 
         ab8500-regulators {
                 compatible = "stericsson,ab8500-regulator";

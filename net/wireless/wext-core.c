@@ -478,13 +478,13 @@ void wireless_send_event(struct net_device *	dev,
 	if (descr->header_type == IW_HEADER_TYPE_POINT) {
 		/* Check if number of token fits within bounds */
 		if (wrqu->data.length > descr->max_tokens) {
-			netdev_err(dev, "(WE) : Wireless Event too big (%d)\n",
-				   wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event (cmd=0x%04X) too big (%d)\n",
+				   cmd, wrqu->data.length);
 			return;
 		}
 		if (wrqu->data.length < descr->min_tokens) {
-			netdev_err(dev, "(WE) : Wireless Event too small (%d)\n",
-				   wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event (cmd=0x%04X) too small (%d)\n",
+				   cmd, wrqu->data.length);
 			return;
 		}
 		/* Calculate extra_len - extra is NULL for restricted events */

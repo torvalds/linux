@@ -314,6 +314,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 		    nfi->fib_scope == fi->fib_scope &&
 		    nfi->fib_prefsrc == fi->fib_prefsrc &&
 		    nfi->fib_priority == fi->fib_priority &&
+		    nfi->fib_type == fi->fib_type &&
 		    memcmp(nfi->fib_metrics, fi->fib_metrics,
 			   sizeof(u32) * RTAX_MAX) == 0 &&
 		    ((nfi->fib_flags ^ fi->fib_flags) & ~RTNH_F_DEAD) == 0 &&
@@ -391,7 +392,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	if (skb == NULL)
 		goto errout;
 
-	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
+	err = fib_dump_info(skb, info->portid, seq, event, tb_id,
 			    fa->fa_type, key, dst_len,
 			    fa->fa_tos, fa->fa_info, nlm_flags);
 	if (err < 0) {
@@ -400,7 +401,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, info->nl_net, info->pid, RTNLGRP_IPV4_ROUTE,
+	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV4_ROUTE,
 		    info->nlh, GFP_KERNEL);
 	return;
 errout:
@@ -833,6 +834,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_flags = cfg->fc_flags;
 	fi->fib_priority = cfg->fc_priority;
 	fi->fib_prefsrc = cfg->fc_prefsrc;
+	fi->fib_type = cfg->fc_type;
 
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
@@ -989,14 +991,14 @@ failure:
 	return ERR_PTR(err);
 }
 
-int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		  u32 tb_id, u8 type, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*rtm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 

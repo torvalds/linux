@@ -1018,7 +1018,6 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	offset += vinfo->vram_start;
 	pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
 	pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-	vma->vm_flags |= VM_RESERVED | VM_IO;
 	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
 						size, vma->vm_page_prot))
 		return -EAGAIN;

@@ -115,7 +115,7 @@ config SATA_SIL24
 	  If unsure, say N.
 
 config ATA_SFF
-	bool "ATA SFF support"
+	bool "ATA SFF support (for legacy IDE and PATA)"
 	default y
 	help
 	  This option adds support for ATA controllers with SFF
@@ -213,6 +213,14 @@ config SATA_DWC_VDEBUG
 	depends on SATA_DWC_DEBUG
 	help
 	  This option enables the taskfile dumping and NCQ debugging.
+
+config SATA_HIGHBANK
+	tristate "Calxeda Highbank SATA support"
+	help
+	  This option enables support for the Calxeda Highbank SoC's
+	  onboard SATA.
+
+	  If unsure, say N.
 
 config SATA_MV
 	tristate "Marvell SATA support"

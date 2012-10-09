@@ -152,11 +152,12 @@ enum mx6q_clks {
 	ssi2, ssi3, uart_ipg, uart_serial, usboh3, usdhc1, usdhc2, usdhc3,
 	usdhc4, vdo_axi, vpu_axi, cko1, pll1_sys, pll2_bus, pll3_usb_otg,
 	pll4_audio, pll5_video, pll6_mlb, pll7_usb_host, pll8_enet, ssi1_ipg,
-	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2,
+	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2, ldb_di0_div_3_5, ldb_di1_div_3_5,
 	clk_max
 };
 
 static struct clk *clk[clk_max];
+static struct clk_onecell_data clk_data;
 
 static enum mx6q_clks const clks_init_on[] __initconst = {
 	mmdc_ch0_axi, rom,
@@ -288,8 +289,10 @@ int __init mx6q_clocks_init(void)
 	clk[gpu3d_shader]     = imx_clk_divider("gpu3d_shader",     "gpu3d_shader_sel",  base + 0x18, 29, 3);
 	clk[ipu1_podf]        = imx_clk_divider("ipu1_podf",        "ipu1_sel",          base + 0x3c, 11, 3);
 	clk[ipu2_podf]        = imx_clk_divider("ipu2_podf",        "ipu2_sel",          base + 0x3c, 16, 3);
-	clk[ldb_di0_podf]     = imx_clk_divider("ldb_di0_podf",     "ldb_di0_sel",       base + 0x20, 10, 1);
-	clk[ldb_di1_podf]     = imx_clk_divider("ldb_di1_podf",     "ldb_di1_sel",       base + 0x20, 11, 1);
+	clk[ldb_di0_div_3_5]  = imx_clk_fixed_factor("ldb_di0_div_3_5", "ldb_di0_sel", 2, 7);
+	clk[ldb_di0_podf]     = imx_clk_divider("ldb_di0_podf",     "ldb_di0_div_3_5",       base + 0x20, 10, 1);
+	clk[ldb_di1_div_3_5]  = imx_clk_fixed_factor("ldb_di1_div_3_5", "ldb_di1_sel", 2, 7);
+	clk[ldb_di1_podf]     = imx_clk_divider("ldb_di1_podf",     "ldb_di1_div_3_5",   base + 0x20, 11, 1);
 	clk[ipu1_di0_pre]     = imx_clk_divider("ipu1_di0_pre",     "ipu1_di0_pre_sel",  base + 0x34, 3,  3);
 	clk[ipu1_di1_pre]     = imx_clk_divider("ipu1_di1_pre",     "ipu1_di1_pre_sel",  base + 0x34, 12, 3);
 	clk[ipu2_di0_pre]     = imx_clk_divider("ipu2_di0_pre",     "ipu2_di0_pre_sel",  base + 0x38, 3,  3);
@@ -392,51 +395,23 @@ int __init mx6q_clocks_init(void)
 			pr_err("i.MX6q clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
 	clk_register_clkdev(clk[gpt_ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[twd], NULL, "smp_twd");
-	clk_register_clkdev(clk[apbh_dma], NULL, "110000.dma-apbh");
-	clk_register_clkdev(clk[per1_bch], "per1_bch", "112000.gpmi-nand");
-	clk_register_clkdev(clk[gpmi_bch_apb], "gpmi_bch_apb", "112000.gpmi-nand");
-	clk_register_clkdev(clk[gpmi_bch], "gpmi_bch", "112000.gpmi-nand");
-	clk_register_clkdev(clk[gpmi_apb], "gpmi_apb", "112000.gpmi-nand");
-	clk_register_clkdev(clk[gpmi_io], "gpmi_io", "112000.gpmi-nand");
-	clk_register_clkdev(clk[usboh3], NULL, "2184000.usb");
-	clk_register_clkdev(clk[usboh3], NULL, "2184200.usb");
-	clk_register_clkdev(clk[usboh3], NULL, "2184400.usb");
-	clk_register_clkdev(clk[usboh3], NULL, "2184600.usb");
-	clk_register_clkdev(clk[usbphy1], NULL, "20c9000.usbphy");
-	clk_register_clkdev(clk[usbphy2], NULL, "20ca000.usbphy");
-	clk_register_clkdev(clk[uart_serial], "per", "2020000.serial");
-	clk_register_clkdev(clk[uart_ipg], "ipg", "2020000.serial");
-	clk_register_clkdev(clk[uart_serial], "per", "21e8000.serial");
-	clk_register_clkdev(clk[uart_ipg], "ipg", "21e8000.serial");
-	clk_register_clkdev(clk[uart_serial], "per", "21ec000.serial");
-	clk_register_clkdev(clk[uart_ipg], "ipg", "21ec000.serial");
-	clk_register_clkdev(clk[uart_serial], "per", "21f0000.serial");
-	clk_register_clkdev(clk[uart_ipg], "ipg", "21f0000.serial");
-	clk_register_clkdev(clk[uart_serial], "per", "21f4000.serial");
-	clk_register_clkdev(clk[uart_ipg], "ipg", "21f4000.serial");
-	clk_register_clkdev(clk[enet], NULL, "2188000.ethernet");
-	clk_register_clkdev(clk[usdhc1], NULL, "2190000.usdhc");
-	clk_register_clkdev(clk[usdhc2], NULL, "2194000.usdhc");
-	clk_register_clkdev(clk[usdhc3], NULL, "2198000.usdhc");
-	clk_register_clkdev(clk[usdhc4], NULL, "219c000.usdhc");
-	clk_register_clkdev(clk[i2c1], NULL, "21a0000.i2c");
-	clk_register_clkdev(clk[i2c2], NULL, "21a4000.i2c");
-	clk_register_clkdev(clk[i2c3], NULL, "21a8000.i2c");
-	clk_register_clkdev(clk[ecspi1], NULL, "2008000.ecspi");
-	clk_register_clkdev(clk[ecspi2], NULL, "200c000.ecspi");
-	clk_register_clkdev(clk[ecspi3], NULL, "2010000.ecspi");
-	clk_register_clkdev(clk[ecspi4], NULL, "2014000.ecspi");
-	clk_register_clkdev(clk[ecspi5], NULL, "2018000.ecspi");
-	clk_register_clkdev(clk[sdma], NULL, "20ec000.sdma");
-	clk_register_clkdev(clk[dummy], NULL, "20bc000.wdog");
-	clk_register_clkdev(clk[dummy], NULL, "20c0000.wdog");
-	clk_register_clkdev(clk[ssi1_ipg], NULL, "2028000.ssi");
 	clk_register_clkdev(clk[cko1_sel], "cko1_sel", NULL);
 	clk_register_clkdev(clk[ahb], "ahb", NULL);
 	clk_register_clkdev(clk[cko1], "cko1", NULL);
+
+	/*
+	 * The gpmi needs 100MHz frequency in the EDO/Sync mode,
+	 * We can not get the 100MHz from the pll2_pfd0_352m.
+	 * So choose pll2_pfd2_396m as enfc_sel's parent.
+	 */
+	clk_set_parent(clk[enfc_sel], clk[pll2_pfd2_396m]);
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clk[clks_init_on[i]]);

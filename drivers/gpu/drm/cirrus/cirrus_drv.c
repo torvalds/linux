@@ -10,8 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/console.h>
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include "cirrus_drv.h"
 
@@ -74,6 +73,9 @@ static const struct file_operations cirrus_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = cirrus_mmap,
 	.poll = drm_poll,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.fasync = drm_fasync,
 };
 static struct drm_driver driver = {

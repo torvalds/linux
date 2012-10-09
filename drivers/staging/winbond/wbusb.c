@@ -25,7 +25,7 @@ MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
-static const struct usb_device_id wb35_table[] __devinitconst = {
+static const struct usb_device_id wb35_table[] = {
 	{ USB_DEVICE(0x0416, 0x0035) },
 	{ USB_DEVICE(0x18E8, 0x6201) },
 	{ USB_DEVICE(0x18E8, 0x6206) },
@@ -119,7 +119,9 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 	*total_flags = new_flags;
 }
 
-static void wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void wbsoft_tx(struct ieee80211_hw *dev,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 

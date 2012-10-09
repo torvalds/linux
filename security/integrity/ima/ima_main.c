@@ -22,11 +22,18 @@
 #include <linux/mount.h>
 #include <linux/mman.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include <linux/ima.h>
 
 #include "ima.h"
 
 int ima_initialized;
+
+#ifdef CONFIG_IMA_APPRAISE
+int ima_appraise = IMA_APPRAISE_ENFORCE;
+#else
+int ima_appraise;
+#endif
 
 char *ima_hash = "sha1";
 static int __init hash_setup(char *str)
@@ -52,7 +59,7 @@ static void ima_rdwr_violation_check(struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	fmode_t mode = file->f_mode;
-	int rc;
+	int must_measure;
 	bool send_tomtou = false, send_writers = false;
 	unsigned char *pathname = NULL, *pathbuf = NULL;
 
@@ -67,8 +74,8 @@ static void ima_rdwr_violation_check(struct file *file)
 		goto out;
 	}
 
-	rc = ima_must_measure(inode, MAY_READ, FILE_CHECK);
-	if (rc < 0)
+	must_measure = ima_must_measure(inode, MAY_READ, FILE_CHECK);
+	if (!must_measure)
 		goto out;
 
 	if (atomic_read(&inode->i_writecount) > 0)
@@ -100,17 +107,21 @@ out:
 }
 
 static void ima_check_last_writer(struct integrity_iint_cache *iint,
-				  struct inode *inode,
-				  struct file *file)
+				  struct inode *inode, struct file *file)
 {
 	fmode_t mode = file->f_mode;
 
-	mutex_lock(&iint->mutex);
-	if (mode & FMODE_WRITE &&
-	    atomic_read(&inode->i_writecount) == 1 &&
-	    iint->version != inode->i_version)
-		iint->flags &= ~IMA_MEASURED;
-	mutex_unlock(&iint->mutex);
+	if (!(mode & FMODE_WRITE))
+		return;
+
+	mutex_lock(&inode->i_mutex);
+	if (atomic_read(&inode->i_writecount) == 1 &&
+	    iint->version != inode->i_version) {
+		iint->flags &= ~IMA_DONE_MASK;
+		if (iint->flags & IMA_APPRAISE)
+			ima_update_xattr(iint, file);
+	}
+	mutex_unlock(&inode->i_mutex);
 }
 
 /**
@@ -140,28 +151,37 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	struct inode *inode = file->f_dentry->d_inode;
 	struct integrity_iint_cache *iint;
 	unsigned char *pathname = NULL, *pathbuf = NULL;
-	int rc = 0;
+	int rc = -ENOMEM, action, must_appraise;
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
 
-	rc = ima_must_measure(inode, mask, function);
-	if (rc != 0)
-		return rc;
-retry:
-	iint = integrity_iint_find(inode);
-	if (!iint) {
-		rc = integrity_inode_alloc(inode);
-		if (!rc || rc == -EEXIST)
-			goto retry;
-		return rc;
-	}
+	/* Determine if in appraise/audit/measurement policy,
+	 * returns IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT bitmask.  */
+	action = ima_get_action(inode, mask, function);
+	if (!action)
+		return 0;
 
-	mutex_lock(&iint->mutex);
+	must_appraise = action & IMA_APPRAISE;
 
-	rc = iint->flags & IMA_MEASURED ? 1 : 0;
-	if (rc != 0)
+	mutex_lock(&inode->i_mutex);
+
+	iint = integrity_inode_get(inode);
+	if (!iint)
 		goto out;
+
+	/* Determine if already appraised/measured based on bitmask
+	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED,
+	 *  IMA_AUDIT, IMA_AUDITED) */
+	iint->flags |= action;
+	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
+
+	/* Nothing to do, just return existing appraised status */
+	if (!action) {
+		if (iint->flags & IMA_APPRAISED)
+			rc = iint->ima_status;
+		goto out;
+	}
 
 	rc = ima_collect_measurement(iint, file);
 	if (rc != 0)
@@ -177,11 +197,18 @@ retry:
 				pathname = NULL;
 		}
 	}
-	ima_store_measurement(iint, file, !pathname ? filename : pathname);
+	if (action & IMA_MEASURE)
+		ima_store_measurement(iint, file,
+				      !pathname ? filename : pathname);
+	if (action & IMA_APPRAISE)
+		rc = ima_appraise_measurement(iint, file,
+					      !pathname ? filename : pathname);
+	if (action & IMA_AUDIT)
+		ima_audit_measurement(iint, !pathname ? filename : pathname);
 	kfree(pathbuf);
 out:
-	mutex_unlock(&iint->mutex);
-	return rc;
+	mutex_unlock(&inode->i_mutex);
+	return (rc && must_appraise) ? -EACCES : 0;
 }
 
 /**
@@ -197,14 +224,14 @@ out:
  */
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
-	int rc;
+	int rc = 0;
 
 	if (!file)
 		return 0;
 	if (prot & PROT_EXEC)
 		rc = process_measurement(file, file->f_dentry->d_name.name,
 					 MAY_EXEC, FILE_MMAP);
-	return 0;
+	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
 }
 
 /**
@@ -228,7 +255,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 				 (strcmp(bprm->filename, bprm->interp) == 0) ?
 				 bprm->filename : bprm->interp,
 				 MAY_EXEC, BPRM_CHECK);
-	return 0;
+	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
 }
 
 /**
@@ -249,7 +276,7 @@ int ima_file_check(struct file *file, int mask)
 	rc = process_measurement(file, file->f_dentry->d_name.name,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				 FILE_CHECK);
-	return 0;
+	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 

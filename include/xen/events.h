@@ -58,8 +58,6 @@ void notify_remote_via_irq(int irq);
 
 void xen_irq_resume(void);
 
-void xen_hvm_prepare_kexec(struct shared_info *sip, unsigned long pfn);
-
 /* Clear an irq's pending state, in preparation for polling on it */
 void xen_clear_irq_pending(int irq);
 void xen_set_irq_pending(int irq);
@@ -111,4 +109,6 @@ int xen_irq_from_gsi(unsigned gsi);
 /* Determine whether to ignore this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);
 
+/* initialize Xen IRQ subsystem */
+void xen_init_IRQ(void);
 #endif	/* _XEN_EVENTS_H */

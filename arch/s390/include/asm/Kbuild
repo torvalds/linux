@@ -13,3 +13,5 @@ header-y += tape390.h
 header-y += ucontext.h
 header-y += vtoc.h
 header-y += zcrypt.h
+
+generic-y += clkdev.h

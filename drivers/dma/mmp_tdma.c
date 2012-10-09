@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <mach/regs-icu.h>
-#include <mach/sram.h>
+#include <linux/platform_data/dma-mmp_tdma.h>
 
 #include "dmaengine.h"
 
@@ -358,7 +358,7 @@ struct mmp_tdma_desc *mmp_tdma_alloc_descriptor(struct mmp_tdma_chan *tdmac)
 static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		void *context)
+		unsigned long flags, void *context)
 {
 	struct mmp_tdma_chan *tdmac = to_mmp_tdma_chan(chan);
 	struct mmp_tdma_desc *desc;

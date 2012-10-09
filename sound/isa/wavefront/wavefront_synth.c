@@ -538,7 +538,7 @@ munge_int32 (unsigned int src,
 	                            /* Note: we leave the upper bits in place */ 
 
 		dst++;
- 	};
+	}
 	return dst;
 };
 

@@ -343,7 +343,7 @@ static struct rtc_class_ops mxc_rtc_ops = {
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
 };
 
-static int __init mxc_rtc_probe(struct platform_device *pdev)
+static int __devinit mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct rtc_device *rtc;
@@ -367,14 +367,14 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
 				     resource_size(res));
 
-	pdata->clk = clk_get(&pdev->dev, "rtc");
+	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "unable to get clock!\n");
 		ret = PTR_ERR(pdata->clk);
 		goto exit_free_pdata;
 	}
 
-	clk_enable(pdata->clk);
+	clk_prepare_enable(pdata->clk);
 	rate = clk_get_rate(pdata->clk);
 
 	if (rate == 32768)
@@ -426,22 +426,20 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 exit_clr_drvdata:
 	platform_set_drvdata(pdev, NULL);
 exit_put_clk:
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 
 exit_free_pdata:
 
 	return ret;
 }
 
-static int __exit mxc_rtc_remove(struct platform_device *pdev)
+static int __devexit mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	rtc_device_unregister(pdata->rtc);
 
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -482,21 +480,11 @@ static struct platform_driver mxc_rtc_driver = {
 #endif
 		   .owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(mxc_rtc_remove),
+	.probe = mxc_rtc_probe,
+	.remove = __devexit_p(mxc_rtc_remove),
 };
 
-static int __init mxc_rtc_init(void)
-{
-	return platform_driver_probe(&mxc_rtc_driver, mxc_rtc_probe);
-}
-
-static void __exit mxc_rtc_exit(void)
-{
-	platform_driver_unregister(&mxc_rtc_driver);
-}
-
-module_init(mxc_rtc_init);
-module_exit(mxc_rtc_exit);
+module_platform_driver(mxc_rtc_driver)
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("RTC driver for Freescale MXC");

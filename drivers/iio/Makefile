@@ -10,8 +10,13 @@ industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 obj-$(CONFIG_IIO_TRIGGERED_BUFFER) += industrialio-triggered-buffer.o
 obj-$(CONFIG_IIO_KFIFO_BUF) += kfifo_buf.o
 
+obj-y += accel/
 obj-y += adc/
 obj-y += amplifiers/
 obj-y += light/
 obj-y += frequency/
 obj-y += dac/
+obj-y += common/
+obj-y += gyro/
+obj-y += light/
+obj-y += magnetometer/

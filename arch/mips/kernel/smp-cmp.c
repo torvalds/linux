@@ -102,7 +102,7 @@ static void cmp_init_secondary(void)
 	c->vpe_id = (read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) & TCBIND_CURVPE;
 #endif
 #ifdef CONFIG_MIPS_MT_SMTC
-	c->tc_id  = (read_c0_tcbind() >> TCBIND_CURTC_SHIFT) & TCBIND_CURTC;
+	c->tc_id  = (read_c0_tcbind() & TCBIND_CURTC) >> TCBIND_CURTC_SHIFT;
 #endif
 }
 

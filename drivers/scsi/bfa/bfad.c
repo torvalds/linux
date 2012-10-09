@@ -57,6 +57,7 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
+int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
 
 /* Firmware releated */
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
@@ -148,6 +149,8 @@ MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
 		" Range[64k|128k|256k|512k|1024k|2048k]");
+module_param(max_rport_logins, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_rport_logins, "Max number of logins to initiator and target rports on a port (physical/logical), default=1024");
 
 static void
 bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event);
@@ -736,6 +739,9 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 		}
 	}
 
+	/* Enable PCIE Advanced Error Recovery (AER) if kernel supports */
+	pci_enable_pcie_error_reporting(pdev);
+
 	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	bfad->pci_bar2_kva = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
 
@@ -806,6 +812,8 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 		}
 	}
 
+	pci_save_state(pdev);
+
 	return 0;
 
 out_release_region:
@@ -822,6 +830,8 @@ bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
 	pci_iounmap(pdev, bfad->pci_bar2_kva);
 	pci_release_regions(pdev);
+	/* Disable PCIE Advanced Error Recovery (AER) */
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -1258,6 +1268,16 @@ bfad_setup_intr(struct bfad_s *bfad)
 
 		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
 		if (error) {
+			/* In CT1 & CT2, try to allocate just one vector */
+			if (bfa_asic_id_ctc(pdev->device)) {
+				printk(KERN_WARNING "bfa %s: trying one msix "
+				       "vector failed to allocate %d[%d]\n",
+				       bfad->pci_name, bfad->nvec, error);
+				bfad->nvec = 1;
+				error = pci_enable_msix(bfad->pcidev,
+						msix_entries, bfad->nvec);
+			}
+
 			/*
 			 * Only error number of vector is available.
 			 * We don't have a mechanism to map multiple
@@ -1267,12 +1287,13 @@ bfad_setup_intr(struct bfad_s *bfad)
 			 *  vectors. Linux doesn't duplicate vectors
 			 * in the MSIX table for this case.
 			 */
-
-			printk(KERN_WARNING "bfad%d: "
-				"pci_enable_msix failed (%d),"
-				" use line based.\n", bfad->inst_no, error);
-
-			goto line_based;
+			if (error) {
+				printk(KERN_WARNING "bfad%d: "
+				       "pci_enable_msix failed (%d), "
+				       "use line based.\n",
+					bfad->inst_no, error);
+				goto line_based;
+			}
 		}
 
 		/* Disable INTX in MSI-X mode */
@@ -1470,6 +1491,197 @@ bfad_pci_remove(struct pci_dev *pdev)
 	kfree(bfad);
 }
 
+/*
+ * PCI Error Recovery entry, error detected.
+ */
+static pci_ers_result_t
+bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+	unsigned long	flags;
+	pci_ers_result_t ret = PCI_ERS_RESULT_NONE;
+
+	dev_printk(KERN_ERR, &pdev->dev,
+		   "error detected state: %d - flags: 0x%x\n",
+		   state, bfad->bfad_flags);
+
+	switch (state) {
+	case pci_channel_io_normal: /* non-fatal error */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags &= ~BFAD_EEH_BUSY;
+		/* Suspend/fail all bfa operations */
+		bfa_ioc_suspend(&bfad->bfa.ioc);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		del_timer_sync(&bfad->hal_tmo);
+		ret = PCI_ERS_RESULT_CAN_RECOVER;
+		break;
+	case pci_channel_io_frozen: /* fatal error */
+		init_completion(&bfad->comp);
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags |= BFAD_EEH_BUSY;
+		/* Suspend/fail all bfa operations */
+		bfa_ioc_suspend(&bfad->bfa.ioc);
+		bfa_fcs_stop(&bfad->bfa_fcs);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		wait_for_completion(&bfad->comp);
+
+		bfad_remove_intr(bfad);
+		del_timer_sync(&bfad->hal_tmo);
+		pci_disable_device(pdev);
+		ret = PCI_ERS_RESULT_NEED_RESET;
+		break;
+	case pci_channel_io_perm_failure: /* PCI Card is DEAD */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags |= BFAD_EEH_BUSY |
+				    BFAD_EEH_PCI_CHANNEL_IO_PERM_FAILURE;
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+		/* If the error_detected handler is called with the reason
+		 * pci_channel_io_perm_failure - it will subsequently call
+		 * pci_remove() entry point to remove the pci device from the
+		 * system - So defer the cleanup to pci_remove(); cleaning up
+		 * here causes inconsistent state during pci_remove().
+		 */
+		ret = PCI_ERS_RESULT_DISCONNECT;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	return ret;
+}
+
+int
+restart_bfa(struct bfad_s *bfad)
+{
+	unsigned long flags;
+	struct pci_dev *pdev = bfad->pcidev;
+
+	bfa_attach(&bfad->bfa, bfad, &bfad->ioc_cfg,
+		   &bfad->meminfo, &bfad->hal_pcidev);
+
+	/* Enable Interrupt and wait bfa_init completion */
+	if (bfad_setup_intr(bfad)) {
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "%s: bfad_setup_intr failed\n", bfad->pci_name);
+		bfa_sm_send_event(bfad, BFAD_E_INTR_INIT_FAILED);
+		return -1;
+	}
+
+	init_completion(&bfad->comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	bfa_iocfc_init(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	/* Set up interrupt handler for each vectors */
+	if ((bfad->bfad_flags & BFAD_MSIX_ON) &&
+	    bfad_install_msix_handler(bfad))
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "%s: install_msix failed.\n", bfad->pci_name);
+
+	bfad_init_timer(bfad);
+	wait_for_completion(&bfad->comp);
+	bfad_drv_start(bfad);
+
+	return 0;
+}
+
+/*
+ * PCI Error Recovery entry, re-initialize the chip.
+ */
+static pci_ers_result_t
+bfad_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+	u8 byte;
+
+	dev_printk(KERN_ERR, &pdev->dev,
+		   "bfad_pci_slot_reset flags: 0x%x\n", bfad->bfad_flags);
+
+	if (pci_enable_device(pdev)) {
+		dev_printk(KERN_ERR, &pdev->dev, "Cannot re-enable "
+			   "PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_restore_state(pdev);
+
+	/*
+	 * Read some byte (e.g. DMA max. payload size which can't
+	 * be 0xff any time) to make sure - we did not hit another PCI error
+	 * in the middle of recovery. If we did, then declare permanent failure.
+	 */
+	pci_read_config_byte(pdev, 0x68, &byte);
+	if (byte == 0xff) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "slot_reset failed ... got another PCI error !\n");
+		goto out_disable_device;
+	}
+
+	pci_save_state(pdev);
+	pci_set_master(pdev);
+
+	if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(64)) != 0)
+		if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(32)) != 0)
+			goto out_disable_device;
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+
+	if (restart_bfa(bfad) == -1)
+		goto out_disable_device;
+
+	pci_enable_pcie_error_reporting(pdev);
+	dev_printk(KERN_WARNING, &pdev->dev,
+		   "slot_reset completed  flags: 0x%x!\n", bfad->bfad_flags);
+
+	return PCI_ERS_RESULT_RECOVERED;
+
+out_disable_device:
+	pci_disable_device(pdev);
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+static pci_ers_result_t
+bfad_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	unsigned long	flags;
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+
+	dev_printk(KERN_INFO, &pdev->dev, "mmio_enabled\n");
+
+	/* Fetch FW diagnostic information */
+	bfa_ioc_debug_save_ftrc(&bfad->bfa.ioc);
+
+	/* Cancel all pending IOs */
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfa_fcs_stop(&bfad->bfa_fcs);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+
+	bfad_remove_intr(bfad);
+	del_timer_sync(&bfad->hal_tmo);
+	pci_disable_device(pdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static void
+bfad_pci_resume(struct pci_dev *pdev)
+{
+	unsigned long	flags;
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+
+	dev_printk(KERN_WARNING, &pdev->dev, "resume\n");
+
+	/* wait until the link is online */
+	bfad_rport_online_wait(bfad);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	bfad->bfad_flags &= ~BFAD_EEH_BUSY;
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+}
+
 struct pci_device_id bfad_id_table[] = {
 	{
 		.vendor = BFA_PCI_VENDOR_ID_BROCADE,
@@ -1513,11 +1725,22 @@ struct pci_device_id bfad_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, bfad_id_table);
 
+/*
+ * PCI error recovery handlers.
+ */
+static struct pci_error_handlers bfad_err_handler = {
+	.error_detected = bfad_pci_error_detected,
+	.slot_reset = bfad_pci_slot_reset,
+	.mmio_enabled = bfad_pci_mmio_enabled,
+	.resume = bfad_pci_resume,
+};
+
 static struct pci_driver bfad_pci_driver = {
 	.name = BFAD_DRIVER_NAME,
 	.id_table = bfad_id_table,
 	.probe = bfad_pci_probe,
 	.remove = __devexit_p(bfad_pci_remove),
+	.err_handler = &bfad_err_handler,
 };
 
 /*
@@ -1546,6 +1769,7 @@ bfad_init(void)
 
 	bfa_auto_recover = ioc_auto_recover;
 	bfa_fcs_rport_set_del_timeout(rport_del_timeout);
+	bfa_fcs_rport_set_max_logins(max_rport_logins);
 
 	error = pci_register_driver(&bfad_pci_driver);
 	if (error) {

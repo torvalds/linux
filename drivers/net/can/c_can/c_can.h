@@ -24,6 +24,7 @@
 
 enum reg {
 	C_CAN_CTRL_REG = 0,
+	C_CAN_CTRL_EX_REG,
 	C_CAN_STS_REG,
 	C_CAN_ERR_CNT_REG,
 	C_CAN_BTR_REG,
@@ -104,6 +105,7 @@ static const u16 reg_map_c_can[] = {
 
 static const u16 reg_map_d_can[] = {
 	[C_CAN_CTRL_REG]	= 0x00,
+	[C_CAN_CTRL_EX_REG]	= 0x02,
 	[C_CAN_STS_REG]		= 0x04,
 	[C_CAN_ERR_CNT_REG]	= 0x08,
 	[C_CAN_BTR_REG]		= 0x0C,
@@ -143,8 +145,9 @@ static const u16 reg_map_d_can[] = {
 };
 
 enum c_can_dev_id {
-	C_CAN_DEVTYPE,
-	D_CAN_DEVTYPE,
+	BOSCH_C_CAN_PLATFORM,
+	BOSCH_C_CAN,
+	BOSCH_D_CAN,
 };
 
 /* c_can private data structure */
@@ -152,6 +155,7 @@ struct c_can_priv {
 	struct can_priv can;	/* must be the first member */
 	struct napi_struct napi;
 	struct net_device *dev;
+	struct device *device;
 	int tx_object;
 	int current_status;
 	int last_status;
@@ -164,11 +168,17 @@ struct c_can_priv {
 	unsigned int tx_echo;
 	void *priv;		/* for board-specific data */
 	u16 irqstatus;
+	enum c_can_dev_id type;
 };
 
 struct net_device *alloc_c_can_dev(void);
 void free_c_can_dev(struct net_device *dev);
 int register_c_can_dev(struct net_device *dev);
 void unregister_c_can_dev(struct net_device *dev);
+
+#ifdef CONFIG_PM
+int c_can_power_up(struct net_device *dev);
+int c_can_power_down(struct net_device *dev);
+#endif
 
 #endif /* C_CAN_H */

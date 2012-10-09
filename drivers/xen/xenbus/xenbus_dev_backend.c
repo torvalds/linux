@@ -107,7 +107,7 @@ static int xenbus_backend_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-const struct file_operations xenbus_backend_fops = {
+static const struct file_operations xenbus_backend_fops = {
 	.open = xenbus_backend_open,
 	.mmap = xenbus_backend_mmap,
 	.unlocked_ioctl = xenbus_backend_ioctl,

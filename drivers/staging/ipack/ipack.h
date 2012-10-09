@@ -9,7 +9,11 @@
  * Software Foundation; version 2 of the License.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
+
+#include "ipack_ids.h"
 
 #define IPACK_IDPROM_OFFSET_I			0x01
 #define IPACK_IDPROM_OFFSET_P			0x03
@@ -31,6 +35,7 @@ enum ipack_space {
 	IPACK_IO_SPACE    = 0,
 	IPACK_ID_SPACE    = 1,
 	IPACK_MEM_SPACE   = 2,
+	IPACK_INT_SPACE,
 };
 
 /**
@@ -49,8 +54,6 @@ struct ipack_addr_space {
  *
  *	@bus_nr: IP bus number where the device is plugged
  *	@slot: Slot where the device is plugged in the carrier board
- *	@irq: IRQ vector
- *	@driver: Pointer to the ipack_driver that manages the device
  *	@bus: ipack_bus_device where the device is plugged to.
  *	@id_space: Virtual address to ID space.
  *	@io_space: Virtual address to IO space.
@@ -64,25 +67,30 @@ struct ipack_addr_space {
 struct ipack_device {
 	unsigned int bus_nr;
 	unsigned int slot;
-	unsigned int irq;
-	struct ipack_driver *driver;
 	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;
 	struct ipack_addr_space io_space;
+	struct ipack_addr_space int_space;
 	struct ipack_addr_space mem_space;
 	struct device dev;
+	u8                      *id;
+	size_t			 id_avail;
+	u32			 id_vendor;
+	u32			 id_device;
+	u8			 id_format;
+	unsigned int		 id_crc_correct:1;
+	unsigned int		 speed_8mhz:1;
+	unsigned int		 speed_32mhz:1;
 };
 
 /**
  *	struct ipack_driver_ops -- callbacks to mezzanine driver for installing/removing one device
  *
- *	@match: Match function
  *	@probe: Probe function
  *	@remove: tell the driver that the carrier board wants to remove one device
  */
 
 struct ipack_driver_ops {
-	int (*match) (struct ipack_device *dev);
 	int (*probe) (struct ipack_device *dev);
 	void (*remove) (struct ipack_device *dev);
 };
@@ -95,7 +103,8 @@ struct ipack_driver_ops {
  */
 struct ipack_driver {
 	struct device_driver driver;
-	struct ipack_driver_ops *ops;
+	const struct ipack_device_id *id_table;
+	const struct ipack_driver_ops *ops;
 };
 
 /**
@@ -105,26 +114,27 @@ struct ipack_driver {
  *	@unmap_space: unmap IP address space
  *	@request_irq: request IRQ
  *	@free_irq: free IRQ
- *	@read8: read unsigned char
- *	@read16: read unsigned short
- *	@read32: read unsigned int
- *	@write8: read unsigned char
- *	@write16: read unsigned short
- *	@write32: read unsigned int
- *	@remove_device: tell the bridge module that the device has been removed
+ *	@get_clockrate: Returns the clockrate the carrier is currently
+ *		communicating with the device at.
+ *	@set_clockrate: Sets the clock-rate for carrier / module communication.
+ *		Should return -EINVAL if the requested speed is not supported.
+ *	@get_error: Returns the error state for the slot the device is attached
+ *		to.
+ *	@get_timeout: Returns 1 if the communication with the device has
+ *		previously timed out.
+ *	@reset_timeout: Resets the state returned by get_timeout.
  */
 struct ipack_bus_ops {
 	int (*map_space) (struct ipack_device *dev, unsigned int memory_size, int space);
 	int (*unmap_space) (struct ipack_device *dev, int space);
-	int (*request_irq) (struct ipack_device *dev, int vector, int (*handler)(void *), void *arg);
+	int (*request_irq) (struct ipack_device *dev,
+			    irqreturn_t (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
-	int (*read8) (struct ipack_device *dev, int space, unsigned long offset, unsigned char *value);
-	int (*read16) (struct ipack_device *dev, int space, unsigned long offset, unsigned short *value);
-	int (*read32) (struct ipack_device *dev, int space, unsigned long offset, unsigned int *value);
-	int (*write8) (struct ipack_device *dev, int space, unsigned long offset, unsigned char value);
-	int (*write16) (struct ipack_device *dev, int space, unsigned long offset, unsigned short value);
-	int (*write32) (struct ipack_device *dev, int space, unsigned long offset, unsigned int value);
-	int (*remove_device) (struct ipack_device *dev);
+	int (*get_clockrate) (struct ipack_device *dev);
+	int (*set_clockrate) (struct ipack_device *dev, int mherz);
+	int (*get_error) (struct ipack_device *dev);
+	int (*get_timeout) (struct ipack_device *dev);
+	int (*reset_timeout) (struct ipack_device *dev);
 };
 
 /**
@@ -139,7 +149,7 @@ struct ipack_bus_device {
 	struct device *parent;
 	int slots;
 	int bus_nr;
-	struct ipack_bus_ops *ops;
+	const struct ipack_bus_ops *ops;
 };
 
 /**
@@ -153,7 +163,7 @@ struct ipack_bus_device {
  * available bus device in ipack.
  */
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
-					    struct ipack_bus_ops *ops);
+					    const struct ipack_bus_ops *ops);
 
 /**
  *	ipack_bus_unregister -- unregister an ipack bus
@@ -166,7 +176,8 @@ int ipack_bus_unregister(struct ipack_bus_device *bus);
  * Called by a ipack driver to register itself as a driver
  * that can manage ipack devices.
  */
-int ipack_driver_register(struct ipack_driver *edrv, struct module *owner, char *name);
+int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
+			  const char *name);
 void ipack_driver_unregister(struct ipack_driver *edrv);
 
 /**
@@ -174,10 +185,33 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  *
  * @bus: ipack bus device it is plugged to.
  * @slot: slot position in the bus device.
- * @irqv: IRQ vector for the mezzanine.
  *
  * Register a new ipack device (mezzanine device). The call is done by
  * the carrier device driver.
  */
-struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot, int irqv);
+struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot);
 void ipack_device_unregister(struct ipack_device *dev);
+
+/**
+ * DEFINE_IPACK_DEVICE_TABLE - macro used to describe a IndustryPack table
+ * @_table: device table name
+ *
+ * This macro is used to create a struct ipack_device_id array (a device table)
+ * in a generic manner.
+ */
+#define DEFINE_IPACK_DEVICE_TABLE(_table) \
+	const struct ipack_device_id _table[] __devinitconst
+
+/**
+ * IPACK_DEVICE - macro used to describe a specific IndustryPack device
+ * @_format: the format version (currently either 1 or 2, 8 bit value)
+ * @vend:    the 8 or 24 bit IndustryPack Vendor ID
+ * @dev:     the 8 or 16  bit IndustryPack Device ID
+ *
+ * This macro is used to create a struct ipack_device_id that matches a specific
+ * device.
+ */
+#define IPACK_DEVICE(_format, vend, dev) \
+	 .format = (_format), \
+	 .vendor = (vend), \
+	 .device = (dev)

@@ -194,7 +194,7 @@ void __init inet_initpeers(void)
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
 			NULL);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&gc_work, inetpeer_gc_worker);
+	INIT_DEFERRABLE_WORK(&gc_work, inetpeer_gc_worker);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,
@@ -510,7 +510,10 @@ relookup:
 					secure_ipv6_id(daddr->addr.a6));
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;
-		p->rate_last = 0;
+		/* 60*HZ is arbitrary, but chosen enough high so that the first
+		 * calculation of tokens is at its maximum.
+		 */
+		p->rate_last = jiffies - 60*HZ;
 		INIT_LIST_HEAD(&p->gc_list);
 
 		/* Link the node. */

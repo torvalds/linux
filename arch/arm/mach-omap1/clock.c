@@ -587,8 +587,8 @@ void omap1_clk_disable_unused(struct clk *clk)
 	/* Clocks in the DSP domain need api_ck. Just assume bootloader
 	 * has not enabled any DSP clocks */
 	if (clk->enable_reg == DSP_IDLECT2) {
-		printk(KERN_INFO "Skipping reset check for DSP domain "
-		       "clock \"%s\"\n", clk->name);
+		pr_info("Skipping reset check for DSP domain clock \"%s\"\n",
+			clk->name);
 		return;
 	}
 

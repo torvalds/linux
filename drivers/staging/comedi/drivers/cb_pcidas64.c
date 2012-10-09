@@ -1348,7 +1348,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
@@ -1379,7 +1379,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/* analog output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board(dev)->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags =
@@ -1401,7 +1401,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/*  digital input */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
@@ -1414,7 +1414,7 @@ static int setup_subdevices(struct comedi_device *dev)
 
 	/*  digital output */
 	if (board(dev)->layout == LAYOUT_64XX) {
-		s = dev->subdevices + 3;
+		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 4;
@@ -1425,7 +1425,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* 8255 */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	if (board(dev)->has_8255) {
 		if (board(dev)->layout == LAYOUT_4020) {
 			dio_8255_iobase =
@@ -1442,7 +1442,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  8 channel dio for 60xx */
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	if (board(dev)->layout == LAYOUT_60XX) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -1455,7 +1455,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  caldac */
-	s = dev->subdevices + 6;
+	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
@@ -1469,7 +1469,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		caldac_write(dev, i, s->maxdata / 2);
 
 	/*  2 channel ad8402 potentiometer */
-	s = dev->subdevices + 7;
+	s = &dev->subdevices[7];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -1483,7 +1483,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* serial EEPROM, if present */
-	s = dev->subdevices + 8;
+	s = &dev->subdevices[8];
 	if (readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
@@ -1494,7 +1494,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  user counter subd XXX */
-	s = dev->subdevices + 9;
+	s = &dev->subdevices[9];
 	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
@@ -1847,7 +1847,7 @@ static void detach(struct comedi_device *dev)
 		}
 	}
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 4);
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
@@ -2108,74 +2108,50 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg, tmp_arg2;
 	int i;
 	int aref;
 	unsigned int triggers;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
 
-	tmp = cmd->scan_begin_src;
 	triggers = TRIG_TIMER;
 	if (board(dev)->layout == LAYOUT_4020)
 		triggers |= TRIG_OTHER;
 	else
 		triggers |= TRIG_FOLLOW;
-	cmd->scan_begin_src &= triggers;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, triggers);
 
-	tmp = cmd->convert_src;
 	triggers = TRIG_TIMER;
 	if (board(dev)->layout == LAYOUT_4020)
 		triggers |= TRIG_NOW;
 	else
 		triggers |= TRIG_EXT;
-	cmd->convert_src &= triggers;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, triggers);
 
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*  uniqueness check */
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_OTHER &&
-	    cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-	    cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/*  compatibility check */
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
-		err++;
+		err |= -EINVAL;
 	if (cmd->stop_src != TRIG_COUNT &&
 	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -3466,55 +3442,33 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg;
 	int i;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*  uniqueness check */
-	if (cmd->start_src != TRIG_INT && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
 
-	/*  compatibility check */
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
-		err++;
+		err |= -EINVAL;
 	if (cmd->stop_src != TRIG_COUNT &&
 	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;

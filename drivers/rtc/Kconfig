@@ -19,7 +19,6 @@ if RTC_CLASS
 
 config RTC_HCTOSYS
 	bool "Set system time from RTC on startup and resume"
-	depends on RTC_CLASS = y
 	default y
 	help
 	  If you say yes here, the system time (wall clock) will be set using
@@ -51,7 +50,6 @@ config RTC_HCTOSYS_DEVICE
 
 config RTC_DEBUG
 	bool "RTC debug support"
-	depends on RTC_CLASS = y
 	help
 	  Say yes here to enable debugging support in the RTC framework
 	  and individual RTC drivers.
@@ -61,7 +59,6 @@ comment "RTC interfaces"
 config RTC_INTF_SYSFS
 	boolean "/sys/class/rtc/rtcN (sysfs)"
 	depends on SYSFS
-	default RTC_CLASS
 	help
 	  Say yes here if you want to use your RTCs using sysfs interfaces,
 	  /sys/class/rtc/rtc0 through /sys/.../rtcN.
@@ -69,19 +66,19 @@ config RTC_INTF_SYSFS
 	  If unsure, say Y.
 
 config RTC_INTF_PROC
-	boolean "/proc/driver/rtc (procfs for rtc0)"
+	boolean "/proc/driver/rtc (procfs for rtcN)"
 	depends on PROC_FS
-	default RTC_CLASS
 	help
-	  Say yes here if you want to use your first RTC through the proc
-	  interface, /proc/driver/rtc. Other RTCs will not be available
-	  through that API.
+	  Say yes here if you want to use your system clock RTC through
+	  the proc interface, /proc/driver/rtc.
+	  Other RTCs will not be available through that API.
+	  If there is no RTC for the system clock, then the first RTC(rtc0)
+	  is used by default.
 
 	  If unsure, say Y.
 
 config RTC_INTF_DEV
 	boolean "/dev/rtcN (character devices)"
-	default RTC_CLASS
 	help
 	  Say yes here if you want to use your RTCs using the /dev
 	  interfaces, which "udev" sets up as /dev/rtc0 through
@@ -127,7 +124,7 @@ if I2C
 
 config RTC_DRV_88PM860X
 	tristate "Marvell 88PM860x"
-	depends on RTC_CLASS && I2C && MFD_88PM860X
+	depends on I2C && MFD_88PM860X
 	help
 	  If you say yes here you get support for RTC function in Marvell
 	  88PM860x chips.
@@ -137,7 +134,7 @@ config RTC_DRV_88PM860X
 
 config RTC_DRV_88PM80X
 	tristate "Marvell 88PM80x"
-	depends on RTC_CLASS && I2C && MFD_88PM800
+	depends on I2C && MFD_88PM800
 	help
 	  If you say yes here you get support for RTC function in Marvell
 	  88PM80x chips.
@@ -165,7 +162,7 @@ config RTC_DRV_DS1307
 
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
-	depends on RTC_CLASS && I2C
+	depends on I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1374 real-time clock chips. If an interrupt is associated
@@ -185,7 +182,7 @@ config RTC_DRV_DS1672
 
 config RTC_DRV_DS3232
 	tristate "Dallas/Maxim DS3232"
-	depends on RTC_CLASS && I2C
+	depends on I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS3232 real-time clock chips. If an interrupt is associated
@@ -202,6 +199,16 @@ config RTC_DRV_MAX6900
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max6900.
+
+config RTC_DRV_MAX8907
+	tristate "Maxim MAX8907"
+	depends on MFD_MAX8907
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX8907 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max8907.
 
 config RTC_DRV_MAX8925
 	tristate "Maxim MAX8925"
@@ -325,13 +332,33 @@ config RTC_DRV_TWL92330
 
 config RTC_DRV_TWL4030
 	tristate "TI TWL4030/TWL5030/TWL6030/TPS659x0"
-	depends on RTC_CLASS && TWL4030_CORE
+	depends on TWL4030_CORE
 	help
 	  If you say yes here you get support for the RTC on the
 	  TWL4030/TWL5030/TWL6030 family chips, used mostly with OMAP3 platforms.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-twl.
+
+config RTC_DRV_TPS65910
+	tristate "TI TPS65910 RTC driver"
+	depends on RTC_CLASS && MFD_TPS65910
+	help
+	  If you say yes here you get support for the RTC on the
+	  TPS65910 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-tps65910.
+
+config RTC_DRV_RC5T583
+	tristate "RICOH 5T583 RTC driver"
+	depends on MFD_RC5T583
+	help
+	  If you say yes here you get support for the RTC on the
+	  RICOH 5T583 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rc5t583.
 
 config RTC_DRV_S35390A
 	tristate "Seiko Instruments S-35390A"
@@ -538,7 +565,6 @@ config RTC_DRV_DS1302
 
 config RTC_DRV_DS1511
 	tristate "Dallas DS1511"
-	depends on RTC_CLASS
 	help
 	  If you say yes here you get support for the
 	  Dallas DS1511 timekeeping/watchdog chip.
@@ -583,7 +609,6 @@ config RTC_DRV_EFI
 
 config RTC_DRV_STK17TA8
 	tristate "Simtek STK17TA8"
-	depends on RTC_CLASS
 	help
 	  If you say yes here you get support for the
 	  Simtek STK17TA8 timekeeping chip.
@@ -658,6 +683,15 @@ config RTC_DRV_V3020
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-v3020.
 
+config RTC_DRV_DS2404
+	tristate "Dallas DS2404"
+	help
+	  If you say yes here you get support for the
+	  Dallas DS2404 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds2404.
+
 config RTC_DRV_WM831X
 	tristate "Wolfson Microelectronics WM831x RTC"
 	depends on MFD_WM831X
@@ -704,6 +738,7 @@ config RTC_DRV_AB3100
 config RTC_DRV_AB8500
 	tristate "ST-Ericsson AB8500 RTC"
 	depends on AB8500_CORE
+	select RTC_INTF_DEV
 	select RTC_INTF_DEV_UIE_EMUL
 	help
 	  Select this to enable the ST-Ericsson AB8500 power management IC RTC
@@ -711,7 +746,7 @@ config RTC_DRV_AB8500
 
 config RTC_DRV_NUC900
 	tristate "NUC910/NUC920 RTC driver"
-	depends on RTC_CLASS && ARCH_W90X900
+	depends on ARCH_W90X900
 	help
 	  If you say yes here you get support for the RTC subsystem of the
 	  NUC910/NUC920 used in embedded systems.
@@ -731,7 +766,6 @@ config RTC_DRV_DAVINCI
 config RTC_DRV_IMXDI
 	tristate "Freescale IMX DryIce Real Time Clock"
 	depends on SOC_IMX25
-	depends on RTC_CLASS
 	help
 	   Support for Freescale IMX DryIce RTC
 
@@ -791,7 +825,7 @@ config RTC_DRV_SA1100
 
 config RTC_DRV_SH
 	tristate "SuperH On-Chip RTC"
-	depends on RTC_CLASS && SUPERH && HAVE_CLK
+	depends on SUPERH && HAVE_CLK
 	help
 	  Say Y here to enable support for the on-chip RTC found in
 	  most SuperH processors.
@@ -1023,7 +1057,6 @@ config RTC_DRV_MPC5121
 
 config RTC_DRV_JZ4740
 	tristate "Ingenic JZ4740 SoC"
-	depends on RTC_CLASS
 	depends on MACH_JZ4740
 	help
 	  If you say yes here you get support for the Ingenic JZ4740 SoC RTC
@@ -1053,7 +1086,7 @@ config RTC_DRV_PM8XXX
 
 config RTC_DRV_TEGRA
 	tristate "NVIDIA Tegra Internal RTC driver"
-	depends on RTC_CLASS && ARCH_TEGRA
+	depends on ARCH_TEGRA
 	help
 	  If you say yes here you get support for the
 	  Tegra 200 series internal RTC module.
@@ -1090,12 +1123,22 @@ config RTC_DRV_LOONGSON1
 config RTC_DRV_MXC
 	tristate "Freescale MXC Real Time Clock"
 	depends on ARCH_MXC
-	depends on RTC_CLASS
 	help
 	   If you say yes here you get support for the Freescale MXC
 	   RTC module.
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-mxc".
+
+config RTC_DRV_SNVS
+	tristate "Freescale SNVS RTC support"
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	   If you say yes here you get support for the Freescale SNVS
+	   Low Power (LP) RTC module.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-snvs".
 
 endif # RTC_CLASS

@@ -30,6 +30,7 @@
 #define RIO_MAX_MPORTS		8
 #define RIO_MAX_MPORT_RESOURCES	16
 #define RIO_MAX_DEV_RESOURCES	16
+#define RIO_MAX_MPORT_NAME	40
 
 #define RIO_GLOBAL_TABLE	0xff	/* Indicates access of a switch's
 					   global routing table if it
@@ -235,6 +236,7 @@ enum rio_phy_type {
  * @phys_efptr: RIO port extended features pointer
  * @name: Port name string
  * @priv: Master port private data
+ * @dma: DMA device associated with mport
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
@@ -255,11 +257,19 @@ struct rio_mport {
 				 */
 	enum rio_phy_type phy_type;	/* RapidIO phy type */
 	u32 phys_efptr;
-	unsigned char name[40];
+	unsigned char name[RIO_MAX_MPORT_NAME];
 	void *priv;		/* Master port private data */
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 	struct dma_device	dma;
 #endif
+};
+
+struct rio_id_table {
+	u16 start;	/* logical minimal id */
+	u16 next;	/* hint for find */
+	u32 max;	/* max number of IDs in table */
+	spinlock_t lock;
+	unsigned long *table;
 };
 
 /**
@@ -273,9 +283,11 @@ struct rio_mport {
 struct rio_net {
 	struct list_head node;	/* node in list of networks */
 	struct list_head devices;	/* list of devices in this net */
+	struct list_head switches;	/* list of switches in this net */
 	struct list_head mports;	/* list of ports accessing net */
 	struct rio_mport *hport;	/* primary port for accessing net */
 	unsigned char id;	/* RIO network ID */
+	struct rio_id_table destid_table;  /* destID allocation table */
 };
 
 /* Definitions used by switch sysfs initialization callback */
@@ -299,6 +311,8 @@ struct rio_net {
  * @add_outb_message: Callback to add a message to an outbound mailbox queue.
  * @add_inb_buffer: Callback to	add a buffer to an inbound mailbox queue.
  * @get_inb_message: Callback to get a message from an inbound mailbox queue.
+ * @map_inb: Callback to map RapidIO address region into local memory space.
+ * @unmap_inb: Callback to unmap RapidIO address region mapped with map_inb().
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -321,6 +335,9 @@ struct rio_ops {
 				 int mbox, void *buffer, size_t len);
 	int (*add_inb_buffer)(struct rio_mport *mport, int mbox, void *buf);
 	void *(*get_inb_message)(struct rio_mport *mport, int mbox);
+	int (*map_inb)(struct rio_mport *mport, dma_addr_t lstart,
+			u64 rstart, u32 size, u32 flags);
+	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
@@ -403,7 +420,7 @@ union rio_pw_msg {
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 
-/**
+/*
  * enum rio_write_type - RIO write transaction types used in DMA transfers
  *
  * Note: RapidIO specification defines write (NWRITE) and

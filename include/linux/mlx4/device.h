@@ -54,7 +54,13 @@ enum {
 };
 
 enum {
-	MLX4_MAX_PORTS		= 2
+	MLX4_PORT_CAP_IS_SM	= 1 << 1,
+	MLX4_PORT_CAP_DEV_MGMT_SUP = 1 << 19,
+};
+
+enum {
+	MLX4_MAX_PORTS		= 2,
+	MLX4_MAX_PORT_PKEYS	= 128
 };
 
 /* base qkey for use in sriov tunnel-qp/proxy-qp communication.
@@ -191,6 +197,25 @@ enum {
 	MLX4_FATAL_WARNING_SUBTYPE_WARMING = 0,
 };
 
+enum slave_port_state {
+	SLAVE_PORT_DOWN = 0,
+	SLAVE_PENDING_UP,
+	SLAVE_PORT_UP,
+};
+
+enum slave_port_gen_event {
+	SLAVE_PORT_GEN_EVENT_DOWN = 0,
+	SLAVE_PORT_GEN_EVENT_UP,
+	SLAVE_PORT_GEN_EVENT_NONE,
+};
+
+enum slave_port_state_event {
+	MLX4_PORT_STATE_DEV_EVENT_PORT_DOWN,
+	MLX4_PORT_STATE_DEV_EVENT_PORT_UP,
+	MLX4_PORT_STATE_IB_PORT_STATE_EVENT_GID_VALID,
+	MLX4_PORT_STATE_IB_EVENT_GID_INVALID,
+};
+
 enum {
 	MLX4_PERM_LOCAL_READ	= 1 << 10,
 	MLX4_PERM_LOCAL_WRITE	= 1 << 11,
@@ -303,6 +328,9 @@ struct mlx4_phys_caps {
 	u32			gid_phys_table_len[MLX4_MAX_PORTS + 1];
 	u32			pkey_phys_table_len[MLX4_MAX_PORTS + 1];
 	u32			num_phys_eqs;
+	u32			base_sqpn;
+	u32			base_proxy_sqpn;
+	u32			base_tunnel_sqpn;
 };
 
 struct mlx4_caps {
@@ -333,9 +361,10 @@ struct mlx4_caps {
 	int			max_rq_desc_sz;
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
-	int			sqp_start;
-	u32			base_sqpn;
-	u32			base_tunnel_sqpn;
+	u32			*qp0_proxy;
+	u32			*qp1_proxy;
+	u32			*qp0_tunnel;
+	u32			*qp1_tunnel;
 	int			num_srqs;
 	int			max_srq_wqes;
 	int			max_srq_sge;
@@ -389,6 +418,7 @@ struct mlx4_caps {
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
 	u8			port_ib_mtu[MLX4_MAX_PORTS + 1];
+	u16			sqp_demux;
 };
 
 struct mlx4_buf_list {
@@ -671,6 +701,10 @@ struct mlx4_init_port_param {
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if ((type) == (dev)->caps.port_mask[(port)])
 
+#define mlx4_foreach_non_ib_transport_port(port, dev)                     \
+	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	  \
+		if (((dev)->caps.port_mask[port] != MLX4_PORT_TYPE_IB))
+
 #define mlx4_foreach_ib_transport_port(port, dev)                         \
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	  \
 		if (((dev)->caps.port_mask[port] == MLX4_PORT_TYPE_IB) || \
@@ -692,7 +726,18 @@ static inline int mlx4_is_master(struct mlx4_dev *dev)
 
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
-	return (qpn < dev->caps.sqp_start + 8);
+	return (qpn < dev->phys_caps.base_sqpn + 8 +
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
+}
+
+static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)
+{
+	int guest_proxy_base = dev->phys_caps.base_proxy_sqpn + slave * 8;
+
+	if (qpn >= guest_proxy_base && qpn < guest_proxy_base + 8)
+		return 1;
+
+	return 0;
 }
 
 static inline int mlx4_is_mfunc(struct mlx4_dev *dev)
@@ -795,6 +840,19 @@ enum mlx4_net_trans_rule_id {
 	MLX4_NET_TRANS_RULE_ID_UDP,
 	MLX4_NET_TRANS_RULE_NUM, /* should be last */
 };
+
+extern const u16 __sw_id_hw[];
+
+static inline int map_hw_to_sw_id(u16 header_id)
+{
+
+	int i;
+	for (i = 0; i < MLX4_NET_TRANS_RULE_NUM; i++) {
+		if (header_id == __sw_id_hw[i])
+			return i;
+	}
+	return -EINVAL;
+}
 
 enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_PROMISC_NONE = 0,
@@ -914,6 +972,20 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
 
+void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
+			  int i, int val);
+
 int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey);
+
+int mlx4_is_slave_active(struct mlx4_dev *dev, int slave);
+int mlx4_gen_pkey_eqe(struct mlx4_dev *dev, int slave, u8 port);
+int mlx4_gen_guid_change_eqe(struct mlx4_dev *dev, int slave, u8 port);
+int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr);
+int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port, u8 port_subtype_change);
+enum slave_port_state mlx4_get_slave_port_state(struct mlx4_dev *dev, int slave, u8 port);
+int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int event, enum slave_port_gen_event *gen_event);
+
+void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
+__be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
 
 #endif /* MLX4_DEVICE_H */

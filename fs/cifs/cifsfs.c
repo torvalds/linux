@@ -36,6 +36,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/namei.h>
+#include <linux/random.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -51,7 +52,6 @@
 #ifdef CONFIG_CIFS_SMB2
 #include "smb2pdu.h"
 #endif
-#define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 int cifsFYI = 0;
 int cifsERROR = 1;
@@ -88,6 +88,10 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+
+#ifdef CONFIG_CIFS_SMB2
+__u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
+#endif
 
 static int
 cifs_read_super(struct super_block *sb)
@@ -160,12 +164,11 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb = dentry->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-	int rc = -EOPNOTSUPP;
+	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int xid;
+	int rc = 0;
 
 	xid = get_xid();
-
-	buf->f_type = CIFS_MAGIC_NUMBER;
 
 	/*
 	 * PATH_MAX may be too long - it would presumably be total path,
@@ -178,27 +181,8 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
-	/*
-	 * We could add a second check for a QFS Unix capability bit
-	 */
-	if ((tcon->ses->capabilities & CAP_UNIX) &&
-	    (CIFS_POSIX_EXTENSIONS & le64_to_cpu(tcon->fsUnixInfo.Capability)))
-		rc = CIFSSMBQFSPosixInfo(xid, tcon, buf);
-
-	/*
-	 * Only need to call the old QFSInfo if failed on newer one,
-	 * e.g. by OS/2.
-	 **/
-	if (rc && (tcon->ses->capabilities & CAP_NT_SMBS))
-		rc = CIFSSMBQFSInfo(xid, tcon, buf);
-
-	/*
-	 * Some old Windows servers also do not support level 103, retry with
-	 * older level one if old server failed the previous call or we
-	 * bypassed it because we detected that this was an older LANMAN sess
-	 */
-	if (rc)
-		rc = SMBOldQFSInfo(xid, tcon, buf);
+	if (server->ops->queryfs)
+		rc = server->ops->queryfs(xid, tcon, buf);
 
 	free_xid(xid);
 	return 0;
@@ -239,9 +223,10 @@ cifs_alloc_inode(struct super_block *sb)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
 	cifs_inode->time = 0;
-	/* Until the file is open and we have gotten oplock
-	info back from the server, can not assume caching of
-	file data or metadata */
+	/*
+	 * Until the file is open and we have gotten oplock info back from the
+	 * server, can not assume caching of file data or metadata.
+	 */
 	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
@@ -249,11 +234,16 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->server_eof = 0;
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
-
-	/* Can not set i_flags here - they get immediately overwritten
-	   to zero by the VFS */
-/*	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;*/
+#ifdef CONFIG_CIFS_SMB2
+	get_random_bytes(cifs_inode->lease_key, SMB2_LEASE_KEY_SIZE);
+#endif
+	/*
+	 * Can not set i_flags here - they get immediately overwritten to zero
+	 * by the VFS.
+	 */
+	/* cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME; */
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
+	INIT_LIST_HEAD(&cifs_inode->llist);
 	return &cifs_inode->vfs_inode;
 }
 
@@ -360,7 +350,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	cifs_show_security(s, tcon->ses->server);
 	cifs_show_cache_flavor(s, cifs_sb);
 
-	seq_printf(s, ",unc=%s", tcon->treeName);
+	seq_printf(s, ",unc=");
+	seq_escape(s, tcon->treeName, " \t\n\\");
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
 		seq_printf(s, ",multiuser");
@@ -957,7 +948,7 @@ cifs_init_once(void *inode)
 	struct cifsInodeInfo *cifsi = inode;
 
 	inode_init_once(&cifsi->vfs_inode);
-	mutex_init(&cifsi->lock_mutex);
+	init_rwsem(&cifsi->lock_sem);
 }
 
 static int
@@ -977,6 +968,11 @@ cifs_init_inodecache(void)
 static void
 cifs_destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(cifs_inode_cachep);
 }
 
@@ -1126,6 +1122,10 @@ init_cifs(void)
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);
+
+#ifdef CONFIG_CIFS_SMB2
+	get_random_bytes(cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
+#endif
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;

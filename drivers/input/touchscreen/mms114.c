@@ -404,7 +404,7 @@ static int __devinit mms114_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y, 0, data->pdata->y_size, 0, 0);
 
 	/* For multi touch */
-	input_mt_init_slots(input_dev, MMS114_MAX_TOUCH);
+	input_mt_init_slots(input_dev, MMS114_MAX_TOUCH, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, MMS114_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,

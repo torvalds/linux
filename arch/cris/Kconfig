@@ -42,6 +42,7 @@ config CRIS
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_UID16
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
@@ -137,11 +138,6 @@ config CRIS_MACH_ARTPEC3
           Support Axis ARTPEC-3.
 
 endchoice
-
-config ETRAX_VCS_SIM
-	bool "VCS Simulator"
-	help
-	  Setup hardware to be run in the VCS simulator.
 
 config ETRAX_ARCH_V10
        bool

@@ -441,7 +441,7 @@ static int unix_release_sock(struct sock *sk, int embrion)
 	/* ---- Socket is dead now and most probably destroyed ---- */
 
 	/*
-	 * Fixme: BSD difference: In BSD all sockets connected to use get
+	 * Fixme: BSD difference: In BSD all sockets connected to us get
 	 *	  ECONNRESET and we die on the spot. In Linux we behave
 	 *	  like files and pipes do and wait for the last
 	 *	  dereference.
@@ -481,7 +481,6 @@ static int unix_listen(struct socket *sock, int backlog)
 	struct sock *sk = sock->sk;
 	struct unix_sock *u = unix_sk(sk);
 	struct pid *old_pid = NULL;
-	const struct cred *old_cred = NULL;
 
 	err = -EOPNOTSUPP;
 	if (sock->type != SOCK_STREAM && sock->type != SOCK_SEQPACKET)
@@ -503,8 +502,6 @@ static int unix_listen(struct socket *sock, int backlog)
 out_unlock:
 	unix_state_unlock(sk);
 	put_pid(old_pid);
-	if (old_cred)
-		put_cred(old_cred);
 out:
 	return err;
 }
@@ -1450,7 +1447,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
 	wait_for_unix_gc();
-	err = scm_send(sock, msg, siocb->scm);
+	err = scm_send(sock, msg, siocb->scm, false);
 	if (err < 0)
 		return err;
 
@@ -1619,7 +1616,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
 	wait_for_unix_gc();
-	err = scm_send(sock, msg, siocb->scm);
+	err = scm_send(sock, msg, siocb->scm, false);
 	if (err < 0)
 		return err;
 
@@ -2060,10 +2057,14 @@ static int unix_shutdown(struct socket *sock, int mode)
 	struct sock *sk = sock->sk;
 	struct sock *other;
 
-	mode = (mode+1)&(RCV_SHUTDOWN|SEND_SHUTDOWN);
-
-	if (!mode)
-		return 0;
+	if (mode < SHUT_RD || mode > SHUT_RDWR)
+		return -EINVAL;
+	/* This maps:
+	 * SHUT_RD   (0) -> RCV_SHUTDOWN  (1)
+	 * SHUT_WR   (1) -> SEND_SHUTDOWN (2)
+	 * SHUT_RDWR (2) -> SHUTDOWN_MASK (3)
+	 */
+	++mode;
 
 	unix_state_lock(sk);
 	sk->sk_shutdown |= mode;

@@ -28,6 +28,8 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/platform_data/gpio-omap.h>
+
 #include <trace/events/power.h>
 
 #include <asm/suspend.h>
@@ -272,21 +274,16 @@ void omap_sram_idle(void)
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
 
-	if (mpu_next_state < PWRDM_POWER_ON) {
-		pwrdm_pre_transition(mpu_pwrdm);
-		pwrdm_pre_transition(neon_pwrdm);
-	}
+	pwrdm_pre_transition(NULL);
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
-		pwrdm_pre_transition(per_pwrdm);
 		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
 		omap2_gpio_prepare_for_idle(per_going_off);
 	}
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
-		pwrdm_pre_transition(core_pwrdm);
 		if (core_next_state == PWRDM_POWER_OFF) {
 			omap3_core_save_context();
 			omap3_cm_save_context();
@@ -339,20 +336,14 @@ void omap_sram_idle(void)
 			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
-		pwrdm_post_transition(core_pwrdm);
 	}
 	omap3_intc_resume_idle();
 
-	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
-		omap2_gpio_resume_after_idle();
-		pwrdm_post_transition(per_pwrdm);
-	}
+	pwrdm_post_transition(NULL);
 
-	if (mpu_next_state < PWRDM_POWER_ON) {
-		pwrdm_post_transition(mpu_pwrdm);
-		pwrdm_post_transition(neon_pwrdm);
-	}
+	/* PER */
+	if (per_next_state < PWRDM_POWER_ON)
+		omap2_gpio_resume_after_idle();
 }
 
 static void omap3_pm_idle(void)
@@ -400,9 +391,8 @@ restore:
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
-			pr_info("Powerdomain (%s) didn't enter "
-				"target state %d\n",
-			       pwrst->pwrdm->name, pwrst->next_state);
+			pr_info("Powerdomain (%s) didn't enter target state %d\n",
+				pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
@@ -742,8 +732,7 @@ int __init omap3_pm_init(void)
 		omap3_secure_ram_storage =
 			kmalloc(0x803F, GFP_KERNEL);
 		if (!omap3_secure_ram_storage)
-			pr_err("Memory allocation failed when "
-			       "allocating for secure sram context\n");
+			pr_err("Memory allocation failed when allocating for secure sram context\n");
 
 		local_irq_disable();
 		local_fiq_disable();

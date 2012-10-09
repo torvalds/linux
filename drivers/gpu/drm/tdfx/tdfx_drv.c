@@ -32,10 +32,10 @@
 
 #include <linux/module.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "tdfx_drv.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 
 static struct pci_device_id pciidlist[] = {
 	tdfx_PCI_IDS
@@ -49,6 +49,9 @@ static const struct file_operations tdfx_driver_fops = {
 	.mmap = drm_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 

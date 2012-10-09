@@ -287,10 +287,12 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret != 0)
+		goto out;
 	mutex_lock(&inode->i_mutex);
 	ret = nfs_file_fsync_commit(file, start, end, datasync);
 	mutex_unlock(&inode->i_mutex);
-
+out:
 	return ret;
 }
 
@@ -576,6 +578,7 @@ out:
 static const struct vm_operations_struct nfs_file_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = nfs_vm_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
 };
 
 static int nfs_need_sync_write(struct file *filp, struct inode *inode)

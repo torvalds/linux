@@ -480,7 +480,7 @@ set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 	if (buf == NULL)
 		goto out;
 
-	len = posix_acl_to_xattr(pacl, buf, buflen);
+	len = posix_acl_to_xattr(&init_user_ns, pacl, buf, buflen);
 	if (len < 0) {
 		error = len;
 		goto out;
@@ -549,7 +549,7 @@ _get_posix_acl(struct dentry *dentry, char *key)
 	if (buflen <= 0)
 		return ERR_PTR(buflen);
 
-	pacl = posix_acl_from_xattr(buf, buflen);
+	pacl = posix_acl_from_xattr(&init_user_ns, buf, buflen);
 	kfree(buf);
 	return pacl;
 }
@@ -2264,7 +2264,7 @@ nfsd_get_posix_acl(struct svc_fh *fhp, int type)
 	if (size < 0)
 		return ERR_PTR(size);
 
-	acl = posix_acl_from_xattr(value, size);
+	acl = posix_acl_from_xattr(&init_user_ns, value, size);
 	kfree(value);
 	return acl;
 }
@@ -2297,7 +2297,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;
-		error = posix_acl_to_xattr(acl, value, size);
+		error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (error < 0)
 			goto getout;
 		size = error;

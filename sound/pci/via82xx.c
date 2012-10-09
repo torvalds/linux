@@ -362,7 +362,7 @@ struct via82xx {
 
 	unsigned char old_legacy;
 	unsigned char old_legacy_cfg;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	unsigned char legacy_saved;
 	unsigned char legacy_cfg_saved;
 	unsigned char spdif_ctrl_saved;
@@ -1440,6 +1440,7 @@ static void init_viadev(struct via82xx *chip, int idx, unsigned int reg_offset,
 static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_chmap *chmap;
 	int i, err;
 
 	chip->playback_devno = 0;	/* x 4 */
@@ -1467,6 +1468,12 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
 
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_std_chmaps, 2, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+
 	/* PCM #1:  multi-channel playback and 2nd capture */
 	err = snd_pcm_new(chip->card, chip->card->shortname, 1, 1, 1, &pcm);
 	if (err < 0)
@@ -1484,6 +1491,14 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
+
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, 6, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+	chip->ac97->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
+
 	return 0;
 }
 
@@ -1493,6 +1508,7 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_chmap *chmap;
 	int err;
 
 	chip->multi_devno = 0;
@@ -1518,6 +1534,13 @@ static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
+
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, 6, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+	chip->ac97->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
 
 	/* SPDIF supported? */
 	if (! ac97_can_spdif(chip->ac97))
@@ -2038,7 +2061,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 		if (mpu_port >= 0x200) {	/* force MIDI */
 			mpu_port &= 0xfffc;
 			pci_write_config_dword(chip->pci, 0x18, mpu_port | 0x01);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 			chip->mpu_port_saved = mpu_port;
 #endif
 		} else {
@@ -2090,7 +2113,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 
 	snd_via686_create_gameport(chip, &legacy);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->legacy_saved = legacy;
 	chip->legacy_cfg_saved = legacy_cfg;
 #endif
@@ -2238,7 +2261,7 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2313,7 +2336,7 @@ static SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume
 #define SND_VIA82XX_PM_OPS	&snd_via82xx_pm
 #else
 #define SND_VIA82XX_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int snd_via82xx_free(struct via82xx *chip)
 {

@@ -40,7 +40,7 @@ static int ehci_sead3_setup(struct usb_hcd *hcd)
 	ehci->need_io_watchdog = 0;
 
 	/* Set burst length to 16 words. */
-	ehci_writel(ehci, 0x1010, &ehci->regs->reserved[1]);
+	ehci_writel(ehci, 0x1010, &ehci->regs->reserved1[1]);
 
 	return ret;
 }
@@ -112,17 +112,11 @@ static int ehci_hcd_sead3_drv_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		pr_debug("request_mem_region failed");
-		ret = -EBUSY;
-		goto err1;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hcd->regs) {
 		pr_debug("ioremap failed");
 		ret = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 
 	/* Root hub has integrated TT. */
@@ -135,9 +129,6 @@ static int ehci_hcd_sead3_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iounmap(hcd->regs);
-err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err1:
 	usb_put_hcd(hcd);
 	return ret;
@@ -148,8 +139,6 @@ static int ehci_hcd_sead3_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	platform_set_drvdata(pdev, NULL);
 

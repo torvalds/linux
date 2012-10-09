@@ -30,8 +30,8 @@
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <plat/orion_nand.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/mtd-orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
@@ -42,22 +42,12 @@
  ****************************************************************************/
 static struct map_desc orion5x_io_desc[] __initdata = {
 	{
-		.virtual	= ORION5X_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_REGS_PHYS_BASE),
 		.length		= ORION5X_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCIE_IO_PHYS_BASE),
-		.length		= ORION5X_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCI_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCI_IO_PHYS_BASE),
-		.length		= ORION5X_PCI_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCIE_WA_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCIE_WA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_WA_PHYS_BASE),
 		.length		= ORION5X_PCIE_WA_SIZE,
 		.type		= MT_DEVICE,
@@ -109,7 +99,8 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge00_init(eth_data,
 			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
-			IRQ_ORION5X_ETH_ERR);
+			IRQ_ORION5X_ETH_ERR,
+			MV643XX_TX_CSUM_DEFAULT_LIMIT);
 }
 
 
@@ -203,6 +194,13 @@ void __init orion5x_wdt_init(void)
 void __init orion5x_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/*
+	 * Some Orion5x devices allocate their coherent buffers from atomic
+	 * context. Increase size of atomic coherent pool to make sure such
+	 * the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int orion5x_tclk;

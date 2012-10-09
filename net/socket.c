@@ -88,6 +88,7 @@
 #include <linux/nsproxy.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -346,22 +347,22 @@ static struct file_system_type sock_fs_type = {
  *	but we take care of internal coherence yet.
  */
 
-static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
+struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 {
 	struct qstr name = { .name = "" };
 	struct path path;
 	struct file *file;
-	int fd;
 
-	fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0))
-		return fd;
-
-	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry)) {
-		put_unused_fd(fd);
-		return -ENOMEM;
+	if (dname) {
+		name.name = dname;
+		name.len = strlen(name.name);
+	} else if (sock->sk) {
+		name.name = sock->sk->sk_prot_creator->name;
+		name.len = strlen(name.name);
 	}
+	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
+	if (unlikely(!path.dentry))
+		return ERR_PTR(-ENOMEM);
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
@@ -373,30 +374,33 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 		/* drop dentry, keep inode */
 		ihold(path.dentry->d_inode);
 		path_put(&path);
-		put_unused_fd(fd);
-		return -ENFILE;
+		return ERR_PTR(-ENFILE);
 	}
 
 	sock->file = file;
 	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
 	file->f_pos = 0;
 	file->private_data = sock;
-
-	*f = file;
-	return fd;
+	return file;
 }
+EXPORT_SYMBOL(sock_alloc_file);
 
-int sock_map_fd(struct socket *sock, int flags)
+static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
-	int fd = sock_alloc_file(sock, &newfile, flags);
+	int fd = get_unused_fd_flags(flags);
+	if (unlikely(fd < 0))
+		return fd;
 
-	if (likely(fd >= 0))
+	newfile = sock_alloc_file(sock, flags, NULL);
+	if (likely(!IS_ERR(newfile))) {
 		fd_install(fd, newfile);
+		return fd;
+	}
 
-	return fd;
+	put_unused_fd(fd);
+	return PTR_ERR(newfile);
 }
-EXPORT_SYMBOL(sock_map_fd);
 
 struct socket *sock_from_file(struct file *file, int *err)
 {
@@ -455,6 +459,68 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	return NULL;
 }
 
+#define XATTR_SOCKPROTONAME_SUFFIX "sockprotoname"
+#define XATTR_NAME_SOCKPROTONAME (XATTR_SYSTEM_PREFIX XATTR_SOCKPROTONAME_SUFFIX)
+#define XATTR_NAME_SOCKPROTONAME_LEN (sizeof(XATTR_NAME_SOCKPROTONAME)-1)
+static ssize_t sockfs_getxattr(struct dentry *dentry,
+			       const char *name, void *value, size_t size)
+{
+	const char *proto_name;
+	size_t proto_size;
+	int error;
+
+	error = -ENODATA;
+	if (!strncmp(name, XATTR_NAME_SOCKPROTONAME, XATTR_NAME_SOCKPROTONAME_LEN)) {
+		proto_name = dentry->d_name.name;
+		proto_size = strlen(proto_name);
+
+		if (value) {
+			error = -ERANGE;
+			if (proto_size + 1 > size)
+				goto out;
+
+			strncpy(value, proto_name, proto_size + 1);
+		}
+		error = proto_size + 1;
+	}
+
+out:
+	return error;
+}
+
+static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
+				size_t size)
+{
+	ssize_t len;
+	ssize_t used = 0;
+
+	len = security_inode_listsecurity(dentry->d_inode, buffer, size);
+	if (len < 0)
+		return len;
+	used += len;
+	if (buffer) {
+		if (size < used)
+			return -ERANGE;
+		buffer += len;
+	}
+
+	len = (XATTR_NAME_SOCKPROTONAME_LEN + 1);
+	used += len;
+	if (buffer) {
+		if (size < used)
+			return -ERANGE;
+		memcpy(buffer, XATTR_NAME_SOCKPROTONAME, len);
+		buffer += len;
+	}
+
+	return used;
+}
+
+static const struct inode_operations sockfs_inode_ops = {
+	.getxattr = sockfs_getxattr,
+	.listxattr = sockfs_listxattr,
+};
+
 /**
  *	sock_alloc	-	allocate a socket
  *
@@ -479,6 +545,7 @@ static struct socket *sock_alloc(void)
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
+	inode->i_op = &sockfs_inode_ops;
 
 	this_cpu_add(sockets_in_use, 1);
 	return sock;
@@ -1394,17 +1461,32 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	if (err < 0)
 		goto out_release_both;
 
-	fd1 = sock_alloc_file(sock1, &newfile1, flags);
+	fd1 = get_unused_fd_flags(flags);
 	if (unlikely(fd1 < 0)) {
 		err = fd1;
 		goto out_release_both;
 	}
-
-	fd2 = sock_alloc_file(sock2, &newfile2, flags);
+	fd2 = get_unused_fd_flags(flags);
 	if (unlikely(fd2 < 0)) {
 		err = fd2;
+		put_unused_fd(fd1);
+		goto out_release_both;
+	}
+
+	newfile1 = sock_alloc_file(sock1, flags, NULL);
+	if (unlikely(IS_ERR(newfile1))) {
+		err = PTR_ERR(newfile1);
+		put_unused_fd(fd1);
+		put_unused_fd(fd2);
+		goto out_release_both;
+	}
+
+	newfile2 = sock_alloc_file(sock2, flags, NULL);
+	if (IS_ERR(newfile2)) {
+		err = PTR_ERR(newfile2);
 		fput(newfile1);
 		put_unused_fd(fd1);
+		put_unused_fd(fd2);
 		sock_release(sock2);
 		goto out;
 	}
@@ -1536,9 +1618,16 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	 */
 	__module_get(newsock->ops->owner);
 
-	newfd = sock_alloc_file(newsock, &newfile, flags);
+	newfd = get_unused_fd_flags(flags);
 	if (unlikely(newfd < 0)) {
 		err = newfd;
+		sock_release(newsock);
+		goto out_put;
+	}
+	newfile = sock_alloc_file(newsock, flags, sock->sk->sk_prot_creator->name);
+	if (unlikely(IS_ERR(newfile))) {
+		err = PTR_ERR(newfile);
+		put_unused_fd(newfd);
 		sock_release(newsock);
 		goto out_put;
 	}
@@ -2528,12 +2617,6 @@ static int __init sock_init(void)
 		goto out;
 
 	/*
-	 *      Initialize sock SLAB cache.
-	 */
-
-	sk_init();
-
-	/*
 	 *      Initialize skbuff SLAB cache
 	 */
 	skb_init();
@@ -2604,7 +2687,7 @@ static int do_siocgstamp(struct net *net, struct socket *sock,
 	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv);
 	set_fs(old_fs);
 	if (!err)
-		err = compat_put_timeval(up, &ktv);
+		err = compat_put_timeval(&ktv, up);
 
 	return err;
 }
@@ -2620,7 +2703,7 @@ static int do_siocgstampns(struct net *net, struct socket *sock,
 	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts);
 	set_fs(old_fs);
 	if (!err)
-		err = compat_put_timespec(up, &kts);
+		err = compat_put_timespec(&kts, up);
 
 	return err;
 }
@@ -2657,6 +2740,7 @@ static int dev_ifconf(struct net *net, struct compat_ifconf __user *uifc32)
 	if (copy_from_user(&ifc32, uifc32, sizeof(struct compat_ifconf)))
 		return -EFAULT;
 
+	memset(&ifc, 0, sizeof(ifc));
 	if (ifc32.ifcbuf == 0) {
 		ifc32.ifc_len = 0;
 		ifc.ifc_len = 0;
