@@ -1,11 +1,12 @@
 config ARCH_VEXPRESS
 	bool "ARM Ltd. Versatile Express family" if ARCH_MULTI_V7
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
+	select COMMON_CLK_VERSATILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
@@ -17,6 +18,7 @@ config ARCH_VEXPRESS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select VEXPRESS_CONFIG
 	help
 	  This option enables support for systems using Cortex processor based
 	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
