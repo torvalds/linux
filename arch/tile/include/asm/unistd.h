@@ -11,32 +11,9 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  */
-
-#if !defined(__LP64__) || defined(__SYSCALL_COMPAT)
-/* Use the flavor of this syscall that matches the 32-bit API better. */
-#define __ARCH_WANT_SYNC_FILE_RANGE2
-#endif
-
-/* Use the standard ABI for syscalls. */
-#include <asm-generic/unistd.h>
-
-/* Additional Tilera-specific syscalls. */
-#define __NR_cacheflush	(__NR_arch_specific_syscall + 1)
-__SYSCALL(__NR_cacheflush, sys_cacheflush)
-
-#ifndef __tilegx__
-/* "Fast" syscalls provide atomic support for 32-bit chips. */
-#define __NR_FAST_cmpxchg	-1
-#define __NR_FAST_atomic_update	-2
-#define __NR_FAST_cmpxchg64	-3
-#define __NR_cmpxchg_badaddr	(__NR_arch_specific_syscall + 0)
-__SYSCALL(__NR_cmpxchg_badaddr, sys_cmpxchg_badaddr)
-#endif
-
-#ifdef __KERNEL__
 /* In compat mode, we use sys_llseek() for compat_sys_llseek(). */
 #ifdef CONFIG_COMPAT
 #define __ARCH_WANT_SYS_LLSEEK
 #endif
 #define __ARCH_WANT_SYS_NEWFSTATAT
-#endif
+#include <uapi/asm/unistd.h>

@@ -1,3 +1,18 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
+header-y += auxvec.h
+header-y += bitsperlong.h
+header-y += byteorder.h
+header-y += cachectl.h
+header-y += hardwall.h
+header-y += kvm_para.h
+header-y += mman.h
+header-y += ptrace.h
+header-y += setup.h
+header-y += sigcontext.h
+header-y += siginfo.h
+header-y += signal.h
+header-y += stat.h
+header-y += swab.h
+header-y += unistd.h
