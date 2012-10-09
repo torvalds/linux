@@ -54,10 +54,6 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
-#ifdef CONFIG_GPIOEXP_AW9523B
-#include <linux/gpio_exp_callpad.h>
-#endif
-
 #include "board-rk2928-phonepad-camera.c" 
 #include "board-rk2928-phonepad-key.c"
 
@@ -168,28 +164,38 @@ static struct platform_device rk29_device_backlight = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_EN        GPIOEXP_P1_0
-#define LCD_EN_VALUE  GPIO_LOW
+#define LCD_MUX_NAME  GPIO0C3_UART0_CTSN_NAME
+#define LCD_GPIO_MODE GPIO0C_GPIO0C3
 
-#define LCD_STB        GPIOEXP_P1_6
-#define LCD_STB_VALUE  GPIO_LOW
+#define LCD_EN        RK2928_PIN0_PC3
+#define LCD_EN_VALUE  GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
-	gpioexp_set_direction(LCD_EN,0);
-	gpioexp_set_output_level(LCD_EN,LCD_EN_VALUE);
-	gpioexp_set_direction(LCD_STB,0);
-	gpioexp_set_output_level(LCD_STB,!LCD_STB_VALUE);
+	int ret = 0;
+
+    rk30_mux_api_set(LCD_MUX_NAME, LCD_GPIO_MODE);
+	ret = gpio_request(LCD_EN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_EN);
+		printk(KERN_ERR "request lcd en pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_EN, LCD_EN_VALUE); //disable
+	}
 	return 0;
 }
 static int rk_fb_io_disable(void)
 {
-        gpioexp_set_output_level(LCD_EN, !LCD_EN_VALUE);
+    gpio_set_value(LCD_EN, !LCD_EN_VALUE);
 	return 0;
 }
 static int rk_fb_io_enable(void)
 {
-        gpioexp_set_output_level(LCD_EN, LCD_EN_VALUE);
+    gpio_set_value(LCD_EN, LCD_EN_VALUE);
 	return 0;
 }
 
@@ -286,8 +292,8 @@ static struct platform_device device_ion = {
 
 
 #if defined (CONFIG_TOUCHSCREEN_I30)
-#define TOUCH_RESET_PIN GPIOEXP_P1_1
-#define TOUCH_INT_PIN   RK2928_PIN1_PC6
+#define TOUCH_RESET_PIN RK2928_PIN3_PD5
+#define TOUCH_INT_PIN   RK2928_PIN3_PC7
 int ft5306_init_platform_hw(void)
 {
 	struct regulator *ldo;
@@ -296,6 +302,13 @@ int ft5306_init_platform_hw(void)
 	ldo = regulator_get(NULL, "vaux33");
 	regulator_disable(ldo);
 	
+	if(gpio_request(TOUCH_RESET_PIN,NULL) != 0)
+	{
+		gpio_free(TOUCH_RESET_PIN);
+		printk("ft5306_init_platform_hw TOUCH_RESET_PIN error\n");
+		return -EIO;
+	}
+
 	if(gpio_request(TOUCH_INT_PIN,NULL) != 0)
 	{
 		gpio_free(TOUCH_INT_PIN);
@@ -303,8 +316,8 @@ int ft5306_init_platform_hw(void)
 		return -EIO;
 	}
 	gpio_direction_input(TOUCH_INT_PIN);
-	gpioexp_set_direction(TOUCH_RESET_PIN,0);
-	gpioexp_set_output_level(TOUCH_RESET_PIN,GPIO_HIGH);
+	gpio_direction_output(TOUCH_RESET_PIN, 1);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 	msleep(50);
 	regulator_enable(ldo);
 	regulator_put(ldo);
@@ -330,7 +343,7 @@ int ft5306_platform_sleep(void)
 
 	printk("ft5306_platform_sleep\n");
 #endif
-//	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	return 0;
 }
 
@@ -345,7 +358,7 @@ int ft5306_platform_wakeup(void)
 
 	printk("ft5306_platform_wakeup\n");
 #endif
-//	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 	msleep(300);
 	return 0;
 }
@@ -380,6 +393,72 @@ static struct sensor_platform_data mma7660_info = {
         .init_platform_hw = mma7660_init_platform_hw,
         .orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
 };
+#endif
+
+#ifdef CONFIG_GS_KXTIK
+
+#define KXTIK_INT_PIN         RK2928_PIN3_PD1
+
+static int kxtik_init_hw(void)
+{
+	int ret = 0;
+	
+	ret = gpio_request(KXTIK_INT_PIN,"kxtik_irq");
+	if(ret){
+		printk("kxtik gpio request fail!\n");
+		return ret;
+	}
+	else{
+		gpio_direction_input(KXTIK_INT_PIN);
+	}
+	return ret;
+}
+static void kxtik_exit_hw(void)
+{
+	gpio_free(KXTIK_INT_PIN);
+}
+
+static struct gsensor_platform_data kxtik_pdata = {
+	.swap_xy = 0,
+	.swap_xyz = 1,
+	.init_platform_hw = kxtik_init_hw,
+	.exit_platform_hw = kxtik_exit_hw,
+	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+};
+
+#endif /* CONFIG_GS_KXTIK*/
+
+#ifdef CONFIG_INPUT_AP321XX
+#define AP321XX_INT_PIN         RK2928_PIN0_PC6
+
+static int AP321XX_init_hw(void)
+{
+	int ret = 0;
+	ret = gpio_request(AP321XX_INT_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(AP321XX_INT_PIN);
+		printk(KERN_ERR "request AP321XX_INT_PIN fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_input(AP321XX_INT_PIN);
+	}
+	return 0;
+}
+
+static void AP321XX_exit_hw(void)
+{
+	gpio_free(AP321XX_INT_PIN);
+	return;
+}
+
+static struct ap321xx_platform_data ap321xx_info = {
+	.init_platform_hw = AP321XX_init_hw,
+	.exit_platform_hw = AP321XX_exit_hw,
+};
+
 #endif
 
 
@@ -643,33 +722,6 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 };
 #endif
-
-#if defined (CONFIG_GPIOEXP_AW9523B)
-#define AW9523B_INT_PIN   RK2928_PIN0_PC3
-
-static int aw9523b_init_hw(void)
-{
-	if(gpio_request(AW9523B_INT_PIN,NULL) != 0)
-	{
-		gpio_free(AW9523B_INT_PIN);
-		printk("aw9523b_init_hw AW9523B_INT_PIN error\n");
-		return -EIO;
-	}
-	gpio_direction_input(AW9523B_INT_PIN);
-	return 0;
-}
-
-static void aw9523b_exit_hw(void)
-{
-	gpio_free(AW9523B_INT_PIN);
-}
-static struct gpio_exp_platform_data aw9523b_data = {
-	.init_platform_hw = aw9523b_init_hw,
-	.exit_platform_hw = aw9523b_exit_hw,
-};
-
-#endif
-
 #ifdef CONFIG_I2C1_RK30
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_GS_MMA7660)
@@ -680,6 +732,23 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 			.irq		= MMA7660_INT_PIN,
 			.platform_data = &mma7660_info,
 		},
+#endif
+
+#ifdef CONFIG_GS_KXTIK
+		{		I2C_BOARD_INFO("kxtik", 0x0F),
+				.platform_data = &kxtik_pdata,
+				.irq = KXTIK_INT_PIN, // Replace with appropriate GPIO setup
+		},
+#endif
+
+#ifdef CONFIG_INPUT_AP321XX
+        {
+                .type                   = "ap321xx",
+                .addr                   = 0x1E,
+                .flags                  = 0,
+                .irq                     = AP321XX_INT_PIN,
+                .platform_data = &ap321xx_info
+        },
 #endif
 #ifdef CONFIG_RDA5990
 #define RDA_WIFI_CORE_ADDR (0x13)
@@ -717,15 +786,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 
 		},
 #endif
-#if defined (CONFIG_GPIOEXP_AW9523B)
-		{
-			.type		= "gpioexp_aw9523b",
-			.addr		= 0x59,
-			.flags		= 0,
-			.irq		= AW9523B_INT_PIN,
-			.platform_data = &aw9523b_data,
-		},
-#endif
+
 };
 #endif
 #ifdef CONFIG_I2C2_RK30
