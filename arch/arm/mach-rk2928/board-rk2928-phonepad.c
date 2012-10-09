@@ -395,10 +395,9 @@ static struct sensor_platform_data mma7660_info = {
 };
 #endif
 
-#ifdef CONFIG_GS_KXTIK
-
+#if defined (CONFIG_GS_KXTIK)
 #define KXTIK_INT_PIN         RK2928_PIN3_PD1
-
+#if 0
 static int kxtik_init_hw(void)
 {
 	int ret = 0;
@@ -425,7 +424,21 @@ static struct gsensor_platform_data kxtik_pdata = {
 	.exit_platform_hw = kxtik_exit_hw,
 	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
 };
+#endif
+static int kxtik_init_platform_hw(void)
+{
+	printk("%s: >>>>>>>>>>>>>>>>\n\n\n", __func__);
+	return 0;
+}
 
+static struct sensor_platform_data kxtik_pdata = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+	.init_platform_hw = kxtik_init_platform_hw,
+	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+	//.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+};
 #endif /* CONFIG_GS_KXTIK*/
 
 #ifdef CONFIG_INPUT_AP321XX
@@ -754,8 +767,11 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		},
 #endif
 
-#ifdef CONFIG_GS_KXTIK
-		{		I2C_BOARD_INFO("kxtik", 0x0F),
+#if defined (CONFIG_GS_KXTIK)
+		{
+				.type		= "gs_kxtik",
+				.addr		= 0x0F,
+				.flags		= 0,
 				.platform_data = &kxtik_pdata,
 				.irq = KXTIK_INT_PIN, // Replace with appropriate GPIO setup
 		},
