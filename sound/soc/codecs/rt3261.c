@@ -72,11 +72,11 @@ struct rt3261_init_reg {
 };
 
 static struct rt3261_init_reg init_list[] = {
-	{RT3261_GEN_CTRL1	, 0x3701},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
+	{RT3261_GEN_CTRL1	, 0x3f01},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
 	{RT3261_ADDA_CLK1	, 0x1114},//73[2] = 1'b
 	{RT3261_MICBIAS		, 0x3030},//93[5:4] = 11'b
 	{RT3261_CLS_D_OUT	, 0xa000},//8d[11] = 0'b
-	{RT3261_CLS_D_OVCD	, 0x0328},//8c[8] = 1'b
+	{RT3261_CLS_D_OVCD	, 0x0334},//8c[8] = 1'b
 	{RT3261_PRIV_INDEX	, 0x001d},//PR1d[8] = 1'b;
 	{RT3261_PRIV_DATA	, 0x0347},
 	{RT3261_PRIV_INDEX	, 0x003d},//PR3d[12] = 0'b; PR3d[9] = 1'b
