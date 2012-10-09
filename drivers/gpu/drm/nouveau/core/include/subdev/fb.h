@@ -84,6 +84,8 @@ struct nouveau_fb {
 		int regions;
 		void (*init)(struct nouveau_fb *, int i, u32 addr, u32 size,
 			     u32 pitch, u32 flags, struct nouveau_fb_tile *);
+		void (*comp)(struct nouveau_fb *, int i, u32 size, u32 flags,
+			     struct nouveau_fb_tile *);
 		void (*fini)(struct nouveau_fb *, int i,
 			     struct nouveau_fb_tile *);
 		void (*prog)(struct nouveau_fb *, int i,

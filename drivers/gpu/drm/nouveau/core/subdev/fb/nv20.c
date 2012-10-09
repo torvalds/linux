@@ -34,35 +34,41 @@ static void
 nv20_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nouveau_fb_tile *tile)
 {
-	struct nouveau_device *device = nv_device(pfb);
-	int bpp = (flags & 2) ? 32 : 16;
-
 	tile->addr  = 0x00000001 | addr;
 	tile->limit = max(1u, addr + size) - 1;
 	tile->pitch = pitch;
+	if (flags & 4) {
+		pfb->tile.comp(pfb, i, size, flags, tile);
+		tile->addr |= 2;
+	}
+}
+
+static void
+nv20_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
+		  struct nouveau_fb_tile *tile)
+{
+	struct nouveau_device *device = nv_device(pfb);
+	int bpp = (flags & 2) ? 32 : 16;
 
 	/* Allocate some of the on-die tag memory, used to store Z
 	 * compression meta-data (most likely just a bitmap determining
 	 * if a given tile is compressed or not).
 	 */
 	size /= 256;
-	if (flags & 4) {
-		if (!nouveau_mm_head(&pfb->tags, 1, size, size, 1, &tile->tag)) {
-			/* Enable Z compression */
-			tile->zcomp = tile->tag->offset;
-			if (device->chipset >= 0x25) {
-				if (bpp == 16)
-					tile->zcomp |= 0x00100000;
-				else
-					tile->zcomp |= 0x00200000;
-			} else {
-				tile->zcomp |= 0x80000000;
-				if (bpp != 16)
-					tile->zcomp |= 0x04000000;
-			}
-		}
 
-		tile->addr |= 2;
+	if (!nouveau_mm_head(&pfb->tags, 1, size, size, 1, &tile->tag)) {
+		/* Enable Z compression */
+		tile->zcomp = tile->tag->offset;
+		if (device->chipset >= 0x25) {
+			if (bpp == 16)
+				tile->zcomp |= 0x00100000;
+			else
+				tile->zcomp |= 0x00200000;
+		} else {
+			tile->zcomp |= 0x80000000;
+			if (bpp != 16)
+				tile->zcomp |= 0x04000000;
+		}
 	}
 }
 
@@ -119,6 +125,7 @@ nv20_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv20_fb_tile_init;
+	priv->base.tile.comp = nv20_fb_tile_comp;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);
