@@ -1716,6 +1716,19 @@ static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 		__rbd_remove_snap_dev(snap);
 }
 
+static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
+{
+	sector_t size;
+
+	if (rbd_dev->mapping.snap_id != CEPH_NOSNAP)
+		return;
+
+	size = (sector_t) rbd_dev->header.image_size / SECTOR_SIZE;
+	dout("setting size to %llu sectors", (unsigned long long) size);
+	rbd_dev->mapping.size = (u64) size;
+	set_capacity(rbd_dev->disk, size);
+}
+
 /*
  * only read the first part of the ondisk header, without the snaps info
  */
@@ -1730,17 +1743,9 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 
 	down_write(&rbd_dev->header_rwsem);
 
-	/* resized? */
-	if (rbd_dev->mapping.snap_id == CEPH_NOSNAP) {
-		sector_t size = (sector_t) h.image_size / SECTOR_SIZE;
-
-		if (size != (sector_t) rbd_dev->mapping.size) {
-			dout("setting size to %llu sectors",
-				(unsigned long long) size);
-			rbd_dev->mapping.size = (u64) size;
-			set_capacity(rbd_dev->disk, size);
-		}
-	}
+	/* Update image size, and check for resize of mapped image */
+	rbd_dev->header.image_size = h.image_size;
+	rbd_update_mapping_size(rbd_dev);
 
 	/* rbd_dev->header.object_prefix shouldn't change */
 	kfree(rbd_dev->header.snap_sizes);
