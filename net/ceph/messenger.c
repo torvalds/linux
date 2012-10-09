@@ -2244,22 +2244,33 @@ bad_tag:
 
 
 /*
- * Atomically queue work on a connection.  Bump @con reference to
- * avoid races with connection teardown.
+ * Atomically queue work on a connection after the specified delay.
+ * Bump @con reference to avoid races with connection teardown.
+ * Returns 0 if work was queued, or an error code otherwise.
  */
-static void queue_con(struct ceph_connection *con)
+static int queue_con_delay(struct ceph_connection *con, unsigned long delay)
 {
 	if (!con->ops->get(con)) {
-		dout("queue_con %p ref count 0\n", con);
-		return;
+		dout("%s %p ref count 0\n", __func__, con);
+
+		return -ENOENT;
 	}
 
-	if (!queue_delayed_work(ceph_msgr_wq, &con->work, 0)) {
-		dout("queue_con %p - already queued\n", con);
+	if (!queue_delayed_work(ceph_msgr_wq, &con->work, delay)) {
+		dout("%s %p - already queued\n", __func__, con);
 		con->ops->put(con);
-	} else {
-		dout("queue_con %p\n", con);
+
+		return -EBUSY;
 	}
+
+	dout("%s %p %lu\n", __func__, con, delay);
+
+	return 0;
+}
+
+static void queue_con(struct ceph_connection *con)
+{
+	(void) queue_con_delay(con, 0);
 }
 
 /*
@@ -2294,14 +2305,11 @@ restart:
 
 	if (test_and_clear_bit(CON_FLAG_BACKOFF, &con->flags)) {
 		dout("con_work %p backing off\n", con);
-		if (queue_delayed_work(ceph_msgr_wq, &con->work,
-				       round_jiffies_relative(con->delay))) {
-			dout("con_work %p backoff %lu\n", con, con->delay);
-			mutex_unlock(&con->mutex);
-			return;
-		} else {
+		ret = queue_con_delay(con, round_jiffies_relative(con->delay));
+		if (ret) {
 			dout("con_work %p FAILED to back off %lu\n", con,
 			     con->delay);
+			BUG_ON(ret == -ENOENT);
 			set_bit(CON_FLAG_BACKOFF, &con->flags);
 		}
 		goto done;
