@@ -39,8 +39,8 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
 
 /*
  * NOTE: max_zpage_size must be less than or equal to:
- *   ZS_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
- * otherwise, xv_malloc() would always return failure.
+ *   ZS_MAX_ALLOC_SIZE. Otherwise, zs_malloc() would
+ * always return failure.
  */
 
 /*-- End of configurable params */
