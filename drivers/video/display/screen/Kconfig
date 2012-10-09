@@ -100,6 +100,9 @@ config LCD_HJ080NA
 config LCD_HJ101NA
         bool "HJ101NA_4J 1280X800"
 
+config LCD_AUTO
+        bool "auto select lcd"
+
 config LCD_HSD07PFW1
 	depends on MFD_RK610
 	bool "RGB lcd panel HSD07PFW1"
