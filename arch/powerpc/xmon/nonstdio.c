@@ -111,13 +111,19 @@ char *xmon_gets(char *str, int nb)
 void xmon_printf(const char *format, ...)
 {
 	va_list args;
-	int n;
 	static char xmon_outbuf[1024];
+	int rc, n;
 
 	va_start(args, format);
 	n = vsnprintf(xmon_outbuf, sizeof(xmon_outbuf), format, args);
 	va_end(args);
-	xmon_write(xmon_outbuf, n);
+
+	rc = xmon_write(xmon_outbuf, n);
+
+	if (n && rc == 0) {
+		/* No udbg hooks, fallback to printk() - dangerous */
+		printk(xmon_outbuf);
+	}
 }
 
 void xmon_puts(const char *str)
