@@ -702,8 +702,8 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 				&pkt_dev->cur_in6_saddr,
 				&pkt_dev->cur_in6_daddr);
 	} else
-		seq_printf(seq, "     cur_saddr: 0x%x  cur_daddr: 0x%x\n",
-			   pkt_dev->cur_saddr, pkt_dev->cur_daddr);
+		seq_printf(seq, "     cur_saddr: %pI4  cur_daddr: %pI4\n",
+			   &pkt_dev->cur_saddr, &pkt_dev->cur_daddr);
 
 	seq_printf(seq, "     cur_udp_dst: %d  cur_udp_src: %d\n",
 		   pkt_dev->cur_udp_dst, pkt_dev->cur_udp_src);
