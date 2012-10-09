@@ -601,7 +601,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	dma_async_issue_pending(chan);
 
 	ret =
-	wait_for_completion_interruptible_timeout(&host->dma_access_complete,
+	wait_for_completion_timeout(&host->dma_access_complete,
 				msecs_to_jiffies(3000));
 	if (ret <= 0) {
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
