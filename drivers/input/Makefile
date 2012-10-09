@@ -29,6 +29,7 @@ obj-$(CONFIG_LIGHT_SENSOR_DEVICE) += lightsensor/
 obj-$(CONFIG_MAG_SENSORS)	+= magnetometer/
 
 obj-$(CONFIG_SENSOR_DEVICE)	+= sensors/
+obj-$(CONFIG_TS_AUTO)	+= ts/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o

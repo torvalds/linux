@@ -1,0 +1,15 @@
+#
+# all auto touch screen drivers configuration
+#
+
+menuconfig TS_AUTO
+	bool "auto touch screen driver support"
+	default n	
+
+if TS_AUTO
+
+source "drivers/input/ts/chips/Kconfig"
+
+endif
+
+

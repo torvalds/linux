@@ -182,6 +182,8 @@ source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
 
+source "drivers/input/ts/Kconfig"
+
 source "drivers/input/misc/Kconfig"
 
 source "drivers/input/magnetometer/Kconfig"
