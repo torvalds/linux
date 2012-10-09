@@ -31,7 +31,7 @@ typedef uint32_t uint32 ;
 #define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
 #define PD_IDLE                       (0x40)  //unit:DDR clk cycle, and 0 for disable auto power-down
 #define PHY_ODT_DISABLE_FREQ          (333)  //定义odt disable的频率
-#define PHY_DLL_DISABLE_FREQ          (666)  //定义dll bypass的频率
+#define PHY_DLL_DISABLE_FREQ          (266)  //定义dll bypass的频率
 
 //#define PMU_BASE_ADDR           RK30_PMU_BASE //??RK 2928 PMU在哪里
 #define SDRAMC_BASE_ADDR        RK2928_DDR_PCTL_BASE
@@ -2210,7 +2210,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t calStatusLeft, calStatusRight;
 
-    ddr_print("version 1.00 20120925 \n");
+    ddr_print("version 1.00 20121009 \n");
     cs = (1 << (((pGRF_Reg->GRF_OS_REG[1]) >> DDR_RANK_COUNT)&0x1));    //case 0:1rank ; case 1:2rank ;                            
     mem_type = ((pGRF_Reg->GRF_OS_REG[1] >> 13) &0x7);
     ddr_speed_bin = dram_speed_bin;
