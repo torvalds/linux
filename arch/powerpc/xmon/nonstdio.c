@@ -23,7 +23,7 @@ static char line[256];
 static char *lineptr;
 static int lineleft;
 
-int xmon_getchar(void)
+static int xmon_getchar(void)
 {
 	int c;
 
