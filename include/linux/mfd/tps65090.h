@@ -24,6 +24,23 @@
 
 #include <linux/irq.h>
 
+/* TPS65090 Regulator ID */
+enum {
+	TPS65090_ID_DCDC1,
+	TPS65090_ID_DCDC2,
+	TPS65090_ID_DCDC3,
+	TPS65090_ID_FET1,
+	TPS65090_ID_FET2,
+	TPS65090_ID_FET3,
+	TPS65090_ID_FET4,
+	TPS65090_ID_FET5,
+	TPS65090_ID_FET6,
+	TPS65090_ID_FET7,
+
+	/* Last entry for maximum ID */
+	TPS65090_ID_MAX,
+};
+
 struct tps65090 {
 	struct mutex		lock;
 	struct device		*dev;
@@ -41,10 +58,21 @@ struct tps65090_subdev_info {
 	void		*platform_data;
 };
 
+/*
+ * struct tps65090_regulator_plat_data
+ *
+ * @reg_init_data: The regulator init data.
+ */
+
+struct tps65090_regulator_plat_data {
+	struct regulator_init_data *reg_init_data;
+};
+
 struct tps65090_platform_data {
 	int irq_base;
 	int num_subdevs;
 	struct tps65090_subdev_info *subdevs;
+	struct tps65090_regulator_plat_data *reg_pdata[TPS65090_ID_MAX];
 };
 
 /*
