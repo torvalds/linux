@@ -172,6 +172,8 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Jack", NULL),	
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[]={
@@ -183,11 +185,21 @@ static const struct snd_soc_dapm_route audio_map[]={
 	// HP MIC
 	{"micbias1", NULL, "Headset Jack"},
 	{"MIC3", NULL, "micbias1"},
+
+	{"Ext Spk", NULL, "SPOLP"},
+   	{"Ext Spk", NULL, "SPOLN"},
+   	{"Ext Spk", NULL, "SPORP"},
+      	{"Ext Spk", NULL, "SPORN"},
+
+	{"Headphone Jack", NULL, "HPOL"},
+	{"Headphone Jack", NULL, "HPOR"},
 } ;
 
 static const struct snd_kcontrol_new rk_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Jack"),
+	SOC_DAPM_PIN_SWITCH("Ext Spk"),
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 };
 
 /*
@@ -211,6 +223,8 @@ static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_enable_pin(dapm, "Headset Jack");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_sync(dapm);
 
 	return 0;

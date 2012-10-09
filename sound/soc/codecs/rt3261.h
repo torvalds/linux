@@ -2071,6 +2071,8 @@ enum {
 #define RT3261_HEADSET_DET	BIT(1)
 #define RT3261_HEADPHO_DET	BIT(2)
 
+void codec_set_spk(bool on);
+
 int rt3261_headset_mic_detect(int jack_insert);
 
 /* System Clock Source */

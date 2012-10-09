@@ -484,6 +484,29 @@ static int rt3261_readable_register(
 	}
 }
 
+void codec_set_spk(bool on)
+{
+
+	struct snd_soc_codec *codec = rt3261_codec;
+	DBG("%s: %d\n", __func__, on);
+
+	if(!codec)
+		return;
+
+	if(on){
+		DBG("snd_soc_dapm_enable_pin\n");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+	}else{
+		DBG("snd_soc_dapm_disable_pin\n");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+	}
+	snd_soc_dapm_sync(&codec->dapm);
+}
+
+
+
 /**
  * rt3261_headset_mic_detect - Detect headset.
  * @codec: SoC audio codec device.
