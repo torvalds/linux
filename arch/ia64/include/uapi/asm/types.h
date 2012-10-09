@@ -10,22 +10,22 @@
  * Modified 1998-2000, 2002
  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co
  */
-#ifndef _ASM_IA64_TYPES_H
-#define _ASM_IA64_TYPES_H
+#ifndef _UAPI_ASM_IA64_TYPES_H
+#define _UAPI_ASM_IA64_TYPES_H
 
-#include <asm-generic/int-ll64.h>
-#include <uapi/asm/types.h>
+
+#ifndef __KERNEL__
+#include <asm-generic/int-l64.h>
+#endif
 
 #ifdef __ASSEMBLY__
-#else
-/*
- * These aren't exported outside the kernel to avoid name space clashes
- */
+# define __IA64_UL(x)		(x)
+# define __IA64_UL_CONST(x)	x
 
-struct fnptr {
-	unsigned long ip;
-	unsigned long gp;
-};
+#else
+# define __IA64_UL(x)		((unsigned long)(x))
+# define __IA64_UL_CONST(x)	x##UL
 
 #endif /* !__ASSEMBLY__ */
-#endif /* _ASM_IA64_TYPES_H */
+
+#endif /* _UAPI_ASM_IA64_TYPES_H */
