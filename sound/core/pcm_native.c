@@ -2728,6 +2728,7 @@ static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 	volatile struct snd_pcm_mmap_status *status;
 	volatile struct snd_pcm_mmap_control *control;
 	int err;
+	snd_pcm_uframes_t hw_avail;
 
 	memset(&sync_ptr, 0, sizeof(sync_ptr));
 	if (get_user(sync_ptr.flags, (unsigned __user *)&(_sync_ptr->flags)))
@@ -2756,6 +2757,16 @@ static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 		control->avail_min = sync_ptr.c.control.avail_min;
 	else
 		sync_ptr.c.control.avail_min = control->avail_min;
+
+	if (runtime->render_flag & SNDRV_NON_DMA_MODE) {
+		hw_avail = snd_pcm_playback_hw_avail(runtime);
+		if ((hw_avail >= runtime->start_threshold)
+			&& (runtime->render_flag &
+				SNDRV_RENDER_STOPPED)) {
+			if (substream->ops->restart)
+				substream->ops->restart(substream);
+		}
+	}
 	sync_ptr.s.status.state = status->state;
 	sync_ptr.s.status.hw_ptr = status->hw_ptr;
 	sync_ptr.s.status.tstamp = status->tstamp;

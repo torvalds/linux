@@ -123,6 +123,11 @@ struct snd_pcm_ops {
 
 #define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
 
+#define SNDRV_DMA_MODE          (0)
+#define SNDRV_NON_DMA_MODE      (1 << 0)
+#define SNDRV_RENDER_STOPPED    (1 << 1)
+#define SNDRV_RENDER_RUNNING    (1 << 2)
+
 /* If you change this don't forget to change rates[] table in pcm_native.c */
 #define SNDRV_PCM_RATE_5512		(1<<0)		/* 5512Hz */
 #define SNDRV_PCM_RATE_8000		(1<<1)		/* 8000Hz */
@@ -390,6 +395,7 @@ struct snd_pcm_runtime {
 	unsigned int rate_num;
 	unsigned int rate_den;
 	unsigned int no_period_wakeup: 1;
+	unsigned int render_flag;
 
 	/* -- SW params -- */
 	int tstamp_mode;		/* mmap timestamp is updated */
