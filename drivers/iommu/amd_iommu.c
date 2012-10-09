@@ -276,39 +276,32 @@ static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
 
 #define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
 
-static int iommu_init_device(struct device *dev)
+static int init_iommu_group(struct device *dev)
 {
-	struct pci_dev *dma_pdev = NULL, *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
 	struct iommu_group *group;
-	u16 alias;
+	struct pci_dev *dma_pdev = NULL;
 	int ret;
 
-	if (dev->archdata.iommu)
+	group = iommu_group_get(dev);
+	if (group) {
+		iommu_group_put(group);
 		return 0;
+	}
 
 	dev_data = find_dev_data(get_device_id(dev));
 	if (!dev_data)
 		return -ENOMEM;
 
-	alias = amd_iommu_alias_table[dev_data->devid];
-	if (alias != dev_data->devid) {
-		struct iommu_dev_data *alias_data;
+	if (dev_data->alias_data) {
+		u16 alias;
 
-		alias_data = find_dev_data(alias);
-		if (alias_data == NULL) {
-			pr_err("AMD-Vi: Warning: Unhandled device %s\n",
-					dev_name(dev));
-			free_dev_data(dev_data);
-			return -ENOTSUPP;
-		}
-		dev_data->alias_data = alias_data;
-
+		alias = amd_iommu_alias_table[dev_data->devid];
 		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
 	}
 
-	if (dma_pdev == NULL)
-		dma_pdev = pci_dev_get(pdev);
+	if (!dma_pdev)
+		dma_pdev = pci_dev_get(to_pci_dev(dev));
 
 	/* Account for quirked devices */
 	swap_pci_ref(&dma_pdev, pci_get_dma_source(dma_pdev));
@@ -358,6 +351,38 @@ root_bus:
 
 	iommu_group_put(group);
 
+	return ret;
+}
+
+static int iommu_init_device(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct iommu_dev_data *dev_data;
+	u16 alias;
+	int ret;
+
+	if (dev->archdata.iommu)
+		return 0;
+
+	dev_data = find_dev_data(get_device_id(dev));
+	if (!dev_data)
+		return -ENOMEM;
+
+	alias = amd_iommu_alias_table[dev_data->devid];
+	if (alias != dev_data->devid) {
+		struct iommu_dev_data *alias_data;
+
+		alias_data = find_dev_data(alias);
+		if (alias_data == NULL) {
+			pr_err("AMD-Vi: Warning: Unhandled device %s\n",
+					dev_name(dev));
+			free_dev_data(dev_data);
+			return -ENOTSUPP;
+		}
+		dev_data->alias_data = alias_data;
+	}
+
+	ret = init_iommu_group(dev);
 	if (ret)
 		return ret;
 
