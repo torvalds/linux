@@ -41,7 +41,7 @@ struct cpufreq_interactive_cpuinfo {
 	struct timer_list cpu_timer;
 	int timer_idlecancel;
 	u64 time_in_idle;
-	u64 idle_exit_time;
+	u64 time_in_idle_timestamp;
 	u64 target_set_time;
 	u64 target_set_time_in_idle;
 	struct cpufreq_policy *policy;
@@ -110,6 +110,16 @@ struct cpufreq_governor cpufreq_gov_interactive = {
 	.owner = THIS_MODULE,
 };
 
+static void cpufreq_interactive_timer_resched(
+	struct cpufreq_interactive_cpuinfo *pcpu)
+{
+	mod_timer_pinned(&pcpu->cpu_timer,
+			 jiffies + usecs_to_jiffies(timer_rate));
+	pcpu->time_in_idle =
+		get_cpu_idle_time_us(smp_processor_id(),
+				     &pcpu->time_in_idle_timestamp);
+}
+
 static void cpufreq_interactive_timer(unsigned long data)
 {
 	u64 now;
@@ -117,8 +127,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned int delta_time;
 	int cpu_load;
 	int load_since_change;
-	u64 time_in_idle;
-	u64 idle_exit_time;
 	struct cpufreq_interactive_cpuinfo *pcpu =
 		&per_cpu(cpuinfo, data);
 	u64 now_idle;
@@ -131,11 +139,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (!pcpu->governor_enabled)
 		goto exit;
 
-	time_in_idle = pcpu->time_in_idle;
-	idle_exit_time = pcpu->idle_exit_time;
 	now_idle = get_cpu_idle_time_us(data, &now);
-	delta_idle = (unsigned int)(now_idle - time_in_idle);
-	delta_time = (unsigned int)(now - idle_exit_time);
+	delta_idle = (unsigned int)(now_idle - pcpu->time_in_idle);
+	delta_time = (unsigned int)(now - pcpu->time_in_idle_timestamp);
 
 	/*
 	 * If timer ran less than 1ms after short-term sample started, retry.
@@ -252,10 +258,7 @@ rearm:
 		if (governidle && pcpu->target_freq == pcpu->policy->min)
 			pcpu->timer_idlecancel = 1;
 
-		pcpu->time_in_idle = get_cpu_idle_time_us(
-			data, &pcpu->idle_exit_time);
-		mod_timer_pinned(&pcpu->cpu_timer,
-				 jiffies + usecs_to_jiffies(timer_rate));
+		cpufreq_interactive_timer_resched(pcpu);
 	}
 
 exit:
@@ -283,12 +286,8 @@ static void cpufreq_interactive_idle_start(void)
 		 * the CPUFreq driver.
 		 */
 		if (!pending) {
-			pcpu->time_in_idle = get_cpu_idle_time_us(
-				smp_processor_id(), &pcpu->idle_exit_time);
 			pcpu->timer_idlecancel = 0;
-			mod_timer_pinned(
-				&pcpu->cpu_timer,
-				jiffies + usecs_to_jiffies(timer_rate));
+			cpufreq_interactive_timer_resched(pcpu);
 		}
 	} else if (governidle) {
 		/*
@@ -315,15 +314,13 @@ static void cpufreq_interactive_idle_end(void)
 
 	/* Arm the timer for 1-2 ticks later if not already. */
 	if (!timer_pending(&pcpu->cpu_timer)) {
-		pcpu->time_in_idle =
-			get_cpu_idle_time_us(smp_processor_id(),
-					     &pcpu->idle_exit_time);
 		pcpu->timer_idlecancel = 0;
-		mod_timer_pinned(
-			&pcpu->cpu_timer,
-			jiffies + usecs_to_jiffies(timer_rate));
+		cpufreq_interactive_timer_resched(pcpu);
+	} else if (!governidle &&
+		   time_after_eq(jiffies, pcpu->cpu_timer.expires)) {
+		del_timer(&pcpu->cpu_timer);
+		cpufreq_interactive_timer(smp_processor_id());
 	}
-
 }
 
 static int cpufreq_interactive_speedchange_task(void *data)
