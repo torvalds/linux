@@ -7039,6 +7039,14 @@ S:	Maintained
 F:	Documentation/svga.txt
 F:	arch/x86/boot/video*
 
+SWIOTLB SUBSYSTEM
+M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	lib/swiotlb.c
+F:	arch/*/kernel/pci-swiotlb.c
+F:	include/linux/swiotlb.h
+
 SYSV FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
 S:	Maintained
