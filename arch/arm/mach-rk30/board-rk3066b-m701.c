@@ -661,6 +661,10 @@ static int rk_fb_io_disable(void)
 	{
 		gpio_set_value(LCD_EN_PIN, !LCD_EN_VALUE);
 	}
+	if(LCD_STB_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_STB_PIN, !LCD_STB_VALUE);
+	}
 	return 0;
 }
 static int rk_fb_io_enable(void)
@@ -672,6 +676,10 @@ static int rk_fb_io_enable(void)
 	if(LCD_EN_PIN !=INVALID_GPIO)
 	{
 		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
+	if(LCD_STB_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_STB_PIN, LCD_STB_VALUE);
 	}
 	return 0;
 }
