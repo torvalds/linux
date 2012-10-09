@@ -45,7 +45,7 @@ static void posix_acl_fix_xattr_userns(
 			break;
 		case ACL_GROUP:
 			gid = make_kgid(from, le32_to_cpu(entry->e_id));
-			entry->e_id = cpu_to_le32(from_kuid(to, uid));
+			entry->e_id = cpu_to_le32(from_kgid(to, gid));
 			break;
 		default:
 			break;
