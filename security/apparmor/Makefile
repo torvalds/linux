@@ -60,6 +60,6 @@ $(obj)/resource.o : $(obj)/rlim_names.h
 $(obj)/capability_names.h : $(srctree)/include/linux/capability.h \
 			    $(src)/Makefile
 	$(call cmd,make-caps)
-$(obj)/rlim_names.h : $(srctree)/include/asm-generic/resource.h \
+$(obj)/rlim_names.h : $(srctree)/include/uapi/asm-generic/resource.h \
 		      $(src)/Makefile
 	$(call cmd,make-rlim)

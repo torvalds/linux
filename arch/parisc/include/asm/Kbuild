@@ -1,4 +1,5 @@
 include include/asm-generic/Kbuild.asm
 
 header-y += pdc.h
+generic-y += clkdev.h
 generic-y += word-at-a-time.h

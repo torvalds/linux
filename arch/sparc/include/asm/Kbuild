@@ -17,6 +17,7 @@ header-y += uctx.h
 header-y += utrap.h
 header-y += watchdog.h
 
+generic-y += clkdev.h
 generic-y += div64.h
 generic-y += local64.h
 generic-y += irq_regs.h
