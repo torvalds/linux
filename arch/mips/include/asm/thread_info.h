@@ -139,10 +139,10 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define _TIF_WORK_SYSCALL_EXIT	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT)
 
 /* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK		(0x0000ffef &				\
-					~(_TIF_SECCOMP | _TIF_SYSCALL_AUDIT))
+#define _TIF_WORK_MASK		\
+	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_NOTIFY_RESUME)
 /* work to do on any return to u-space */
-#define _TIF_ALLWORK_MASK	(0x8000ffff & ~_TIF_SECCOMP)
+#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | _TIF_WORK_SYSCALL_EXIT)
 
 #endif /* __KERNEL__ */
 
