@@ -7,8 +7,22 @@
  *      2 of the License, or (at your option) any later version.
  */
 #include <linux/string.h>
+#include <asm/udbg.h>
 #include <asm/time.h>
 #include "nonstdio.h"
+
+
+static int xmon_write(const void *ptr, int nb)
+{
+	return udbg_write(ptr, nb);
+}
+
+static int xmon_readchar(void)
+{
+	if (udbg_getc)
+		return udbg_getc();
+	return -1;
+}
 
 int xmon_putchar(int c)
 {
