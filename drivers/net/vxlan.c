@@ -1090,14 +1090,18 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (data[IFLA_VXLAN_LOCAL])
 		vxlan->saddr = nla_get_be32(data[IFLA_VXLAN_LOCAL]);
 
-	if (data[IFLA_VXLAN_LINK]) {
-		vxlan->link = nla_get_u32(data[IFLA_VXLAN_LINK]);
+	if (data[IFLA_VXLAN_LINK] &&
+	    (vxlan->link = nla_get_u32(data[IFLA_VXLAN_LINK]))) {
+		struct net_device *lowerdev
+			 = __dev_get_by_index(net, vxlan->link);
 
-		if (!tb[IFLA_MTU]) {
-			struct net_device *lowerdev;
-			lowerdev = __dev_get_by_index(net, vxlan->link);
-			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
+		if (!lowerdev) {
+			pr_info("ifindex %d does not exist\n", vxlan->link);
+			return -ENODEV;
 		}
+
+		if (!tb[IFLA_MTU])
+			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
 	}
 
 	if (data[IFLA_VXLAN_TOS])
