@@ -537,7 +537,6 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	__skb_pull(skb, sizeof(struct vxlanhdr));
-	skb_postpull_rcsum(skb, eth_hdr(skb), sizeof(struct vxlanhdr));
 
 	/* Is this VNI defined? */
 	vni = ntohl(vxh->vx_vni) >> 8;
@@ -556,7 +555,6 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	/* Re-examine inner Ethernet packet */
 	oip = ip_hdr(skb);
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
-	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	/* Ignore packet loops (and multicast echo) */
 	if (compare_ether_addr(eth_hdr(skb)->h_source,
@@ -568,6 +566,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	__skb_tunnel_rx(skb, vxlan->dev);
 	skb_reset_network_header(skb);
+	skb->ip_summed = CHECKSUM_NONE;
 
 	err = IP_ECN_decapsulate(oip, skb);
 	if (unlikely(err)) {
