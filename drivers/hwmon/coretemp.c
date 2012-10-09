@@ -34,7 +34,6 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/pci.h>
 #include <linux/smp.h>
 #include <linux/moduleparam.h>
 #include <asm/msr.h>
@@ -222,7 +221,6 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 	int usemsr_ee = 1;
 	int err;
 	u32 eax, edx;
-	struct pci_dev *host_bridge;
 	int i;
 
 	/* explicit tjmax table entries override heuristics */
@@ -231,31 +229,26 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 			return tjmax_table[i].tjmax;
 	}
 
+	/* Atom CPUs */
+
+	if (c->x86_model == 0x1c) {
+		/*
+		 * TjMax for stepping 10 CPUs (N4xx, N5xx, D4xx, D5xx)
+		 * is 100 degrees C, for all others it is 90 degrees C.
+		 */
+		if (c->x86_mask == 10)
+			return 100000;
+		return 90000;
+	} else if (c->x86_model == 0x26 || c->x86_model == 0x27) {
+		return 90000;
+	} else if (c->x86_model == 0x36) {
+		return 100000;
+	}
+
 	/* Early chips have no MSR for TjMax */
 
 	if (c->x86_model == 0xf && c->x86_mask < 4)
 		usemsr_ee = 0;
-
-	/* Atom CPUs */
-
-	if (c->x86_model == 0x1c || c->x86_model == 0x26
-	    || c->x86_model == 0x27) {
-		usemsr_ee = 0;
-
-		host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
-
-		if (host_bridge && host_bridge->vendor == PCI_VENDOR_ID_INTEL
-		    && (host_bridge->device == 0xa000	/* NM10 based nettop */
-		    || host_bridge->device == 0xa010))	/* NM10 based netbook */
-			tjmax = 100000;
-		else
-			tjmax = 90000;
-
-		pci_dev_put(host_bridge);
-	} else if (c->x86_model == 0x36) {
-		usemsr_ee = 0;
-		tjmax = 100000;
-	}
 
 	if (c->x86_model > 0xe && usemsr_ee) {
 		u8 platform_id;
