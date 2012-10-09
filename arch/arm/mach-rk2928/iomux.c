@@ -306,7 +306,7 @@ void gpio_set_iomux(int gpio)
         struct mux_config *cfg;
         
         cfg = &rk30_muxs[(gpio - PIN_BASE)];
-        
+        cfg->mode = 0;
         rk30_mux_set(cfg);
 }
 EXPORT_SYMBOL(gpio_set_iomux);

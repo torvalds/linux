@@ -373,6 +373,63 @@ static inline int irq_to_gpio(unsigned irq)
 {
 	return irq - NR_GIC_IRQS + PIN_BASE;
 }
+static inline int port_output_init(unsigned int value, int on, char *name)
+{
+        int ret = 0;
+        struct port_config port;
+
+        port = get_port_config(value);
+        ret = gpio_request(port.gpio, name);
+        if(ret < 0)
+                return ret;
+        gpio_pull_updown(port.gpio, port.io.pull_mode);
+        gpio_direction_output(port.gpio, (on)? !port.io.active_low: !!port.io.active_low);
+
+        return 0;
+}
+static inline void port_output_on(unsigned int value)
+{
+        struct port_config port;
+
+        port = get_port_config(value);
+        gpio_set_value(port.gpio, !port.io.active_low);
+}
+static inline void port_output_off(unsigned int value)
+{
+        struct port_config port;
+
+        port = get_port_config(value);
+        gpio_set_value(port.gpio, !!port.io.active_low);
+}
+static inline void port_deinit(unsigned int value)
+{
+        struct port_config port;
+
+        port = get_port_config(value);
+        gpio_free(port.gpio);
+}
+static inline int port_input_init(unsigned int value, char *name)
+{
+        int ret = 0;
+        struct port_config port;
+
+        port = get_port_config(value);
+        ret = gpio_request(port.gpio, name);
+        if(ret < 0)
+                return ret;
+        gpio_pull_updown(port.gpio, port.io.pull_mode);
+        gpio_direction_input(port.gpio);
+
+        return 0;
+}
+static inline int port_get_value(unsigned int value)
+{
+        struct port_config port;
+
+        port = get_port_config(value);
+        return gpio_get_value(port.gpio);
+}
+
 #endif	/* __ASSEMBLY__ */
 
 #endif
