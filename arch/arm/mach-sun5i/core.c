@@ -102,39 +102,6 @@ void __init sw_core_map_io(void)
 	pr_brom((void*)SW_VA_BROM_BASE);
 }
 
-#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
-static u32 DRAMC_get_dram_size(void)
-{
-	u32 reg_val;
-	u32 dram_size;
-	u32 chip_den;
-
-	reg_val = readl(SW_DRAM_SDR_DCR);
-	chip_den = (reg_val >> 3) & 0x7;
-	if(chip_den == 0)
-		dram_size = 32;
-	else if(chip_den == 1)
-		dram_size = 64;
-	else if(chip_den == 2)
-		dram_size = 128;
-	else if(chip_den == 3)
-		dram_size = 256;
-	else if(chip_den == 4)
-		dram_size = 512;
-	else
-		dram_size = 1024;
-
-	if( ((reg_val>>1)&0x3) == 0x1)
-		dram_size<<=1;
-	if( ((reg_val>>6)&0x7) == 0x3)
-		dram_size<<=1;
-	if( ((reg_val>>10)&0x3) == 0x1)
-		dram_size<<=1;
-
-	return dram_size;
-}
-#endif
-
 static void __init sw_core_fixup(struct tag *t, char **cmdline,
 				 struct meminfo *mi)
 {
@@ -146,29 +113,11 @@ static void __init sw_core_fixup(struct tag *t, char **cmdline,
 	mali = 0;
 #endif
 
-#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
-	size = DRAMC_get_dram_size();
-	early_printk("DRAM: %d", size);
-
-	if (size <= 512) {
-		mi->nr_banks = 1;
-		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (size - mali);
-	} else {
-		mi->nr_banks = 2;
-		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (512 - mali);
-		mi->bank[1].start = 0x60000000;
-		mi->bank[1].size = SZ_1M * (size - 512);
-	}
-	banks = mi->nr_banks;
-#else
 	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
 		size += t->u.mem.size / SZ_1M;
 		if (banks++ == 0)
 			t->u.mem.size -= mali * SZ_1M;
 	}
-#endif
 
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, banks);
 	if (mali > 0)

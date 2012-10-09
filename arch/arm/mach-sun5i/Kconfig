@@ -8,8 +8,4 @@ config SW_DEBUG_UART
 	  Choose the UART on which kernel low-level debug messages should be
 	  output.
 
-config SUNXI_IGNORE_ATAG_MEM
-	bool "Use AllWinner's hack to assume memory size"
-	default n
-
 endif
