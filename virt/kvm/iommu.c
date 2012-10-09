@@ -168,11 +168,7 @@ int kvm_assign_device(struct kvm *kvm,
 
 	r = iommu_attach_device(domain, &pdev->dev);
 	if (r) {
-		printk(KERN_ERR "assign device %x:%x:%x.%x failed",
-			pci_domain_nr(pdev->bus),
-			pdev->bus->number,
-			PCI_SLOT(pdev->devfn),
-			PCI_FUNC(pdev->devfn));
+		dev_err(&pdev->dev, "kvm assign device failed ret %d", r);
 		return r;
 	}
 
