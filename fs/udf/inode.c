@@ -587,7 +587,6 @@ out:
 static sector_t inode_getblk(struct inode *inode, sector_t block,
 			     int *err, int *new)
 {
-	static sector_t last_block;
 	struct kernel_long_ad laarr[EXTENT_MERGE_SIZE];
 	struct extent_position prev_epos, cur_epos, next_epos;
 	int count = 0, startnum = 0, endnum = 0;
@@ -677,7 +676,6 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		return newblock;
 	}
 
-	last_block = block;
 	/* Are we beyond EOF? */
 	if (etype == -1) {
 		int ret;
@@ -719,7 +717,6 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 			memset(&laarr[c].extLocation, 0x00,
 				sizeof(struct kernel_lb_addr));
 			count++;
-			endnum++;
 		}
 		endnum = c + 1;
 		lastblock = 1;
