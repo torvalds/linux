@@ -324,7 +324,7 @@ extern int mesh_allocated;
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 {
 	return sdata->u.mesh.mshcfg.dot11MeshMaxPeerLinks -
-	       atomic_read(&sdata->u.mesh.mshstats.estab_plinks);
+	       atomic_read(&sdata->u.mesh.estab_plinks);
 }
 
 static inline bool mesh_plink_availables(struct ieee80211_sub_if_data *sdata)

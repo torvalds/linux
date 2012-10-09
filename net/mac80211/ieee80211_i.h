@@ -316,7 +316,6 @@ struct mesh_stats {
 	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
 	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
 	__u32 dropped_frames_congestion;/* Not forwarded due to congestion */
-	atomic_t estab_plinks;
 };
 
 #define PREQ_Q_F_START		0x1
@@ -599,6 +598,7 @@ struct ieee80211_if_mesh {
 	int preq_queue_len;
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
+	atomic_t estab_plinks;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
 	int num_gates;
