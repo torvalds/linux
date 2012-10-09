@@ -2291,9 +2291,9 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep,const struc
 		u32 pll_mode;
 		u32 pll_id=clk->pll->id;
 		pll_mode=cru_readl(CRU_MODE_CON)&PLL_MODE_MSK(pll_id);
-		if(pll_mode==PLL_MODE_SLOW(pll_id))
+		if (pll_mode == (PLL_MODE_SLOW(pll_id) & PLL_MODE_MSK(pll_id)))
 			seq_printf(s, "slow   ");
-		else if(pll_mode==PLL_MODE_NORM(pll_id))
+		else if (pll_mode == (PLL_MODE_NORM(pll_id) & PLL_MODE_MSK(pll_id)))
 			seq_printf(s, "normal ");
 		if(cru_readl(PLL_CONS(pll_id,3)) & PLL_BYPASS) 
 			seq_printf(s, "bypass ");
