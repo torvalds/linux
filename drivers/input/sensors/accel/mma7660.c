@@ -54,7 +54,7 @@
 #define MMA7660_REG_PD          0xa
 
 
-#define MMA7660_RANGE			2000000
+#define MMA7660_RANGE			1500000
 
 /* LIS3DH */
 #define MMA7660_PRECISION       6
