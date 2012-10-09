@@ -1142,6 +1142,18 @@ exit:
 	return fce;
 }
 
+static int __fw_entry_found(const char *name)
+{
+	struct firmware_cache *fwc = &fw_cache;
+	struct fw_cache_entry *fce;
+
+	list_for_each_entry(fce, &fwc->fw_names, list) {
+		if (!strcmp(fce->name, name))
+			return 1;
+	}
+	return 0;
+}
+
 static int fw_cache_piggyback_on_request(const char *name)
 {
 	struct firmware_cache *fwc = &fw_cache;
@@ -1149,10 +1161,8 @@ static int fw_cache_piggyback_on_request(const char *name)
 	int ret = 0;
 
 	spin_lock(&fwc->name_lock);
-	list_for_each_entry(fce, &fwc->fw_names, list) {
-		if (!strcmp(fce->name, name))
-			goto found;
-	}
+	if (__fw_entry_found(name))
+		goto found;
 
 	fce = alloc_fw_cache_entry(name);
 	if (fce) {
@@ -1229,11 +1239,19 @@ static void dev_cache_fw_image(struct device *dev, void *data)
 		list_del(&fce->list);
 
 		spin_lock(&fwc->name_lock);
-		fwc->cnt++;
-		list_add(&fce->list, &fwc->fw_names);
+		/* only one cache entry for one firmware */
+		if (!__fw_entry_found(fce->name)) {
+			fwc->cnt++;
+			list_add(&fce->list, &fwc->fw_names);
+		} else {
+			free_fw_cache_entry(fce);
+			fce = NULL;
+		}
 		spin_unlock(&fwc->name_lock);
 
-		async_schedule(__async_dev_cache_fw_image, (void *)fce);
+		if (fce)
+			async_schedule(__async_dev_cache_fw_image,
+				       (void *)fce);
 	}
 }
 
@@ -1274,6 +1292,9 @@ static void device_cache_fw_images(void)
 	DEFINE_WAIT(wait);
 
 	pr_debug("%s\n", __func__);
+
+	/* cancel uncache work */
+	cancel_delayed_work_sync(&fwc->work);
 
 	/*
 	 * use small loading timeout for caching devices' firmware
