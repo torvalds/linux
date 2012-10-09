@@ -1,7 +1,7 @@
 /*
  * wm_hubs.c  --  WM8993/4 common code
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

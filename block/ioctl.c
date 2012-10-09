@@ -13,7 +13,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 {
 	struct block_device *bdevp;
 	struct gendisk *disk;
-	struct hd_struct *part;
+	struct hd_struct *part, *lpart;
 	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
 	struct disk_part_iter piter;
@@ -36,8 +36,8 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 		case BLKPG_ADD_PARTITION:
 			start = p.start >> 9;
 			length = p.length >> 9;
-			/* check for fit in a hd_struct */ 
-			if (sizeof(sector_t) == sizeof(long) && 
+			/* check for fit in a hd_struct */
+			if (sizeof(sector_t) == sizeof(long) &&
 			    sizeof(long long) > sizeof(long)) {
 				long pstart = start, plength = length;
 				if (pstart != start || plength != length
@@ -91,6 +91,59 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			mutex_unlock(&bdevp->bd_mutex);
 			bdput(bdevp);
 
+			return 0;
+		case BLKPG_RESIZE_PARTITION:
+			start = p.start >> 9;
+			/* new length of partition in bytes */
+			length = p.length >> 9;
+			/* check for fit in a hd_struct */
+			if (sizeof(sector_t) == sizeof(long) &&
+			    sizeof(long long) > sizeof(long)) {
+				long pstart = start, plength = length;
+				if (pstart != start || plength != length
+				    || pstart < 0 || plength < 0)
+					return -EINVAL;
+			}
+			part = disk_get_part(disk, partno);
+			if (!part)
+				return -ENXIO;
+			bdevp = bdget(part_devt(part));
+			if (!bdevp) {
+				disk_put_part(part);
+				return -ENOMEM;
+			}
+			mutex_lock(&bdevp->bd_mutex);
+			mutex_lock_nested(&bdev->bd_mutex, 1);
+			if (start != part->start_sect) {
+				mutex_unlock(&bdevp->bd_mutex);
+				mutex_unlock(&bdev->bd_mutex);
+				bdput(bdevp);
+				disk_put_part(part);
+				return -EINVAL;
+			}
+			/* overlap? */
+			disk_part_iter_init(&piter, disk,
+					    DISK_PITER_INCL_EMPTY);
+			while ((lpart = disk_part_iter_next(&piter))) {
+				if (lpart->partno != partno &&
+				   !(start + length <= lpart->start_sect ||
+				   start >= lpart->start_sect + lpart->nr_sects)
+				   ) {
+					disk_part_iter_exit(&piter);
+					mutex_unlock(&bdevp->bd_mutex);
+					mutex_unlock(&bdev->bd_mutex);
+					bdput(bdevp);
+					disk_put_part(part);
+					return -EBUSY;
+				}
+			}
+			disk_part_iter_exit(&piter);
+			part_nr_sects_write(part, (sector_t)length);
+			i_size_write(bdevp->bd_inode, p.length);
+			mutex_unlock(&bdevp->bd_mutex);
+			mutex_unlock(&bdev->bd_mutex);
+			bdput(bdevp);
+			disk_put_part(part);
 			return 0;
 		default:
 			return -EINVAL;

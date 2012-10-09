@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 ST-Ericsson AB
+ * Copyright (C) 2007-2012 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * ST DDC I2C master mode driver, used in e.g. U300 series platforms.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -139,8 +139,6 @@ module_param(scl_frequency, uint,  0644);
  * struct stu300_dev - the stu300 driver state holder
  * @pdev: parent platform device
  * @adapter: corresponding I2C adapter
- * @phybase: location of I/O area in memory
- * @physize: size of I/O area in memory
  * @clk: hardware block clock
  * @irq: assigned interrupt line
  * @cmd_issue_lock: this locks the following cmd_ variables
@@ -155,8 +153,6 @@ module_param(scl_frequency, uint,  0644);
 struct stu300_dev {
 	struct platform_device	*pdev;
 	struct i2c_adapter	adapter;
-	resource_size_t		phybase;
-	resource_size_t		physize;
 	void __iomem		*virtbase;
 	struct clk		*clk;
 	int			irq;
@@ -873,64 +869,44 @@ stu300_probe(struct platform_device *pdev)
 	int ret = 0;
 	char clk_name[] = "I2C0";
 
-	dev = kzalloc(sizeof(struct stu300_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct stu300_dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&pdev->dev, "could not allocate device struct\n");
-		ret = -ENOMEM;
-		goto err_no_devmem;
+		return -ENOMEM;
 	}
 
 	bus_nr = pdev->id;
 	clk_name[3] += (char)bus_nr;
-	dev->clk = clk_get(&pdev->dev, clk_name);
+	dev->clk = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(dev->clk)) {
-		ret = PTR_ERR(dev->clk);
 		dev_err(&pdev->dev, "could not retrieve i2c bus clock\n");
-		goto err_no_clk;
+		return PTR_ERR(dev->clk);
 	}
 
 	dev->pdev = pdev;
-	platform_set_drvdata(pdev, dev);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto err_no_resource;
-	}
+	if (!res)
+		return -ENOENT;
 
-	dev->phybase = res->start;
-	dev->physize = resource_size(res);
-
-	if (request_mem_region(dev->phybase, dev->physize,
-			       NAME " I/O Area") == NULL) {
-		ret = -EBUSY;
-		goto err_no_ioregion;
-	}
-
-	dev->virtbase = ioremap(dev->phybase, dev->physize);
+	dev->virtbase = devm_request_and_ioremap(&pdev->dev, res);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
-	if (!dev->virtbase) {
-		ret = -ENOMEM;
-		goto err_no_ioremap;
-	}
+	if (!dev->virtbase)
+		return -ENOMEM;
 
 	dev->irq = platform_get_irq(pdev, 0);
-	if (request_irq(dev->irq, stu300_irh, 0,
-			NAME, dev)) {
-		ret = -EIO;
-		goto err_no_irq;
-	}
+	ret = devm_request_irq(&pdev->dev, dev->irq, stu300_irh, 0, NAME, dev);
+	if (ret < 0)
+		return ret;
 
 	dev->speed = scl_frequency;
 
-	clk_enable(dev->clk);
+	clk_prepare_enable(dev->clk);
 	ret = stu300_init_hw(dev);
 	clk_disable(dev->clk);
-
 	if (ret != 0) {
 		dev_err(&dev->pdev->dev, "error initializing hardware.\n");
-		goto err_init_hw;
+		return -EIO;
 	}
 
 	/* IRQ event handling initialization */
@@ -952,57 +928,43 @@ stu300_probe(struct platform_device *pdev)
 	/* i2c device drivers may be active on return from add_adapter() */
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret) {
-		dev_err(&dev->pdev->dev, "failure adding ST Micro DDC "
+		dev_err(&pdev->dev, "failure adding ST Micro DDC "
 		       "I2C adapter\n");
-		goto err_add_adapter;
+		return ret;
 	}
-	return 0;
 
- err_add_adapter:
- err_init_hw:
-	free_irq(dev->irq, dev);
- err_no_irq:
-	iounmap(dev->virtbase);
- err_no_ioremap:
-	release_mem_region(dev->phybase, dev->physize);
- err_no_ioregion:
-	platform_set_drvdata(pdev, NULL);
- err_no_resource:
-	clk_put(dev->clk);
- err_no_clk:
-	kfree(dev);
- err_no_devmem:
-	dev_err(&pdev->dev, "failed to add " NAME " adapter: %d\n",
-		pdev->id);
-	return ret;
+	platform_set_drvdata(pdev, dev);
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int stu300_suspend(struct platform_device *pdev, pm_message_t state)
+static int stu300_suspend(struct device *device)
 {
-	struct stu300_dev *dev = platform_get_drvdata(pdev);
+	struct stu300_dev *dev = dev_get_drvdata(device);
 
 	/* Turn off everything */
 	stu300_wr8(0x00, dev->virtbase + I2C_CR);
 	return 0;
 }
 
-static int stu300_resume(struct platform_device *pdev)
+static int stu300_resume(struct device *device)
 {
 	int ret = 0;
-	struct stu300_dev *dev = platform_get_drvdata(pdev);
+	struct stu300_dev *dev = dev_get_drvdata(device);
 
 	clk_enable(dev->clk);
 	ret = stu300_init_hw(dev);
 	clk_disable(dev->clk);
 
 	if (ret != 0)
-		dev_err(&pdev->dev, "error re-initializing hardware.\n");
+		dev_err(device, "error re-initializing hardware.\n");
 	return ret;
 }
+
+static SIMPLE_DEV_PM_OPS(stu300_pm, stu300_suspend, stu300_resume);
+#define STU300_I2C_PM	(&stu300_pm)
 #else
-#define stu300_suspend NULL
-#define stu300_resume NULL
+#define STU300_I2C_PM	NULL
 #endif
 
 static int __exit
@@ -1013,12 +975,7 @@ stu300_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 	/* Turn off everything */
 	stu300_wr8(0x00, dev->virtbase + I2C_CR);
-	free_irq(dev->irq, dev);
-	iounmap(dev->virtbase);
-	release_mem_region(dev->phybase, dev->physize);
-	clk_put(dev->clk);
 	platform_set_drvdata(pdev, NULL);
-	kfree(dev);
 	return 0;
 }
 
@@ -1026,10 +983,9 @@ static struct platform_driver stu300_i2c_driver = {
 	.driver = {
 		.name	= NAME,
 		.owner	= THIS_MODULE,
+		.pm	= STU300_I2C_PM,
 	},
 	.remove		= __exit_p(stu300_remove),
-	.suspend        = stu300_suspend,
-	.resume         = stu300_resume,
 
 };
 

@@ -179,7 +179,7 @@ static int __init mc13783_adc_probe(struct platform_device *pdev)
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	char *dash;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -194,7 +194,7 @@ static int __init mc13783_adc_probe(struct platform_device *pdev)
 	/* Register sysfs hooks */
 	ret = sysfs_create_group(&pdev->dev.kobj, &mc13783_group_base);
 	if (ret)
-		goto out_err_create_base;
+		return ret;
 
 	if (id->driver_data & MC13783_ADC_16CHANS) {
 		ret = sysfs_create_group(&pdev->dev.kobj,
@@ -230,11 +230,6 @@ out_err_create_ts:
 out_err_create_16chans:
 
 	sysfs_remove_group(&pdev->dev.kobj, &mc13783_group_base);
-out_err_create_base:
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(priv);
-
 	return ret;
 }
 
@@ -252,9 +247,6 @@ static int __devexit mc13783_adc_remove(struct platform_device *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, &mc13783_group_16chans);
 
 	sysfs_remove_group(&pdev->dev.kobj, &mc13783_group_base);
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(priv);
 
 	return 0;
 }

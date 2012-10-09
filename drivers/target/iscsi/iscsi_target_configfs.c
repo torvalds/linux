@@ -47,28 +47,6 @@ struct lio_target_configfs_attribute {
 	ssize_t (*store)(void *, const char *, size_t);
 };
 
-struct iscsi_portal_group *lio_get_tpg_from_tpg_item(
-	struct config_item *item,
-	struct iscsi_tiqn **tiqn_out)
-{
-	struct se_portal_group *se_tpg = container_of(to_config_group(item),
-					struct se_portal_group, tpg_group);
-	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
-	int ret;
-
-	if (!tpg) {
-		pr_err("Unable to locate struct iscsi_portal_group "
-			"pointer\n");
-		return NULL;
-	}
-	ret = iscsit_get_tpg(tpg);
-	if (ret < 0)
-		return NULL;
-
-	*tiqn_out = tpg->tpg_tiqn;
-	return tpg;
-}
-
 /* Start items for lio_target_portal_cit */
 
 static ssize_t lio_target_np_show_sctp(

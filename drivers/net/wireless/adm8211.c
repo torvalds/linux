@@ -1738,8 +1738,7 @@ static int adm8211_alloc_rings(struct ieee80211_hw *dev)
 		return -ENOMEM;
 	}
 
-	priv->tx_ring = (struct adm8211_desc *)(priv->rx_ring +
-						priv->rx_ring_size);
+	priv->tx_ring = priv->rx_ring + priv->rx_ring_size;
 	priv->tx_ring_dma = priv->rx_ring_dma +
 			    sizeof(struct adm8211_desc) * priv->rx_ring_size;
 
@@ -1855,7 +1854,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(perm_addr)) {
 		printk(KERN_WARNING "%s (adm8211): Invalid hwaddr in EEPROM!\n",
 		       pci_name(pdev));
-		random_ether_addr(perm_addr);
+		eth_random_addr(perm_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 

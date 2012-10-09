@@ -162,7 +162,7 @@ static void bclink_update_last_sent(struct tipc_node *node, u32 seqno)
 }
 
 
-/*
+/**
  * tipc_bclink_retransmit_to - get most recent node to request retransmission
  *
  * Called with bc_lock locked
@@ -270,7 +270,7 @@ exit:
 	spin_unlock_bh(&bc_lock);
 }
 
-/*
+/**
  * tipc_bclink_update_link_state - update broadcast link state
  *
  * tipc_net_lock and node lock set
@@ -330,7 +330,7 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 	}
 }
 
-/*
+/**
  * bclink_peek_nack - monitor retransmission requests sent by other nodes
  *
  * Delay any upcoming NACK by this node if another node has already
@@ -381,7 +381,7 @@ exit:
 	return res;
 }
 
-/*
+/**
  * bclink_accept_pkt - accept an incoming, in-sequence broadcast packet
  *
  * Called with both sending node's lock and bc_lock taken.
@@ -406,7 +406,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	}
 }
 
-/*
+/**
  * tipc_bclink_recv_pkt - receive a broadcast packet, and deliver upwards
  *
  * tipc_net_lock is read_locked, no other locks set
@@ -701,48 +701,43 @@ void tipc_bcbearer_sort(void)
 
 int tipc_bclink_stats(char *buf, const u32 buf_size)
 {
-	struct print_buf pb;
+	int ret;
+	struct tipc_stats *s;
 
 	if (!bcl)
 		return 0;
 
-	tipc_printbuf_init(&pb, buf, buf_size);
-
 	spin_lock_bh(&bc_lock);
 
-	tipc_printf(&pb, "Link <%s>\n"
-			 "  Window:%u packets\n",
-		    bcl->name, bcl->queue_limit[0]);
-	tipc_printf(&pb, "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
-		    bcl->stats.recv_info,
-		    bcl->stats.recv_fragments,
-		    bcl->stats.recv_fragmented,
-		    bcl->stats.recv_bundles,
-		    bcl->stats.recv_bundled);
-	tipc_printf(&pb, "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
-		    bcl->stats.sent_info,
-		    bcl->stats.sent_fragments,
-		    bcl->stats.sent_fragmented,
-		    bcl->stats.sent_bundles,
-		    bcl->stats.sent_bundled);
-	tipc_printf(&pb, "  RX naks:%u defs:%u dups:%u\n",
-		    bcl->stats.recv_nacks,
-		    bcl->stats.deferred_recv,
-		    bcl->stats.duplicates);
-	tipc_printf(&pb, "  TX naks:%u acks:%u dups:%u\n",
-		    bcl->stats.sent_nacks,
-		    bcl->stats.sent_acks,
-		    bcl->stats.retransmitted);
-	tipc_printf(&pb, "  Congestion bearer:%u link:%u  Send queue max:%u avg:%u\n",
-		    bcl->stats.bearer_congs,
-		    bcl->stats.link_congs,
-		    bcl->stats.max_queue_sz,
-		    bcl->stats.queue_sz_counts
-		    ? (bcl->stats.accu_queue_sz / bcl->stats.queue_sz_counts)
-		    : 0);
+	s = &bcl->stats;
+
+	ret = tipc_snprintf(buf, buf_size, "Link <%s>\n"
+			    "  Window:%u packets\n",
+			    bcl->name, bcl->queue_limit[0]);
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			     s->recv_info, s->recv_fragments,
+			     s->recv_fragmented, s->recv_bundles,
+			     s->recv_bundled);
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			     s->sent_info, s->sent_fragments,
+			     s->sent_fragmented, s->sent_bundles,
+			     s->sent_bundled);
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  RX naks:%u defs:%u dups:%u\n",
+			     s->recv_nacks, s->deferred_recv, s->duplicates);
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  TX naks:%u acks:%u dups:%u\n",
+			     s->sent_nacks, s->sent_acks, s->retransmitted);
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  Congestion bearer:%u link:%u  Send queue max:%u avg:%u\n",
+			     s->bearer_congs, s->link_congs, s->max_queue_sz,
+			     s->queue_sz_counts ?
+			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
 
 	spin_unlock_bh(&bc_lock);
-	return tipc_printbuf_validate(&pb);
+	return ret;
 }
 
 int tipc_bclink_reset_stats(void)
@@ -880,7 +875,7 @@ void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port)
 		if (!item->next) {
 			item->next = kmalloc(sizeof(*item), GFP_ATOMIC);
 			if (!item->next) {
-				warn("Incomplete multicast delivery, no memory\n");
+				pr_warn("Incomplete multicast delivery, no memory\n");
 				return;
 			}
 			item->next->next = NULL;

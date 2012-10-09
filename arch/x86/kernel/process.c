@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -145,16 +147,14 @@ void show_regs_common(void)
 	/* Board Name is optional */
 	board = dmi_get_system_info(DMI_BOARD_NAME);
 
-	printk(KERN_CONT "\n");
-	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s",
-		current->pid, current->comm, print_tainted(),
-		init_utsname()->release,
-		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version);
-	printk(KERN_CONT " %s %s", vendor, product);
-	if (board)
-		printk(KERN_CONT "/%s", board);
-	printk(KERN_CONT "\n");
+	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s %s %s%s%s\n",
+	       current->pid, current->comm, print_tainted(),
+	       init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version,
+	       vendor, product,
+	       board ? "/" : "",
+	       board ? board : "");
 }
 
 void flush_thread(void)
@@ -645,7 +645,7 @@ static void amd_e400_idle(void)
 			amd_e400_c1e_detected = true;
 			if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 				mark_tsc_unstable("TSC halt in AMD C1E");
-			printk(KERN_INFO "System has AMD C1E enabled\n");
+			pr_info("System has AMD C1E enabled\n");
 		}
 	}
 
@@ -659,8 +659,7 @@ static void amd_e400_idle(void)
 			 */
 			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
 					   &cpu);
-			printk(KERN_INFO "Switch to broadcast mode on CPU%d\n",
-			       cpu);
+			pr_info("Switch to broadcast mode on CPU%d\n", cpu);
 		}
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 
@@ -681,8 +680,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	if (pm_idle == poll_idle && smp_num_siblings > 1) {
-		printk_once(KERN_WARNING "WARNING: polling idle and HT enabled,"
-			" performance may degrade.\n");
+		pr_warn_once("WARNING: polling idle and HT enabled, performance may degrade\n");
 	}
 #endif
 	if (pm_idle)
@@ -692,11 +690,11 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		/*
 		 * One CPU supports mwait => All CPUs supports mwait
 		 */
-		printk(KERN_INFO "using mwait in idle threads.\n");
+		pr_info("using mwait in idle threads\n");
 		pm_idle = mwait_idle;
 	} else if (cpu_has_amd_erratum(amd_erratum_400)) {
 		/* E400: APIC timer interrupt does not wake up CPU from C1e */
-		printk(KERN_INFO "using AMD E400 aware idle routine\n");
+		pr_info("using AMD E400 aware idle routine\n");
 		pm_idle = amd_e400_idle;
 	} else
 		pm_idle = default_idle;
@@ -715,7 +713,7 @@ static int __init idle_setup(char *str)
 		return -EINVAL;
 
 	if (!strcmp(str, "poll")) {
-		printk("using polling idle threads.\n");
+		pr_info("using polling idle threads\n");
 		pm_idle = poll_idle;
 		boot_option_idle_override = IDLE_POLL;
 	} else if (!strcmp(str, "mwait")) {

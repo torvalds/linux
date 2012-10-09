@@ -93,9 +93,6 @@ static struct twl4030_usb_data omap3logic_usb_data = {
 
 
 static struct twl4030_platform_data omap3logic_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
 	.gpio		= &omap3logic_gpio_data,
 	.vmmc1		= &omap3logic_vmmc1,

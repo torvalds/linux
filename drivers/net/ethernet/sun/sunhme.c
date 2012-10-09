@@ -1249,7 +1249,6 @@ static void happy_meal_clean_rings(struct happy_meal *hp)
 static void happy_meal_init_rings(struct happy_meal *hp)
 {
 	struct hmeal_init_block *hb = hp->happy_block;
-	struct net_device *dev = hp->dev;
 	int i;
 
 	HMD(("happy_meal_init_rings: counters to zero, "));
@@ -1270,7 +1269,6 @@ static void happy_meal_init_rings(struct happy_meal *hp)
 			continue;
 		}
 		hp->rx_skbs[i] = skb;
-		skb->dev = dev;
 
 		/* Because we reserve afterwards. */
 		skb_put(skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
@@ -2031,7 +2029,6 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 			}
 			dma_unmap_single(hp->dma_dev, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROM_DEVICE);
 			hp->rx_skbs[elem] = new_skb;
-			new_skb->dev = dev;
 			skb_put(new_skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
 			hme_write_rxd(hp, this,
 				      (RXFLAG_OWN|((RX_BUF_ALLOC_SIZE-RX_OFFSET)<<16)),

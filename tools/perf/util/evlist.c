@@ -214,7 +214,7 @@ int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
 		attrs[i].type	       = PERF_TYPE_TRACEPOINT;
 		attrs[i].config	       = err;
 	        attrs[i].sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
-					  PERF_SAMPLE_CPU);
+					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD);
 		attrs[i].sample_period = 1;
 	}
 
@@ -224,8 +224,8 @@ out_free_attrs:
 	return err;
 }
 
-static struct perf_evsel *
-	perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
 	struct perf_evsel *evsel;
 
@@ -880,4 +880,11 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 	}
 
 	return 0;
+}
+
+int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
+			      struct perf_sample *sample, bool swapped)
+{
+	struct perf_evsel *e = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return perf_evsel__parse_sample(e, event, sample, swapped);
 }

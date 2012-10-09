@@ -73,7 +73,7 @@
 /* powerpc clocksource/clockevent code */
 
 #include <linux/clockchips.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 
 static cycle_t rtc_read(struct clocksource *);
 static struct clocksource clocksource_rtc = {
@@ -535,6 +535,15 @@ void timer_interrupt(struct pt_regs * regs)
 	trace_timer_interrupt_exit(regs);
 }
 
+/*
+ * Hypervisor decrementer interrupts shouldn't occur but are sometimes
+ * left pending on exit from a KVM guest.  We don't need to do anything
+ * to clear them, as they are edge-triggered.
+ */
+void hdec_interrupt(struct pt_regs *regs)
+{
+}
+
 #ifdef CONFIG_SUSPEND
 static void generic_suspend_disable_irqs(void)
 {
@@ -703,7 +712,7 @@ static cycle_t timebase_read(struct clocksource *cs)
 	return (cycle_t)get_tb();
 }
 
-void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
 			struct clocksource *clock, u32 mult)
 {
 	u64 new_tb_to_xs, new_stamp_xsec;

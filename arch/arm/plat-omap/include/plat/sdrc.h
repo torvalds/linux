@@ -123,7 +123,7 @@ struct omap_sdrc_params {
 	u32 mr;
 };
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#ifdef CONFIG_SOC_HAS_OMAP2_SDRC
 void omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 			    struct omap_sdrc_params *sdrc_cs1);
 #else

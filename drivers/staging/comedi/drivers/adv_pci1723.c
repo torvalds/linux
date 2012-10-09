@@ -50,8 +50,6 @@ TODO:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
 
 /* hardware types of the cards */
@@ -154,7 +152,6 @@ static const struct pci1723_board boardtypes[] = {
 struct pci1723_private {
 	int valid;		/* card is usable; */
 
-	struct pci_dev *pcidev;
 	unsigned char da_range[8];	/* D/A output range for each channel */
 
 	short ao_data[8];	/* data output buffer */
@@ -286,25 +283,41 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 		outw(s->state, dev->iobase + PCI1723_WRITE_DIGITAL_OUTPUT_CMD);
 	}
 	data[1] = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
-	return 2;
+	return insn->n;
+}
+
+static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
+					    struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
+			continue;
+		return pcidev;
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int pci1723_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
-	struct pci_dev *pcidev;
-	unsigned int iobase;
-	unsigned char pci_bus, pci_slot, pci_func;
-	int opt_bus, opt_slot;
-	const char *errstr;
 
 	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
 						dev->minor, this_board->name);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
 
 	ret = alloc_private(dev, sizeof(struct pci1723_private));
 	if (ret < 0) {
@@ -312,53 +325,18 @@ static int pci1723_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev =
-			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				       this_board->device_id, pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
-			continue;
-		}
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
-						     opt_bus, opt_slot, errstr);
-		} else {
-			printk(KERN_ERR " - Card %s\n", errstr);
-		}
+	pcidev = pci1723_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
-	iobase = pci_resource_start(pcidev, 2);
+	ret = comedi_pci_enable(pcidev, "adv_pci1723");
+	if (ret)
+		return ret;
 
-	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4x",
-					   pci_bus, pci_slot, pci_func, iobase);
-
-	dev->iobase = iobase;
+	dev->iobase = pci_resource_start(pcidev, 2);
 
 	dev->board_name = this_board->name;
-	devpriv->pcidev = pcidev;
 
 	n_subdevices = 0;
 
@@ -367,11 +345,9 @@ static int pci1723_attach(struct comedi_device *dev,
 	if (this_board->n_diochan)
 		n_subdevices++;
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
-	}
 
 	pci1723_reset(dev);
 	subdev = 0;
@@ -433,14 +409,16 @@ static int pci1723_attach(struct comedi_device *dev,
 
 static void pci1723_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private) {
 		if (devpriv->valid)
 			pci1723_reset(dev);
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

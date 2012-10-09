@@ -50,7 +50,8 @@ static inline u8 dccp_ackvec_state(const u8 *cell)
 	return *cell & ~DCCPAV_MAX_RUNLEN;
 }
 
-/** struct dccp_ackvec - Ack Vector main data structure
+/**
+ * struct dccp_ackvec - Ack Vector main data structure
  *
  * This implements a fixed-size circular buffer within an array and is largely
  * based on Appendix A of RFC 4340.
@@ -76,7 +77,8 @@ struct dccp_ackvec {
 	struct list_head	av_records;
 };
 
-/** struct dccp_ackvec_record - Records information about sent Ack Vectors
+/**
+ * struct dccp_ackvec_record - Records information about sent Ack Vectors
  *
  * These list entries define the additional information which the HC-Receiver
  * keeps about recently-sent Ack Vectors; again refer to RFC 4340, Appendix A.
@@ -121,6 +123,7 @@ static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
  * @len:	length of @vec
  * @nonce:	whether @vec had an ECN nonce of 0 or 1
  * @node:	FIFO - arranged in descending order of ack_ackno
+ *
  * This structure is used by CCIDs to access Ack Vectors in a received skb.
  */
 struct dccp_ackvec_parsed {

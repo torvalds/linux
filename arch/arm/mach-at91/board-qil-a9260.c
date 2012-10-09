@@ -41,6 +41,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91_shdwc.h>
 
@@ -258,6 +259,7 @@ MACHINE_START(QIL_A9260, "CALAO QIL_A9260")
 	/* Maintainer: calao-systems */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,

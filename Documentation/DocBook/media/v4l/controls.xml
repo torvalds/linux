@@ -373,6 +373,11 @@ minimum value disables backlight compensation.</entry>
 	  </entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_AUTOBRIGHTNESS</constant></entry>
+	    <entry>boolean</entry>
+	    <entry>Enable Automatic Brightness.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
 	    <entry>integer</entry>
 	    <entry>Rotates the image by specified angle. Common angles are 90,

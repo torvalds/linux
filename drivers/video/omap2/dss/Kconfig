@@ -52,7 +52,7 @@ config OMAP2_DSS_RFBI
 	  DBI is a bus between the host processor and a peripheral,
 	  such as a display or a framebuffer chip.
 
-	  See http://www.mipi.org/ for DBI spesifications.
+	  See http://www.mipi.org/ for DBI specifications.
 
 config OMAP2_DSS_VENC
 	bool "VENC support"
@@ -92,7 +92,7 @@ config OMAP2_DSS_DSI
 	  DSI is a high speed half-duplex serial interface between the host
 	  processor and a peripheral, such as a display or a framebuffer chip.
 
-	  See http://www.mipi.org/ for DSI spesifications.
+	  See http://www.mipi.org/ for DSI specifications.
 
 config OMAP2_DSS_MIN_FCK_PER_PCK
 	int "Minimum FCK/PCK ratio (for scaling)"

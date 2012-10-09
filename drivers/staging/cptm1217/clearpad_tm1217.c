@@ -396,8 +396,8 @@ static int cp_tm1217_setup_gpio_irq(struct cp_tm1217_device *ts)
 
 	retval = gpio_to_irq(ts->gpio);
 	if (retval < 0) {
-		dev_err(ts->dev, "cp_tm1217: GPIO to IRQ failedi,"
-		" error %d\n", retval);
+		dev_err(ts->dev,
+			"cp_tm1217: GPIO to IRQ failed, error %d\n", retval);
 		gpio_free(ts->gpio);
 	}
 	dev_dbg(ts->dev,

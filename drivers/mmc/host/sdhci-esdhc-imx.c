@@ -299,6 +299,8 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 
 static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	u32 new_val;
 
 	switch (reg) {
@@ -315,8 +317,11 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 				SDHCI_CTRL_D3CD);
 		/* ensure the endianess */
 		new_val |= ESDHC_HOST_CONTROL_LE;
-		/* DMA mode bits are shifted */
-		new_val |= (val & SDHCI_CTRL_DMA_MASK) << 5;
+		/* bits 8&9 are reserved on mx25 */
+		if (!is_imx25_esdhc(imx_data)) {
+			/* DMA mode bits are shifted */
+			new_val |= (val & SDHCI_CTRL_DMA_MASK) << 5;
+		}
 
 		esdhc_clrset_le(host, 0xffff, new_val, reg);
 		return;

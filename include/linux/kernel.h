@@ -82,10 +82,18 @@
 	__x - (__x % (y));				\
 }							\
 )
+
+/*
+ * Divide positive or negative dividend by positive divisor and round
+ * to closest integer. Result is undefined for negative divisors.
+ */
 #define DIV_ROUND_CLOSEST(x, divisor)(			\
 {							\
-	typeof(divisor) __divisor = divisor;		\
-	(((x) + ((__divisor) / 2)) / (__divisor));	\
+	typeof(x) __x = x;				\
+	typeof(divisor) __d = divisor;			\
+	(((typeof(x))-1) >= 0 || (__x) >= 0) ?		\
+		(((__x) + ((__d) / 2)) / (__d)) :	\
+		(((__x) - ((__d) / 2)) / (__d));	\
 }							\
 )
 
@@ -377,7 +385,6 @@ extern enum system_states {
 	SYSTEM_HALT,
 	SYSTEM_POWER_OFF,
 	SYSTEM_RESTART,
-	SYSTEM_SUSPEND_DISK,
 } system_state;
 
 #define TAINT_PROPRIETARY_MODULE	0

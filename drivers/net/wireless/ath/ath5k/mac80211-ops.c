@@ -254,7 +254,6 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ath5k_vif *avf = (void *)vif->drv_priv;
 	struct ath5k_hw *ah = hw->priv;
 	struct ath_common *common = ath5k_hw_common(ah);
-	unsigned long flags;
 
 	mutex_lock(&ah->lock);
 
@@ -300,9 +299,9 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes & BSS_CHANGED_BEACON) {
-		spin_lock_irqsave(&ah->block, flags);
+		spin_lock_bh(&ah->block);
 		ath5k_beacon_update(hw, vif);
-		spin_unlock_irqrestore(&ah->block, flags);
+		spin_unlock_bh(&ah->block);
 	}
 
 	if (changes & BSS_CHANGED_BEACON_ENABLED)
@@ -594,7 +593,7 @@ ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	qi.tqi_aifs = params->aifs;
 	qi.tqi_cw_min = params->cw_min;
 	qi.tqi_cw_max = params->cw_max;
-	qi.tqi_burst_time = params->txop;
+	qi.tqi_burst_time = params->txop * 32;
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_ANY,
 		  "Configure tx [queue %d],  "

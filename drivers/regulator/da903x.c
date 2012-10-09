@@ -107,6 +107,9 @@ static int da903x_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 	struct device *da9034_dev = to_da903x_dev(rdev);
 	uint8_t val, mask;
 
+	if (rdev->desc->n_voltages == 1)
+		return -EINVAL;
+
 	val = selector << info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -119,6 +122,9 @@ static int da903x_get_voltage_sel(struct regulator_dev *rdev)
 	struct device *da9034_dev = to_da903x_dev(rdev);
 	uint8_t val, mask;
 	int ret;
+
+	if (rdev->desc->n_voltages == 1)
+		return 0;
 
 	ret = da903x_read(da9034_dev, info->vol_reg, &val);
 	if (ret)

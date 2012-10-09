@@ -506,9 +506,19 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
-	else if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+
+	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
 		return -EOPNOTSUPP;
-	else if (key->keylen > 32)
+
+	/*
+	 * To support IBSS RSN, don't program group keys in IBSS, the
+	 * hardware will then not attempt to decrypt the frames.
+	 */
+	if (vif->type == NL80211_IFTYPE_ADHOC &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
+	if (key->keylen > 32)
 		return -ENOSPC;
 
 	memset(&crypto, 0, sizeof(crypto));

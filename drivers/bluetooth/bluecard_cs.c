@@ -231,12 +231,12 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->resource[0]->start;
-		register unsigned int offset;
-		register unsigned char command;
-		register unsigned long ready_bit;
+		unsigned int iobase = info->p_dev->resource[0]->start;
+		unsigned int offset;
+		unsigned char command;
+		unsigned long ready_bit;
 		register struct sk_buff *skb;
-		register int len;
+		int len;
 
 		clear_bit(XMIT_WAKEUP, &(info->tx_state));
 
@@ -621,7 +621,6 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = hci_get_drvdata(hdev);
-	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
@@ -630,6 +629,8 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 		return 0;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
+		unsigned int iobase = info->p_dev->resource[0]->start;
+
 		/* Enable LED */
 		outb(0x08 | 0x20, iobase + 0x30);
 	}
@@ -641,7 +642,6 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = hci_get_drvdata(hdev);
-	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
 		return 0;
@@ -649,6 +649,8 @@ static int bluecard_hci_close(struct hci_dev *hdev)
 	bluecard_hci_flush(hdev);
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
+		unsigned int iobase = info->p_dev->resource[0]->start;
+
 		/* Disable LED */
 		outb(0x00, iobase + 0x30);
 	}

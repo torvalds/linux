@@ -129,6 +129,25 @@ config DOUBLEFAULT
 	  option saves about 4k and might cause you much additional grey
 	  hair.
 
+config DEBUG_TLBFLUSH
+	bool "Set upper limit of TLB entries to flush one-by-one"
+	depends on DEBUG_KERNEL && (X86_64 || X86_INVLPG)
+	---help---
+
+	X86-only for now.
+
+	This option allows the user to tune the amount of TLB entries the
+	kernel flushes one-by-one instead of doing a full TLB flush. In
+	certain situations, the former is cheaper. This is controlled by the
+	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+	to -1, the code flushes the whole TLB unconditionally. Otherwise,
+	for positive values of it, the kernel will use single TLB entry
+	invalidating instructions according to the following formula:
+
+	flush_entries <= active_tlb_entries / 2^tlb_flushall_shift
+
+	If in doubt, say "N".
+
 config IOMMU_DEBUG
 	bool "Enable IOMMU debugging"
 	depends on GART_IOMMU && DEBUG_KERNEL

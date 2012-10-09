@@ -34,3 +34,5 @@ brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		sdio_chip.o
 brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o
+brcmfmac-$(CONFIG_BRCMDBG) += \
+		dhd_dbg.o

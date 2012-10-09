@@ -254,7 +254,7 @@ early_param("rfmac", rfmac_param);
  * Generates an Ethernet MAC address that is highly likely to be unique for
  * this particular system on a network with other systems of the same type.
  *
- * The problem we are solving is that, when random_ether_addr() is used to
+ * The problem we are solving is that, when eth_random_addr() is used to
  * generate MAC addresses at startup, there isn't much entropy for the random
  * number generator to use and the addresses it produces are fairly likely to
  * be the same as those of other identical systems on the same local network.
@@ -269,7 +269,7 @@ early_param("rfmac", rfmac_param);
  * Still, this does give us something to work with.
  *
  * The approach we take is:
- * 1.	If we can't get the RF MAC Address, just call random_ether_addr.
+ * 1.	If we can't get the RF MAC Address, just call eth_random_addr.
  * 2.	Use the 24-bit NIC-specific bits of the RF MAC address as the last 24
  *	bits of the new address. This is very likely to be unique, except for
  *	the current box.
@@ -299,7 +299,7 @@ void platform_random_ether_addr(u8 addr[ETH_ALEN])
 	if (!have_rfmac) {
 		pr_warning("rfmac not available on command line; "
 			"generating random MAC address\n");
-		random_ether_addr(addr);
+		eth_random_addr(addr);
 	}
 
 	else {

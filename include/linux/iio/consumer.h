@@ -33,17 +33,17 @@ struct iio_channel {
  *			side. This typically describes the channels use within
  *			the consumer. E.g. 'battery_voltage'
  */
-struct iio_channel *iio_st_channel_get(const char *name,
-				       const char *consumer_channel);
+struct iio_channel *iio_channel_get(const char *name,
+				    const char *consumer_channel);
 
 /**
- * iio_st_channel_release() - release channels obtained via iio_st_channel_get
+ * iio_channel_release() - release channels obtained via iio_channel_get
  * @chan:		The channel to be released.
  */
-void iio_st_channel_release(struct iio_channel *chan);
+void iio_channel_release(struct iio_channel *chan);
 
 /**
- * iio_st_channel_get_all() - get all channels associated with a client
+ * iio_channel_get_all() - get all channels associated with a client
  * @name:		name of consumer device.
  *
  * Returns an array of iio_channel structures terminated with one with
@@ -51,37 +51,37 @@ void iio_st_channel_release(struct iio_channel *chan);
  * This function is used by fairly generic consumers to get all the
  * channels registered as having this consumer.
  */
-struct iio_channel *iio_st_channel_get_all(const char *name);
+struct iio_channel *iio_channel_get_all(const char *name);
 
 /**
- * iio_st_channel_release_all() - reverse iio_st_get_all
+ * iio_channel_release_all() - reverse iio_channel_get_all
  * @chan:		Array of channels to be released.
  */
-void iio_st_channel_release_all(struct iio_channel *chan);
+void iio_channel_release_all(struct iio_channel *chan);
 
 /**
- * iio_st_read_channel_raw() - read from a given channel
+ * iio_read_channel_raw() - read from a given channel
  * @channel:		The channel being queried.
  * @val:		Value read back.
  *
  * Note raw reads from iio channels are in adc counts and hence
  * scale will need to be applied if standard units required.
  */
-int iio_st_read_channel_raw(struct iio_channel *chan,
-			    int *val);
+int iio_read_channel_raw(struct iio_channel *chan,
+			 int *val);
 
 /**
- * iio_st_get_channel_type() - get the type of a channel
+ * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.
  *
  * returns the enum iio_chan_type of the channel
  */
-int iio_st_get_channel_type(struct iio_channel *channel,
-			    enum iio_chan_type *type);
+int iio_get_channel_type(struct iio_channel *channel,
+			 enum iio_chan_type *type);
 
 /**
- * iio_st_read_channel_scale() - read the scale value for a channel
+ * iio_read_channel_scale() - read the scale value for a channel
  * @channel:		The channel being queried.
  * @val:		First part of value read back.
  * @val2:		Second part of value read back.
@@ -90,7 +90,7 @@ int iio_st_get_channel_type(struct iio_channel *channel,
  * as IIO_VAL_INT_PLUS_MICRO telling us we have a value of val
  * + val2/1e6
  */
-int iio_st_read_channel_scale(struct iio_channel *chan, int *val,
-			      int *val2);
+int iio_read_channel_scale(struct iio_channel *chan, int *val,
+			   int *val2);
 
 #endif

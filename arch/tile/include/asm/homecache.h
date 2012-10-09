@@ -79,10 +79,17 @@ extern void homecache_change_page_home(struct page *, int order, int home);
 /*
  * Flush a page out of whatever cache(s) it is in.
  * This is more than just finv, since it properly handles waiting
- * for the data to reach memory on tilepro, but it can be quite
- * heavyweight, particularly on hash-for-home memory.
+ * for the data to reach memory, but it can be quite
+ * heavyweight, particularly on incoherent or immutable memory.
  */
-extern void homecache_flush_cache(struct page *, int order);
+extern void homecache_finv_page(struct page *);
+
+/*
+ * Flush a page out of the specified home cache.
+ * Note that the specified home need not be the actual home of the page,
+ * as for example might be the case when coordinating with I/O devices.
+ */
+extern void homecache_finv_map_page(struct page *, int home);
 
 /*
  * Allocate a page with the given GFP flags, home, and optionally
@@ -104,10 +111,10 @@ extern struct page *homecache_alloc_pages_node(int nid, gfp_t gfp_mask,
  * routines use homecache_change_page_home() to reset the home
  * back to the default before returning the page to the allocator.
  */
+void __homecache_free_pages(struct page *, unsigned int order);
 void homecache_free_pages(unsigned long addr, unsigned int order);
-#define homecache_free_page(page) \
-  homecache_free_pages((page), 0)
-
+#define __homecache_free_page(page) __homecache_free_pages((page), 0)
+#define homecache_free_page(page) homecache_free_pages((page), 0)
 
 
 /*

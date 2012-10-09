@@ -194,17 +194,6 @@ static struct pci_driver t3e3_pci_driver = {
 	.remove   = t3e3_remove_card,
 };
 
-static int __init t3e3_init_module(void)
-{
-	return pci_register_driver(&t3e3_pci_driver);
-}
-
-static void __exit t3e3_cleanup_module(void)
-{
-	pci_unregister_driver(&t3e3_pci_driver);
-}
-
-module_init(t3e3_init_module);
-module_exit(t3e3_cleanup_module);
+module_pci_driver(t3e3_pci_driver);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, t3e3_pci_tbl);

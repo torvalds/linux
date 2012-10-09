@@ -186,17 +186,6 @@ extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			void *cpu_addr, dma_addr_t dma_addr, size_t size,
 			struct dma_attrs *attrs);
 
-#define dma_mmap_coherent(d, v, c, h, s) dma_mmap_attrs(d, v, c, h, s, NULL)
-
-static inline int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
-				  void *cpu_addr, dma_addr_t dma_addr,
-				  size_t size, struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	BUG_ON(!ops);
-	return ops->mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
-}
-
 static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
 {
@@ -213,20 +202,19 @@ static inline void dma_free_writecombine(struct device *dev, size_t size,
 	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
 }
 
-static inline int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
-		      void *cpu_addr, dma_addr_t dma_addr, size_t size)
-{
-	DEFINE_DMA_ATTRS(attrs);
-	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-	return dma_mmap_attrs(dev, vma, cpu_addr, dma_addr, size, &attrs);
-}
+/*
+ * This can be called during early boot to increase the size of the atomic
+ * coherent DMA pool above the default value of 256KiB. It must be called
+ * before postcore_initcall.
+ */
+extern void __init init_dma_coherent_pool_size(unsigned long size);
 
 /*
  * This can be called during boot to increase the size of the consistent
  * DMA region above it's default value of 2MB. It must be called before the
  * memory allocator is initialised, i.e. before any core_initcall.
  */
-extern void __init init_consistent_dma_size(unsigned long size);
+static inline void init_consistent_dma_size(unsigned long size) { }
 
 /*
  * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
@@ -280,6 +268,9 @@ extern void arm_dma_sync_sg_for_cpu(struct device *, struct scatterlist *, int,
 		enum dma_data_direction);
 extern void arm_dma_sync_sg_for_device(struct device *, struct scatterlist *, int,
 		enum dma_data_direction);
+extern int arm_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
+		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		struct dma_attrs *attrs);
 
 #endif /* __KERNEL__ */
 #endif

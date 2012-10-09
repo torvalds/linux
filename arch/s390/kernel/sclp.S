@@ -1,7 +1,7 @@
 /*
  * Mini SCLP driver.
  *
- * Copyright IBM Corp. 2004,2009
+ * Copyright IBM Corp. 2004, 2009
  *
  *   Author(s):	Peter Oberparleiter <Peter.Oberparleiter@de.ibm.com>,
  *		Heiko Carstens <heiko.carstens@de.ibm.com>,

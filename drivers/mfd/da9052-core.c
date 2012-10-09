@@ -772,7 +772,6 @@ EXPORT_SYMBOL_GPL(da9052_regmap_config);
 int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
 {
 	struct da9052_pdata *pdata = da9052->dev->platform_data;
-	struct irq_desc *desc;
 	int ret;
 
 	mutex_init(&da9052->auxadc_lock);

@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("uteval")
  * FUNCTION:    acpi_ut_evaluate_object
  *
  * PARAMETERS:  prefix_node         - Starting node
- *              Path                - Path to object from starting node
+ *              path                - Path to object from starting node
  *              expected_return_types - Bitmap of allowed return types
  *              return_desc         - Where a return value is stored
  *
@@ -187,7 +187,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
  *
  * PARAMETERS:  object_name         - Object name to be evaluated
  *              device_node         - Node for the device
- *              Value               - Where the value is returned
+ *              value               - Where the value is returned
  *
  * RETURN:      Status
  *
@@ -229,7 +229,7 @@ acpi_ut_evaluate_numeric_object(char *object_name,
  * FUNCTION:    acpi_ut_execute_STA
  *
  * PARAMETERS:  device_node         - Node for the device
- *              Flags               - Where the status flags are returned
+ *              flags               - Where the status flags are returned
  *
  * RETURN:      Status
  *

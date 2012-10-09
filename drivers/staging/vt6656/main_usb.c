@@ -92,22 +92,14 @@ MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
         module_param_array(N, int, NULL, 0);\
         MODULE_PARM_DESC(N, D);
 
-#define RX_DESC_MIN0     16
-#define RX_DESC_MAX0     128
 #define RX_DESC_DEF0     64
 DEVICE_PARAM(RxDescriptors0,"Number of receive usb desc buffer");
 
 
-#define TX_DESC_MIN0     16
-#define TX_DESC_MAX0     128
 #define TX_DESC_DEF0     64
 DEVICE_PARAM(TxDescriptors0,"Number of transmit usb desc buffer");
 
-
-#define CHANNEL_MIN     1
-#define CHANNEL_MAX     14
 #define CHANNEL_DEF     6
-
 DEVICE_PARAM(Channel, "Channel number");
 
 
@@ -120,23 +112,13 @@ DEVICE_PARAM(Channel, "Channel number");
 
 DEVICE_PARAM(PreambleType, "Preamble Type");
 
-
-#define RTS_THRESH_MIN     512
-#define RTS_THRESH_MAX     2347
 #define RTS_THRESH_DEF     2347
-
 DEVICE_PARAM(RTSThreshold, "RTS threshold");
 
-
-#define FRAG_THRESH_MIN     256
-#define FRAG_THRESH_MAX     2346
 #define FRAG_THRESH_DEF     2346
-
 DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
 
 
-#define DATA_RATE_MIN     0
-#define DATA_RATE_MAX     13
 #define DATA_RATE_DEF     13
 /* datarate[] index
    0: indicate 1 Mbps   0x02
@@ -157,10 +139,7 @@ DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
 
 DEVICE_PARAM(ConnectionRate, "Connection data rate");
 
-#define OP_MODE_MAX     2
 #define OP_MODE_DEF     0
-#define OP_MODE_MIN     0
-
 DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 
 /* OpMode[] is used for transmit.
@@ -176,34 +155,22 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 */
 
 #define PS_MODE_DEF     0
-
 DEVICE_PARAM(PSMode, "Power saving mode");
 
 
-#define SHORT_RETRY_MIN     0
-#define SHORT_RETRY_MAX     31
 #define SHORT_RETRY_DEF     8
-
-
 DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
 
-#define LONG_RETRY_MIN     0
-#define LONG_RETRY_MAX     15
 #define LONG_RETRY_DEF     4
-
-
 DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
-
 
 /* BasebandType[] baseband type selected
    0: indicate 802.11a type
    1: indicate 802.11b type
    2: indicate 802.11g type
 */
-#define BBP_TYPE_MIN     0
-#define BBP_TYPE_MAX     2
-#define BBP_TYPE_DEF     2
 
+#define BBP_TYPE_DEF     2
 DEVICE_PARAM(BasebandType, "baseband type");
 
 
@@ -222,7 +189,7 @@ DEVICE_PARAM(b80211hEnable, "802.11h mode");
 // Static vars definitions
 //
 
-static struct usb_device_id vt6656_table[] __devinitdata = {
+static struct usb_device_id vt6656_table[] = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
@@ -237,11 +204,6 @@ static const long frequency_list[] = {
     5700, 5745, 5765, 5785, 5805, 5825
 	};
 
-
-#ifndef IW_ENCODE_NOKEY
-#define IW_ENCODE_NOKEY         0x0800
-#define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
-#endif
 
 static const struct iw_handler_def	iwctl_handler_def;
 */

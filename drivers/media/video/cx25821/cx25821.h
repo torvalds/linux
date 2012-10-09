@@ -26,7 +26,6 @@
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -187,7 +186,7 @@ enum port {
 };
 
 struct cx25821_board {
-	char *name;
+	const char *name;
 	enum port porta;
 	enum port portb;
 	enum port portc;
@@ -213,7 +212,6 @@ struct cx25821_i2c {
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
-	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_client i2c_client;
 	u32 i2c_rc;
 

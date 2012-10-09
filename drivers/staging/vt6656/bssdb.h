@@ -64,8 +64,6 @@
 // send and receive non-IEEE 802.1X frames
 #define WLAN_STA_AUTHORIZED      BIT5
 
-//#define MAX_RATE            12
-
 #define MAX_WPA_IE_LEN      64
 
 

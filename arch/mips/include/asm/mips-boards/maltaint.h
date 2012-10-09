@@ -86,6 +86,16 @@
 #define GIC_CPU_INT4		4 /* .			*/
 #define GIC_CPU_INT5		5 /* Core Interrupt 5   */
 
+/* MALTA GIC local interrupts */
+#define GIC_INT_TMR             (GIC_CPU_INT5)
+#define GIC_INT_PERFCTR         (GIC_CPU_INT5)
+
+/* GIC constants */
+/* Add 2 to convert non-eic hw int # to eic vector # */
+#define GIC_CPU_TO_VEC_OFFSET   (2)
+/* If we map an intr to pin X, GIC will actually generate vector X+1 */
+#define GIC_PIN_TO_VEC_OFFSET   (1)
+
 #define GIC_EXT_INTR(x)		x
 
 /* External Interrupts used for IPI */

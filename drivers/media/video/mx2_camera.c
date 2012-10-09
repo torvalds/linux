@@ -272,7 +272,7 @@ struct mx2_camera_dev {
 	struct device		*dev;
 	struct soc_camera_host	soc_host;
 	struct soc_camera_device *icd;
-	struct clk		*clk_csi, *clk_emma;
+	struct clk		*clk_csi, *clk_emma_ahb, *clk_emma_ipg;
 
 	unsigned int		irq_csi, irq_emma;
 	void __iomem		*base_csi, *base_emma;
@@ -407,7 +407,7 @@ static void mx2_camera_deactivate(struct mx2_camera_dev *pcdev)
 {
 	unsigned long flags;
 
-	clk_disable(pcdev->clk_csi);
+	clk_disable_unprepare(pcdev->clk_csi);
 	writel(0, pcdev->base_csi + CSICR1);
 	if (cpu_is_mx27()) {
 		writel(0, pcdev->base_emma + PRP_CNTL);
@@ -435,7 +435,7 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	if (pcdev->icd)
 		return -EBUSY;
 
-	ret = clk_enable(pcdev->clk_csi);
+	ret = clk_prepare_enable(pcdev->clk_csi);
 	if (ret < 0)
 		return ret;
 
@@ -1633,23 +1633,34 @@ static int __devinit mx27_camera_emma_init(struct mx2_camera_dev *pcdev)
 		goto exit_iounmap;
 	}
 
-	pcdev->clk_emma = clk_get(NULL, "emma");
-	if (IS_ERR(pcdev->clk_emma)) {
-		err = PTR_ERR(pcdev->clk_emma);
+	pcdev->clk_emma_ipg = clk_get(pcdev->dev, "emma-ipg");
+	if (IS_ERR(pcdev->clk_emma_ipg)) {
+		err = PTR_ERR(pcdev->clk_emma_ipg);
 		goto exit_free_irq;
 	}
 
-	clk_enable(pcdev->clk_emma);
+	clk_prepare_enable(pcdev->clk_emma_ipg);
+
+	pcdev->clk_emma_ahb = clk_get(pcdev->dev, "emma-ahb");
+	if (IS_ERR(pcdev->clk_emma_ahb)) {
+		err = PTR_ERR(pcdev->clk_emma_ahb);
+		goto exit_clk_emma_ipg_put;
+	}
+
+	clk_prepare_enable(pcdev->clk_emma_ahb);
 
 	err = mx27_camera_emma_prp_reset(pcdev);
 	if (err)
-		goto exit_clk_emma_put;
+		goto exit_clk_emma_ahb_put;
 
 	return err;
 
-exit_clk_emma_put:
-	clk_disable(pcdev->clk_emma);
-	clk_put(pcdev->clk_emma);
+exit_clk_emma_ahb_put:
+	clk_disable_unprepare(pcdev->clk_emma_ahb);
+	clk_put(pcdev->clk_emma_ahb);
+exit_clk_emma_ipg_put:
+	clk_disable_unprepare(pcdev->clk_emma_ipg);
+	clk_put(pcdev->clk_emma_ipg);
 exit_free_irq:
 	free_irq(pcdev->irq_emma, pcdev);
 exit_iounmap:
@@ -1685,7 +1696,7 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	pcdev->clk_csi = clk_get(&pdev->dev, NULL);
+	pcdev->clk_csi = clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(pcdev->clk_csi)) {
 		dev_err(&pdev->dev, "Could not get csi clock\n");
 		err = PTR_ERR(pcdev->clk_csi);
@@ -1785,8 +1796,10 @@ exit_free_emma:
 eallocctx:
 	if (cpu_is_mx27()) {
 		free_irq(pcdev->irq_emma, pcdev);
-		clk_disable(pcdev->clk_emma);
-		clk_put(pcdev->clk_emma);
+		clk_disable_unprepare(pcdev->clk_emma_ipg);
+		clk_put(pcdev->clk_emma_ipg);
+		clk_disable_unprepare(pcdev->clk_emma_ahb);
+		clk_put(pcdev->clk_emma_ahb);
 		iounmap(pcdev->base_emma);
 		release_mem_region(pcdev->res_emma->start, resource_size(pcdev->res_emma));
 	}
@@ -1825,8 +1838,10 @@ static int __devexit mx2_camera_remove(struct platform_device *pdev)
 	iounmap(pcdev->base_csi);
 
 	if (cpu_is_mx27()) {
-		clk_disable(pcdev->clk_emma);
-		clk_put(pcdev->clk_emma);
+		clk_disable_unprepare(pcdev->clk_emma_ipg);
+		clk_put(pcdev->clk_emma_ipg);
+		clk_disable_unprepare(pcdev->clk_emma_ahb);
+		clk_put(pcdev->clk_emma_ahb);
 		iounmap(pcdev->base_emma);
 		res = pcdev->res_emma;
 		release_mem_region(res->start, resource_size(res));

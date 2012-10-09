@@ -40,7 +40,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/ulpi.h>
-#include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx27.h"
@@ -48,7 +47,6 @@
 #define SD1_EN_GPIO		IMX_GPIO_NR(2, 25)
 #define OTG_PHY_RESET_GPIO	IMX_GPIO_NR(2, 23)
 #define SPI2_SS0		IMX_GPIO_NR(4, 21)
-#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(3, 28))
 #define PMIC_INT		IMX_GPIO_NR(3, 14)
 #define SPI1_SS0		IMX_GPIO_NR(4, 28)
 #define SD1_CD			IMX_GPIO_NR(2, 26)
@@ -241,18 +239,18 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init mx27_3ds_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", mx27_3ds_otg_mode);
 
@@ -445,7 +443,7 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 0, /* SS0 */
 		.platform_data	= &mc13783_pdata,
-		.irq = IMX_GPIO_TO_IRQ(PMIC_INT),
+		/* irq number is run-time assigned */
 		.mode = SPI_CS_HIGH,
 	}, {
 		.modalias	= "l4f00242t03",
@@ -480,7 +478,7 @@ static void __init mx27pdk_init(void)
 	imx27_add_fec(NULL);
 	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
-	imx27_add_imx2_wdt(NULL);
+	imx27_add_imx2_wdt();
 	otg_phy_init();
 
 	if (otg_mode_host) {
@@ -496,10 +494,11 @@ static void __init mx27pdk_init(void)
 
 	imx27_add_spi_imx1(&spi2_pdata);
 	imx27_add_spi_imx0(&spi1_pdata);
+	mx27_3ds_spi_devs[0].irq = gpio_to_irq(PMIC_INT);
 	spi_register_board_info(mx27_3ds_spi_devs,
 						ARRAY_SIZE(mx27_3ds_spi_devs));
 
-	if (mxc_expio_init(MX27_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX27_CS5_BASE_ADDR, IMX_GPIO_NR(3, 28)))
 		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
 	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
 	platform_add_devices(devices, ARRAY_SIZE(devices));

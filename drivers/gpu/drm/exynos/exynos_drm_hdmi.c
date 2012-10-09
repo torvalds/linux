@@ -142,7 +142,7 @@ static void drm_hdmi_disable_vblank(struct device *subdrv_dev)
 
 static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 				struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);

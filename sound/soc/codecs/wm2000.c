@@ -1,7 +1,7 @@
 /*
  * wm2000.c  --  WM2000 ALSA Soc Audio driver
  *
- * Copyright 2008-2010 Wolfson Microelectronics PLC.
+ * Copyright 2008-2011 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -674,9 +674,39 @@ static int wm2000_resume(struct snd_soc_codec *codec)
 #define wm2000_resume NULL
 #endif
 
+static bool wm2000_readable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM2000_REG_SYS_START:
+	case WM2000_REG_SPEECH_CLARITY:
+	case WM2000_REG_SYS_WATCHDOG:
+	case WM2000_REG_ANA_VMID_PD_TIME:
+	case WM2000_REG_ANA_VMID_PU_TIME:
+	case WM2000_REG_CAT_FLTR_INDX:
+	case WM2000_REG_CAT_GAIN_0:
+	case WM2000_REG_SYS_STATUS:
+	case WM2000_REG_SYS_MODE_CNTRL:
+	case WM2000_REG_SYS_START0:
+	case WM2000_REG_SYS_START1:
+	case WM2000_REG_ID1:
+	case WM2000_REG_ID2:
+	case WM2000_REG_REVISON:
+	case WM2000_REG_SYS_CTL1:
+	case WM2000_REG_SYS_CTL2:
+	case WM2000_REG_ANC_STAT:
+	case WM2000_REG_IF_CTL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct regmap_config wm2000_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
+
+	.max_register = WM2000_REG_IF_CTL,
+	.readable_reg = wm2000_readable_reg,
 };
 
 static int wm2000_probe(struct snd_soc_codec *codec)

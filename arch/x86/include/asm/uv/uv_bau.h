@@ -140,6 +140,9 @@
 #define IPI_RESET_LIMIT			1
 /* after this # consecutive successes, bump up the throttle if it was lowered */
 #define COMPLETE_THRESHOLD		5
+/* after this # of giveups (fall back to kernel IPI's) disable the use of
+   the BAU for a period of time */
+#define GIVEUP_LIMIT			100
 
 #define UV_LB_SUBNODEID			0x10
 
@@ -166,7 +169,6 @@
 #define FLUSH_RETRY_TIMEOUT		2
 #define FLUSH_GIVEUP			3
 #define FLUSH_COMPLETE			4
-#define FLUSH_RETRY_BUSYBUG		5
 
 /*
  * tuning the action when the numalink network is extremely delayed
@@ -175,7 +177,7 @@
 						   microseconds */
 #define CONGESTED_REPS			10	/* long delays averaged over
 						   this many broadcasts */
-#define CONGESTED_PERIOD		30	/* time for the bau to be
+#define DISABLED_PERIOD			10	/* time for the bau to be
 						   disabled, in seconds */
 /* see msg_type: */
 #define MSG_NOOP			0
@@ -520,6 +522,12 @@ struct ptc_stats {
 	unsigned long	s_uv2_wars;		/* uv2 workaround, perm. busy */
 	unsigned long	s_uv2_wars_hw;		/* uv2 workaround, hiwater */
 	unsigned long	s_uv2_war_waits;	/* uv2 workaround, long waits */
+	unsigned long	s_overipilimit;		/* over the ipi reset limit */
+	unsigned long	s_giveuplimit;		/* disables, over giveup limit*/
+	unsigned long	s_enters;		/* entries to the driver */
+	unsigned long	s_ipifordisabled;	/* fall back to IPI; disabled */
+	unsigned long	s_plugged;		/* plugged by h/w bug*/
+	unsigned long	s_congested;		/* giveup on long wait */
 	/* destination statistics */
 	unsigned long	d_alltlb;		/* times all tlb's on this
 						   cpu were flushed */
@@ -586,8 +594,8 @@ struct bau_control {
 	int			timeout_tries;
 	int			ipi_attempts;
 	int			conseccompletes;
-	int			baudisabled;
-	int			set_bau_off;
+	short			nobau;
+	short			baudisabled;
 	short			cpu;
 	short			osnode;
 	short			uvhub_cpu;
@@ -596,14 +604,16 @@ struct bau_control {
 	short			cpus_in_socket;
 	short			cpus_in_uvhub;
 	short			partition_base_pnode;
-	short			using_desc; /* an index, like uvhub_cpu */
-	unsigned int		inuse_map;
+	short			busy;       /* all were busy (war) */
 	unsigned short		message_number;
 	unsigned short		uvhub_quiesce;
 	short			socket_acknowledge_count[DEST_Q_SIZE];
 	cycles_t		send_message;
+	cycles_t		period_end;
+	cycles_t		period_time;
 	spinlock_t		uvhub_lock;
 	spinlock_t		queue_lock;
+	spinlock_t		disable_lock;
 	/* tunables */
 	int			max_concurr;
 	int			max_concurr_const;
@@ -614,9 +624,9 @@ struct bau_control {
 	int			complete_threshold;
 	int			cong_response_us;
 	int			cong_reps;
-	int			cong_period;
-	unsigned long		clocks_per_100_usec;
-	cycles_t		period_time;
+	cycles_t		disabled_period;
+	int			period_giveups;
+	int			giveup_limit;
 	long			period_requests;
 	struct hub_and_pnode	*thp;
 };

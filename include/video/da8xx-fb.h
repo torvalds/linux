@@ -82,6 +82,9 @@ struct lcd_ctrl_config {
 
 	/* Raster Data Order Select: 1=Most-to-least 0=Least-to-most */
 	unsigned char raster_order;
+
+	/* DMA FIFO threshold */
+	int fifo_th;
 };
 
 struct lcd_sync_arg {

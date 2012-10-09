@@ -33,7 +33,6 @@ Configuration options:
 
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
 #include "8255.h"
 #include "8253.h"
 
@@ -383,9 +382,6 @@ static const struct dio_boardtype boardtypes[] = {
 };
 
 struct pci_dio_private {
-	struct pci_dio_private *prev;	/*  previous private struct */
-	struct pci_dio_private *next;	/*  next private struct */
-	struct pci_dev *pcidev;	/*  pointer to board's pci_dev */
 	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
 	/*  PCI-1760 specific data */
@@ -405,8 +401,6 @@ struct pci_dio_private {
 	unsigned short IDIFiltrHigh[8];	/*  IDI's filter value high signal */
 };
 
-static struct pci_dio_private *pci_priv;	/* list of allocated cards */
-
 #define devpriv ((struct pci_dio_private *)dev->private)
 #define this_board ((const struct dio_boardtype *)dev->board_ptr)
 
@@ -425,7 +419,7 @@ static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 		data[1] |= inb(dev->iobase + d->addr + i) << (8 * i);
 
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -442,7 +436,7 @@ static int pci_dio_insn_bits_di_w(struct comedi_device *dev,
 	for (i = 0; i < d->regs; i++)
 		data[1] |= inw(dev->iobase + d->addr + 2 * i) << (16 * i);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -464,7 +458,7 @@ static int pci_dio_insn_bits_do_b(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -486,7 +480,7 @@ static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -635,7 +629,7 @@ static int pci1760_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = inb(dev->iobase + IMB3);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -664,7 +658,7 @@ static int pci1760_insn_bits_do(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -1056,86 +1050,58 @@ static int pci_dio_add_8254(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int CheckAndAllocCard(struct comedi_device *dev,
-			     struct comedi_devconfig *it,
-			     struct pci_dev *pcidev)
+static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
+					    struct comedi_devconfig *it)
 {
-	struct pci_dio_private *pr, *prev;
-
-	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
-		if (pr->pcidev == pcidev)
-			return 0; /* this card is used, look for another */
-
-	}
-
-	if (prev) {
-		devpriv->prev = prev;
-		prev->next = devpriv;
-	} else {
-		pci_priv = devpriv;
-	}
-
-	devpriv->pcidev = pcidev;
-
-	return 1;
-}
-
-static int pci_dio_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices, i, j;
-	unsigned long iobase;
 	struct pci_dev *pcidev = NULL;
-
-
-	ret = alloc_private(dev, sizeof(struct pci_dio_private));
-	if (ret < 0)
-		return -ENOMEM;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
 	for_each_pci_dev(pcidev) {
-		/*  loop through cards supported by this driver */
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
 		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
 			if (boardtypes[i].device_id != pcidev->device)
 				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			ret = CheckAndAllocCard(dev, it, pcidev);
-			if (ret != 1)
-				continue;
 			dev->board_ptr = boardtypes + i;
-			break;
+			return pcidev;
 		}
-		if (dev->board_ptr)
-			break;
 	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
 
-	if (!dev->board_ptr) {
-		dev_err(dev->hw_dev, "Error: Requested type of the card was not found!\n");
+static int pci_dio_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	int ret, subdev, n_subdevices, i, j;
+
+	ret = alloc_private(dev, sizeof(struct pci_dio_private));
+	if (ret < 0)
+		return -ENOMEM;
+
+	pcidev = pci_dio_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_err(dev->hw_dev, "Error: Can't enable PCI device and request regions!\n");
+		dev_err(dev->class_dev,
+			"Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
-	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	dev_dbg(dev->hw_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
-		PCI_FUNC(pcidev->devfn), iobase);
 
-	dev->iobase = iobase;
+	dev->iobase = pci_resource_start(pcidev, this_board->main_pci_region);
 	dev->board_name = this_board->name;
 
 	if (this_board->cardtype == TYPE_PCI1760) {
@@ -1157,8 +1123,8 @@ static int pci_dio_attach(struct comedi_device *dev,
 				n_subdevices++;
 	}
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	subdev = 0;
@@ -1212,6 +1178,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 
 static void pci_dio_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int i, j;
 	struct comedi_subdevice *s;
 	int subdev;
@@ -1244,17 +1211,11 @@ static void pci_dio_detach(struct comedi_device *dev)
 			s = dev->subdevices + i;
 			s->private = NULL;
 		}
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
-		if (devpriv->prev)
-			devpriv->prev->next = devpriv->next;
-		else
-			pci_priv = devpriv->next;
-		if (devpriv->next)
-			devpriv->next->prev = devpriv->prev;
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

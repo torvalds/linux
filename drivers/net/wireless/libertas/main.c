@@ -152,6 +152,12 @@ int lbs_start_iface(struct lbs_private *priv)
 		goto err;
 	}
 
+	ret = lbs_set_11d_domain_info(priv);
+	if (ret) {
+		lbs_deb_net("set 11d domain info failed\n");
+		goto err;
+	}
+
 	lbs_update_channel(priv);
 
 	priv->iface_running = true;
@@ -565,7 +571,10 @@ static int lbs_thread(void *data)
 			netdev_info(dev, "Timeout submitting command 0x%04x\n",
 				    le16_to_cpu(cmdnode->cmdbuf->command));
 			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
-			if (priv->reset_card)
+
+			/* Reset card, but only when it isn't in the process
+			 * of being shutdown anyway. */
+			if (!dev->dismantle && priv->reset_card)
 				priv->reset_card(priv);
 		}
 		priv->cmd_timed_out = 0;

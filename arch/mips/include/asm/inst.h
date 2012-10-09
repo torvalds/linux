@@ -251,7 +251,7 @@ struct f_format {	/* FPU register format */
 	unsigned int func : 6;
 };
 
-struct ma_format {	/* FPU multipy and add format (MIPS IV) */
+struct ma_format {	/* FPU multiply and add format (MIPS IV) */
 	unsigned int opcode : 6;
 	unsigned int fr : 5;
 	unsigned int ft : 5;
@@ -324,7 +324,7 @@ struct f_format {	/* FPU register format */
 	unsigned int opcode : 6;
 };
 
-struct ma_format {	/* FPU multipy and add format (MIPS IV) */
+struct ma_format {	/* FPU multiply and add format (MIPS IV) */
 	unsigned int fmt : 2;
 	unsigned int func : 4;
 	unsigned int fd : 5;

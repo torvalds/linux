@@ -23,9 +23,6 @@ Devices: [Advantech] PCL-725 (pcl725)
 static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -34,24 +31,22 @@ static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + PCL725_DI);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: pcl725: 0x%04lx ", dev->minor, iobase);
@@ -63,8 +58,9 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* do */

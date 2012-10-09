@@ -807,6 +807,7 @@ struct tps65910_board {
 	int irq_base;
 	int vmbch_threshold;
 	int vmbch2_threshold;
+	bool en_ck32k_xtal;
 	bool en_dev_slp;
 	struct tps65910_sleep_keepon_data *slp_keepon;
 	bool en_gpio_sleep[TPS6591X_MAX_NUM_GPIO];
@@ -878,6 +879,12 @@ static inline int tps65910_reg_clear_bits(struct tps65910 *tps65910, u8 reg,
 		u8 mask)
 {
 	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
+}
+
+static inline int tps65910_reg_update_bits(struct tps65910 *tps65910, u8 reg,
+					   u8 mask, u8 val)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, val);
 }
 
 #endif /*  __LINUX_MFD_TPS65910_H */

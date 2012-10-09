@@ -172,7 +172,7 @@ void fatal_sigsegv(void)
 	os_dump_core();
 }
 
-void segv_handler(int sig, struct uml_pt_regs *regs)
+void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);
 
@@ -258,8 +258,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	return 0;
 }
 
-void relay_signal(int sig, struct uml_pt_regs *regs)
+void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 {
+	struct faultinfo *fi;
+	struct siginfo clean_si;
+
 	if (!UPT_IS_USER(regs)) {
 		if (sig == SIGBUS)
 			printk(KERN_ERR "Bus error - the host /dev/shm or /tmp "
@@ -269,18 +272,40 @@ void relay_signal(int sig, struct uml_pt_regs *regs)
 
 	arch_examine_signal(sig, regs);
 
-	current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
-	force_sig(sig, current);
+	memset(&clean_si, 0, sizeof(clean_si));
+	clean_si.si_signo = si->si_signo;
+	clean_si.si_errno = si->si_errno;
+	clean_si.si_code = si->si_code;
+	switch (sig) {
+	case SIGILL:
+	case SIGFPE:
+	case SIGSEGV:
+	case SIGBUS:
+	case SIGTRAP:
+		fi = UPT_FAULTINFO(regs);
+		clean_si.si_addr = (void __user *) FAULT_ADDRESS(*fi);
+		current->thread.arch.faultinfo = *fi;
+#ifdef __ARCH_SI_TRAPNO
+		clean_si.si_trapno = si->si_trapno;
+#endif
+		break;
+	default:
+		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d)\n",
+			sig, si->si_code);
+	}
+
+	force_sig_info(sig, &clean_si, current);
 }
 
-void bus_handler(int sig, struct uml_pt_regs *regs)
+void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 {
 	if (current->thread.fault_catcher != NULL)
 		UML_LONGJMP(current->thread.fault_catcher, 1);
-	else relay_signal(sig, regs);
+	else
+		relay_signal(sig, si, regs);
 }
 
-void winch(int sig, struct uml_pt_regs *regs)
+void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
 }

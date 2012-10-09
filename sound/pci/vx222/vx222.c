@@ -258,22 +258,24 @@ static void __devexit snd_vx222_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM
-static int snd_vx222_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_vx222_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_vx222 *vx = card->private_data;
 	int err;
 
-	err = snd_vx_suspend(&vx->core, state);
+	err = snd_vx_suspend(&vx->core);
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return err;
 }
 
-static int snd_vx222_resume(struct pci_dev *pci)
+static int snd_vx222_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_vx222 *vx = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -287,6 +289,11 @@ static int snd_vx222_resume(struct pci_dev *pci)
 	pci_set_master(pci);
 	return snd_vx_resume(&vx->core);
 }
+
+static SIMPLE_DEV_PM_OPS(snd_vx222_pm, snd_vx222_suspend, snd_vx222_resume);
+#define SND_VX222_PM_OPS	&snd_vx222_pm
+#else
+#define SND_VX222_PM_OPS	NULL
 #endif
 
 static struct pci_driver vx222_driver = {
@@ -294,10 +301,9 @@ static struct pci_driver vx222_driver = {
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
 	.remove = __devexit_p(snd_vx222_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_vx222_suspend,
-	.resume = snd_vx222_resume,
-#endif
+	.driver = {
+		.pm = SND_VX222_PM_OPS,
+	},
 };
 
 module_pci_driver(vx222_driver);

@@ -176,7 +176,7 @@ static int apply_envelope(struct ml_effect_state *state, int value,
 			 value, envelope->attack_level);
 		time_from_level = jiffies_to_msecs(now - state->play_at);
 		time_of_envelope = envelope->attack_length;
-		envelope_level = min_t(__s16, envelope->attack_level, 0x7fff);
+		envelope_level = min_t(u16, envelope->attack_level, 0x7fff);
 
 	} else if (envelope->fade_length && effect->replay.length &&
 		   time_after(now,
@@ -184,7 +184,7 @@ static int apply_envelope(struct ml_effect_state *state, int value,
 		   time_before(now, state->stop_at)) {
 		time_from_level = jiffies_to_msecs(state->stop_at - now);
 		time_of_envelope = envelope->fade_length;
-		envelope_level = min_t(__s16, envelope->fade_level, 0x7fff);
+		envelope_level = min_t(u16, envelope->fade_level, 0x7fff);
 	} else
 		return value;
 

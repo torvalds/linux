@@ -736,6 +736,7 @@ int __init parse_ioapics_under_ir(void)
 {
 	struct dmar_drhd_unit *drhd;
 	int ir_supported = 0;
+	int ioapic_idx;
 
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;
@@ -748,13 +749,20 @@ int __init parse_ioapics_under_ir(void)
 		}
 	}
 
-	if (ir_supported && ir_ioapic_num != nr_ioapics) {
-		printk(KERN_WARNING
-		       "Not all IO-APIC's listed under remapping hardware\n");
-		return -1;
+	if (!ir_supported)
+		return 0;
+
+	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
+		int ioapic_id = mpc_ioapic_id(ioapic_idx);
+		if (!map_ioapic_to_ir(ioapic_id)) {
+			pr_err(FW_BUG "ioapic %d has no mapping iommu, "
+			       "interrupt remapping will be disabled\n",
+			       ioapic_id);
+			return -1;
+		}
 	}
 
-	return ir_supported;
+	return 1;
 }
 
 int __init ir_dev_scope_init(void)
@@ -902,7 +910,6 @@ static int intel_setup_ioapic_entry(int irq,
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 /*
  * Migrate the IO-APIC irq in the presence of intr-remapping.
  *
@@ -924,6 +931,10 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned int dest, irq = data->irq;
 	struct irte irte;
+	int err;
+
+	if (!config_enabled(CONFIG_SMP))
+		return -EINVAL;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -EINVAL;
@@ -931,10 +942,16 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	if (get_irte(irq, &irte))
 		return -EBUSY;
 
-	if (assign_irq_vector(irq, cfg, mask))
-		return -EBUSY;
+	err = assign_irq_vector(irq, cfg, mask);
+	if (err)
+		return err;
 
-	dest = apic->cpu_mask_to_apicid_and(cfg->domain, mask);
+	err = apic->cpu_mask_to_apicid_and(cfg->domain, mask, &dest);
+	if (err) {
+		if (assign_irq_vector(irq, cfg, data->affinity))
+			pr_err("Failed to recover vector for irq %d\n", irq);
+		return err;
+	}
 
 	irte.vector = cfg->vector;
 	irte.dest_id = IRTE_DEST(dest);
@@ -956,7 +973,6 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	cpumask_copy(data->affinity, mask);
 	return 0;
 }
-#endif
 
 static void intel_compose_msi_msg(struct pci_dev *pdev,
 				  unsigned int irq, unsigned int dest,
@@ -1058,9 +1074,7 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.reenable		= reenable_irq_remapping,
 	.enable_faulting	= enable_drhd_fault_handling,
 	.setup_ioapic_entry	= intel_setup_ioapic_entry,
-#ifdef CONFIG_SMP
 	.set_affinity		= intel_ioapic_set_affinity,
-#endif
 	.free_irq		= free_irte,
 	.compose_msi_msg	= intel_compose_msi_msg,
 	.msi_alloc_irq		= intel_msi_alloc_irq,

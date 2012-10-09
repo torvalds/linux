@@ -6,6 +6,7 @@
  * Copyright (C) 2003, 04, 05 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2007  Maciej W. Rozycki
  * Copyright (C) 2008  Thiemo Seufer
+ * Copyright (C) 2012  MIPS Technologies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -70,45 +71,6 @@ static struct uasm_reloc __cpuinitdata relocs[5];
 
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
-
-/*
- * Maximum sizes:
- *
- * R4000 128 bytes S-cache:		0x058 bytes
- * R4600 v1.7:				0x05c bytes
- * R4600 v2.0:				0x060 bytes
- * With prefetching, 16 word strides	0x120 bytes
- */
-
-static u32 clear_page_array[0x120 / 4];
-
-#ifdef CONFIG_SIBYTE_DMA_PAGEOPS
-void clear_page_cpu(void *page) __attribute__((alias("clear_page_array")));
-#else
-void clear_page(void *page) __attribute__((alias("clear_page_array")));
-#endif
-
-EXPORT_SYMBOL(clear_page);
-
-/*
- * Maximum sizes:
- *
- * R4000 128 bytes S-cache:		0x11c bytes
- * R4600 v1.7:				0x080 bytes
- * R4600 v2.0:				0x07c bytes
- * With prefetching, 16 word strides	0x540 bytes
- */
-static u32 copy_page_array[0x540 / 4];
-
-#ifdef CONFIG_SIBYTE_DMA_PAGEOPS
-void
-copy_page_cpu(void *to, void *from) __attribute__((alias("copy_page_array")));
-#else
-void copy_page(void *to, void *from) __attribute__((alias("copy_page_array")));
-#endif
-
-EXPORT_SYMBOL(copy_page);
-
 
 static int pref_bias_clear_store __cpuinitdata;
 static int pref_bias_copy_load __cpuinitdata;
@@ -282,10 +244,15 @@ static inline void __cpuinit build_clear_pref(u32 **buf, int off)
 		}
 }
 
+extern u32 __clear_page_start;
+extern u32 __clear_page_end;
+extern u32 __copy_page_start;
+extern u32 __copy_page_end;
+
 void __cpuinit build_clear_page(void)
 {
 	int off;
-	u32 *buf = (u32 *)&clear_page_array;
+	u32 *buf = &__clear_page_start;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
@@ -356,17 +323,17 @@ void __cpuinit build_clear_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > clear_page_array + ARRAY_SIZE(clear_page_array));
+	BUG_ON(buf > &__clear_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
 	pr_debug("Synthesized clear page handler (%u instructions).\n",
-		 (u32)(buf - clear_page_array));
+		 (u32)(buf - &__clear_page_start));
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (buf - clear_page_array); i++)
-		pr_debug("\t.word 0x%08x\n", clear_page_array[i]);
+	for (i = 0; i < (buf - &__clear_page_start); i++)
+		pr_debug("\t.word 0x%08x\n", (&__clear_page_start)[i]);
 	pr_debug("\t.set pop\n");
 }
 
@@ -427,7 +394,7 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 void __cpuinit build_copy_page(void)
 {
 	int off;
-	u32 *buf = (u32 *)&copy_page_array;
+	u32 *buf = &__copy_page_start;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
@@ -595,21 +562,23 @@ void __cpuinit build_copy_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > copy_page_array + ARRAY_SIZE(copy_page_array));
+	BUG_ON(buf > &__copy_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
 	pr_debug("Synthesized copy page handler (%u instructions).\n",
-		 (u32)(buf - copy_page_array));
+		 (u32)(buf - &__copy_page_start));
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (buf - copy_page_array); i++)
-		pr_debug("\t.word 0x%08x\n", copy_page_array[i]);
+	for (i = 0; i < (buf - &__copy_page_start); i++)
+		pr_debug("\t.word 0x%08x\n", (&__copy_page_start)[i]);
 	pr_debug("\t.set pop\n");
 }
 
 #ifdef CONFIG_SIBYTE_DMA_PAGEOPS
+extern void clear_page_cpu(void *page);
+extern void copy_page_cpu(void *to, void *from);
 
 /*
  * Pad descriptors to cacheline, since each is exclusively owned by a

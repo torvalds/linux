@@ -208,3 +208,15 @@ Description:
 		such as ACPI. This file will read either "removable" or
 		"fixed" if the information is available, and "unknown"
 		otherwise.
+
+What:		/sys/bus/usb/devices/.../ltm_capable
+Date:		July 2012
+Contact:	Sarah Sharp <sarah.a.sharp@linux.intel.com>
+Description:
+		USB 3.0 devices may optionally support Latency Tolerance
+		Messaging (LTM).  They indicate their support by setting a bit
+		in the bmAttributes field of their SuperSpeed BOS descriptors.
+		If that bit is set for the device, ltm_capable will read "yes".
+		If the device doesn't support LTM, the file will read "no".
+		The file will be present for all speeds of USB devices, and will
+		always read "no" for USB 1.1 and USB 2.0 devices.

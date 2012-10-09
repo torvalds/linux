@@ -78,6 +78,9 @@ enum carl9170fw_feature_list {
 	/* HW (ANI, CCA, MIB) tally counters */
 	CARL9170FW_HW_COUNTERS,
 
+	/* Firmware will pass BA when BARs are queued */
+	CARL9170FW_RX_BA_FILTER,
+
 	/* KEEP LAST */
 	__CARL9170FW_FEATURE_NUM
 };

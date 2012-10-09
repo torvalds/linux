@@ -203,7 +203,7 @@ static unsigned int speedstep_detect_chipset(void)
 	if (speedstep_chipset_dev) {
 		/* speedstep.c causes lockups on Dell Inspirons 8000 and
 		 * 8100 which use a pretty old revision of the 82815
-		 * host brige. Abort on these systems.
+		 * host bridge. Abort on these systems.
 		 */
 		static struct pci_dev *hostbridge;
 

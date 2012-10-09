@@ -77,8 +77,8 @@ static void core_clear_initiator_node_from_tpg(
 
 		lun = deve->se_lun;
 		spin_unlock_irq(&nacl->device_list_lock);
-		core_update_device_list_for_node(lun, NULL, deve->mapped_lun,
-			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg, 0);
+		core_disable_device_list_for_node(lun, NULL, deve->mapped_lun,
+			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg);
 
 		spin_lock_irq(&nacl->device_list_lock);
 	}
@@ -172,8 +172,8 @@ void core_tpg_add_node_to_devs(
 			(lun_access == TRANSPORT_LUNFLAGS_READ_WRITE) ?
 			"READ-WRITE" : "READ-ONLY");
 
-		core_update_device_list_for_node(lun, NULL, lun->unpacked_lun,
-				lun_access, acl, tpg, 1);
+		core_enable_device_list_for_node(lun, NULL, lun->unpacked_lun,
+				lun_access, acl, tpg);
 		spin_lock(&tpg->tpg_lun_lock);
 	}
 	spin_unlock(&tpg->tpg_lun_lock);
@@ -306,10 +306,8 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	 * TPG LUNs if the fabric is not explictly asking for
 	 * tpg_check_demo_mode_login_only() == 1.
 	 */
-	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only != NULL) &&
-	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) == 1))
-		do { ; } while (0);
-	else
+	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only == NULL) ||
+	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) != 1))
 		core_tpg_add_node_to_devs(acl, tpg);
 
 	spin_lock_irq(&tpg->acl_node_lock);

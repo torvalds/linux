@@ -100,19 +100,19 @@ _icswx_skip_guest:
 	lis	r4,(MMUCR0_TLBSEL_I|MMUCR0_ECL)@h
 	mtspr	SPRN_MMUCR0, r4
 	li	r4,A2_IERAT_SIZE-1
-	PPC_ERATWE(r4,r4,3)
+	PPC_ERATWE(R4,R4,3)
 
 	/* Now set the D-ERAT watermark to 31 */
 	lis	r4,(MMUCR0_TLBSEL_D|MMUCR0_ECL)@h
 	mtspr	SPRN_MMUCR0, r4
 	li	r4,A2_DERAT_SIZE-1
-	PPC_ERATWE(r4,r4,3)
+	PPC_ERATWE(R4,R4,3)
 
 	/* And invalidate the beast just in case. That won't get rid of
 	 * a bolted entry though it will be in LRU and so will go away eventually
 	 * but let's not bother for now
 	 */
-	PPC_ERATILX(0,0,0)
+	PPC_ERATILX(0,0,R0)
 1:
 	blr
 

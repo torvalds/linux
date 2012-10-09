@@ -302,7 +302,7 @@
 /* S3C2410:
  * Port G consists of 8 GPIO/IRQ/Special function
  *
- * GPGCON has 2 bits for each of the input pins on port F
+ * GPGCON has 2 bits for each of the input pins on port G
  *   00 = 0 input, 1 output, 2 interrupt (EINT0..7), 3 special func
  *
  * pull up works like all other ports.
@@ -366,7 +366,7 @@
 
 /* Port H consists of11 GPIO/serial/Misc pins
  *
- * GPGCON has 2 bits for each of the input pins on port F
+ * GPHCON has 2 bits for each of the input pins on port H
  *   00 = 0 input, 1 output, 2 interrupt (EINT0..7), 3 special func
  *
  * pull up works like all other ports.
@@ -426,6 +426,19 @@
  * GPH, which means all registers after 0x80 are now offset by 0x10
  * for the 2412/2413 from the 2410/2440/2442
 */
+
+/*
+ * Port J consists of 13 GPIO/Camera pins. GPJCON has 2 bits
+ * for each of the pins on port J.
+ *   00 - input, 01 output, 10 - camera
+ *
+ * Pull up works like all other ports.
+ */
+
+#define S3C2413_GPJCON	   S3C2410_GPIOREG(0x80)
+#define S3C2413_GPJDAT	   S3C2410_GPIOREG(0x84)
+#define S3C2413_GPJUP	   S3C2410_GPIOREG(0x88)
+#define S3C2413_GPJSLPCON  S3C2410_GPIOREG(0x8C)
 
 /* S3C2443 and above */
 #define S3C2440_GPJCON	   S3C2410_GPIOREG(0xD0)

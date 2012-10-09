@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/dma.h
- *
  *  S390 version
  */
 

@@ -6,6 +6,7 @@
 
 #include <linux/linkage.h>
 #include <asm/page_types.h>
+#include <asm/segment.h>
 
 #include "realmode.h"
 	
@@ -28,8 +29,9 @@ GLOBAL(real_mode_header)
 	.long	pa_wakeup_header
 #endif
 	/* APM/BIOS reboot */
-#ifdef CONFIG_X86_32
 	.long	pa_machine_real_restart_asm
+#ifdef CONFIG_X86_64
+	.long	__KERNEL32_CS
 #endif
 END(real_mode_header)
 

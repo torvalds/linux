@@ -57,6 +57,69 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	return 0;
 }
 
+static void scan_delay_timer_fn(unsigned long data)
+{
+	struct mwifiex_private *priv = (struct mwifiex_private *)data;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct cmd_ctrl_node *cmd_node, *tmp_node;
+	unsigned long flags;
+
+	if (!mwifiex_wmm_lists_empty(adapter)) {
+		if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT) {
+			/*
+			 * Abort scan operation by cancelling all pending scan
+			 * command
+			 */
+			spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+			list_for_each_entry_safe(cmd_node, tmp_node,
+						 &adapter->scan_pending_q,
+						 list) {
+				list_del(&cmd_node->list);
+				cmd_node->wait_q_enabled = false;
+				mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+			}
+			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
+					       flags);
+
+			spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+			adapter->scan_processing = false;
+			spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock,
+					       flags);
+
+			if (priv->user_scan_cfg) {
+				dev_dbg(priv->adapter->dev,
+					"info: %s: scan aborted\n", __func__);
+				cfg80211_scan_done(priv->scan_request, 1);
+				priv->scan_request = NULL;
+				kfree(priv->user_scan_cfg);
+				priv->user_scan_cfg = NULL;
+			}
+		} else {
+			/*
+			 * Tx data queue is still not empty, delay scan
+			 * operation further by 20msec.
+			 */
+			mod_timer(&priv->scan_delay_timer, jiffies +
+				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
+			adapter->scan_delay_cnt++;
+		}
+		queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
+	} else {
+		/*
+		 * Tx data queue is empty. Get scan command from scan_pending_q
+		 * and put to cmd_pending_q to resume scan operation
+		 */
+		adapter->scan_delay_cnt = 0;
+		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+		cmd_node = list_first_entry(&adapter->scan_pending_q,
+					    struct cmd_ctrl_node, list);
+		list_del(&cmd_node->list);
+		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+	}
+}
+
 /*
  * This function initializes the private structure and sets default
  * values to the members.
@@ -135,6 +198,9 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->wps_ie_len = 0;
 
 	priv->scan_block = false;
+
+	setup_timer(&priv->scan_delay_timer, scan_delay_timer_fn,
+		    (unsigned long)priv);
 
 	return mwifiex_add_bss_prio_tbl(priv);
 }
@@ -278,7 +344,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->adhoc_awake_period = 0;
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
-	adapter->channel_type = NL80211_CHAN_HT20;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
 }
 

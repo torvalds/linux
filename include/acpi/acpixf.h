@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120320
+#define ACPI_CA_VERSION                 0x20120711
 
 #include "acconfig.h"
 #include "actypes.h"
@@ -154,15 +154,20 @@ void *acpi_callocate(u32 size);
 void acpi_free(void *address);
 
 /*
+ * ACPI table load/unload interfaces
+ */
+acpi_status acpi_load_table(struct acpi_table_header *table);
+
+acpi_status acpi_unload_parent_table(acpi_handle object);
+
+acpi_status acpi_load_tables(void);
+
+/*
  * ACPI table manipulation interfaces
  */
 acpi_status acpi_reallocate_root_table(void);
 
 acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
-
-acpi_status acpi_load_tables(void);
-
-acpi_status acpi_load_table(struct acpi_table_header *table_ptr);
 
 acpi_status acpi_unload_table_id(acpi_owner_id id);
 
@@ -486,11 +491,11 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);
 
 acpi_status acpi_enter_sleep_state_prep(u8 sleep_state);
 
-acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state, u8 flags);
+acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void))
 
-acpi_status acpi_leave_sleep_state_prep(u8 sleep_state, u8 flags);
+acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
@@ -528,6 +533,14 @@ acpi_warning(const char *module_name,
 void ACPI_INTERNAL_VAR_XFACE
 acpi_info(const char *module_name,
 	  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_bios_error(const char *module_name,
+		u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_bios_warning(const char *module_name,
+		  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
 /*
  * Debug output

@@ -182,7 +182,7 @@
 
 /*
  * Combination opcodes (actually two one-byte opcodes)
- * Used by the disassembler and i_aSL compiler
+ * Used by the disassembler and iASL compiler
  */
 #define AML_LGREATEREQUAL_OP        (u16) 0x9295
 #define AML_LLESSEQUAL_OP           (u16) 0x9294
@@ -280,7 +280,7 @@
 
 /* Multiple/complex types */
 
-#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a Node - Used only by size_of operator */
+#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a node - Used only by size_of operator */
 #define ARGI_COMPLEXOBJ             0x13	/* Buffer, String, or package (Used by INDEX op only) */
 #define ARGI_REF_OR_STRING          0x14	/* Reference or String (Used by DEREFOF op only) */
 #define ARGI_REGION_OR_BUFFER       0x15	/* Used by LOAD op only */

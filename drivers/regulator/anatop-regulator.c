@@ -43,33 +43,15 @@ struct anatop_regulator {
 	struct regulator_init_data *initdata;
 };
 
-static int anatop_set_voltage(struct regulator_dev *reg, int min_uV,
-				  int max_uV, unsigned *selector)
+static int anatop_set_voltage_sel(struct regulator_dev *reg, unsigned selector)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
-	u32 val, sel, mask;
-	int uv;
-
-	uv = min_uV;
-	dev_dbg(&reg->dev, "%s: uv %d, min %d, max %d\n", __func__,
-		uv, anatop_reg->min_voltage,
-		anatop_reg->max_voltage);
-
-	if (uv < anatop_reg->min_voltage) {
-		if (max_uV > anatop_reg->min_voltage)
-			uv = anatop_reg->min_voltage;
-		else
-			return -EINVAL;
-	}
+	u32 val, mask;
 
 	if (!anatop_reg->control_reg)
 		return -ENOTSUPP;
 
-	sel = DIV_ROUND_UP(uv - anatop_reg->min_voltage, 25000);
-	if (sel * 25000 + anatop_reg->min_voltage > anatop_reg->max_voltage)
-		return -EINVAL;
-	val = anatop_reg->min_bit_val + sel;
-	*selector = sel;
+	val = anatop_reg->min_bit_val + selector;
 	dev_dbg(&reg->dev, "%s: calculated val %d\n", __func__, val);
 	mask = ((1 << anatop_reg->vol_bit_width) - 1) <<
 		anatop_reg->vol_bit_shift;
@@ -82,33 +64,24 @@ static int anatop_set_voltage(struct regulator_dev *reg, int min_uV,
 static int anatop_get_voltage_sel(struct regulator_dev *reg)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
-	u32 val;
+	u32 val, mask;
 
 	if (!anatop_reg->control_reg)
 		return -ENOTSUPP;
 
 	val = anatop_read_reg(anatop_reg->mfd, anatop_reg->control_reg);
-	val = (val & ((1 << anatop_reg->vol_bit_width) - 1)) >>
+	mask = ((1 << anatop_reg->vol_bit_width) - 1) <<
 		anatop_reg->vol_bit_shift;
+	val = (val & mask) >> anatop_reg->vol_bit_shift;
 
 	return val - anatop_reg->min_bit_val;
 }
 
-static int anatop_list_voltage(struct regulator_dev *reg, unsigned selector)
-{
-	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
-	int uv;
-
-	uv = anatop_reg->min_voltage + selector * 25000;
-	dev_dbg(&reg->dev, "vddio = %d, selector = %u\n", uv, selector);
-
-	return uv;
-}
-
 static struct regulator_ops anatop_rops = {
-	.set_voltage     = anatop_set_voltage,
+	.set_voltage_sel = anatop_set_voltage_sel,
 	.get_voltage_sel = anatop_get_voltage_sel,
-	.list_voltage    = anatop_list_voltage,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 };
 
 static int __devinit anatop_regulator_probe(struct platform_device *pdev)
@@ -176,6 +149,8 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 
 	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage)
 		/ 25000 + 1;
+	rdesc->min_uV = sreg->min_voltage;
+	rdesc->uV_step = 25000;
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;

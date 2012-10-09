@@ -37,7 +37,6 @@
 #if defined(CONFIG_PPC_BOOK3S_64)
 
 #define FUNC(name) 		GLUE(.,name)
-#define MTMSR_EERI(reg)		mtmsrd	(reg),1
 
 	.globl	kvmppc_skip_interrupt
 kvmppc_skip_interrupt:
@@ -68,7 +67,6 @@ kvmppc_skip_Hinterrupt:
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
 #define FUNC(name)		name
-#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 .macro INTERRUPT_TRAMPOLINE intno
 

@@ -98,11 +98,12 @@ the &v4l2-output; <structfield>modulator</structfield> field and the
 	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>The tuner type. This is the same value as in the
-&v4l2-tuner; <structfield>type</structfield> field. See The type must be set
+&v4l2-tuner; <structfield>type</structfield> field. The type must be set
 to <constant>V4L2_TUNER_RADIO</constant> for <filename>/dev/radioX</filename>
 device nodes, and to <constant>V4L2_TUNER_ANALOG_TV</constant>
-for all others. The field is not applicable to modulators, &ie; ignored
-by drivers. See <xref linkend="v4l2-tuner-type" /></entry>
+for all others. Set this field to <constant>V4L2_TUNER_RADIO</constant> for
+modulators (currently only radio modulators are supported).
+See <xref linkend="v4l2-tuner-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -133,6 +134,12 @@ Hz.</entry>
 	  <para>The <structfield>tuner</structfield> index is out of
 bounds or the value in the <structfield>type</structfield> field is
 wrong.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>A hardware seek is in progress.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

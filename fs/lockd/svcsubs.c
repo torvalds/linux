@@ -309,7 +309,8 @@ nlm_release_file(struct nlm_file *file)
  * Helpers function for resource traversal
  *
  * nlmsvc_mark_host:
- *	used by the garbage collector; simply sets h_inuse.
+ *	used by the garbage collector; simply sets h_inuse only for those
+ *	hosts, which passed network check.
  *	Always returns 0.
  *
  * nlmsvc_same_host:
@@ -320,12 +321,15 @@ nlm_release_file(struct nlm_file *file)
  *	returns 1 iff the host is a client.
  *	Used by nlmsvc_invalidate_all
  */
+
 static int
-nlmsvc_mark_host(void *data, struct nlm_host *dummy)
+nlmsvc_mark_host(void *data, struct nlm_host *hint)
 {
 	struct nlm_host *host = data;
 
-	host->h_inuse = 1;
+	if ((hint->net == NULL) ||
+	    (host->net == hint->net))
+		host->h_inuse = 1;
 	return 0;
 }
 
@@ -358,10 +362,13 @@ nlmsvc_is_client(void *data, struct nlm_host *dummy)
  * Mark all hosts that still hold resources
  */
 void
-nlmsvc_mark_resources(void)
+nlmsvc_mark_resources(struct net *net)
 {
-	dprintk("lockd: nlmsvc_mark_resources\n");
-	nlm_traverse_files(NULL, nlmsvc_mark_host, NULL);
+	struct nlm_host hint;
+
+	dprintk("lockd: nlmsvc_mark_resources for net %p\n", net);
+	hint.net = net;
+	nlm_traverse_files(&hint, nlmsvc_mark_host, NULL);
 }
 
 /*

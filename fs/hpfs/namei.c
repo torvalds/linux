@@ -115,7 +115,7 @@ bail:
 	return err;
 }
 
-static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;

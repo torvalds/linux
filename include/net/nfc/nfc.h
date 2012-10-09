@@ -53,7 +53,8 @@ struct nfc_target;
 struct nfc_ops {
 	int (*dev_up)(struct nfc_dev *dev);
 	int (*dev_down)(struct nfc_dev *dev);
-	int (*start_poll)(struct nfc_dev *dev, u32 protocols);
+	int (*start_poll)(struct nfc_dev *dev,
+			  u32 im_protocols, u32 tm_protocols);
 	void (*stop_poll)(struct nfc_dev *dev);
 	int (*dep_link_up)(struct nfc_dev *dev, struct nfc_target *target,
 			   u8 comm_mode, u8 *gb, size_t gb_len);
@@ -62,9 +63,10 @@ struct nfc_ops {
 			       u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev,
 				  struct nfc_target *target);
-	int (*data_exchange)(struct nfc_dev *dev, struct nfc_target *target,
+	int (*im_transceive)(struct nfc_dev *dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
+	int (*tm_send)(struct nfc_dev *dev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
 };
 
@@ -99,10 +101,10 @@ struct nfc_dev {
 	int targets_generation;
 	struct device dev;
 	bool dev_up;
+	u8 rf_mode;
 	bool polling;
 	struct nfc_target *active_target;
 	bool dep_link_up;
-	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
@@ -188,6 +190,7 @@ struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 
 int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 				 u8 *gt, u8 gt_len);
+u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len);
 
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);
@@ -195,5 +198,12 @@ int nfc_target_lost(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 		       u8 comm_mode, u8 rf_mode);
+
+int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
+		     u8 *gb, size_t gb_len);
+int nfc_tm_deactivated(struct nfc_dev *dev);
+int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
+
+void nfc_driver_failure(struct nfc_dev *dev, int err);
 
 #endif /* __NET_NFC_H */

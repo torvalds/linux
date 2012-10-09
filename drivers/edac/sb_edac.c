@@ -381,8 +381,8 @@ static inline int numrank(u32 mtr)
 	int ranks = (1 << RANK_CNT_BITS(mtr));
 
 	if (ranks > 4) {
-		debugf0("Invalid number of ranks: %d (max = 4) raw value = %x (%04x)",
-			ranks, (unsigned int)RANK_CNT_BITS(mtr), mtr);
+		edac_dbg(0, "Invalid number of ranks: %d (max = 4) raw value = %x (%04x)\n",
+			 ranks, (unsigned int)RANK_CNT_BITS(mtr), mtr);
 		return -EINVAL;
 	}
 
@@ -394,8 +394,8 @@ static inline int numrow(u32 mtr)
 	int rows = (RANK_WIDTH_BITS(mtr) + 12);
 
 	if (rows < 13 || rows > 18) {
-		debugf0("Invalid number of rows: %d (should be between 14 and 17) raw value = %x (%04x)",
-			rows, (unsigned int)RANK_WIDTH_BITS(mtr), mtr);
+		edac_dbg(0, "Invalid number of rows: %d (should be between 14 and 17) raw value = %x (%04x)\n",
+			 rows, (unsigned int)RANK_WIDTH_BITS(mtr), mtr);
 		return -EINVAL;
 	}
 
@@ -407,8 +407,8 @@ static inline int numcol(u32 mtr)
 	int cols = (COL_WIDTH_BITS(mtr) + 10);
 
 	if (cols > 12) {
-		debugf0("Invalid number of cols: %d (max = 4) raw value = %x (%04x)",
-			cols, (unsigned int)COL_WIDTH_BITS(mtr), mtr);
+		edac_dbg(0, "Invalid number of cols: %d (max = 4) raw value = %x (%04x)\n",
+			 cols, (unsigned int)COL_WIDTH_BITS(mtr), mtr);
 		return -EINVAL;
 	}
 
@@ -475,8 +475,8 @@ static struct pci_dev *get_pdev_slot_func(u8 bus, unsigned slot,
 
 		if (PCI_SLOT(sbridge_dev->pdev[i]->devfn) == slot &&
 		    PCI_FUNC(sbridge_dev->pdev[i]->devfn) == func) {
-			debugf1("Associated %02x.%02x.%d with %p\n",
-				bus, slot, func, sbridge_dev->pdev[i]);
+			edac_dbg(1, "Associated %02x.%02x.%d with %p\n",
+				 bus, slot, func, sbridge_dev->pdev[i]);
 			return sbridge_dev->pdev[i];
 		}
 	}
@@ -523,45 +523,45 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 	pci_read_config_dword(pvt->pci_br, SAD_CONTROL, &reg);
 	pvt->sbridge_dev->node_id = NODE_ID(reg);
-	debugf0("mc#%d: Node ID: %d, source ID: %d\n",
-		pvt->sbridge_dev->mc,
-		pvt->sbridge_dev->node_id,
-		pvt->sbridge_dev->source_id);
+	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
+		 pvt->sbridge_dev->mc,
+		 pvt->sbridge_dev->node_id,
+		 pvt->sbridge_dev->source_id);
 
 	pci_read_config_dword(pvt->pci_ras, RASENABLES, &reg);
 	if (IS_MIRROR_ENABLED(reg)) {
-		debugf0("Memory mirror is enabled\n");
+		edac_dbg(0, "Memory mirror is enabled\n");
 		pvt->is_mirrored = true;
 	} else {
-		debugf0("Memory mirror is disabled\n");
+		edac_dbg(0, "Memory mirror is disabled\n");
 		pvt->is_mirrored = false;
 	}
 
 	pci_read_config_dword(pvt->pci_ta, MCMTR, &pvt->info.mcmtr);
 	if (IS_LOCKSTEP_ENABLED(pvt->info.mcmtr)) {
-		debugf0("Lockstep is enabled\n");
+		edac_dbg(0, "Lockstep is enabled\n");
 		mode = EDAC_S8ECD8ED;
 		pvt->is_lockstep = true;
 	} else {
-		debugf0("Lockstep is disabled\n");
+		edac_dbg(0, "Lockstep is disabled\n");
 		mode = EDAC_S4ECD4ED;
 		pvt->is_lockstep = false;
 	}
 	if (IS_CLOSE_PG(pvt->info.mcmtr)) {
-		debugf0("address map is on closed page mode\n");
+		edac_dbg(0, "address map is on closed page mode\n");
 		pvt->is_close_pg = true;
 	} else {
-		debugf0("address map is on open page mode\n");
+		edac_dbg(0, "address map is on open page mode\n");
 		pvt->is_close_pg = false;
 	}
 
 	pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
 	if (IS_RDIMM_ENABLED(reg)) {
 		/* FIXME: Can also be LRDIMM */
-		debugf0("Memory is registered\n");
+		edac_dbg(0, "Memory is registered\n");
 		mtype = MEM_RDDR3;
 	} else {
-		debugf0("Memory is unregistered\n");
+		edac_dbg(0, "Memory is unregistered\n");
 		mtype = MEM_DDR3;
 	}
 
@@ -576,7 +576,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				       i, j, 0);
 			pci_read_config_dword(pvt->pci_tad[i],
 					      mtr_regs[j], &mtr);
-			debugf4("Channel #%d  MTR%d = %x\n", i, j, mtr);
+			edac_dbg(4, "Channel #%d  MTR%d = %x\n", i, j, mtr);
 			if (IS_DIMM_PRESENT(mtr)) {
 				pvt->channel[i].dimms++;
 
@@ -588,10 +588,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				size = (rows * cols * banks * ranks) >> (20 - 3);
 				npages = MiB_TO_PAGES(size);
 
-				debugf0("mc#%d: channel %d, dimm %d, %d Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
-					pvt->sbridge_dev->mc, i, j,
-					size, npages,
-					banks, ranks, rows, cols);
+				edac_dbg(0, "mc#%d: channel %d, dimm %d, %d Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
+					 pvt->sbridge_dev->mc, i, j,
+					 size, npages,
+					 banks, ranks, rows, cols);
 
 				dimm->nr_pages = npages;
 				dimm->grain = 32;
@@ -629,8 +629,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	tmp_mb = (1 + pvt->tolm) >> 20;
 
 	mb = div_u64_rem(tmp_mb, 1000, &kb);
-	debugf0("TOLM: %u.%03u GB (0x%016Lx)\n",
-		mb, kb, (u64)pvt->tolm);
+	edac_dbg(0, "TOLM: %u.%03u GB (0x%016Lx)\n", mb, kb, (u64)pvt->tolm);
 
 	/* Address range is already 45:25 */
 	pci_read_config_dword(pvt->pci_sad1, TOHM,
@@ -639,8 +638,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	tmp_mb = (1 + pvt->tohm) >> 20;
 
 	mb = div_u64_rem(tmp_mb, 1000, &kb);
-	debugf0("TOHM: %u.%03u GB (0x%016Lx)",
-		mb, kb, (u64)pvt->tohm);
+	edac_dbg(0, "TOHM: %u.%03u GB (0x%016Lx)", mb, kb, (u64)pvt->tohm);
 
 	/*
 	 * Step 2) Get SAD range and SAD Interleave list
@@ -663,13 +661,13 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 
 		tmp_mb = (limit + 1) >> 20;
 		mb = div_u64_rem(tmp_mb, 1000, &kb);
-		debugf0("SAD#%d %s up to %u.%03u GB (0x%016Lx) %s reg=0x%08x\n",
-			n_sads,
-			get_dram_attr(reg),
-			mb, kb,
-			((u64)tmp_mb) << 20L,
-			INTERLEAVE_MODE(reg) ? "Interleave: 8:6" : "Interleave: [8:6]XOR[18:16]",
-			reg);
+		edac_dbg(0, "SAD#%d %s up to %u.%03u GB (0x%016Lx) Interleave: %s reg=0x%08x\n",
+			 n_sads,
+			 get_dram_attr(reg),
+			 mb, kb,
+			 ((u64)tmp_mb) << 20L,
+			 INTERLEAVE_MODE(reg) ? "8:6" : "[8:6]XOR[18:16]",
+			 reg);
 		prv = limit;
 
 		pci_read_config_dword(pvt->pci_sad0, interleave_list[n_sads],
@@ -679,8 +677,8 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			if (j > 0 && sad_interl == sad_pkg(reg, j))
 				break;
 
-			debugf0("SAD#%d, interleave #%d: %d\n",
-			n_sads, j, sad_pkg(reg, j));
+			edac_dbg(0, "SAD#%d, interleave #%d: %d\n",
+				 n_sads, j, sad_pkg(reg, j));
 		}
 	}
 
@@ -697,16 +695,16 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 		tmp_mb = (limit + 1) >> 20;
 
 		mb = div_u64_rem(tmp_mb, 1000, &kb);
-		debugf0("TAD#%d: up to %u.%03u GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
-			n_tads, mb, kb,
-			((u64)tmp_mb) << 20L,
-			(u32)TAD_SOCK(reg),
-			(u32)TAD_CH(reg),
-			(u32)TAD_TGT0(reg),
-			(u32)TAD_TGT1(reg),
-			(u32)TAD_TGT2(reg),
-			(u32)TAD_TGT3(reg),
-			reg);
+		edac_dbg(0, "TAD#%d: up to %u.%03u GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
+			 n_tads, mb, kb,
+			 ((u64)tmp_mb) << 20L,
+			 (u32)TAD_SOCK(reg),
+			 (u32)TAD_CH(reg),
+			 (u32)TAD_TGT0(reg),
+			 (u32)TAD_TGT1(reg),
+			 (u32)TAD_TGT2(reg),
+			 (u32)TAD_TGT3(reg),
+			 reg);
 		prv = limit;
 	}
 
@@ -722,11 +720,11 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 					      &reg);
 			tmp_mb = TAD_OFFSET(reg) >> 20;
 			mb = div_u64_rem(tmp_mb, 1000, &kb);
-			debugf0("TAD CH#%d, offset #%d: %u.%03u GB (0x%016Lx), reg=0x%08x\n",
-				i, j,
-				mb, kb,
-				((u64)tmp_mb) << 20L,
-				reg);
+			edac_dbg(0, "TAD CH#%d, offset #%d: %u.%03u GB (0x%016Lx), reg=0x%08x\n",
+				 i, j,
+				 mb, kb,
+				 ((u64)tmp_mb) << 20L,
+				 reg);
 		}
 	}
 
@@ -747,12 +745,12 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			tmp_mb = RIR_LIMIT(reg) >> 20;
 			rir_way = 1 << RIR_WAY(reg);
 			mb = div_u64_rem(tmp_mb, 1000, &kb);
-			debugf0("CH#%d RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d, reg=0x%08x\n",
-				i, j,
-				mb, kb,
-				((u64)tmp_mb) << 20L,
-				rir_way,
-				reg);
+			edac_dbg(0, "CH#%d RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d, reg=0x%08x\n",
+				 i, j,
+				 mb, kb,
+				 ((u64)tmp_mb) << 20L,
+				 rir_way,
+				 reg);
 
 			for (k = 0; k < rir_way; k++) {
 				pci_read_config_dword(pvt->pci_tad[i],
@@ -761,12 +759,12 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 				tmp_mb = RIR_OFFSET(reg) << 6;
 
 				mb = div_u64_rem(tmp_mb, 1000, &kb);
-				debugf0("CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
-					i, j, k,
-					mb, kb,
-					((u64)tmp_mb) << 20L,
-					(u32)RIR_RNK_TGT(reg),
-					reg);
+				edac_dbg(0, "CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
+					 i, j, k,
+					 mb, kb,
+					 ((u64)tmp_mb) << 20L,
+					 (u32)RIR_RNK_TGT(reg),
+					 reg);
 			}
 		}
 	}
@@ -853,16 +851,16 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		if (sad_way > 0 && sad_interl == sad_pkg(reg, sad_way))
 			break;
 		sad_interleave[sad_way] = sad_pkg(reg, sad_way);
-		debugf0("SAD interleave #%d: %d\n",
-			sad_way, sad_interleave[sad_way]);
+		edac_dbg(0, "SAD interleave #%d: %d\n",
+			 sad_way, sad_interleave[sad_way]);
 	}
-	debugf0("mc#%d: Error detected on SAD#%d: address 0x%016Lx < 0x%016Lx, Interleave [%d:6]%s\n",
-		pvt->sbridge_dev->mc,
-		n_sads,
-		addr,
-		limit,
-		sad_way + 7,
-		interleave_mode ? "" : "XOR[18:16]");
+	edac_dbg(0, "mc#%d: Error detected on SAD#%d: address 0x%016Lx < 0x%016Lx, Interleave [%d:6]%s\n",
+		 pvt->sbridge_dev->mc,
+		 n_sads,
+		 addr,
+		 limit,
+		 sad_way + 7,
+		 interleave_mode ? "" : "XOR[18:16]");
 	if (interleave_mode)
 		idx = ((addr >> 6) ^ (addr >> 16)) & 7;
 	else
@@ -884,8 +882,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		return -EINVAL;
 	}
 	*socket = sad_interleave[idx];
-	debugf0("SAD interleave index: %d (wayness %d) = CPU socket %d\n",
-		idx, sad_way, *socket);
+	edac_dbg(0, "SAD interleave index: %d (wayness %d) = CPU socket %d\n",
+		 idx, sad_way, *socket);
 
 	/*
 	 * Move to the proper node structure, in order to access the
@@ -972,16 +970,16 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 	offset = TAD_OFFSET(tad_offset);
 
-	debugf0("TAD#%d: address 0x%016Lx < 0x%016Lx, socket interleave %d, channel interleave %d (offset 0x%08Lx), index %d, base ch: %d, ch mask: 0x%02lx\n",
-		n_tads,
-		addr,
-		limit,
-		(u32)TAD_SOCK(reg),
-		ch_way,
-		offset,
-		idx,
-		base_ch,
-		*channel_mask);
+	edac_dbg(0, "TAD#%d: address 0x%016Lx < 0x%016Lx, socket interleave %d, channel interleave %d (offset 0x%08Lx), index %d, base ch: %d, ch mask: 0x%02lx\n",
+		 n_tads,
+		 addr,
+		 limit,
+		 (u32)TAD_SOCK(reg),
+		 ch_way,
+		 offset,
+		 idx,
+		 base_ch,
+		 *channel_mask);
 
 	/* Calculate channel address */
 	/* Remove the TAD offset */
@@ -1017,11 +1015,11 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 		limit = RIR_LIMIT(reg);
 		mb = div_u64_rem(limit >> 20, 1000, &kb);
-		debugf0("RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d\n",
-			n_rir,
-			mb, kb,
-			limit,
-			1 << RIR_WAY(reg));
+		edac_dbg(0, "RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d\n",
+			 n_rir,
+			 mb, kb,
+			 limit,
+			 1 << RIR_WAY(reg));
 		if  (ch_addr <= limit)
 			break;
 	}
@@ -1042,12 +1040,12 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			      &reg);
 	*rank = RIR_RNK_TGT(reg);
 
-	debugf0("RIR#%d: channel address 0x%08Lx < 0x%08Lx, RIR interleave %d, index %d\n",
-		n_rir,
-		ch_addr,
-		limit,
-		rir_way,
-		idx);
+	edac_dbg(0, "RIR#%d: channel address 0x%08Lx < 0x%08Lx, RIR interleave %d, index %d\n",
+		 n_rir,
+		 ch_addr,
+		 limit,
+		 rir_way,
+		 idx);
 
 	return 0;
 }
@@ -1064,14 +1062,14 @@ static void sbridge_put_devices(struct sbridge_dev *sbridge_dev)
 {
 	int i;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	edac_dbg(0, "\n");
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
 		struct pci_dev *pdev = sbridge_dev->pdev[i];
 		if (!pdev)
 			continue;
-		debugf0("Removing dev %02x:%02x.%d\n",
-			pdev->bus->number,
-			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+		edac_dbg(0, "Removing dev %02x:%02x.%d\n",
+			 pdev->bus->number,
+			 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 		pci_dev_put(pdev);
 	}
 }
@@ -1177,10 +1175,9 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 		return -ENODEV;
 	}
 
-	debugf0("Detected dev %02x:%d.%d PCI ID %04x:%04x\n",
-		bus, dev_descr->dev,
-		dev_descr->func,
-		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
+	edac_dbg(0, "Detected dev %02x:%d.%d PCI ID %04x:%04x\n",
+		 bus, dev_descr->dev, dev_descr->func,
+		 PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 	/*
 	 * As stated on drivers/pci/search.c, the reference count for
@@ -1297,10 +1294,10 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 			goto error;
 		}
 
-		debugf0("Associated PCI %02x.%02d.%d with dev = %p\n",
-			sbridge_dev->bus,
-			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-			pdev);
+		edac_dbg(0, "Associated PCI %02x.%02d.%d with dev = %p\n",
+			 sbridge_dev->bus,
+			 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+			 pdev);
 	}
 
 	/* Check if everything were registered */
@@ -1435,8 +1432,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 * to the group of dimm's where the error may be happening.
 	 */
 	snprintf(msg, sizeof(msg),
-		 "count:%d%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
-		 core_err_cnt,
+		 "%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
 		 overflow ? " OVERFLOW" : "",
 		 (uncorrected_error && recoverable) ? " recoverable" : "",
 		 area_type,
@@ -1445,20 +1441,20 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		 channel_mask,
 		 rank);
 
-	debugf0("%s", msg);
+	edac_dbg(0, "%s\n", msg);
 
 	/* FIXME: need support for channel mask */
 
 	/* Call the helper to output message */
-	edac_mc_handle_error(tp_event, mci,
+	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     channel, dimm, -1,
-			     optype, msg, m);
+			     optype, msg);
 	return;
 err_parsing:
-	edac_mc_handle_error(tp_event, mci, 0, 0, 0,
+	edac_mc_handle_error(tp_event, mci, core_err_cnt, 0, 0, 0,
 			     -1, -1, -1,
-			     msg, "", m);
+			     msg, "");
 
 }
 
@@ -1592,8 +1588,7 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	struct sbridge_pvt *pvt;
 
 	if (unlikely(!mci || !mci->pvt_info)) {
-		debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
-			__func__, &sbridge_dev->pdev[0]->dev);
+		edac_dbg(0, "MC: dev = %p\n", &sbridge_dev->pdev[0]->dev);
 
 		sbridge_printk(KERN_ERR, "Couldn't find mci handler\n");
 		return;
@@ -1601,13 +1596,13 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 
 	pvt = mci->pvt_info;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &sbridge_dev->pdev[0]->dev);
+	edac_dbg(0, "MC: mci = %p, dev = %p\n",
+		 mci, &sbridge_dev->pdev[0]->dev);
 
 	/* Remove MC sysfs nodes */
-	edac_mc_del_mc(mci->dev);
+	edac_mc_del_mc(mci->pdev);
 
-	debugf1("%s: free mci struct\n", mci->ctl_name);
+	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
 	kfree(mci->ctl_name);
 	edac_mc_free(mci);
 	sbridge_dev->mci = NULL;
@@ -1638,8 +1633,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	if (unlikely(!mci))
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &sbridge_dev->pdev[0]->dev);
+	edac_dbg(0, "MC: mci = %p, dev = %p\n",
+		 mci, &sbridge_dev->pdev[0]->dev);
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
@@ -1670,12 +1665,11 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	get_memory_layout(mci);
 
 	/* record ptr to the generic device */
-	mci->dev = &sbridge_dev->pdev[0]->dev;
+	mci->pdev = &sbridge_dev->pdev[0]->dev;
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(0, "MC: failed edac_mc_add_mc()\n");
 		rc = -EINVAL;
 		goto fail0;
 	}
@@ -1722,7 +1716,8 @@ static int __devinit sbridge_probe(struct pci_dev *pdev,
 	mc = 0;
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
-		debugf0("Registering MC#%d (%d of %d)\n", mc, mc + 1, num_mc);
+		edac_dbg(0, "Registering MC#%d (%d of %d)\n",
+			 mc, mc + 1, num_mc);
 		sbridge_dev->mc = mc++;
 		rc = sbridge_register_mci(sbridge_dev);
 		if (unlikely(rc < 0))
@@ -1752,7 +1747,7 @@ static void __devexit sbridge_remove(struct pci_dev *pdev)
 {
 	struct sbridge_dev *sbridge_dev;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	/*
 	 * we have a trouble here: pdev value for removal will be wrong, since
@@ -1801,7 +1796,7 @@ static int __init sbridge_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	edac_dbg(2, "\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -1825,7 +1820,7 @@ static int __init sbridge_init(void)
  */
 static void __exit sbridge_exit(void)
 {
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	edac_dbg(2, "\n");
 	pci_unregister_driver(&sbridge_driver);
 	mce_unregister_decode_chain(&sbridge_mce_dec);
 }

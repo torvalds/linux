@@ -1,6 +1,4 @@
 /*
- *  arch/s390/lib/uaccess_pt.c
- *
  *  User access functions based on page table walks for enhanced
  *  system layout without hardware support.
  *

@@ -1851,6 +1851,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count         = e1000_get_sset_count,
 	.get_coalesce           = e1000_get_coalesce,
 	.set_coalesce           = e1000_set_coalesce,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void e1000_set_ethtool_ops(struct net_device *netdev)

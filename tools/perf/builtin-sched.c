@@ -43,6 +43,11 @@ static u64			sleep_measurement_overhead;
 
 static unsigned long		nr_tasks;
 
+struct perf_sched {
+	struct perf_tool    tool;
+	struct perf_session *session;
+};
+
 struct sched_atom;
 
 struct task_desc {
@@ -1597,11 +1602,13 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool,
 						 struct perf_evsel *evsel,
 						 struct machine *machine)
 {
+	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
+	struct pevent *pevent = sched->session->pevent;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %s event, skipping it.\n",
-			 evsel->name);
+			 perf_evsel__name(evsel));
 		return -1;
 	}
 
@@ -1612,7 +1619,8 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool,
 		tracepoint_handler f = evsel->handler.func;
 
 		if (evsel->handler.data == NULL)
-			evsel->handler.data = trace_find_event(evsel->attr.config);
+			evsel->handler.data = pevent_find_event(pevent,
+							  evsel->attr.config);
 
 		f(tool, evsel->handler.data, sample, machine, thread);
 	}
@@ -1620,12 +1628,14 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool,
 	return 0;
 }
 
-static struct perf_tool perf_sched = {
-	.sample			= perf_sched__process_tracepoint_sample,
-	.comm			= perf_event__process_comm,
-	.lost			= perf_event__process_lost,
-	.fork			= perf_event__process_task,
-	.ordered_samples	= true,
+static struct perf_sched perf_sched = {
+	.tool = {
+		.sample		 = perf_sched__process_tracepoint_sample,
+		.comm		 = perf_event__process_comm,
+		.lost		 = perf_event__process_lost,
+		.fork		 = perf_event__process_task,
+		.ordered_samples = true,
+	},
 };
 
 static void read_events(bool destroy, struct perf_session **psession)
@@ -1640,16 +1650,20 @@ static void read_events(bool destroy, struct perf_session **psession)
 		{ "sched:sched_process_exit", process_sched_exit_event, },
 		{ "sched:sched_migrate_task", process_sched_migrate_task_event, },
 	};
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &perf_sched);
+	struct perf_session *session;
+
+	session = perf_session__new(input_name, O_RDONLY, 0, false,
+				    &perf_sched.tool);
 	if (session == NULL)
 		die("No Memory");
 
-	err = perf_evlist__set_tracepoints_handlers_array(session->evlist, handlers);
+	perf_sched.session = session;
+
+	err = perf_session__set_tracepoints_handlers(session, handlers);
 	assert(err == 0);
 
 	if (perf_session__has_traces(session, "record -R")) {
-		err = perf_session__process_events(session, &perf_sched);
+		err = perf_session__process_events(session, &perf_sched.tool);
 		if (err)
 			die("Failed to process events, error %d", err);
 

@@ -50,7 +50,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 #include <plat/mfc.h>
-#include <plat/pd.h>
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
 #include <plat/mipi_csis.h>
@@ -1067,11 +1066,7 @@ static struct platform_device nuri_max8903_device = {
 static void __init nuri_power_init(void)
 {
 	int gpio;
-	int irq_base = IRQ_GPIO_END + 1;
 	int ta_en = 0;
-
-	nuri_max8997_pdata.irq_base = irq_base;
-	irq_base += MAX8997_IRQ_NR;
 
 	gpio = EXYNOS4_GPX0(7);
 	gpio_request(gpio, "AP_PMIC_IRQ");
@@ -1342,9 +1337,8 @@ static struct platform_device *nuri_devices[] __initdata = {
 
 static void __init nuri_map_io(void)
 {
-	clk_xusbxti.rate = 24000000;
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
 }
 

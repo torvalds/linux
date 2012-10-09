@@ -167,7 +167,7 @@ static const u8 tid_to_ac[] = {
 	0, /* IEEE80211_AC_VO */
 };
 
-u8 rtl_tid_to_ac(struct ieee80211_hw *hw, u8 tid)
+u8 rtl_tid_to_ac(u8 tid)
 {
 	return tid_to_ac[tid];
 }
@@ -907,7 +907,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	__le16 fc = hdr->frame_control;
-	u8 *act = (u8 *) (((u8 *) skb->data + MAC80211_3ADDR_LEN));
+	u8 *act = (u8 *)skb->data + MAC80211_3ADDR_LEN;
 	u8 category;
 
 	if (!ieee80211_is_action(fc))

@@ -199,6 +199,7 @@ static bool debug;
 #define VENDOR_REALTEK		0x0bda
 #define VENDOR_TIVO		0x105a
 #define VENDOR_CONEXANT		0x0572
+#define VENDOR_TWISTEDMELON	0x2596
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -391,6 +392,12 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Conexant Hybrid TV RDU253S Polaris */
 	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a5),
 	  .driver_info = CX_HYBRID_TV },
+	/* Twisted Melon Inc. - Manta Mini Receiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8008) },
+	/* Twisted Melon Inc. - Manta Pico Receiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8016) },
+	/* Twisted Melon Inc. - Manta Transceiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8042) },
 	/* Terminating entry */
 	{ }
 };
@@ -410,14 +417,12 @@ struct mceusb_dev {
 	/* usb */
 	struct usb_device *usbdev;
 	struct urb *urb_in;
-	struct usb_endpoint_descriptor *usb_ep_in;
 	struct usb_endpoint_descriptor *usb_ep_out;
 
 	/* buffers and dma */
 	unsigned char *buf_in;
 	unsigned int len_in;
 	dma_addr_t dma_in;
-	dma_addr_t dma_out;
 
 	enum {
 		CMD_HEADER = 0,
@@ -686,7 +691,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		dev_info(dev, "Raw IR data, %d pulse/space samples\n", ir->rem);
 }
 
-static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
+static void mce_async_callback(struct urb *urb)
 {
 	struct mceusb_dev *ir;
 	int len;
@@ -733,7 +738,7 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 		pipe = usb_sndintpipe(ir->usbdev,
 				      ir->usb_ep_out->bEndpointAddress);
 		usb_fill_int_urb(async_urb, ir->usbdev, pipe,
-			async_buf, size, (usb_complete_t)mce_async_callback,
+			async_buf, size, mce_async_callback,
 			ir, ir->usb_ep_out->bInterval);
 		memcpy(async_buf, data, size);
 
@@ -1031,7 +1036,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 	ir_raw_event_handle(ir->rc);
 }
 
-static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
+static void mceusb_dev_recv(struct urb *urb)
 {
 	struct mceusb_dev *ir;
 	int buf_len;
@@ -1331,7 +1336,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->model = model;
 
 	/* Saving usb interface data for use by the transmitter routine */
-	ir->usb_ep_in = ep_in;
 	ir->usb_ep_out = ep_out;
 
 	if (dev->descriptor.iManufacturer
@@ -1349,8 +1353,8 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 		goto rc_dev_fail;
 
 	/* wire up inbound data handler */
-	usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in,
-		maxp, (usb_complete_t) mceusb_dev_recv, ir, ep_in->bInterval);
+	usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in, maxp,
+				mceusb_dev_recv, ir, ep_in->bInterval);
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 

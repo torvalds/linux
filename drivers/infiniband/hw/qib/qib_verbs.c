@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -183,7 +183,7 @@ void qib_copy_sge(struct qib_sge_state *ss, void *data, u32 length, int release)
 		sge->sge_length -= len;
 		if (sge->sge_length == 0) {
 			if (release)
-				atomic_dec(&sge->mr->refcount);
+				qib_put_mr(sge->mr);
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
@@ -224,7 +224,7 @@ void qib_skip_sge(struct qib_sge_state *ss, u32 length, int release)
 		sge->sge_length -= len;
 		if (sge->sge_length == 0) {
 			if (release)
-				atomic_dec(&sge->mr->refcount);
+				qib_put_mr(sge->mr);
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
@@ -333,7 +333,8 @@ static void qib_copy_from_sge(void *data, struct qib_sge_state *ss, u32 length)
  * @qp: the QP to post on
  * @wr: the work request to send
  */
-static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr)
+static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
+	int *scheduled)
 {
 	struct qib_swqe *wqe;
 	u32 next;
@@ -435,11 +436,17 @@ bail_inval_free:
 	while (j) {
 		struct qib_sge *sge = &wqe->sg_list[--j];
 
-		atomic_dec(&sge->mr->refcount);
+		qib_put_mr(sge->mr);
 	}
 bail_inval:
 	ret = -EINVAL;
 bail:
+	if (!ret && !wr->next &&
+	 !qib_sdma_empty(
+	   dd_from_ibdev(qp->ibqp.device)->pport + qp->port_num - 1)) {
+		qib_schedule_send(qp);
+		*scheduled = 1;
+	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
 }
@@ -457,9 +464,10 @@ static int qib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 {
 	struct qib_qp *qp = to_iqp(ibqp);
 	int err = 0;
+	int scheduled = 0;
 
 	for (; wr; wr = wr->next) {
-		err = qib_post_one_send(qp, wr);
+		err = qib_post_one_send(qp, wr, &scheduled);
 		if (err) {
 			*bad_wr = wr;
 			goto bail;
@@ -467,7 +475,8 @@ static int qib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 
 	/* Try to do the send work in the caller's context. */
-	qib_do_send(&qp->s_work);
+	if (!scheduled)
+		qib_do_send(&qp->s_work);
 
 bail:
 	return err;
@@ -978,7 +987,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 	if (atomic_dec_and_test(&qp->refcount))
 		wake_up(&qp->wait);
 	if (tx->mr) {
-		atomic_dec(&tx->mr->refcount);
+		qib_put_mr(tx->mr);
 		tx->mr = NULL;
 	}
 	if (tx->txreq.flags & QIB_SDMA_TXREQ_F_FREEBUF) {
@@ -1336,7 +1345,7 @@ done:
 	}
 	qib_sendbuf_done(dd, pbufn);
 	if (qp->s_rdma_mr) {
-		atomic_dec(&qp->s_rdma_mr->refcount);
+		qib_put_mr(qp->s_rdma_mr);
 		qp->s_rdma_mr = NULL;
 	}
 	if (qp->s_wqe) {
@@ -1845,6 +1854,23 @@ bail:
 	return ret;
 }
 
+struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
+{
+	struct ib_ah_attr attr;
+	struct ib_ah *ah = ERR_PTR(-EINVAL);
+	struct qib_qp *qp0;
+
+	memset(&attr, 0, sizeof attr);
+	attr.dlid = dlid;
+	attr.port_num = ppd_from_ibp(ibp)->port;
+	rcu_read_lock();
+	qp0 = rcu_dereference(ibp->qp0);
+	if (qp0)
+		ah = ib_create_ah(qp0->ibqp.pd, &attr);
+	rcu_read_unlock();
+	return ah;
+}
+
 /**
  * qib_destroy_ah - destroy an address handle
  * @ibah: the AH to destroy
@@ -2060,13 +2086,15 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	spin_lock_init(&dev->lk_table.lock);
 	dev->lk_table.max = 1 << ib_qib_lkey_table_size;
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	dev->lk_table.table = (struct qib_mregion **)
+	dev->lk_table.table = (struct qib_mregion __rcu **)
 		__get_free_pages(GFP_KERNEL, get_order(lk_tab_size));
 	if (dev->lk_table.table == NULL) {
 		ret = -ENOMEM;
 		goto err_lk;
 	}
-	memset(dev->lk_table.table, 0, lk_tab_size);
+	RCU_INIT_POINTER(dev->dma_mr, NULL);
+	for (i = 0; i < dev->lk_table.max; i++)
+		RCU_INIT_POINTER(dev->lk_table.table[i], NULL);
 	INIT_LIST_HEAD(&dev->pending_mmaps);
 	spin_lock_init(&dev->pending_lock);
 	dev->mmap_offset = PAGE_SIZE;
@@ -2288,4 +2316,18 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 	free_pages((unsigned long) dev->lk_table.table,
 		   get_order(lk_tab_size));
 	kfree(dev->qp_table);
+}
+
+/*
+ * This must be called with s_lock held.
+ */
+void qib_schedule_send(struct qib_qp *qp)
+{
+	if (qib_send_ok(qp)) {
+		struct qib_ibport *ibp =
+			to_iport(qp->ibqp.device, qp->port_num);
+		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+
+		queue_work(ppd->qib_wq, &qp->s_work);
+	}
 }

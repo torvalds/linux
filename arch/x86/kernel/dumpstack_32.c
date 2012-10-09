@@ -73,11 +73,11 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		if (kstack_end(stack))
 			break;
 		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
-			printk(KERN_CONT "\n");
-		printk(KERN_CONT " %08lx", *stack++);
+			pr_cont("\n");
+		pr_cont(" %08lx", *stack++);
 		touch_nmi_watchdog();
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
@@ -86,12 +86,11 @@ void show_regs(struct pt_regs *regs)
 {
 	int i;
 
-	print_modules();
 	__show_regs(regs, !user_mode_vm(regs));
 
-	printk(KERN_EMERG "Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)\n",
-		TASK_COMM_LEN, current->comm, task_pid_nr(current),
-		current_thread_info(), current, task_thread_info(current));
+	pr_emerg("Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)\n",
+		 TASK_COMM_LEN, current->comm, task_pid_nr(current),
+		 current_thread_info(), current, task_thread_info(current));
 	/*
 	 * When in-kernel, we also print out the stack and code at the
 	 * time of the fault..
@@ -102,10 +101,10 @@ void show_regs(struct pt_regs *regs)
 		unsigned char c;
 		u8 *ip;
 
-		printk(KERN_EMERG "Stack:\n");
+		pr_emerg("Stack:\n");
 		show_stack_log_lvl(NULL, regs, &regs->sp, 0, KERN_EMERG);
 
-		printk(KERN_EMERG "Code: ");
+		pr_emerg("Code:");
 
 		ip = (u8 *)regs->ip - code_prologue;
 		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
@@ -116,16 +115,16 @@ void show_regs(struct pt_regs *regs)
 		for (i = 0; i < code_len; i++, ip++) {
 			if (ip < (u8 *)PAGE_OFFSET ||
 					probe_kernel_address(ip, c)) {
-				printk(KERN_CONT " Bad EIP value.");
+				pr_cont("  Bad EIP value.");
 				break;
 			}
 			if (ip == (u8 *)regs->ip)
-				printk(KERN_CONT "<%02x> ", c);
+				pr_cont(" <%02x>", c);
 			else
-				printk(KERN_CONT "%02x ", c);
+				pr_cont(" %02x", c);
 		}
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 }
 
 int is_valid_bugaddr(unsigned long ip)

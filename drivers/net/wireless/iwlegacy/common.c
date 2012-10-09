@@ -4717,10 +4717,11 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	struct il_tx_queue *txq = &il->txq[cnt];
 	struct il_queue *q = &txq->q;
 	unsigned long timeout;
+	unsigned long now = jiffies;
 	int ret;
 
 	if (q->read_ptr == q->write_ptr) {
-		txq->time_stamp = jiffies;
+		txq->time_stamp = now;
 		return 0;
 	}
 
@@ -4728,9 +4729,9 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	    txq->time_stamp +
 	    msecs_to_jiffies(il->cfg->wd_timeout);
 
-	if (time_after(jiffies, timeout)) {
+	if (time_after(now, timeout)) {
 		IL_ERR("Queue %d stuck for %u ms.\n", q->id,
-		       il->cfg->wd_timeout);
+		       jiffies_to_msecs(now - txq->time_stamp));
 		ret = il_force_reset(il, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
@@ -5358,7 +5359,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_ASSOC) {
 		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
 		if (bss_conf->assoc) {
-			il->timestamp = bss_conf->last_tsf;
+			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
 				il->ops->post_associate(il);

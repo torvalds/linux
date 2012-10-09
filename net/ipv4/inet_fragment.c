@@ -243,12 +243,12 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 	if (q == NULL)
 		return NULL;
 
+	q->net = nf;
 	f->constructor(q, arg);
 	atomic_add(f->qsize, &nf->mem);
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);
-	q->net = nf;
 
 	return q;
 }

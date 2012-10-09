@@ -151,12 +151,10 @@ void new_thread_handler(void)
 	 * 0 if it just exits
 	 */
 	n = run_kernel_thread(fn, arg, &current->thread.exec_buf);
-	if (n == 1) {
-		/* Handle any immediate reschedules or signals */
-		interrupt_end();
+	if (n == 1)
 		userspace(&current->thread.regs.regs);
-	}
-	else do_exit(0);
+	else
+		do_exit(0);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -175,9 +173,6 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	/* Handle any immediate reschedules or signals */
-	interrupt_end();
-
 	userspace(&current->thread.regs.regs);
 }
 
@@ -193,7 +188,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	if (current->thread.forking) {
 	  	memcpy(&p->thread.regs.regs, &regs->regs,
 		       sizeof(p->thread.regs.regs));
-		UPT_SET_SYSCALL_RETURN(&p->thread.regs.regs, 0);
+		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;
 

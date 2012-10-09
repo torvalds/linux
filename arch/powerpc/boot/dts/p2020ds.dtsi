@@ -150,6 +150,16 @@
 			interrupts = <3 1 0 0>;
 			reg = <0x2>;
 		};
+
+		sgmii_phy1: sgmii-phy@1 {
+			interrupts = <5 1 0 0>;
+			reg = <0x1c>;
+		};
+		sgmii_phy2: sgmii-phy@2 {
+			interrupts = <5 1 0 0>;
+			reg = <0x1d>;
+		};
+
 		tbi0: tbi-phy@11 {
 			reg = <0x11>;
 			device_type = "tbi-phy";

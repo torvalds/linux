@@ -26,6 +26,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 
+#include <asm/mach/irq.h>
+
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
 
@@ -585,15 +587,14 @@ static struct irq_chip gpio_irqchip = {
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
-	struct irq_chip *chip = irq_data_get_irq_chip(idata);
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(idata);
 	void __iomem	*pio = at91_gpio->regbase;
 	unsigned long	isr;
 	int		n;
 
-	/* temporarily mask (level sensitive) parent IRQ */
-	chip->irq_ack(idata);
+	chained_irq_enter(chip, desc);
 	for (;;) {
 		/* Reading ISR acks pending (edge triggered) GPIO interrupts.
 		 * When there none are pending, we're finished unless we need
@@ -614,7 +615,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			n = find_next_bit(&isr, BITS_PER_LONG, n + 1);
 		}
 	}
-	chip->irq_unmask(idata);
+	chained_irq_exit(chip, desc);
 	/* now it may re-trigger */
 }
 

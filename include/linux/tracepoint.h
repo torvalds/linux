@@ -153,7 +153,7 @@ static inline void tracepoint_synchronize_unregister(void)
 	}								\
 	static inline void trace_##name##_rcuidle(proto)		\
 	{								\
-		if (static_branch(&__tracepoint_##name.key))		\
+		if (static_key_false(&__tracepoint_##name.key))		\
 			__DO_TRACE(&__tracepoint_##name,		\
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\

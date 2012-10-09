@@ -30,9 +30,7 @@
 #define BNA_DBG_FWTRC_LEN      (BFI_IOC_TRC_ENTS * BFI_IOC_TRC_ENT_SZ + \
 				BFI_IOC_TRC_HDR_SZ)
 
-/**
- * PCI device information required by IOC
- */
+/* PCI device information required by IOC */
 struct bfa_pcidev {
 	int	pci_slot;
 	u8	pci_func;
@@ -41,8 +39,7 @@ struct bfa_pcidev {
 	void	__iomem *pci_bar_kva;
 };
 
-/**
- * Structure used to remember the DMA-able memory block's KVA and Physical
+/* Structure used to remember the DMA-able memory block's KVA and Physical
  * Address
  */
 struct bfa_dma {
@@ -52,15 +49,11 @@ struct bfa_dma {
 
 #define BFA_DMA_ALIGN_SZ	256
 
-/**
- * smem size for Crossbow and Catapult
- */
+/* smem size for Crossbow and Catapult */
 #define BFI_SMEM_CB_SIZE	0x200000U	/* ! 2MB for crossbow	*/
 #define BFI_SMEM_CT_SIZE	0x280000U	/* ! 2.5MB for catapult	*/
 
-/**
- * @brief BFA dma address assignment macro. (big endian format)
- */
+/* BFA dma address assignment macro. (big endian format) */
 #define bfa_dma_be_addr_set(dma_addr, pa)	\
 		__bfa_dma_be_addr_set(&dma_addr, (u64)pa)
 static inline void
@@ -108,9 +101,7 @@ struct bfa_ioc_regs {
 	u32	smem_pg0;
 };
 
-/**
- * IOC Mailbox structures
- */
+/* IOC Mailbox structures */
 typedef void (*bfa_mbox_cmd_cbfn_t)(void *cbarg);
 struct bfa_mbox_cmd {
 	struct list_head	qe;
@@ -119,9 +110,7 @@ struct bfa_mbox_cmd {
 	u32     msg[BFI_IOC_MSGSZ];
 };
 
-/**
- * IOC mailbox module
- */
+/* IOC mailbox module */
 typedef void (*bfa_ioc_mbox_mcfunc_t)(void *cbarg, struct bfi_mbmsg *m);
 struct bfa_ioc_mbox_mod {
 	struct list_head	cmd_q;		/*!< pending mbox queue	*/
@@ -132,9 +121,7 @@ struct bfa_ioc_mbox_mod {
 	} mbhdlr[BFI_MC_MAX];
 };
 
-/**
- * IOC callback function interfaces
- */
+/* IOC callback function interfaces */
 typedef void (*bfa_ioc_enable_cbfn_t)(void *bfa, enum bfa_status status);
 typedef void (*bfa_ioc_disable_cbfn_t)(void *bfa);
 typedef void (*bfa_ioc_hbfail_cbfn_t)(void *bfa);
@@ -146,9 +133,7 @@ struct bfa_ioc_cbfn {
 	bfa_ioc_reset_cbfn_t	reset_cbfn;
 };
 
-/**
- * IOC event notification mechanism.
- */
+/* IOC event notification mechanism. */
 enum bfa_ioc_event {
 	BFA_IOC_E_ENABLED	= 1,
 	BFA_IOC_E_DISABLED	= 2,
@@ -163,9 +148,7 @@ struct bfa_ioc_notify {
 	void			*cbarg;
 };
 
-/**
- * Initialize a IOC event notification structure
- */
+/* Initialize a IOC event notification structure */
 #define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
 	(__notify)->cbfn = (__cbfn);				\
 	(__notify)->cbarg = (__cbarg);				\
@@ -261,9 +244,7 @@ struct bfa_ioc_hwif {
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
 
-/**
- * IOC mailbox interface
- */
+/* IOC mailbox interface */
 bool bfa_nw_ioc_mbox_queue(struct bfa_ioc *ioc,
 			struct bfa_mbox_cmd *cmd,
 			bfa_mbox_cmd_cbfn_t cbfn, void *cbarg);
@@ -271,9 +252,7 @@ void bfa_nw_ioc_mbox_isr(struct bfa_ioc *ioc);
 void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 		bfa_ioc_mbox_mcfunc_t cbfn, void *cbarg);
 
-/**
- * IOC interfaces
- */
+/* IOC interfaces */
 
 #define bfa_ioc_pll_init_asic(__ioc) \
 	((__ioc)->ioc_hwif->ioc_pll_init((__ioc)->pcidev.pci_bar_kva, \

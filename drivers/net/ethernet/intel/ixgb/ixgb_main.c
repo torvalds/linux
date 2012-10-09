@@ -54,13 +54,13 @@ MODULE_PARM_DESC(copybreak,
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(ixgb_pci_tbl) = {
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_CX4,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_CX4,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_SR,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_LR,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_LR,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 
 	/* required last entry */
@@ -195,7 +195,7 @@ ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
 		  IXGB_INT_TXDW | IXGB_INT_LSC;
-	if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+	if (adapter->hw.subsystem_vendor_id == PCI_VENDOR_ID_SUN)
 		val |= IXGB_INT_GPI0;
 	IXGB_WRITE_REG(&adapter->hw, IMS, val);
 	IXGB_WRITE_FLUSH(&adapter->hw);
@@ -2276,9 +2276,9 @@ static void ixgb_netpoll(struct net_device *dev)
 #endif
 
 /**
- * ixgb_io_error_detected() - called when PCI error is detected
- * @pdev    pointer to pci device with error
- * @state   pci channel state after error
+ * ixgb_io_error_detected - called when PCI error is detected
+ * @pdev:    pointer to pci device with error
+ * @state:   pci channel state after error
  *
  * This callback is called by the PCI subsystem whenever
  * a PCI bus error is detected.

@@ -23,6 +23,11 @@
 #define DM_SUSPEND_NOFLUSH_FLAG		(1 << 1)
 
 /*
+ * Status feature flags
+ */
+#define DM_STATUS_NOFLUSH_FLAG		(1 << 0)
+
+/*
  * Type of table and mapped_device's mempool
  */
 #define DM_TYPE_NONE		0

@@ -36,6 +36,7 @@ struct subsys_private;
 struct bus_type;
 struct device_node;
 struct iommu_ops;
+struct iommu_group;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -687,7 +688,13 @@ struct device {
 	const struct attribute_group **groups;	/* optional groups */
 
 	void	(*release)(struct device *dev);
+	struct iommu_group	*iommu_group;
 };
+
+static inline struct device *kobj_to_dev(struct kobject *kobj)
+{
+	return container_of(kobj, struct device, kobj);
+}
 
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
@@ -864,8 +871,6 @@ extern int (*platform_notify_remove)(struct device *dev);
  */
 extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
-
-extern void wait_for_device_probe(void);
 
 #ifdef CONFIG_DEVTMPFS
 extern int devtmpfs_create_node(struct device *dev);

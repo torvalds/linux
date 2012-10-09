@@ -1,9 +1,8 @@
 /*
- *  include/asm-s390/ebcdic.h
  *    EBCDIC -> ASCII, ASCII -> EBCDIC conversion routines.
  *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 

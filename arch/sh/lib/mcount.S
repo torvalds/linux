@@ -39,7 +39,7 @@
  *
  * Make sure the stack pointer contains a valid address. Valid
  * addresses for kernel stacks are anywhere after the bss
- * (after _ebss) and anywhere in init_thread_union (init_stack).
+ * (after __bss_stop) and anywhere in init_thread_union (init_stack).
  */
 #define STACK_CHECK()					\
 	mov	#(THREAD_SIZE >> 10), r0;		\
@@ -60,7 +60,7 @@
 	cmp/hi	r2, r1;					\
 	bf	stack_panic;				\
 							\
-	/* If sp > _ebss then we're OK. */		\
+	/* If sp > __bss_stop then we're OK. */		\
 	mov.l	.L_ebss, r1;				\
 	cmp/hi	r1, r15;				\
 	bt	1f;					\
@@ -70,7 +70,7 @@
 	cmp/hs	r1, r15;				\
 	bf	stack_panic;				\
 							\
-	/* If sp > init_stack && sp < _ebss, not OK. */	\
+	/* If sp > init_stack && sp < __bss_stop, not OK. */	\
 	add	r0, r1;					\
 	cmp/hs	r1, r15;				\
 	bt	stack_panic;				\
@@ -292,8 +292,6 @@ stack_panic:
 	 nop
 
 	.align 2
-.L_ebss:
-	.long	_ebss
 .L_init_thread_union:
 	.long	init_thread_union
 .Lpanic:

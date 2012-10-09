@@ -834,12 +834,11 @@ error:
  * Replace a process's session keyring on behalf of one of its children when
  * the target  process is about to resume userspace execution.
  */
-void key_change_session_keyring(struct task_work *twork)
+void key_change_session_keyring(struct callback_head *twork)
 {
 	const struct cred *old = current_cred();
-	struct cred *new = twork->data;
+	struct cred *new = container_of(twork, struct cred, rcu);
 
-	kfree(twork);
 	if (unlikely(current->flags & PF_EXITING)) {
 		put_cred(new);
 		return;

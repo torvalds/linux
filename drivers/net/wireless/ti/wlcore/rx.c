@@ -127,7 +127,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	}
 
 	if (rx_align == WLCORE_RX_BUF_UNALIGNED)
-		reserved = NET_IP_ALIGN;
+		reserved = RX_BUF_ALIGN;
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) data;
@@ -175,7 +175,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 */
 	memcpy(buf, data + sizeof(*desc), pkt_data_len);
 	if (rx_align == WLCORE_RX_BUF_PADDED)
-		skb_pull(skb, NET_IP_ALIGN);
+		skb_pull(skb, RX_BUF_ALIGN);
 
 	*hlid = desc->hlid;
 
@@ -186,6 +186,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		is_data = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
+	wlcore_hw_set_rx_csum(wl, desc, skb);
 
 	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d hlid %d", skb,
@@ -199,17 +200,18 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	return is_data;
 }
 
-void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
+int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 {
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;
-	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
-	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+	u32 fw_rx_counter = status->fw_rx_counter % wl->num_rx_desc;
+	u32 drv_rx_counter = wl->rx_counter % wl->num_rx_desc;
 	u32 rx_counter;
 	u32 pkt_len, align_pkt_len;
 	u32 pkt_offset, des;
 	u8 hlid;
 	enum wl_rx_buf_align rx_align;
+	int ret = 0;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
@@ -223,7 +225,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 				break;
 			buf_size += align_pkt_len;
 			rx_counter++;
-			rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			rx_counter %= wl->num_rx_desc;
 		}
 
 		if (buf_size == 0) {
@@ -233,9 +235,14 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 
 		/* Read all available packets at once */
 		des = le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]);
-		wlcore_hw_prepare_read(wl, des, buf_size);
-		wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-				 buf_size, true);
+		ret = wlcore_hw_prepare_read(wl, des, buf_size);
+		if (ret < 0)
+			goto out;
+
+		ret = wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+				       buf_size, true);
+		if (ret < 0)
+			goto out;
 
 		/* Split data into separate packets */
 		pkt_offset = 0;
@@ -263,7 +270,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 
 			wl->rx_counter++;
 			drv_rx_counter++;
-			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			drv_rx_counter %= wl->num_rx_desc;
 			pkt_offset += wlcore_rx_get_align_buf_size(wl, pkt_len);
 		}
 	}
@@ -272,11 +279,17 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 	 * Write the driver's packet counter to the FW. This is only required
 	 * for older hardware revisions
 	 */
-	if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
-		wl1271_write32(wl, WL12XX_REG_RX_DRIVER_COUNTER,
-			       wl->rx_counter);
+	if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION) {
+		ret = wlcore_write32(wl, WL12XX_REG_RX_DRIVER_COUNTER,
+				     wl->rx_counter);
+		if (ret < 0)
+			goto out;
+	}
 
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
+
+out:
+	return ret;
 }
 
 #ifdef CONFIG_PM
@@ -305,14 +318,19 @@ int wl1271_rx_filter_enable(struct wl1271 *wl,
 	return 0;
 }
 
-void wl1271_rx_filter_clear_all(struct wl1271 *wl)
+int wl1271_rx_filter_clear_all(struct wl1271 *wl)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < WL1271_MAX_RX_FILTERS; i++) {
 		if (!wl->rx_filter_enabled[i])
 			continue;
-		wl1271_rx_filter_enable(wl, i, 0, NULL);
+		ret = wl1271_rx_filter_enable(wl, i, 0, NULL);
+		if (ret)
+			goto out;
 	}
+
+out:
+	return ret;
 }
 #endif /* CONFIG_PM */

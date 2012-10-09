@@ -1,9 +1,7 @@
 /*
- *  arch/s390/lib/uaccess_mvcos.c
- *
  *  Optimized user space space access functions based on mvcos.
  *
- *    Copyright (C) IBM Corp. 2006
+ *    Copyright IBM Corp. 2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Gerald Schaefer (gerald.schaefer@de.ibm.com)
  */

@@ -233,8 +233,10 @@ enum ieee80211_rssi_event {
  *	valid in station mode only while @assoc is true and if also
  *	requested by %IEEE80211_HW_NEED_DTIM_PERIOD (cf. also hw conf
  *	@ps_dtim_period)
- * @last_tsf: last beacon's/probe response's TSF timestamp (could be old
+ * @sync_tsf: last beacon's/probe response's TSF timestamp (could be old
  *	as it may have been received during scanning long ago)
+ * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
+ *	the driver/device can use this to calculate synchronisation
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -281,7 +283,8 @@ struct ieee80211_bss_conf {
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
-	u64 last_tsf;
+	u64 sync_tsf;
+	u32 sync_device_ts;
 	u32 basic_rates;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
@@ -475,7 +478,7 @@ enum mac80211_rate_control_flags {
 #define IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE 24
 
 /* maximum number of rate stages */
-#define IEEE80211_TX_MAX_RATES	5
+#define IEEE80211_TX_MAX_RATES	4
 
 /**
  * struct ieee80211_tx_rate - rate selection/status
@@ -563,11 +566,11 @@ struct ieee80211_tx_info {
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
-			u8 ampdu_ack_len;
 			int ack_signal;
+			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
-			/* 14 bytes free */
+			/* 21 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -634,7 +637,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 		info->status.rates[i].count = 0;
 
 	BUILD_BUG_ON(
-	    offsetof(struct ieee80211_tx_info, status.ampdu_ack_len) != 23);
+	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 	memset(&info->status.ampdu_ack_len, 0,
 	       sizeof(struct ieee80211_tx_info) -
 	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
@@ -696,6 +699,8 @@ enum mac80211_rx_flags {
  *
  * @mactime: value in microseconds of the 64-bit Time Synchronization Function
  * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
+ * @device_timestamp: arbitrary timestamp for the device, mac80211 doesn't use
+ *	it but can store it and pass it back to the driver for synchronisation
  * @band: the active band when this frame was received
  * @freq: frequency the radio was tuned to when receiving this frame, in MHz
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
@@ -709,13 +714,14 @@ enum mac80211_rx_flags {
  */
 struct ieee80211_rx_status {
 	u64 mactime;
-	enum ieee80211_band band;
-	int freq;
-	int signal;
-	int antenna;
-	int rate_idx;
-	int flag;
-	unsigned int rx_flags;
+	u32 device_timestamp;
+	u16 flag;
+	u16 freq;
+	u8 rate_idx;
+	u8 rx_flags;
+	u8 band;
+	u8 antenna;
+	s8 signal;
 };
 
 /**
@@ -1297,6 +1303,10 @@ enum ieee80211_hw_flags {
  *	reports, by default it is set to _MCS, _GI and _BW but doesn't
  *	include _FMT. Use %IEEE80211_RADIOTAP_MCS_HAVE_* values, only
  *	adding _BW is supported today.
+ *
+ * @netdev_features: netdev features to be set in each netdev created
+ *	from this HW. Note only HW checksum features are currently
+ *	compatible with mac80211. Other feature bits will be rejected.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1319,6 +1329,7 @@ struct ieee80211_hw {
 	u8 max_tx_aggregation_subframes;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
+	netdev_features_t netdev_features;
 };
 
 /**
@@ -1891,19 +1902,6 @@ enum ieee80211_rate_control_changed {
  *	The low-level driver should send the frame out based on
  *	configuration in the TX control data. This handler should,
  *	preferably, never fail and stop queues appropriately.
- *	This must be implemented if @tx_frags is not.
- *	Must be atomic.
- *
- * @tx_frags: Called to transmit multiple fragments of a single MSDU.
- *	This handler must consume all fragments, sending out some of
- *	them only is useless and it can't ask for some of them to be
- *	queued again. If the frame is not fragmented the queue has a
- *	single SKB only. To avoid issues with the networking stack
- *	when TX status is reported the frames should be removed from
- *	the skb queue.
- *	If this is used, the tx_info @vif and @sta pointers will be
- *	invalid -- you must not use them in that case.
- *	This must be implemented if @tx isn't.
  *	Must be atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
@@ -2183,7 +2181,10 @@ enum ieee80211_rate_control_changed {
  *	offload. Frames to transmit on the off-channel channel are transmitted
  *	normally except for the %IEEE80211_TX_CTL_TX_OFFCHAN flag. When the
  *	duration (which will always be non-zero) expires, the driver must call
- *	ieee80211_remain_on_channel_expired(). This callback may sleep.
+ *	ieee80211_remain_on_channel_expired().
+ *	Note that this callback may be called while the device is in IDLE and
+ *	must be accepted in this case.
+ *	This callback may sleep.
  * @cancel_remain_on_channel: Requests that an ongoing off-channel period is
  *	aborted before it expires. This callback may sleep.
  *
@@ -2246,11 +2247,24 @@ enum ieee80211_rate_control_changed {
  * @get_et_strings:  Ethtool API to get a set of strings to describe stats
  *	and perhaps other supported types of ethtool data-sets.
  *
+ * @get_rssi: Get current signal strength in dBm, the function is optional
+ *	and can sleep.
+ *
+ * @mgd_prepare_tx: Prepare for transmitting a management frame for association
+ *	before associated. In multi-channel scenarios, a virtual interface is
+ *	bound to a channel before it is associated, but as it isn't associated
+ *	yet it need not necessarily be given airtime, in particular since any
+ *	transmission to a P2P GO needs to be synchronized against the GO's
+ *	powersave state. mac80211 will call this function before transmitting a
+ *	management frame prior to having successfully associated to allow the
+ *	driver to give it channel time for the transmission, to get a response
+ *	and to be able to synchronize with the GO.
+ *	The callback will be called before each transmission and upon return
+ *	mac80211 will transmit the frame right away.
+ *	The callback is optional and can (should!) sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
-	void (*tx_frags)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta, struct sk_buff_head *skbs);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 #ifdef CONFIG_PM
@@ -2385,6 +2399,11 @@ struct ieee80211_ops {
 	void	(*get_et_strings)(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  u32 sset, u8 *data);
+	int	(*get_rssi)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, s8 *rssi_dbm);
+
+	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
 };
 
 /**
@@ -3557,16 +3576,6 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       gfp_t gfp);
 
 /**
- * ieee80211_get_operstate - get the operstate of the vif
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- *
- * The driver might need to know the operstate of the net_device
- * (specifically, whether the link is IF_OPER_UP after resume)
- */
-unsigned char ieee80211_get_operstate(struct ieee80211_vif *vif);
-
-/**
  * ieee80211_chswitch_done - Complete channel switch process
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @success: make the channel switch successful or not
@@ -3587,22 +3596,6 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
  */
 void ieee80211_request_smps(struct ieee80211_vif *vif,
 			    enum ieee80211_smps_mode smps_mode);
-
-/**
- * ieee80211_key_removed - disable hw acceleration for key
- * @key_conf: The key hw acceleration should be disabled for
- *
- * This allows drivers to indicate that the given key has been
- * removed from hardware acceleration, due to a new key that
- * was added. Don't use this if the key can continue to be used
- * for TX, if the key restriction is on RX only it is permitted
- * to keep the key for TX only and not call this function.
- *
- * Due to locking constraints, it may only be called during
- * @set_key. This function must be allowed to sleep, and the
- * key it tries to disable may still be used until it returns.
- */
-void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
 
 /**
  * ieee80211_ready_on_channel - notification of remain-on-channel start
@@ -3828,12 +3821,6 @@ void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 				   int rssi_max_thold);
 
 void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
-
-int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
-			    struct sk_buff *skb, bool need_basic);
-
-int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
-				struct sk_buff *skb, bool need_basic);
 
 /**
  * ieee80211_ave_rssi - report the average rssi for the specified interface

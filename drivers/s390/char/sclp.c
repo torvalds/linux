@@ -654,16 +654,6 @@ sclp_remove_processed(struct sccb_header *sccb)
 
 EXPORT_SYMBOL(sclp_remove_processed);
 
-struct init_sccb {
-	struct sccb_header header;
-	u16 _reserved;
-	u16 mask_length;
-	sccb_mask_t receive_mask;
-	sccb_mask_t send_mask;
-	sccb_mask_t sclp_receive_mask;
-	sccb_mask_t sclp_send_mask;
-} __attribute__((packed));
-
 /* Prepare init mask request. Called while sclp_lock is locked. */
 static inline void
 __sclp_make_init_req(u32 receive_mask, u32 send_mask)

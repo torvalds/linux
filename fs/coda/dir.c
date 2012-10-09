@@ -30,8 +30,8 @@
 #include "coda_int.h"
 
 /* dir inode-ops */
-static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, struct nameidata *nd);
-static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, struct nameidata *nd);
+static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, bool excl);
+static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, unsigned int flags);
 static int coda_link(struct dentry *old_dentry, struct inode *dir_inode, 
 		     struct dentry *entry);
 static int coda_unlink(struct inode *dir_inode, struct dentry *entry);
@@ -46,7 +46,7 @@ static int coda_rename(struct inode *old_inode, struct dentry *old_dentry,
 static int coda_readdir(struct file *file, void *buf, filldir_t filldir);
 
 /* dentry ops */
-static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd);
+static int coda_dentry_revalidate(struct dentry *de, unsigned int flags);
 static int coda_dentry_delete(const struct dentry *);
 
 /* support routines */
@@ -94,7 +94,7 @@ const struct file_operations coda_dir_operations = {
 
 /* inode operations for directories */
 /* access routines: lookup, readlink, permission */
-static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struct nameidata *nd)
+static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	const char *name = entry->d_name.name;
@@ -188,7 +188,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, struct nameidata *nd)
+static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool excl)
 {
 	int error;
 	const char *name=de->d_name.name;
@@ -536,12 +536,12 @@ out:
 }
 
 /* called when a cache lookup succeeds */
-static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd)
+static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 {
 	struct inode *inode;
 	struct coda_inode_info *cii;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	inode = de->d_inode;

@@ -1,6 +1,8 @@
 #ifndef __MACH_MOTHERBOARD_H
 #define __MACH_MOTHERBOARD_H
 
+#include <linux/clk-provider.h>
+
 /*
  * Physical addresses, offset from V2M_PA_CS0-3
  */
@@ -104,9 +106,10 @@
 #define SYS_CFG_REBOOT		(9 << 20)
 #define SYS_CFG_DVIMODE		(11 << 20)
 #define SYS_CFG_POWER		(12 << 20)
-#define SYS_CFG_SITE_MB		(0 << 16)
-#define SYS_CFG_SITE_DB1	(1 << 16)
-#define SYS_CFG_SITE_DB2	(2 << 16)
+#define SYS_CFG_SITE(n)		((n) << 16)
+#define SYS_CFG_SITE_MB		0
+#define SYS_CFG_SITE_DB1	1
+#define SYS_CFG_SITE_DB2	2
 #define SYS_CFG_STACK(n)	((n) << 12)
 
 #define SYS_CFG_ERR		(1 << 1)
@@ -121,6 +124,8 @@ void v2m_flags_set(u32 data);
  */
 #define SYS_MISC_MASTERSITE	(1 << 14)
 #define SYS_PROCIDx_HBI_MASK	0xfff
+
+int v2m_get_master_site(void);
 
 /*
  * Core tile IDs
@@ -143,5 +148,22 @@ struct ct_desc {
 };
 
 extern struct ct_desc *ct_desc;
+
+/*
+ * OSC clock provider
+ */
+struct v2m_osc {
+	struct clk_hw hw;
+	u8 site; /* 0 = motherboard, 1 = site 1, 2 = site 2 */
+	u8 stack; /* board stack position */
+	u16 osc;
+	unsigned long rate_min;
+	unsigned long rate_max;
+	unsigned long rate_default;
+};
+
+#define to_v2m_osc(osc) container_of(osc, struct v2m_osc, hw)
+
+struct clk *v2m_osc_register(const char *name, struct v2m_osc *osc);
 
 #endif

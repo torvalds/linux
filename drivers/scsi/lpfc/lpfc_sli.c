@@ -8984,7 +8984,7 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	int i;
 
 	/* Shutdown the mailbox command sub-system */
-	lpfc_sli_mbox_sys_shutdown(phba);
+	lpfc_sli_mbox_sys_shutdown(phba, LPFC_MBX_WAIT);
 
 	lpfc_hba_down_prep(phba);
 
@@ -9996,11 +9996,17 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
  * sub-system flush routine to gracefully bring down mailbox sub-system.
  **/
 void
-lpfc_sli_mbox_sys_shutdown(struct lpfc_hba *phba)
+lpfc_sli_mbox_sys_shutdown(struct lpfc_hba *phba, int mbx_action)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	unsigned long timeout;
 
+	if (mbx_action == LPFC_MBX_NO_WAIT) {
+		/* delay 100ms for port state */
+		msleep(100);
+		lpfc_sli_mbox_sys_flush(phba);
+		return;
+	}
 	timeout = msecs_to_jiffies(LPFC_MBOX_TMO * 1000) + jiffies;
 
 	spin_lock_irq(&phba->hbalock);
@@ -12042,6 +12048,83 @@ out_fail:
 }
 
 /**
+ * lpfc_modify_fcp_eq_delay - Modify Delay Multiplier on FCP EQs
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @startq: The starting FCP EQ to modify
+ *
+ * This function sends an MODIFY_EQ_DELAY mailbox command to the HBA.
+ *
+ * The @phba struct is used to send mailbox command to HBA. The @startq
+ * is used to get the starting FCP EQ to change.
+ * This function is asynchronous and will wait for the mailbox
+ * command to finish before continuing.
+ *
+ * On success this function will return a zero. If unable to allocate enough
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
+ **/
+uint32_t
+lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
+{
+	struct lpfc_mbx_modify_eq_delay *eq_delay;
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_queue *eq;
+	int cnt, rc, length, status = 0;
+	uint32_t shdr_status, shdr_add_status;
+	int fcp_eqidx;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint16_t dmult;
+
+	if (startq >= phba->cfg_fcp_eq_count)
+		return 0;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_modify_eq_delay) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_MODIFY_EQ_DELAY,
+			 length, LPFC_SLI4_MBX_EMBED);
+	eq_delay = &mbox->u.mqe.un.eq_delay;
+
+	/* Calculate delay multiper from maximum interrupt per second */
+	dmult = LPFC_DMULT_CONST/phba->cfg_fcp_imax - 1;
+
+	cnt = 0;
+	for (fcp_eqidx = startq; fcp_eqidx < phba->cfg_fcp_eq_count;
+	    fcp_eqidx++) {
+		eq = phba->sli4_hba.fp_eq[fcp_eqidx];
+		if (!eq)
+			continue;
+		eq_delay->u.request.eq[cnt].eq_id = eq->queue_id;
+		eq_delay->u.request.eq[cnt].phase = 0;
+		eq_delay->u.request.eq[cnt].delay_multi = dmult;
+		cnt++;
+		if (cnt >= LPFC_MAX_EQ_DELAY)
+			break;
+	}
+	eq_delay->u.request.num_eq = cnt;
+
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mbox->context1 = NULL;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	shdr = (union lpfc_sli4_cfg_shdr *) &eq_delay->header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2512 MODIFY_EQ_DELAY mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		status = -ENXIO;
+	}
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return status;
+}
+
+/**
  * lpfc_eq_create - Create an Event Queue on the HBA
  * @phba: HBA structure that indicates port to create a queue on.
  * @eq: The queue structure to use to create the event queue.
@@ -12228,8 +12311,10 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0361 Unsupported CQ count. (%d)\n",
 				cq->entry_count);
-		if (cq->entry_count < 256)
-			return -EINVAL;
+		if (cq->entry_count < 256) {
+			status = -EINVAL;
+			goto out;
+		}
 		/* otherwise default to smallest count (drop through) */
 	case 256:
 		bf_set(lpfc_cq_context_count, &cq_create->u.request.context,
@@ -12420,8 +12505,10 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0362 Unsupported MQ count. (%d)\n",
 				mq->entry_count);
-		if (mq->entry_count < 16)
-			return -EINVAL;
+		if (mq->entry_count < 16) {
+			status = -EINVAL;
+			goto out;
+		}
 		/* otherwise default to smallest count (drop through) */
 	case 16:
 		bf_set(lpfc_mq_context_ring_size,
@@ -12710,8 +12797,10 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"2535 Unsupported RQ count. (%d)\n",
 					hrq->entry_count);
-			if (hrq->entry_count < 512)
-				return -EINVAL;
+			if (hrq->entry_count < 512) {
+				status = -EINVAL;
+				goto out;
+			}
 			/* otherwise default to smallest count (drop through) */
 		case 512:
 			bf_set(lpfc_rq_context_rqe_count,
@@ -12791,8 +12880,10 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"2536 Unsupported RQ count. (%d)\n",
 					drq->entry_count);
-			if (drq->entry_count < 512)
-				return -EINVAL;
+			if (drq->entry_count < 512) {
+				status = -EINVAL;
+				goto out;
+			}
 			/* otherwise default to smallest count (drop through) */
 		case 512:
 			bf_set(lpfc_rq_context_rqe_count,
@@ -15855,24 +15946,18 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		spin_lock_irqsave(&phba->hbalock, iflags);
 
 		piocbq = lpfc_sli_ringtx_get(phba, pring);
+		if (!piocbq) {
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2823 txq empty and txq_cnt is %d\n ",
+				pring->txq_cnt);
+			break;
+		}
 		sglq = __lpfc_sli_get_sglq(phba, piocbq);
 		if (!sglq) {
 			__lpfc_sli_ringtx_put(phba, pring, piocbq);
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			break;
-		} else {
-			if (!piocbq) {
-				/* The txq_cnt out of sync. This should
-				 * never happen
-				 */
-				sglq = __lpfc_clear_active_sglq(phba,
-						 sglq->sli4_lxritag);
-				spin_unlock_irqrestore(&phba->hbalock, iflags);
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"2823 txq empty and txq_cnt is %d\n ",
-					pring->txq_cnt);
-				break;
-			}
 		}
 
 		/* The xri and iocb resources secured,

@@ -44,10 +44,10 @@
 #include <plat/omap7xx.h>
 #include <plat/board.h>
 #include <plat/keypad.h>
-#include <plat/usb.h>
 #include <plat/mmc.h>
 
 #include <mach/irqs.h>
+#include <mach/usb.h>
 
 #include "common.h"
 

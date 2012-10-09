@@ -3,15 +3,21 @@
 biodoc.txt
 	- Notes on the Generic Block Layer Rewrite in Linux 2.5
 capability.txt
-	- Generic Block Device Capability (/sys/block/<disk>/capability)
+	- Generic Block Device Capability (/sys/block/<device>/capability)
+cfq-iosched.txt
+	- CFQ IO scheduler tunables
+data-integrity.txt
+	- Block data integrity
 deadline-iosched.txt
 	- Deadline IO scheduler tunables
 ioprio.txt
 	- Block io priorities (in CFQ scheduler)
+queue-sysfs.txt
+	- Queue's sysfs entries
 request.txt
 	- The members of struct request (in include/linux/blkdev.h)
 stat.txt
-	- Block layer statistics in /sys/block/<dev>/stat
+	- Block layer statistics in /sys/block/<device>/stat
 switching-sched.txt
 	- Switching I/O schedulers at runtime
 writeback_cache_control.txt

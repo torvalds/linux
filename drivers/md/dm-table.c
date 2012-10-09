@@ -1319,6 +1319,9 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned flush)
 		if (!ti->num_flush_requests)
 			continue;
 
+		if (ti->flush_supported)
+			return 1;
+
 		if (ti->type->iterate_devices &&
 		    ti->type->iterate_devices(ti, device_flush_capable, &flush))
 			return 1;

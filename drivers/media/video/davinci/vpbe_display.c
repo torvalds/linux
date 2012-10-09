@@ -1083,7 +1083,7 @@ vpbe_display_s_dv_preset(struct file *file, void *priv,
 	}
 
 	/* Set the given standard in the encoder */
-	if (NULL != vpbe_dev->ops.s_dv_preset)
+	if (!vpbe_dev->ops.s_dv_preset)
 		return -EINVAL;
 
 	ret = vpbe_dev->ops.s_dv_preset(vpbe_dev, preset);
@@ -1517,6 +1517,8 @@ static int vpbe_display_g_register(struct file *file, void *priv,
 			struct v4l2_dbg_register *reg)
 {
 	struct v4l2_dbg_match *match = &reg->match;
+	struct vpbe_fh *fh = file->private_data;
+	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 
 	if (match->type >= 2) {
 		v4l2_subdev_call(vpbe_dev->venc,

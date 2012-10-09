@@ -30,7 +30,13 @@
 #include "mdt.h"
 #include "sufile.h"
 
-
+/**
+ * struct nilfs_sufile_info - on-memory private data of sufile
+ * @mi: on-memory private data of metadata file
+ * @ncleansegs: number of clean segments
+ * @allocmin: lower limit of allocatable segment range
+ * @allocmax: upper limit of allocatable segment range
+ */
 struct nilfs_sufile_info {
 	struct nilfs_mdt_info mi;
 	unsigned long ncleansegs;/* number of clean segments */

@@ -47,6 +47,8 @@ static DEFINE_PCI_DEVICE_TABLE(rtl8180_table) = {
 	{ PCI_DEVICE(0x1799, 0x6001) },
 	{ PCI_DEVICE(0x1799, 0x6020) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x3300) },
+	{ PCI_DEVICE(0x1186, 0x3301) },
+	{ PCI_DEVICE(0x1432, 0x7106) },
 	{ }
 };
 
@@ -1076,7 +1078,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		random_ether_addr(mac_addr);
+		eth_random_addr(mac_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 

@@ -553,7 +553,7 @@ static const struct snd_kcontrol_new vibrar_mux_controls =
 
 /* Headset power mode */
 static const char *twl6040_power_mode_texts[] = {
-	"Low-Power", "High-Perfomance",
+	"Low-Power", "High-Performance",
 };
 
 static const struct soc_enum twl6040_power_mode_enum =
@@ -653,7 +653,7 @@ int twl6040_get_hs_step_size(struct snd_soc_codec *codec)
 {
 	struct twl6040 *twl6040 = codec->control_data;
 
-	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_2)
+	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_3)
 		/* For ES under ES_1.3 HS step is 2 mV */
 		return 2;
 	else

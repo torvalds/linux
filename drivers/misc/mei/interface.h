@@ -41,13 +41,27 @@ int mei_write_message(struct mei_device *dev,
 			     unsigned char *write_buffer,
 			     unsigned long write_length);
 
-int mei_host_buffer_is_empty(struct mei_device *dev);
+bool mei_hbuf_is_empty(struct mei_device *dev);
+
+int mei_hbuf_empty_slots(struct mei_device *dev);
+
+static inline size_t mei_hbuf_max_data(const struct mei_device *dev)
+{
+	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
+}
+
+/* get slots (dwords) from a message length + header (bytes) */
+static inline unsigned char mei_data2slots(size_t length)
+{
+	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
+}
 
 int mei_count_full_read_slots(struct mei_device *dev);
 
-int mei_count_empty_write_slots(struct mei_device *dev);
 
 int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl);
+
+
 
 int mei_wd_send(struct mei_device *dev);
 int mei_wd_stop(struct mei_device *dev, bool preserve);

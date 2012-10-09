@@ -2205,9 +2205,10 @@ ctl_error:
 
 #if defined(CONFIG_PM)
 
-static int snd_echo_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_echo_suspend(struct device *dev)
 {
-	struct echoaudio *chip = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct echoaudio *chip = dev_get_drvdata(dev);
 
 	DE_INIT(("suspend start\n"));
 	snd_pcm_suspend_all(chip->analog_pcm);
@@ -2242,9 +2243,10 @@ static int snd_echo_suspend(struct pci_dev *pci, pm_message_t state)
 
 
 
-static int snd_echo_resume(struct pci_dev *pci)
+static int snd_echo_resume(struct device *dev)
 {
-	struct echoaudio *chip = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct echoaudio *chip = dev_get_drvdata(dev);
 	struct comm_page *commpage, *commpage_bak;
 	u32 pipe_alloc_mask;
 	int err;
@@ -2307,8 +2309,11 @@ static int snd_echo_resume(struct pci_dev *pci)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(snd_echo_pm, snd_echo_suspend, snd_echo_resume);
+#define SND_ECHO_PM_OPS	&snd_echo_pm
+#else
+#define SND_ECHO_PM_OPS	NULL
 #endif /* CONFIG_PM */
-
 
 
 static void __devexit snd_echo_remove(struct pci_dev *pci)
@@ -2333,10 +2338,9 @@ static struct pci_driver echo_driver = {
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
 	.remove = __devexit_p(snd_echo_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_echo_suspend,
-	.resume = snd_echo_resume,
-#endif /* CONFIG_PM */
+	.driver = {
+		.pm = SND_ECHO_PM_OPS,
+	},
 };
 
 module_pci_driver(echo_driver);

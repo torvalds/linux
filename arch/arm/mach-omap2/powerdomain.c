@@ -526,7 +526,8 @@ int pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
  *
  * Return the powerdomain @pwrdm's current power state.	Returns -EINVAL
  * if the powerdomain pointer is null or returns the current power state
- * upon success.
+ * upon success. Note that if the power domain only supports the ON state
+ * then just return ON as the current state.
  */
 int pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
@@ -534,6 +535,9 @@ int pwrdm_read_pwrst(struct powerdomain *pwrdm)
 
 	if (!pwrdm)
 		return -EINVAL;
+
+	if (pwrdm->pwrsts == PWRSTS_ON)
+		return PWRDM_POWER_ON;
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_read_pwrst)
 		ret = arch_pwrdm->pwrdm_read_pwrst(pwrdm);
@@ -981,15 +985,23 @@ int pwrdm_state_switch(struct powerdomain *pwrdm)
 	return ret;
 }
 
-int pwrdm_pre_transition(void)
+int pwrdm_pre_transition(struct powerdomain *pwrdm)
 {
-	pwrdm_for_each(_pwrdm_pre_transition_cb, NULL);
+	if (pwrdm)
+		_pwrdm_pre_transition_cb(pwrdm, NULL);
+	else
+		pwrdm_for_each(_pwrdm_pre_transition_cb, NULL);
+
 	return 0;
 }
 
-int pwrdm_post_transition(void)
+int pwrdm_post_transition(struct powerdomain *pwrdm)
 {
-	pwrdm_for_each(_pwrdm_post_transition_cb, NULL);
+	if (pwrdm)
+		_pwrdm_post_transition_cb(pwrdm, NULL);
+	else
+		pwrdm_for_each(_pwrdm_post_transition_cb, NULL);
+
 	return 0;
 }
 

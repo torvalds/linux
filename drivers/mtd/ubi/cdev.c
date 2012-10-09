@@ -1026,7 +1026,7 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 	{
 		int ubi_num;
 
-		dbg_gen("dettach MTD device");
+		dbg_gen("detach MTD device");
 		err = get_user(ubi_num, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;

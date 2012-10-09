@@ -3,7 +3,7 @@
  *
  * sysfs attributes.
  *
- * Copyright IBM Corporation 2008, 2010
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"

@@ -438,8 +438,8 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	if (submode)
 		wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE(ULP2_MODE_ISCSI) |
 				FW_OFLD_TX_DATA_WR_ULPSUBMODE(submode);
-	req->tunnel_to_proxy = htonl(wr_ulp_mode) |
-		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1);
+	req->tunnel_to_proxy = htonl(wr_ulp_mode |
+		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1));
 	req->plen = htonl(len);
 	if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT))
 		cxgbi_sock_set_flag(csk, CTPF_TX_DATA_SENT);
@@ -1142,7 +1142,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
-	n = dst_get_neighbour_noref(csk->dst);
+	n = dst_neigh_lookup(csk->dst, &csk->daddr.sin_addr.s_addr);
 	if (!n) {
 		pr_err("%s, can't get neighbour of csk->dst.\n", ndev->name);
 		goto rel_resource;
@@ -1182,9 +1182,12 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	cxgbi_sock_set_state(csk, CTP_ACTIVE_OPEN);
 	send_act_open_req(csk, skb, csk->l2t);
+	neigh_release(n);
 	return 0;
 
 rel_resource:
+	if (n)
+		neigh_release(n);
 	if (skb)
 		__kfree_skb(skb);
 	return -EINVAL;

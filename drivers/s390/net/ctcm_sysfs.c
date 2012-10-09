@@ -1,6 +1,4 @@
 /*
- * drivers/s390/net/ctcm_sysfs.c
- *
  * Copyright IBM Corp. 2007, 2007
  * Authors:	Peter Tiedemann (ptiedem@de.ibm.com)
  *

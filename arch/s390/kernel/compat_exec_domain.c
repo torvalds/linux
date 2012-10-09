@@ -1,7 +1,7 @@
 /*
  * Support for 32-bit Linux for S390 personality.
  *
- * Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ * Copyright IBM Corp. 2000
  * Author(s): Gerhard Tonn (ton@de.ibm.com)
  *
  *

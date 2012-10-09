@@ -79,20 +79,6 @@ struct crc_register {
 	u32 revid;
 };
 
-struct bfin_crc {
-	struct miscdevice mdev;
-	struct list_head list;
-	int irq;
-	int dma_ch_src;
-	int dma_ch_dest;
-	volatile struct crc_register *regs;
-	struct crc_info *info;
-	struct mutex mutex;
-	struct completion c;
-	unsigned short opmode;
-	char name[20];
-};
-
 /* CRC_STATUS Masks */
 #define CMPERR			0x00000002	/* Compare error */
 #define DCNTEXP			0x00000010	/* datacnt register expired */

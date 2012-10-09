@@ -1302,8 +1302,7 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 	return 0;
 }
 
-/**
- * NOTE: Should be called for MSIX only
+/* NOTE: Should be called for MSIX only
  * Unregisters Tx MSIX vector(s) from the kernel
  */
 static void
@@ -1322,8 +1321,7 @@ bnad_tx_msix_unregister(struct bnad *bnad, struct bnad_tx_info *tx_info,
 	}
 }
 
-/**
- * NOTE: Should be called for MSIX only
+/* NOTE: Should be called for MSIX only
  * Registers Tx MSIX vector(s) and ISR(s), cookie with the kernel
  */
 static int
@@ -1354,8 +1352,7 @@ err_return:
 	return -1;
 }
 
-/**
- * NOTE: Should be called for MSIX only
+/* NOTE: Should be called for MSIX only
  * Unregisters Rx MSIX vector(s) from the kernel
  */
 static void
@@ -1375,8 +1372,7 @@ bnad_rx_msix_unregister(struct bnad *bnad, struct bnad_rx_info *rx_info,
 	}
 }
 
-/**
- * NOTE: Should be called for MSIX only
+/* NOTE: Should be called for MSIX only
  * Registers Tx MSIX vector(s) and ISR(s), cookie with the kernel
  */
 static int

@@ -23,6 +23,12 @@
 	compatible = "samsung,exynos5250";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		spi0 = &spi_0;
+		spi1 = &spi_1;
+		spi2 = &spi_2;
+	};
+
 	gic:interrupt-controller@10481000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
@@ -142,6 +148,36 @@
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x12CD0000 0x100>;
 		interrupts = <0 63 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	spi_0: spi@12d20000 {
+		compatible = "samsung,exynos4210-spi";
+		reg = <0x12d20000 0x100>;
+		interrupts = <0 66 0>;
+		tx-dma-channel = <&pdma0 5>; /* preliminary */
+		rx-dma-channel = <&pdma0 4>; /* preliminary */
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	spi_1: spi@12d30000 {
+		compatible = "samsung,exynos4210-spi";
+		reg = <0x12d30000 0x100>;
+		interrupts = <0 67 0>;
+		tx-dma-channel = <&pdma1 5>; /* preliminary */
+		rx-dma-channel = <&pdma1 4>; /* preliminary */
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	spi_2: spi@12d40000 {
+		compatible = "samsung,exynos4210-spi";
+		reg = <0x12d40000 0x100>;
+		interrupts = <0 68 0>;
+		tx-dma-channel = <&pdma0 7>; /* preliminary */
+		rx-dma-channel = <&pdma0 6>; /* preliminary */
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};

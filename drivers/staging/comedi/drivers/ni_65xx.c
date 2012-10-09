@@ -415,8 +415,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 	const unsigned max_ports_per_bitfield = 5;
 	unsigned read_bits = 0;
 	unsigned j;
-	if (insn->n != 2)
-		return -EINVAL;
+
 	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for (j = 0; j < max_ports_per_bitfield; ++j) {
 		const unsigned port_offset =
@@ -602,11 +601,8 @@ static int ni_65xx_intr_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n < 1)
-		return -EINVAL;
-
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int ni_65xx_intr_insn_config(struct comedi_device *dev,
@@ -678,8 +674,8 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	printk(KERN_INFO " ID=0x%02x",
 	       readb(private(dev)->mite->daq_io_addr + ID_Register));
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

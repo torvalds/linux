@@ -48,6 +48,7 @@
 #include <xen/interface/sched.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/platform.h>
+#include <xen/interface/xen-mca.h>
 
 /*
  * The hypercall asms have to meet several constraints:
@@ -299,6 +300,13 @@ HYPERVISOR_set_timer_op(u64 timeout)
 	unsigned long timeout_hi = (unsigned long)(timeout>>32);
 	unsigned long timeout_lo = (unsigned long)timeout;
 	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
+}
+
+static inline int
+HYPERVISOR_mca(struct xen_mc *mc_op)
+{
+	mc_op->interface_version = XEN_MCA_INTERFACE_VERSION;
+	return _hypercall1(int, mca, mc_op);
 }
 
 static inline int

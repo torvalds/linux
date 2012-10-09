@@ -1312,7 +1312,7 @@ errout:
 	return NULL;
 }
 
-static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	struct ext4_dir_entry_2 *de;
@@ -2072,8 +2072,8 @@ static int ext4_add_nondir(handle_t *handle,
 	int err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
 		ext4_mark_inode_dirty(handle, inode);
-		d_instantiate(dentry, inode);
 		unlock_new_inode(inode);
+		d_instantiate(dentry, inode);
 		return 0;
 	}
 	drop_nlink(inode);
@@ -2091,7 +2091,7 @@ static int ext4_add_nondir(handle_t *handle,
  * with d_instantiate().
  */
 static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		       struct nameidata *nd)
+		       bool excl)
 {
 	handle_t *handle;
 	struct inode *inode;
@@ -2249,8 +2249,8 @@ out_clear_inode:
 	err = ext4_mark_inode_dirty(handle, dir);
 	if (err)
 		goto out_clear_inode;
-	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	d_instantiate(dentry, inode);
 out_stop:
 	brelse(dir_block);
 	ext4_journal_stop(handle);
@@ -2397,7 +2397,7 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	/* Insert this inode at the head of the on-disk orphan list... */
 	NEXT_ORPHAN(inode) = le32_to_cpu(EXT4_SB(sb)->s_es->s_last_orphan);
 	EXT4_SB(sb)->s_es->s_last_orphan = cpu_to_le32(inode->i_ino);
-	err = ext4_handle_dirty_super_now(handle, sb);
+	err = ext4_handle_dirty_super(handle, sb);
 	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
 	if (!err)
 		err = rc;
@@ -2470,7 +2470,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		if (err)
 			goto out_brelse;
 		sbi->s_es->s_last_orphan = cpu_to_le32(ino_next);
-		err = ext4_handle_dirty_super_now(handle, inode->i_sb);
+		err = ext4_handle_dirty_super(handle, inode->i_sb);
 	} else {
 		struct ext4_iloc iloc2;
 		struct inode *i_prev =
@@ -2918,8 +2918,15 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
 						cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");
-		retval = ext4_handle_dirty_dirent_node(handle, old_inode,
-						       dir_bh);
+		if (is_dx(old_inode)) {
+			retval = ext4_handle_dirty_dx_node(handle,
+							   old_inode,
+							   dir_bh);
+		} else {
+			retval = ext4_handle_dirty_dirent_node(handle,
+							       old_inode,
+							       dir_bh);
+		}
 		if (retval) {
 			ext4_std_error(old_dir->i_sb, retval);
 			goto end_rename;

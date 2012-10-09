@@ -14,8 +14,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7887.h"
 
@@ -82,7 +82,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 
 	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		goto done;
 
 	b_sent = spi_sync(st->spi, st->ring_msg);
 	if (b_sent)
@@ -112,38 +112,11 @@ static const struct iio_buffer_setup_ops ad7887_ring_setup_ops = {
 
 int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 &ad7887_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "ad7887_consumer%d",
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7887_ring_setup_ops;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+			&ad7887_trigger_handler, &ad7887_ring_setup_ops);
 }
 
 void ad7887_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

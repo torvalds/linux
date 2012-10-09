@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"4.2.220u"
+#define DRV_VER			"4.4.31.0u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
@@ -389,6 +389,7 @@ struct be_adapter {
 	struct delayed_work work;
 	u16 work_counter;
 
+	struct delayed_work func_recovery_work;
 	u32 flags;
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
@@ -396,9 +397,10 @@ struct be_adapter {
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
 	u32 beacon_state;	/* for set_phys_id */
 
-	bool eeh_err;
-	bool ue_detected;
+	bool eeh_error;
 	bool fw_timeout;
+	bool hw_error;
+
 	u32 port_num;
 	bool promiscuous;
 	u32 function_mode;
@@ -435,6 +437,7 @@ struct be_adapter {
 	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u32 msg_enable;
+	int be_get_temp_freq;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
@@ -453,6 +456,9 @@ struct be_adapter {
 #define OFF				0
 #define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
 				 (adapter->pdev->device == OC_DEVICE_ID4))
+
+#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5)
+
 
 #define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
 				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \
@@ -573,6 +579,11 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 	return val;
 }
 
+static inline bool is_ipv4_pkt(struct sk_buff *skb)
+{
+	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
+}
+
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 {
 	u32 addr;
@@ -593,7 +604,19 @@ static inline bool be_multi_rxq(const struct be_adapter *adapter)
 
 static inline bool be_error(struct be_adapter *adapter)
 {
-	return adapter->eeh_err || adapter->ue_detected || adapter->fw_timeout;
+	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
+}
+
+static inline bool be_crit_error(struct be_adapter *adapter)
+{
+	return adapter->eeh_error || adapter->hw_error;
+}
+
+static inline void  be_clear_all_error(struct be_adapter *adapter)
+{
+	adapter->eeh_error = false;
+	adapter->hw_error = false;
+	adapter->fw_timeout = false;
 }
 
 static inline bool be_is_wol_excluded(struct be_adapter *adapter)

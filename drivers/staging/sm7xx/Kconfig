@@ -1,8 +1,0 @@
-config FB_SM7XX
-	tristate "Silicon Motion SM7XX Frame Buffer Support"
-	depends on FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Frame Buffer driver for the Silicon Motion SM7XX serial graphic card.

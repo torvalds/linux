@@ -1,7 +1,7 @@
 /*
  * Watchdog implementation based on z/VM Watchdog Timer API
  *
- * Copyright IBM Corp. 2004,2009
+ * Copyright IBM Corp. 2004, 2009
  *
  * The user space watchdog daemon can use this driver as
  * /dev/vmwatchdog to have z/VM execute the specified CP

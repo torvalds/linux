@@ -118,7 +118,8 @@ enum drm_mode_status {
 	.hdisplay = (hd), .hsync_start = (hss), .hsync_end = (hse), \
 	.htotal = (ht), .hskew = (hsk), .vdisplay = (vd), \
 	.vsync_start = (vss), .vsync_end = (vse), .vtotal = (vt), \
-	.vscan = (vs), .flags = (f), .vrefresh = 0
+	.vscan = (vs), .flags = (f), .vrefresh = 0, \
+	.base.type = DRM_MODE_OBJECT_MODE
 
 #define CRTC_INTERLACE_HALVE_V 0x1 /* halve V values for interlacing */
 
@@ -166,8 +167,6 @@ struct drm_display_mode {
 	int crtc_vsync_start;
 	int crtc_vsync_end;
 	int crtc_vtotal;
-	int crtc_hadjusted;
-	int crtc_vadjusted;
 
 	/* Driver private mode info */
 	int private_size;
@@ -676,8 +675,6 @@ struct drm_plane {
  * This is used to set modes.
  */
 struct drm_mode_set {
-	struct list_head head;
-
 	struct drm_framebuffer *fb;
 	struct drm_crtc *crtc;
 	struct drm_display_mode *mode;

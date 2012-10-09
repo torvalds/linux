@@ -27,7 +27,8 @@ struct nfc_shdlc_ops {
 	void (*close) (struct nfc_shdlc *shdlc);
 	int (*hci_ready) (struct nfc_shdlc *shdlc);
 	int (*xmit) (struct nfc_shdlc *shdlc, struct sk_buff *skb);
-	int (*start_poll) (struct nfc_shdlc *shdlc, u32 protocols);
+	int (*start_poll) (struct nfc_shdlc *shdlc,
+			   u32 im_protocols, u32 tm_protocols);
 	int (*target_from_gate) (struct nfc_shdlc *shdlc, u8 gate,
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_shdlc *shdlc, u8 gate,

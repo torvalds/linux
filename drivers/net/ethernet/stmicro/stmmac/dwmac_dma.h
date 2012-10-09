@@ -22,6 +22,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __DWMAC_DMA_H__
+#define __DWMAC_DMA_H__
+
 /* DMA CRS Control and Status Register Mapping */
 #define DMA_BUS_MODE		0x00001000	/* Bus Mode */
 #define DMA_XMT_POLL_DEMAND	0x00001004	/* Transmit Poll Demand */
@@ -70,6 +73,7 @@
 #define DMA_INTR_DEFAULT_MASK	(DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
 
 /* DMA Status register defines */
+#define DMA_STATUS_GLPII	0x40000000	/* GMAC LPI interrupt */
 #define DMA_STATUS_GPI		0x10000000	/* PMT interrupt */
 #define DMA_STATUS_GMI		0x08000000	/* MMC interrupt */
 #define DMA_STATUS_GLI		0x04000000	/* GMAC Line interface int */
@@ -108,3 +112,5 @@ extern void dwmac_dma_start_rx(void __iomem *ioaddr);
 extern void dwmac_dma_stop_rx(void __iomem *ioaddr);
 extern int dwmac_dma_interrupt(void __iomem *ioaddr,
 				struct stmmac_extra_stats *x);
+
+#endif /* __DWMAC_DMA_H__ */

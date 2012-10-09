@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include "virt-dma.h"
+
 #define NR_PHY_CHAN	6
 #define DMA_ALIGN	3
 #define DMA_MAX_SIZE	0x1fff
@@ -72,12 +74,13 @@ struct sa11x0_dma_sg {
 };
 
 struct sa11x0_dma_desc {
-	struct dma_async_tx_descriptor tx;
+	struct virt_dma_desc	vd;
+
 	u32			ddar;
 	size_t			size;
+	unsigned		period;
+	bool			cyclic;
 
-	/* maybe protected by c->lock */
-	struct list_head	node;
 	unsigned		sglen;
 	struct sa11x0_dma_sg	sg[0];
 };
@@ -85,15 +88,11 @@ struct sa11x0_dma_desc {
 struct sa11x0_dma_phy;
 
 struct sa11x0_dma_chan {
-	struct dma_chan		chan;
-	spinlock_t		lock;
-	dma_cookie_t		lc;
+	struct virt_dma_chan	vc;
 
-	/* protected by c->lock */
+	/* protected by c->vc.lock */
 	struct sa11x0_dma_phy	*phy;
 	enum dma_status		status;
-	struct list_head	desc_submitted;
-	struct list_head	desc_issued;
 
 	/* protected by d->lock */
 	struct list_head	node;
@@ -109,7 +108,7 @@ struct sa11x0_dma_phy {
 
 	struct sa11x0_dma_chan	*vchan;
 
-	/* Protected by c->lock */
+	/* Protected by c->vc.lock */
 	unsigned		sg_load;
 	struct sa11x0_dma_desc	*txd_load;
 	unsigned		sg_done;
@@ -127,13 +126,12 @@ struct sa11x0_dma_dev {
 	spinlock_t		lock;
 	struct tasklet_struct	task;
 	struct list_head	chan_pending;
-	struct list_head	desc_complete;
 	struct sa11x0_dma_phy	phy[NR_PHY_CHAN];
 };
 
 static struct sa11x0_dma_chan *to_sa11x0_dma_chan(struct dma_chan *chan)
 {
-	return container_of(chan, struct sa11x0_dma_chan, chan);
+	return container_of(chan, struct sa11x0_dma_chan, vc.chan);
 }
 
 static struct sa11x0_dma_dev *to_sa11x0_dma(struct dma_device *dmadev)
@@ -141,27 +139,26 @@ static struct sa11x0_dma_dev *to_sa11x0_dma(struct dma_device *dmadev)
 	return container_of(dmadev, struct sa11x0_dma_dev, slave);
 }
 
-static struct sa11x0_dma_desc *to_sa11x0_dma_tx(struct dma_async_tx_descriptor *tx)
-{
-	return container_of(tx, struct sa11x0_dma_desc, tx);
-}
-
 static struct sa11x0_dma_desc *sa11x0_dma_next_desc(struct sa11x0_dma_chan *c)
 {
-	if (list_empty(&c->desc_issued))
-		return NULL;
+	struct virt_dma_desc *vd = vchan_next_desc(&c->vc);
 
-	return list_first_entry(&c->desc_issued, struct sa11x0_dma_desc, node);
+	return vd ? container_of(vd, struct sa11x0_dma_desc, vd) : NULL;
+}
+
+static void sa11x0_dma_free_desc(struct virt_dma_desc *vd)
+{
+	kfree(container_of(vd, struct sa11x0_dma_desc, vd));
 }
 
 static void sa11x0_dma_start_desc(struct sa11x0_dma_phy *p, struct sa11x0_dma_desc *txd)
 {
-	list_del(&txd->node);
+	list_del(&txd->vd.node);
 	p->txd_load = txd;
 	p->sg_load = 0;
 
 	dev_vdbg(p->dev->slave.dev, "pchan %u: txd %p[%x]: starting: DDAR:%x\n",
-		p->num, txd, txd->tx.cookie, txd->ddar);
+		p->num, &txd->vd, txd->vd.tx.cookie, txd->ddar);
 }
 
 static void noinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
@@ -183,19 +180,24 @@ static void noinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
 		return;
 
 	if (p->sg_load == txd->sglen) {
-		struct sa11x0_dma_desc *txn = sa11x0_dma_next_desc(c);
+		if (!txd->cyclic) {
+			struct sa11x0_dma_desc *txn = sa11x0_dma_next_desc(c);
 
-		/*
-		 * We have reached the end of the current descriptor.
-		 * Peek at the next descriptor, and if compatible with
-		 * the current, start processing it.
-		 */
-		if (txn && txn->ddar == txd->ddar) {
-			txd = txn;
-			sa11x0_dma_start_desc(p, txn);
+			/*
+			 * We have reached the end of the current descriptor.
+			 * Peek at the next descriptor, and if compatible with
+			 * the current, start processing it.
+			 */
+			if (txn && txn->ddar == txd->ddar) {
+				txd = txn;
+				sa11x0_dma_start_desc(p, txn);
+			} else {
+				p->txd_load = NULL;
+				return;
+			}
 		} else {
-			p->txd_load = NULL;
-			return;
+			/* Cyclic: reset back to beginning */
+			p->sg_load = 0;
 		}
 	}
 
@@ -229,21 +231,21 @@ static void noinline sa11x0_dma_complete(struct sa11x0_dma_phy *p,
 	struct sa11x0_dma_desc *txd = p->txd_done;
 
 	if (++p->sg_done == txd->sglen) {
-		struct sa11x0_dma_dev *d = p->dev;
+		if (!txd->cyclic) {
+			vchan_cookie_complete(&txd->vd);
 
-		dev_vdbg(d->slave.dev, "pchan %u: txd %p[%x]: completed\n",
-			p->num, p->txd_done, p->txd_done->tx.cookie);
+			p->sg_done = 0;
+			p->txd_done = p->txd_load;
 
-		c->lc = txd->tx.cookie;
+			if (!p->txd_done)
+				tasklet_schedule(&p->dev->task);
+		} else {
+			if ((p->sg_done % txd->period) == 0)
+				vchan_cyclic_callback(&txd->vd);
 
-		spin_lock(&d->lock);
-		list_add_tail(&txd->node, &d->desc_complete);
-		spin_unlock(&d->lock);
-
-		p->sg_done = 0;
-		p->txd_done = p->txd_load;
-
-		tasklet_schedule(&d->task);
+			/* Cyclic: reset back to beginning */
+			p->sg_done = 0;
+		}
 	}
 
 	sa11x0_dma_start_sg(p, c);
@@ -280,7 +282,7 @@ static irqreturn_t sa11x0_dma_irq(int irq, void *dev_id)
 	if (c) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&c->lock, flags);
+		spin_lock_irqsave(&c->vc.lock, flags);
 		/*
 		 * Now that we're holding the lock, check that the vchan
 		 * really is associated with this pchan before touching the
@@ -294,7 +296,7 @@ static irqreturn_t sa11x0_dma_irq(int irq, void *dev_id)
 			if (dcsr & DCSR_DONEB)
 				sa11x0_dma_complete(p, c);
 		}
-		spin_unlock_irqrestore(&c->lock, flags);
+		spin_unlock_irqrestore(&c->vc.lock, flags);
 	}
 
 	return IRQ_HANDLED;
@@ -332,28 +334,15 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 	struct sa11x0_dma_dev *d = (struct sa11x0_dma_dev *)arg;
 	struct sa11x0_dma_phy *p;
 	struct sa11x0_dma_chan *c;
-	struct sa11x0_dma_desc *txd, *txn;
-	LIST_HEAD(head);
 	unsigned pch, pch_alloc = 0;
 
 	dev_dbg(d->slave.dev, "tasklet enter\n");
 
-	/* Get the completed tx descriptors */
-	spin_lock_irq(&d->lock);
-	list_splice_init(&d->desc_complete, &head);
-	spin_unlock_irq(&d->lock);
-
-	list_for_each_entry(txd, &head, node) {
-		c = to_sa11x0_dma_chan(txd->tx.chan);
-
-		dev_dbg(d->slave.dev, "vchan %p: txd %p[%x] completed\n",
-			c, txd, txd->tx.cookie);
-
-		spin_lock_irq(&c->lock);
+	list_for_each_entry(c, &d->slave.channels, vc.chan.device_node) {
+		spin_lock_irq(&c->vc.lock);
 		p = c->phy;
-		if (p) {
-			if (!p->txd_done)
-				sa11x0_dma_start_txd(c);
+		if (p && !p->txd_done) {
+			sa11x0_dma_start_txd(c);
 			if (!p->txd_done) {
 				/* No current txd associated with this channel */
 				dev_dbg(d->slave.dev, "pchan %u: free\n", p->num);
@@ -363,7 +352,7 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 				p->vchan = NULL;
 			}
 		}
-		spin_unlock_irq(&c->lock);
+		spin_unlock_irq(&c->vc.lock);
 	}
 
 	spin_lock_irq(&d->lock);
@@ -380,7 +369,7 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 			/* Mark this channel allocated */
 			p->vchan = c;
 
-			dev_dbg(d->slave.dev, "pchan %u: alloc vchan %p\n", pch, c);
+			dev_dbg(d->slave.dev, "pchan %u: alloc vchan %p\n", pch, &c->vc);
 		}
 	}
 	spin_unlock_irq(&d->lock);
@@ -390,41 +379,17 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 			p = &d->phy[pch];
 			c = p->vchan;
 
-			spin_lock_irq(&c->lock);
+			spin_lock_irq(&c->vc.lock);
 			c->phy = p;
 
 			sa11x0_dma_start_txd(c);
-			spin_unlock_irq(&c->lock);
+			spin_unlock_irq(&c->vc.lock);
 		}
-	}
-
-	/* Now free the completed tx descriptor, and call their callbacks */
-	list_for_each_entry_safe(txd, txn, &head, node) {
-		dma_async_tx_callback callback = txd->tx.callback;
-		void *callback_param = txd->tx.callback_param;
-
-		dev_dbg(d->slave.dev, "txd %p[%x]: callback and free\n",
-			txd, txd->tx.cookie);
-
-		kfree(txd);
-
-		if (callback)
-			callback(callback_param);
 	}
 
 	dev_dbg(d->slave.dev, "tasklet exit\n");
 }
 
-
-static void sa11x0_dma_desc_free(struct sa11x0_dma_dev *d, struct list_head *head)
-{
-	struct sa11x0_dma_desc *txd, *txn;
-
-	list_for_each_entry_safe(txd, txn, head, node) {
-		dev_dbg(d->slave.dev, "txd %p: freeing\n", txd);
-		kfree(txd);
-	}
-}
 
 static int sa11x0_dma_alloc_chan_resources(struct dma_chan *chan)
 {
@@ -436,18 +401,12 @@ static void sa11x0_dma_free_chan_resources(struct dma_chan *chan)
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	unsigned long flags;
-	LIST_HEAD(head);
 
-	spin_lock_irqsave(&c->lock, flags);
-	spin_lock(&d->lock);
+	spin_lock_irqsave(&d->lock, flags);
 	list_del_init(&c->node);
-	spin_unlock(&d->lock);
+	spin_unlock_irqrestore(&d->lock, flags);
 
-	list_splice_tail_init(&c->desc_submitted, &head);
-	list_splice_tail_init(&c->desc_issued, &head);
-	spin_unlock_irqrestore(&c->lock, flags);
-
-	sa11x0_dma_desc_free(d, &head);
+	vchan_free_chan_resources(&c->vc);
 }
 
 static dma_addr_t sa11x0_dma_pos(struct sa11x0_dma_phy *p)
@@ -472,32 +431,46 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
-	struct sa11x0_dma_desc *txd;
-	dma_cookie_t last_used, last_complete;
+	struct virt_dma_desc *vd;
 	unsigned long flags;
 	enum dma_status ret;
-	size_t bytes = 0;
 
-	last_used = c->chan.cookie;
-	last_complete = c->lc;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-	if (ret == DMA_SUCCESS) {
-		dma_set_tx_state(state, last_complete, last_used, 0);
+	ret = dma_cookie_status(&c->vc.chan, cookie, state);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
 
-	spin_lock_irqsave(&c->lock, flags);
+	if (!state)
+		return c->status;
+
+	spin_lock_irqsave(&c->vc.lock, flags);
 	p = c->phy;
-	ret = c->status;
-	if (p) {
-		dma_addr_t addr = sa11x0_dma_pos(p);
 
-		dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
+	/*
+	 * If the cookie is on our issue queue, then the residue is
+	 * its total size.
+	 */
+	vd = vchan_find_desc(&c->vc, cookie);
+	if (vd) {
+		state->residue = container_of(vd, struct sa11x0_dma_desc, vd)->size;
+	} else if (!p) {
+		state->residue = 0;
+	} else {
+		struct sa11x0_dma_desc *txd;
+		size_t bytes = 0;
 
-		txd = p->txd_done;
+		if (p->txd_done && p->txd_done->vd.tx.cookie == cookie)
+			txd = p->txd_done;
+		else if (p->txd_load && p->txd_load->vd.tx.cookie == cookie)
+			txd = p->txd_load;
+		else
+			txd = NULL;
+
+		ret = c->status;
 		if (txd) {
+			dma_addr_t addr = sa11x0_dma_pos(p);
 			unsigned i;
+
+			dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
 
 			for (i = 0; i < txd->sglen; i++) {
 				dev_vdbg(d->slave.dev, "tx_status: [%u] %x+%x\n",
@@ -521,17 +494,11 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 				bytes += txd->sg[i].len;
 			}
 		}
-		if (txd != p->txd_load && p->txd_load)
-			bytes += p->txd_load->size;
+		state->residue = bytes;
 	}
-	list_for_each_entry(txd, &c->desc_issued, node) {
-		bytes += txd->size;
-	}
-	spin_unlock_irqrestore(&c->lock, flags);
+	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	dma_set_tx_state(state, last_complete, last_used, bytes);
-
-	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", bytes);
+	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", state->residue);
 
 	return ret;
 }
@@ -547,40 +514,20 @@ static void sa11x0_dma_issue_pending(struct dma_chan *chan)
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	unsigned long flags;
 
-	spin_lock_irqsave(&c->lock, flags);
-	list_splice_tail_init(&c->desc_submitted, &c->desc_issued);
-	if (!list_empty(&c->desc_issued)) {
-		spin_lock(&d->lock);
-		if (!c->phy && list_empty(&c->node)) {
-			list_add_tail(&c->node, &d->chan_pending);
-			tasklet_schedule(&d->task);
-			dev_dbg(d->slave.dev, "vchan %p: issued\n", c);
+	spin_lock_irqsave(&c->vc.lock, flags);
+	if (vchan_issue_pending(&c->vc)) {
+		if (!c->phy) {
+			spin_lock(&d->lock);
+			if (list_empty(&c->node)) {
+				list_add_tail(&c->node, &d->chan_pending);
+				tasklet_schedule(&d->task);
+				dev_dbg(d->slave.dev, "vchan %p: issued\n", &c->vc);
+			}
+			spin_unlock(&d->lock);
 		}
-		spin_unlock(&d->lock);
 	} else
-		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", c);
-	spin_unlock_irqrestore(&c->lock, flags);
-}
-
-static dma_cookie_t sa11x0_dma_tx_submit(struct dma_async_tx_descriptor *tx)
-{
-	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(tx->chan);
-	struct sa11x0_dma_desc *txd = to_sa11x0_dma_tx(tx);
-	unsigned long flags;
-
-	spin_lock_irqsave(&c->lock, flags);
-	c->chan.cookie += 1;
-	if (c->chan.cookie < 0)
-		c->chan.cookie = 1;
-	txd->tx.cookie = c->chan.cookie;
-
-	list_add_tail(&txd->node, &c->desc_submitted);
-	spin_unlock_irqrestore(&c->lock, flags);
-
-	dev_dbg(tx->chan->device->dev, "vchan %p: txd %p[%x]: submitted\n",
-		c, txd, txd->tx.cookie);
-
-	return txd->tx.cookie;
+		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", &c->vc);
+	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
 static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
@@ -596,7 +543,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 	/* SA11x0 channels can only operate in their native direction */
 	if (dir != (c->ddar & DDAR_RW ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV)) {
 		dev_err(chan->device->dev, "vchan %p: bad DMA direction: DDAR:%08x dir:%u\n",
-			c, c->ddar, dir);
+			&c->vc, c->ddar, dir);
 		return NULL;
 	}
 
@@ -612,14 +559,14 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 			j += DIV_ROUND_UP(len, DMA_MAX_SIZE & ~DMA_ALIGN) - 1;
 		if (addr & DMA_ALIGN) {
 			dev_dbg(chan->device->dev, "vchan %p: bad buffer alignment: %08x\n",
-				c, addr);
+				&c->vc, addr);
 			return NULL;
 		}
 	}
 
 	txd = kzalloc(sizeof(*txd) + j * sizeof(txd->sg[0]), GFP_ATOMIC);
 	if (!txd) {
-		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", c);
+		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
 		return NULL;
 	}
 
@@ -655,17 +602,73 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 		} while (len);
 	}
 
-	dma_async_tx_descriptor_init(&txd->tx, &c->chan);
-	txd->tx.flags = flags;
-	txd->tx.tx_submit = sa11x0_dma_tx_submit;
 	txd->ddar = c->ddar;
 	txd->size = size;
 	txd->sglen = j;
 
 	dev_dbg(chan->device->dev, "vchan %p: txd %p: size %u nr %u\n",
-		c, txd, txd->size, txd->sglen);
+		&c->vc, &txd->vd, txd->size, txd->sglen);
 
-	return &txd->tx;
+	return vchan_tx_prep(&c->vc, &txd->vd, flags);
+}
+
+static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
+	struct dma_chan *chan, dma_addr_t addr, size_t size, size_t period,
+	enum dma_transfer_direction dir, void *context)
+{
+	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
+	struct sa11x0_dma_desc *txd;
+	unsigned i, j, k, sglen, sgperiod;
+
+	/* SA11x0 channels can only operate in their native direction */
+	if (dir != (c->ddar & DDAR_RW ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV)) {
+		dev_err(chan->device->dev, "vchan %p: bad DMA direction: DDAR:%08x dir:%u\n",
+			&c->vc, c->ddar, dir);
+		return NULL;
+	}
+
+	sgperiod = DIV_ROUND_UP(period, DMA_MAX_SIZE & ~DMA_ALIGN);
+	sglen = size * sgperiod / period;
+
+	/* Do not allow zero-sized txds */
+	if (sglen == 0)
+		return NULL;
+
+	txd = kzalloc(sizeof(*txd) + sglen * sizeof(txd->sg[0]), GFP_ATOMIC);
+	if (!txd) {
+		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
+		return NULL;
+	}
+
+	for (i = k = 0; i < size / period; i++) {
+		size_t tlen, len = period;
+
+		for (j = 0; j < sgperiod; j++, k++) {
+			tlen = len;
+
+			if (tlen > DMA_MAX_SIZE) {
+				unsigned mult = DIV_ROUND_UP(tlen, DMA_MAX_SIZE & ~DMA_ALIGN);
+				tlen = (tlen / mult) & ~DMA_ALIGN;
+			}
+
+			txd->sg[k].addr = addr;
+			txd->sg[k].len = tlen;
+			addr += tlen;
+			len -= tlen;
+		}
+
+		WARN_ON(len != 0);
+	}
+
+	WARN_ON(k != sglen);
+
+	txd->ddar = c->ddar;
+	txd->size = size;
+	txd->sglen = sglen;
+	txd->cyclic = 1;
+	txd->period = sgperiod;
+
+	return vchan_tx_prep(&c->vc, &txd->vd, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 }
 
 static int sa11x0_dma_slave_config(struct sa11x0_dma_chan *c, struct dma_slave_config *cfg)
@@ -695,8 +698,8 @@ static int sa11x0_dma_slave_config(struct sa11x0_dma_chan *c, struct dma_slave_c
 	if (maxburst == 8)
 		ddar |= DDAR_BS;
 
-	dev_dbg(c->chan.device->dev, "vchan %p: dma_slave_config addr %x width %u burst %u\n",
-		c, addr, width, maxburst);
+	dev_dbg(c->vc.chan.device->dev, "vchan %p: dma_slave_config addr %x width %u burst %u\n",
+		&c->vc, addr, width, maxburst);
 
 	c->ddar = ddar | (addr & 0xf0000000) | (addr & 0x003ffffc) << 6;
 
@@ -718,16 +721,13 @@ static int sa11x0_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		return sa11x0_dma_slave_config(c, (struct dma_slave_config *)arg);
 
 	case DMA_TERMINATE_ALL:
-		dev_dbg(d->slave.dev, "vchan %p: terminate all\n", c);
+		dev_dbg(d->slave.dev, "vchan %p: terminate all\n", &c->vc);
 		/* Clear the tx descriptor lists */
-		spin_lock_irqsave(&c->lock, flags);
-		list_splice_tail_init(&c->desc_submitted, &head);
-		list_splice_tail_init(&c->desc_issued, &head);
+		spin_lock_irqsave(&c->vc.lock, flags);
+		vchan_get_all_descriptors(&c->vc, &head);
 
 		p = c->phy;
 		if (p) {
-			struct sa11x0_dma_desc *txd, *txn;
-
 			dev_dbg(d->slave.dev, "pchan %u: terminating\n", p->num);
 			/* vchan is assigned to a pchan - stop the channel */
 			writel(DCSR_RUN | DCSR_IE |
@@ -735,17 +735,13 @@ static int sa11x0_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 				DCSR_STRTB | DCSR_DONEB,
 				p->base + DMA_DCSR_C);
 
-			list_for_each_entry_safe(txd, txn, &d->desc_complete, node)
-				if (txd->tx.chan == &c->chan)
-					list_move(&txd->node, &head);
-
 			if (p->txd_load) {
 				if (p->txd_load != p->txd_done)
-					list_add_tail(&p->txd_load->node, &head);
+					list_add_tail(&p->txd_load->vd.node, &head);
 				p->txd_load = NULL;
 			}
 			if (p->txd_done) {
-				list_add_tail(&p->txd_done->node, &head);
+				list_add_tail(&p->txd_done->vd.node, &head);
 				p->txd_done = NULL;
 			}
 			c->phy = NULL;
@@ -754,14 +750,14 @@ static int sa11x0_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			spin_unlock(&d->lock);
 			tasklet_schedule(&d->task);
 		}
-		spin_unlock_irqrestore(&c->lock, flags);
-		sa11x0_dma_desc_free(d, &head);
+		spin_unlock_irqrestore(&c->vc.lock, flags);
+		vchan_dma_desc_free_list(&c->vc, &head);
 		ret = 0;
 		break;
 
 	case DMA_PAUSE:
-		dev_dbg(d->slave.dev, "vchan %p: pause\n", c);
-		spin_lock_irqsave(&c->lock, flags);
+		dev_dbg(d->slave.dev, "vchan %p: pause\n", &c->vc);
+		spin_lock_irqsave(&c->vc.lock, flags);
 		if (c->status == DMA_IN_PROGRESS) {
 			c->status = DMA_PAUSED;
 
@@ -774,26 +770,26 @@ static int sa11x0_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 				spin_unlock(&d->lock);
 			}
 		}
-		spin_unlock_irqrestore(&c->lock, flags);
+		spin_unlock_irqrestore(&c->vc.lock, flags);
 		ret = 0;
 		break;
 
 	case DMA_RESUME:
-		dev_dbg(d->slave.dev, "vchan %p: resume\n", c);
-		spin_lock_irqsave(&c->lock, flags);
+		dev_dbg(d->slave.dev, "vchan %p: resume\n", &c->vc);
+		spin_lock_irqsave(&c->vc.lock, flags);
 		if (c->status == DMA_PAUSED) {
 			c->status = DMA_IN_PROGRESS;
 
 			p = c->phy;
 			if (p) {
 				writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_S);
-			} else if (!list_empty(&c->desc_issued)) {
+			} else if (!list_empty(&c->vc.desc_issued)) {
 				spin_lock(&d->lock);
 				list_add_tail(&c->node, &d->chan_pending);
 				spin_unlock(&d->lock);
 			}
 		}
-		spin_unlock_irqrestore(&c->lock, flags);
+		spin_unlock_irqrestore(&c->vc.lock, flags);
 		ret = 0;
 		break;
 
@@ -853,15 +849,13 @@ static int __devinit sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 			return -ENOMEM;
 		}
 
-		c->chan.device = dmadev;
 		c->status = DMA_IN_PROGRESS;
 		c->ddar = chan_desc[i].ddar;
 		c->name = chan_desc[i].name;
-		spin_lock_init(&c->lock);
-		INIT_LIST_HEAD(&c->desc_submitted);
-		INIT_LIST_HEAD(&c->desc_issued);
 		INIT_LIST_HEAD(&c->node);
-		list_add_tail(&c->chan.device_node, &dmadev->channels);
+
+		c->vc.desc_free = sa11x0_dma_free_desc;
+		vchan_init(&c->vc, dmadev);
 	}
 
 	return dma_async_device_register(dmadev);
@@ -890,8 +884,9 @@ static void sa11x0_dma_free_channels(struct dma_device *dmadev)
 {
 	struct sa11x0_dma_chan *c, *cn;
 
-	list_for_each_entry_safe(c, cn, &dmadev->channels, chan.device_node) {
-		list_del(&c->chan.device_node);
+	list_for_each_entry_safe(c, cn, &dmadev->channels, vc.chan.device_node) {
+		list_del(&c->vc.chan.device_node);
+		tasklet_kill(&c->vc.task);
 		kfree(c);
 	}
 }
@@ -915,7 +910,6 @@ static int __devinit sa11x0_dma_probe(struct platform_device *pdev)
 
 	spin_lock_init(&d->lock);
 	INIT_LIST_HEAD(&d->chan_pending);
-	INIT_LIST_HEAD(&d->desc_complete);
 
 	d->base = ioremap(res->start, resource_size(res));
 	if (!d->base) {
@@ -947,7 +941,9 @@ static int __devinit sa11x0_dma_probe(struct platform_device *pdev)
 	}
 
 	dma_cap_set(DMA_SLAVE, d->slave.cap_mask);
+	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	d->slave.device_prep_slave_sg = sa11x0_dma_prep_slave_sg;
+	d->slave.device_prep_dma_cyclic = sa11x0_dma_prep_dma_cyclic;
 	ret = sa11x0_dma_init_dmadev(&d->slave, &pdev->dev);
 	if (ret) {
 		dev_warn(d->slave.dev, "failed to register slave async device: %d\n",

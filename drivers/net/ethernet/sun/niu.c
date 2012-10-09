@@ -3335,6 +3335,10 @@ static int niu_rbr_add_page(struct niu *np, struct rx_ring_info *rp,
 
 	addr = np->ops->map_page(np->device, page, 0,
 				 PAGE_SIZE, DMA_FROM_DEVICE);
+	if (!addr) {
+		__free_page(page);
+		return -ENOMEM;
+	}
 
 	niu_hash_page(rp, page, addr);
 	if (rp->rbr_blocks_per_page > 1)
@@ -3513,7 +3517,7 @@ static int niu_rbr_fill(struct niu *np, struct rx_ring_info *rp, gfp_t mask)
 	err = 0;
 	while (index < (rp->rbr_table_size - blocks_per_page)) {
 		err = niu_rbr_add_page(np, rp, mask, index);
-		if (err)
+		if (unlikely(err))
 			break;
 
 		index += blocks_per_page;

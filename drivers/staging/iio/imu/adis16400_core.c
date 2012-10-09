@@ -268,25 +268,6 @@ static int adis16400_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16400_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	bool val;
-	int ret;
-
-	ret = strtobool(buf, &val);
-	if (ret < 0)
-		return ret;
-	if (val) {
-		ret = adis16400_reset(dev_to_iio_dev(dev));
-		if (ret < 0)
-			return ret;
-	}
-
-	return len;
-}
-
 int adis16400_set_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int ret;
@@ -454,8 +435,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      adis16400_read_frequency,
 			      adis16400_write_frequency);
 
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16400_write_reset, 0);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
 
 enum adis16400_chan {
@@ -472,11 +451,12 @@ enum adis16400_chan {
 	temp,
 	temp0, temp1, temp2,
 	in1,
+	in2,
 	incli_x,
 	incli_y,
 };
 
-static u8 adis16400_addresses[17][2] = {
+static u8 adis16400_addresses[18][2] = {
 	[in_supply] = { ADIS16400_SUPPLY_OUT },
 	[gyro_x] = { ADIS16400_XGYRO_OUT, ADIS16400_XGYRO_OFF },
 	[gyro_y] = { ADIS16400_YGYRO_OUT, ADIS16400_YGYRO_OFF },
@@ -491,7 +471,8 @@ static u8 adis16400_addresses[17][2] = {
 	[temp0] = { ADIS16350_XTEMP_OUT },
 	[temp1] = { ADIS16350_YTEMP_OUT },
 	[temp2] = { ADIS16350_ZTEMP_OUT },
-	[in1] = { ADIS16400_AUX_ADC },
+	[in1] = { ADIS16300_AUX_ADC },
+	[in2] = { ADIS16400_AUX_ADC },
 	[incli_x] = { ADIS16300_PITCH_OUT },
 	[incli_y] = { ADIS16300_ROLL_OUT }
 };
@@ -752,7 +733,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.channel = 1,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		.address = in1,
+		.address = in2,
 		.scan_index = ADIS16400_SCAN_ADC_0,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	},
@@ -946,7 +927,7 @@ static struct iio_chan_spec adis16300_channels[] = {
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		.address = temp,
+		.address = temp0,
 		.scan_index = ADIS16400_SCAN_TEMP,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	}, {
@@ -1054,8 +1035,8 @@ static const struct iio_chan_spec adis16334_channels[] = {
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		.address = accel_z,
-		.scan_index = ADIS16400_SCAN_ACC_Z,
+		.address = temp0,
+		.scan_index = ADIS16400_SCAN_TEMP,
 		.scan_type = IIO_ST('s', 14, 16, 0),
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(12)
@@ -1064,7 +1045,6 @@ static const struct iio_chan_spec adis16334_channels[] = {
 static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	NULL
 };
 

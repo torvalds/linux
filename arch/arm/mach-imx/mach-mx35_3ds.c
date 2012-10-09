@@ -46,7 +46,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
 #include <video/platform_lcd.h>
 
@@ -78,10 +77,6 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode = FB_VMODE_NONINTERLACED,
 		.flag = 0,
 	 },
-};
-
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
 };
 
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
@@ -135,8 +130,6 @@ static struct platform_device mx35_3ds_lcd = {
 	.name = "platform-lcd",
 	.dev.platform_data = &mx35_3ds_lcd_data,
 };
-
-#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 1))
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -296,10 +289,6 @@ err:
 
 	return ret;
 }
-
-static const struct ipu_platform_data mx35_3ds_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
 
 static struct i2c_board_info mx35_3ds_i2c_camera = {
 	I2C_BOARD_INFO("ov2640", 0x30),
@@ -492,7 +481,7 @@ static struct i2c_board_info mx35_3ds_i2c_mc13892 = {
 
 	I2C_BOARD_INFO("mc13892", 0x08),
 	.platform_data = &mx35_3ds_mc13892_data,
-	.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
+	/* irq number is run-time assigned */
 };
 
 static void __init imx35_3ds_init_mc13892(void)
@@ -504,6 +493,7 @@ static void __init imx35_3ds_init_mc13892(void)
 		return;
 	}
 
+	mx35_3ds_i2c_mc13892.irq = gpio_to_irq(GPIO_PMIC_INT);
 	i2c_register_board_info(0, &mx35_3ds_i2c_mc13892, 1);
 }
 
@@ -540,18 +530,18 @@ static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
 	.portsc		= MXC_EHCI_MODE_SERIAL,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init mx35_3ds_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", mx35_3ds_otg_mode);
 
@@ -571,7 +561,8 @@ static void __init mx35_3ds_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
 
 	imx35_add_fec(NULL);
-	imx35_add_imx2_wdt(NULL);
+	imx35_add_imx2_wdt();
+	imx35_add_mxc_rtc();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);
@@ -587,7 +578,7 @@ static void __init mx35_3ds_init(void)
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
 
-	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX35_CS5_BASE_ADDR, IMX_GPIO_NR(1, 1)))
 		pr_warn("Init of the debugboard failed, all "
 				"devices on the debugboard are unusable.\n");
 	imx35_add_imx_i2c0(&mx35_3ds_i2c0_data);
@@ -595,7 +586,7 @@ static void __init mx35_3ds_init(void)
 	i2c_register_board_info(
 		0, i2c_devices_3ds, ARRAY_SIZE(i2c_devices_3ds));
 
-	imx35_add_ipu_core(&mx35_3ds_ipu_data);
+	imx35_add_ipu_core();
 	platform_device_register(&mx35_3ds_ov2640);
 	imx35_3ds_init_camera();
 

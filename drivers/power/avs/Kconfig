@@ -1,0 +1,12 @@
+menuconfig POWER_AVS
+	bool "Adaptive Voltage Scaling class support"
+	help
+	  AVS is a power management technique which finely controls the
+	  operating voltage of a device in order to optimize (i.e. reduce)
+	  its power consumption.
+	  At a given operating point the voltage is adapted depending on
+	  static factors (chip manufacturing process) and dynamic factors
+	  (temperature depending performance).
+	  AVS is also called SmartReflex on OMAP devices.
+
+	  Say Y here to enable Adaptive Voltage Scaling class support.

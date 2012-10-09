@@ -64,6 +64,8 @@ struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 		       &tegra_ehci2_pdata),
 	OF_DEV_AUXDATA("nvidia,tegra20-ehci", TEGRA_USB3_BASE, "tegra-ehci.2",
 		       &tegra_ehci3_pdata),
+	OF_DEV_AUXDATA("nvidia,tegra20-apbdma", TEGRA_APB_DMA_BASE, "tegra-apbdma", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-pwm", TEGRA_PWFM_BASE, "tegra-pwm", NULL),
 	{}
 };
 
@@ -81,11 +83,6 @@ static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
-static struct of_device_id tegra_dt_match_table[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{}
-};
-
 static void __init tegra_dt_init(void)
 {
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
@@ -94,8 +91,72 @@ static void __init tegra_dt_init(void)
 	 * Finished with the static registrations now; fill in the missing
 	 * devices
 	 */
-	of_platform_populate(NULL, tegra_dt_match_table,
+	of_platform_populate(NULL, of_default_bus_match_table,
 				tegra20_auxdata_lookup, NULL);
+}
+
+#ifdef CONFIG_MACH_TRIMSLICE
+static void __init trimslice_init(void)
+{
+	int ret;
+
+	ret = tegra_pcie_init(true, true);
+	if (ret)
+		pr_err("tegra_pci_init() failed: %d\n", ret);
+}
+#endif
+
+#ifdef CONFIG_MACH_HARMONY
+static void __init harmony_init(void)
+{
+	int ret;
+
+	ret = harmony_regulator_init();
+	if (ret) {
+		pr_err("harmony_regulator_init() failed: %d\n", ret);
+		return;
+	}
+
+	ret = harmony_pcie_init();
+	if (ret)
+		pr_err("harmony_pcie_init() failed: %d\n", ret);
+}
+#endif
+
+#ifdef CONFIG_MACH_PAZ00
+static void __init paz00_init(void)
+{
+	tegra_paz00_wifikill_init();
+}
+#endif
+
+static struct {
+	char *machine;
+	void (*init)(void);
+} board_init_funcs[] = {
+#ifdef CONFIG_MACH_TRIMSLICE
+	{ "compulab,trimslice", trimslice_init },
+#endif
+#ifdef CONFIG_MACH_HARMONY
+	{ "nvidia,harmony", harmony_init },
+#endif
+#ifdef CONFIG_MACH_PAZ00
+	{ "compal,paz00", paz00_init },
+#endif
+};
+
+static void __init tegra_dt_init_late(void)
+{
+	int i;
+
+	tegra_init_late();
+
+	for (i = 0; i < ARRAY_SIZE(board_init_funcs); i++) {
+		if (of_machine_is_compatible(board_init_funcs[i].machine)) {
+			board_init_funcs[i].init();
+			break;
+		}
+	}
 }
 
 static const char *tegra20_dt_board_compat[] = {
@@ -110,7 +171,7 @@ DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 (Flattened Device Tree)")
 	.handle_irq	= gic_handle_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra_dt_init,
-	.init_late	= tegra_init_late,
+	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_assert_system_reset,
 	.dt_compat	= tegra20_dt_board_compat,
 MACHINE_END

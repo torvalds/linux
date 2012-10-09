@@ -29,7 +29,6 @@
 
 #include "../wifi.h"
 #include "../core.h"
-#include "../pci.h"
 #include "../base.h"
 #include "../pci.h"
 #include "reg.h"

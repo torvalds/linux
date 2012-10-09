@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
+#include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
@@ -32,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
+#include <linux/printk.h>
 
 #include "wlcore.h"
 #include "wl12xx_80211.h"
@@ -44,6 +46,8 @@
 #ifndef SDIO_DEVICE_ID_TI_WL1271
 #define SDIO_DEVICE_ID_TI_WL1271	0x4076
 #endif
+
+static bool dump = false;
 
 struct wl12xx_sdio_glue {
 	struct device *dev;
@@ -67,14 +71,21 @@ static void wl1271_sdio_set_block_size(struct device *child,
 	sdio_release_host(func);
 }
 
-static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
-				 size_t len, bool fixed)
+static int __must_check wl12xx_sdio_raw_read(struct device *child, int addr,
+					     void *buf, size_t len, bool fixed)
 {
 	int ret;
 	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	sdio_claim_host(func);
+
+	if (unlikely(dump)) {
+		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
+		print_hex_dump(KERN_DEBUG, "wlcore_sdio: READ ",
+				DUMP_PREFIX_OFFSET, 16, 1,
+				buf, len, false);
+	}
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
@@ -92,18 +103,27 @@ static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 
 	sdio_release_host(func);
 
-	if (ret)
+	if (WARN_ON(ret))
 		dev_err(child->parent, "sdio read failed (%d)\n", ret);
+
+	return ret;
 }
 
-static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
-				  size_t len, bool fixed)
+static int __must_check wl12xx_sdio_raw_write(struct device *child, int addr,
+					      void *buf, size_t len, bool fixed)
 {
 	int ret;
 	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	sdio_claim_host(func);
+
+	if (unlikely(dump)) {
+		printk(KERN_DEBUG "wlcore_sdio: WRITE to 0x%04x\n", addr);
+		print_hex_dump(KERN_DEBUG, "wlcore_sdio: WRITE ",
+				DUMP_PREFIX_OFFSET, 16, 1,
+				buf, len, false);
+	}
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
@@ -121,25 +141,30 @@ static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 
 	sdio_release_host(func);
 
-	if (ret)
+	if (WARN_ON(ret))
 		dev_err(child->parent, "sdio write failed (%d)\n", ret);
+
+	return ret;
 }
 
 static int wl12xx_sdio_power_on(struct wl12xx_sdio_glue *glue)
 {
 	int ret;
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
+	struct mmc_card *card = func->card;
 
-	/* If enabled, tell runtime PM not to power off the card */
-	if (pm_runtime_enabled(&func->dev)) {
-		ret = pm_runtime_get_sync(&func->dev);
-		if (ret < 0)
+	ret = pm_runtime_get_sync(&card->dev);
+	if (ret) {
+		/*
+		 * Runtime PM might be temporarily disabled, or the device
+		 * might have a positive reference counter. Make sure it is
+		 * really powered on.
+		 */
+		ret = mmc_power_restore_host(card->host);
+		if (ret < 0) {
+			pm_runtime_put_sync(&card->dev);
 			goto out;
-	} else {
-		/* Runtime PM is disabled: power up the card manually */
-		ret = mmc_power_restore_host(func->card->host);
-		if (ret < 0)
-			goto out;
+		}
 	}
 
 	sdio_claim_host(func);
@@ -154,20 +179,21 @@ static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 {
 	int ret;
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
+	struct mmc_card *card = func->card;
 
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Power off the card manually, even if runtime PM is enabled. */
-	ret = mmc_power_save_host(func->card->host);
+	/* Power off the card manually in case it wasn't powered off above */
+	ret = mmc_power_save_host(card->host);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	/* If enabled, let runtime PM know the card is powered off */
-	if (pm_runtime_enabled(&func->dev))
-		ret = pm_runtime_put_sync(&func->dev);
+	/* Let runtime PM know the card is powered off */
+	pm_runtime_put_sync(&card->dev);
 
+out:
 	return ret;
 }
 
@@ -196,6 +222,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	struct resource res[1];
 	mmc_pm_flag_t mmcflags;
 	int ret = -ENOMEM;
+	const char *chip_family;
 
 	/* We are only able to handle the wlan function */
 	if (func->num != 0x02)
@@ -236,7 +263,18 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Tell PM core that we don't need the card to be powered now */
 	pm_runtime_put_noidle(&func->dev);
 
-	glue->core = platform_device_alloc("wl12xx", -1);
+	/*
+	 * Due to a hardware bug, we can't differentiate wl18xx from
+	 * wl12xx, because both report the same device ID.  The only
+	 * way to differentiate is by checking the SDIO revision,
+	 * which is 3.00 on the wl18xx chips.
+	 */
+	if (func->card->cccr.sdio_vsn == SDIO_SDIO_REV_3_00)
+		chip_family = "wl18xx";
+	else
+		chip_family = "wl12xx";
+
+	glue->core = platform_device_alloc(chip_family, -1);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
 		ret = -ENOMEM;
@@ -367,12 +405,9 @@ static void __exit wl1271_exit(void)
 module_init(wl1271_init);
 module_exit(wl1271_exit);
 
+module_param(dump, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
-MODULE_FIRMWARE(WL127X_FW_NAME_SINGLE);
-MODULE_FIRMWARE(WL127X_FW_NAME_MULTI);
-MODULE_FIRMWARE(WL127X_PLT_FW_NAME);
-MODULE_FIRMWARE(WL128X_FW_NAME_SINGLE);
-MODULE_FIRMWARE(WL128X_FW_NAME_MULTI);
-MODULE_FIRMWARE(WL128X_PLT_FW_NAME);

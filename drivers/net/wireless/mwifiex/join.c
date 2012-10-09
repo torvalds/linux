@@ -1349,22 +1349,16 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
 {
 	u8 mac_address[ETH_ALEN];
 	int ret;
-	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 
-	if (mac) {
-		if (!memcmp(mac, zero_mac, sizeof(zero_mac)))
-			memcpy((u8 *) &mac_address,
-			       (u8 *) &priv->curr_bss_params.bss_descriptor.
-			       mac_address, ETH_ALEN);
-		else
-			memcpy((u8 *) &mac_address, (u8 *) mac, ETH_ALEN);
-	} else {
-		memcpy((u8 *) &mac_address, (u8 *) &priv->curr_bss_params.
-		       bss_descriptor.mac_address, ETH_ALEN);
-	}
+	if (!mac || is_zero_ether_addr(mac))
+		memcpy(mac_address,
+		       priv->curr_bss_params.bss_descriptor.mac_address,
+		       ETH_ALEN);
+	else
+		memcpy(mac_address, mac, ETH_ALEN);
 
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
-				    HostCmd_ACT_GEN_SET, 0, &mac_address);
+				    HostCmd_ACT_GEN_SET, 0, mac_address);
 
 	return ret;
 }

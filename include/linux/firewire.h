@@ -152,7 +152,7 @@ static inline void fw_card_put(struct fw_card *card)
 struct fw_attribute_group {
 	struct attribute_group *groups[2];
 	struct attribute_group group;
-	struct attribute *attrs[12];
+	struct attribute *attrs[13];
 };
 
 enum fw_device_state {
@@ -321,7 +321,7 @@ struct fw_transaction {
 
 struct fw_address_handler {
 	u64 offset;
-	size_t length;
+	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
 	struct list_head link;

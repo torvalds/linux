@@ -85,7 +85,7 @@ static void nlm_linux_exit(void)
 
 	gpiobase = nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET);
 	/* trigger a chip reset by writing 1 to GPIO_SWRESET_REG */
-	nlm_write_reg(gpiobase, NETLOGIC_GPIO_SWRESET_REG, 1);
+	nlm_write_reg(gpiobase, GPIO_SWRESET_REG, 1);
 	for ( ; ; )
 		cpu_wait();
 }

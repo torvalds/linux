@@ -153,11 +153,11 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 	struct reference *entry = NULL;
 
 	if (!object) {
-		err("Attempt to acquire reference to non-existent object\n");
+		pr_err("Attempt to acquire ref. to non-existent obj\n");
 		return 0;
 	}
 	if (!tipc_ref_table.entries) {
-		err("Reference table not found during acquisition attempt\n");
+		pr_err("Ref. table not found in acquisition attempt\n");
 		return 0;
 	}
 
@@ -211,7 +211,7 @@ void tipc_ref_discard(u32 ref)
 	u32 index_mask;
 
 	if (!tipc_ref_table.entries) {
-		err("Reference table not found during discard attempt\n");
+		pr_err("Ref. table not found during discard attempt\n");
 		return;
 	}
 
@@ -222,11 +222,11 @@ void tipc_ref_discard(u32 ref)
 	write_lock_bh(&ref_table_lock);
 
 	if (!entry->object) {
-		err("Attempt to discard reference to non-existent object\n");
+		pr_err("Attempt to discard ref. to non-existent obj\n");
 		goto exit;
 	}
 	if (entry->ref != ref) {
-		err("Attempt to discard non-existent reference\n");
+		pr_err("Attempt to discard non-existent reference\n");
 		goto exit;
 	}
 

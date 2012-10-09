@@ -141,7 +141,7 @@ static struct snd_pcm_ops mxs_pcm_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_mxs_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer,
+	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
 	.mmap		= snd_mxs_pcm_mmap,
 };
 

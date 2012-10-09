@@ -42,10 +42,6 @@
 #define ARP_REQ  	(TX<<5)
 #define ARP_RESP 	(TX<<6)
 
-// dhcp.c
-//#define DHCP TX
-//#define DHCP_REQ (DHCP<<7)
-
 // Leakybucket.c
 #define TOKEN_COUNTS (TX<<8)
 #define CHECK_TOKENS (TX<<9)
@@ -147,7 +143,6 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 
 #define HOST_MIBS   	(OTHERS << 28)
 #define CONN_MSG    	(CMHOST << 29)
-//#define OTHERS_MISC		(OTHERS << 29)	// ProcSupport.c
 /*-----------------END SUBTYPEs------------------------------------------*/
 
 

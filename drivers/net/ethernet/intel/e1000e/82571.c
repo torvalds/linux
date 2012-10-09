@@ -999,7 +999,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext, eecd;
+	u32 ctrl, ctrl_ext, eecd, tctl;
 	s32 ret_val;
 
 	/*
@@ -1014,7 +1014,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 
 	ew32(RCTL, 0);
-	ew32(TCTL, E1000_TCTL_PSP);
+	tctl = er32(TCTL);
+	tctl &= ~E1000_TCTL_EN;
+	ew32(TCTL, tctl);
 	e1e_flush();
 
 	usleep_range(10000, 20000);
@@ -1601,10 +1603,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * auto-negotiation in the TXCW register and disable
 			 * forced link in the Device Control register in an
 			 * attempt to auto-negotiate with our link partner.
-			 * If the partner code word is null, stop forcing
-			 * and restart auto negotiation.
 			 */
-			if ((rxcw & E1000_RXCW_C) || !(rxcw & E1000_RXCW_CW))  {
+			if (rxcw & E1000_RXCW_C) {
 				/* Enable autoneg, and unforce link up */
 				ew32(TXCW, mac->txcw);
 				ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
@@ -1680,16 +1680,18 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
-			 * Check several times, if Sync and Config
-			 * both are consistently 1 then simply ignore
-			 * the Invalid bit and restart Autoneg
+			 * Check several times, if SYNCH bit and CONFIG
+			 * bit both are consistently 1 then simply ignore
+			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
 				udelay(10);
 				rxcw = er32(RXCW);
-				if ((rxcw & E1000_RXCW_IV) &&
-				    !((rxcw & E1000_RXCW_SYNCH) &&
-				      (rxcw & E1000_RXCW_C))) {
+				if ((rxcw & E1000_RXCW_SYNCH) &&
+				    (rxcw & E1000_RXCW_C))
+					continue;
+
+				if (rxcw & E1000_RXCW_IV) {
 					mac->serdes_has_link = false;
 					mac->serdes_link_state =
 					    e1000_serdes_link_down;

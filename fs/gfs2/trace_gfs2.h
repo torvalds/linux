@@ -14,6 +14,7 @@
 #include <linux/ktime.h>
 #include "incore.h"
 #include "glock.h"
+#include "rgrp.h"
 
 #define dlm_state_name(nn) { DLM_LOCK_##nn, #nn }
 #define glock_trace_name(x) __print_symbolic(x,		\
@@ -30,6 +31,17 @@
 			    { GFS2_BLKST_USED, "used" },	\
 			    { GFS2_BLKST_DINODE, "dinode" },	\
 			    { GFS2_BLKST_UNLINKED, "unlinked" })
+
+#define TRACE_RS_DELETE  0
+#define TRACE_RS_TREEDEL 1
+#define TRACE_RS_INSERT  2
+#define TRACE_RS_CLAIM   3
+
+#define rs_func_name(x) __print_symbolic(x,	\
+					 { 0, "del " },	\
+					 { 1, "tdel" },	\
+					 { 2, "ins " },	\
+					 { 3, "clm " })
 
 #define show_glock_flags(flags) __print_flags(flags, "",	\
 	{(1UL << GLF_LOCK),			"l" },		\
@@ -470,6 +482,7 @@ TRACE_EVENT(gfs2_block_alloc,
 		__field(	u8,	block_state		)
 		__field(        u64,	rd_addr			)
 		__field(        u32,	rd_free_clone		)
+		__field(	u32,	rd_reserved		)
 	),
 
 	TP_fast_assign(
@@ -480,16 +493,58 @@ TRACE_EVENT(gfs2_block_alloc,
 		__entry->block_state	= block_state;
 		__entry->rd_addr	= rgd->rd_addr;
 		__entry->rd_free_clone	= rgd->rd_free_clone;
+		__entry->rd_reserved	= rgd->rd_reserved;
 	),
 
-	TP_printk("%u,%u bmap %llu alloc %llu/%lu %s rg:%llu rf:%u",
+	TP_printk("%u,%u bmap %llu alloc %llu/%lu %s rg:%llu rf:%u rr:%lu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->start,
 		  (unsigned long)__entry->len,
 		  block_state_name(__entry->block_state),
 		  (unsigned long long)__entry->rd_addr,
-		  __entry->rd_free_clone)
+		  __entry->rd_free_clone, (unsigned long)__entry->rd_reserved)
+);
+
+/* Keep track of multi-block reservations as they are allocated/freed */
+TRACE_EVENT(gfs2_rs,
+
+	TP_PROTO(const struct gfs2_inode *ip, const struct gfs2_blkreserv *rs,
+		 u8 func),
+
+	TP_ARGS(ip, rs, func),
+
+	TP_STRUCT__entry(
+		__field(        dev_t,  dev                     )
+		__field(	u64,	rd_addr			)
+		__field(	u32,	rd_free_clone		)
+		__field(	u32,	rd_reserved		)
+		__field(	u64,	inum			)
+		__field(	u64,	start			)
+		__field(	u32,	free			)
+		__field(	u8,	func			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= rs->rs_rgd ? rs->rs_rgd->rd_sbd->sd_vfs->s_dev : 0;
+		__entry->rd_addr	= rs->rs_rgd ? rs->rs_rgd->rd_addr : 0;
+		__entry->rd_free_clone	= rs->rs_rgd ? rs->rs_rgd->rd_free_clone : 0;
+		__entry->rd_reserved	= rs->rs_rgd ? rs->rs_rgd->rd_reserved : 0;
+		__entry->inum		= ip ? ip->i_no_addr : 0;
+		__entry->start		= gfs2_rs_startblk(rs);
+		__entry->free		= rs->rs_free;
+		__entry->func		= func;
+	),
+
+	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s "
+		  "f:%lu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long long)__entry->inum,
+		  (unsigned long long)__entry->start,
+		  (unsigned long long)__entry->rd_addr,
+		  (unsigned long)__entry->rd_free_clone,
+		  (unsigned long)__entry->rd_reserved,
+		  rs_func_name(__entry->func), (unsigned long)__entry->free)
 );
 
 #endif /* _TRACE_GFS2_H */

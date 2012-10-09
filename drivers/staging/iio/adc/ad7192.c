@@ -20,9 +20,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7192.h"
 
@@ -146,7 +146,6 @@ struct ad7192_state {
 	u32				mode;
 	u32				conf;
 	u32				scale_avail[8][2];
-	long				available_scan_masks[9];
 	u8				gpocon;
 	u8				devid;
 	/*
@@ -538,45 +537,18 @@ static const struct iio_buffer_setup_ops ad7192_ring_setup_ops = {
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7192_ring_postdisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
 
 static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 &ad7192_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "ad7192_consumer%d",
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7192_ring_setup_ops;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+			&ad7192_trigger_handler, &ad7192_ring_setup_ops);
 }
 
 static void ad7192_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
 
 /**
@@ -782,7 +754,7 @@ static ssize_t ad7192_set(struct device *dev,
 		else
 			st->mode &= ~AD7192_MODE_ACX;
 
-		ad7192_write_reg(st, AD7192_REG_GPOCON, 3, st->mode);
+		ad7192_write_reg(st, AD7192_REG_MODE, 3, st->mode);
 		break;
 	default:
 		ret = -EINVAL;
@@ -826,6 +798,11 @@ static const struct attribute_group ad7195_attribute_group = {
 	.attrs = ad7195_attributes,
 };
 
+static unsigned int ad7192_get_temp_scale(bool unipolar)
+{
+	return unipolar ? 2815 * 2 : 2815;
+}
+
 static int ad7192_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -852,19 +829,6 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		*val = (smpl >> chan->scan_type.shift) &
 			((1 << (chan->scan_type.realbits)) - 1);
 
-		switch (chan->type) {
-		case IIO_VOLTAGE:
-			if (!unipolar)
-				*val -= (1 << (chan->scan_type.realbits - 1));
-			break;
-		case IIO_TEMP:
-			*val -= 0x800000;
-			*val /= 2815; /* temp Kelvin */
-			*val -= 273; /* temp Celsius */
-			break;
-		default:
-			return -EINVAL;
-		}
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -876,11 +840,21 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&indio_dev->mlock);
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_TEMP:
-			*val =  1000;
-			return IIO_VAL_INT;
+			*val = 0;
+			*val2 = 1000000000 / ad7192_get_temp_scale(unipolar);
+			return IIO_VAL_INT_PLUS_NANO;
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OFFSET:
+		if (!unipolar)
+			*val = -(1 << (chan->scan_type.realbits - 1));
+		else
+			*val = 0;
+		/* Kelvin to Celsius */
+		if (chan->type == IIO_TEMP)
+			*val -= 273 * ad7192_get_temp_scale(unipolar);
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -918,7 +892,7 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 				}
 				ret = 0;
 			}
-
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -970,20 +944,22 @@ static const struct iio_info ad7195_info = {
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 #define AD7192_CHAN(_chan, _address, _si)				\
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 #define AD7192_CHAN_TEMP(_chan, _address, _si)				\
 	{ .type = IIO_TEMP,						\
@@ -993,7 +969,7 @@ static const struct iio_info ad7195_info = {
 	  IIO_CHAN_INFO_SCALE_SEPARATE_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 static struct iio_chan_spec ad7192_channels[] = {
 	AD7192_CHAN_DIFF(1, 2, NULL, AD7192_CH_AIN1P_AIN2M, 0),
@@ -1012,7 +988,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i , voltage_uv = 0;
+	int ret , voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -1056,16 +1032,10 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad7192_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
-	indio_dev->available_scan_masks = st->available_scan_masks;
 	if (st->devid == ID_AD7195)
 		indio_dev->info = &ad7195_info;
 	else
 		indio_dev->info = &ad7192_info;
-
-	for (i = 0; i < indio_dev->num_channels; i++)
-		st->available_scan_masks[i] = (1 << i) | (1 <<
-			indio_dev->channels[indio_dev->num_channels - 1].
-			scan_index);
 
 	init_waitqueue_head(&st->wq_data_avail);
 
@@ -1077,23 +1047,15 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	if (ret)
 		goto error_ring_cleanup;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
+	ret = ad7192_setup(st);
 	if (ret)
 		goto error_remove_trigger;
 
-	ret = ad7192_setup(st);
-	if (ret)
-		goto error_unreg_ring;
-
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
-		goto error_unreg_ring;
+		goto error_remove_trigger;
 	return 0;
 
-error_unreg_ring:
-	iio_buffer_unregister(indio_dev);
 error_remove_trigger:
 	ad7192_remove_trigger(indio_dev);
 error_ring_cleanup:
@@ -1116,7 +1078,6 @@ static int ad7192_remove(struct spi_device *spi)
 	struct ad7192_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7192_remove_trigger(indio_dev);
 	ad7192_ring_cleanup(indio_dev);
 

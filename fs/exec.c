@@ -1020,7 +1020,7 @@ static void flush_old_files(struct files_struct * files)
 		unsigned long set, i;
 
 		j++;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;
@@ -2002,17 +2002,17 @@ static void coredump_finish(struct mm_struct *mm)
 void set_dumpable(struct mm_struct *mm, int value)
 {
 	switch (value) {
-	case 0:
+	case SUID_DUMPABLE_DISABLED:
 		clear_bit(MMF_DUMPABLE, &mm->flags);
 		smp_wmb();
 		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
 		break;
-	case 1:
+	case SUID_DUMPABLE_ENABLED:
 		set_bit(MMF_DUMPABLE, &mm->flags);
 		smp_wmb();
 		clear_bit(MMF_DUMP_SECURELY, &mm->flags);
 		break;
-	case 2:
+	case SUID_DUMPABLE_SAFE:
 		set_bit(MMF_DUMP_SECURELY, &mm->flags);
 		smp_wmb();
 		set_bit(MMF_DUMPABLE, &mm->flags);
@@ -2025,7 +2025,7 @@ static int __get_dumpable(unsigned long mm_flags)
 	int ret;
 
 	ret = mm_flags & MMF_DUMPABLE_MASK;
-	return (ret >= 2) ? 2 : ret;
+	return (ret > SUID_DUMPABLE_ENABLED) ? SUID_DUMPABLE_SAFE : ret;
 }
 
 int get_dumpable(struct mm_struct *mm)
@@ -2069,25 +2069,18 @@ static void wait_for_dump_helpers(struct file *file)
  */
 static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 {
-	struct file *rp, *wp;
+	struct file *files[2];
 	struct fdtable *fdt;
 	struct coredump_params *cp = (struct coredump_params *)info->data;
 	struct files_struct *cf = current->files;
+	int err = create_pipe_files(files, 0);
+	if (err)
+		return err;
 
-	wp = create_write_pipe(0);
-	if (IS_ERR(wp))
-		return PTR_ERR(wp);
-
-	rp = create_read_pipe(wp, 0);
-	if (IS_ERR(rp)) {
-		free_write_pipe(wp);
-		return PTR_ERR(rp);
-	}
-
-	cp->file = wp;
+	cp->file = files[1];
 
 	sys_close(0);
-	fd_install(0, rp);
+	fd_install(0, files[0]);
 	spin_lock(&cf->file_lock);
 	fdt = files_fdtable(cf);
 	__set_open_fd(0, fdt);
@@ -2111,6 +2104,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	int retval = 0;
 	int flag = 0;
 	int ispipe;
+	bool need_nonrelative = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.signr = signr,
@@ -2136,14 +2130,16 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	if (!cred)
 		goto fail;
 	/*
-	 *	We cannot trust fsuid as being the "true" uid of the
-	 *	process nor do we know its entire history. We only know it
-	 *	was tainted so we dump it as root in mode 2.
+	 * We cannot trust fsuid as being the "true" uid of the process
+	 * nor do we know its entire history. We only know it was tainted
+	 * so we dump it as root in mode 2, and only into a controlled
+	 * environment (pipe handler or fully qualified path).
 	 */
-	if (__get_dumpable(cprm.mm_flags) == 2) {
+	if (__get_dumpable(cprm.mm_flags) == SUID_DUMPABLE_SAFE) {
 		/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
 		cred->fsuid = GLOBAL_ROOT_UID;	/* Dump root private */
+		need_nonrelative = true;
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
@@ -2171,15 +2167,16 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		}
 
 		if (cprm.limit == 1) {
-			/*
+			/* See umh_pipe_setup() which sets RLIMIT_CORE = 1.
+			 *
 			 * Normally core limits are irrelevant to pipes, since
 			 * we're not writing to the file system, but we use
-			 * cprm.limit of 1 here as a speacial value. Any
-			 * non-1 limit gets set to RLIM_INFINITY below, but
-			 * a limit of 0 skips the dump.  This is a consistent
-			 * way to catch recursive crashes.  We can still crash
-			 * if the core_pattern binary sets RLIM_CORE =  !1
-			 * but it runs as root, and can do lots of stupid things
+			 * cprm.limit of 1 here as a speacial value, this is a
+			 * consistent way to catch recursive crashes.
+			 * We can still crash if the core_pattern binary sets
+			 * RLIM_CORE = !1, but it runs as root, and can do
+			 * lots of stupid things.
+			 *
 			 * Note that we use task_tgid_vnr here to grab the pid
 			 * of the process group leader.  That way we get the
 			 * right pid if a thread in a multi-threaded
@@ -2222,6 +2219,14 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 
 		if (cprm.limit < binfmt->min_coredump)
 			goto fail_unlock;
+
+		if (need_nonrelative && cn.corename[0] != '/') {
+			printk(KERN_WARNING "Pid %d(%s) can only dump core "\
+				"to fully qualified path!\n",
+				task_tgid_vnr(current), current->comm);
+			printk(KERN_WARNING "Skipping core dump\n");
+			goto fail_unlock;
+		}
 
 		cprm.file = filp_open(cn.corename,
 				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag,

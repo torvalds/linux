@@ -2793,9 +2793,10 @@ static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM
-static int snd_vt1724_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_vt1724_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
 
 	if (!ice->pm_suspend_enabled)
@@ -2820,13 +2821,14 @@ static int snd_vt1724_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_vt1724_resume(struct pci_dev *pci)
+static int snd_vt1724_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
 
 	if (!ice->pm_suspend_enabled)
@@ -2871,17 +2873,21 @@ static int snd_vt1724_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(snd_vt1724_pm, snd_vt1724_suspend, snd_vt1724_resume);
+#define SND_VT1724_PM_OPS	&snd_vt1724_pm
+#else
+#define SND_VT1724_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static struct pci_driver vt1724_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
 	.remove = __devexit_p(snd_vt1724_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_vt1724_suspend,
-	.resume = snd_vt1724_resume,
-#endif
+	.driver = {
+		.pm = SND_VT1724_PM_OPS,
+	},
 };
 
 module_pci_driver(vt1724_driver);

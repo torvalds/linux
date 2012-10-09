@@ -62,6 +62,92 @@ extern void iounmap(volatile void __iomem *addr);
 #define mm_ptov(addr)		((void *)phys_to_virt(addr))
 #define mm_vtop(addr)		((unsigned long)virt_to_phys(addr))
 
+#if CHIP_HAS_MMIO()
+
+/*
+ * We use inline assembly to guarantee that the compiler does not
+ * split an access into multiple byte-sized accesses as it might
+ * sometimes do if a register data structure is marked "packed".
+ * Obviously on tile we can't tolerate such an access being
+ * actually unaligned, but we want to avoid the case where the
+ * compiler conservatively would generate multiple accesses even
+ * for an aligned read or write.
+ */
+
+static inline u8 __raw_readb(const volatile void __iomem *addr)
+{
+	return *(const volatile u8 __force *)addr;
+}
+
+static inline u16 __raw_readw(const volatile void __iomem *addr)
+{
+	u16 ret;
+	asm volatile("ld2u %0, %1" : "=r" (ret) : "r" (addr));
+	barrier();
+	return le16_to_cpu(ret);
+}
+
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 ret;
+	/* Sign-extend to conform to u32 ABI sign-extension convention. */
+	asm volatile("ld4s %0, %1" : "=r" (ret) : "r" (addr));
+	barrier();
+	return le32_to_cpu(ret);
+}
+
+static inline u64 __raw_readq(const volatile void __iomem *addr)
+{
+	u64 ret;
+	asm volatile("ld %0, %1" : "=r" (ret) : "r" (addr));
+	barrier();
+	return le64_to_cpu(ret);
+}
+
+static inline void __raw_writeb(u8 val, volatile void __iomem *addr)
+{
+	*(volatile u8 __force *)addr = val;
+}
+
+static inline void __raw_writew(u16 val, volatile void __iomem *addr)
+{
+	asm volatile("st2 %0, %1" :: "r" (addr), "r" (cpu_to_le16(val)));
+}
+
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	asm volatile("st4 %0, %1" :: "r" (addr), "r" (cpu_to_le32(val)));
+}
+
+static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
+{
+	asm volatile("st %0, %1" :: "r" (addr), "r" (cpu_to_le64(val)));
+}
+
+/*
+ * The on-chip I/O hardware on tilegx is configured with VA=PA for the
+ * kernel's PA range.  The low-level APIs and field names use "va" and
+ * "void *" nomenclature, to be consistent with the general notion
+ * that the addresses in question are virtualizable, but in the kernel
+ * context we are actually manipulating PA values.  (In other contexts,
+ * e.g. access from user space, we do in fact use real virtual addresses
+ * in the va fields.)  To allow readers of the code to understand what's
+ * happening, we direct their attention to this comment by using the
+ * following two functions that just duplicate __va() and __pa().
+ */
+typedef unsigned long tile_io_addr_t;
+static inline tile_io_addr_t va_to_tile_io_addr(void *va)
+{
+	BUILD_BUG_ON(sizeof(phys_addr_t) != sizeof(tile_io_addr_t));
+	return __pa(va);
+}
+static inline void *tile_io_addr_to_va(tile_io_addr_t tile_io_addr)
+{
+	return __va(tile_io_addr);
+}
+
+#else /* CHIP_HAS_MMIO() */
+
 #ifdef CONFIG_PCI
 
 extern u8 _tile_readb(unsigned long addr);
@@ -73,10 +159,19 @@ extern void _tile_writew(u16 val, unsigned long addr);
 extern void _tile_writel(u32 val, unsigned long addr);
 extern void _tile_writeq(u64 val, unsigned long addr);
 
-#else
+#define __raw_readb(addr) _tile_readb((unsigned long)addr)
+#define __raw_readw(addr) _tile_readw((unsigned long)addr)
+#define __raw_readl(addr) _tile_readl((unsigned long)addr)
+#define __raw_readq(addr) _tile_readq((unsigned long)addr)
+#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)addr)
+#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)addr)
+#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)addr)
+#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)addr)
+
+#else /* CONFIG_PCI */
 
 /*
- * The Tile architecture does not support IOMEM unless PCI is enabled.
+ * The tilepro architecture does not support IOMEM unless PCI is enabled.
  * Unfortunately we can't yet simply not declare these methods,
  * since some generic code that compiles into the kernel, but
  * we never run, uses them unconditionally.
@@ -88,65 +183,58 @@ static inline int iomem_panic(void)
 	return 0;
 }
 
-static inline u8 _tile_readb(unsigned long addr)
+static inline u8 readb(unsigned long addr)
 {
 	return iomem_panic();
 }
 
-static inline u16 _tile_readw(unsigned long addr)
+static inline u16 _readw(unsigned long addr)
 {
 	return iomem_panic();
 }
 
-static inline u32 _tile_readl(unsigned long addr)
+static inline u32 readl(unsigned long addr)
 {
 	return iomem_panic();
 }
 
-static inline u64 _tile_readq(unsigned long addr)
+static inline u64 readq(unsigned long addr)
 {
 	return iomem_panic();
 }
 
-static inline void _tile_writeb(u8  val, unsigned long addr)
+static inline void writeb(u8  val, unsigned long addr)
 {
 	iomem_panic();
 }
 
-static inline void _tile_writew(u16 val, unsigned long addr)
+static inline void writew(u16 val, unsigned long addr)
 {
 	iomem_panic();
 }
 
-static inline void _tile_writel(u32 val, unsigned long addr)
+static inline void writel(u32 val, unsigned long addr)
 {
 	iomem_panic();
 }
 
-static inline void _tile_writeq(u64 val, unsigned long addr)
+static inline void writeq(u64 val, unsigned long addr)
 {
 	iomem_panic();
 }
 
-#endif
+#endif /* CONFIG_PCI */
 
-#define readb(addr) _tile_readb((unsigned long)addr)
-#define readw(addr) _tile_readw((unsigned long)addr)
-#define readl(addr) _tile_readl((unsigned long)addr)
-#define readq(addr) _tile_readq((unsigned long)addr)
-#define writeb(val, addr) _tile_writeb(val, (unsigned long)addr)
-#define writew(val, addr) _tile_writew(val, (unsigned long)addr)
-#define writel(val, addr) _tile_writel(val, (unsigned long)addr)
-#define writeq(val, addr) _tile_writeq(val, (unsigned long)addr)
+#endif /* CHIP_HAS_MMIO() */
 
-#define __raw_readb readb
-#define __raw_readw readw
-#define __raw_readl readl
-#define __raw_readq readq
-#define __raw_writeb writeb
-#define __raw_writew writew
-#define __raw_writel writel
-#define __raw_writeq writeq
+#define readb __raw_readb
+#define readw __raw_readw
+#define readl __raw_readl
+#define readq __raw_readq
+#define writeb __raw_writeb
+#define writew __raw_writew
+#define writel __raw_writel
+#define writeq __raw_writeq
 
 #define readb_relaxed readb
 #define readw_relaxed readw

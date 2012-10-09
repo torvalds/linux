@@ -109,9 +109,9 @@ static struct acpi_exdump_info acpi_ex_dump_package[5] = {
 static struct acpi_exdump_info acpi_ex_dump_device[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_device), NULL},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.handler), "Handler"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[1]),
 	 "Device Notify"}
 };
 
@@ -158,9 +158,9 @@ static struct acpi_exdump_info acpi_ex_dump_power[5] = {
 	 "System Level"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(power_resource.resource_order),
 	 "Resource Order"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[1]),
 	 "Device Notify"}
 };
 
@@ -169,18 +169,18 @@ static struct acpi_exdump_info acpi_ex_dump_processor[7] = {
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.proc_id), "Processor ID"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.length), "Length"},
 	{ACPI_EXD_ADDRESS, ACPI_EXD_OFFSET(processor.address), "Address"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[1]),
 	 "Device Notify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.handler), "Handler"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_thermal[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_thermal), NULL},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[1]),
 	 "Device Notify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.handler), "Handler"}
 };
@@ -241,10 +241,15 @@ static struct acpi_exdump_info acpi_ex_dump_address_handler[6] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(address_space.context), "Context"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_notify[3] = {
+static struct acpi_exdump_info acpi_ex_dump_notify[7] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_notify), NULL},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.node), "Node"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.context), "Context"}
+	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(notify.handler_type), "Handler Type"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.handler), "Handler"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.context), "Context"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[0]),
+	 "Next System Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[1]), "Next Device Notify"}
 };
 
 /* Miscellaneous tables */
@@ -318,7 +323,7 @@ static struct acpi_exdump_info *acpi_ex_dump_info[] = {
  * FUNCTION:    acpi_ex_dump_object
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Info                - Info table corresponding to this object
+ *              info                - Info table corresponding to this object
  *                                    type
  *
  * RETURN:      None
@@ -444,7 +449,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_dump_operand
  *
  * PARAMETERS:  *obj_desc       - Pointer to entry to be dumped
- *              Depth           - Current nesting depth
+ *              depth           - Current nesting depth
  *
  * RETURN:      None
  *
@@ -726,7 +731,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
  *
  * FUNCTION:    acpi_ex_dump_operands
  *
- * PARAMETERS:	Operands	    - A list of Operand objects
+ * PARAMETERS:  operands            - A list of Operand objects
  *		opcode_name	    - AML opcode name
  *		num_operands	    - Operand count for this opcode
  *
@@ -769,8 +774,8 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
  *
  * FUNCTION:    acpi_ex_out* functions
  *
- * PARAMETERS:  Title               - Descriptive text
- *              Value               - Value to be displayed
+ * PARAMETERS:  title               - Descriptive text
+ *              value               - Value to be displayed
  *
  * DESCRIPTION: Object dump output formatting functions.  These functions
  *              reduce the number of format strings required and keeps them
@@ -792,8 +797,8 @@ static void acpi_ex_out_pointer(char *title, void *value)
  *
  * FUNCTION:    acpi_ex_dump_namespace_node
  *
- * PARAMETERS:  Node                - Descriptor to dump
- *              Flags               - Force display if TRUE
+ * PARAMETERS:  node                - Descriptor to dump
+ *              flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the given.Node
  *
@@ -825,7 +830,7 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
  *
  * FUNCTION:    acpi_ex_dump_reference_obj
  *
- * PARAMETERS:  Object              - Descriptor to dump
+ * PARAMETERS:  object              - Descriptor to dump
  *
  * DESCRIPTION: Dumps a reference object
  *
@@ -882,8 +887,8 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
  * FUNCTION:    acpi_ex_dump_package_obj
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Level               - Indentation Level
- *              Index               - Package index for this object
+ *              level               - Indentation Level
+ *              index               - Package index for this object
  *
  * DESCRIPTION: Dumps the elements of the package
  *
@@ -926,9 +931,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 	case ACPI_TYPE_STRING:
 
 		acpi_os_printf("[String] Value: ");
-		for (i = 0; i < obj_desc->string.length; i++) {
-			acpi_os_printf("%c", obj_desc->string.pointer[i]);
-		}
+		acpi_ut_print_string(obj_desc->string.pointer, ACPI_UINT8_MAX);
 		acpi_os_printf("\n");
 		break;
 
@@ -977,7 +980,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_dump_object_descriptor
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Flags               - Force display if TRUE
+ *              flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the object descriptor given.
  *

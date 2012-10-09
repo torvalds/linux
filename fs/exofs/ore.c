@@ -735,13 +735,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 out:
 	ios->numdevs = devs_in_group;
 	ios->pages_consumed = cur_pg;
-	if (unlikely(ret)) {
-		if (length == ios->length)
-			return ret;
-		else
-			ios->length -= length;
-	}
-	return 0;
+	return ret;
 }
 
 int ore_create(struct ore_io_state *ios)
@@ -843,11 +837,11 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 				bio->bi_rw |= REQ_WRITE;
 			}
 
-			osd_req_write(or, _ios_obj(ios, dev), per_dev->offset,
-				      bio, per_dev->length);
+			osd_req_write(or, _ios_obj(ios, cur_comp),
+				      per_dev->offset, bio, per_dev->length);
 			ORE_DBGMSG("write(0x%llx) offset=0x%llx "
 				      "length=0x%llx dev=%d\n",
-				     _LLU(_ios_obj(ios, dev)->id),
+				     _LLU(_ios_obj(ios, cur_comp)->id),
 				     _LLU(per_dev->offset),
 				     _LLU(per_dev->length), dev);
 		} else if (ios->kern_buff) {
@@ -859,20 +853,20 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 			       (ios->si.unit_off + ios->length >
 				ios->layout->stripe_unit));
 
-			ret = osd_req_write_kern(or, _ios_obj(ios, per_dev->dev),
+			ret = osd_req_write_kern(or, _ios_obj(ios, cur_comp),
 						 per_dev->offset,
 						 ios->kern_buff, ios->length);
 			if (unlikely(ret))
 				goto out;
 			ORE_DBGMSG2("write_kern(0x%llx) offset=0x%llx "
 				      "length=0x%llx dev=%d\n",
-				     _LLU(_ios_obj(ios, dev)->id),
+				     _LLU(_ios_obj(ios, cur_comp)->id),
 				     _LLU(per_dev->offset),
 				     _LLU(ios->length), per_dev->dev);
 		} else {
-			osd_req_set_attributes(or, _ios_obj(ios, dev));
+			osd_req_set_attributes(or, _ios_obj(ios, cur_comp));
 			ORE_DBGMSG2("obj(0x%llx) set_attributes=%d dev=%d\n",
-				     _LLU(_ios_obj(ios, dev)->id),
+				     _LLU(_ios_obj(ios, cur_comp)->id),
 				     ios->out_attr_len, dev);
 		}
 

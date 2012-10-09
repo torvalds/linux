@@ -164,6 +164,8 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 int pci_bus_add_device(struct pci_dev *dev)
 {
 	int retval;
+
+	pci_fixup_device(pci_fixup_final, dev);
 	retval = device_add(&dev->dev);
 	if (retval)
 		return retval;

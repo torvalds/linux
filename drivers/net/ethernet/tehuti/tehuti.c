@@ -137,14 +137,15 @@ static void print_eth_id(struct net_device *ndev)
 #define bdx_disable_interrupts(priv)	\
 	do { WRITE_REG(priv, regIMR, 0); } while (0)
 
-/* bdx_fifo_init
- * create TX/RX descriptor fifo for host-NIC communication.
+/**
+ * bdx_fifo_init - create TX/RX descriptor fifo for host-NIC communication.
+ * @priv: NIC private structure
+ * @f: fifo to initialize
+ * @fsz_type: fifo size type: 0-4KB, 1-8KB, 2-16KB, 3-32KB
+ * @reg_XXX: offsets of registers relative to base address
+ *
  * 1K extra space is allocated at the end of the fifo to simplify
  * processing of descriptors that wraps around fifo's end
- * @priv - NIC private structure
- * @f - fifo to initialize
- * @fsz_type - fifo size type: 0-4KB, 1-8KB, 2-16KB, 3-32KB
- * @reg_XXX - offsets of registers relative to base address
  *
  * Returns 0 on success, negative value on failure
  *
@@ -177,9 +178,10 @@ bdx_fifo_init(struct bdx_priv *priv, struct fifo *f, int fsz_type,
 	RET(0);
 }
 
-/* bdx_fifo_free - free all resources used by fifo
- * @priv - NIC private structure
- * @f - fifo to release
+/**
+ * bdx_fifo_free - free all resources used by fifo
+ * @priv: NIC private structure
+ * @f: fifo to release
  */
 static void bdx_fifo_free(struct bdx_priv *priv, struct fifo *f)
 {
@@ -192,9 +194,9 @@ static void bdx_fifo_free(struct bdx_priv *priv, struct fifo *f)
 	RET();
 }
 
-/*
+/**
  * bdx_link_changed - notifies OS about hw link state.
- * @bdx_priv - hw adapter structure
+ * @priv: hw adapter structure
  */
 static void bdx_link_changed(struct bdx_priv *priv)
 {
@@ -233,10 +235,10 @@ static void bdx_isr_extra(struct bdx_priv *priv, u32 isr)
 
 }
 
-/* bdx_isr - Interrupt Service Routine for Bordeaux NIC
- * @irq - interrupt number
- * @ndev - network device
- * @regs - CPU registers
+/**
+ * bdx_isr_napi - Interrupt Service Routine for Bordeaux NIC
+ * @irq: interrupt number
+ * @dev: network device
  *
  * Return IRQ_NONE if it was not our interrupt, IRQ_HANDLED - otherwise
  *
@@ -307,8 +309,10 @@ static int bdx_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-/* bdx_fw_load - loads firmware to NIC
- * @priv - NIC private structure
+/**
+ * bdx_fw_load - loads firmware to NIC
+ * @priv: NIC private structure
+ *
  * Firmware is loaded via TXD fifo, so it must be initialized first.
  * Firware must be loaded once per NIC not per PCI device provided by NIC (NIC
  * can have few of them). So all drivers use semaphore register to choose one
@@ -380,8 +384,9 @@ static void bdx_restore_mac(struct net_device *ndev, struct bdx_priv *priv)
 	RET();
 }
 
-/* bdx_hw_start - inits registers and starts HW's Rx and Tx engines
- * @priv - NIC private structure
+/**
+ * bdx_hw_start - inits registers and starts HW's Rx and Tx engines
+ * @priv: NIC private structure
  */
 static int bdx_hw_start(struct bdx_priv *priv)
 {
@@ -691,12 +696,13 @@ static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		RET(-EOPNOTSUPP);
 }
 
-/*
+/**
  * __bdx_vlan_rx_vid - private helper for adding/killing VLAN vid
- *                     by passing VLAN filter table to hardware
- * @ndev network device
- * @vid  VLAN vid
- * @op   add or kill operation
+ * @ndev: network device
+ * @vid:  VLAN vid
+ * @op:   add or kill operation
+ *
+ * Passes VLAN filter table to hardware
  */
 static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 {
@@ -722,10 +728,10 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 	RET();
 }
 
-/*
+/**
  * bdx_vlan_rx_add_vid - kernel hook for adding VLAN vid to hw filtering table
- * @ndev network device
- * @vid  VLAN vid to add
+ * @ndev: network device
+ * @vid:  VLAN vid to add
  */
 static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
 {
@@ -733,10 +739,10 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
 	return 0;
 }
 
-/*
+/**
  * bdx_vlan_rx_kill_vid - kernel hook for killing VLAN vid in hw filtering table
- * @ndev network device
- * @vid  VLAN vid to kill
+ * @ndev: network device
+ * @vid:  VLAN vid to kill
  */
 static int bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
 {
@@ -974,8 +980,9 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
  *     Rx Init                                                           *
  *************************************************************************/
 
-/* bdx_rx_init - initialize RX all related HW and SW resources
- * @priv - NIC private structure
+/**
+ * bdx_rx_init - initialize RX all related HW and SW resources
+ * @priv: NIC private structure
  *
  * Returns 0 on success, negative value on failure
  *
@@ -1016,9 +1023,10 @@ err_mem:
 	return -ENOMEM;
 }
 
-/* bdx_rx_free_skbs - frees and unmaps all skbs allocated for the fifo
- * @priv - NIC private structure
- * @f - RXF fifo
+/**
+ * bdx_rx_free_skbs - frees and unmaps all skbs allocated for the fifo
+ * @priv: NIC private structure
+ * @f: RXF fifo
  */
 static void bdx_rx_free_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 {
@@ -1045,8 +1053,10 @@ static void bdx_rx_free_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	}
 }
 
-/* bdx_rx_free - release all Rx resources
- * @priv - NIC private structure
+/**
+ * bdx_rx_free - release all Rx resources
+ * @priv: NIC private structure
+ *
  * It assumes that Rx is desabled in HW
  */
 static void bdx_rx_free(struct bdx_priv *priv)
@@ -1067,9 +1077,11 @@ static void bdx_rx_free(struct bdx_priv *priv)
  *     Rx Engine                                                         *
  *************************************************************************/
 
-/* bdx_rx_alloc_skbs - fill rxf fifo with new skbs
- * @priv - nic's private structure
- * @f - RXF fifo that needs skbs
+/**
+ * bdx_rx_alloc_skbs - fill rxf fifo with new skbs
+ * @priv: nic's private structure
+ * @f: RXF fifo that needs skbs
+ *
  * It allocates skbs, build rxf descs and push it (rxf descr) into rxf fifo.
  * skb's virtual and physical addresses are stored in skb db.
  * To calculate free space, func uses cached values of RPTR and WPTR
@@ -1179,13 +1191,15 @@ static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
 	RET();
 }
 
-/* bdx_rx_receive - receives full packets from RXD fifo and pass them to OS
+/**
+ * bdx_rx_receive - receives full packets from RXD fifo and pass them to OS
  * NOTE: a special treatment is given to non-continuous descriptors
  * that start near the end, wraps around and continue at the beginning. a second
  * part is copied right after the first, and then descriptor is interpreted as
  * normal. fifo has an extra space to allow such operations
- * @priv - nic's private structure
- * @f - RXF fifo that needs skbs
+ * @priv: nic's private structure
+ * @f: RXF fifo that needs skbs
+ * @budget: maximum number of packets to receive
  */
 
 /* TBD: replace memcpy func call by explicite inline asm */
@@ -1375,9 +1389,10 @@ static inline int bdx_tx_db_size(struct txdb *db)
 	return db->size - taken;
 }
 
-/* __bdx_tx_ptr_next - helper function, increment read/write pointer + wrap
- * @d   - tx data base
- * @ptr - read or write pointer
+/**
+ * __bdx_tx_db_ptr_next - helper function, increment read/write pointer + wrap
+ * @db: tx data base
+ * @pptr: read or write pointer
  */
 static inline void __bdx_tx_db_ptr_next(struct txdb *db, struct tx_map **pptr)
 {
@@ -1394,8 +1409,9 @@ static inline void __bdx_tx_db_ptr_next(struct txdb *db, struct tx_map **pptr)
 		*pptr = db->start;
 }
 
-/* bdx_tx_db_inc_rptr - increment read pointer
- * @d   - tx data base
+/**
+ * bdx_tx_db_inc_rptr - increment read pointer
+ * @db: tx data base
  */
 static inline void bdx_tx_db_inc_rptr(struct txdb *db)
 {
@@ -1403,8 +1419,9 @@ static inline void bdx_tx_db_inc_rptr(struct txdb *db)
 	__bdx_tx_db_ptr_next(db, &db->rptr);
 }
 
-/* bdx_tx_db_inc_rptr - increment write pointer
- * @d   - tx data base
+/**
+ * bdx_tx_db_inc_wptr - increment write pointer
+ * @db: tx data base
  */
 static inline void bdx_tx_db_inc_wptr(struct txdb *db)
 {
@@ -1413,9 +1430,11 @@ static inline void bdx_tx_db_inc_wptr(struct txdb *db)
 						   a result of write */
 }
 
-/* bdx_tx_db_init - creates and initializes tx db
- * @d       - tx data base
- * @sz_type - size of tx fifo
+/**
+ * bdx_tx_db_init - creates and initializes tx db
+ * @d: tx data base
+ * @sz_type: size of tx fifo
+ *
  * Returns 0 on success, error code otherwise
  */
 static int bdx_tx_db_init(struct txdb *d, int sz_type)
@@ -1441,8 +1460,9 @@ static int bdx_tx_db_init(struct txdb *d, int sz_type)
 	return 0;
 }
 
-/* bdx_tx_db_close - closes tx db and frees all memory
- * @d - tx data base
+/**
+ * bdx_tx_db_close - closes tx db and frees all memory
+ * @d: tx data base
  */
 static void bdx_tx_db_close(struct txdb *d)
 {
@@ -1463,9 +1483,11 @@ static struct {
 	u16 qwords;		/* qword = 64 bit */
 } txd_sizes[MAX_SKB_FRAGS + 1];
 
-/* txdb_map_skb - creates and stores dma mappings for skb's data blocks
- * @priv - NIC private structure
- * @skb  - socket buffer to map
+/**
+ * bdx_tx_map_skb - creates and stores dma mappings for skb's data blocks
+ * @priv: NIC private structure
+ * @skb: socket buffer to map
+ * @txdd: TX descriptor to use
  *
  * It makes dma mappings for skb's data blocks and writes them to PBL of
  * new tx descriptor. It also stores them in the tx db, so they could be
@@ -1562,9 +1584,10 @@ err_mem:
 	return -ENOMEM;
 }
 
-/*
+/**
  * bdx_tx_space - calculates available space in TX fifo
- * @priv - NIC private structure
+ * @priv: NIC private structure
+ *
  * Returns available space in TX fifo in bytes
  */
 static inline int bdx_tx_space(struct bdx_priv *priv)
@@ -1579,9 +1602,10 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
 	return fsize;
 }
 
-/* bdx_tx_transmit - send packet to NIC
- * @skb - packet to send
- * ndev - network device assigned to NIC
+/**
+ * bdx_tx_transmit - send packet to NIC
+ * @skb: packet to send
+ * @ndev: network device assigned to NIC
  * Return codes:
  * o NETDEV_TX_OK everything ok.
  * o NETDEV_TX_BUSY Cannot transmit packet, try later
@@ -1699,8 +1723,10 @@ static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/* bdx_tx_cleanup - clean TXF fifo, run in the context of IRQ.
- * @priv - bdx adapter
+/**
+ * bdx_tx_cleanup - clean TXF fifo, run in the context of IRQ.
+ * @priv: bdx adapter
+ *
  * It scans TXF fifo for descriptors, frees DMA mappings and reports to OS
  * that those packets were sent
  */
@@ -1761,7 +1787,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	spin_unlock(&priv->tx_lock);
 }
 
-/* bdx_tx_free_skbs - frees all skbs from TXD fifo.
+/**
+ * bdx_tx_free_skbs - frees all skbs from TXD fifo.
  * It gets called when OS stops this dev, eg upon "ifconfig down" or rmmod
  */
 static void bdx_tx_free_skbs(struct bdx_priv *priv)
@@ -1790,10 +1817,11 @@ static void bdx_tx_free(struct bdx_priv *priv)
 	bdx_tx_db_close(&priv->txdb);
 }
 
-/* bdx_tx_push_desc - push descriptor to TxD fifo
- * @priv - NIC private structure
- * @data - desc's data
- * @size - desc's size
+/**
+ * bdx_tx_push_desc - push descriptor to TxD fifo
+ * @priv: NIC private structure
+ * @data: desc's data
+ * @size: desc's size
  *
  * Pushes desc to TxD fifo and overlaps it if needed.
  * NOTE: this func does not check for available space. this is responsibility
@@ -1819,10 +1847,11 @@ static void bdx_tx_push_desc(struct bdx_priv *priv, void *data, int size)
 	WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
 }
 
-/* bdx_tx_push_desc_safe - push descriptor to TxD fifo in a safe way
- * @priv - NIC private structure
- * @data - desc's data
- * @size - desc's size
+/**
+ * bdx_tx_push_desc_safe - push descriptor to TxD fifo in a safe way
+ * @priv: NIC private structure
+ * @data: desc's data
+ * @size: desc's size
  *
  * NOTE: this func does check for available space and, if necessary, waits for
  *   NIC to read existing data before writing new one.

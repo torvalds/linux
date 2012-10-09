@@ -721,9 +721,7 @@ void e1000_reset(struct e1000_adapter *adapter)
 	e1000_release_manageability(adapter);
 }
 
-/**
- *  Dump the eeprom for users having checksum issues
- **/
+/* Dump the eeprom for users having checksum issues */
 static void e1000_dump_eeprom(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1078,18 +1076,18 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	netdev->features |= netdev->hw_features;
-	netdev->hw_features |= NETIF_F_RXCSUM;
-	netdev->hw_features |= NETIF_F_RXALL;
-	netdev->hw_features |= NETIF_F_RXFCS;
+	netdev->hw_features |= (NETIF_F_RXCSUM |
+				NETIF_F_RXALL |
+				NETIF_F_RXFCS);
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
-	netdev->vlan_features |= NETIF_F_TSO;
-	netdev->vlan_features |= NETIF_F_HW_CSUM;
-	netdev->vlan_features |= NETIF_F_SG;
+	netdev->vlan_features |= (NETIF_F_TSO |
+				  NETIF_F_HW_CSUM |
+				  NETIF_F_SG);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
@@ -3056,14 +3054,13 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 	mmiowb();
 }
 
-/**
- * 82547 workaround to avoid controller hang in half-duplex environment.
+/* 82547 workaround to avoid controller hang in half-duplex environment.
  * The workaround is to avoid queuing a large packet that would span
  * the internal Tx FIFO ring boundary by notifying the stack to resend
  * the packet at a later time.  This gives the Tx FIFO an opportunity to
  * flush all packets.  When that occurs, we reset the Tx FIFO pointers
  * to the beginning of the Tx FIFO.
- **/
+ */
 
 #define E1000_FIFO_HDR			0x10
 #define E1000_82547_PAD_LEN		0x3E0

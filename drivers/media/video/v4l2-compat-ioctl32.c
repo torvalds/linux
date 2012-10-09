@@ -327,7 +327,7 @@ struct v4l2_buffer32 {
 		compat_caddr_t  planes;
 	} m;
 	__u32			length;
-	__u32			input;
+	__u32			reserved2;
 	__u32			reserved;
 };
 
@@ -387,8 +387,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		get_user(kp->index, &up->index) ||
 		get_user(kp->type, &up->type) ||
 		get_user(kp->flags, &up->flags) ||
-		get_user(kp->memory, &up->memory) ||
-		get_user(kp->input, &up->input))
+		get_user(kp->memory, &up->memory))
 			return -EFAULT;
 
 	if (V4L2_TYPE_IS_OUTPUT(kp->type))
@@ -472,8 +471,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		put_user(kp->index, &up->index) ||
 		put_user(kp->type, &up->type) ||
 		put_user(kp->flags, &up->flags) ||
-		put_user(kp->memory, &up->memory) ||
-		put_user(kp->input, &up->input))
+		put_user(kp->memory, &up->memory))
 			return -EFAULT;
 
 	if (put_user(kp->bytesused, &up->bytesused) ||
@@ -482,6 +480,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		put_user(kp->timestamp.tv_usec, &up->timestamp.tv_usec) ||
 		copy_to_user(&up->timecode, &kp->timecode, sizeof(struct v4l2_timecode)) ||
 		put_user(kp->sequence, &up->sequence) ||
+		put_user(kp->reserved2, &up->reserved2) ||
 		put_user(kp->reserved, &up->reserved))
 			return -EFAULT;
 
@@ -1026,6 +1025,7 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_ENUM_DV_TIMINGS:
 	case VIDIOC_QUERY_DV_TIMINGS:
 	case VIDIOC_DV_TIMINGS_CAP:
+	case VIDIOC_ENUM_FREQ_BANDS:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 

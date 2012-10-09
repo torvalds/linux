@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <asm/hardware/gic.h>
@@ -2269,10 +2270,10 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 /**
  * prcmu_ac_wake_req - should be called whenever ARM wants to wakeup Modem
  */
-void prcmu_ac_wake_req(void)
+int prcmu_ac_wake_req(void)
 {
 	u32 val;
-	u32 status;
+	int ret = 0;
 
 	mutex_lock(&mb0_transfer.ac_wake_lock);
 
@@ -2282,39 +2283,32 @@ void prcmu_ac_wake_req(void)
 
 	atomic_set(&ac_wake_req_state, 1);
 
-retry:
-	writel((val | PRCM_HOSTACCESS_REQ_HOSTACCESS_REQ), PRCM_HOSTACCESS_REQ);
+	/*
+	 * Force Modem Wake-up before hostaccess_req ping-pong.
+	 * It prevents Modem to enter in Sleep while acking the hostaccess
+	 * request. The 31us delay has been calculated by HWI.
+	 */
+	val |= PRCM_HOSTACCESS_REQ_WAKE_REQ;
+	writel(val, PRCM_HOSTACCESS_REQ);
+
+	udelay(31);
+
+	val |= PRCM_HOSTACCESS_REQ_HOSTACCESS_REQ;
+	writel(val, PRCM_HOSTACCESS_REQ);
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
+#if defined(CONFIG_DBX500_PRCMU_DEBUG)
+		db8500_prcmu_debug_dump(__func__, true, true);
+#endif
 		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
-		goto unlock_and_return;
-	}
-
-	/*
-	 * The modem can generate an AC_WAKE_ACK, and then still go to sleep.
-	 * As a workaround, we wait, and then check that the modem is indeed
-	 * awake (in terms of the value of the PRCM_MOD_AWAKE_STATUS
-	 * register, which may not be the whole truth).
-	 */
-	udelay(400);
-	status = (readl(PRCM_MOD_AWAKE_STATUS) & BITS(0, 2));
-	if (status != (PRCM_MOD_AWAKE_STATUS_PRCM_MOD_AAPD_AWAKE |
-			PRCM_MOD_AWAKE_STATUS_PRCM_MOD_COREPD_AWAKE)) {
-		pr_err("prcmu: %s received ack, but modem not awake (0x%X).\n",
-			__func__, status);
-		udelay(1200);
-		writel(val, PRCM_HOSTACCESS_REQ);
-		if (wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
-				msecs_to_jiffies(5000)))
-			goto retry;
-		pr_crit("prcmu: %s timed out (5 s) waiting for AC_SLEEP_ACK.\n",
-			__func__);
+		ret = -EFAULT;
 	}
 
 unlock_and_return:
 	mutex_unlock(&mb0_transfer.ac_wake_lock);
+	return ret;
 }
 
 /**
@@ -2945,14 +2939,31 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	},
 };
 
+static struct resource ab8500_resources[] = {
+	[0] = {
+		.start	= IRQ_DB8500_AB8500,
+		.end	= IRQ_DB8500_AB8500,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
 static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
+		.of_compatible = "stericsson,db8500-prcmu-regulator",
 		.platform_data = &db8500_regulators,
 		.pdata_size = sizeof(db8500_regulators),
 	},
 	{
 		.name = "cpufreq-u8500",
+		.of_compatible = "stericsson,cpufreq-u8500",
+	},
+	{
+		.name = "ab8500-core",
+		.of_compatible = "stericsson,ab8500",
+		.num_resources = ARRAY_SIZE(ab8500_resources),
+		.resources = ab8500_resources,
+		.id = AB8500_VERSION_AB8500,
 	},
 };
 
@@ -2962,8 +2973,9 @@ static struct mfd_cell db8500_prcmu_devs[] = {
  */
 static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 {
+	struct ab8500_platform_data *ab8500_platdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
-	int irq = 0, err = 0;
+	int irq = 0, err = 0, i;
 
 	if (ux500_is_svp())
 		return -ENODEV;
@@ -2987,16 +2999,21 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 		goto no_irq_return;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(db8500_prcmu_devs); i++) {
+		if (!strcmp(db8500_prcmu_devs[i].name, "ab8500-core")) {
+			db8500_prcmu_devs[i].platform_data = ab8500_platdata;
+			db8500_prcmu_devs[i].pdata_size = sizeof(struct ab8500_platform_data);
+		}
+	}
+
 	if (cpu_is_u8500v20_or_later())
 		prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
-	if (!np) {
-		err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-				ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
-		if (err) {
-			pr_err("prcmu: Failed to add subdevices\n");
-			return err;
-		}
+	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
+			ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
+	if (err) {
+		pr_err("prcmu: Failed to add subdevices\n");
+		return err;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");
@@ -3004,11 +3021,16 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 no_irq_return:
 	return err;
 }
+static const struct of_device_id db8500_prcmu_match[] = {
+	{ .compatible = "stericsson,db8500-prcmu"},
+	{ },
+};
 
 static struct platform_driver db8500_prcmu_driver = {
 	.driver = {
 		.name = "db8500-prcmu",
 		.owner = THIS_MODULE,
+		.of_match_table = db8500_prcmu_match,
 	},
 	.probe = db8500_prcmu_probe,
 };
@@ -3018,7 +3040,7 @@ static int __init db8500_prcmu_init(void)
 	return platform_driver_register(&db8500_prcmu_driver);
 }
 
-arch_initcall(db8500_prcmu_init);
+core_initcall(db8500_prcmu_init);
 
 MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com>");
 MODULE_DESCRIPTION("DB8500 PRCM Unit driver");

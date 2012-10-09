@@ -21,7 +21,7 @@
 #include <linux/mfd/dbx500-prcmu.h>
 
 #include <mach/hardware.h>
-#include <mach/board-mop500-msp.h>
+#include <mach/msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -840,4 +840,4 @@ static struct platform_driver msp_i2s_driver = {
 };
 module_platform_driver(msp_i2s_driver);
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

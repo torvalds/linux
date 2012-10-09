@@ -1249,20 +1249,35 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	const struct firmware *fw = nic->fw;
 	u8 timer, bundle, min_size;
 	int err = 0;
+	bool required = false;
 
 	/* do not load u-code for ICH devices */
 	if (nic->flags & ich)
 		return NULL;
 
-	/* Search for ucode match against h/w revision */
-	if (nic->mac == mac_82559_D101M)
+	/* Search for ucode match against h/w revision
+	 *
+	 * Based on comments in the source code for the FreeBSD fxp
+	 * driver, the FIRMWARE_D102E ucode includes both CPUSaver and
+	 *
+	 *    "fixes for bugs in the B-step hardware (specifically, bugs
+	 *     with Inline Receive)."
+	 *
+	 * So we must fail if it cannot be loaded.
+	 *
+	 * The other microcode files are only required for the optional
+	 * CPUSaver feature.  Nice to have, but no reason to fail.
+	 */
+	if (nic->mac == mac_82559_D101M) {
 		fw_name = FIRMWARE_D101M;
-	else if (nic->mac == mac_82559_D101S)
+	} else if (nic->mac == mac_82559_D101S) {
 		fw_name = FIRMWARE_D101S;
-	else if (nic->mac == mac_82551_F || nic->mac == mac_82551_10)
+	} else if (nic->mac == mac_82551_F || nic->mac == mac_82551_10) {
 		fw_name = FIRMWARE_D102E;
-	else /* No ucode on other devices */
+		required = true;
+	} else { /* No ucode on other devices */
 		return NULL;
+	}
 
 	/* If the firmware has not previously been loaded, request a pointer
 	 * to it. If it was previously loaded, we are reinitializing the
@@ -1273,10 +1288,17 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 		err = request_firmware(&fw, fw_name, &nic->pdev->dev);
 
 	if (err) {
-		netif_err(nic, probe, nic->netdev,
-			  "Failed to load firmware \"%s\": %d\n",
-			  fw_name, err);
-		return ERR_PTR(err);
+		if (required) {
+			netif_err(nic, probe, nic->netdev,
+				  "Failed to load firmware \"%s\": %d\n",
+				  fw_name, err);
+			return ERR_PTR(err);
+		} else {
+			netif_info(nic, probe, nic->netdev,
+				   "CPUSaver disabled. Needs \"%s\": %d\n",
+				   fw_name, err);
+			return NULL;
+		}
 	}
 
 	/* Firmware should be precisely UCODE_SIZE (words) plus three bytes

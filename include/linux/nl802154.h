@@ -130,18 +130,8 @@ enum {
 enum {
 	__IEEE802154_DEV_INVALID = -1,
 
-	 /* TODO:
-	 * Nowadays three device types supported by this stack at linux-zigbee
-	 * project: WPAN = 0, MONITOR = 1 and SMAC = 2.
-	 *
-	 * Since this stack implementation exists many years, it's definitely
-	 * bad idea to change the assigned values due to they are already used
-	 * by third-party userspace software like: iz-tools, wireshark...
-	 *
-	 * Currently only monitor device is added and initialized by '1' for
-	 * compatibility.
-	 */
-	IEEE802154_DEV_MONITOR = 1,
+	IEEE802154_DEV_WPAN,
+	IEEE802154_DEV_MONITOR,
 
 	__IEEE802154_DEV_MAX,
 };

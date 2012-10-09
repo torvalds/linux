@@ -39,36 +39,6 @@ union nf_conntrack_expect_proto {
 	/* insert expect proto private data here */
 };
 
-/* Add protocol helper include file here */
-#include <linux/netfilter/nf_conntrack_ftp.h>
-#include <linux/netfilter/nf_conntrack_pptp.h>
-#include <linux/netfilter/nf_conntrack_h323.h>
-#include <linux/netfilter/nf_conntrack_sane.h>
-#include <linux/netfilter/nf_conntrack_sip.h>
-
-/* per conntrack: application helper private data */
-union nf_conntrack_help {
-	/* insert conntrack helper private data (master) here */
-#if defined(CONFIG_NF_CONNTRACK_FTP) || defined(CONFIG_NF_CONNTRACK_FTP_MODULE)
-	struct nf_ct_ftp_master ct_ftp_info;
-#endif
-#if defined(CONFIG_NF_CONNTRACK_PPTP) || \
-    defined(CONFIG_NF_CONNTRACK_PPTP_MODULE)
-	struct nf_ct_pptp_master ct_pptp_info;
-#endif
-#if defined(CONFIG_NF_CONNTRACK_H323) || \
-    defined(CONFIG_NF_CONNTRACK_H323_MODULE)
-	struct nf_ct_h323_master ct_h323_info;
-#endif
-#if defined(CONFIG_NF_CONNTRACK_SANE) || \
-    defined(CONFIG_NF_CONNTRACK_SANE_MODULE)
-	struct nf_ct_sane_master ct_sane_info;
-#endif
-#if defined(CONFIG_NF_CONNTRACK_SIP) || defined(CONFIG_NF_CONNTRACK_SIP_MODULE)
-	struct nf_ct_sip_master ct_sip_info;
-#endif
-};
-
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
@@ -89,12 +59,13 @@ struct nf_conn_help {
 	/* Helper. if any */
 	struct nf_conntrack_helper __rcu *helper;
 
-	union nf_conntrack_help help;
-
 	struct hlist_head expectations;
 
 	/* Current number of expected connections */
 	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
+
+	/* private helper information. */
+	char data[];
 };
 
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>

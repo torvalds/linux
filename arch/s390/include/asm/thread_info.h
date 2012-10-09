@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/thread_info.h
- *
  *  S390 version
- *    Copyright (C) IBM Corp. 2002,2006
+ *    Copyright IBM Corp. 2002, 2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 

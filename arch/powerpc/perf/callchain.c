@@ -57,7 +57,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	lr = regs->link;
 	sp = regs->gpr[1];
-	perf_callchain_store(entry, regs->nip);
+	perf_callchain_store(entry, perf_instruction_pointer(regs));
 
 	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
 		return;
@@ -238,7 +238,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 	struct signal_frame_64 __user *sigframe;
 	unsigned long __user *fp, *uregs;
 
-	next_ip = regs->nip;
+	next_ip = perf_instruction_pointer(regs);
 	lr = regs->link;
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
@@ -444,7 +444,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 	long level = 0;
 	unsigned int __user *fp, *uregs;
 
-	next_ip = regs->nip;
+	next_ip = perf_instruction_pointer(regs);
 	lr = regs->link;
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);

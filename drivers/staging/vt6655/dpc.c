@@ -55,7 +55,6 @@
 #include "iowpa.h"
 #include "aes_ccmp.h"
 
-//#define	PLICE_DEBUG
 
 
 /*---------------------  Static Definitions -------------------------*/

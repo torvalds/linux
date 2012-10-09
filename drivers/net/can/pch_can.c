@@ -184,7 +184,7 @@ struct pch_can_priv {
 	int use_msi;
 };
 
-static struct can_bittiming_const pch_can_bittiming_const = {
+static const struct can_bittiming_const pch_can_bittiming_const = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,
 	.tseg1_max = 16,

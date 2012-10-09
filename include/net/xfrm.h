@@ -213,6 +213,9 @@ struct xfrm_state {
 	struct xfrm_lifetime_cur curlft;
 	struct tasklet_hrtimer	mtimer;
 
+	/* used to fix curlft->add_time when changing date */
+	long		saved_tmo;
+
 	/* Last used time */
 	unsigned long		lastused;
 
@@ -238,6 +241,7 @@ static inline struct net *xs_net(struct xfrm_state *x)
 
 /* xflags - make enum if more show up */
 #define XFRM_TIME_DEFER	1
+#define XFRM_SOFT_EXPIRE 2
 
 enum {
 	XFRM_STATE_VOID,
@@ -288,6 +292,8 @@ struct xfrm_policy_afinfo {
 						  struct flowi *fl,
 						  int reverse);
 	int			(*get_tos)(const struct flowi *fl);
+	void			(*init_dst)(struct net *net,
+					    struct xfrm_dst *dst);
 	int			(*init_path)(struct xfrm_dst *path,
 					     struct dst_entry *dst,
 					     int nfheader_len);
@@ -1475,6 +1481,8 @@ extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_output_finish(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
+extern int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel *handler);
+extern int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel *handler);
 extern int xfrm6_extract_header(struct sk_buff *skb);
 extern int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
@@ -1682,13 +1690,11 @@ static inline int xfrm_mark_get(struct nlattr **attrs, struct xfrm_mark *m)
 
 static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 {
-	if ((m->m | m->v) &&
-	    nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m))
-		goto nla_put_failure;
-	return 0;
+	int ret = 0;
 
-nla_put_failure:
-	return -1;
+	if (m->m | m->v)
+		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
+	return ret;
 }
 
 #endif	/* _NET_XFRM_H */

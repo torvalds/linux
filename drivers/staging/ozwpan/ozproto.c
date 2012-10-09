@@ -217,7 +217,6 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 	pd->mode = body->mode;
 	pd->pd_info = body->pd_info;
 	if (pd->mode & OZ_F_ISOC_NO_ELTS) {
-		pd->mode |= OZ_F_ISOC_ANYTIME;
 		pd->ms_per_isoc = body->ms_per_isoc;
 		if (!pd->ms_per_isoc)
 			pd->ms_per_isoc = 4;
@@ -366,6 +365,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 	}
 
 	if (pd && !dup && ((pd->mode & OZ_MODE_MASK) == OZ_MODE_TRIGGERED)) {
+		oz_trace2(OZ_TRACE_RX_FRAMES, "Received TRIGGER Frame\n");
 		pd->last_sent_frame = &pd->tx_queue;
 		if (oz_hdr->control & OZ_F_ACK) {
 			/* Retire completed frames */
@@ -376,8 +376,6 @@ static void oz_rx_frame(struct sk_buff *skb)
 			int backlog = pd->nb_queued_frames;
 			pd->trigger_pkt_num = pkt_num;
 			/* Send queued frames */
-			while (oz_prepare_frame(pd, 0) >= 0)
-				;
 			oz_send_queued_frames(pd, backlog);
 		}
 	}
@@ -796,7 +794,7 @@ void oz_binding_add(char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_ATOMIC);
+	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
 	if (binding) {
 		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
 		binding->ptype.func = oz_pkt_recv;

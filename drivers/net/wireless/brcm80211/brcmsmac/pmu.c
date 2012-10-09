@@ -74,16 +74,6 @@
  * PMU<rev>_PLL<num>_XX where <rev> is PMU corerev and <num> is an arbitrary
  * number to differentiate different PLLs controlled by the same PMU rev.
  */
-/* pllcontrol registers:
- * ndiv_pwrdn, pwrdn_ch<x>, refcomp_pwrdn, dly_ch<x>,
- * p1div, p2div, _bypass_sdmod
- */
-#define PMU1_PLL0_PLLCTL0		0
-#define PMU1_PLL0_PLLCTL1		1
-#define PMU1_PLL0_PLLCTL2		2
-#define PMU1_PLL0_PLLCTL3		3
-#define PMU1_PLL0_PLLCTL4		4
-#define PMU1_PLL0_PLLCTL5		5
 
 /* pmu XtalFreqRatio */
 #define	PMU_XTALFREQ_REG_ILPCTR_MASK	0x00001FFF
@@ -108,118 +98,14 @@
 #define	RES4313_HT_AVAIL_RSRC		14
 #define	RES4313_MACPHY_CLK_AVAIL_RSRC	15
 
-/* Determine min/max rsrc masks. Value 0 leaves hardware at default. */
-static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
-{
-	u32 min_mask = 0, max_mask = 0;
-	uint rsrcs;
-
-	/* # resources */
-	rsrcs = (ai_get_pmucaps(sih) & PCAP_RC_MASK) >> PCAP_RC_SHIFT;
-
-	/* determine min/max rsrc masks */
-	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-		/* ??? */
-		break;
-
-	case BCM4313_CHIP_ID:
-		min_mask = PMURES_BIT(RES4313_BB_PU_RSRC) |
-		    PMURES_BIT(RES4313_XTAL_PU_RSRC) |
-		    PMURES_BIT(RES4313_ALP_AVAIL_RSRC) |
-		    PMURES_BIT(RES4313_BB_PLL_PWRSW_RSRC);
-		max_mask = 0xffff;
-		break;
-	default:
-		break;
-	}
-
-	*pmin = min_mask;
-	*pmax = max_mask;
-}
-
-void si_pmu_spuravoid_pllupdate(struct si_pub *sih, u8 spuravoid)
-{
-	u32 tmp = 0;
-	struct bcma_device *core;
-
-	/* switch to chipc */
-	core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-		if (spuravoid == 1) {
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x11500010);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL1);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x000C0C06);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL2);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x0F600a08);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL3);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x00000000);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL4);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x2001E920);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL5);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x88888815);
-		} else {
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x11100010);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL1);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x000c0c06);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL2);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x03000a08);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL3);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x00000000);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL4);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x200005c0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL5);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x88888815);
-		}
-		tmp = 1 << 10;
-		break;
-
-	default:
-		/* bail out */
-		return;
-	}
-
-	bcma_set32(core, CHIPCREGOFFS(pmucontrol), tmp);
-}
-
 u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 
 	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	case BCM4313_CHIP_ID:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM4313:
 		delay = 3700;
 		break;
 	default:
@@ -270,9 +156,9 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 		return clock;
 
 	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	case BCM4313_CHIP_ID:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM4313:
 		/* always 20Mhz */
 		clock = 20000 * 1000;
 		break;
@@ -283,51 +169,9 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 	return clock;
 }
 
-/* initialize PMU */
-void si_pmu_init(struct si_pub *sih)
-{
-	struct bcma_device *core;
-
-	/* select chipc */
-	core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-
-	if (ai_get_pmurev(sih) == 1)
-		bcma_mask32(core, CHIPCREGOFFS(pmucontrol),
-			    ~PCTL_NOILP_ON_WAIT);
-	else if (ai_get_pmurev(sih) >= 2)
-		bcma_set32(core, CHIPCREGOFFS(pmucontrol), PCTL_NOILP_ON_WAIT);
-}
-
-/* initialize PMU resources */
-void si_pmu_res_init(struct si_pub *sih)
-{
-	struct bcma_device *core;
-	u32 min_mask = 0, max_mask = 0;
-
-	/* select to chipc */
-	core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-
-	/* Determine min/max rsrc masks */
-	si_pmu_res_masks(sih, &min_mask, &max_mask);
-
-	/* It is required to program max_mask first and then min_mask */
-
-	/* Program max resource mask */
-
-	if (max_mask)
-		bcma_write32(core, CHIPCREGOFFS(max_res_mask), max_mask);
-
-	/* Program min resource mask */
-
-	if (min_mask)
-		bcma_write32(core, CHIPCREGOFFS(min_res_mask), min_mask);
-
-	/* Add some delay; allow resources to come up and settle. */
-	mdelay(2);
-}
-
 u32 si_pmu_measure_alpclk(struct si_pub *sih)
 {
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 	struct bcma_device *core;
 	u32 alp_khz;
 
@@ -335,7 +179,7 @@ u32 si_pmu_measure_alpclk(struct si_pub *sih)
 		return 0;
 
 	/* Remember original core before switch to chipc */
-	core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
+	core = sii->icbus->drv_cc.core;
 
 	if (bcma_read32(core, CHIPCREGOFFS(pmustatus)) & PST_EXTLPOAVAIL) {
 		u32 ilp_ctr, alp_hz;

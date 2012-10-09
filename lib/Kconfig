@@ -340,6 +340,9 @@ config NLATTR
 config GENERIC_ATOMIC64
        bool
 
+config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	def_bool y if GENERIC_ATOMIC64
+
 config LRU_CACHE
 	tristate
 
@@ -378,14 +381,6 @@ config MPILIB
 	  It is used to implement RSA digital signature verification,
 	  which is used by IMA/EVM digital signature extension.
 
-config MPILIB_EXTRA
-	bool
-	depends on MPILIB
-	help
-	  Additional sources of multiprecision maths library from GnuPG.
-	  This code is unnecessary for RSA digital signature verification,
-	  but can be compiled if needed.
-
 config SIGNATURE
 	tristate
 	depends on KEYS && CRYPTO
@@ -394,5 +389,11 @@ config SIGNATURE
 	help
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
+
+#
+# libfdt files, only selected if needed.
+#
+config LIBFDT
+	bool
 
 endmenu

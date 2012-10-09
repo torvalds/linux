@@ -303,7 +303,7 @@ static struct imx_ssi_platform_data moboard_ssi_pdata = {
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
 	{
 		.modalias = "mc13783",
-		.irq = IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 1,
 		.chip_select = 0,
@@ -473,10 +473,6 @@ static const struct gpio_led_platform_data mx31moboard_led_pdata __initconst = {
 	.leds		= mx31moboard_leds,
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -494,7 +490,7 @@ static int __init mx31moboard_init_cam(void)
 	int dma, ret = -ENOMEM;
 	struct platform_device *pdev;
 
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 
 	pdev = imx31_alloc_mx3_camera(&camera_pdata);
 	if (IS_ERR(pdev))
@@ -544,7 +540,7 @@ static void __init mx31moboard_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gpio_led_register_device(-1, &mx31moboard_led_pdata);
 
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 
 	imx31_add_imx_uart0(&uart0_pdata);
 	imx31_add_imx_uart4(&uart4_pdata);
@@ -557,6 +553,8 @@ static void __init mx31moboard_init(void)
 
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3), "pmic-irq");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
+	moboard_spi_board_info[0].irq =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(moboard_spi_board_info,
 		ARRAY_SIZE(moboard_spi_board_info));
 

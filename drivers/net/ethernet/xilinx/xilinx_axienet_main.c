@@ -312,7 +312,7 @@ static void axienet_set_mac_address(struct net_device *ndev, void *address)
 	if (address)
 		memcpy(ndev->dev_addr, address, ETH_ALEN);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		random_ether_addr(ndev->dev_addr);
+		eth_random_addr(ndev->dev_addr);
 
 	/* Set up unicast MAC address filter set its mac address */
 	axienet_iow(lp, XAE_UAW0_OFFSET,

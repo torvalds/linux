@@ -49,10 +49,10 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __init malta_piix_func0_fixup(struct pci_dev *pdev)
+static void __devinit malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
-	static int piixirqmap[16] __initdata = {  /* PIIX PIRQC[A:D] irq mappings */
+	static int piixirqmap[16] __devinitdata = {  /* PIIX PIRQC[A:D] irq mappings */
 		0,  0, 	0,  3,
 		4,  5,  6,  7,
 		0,  9, 10, 11,
@@ -83,7 +83,7 @@ static void __init malta_piix_func0_fixup(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
 	 malta_piix_func0_fixup);
 
-static void __init malta_piix_func1_fixup(struct pci_dev *pdev)
+static void __devinit malta_piix_func1_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
 
@@ -101,3 +101,17 @@ static void __init malta_piix_func1_fixup(struct pci_dev *pdev)
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,
 	 malta_piix_func1_fixup);
+
+/* Enable PCI 2.1 compatibility in PIIX4 */
+static void __devinit quirk_dlcsetup(struct pci_dev *dev)
+{
+	u8 odlc, ndlc;
+
+	(void) pci_read_config_byte(dev, 0x82, &odlc);
+	/* Enable passive releases and delayed transaction */
+	ndlc = odlc | 7;
+	(void) pci_write_config_byte(dev, 0x82, ndlc);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
+	quirk_dlcsetup);

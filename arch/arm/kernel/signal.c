@@ -27,7 +27,6 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -45,18 +44,6 @@
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
-};
-
-/*
- * Either we support OABI only, or we have EABI with the OABI
- * compat layer enabled.  In the later case we don't know if
- * user space is EABI or not, and if not we must not clobber r7.
- * Always using the OABI syscall solves that issue and works for
- * all those cases.
- */
-const unsigned long syscall_restart_code[2] = {
-	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
-	0xe49df004,		/* ldr	pc, [sp], #4 */
 };
 
 /*
@@ -582,12 +569,13 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static void do_signal(struct pt_regs *regs, int syscall)
+static int do_signal(struct pt_regs *regs, int syscall)
 {
 	unsigned int retval = 0, continue_addr = 0, restart_addr = 0;
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
+	int restart = 0;
 
 	/*
 	 * If we were from a system call, check for system call restarting...
@@ -602,14 +590,14 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * debugger will see the already changed PSW.
 		 */
 		switch (retval) {
+		case -ERESTART_RESTARTBLOCK:
+			restart -= 2;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
+			restart++;
 			regs->ARM_r0 = regs->ARM_ORIG_r0;
 			regs->ARM_pc = restart_addr;
-			break;
-		case -ERESTART_RESTARTBLOCK:
-			regs->ARM_r0 = -EINTR;
 			break;
 		}
 	}
@@ -619,14 +607,17 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	 * point the debugger may change all our registers ...
 	 */
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+	/*
+	 * Depending on the signal settings we may need to revert the
+	 * decision to restart the system call.  But skip this if a
+	 * debugger has chosen to restart at a different PC.
+	 */
+	if (regs->ARM_pc != restart_addr)
+		restart = 0;
 	if (signr > 0) {
-		/*
-		 * Depending on the signal settings we may need to revert the
-		 * decision to restart the system call.  But skip this if a
-		 * debugger has chosen to restart at a different PC.
-		 */
-		if (regs->ARM_pc == restart_addr) {
-			if (retval == -ERESTARTNOHAND
+		if (unlikely(restart)) {
+			if (retval == -ERESTARTNOHAND ||
+			    retval == -ERESTART_RESTARTBLOCK
 			    || (retval == -ERESTARTSYS
 				&& !(ka.sa.sa_flags & SA_RESTART))) {
 				regs->ARM_r0 = -EINTR;
@@ -635,52 +626,43 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		}
 
 		handle_signal(signr, &ka, &info, regs);
-		return;
-	}
-
-	if (syscall) {
-		/*
-		 * Handle restarting a different system call.  As above,
-		 * if a debugger has chosen to restart at a different PC,
-		 * ignore the restart.
-		 */
-		if (retval == -ERESTART_RESTARTBLOCK
-		    && regs->ARM_pc == continue_addr) {
-			if (thumb_mode(regs)) {
-				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
-				regs->ARM_pc -= 2;
-			} else {
-#if defined(CONFIG_AEABI) && !defined(CONFIG_OABI_COMPAT)
-				regs->ARM_r7 = __NR_restart_syscall;
-				regs->ARM_pc -= 4;
-#else
-				u32 __user *usp;
-
-				regs->ARM_sp -= 4;
-				usp = (u32 __user *)regs->ARM_sp;
-
-				if (put_user(regs->ARM_pc, usp) == 0) {
-					regs->ARM_pc = KERN_RESTART_CODE;
-				} else {
-					regs->ARM_sp += 4;
-					force_sigsegv(0, current);
-				}
-#endif
-			}
-		}
+		return 0;
 	}
 
 	restore_saved_sigmask();
+	if (unlikely(restart))
+		regs->ARM_pc = continue_addr;
+	return restart;
 }
 
-asmlinkage void
-do_notify_resume(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+asmlinkage int
+do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 {
-	if (thread_flags & _TIF_SIGPENDING)
-		do_signal(regs, syscall);
-
-	if (thread_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
+	do {
+		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
+			schedule();
+		} else {
+			if (unlikely(!user_mode(regs)))
+				return 0;
+			local_irq_enable();
+			if (thread_flags & _TIF_SIGPENDING) {
+				int restart = do_signal(regs, syscall);
+				if (unlikely(restart)) {
+					/*
+					 * Restart without handlers.
+					 * Deal with it without leaving
+					 * the kernel space.
+					 */
+					return restart;
+				}
+				syscall = 0;
+			} else {
+				clear_thread_flag(TIF_NOTIFY_RESUME);
+				tracehook_notify_resume(regs);
+			}
+		}
+		local_irq_disable();
+		thread_flags = current_thread_info()->flags;
+	} while (thread_flags & _TIF_WORK_MASK);
+	return 0;
 }

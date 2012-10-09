@@ -943,6 +943,8 @@ void vm_stat_account(struct mm_struct *mm, unsigned long flags,
 	const unsigned long stack_flags
 		= VM_STACK_FLAGS & (VM_GROWSUP|VM_GROWSDOWN);
 
+	mm->total_vm += pages;
+
 	if (file) {
 		mm->shared_vm += pages;
 		if ((flags & (VM_EXEC|VM_WRITE)) == VM_EXEC)
@@ -1347,7 +1349,6 @@ munmap_back:
 out:
 	perf_event_mmap(vma);
 
-	mm->total_vm += len >> PAGE_SHIFT;
 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
 	if (vm_flags & VM_LOCKED) {
 		if (!mlock_vma_pages_range(vma, addr, addr + len))
@@ -1355,9 +1356,8 @@ out:
 	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
 		make_pages_present(addr, addr + len);
 
-	if (file && uprobe_mmap(vma))
-		/* matching probes but cannot insert */
-		goto unmap_and_free_vma;
+	if (file)
+		uprobe_mmap(vma);
 
 	return addr;
 
@@ -1707,7 +1707,6 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
 		return -ENOMEM;
 
 	/* Ok, everything looks good - let it rip */
-	mm->total_vm += grow;
 	if (vma->vm_flags & VM_LOCKED)
 		mm->locked_vm += grow;
 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
@@ -1889,7 +1888,6 @@ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 
 		if (vma->vm_flags & VM_ACCOUNT)
 			nr_accounted += nrpages;
-		mm->total_vm -= nrpages;
 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
 		vma = remove_vma(vma);
 	} while (vma);
@@ -2310,7 +2308,7 @@ void exit_mmap(struct mm_struct *mm)
 	}
 	vm_unacct_memory(nr_accounted);
 
-	BUG_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
+	WARN_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
 }
 
 /* Insert vm structure into process list sorted by address
@@ -2344,9 +2342,6 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
 	if ((vma->vm_flags & VM_ACCOUNT) &&
 	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
 		return -ENOMEM;
-
-	if (vma->vm_file && uprobe_mmap(vma))
-		return -EINVAL;
 
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	return 0;
@@ -2417,9 +2412,6 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			new_vma->vm_pgoff = pgoff;
 			if (new_vma->vm_file) {
 				get_file(new_vma->vm_file);
-
-				if (uprobe_mmap(new_vma))
-					goto out_free_mempol;
 
 				if (vma->vm_flags & VM_EXECUTABLE)
 					added_exe_file_vma(mm);

@@ -72,7 +72,6 @@
 #define TYPE_CTL_ACK        0xd400
 
 
-//#define WEP_IV_MASK         0xFFFFFF00
 
 #else //if LITTLE_ENDIAN
 //
@@ -111,7 +110,6 @@
 #define TYPE_CTL_ACK        0x00d4
 
 
-//#define WEP_IV_MASK         0x00FFFFFF
 
 #endif //#ifdef __BIG_ENDIAN
 

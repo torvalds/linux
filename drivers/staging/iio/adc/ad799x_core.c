@@ -99,10 +99,21 @@ static int ad799x_i2c_write8(struct ad799x_state *st, u8 reg, u8 data)
 	return ret;
 }
 
-int ad7997_8_set_scan_mode(struct ad799x_state *st, unsigned mask)
+static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *scan_mask)
 {
-	return ad799x_i2c_write16(st, AD7998_CONF_REG,
-		st->config | (mask << AD799X_CHANNEL_SHIFT));
+	struct ad799x_state *st = iio_priv(indio_dev);
+
+	switch (st->id) {
+	case ad7997:
+	case ad7998:
+		return ad799x_i2c_write16(st, AD7998_CONF_REG,
+			st->config | (*scan_mask << AD799X_CHANNEL_SHIFT));
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static int ad799x_scan_direct(struct ad799x_state *st, unsigned ch)
@@ -339,10 +350,10 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 
 	ret = ad799x_i2c_read8(st, AD7998_ALERT_STAT_REG, &status);
 	if (ret)
-		return ret;
+		goto done;
 
 	if (!status)
-		return -EIO;
+		goto done;
 
 	ad799x_i2c_write8(st, AD7998_ALERT_STAT_REG, AD7998_ALERT_STAT_CLEAR);
 
@@ -361,6 +372,7 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 				       iio_get_time_ns());
 	}
 
+done:
 	return IRQ_HANDLED;
 }
 
@@ -442,6 +454,7 @@ static const struct iio_info ad7993_4_7_8_info = {
 	.read_event_value = &ad799x_read_event_value,
 	.write_event_value = &ad799x_write_event_value,
 	.driver_module = THIS_MODULE,
+	.update_scan_mode = ad7997_8_update_scan_mode,
 };
 
 #define AD799X_EV_MASK (IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) | \
@@ -887,12 +900,6 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret)
-		goto error_cleanup_ring;
-
 	if (client->irq > 0) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
@@ -934,7 +941,6 @@ static __devexit int ad799x_remove(struct i2c_client *client)
 	if (client->irq > 0)
 		free_irq(client->irq, indio_dev);
 
-	iio_buffer_unregister(indio_dev);
 	ad799x_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

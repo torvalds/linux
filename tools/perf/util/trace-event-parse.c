@@ -32,29 +32,25 @@ int header_page_size_size;
 int header_page_ts_size;
 int header_page_data_offset;
 
-struct pevent *perf_pevent;
-static struct pevent *pevent;
-
 bool latency_format;
 
-int read_trace_init(int file_bigendian, int host_bigendian)
+struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
 {
-	if (pevent)
-		return 0;
+	struct pevent *pevent = pevent_alloc();
 
-	perf_pevent = pevent_alloc();
-	pevent = perf_pevent;
+	if (pevent != NULL) {
+		pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+		pevent_set_file_bigendian(pevent, file_bigendian);
+		pevent_set_host_bigendian(pevent, host_bigendian);
+	}
 
-	pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
-	pevent_set_file_bigendian(pevent, file_bigendian);
-	pevent_set_host_bigendian(pevent, host_bigendian);
-
-	return 0;
+	return pevent;
 }
 
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
 {
+	struct pevent *pevent = context->pevent;
 	struct event_format *event;
 	struct format_field *field;
 
@@ -150,7 +146,7 @@ void *raw_field_ptr(struct event_format *event, const char *name, void *data)
 	return data + field->offset;
 }
 
-int trace_parse_common_type(void *data)
+int trace_parse_common_type(struct pevent *pevent, void *data)
 {
 	struct pevent_record record;
 
@@ -158,7 +154,7 @@ int trace_parse_common_type(void *data)
 	return pevent_data_type(pevent, &record);
 }
 
-int trace_parse_common_pid(void *data)
+int trace_parse_common_pid(struct pevent *pevent, void *data)
 {
 	struct pevent_record record;
 
@@ -166,27 +162,21 @@ int trace_parse_common_pid(void *data)
 	return pevent_data_pid(pevent, &record);
 }
 
-unsigned long long read_size(void *ptr, int size)
+unsigned long long read_size(struct pevent *pevent, void *ptr, int size)
 {
 	return pevent_read_number(pevent, ptr, size);
 }
 
-struct event_format *trace_find_event(int type)
-{
-	return pevent_find_event(pevent, type);
-}
-
-
-void print_trace_event(int cpu, void *data, int size)
+void print_trace_event(struct pevent *pevent, int cpu, void *data, int size)
 {
 	struct event_format *event;
 	struct pevent_record record;
 	struct trace_seq s;
 	int type;
 
-	type = trace_parse_common_type(data);
+	type = trace_parse_common_type(pevent, data);
 
-	event = trace_find_event(type);
+	event = pevent_find_event(pevent, type);
 	if (!event) {
 		warning("ug! no event found for type %d", type);
 		return;
@@ -202,8 +192,8 @@ void print_trace_event(int cpu, void *data, int size)
 	trace_seq_do_printf(&s);
 }
 
-void print_event(int cpu, void *data, int size, unsigned long long nsecs,
-		  char *comm)
+void print_event(struct pevent *pevent, int cpu, void *data, int size,
+		 unsigned long long nsecs, char *comm)
 {
 	struct pevent_record record;
 	struct trace_seq s;
@@ -226,7 +216,8 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	printf("\n");
 }
 
-void parse_proc_kallsyms(char *file, unsigned int size __unused)
+void parse_proc_kallsyms(struct pevent *pevent,
+			 char *file, unsigned int size __unused)
 {
 	unsigned long long addr;
 	char *func;
@@ -257,7 +248,8 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 	}
 }
 
-void parse_ftrace_printk(char *file, unsigned int size __unused)
+void parse_ftrace_printk(struct pevent *pevent,
+			 char *file, unsigned int size __unused)
 {
 	unsigned long long addr;
 	char *printk;
@@ -281,17 +273,19 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	}
 }
 
-int parse_ftrace_file(char *buf, unsigned long size)
+int parse_ftrace_file(struct pevent *pevent, char *buf, unsigned long size)
 {
 	return pevent_parse_event(pevent, buf, size, "ftrace");
 }
 
-int parse_event_file(char *buf, unsigned long size, char *sys)
+int parse_event_file(struct pevent *pevent,
+		     char *buf, unsigned long size, char *sys)
 {
 	return pevent_parse_event(pevent, buf, size, sys);
 }
 
-struct event_format *trace_find_next_event(struct event_format *event)
+struct event_format *trace_find_next_event(struct pevent *pevent,
+					   struct event_format *event)
 {
 	static int idx;
 

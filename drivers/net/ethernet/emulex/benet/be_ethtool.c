@@ -648,7 +648,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ecmd->autoneg != 0)
+	if (ecmd->autoneg != adapter->phy.fc_autoneg)
 		return -EINVAL;
 	adapter->tx_fc = ecmd->tx_pause;
 	adapter->rx_fc = ecmd->rx_pause;
@@ -910,8 +910,9 @@ static void be_set_fw_log_level(struct be_adapter *adapter, u32 level)
 	if (!status) {
 		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
 					sizeof(struct be_cmd_resp_hdr));
-		for (i = 0; i < cfgs->num_modules; i++) {
-			for (j = 0; j < cfgs->module[i].num_modes; j++) {
+		for (i = 0; i < le32_to_cpu(cfgs->num_modules); i++) {
+			u32 num_modes = le32_to_cpu(cfgs->module[i].num_modes);
+			for (j = 0; j < num_modes; j++) {
 				if (cfgs->module[i].trace_lvl[j].mode ==
 								MODE_UART)
 					cfgs->module[i].trace_lvl[j].dbg_lvl =

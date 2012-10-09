@@ -1,7 +1,7 @@
 /*
  *  CCW device SENSE ID I/O handling.
  *
- *    Copyright IBM Corp. 2002,2009
+ *    Copyright IBM Corp. 2002, 2009
  *    Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		 Peter Oberparleiter <peter.oberparleiter@de.ibm.com>

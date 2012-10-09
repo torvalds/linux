@@ -227,7 +227,7 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			       struct mwifiex_ds_get_stats *stats)
 {
 	struct host_cmd_ds_802_11_get_log *get_log =
-		(struct host_cmd_ds_802_11_get_log *) &resp->params.get_log;
+		&resp->params.get_log;
 
 	if (stats) {
 		stats->mcast_tx_frame = le32_to_cpu(get_log->mcast_tx_frame);
@@ -267,12 +267,10 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
  *
  * Based on the new rate bitmaps, the function re-evaluates if
  * auto data rate has been activated. If not, it sends another
- * query to the firmware to get the current Tx data rate and updates
- * the driver value.
+ * query to the firmware to get the current Tx data rate.
  */
 static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
-				   struct host_cmd_ds_command *resp,
-				   struct mwifiex_rate_cfg *ds_rate)
+				   struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
@@ -280,9 +278,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	u16 tlv, tlv_buf_len;
 	u8 *tlv_buf;
 	u32 i;
-	int ret = 0;
 
-	tlv_buf = (u8 *) ((u8 *) rate_cfg) +
+	tlv_buf = ((u8 *)rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
 	tlv_buf_len = *(u16 *) (tlv_buf + sizeof(u16));
 
@@ -318,33 +315,11 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		ret = mwifiex_send_cmd_async(priv,
-					  HostCmd_CMD_802_11_TX_RATE_QUERY,
-					  HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd_async(priv,
+					      HostCmd_CMD_802_11_TX_RATE_QUERY,
+					      HostCmd_ACT_GEN_GET, 0, NULL);
 
-	if (!ds_rate)
-		return ret;
-
-	if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
-		if (priv->is_data_rate_auto) {
-			ds_rate->is_rate_auto = 1;
-		return ret;
-	}
-	ds_rate->rate = mwifiex_get_rate_index(priv->bitmap_rates,
-					       sizeof(priv->bitmap_rates));
-
-	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_OFDM0 &&
-	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_OFDM7)
-		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_OFDM0 -
-				  MWIFIEX_RATE_INDEX_OFDM0);
-
-	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_MCS0 &&
-	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_MCS127)
-		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_MCS0 -
-				  MWIFIEX_RATE_INDEX_MCS0);
-	}
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -446,6 +421,57 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 		"info: Current TxPower Level = %d, Max Power=%d, Min Power=%d\n",
 	       priv->tx_power_level, priv->max_tx_power_level,
 	       priv->min_tx_power_level);
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of get RF Tx power.
+ */
+static int mwifiex_ret_rf_tx_power(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_tx_pwr *txp = &resp->params.txp;
+	u16 action = le16_to_cpu(txp->action);
+
+	priv->tx_power_level = le16_to_cpu(txp->cur_level);
+
+	if (action == HostCmd_ACT_GEN_GET) {
+		priv->max_tx_power_level = txp->max_power;
+		priv->min_tx_power_level = txp->min_power;
+	}
+
+	dev_dbg(priv->adapter->dev,
+		"Current TxPower Level=%d, Max Power=%d, Min Power=%d\n",
+		priv->tx_power_level, priv->max_tx_power_level,
+		priv->min_tx_power_level);
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of set rf antenna
+ */
+static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
+				  struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_ant_mimo *ant_mimo = &resp->params.ant_mimo;
+	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x"
+			" Rx action = 0x%x, Rx Mode = 0x%04x\n",
+			le16_to_cpu(ant_mimo->action_tx),
+			le16_to_cpu(ant_mimo->tx_ant_mode),
+			le16_to_cpu(ant_mimo->action_rx),
+			le16_to_cpu(ant_mimo->rx_ant_mode));
+	else
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
+			le16_to_cpu(ant_siso->action),
+			le16_to_cpu(ant_siso->ant_mode));
 
 	return 0;
 }
@@ -605,34 +631,6 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of get RF channel.
- *
- * Handling includes changing the header fields into CPU format
- * and saving the new channel in driver.
- */
-static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
-					 struct host_cmd_ds_command *resp,
-					 u16 *data_buf)
-{
-	struct host_cmd_ds_802_11_rf_channel *rf_channel =
-		&resp->params.rf_channel;
-	u16 new_channel = le16_to_cpu(rf_channel->current_channel);
-
-	if (priv->curr_bss_params.bss_descriptor.channel != new_channel) {
-		dev_dbg(priv->adapter->dev, "cmd: Channel Switch: %d to %d\n",
-			priv->curr_bss_params.bss_descriptor.channel,
-			new_channel);
-		/* Update the channel again */
-		priv->curr_bss_params.bss_descriptor.channel = new_channel;
-	}
-
-	if (data_buf)
-		*data_buf = new_channel;
-
-	return 0;
-}
-
-/*
  * This function handles the command response of get extended version.
  *
  * Handling includes forming the extended version string and sending it
@@ -679,39 +677,33 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	eeprom = data_buf;
 	switch (type) {
 	case HostCmd_CMD_MAC_REG_ACCESS:
-		r.mac = (struct host_cmd_ds_mac_reg_access *)
-			&resp->params.mac_reg;
+		r.mac = &resp->params.mac_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
 		reg_rw->value = r.mac->value;
 		break;
 	case HostCmd_CMD_BBP_REG_ACCESS:
-		r.bbp = (struct host_cmd_ds_bbp_reg_access *)
-			&resp->params.bbp_reg;
+		r.bbp = &resp->params.bbp_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
 		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
 		break;
 
 	case HostCmd_CMD_RF_REG_ACCESS:
-		r.rf = (struct host_cmd_ds_rf_reg_access *)
-		       &resp->params.rf_reg;
+		r.rf = &resp->params.rf_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
 		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
 		break;
 	case HostCmd_CMD_PMIC_REG_ACCESS:
-		r.pmic = (struct host_cmd_ds_pmic_reg_access *)
-			 &resp->params.pmic_reg;
+		r.pmic = &resp->params.pmic_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
 		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
 		break;
 	case HostCmd_CMD_CAU_REG_ACCESS:
-		r.rf = (struct host_cmd_ds_rf_reg_access *)
-		       &resp->params.rf_reg;
+		r.rf = &resp->params.rf_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
 		reg_rw->value = cpu_to_le32((u32) r.rf->value);
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
-		r.eeprom = (struct host_cmd_ds_802_11_eeprom_access *)
-			   &resp->params.eeprom;
+		r.eeprom = &resp->params.eeprom;
 		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
 		if (le16_to_cpu(eeprom->byte_count) <
 		    le16_to_cpu(r.eeprom->byte_count)) {
@@ -787,7 +779,7 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 				 struct mwifiex_ds_misc_subsc_evt *sub_event)
 {
 	struct host_cmd_ds_802_11_subsc_evt *cmd_sub_event =
-		(struct host_cmd_ds_802_11_subsc_evt *)&resp->params.subsc_evt;
+		&resp->params.subsc_evt;
 
 	/* For every subscribe event command (Get/Set/Clear), FW reports the
 	 * current set of subscribed events*/
@@ -833,7 +825,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_mac_multicast_adr(priv, resp);
 		break;
 	case HostCmd_CMD_TX_RATE_CFG:
-		ret = mwifiex_ret_tx_rate_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_tx_rate_cfg(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
@@ -846,6 +838,12 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
 		ret = mwifiex_ret_tx_power_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_RF_TX_PWR:
+		ret = mwifiex_ret_rf_tx_power(priv, resp);
+		break;
+	case HostCmd_CMD_RF_ANTENNA:
+		ret = mwifiex_ret_rf_antenna(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_ret_enh_power_mode(priv, resp, data_buf);
@@ -877,9 +875,6 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_TX_RATE_QUERY:
 		ret = mwifiex_ret_802_11_tx_rate_query(priv, resp);
-		break;
-	case HostCmd_CMD_802_11_RF_CHANNEL:
-		ret = mwifiex_ret_802_11_rf_channel(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_VERSION_EXT:
 		ret = mwifiex_ret_ver_ext(priv, resp, data_buf);

@@ -1,5 +1,5 @@
 /*
- * priv.c - handling privileged instructions
+ * handling privileged instructions
  *
  * Copyright IBM Corp. 2008
  *

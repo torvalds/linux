@@ -29,6 +29,7 @@
 #include "drm.h"
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
+#include "nouveau_abi16.h"
 #include "nouveau_hw.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
@@ -384,6 +385,21 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+static struct drm_ioctl_desc nouveau_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GETPARAM, nouveau_abi16_ioctl_getparam, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_SETPARAM, nouveau_abi16_ioctl_setparam, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_ALLOC, nouveau_abi16_ioctl_channel_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_FREE, nouveau_abi16_ioctl_channel_free, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GROBJ_ALLOC, nouveau_abi16_ioctl_grobj_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_NOTIFIEROBJ_ALLOC, nouveau_abi16_ioctl_notifierobj_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GPUOBJ_FREE, nouveau_abi16_ioctl_gpuobj_free, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_UNLOCKED|DRM_AUTH),
+};
+
 static const struct file_operations nouveau_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -422,7 +438,6 @@ static struct drm_driver driver = {
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = nouveau_vblank_enable,
 	.disable_vblank = nouveau_vblank_disable,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
 	.fops = &nouveau_driver_fops,
 
@@ -463,7 +478,7 @@ static struct pci_driver nouveau_pci_driver = {
 
 static int __init nouveau_init(void)
 {
-	driver.num_ioctls = nouveau_max_ioctl;
+	driver.num_ioctls = ARRAY_SIZE(nouveau_ioctls);
 
 	if (nouveau_modeset == -1) {
 #ifdef CONFIG_VGA_CONSOLE

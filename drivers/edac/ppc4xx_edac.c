@@ -727,10 +727,10 @@ ppc4xx_edac_handle_ce(struct mem_ctl_info *mci,
 
 	for (row = 0; row < mci->nr_csrows; row++)
 		if (ppc4xx_edac_check_bank_error(status, row))
-			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 					     0, 0, 0,
 					     row, 0, -1,
-					     message, "", NULL);
+					     message, "");
 }
 
 /**
@@ -758,10 +758,10 @@ ppc4xx_edac_handle_ue(struct mem_ctl_info *mci,
 
 	for (row = 0; row < mci->nr_csrows; row++)
 		if (ppc4xx_edac_check_bank_error(status, row))
-			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 					     page, offset, 0,
 					     row, 0, -1,
-					     message, "", NULL);
+					     message, "");
 }
 
 /**
@@ -1027,9 +1027,9 @@ ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 
 	/* Initial driver pointers and private data */
 
-	mci->dev		= &op->dev;
+	mci->pdev		= &op->dev;
 
-	dev_set_drvdata(mci->dev, mci);
+	dev_set_drvdata(mci->pdev, mci);
 
 	pdata			= mci->pvt_info;
 
@@ -1334,7 +1334,7 @@ static int __devinit ppc4xx_edac_probe(struct platform_device *op)
 	return 0;
 
  fail1:
-	edac_mc_del_mc(mci->dev);
+	edac_mc_del_mc(mci->pdev);
 
  fail:
 	edac_mc_free(mci);
@@ -1368,7 +1368,7 @@ ppc4xx_edac_remove(struct platform_device *op)
 
 	dcr_unmap(pdata->dcr_host, SDRAM_DCR_RESOURCE_LEN);
 
-	edac_mc_del_mc(mci->dev);
+	edac_mc_del_mc(mci->pdev);
 	edac_mc_free(mci);
 
 	return 0;

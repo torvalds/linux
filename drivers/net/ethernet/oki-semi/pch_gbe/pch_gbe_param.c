@@ -139,7 +139,7 @@ MODULE_PARM_DESC(XsumTX, "Disable or enable Transmit Checksum offload");
 /**
  * pch_gbe_option - Force the MAC's flow control settings
  * @hw:	            Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -220,7 +220,7 @@ static const struct pch_gbe_opt_list fc_list[] = {
  * @value:    value
  * @opt:      option
  * @adapter:  Board private structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */

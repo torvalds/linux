@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/mfd/abx500/ab8500.h>
 
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
@@ -115,7 +116,7 @@ static irqreturn_t db8500_pmu_handler(int irq, void *dev, irq_handler_t handler)
 	return ret;
 }
 
-static struct arm_pmu_platdata db8500_pmu_platdata = {
+struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
 };
 
@@ -139,7 +140,6 @@ static struct platform_device *platform_devs[] __initdata = {
 
 static struct platform_device *of_platform_devs[] __initdata = {
 	&u8500_dma40_device,
-	&db8500_pmu_device,
 };
 
 static resource_size_t __initdata db8500_gpio_base[] = {
@@ -207,7 +207,7 @@ static struct device * __init db8500_soc_device_init(void)
 /*
  * This function is called from the board init
  */
-struct device * __init u8500_init_devices(void)
+struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 {
 	struct device *parent;
 	int i;
@@ -224,6 +224,8 @@ struct device * __init u8500_init_devices(void)
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
 
+	db8500_prcmu_device.dev.platform_data = ab8500;
+
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	return parent;
@@ -237,7 +239,6 @@ struct device * __init u8500_of_init_devices(void)
 
 	parent = db8500_soc_device_init();
 
-	db8500_add_rtc(parent);
 	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
 	platform_device_register_data(parent,
@@ -249,7 +250,7 @@ struct device * __init u8500_of_init_devices(void)
 	/*
 	 * Devices to be DT:ed:
 	 *   u8500_dma40_device  = todo
-	 *   db8500_pmu_device   = todo
+	 *   db8500_pmu_device   = done
 	 *   db8500_prcmu_device = done
 	 */
 	platform_add_devices(of_platform_devs, ARRAY_SIZE(of_platform_devs));

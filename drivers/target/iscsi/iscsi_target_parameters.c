@@ -681,7 +681,7 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 	param->value = kzalloc(strlen(value) + 1, GFP_KERNEL);
 	if (!param->value) {
 		pr_err("Unable to allocate memory for value.\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	memcpy(param->value, value, strlen(value));

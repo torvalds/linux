@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/base.S
  *
- *    Copyright IBM Corp. 2006,2007
+ *    Copyright IBM Corp. 2006, 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  */
@@ -9,6 +9,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/sigp.h>
 
 #ifdef CONFIG_64BIT
 
@@ -100,7 +101,7 @@ ENTRY(diag308_reset)
 .Lrestart_part2:
 	lhi	%r0,0			# Load r0 with zero
 	lhi	%r1,2			# Use mode 2 = ESAME (dump)
-	sigp	%r1,%r0,0x12		# Switch to ESAME mode
+	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE	# Switch to ESAME mode
 	sam64				# Switch to 64 bit addressing mode
 	larl	%r4,.Lctlregs		# Restore control registers
 	lctlg	%c0,%c15,0(%r4)

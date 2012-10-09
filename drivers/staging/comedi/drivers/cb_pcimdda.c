@@ -86,8 +86,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "8255.h"
 
 /* device ids of the cards we support -- currently only 1 card supported */
@@ -238,12 +236,9 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	err = comedi_alloc_subdevices(dev, 2);
+	if (err)
+		return err;
 
 	s = dev->subdevices + 0;
 

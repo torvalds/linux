@@ -92,6 +92,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int i;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
@@ -103,10 +104,12 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = "rti802";
 
-	if (alloc_subdevices(dev, 1) < 0
-	    || alloc_private(dev, sizeof(struct rti802_private))) {
+	if (alloc_private(dev, sizeof(struct rti802_private)))
 		return -ENOMEM;
-	}
+
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices;
 	/* ao subdevice */

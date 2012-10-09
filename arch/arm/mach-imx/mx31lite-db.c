@@ -116,7 +116,8 @@ static int mxc_mmc1_init(struct device *dev,
 	gpio_direction_input(gpio_det);
 	gpio_direction_input(gpio_wp);
 
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_DCD_DCE1), detect_irq,
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)),
+			  detect_irq,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC detect", data);
 	if (ret)
@@ -137,7 +138,7 @@ static void mxc_mmc1_exit(struct device *dev, void *data)
 {
 	gpio_free(gpio_det);
 	gpio_free(gpio_wp);
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_DCD_DCE1), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)), data);
 }
 
 static const struct imxmmc_platform_data mmc_pdata __initconst = {
@@ -191,6 +192,6 @@ void __init mx31lite_db_init(void)
 	imx31_add_mxc_mmc(0, &mmc_pdata);
 	imx31_add_spi_imx0(&spi0_pdata);
 	gpio_led_register_device(-1, &litekit_led_platform_data);
-	imx31_add_imx2_wdt(NULL);
-	imx31_add_mxc_rtc(NULL);
+	imx31_add_imx2_wdt();
+	imx31_add_mxc_rtc();
 }

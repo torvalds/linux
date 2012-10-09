@@ -26,6 +26,6 @@ Example:
                         #gpio-cells = <2>;
                         gpio-controller;
                         interrupt-controller;
-                        supports-sleepmode;
+                        st,supports-sleepmode;
                         gpio-bank = <1>;
                 };

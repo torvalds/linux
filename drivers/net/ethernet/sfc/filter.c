@@ -662,7 +662,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 	struct efx_filter_table *table = efx_filter_spec_table(state, spec);
 	struct efx_filter_spec *saved_spec;
 	efx_oword_t filter;
-	unsigned int filter_idx, depth;
+	unsigned int filter_idx, depth = 0;
 	u32 key;
 	int rc;
 

@@ -203,6 +203,14 @@
 			reg = <1>;
 			device_type = "ethernet-phy";
 		};
+		sgmii_phy0: sgmii-phy@0 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1d>;
+		};
+		sgmii_phy1: sgmii-phy@1 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1c>;
+		};
 		tbi0: tbi-phy@11 {
 			reg = <0x11>;
 			device_type = "tbi-phy";

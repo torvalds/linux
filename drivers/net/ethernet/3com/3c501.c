@@ -143,7 +143,7 @@ static int irq = 5;
 static int mem_start;
 
 /**
- * el1_probe:		-	probe for a 3c501
+ * el1_probe		-	probe for a 3c501
  * @dev: The device structure passed in to probe.
  *
  * This can be called from two places. The network layer will probe using

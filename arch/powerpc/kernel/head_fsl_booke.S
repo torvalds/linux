@@ -192,7 +192,7 @@ _ENTRY(__early_start)
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 
-	rlwinm  r22,r1,0,0,31-THREAD_SHIFT      /* current thread_info */
+	CURRENT_THREAD_INFO(r22, r1)
 	stw	r24, TI_CPU(r22)
 
 	bl	early_init
@@ -556,8 +556,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
 	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
-	bne	load_up_spe
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	beq	1f
+	bl	load_up_spe
+	b	fast_exception_return
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
 #else
 	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
@@ -778,7 +780,7 @@ tlb_write_entry:
 /* Note that the SPE support is closely modeled after the AltiVec
  * support.  Changes to one are likely to be applicable to the
  * other!  */
-load_up_spe:
+_GLOBAL(load_up_spe)
 /*
  * Disable SPE for the task which had SPE previously,
  * and save its SPE registers in its thread_struct.
@@ -826,20 +828,7 @@ load_up_spe:
 	subi	r4,r5,THREAD
 	stw	r4,last_task_used_spe@l(r3)
 #endif /* !CONFIG_SMP */
-	/* restore registers and return */
-2:	REST_4GPRS(3, r11)
-	lwz	r10,_CCR(r11)
-	REST_GPR(1, r11)
-	mtcr	r10
-	lwz	r10,_LINK(r11)
-	mtlr	r10
-	REST_GPR(10, r11)
-	mtspr	SPRN_SRR1,r9
-	mtspr	SPRN_SRR0,r12
-	REST_GPR(9, r11)
-	REST_GPR(12, r11)
-	lwz	r11,GPR11(r11)
-	rfi
+	blr
 
 /*
  * SPE unavailable trap from kernel - print a message, but let

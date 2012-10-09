@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_l3_main.c
- *
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
@@ -1473,7 +1471,7 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 		memcpy(card->dev->dev_addr,
 			cmd->data.create_destroy_addr.unique_id, ETH_ALEN);
 	else
-		random_ether_addr(card->dev->dev_addr);
+		eth_random_addr(card->dev->dev_addr);
 
 	return 0;
 }
@@ -1760,6 +1758,8 @@ static void qeth_l3_free_vlan_addresses4(struct qeth_card *card,
 	QETH_CARD_TEXT(card, 4, "frvaddr4");
 
 	netdev = __vlan_find_dev_deep(card->dev, vid);
+	if (!netdev)
+		return;
 	in_dev = in_dev_get(netdev);
 	if (!in_dev)
 		return;
@@ -1788,6 +1788,8 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 	QETH_CARD_TEXT(card, 4, "frvaddr6");
 
 	netdev = __vlan_find_dev_deep(card->dev, vid);
+	if (!netdev)
+		return;
 	in6_dev = in6_dev_get(netdev);
 	if (!in6_dev)
 		return;
@@ -2700,10 +2702,11 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
-		n = dst_get_neighbour_noref(dst);
+		n = dst_neigh_lookup_skb(dst, skb);
 	if (n) {
 		cast_type = n->type;
 		rcu_read_unlock();
+		neigh_release(n);
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))

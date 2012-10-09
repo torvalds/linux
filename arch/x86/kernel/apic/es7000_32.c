@@ -394,21 +394,6 @@ static void es7000_enable_apic_mode(void)
 		WARN(1, "Command failed, status = %x\n", mip_status);
 }
 
-static void es7000_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	/* Careful. Some cpus do not strictly honor the set of cpus
-	 * specified in the interrupt destination when using lowest
-	 * priority interrupt delivery mode.
-	 *
-	 * In particular there was a hyperthreading cpu observed to
-	 * deliver interrupts to the wrong hyperthread when only one
-	 * hyperthread was specified in the interrupt desitination.
-	 */
-	cpumask_clear(retmask);
-	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
-}
-
-
 static void es7000_wait_for_init_deassert(atomic_t *deassert)
 {
 	while (!atomic_read(deassert))
@@ -540,45 +525,49 @@ static int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 	return 1;
 }
 
-static unsigned int es7000_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static inline int
+es7000_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
-	int cpu, uninitialized_var(apicid);
+	unsigned int cpu, uninitialized_var(apicid);
 
 	/*
 	 * The cpus in the mask must all be on the apic cluster.
 	 */
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu_and(cpu, cpumask, cpu_online_mask) {
 		int new_apicid = early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 
 		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 			WARN(1, "Not a valid mask!");
 
-			return BAD_APICID;
+			return -EINVAL;
 		}
-		apicid = new_apicid;
+		apicid |= new_apicid;
 		round++;
 	}
-	return apicid;
+	if (!round)
+		return -EINVAL;
+	*dest_id = apicid;
+	return 0;
 }
 
-static unsigned int
+static int
 es7000_cpu_mask_to_apicid_and(const struct cpumask *inmask,
-			      const struct cpumask *andmask)
+			      const struct cpumask *andmask,
+			      unsigned int *apicid)
 {
-	int apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
 	cpumask_var_t cpumask;
+	*apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
 
 	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))
-		return apicid;
+		return 0;
 
 	cpumask_and(cpumask, inmask, andmask);
-	cpumask_and(cpumask, cpumask, cpu_online_mask);
-	apicid = es7000_cpu_mask_to_apicid(cpumask);
+	es7000_cpu_mask_to_apicid(cpumask, apicid);
 
 	free_cpumask_var(cpumask);
 
-	return apicid;
+	return 0;
 }
 
 static int es7000_phys_pkg_id(int cpuid_apic, int index_msb)
@@ -638,7 +627,7 @@ static struct apic __refdata apic_es7000_cluster = {
 	.check_apicid_used		= es7000_check_apicid_used,
 	.check_apicid_present		= es7000_check_apicid_present,
 
-	.vector_allocation_domain	= es7000_vector_allocation_domain,
+	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= es7000_init_apic_ldr_cluster,
 
 	.ioapic_phys_id_map		= es7000_ioapic_phys_id_map,
@@ -656,7 +645,6 @@ static struct apic __refdata apic_es7000_cluster = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= es7000_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= es7000_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= es7000_send_IPI_mask,
@@ -705,7 +693,7 @@ static struct apic __refdata apic_es7000 = {
 	.check_apicid_used		= es7000_check_apicid_used,
 	.check_apicid_present		= es7000_check_apicid_present,
 
-	.vector_allocation_domain	= es7000_vector_allocation_domain,
+	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= es7000_init_apic_ldr,
 
 	.ioapic_phys_id_map		= es7000_ioapic_phys_id_map,
@@ -723,7 +711,6 @@ static struct apic __refdata apic_es7000 = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= es7000_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= es7000_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= es7000_send_IPI_mask,

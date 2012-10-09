@@ -39,6 +39,9 @@
 #include <asm/desc.h>
 #include <asm/tlbflush.h>
 #include <asm/idle.h>
+#include <asm/apic.h>
+#include <asm/apicdef.h>
+#include <asm/hypervisor.h>
 
 static int kvmapf = 1;
 
@@ -283,6 +286,22 @@ static void kvm_register_steal_time(void)
 		cpu, __pa(st));
 }
 
+static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
+
+static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
+{
+	/**
+	 * This relies on __test_and_clear_bit to modify the memory
+	 * in a way that is atomic with respect to the local CPU.
+	 * The hypervisor only accesses this memory from the local CPU so
+	 * there's no need for lock or memory barriers.
+	 * An optimization barrier is implied in apic write.
+	 */
+	if (__test_and_clear_bit(KVM_PV_EOI_BIT, &__get_cpu_var(kvm_apic_eoi)))
+		return;
+	apic_write(APIC_EOI, APIC_EOI_ACK);
+}
+
 void __cpuinit kvm_guest_cpu_init(void)
 {
 	if (!kvm_para_available())
@@ -300,11 +319,20 @@ void __cpuinit kvm_guest_cpu_init(void)
 		       smp_processor_id());
 	}
 
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
+		unsigned long pa;
+		/* Size alignment is implied but just to make it explicit. */
+		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
+		__get_cpu_var(kvm_apic_eoi) = 0;
+		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
+		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
+	}
+
 	if (has_steal_clock)
 		kvm_register_steal_time();
 }
 
-static void kvm_pv_disable_apf(void *unused)
+static void kvm_pv_disable_apf(void)
 {
 	if (!__get_cpu_var(apf_reason).enabled)
 		return;
@@ -316,11 +344,23 @@ static void kvm_pv_disable_apf(void *unused)
 	       smp_processor_id());
 }
 
+static void kvm_pv_guest_cpu_reboot(void *unused)
+{
+	/*
+	 * We disable PV EOI before we load a new kernel by kexec,
+	 * since MSR_KVM_PV_EOI_EN stores a pointer into old kernel's memory.
+	 * New kernel can re-enable when it boots.
+	 */
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
+	kvm_pv_disable_apf();
+}
+
 static int kvm_pv_reboot_notify(struct notifier_block *nb,
 				unsigned long code, void *unused)
 {
 	if (code == SYS_RESTART)
-		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
+		on_each_cpu(kvm_pv_guest_cpu_reboot, NULL, 1);
 	return NOTIFY_DONE;
 }
 
@@ -371,7 +411,9 @@ static void __cpuinit kvm_guest_cpu_online(void *dummy)
 static void kvm_guest_cpu_offline(void *dummy)
 {
 	kvm_disable_steal_time();
-	kvm_pv_disable_apf(NULL);
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
+	kvm_pv_disable_apf();
 	apf_task_wake_all();
 }
 
@@ -424,6 +466,9 @@ void __init kvm_guest_init(void)
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
 
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		apic_set_eoi_write(kvm_guest_apic_eoi_write);
+
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	register_cpu_notifier(&kvm_cpu_notifier);
@@ -431,6 +476,19 @@ void __init kvm_guest_init(void)
 	kvm_guest_cpu_init();
 #endif
 }
+
+static bool __init kvm_detect(void)
+{
+	if (!kvm_para_available())
+		return false;
+	return true;
+}
+
+const struct hypervisor_x86 x86_hyper_kvm __refconst = {
+	.name			= "KVM",
+	.detect			= kvm_detect,
+};
+EXPORT_SYMBOL_GPL(x86_hyper_kvm);
 
 static __init int activate_jump_labels(void)
 {

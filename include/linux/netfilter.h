@@ -94,6 +94,16 @@ static inline int nf_inet_addr_cmp(const union nf_inet_addr *a1,
 	       a1->all[3] == a2->all[3];
 }
 
+static inline void nf_inet_addr_mask(const union nf_inet_addr *a1,
+				     union nf_inet_addr *result,
+				     const union nf_inet_addr *mask)
+{
+	result->all[0] = a1->all[0] & mask->all[0];
+	result->all[1] = a1->all[1] & mask->all[1];
+	result->all[2] = a1->all[2] & mask->all[2];
+	result->all[3] = a1->all[3] & mask->all[3];
+}
+
 extern void netfilter_init(void);
 
 /* Largest hook number + 1 */
@@ -383,6 +393,22 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 extern void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *) __rcu;
 extern void nf_ct_attach(struct sk_buff *, struct sk_buff *);
 extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
+
+struct nf_conn;
+struct nlattr;
+
+struct nfq_ct_hook {
+	size_t (*build_size)(const struct nf_conn *ct);
+	int (*build)(struct sk_buff *skb, struct nf_conn *ct);
+	int (*parse)(const struct nlattr *attr, struct nf_conn *ct);
+};
+extern struct nfq_ct_hook __rcu *nfq_ct_hook;
+
+struct nfq_ct_nat_hook {
+	void (*seq_adjust)(struct sk_buff *skb, struct nf_conn *ct,
+			   u32 ctinfo, int off);
+};
+extern struct nfq_ct_nat_hook __rcu *nfq_ct_nat_hook;
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif

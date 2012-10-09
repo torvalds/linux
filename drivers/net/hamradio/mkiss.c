@@ -485,7 +485,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 
 			return;
 		default:
-			count = kiss_esc(p, (unsigned char *)ax->xbuff, len);
+			count = kiss_esc(p, ax->xbuff, len);
 		}
 	} else {
 		unsigned short crc;
@@ -497,7 +497,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_SMACK:
 			*p |= 0x80;
 			crc = swab16(crc16(0, p, len));
-			count = kiss_esc_crc(p, (unsigned char *)ax->xbuff, crc, len+2);
+			count = kiss_esc_crc(p, ax->xbuff, crc, len+2);
 			break;
 		case CRC_MODE_FLEX_TEST:
 			ax->crcmode = CRC_MODE_NONE;
@@ -506,11 +506,11 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		case CRC_MODE_FLEX:
 			*p |= 0x20;
 			crc = calc_crc_flex(p, len);
-			count = kiss_esc_crc(p, (unsigned char *)ax->xbuff, crc, len+2);
+			count = kiss_esc_crc(p, ax->xbuff, crc, len+2);
 			break;
 
 		default:
-			count = kiss_esc(p, (unsigned char *)ax->xbuff, len);
+			count = kiss_esc(p, ax->xbuff, len);
 		}
   	}
 	spin_unlock_bh(&ax->buflock);

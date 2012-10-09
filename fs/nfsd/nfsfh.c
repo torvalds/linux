@@ -635,6 +635,7 @@ fh_put(struct svc_fh *fhp)
 		fhp->fh_post_saved = 0;
 #endif
 	}
+	fh_drop_write(fhp);
 	if (exp) {
 		exp_put(exp);
 		fhp->fh_export = NULL;

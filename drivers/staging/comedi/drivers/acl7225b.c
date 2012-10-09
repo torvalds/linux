@@ -27,15 +27,10 @@ struct boardtype {
 	int io_range;		/*  len of I/O space */
 };
 
-#define this_board ((const struct boardtype *)dev->board_ptr)
-
 static int acl7225b_do_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -48,43 +43,43 @@ static int acl7225b_do_insn(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int acl7225b_di_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + (unsigned long)s->private) |
 	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int acl7225b_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct boardtype *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int iobase, iorange;
+	int ret;
 
 	iobase = it->options[0];
-	iorange = this_board->io_range;
+	iorange = board->io_range;
 	printk(KERN_INFO "comedi%d: acl7225b: board=%s 0x%04x\n", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 	if (!request_region(iobase, iorange, "acl7225b")) {
 		printk(KERN_ERR "comedi%d: request_region failed - I/O port conflict\n",
 			dev->minor);
 		return -EIO;
 	}
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Relays outputs */
@@ -121,8 +116,10 @@ static int acl7225b_attach(struct comedi_device *dev,
 
 static void acl7225b_detach(struct comedi_device *dev)
 {
+	const struct boardtype *board = comedi_board(dev);
+
 	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
+		release_region(dev->iobase, board->io_range);
 }
 
 static const struct boardtype boardtypes[] = {

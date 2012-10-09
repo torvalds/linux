@@ -646,7 +646,30 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 static void
 nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
 {
-	nouveau_software_vblank(dev, crtc);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_software_priv *psw = nv_engine(dev, NVOBJ_ENGINE_SW);
+	struct nouveau_software_chan *pch, *tmp;
+
+	list_for_each_entry_safe(pch, tmp, &psw->vblank, vblank.list) {
+		if (pch->vblank.head != crtc)
+			continue;
+
+		spin_lock(&psw->peephole_lock);
+		nv_wr32(dev, 0x001704, pch->vblank.channel);
+		nv_wr32(dev, 0x001710, 0x80000000 | pch->vblank.ctxdma);
+		if (dev_priv->chipset == 0x50) {
+			nv_wr32(dev, 0x001570, pch->vblank.offset);
+			nv_wr32(dev, 0x001574, pch->vblank.value);
+		} else {
+			nv_wr32(dev, 0x060010, pch->vblank.offset);
+			nv_wr32(dev, 0x060014, pch->vblank.value);
+		}
+		spin_unlock(&psw->peephole_lock);
+
+		list_del(&pch->vblank.list);
+		drm_vblank_put(dev, crtc);
+	}
+
 	drm_handle_vblank(dev, crtc);
 }
 

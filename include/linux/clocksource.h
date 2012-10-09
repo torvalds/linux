@@ -319,22 +319,6 @@ static inline void __clocksource_updatefreq_khz(struct clocksource *cs, u32 khz)
 	__clocksource_updatefreq_scale(cs, 1000, khz);
 }
 
-#ifdef CONFIG_GENERIC_TIME_VSYSCALL
-extern void
-update_vsyscall(struct timespec *ts, struct timespec *wtm,
-			struct clocksource *c, u32 mult);
-extern void update_vsyscall_tz(void);
-#else
-static inline void
-update_vsyscall(struct timespec *ts, struct timespec *wtm,
-			struct clocksource *c, u32 mult)
-{
-}
-
-static inline void update_vsyscall_tz(void)
-{
-}
-#endif
 
 extern void timekeeping_notify(struct clocksource *clock);
 

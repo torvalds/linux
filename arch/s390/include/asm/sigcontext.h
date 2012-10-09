@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/sigcontext.h
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  */
 
 #ifndef _ASM_S390_SIGCONTEXT_H

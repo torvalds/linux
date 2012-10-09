@@ -457,6 +457,7 @@ start:
 			for (i = 0; i < numattr; i++)
 				kfree(xattrs[i]);
 			kfree(xattrs);
+			xattrs = NULL;
 			goto start;
 		}
 		err = -EIO;

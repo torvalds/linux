@@ -7,6 +7,7 @@
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
 #include <linux/bcma/bcma_driver_mips.h>
+#include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
 
 #include "bcma_regs.h"
@@ -70,6 +71,13 @@ struct bcma_host_ops {
 
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
+#define BCMA_CORE_4706_CHIPCOMMON	0x500
+#define BCMA_CORE_4706_SOC_RAM		0x50E
+#define BCMA_CORE_4706_MAC_GBIT		0x52D
+#define BCMA_CORE_AMEMC			0x52E	/* DDR1/2 memory controller core */
+#define BCMA_CORE_ALTA			0x534	/* I2S core */
+#define BCMA_CORE_4706_MAC_GBIT_COMMON	0x5DC
+#define BCMA_CORE_DDR23_PHY		0x5DD
 #define BCMA_CORE_INVALID		0x700
 #define BCMA_CORE_CHIPCOMMON		0x800
 #define BCMA_CORE_ILINE20		0x801
@@ -129,6 +137,36 @@ struct bcma_host_ops {
 #define BCMA_CORE_DEFAULT		0xFFF
 
 #define BCMA_MAX_NR_CORES		16
+
+/* Chip IDs of PCIe devices */
+#define BCMA_CHIP_ID_BCM4313	0x4313
+#define BCMA_CHIP_ID_BCM43224	43224
+#define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
+#define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa
+#define BCMA_CHIP_ID_BCM43225	43225
+#define BCMA_CHIP_ID_BCM43227	43227
+#define BCMA_CHIP_ID_BCM43228	43228
+#define BCMA_CHIP_ID_BCM43421	43421
+#define BCMA_CHIP_ID_BCM43428	43428
+#define BCMA_CHIP_ID_BCM43431	43431
+#define BCMA_CHIP_ID_BCM43460	43460
+#define BCMA_CHIP_ID_BCM4331	0x4331
+#define BCMA_CHIP_ID_BCM6362	0x6362
+#define BCMA_CHIP_ID_BCM4360	0x4360
+#define BCMA_CHIP_ID_BCM4352	0x4352
+
+/* Chip IDs of SoCs */
+#define BCMA_CHIP_ID_BCM4706	0x5300
+#define BCMA_CHIP_ID_BCM4716	0x4716
+#define  BCMA_PKG_ID_BCM4716	8
+#define  BCMA_PKG_ID_BCM4717	9
+#define  BCMA_PKG_ID_BCM4718	10
+#define BCMA_CHIP_ID_BCM47162	47162
+#define BCMA_CHIP_ID_BCM4748	0x4748
+#define BCMA_CHIP_ID_BCM4749	0x4749
+#define BCMA_CHIP_ID_BCM5356	0x5356
+#define BCMA_CHIP_ID_BCM5357	0x5357
+#define BCMA_CHIP_ID_BCM53572	53572
 
 struct bcma_device {
 	struct bcma_bus *bus;
@@ -215,6 +253,7 @@ struct bcma_bus {
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci;
 	struct bcma_drv_mips drv_mips;
+	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 
 	/* We decided to share SPROM struct with SSB as long as we do not need
 	 * any hacks for BCMA. This simplifies drivers code. */

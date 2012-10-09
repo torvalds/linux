@@ -169,7 +169,6 @@
 #define SERIAL_IMX_MAJOR        207
 #define MINOR_START	        16
 #define DEV_NAME		"ttymxc"
-#define MAX_INTERNAL_IRQ	MXC_INTERNAL_IRQS
 
 /*
  * This determines how often we check the modem status signals
@@ -741,10 +740,7 @@ static int imx_startup(struct uart_port *port)
 
 		/* do not use RTS IRQ on IrDA */
 		if (!USE_IRDA(sport)) {
-			retval = request_irq(sport->rtsirq, imx_rtsint,
-				     (sport->rtsirq < MAX_INTERNAL_IRQ) ? 0 :
-				       IRQF_TRIGGER_FALLING |
-				       IRQF_TRIGGER_RISING,
+			retval = request_irq(sport->rtsirq, imx_rtsint, 0,
 					DRIVER_NAME, sport);
 			if (retval)
 				goto error_out3;

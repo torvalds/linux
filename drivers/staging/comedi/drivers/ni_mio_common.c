@@ -3567,8 +3567,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 #ifdef DEBUG_DIO
 	printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0], data[1]);
 #endif
-	if (insn->n != 2)
-		return -EINVAL;
+
 	if (data[0]) {
 		/* Perform check to make sure we're not using the
 		   serial part of the dio */
@@ -3585,7 +3584,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = devpriv->stc_readw(dev, DIO_Parallel_Input_Register);
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_m_series_dio_insn_config(struct comedi_device *dev,
@@ -3629,8 +3628,7 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0],
 	       data[1]);
 #endif
-	if (insn->n != 2)
-		return -EINVAL;
+
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -3638,7 +3636,7 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = ni_readl(M_Offset_Static_Digital_Input);
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_cdio_cmdtest(struct comedi_device *dev,
@@ -4406,14 +4404,16 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned j;
 	enum ni_gpct_variant counter_variant;
+	int ret;
 
 	if (boardtype.n_aochan > MAX_N_AO_CHAN) {
 		printk("bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
 		return -EINVAL;
 	}
 
-	if (alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 
@@ -5394,7 +5394,7 @@ static int ni_pfi_insn_bits(struct comedi_device *dev,
 		ni_writew(s->state, M_Offset_PFI_DO);
 	}
 	data[1] = ni_readw(M_Offset_PFI_DI);
-	return 2;
+	return insn->n;
 }
 
 static int ni_pfi_insn_config(struct comedi_device *dev,
@@ -5483,12 +5483,9 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 /* Find best multiplier/divider to try and get the PLL running at 80 MHz

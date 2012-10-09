@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,19 +15,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_SEND_H_
 #define _NET_BATMAN_ADV_SEND_H_
 
-int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
-		    const uint8_t *dst_addr);
-void schedule_bat_ogm(struct hard_iface *hard_iface);
-int add_bcast_packet_to_list(struct bat_priv *bat_priv,
-			     const struct sk_buff *skb, unsigned long delay);
-void send_outstanding_bat_ogm_packet(struct work_struct *work);
-void purge_outstanding_packets(struct bat_priv *bat_priv,
-			       const struct hard_iface *hard_iface);
+int batadv_send_skb_packet(struct sk_buff *skb,
+			   struct batadv_hard_iface *hard_iface,
+			   const uint8_t *dst_addr);
+void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface);
+int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
+				    const struct sk_buff *skb,
+				    unsigned long delay);
+void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work);
+void
+batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
+				 const struct batadv_hard_iface *hard_iface);
 
 #endif /* _NET_BATMAN_ADV_SEND_H_ */

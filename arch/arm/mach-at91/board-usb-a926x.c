@@ -42,6 +42,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91_shdwc.h>
 
@@ -358,6 +359,7 @@ MACHINE_START(USB_A9263, "CALAO USB_A9263")
 	/* Maintainer: calao-systems */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,
@@ -367,6 +369,7 @@ MACHINE_START(USB_A9260, "CALAO USB_A9260")
 	/* Maintainer: calao-systems */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,
@@ -376,6 +379,7 @@ MACHINE_START(USB_A9G20, "CALAO USB_A92G0")
 	/* Maintainer: Jean-Christophe PLAGNIOL-VILLARD */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= ek_board_init,

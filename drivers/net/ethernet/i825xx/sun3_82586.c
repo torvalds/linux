@@ -571,7 +571,7 @@ static int init586(struct net_device *dev)
 	}
 #endif
 
-	ptr = alloc_rfa(dev,(void *)ptr); /* init receive-frame-area */
+	ptr = alloc_rfa(dev,ptr); /* init receive-frame-area */
 
 	/*
 	 * alloc xmit-buffs / init xmit_cmds
@@ -584,7 +584,7 @@ static int init586(struct net_device *dev)
 		ptr = (char *) ptr + XMIT_BUFF_SIZE;
 		p->xmit_buffs[i] = (struct tbd_struct *)ptr; /* TBD */
 		ptr = (char *) ptr + sizeof(struct tbd_struct);
-		if((void *)ptr > (void *)dev->mem_end)
+		if(ptr > (void *)dev->mem_end)
 		{
 			printk("%s: not enough shared-mem for your configuration!\n",dev->name);
 			return 1;

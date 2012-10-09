@@ -99,12 +99,13 @@ static int __devinit asic3_led_probe(struct platform_device *pdev)
 
 	ret = mfd_cell_enable(pdev);
 	if (ret < 0)
-		goto ret0;
+		return ret;
 
-	led->cdev = kzalloc(sizeof(struct led_classdev), GFP_KERNEL);
+	led->cdev = devm_kzalloc(&pdev->dev, sizeof(struct led_classdev),
+				GFP_KERNEL);
 	if (!led->cdev) {
 		ret = -ENOMEM;
-		goto ret1;
+		goto out;
 	}
 
 	led->cdev->name = led->name;
@@ -115,15 +116,12 @@ static int __devinit asic3_led_probe(struct platform_device *pdev)
 
 	ret = led_classdev_register(&pdev->dev, led->cdev);
 	if (ret < 0)
-		goto ret2;
+		goto out;
 
 	return 0;
 
-ret2:
-	kfree(led->cdev);
-ret1:
+out:
 	(void) mfd_cell_disable(pdev);
-ret0:
 	return ret;
 }
 
@@ -132,8 +130,6 @@ static int __devexit asic3_led_remove(struct platform_device *pdev)
 	struct asic3_led *led = pdev->dev.platform_data;
 
 	led_classdev_unregister(led->cdev);
-
-	kfree(led->cdev);
 
 	return mfd_cell_disable(pdev);
 }

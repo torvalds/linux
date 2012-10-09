@@ -35,13 +35,14 @@
 		slc: flash@20020000 {
 			compatible = "nxp,lpc3220-slc";
 			reg = <0x20020000 0x1000>;
-			status = "disable";
+			status = "disabled";
 		};
 
-		mlc: flash@200B0000 {
+		mlc: flash@200a8000 {
 			compatible = "nxp,lpc3220-mlc";
-			reg = <0x200B0000 0x1000>;
-			status = "disable";
+			reg = <0x200a8000 0x11000>;
+			interrupts = <11 0>;
+			status = "disabled";
 		};
 
 		dma@31000000 {
@@ -57,21 +58,21 @@
 			compatible = "nxp,ohci-nxp", "usb-ohci";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3b 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		usbd@31020000 {
 			compatible = "nxp,lpc3220-udc";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		clcd@31040000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x31040000 0x1000>;
 			interrupts = <0x0e 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		mac: ethernet@31060000 {
@@ -114,9 +115,10 @@
 			};
 
 			sd@20098000 {
-				compatible = "arm,pl180", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <0x0f 0>, <0x0d 0>;
+				status = "disabled";
 			};
 
 			i2s1: i2s@2009C000 {
@@ -124,24 +126,42 @@
 				reg = <0x2009C000 0x1000>;
 			};
 
+			/* UART5 first since it is the default console, ttyS0 */
+			uart5: serial@40090000 {
+				/* actually, ns16550a w/ 64 byte fifos! */
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40090000 0x1000>;
+				interrupts = <9 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
 			uart3: serial@40080000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40080000 0x1000>;
+				interrupts = <7 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			uart4: serial@40088000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40088000 0x1000>;
-			};
-
-			uart5: serial@40090000 {
-				compatible = "nxp,serial";
-				reg = <0x40090000 0x1000>;
+				interrupts = <8 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			uart6: serial@40098000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40098000 0x1000>;
+				interrupts = <10 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			i2c1: i2c@400A0000 {
@@ -192,18 +212,24 @@
 			};
 
 			uart1: serial@40014000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-hsuart";
 				reg = <0x40014000 0x1000>;
+				interrupts = <26 0>;
+				status = "disabled";
 			};
 
 			uart2: serial@40018000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-hsuart";
 				reg = <0x40018000 0x1000>;
+				interrupts = <25 0>;
+				status = "disabled";
 			};
 
-			uart7: serial@4001C000 {
-				compatible = "nxp,serial";
-				reg = <0x4001C000 0x1000>;
+			uart7: serial@4001c000 {
+				compatible = "nxp,lpc3220-hsuart";
+				reg = <0x4001c000 0x1000>;
+				interrupts = <24 0>;
+				status = "disabled";
 			};
 
 			rtc@40024000 {
@@ -235,21 +261,28 @@
 				compatible = "nxp,lpc3220-adc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			tsc@40048000 {
 				compatible = "nxp,lpc3220-tsc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			key@40050000 {
 				compatible = "nxp,lpc3220-key";
 				reg = <0x40050000 0x1000>;
+				interrupts = <54 0>;
+				status = "disabled";
 			};
 
+			pwm: pwm@4005C000 {
+				compatible = "nxp,lpc3220-pwm";
+				reg = <0x4005C000 0x8>;
+				status = "disabled";
+			};
 		};
 	};
 };

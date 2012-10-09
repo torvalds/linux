@@ -33,6 +33,12 @@
 #define NILFS_CNO_MIN	((__u64)1)
 #define NILFS_CNO_MAX	(~(__u64)0)
 
+/**
+ * struct nilfs_dat_info - on-memory private data of DAT file
+ * @mi: on-memory private data of metadata file
+ * @palloc_cache: persistent object allocator cache of DAT file
+ * @shadow: shadow map of DAT file
+ */
 struct nilfs_dat_info {
 	struct nilfs_mdt_info mi;
 	struct nilfs_palloc_cache palloc_cache;

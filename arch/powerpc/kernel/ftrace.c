@@ -63,10 +63,8 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 		return -EINVAL;
 
 	/* replace the text with the new text */
-	if (probe_kernel_write((void *)ip, &new, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, new))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -212,11 +210,8 @@ __ftrace_make_nop(struct module *mod,
 	 */
 	op = 0x48000008;	/* b +8 */
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -245,9 +240,9 @@ __ftrace_make_nop(struct module *mod,
 
 	/*
 	 * On PPC32 the trampoline looks like:
-	 *  0x3d, 0x60, 0x00, 0x00  lis r11,sym@ha
-	 *  0x39, 0x6b, 0x00, 0x00  addi r11,r11,sym@l
-	 *  0x7d, 0x69, 0x03, 0xa6  mtctr r11
+	 *  0x3d, 0x80, 0x00, 0x00  lis r12,sym@ha
+	 *  0x39, 0x8c, 0x00, 0x00  addi r12,r12,sym@l
+	 *  0x7d, 0x89, 0x03, 0xa6  mtctr r12
 	 *  0x4e, 0x80, 0x04, 0x20  bctr
 	 */
 
@@ -262,9 +257,9 @@ __ftrace_make_nop(struct module *mod,
 	pr_devel(" %08x %08x ", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
-	if (((jmp[0] & 0xffff0000) != 0x3d600000) ||
-	    ((jmp[1] & 0xffff0000) != 0x396b0000) ||
-	    (jmp[2] != 0x7d6903a6) ||
+	if (((jmp[0] & 0xffff0000) != 0x3d800000) ||
+	    ((jmp[1] & 0xffff0000) != 0x398c0000) ||
+	    (jmp[2] != 0x7d8903a6) ||
 	    (jmp[3] != 0x4e800420)) {
 		printk(KERN_ERR "Not a trampoline\n");
 		return -EINVAL;
@@ -286,10 +281,8 @@ __ftrace_make_nop(struct module *mod,
 
 	op = PPC_INST_NOP;
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -426,10 +419,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	pr_devel("write to %lx\n", rec->ip);
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -482,6 +473,58 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	ret = ftrace_modify_code(ip, old, new);
 
 	return ret;
+}
+
+static int __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
+{
+	unsigned long ftrace_addr = (unsigned long)FTRACE_ADDR;
+	int ret;
+
+	ret = ftrace_update_record(rec, enable);
+
+	switch (ret) {
+	case FTRACE_UPDATE_IGNORE:
+		return 0;
+	case FTRACE_UPDATE_MAKE_CALL:
+		return ftrace_make_call(rec, ftrace_addr);
+	case FTRACE_UPDATE_MAKE_NOP:
+		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	return 0;
+}
+
+void ftrace_replace_code(int enable)
+{
+	struct ftrace_rec_iter *iter;
+	struct dyn_ftrace *rec;
+	int ret;
+
+	for (iter = ftrace_rec_iter_start(); iter;
+	     iter = ftrace_rec_iter_next(iter)) {
+		rec = ftrace_rec_iter_record(iter);
+		ret = __ftrace_replace_code(rec, enable);
+		if (ret) {
+			ftrace_bug(ret, rec->ip);
+			return;
+		}
+	}
+}
+
+void arch_ftrace_update_code(int command)
+{
+	if (command & FTRACE_UPDATE_CALLS)
+		ftrace_replace_code(1);
+	else if (command & FTRACE_DISABLE_CALLS)
+		ftrace_replace_code(0);
+
+	if (command & FTRACE_UPDATE_TRACE_FUNC)
+		ftrace_update_ftrace_func(ftrace_trace_function);
+
+	if (command & FTRACE_START_FUNC_RET)
+		ftrace_enable_ftrace_graph_caller();
+	else if (command & FTRACE_STOP_FUNC_RET)
+		ftrace_disable_ftrace_graph_caller();
 }
 
 int __init ftrace_dyn_arch_init(void *data)
@@ -587,18 +630,17 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth, 0) == -EBUSY) {
+	trace.func = self_addr;
+	trace.depth = current->curr_ret_stack + 1;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
 		*parent = old;
 		return;
 	}
 
-	trace.func = self_addr;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		current->curr_ret_stack--;
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth, 0) == -EBUSY)
 		*parent = old;
-	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 

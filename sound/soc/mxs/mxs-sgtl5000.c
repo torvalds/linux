@@ -133,7 +133,7 @@ static int __devinit mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 		mxs_sgtl5000_dai[i].codec_name = NULL;
 		mxs_sgtl5000_dai[i].codec_of_node = codec_np;
 		mxs_sgtl5000_dai[i].cpu_dai_name = NULL;
-		mxs_sgtl5000_dai[i].cpu_dai_of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].cpu_of_node = saif_np[i];
 		mxs_sgtl5000_dai[i].platform_name = NULL;
 		mxs_sgtl5000_dai[i].platform_of_node = saif_np[i];
 	}

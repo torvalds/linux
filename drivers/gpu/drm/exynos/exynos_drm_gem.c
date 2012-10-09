@@ -99,14 +99,8 @@ out:
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 						gfp_t gfpmask)
 {
-	struct inode *inode;
-	struct address_space *mapping;
 	struct page *p, **pages;
 	int i, npages;
-
-	/* This is the shared memory object that backs the GEM resource */
-	inode = obj->filp->f_path.dentry->d_inode;
-	mapping = inode->i_mapping;
 
 	npages = obj->size >> PAGE_SHIFT;
 
@@ -114,10 +108,8 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	gfpmask |= mapping_gfp_mask(mapping);
-
 	for (i = 0; i < npages; i++) {
-		p = shmem_read_mapping_page_gfp(mapping, i, gfpmask);
+		p = alloc_page(gfpmask);
 		if (IS_ERR(p))
 			goto fail;
 		pages[i] = p;
@@ -126,31 +118,22 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 	return pages;
 
 fail:
-	while (i--)
-		page_cache_release(pages[i]);
+	while (--i)
+		__free_page(pages[i]);
 
 	drm_free_large(pages);
 	return ERR_PTR(PTR_ERR(p));
 }
 
 static void exynos_gem_put_pages(struct drm_gem_object *obj,
-					struct page **pages,
-					bool dirty, bool accessed)
+					struct page **pages)
 {
-	int i, npages;
+	int npages;
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	for (i = 0; i < npages; i++) {
-		if (dirty)
-			set_page_dirty(pages[i]);
-
-		if (accessed)
-			mark_page_accessed(pages[i]);
-
-		/* Undo the reference we took when populating the table */
-		page_cache_release(pages[i]);
-	}
+	while (--npages >= 0)
+		__free_page(pages[npages]);
 
 	drm_free_large(pages);
 }
@@ -189,7 +172,7 @@ static int exynos_drm_gem_get_pages(struct drm_gem_object *obj)
 		return -EINVAL;
 	}
 
-	pages = exynos_gem_get_pages(obj, GFP_KERNEL);
+	pages = exynos_gem_get_pages(obj, GFP_HIGHUSER_MOVABLE);
 	if (IS_ERR(pages)) {
 		DRM_ERROR("failed to get pages.\n");
 		return PTR_ERR(pages);
@@ -230,7 +213,7 @@ err1:
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 err:
-	exynos_gem_put_pages(obj, pages, true, false);
+	exynos_gem_put_pages(obj, pages);
 	return ret;
 
 }
@@ -248,7 +231,7 @@ static void exynos_drm_gem_put_pages(struct drm_gem_object *obj)
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 
-	exynos_gem_put_pages(obj, buf->pages, true, false);
+	exynos_gem_put_pages(obj, buf->pages);
 	buf->pages = NULL;
 
 	/* add some codes for UNCACHED type here. TODO */
@@ -291,11 +274,21 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	if (!buf->pages)
 		return;
 
+	/*
+	 * do not release memory region from exporter.
+	 *
+	 * the region will be released by exporter
+	 * once dmabuf's refcount becomes 0.
+	 */
+	if (obj->import_attach)
+		goto out;
+
 	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG)
 		exynos_drm_gem_put_pages(obj);
 	else
 		exynos_drm_free_buf(obj->dev, exynos_gem_obj->flags, buf);
 
+out:
 	exynos_drm_fini_buf(obj->dev, buf);
 	exynos_gem_obj->buffer = NULL;
 
@@ -668,7 +661,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	 *	with DRM_IOCTL_MODE_CREATE_DUMB command.
 	 */
 
-	args->pitch = args->width * args->bpp >> 3;
+	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = PAGE_ALIGN(args->pitch * args->height);
 
 	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);

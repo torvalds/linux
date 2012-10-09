@@ -179,6 +179,8 @@ struct xfs_log_item_desc {
 #define	XFS_TRANS_SYNC		0x08	/* make commit synchronous */
 #define XFS_TRANS_DQ_DIRTY	0x10	/* at least one dquot in trx dirty */
 #define XFS_TRANS_RESERVE	0x20    /* OK to use reserved data blocks */
+#define XFS_TRANS_FREEZE_PROT	0x40	/* Transaction has elevated writer
+					   count in superblock */
 
 /*
  * Values for call flags parameter.
@@ -448,11 +450,51 @@ xfs_trans_t	*xfs_trans_dup(xfs_trans_t *);
 int		xfs_trans_reserve(xfs_trans_t *, uint, uint, uint,
 				  uint, uint);
 void		xfs_trans_mod_sb(xfs_trans_t *, uint, int64_t);
-struct xfs_buf	*xfs_trans_get_buf(xfs_trans_t *, struct xfs_buftarg *, xfs_daddr_t,
-				   int, uint);
-int		xfs_trans_read_buf(struct xfs_mount *, xfs_trans_t *,
-				   struct xfs_buftarg *, xfs_daddr_t, int, uint,
-				   struct xfs_buf **);
+
+struct xfs_buf	*xfs_trans_get_buf_map(struct xfs_trans *tp,
+				       struct xfs_buftarg *target,
+				       struct xfs_buf_map *map, int nmaps,
+				       uint flags);
+
+static inline struct xfs_buf *
+xfs_trans_get_buf(
+	struct xfs_trans	*tp,
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	int			numblks,
+	uint			flags)
+{
+	struct xfs_buf_map	map = {
+		.bm_bn = blkno,
+		.bm_len = numblks,
+	};
+	return xfs_trans_get_buf_map(tp, target, &map, 1, flags);
+}
+
+int		xfs_trans_read_buf_map(struct xfs_mount *mp,
+				       struct xfs_trans *tp,
+				       struct xfs_buftarg *target,
+				       struct xfs_buf_map *map, int nmaps,
+				       xfs_buf_flags_t flags,
+				       struct xfs_buf **bpp);
+
+static inline int
+xfs_trans_read_buf(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	int			numblks,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	struct xfs_buf_map	map = {
+		.bm_bn = blkno,
+		.bm_len = numblks,
+	};
+	return xfs_trans_read_buf_map(mp, tp, target, &map, 1, flags, bpp);
+}
+
 struct xfs_buf	*xfs_trans_getsb(xfs_trans_t *, struct xfs_mount *, int);
 
 void		xfs_trans_brelse(xfs_trans_t *, struct xfs_buf *);

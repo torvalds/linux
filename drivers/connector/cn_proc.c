@@ -46,7 +46,7 @@ static DEFINE_PER_CPU(__u32, proc_event_counts) = { 0 };
 static inline void get_seq(__u32 *ts, int *cpu)
 {
 	preempt_disable();
-	*ts = __this_cpu_inc_return(proc_event_counts) -1;
+	*ts = __this_cpu_inc_return(proc_event_counts) - 1;
 	*cpu = smp_processor_id();
 	preempt_enable();
 }
@@ -62,8 +62,8 @@ void proc_fork_connector(struct task_struct *task)
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
 
-	msg = (struct cn_msg*)buffer;
-	ev = (struct proc_event*)msg->data;
+	msg = (struct cn_msg *)buffer;
+	ev = (struct proc_event *)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);
@@ -93,8 +93,8 @@ void proc_exec_connector(struct task_struct *task)
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
 
-	msg = (struct cn_msg*)buffer;
-	ev = (struct proc_event*)msg->data;
+	msg = (struct cn_msg *)buffer;
+	ev = (struct proc_event *)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);
@@ -119,8 +119,8 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
 
-	msg = (struct cn_msg*)buffer;
-	ev = (struct proc_event*)msg->data;
+	msg = (struct cn_msg *)buffer;
+	ev = (struct proc_event *)msg->data;
 	ev->what = which_id;
 	ev->event_data.id.process_pid = task->pid;
 	ev->event_data.id.process_tgid = task->tgid;
@@ -134,7 +134,7 @@ void proc_id_connector(struct task_struct *task, int which_id)
 		ev->event_data.id.e.egid = cred->egid;
 	} else {
 		rcu_read_unlock();
-	     	return;
+		return;
 	}
 	rcu_read_unlock();
 	get_seq(&msg->seq, &ev->cpu);
@@ -241,8 +241,8 @@ void proc_exit_connector(struct task_struct *task)
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
 
-	msg = (struct cn_msg*)buffer;
-	ev = (struct proc_event*)msg->data;
+	msg = (struct cn_msg *)buffer;
+	ev = (struct proc_event *)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);
@@ -276,8 +276,8 @@ static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
 
-	msg = (struct cn_msg*)buffer;
-	ev = (struct proc_event*)msg->data;
+	msg = (struct cn_msg *)buffer;
+	ev = (struct proc_event *)msg->data;
 	msg->seq = rcvd_seq;
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);
@@ -303,7 +303,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 	if (msg->len != sizeof(*mc_op))
 		return;
 
-	mc_op = (enum proc_cn_mcast_op*)msg->data;
+	mc_op = (enum proc_cn_mcast_op *)msg->data;
 	switch (*mc_op) {
 	case PROC_CN_MCAST_LISTEN:
 		atomic_inc(&proc_event_num_listeners);
@@ -325,11 +325,11 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
  */
 static int __init cn_proc_init(void)
 {
-	int err;
-
-	if ((err = cn_add_callback(&cn_proc_event_id, "cn_proc",
-	 			   &cn_proc_mcast_ctl))) {
-		printk(KERN_WARNING "cn_proc failed to register\n");
+	int err = cn_add_callback(&cn_proc_event_id,
+				  "cn_proc",
+				  &cn_proc_mcast_ctl);
+	if (err) {
+		pr_warn("cn_proc failed to register\n");
 		return err;
 	}
 	return 0;

@@ -14,25 +14,11 @@
 
 #include <linux/types.h>
 
-struct kovaplus_control {
-	uint8_t command; /* KOVAPLUS_COMMAND_CONTROL */
-	uint8_t value;
-	uint8_t request;
-} __packed;
-
 enum kovaplus_control_requests {
-	/* read after write; value = 1 */
-	KOVAPLUS_CONTROL_REQUEST_STATUS = 0x0,
 	/* write; value = profile number range 0-4 */
 	KOVAPLUS_CONTROL_REQUEST_PROFILE_SETTINGS = 0x10,
 	/* write; value = profile number range 0-4 */
 	KOVAPLUS_CONTROL_REQUEST_PROFILE_BUTTONS = 0x20,
-};
-
-enum kovaplus_control_values {
-	KOVAPLUS_CONTROL_REQUEST_STATUS_OVERLOAD = 0, /* supposed */
-	KOVAPLUS_CONTROL_REQUEST_STATUS_OK = 1,
-	KOVAPLUS_CONTROL_REQUEST_STATUS_WAIT = 3, /* supposed */
 };
 
 struct kovaplus_actual_profile {
@@ -75,7 +61,6 @@ struct kovaplus_a {
 } __packed;
 
 enum kovaplus_commands {
-	KOVAPLUS_COMMAND_CONTROL = 0x4,
 	KOVAPLUS_COMMAND_ACTUAL_PROFILE = 0x5,
 	KOVAPLUS_COMMAND_PROFILE_SETTINGS = 0x6,
 	KOVAPLUS_COMMAND_PROFILE_BUTTONS = 0x7,

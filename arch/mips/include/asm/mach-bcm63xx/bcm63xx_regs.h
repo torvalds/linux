@@ -15,6 +15,30 @@
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
 
+#define CKCTL_6328_PHYMIPS_EN		(1 << 0)
+#define CKCTL_6328_ADSL_QPROC_EN	(1 << 1)
+#define CKCTL_6328_ADSL_AFE_EN		(1 << 2)
+#define CKCTL_6328_ADSL_EN		(1 << 3)
+#define CKCTL_6328_MIPS_EN		(1 << 4)
+#define CKCTL_6328_SAR_EN		(1 << 5)
+#define CKCTL_6328_PCM_EN		(1 << 6)
+#define CKCTL_6328_USBD_EN		(1 << 7)
+#define CKCTL_6328_USBH_EN		(1 << 8)
+#define CKCTL_6328_HSSPI_EN		(1 << 9)
+#define CKCTL_6328_PCIE_EN		(1 << 10)
+#define CKCTL_6328_ROBOSW_EN		(1 << 11)
+
+#define CKCTL_6328_ALL_SAFE_EN		(CKCTL_6328_PHYMIPS_EN |	\
+					CKCTL_6328_ADSL_QPROC_EN |	\
+					CKCTL_6328_ADSL_AFE_EN |	\
+					CKCTL_6328_ADSL_EN |		\
+					CKCTL_6328_SAR_EN  |		\
+					CKCTL_6328_PCM_EN  |		\
+					CKCTL_6328_USBD_EN |		\
+					CKCTL_6328_USBH_EN |		\
+					CKCTL_6328_ROBOSW_EN |		\
+					CKCTL_6328_PCIE_EN)
+
 #define CKCTL_6338_ADSLPHY_EN		(1 << 0)
 #define CKCTL_6338_MPI_EN		(1 << 1)
 #define CKCTL_6338_DRAM_EN		(1 << 2)
@@ -90,35 +114,36 @@
 #define CKCTL_6368_PHYMIPS_EN		(1 << 6)
 #define CKCTL_6368_SWPKT_USB_EN		(1 << 7)
 #define CKCTL_6368_SWPKT_SAR_EN		(1 << 8)
-#define CKCTL_6368_SPI_CLK_EN		(1 << 9)
-#define CKCTL_6368_USBD_CLK_EN		(1 << 10)
-#define CKCTL_6368_SAR_CLK_EN		(1 << 11)
-#define CKCTL_6368_ROBOSW_CLK_EN	(1 << 12)
-#define CKCTL_6368_UTOPIA_CLK_EN	(1 << 13)
-#define CKCTL_6368_PCM_CLK_EN		(1 << 14)
-#define CKCTL_6368_USBH_CLK_EN		(1 << 15)
+#define CKCTL_6368_SPI_EN		(1 << 9)
+#define CKCTL_6368_USBD_EN		(1 << 10)
+#define CKCTL_6368_SAR_EN		(1 << 11)
+#define CKCTL_6368_ROBOSW_EN		(1 << 12)
+#define CKCTL_6368_UTOPIA_EN		(1 << 13)
+#define CKCTL_6368_PCM_EN		(1 << 14)
+#define CKCTL_6368_USBH_EN		(1 << 15)
 #define CKCTL_6368_DISABLE_GLESS_EN	(1 << 16)
-#define CKCTL_6368_NAND_CLK_EN		(1 << 17)
-#define CKCTL_6368_IPSEC_CLK_EN		(1 << 17)
+#define CKCTL_6368_NAND_EN		(1 << 17)
+#define CKCTL_6368_IPSEC_EN		(1 << 18)
 
 #define CKCTL_6368_ALL_SAFE_EN		(CKCTL_6368_SWPKT_USB_EN |	\
 					CKCTL_6368_SWPKT_SAR_EN |	\
-					CKCTL_6368_SPI_CLK_EN |		\
-					CKCTL_6368_USBD_CLK_EN |	\
-					CKCTL_6368_SAR_CLK_EN |		\
-					CKCTL_6368_ROBOSW_CLK_EN |	\
-					CKCTL_6368_UTOPIA_CLK_EN |	\
-					CKCTL_6368_PCM_CLK_EN |		\
-					CKCTL_6368_USBH_CLK_EN |	\
+					CKCTL_6368_SPI_EN |		\
+					CKCTL_6368_USBD_EN |		\
+					CKCTL_6368_SAR_EN |		\
+					CKCTL_6368_ROBOSW_EN |		\
+					CKCTL_6368_UTOPIA_EN |		\
+					CKCTL_6368_PCM_EN |		\
+					CKCTL_6368_USBH_EN |		\
 					CKCTL_6368_DISABLE_GLESS_EN |	\
-					CKCTL_6368_NAND_CLK_EN |	\
-					CKCTL_6368_IPSEC_CLK_EN)
+					CKCTL_6368_NAND_EN |		\
+					CKCTL_6368_IPSEC_EN)
 
 /* System PLL Control register  */
 #define PERF_SYS_PLL_CTL_REG		0x8
 #define SYS_PLL_SOFT_RESET		0x1
 
 /* Interrupt Mask register */
+#define PERF_IRQMASK_6328_REG		0x20
 #define PERF_IRQMASK_6338_REG		0xc
 #define PERF_IRQMASK_6345_REG		0xc
 #define PERF_IRQMASK_6348_REG		0xc
@@ -126,6 +151,7 @@
 #define PERF_IRQMASK_6368_REG		0x20
 
 /* Interrupt Status register */
+#define PERF_IRQSTAT_6328_REG		0x28
 #define PERF_IRQSTAT_6338_REG		0x10
 #define PERF_IRQSTAT_6345_REG		0x10
 #define PERF_IRQSTAT_6348_REG		0x10
@@ -133,6 +159,7 @@
 #define PERF_IRQSTAT_6368_REG		0x28
 
 /* External Interrupt Configuration register */
+#define PERF_EXTIRQ_CFG_REG_6328	0x18
 #define PERF_EXTIRQ_CFG_REG_6338	0x14
 #define PERF_EXTIRQ_CFG_REG_6348	0x14
 #define PERF_EXTIRQ_CFG_REG_6358	0x14
@@ -162,7 +189,20 @@
 
 /* Soft Reset register */
 #define PERF_SOFTRESET_REG		0x28
+#define PERF_SOFTRESET_6328_REG		0x10
 #define PERF_SOFTRESET_6368_REG		0x10
+
+#define SOFTRESET_6328_SPI_MASK		(1 << 0)
+#define SOFTRESET_6328_EPHY_MASK	(1 << 1)
+#define SOFTRESET_6328_SAR_MASK		(1 << 2)
+#define SOFTRESET_6328_ENETSW_MASK	(1 << 3)
+#define SOFTRESET_6328_USBS_MASK	(1 << 4)
+#define SOFTRESET_6328_USBH_MASK	(1 << 5)
+#define SOFTRESET_6328_PCM_MASK		(1 << 6)
+#define SOFTRESET_6328_PCIE_CORE_MASK	(1 << 7)
+#define SOFTRESET_6328_PCIE_MASK	(1 << 8)
+#define SOFTRESET_6328_PCIE_EXT_MASK	(1 << 9)
+#define SOFTRESET_6328_PCIE_HARD_MASK	(1 << 10)
 
 #define SOFTRESET_6338_SPI_MASK		(1 << 0)
 #define SOFTRESET_6338_ENET_MASK	(1 << 2)
@@ -307,6 +347,8 @@
 /* Watchdog reset length register */
 #define WDT_RSTLEN_REG			0x8
 
+/* Watchdog soft reset register (BCM6328 only) */
+#define WDT_SOFTRESET_REG		0xc
 
 /*************************************************************************
  * _REG relative to RSET_UARTx
@@ -506,6 +548,15 @@
 #define GPIO_BASEMODE_6368_GPIO		0x0
 #define GPIO_BASEMODE_6368_MASK		0x7
 /* those bits must be kept as read in gpio basemode register*/
+
+#define GPIO_STRAPBUS_REG		0x40
+#define STRAPBUS_6358_BOOT_SEL_PARALLEL	(1 << 1)
+#define STRAPBUS_6358_BOOT_SEL_SERIAL	(0 << 1)
+#define STRAPBUS_6368_BOOT_SEL_MASK	0x3
+#define STRAPBUS_6368_BOOT_SEL_NAND	0
+#define STRAPBUS_6368_BOOT_SEL_SERIAL	1
+#define STRAPBUS_6368_BOOT_SEL_PARALLEL	3
+
 
 /*************************************************************************
  * _REG relative to RSET_ENET
@@ -924,6 +975,8 @@
  * _REG relative to RSET_DDR
  *************************************************************************/
 
+#define DDR_CSEND_REG			0x8
+
 #define DDR_DMIPSPLLCFG_REG		0x18
 #define DMIPSPLLCFG_M1_SHIFT		0
 #define DMIPSPLLCFG_M1_MASK		(0xff << DMIPSPLLCFG_M1_SHIFT)
@@ -972,5 +1025,209 @@
 
 #define M2M_SRCID_REG(x)		((x) * 0x40 + 0x14)
 #define M2M_DSTID_REG(x)		((x) * 0x40 + 0x18)
+
+/*************************************************************************
+ * _REG relative to RSET_RNG
+ *************************************************************************/
+
+#define RNG_CTRL			0x00
+#define RNG_EN				(1 << 0)
+
+#define RNG_STAT			0x04
+#define RNG_AVAIL_MASK			(0xff000000)
+
+#define RNG_DATA			0x08
+#define RNG_THRES			0x0c
+#define RNG_MASK			0x10
+
+/*************************************************************************
+ * _REG relative to RSET_SPI
+ *************************************************************************/
+
+/* BCM 6338 SPI core */
+#define SPI_6338_CMD			0x00	/* 16-bits register */
+#define SPI_6338_INT_STATUS		0x02
+#define SPI_6338_INT_MASK_ST		0x03
+#define SPI_6338_INT_MASK		0x04
+#define SPI_6338_ST			0x05
+#define SPI_6338_CLK_CFG		0x06
+#define SPI_6338_FILL_BYTE		0x07
+#define SPI_6338_MSG_TAIL		0x09
+#define SPI_6338_RX_TAIL		0x0b
+#define SPI_6338_MSG_CTL		0x40	/* 8-bits register */
+#define SPI_6338_MSG_CTL_WIDTH		8
+#define SPI_6338_MSG_DATA		0x41
+#define SPI_6338_MSG_DATA_SIZE		0x3f
+#define SPI_6338_RX_DATA		0x80
+#define SPI_6338_RX_DATA_SIZE		0x3f
+
+/* BCM 6348 SPI core */
+#define SPI_6348_CMD			0x00	/* 16-bits register */
+#define SPI_6348_INT_STATUS		0x02
+#define SPI_6348_INT_MASK_ST		0x03
+#define SPI_6348_INT_MASK		0x04
+#define SPI_6348_ST			0x05
+#define SPI_6348_CLK_CFG		0x06
+#define SPI_6348_FILL_BYTE		0x07
+#define SPI_6348_MSG_TAIL		0x09
+#define SPI_6348_RX_TAIL		0x0b
+#define SPI_6348_MSG_CTL		0x40	/* 8-bits register */
+#define SPI_6348_MSG_CTL_WIDTH		8
+#define SPI_6348_MSG_DATA		0x41
+#define SPI_6348_MSG_DATA_SIZE		0x3f
+#define SPI_6348_RX_DATA		0x80
+#define SPI_6348_RX_DATA_SIZE		0x3f
+
+/* BCM 6358 SPI core */
+#define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
+#define SPI_6358_MSG_CTL_WIDTH		16
+#define SPI_6358_MSG_DATA		0x02
+#define SPI_6358_MSG_DATA_SIZE		0x21e
+#define SPI_6358_RX_DATA		0x400
+#define SPI_6358_RX_DATA_SIZE		0x220
+#define SPI_6358_CMD			0x700	/* 16-bits register */
+#define SPI_6358_INT_STATUS		0x702
+#define SPI_6358_INT_MASK_ST		0x703
+#define SPI_6358_INT_MASK		0x704
+#define SPI_6358_ST			0x705
+#define SPI_6358_CLK_CFG		0x706
+#define SPI_6358_FILL_BYTE		0x707
+#define SPI_6358_MSG_TAIL		0x709
+#define SPI_6358_RX_TAIL		0x70B
+
+/* BCM 6358 SPI core */
+#define SPI_6368_MSG_CTL		0x00	/* 16-bits register */
+#define SPI_6368_MSG_CTL_WIDTH		16
+#define SPI_6368_MSG_DATA		0x02
+#define SPI_6368_MSG_DATA_SIZE		0x21e
+#define SPI_6368_RX_DATA		0x400
+#define SPI_6368_RX_DATA_SIZE		0x220
+#define SPI_6368_CMD			0x700	/* 16-bits register */
+#define SPI_6368_INT_STATUS		0x702
+#define SPI_6368_INT_MASK_ST		0x703
+#define SPI_6368_INT_MASK		0x704
+#define SPI_6368_ST			0x705
+#define SPI_6368_CLK_CFG		0x706
+#define SPI_6368_FILL_BYTE		0x707
+#define SPI_6368_MSG_TAIL		0x709
+#define SPI_6368_RX_TAIL		0x70B
+
+/* Shared SPI definitions */
+
+/* Message configuration */
+#define SPI_FD_RW			0x00
+#define SPI_HD_W			0x01
+#define SPI_HD_R			0x02
+#define SPI_BYTE_CNT_SHIFT		0
+#define SPI_6338_MSG_TYPE_SHIFT		6
+#define SPI_6348_MSG_TYPE_SHIFT		6
+#define SPI_6358_MSG_TYPE_SHIFT		14
+#define SPI_6368_MSG_TYPE_SHIFT		14
+
+/* Command */
+#define SPI_CMD_NOOP			0x00
+#define SPI_CMD_SOFT_RESET		0x01
+#define SPI_CMD_HARD_RESET		0x02
+#define SPI_CMD_START_IMMEDIATE		0x03
+#define SPI_CMD_COMMAND_SHIFT		0
+#define SPI_CMD_COMMAND_MASK		0x000f
+#define SPI_CMD_DEVICE_ID_SHIFT		4
+#define SPI_CMD_PREPEND_BYTE_CNT_SHIFT	8
+#define SPI_CMD_ONE_BYTE_SHIFT		11
+#define SPI_CMD_ONE_WIRE_SHIFT		12
+#define SPI_DEV_ID_0			0
+#define SPI_DEV_ID_1			1
+#define SPI_DEV_ID_2			2
+#define SPI_DEV_ID_3			3
+
+/* Interrupt mask */
+#define SPI_INTR_CMD_DONE		0x01
+#define SPI_INTR_RX_OVERFLOW		0x02
+#define SPI_INTR_TX_UNDERFLOW		0x04
+#define SPI_INTR_TX_OVERFLOW		0x08
+#define SPI_INTR_RX_UNDERFLOW		0x10
+#define SPI_INTR_CLEAR_ALL		0x1f
+
+/* Status */
+#define SPI_RX_EMPTY			0x02
+#define SPI_CMD_BUSY			0x04
+#define SPI_SERIAL_BUSY			0x08
+
+/* Clock configuration */
+#define SPI_CLK_20MHZ			0x00
+#define SPI_CLK_0_391MHZ		0x01
+#define SPI_CLK_0_781MHZ		0x02 /* default */
+#define SPI_CLK_1_563MHZ		0x03
+#define SPI_CLK_3_125MHZ		0x04
+#define SPI_CLK_6_250MHZ		0x05
+#define SPI_CLK_12_50MHZ		0x06
+#define SPI_CLK_MASK			0x07
+#define SPI_SSOFFTIME_MASK		0x38
+#define SPI_SSOFFTIME_SHIFT		3
+#define SPI_BYTE_SWAP			0x80
+
+/*************************************************************************
+ * _REG relative to RSET_MISC
+ *************************************************************************/
+#define MISC_SERDES_CTRL_REG		0x0
+#define SERDES_PCIE_EN			(1 << 0)
+#define SERDES_PCIE_EXD_EN		(1 << 15)
+
+#define MISC_STRAPBUS_6328_REG		0x240
+#define STRAPBUS_6328_FCVO_SHIFT	7
+#define STRAPBUS_6328_FCVO_MASK		(0x1f << STRAPBUS_6328_FCVO_SHIFT)
+#define STRAPBUS_6328_BOOT_SEL_SERIAL	(1 << 28)
+#define STRAPBUS_6328_BOOT_SEL_NAND	(0 << 28)
+
+/*************************************************************************
+ * _REG relative to RSET_PCIE
+ *************************************************************************/
+
+#define PCIE_CONFIG2_REG		0x408
+#define CONFIG2_BAR1_SIZE_EN		1
+#define CONFIG2_BAR1_SIZE_MASK		0xf
+
+#define PCIE_IDVAL3_REG			0x43c
+#define IDVAL3_CLASS_CODE_MASK		0xffffff
+#define IDVAL3_SUBCLASS_SHIFT		8
+#define IDVAL3_CLASS_SHIFT		16
+
+#define PCIE_DLSTATUS_REG		0x1048
+#define DLSTATUS_PHYLINKUP		(1 << 13)
+
+#define PCIE_BRIDGE_OPT1_REG		0x2820
+#define OPT1_RD_BE_OPT_EN		(1 << 7)
+#define OPT1_RD_REPLY_BE_FIX_EN		(1 << 9)
+#define OPT1_PCIE_BRIDGE_HOLE_DET_EN	(1 << 11)
+#define OPT1_L1_INT_STATUS_MASK_POL	(1 << 12)
+
+#define PCIE_BRIDGE_OPT2_REG		0x2824
+#define OPT2_UBUS_UR_DECODE_DIS		(1 << 2)
+#define OPT2_TX_CREDIT_CHK_EN		(1 << 4)
+#define OPT2_CFG_TYPE1_BD_SEL		(1 << 7)
+#define OPT2_CFG_TYPE1_BUS_NO_SHIFT	16
+#define OPT2_CFG_TYPE1_BUS_NO_MASK	(0xff << OPT2_CFG_TYPE1_BUS_NO_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_BASEMASK_REG	0x2828
+#define PCIE_BRIDGE_BAR1_BASEMASK_REG	0x2830
+#define BASEMASK_REMAP_EN		(1 << 0)
+#define BASEMASK_SWAP_EN		(1 << 1)
+#define BASEMASK_MASK_SHIFT		4
+#define BASEMASK_MASK_MASK		(0xfff << BASEMASK_MASK_SHIFT)
+#define BASEMASK_BASE_SHIFT		20
+#define BASEMASK_BASE_MASK		(0xfff << BASEMASK_BASE_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_REBASE_ADDR_REG 0x282c
+#define PCIE_BRIDGE_BAR1_REBASE_ADDR_REG 0x2834
+#define REBASE_ADDR_BASE_SHIFT		20
+#define REBASE_ADDR_BASE_MASK		(0xfff << REBASE_ADDR_BASE_SHIFT)
+
+#define PCIE_BRIDGE_RC_INT_MASK_REG	0x2854
+#define PCIE_RC_INT_A			(1 << 0)
+#define PCIE_RC_INT_B			(1 << 1)
+#define PCIE_RC_INT_C			(1 << 2)
+#define PCIE_RC_INT_D			(1 << 3)
+
+#define PCIE_DEVICE_OFFSET		0x8000
 
 #endif /* BCM63XX_REGS_H_ */

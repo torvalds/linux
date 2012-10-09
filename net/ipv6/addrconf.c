@@ -63,6 +63,7 @@
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/string.h>
+#include <linux/hash.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -493,8 +494,7 @@ static void addrconf_forward_change(struct net *net, __s32 newf)
 	struct net_device *dev;
 	struct inet6_dev *idev;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
 		idev = __in6_dev_get(dev);
 		if (idev) {
 			int changed = (!idev->cnf.forwarding) ^ (!newf);
@@ -503,7 +503,6 @@ static void addrconf_forward_change(struct net *net, __s32 newf)
 				dev_forward_change(idev);
 		}
 	}
-	rcu_read_unlock();
 }
 
 static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
@@ -579,15 +578,9 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 	list_add_tail(&ifp->if_list, p);
 }
 
-static u32 ipv6_addr_hash(const struct in6_addr *addr)
+static u32 inet6_addr_hash(const struct in6_addr *addr)
 {
-	/*
-	 * We perform the hash function over the last 64 bits of the address
-	 * This will include the IEEE address token on links that support it.
-	 */
-	return jhash_2words((__force u32)addr->s6_addr32[2],
-			    (__force u32)addr->s6_addr32[3], 0)
-		& (IN6_ADDR_HSIZE - 1);
+	return hash_32(ipv6_addr_hash(addr), IN6_ADDR_HSIZE_SHIFT);
 }
 
 /* On success it returns ifp with increased reference count */
@@ -662,7 +655,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	in6_ifa_hold(ifa);
 
 	/* Add to big hash table */
-	hash = ipv6_addr_hash(addr);
+	hash = inet6_addr_hash(addr);
 
 	hlist_add_head_rcu(&ifa->addr_lst, &inet6_addr_lst[hash]);
 	spin_unlock(&addrconf_hash_lock);
@@ -1270,7 +1263,7 @@ int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 {
 	struct inet6_ifaddr *ifp;
 	struct hlist_node *node;
-	unsigned int hash = ipv6_addr_hash(addr);
+	unsigned int hash = inet6_addr_hash(addr);
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(ifp, node, &inet6_addr_lst[hash], addr_lst) {
@@ -1293,7 +1286,7 @@ EXPORT_SYMBOL(ipv6_chk_addr);
 static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 			       struct net_device *dev)
 {
-	unsigned int hash = ipv6_addr_hash(addr);
+	unsigned int hash = inet6_addr_hash(addr);
 	struct inet6_ifaddr *ifp;
 	struct hlist_node *node;
 
@@ -1336,7 +1329,7 @@ struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *add
 				     struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr *ifp, *result = NULL;
-	unsigned int hash = ipv6_addr_hash(addr);
+	unsigned int hash = inet6_addr_hash(addr);
 	struct hlist_node *node;
 
 	rcu_read_lock_bh();
@@ -3223,7 +3216,7 @@ int ipv6_chk_home_addr(struct net *net, const struct in6_addr *addr)
 	int ret = 0;
 	struct inet6_ifaddr *ifp = NULL;
 	struct hlist_node *n;
-	unsigned int hash = ipv6_addr_hash(addr);
+	unsigned int hash = inet6_addr_hash(addr);
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu_bh(ifp, n, &inet6_addr_lst[hash], addr_lst) {

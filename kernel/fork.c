@@ -114,6 +114,10 @@ int nr_processes(void)
 	return total;
 }
 
+void __weak arch_release_task_struct(struct task_struct *tsk)
+{
+}
+
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 static struct kmem_cache *task_struct_cachep;
 
@@ -122,17 +126,17 @@ static inline struct task_struct *alloc_task_struct_node(int node)
 	return kmem_cache_alloc_node(task_struct_cachep, GFP_KERNEL, node);
 }
 
-void __weak arch_release_task_struct(struct task_struct *tsk) { }
-
 static inline void free_task_struct(struct task_struct *tsk)
 {
-	arch_release_task_struct(tsk);
 	kmem_cache_free(task_struct_cachep, tsk);
 }
 #endif
 
+void __weak arch_release_thread_info(struct thread_info *ti)
+{
+}
+
 #ifndef CONFIG_ARCH_THREAD_INFO_ALLOCATOR
-void __weak arch_release_thread_info(struct thread_info *ti) { }
 
 /*
  * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
@@ -150,7 +154,6 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 
 static inline void free_thread_info(struct thread_info *ti)
 {
-	arch_release_thread_info(ti);
 	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
 }
 # else
@@ -164,7 +167,6 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 
 static void free_thread_info(struct thread_info *ti)
 {
-	arch_release_thread_info(ti);
 	kmem_cache_free(thread_info_cache, ti);
 }
 
@@ -205,10 +207,12 @@ static void account_kernel_stack(struct thread_info *ti, int account)
 void free_task(struct task_struct *tsk)
 {
 	account_kernel_stack(tsk->stack, -1);
+	arch_release_thread_info(tsk->stack);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
 	put_seccomp_filter(tsk);
+	arch_release_task_struct(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -298,23 +302,16 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 		return NULL;
 
 	ti = alloc_thread_info_node(tsk, node);
-	if (!ti) {
-		free_task_struct(tsk);
-		return NULL;
-	}
+	if (!ti)
+		goto free_tsk;
 
 	err = arch_dup_task_struct(tsk, orig);
-
-	/*
-	 * We defer looking at err, because we will need this setup
-	 * for the clean up path to work correctly.
-	 */
-	tsk->stack = ti;
-	setup_thread_stack(tsk, orig);
-
 	if (err)
-		goto out;
+		goto free_ti;
 
+	tsk->stack = ti;
+
+	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
 	clear_tsk_need_resched(tsk);
 	stackend = end_of_stack(tsk);
@@ -338,8 +335,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 
 	return tsk;
 
-out:
+free_ti:
 	free_thread_info(ti);
+free_tsk:
 	free_task_struct(tsk);
 	return NULL;
 }
@@ -383,16 +381,14 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		struct file *file;
 
 		if (mpnt->vm_flags & VM_DONTCOPY) {
-			long pages = vma_pages(mpnt);
-			mm->total_vm -= pages;
 			vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
-								-pages);
+							-vma_pages(mpnt));
 			continue;
 		}
 		charge = 0;
 		if (mpnt->vm_flags & VM_ACCOUNT) {
-			unsigned long len;
-			len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+			unsigned long len = vma_pages(mpnt);
+
 			if (security_vm_enough_memory_mm(oldmm, len)) /* sic */
 				goto fail_nomem;
 			charge = len;
@@ -459,8 +455,8 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		if (retval)
 			goto out;
 
-		if (file && uprobe_mmap(tmp))
-			goto out;
+		if (file)
+			uprobe_mmap(tmp);
 	}
 	/* a new mm has just been created */
 	arch_dup_mmap(oldmm, mm);
@@ -1310,7 +1306,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+#ifdef CONFIG_MEMCG
 	p->memcg_batch.do_batch = 0;
 	p->memcg_batch.memcg = NULL;
 #endif
@@ -1420,7 +1416,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 */
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
-	INIT_HLIST_HEAD(&p->task_works);
+	p->task_works = NULL;
 
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible

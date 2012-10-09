@@ -367,7 +367,7 @@ static int mxr_g_selection(struct file *file, void *fh,
 		return -EINVAL;
 
 	switch (s->target) {
-	case V4L2_SEL_TGT_CROP_ACTIVE:
+	case V4L2_SEL_TGT_CROP:
 		s->r.left = geo->src.x_offset;
 		s->r.top = geo->src.y_offset;
 		s->r.width = geo->src.width;
@@ -380,7 +380,7 @@ static int mxr_g_selection(struct file *file, void *fh,
 		s->r.width = geo->src.full_width;
 		s->r.height = geo->src.full_height;
 		break;
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		s->r.left = geo->dst.x_offset;
 		s->r.top = geo->dst.y_offset;
@@ -449,11 +449,11 @@ static int mxr_s_selection(struct file *file, void *fh,
 		res.height = geo->dst.full_height;
 		break;
 
-	case V4L2_SEL_TGT_CROP_ACTIVE:
+	case V4L2_SEL_TGT_CROP:
 		target = &geo->src;
 		stage = MXR_GEOMETRY_CROP;
 		break;
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		target = &geo->dst;
 		stage = MXR_GEOMETRY_COMPOSE;

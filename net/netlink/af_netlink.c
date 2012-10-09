@@ -80,6 +80,7 @@ struct netlink_sock {
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
 	void			(*netlink_rcv)(struct sk_buff *skb);
+	void			(*netlink_bind)(int group);
 	struct module		*module;
 };
 
@@ -124,6 +125,7 @@ struct netlink_table {
 	unsigned int		groups;
 	struct mutex		*cb_mutex;
 	struct module		*module;
+	void			(*bind)(int group);
 	int			registered;
 };
 
@@ -444,6 +446,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	struct module *module = NULL;
 	struct mutex *cb_mutex;
 	struct netlink_sock *nlk;
+	void (*bind)(int group);
 	int err = 0;
 
 	sock->state = SS_UNCONNECTED;
@@ -468,6 +471,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	else
 		err = -EPROTONOSUPPORT;
 	cb_mutex = nl_table[protocol].cb_mutex;
+	bind = nl_table[protocol].bind;
 	netlink_unlock_table();
 
 	if (err < 0)
@@ -483,6 +487,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 
 	nlk = nlk_sk(sock->sk);
 	nlk->module = module;
+	nlk->netlink_bind = bind;
 out:
 	return err;
 
@@ -682,6 +687,15 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | nladdr->nl_groups;
 	netlink_update_listeners(sk);
 	netlink_table_ungrab();
+
+	if (nlk->netlink_bind && nlk->groups[0]) {
+		int i;
+
+		for (i=0; i<nlk->ngroups; i++) {
+			if (test_bit(i, nlk->groups))
+				nlk->netlink_bind(i);
+		}
+	}
 
 	return 0;
 }
@@ -1239,6 +1253,10 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		netlink_update_socket_mc(nlk, val,
 					 optname == NETLINK_ADD_MEMBERSHIP);
 		netlink_table_ungrab();
+
+		if (nlk->netlink_bind)
+			nlk->netlink_bind(val);
+
 		err = 0;
 		break;
 	}
@@ -1344,7 +1362,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (NULL == siocb->scm)
 		siocb->scm = &scm;
 
-	err = scm_send(sock, msg, siocb->scm);
+	err = scm_send(sock, msg, siocb->scm, true);
 	if (err < 0)
 		return err;
 
@@ -1355,7 +1373,8 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		dst_pid = addr->nl_pid;
 		dst_group = ffs(addr->nl_groups);
 		err =  -EPERM;
-		if (dst_group && !netlink_capable(sock, NL_NONROOT_SEND))
+		if ((dst_group || dst_pid) &&
+		    !netlink_capable(sock, NL_NONROOT_SEND))
 			goto out;
 	} else {
 		dst_pid = nlk->dst_pid;
@@ -1503,14 +1522,16 @@ static void netlink_data_ready(struct sock *sk, int len)
  */
 
 struct sock *
-netlink_kernel_create(struct net *net, int unit, unsigned int groups,
-		      void (*input)(struct sk_buff *skb),
-		      struct mutex *cb_mutex, struct module *module)
+netlink_kernel_create(struct net *net, int unit,
+		      struct module *module,
+		      struct netlink_kernel_cfg *cfg)
 {
 	struct socket *sock;
 	struct sock *sk;
 	struct netlink_sock *nlk;
 	struct listeners *listeners = NULL;
+	struct mutex *cb_mutex = cfg ? cfg->cb_mutex : NULL;
+	unsigned int groups;
 
 	BUG_ON(!nl_table);
 
@@ -1532,16 +1553,18 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 	sk = sock->sk;
 	sk_change_net(sk, net);
 
-	if (groups < 32)
+	if (!cfg || cfg->groups < 32)
 		groups = 32;
+	else
+		groups = cfg->groups;
 
 	listeners = kzalloc(sizeof(*listeners) + NLGRPSZ(groups), GFP_KERNEL);
 	if (!listeners)
 		goto out_sock_release;
 
 	sk->sk_data_ready = netlink_data_ready;
-	if (input)
-		nlk_sk(sk)->netlink_rcv = input;
+	if (cfg && cfg->input)
+		nlk_sk(sk)->netlink_rcv = cfg->input;
 
 	if (netlink_insert(sk, net, 0))
 		goto out_sock_release;
@@ -1555,6 +1578,7 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 		rcu_assign_pointer(nl_table[unit].listeners, listeners);
 		nl_table[unit].cb_mutex = cb_mutex;
 		nl_table[unit].module = module;
+		nl_table[unit].bind = cfg ? cfg->bind : NULL;
 		nl_table[unit].registered = 1;
 	} else {
 		kfree(listeners);
@@ -2124,6 +2148,7 @@ static void __init netlink_add_usersock_entry(void)
 	rcu_assign_pointer(nl_table[NETLINK_USERSOCK].listeners, listeners);
 	nl_table[NETLINK_USERSOCK].module = THIS_MODULE;
 	nl_table[NETLINK_USERSOCK].registered = 1;
+	nl_table[NETLINK_USERSOCK].nl_nonroot = NL_NONROOT_SEND;
 
 	netlink_table_ungrab();
 }

@@ -125,6 +125,7 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 {
 	struct ib_ah *new_ah;
 	struct ib_ah_attr ah_attr;
+	unsigned long flags;
 
 	if (!dev->send_agent[port_num - 1][0])
 		return;
@@ -139,67 +140,73 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 	if (IS_ERR(new_ah))
 		return;
 
-	spin_lock(&dev->sm_lock);
+	spin_lock_irqsave(&dev->sm_lock, flags);
 	if (dev->sm_ah[port_num - 1])
 		ib_destroy_ah(dev->sm_ah[port_num - 1]);
 	dev->sm_ah[port_num - 1] = new_ah;
-	spin_unlock(&dev->sm_lock);
+	spin_unlock_irqrestore(&dev->sm_lock, flags);
 }
 
 /*
- * Snoop SM MADs for port info and P_Key table sets, so we can
- * synthesize LID change and P_Key change events.
+ * Snoop SM MADs for port info, GUID info, and  P_Key table sets, so we can
+ * synthesize LID change, Client-Rereg, GID change, and P_Key change events.
  */
 static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
-				u16 prev_lid)
+		      u16 prev_lid)
 {
-	struct ib_event event;
+	struct ib_port_info *pinfo;
+	u16 lid;
 
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
 	     mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
-	    mad->mad_hdr.method == IB_MGMT_METHOD_SET) {
-		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO) {
-			struct ib_port_info *pinfo =
-				(struct ib_port_info *) ((struct ib_smp *) mad)->data;
-			u16 lid = be16_to_cpu(pinfo->lid);
+	    mad->mad_hdr.method == IB_MGMT_METHOD_SET)
+		switch (mad->mad_hdr.attr_id) {
+		case IB_SMP_ATTR_PORT_INFO:
+			pinfo = (struct ib_port_info *) ((struct ib_smp *) mad)->data;
+			lid = be16_to_cpu(pinfo->lid);
 
-			update_sm_ah(to_mdev(ibdev), port_num,
+			update_sm_ah(dev, port_num,
 				     be16_to_cpu(pinfo->sm_lid),
 				     pinfo->neighbormtu_mastersmsl & 0xf);
 
-			event.device	       = ibdev;
-			event.element.port_num = port_num;
+			if (pinfo->clientrereg_resv_subnetto & 0x80)
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_CLIENT_REREGISTER);
 
-			if (pinfo->clientrereg_resv_subnetto & 0x80) {
-				event.event    = IB_EVENT_CLIENT_REREGISTER;
-				ib_dispatch_event(&event);
-			}
+			if (prev_lid != lid)
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_LID_CHANGE);
+			break;
 
-			if (prev_lid != lid) {
-				event.event    = IB_EVENT_LID_CHANGE;
-				ib_dispatch_event(&event);
-			}
+		case IB_SMP_ATTR_PKEY_TABLE:
+			mlx4_ib_dispatch_event(dev, port_num,
+					       IB_EVENT_PKEY_CHANGE);
+			break;
+
+		case IB_SMP_ATTR_GUID_INFO:
+			/* paravirtualized master's guid is guid 0 -- does not change */
+			if (!mlx4_is_master(dev->dev))
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_GID_CHANGE);
+			break;
+		default:
+			break;
 		}
-
-		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PKEY_TABLE) {
-			event.device	       = ibdev;
-			event.event	       = IB_EVENT_PKEY_CHANGE;
-			event.element.port_num = port_num;
-			ib_dispatch_event(&event);
-		}
-	}
 }
 
 static void node_desc_override(struct ib_device *dev,
 			       struct ib_mad *mad)
 {
+	unsigned long flags;
+
 	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
 	     mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
 	    mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP &&
 	    mad->mad_hdr.attr_id == IB_SMP_ATTR_NODE_DESC) {
-		spin_lock(&to_mdev(dev)->sm_lock);
+		spin_lock_irqsave(&to_mdev(dev)->sm_lock, flags);
 		memcpy(((struct ib_smp *) mad)->data, dev->node_desc, 64);
-		spin_unlock(&to_mdev(dev)->sm_lock);
+		spin_unlock_irqrestore(&to_mdev(dev)->sm_lock, flags);
 	}
 }
 
@@ -209,6 +216,7 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_agent *agent = dev->send_agent[port_num - 1][qpn];
 	int ret;
+	unsigned long flags;
 
 	if (agent) {
 		send_buf = ib_create_send_mad(agent, qpn, 0, 0, IB_MGMT_MAD_HDR,
@@ -221,13 +229,13 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 		 * wrong following the IB spec strictly, but we know
 		 * it's OK for our devices).
 		 */
-		spin_lock(&dev->sm_lock);
+		spin_lock_irqsave(&dev->sm_lock, flags);
 		memcpy(send_buf->mad, mad, sizeof *mad);
 		if ((send_buf->ah = dev->sm_ah[port_num - 1]))
 			ret = ib_post_send_mad(send_buf, NULL);
 		else
 			ret = -EINVAL;
-		spin_unlock(&dev->sm_lock);
+		spin_unlock_irqrestore(&dev->sm_lock, flags);
 
 		if (ret)
 			ib_free_send_mad(send_buf);
@@ -241,6 +249,25 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	u16 slid, prev_lid = 0;
 	int err;
 	struct ib_port_attr pattr;
+
+	if (in_wc && in_wc->qp->qp_num) {
+		pr_debug("received MAD: slid:%d sqpn:%d "
+			"dlid_bits:%d dqpn:%d wc_flags:0x%x, cls %x, mtd %x, atr %x\n",
+			in_wc->slid, in_wc->src_qp,
+			in_wc->dlid_path_bits,
+			in_wc->qp->qp_num,
+			in_wc->wc_flags,
+			in_mad->mad_hdr.mgmt_class, in_mad->mad_hdr.method,
+			be16_to_cpu(in_mad->mad_hdr.attr_id));
+		if (in_wc->wc_flags & IB_WC_GRH) {
+			pr_debug("sgid_hi:0x%016llx sgid_lo:0x%016llx\n",
+				 be64_to_cpu(in_grh->sgid.global.subnet_prefix),
+				 be64_to_cpu(in_grh->sgid.global.interface_id));
+			pr_debug("dgid_hi:0x%016llx dgid_lo:0x%016llx\n",
+				 be64_to_cpu(in_grh->dgid.global.subnet_prefix),
+				 be64_to_cpu(in_grh->dgid.global.interface_id));
+		}
+	}
 
 	slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 
@@ -286,7 +313,8 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		return IB_MAD_RESULT_FAILURE;
 
 	if (!out_mad->mad_hdr.status) {
-		smp_snoop(ibdev, port_num, in_mad, prev_lid);
+		if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV))
+			smp_snoop(ibdev, port_num, in_mad, prev_lid);
 		node_desc_override(ibdev, out_mad);
 	}
 
@@ -426,4 +454,65 @@ void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev)
 		if (dev->sm_ah[p])
 			ib_destroy_ah(dev->sm_ah[p]);
 	}
+}
+
+void handle_port_mgmt_change_event(struct work_struct *work)
+{
+	struct ib_event_work *ew = container_of(work, struct ib_event_work, work);
+	struct mlx4_ib_dev *dev = ew->ib_dev;
+	struct mlx4_eqe *eqe = &(ew->ib_eqe);
+	u8 port = eqe->event.port_mgmt_change.port;
+	u32 changed_attr;
+
+	switch (eqe->subtype) {
+	case MLX4_DEV_PMC_SUBTYPE_PORT_INFO:
+		changed_attr = be32_to_cpu(eqe->event.port_mgmt_change.params.port_info.changed_attr);
+
+		/* Update the SM ah - This should be done before handling
+		   the other changed attributes so that MADs can be sent to the SM */
+		if (changed_attr & MSTR_SM_CHANGE_MASK) {
+			u16 lid = be16_to_cpu(eqe->event.port_mgmt_change.params.port_info.mstr_sm_lid);
+			u8 sl = eqe->event.port_mgmt_change.params.port_info.mstr_sm_sl & 0xf;
+			update_sm_ah(dev, port, lid, sl);
+		}
+
+		/* Check if it is a lid change event */
+		if (changed_attr & MLX4_EQ_PORT_INFO_LID_CHANGE_MASK)
+			mlx4_ib_dispatch_event(dev, port, IB_EVENT_LID_CHANGE);
+
+		/* Generate GUID changed event */
+		if (changed_attr & MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK)
+			mlx4_ib_dispatch_event(dev, port, IB_EVENT_GID_CHANGE);
+
+		if (changed_attr & MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK)
+			mlx4_ib_dispatch_event(dev, port,
+					       IB_EVENT_CLIENT_REREGISTER);
+		break;
+
+	case MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE:
+		mlx4_ib_dispatch_event(dev, port, IB_EVENT_PKEY_CHANGE);
+		break;
+	case MLX4_DEV_PMC_SUBTYPE_GUID_INFO:
+		/* paravirtualized master's guid is guid 0 -- does not change */
+		if (!mlx4_is_master(dev->dev))
+			mlx4_ib_dispatch_event(dev, port, IB_EVENT_GID_CHANGE);
+		break;
+	default:
+		pr_warn("Unsupported subtype 0x%x for "
+			"Port Management Change event\n", eqe->subtype);
+	}
+
+	kfree(ew);
+}
+
+void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
+			    enum ib_event_type type)
+{
+	struct ib_event event;
+
+	event.device		= &dev->ib_dev;
+	event.element.port_num	= port_num;
+	event.event		= type;
+
+	ib_dispatch_event(&event);
 }

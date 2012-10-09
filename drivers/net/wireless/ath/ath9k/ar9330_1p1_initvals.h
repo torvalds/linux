@@ -337,12 +337,7 @@ static const u32 ar9331_modes_low_ob_db_tx_gain_1p1[][5] = {
 	{0x00016284, 0x14d3f000, 0x14d3f000, 0x14d3f000, 0x14d3f000},
 };
 
-static const u32 ar9331_1p1_baseband_core_txfir_coeff_japan_2484[][2] = {
-	/* Addr      allmodes  */
-	{0x0000a398, 0x00000000},
-	{0x0000a39c, 0x6f7f0301},
-	{0x0000a3a0, 0xca9228ee},
-};
+#define ar9331_1p1_baseband_core_txfir_coeff_japan_2484 ar9462_2p0_baseband_core_txfir_coeff_japan_2484
 
 static const u32 ar9331_1p1_xtal_25M[][2] = {
 	/* Addr      allmodes  */
@@ -783,17 +778,7 @@ static const u32 ar9331_modes_high_power_tx_gain_1p1[][5] = {
 	{0x00016284, 0x14d3f000, 0x14d3f000, 0x14d3f000, 0x14d3f000},
 };
 
-static const u32 ar9331_1p1_mac_postamble[][5] = {
-	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
-	{0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160},
-	{0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c},
-	{0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38},
-	{0x00008014, 0x03e803e8, 0x07d007d0, 0x10801600, 0x08400b00},
-	{0x0000801c, 0x128d8027, 0x128d804f, 0x12e00057, 0x12e0002b},
-	{0x00008120, 0x08f04800, 0x08f04800, 0x08f04810, 0x08f04810},
-	{0x000081d0, 0x00003210, 0x00003210, 0x0000320a, 0x0000320a},
-	{0x00008318, 0x00003e80, 0x00007d00, 0x00006880, 0x00003440},
-};
+#define ar9331_1p1_mac_postamble ar9300_2p2_mac_postamble
 
 static const u32 ar9331_1p1_soc_preamble[][2] = {
 	/* Addr      allmodes  */
@@ -1110,40 +1095,6 @@ static const u32 ar9331_common_tx_gain_offset1_1[][1] = {
 	{0x00000003},
 	{0x00000000},
 	{0x00000000},
-};
-
-static const u32 ar9331_1p1_chansel_xtal_25M[] = {
-	0x0101479e,
-	0x0101d027,
-	0x010258af,
-	0x0102e138,
-	0x010369c0,
-	0x0103f249,
-	0x01047ad1,
-	0x0105035a,
-	0x01058be2,
-	0x0106146b,
-	0x01069cf3,
-	0x0107257c,
-	0x0107ae04,
-	0x0108f5b2,
-};
-
-static const u32 ar9331_1p1_chansel_xtal_40M[] = {
-	0x00a0ccbe,
-	0x00a12213,
-	0x00a17769,
-	0x00a1ccbe,
-	0x00a22213,
-	0x00a27769,
-	0x00a2ccbe,
-	0x00a32213,
-	0x00a37769,
-	0x00a3ccbe,
-	0x00a42213,
-	0x00a47769,
-	0x00a4ccbe,
-	0x00a5998b,
 };
 
 #endif /* INITVALS_9330_1P1_H */

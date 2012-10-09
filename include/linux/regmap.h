@@ -14,12 +14,14 @@
  */
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 
 struct module;
 struct device;
 struct i2c_client;
 struct spi_device;
 struct regmap;
+struct regmap_range_cfg;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -42,6 +44,14 @@ struct reg_default {
 };
 
 #ifdef CONFIG_REGMAP
+
+enum regmap_endian {
+	/* Unspecified -> 0 -> Backwards compatible default */
+	REGMAP_ENDIAN_DEFAULT = 0,
+	REGMAP_ENDIAN_BIG,
+	REGMAP_ENDIAN_LITTLE,
+	REGMAP_ENDIAN_NATIVE,
+};
 
 /**
  * Configuration for the register map of a device.
@@ -84,6 +94,15 @@ struct reg_default {
  * @reg_defaults_raw: Power on reset values for registers (for use with
  *                    register cache support).
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
+ * @reg_format_endian: Endianness for formatted register addresses. If this is
+ *                     DEFAULT, the @reg_format_endian_default value from the
+ *                     regmap bus is used.
+ * @val_format_endian: Endianness for formatted register values. If this is
+ *                     DEFAULT, the @reg_format_endian_default value from the
+ *                     regmap bus is used.
+ *
+ * @ranges: Array of configuration entries for virtual address ranges.
+ * @num_ranges: Number of range configuration entries.
  */
 struct regmap_config {
 	const char *name;
@@ -109,6 +128,43 @@ struct regmap_config {
 	u8 write_flag_mask;
 
 	bool use_single_rw;
+
+	enum regmap_endian reg_format_endian;
+	enum regmap_endian val_format_endian;
+
+	const struct regmap_range_cfg *ranges;
+	unsigned int n_ranges;
+};
+
+/**
+ * Configuration for indirectly accessed or paged registers.
+ * Registers, mapped to this virtual range, are accessed in two steps:
+ *     1. page selector register update;
+ *     2. access through data window registers.
+ *
+ * @range_min: Address of the lowest register address in virtual range.
+ * @range_max: Address of the highest register in virtual range.
+ *
+ * @page_sel_reg: Register with selector field.
+ * @page_sel_mask: Bit shift for selector value.
+ * @page_sel_shift: Bit mask for selector value.
+ *
+ * @window_start: Address of first (lowest) register in data window.
+ * @window_len: Number of registers in data window.
+ */
+struct regmap_range_cfg {
+	/* Registers of virtual address range */
+	unsigned int range_min;
+	unsigned int range_max;
+
+	/* Page selector for indirect addressing */
+	unsigned int selector_reg;
+	unsigned int selector_mask;
+	int selector_shift;
+
+	/* Data window (per each page) */
+	unsigned int window_start;
+	unsigned int window_len;
 };
 
 typedef int (*regmap_hw_write)(void *context, const void *data,
@@ -133,6 +189,12 @@ typedef void (*regmap_hw_free_context)(void *context);
  *         data.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
+ * @reg_format_endian_default: Default endianness for formatted register
+ *     addresses. Used when the regmap_config specifies DEFAULT. If this is
+ *     DEFAULT, BIG is assumed.
+ * @val_format_endian_default: Default endianness for formatted register
+ *     values. Used when the regmap_config specifies DEFAULT. If this is
+ *     DEFAULT, BIG is assumed.
  */
 struct regmap_bus {
 	bool fast_io;
@@ -141,6 +203,8 @@ struct regmap_bus {
 	regmap_hw_read read;
 	regmap_hw_free_context free_context;
 	u8 read_flag_mask;
+	enum regmap_endian reg_format_endian_default;
+	enum regmap_endian val_format_endian_default;
 };
 
 struct regmap *regmap_init(struct device *dev,
@@ -219,6 +283,7 @@ struct regmap_irq {
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
  * @ack_base:    Base ack address.  If zero then the chip is clear on read.
+ * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -232,6 +297,7 @@ struct regmap_irq_chip {
 	unsigned int status_base;
 	unsigned int mask_base;
 	unsigned int ack_base;
+	unsigned int wake_base;
 	unsigned int irq_reg_stride;
 
 	int num_regs;
@@ -243,7 +309,7 @@ struct regmap_irq_chip {
 struct regmap_irq_chip_data;
 
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
-			int irq_base, struct regmap_irq_chip *chip,
+			int irq_base, const struct regmap_irq_chip *chip,
 			struct regmap_irq_chip_data **data);
 void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *data);
 int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data);
@@ -361,7 +427,6 @@ static inline int regmap_register_patch(struct regmap *map,
 static inline struct regmap *dev_get_regmap(struct device *dev,
 					    const char *name)
 {
-	WARN_ONCE(1, "regmap API is disabled");
 	return NULL;
 }
 

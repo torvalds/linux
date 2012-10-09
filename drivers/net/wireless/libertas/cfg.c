@@ -435,24 +435,40 @@ static int lbs_add_wpa_tlv(u8 *tlv, const u8 *ie, u8 ie_len)
  * Set Channel
  */
 
-static int lbs_cfg_set_channel(struct wiphy *wiphy,
-	struct net_device *netdev,
-	struct ieee80211_channel *channel,
-	enum nl80211_channel_type channel_type)
+static int lbs_cfg_set_monitor_channel(struct wiphy *wiphy,
+				       struct ieee80211_channel *channel,
+				       enum nl80211_channel_type channel_type)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = -ENOTSUPP;
 
-	lbs_deb_enter_args(LBS_DEB_CFG80211, "iface %s freq %d, type %d",
-			   netdev_name(netdev), channel->center_freq, channel_type);
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "freq %d, type %d",
+			   channel->center_freq, channel_type);
 
 	if (channel_type != NL80211_CHAN_NO_HT)
 		goto out;
 
-	if (netdev == priv->mesh_dev)
-		ret = lbs_mesh_set_channel(priv, channel->hw_value);
-	else
-		ret = lbs_set_channel(priv, channel->hw_value);
+	ret = lbs_set_channel(priv, channel->hw_value);
+
+ out:
+	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
+	return ret;
+}
+
+static int lbs_cfg_set_mesh_channel(struct wiphy *wiphy,
+				    struct net_device *netdev,
+				    struct ieee80211_channel *channel)
+{
+	struct lbs_private *priv = wiphy_priv(wiphy);
+	int ret = -ENOTSUPP;
+
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "iface %s freq %d",
+			   netdev_name(netdev), channel->center_freq);
+
+	if (netdev != priv->mesh_dev)
+		goto out;
+
+	ret = lbs_mesh_set_channel(priv, channel->hw_value);
 
  out:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -789,7 +805,6 @@ void lbs_scan_done(struct lbs_private *priv)
 }
 
 static int lbs_cfg_scan(struct wiphy *wiphy,
-	struct net_device *dev,
 	struct cfg80211_scan_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -1239,6 +1254,7 @@ static int lbs_associate(struct lbs_private *priv,
 			netif_tx_wake_all_queues(priv->dev);
 	}
 
+	kfree(cmd);
 done:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
 	return ret;
@@ -2029,7 +2045,8 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
  */
 
 static struct cfg80211_ops lbs_cfg80211_ops = {
-	.set_channel = lbs_cfg_set_channel,
+	.set_monitor_channel = lbs_cfg_set_monitor_channel,
+	.libertas_set_mesh_channel = lbs_cfg_set_mesh_channel,
 	.scan = lbs_cfg_scan,
 	.connect = lbs_cfg_connect,
 	.disconnect = lbs_cfg_disconnect,
@@ -2164,13 +2181,15 @@ int lbs_reg_notifier(struct wiphy *wiphy,
 		struct regulatory_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret;
+	int ret = 0;
 
 	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
 			"callback for domain %c%c\n", request->alpha2[0],
 			request->alpha2[1]);
 
-	ret = lbs_set_11d_domain_info(priv, request, wiphy->bands);
+	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	if (lbs_iface_active(priv))
+		ret = lbs_set_11d_domain_info(priv);
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
 	return ret;

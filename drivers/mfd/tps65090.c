@@ -71,10 +71,10 @@ static const struct tps65090_irq_data tps65090_irqs[] = {
 
 static struct mfd_cell tps65090s[] = {
 	{
-		.name = "tps65910-pmic",
+		.name = "tps65090-pmic",
 	},
 	{
-		.name = "tps65910-regulator",
+		.name = "tps65090-regulator",
 	},
 };
 

@@ -81,10 +81,10 @@ static void mtx1_power_off(void)
 
 void __init board_setup(void)
 {
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_OHCI_HCD)
 	/* Enable USB power switch */
 	alchemy_gpio_direction_output(204, 0);
-#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+#endif /* IS_ENABLED(CONFIG_USB_OHCI_HCD) */
 
 	/* Initialize sys_pinfunc */
 	au_writel(SYS_PF_NI2, SYS_PINFUNC);
@@ -228,6 +228,8 @@ static int mtx1_pci_idsel(unsigned int devsel, int assert)
 	 * adapter on the mtx-1 "singleboard" variant. It triggers a custom
 	 * logic chip connected to EXT_IO3 (GPIO1) to suppress IDSEL signals.
 	 */
+	udelay(1);
+
 	if (assert && devsel != 0)
 		/* Suppress signal to Cardbus */
 		alchemy_gpio_set_value(1, 0);	/* set EXT_IO3 OFF */

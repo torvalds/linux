@@ -75,7 +75,6 @@ static struct drm_driver driver = {
 	.irq_postinstall = mga_driver_irq_postinstall,
 	.irq_uninstall = mga_driver_irq_uninstall,
 	.irq_handler = mga_driver_irq_handler,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = mga_ioctls,
 	.dma_ioctl = mga_dma_buffers,
 	.fops = &mga_driver_fops,

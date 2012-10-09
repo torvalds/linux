@@ -4,6 +4,7 @@
 
 config NET_VENDOR_WIZNET
 	bool "WIZnet devices"
+	depends on HAS_IOMEM
 	default y
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

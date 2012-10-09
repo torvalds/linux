@@ -48,7 +48,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __init loongson2e_nec_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
@@ -60,7 +60,7 @@ static void __init loongson2e_nec_fixup(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, 0xe4, 1 << 5);
 }
 
-static void __init loongson2e_686b_func0_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_686b_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char c;
 
@@ -135,7 +135,7 @@ static void __init loongson2e_686b_func0_fixup(struct pci_dev *pdev)
 	printk(KERN_INFO"via686b fix: ISA bridge done\n");
 }
 
-static void __init loongson2e_686b_func1_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 {
 	printk(KERN_INFO"via686b fix: IDE\n");
 
@@ -168,19 +168,19 @@ static void __init loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 	printk(KERN_INFO"via686b fix: IDE done\n");
 }
 
-static void __init loongson2e_686b_func2_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_686b_func2_fixup(struct pci_dev *pdev)
 {
 	/* irq routing */
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, 10);
 }
 
-static void __init loongson2e_686b_func3_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_686b_func3_fixup(struct pci_dev *pdev)
 {
 	/* irq routing */
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, 11);
 }
 
-static void __init loongson2e_686b_func5_fixup(struct pci_dev *pdev)
+static void __devinit loongson2e_686b_func5_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 	unsigned char c;

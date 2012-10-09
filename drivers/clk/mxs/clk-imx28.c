@@ -112,11 +112,11 @@ static void __init clk_misc_init(void)
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
-	 * so set frac0 to get a 288 MHz ref_io0.
+	 * so set frac0 to get a 288 MHz ref_io0 and ref_io1.
 	 */
 	val = readl_relaxed(FRAC0);
-	val &= ~(0x3f << BP_FRAC0_IO0FRAC);
-	val |= 30 << BP_FRAC0_IO0FRAC;
+	val &= ~((0x3f << BP_FRAC0_IO0FRAC) | (0x3f << BP_FRAC0_IO1FRAC));
+	val |= (30 << BP_FRAC0_IO0FRAC) | (30 << BP_FRAC0_IO1FRAC);
 	writel_relaxed(val, FRAC0);
 }
 
@@ -174,7 +174,7 @@ static struct clk_lookup lcdif_lookups[] = {
 
 static struct clk_lookup gpmi_lookups[] = {
 	{ .dev_id = "imx28-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi", },
+	{ .dev_id = "8000c000.gpmi-nand", },
 };
 
 static struct clk_lookup fec_lookups[] = {
@@ -314,6 +314,7 @@ int __init mx28_clocks_init(void)
 
 	clk_register_clkdev(clks[clk32k], NULL, "timrot");
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
+	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
 	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
 	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
 	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));
@@ -328,6 +329,10 @@ int __init mx28_clocks_init(void)
 	clk_register_clkdevs(clks[fec], fec_lookups, ARRAY_SIZE(fec_lookups));
 	clk_register_clkdevs(clks[can0], can0_lookups, ARRAY_SIZE(can0_lookups));
 	clk_register_clkdevs(clks[can1], can1_lookups, ARRAY_SIZE(can1_lookups));
+	clk_register_clkdev(clks[usb0_pwr], NULL, "8007c000.usbphy");
+	clk_register_clkdev(clks[usb1_pwr], NULL, "8007e000.usbphy");
+	clk_register_clkdev(clks[usb0], NULL, "80080000.usb");
+	clk_register_clkdev(clks[usb1], NULL, "80090000.usb");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);

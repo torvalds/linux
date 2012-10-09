@@ -634,8 +634,8 @@ static void __init mini2440_init(void)
 	s3c_gpio_cfgpin(S3C2410_GPC(0), S3C2410_GPC0_LEND);
 
 	/* Turn the backlight early on */
-	WARN_ON(gpio_request(S3C2410_GPG(4), "backlight"));
-	gpio_direction_output(S3C2410_GPG(4), 1);
+	WARN_ON(gpio_request_one(S3C2410_GPG(4), GPIOF_OUT_INIT_HIGH, NULL));
+	gpio_free(S3C2410_GPG(4));
 
 	/* remove pullup on optional PWM backlight -- unused on 3.5 and 7"s */
 	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_UP);

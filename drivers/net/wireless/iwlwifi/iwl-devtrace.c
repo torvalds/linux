@@ -42,4 +42,9 @@ EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_event);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_error);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_cont_event);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_wrap_event);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_info);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_warn);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_crit);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_err);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dbg);
 #endif

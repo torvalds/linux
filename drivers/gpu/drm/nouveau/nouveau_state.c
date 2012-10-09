@@ -731,15 +731,16 @@ nouveau_card_init(struct drm_device *dev)
 			case 0xa3:
 			case 0xa5:
 			case 0xa8:
-			case 0xaf:
 				nva3_copy_create(dev);
 				break;
 			}
 			break;
 		case NV_C0:
-			nvc0_copy_create(dev, 1);
+			if (!(nv_rd32(dev, 0x022500) & 0x00000200))
+				nvc0_copy_create(dev, 1);
 		case NV_D0:
-			nvc0_copy_create(dev, 0);
+			if (!(nv_rd32(dev, 0x022500) & 0x00000100))
+				nvc0_copy_create(dev, 0);
 			break;
 		default:
 			break;
@@ -1231,80 +1232,6 @@ int nouveau_unload(struct drm_device *dev)
 
 	kfree(dev_priv);
 	dev->dev_private = NULL;
-	return 0;
-}
-
-int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
-						struct drm_file *file_priv)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct drm_nouveau_getparam *getparam = data;
-
-	switch (getparam->param) {
-	case NOUVEAU_GETPARAM_CHIPSET_ID:
-		getparam->value = dev_priv->chipset;
-		break;
-	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		getparam->value = dev->pci_vendor;
-		break;
-	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		getparam->value = dev->pci_device;
-		break;
-	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (drm_pci_device_is_agp(dev))
-			getparam->value = NV_AGP;
-		else if (pci_is_pcie(dev->pdev))
-			getparam->value = NV_PCIE;
-		else
-			getparam->value = NV_PCI;
-		break;
-	case NOUVEAU_GETPARAM_FB_SIZE:
-		getparam->value = dev_priv->fb_available_size;
-		break;
-	case NOUVEAU_GETPARAM_AGP_SIZE:
-		getparam->value = dev_priv->gart_info.aper_size;
-		break;
-	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
-		getparam->value = 0; /* deprecated */
-		break;
-	case NOUVEAU_GETPARAM_PTIMER_TIME:
-		getparam->value = dev_priv->engine.timer.read(dev);
-		break;
-	case NOUVEAU_GETPARAM_HAS_BO_USAGE:
-		getparam->value = 1;
-		break;
-	case NOUVEAU_GETPARAM_HAS_PAGEFLIP:
-		getparam->value = 1;
-		break;
-	case NOUVEAU_GETPARAM_GRAPH_UNITS:
-		/* NV40 and NV50 versions are quite different, but register
-		 * address is the same. User is supposed to know the card
-		 * family anyway... */
-		if (dev_priv->chipset >= 0x40) {
-			getparam->value = nv_rd32(dev, NV40_PMC_GRAPH_UNITS);
-			break;
-		}
-		/* FALLTHRU */
-	default:
-		NV_DEBUG(dev, "unknown parameter %lld\n", getparam->param);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int
-nouveau_ioctl_setparam(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
-{
-	struct drm_nouveau_setparam *setparam = data;
-
-	switch (setparam->param) {
-	default:
-		NV_DEBUG(dev, "unknown parameter %lld\n", setparam->param);
-		return -EINVAL;
-	}
-
 	return 0;
 }
 

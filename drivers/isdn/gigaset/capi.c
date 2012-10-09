@@ -288,6 +288,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
  * format CAPI IE as string
  */
 
+#ifdef CONFIG_GIGASET_DEBUG
 static const char *format_ie(const char *ie)
 {
 	static char result[3 * MAX_FMT_IE_LEN];
@@ -313,6 +314,7 @@ static const char *format_ie(const char *ie)
 	*--pout = 0;
 	return result;
 }
+#endif
 
 /*
  * emit DATA_B3_CONF message

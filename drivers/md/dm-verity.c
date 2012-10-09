@@ -515,7 +515,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio,
  * Status: V (valid) or C (corruption found)
  */
 static int verity_status(struct dm_target *ti, status_type_t type,
-			 char *result, unsigned maxlen)
+			 unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_verity *v = ti->private;
 	unsigned sz = 0;

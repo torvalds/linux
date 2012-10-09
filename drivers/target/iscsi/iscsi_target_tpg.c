@@ -303,6 +303,7 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 {
 	struct iscsi_param *param;
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
+	int ret;
 
 	spin_lock(&tpg->tpg_state_lock);
 	if (tpg->tpg_state == TPG_STATE_ACTIVE) {
@@ -319,19 +320,19 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	param = iscsi_find_param_from_key(AUTHMETHOD, tpg->param_list);
 	if (!param) {
 		spin_unlock(&tpg->tpg_state_lock);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	if (ISCSI_TPG_ATTRIB(tpg)->authentication) {
-		if (!strcmp(param->value, NONE))
-			if (iscsi_update_param_value(param, CHAP) < 0) {
-				spin_unlock(&tpg->tpg_state_lock);
-				return -ENOMEM;
-			}
-		if (iscsit_ta_authentication(tpg, 1) < 0) {
-			spin_unlock(&tpg->tpg_state_lock);
-			return -ENOMEM;
+		if (!strcmp(param->value, NONE)) {
+			ret = iscsi_update_param_value(param, CHAP);
+			if (ret)
+				goto err;
 		}
+
+		ret = iscsit_ta_authentication(tpg, 1);
+		if (ret < 0)
+			goto err;
 	}
 
 	tpg->tpg_state = TPG_STATE_ACTIVE;
@@ -344,6 +345,10 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	spin_unlock(&tiqn->tiqn_tpg_lock);
 
 	return 0;
+
+err:
+	spin_unlock(&tpg->tpg_state_lock);
+	return ret;
 }
 
 int iscsit_tpg_disable_portal_group(struct iscsi_portal_group *tpg, int force)
@@ -558,7 +563,7 @@ int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 	if ((authentication != 1) && (authentication != 0)) {
 		pr_err("Illegal value for authentication parameter:"
 			" %u, ignoring request.\n", authentication);
-		return -1;
+		return -EINVAL;
 	}
 
 	memset(buf1, 0, sizeof(buf1));
@@ -593,7 +598,7 @@ int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 	} else {
 		snprintf(buf1, sizeof(buf1), "%s", param->value);
 		none = strstr(buf1, NONE);
-		if ((none))
+		if (none)
 			goto out;
 		strncat(buf1, ",", strlen(","));
 		strncat(buf1, NONE, strlen(NONE));

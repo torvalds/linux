@@ -1,5 +1,4 @@
 
-//   vim:tw=110:ts=4:
 #ifndef HCFCFG_H
 #define HCFCFG_H 1
 

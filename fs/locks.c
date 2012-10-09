@@ -200,11 +200,7 @@ void locks_release_private(struct file_lock *fl)
 			fl->fl_ops->fl_release_private(fl);
 		fl->fl_ops = NULL;
 	}
-	if (fl->fl_lmops) {
-		if (fl->fl_lmops->lm_release_private)
-			fl->fl_lmops->lm_release_private(fl);
-		fl->fl_lmops = NULL;
-	}
+	fl->fl_lmops = NULL;
 
 }
 EXPORT_SYMBOL_GPL(locks_release_private);
@@ -308,7 +304,7 @@ static int flock_make_lock(struct file *filp, struct file_lock **lock,
 	return 0;
 }
 
-static int assign_type(struct file_lock *fl, int type)
+static int assign_type(struct file_lock *fl, long type)
 {
 	switch (type) {
 	case F_RDLCK:
@@ -427,25 +423,15 @@ static void lease_break_callback(struct file_lock *fl)
 	kill_fasync(&fl->fl_fasync, SIGIO, POLL_MSG);
 }
 
-static void lease_release_private_callback(struct file_lock *fl)
-{
-	if (!fl->fl_file)
-		return;
-
-	f_delown(fl->fl_file);
-	fl->fl_file->f_owner.signum = 0;
-}
-
 static const struct lock_manager_operations lease_manager_ops = {
 	.lm_break = lease_break_callback,
-	.lm_release_private = lease_release_private_callback,
 	.lm_change = lease_modify,
 };
 
 /*
  * Initialize a lease, use the default lock manager operations
  */
-static int lease_init(struct file *filp, int type, struct file_lock *fl)
+static int lease_init(struct file *filp, long type, struct file_lock *fl)
  {
 	if (assign_type(fl, type) != 0)
 		return -EINVAL;
@@ -463,7 +449,7 @@ static int lease_init(struct file *filp, int type, struct file_lock *fl)
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static struct file_lock *lease_alloc(struct file *filp, int type)
+static struct file_lock *lease_alloc(struct file *filp, long type)
 {
 	struct file_lock *fl = locks_alloc_lock();
 	int error = -ENOMEM;
@@ -579,12 +565,6 @@ static void locks_delete_lock(struct file_lock **thisfl_p)
 	*thisfl_p = fl->fl_next;
 	fl->fl_next = NULL;
 	list_del_init(&fl->fl_link);
-
-	fasync_helper(0, fl->fl_file, 0, &fl->fl_fasync);
-	if (fl->fl_fasync != NULL) {
-		printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
-		fl->fl_fasync = NULL;
-	}
 
 	if (fl->fl_nspid) {
 		put_pid(fl->fl_nspid);
@@ -1155,8 +1135,18 @@ int lease_modify(struct file_lock **before, int arg)
 		return error;
 	lease_clear_pending(fl, arg);
 	locks_wake_up_blocks(fl);
-	if (arg == F_UNLCK)
+	if (arg == F_UNLCK) {
+		struct file *filp = fl->fl_file;
+
+		f_delown(filp);
+		filp->f_owner.signum = 0;
+		fasync_helper(0, fl->fl_file, 0, &fl->fl_fasync);
+		if (fl->fl_fasync != NULL) {
+			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
+			fl->fl_fasync = NULL;
+		}
 		locks_delete_lock(before);
+	}
 	return 0;
 }
 

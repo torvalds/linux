@@ -134,6 +134,7 @@ isofs_export_encode_fh(struct inode *inode,
 	len = 3;
 	fh32[0] = ei->i_iget5_block;
  	fh16[2] = (__u16)ei->i_iget5_offset;  /* fh16 [sic] */
+	fh16[3] = 0;  /* avoid leaking uninitialized data */
 	fh32[2] = inode->i_generation;
 	if (parent) {
 		struct iso_inode_info *eparent;

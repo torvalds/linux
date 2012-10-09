@@ -21,6 +21,7 @@ Supported adapters:
   * Intel DH89xxCC (PCH)
   * Intel Panther Point (PCH)
   * Intel Lynx Point (PCH)
+  * Intel Lynx Point-LP (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
@@ -38,9 +39,10 @@ Module Parameters
 Disable selected features normally supported by the device. This makes it
 possible to work around possible driver or hardware bugs if the feature in
 question doesn't work as intended for whatever reason. Bit values:
-  1  disable SMBus PEC
-  2  disable the block buffer
-  8  disable the I2C block read functionality
+ 0x01  disable SMBus PEC
+ 0x02  disable the block buffer
+ 0x08  disable the I2C block read functionality
+ 0x10  don't use interrupts
 
 
 Description
@@ -84,6 +86,12 @@ SMBus 2.0 Support
 -----------------
 
 The 82801DB (ICH4) and later chips support several SMBus 2.0 features.
+
+
+Interrupt Support
+-----------------
+
+PCI interrupt support is supported on the 82801EB (ICH5) and later chips.
 
 
 Hidden ICH SMBus

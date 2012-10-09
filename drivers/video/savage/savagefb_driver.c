@@ -662,7 +662,7 @@ static void savage_get_default_par(struct savagefb_par *par, struct savage_reg *
 	vga_out8(0x3c4, 0x18, par);
 	reg->SR18 = vga_in8(0x3c5, par);
 
-	/* Save flat panel expansion regsters. */
+	/* Save flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 
@@ -815,7 +815,7 @@ static void savage_set_default_par(struct savagefb_par *par,
 	vga_out8(0x3c4, 0x18, par);
 	vga_out8(0x3c5, reg->SR18, par);
 
-	/* Save flat panel expansion regsters. */
+	/* Save flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 
@@ -1318,7 +1318,7 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	vga_out8(0x3c4, 0x15, par);
 	vga_out8(0x3c5, reg->SR15, par);
 
-	/* Restore flat panel expansion regsters. */
+	/* Restore flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 

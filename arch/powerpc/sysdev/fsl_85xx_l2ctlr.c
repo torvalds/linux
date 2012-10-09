@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 Freescale Semiconductor, Inc.
+ * Copyright 2009-2010, 2012 Freescale Semiconductor, Inc.
  *
  * QorIQ (P1/P2) L2 controller init for Cache-SRAM instantiation
  *
@@ -31,24 +31,21 @@ static char *sram_size;
 static char *sram_offset;
 struct mpc85xx_l2ctlr __iomem *l2ctlr;
 
-static long get_cache_sram_size(void)
+static int get_cache_sram_params(struct sram_parameters *sram_params)
 {
-	unsigned long val;
+	unsigned long long addr;
+	unsigned int size;
 
-	if (!sram_size || (strict_strtoul(sram_size, 0, &val) < 0))
+	if (!sram_size || (kstrtouint(sram_size, 0, &size) < 0))
 		return -EINVAL;
 
-	return val;
-}
-
-static long get_cache_sram_offset(void)
-{
-	unsigned long val;
-
-	if (!sram_offset || (strict_strtoul(sram_offset, 0, &val) < 0))
+	if (!sram_offset || (kstrtoull(sram_offset, 0, &addr) < 0))
 		return -EINVAL;
 
-	return val;
+	sram_params->sram_offset = addr;
+	sram_params->sram_size = size;
+
+	return 0;
 }
 
 static int __init get_size_from_cmdline(char *str)
@@ -93,17 +90,9 @@ static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 	}
 	l2cache_size = *prop;
 
-	sram_params.sram_size  = get_cache_sram_size();
-	if ((int)sram_params.sram_size <= 0) {
+	if (get_cache_sram_params(&sram_params)) {
 		dev_err(&dev->dev,
-			"Entire L2 as cache, Aborting Cache-SRAM stuff\n");
-		return -EINVAL;
-	}
-
-	sram_params.sram_offset  = get_cache_sram_offset();
-	if ((int64_t)sram_params.sram_offset <= 0) {
-		dev_err(&dev->dev,
-			"Entire L2 as cache, provide a valid sram offset\n");
+			"Entire L2 as cache, provide valid sram offset and size\n");
 		return -EINVAL;
 	}
 
@@ -125,14 +114,14 @@ static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 	 * Write bits[0-17] to srbar0
 	 */
 	out_be32(&l2ctlr->srbar0,
-		sram_params.sram_offset & L2SRAM_BAR_MSK_LO18);
+		lower_32_bits(sram_params.sram_offset) & L2SRAM_BAR_MSK_LO18);
 
 	/*
 	 * Write bits[18-21] to srbare0
 	 */
 #ifdef CONFIG_PHYS_64BIT
 	out_be32(&l2ctlr->srbarea0,
-		(sram_params.sram_offset >> 32) & L2SRAM_BARE_MSK_HI4);
+		upper_32_bits(sram_params.sram_offset) & L2SRAM_BARE_MSK_HI4);
 #endif
 
 	clrsetbits_be32(&l2ctlr->ctl, L2CR_L2E, L2CR_L2FI);

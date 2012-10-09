@@ -468,7 +468,6 @@ static struct omap_mmc_platform_data mmc1_data = {
 	.cleanup			= n8x0_mmc_cleanup,
 	.shutdown			= n8x0_mmc_shutdown,
 	.max_freq			= 24000000,
-	.dma_mask			= 0xffffffff,
 	.slots[0] = {
 		.wires			= 4,
 		.set_power		= n8x0_mmc_set_power,

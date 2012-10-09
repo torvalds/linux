@@ -137,11 +137,10 @@ static int sd_check_data0_status(struct rtsx_chip *chip)
 {
 	u8 stat;
 
-	if (CHECK_PID(chip, 0x5209)) {
+	if (CHECK_PID(chip, 0x5209))
 		RTSX_READ_REG(chip, REG_SD_BUS_STAT, &stat);
-	} else {
+	else
 		RTSX_READ_REG(chip, REG_SD_STAT1, &stat);
-	}
 
 	if (!(stat & SD_DAT0_STATUS)) {
 		sd_set_err_code(chip, SD_BUSY);
@@ -188,9 +187,9 @@ RTY_SEND_CMD:
 		     SD_TRANSFER_END | SD_STAT_IDLE, SD_TRANSFER_END | SD_STAT_IDLE);
 
 	if (rsp_type == SD_RSP_TYPE_R2) {
-		for (reg_addr = PPBUF_BASE2; reg_addr < PPBUF_BASE2 + 16; reg_addr++) {
+		for (reg_addr = PPBUF_BASE2; reg_addr < PPBUF_BASE2 + 16; reg_addr++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr, 0, 0);
-		}
+
 		stat_idx = 16;
 	} else if (rsp_type != SD_RSP_TYPE_R0) {
 		for (reg_addr = REG_SD_CMD0; reg_addr <= REG_SD_CMD4; reg_addr++) {
@@ -1169,7 +1168,7 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		RTSX_DEBUGP("func_group4_mask = 0x%02x\n", buf[0x07]);
 	} else {
 		/* Maximum current consumption, check whether current is acceptable;
-		 * bit[511:496] = 0x0000 means some error happaned.
+		 * bit[511:496] = 0x0000 means some error happened.
 		 */
 		u16 cc = ((u16)buf[0] << 8) | buf[1];
 		RTSX_DEBUGP("Maximum current consumption: %dmA\n", cc);

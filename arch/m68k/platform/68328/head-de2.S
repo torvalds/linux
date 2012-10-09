@@ -60,8 +60,8 @@ _start:
  *	Move ROM filesystem above bss :-)
  */
 
-	moveal	#_sbss, %a0			/* romfs at the start of bss */
-	moveal	#_ebss, %a1			/* Set up destination  */
+	moveal	#__bss_start, %a0		/* romfs at the start of bss */
+	moveal	#__bss_stop, %a1		/* Set up destination  */
 	movel	%a0, %a2			/* Copy of bss start */
 
 	movel	8(%a0), %d1			/* Get size of ROMFS */
@@ -84,8 +84,8 @@ _start:
  * Initialize BSS segment to 0
  */
 
-	lea	_sbss, %a0
-	lea	_ebss, %a1
+	lea	__bss_start, %a0
+	lea	__bss_stop, %a1
 
 	/* Copy 0 to %a0 until %a0 == %a1 */
 2:	cmpal	%a0, %a1

@@ -1158,6 +1158,7 @@ extern struct scsi_transport_template *mpt2sas_transport_template;
 extern int scsi_internal_device_block(struct scsi_device *sdev);
 extern u8 mpt2sas_stm_zero_smid_handler(struct MPT2SAS_ADAPTER *ioc,
     u8 msix_index, u32 reply);
-extern int scsi_internal_device_unblock(struct scsi_device *sdev);
+extern int scsi_internal_device_unblock(struct scsi_device *sdev,
+					enum scsi_device_state new_state);
 
 #endif /* MPT2SAS_BASE_H_INCLUDED */

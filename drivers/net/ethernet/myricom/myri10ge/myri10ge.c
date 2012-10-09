@@ -3775,7 +3775,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 
 	mgp->num_slices = 1;
 	msix_cap = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
-	ncpus = num_online_cpus();
+	ncpus = netif_get_num_default_rss_queues();
 
 	if (myri10ge_max_slices == 1 || msix_cap == 0 ||
 	    (myri10ge_max_slices == -1 && ncpus < 2))

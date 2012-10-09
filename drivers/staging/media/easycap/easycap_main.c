@@ -3083,6 +3083,7 @@ static int create_video_urbs(struct easycap *peasycap)
 		peasycap->allocation_video_urb += 1;
 		pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
 		if (!pdata_urb) {
+			usb_free_urb(purb);
 			SAM("ERROR: Could not allocate struct data_urb.\n");
 			return -ENOMEM;
 		}

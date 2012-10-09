@@ -65,7 +65,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	struct device *device = &dev->pdev->dev;
 	int size, ret;
@@ -140,7 +140,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
 	info->fix.smem_len = size;
 
-	info->screen_base = ioremap_wc(dev->agp->base + obj->gtt_offset, size);
+	info->screen_base =
+		ioremap_wc(dev_priv->mm.gtt_base_addr + obj->gtt_offset,
+			   size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
 		goto out_unpin;

@@ -607,6 +607,19 @@ static struct clk clk_dma = {
 	.get_rate	= local_return_parent_rate,
 };
 
+static struct clk clk_pwm = {
+	.parent		= &clk_pclk,
+	.enable		= local_onoff_enable,
+	.enable_reg	= LPC32XX_CLKPWR_PWM_CLK_CTRL,
+	.enable_mask	= LPC32XX_CLKPWR_PWMCLK_PWM1CLK_EN |
+			  LPC32XX_CLKPWR_PWMCLK_PWM1SEL_PCLK |
+			  LPC32XX_CLKPWR_PWMCLK_PWM1_DIV(1) |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2CLK_EN |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2SEL_PCLK |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2_DIV(1),
+	.get_rate	= local_return_parent_rate,
+};
+
 static struct clk clk_uart3 = {
 	.parent		= &clk_pclk,
 	.enable		= local_onoff_enable,
@@ -691,8 +704,19 @@ static struct clk clk_nand = {
 	.parent		= &clk_hclk,
 	.enable		= local_onoff_enable,
 	.enable_reg	= LPC32XX_CLKPWR_NAND_CLK_CTRL,
-	.enable_mask	= LPC32XX_CLKPWR_NANDCLK_SLCCLK_EN,
+	.enable_mask	= LPC32XX_CLKPWR_NANDCLK_SLCCLK_EN |
+			  LPC32XX_CLKPWR_NANDCLK_SEL_SLC,
 	.get_rate	= local_return_parent_rate,
+};
+
+static struct clk clk_nand_mlc = {
+	.parent         = &clk_hclk,
+	.enable         = local_onoff_enable,
+	.enable_reg     = LPC32XX_CLKPWR_NAND_CLK_CTRL,
+	.enable_mask    = LPC32XX_CLKPWR_NANDCLK_MLCCLK_EN |
+			  LPC32XX_CLKPWR_NANDCLK_DMA_INT |
+			  LPC32XX_CLKPWR_NANDCLK_INTSEL_MLC,
+	.get_rate       = local_return_parent_rate,
 };
 
 static struct clk clk_i2s0 = {
@@ -707,7 +731,8 @@ static struct clk clk_i2s1 = {
 	.parent		= &clk_hclk,
 	.enable		= local_onoff_enable,
 	.enable_reg	= LPC32XX_CLKPWR_I2S_CLK_CTRL,
-	.enable_mask	= LPC32XX_CLKPWR_I2SCTRL_I2SCLK1_EN,
+	.enable_mask	= LPC32XX_CLKPWR_I2SCTRL_I2SCLK1_EN |
+			  LPC32XX_CLKPWR_I2SCTRL_I2S1_USE_DMA,
 	.get_rate	= local_return_parent_rate,
 };
 
@@ -727,11 +752,74 @@ static struct clk clk_rtc = {
 	.get_rate	= local_return_parent_rate,
 };
 
+static int local_usb_enable(struct clk *clk, int enable)
+{
+	u32 tmp;
+
+	if (enable) {
+		/* Set up I2C pull levels */
+		tmp = __raw_readl(LPC32XX_CLKPWR_I2C_CLK_CTRL);
+		tmp |= LPC32XX_CLKPWR_I2CCLK_USBI2CHI_DRIVE;
+		__raw_writel(tmp, LPC32XX_CLKPWR_I2C_CLK_CTRL);
+	}
+
+	return local_onoff_enable(clk, enable);
+}
+
 static struct clk clk_usbd = {
 	.parent		= &clk_usbpll,
-	.enable		= local_onoff_enable,
+	.enable		= local_usb_enable,
 	.enable_reg	= LPC32XX_CLKPWR_USB_CTRL,
 	.enable_mask	= LPC32XX_CLKPWR_USBCTRL_HCLK_EN,
+	.get_rate	= local_return_parent_rate,
+};
+
+#define OTG_ALWAYS_MASK		(LPC32XX_USB_OTG_OTG_CLOCK_ON | \
+				 LPC32XX_USB_OTG_I2C_CLOCK_ON)
+
+static int local_usb_otg_enable(struct clk *clk, int enable)
+{
+	int to = 1000;
+
+	if (enable) {
+		__raw_writel(clk->enable_mask, clk->enable_reg);
+
+		while (((__raw_readl(LPC32XX_USB_OTG_CLK_STAT) &
+			clk->enable_mask) != clk->enable_mask) && (to > 0))
+			to--;
+	} else {
+		__raw_writel(OTG_ALWAYS_MASK, clk->enable_reg);
+
+		while (((__raw_readl(LPC32XX_USB_OTG_CLK_STAT) &
+			OTG_ALWAYS_MASK) != OTG_ALWAYS_MASK) && (to > 0))
+			to--;
+	}
+
+	if (to)
+		return 0;
+	else
+		return -1;
+}
+
+static struct clk clk_usb_otg_dev = {
+	.parent		= &clk_usbpll,
+	.enable		= local_usb_otg_enable,
+	.enable_reg	= LPC32XX_USB_OTG_CLK_CTRL,
+	.enable_mask	= LPC32XX_USB_OTG_AHB_M_CLOCK_ON |
+			  LPC32XX_USB_OTG_OTG_CLOCK_ON |
+			  LPC32XX_USB_OTG_DEV_CLOCK_ON |
+			  LPC32XX_USB_OTG_I2C_CLOCK_ON,
+	.get_rate	= local_return_parent_rate,
+};
+
+static struct clk clk_usb_otg_host = {
+	.parent		= &clk_usbpll,
+	.enable		= local_usb_otg_enable,
+	.enable_reg	= LPC32XX_USB_OTG_CLK_CTRL,
+	.enable_mask	= LPC32XX_USB_OTG_AHB_M_CLOCK_ON |
+			  LPC32XX_USB_OTG_OTG_CLOCK_ON |
+			  LPC32XX_USB_OTG_HOST_CLOCK_ON |
+			  LPC32XX_USB_OTG_I2C_CLOCK_ON,
 	.get_rate	= local_return_parent_rate,
 };
 
@@ -800,11 +888,17 @@ static int mmc_onoff_enable(struct clk *clk, int enable)
 	u32 tmp;
 
 	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL) &
-		~LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
+		~(LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO_PIN_DIS |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO0_DIS |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO1_DIS |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO23_DIS);
 
 	/* If rate is 0, disable clock */
 	if (enable != 0)
-		tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
+		tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
+			LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN;
 
 	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
 
@@ -853,7 +947,7 @@ static unsigned long mmc_round_rate(struct clk *clk, unsigned long rate)
 
 static int mmc_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 oldclk, tmp;
+	u32 tmp;
 	unsigned long prate, div, crate = mmc_round_rate(clk, rate);
 
 	prate = clk->parent->get_rate(clk->parent);
@@ -861,15 +955,11 @@ static int mmc_set_rate(struct clk *clk, unsigned long rate)
 	div = prate / crate;
 
 	/* The MMC clock must be on when accessing an MMC register */
-	oldclk = __raw_readl(LPC32XX_CLKPWR_MS_CTRL);
-	__raw_writel(oldclk | LPC32XX_CLKPWR_MSCARD_SDCARD_EN,
-		LPC32XX_CLKPWR_MS_CTRL);
 	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL) &
 		~LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(0xf);
-	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(div);
+	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(div) |
+		LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
 	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
-
-	__raw_writel(oldclk, LPC32XX_CLKPWR_MS_CTRL);
 
 	return 0;
 }
@@ -1111,6 +1201,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT(NULL, "vfp9_ck", &clk_vfp9),
 	CLKDEV_INIT("pl08xdmac", NULL, &clk_dma),
 	CLKDEV_INIT("4003c000.watchdog", NULL, &clk_wdt),
+	CLKDEV_INIT("4005c000.pwm", NULL, &clk_pwm),
 	CLKDEV_INIT(NULL, "uart3_ck", &clk_uart3),
 	CLKDEV_INIT(NULL, "uart4_ck", &clk_uart4),
 	CLKDEV_INIT(NULL, "uart5_ck", &clk_uart5),
@@ -1120,8 +1211,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT("31020300.i2c", NULL, &clk_i2c2),
 	CLKDEV_INIT("dev:ssp0", NULL, &clk_ssp0),
 	CLKDEV_INIT("dev:ssp1", NULL, &clk_ssp1),
-	CLKDEV_INIT("lpc32xx_keys.0", NULL, &clk_kscan),
-	CLKDEV_INIT("lpc32xx-nand.0", "nand_ck", &clk_nand),
+	CLKDEV_INIT("40050000.key", NULL, &clk_kscan),
+	CLKDEV_INIT("20020000.flash", NULL, &clk_nand),
+	CLKDEV_INIT("200a8000.flash", NULL, &clk_nand_mlc),
 	CLKDEV_INIT("40048000.adc", NULL, &clk_adc),
 	CLKDEV_INIT(NULL, "i2s0_ck", &clk_i2s0),
 	CLKDEV_INIT(NULL, "i2s1_ck", &clk_i2s1),
@@ -1130,6 +1222,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT("31060000.ethernet", NULL, &clk_net),
 	CLKDEV_INIT("dev:clcd", NULL, &clk_lcd),
 	CLKDEV_INIT("31020000.usbd", "ck_usbd", &clk_usbd),
+	CLKDEV_INIT("31020000.ohci", "ck_usbd", &clk_usbd),
+	CLKDEV_INIT("31020000.usbd", "ck_usb_otg", &clk_usb_otg_dev),
+	CLKDEV_INIT("31020000.ohci", "ck_usb_otg", &clk_usb_otg_host),
 	CLKDEV_INIT("lpc32xx_rtc", NULL, &clk_rtc),
 };
 

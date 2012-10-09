@@ -969,14 +969,13 @@ static int llc_ui_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct sockaddr_llc sllc;
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
-	int rc = 0;
+	int rc = -EBADF;
 
 	memset(&sllc, 0, sizeof(sllc));
 	lock_sock(sk);
 	if (sock_flag(sk, SOCK_ZAPPED))
 		goto out;
 	*uaddrlen = sizeof(sllc);
-	memset(uaddr, 0, *uaddrlen);
 	if (peer) {
 		rc = -ENOTCONN;
 		if (sk->sk_state != TCP_ESTABLISHED)
@@ -1024,7 +1023,7 @@ static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
  *	@sock: Socket to set options on.
  *	@level: Socket level user is requesting operations on.
  *	@optname: Operation name.
- *	@optval User provided operation data.
+ *	@optval: User provided operation data.
  *	@optlen: Length of optval.
  *
  *	Set various connection specific parameters.
@@ -1206,7 +1205,7 @@ static int __init llc2_init(void)
 	rc = llc_proc_init();
 	if (rc != 0) {
 		printk(llc_proc_err_msg);
-		goto out_unregister_llc_proto;
+		goto out_station;
 	}
 	rc = llc_sysctl_init();
 	if (rc) {
@@ -1226,7 +1225,8 @@ out_sysctl:
 	llc_sysctl_exit();
 out_proc:
 	llc_proc_exit();
-out_unregister_llc_proto:
+out_station:
+	llc_station_exit();
 	proto_unregister(&llc_proto);
 	goto out;
 }

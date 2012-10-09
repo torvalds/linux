@@ -76,7 +76,10 @@ struct switch_stack {
 #define task_pt_regs(task) \
   ((struct pt_regs *) (task_stack_page(task) + 2*PAGE_SIZE) - 1)
 
-#define force_successful_syscall_return() (task_pt_regs(current)->r0 = 0)
+#define current_pt_regs() \
+  ((struct pt_regs *) ((char *)current_thread_info() + 2*PAGE_SIZE) - 1)
+
+#define force_successful_syscall_return() (current_pt_regs()->r0 = 0)
 
 #endif
 

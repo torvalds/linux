@@ -72,7 +72,7 @@ static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 	return id;
 }
 
-static void wl1271_free_tx_id(struct wl1271 *wl, int id)
+void wl1271_free_tx_id(struct wl1271 *wl, int id)
 {
 	if (__test_and_clear_bit(id, wl->tx_frames_map)) {
 		if (unlikely(wl->tx_frames_cnt == wl->num_tx_desc))
@@ -82,6 +82,7 @@ static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 		wl->tx_frames_cnt--;
 	}
 }
+EXPORT_SYMBOL(wl1271_free_tx_id);
 
 static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 						 struct sk_buff *skb)
@@ -127,6 +128,7 @@ bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 {
 	return wl->dummy_packet == skb;
 }
+EXPORT_SYMBOL(wl12xx_is_dummy_packet);
 
 u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			 struct sk_buff *skb)
@@ -146,10 +148,10 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			return wl->system_hlid;
 
 		hdr = (struct ieee80211_hdr *)skb->data;
-		if (ieee80211_is_mgmt(hdr->frame_control))
-			return wlvif->ap.global_hlid;
-		else
+		if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 			return wlvif->ap.bcast_hlid;
+		else
+			return wlvif->ap.global_hlid;
 	}
 }
 
@@ -176,36 +178,33 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
 					  unsigned int packet_length)
 {
-	if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN)
-		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
-	else
+	if ((wl->quirks & WLCORE_QUIRK_TX_PAD_LAST_FRAME) ||
+	    !(wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN))
 		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
+	else
+		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
 }
 EXPORT_SYMBOL(wlcore_calc_packet_alignment);
 
 static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			      struct sk_buff *skb, u32 extra, u32 buf_offset,
-			      u8 hlid)
+			      u8 hlid, bool is_gem)
 {
 	struct wl1271_tx_hw_descr *desc;
 	u32 total_len = skb->len + sizeof(struct wl1271_tx_hw_descr) + extra;
 	u32 total_blocks;
 	int id, ret = -EBUSY, ac;
-	u32 spare_blocks = wl->normal_tx_spare;
-	bool is_dummy = false;
+	u32 spare_blocks;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
 		return -EAGAIN;
+
+	spare_blocks = wlcore_hw_get_spare_blocks(wl, is_gem);
 
 	/* allocate free identifier for the packet */
 	id = wl1271_alloc_tx_id(wl, skb);
 	if (id < 0)
 		return id;
-
-	if (unlikely(wl12xx_is_dummy_packet(wl, skb)))
-		is_dummy = true;
-	else if (wlvif->is_gem)
-		spare_blocks = wl->gem_tx_spare;
 
 	total_blocks = wlcore_hw_calc_tx_blocks(wl, total_len, spare_blocks);
 
@@ -228,7 +227,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->tx_allocated_pkts[ac]++;
 
-		if (!is_dummy && wlvif &&
+		if (!wl12xx_is_dummy_packet(wl, skb) && wlvif &&
 		    wlvif->bss_type == BSS_TYPE_AP_BSS &&
 		    test_bit(hlid, wlvif->ap.sta_hlid_map))
 			wl->links[hlid].allocated_pkts++;
@@ -268,6 +267,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (extra) {
 		int hdrlen = ieee80211_hdrlen(frame_control);
 		memmove(frame_start, hdr, hdrlen);
+		skb_set_network_header(skb, skb_network_offset(skb) + extra);
 	}
 
 	/* configure packet life time */
@@ -305,19 +305,25 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (is_dummy || !wlvif)
 		rate_idx = 0;
 	else if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		/* if the packets are destined for AP (have a STA entry)
-		   send them with AP rate policies, otherwise use default
-		   basic rates */
-		if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
+		/*
+		 * if the packets are data packets
+		 * send them with AP rate policies (EAPOLs are an exception),
+		 * otherwise use default basic rates
+		 */
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+			rate_idx = wlvif->sta.basic_rate_idx;
+		else if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 			rate_idx = wlvif->sta.p2p_rate_idx;
-		else if (control->control.sta)
+		else if (ieee80211_is_data(frame_control))
 			rate_idx = wlvif->sta.ap_rate_idx;
 		else
 			rate_idx = wlvif->sta.basic_rate_idx;
 	} else {
 		if (hlid == wlvif->ap.global_hlid)
 			rate_idx = wlvif->ap.mgmt_rate_idx;
-		else if (hlid == wlvif->ap.bcast_hlid)
+		else if (hlid == wlvif->ap.bcast_hlid ||
+			 skb->protocol == cpu_to_be16(ETH_P_PAE))
+			/* send AP bcast and EAPOLs using the min basic rate */
 			rate_idx = wlvif->ap.bcast_rate_idx;
 		else
 			rate_idx = wlvif->ap.ucast_rate_idx[ac];
@@ -330,9 +336,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	    ieee80211_has_protected(frame_control))
 		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
 
-	desc->reserved = 0;
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
+	wlcore_hw_set_tx_desc_csum(wl, desc, skb);
 	wlcore_hw_set_tx_desc_data_len(wl, desc, skb);
 }
 
@@ -346,16 +352,20 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u32 total_len;
 	u8 hlid;
 	bool is_dummy;
+	bool is_gem = false;
 
-	if (!skb)
+	if (!skb) {
+		wl1271_error("discarding null skb");
 		return -EINVAL;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 
 	/* TODO: handle dummy packets on multi-vifs */
 	is_dummy = wl12xx_is_dummy_packet(wl, skb);
 
-	if (info->control.hw_key &&
+	if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+	    info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP)
 		extra = WL1271_EXTRA_SPACE_TKIP;
 
@@ -373,6 +383,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				return ret;
 			wlvif->default_key = idx;
 		}
+
+		is_gem = (cipher == WL1271_CIPHER_SUITE_GEM);
 	}
 	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
 	if (hlid == WL12XX_INVALID_LINK_ID) {
@@ -380,7 +392,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		return -EINVAL;
 	}
 
-	ret = wl1271_tx_allocate(wl, wlvif, skb, extra, buf_offset, hlid);
+	ret = wl1271_tx_allocate(wl, wlvif, skb, extra, buf_offset, hlid,
+				 is_gem);
 	if (ret < 0)
 		return ret;
 
@@ -425,10 +438,10 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set,
 		rate_set >>= 1;
 	}
 
-	/* MCS rates indication are on bits 16 - 23 */
+	/* MCS rates indication are on bits 16 - 31 */
 	rate_set >>= HW_HT_RATES_OFFSET - band->n_bitrates;
 
-	for (bit = 0; bit < 8; bit++) {
+	for (bit = 0; bit < 16; bit++) {
 		if (rate_set & 0x1)
 			enabled_rates |= (CONF_HW_BIT_RATE_MCS_0 << bit);
 		rate_set >>= 1;
@@ -439,18 +452,15 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set,
 
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 {
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		if (test_bit(i, &wl->stopped_queues_map) &&
+		if (wlcore_is_queue_stopped_by_reason(wl, i,
+			WLCORE_QUEUE_STOP_REASON_WATERMARK) &&
 		    wl->tx_queue_count[i] <= WL1271_TX_QUEUE_LOW_WATERMARK) {
 			/* firmware buffer has space, restart queues */
-			spin_lock_irqsave(&wl->wl_lock, flags);
-			ieee80211_wake_queue(wl->hw,
-					     wl1271_tx_get_mac80211_queue(i));
-			clear_bit(i, &wl->stopped_queues_map);
-			spin_unlock_irqrestore(&wl->wl_lock, flags);
+			wlcore_wake_queue(wl, i,
+					  WLCORE_QUEUE_STOP_REASON_WATERMARK);
 		}
 	}
 }
@@ -656,18 +666,29 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	}
 }
 
-void wl1271_tx_work_locked(struct wl1271 *wl)
+/*
+ * Returns failure values only in case of failed bus ops within this function.
+ * wl1271_prepare_tx_frame retvals won't be returned in order to avoid
+ * triggering recovery by higher layers when not necessary.
+ * In case a FW command fails within wl1271_prepare_tx_frame fails a recovery
+ * will be queued in wl1271_cmd_send. -EAGAIN/-EBUSY from prepare_tx_frame
+ * can occur and are legitimate so don't propagate. -EINVAL will emit a WARNING
+ * within prepare_tx_frame code but there's nothing we should do about those
+ * as well.
+ */
+int wlcore_tx_work_locked(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
 	struct wl1271_tx_hw_descr *desc;
-	u32 buf_offset = 0;
+	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
-	int ret;
+	int ret = 0;
+	int bus_ret = 0;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
-		return;
+		return 0;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -685,8 +706,14 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			 * Flush buffer and try again.
 			 */
 			wl1271_skb_queue_head(wl, wlvif, skb);
-			wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-					  buf_offset, true);
+
+			buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset,
+							    last_len);
+			bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA,
+					     wl->aggr_buf, buf_offset, true);
+			if (bus_ret < 0)
+				goto out;
+
 			sent_packets = true;
 			buf_offset = 0;
 			continue;
@@ -710,7 +737,8 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 				ieee80211_free_txskb(wl->hw, skb);
 			goto out_ack;
 		}
-		buf_offset += ret;
+		last_len = ret;
+		buf_offset += last_len;
 		wl->tx_packets_count++;
 		if (has_data) {
 			desc = (struct wl1271_tx_hw_descr *) skb->data;
@@ -720,8 +748,12 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 out_ack:
 	if (buf_offset) {
-		wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-				  buf_offset, true);
+		buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset, last_len);
+		bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+					     buf_offset, true);
+		if (bus_ret < 0)
+			goto out;
+
 		sent_packets = true;
 	}
 	if (sent_packets) {
@@ -729,13 +761,19 @@ out_ack:
 		 * Interrupt the firmware with the new packets. This is only
 		 * required for older hardware revisions
 		 */
-		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
-			wl1271_write32(wl, WL12XX_HOST_WR_ACCESS,
-				       wl->tx_packets_count);
+		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION) {
+			bus_ret = wlcore_write32(wl, WL12XX_HOST_WR_ACCESS,
+					     wl->tx_packets_count);
+			if (bus_ret < 0)
+				goto out;
+		}
 
 		wl1271_handle_tx_low_watermark(wl);
 	}
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
+
+out:
+	return bus_ret;
 }
 
 void wl1271_tx_work(struct work_struct *work)
@@ -748,7 +786,11 @@ void wl1271_tx_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_tx_work_locked(wl);
+	ret = wlcore_tx_work_locked(wl);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -849,7 +891,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
 
 	/* remove TKIP header space if present */
-	if (info->control.hw_key &&
+	if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+	    info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 		memmove(skb->data + WL1271_EXTRA_SPACE_TKIP, skb->data,
@@ -869,22 +912,27 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 }
 
 /* Called upon reception of a TX complete interrupt */
-void wl1271_tx_complete(struct wl1271 *wl)
+int wlcore_tx_complete(struct wl1271 *wl)
 {
-	struct wl1271_acx_mem_map *memmap =
-		(struct wl1271_acx_mem_map *)wl->target_mem_map;
+	struct wl1271_acx_mem_map *memmap = wl->target_mem_map;
 	u32 count, fw_counter;
 	u32 i;
+	int ret;
 
 	/* read the tx results from the chipset */
-	wl1271_read(wl, le32_to_cpu(memmap->tx_result),
-		    wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	ret = wlcore_read(wl, le32_to_cpu(memmap->tx_result),
+			  wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	if (ret < 0)
+		goto out;
+
 	fw_counter = le32_to_cpu(wl->tx_res_if->tx_result_fw_counter);
 
 	/* write host counter to chipset (to ack) */
-	wl1271_write32(wl, le32_to_cpu(memmap->tx_result) +
-		       offsetof(struct wl1271_tx_hw_res_if,
-				tx_result_host_counter), fw_counter);
+	ret = wlcore_write32(wl, le32_to_cpu(memmap->tx_result) +
+			     offsetof(struct wl1271_tx_hw_res_if,
+				      tx_result_host_counter), fw_counter);
+	if (ret < 0)
+		goto out;
 
 	count = fw_counter - wl->tx_results_count;
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
@@ -904,8 +952,11 @@ void wl1271_tx_complete(struct wl1271 *wl)
 
 		wl->tx_results_count++;
 	}
+
+out:
+	return ret;
 }
-EXPORT_SYMBOL(wl1271_tx_complete);
+EXPORT_SYMBOL(wlcore_tx_complete);
 
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 {
@@ -958,7 +1009,7 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 }
 /* caller must hold wl->mutex and TX must be stopped */
-void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
+void wl12xx_tx_reset(struct wl1271 *wl)
 {
 	int i;
 	struct sk_buff *skb;
@@ -973,15 +1024,12 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			wl->tx_queue_count[i] = 0;
 	}
 
-	wl->stopped_queues_map = 0;
-
 	/*
 	 * Make sure the driver is at a consistent state, in case this
 	 * function is called from a context other than interface removal.
 	 * This call will always wake the TX queues.
 	 */
-	if (reset_tx_queues)
-		wl1271_handle_tx_low_watermark(wl);
+	wl1271_handle_tx_low_watermark(wl);
 
 	for (i = 0; i < wl->num_tx_desc; i++) {
 		if (wl->tx_frames[i] == NULL)
@@ -998,7 +1046,8 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			 */
 			info = IEEE80211_SKB_CB(skb);
 			skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
-			if (info->control.hw_key &&
+			if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+			    info->control.hw_key &&
 			    info->control.hw_key->cipher ==
 			    WLAN_CIPHER_SUITE_TKIP) {
 				int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
@@ -1024,6 +1073,11 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	int i;
 	timeout = jiffies + usecs_to_jiffies(WL1271_TX_FLUSH_TIMEOUT);
 
+	/* only one flush should be in progress, for consistent queue state */
+	mutex_lock(&wl->flush_mutex);
+
+	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_FLUSH);
+
 	while (!time_after(jiffies, timeout)) {
 		mutex_lock(&wl->mutex);
 		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d %d",
@@ -1032,7 +1086,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		if ((wl->tx_frames_cnt == 0) &&
 		    (wl1271_tx_total_queue_count(wl) == 0)) {
 			mutex_unlock(&wl->mutex);
-			return;
+			goto out;
 		}
 		mutex_unlock(&wl->mutex);
 		msleep(1);
@@ -1045,7 +1099,12 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	for (i = 0; i < WL12XX_MAX_LINKS; i++)
 		wl1271_tx_reset_link_queues(wl, i);
 	mutex_unlock(&wl->mutex);
+
+out:
+	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FLUSH);
+	mutex_unlock(&wl->flush_mutex);
 }
+EXPORT_SYMBOL_GPL(wl1271_tx_flush);
 
 u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 {
@@ -1053,4 +1112,97 @@ u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 		return 0;
 
 	return BIT(__ffs(rate_set));
+}
+
+void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
+			      enum wlcore_queue_stop_reason reason)
+{
+	bool stopped = !!wl->queue_stop_reasons[queue];
+
+	/* queue should not be stopped for this reason */
+	WARN_ON(test_and_set_bit(reason, &wl->queue_stop_reasons[queue]));
+
+	if (stopped)
+		return;
+
+	ieee80211_stop_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+}
+
+void wlcore_stop_queue(struct wl1271 *wl, u8 queue,
+		       enum wlcore_queue_stop_reason reason)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wlcore_stop_queue_locked(wl, queue, reason);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+void wlcore_wake_queue(struct wl1271 *wl, u8 queue,
+		       enum wlcore_queue_stop_reason reason)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+
+	/* queue should not be clear for this reason */
+	WARN_ON(!test_and_clear_bit(reason, &wl->queue_stop_reasons[queue]));
+
+	if (wl->queue_stop_reasons[queue])
+		goto out;
+
+	ieee80211_wake_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+
+out:
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+void wlcore_stop_queues(struct wl1271 *wl,
+			enum wlcore_queue_stop_reason reason)
+{
+	int i;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wlcore_stop_queue(wl, i, reason);
+}
+EXPORT_SYMBOL_GPL(wlcore_stop_queues);
+
+void wlcore_wake_queues(struct wl1271 *wl,
+			enum wlcore_queue_stop_reason reason)
+{
+	int i;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wlcore_wake_queue(wl, i, reason);
+}
+EXPORT_SYMBOL_GPL(wlcore_wake_queues);
+
+void wlcore_reset_stopped_queues(struct wl1271 *wl)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		if (!wl->queue_stop_reasons[i])
+			continue;
+
+		wl->queue_stop_reasons[i] = 0;
+		ieee80211_wake_queue(wl->hw,
+				     wl1271_tx_get_mac80211_queue(i));
+	}
+
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl, u8 queue,
+			     enum wlcore_queue_stop_reason reason)
+{
+	return test_bit(reason, &wl->queue_stop_reasons[queue]);
+}
+
+bool wlcore_is_queue_stopped(struct wl1271 *wl, u8 queue)
+{
+	return !!wl->queue_stop_reasons[queue];
 }

@@ -18,6 +18,8 @@
  *  use the vDSO.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -26,7 +28,7 @@
 #include <linux/jiffies.h>
 #include <linux/sysctl.h>
 #include <linux/topology.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/getcpu.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -80,49 +82,53 @@ void update_vsyscall_tz(void)
 	vsyscall_gtod_data.sys_tz = sys_tz;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
-			struct clocksource *clock, u32 mult)
+void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec monotonic;
+	struct vsyscall_gtod_data *vdata = &vsyscall_gtod_data;
 
-	write_seqcount_begin(&vsyscall_gtod_data.seq);
+	write_seqcount_begin(&vdata->seq);
 
 	/* copy vsyscall data */
-	vsyscall_gtod_data.clock.vclock_mode	= clock->archdata.vclock_mode;
-	vsyscall_gtod_data.clock.cycle_last	= clock->cycle_last;
-	vsyscall_gtod_data.clock.mask		= clock->mask;
-	vsyscall_gtod_data.clock.mult		= mult;
-	vsyscall_gtod_data.clock.shift		= clock->shift;
+	vdata->clock.vclock_mode	= tk->clock->archdata.vclock_mode;
+	vdata->clock.cycle_last		= tk->clock->cycle_last;
+	vdata->clock.mask		= tk->clock->mask;
+	vdata->clock.mult		= tk->mult;
+	vdata->clock.shift		= tk->shift;
 
-	vsyscall_gtod_data.wall_time_sec	= wall_time->tv_sec;
-	vsyscall_gtod_data.wall_time_nsec	= wall_time->tv_nsec;
+	vdata->wall_time_sec		= tk->xtime_sec;
+	vdata->wall_time_snsec		= tk->xtime_nsec;
 
-	monotonic = timespec_add(*wall_time, *wtm);
-	vsyscall_gtod_data.monotonic_time_sec	= monotonic.tv_sec;
-	vsyscall_gtod_data.monotonic_time_nsec	= monotonic.tv_nsec;
+	vdata->monotonic_time_sec	= tk->xtime_sec
+					+ tk->wall_to_monotonic.tv_sec;
+	vdata->monotonic_time_snsec	= tk->xtime_nsec
+					+ (tk->wall_to_monotonic.tv_nsec
+						<< tk->shift);
+	while (vdata->monotonic_time_snsec >=
+					(((u64)NSEC_PER_SEC) << tk->shift)) {
+		vdata->monotonic_time_snsec -=
+					((u64)NSEC_PER_SEC) << tk->shift;
+		vdata->monotonic_time_sec++;
+	}
 
-	vsyscall_gtod_data.wall_time_coarse	= __current_kernel_time();
-	vsyscall_gtod_data.monotonic_time_coarse =
-		timespec_add(vsyscall_gtod_data.wall_time_coarse, *wtm);
+	vdata->wall_time_coarse.tv_sec	= tk->xtime_sec;
+	vdata->wall_time_coarse.tv_nsec	= (long)(tk->xtime_nsec >> tk->shift);
 
-	write_seqcount_end(&vsyscall_gtod_data.seq);
+	vdata->monotonic_time_coarse	= timespec_add(vdata->wall_time_coarse,
+							tk->wall_to_monotonic);
+
+	write_seqcount_end(&vdata->seq);
 }
 
 static void warn_bad_vsyscall(const char *level, struct pt_regs *regs,
 			      const char *message)
 {
-	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST);
-	struct task_struct *tsk;
-
-	if (!show_unhandled_signals || !__ratelimit(&rs))
+	if (!show_unhandled_signals)
 		return;
 
-	tsk = current;
-
-	printk("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
-	       level, tsk->comm, task_pid_nr(tsk),
-	       message, regs->ip, regs->cs,
-	       regs->sp, regs->ax, regs->si, regs->di);
+	pr_notice_ratelimited("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
+			      level, current->comm, task_pid_nr(current),
+			      message, regs->ip, regs->cs,
+			      regs->sp, regs->ax, regs->si, regs->di);
 }
 
 static int addr_to_vsyscall_nr(unsigned long addr)

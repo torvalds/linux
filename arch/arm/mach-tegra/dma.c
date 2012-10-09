@@ -714,13 +714,13 @@ int __init tegra_dma_init(void)
 
 	bitmap_fill(channel_usage, NV_DMA_MAX_CHANNELS);
 
-	c = clk_get_sys("tegra-dma", NULL);
+	c = clk_get_sys("tegra-apbdma", NULL);
 	if (IS_ERR(c)) {
 		pr_err("Unable to get clock for APB DMA\n");
 		ret = PTR_ERR(c);
 		goto fail;
 	}
-	ret = clk_enable(c);
+	ret = clk_prepare_enable(c);
 	if (ret != 0) {
 		pr_err("Unable to enable clock for APB DMA\n");
 		goto fail;

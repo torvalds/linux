@@ -199,23 +199,6 @@ static int adis16240_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16240_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-
-	if (len < 1)
-		return -EINVAL;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16240_reset(indio_dev);
-	}
-	return -EINVAL;
-}
-
 int adis16240_set_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int ret = 0;
@@ -328,8 +311,6 @@ err_ret:
 static IIO_DEVICE_ATTR(in_accel_xyz_squared_peak_raw, S_IRUGO,
 		       adis16240_read_12bit_signed, NULL,
 		       ADIS16240_XYZPEAK_OUT);
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16240_write_reset, 0);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("4096");
 
@@ -500,7 +481,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_X,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_x,
 		.scan_index = ADIS16240_SCAN_ACC_X,
 		.scan_type = {
@@ -514,7 +496,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_Y,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_y,
 		.scan_index = ADIS16240_SCAN_ACC_Y,
 		.scan_type = {
@@ -528,7 +511,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_Z,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_z,
 		.scan_index = ADIS16240_SCAN_ACC_Z,
 		.scan_type = {
@@ -556,7 +540,6 @@ static struct iio_chan_spec adis16240_channels[] = {
 static struct attribute *adis16240_attributes[] = {
 	&iio_dev_attr_in_accel_xyz_squared_peak_raw.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	NULL
 };
 
@@ -640,8 +623,6 @@ static int adis16240_remove(struct spi_device *spi)
 {
 
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	flush_scheduled_work();
 
 	iio_device_unregister(indio_dev);
 	adis16240_remove_trigger(indio_dev);

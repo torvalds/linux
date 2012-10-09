@@ -1,7 +1,7 @@
 /*
  *  Collaborative memory management interface.
  *
- *    Copyright IBM Corp 2003,2010
+ *    Copyright IBM Corp 2003, 2010
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *
  */

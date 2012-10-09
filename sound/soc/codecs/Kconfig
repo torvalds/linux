@@ -12,6 +12,7 @@ config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
 	select SND_SOC_88PM860X if MFD_88PM860X
 	select SND_SOC_L3
+	select SND_SOC_AB8500_CODEC if ABX500_CORE
 	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD193X if SND_SOC_I2C_AND_SPI
@@ -35,7 +36,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_DA732X if I2C
 	select SND_SOC_DFBMCS320
+	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
@@ -54,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_STA32X if I2C
+	select SND_SOC_STA529 if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
@@ -70,6 +74,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM2200 if I2C
 	select SND_SOC_WM5100 if I2C
+	select SND_SOC_WM5102 if MFD_WM5102
+	select SND_SOC_WM5110 if MFD_WM5110
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
@@ -126,10 +132,20 @@ config SND_SOC_ALL_CODECS
 config SND_SOC_88PM860X
 	tristate
 
+config SND_SOC_ARIZONA
+	tristate
+	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM5110=y
+	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM5110=m
+
 config SND_SOC_WM_HUBS
 	tristate
 	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
 	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
+
+config SND_SOC_AB8500_CODEC
+	tristate
 
 config SND_SOC_AC97_CODEC
 	tristate
@@ -219,11 +235,17 @@ config SND_SOC_L3
 config SND_SOC_DA7210
         tristate
 
+config SND_SOC_DA732X
+        tristate
+
 config SND_SOC_DFBMCS320
 	tristate
 
 config SND_SOC_DMIC
 	tristate
+
+config SND_SOC_ISABELLE
+        tristate
 
 config SND_SOC_LM49453
 	tristate
@@ -264,6 +286,9 @@ config SND_SOC_SSM2602
 	tristate
 
 config SND_SOC_STA32X
+	tristate
+
+config SND_SOC_STA529
 	tristate
 
 config SND_SOC_STAC9766
@@ -311,6 +336,12 @@ config SND_SOC_WM2200
 	tristate
 
 config SND_SOC_WM5100
+	tristate
+
+config SND_SOC_WM5102
+	tristate
+
+config SND_SOC_WM5110
 	tristate
 
 config SND_SOC_WM8350

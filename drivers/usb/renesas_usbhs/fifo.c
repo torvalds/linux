@@ -17,8 +17,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
-#include "./common.h"
-#include "./pipe.h"
+#include "common.h"
+#include "pipe.h"
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
 #define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.d0fifo))
@@ -771,22 +771,15 @@ static void xfer_work(struct work_struct *work)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct scatterlist sg;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 	struct device *dev = usbhs_priv_to_dev(priv);
 	enum dma_transfer_direction dir;
-	dma_cookie_t cookie;
 
 	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, virt_to_page(pkt->dma),
-		    pkt->length, offset_in_page(pkt->dma));
-	sg_dma_address(&sg) = pkt->dma + pkt->actual;
-	sg_dma_len(&sg) = pkt->trans;
-
-	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir,
+	desc = dmaengine_prep_slave_single(chan, pkt->dma + pkt->actual,
+					pkt->trans, dir,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		return;
@@ -794,8 +787,7 @@ static void xfer_work(struct work_struct *work)
 	desc->callback		= usbhsf_dma_complete;
 	desc->callback_param	= pipe;
 
-	cookie = desc->tx_submit(desc);
-	if (cookie < 0) {
+	if (dmaengine_submit(desc) < 0) {
 		dev_err(dev, "Failed to submit dma descriptor\n");
 		return;
 	}
@@ -994,7 +986,7 @@ static bool usbhsf_dma_filter(struct dma_chan *chan, void *param)
 	 *
 	 * usbhs doesn't recognize id = 0 as valid DMA
 	 */
-	if (0 == slave->slave_id)
+	if (0 == slave->shdma_slave.slave_id)
 		return false;
 
 	chan->private = slave;
@@ -1173,8 +1165,8 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->port	= D0FIFO;
 	fifo->sel	= D0FIFOSEL;
 	fifo->ctr	= D0FIFOCTR;
-	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
-	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
+	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
+	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
 
 	/* D1FIFO */
 	fifo = usbhsf_get_d1fifo(priv);
@@ -1182,8 +1174,8 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->port	= D1FIFO;
 	fifo->sel	= D1FIFOSEL;
 	fifo->ctr	= D1FIFOCTR;
-	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
-	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
+	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
+	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
 
 	return 0;
 }

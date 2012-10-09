@@ -279,30 +279,31 @@ static int __devexit at91_i2c_remove(struct platform_device *pdev)
 
 /* NOTE: could save a few mA by keeping clock off outside of at91_xfer... */
 
-static int at91_i2c_suspend(struct platform_device *pdev, pm_message_t mesg)
+static int at91_i2c_suspend(struct device *dev)
 {
 	clk_disable(twi_clk);
 	return 0;
 }
 
-static int at91_i2c_resume(struct platform_device *pdev)
+static int at91_i2c_resume(struct device *dev)
 {
 	return clk_enable(twi_clk);
 }
 
+static SIMPLE_DEV_PM_OPS(at91_i2c_pm, at91_i2c_suspend, at91_i2c_resume);
+#define AT91_I2C_PM	(&at91_i2c_pm)
+
 #else
-#define at91_i2c_suspend	NULL
-#define at91_i2c_resume		NULL
+#define AT91_I2C_PM	NULL
 #endif
 
 static struct platform_driver at91_i2c_driver = {
 	.probe		= at91_i2c_probe,
 	.remove		= __devexit_p(at91_i2c_remove),
-	.suspend	= at91_i2c_suspend,
-	.resume		= at91_i2c_resume,
 	.driver		= {
 		.name	= "at91_i2c",
 		.owner	= THIS_MODULE,
+		.pm	= AT91_I2C_PM,
 	},
 };
 

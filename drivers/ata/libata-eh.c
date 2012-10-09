@@ -419,7 +419,7 @@ int ata_ering_map(struct ata_ering *ering,
 	return rc;
 }
 
-int ata_ering_clear_cb(struct ata_ering_entry *ent, void *void_arg)
+static int ata_ering_clear_cb(struct ata_ering_entry *ent, void *void_arg)
 {
 	ent->eflags |= ATA_EFLAG_OLD_ER;
 	return 0;
@@ -793,12 +793,12 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		ata_for_each_link(link, ap, HOST_FIRST)
 			memset(&link->eh_info, 0, sizeof(link->eh_info));
 
-		/* Clear host_eh_scheduled while holding ap->lock such
-		 * that if exception occurs after this point but
-		 * before EH completion, SCSI midlayer will
+		/* end eh (clear host_eh_scheduled) while holding
+		 * ap->lock such that if exception occurs after this
+		 * point but before EH completion, SCSI midlayer will
 		 * re-initiate EH.
 		 */
-		host->host_eh_scheduled = 0;
+		ap->ops->end_eh(ap);
 
 		spin_unlock_irqrestore(ap->lock, flags);
 		ata_eh_release(ap);
@@ -986,6 +986,48 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 }
 
 /**
+ * ata_std_sched_eh - non-libsas ata_ports issue eh with this common routine
+ * @ap: ATA port to schedule EH for
+ *
+ *	LOCKING: inherited from ata_port_schedule_eh
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_std_sched_eh(struct ata_port *ap)
+{
+	WARN_ON(!ap->ops->error_handler);
+
+	if (ap->pflags & ATA_PFLAG_INITIALIZING)
+		return;
+
+	ata_eh_set_pending(ap, 1);
+	scsi_schedule_eh(ap->scsi_host);
+
+	DPRINTK("port EH scheduled\n");
+}
+EXPORT_SYMBOL_GPL(ata_std_sched_eh);
+
+/**
+ * ata_std_end_eh - non-libsas ata_ports complete eh with this common routine
+ * @ap: ATA port to end EH for
+ *
+ * In the libata object model there is a 1:1 mapping of ata_port to
+ * shost, so host fields can be directly manipulated under ap->lock, in
+ * the libsas case we need to hold a lock at the ha->level to coordinate
+ * these events.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_std_end_eh(struct ata_port *ap)
+{
+	struct Scsi_Host *host = ap->scsi_host;
+
+	host->host_eh_scheduled = 0;
+}
+EXPORT_SYMBOL(ata_std_end_eh);
+
+
+/**
  *	ata_port_schedule_eh - schedule error handling without a qc
  *	@ap: ATA port to schedule EH for
  *
@@ -997,15 +1039,8 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
  */
 void ata_port_schedule_eh(struct ata_port *ap)
 {
-	WARN_ON(!ap->ops->error_handler);
-
-	if (ap->pflags & ATA_PFLAG_INITIALIZING)
-		return;
-
-	ata_eh_set_pending(ap, 1);
-	scsi_schedule_eh(ap->scsi_host);
-
-	DPRINTK("port EH scheduled\n");
+	/* see: ata_std_sched_eh, unless you know better */
+	ap->ops->sched_eh(ap);
 }
 
 static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)

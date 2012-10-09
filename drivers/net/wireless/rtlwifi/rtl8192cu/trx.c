@@ -668,7 +668,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	SET_TX_DESC_RATE_ID(pdesc, 7);
 	SET_TX_DESC_MACID(pdesc, 0);
 	SET_TX_DESC_OWN(pdesc, 1);
-	SET_TX_DESC_PKT_SIZE((u8 *) pdesc, (u16) (skb->len));
+	SET_TX_DESC_PKT_SIZE(pdesc, (u16)skb->len);
 	SET_TX_DESC_FIRST_SEG(pdesc, 1);
 	SET_TX_DESC_LAST_SEG(pdesc, 1);
 	SET_TX_DESC_OFFSET(pdesc, 0x20);

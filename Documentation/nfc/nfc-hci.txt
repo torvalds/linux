@@ -178,3 +178,36 @@ ANY_GET_PARAMETER to the reader A gate to get information on the target
 that was discovered).
 
 Typically, such an event will be propagated to NFC Core from MSGRXWQ context.
+
+Error management
+----------------
+
+Errors that occur synchronously with the execution of an NFC Core request are
+simply returned as the execution result of the request. These are easy.
+
+Errors that occur asynchronously (e.g. in a background protocol handling thread)
+must be reported such that upper layers don't stay ignorant that something
+went wrong below and know that expected events will probably never happen.
+Handling of these errors is done as follows:
+
+- driver (pn544) fails to deliver an incoming frame: it stores the error such
+that any subsequent call to the driver will result in this error. Then it calls
+the standard nfc_shdlc_recv_frame() with a NULL argument to report the problem
+above. shdlc stores a EREMOTEIO sticky status, which will trigger SMW to
+report above in turn.
+
+- SMW is basically a background thread to handle incoming and outgoing shdlc
+frames. This thread will also check the shdlc sticky status and report to HCI
+when it discovers it is not able to run anymore because of an unrecoverable
+error that happened within shdlc or below. If the problem occurs during shdlc
+connection, the error is reported through the connect completion.
+
+- HCI: if an internal HCI error happens (frame is lost), or HCI is reported an
+error from a lower layer, HCI will either complete the currently executing
+command with that error, or notify NFC Core directly if no command is executing.
+
+- NFC Core: when NFC Core is notified of an error from below and polling is
+active, it will send a tag discovered event with an empty tag list to the user
+space to let it know that the poll operation will never be able to detect a tag.
+If polling is not active and the error was sticky, lower levels will return it
+at next invocation.

@@ -256,11 +256,21 @@ static bool check_device(struct device *dev)
 	return true;
 }
 
+static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
+{
+	pci_dev_put(*from);
+	*from = to;
+}
+
+#define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
+
 static int iommu_init_device(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *dma_pdev, *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
+	struct iommu_group *group;
 	u16 alias;
+	int ret;
 
 	if (dev->archdata.iommu)
 		return 0;
@@ -281,7 +291,61 @@ static int iommu_init_device(struct device *dev)
 			return -ENOTSUPP;
 		}
 		dev_data->alias_data = alias_data;
+
+		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
+	} else
+		dma_pdev = pci_dev_get(pdev);
+
+	/* Account for quirked devices */
+	swap_pci_ref(&dma_pdev, pci_get_dma_source(dma_pdev));
+
+	/*
+	 * If it's a multifunction device that does not support our
+	 * required ACS flags, add to the same group as function 0.
+	 */
+	if (dma_pdev->multifunction &&
+	    !pci_acs_enabled(dma_pdev, REQ_ACS_FLAGS))
+		swap_pci_ref(&dma_pdev,
+			     pci_get_slot(dma_pdev->bus,
+					  PCI_DEVFN(PCI_SLOT(dma_pdev->devfn),
+					  0)));
+
+	/*
+	 * Devices on the root bus go through the iommu.  If that's not us,
+	 * find the next upstream device and test ACS up to the root bus.
+	 * Finding the next device may require skipping virtual buses.
+	 */
+	while (!pci_is_root_bus(dma_pdev->bus)) {
+		struct pci_bus *bus = dma_pdev->bus;
+
+		while (!bus->self) {
+			if (!pci_is_root_bus(bus))
+				bus = bus->parent;
+			else
+				goto root_bus;
+		}
+
+		if (pci_acs_path_enabled(bus->self, NULL, REQ_ACS_FLAGS))
+			break;
+
+		swap_pci_ref(&dma_pdev, pci_dev_get(bus->self));
 	}
+
+root_bus:
+	group = iommu_group_get(&dma_pdev->dev);
+	pci_dev_put(dma_pdev);
+	if (!group) {
+		group = iommu_group_alloc();
+		if (IS_ERR(group))
+			return PTR_ERR(group);
+	}
+
+	ret = iommu_group_add_device(group, dev);
+
+	iommu_group_put(group);
+
+	if (ret)
+		return ret;
 
 	if (pci_iommuv2_capable(pdev)) {
 		struct amd_iommu *iommu;
@@ -311,6 +375,8 @@ static void iommu_ignore_device(struct device *dev)
 
 static void iommu_uninit_device(struct device *dev)
 {
+	iommu_group_remove_device(dev);
+
 	/*
 	 * Nothing to do here - we keep dev_data around for unplugged devices
 	 * and reuse it when the device is re-plugged - not doing so would
@@ -383,7 +449,6 @@ DECLARE_STATS_COUNTER(complete_ppr);
 DECLARE_STATS_COUNTER(invalidate_iotlb);
 DECLARE_STATS_COUNTER(invalidate_iotlb_all);
 DECLARE_STATS_COUNTER(pri_requests);
-
 
 static struct dentry *stats_dir;
 static struct dentry *de_fflush;
@@ -2073,7 +2138,7 @@ out_err:
 /* FIXME: Move this to PCI code */
 #define PCI_PRI_TLP_OFF		(1 << 15)
 
-bool pci_pri_tlp_required(struct pci_dev *pdev)
+static bool pci_pri_tlp_required(struct pci_dev *pdev)
 {
 	u16 status;
 	int pos;
@@ -2254,6 +2319,18 @@ static int device_change_notifier(struct notifier_block *nb,
 
 		iommu_init_device(dev);
 
+		/*
+		 * dev_data is still NULL and
+		 * got initialized in iommu_init_device
+		 */
+		dev_data = get_dev_data(dev);
+
+		if (iommu_pass_through || dev_data->iommu_v2) {
+			dev_data->passthrough = true;
+			attach_device(dev, pt_domain);
+			break;
+		}
+
 		domain = domain_for_device(dev);
 
 		/* allocate a protection domain if a device is added */
@@ -2271,10 +2348,7 @@ static int device_change_notifier(struct notifier_block *nb,
 
 		dev_data = get_dev_data(dev);
 
-		if (!dev_data->passthrough)
-			dev->archdata.dma_ops = &amd_iommu_dma_ops;
-		else
-			dev->archdata.dma_ops = &nommu_dma_ops;
+		dev->archdata.dma_ops = &amd_iommu_dma_ops;
 
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
@@ -2972,6 +3046,11 @@ int __init amd_iommu_init_dma_ops(void)
 
 	amd_iommu_stats_init();
 
+	if (amd_iommu_unmap_flush)
+		pr_info("AMD-Vi: IO/TLB flush on unmap enabled\n");
+	else
+		pr_info("AMD-Vi: Lazy IO/TLB flushing enabled\n");
+
 	return 0;
 
 free_domains:
@@ -3077,6 +3156,10 @@ static int amd_iommu_domain_init(struct iommu_domain *dom)
 	domain->iommu_domain = dom;
 
 	dom->priv = domain;
+
+	dom->geometry.aperture_start = 0;
+	dom->geometry.aperture_end   = ~0ULL;
+	dom->geometry.force_aperture = true;
 
 	return 0;
 
@@ -3236,26 +3319,6 @@ static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 	return 0;
 }
 
-static int amd_iommu_device_group(struct device *dev, unsigned int *groupid)
-{
-	struct iommu_dev_data *dev_data = dev->archdata.iommu;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	u16 devid;
-
-	if (!dev_data)
-		return -ENODEV;
-
-	if (pdev->is_virtfn || !iommu_group_mf)
-		devid = dev_data->devid;
-	else
-		devid = calc_devid(pdev->bus->number,
-				   PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
-
-	*groupid = amd_iommu_alias_table[devid];
-
-	return 0;
-}
-
 static struct iommu_ops amd_iommu_ops = {
 	.domain_init = amd_iommu_domain_init,
 	.domain_destroy = amd_iommu_domain_destroy,
@@ -3265,7 +3328,6 @@ static struct iommu_ops amd_iommu_ops = {
 	.unmap = amd_iommu_unmap,
 	.iova_to_phys = amd_iommu_iova_to_phys,
 	.domain_has_cap = amd_iommu_domain_has_cap,
-	.device_group = amd_iommu_device_group,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 

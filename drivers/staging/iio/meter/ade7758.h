@@ -122,7 +122,6 @@ struct ade7758_state {
 	u8			*tx;
 	u8			*rx;
 	struct mutex		buf_lock;
-	unsigned long		available_scan_masks[AD7758_NUM_WAVESRC];
 	struct iio_chan_spec	*ade7758_ring_channels;
 	struct spi_transfer	ring_xfer[4];
 	struct spi_message	ring_msg;

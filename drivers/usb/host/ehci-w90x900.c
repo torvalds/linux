@@ -71,20 +71,13 @@ static int __devinit usb_w90x900_probe(const struct hc_driver *driver,
 	val |= ENPHY;
 	__raw_writel(val, ehci->regs+PHY1_CTR);
 
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-	ehci->sbrn = 0x20;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		goto err4;
 
-	ehci_reset(ehci);
-
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
-
-	ehci_writel(ehci, 1, &ehci->regs->configured_flag);
 
 	return retval;
 err4:
@@ -120,7 +113,7 @@ static const struct hc_driver ehci_w90x900_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset = ehci_init,
+	.reset = ehci_setup,
 	.start = ehci_run,
 
 	.stop = ehci_stop,

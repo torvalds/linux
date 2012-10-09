@@ -1968,7 +1968,7 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 
 	for (n = rb_first(&ctl->free_space_offset); n; n = rb_next(n)) {
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
-		if (info->bytes >= bytes)
+		if (info->bytes >= bytes && !block_group->ro)
 			count++;
 		printk(KERN_CRIT "entry offset %llu, bytes %llu, bitmap %s\n",
 		       (unsigned long long)info->offset,

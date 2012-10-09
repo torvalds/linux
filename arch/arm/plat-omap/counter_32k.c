@@ -29,7 +29,10 @@
 #include <plat/clock.h>
 
 /* OMAP2_32KSYNCNT_CR_OFF: offset of 32ksync counter register */
-#define OMAP2_32KSYNCNT_CR_OFF		0x10
+#define OMAP2_32KSYNCNT_REV_OFF		0x0
+#define OMAP2_32KSYNCNT_REV_SCHEME	(0x3 << 30)
+#define OMAP2_32KSYNCNT_CR_OFF_LOW	0x10
+#define OMAP2_32KSYNCNT_CR_OFF_HIGH	0x30
 
 /*
  * 32KHz clocksource ... always available, on pretty most chips except
@@ -84,9 +87,16 @@ int __init omap_init_clocksource_32k(void __iomem *vbase)
 	int ret;
 
 	/*
-	 * 32k sync Counter register offset is at 0x10
+	 * 32k sync Counter IP register offsets vary between the
+	 * highlander version and the legacy ones.
+	 * The 'SCHEME' bits(30-31) of the revision register is used
+	 * to identify the version.
 	 */
-	sync32k_cnt_reg = vbase + OMAP2_32KSYNCNT_CR_OFF;
+	if (__raw_readl(vbase + OMAP2_32KSYNCNT_REV_OFF) &
+						OMAP2_32KSYNCNT_REV_SCHEME)
+		sync32k_cnt_reg = vbase + OMAP2_32KSYNCNT_CR_OFF_HIGH;
+	else
+		sync32k_cnt_reg = vbase + OMAP2_32KSYNCNT_CR_OFF_LOW;
 
 	/*
 	 * 120000 rough estimate from the calculations in

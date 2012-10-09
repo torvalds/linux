@@ -266,7 +266,7 @@ BEGIN_MMU_FTR_SECTION
 	andi.	r3,r3,MMUCSR0_TLBFI@l
 	bne	1b
 MMU_FTR_SECTION_ELSE
-	PPC_TLBILX_ALL(0,0)
+	PPC_TLBILX_ALL(0,R0)
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
@@ -279,7 +279,7 @@ BEGIN_MMU_FTR_SECTION
 	wrteei	0
 	mfspr	r4,SPRN_MAS6	/* save MAS6 */
 	mtspr	SPRN_MAS6,r3
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	mtspr	SPRN_MAS6,r4	/* restore MAS6 */
 	wrtee	r10
 MMU_FTR_SECTION_ELSE
@@ -313,7 +313,7 @@ BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_MAS1,r4
 	tlbwe
 MMU_FTR_SECTION_ELSE
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(0,R3)
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
@@ -331,7 +331,7 @@ _GLOBAL(_tlbil_pid)
 	mfmsr	r10
 	wrteei	0
 	mtspr	SPRN_MAS6,r4
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	wrtee	r10
 	msync
 	isync
@@ -343,14 +343,14 @@ _GLOBAL(_tlbil_pid_noind)
 	ori	r4,r4,MAS6_SIND
 	wrteei	0
 	mtspr	SPRN_MAS6,r4
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	wrtee	r10
 	msync
 	isync
 	blr
 
 _GLOBAL(_tlbil_all)
-	PPC_TLBILX_ALL(0,0)
+	PPC_TLBILX_ALL(0,R0)
 	msync
 	isync
 	blr
@@ -364,7 +364,7 @@ _GLOBAL(_tlbil_va)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(0,R3)
 	msync
 	isync
 	wrtee	r10
@@ -379,7 +379,7 @@ _GLOBAL(_tlbivax_bcast)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBIVAX(0,r3)
+	PPC_TLBIVAX(0,R3)
 	eieio
 	tlbsync
 	sync

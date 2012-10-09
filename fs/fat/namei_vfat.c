@@ -41,9 +41,9 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 	return ret;
 }
 
-static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int vfat_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	if (nd && nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	/* This is not negative dentry. Always valid. */
@@ -52,9 +52,9 @@ static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return vfat_revalidate_shortname(dentry);
 }
 
-static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
+static int vfat_revalidate_ci(struct dentry *dentry, unsigned int flags)
 {
-	if (nd && nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	/*
@@ -74,7 +74,7 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 	 * This may be nfsd (or something), anyway, we can't see the
 	 * intent of this. So, since this can be for creation, drop it.
 	 */
-	if (!nd)
+	if (!flags)
 		return 0;
 
 	/*
@@ -82,7 +82,7 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 	 * case sensitive name which is specified by user if this is
 	 * for creation.
 	 */
-	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+	if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
 		return 0;
 
 	return vfat_revalidate_shortname(dentry);
@@ -651,8 +651,7 @@ shortname:
 	de->time = de->ctime = time;
 	de->date = de->cdate = de->adate = date;
 	de->ctime_cs = time_cs;
-	de->start = cpu_to_le16(cluster);
-	de->starthi = cpu_to_le16(cluster >> 16);
+	fat_set_start(de, cluster);
 	de->size = 0;
 out_free:
 	__putname(uname);
@@ -714,7 +713,7 @@ static int vfat_d_anon_disconn(struct dentry *dentry)
 }
 
 static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
@@ -772,7 +771,7 @@ error:
 }
 
 static int vfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		       struct nameidata *nd)
+		       bool excl)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
@@ -965,9 +964,7 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		mark_inode_dirty(old_inode);
 
 	if (update_dotdot) {
-		int start = MSDOS_I(new_dir)->i_logstart;
-		dotdot_de->start = cpu_to_le16(start);
-		dotdot_de->starthi = cpu_to_le16(start >> 16);
+		fat_set_start(dotdot_de, MSDOS_I(new_dir)->i_logstart);
 		mark_buffer_dirty_inode(dotdot_bh, old_inode);
 		if (IS_DIRSYNC(new_dir)) {
 			err = sync_dirty_buffer(dotdot_bh);
@@ -1009,9 +1006,7 @@ error_dotdot:
 	corrupt = 1;
 
 	if (update_dotdot) {
-		int start = MSDOS_I(old_dir)->i_logstart;
-		dotdot_de->start = cpu_to_le16(start);
-		dotdot_de->starthi = cpu_to_le16(start >> 16);
+		fat_set_start(dotdot_de, MSDOS_I(old_dir)->i_logstart);
 		mark_buffer_dirty_inode(dotdot_bh, old_inode);
 		corrupt |= sync_dirty_buffer(dotdot_bh);
 	}

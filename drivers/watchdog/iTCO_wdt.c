@@ -47,7 +47,7 @@
 
 /* Module and version information */
 #define DRV_NAME	"iTCO_wdt"
-#define DRV_VERSION	"1.07"
+#define DRV_VERSION	"1.10"
 
 /* Includes */
 #include <linux/module.h>		/* For module specific items */
@@ -88,8 +88,6 @@
 #define TCOv2_TMR	(TCOBASE + 0x12) /* TCOv2 Timer Initial Value	*/
 
 /* internal variables */
-static unsigned long is_active;
-static char expect_release;
 static struct {		/* this is private data for the iTCO_wdt device */
 	/* TCO version/generation */
 	unsigned int iTCO_version;
@@ -106,12 +104,12 @@ static struct {		/* this is private data for the iTCO_wdt device */
 } iTCO_wdt_private;
 
 /* module parameters */
-#define WATCHDOG_HEARTBEAT 30	/* 30 sec default heartbeat */
-static int heartbeat = WATCHDOG_HEARTBEAT;  /* in seconds */
+#define WATCHDOG_TIMEOUT 30	/* 30 sec default heartbeat */
+static int heartbeat = WATCHDOG_TIMEOUT;  /* in seconds */
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog timeout in seconds. "
 	"5..76 (TCO v1) or 3..614 (TCO v2), default="
-				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -178,13 +176,13 @@ static int iTCO_wdt_unset_NO_REBOOT_bit(void)
 	return ret; /* returns: 0 = OK, -EIO = Error */
 }
 
-static int iTCO_wdt_start(void)
+static int iTCO_wdt_start(struct watchdog_device *wd_dev)
 {
 	unsigned int val;
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
-	iTCO_vendor_pre_start(iTCO_wdt_private.smi_res, heartbeat);
+	iTCO_vendor_pre_start(iTCO_wdt_private.smi_res, wd_dev->timeout);
 
 	/* disable chipset's NO_REBOOT bit */
 	if (iTCO_wdt_unset_NO_REBOOT_bit()) {
@@ -212,7 +210,7 @@ static int iTCO_wdt_start(void)
 	return 0;
 }
 
-static int iTCO_wdt_stop(void)
+static int iTCO_wdt_stop(struct watchdog_device *wd_dev)
 {
 	unsigned int val;
 
@@ -236,11 +234,11 @@ static int iTCO_wdt_stop(void)
 	return 0;
 }
 
-static int iTCO_wdt_keepalive(void)
+static int iTCO_wdt_ping(struct watchdog_device *wd_dev)
 {
 	spin_lock(&iTCO_wdt_private.io_lock);
 
-	iTCO_vendor_pre_keepalive(iTCO_wdt_private.smi_res, heartbeat);
+	iTCO_vendor_pre_keepalive(iTCO_wdt_private.smi_res, wd_dev->timeout);
 
 	/* Reload the timer by writing to the TCO Timer Counter register */
 	if (iTCO_wdt_private.iTCO_version == 2)
@@ -257,7 +255,7 @@ static int iTCO_wdt_keepalive(void)
 	return 0;
 }
 
-static int iTCO_wdt_set_heartbeat(int t)
+static int iTCO_wdt_set_timeout(struct watchdog_device *wd_dev, unsigned int t)
 {
 	unsigned int val16;
 	unsigned char val8;
@@ -304,14 +302,15 @@ static int iTCO_wdt_set_heartbeat(int t)
 			return -EINVAL;
 	}
 
-	heartbeat = t;
+	wd_dev->timeout = t;
 	return 0;
 }
 
-static int iTCO_wdt_get_timeleft(int *time_left)
+static unsigned int iTCO_wdt_get_timeleft(struct watchdog_device *wd_dev)
 {
 	unsigned int val16;
 	unsigned char val8;
+	unsigned int time_left = 0;
 
 	/* read the TCO Timer */
 	if (iTCO_wdt_private.iTCO_version == 2) {
@@ -320,7 +319,7 @@ static int iTCO_wdt_get_timeleft(int *time_left)
 		val16 &= 0x3ff;
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
-		*time_left = (val16 * 6) / 10;
+		time_left = (val16 * 6) / 10;
 	} else if (iTCO_wdt_private.iTCO_version == 1) {
 		spin_lock(&iTCO_wdt_private.io_lock);
 		val8 = inb(TCO_RLD);
@@ -329,156 +328,35 @@ static int iTCO_wdt_get_timeleft(int *time_left)
 			val8 += (inb(TCOv1_TMR) & 0x3f);
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
-		*time_left = (val8 * 6) / 10;
-	} else
-		return -EINVAL;
-	return 0;
-}
-
-/*
- *	/dev/watchdog handling
- */
-
-static int iTCO_wdt_open(struct inode *inode, struct file *file)
-{
-	/* /dev/watchdog can only be opened once */
-	if (test_and_set_bit(0, &is_active))
-		return -EBUSY;
-
-	/*
-	 *      Reload and activate timer
-	 */
-	iTCO_wdt_start();
-	return nonseekable_open(inode, file);
-}
-
-static int iTCO_wdt_release(struct inode *inode, struct file *file)
-{
-	/*
-	 *      Shut off the timer.
-	 */
-	if (expect_release == 42) {
-		iTCO_wdt_stop();
-	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
-		iTCO_wdt_keepalive();
+		time_left = (val8 * 6) / 10;
 	}
-	clear_bit(0, &is_active);
-	expect_release = 0;
-	return 0;
-}
-
-static ssize_t iTCO_wdt_write(struct file *file, const char __user *data,
-			      size_t len, loff_t *ppos)
-{
-	/* See if we got the magic character 'V' and reload the timer */
-	if (len) {
-		if (!nowayout) {
-			size_t i;
-
-			/* note: just in case someone wrote the magic
-			   character five months ago... */
-			expect_release = 0;
-
-			/* scan to see whether or not we got the
-			   magic character */
-			for (i = 0; i != len; i++) {
-				char c;
-				if (get_user(c, data + i))
-					return -EFAULT;
-				if (c == 'V')
-					expect_release = 42;
-			}
-		}
-
-		/* someone wrote to us, we should reload the timer */
-		iTCO_wdt_keepalive();
-	}
-	return len;
-}
-
-static long iTCO_wdt_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
-{
-	int new_options, retval = -EINVAL;
-	int new_heartbeat;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
-	static const struct watchdog_info ident = {
-		.options =		WDIOF_SETTIMEOUT |
-					WDIOF_KEEPALIVEPING |
-					WDIOF_MAGICCLOSE,
-		.firmware_version =	0,
-		.identity =		DRV_NAME,
-	};
-
-	switch (cmd) {
-	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
-	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, p);
-
-	case WDIOC_SETOPTIONS:
-	{
-		if (get_user(new_options, p))
-			return -EFAULT;
-
-		if (new_options & WDIOS_DISABLECARD) {
-			iTCO_wdt_stop();
-			retval = 0;
-		}
-		if (new_options & WDIOS_ENABLECARD) {
-			iTCO_wdt_keepalive();
-			iTCO_wdt_start();
-			retval = 0;
-		}
-		return retval;
-	}
-	case WDIOC_KEEPALIVE:
-		iTCO_wdt_keepalive();
-		return 0;
-
-	case WDIOC_SETTIMEOUT:
-	{
-		if (get_user(new_heartbeat, p))
-			return -EFAULT;
-		if (iTCO_wdt_set_heartbeat(new_heartbeat))
-			return -EINVAL;
-		iTCO_wdt_keepalive();
-		/* Fall */
-	}
-	case WDIOC_GETTIMEOUT:
-		return put_user(heartbeat, p);
-	case WDIOC_GETTIMELEFT:
-	{
-		int time_left;
-		if (iTCO_wdt_get_timeleft(&time_left))
-			return -EINVAL;
-		return put_user(time_left, p);
-	}
-	default:
-		return -ENOTTY;
-	}
+	return time_left;
 }
 
 /*
  *	Kernel Interfaces
  */
 
-static const struct file_operations iTCO_wdt_fops = {
-	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
-	.write =		iTCO_wdt_write,
-	.unlocked_ioctl =	iTCO_wdt_ioctl,
-	.open =			iTCO_wdt_open,
-	.release =		iTCO_wdt_release,
+static const struct watchdog_info ident = {
+	.options =		WDIOF_SETTIMEOUT |
+				WDIOF_KEEPALIVEPING |
+				WDIOF_MAGICCLOSE,
+	.firmware_version =	0,
+	.identity =		DRV_NAME,
 };
 
-static struct miscdevice iTCO_wdt_miscdev = {
-	.minor =	WATCHDOG_MINOR,
-	.name =		"watchdog",
-	.fops =		&iTCO_wdt_fops,
+static const struct watchdog_ops iTCO_wdt_ops = {
+	.owner =		THIS_MODULE,
+	.start =		iTCO_wdt_start,
+	.stop = 		iTCO_wdt_stop,
+	.ping = 		iTCO_wdt_ping,
+	.set_timeout =		iTCO_wdt_set_timeout,
+	.get_timeleft =		iTCO_wdt_get_timeleft,
+};
+
+static struct watchdog_device iTCO_wdt_watchdog_dev = {
+	.info =		&ident,
+	.ops = 		&iTCO_wdt_ops,
 };
 
 /*
@@ -489,10 +367,10 @@ static void __devexit iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
-		iTCO_wdt_stop();
+		iTCO_wdt_stop(&iTCO_wdt_watchdog_dev);
 
 	/* Deregister */
-	misc_deregister(&iTCO_wdt_miscdev);
+	watchdog_unregister_device(&iTCO_wdt_watchdog_dev);
 
 	/* release resources */
 	release_region(iTCO_wdt_private.tco_res->start,
@@ -605,20 +483,25 @@ static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 	outw(0x0002, TCO2_STS);	/* Clear SECOND_TO_STS bit */
 	outw(0x0004, TCO2_STS);	/* Clear BOOT_STS bit */
 
+	iTCO_wdt_watchdog_dev.bootstatus = 0;
+	iTCO_wdt_watchdog_dev.timeout = WATCHDOG_TIMEOUT;
+	watchdog_set_nowayout(&iTCO_wdt_watchdog_dev, nowayout);
+	iTCO_wdt_watchdog_dev.parent = dev->dev.parent;
+
 	/* Make sure the watchdog is not running */
-	iTCO_wdt_stop();
+	iTCO_wdt_stop(&iTCO_wdt_watchdog_dev);
 
 	/* Check that the heartbeat value is within it's range;
 	   if not reset to the default */
-	if (iTCO_wdt_set_heartbeat(heartbeat)) {
-		iTCO_wdt_set_heartbeat(WATCHDOG_HEARTBEAT);
-		pr_info("timeout value out of range, using %d\n", heartbeat);
+	if (iTCO_wdt_set_timeout(&iTCO_wdt_watchdog_dev, heartbeat)) {
+		iTCO_wdt_set_timeout(&iTCO_wdt_watchdog_dev, WATCHDOG_TIMEOUT);
+		pr_info("timeout value out of range, using %d\n",
+			WATCHDOG_TIMEOUT);
 	}
 
-	ret = misc_register(&iTCO_wdt_miscdev);
+	ret = watchdog_register_device(&iTCO_wdt_watchdog_dev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cannot register watchdog device (err=%d)\n", ret);
 		goto unreg_tco;
 	}
 
@@ -659,7 +542,7 @@ static int __devexit iTCO_wdt_remove(struct platform_device *dev)
 
 static void iTCO_wdt_shutdown(struct platform_device *dev)
 {
-	iTCO_wdt_stop();
+	iTCO_wdt_stop(NULL);
 }
 
 static struct platform_driver iTCO_wdt_driver = {

@@ -362,7 +362,7 @@ static void __init assabet_init(void)
 static void __init map_sa1100_gpio_regs( void )
 {
 	unsigned long phys = __PREG(GPLR) & PMD_MASK;
-	unsigned long virt = io_p2v(phys);
+	unsigned long virt = (unsigned long)io_p2v(phys);
 	int prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO);
 	pmd_t *pmd;
 

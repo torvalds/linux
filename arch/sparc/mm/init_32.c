@@ -45,28 +45,12 @@ unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
-unsigned long sparc_unmapped_base;
-
-struct pgtable_cache_struct pgt_quicklists;
 
 /* Initial ramdisk setup */
 extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;
 
 unsigned long highstart_pfn, highend_pfn;
-
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-#define kmap_get_fixmap_pte(vaddr) \
-	pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr))
-
-void __init kmap_init(void)
-{
-	/* cache the first kmap pte */
-	kmap_pte = kmap_get_fixmap_pte(__fix_to_virt(FIX_KMAP_BEGIN));
-	kmap_prot = __pgprot(SRMMU_ET_PTE | SRMMU_PRIV | SRMMU_CACHE);
-}
 
 void show_mem(unsigned int filter)
 {
@@ -76,33 +60,8 @@ void show_mem(unsigned int filter)
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", totalram_pages);
 	printk("%ld free pages\n", nr_free_pages());
-#if 0 /* undefined pgtable_cache_size, pgd_cache_size */
-	printk("%ld pages in page table cache\n",pgtable_cache_size);
-#ifndef CONFIG_SMP
-	if (sparc_cpu_model == sun4m || sparc_cpu_model == sun4d)
-		printk("%ld entries in page dir cache\n",pgd_cache_size);
-#endif	
-#endif
 }
 
-void __init sparc_context_init(int numctx)
-{
-	int ctx;
-
-	ctx_list_pool = __alloc_bootmem(numctx * sizeof(struct ctx_list), SMP_CACHE_BYTES, 0UL);
-
-	for(ctx = 0; ctx < numctx; ctx++) {
-		struct ctx_list *clist;
-
-		clist = (ctx_list_pool + ctx);
-		clist->ctx_number = ctx;
-		clist->ctx_mm = NULL;
-	}
-	ctx_free.next = ctx_free.prev = &ctx_free;
-	ctx_used.next = ctx_used.prev = &ctx_used;
-	for(ctx = 0; ctx < numctx; ctx++)
-		add_to_free_ctxlist(ctx_list_pool + ctx);
-}
 
 extern unsigned long cmdline_memory_size;
 unsigned long last_valid_pfn;
@@ -292,22 +251,7 @@ extern void device_scan(void);
 
 void __init paging_init(void)
 {
-	switch(sparc_cpu_model) {
-	case sparc_leon:
-		leon_init();
-		/* fall through */
-	case sun4m:
-	case sun4d:
-		srmmu_paging_init();
-		sparc_unmapped_base = 0x50000000;
-		break;
-	default:
-		prom_printf("paging_init: Cannot init paging on this Sparc\n");
-		prom_printf("paging_init: sparc_cpu_model = %d\n", sparc_cpu_model);
-		prom_printf("paging_init: Halting...\n");
-		prom_halt();
-	}
-
+	srmmu_paging_init();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
 	device_scan();

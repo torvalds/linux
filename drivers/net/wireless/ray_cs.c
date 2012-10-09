@@ -1849,7 +1849,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	pr_debug("ray_cs: interrupt for *dev=%p\n", dev);
 
 	local = netdev_priv(dev);
-	link = (struct pcmcia_device *)local->finder;
+	link = local->finder;
 	if (!pcmcia_dev_present(link)) {
 		pr_debug(
 			"ray_cs interrupt from device not present or suspended.\n");

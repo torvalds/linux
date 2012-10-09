@@ -754,8 +754,7 @@ EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 /*
  * Alloc the command and ack buffers for boot mode
  *
- * Get the buffers needed to deal with boot mode messages.  These
- * buffers need to be allocated before the sdio receive irq is setup.
+ * Get the buffers needed to deal with boot mode messages.
  */
 static
 int i2400m_bm_buf_alloc(struct i2400m *i2400m)
@@ -897,7 +896,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	result = i2400m_read_mac_addr(i2400m);
 	if (result < 0)
 		goto error_read_mac_addr;
-	random_ether_addr(i2400m->src_mac_addr);
+	eth_random_addr(i2400m->src_mac_addr);
 
 	i2400m->pm_notifier.notifier_call = i2400m_pm_notifier;
 	register_pm_notifier(&i2400m->pm_notifier);

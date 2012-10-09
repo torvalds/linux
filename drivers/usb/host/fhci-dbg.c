@@ -41,7 +41,7 @@ void fhci_dbg_isr(struct fhci_hcd *fhci, int usb_er)
 static int fhci_dfs_regs_show(struct seq_file *s, void *v)
 {
 	struct fhci_hcd *fhci = s->private;
-	struct fhci_regs __iomem *regs = fhci->regs;
+	struct qe_usb_ctlr __iomem *regs = fhci->regs;
 
 	seq_printf(s,
 		"mode: 0x%x\n" "addr: 0x%x\n"
@@ -50,11 +50,11 @@ static int fhci_dfs_regs_show(struct seq_file *s, void *v)
 		"status: 0x%x\n" "SOF timer: %d\n"
 		"frame number: %d\n"
 		"lines status: 0x%x\n",
-		in_8(&regs->usb_mod), in_8(&regs->usb_addr),
-		in_8(&regs->usb_comm), in_be16(&regs->usb_ep[0]),
-		in_be16(&regs->usb_event), in_be16(&regs->usb_mask),
-		in_8(&regs->usb_status), in_be16(&regs->usb_sof_tmr),
-		in_be16(&regs->usb_frame_num),
+		in_8(&regs->usb_usmod), in_8(&regs->usb_usadr),
+		in_8(&regs->usb_uscom), in_be16(&regs->usb_usep[0]),
+		in_be16(&regs->usb_usber), in_be16(&regs->usb_usbmr),
+		in_8(&regs->usb_usbs), in_be16(&regs->usb_ussft),
+		in_be16(&regs->usb_usfrn),
 		fhci_ioports_check_bus_state(fhci));
 
 	return 0;

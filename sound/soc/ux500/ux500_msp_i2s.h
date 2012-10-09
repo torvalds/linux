@@ -17,7 +17,7 @@
 
 #include <linux/platform_device.h>
 
-#include <mach/board-mop500-msp.h>
+#include <mach/msp.h>
 
 #define MSP_INPUT_FREQ_APB 48000000
 

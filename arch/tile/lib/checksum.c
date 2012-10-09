@@ -16,19 +16,6 @@
 #include <net/checksum.h>
 #include <linux/module.h>
 
-static inline unsigned int longto16(unsigned long x)
-{
-	unsigned long ret;
-#ifdef __tilegx__
-	ret = __insn_v2sadu(x, 0);
-	ret = __insn_v2sadu(ret, 0);
-#else
-	ret = __insn_sadh_u(x, 0);
-	ret = __insn_sadh_u(ret, 0);
-#endif
-	return ret;
-}
-
 __wsum do_csum(const unsigned char *buff, int len)
 {
 	int odd, count;
@@ -94,7 +81,7 @@ __wsum do_csum(const unsigned char *buff, int len)
 	}
 	if (len & 1)
 		result += *buff;
-	result = longto16(result);
+	result = csum_long(result);
 	if (odd)
 		result = swab16(result);
 out:

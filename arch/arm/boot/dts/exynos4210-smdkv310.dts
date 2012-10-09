@@ -179,4 +179,42 @@
 	i2c@138D0000 {
 		status = "disabled";
 	};
+
+	spi_0: spi@13920000 {
+		status = "disabled";
+	};
+
+	spi_1: spi@13930000 {
+		status = "disabled";
+	};
+
+	spi_2: spi@13940000 {
+		gpios = <&gpc1 1 5 3 0>,
+			<&gpc1 3 5 3 0>,
+			<&gpc1 4 5 3 0>;
+
+		w25x80@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "w25x80";
+			reg = <0>;
+			spi-max-frequency = <1000000>;
+
+			controller-data {
+				cs-gpio = <&gpc1 2 1 0 3>;
+				samsung,spi-feedback-delay = <0>;
+			};
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x0 0x40000>;
+				read-only;
+			};
+
+			partition@40000 {
+				label = "Kernel";
+				reg = <0x40000 0xc0000>;
+			};
+		};
+	};
 };

@@ -826,12 +826,12 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 		goto sysfs_failed;
 	}
 
-	ret = -ENOMEM;
 	for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 		card->net[j] = netdev =
 			softing_netdev_create(card, card->id.chip[j]);
 		if (!netdev) {
 			dev_alert(&pdev->dev, "failed to make can[%i]", j);
+			ret = -ENOMEM;
 			goto netdev_failed;
 		}
 		priv = netdev_priv(card->net[j]);

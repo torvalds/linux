@@ -274,7 +274,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 static inline int zd_usb_ioread16(struct zd_usb *usb, u16 *value,
 	                      const zd_addr_t addr)
 {
-	return zd_usb_ioread16v(usb, value, (const zd_addr_t *)&addr, 1);
+	return zd_usb_ioread16v(usb, value, &addr, 1);
 }
 
 void zd_usb_iowrite16v_async_start(struct zd_usb *usb);

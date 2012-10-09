@@ -170,7 +170,10 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 	if (rf_protocol == NCI_RF_PROTOCOL_T2T)
 		protocol = NFC_PROTO_MIFARE_MASK;
 	else if (rf_protocol == NCI_RF_PROTOCOL_ISO_DEP)
-		protocol = NFC_PROTO_ISO14443_MASK;
+		if (rf_tech_and_mode == NCI_NFC_A_PASSIVE_POLL_MODE)
+			protocol = NFC_PROTO_ISO14443_MASK;
+		else
+			protocol = NFC_PROTO_ISO14443_B_MASK;
 	else if (rf_protocol == NCI_RF_PROTOCOL_T3T)
 		protocol = NFC_PROTO_FELICA_MASK;
 	else

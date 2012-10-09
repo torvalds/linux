@@ -45,6 +45,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
 #include "sam9_smc.h"
@@ -378,6 +379,7 @@ MACHINE_START(NEOCORE926, "ADENEO NEOCORE 926")
 	/* Maintainer: ADENEO */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= neocore926_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= neocore926_board_init,

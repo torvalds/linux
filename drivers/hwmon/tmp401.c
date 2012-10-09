@@ -594,7 +594,6 @@ static int tmp401_remove(struct i2c_client *client)
 					   &tmp411_attr[i].dev_attr);
 	}
 
-	kfree(data);
 	return 0;
 }
 
@@ -605,7 +604,8 @@ static int tmp401_probe(struct i2c_client *client,
 	struct tmp401_data *data;
 	const char *names[] = { "TMP401", "TMP411" };
 
-	data = kzalloc(sizeof(struct tmp401_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct tmp401_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -646,7 +646,7 @@ static int tmp401_probe(struct i2c_client *client,
 	return 0;
 
 exit_remove:
-	tmp401_remove(client); /* will also free data for us */
+	tmp401_remove(client);
 	return err;
 }
 

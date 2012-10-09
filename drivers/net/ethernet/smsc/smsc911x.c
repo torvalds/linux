@@ -1442,6 +1442,14 @@ smsc911x_set_hw_mac_address(struct smsc911x_data *pdata, u8 dev_addr[6])
 	smsc911x_mac_write(pdata, ADDRL, mac_low32);
 }
 
+static void smsc911x_disable_irq_chip(struct net_device *dev)
+{
+	struct smsc911x_data *pdata = netdev_priv(dev);
+
+	smsc911x_reg_write(pdata, INT_EN, 0);
+	smsc911x_reg_write(pdata, INT_STS, 0xFFFFFFFF);
+}
+
 static int smsc911x_open(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
@@ -1494,8 +1502,7 @@ static int smsc911x_open(struct net_device *dev)
 	spin_unlock_irq(&pdata->mac_lock);
 
 	/* Initialise irqs, but leave all sources disabled */
-	smsc911x_reg_write(pdata, INT_EN, 0);
-	smsc911x_reg_write(pdata, INT_STS, 0xFFFFFFFF);
+	smsc911x_disable_irq_chip(dev);
 
 	/* Set interrupt deassertion to 100uS */
 	intcfg = ((10 << 24) | INT_CFG_IRQ_EN_);
@@ -2215,9 +2222,6 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	if (smsc911x_soft_reset(pdata))
 		return -ENODEV;
 
-	/* Disable all interrupt sources until we bring the device up */
-	smsc911x_reg_write(pdata, INT_EN, 0);
-
 	ether_setup(dev);
 	dev->flags |= IFF_MULTICAST;
 	netif_napi_add(dev, &pdata->napi, smsc911x_poll, SMSC_NAPI_WEIGHT);
@@ -2434,8 +2438,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	smsc911x_reg_write(pdata, INT_CFG, intcfg);
 
 	/* Ensure interrupts are globally disabled before connecting ISR */
-	smsc911x_reg_write(pdata, INT_EN, 0);
-	smsc911x_reg_write(pdata, INT_STS, 0xFFFFFFFF);
+	smsc911x_disable_irq_chip(dev);
 
 	retval = request_irq(dev->irq, smsc911x_irqhandler,
 			     irq_flags | IRQF_SHARED, dev->name, dev);
@@ -2485,7 +2488,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 			eth_hw_addr_random(dev);
 			smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
 			SMSC_TRACE(pdata, probe,
-				   "MAC Address is set to random_ether_addr");
+				   "MAC Address is set to eth_random_addr");
 		}
 	}
 

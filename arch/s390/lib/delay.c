@@ -1,7 +1,7 @@
 /*
  *    Precise Delay Loops for S390
  *
- *    Copyright IBM Corp. 1999,2008
+ *    Copyright IBM Corp. 1999, 2008
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
@@ -12,8 +12,8 @@
 #include <linux/module.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
+#include <asm/vtimer.h>
 #include <asm/div64.h>
-#include <asm/timer.h>
 
 void __delay(unsigned long loops)
 {

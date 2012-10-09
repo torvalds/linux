@@ -1,0 +1,30 @@
+* Texas Instrument OMAP SCM bandgap bindings
+
+In the System Control Module, OMAP supplies a voltage reference
+and a temperature sensor feature that are gathered in the band
+gap voltage and temperature sensor (VBGAPTS) module. The band
+gap provides current and voltage reference for its internal
+circuits and other analog IP blocks. The analog-to-digital
+converter (ADC) produces an output value that is proportional
+to the silicon temperature.
+
+Required properties:
+- compatible : Should be:
+  - "ti,omap4460-control-bandgap" : for OMAP4460 bandgap
+  - "ti,omap5430-control-bandgap" : for OMAP5430 bandgap
+- interrupts : this entry should indicate which interrupt line
+the talert signal is routed to;
+Specific:
+- ti,tshut-gpio : this entry should be used to inform which GPIO
+line the tshut signal is routed to;
+
+Example:
+
+bandgap {
+	reg = <0x4a002260 0x4
+		0x4a00232C 0x4
+		0x4a002378 0x18>;
+	compatible = "ti,omap4460-control-bandgap";
+	interrupts = <0 126 4>; /* talert */
+	ti,tshut-gpio = <86>;
+};

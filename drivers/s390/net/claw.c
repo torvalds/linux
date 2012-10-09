@@ -1,5 +1,4 @@
 /*
- *  drivers/s390/net/claw.c
  *    ESCON CLAW network driver
  *
  *  Linux for zSeries version
@@ -3380,5 +3379,5 @@ module_exit(claw_cleanup);
 
 MODULE_AUTHOR("Andy Richter <richtera@us.ibm.com>");
 MODULE_DESCRIPTION("Linux for System z CLAW Driver\n" \
-			"Copyright 2000,2008 IBM Corporation\n");
+			"Copyright IBM Corp. 2000, 2008\n");
 MODULE_LICENSE("GPL");

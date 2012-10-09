@@ -58,7 +58,7 @@ static const unsigned short ppi_pins[] = {
  */
 
 static struct bfin_adv7393_fb_par {
-	/* structure holding blackfin / adv7393 paramters when
+	/* structure holding blackfin / adv7393 parameters when
 	   screen is blanked */
 	struct {
 		u8 Mode;	/* ntsc/pal/? */

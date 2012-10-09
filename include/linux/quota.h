@@ -333,7 +333,7 @@ struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
 	int (*quota_on_meta)(struct super_block *, int, int);
 	int (*quota_off)(struct super_block *, int);
-	int (*quota_sync)(struct super_block *, int, int);
+	int (*quota_sync)(struct super_block *, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*get_dqblk)(struct super_block *, int, qid_t, struct fs_disk_quota *);

@@ -26,7 +26,6 @@
 
 #include "devices-imx51.h"
 
-#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 6))
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 
 static iomux_v3_cfg_t mx51_3ds_pads[] = {
@@ -148,13 +147,13 @@ static void __init mx51_3ds_init(void)
 	spi_register_board_info(mx51_3ds_spi_nor_device,
 				ARRAY_SIZE(mx51_3ds_spi_nor_device));
 
-	if (mxc_expio_init(MX51_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX51_CS5_BASE_ADDR, IMX_GPIO_NR(1, 6)))
 		printk(KERN_WARNING "Init of the debugboard failed, all "
 				    "devices on the board are unusable.\n");
 
 	imx51_add_sdhci_esdhc_imx(0, NULL);
 	imx51_add_imx_keypad(&mx51_3ds_map_data);
-	imx51_add_imx2_wdt(0, NULL);
+	imx51_add_imx2_wdt(0);
 }
 
 static void __init mx51_3ds_timer_init(void)

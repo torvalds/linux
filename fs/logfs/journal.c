@@ -565,7 +565,7 @@ static void write_wbuf(struct super_block *sb, struct logfs_area *area,
 	index = ofs >> PAGE_SHIFT;
 	page_ofs = ofs & (PAGE_SIZE - 1);
 
-	page = find_lock_page(mapping, index);
+	page = find_or_create_page(mapping, index, GFP_NOFS);
 	BUG_ON(!page);
 	memcpy(wbuf, page_address(page) + page_ofs, super->s_writesize);
 	unlock_page(page);

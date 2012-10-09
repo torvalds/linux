@@ -26,7 +26,7 @@
 #include <linux/ptp_classify.h>
 #endif
 
-#define DRV_VERSION     "1.00"
+#define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
 
 #define PCI_DEVICE_ID_INTEL_IOH1_GBE	0x8802		/* Pci device ID */
@@ -35,7 +35,7 @@ const char pch_driver_version[] = DRV_VERSION;
 #define DSC_INIT16			0xC000
 #define PCH_GBE_DMA_ALIGN		0
 #define PCH_GBE_DMA_PADDING		2
-#define PCH_GBE_WATCHDOG_PERIOD		(1 * HZ)	/* watchdog time */
+#define PCH_GBE_WATCHDOG_PERIOD		(5 * HZ)	/* watchdog time */
 #define PCH_GBE_COPYBREAK_DEFAULT	256
 #define PCH_GBE_PCI_BAR			1
 #define PCH_GBE_RESERVE_MEMORY		0x200000	/* 2MB */
@@ -301,7 +301,7 @@ inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_mac_read_mac_addr - Read MAC address
  * @hw:	            Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:			Successful.
  */
 s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
@@ -483,7 +483,7 @@ static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
 /**
  * pch_gbe_mac_force_mac_fc - Force the MAC's flow control settings
  * @hw:	            Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -639,7 +639,7 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_alloc_queues - Allocate memory for all rings
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -670,7 +670,7 @@ static void pch_gbe_init_stats(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_init_phy - Initialize PHY
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -720,7 +720,7 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
  * @netdev: Network interface device structure
  * @addr:   Phy ID
  * @reg:    Access location
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -1364,7 +1364,7 @@ static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
  * pch_gbe_intr - Interrupt Handler
  * @irq:   Interrupt number
  * @data:  Pointer to a network interface device structure
- * Returns
+ * Returns:
  *	- IRQ_HANDLED:	Our interrupt
  *	- IRQ_NONE:	Not our interrupt
  */
@@ -1566,7 +1566,7 @@ static void pch_gbe_alloc_tx_buffers(struct pch_gbe_adapter *adapter,
  * pch_gbe_clean_tx - Reclaim resources after transmit completes
  * @adapter:   Board private structure
  * @tx_ring:   Tx descriptor ring
- * Returns
+ * Returns:
  *	true:  Cleaned the descriptor
  *	false: Not cleaned the descriptor
  */
@@ -1579,7 +1579,8 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	struct sk_buff *skb;
 	unsigned int i;
 	unsigned int cleaned_count = 0;
-	bool cleaned = true;
+	bool cleaned = false;
+	int unused, thresh;
 
 	pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
 
@@ -1588,10 +1589,36 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	pr_debug("gbec_status:0x%04x  dma_status:0x%04x\n",
 		 tx_desc->gbec_status, tx_desc->dma_status);
 
+	unused = PCH_GBE_DESC_UNUSED(tx_ring);
+	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
+	if ((tx_desc->gbec_status == DSC_INIT16) && (unused < thresh))
+	{  /* current marked clean, tx queue filling up, do extra clean */
+		int j, k;
+		if (unused < 8) {  /* tx queue nearly full */
+			pr_debug("clean_tx: transmit queue warning (%x,%x) unused=%d\n",
+				tx_ring->next_to_clean,tx_ring->next_to_use,unused);
+		}
+
+		/* current marked clean, scan for more that need cleaning. */
+		k = i;
+		for (j = 0; j < PCH_GBE_TX_WEIGHT; j++)
+		{
+			tx_desc = PCH_GBE_TX_DESC(*tx_ring, k);
+			if (tx_desc->gbec_status != DSC_INIT16) break; /*found*/
+			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
+		}
+		if (j < PCH_GBE_TX_WEIGHT) {
+			pr_debug("clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
+				unused,j, i,k, tx_ring->next_to_use, tx_desc->gbec_status);
+			i = k;  /*found one to clean, usu gbec_status==2000.*/
+		}
+	}
+
 	while ((tx_desc->gbec_status & DSC_INIT16) == 0x0000) {
 		pr_debug("gbec_status:0x%04x\n", tx_desc->gbec_status);
 		buffer_info = &tx_ring->buffer_info[i];
 		skb = buffer_info->skb;
+		cleaned = true;
 
 		if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_ABT)) {
 			adapter->stats.tx_aborted_errors++;
@@ -1639,18 +1666,21 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	}
 	pr_debug("called pch_gbe_unmap_and_free_tx_resource() %d count\n",
 		 cleaned_count);
-	/* Recover from running out of Tx resources in xmit_frame */
-	spin_lock(&tx_ring->tx_lock);
-	if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev)))) {
-		netif_wake_queue(adapter->netdev);
-		adapter->stats.tx_restart_count++;
-		pr_debug("Tx wake queue\n");
+	if (cleaned_count > 0)  { /*skip this if nothing cleaned*/
+		/* Recover from running out of Tx resources in xmit_frame */
+		spin_lock(&tx_ring->tx_lock);
+		if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev))))
+		{
+			netif_wake_queue(adapter->netdev);
+			adapter->stats.tx_restart_count++;
+			pr_debug("Tx wake queue\n");
+		}
+
+		tx_ring->next_to_clean = i;
+
+		pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
+		spin_unlock(&tx_ring->tx_lock);
 	}
-
-	tx_ring->next_to_clean = i;
-
-	pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
-	spin_unlock(&tx_ring->tx_lock);
 	return cleaned;
 }
 
@@ -1660,7 +1690,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
  * @rx_ring:     Rx descriptor ring
  * @work_done:   Completed count
  * @work_to_do:  Request count
- * Returns
+ * Returns:
  *	true:  Cleaned the descriptor
  *	false: Not cleaned the descriptor
  */
@@ -1775,7 +1805,7 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
  * pch_gbe_setup_tx_resources - Allocate Tx resources (Descriptors)
  * @adapter:  Board private structure
  * @tx_ring:  Tx descriptor ring (for a specific queue) to setup
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1822,7 +1852,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
  * pch_gbe_setup_rx_resources - Allocate Rx resources (Descriptors)
  * @adapter:  Board private structure
  * @rx_ring:  Rx descriptor ring (for a specific queue) to setup
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1899,7 +1929,7 @@ void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 /**
  * pch_gbe_request_irq - Allocate an interrupt line
  * @adapter:  Board private structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1932,7 +1962,7 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_up - Up GbE network device
  * @adapter:  Board private structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1988,6 +2018,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 void pch_gbe_down(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
 
 	/* signal that we're down so the interrupt handler does not
@@ -2004,7 +2035,8 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	pch_gbe_reset(adapter);
+	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_normal))
+		pch_gbe_reset(adapter);
 	pch_gbe_clean_tx_ring(adapter, adapter->tx_ring);
 	pch_gbe_clean_rx_ring(adapter, adapter->rx_ring);
 
@@ -2018,7 +2050,7 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_sw_init - Initialize general software structures (struct pch_gbe_adapter)
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -2057,7 +2089,7 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_open - Called when a network interface is made active
  * @netdev:	Network interface device structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -2097,7 +2129,7 @@ err_setup_tx:
 /**
  * pch_gbe_stop - Disables a network interface
  * @netdev:  Network interface device structure
- * Returns
+ * Returns:
  *	0: Successfully
  */
 static int pch_gbe_stop(struct net_device *netdev)
@@ -2117,7 +2149,7 @@ static int pch_gbe_stop(struct net_device *netdev)
  * pch_gbe_xmit_frame - Packet transmitting start
  * @skb:     Socket buffer structure
  * @netdev:  Network interface device structure
- * Returns
+ * Returns:
  *	- NETDEV_TX_OK:   Normal end
  *	- NETDEV_TX_BUSY: Error end
  */
@@ -2127,13 +2159,6 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	unsigned long flags;
 
-	if (unlikely(skb->len > (adapter->hw.mac.max_frame_size - 4))) {
-		pr_err("Transfer length Error: skb len: %d > max: %d\n",
-		       skb->len, adapter->hw.mac.max_frame_size);
-		dev_kfree_skb_any(skb);
-		adapter->stats.tx_length_errors++;
-		return NETDEV_TX_OK;
-	}
 	if (!spin_trylock_irqsave(&tx_ring->tx_lock, flags)) {
 		/* Collision - tell upper layer to requeue */
 		return NETDEV_TX_LOCKED;
@@ -2225,7 +2250,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
  * pch_gbe_set_mac - Change the Ethernet Address of the NIC
  * @netdev: Network interface device structure
  * @addr:   Pointer to an address structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	-EADDRNOTAVAIL:	Failed
  */
@@ -2256,7 +2281,7 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
  * pch_gbe_change_mtu - Change the Maximum Transfer Unit
  * @netdev:   Network interface device structure
  * @new_mtu:  New value for maximum frame size
- * Returns
+ * Returns:
  *	0:		Successfully
  *	-EINVAL:	Failed
  */
@@ -2309,7 +2334,7 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
  * pch_gbe_set_features - Reset device after features changed
  * @netdev:   Network interface device structure
  * @features:  New features
- * Returns
+ * Returns:
  *	0:		HW state updated successfully
  */
 static int pch_gbe_set_features(struct net_device *netdev,
@@ -2334,7 +2359,7 @@ static int pch_gbe_set_features(struct net_device *netdev,
  * @netdev:   Network interface device structure
  * @ifr:      Pointer to ifr structure
  * @cmd:      Control command
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -2369,7 +2394,7 @@ static void pch_gbe_tx_timeout(struct net_device *netdev)
  * pch_gbe_napi_poll - NAPI receive and transfer polling callback
  * @napi:    Pointer of polling device struct
  * @budget:  The maximum number of a packet
- * Returns
+ * Returns:
  *	false:  Exit the polling mode
  *	true:   Continue the polling mode
  */
@@ -2387,7 +2412,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 	pch_gbe_clean_rx(adapter, adapter->rx_ring, &work_done, budget);
 	cleaned = pch_gbe_clean_tx(adapter, adapter->tx_ring);
 
-	if (!cleaned)
+	if (cleaned)
 		work_done = budget;
 	/* If no Tx and not enough Rx work done,
 	 * exit the polling mode
@@ -2793,6 +2818,7 @@ static int __init pch_gbe_init_module(void)
 {
 	int ret;
 
+	pr_info("EG20T PCH Gigabit Ethernet Driver - version %s\n",DRV_VERSION);
 	ret = pci_register_driver(&pch_gbe_driver);
 	if (copybreak != PCH_GBE_COPYBREAK_DEFAULT) {
 		if (copybreak == 0) {

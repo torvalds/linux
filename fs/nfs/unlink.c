@@ -501,7 +501,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		(unsigned long long)NFS_FILEID(dentry->d_inode));
 
 	/* Return delegation in anticipation of the rename */
-	nfs_inode_return_delegation(dentry->d_inode);
+	NFS_PROTO(dentry->d_inode)->return_delegation(dentry->d_inode);
 
 	sdentry = NULL;
 	do {

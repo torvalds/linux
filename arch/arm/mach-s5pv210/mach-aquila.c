@@ -600,10 +600,17 @@ static void aquila_setup_sdhci(void)
 	s3c_sdhci2_set_platdata(&aquila_hsmmc2_data);
 };
 
+/* Audio device */
+static struct platform_device aquila_device_audio = {
+	.name = "smdk-audio",
+	.id = -1,
+};
+
 static struct platform_device *aquila_devices[] __initdata = {
 	&aquila_i2c_gpio_pmic,
 	&aquila_i2c_gpio5,
 	&aquila_device_gpiokeys,
+	&aquila_device_audio,
 	&s3c_device_fb,
 	&s5p_device_onenand,
 	&s3c_device_hsmmc0,

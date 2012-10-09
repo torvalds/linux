@@ -74,6 +74,9 @@ static const struct file_operations sis_driver_fops = {
 	.mmap = drm_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 
@@ -105,10 +108,9 @@ static struct drm_driver driver = {
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
 	.open = sis_driver_open,
+	.preclose = sis_reclaim_buffers_locked,
 	.postclose = sis_driver_postclose,
 	.dma_quiescent = sis_idle,
-	.reclaim_buffers = NULL,
-	.reclaim_buffers_idlelocked = sis_reclaim_buffers_locked,
 	.lastclose = sis_lastclose,
 	.ioctls = sis_ioctls,
 	.fops = &sis_driver_fops,

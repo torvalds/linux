@@ -1,0 +1,6 @@
+Olimex i.MX Platforms Device Tree Bindings
+------------------------------------------
+
+i.MX23 Olinuxino Low Cost Board
+Required root node properties:
+    - compatible = "olimex,imx23-olinuxino", "fsl,imx23";

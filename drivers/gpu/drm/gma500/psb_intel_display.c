@@ -543,7 +543,7 @@ void psb_intel_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -1362,6 +1362,9 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	    (struct drm_connector **) (psb_intel_crtc + 1);
 	psb_intel_crtc->mode_set.num_connectors = 0;
 	psb_intel_cursor_init(dev, psb_intel_crtc);
+
+	/* Set to true so that the pipe is forced off on initial config. */
+	psb_intel_crtc->active = true;
 }
 
 int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,

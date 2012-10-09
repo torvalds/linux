@@ -158,9 +158,7 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 	int result;
 	int present;
 	acpi_status status;
-
-
-	present = is_device_present(handle);
+	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -169,32 +167,47 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		printk(KERN_WARNING "Container driver received %s event\n",
 		       (type == ACPI_NOTIFY_BUS_CHECK) ?
 		       "ACPI_NOTIFY_BUS_CHECK" : "ACPI_NOTIFY_DEVICE_CHECK");
+
+		present = is_device_present(handle);
 		status = acpi_bus_get_device(handle, &device);
-		if (present) {
-			if (ACPI_FAILURE(status) || !device) {
-				result = container_device_add(&device, handle);
-				if (!result)
-					kobject_uevent(&device->dev.kobj,
-						       KOBJ_ONLINE);
-				else
-					printk(KERN_WARNING
-					       "Failed to add container\n");
-			}
-		} else {
+		if (!present) {
 			if (ACPI_SUCCESS(status)) {
 				/* device exist and this is a remove request */
+				device->flags.eject_pending = 1;
 				kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
+				return;
 			}
+			break;
 		}
+
+		if (!ACPI_FAILURE(status) || device)
+			break;
+
+		result = container_device_add(&device, handle);
+		if (result) {
+			printk(KERN_WARNING "Failed to add container\n");
+			break;
+		}
+
+		kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
+		ost_code = ACPI_OST_SC_SUCCESS;
 		break;
+
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		if (!acpi_bus_get_device(handle, &device) && device) {
+			device->flags.eject_pending = 1;
 			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
+			return;
 		}
 		break;
+
 	default:
-		break;
+		/* non-hotplug event; possibly handled by other handler */
+		return;
 	}
+
+	/* Inform firmware that the hotplug operation has completed */
+	(void) acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 	return;
 }
 

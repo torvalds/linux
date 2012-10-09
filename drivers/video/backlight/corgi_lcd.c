@@ -492,7 +492,8 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 	lcd->gpio_backlight_cont = -1;
 
 	if (gpio_is_valid(pdata->gpio_backlight_on)) {
-		err = gpio_request(pdata->gpio_backlight_on, "BL_ON");
+		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_on,
+					"BL_ON");
 		if (err) {
 			dev_err(&spi->dev, "failed to request GPIO%d for "
 				"backlight_on\n", pdata->gpio_backlight_on);
@@ -504,11 +505,12 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 	}
 
 	if (gpio_is_valid(pdata->gpio_backlight_cont)) {
-		err = gpio_request(pdata->gpio_backlight_cont, "BL_CONT");
+		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_cont,
+					"BL_CONT");
 		if (err) {
 			dev_err(&spi->dev, "failed to request GPIO%d for "
 				"backlight_cont\n", pdata->gpio_backlight_cont);
-			goto err_free_backlight_on;
+			return err;
 		}
 
 		lcd->gpio_backlight_cont = pdata->gpio_backlight_cont;
@@ -525,11 +527,6 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 		}
 	}
 	return 0;
-
-err_free_backlight_on:
-	if (gpio_is_valid(lcd->gpio_backlight_on))
-		gpio_free(lcd->gpio_backlight_on);
-	return err;
 }
 
 static int __devinit corgi_lcd_probe(struct spi_device *spi)
@@ -601,12 +598,6 @@ static int __devexit corgi_lcd_remove(struct spi_device *spi)
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
 	backlight_device_unregister(lcd->bl_dev);
-
-	if (gpio_is_valid(lcd->gpio_backlight_on))
-		gpio_free(lcd->gpio_backlight_on);
-
-	if (gpio_is_valid(lcd->gpio_backlight_cont))
-		gpio_free(lcd->gpio_backlight_cont);
 
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->lcd_dev);

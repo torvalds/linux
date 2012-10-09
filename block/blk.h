@@ -18,6 +18,9 @@ static inline void __blk_get_queue(struct request_queue *q)
 	kobject_get(&q->kobj);
 }
 
+int blk_init_rl(struct request_list *rl, struct request_queue *q,
+		gfp_t gfp_mask);
+void blk_exit_rl(struct request_list *rl);
 void init_request_from_bio(struct request *req, struct bio *bio);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
@@ -33,7 +36,6 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
-void __generic_unplug_device(struct request_queue *);
 
 /*
  * Internal atomic flags for request handling

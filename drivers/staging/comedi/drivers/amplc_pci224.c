@@ -108,8 +108,6 @@ Caveats:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "comedi_fc.h"
 #include "8253.h"
 
@@ -267,9 +265,6 @@ Caveats:
 /* Combine old and new bits. */
 #define COMBINE(old, new, mask)	(((old) & ~(mask)) | ((new) & (mask)))
 
-/* A generic null function pointer value.  */
-#define NULLFUNC	0
-
 /* Current CPU.  XXX should this be hard_smp_processor_id()? */
 #define THISCPU		smp_processor_id()
 
@@ -379,16 +374,10 @@ static const struct pci224_board pci224_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((struct pci224_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pci224_private {
-	struct pci_dev *pci_dev;	/* PCI device */
 	const unsigned short *hwrange;
 	unsigned long iobase1;
 	unsigned long state;
@@ -407,8 +396,6 @@ struct pci224_private {
 	unsigned char intsce;
 };
 
-#define devpriv ((struct pci224_private *)dev->private)
-
 /*
  * Called from the 'insn_write' function to perform a single write.
  */
@@ -416,6 +403,8 @@ static void
 pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 		   unsigned int data)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	unsigned short mangled;
 
 	/* Store unmangled data for readback. */
@@ -478,6 +467,7 @@ static int
 pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci224_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -506,6 +496,7 @@ pci224_cascade_ns_to_timer(int osc_base, unsigned int *d1, unsigned int *d2,
 static void pci224_ao_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	unsigned long flags;
 
 	if (!test_and_clear_bit(AO_CMD_STARTED, &devpriv->state))
@@ -549,6 +540,7 @@ static void pci224_ao_stop(struct comedi_device *dev,
 static void pci224_ao_start(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
@@ -577,6 +569,7 @@ static void pci224_ao_start(struct comedi_device *dev,
 static void pci224_ao_handle_fifo(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_scans;
 	unsigned int room;
@@ -628,8 +621,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 			/* Nothing left to put in the FIFO. */
 			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
-			printk(KERN_ERR "comedi%d: "
-			       "AO buffer underrun\n", dev->minor);
+			dev_err(dev->class_dev, "AO buffer underrun\n");
 		}
 	}
 	/* Determine how many new scans can be put in the FIFO. */
@@ -707,7 +699,7 @@ pci224_ao_inttrig_start(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (trignum != 0)
 		return -EINVAL;
 
-	s->async->inttrig = NULLFUNC;
+	s->async->inttrig = NULL;
 	pci224_ao_start(dev, s);
 
 	return 1;
@@ -724,6 +716,7 @@ static int
 pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		  struct comedi_cmd *cmd)
 {
+	struct pci224_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
@@ -994,6 +987,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
 	unsigned int i, j;
@@ -1166,6 +1160,8 @@ static void
 pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		void *data, unsigned int num_bytes, unsigned int chan_index)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
@@ -1196,6 +1192,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
@@ -1258,28 +1255,27 @@ static const struct pci224_board
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-static int
-pci224_find_pci(struct comedi_device *dev, int bus, int slot,
-		struct pci_dev **pci_dev_p)
+static struct pci_dev *pci224_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	*pci_dev_p = NULL;
-
-	/* Look for matching PCI device. */
-	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID,
-				      pci_dev)) {
-		/* If bus/slot specified, check them. */
+	for_each_pci_dev(pci_dev) {
 		if (bus || slot) {
-			if (bus != pci_dev->bus->number
-			    || slot != PCI_SLOT(pci_dev->devfn))
+			if (bus != pci_dev->bus->number ||
+			    slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+
 		if (thisboard->model == any_model) {
 			/* Match any supported model. */
 			const struct pci224_board *board_ptr;
+
 			board_ptr = pci224_find_pci_board(pci_dev);
 			if (board_ptr == NULL)
 				continue;
@@ -1290,21 +1286,26 @@ pci224_find_pci(struct comedi_device *dev, int bus, int slot,
 			if (thisboard->devid != pci_dev->device)
 				continue;
 		}
+		return pci_dev;
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
 
-		/* Found a match. */
-		*pci_dev_p = pci_dev;
-		return 0;
-	}
-	/* No match found. */
-	if (bus || slot) {
-		printk(KERN_ERR "comedi%d: error! "
-		       "no %s found at pci %02x:%02x!\n",
-		       dev->minor, thisboard->name, bus, slot);
-	} else {
-		printk(KERN_ERR "comedi%d: error! no %s found!\n",
-		       dev->minor, thisboard->name);
-	}
-	return -EIO;
+static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	char tmpbuf[30];
+
+	if (irq)
+		snprintf(tmpbuf, sizeof(tmpbuf), "irq %u%s", irq,
+			 (dev->irq ? "" : " UNAVAILABLE"));
+	else
+		snprintf(tmpbuf, sizeof(tmpbuf), "no irq");
+	dev_info(dev->class_dev, "%s (pci %s) (%s) attached\n",
+		 dev->board_name, pci_name(pcidev), tmpbuf);
 }
 
 /*
@@ -1313,17 +1314,20 @@ pci224_find_pci(struct comedi_device *dev, int bus, int slot,
 static int pci224_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev, int *options)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	unsigned int irq;
 	unsigned n;
 	int ret;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
 	if (ret < 0) {
-		printk(KERN_ERR
-		       "comedi%d: error! cannot enable PCI device "
-		       "and request regions!\n", dev->minor);
+		dev_err(dev->class_dev,
+			"error! cannot enable PCI device and request regions!\n"
+			);
 		return ret;
 	}
 	spin_lock_init(&devpriv->ao_spinlock);
@@ -1367,13 +1371,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
-	/* Allocate subdevices.  There is only one!  */
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
-	}
 
 	s = dev->subdevices + 0;
 	/* Analog output subdevice. */
@@ -1405,10 +1405,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 		if (options) {
 			for (n = 2; n < 3 + s->n_chan; n++) {
 				if (options[n] < 0 || options[n] > 1) {
-					printk(KERN_WARNING
-					       "comedi%d: %s: warning! bad options[%u]=%d\n",
-					       dev->minor, DRIVER_NAME, n,
-					       options[n]);
+					dev_warn(dev->class_dev, DRIVER_NAME
+						 ": warning! bad options[%u]=%d\n",
+						 n, options[n]);
 				}
 			}
 		}
@@ -1437,9 +1436,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 			devpriv->hwrange = hwrange_pci224_external;
 		} else {
 			if (options && options[2] != 0) {
-				printk(KERN_WARNING "comedi%d: %s: warning! "
-				       "bad options[2]=%d\n",
-				       dev->minor, DRIVER_NAME, options[2]);
+				dev_warn(dev->class_dev, DRIVER_NAME
+					 ": warning! bad options[2]=%d\n",
+					 options[2]);
 			}
 			s->range_table = &range_pci224_internal;
 			devpriv->hwrange = hwrange_pci224_internal;
@@ -1452,71 +1451,56 @@ static int pci224_attach_common(struct comedi_device *dev,
 		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
 				  DRIVER_NAME, dev);
 		if (ret < 0) {
-			printk(KERN_ERR "comedi%d: error! "
-			       "unable to allocate irq %u\n", dev->minor, irq);
+			dev_err(dev->class_dev,
+				"error! unable to allocate irq %u\n", irq);
 			return ret;
 		} else {
 			dev->irq = irq;
 		}
 	}
 
-	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
-	printk("(pci %s) ", pci_name(pci_dev));
-	if (irq)
-		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		printk("(no irq) ");
-
-
-	printk("attached\n");
-
+	pci224_report_attach(dev, irq);
 	return 1;
 }
 
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_dev;
-	int bus, slot;
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor, DRIVER_NAME);
+	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	bus = it->options[0];
-	slot = it->options[1];
 	ret = alloc_private(dev, sizeof(struct pci224_private));
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
-	ret = pci224_find_pci(dev, bus, slot, &pci_dev);
-	if (ret < 0)
-		return ret;
+	pci_dev = pci224_find_pci_dev(dev, it);
+	if (!pci_dev)
+		return -EIO;
 
 	return pci224_attach_common(dev, pci_dev, it->options);
 }
 
-static int
+static int __devinit
 pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 {
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach_pci %s\n", dev->minor,
-	       DRIVER_NAME, pci_name(pci_dev));
+	dev_info(dev->class_dev, DRIVER_NAME ": attach_pci %s\n",
+		 pci_name(pci_dev));
 
 	ret = alloc_private(dev, sizeof(struct pci224_private));
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
-		printk(KERN_ERR
-		       "comedi%d: %s: BUG! cannot determine board type!\n",
-		       dev->minor, DRIVER_NAME);
+		dev_err(dev->class_dev,
+			DRIVER_NAME ": BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
 	return pci224_attach_common(dev, pci_dev, NULL);
@@ -1524,6 +1508,9 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 
 static void pci224_detach(struct comedi_device *dev)
 {
+	struct pci224_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
@@ -1537,11 +1524,11 @@ static void pci224_detach(struct comedi_device *dev)
 		kfree(devpriv->ao_readback);
 		kfree(devpriv->ao_scan_vals);
 		kfree(devpriv->ao_scan_order);
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

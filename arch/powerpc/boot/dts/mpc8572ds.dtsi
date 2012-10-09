@@ -169,6 +169,23 @@
 			reg = <0x3>;
 		};
 
+		sgmii_phy0: sgmii-phy@0 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1c>;
+		};
+		sgmii_phy1: sgmii-phy@1 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1d>;
+		};
+		sgmii_phy2: sgmii-phy@2 {
+			interrupts = <7 1 0 0>;
+			reg = <0x1e>;
+		};
+		sgmii_phy3: sgmii-phy@3 {
+			interrupts = <7 1 0 0>;
+			reg = <0x1f>;
+		};
+
 		tbi0: tbi-phy@11 {
 			reg = <0x11>;
 			device_type = "tbi-phy";

@@ -899,12 +899,6 @@ static int gpio_debounce(struct gpio_chip *chip, unsigned offset,
 
 	bank = container_of(chip, struct gpio_bank, chip);
 
-	if (!bank->dbck) {
-		bank->dbck = clk_get(bank->dev, "dbclk");
-		if (IS_ERR(bank->dbck))
-			dev_err(bank->dev, "Could not get gpio dbck\n");
-	}
-
 	spin_lock_irqsave(&bank->lock, flags);
 	_set_gpio_debounce(bank, offset, debounce);
 	spin_unlock_irqrestore(&bank->lock, flags);
@@ -976,6 +970,10 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 	 /* Initialize interface clk ungated, module enabled */
 	if (bank->regs->ctrl)
 		__raw_writel(0, base + bank->regs->ctrl);
+
+	bank->dbck = clk_get(bank->dev, "dbclk");
+	if (IS_ERR(bank->dbck))
+		dev_err(bank->dev, "Could not get gpio dbck\n");
 }
 
 static __devinit void

@@ -32,6 +32,8 @@
 #include <linux/platform_data/s3c-hsudc.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
+#include <media/s5p_hdmi.h>
+
 #include <asm/irq.h>
 #include <asm/pmu.h>
 #include <asm/mach/arch.h>
@@ -748,7 +750,8 @@ void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
 	if (!pd) {
 		pd = &default_i2c_data;
 
-		if (soc_is_exynos4210())
+		if (soc_is_exynos4210() ||
+		    soc_is_exynos4212() || soc_is_exynos4412())
 			pd->bus_num = 8;
 		else if (soc_is_s5pv210())
 			pd->bus_num = 3;
@@ -759,6 +762,30 @@ void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
 	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
 			       &s5p_device_i2c_hdmiphy);
 }
+
+struct s5p_hdmi_platform_data s5p_hdmi_def_platdata;
+
+void __init s5p_hdmi_set_platdata(struct i2c_board_info *hdmiphy_info,
+				  struct i2c_board_info *mhl_info, int mhl_bus)
+{
+	struct s5p_hdmi_platform_data *pd = &s5p_hdmi_def_platdata;
+
+	if (soc_is_exynos4210() ||
+	    soc_is_exynos4212() || soc_is_exynos4412())
+		pd->hdmiphy_bus = 8;
+	else if (soc_is_s5pv210())
+		pd->hdmiphy_bus = 3;
+	else
+		pd->hdmiphy_bus = 0;
+
+	pd->hdmiphy_info = hdmiphy_info;
+	pd->mhl_info = mhl_info;
+	pd->mhl_bus = mhl_bus;
+
+	s3c_set_platdata(pd, sizeof(struct s5p_hdmi_platform_data),
+			 &s5p_device_hdmi);
+}
+
 #endif /* CONFIG_S5P_DEV_I2C_HDMIPHY */
 
 /* I2S */
@@ -1513,7 +1540,7 @@ static struct resource s3c64xx_spi0_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi0 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi0_resource),
 	.resource	= s3c64xx_spi0_resource,
@@ -1523,13 +1550,10 @@ struct platform_device s3c64xx_device_spi0 = {
 	},
 };
 
-void __init s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
+	struct s3c64xx_spi_info pd;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
@@ -1537,12 +1561,11 @@ void __init s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi0_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi0);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi0);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI0 */
 
@@ -1555,7 +1578,7 @@ static struct resource s3c64xx_spi1_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi1 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi1_resource),
 	.resource	= s3c64xx_spi1_resource,
@@ -1565,26 +1588,20 @@ struct platform_device s3c64xx_device_spi1 = {
 	},
 };
 
-void __init s3c64xx_spi1_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
-
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
 		pr_err("%s: Invalid SPI configuration\n", __func__);
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi1_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi1);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI1 */
 
@@ -1597,7 +1614,7 @@ static struct resource s3c64xx_spi2_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi2 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 2,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi2_resource),
 	.resource	= s3c64xx_spi2_resource,
@@ -1607,13 +1624,10 @@ struct platform_device s3c64xx_device_spi2 = {
 	},
 };
 
-void __init s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
+	struct s3c64xx_spi_info pd;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
@@ -1621,11 +1635,10 @@ void __init s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi2_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi2);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi2);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI2 */

@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/fs.h>
+#include <linux/workqueue.h>
 
 #include <asm/div64.h>
 typedef __u64 __bitwise __fs64;

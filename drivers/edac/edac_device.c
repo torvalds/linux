@@ -40,12 +40,13 @@ static LIST_HEAD(edac_device_list);
 #ifdef CONFIG_EDAC_DEBUG
 static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 {
-	debugf3("\tedac_dev = %p dev_idx=%d \n", edac_dev, edac_dev->dev_idx);
-	debugf4("\tedac_dev->edac_check = %p\n", edac_dev->edac_check);
-	debugf3("\tdev = %p\n", edac_dev->dev);
-	debugf3("\tmod_name:ctl_name = %s:%s\n",
-		edac_dev->mod_name, edac_dev->ctl_name);
-	debugf3("\tpvt_info = %p\n\n", edac_dev->pvt_info);
+	edac_dbg(3, "\tedac_dev = %p dev_idx=%d\n",
+		 edac_dev, edac_dev->dev_idx);
+	edac_dbg(4, "\tedac_dev->edac_check = %p\n", edac_dev->edac_check);
+	edac_dbg(3, "\tdev = %p\n", edac_dev->dev);
+	edac_dbg(3, "\tmod_name:ctl_name = %s:%s\n",
+		 edac_dev->mod_name, edac_dev->ctl_name);
+	edac_dbg(3, "\tpvt_info = %p\n\n", edac_dev->pvt_info);
 }
 #endif				/* CONFIG_EDAC_DEBUG */
 
@@ -82,8 +83,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	void *pvt, *p;
 	int err;
 
-	debugf4("%s() instances=%d blocks=%d\n",
-		__func__, nr_instances, nr_blocks);
+	edac_dbg(4, "instances=%d blocks=%d\n", nr_instances, nr_blocks);
 
 	/* Calculate the size of memory we need to allocate AND
 	 * determine the offsets of the various item arrays
@@ -156,8 +156,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	/* Name of this edac device */
 	snprintf(dev_ctl->name,sizeof(dev_ctl->name),"%s",edac_device_name);
 
-	debugf4("%s() edac_dev=%p next after end=%p\n",
-		__func__, dev_ctl, pvt + sz_private );
+	edac_dbg(4, "edac_dev=%p next after end=%p\n",
+		 dev_ctl, pvt + sz_private);
 
 	/* Initialize every Instance */
 	for (instance = 0; instance < nr_instances; instance++) {
@@ -178,10 +178,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			snprintf(blk->name, sizeof(blk->name),
 				 "%s%d", edac_block_name, block+offset_value);
 
-			debugf4("%s() instance=%d inst_p=%p block=#%d "
-				"block_p=%p name='%s'\n",
-				__func__, instance, inst, block,
-				blk, blk->name);
+			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
+				 instance, inst, block, blk, blk->name);
 
 			/* if there are NO attributes OR no attribute pointer
 			 * then continue on to next block iteration
@@ -194,8 +192,8 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			attrib_p = &dev_attrib[block*nr_instances*nr_attrib];
 			blk->block_attributes = attrib_p;
 
-			debugf4("%s() THIS BLOCK_ATTRIB=%p\n",
-				__func__, blk->block_attributes);
+			edac_dbg(4, "THIS BLOCK_ATTRIB=%p\n",
+				 blk->block_attributes);
 
 			/* Initialize every user specified attribute in this
 			 * block with the data the caller passed in
@@ -214,11 +212,10 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 				attrib->block = blk;	/* up link */
 
-				debugf4("%s() alloc-attrib=%p attrib_name='%s' "
-					"attrib-spec=%p spec-name=%s\n",
-					__func__, attrib, attrib->attr.name,
-					&attrib_spec[attr],
-					attrib_spec[attr].attr.name
+				edac_dbg(4, "alloc-attrib=%p attrib_name='%s' attrib-spec=%p spec-name=%s\n",
+					 attrib, attrib->attr.name,
+					 &attrib_spec[attr],
+					 attrib_spec[attr].attr.name
 					);
 			}
 		}
@@ -273,7 +270,7 @@ static struct edac_device_ctl_info *find_edac_device_by_dev(struct device *dev)
 	struct edac_device_ctl_info *edac_dev;
 	struct list_head *item;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	list_for_each(item, &edac_device_list) {
 		edac_dev = list_entry(item, struct edac_device_ctl_info, link);
@@ -408,7 +405,7 @@ static void edac_device_workq_function(struct work_struct *work_req)
 void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
 				unsigned msec)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	/* take the arg 'msec' and set it into the control structure
 	 * to used in the time period calculation
@@ -496,7 +493,7 @@ EXPORT_SYMBOL_GPL(edac_device_alloc_index);
  */
 int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
@@ -570,7 +567,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 {
 	struct edac_device_ctl_info *edac_dev;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	mutex_lock(&device_ctls_mutex);
 

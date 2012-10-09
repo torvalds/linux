@@ -79,13 +79,16 @@ enum {
 
 #define SCAN_BEACON_ENTRY_PAD			6
 
-#define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	200
-#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	200
-#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	110
+#define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	110
+#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	30
+#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	30
 
 #define SCAN_RSSI(RSSI)					(0x100 - ((u8)(RSSI)))
 
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
+
+#define MWIFIEX_MAX_SCAN_DELAY_CNT			50
+#define MWIFIEX_SCAN_DELAY_MSEC				20
 
 #define RSN_GTK_OUI_OFFSET				2
 
@@ -482,6 +485,7 @@ struct mwifiex_private {
 	u16 proberesp_idx;
 	u16 assocresp_idx;
 	u16 rsn_idx;
+	struct timer_list scan_delay_timer;
 };
 
 enum mwifiex_ba_status {
@@ -674,7 +678,6 @@ struct mwifiex_adapter {
 	u8 hw_dev_mcs_support;
 	u8 adhoc_11n_enabled;
 	u8 sec_chan_offset;
-	enum nl80211_channel_type channel_type;
 	struct mwifiex_dbg dbg;
 	u8 arp_filter[ARP_FILTER_MAX_BUF_SIZE];
 	u32 arp_filter_size;
@@ -686,6 +689,7 @@ struct mwifiex_adapter {
 	struct completion fw_load;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
+	u8 scan_delay_cnt;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -819,9 +823,7 @@ int mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv, u16 vsie_mask,
 u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv,
 				    u8 *rates);
 u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates);
-u8 mwifiex_data_rate_to_index(u32 rate);
 u8 mwifiex_is_rate_auto(struct mwifiex_private *priv);
-int mwifiex_get_rate_index(u16 *rateBitmap, int size);
 extern u16 region_code_index[MWIFIEX_MAX_REGION_CODE];
 void mwifiex_save_curr_bcn(struct mwifiex_private *priv);
 void mwifiex_free_curr_bcn(struct mwifiex_private *priv);
@@ -835,6 +837,9 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct mwifiex_uap_bss_param *bss_config,
 			      struct cfg80211_ap_settings *params);
+void mwifiex_set_ht_params(struct mwifiex_private *priv,
+			   struct mwifiex_uap_bss_param *bss_cfg,
+			   struct cfg80211_ap_settings *params);
 
 /*
  * This function checks if the queuing is RA based or not.
@@ -937,15 +942,12 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
 int mwifiex_disable_auto_ds(struct mwifiex_private *priv);
-int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
-			      struct mwifiex_rate_cfg *rate);
+int mwifiex_drv_get_data_rate(struct mwifiex_private *priv, u32 *rate);
 int mwifiex_request_scan(struct mwifiex_private *priv,
 			 struct cfg80211_ssid *req_ssid);
-int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
-				struct mwifiex_user_scan_cfg *scan_req);
+int mwifiex_scan_networks(struct mwifiex_private *priv,
+			  const struct mwifiex_user_scan_cfg *user_scan_in);
 int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
-
-int mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel);
 
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 		       int key_len, u8 key_index, const u8 *mac_addr,
@@ -985,9 +987,6 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
-int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel);
-int mwifiex_bss_set_channel(struct mwifiex_private *,
-			    struct mwifiex_chan_freq_power *cfp);
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
@@ -998,15 +997,17 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
 
-struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
-					char *name, enum nl80211_iftype type,
-					u32 *flags, struct vif_params *params);
-int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
+struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
+					      char *name,
+					      enum nl80211_iftype type,
+					      u32 *flags,
+					      struct vif_params *params);
+int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev);
 
 void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
 
 int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
-			 struct cfg80211_ap_settings *params);
+			 struct cfg80211_beacon_data *data);
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
 

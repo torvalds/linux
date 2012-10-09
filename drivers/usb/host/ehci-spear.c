@@ -41,19 +41,11 @@ static int ehci_spear_setup(struct usb_hcd *hcd)
 
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(ehci, ehci_readl(ehci,
-				&ehci->caps->hc_capbase));
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-	retval = ehci_halt(ehci);
+
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
 	return retval;
@@ -97,71 +89,16 @@ static const struct hc_driver ehci_spear_hc_driver = {
 static int ehci_spear_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	unsigned long flags;
-	int rc = 0;
+	bool do_wakeup = device_may_wakeup(dev);
 
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(10);
-
-	/*
-	 * Root hub was already suspended. Disable irq emission and mark HW
-	 * unaccessible. The PM and USB cores make sure that the root hub is
-	 * either suspended or stopped.
-	 */
-	spin_lock_irqsave(&ehci->lock, flags);
-	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
-	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
-	ehci_readl(ehci, &ehci->regs->intr_enable);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-
-	return rc;
+	return ehci_suspend(hcd, do_wakeup);
 }
 
 static int ehci_spear_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(100);
-
-	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
-		int mask = INTR_MASK;
-
-		ehci_prepare_ports_for_controller_resume(ehci);
-
-		if (!hcd->self.root_hub->do_remote_wakeup)
-			mask &= ~STS_PCD;
-
-		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
-		ehci_readl(ehci, &ehci->regs->intr_enable);
-		return 0;
-	}
-
-	usb_root_hub_lost_power(hcd->self.root_hub);
-
-	/*
-	 * Else reset, to cope with power loss or flush-to-storage style
-	 * "resume" having let BIOS kick in during reboot.
-	 */
-	ehci_halt(ehci);
-	ehci_reset(ehci);
-
-	/* emptying the schedule aborts any urbs */
-	spin_lock_irq(&ehci->lock);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
-
-	ehci_work(ehci);
-	spin_unlock_irq(&ehci->lock);
-
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
-
-	/* here we "know" root ports should always stay powered */
-	ehci_port_power(ehci, 1);
+	ehci_resume(hcd, false);
 	return 0;
 }
 #endif /* CONFIG_PM */

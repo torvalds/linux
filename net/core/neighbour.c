@@ -474,8 +474,8 @@ struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
 }
 EXPORT_SYMBOL(neigh_lookup_nodev);
 
-struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
-			       struct net_device *dev)
+struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
+				 struct net_device *dev, bool want_ref)
 {
 	u32 hash_val;
 	int key_len = tbl->key_len;
@@ -535,14 +535,16 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 	     n1 = rcu_dereference_protected(n1->next,
 			lockdep_is_held(&tbl->lock))) {
 		if (dev == n1->dev && !memcmp(n1->primary_key, pkey, key_len)) {
-			neigh_hold(n1);
+			if (want_ref)
+				neigh_hold(n1);
 			rc = n1;
 			goto out_tbl_unlock;
 		}
 	}
 
 	n->dead = 0;
-	neigh_hold(n);
+	if (want_ref)
+		neigh_hold(n);
 	rcu_assign_pointer(n->next,
 			   rcu_dereference_protected(nht->hash_buckets[hash_val],
 						     lockdep_is_held(&tbl->lock)));
@@ -558,7 +560,7 @@ out_neigh_release:
 	neigh_release(n);
 	goto out;
 }
-EXPORT_SYMBOL(neigh_create);
+EXPORT_SYMBOL(__neigh_create);
 
 static u32 pneigh_hash(const void *pkey, int key_len)
 {
@@ -1199,10 +1201,23 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 			write_unlock_bh(&neigh->lock);
 
 			rcu_read_lock();
-			/* On shaper/eql skb->dst->neighbour != neigh :( */
-			if (dst && (n2 = dst_get_neighbour_noref(dst)) != NULL)
-				n1 = n2;
+
+			/* Why not just use 'neigh' as-is?  The problem is that
+			 * things such as shaper, eql, and sch_teql can end up
+			 * using alternative, different, neigh objects to output
+			 * the packet in the output path.  So what we need to do
+			 * here is re-lookup the top-level neigh in the path so
+			 * we can reinject the packet there.
+			 */
+			n2 = NULL;
+			if (dst) {
+				n2 = dst_neigh_lookup_skb(dst, skb);
+				if (n2)
+					n1 = n2;
+			}
 			n1->output(n1, skb);
+			if (n2)
+				neigh_release(n2);
 			rcu_read_unlock();
 
 			write_lock_bh(&neigh->lock);

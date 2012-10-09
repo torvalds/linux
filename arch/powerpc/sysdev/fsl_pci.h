@@ -93,5 +93,13 @@ extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern int mpc83xx_add_bridge(struct device_node *dev);
 u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 
+extern struct device_node *fsl_pci_primary;
+
+#ifdef CONFIG_FSL_PCI
+void fsl_pci_init(void);
+#else
+static inline void fsl_pci_init(void) {}
+#endif
+
 #endif /* __POWERPC_FSL_PCI_H */
 #endif /* __KERNEL__ */

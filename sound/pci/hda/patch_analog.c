@@ -642,7 +642,7 @@ static void ad198x_free(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
+static int ad198x_suspend(struct hda_codec *codec)
 {
 	ad198x_shutup(codec);
 	return 0;

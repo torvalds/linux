@@ -818,9 +818,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (!mmc_host_is_spi(host))
 		mmc_set_bus_mode(host, MMC_BUSMODE_OPENDRAIN);
 
-	/* Initialization should be done at 3.3 V I/O voltage. */
-	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
-
 	/*
 	 * Since we're changing the OCR value, we seem to
 	 * need to tell some cards to go back to the idle

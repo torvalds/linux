@@ -751,6 +751,7 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 int __key_link_begin(struct key *keyring, const struct key_type *type,
 		     const char *description, unsigned long *_prealloc)
 	__acquires(&keyring->sem)
+	__acquires(&keyring_serialise_link_sem)
 {
 	struct keyring_list *klist, *nklist;
 	unsigned long prealloc;
@@ -960,6 +961,7 @@ void __key_link(struct key *keyring, struct key *key,
 void __key_link_end(struct key *keyring, struct key_type *type,
 		    unsigned long prealloc)
 	__releases(&keyring->sem)
+	__releases(&keyring_serialise_link_sem)
 {
 	BUG_ON(type == NULL);
 	BUG_ON(type->name == NULL);

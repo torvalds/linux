@@ -269,6 +269,9 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		*spr_val = vcpu->arch.shared->mas7_3 >> 32;
 		break;
 #endif
+	case SPRN_DECAR:
+		*spr_val = vcpu->arch.decar;
+		break;
 	case SPRN_TLB0CFG:
 		*spr_val = vcpu->arch.tlbcfg[0];
 		break;

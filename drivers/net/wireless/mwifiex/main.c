@@ -190,7 +190,8 @@ process_start:
 			    adapter->tx_lock_flag)
 				break;
 
-			if (adapter->scan_processing || adapter->data_sent ||
+			if ((adapter->scan_processing &&
+			     !adapter->scan_delay_cnt) || adapter->data_sent ||
 			    mwifiex_wmm_lists_empty(adapter)) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
 				    (!is_command_pending(adapter)))
@@ -244,8 +245,8 @@ process_start:
 			}
 		}
 
-		if (!adapter->scan_processing && !adapter->data_sent &&
-		    !mwifiex_wmm_lists_empty(adapter)) {
+		if ((!adapter->scan_processing || adapter->scan_delay_cnt) &&
+		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				adapter->is_hs_configured = false;
@@ -376,7 +377,7 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
-	mwifiex_del_virtual_intf(adapter->wiphy, priv->netdev);
+	mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
 	rtnl_unlock();
 err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
@@ -843,7 +844,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 		rtnl_lock();
 		if (priv->wdev && priv->netdev)
-			mwifiex_del_virtual_intf(adapter->wiphy, priv->netdev);
+			mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
 		rtnl_unlock();
 	}
 

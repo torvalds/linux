@@ -7,9 +7,13 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG(x...) printk(x)
+#define DBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
-#define DBG(x...)
+#define DBG(fmt, ...)				\
+do {						\
+	if (0)					\
+		printk(fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif
 
 #define PCI_PROBE_BIOS		0x0001
@@ -100,6 +104,7 @@ struct pci_raw_ops {
 extern const struct pci_raw_ops *raw_pci_ops;
 extern const struct pci_raw_ops *raw_pci_ext_ops;
 
+extern const struct pci_raw_ops pci_mmcfg;
 extern const struct pci_raw_ops pci_direct_conf1;
 extern bool port_cf9_safe;
 
@@ -135,6 +140,12 @@ struct pci_mmcfg_region {
 
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
+extern int __devinit pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg);
+extern void pci_mmcfg_arch_unmap(struct pci_mmcfg_region *cfg);
+extern int __devinit pci_mmconfig_insert(struct device *dev,
+					 u16 seg, u8 start,
+					 u8 end, phys_addr_t addr);
+extern int pci_mmconfig_delete(u16 seg, u8 start, u8 end);
 extern struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus);
 
 extern struct list_head pci_mmcfg_list;

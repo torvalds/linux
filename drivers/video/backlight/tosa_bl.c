@@ -92,14 +92,14 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 
 	data->comadj = sharpsl_param.comadj == -1 ? COMADJ_DEFAULT : sharpsl_param.comadj;
 
-	ret = gpio_request(TOSA_GPIO_BL_C20MA, "backlight");
+	ret = devm_gpio_request(&client->dev, TOSA_GPIO_BL_C20MA, "backlight");
 	if (ret) {
 		dev_dbg(&data->bl->dev, "Unable to request gpio!\n");
 		return ret;
 	}
 	ret = gpio_direction_output(TOSA_GPIO_BL_C20MA, 0);
 	if (ret)
-		goto err_gpio_dir;
+		return ret;
 
 	i2c_set_clientdata(client, data);
 	data->i2c = client;
@@ -123,8 +123,6 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 
 err_reg:
 	data->bl = NULL;
-err_gpio_dir:
-	gpio_free(TOSA_GPIO_BL_C20MA);
 	return ret;
 }
 
@@ -134,8 +132,6 @@ static int __devexit tosa_bl_remove(struct i2c_client *client)
 
 	backlight_device_unregister(data->bl);
 	data->bl = NULL;
-
-	gpio_free(TOSA_GPIO_BL_C20MA);
 
 	return 0;
 }

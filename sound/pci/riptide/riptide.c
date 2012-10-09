@@ -1151,9 +1151,10 @@ static void riptide_handleirq(unsigned long dev_id)
 }
 
 #ifdef CONFIG_PM
-static int riptide_suspend(struct pci_dev *pci, pm_message_t state)
+static int riptide_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_riptide *chip = card->private_data;
 
 	chip->in_suspend = 1;
@@ -1162,13 +1163,14 @@ static int riptide_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_ac97_suspend(chip->ac97);
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int riptide_resume(struct pci_dev *pci)
+static int riptide_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_riptide *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -1186,7 +1188,12 @@ static int riptide_resume(struct pci_dev *pci)
 	chip->in_suspend = 0;
 	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(riptide_pm, riptide_suspend, riptide_resume);
+#define RIPTIDE_PM_OPS	&riptide_pm
+#else
+#define RIPTIDE_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 {
@@ -2180,10 +2187,9 @@ static struct pci_driver driver = {
 	.id_table = snd_riptide_ids,
 	.probe = snd_card_riptide_probe,
 	.remove = __devexit_p(snd_card_riptide_remove),
-#ifdef CONFIG_PM
-	.suspend = riptide_suspend,
-	.resume = riptide_resume,
-#endif
+	.driver = {
+		.pm = RIPTIDE_PM_OPS,
+	},
 };
 
 #ifdef SUPPORT_JOYSTICK

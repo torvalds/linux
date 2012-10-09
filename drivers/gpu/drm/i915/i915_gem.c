@@ -96,9 +96,18 @@ i915_gem_wait_for_error(struct drm_device *dev)
 	if (!atomic_read(&dev_priv->mm.wedged))
 		return 0;
 
-	ret = wait_for_completion_interruptible(x);
-	if (ret)
+	/*
+	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
+	 * userspace. If it takes that long something really bad is going on and
+	 * we should simply try to bail out and fail as gracefully as possible.
+	 */
+	ret = wait_for_completion_interruptible_timeout(x, 10*HZ);
+	if (ret == 0) {
+		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
+		return -EIO;
+	} else if (ret < 0) {
 		return ret;
+	}
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		/* GPU is hung, bump the completion count to account for
@@ -1122,7 +1131,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	obj->fault_mappable = true;
 
-	pfn = ((dev->agp->base + obj->gtt_offset) >> PAGE_SHIFT) +
+	pfn = ((dev_priv->mm.gtt_base_addr + obj->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
 
 	/* Finally, remap it using the new GTT offset */
@@ -1132,6 +1141,11 @@ unlock:
 out:
 	switch (ret) {
 	case -EIO:
+		/* If this -EIO is due to a gpu hang, give the reset code a
+		 * chance to clean up the mess. Otherwise return the proper
+		 * SIGBUS. */
+		if (!atomic_read(&dev_priv->mm.wedged))
+			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/* Give the error handler a chance to run and move the
 		 * objects off the GPU active list. Next time we service the
@@ -1568,6 +1582,21 @@ i915_add_request(struct intel_ring_buffer *ring,
 	int was_empty;
 	int ret;
 
+	/*
+	 * Emit any outstanding flushes - execbuf can fail to emit the flush
+	 * after having emitted the batchbuffer command. Hence we need to fix
+	 * things up similar to emitting the lazy request. The difference here
+	 * is that the flush _must_ happen before the next request, no matter
+	 * what.
+	 */
+	if (ring->gpu_caches_dirty) {
+		ret = i915_gem_flush_ring(ring, 0, I915_GEM_GPU_DOMAINS);
+		if (ret)
+			return ret;
+
+		ring->gpu_caches_dirty = false;
+	}
+
 	BUG_ON(request == NULL);
 	seqno = i915_gem_next_request_seqno(ring);
 
@@ -1613,6 +1642,9 @@ i915_add_request(struct intel_ring_buffer *ring,
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);
 	}
+
+	WARN_ON(!list_empty(&ring->gpu_write_list));
+
 	return 0;
 }
 
@@ -1827,14 +1859,11 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 */
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		if (!list_empty(&ring->gpu_write_list)) {
+		if (ring->gpu_caches_dirty) {
 			struct drm_i915_gem_request *request;
-			int ret;
 
-			ret = i915_gem_flush_ring(ring,
-						  0, I915_GEM_GPU_DOMAINS);
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (ret || request == NULL ||
+			if (request == NULL ||
 			    i915_add_request(ring, NULL, request))
 			    kfree(request);
 		}
@@ -1848,11 +1877,10 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static int
-i915_gem_check_wedge(struct drm_i915_private *dev_priv)
+int
+i915_gem_check_wedge(struct drm_i915_private *dev_priv,
+		     bool interruptible)
 {
-	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
-
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		struct completion *x = &dev_priv->error_completion;
 		bool recovery_complete;
@@ -1863,7 +1891,16 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 		recovery_complete = x->done > 0;
 		spin_unlock_irqrestore(&x->wait.lock, flags);
 
-		return recovery_complete ? -EIO : -EAGAIN;
+		/* Non-interruptible callers can't handle -EAGAIN, hence return
+		 * -EIO unconditionally for these. */
+		if (!interruptible)
+			return -EIO;
+
+		/* Recovery complete, but still wedged means reset failure. */
+		if (recovery_complete)
+			return -EIO;
+
+		return -EAGAIN;
 	}
 
 	return 0;
@@ -1899,34 +1936,85 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 	return ret;
 }
 
+/**
+ * __wait_seqno - wait until execution of seqno has finished
+ * @ring: the ring expected to report seqno
+ * @seqno: duh!
+ * @interruptible: do an interruptible wait (normally yes)
+ * @timeout: in - how long to wait (NULL forever); out - how much time remaining
+ *
+ * Returns 0 if the seqno was found within the alloted time. Else returns the
+ * errno with remaining time filled in timeout argument.
+ */
 static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
-			bool interruptible)
+			bool interruptible, struct timespec *timeout)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	int ret = 0;
+	struct timespec before, now, wait_time={1,0};
+	unsigned long timeout_jiffies;
+	long end;
+	bool wait_forever = true;
+	int ret;
 
 	if (i915_seqno_passed(ring->get_seqno(ring), seqno))
 		return 0;
 
 	trace_i915_gem_request_wait_begin(ring, seqno);
+
+	if (timeout != NULL) {
+		wait_time = *timeout;
+		wait_forever = false;
+	}
+
+	timeout_jiffies = timespec_to_jiffies(&wait_time);
+
 	if (WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
+
+	/* Record current time in case interrupted by signal, or wedged * */
+	getrawmonotonic(&before);
 
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring), seqno) || \
 	atomic_read(&dev_priv->mm.wedged))
+	do {
+		if (interruptible)
+			end = wait_event_interruptible_timeout(ring->irq_queue,
+							       EXIT_COND,
+							       timeout_jiffies);
+		else
+			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
+						 timeout_jiffies);
 
-	if (interruptible)
-		ret = wait_event_interruptible(ring->irq_queue,
-					       EXIT_COND);
-	else
-		wait_event(ring->irq_queue, EXIT_COND);
+		ret = i915_gem_check_wedge(dev_priv, interruptible);
+		if (ret)
+			end = ret;
+	} while (end == 0 && wait_forever);
+
+	getrawmonotonic(&now);
 
 	ring->irq_put(ring);
 	trace_i915_gem_request_wait_end(ring, seqno);
 #undef EXIT_COND
 
-	return ret;
+	if (timeout) {
+		struct timespec sleep_time = timespec_sub(now, before);
+		*timeout = timespec_sub(*timeout, sleep_time);
+	}
+
+	switch (end) {
+	case -EIO:
+	case -EAGAIN: /* Wedged */
+	case -ERESTARTSYS: /* Signal */
+		return (int)end;
+	case 0: /* Timeout */
+		if (timeout)
+			set_normalized_timespec(timeout, 0, 0);
+		return -ETIME;
+	default: /* Completed */
+		WARN_ON(end < 0); /* We're not aware of other errors */
+		return 0;
+	}
 }
 
 /**
@@ -1934,15 +2022,14 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
  * request and object lists appropriately for that event.
  */
 int
-i915_wait_request(struct intel_ring_buffer *ring,
-		  uint32_t seqno)
+i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	int ret = 0;
 
 	BUG_ON(seqno == 0);
 
-	ret = i915_gem_check_wedge(dev_priv);
+	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
@@ -1950,9 +2037,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible);
-	if (atomic_read(&dev_priv->mm.wedged))
-		ret = -EAGAIN;
+	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible, NULL);
 
 	return ret;
 }
@@ -1975,13 +2060,122 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	 * it.
 	 */
 	if (obj->active) {
-		ret = i915_wait_request(obj->ring, obj->last_rendering_seqno);
+		ret = i915_wait_seqno(obj->ring, obj->last_rendering_seqno);
 		if (ret)
 			return ret;
 		i915_gem_retire_requests_ring(obj->ring);
 	}
 
 	return 0;
+}
+
+/**
+ * Ensures that an object will eventually get non-busy by flushing any required
+ * write domains, emitting any outstanding lazy request and retiring and
+ * completed requests.
+ */
+static int
+i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
+{
+	int ret;
+
+	if (obj->active) {
+		ret = i915_gem_object_flush_gpu_write_domain(obj);
+		if (ret)
+			return ret;
+
+		ret = i915_gem_check_olr(obj->ring,
+					 obj->last_rendering_seqno);
+		if (ret)
+			return ret;
+		i915_gem_retire_requests_ring(obj->ring);
+	}
+
+	return 0;
+}
+
+/**
+ * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
+ * @DRM_IOCTL_ARGS: standard ioctl arguments
+ *
+ * Returns 0 if successful, else an error is returned with the remaining time in
+ * the timeout parameter.
+ *  -ETIME: object is still busy after timeout
+ *  -ERESTARTSYS: signal interrupted the wait
+ *  -ENONENT: object doesn't exist
+ * Also possible, but rare:
+ *  -EAGAIN: GPU wedged
+ *  -ENOMEM: damn
+ *  -ENODEV: Internal IRQ fail
+ *  -E?: The add request failed
+ *
+ * The wait ioctl with a timeout of 0 reimplements the busy ioctl. With any
+ * non-zero timeout parameter the wait ioctl will wait for the given number of
+ * nanoseconds on an object becoming unbusy. Since the wait itself does so
+ * without holding struct_mutex the object may become re-busied before this
+ * function completes. A similar but shorter * race condition exists in the busy
+ * ioctl
+ */
+int
+i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct drm_i915_gem_wait *args = data;
+	struct drm_i915_gem_object *obj;
+	struct intel_ring_buffer *ring = NULL;
+	struct timespec timeout_stack, *timeout = NULL;
+	u32 seqno = 0;
+	int ret = 0;
+
+	if (args->timeout_ns >= 0) {
+		timeout_stack = ns_to_timespec(args->timeout_ns);
+		timeout = &timeout_stack;
+	}
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->bo_handle));
+	if (&obj->base == NULL) {
+		mutex_unlock(&dev->struct_mutex);
+		return -ENOENT;
+	}
+
+	/* Need to make sure the object gets inactive eventually. */
+	ret = i915_gem_object_flush_active(obj);
+	if (ret)
+		goto out;
+
+	if (obj->active) {
+		seqno = obj->last_rendering_seqno;
+		ring = obj->ring;
+	}
+
+	if (seqno == 0)
+		 goto out;
+
+	/* Do this after OLR check to make sure we make forward progress polling
+	 * on this IOCTL with a 0 timeout (like busy ioctl)
+	 */
+	if (!args->timeout_ns) {
+		ret = -ETIME;
+		goto out;
+	}
+
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+
+	ret = __wait_seqno(ring, seqno, true, timeout);
+	if (timeout) {
+		WARN_ON(!timespec_valid(timeout));
+		args->timeout_ns = timespec_to_ns(timeout);
+	}
+	return ret;
+
+out:
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 /**
@@ -2160,7 +2354,7 @@ static int i915_ring_idle(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	return i915_wait_request(ring, i915_gem_next_request_seqno(ring));
+	return i915_wait_seqno(ring, i915_gem_next_request_seqno(ring));
 }
 
 int i915_gpu_idle(struct drm_device *dev)
@@ -2171,6 +2365,10 @@ int i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	for_each_ring(ring, dev_priv, i) {
+		ret = i915_switch_context(ring, NULL, DEFAULT_CONTEXT_ID);
+		if (ret)
+			return ret;
+
 		ret = i915_ring_idle(ring);
 		if (ret)
 			return ret;
@@ -2364,7 +2562,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 	}
 
 	if (obj->last_fenced_seqno) {
-		ret = i915_wait_request(obj->ring, obj->last_fenced_seqno);
+		ret = i915_wait_seqno(obj->ring, obj->last_fenced_seqno);
 		if (ret)
 			return ret;
 
@@ -2551,8 +2749,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (map_and_fenceable)
 		free_space =
 			drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
-						    size, alignment, 0,
-						    dev_priv->mm.gtt_mappable_end,
+						    size, alignment,
+						    0, dev_priv->mm.gtt_mappable_end,
 						    0);
 	else
 		free_space = drm_mm_search_free(&dev_priv->mm.gtt_space,
@@ -2563,7 +2761,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 			obj->gtt_space =
 				drm_mm_get_block_range_generic(free_space,
 							       size, alignment, 0,
-							       dev_priv->mm.gtt_mappable_end,
+							       0, dev_priv->mm.gtt_mappable_end,
 							       0);
 		else
 			obj->gtt_space =
@@ -3030,7 +3228,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (seqno == 0)
 		return 0;
 
-	ret = __wait_seqno(ring, seqno, true);
+	ret = __wait_seqno(ring, seqno, true, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
@@ -3199,30 +3397,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * become non-busy without any further actions, therefore emit any
 	 * necessary flushes here.
 	 */
+	ret = i915_gem_object_flush_active(obj);
+
 	args->busy = obj->active;
-	if (args->busy) {
-		/* Unconditionally flush objects, even when the gpu still uses this
-		 * object. Userspace calling this function indicates that it wants to
-		 * use this buffer rather sooner than later, so issuing the required
-		 * flush earlier is beneficial.
-		 */
-		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-			ret = i915_gem_flush_ring(obj->ring,
-						  0, obj->base.write_domain);
-		} else {
-			ret = i915_gem_check_olr(obj->ring,
-						 obj->last_rendering_seqno);
-		}
-
-		/* Update the active list for the hardware's current position.
-		 * Otherwise this only updates on a delayed timer or when irqs
-		 * are actually unmasked, and our working set ends up being
-		 * larger than required.
-		 */
-		i915_gem_retire_requests_ring(obj->ring);
-
-		args->busy = obj->active;
-	}
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
@@ -3435,6 +3612,38 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
+void i915_gem_l3_remap(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 misccpctl;
+	int i;
+
+	if (!IS_IVYBRIDGE(dev))
+		return;
+
+	if (!dev_priv->mm.l3_remap_info)
+		return;
+
+	misccpctl = I915_READ(GEN7_MISCCPCTL);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+	POSTING_READ(GEN7_MISCCPCTL);
+
+	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
+		u32 remap = I915_READ(GEN7_L3LOG_BASE + i);
+		if (remap && remap != dev_priv->mm.l3_remap_info[i/4])
+			DRM_DEBUG("0x%x was already programmed to %x\n",
+				  GEN7_L3LOG_BASE + i, remap);
+		if (remap && !dev_priv->mm.l3_remap_info[i/4])
+			DRM_DEBUG_DRIVER("Clearing remapped register\n");
+		I915_WRITE(GEN7_L3LOG_BASE + i, dev_priv->mm.l3_remap_info[i/4]);
+	}
+
+	/* Make sure all the writes land before disabling dop clock gating */
+	POSTING_READ(GEN7_L3LOG_BASE);
+
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+}
+
 void i915_gem_init_swizzling(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -3518,11 +3727,32 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	}
 }
 
+static bool
+intel_enable_blt(struct drm_device *dev)
+{
+	if (!HAS_BLT(dev))
+		return false;
+
+	/* The blitter was dysfunctional on early prototypes */
+	if (IS_GEN6(dev) && dev->pdev->revision < 8) {
+		DRM_INFO("BLT not supported on this pre-production hardware;"
+			 " graphics performance will be degraded.\n");
+		return false;
+	}
+
+	return true;
+}
+
 int
 i915_gem_init_hw(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
+
+	if (!intel_enable_gtt())
+		return -EIO;
+
+	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
 
@@ -3536,7 +3766,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
-	if (HAS_BLT(dev)) {
+	if (intel_enable_blt(dev)) {
 		ret = intel_init_blt_ring_buffer(dev);
 		if (ret)
 			goto cleanup_bsd_ring;
@@ -3544,6 +3774,11 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	dev_priv->next_seqno = 1;
 
+	/*
+	 * XXX: There was some w/a described somewhere suggesting loading
+	 * contexts before PPGTT.
+	 */
+	i915_gem_context_init(dev);
 	i915_gem_init_ppgtt(dev);
 
 	return 0;

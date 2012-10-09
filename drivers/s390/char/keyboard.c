@@ -1,9 +1,8 @@
 /*
- *  drivers/s390/char/keyboard.c
  *    ebcdic keycode functions for s390 console drivers
  *
  *  S390 version
- *    Copyright (C) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2003
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  */
 

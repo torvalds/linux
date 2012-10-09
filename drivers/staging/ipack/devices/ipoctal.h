@@ -20,45 +20,6 @@
 #define RELEVANT_IFLAG(iflag) ((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 /**
- * enum uart_parity_e - UART supported parity.
- */
-enum uart_parity_e {
-	UART_NONE  = 0,
-	UART_ODD   = 1,
-	UART_EVEN  = 2,
-};
-
-/**
- * enum uart_error - UART error type
- *
- */
-enum uart_error	{
-	UART_NOERROR = 0,      /* No error during transmission */
-	UART_TIMEOUT = 1 << 0, /* Timeout error */
-	UART_OVERRUN = 1 << 1, /* Overrun error */
-	UART_PARITY  = 1 << 2, /* Parity error */
-	UART_FRAMING = 1 << 3, /* Framing error */
-	UART_BREAK   = 1 << 4, /* Received break */
-};
-
-/**
- * struct ipoctal_config - Serial configuration
- *
- * @baud: Baud rate
- * @stop_bits: Stop bits (1 or 2)
- * @bits_per_char: data size in bits
- * @parity
- * @flow_control: Flow control management (RTS/CTS) (0 disabled, 1 enabled)
- */
-struct ipoctal_config {
-	unsigned int baud;
-	unsigned int stop_bits;
-	unsigned int bits_per_char;
-	unsigned short parity;
-	unsigned int flow_control;
-};
-
-/**
  * struct ipoctal_stats -- Stats since last reset
  *
  * @tx: Number of transmitted bytes

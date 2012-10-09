@@ -108,16 +108,22 @@ enum pn544_state {
 
 #define PN544_NFC_WI_MGMT_GATE			0xA1
 
-static u8 pn544_custom_gates[] = {
-	PN544_SYS_MGMT_GATE,
-	PN544_SWP_MGMT_GATE,
-	PN544_POLLING_LOOP_MGMT_GATE,
-	PN544_NFC_WI_MGMT_GATE,
-	PN544_RF_READER_F_GATE,
-	PN544_RF_READER_JEWEL_GATE,
-	PN544_RF_READER_ISO15693_GATE,
-	PN544_RF_READER_NFCIP1_INITIATOR_GATE,
-	PN544_RF_READER_NFCIP1_TARGET_GATE
+static struct nfc_hci_gate pn544_gates[] = {
+	{NFC_HCI_ADMIN_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_ID_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_RF_READER_B_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_RF_READER_A_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_SYS_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_SWP_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_POLLING_LOOP_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_NFC_WI_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_RF_READER_F_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_RF_READER_JEWEL_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_RF_READER_ISO15693_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_RF_READER_NFCIP1_INITIATOR_GATE, NFC_HCI_INVALID_PIPE},
+	{PN544_RF_READER_NFCIP1_TARGET_GATE, NFC_HCI_INVALID_PIPE}
 };
 
 /* Largest headroom needed for outgoing custom commands */
@@ -377,6 +383,9 @@ static int pn544_hci_open(struct nfc_shdlc *shdlc)
 
 	r = pn544_hci_enable(info, HCI_MODE);
 
+	if (r == 0)
+		info->state = PN544_ST_READY;
+
 out:
 	mutex_unlock(&info->info_lock);
 	return r;
@@ -392,6 +401,8 @@ static void pn544_hci_close(struct nfc_shdlc *shdlc)
 		goto out;
 
 	pn544_hci_disable(info);
+
+	info->state = PN544_ST_COLD;
 
 out:
 	mutex_unlock(&info->info_lock);
@@ -576,7 +587,8 @@ static int pn544_hci_xmit(struct nfc_shdlc *shdlc, struct sk_buff *skb)
 	return pn544_hci_i2c_write(client, skb->data, skb->len);
 }
 
-static int pn544_hci_start_poll(struct nfc_shdlc *shdlc, u32 protocols)
+static int pn544_hci_start_poll(struct nfc_shdlc *shdlc,
+				u32 im_protocols, u32 tm_protocols)
 {
 	struct nfc_hci_dev *hdev = nfc_shdlc_get_hci_dev(shdlc);
 	u8 phases = 0;
@@ -584,7 +596,8 @@ static int pn544_hci_start_poll(struct nfc_shdlc *shdlc, u32 protocols)
 	u8 duration[2];
 	u8 activated;
 
-	pr_info(DRIVER_DESC ": %s protocols = %d\n", __func__, protocols);
+	pr_info(DRIVER_DESC ": %s protocols 0x%x 0x%x\n",
+		__func__, im_protocols, tm_protocols);
 
 	r = nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 			       NFC_HCI_EVT_END_OPERATION, NULL, 0);
@@ -604,10 +617,10 @@ static int pn544_hci_start_poll(struct nfc_shdlc *shdlc, u32 protocols)
 	if (r < 0)
 		return r;
 
-	if (protocols & (NFC_PROTO_ISO14443_MASK | NFC_PROTO_MIFARE_MASK |
+	if (im_protocols & (NFC_PROTO_ISO14443_MASK | NFC_PROTO_MIFARE_MASK |
 			 NFC_PROTO_JEWEL_MASK))
 		phases |= 1;		/* Type A */
-	if (protocols & NFC_PROTO_FELICA_MASK) {
+	if (im_protocols & NFC_PROTO_FELICA_MASK) {
 		phases |= (1 << 2);	/* Type F 212 */
 		phases |= (1 << 3);	/* Type F 424 */
 	}
@@ -842,10 +855,9 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 		goto err_rti;
 	}
 
-	init_data.gate_count = ARRAY_SIZE(pn544_custom_gates);
+	init_data.gate_count = ARRAY_SIZE(pn544_gates);
 
-	memcpy(init_data.gates, pn544_custom_gates,
-	       ARRAY_SIZE(pn544_custom_gates));
+	memcpy(init_data.gates, pn544_gates, sizeof(pn544_gates));
 
 	/*
 	 * TODO: Session id must include the driver name + some bus addr
@@ -857,6 +869,7 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 		    NFC_PROTO_MIFARE_MASK |
 		    NFC_PROTO_FELICA_MASK |
 		    NFC_PROTO_ISO14443_MASK |
+		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
 	info->shdlc = nfc_shdlc_allocate(&pn544_shdlc_ops,

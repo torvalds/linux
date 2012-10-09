@@ -1,7 +1,5 @@
 /*
- *  include/asm-s390/cputime.h
- *
- *  (C) Copyright IBM Corp. 2004
+ *  Copyright IBM Corp. 2004
  *
  *  Author: Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
@@ -167,12 +165,14 @@ static inline clock_t cputime64_to_clock_t(cputime64_t cputime)
 }
 
 struct s390_idle_data {
+	int nohz_delay;
 	unsigned int sequence;
 	unsigned long long idle_count;
-	unsigned long long idle_enter;
-	unsigned long long idle_exit;
 	unsigned long long idle_time;
-	int nohz_delay;
+	unsigned long long clock_idle_enter;
+	unsigned long long clock_idle_exit;
+	unsigned long long timer_idle_enter;
+	unsigned long long timer_idle_exit;
 };
 
 DECLARE_PER_CPU(struct s390_idle_data, s390_idle);

@@ -138,8 +138,7 @@ static int __devinit r9701_probe(struct spi_device *spi)
 	 * contain invalid values. If so, try to write a default date:
 	 * 2000/1/1 00:00:00
 	 */
-	r9701_get_datetime(&spi->dev, &dt);
-	if (rtc_valid_tm(&dt)) {
+	if (r9701_get_datetime(&spi->dev, &dt)) {
 		dev_info(&spi->dev, "trying to repair invalid date/time\n");
 		dt.tm_sec  = 0;
 		dt.tm_min  = 0;
@@ -148,7 +147,8 @@ static int __devinit r9701_probe(struct spi_device *spi)
 		dt.tm_mon  = 0;
 		dt.tm_year = 100;
 
-		if (r9701_set_datetime(&spi->dev, &dt)) {
+		if (r9701_set_datetime(&spi->dev, &dt) ||
+				r9701_get_datetime(&spi->dev, &dt)) {
 			dev_err(&spi->dev, "cannot repair RTC register\n");
 			return -ENODEV;
 		}

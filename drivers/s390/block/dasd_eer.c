@@ -1,7 +1,7 @@
 /*
  *  Character device driver for extended error reporting.
  *
- *  Copyright (C) 2005 IBM Corporation
+ *  Copyright IBM Corp. 2005
  *  extended error reporting for DASD ECKD devices
  *  Author(s): Stefan Weinhuber <wein@de.ibm.com>
  */

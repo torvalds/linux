@@ -114,7 +114,7 @@ static int ramfs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 	return retval;
 }
 
-static int ramfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+static int ramfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	return ramfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }

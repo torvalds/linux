@@ -20,22 +20,8 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/capability.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/poll.h>
-#include <linux/fcntl.h>
-#include <linux/skbuff.h>
-#include <linux/socket.h>
-#include <linux/ioctl.h>
+#include <linux/export.h>
 #include <linux/file.h>
-#include <linux/init.h>
-#include <linux/compat.h>
-#include <linux/gfp.h>
-#include <net/sock.h>
 
 #include "hidp.h"
 

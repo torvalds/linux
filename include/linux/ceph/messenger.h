@@ -31,9 +31,6 @@ struct ceph_connection_operations {
 	int (*verify_authorizer_reply) (struct ceph_connection *con, int len);
 	int (*invalidate_authorizer)(struct ceph_connection *con);
 
-	/* protocol version mismatch */
-	void (*bad_proto) (struct ceph_connection *con);
-
 	/* there was some error on the socket (disconnect, whatever) */
 	void (*fault) (struct ceph_connection *con);
 
@@ -53,6 +50,7 @@ struct ceph_messenger {
 	struct ceph_entity_inst inst;    /* my name+address */
 	struct ceph_entity_addr my_enc_addr;
 
+	atomic_t stopping;
 	bool nocrc;
 
 	/*
@@ -80,7 +78,10 @@ struct ceph_msg {
 	unsigned nr_pages;              /* size of page array */
 	unsigned page_alignment;        /* io offset in first page */
 	struct ceph_pagelist *pagelist; /* instead of pages */
+
+	struct ceph_connection *con;
 	struct list_head list_head;
+
 	struct kref kref;
 	struct bio  *bio;		/* instead of pages/pagelist */
 	struct bio  *bio_iter;		/* bio iterator */
@@ -106,23 +107,6 @@ struct ceph_msg_pos {
 #define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
 
 /*
- * ceph_connection state bit flags
- */
-#define LOSSYTX         0  /* we can close channel or drop messages on errors */
-#define CONNECTING	1
-#define NEGOTIATING	2
-#define KEEPALIVE_PENDING      3
-#define WRITE_PENDING	4  /* we have data ready to send */
-#define STANDBY		8  /* no outgoing messages, socket closed.  we keep
-			    * the ceph_connection around to maintain shared
-			    * state with the peer. */
-#define CLOSED		10 /* we've closed the connection */
-#define SOCK_CLOSED	11 /* socket state changed to closed */
-#define OPENING         13 /* open connection w/ (possibly new) peer */
-#define DEAD            14 /* dead, about to kfree */
-#define BACKOFF         15
-
-/*
  * A single connection with another host.
  *
  * We maintain a queue of outgoing messages, and some session state to
@@ -131,18 +115,22 @@ struct ceph_msg_pos {
  */
 struct ceph_connection {
 	void *private;
-	atomic_t nref;
 
 	const struct ceph_connection_operations *ops;
 
 	struct ceph_messenger *msgr;
+
+	atomic_t sock_state;
 	struct socket *sock;
-	unsigned long state;	/* connection state (see flags above) */
+	struct ceph_entity_addr peer_addr; /* peer address */
+	struct ceph_entity_addr peer_addr_for_me;
+
+	unsigned long flags;
+	unsigned long state;
 	const char *error_msg;  /* error message, if any */
 
-	struct ceph_entity_addr peer_addr; /* peer address */
 	struct ceph_entity_name peer_name; /* peer name */
-	struct ceph_entity_addr peer_addr_for_me;
+
 	unsigned peer_features;
 	u32 connect_seq;      /* identify the most recent connection
 				 attempt for this connection, client */
@@ -163,16 +151,8 @@ struct ceph_connection {
 
 	/* connection negotiation temps */
 	char in_banner[CEPH_BANNER_MAX_LEN];
-	union {
-		struct {  /* outgoing connection */
-			struct ceph_msg_connect out_connect;
-			struct ceph_msg_connect_reply in_reply;
-		};
-		struct {  /* incoming */
-			struct ceph_msg_connect in_connect;
-			struct ceph_msg_connect_reply out_reply;
-		};
-	};
+	struct ceph_msg_connect out_connect;
+	struct ceph_msg_connect_reply in_reply;
 	struct ceph_entity_addr actual_peer_addr;
 
 	/* message out temps */
@@ -215,24 +195,26 @@ extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
 extern void ceph_msgr_flush(void);
 
-extern struct ceph_messenger *ceph_messenger_create(
-	struct ceph_entity_addr *myaddr,
-	u32 features, u32 required);
-extern void ceph_messenger_destroy(struct ceph_messenger *);
+extern void ceph_messenger_init(struct ceph_messenger *msgr,
+			struct ceph_entity_addr *myaddr,
+			u32 supported_features,
+			u32 required_features,
+			bool nocrc);
 
-extern void ceph_con_init(struct ceph_messenger *msgr,
-			  struct ceph_connection *con);
+extern void ceph_con_init(struct ceph_connection *con, void *private,
+			const struct ceph_connection_operations *ops,
+			struct ceph_messenger *msgr);
 extern void ceph_con_open(struct ceph_connection *con,
+			  __u8 entity_type, __u64 entity_num,
 			  struct ceph_entity_addr *addr);
 extern bool ceph_con_opened(struct ceph_connection *con);
 extern void ceph_con_close(struct ceph_connection *con);
 extern void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg);
-extern void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg);
-extern void ceph_con_revoke_message(struct ceph_connection *con,
-				  struct ceph_msg *msg);
+
+extern void ceph_msg_revoke(struct ceph_msg *msg);
+extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
+
 extern void ceph_con_keepalive(struct ceph_connection *con);
-extern struct ceph_connection *ceph_con_get(struct ceph_connection *con);
-extern void ceph_con_put(struct ceph_connection *con);
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);

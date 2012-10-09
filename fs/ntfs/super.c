@@ -2660,31 +2660,14 @@ static const struct super_operations ntfs_sops = {
 	.alloc_inode	= ntfs_alloc_big_inode,	  /* VFS: Allocate new inode. */
 	.destroy_inode	= ntfs_destroy_big_inode, /* VFS: Deallocate inode. */
 #ifdef NTFS_RW
-	//.dirty_inode	= NULL,			/* VFS: Called from
-	//					   __mark_inode_dirty(). */
 	.write_inode	= ntfs_write_inode,	/* VFS: Write dirty inode to
 						   disk. */
-	//.drop_inode	= NULL,			/* VFS: Called just after the
-	//					   inode reference count has
-	//					   been decreased to zero.
-	//					   NOTE: The inode lock is
-	//					   held. See fs/inode.c::
-	//					   generic_drop_inode(). */
-	//.delete_inode	= NULL,			/* VFS: Delete inode from disk.
-	//					   Called when i_count becomes
-	//					   0 and i_nlink is also 0. */
-	//.write_super	= NULL,			/* Flush dirty super block to
-	//					   disk. */
-	//.sync_fs	= NULL,			/* ? */
-	//.write_super_lockfs	= NULL,		/* ? */
-	//.unlockfs	= NULL,			/* ? */
 #endif /* NTFS_RW */
 	.put_super	= ntfs_put_super,	/* Syscall: umount. */
 	.statfs		= ntfs_statfs,		/* Syscall: statfs */
 	.remount_fs	= ntfs_remount,		/* Syscall: mount -o remount. */
 	.evict_inode	= ntfs_evict_big_inode,	/* VFS: Called when an inode is
 						   removed from memory. */
-	//.umount_begin	= NULL,			/* Forced umount. */
 	.show_options	= ntfs_show_options,	/* Show mount options in
 						   proc. */
 };

@@ -43,7 +43,6 @@ static void gfs2_init_inode_once(void *foo)
 	inode_init_once(&ip->i_inode);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
-	ip->i_qadata = NULL;
 	ip->i_res = NULL;
 	ip->i_hash_cache = NULL;
 }

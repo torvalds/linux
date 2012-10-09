@@ -85,7 +85,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long priority_pending[OMAP_PRCM_MAX_NR_PENDING_REG];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int virtirq;
-	int nr_irqs = prcm_irq_setup->nr_regs * 32;
+	int nr_irq = prcm_irq_setup->nr_regs * 32;
 
 	/*
 	 * If we are suspended, mask all interrupts from PRCM level,
@@ -110,7 +110,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		prcm_irq_setup->read_pending_irqs(pending);
 
 		/* No bit set, then all IRQs are handled */
-		if (find_first_bit(pending, nr_irqs) >= nr_irqs)
+		if (find_first_bit(pending, nr_irq) >= nr_irq)
 			break;
 
 		omap_prcm_events_filter_priority(pending, priority_pending);
@@ -121,11 +121,11 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 */
 
 		/* Serve priority events first */
-		for_each_set_bit(virtirq, priority_pending, nr_irqs)
+		for_each_set_bit(virtirq, priority_pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 
 		/* Serve normal events next */
-		for_each_set_bit(virtirq, pending, nr_irqs)
+		for_each_set_bit(virtirq, pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 	}
 	if (chip->irq_ack)
@@ -319,3 +319,65 @@ err:
 	omap_prcm_irq_cleanup();
 	return -ENOMEM;
 }
+
+/*
+ * Stubbed functions so that common files continue to build when
+ * custom builds are used
+ * XXX These are temporary and should be removed at the earliest possible
+ * opportunity
+ */
+u32 __weak omap2_prm_read_mod_reg(s16 module, u16 idx)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+void __weak omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+}
+
+u32 __weak omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits,
+		s16 module, s16 idx)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+u32 __weak omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+u32 __weak omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+u32 __weak omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+int __weak omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+int __weak omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+
+int __weak omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift,
+						u8 st_shift)
+{
+	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	return 0;
+}
+

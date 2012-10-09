@@ -292,7 +292,7 @@ struct mac80211_hwsim_data {
 	struct list_head list;
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	struct ieee80211_supported_band bands[2];
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
@@ -571,7 +571,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 			skb_dequeue(&data->pending);
 	}
 
-	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (skb == NULL)
 		goto nla_put_failure;
 
@@ -678,8 +678,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 			continue;
 
 		if (data2->idle || !data2->started ||
-		    !hwsim_ps_rx_ok(data2, skb) ||
-		    !data->channel || !data2->channel ||
+		    !hwsim_ps_rx_ok(data2, skb) || !data2->channel ||
 		    data->channel->center_freq != data2->channel->center_freq ||
 		    !(data->group & data2->group))
 			continue;
@@ -739,11 +738,6 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	txi = IEEE80211_SKB_CB(skb);
-
-	if (txi->control.vif)
-		hwsim_check_magic(txi->control.vif);
-	if (txi->control.sta)
-		hwsim_check_sta_magic(txi->control.sta);
 
 	ieee80211_tx_info_clear_status(txi);
 
@@ -1083,6 +1077,8 @@ enum hwsim_testmode_attr {
 enum hwsim_testmode_cmd {
 	HWSIM_TM_CMD_SET_PS		= 0,
 	HWSIM_TM_CMD_GET_PS		= 1,
+	HWSIM_TM_CMD_STOP_QUEUES	= 2,
+	HWSIM_TM_CMD_WAKE_QUEUES	= 3,
 };
 
 static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
@@ -1122,6 +1118,12 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 		if (nla_put_u32(skb, HWSIM_TM_ATTR_PS, hwsim->ps))
 			goto nla_put_failure;
 		return cfg80211_testmode_reply(skb);
+	case HWSIM_TM_CMD_STOP_QUEUES:
+		ieee80211_stop_queues(hw);
+		return 0;
+	case HWSIM_TM_CMD_WAKE_QUEUES:
+		ieee80211_wake_queues(hw);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1486,7 +1488,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_tx_info *txi;
 	struct hwsim_tx_rate *tx_attempts;
-	struct sk_buff __user *ret_skb;
+	unsigned long ret_skb_ptr;
 	struct sk_buff *skb, *tmp;
 	struct mac_address *src;
 	unsigned int hwsim_flags;
@@ -1504,8 +1506,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 				   info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
 	hwsim_flags = nla_get_u32(info->attrs[HWSIM_ATTR_FLAGS]);
 
-	ret_skb = (struct sk_buff __user *)
-		  (unsigned long) nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
+	ret_skb_ptr = nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
 
 	data2 = get_hwsim_data_ref_from_addr(src);
 
@@ -1514,7 +1515,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 
 	/* look for the skb matching the cookie passed back from user */
 	skb_queue_walk_safe(&data2->pending, skb, tmp) {
-		if (skb == ret_skb) {
+		if ((unsigned long)skb == ret_skb_ptr) {
 			skb_unlink(skb, &data2->pending);
 			found = true;
 			break;
@@ -1533,11 +1534,6 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 
 	/* now send back TX status */
 	txi = IEEE80211_SKB_CB(skb);
-
-	if (txi->control.vif)
-		hwsim_check_magic(txi->control.vif);
-	if (txi->control.sta)
-		hwsim_check_sta_magic(txi->control.sta);
 
 	ieee80211_tx_info_clear_status(txi);
 
@@ -1857,7 +1853,7 @@ static int __init init_mac80211_hwsim(void)
 				sband->n_bitrates = ARRAY_SIZE(hwsim_rates) - 4;
 				break;
 			default:
-				break;
+				continue;
 			}
 
 			sband->ht_cap.ht_supported = true;

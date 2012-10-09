@@ -14,7 +14,7 @@
  *			This is matched against the datasheet_name element
  *			of struct iio_chan_spec.
  * @consumer_dev_name:	Name to uniquely identify the consumer device.
- * @consumer_channel:	Unique name used to idenitify the channel on the
+ * @consumer_channel:	Unique name used to identify the channel on the
  *			consumer side.
  */
 struct iio_map {

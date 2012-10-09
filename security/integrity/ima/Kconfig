@@ -38,8 +38,9 @@ config IMA_MEASURE_PCR_IDX
 	  measurement list.  If unsure, use the default 10.
 
 config IMA_AUDIT
-	bool
+	bool "Enables auditing support"
 	depends on IMA
+	depends on AUDIT
 	default y
 	help
 	  This option adds a kernel parameter 'ima_audit', which

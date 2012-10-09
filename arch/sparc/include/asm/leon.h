@@ -82,7 +82,6 @@ static inline unsigned long leon_load_reg(unsigned long paddr)
 #define LEON_BYPASS_LOAD_PA(x)      leon_load_reg((unsigned long)(x))
 #define LEON_BYPASS_STORE_PA(x, v)  leon_store_reg((unsigned long)(x), (unsigned long)(v))
 
-extern void leon_init(void);
 extern void leon_switch_mm(void);
 extern void leon_init_IRQ(void);
 

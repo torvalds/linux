@@ -49,7 +49,6 @@ support could be added to this driver.
 #include "../comedidev.h"
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
 
@@ -297,8 +296,8 @@ struct hpdi_private {
 	resource_size_t plx9080_phys_iobase;
 	resource_size_t hpdi_phys_iobase;
 	/*  base addresses (ioremapped) */
-	void *plx9080_iobase;
-	void *hpdi_iobase;
+	void __iomem *plx9080_iobase;
+	void __iomem *hpdi_iobase;
 	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
 	/* physical addresses of dma buffers */
 	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];
@@ -364,7 +363,7 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 static void init_plx9080(struct comedi_device *dev)
 {
 	uint32_t bits;
-	void *plx_iobase = priv(dev)->plx9080_iobase;
+	void __iomem *plx_iobase = priv(dev)->plx9080_iobase;
 
 	/*  plx9080 dump */
 	DEBUG_PRINT(" plx interrupt status 0x%x\n",
@@ -431,9 +430,11 @@ static void init_plx9080(struct comedi_device *dev)
 static int setup_subdevices(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
@@ -632,7 +633,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk(KERN_WARNING " irq %u\n", dev->irq);
 
-	/*  alocate pci dma buffers */
+	/*  allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		priv(dev)->dio_buffer[i] =
 		    pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
@@ -673,10 +674,10 @@ static void hpdi_detach(struct comedi_device *dev)
 	if ((priv(dev)) && (priv(dev)->hw_dev)) {
 		if (priv(dev)->plx9080_iobase) {
 			disable_plx_interrupts(dev);
-			iounmap((void *)priv(dev)->plx9080_iobase);
+			iounmap(priv(dev)->plx9080_iobase);
 		}
 		if (priv(dev)->hpdi_iobase)
-			iounmap((void *)priv(dev)->hpdi_iobase);
+			iounmap(priv(dev)->hpdi_iobase);
 		/*  free pci dma buffers */
 		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 			if (priv(dev)->dio_buffer[i])
@@ -903,7 +904,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
-	void *pci_addr_reg;
+	void __iomem *pci_addr_reg;
 
 	if (channel)
 		pci_addr_reg =

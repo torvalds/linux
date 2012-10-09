@@ -31,12 +31,12 @@ struct ab8500_reg_range {
 };
 
 /**
- * struct ab8500_i2c_ranges
+ * struct ab8500_prcmu_ranges
  * @num_ranges: the number of ranges in the list
  * @bankid: bank identifier
  * @range: the list of register ranges
  */
-struct ab8500_i2c_ranges {
+struct ab8500_prcmu_ranges {
 	u8 num_ranges;
 	u8 bankid;
 	const struct ab8500_reg_range *range;
@@ -47,7 +47,7 @@ struct ab8500_i2c_ranges {
 
 #define AB8500_REV_REG 0x80
 
-static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
+static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	[0x0] = {
 		.num_ranges = 0,
 		.range = 0,
@@ -608,16 +608,10 @@ static int __devexit ab8500_debug_remove(struct platform_device *plf)
 	return 0;
 }
 
-static const struct of_device_id ab8500_debug_match[] = {
-        { .compatible = "stericsson,ab8500-debug", },
-        {}
-};
-
 static struct platform_driver ab8500_debug_driver = {
 	.driver = {
 		.name = "ab8500-debug",
 		.owner = THIS_MODULE,
-		.of_match_table = ab8500_debug_match,
 	},
 	.probe  = ab8500_debug_probe,
 	.remove = __devexit_p(ab8500_debug_remove)

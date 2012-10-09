@@ -36,7 +36,7 @@
  */
 void coldfire_profile_init(void);
 
-#if defined(CONFIG_M532x)
+#if defined(CONFIG_M532x) || defined(CONFIG_M5441x)
 #define	__raw_readtrr	__raw_readl
 #define	__raw_writetrr	__raw_writel
 #else

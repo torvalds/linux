@@ -241,6 +241,54 @@ struct sort_entry sort_sym = {
 	.se_width_idx	= HISTC_SYMBOL,
 };
 
+/* --sort srcline */
+
+static int64_t
+sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return (int64_t)(right->ip - left->ip);
+}
+
+static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
+				   size_t size, unsigned int width __used)
+{
+	FILE *fp;
+	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
+	size_t line_len;
+
+	if (path != NULL)
+		goto out_path;
+
+	snprintf(cmd, sizeof(cmd), "addr2line -e %s %016" PRIx64,
+		 self->ms.map->dso->long_name, self->ip);
+	fp = popen(cmd, "r");
+	if (!fp)
+		goto out_ip;
+
+	if (getline(&path, &line_len, fp) < 0 || !line_len)
+		goto out_ip;
+	fclose(fp);
+	self->srcline = strdup(path);
+	if (self->srcline == NULL)
+		goto out_ip;
+
+	nl = strchr(self->srcline, '\n');
+	if (nl != NULL)
+		*nl = '\0';
+	path = self->srcline;
+out_path:
+	return repsep_snprintf(bf, size, "%s", path);
+out_ip:
+	return repsep_snprintf(bf, size, "%-#*llx", BITS_PER_LONG / 4, self->ip);
+}
+
+struct sort_entry sort_srcline = {
+	.se_header	= "Source:Line",
+	.se_cmp		= sort__srcline_cmp,
+	.se_snprintf	= hist_entry__srcline_snprintf,
+	.se_width_idx	= HISTC_SRCLINE,
+};
+
 /* --sort parent */
 
 static int64_t
@@ -439,6 +487,7 @@ static struct sort_dimension sort_dimensions[] = {
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
 	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
+	DIM(SORT_SRCLINE, "srcline", sort_srcline),
 };
 
 int sort_dimension__add(const char *tok)

@@ -1129,7 +1129,6 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 	struct stb0899_internal *internal	= &state->internal;
 
 	u8  lsb, msb;
-	u32 i;
 
 	*ber = 0;
 
@@ -1137,14 +1136,9 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 	case SYS_DVBS:
 	case SYS_DSS:
 		if (internal->lock) {
-			/* average 5 BER values	*/
-			for (i = 0; i < 5; i++) {
-				msleep(100);
-				lsb = stb0899_read_reg(state, STB0899_ECNT1L);
-				msb = stb0899_read_reg(state, STB0899_ECNT1M);
-				*ber += MAKEWORD16(msb, lsb);
-			}
-			*ber /= 5;
+			lsb = stb0899_read_reg(state, STB0899_ECNT1L);
+			msb = stb0899_read_reg(state, STB0899_ECNT1M);
+			*ber = MAKEWORD16(msb, lsb);
 			/* Viterbi Check	*/
 			if (STB0899_GETFIELD(VSTATUS_PRFVIT, internal->v_status)) {
 				/* Error Rate		*/
@@ -1157,13 +1151,9 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 		break;
 	case SYS_DVBS2:
 		if (internal->lock) {
-			/* Average 5 PER values	*/
-			for (i = 0; i < 5; i++) {
-				msleep(100);
-				lsb = stb0899_read_reg(state, STB0899_ECNT1L);
-				msb = stb0899_read_reg(state, STB0899_ECNT1M);
-				*ber += MAKEWORD16(msb, lsb);
-			}
+			lsb = stb0899_read_reg(state, STB0899_ECNT1L);
+			msb = stb0899_read_reg(state, STB0899_ECNT1M);
+			*ber = MAKEWORD16(msb, lsb);
 			/* ber = ber * 10 ^ 7	*/
 			*ber *= 10000000;
 			*ber /= (-1 + (1 << (4 + 2 * STB0899_GETFIELD(NOE, internal->err_ctrl))));

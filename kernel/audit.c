@@ -384,7 +384,7 @@ static void audit_hold_skb(struct sk_buff *skb)
 static void audit_printk_skb(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	char *data = NLMSG_DATA(nlh);
+	char *data = nlmsg_data(nlh);
 
 	if (nlh->nlmsg_type != AUDIT_EOE) {
 		if (printk_ratelimit())
@@ -516,14 +516,15 @@ struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
 	if (!skb)
 		return NULL;
 
-	nlh	= NLMSG_NEW(skb, pid, seq, t, size, flags);
-	data	= NLMSG_DATA(nlh);
+	nlh	= nlmsg_put(skb, pid, seq, t, size, flags);
+	if (!nlh)
+		goto out_kfree_skb;
+	data = nlmsg_data(nlh);
 	memcpy(data, payload, size);
 	return skb;
 
-nlmsg_failure:			/* Used by NLMSG_NEW */
-	if (skb)
-		kfree_skb(skb);
+out_kfree_skb:
+	kfree_skb(skb);
 	return NULL;
 }
 
@@ -680,7 +681,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	sessionid = audit_get_sessionid(current);
 	security_task_getsecid(current, &sid);
 	seq  = nlh->nlmsg_seq;
-	data = NLMSG_DATA(nlh);
+	data = nlmsg_data(nlh);
 
 	switch (msg_type) {
 	case AUDIT_GET:
@@ -961,14 +962,17 @@ static void audit_receive(struct sk_buff  *skb)
 static int __init audit_init(void)
 {
 	int i;
+	struct netlink_kernel_cfg cfg = {
+		.input	= audit_receive,
+	};
 
 	if (audit_initialized == AUDIT_DISABLED)
 		return 0;
 
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
-	audit_sock = netlink_kernel_create(&init_net, NETLINK_AUDIT, 0,
-					   audit_receive, NULL, THIS_MODULE);
+	audit_sock = netlink_kernel_create(&init_net, NETLINK_AUDIT,
+					   THIS_MODULE, &cfg);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
 	else
@@ -1060,13 +1064,15 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 
 	ab->skb = nlmsg_new(AUDIT_BUFSIZ, gfp_mask);
 	if (!ab->skb)
-		goto nlmsg_failure;
+		goto err;
 
-	nlh = NLMSG_NEW(ab->skb, 0, 0, type, 0, 0);
+	nlh = nlmsg_put(ab->skb, 0, 0, type, 0, 0);
+	if (!nlh)
+		goto out_kfree_skb;
 
 	return ab;
 
-nlmsg_failure:                  /* Used by NLMSG_NEW */
+out_kfree_skb:
 	kfree_skb(ab->skb);
 	ab->skb = NULL;
 err:
@@ -1447,6 +1453,27 @@ void audit_log_key(struct audit_buffer *ab, char *key)
 		audit_log_untrustedstring(ab, key);
 	else
 		audit_log_format(ab, "(null)");
+}
+
+/**
+ * audit_log_link_denied - report a link restriction denial
+ * @operation: specific link opreation
+ * @link: the path that triggered the restriction
+ */
+void audit_log_link_denied(const char *operation, struct path *link)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+			     AUDIT_ANOM_LINK);
+	audit_log_format(ab, "op=%s action=denied", operation);
+	audit_log_format(ab, " pid=%d comm=", current->pid);
+	audit_log_untrustedstring(ab, current->comm);
+	audit_log_d_path(ab, " path=", link);
+	audit_log_format(ab, " dev=");
+	audit_log_untrustedstring(ab, link->dentry->d_inode->i_sb->s_id);
+	audit_log_format(ab, " ino=%lu", link->dentry->d_inode->i_ino);
+	audit_log_end(ab);
 }
 
 /**

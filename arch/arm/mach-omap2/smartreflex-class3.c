@@ -11,36 +11,37 @@
  * published by the Free Software Foundation.
  */
 
-#include "smartreflex.h"
+#include <linux/power/smartreflex.h>
+#include "voltage.h"
 
-static int sr_class3_enable(struct voltagedomain *voltdm)
+static int sr_class3_enable(struct omap_sr *sr)
 {
-	unsigned long volt = voltdm_get_voltage(voltdm);
+	unsigned long volt = voltdm_get_voltage(sr->voltdm);
 
 	if (!volt) {
-		pr_warning("%s: Curr voltage unknown. Cannot enable sr_%s\n",
-				__func__, voltdm->name);
+		pr_warning("%s: Curr voltage unknown. Cannot enable %s\n",
+				__func__, sr->name);
 		return -ENODATA;
 	}
 
-	omap_vp_enable(voltdm);
-	return sr_enable(voltdm, volt);
+	omap_vp_enable(sr->voltdm);
+	return sr_enable(sr->voltdm, volt);
 }
 
-static int sr_class3_disable(struct voltagedomain *voltdm, int is_volt_reset)
+static int sr_class3_disable(struct omap_sr *sr, int is_volt_reset)
 {
-	sr_disable_errgen(voltdm);
-	omap_vp_disable(voltdm);
-	sr_disable(voltdm);
+	sr_disable_errgen(sr->voltdm);
+	omap_vp_disable(sr->voltdm);
+	sr_disable(sr->voltdm);
 	if (is_volt_reset)
-		voltdm_reset(voltdm);
+		voltdm_reset(sr->voltdm);
 
 	return 0;
 }
 
-static int sr_class3_configure(struct voltagedomain *voltdm)
+static int sr_class3_configure(struct omap_sr *sr)
 {
-	return sr_configure_errgen(voltdm);
+	return sr_configure_errgen(sr->voltdm);
 }
 
 /* SR class3 structure */

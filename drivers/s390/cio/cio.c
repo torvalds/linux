@@ -1,8 +1,7 @@
 /*
- *  drivers/s390/cio/cio.c
  *   S/390 common I/O routines -- low level i/o calls
  *
- *    Copyright IBM Corp. 1999,2008
+ *    Copyright IBM Corp. 1999, 2008
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)

@@ -222,6 +222,7 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	attr->index = index;
 	attr->type = type;
 	attr->limit_value = limit_value;
+	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name = attr->name;
 	attr->dev_attr.attr.mode = S_IRUGO;
 	attr->dev_attr.show = reader;

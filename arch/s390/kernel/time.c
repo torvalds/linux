@@ -1,5 +1,4 @@
 /*
- *  arch/s390/kernel/time.c
  *    Time of day based timer functions.
  *
  *  S390 version
@@ -35,7 +34,7 @@
 #include <linux/profile.h>
 #include <linux/timex.h>
 #include <linux/notifier.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
@@ -45,7 +44,7 @@
 #include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
-#include <asm/timer.h>
+#include <asm/vtimer.h>
 #include <asm/etr.h>
 #include <asm/cio.h>
 #include "entry.h"
@@ -220,7 +219,7 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
 			struct clocksource *clock, u32 mult)
 {
 	if (clock != &clocksource_tod)

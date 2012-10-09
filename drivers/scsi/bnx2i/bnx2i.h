@@ -44,6 +44,8 @@
 #include "57xx_iscsi_hsi.h"
 #include "57xx_iscsi_constants.h"
 
+#include "../../net/ethernet/broadcom/bnx2x/bnx2x_mfw_req.h"
+
 #define BNX2_ISCSI_DRIVER_NAME		"bnx2i"
 
 #define BNX2I_MAX_ADAPTERS		8
@@ -126,6 +128,43 @@
 #define REG_WR(__hba, offset, val)			\
 		writel(val, __hba->regview + offset)
 
+#ifdef CONFIG_32BIT
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		spin_lock_bh(&__hba->stat_lock);		\
+		dst->field##_lo = __hba->stats.field##_lo;	\
+		dst->field##_hi = __hba->stats.field##_hi;	\
+		spin_unlock_bh(&__hba->stat_lock);		\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		if (spin_trylock(&__hba->stat_lock)) {		\
+			if (__hba->stats.field##_lo + len <	\
+			    __hba->stats.field##_lo)		\
+				__hba->stats.field##_hi++;	\
+			__hba->stats.field##_lo += len;		\
+			spin_unlock(&__hba->stat_lock);		\
+		}						\
+	} while (0)
+
+#else
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		u64 val, *out;					\
+								\
+		val = __hba->bnx2i_stats.field;			\
+		out = (u64 *)&__hba->stats.field##_lo;		\
+		*out = cpu_to_le64(val);			\
+		out = (u64 *)&dst->field##_lo;			\
+		*out = cpu_to_le64(val);			\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		__hba->bnx2i_stats.field += len;		\
+	} while (0)
+#endif
 
 /**
  * struct generic_pdu_resc - login pdu resource structure
@@ -288,6 +327,15 @@ struct iscsi_cid_queue {
 	struct bnx2i_conn **conn_cid_tbl;
 };
 
+
+struct bnx2i_stats_info {
+	u64 rx_pdus;
+	u64 rx_bytes;
+	u64 tx_pdus;
+	u64 tx_bytes;
+};
+
+
 /**
  * struct bnx2i_hba - bnx2i adapter structure
  *
@@ -341,6 +389,8 @@ struct iscsi_cid_queue {
  * @ctx_ccell_tasks:       captures number of ccells and tasks supported by
  *                         currently offloaded connection, used to decode
  *                         context memory
+ * @stat_lock:		   spin lock used by the statistic collector (32 bit)
+ * @stats:		   local iSCSI statistic collection place holder
  *
  * Adapter Data Structure
  */
@@ -427,6 +477,12 @@ struct bnx2i_hba {
 	u32 num_sess_opened;
 	u32 num_conn_opened;
 	unsigned int ctx_ccell_tasks;
+
+#ifdef CONFIG_32BIT
+	spinlock_t stat_lock;
+#endif
+	struct bnx2i_stats_info bnx2i_stats;
+	struct iscsi_stats_info stats;
 };
 
 
@@ -750,6 +806,8 @@ extern void bnx2i_ulp_init(struct cnic_dev *dev);
 extern void bnx2i_ulp_exit(struct cnic_dev *dev);
 extern void bnx2i_start(void *handle);
 extern void bnx2i_stop(void *handle);
+extern int bnx2i_get_stats(void *handle);
+
 extern struct bnx2i_hba *get_adapter_list_head(void);
 
 struct bnx2i_conn *bnx2i_get_conn_from_id(struct bnx2i_hba *hba,

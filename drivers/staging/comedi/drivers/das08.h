@@ -49,25 +49,13 @@ struct das08_board_struct {
 	unsigned int iosize;	/*  number of ioports used */
 };
 
-struct i8254_struct {
-	int channels;		/*  available channels. Some could be used internally. */
-	int logic2phys[3];	/*  to know which physical channel is. */
-	int mode[3];		/*  the index is the real counter. */
-	unsigned int iobase;
-};
-
-#define I8254_CNT0 0
-#define I8254_CNT1 1
-#define I8254_CNT2 2
-#define I8254_CTRL 3
-
 struct das08_private_struct {
 	unsigned int do_mux_bits;	/*  bits for do/mux register on boards without separate do register */
 	unsigned int do_bits;	/*  bits for do register on boards with register dedicated to digital out only */
 	const unsigned int *pg_gainlist;
 	struct pci_dev *pdev;	/*  struct for pci-das08 */
 	unsigned int pci_iobase;	/*  additional base address for pci-das08 */
-	struct i8254_struct i8254;
+	unsigned int i8254_iobase;
 };
 
 #define NUM_DAS08_CS_BOARDS 2

@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_l3_sys.c
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,

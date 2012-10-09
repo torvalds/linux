@@ -23,8 +23,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.72.50-0"
-#define DRV_MODULE_RELDATE      "2012/04/23"
+#define DRV_MODULE_VERSION      "1.72.51-0"
+#define DRV_MODULE_RELDATE      "2012/06/18"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -51,6 +51,7 @@
 
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
+#include "bnx2x_mfw_req.h"
 #include "bnx2x_hsi.h"
 #include "bnx2x_link.h"
 #include "bnx2x_sp.h"
@@ -248,13 +249,12 @@ enum {
 	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
 };
 
-#define BNX2X_CNIC_START_ETH_CID	48
-enum {
+#define BNX2X_CNIC_START_ETH_CID(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) *\
+					 (bp)->max_cos)
 	/* iSCSI L2 */
-	BNX2X_ISCSI_ETH_CID = BNX2X_CNIC_START_ETH_CID,
+#define	BNX2X_ISCSI_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp))
 	/* FCoE L2 */
-	BNX2X_FCOE_ETH_CID,
-};
+#define	BNX2X_FCOE_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp) + 1)
 
 /** Additional rings budgeting */
 #ifdef BCM_CNIC
@@ -276,29 +276,30 @@ enum {
 #define FIRST_TX_ONLY_COS_INDEX		1
 #define FIRST_TX_COS_INDEX		0
 
-/* defines for decodeing the fastpath index and the cos index out of the
- * transmission queue index
- */
-#define MAX_TXQS_PER_COS	FP_SB_MAX_E1x
-
-#define TXQ_TO_FP(txq_index)	((txq_index) % MAX_TXQS_PER_COS)
-#define TXQ_TO_COS(txq_index)	((txq_index) / MAX_TXQS_PER_COS)
-
 /* rules for calculating the cids of tx-only connections */
-#define CID_TO_FP(cid)		((cid) % MAX_TXQS_PER_COS)
-#define CID_COS_TO_TX_ONLY_CID(cid, cos)	(cid + cos * MAX_TXQS_PER_COS)
+#define CID_TO_FP(cid, bp)		((cid) % BNX2X_NUM_NON_CNIC_QUEUES(bp))
+#define CID_COS_TO_TX_ONLY_CID(cid, cos, bp) \
+				(cid + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
 
 /* fp index inside class of service range */
-#define FP_COS_TO_TXQ(fp, cos)    ((fp)->index + cos * MAX_TXQS_PER_COS)
+#define FP_COS_TO_TXQ(fp, cos, bp) \
+			((fp)->index + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
 
-/*
- * 0..15 eth cos0
- * 16..31 eth cos1 if applicable
- * 32..47 eth cos2 If applicable
- * fcoe queue follows eth queues (16, 32, 48 depending on cos)
+/* Indexes for transmission queues array:
+ * txdata for RSS i CoS j is at location i + (j * num of RSS)
+ * txdata for FCoE (if exist) is at location max cos * num of RSS
+ * txdata for FWD (if exist) is one location after FCoE
+ * txdata for OOO (if exist) is one location after FWD
  */
-#define MAX_ETH_TXQ_IDX(bp)	(MAX_TXQS_PER_COS * (bp)->max_cos)
-#define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp))
+enum {
+	FCOE_TXQ_IDX_OFFSET,
+	FWD_TXQ_IDX_OFFSET,
+	OOO_TXQ_IDX_OFFSET,
+};
+#define MAX_ETH_TXQ_IDX(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) * (bp)->max_cos)
+#ifdef BCM_CNIC
+#define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp) + FCOE_TXQ_IDX_OFFSET)
+#endif
 
 /* fast path */
 /*
@@ -453,6 +454,7 @@ struct bnx2x_agg_info {
 	u16			vlan_tag;
 	u16			len_on_bd;
 	u32			rxhash;
+	bool			l4_rxhash;
 	u16			gro_size;
 	u16			full_page;
 };
@@ -481,6 +483,8 @@ struct bnx2x_fp_txdata {
 	__le16			*tx_cons_sb;
 
 	int			txq_index;
+	struct bnx2x_fastpath	*parent_fp;
+	int			tx_ring_size;
 };
 
 enum bnx2x_tpa_mode_t {
@@ -507,7 +511,7 @@ struct bnx2x_fastpath {
 	enum bnx2x_tpa_mode_t	mode;
 
 	u8			max_cos; /* actual number of active tx coses */
-	struct bnx2x_fp_txdata	txdata[BNX2X_MULTI_TX_COS];
+	struct bnx2x_fp_txdata	*txdata_ptr[BNX2X_MULTI_TX_COS];
 
 	struct sw_rx_bd		*rx_buf_ring;	/* BDs mappings ring */
 	struct sw_rx_page	*rx_page_ring;	/* SGE pages mappings ring */
@@ -547,51 +551,45 @@ struct bnx2x_fastpath {
 				rx_calls;
 
 	/* TPA related */
-	struct bnx2x_agg_info	tpa_info[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
+	struct bnx2x_agg_info	*tpa_info;
 	u8			disable_tpa;
 #ifdef BNX2X_STOP_ON_ERROR
 	u64			tpa_queue_used;
 #endif
-
-	struct tstorm_per_queue_stats old_tclient;
-	struct ustorm_per_queue_stats old_uclient;
-	struct xstorm_per_queue_stats old_xclient;
-	struct bnx2x_eth_q_stats eth_q_stats;
-	struct bnx2x_eth_q_stats_old eth_q_stats_old;
-
 	/* The size is calculated using the following:
 	     sizeof name field from netdev structure +
 	     4 ('-Xx-' string) +
 	     4 (for the digits and to make it DWORD aligned) */
 #define FP_NAME_SIZE		(sizeof(((struct net_device *)0)->name) + 8)
 	char			name[FP_NAME_SIZE];
-
-	/* MACs object */
-	struct bnx2x_vlan_mac_obj mac_obj;
-
-	/* Queue State object */
-	struct bnx2x_queue_sp_obj q_obj;
-
 };
 
-#define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+#define bnx2x_fp(bp, nr, var)	((bp)->fp[(nr)].var)
+#define bnx2x_sp_obj(bp, fp)	((bp)->sp_objs[(fp)->index])
+#define bnx2x_fp_stats(bp, fp)	(&((bp)->fp_stats[(fp)->index]))
+#define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
 
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500
 
-/* FCoE L2 `fastpath' entry is right after the eth entries */
-#define FCOE_IDX			BNX2X_NUM_ETH_QUEUES(bp)
-#define bnx2x_fcoe_fp(bp)		(&bp->fp[FCOE_IDX])
-#define bnx2x_fcoe(bp, var)		(bnx2x_fcoe_fp(bp)->var)
-#define bnx2x_fcoe_tx(bp, var)		(bnx2x_fcoe_fp(bp)-> \
-						txdata[FIRST_TX_COS_INDEX].var)
+#define	FCOE_IDX_OFFSET		0
+
+#define FCOE_IDX(bp)		(BNX2X_NUM_NON_CNIC_QUEUES(bp) + \
+				 FCOE_IDX_OFFSET)
+#define bnx2x_fcoe_fp(bp)	(&bp->fp[FCOE_IDX(bp)])
+#define bnx2x_fcoe(bp, var)	(bnx2x_fcoe_fp(bp)->var)
+#define bnx2x_fcoe_inner_sp_obj(bp)	(&bp->sp_objs[FCOE_IDX(bp)])
+#define bnx2x_fcoe_sp_obj(bp, var)	(bnx2x_fcoe_inner_sp_obj(bp)->var)
+#define bnx2x_fcoe_tx(bp, var)	(bnx2x_fcoe_fp(bp)-> \
+						txdata_ptr[FIRST_TX_COS_INDEX] \
+						->var)
 
 
 #define IS_ETH_FP(fp)			(fp->index < \
 					 BNX2X_NUM_ETH_QUEUES(fp->bp))
 #ifdef BCM_CNIC
-#define IS_FCOE_FP(fp)			(fp->index == FCOE_IDX)
-#define IS_FCOE_IDX(idx)		((idx) == FCOE_IDX)
+#define IS_FCOE_FP(fp)			(fp->index == FCOE_IDX(fp->bp))
+#define IS_FCOE_IDX(idx)		((idx) == FCOE_IDX(bp))
 #else
 #define IS_FCOE_FP(fp)		false
 #define IS_FCOE_IDX(idx)	false
@@ -615,6 +613,22 @@ struct bnx2x_fastpath {
 					(x) + 1)
 #define TX_BD(x)		((x) & MAX_TX_BD)
 #define TX_BD_POFF(x)		((x) & MAX_TX_DESC_CNT)
+
+/* number of NEXT_PAGE descriptors may be required during placement */
+#define NEXT_CNT_PER_TX_PKT(bds)	\
+				(((bds) + MAX_TX_DESC_CNT - 1) / \
+				 MAX_TX_DESC_CNT * NEXT_PAGE_TX_DESC_CNT)
+/* max BDs per tx packet w/o next_pages:
+ * START_BD		- describes packed
+ * START_BD(splitted)	- includes unpaged data segment for GSO
+ * PARSING_BD		- for TSO and CSUM data
+ * Frag BDs		- decribes pages for frags
+ */
+#define BDS_PER_TX_PKT		3
+#define MAX_BDS_PER_TX_PKT	(MAX_SKB_FRAGS + BDS_PER_TX_PKT)
+/* max BDs per tx packet including next pages */
+#define MAX_DESC_PER_TX_PKT	(MAX_BDS_PER_TX_PKT + \
+				 NEXT_CNT_PER_TX_PKT(MAX_BDS_PER_TX_PKT))
 
 /* The RX BD ring is special, each bd is 8 bytes but the last one is 16 */
 #define NUM_RX_RINGS		8
@@ -805,8 +819,11 @@ struct bnx2x_common {
 #define CHIP_NUM_57810_MF		0x16ae
 #define CHIP_NUM_57811			0x163d
 #define CHIP_NUM_57811_MF		0x163e
-#define CHIP_NUM_57840			0x168d
-#define CHIP_NUM_57840_MF		0x16ab
+#define CHIP_NUM_57840_OBSOLETE	0x168d
+#define CHIP_NUM_57840_MF_OBSOLETE	0x16ab
+#define CHIP_NUM_57840_4_10		0x16a1
+#define CHIP_NUM_57840_2_20		0x16a2
+#define CHIP_NUM_57840_MF		0x16a4
 #define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
 #define CHIP_IS_57711(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711)
 #define CHIP_IS_57711E(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711E)
@@ -818,8 +835,12 @@ struct bnx2x_common {
 #define CHIP_IS_57810_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810_MF)
 #define CHIP_IS_57811(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811)
 #define CHIP_IS_57811_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811_MF)
-#define CHIP_IS_57840(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840)
-#define CHIP_IS_57840_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840_MF)
+#define CHIP_IS_57840(bp)		\
+		((CHIP_NUM(bp) == CHIP_NUM_57840_4_10) || \
+		 (CHIP_NUM(bp) == CHIP_NUM_57840_2_20) || \
+		 (CHIP_NUM(bp) == CHIP_NUM_57840_OBSOLETE))
+#define CHIP_IS_57840_MF(bp)	((CHIP_NUM(bp) == CHIP_NUM_57840_MF) || \
+				 (CHIP_NUM(bp) == CHIP_NUM_57840_MF_OBSOLETE))
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
 					 CHIP_IS_57711E(bp))
 #define CHIP_IS_E2(bp)			(CHIP_IS_57712(bp) || \
@@ -978,8 +999,8 @@ union cdu_context {
 };
 
 /* CDU host DB constants */
-#define CDU_ILT_PAGE_SZ_HW	3
-#define CDU_ILT_PAGE_SZ		(8192 << CDU_ILT_PAGE_SZ_HW) /* 64K */
+#define CDU_ILT_PAGE_SZ_HW	2
+#define CDU_ILT_PAGE_SZ		(8192 << CDU_ILT_PAGE_SZ_HW) /* 32K */
 #define ILT_PAGE_CIDS		(CDU_ILT_PAGE_SZ / sizeof(union cdu_context))
 
 #ifdef BCM_CNIC
@@ -1182,11 +1203,31 @@ struct bnx2x_prev_path_list {
 	struct list_head list;
 };
 
+struct bnx2x_sp_objs {
+	/* MACs object */
+	struct bnx2x_vlan_mac_obj mac_obj;
+
+	/* Queue State object */
+	struct bnx2x_queue_sp_obj q_obj;
+};
+
+struct bnx2x_fp_stats {
+	struct tstorm_per_queue_stats old_tclient;
+	struct ustorm_per_queue_stats old_uclient;
+	struct xstorm_per_queue_stats old_xclient;
+	struct bnx2x_eth_q_stats eth_q_stats;
+	struct bnx2x_eth_q_stats_old eth_q_stats_old;
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
 	 */
 	struct bnx2x_fastpath	*fp;
+	struct bnx2x_sp_objs	*sp_objs;
+	struct bnx2x_fp_stats	*fp_stats;
+	struct bnx2x_fp_txdata	*bnx2x_txq;
+	int			bnx2x_txq_size;
 	void __iomem		*regview;
 	void __iomem		*doorbells;
 	u16			db_size;
@@ -1237,7 +1278,7 @@ struct bnx2x {
 #define BNX2X_FW_RX_ALIGN_START	(1UL << BNX2X_RX_ALIGN_SHIFT)
 
 #define BNX2X_FW_RX_ALIGN_END					\
-	max(1UL << BNX2X_RX_ALIGN_SHIFT, 			\
+	max_t(u64, 1UL << BNX2X_RX_ALIGN_SHIFT,			\
 	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BNX2X_PXP_DRAM_ALIGN		(BNX2X_RX_ALIGN_SHIFT - 5)
@@ -1301,7 +1342,9 @@ struct bnx2x {
 #define NO_ISCSI_FLAG			(1 << 14)
 #define NO_FCOE_FLAG			(1 << 15)
 #define BC_SUPPORTS_PFC_STATS		(1 << 17)
+#define BC_SUPPORTS_FCOE_FEATURES	(1 << 19)
 #define USING_SINGLE_MSIX_FLAG		(1 << 20)
+#define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
 
 #define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
 #define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
@@ -1377,6 +1420,7 @@ struct bnx2x {
 #define BNX2X_MAX_COS			3
 #define BNX2X_MAX_TX_COS		2
 	int			num_queues;
+	int			num_napi_queues;
 	int			disable_tpa;
 
 	u32			rx_mode;
@@ -1389,6 +1433,7 @@ struct bnx2x {
 	u8			igu_dsb_id;
 	u8			igu_base_sb;
 	u8			igu_sb_cnt;
+
 	dma_addr_t		def_status_blk_mapping;
 
 	struct bnx2x_slowpath	*slowpath;
@@ -1420,7 +1465,11 @@ struct bnx2x {
 	dma_addr_t			fw_stats_data_mapping;
 	int				fw_stats_data_sz;
 
-	struct hw_context	context;
+	/* For max 196 cids (64*3 + non-eth), 32KB ILT page size and 1KB
+	 * context size we need 8 ILT entries.
+	 */
+#define ILT_MAX_L2_LINES	8
+	struct hw_context	context[ILT_MAX_L2_LINES];
 
 	struct bnx2x_ilt	*ilt;
 #define BP_ILT(bp)		((bp)->ilt)
@@ -1433,13 +1482,14 @@ struct bnx2x {
 
 /*
  * Maximum CID count that might be required by the bnx2x:
- * Max Tss * Max_Tx_Multi_Cos + CNIC L2 Clients (FCoE and iSCSI related)
+ * Max RSS * Max_Tx_Multi_Cos + FCoE + iSCSI
  */
-#define BNX2X_L2_CID_COUNT(bp)	(MAX_TXQS_PER_COS * BNX2X_MULTI_TX_COS +\
-					NON_ETH_CONTEXT_USE + CNIC_PRESENT)
+#define BNX2X_L2_CID_COUNT(bp)	(BNX2X_NUM_ETH_QUEUES(bp) * BNX2X_MULTI_TX_COS \
+				+ NON_ETH_CONTEXT_USE + CNIC_PRESENT)
+#define BNX2X_L2_MAX_CID(bp)	(BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS \
+				+ NON_ETH_CONTEXT_USE + CNIC_PRESENT)
 #define L2_ILT_LINES(bp)	(DIV_ROUND_UP(BNX2X_L2_CID_COUNT(bp),\
 					ILT_PAGE_CIDS))
-#define BNX2X_DB_SIZE(bp)	(BNX2X_L2_CID_COUNT(bp) * (1 << BNX2X_DB_SHIFT))
 
 	int			qm_cid_count;
 
@@ -1598,6 +1648,8 @@ struct bnx2x {
 extern int num_queues;
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
 #define BNX2X_NUM_ETH_QUEUES(bp) (BNX2X_NUM_QUEUES(bp) - NON_ETH_CONTEXT_USE)
+#define BNX2X_NUM_NON_CNIC_QUEUES(bp)	(BNX2X_NUM_QUEUES(bp) - \
+					 NON_ETH_CONTEXT_USE)
 #define BNX2X_NUM_RX_QUEUES(bp)	BNX2X_NUM_QUEUES(bp)
 
 #define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
@@ -1709,15 +1761,6 @@ int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 		      struct bnx2x_vlan_mac_obj *obj, bool set,
 		      int mac_type, unsigned long *ramrod_flags);
 /**
- * Deletes all MACs configured for the specific MAC object.
- *
- * @param bp Function driver instance
- * @param mac_obj MAC object to cleanup
- *
- * @return zero if all MACs were cleaned
- */
-
-/**
  * bnx2x_del_all_macs - delete all MACs configured for the specific MAC object
  *
  * @bp:			driver handle
@@ -1817,6 +1860,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define LOAD_NORMAL			0
 #define LOAD_OPEN			1
 #define LOAD_DIAG			2
+#define LOAD_LOOPBACK_EXT		3
 #define UNLOAD_NORMAL			0
 #define UNLOAD_CLOSE			1
 #define UNLOAD_RECOVERY			2
@@ -1899,13 +1943,17 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED		0xf0000
 #define PCICFG_LINK_SPEED_SHIFT		16
 
-
-#define BNX2X_NUM_TESTS			7
+#define BNX2X_NUM_TESTS_SF		7
+#define BNX2X_NUM_TESTS_MF		3
+#define BNX2X_NUM_TESTS(bp)		(IS_MF(bp) ? BNX2X_NUM_TESTS_MF : \
+						     BNX2X_NUM_TESTS_SF)
 
 #define BNX2X_PHY_LOOPBACK		0
 #define BNX2X_MAC_LOOPBACK		1
+#define BNX2X_EXT_LOOPBACK		2
 #define BNX2X_PHY_LOOPBACK_FAILED	1
 #define BNX2X_MAC_LOOPBACK_FAILED	2
+#define BNX2X_EXT_LOOPBACK_FAILED	3
 #define BNX2X_LOOPBACK_FAILED		(BNX2X_MAC_LOOPBACK_FAILED | \
 					 BNX2X_PHY_LOOPBACK_FAILED)
 

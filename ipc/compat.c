@@ -118,7 +118,7 @@ extern int sem_ctls[];
 
 static inline int compat_ipc_parse_version(int *cmd)
 {
-#ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
+#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	int version = *cmd & IPC_64;
 
 	/* this is tricky: architectures that have support for the old
@@ -373,21 +373,21 @@ long compat_sys_semctl(int semid, int semnum, int cmd, int arg)
 }
 
 long compat_sys_msgsnd(int msqid, struct compat_msgbuf __user *msgp,
-		       size_t msgsz, int msgflg)
+		       compat_ssize_t msgsz, int msgflg)
 {
 	compat_long_t mtype;
 
 	if (get_user(mtype, &msgp->mtype))
 		return -EFAULT;
-	return do_msgsnd(msqid, mtype, msgp->mtext, msgsz, msgflg);
+	return do_msgsnd(msqid, mtype, msgp->mtext, (ssize_t)msgsz, msgflg);
 }
 
 long compat_sys_msgrcv(int msqid, struct compat_msgbuf __user *msgp,
-		       size_t msgsz, long msgtyp, int msgflg)
+		       compat_ssize_t msgsz, long msgtyp, int msgflg)
 {
 	long err, mtype;
 
-	err =  do_msgrcv(msqid, &mtype, msgp->mtext, msgsz, msgtyp, msgflg);
+	err =  do_msgrcv(msqid, &mtype, msgp->mtext, (ssize_t)msgsz, msgtyp, msgflg);
 	if (err < 0)
 		goto out;
 
@@ -514,6 +514,10 @@ long compat_sys_msgctl(int first, int second, void __user *uptr)
 	return err;
 }
 
+#ifndef COMPAT_SHMLBA
+#define COMPAT_SHMLBA	SHMLBA
+#endif
+
 #ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
 long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 			void __user *uptr)
@@ -524,7 +528,7 @@ long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 
 	if (version == 1)
 		return -EINVAL;
-	err = do_shmat(first, uptr, second, &raddr);
+	err = do_shmat(first, uptr, second, &raddr, COMPAT_SHMLBA);
 	if (err < 0)
 		return err;
 	uaddr = compat_ptr(third);
@@ -536,7 +540,7 @@ long compat_sys_shmat(int shmid, compat_uptr_t shmaddr, int shmflg)
 	unsigned long ret;
 	long err;
 
-	err = do_shmat(shmid, compat_ptr(shmaddr), shmflg, &ret);
+	err = do_shmat(shmid, compat_ptr(shmaddr), shmflg, &ret, COMPAT_SHMLBA);
 	if (err)
 		return err;
 	force_successful_syscall_return();
