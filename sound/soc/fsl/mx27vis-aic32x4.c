@@ -26,13 +26,13 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/asoc-mx27vis.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <asm/mach-types.h>
-#include <mach/iomux-mx27.h>
 
 #include "../codecs/tlv320aic32x4.h"
 #include "imx-ssi.h"
@@ -41,20 +41,12 @@
 #define MX27VIS_AMP_GAIN	0
 #define MX27VIS_AMP_MUTE	1
 
-#define MX27VIS_PIN_G0		(GPIO_PORTF + 9)
-#define MX27VIS_PIN_G1		(GPIO_PORTF + 8)
-#define MX27VIS_PIN_SDL		(GPIO_PORTE + 5)
-#define MX27VIS_PIN_SDR		(GPIO_PORTF + 7)
-
 static int mx27vis_amp_gain;
 static int mx27vis_amp_mute;
-
-static const int mx27vis_amp_pins[] = {
-	MX27VIS_PIN_G0 | GPIO_GPIO | GPIO_OUT,
-	MX27VIS_PIN_G1 | GPIO_GPIO | GPIO_OUT,
-	MX27VIS_PIN_SDL | GPIO_GPIO | GPIO_OUT,
-	MX27VIS_PIN_SDR | GPIO_GPIO | GPIO_OUT,
-};
+static int mx27vis_amp_gain0_gpio;
+static int mx27vis_amp_gain1_gpio;
+static int mx27vis_amp_mutel_gpio;
+static int mx27vis_amp_muter_gpio;
 
 static int mx27vis_aic32x4_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params)
@@ -109,13 +101,13 @@ static int mx27vis_amp_set(struct snd_kcontrol *kcontrol,
 
 	switch (reg) {
 	case MX27VIS_AMP_GAIN:
-		gpio_set_value(MX27VIS_PIN_G0, value & 1);
-		gpio_set_value(MX27VIS_PIN_G1, value >> 1);
+		gpio_set_value(mx27vis_amp_gain0_gpio, value & 1);
+		gpio_set_value(mx27vis_amp_gain1_gpio, value >> 1);
 		mx27vis_amp_gain = value;
 		break;
 	case MX27VIS_AMP_MUTE:
-		gpio_set_value(MX27VIS_PIN_SDL, value & 1);
-		gpio_set_value(MX27VIS_PIN_SDR, value >> 1);
+		gpio_set_value(mx27vis_amp_mutel_gpio, value & 1);
+		gpio_set_value(mx27vis_amp_muter_gpio, value >> 1);
 		mx27vis_amp_mute = value;
 		break;
 	}
@@ -190,7 +182,18 @@ static struct snd_soc_card mx27vis_aic32x4 = {
 
 static int __devinit mx27vis_aic32x4_probe(struct platform_device *pdev)
 {
+	struct snd_mx27vis_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
+	mx27vis_amp_gain0_gpio = pdata->amp_gain0_gpio;
+	mx27vis_amp_gain1_gpio = pdata->amp_gain1_gpio;
+	mx27vis_amp_mutel_gpio = pdata->amp_mutel_gpio;
+	mx27vis_amp_muter_gpio = pdata->amp_muter_gpio;
 
 	mx27vis_aic32x4.dev = &pdev->dev;
 	ret = snd_soc_register_card(&mx27vis_aic32x4);
@@ -212,11 +215,6 @@ static int __devinit mx27vis_aic32x4_probe(struct platform_device *pdev)
 			IMX_AUDMUX_V1_PCR_SYN |
 			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
 	);
-
-	ret = mxc_gpio_setup_multiple_pins(mx27vis_amp_pins,
-			ARRAY_SIZE(mx27vis_amp_pins), "MX27VIS_AMP");
-	if (ret)
-		printk(KERN_ERR "ASoC: unable to setup gpios\n");
 
 	return ret;
 }

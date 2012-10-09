@@ -278,13 +278,15 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 	int n_queues = sdata->local->hw.queues;
 	int i;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
-				 IEEE80211_INVAL_HW_QUEUE))
-			return -EINVAL;
-		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] >=
-				 n_queues))
-			return -EINVAL;
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE) {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+			if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
+					 IEEE80211_INVAL_HW_QUEUE))
+				return -EINVAL;
+			if (WARN_ON_ONCE(sdata->vif.hw_queue[i] >=
+					 n_queues))
+				return -EINVAL;
+		}
 	}
 
 	if ((sdata->vif.type != NL80211_IFTYPE_AP) ||
@@ -791,11 +793,20 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		flush_work(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * Call synchronize_rcu() to wait for the RX path
+		 * Call rcu_barrier() to wait both for the RX path
 		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU.
+		 * frames at this very time on another CPU, and
+		 * for the sta free call_rcu callbacks.
 		 */
-		synchronize_rcu();
+		rcu_barrier();
+
+		/*
+		 * free_sta_rcu() enqueues a work for the actual
+		 * sta cleanup, so we need to flush it while
+		 * sdata is still valid.
+		 */
+		flush_workqueue(local->workqueue);
+
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*

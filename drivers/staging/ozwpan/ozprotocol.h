@@ -65,6 +65,10 @@ struct oz_hdr {
 
 #define OZ_LAST_PN_HALF_CYCLE	127
 
+#define OZ_LATENCY_MASK		0xc0
+#define OZ_ONE_MS_LATENCY	0x40
+#define OZ_TEN_MS_LATENCY	0x80
+
 /* Connect request data structure.
  */
 struct oz_elt_connect_req {
@@ -73,7 +77,7 @@ struct oz_elt_connect_req {
 	u8	pd_info;
 	u8	session_id;
 	u8	presleep;
-	u8	resv2;
+	u8	ms_isoc_latency;
 	u8	host_vendor;
 	u8	keep_alive;
 	u16	apps;

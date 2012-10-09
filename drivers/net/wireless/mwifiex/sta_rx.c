@@ -174,6 +174,12 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 				dev_err(adapter->dev, "Rx of A-MSDU failed");
 		}
 		return 0;
+	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+		ret = mwifiex_process_mgmt_packet(adapter, skb);
+		if (ret)
+			dev_err(adapter->dev, "Rx of mgmt packet failed");
+		dev_kfree_skb_any(skb);
+		return ret;
 	}
 
 	/*

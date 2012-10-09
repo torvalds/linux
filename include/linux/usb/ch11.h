@@ -236,8 +236,8 @@ struct usb_hub_descriptor {
 
 		struct {
 			__u8 bHubHdrDecLat;
-			__u16 wHubDelay;
-			__u16 DeviceRemovable;
+			__le16 wHubDelay;
+			__le16 DeviceRemovable;
 		}  __attribute__ ((packed)) ss;
 	} u;
 } __attribute__ ((packed));

@@ -187,7 +187,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= time_ns;
-	iio_push_to_buffer(buffer, (u8 *)data->buffer, time_ns);
+	iio_push_to_buffer(buffer, (u8 *)data->buffer);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -271,9 +271,10 @@ static int adjd_s311_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	data->buffer = krealloc(data->buffer, indio_dev->scan_bytes,
-				GFP_KERNEL);
-	if (!data->buffer)
+
+	kfree(data->buffer);
+	data->buffer = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	if (data->buffer == NULL)
 		return -ENOMEM;
 
 	return 0;

@@ -91,10 +91,14 @@ enum {
 #define MWIFIEX_MAX_EMPTY_TX_Q_CNT			10
 #define MWIFIEX_SCAN_DELAY_MSEC				20
 
+#define MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN		2
+
 #define RSN_GTK_OUI_OFFSET				2
 
 #define MWIFIEX_OUI_NOT_PRESENT			0
 #define MWIFIEX_OUI_PRESENT				1
+
+#define PKT_TYPE_MGMT	0xE5
 
 /*
  * Do not check for data_received for USB, as data_received
@@ -116,6 +120,7 @@ enum {
 #define MAX_BITMAP_RATES_SIZE			10
 
 #define MAX_CHANNEL_BAND_BG     14
+#define MAX_CHANNEL_BAND_A      165
 
 #define MAX_FREQUENCY_BAND_BG   2484
 
@@ -249,10 +254,6 @@ struct ieee_types_header {
 	u8 len;
 } __packed;
 
-#define MWIFIEX_SUPPORTED_RATES                 14
-
-#define MWIFIEX_SUPPORTED_RATES_EXT             32
-
 struct ieee_types_vendor_specific {
 	struct ieee_types_vendor_header vend_hdr;
 	u8 data[IEEE_MAX_IE_SIZE - sizeof(struct ieee_types_vendor_header)];
@@ -367,6 +368,12 @@ struct mwifiex_vendor_spec_cfg_ie {
 
 struct wps {
 	u8 session_enable;
+};
+
+struct mwifiex_roc_cfg {
+	u64 cookie;
+	struct ieee80211_channel chan;
+	enum nl80211_channel_type chan_type;
 };
 
 struct mwifiex_adapter;
@@ -487,6 +494,7 @@ struct mwifiex_private {
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	u8 subsc_evt_rssi_state;
+	struct mwifiex_ds_misc_subsc_evt async_subsc_evt_storage;
 	struct mwifiex_ie mgmt_ie[MAX_MGMT_IE_INDEX];
 	u16 beacon_idx;
 	u16 proberesp_idx;
@@ -494,6 +502,8 @@ struct mwifiex_private {
 	u16 rsn_idx;
 	struct timer_list scan_delay_timer;
 	u8 ap_11n_enabled;
+	u32 mgmt_frame_mask;
+	struct mwifiex_roc_cfg roc_cfg;
 };
 
 enum mwifiex_ba_status {
@@ -525,6 +535,7 @@ struct mwifiex_rx_reorder_tbl {
 	int win_size;
 	void **rx_reorder_ptr;
 	struct reorder_tmr_cnxt timer_context;
+	u8 flags;
 };
 
 struct mwifiex_bss_prio_node {
@@ -726,6 +737,9 @@ void mwifiex_stop_net_dev_queue(struct net_device *netdev,
 void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
 		struct mwifiex_adapter *adapter);
 
+int mwifiex_init_priv(struct mwifiex_private *priv);
+void mwifiex_free_priv(struct mwifiex_private *priv);
+
 int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter);
@@ -737,6 +751,9 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
 int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
+
+int mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
+				struct sk_buff *skb);
 
 int mwifiex_process_event(struct mwifiex_adapter *adapter);
 
@@ -814,6 +831,7 @@ struct mwifiex_sta_node *
 mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac);
 void mwifiex_delete_all_station_list(struct mwifiex_private *priv);
 void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
+void *mwifiex_process_uap_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
 			    struct mwifiex_scan_cmd_config *scan_cfg);
@@ -871,6 +889,8 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct cfg80211_ap_settings *params);
 void mwifiex_set_ht_params(struct mwifiex_private *priv,
 			   struct mwifiex_uap_bss_param *bss_cfg,
+			   struct cfg80211_ap_settings *params);
+void mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
 
 /*
@@ -957,6 +977,14 @@ mwifiex_netdev_get_priv(struct net_device *dev)
 	return (struct mwifiex_private *) (*(unsigned long *) netdev_priv(dev));
 }
 
+/*
+ * This function checks if a skb holds a management frame.
+ */
+static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
+{
+	return (*(u32 *)skb->data == PKT_TYPE_MGMT);
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -989,6 +1017,13 @@ int mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len);
 
 int mwifiex_get_ver_ext(struct mwifiex_private *priv);
 
+int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type *channel_type,
+			       unsigned int duration);
+
+int mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role);
+
 int mwifiex_get_stats_info(struct mwifiex_private *priv,
 			   struct mwifiex_ds_get_stats *log);
 
@@ -1019,6 +1054,8 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
+int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb);
+
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
@@ -1029,8 +1066,10 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
 
+u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type);
+
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
-					      char *name,
+					      const char *name,
 					      enum nl80211_iftype type,
 					      u32 *flags,
 					      struct vif_params *params);

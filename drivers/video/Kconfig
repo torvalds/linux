@@ -979,18 +979,6 @@ config FB_PVR2
 	  (<file:drivers/video/pvr2fb.c>). Please see the file
 	  <file:Documentation/fb/pvr2fb.txt>.
 
-config FB_EPSON1355
-	bool "Epson 1355 framebuffer support"
-	depends on (FB = y) && ARCH_CEIVA
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Build in support for the SED1355 Epson Research Embedded RAMDAC
-	  LCD/CRT Controller (since redesignated as the S1D13505) as a
-	  framebuffer.  Product specs at
-	  <http://vdc.epson.com/>.
-
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"
 	depends on FB
@@ -1788,7 +1776,7 @@ config FB_AU1200
 
 config FB_VT8500
 	bool "VT8500 LCD Driver"
-	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_VT8500
+	depends on (FB = y) && ARM && ARCH_VT8500
 	select FB_WMT_GE_ROPS
 	select FB_SYS_IMAGEBLIT
 	help
@@ -1797,11 +1785,11 @@ config FB_VT8500
 
 config FB_WM8505
 	bool "WM8505 frame buffer support"
-	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_WM8505
+	depends on (FB = y) && ARM && ARCH_VT8500
 	select FB_WMT_GE_ROPS
 	select FB_SYS_IMAGEBLIT
 	help
-	  This is the framebuffer driver for WonderMedia WM8505
+	  This is the framebuffer driver for WonderMedia WM8505/WM8650
 	  integrated LCD controller.
 
 source "drivers/video/geode/Kconfig"

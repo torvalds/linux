@@ -20,7 +20,8 @@
 #include "rate.h"
 #include "mesh.h"
 
-static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy, char *name,
+static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
+						const char *name,
 						enum nl80211_iftype type,
 						u32 *flags,
 						struct vif_params *params)
@@ -168,6 +169,38 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			err = -ENOENT;
 			goto out_unlock;
 		}
+	}
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		/* Keys without a station are used for TX only */
+		if (key->sta && test_sta_flag(key->sta, WLAN_STA_MFP))
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* no MFP (yet) */
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+#ifdef CONFIG_MAC80211_MESH
+		if (sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+#endif
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+		/* shouldn't happen */
+		WARN_ON_ONCE(1);
+		break;
 	}
 
 	err = ieee80211_key_link(key, sdata, sta);
@@ -740,7 +773,7 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	struct probe_resp *new, *old;
 
 	if (!resp || !resp_len)
-		return -EINVAL;
+		return 1;
 
 	old = rtnl_dereference(sdata->u.ap.probe_resp);
 
@@ -1389,6 +1422,8 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 	else
 		memset(next_hop, 0, ETH_ALEN);
 
+	memset(pinfo, 0, sizeof(*pinfo));
+
 	pinfo->generation = mesh_paths_generation;
 
 	pinfo->filled = MPATH_INFO_FRAME_QLEN |
@@ -1407,7 +1442,6 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 	pinfo->discovery_timeout =
 			jiffies_to_msecs(mpath->discovery_timeout);
 	pinfo->discovery_retries = mpath->discovery_retries;
-	pinfo->flags = 0;
 	if (mpath->flags & MESH_PATH_ACTIVE)
 		pinfo->flags |= NL80211_MPATH_FLAG_ACTIVE;
 	if (mpath->flags & MESH_PATH_RESOLVING)
@@ -1416,10 +1450,8 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 		pinfo->flags |= NL80211_MPATH_FLAG_SN_VALID;
 	if (mpath->flags & MESH_PATH_FIXED)
 		pinfo->flags |= NL80211_MPATH_FLAG_FIXED;
-	if (mpath->flags & MESH_PATH_RESOLVING)
-		pinfo->flags |= NL80211_MPATH_FLAG_RESOLVING;
-
-	pinfo->flags = mpath->flags;
+	if (mpath->flags & MESH_PATH_RESOLVED)
+		pinfo->flags |= NL80211_MPATH_FLAG_RESOLVED;
 }
 
 static int ieee80211_get_mpath(struct wiphy *wiphy, struct net_device *dev,
@@ -2039,9 +2071,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (!sdata->u.mgd.associated ||
 	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
-		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_smps(sdata->local);
-		mutex_unlock(&sdata->local->iflist_mtx);
 		return 0;
 	}
 

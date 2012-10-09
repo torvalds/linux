@@ -792,8 +792,11 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->country_elem_len = elen;
 			break;
 		case WLAN_EID_PWR_CONSTRAINT:
+			if (elen != 1) {
+				elem_parse_failed = true;
+				break;
+			}
 			elems->pwr_constr_elem = pos;
-			elems->pwr_constr_elem_len = elen;
 			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
 			elems->timeout_int = pos;
@@ -1002,6 +1005,45 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
+}
+
+void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
+				    const u8 *bssid, u16 stype, u16 reason,
+				    bool send_frame, u8 *frame_buf)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt = (void *)frame_buf;
+
+	/* build frame */
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
+	mgmt->duration = 0; /* initialize only */
+	mgmt->seq_ctrl = 0; /* initialize only */
+	memcpy(mgmt->da, bssid, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, bssid, ETH_ALEN);
+	/* u.deauth.reason_code == u.disassoc.reason_code */
+	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
+
+	if (send_frame) {
+		skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+				    IEEE80211_DEAUTH_FRAME_LEN);
+		if (!skb)
+			return;
+
+		skb_reserve(skb, local->hw.extra_tx_headroom);
+
+		/* copy in frame */
+		memcpy(skb_put(skb, IEEE80211_DEAUTH_FRAME_LEN),
+		       mgmt, IEEE80211_DEAUTH_FRAME_LEN);
+
+		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
+		    !(sdata->u.mgd.flags & IEEE80211_STA_MFP_ENABLED))
+			IEEE80211_SKB_CB(skb)->flags |=
+				IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+		ieee80211_tx_skb(sdata, skb);
+	}
 }
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
@@ -1564,14 +1606,13 @@ static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 	return 0;
 }
 
-/* must hold iflist_mtx */
 void ieee80211_recalc_smps(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
 	int count = 0;
 
-	lockdep_assert_held(&local->iflist_mtx);
+	mutex_lock(&local->iflist_mtx);
 
 	/*
 	 * This function could be improved to handle multiple
@@ -1600,12 +1641,14 @@ void ieee80211_recalc_smps(struct ieee80211_local *local)
 	}
 
 	if (smps_mode == local->smps_mode)
-		return;
+		goto unlock;
 
  set:
 	local->smps_mode = smps_mode;
 	/* changed flag is auto-detected for this */
 	ieee80211_hw_config(local, 0);
+ unlock:
+	mutex_unlock(&local->iflist_mtx);
 }
 
 static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)

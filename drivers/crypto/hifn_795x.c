@@ -821,8 +821,8 @@ static int hifn_register_rng(struct hifn_device *dev)
 	/*
 	 * We must wait at least 256 Pk_clk cycles between two reads of the rng.
 	 */
-	dev->rng_wait_time	= DIV_ROUND_UP(NSEC_PER_SEC, dev->pk_clk_freq) *
-				  256;
+	dev->rng_wait_time	= DIV_ROUND_UP_ULL(NSEC_PER_SEC,
+						   dev->pk_clk_freq) * 256;
 
 	dev->rng.name		= dev->name;
 	dev->rng.data_present	= hifn_rng_data_present,
@@ -2611,14 +2611,17 @@ static int __devinit hifn_probe(struct pci_dev *pdev, const struct pci_device_id
 		size = pci_resource_len(pdev, i);
 
 		dev->bar[i] = ioremap_nocache(addr, size);
-		if (!dev->bar[i])
+		if (!dev->bar[i]) {
+			err = -ENOMEM;
 			goto err_out_unmap_bars;
+		}
 	}
 
 	dev->desc_virt = pci_alloc_consistent(pdev, sizeof(struct hifn_dma),
 			&dev->desc_dma);
 	if (!dev->desc_virt) {
 		dprintk("Failed to allocate descriptor rings.\n");
+		err = -ENOMEM;
 		goto err_out_unmap_bars;
 	}
 	memset(dev->desc_virt, 0, sizeof(struct hifn_dma));

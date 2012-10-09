@@ -230,6 +230,69 @@ static const struct hv_ops hvterm_hvsi_ops = {
 	.tiocmset = hvterm_hvsi_tiocmset,
 };
 
+static void udbg_hvc_putc(char c)
+{
+	int count = -1;
+
+	if (!hvterm_privs[0])
+		return;
+
+	if (c == '\n')
+		udbg_hvc_putc('\r');
+
+	do {
+		switch(hvterm_privs[0]->proto) {
+		case HV_PROTOCOL_RAW:
+			count = hvterm_raw_put_chars(0, &c, 1);
+			break;
+		case HV_PROTOCOL_HVSI:
+			count = hvterm_hvsi_put_chars(0, &c, 1);
+			break;
+		}
+	} while(count == 0);
+}
+
+static int udbg_hvc_getc_poll(void)
+{
+	int rc = 0;
+	char c;
+
+	if (!hvterm_privs[0])
+		return -1;
+
+	switch(hvterm_privs[0]->proto) {
+	case HV_PROTOCOL_RAW:
+		rc = hvterm_raw_get_chars(0, &c, 1);
+		break;
+	case HV_PROTOCOL_HVSI:
+		rc = hvterm_hvsi_get_chars(0, &c, 1);
+		break;
+	}
+	if (!rc)
+		return -1;
+	return c;
+}
+
+static int udbg_hvc_getc(void)
+{
+	int ch;
+
+	if (!hvterm_privs[0])
+		return -1;
+
+	for (;;) {
+		ch = udbg_hvc_getc_poll();
+		if (ch == -1) {
+			/* This shouldn't be needed...but... */
+			volatile unsigned long delay;
+			for (delay=0; delay < 2000000; delay++)
+				;
+		} else {
+			return ch;
+		}
+	}
+}
+
 static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 				   const struct vio_device_id *id)
 {
@@ -289,6 +352,13 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 		return PTR_ERR(hp);
 	dev_set_drvdata(&vdev->dev, hp);
 
+	/* register udbg if it's not there already for console 0 */
+	if (hp->index == 0 && !udbg_putc) {
+		udbg_putc = udbg_hvc_putc;
+		udbg_getc = udbg_hvc_getc;
+		udbg_getc_poll = udbg_hvc_getc_poll;
+	}
+
 	return 0;
 }
 
@@ -330,59 +400,6 @@ static void __exit hvc_vio_exit(void)
 	vio_unregister_driver(&hvc_vio_driver);
 }
 module_exit(hvc_vio_exit);
-
-static void udbg_hvc_putc(char c)
-{
-	int count = -1;
-
-	if (c == '\n')
-		udbg_hvc_putc('\r');
-
-	do {
-		switch(hvterm_priv0.proto) {
-		case HV_PROTOCOL_RAW:
-			count = hvterm_raw_put_chars(0, &c, 1);
-			break;
-		case HV_PROTOCOL_HVSI:
-			count = hvterm_hvsi_put_chars(0, &c, 1);
-			break;
-		}
-	} while(count == 0);
-}
-
-static int udbg_hvc_getc_poll(void)
-{
-	int rc = 0;
-	char c;
-
-	switch(hvterm_priv0.proto) {
-	case HV_PROTOCOL_RAW:
-		rc = hvterm_raw_get_chars(0, &c, 1);
-		break;
-	case HV_PROTOCOL_HVSI:
-		rc = hvterm_hvsi_get_chars(0, &c, 1);
-		break;
-	}
-	if (!rc)
-		return -1;
-	return c;
-}
-
-static int udbg_hvc_getc(void)
-{
-	int ch;
-	for (;;) {
-		ch = udbg_hvc_getc_poll();
-		if (ch == -1) {
-			/* This shouldn't be needed...but... */
-			volatile unsigned long delay;
-			for (delay=0; delay < 2000000; delay++)
-				;
-		} else {
-			return ch;
-		}
-	}
-}
 
 void __init hvc_vio_init_early(void)
 {

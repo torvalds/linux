@@ -737,7 +737,7 @@ err_sysfs_remove:
 	sysfs_remove_group(&led->cdev.dev->kobj, &lm3533_led_attribute_group);
 err_unregister:
 	led_classdev_unregister(&led->cdev);
-	flush_work_sync(&led->work);
+	flush_work(&led->work);
 
 	return ret;
 }
@@ -751,7 +751,7 @@ static int __devexit lm3533_led_remove(struct platform_device *pdev)
 	lm3533_ctrlbank_disable(&led->cb);
 	sysfs_remove_group(&led->cdev.dev->kobj, &lm3533_led_attribute_group);
 	led_classdev_unregister(&led->cdev);
-	flush_work_sync(&led->work);
+	flush_work(&led->work);
 
 	return 0;
 }
@@ -765,7 +765,7 @@ static void lm3533_led_shutdown(struct platform_device *pdev)
 
 	lm3533_ctrlbank_disable(&led->cb);
 	lm3533_led_set(&led->cdev, LED_OFF);		/* disable blink */
-	flush_work_sync(&led->work);
+	flush_work(&led->work);
 }
 
 static struct platform_driver lm3533_led_driver = {

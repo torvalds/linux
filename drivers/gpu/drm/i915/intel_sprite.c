@@ -29,11 +29,11 @@
  * registers; newer ones are much simpler and we can use the new DRM plane
  * support.
  */
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fourcc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 static void
@@ -60,11 +60,11 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
-		sprctl |= SPRITE_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:

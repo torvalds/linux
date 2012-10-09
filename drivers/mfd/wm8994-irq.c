@@ -135,6 +135,7 @@ static struct regmap_irq_chip wm8994_irq_chip = {
 	.status_base = WM8994_INTERRUPT_STATUS_1,
 	.mask_base = WM8994_INTERRUPT_STATUS_1_MASK,
 	.ack_base = WM8994_INTERRUPT_STATUS_1,
+	.runtime_pm = true,
 };
 
 int wm8994_irq_init(struct wm8994 *wm8994)

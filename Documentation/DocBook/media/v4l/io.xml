@@ -613,8 +613,8 @@ field is independent of the <structfield>timestamp</structfield> and
 	    <entry>__u32</entry>
 	    <entry><structfield>sequence</structfield></entry>
 	    <entry></entry>
-	    <entry>Set by the driver, counting the frames in the
-sequence.</entry>
+	    <entry>Set by the driver, counting the frames (not fields!) in
+sequence. This field is set for both input and output devices.</entry>
 	  </row>
 	  <row>
 	    <entry spanname="hspan"><para>In <link
@@ -685,18 +685,14 @@ memory, set by the application. See <xref linkend="userp" /> for details.
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved2</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions and custom
-(driver defined) buffer types
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher. Applications
+	    <entry>A place holder for future extensions. Applications
 should set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions and custom
-(driver defined) buffer types
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher. Applications
+	    <entry>A place holder for future extensions. Applications
 should set this to 0.</entry>
 	  </row>
 	</tbody>
@@ -827,14 +823,7 @@ should set this to 0.</entry>
 	    <entry><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY</constant></entry>
 	    <entry>8</entry>
 	    <entry>Buffer for video output overlay (OSD), see <xref
-		linkend="osd" />. Status: <link
-linkend="experimental">Experimental</link>.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant></entry>
-	    <entry>0x80</entry>
-	  <entry>This and higher values are reserved for custom
-(driver defined) buffer types.</entry>
+		linkend="osd" />.</entry>
 	  </row>
 	</tbody>
       </tgroup>

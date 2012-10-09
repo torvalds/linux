@@ -13,6 +13,7 @@
 #include <linux/mbus.h>
 #include <linux/io.h>
 #include <plat/addr-map.h>
+#include <mach/mv78xx0.h>
 #include "common.h"
 
 /*
@@ -37,7 +38,7 @@
 #define WIN0_OFF(n)		(BRIDGE_VIRT_BASE + 0x0000 + ((n) << 4))
 #define WIN8_OFF(n)		(BRIDGE_VIRT_BASE + 0x0900 + (((n) - 8) << 4))
 
-static void __init __iomem *win_cfg_base(int win)
+static void __init __iomem *win_cfg_base(const struct orion_addr_map_cfg *cfg, int win)
 {
 	/*
 	 * Find the control register base address for this window.
@@ -47,7 +48,7 @@ static void __init __iomem *win_cfg_base(int win)
 	 * so we don't need to take that into account here.
 	 */
 
-	return (void __iomem *)((win < 8) ? WIN0_OFF(win) : WIN8_OFF(win));
+	return (win < 8) ? WIN0_OFF(win) : WIN8_OFF(win);
 }
 
 /*
@@ -71,17 +72,17 @@ void __init mv78xx0_setup_cpu_mbus(void)
 	 */
 	if (mv78xx0_core_index() == 0)
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU0_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU0_BASE);
 	else
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU1_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU1_BASE);
 }
 
 void __init mv78xx0_setup_pcie_io_win(int window, u32 base, u32 size,
 				      int maj, int min)
 {
 	orion_setup_cpu_win(&addr_map_cfg, window, base, size,
-			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), -1);
+			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), 0);
 }
 
 void __init mv78xx0_setup_pcie_mem_win(int window, u32 base, u32 size,

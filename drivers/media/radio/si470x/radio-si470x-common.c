@@ -151,6 +151,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 0,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  87500 * 16,
@@ -162,6 +163,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 1,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  76000 * 16,
@@ -173,6 +175,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 2,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  76000 * 16,
@@ -293,7 +296,7 @@ int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
  * si470x_set_seek - set seek
  */
 static int si470x_set_seek(struct si470x_device *radio,
-			   struct v4l2_hw_freq_seek *seek)
+			   const struct v4l2_hw_freq_seek *seek)
 {
 	int band, retval;
 	unsigned int freq;
@@ -698,12 +701,15 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
  * si470x_vidioc_s_hw_freq_seek - set hardware frequency seek
  */
 static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
-		struct v4l2_hw_freq_seek *seek)
+		const struct v4l2_hw_freq_seek *seek)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
 	if (seek->tuner != 0)
 		return -EINVAL;
+
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
 
 	return si470x_set_seek(radio, seek);
 }

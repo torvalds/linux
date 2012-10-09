@@ -17,6 +17,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
+#include <asm/numa.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -78,9 +79,16 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 	memblock_reserve(start, size);
 
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
+	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
+		unsigned long mfn = pfn_to_mfn(pfn);
 
-	for (pfn = PFN_DOWN(start); pfn <= xen_max_p2m_pfn; pfn++)
+		if (WARN(mfn == pfn, "Trying to over-write 1-1 mapping (pfn: %lx)\n", pfn))
+			continue;
+		WARN(mfn != INVALID_P2M_ENTRY, "Trying to remove %lx which has %lx mfn!\n",
+			pfn, mfn);
+
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+	}
 }
 
 static unsigned long __init xen_do_chunk(unsigned long start,
@@ -424,6 +432,24 @@ char * __init xen_memory_setup(void)
 	 *  - mfn_list
 	 *  - xen_start_info
 	 * See comment above "struct start_info" in <xen/interface/xen.h>
+	 * We tried to make the the memblock_reserve more selective so
+	 * that it would be clear what region is reserved. Sadly we ran
+	 * in the problem wherein on a 64-bit hypervisor with a 32-bit
+	 * initial domain, the pt_base has the cr3 value which is not
+	 * neccessarily where the pagetable starts! As Jan put it: "
+	 * Actually, the adjustment turns out to be correct: The page
+	 * tables for a 32-on-64 dom0 get allocated in the order "first L1",
+	 * "first L2", "first L3", so the offset to the page table base is
+	 * indeed 2. When reading xen/include/public/xen.h's comment
+	 * very strictly, this is not a violation (since there nothing is said
+	 * that the first thing in the page table space is pointed to by
+	 * pt_base; I admit that this seems to be implied though, namely
+	 * do I think that it is implied that the page table space is the
+	 * range [pt_base, pt_base + nt_pt_frames), whereas that
+	 * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
+	 * which - without a priori knowledge - the kernel would have
+	 * difficulty to figure out)." - so lets just fall back to the
+	 * easy way and reserve the whole region.
 	 */
 	memblock_reserve(__pa(xen_start_info->mfn_list),
 			 xen_start_info->pt_base - xen_start_info->mfn_list);
@@ -537,4 +563,7 @@ void __init xen_arch_setup(void)
 	disable_cpufreq();
 	WARN_ON(set_pm_idle_to_default());
 	fiddle_vdso();
+#ifdef CONFIG_NUMA
+	numa_off = 1;
+#endif
 }

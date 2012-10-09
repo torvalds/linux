@@ -99,6 +99,7 @@ config PPC
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select SYSCTL_EXCEPTION_TRACE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
@@ -113,6 +114,7 @@ config PPC
 	select HAVE_DMA_API_DEBUG
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
@@ -215,7 +217,8 @@ config ARCH_HIBERNATION_POSSIBLE
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx || \
-		   (PPC_85xx && !SMP) || PPC_86xx || PPC_PSERIES || 44x || 40x
+		   (PPC_85xx && !PPC_E500MC) || PPC_86xx || PPC_PSERIES \
+		   || 44x || 40x
 
 config PPC_DCR_NATIVE
 	bool
@@ -237,6 +240,9 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
+config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
 config PPC_ADV_DEBUG_REGS
@@ -325,7 +331,8 @@ config SWIOTLB
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC || PPC_POWERNV)
+	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || \
+	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -556,6 +563,14 @@ config SCHED_SMT
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with POWER5 cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
+
+config PPC_DENORMALISATION
+	bool "PowerPC denormalisation exception handling"
+	depends on PPC_BOOK3S_64
+	default "n"
+	---help---
+	  Add support for handling denormalisation of single precision
+	  values.  Useful for bare metal only.  If unsure say Y here.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"

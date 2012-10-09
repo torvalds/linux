@@ -315,4 +315,5 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 	gpio_led_register_device(-1, &eukrea_mbimxsd_led_info);
 	imx_add_gpio_keys(&eukrea_mbimxsd_button_data);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

@@ -261,14 +261,43 @@ config IR_WINBOND_CIR
 
 config IR_IGUANA
 	tristate "IguanaWorks USB IR Transceiver"
+	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
 	select USB
 	---help---
-	   Say Y here if you want to use the IgaunaWorks USB IR Transceiver.
-	   Both infrared receive and send are supported.
+	   Say Y here if you want to use the IguanaWorks USB IR Transceiver.
+	   Both infrared receive and send are supported. If you want to
+	   change the ID or the pin config, use the user space driver from
+	   IguanaWorks.
+
+	   Only firmware 0x0205 and later is supported.
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called iguanair.
+
+config IR_TTUSBIR
+	tristate "TechnoTrend USB IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	select NEW_LEDS
+	select LEDS_CLASS
+	---help---
+	   Say Y here if you want to use the TechnoTrend USB IR Receiver. The
+	   driver can control the led.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called ttusbir.
+
+config IR_RX51
+	tristate "Nokia N900 IR transmitter diode"
+	depends on OMAP_DM_TIMER && LIRC
+	---help---
+	   Say Y or M here if you want to enable support for the IR
+	   transmitter diode built in the Nokia N900 (RX51) device.
+
+	   The driver uses omap DM timers for generating the carrier
+	   wave and pulses.
 
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"

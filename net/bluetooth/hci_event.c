@@ -29,6 +29,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/mgmt.h>
 
 /* Handle HCI Event packets */
 
@@ -303,7 +304,7 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (status != 0) {
+	if (status) {
 		mgmt_write_scan_failed(hdev, param, status);
 		hdev->discov_timeout = 0;
 		goto done;
@@ -925,7 +926,7 @@ static void hci_cc_pin_code_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_pin_code_reply_complete(hdev, &rp->bdaddr, rp->status);
 
-	if (rp->status != 0)
+	if (rp->status)
 		goto unlock;
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_PIN_CODE_REPLY);
@@ -1365,6 +1366,9 @@ static bool hci_resolve_next_name(struct hci_dev *hdev)
 		return false;
 
 	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_NEEDED);
+	if (!e)
+		return false;
+
 	if (hci_resolve_name(hdev, e) == 0) {
 		e->name_state = NAME_PENDING;
 		return true;
@@ -1393,12 +1397,20 @@ static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
 		return;
 
 	e = hci_inquiry_cache_lookup_resolve(hdev, bdaddr, NAME_PENDING);
-	if (e) {
+	/* If the device was not found in a list of found devices names of which
+	 * are pending. there is no need to continue resolving a next name as it
+	 * will be done upon receiving another Remote Name Request Complete
+	 * Event */
+	if (!e)
+		return;
+
+	list_del(&e->list);
+	if (name) {
 		e->name_state = NAME_KNOWN;
-		list_del(&e->list);
-		if (name)
-			mgmt_remote_name(hdev, bdaddr, ACL_LINK, 0x00,
-					 e->data.rssi, name, name_len);
+		mgmt_remote_name(hdev, bdaddr, ACL_LINK, 0x00,
+				 e->data.rssi, name, name_len);
+	} else {
+		e->name_state = NAME_NOT_KNOWN;
 	}
 
 	if (hci_resolve_next_name(hdev))
@@ -1749,7 +1761,12 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (conn->type == ACL_LINK) {
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
-			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+
+			if (!conn->out && !hci_conn_ssp_enabled(conn) &&
+			    !hci_find_link_key(hdev, &ev->bdaddr))
+				conn->disc_timeout = HCI_PAIRING_TIMEOUT;
+			else
+				conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -1875,6 +1892,22 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
+static u8 hci_to_mgmt_reason(u8 err)
+{
+	switch (err) {
+	case HCI_ERROR_CONNECTION_TIMEOUT:
+		return MGMT_DEV_DISCONN_TIMEOUT;
+	case HCI_ERROR_REMOTE_USER_TERM:
+	case HCI_ERROR_REMOTE_LOW_RESOURCES:
+	case HCI_ERROR_REMOTE_POWER_OFF:
+		return MGMT_DEV_DISCONN_REMOTE;
+	case HCI_ERROR_LOCAL_HOST_TERM:
+		return MGMT_DEV_DISCONN_LOCAL_HOST;
+	default:
+		return MGMT_DEV_DISCONN_UNKNOWN;
+	}
+}
+
 static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
@@ -1893,12 +1926,15 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags) &&
 	    (conn->type == ACL_LINK || conn->type == LE_LINK)) {
-		if (ev->status != 0)
+		if (ev->status) {
 			mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 					       conn->dst_type, ev->status);
-		else
+		} else {
+			u8 reason = hci_to_mgmt_reason(ev->reason);
+
 			mgmt_device_disconnected(hdev, &conn->dst, conn->type,
-						 conn->dst_type);
+						 conn->dst_type, reason);
+		}
 	}
 
 	if (ev->status == 0) {
@@ -3243,6 +3279,65 @@ static void hci_user_passkey_request_evt(struct hci_dev *hdev,
 		mgmt_user_passkey_request(hdev, &ev->bdaddr, ACL_LINK, 0);
 }
 
+static void hci_user_passkey_notify_evt(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_ev_user_passkey_notify *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s", hdev->name);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (!conn)
+		return;
+
+	conn->passkey_notify = __le32_to_cpu(ev->passkey);
+	conn->passkey_entered = 0;
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_user_passkey_notify(hdev, &conn->dst, conn->type,
+					 conn->dst_type, conn->passkey_notify,
+					 conn->passkey_entered);
+}
+
+static void hci_keypress_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_keypress_notify *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s", hdev->name);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (!conn)
+		return;
+
+	switch (ev->type) {
+	case HCI_KEYPRESS_STARTED:
+		conn->passkey_entered = 0;
+		return;
+
+	case HCI_KEYPRESS_ENTERED:
+		conn->passkey_entered++;
+		break;
+
+	case HCI_KEYPRESS_ERASED:
+		conn->passkey_entered--;
+		break;
+
+	case HCI_KEYPRESS_CLEARED:
+		conn->passkey_entered = 0;
+		break;
+
+	case HCI_KEYPRESS_COMPLETED:
+		return;
+	}
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_user_passkey_notify(hdev, &conn->dst, conn->type,
+					 conn->dst_type, conn->passkey_notify,
+					 conn->passkey_entered);
+}
+
 static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 					 struct sk_buff *skb)
 {
@@ -3262,7 +3357,7 @@ static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 	 * initiated the authentication. A traditional auth_complete
 	 * event gets always produced as initiator and is also mapped to
 	 * the mgmt_auth_failed event */
-	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->flags) && ev->status != 0)
+	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->flags) && ev->status)
 		mgmt_auth_failed(hdev, &conn->dst, conn->type, conn->dst_type,
 				 ev->status);
 
@@ -3605,6 +3700,14 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_USER_PASSKEY_REQUEST:
 		hci_user_passkey_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_USER_PASSKEY_NOTIFY:
+		hci_user_passkey_notify_evt(hdev, skb);
+		break;
+
+	case HCI_EV_KEYPRESS_NOTIFY:
+		hci_keypress_notify_evt(hdev, skb);
 		break;
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:

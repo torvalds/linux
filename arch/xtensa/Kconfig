@@ -11,6 +11,9 @@ config XTENSA
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
+	select MODULES_USE_ELF_RELA
+	select GENERIC_PCI_IOMAP
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -35,7 +38,7 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config NO_IOPORT
-	def_bool y
+	def_bool n
 
 config HZ
 	int
@@ -142,6 +145,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
+	select NO_IOPORT
 
 endchoice
 
@@ -171,24 +175,6 @@ config CMDLINE
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
 source "mm/Kconfig"
-
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
-	help
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-
-	  One well known example of this is PCMCIA- or PC-cards, credit-card
-	  size devices such as network cards, modems or hard drives which are
-	  plugged into slots found on all modern laptop computers.  Another
-	  example, used on modern desktops as well as laptops, is USB.
-
-	  Enable HOTPLUG and build a modular kernel.  Get agent software
-	  (from <http://linux-hotplug.sourceforge.net/>) and install it.
-	  Then your kernel will automatically call out to a user mode "policy
-	  agent" (/sbin/hotplug) to load modules and set up software needed
-	  to use devices as you hotplug them.
 
 source "drivers/pcmcia/Kconfig"
 
@@ -222,23 +208,6 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-menu "Xtensa initrd options"
-	depends on BLK_DEV_INITRD
-
-config EMBEDDED_RAMDISK
-	bool "Embed root filesystem ramdisk into the kernel"
-
-config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gzipped ramdisk image"
-	depends on EMBEDDED_RAMDISK
-	default "ramdisk.gz"
-	help
-	  This is the filename of the ramdisk image to be built into the
-	  kernel.  Relative pathnames are relative to arch/xtensa/boot/ramdisk/.
-	  The ramdisk image is not part of the kernel distribution; you must
-	  provide one yourself.
-endmenu
 
 source "arch/xtensa/Kconfig.debug"
 

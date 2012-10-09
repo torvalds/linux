@@ -144,7 +144,7 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
  * The driver.owner field should be set to the module owner of this driver.
  * The driver.name field should be set to the name of this driver.
  *
- * For automatic device detection, both @detect and @address_data must
+ * For automatic device detection, both @detect and @address_list must
  * be defined. @class should also be set, otherwise only devices forced
  * with module parameters will be created. The detect function must
  * fill at least the name field of the i2c_board_info structure it is

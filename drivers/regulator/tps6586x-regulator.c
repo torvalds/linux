@@ -57,9 +57,6 @@
 struct tps6586x_regulator {
 	struct regulator_desc desc;
 
-	int volt_reg;
-	int volt_shift;
-	int volt_nbits;
 	int enable_bit[2];
 	int enable_reg[2];
 
@@ -81,10 +78,10 @@ static int tps6586x_set_voltage_sel(struct regulator_dev *rdev,
 	int ret, val, rid = rdev_get_id(rdev);
 	uint8_t mask;
 
-	val = selector << ri->volt_shift;
-	mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
+	val = selector << (ffs(rdev->desc->vsel_mask) - 1);
+	mask = rdev->desc->vsel_mask;
 
-	ret = tps6586x_update(parent, ri->volt_reg, val, mask);
+	ret = tps6586x_update(parent, rdev->desc->vsel_reg, val, mask);
 	if (ret)
 		return ret;
 
@@ -100,66 +97,17 @@ static int tps6586x_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int tps6586x_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-	uint8_t val, mask;
-	int ret;
-
-	ret = tps6586x_read(parent, ri->volt_reg, &val);
-	if (ret)
-		return ret;
-
-	mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
-	val = (val & mask) >> ri->volt_shift;
-
-	if (val >= ri->desc.n_voltages)
-		BUG();
-
-	return val;
-}
-
-static int tps6586x_regulator_enable(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-
-	return tps6586x_set_bits(parent, ri->enable_reg[0],
-				 1 << ri->enable_bit[0]);
-}
-
-static int tps6586x_regulator_disable(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-
-	return tps6586x_clr_bits(parent, ri->enable_reg[0],
-				 1 << ri->enable_bit[0]);
-}
-
-static int tps6586x_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-	uint8_t reg_val;
-	int ret;
-
-	ret = tps6586x_read(parent, ri->enable_reg[0], &reg_val);
-	if (ret)
-		return ret;
-
-	return !!(reg_val & (1 << ri->enable_bit[0]));
-}
-
 static struct regulator_ops tps6586x_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
-	.get_voltage_sel = tps6586x_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = tps6586x_set_voltage_sel,
 
-	.is_enabled = tps6586x_regulator_is_enabled,
-	.enable = tps6586x_regulator_enable,
-	.disable = tps6586x_regulator_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+};
+
+static struct regulator_ops tps6586x_sys_regulator_ops = {
 };
 
 static const unsigned int tps6586x_ldo0_voltages[] = {
@@ -202,10 +150,11 @@ static const unsigned int tps6586x_dvm_voltages[] = {
 		.n_voltages = ARRAY_SIZE(tps6586x_##vdata##_voltages),	\
 		.volt_table = tps6586x_##vdata##_voltages,		\
 		.owner	= THIS_MODULE,					\
+		.enable_reg = TPS6586X_SUPPLY##ereg0,			\
+		.enable_mask = 1 << (ebit0),				\
+		.vsel_reg = TPS6586X_##vreg,				\
+		.vsel_mask = ((1 << (nbits)) - 1) << (shift),		\
 	},								\
-	.volt_reg	= TPS6586X_##vreg,				\
-	.volt_shift	= (shift),					\
-	.volt_nbits	= (nbits),					\
 	.enable_reg[0]	= TPS6586X_SUPPLY##ereg0,			\
 	.enable_bit[0]	= (ebit0),					\
 	.enable_reg[1]	= TPS6586X_SUPPLY##ereg1,			\
@@ -230,24 +179,39 @@ static const unsigned int tps6586x_dvm_voltages[] = {
 	TPS6586X_REGULATOR_DVM_GOREG(goreg, gobit)			\
 }
 
+#define TPS6586X_SYS_REGULATOR()					\
+{									\
+	.desc	= {							\
+		.supply_name = "sys",					\
+		.name	= "REG-SYS",					\
+		.ops	= &tps6586x_sys_regulator_ops,			\
+		.type	= REGULATOR_VOLTAGE,				\
+		.id	= TPS6586X_ID_SYS,				\
+		.owner	= THIS_MODULE,					\
+	},								\
+}
+
 static struct tps6586x_regulator tps6586x_regulator[] = {
+	TPS6586X_SYS_REGULATOR(),
 	TPS6586X_LDO(LDO_0, "vinldo01", ldo0, SUPPLYV1, 5, 3, ENC, 0, END, 0),
 	TPS6586X_LDO(LDO_3, "vinldo23", ldo, SUPPLYV4, 0, 3, ENC, 2, END, 2),
-	TPS6586X_LDO(LDO_5, NULL, ldo, SUPPLYV6, 0, 3, ENE, 6, ENE, 6),
+	TPS6586X_LDO(LDO_5, "REG-SYS", ldo, SUPPLYV6, 0, 3, ENE, 6, ENE, 6),
 	TPS6586X_LDO(LDO_6, "vinldo678", ldo, SUPPLYV3, 0, 3, ENC, 4, END, 4),
 	TPS6586X_LDO(LDO_7, "vinldo678", ldo, SUPPLYV3, 3, 3, ENC, 5, END, 5),
 	TPS6586X_LDO(LDO_8, "vinldo678", ldo, SUPPLYV2, 5, 3, ENC, 6, END, 6),
 	TPS6586X_LDO(LDO_9, "vinldo9", ldo, SUPPLYV6, 3, 3, ENE, 7, ENE, 7),
-	TPS6586X_LDO(LDO_RTC, NULL, ldo, SUPPLYV4, 3, 3, V4, 7, V4, 7),
+	TPS6586X_LDO(LDO_RTC, "REG-SYS", ldo, SUPPLYV4, 3, 3, V4, 7, V4, 7),
 	TPS6586X_LDO(LDO_1, "vinldo01", dvm, SUPPLYV1, 0, 5, ENC, 1, END, 1),
-	TPS6586X_LDO(SM_2, "sm2", sm2, SUPPLYV2, 0, 5, ENC, 7, END, 7),
+	TPS6586X_LDO(SM_2, "vin-sm2", sm2, SUPPLYV2, 0, 5, ENC, 7, END, 7),
 
 	TPS6586X_DVM(LDO_2, "vinldo23", dvm, LDO2BV1, 0, 5, ENA, 3,
 					ENB, 3, VCC2, 6),
 	TPS6586X_DVM(LDO_4, "vinldo4", ldo4, LDO4V1, 0, 5, ENC, 3,
 					END, 3, VCC1, 6),
-	TPS6586X_DVM(SM_0, "sm0", dvm, SM0V1, 0, 5, ENA, 1, ENB, 1, VCC1, 2),
-	TPS6586X_DVM(SM_1, "sm1", dvm, SM1V1, 0, 5, ENA, 0, ENB, 0, VCC1, 0),
+	TPS6586X_DVM(SM_0, "vin-sm0", dvm, SM0V1, 0, 5, ENA, 1,
+					ENB, 1, VCC1, 2),
+	TPS6586X_DVM(SM_1, "vin-sm1", dvm, SM1V1, 0, 5, ENA, 0,
+					ENB, 0, VCC1, 0),
 };
 
 /*

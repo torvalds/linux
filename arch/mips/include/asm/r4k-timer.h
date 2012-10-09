@@ -12,16 +12,16 @@
 
 #ifdef CONFIG_SYNC_R4K
 
-extern void synchronise_count_master(void);
-extern void synchronise_count_slave(void);
+extern void synchronise_count_master(int cpu);
+extern void synchronise_count_slave(int cpu);
 
 #else
 
-static inline void synchronise_count_master(void)
+static inline void synchronise_count_master(int cpu)
 {
 }
 
-static inline void synchronise_count_slave(void)
+static inline void synchronise_count_slave(int cpu)
 {
 }
 

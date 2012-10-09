@@ -264,6 +264,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	return group;
 }
 
+/* called with vfio.group_lock held */
 static void vfio_group_release(struct kref *kref)
 {
 	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
@@ -287,13 +288,7 @@ static void vfio_group_release(struct kref *kref)
 
 static void vfio_group_put(struct vfio_group *group)
 {
-	mutex_lock(&vfio.group_lock);
-	/*
-	 * Release needs to unlock to unregister the notifier, so only
-	 * unlock if not released.
-	 */
-	if (!kref_put(&group->kref, vfio_group_release))
-		mutex_unlock(&vfio.group_lock);
+	kref_put_mutex(&group->kref, vfio_group_release, &vfio.group_lock);
 }
 
 /* Assume group_lock or group reference is held */
@@ -401,7 +396,6 @@ static void vfio_device_release(struct kref *kref)
 						  struct vfio_device, kref);
 	struct vfio_group *group = device->group;
 
-	mutex_lock(&group->device_lock);
 	list_del(&device->group_next);
 	mutex_unlock(&group->device_lock);
 
@@ -416,8 +410,9 @@ static void vfio_device_release(struct kref *kref)
 /* Device reference always implies a group reference */
 static void vfio_device_put(struct vfio_device *device)
 {
-	kref_put(&device->kref, vfio_device_release);
-	vfio_group_put(device->group);
+	struct vfio_group *group = device->group;
+	kref_put_mutex(&device->kref, vfio_device_release, &group->device_lock);
+	vfio_group_put(group);
 }
 
 static void vfio_device_get(struct vfio_device *device)
@@ -1019,7 +1014,7 @@ static void vfio_group_try_dissolve_container(struct vfio_group *group)
 
 static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 {
-	struct file *filep;
+	struct fd f;
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
 	int ret = 0;
@@ -1027,17 +1022,17 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	if (atomic_read(&group->container_users))
 		return -EINVAL;
 
-	filep = fget(container_fd);
-	if (!filep)
+	f = fdget(container_fd);
+	if (!f.file)
 		return -EBADF;
 
 	/* Sanity check, is this really our fd? */
-	if (filep->f_op != &vfio_fops) {
-		fput(filep);
+	if (f.file->f_op != &vfio_fops) {
+		fdput(f);
 		return -EINVAL;
 	}
 
-	container = filep->private_data;
+	container = f.file->private_data;
 	WARN_ON(!container); /* fget ensures we don't race vfio_release */
 
 	mutex_lock(&container->group_lock);
@@ -1059,8 +1054,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 
 unlock_out:
 	mutex_unlock(&container->group_lock);
-	fput(filep);
-
+	fdput(f);
 	return ret;
 }
 
@@ -1116,10 +1110,10 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		 */
 		filep->f_mode |= (FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
 
-		fd_install(ret, filep);
-
 		vfio_device_get(device);
 		atomic_inc(&group->container_users);
+
+		fd_install(ret, filep);
 		break;
 	}
 	mutex_unlock(&group->device_lock);

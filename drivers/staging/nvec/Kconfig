@@ -28,7 +28,7 @@ config NVEC_POWER
 
 config NVEC_PAZ00
 	bool "Support for OEM specific functions on Compal PAZ00 based devices"
-	depends on MFD_NVEC && LEDS_CLASS && MACH_PAZ00
+	depends on MFD_NVEC && LEDS_CLASS
 	help
 	  Say Y to enable control of the yellow side leds on Compal PAZ00 based
 	  devices, e.g. Toshbia AC100 and Dynabooks AZ netbooks.

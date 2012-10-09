@@ -1311,7 +1311,7 @@ out:
 	ubifs_err("error %d reading pnode at %d:%d", err, lnum, offs);
 	ubifs_dump_pnode(c, pnode, parent, iip);
 	dump_stack();
-	dbg_msg("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
+	ubifs_err("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
 	kfree(pnode);
 	return err;
 }
@@ -1749,7 +1749,10 @@ int ubifs_lpt_init(struct ubifs_info *c, int rd, int wr)
 	return 0;
 
 out_err:
-	ubifs_lpt_free(c, 0);
+	if (wr)
+		ubifs_lpt_free(c, 1);
+	if (rd)
+		ubifs_lpt_free(c, 0);
 	return err;
 }
 
@@ -2234,8 +2237,7 @@ int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
 			/* cnode is a nnode */
 			num = calc_nnode_num(row, col);
 			if (cnode->num != num) {
-				ubifs_err("nnode num %d expected %d "
-					  "parent num %d iip %d",
+				ubifs_err("nnode num %d expected %d parent num %d iip %d",
 					  cnode->num, num,
 					  (nnode ? nnode->num : 0), cnode->iip);
 				return -EINVAL;

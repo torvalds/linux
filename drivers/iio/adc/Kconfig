@@ -3,6 +3,11 @@
 #
 menu "Analog to digital converters"
 
+config AD_SIGMA_DELTA
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
 config AD7266
 	tristate "Analog Devices AD7265/AD7266 ADC driver"
 	depends on SPI_MASTER
@@ -13,6 +18,33 @@ config AD7266
 	  Say yes here to build support for Analog Devices AD7265 and AD7266
 	  ADCs.
 
+config AD7791
+	tristate "Analog Devices AD7791 ADC driver"
+	depends on SPI
+	select AD_SIGMA_DELTA
+	help
+	  Say yes here to build support for Analog Devices AD7787, AD7788, AD7789,
+	  AD7790 and AD7791 SPI analog to digital converters (ADC). If unsure, say
+	  N (but it is safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7791.
+
+config AD7476
+	tristate "Analog Devices AD7476 and similar 1-channel ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7273, AD7274, AD7276,
+	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
+	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7476.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
@@ -21,5 +53,11 @@ config AT91_ADC
 	select SYSFS
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
+
+config LP8788_ADC
+	bool "LP8788 ADC driver"
+	depends on MFD_LP8788
+	help
+	  Say yes here to build support for TI LP8788 ADC.
 
 endmenu

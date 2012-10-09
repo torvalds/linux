@@ -973,21 +973,29 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  *	generation in software.
  * @IEEE80211_KEY_FLAG_PAIRWISE: Set by mac80211, this flag indicates
  *	that the key is pairwise rather then a shared key.
- * @IEEE80211_KEY_FLAG_SW_MGMT: This flag should be set by the driver for a
+ * @IEEE80211_KEY_FLAG_SW_MGMT_TX: This flag should be set by the driver for a
  *	CCMP key if it requires CCMP encryption of management frames (MFP) to
  *	be done in software.
  * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
  *	if space should be prepared for the IV, but the IV
  *	itself should not be generated. Do not set together with
  *	@IEEE80211_KEY_FLAG_GENERATE_IV on the same key.
+ * @IEEE80211_KEY_FLAG_RX_MGMT: This key will be used to decrypt received
+ *	management frames. The flag can help drivers that have a hardware
+ *	crypto implementation that doesn't deal with management frames
+ *	properly by allowing them to not upload the keys to hardware and
+ *	fall back to software crypto. Note that this flag deals only with
+ *	RX, if your crypto engine can't deal with TX you can also set the
+ *	%IEEE80211_KEY_FLAG_SW_MGMT_TX flag to encrypt such frames in SW.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_WMM_STA	= 1<<0,
 	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
 	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
 	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
-	IEEE80211_KEY_FLAG_SW_MGMT	= 1<<4,
+	IEEE80211_KEY_FLAG_SW_MGMT_TX	= 1<<4,
 	IEEE80211_KEY_FLAG_PUT_IV_SPACE = 1<<5,
+	IEEE80211_KEY_FLAG_RX_MGMT	= 1<<6,
 };
 
 /**

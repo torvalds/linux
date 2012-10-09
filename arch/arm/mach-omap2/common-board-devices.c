@@ -24,9 +24,10 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/mcspi.h>
-#include <plat/nand.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 
+#include "common.h"
 #include "common-board-devices.h"
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
@@ -34,16 +35,6 @@
 static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.turbo_mode	= 0,
 };
-
-/*
- * ADS7846 driver maybe request a gpio according to the value
- * of pdata->get_pendown_state, but we have done this. So set
- * get_pendown_state to avoid twice gpio requesting.
- */
-static int omap3_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_EVM_TS_GPIO);
-}
 
 static struct ads7846_platform_data ads7846_config = {
 	.x_max			= 0x0fff,
@@ -55,7 +46,6 @@ static struct ads7846_platform_data ads7846_config = {
 	.debounce_rep		= 1,
 	.gpio_pendown		= -EINVAL,
 	.keep_vref_on		= 1,
-	.get_pendown_state	= &omap3_get_pendown_state,
 };
 
 static struct spi_board_info ads7846_spi_board_info __initdata = {
@@ -130,8 +120,7 @@ void __init omap_nand_flash_init(int options, struct mtd_partition *parts,
 	}
 
 	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
+		pr_info("NAND: Unable to find configuration in GPMC\n");
 		return;
 	}
 

@@ -594,7 +594,11 @@ handler and finally add the first handler to the second. For example:
 	v4l2_ctrl_new_std(&radio_ctrl_handler, &radio_ops, V4L2_CID_AUDIO_MUTE, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_CONTRAST, ...);
-	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler);
+	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler, NULL);
+
+The last argument to v4l2_ctrl_add_handler() is a filter function that allows
+you to filter which controls will be added. Set it to NULL if you want to add
+all controls.
 
 Or you can add specific controls to a handler:
 

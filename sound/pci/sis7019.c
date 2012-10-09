@@ -103,7 +103,7 @@ struct voice {
  * we're not doing power management, we still need to allocate a page
  * for the silence buffer.
  */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 #define SIS_SUSPEND_PAGES	4
 #else
 #define SIS_SUSPEND_PAGES	1
@@ -1208,7 +1208,7 @@ static int sis_chip_init(struct sis7019 *sis)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sis_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -1305,7 +1305,7 @@ static SIMPLE_DEV_PM_OPS(sis_pm, sis_suspend, sis_resume);
 #define SIS_PM_OPS	&sis_pm
 #else
 #define SIS_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int sis_alloc_suspend(struct sis7019 *sis)
 {
@@ -1377,8 +1377,9 @@ static int __devinit sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out_cleanup;
 
-	if (request_irq(pci->irq, sis_interrupt, IRQF_SHARED, KBUILD_MODNAME,
-			sis)) {
+	rc = request_irq(pci->irq, sis_interrupt, IRQF_SHARED, KBUILD_MODNAME,
+			 sis);
+	if (rc) {
 		dev_err(&pci->dev, "unable to allocate irq %d\n", sis->irq);
 		goto error_out_cleanup;
 	}

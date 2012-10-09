@@ -25,8 +25,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1934, 0x0706) },
 	{ }					/* Terminating entry */
@@ -85,7 +83,7 @@ static void f81232_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
+	usb_serial_debug_data(&port->dev, __func__,
 			      urb->actual_length, urb->transfer_buffer);
 
 	f81232_update_line_status(port, data, actual_length);
@@ -173,10 +171,11 @@ static void f81232_set_termios(struct tty_struct *tty,
 	/* FIXME - Stubbed out for now */
 
 	/* Don't change anything if nothing has changed */
-	if (!tty_termios_hw_change(tty->termios, old_termios))
+	if (!tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* Do the real work here... */
+	tty_termios_copy_hw(&tty->termios, old_termios);
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
@@ -388,7 +387,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_DESCRIPTION("Fintek F81232 USB to serial adaptor driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org");
 MODULE_LICENSE("GPL v2");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
-

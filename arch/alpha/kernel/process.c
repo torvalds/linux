@@ -28,6 +28,7 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 #include <asm/reg.h>
 #include <asm/uaccess.h>
@@ -54,9 +55,12 @@ cpu_idle(void)
 		/* FIXME -- EV6 and LCA45 know how to power down
 		   the CPU.  */
 
+		rcu_idle_enter();
 		while (!need_resched())
 			cpu_relax();
-		schedule();
+
+		rcu_idle_exit();
+		schedule_preempt_disabled();
 	}
 }
 
@@ -455,3 +459,22 @@ get_wchan(struct task_struct *p)
 	}
 	return pc;
 }
+
+int kernel_execve(const char *path, const char *const argv[], const char *const envp[])
+{
+	/* Avoid the HAE being gratuitously wrong, which would cause us
+	   to do the whole turn off interrupts thing and restore it.  */
+	struct pt_regs regs = {.hae = alpha_mv.hae_cache};
+	int err = do_execve(path, argv, envp, &regs);
+	if (!err) {
+		struct pt_regs *p = current_pt_regs();
+		/* copy regs to normal position and off to userland we go... */
+		*p = regs;
+		__asm__ __volatile__ (
+			"mov	%0, $sp;"
+			"br	$31, ret_from_sys_call"
+			: : "r"(p));
+	}
+	return err;
+}
+EXPORT_SYMBOL(kernel_execve);

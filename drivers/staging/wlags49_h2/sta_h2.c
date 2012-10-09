@@ -26,7 +26,7 @@
 
 
 #include "hcfcfg.h"				// to get hcf_16 etc defined as well as
-                                // possible settings which inluence mdd.h or dhf.h
+                                // possible settings which influence mdd.h or dhf.h
 #include "mdd.h"   				//to get COMP_ID_STA etc defined
 #include "dhf.h"   				//used to be "fhfmem.h", to get memblock,plugrecord,
 

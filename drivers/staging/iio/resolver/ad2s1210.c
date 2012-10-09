@@ -575,7 +575,7 @@ static IIO_DEVICE_ATTR(lot_low_thrd, S_IRUGO | S_IWUSR,
 		       AD2S1210_REG_LOT_LOW_THRD);
 
 
-static struct iio_chan_spec ad2s1210_channels[] = {
+static const struct iio_chan_spec ad2s1210_channels[] = {
 	{
 		.type = IIO_ANGL,
 		.indexed = 1,

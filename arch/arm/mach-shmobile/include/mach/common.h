@@ -4,18 +4,19 @@
 extern void shmobile_earlytimer_init(void);
 extern struct sys_timer shmobile_timer;
 extern void shmobile_setup_delay(unsigned int max_cpu_core_mhz,
-				 unsigned int mult, unsigned int div);
+			 unsigned int mult, unsigned int div);
 struct twd_local_timer;
 extern void shmobile_setup_console(void);
 extern void shmobile_secondary_vector(void);
-extern int shmobile_platform_cpu_kill(unsigned int cpu);
 struct clk;
 extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
-extern void (*shmobile_cpuidle_modes[])(void);
-extern void (*shmobile_cpuidle_setup)(struct cpuidle_driver *drv);
+struct cpuidle_device;
+extern int shmobile_enter_wfi(struct cpuidle_device *dev,
+			      struct cpuidle_driver *drv, int index);
+extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_map_io(void);
@@ -58,11 +59,6 @@ extern struct clk sh73a0_extal2_clk;
 extern struct clk sh73a0_extcki_clk;
 extern struct clk sh73a0_extalr_clk;
 
-extern unsigned int sh73a0_get_core_count(void);
-extern void sh73a0_secondary_init(unsigned int cpu);
-extern int sh73a0_boot_secondary(unsigned int cpu);
-extern void sh73a0_smp_prepare_cpus(void);
-
 extern void r8a7740_init_irq(void);
 extern void r8a7740_map_io(void);
 extern void r8a7740_add_early_devices(void);
@@ -79,14 +75,7 @@ extern void r8a7779_pinmux_init(void);
 extern void r8a7779_pm_init(void);
 extern void r8a7740_meram_workaround(void);
 
-extern unsigned int r8a7779_get_core_count(void);
-extern int r8a7779_platform_cpu_kill(unsigned int cpu);
-extern void r8a7779_secondary_init(unsigned int cpu);
-extern int r8a7779_boot_secondary(unsigned int cpu);
-extern void r8a7779_smp_prepare_cpus(void);
 extern void r8a7779_register_twd(void);
-
-extern void shmobile_init_late(void);
 
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
@@ -99,5 +88,22 @@ int shmobile_cpuidle_init(void);
 #else
 static inline int shmobile_cpuidle_init(void) { return 0; }
 #endif
+
+extern void shmobile_cpu_die(unsigned int cpu);
+extern int shmobile_cpu_disable(unsigned int cpu);
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern int shmobile_cpu_is_dead(unsigned int cpu);
+#else
+static inline int shmobile_cpu_is_dead(unsigned int cpu) { return 1; }
+#endif
+
+extern void shmobile_smp_init_cpus(unsigned int ncores);
+
+static inline void shmobile_init_late(void)
+{
+	shmobile_suspend_init();
+	shmobile_cpuidle_init();
+}
 
 #endif /* __ARCH_MACH_COMMON_H */

@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* These are the only registers inside AB3100 used in this main file */
@@ -946,7 +947,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	}
 
 	err = mfd_add_devices(&client->dev, 0, ab3100_devs,
-		ARRAY_SIZE(ab3100_devs), NULL, 0);
+			      ARRAY_SIZE(ab3100_devs), NULL, 0, NULL);
 
 	ab3100_setup_debugfs(ab3100);
 

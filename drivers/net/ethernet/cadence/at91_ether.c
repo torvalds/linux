@@ -1086,7 +1086,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	/* Clock */
 	lp->ether_clk = clk_get(&pdev->dev, "ether_clk");
 	if (IS_ERR(lp->ether_clk)) {
-		res = -ENODEV;
+		res = PTR_ERR(lp->ether_clk);
 		goto err_ioumap;
 	}
 	clk_enable(lp->ether_clk);

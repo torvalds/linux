@@ -609,7 +609,8 @@ static void drop_last_node(struct ubifs_scan_leb *sleb, int *offs)
 		snod = list_entry(sleb->nodes.prev, struct ubifs_scan_node,
 				  list);
 
-		dbg_rcvry("dropping last node at %d:%d", sleb->lnum, snod->offs);
+		dbg_rcvry("dropping last node at %d:%d",
+			  sleb->lnum, snod->offs);
 		*offs = snod->offs;
 		list_del(&snod->list);
 		kfree(snod);
@@ -702,8 +703,8 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 			 * See header comment for this file for more
 			 * explanations about the reasons we have this check.
 			 */
-			ubifs_err("corrupt empty space LEB %d:%d, corruption "
-				  "starts at %d", lnum, offs, corruption);
+			ubifs_err("corrupt empty space LEB %d:%d, corruption starts at %d",
+				  lnum, offs, corruption);
 			/* Make sure we dump interesting non-0xFF data */
 			offs += corruption;
 			buf += corruption;
@@ -788,7 +789,7 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 
 corrupted_rescan:
 	/* Re-scan the corrupted data with verbose messages */
-	ubifs_err("corruptio %d", ret);
+	ubifs_err("corruption %d", ret);
 	ubifs_scan_a_node(c, buf, len, lnum, offs, 1);
 corrupted:
 	ubifs_scanned_corruption(c, lnum, offs, buf);
@@ -899,8 +900,8 @@ struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
 				}
 			}
 			if (snod->sqnum > cs_sqnum) {
-				ubifs_err("unrecoverable log corruption "
-					  "in LEB %d", lnum);
+				ubifs_err("unrecoverable log corruption in LEB %d",
+					  lnum);
 				ubifs_scan_destroy(sleb);
 				return ERR_PTR(-EUCLEAN);
 			}

@@ -60,8 +60,6 @@ struct rtc_ops *rtc_ops;
 #ifdef CONFIG_BLK_DEV_INITRD
 extern void *initrd_start;
 extern void *initrd_end;
-extern void *__initrd_start;
-extern void *__initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
@@ -78,10 +76,6 @@ static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
 
 sysmem_info_t __initdata sysmem;
-
-#ifdef CONFIG_BLK_DEV_INITRD
-int initrd_is_mapped;
-#endif
 
 #ifdef CONFIG_MMU
 extern void init_mmu(void);
@@ -197,12 +191,6 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 
 void __init init_arch(bp_tag_t *bp_start)
 {
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_start = &__initrd_start;
-	initrd_end = &__initrd_end;
-#endif
-
 	sysmem.nr_banks = 0;
 
 #ifdef CONFIG_CMDLINE_BOOL

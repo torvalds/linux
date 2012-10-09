@@ -107,6 +107,12 @@ void extent_io_exit(void)
 		list_del(&eb->leak_list);
 		kmem_cache_free(extent_buffer_cache, eb);
 	}
+
+	/*
+	 * Make sure all delayed rcu free are flushed before we
+	 * destroy caches.
+	 */
+	rcu_barrier();
 	if (extent_state_cache)
 		kmem_cache_destroy(extent_state_cache);
 	if (extent_buffer_cache)
@@ -2330,23 +2336,10 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
 			ret = tree->ops->readpage_end_io_hook(page, start, end,
 							      state, mirror);
-			if (ret) {
-				/* no IO indicated but software detected errors
-				 * in the block, either checksum errors or
-				 * issues with the contents */
-				struct btrfs_root *root =
-					BTRFS_I(page->mapping->host)->root;
-				struct btrfs_device *device;
-
+			if (ret)
 				uptodate = 0;
-				device = btrfs_find_device_for_logical(
-						root, start, mirror);
-				if (device)
-					btrfs_dev_stat_inc_and_print(device,
-						BTRFS_DEV_STAT_CORRUPTION_ERRS);
-			} else {
+			else
 				clean_io_failure(start, page);
-			}
 		}
 
 		if (!uptodate && tree->ops && tree->ops->readpage_io_failed_hook) {

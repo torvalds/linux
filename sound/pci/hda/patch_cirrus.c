@@ -34,7 +34,8 @@
  */
 
 struct cs_spec {
-	int board_config;
+	struct hda_gen_spec gen;
+
 	struct auto_pin_cfg autocfg;
 	struct hda_multi_out multiout;
 	struct snd_kcontrol *vmaster_sw;
@@ -80,16 +81,20 @@ enum {
 	CS420X_MBP53,
 	CS420X_MBP55,
 	CS420X_IMAC27,
-	CS420X_IMAC27_122,
-	CS420X_APPLE,
+	CS420X_GPIO_13,
+	CS420X_GPIO_23,
+	CS420X_MBP101,
+	CS420X_MBP101_COEF,
 	CS420X_AUTO,
-	CS420X_MODELS
+	/* aliases */
+	CS420X_IMAC27_122 = CS420X_GPIO_23,
+	CS420X_APPLE = CS420X_GPIO_13,
 };
 
 /* CS421x boards */
 enum {
 	CS421X_CDB4210,
-	CS421X_MODELS
+	CS421X_SENSE_B,
 };
 
 /* Vendor-specific processing widget */
@@ -1157,6 +1162,14 @@ static const struct hda_verb cs_errata_init_verbs[] = {
 	{} /* terminator */
 };
 
+static const struct hda_verb mbp101_init_verbs[] = {
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0002},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x100a},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0004},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x000f},
+	{}
+};
+
 /* SPDIF setup */
 static void init_digital(struct hda_codec *codec)
 {
@@ -1193,7 +1206,6 @@ static int cs_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_digital(codec);
-	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }
@@ -1279,38 +1291,32 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
-static const char * const cs420x_models[CS420X_MODELS] = {
-	[CS420X_MBP53] = "mbp53",
-	[CS420X_MBP55] = "mbp55",
-	[CS420X_IMAC27] = "imac27",
-	[CS420X_IMAC27_122] = "imac27_122",
-	[CS420X_APPLE] = "apple",
-	[CS420X_AUTO] = "auto",
+static const struct hda_model_fixup cs420x_models[] = {
+	{ .id = CS420X_MBP53, .name = "mbp53" },
+	{ .id = CS420X_MBP55, .name = "mbp55" },
+	{ .id = CS420X_IMAC27, .name = "imac27" },
+	{ .id = CS420X_IMAC27_122, .name = "imac27_122" },
+	{ .id = CS420X_APPLE, .name = "apple" },
+	{ .id = CS420X_MBP101, .name = "mbp101" },
+	{}
 };
 
-
-static const struct snd_pci_quirk cs420x_cfg_tbl[] = {
+static const struct snd_pci_quirk cs420x_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x0ac0, "MacBookPro 5,3", CS420X_MBP53),
 	SND_PCI_QUIRK(0x10de, 0x0d94, "MacBookAir 3,1(2)", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb89, "MacBookPro 7,1", CS420X_MBP55),
 	/* this conflicts with too many other models */
 	/*SND_PCI_QUIRK(0x8086, 0x7270, "IMac 27 Inch", CS420X_IMAC27),*/
-	{} /* terminator */
-};
 
-static const struct snd_pci_quirk cs420x_codec_cfg_tbl[] = {
+	/* codec SSID */
 	SND_PCI_QUIRK(0x106b, 0x2000, "iMac 12,2", CS420X_IMAC27_122),
+	SND_PCI_QUIRK(0x106b, 0x2800, "MacBookPro 10,1", CS420X_MBP101),
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
 	{} /* terminator */
 };
 
-struct cs_pincfg {
-	hda_nid_t nid;
-	u32 val;
-};
-
-static const struct cs_pincfg mbp53_pincfgs[] = {
+static const struct hda_pintbl mbp53_pincfgs[] = {
 	{ 0x09, 0x012b4050 },
 	{ 0x0a, 0x90100141 },
 	{ 0x0b, 0x90100140 },
@@ -1324,7 +1330,7 @@ static const struct cs_pincfg mbp53_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct cs_pincfg mbp55_pincfgs[] = {
+static const struct hda_pintbl mbp55_pincfgs[] = {
 	{ 0x09, 0x012b4030 },
 	{ 0x0a, 0x90100121 },
 	{ 0x0b, 0x90100120 },
@@ -1338,7 +1344,7 @@ static const struct cs_pincfg mbp55_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct cs_pincfg imac27_pincfgs[] = {
+static const struct hda_pintbl imac27_pincfgs[] = {
 	{ 0x09, 0x012b4050 },
 	{ 0x0a, 0x90100140 },
 	{ 0x0b, 0x90100142 },
@@ -1352,21 +1358,77 @@ static const struct cs_pincfg imac27_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct cs_pincfg *cs_pincfgs[CS420X_MODELS] = {
-	[CS420X_MBP53] = mbp53_pincfgs,
-	[CS420X_MBP55] = mbp55_pincfgs,
-	[CS420X_IMAC27] = imac27_pincfgs,
+static const struct hda_pintbl mbp101_pincfgs[] = {
+	{ 0x0d, 0x40ab90f0 },
+	{ 0x0e, 0x90a600f0 },
+	{ 0x12, 0x50a600f0 },
+	{} /* terminator */
 };
 
-static void fix_pincfg(struct hda_codec *codec, int model,
-		       const struct cs_pincfg **pin_configs)
+static void cs420x_fixup_gpio_13(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
 {
-	const struct cs_pincfg *cfg = pin_configs[model];
-	if (!cfg)
-		return;
-	for (; cfg->nid; cfg++)
-		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		struct cs_spec *spec = codec->spec;
+		spec->gpio_eapd_hp = 2; /* GPIO1 = headphones */
+		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
+		spec->gpio_mask = spec->gpio_dir =
+			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
+	}
 }
+
+static void cs420x_fixup_gpio_23(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		struct cs_spec *spec = codec->spec;
+		spec->gpio_eapd_hp = 4; /* GPIO2 = headphones */
+		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
+		spec->gpio_mask = spec->gpio_dir =
+			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
+	}
+}
+
+static const struct hda_fixup cs420x_fixups[] = {
+	[CS420X_MBP53] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mbp53_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_APPLE,
+	},
+	[CS420X_MBP55] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mbp55_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
+	},
+	[CS420X_IMAC27] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = imac27_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
+	},
+	[CS420X_GPIO_13] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs420x_fixup_gpio_13,
+	},
+	[CS420X_GPIO_23] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs420x_fixup_gpio_23,
+	},
+	[CS420X_MBP101] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mbp101_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_MBP101_COEF,
+	},
+	[CS420X_MBP101_COEF] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = mbp101_init_verbs,
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
+	},
+};
 
 static int patch_cs420x(struct hda_codec *codec)
 {
@@ -1380,39 +1442,17 @@ static int patch_cs420x(struct hda_codec *codec)
 
 	spec->vendor_nid = CS420X_VENDOR_NID;
 
-	spec->board_config =
-		snd_hda_check_board_config(codec, CS420X_MODELS,
-					   cs420x_models, cs420x_cfg_tbl);
-	if (spec->board_config < 0)
-		spec->board_config =
-			snd_hda_check_board_codec_sid_config(codec,
-				CS420X_MODELS, NULL, cs420x_codec_cfg_tbl);
-	if (spec->board_config >= 0)
-		fix_pincfg(codec, spec->board_config, cs_pincfgs);
-
-	switch (spec->board_config) {
-	case CS420X_IMAC27:
-	case CS420X_MBP53:
-	case CS420X_MBP55:
-	case CS420X_APPLE:
-		spec->gpio_eapd_hp = 2; /* GPIO1 = headphones */
-		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
-		spec->gpio_mask = spec->gpio_dir =
-			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
-		break;
-	case CS420X_IMAC27_122:
-		spec->gpio_eapd_hp = 4; /* GPIO2 = headphones */
-		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
-		spec->gpio_mask = spec->gpio_dir =
-			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
-		break;
-	}
+	snd_hda_pick_fixup(codec, cs420x_models, cs420x_fixup_tbl,
+			   cs420x_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
 	codec->patch_ops = cs_patch_ops;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -1431,11 +1471,12 @@ static int patch_cs420x(struct hda_codec *codec)
 */
 
 /* CS4210 board names */
-static const char *cs421x_models[CS421X_MODELS] = {
-	[CS421X_CDB4210] = "cdb4210",
+static const struct hda_model_fixup cs421x_models[] = {
+	{ .id = CS421X_CDB4210, .name = "cdb4210" },
+	{}
 };
 
-static const struct snd_pci_quirk cs421x_cfg_tbl[] = {
+static const struct snd_pci_quirk cs421x_fixup_tbl[] = {
 	/* Test Intel board + CDB2410  */
 	SND_PCI_QUIRK(0x8086, 0x5001, "DP45SG/CDB4210", CS421X_CDB4210),
 	{} /* terminator */
@@ -1443,7 +1484,7 @@ static const struct snd_pci_quirk cs421x_cfg_tbl[] = {
 
 /* CS4210 board pinconfigs */
 /* Default CS4210 (CDB4210)*/
-static const struct cs_pincfg cdb4210_pincfgs[] = {
+static const struct hda_pintbl cdb4210_pincfgs[] = {
 	{ 0x05, 0x0321401f },
 	{ 0x06, 0x90170010 },
 	{ 0x07, 0x03813031 },
@@ -1453,8 +1494,26 @@ static const struct cs_pincfg cdb4210_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct cs_pincfg *cs421x_pincfgs[CS421X_MODELS] = {
-	[CS421X_CDB4210] = cdb4210_pincfgs,
+/* Setup GPIO/SENSE for each board (if used) */
+static void cs421x_fixup_sense_b(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	struct cs_spec *spec = codec->spec;
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		spec->sense_b = 1;
+}
+
+static const struct hda_fixup cs421x_fixups[] = {
+	[CS421X_CDB4210] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cdb4210_pincfgs,
+		.chained = true,
+		.chain_id = CS421X_SENSE_B,
+	},
+	[CS421X_SENSE_B] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs421x_fixup_sense_b,
+	}
 };
 
 static const struct hda_verb cs421x_coef_init_verbs[] = {
@@ -1643,7 +1702,6 @@ static int cs421x_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_cs421x_digital(codec);
-	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }
@@ -1937,26 +1995,9 @@ static int patch_cs4210(struct hda_codec *codec)
 
 	spec->vendor_nid = CS4210_VENDOR_NID;
 
-	spec->board_config =
-		snd_hda_check_board_config(codec, CS421X_MODELS,
-					   cs421x_models, cs421x_cfg_tbl);
-	if (spec->board_config >= 0)
-		fix_pincfg(codec, spec->board_config, cs421x_pincfgs);
-	/*
-	    Setup GPIO/SENSE for each board (if used)
-	*/
-	switch (spec->board_config) {
-	case CS421X_CDB4210:
-		snd_printd("CS4210 board: %s\n",
-			cs421x_models[spec->board_config]);
-/*		spec->gpio_mask = 3;
-		spec->gpio_dir = 3;
-		spec->gpio_data = 3;
-*/
-		spec->sense_b = 1;
-
-		break;
-	}
+	snd_hda_pick_fixup(codec, cs421x_models, cs421x_fixup_tbl,
+			   cs421x_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	/*
 	    Update the GPIO/DMIC/SENSE_B pinmux before the configuration
@@ -1970,6 +2011,8 @@ static int patch_cs4210(struct hda_codec *codec)
 		goto error;
 
 	codec->patch_ops = cs421x_patch_ops;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
 

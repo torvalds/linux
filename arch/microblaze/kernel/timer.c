@@ -116,21 +116,21 @@ static void microblaze_timer_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		printk(KERN_INFO "%s: periodic\n", __func__);
+		pr_info("%s: periodic\n", __func__);
 		microblaze_timer0_start_periodic(freq_div_hz);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
-		printk(KERN_INFO "%s: oneshot\n", __func__);
+		pr_info("%s: oneshot\n", __func__);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
-		printk(KERN_INFO "%s: unused\n", __func__);
+		pr_info("%s: unused\n", __func__);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		printk(KERN_INFO "%s: shutdown\n", __func__);
+		pr_info("%s: shutdown\n", __func__);
 		microblaze_timer0_stop();
 		break;
 	case CLOCK_EVT_MODE_RESUME:
-		printk(KERN_INFO "%s: resume\n", __func__);
+		pr_info("%s: resume\n", __func__);
 		break;
 	}
 }
@@ -257,7 +257,15 @@ void __init time_init(void)
 				0
 			};
 #endif
-	timer = of_find_compatible_node(NULL, NULL, "xlnx,xps-timer-1.00.a");
+	prop = of_get_property(of_chosen, "system-timer", NULL);
+	if (prop)
+		timer = of_find_node_by_phandle(be32_to_cpup(prop));
+	else
+		pr_info("No chosen timer found, using default\n");
+
+	if (!timer)
+		timer = of_find_compatible_node(NULL, NULL,
+						"xlnx,xps-timer-1.00.a");
 	BUG_ON(!timer);
 
 	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
@@ -266,14 +274,14 @@ void __init time_init(void)
 	timer_num = be32_to_cpup(of_get_property(timer,
 						"xlnx,one-timer-only", NULL));
 	if (timer_num) {
-		printk(KERN_EMERG "Please enable two timers in HW\n");
+		pr_emerg("Please   enable two timers in HW\n");
 		BUG();
 	}
 
 #ifdef CONFIG_SELFMOD_TIMER
 	selfmod_function((int *) arr_func, timer_baseaddr);
 #endif
-	printk(KERN_INFO "%s #0 at 0x%08x, irq=%d\n",
+	pr_info("%s #0 at 0x%08x, irq=%d\n",
 		timer->name, timer_baseaddr, irq);
 
 	/* If there is clock-frequency property than use it */

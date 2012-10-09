@@ -606,7 +606,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_WHEEL, 0);
 			}
 
-			if (data[2] | (data[3] & 0x01) | data[4]) {
+			if (data[2] | (data[3] & 0x01) | data[4] | data[5]) {
 				input_report_key(input, wacom->tool[1], 1);
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
@@ -1530,7 +1530,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 			__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 
 			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			                     0, 255, 0, 0);
@@ -1575,7 +1575,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case TABLETPC2FG:
 		if (features->device_type == BTN_TOOL_FINGER) {
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
 					0, MT_TOOL_MAX, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
@@ -1631,7 +1631,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 
 			if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 				__set_bit(BTN_TOOL_TRIPLETAP,
@@ -1848,7 +1848,10 @@ static const struct wacom_features wacom_features_0x2A =
 	{ "Wacom Intuos5 M", WACOM_PKGLEN_INTUOS,  44704, 27940, 2047,
 	  63, INTUOS5, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xF4 =
-	{ "Wacom Cintiq 24HD",    WACOM_PKGLEN_INTUOS,   104480, 65600, 2047,
+	{ "Wacom Cintiq 24HD",       WACOM_PKGLEN_INTUOS,   104480, 65600, 2047,
+	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
+static const struct wacom_features wacom_features_0xF8 =
+	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,   104480, 65600, 2047,
 	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x3F =
 	{ "Wacom Cintiq 21UX",    WACOM_PKGLEN_INTUOS,    87200, 65600, 1023,
@@ -2091,6 +2094,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xEF) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
+	{ USB_DEVICE_WACOM(0xF8) },
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }

@@ -222,7 +222,7 @@ _GLOBAL(memcpy_power7)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	bl	.enter_vmx_copy
-	cmpwi	r3,0
+	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STACKFRAMESIZE+48(r1)
 	ld	r4,STACKFRAMESIZE+56(r1)
@@ -239,8 +239,8 @@ _GLOBAL(memcpy_power7)
 	ori	r9,r9,1		/* stream=1 */
 
 	srdi	r7,r5,7		/* length in cachelines, capped at 0x3FF */
-	cmpldi	cr1,r7,0x3FF
-	ble	cr1,1f
+	cmpldi	r7,0x3FF
+	ble	1f
 	li	r7,0x3FF
 1:	lis	r0,0x0E00	/* depth=7 */
 	sldi	r7,r7,7
@@ -260,7 +260,7 @@ _GLOBAL(memcpy_power7)
 	dcbt	r0,r8,0b01010	/* GO */
 .machine pop
 
-	beq	.Lunwind_stack_nonvmx_copy
+	beq	cr1,.Lunwind_stack_nonvmx_copy
 
 	/*
 	 * If source and destination are not relatively aligned we use a

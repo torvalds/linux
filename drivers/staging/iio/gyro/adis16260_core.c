@@ -195,6 +195,8 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 	ret = strict_strtol(buf, 10, &val);
 	if (ret)
 		return ret;
+	if (val == 0)
+		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
 	if (spi_get_device_id(st->us)) {
@@ -698,24 +700,18 @@ error_ret:
 	return ret;
 }
 
-static int adis16260_remove(struct spi_device *spi)
+static int __devexit adis16260_remove(struct spi_device *spi)
 {
-	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-
-	ret = adis16260_stop_device(indio_dev);
-	if (ret)
-		goto err_ret;
-
+	adis16260_stop_device(indio_dev);
 	adis16260_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
 	iio_device_free(indio_dev);
 
-err_ret:
-	return ret;
+	return 0;
 }
 
 /*

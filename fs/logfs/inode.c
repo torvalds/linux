@@ -156,9 +156,25 @@ static void __logfs_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, logfs_i_callback);
 }
 
+static void __logfs_destroy_meta_inode(struct inode *inode)
+{
+	struct logfs_inode *li = logfs_inode(inode);
+	BUG_ON(li->li_block);
+	call_rcu(&inode->i_rcu, logfs_i_callback);
+}
+
 static void logfs_destroy_inode(struct inode *inode)
 {
 	struct logfs_inode *li = logfs_inode(inode);
+
+	if (inode->i_ino < LOGFS_RESERVED_INOS) {
+		/*
+		 * The reserved inodes are never destroyed unless we are in
+		 * unmont path.
+		 */
+		__logfs_destroy_meta_inode(inode);
+		return;
+	}
 
 	BUG_ON(list_empty(&li->li_freeing_list));
 	spin_lock(&logfs_inode_lock);
@@ -192,8 +208,8 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	li->li_height	= 0;
 	li->li_used_bytes = 0;
 	li->li_block	= NULL;
-	inode->i_uid	= 0;
-	inode->i_gid	= 0;
+	i_uid_write(inode, 0);
+	i_gid_write(inode, 0);
 	inode->i_size	= 0;
 	inode->i_blocks	= 0;
 	inode->i_ctime	= CURRENT_TIME;
@@ -373,8 +389,8 @@ static void logfs_put_super(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 	/* kill the meta-inodes */
-	iput(super->s_master_inode);
 	iput(super->s_segfile_inode);
+	iput(super->s_master_inode);
 	iput(super->s_mapping_inode);
 }
 
@@ -401,5 +417,10 @@ int logfs_init_inode_cache(void)
 
 void logfs_destroy_inode_cache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(logfs_inode_cache);
 }

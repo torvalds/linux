@@ -226,17 +226,7 @@ _reloc:
 
 	isync
 
-	movi	a5, __start
-	movi	a3, boot_initrd_start
-	movi	a4, boot_initrd_end
-	sub	a3, a3, a5
-	sub	a4, a4, a5
-	add	a3, a0, a3
-	add	a4, a0, a4
-
 	# a2  Boot parameter list
-	# a3  initrd_start (virtual load address)
-	# a4  initrd_end   (virtual load address)
 
 	movi	a0, _image_start
 	jx	a0

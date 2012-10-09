@@ -446,13 +446,22 @@ void mark_page_accessed(struct page *page)
 }
 EXPORT_SYMBOL(mark_page_accessed);
 
+/*
+ * Order of operations is important: flush the pagevec when it's already
+ * full, not when adding the last page, to make sure that last page is
+ * not added to the LRU directly when passed to this function. Because
+ * mark_page_accessed() (called after this when writing) only activates
+ * pages that are on the LRU, linear writes in subpage chunks would see
+ * every PAGEVEC_SIZE page activated, which is unexpected.
+ */
 void __lru_cache_add(struct page *page, enum lru_list lru)
 {
 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
 
 	page_cache_get(page);
-	if (!pagevec_add(pvec, page))
+	if (!pagevec_space(pvec))
 		__pagevec_lru_add(pvec, lru);
+	pagevec_add(pvec, page);
 	put_cpu_var(lru_add_pvecs);
 }
 EXPORT_SYMBOL(__lru_cache_add);
@@ -742,7 +751,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 
 	SetPageLRU(page_tail);
 
-	if (page_evictable(page_tail, NULL)) {
+	if (page_evictable(page_tail)) {
 		if (PageActive(page)) {
 			SetPageActive(page_tail);
 			active = 1;

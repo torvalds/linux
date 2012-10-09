@@ -159,14 +159,12 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
  * DESCRIPTION: Reallocate Root Table List into dynamic memory. Copies the
  *              root list from the previously provided scratch area. Should
  *              be called once dynamic memory allocation is available in the
- *              kernel
+ *              kernel.
  *
  ******************************************************************************/
 acpi_status acpi_reallocate_root_table(void)
 {
-	struct acpi_table_desc *tables;
-	acpi_size new_size;
-	acpi_size current_size;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_reallocate_root_table);
 
@@ -178,39 +176,10 @@ acpi_status acpi_reallocate_root_table(void)
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
-	/*
-	 * Get the current size of the root table and add the default
-	 * increment to create the new table size.
-	 */
-	current_size = (acpi_size)
-	    acpi_gbl_root_table_list.current_table_count *
-	    sizeof(struct acpi_table_desc);
+	acpi_gbl_root_table_list.flags |= ACPI_ROOT_ALLOW_RESIZE;
 
-	new_size = current_size +
-	    (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof(struct acpi_table_desc));
-
-	/* Create new array and copy the old array */
-
-	tables = ACPI_ALLOCATE_ZEROED(new_size);
-	if (!tables) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
-	}
-
-	ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables, current_size);
-
-	/*
-	 * Update the root table descriptor. The new size will be the current
-	 * number of tables plus the increment, independent of the reserved
-	 * size of the original table list.
-	 */
-	acpi_gbl_root_table_list.tables = tables;
-	acpi_gbl_root_table_list.max_table_count =
-	    acpi_gbl_root_table_list.current_table_count +
-	    ACPI_ROOT_TABLE_SIZE_INCREMENT;
-	acpi_gbl_root_table_list.flags =
-	    ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
-
-	return_ACPI_STATUS(AE_OK);
+	status = acpi_tb_resize_root_table_list();
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -387,6 +356,7 @@ acpi_get_table_with_size(char *signature,
 
 	return (AE_NOT_FOUND);
 }
+ACPI_EXPORT_SYMBOL(acpi_get_table_with_size)
 
 acpi_status
 acpi_get_table(char *signature,

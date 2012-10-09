@@ -37,6 +37,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/i2c-gpio.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7740.h>
@@ -53,6 +54,8 @@
 #include <video/sh_mobile_hdmi.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
+
+#include "sh-gpio.h"
 
 /*
  * CON1		Camera Module
@@ -135,7 +138,7 @@
  *	usbhsf_power_ctrl()
  */
 #define IRQ7		evt2irq(0x02e0)
-#define USBCR1		0xe605810a
+#define USBCR1		IOMEM(0xe605810a)
 #define USBH		0xC6700000
 #define USBH_USBCTR	0x10834
 
@@ -520,13 +523,14 @@ static struct platform_device hdmi_lcdc_device = {
 };
 
 /* GPIO KEY */
-#define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
+#define GPIO_KEY(c, g, d, ...) \
+	{ .code = c, .gpio = g, .desc = d, .active_low = 1, __VA_ARGS__ }
 
 static struct gpio_keys_button gpio_buttons[] = {
-	GPIO_KEY(KEY_POWER,	GPIO_PORT99,	"SW1"),
-	GPIO_KEY(KEY_BACK,	GPIO_PORT100,	"SW2"),
-	GPIO_KEY(KEY_MENU,	GPIO_PORT97,	"SW3"),
-	GPIO_KEY(KEY_HOME,	GPIO_PORT98,	"SW4"),
+	GPIO_KEY(KEY_POWER,	GPIO_PORT99,	"SW3", .wakeup = 1),
+	GPIO_KEY(KEY_BACK,	GPIO_PORT100,	"SW4"),
+	GPIO_KEY(KEY_MENU,	GPIO_PORT97,	"SW5"),
+	GPIO_KEY(KEY_HOME,	GPIO_PORT98,	"SW6"),
 };
 
 static struct gpio_keys_platform_data gpio_key_info = {
@@ -876,6 +880,21 @@ static struct platform_device fsi_hdmi_device = {
 	},
 };
 
+/* RTC: RTC connects i2c-gpio. */
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin	= GPIO_PORT208,
+	.scl_pin	= GPIO_PORT91,
+	.udelay		= 5, /* 100 kHz */
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name = "i2c-gpio",
+	.id = 2,
+	.dev = {
+		.platform_data = &i2c_gpio_data,
+	},
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
@@ -884,6 +903,13 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("wm8978", 0x1a),
+	},
+};
+
+static struct i2c_board_info i2c2_devices[] = {
+	{
+		I2C_BOARD_INFO("s35390a", 0x30),
+		.type = "s35390a",
 	},
 };
 
@@ -901,8 +927,9 @@ static struct platform_device *eva_devices[] __initdata = {
 	&camera_device,
 	&ceu0_device,
 	&fsi_device,
-	&fsi_hdmi_device,
 	&fsi_wm8978_device,
+	&fsi_hdmi_device,
+	&i2c_gpio_device,
 };
 
 static void __init eva_clock_init(void)
@@ -949,8 +976,8 @@ clock_error:
 /*
  * board init
  */
-#define GPIO_PORT7CR	0xe6050007
-#define GPIO_PORT8CR	0xe6050008
+#define GPIO_PORT7CR	IOMEM(0xe6050007)
+#define GPIO_PORT8CR	IOMEM(0xe6050008)
 static void __init eva_init(void)
 {
 	struct platform_device *usb = NULL;
@@ -1173,6 +1200,7 @@ static void __init eva_init(void)
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
+	i2c_register_board_info(2, i2c2_devices, ARRAY_SIZE(i2c2_devices));
 
 	r8a7740_add_standard_devices();
 
@@ -1181,10 +1209,10 @@ static void __init eva_init(void)
 
 	eva_clock_init();
 
-	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &lcdc0_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &hdmi_lcdc_device);
+	rmobile_add_device_to_domain("A4LC", &lcdc0_device);
+	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
 	if (usb)
-		rmobile_add_device_to_domain(&r8a7740_pd_a3sp, usb);
+		rmobile_add_device_to_domain("A3SP", usb);
 }
 
 static void __init eva_earlytimer_init(void)

@@ -840,7 +840,9 @@ sub __read_config {
 
 		if ($rest =~ /\sIF\s+(.*)/) {
 		    # May be a ELSE IF section.
-		    if (!process_if($name, $1)) {
+		    if (process_if($name, $1)) {
+			$if_set = 1;
+		    } else {
 			$skip = 1;
 		    }
 		    $rest = "";

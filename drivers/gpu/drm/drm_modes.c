@@ -33,9 +33,8 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 
 /**
  * drm_mode_debug_printmodeline - debug print a mode
@@ -706,9 +705,6 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 	p->crtc_vblank_end = max(p->crtc_vsync_end, p->crtc_vtotal);
 	p->crtc_hblank_start = min(p->crtc_hsync_start, p->crtc_hdisplay);
 	p->crtc_hblank_end = max(p->crtc_hsync_end, p->crtc_htotal);
-
-	p->crtc_hadjusted = false;
-	p->crtc_vadjusted = false;
 }
 EXPORT_SYMBOL(drm_mode_set_crtcinfo);
 

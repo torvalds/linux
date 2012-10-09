@@ -324,6 +324,10 @@
  */
 #define PHYS_PCI_V3_BASE                0x62000000
 
+#define PCI_MEMORY_VADDR		0xe8000000
+#define PCI_CONFIG_VADDR		0xec000000
+#define PCI_V3_VADDR			0xed000000
+
 /* ------------------------------------------------------------------------
  *  Integrator Interrupt Controllers
  * ------------------------------------------------------------------------

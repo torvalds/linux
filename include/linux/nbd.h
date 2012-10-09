@@ -27,12 +27,21 @@
 #define NBD_SET_SIZE_BLOCKS	_IO( 0xab, 7 )
 #define NBD_DISCONNECT  _IO( 0xab, 8 )
 #define NBD_SET_TIMEOUT _IO( 0xab, 9 )
+#define NBD_SET_FLAGS   _IO( 0xab, 10)
 
 enum {
 	NBD_CMD_READ = 0,
 	NBD_CMD_WRITE = 1,
-	NBD_CMD_DISC = 2
+	NBD_CMD_DISC = 2,
+	/* there is a gap here to match userspace */
+	NBD_CMD_TRIM = 4
 };
+
+/* values for flags field */
+#define NBD_FLAG_HAS_FLAGS    (1 << 0) /* nbd-server supports flags */
+#define NBD_FLAG_READ_ONLY    (1 << 1) /* device is read-only */
+/* there is a gap here to match userspace */
+#define NBD_FLAG_SEND_TRIM    (1 << 5) /* send trim/discard */
 
 #define nbd_cmd(req) ((req)->cmd[0])
 
@@ -41,10 +50,6 @@ enum {
 
 #include <linux/wait.h>
 #include <linux/mutex.h>
-
-/* values for flags field */
-#define NBD_READ_ONLY 0x0001
-#define NBD_WRITE_NOCHK 0x0002
 
 struct request;
 

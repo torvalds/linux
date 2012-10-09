@@ -47,40 +47,40 @@ static int __devinit octeon_serial_probe(struct platform_device *pdev)
 {
 	int irq, res;
 	struct resource *res_mem;
-	struct uart_port port;
+	struct uart_8250_port up;
 
 	/* All adaptors have an irq.  */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	memset(&port, 0, sizeof(port));
+	memset(&up, 0, sizeof(up));
 
-	port.flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
-	port.type = PORT_OCTEON;
-	port.iotype = UPIO_MEM;
-	port.regshift = 3;
-	port.dev = &pdev->dev;
+	up.port.flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
+	up.port.type = PORT_OCTEON;
+	up.port.iotype = UPIO_MEM;
+	up.port.regshift = 3;
+	up.port.dev = &pdev->dev;
 
 	if (octeon_is_simulation())
 		/* Make simulator output fast*/
-		port.uartclk = 115200 * 16;
+		up.port.uartclk = 115200 * 16;
 	else
-		port.uartclk = octeon_get_io_clock_rate();
+		up.port.uartclk = octeon_get_io_clock_rate();
 
-	port.serial_in = octeon_serial_in;
-	port.serial_out = octeon_serial_out;
-	port.irq = irq;
+	up.port.serial_in = octeon_serial_in;
+	up.port.serial_out = octeon_serial_out;
+	up.port.irq = irq;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_mem == NULL) {
 		dev_err(&pdev->dev, "found no memory resource\n");
 		return -ENXIO;
 	}
-	port.mapbase = res_mem->start;
-	port.membase = ioremap(res_mem->start, resource_size(res_mem));
+	up.port.mapbase = res_mem->start;
+	up.port.membase = ioremap(res_mem->start, resource_size(res_mem));
 
-	res = serial8250_register_port(&port);
+	res = serial8250_register_8250_port(&up);
 
 	return res >= 0 ? 0 : res;
 }

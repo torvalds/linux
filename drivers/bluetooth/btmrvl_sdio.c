@@ -600,8 +600,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 exit:
 	if (ret) {
 		hdev->stat.err_rx++;
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return ret;

@@ -358,21 +358,7 @@ static struct platform_driver btwilink_driver = {
 	},
 };
 
-/* ------- Module Init/Exit interfaces ------ */
-static int __init btwilink_init(void)
-{
-	BT_INFO("Bluetooth Driver for TI WiLink - Version %s", VERSION);
-
-	return platform_driver_register(&btwilink_driver);
-}
-
-static void __exit btwilink_exit(void)
-{
-	platform_driver_unregister(&btwilink_driver);
-}
-
-module_init(btwilink_init);
-module_exit(btwilink_exit);
+module_platform_driver(btwilink_driver);
 
 /* ------ Module Info ------ */
 

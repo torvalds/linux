@@ -546,9 +546,9 @@ static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static int macvlan_fdb_add(struct ndmsg *ndm,
+static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
-			   unsigned char *addr,
+			   const unsigned char *addr,
 			   u16 flags)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -567,7 +567,7 @@ static int macvlan_fdb_add(struct ndmsg *ndm,
 
 static int macvlan_fdb_del(struct ndmsg *ndm,
 			   struct net_device *dev,
-			   unsigned char *addr)
+			   const unsigned char *addr)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;

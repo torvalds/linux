@@ -22,7 +22,7 @@
  *
  * P2M_PER_PAGE depends on the architecture, as a mfn is always
  * unsigned long (8 bytes on 64-bit, 4 bytes on 32), leading to
- * 512 and 1024 entries respectively. 
+ * 512 and 1024 entries respectively.
  *
  * In short, these structures contain the Machine Frame Number (MFN) of the PFN.
  *
@@ -139,11 +139,11 @@
  *      /    | ~0, ~0, ....  |
  *     |     \---------------/
  *     |
- *     p2m_missing             p2m_missing
- * /------------------\     /------------\
- * | [p2m_mid_missing]+---->| ~0, ~0, ~0 |
- * | [p2m_mid_missing]+---->| ..., ~0    |
- * \------------------/     \------------/
+ *   p2m_mid_missing           p2m_missing
+ * /-----------------\     /------------\
+ * | [p2m_missing]   +---->| ~0, ~0, ~0 |
+ * | [p2m_missing]   +---->| ..., ~0    |
+ * \-----------------/     \------------/
  *
  * where ~0 is INVALID_P2M_ENTRY. IDENTITY is (PFN | IDENTITY_BIT)
  */
@@ -196,9 +196,11 @@ RESERVE_BRK(p2m_mid_identity, PAGE_SIZE * 2 * 3);
 
 /* When we populate back during bootup, the amount of pages can vary. The
  * max we have is seen is 395979, but that does not mean it can't be more.
- * But some machines can have 3GB I/O holes even. So lets reserve enough
- * for 4GB of I/O and E820 holes. */
-RESERVE_BRK(p2m_populated, PMD_SIZE * 4);
+ * Some machines can have 3GB I/O holes even. With early_can_reuse_p2m_middle
+ * it can re-use Xen provided mfn_list array, so we only need to allocate at
+ * most three P2M top nodes. */
+RESERVE_BRK(p2m_populated, PAGE_SIZE * 3);
+
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
 	BUG_ON(pfn >= MAX_P2M_PFN);
@@ -394,7 +396,85 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 	m2p_override_init();
 }
+#ifdef CONFIG_X86_64
+#include <linux/bootmem.h>
+unsigned long __init xen_revector_p2m_tree(void)
+{
+	unsigned long va_start;
+	unsigned long va_end;
+	unsigned long pfn;
+	unsigned long pfn_free = 0;
+	unsigned long *mfn_list = NULL;
+	unsigned long size;
 
+	va_start = xen_start_info->mfn_list;
+	/*We copy in increments of P2M_PER_PAGE * sizeof(unsigned long),
+	 * so make sure it is rounded up to that */
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+	va_end = va_start + size;
+
+	/* If we were revectored already, don't do it again. */
+	if (va_start <= __START_KERNEL_map && va_start >= __PAGE_OFFSET)
+		return 0;
+
+	mfn_list = alloc_bootmem_align(size, PAGE_SIZE);
+	if (!mfn_list) {
+		pr_warn("Could not allocate space for a new P2M tree!\n");
+		return xen_start_info->mfn_list;
+	}
+	/* Fill it out with INVALID_P2M_ENTRY value */
+	memset(mfn_list, 0xFF, size);
+
+	for (pfn = 0; pfn < ALIGN(MAX_DOMAIN_PAGES, P2M_PER_PAGE); pfn += P2M_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+		unsigned mididx;
+		unsigned long *mid_p;
+
+		if (!p2m_top[topidx])
+			continue;
+
+		if (p2m_top[topidx] == p2m_mid_missing)
+			continue;
+
+		mididx = p2m_mid_index(pfn);
+		mid_p = p2m_top[topidx][mididx];
+		if (!mid_p)
+			continue;
+		if ((mid_p == p2m_missing) || (mid_p == p2m_identity))
+			continue;
+
+		if ((unsigned long)mid_p == INVALID_P2M_ENTRY)
+			continue;
+
+		/* The old va. Rebase it on mfn_list */
+		if (mid_p >= (unsigned long *)va_start && mid_p <= (unsigned long *)va_end) {
+			unsigned long *new;
+
+			if (pfn_free  > (size / sizeof(unsigned long))) {
+				WARN(1, "Only allocated for %ld pages, but we want %ld!\n",
+				     size / sizeof(unsigned long), pfn_free);
+				return 0;
+			}
+			new = &mfn_list[pfn_free];
+
+			copy_page(new, mid_p);
+			p2m_top[topidx][mididx] = &mfn_list[pfn_free];
+			p2m_top_mfn_p[topidx][mididx] = virt_to_mfn(&mfn_list[pfn_free]);
+
+			pfn_free += P2M_PER_PAGE;
+
+		}
+		/* This should be the leafs allocated for identity from _brk. */
+	}
+	return (unsigned long)mfn_list;
+
+}
+#else
+unsigned long __init xen_revector_p2m_tree(void)
+{
+	return 0;
+}
+#endif
 unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, mididx, idx;
@@ -428,7 +508,7 @@ static void free_p2m_page(void *p)
 	free_page((unsigned long)p);
 }
 
-/* 
+/*
  * Fully allocate the p2m structure for a given pfn.  We need to check
  * that both the top and mid levels are allocated, and make sure the
  * parallel mfn tree is kept in sync.  We may race with other cpus, so
@@ -575,11 +655,98 @@ static bool __init early_alloc_p2m(unsigned long pfn)
 	}
 	return true;
 }
+
+/*
+ * Skim over the P2M tree looking at pages that are either filled with
+ * INVALID_P2M_ENTRY or with 1:1 PFNs. If found, re-use that page and
+ * replace the P2M leaf with a p2m_missing or p2m_identity.
+ * Stick the old page in the new P2M tree location.
+ */
+bool __init early_can_reuse_p2m_middle(unsigned long set_pfn, unsigned long set_mfn)
+{
+	unsigned topidx;
+	unsigned mididx;
+	unsigned ident_pfns;
+	unsigned inv_pfns;
+	unsigned long *p2m;
+	unsigned long *mid_mfn_p;
+	unsigned idx;
+	unsigned long pfn;
+
+	/* We only look when this entails a P2M middle layer */
+	if (p2m_index(set_pfn))
+		return false;
+
+	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_PER_PAGE) {
+		topidx = p2m_top_index(pfn);
+
+		if (!p2m_top[topidx])
+			continue;
+
+		if (p2m_top[topidx] == p2m_mid_missing)
+			continue;
+
+		mididx = p2m_mid_index(pfn);
+		p2m = p2m_top[topidx][mididx];
+		if (!p2m)
+			continue;
+
+		if ((p2m == p2m_missing) || (p2m == p2m_identity))
+			continue;
+
+		if ((unsigned long)p2m == INVALID_P2M_ENTRY)
+			continue;
+
+		ident_pfns = 0;
+		inv_pfns = 0;
+		for (idx = 0; idx < P2M_PER_PAGE; idx++) {
+			/* IDENTITY_PFNs are 1:1 */
+			if (p2m[idx] == IDENTITY_FRAME(pfn + idx))
+				ident_pfns++;
+			else if (p2m[idx] == INVALID_P2M_ENTRY)
+				inv_pfns++;
+			else
+				break;
+		}
+		if ((ident_pfns == P2M_PER_PAGE) || (inv_pfns == P2M_PER_PAGE))
+			goto found;
+	}
+	return false;
+found:
+	/* Found one, replace old with p2m_identity or p2m_missing */
+	p2m_top[topidx][mididx] = (ident_pfns ? p2m_identity : p2m_missing);
+	/* And the other for save/restore.. */
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	/* NOTE: Even if it is a p2m_identity it should still be point to
+	 * a page filled with INVALID_P2M_ENTRY entries. */
+	mid_mfn_p[mididx] = virt_to_mfn(p2m_missing);
+
+	/* Reset where we want to stick the old page in. */
+	topidx = p2m_top_index(set_pfn);
+	mididx = p2m_mid_index(set_pfn);
+
+	/* This shouldn't happen */
+	if (WARN_ON(p2m_top[topidx] == p2m_mid_missing))
+		early_alloc_p2m(set_pfn);
+
+	if (WARN_ON(p2m_top[topidx][mididx] != p2m_missing))
+		return false;
+
+	p2m_init(p2m);
+	p2m_top[topidx][mididx] = p2m;
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	mid_mfn_p[mididx] = virt_to_mfn(p2m);
+
+	return true;
+}
 bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
 		if (!early_alloc_p2m(pfn))
 			return false;
+
+		if (early_can_reuse_p2m_middle(pfn, mfn))
+			return __set_phys_to_machine(pfn, mfn);
 
 		if (!early_alloc_p2m_middle(pfn, false /* boundary crossover OK!*/))
 			return false;
@@ -739,9 +906,6 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 		}
-		/* let's use dev_bus_addr to record the old mfn instead */
-		kmap_op->dev_bus_addr = page->index;
-		page->index = (unsigned long) kmap_op;
 	}
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
@@ -768,7 +932,8 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(m2p_add_override);
-int m2p_remove_override(struct page *page, bool clear_pte)
+int m2p_remove_override(struct page *page,
+		struct gnttab_map_grant_ref *kmap_op)
 {
 	unsigned long flags;
 	unsigned long mfn;
@@ -798,10 +963,8 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 	WARN_ON(!PagePrivate(page));
 	ClearPagePrivate(page);
 
-	if (clear_pte) {
-		struct gnttab_map_grant_ref *map_op =
-			(struct gnttab_map_grant_ref *) page->index;
-		set_phys_to_machine(pfn, map_op->dev_bus_addr);
+	set_phys_to_machine(pfn, page->index);
+	if (kmap_op != NULL) {
 		if (!PageHighMem(page)) {
 			struct multicall_space mcs;
 			struct gnttab_unmap_grant_ref *unmap_op;
@@ -813,13 +976,13 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 			 * issued. In this case handle is going to -1 because
 			 * it hasn't been modified yet.
 			 */
-			if (map_op->handle == -1)
+			if (kmap_op->handle == -1)
 				xen_mc_flush();
 			/*
-			 * Now if map_op->handle is negative it means that the
+			 * Now if kmap_op->handle is negative it means that the
 			 * hypercall actually returned an error.
 			 */
-			if (map_op->handle == GNTST_general_error) {
+			if (kmap_op->handle == GNTST_general_error) {
 				printk(KERN_WARNING "m2p_remove_override: "
 						"pfn %lx mfn %lx, failed to modify kernel mappings",
 						pfn, mfn);
@@ -829,8 +992,8 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 			mcs = xen_mc_entry(
 					sizeof(struct gnttab_unmap_grant_ref));
 			unmap_op = mcs.args;
-			unmap_op->host_addr = map_op->host_addr;
-			unmap_op->handle = map_op->handle;
+			unmap_op->host_addr = kmap_op->host_addr;
+			unmap_op->handle = kmap_op->handle;
 			unmap_op->dev_bus_addr = 0;
 
 			MULTI_grant_table_op(mcs.mc,
@@ -841,10 +1004,9 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 			set_pte_at(&init_mm, address, ptep,
 					pfn_pte(pfn, PAGE_KERNEL));
 			__flush_tlb_single(address);
-			map_op->host_addr = 0;
+			kmap_op->host_addr = 0;
 		}
-	} else
-		set_phys_to_machine(pfn, page->index);
+	}
 
 	/* p2m(m2p(mfn)) == FOREIGN_FRAME(mfn): the mfn is already present
 	 * somewhere in this domain, even before being added to the

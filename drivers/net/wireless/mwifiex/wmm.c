@@ -462,7 +462,7 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
 		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
-				return false;
+			return false;
 	}
 
 	return true;
@@ -648,7 +648,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	u8 ra[ETH_ALEN], tid_down;
 	unsigned long flags;
 
-	if (!priv->media_connected) {
+	if (!priv->media_connected && !mwifiex_is_skb_mgmt_frame(skb)) {
 		dev_dbg(adapter->dev, "data: drop packet in disconnect\n");
 		mwifiex_write_data_complete(adapter, skb, -1);
 		return;
@@ -663,7 +663,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	/* In case of infra as we have already created the list during
 	   association we just don't have to call get_queue_raptr, we will
 	   have only 1 raptr for a tid in case of infra */
-	if (!mwifiex_queuing_ra_based(priv)) {
+	if (!mwifiex_queuing_ra_based(priv) &&
+	    !mwifiex_is_skb_mgmt_frame(skb)) {
 		if (!list_empty(&priv->wmm.tid_tbl_ptr[tid_down].ra_list))
 			ra_list = list_first_entry(
 				&priv->wmm.tid_tbl_ptr[tid_down].ra_list,
@@ -672,7 +673,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 			ra_list = NULL;
 	} else {
 		memcpy(ra, skb->data, ETH_ALEN);
-		if (ra[0] & 0x01)
+		if (ra[0] & 0x01 || mwifiex_is_skb_mgmt_frame(skb))
 			memset(ra, 0xff, ETH_ALEN);
 		ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down, ra);
 	}
@@ -907,16 +908,15 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 		if (adapter->bss_prio_tbl[j].bss_prio_cur ==
 		    (struct mwifiex_bss_prio_node *)
 		    &adapter->bss_prio_tbl[j].bss_prio_head) {
-			bssprio_node =
+			adapter->bss_prio_tbl[j].bss_prio_cur =
 				list_first_entry(&adapter->bss_prio_tbl[j]
 						 .bss_prio_head,
 						 struct mwifiex_bss_prio_node,
 						 list);
-			bssprio_head = bssprio_node;
-		} else {
-			bssprio_node = adapter->bss_prio_tbl[j].bss_prio_cur;
-			bssprio_head = bssprio_node;
 		}
+
+		bssprio_node = adapter->bss_prio_tbl[j].bss_prio_cur;
+		bssprio_head = bssprio_node;
 
 		do {
 			priv_tmp = bssprio_node->priv;

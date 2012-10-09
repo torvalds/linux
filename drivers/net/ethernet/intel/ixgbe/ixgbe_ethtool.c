@@ -2690,10 +2690,7 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 			(1 << HWTSTAMP_FILTER_NONE) |
 			(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 			(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-			(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
-			(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
-			(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
-			(1 << HWTSTAMP_FILTER_SOME);
+			(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 		break;
 #endif /* CONFIG_IXGBE_PTP */
 	default:

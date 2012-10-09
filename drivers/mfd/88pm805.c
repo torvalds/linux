@@ -216,7 +216,8 @@ static int __devinit device_805_init(struct pm80x_chip *chip)
 	}
 
 	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
-			      ARRAY_SIZE(codec_devs), &codec_resources[0], 0);
+			      ARRAY_SIZE(codec_devs), &codec_resources[0], 0,
+			      NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add codec subdev\n");
 		goto out_codec;

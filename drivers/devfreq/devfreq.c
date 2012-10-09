@@ -607,7 +607,7 @@ static int __init devfreq_start_polling(void)
 	mutex_lock(&devfreq_list_lock);
 	polling = false;
 	devfreq_wq = create_freezable_workqueue("devfreq_wq");
-	INIT_DELAYED_WORK_DEFERRABLE(&devfreq_work, devfreq_monitor);
+	INIT_DEFERRABLE_WORK(&devfreq_work, devfreq_monitor);
 	mutex_unlock(&devfreq_list_lock);
 
 	devfreq_monitor(&devfreq_work.work);

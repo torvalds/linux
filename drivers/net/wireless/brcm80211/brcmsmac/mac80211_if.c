@@ -304,7 +304,10 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	wl->mute_tx = true;
 
 	if (!wl->pub->up)
-		err = brcms_up(wl);
+		if (!blocked)
+			err = brcms_up(wl);
+		else
+			err = -ERFKILL;
 	else
 		err = -ENODEV;
 	spin_unlock_bh(&wl->lock);
@@ -1236,6 +1239,9 @@ uint brcms_reset(struct brcms_info *wl)
 
 	/* dpc will not be rescheduled */
 	wl->resched = false;
+
+	/* inform publicly that interface is down */
+	wl->pub->up = false;
 
 	return 0;
 }

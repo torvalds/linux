@@ -114,7 +114,7 @@ MODULE_PARM_DESC(quirks, "supplemental list of device IDs and their quirks");
 
 #define COMPLIANT_DEV	UNUSUAL_DEV
 
-#define USUAL_DEV(use_protocol, use_transport, use_type) \
+#define USUAL_DEV(use_protocol, use_transport) \
 { \
 	.useProtocol = use_protocol,	\
 	.useTransport = use_transport,	\
@@ -126,7 +126,7 @@ static struct us_unusual_dev us_unusual_dev_list[] = {
 };
 
 static struct us_unusual_dev for_dynamic_ids =
-		USUAL_DEV(USB_SC_SCSI, USB_PR_BULK, 0);
+		USUAL_DEV(USB_SC_SCSI, USB_PR_BULK);
 
 #undef UNUSUAL_DEV
 #undef COMPLIANT_DEV
@@ -564,7 +564,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 	us->protocol = (unusual_dev->useTransport == USB_PR_DEVICE) ?
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
-	us->fflags = USB_US_ORIG_FLAGS(id->driver_info);
+	us->fflags = id->driver_info;
 	adjust_quirks(us);
 
 	if (us->fflags & US_FL_IGNORE_DEVICE) {
@@ -1041,13 +1041,10 @@ static int storage_probe(struct usb_interface *intf,
 	int size;
 
 	/*
-	 * If libusual is configured, let it decide whether a standard
-	 * device should be handled by usb-storage or by ub.
 	 * If the device isn't standard (is handled by a subdriver
 	 * module) then don't accept it.
 	 */
-	if (usb_usual_check_type(id, USB_US_TYPE_STOR) ||
-			usb_usual_ignore_device(intf))
+	if (usb_usual_ignore_device(intf))
 		return -ENXIO;
 
 	/*
@@ -1105,10 +1102,8 @@ static int __init usb_stor_init(void)
 
 	/* register the driver, return usb_register return code if error */
 	retval = usb_register(&usb_storage_driver);
-	if (retval == 0) {
+	if (retval == 0)
 		pr_info("USB Mass Storage support registered.\n");
-		usb_usual_set_present(USB_US_TYPE_STOR);
-	}
 	return retval;
 }
 
@@ -1122,8 +1117,6 @@ static void __exit usb_stor_exit(void)
 	 */
 	US_DEBUGP("-- calling usb_deregister()\n");
 	usb_deregister(&usb_storage_driver) ;
-
-	usb_usual_clear_present(USB_US_TYPE_STOR);
 }
 
 module_init(usb_stor_init);

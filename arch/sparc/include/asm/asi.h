@@ -141,7 +141,8 @@
 /* SpitFire and later extended ASIs.  The "(III)" marker designates
  * UltraSparc-III and later specific ASIs.  The "(CMT)" marker designates
  * Chip Multi Threading specific ASIs.  "(NG)" designates Niagara specific
- * ASIs, "(4V)" designates SUN4V specific ASIs.
+ * ASIs, "(4V)" designates SUN4V specific ASIs.  "(NG4)" designates SPARC-T4
+ * and later ASIs.
  */
 #define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
@@ -243,6 +244,7 @@
 #define ASI_UDBL_CONTROL_R	0x7f /* External UDB control regs rd low*/
 #define ASI_INTR_R		0x7f /* IRQ vector dispatch read	*/
 #define ASI_INTR_DATAN_R	0x7f /* (III) In irq vector data reg N	*/
+#define ASI_PIC			0xb0 /* (NG4) PIC registers		*/
 #define ASI_PST8_P		0xc0 /* Primary, 8 8-bit, partial	*/
 #define ASI_PST8_S		0xc1 /* Secondary, 8 8-bit, partial	*/
 #define ASI_PST16_P		0xc2 /* Primary, 4 16-bit, partial	*/
@@ -268,9 +270,28 @@
 #define ASI_BLK_INIT_QUAD_LDD_P	0xe2 /* (NG) init-store, twin load,
 				      * primary, implicit
 				      */
+#define ASI_BLK_INIT_QUAD_LDD_S	0xe3 /* (NG) init-store, twin load,
+				      * secondary, implicit
+				      */
 #define ASI_BLK_P		0xf0 /* Primary, blk ld/st		*/
 #define ASI_BLK_S		0xf1 /* Secondary, blk ld/st		*/
+#define ASI_ST_BLKINIT_MRU_P	0xf2 /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, primary,
+				      * implicit
+				      */
+#define ASI_ST_BLKINIT_MRU_S	0xf2 /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, secondary,
+				      * implicit
+				      */
 #define ASI_BLK_PL		0xf8 /* Primary, blk ld/st, little	*/
 #define ASI_BLK_SL		0xf9 /* Secondary, blk ld/st, little	*/
+#define ASI_ST_BLKINIT_MRU_PL	0xfa /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, primary,
+				      * implicit, little-endian
+				      */
+#define ASI_ST_BLKINIT_MRU_SL	0xfb /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, secondary,
+				      * implicit, little-endian
+				      */
 
 #endif /* _SPARC_ASI_H */

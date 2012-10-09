@@ -106,7 +106,7 @@ static struct pxa2xx_pcm_client pxa2xx_ac97_pcm_client = {
 	.prepare		= pxa2xx_ac97_pcm_prepare,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static int pxa2xx_ac97_do_suspend(struct snd_card *card)
 {
@@ -243,7 +243,7 @@ static struct platform_driver pxa2xx_ac97_driver = {
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		.pm	= &pxa2xx_ac97_pm_ops,
 #endif
 	},

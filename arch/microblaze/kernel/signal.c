@@ -290,15 +290,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	case -ERESTARTNOINTR:
 do_restart:
 		/* offset of 4 bytes to re-execute trap (brki) instruction */
-#ifndef CONFIG_MMU
 		regs->pc -= 4;
-#else
-		/* offset of 8 bytes required = 4 for rtbd
-		   offset, plus 4 for size of
-			"brki r14,8"
-		   instruction. */
-		regs->pc -= 8;
-#endif
 		break;
 	}
 }

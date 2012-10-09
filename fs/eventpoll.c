@@ -346,7 +346,7 @@ static inline struct epitem *ep_item_from_epqueue(poll_table *p)
 /* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
 static inline int ep_op_has_event(int op)
 {
-	return op != EPOLL_CTL_DEL;
+	return op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD;
 }
 
 /* Initialize the poll safe wake up structure */
@@ -674,6 +674,34 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	atomic_long_dec(&ep->user->epoll_watches);
 
 	return 0;
+}
+
+/*
+ * Disables a "struct epitem" in the eventpoll set. Returns -EBUSY if the item
+ * had no event flags set, indicating that another thread may be currently
+ * handling that item's events (in the case that EPOLLONESHOT was being
+ * used). Otherwise a zero result indicates that the item has been disabled
+ * from receiving events. A disabled item may be re-enabled via
+ * EPOLL_CTL_MOD. Must be called with "mtx" held.
+ */
+static int ep_disable(struct eventpoll *ep, struct epitem *epi)
+{
+	int result = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ep->lock, flags);
+	if (epi->event.events & ~EP_PRIVATE_BITS) {
+		if (ep_is_linked(&epi->rdllink))
+			list_del_init(&epi->rdllink);
+		/* Ensure ep_poll_callback will not add epi back onto ready
+		   list: */
+		epi->event.events &= EP_PRIVATE_BITS;
+		}
+	else
+		result = -EBUSY;
+	spin_unlock_irqrestore(&ep->lock, flags);
+
+	return result;
 }
 
 static void ep_free(struct eventpoll *ep)
@@ -1019,8 +1047,6 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 	rb_link_node(&epi->rbn, parent, p);
 	rb_insert_color(&epi->rbn, &ep->rbr);
 }
-
-
 
 #define PATH_ARR_SIZE 5
 /*
@@ -1654,8 +1680,8 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 		error = PTR_ERR(file);
 		goto out_free_fd;
 	}
-	fd_install(fd, file);
 	ep->file = file;
+	fd_install(fd, file);
 	return fd;
 
 out_free_fd:
@@ -1787,6 +1813,12 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		} else
 			error = -ENOENT;
 		break;
+	case EPOLL_CTL_DISABLE:
+		if (epi)
+			error = ep_disable(ep, epi);
+		else
+			error = -ENOENT;
+		break;
 	}
 	mutex_unlock(&ep->mtx);
 
@@ -1810,7 +1842,7 @@ SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
 		int, maxevents, int, timeout)
 {
 	int error;
-	struct file *file;
+	struct fd f;
 	struct eventpoll *ep;
 
 	/* The maximum number of event must be greater than zero */
@@ -1818,38 +1850,33 @@ SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
 		return -EINVAL;
 
 	/* Verify that the area passed by the user is writeable */
-	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event))) {
-		error = -EFAULT;
-		goto error_return;
-	}
+	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event)))
+		return -EFAULT;
 
 	/* Get the "struct file *" for the eventpoll file */
-	error = -EBADF;
-	file = fget(epfd);
-	if (!file)
-		goto error_return;
+	f = fdget(epfd);
+	if (!f.file)
+		return -EBADF;
 
 	/*
 	 * We have to check that the file structure underneath the fd
 	 * the user passed to us _is_ an eventpoll file.
 	 */
 	error = -EINVAL;
-	if (!is_file_epoll(file))
+	if (!is_file_epoll(f.file))
 		goto error_fput;
 
 	/*
 	 * At this point it is safe to assume that the "private_data" contains
 	 * our own data structure.
 	 */
-	ep = file->private_data;
+	ep = f.file->private_data;
 
 	/* Time to fish for events ... */
 	error = ep_poll(ep, events, maxevents, timeout);
 
 error_fput:
-	fput(file);
-error_return:
-
+	fdput(f);
 	return error;
 }
 

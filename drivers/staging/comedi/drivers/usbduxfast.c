@@ -57,6 +57,7 @@
 /*
  * constants for "firmware" upload and download
  */
+#define FIRMWARE		"usbduxfast_firmware.bin"
 #define USBDUXFASTSUB_FIRMWARE	0xA0
 #define VENDOR_DIR_IN		0xC0
 #define VENDOR_DIR_OUT		0x40
@@ -345,7 +346,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		return;
 	}
 	/* subdevice which is the AD converter */
-	s = this_comedidev->subdevices + SUBDEV_AD;
+	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -548,10 +549,10 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-	int err = 0, stop_mask = 0;
+	struct usbduxfastsub_s *udfs = dev->private;
+	int err = 0;
 	long int steps, tmp;
 	int minSamplPer;
-	struct usbduxfastsub_s *udfs = dev->private;
 
 	if (!udfs->probed)
 		return -ENODEV;
@@ -562,57 +563,31 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	       "scan_begin_arg=%u\n",
 	       dev->minor, cmd->convert_arg, cmd->scan_begin_arg);
 #endif
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	stop_mask = TRIG_COUNT | TRIG_NONE;
-	cmd->stop_src &= stop_mask;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src,
+					TRIG_NOW | TRIG_EXT | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 */
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->start_src != TRIG_NOW &&
-	    cmd->start_src != TRIG_EXT && cmd->start_src != TRIG_INT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_EXT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	/* can't have external stop and start triggers at once */
 	if (cmd->start_src == TRIG_EXT && cmd->stop_src == TRIG_EXT)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -1429,10 +1404,8 @@ static void tidy_up(struct usbduxfastsub_s *udfs)
 	udfs->ai_cmd_running = 0;
 }
 
-/* common part of attach and attach_usb */
 static int usbduxfast_attach_common(struct comedi_device *dev,
-				    struct usbduxfastsub_s *udfs,
-				    void *aux_data, int aux_len)
+				    struct usbduxfastsub_s *udfs)
 {
 	int ret;
 	struct comedi_subdevice *s;
@@ -1440,9 +1413,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	down(&udfs->sem);
 	/* pointer back to the corresponding comedi device */
 	udfs->comedidev = dev;
-	/* trying to upload the firmware into the chip */
-	if (aux_data)
-		firmwareUpload(udfs, aux_data, aux_len);
 	dev->board_name = "usbduxfast";
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret) {
@@ -1452,7 +1422,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	/* private structure is also simply the usb-structure */
 	dev->private = udfs;
 	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
+	s = &dev->subdevices[SUBDEV_AD];
 	/*
 	 * the URBs get the comedi subdevice which is responsible for reading
 	 * this is the subdevice which reads data
@@ -1484,48 +1454,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called for COMEDI_DEVCONFIG ioctl (when comedi_config is run) */
-static int usbduxfast_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
-{
-	int ret;
-	int index;
-	int i;
-	void *aux_data;
-	int aux_len;
-
-	dev->private = NULL;
-
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-	if (aux_data == NULL)
-		aux_len = 0;
-	else if (aux_len == 0)
-		aux_data = NULL;
-	down(&start_stop_sem);
-	/*
-	 * find a valid device which has been detected by the
-	 * probe function of the usb
-	 */
-	index = -1;
-	for (i = 0; i < NUMUSBDUXFAST; i++) {
-		if (usbduxfastsub[i].probed && !usbduxfastsub[i].attached) {
-			index = i;
-			break;
-		}
-	}
-	if (index < 0) {
-		dev_err(dev->class_dev,
-			"usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n");
-		ret = -ENODEV;
-	} else
-		ret = usbduxfast_attach_common(dev, &usbduxfastsub[index],
-					       aux_data, aux_len);
-	up(&start_stop_sem);
-	return ret;
-}
-
-/* is called from comedi_usb_auto_config() */
 static int usbduxfast_attach_usb(struct comedi_device *dev,
 				 struct usb_interface *uinterf)
 {
@@ -1544,7 +1472,7 @@ static int usbduxfast_attach_usb(struct comedi_device *dev,
 		       "usbduxfast: error: attach_usb failed, already attached\n");
 		ret = -ENODEV;
 	} else
-		ret = usbduxfast_attach_common(dev, udfs, NULL, 0);
+		ret = usbduxfast_attach_common(dev, udfs);
 	up(&start_stop_sem);
 	return ret;
 }
@@ -1567,9 +1495,8 @@ static void usbduxfast_detach(struct comedi_device *dev)
 static struct comedi_driver usbduxfast_driver = {
 	.driver_name	= "usbduxfast",
 	.module		= THIS_MODULE,
-	.attach		= usbduxfast_attach,
-	.detach		= usbduxfast_detach,
 	.attach_usb	= usbduxfast_attach_usb,
+	.detach		= usbduxfast_detach,
 };
 
 static void usbduxfast_firmware_request_complete_handler(const struct firmware
@@ -1706,7 +1633,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxfast_firmware.bin",
+				      FIRMWARE,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxfastsub + index,
@@ -1774,3 +1701,4 @@ module_comedi_usb_driver(usbduxfast_driver, usbduxfast_usb_driver);
 MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
 MODULE_DESCRIPTION("USB-DUXfast, BerndPorr@f2s.com");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE);

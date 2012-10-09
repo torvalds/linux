@@ -68,6 +68,8 @@ struct ieee80211_local;
 #define IEEE80211_DEFAULT_MAX_SP_LEN		\
 	IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
+#define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
+
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
@@ -411,6 +413,7 @@ struct ieee80211_if_managed {
 	struct work_struct monitor_work;
 	struct work_struct chswitch_work;
 	struct work_struct beacon_connection_loss_work;
+	struct work_struct csa_connection_drop_work;
 
 	unsigned long beacon_timeout;
 	unsigned long probe_timeout;
@@ -970,7 +973,6 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
-	struct ieee80211_sched_scan_ies sched_scan_ies;
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
 
@@ -1057,7 +1059,7 @@ struct ieee80211_local {
 	bool disable_dynamic_ps;
 
 	int user_power_level; /* in dBm */
-	int power_constr_level; /* in dBm */
+	int ap_power_level; /* in dBm */
 
 	enum ieee80211_smps_mode smps_mode;
 
@@ -1165,7 +1167,6 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
-	u8 pwr_constr_elem_len;
 	u8 quiet_elem_len;
 	u8 num_of_quiet_elem;	/* can be more the one */
 	u8 timeout_int_len;
@@ -1367,7 +1368,6 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 int ieee80211_reconfig(struct ieee80211_local *local);
 void ieee80211_stop_device(struct ieee80211_local *local);
 
-#ifdef CONFIG_PM
 int __ieee80211_suspend(struct ieee80211_hw *hw,
 			struct cfg80211_wowlan *wowlan);
 
@@ -1381,18 +1381,6 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 	return ieee80211_reconfig(hw_to_local(hw));
 }
-#else
-static inline int __ieee80211_suspend(struct ieee80211_hw *hw,
-				      struct cfg80211_wowlan *wowlan)
-{
-	return 0;
-}
-
-static inline int __ieee80211_resume(struct ieee80211_hw *hw)
-{
-	return 0;
-}
-#endif
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
@@ -1459,6 +1447,9 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg,
 			 u8 *extra, size_t extra_len, const u8 *bssid,
 			 const u8 *da, const u8 *key, u8 key_len, u8 key_idx);
+void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
+				    const u8 *bssid, u16 stype, u16 reason,
+				    bool send_frame, u8 *frame_buf);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,

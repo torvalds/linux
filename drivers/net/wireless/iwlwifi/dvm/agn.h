@@ -487,15 +487,12 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
-void iwl_dbgfs_unregister(struct iwl_priv *priv);
+int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir);
 #else
-static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
+static inline int iwl_dbgfs_register(struct iwl_priv *priv,
+				     struct dentry *dbgfs_dir)
 {
 	return 0;
-}
-static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
-{
 }
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 

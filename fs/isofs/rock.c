@@ -364,8 +364,8 @@ repeat:
 		case SIG('P', 'X'):
 			inode->i_mode = isonum_733(rr->u.PX.mode);
 			set_nlink(inode, isonum_733(rr->u.PX.n_links));
-			inode->i_uid = isonum_733(rr->u.PX.uid);
-			inode->i_gid = isonum_733(rr->u.PX.gid);
+			i_uid_write(inode, isonum_733(rr->u.PX.uid));
+			i_gid_write(inode, isonum_733(rr->u.PX.gid));
 			break;
 		case SIG('P', 'N'):
 			{

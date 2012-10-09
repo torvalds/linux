@@ -406,7 +406,7 @@ struct l2cap_chan *l2cap_chan_create(void)
 
 	chan->state = BT_OPEN;
 
-	atomic_set(&chan->refcnt, 1);
+	kref_init(&chan->kref);
 
 	/* This flag is cleared in l2cap_chan_ready() */
 	set_bit(CONF_NOT_COMPLETE, &chan->conf_state);
@@ -416,8 +416,10 @@ struct l2cap_chan *l2cap_chan_create(void)
 	return chan;
 }
 
-static void l2cap_chan_destroy(struct l2cap_chan *chan)
+static void l2cap_chan_destroy(struct kref *kref)
 {
+	struct l2cap_chan *chan = container_of(kref, struct l2cap_chan, kref);
+
 	BT_DBG("chan %p", chan);
 
 	write_lock(&chan_list_lock);
@@ -429,17 +431,16 @@ static void l2cap_chan_destroy(struct l2cap_chan *chan)
 
 void l2cap_chan_hold(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
 
-	atomic_inc(&c->refcnt);
+	kref_get(&c->kref);
 }
 
 void l2cap_chan_put(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
 
-	if (atomic_dec_and_test(&c->refcnt))
-		l2cap_chan_destroy(c);
+	kref_put(&c->kref, l2cap_chan_destroy);
 }
 
 void l2cap_chan_set_defaults(struct l2cap_chan *chan)
@@ -1025,7 +1026,7 @@ static void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *c
 	if (!conn)
 		return;
 
-	if (chan->mode == L2CAP_MODE_ERTM) {
+	if (chan->mode == L2CAP_MODE_ERTM && chan->state == BT_CONNECTED) {
 		__clear_retrans_timer(chan);
 		__clear_monitor_timer(chan);
 		__clear_ack_timer(chan);
@@ -1198,6 +1199,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	sk = chan->sk;
 
 	hci_conn_hold(conn->hcon);
+	conn->hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
 
 	bacpy(&bt_sk(sk)->src, conn->src);
 	bacpy(&bt_sk(sk)->dst, conn->dst);
@@ -1215,14 +1217,15 @@ clean:
 static void l2cap_conn_ready(struct l2cap_conn *conn)
 {
 	struct l2cap_chan *chan;
+	struct hci_conn *hcon = conn->hcon;
 
 	BT_DBG("conn %p", conn);
 
-	if (!conn->hcon->out && conn->hcon->type == LE_LINK)
+	if (!hcon->out && hcon->type == LE_LINK)
 		l2cap_le_conn_ready(conn);
 
-	if (conn->hcon->out && conn->hcon->type == LE_LINK)
-		smp_conn_security(conn, conn->hcon->pending_sec_level);
+	if (hcon->out && hcon->type == LE_LINK)
+		smp_conn_security(hcon, hcon->pending_sec_level);
 
 	mutex_lock(&conn->chan_lock);
 
@@ -1235,8 +1238,8 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 			continue;
 		}
 
-		if (conn->hcon->type == LE_LINK) {
-			if (smp_conn_security(conn, chan->sec_level))
+		if (hcon->type == LE_LINK) {
+			if (smp_conn_security(hcon, chan->sec_level))
 				l2cap_chan_ready(chan);
 
 		} else if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
@@ -1446,7 +1449,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	int err;
 
 	BT_DBG("%s -> %s (type %u) psm 0x%2.2x", batostr(src), batostr(dst),
-	       dst_type, __le16_to_cpu(chan->psm));
+	       dst_type, __le16_to_cpu(psm));
 
 	hdev = hci_get_route(dst, src);
 	if (!hdev)

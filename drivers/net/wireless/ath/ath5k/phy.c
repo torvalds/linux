@@ -1975,11 +1975,13 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 			spur_delta_phase = (spur_offset << 18) / 25;
 			spur_freq_sigma_delta = (spur_delta_phase >> 10);
 			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 2;
+			break;
 		case AR5K_BWMODE_5MHZ:
 			/* Both sample_freq and chip_freq are 10MHz (?) */
 			spur_delta_phase = (spur_offset << 19) / 25;
 			spur_freq_sigma_delta = (spur_delta_phase >> 10);
 			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 4;
+			break;
 		default:
 			if (channel->band == IEEE80211_BAND_5GHZ) {
 				/* Both sample_freq and chip_freq are 40MHz */

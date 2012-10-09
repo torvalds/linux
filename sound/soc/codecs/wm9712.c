@@ -132,8 +132,9 @@ SOC_SINGLE("Aux Playback Phone Volume", AC97_CD, 4, 7, 1),
 SOC_SINGLE("Phone Volume", AC97_PHONE, 0, 15, 1),
 SOC_DOUBLE("Line Capture Volume", AC97_LINE, 8, 0, 31, 1),
 
-SOC_SINGLE("Capture 20dB Boost Switch", AC97_REC_SEL, 14, 1, 0),
-SOC_SINGLE("Capture to Phone 20dB Boost Switch", AC97_REC_SEL, 11, 1, 1),
+SOC_SINGLE_TLV("Capture Boost Switch", AC97_REC_SEL, 14, 1, 0, boost_tlv),
+SOC_SINGLE_TLV("Capture to Phone Boost Switch", AC97_REC_SEL, 11, 1, 1,
+	       boost_tlv),
 
 SOC_SINGLE("3D Upper Cut-off Switch", AC97_3D_CONTROL, 5, 1, 1),
 SOC_SINGLE("3D Lower Cut-off Switch", AC97_3D_CONTROL, 4, 1, 1),
@@ -146,9 +147,9 @@ SOC_SINGLE("Playback Attenuate (-6dB) Switch", AC97_MASTER_TONE, 6, 1, 0),
 SOC_SINGLE("Bass Volume", AC97_MASTER_TONE, 8, 15, 1),
 SOC_SINGLE("Treble Volume", AC97_MASTER_TONE, 0, 15, 1),
 
-SOC_SINGLE("Capture ADC Switch", AC97_REC_GAIN, 15, 1, 1),
+SOC_SINGLE("Capture Switch", AC97_REC_GAIN, 15, 1, 1),
 SOC_ENUM("Capture Volume Steps", wm9712_enum[6]),
-SOC_DOUBLE("Capture Volume", AC97_REC_GAIN, 8, 0, 63, 1),
+SOC_DOUBLE("Capture Volume", AC97_REC_GAIN, 8, 0, 63, 0),
 SOC_SINGLE("Capture ZC Switch", AC97_REC_GAIN, 7, 1, 0),
 
 SOC_SINGLE_TLV("Mic 1 Volume", AC97_MIC, 8, 31, 1, main_tlv),
@@ -272,7 +273,7 @@ SOC_DAPM_ENUM("Route", wm9712_enum[9]);
 
 /* Mic select */
 static const struct snd_kcontrol_new wm9712_mic_src_controls =
-SOC_DAPM_ENUM("Route", wm9712_enum[7]);
+SOC_DAPM_ENUM("Mic Source Select", wm9712_enum[7]);
 
 /* diff select */
 static const struct snd_kcontrol_new wm9712_diff_sel_controls =
@@ -291,7 +292,9 @@ SND_SOC_DAPM_MUX("Left Capture Select", SND_SOC_NOPM, 0, 0,
 	&wm9712_capture_selectl_controls),
 SND_SOC_DAPM_MUX("Right Capture Select", SND_SOC_NOPM, 0, 0,
 	&wm9712_capture_selectr_controls),
-SND_SOC_DAPM_MUX("Mic Select Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Mic Select Source", SND_SOC_NOPM, 0, 0,
+	&wm9712_mic_src_controls),
+SND_SOC_DAPM_MUX("Right Mic Select Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_mic_src_controls),
 SND_SOC_DAPM_MUX("Differential Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_diff_sel_controls),
@@ -319,6 +322,7 @@ SND_SOC_DAPM_PGA("Out 3 PGA", AC97_INT_PAGING, 5, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Line PGA", AC97_INT_PAGING, 2, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Phone PGA", AC97_INT_PAGING, 1, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Mic PGA", AC97_INT_PAGING, 0, 1, NULL, 0),
+SND_SOC_DAPM_PGA("Differential Mic", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MICBIAS("Mic Bias", AC97_INT_PAGING, 10, 1),
 SND_SOC_DAPM_OUTPUT("MONOOUT"),
 SND_SOC_DAPM_OUTPUT("HPOUTL"),
@@ -378,6 +382,18 @@ static const struct snd_soc_dapm_route wm9712_audio_map[] = {
 	{"Phone PGA", NULL, "PHONE"},
 	{"Mic PGA", NULL, "MIC1"},
 	{"Mic PGA", NULL, "MIC2"},
+
+	/* microphones */
+	{"Differential Mic", NULL, "MIC1"},
+	{"Differential Mic", NULL, "MIC2"},
+	{"Left Mic Select Source", "Mic 1", "MIC1"},
+	{"Left Mic Select Source", "Mic 2", "MIC2"},
+	{"Left Mic Select Source", "Stereo", "MIC1"},
+	{"Left Mic Select Source", "Differential", "Differential Mic"},
+	{"Right Mic Select Source", "Mic 1", "MIC1"},
+	{"Right Mic Select Source", "Mic 2", "MIC2"},
+	{"Right Mic Select Source", "Stereo", "MIC2"},
+	{"Right Mic Select Source", "Differential", "Differential Mic"},
 
 	/* left capture selector */
 	{"Left Capture Select", "Mic", "MIC1"},
@@ -619,7 +635,6 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
-	codec->control_data = codec;	/* we don't use regmap! */
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "wm9712: failed to register AC97 codec\n");
@@ -684,8 +699,8 @@ static int __devexit wm9712_remove(struct platform_device *pdev)
 
 static struct platform_driver wm9712_codec_driver = {
 	.driver = {
-			.name = "wm9712-codec",
-			.owner = THIS_MODULE,
+		.name = "wm9712-codec",
+		.owner = THIS_MODULE,
 	},
 
 	.probe = wm9712_probe,

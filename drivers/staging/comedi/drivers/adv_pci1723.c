@@ -52,11 +52,6 @@ TODO:
 
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
 
-/* hardware types of the cards */
-#define TYPE_PCI1723 0
-
-#define IORANGE_1723  0x2A
-
 /* all the registers for the pci1723 board */
 #define PCI1723_DA(N)   ((N)<<1)	/* W: D/A register N (0 to 7) */
 
@@ -112,63 +107,18 @@ TODO:
 
 #define PCI1723_SELECT_CALIBRATION 0x28	/* Select the calibration Ref_V */
 
-/* static unsigned short pci_list_builded=0;      =1 list of card is know */
-
-static const struct comedi_lrange range_pci1723 = { 1, {
-							BIP_RANGE(10)
-							}
-};
-
-/*
- * Board descriptions for pci1723 boards.
- */
-struct pci1723_board {
-	const char *name;
-	int vendor_id;		/* PCI vendor a device ID of card */
-	int device_id;
-	int iorange;
-	char cardtype;
-	int n_aochan;		/* num of D/A chans */
-	int n_diochan;		/* num of DIO chans */
-	int ao_maxdata;		/* resolution of D/A */
-	const struct comedi_lrange *rangelist_ao;	/* rangelist for D/A */
-};
-
-static const struct pci1723_board boardtypes[] = {
-	{
-	 .name = "pci1723",
-	 .vendor_id = PCI_VENDOR_ID_ADVANTECH,
-	 .device_id = 0x1723,
-	 .iorange = IORANGE_1723,
-	 .cardtype = TYPE_PCI1723,
-	 .n_aochan = 8,
-	 .n_diochan = 16,
-	 .ao_maxdata = 0xffff,
-	 .rangelist_ao = &range_pci1723,
-	 },
-};
-
-/* This structure is for data unique to this hardware driver. */
 struct pci1723_private {
-	int valid;		/* card is usable; */
-
 	unsigned char da_range[8];	/* D/A output range for each channel */
-
 	short ao_data[8];	/* data output buffer */
 };
-
-/* The following macro to make it easy to access the private structure. */
-#define devpriv ((struct pci1723_private *)dev->private)
-
-#define this_board boardtypes
 
 /*
  * The pci1723 card reset;
  */
 static int pci1723_reset(struct comedi_device *dev)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int i;
-	DPRINTK("adv_pci1723 EDBG: BGN: pci1723_reset(...)\n");
 
 	outw(0x01, dev->iobase + PCI1723_SYN_SET);
 					       /* set synchronous output mode */
@@ -190,7 +140,6 @@ static int pci1723_reset(struct comedi_device *dev)
 	/* set asynchronous output mode */
 	outw(0, dev->iobase + PCI1723_SYN_SET);
 
-	DPRINTK("adv_pci1723 EDBG: END: pci1723_reset(...)\n");
 	return 0;
 }
 
@@ -198,10 +147,10 @@ static int pci1723_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	DPRINTK(" adv_PCI1723 DEBUG: pci1723_insn_read_ao() -----\n");
 	for (n = 0; n < insn->n; n++)
 		data[n] = devpriv->ao_data[chan];
 
@@ -215,10 +164,9 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
-
-	DPRINTK("PCI1723: the pci1723_ao_write_winsn() ------\n");
 
 	for (n = 0; n < insn->n; n++) {
 
@@ -286,125 +234,72 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
-					    struct comedi_devconfig *it)
+static int pci1723_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
-			continue;
-		if (pci_is_enabled(pcidev))
-			continue;
-		return pcidev;
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
-	return NULL;
-}
-
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	struct pci_dev *pcidev;
+	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices;
+	int ret;
 
-	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
-						dev->minor, this_board->name);
-
-	ret = alloc_private(dev, sizeof(struct pci1723_private));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
-
-	pcidev = pci1723_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
-	ret = comedi_pci_enable(pcidev, "adv_pci1723");
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret < 0)
+		return ret;
+	devpriv = dev->private;
+
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-
 	dev->iobase = pci_resource_start(pcidev, 2);
 
-	dev->board_name = this_board->name;
-
-	n_subdevices = 0;
-
-	if (this_board->n_aochan)
-		n_subdevices++;
-	if (this_board->n_diochan)
-		n_subdevices++;
-
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
-	pci1723_reset(dev);
-	subdev = 0;
-	if (this_board->n_aochan) {
-		s = dev->subdevices + subdev;
-		dev->write_subdev = s;
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_aochan;
-		s->maxdata = this_board->ao_maxdata;
-		s->len_chanlist = this_board->n_aochan;
-		s->range_table = this_board->rangelist_ao;
+	s = &dev->subdevices[0];
+	dev->write_subdev = s;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan	= 8;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 8;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= pci1723_ao_write_winsn;
+	s->insn_read	= pci1723_insn_read_ao;
 
-		s->insn_write = pci1723_ao_write_winsn;
-		s->insn_read = pci1723_insn_read_ao;
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->len_chanlist	= 16;
+	s->range_table	= &range_digital;
+	s->insn_config	= pci1723_dio_insn_config;
+	s->insn_bits	= pci1723_dio_insn_bits;
 
-		/* read DIO config */
-		switch (inw(dev->iobase + PCI1723_DIGITAL_IO_PORT_MODE)
-								       & 0x03) {
-		case 0x00:	/* low byte output, high byte output */
-			s->io_bits = 0xFFFF;
-			break;
-		case 0x01:	/* low byte input, high byte output */
-			s->io_bits = 0xFF00;
-			break;
-		case 0x02:	/* low byte output, high byte input */
-			s->io_bits = 0x00FF;
-			break;
-		case 0x03:	/* low byte input, high byte input */
-			s->io_bits = 0x0000;
-			break;
-		}
-		/* read DIO port state */
-		s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
-
-		subdev++;
+	/* read DIO config */
+	switch (inw(dev->iobase + PCI1723_DIGITAL_IO_PORT_MODE) & 0x03) {
+	case 0x00:	/* low byte output, high byte output */
+		s->io_bits = 0xFFFF;
+		break;
+	case 0x01:	/* low byte input, high byte output */
+		s->io_bits = 0xFF00;
+		break;
+	case 0x02:	/* low byte output, high byte input */
+		s->io_bits = 0x00FF;
+		break;
+	case 0x03:	/* low byte input, high byte input */
+		s->io_bits = 0x0000;
+		break;
 	}
-
-	if (this_board->n_diochan) {
-		s = dev->subdevices + subdev;
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_diochan;
-		s->maxdata = 1;
-		s->len_chanlist = this_board->n_diochan;
-		s->range_table = &range_digital;
-		s->insn_config = pci1723_dio_insn_config;
-		s->insn_bits = pci1723_dio_insn_bits;
-		subdev++;
-	}
-
-	devpriv->valid = 1;
+	/* read DIO port state */
+	s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
 
 	pci1723_reset(dev);
+
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }
@@ -413,21 +308,18 @@ static void pci1723_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->private) {
-		if (devpriv->valid)
-			pci1723_reset(dev);
-	}
 	if (pcidev) {
-		if (dev->iobase)
+		if (dev->iobase) {
+			pci1723_reset(dev);
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
+		}
 	}
 }
 
 static struct comedi_driver adv_pci1723_driver = {
 	.driver_name	= "adv_pci1723",
 	.module		= THIS_MODULE,
-	.attach		= pci1723_attach,
+	.attach_pci	= pci1723_attach_pci,
 	.detach		= pci1723_detach,
 };
 

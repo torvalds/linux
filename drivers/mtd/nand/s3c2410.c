@@ -47,7 +47,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <plat/regs-nand.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
 /* new oob placement block for use with hardware ecc generation
  */

@@ -226,7 +226,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct page **pages;
-	int i, npages = obj->size >> PAGE_SHIFT;
+	int npages = obj->size >> PAGE_SHIFT;
+	int i, ret;
 	dma_addr_t *addrs;
 
 	WARN_ON(omap_obj->pages);
@@ -246,18 +247,32 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 */
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
 		addrs = kmalloc(npages * sizeof(addrs), GFP_KERNEL);
+		if (!addrs) {
+			ret = -ENOMEM;
+			goto free_pages;
+		}
+
 		for (i = 0; i < npages; i++) {
 			addrs[i] = dma_map_page(dev->dev, pages[i],
 					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 	} else {
 		addrs = kzalloc(npages * sizeof(addrs), GFP_KERNEL);
+		if (!addrs) {
+			ret = -ENOMEM;
+			goto free_pages;
+		}
 	}
 
 	omap_obj->addrs = addrs;
 	omap_obj->pages = pages;
 
 	return 0;
+
+free_pages:
+	_drm_gem_put_pages(obj, pages, true, false);
+
+	return ret;
 }
 
 /** release backing pages */
@@ -339,6 +354,17 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
 	return size;
 }
 
+/* get tiled size, returns -EINVAL if not tiled buffer */
+int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	if (omap_obj->flags & OMAP_BO_TILED) {
+		*w = omap_obj->width;
+		*h = omap_obj->height;
+		return 0;
+	}
+	return -EINVAL;
+}
 
 /* Normal handling for the case of faulting in non-tiled buffers */
 static int fault_1d(struct drm_gem_object *obj,
@@ -566,9 +592,8 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		 * in particular in the case of mmap'd dmabufs)
 		 */
 		fput(vma->vm_file);
-		get_file(obj->filp);
 		vma->vm_pgoff = 0;
-		vma->vm_file  = obj->filp;
+		vma->vm_file  = get_file(obj->filp);
 
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}
@@ -829,6 +854,36 @@ int omap_gem_put_paddr(struct drm_gem_object *obj)
 	}
 fail:
 	mutex_unlock(&obj->dev->struct_mutex);
+	return ret;
+}
+
+/* Get rotated scanout address (only valid if already pinned), at the
+ * specified orientation and x,y offset from top-left corner of buffer
+ * (only valid for tiled 2d buffers)
+ */
+int omap_gem_rotated_paddr(struct drm_gem_object *obj, uint32_t orient,
+		int x, int y, dma_addr_t *paddr)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int ret = -EINVAL;
+
+	mutex_lock(&obj->dev->struct_mutex);
+	if ((omap_obj->paddr_cnt > 0) && omap_obj->block &&
+			(omap_obj->flags & OMAP_BO_TILED)) {
+		*paddr = tiler_tsptr(omap_obj->block, orient, x, y);
+		ret = 0;
+	}
+	mutex_unlock(&obj->dev->struct_mutex);
+	return ret;
+}
+
+/* Get tiler stride for the buffer (only valid for 2d tiled buffers) */
+int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int ret = -EINVAL;
+	if (omap_obj->flags & OMAP_BO_TILED)
+		ret = tiler_stride(gem2fmt(omap_obj->flags), orient);
 	return ret;
 }
 
@@ -1402,7 +1457,7 @@ void omap_gem_init(struct drm_device *dev)
 		 */
 		usergart[i].height = h;
 		usergart[i].height_shift = ilog2(h);
-		usergart[i].stride_pfn = tiler_stride(fmts[i]) >> PAGE_SHIFT;
+		usergart[i].stride_pfn = tiler_stride(fmts[i], 0) >> PAGE_SHIFT;
 		usergart[i].slot_shift = ilog2((PAGE_SIZE / h) >> i);
 		for (j = 0; j < NUM_USERGART_ENTRIES; j++) {
 			struct usergart_entry *entry = &usergart[i].entry[j];

@@ -696,17 +696,7 @@ static struct i2c_driver ak4671_i2c_driver = {
 	.id_table = ak4671_i2c_id,
 };
 
-static int __init ak4671_modinit(void)
-{
-	return i2c_add_driver(&ak4671_i2c_driver);
-}
-module_init(ak4671_modinit);
-
-static void __exit ak4671_exit(void)
-{
-	i2c_del_driver(&ak4671_i2c_driver);
-}
-module_exit(ak4671_exit);
+module_i2c_driver(ak4671_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC AK4671 codec driver");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

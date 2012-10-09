@@ -813,7 +813,7 @@ static int snd_amd7930_get_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	default:
 		swval = &amd->pgain;
 		break;
-	};
+	}
 
 	ucontrol->value.integer.value[0] = *swval;
 
@@ -838,7 +838,7 @@ static int snd_amd7930_put_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	default:
 		swval = &amd->pgain;
 		break;
-	};
+	}
 
 	spin_lock_irqsave(&amd->lock, flags);
 

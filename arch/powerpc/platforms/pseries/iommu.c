@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>	/* for show_stack */
 #include <linux/string.h>
@@ -41,7 +42,6 @@
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
@@ -99,7 +99,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 
 	while (npages--) {
 		/* can't move this out since we might cross MEMBLOCK boundary */
-		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+		rpn = __pa(uaddr) >> TCE_SHIFT;
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
 		uaddr += TCE_PAGE_SIZE;
@@ -148,7 +148,7 @@ static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	int ret = 0;
 	long tcenum_start = tcenum, npages_start = npages;
 
-	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+	rpn = __pa(uaddr) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
@@ -217,7 +217,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		__get_cpu_var(tce_page) = tcep;
 	}
 
-	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+	rpn = __pa(uaddr) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
@@ -237,7 +237,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 
 		rc = plpar_tce_put_indirect((u64)tbl->it_index,
 					    (u64)tcenum << 12,
-					    (u64)virt_to_abs(tcep),
+					    (u64)__pa(tcep),
 					    limit);
 
 		npages -= limit;
@@ -441,7 +441,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
 
 		rc = plpar_tce_put_indirect(liobn,
 					    dma_offset,
-					    (u64)virt_to_abs(tcep),
+					    (u64)__pa(tcep),
 					    limit);
 
 		num_tce -= limit;

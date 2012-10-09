@@ -155,7 +155,7 @@ struct bnx2x_phy {
 #define FLAGS_DUMMY_READ		(1<<9)
 #define FLAGS_MDC_MDIO_WA_B0		(1<<10)
 #define FLAGS_TX_ERROR_CHECK		(1<<12)
-#define FLAGS_EEE_10GBT			(1<<13)
+#define FLAGS_EEE			(1<<13)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -216,6 +216,7 @@ struct bnx2x_phy {
 	phy_specific_func_t phy_specific_func;
 #define DISABLE_TX	1
 #define ENABLE_TX	2
+#define PHY_INIT	3
 };
 
 /* Inputs parameters to the CLC */
@@ -304,6 +305,8 @@ struct link_params {
 	struct bnx2x *bp;
 	u16 req_fc_auto_adv; /* Should be set to TX / BOTH when
 				req_flow_ctrl is set to AUTO */
+	u16 rsrv1;
+	u32 lfa_base;
 };
 
 /* Output parameters */
@@ -356,7 +359,7 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars);
    to 0 */
 int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 		     u8 reset_ext_phy);
-
+int bnx2x_lfa_reset(struct link_params *params, struct link_vars *vars);
 /* bnx2x_link_update should be called upon link interrupt */
 int bnx2x_link_update(struct link_params *params, struct link_vars *vars);
 

@@ -28,11 +28,14 @@
 #include <linux/ieee80211.h>
 
 
-#define MWIFIEX_MAX_BSS_NUM         (2)
+#define MWIFIEX_MAX_BSS_NUM         (3)
 
 #define MWIFIEX_MIN_DATA_HEADER_LEN 36	/* sizeof(mwifiex_txpd)
 					 *   + 4 byte alignment
 					 */
+#define MWIFIEX_MGMT_FRAME_HEADER_SIZE	8	/* sizeof(pkt_type)
+						 *   + sizeof(tx_control)
+						 */
 
 #define MWIFIEX_MAX_TX_BASTREAM_SUPPORTED	2
 #define MWIFIEX_MAX_RX_BASTREAM_SUPPORTED	16
@@ -67,6 +70,7 @@
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
+	MWIFIEX_BSS_TYPE_P2P = 2,
 	MWIFIEX_BSS_TYPE_ANY = 0xff,
 };
 

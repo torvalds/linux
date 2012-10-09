@@ -77,6 +77,7 @@ struct regulator {
 	struct device *dev;
 	struct list_head list;
 	unsigned int always_on:1;
+	unsigned int bypass:1;
 	int uA_load;
 	int min_uV;
 	int max_uV;
@@ -394,6 +395,9 @@ static ssize_t regulator_status_show(struct device *dev,
 	case REGULATOR_STATUS_STANDBY:
 		label = "standby";
 		break;
+	case REGULATOR_STATUS_BYPASS:
+		label = "bypass";
+		break;
 	case REGULATOR_STATUS_UNDEFINED:
 		label = "undefined";
 		break;
@@ -585,6 +589,27 @@ static ssize_t regulator_suspend_standby_state_show(struct device *dev,
 static DEVICE_ATTR(suspend_standby_state, 0444,
 		regulator_suspend_standby_state_show, NULL);
 
+static ssize_t regulator_bypass_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+	const char *report;
+	bool bypass;
+	int ret;
+
+	ret = rdev->desc->ops->get_bypass(rdev, &bypass);
+
+	if (ret != 0)
+		report = "unknown";
+	else if (bypass)
+		report = "enabled";
+	else
+		report = "disabled";
+
+	return sprintf(buf, "%s\n", report);
+}
+static DEVICE_ATTR(bypass, 0444,
+		   regulator_bypass_show, NULL);
 
 /*
  * These are the only attributes are present for all regulators.
@@ -777,6 +802,9 @@ static void print_constraints(struct regulator_dev *rdev)
 		count += sprintf(buf + count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
 		count += sprintf(buf + count, "standby");
+
+	if (!count)
+		sprintf(buf, "no parameters");
 
 	rdev_info(rdev, "%s\n", buf);
 
@@ -974,6 +1002,7 @@ static int set_supply(struct regulator_dev *rdev,
 		err = -ENOMEM;
 		return err;
 	}
+	supply_rdev->open_count++;
 
 	return 0;
 }
@@ -1720,6 +1749,9 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 	if (regulator->always_on)
 		return 0;
 
+	if (!ms)
+		return regulator_disable(regulator);
+
 	mutex_lock(&rdev->mutex);
 	rdev->deferred_disables++;
 	mutex_unlock(&rdev->mutex);
@@ -2178,9 +2210,12 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		}
 	}
 
-	if (ret == 0 && best_val >= 0)
+	if (ret == 0 && best_val >= 0) {
+		unsigned long data = best_val;
+
 		_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE,
-				     (void *)best_val);
+				     (void *)data);
+	}
 
 	trace_regulator_set_voltage_complete(rdev_get_name(rdev), best_val);
 
@@ -2291,8 +2326,8 @@ int regulator_set_voltage_time(struct regulator *regulator,
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time);
 
 /**
- *regulator_set_voltage_time_sel - get raise/fall time
- * @regulator: regulator source
+ * regulator_set_voltage_time_sel - get raise/fall time
+ * @rdev: regulator source device
  * @old_selector: selector for starting voltage
  * @new_selector: selector for target voltage
  *
@@ -2388,6 +2423,8 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		ret = rdev->desc->ops->list_voltage(rdev, sel);
 	} else if (rdev->desc->ops->get_voltage) {
 		ret = rdev->desc->ops->get_voltage(rdev);
+	} else if (rdev->desc->ops->list_voltage) {
+		ret = rdev->desc->ops->list_voltage(rdev, 0);
 	} else {
 		return -EINVAL;
 	}
@@ -2672,6 +2709,100 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
+
+/**
+ * regulator_set_bypass_regmap - Default set_bypass() using regmap
+ *
+ * @rdev: device to operate on.
+ * @enable: state to set.
+ */
+int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
+{
+	unsigned int val;
+
+	if (enable)
+		val = rdev->desc->bypass_mask;
+	else
+		val = 0;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->bypass_reg,
+				  rdev->desc->bypass_mask, val);
+}
+EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
+
+/**
+ * regulator_get_bypass_regmap - Default get_bypass() using regmap
+ *
+ * @rdev: device to operate on.
+ * @enable: current state.
+ */
+int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->bypass_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	*enable = val & rdev->desc->bypass_mask;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
+
+/**
+ * regulator_allow_bypass - allow the regulator to go into bypass mode
+ *
+ * @regulator: Regulator to configure
+ * @allow: enable or disable bypass mode
+ *
+ * Allow the regulator to go into bypass mode if all other consumers
+ * for the regulator also enable bypass mode and the machine
+ * constraints allow this.  Bypass mode means that the regulator is
+ * simply passing the input directly to the output with no regulation.
+ */
+int regulator_allow_bypass(struct regulator *regulator, bool enable)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret = 0;
+
+	if (!rdev->desc->ops->set_bypass)
+		return 0;
+
+	if (rdev->constraints &&
+	    !(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_BYPASS))
+		return 0;
+
+	mutex_lock(&rdev->mutex);
+
+	if (enable && !regulator->bypass) {
+		rdev->bypass_count++;
+
+		if (rdev->bypass_count == rdev->open_count) {
+			ret = rdev->desc->ops->set_bypass(rdev, enable);
+			if (ret != 0)
+				rdev->bypass_count--;
+		}
+
+	} else if (!enable && regulator->bypass) {
+		rdev->bypass_count--;
+
+		if (rdev->bypass_count != rdev->open_count) {
+			ret = rdev->desc->ops->set_bypass(rdev, enable);
+			if (ret != 0)
+				rdev->bypass_count++;
+		}
+	}
+
+	if (ret == 0)
+		regulator->bypass = enable;
+
+	mutex_unlock(&rdev->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_allow_bypass);
 
 /**
  * regulator_register_notifier - register regulator event notifier
@@ -3011,7 +3142,8 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 
 	/* some attributes need specific methods to be displayed */
 	if ((ops->get_voltage && ops->get_voltage(rdev) >= 0) ||
-	    (ops->get_voltage_sel && ops->get_voltage_sel(rdev) >= 0)) {
+	    (ops->get_voltage_sel && ops->get_voltage_sel(rdev) >= 0) ||
+	    (ops->list_voltage && ops->list_voltage(rdev, 0) >= 0)) {
 		status = device_create_file(dev, &dev_attr_microvolts);
 		if (status < 0)
 			return status;
@@ -3033,6 +3165,11 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 	}
 	if (ops->get_status) {
 		status = device_create_file(dev, &dev_attr_status);
+		if (status < 0)
+			return status;
+	}
+	if (ops->get_bypass) {
+		status = device_create_file(dev, &dev_attr_bypass);
 		if (status < 0)
 			return status;
 	}
@@ -3124,6 +3261,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 			   &rdev->use_count);
 	debugfs_create_u32("open_count", 0444, rdev->debugfs,
 			   &rdev->open_count);
+	debugfs_create_u32("bypass_count", 0444, rdev->debugfs,
+			   &rdev->bypass_count);
 }
 
 /**
@@ -3189,8 +3328,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	rdev->desc = regulator_desc;
 	if (config->regmap)
 		rdev->regmap = config->regmap;
-	else
+	else if (dev_get_regmap(dev, NULL))
 		rdev->regmap = dev_get_regmap(dev, NULL);
+	else if (dev->parent)
+		rdev->regmap = dev_get_regmap(dev->parent, NULL);
 	INIT_LIST_HEAD(&rdev->consumer_list);
 	INIT_LIST_HEAD(&rdev->list);
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
@@ -3217,7 +3358,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	dev_set_drvdata(&rdev->dev, rdev);
 
-	if (config->ena_gpio) {
+	if (config->ena_gpio && gpio_is_valid(config->ena_gpio)) {
 		ret = gpio_request_one(config->ena_gpio,
 				       GPIOF_DIR_OUT | config->ena_gpio_flags,
 				       rdev_get_name(rdev));
@@ -3335,7 +3476,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 		regulator_put(rdev->supply);
 	mutex_lock(&regulator_list_mutex);
 	debugfs_remove_recursive(rdev->debugfs);
-	flush_work_sync(&rdev->disable_work.work);
+	flush_work(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);

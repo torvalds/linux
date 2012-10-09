@@ -54,7 +54,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		"VmPTE:\t%8lu kB\n"
 		"VmSwap:\t%8lu kB\n",
 		hiwater_vm << (PAGE_SHIFT-10),
-		(total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
+		total_vm << (PAGE_SHIFT-10),
 		mm->locked_vm << (PAGE_SHIFT-10),
 		mm->pinned_vm << (PAGE_SHIFT-10),
 		hiwater_rss << (PAGE_SHIFT-10),

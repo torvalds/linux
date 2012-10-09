@@ -20,12 +20,11 @@
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
-#include <plat/board.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/mmc.h>
-#include <plat/omap7xx.h>
 
+#include <mach/omap7xx.h>
 #include <mach/camera.h>
 #include <mach/hardware.h>
 
@@ -358,6 +357,33 @@ static inline void omap_init_uwire(void) {}
 #endif
 
 
+#define OMAP1_RNG_BASE		0xfffe5000
+
+static struct resource omap1_rng_resources[] = {
+	{
+		.start		= OMAP1_RNG_BASE,
+		.end		= OMAP1_RNG_BASE + 0x4f,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap1_rng_device = {
+	.name		= "omap_rng",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(omap1_rng_resources),
+	.resource	= omap1_rng_resources,
+};
+
+static void omap1_init_rng(void)
+{
+	if (!cpu_is_omap16xx())
+		return;
+
+	(void) platform_device_register(&omap1_rng_device);
+}
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
@@ -396,6 +422,7 @@ static int __init omap1_init_devices(void)
 	omap_init_spi100k();
 	omap_init_sti();
 	omap_init_uwire();
+	omap1_init_rng();
 
 	return 0;
 }

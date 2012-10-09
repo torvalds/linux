@@ -119,8 +119,8 @@ static void logfs_disk_to_inode(struct logfs_disk_inode *di, struct inode*inode)
 	inode->i_mode	= be16_to_cpu(di->di_mode);
 	li->li_height	= di->di_height;
 	li->li_flags	= be32_to_cpu(di->di_flags);
-	inode->i_uid	= be32_to_cpu(di->di_uid);
-	inode->i_gid	= be32_to_cpu(di->di_gid);
+	i_uid_write(inode, be32_to_cpu(di->di_uid));
+	i_gid_write(inode, be32_to_cpu(di->di_gid));
 	inode->i_size	= be64_to_cpu(di->di_size);
 	logfs_set_blocks(inode, be64_to_cpu(di->di_used_bytes));
 	inode->i_atime	= be64_to_timespec(di->di_atime);
@@ -156,8 +156,8 @@ static void logfs_inode_to_disk(struct inode *inode, struct logfs_disk_inode*di)
 	di->di_height	= li->li_height;
 	di->di_pad	= 0;
 	di->di_flags	= cpu_to_be32(li->li_flags);
-	di->di_uid	= cpu_to_be32(inode->i_uid);
-	di->di_gid	= cpu_to_be32(inode->i_gid);
+	di->di_uid	= cpu_to_be32(i_uid_read(inode));
+	di->di_gid	= cpu_to_be32(i_gid_read(inode));
 	di->di_size	= cpu_to_be64(i_size_read(inode));
 	di->di_used_bytes = cpu_to_be64(li->li_used_bytes);
 	di->di_atime	= timespec_to_be64(inode->i_atime);
@@ -2189,7 +2189,6 @@ void logfs_evict_inode(struct inode *inode)
 		return;
 	}
 
-	BUG_ON(inode->i_ino < LOGFS_RESERVED_INOS);
 	page = inode_to_page(inode);
 	BUG_ON(!page); /* FIXME: Use emergency page */
 	logfs_put_write_page(page);

@@ -222,6 +222,19 @@ config HAVE_PERF_EVENTS_NMI
 	  subsystem.  Also has support for calculating CPU cycle events
 	  to determine how many clock cycles in a given period.
 
+config HAVE_PERF_REGS
+	bool
+	help
+	  Support selective register dumps for perf events. This includes
+	  bit-mapping of each registers and a unique architecture id.
+
+config HAVE_PERF_USER_STACK_DUMP
+	bool
+	help
+	  Support user stack dumps for perf event samples. This needs
+	  access to the user stack pointer which is not unified across
+	  architectures.
+
 config HAVE_ARCH_JUMP_LABEL
 	bool
 
@@ -280,5 +293,27 @@ config SECCOMP_FILTER
 	  task-defined system call filtering polices.
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
+
+config HAVE_RCU_USER_QS
+	bool
+	help
+	  Provide kernel entry/exit hooks necessary for userspace
+	  RCU extended quiescent state. Syscalls need to be wrapped inside
+	  rcu_user_exit()-rcu_user_enter() through the slow path using
+	  TIF_NOHZ flag. Exceptions handlers must be wrapped as well. Irqs
+	  are already protected inside rcu_irq_enter/rcu_irq_exit() but
+	  preemption or signal handling on irq exit still need to be protected.
+
+config HAVE_VIRT_CPU_ACCOUNTING
+	bool
+
+config HAVE_IRQ_TIME_ACCOUNTING
+	bool
+	help
+	  Archs need to ensure they use a high enough resolution clock to
+	  support irq time accounting and then call enable_sched_clock_irqtime().
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	bool
 
 source "kernel/gcov/Kconfig"

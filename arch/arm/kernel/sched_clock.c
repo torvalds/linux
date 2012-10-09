@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/syscore_ops.h>
 #include <linux/timer.h>
@@ -21,10 +22,15 @@ struct clock_data {
 	u32 epoch_cyc_copy;
 	u32 mult;
 	u32 shift;
+	bool suspended;
+	bool needs_suspend;
 };
 
 static void sched_clock_poll(unsigned long wrap_ticks);
 static DEFINE_TIMER(sched_clock_timer, sched_clock_poll, 0, 0);
+static int irqtime = -1;
+
+core_param(irqtime, irqtime, int, 0400);
 
 static struct clock_data cd = {
 	.mult	= NSEC_PER_SEC / HZ,
@@ -48,6 +54,9 @@ static unsigned long long cyc_to_sched_clock(u32 cyc, u32 mask)
 {
 	u64 epoch_ns;
 	u32 epoch_cyc;
+
+	if (cd.suspended)
+		return cd.epoch_ns;
 
 	/*
 	 * Load the epoch_cyc and epoch_ns atomically.  We do this by
@@ -98,6 +107,13 @@ static void sched_clock_poll(unsigned long wrap_ticks)
 	update_sched_clock();
 }
 
+void __init setup_sched_clock_needs_suspend(u32 (*read)(void), int bits,
+		unsigned long rate)
+{
+	setup_sched_clock(read, bits, rate);
+	cd.needs_suspend = true;
+}
+
 void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 {
 	unsigned long r, w;
@@ -145,6 +161,10 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	 */
 	cd.epoch_ns = 0;
 
+	/* Enable IRQ time accounting if we have a fast enough sched_clock */
+	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
+		enable_sched_clock_irqtime();
+
 	pr_debug("Registered %pF as sched_clock source\n", read);
 }
 
@@ -169,11 +189,23 @@ void __init sched_clock_postinit(void)
 static int sched_clock_suspend(void)
 {
 	sched_clock_poll(sched_clock_timer.data);
+	if (cd.needs_suspend)
+		cd.suspended = true;
 	return 0;
+}
+
+static void sched_clock_resume(void)
+{
+	if (cd.needs_suspend) {
+		cd.epoch_cyc = read_sched_clock();
+		cd.epoch_cyc_copy = cd.epoch_cyc;
+		cd.suspended = false;
+	}
 }
 
 static struct syscore_ops sched_clock_ops = {
 	.suspend = sched_clock_suspend,
+	.resume = sched_clock_resume,
 };
 
 static int __init sched_clock_syscore_init(void)

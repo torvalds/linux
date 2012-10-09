@@ -362,10 +362,11 @@ static int jr3_pci_open(struct comedi_device *dev)
 	return 0;
 }
 
-int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
+static int read_idm_word(const u8 *data, size_t size, int *pos,
+			 unsigned int *val)
 {
 	int result = 0;
-	if (pos != 0 && val != 0) {
+	if (pos && val) {
 		/*  Skip over non hex */
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++) {
 		}
@@ -875,7 +876,7 @@ static int jr3_pci_attach(struct comedi_device *dev,
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			/*  Channel specific range and maxdata */
-			dev->subdevices[i].range_table = 0;
+			dev->subdevices[i].range_table = NULL;
 			dev->subdevices[i].range_table_list =
 			    p->range_table_list;
 			dev->subdevices[i].maxdata = 0;
@@ -884,7 +885,7 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	}
 
 	/*  Reset DSP card */
-	devpriv->iobase->channel[0].reset = 0;
+	writel(0, &devpriv->iobase->channel[0].reset);
 
 	result = comedi_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
 	dev_dbg(dev->class_dev, "Firmare load %d\n", result);

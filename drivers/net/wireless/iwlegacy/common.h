@@ -1832,10 +1832,8 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
 static inline u16
 il_pcie_link_ctl(struct il_priv *il)
 {
-	int pos;
 	u16 pci_lnk_ctl;
-	pos = pci_pcie_cap(il->pci_dev);
-	pci_read_config_word(il->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
+	pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
 

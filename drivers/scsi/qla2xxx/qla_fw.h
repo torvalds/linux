@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -381,6 +381,44 @@ struct init_cb_24xx {
 /*
  * ISP queue - command entry structure definition.
  */
+#define COMMAND_BIDIRECTIONAL 0x75
+struct cmd_bidir {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined */
+	uint8_t entry_status;		/* Entry status. */
+
+	uint32_t handle;		/* System handle. */
+
+	uint16_t nport_handle;		/* N_PORT hanlde. */
+
+	uint16_t timeout;		/* Commnad timeout. */
+
+	uint16_t wr_dseg_count;		/* Write Data segment count. */
+	uint16_t rd_dseg_count;		/* Read Data segment count. */
+
+	struct scsi_lun lun;		/* FCP LUN (BE). */
+
+	uint16_t control_flags;		/* Control flags. */
+#define BD_WRAP_BACK			BIT_3
+#define BD_READ_DATA			BIT_1
+#define BD_WRITE_DATA			BIT_0
+
+	uint16_t fcp_cmnd_dseg_len;		/* Data segment length. */
+	uint32_t fcp_cmnd_dseg_address[2];	/* Data segment address. */
+
+	uint16_t reserved[2];			/* Reserved */
+
+	uint32_t rd_byte_count;			/* Total Byte count Read. */
+	uint32_t wr_byte_count;			/* Total Byte count write. */
+
+	uint8_t port_id[3];			/* PortID of destination port.*/
+	uint8_t vp_index;
+
+	uint32_t fcp_data_dseg_address[2];	/* Data segment address. */
+	uint16_t fcp_data_dseg_len;		/* Data segment length. */
+};
+
 #define COMMAND_TYPE_6	0x48		/* Command Type 6 entry */
 struct cmd_type_6 {
 	uint8_t entry_type;		/* Entry type. */
@@ -1130,7 +1168,7 @@ struct mid_db_entry_24xx {
 /*
  * Virtual Port Control IOCB
  */
-#define VP_CTRL_IOCB_TYPE	0x30	/* Vitual Port Control entry. */
+#define VP_CTRL_IOCB_TYPE	0x30	/* Virtual Port Control entry. */
 struct vp_ctrl_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -1166,7 +1204,7 @@ struct vp_ctrl_entry_24xx {
 /*
  * Modify Virtual Port Configuration IOCB
  */
-#define VP_CONFIG_IOCB_TYPE	0x31	/* Vitual Port Config entry. */
+#define VP_CONFIG_IOCB_TYPE	0x31	/* Virtual Port Config entry. */
 struct vp_config_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -1502,7 +1540,10 @@ struct access_chip_rsp_84xx {
 /*
  * ISP83xx mailbox commands
  */
-#define MBC_WRITE_REMOTE_REG 0x0001 /* Write remote register */
+#define MBC_WRITE_REMOTE_REG		0x0001 /* Write remote register */
+#define MBC_READ_REMOTE_REG		0x0009 /* Read remote register */
+#define MBC_RESTART_NIC_FIRMWARE	0x003d /* Restart NIC firmware */
+#define MBC_SET_ACCESS_CONTROL		0x003e /* Access control command */
 
 /* Flash access control option field bit definitions */
 #define FAC_OPT_FORCE_SEMAPHORE		BIT_15

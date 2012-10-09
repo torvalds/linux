@@ -32,7 +32,7 @@
 
 #include <plat/ste_dma40.h>
 
-#include <mach/crypto-ux500.h>
+#include <linux/platform_data/crypto-ux500.h>
 #include <mach/hardware.h>
 
 #include "cryp_p.h"
@@ -1486,6 +1486,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	if (!res_irq) {
 		dev_err(dev, "[%s]: IORESOURCE_IRQ unavailable",
 			__func__);
+		ret = -ENODEV;
 		goto out_power;
 	}
 

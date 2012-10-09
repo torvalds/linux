@@ -1536,7 +1536,7 @@ static void atc_connect_resources(struct ct_atc *atc)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atc_suspend(struct ct_atc *atc)
 {
 	int i;
@@ -1647,7 +1647,7 @@ static struct ct_atc atc_preset __devinitdata = {
 	.output_switch_put = atc_output_switch_put,
 	.mic_source_switch_get = atc_mic_source_switch_get,
 	.mic_source_switch_put = atc_mic_source_switch_put,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = atc_suspend,
 	.resume = atc_resume,
 #endif
@@ -1725,8 +1725,10 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	atc_connect_resources(atc);
 
 	atc->timer = ct_timer_new(atc);
-	if (!atc->timer)
+	if (!atc->timer) {
+		err = -ENOMEM;
 		goto error1;
+	}
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, atc, &ops);
 	if (err < 0)

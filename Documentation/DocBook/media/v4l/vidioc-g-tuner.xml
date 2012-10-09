@@ -125,7 +125,7 @@ the structure refers to a radio tuner the
 <constant>V4L2_TUNER_CAP_NORM</constant> flags can't be used.</para>
 <para>If multiple frequency bands are supported, then
 <structfield>capability</structfield> is the union of all
-<structfield>capability></structfield> fields of each &v4l2-frequency-band;.
+<structfield>capability</structfield> fields of each &v4l2-frequency-band;.
 </para></entry>
 	  </row>
 	  <row>
@@ -353,6 +353,12 @@ radio tuners.</entry>
 	<entry>0x0400</entry>
 	<entry>The &VIDIOC-ENUM-FREQ-BANDS; ioctl can be used to enumerate
 	the available frequency bands.</entry>
+	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_HWSEEK_PROG_LIM</constant></entry>
+	<entry>0x0800</entry>
+	<entry>The range to search when using the hardware seek functionality
+	is programmable, see &VIDIOC-S-HW-FREQ-SEEK; for details.</entry>
 	  </row>
 	</tbody>
       </tgroup>

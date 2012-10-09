@@ -40,7 +40,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /***************************************************
  * Initialization, etc.
@@ -89,7 +89,7 @@ static const struct file_operations drm_proc_fops = {
  * Create a given set of proc files represented by an array of
  * gdm_proc_lists in the given root directory.
  */
-int drm_proc_create_files(struct drm_info_list *files, int count,
+static int drm_proc_create_files(struct drm_info_list *files, int count,
 			  struct proc_dir_entry *root, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
@@ -172,7 +172,7 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 	return 0;
 }
 
-int drm_proc_remove_files(struct drm_info_list *files, int count,
+static int drm_proc_remove_files(struct drm_info_list *files, int count,
 			  struct drm_minor *minor)
 {
 	struct list_head *pos, *q;

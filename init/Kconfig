@@ -267,31 +267,6 @@ config POSIX_MQUEUE_SYSCTL
 	depends on SYSCTL
 	default y
 
-config BSD_PROCESS_ACCT
-	bool "BSD Process Accounting"
-	help
-	  If you say Y here, a user level program will be able to instruct the
-	  kernel (via a special system call) to write process accounting
-	  information to a file: whenever a process exits, information about
-	  that process will be appended to the file by the kernel.  The
-	  information includes things such as creation time, owning user,
-	  command name, memory usage, controlling terminal etc. (the complete
-	  list is in the struct acct in <file:include/linux/acct.h>).  It is
-	  up to the user level program to do useful things with this
-	  information.  This is generally a good idea, so say Y.
-
-config BSD_PROCESS_ACCT_V3
-	bool "BSD Process Accounting version 3 file format"
-	depends on BSD_PROCESS_ACCT
-	default n
-	help
-	  If you say Y here, the process accounting information is written
-	  in a new file format that also logs the process IDs of each
-	  process and it's parent. Note that this file format is incompatible
-	  with previous v0/v1/v2 file formats, so you will need updated tools
-	  for processing it. A preliminary version of these tools is available
-	  at <http://www.gnu.org/software/acct/>.
-
 config FHANDLE
 	bool "open by fhandle syscalls"
 	select EXPORTFS
@@ -303,48 +278,6 @@ config FHANDLE
 	  of names. The handle would remain the same even if file names
 	  get renamed. Enables open_by_handle_at(2) and name_to_handle_at(2)
 	  syscalls.
-
-config TASKSTATS
-	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
-	depends on NET
-	default n
-	help
-	  Export selected statistics for tasks/processes through the
-	  generic netlink interface. Unlike BSD process accounting, the
-	  statistics are available during the lifetime of tasks/processes as
-	  responses to commands. Like BSD accounting, they are sent to user
-	  space on task exit.
-
-	  Say N if unsure.
-
-config TASK_DELAY_ACCT
-	bool "Enable per-task delay accounting (EXPERIMENTAL)"
-	depends on TASKSTATS
-	help
-	  Collect information on time spent by a task waiting for system
-	  resources like cpu, synchronous block I/O completion and swapping
-	  in pages. Such statistics can help in setting a task's priorities
-	  relative to other tasks for cpu, io, rss limits etc.
-
-	  Say N if unsure.
-
-config TASK_XACCT
-	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
-	depends on TASKSTATS
-	help
-	  Collect extended task accounting data and send the data
-	  to userland for processing over the taskstats interface.
-
-	  Say N if unsure.
-
-config TASK_IO_ACCOUNTING
-	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
-	depends on TASK_XACCT
-	help
-	  Collect information on the number of bytes of storage I/O which this
-	  task has caused.
-
-	  Say N if unsure.
 
 config AUDIT
 	bool "Auditing support"
@@ -390,6 +323,118 @@ config AUDIT_LOGINUID_IMMUTABLE
 
 source "kernel/irq/Kconfig"
 source "kernel/time/Kconfig"
+
+menu "CPU/Task time and stats accounting"
+
+choice
+	prompt "Cputime accounting"
+	default TICK_CPU_ACCOUNTING if !PPC64
+	default VIRT_CPU_ACCOUNTING if PPC64
+
+# Kind of a stub config for the pure tick based cputime accounting
+config TICK_CPU_ACCOUNTING
+	bool "Simple tick based cputime accounting"
+	depends on !S390
+	help
+	  This is the basic tick based cputime accounting that maintains
+	  statistics about user, system and idle time spent on per jiffies
+	  granularity.
+
+	  If unsure, say Y.
+
+config VIRT_CPU_ACCOUNTING
+	bool "Deterministic task and CPU time accounting"
+	depends on HAVE_VIRT_CPU_ACCOUNTING
+	help
+	  Select this option to enable more accurate task and CPU time
+	  accounting.  This is done by reading a CPU counter on each
+	  kernel entry and exit and on transitions within the kernel
+	  between system, softirq and hardirq state, so there is a
+	  small performance impact.  In the case of s390 or IBM POWER > 5,
+	  this also enables accounting of stolen time on logically-partitioned
+	  systems.
+
+config IRQ_TIME_ACCOUNTING
+	bool "Fine granularity task level IRQ time accounting"
+	depends on HAVE_IRQ_TIME_ACCOUNTING
+	help
+	  Select this option to enable fine granularity task irq time
+	  accounting. This is done by reading a timestamp on each
+	  transitions between softirq and hardirq state, so there can be a
+	  small performance impact.
+
+	  If in doubt, say N here.
+
+endchoice
+
+config BSD_PROCESS_ACCT
+	bool "BSD Process Accounting"
+	help
+	  If you say Y here, a user level program will be able to instruct the
+	  kernel (via a special system call) to write process accounting
+	  information to a file: whenever a process exits, information about
+	  that process will be appended to the file by the kernel.  The
+	  information includes things such as creation time, owning user,
+	  command name, memory usage, controlling terminal etc. (the complete
+	  list is in the struct acct in <file:include/linux/acct.h>).  It is
+	  up to the user level program to do useful things with this
+	  information.  This is generally a good idea, so say Y.
+
+config BSD_PROCESS_ACCT_V3
+	bool "BSD Process Accounting version 3 file format"
+	depends on BSD_PROCESS_ACCT
+	default n
+	help
+	  If you say Y here, the process accounting information is written
+	  in a new file format that also logs the process IDs of each
+	  process and it's parent. Note that this file format is incompatible
+	  with previous v0/v1/v2 file formats, so you will need updated tools
+	  for processing it. A preliminary version of these tools is available
+	  at <http://www.gnu.org/software/acct/>.
+
+config TASKSTATS
+	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
+	depends on NET
+	default n
+	help
+	  Export selected statistics for tasks/processes through the
+	  generic netlink interface. Unlike BSD process accounting, the
+	  statistics are available during the lifetime of tasks/processes as
+	  responses to commands. Like BSD accounting, they are sent to user
+	  space on task exit.
+
+	  Say N if unsure.
+
+config TASK_DELAY_ACCT
+	bool "Enable per-task delay accounting (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect information on time spent by a task waiting for system
+	  resources like cpu, synchronous block I/O completion and swapping
+	  in pages. Such statistics can help in setting a task's priorities
+	  relative to other tasks for cpu, io, rss limits etc.
+
+	  Say N if unsure.
+
+config TASK_XACCT
+	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect extended task accounting data and send the data
+	  to userland for processing over the taskstats interface.
+
+	  Say N if unsure.
+
+config TASK_IO_ACCOUNTING
+	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	depends on TASK_XACCT
+	help
+	  Collect information on the number of bytes of storage I/O which this
+	  task has caused.
+
+	  Say N if unsure.
+
+endmenu # "CPU/Task time and stats accounting"
 
 menu "RCU Subsystem"
 
@@ -440,6 +485,24 @@ config PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
+
+config RCU_USER_QS
+	bool "Consider userspace as in RCU extended quiescent state"
+	depends on HAVE_RCU_USER_QS && SMP
+	help
+	  This option sets hooks on kernel / userspace boundaries and
+	  puts RCU in extended quiescent state when the CPU runs in
+	  userspace. It means that when a CPU runs in userspace, it is
+	  excluded from the global RCU state machine and thus doesn't
+	  to keep the timer tick on for RCU.
+
+config RCU_USER_QS_FORCE
+	bool "Force userspace extended QS by default"
+	depends on RCU_USER_QS
+	help
+	  Set the hooks in user/kernel boundaries by default in order to
+	  test this feature that treats userspace as an extended quiescent
+	  state until we have a real user like a full adaptive nohz option.
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
@@ -923,112 +986,23 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# List of kernel pieces that need user namespace work
-	# Features
-	depends on SYSVIPC = n
-	depends on IMA = n
-	depends on EVM = n
-	depends on KEYS = n
-	depends on AUDIT = n
-	depends on AUDITSYSCALL = n
-	depends on TASKSTATS = n
-	depends on TRACING = n
-	depends on FS_POSIX_ACL = n
-	depends on QUOTA = n
-	depends on QUOTACTL = n
-	depends on DEBUG_CREDENTIALS = n
-	depends on BSD_PROCESS_ACCT = n
-	depends on DRM = n
-	depends on PROC_EVENTS = n
-
 	# Networking
-	depends on NET = n
 	depends on NET_9P = n
-	depends on IPX = n
-	depends on PHONET = n
-	depends on NET_CLS_FLOW = n
-	depends on NETFILTER_XT_MATCH_OWNER = n
-	depends on NETFILTER_XT_MATCH_RECENT = n
-	depends on NETFILTER_XT_TARGET_LOG = n
-	depends on NETFILTER_NETLINK_LOG = n
-	depends on INET = n
-	depends on IPV6 = n
-	depends on IP_SCTP = n
-	depends on AF_RXRPC = n
-	depends on LLC2 = n
-	depends on NET_KEY = n
-	depends on INET_DIAG = n
-	depends on DNS_RESOLVER = n
-	depends on AX25 = n
-	depends on ATALK = n
 
 	# Filesystems
-	depends on USB_DEVICEFS = n
-	depends on USB_GADGETFS = n
-	depends on USB_FUNCTIONFS = n
-	depends on DEVTMPFS = n
-	depends on XENFS = n
-
 	depends on 9P_FS = n
-	depends on ADFS_FS = n
-	depends on AFFS_FS = n
 	depends on AFS_FS = n
 	depends on AUTOFS4_FS = n
-	depends on BEFS_FS = n
-	depends on BFS_FS = n
-	depends on BTRFS_FS = n
 	depends on CEPH_FS = n
 	depends on CIFS = n
 	depends on CODA_FS = n
-	depends on CONFIGFS_FS = n
-	depends on CRAMFS = n
-	depends on DEBUG_FS = n
-	depends on ECRYPT_FS = n
-	depends on EFS_FS = n
-	depends on EXOFS_FS = n
-	depends on FAT_FS = n
 	depends on FUSE_FS = n
 	depends on GFS2_FS = n
-	depends on HFS_FS = n
-	depends on HFSPLUS_FS = n
-	depends on HPFS_FS = n
-	depends on HUGETLBFS = n
-	depends on ISO9660_FS = n
-	depends on JFFS2_FS = n
-	depends on JFS_FS = n
-	depends on LOGFS = n
-	depends on MINIX_FS = n
 	depends on NCP_FS = n
 	depends on NFSD = n
 	depends on NFS_FS = n
-	depends on NILFS2_FS = n
-	depends on NTFS_FS = n
 	depends on OCFS2_FS = n
-	depends on OMFS_FS = n
-	depends on QNX4FS_FS = n
-	depends on QNX6FS_FS = n
-	depends on REISERFS_FS = n
-	depends on SQUASHFS = n
-	depends on SYSV_FS = n
-	depends on UBIFS_FS = n
-	depends on UDF_FS = n
-	depends on UFS_FS = n
-	depends on VXFS_FS = n
 	depends on XFS_FS = n
-
-	depends on !UML || HOSTFS = n
-
-	# The rare drivers that won't build
-	depends on AIRO = n
-	depends on AIRO_CS = n
-	depends on TUN = n
-	depends on INFINIBAND_QIB = n
-	depends on BLK_DEV_LOOP = n
-	depends on ANDROID_BINDER_IPC = n
-
-	# Security modules
-	depends on SECURITY_TOMOYO = n
-	depends on SECURITY_APPARMOR = n
 
 config UIDGID_STRICT_TYPE_CHECKS
 	bool "Require conversions between uid/gids and their internal representation"
@@ -1151,9 +1125,12 @@ menuconfig EXPERT
           environments which can tolerate a "non-standard" kernel.
           Only use this if you really know what you are doing.
 
+config HAVE_UID16
+	bool
+
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
-	depends on ARM || BLACKFIN || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && COMPAT) || UML || (X86_64 && IA32_EMULATION)
+	depends on HAVE_UID16
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
@@ -1174,6 +1151,11 @@ config SYSCTL_SYSCALL
 	  making your kernel marginally smaller.
 
 	  If unsure say N here.
+
+config SYSCTL_EXCEPTION_TRACE
+	bool
+	help
+	  Enable support for /proc/sys/debug/exception-trace.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
@@ -1201,13 +1183,7 @@ config KALLSYMS_ALL
 	   Say N unless you really need all symbols.
 
 config HOTPLUG
-	bool "Support for hot-pluggable devices" if EXPERT
-	default y
-	help
-	  This option is provided for the case where no hotplug or uevent
-	  capabilities is wanted by the kernel.  You should only consider
-	  disabling this option for embedded systems that do not use modules, a
-	  dynamic /dev tree, or dynamic device discovery.  Just say Y.
+	def_bool y
 
 config PRINTK
 	default y
@@ -1230,6 +1206,7 @@ config BUG
           Just say Y.
 
 config ELF_CORE
+	depends on COREDUMP
 	default y
 	bool "Enable ELF core dumps" if EXPERT
 	help
@@ -1610,6 +1587,12 @@ config PREEMPT_NOTIFIERS
 
 config PADATA
 	depends on SMP
+	bool
+
+# Can be selected by architectures with broken toolchains
+# that get confused by correct const<->read_only section
+# mappings
+config BROKEN_RODATA
 	bool
 
 source "kernel/Kconfig.locks"

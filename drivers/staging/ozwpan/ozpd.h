@@ -82,6 +82,7 @@ struct oz_pd {
 	u8		heartbeat_requested;
 	u8		mode;
 	u8		ms_per_isoc;
+	unsigned	isoc_latency;
 	unsigned	max_stream_buffering;
 	int		nb_queued_frames;
 	int		nb_queued_isoc_frames;
