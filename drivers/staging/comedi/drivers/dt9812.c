@@ -43,6 +43,8 @@ for my needs.
  *      says P1).
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -1083,8 +1085,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
 
-	printk(KERN_INFO "comedi%d: successfully attached to dt9812.\n",
-	       dev->minor);
+	dev_info(dev->class_dev, "successfully attached to dt9812.\n");
 
 	down(&dt9812_mutex);
 	/* Find a slot for the comedi device */
@@ -1146,17 +1147,15 @@ static int __init usb_dt9812_init(void)
 	/* register with the USB subsystem */
 	result = usb_register(&dt9812_usb_driver);
 	if (result) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": usb_register failed. Error number %d\n", result);
+		pr_err("usb_register failed. Error number %d\n", result);
 		return result;
 	}
 	/* register with comedi */
 	result = comedi_driver_register(&dt9812_comedi_driver);
 	if (result) {
 		usb_deregister(&dt9812_usb_driver);
-		printk(KERN_ERR KBUILD_MODNAME
-			": comedi_driver_register failed. Error number %d\n",
-			result);
+		pr_err("comedi_driver_register failed. Error number %d\n",
+		       result);
 	}
 
 	return result;
