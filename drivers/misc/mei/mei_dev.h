@@ -291,8 +291,10 @@ int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
 int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 
 /*
- * MEI IO List Functions
+ * MEI IO Functions
  */
+void mei_io_cb_free(struct mei_cl_cb *priv_cb);
+
 /**
  * mei_io_list_init - Sets up a queue list.
  *
@@ -361,7 +363,6 @@ struct mei_cl_cb *find_amthi_read_list_entry(struct mei_device *dev,
 
 void mei_run_next_iamthif_cmd(struct mei_device *dev);
 
-void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 
 
 /*

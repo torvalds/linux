@@ -58,7 +58,7 @@ irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
 static void _mei_cmpl(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
 {
 	if (cb_pos->major_file_operations == MEI_WRITE) {
-		mei_free_cb_private(cb_pos);
+		mei_io_cb_free(cb_pos);
 		cb_pos = NULL;
 		cl->writing_state = MEI_WRITE_COMPLETE;
 		if (waitqueue_active(&cl->tx_wait))
@@ -1368,11 +1368,10 @@ void mei_timer(struct work_struct *work)
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			dev->iamthif_timer = 0;
 
-			if (dev->iamthif_current_cb)
-				mei_free_cb_private(dev->iamthif_current_cb);
+			mei_io_cb_free(dev->iamthif_current_cb);
+			dev->iamthif_current_cb = NULL;
 
 			dev->iamthif_file_object = NULL;
-			dev->iamthif_current_cb = NULL;
 			mei_run_next_iamthif_cmd(dev);
 		}
 	}
@@ -1404,12 +1403,11 @@ void mei_timer(struct work_struct *work)
 				if (cl_pos == &dev->iamthif_cl)
 					list_del(&cb_pos->list);
 			}
-			if (dev->iamthif_current_cb)
-				mei_free_cb_private(dev->iamthif_current_cb);
+			mei_io_cb_free(dev->iamthif_current_cb);
+			dev->iamthif_current_cb = NULL;
 
 			dev->iamthif_file_object->private_data = NULL;
 			dev->iamthif_file_object = NULL;
-			dev->iamthif_current_cb = NULL;
 			dev->iamthif_timer = 0;
 			mei_run_next_iamthif_cmd(dev);
 

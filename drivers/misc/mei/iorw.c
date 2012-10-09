@@ -39,6 +39,21 @@
 #include "interface.h"
 
 /**
+ * mei_io_cb_free - free mei_cb_private related memory
+ *
+ * @cb: mei callback struct
+ */
+void mei_io_cb_free(struct mei_cl_cb *cb)
+{
+	if (cb == NULL)
+		return;
+
+	kfree(cb->request_buffer.data);
+	kfree(cb->response_buffer.data);
+	kfree(cb);
+}
+
+/**
  * mei_me_cl_by_id return index to me_clients for client_id
  *
  * @dev: the device structure
@@ -231,7 +246,7 @@ int mei_ioctl_connect_client(struct file *file,
 	rets = 0;
 end:
 	dev_dbg(&dev->pdev->dev, "free connect cb memory.");
-	kfree(cb);
+	mei_io_cb_free(cb);
 	return rets;
 }
 
@@ -375,7 +390,7 @@ int amthi_read(struct mei_device *dev, struct file *file,
 free:
 	dev_dbg(&dev->pdev->dev, "free amthi cb memory.\n");
 	*offset = 0;
-	mei_free_cb_private(cb);
+	mei_io_cb_free(cb);
 out:
 	return rets;
 }
@@ -444,7 +459,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	}
 	return rets;
 unlock:
-	mei_free_cb_private(cb);
+	mei_io_cb_free(cb);
 	return rets;
 }
 
@@ -568,17 +583,3 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev)
 	}
 }
 
-/**
- * mei_free_cb_private - free mei_cb_private related memory
- *
- * @cb: mei callback struct
- */
-void mei_free_cb_private(struct mei_cl_cb *cb)
-{
-	if (cb == NULL)
-		return;
-
-	kfree(cb->request_buffer.data);
-	kfree(cb->response_buffer.data);
-	kfree(cb);
-}

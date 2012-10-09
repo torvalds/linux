@@ -341,7 +341,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	/* remove all waiting requests */
 	list_for_each_entry_safe(cb_pos, cb_next, &dev->write_list.list, list) {
 		list_del(&cb_pos->list);
-		mei_free_cb_private(cb_pos);
+		mei_io_cb_free(cb_pos);
 	}
 }
 
@@ -715,7 +715,7 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	mei_io_list_flush(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 free:
-	mei_free_cb_private(cb);
+	mei_io_cb_free(cb);
 	return rets;
 }
 

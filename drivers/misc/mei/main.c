@@ -124,7 +124,7 @@ static bool mei_clear_list(struct mei_device *dev,
 				mei_send_flow_control(dev, &dev->iamthif_cl);
 			}
 			/* free all allocated buffers */
-			mei_free_cb_private(cb_pos);
+			mei_io_cb_free(cb_pos);
 			cb_pos = NULL;
 			removed = true;
 		}
@@ -169,7 +169,7 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 		/* check file and iamthif current cb association */
 		if (dev->iamthif_current_cb->file_object == file) {
 			/* remove cb */
-			mei_free_cb_private(dev->iamthif_current_cb);
+			mei_io_cb_free(dev->iamthif_current_cb);
 			dev->iamthif_current_cb = NULL;
 			removed = true;
 		}
@@ -332,7 +332,7 @@ static int mei_release(struct inode *inode, struct file *file)
 		file->private_data = NULL;
 
 		if (cb) {
-			mei_free_cb_private(cb);
+			mei_io_cb_free(cb);
 			cb = NULL;
 		}
 
@@ -504,7 +504,7 @@ free:
 	/* Remove entry from read list */
 	if (cb_pos)
 		list_del(&cb_pos->list);
-	mei_free_cb_private(cb);
+	mei_io_cb_free(cb);
 	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;
 	cl->read_pending = 0;
@@ -651,7 +651,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			    cl->reading_state == MEI_READ_COMPLETE) {
 				*offset = 0;
 				list_del(&write_cb->list);
-				mei_free_cb_private(write_cb);
+				mei_io_cb_free(write_cb);
 				write_cb = NULL;
 			}
 		}
@@ -663,7 +663,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		write_cb = find_read_list_entry(dev, cl);
 		if (write_cb) {
 			list_del(&write_cb->list);
-			mei_free_cb_private(write_cb);
+			mei_io_cb_free(write_cb);
 			write_cb = NULL;
 			cl->reading_state = MEI_IDLE;
 			cl->read_cb = NULL;
@@ -778,7 +778,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 unlock_dev:
 	mutex_unlock(&dev->device_lock);
-	mei_free_cb_private(write_cb);
+	mei_io_cb_free(write_cb);
 	return rets;
 }
 
