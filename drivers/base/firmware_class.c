@@ -423,6 +423,18 @@ static void firmware_free_data(const struct firmware *fw)
 #ifndef PAGE_KERNEL_RO
 #define PAGE_KERNEL_RO PAGE_KERNEL
 #endif
+
+/* one pages buffer should be mapped/unmapped only once */
+static int fw_map_pages_buf(struct firmware_buf *buf)
+{
+	if (buf->data)
+		vunmap(buf->data);
+	buf->data = vmap(buf->pages, buf->nr_pages, 0, PAGE_KERNEL_RO);
+	if (!buf->data)
+		return -ENOMEM;
+	return 0;
+}
+
 /**
  * firmware_loading_store - set value in the 'loading' control file
  * @dev: device pointer
@@ -467,6 +479,14 @@ static ssize_t firmware_loading_store(struct device *dev,
 		if (test_bit(FW_STATUS_LOADING, &fw_buf->status)) {
 			set_bit(FW_STATUS_DONE, &fw_buf->status);
 			clear_bit(FW_STATUS_LOADING, &fw_buf->status);
+
+			/*
+			 * Several loading requests may be pending on
+			 * one same firmware buf, so let all requests
+			 * see the mapped 'buf->data' once the loading
+			 * is completed.
+			 * */
+			fw_map_pages_buf(fw_buf);
 			complete_all(&fw_buf->completion);
 			break;
 		}
@@ -668,15 +688,6 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	f_dev->class = &firmware_class;
 exit:
 	return fw_priv;
-}
-
-/* one pages buffer is mapped/unmapped only once */
-static int fw_map_pages_buf(struct firmware_buf *buf)
-{
-	buf->data = vmap(buf->pages, buf->nr_pages, 0, PAGE_KERNEL_RO);
-	if (!buf->data)
-		return -ENOMEM;
-	return 0;
 }
 
 /* store the pages buffer info firmware from buf */
@@ -883,9 +894,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 	 */
 	if (!retval && f_dev->parent)
 		fw_add_devm_name(f_dev->parent, buf->fw_id);
-
-	if (!retval)
-		retval = fw_map_pages_buf(buf);
 
 	/*
 	 * After caching firmware image is started, let it piggyback
