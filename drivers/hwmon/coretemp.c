@@ -196,14 +196,6 @@ struct tjmax {
 };
 
 static const struct tjmax __cpuinitconst tjmax_table[] = {
-	{ "CPU D410", 100000 },
-	{ "CPU D425", 100000 },
-	{ "CPU D510", 100000 },
-	{ "CPU D525", 100000 },
-	{ "CPU N450", 100000 },
-	{ "CPU N455", 100000 },
-	{ "CPU N470", 100000 },
-	{ "CPU N475", 100000 },
 	{ "CPU  230", 100000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU  330", 125000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10	*/
