@@ -460,7 +460,24 @@ static struct ap321xx_platform_data ap321xx_info = {
 };
 
 #endif
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = RK2928_PIN1_PA5,
+        .batt_low_pin    = INVALID_GPIO,
+        .charge_set_pin  = INVALID_GPIO,
+        .charge_ok_pin   = RK2928_PIN1_PA0,
+        .dc_det_level    = GPIO_HIGH,  //
+        .charge_ok_level = GPIO_HIGH,
+};
 
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+#endif
 
 #if CONFIG_RK30_PWM_REGULATOR
 const static int pwm_voltage_map[] = {
@@ -691,11 +708,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SND_SOC_RK2928
 	&device_acodec,
 #endif
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
+ 	&rk30_device_adc_battery,
+#endif
 };
 //i2c
 #ifdef CONFIG_I2C0_RK30
 #ifdef CONFIG_MFD_TPS65910
-#define TPS65910_HOST_IRQ        RK2928_PIN1_PC7
+#define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
 #include "board-rk2928-phonepad-tps65910.c"
 #endif
 #ifdef CONFIG_REGULATOR_ACT8931
