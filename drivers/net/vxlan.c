@@ -680,9 +680,13 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	hash = skb_get_rxhash(skb);
 
-	rt = ip_route_output_gre(dev_net(dev), &fl4, dst,
-				 vxlan->saddr, vxlan->vni,
-				 RT_TOS(tos), vxlan->link);
+	memset(&fl4, 0, sizeof(fl4));
+	fl4.flowi4_oif = vxlan->link;
+	fl4.flowi4_tos = RT_TOS(tos);
+	fl4.daddr = dst;
+	fl4.saddr = vxlan->saddr;
+
+	rt = ip_route_output_key(dev_net(dev), &fl4);
 	if (IS_ERR(rt)) {
 		netdev_dbg(dev, "no route to %pI4\n", &dst);
 		dev->stats.tx_carrier_errors++;
@@ -724,7 +728,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->frag_off	= df;
 	iph->protocol	= IPPROTO_UDP;
 	iph->tos	= vxlan_ecn_encap(tos, old_iph, skb);
-	iph->daddr	= fl4.daddr;
+	iph->daddr	= dst;
 	iph->saddr	= fl4.saddr;
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
 
