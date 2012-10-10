@@ -205,3 +205,33 @@ void dispc_mgr_disable_sync(enum omap_channel channel)
 		WARN_ON(1);
 }
 
+int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
+		unsigned long timeout)
+{
+	void dispc_irq_wait_handler(void *data, u32 mask)
+	{
+		complete((struct completion *)data);
+	}
+
+	int r;
+	DECLARE_COMPLETION_ONSTACK(completion);
+
+	r = omap_dispc_register_isr(dispc_irq_wait_handler, &completion,
+			irqmask);
+
+	if (r)
+		return r;
+
+	timeout = wait_for_completion_interruptible_timeout(&completion,
+			timeout);
+
+	omap_dispc_unregister_isr(dispc_irq_wait_handler, &completion, irqmask);
+
+	if (timeout == 0)
+		return -ETIMEDOUT;
+
+	if (timeout == -ERESTARTSYS)
+		return -ERESTARTSYS;
+
+	return 0;
+}

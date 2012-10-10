@@ -21,4 +21,7 @@
 void dispc_mgr_enable_sync(enum omap_channel channel);
 void dispc_mgr_disable_sync(enum omap_channel channel);
 
+int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
+		unsigned long timeout);
+
 #endif
