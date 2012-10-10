@@ -593,15 +593,4 @@ static struct platform_driver da8xx_driver = {
 MODULE_DESCRIPTION("DA8xx/OMAP-L1x MUSB Glue Layer");
 MODULE_AUTHOR("Sergei Shtylyov <sshtylyov@ru.mvista.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init da8xx_init(void)
-{
-	return platform_driver_register(&da8xx_driver);
-}
-module_init(da8xx_init);
-
-static void __exit da8xx_exit(void)
-{
-	platform_driver_unregister(&da8xx_driver);
-}
-module_exit(da8xx_exit);
+module_platform_driver(da8xx_driver);
