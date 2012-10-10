@@ -25,7 +25,7 @@
 #include <mach/irqs.h>
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -358,7 +358,7 @@ static int ctp_fetch_sysconfig_para(void)
 	int ret = -1;
 	int ctp_used = -1;
 	char name[I2C_NAME_SIZE];
-	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+	script_parser_value_type_t type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 
 	printk("%s. \n", __func__);
 	memset(name, 0, I2C_NAME_SIZE);
