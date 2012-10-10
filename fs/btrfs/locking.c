@@ -67,7 +67,7 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 {
 	if (eb->lock_nested) {
 		read_lock(&eb->lock);
-		if (&eb->lock_nested && current->pid == eb->lock_owner) {
+		if (eb->lock_nested && current->pid == eb->lock_owner) {
 			read_unlock(&eb->lock);
 			return;
 		}

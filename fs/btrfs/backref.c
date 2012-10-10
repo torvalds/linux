@@ -1438,10 +1438,10 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 	ret = extent_from_logical(fs_info, logical, path,
 					&found_key);
 	btrfs_release_path(path);
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK)
-		ret = -EINVAL;
 	if (ret < 0)
 		return ret;
+	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+		return -EINVAL;
 
 	extent_item_pos = logical - found_key.objectid;
 	ret = iterate_extent_inodes(fs_info, found_key.objectid,

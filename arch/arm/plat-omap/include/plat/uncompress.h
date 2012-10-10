@@ -110,7 +110,7 @@ static inline void flush(void)
 	_DEBUG_LL_ENTRY(mach, AM33XX_UART##p##_BASE, OMAP_PORT_SHIFT,	\
 		AM33XXUART##p)
 
-static inline void __arch_decomp_setup(unsigned long arch_id)
+static inline void arch_decomp_setup(void)
 {
 	int port = 0;
 
@@ -197,8 +197,6 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		DEBUG_LL_AM33XX(1, am335xevm);
 	} while (0);
 }
-
-#define arch_decomp_setup()	__arch_decomp_setup(arch_id)
 
 /*
  * nothing to do

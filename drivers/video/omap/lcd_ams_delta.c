@@ -28,7 +28,6 @@
 #include <linux/gpio.h>
 
 #include <plat/board-ams-delta.h>
-#include <mach/hardware.h>
 
 #include "omapfb.h"
 

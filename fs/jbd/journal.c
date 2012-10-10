@@ -1113,6 +1113,11 @@ static void mark_journal_empty(journal_t *journal)
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	spin_lock(&journal->j_state_lock);
+	/* Is it already empty? */
+	if (sb->s_start == 0) {
+		spin_unlock(&journal->j_state_lock);
+		return;
+	}
 	jbd_debug(1, "JBD: Marking journal as empty (seq %d)\n",
         	  journal->j_tail_sequence);
 

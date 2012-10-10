@@ -47,6 +47,8 @@ struct bcm63xx_spi {
 	/* Platform data */
 	u32			speed_hz;
 	unsigned		fifo_size;
+	unsigned int		msg_type_shift;
+	unsigned int		msg_ctl_width;
 
 	/* Data buffers */
 	const unsigned char	*tx_ptr;
@@ -221,13 +223,20 @@ static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
 	msg_ctl = (t->len << SPI_BYTE_CNT_SHIFT);
 
 	if (t->rx_buf && t->tx_buf)
-		msg_ctl |= (SPI_FD_RW << SPI_MSG_TYPE_SHIFT);
+		msg_ctl |= (SPI_FD_RW << bs->msg_type_shift);
 	else if (t->rx_buf)
-		msg_ctl |= (SPI_HD_R << SPI_MSG_TYPE_SHIFT);
+		msg_ctl |= (SPI_HD_R << bs->msg_type_shift);
 	else if (t->tx_buf)
-		msg_ctl |= (SPI_HD_W << SPI_MSG_TYPE_SHIFT);
+		msg_ctl |= (SPI_HD_W << bs->msg_type_shift);
 
-	bcm_spi_writew(bs, msg_ctl, SPI_MSG_CTL);
+	switch (bs->msg_ctl_width) {
+	case 8:
+		bcm_spi_writeb(bs, msg_ctl, SPI_MSG_CTL);
+		break;
+	case 16:
+		bcm_spi_writew(bs, msg_ctl, SPI_MSG_CTL);
+		break;
+	}
 
 	/* Issue the transfer */
 	cmd = SPI_CMD_START_IMMEDIATE;
@@ -406,8 +415,20 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	bs->speed_hz = pdata->speed_hz;
+	bs->msg_type_shift = pdata->msg_type_shift;
+	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
 	bs->rx_io = (const u8 *)(bs->regs + bcm63xx_spireg(SPI_RX_DATA));
+
+	switch (bs->msg_ctl_width) {
+	case 8:
+	case 16:
+		break;
+	default:
+		dev_err(dev, "unsupported MSG_CTL width: %d\n",
+			 bs->msg_ctl_width);
+		goto out_clk_disable;
+	}
 
 	/* Initialize hardware */
 	clk_enable(bs->clk);

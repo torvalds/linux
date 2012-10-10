@@ -1157,9 +1157,6 @@ static int check_free_space(struct ubifs_info *c)
  *
  * This function mounts UBIFS file system. Returns zero in case of success and
  * a negative error code in case of failure.
- *
- * Note, the function does not de-allocate resources it it fails half way
- * through, and the caller has to do this instead.
  */
 static int mount_ubifs(struct ubifs_info *c)
 {

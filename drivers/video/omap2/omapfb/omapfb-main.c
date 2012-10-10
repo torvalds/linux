@@ -1592,6 +1592,20 @@ static int omapfb_allocate_all_fbs(struct omapfb2_device *fbdev)
 	return 0;
 }
 
+static void omapfb_clear_fb(struct fb_info *fbi)
+{
+	const struct fb_fillrect rect = {
+		.dx = 0,
+		.dy = 0,
+		.width = fbi->var.xres_virtual,
+		.height = fbi->var.yres_virtual,
+		.color = 0,
+		.rop = ROP_COPY,
+	};
+
+	cfb_fillrect(fbi, &rect);
+}
+
 int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
@@ -1660,6 +1674,8 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 		if (r)
 			goto err;
 	}
+
+	omapfb_clear_fb(fbi);
 
 	return 0;
 err:
@@ -1943,6 +1959,16 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 			dev_err(fbdev->dev, "failed to setup fb_info\n");
 			return r;
 		}
+	}
+
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
+
+		if (ofbi->region->size == 0)
+			continue;
+
+		omapfb_clear_fb(fbi);
 	}
 
 	DBG("fb_infos initialized\n");
@@ -2353,6 +2379,7 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	struct omap_overlay *ovl;
 	struct omap_dss_device *def_display;
 	struct omap_dss_device *dssdev;
+	struct omap_dss_device *ovl_device;
 
 	DBG("omapfb_probe\n");
 
@@ -2426,8 +2453,9 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	/* gfx overlay should be the default one. find a display
 	 * connected to that, and use it as default display */
 	ovl = omap_dss_get_overlay(0);
-	if (ovl->manager && ovl->manager->device) {
-		def_display = ovl->manager->device;
+	ovl_device = ovl->get_device(ovl);
+	if (ovl_device) {
+		def_display = ovl_device;
 	} else {
 		dev_warn(&pdev->dev, "cannot find default display\n");
 		def_display = NULL;

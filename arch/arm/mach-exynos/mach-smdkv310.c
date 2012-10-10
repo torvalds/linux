@@ -40,6 +40,7 @@
 #include <plat/mfc.h>
 #include <plat/ehci.h>
 #include <plat/clock.h>
+#include <plat/hdmi.h>
 
 #include <mach/map.h>
 #include <mach/ohci.h>
@@ -354,6 +355,11 @@ static struct platform_pwm_backlight_data smdkv310_bl_data = {
 	.pwm_period_ns  = 1000,
 };
 
+/* I2C module and id for HDMIPHY */
+static struct i2c_board_info hdmiphy_info = {
+	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
@@ -388,6 +394,7 @@ static void __init smdkv310_machine_init(void)
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
+	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 

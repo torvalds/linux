@@ -10,6 +10,7 @@ struct mod_arch_specific {
 	struct list_head dbe_list;
 	const struct exception_table_entry *dbe_start;
 	const struct exception_table_entry *dbe_end;
+	struct mips_hi16 *r_mips_hi16_list;
 };
 
 typedef uint8_t Elf64_Byte;		/* Type for a 8-bit quantity.  */
