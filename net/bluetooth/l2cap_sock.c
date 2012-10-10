@@ -529,6 +529,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		chan->fcs  = opts.fcs;
 		chan->max_tx = opts.max_tx;
 		chan->tx_win = opts.txwin_size;
+		chan->flush_to = opts.flush_to;
 		break;
 
 	case L2CAP_LM:
