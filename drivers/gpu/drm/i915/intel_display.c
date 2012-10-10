@@ -8058,28 +8058,41 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 
 }
 
+static bool
+intel_check_plane_mapping(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	u32 reg, val;
+
+	if (dev_priv->num_pipe == 1)
+		return true;
+
+	reg = DSPCNTR(!crtc->plane);
+	val = I915_READ(reg);
+
+	if ((val & DISPLAY_PLANE_ENABLE) &&
+	    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
+		return false;
+
+	return true;
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg, val;
+	u32 reg;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	reg = PIPECONF(crtc->pipe);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
-	 * disable the crtc (and hence change the state) if it is wrong. */
-	if (!HAS_PCH_SPLIT(dev)) {
+	 * disable the crtc (and hence change the state) if it is wrong. Note
+	 * that gen4+ has a fixed plane -> pipe mapping.  */
+	if (INTEL_INFO(dev)->gen < 4 && !intel_check_plane_mapping(crtc)) {
 		struct intel_connector *connector;
 		bool plane;
-
-		reg = DSPCNTR(crtc->plane);
-		val = I915_READ(reg);
-
-		if ((val & DISPLAY_PLANE_ENABLE) == 0 &&
-		    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
-			goto ok;
 
 		DRM_DEBUG_KMS("[CRTC:%d] wrong plane connection detected!\n",
 			      crtc->base.base.id);
@@ -8104,7 +8117,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		WARN_ON(crtc->active);
 		crtc->base.enabled = false;
 	}
-ok:
 
 	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
 	    crtc->pipe == PIPE_A && !crtc->active) {
