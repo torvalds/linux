@@ -285,6 +285,8 @@ struct hci_dev {
 	int (*ioctl)(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
 };
 
+#define HCI_PHY_HANDLE(handle)	(handle & 0xff)
+
 struct hci_conn {
 	struct list_head list;
 

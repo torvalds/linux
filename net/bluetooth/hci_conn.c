@@ -130,6 +130,20 @@ void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
+static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
+{
+	struct hci_cp_disconn_phy_link cp;
+
+	BT_DBG("hcon %p", conn);
+
+	conn->state = BT_DISCONN;
+
+	cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
+	cp.reason = reason;
+	hci_send_cmd(conn->hdev, HCI_OP_DISCONN_PHY_LINK,
+		     sizeof(cp), &cp);
+}
+
 static void hci_add_sco(struct hci_conn *conn, __u16 handle)
 {
 	struct hci_dev *hdev = conn->hdev;
@@ -230,11 +244,24 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 	}
 }
 
+static void hci_conn_disconnect(struct hci_conn *conn)
+{
+	__u8 reason = hci_proto_disconn_ind(conn);
+
+	switch (conn->type) {
+	case ACL_LINK:
+		hci_acl_disconn(conn, reason);
+		break;
+	case AMP_LINK:
+		hci_amp_disconn(conn, reason);
+		break;
+	}
+}
+
 static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     disc_work.work);
-	__u8 reason;
 
 	BT_DBG("hcon %p state %s", conn, state_to_string(conn->state));
 
@@ -253,8 +280,7 @@ static void hci_conn_timeout(struct work_struct *work)
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
-		reason = hci_proto_disconn_ind(conn);
-		hci_acl_disconn(conn, reason);
+		hci_conn_disconnect(conn);
 		break;
 	default:
 		conn->state = BT_CLOSED;
