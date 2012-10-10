@@ -2135,13 +2135,13 @@ static void audit_copy_inode(struct audit_names *name, const struct dentry *dent
 }
 
 /**
- * audit_inode - store the inode and device from a lookup
+ * __audit_inode - store the inode and device from a lookup
  * @name: name being audited
  * @dentry: dentry being audited
- *
- * Called from fs/namei.c:path_lookup().
+ * @parent: does this dentry represent the parent?
  */
-void __audit_inode(const char *name, const struct dentry *dentry)
+void __audit_inode(const char *name, const struct dentry *dentry,
+		   unsigned int parent)
 {
 	struct audit_context *context = current->audit_context;
 	const struct inode *inode = dentry->d_inode;
@@ -2154,19 +2154,38 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 		goto out_alloc;
 
 	list_for_each_entry_reverse(n, &context->names_list, list) {
-		if (n->name == name)
-			goto out;
+		/* does the name pointer match? */
+		if (n->name != name)
+			continue;
+
+		/* match the correct record type */
+		if (parent) {
+			if (n->type == AUDIT_TYPE_PARENT ||
+			    n->type == AUDIT_TYPE_UNKNOWN)
+				goto out;
+		} else {
+			if (n->type != AUDIT_TYPE_PARENT)
+				goto out;
+		}
 	}
 
 out_alloc:
-	/* unable to find the name from a previous getname() */
+	/* unable to find the name from a previous getname(). Allocate a new
+	 * anonymous entry.
+	 */
 	n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
 	if (!n)
 		return;
 out:
+	if (parent) {
+		n->name_len = n->name ? parent_len(n->name) : AUDIT_NAME_FULL;
+		n->type = AUDIT_TYPE_PARENT;
+	} else {
+		n->name_len = AUDIT_NAME_FULL;
+		n->type = AUDIT_TYPE_NORMAL;
+	}
 	handle_path(dentry);
 	audit_copy_inode(n, dentry, inode);
-	n->type = AUDIT_TYPE_NORMAL;
 }
 
 /**
@@ -2190,7 +2209,6 @@ void __audit_inode_child(const struct inode *parent,
 	const struct inode *inode = dentry->d_inode;
 	const char *dname = dentry->d_name.name;
 	struct audit_names *n;
-	int dirlen = 0;
 
 	if (!context->in_syscall)
 		return;
@@ -2204,8 +2222,7 @@ void __audit_inode_child(const struct inode *parent,
 			continue;
 
 		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name, &dirlen)) {
-			n->name_len = dirlen; /* update parent data in place */
+		    !audit_compare_dname_path(dname, n->name, NULL)) {
 			found_parent = n->name;
 			goto add_names;
 		}
@@ -2218,7 +2235,7 @@ void __audit_inode_child(const struct inode *parent,
 
 		/* strcmp() is the more likely scenario */
 		if (!strcmp(dname, n->name) ||
-		     !audit_compare_dname_path(dname, n->name, &dirlen)) {
+		     !audit_compare_dname_path(dname, n->name, NULL)) {
 			if (inode)
 				audit_copy_inode(n, dentry, inode);
 			else

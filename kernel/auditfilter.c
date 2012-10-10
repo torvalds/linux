@@ -1298,6 +1298,36 @@ int audit_gid_comparator(kgid_t left, u32 op, kgid_t right)
 	}
 }
 
+/**
+ * parent_len - find the length of the parent portion of a pathname
+ * @path: pathname of which to determine length
+ */
+int parent_len(const char *path)
+{
+	int plen;
+	const char *p;
+
+	plen = strlen(path);
+
+	if (plen == 0)
+		return plen;
+
+	/* disregard trailing slashes */
+	p = path + plen - 1;
+	while ((*p == '/') && (p > path))
+		p--;
+
+	/* walk backward until we find the next slash or hit beginning */
+	while ((*p != '/') && (p > path))
+		p--;
+
+	/* did we find a slash? Then increment to include it in path */
+	if (*p == '/')
+		p++;
+
+	return p - path;
+}
+
 /* Compare given dentry name with last component in given path,
  * return of 0 indicates a match. */
 int audit_compare_dname_path(const char *dname, const char *path,
