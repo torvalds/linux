@@ -578,18 +578,4 @@ static struct platform_driver mpc52xx_lpbfifo_driver = {
 	.probe = mpc52xx_lpbfifo_probe,
 	.remove = __devexit_p(mpc52xx_lpbfifo_remove),
 };
-
-/***********************************************************************
- * Module init/exit
- */
-static int __init mpc52xx_lpbfifo_init(void)
-{
-	return platform_driver_register(&mpc52xx_lpbfifo_driver);
-}
-module_init(mpc52xx_lpbfifo_init);
-
-static void __exit mpc52xx_lpbfifo_exit(void)
-{
-	platform_driver_unregister(&mpc52xx_lpbfifo_driver);
-}
-module_exit(mpc52xx_lpbfifo_exit);
+module_platform_driver(mpc52xx_lpbfifo_driver);
