@@ -951,6 +951,8 @@ config ARCH_VT8500
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
