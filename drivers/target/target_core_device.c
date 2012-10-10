@@ -1348,8 +1348,6 @@ static void scsi_dump_inquiry(struct se_device *dev)
 
 	device_type = dev->transport->get_device_type(dev);
 	pr_debug("  Type:   %s ", scsi_device_type(device_type));
-	pr_debug("                 ANSI SCSI revision: %02x\n",
-				dev->transport->get_device_rev(dev));
 }
 
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name)

@@ -32,7 +32,6 @@ struct se_subsystem_api {
 				   unsigned char *);
 
 	int (*parse_cdb)(struct se_cmd *cmd);
-	u32 (*get_device_rev)(struct se_device *);
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);

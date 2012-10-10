@@ -604,12 +604,6 @@ out_invalid_cdb_field:
 }
 EXPORT_SYMBOL(sbc_parse_cdb);
 
-u32 sbc_get_device_rev(struct se_device *dev)
-{
-	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
-}
-EXPORT_SYMBOL(sbc_get_device_rev);
-
 u32 sbc_get_device_type(struct se_device *dev)
 {
 	return TYPE_DISK;

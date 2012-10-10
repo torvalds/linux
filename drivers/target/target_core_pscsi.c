@@ -1106,18 +1106,6 @@ fail:
 	return -ENOMEM;
 }
 
-/*	pscsi_get_device_rev():
- *
- *
- */
-static u32 pscsi_get_device_rev(struct se_device *dev)
-{
-	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
-	struct scsi_device *sd = pdv->pdv_sd;
-
-	return (sd->scsi_level - 1) ? sd->scsi_level - 1 : 1;
-}
-
 /*	pscsi_get_device_type():
  *
  *
@@ -1187,7 +1175,6 @@ static struct se_subsystem_api pscsi_template = {
 	.parse_cdb		= pscsi_parse_cdb,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
-	.get_device_rev		= pscsi_get_device_rev,
 	.get_device_type	= pscsi_get_device_type,
 	.get_blocks		= pscsi_get_blocks,
 };

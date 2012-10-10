@@ -534,7 +534,6 @@ static struct se_subsystem_api fileio_template = {
 	.parse_cdb		= fd_parse_cdb,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
-	.get_device_rev		= sbc_get_device_rev,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= fd_get_blocks,
 };

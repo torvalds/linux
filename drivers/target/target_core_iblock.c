@@ -725,7 +725,6 @@ static struct se_subsystem_api iblock_template = {
 	.parse_cdb		= iblock_parse_cdb,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
-	.get_device_rev		= sbc_get_device_rev,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
 };

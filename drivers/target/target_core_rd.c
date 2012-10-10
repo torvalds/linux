@@ -449,7 +449,6 @@ static struct se_subsystem_api rd_mcp_template = {
 	.parse_cdb		= rd_parse_cdb,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
-	.get_device_rev		= sbc_get_device_rev,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= rd_get_blocks,
 };
