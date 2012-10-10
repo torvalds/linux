@@ -3972,8 +3972,8 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	u8  *iovar_ie_buf;
 	u8  *curr_ie_buf;
 	u8  *mgmt_ie_buf = NULL;
-	u32 mgmt_ie_buf_len = 0;
-	u32 *mgmt_ie_len = 0;
+	u32 mgmt_ie_buf_len;
+	u32 *mgmt_ie_len;
 	u32 del_add_ie_buf_len = 0;
 	u32 total_ie_buf_len = 0;
 	u32 parsed_ie_buf_len = 0;
@@ -3995,8 +3995,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 		case VNDR_IE_PRBRSP_FLAG:
 			mgmt_ie_buf = cfg->ap_info->probe_res_ie;
 			mgmt_ie_len = &cfg->ap_info->probe_res_ie_len;
-			mgmt_ie_buf_len =
-				sizeof(cfg->ap_info->probe_res_ie);
+			mgmt_ie_buf_len = sizeof(cfg->ap_info->probe_res_ie);
 			break;
 		case VNDR_IE_BEACON_FLAG:
 			mgmt_ie_buf = cfg->ap_info->beacon_ie;
