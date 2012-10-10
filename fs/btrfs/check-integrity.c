@@ -37,8 +37,9 @@
  *        the file system was mounted, (i.e., they have been
  *        referenced by the super block) or they have been
  *        written since then and the write completion callback
- *        was called and a FLUSH request to the device where
- *        these blocks are located was received and completed.
+ *        was called and no write error was indicated and a
+ *        FLUSH request to the device where these blocks are
+ *        located was received and completed.
  *    2b. All referenced blocks need to have a generation
  *        number which is equal to the parent's number.
  *
@@ -2594,6 +2595,17 @@ static int btrfsic_check_all_ref_blocks(struct btrfsic_state *state,
 			printk(KERN_INFO "btrfs: attempt to write superblock"
 			       " which references block %c @%llu (%s/%llu/%d)"
 			       " which is not yet iodone!\n",
+			       btrfsic_get_block_type(state, l->block_ref_to),
+			       (unsigned long long)
+			       l->block_ref_to->logical_bytenr,
+			       l->block_ref_to->dev_state->name,
+			       (unsigned long long)l->block_ref_to->dev_bytenr,
+			       l->block_ref_to->mirror_num);
+			ret = -1;
+		} else if (l->block_ref_to->iodone_w_error) {
+			printk(KERN_INFO "btrfs: attempt to write superblock"
+			       " which references block %c @%llu (%s/%llu/%d)"
+			       " which has write error!\n",
 			       btrfsic_get_block_type(state, l->block_ref_to),
 			       (unsigned long long)
 			       l->block_ref_to->logical_bytenr,
