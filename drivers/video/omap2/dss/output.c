@@ -113,3 +113,47 @@ struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id)
 
 	return NULL;
 }
+
+static const struct dss_mgr_ops *dss_mgr_ops;
+
+int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops)
+{
+	if (dss_mgr_ops)
+		return -EBUSY;
+
+	dss_mgr_ops = mgr_ops;
+
+	return 0;
+}
+
+void dss_uninstall_mgr_ops(void)
+{
+	dss_mgr_ops = NULL;
+}
+
+void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+		const struct omap_video_timings *timings)
+{
+	dss_mgr_ops->set_timings(mgr, timings);
+}
+
+void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config)
+{
+	dss_mgr_ops->set_lcd_config(mgr, config);
+}
+
+int dss_mgr_enable(struct omap_overlay_manager *mgr)
+{
+	return dss_mgr_ops->enable(mgr);
+}
+
+void dss_mgr_disable(struct omap_overlay_manager *mgr)
+{
+	dss_mgr_ops->disable(mgr);
+}
+
+void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+{
+	dss_mgr_ops->start_update(mgr);
+}
