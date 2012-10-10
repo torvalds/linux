@@ -2810,12 +2810,12 @@ void dispc_mgr_disable_sync(enum omap_channel channel)
 
 void dispc_wb_enable(bool enable)
 {
-	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(OMAP_DSS_WB), enable ? 1 : 0, 0, 0);
+	dispc_ovl_enable(OMAP_DSS_WB, enable);
 }
 
 bool dispc_wb_is_enabled(void)
 {
-	return REG_GET(DISPC_OVL_ATTRIBUTES(OMAP_DSS_WB), 0, 0);
+	return dispc_ovl_enabled(OMAP_DSS_WB);
 }
 
 static void dispc_lcd_enable_signal_polarity(bool act_high)
