@@ -2222,7 +2222,7 @@ void __audit_inode_child(const struct inode *parent,
 			continue;
 
 		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name, NULL)) {
+		    !audit_compare_dname_path(dname, n->name)) {
 			found_parent = n->name;
 			goto add_names;
 		}
@@ -2235,7 +2235,7 @@ void __audit_inode_child(const struct inode *parent,
 
 		/* strcmp() is the more likely scenario */
 		if (!strcmp(dname, n->name) ||
-		     !audit_compare_dname_path(dname, n->name, NULL)) {
+		     !audit_compare_dname_path(dname, n->name)) {
 			if (inode)
 				audit_copy_inode(n, dentry, inode);
 			else

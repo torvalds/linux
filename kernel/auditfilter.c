@@ -1330,8 +1330,7 @@ int parent_len(const char *path)
 
 /* Compare given dentry name with last component in given path,
  * return of 0 indicates a match. */
-int audit_compare_dname_path(const char *dname, const char *path,
-			     int *dirlen)
+int audit_compare_dname_path(const char *dname, const char *path)
 {
 	int dlen, plen;
 	const char *p;
@@ -1360,9 +1359,6 @@ int audit_compare_dname_path(const char *dname, const char *path,
 			p++;
 	}
 
-	/* return length of path's directory component */
-	if (dirlen)
-		*dirlen = p - path;
 	return strncmp(p, dname, dlen);
 }
 
