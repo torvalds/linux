@@ -132,8 +132,6 @@ int  nouveau_fb_bios_memtype(struct nouveau_bios *);
 
 bool nv04_fb_memtype_valid(struct nouveau_fb *, u32 memtype);
 
-void nv10_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
-
 void nv20_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
 void nv20_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);

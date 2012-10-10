@@ -48,7 +48,7 @@ nv10_fb_tile_fini(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 	tile->zcomp = 0;
 }
 
-void
+static void
 nv10_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 {
 	nv_wr32(pfb, 0x100244 + (i * 0x10), tile->limit);
