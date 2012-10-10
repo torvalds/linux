@@ -5200,41 +5200,6 @@ brcmf_cfg80211_event(struct net_device *ndev,
 		schedule_work(&cfg->event_work);
 }
 
-static s32 brcmf_dongle_mode(struct net_device *ndev, s32 iftype)
-{
-	s32 infra = 0;
-	s32 err = 0;
-
-	switch (iftype) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_WDS:
-		WL_ERR("type (%d) : currently we do not support this mode\n",
-		       iftype);
-		err = -EINVAL;
-		return err;
-	case NL80211_IFTYPE_ADHOC:
-		infra = 0;
-		break;
-	case NL80211_IFTYPE_STATION:
-		infra = 1;
-		break;
-	case NL80211_IFTYPE_AP:
-		infra = 1;
-		break;
-	default:
-		err = -EINVAL;
-		WL_ERR("invalid type (%d)\n", iftype);
-		return err;
-	}
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_SET_INFRA, &infra);
-	if (err) {
-		WL_ERR("WLC_SET_INFRA error (%d)\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
 static s32 brcmf_dongle_eventmsg(struct net_device *ndev)
 {
 	/* Room for "event_msgs" + '\0' + bitvec */
@@ -5453,7 +5418,8 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 				WL_BEACON_TIMEOUT);
 	if (err)
 		goto default_conf_out;
-	err = brcmf_dongle_mode(ndev, wdev->iftype);
+	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
+					  NULL, NULL);
 	if (err && err != -EINPROGRESS)
 		goto default_conf_out;
 	err = brcmf_dongle_probecap(cfg);
