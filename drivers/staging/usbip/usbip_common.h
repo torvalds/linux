@@ -320,7 +320,9 @@ void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		    int pack);
 void usbip_header_correct_endian(struct usbip_header *pdu, int send);
 
-void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen);
+struct usbip_iso_packet_descriptor*
+usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen);
+
 /* some members of urb must be substituted before. */
 int usbip_recv_iso(struct usbip_device *ud, struct urb *urb);
 void usbip_pad_iso(struct usbip_device *ud, struct urb *urb);

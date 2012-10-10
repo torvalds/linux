@@ -166,7 +166,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		int ret;
 		struct urb *urb = priv->urb;
 		struct usbip_header pdu_header;
-		void *iso_buffer = NULL;
+		struct usbip_iso_packet_descriptor *iso_buffer = NULL;
 		struct kvec *iov = NULL;
 		int iovnum = 0;
 

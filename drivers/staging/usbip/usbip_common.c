@@ -639,28 +639,26 @@ static void usbip_pack_iso(struct usbip_iso_packet_descriptor *iso,
 }
 
 /* must free buffer */
-void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen)
+struct usbip_iso_packet_descriptor*
+usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen)
 {
-	void *buff;
 	struct usbip_iso_packet_descriptor *iso;
 	int np = urb->number_of_packets;
 	ssize_t size = np * sizeof(*iso);
 	int i;
 
-	buff = kzalloc(size, GFP_KERNEL);
-	if (!buff)
+	iso = kzalloc(size, GFP_KERNEL);
+	if (!iso)
 		return NULL;
 
 	for (i = 0; i < np; i++) {
-		iso = buff + (i * sizeof(*iso));
-
-		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 1);
-		usbip_iso_packet_correct_endian(iso, 1);
+		usbip_pack_iso(&iso[i], &urb->iso_frame_desc[i], 1);
+		usbip_iso_packet_correct_endian(&iso[i], 1);
 	}
 
 	*bufflen = size;
 
-	return buff;
+	return iso;
 }
 EXPORT_SYMBOL_GPL(usbip_alloc_iso_desc_pdu);
 
@@ -703,11 +701,10 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 		return -EPIPE;
 	}
 
+	iso = (struct usbip_iso_packet_descriptor *) buff;
 	for (i = 0; i < np; i++) {
-		iso = buff + (i * sizeof(*iso));
-
-		usbip_iso_packet_correct_endian(iso, 0);
-		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 0);
+		usbip_iso_packet_correct_endian(&iso[i], 0);
+		usbip_pack_iso(&iso[i], &urb->iso_frame_desc[i], 0);
 		total_length += urb->iso_frame_desc[i].actual_length;
 	}
 
