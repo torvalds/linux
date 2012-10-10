@@ -765,7 +765,7 @@ static struct platform_device *devices[] __initdata = {
 
 #if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
  	&rk30_device_adc_battery,
-
+#endif
 #if defined(CONFIG_SC6610)
         &rk29_device_sc6610,
 
