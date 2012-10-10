@@ -2166,9 +2166,9 @@ out:
 }
 
 /**
- * audit_inode_child - collect inode info for created/removed objects
- * @dentry: dentry being audited
+ * __audit_inode_child - collect inode info for created/removed objects
  * @parent: inode of dentry parent
+ * @dentry: dentry being audited
  *
  * For syscalls that create or remove filesystem objects, audit_inode
  * can only collect information for the filesystem object's parent.
@@ -2178,8 +2178,8 @@ out:
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const struct dentry *dentry,
-			 const struct inode *parent)
+void __audit_inode_child(const struct inode *parent,
+			 const struct dentry *dentry)
 {
 	struct audit_context *context = current->audit_context;
 	const char *found_parent = NULL, *found_child = NULL;

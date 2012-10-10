@@ -464,8 +464,8 @@ extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct dentry *dentry);
-extern void __audit_inode_child(const struct dentry *dentry,
-				const struct inode *parent);
+extern void __audit_inode_child(const struct inode *parent,
+				const struct dentry *dentry);
 extern void __audit_seccomp(unsigned long syscall, long signr, int code);
 extern void __audit_ptrace(struct task_struct *t);
 
@@ -504,10 +504,10 @@ static inline void audit_inode(const char *name, const struct dentry *dentry) {
 	if (unlikely(!audit_dummy_context()))
 		__audit_inode(name, dentry);
 }
-static inline void audit_inode_child(const struct dentry *dentry,
-				     const struct inode *parent) {
+static inline void audit_inode_child(const struct inode *parent,
+				     const struct dentry *dentry) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode_child(dentry, parent);
+		__audit_inode_child(parent, dentry);
 }
 void audit_core_dumps(long signr);
 
@@ -657,13 +657,13 @@ static inline void audit_putname(const char *name)
 { }
 static inline void __audit_inode(const char *name, const struct dentry *dentry)
 { }
-static inline void __audit_inode_child(const struct dentry *dentry,
-					const struct inode *parent)
+static inline void __audit_inode_child(const struct inode *parent,
+					const struct dentry *dentry)
 { }
 static inline void audit_inode(const char *name, const struct dentry *dentry)
 { }
-static inline void audit_inode_child(const struct dentry *dentry,
-				     const struct inode *parent)
+static inline void audit_inode_child(const struct inode *parent,
+				     const struct dentry *dentry)
 { }
 static inline void audit_core_dumps(long signr)
 { }
