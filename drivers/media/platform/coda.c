@@ -1877,7 +1877,7 @@ static const struct coda_devtype coda_devdata[] = {
 
 static struct platform_device_id coda_platform_ids[] = {
 	{ .name = "coda-imx27", .driver_data = CODA_IMX27 },
-	{ .name = "coda-imx53", .driver_data = CODA_7541 },
+	{ .name = "coda-imx53", .driver_data = CODA_IMX53 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, coda_platform_ids);
