@@ -859,6 +859,24 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 }
 
 /**
+ * file_open_name - open file and return file pointer
+ *
+ * @name:	struct filename containing path to open
+ * @flags:	open flags as per the open(2) second argument
+ * @mode:	mode for the new file if O_CREAT is set, else ignored
+ *
+ * This is the helper to open a file from kernelspace if you really
+ * have to.  But in generally you should not do this, so please move
+ * along, nothing to see here..
+ */
+struct file *file_open_name(struct filename *name, int flags, umode_t mode)
+{
+	struct open_flags op;
+	int lookup = build_open_flags(flags, mode, &op);
+	return do_filp_open(AT_FDCWD, name, &op, lookup);
+}
+
+/**
  * filp_open - open file and return file pointer
  *
  * @filename:	path to open
@@ -871,9 +889,8 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
  */
 struct file *filp_open(const char *filename, int flags, umode_t mode)
 {
-	struct open_flags op;
-	int lookup = build_open_flags(flags, mode, &op);
-	return do_filp_open(AT_FDCWD, filename, &op, lookup);
+	struct filename name = {.name = filename};
+	return file_open_name(&name, flags, mode);
 }
 EXPORT_SYMBOL(filp_open);
 
@@ -901,7 +918,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd_flags(flags);
 		if (fd >= 0) {
-			struct file *f = do_filp_open(dfd, tmp->name, &op, lookup);
+			struct file *f = do_filp_open(dfd, tmp, &op, lookup);
 			if (IS_ERR(f)) {
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
