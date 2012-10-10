@@ -85,7 +85,10 @@ static int as5011_i2c_write(struct i2c_client *client,
 {
 	uint8_t data[2] = { aregaddr, avalue };
 	struct i2c_msg msg = {
-		client->addr, I2C_M_IGNORE_NAK, 2, (uint8_t *)data
+		.addr = client->addr,
+		.flags = I2C_M_IGNORE_NAK,
+		.len = 2,
+		.buf = (uint8_t *)data
 	};
 	int error;
 
@@ -98,8 +101,18 @@ static int as5011_i2c_read(struct i2c_client *client,
 {
 	uint8_t data[2] = { aregaddr };
 	struct i2c_msg msg_set[2] = {
-		{ client->addr, I2C_M_REV_DIR_ADDR, 1, (uint8_t *)data },
-		{ client->addr, I2C_M_RD | I2C_M_NOSTART, 1, (uint8_t *)data }
+		{
+			.addr = client->addr,
+			.flags = I2C_M_REV_DIR_ADDR,
+			.len = 1,
+			.buf = (uint8_t *)data
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD | I2C_M_NOSTART,
+			.len = 1,
+			.buf = (uint8_t *)data
+		}
 	};
 	int error;
 
