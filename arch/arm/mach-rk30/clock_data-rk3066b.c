@@ -1011,6 +1011,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(148500,	2,	99,	8),
 	_PLL_SET_CLKS(297000,	2,	99,	4),
 	_PLL_SET_CLKS(300000,	1,	50,	4),
+	_PLL_SET_CLKS(594000,	2,	198,	4),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(0,	0,	 0,	0),
 };
@@ -1278,7 +1279,7 @@ static struct clk clk_gpu = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.round_rate	= clk_freediv_round_autosel_parents_rate,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con 	= CRU_CLKSELS_CON(33),
 	.gate_idx	= CLK_GATE_CLK_GPU,
 	CRU_DIV_SET(0x1f, 0, 32),
@@ -1292,7 +1293,7 @@ static struct clk aclk_gpu = {
 	.name		= "aclk_gpu",
 	.recalc		= clksel_recalc_div,
 	.round_rate	= clk_freediv_round_autosel_parents_rate,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con 	= CRU_CLKSELS_CON(34),
 	CRU_DIV_SET(0x1f, 0, 32),
 	CRU_SRC_SET(0x1, 7),
@@ -1516,7 +1517,7 @@ static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clksel_set_rate_freediv,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
@@ -1529,7 +1530,7 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clksel_set_rate_freediv,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
@@ -2999,6 +3000,11 @@ static void periph_clk_set_init(void)
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
+		case 594 * MHZ:
+			aclk_p = ppll_rate >> 2;
+			hclk_p = aclk_p >> 0;
+			pclk_p = aclk_p >> 1;
+			break;
 		default:
 			aclk_p = 150 * MHZ;
 			hclk_p = 150 * MHZ;
@@ -3013,16 +3019,23 @@ static void periph_clk_set_init(void)
 
 static void cpu_axi_init(void)
 {
-	unsigned long aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate, ahb2apb_cpu_rate;
+	unsigned long cpu_div_rate, aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate, ahb2apb_cpu_rate;
 	unsigned long gpll_rate = general_pll_clk.rate;
 
 	switch (gpll_rate) {
 		case 297 * MHZ:
-			aclk_cpu_rate = gpll_rate >> 0;
+			cpu_div_rate = gpll_rate;
+			aclk_cpu_rate = cpu_div_rate >> 0;
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
 
+		case 594 * MHZ:
+			cpu_div_rate = gpll_rate >> 1;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
 		default:
 			aclk_cpu_rate = 150 * MHZ;
 			hclk_cpu_rate = 150 * MHZ;
@@ -3032,6 +3045,7 @@ static void cpu_axi_init(void)
 	ahb2apb_cpu_rate = pclk_cpu_rate;
 
 	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
+	clk_set_rate_nolock(&clk_cpu_div, cpu_div_rate);
 	clk_set_rate_nolock(&aclk_cpu, aclk_cpu_rate);
 	clk_set_rate_nolock(&hclk_cpu, hclk_cpu_rate);
 	clk_set_rate_nolock(&pclk_cpu, pclk_cpu_rate);
@@ -3111,8 +3125,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_parent_nolock(&cif_out_pll, &general_pll_clk);
 
 	//axi lcdc auto sel
-	//clk_set_parent_nolock(&aclk_lcdc0, &general_pll_clk);
-	//clk_set_parent_nolock(&aclk_lcdc1, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_lcdc0_pre, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_lcdc1_pre, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_lcdc0_pre, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_lcdc1_pre, 300 * MHZ);
 
@@ -3123,9 +3137,10 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300 * MHZ);
 	//gpu auto sel
-	clk_set_rate_nolock(&clk_gpu, 400 * MHZ);
-	clk_set_rate_nolock(&aclk_gpu, 400 * MHZ);
-	//clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
+	clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
+	clk_set_rate_nolock(&clk_gpu, 200 * MHZ);
+	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 }
 
 static struct clk def_ops_clk = {

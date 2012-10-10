@@ -112,6 +112,7 @@ enum _periph_pll {
 	periph_pll_1485mhz = 148500000,
 	periph_pll_297mhz = 297000000,
 	periph_pll_300mhz = 300000000,
+	periph_pll_594mhz = 594000000,
 	periph_pll_1188mhz = 1188000000, /* for box*/
 };
 enum _codec_pll {
@@ -155,7 +156,7 @@ enum _codec_pll {
 #else
 #define codec_pll_default codec_pll_798mhz
 #endif
-#define periph_pll_default periph_pll_297mhz
+#define periph_pll_default periph_pll_594mhz
 
 #endif
 
