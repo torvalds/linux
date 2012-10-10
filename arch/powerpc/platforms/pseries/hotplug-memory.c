@@ -101,7 +101,7 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
 	for (i = 0; i < sections_to_remove; i++) {
 		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
-		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
+		ret = __remove_pages(zone, pfn, PAGES_PER_SECTION);
 		if (ret)
 			return ret;
 	}
