@@ -1108,17 +1108,5 @@ static struct platform_driver deinterlace_pdrv = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static void __exit deinterlace_exit(void)
-{
-	platform_driver_unregister(&deinterlace_pdrv);
-}
-
-static int __init deinterlace_init(void)
-{
-	return platform_driver_register(&deinterlace_pdrv);
-}
-
-module_init(deinterlace_init);
-module_exit(deinterlace_exit);
+module_platform_driver(deinterlace_pdrv);
 
