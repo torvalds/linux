@@ -105,6 +105,9 @@ struct mgr_priv_data {
 
 	struct omap_video_timings timings;
 	struct dss_lcd_mgr_config lcd_config;
+
+	void (*framedone_handler)(void *);
+	void *framedone_handler_data;
 };
 
 static struct {
@@ -888,6 +891,21 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	if (!extra_updating)
 		complete_all(&extra_updated_completion);
 
+	/* call framedone handlers for manual update displays */
+	for (i = 0; i < num_mgrs; i++) {
+		struct omap_overlay_manager *mgr;
+		struct mgr_priv_data *mp;
+
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		if (!mgr_manual_update(mgr) || !mp->framedone_handler)
+			continue;
+
+		if (mask & dispc_mgr_get_framedone_irq(i))
+			mp->framedone_handler(mp->framedone_handler_data);
+	}
+
 	if (!need_isr())
 		dss_unregister_vsync_isr();
 
@@ -1501,12 +1519,40 @@ err:
 	return r;
 }
 
+static int dss_mgr_register_framedone_handler_compat(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	if (mp->framedone_handler)
+		return -EBUSY;
+
+	mp->framedone_handler = handler;
+	mp->framedone_handler_data = data;
+
+	return 0;
+}
+
+static void dss_mgr_unregister_framedone_handler_compat(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	WARN_ON(mp->framedone_handler != handler ||
+			mp->framedone_handler_data != data);
+
+	mp->framedone_handler = NULL;
+	mp->framedone_handler_data = NULL;
+}
+
 static const struct dss_mgr_ops apply_mgr_ops = {
 	.start_update = dss_mgr_start_update_compat,
 	.enable = dss_mgr_enable_compat,
 	.disable = dss_mgr_disable_compat,
 	.set_timings = dss_mgr_set_timings_compat,
 	.set_lcd_config = dss_mgr_set_lcd_config_compat,
+	.register_framedone_handler = dss_mgr_register_framedone_handler_compat,
+	.unregister_framedone_handler = dss_mgr_unregister_framedone_handler_compat,
 };
 
 static int compat_refcnt;

@@ -157,3 +157,15 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 {
 	dss_mgr_ops->start_update(mgr);
 }
+
+int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	return dss_mgr_ops->register_framedone_handler(mgr, handler, data);
+}
+
+void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	dss_mgr_ops->unregister_framedone_handler(mgr, handler, data);
+}

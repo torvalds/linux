@@ -185,6 +185,10 @@ void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings);
 void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config);
+int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data);
+void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data);
 
 /* output */
 void dss_register_output(struct omap_dss_output *out);
@@ -531,6 +535,10 @@ struct dss_mgr_ops {
 			const struct omap_video_timings *timings);
 	void (*set_lcd_config)(struct omap_overlay_manager *mgr,
 			const struct dss_lcd_mgr_config *config);
+	int (*register_framedone_handler)(struct omap_overlay_manager *mgr,
+			void (*handler)(void *), void *data);
+	void (*unregister_framedone_handler)(struct omap_overlay_manager *mgr,
+			void (*handler)(void *), void *data);
 };
 
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
