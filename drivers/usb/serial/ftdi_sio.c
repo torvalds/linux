@@ -923,6 +923,7 @@ static int ftdi_get_icount(struct tty_struct *tty,
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
+static int ftdi_chars_in_buffer(struct tty_struct *tty);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor(int baud);
@@ -957,6 +958,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.ioctl =		ftdi_ioctl,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
+	.chars_in_buffer =      ftdi_chars_in_buffer,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -2087,6 +2089,64 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 	dev_dbg(&port->dev, "%s break state is %d - urb is %d\n", __func__,
 		break_state, urb_value);
 
+}
+
+static int ftdi_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	int chars;
+	unsigned char *buf;
+	int ret;
+
+	/* Check software buffer (code from
+	 * usb_serial_generic_chars_in_buffer()) */
+	spin_lock_irqsave(&port->lock, flags);
+	chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	/* Check hardware buffer */
+	switch (priv->chip_type) {
+	case FT8U232AM:
+	case FT232BM:
+	case FT2232C:
+	case FT232RL:
+	case FT2232H:
+	case FT4232H:
+	case FT232H:
+	case FTX:
+		break;
+	case SIO:
+	default:
+		return chars;
+	}
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&port->dev, "kmalloc failed");
+		return chars;
+	}
+
+	ret = usb_control_msg(port->serial->dev,
+				usb_rcvctrlpipe(port->serial->dev, 0),
+				FTDI_SIO_GET_MODEM_STATUS_REQUEST,
+				FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
+				0, priv->interface,
+				buf, 2, WDR_TIMEOUT);
+
+	if (ret < 2) {
+		dev_err(&port->dev, "Unable to read modem and line status: "
+			"%i\n", ret);
+		goto chars_in_buffer_out;
+	}
+
+	if (!(buf[1] & FTDI_RS_TEMT))
+		chars++;
+
+chars_in_buffer_out:
+	kfree(buf);
+	return chars;
 }
 
 /* old_termios contains the original termios settings and tty->termios contains
