@@ -22,38 +22,36 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+
+static DEFINE_SPINLOCK(_lock);
 
 /* Clock Manager offsets */
 #define CLKMGR_CTRL    0x0
 #define CLKMGR_BYPASS 0x4
 
-/* Clock bypass bits */
-#define MAINPLL_BYPASS (1<<0)
-#define SDRAMPLL_BYPASS (1<<1)
-#define SDRAMPLL_SRC_BYPASS (1<<2)
-#define PERPLL_BYPASS (1<<3)
-#define PERPLL_SRC_BYPASS (1<<4)
+#define SOCFPGA_MAIN_PLL_CLK		1200000000
+#define SOCFPGA_PER_PLL_CLK		900000000
+#define SOCFPGA_SDRAM_PLL_CLK		800000000
 
-#define SOCFPGA_PLL_BG_PWRDWN		0
-#define SOCFPGA_PLL_EXT_ENA		1
-#define SOCFPGA_PLL_PWR_DOWN		2
-#define SOCFPGA_PLL_DIVF_MASK		0x0000FFF8
-#define SOCFPGA_PLL_DIVF_SHIFT	3
-#define SOCFPGA_PLL_DIVQ_MASK		0x003F0000
-#define SOCFPGA_PLL_DIVQ_SHIFT	16
+#define CLKMGR_PERPLLGRP_EN	0xA0
 
-extern void __iomem *clk_mgr_base_addr;
+#define CLKMGR_QSPI_CLK_EN				11
+#define CLKMGR_NAND_CLK_EN				10
+#define CLKMGR_NAND_X_CLK_EN			9
+#define CLKMGR_SDMMC_CLK_EN			8
+#define CLKMGR_S2FUSR_CLK_EN			7
+#define CLKMGR_GPIO_CLK_EN				6
+#define CLKMGR_CAN1_CLK_EN				5
+#define CLKMGR_CAN0_CLK_EN				4
+#define CLKMGR_SPI_M_CLK_EN			3
+#define CLKMGR_USB_MP_CLK_EN			2
+#define CLKMGR_EMAC1_CLK_EN			1
+#define CLKMGR_EMAC0_CLK_EN			0
 
-struct socfpga_clk {
-	struct clk_gate hw;
-	char *parent_name;
-	char *clk_name;
-	u32 fixed_div;
-};
-#define to_socfpga_clk(p) container_of(p, struct socfpga_clk, hw.hw)
+void __iomem *clk_mgr_base_addr;
 
-static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
-					 unsigned long parent_rate)
+void __init socfpga_init_clocks(void)
 {
 	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
 	unsigned long divf, divq, vco_freq, reg;
@@ -98,39 +96,25 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 {
 	u32 reg;
 	struct clk *clk;
-	struct socfpga_clk *socfpga_clk;
-	const char *clk_name = node->name;
-	const char *parent_name;
-	struct clk_init_data init;
-	int rc;
-	u32 fixed_div;
+	struct device_node *np;
 
-	rc = of_property_read_u32(node, "reg", &reg);
-	if (WARN_ON(rc))
-		return NULL;
+	np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
+	clk_mgr_base_addr = of_iomap(np, 0);
 
-	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
-	if (WARN_ON(!socfpga_clk))
-		return NULL;
-
-	socfpga_clk->hw.reg = clk_mgr_base_addr + reg;
-
-	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
-	if (rc)
-		socfpga_clk->fixed_div = 0;
-	else
-		socfpga_clk->fixed_div = fixed_div;
-
-	of_property_read_string(node, "clock-output-names", &clk_name);
-
-	init.name = clk_name;
-	init.ops = ops;
-	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
-	init.parent_names = &parent_name;
-	init.num_parents = 1;
-
-	socfpga_clk->hw.hw.init = &init;
+	clk = clk_register_fixed_rate(NULL, "main_pll_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_MAIN_PLL_CLK);
+	clk_register_clkdev(clk, "main_pll_clk", NULL);
+	
+	clk = clk_register_fixed_rate(NULL, "per_pll_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_PER_PLL_CLK);
+	clk_register_clkdev(clk, "per_pll_clk", NULL);
+	
+	clk = clk_register_fixed_rate(NULL, "sdram_pll_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_SDRAM_PLL_CLK);
+	clk_register_clkdev(clk, "sdram_pll_clk", NULL);
+	
+	clk = clk_register_fixed_rate(NULL, "osc1_clk", NULL, CLK_IS_ROOT, SOCFPGA_OSC1_CLK);
+	clk_register_clkdev(clk, "osc1_clk", NULL);
 
 	if (strcmp(clk_name, "main_pll") || strcmp(clk_name, "periph_pll") ||
 			strcmp(clk_name, "sdram_pll")) {
@@ -165,8 +149,14 @@ void __init socfpga_init_clocks(void)
 	struct clk *clk;
 	int ret;
 
-	clk = clk_register_fixed_factor(NULL, "smp_twd", "mpuclk", 0, 1, 4);
-	ret = clk_register_clkdev(clk, NULL, "smp_twd");
-	if (ret)
-		pr_err("smp_twd alias not registered\n");
+	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT, SOCFPGA_S2F_USR_CLK);
+	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
+
+	clk = clk_register_gate(NULL, "mmc_clk", "main_nand_sdmmc_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_SDMMC_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff704000.sdmmc");
+	
+	clk = clk_register_gate(NULL, "gmac_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_EMAC0_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff700000.stmmac");
 }

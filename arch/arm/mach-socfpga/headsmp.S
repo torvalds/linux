@@ -10,8 +10,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__CPUINIT
-	.arch	armv7-a
+	__INIT
 
 ENTRY(secondary_trampoline)
 	movw	r2, #:lower16:cpu1start_addr

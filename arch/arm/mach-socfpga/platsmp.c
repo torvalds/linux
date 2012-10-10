@@ -27,7 +27,27 @@
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 
-#include "core.h"
+volatile int pen_release = -1;
+
+extern void secondary_startup(void);
+extern void __iomem *socfpga_scu_base_addr;
+static void __iomem *sys_manager_base_addr;
+static void __iomem *rst_manager_base_addr;
+
+extern void socfpga_secondary_startup(void);
+extern void socfpga_cpu_die(unsigned int cpu);
+
+static DEFINE_SPINLOCK(boot_lock);
+
+void __cpuinit platform_secondary_init(unsigned int cpu)
+{
+	/*
+	 * if any interrupts are already enabled for the primary
+	 * core (e.g. timer irq), then they will not have been enabled
+	 * for us: do so
+	 */
+	gic_secondary_init(0);
+}
 
 static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
