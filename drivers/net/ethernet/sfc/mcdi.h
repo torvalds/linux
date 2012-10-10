@@ -88,9 +88,9 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
 /* We expect that 16- and 32-bit fields in MCDI requests and responses
- * are appropriately aligned.  Also, on Siena we must copy to the MC
- * shared memory strictly 32 bits at a time, so add any necessary
- * padding.
+ * are appropriately aligned, but 64-bit fields are only
+ * 32-bit-aligned.  Also, on Siena we must copy to the MC shared
+ * memory strictly 32 bits at a time, so add any necessary padding.
  */
 #define MCDI_DECLARE_BUF(_name, _len)					\
 	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
@@ -107,6 +107,13 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
 #define MCDI_DWORD(_buf, _field)					\
 	EFX_DWORD_FIELD(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0)
+#define MCDI_SET_QWORD(_buf, _field, _value)				\
+	do {								\
+		EFX_POPULATE_DWORD_1(_MCDI_DWORD(_buf, _field)[0],	\
+				     EFX_DWORD_0, (u32)(_value));	\
+		EFX_POPULATE_DWORD_1(_MCDI_DWORD(_buf, _field)[1],	\
+				     EFX_DWORD_0, (u64)(_value) >> 32);	\
+	} while (0)
 #define MCDI_QWORD(_buf, _field)					\
 	(EFX_DWORD_FIELD(_MCDI_DWORD(_buf, _field)[0], EFX_DWORD_0) |	\
 	(u64)EFX_DWORD_FIELD(_MCDI_DWORD(_buf, _field)[1], EFX_DWORD_0) << 32)
@@ -140,6 +147,16 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 			    EFX_DWORD_0, _value)
 #define MCDI_ARRAY_DWORD(_buf, _field, _index)				\
 	EFX_DWORD_FIELD(*_MCDI_ARRAY_DWORD(_buf, _field, _index), EFX_DWORD_0)
+#define _MCDI_ARRAY_QWORD(_buf, _field, _index)				\
+	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 8) +		\
+	 (efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index, 4))
+#define MCDI_SET_ARRAY_QWORD(_buf, _field, _index, _value)		\
+	do {								\
+		EFX_SET_DWORD_FIELD(_MCDI_ARRAY_QWORD(_buf, _field, _index)[0],\
+				    EFX_DWORD_0, (u32)(_value));	\
+		EFX_SET_DWORD_FIELD(_MCDI_ARRAY_QWORD(_buf, _field, _index)[1],\
+				    EFX_DWORD_0, (u64)(_value) >> 32);	\
+	} while (0)
 #define MCDI_ARRAY_FIELD(_buf, _field1, _type, _index, _field2)		\
 	MCDI_FIELD(MCDI_ARRAY_STRUCT_PTR(_buf, _field1, _index),	\
 		   _type ## _TYPEDEF, _field2)

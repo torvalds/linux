@@ -243,7 +243,8 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 	MCDI_DECLARE_BUF(inbuf, MCDI_CTL_SDU_LEN_MAX_V1);
 	MCDI_DECLARE_STRUCT_PTR(record);
 	unsigned int index, used;
-	u32 from_rid, from_hi, from_lo;
+	u64 from_addr;
+	u32 from_rid;
 	int rc;
 
 	mb();	/* Finish writing source/reading dest before DMA starts */
@@ -258,14 +259,11 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			       count);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_RID,
 			       req->to_rid);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR_LO,
-			       (u32)req->to_addr);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR_HI,
-			       (u32)(req->to_addr >> 32));
+		MCDI_SET_QWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR,
+			       req->to_addr);
 		if (req->from_buf == NULL) {
 			from_rid = req->from_rid;
-			from_lo = (u32)req->from_addr;
-			from_hi = (u32)(req->from_addr >> 32);
+			from_addr = req->from_addr;
 		} else {
 			if (WARN_ON(used + req->length >
 				    MCDI_CTL_SDU_LEN_MAX_V1)) {
@@ -274,18 +272,15 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			}
 
 			from_rid = MC_CMD_MEMCPY_RECORD_TYPEDEF_RID_INLINE;
-			from_lo = used;
-			from_hi = 0;
+			from_addr = used;
 			memcpy(_MCDI_PTR(inbuf, used), req->from_buf,
 			       req->length);
 			used += req->length;
 		}
 
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_RID, from_rid);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR_LO,
-			       from_lo);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR_HI,
-			       from_hi);
+		MCDI_SET_QWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR,
+			       from_addr);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_LENGTH,
 			       req->length);
 

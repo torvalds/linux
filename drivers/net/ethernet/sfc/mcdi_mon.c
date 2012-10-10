@@ -95,10 +95,8 @@ static int efx_mcdi_mon_update(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_READ_SENSORS_IN_LEN);
 	int rc;
 
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_LO,
-		       hwmon->dma_buf.dma_addr & 0xffffffff);
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_HI,
-		       (u64)hwmon->dma_buf.dma_addr >> 32);
+	MCDI_SET_QWORD(inbuf, READ_SENSORS_IN_DMA_ADDR,
+		       hwmon->dma_buf.dma_addr);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
 			  inbuf, sizeof(inbuf), NULL, 0, NULL);
