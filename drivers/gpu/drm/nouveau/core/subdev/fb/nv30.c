@@ -35,8 +35,13 @@ nv30_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nouveau_fb_tile *tile)
 {
 	/* for performance, select alternate bank offset for zeta */
-	if (!(flags & 4)) tile->addr = (0 << 4);
-	else              tile->addr = (1 << 4);
+	if (!(flags & 4)) {
+		tile->addr = (0 << 4);
+	} else {
+		if (pfb->tile.comp) /* z compression */
+			pfb->tile.comp(pfb, i, size, flags, tile);
+		tile->addr = (1 << 4);
+	}
 
 	tile->addr |= 0x00000001; /* enable */
 	tile->addr |= addr;
@@ -49,14 +54,6 @@ nv30_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
 	tile->zcomp = 0x00000000;
-}
-
-void
-nv30_fb_tile_fini(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
-{
-	tile->addr  = 0;
-	tile->limit = 0;
-	tile->pitch = 0;
 }
 
 static int
@@ -135,7 +132,7 @@ nv30_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv30_fb_tile_init;
 	priv->base.tile.comp = nv30_fb_tile_comp;
-	priv->base.tile.fini = nv30_fb_tile_fini;
+	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
 	return nouveau_fb_preinit(&priv->base);
 }

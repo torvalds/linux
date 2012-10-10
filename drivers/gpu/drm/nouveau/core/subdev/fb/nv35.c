@@ -55,7 +55,7 @@ nv35_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv30_fb_tile_init;
 	priv->base.tile.comp = nv35_fb_tile_comp;
-	priv->base.tile.fini = nv30_fb_tile_fini;
+	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
 	return nouveau_fb_preinit(&priv->base);
 }

@@ -96,7 +96,7 @@ nv44_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.ram.init = nv44_fb_vram_init;
 	priv->base.tile.regions = 12;
 	priv->base.tile.init = nv44_fb_tile_init;
-	priv->base.tile.fini = nv30_fb_tile_fini;
+	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv44_fb_tile_prog;
 	return nouveau_fb_preinit(&priv->base);
 }
