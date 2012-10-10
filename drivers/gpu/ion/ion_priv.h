@@ -229,6 +229,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  *			when the shrinker fires
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
+ * @list:		plist node for list of pools
  *
  * Allows you to keep a pool of pre allocated pages to use from your heap.
  * Keeping a pool of pages that is ready for dma, ie any cached mapping have
@@ -240,12 +241,12 @@ struct ion_page_pool {
 	int low_count;
 	struct list_head high_items;
 	struct list_head low_items;
-	struct shrinker shrinker;
 	struct mutex mutex;
 	void *(*alloc)(struct ion_page_pool *pool);
 	void (*free)(struct ion_page_pool *pool, struct page *page);
 	gfp_t gfp_mask;
 	unsigned int order;
+	struct plist_node list;
 };
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);
