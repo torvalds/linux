@@ -1332,32 +1332,19 @@ int parent_len(const char *path)
  * return of 0 indicates a match. */
 int audit_compare_dname_path(const char *dname, const char *path)
 {
-	int dlen, plen;
+	int dlen, pathlen, parentlen;
 	const char *p;
 
-	if (!dname || !path)
-		return 1;
-
 	dlen = strlen(dname);
-	plen = strlen(path);
-	if (plen < dlen)
+	pathlen = strlen(path);
+	if (pathlen < dlen)
 		return 1;
 
-	/* disregard trailing slashes */
-	p = path + plen - 1;
-	while ((*p == '/') && (p > path))
-		p--;
-
-	/* find last path component */
-	p = p - dlen + 1;
-	if (p < path)
+	parentlen = parent_len(path);
+	if (pathlen - parentlen != dlen)
 		return 1;
-	else if (p > path) {
-		if (*--p != '/')
-			return 1;
-		else
-			p++;
-	}
+
+	p = path + parentlen;
 
 	return strncmp(p, dname, dlen);
 }
