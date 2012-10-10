@@ -83,6 +83,7 @@ nv20_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 	nv_wr32(pfb, 0x100244 + (i * 0x10), tile->limit);
 	nv_wr32(pfb, 0x100248 + (i * 0x10), tile->pitch);
 	nv_wr32(pfb, 0x100240 + (i * 0x10), tile->addr);
+	nv_rd32(pfb, 0x100240 + (i * 0x10));
 	nv_wr32(pfb, 0x100300 + (i * 0x04), tile->zcomp);
 }
 
