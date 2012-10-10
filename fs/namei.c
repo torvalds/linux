@@ -130,6 +130,10 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	char *kname;
 	int len;
 
+	result = audit_reusename(filename);
+	if (result)
+		return result;
+
 	/* FIXME: create dedicated slabcache? */
 	result = kzalloc(sizeof(*result), GFP_KERNEL);
 	if (unlikely(!result))

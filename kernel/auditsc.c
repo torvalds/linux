@@ -2021,6 +2021,29 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 }
 
 /**
+ * audit_reusename - fill out filename with info from existing entry
+ * @uptr: userland ptr to pathname
+ *
+ * Search the audit_names list for the current audit context. If there is an
+ * existing entry with a matching "uptr" then return the filename
+ * associated with that audit_name. If not, return NULL.
+ */
+struct filename *
+__audit_reusename(const __user char *uptr)
+{
+	struct audit_context *context = current->audit_context;
+	struct audit_names *n;
+
+	list_for_each_entry(n, &context->names_list, list) {
+		if (!n->name)
+			continue;
+		if (n->name->uptr == uptr)
+			return n->name;
+	}
+	return NULL;
+}
+
+/**
  * audit_getname - add a name to the list
  * @name: name to add
  *
