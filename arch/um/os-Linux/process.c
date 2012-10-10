@@ -12,10 +12,10 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
-#include "init.h"
-#include "longjmp.h"
-#include "os.h"
-#include "skas_ptrace.h"
+#include <init.h>
+#include <longjmp.h>
+#include <os.h>
+#include <skas_ptrace.h>
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1

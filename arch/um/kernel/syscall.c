@@ -3,16 +3,16 @@
  * Licensed under the GPL
  */
 
-#include "linux/file.h"
-#include "linux/fs.h"
-#include "linux/mm.h"
-#include "linux/sched.h"
-#include "linux/utsname.h"
-#include "linux/syscalls.h"
-#include "asm/current.h"
-#include "asm/mman.h"
-#include "asm/uaccess.h"
-#include "asm/unistd.h"
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/utsname.h>
+#include <linux/syscalls.h>
+#include <asm/current.h>
+#include <asm/mman.h>
+#include <asm/uaccess.h>
+#include <asm/unistd.h>
 #include "internal.h"
 
 long sys_fork(void)

@@ -10,11 +10,11 @@
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-#include "arch.h"
-#include "as-layout.h"
-#include "kern_util.h"
-#include "os.h"
-#include "skas.h"
+#include <arch.h>
+#include <as-layout.h>
+#include <kern_util.h>
+#include <os.h>
+#include <skas.h>
 
 /*
  * Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by

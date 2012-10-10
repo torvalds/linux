@@ -7,9 +7,9 @@
 #define __OS_H__
 
 #include <stdarg.h>
-#include "irq_user.h"
-#include "longjmp.h"
-#include "mm_id.h"
+#include <irq_user.h>
+#include <longjmp.h>
+#include <mm_id.h>
 
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 

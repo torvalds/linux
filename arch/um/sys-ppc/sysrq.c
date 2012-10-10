@@ -3,8 +3,8 @@
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/smp.h"
+#include <linux/kernel.h>
+#include <linux/smp.h>
 #include "asm/ptrace.h"
 #include "sysrq.h"
 
