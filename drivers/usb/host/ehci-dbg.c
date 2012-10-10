@@ -18,21 +18,6 @@
 
 /* this file is part of ehci-hcd.c */
 
-#define ehci_dbg(ehci, fmt, args...) \
-	dev_dbg (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_err(ehci, fmt, args...) \
-	dev_err (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_info(ehci, fmt, args...) \
-	dev_info (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_warn(ehci, fmt, args...) \
-	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-
-#ifdef VERBOSE_DEBUG
-#	define ehci_vdbg ehci_dbg
-#else
-	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
-#endif
-
 #ifdef	DEBUG
 
 /* check the values in the HCSPARAMS register
