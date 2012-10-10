@@ -72,6 +72,7 @@ obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_FT5X_TS) += ft5x_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GT801)         += goodix_touch.o
+obj-$(CONFIG_TOUCHSCREEN_GT818)         += gt818_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ZT8031)         += zt8031.o
 obj-$(CONFIG_TOUCHSCREEN_COASIA)         += coasia_i2c.o
 obj-$(CONFIG_TOUCHSCREEN_SUN4I_TS)         += sun4i-ts.o
