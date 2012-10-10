@@ -41,16 +41,17 @@
 #include <mach/board.h>
 #include <linux/slab.h>
 #include <linux/adc.h>
+#include <linux/wakelock.h>
 
 /* Debug */
-#if 0
+#if 1
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...) do { } while (0)
 #endif
 
-#define HOOK_ADC_SAMPLE_TIME	100
-#define HOOK_LEVEL_HIGH  		600		//1V*1024/2.5
+#define HOOK_ADC_SAMPLE_TIME	50
+#define HOOK_LEVEL_HIGH  		410		//1V*1024/2.5
 #define HOOK_LEVEL_LOW  		204		//0.5V*1024/2.5
 #define HOOK_DEFAULT_VAL  		1024	
 
@@ -102,6 +103,7 @@ struct headset_priv {
 	struct adc_client *client;
 	struct timer_list hook_timer;
 	unsigned int hook_time;//ms
+	struct wake_lock headset_on_wake;
 };
 static struct headset_priv *headset_info;
 
@@ -118,9 +120,10 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 	static unsigned int old_status = 0;
 	int i,level = 0;	
 	int adc_value = 0;
+	wake_lock(&headset_info->headset_on_wake);
 	if(headset_info->heatset_irq_working == BUSY || headset_info->heatset_irq_working == WAIT)
 		return IRQ_HANDLED;
-	DBG("In the headset_interrupt for read headset level\n");		
+	DBG("In the headset_interrupt for read headset level  wake_lock headset_on_wake\n");		
 	headset_info->heatset_irq_working = BUSY;
 	for(i=0; i<3; i++)
 	{
@@ -213,14 +216,11 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 				#endif
 				#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 				rt3261_headset_mic_detect(false);
-				#endif
-				printk("headset->isMic = %d\n",headset_info->isMic);		
+				#endif	
 			}	
-			else if(adc_value >= HOOK_LEVEL_HIGH)	
-			{	
+			else if(adc_value >= HOOK_LEVEL_HIGH)
 				headset_info->isMic = 1;//have mic
-				printk("headset->isMic = %d\n",headset_info->isMic);		
-			}
+
 			if(headset_info->isMic < 0)	
 			{
 				printk("codec is error\n");
@@ -230,6 +230,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 				else
 					irq_set_irq_type(headset_info->irq[HEADSET],IRQF_TRIGGER_HIGH|IRQF_ONESHOT);
 				schedule_delayed_work(&headset_info->h_delayed_work[HEADSET], msecs_to_jiffies(0));	
+				wake_unlock(&headset_info->headset_on_wake);
 				return IRQ_HANDLED;
 			}
 			//adc_value = adc_sync_read(headset_info->client);
@@ -281,6 +282,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 //	schedule_delayed_work(&headset_info->h_delayed_work[HEADSET], msecs_to_jiffies(0));
 out:
 	headset_info->heatset_irq_working = IDLE;
+	wake_unlock(&headset_info->headset_on_wake);
 	return IRQ_HANDLED;
 }
 
@@ -322,7 +324,7 @@ static void headsetobserve_work(struct work_struct *work)
 			headset_info->irq_type[HEADSET] = IRQF_TRIGGER_HIGH|IRQF_ONESHOT;
 		else
 			headset_info->irq_type[HEADSET] = IRQF_TRIGGER_LOW|IRQF_ONESHOT;
-		if(request_threaded_irq(headset_info->irq[HEADSET], NULL,headset_interrupt, headset_info->irq_type[HEADSET], "headset_input", NULL) < 0)
+		if(request_threaded_irq(headset_info->irq[HEADSET], NULL,headset_interrupt, headset_info->irq_type[HEADSET]|IRQF_NO_SUSPEND, "headset_input", NULL) < 0)
 			printk("headset request_threaded_irq error\n");
 		return;	
 	}
@@ -346,7 +348,7 @@ static void hook_adc_callback(struct adc_client *client, void *client_param, int
 	struct rk_headset_pdata *pdata = headset->pdata;
 	static unsigned int old_status = HOOK_UP;
 
-	DBG("hook_adc_callback read adc value: %d\n",level);
+//	DBG("hook_adc_callback read adc value: %d\n",level);
 
 	if(level < 0)
 	{
@@ -389,10 +391,6 @@ static void hook_adc_callback(struct adc_client *client, void *client_param, int
 		DBG("headset is out,HOOK status must discard\n");
 	else
 	{
-		if(headset->hook_status==HOOK_DOWN)
-		DBG("hook_adc_callback read adc ------------HOOK_DOWN\n");
-		else
-		DBG("hook_adc_callback read adc ------------HOOK_UP\n");
 		input_report_key(headset->input_dev,pdata->hook_key_code,headset->hook_status);
 		input_sync(headset->input_dev);
 	}	
@@ -466,7 +464,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	
 //	mutex_init(&headset->mutex_lock[HEADSET]);
 //	mutex_init(&headset->mutex_lock[HOOK]);
-	
+	wake_lock_init(&headset->headset_on_wake, WAKE_LOCK_SUSPEND, "headset_on_wake");
 	INIT_DELAYED_WORK(&headset->h_delayed_work[HEADSET], headsetobserve_work);
 
 	headset->isMic = 0;
@@ -506,7 +504,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_HIGH|IRQF_ONESHOT;
 		else
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_LOW|IRQF_ONESHOT;
-		ret = request_threaded_irq(headset->irq[HEADSET], NULL,headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
+		ret = request_threaded_irq(headset->irq[HEADSET], NULL,headset_interrupt, headset->irq_type[HEADSET]|IRQF_NO_SUSPEND, "headset_input", NULL);
 		if (ret) 
 			goto failed_free;
 		enable_irq_wake(headset->irq[HEADSET]);
