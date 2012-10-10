@@ -30,6 +30,20 @@ struct nv46_fb_priv {
 	struct nouveau_fb base;
 };
 
+void
+nv46_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nouveau_fb_tile *tile)
+{
+	/* for performance, select alternate bank offset for zeta */
+	if (!(flags & 4)) tile->addr = (0 << 3);
+	else              tile->addr = (1 << 3);
+
+	tile->addr |= 0x00000001; /* mode = vram */
+	tile->addr |= addr;
+	tile->limit = max(1u, addr + size) - 1;
+	tile->pitch = pitch;
+}
+
 static int
 nv46_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
@@ -57,7 +71,7 @@ nv46_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
 	priv->base.tile.regions = 15;
-	priv->base.tile.init = nv30_fb_tile_init;
+	priv->base.tile.init = nv46_fb_tile_init;
 	priv->base.tile.fini = nv30_fb_tile_fini;
 	priv->base.tile.prog = nv41_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);

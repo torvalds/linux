@@ -34,7 +34,12 @@ void
 nv30_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nouveau_fb_tile *tile)
 {
-	tile->addr = addr | 1;
+	/* for performance, select alternate bank offset for zeta */
+	if (!(flags & 4)) tile->addr = (0 << 4);
+	else              tile->addr = (1 << 4);
+
+	tile->addr |= 0x00000001; /* enable */
+	tile->addr |= addr;
 	tile->limit = max(1u, addr + size) - 1;
 	tile->pitch = pitch;
 }

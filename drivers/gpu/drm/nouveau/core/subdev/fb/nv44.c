@@ -30,6 +30,16 @@ struct nv44_fb_priv {
 	struct nouveau_fb base;
 };
 
+static void
+nv44_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nouveau_fb_tile *tile)
+{
+	tile->addr  = 0x00000001; /* mode = vram */
+	tile->addr |= addr;
+	tile->limit = max(1u, addr + size) - 1;
+	tile->pitch = pitch;
+}
+
 int
 nv44_fb_init(struct nouveau_object *object)
 {
@@ -72,7 +82,7 @@ nv44_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
 	priv->base.tile.regions = 12;
-	priv->base.tile.init = nv30_fb_tile_init;
+	priv->base.tile.init = nv44_fb_tile_init;
 	priv->base.tile.fini = nv30_fb_tile_fini;
 	priv->base.tile.prog = nv41_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);

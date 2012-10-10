@@ -148,6 +148,9 @@ int  nv41_fb_init(struct nouveau_object *);
 int  nv44_fb_init(struct nouveau_object *);
 void nv41_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
 
+void nv46_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
+
 void nv50_fb_vram_del(struct nouveau_fb *, struct nouveau_mem **);
 void nv50_fb_trap(struct nouveau_fb *, int display);
 
