@@ -117,18 +117,37 @@
  * POSIX.1 2.4: an empty pathname is invalid (ENOENT).
  * PATH_MAX includes the nul terminator --RR.
  */
-static char *getname_flags(const char __user *filename, int flags, int *empty)
+void final_putname(struct filename *name)
 {
-	char *result = __getname(), *err;
+	__putname(name->name);
+	kfree(name);
+}
+
+static struct filename *
+getname_flags(const char __user *filename, int flags, int *empty)
+{
+	struct filename *result, *err;
+	char *kname;
 	int len;
 
+	/* FIXME: create dedicated slabcache? */
+	result = kzalloc(sizeof(*result), GFP_KERNEL);
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
 
-	len = strncpy_from_user(result, filename, PATH_MAX);
-	err = ERR_PTR(len);
-	if (unlikely(len < 0))
+	kname = __getname();
+	if (unlikely(!kname)) {
+		err = ERR_PTR(-ENOMEM);
+		goto error_free_name;
+	}
+
+	result->name = kname;
+	result->uptr = filename;
+	len = strncpy_from_user(kname, filename, PATH_MAX);
+	if (unlikely(len < 0)) {
+		err = ERR_PTR(len);
 		goto error;
+	}
 
 	/* The empty path is special. */
 	if (unlikely(!len)) {
@@ -146,22 +165,25 @@ static char *getname_flags(const char __user *filename, int flags, int *empty)
 	}
 
 error:
-	__putname(result);
+	__putname(kname);
+error_free_name:
+	kfree(result);
 	return err;
 }
 
-char *getname(const char __user * filename)
+struct filename *
+getname(const char __user * filename)
 {
 	return getname_flags(filename, 0, NULL);
 }
+EXPORT_SYMBOL(getname);
 
 #ifdef CONFIG_AUDITSYSCALL
-void putname(const char *name)
+void putname(struct filename *name)
 {
 	if (unlikely(!audit_dummy_context()))
-		audit_putname(name);
-	else
-		__putname(name);
+		return audit_putname(name);
+	final_putname(name);
 }
 #endif
 
@@ -2093,13 +2115,13 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 		 struct path *path, int *empty)
 {
 	struct nameidata nd;
-	char *tmp = getname_flags(name, flags, empty);
+	struct filename *tmp = getname_flags(name, flags, empty);
 	int err = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
 
 		BUG_ON(flags & LOOKUP_PARENT);
 
-		err = do_path_lookup(dfd, tmp, flags, &nd);
+		err = do_path_lookup(dfd, tmp->name, flags, &nd);
 		putname(tmp);
 		if (!err)
 			*path = nd.path;
@@ -2113,22 +2135,22 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
-static int user_path_parent(int dfd, const char __user *path,
-			struct nameidata *nd, char **name)
+static struct filename *
+user_path_parent(int dfd, const char __user *path, struct nameidata *nd)
 {
-	char *s = getname(path);
+	struct filename *s = getname(path);
 	int error;
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return s;
 
-	error = do_path_lookup(dfd, s, LOOKUP_PARENT, nd);
-	if (error)
+	error = do_path_lookup(dfd, s->name, LOOKUP_PARENT, nd);
+	if (error) {
 		putname(s);
-	else
-		*name = s;
+		return ERR_PTR(error);
+	}
 
-	return error;
+	return s;
 }
 
 /*
@@ -3039,11 +3061,11 @@ EXPORT_SYMBOL(done_path_create);
 
 struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
 {
-	char *tmp = getname(pathname);
+	struct filename *tmp = getname(pathname);
 	struct dentry *res;
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	res = kern_path_create(dfd, tmp, path, is_dir);
+	res = kern_path_create(dfd, tmp->name, path, is_dir);
 	putname(tmp);
 	return res;
 }
@@ -3248,13 +3270,13 @@ out:
 static long do_rmdir(int dfd, const char __user *pathname)
 {
 	int error = 0;
-	char * name;
+	struct filename *name;
 	struct dentry *dentry;
 	struct nameidata nd;
 
-	error = user_path_parent(dfd, pathname, &nd, &name);
-	if (error)
-		return error;
+	name = user_path_parent(dfd, pathname, &nd);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 
 	switch(nd.last_type) {
 	case LAST_DOTDOT:
@@ -3343,14 +3365,14 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 static long do_unlinkat(int dfd, const char __user *pathname)
 {
 	int error;
-	char *name;
+	struct filename *name;
 	struct dentry *dentry;
 	struct nameidata nd;
 	struct inode *inode = NULL;
 
-	error = user_path_parent(dfd, pathname, &nd, &name);
-	if (error)
-		return error;
+	name = user_path_parent(dfd, pathname, &nd);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
@@ -3434,7 +3456,7 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 		int, newdfd, const char __user *, newname)
 {
 	int error;
-	char *from;
+	struct filename *from;
 	struct dentry *dentry;
 	struct path path;
 
@@ -3447,9 +3469,9 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	if (IS_ERR(dentry))
 		goto out_putname;
 
-	error = security_path_symlink(&path, dentry, from);
+	error = security_path_symlink(&path, dentry, from->name);
 	if (!error)
-		error = vfs_symlink(path.dentry->d_inode, dentry, from);
+		error = vfs_symlink(path.dentry->d_inode, dentry, from->name);
 	done_path_create(&path, dentry);
 out_putname:
 	putname(from);
@@ -3729,17 +3751,21 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	struct dentry *old_dentry, *new_dentry;
 	struct dentry *trap;
 	struct nameidata oldnd, newnd;
-	char *from;
-	char *to;
+	struct filename *from;
+	struct filename *to;
 	int error;
 
-	error = user_path_parent(olddfd, oldname, &oldnd, &from);
-	if (error)
+	from = user_path_parent(olddfd, oldname, &oldnd);
+	if (IS_ERR(from)) {
+		error = PTR_ERR(from);
 		goto exit;
+	}
 
-	error = user_path_parent(newdfd, newname, &newnd, &to);
-	if (error)
+	to = user_path_parent(newdfd, newname, &newnd);
+	if (IS_ERR(to)) {
+		error = PTR_ERR(to);
 		goto exit1;
+	}
 
 	error = -EXDEV;
 	if (oldnd.path.mnt != newnd.path.mnt)

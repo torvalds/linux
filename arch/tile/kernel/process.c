@@ -594,13 +594,13 @@ SYSCALL_DEFINE4(execve, const char __user *, path,
 		struct pt_regs *, regs)
 {
 	long error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(path);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 	if (error == 0)
 		single_step_execve();
@@ -615,13 +615,13 @@ long compat_sys_execve(const char __user *path,
 		       struct pt_regs *regs)
 {
 	long error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(path);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, argv, envp, regs);
+	error = compat_do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 	if (error == 0)
 		single_step_execve();

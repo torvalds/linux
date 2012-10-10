@@ -40,7 +40,7 @@ asmlinkage int sys_execve(char __user *ufilename,
 			  const char __user *const __user *envp)
 {
 	struct pt_regs *pregs = current_thread_info()->regs;
-	char *filename;
+	struct filename *filename;
 	int retval;
 
 	filename = getname(ufilename);
@@ -48,7 +48,7 @@ asmlinkage int sys_execve(char __user *ufilename,
 	if (IS_ERR(filename))
 		return retval;
 
-	retval = do_execve(filename, argv, envp, pregs);
+	retval = do_execve(filename->name, argv, envp, pregs);
 	putname(filename);
 
 	return retval;
