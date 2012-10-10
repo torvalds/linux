@@ -5,7 +5,6 @@
 #include <linux/i2c-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-#include <plat/pincfg.h>
 
 /*
  * There are two busses in the 8815NHK.

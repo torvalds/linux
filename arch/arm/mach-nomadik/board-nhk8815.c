@@ -34,7 +34,6 @@
 #include <asm/mach/time.h>
 
 #include <plat/mtu.h>
-#include <plat/pincfg.h>
 
 #include <linux/platform_data/mtd-nomadik-nand.h>
 #include <mach/fsmc.h>
