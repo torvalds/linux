@@ -66,6 +66,11 @@ enum omapdss_version omapdss_get_version(void)
 }
 EXPORT_SYMBOL(omapdss_get_version);
 
+struct platform_device *dss_get_core_pdev(void)
+{
+	return core.pdev;
+}
+
 /* REGULATORS */
 
 struct regulator *dss_get_vdds_dsi(void)

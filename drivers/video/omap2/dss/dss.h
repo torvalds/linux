@@ -160,6 +160,7 @@ struct seq_file;
 struct platform_device;
 
 /* core */
+struct platform_device *dss_get_core_pdev(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
