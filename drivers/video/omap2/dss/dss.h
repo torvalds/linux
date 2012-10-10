@@ -23,6 +23,8 @@
 #ifndef __OMAP2_DSS_H
 #define __OMAP2_DSS_H
 
+#include <linux/interrupt.h>
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -385,6 +387,9 @@ u32 dispc_read_irqstatus(void);
 void dispc_clear_irqstatus(u32 mask);
 u32 dispc_read_irqenable(void);
 void dispc_write_irqenable(u32 mask);
+
+int dispc_request_irq(irq_handler_t handler, void *dev_id);
+void dispc_free_irq(void *dev_id);
 
 int dispc_runtime_get(void);
 void dispc_runtime_put(void);
