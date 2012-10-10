@@ -3961,6 +3961,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (!intel_enable_gtt())
 		return -EIO;
 
+	if (IS_HASWELL(dev) && (I915_READ(0x120010) == 1))
+		I915_WRITE(0x9008, I915_READ(0x9008) | 0xf0000);
+
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
