@@ -614,13 +614,6 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 	/* mute all DACs */
 	snd_soc_update_bits(codec, WM8770_DACMUTE, 0x10, 0x10);
 
-	snd_soc_add_codec_controls(codec, wm8770_snd_controls,
-			     ARRAY_SIZE(wm8770_snd_controls));
-	snd_soc_dapm_new_controls(&codec->dapm, wm8770_dapm_widgets,
-				  ARRAY_SIZE(wm8770_dapm_widgets));
-	snd_soc_dapm_add_routes(&codec->dapm, wm8770_intercon,
-				ARRAY_SIZE(wm8770_intercon));
-
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8770->supplies), wm8770->supplies);
 	return ret;
@@ -630,6 +623,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
 	.probe = wm8770_probe,
 	.set_bias_level = wm8770_set_bias_level,
 	.idle_bias_off = true,
+
+	.controls = wm8770_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8770_snd_controls),
+	.dapm_widgets = wm8770_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8770_dapm_widgets),
+	.dapm_routes = wm8770_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8770_intercon),
 };
 
 static const struct of_device_id wm8770_of_match[] = {
