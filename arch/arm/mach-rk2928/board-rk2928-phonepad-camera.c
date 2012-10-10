@@ -70,8 +70,8 @@
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_02      15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
-#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0308                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	   0x42
+#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_HI704                      /* front camera sensor 0 */
+#define CONFIG_SENSOR_IIC_ADDR_1 	   0x60
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
 #define CONFIG_SENSOR_CIF_INDEX_1				  0
 #define CONFIG_SENSOR_ORIENTATION_1       270
