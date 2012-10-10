@@ -2189,6 +2189,7 @@ out:
  * __audit_inode_child - collect inode info for created/removed objects
  * @parent: inode of dentry parent
  * @dentry: dentry being audited
+ * @type:   AUDIT_TYPE_* value that we're looking for
  *
  * For syscalls that create or remove filesystem objects, audit_inode
  * can only collect information for the filesystem object's parent.
@@ -2199,13 +2200,13 @@ out:
  * unsuccessful attempts.
  */
 void __audit_inode_child(const struct inode *parent,
-			 const struct dentry *dentry)
+			 const struct dentry *dentry,
+			 const unsigned char type)
 {
 	struct audit_context *context = current->audit_context;
-	const char *found_parent = NULL, *found_child = NULL;
 	const struct inode *inode = dentry->d_inode;
 	const char *dname = dentry->d_name.name;
-	struct audit_names *n;
+	struct audit_names *n, *found_parent = NULL, *found_child = NULL;
 
 	if (!context->in_syscall)
 		return;
@@ -2213,63 +2214,65 @@ void __audit_inode_child(const struct inode *parent,
 	if (inode)
 		handle_one(inode);
 
-	/* parent is more likely, look for it first */
+	/* look for a parent entry first */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name)
+		if (!n->name || n->type != AUDIT_TYPE_PARENT)
 			continue;
 
 		if (n->ino == parent->i_ino &&
 		    !audit_compare_dname_path(dname, n->name, n->name_len)) {
-			found_parent = n->name;
-			goto add_names;
+			found_parent = n;
+			break;
 		}
 	}
 
-	/* no matching parent, look for matching child */
+	/* is there a matching child entry? */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name)
+		/* can only match entries that have a name */
+		if (!n->name || n->type != type)
 			continue;
 
-		/* strcmp() is the more likely scenario */
+		/* if we found a parent, make sure this one is a child of it */
+		if (found_parent && (n->name != found_parent->name))
+			continue;
+
 		if (!strcmp(dname, n->name) ||
 		    !audit_compare_dname_path(dname, n->name,
+						found_parent ?
+						found_parent->name_len :
 						AUDIT_NAME_FULL)) {
-			if (inode)
-				audit_copy_inode(n, dentry, inode);
-			else
-				n->ino = (unsigned long)-1;
-			n->type = AUDIT_TYPE_NORMAL;
-			found_child = n->name;
-			goto add_names;
+			found_child = n;
+			break;
 		}
 	}
 
-add_names:
 	if (!found_parent) {
-		n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
+		/* create a new, "anonymous" parent record */
+		n = audit_alloc_name(context, AUDIT_TYPE_PARENT);
 		if (!n)
 			return;
 		audit_copy_inode(n, NULL, parent);
 	}
 
 	if (!found_child) {
-		n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
-		if (!n)
+		found_child = audit_alloc_name(context, type);
+		if (!found_child)
 			return;
 
 		/* Re-use the name belonging to the slot for a matching parent
 		 * directory. All names for this context are relinquished in
 		 * audit_free_names() */
 		if (found_parent) {
-			n->name = found_parent;
-			n->name_len = AUDIT_NAME_FULL;
+			found_child->name = found_parent->name;
+			found_child->name_len = AUDIT_NAME_FULL;
 			/* don't call __putname() */
-			n->name_put = false;
+			found_child->name_put = false;
 		}
-
-		if (inode)
-			audit_copy_inode(n, dentry, inode);
 	}
+	if (inode)
+		audit_copy_inode(found_child, dentry, inode);
+	else
+		found_child->ino = (unsigned long)-1;
 }
 EXPORT_SYMBOL_GPL(__audit_inode_child);
 
