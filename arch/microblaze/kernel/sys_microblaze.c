@@ -75,24 +75,3 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 
 	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
 }
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register const char *__a __asm__("r5") = filename;
-	register const void *__b __asm__("r6") = argv;
-	register const void *__c __asm__("r7") = envp;
-	register unsigned long __syscall __asm__("r12") = __NR_execve;
-	register unsigned long __ret __asm__("r3");
-	__asm__ __volatile__ ("brki r14, 0x8"
-			: "=r" (__ret), "=r" (__syscall)
-			: "1" (__syscall), "r" (__a), "r" (__b), "r" (__c)
-			: "r4", "r8", "r9",
-			"r10", "r11", "r14", "cc", "memory");
-	return __ret;
-}

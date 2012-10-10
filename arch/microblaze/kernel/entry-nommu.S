@@ -479,8 +479,8 @@ ENTRY(ret_from_kernel_thread)
 	addk	r5, r0, r3
 	brald	r15, r20
 	addk	r5, r0, r19
-	brid	sys_exit	/* won't be returning... */
-	addk	r5, r0, r0
+	brid	ret_to_user
+	addk	r3, r0, r0
 
 work_pending:
 	enable_irq

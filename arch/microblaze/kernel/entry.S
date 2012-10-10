@@ -293,24 +293,6 @@ C_ENTRY(_user_exception):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	addi	r14, r14, 4	/* return address is 4 byte after call */
 
-	mfs	r1, rmsr
-	nop
-	andi	r1, r1, MSR_UMS
-	bnei	r1, 1f
-
-/* Kernel-mode state save - kernel execve */
-	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
-	tophys(r1,r1);
-
-	addik	r1, r1, -PT_SIZE; /* Make room on the stack. */
-	SAVE_REGS
-
-	swi	r1, r1, PT_MODE; /* pt_regs -> kernel mode */
-	brid	2f;
-	nop;				/* Fill delay slot */
-
-/* User-mode state save.  */
-1:
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get stack from task_struct */
@@ -490,8 +472,8 @@ C_ENTRY(ret_from_kernel_thread):
 				/* ( in the delay slot ) */
 	brald	r15, r20	/* fn was left in r20 */
 	addk	r5, r0, r19	/* ... and argument - in r19 */
-	brid	sys_exit	/* won't be returning... */
-	addk	r5, r0, r0
+	brid	ret_from_trap
+	add	r3, r0, r0
 
 C_ENTRY(sys_vfork):
 	brid	microblaze_vfork	/* Do real work (tail-call) */
