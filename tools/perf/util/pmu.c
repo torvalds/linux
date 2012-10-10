@@ -164,7 +164,7 @@ static int pmu_aliases(char *name, struct list_head *head)
 		 "%s/bus/event_source/devices/%s/events", sysfs, name);
 
 	if (stat(path, &st) < 0)
-		return -1;
+		return 0;	 /* no error if 'events' does not exist */
 
 	if (pmu_aliases_parse(path, head))
 		return -1;
@@ -296,6 +296,9 @@ static struct perf_pmu *pmu_lookup(char *name)
 	if (pmu_format(name, &format))
 		return NULL;
 
+	if (pmu_aliases(name, &aliases))
+		return NULL;
+
 	if (pmu_type(name, &type))
 		return NULL;
 
@@ -304,8 +307,6 @@ static struct perf_pmu *pmu_lookup(char *name)
 		return NULL;
 
 	pmu->cpus = pmu_cpumask(name);
-
-	pmu_aliases(name, &aliases);
 
 	INIT_LIST_HEAD(&pmu->format);
 	INIT_LIST_HEAD(&pmu->aliases);
