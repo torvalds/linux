@@ -597,8 +597,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 
 	default:
 		BT_ERR("Unknown packet type:%d", type);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, payload,
-				     blksz * num_blocks);
+		BT_ERR("hex: %*ph", blksz * num_blocks, payload);
 
 		kfree_skb(skb);
 		skb = NULL;
@@ -857,8 +856,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 		if (ret < 0) {
 			i++;
 			BT_ERR("i=%d writesb failed: %d", i, ret);
-			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
-						payload, nb);
+			BT_ERR("hex: %*ph", nb, payload);
 			ret = -EIO;
 			if (i > MAX_WRITE_IOMEM_RETRY)
 				goto exit;
