@@ -183,27 +183,6 @@ int copy_thread(unsigned long clone_flags,
 	return 0;
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char *name,
-			  const char *const *argv,
-			  const char *const *envp,
-			  int dummy, ...)
-{
-	int error;
-	struct filename *filename;
-	struct pt_regs *regs = (struct pt_regs *) ((unsigned char *)&dummy-4);
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	return error;
-}
-
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
 	return ((struct pt_regs *)tsk->thread.esp0)->pc;
