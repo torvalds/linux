@@ -208,28 +208,23 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	u32 rs;
 	int ret;
 
-	omap_wdt = kzalloc(sizeof(*omap_wdt), GFP_KERNEL);
+	omap_wdt = devm_kzalloc(&pdev->dev, sizeof(*omap_wdt), GFP_KERNEL);
 	if (!omap_wdt)
 		return -ENOMEM;
 
 	/* reserve static register mappings */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto err_get_resource;
-	}
+	if (!res)
+		return -ENOENT;
 
-	mem = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!mem) {
-		ret = -EBUSY;
-		goto err_busy;
-	}
+	mem = devm_request_mem_region(&pdev->dev, res->start,
+				      resource_size(res), pdev->name);
+	if (!mem)
+		return -EBUSY;
 
-	wdev = kzalloc(sizeof(struct omap_wdt_dev), GFP_KERNEL);
-	if (!wdev) {
-		ret = -ENOMEM;
-		goto err_kzalloc;
-	}
+	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
+	if (!wdev)
+		return -ENOMEM;
 
 	wdev->omap_wdt_users	= false;
 	wdev->mem		= mem;
@@ -237,11 +232,9 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	wdev->wdt_trgr_pattern	= 0x1234;
 	mutex_init(&wdev->lock);
 
-	wdev->base = ioremap(res->start, resource_size(res));
-	if (!wdev->base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
+	wdev->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!wdev->base)
+		return -ENOMEM;
 
 	omap_wdt->info	      = &omap_wdt_info;
 	omap_wdt->ops	      = &omap_wdt_ops;
@@ -286,18 +279,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 err_register:
 	pm_runtime_disable(wdev->dev);
 	platform_set_drvdata(pdev, NULL);
-	iounmap(wdev->base);
 
-err_ioremap:
-	wdev->base = NULL;
-	kfree(wdev);
-
-err_kzalloc:
-	release_mem_region(res->start, resource_size(res));
-
-err_busy:
-err_get_resource:
-	kfree(omap_wdt);
 	return ret;
 }
 
@@ -322,13 +304,7 @@ static int omap_wdt_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(wdev->dev);
 	watchdog_unregister_device(wdog);
-	release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
-
-	iounmap(wdev->base);
-
-	kfree(wdev);
-	kfree(wdog);
 
 	return 0;
 }
