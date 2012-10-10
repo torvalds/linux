@@ -1094,18 +1094,7 @@ static struct platform_driver spear_smi_driver = {
 	.probe = spear_smi_probe,
 	.remove = __devexit_p(spear_smi_remove),
 };
-
-static int spear_smi_init(void)
-{
-	return platform_driver_register(&spear_smi_driver);
-}
-module_init(spear_smi_init);
-
-static void spear_smi_exit(void)
-{
-	platform_driver_unregister(&spear_smi_driver);
-}
-module_exit(spear_smi_exit);
+module_platform_driver(spear_smi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ashish Priyadarshi, Shiraz Hashim <shiraz.hashim@st.com>");
