@@ -79,6 +79,7 @@ struct perf_evsel {
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
+	int			sample_read;
 	struct perf_evsel	*leader;
 	char			*group_name;
 };
