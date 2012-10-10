@@ -54,6 +54,10 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
+#if defined(CONFIG_SC6610)
+#include <linux/mu509.h>
+#endif
+
 #include "board-rk2928-phonepad-camera.c" 
 #include "board-rk2928-phonepad-key.c"
 
@@ -395,9 +399,11 @@ static struct sensor_platform_data mma7660_info = {
 };
 #endif
 
+
 #if defined (CONFIG_GS_KXTIK)
 #define KXTIK_INT_PIN         RK2928_PIN3_PD1
 #if 0
+
 static int kxtik_init_hw(void)
 {
 	int ret = 0;
@@ -424,6 +430,7 @@ static struct gsensor_platform_data kxtik_pdata = {
 	.exit_platform_hw = kxtik_exit_hw,
 	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
 };
+
 #endif
 static int kxtik_init_platform_hw(void)
 {
@@ -439,6 +446,7 @@ static struct sensor_platform_data kxtik_pdata = {
 	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
 	//.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
 };
+
 #endif /* CONFIG_GS_KXTIK*/
 
 #ifdef CONFIG_INPUT_AP321XX
@@ -473,6 +481,7 @@ static struct ap321xx_platform_data ap321xx_info = {
 };
 
 #endif
+
 #if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK2928_PIN1_PA5,
@@ -491,6 +500,7 @@ static struct platform_device rk30_device_adc_battery = {
         },
 };
 #endif
+
 
 #if CONFIG_RK30_PWM_REGULATOR
 const static int pwm_voltage_map[] = {
@@ -683,6 +693,37 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
+#if defined(CONFIG_SC6610)
+static int sc6610_io_init(void)
+{
+        
+        return 0;
+}
+
+static int sc6610_io_deinit(void)
+{
+        
+
+        return 0;
+}
+
+struct rk29_mu509_data rk29_sc6610_info = {
+        .io_init = sc6610_io_init,
+        .io_deinit = sc6610_io_deinit,
+        .bp_power = RK2928_PIN3_PC2,//RK29_PIN0_PB4,
+        .bp_reset = NULL,//RK29_PIN0_PB3,
+        .bp_wakeup_ap = RK2928_PIN3_PC3,//RK29_PIN0_PC2,
+        .ap_wakeup_bp = RK2928_PIN3_PC4,//RK29_PIN0_PB0, 
+        .modem_assert = RK2928_PIN3_PC5,
+};
+struct platform_device rk29_device_sc6610 = {
+        .name = "SC6610",
+        .id = -1,
+        .dev            = {
+                .platform_data = &rk29_sc6610_info,
+        }
+    };
+#endif
 #ifdef CONFIG_SND_SOC_RK2928
 static struct resource resources_acodec[] = {
 	{
@@ -721,8 +762,13 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SND_SOC_RK2928
 	&device_acodec,
 #endif
+
 #if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
  	&rk30_device_adc_battery,
+
+#if defined(CONFIG_SC6610)
+        &rk29_device_sc6610,
+
 #endif
 };
 //i2c
@@ -766,6 +812,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 			.platform_data = &mma7660_info,
 		},
 #endif
+
 
 #if defined (CONFIG_GS_KXTIK)
 		{

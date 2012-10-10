@@ -25,7 +25,7 @@ choice
 
     config MI700
 	bool "MI700"	
-
-
+config SC6610
+	bool "SC6610"	
 endchoice
 

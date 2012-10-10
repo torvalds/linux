@@ -21,6 +21,7 @@ struct rk29_mu509_data {
 	unsigned int bp_wakeup_ap;
 	unsigned int ap_wakeup_bp;
 	unsigned int modem_power_en;
+	unsigned int modem_assert;
 };
 
-#define MODEM_NAME "mu509"
+#define MODEM_NAME "SC6610"

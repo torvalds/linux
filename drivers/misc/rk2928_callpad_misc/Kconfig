@@ -3,7 +3,7 @@
 #
 
 menuconfig RK2928_CALLPAD_MISC
-	tristate "3G module for phonepad"
+	tristate "3G module audio for phonepad"
 	---help---
 	  Say Y here if you have a support modem
 
