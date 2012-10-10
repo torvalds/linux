@@ -191,9 +191,6 @@ int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info);
 void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info);
-int dss_mgr_set_device(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev);
-int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
 int dss_mgr_set_output(struct omap_overlay_manager *mgr,
 		struct omap_dss_output *output);
 int dss_mgr_unset_output(struct omap_overlay_manager *mgr);
