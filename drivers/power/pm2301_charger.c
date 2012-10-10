@@ -16,16 +16,12 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
-#include <linux/completion.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
-#include <linux/kobject.h>
-#include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/pm2301_charger.h>
 #include <linux/gpio.h>
@@ -1018,7 +1014,6 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	/* get parent data */
 	pm2->dev = &i2c_client->dev;
-	pm2->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
 	pm2->pm2_int = &pm2xxx_int;
 

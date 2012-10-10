@@ -9,27 +9,6 @@
 #ifndef PM2301_CHARGER_H
 #define PM2301_CHARGER_H
 
-#define MAIN_WDOG_ENA			0x01
-#define MAIN_WDOG_KICK			0x02
-#define MAIN_WDOG_DIS			0x00
-#define CHARG_WD_KICK			0x01
-#define MAIN_CH_ENA			0x01
-#define MAIN_CH_NO_OVERSHOOT_ENA_N	0x02
-#define MAIN_CH_DET			0x01
-#define MAIN_CH_CV_ON			0x04
-#define OTP_ENABLE_WD			0x01
-
-#define MAIN_CH_INPUT_CURR_SHIFT	4
-
-#define LED_INDICATOR_PWM_ENA		0x01
-#define LED_INDICATOR_PWM_DIS		0x00
-#define LED_IND_CUR_5MA			0x04
-#define LED_INDICATOR_PWM_DUTY_252_256	0xBF
-
-/* HW failure constants */
-#define MAIN_CH_TH_PROT			0x02
-#define MAIN_CH_NOK			0x01
-
 /* Watchdog timeout constant */
 #define WD_TIMER			0x30 /* 4min */
 #define WD_KICK_INTERVAL		(30 * HZ)
@@ -495,7 +474,6 @@ struct pm2xxx_charger {
 	int failure_input_ovv;
 	unsigned int lpn_pin;
 	struct pm2xxx_interrupts *pm2_int;
-	struct ab8500_gpadc *gpadc;
 	struct regulator *regu;
 	struct pm2xxx_bm_data *bat;
 	struct mutex lock;
