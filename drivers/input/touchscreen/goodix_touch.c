@@ -102,7 +102,7 @@ static struct workqueue_struct *goodix_wq;
 #endif
 ///////////////////////////////////////////////
 //specific tp related macro: need be configured for specific tp
-#define CTP_IRQ_NO			(IRQ_EINT21)
+#define CTP_IRQ_NO			(gpio_int_info[0].port_num)
 #define CTP_IRQ_MODE			(NEGATIVE_EDGE)
 #define CTP_NAME			GOODIX_I2C_NAME
 #define TS_RESET_LOW_PERIOD		(15)
@@ -121,6 +121,7 @@ static int gpio_wakeup_hdle = 0;
 static int gpio_reset_hdle = 0;
 static int gpio_wakeup_enable = 1;
 static int gpio_reset_enable = 1;
+static user_gpio_set_t gpio_int_info[1];
 
 static int screen_max_x = 0;
 static int screen_max_y = 0;
@@ -189,14 +190,14 @@ static void ctp_clear_penirq(void)
  *              0:      success;
  *              others: fail;
  */
-static int ctp_set_irq_mode(char *major_key , char *subkey, int ext_int_num, ext_int_mode int_mode)
+static int ctp_set_irq_mode(char *major_key , char *subkey, ext_int_mode int_mode)
 {
 	int ret = 0;
 	__u32 reg_num = 0;
 	__u32 reg_addr = 0;
 	__u32 reg_val = 0;
 	//config gpio to int mode
-	printk("%s: config gpio to int mode. \n", __func__);
+	pr_info("%s: config gpio to int mode. \n", __func__);
 #ifndef SYSCONFIG_GPIO_ENABLE
 #else
 	if(gpio_int_hdle){
@@ -204,17 +205,20 @@ static int ctp_set_irq_mode(char *major_key , char *subkey, int ext_int_num, ext
 	}
 	gpio_int_hdle = gpio_request_ex(major_key, subkey);
 	if(!gpio_int_hdle){
-		printk("request tp_int_port failed. \n");
+		pr_info("request tp_int_port failed. \n");
 		ret = -1;
 		goto request_tp_int_port_failed;
 	}
+	gpio_get_one_pin_status(gpio_int_hdle, gpio_int_info, subkey, 1);
+	pr_info("%s, %d: gpio_int_info, port = %d, port_num = %d. \n", __func__, __LINE__, \
+		gpio_int_info[0].port, gpio_int_info[0].port_num);
 #endif
 
 #ifdef AW_GPIO_INT_API_ENABLE
 #else
-	printk(" INTERRUPT CONFIG\n");
-	reg_num = ext_int_num%8;
-	reg_addr = ext_int_num/8;
+	pr_info(" INTERRUPT CONFIG\n");
+	reg_num = (gpio_int_info[0].port_num)%8;
+	reg_addr = (gpio_int_info[0].port_num)/8;
 	reg_val = readl(gpio_addr + int_cfg_addr[reg_addr]);
 	reg_val &= (~(7 << (reg_num * 4)));
 	reg_val |= (int_mode << (reg_num * 4));
@@ -223,7 +227,7 @@ static int ctp_set_irq_mode(char *major_key , char *subkey, int ext_int_num, ext
 	ctp_clear_penirq();
 
 	reg_val = readl(gpio_addr+PIO_INT_CTRL_OFFSET);
-	reg_val |= (1 << ext_int_num);
+	reg_val |= (1 << (gpio_int_info[0].port_num));
 	writel(reg_val,gpio_addr+PIO_INT_CTRL_OFFSET);
 
 	udelay(1);
@@ -483,7 +487,7 @@ static void ctp_wakeup(void)
  *                    = 0; success;
  *                    < 0; err
  */
-static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
+int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
@@ -931,14 +935,11 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 	//clear the IRQ_EINT21 interrupt pending
 	reg_val = readl(gpio_addr + PIO_INT_STAT_OFFSET);
 
-	if(reg_val&(1<<(IRQ_EINT21)))
-	{
-		print_int_info("==IRQ_EINT21=\n");
-		writel(reg_val&(1<<(IRQ_EINT21)),gpio_addr + PIO_INT_STAT_OFFSET);
+	if (reg_val&(1<<(CTP_IRQ_NO))) {
+		print_int_info("==CTP_IRQ_NO=\n");
+		writel(reg_val&(1<<(CTP_IRQ_NO)),gpio_addr + PIO_INT_STAT_OFFSET);
 		queue_work(goodix_wq, &ts->work);
-	}
-	else
-	{
+	} else {
 	    print_int_info("Other Interrupt\n");
 	    return IRQ_NONE;
 	}
@@ -1108,7 +1109,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	register_early_suspend(&ts->early_suspend);
 #endif
 
-	err = ctp_ops.set_irq_mode("ctp_para", "ctp_int_port", CTP_IRQ_NO, CTP_IRQ_MODE);
+	err = ctp_ops.set_irq_mode("ctp_para", "ctp_int_port", CTP_IRQ_MODE);
 	if(0 != err){
 		printk("%s:ctp_ops.set_irq_mode err. \n", __func__);
 		goto exit_set_irq_mode;

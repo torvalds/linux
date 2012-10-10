@@ -87,11 +87,11 @@
 #define IRQ_EINT30	(30)
 #define IRQ_EINT31	(31)
 
-typedef enum{
+typedef enum {
      PIO_INT_CFG0_OFFSET = 0x200,
      PIO_INT_CFG1_OFFSET = 0x204,
      PIO_INT_CFG2_OFFSET = 0x208,
-     PIO_INT_CFG3_OFFSET = 0x20c
+     PIO_INT_CFG3_OFFSET = 0x20c,
 } int_cfg_offset;
 
 typedef enum{
@@ -107,7 +107,7 @@ struct ctp_platform_ops{
 	bool        pendown;
 	int	(*get_pendown_state)(void);
 	void        (*clear_penirq)(void);
-	int         (*set_irq_mode)(char *major_key , char *subkey, int ext_int_num, ext_int_mode int_mode);
+	int         (*set_irq_mode)(char *major_key , char *subkey, ext_int_mode int_mode);
 	int         (*set_gpio_mode)(void);
 	int         (*judge_int_occur)(void);
 	int         (*init_platform_resource)(void);
