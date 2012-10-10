@@ -2088,15 +2088,13 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (!res || (int)irq <= 0) {
 		dev_err(&pdev->dev, "Not enough CEU platform resources.\n");
-		err = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
-	pcdev = kzalloc(sizeof(*pcdev), GFP_KERNEL);
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev) {
 		dev_err(&pdev->dev, "Could not allocate pcdev\n");
-		err = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&pcdev->capture);
@@ -2105,19 +2103,17 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	pcdev->pdata = pdev->dev.platform_data;
 	if (!pcdev->pdata) {
-		err = -EINVAL;
 		dev_err(&pdev->dev, "CEU platform data not set.\n");
-		goto exit_kfree;
+		return -EINVAL;
 	}
 
 	pcdev->max_width = pcdev->pdata->max_width ? : 2560;
 	pcdev->max_height = pcdev->pdata->max_height ? : 1920;
 
-	base = ioremap_nocache(res->start, resource_size(res));
+	base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!base) {
-		err = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap CEU registers.\n");
-		goto exit_kfree;
+		return -ENXIO;
 	}
 
 	pcdev->irq = irq;
@@ -2133,16 +2129,15 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 						  DMA_MEMORY_EXCLUSIVE);
 		if (!err) {
 			dev_err(&pdev->dev, "Unable to declare CEU memory.\n");
-			err = -ENXIO;
-			goto exit_iounmap;
+			return -ENXIO;
 		}
 
 		pcdev->video_limit = resource_size(res);
 	}
 
 	/* request irq */
-	err = request_irq(pcdev->irq, sh_mobile_ceu_irq, IRQF_DISABLED,
-			  dev_name(&pdev->dev), pcdev);
+	err = devm_request_irq(&pdev->dev, pcdev->irq, sh_mobile_ceu_irq,
+			       IRQF_DISABLED, dev_name(&pdev->dev), pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register CEU interrupt.\n");
 		goto exit_release_mem;
@@ -2246,15 +2241,9 @@ exit_free_ctx:
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 exit_free_clk:
 	pm_runtime_disable(&pdev->dev);
-	free_irq(pcdev->irq, pcdev);
 exit_release_mem:
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
 		dma_release_declared_memory(&pdev->dev);
-exit_iounmap:
-	iounmap(base);
-exit_kfree:
-	kfree(pcdev);
-exit:
 	return err;
 }
 
@@ -2267,10 +2256,8 @@ static int __devexit sh_mobile_ceu_remove(struct platform_device *pdev)
 
 	soc_camera_host_unregister(soc_host);
 	pm_runtime_disable(&pdev->dev);
-	free_irq(pcdev->irq, pcdev);
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
 		dma_release_declared_memory(&pdev->dev);
-	iounmap(pcdev->base);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	if (csi2_pdev && csi2_pdev->dev.driver) {
 		struct module *csi2_drv = csi2_pdev->dev.driver->owner;
@@ -2279,7 +2266,6 @@ static int __devexit sh_mobile_ceu_remove(struct platform_device *pdev)
 		platform_device_put(csi2_pdev);
 		module_put(csi2_drv);
 	}
-	kfree(pcdev);
 
 	return 0;
 }
