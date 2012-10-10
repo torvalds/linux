@@ -280,21 +280,25 @@ struct probe_resp {
 	u8 data[0];
 };
 
+struct ps_data {
+	/* yes, this looks ugly, but guarantees that we can later use
+	 * bitmap_empty :)
+	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
+	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
+	struct sk_buff_head bc_buf;
+	atomic_t num_sta_ps; /* number of stations in PS mode */
+	int dtim_count;
+	bool dtim_bc_mc;
+};
+
 struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
 	struct probe_resp __rcu *probe_resp;
 
 	struct list_head vlans;
 
-	/* yes, this looks ugly, but guarantees that we can later use
-	 * bitmap_empty :)
-	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
-	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
-	struct sk_buff_head ps_bc_buf;
-	atomic_t num_sta_ps; /* number of stations in PS mode */
+	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
-	int dtim_count;
-	bool dtim_bc_mc;
 };
 
 struct ieee80211_if_wds {

@@ -395,14 +395,14 @@ __IEEE80211_IF_FILE_W(uapsd_max_sp_len);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
-IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
-IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
+IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
+IEEE80211_IF_FILE(dtim_count, u.ap.ps.dtim_count, DEC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	return scnprintf(buf, buflen, "%u\n",
-			 skb_queue_len(&sdata->u.ap.ps_bc_buf));
+			 skb_queue_len(&sdata->u.ap.ps.bc_buf));
 }
 __IEEE80211_IF_FILE(num_buffered_multicast, NULL);
 

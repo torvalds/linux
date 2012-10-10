@@ -325,16 +325,19 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	struct sta_info *sta;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		struct ieee80211_if_ap *ap;
-		if (sdata->vif.type != NL80211_IFTYPE_AP)
+		struct ps_data *ps;
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP)
+			ps = &sdata->u.ap.ps;
+		else
 			continue;
-		ap = &sdata->u.ap;
-		skb = skb_dequeue(&ap->ps_bc_buf);
+
+		skb = skb_dequeue(&ps->bc_buf);
 		if (skb) {
 			purged++;
 			dev_kfree_skb(skb);
 		}
-		total += skb_queue_len(&ap->ps_bc_buf);
+		total += skb_queue_len(&ps->bc_buf);
 	}
 
 	/*
@@ -364,6 +367,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	struct ps_data *ps;
 
 	/*
 	 * broadcast/multicast frame
@@ -373,16 +377,24 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	 * This is done either by the hardware or us.
 	 */
 
-	/* powersaving STAs only in AP/VLAN mode */
-	if (!tx->sdata->bss)
+	/* powersaving STAs currently only in AP/VLAN mode */
+	if (tx->sdata->vif.type == NL80211_IFTYPE_AP ||
+	    tx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		if (!tx->sdata->bss)
+			return TX_CONTINUE;
+
+		ps = &tx->sdata->bss->ps;
+	} else {
 		return TX_CONTINUE;
+	}
+
 
 	/* no buffering for ordered frames */
 	if (ieee80211_has_order(hdr->frame_control))
 		return TX_CONTINUE;
 
 	/* no stations in PS mode */
-	if (!atomic_read(&tx->sdata->bss->num_sta_ps))
+	if (!atomic_read(&ps->num_sta_ps))
 		return TX_CONTINUE;
 
 	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
@@ -397,14 +409,14 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 		purge_old_ps_buffers(tx->local);
 
-	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
+	if (skb_queue_len(&ps->bc_buf) >= AP_MAX_BC_BUFFER) {
 		ps_dbg(tx->sdata,
 		       "BC TX buffer full - dropping the oldest frame\n");
-		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
+		dev_kfree_skb(skb_dequeue(&ps->bc_buf));
 	} else
 		tx->local->total_ps_buffered++;
 
-	skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
+	skb_queue_tail(&ps->bc_buf, tx->skb);
 
 	return TX_QUEUED;
 }
@@ -2246,9 +2258,8 @@ void ieee80211_tx_pending(unsigned long data)
 /* functions for drivers to get certain frames */
 
 static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
-				     struct ieee80211_if_ap *bss,
-				     struct sk_buff *skb,
-				     struct beacon_data *beacon)
+				     struct ps_data *ps,
+				     struct sk_buff *skb)
 {
 	u8 *pos, *tim;
 	int aid0 = 0;
@@ -2256,27 +2267,27 @@ static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 
 	/* Generate bitmap for TIM only if there are any STAs in power save
 	 * mode. */
-	if (atomic_read(&bss->num_sta_ps) > 0)
+	if (atomic_read(&ps->num_sta_ps) > 0)
 		/* in the hope that this is faster than
 		 * checking byte-for-byte */
-		have_bits = !bitmap_empty((unsigned long*)bss->tim,
+		have_bits = !bitmap_empty((unsigned long*)ps->tim,
 					  IEEE80211_MAX_AID+1);
 
-	if (bss->dtim_count == 0)
-		bss->dtim_count = sdata->vif.bss_conf.dtim_period - 1;
+	if (ps->dtim_count == 0)
+		ps->dtim_count = sdata->vif.bss_conf.dtim_period - 1;
 	else
-		bss->dtim_count--;
+		ps->dtim_count--;
 
 	tim = pos = (u8 *) skb_put(skb, 6);
 	*pos++ = WLAN_EID_TIM;
 	*pos++ = 4;
-	*pos++ = bss->dtim_count;
+	*pos++ = ps->dtim_count;
 	*pos++ = sdata->vif.bss_conf.dtim_period;
 
-	if (bss->dtim_count == 0 && !skb_queue_empty(&bss->ps_bc_buf))
+	if (ps->dtim_count == 0 && !skb_queue_empty(&ps->bc_buf))
 		aid0 = 1;
 
-	bss->dtim_bc_mc = aid0 == 1;
+	ps->dtim_bc_mc = aid0 == 1;
 
 	if (have_bits) {
 		/* Find largest even number N1 so that bits numbered 1 through
@@ -2284,14 +2295,14 @@ static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 		 * (N2 + 1) x 8 through 2007 are 0. */
 		n1 = 0;
 		for (i = 0; i < IEEE80211_MAX_TIM_LEN; i++) {
-			if (bss->tim[i]) {
+			if (ps->tim[i]) {
 				n1 = i & 0xfe;
 				break;
 			}
 		}
 		n2 = n1;
 		for (i = IEEE80211_MAX_TIM_LEN - 1; i >= n1; i--) {
-			if (bss->tim[i]) {
+			if (ps->tim[i]) {
 				n2 = i;
 				break;
 			}
@@ -2301,7 +2312,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 		*pos++ = n1 | aid0;
 		/* Part Virt Bitmap */
 		skb_put(skb, n2 - n1);
-		memcpy(pos, bss->tim + n1, n2 - n1 + 1);
+		memcpy(pos, ps->tim + n1, n2 - n1 + 1);
 
 		tim[1] = n2 - n1 + 4;
 	} else {
@@ -2318,8 +2329,6 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata = NULL;
-	struct ieee80211_if_ap *ap = NULL;
-	struct beacon_data *beacon;
 	enum ieee80211_band band;
 	struct ieee80211_tx_rate_control txrc;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -2338,8 +2347,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		*tim_length = 0;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		ap = &sdata->u.ap;
-		beacon = rcu_dereference(ap->beacon);
+		struct ieee80211_if_ap *ap = &sdata->u.ap;
+		struct beacon_data *beacon = rcu_dereference(ap->beacon);
+
 		if (beacon) {
 			/*
 			 * headroom, head length,
@@ -2363,14 +2373,12 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			 * of the tim bitmap in mac80211 and the driver.
 			 */
 			if (local->tim_in_locked_section) {
-				ieee80211_beacon_add_tim(sdata, ap, skb,
-							 beacon);
+				ieee80211_beacon_add_tim(sdata, &ap->ps, skb);
 			} else {
 				unsigned long flags;
 
 				spin_lock_irqsave(&local->tim_lock, flags);
-				ieee80211_beacon_add_tim(sdata, ap, skb,
-							 beacon);
+				ieee80211_beacon_add_tim(sdata, &ap->ps, skb);
 				spin_unlock_irqrestore(&local->tim_lock, flags);
 			}
 
@@ -2694,32 +2702,40 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_data tx;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_ap *bss = NULL;
-	struct beacon_data *beacon;
+	struct ps_data *ps;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
 	sdata = vif_to_sdata(vif);
-	bss = &sdata->u.ap;
 
 	rcu_read_lock();
-	beacon = rcu_dereference(bss->beacon);
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
-	if (sdata->vif.type != NL80211_IFTYPE_AP || !beacon || !beacon->head ||
-	    !chanctx_conf)
+	if (!chanctx_conf)
 		goto out;
 
-	if (bss->dtim_count != 0 || !bss->dtim_bc_mc)
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		struct beacon_data *beacon =
+				rcu_dereference(sdata->u.ap.beacon);
+
+		if (!beacon || !beacon->head)
+			goto out;
+
+		ps = &sdata->u.ap.ps;
+	} else {
+		goto out;
+	}
+
+	if (ps->dtim_count != 0 || !ps->dtim_bc_mc)
 		goto out; /* send buffered bc/mc only after DTIM beacon */
 
 	while (1) {
-		skb = skb_dequeue(&bss->ps_bc_buf);
+		skb = skb_dequeue(&ps->bc_buf);
 		if (!skb)
 			goto out;
 		local->total_ps_buffered--;
 
-		if (!skb_queue_empty(&bss->ps_bc_buf) && skb->len >= 2) {
+		if (!skb_queue_empty(&ps->bc_buf) && skb->len >= 2) {
 			struct ieee80211_hdr *hdr =
 				(struct ieee80211_hdr *) skb->data;
 			/* more buffered multicast/broadcast frames ==> set

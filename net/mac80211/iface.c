@@ -767,8 +767,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
 
 		/* free all potentially still buffered bcast frames */
-		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps_bc_buf);
-		skb_queue_purge(&sdata->u.ap.ps_bc_buf);
+		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
+		skb_queue_purge(&sdata->u.ap.ps.bc_buf);
 	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		ieee80211_mgd_stop(sdata);
 	}
@@ -1171,7 +1171,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.p2p = true;
 		/* fall through */
 	case NL80211_IFTYPE_AP:
-		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
+		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:

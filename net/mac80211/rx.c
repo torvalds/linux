@@ -1141,12 +1141,19 @@ ieee80211_rx_h_check_more_data(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-static void ap_sta_ps_start(struct sta_info *sta)
+static void sta_ps_start(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
+	struct ps_data *ps;
 
-	atomic_inc(&sdata->bss->num_sta_ps);
+	if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		ps = &sdata->bss->ps;
+	else
+		return;
+
+	atomic_inc(&ps->num_sta_ps);
 	set_sta_flag(sta, WLAN_STA_PS_STA);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_SLEEP, &sta->sta);
@@ -1154,7 +1161,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	       sta->sta.addr, sta->sta.aid);
 }
 
-static void ap_sta_ps_end(struct sta_info *sta)
+static void sta_ps_end(struct sta_info *sta)
 {
 	ps_dbg(sta->sdata, "STA %pM aid %d exits power save mode\n",
 	       sta->sta.addr, sta->sta.aid);
@@ -1181,9 +1188,9 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start)
 		return -EINVAL;
 
 	if (start)
-		ap_sta_ps_start(sta_inf);
+		sta_ps_start(sta_inf);
 	else
-		ap_sta_ps_end(sta_inf);
+		sta_ps_end(sta_inf);
 
 	return 0;
 }
@@ -1335,10 +1342,10 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 			 */
 			if (ieee80211_is_data(hdr->frame_control) &&
 			    !ieee80211_has_pm(hdr->frame_control))
-				ap_sta_ps_end(sta);
+				sta_ps_end(sta);
 		} else {
 			if (ieee80211_has_pm(hdr->frame_control))
-				ap_sta_ps_start(sta);
+				sta_ps_start(sta);
 		}
 	}
 
