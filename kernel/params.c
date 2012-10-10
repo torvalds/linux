@@ -218,6 +218,11 @@ int parse_args(const char *name,
 }
 
 #ifdef CONFIG_RK_CONFIG
+static int ignore_unknown(char *param, char *val)
+{
+	return 0;
+}
+
 int module_parse_kernel_cmdline(const char *name, const struct kernel_param *params, unsigned num)
 {
 	int ret;
@@ -244,7 +249,7 @@ int module_parse_kernel_cmdline(const char *name, const struct kernel_param *par
 		new_params[i].name = new_name;
 	}
 
-	ret = parse_args(name, args, new_params, num, NULL);
+	ret = parse_args(name, args, new_params, num, ignore_unknown);
 
 out:
 	for (i = 0; i < num; i++)
