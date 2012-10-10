@@ -158,6 +158,7 @@ INTERRUPTS = 128
 .globl SYMBOL_NAME(system_call)
 .globl SYMBOL_NAME(ret_from_exception)
 .globl SYMBOL_NAME(ret_from_fork)
+.globl SYMBOL_NAME(ret_from_kernel_thread)
 .globl SYMBOL_NAME(ret_from_interrupt)
 .globl SYMBOL_NAME(interrupt_redirect_table)
 .globl SYMBOL_NAME(sw_ksp),SYMBOL_NAME(sw_usp)
@@ -329,6 +330,15 @@ SYMBOL_NAME_LABEL(ret_from_fork)
 	mov.l	er2,er0
 	jsr	@SYMBOL_NAME(schedule_tail)
 	jmp	@SYMBOL_NAME(ret_from_exception)
+
+SYMBOL_NAME_LABEL(ret_from_kernel_thread)
+	mov.l	er2,er0
+	jsr	@SYMBOL_NAME(schedule_tail)
+	mov.l	@(LER4:16,sp),er0
+	mov.l	@(LER5:16,sp),er1
+	jsr	@er1
+	sub.l	@er0,@er0
+	jsr	@SYMBOL_NAME(sys_exit)
 
 SYMBOL_NAME_LABEL(resume)
 	/*
