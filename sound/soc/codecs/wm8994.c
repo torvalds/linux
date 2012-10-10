@@ -863,18 +863,26 @@ static int late_disable_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-
+	DBG("%s::%d event = %d active = %d\n",__FUNCTION__,__LINE__,event,codec->active);
+	
+	if(codec->active)
+	{
+		DBG("%s::%d codec is %s\n",__FUNCTION__,__LINE__,codec->active?"active":"inactive");
+		return 0;
+	}
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMD:
 		if (wm8994->aif1clk_disable) {
 			snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
 					    WM8994_AIF1CLK_ENA_MASK, 0);
 			wm8994->aif1clk_disable = 0;
+			wm8994->aif1clk_enable = 1;
 		}
 		if (wm8994->aif2clk_disable) {
 			snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
 					    WM8994_AIF2CLK_ENA_MASK, 0);
 			wm8994->aif2clk_disable = 0;
+			//wm8994->aif2clk_enable = 1;
 		}
 		break;
 	}
@@ -1402,7 +1410,7 @@ SND_SOC_DAPM_MUX("AIF2DAC Mux", SND_SOC_NOPM, 0, 0, &aif2dac_mux),
 SND_SOC_DAPM_MUX("AIF2ADC Mux", SND_SOC_NOPM, 0, 0, &aif2adc_mux),
 
 SND_SOC_DAPM_AIF_IN("AIF3DACDAT", "AIF3 Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIF3ADCDAT", "AIF3 Capture", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF3ADCDAT", "AIF3 Capture", 0, SND_SOC_NOPM, 0, 0),
 
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8994_CLOCKING_1, 4, 0, NULL, 0),
 
@@ -1622,10 +1630,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "Left Headphone Mux", "DAC", "DAC1L" },
 	{ "Right Headphone Mux", "DAC", "DAC1R" },
 	
-	{ "IN1L PGA", NULL , "MICBIAS2" },
+//	{ "IN1L PGA", NULL , "MICBIAS2" },
 	{ "IN1R PGA", NULL , "MICBIAS1" },
-	{ "MICBIAS2", NULL , "IN1LP"},//headset
-	{ "MICBIAS2", NULL , "IN1LN"},
+//	{ "MICBIAS2", NULL , "IN1LP"},//headset
+//	{ "MICBIAS2", NULL , "IN1LN"},
 	{ "MICBIAS1", NULL , "IN1RP"},//mainMIC
 	{ "MICBIAS1", NULL , "IN1RN"},
 	
@@ -2270,9 +2278,9 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 
 	int i, cur_val, best_val, bclk_rate, best;
 	
-	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-			WM8994_MICB2_ENA ,
-			WM8994_MICB2_ENA);
+	//snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+		//	WM8994_MICB2_ENA ,
+		//	WM8994_MICB2_ENA);
 
 	switch (dai->id) {
 	case 1:
@@ -2933,6 +2941,41 @@ int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 }
 EXPORT_SYMBOL_GPL(wm8994_mic_detect);
 
+int wm8994_headset_mic_detect(bool headset_status)
+{
+	struct wm8994_priv *wm8994 = NULL;
+	int jack_type = 0;
+	printk("%s::%d\n",__FUNCTION__,__LINE__);
+	
+	if(wm8994_codec == NULL)
+		return -1;
+	wm8994 = snd_soc_codec_get_drvdata(wm8994_codec);
+	if(wm8994 == NULL)
+		return -1;
+	if(headset_status)
+	{
+		while(wm8994_codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		{
+			printk("----------wm8994 unnot standby-----------------\n");
+			msleep(300);
+		}
+		
+		snd_soc_update_bits(wm8994_codec, WM8994_POWER_MANAGEMENT_1,
+			WM8994_MICB2_ENA ,
+			WM8994_MICB2_ENA);		
+		
+		msleep(400);
+	}
+	else
+	{// headset is out,disable MIC2 Bias
+		printk("headset is out,disable Mic2 Bias\n");
+		snd_soc_update_bits(wm8994_codec, WM8994_POWER_MANAGEMENT_1,
+			WM8994_MICB2_ENA,
+			0);		
+	}
+	return jack_type;
+}
+EXPORT_SYMBOL(wm8994_headset_mic_detect);
 static irqreturn_t wm8994_mic_irq(int irq, void *data)
 {
 	struct wm8994_priv *priv = data;
@@ -3073,6 +3116,40 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 out:
 	return IRQ_HANDLED;
 }
+#ifdef CONFIG_HDMI
+#include <linux/hdmi.h>
+void codec_set_spk(bool on)
+{
+        struct snd_soc_codec *codec = wm8994_codec;
+
+        DBG("%s: %d\n", __func__, on);
+
+        if(!codec)
+                return;
+
+        if(on){
+                DBG("snd_soc_dapm_enable_pin\n");
+                snd_soc_dapm_enable_pin(&codec->dapm, "Ext Left Spk");
+                snd_soc_dapm_enable_pin(&codec->dapm, "Ext Right Spk");
+                snd_soc_dapm_enable_pin(&codec->dapm, "Headset Stereophone");
+        }
+        else{
+
+                DBG("snd_soc_dapm_disable_pin\n");
+                snd_soc_dapm_disable_pin(&codec->dapm, "Ext Left Spk");
+                snd_soc_dapm_disable_pin(&codec->dapm, "Ext Right Spk");
+                snd_soc_dapm_disable_pin(&codec->dapm, "Headset Stereophone");
+        }
+
+        snd_soc_dapm_sync(&codec->dapm);
+
+        return;
+}
+static struct hdmi_codec_driver hdmi_codec_driver = {
+    .hdmi_get_spk = NULL,
+    .hdmi_set_spk = codec_set_spk,
+};
+#endif 
 
 #ifdef WM8994_PROC	
 static int wm8994_proc_init(void);
@@ -3401,7 +3478,14 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 //				 ARRAY_SIZE(wm8994_lineout_status_dapm_widgets));	
 //	snd_soc_dapm_add_routes(dapm, wm8994_lineout_status_intercon, 
 //				ARRAY_SIZE(wm8994_lineout_status_intercon));
-		
+	#ifdef CONFIG_HDMI
+		hdmi_codec_driver.name = "wm8994";
+		ret = hdmi_codec_register(&hdmi_codec_driver);
+		if (ret != 0) {
+			printk("Failed to register HDMI_codec: %d\n", ret);
+    }
+	#endif
+	
 	return 0;
 
 err_irq:

@@ -213,6 +213,14 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new analogue_snd_controls[] = {
+//for mic mute		
+SOC_SINGLE_TLV("Main Mic Capture Volume", WM8993_RIGHT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
+		  inpga_tlv),
+SOC_SINGLE("Main Mic Capture Switch", WM8993_RIGHT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),		
+SOC_SINGLE("Headset Mic Capture Switch", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),		
+SOC_SINGLE_TLV("Headset Mic Capture Volume", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
+       inpga_tlv),		
+//end	
 SOC_SINGLE_TLV("IN1L Volume", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
 	       inpga_tlv),
 SOC_SINGLE("IN1L Switch", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),
@@ -409,6 +417,19 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, WM8993_LEFT_OUTPUT_VOLUME,
+					WM8993_HPOUT1_VU ,
+					0 | 0);
+		snd_soc_update_bits(codec, WM8993_RIGHT_OUTPUT_VOLUME,
+					WM8993_HPOUT1_VU ,
+					0 | 0);
+		snd_soc_update_bits(codec, WM8993_LEFT_OUTPUT_VOLUME,
+					WM8993_HPOUT1_VU ,
+					WM8993_HPOUT1_VU );
+		snd_soc_update_bits(codec, WM8993_RIGHT_OUTPUT_VOLUME,
+					WM8993_HPOUT1_VU ,
+					WM8993_HPOUT1_VU );
+					
 		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
 				    WM8993_CP_ENA, WM8993_CP_ENA);
 
