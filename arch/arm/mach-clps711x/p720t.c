@@ -36,8 +36,6 @@
 #include <asm/mach/map.h>
 #include <mach/syspld.h>
 
-#include <asm/hardware/clps7111.h>
-
 #include "common.h"
 
 /*
