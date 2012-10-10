@@ -572,6 +572,14 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	ret = omapdss_compat_init();
+	if (ret) {
+		dev_err(dev->dev, "coult not init omapdss\n");
+		dev->dev_private = NULL;
+		kfree(priv);
+		return ret;
+	}
+
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	INIT_LIST_HEAD(&priv->obj_list);
@@ -583,6 +591,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "omap_modeset_init failed: ret=%d\n", ret);
 		dev->dev_private = NULL;
 		kfree(priv);
+		omapdss_compat_uninit();
 		return ret;
 	}
 
@@ -617,6 +626,8 @@ static int dev_unload(struct drm_device *dev)
 
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
+
+	omapdss_compat_uninit();
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;

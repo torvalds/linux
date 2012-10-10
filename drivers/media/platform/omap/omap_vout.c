@@ -2184,14 +2184,23 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	struct omap_dss_device *def_display;
 	struct omap2video_device *vid_dev = NULL;
 
+	ret = omapdss_compat_init();
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init dss\n");
+		return ret;
+	}
+
 	if (pdev->num_resources == 0) {
 		dev_err(&pdev->dev, "probed for an unknown device\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_dss_init;
 	}
 
 	vid_dev = kzalloc(sizeof(struct omap2video_device), GFP_KERNEL);
-	if (vid_dev == NULL)
-		return -ENOMEM;
+	if (vid_dev == NULL) {
+		ret = -ENOMEM;
+		goto err_dss_init;
+	}
 
 	vid_dev->num_displays = 0;
 	for_each_dss_dev(dssdev) {
@@ -2286,6 +2295,8 @@ probe_err1:
 	}
 probe_err0:
 	kfree(vid_dev);
+err_dss_init:
+	omapdss_compat_uninit();
 	return ret;
 }
 
