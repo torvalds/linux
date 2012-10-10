@@ -118,8 +118,33 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 /*-------------------------------------------------------------------------*/
 
 #include "ehci.h"
-#include "ehci-dbg.c"
 #include "pci-quirks.h"
+
+/*
+ * The MosChip MCS9990 controller updates its microframe counter
+ * a little before the frame counter, and occasionally we will read
+ * the invalid intermediate value.  Avoid problems by checking the
+ * microframe number (the low-order 3 bits); if they are 0 then
+ * re-read the register to get the correct value.
+ */
+static unsigned ehci_moschip_read_frame_index(struct ehci_hcd *ehci)
+{
+	unsigned uf;
+
+	uf = ehci_readl(ehci, &ehci->regs->frame_index);
+	if (unlikely((uf & 7) == 0))
+		uf = ehci_readl(ehci, &ehci->regs->frame_index);
+	return uf;
+}
+
+static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
+{
+	if (ehci->frame_index_bug)
+		return ehci_moschip_read_frame_index(ehci);
+	return ehci_readl(ehci, &ehci->regs->frame_index);
+}
+
+#include "ehci-dbg.c"
 
 /*-------------------------------------------------------------------------*/
 

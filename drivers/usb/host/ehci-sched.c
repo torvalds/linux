@@ -36,29 +36,6 @@
 
 static int ehci_get_frame (struct usb_hcd *hcd);
 
-#ifdef CONFIG_PCI
-
-static unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
-{
-	unsigned uf;
-
-	/*
-	 * The MosChip MCS9990 controller updates its microframe counter
-	 * a little before the frame counter, and occasionally we will read
-	 * the invalid intermediate value.  Avoid problems by checking the
-	 * microframe number (the low-order 3 bits); if they are 0 then
-	 * re-read the register to get the correct value.
-	 */
-	uf = ehci_readl(ehci, &ehci->regs->frame_index);
-	if (unlikely(ehci->frame_index_bug && ((uf & 7) == 0)))
-		uf = ehci_readl(ehci, &ehci->regs->frame_index);
-	return uf;
-}
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 /*
  * periodic_next_shadow - return "next" pointer on shadow list
  * @periodic: host pointer to qh/itd/sitd
