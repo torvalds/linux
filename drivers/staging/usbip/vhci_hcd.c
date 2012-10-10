@@ -149,7 +149,7 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
 }
 
-void rh_port_disconnect(int rhport)
+static void rh_port_disconnect(int rhport)
 {
 	unsigned long flags;
 
