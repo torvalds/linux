@@ -14,12 +14,20 @@
  *
  */
 
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/shrinker.h>
 #include "ion_priv.h"
+
+/* #define DEBUG_PAGE_POOL_SHRINKER */
+
+static struct plist_head pools = PLIST_HEAD_INIT(pools);
+static struct shrinker shrinker;
 
 struct ion_page_pool_item {
 	struct page *page;
@@ -118,46 +126,110 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page* page)
 		ion_page_pool_free_pages(pool, page);
 }
 
+#ifdef DEBUG_PAGE_POOL_SHRINKER
+static int debug_drop_pools_set(void *data, u64 val)
+{
+	struct shrink_control sc;
+	int objs;
+
+	sc.gfp_mask = -1;
+	sc.nr_to_scan = 0;
+
+	if (!val)
+		return 0;
+
+	objs = shrinker.shrink(&shrinker, &sc);
+	sc.nr_to_scan = objs;
+
+	shrinker.shrink(&shrinker, &sc);
+	return 0;
+}
+
+static int debug_drop_pools_get(void *data, u64 *val)
+{
+	struct shrink_control sc;
+	int objs;
+
+	sc.gfp_mask = -1;
+	sc.nr_to_scan = 0;
+
+	objs = shrinker.shrink(&shrinker, &sc);
+	*val = objs;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(debug_drop_pools_fops, debug_drop_pools_get,
+                        debug_drop_pools_set, "%llu\n");
+
+static int debug_grow_pools_set(void *data, u64 val)
+{
+	struct ion_page_pool *pool;
+	struct page *page;
+
+	plist_for_each_entry(pool, &pools, list) {
+		if (val != pool->list.prio)
+			continue;
+		page = ion_page_pool_alloc_pages(pool);
+		if (page)
+			ion_page_pool_add(pool, page);
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(debug_grow_pools_fops, debug_drop_pools_get,
+			debug_grow_pools_set, "%llu\n");
+#endif
+
+static int ion_page_pool_total(bool high)
+{
+	struct ion_page_pool *pool;
+	int total = 0;
+
+	plist_for_each_entry(pool, &pools, list) {
+		total += high ? (pool->high_count + pool->low_count) *
+			(1 << pool->order) :
+			pool->low_count * (1 << pool->order);
+	}
+	return total;
+}
+
 static int ion_page_pool_shrink(struct shrinker *shrinker,
 				 struct shrink_control *sc)
 {
-	struct ion_page_pool *pool = container_of(shrinker,
-						 struct ion_page_pool,
-						 shrinker);
+	struct ion_page_pool *pool;
 	int nr_freed = 0;
 	int i;
 	bool high;
+	int nr_to_scan = sc->nr_to_scan;
 
 	if (sc->gfp_mask & __GFP_HIGHMEM)
 		high = true;
 
-	if (sc->nr_to_scan == 0)
-		return high ? (pool->high_count + pool->low_count) *
-			(1 << pool->order) :
-			pool->low_count * (1 << pool->order);
+	if (nr_to_scan == 0)
+		return ion_page_pool_total(high);
 
-	for (i = 0; i < sc->nr_to_scan; i++) {
-		struct page *page;
+	plist_for_each_entry(pool, &pools, list) {
+		for (i = 0; i < nr_to_scan; i++) {
+			struct page *page;
 
-		mutex_lock(&pool->mutex);
-		if (high && pool->high_count) {
-			page = ion_page_pool_remove(pool, true);
-		} else if (pool->low_count) {
-			page = ion_page_pool_remove(pool, false);
-		} else {
+			mutex_lock(&pool->mutex);
+			if (high && pool->high_count) {
+				page = ion_page_pool_remove(pool, true);
+			} else if (pool->low_count) {
+				page = ion_page_pool_remove(pool, false);
+			} else {
+				mutex_unlock(&pool->mutex);
+				break;
+			}
 			mutex_unlock(&pool->mutex);
-			break;
+			ion_page_pool_free_pages(pool, page);
+			nr_freed += (1 << pool->order);
 		}
-		mutex_unlock(&pool->mutex);
-		ion_page_pool_free_pages(pool, page);
-		nr_freed += (1 << pool->order);
+		nr_to_scan -= i;
 	}
-	pr_info("%s: shrunk page_pool of order %d by %d pages\n", __func__,
-		pool->order, nr_freed);
 
-	return high ? (pool->high_count + pool->low_count) *
-		(1 << pool->order) :
-		pool->low_count * (1 << pool->order);
+	return ion_page_pool_total(high);
 }
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
@@ -170,20 +242,40 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 	pool->low_count = 0;
 	INIT_LIST_HEAD(&pool->low_items);
 	INIT_LIST_HEAD(&pool->high_items);
-	pool->shrinker.shrink = ion_page_pool_shrink;
-	pool->shrinker.seeks = DEFAULT_SEEKS * 16;
-	pool->shrinker.batch = 0;
-	register_shrinker(&pool->shrinker);
 	pool->gfp_mask = gfp_mask;
 	pool->order = order;
 	mutex_init(&pool->mutex);
+	plist_node_init(&pool->list, order);
+	plist_add(&pool->list, &pools);
 
 	return pool;
 }
 
 void ion_page_pool_destroy(struct ion_page_pool *pool)
 {
-	unregister_shrinker(&pool->shrinker);
+	plist_del(&pool->list, &pools);
 	kfree(pool);
 }
 
+static int __init ion_page_pool_init(void)
+{
+	shrinker.shrink = ion_page_pool_shrink;
+	shrinker.seeks = DEFAULT_SEEKS;
+	shrinker.batch = 0;
+	register_shrinker(&shrinker);
+#ifdef DEBUG_PAGE_POOL_SHRINKER
+	debugfs_create_file("ion_pools_shrink", 0644, NULL, NULL,
+			    &debug_drop_pools_fops);
+	debugfs_create_file("ion_pools_grow", 0644, NULL, NULL,
+			    &debug_grow_pools_fops);
+#endif
+	return 0;
+}
+
+static void __exit ion_page_pool_exit(void)
+{
+	unregister_shrinker(&shrinker);
+}
+
+module_init(ion_page_pool_init);
+module_exit(ion_page_pool_exit);
