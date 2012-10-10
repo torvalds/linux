@@ -1540,7 +1540,7 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 	u32 wr_ptr, start_ptr;
 	struct coda_ctx *ctx;
 
-	__cancel_delayed_work(&dev->timeout);
+	cancel_delayed_work(&dev->timeout);
 
 	/* read status register to attend the IRQ */
 	coda_read(dev, CODA_REG_BIT_INT_STATUS);
