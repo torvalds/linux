@@ -178,7 +178,6 @@ void dss_copy_device_pdata(struct omap_dss_device *dst,
 		const struct omap_dss_device *src);
 
 /* apply */
-void dss_apply_init(void);
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr);
 int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
 void dss_mgr_start_update(struct omap_overlay_manager *mgr);
