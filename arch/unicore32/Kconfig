@@ -21,9 +21,6 @@ config UNICORE32
 	  designs licensed by PKUnity Ltd.
 	  Please see web page at <http://www.pkunity.com/>.
 
-config HAVE_PWM
-	bool
-
 config GENERIC_GPIO
 	def_bool y
 
@@ -106,7 +103,8 @@ config PUV3_DB0913
 
 config PUV3_NB0916
 	bool "NetBook board (0916)"
-	select HAVE_PWM
+	select PWM
+	select PWM_PUV3
 
 config PUV3_SMW0919
 	bool "Security Mini-Workstation board (0919)"
@@ -219,12 +217,6 @@ config PUV3_GPIO
 	select GENERIC_GPIO
 	select GPIO_SYSFS if EXPERIMENTAL
 	default y
-
-config PUV3_PWM
-	tristate
-	default BACKLIGHT_PWM
-	help
-	  Enable support for NB0916 PWM controllers
 
 if PUV3_NB0916
 
