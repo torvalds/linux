@@ -1188,6 +1188,8 @@ struct ieee802_11_elems {
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
 	struct ieee80211_ht_operation *ht_operation;
+	struct ieee80211_vht_cap *vht_cap_elem;
+	struct ieee80211_vht_operation *vht_operation;
 	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peering;
@@ -1416,6 +1418,11 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
 u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
 
+/* VHT */
+void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_supported_band *sband,
+					 struct ieee80211_vht_cap *vht_cap_ie,
+					 struct ieee80211_sta_vht_cap *vht_cap);
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,

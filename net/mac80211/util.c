@@ -741,6 +741,18 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			else
 				elem_parse_failed = true;
 			break;
+		case WLAN_EID_VHT_CAPABILITY:
+			if (elen >= sizeof(struct ieee80211_vht_cap))
+				elems->vht_cap_elem = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_VHT_OPERATION:
+			if (elen >= sizeof(struct ieee80211_vht_operation))
+				elems->vht_operation = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
 		case WLAN_EID_MESH_ID:
 			elems->mesh_id = pos;
 			elems->mesh_id_len = elen;
