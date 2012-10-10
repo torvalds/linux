@@ -1514,6 +1514,7 @@ config SCHED_HMP
 config SCHED_HMP_PRIO_FILTER
 	bool "(EXPERIMENTAL) Filter HMP migrations by task priority"
 	depends on SCHED_HMP
+	default y
 	help
 	  Enables task priority based HMP migration filter. Any task with
 	  a NICE value above the threshold will always be on low-power cpus
