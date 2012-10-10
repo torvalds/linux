@@ -350,7 +350,7 @@ struct hci_conn {
 
 struct hci_chan {
 	struct list_head list;
-
+	__u16 handle;
 	struct hci_conn *conn;
 	struct sk_buff_head data_q;
 	unsigned int	sent;
@@ -567,6 +567,7 @@ void hci_conn_check_pending(struct hci_dev *hdev);
 struct hci_chan *hci_chan_create(struct hci_conn *conn);
 void hci_chan_del(struct hci_chan *chan);
 void hci_chan_list_flush(struct hci_conn *conn);
+struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle);
 
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 			     __u8 dst_type, __u8 sec_level, __u8 auth_type);

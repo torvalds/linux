@@ -989,3 +989,35 @@ void hci_chan_list_flush(struct hci_conn *conn)
 	list_for_each_entry_safe(chan, n, &conn->chan_list, list)
 		hci_chan_del(chan);
 }
+
+static struct hci_chan *__hci_chan_lookup_handle(struct hci_conn *hcon,
+						 __u16 handle)
+{
+	struct hci_chan *hchan;
+
+	list_for_each_entry(hchan, &hcon->chan_list, list) {
+		if (hchan->handle == handle)
+			return hchan;
+	}
+
+	return NULL;
+}
+
+struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn *hcon;
+	struct hci_chan *hchan = NULL;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(hcon, &h->list, list) {
+		hchan = __hci_chan_lookup_handle(hcon, handle);
+		if (hchan)
+			break;
+	}
+
+	rcu_read_unlock();
+
+	return hchan;
+}
