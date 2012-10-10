@@ -2752,7 +2752,7 @@ static int qtudev_open(struct inode *inode, struct file *file)
 	utd_entry = get_uid_data(current_fsuid(), &utd_entry_found);
 	if (IS_ERR_OR_NULL(utd_entry)) {
 		res = PTR_ERR(utd_entry);
-		goto err;
+		goto err_unlock;
 	}
 
 	/* Look for existing PID based proc_data */
@@ -2794,8 +2794,8 @@ err_unlock_free_utd:
 		rb_erase(&utd_entry->node, &uid_tag_data_tree);
 		kfree(utd_entry);
 	}
+err_unlock:
 	spin_unlock_bh(&uid_tag_data_tree_lock);
-err:
 	return res;
 }
 
