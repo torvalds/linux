@@ -19,22 +19,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-static int ehci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int rc = 0;
-
-	if (!udev->parent) /* udev is root hub itself, impossible */
-		rc = -1;
-	/* we only support lpm device connected to root hub yet */
-	if (ehci->has_lpm && !udev->parent->parent) {
-		rc = ehci_lpm_set_da(ehci, udev->devnum, udev->portnum);
-		if (!rc)
-			rc = ehci_lpm_check(ehci, udev->portnum);
-	}
-	return rc;
-}
-
 static const struct hc_driver vt8500_ehci_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "VT8500 EHCI",
