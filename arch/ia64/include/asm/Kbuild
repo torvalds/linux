@@ -14,3 +14,4 @@ header-y += rse.h
 header-y += ucontext.h
 header-y += ustack.h
 generic-y += clkdev.h
+generic-y += exec.h

@@ -69,18 +69,6 @@ unsigned long alloc_stack(int order, int atomic)
 	return page;
 }
 
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	int pid;
-
-	current->thread.request.u.thread.proc = fn;
-	current->thread.request.u.thread.arg = arg;
-	pid = do_fork(CLONE_VM | CLONE_UNTRACED | flags, 0,
-		      &current->thread.regs, 0, NULL, NULL);
-	return pid;
-}
-EXPORT_SYMBOL(kernel_thread);
-
 static inline void set_current(struct task_struct *task)
 {
 	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
@@ -177,7 +165,7 @@ void fork_handler(void)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long stack_top, struct task_struct * p,
+		unsigned long arg, struct task_struct * p,
 		struct pt_regs *regs)
 {
 	void (*handler)(void);
@@ -198,7 +186,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		arch_copy_thread(&current->thread.arch, &p->thread.arch);
 	} else {
 		get_safe_registers(p->thread.regs.regs.gp, p->thread.regs.regs.fp);
-		p->thread.request.u.thread = current->thread.request.u.thread;
+		p->thread.request.u.thread.proc = (int (*)(void *))sp;
+		p->thread.request.u.thread.arg = (void *)arg;
 		handler = new_thread_handler;
 	}
 

@@ -91,6 +91,30 @@ ENTRY(ret_from_fork)
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+ UNWIND(.fnstart)
+ UNWIND(.cantunwind)
+	bl	schedule_tail
+	mov	r0, r4
+	adr	lr, BSYM(1f)	@ kernel threads should not exit
+	mov	pc, r5
+1:	bl	do_exit
+	nop
+ UNWIND(.fnend)
+ENDPROC(ret_from_kernel_thread)
+
+/*
+ * turn a kernel thread into userland process
+ * use: ret_from_kernel_execve(struct pt_regs *normal)
+ */
+ENTRY(ret_from_kernel_execve)
+	mov	why, #0			@ not a syscall
+	str	why, [r0, #S_R0]	@ ... and we want 0 in ->ARM_r0 as well
+	get_thread_info tsk		@ thread structure
+	mov	sp, r0			@ stack pointer just under pt_regs
+	b	ret_slow_syscall
+ENDPROC(ret_from_kernel_execve)
+
 	.equ NR_syscalls,0
 #define CALL(x) .equ NR_syscalls,NR_syscalls+1
 #include "calls.S"
@@ -516,11 +540,6 @@ sys_vfork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_vfork
 ENDPROC(sys_vfork_wrapper)
-
-sys_execve_wrapper:
-		add	r3, sp, #S_OFF
-		b	sys_execve
-ENDPROC(sys_execve_wrapper)
 
 sys_clone_wrapper:
 		add	ip, sp, #S_OFF

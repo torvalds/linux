@@ -125,8 +125,6 @@ long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 			  compat_sigset_t __user *oset, size_t sigsetsize);
 long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
 long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
-long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
-		  compat_uptr_t __user *envp);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);

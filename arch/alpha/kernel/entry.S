@@ -609,59 +609,35 @@ ret_from_fork:
 .end ret_from_fork
 
 /*
- * kernel_thread(fn, arg, clone_flags)
+ * ... and new kernel threads - here
  */
 	.align 4
-	.globl	kernel_thread
-	.ent	kernel_thread
-kernel_thread:
-	/* We can be called from a module.  */
-	ldgp	$gp, 0($27)
-	.prologue 1
-	subq	$sp, SP_OFF+6*8, $sp
-	br	$1, 2f		/* load start address */
-
-	/* We've now "returned" from a fake system call.  */
-	unop
-	blt	$0, 1f		/* error?  */
-	ldi	$1, 0x3fff
-	beq	$20, 1f		/* parent or child?  */
-
-	bic	$sp, $1, $8	/* in child.  */
-	jsr	$26, ($27)
+	.globl	ret_from_kernel_thread
+	.ent	ret_from_kernel_thread
+ret_from_kernel_thread:
+	mov	$17, $16
+	jsr	$26, schedule_tail
+	mov	$9, $27
+	mov	$10, $16
+	jsr	$26, ($9)
 	ldgp	$gp, 0($26)
 	mov	$0, $16
 	mov	$31, $26
 	jmp	$31, sys_exit
+.end ret_from_kernel_thread
 
-1:	ret			/* in parent.  */
-
-	.align 4
-2:	/* Fake a system call stack frame, as we can't do system calls
-	   from kernel space.  Note that we store FN and ARG as they
-	   need to be set up in the child for the call.  Also store $8
-	   and $26 for use in the parent.  */
-	stq	$31, SP_OFF($sp)	/* ps */
-	stq	$1, SP_OFF+8($sp)	/* pc */
-	stq	$gp, SP_OFF+16($sp)	/* gp */
-	stq	$16, 136($sp)		/* $27; FN for child */
-	stq	$17, SP_OFF+24($sp)	/* $16; ARG for child */
-	stq	$8, 64($sp)		/* $8 */
-	stq	$26, 128($sp)		/* $26 */
+	.globl	ret_from_kernel_execve
+	.align	4
+	.ent	ret_from_kernel_execve
+ret_from_kernel_execve:
+	mov	$16, $sp
 	/* Avoid the HAE being gratuitously wrong, to avoid restoring it.  */
 	ldq	$2, alpha_mv+HAE_CACHE
 	stq	$2, 152($sp)		/* HAE */
+	mov	$31, $19		/* to disable syscall restarts */
+	br	$31, ret_to_user
 
-	/* Shuffle FLAGS to the front; add CLONE_VM.  */
-	ldi	$1, CLONE_VM|CLONE_UNTRACED
-	or	$18, $1, $16
-	bsr	$26, sys_clone
-
-	/* We don't actually care for a3 success widgetry in the kernel.
-	   Not for positive errno values.  */
-	stq	$0, 0($sp)		/* $0 */
-	br	ret_to_kernel
-.end kernel_thread
+.end	ret_from_kernel_execve
 
 
 /*
@@ -743,15 +719,6 @@ sys_rt_sigreturn:
 1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
 .end sys_rt_sigreturn
-
-	.align	4
-	.globl	sys_execve
-	.ent	sys_execve
-sys_execve:
-	.prologue 0
-	mov	$sp, $19
-	jmp	$31, do_sys_execve
-.end sys_execve
 
 	.align	4
 	.globl	alpha_ni_syscall
