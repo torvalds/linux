@@ -354,6 +354,8 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 
+	ssize_t		(*events_sysfs_show)(char *page, u64 config);
+
 	/*
 	 * CPU Hotplug hooks
 	 */

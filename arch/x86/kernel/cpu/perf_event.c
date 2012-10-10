@@ -1316,6 +1316,62 @@ static struct attribute_group x86_pmu_format_group = {
 	.attrs = NULL,
 };
 
+struct perf_pmu_events_attr {
+	struct device_attribute attr;
+	u64 id;
+};
+
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr = \
+		container_of(attr, struct perf_pmu_events_attr, attr);
+
+	u64 config = x86_pmu.event_map(pmu_attr->id);
+	return x86_pmu.events_sysfs_show(page, config);
+}
+
+#define EVENT_VAR(_id)  event_attr_##_id
+#define EVENT_PTR(_id) &event_attr_##_id.attr.attr
+
+#define EVENT_ATTR(_name, _id)					\
+static struct perf_pmu_events_attr EVENT_VAR(_id) = {		\
+	.attr = __ATTR(_name, 0444, events_sysfs_show, NULL),	\
+	.id   =  PERF_COUNT_HW_##_id,				\
+};
+
+EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
+EVENT_ATTR(instructions,		INSTRUCTIONS		);
+EVENT_ATTR(cache-references,		CACHE_REFERENCES	);
+EVENT_ATTR(cache-misses, 		CACHE_MISSES		);
+EVENT_ATTR(branch-instructions,		BRANCH_INSTRUCTIONS	);
+EVENT_ATTR(branch-misses,		BRANCH_MISSES		);
+EVENT_ATTR(bus-cycles,			BUS_CYCLES		);
+EVENT_ATTR(stalled-cycles-frontend,	STALLED_CYCLES_FRONTEND	);
+EVENT_ATTR(stalled-cycles-backend,	STALLED_CYCLES_BACKEND	);
+EVENT_ATTR(ref-cycles,			REF_CPU_CYCLES		);
+
+static struct attribute *empty_attrs;
+
+struct attribute *events_attr[] = {
+	EVENT_PTR(CPU_CYCLES),
+	EVENT_PTR(INSTRUCTIONS),
+	EVENT_PTR(CACHE_REFERENCES),
+	EVENT_PTR(CACHE_MISSES),
+	EVENT_PTR(BRANCH_INSTRUCTIONS),
+	EVENT_PTR(BRANCH_MISSES),
+	EVENT_PTR(BUS_CYCLES),
+	EVENT_PTR(STALLED_CYCLES_FRONTEND),
+	EVENT_PTR(STALLED_CYCLES_BACKEND),
+	EVENT_PTR(REF_CPU_CYCLES),
+	NULL,
+};
+
+static struct attribute_group x86_pmu_events_group = {
+	.name = "events",
+	.attrs = events_attr,
+};
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -1361,6 +1417,9 @@ static int __init init_hw_perf_events(void)
 
 	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
+
+	if (!x86_pmu.events_sysfs_show)
+		x86_pmu_events_group.attrs = &empty_attrs;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
@@ -1651,6 +1710,7 @@ static struct attribute_group x86_pmu_attr_group = {
 static const struct attribute_group *x86_pmu_attr_groups[] = {
 	&x86_pmu_attr_group,
 	&x86_pmu_format_group,
+	&x86_pmu_events_group,
 	NULL,
 };
 
