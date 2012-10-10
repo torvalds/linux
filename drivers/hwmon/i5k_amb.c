@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>

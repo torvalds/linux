@@ -27,6 +27,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/i2c/pmbus.h>
 #include "pmbus.h"
 

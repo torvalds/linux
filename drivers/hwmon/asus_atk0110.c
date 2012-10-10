@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/jiffies.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
