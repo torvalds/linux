@@ -81,12 +81,16 @@ struct nfs_access_entry {
 	int			mask;
 };
 
+struct nfs_lockowner {
+	fl_owner_t l_owner;
+	pid_t l_pid;
+};
+
 struct nfs_lock_context {
 	atomic_t count;
 	struct list_head list;
 	struct nfs_open_context *open_context;
-	fl_owner_t lockowner;
-	pid_t pid;
+	struct nfs_lockowner lockowner;
 };
 
 struct nfs4_state;
@@ -99,6 +103,7 @@ struct nfs_open_context {
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
+#define NFS_CONTEXT_RESEND_WRITES	(1)
 	int error;
 
 	struct list_head list;
@@ -355,6 +360,8 @@ extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
+extern void nfs_access_set_mask(struct nfs_access_entry *, u32);
 extern int nfs_permission(struct inode *, int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);

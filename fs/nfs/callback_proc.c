@@ -122,7 +122,15 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, 
 			ino = igrab(lo->plh_inode);
 			if (!ino)
 				continue;
-			get_layout_hdr(lo);
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
+			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			return lo;
 		}
 	}
@@ -158,7 +166,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	ino = lo->plh_inode;
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
-	    mark_matching_lsegs_invalid(lo, &free_me_list,
+	    pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
 					&args->cbl_range))
 		rv = NFS4ERR_DELAY;
 	else
@@ -166,7 +174,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
-	put_layout_hdr(lo);
+	pnfs_put_layout_hdr(lo);
 	iput(ino);
 	return rv;
 }
@@ -196,9 +204,18 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 			continue;
 
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			if (!igrab(lo->plh_inode))
+			ino = igrab(lo->plh_inode);
+			if (ino)
 				continue;
-			get_layout_hdr(lo);
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
+			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			BUG_ON(!list_empty(&lo->plh_bulk_recall));
 			list_add(&lo->plh_bulk_recall, &recall_list);
 		}
@@ -211,12 +228,12 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 		ino = lo->plh_inode;
 		spin_lock(&ino->i_lock);
 		set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
-		if (mark_matching_lsegs_invalid(lo, &free_me_list, &range))
+		if (pnfs_mark_matching_lsegs_invalid(lo, &free_me_list, &range))
 			rv = NFS4ERR_DELAY;
 		list_del_init(&lo->plh_bulk_recall);
 		spin_unlock(&ino->i_lock);
 		pnfs_free_lseg_list(&free_me_list);
-		put_layout_hdr(lo);
+		pnfs_put_layout_hdr(lo);
 		iput(ino);
 	}
 	return rv;

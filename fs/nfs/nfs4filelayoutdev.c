@@ -690,7 +690,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
  * of available devices, and return it.
  */
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
+filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
 {
 	struct pnfs_device *pdev = NULL;
 	u32 max_resp_sz;
@@ -804,13 +804,14 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
 
-	if (filelayout_test_devid_invalid(devid))
+	if (filelayout_test_devid_unavailable(devid))
 		return NULL;
 
 	if (ds == NULL) {
 		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
-		goto mark_dev_invalid;
+		filelayout_mark_devid_invalid(devid);
+		return NULL;
 	}
 
 	if (!ds->ds_clp) {
@@ -818,14 +819,12 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 		int err;
 
 		err = nfs4_ds_connect(s, ds);
-		if (err)
-			goto mark_dev_invalid;
+		if (err) {
+			nfs4_mark_deviceid_unavailable(devid);
+			return NULL;
+		}
 	}
 	return ds;
-
-mark_dev_invalid:
-	filelayout_mark_devid_invalid(devid);
-	return NULL;
 }
 
 module_param(dataserver_retrans, uint, 0644);

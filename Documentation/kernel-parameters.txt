@@ -1730,6 +1730,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
+	nfs.nfs4_unique_id=
+			[NFS4] Specify an additional fixed unique ident-
+			ification string that NFSv4 clients can insert into
+			their nfs_client_id4 string.  This is typically a
+			UUID that is generated at system install time.
 
 	nfs.send_implementation_id =
 			[NFSv4.1] Send client implementation identification

@@ -41,6 +41,7 @@
 #include <scsi/osd_ore.h>
 
 #include "objlayout.h"
+#include "../internal.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
@@ -606,8 +607,14 @@ static bool aligned_on_raid_stripe(u64 offset, struct ore_layout *layout,
 void objio_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
 	unsigned long stripe_end = 0;
+	u64 wb_size;
 
-	pnfs_generic_pg_init_write(pgio, req);
+	if (pgio->pg_dreq == NULL)
+		wb_size = i_size_read(pgio->pg_inode) - req_offset(req);
+	else
+		wb_size = nfs_dreq_bytes_left(pgio->pg_dreq);
+
+	pnfs_generic_pg_init_write(pgio, req, wb_size);
 	if (unlikely(pgio->pg_lseg == NULL))
 		return; /* Not pNFS */
 
