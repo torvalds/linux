@@ -99,9 +99,18 @@ static int cy8ctmg110_read_regs(struct cy8ctmg110 *tsc,
 	int ret;
 	struct i2c_msg msg[2] = {
 		/* first write slave position to i2c devices */
-		{ client->addr, 0, 1, &cmd },
+		{
+			.addr = client->addr,
+			.len = 1,
+			.buf = &cmd
+		},
 		/* Second read data from position */
-		{ client->addr, I2C_M_RD, len, data }
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = data
+		}
 	};
 
 	ret = i2c_transfer(client->adapter, msg, 2);
