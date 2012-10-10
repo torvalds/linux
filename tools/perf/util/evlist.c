@@ -676,6 +676,32 @@ u64 perf_evlist__sample_type(struct perf_evlist *evlist)
 	return first->attr.sample_type;
 }
 
+bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
+{
+	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
+	u64 read_format = first->attr.read_format;
+	u64 sample_type = first->attr.sample_type;
+
+	list_for_each_entry_continue(pos, &evlist->entries, node) {
+		if (read_format != pos->attr.read_format)
+			return false;
+	}
+
+	/* PERF_SAMPLE_READ imples PERF_FORMAT_ID. */
+	if ((sample_type & PERF_SAMPLE_READ) &&
+	    !(read_format & PERF_FORMAT_ID)) {
+		return false;
+	}
+
+	return true;
+}
+
+u64 perf_evlist__read_format(struct perf_evlist *evlist)
+{
+	struct perf_evsel *first = perf_evlist__first(evlist);
+	return first->attr.read_format;
+}
+
 u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist);
