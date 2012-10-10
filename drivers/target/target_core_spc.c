@@ -1003,14 +1003,12 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[7] << 8) + cdb[8];
 		break;
 	case PERSISTENT_RESERVE_IN:
-		if (dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		*size = (cdb[7] << 8) + cdb[8];
+		cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		break;
 	case PERSISTENT_RESERVE_OUT:
-		if (dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		*size = (cdb[7] << 8) + cdb[8];
+		cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		break;
 	case RELEASE:
 	case RELEASE_10:
@@ -1019,8 +1017,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		else
 			*size = cmd->data_length;
 
-		if (dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_cmd = target_scsi2_reservation_release;
+		cmd->execute_cmd = target_scsi2_reservation_release;
 		break;
 	case RESERVE:
 	case RESERVE_10:
@@ -1033,15 +1030,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		else
 			*size = cmd->data_length;
 
-		/*
-		 * Setup the legacy emulated handler for SPC-2 and
-		 * >= SPC-3 compatible reservation handling (CRH=1)
-		 * Otherwise, we assume the underlying SCSI logic is
-		 * is running in SPC_PASSTHROUGH, and wants reservations
-		 * emulation disabled.
-		 */
-		if (dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_cmd = target_scsi2_reservation_reserve;
+		cmd->execute_cmd = target_scsi2_reservation_reserve;
 		break;
 	case REQUEST_SENSE:
 		*size = cdb[4];

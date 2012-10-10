@@ -1398,7 +1398,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
-	dev->dev_attrib.emulate_reservations = DA_EMULATE_RESERVATIONS;
 	dev->dev_attrib.emulate_alua = DA_EMULATE_ALUA;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
@@ -1446,8 +1445,6 @@ int target_configure_device(struct se_device *dev)
 
 	dev->dev_index = scsi_get_new_index(SCSI_DEVICE_INDEX);
 	dev->creation_time = get_jiffies_64();
-
-	core_setup_reservations(dev);
 
 	ret = core_setup_alua(dev);
 	if (ret)

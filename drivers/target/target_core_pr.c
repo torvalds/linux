@@ -68,49 +68,32 @@ int core_pr_dump_initiator_port(
 static void __core_scsi3_complete_pro_release(struct se_device *, struct se_node_acl *,
 			struct t10_pr_registration *, int);
 
-static int core_scsi2_reservation_seq_non_holder(
-	struct se_cmd *cmd,
-	unsigned char *cdb,
-	u32 pr_reg_type)
+static int target_scsi2_reservation_check(struct se_cmd *cmd)
 {
-	switch (cdb[0]) {
+	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
+
+	switch (cmd->t_task_cdb[0]) {
 	case INQUIRY:
 	case RELEASE:
 	case RELEASE_10:
 		return 0;
 	default:
-		return 1;
+		break;
 	}
 
-	return 1;
-}
-
-static int core_scsi2_reservation_check(struct se_cmd *cmd, u32 *pr_reg_type)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_session *sess = cmd->se_sess;
-	int ret;
-
-	if (!sess)
+	if (!dev->dev_reserved_node_acl || !sess)
 		return 0;
 
-	spin_lock(&dev->dev_reservation_lock);
-	if (!dev->dev_reserved_node_acl || !sess) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-	if (dev->dev_reserved_node_acl != sess->se_node_acl) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return -EINVAL;
-	}
-	if (!(dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS_WITH_ISID)) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-	ret = (dev->dev_res_bin_isid == sess->sess_bin_isid) ? 0 : -EINVAL;
-	spin_unlock(&dev->dev_reservation_lock);
+	if (dev->dev_reserved_node_acl != sess->se_node_acl)
+		return -EBUSY;
 
-	return ret;
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS_WITH_ISID) {
+		if (dev->dev_res_bin_isid != sess->sess_bin_isid)
+			return -EBUSY;
+	}
+
+	return 0;
 }
 
 static struct t10_pr_registration *core_scsi3_locate_pr_reg(struct se_device *,
@@ -123,11 +106,7 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd)
 	struct se_device *dev = cmd->se_dev;
 	struct t10_pr_registration *pr_reg;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
-	int crh = (dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS);
 	int conflict = 0;
-
-	if (!crh)
-		return -EINVAL;
 
 	pr_reg = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
 			se_sess);
@@ -319,9 +298,9 @@ out:
  */
 static int core_scsi3_pr_seq_non_holder(
 	struct se_cmd *cmd,
-	unsigned char *cdb,
 	u32 pr_reg_type)
 {
+	unsigned char *cdb = cmd->t_task_cdb;
 	struct se_dev_entry *se_deve;
 	struct se_session *se_sess = cmd->se_sess;
 	int other_cdb = 0, ignore_reg;
@@ -330,17 +309,11 @@ static int core_scsi3_pr_seq_non_holder(
 	int we = 0; /* Write Exclusive */
 	int legacy = 0; /* Act like a legacy device and return
 			 * RESERVATION CONFLICT on some CDBs */
-	/*
-	 * A legacy SPC-2 reservation is being held.
-	 */
-	if (cmd->se_dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
-		return core_scsi2_reservation_seq_non_holder(cmd,
-					cdb, pr_reg_type);
 
 	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Determine if the registration should be ignored due to
-	 * non-matching ISIDs in core_scsi3_pr_reservation_check().
+	 * non-matching ISIDs in target_scsi3_pr_reservation_check().
 	 */
 	ignore_reg = (pr_reg_type & 0x80000000);
 	if (ignore_reg)
@@ -563,6 +536,36 @@ static int core_scsi3_pr_seq_non_holder(
 	return 1; /* Conflict by default */
 }
 
+static int target_scsi3_pr_reservation_check(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
+	u32 pr_reg_type;
+
+	if (!dev->dev_pr_res_holder)
+		return 0;
+
+	pr_reg_type = dev->dev_pr_res_holder->pr_res_type;
+	cmd->pr_res_key = dev->dev_pr_res_holder->pr_res_key;
+	if (dev->dev_pr_res_holder->pr_reg_nacl != sess->se_node_acl)
+		goto check_nonholder;
+
+	if (dev->dev_pr_res_holder->isid_present_at_reg) {
+		if (dev->dev_pr_res_holder->pr_reg_bin_isid !=
+		    sess->sess_bin_isid) {
+			pr_reg_type |= 0x80000000;
+			goto check_nonholder;
+		}
+	}
+
+	return 0;
+
+check_nonholder:
+	if (core_scsi3_pr_seq_non_holder(cmd, pr_reg_type))
+		return -EBUSY;
+	return 0;
+}
+
 static u32 core_scsi3_pr_generation(struct se_device *dev)
 {
 	u32 prg;
@@ -581,50 +584,6 @@ static u32 core_scsi3_pr_generation(struct se_device *dev)
 	spin_unlock(&dev->dev_reservation_lock);
 
 	return prg;
-}
-
-static int core_scsi3_pr_reservation_check(
-	struct se_cmd *cmd,
-	u32 *pr_reg_type)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_session *sess = cmd->se_sess;
-	int ret;
-
-	if (!sess)
-		return 0;
-	/*
-	 * A legacy SPC-2 reservation is being held.
-	 */
-	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
-		return core_scsi2_reservation_check(cmd, pr_reg_type);
-
-	spin_lock(&dev->dev_reservation_lock);
-	if (!dev->dev_pr_res_holder) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-	*pr_reg_type = dev->dev_pr_res_holder->pr_res_type;
-	cmd->pr_res_key = dev->dev_pr_res_holder->pr_res_key;
-	if (dev->dev_pr_res_holder->pr_reg_nacl != sess->se_node_acl) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return -EINVAL;
-	}
-	if (!dev->dev_pr_res_holder->isid_present_at_reg) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-	ret = (dev->dev_pr_res_holder->pr_reg_bin_isid ==
-	       sess->sess_bin_isid) ? 0 : -EINVAL;
-	/*
-	 * Use bit in *pr_reg_type to notify ISID mismatch in
-	 * core_scsi3_pr_seq_non_holder().
-	 */
-	if (ret != 0)
-		*pr_reg_type |= 0x80000000;
-	spin_unlock(&dev->dev_reservation_lock);
-
-	return ret;
 }
 
 static struct t10_pr_registration *__core_scsi3_do_alloc_registration(
@@ -998,7 +957,7 @@ int core_scsi3_check_aptpl_registration(
 	struct se_node_acl *nacl = lun_acl->se_lun_nacl;
 	struct se_dev_entry *deve = nacl->device_list[lun_acl->mapped_lun];
 
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
 
 	return __core_scsi3_check_aptpl_registration(dev, tpg, lun,
@@ -4343,49 +4302,24 @@ int target_scsi3_emulate_pr_in(struct se_cmd *cmd)
 	return ret;
 }
 
-static int core_pt_reservation_check(struct se_cmd *cmd, u32 *pr_res_type)
+int target_check_reservation(struct se_cmd *cmd)
 {
-	return 0;
-}
+	struct se_device *dev = cmd->se_dev;
+	int ret;
 
-static int core_pt_seq_non_holder(
-	struct se_cmd *cmd,
-	unsigned char *cdb,
-	u32 pr_reg_type)
-{
-	return 0;
-}
+	if (!cmd->se_sess)
+		return 0;
+	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
+		return 0;
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return 0;
 
-void core_setup_reservations(struct se_device *dev)
-{
-	struct t10_reservation *rest = &dev->t10_pr;
+	spin_lock(&dev->dev_reservation_lock);
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+		ret = target_scsi2_reservation_check(cmd);
+	else
+		ret = target_scsi3_pr_reservation_check(cmd);
+	spin_unlock(&dev->dev_reservation_lock);
 
-	/*
-	 * If this device is from Target_Core_Mod/pSCSI, use the reservations
-	 * of the Underlying SCSI hardware.  In Linux/SCSI terms, this can
-	 * cause a problem because libata and some SATA RAID HBAs appear
-	 * under Linux/SCSI, but to emulate reservations themselves.
-	 */
-	if ((dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE) ||
-	    (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV &&
-	     !dev->dev_attrib.emulate_reservations)) {
-		rest->res_type = SPC_PASSTHROUGH;
-		rest->pr_ops.t10_reservation_check = &core_pt_reservation_check;
-		rest->pr_ops.t10_seq_non_holder = &core_pt_seq_non_holder;
-		pr_debug("%s: Using SPC_PASSTHROUGH, no reservation"
-			" emulation\n", dev->transport->name);
-	} else if (dev->transport->get_device_rev(dev) >= SCSI_3) {
-		rest->res_type = SPC3_PERSISTENT_RESERVATIONS;
-		rest->pr_ops.t10_reservation_check = &core_scsi3_pr_reservation_check;
-		rest->pr_ops.t10_seq_non_holder = &core_scsi3_pr_seq_non_holder;
-		pr_debug("%s: Using SPC3_PERSISTENT_RESERVATIONS"
-			" emulation\n", dev->transport->name);
-	} else {
-		rest->res_type = SPC2_RESERVATIONS;
-		rest->pr_ops.t10_reservation_check = &core_scsi2_reservation_check;
-		rest->pr_ops.t10_seq_non_holder =
-				&core_scsi2_reservation_seq_non_holder;
-		pr_debug("%s: Using SPC2_RESERVATIONS emulation\n",
-			dev->transport->name);
-	}
+	return ret;
 }

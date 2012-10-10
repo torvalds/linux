@@ -970,13 +970,8 @@ static struct target_core_dev_pr_attribute target_core_dev_pr_##_name =	\
 	__CONFIGFS_EATTR_RO(_name,					\
 	target_core_dev_pr_show_attr_##_name);
 
-/*
- * res_holder
- */
-static ssize_t target_core_dev_pr_show_spc3_res(
-	struct se_device *dev,
-	char *page,
-	ssize_t *len)
+static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
+		char *page)
 {
 	struct se_node_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
@@ -985,68 +980,52 @@ static ssize_t target_core_dev_pr_show_spc3_res(
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 
-	spin_lock(&dev->dev_reservation_lock);
 	pr_reg = dev->dev_pr_res_holder;
-	if (!pr_reg) {
-		*len += sprintf(page + *len, "No SPC-3 Reservation holder\n");
-		spin_unlock(&dev->dev_reservation_lock);
-		return *len;
-	}
+	if (!pr_reg)
+		return sprintf(page, "No SPC-3 Reservation holder\n");
+
 	se_nacl = pr_reg->pr_reg_nacl;
 	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
 				PR_REG_ISID_ID_LEN);
 
-	*len += sprintf(page + *len, "SPC-3 Reservation: %s Initiator: %s%s\n",
+	return sprintf(page, "SPC-3 Reservation: %s Initiator: %s%s\n",
 		se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
 		se_nacl->initiatorname, (prf_isid) ? &i_buf[0] : "");
-	spin_unlock(&dev->dev_reservation_lock);
-
-	return *len;
 }
 
-static ssize_t target_core_dev_pr_show_spc2_res(
-	struct se_device *dev,
-	char *page,
-	ssize_t *len)
+static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
+		char *page)
 {
 	struct se_node_acl *se_nacl;
+	ssize_t len;
 
-	spin_lock(&dev->dev_reservation_lock);
 	se_nacl = dev->dev_reserved_node_acl;
-	if (!se_nacl) {
-		*len += sprintf(page + *len, "No SPC-2 Reservation holder\n");
-		spin_unlock(&dev->dev_reservation_lock);
-		return *len;
+	if (se_nacl) {
+		len = sprintf(page,
+			      "SPC-2 Reservation: %s Initiator: %s\n",
+			      se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+			      se_nacl->initiatorname);
+	} else {
+		len = sprintf(page, "No SPC-2 Reservation holder\n");
 	}
-	*len += sprintf(page + *len, "SPC-2 Reservation: %s Initiator: %s\n",
-		se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
-		se_nacl->initiatorname);
-	spin_unlock(&dev->dev_reservation_lock);
-
-	return *len;
+	return len;
 }
 
 static ssize_t target_core_dev_pr_show_attr_res_holder(struct se_device *dev,
 		char *page)
 {
-	ssize_t len = 0;
+	int ret;
 
-	switch (dev->t10_pr.res_type) {
-	case SPC3_PERSISTENT_RESERVATIONS:
-		target_core_dev_pr_show_spc3_res(dev, page, &len);
-		break;
-	case SPC2_RESERVATIONS:
-		target_core_dev_pr_show_spc2_res(dev, page, &len);
-		break;
-	case SPC_PASSTHROUGH:
-		len += sprintf(page+len, "Passthrough\n");
-		break;
-	default:
-		len += sprintf(page+len, "Unknown\n");
-		break;
-	}
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return sprintf(page, "Passthrough\n");
 
-	return len;
+	spin_lock(&dev->dev_reservation_lock);
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+		ret = target_core_dev_pr_show_spc2_res(dev, page);
+	else
+		ret = target_core_dev_pr_show_spc3_res(dev, page);
+	spin_unlock(&dev->dev_reservation_lock);
+	return ret;
 }
 
 SE_DEV_PR_ATTR_RO(res_holder);
@@ -1054,31 +1033,20 @@ SE_DEV_PR_ATTR_RO(res_holder);
 static ssize_t target_core_dev_pr_show_attr_res_pr_all_tgt_pts(
 		struct se_device *dev, char *page)
 {
-	struct t10_pr_registration *pr_reg;
 	ssize_t len = 0;
 
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
-		return len;
-
 	spin_lock(&dev->dev_reservation_lock);
-	pr_reg = dev->dev_pr_res_holder;
-	if (!pr_reg) {
+	if (!dev->dev_pr_res_holder) {
 		len = sprintf(page, "No SPC-3 Reservation holder\n");
-		spin_unlock(&dev->dev_reservation_lock);
-		return len;
-	}
-	/*
-	 * See All Target Ports (ALL_TG_PT) bit in spcr17, section 6.14.3
-	 * Basic PERSISTENT RESERVER OUT parameter list, page 290
-	 */
-	if (pr_reg->pr_reg_all_tg_pt)
+	} else if (dev->dev_pr_res_holder->pr_reg_all_tg_pt) {
 		len = sprintf(page, "SPC-3 Reservation: All Target"
 			" Ports registration\n");
-	else
+	} else {
 		len = sprintf(page, "SPC-3 Reservation: Single"
 			" Target Port registration\n");
-	spin_unlock(&dev->dev_reservation_lock);
+	}
 
+	spin_unlock(&dev->dev_reservation_lock);
 	return len;
 }
 
@@ -1087,9 +1055,6 @@ SE_DEV_PR_ATTR_RO(res_pr_all_tgt_pts);
 static ssize_t target_core_dev_pr_show_attr_res_pr_generation(
 		struct se_device *dev, char *page)
 {
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
-		return 0;
-
 	return sprintf(page, "0x%08x\n", dev->t10_pr.pr_generation);
 }
 
@@ -1108,16 +1073,13 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 	struct target_core_fabric_ops *tfo;
 	ssize_t len = 0;
 
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
-		return len;
-
 	spin_lock(&dev->dev_reservation_lock);
 	pr_reg = dev->dev_pr_res_holder;
 	if (!pr_reg) {
 		len = sprintf(page, "No SPC-3 Reservation holder\n");
-		spin_unlock(&dev->dev_reservation_lock);
-		return len;
+		goto out_unlock;
 	}
+
 	se_nacl = pr_reg->pr_reg_nacl;
 	se_tpg = se_nacl->se_tpg;
 	lun = pr_reg->pr_reg_tg_pt_lun;
@@ -1131,8 +1093,9 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 		" %s Logical Unit: %u\n", lun->lun_sep->sep_rtpi,
 		tfo->get_fabric_name(), tfo->tpg_get_tag(se_tpg),
 		tfo->get_fabric_name(), lun->unpacked_lun);
-	spin_unlock(&dev->dev_reservation_lock);
 
+out_unlock:
+	spin_unlock(&dev->dev_reservation_lock);
 	return len;
 }
 
@@ -1147,9 +1110,6 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 	char i_buf[PR_REG_ISID_ID_LEN];
 	ssize_t len = 0;
 	int reg_count = 0, prf_isid;
-
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
-		return len;
 
 	len += sprintf(page+len, "SPC-3 PR Registrations:\n");
 
@@ -1190,20 +1150,16 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_type(
 	struct t10_pr_registration *pr_reg;
 	ssize_t len = 0;
 
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
-		return len;
-
 	spin_lock(&dev->dev_reservation_lock);
 	pr_reg = dev->dev_pr_res_holder;
-	if (!pr_reg) {
+	if (pr_reg) {
+		len = sprintf(page, "SPC-3 Reservation Type: %s\n",
+			core_scsi3_pr_dump_type(pr_reg->pr_res_type));
+	} else {
 		len = sprintf(page, "No SPC-3 Reservation holder\n");
-		spin_unlock(&dev->dev_reservation_lock);
-		return len;
 	}
-	len = sprintf(page, "SPC-3 Reservation Type: %s\n",
-		core_scsi3_pr_dump_type(pr_reg->pr_res_type));
-	spin_unlock(&dev->dev_reservation_lock);
 
+	spin_unlock(&dev->dev_reservation_lock);
 	return len;
 }
 
@@ -1212,24 +1168,12 @@ SE_DEV_PR_ATTR_RO(res_pr_type);
 static ssize_t target_core_dev_pr_show_attr_res_type(
 		struct se_device *dev, char *page)
 {
-	ssize_t len = 0;
-
-	switch (dev->t10_pr.res_type) {
-	case SPC3_PERSISTENT_RESERVATIONS:
-		len = sprintf(page, "SPC3_PERSISTENT_RESERVATIONS\n");
-		break;
-	case SPC2_RESERVATIONS:
-		len = sprintf(page, "SPC2_RESERVATIONS\n");
-		break;
-	case SPC_PASSTHROUGH:
-		len = sprintf(page, "SPC_PASSTHROUGH\n");
-		break;
-	default:
-		len = sprintf(page, "UNKNOWN\n");
-		break;
-	}
-
-	return len;
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return sprintf(page, "SPC_PASSTHROUGH\n");
+	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+		return sprintf(page, "SPC2_RESERVATIONS\n");
+	else
+		return sprintf(page, "SPC3_PERSISTENT_RESERVATIONS\n");
 }
 
 SE_DEV_PR_ATTR_RO(res_type);
@@ -1237,7 +1181,7 @@ SE_DEV_PR_ATTR_RO(res_type);
 static ssize_t target_core_dev_pr_show_attr_res_aptpl_active(
 		struct se_device *dev, char *page)
 {
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1252,7 +1196,7 @@ SE_DEV_PR_ATTR_RO(res_aptpl_active);
 static ssize_t target_core_dev_pr_show_attr_res_aptpl_metadata(
 		struct se_device *dev, char *page)
 {
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1299,7 +1243,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	u16 port_rpti = 0, tpgt = 0;
 	u8 type = 0, scope;
 
-	if (dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return 0;
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
 
 	if (dev->export_count) {

@@ -63,6 +63,6 @@ extern unsigned char *core_scsi3_pr_dump_type(int);
 
 extern int target_scsi3_emulate_pr_in(struct se_cmd *);
 extern int target_scsi3_emulate_pr_out(struct se_cmd *);
-extern void core_setup_reservations(struct se_device *);
+extern int target_check_reservation(struct se_cmd *cmd);
 
 #endif /* TARGET_CORE_PR_H */

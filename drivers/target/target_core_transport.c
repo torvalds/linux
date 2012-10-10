@@ -1103,7 +1103,6 @@ int target_setup_cmd_from_cdb(
 	unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
-	u32 pr_reg_type = 0;
 	u8 alua_ascq = 0;
 	unsigned long flags;
 	int ret;
@@ -1180,20 +1179,13 @@ int target_setup_cmd_from_cdb(
 	/*
 	 * Check status for SPC-3 Persistent Reservations
 	 */
-	if (dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type)) {
-		if (dev->t10_pr.pr_ops.t10_seq_non_holder(
-					cmd, cdb, pr_reg_type) != 0) {
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
-			cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
-			cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
-			return -EBUSY;
-		}
-		/*
-		 * This means the CDB is allowed for the SCSI Initiator port
-		 * when said port is *NOT* holding the legacy SPC-2 or
-		 * SPC-3 Persistent Reservation.
-		 */
+	ret = target_check_reservation(cmd);
+	if (ret) {
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
+		cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
+		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+		return ret;
 	}
 
 	ret = dev->transport->parse_cdb(cmd);

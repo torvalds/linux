@@ -93,8 +93,6 @@
  */
 #define DA_EMULATE_TPWS				0
 /* No Emulation for PSCSI by default */
-#define DA_EMULATE_RESERVATIONS			0
-/* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
 #define DA_ENFORCE_PR_ISIDS			1
@@ -333,18 +331,6 @@ struct t10_wwn {
 	struct list_head t10_vpd_list;
 };
 
-
-/*
- * Used by TCM Core internally to signal if >= SPC-3 persistent reservations
- * emulation is enabled or disabled, or running in with TCM/pSCSI passthrough
- * mode
- */
-typedef enum {
-	SPC_PASSTHROUGH,
-	SPC2_RESERVATIONS,
-	SPC3_PERSISTENT_RESERVATIONS
-} t10_reservations_index_t;
-
 struct t10_pr_registration {
 	/* Used for fabrics that contain WWN+ISID */
 #define PR_REG_ISID_LEN				16
@@ -386,18 +372,6 @@ struct t10_pr_registration {
 	struct list_head pr_reg_atp_mem_list;
 };
 
-/*
- * This set of function pointer ops is set based upon SPC3_PERSISTENT_RESERVATIONS,
- * SPC2_RESERVATIONS or SPC_PASSTHROUGH in drivers/target/target_core_pr.c:
- * core_setup_reservations()
- */
-struct t10_reservation_ops {
-	int (*t10_reservation_check)(struct se_cmd *, u32 *);
-	int (*t10_seq_non_holder)(struct se_cmd *, unsigned char *, u32);
-	int (*t10_pr_register)(struct se_cmd *);
-	int (*t10_pr_clear)(struct se_cmd *);
-};
-
 struct t10_reservation {
 	/* Reservation effects all target ports */
 	int pr_all_tg_pt;
@@ -408,7 +382,6 @@ struct t10_reservation {
 #define PR_APTPL_BUF_LEN			8192
 	u32 pr_aptpl_buf_len;
 	u32 pr_generation;
-	t10_reservations_index_t res_type;
 	spinlock_t registration_lock;
 	spinlock_t aptpl_reg_lock;
 	/*
@@ -424,7 +397,6 @@ struct t10_reservation {
 	struct se_node_acl *pr_res_holder;
 	struct list_head registration_list;
 	struct list_head aptpl_reg_list;
-	struct t10_reservation_ops pr_ops;
 };
 
 struct se_tmr_req {
@@ -633,7 +605,6 @@ struct se_dev_attrib {
 	int		emulate_tas;
 	int		emulate_tpu;
 	int		emulate_tpws;
-	int		emulate_reservations;
 	int		emulate_alua;
 	int		enforce_pr_isids;
 	int		is_nonrot;
