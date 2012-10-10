@@ -883,13 +883,6 @@ static void wm8958_mbc_vss_loaded(const struct firmware *fw, void *context)
 		wm8994->mbc_vss = fw;
 		mutex_unlock(&codec->mutex);
 	}
-
-	/* We can't have more than one request outstanding at once so
-	 * we daisy chain.
-	 */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				"wm8958_enh_eq.wfw", codec->dev, GFP_KERNEL,
-				codec, wm8958_enh_eq_loaded);
 }
 
 static void wm8958_mbc_loaded(const struct firmware *fw, void *context)
@@ -897,19 +890,11 @@ static void wm8958_mbc_loaded(const struct firmware *fw, void *context)
 	struct snd_soc_codec *codec = context;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
-	if (wm8958_dsp2_fw(codec, "MBC", fw, true) != 0)
-		return;
-
-	mutex_lock(&codec->mutex);
-	wm8994->mbc = fw;
-	mutex_unlock(&codec->mutex);
-
-	/* We can't have more than one request outstanding at once so
-	 * we daisy chain.
-	 */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				"wm8958_mbc_vss.wfw", codec->dev, GFP_KERNEL,
-				codec, wm8958_mbc_vss_loaded);
+	if (fw && (wm8958_dsp2_fw(codec, "MBC", fw, true) == 0)) {
+		mutex_lock(&codec->mutex);
+		wm8994->mbc = fw;
+		mutex_unlock(&codec->mutex);
+	}
 }
 
 void wm8958_dsp2_init(struct snd_soc_codec *codec)
@@ -932,6 +917,12 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				"wm8958_mbc.wfw", codec->dev, GFP_KERNEL,
 				codec, wm8958_mbc_loaded);
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				"wm8958_mbc_vss.wfw", codec->dev, GFP_KERNEL,
+				codec, wm8958_mbc_vss_loaded);
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				"wm8958_enh_eq.wfw", codec->dev, GFP_KERNEL,
+				codec, wm8958_enh_eq_loaded);
 
 	if (!pdata)
 		return;
