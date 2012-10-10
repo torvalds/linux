@@ -2147,11 +2147,15 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 	if (!context->in_syscall)
 		return;
 
+	if (!name)
+		goto out_alloc;
+
 	list_for_each_entry_reverse(n, &context->names_list, list) {
-		if (n->name && (n->name == name))
+		if (n->name == name)
 			goto out;
 	}
 
+out_alloc:
 	/* unable to find the name from a previous getname() */
 	n = audit_alloc_name(context);
 	if (!n)
