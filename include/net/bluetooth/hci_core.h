@@ -605,7 +605,10 @@ static inline void hci_conn_put(struct hci_conn *conn)
 
 	if (atomic_dec_and_test(&conn->refcnt)) {
 		unsigned long timeo;
-		if (conn->type == ACL_LINK || conn->type == LE_LINK) {
+
+		switch (conn->type) {
+		case ACL_LINK:
+		case LE_LINK:
 			del_timer(&conn->idle_timer);
 			if (conn->state == BT_CONNECTED) {
 				timeo = conn->disc_timeout;
@@ -614,12 +617,20 @@ static inline void hci_conn_put(struct hci_conn *conn)
 			} else {
 				timeo = msecs_to_jiffies(10);
 			}
-		} else {
+			break;
+
+		case AMP_LINK:
+			timeo = conn->disc_timeout;
+			break;
+
+		default:
 			timeo = msecs_to_jiffies(10);
+			break;
 		}
+
 		cancel_delayed_work(&conn->disc_work);
 		queue_delayed_work(conn->hdev->workqueue,
-					&conn->disc_work, timeo);
+				   &conn->disc_work, timeo);
 	}
 }
 
