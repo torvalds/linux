@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
+#include <linux/err.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
