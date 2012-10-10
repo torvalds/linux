@@ -1016,6 +1016,10 @@ config TOUCHSCREEN_I30
 	tristate "i30 based touchscreens: i30(ft5306) Interface"
 	depends on I2C2_RK29 || I2C2_RK30
 
+config TOUCHSCREEN_BYD693X
+	tristate "touchscreen BYD693X I2C Interface"
+	depends on I2C2_RK29 || I2C2_RK30
+
 config TOUCHSCREEN_SITRONIX_A720
 	tristate "SITRONIX based touchscreens: SITRONIX Interface for a720"
 	depends on I2C2_RK29 || I2C2_RK30 

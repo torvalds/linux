@@ -378,6 +378,18 @@ struct ft5306_platform_data ft5306_info = {
 };
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_BYD693X)
+
+#define TOUCH_RESET_PIN RK2928_PIN3_PD5
+#define TOUCH_INT_PIN   RK2928_PIN3_PC7
+struct byd_platform_data byd693x_info = {
+	.int_pin = TOUCH_INT_PIN,
+	.rst_pin = TOUCH_RESET_PIN,
+	.screen_max_x = 800,
+	.screen_max_y = 480,
+	.xpol = -1,
+};
+#endif
 
 /*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
@@ -881,6 +893,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.flags         = 0,
 		.irq           = TOUCH_INT_PIN,
 		.platform_data = &ft5306_info,
+	},
+#endif
+#if defined(CONFIG_TOUCHSCREEN_BYD693X)
+	{
+		.type          = "byd693x-ts",
+		.addr          = 0x52,
+		.flags         = 0,
+		.irq           = TOUCH_INT_PIN,
+		.platform_data = &byd693x_info,
 	},
 #endif
 };

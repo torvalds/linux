@@ -99,11 +99,35 @@ struct ft5306_platform_data {
     void    (*exit_platform_hw)(void);
 };
 #endif
+#if defined(CONFIG_TOUCHSCREEN_BYD693X)
+struct byd_platform_data {
+	u16     model;
+	int     pwr_pin;
+	int	  int_pin;
+	int     rst_pin;
+	int		pwr_on_value;
+	int 	*tp_flag;
+
+	uint16_t screen_max_x;
+	uint16_t screen_max_y;
+	u8 swap_xy :1;
+	u8 xpol :1;
+	u8 ypol :1;	
+};
+#endif
+
 
 #if defined (CONFIG_GPIOEXP_AW9523B)
 struct gpio_exp_platform_data {
     int     (*init_platform_hw)(void);
     void    (*exit_platform_hw)(void);
+};
+#endif
+
+#ifdef CONFIG_INPUT_AP321XX
+struct ap321xx_platform_data {
+	int (*init_platform_hw)(void);
+	void (*exit_platform_hw)(void);
 };
 #endif
 
