@@ -1392,9 +1392,8 @@ static struct attribute_group x86_pmu_events_group = {
 	.attrs = events_attr,
 };
 
-ssize_t x86_event_sysfs_show(char *page, u64 config)
+ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
 {
-	u64 event  = (config & ARCH_PERFMON_EVENTSEL_EVENT);
 	u64 umask  = (config & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 	u64 cmask  = (config & ARCH_PERFMON_EVENTSEL_CMASK) >> 24;
 	bool edge  = (config & ARCH_PERFMON_EVENTSEL_EDGE);
