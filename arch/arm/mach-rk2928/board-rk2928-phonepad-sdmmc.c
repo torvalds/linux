@@ -71,11 +71,22 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
             #ifdef CONFIG_SDMMC1_RK29
             if(on)
             {
+                gpio_request(RK2928_PIN0_PB1, "mmc1-clk");
                 gpio_direction_output(RK2928_PIN0_PB1,GPIO_HIGH);//set mmc1-clk to high
+
+                gpio_request(RK2928_PIN0_PB0, "mmc1-cmd");
                 gpio_direction_output(RK2928_PIN0_PB0,GPIO_HIGH);//set mmc1-cmd to high.
+
+                gpio_request(RK2928_PIN0_PB3, "mmc1-data0");
                 gpio_direction_output(RK2928_PIN0_PB3,GPIO_HIGH);//set mmc1-data0 to high.
+
+				gpio_request(RK2928_PIN0_PB4, "mmc1-data1");
                 gpio_direction_output(RK2928_PIN0_PB4,GPIO_HIGH);//set mmc1-data1 to high.
+
+				gpio_request(RK2928_PIN0_PB5, "mmc1-data2");
                 gpio_direction_output(RK2928_PIN0_PB5,GPIO_HIGH);//set mmc1-data2 to high.
+
+				gpio_request(RK2928_PIN0_PB6, "mmc1-data3");
                 gpio_direction_output(RK2928_PIN0_PB6,GPIO_HIGH);//set mmc1-data3 to high.
                 mdelay(100);
             }
@@ -92,22 +103,23 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 rk30_mux_api_set(GPIO0B3_MMC1_D0_NAME, GPIO0B_GPIO0B3);
                 gpio_request(RK2928_PIN0_PB3, "mmc1-data0");
                 gpio_direction_output(RK2928_PIN0_PB3,GPIO_LOW);//set mmc1-data0 to low.
-		#if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 
-    rk29_mux_api_set(GPIO0B4_MMC1_D1_NAME, GPIO0B_GPIO0B4);
-    gpio_request(RK2928_PIN0_PB4, "mmc1-data1");
-    gpio_direction_output(RK2928_PIN0_PB4,GPIO_LOW);//set mmc1-data1 to low.
+				#if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+				rk29_mux_api_set(GPIO0B4_MMC1_D1_NAME, GPIO0B_GPIO0B4);
+				gpio_request(RK2928_PIN0_PB4, "mmc1-data1");
+				gpio_direction_output(RK2928_PIN0_PB4,GPIO_LOW);//set mmc1-data1 to low.
 
-    rk29_mux_api_set(GPIO0B5_MMC1_D2_NAME, GPIO0B_GPIO0B5);
-    gpio_request(RK2928_PIN0_PB5, "mmc1-data2");
-    gpio_direction_output(RK2928_PIN0_PB5,GPIO_LOW);//set mmc1-data2 to low.
+				rk29_mux_api_set(GPIO0B5_MMC1_D2_NAME, GPIO0B_GPIO0B5);
+				gpio_request(RK2928_PIN0_PB5, "mmc1-data2");
+				gpio_direction_output(RK2928_PIN0_PB5,GPIO_LOW);//set mmc1-data2 to low.
 
-    rk29_mux_api_set(GPIO0B6_MMC1_D3_NAME, GPIO0B_GPIO0B6);
-    gpio_request(RK2928_PIN0_PB6, "mmc1-data3");
-    gpio_direction_output(RK2928_PIN0_PB6,GPIO_LOW);//set mmc1-data3 to low.
+				rk29_mux_api_set(GPIO0B6_MMC1_D3_NAME, GPIO0B_GPIO0B6);
+				gpio_request(RK2928_PIN0_PB6, "mmc1-data3");
+				gpio_direction_output(RK2928_PIN0_PB6,GPIO_LOW);//set mmc1-data3 to low.
 
-    //rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
-    #endif
+				//rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
+				#endif
+
                 mdelay(100);
             }
             #endif
