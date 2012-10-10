@@ -168,6 +168,7 @@ map_again:
 
 		kvmppc_mmu_hpte_cache_map(vcpu, pte);
 	}
+	kvm_release_pfn_clean(hpaddr >> PAGE_SHIFT);
 
 out:
 	return r;

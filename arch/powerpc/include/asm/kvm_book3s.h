@@ -160,7 +160,7 @@ extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 extern long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel);
 extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
-			struct kvm_memory_slot *memslot);
+			struct kvm_memory_slot *memslot, unsigned long *map);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);

@@ -133,10 +133,10 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		vcpu->arch.csrr1 = spr_val;
 		break;
 	case SPRN_DBCR0:
-		vcpu->arch.dbcr0 = spr_val;
+		vcpu->arch.dbg_reg.dbcr0 = spr_val;
 		break;
 	case SPRN_DBCR1:
-		vcpu->arch.dbcr1 = spr_val;
+		vcpu->arch.dbg_reg.dbcr1 = spr_val;
 		break;
 	case SPRN_DBSR:
 		vcpu->arch.dbsr &= ~spr_val;
@@ -145,6 +145,14 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		kvmppc_clr_tsr_bits(vcpu, spr_val);
 		break;
 	case SPRN_TCR:
+		/*
+		 * WRC is a 2-bit field that is supposed to preserve its
+		 * value once written to non-zero.
+		 */
+		if (vcpu->arch.tcr & TCR_WRC_MASK) {
+			spr_val &= ~TCR_WRC_MASK;
+			spr_val |= vcpu->arch.tcr & TCR_WRC_MASK;
+		}
 		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 
@@ -229,6 +237,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IVOR15:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG] = spr_val;
 		break;
+	case SPRN_MCSR:
+		vcpu->arch.mcsr &= ~spr_val;
+		break;
 
 	default:
 		emulated = EMULATE_FAIL;
@@ -258,10 +269,10 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		*spr_val = vcpu->arch.csrr1;
 		break;
 	case SPRN_DBCR0:
-		*spr_val = vcpu->arch.dbcr0;
+		*spr_val = vcpu->arch.dbg_reg.dbcr0;
 		break;
 	case SPRN_DBCR1:
-		*spr_val = vcpu->arch.dbcr1;
+		*spr_val = vcpu->arch.dbg_reg.dbcr1;
 		break;
 	case SPRN_DBSR:
 		*spr_val = vcpu->arch.dbsr;
@@ -320,6 +331,9 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		break;
 	case SPRN_IVOR15:
 		*spr_val = vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG];
+		break;
+	case SPRN_MCSR:
+		*spr_val = vcpu->arch.mcsr;
 		break;
 
 	default:

@@ -30,6 +30,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
 #include <asm/cputhreads.h>
+#include <asm/irqflags.h>
 #include "timing.h"
 #include "../mm/mmu_decl.h"
 
@@ -38,8 +39,7 @@
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !(v->arch.shared->msr & MSR_WE) ||
-	       !!(v->arch.pending_exceptions) ||
+	return !!(v->arch.pending_exceptions) ||
 	       v->requests;
 }
 
@@ -47,6 +47,85 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
 	return 1;
 }
+
+#ifndef CONFIG_KVM_BOOK3S_64_HV
+/*
+ * Common checks before entering the guest world.  Call with interrupts
+ * disabled.
+ *
+ * returns:
+ *
+ * == 1 if we're ready to go into guest state
+ * <= 0 if we need to go back to the host with return value
+ */
+int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
+{
+	int r = 1;
+
+	WARN_ON_ONCE(!irqs_disabled());
+	while (true) {
+		if (need_resched()) {
+			local_irq_enable();
+			cond_resched();
+			local_irq_disable();
+			continue;
+		}
+
+		if (signal_pending(current)) {
+			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+			vcpu->run->exit_reason = KVM_EXIT_INTR;
+			r = -EINTR;
+			break;
+		}
+
+		vcpu->mode = IN_GUEST_MODE;
+
+		/*
+		 * Reading vcpu->requests must happen after setting vcpu->mode,
+		 * so we don't miss a request because the requester sees
+		 * OUTSIDE_GUEST_MODE and assumes we'll be checking requests
+		 * before next entering the guest (and thus doesn't IPI).
+		 */
+		smp_mb();
+
+		if (vcpu->requests) {
+			/* Make sure we process requests preemptable */
+			local_irq_enable();
+			trace_kvm_check_requests(vcpu);
+			r = kvmppc_core_check_requests(vcpu);
+			local_irq_disable();
+			if (r > 0)
+				continue;
+			break;
+		}
+
+		if (kvmppc_core_prepare_to_enter(vcpu)) {
+			/* interrupts got enabled in between, so we
+			   are back at square 1 */
+			continue;
+		}
+
+#ifdef CONFIG_PPC64
+		/* lazy EE magic */
+		hard_irq_disable();
+		if (lazy_irq_pending()) {
+			/* Got an interrupt in between, try again */
+			local_irq_enable();
+			local_irq_disable();
+			kvm_guest_exit();
+			continue;
+		}
+
+		trace_hardirqs_on();
+#endif
+
+		kvm_guest_enter();
+		break;
+	}
+
+	return r;
+}
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
@@ -67,18 +146,18 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	}
 
 	switch (nr) {
-	case HC_VENDOR_KVM | KVM_HC_PPC_MAP_MAGIC_PAGE:
+	case KVM_HCALL_TOKEN(KVM_HC_PPC_MAP_MAGIC_PAGE):
 	{
 		vcpu->arch.magic_page_pa = param1;
 		vcpu->arch.magic_page_ea = param2;
 
 		r2 = KVM_MAGIC_FEAT_SR | KVM_MAGIC_FEAT_MAS0_TO_SPRG7;
 
-		r = HC_EV_SUCCESS;
+		r = EV_SUCCESS;
 		break;
 	}
-	case HC_VENDOR_KVM | KVM_HC_FEATURES:
-		r = HC_EV_SUCCESS;
+	case KVM_HCALL_TOKEN(KVM_HC_FEATURES):
+		r = EV_SUCCESS;
 #if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500V2)
 		/* XXX Missing magic page on 44x */
 		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
@@ -86,8 +165,13 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 
 		/* Second return value is in r4 */
 		break;
+	case EV_HCALL_TOKEN(EV_IDLE):
+		r = EV_SUCCESS;
+		kvm_vcpu_block(vcpu);
+		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+		break;
 	default:
-		r = HC_EV_UNIMPLEMENTED;
+		r = EV_UNIMPLEMENTED;
 		break;
 	}
 
@@ -220,6 +304,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_SREGS:
+	case KVM_CAP_PPC_BOOKE_WATCHDOG:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_HIOR:
@@ -260,10 +345,16 @@ int kvm_dev_ioctl_check_extension(long ext)
 		if (cpu_has_feature(CPU_FTR_ARCH_201))
 			r = 2;
 		break;
-	case KVM_CAP_SYNC_MMU:
-		r = cpu_has_feature(CPU_FTR_ARCH_206) ? 1 : 0;
-		break;
 #endif
+	case KVM_CAP_SYNC_MMU:
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+		r = cpu_has_feature(CPU_FTR_ARCH_206) ? 1 : 0;
+#elif defined(KVM_ARCH_WANT_MMU_NOTIFIER)
+		r = 1;
+#else
+		r = 0;
+#endif
+		break;
 	case KVM_CAP_NR_VCPUS:
 		/*
 		 * Recommending a number of CPUs is somewhat arbitrary; we
@@ -302,19 +393,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 void kvm_arch_free_memslot(struct kvm_memory_slot *free,
 			   struct kvm_memory_slot *dont)
 {
-	if (!dont || free->arch.rmap != dont->arch.rmap) {
-		vfree(free->arch.rmap);
-		free->arch.rmap = NULL;
-	}
+	kvmppc_core_free_memslot(free, dont);
 }
 
 int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 {
-	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
-	if (!slot->arch.rmap)
-		return -ENOMEM;
-
-	return 0;
+	return kvmppc_core_create_memslot(slot, npages);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -323,7 +407,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
                                    struct kvm_userspace_memory_region *mem,
                                    int user_alloc)
 {
-	return kvmppc_core_prepare_memory_region(kvm, mem);
+	return kvmppc_core_prepare_memory_region(kvm, memslot, mem);
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
@@ -331,7 +415,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
                struct kvm_memory_slot old,
                int user_alloc)
 {
-	kvmppc_core_commit_memory_region(kvm, mem);
+	kvmppc_core_commit_memory_region(kvm, mem, old);
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -341,6 +425,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot)
 {
+	kvmppc_core_flush_memslot(kvm, slot);
 }
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
@@ -390,6 +475,8 @@ enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	int ret;
+
 	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
 	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
@@ -398,13 +485,14 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_KVM_EXIT_TIMING
 	mutex_init(&vcpu->arch.exit_timing_lock);
 #endif
-
-	return 0;
+	ret = kvmppc_subarch_vcpu_init(vcpu);
+	return ret;
 }
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvmppc_mmu_destroy(vcpu);
+	kvmppc_subarch_vcpu_uninit(vcpu);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -420,7 +508,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	mtspr(SPRN_VRSAVE, vcpu->arch.vrsave);
 #endif
 	kvmppc_core_vcpu_load(vcpu, cpu);
-	vcpu->cpu = smp_processor_id();
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -429,7 +516,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_BOOKE
 	vcpu->arch.vrsave = mfspr(SPRN_VRSAVE);
 #endif
-	vcpu->cpu = -1;
 }
 
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
@@ -649,6 +735,12 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = 0;
 		vcpu->arch.papr_enabled = true;
 		break;
+#ifdef CONFIG_BOOKE
+	case KVM_CAP_PPC_BOOKE_WATCHDOG:
+		r = 0;
+		vcpu->arch.watchdog_enabled = true;
+		break;
+#endif
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB: {
 		struct kvm_config_tlb cfg;
@@ -751,9 +843,16 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 
 static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 {
+	u32 inst_nop = 0x60000000;
+#ifdef CONFIG_KVM_BOOKE_HV
+	u32 inst_sc1 = 0x44000022;
+	pvinfo->hcall[0] = inst_sc1;
+	pvinfo->hcall[1] = inst_nop;
+	pvinfo->hcall[2] = inst_nop;
+	pvinfo->hcall[3] = inst_nop;
+#else
 	u32 inst_lis = 0x3c000000;
 	u32 inst_ori = 0x60000000;
-	u32 inst_nop = 0x60000000;
 	u32 inst_sc = 0x44000002;
 	u32 inst_imm_mask = 0xffff;
 
@@ -770,6 +869,9 @@ static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 	pvinfo->hcall[1] = inst_ori | (KVM_SC_MAGIC_R0 & inst_imm_mask);
 	pvinfo->hcall[2] = inst_sc;
 	pvinfo->hcall[3] = inst_nop;
+#endif
+
+	pvinfo->flags = KVM_PPC_PVINFO_FLAGS_EV_IDLE;
 
 	return 0;
 }

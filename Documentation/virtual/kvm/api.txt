@@ -1194,12 +1194,15 @@ struct kvm_ppc_pvinfo {
 This ioctl fetches PV specific information that need to be passed to the guest
 using the device tree or other means from vm context.
 
-For now the only implemented piece of information distributed here is an array
-of 4 instructions that make up a hypercall.
+The hcall array defines 4 instructions that make up a hypercall.
 
 If any additional field gets added to this structure later on, a bit for that
 additional piece of information will be set in the flags bitmap.
 
+The flags bitmap is defined as:
+
+   /* the host supports the ePAPR idle hcall
+   #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
 4.48 KVM_ASSIGN_PCI_DEVICE
 
@@ -1731,7 +1734,45 @@ registers, find a list below:
   Arch  |       Register        | Width (bits)
         |                       |
   PPC   | KVM_REG_PPC_HIOR      | 64
-
+  PPC   | KVM_REG_PPC_IAC1      | 64
+  PPC   | KVM_REG_PPC_IAC2      | 64
+  PPC   | KVM_REG_PPC_IAC3      | 64
+  PPC   | KVM_REG_PPC_IAC4      | 64
+  PPC   | KVM_REG_PPC_DAC1      | 64
+  PPC   | KVM_REG_PPC_DAC2      | 64
+  PPC   | KVM_REG_PPC_DABR      | 64
+  PPC   | KVM_REG_PPC_DSCR      | 64
+  PPC   | KVM_REG_PPC_PURR      | 64
+  PPC   | KVM_REG_PPC_SPURR     | 64
+  PPC   | KVM_REG_PPC_DAR       | 64
+  PPC   | KVM_REG_PPC_DSISR     | 32
+  PPC   | KVM_REG_PPC_AMR       | 64
+  PPC   | KVM_REG_PPC_UAMOR     | 64
+  PPC   | KVM_REG_PPC_MMCR0     | 64
+  PPC   | KVM_REG_PPC_MMCR1     | 64
+  PPC   | KVM_REG_PPC_MMCRA     | 64
+  PPC   | KVM_REG_PPC_PMC1      | 32
+  PPC   | KVM_REG_PPC_PMC2      | 32
+  PPC   | KVM_REG_PPC_PMC3      | 32
+  PPC   | KVM_REG_PPC_PMC4      | 32
+  PPC   | KVM_REG_PPC_PMC5      | 32
+  PPC   | KVM_REG_PPC_PMC6      | 32
+  PPC   | KVM_REG_PPC_PMC7      | 32
+  PPC   | KVM_REG_PPC_PMC8      | 32
+  PPC   | KVM_REG_PPC_FPR0      | 64
+          ...
+  PPC   | KVM_REG_PPC_FPR31     | 64
+  PPC   | KVM_REG_PPC_VR0       | 128
+          ...
+  PPC   | KVM_REG_PPC_VR31      | 128
+  PPC   | KVM_REG_PPC_VSR0      | 128
+          ...
+  PPC   | KVM_REG_PPC_VSR31     | 128
+  PPC   | KVM_REG_PPC_FPSCR     | 64
+  PPC   | KVM_REG_PPC_VSCR      | 32
+  PPC   | KVM_REG_PPC_VPA_ADDR  | 64
+  PPC   | KVM_REG_PPC_VPA_SLB   | 128
+  PPC   | KVM_REG_PPC_VPA_DTL   | 128
 
 4.69 KVM_GET_ONE_REG
 
@@ -1747,7 +1788,7 @@ kvm_one_reg struct passed in. On success, the register value can be found
 at the memory location pointed to by "addr".
 
 The list of registers accessible using this interface is identical to the
-list in 4.64.
+list in 4.68.
 
 
 4.70 KVM_KVMCLOCK_CTRL

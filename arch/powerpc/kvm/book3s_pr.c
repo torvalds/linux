@@ -52,8 +52,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #define MSR_USER32 MSR_USER
 #define MSR_USER64 MSR_USER
 #define HW_PAGE_SIZE PAGE_SIZE
-#define __hard_irq_disable local_irq_disable
-#define __hard_irq_enable local_irq_enable
 #endif
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -66,7 +64,7 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	svcpu->slb_max = to_book3s(vcpu)->slb_shadow_max;
 	svcpu_put(svcpu);
 #endif
-
+	vcpu->cpu = smp_processor_id();
 #ifdef CONFIG_PPC_BOOK3S_32
 	current->thread.kvm_shadow_vcpu = to_book3s(vcpu)->shadow_vcpu;
 #endif
@@ -86,7 +84,63 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	kvmppc_giveup_ext(vcpu, MSR_FP);
 	kvmppc_giveup_ext(vcpu, MSR_VEC);
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
+	vcpu->cpu = -1;
 }
+
+int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
+{
+	int r = 1; /* Indicate we want to get back into the guest */
+
+	/* We misuse TLB_FLUSH to indicate that we want to clear
+	   all shadow cache entries */
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
+		kvmppc_mmu_pte_flush(vcpu, 0, 0);
+
+	return r;
+}
+
+/************* MMU Notifiers *************/
+
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+{
+	trace_kvm_unmap_hva(hva);
+
+	/*
+	 * Flush all shadow tlb entries everywhere. This is slow, but
+	 * we are 100% sure that we catch the to be unmapped page
+	 */
+	kvm_flush_remote_tlbs(kvm);
+
+	return 0;
+}
+
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	/* kvm_unmap_hva flushes everything anyways */
+	kvm_unmap_hva(kvm, start);
+
+	return 0;
+}
+
+int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+{
+	/* The page will get remapped properly on its next fault */
+	kvm_unmap_hva(kvm, hva);
+}
+
+/*****************************************/
 
 static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 {
@@ -540,18 +594,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int exit_nr)
 {
 	int r = RESUME_HOST;
+	int s;
 
 	vcpu->stat.sum_exits++;
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
 
-	/* We get here with MSR.EE=0, so enable it to be a nice citizen */
-	__hard_irq_enable();
+	/* We get here with MSR.EE=1 */
 
-	trace_kvm_book3s_exit(exit_nr, vcpu);
-	preempt_enable();
-	kvm_resched(vcpu);
+	trace_kvm_exit(exit_nr, vcpu);
+	kvm_guest_exit();
+
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
 	{
@@ -802,7 +856,6 @@ program_interrupt:
 	}
 	}
 
-	preempt_disable();
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
@@ -814,20 +867,13 @@ program_interrupt:
 		 * and if we really did time things so badly, then we just exit
 		 * again due to a host external interrupt.
 		 */
-		__hard_irq_disable();
-		if (signal_pending(current)) {
-			__hard_irq_enable();
-#ifdef EXIT_DEBUG
-			printk(KERN_EMERG "KVM: Going back to host\n");
-#endif
-			vcpu->stat.signal_exits++;
-			run->exit_reason = KVM_EXIT_INTR;
-			r = -EINTR;
+		local_irq_disable();
+		s = kvmppc_prepare_to_enter(vcpu);
+		if (s <= 0) {
+			local_irq_enable();
+			r = s;
 		} else {
-			/* In case an interrupt came in that was triggered
-			 * from userspace (like DEC), we need to check what
-			 * to inject now! */
-			kvmppc_core_prepare_to_enter(vcpu);
+			kvmppc_lazy_ee_enable();
 		}
 	}
 
@@ -899,34 +945,59 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-		r = copy_to_user((u64 __user *)(long)reg->addr,
-				&to_book3s(vcpu)->hior, sizeof(u64));
+		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
+#ifdef CONFIG_VSX
+	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
+		long int i = id - KVM_REG_PPC_VSR0;
+
+		if (!cpu_has_feature(CPU_FTR_VSX)) {
+			r = -ENXIO;
+			break;
+		}
+		val->vsxval[0] = vcpu->arch.fpr[i];
+		val->vsxval[1] = vcpu->arch.vsr[i];
+		break;
+	}
+#endif /* CONFIG_VSX */
 	default:
+		r = -EINVAL;
 		break;
 	}
 
 	return r;
 }
 
-int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-		r = copy_from_user(&to_book3s(vcpu)->hior,
-				   (u64 __user *)(long)reg->addr, sizeof(u64));
-		if (!r)
-			to_book3s(vcpu)->hior_explicit = true;
+		to_book3s(vcpu)->hior = set_reg_val(id, *val);
+		to_book3s(vcpu)->hior_explicit = true;
 		break;
+#ifdef CONFIG_VSX
+	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
+		long int i = id - KVM_REG_PPC_VSR0;
+
+		if (!cpu_has_feature(CPU_FTR_VSX)) {
+			r = -ENXIO;
+			break;
+		}
+		vcpu->arch.fpr[i] = val->vsxval[0];
+		vcpu->arch.vsr[i] = val->vsxval[1];
+		break;
+	}
+#endif /* CONFIG_VSX */
 	default:
+		r = -EINVAL;
 		break;
 	}
 
@@ -1020,8 +1091,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 	ulong ext_msr;
 
-	preempt_disable();
-
 	/* Check if we can run the vcpu at all */
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -1029,21 +1098,16 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	kvmppc_core_prepare_to_enter(vcpu);
-
 	/*
 	 * Interrupts could be timers for the guest which we have to inject
 	 * again, so let's postpone them until we're in the guest and if we
 	 * really did time things so badly, then we just exit again due to
 	 * a host external interrupt.
 	 */
-	__hard_irq_disable();
-
-	/* No need to go into the guest when all we do is going out */
-	if (signal_pending(current)) {
-		__hard_irq_enable();
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		ret = -EINTR;
+	local_irq_disable();
+	ret = kvmppc_prepare_to_enter(vcpu);
+	if (ret <= 0) {
+		local_irq_enable();
 		goto out;
 	}
 
@@ -1080,11 +1144,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
-	kvm_guest_enter();
+	kvmppc_lazy_ee_enable();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	kvm_guest_exit();
+	/* No need for kvm_guest_exit. It's done in handle_exit.
+	   We also get here with interrupts enabled. */
 
 	current->thread.regs->msr = ext_msr;
 
@@ -1113,7 +1178,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 out:
-	preempt_enable();
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 	return ret;
 }
 
@@ -1181,14 +1246,31 @@ int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
 }
 #endif /* CONFIG_PPC64 */
 
+void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
+			      struct kvm_memory_slot *dont)
+{
+}
+
+int kvmppc_core_create_memslot(struct kvm_memory_slot *slot,
+			       unsigned long npages)
+{
+	return 0;
+}
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot,
 				      struct kvm_userspace_memory_region *mem)
 {
 	return 0;
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
+				struct kvm_userspace_memory_region *mem,
+				struct kvm_memory_slot old)
+{
+}
+
+void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
 }
 

@@ -36,6 +36,7 @@ config KVM_BOOK3S_64_HANDLER
 config KVM_BOOK3S_PR
 	bool
 	select KVM_MMIO
+	select MMU_NOTIFIER
 
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
@@ -123,6 +124,7 @@ config KVM_E500V2
 	depends on EXPERIMENTAL && E500 && !PPC_E500MC
 	select KVM
 	select KVM_MMIO
+	select MMU_NOTIFIER
 	---help---
 	  Support running unmodified E500 guest kernels in virtual machines on
 	  E500v2 host processors.
@@ -138,6 +140,7 @@ config KVM_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
+	select MMU_NOTIFIER
 	---help---
 	  Support running unmodified E500MC/E5500 (32-bit) guest kernels in
 	  virtual machines on E500MC/E5500 host processors.
