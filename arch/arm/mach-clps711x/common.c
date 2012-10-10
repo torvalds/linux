@@ -21,13 +21,14 @@
  */
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/sizes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clockchips.h>
 #include <linux/clk-provider.h>
 
-#include <asm/sizes.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -36,7 +37,6 @@
 
 static struct clk *clk_pll, *clk_bus, *clk_uart, *clk_timerl, *clk_timerh,
 		  *clk_tint, *clk_spi;
-static unsigned long latch;
 
 /*
  * This maps the generic CLPS711x registers
@@ -158,32 +158,29 @@ void __init clps711x_init_irq(void)
 	clps_writel(0, KBDEOI);
 }
 
-/*
- * gettimeoffset() returns time since last timer tick, in usecs.
- *
- * 'LATCH' is hwclock ticks (see CLOCK_TICK_RATE in timex.h) per jiffy.
- * 'tick' is usecs per jiffy.
- */
-static unsigned long clps711x_gettimeoffset(void)
+static void clps711x_clockevent_set_mode(enum clock_event_mode mode,
+					 struct clock_event_device *evt)
 {
-	unsigned long hwticks;
-	hwticks = latch - (clps_readl(TC2D) & 0xffff);
-	return (hwticks * (tick_nsec / 1000)) / latch;
 }
 
-/*
- * IRQ handler for the timer
- */
-static irqreturn_t p720t_timer_interrupt(int irq, void *dev_id)
+static struct clock_event_device clockevent_clps711x = {
+	.name		= "CLPS711x Clockevents",
+	.rating		= 300,
+	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.set_mode	= clps711x_clockevent_set_mode,
+};
+
+static irqreturn_t clps711x_timer_interrupt(int irq, void *dev_id)
 {
-	timer_tick();
+	clockevent_clps711x.event_handler(&clockevent_clps711x);
+
 	return IRQ_HANDLED;
 }
 
 static struct irqaction clps711x_timer_irq = {
 	.name		= "CLPS711x Timer Tick",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= p720t_timer_interrupt,
+	.handler	= clps711x_timer_interrupt,
 };
 
 static void add_fixed_clk(struct clk *clk, const char *name, int rate)
@@ -244,20 +241,19 @@ static void __init clps711x_timer_init(void)
 
 	pr_info("CPU frequency set at %i Hz.\n", cpu);
 
-	latch = (timh + HZ / 2) / HZ;
+	clps_writew(DIV_ROUND_CLOSEST(timh, HZ), TC2D);
 
 	tmp = clps_readl(SYSCON1);
 	tmp |= SYSCON1_TC2S | SYSCON1_TC2M;
 	clps_writel(tmp, SYSCON1);
 
-	clps_writel(latch - 1, TC2D);
+	clockevents_config_and_register(&clockevent_clps711x, timh, 1, 0xffff);
 
 	setup_irq(IRQ_TC2OI, &clps711x_timer_irq);
 }
 
 struct sys_timer clps711x_timer = {
 	.init		= clps711x_timer_init,
-	.offset		= clps711x_gettimeoffset,
 };
 
 void clps711x_restart(char mode, const char *cmd)
