@@ -26,6 +26,7 @@
 #include <mach/clock.h>
 #include <mach/dvfs.h>
 //#include <mach/pmu.h>
+#include <mach/ddr.h>
 
 #define MHZ	(1000 * 1000)
 #define KHZ	(1000)
@@ -967,20 +968,34 @@ static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
 	return 0;
 }
 
+static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return ddr_set_pll(rate / MHZ, 0) * MHZ;
+}
+static unsigned long ddr_clk_recalc_rate(struct clk *clk)
+{
+	unsigned long rate = clk->parent->recalc(clk->parent) >> 1;
+	return rate;
+}
+
+
 static struct clk clk_ddrphy2x = {
 	.name		= "ddrphy2x",
 	.parent		= &ddr_pll_clk,
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_DDRPHY_SRC,
 	.recalc		= clksel_recalc_shift,
-	.set_rate	= ddr_clk_set_rate,
+	//.set_rate	= ddr_clk_set_rate,
 	.clksel_con	= CRU_CLKSELS_CON(26),
 };
 
 static struct clk clk_ddrc = {
 	.name		= "ddrc",
 	.parent		= &clk_ddrphy2x,
-	.recalc		= clksel_recalc_fixed_div2,
+	.set_rate		= ddr_clk_set_rate,
+	.recalc		= ddr_clk_recalc_rate,
+	.round_rate	= ddr_clk_round_rate,
+	//.recalc		= clksel_recalc_fixed_div2,
 };
 
 static struct clk clk_ddrphy = {
@@ -2040,7 +2055,7 @@ static struct clk_lookup clks[] = {
 
 	CLK(NULL, "ddrphy2x", &clk_ddrphy2x),
 	CLK(NULL, "ddrphy", &clk_ddrphy),
-	CLK(NULL, "ddrc", &clk_ddrc),
+	CLK(NULL, "ddr", &clk_ddrc),
 
 	CLK(NULL, "cpu", &clk_core_pre),
 	CLK(NULL, "core_periph", &clk_core_periph),
