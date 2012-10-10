@@ -1328,11 +1328,17 @@ int parent_len(const char *path)
 	return p - path;
 }
 
-/* Compare given dentry name with last component in given path,
- * return of 0 indicates a match. */
-int audit_compare_dname_path(const char *dname, const char *path)
+/**
+ * audit_compare_dname_path - compare given dentry name with last component in
+ * 			      given path. Return of 0 indicates a match.
+ * @dname:	dentry name that we're comparing
+ * @path:	full pathname that we're comparing
+ * @parentlen:	length of the parent if known. Passing in AUDIT_NAME_FULL
+ * 		here indicates that we must compute this value.
+ */
+int audit_compare_dname_path(const char *dname, const char *path, int parentlen)
 {
-	int dlen, pathlen, parentlen;
+	int dlen, pathlen;
 	const char *p;
 
 	dlen = strlen(dname);
@@ -1340,7 +1346,7 @@ int audit_compare_dname_path(const char *dname, const char *path)
 	if (pathlen < dlen)
 		return 1;
 
-	parentlen = parent_len(path);
+	parentlen = parentlen == AUDIT_NAME_FULL ? parent_len(path) : parentlen;
 	if (pathlen - parentlen != dlen)
 		return 1;
 

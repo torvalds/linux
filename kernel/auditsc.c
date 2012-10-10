@@ -81,9 +81,6 @@
  * a name dynamically and also add those to the list anchored by names_list. */
 #define AUDIT_NAMES	5
 
-/* Indicates that audit should log the full pathname. */
-#define AUDIT_NAME_FULL -1
-
 /* no execve audit message should be longer than this (userspace limits) */
 #define MAX_EXECVE_AUDIT_LEN 7500
 
@@ -2222,7 +2219,7 @@ void __audit_inode_child(const struct inode *parent,
 			continue;
 
 		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name)) {
+		    !audit_compare_dname_path(dname, n->name, n->name_len)) {
 			found_parent = n->name;
 			goto add_names;
 		}
@@ -2235,7 +2232,8 @@ void __audit_inode_child(const struct inode *parent,
 
 		/* strcmp() is the more likely scenario */
 		if (!strcmp(dname, n->name) ||
-		     !audit_compare_dname_path(dname, n->name)) {
+		    !audit_compare_dname_path(dname, n->name,
+						AUDIT_NAME_FULL)) {
 			if (inode)
 				audit_copy_inode(n, dentry, inode);
 			else
