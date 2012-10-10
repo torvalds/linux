@@ -769,21 +769,6 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 
 #ifdef CONFIG_OF
 	if (dev->dev.of_node) {
-		const __be32 *prop;
-		int len, na, ns;
-		phys_addr_t reg_base;
-
-		na = of_n_addr_cells(dev->dev.of_node);
-		ns = of_n_size_cells(dev->dev.of_node);
-
-		prop = of_get_property(dev->dev.of_node, "reg", &len);
-		if (WARN_ON(!prop || len < (na + ns) * sizeof(*prop)))
-			return -EINVAL;
-		reg_base = of_read_number(prop, na);
-
-		if (dev->res.start != reg_base)
-			return -EINVAL;
-
 		if (!board) {
 			board = kzalloc(sizeof(struct clcd_board), GFP_KERNEL);
 			if (!board)
