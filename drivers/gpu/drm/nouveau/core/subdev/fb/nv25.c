@@ -49,6 +49,9 @@ nv25_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 			tile->zcomp |= 0x00100000;
 		else
 			tile->zcomp |= 0x00200000;
+#ifdef __BIG_ENDIAN
+		tile->zcomp |= 0x01000000;
+#endif
 	}
 }
 

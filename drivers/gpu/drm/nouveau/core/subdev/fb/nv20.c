@@ -61,6 +61,9 @@ nv20_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		tile->zcomp |= 0x80000000;
 		if (bpp != 16)
 			tile->zcomp |= 0x04000000;
+#ifdef __BIG_ENDIAN
+		tile->zcomp |= 0x08000000;
+#endif
 	}
 }
 
