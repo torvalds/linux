@@ -3972,7 +3972,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	u8  *iovar_ie_buf;
 	u8  *curr_ie_buf;
 	u8  *mgmt_ie_buf = NULL;
-	u32 mgmt_ie_buf_len = 0;
+	int mgmt_ie_buf_len;
 	u32 *mgmt_ie_len = 0;
 	u32 del_add_ie_buf_len = 0;
 	u32 total_ie_buf_len = 0;
@@ -3982,7 +3982,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	struct parsed_vndr_ie_info *vndrie_info;
 	s32 i;
 	u8 *ptr;
-	u32 remained_buf_len;
+	int remained_buf_len;
 
 	WL_TRACE("bssidx %d, pktflag : 0x%02X\n", bssidx, pktflag);
 	iovar_ie_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
