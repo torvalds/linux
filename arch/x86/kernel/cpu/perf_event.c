@@ -1321,6 +1321,26 @@ struct perf_pmu_events_attr {
 	u64 id;
 };
 
+/*
+ * Remove all undefined events (x86_pmu.event_map(id) == 0)
+ * out of events_attr attributes.
+ */
+static void __init filter_events(struct attribute **attrs)
+{
+	int i, j;
+
+	for (i = 0; attrs[i]; i++) {
+		if (x86_pmu.event_map(i))
+			continue;
+
+		for (j = i; attrs[j]; j++)
+			attrs[j] = attrs[j + 1];
+
+		/* Check the shifted attr. */
+		i--;
+	}
+}
+
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page)
 {
@@ -1420,6 +1440,8 @@ static int __init init_hw_perf_events(void)
 
 	if (!x86_pmu.events_sysfs_show)
 		x86_pmu_events_group.attrs = &empty_attrs;
+	else
+		filter_events(x86_pmu_events_group.attrs);
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
