@@ -30,6 +30,13 @@ struct nv40_fb_priv {
 	struct nouveau_fb base;
 };
 
+static void
+nv40_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
+		  struct nouveau_fb_tile *tile)
+{
+	tile->zcomp = 0x00000000;
+}
+
 static int
 nv40_fb_init(struct nouveau_object *object)
 {
@@ -72,8 +79,9 @@ nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv30_fb_tile_init;
+	priv->base.tile.comp = nv40_fb_tile_comp;
 	priv->base.tile.fini = nv30_fb_tile_fini;
-	priv->base.tile.prog = nv10_fb_tile_prog;
+	priv->base.tile.prog = nv20_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);
 }
 

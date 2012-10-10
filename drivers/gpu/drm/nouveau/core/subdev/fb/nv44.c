@@ -40,6 +40,14 @@ nv44_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 	tile->pitch = pitch;
 }
 
+void
+nv44_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
+{
+	nv_wr32(pfb, 0x100604 + (i * 0x10), tile->limit);
+	nv_wr32(pfb, 0x100608 + (i * 0x10), tile->pitch);
+	nv_wr32(pfb, 0x100600 + (i * 0x10), tile->addr);
+}
+
 int
 nv44_fb_init(struct nouveau_object *object)
 {
@@ -84,7 +92,7 @@ nv44_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.tile.regions = 12;
 	priv->base.tile.init = nv44_fb_tile_init;
 	priv->base.tile.fini = nv30_fb_tile_fini;
-	priv->base.tile.prog = nv41_fb_tile_prog;
+	priv->base.tile.prog = nv44_fb_tile_prog;
 	return nouveau_fb_created(&priv->base);
 }
 
