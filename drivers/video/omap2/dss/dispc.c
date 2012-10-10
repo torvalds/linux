@@ -2589,7 +2589,7 @@ int dispc_ovl_enable(enum omap_plane plane, bool enable)
 	return 0;
 }
 
-static void dispc_disable_isr(void *data, u32 mask)
+static void dispc_mgr_disable_isr(void *data, u32 mask)
 {
 	struct completion *compl = data;
 	complete(compl);
@@ -2607,122 +2607,172 @@ bool dispc_mgr_is_enabled(enum omap_channel channel)
 	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
 }
 
-static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_lcd_out(enum omap_channel channel)
 {
-	struct completion frame_done_completion;
-	bool is_on;
+	_enable_mgr_out(channel, true);
+}
+
+static void dispc_mgr_disable_lcd_out(enum omap_channel channel)
+{
+	DECLARE_COMPLETION_ONSTACK(framedone_compl);
 	int r;
 	u32 irq;
 
-	/* When we disable LCD output, we need to wait until frame is done.
-	 * Otherwise the DSS is still working, and turning off the clocks
-	 * prevents DSS from going to OFF mode */
-	is_on = dispc_mgr_is_enabled(channel);
+	if (dispc_mgr_is_enabled(channel) == false)
+		return;
 
-	irq = mgr_desc[channel].framedone_irq;
+	/*
+	 * When we disable LCD output, we need to wait for FRAMEDONE to know
+	 * that DISPC has finished with the LCD output.
+	 */
 
-	if (!enable && is_on) {
-		init_completion(&frame_done_completion);
+	irq = dispc_mgr_get_framedone_irq(channel);
 
-		r = omap_dispc_register_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
+	r = omap_dispc_register_isr(dispc_mgr_disable_isr, &framedone_compl,
+			irq);
+	if (r)
+		DSSERR("failed to register FRAMEDONE isr\n");
 
-		if (r)
-			DSSERR("failed to register FRAMEDONE isr\n");
+	_enable_mgr_out(channel, false);
+
+	/* if we couldn't register for framedone, just sleep and exit */
+	if (r) {
+		msleep(100);
+		return;
 	}
 
-	_enable_mgr_out(channel, enable);
+	if (!wait_for_completion_timeout(&framedone_compl,
+				msecs_to_jiffies(100)))
+		DSSERR("timeout waiting for FRAME DONE\n");
 
-	if (!enable && is_on) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for FRAME DONE\n");
-
-		r = omap_dispc_unregister_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
-
-		if (r)
-			DSSERR("failed to unregister FRAMEDONE isr\n");
-	}
+	r = omap_dispc_unregister_isr(dispc_mgr_disable_isr, &framedone_compl,
+			irq);
+	if (r)
+		DSSERR("failed to unregister FRAMEDONE isr\n");
 }
 
-static void dispc_mgr_enable_digit_out(bool enable)
+static void dispc_digit_out_enable_isr(void *data, u32 mask)
 {
-	struct completion frame_done_completion;
+	struct completion *compl = data;
+
+	/* ignore any sync lost interrupts */
+	if (mask & (DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD))
+		complete(compl);
+}
+
+static void dispc_mgr_enable_digit_out(void)
+{
+	DECLARE_COMPLETION_ONSTACK(vsync_compl);
+	int r;
+	u32 irq_mask;
+
+	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == true)
+		return;
+
+	/*
+	 * Digit output produces some sync lost interrupts during the first
+	 * frame when enabling. Those need to be ignored, so we register for the
+	 * sync lost irq to prevent the error handler from triggering.
+	 */
+
+	irq_mask = dispc_mgr_get_vsync_irq(OMAP_DSS_CHANNEL_DIGIT) |
+		dispc_mgr_get_sync_lost_irq(OMAP_DSS_CHANNEL_DIGIT);
+
+	r = omap_dispc_register_isr(dispc_digit_out_enable_isr, &vsync_compl,
+			irq_mask);
+	if (r) {
+		DSSERR("failed to register %x isr\n", irq_mask);
+		return;
+	}
+
+	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, true);
+
+	/* wait for the first evsync */
+	if (!wait_for_completion_timeout(&vsync_compl, msecs_to_jiffies(100)))
+		DSSERR("timeout waiting for digit out to start\n");
+
+	r = omap_dispc_unregister_isr(dispc_digit_out_enable_isr, &vsync_compl,
+			irq_mask);
+	if (r)
+		DSSERR("failed to unregister %x isr\n", irq_mask);
+}
+
+static void dispc_mgr_disable_digit_out(void)
+{
+	DECLARE_COMPLETION_ONSTACK(framedone_compl);
 	enum dss_hdmi_venc_clk_source_select src;
 	int r, i;
 	u32 irq_mask;
 	int num_irqs;
 
-	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == enable)
+	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == false)
 		return;
 
 	src = dss_get_hdmi_venc_clk_source();
 
-	if (enable) {
-		unsigned long flags;
-		/* When we enable digit output, we'll get an extra digit
-		 * sync lost interrupt, that we need to ignore */
-		spin_lock_irqsave(&dispc.irq_lock, flags);
-		dispc.irq_error_mask &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
-		_omap_dispc_set_irqs();
-		spin_unlock_irqrestore(&dispc.irq_lock, flags);
-	}
+	/*
+	 * When we disable the digit output, we need to wait for FRAMEDONE to
+	 * know that DISPC has finished with the output. For analog tv out we'll
+	 * use vsync, as omap2/3 don't have framedone for TV.
+	 */
 
-	/* When we disable digit output, we need to wait until fields are done.
-	 * Otherwise the DSS is still working, and turning off the clocks
-	 * prevents DSS from going to OFF mode. And when enabling, we need to
-	 * wait for the extra sync losts */
-	init_completion(&frame_done_completion);
-
-	if (src == DSS_HDMI_M_PCLK && enable == false) {
+	if (src == DSS_HDMI_M_PCLK) {
 		irq_mask = DISPC_IRQ_FRAMEDONETV;
 		num_irqs = 1;
 	} else {
-		irq_mask = DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
-		/* XXX I understand from TRM that we should only wait for the
-		 * current field to complete. But it seems we have to wait for
-		 * both fields */
+		irq_mask = dispc_mgr_get_vsync_irq(OMAP_DSS_CHANNEL_DIGIT);
+		/*
+		 * We need to wait for both even and odd vsyncs. Note that this
+		 * is not totally reliable, as we could get a vsync interrupt
+		 * before we disable the output, which leads to timeout in the
+		 * wait_for_completion.
+		 */
 		num_irqs = 2;
 	}
 
-	r = omap_dispc_register_isr(dispc_disable_isr, &frame_done_completion,
+	r = omap_dispc_register_isr(dispc_mgr_disable_isr, &framedone_compl,
 			irq_mask);
 	if (r)
 		DSSERR("failed to register %x isr\n", irq_mask);
 
-	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, enable);
+	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, false);
 
-	for (i = 0; i < num_irqs; ++i) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for digit out to %s\n",
-					enable ? "start" : "stop");
+	/* if we couldn't register the irq, just sleep and exit */
+	if (r) {
+		msleep(100);
+		return;
 	}
 
-	r = omap_dispc_unregister_isr(dispc_disable_isr, &frame_done_completion,
+	for (i = 0; i < num_irqs; ++i) {
+		if (!wait_for_completion_timeout(&framedone_compl,
+					msecs_to_jiffies(100)))
+			DSSERR("timeout waiting for digit out to stop\n");
+	}
+
+	r = omap_dispc_unregister_isr(dispc_mgr_disable_isr, &framedone_compl,
 			irq_mask);
 	if (r)
 		DSSERR("failed to unregister %x isr\n", irq_mask);
-
-	if (enable) {
-		unsigned long flags;
-		spin_lock_irqsave(&dispc.irq_lock, flags);
-		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST_DIGIT;
-		dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
-		_omap_dispc_set_irqs();
-		spin_unlock_irqrestore(&dispc.irq_lock, flags);
-	}
 }
 
-void dispc_mgr_enable(enum omap_channel channel, bool enable)
+void dispc_mgr_enable(enum omap_channel channel)
 {
 	if (dss_mgr_is_lcd(channel))
-		dispc_mgr_enable_lcd_out(channel, enable);
+		dispc_mgr_enable_lcd_out(channel);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
-		dispc_mgr_enable_digit_out(enable);
+		dispc_mgr_enable_digit_out();
 	else
-		BUG();
+		WARN_ON(1);
+}
+
+void dispc_mgr_disable(enum omap_channel channel)
+{
+	if (dss_mgr_is_lcd(channel))
+		dispc_mgr_disable_lcd_out(channel);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		dispc_mgr_disable_digit_out();
+	else
+		WARN_ON(1);
 }
 
 void dispc_wb_enable(bool enable)
@@ -2739,7 +2789,7 @@ void dispc_wb_enable(bool enable)
 	if (!enable && is_on) {
 		init_completion(&frame_done_completion);
 
-		r = omap_dispc_register_isr(dispc_disable_isr,
+		r = omap_dispc_register_isr(dispc_mgr_disable_isr,
 				&frame_done_completion, irq);
 		if (r)
 			DSSERR("failed to register FRAMEDONEWB isr\n");
@@ -2752,7 +2802,7 @@ void dispc_wb_enable(bool enable)
 					msecs_to_jiffies(100)))
 			DSSERR("timeout waiting for FRAMEDONEWB\n");
 
-		r = omap_dispc_unregister_isr(dispc_disable_isr,
+		r = omap_dispc_unregister_isr(dispc_mgr_disable_isr,
 				&frame_done_completion, irq);
 		if (r)
 			DSSERR("failed to unregister FRAMEDONEWB isr\n");

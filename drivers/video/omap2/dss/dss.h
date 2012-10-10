@@ -438,7 +438,8 @@ u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
 void dispc_mgr_go(enum omap_channel channel);
 bool dispc_mgr_is_enabled(enum omap_channel channel);
-void dispc_mgr_enable(enum omap_channel channel, bool enable);
+void dispc_mgr_enable(enum omap_channel channel);
+void dispc_mgr_disable(enum omap_channel channel);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
 void dispc_mgr_set_lcd_config(enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config);
