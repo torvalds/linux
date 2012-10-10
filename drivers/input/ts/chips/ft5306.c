@@ -179,9 +179,6 @@ static int ts_suspend(struct i2c_client *client)
 	struct ts_private_data *ts =
 		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
-	
-	if(ts->pdata->irq_enable)	
-		disable_irq_nosync(client->irq);
 
 	if(ts->ops->active)
 		ts->ops->active(client, 0);
@@ -190,19 +187,20 @@ static int ts_suspend(struct i2c_client *client)
 }
 
 
+
+
 static int ts_resume(struct i2c_client *client)
 {
 	struct ts_private_data *ts =
 		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	
-	if(ts->pdata->irq_enable)	
-		enable_irq(client->irq);
-
 	if(ts->ops->active)
 		ts->ops->active(client, 1);
 	return 0;
 }
+
+
 
 
 
@@ -221,8 +219,11 @@ struct ts_operate ts_ft5306_ops = {
 	.x_revert 			= 1,
 	.y_revert			= 0,
 	.range				= {1024,768},
+	.irq_enable			= 1,
+	.poll_delay_ms			= 0,
 	.active				= ts_active,	
 	.init				= ts_init,
+	.check_irq			= NULL,
 	.report 			= ts_report_value,
 	.firmware			= NULL,
 	.suspend			= ts_suspend,

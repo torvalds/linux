@@ -184,13 +184,20 @@ static void  ts_delaywork_func(struct work_struct *work)
 	if (ts_get_data(client) < 0) 
 		DBG(KERN_ERR "%s: Get data failed\n",__func__);
 	
-	if(!ts->pdata->irq_enable)//restart work while polling
-	schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->pdata->poll_delay_ms));
-	//else
-	//{
-		//if((ts->ops->trig == IRQF_TRIGGER_LOW) || (ts->ops->trig == IRQF_TRIGGER_HIGH))
-		//enable_irq(ts->client->irq);
-	//}
+	if(!ts->ops->irq_enable)//restart work while polling
+	schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
+	else
+	{
+		if(ts->ops->check_irq)
+		{
+			ts->ops->check_irq(client);		
+		}
+		else
+		{
+			if((ts->ops->trig & IRQF_TRIGGER_LOW) || (ts->ops->trig & IRQF_TRIGGER_HIGH))
+			enable_irq(ts->client->irq);
+		}
+	}
 	mutex_unlock(&ts->ts_mutex);
 	
 	DBG("%s:%s\n",__func__,ts->i2c_id->name);
@@ -210,14 +217,19 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id)
 	struct ts_private_data *ts = (struct ts_private_data *)dev_id;
 
 	//use threaded IRQ
-	if (ts_get_data(ts->client) < 0) 
-		DBG(KERN_ERR "%s: Get data failed\n",__func__);
-	msleep(ts->pdata->poll_delay_ms);
-
-	
-	//if((ts->ops->trig == IRQF_TRIGGER_LOW) || (ts->ops->trig == IRQF_TRIGGER_HIGH))
-	//disable_irq_nosync(irq);
-	//schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->pdata->poll_delay_ms));
+	//if (ts_get_data(ts->client) < 0) 
+	//	DBG(KERN_ERR "%s: Get data failed\n",__func__);
+	//msleep(ts->ops->poll_delay_ms);
+	if(ts->ops->check_irq)
+	{
+		disable_irq_nosync(irq);
+	}
+	else
+	{
+		if((ts->ops->trig & IRQF_TRIGGER_LOW) || (ts->ops->trig & IRQF_TRIGGER_HIGH))
+		disable_irq_nosync(irq);
+	}
+	schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
 	DBG("%s:irq=%d\n",__func__,irq);
 	return IRQ_HANDLED;
 }
@@ -229,11 +241,11 @@ static int ts_irq_init(struct i2c_client *client)
 	    (struct ts_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
 	int irq;
-	if((ts->pdata->irq_enable)&&(ts->ops->trig != TS_UNKNOW_DATA))
+	if((ts->ops->irq_enable)&&(ts->ops->trig != TS_UNKNOW_DATA))
 	{
-		//INIT_DELAYED_WORK(&ts->delaywork, ts_delaywork_func);
-		if(ts->pdata->poll_delay_ms < 0)
-			ts->pdata->poll_delay_ms = 30;
+		INIT_DELAYED_WORK(&ts->delaywork, ts_delaywork_func);
+		if(ts->ops->poll_delay_ms < 0)
+			ts->ops->poll_delay_ms = 30;
 		
 		result = gpio_request(client->irq, ts->i2c_id->name);
 		if (result)
@@ -243,8 +255,8 @@ static int ts_irq_init(struct i2c_client *client)
 	
 		gpio_pull_updown(client->irq, PullEnable);
 		irq = gpio_to_irq(client->irq);
-		//result = request_irq(irq, ts_interrupt, ts->ops->trig, ts->ops->name, ts);
-		result = request_threaded_irq(irq, NULL, ts_interrupt, ts->ops->trig, ts->ops->name, ts);
+		result = request_irq(irq, ts_interrupt, ts->ops->trig, ts->ops->name, ts);
+		//result = request_threaded_irq(irq, NULL, ts_interrupt, ts->ops->trig, ts->ops->name, ts);
 		if (result) {
 			printk(KERN_ERR "%s:fail to request irq = %d, ret = 0x%x\n",__func__, irq, result);	       
 			goto error;	       
@@ -252,13 +264,14 @@ static int ts_irq_init(struct i2c_client *client)
 		client->irq = irq;
 		printk("%s:use irq=%d\n",__func__,irq);
 	}
-	else if(!ts->pdata->irq_enable)
+	else if(!ts->ops->irq_enable)
 	{		
 		INIT_DELAYED_WORK(&ts->delaywork, ts_delaywork_func);
-		if(ts->pdata->poll_delay_ms < 0)
-			ts->pdata->poll_delay_ms = 30;
+		if(ts->ops->poll_delay_ms < 0)
+			ts->ops->poll_delay_ms = 30;
 		
-		printk("%s:use polling,delay=%d ms\n",__func__,ts->pdata->poll_delay_ms);
+		schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
+		printk("%s:use polling,delay=%d ms\n",__func__,ts->ops->poll_delay_ms);
 	}
 
 error:	
@@ -274,6 +287,11 @@ static void ts_suspend(struct early_suspend *h)
 	if(ts->ops->suspend)
 		ts->ops->suspend(ts->client);
 
+	if(ts->ops->irq_enable)	
+		disable_irq_nosync(ts->client->irq);
+	else
+		cancel_delayed_work_sync(&ts->delaywork);	
+
 }
 
 static void ts_resume(struct early_suspend *h)
@@ -283,6 +301,14 @@ static void ts_resume(struct early_suspend *h)
 
 	if(ts->ops->resume)
 		ts->ops->resume(ts->client);
+
+	if(ts->ops->irq_enable)	
+		enable_irq(ts->client->irq);
+	else
+	{
+		PREPARE_DELAYED_WORK(&ts->delaywork, ts_delaywork_func);
+		schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
+	}
 }
 #endif
 

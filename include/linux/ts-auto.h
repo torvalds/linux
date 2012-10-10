@@ -38,8 +38,7 @@ struct ts_platform_data {
 	int irq;
 	int power_pin;
 	int reset_pin;
-	int irq_enable;         //if irq_enable=1 then use irq else use polling  
-	int poll_delay_ms;      //polling
+
 	int (*init_platform_hw)(void);	
 };
 
@@ -63,8 +62,12 @@ struct ts_operate {
 	int x_revert;
 	int y_revert;
 	int range[2];
+	int irq_enable;         //if irq_enable=1 then use irq else use polling  
+	int poll_delay_ms;      //polling
+	int gpio_level_no_int;
 	int (*active)(struct i2c_client *client, int enable);	
 	int (*init)(struct i2c_client *client);	
+	int (*check_irq)(struct i2c_client *client);
 	int (*report)(struct i2c_client *client);
 	int (*firmware)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client);
@@ -79,7 +82,8 @@ struct ts_private_data {
 	struct input_dev *input_dev;
 	struct ts_event	event;
 	struct work_struct work;
-	struct delayed_work delaywork;	/*report second event*/	
+	struct delayed_work delaywork;	/*report second event*/
+	struct delayed_work poll_work;	/*poll at last*/	
 	char ts_data[40];		//max support40 bytes data
 	struct mutex data_mutex;
 	struct mutex ts_mutex;

@@ -40,6 +40,10 @@
 #define DBG(x...)
 #endif
 
+#define PEN_DOWN 1
+#define PEN_RELEASE 0
+#define PEN_DOWN_UP 2	//from down to up
+
 
 #define GT8110_ID_REG		0x00
 #define GT8110_DATA_REG		0x00
@@ -57,7 +61,7 @@ static int ts_active(struct i2c_client *client, int enable)
 	if(enable)
 	{
 		gpio_direction_output(ts->pdata->reset_pin, GPIO_LOW);
-		mdelay(200);
+		mdelay(10);
 		gpio_direction_output(ts->pdata->reset_pin, GPIO_HIGH);
 		msleep(200);
 	}
@@ -84,16 +88,16 @@ static int ts_init(struct i2c_client *client)
 	int irq_pin = irq_to_gpio(ts->pdata->irq);
 	char version_data[18] = {240};
 	char init_data[95] = {
-	0x65,0x02,0x00,0x10,0x00,0x10,0x0A,0x6E,0x0A,0x00,
-	0x0F,0x1E,0x02,0x08,0x10,0x00,0x00,0x27,0x00,0x00,
-	0x50,0x10,0x10,0x11,0x37,0x00,0x00,0x00,0x01,0x02,
-	0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0xFF,
-	0xFF,0xFF,0xFF,0x00,0x01,0x02,0x03,0x04,0x05,0x06,
-	0x07,0x08,0x09,0x0A,0xFF,0xFF,0xFF,0xFF,0xFF,0x00,
-	0x00,0x50,0x64,0x50,0x00,0x00,0x00,0x00,0x00,0x00,
+	0x65,0x02,0x00,0x10,0x00,0x10,0x0A,0x62,0x4A,0x00,
+	0x0F,0x28,0x02,0x10,0x10,0x00,0x00,0x20,0x00,0x00,
+	0x10,0x10,0x10,0x00,0x37,0x00,0x00,0x00,0x01,0x02,
+	0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,
+	0x0D,0xFF,0xFF,0x00,0x01,0x02,0x03,0x04,0x05,0x06,
+	0x07,0x08,0x09,0x0A,0x0B,0x0C,0xFF,0xFF,0xFF,0x00,
+	0x00,0x3C,0x64,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x20
+	0x00,0x00,0x00,0x00,0x00
         };
 	int result = 0, i = 0;
 
@@ -133,6 +137,66 @@ static int ts_init(struct i2c_client *client)
 	return result;
 }
 
+static bool goodix_get_status(char *p1,int*p2)
+{
+	bool status = PEN_DOWN;
+	if((*p2==PEN_DOWN) && (*p1==PEN_RELEASE))
+	{
+		*p2 = PEN_DOWN_UP; //¸Õ¸Õµ¯Æð
+		status = PEN_RELEASE; 
+	}
+	else if((*p2==PEN_RELEASE) && (*p1==PEN_RELEASE))
+	{
+		*p2 = PEN_RELEASE;
+		status = PEN_RELEASE; 
+	}
+	else
+	{
+		*p2 = PEN_DOWN;
+	}
+	return status;
+}
+
+
+
+static int ts_check_irq(struct i2c_client *client)
+{
+	struct ts_private_data *ts =
+		(struct ts_private_data *) i2c_get_clientdata(client);	
+	struct ts_platform_data *pdata = ts->pdata;	
+	struct ts_event *event = &ts->event;
+	int gpio_level_no_int = GPIO_HIGH;
+	int id = 0, i = 0;
+	
+	if((ts->ops->trig & IRQF_TRIGGER_LOW) || (ts->ops->trig & IRQF_TRIGGER_FALLING))
+		gpio_level_no_int = GPIO_HIGH;
+	else	
+		gpio_level_no_int = GPIO_LOW;
+
+	if(gpio_get_value(ts->pdata->irq) == gpio_level_no_int)	
+	{
+		for(i = 0; i<ts->ops->max_point; i++)
+		{			
+			id = i;				
+			if(event->point[id].last_status != 0)
+			{
+				event->point[i].last_status = PEN_RELEASE;				
+				input_mt_slot(ts->input_dev, event->point[i].id);				
+				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+				DBG("%s:%s press up,id=%d\n\n",__func__,ts->ops->name, event->point[i].id);
+			}
+		}
+		
+		input_sync(ts->input_dev);	
+		memset(event, 0x00, sizeof(struct ts_event));	
+		enable_irq(ts->client->irq);
+	}
+	else
+	schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
+	
+}
+
 
 static int ts_report_value(struct i2c_client *client)
 {
@@ -155,49 +219,39 @@ static int ts_report_value(struct i2c_client *client)
 	//for(i=0; i<ts->ops->read_len; i++)
 	//DBG("buf[%d]=0x%x\n",i,buf[i]);
 
-	//temp =  (buf[2]<<8) + buf[1];
+	temp = (buf[1] << 8) | buf[0];
 
-	temp = ((buf[2]&0x03) << 8) | buf[1];
 	for(i=0; i<ts->ops->max_point; i++)
 	{
 		if(temp & (1 << i)) 
+		{	
+			event->point[i].status = PEN_DOWN;
 			num++;
-	}
-
-	event->touch_point = num;
-#if 0
-	if(event->touch_point == 0)
-	{	
-		for(i=0; i<ts->ops->max_point; i++)
-		{
-			if(event->point[i].status != 0)
-			{
-				event->point[i].status = 0;				
-				input_mt_slot(ts->input_dev, event->point[i].id);				
-				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
-				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-				DBG("%s:%s press up,id=%d\n",__func__,ts->ops->name, event->point[i].id);
-			}
 		}
-		
-		input_sync(ts->input_dev);
-		memset(event, 0x00, sizeof(struct ts_event));
-				
-		return 0;
 	}
-#endif	
-	for(i = 0; i<ts->ops->max_point; i++)
+	
+	if(num > event->touch_point)
+	event->touch_point = num;
+
+	for(i = 0; i<event->touch_point; i++)
 	{
-		off = 3 + i*4;
+		off = 2 + i*4;
 		
 		id = i;				
 		event->point[id].id = id;
-		event->point[id].status = temp & (1 << (ts->ops->max_point - i -1));
-		event->point[id].x = (unsigned int)(buf[off+0]<<8) + (unsigned int)buf[off+1];
-		event->point[id].y = (unsigned int)(buf[off+2]<<8) + (unsigned int)buf[off+3];
-		//event->point[id].press = buf[off+4];
-
-		//for(j=0; j<(3 + (i+1)*4); j++)
+		
+		if(goodix_get_status(&event->point[id].status,&event->point[id].last_status))
+		{
+			event->point[id].x = (unsigned int)(buf[off+1]<<8) + (unsigned int)buf[off+0];
+			event->point[id].y = (unsigned int)(buf[off+3]<<8) + (unsigned int)buf[off+2];
+		}
+		
+		if((event->point[id].x <= 0) || (event->point[id].x >= ts->ops->range[0]) || (event->point[id].y <= 0) || (event->point[id].y >= ts->ops->range[1]))
+		{
+			event->point[id].status = 0;
+			continue;
+		}
+		//for(j=0; j<(2 + (i+1)*4); j++)
 		//DBG("buf[%d]=0x%x\n",j,buf[j]);
 		
 		if(ts->ops->xy_swap)
@@ -215,9 +269,18 @@ static int ts_report_value(struct i2c_client *client)
 			event->point[id].y = ts->ops->pixel.max_y - event->point[id].y;
 		}
 
-		DBG("%s:point[%d].status=%d,point[%d].last_status=%d\n",__func__,i,event->point[i].status,i,event->point[i].last_status);
-
-		if(event->point[id].status != 0)
+		
+		if(event->point[id].status==PEN_DOWN_UP)
+		{
+		        event->point[id].status=PEN_RELEASE;
+			input_mt_slot(ts->input_dev, event->point[i].id);				
+			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+			DBG("%s:%s press is uping,id=%d\n\n",__func__,ts->ops->name, event->point[i].id);
+			continue;
+		}
+		
+		if(event->point[id].status==PEN_DOWN)
 		{		
 			input_mt_slot(ts->input_dev, event->point[id].id);
 			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, event->point[id].id);
@@ -226,15 +289,6 @@ static int ts_report_value(struct i2c_client *client)
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, event->point[id].y);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 1);	
 	   		DBG("%s:%s press down,id=%d,x=%d,y=%d\n\n",__func__,ts->ops->name, event->point[id].id, event->point[id].x,event->point[id].y);
-		}
-		else if((event->point[id].status == 0) && (event->point[id].last_status != 0))
-		{
-			event->point[i].status = 0;				
-			input_mt_slot(ts->input_dev, event->point[i].id);				
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
-			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-			DBG("%s:%s press up,id=%d\n\n",__func__,ts->ops->name, event->point[i].id);
-
 		}
 		
 		event->point[id].last_status = event->point[id].status;
@@ -250,9 +304,6 @@ static int ts_suspend(struct i2c_client *client)
 	struct ts_private_data *ts =
 		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
-	
-	if(ts->pdata->irq_enable)	
-		disable_irq_nosync(client->irq);
 
 	if(ts->ops->active)
 		ts->ops->active(client, 0);
@@ -267,9 +318,6 @@ static int ts_resume(struct i2c_client *client)
 		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	
-	if(ts->pdata->irq_enable)	
-		enable_irq(client->irq);
-
 	if(ts->ops->active)
 		ts->ops->active(client, 1);
 	return 0;
@@ -286,14 +334,17 @@ struct ts_operate ts_gt8110_ops = {
 	.id_data			= TS_UNKNOW_DATA,	
 	.read_reg			= GT8110_DATA_REG,		//read data
 	.read_len			= 5*10+3+1,			//data length
-	.trig				= IRQ_TYPE_LEVEL_LOW | IRQF_ONESHOT,		
+	.trig				= IRQ_TYPE_LEVEL_LOW,		
 	.max_point			= 10,
 	.xy_swap 			= 0,
 	.x_revert 			= 0,
 	.y_revert			= 0,
 	.range				= {4096,4096},
+	.irq_enable			= 1,
+	.poll_delay_ms			= 30,
 	.active				= ts_active,	
-	.init				= ts_init,
+	.init				= ts_init,	
+	.check_irq			= ts_check_irq,
 	.report 			= ts_report_value,
 	.firmware			= NULL,
 	.suspend			= ts_suspend,
