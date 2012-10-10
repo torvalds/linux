@@ -106,7 +106,7 @@ brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
 	namelen = (u32) strlen(name) + 1; /* lengh of iovar  name + null */
 	iolen = prefixlen + namelen + sizeof(bssidx_le) + datalen;
 
-	if (buflen < 0 || iolen > (u32)buflen) {
+	if ((u32)buflen < iolen) {
 		brcmf_dbg(ERROR, "buffer is too short\n");
 		return 0;
 	}
