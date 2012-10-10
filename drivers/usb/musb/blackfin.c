@@ -585,15 +585,4 @@ static struct platform_driver bfin_driver = {
 MODULE_DESCRIPTION("Blackfin MUSB Glue Layer");
 MODULE_AUTHOR("Bryan Wy <cooloney@kernel.org>");
 MODULE_LICENSE("GPL v2");
-
-static int __init bfin_init(void)
-{
-	return platform_driver_register(&bfin_driver);
-}
-module_init(bfin_init);
-
-static void __exit bfin_exit(void)
-{
-	platform_driver_unregister(&bfin_driver);
-}
-module_exit(bfin_exit);
+module_platform_driver(bfin_driver);
