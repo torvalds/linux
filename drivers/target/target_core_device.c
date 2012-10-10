@@ -556,7 +556,8 @@ static void core_export_port(
 	list_add_tail(&port->sep_list, &dev->dev_sep_list);
 	spin_unlock(&dev->se_port_lock);
 
-	if (dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV &&
+	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
 		tg_pt_gp_mem = core_alua_allocate_tg_pt_gp_mem(port);
 		if (IS_ERR(tg_pt_gp_mem) || !tg_pt_gp_mem) {
 			pr_err("Unable to allocate t10_alua_tg_pt"
@@ -1398,7 +1399,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
-	dev->dev_attrib.emulate_alua = DA_EMULATE_ALUA;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;

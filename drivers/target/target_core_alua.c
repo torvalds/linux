@@ -522,40 +522,26 @@ static inline int core_alua_state_transition(
 }
 
 /*
- * Used for alua_type SPC_ALUA_PASSTHROUGH and SPC2_ALUA_DISABLED
- * in transport_cmd_sequencer().  This function is assigned to
- * struct t10_alua *->state_check() in core_setup_alua()
- */
-static int core_alua_state_check_nop(
-	struct se_cmd *cmd,
-	unsigned char *cdb,
-	u8 *alua_ascq)
-{
-	return 0;
-}
-
-/*
- * Used for alua_type SPC3_ALUA_EMULATED in transport_cmd_sequencer().
- * This function is assigned to struct t10_alua *->state_check() in
- * core_setup_alua()
- *
- * Also, this function can return three different return codes to
- * signal transport_generic_cmd_sequencer()
- *
  * return 1: Is used to signal LUN not accecsable, and check condition/not ready
  * return 0: Used to signal success
  * reutrn -1: Used to signal failure, and invalid cdb field
  */
-static int core_alua_state_check(
-	struct se_cmd *cmd,
-	unsigned char *cdb,
-	u8 *alua_ascq)
+int target_alua_state_check(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
+	unsigned char *cdb = cmd->t_task_cdb;
 	struct se_lun *lun = cmd->se_lun;
 	struct se_port *port = lun->lun_sep;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	int out_alua_state, nonop_delay_msecs;
+	u8 alua_ascq;
+	int ret;
+
+	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
+		return 0;
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return 0;
 
 	if (!port)
 		return 0;
@@ -564,11 +550,11 @@ static int core_alua_state_check(
 	 * access state: OFFLINE
 	 */
 	if (atomic_read(&port->sep_tg_pt_secondary_offline)) {
-		*alua_ascq = ASCQ_04H_ALUA_OFFLINE;
 		pr_debug("ALUA: Got secondary offline status for local"
 				" target port\n");
-		*alua_ascq = ASCQ_04H_ALUA_OFFLINE;
-		return 1;
+		alua_ascq = ASCQ_04H_ALUA_OFFLINE;
+		ret = 1;
+		goto out;
 	}
 	 /*
 	 * Second, obtain the struct t10_alua_tg_pt_gp_member pointer to the
@@ -593,14 +579,18 @@ static int core_alua_state_check(
 
 	switch (out_alua_state) {
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
-		return core_alua_state_nonoptimized(cmd, cdb,
-					nonop_delay_msecs, alua_ascq);
+		ret = core_alua_state_nonoptimized(cmd, cdb,
+					nonop_delay_msecs, &alua_ascq);
+		break;
 	case ALUA_ACCESS_STATE_STANDBY:
-		return core_alua_state_standby(cmd, cdb, alua_ascq);
+		ret = core_alua_state_standby(cmd, cdb, &alua_ascq);
+		break;
 	case ALUA_ACCESS_STATE_UNAVAILABLE:
-		return core_alua_state_unavailable(cmd, cdb, alua_ascq);
+		ret = core_alua_state_unavailable(cmd, cdb, &alua_ascq);
+		break;
 	case ALUA_ACCESS_STATE_TRANSITION:
-		return core_alua_state_transition(cmd, cdb, alua_ascq);
+		ret = core_alua_state_transition(cmd, cdb, &alua_ascq);
+		break;
 	/*
 	 * OFFLINE is a secondary ALUA target port group access state, that is
 	 * handled above with struct se_port->sep_tg_pt_secondary_offline=1
@@ -609,10 +599,27 @@ static int core_alua_state_check(
 	default:
 		pr_err("Unknown ALUA access state: 0x%02x\n",
 				out_alua_state);
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
 
-	return 0;
+out:
+	if (ret > 0) {
+		/*
+		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
+		 * The ALUA additional sense code qualifier (ASCQ) is determined
+		 * by the ALUA primary or secondary access state..
+		 */
+		pr_debug("[%s]: ALUA TG Port not available, "
+			"SenseKey: NOT_READY, ASC/ASCQ: "
+			"0x04/0x%02x\n",
+			cmd->se_tfo->get_fabric_name(), alua_ascq);
+
+		cmd->scsi_asc = 0x04;
+		cmd->scsi_ascq = alua_ascq;
+	}
+
+	return ret;
 }
 
 /*
@@ -1264,12 +1271,8 @@ void core_alua_free_lu_gp(struct t10_alua_lu_gp *lu_gp)
 
 void core_alua_free_lu_gp_mem(struct se_device *dev)
 {
-	struct t10_alua *alua = &dev->t10_alua;
 	struct t10_alua_lu_gp *lu_gp;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
-
-	if (alua->alua_type != SPC3_ALUA_EMULATED)
-		return;
 
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
 	if (!lu_gp_mem)
@@ -1538,12 +1541,8 @@ void core_alua_free_tg_pt_gp(
 
 void core_alua_free_tg_pt_gp_mem(struct se_port *port)
 {
-	struct t10_alua *alua = &port->sep_lun->lun_se_dev->t10_alua;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-
-	if (alua->alua_type != SPC3_ALUA_EMULATED)
-		return;
 
 	tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
 	if (!tg_pt_gp_mem)
@@ -1636,13 +1635,9 @@ static void __core_alua_drop_tg_pt_gp_mem(
 ssize_t core_alua_show_tg_pt_gp_info(struct se_port *port, char *page)
 {
 	struct config_item *tg_pt_ci;
-	struct t10_alua *alua = &port->sep_lun->lun_se_dev->t10_alua;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	ssize_t len = 0;
-
-	if (alua->alua_type != SPC3_ALUA_EMULATED)
-		return len;
 
 	tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
 	if (!tg_pt_gp_mem)
@@ -1686,13 +1681,9 @@ ssize_t core_alua_store_tg_pt_gp_info(
 	tpg = port->sep_tpg;
 	lun = port->sep_lun;
 
-	if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED) {
-		pr_warn("SPC3_ALUA_EMULATED not enabled for"
-			" %s/tpgt_%hu/%s\n", tpg->se_tpg_tfo->tpg_get_wwn(tpg),
-			tpg->se_tpg_tfo->tpg_get_tag(tpg),
-			config_item_name(&lun->lun_group.cg_item));
-		return -EINVAL;
-	}
+	tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
+	if (!tg_pt_gp_mem)
+		return 0;
 
 	if (count > TG_PT_GROUP_NAME_BUF) {
 		pr_err("ALUA Target Port Group alias too large!\n");
@@ -1714,13 +1705,6 @@ ssize_t core_alua_store_tg_pt_gp_info(
 					strstrip(buf));
 		if (!tg_pt_gp_new)
 			return -ENODEV;
-	}
-	tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
-	if (!tg_pt_gp_mem) {
-		if (tg_pt_gp_new)
-			core_alua_put_tg_pt_gp_from_name(tg_pt_gp_new);
-		pr_err("NULL struct se_port->sep_alua_tg_pt_gp_mem pointer\n");
-		return -EINVAL;
 	}
 
 	spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
@@ -2050,26 +2034,9 @@ ssize_t core_alua_store_secondary_write_metadata(
 
 int core_setup_alua(struct se_device *dev)
 {
-	struct t10_alua *alua = &dev->t10_alua;
-	struct t10_alua_lu_gp_member *lu_gp_mem;
-
-	/*
-	 * If this device is from Target_Core_Mod/pSCSI, use the ALUA logic
-	 * of the Underlying SCSI hardware.  In Linux/SCSI terms, this can
-	 * cause a problem because libata and some SATA RAID HBAs appear
-	 * under Linux/SCSI, but emulate SCSI logic themselves.
-	 */
-	if ((dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE) ||
-	    (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV &&
-	     !dev->dev_attrib.emulate_alua)) {
-		pr_debug("%s: Using SPC_ALUA_PASSTHROUGH, no ALUA"
-			" emulation\n", dev->transport->name);
-
-		alua->alua_type = SPC_ALUA_PASSTHROUGH;
-		alua->alua_state_check = &core_alua_state_check_nop;
-	} else if (dev->transport->get_device_rev(dev) >= SCSI_3) {
-		pr_debug("%s: Enabling ALUA Emulation for SPC-3"
-			" device\n", dev->transport->name);
+	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV &&
+	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
+		struct t10_alua_lu_gp_member *lu_gp_mem;
 
 		/*
 		 * Associate this struct se_device with the default ALUA
@@ -2079,8 +2046,6 @@ int core_setup_alua(struct se_device *dev)
 		if (IS_ERR(lu_gp_mem))
 			return PTR_ERR(lu_gp_mem);
 
-		alua->alua_type = SPC3_ALUA_EMULATED;
-		alua->alua_state_check = &core_alua_state_check;
 		spin_lock(&lu_gp_mem->lu_gp_mem_lock);
 		__core_alua_attach_lu_gp_mem(lu_gp_mem,
 				default_lu_gp);
@@ -2089,12 +2054,6 @@ int core_setup_alua(struct se_device *dev)
 		pr_debug("%s: Adding to default ALUA LU Group:"
 			" core/alua/lu_gps/default_lu_gp\n",
 			dev->transport->name);
-	} else {
-		pr_debug("%s: Disabling ALUA Emulation for SPC-2"
-			" device\n", dev->transport->name);
-
-		alua->alua_type = SPC2_ALUA_DISABLED;
-		alua->alua_state_check = &core_alua_state_check_nop;
 	}
 
 	return 0;

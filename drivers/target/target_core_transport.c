@@ -70,7 +70,6 @@ static void transport_handle_queue_full(struct se_cmd *cmd,
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static int target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 static void transport_put_cmd(struct se_cmd *cmd);
-static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
 static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
@@ -1103,7 +1102,6 @@ int target_setup_cmd_from_cdb(
 	unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
-	u8 alua_ascq = 0;
 	unsigned long flags;
 	int ret;
 
@@ -1153,26 +1151,13 @@ int target_setup_cmd_from_cdb(
 		return -EINVAL;
 	}
 
-	ret = dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
-	if (ret != 0) {
-		/*
-		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
-		 * The ALUA additional sense code qualifier (ASCQ) is determined
-		 * by the ALUA primary or secondary access state..
-		 */
-		if (ret > 0) {
-			pr_debug("[%s]: ALUA TG Port not available, "
-				"SenseKey: NOT_READY, ASC/ASCQ: "
-				"0x04/0x%02x\n",
-				cmd->se_tfo->get_fabric_name(), alua_ascq);
-
-			transport_set_sense_codes(cmd, 0x04, alua_ascq);
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
-			return -EINVAL;
-		}
+	ret = target_alua_state_check(cmd);
+	if (ret) {
 		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		if (ret > 0)
+			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
+		else
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 		return -EINVAL;
 	}
 
@@ -2636,17 +2621,6 @@ static int transport_get_sense_codes(
 {
 	*asc = cmd->scsi_asc;
 	*ascq = cmd->scsi_ascq;
-
-	return 0;
-}
-
-static int transport_set_sense_codes(
-	struct se_cmd *cmd,
-	u8 asc,
-	u8 ascq)
-{
-	cmd->scsi_asc = asc;
-	cmd->scsi_ascq = ascq;
 
 	return 0;
 }

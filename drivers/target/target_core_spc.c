@@ -95,8 +95,7 @@ static int spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
 	 */
-	if (dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
-		spc_fill_alua_data(lun->lun_sep, buf);
+	spc_fill_alua_data(lun->lun_sep, buf);
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
@@ -294,9 +293,6 @@ check_t10_vend_desc:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED)
-			goto check_scsi_name;
-
 		tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
 		if (!tg_pt_gp_mem)
 			goto check_lu_gp;
@@ -1083,8 +1079,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 			 * MAINTENANCE_IN from SCC-2
 			 * Check for emulated MI_REPORT_TARGET_PGS
 			 */
-			if ((cdb[1] & 0x1f) == MI_REPORT_TARGET_PGS &&
-			    dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+			if ((cdb[1] & 0x1f) == MI_REPORT_TARGET_PGS) {
 				cmd->execute_cmd =
 					target_emulate_report_target_port_groups;
 			}
@@ -1102,8 +1097,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 			 * MAINTENANCE_OUT from SCC-2
 			 * Check for emulated MO_SET_TARGET_PGS.
 			 */
-			if (cdb[1] == MO_SET_TARGET_PGS &&
-			    dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+			if (cdb[1] == MO_SET_TARGET_PGS) {
 				cmd->execute_cmd =
 					target_emulate_set_target_port_groups;
 			}

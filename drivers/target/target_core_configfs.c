@@ -1615,15 +1615,9 @@ static ssize_t target_core_show_alua_lu_gp(void *p, char *page)
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	ssize_t len = 0;
 
-	if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED)
-		return len;
-
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
-	if (!lu_gp_mem) {
-		pr_err("NULL struct se_device->dev_alua_lu_gp_mem"
-				" pointer\n");
-		return -EINVAL;
-	}
+	if (!lu_gp_mem)
+		return 0;
 
 	spin_lock(&lu_gp_mem->lu_gp_mem_lock);
 	lu_gp = lu_gp_mem->lu_gp;
@@ -1649,12 +1643,10 @@ static ssize_t target_core_store_alua_lu_gp(
 	unsigned char buf[LU_GROUP_NAME_BUF];
 	int move = 0;
 
-	if (dev->t10_alua.alua_type != SPC3_ALUA_EMULATED) {
-		pr_warn("SPC3_ALUA_EMULATED not enabled for %s/%s\n",
-			config_item_name(&hba->hba_group.cg_item),
-			config_item_name(&dev->dev_group.cg_item));
-		return -EINVAL;
-	}
+	lu_gp_mem = dev->dev_alua_lu_gp_mem;
+	if (!lu_gp_mem)
+		return 0;
+
 	if (count > LU_GROUP_NAME_BUF) {
 		pr_err("ALUA LU Group Alias too large!\n");
 		return -EINVAL;
@@ -1674,14 +1666,6 @@ static ssize_t target_core_store_alua_lu_gp(
 		lu_gp_new = core_alua_get_lu_gp_by_name(strstrip(buf));
 		if (!lu_gp_new)
 			return -ENODEV;
-	}
-	lu_gp_mem = dev->dev_alua_lu_gp_mem;
-	if (!lu_gp_mem) {
-		if (lu_gp_new)
-			core_alua_put_lu_gp_from_name(lu_gp_new);
-		pr_err("NULL struct se_device->dev_alua_lu_gp_mem"
-				" pointer\n");
-		return -EINVAL;
 	}
 
 	spin_lock(&lu_gp_mem->lu_gp_mem_lock);

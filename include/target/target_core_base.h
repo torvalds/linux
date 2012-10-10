@@ -221,16 +221,6 @@ enum tcm_tmrsp_table {
 };
 
 /*
- * Used by TCM Core internally to signal if ALUA emulation is enabled or
- * disabled, or running in with TCM/pSCSI passthrough mode
- */
-typedef enum {
-	SPC_ALUA_PASSTHROUGH,
-	SPC2_ALUA_DISABLED,
-	SPC3_ALUA_EMULATED
-} t10_alua_index_t;
-
-/*
  * Used for target SCSI statistics
  */
 typedef enum {
@@ -243,7 +233,6 @@ typedef enum {
 struct se_cmd;
 
 struct t10_alua {
-	t10_alua_index_t alua_type;
 	/* ALUA Target Port Group ID */
 	u16	alua_tg_pt_gps_counter;
 	u32	alua_tg_pt_gps_count;
@@ -253,7 +242,6 @@ struct t10_alua {
 	struct t10_alua_tg_pt_gp *default_tg_pt_gp;
 	/* Used for default ALUA Target Port Group ConfigFS group */
 	struct config_group alua_tg_pt_gps_group;
-	int (*alua_state_check)(struct se_cmd *, unsigned char *, u8 *);
 	struct list_head tg_pt_gps_list;
 };
 
@@ -605,7 +593,6 @@ struct se_dev_attrib {
 	int		emulate_tas;
 	int		emulate_tpu;
 	int		emulate_tpws;
-	int		emulate_alua;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;

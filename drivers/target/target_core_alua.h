@@ -132,5 +132,6 @@ extern ssize_t core_alua_show_secondary_write_metadata(struct se_lun *,
 extern ssize_t core_alua_store_secondary_write_metadata(struct se_lun *,
 					const char *, size_t);
 extern int core_setup_alua(struct se_device *);
+extern int target_alua_state_check(struct se_cmd *cmd);
 
 #endif /* TARGET_CORE_ALUA_H */
