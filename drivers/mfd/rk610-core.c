@@ -157,6 +157,7 @@ void rk610_control_init_codec(void)
     DBG("[%s] RK610_CONTROL_REG_CLOCK_CON1 is %x\n", __FUNCTION__, data);
 }
 #endif
+#define RK610_DEBUG
 #ifdef RK610_DEBUG
 static int rk610_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
@@ -202,8 +203,54 @@ static ssize_t rk610_store_reg_attrs(struct device *dev,
 	return size;
 }
 
+#define LCD_CS_PIN         RK30_PIN2_PB6
+#define LCD_CS_VALUE       GPIO_HIGH
+
+#define LCD_EN_PIN         RK30_PIN0_PB0
+#define LCD_EN_VALUE       GPIO_LOW
+
+#define LCD_STB_PIN	   RK30_PIN2_PB3
+#define LCD_STB_VALUE	   GPIO_HIGH
+
+static ssize_t rk610_show_gpio_attrs(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+
+	int size=0;
+	printk("gpio2b6 lcd_cs =%d\n",gpio_get_value(LCD_CS_PIN));
+	printk("gpio0b0 lcd_en =%d\n",gpio_get_value(LCD_EN_PIN));
+	printk("gpio2b3 lcd_stb =%d\n",gpio_get_value(LCD_STB_PIN));
+	return size;
+}
+static ssize_t rk610_store_gpio_attrs(struct device *dev,
+						struct device_attribute *attr,
+			 			const char *buf, size_t size)
+{
+	struct i2c_client *client=NULL;
+	static char val=0,reg=0;
+	sscanf(buf, "%x%x", &val,&reg);
+	
+	DBG("reg=%x val=%x\n",reg,val);
+	switch(reg){
+		case 1:
+			gpio_set_value(LCD_CS_PIN,val&1);
+			break;
+		case 2:
+			gpio_set_value(LCD_EN_PIN,val&1);
+			break;
+		case 3:
+			gpio_set_value(LCD_STB_PIN,val&1);
+			break;
+	}
+	printk("gpio2b6 lcd_cs =%d\n",gpio_get_value(LCD_CS_PIN));
+	printk("gpio0b0 lcd_en =%d\n",gpio_get_value(LCD_EN_PIN));
+	printk("gpio2b3 lcd_stb =%d\n",gpio_get_value(LCD_STB_PIN));
+	return size;
+}
 static struct device_attribute rk610_attrs[] = {
 	__ATTR(reg_ctl, 0777,rk610_show_reg_attrs,rk610_store_reg_attrs),
+	__ATTR(gpio_ctl, 0777,rk610_show_gpio_attrs,rk610_store_gpio_attrs),
 };
 #endif
 
@@ -255,6 +302,7 @@ static int rk610_control_probe(struct i2c_client *client,
 	rk610_lcd_init(core_info);
 #ifdef RK610_DEBUG
 	device_create_file(&(client->dev), &rk610_attrs[0]);
+	device_create_file(&(client->dev), &rk610_attrs[1]);
 #endif
     return 0;
 }
