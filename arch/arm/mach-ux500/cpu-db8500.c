@@ -17,14 +17,14 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/platform_data/usb-musb-ux500.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
-#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
-#include <linux/platform_data/usb-musb-ux500.h>
 #include <mach/db8500-regs.h>
 
 #include "devices-db8500.h"
