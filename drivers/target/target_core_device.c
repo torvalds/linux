@@ -1412,11 +1412,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
 	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
-		dev->dev_task_attr_type = SAM_TASK_ATTR_PASSTHROUGH;
-	else
-		dev->dev_task_attr_type = SAM_TASK_ATTR_EMULATED;
-
 	return dev;
 }
 

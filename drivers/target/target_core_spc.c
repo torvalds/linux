@@ -1054,8 +1054,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		 * Do implict HEAD_OF_QUEUE processing for INQUIRY.
 		 * See spc4r17 section 5.3
 		 */
-		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = MSG_HEAD_TAG;
+		cmd->sam_task_attr = MSG_HEAD_TAG;
 		cmd->execute_cmd = spc_emulate_inquiry;
 		break;
 	case SECURITY_PROTOCOL_IN:
@@ -1083,8 +1082,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
 		 * See spc4r17 section 5.3
 		 */
-		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = MSG_HEAD_TAG;
+		cmd->sam_task_attr = MSG_HEAD_TAG;
 		break;
 	case TEST_UNIT_READY:
 		cmd->execute_cmd = spc_emulate_testunitready;

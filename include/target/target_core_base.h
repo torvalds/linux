@@ -233,16 +233,6 @@ typedef enum {
 } t10_alua_index_t;
 
 /*
- * Used by TCM Core internally to signal if SAM Task Attribute emulation
- * is enabled or disabled, or running in with TCM/pSCSI passthrough mode
- */
-typedef enum {
-	SAM_TASK_ATTR_PASSTHROUGH,
-	SAM_TASK_ATTR_UNTAGGED,
-	SAM_TASK_ATTR_EMULATED
-} t10_task_attr_index_t;
-
-/*
  * Used for target SCSI statistics
  */
 typedef enum {
@@ -686,7 +676,6 @@ struct se_device {
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
 	u64			dev_res_bin_isid;
-	t10_task_attr_index_t	dev_task_attr_type;
 	/* Pointer to transport specific device structure */
 	u32			dev_index;
 	u64			creation_time;

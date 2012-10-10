@@ -1068,11 +1068,13 @@ EXPORT_SYMBOL(transport_init_se_cmd);
 
 static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
+
 	/*
 	 * Check if SAM Task Attribute emulation is enabled for this
 	 * struct se_device storage object
 	 */
-	if (cmd->se_dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 		return 0;
 
 	if (cmd->sam_task_attr == MSG_ACA_TAG) {
@@ -1084,11 +1086,11 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	 * Used to determine when ORDERED commands should go from
 	 * Dormant to Active status.
 	 */
-	cmd->se_ordered_id = atomic_inc_return(&cmd->se_dev->dev_ordered_id);
+	cmd->se_ordered_id = atomic_inc_return(&dev->dev_ordered_id);
 	smp_mb__after_atomic_inc();
 	pr_debug("Allocated se_ordered_id: %u for Task Attr: 0x%02x on %s\n",
 			cmd->se_ordered_id, cmd->sam_task_attr,
-			cmd->se_dev->transport->name);
+			dev->transport->name);
 	return 0;
 }
 
@@ -1534,8 +1536,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	/*
 	 * For SAM Task Attribute emulation for failed struct se_cmd
 	 */
-	if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-		transport_complete_task_attr(cmd);
+	transport_complete_task_attr(cmd);
 
 	switch (cmd->scsi_sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
@@ -1619,10 +1620,63 @@ static void __target_execute_cmd(struct se_cmd *cmd)
 	}
 }
 
-void target_execute_cmd(struct se_cmd *cmd)
+static bool target_handle_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return false;
+
+	/*
+	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
+	 * to allow the passed struct se_cmd list of tasks to the front of the list.
+	 */
+	switch (cmd->sam_task_attr) {
+	case MSG_HEAD_TAG:
+		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x, "
+			 "se_ordered_id: %u\n",
+			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+		return false;
+	case MSG_ORDERED_TAG:
+		atomic_inc(&dev->dev_ordered_sync);
+		smp_mb__after_atomic_inc();
+
+		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list, "
+			 " se_ordered_id: %u\n",
+			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+
+		/*
+		 * Execute an ORDERED command if no other older commands
+		 * exist that need to be completed first.
+		 */
+		if (!atomic_read(&dev->simple_cmds))
+			return false;
+		break;
+	default:
+		/*
+		 * For SIMPLE and UNTAGGED Task Attribute commands
+		 */
+		atomic_inc(&dev->simple_cmds);
+		smp_mb__after_atomic_inc();
+		break;
+	}
+
+	if (atomic_read(&dev->dev_ordered_sync) == 0)
+		return false;
+
+	spin_lock(&dev->delayed_cmd_lock);
+	list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
+	spin_unlock(&dev->delayed_cmd_lock);
+
+	pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to"
+		" delayed CMD list, se_ordered_id: %u\n",
+		cmd->t_task_cdb[0], cmd->sam_task_attr,
+		cmd->se_ordered_id);
+	return true;
+}
+
+void target_execute_cmd(struct se_cmd *cmd)
+{
 	/*
 	 * If the received CDB has aleady been aborted stop processing it here.
 	 */
@@ -1660,60 +1714,8 @@ void target_execute_cmd(struct se_cmd *cmd)
 	cmd->t_state = TRANSPORT_PROCESSING;
 	spin_unlock_irq(&cmd->t_state_lock);
 
-	if (dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
-		goto execute;
-
-	/*
-	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
-	 * to allow the passed struct se_cmd list of tasks to the front of the list.
-	 */
-	switch (cmd->sam_task_attr) {
-	case MSG_HEAD_TAG:
-		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x, "
-			 "se_ordered_id: %u\n",
-			 cmd->t_task_cdb[0], cmd->se_ordered_id);
-		goto execute;
-	case MSG_ORDERED_TAG:
-		atomic_inc(&dev->dev_ordered_sync);
-		smp_mb__after_atomic_inc();
-
-		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list, "
-			 " se_ordered_id: %u\n",
-			 cmd->t_task_cdb[0], cmd->se_ordered_id);
-
-		/*
-		 * Execute an ORDERED command if no other older commands
-		 * exist that need to be completed first.
-		 */
-		if (!atomic_read(&dev->simple_cmds))
-			goto execute;
-		break;
-	default:
-		/*
-		 * For SIMPLE and UNTAGGED Task Attribute commands
-		 */
-		atomic_inc(&dev->simple_cmds);
-		smp_mb__after_atomic_inc();
-		break;
-	}
-
-	if (atomic_read(&dev->dev_ordered_sync) != 0) {
-		spin_lock(&dev->delayed_cmd_lock);
-		list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
-		spin_unlock(&dev->delayed_cmd_lock);
-
-		pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to"
-			" delayed CMD list, se_ordered_id: %u\n",
-			cmd->t_task_cdb[0], cmd->sam_task_attr,
-			cmd->se_ordered_id);
-		return;
-	}
-
-execute:
-	/*
-	 * Otherwise, no ORDERED task attributes exist..
-	 */
-	__target_execute_cmd(cmd);
+	if (!target_handle_task_attr(cmd))
+		__target_execute_cmd(cmd);
 }
 EXPORT_SYMBOL(target_execute_cmd);
 
@@ -1752,6 +1754,9 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+		return;
+
 	if (cmd->sam_task_attr == MSG_SIMPLE_TAG) {
 		atomic_dec(&dev->simple_cmds);
 		smp_mb__after_atomic_dec();
@@ -1780,8 +1785,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 {
 	int ret = 0;
 
-	if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-		transport_complete_task_attr(cmd);
+	transport_complete_task_attr(cmd);
 
 	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
 		ret = cmd->se_tfo->queue_status(cmd);
@@ -1839,8 +1843,8 @@ static void target_complete_ok_work(struct work_struct *work)
 	 * delayed execution list after a HEAD_OF_QUEUE or ORDERED Task
 	 * Attribute.
 	 */
-	if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-		transport_complete_task_attr(cmd);
+	transport_complete_task_attr(cmd);
+
 	/*
 	 * Check to schedule QUEUE_FULL work, or execute an existing
 	 * cmd->transport_qf_callback()
