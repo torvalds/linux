@@ -2589,6 +2589,11 @@ int dispc_ovl_enable(enum omap_plane plane, bool enable)
 	return 0;
 }
 
+bool dispc_ovl_enabled(enum omap_plane plane)
+{
+	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
+}
+
 static void dispc_mgr_disable_isr(void *data, u32 mask)
 {
 	struct completion *compl = data;
