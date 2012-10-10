@@ -21,8 +21,6 @@
 #define __SYSCALL(x, y)
 #endif
 
-#ifdef __SYSCALL_COMPAT
-
 __SYSCALL(0,   sys_restart_syscall)
 __SYSCALL(1,   sys_exit)
 __SYSCALL(2,   compat_sys_fork_wrapper)
@@ -414,19 +412,3 @@ __SYSCALL(373, sys_syncfs)
 #define __ARM_NR_COMPAT_BASE		0x0f0000
 #define __ARM_NR_compat_cacheflush	(__ARM_NR_COMPAT_BASE+2)
 #define __ARM_NR_compat_set_tls		(__ARM_NR_COMPAT_BASE+5)
-
-#endif	/* __SYSCALL_COMPAT */
-
-#define __NR_compat_syscalls		374
-
-#define __ARCH_WANT_COMPAT_IPC_PARSE_VERSION
-#define __ARCH_WANT_COMPAT_STAT64
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_SIGPENDING
-#define __ARCH_WANT_SYS_SIGPROCMASK
-#define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-#define __ARCH_WANT_COMPAT_SYS_SENDFILE

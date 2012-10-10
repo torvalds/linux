@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define __SYSCALL_COMPAT
-
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
@@ -28,7 +26,7 @@
 #include <asm/fpsimd.h>
 #include <asm/signal32.h>
 #include <asm/uaccess.h>
-#include <asm/unistd.h>
+#include <asm/unistd32.h>
 
 struct compat_sigaction {
 	compat_uptr_t			sa_handler;

@@ -149,11 +149,10 @@ ENDPROC(compat_sys_fanotify_mark_wrapper)
 
 #undef __SYSCALL
 #define __SYSCALL(x, y)		.quad	y	// x
-#define __SYSCALL_COMPAT
 
 /*
  * The system calls table must be 4KB aligned.
  */
 	.align	12
 ENTRY(compat_sys_call_table)
-#include <asm/unistd.h>
+#include <asm/unistd32.h>
