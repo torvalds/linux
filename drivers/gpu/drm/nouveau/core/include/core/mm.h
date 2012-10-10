@@ -21,6 +21,12 @@ struct nouveau_mm {
 	int heap_nodes;
 };
 
+static inline bool
+nouveau_mm_initialised(struct nouveau_mm *mm)
+{
+	return mm->block_size != 0;
+}
+
 int  nouveau_mm_init(struct nouveau_mm *, u32 offset, u32 length, u32 block);
 int  nouveau_mm_fini(struct nouveau_mm *);
 int  nouveau_mm_head(struct nouveau_mm *, u8 type, u32 size_max, u32 size_min,

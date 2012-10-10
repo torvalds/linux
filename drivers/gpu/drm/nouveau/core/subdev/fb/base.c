@@ -85,12 +85,8 @@ nouveau_fb_destroy(struct nouveau_fb *pfb)
 
 	for (i = 0; i < pfb->tile.regions; i++)
 		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
-
-	if (pfb->tags.block_size)
-		nouveau_mm_fini(&pfb->tags);
-
-	if (pfb->vram.block_size)
-		nouveau_mm_fini(&pfb->vram);
+	nouveau_mm_fini(&pfb->tags);
+	nouveau_mm_fini(&pfb->vram);
 
 	nouveau_subdev_destroy(&pfb->base);
 }
