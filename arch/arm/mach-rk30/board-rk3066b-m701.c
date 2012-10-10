@@ -1111,10 +1111,11 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN0_PB2,
         .batt_low_pin    = RK30_PIN0_PB1, 
-        .charge_set_pin  = INVALID_GPIO,
+        .charge_set_pin  = RK30_PIN2_PA7,
         .charge_ok_pin   = RK30_PIN0_PA6,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+		.charge_set_level = GPIO_HIGH,
 };
 
 static struct platform_device rk30_device_adc_battery = {
