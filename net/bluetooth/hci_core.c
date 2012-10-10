@@ -2379,6 +2379,9 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 	case ACL_LINK:
 		cnt = hdev->acl_cnt;
 		break;
+	case AMP_LINK:
+		cnt = hdev->block_cnt;
+		break;
 	case SCO_LINK:
 	case ESCO_LINK:
 		cnt = hdev->sco_cnt;
@@ -2508,11 +2511,19 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 	struct hci_chan *chan;
 	struct sk_buff *skb;
 	int quote;
+	u8 type;
 
 	__check_timeout(hdev, cnt);
 
+	BT_DBG("%s", hdev->name);
+
+	if (hdev->dev_type == HCI_AMP)
+		type = AMP_LINK;
+	else
+		type = ACL_LINK;
+
 	while (hdev->block_cnt > 0 &&
-	       (chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
+	       (chan = hci_chan_sent(hdev, type, &quote))) {
 		u32 priority = (skb_peek(&chan->data_q))->priority;
 		while (quote > 0 && (skb = skb_peek(&chan->data_q))) {
 			int blocks;
@@ -2545,14 +2556,19 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 	}
 
 	if (cnt != hdev->block_cnt)
-		hci_prio_recalculate(hdev, ACL_LINK);
+		hci_prio_recalculate(hdev, type);
 }
 
 static void hci_sched_acl(struct hci_dev *hdev)
 {
 	BT_DBG("%s", hdev->name);
 
-	if (!hci_conn_num(hdev, ACL_LINK))
+	/* No ACL link over BR/EDR controller */
+	if (!hci_conn_num(hdev, ACL_LINK) && hdev->dev_type == HCI_BREDR)
+		return;
+
+	/* No AMP link over AMP controller */
+	if (!hci_conn_num(hdev, AMP_LINK) && hdev->dev_type == HCI_AMP)
 		return;
 
 	switch (hdev->flow_ctl_mode) {

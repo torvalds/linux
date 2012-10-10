@@ -2733,6 +2733,7 @@ static void hci_num_comp_blocks_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		switch (conn->type) {
 		case ACL_LINK:
+		case AMP_LINK:
 			hdev->block_cnt += block_count;
 			if (hdev->block_cnt > hdev->num_blocks)
 				hdev->block_cnt = hdev->num_blocks;
