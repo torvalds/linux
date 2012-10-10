@@ -1775,8 +1775,8 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	__le32 tmp;
 
 	*pos++ = WLAN_EID_VHT_CAPABILITY;
-	*pos++ = sizeof(struct ieee80211_vht_capabilities);
-	memset(pos, 0, sizeof(struct ieee80211_vht_capabilities));
+	*pos++ = sizeof(struct ieee80211_vht_cap);
+	memset(pos, 0, sizeof(struct ieee80211_vht_cap));
 
 	/* capability flags */
 	tmp = cpu_to_le32(cap);

@@ -353,7 +353,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	cap = vht_cap.cap;
 
 	/* reserve and fill IE */
-	pos = skb_put(skb, sizeof(struct ieee80211_vht_capabilities) + 2);
+	pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 	ieee80211_ie_build_vht_cap(pos, &vht_cap, cap);
 }
 
@@ -412,7 +412,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			4 + /* power capability */
 			2 + 2 * sband->n_channels + /* supported channels */
 			2 + sizeof(struct ieee80211_ht_cap) + /* HT */
-			2 + sizeof(struct ieee80211_vht_capabilities) + /* VHT */
+			2 + sizeof(struct ieee80211_vht_cap) + /* VHT */
 			assoc_data->ie_len + /* extra IEs */
 			9, /* WMM */
 			GFP_KERNEL);

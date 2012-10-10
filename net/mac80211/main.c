@@ -876,7 +876,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (supp_vht)
 		local->scan_ies_len +=
-			2 + sizeof(struct ieee80211_vht_capabilities);
+			2 + sizeof(struct ieee80211_vht_cap);
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */
