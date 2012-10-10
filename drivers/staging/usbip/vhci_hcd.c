@@ -140,10 +140,6 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 		break;
 	}
 
-	/* spin_lock(&the_controller->vdev[rhport].ud.lock);
-	 * the_controller->vdev[rhport].ud.status = VDEV_CONNECT;
-	 * spin_unlock(&the_controller->vdev[rhport].ud.lock); */
-
 	spin_unlock_irqrestore(&the_controller->lock, flags);
 
 	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
@@ -156,15 +152,10 @@ static void rh_port_disconnect(int rhport)
 	usbip_dbg_vhci_rh("rh_port_disconnect %d\n", rhport);
 
 	spin_lock_irqsave(&the_controller->lock, flags);
-	/* stop_activity(dum, driver); */
+
 	the_controller->port_status[rhport] &= ~USB_PORT_STAT_CONNECTION;
 	the_controller->port_status[rhport] |=
 					(1 << USB_PORT_FEAT_C_CONNECTION);
-
-	/* not yet complete the disconnection
-	 * spin_lock(&vdev->ud.lock);
-	 * vdev->ud.status = VHC_ST_DISCONNECT;
-	 * spin_unlock(&vdev->ud.lock); */
 
 	spin_unlock_irqrestore(&the_controller->lock, flags);
 	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
@@ -228,7 +219,6 @@ done:
 	return changed ? retval : 0;
 }
 
-/* See hub_configure in hub.c */
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 {
 	memset(desc, 0, sizeof(*desc));
@@ -292,8 +282,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			usbip_dbg_vhci_rh(" ClearPortFeature: "
 					  "USB_PORT_FEAT_POWER\n");
 			dum->port_status[rhport] = 0;
-			/* dum->address = 0; */
-			/* dum->hdev = 0; */
 			dum->resuming = 0;
 			break;
 		case USB_PORT_FEAT_C_RESET:
@@ -333,11 +321,11 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			retval = -EPIPE;
 		}
 
-		/* we do no care of resume. */
+		/* we do not care about resume. */
 
 		/* whoever resets or resumes must GetPortStatus to
 		 * complete it!!
-		 *                                   */
+		 */
 		if (dum->resuming && time_after(jiffies, dum->re_timeout)) {
 			dum->port_status[rhport] |=
 				(1 << USB_PORT_FEAT_C_SUSPEND);
@@ -345,11 +333,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				~(1 << USB_PORT_FEAT_SUSPEND);
 			dum->resuming = 0;
 			dum->re_timeout = 0;
-			/* if (dum->driver && dum->driver->resume) {
-			 *	spin_unlock (&dum->lock);
-			 *	dum->driver->resume (&dum->gadget);
-			 *	spin_lock (&dum->lock);
-			 * } */
 		}
 
 		if ((dum->port_status[rhport] & (1 << USB_PORT_FEAT_RESET)) !=
@@ -411,9 +394,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	default:
 		pr_err("default: no such request\n");
-		/* dev_dbg (hardware,
-		 *		"hub control req%04x v%04x i%04x l%d\n",
-		 *		typeReq, wValue, wIndex, wLength); */
 
 		/* "protocol stall" on error */
 		retval = -EPIPE;
@@ -456,7 +436,6 @@ static void vhci_tx_urb(struct urb *urb)
 
 	if (!vdev) {
 		pr_err("could not get virtual device");
-		/* BUG(); */
 		return;
 	}
 
@@ -813,7 +792,7 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 
-	/* kill threads related to this sdev, if v.c. exists */
+	/* kill threads related to this sdev */
 	if (vdev->ud.tcp_rx) {
 		kthread_stop_put(vdev->ud.tcp_rx);
 		vdev->ud.tcp_rx = NULL;
@@ -976,8 +955,6 @@ static int vhci_bus_suspend(struct usb_hcd *hcd)
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
 
 	spin_lock_irq(&vhci->lock);
-	/* vhci->rh_state = DUMMY_RH_SUSPENDED;
-	 * set_link_state(vhci); */
 	hcd->state = HC_STATE_SUSPENDED;
 	spin_unlock_irq(&vhci->lock);
 
@@ -995,10 +972,6 @@ static int vhci_bus_resume(struct usb_hcd *hcd)
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		rc = -ESHUTDOWN;
 	} else {
-		/* vhci->rh_state = DUMMY_RH_RUNNING;
-		 * set_link_state(vhci);
-		 * if (!list_empty(&vhci->urbp_list))
-		 *	mod_timer(&vhci->timer, jiffies); */
 		hcd->state = HC_STATE_RUNNING;
 	}
 	spin_unlock_irq(&vhci->lock);
@@ -1175,7 +1148,6 @@ static struct platform_device the_pdev = {
 	.name = (char *) driver_name,
 	.id = -1,
 	.dev = {
-		/* .driver = &vhci_driver, */
 		.release = the_pdev_release,
 	},
 };

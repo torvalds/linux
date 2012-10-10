@@ -439,7 +439,6 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 	 * will be discussed when usbip is ported to other operating systems.
 	 */
 	if (pack) {
-		/* vhci_tx.c */
 		spdu->transfer_flags =
 			tweak_transfer_flags(urb->transfer_flags);
 		spdu->transfer_buffer_length	= urb->transfer_buffer_length;
@@ -447,9 +446,7 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 		spdu->number_of_packets		= urb->number_of_packets;
 		spdu->interval			= urb->interval;
 	} else  {
-		/* stub_rx.c */
 		urb->transfer_flags         = spdu->transfer_flags;
-
 		urb->transfer_buffer_length = spdu->transfer_buffer_length;
 		urb->start_frame            = spdu->start_frame;
 		urb->number_of_packets      = spdu->number_of_packets;
@@ -463,16 +460,12 @@ static void usbip_pack_ret_submit(struct usbip_header *pdu, struct urb *urb,
 	struct usbip_header_ret_submit *rpdu = &pdu->u.ret_submit;
 
 	if (pack) {
-		/* stub_tx.c */
-
 		rpdu->status		= urb->status;
 		rpdu->actual_length	= urb->actual_length;
 		rpdu->start_frame	= urb->start_frame;
 		rpdu->number_of_packets = urb->number_of_packets;
 		rpdu->error_count	= urb->error_count;
 	} else {
-		/* vhci_rx.c */
-
 		urb->status		= rpdu->status;
 		urb->actual_length	= rpdu->actual_length;
 		urb->start_frame	= rpdu->start_frame;
@@ -678,8 +671,6 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	/* my Bluetooth dongle gets ISO URBs which are np = 0 */
 	if (np == 0) {
-		/* pr_info("iso np == 0\n"); */
-		/* usbip_dump_urb(urb); */
 		return 0;
 	}
 
@@ -751,7 +742,7 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
 	/*
 	 * if actual_length is transfer_buffer_length then no padding is
 	 * present.
-	*/
+	 */
 	if (urb->actual_length == urb->transfer_buffer_length)
 		return;
 
@@ -775,14 +766,12 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 	int size;
 
 	if (ud->side == USBIP_STUB) {
-		/* stub_rx.c */
 		/* the direction of urb must be OUT. */
 		if (usb_pipein(urb->pipe))
 			return 0;
 
 		size = urb->transfer_buffer_length;
 	} else {
-		/* vhci_rx.c */
 		/* the direction of urb must be IN. */
 		if (usb_pipeout(urb->pipe))
 			return 0;
