@@ -2201,6 +2201,7 @@ struct filename {
 	const char		*name;	/* pointer to actual string */
 	const __user char	*uptr;	/* original userland pointer */
 	struct audit_names	*aname;
+	bool			separate; /* should "name" be freed? */
 };
 
 extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,

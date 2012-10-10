@@ -119,38 +119,67 @@
  */
 void final_putname(struct filename *name)
 {
-	__putname(name->name);
-	kfree(name);
+	if (name->separate) {
+		__putname(name->name);
+		kfree(name);
+	} else {
+		__putname(name);
+	}
 }
+
+#define EMBEDDED_NAME_MAX	(PATH_MAX - sizeof(struct filename))
 
 static struct filename *
 getname_flags(const char __user *filename, int flags, int *empty)
 {
 	struct filename *result, *err;
-	char *kname;
 	int len;
+	long max;
+	char *kname;
 
 	result = audit_reusename(filename);
 	if (result)
 		return result;
 
-	/* FIXME: create dedicated slabcache? */
-	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	result = __getname();
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
 
-	kname = __getname();
-	if (unlikely(!kname)) {
-		err = ERR_PTR(-ENOMEM);
-		goto error_free_name;
-	}
-
+	/*
+	 * First, try to embed the struct filename inside the names_cache
+	 * allocation
+	 */
+	kname = (char *)result + sizeof(*result);
 	result->name = kname;
-	result->uptr = filename;
-	len = strncpy_from_user(kname, filename, PATH_MAX);
+	result->separate = false;
+	max = EMBEDDED_NAME_MAX;
+
+recopy:
+	len = strncpy_from_user(kname, filename, max);
 	if (unlikely(len < 0)) {
 		err = ERR_PTR(len);
 		goto error;
+	}
+
+	/*
+	 * Uh-oh. We have a name that's approaching PATH_MAX. Allocate a
+	 * separate struct filename so we can dedicate the entire
+	 * names_cache allocation for the pathname, and re-do the copy from
+	 * userland.
+	 */
+	if (len == EMBEDDED_NAME_MAX && max == EMBEDDED_NAME_MAX) {
+		kname = (char *)result;
+
+		result = kzalloc(sizeof(*result), GFP_KERNEL);
+		if (!result) {
+			err = ERR_PTR(-ENOMEM);
+			result = (struct filename *)kname;
+			goto error;
+		}
+		result->name = kname;
+		result->separate = true;
+		max = PATH_MAX;
+		goto recopy;
 	}
 
 	/* The empty path is special. */
@@ -163,15 +192,15 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	}
 
 	err = ERR_PTR(-ENAMETOOLONG);
-	if (likely(len < PATH_MAX)) {
-		audit_getname(result);
-		return result;
-	}
+	if (unlikely(len >= PATH_MAX))
+		goto error;
+
+	result->uptr = filename;
+	audit_getname(result);
+	return result;
 
 error:
-	__putname(kname);
-error_free_name:
-	kfree(result);
+	final_putname(result);
 	return err;
 }
 
