@@ -300,7 +300,7 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 	u32 scd_sram_addr = trans_pcie->scd_base_addr +
-		SCD_TX_STTS_MEM_LOWER_BOUND + (16 * txq->q.id);
+				SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
 	u8 buf[16];
 	int i;
 
