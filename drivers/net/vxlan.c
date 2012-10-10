@@ -28,7 +28,6 @@
 #include <linux/igmp.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
-#include <linux/version.h>
 #include <linux/hash.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -1084,13 +1083,13 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_VXLAN_ID, vxlan->vni))
 		goto nla_put_failure;
 
-	if (vxlan->gaddr && nla_put_u32(skb, IFLA_VXLAN_GROUP, vxlan->gaddr))
+	if (vxlan->gaddr && nla_put_be32(skb, IFLA_VXLAN_GROUP, vxlan->gaddr))
 		goto nla_put_failure;
 
 	if (vxlan->link && nla_put_u32(skb, IFLA_VXLAN_LINK, vxlan->link))
 		goto nla_put_failure;
 
-	if (vxlan->saddr && nla_put_u32(skb, IFLA_VXLAN_LOCAL, vxlan->saddr))
+	if (vxlan->saddr && nla_put_be32(skb, IFLA_VXLAN_LOCAL, vxlan->saddr))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_VXLAN_TTL, vxlan->ttl) ||

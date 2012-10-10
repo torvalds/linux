@@ -380,9 +380,11 @@ static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
 	/* Collecting data 4 bytes at a time upto MEMWIN0_APERTURE */
 	for (i = 0; i < MEMWIN0_APERTURE; i = i+0x4) {
 		if (dir)
-			*data++ = t4_read_reg(adap, (MEMWIN0_BASE + i));
+			*data++ = (__force __be32) t4_read_reg(adap,
+							(MEMWIN0_BASE + i));
 		else
-			t4_write_reg(adap, (MEMWIN0_BASE + i), *data++);
+			t4_write_reg(adap, (MEMWIN0_BASE + i),
+				     (__force u32) *data++);
 	}
 
 	return 0;
@@ -417,7 +419,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	if ((addr & 0x3) || (len & 0x3))
 		return -EINVAL;
 
-	data = vmalloc(MEMWIN0_APERTURE/sizeof(__be32));
+	data = vmalloc(MEMWIN0_APERTURE);
 	if (!data)
 		return -ENOMEM;
 
@@ -744,7 +746,7 @@ static int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		if (ret)
 			return ret;
 		if (byte_oriented)
-			*data = htonl(*data);
+			*data = (__force __u32) (htonl(*data));
 	}
 	return 0;
 }
@@ -992,7 +994,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	int ret, addr;
 	unsigned int i;
 	u8 first_page[SF_PAGE_SIZE];
-	const u32 *p = (const u32 *)fw_data;
+	const __be32 *p = (const __be32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 	unsigned int fw_img_start = adap->params.sf_fw_start;
@@ -2315,7 +2317,8 @@ int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
 	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
 
 	for (i = 0; i < len; i += 4)
-		*data++ = t4_read_reg(adap, (MEMWIN0_BASE + off + i));
+		*data++ = (__force __be32) t4_read_reg(adap,
+						(MEMWIN0_BASE + off + i));
 
 	return 0;
 }
