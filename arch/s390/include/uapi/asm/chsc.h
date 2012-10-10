@@ -1,7 +1,7 @@
 /*
  * ioctl interface for /dev/chsc
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  */
 
@@ -9,8 +9,11 @@
 #define _ASM_CHSC_H
 
 #include <linux/types.h>
+#include <linux/ioctl.h>
 #include <asm/chpid.h>
 #include <asm/schid.h>
+
+#define CHSC_SIZE 0x1000
 
 struct chsc_async_header {
 	__u16 length;
@@ -23,15 +26,14 @@ struct chsc_async_header {
 
 struct chsc_async_area {
 	struct chsc_async_header header;
-	__u8 data[PAGE_SIZE - 16 /* size of chsc_async_header */];
+	__u8 data[CHSC_SIZE - sizeof(struct chsc_async_header)];
 } __attribute__ ((packed));
-
 
 struct chsc_response_struct {
 	__u16 length;
 	__u16 code;
 	__u32 parms;
-	__u8 data[PAGE_SIZE - 8];
+	__u8 data[CHSC_SIZE - 2 * sizeof(__u16) - sizeof(__u32)];
 } __attribute__ ((packed));
 
 struct chsc_chp_cd {

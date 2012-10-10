@@ -295,7 +295,7 @@ sysc_sigpending:
 	jno	sysc_return
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
 	lghi	%r8,0			# svc 0 returns -ENOSYS
-	lh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
+	llgh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
 	cghi	%r1,NR_syscalls
 	jnl	sysc_nr_ok		# invalid svc number -> do svc 0
 	slag	%r8,%r1,2
