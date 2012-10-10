@@ -23,6 +23,7 @@
 
 #include <asm/hwcap.h>
 
+#ifdef __KERNEL__
 /* AArch32-specific ptrace requests */
 #define COMPAT_PTRACE_GETREGS		12
 #define COMPAT_PTRACE_SETREGS		13
@@ -32,6 +33,7 @@
 #define COMPAT_PTRACE_SETVFPREGS	28
 #define COMPAT_PTRACE_GETHBPREGS	29
 #define COMPAT_PTRACE_SETHBPREGS	30
+#endif
 
 /*
  * PSR bits
@@ -47,9 +49,11 @@
 
 /* AArch32 CPSR bits */
 #define PSR_MODE32_BIT		0x00000010
+#ifdef __KERNEL__
 #define COMPAT_PSR_MODE_USR	0x00000010
 #define COMPAT_PSR_T_BIT	0x00000020
 #define COMPAT_PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
+#endif
 
 /* AArch64 SPSR bits */
 #define PSR_F_BIT	0x00000040
@@ -70,13 +74,15 @@
 #define PSR_x		0x0000ff00	/* Extension		*/
 #define PSR_c		0x000000ff	/* Control		*/
 
+#ifdef __KERNEL__
 /*
  * These are 'magic' values for PTRACE_PEEKUSR that return info about where a
  * process is located in memory.
  */
-#define PT_TEXT_ADDR		0x10000
-#define PT_DATA_ADDR		0x10004
-#define PT_TEXT_END_ADDR	0x10008
+#define COMPAT_PT_TEXT_ADDR		0x10000
+#define COMPAT_PT_DATA_ADDR		0x10004
+#define COMPAT_PT_TEXT_END_ADDR		0x10008
+#endif
 
 #ifndef __ASSEMBLY__
 

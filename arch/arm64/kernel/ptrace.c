@@ -823,11 +823,11 @@ static int compat_ptrace_read_user(struct task_struct *tsk, compat_ulong_t off,
 	if (off & 3)
 		return -EIO;
 
-	if (off == PT_TEXT_ADDR)
+	if (off == COMPAT_PT_TEXT_ADDR)
 		tmp = tsk->mm->start_code;
-	else if (off == PT_DATA_ADDR)
+	else if (off == COMPAT_PT_DATA_ADDR)
 		tmp = tsk->mm->start_data;
-	else if (off == PT_TEXT_END_ADDR)
+	else if (off == COMPAT_PT_TEXT_END_ADDR)
 		tmp = tsk->mm->end_code;
 	else if (off < sizeof(compat_elf_gregset_t))
 		return copy_regset_to_user(tsk, &user_aarch32_view,

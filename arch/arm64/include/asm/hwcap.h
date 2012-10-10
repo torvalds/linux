@@ -22,6 +22,7 @@
 #define HWCAP_FP		(1 << 0)
 #define HWCAP_ASIMD		(1 << 1)
 
+#ifdef __KERNEL__
 #define COMPAT_HWCAP_HALF	(1 << 1)
 #define COMPAT_HWCAP_THUMB	(1 << 2)
 #define COMPAT_HWCAP_FAST_MULT	(1 << 4)
@@ -35,7 +36,6 @@
 #define COMPAT_HWCAP_IDIVT	(1 << 18)
 #define COMPAT_HWCAP_IDIV	(COMPAT_HWCAP_IDIVA|COMPAT_HWCAP_IDIVT)
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 /*
  * This yields a mask that user programs can use to figure out what
