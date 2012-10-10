@@ -625,15 +625,4 @@ static struct platform_driver davinci_driver = {
 MODULE_DESCRIPTION("DaVinci MUSB Glue Layer");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init davinci_init(void)
-{
-	return platform_driver_register(&davinci_driver);
-}
-module_init(davinci_init);
-
-static void __exit davinci_exit(void)
-{
-	platform_driver_unregister(&davinci_driver);
-}
-module_exit(davinci_exit);
+module_platform_driver(davinci_driver);
