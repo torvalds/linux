@@ -131,7 +131,8 @@ void ath9k_ps_restore(struct ath_softc *sc)
 		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 				     PS_WAIT_FOR_CAB |
 				     PS_WAIT_FOR_PSPOLL_DATA |
-				     PS_WAIT_FOR_TX_ACK))) {
+				     PS_WAIT_FOR_TX_ACK |
+				     PS_WAIT_FOR_ANI))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
 		if (ath9k_hw_btcoex_is_enabled(sc->sc_ah))
 			ath9k_btcoex_stop_gen_timer(sc);

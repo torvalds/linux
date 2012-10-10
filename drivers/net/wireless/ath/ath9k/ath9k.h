@@ -437,6 +437,7 @@ void ath9k_set_beacon(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL_INT  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
+#define ATH_ANI_MAX_SKIP_COUNT  10
 
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
 #define ATH_PLL_WORK_INTERVAL   100
@@ -642,6 +643,7 @@ enum sc_op_flags {
 #define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
 #define PS_WAIT_FOR_TX_ACK        BIT(3)
 #define PS_BEACON_SYNC            BIT(4)
+#define PS_WAIT_FOR_ANI           BIT(5)
 
 struct ath_rate_table;
 
