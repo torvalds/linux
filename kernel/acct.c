@@ -193,7 +193,7 @@ static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
 	}
 }
 
-static int acct_on(char *name)
+static int acct_on(const char *name)
 {
 	struct file *file;
 	struct vfsmount *mnt;
