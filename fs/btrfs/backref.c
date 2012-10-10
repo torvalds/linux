@@ -1186,7 +1186,7 @@ static char *ref_to_path(struct btrfs_root *fs_root,
 	int slot;
 	u64 next_inum;
 	int ret;
-	s64 bytes_left = size - 1;
+	s64 bytes_left = ((s64)size) - 1;
 	struct extent_buffer *eb = eb_in;
 	struct btrfs_key found_key;
 	int leave_spinning = path->leave_spinning;
