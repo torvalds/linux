@@ -538,6 +538,8 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
 	regs->ip = ip;
 }
 
+ssize_t x86_event_sysfs_show(char *page, u64 config);
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
