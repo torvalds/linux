@@ -572,23 +572,6 @@ static struct snd_soc_dai_driver wm8770_dai = {
 	.symmetric_rates = 1
 };
 
-#ifdef CONFIG_PM
-static int wm8770_suspend(struct snd_soc_codec *codec)
-{
-	wm8770_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8770_resume(struct snd_soc_codec *codec)
-{
-	wm8770_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8770_suspend NULL
-#define wm8770_resume NULL
-#endif
-
 static int wm8770_probe(struct snd_soc_codec *codec)
 {
 	struct wm8770_priv *wm8770;
@@ -642,8 +625,6 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 		goto err_reg_enable;
 	}
 
-	wm8770_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	/* latch the volume update bits */
 	snd_soc_update_bits(codec, WM8770_MSDIGVOL, 0x100, 0x100);
 	snd_soc_update_bits(codec, WM8770_MSALGVOL, 0x100, 0x100);
@@ -680,7 +661,6 @@ static int wm8770_remove(struct snd_soc_codec *codec)
 	int i;
 
 	wm8770 = snd_soc_codec_get_drvdata(codec);
-	wm8770_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); ++i)
 		regulator_unregister_notifier(wm8770->supplies[i].consumer,
@@ -692,8 +672,6 @@ static int wm8770_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
 	.probe = wm8770_probe,
 	.remove = wm8770_remove,
-	.suspend = wm8770_suspend,
-	.resume = wm8770_resume,
 	.set_bias_level = wm8770_set_bias_level,
 	.idle_bias_off = true,
 };
