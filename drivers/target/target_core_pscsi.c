@@ -1001,7 +1001,8 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 	 */
 	switch (cdb[0]) {
 	case REPORT_LUNS:
-		return spc_emulate_report_luns(cmd);
+		cmd->execute_cmd = spc_emulate_report_luns;
+		return 0;
 	case READ_6:
 	case READ_10:
 	case READ_12:
