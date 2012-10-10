@@ -7902,8 +7902,7 @@ static struct intel_quirk intel_quirks[] = {
 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
 
-	/* 855 & before need to leave pipe A & dpll A up */
-	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	/* 830/845 need to leave pipe A & dpll A up */
 	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 
