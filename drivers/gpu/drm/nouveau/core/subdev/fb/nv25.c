@@ -60,9 +60,7 @@ nv25_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
 	struct nv25_fb_priv *priv;
-	u32 pbus1218;
 	int ret;
 
 	ret = nouveau_fb_create(parent, engine, oclass, &priv);
@@ -70,29 +68,14 @@ nv25_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	pbus1218 = nv_rd32(priv, 0x001218);
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: priv->base.ram.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: priv->base.ram.type = NV_MEM_TYPE_GDDR2; break;
-	}
-	priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
-
-	if (device->chipset >= 0x25)
-		ret = nouveau_mm_init(&priv->base.tags, 0, 64 * 1024, 1);
-	else
-		ret = nouveau_mm_init(&priv->base.tags, 0, 32 * 1024, 1);
-	if (ret)
-		return ret;
-
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	priv->base.ram.init = nv20_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv20_fb_tile_init;
 	priv->base.tile.comp = nv25_fb_tile_comp;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
-	return nouveau_fb_created(&priv->base);
+	return nouveau_fb_preinit(&priv->base);
 }
 
 struct nouveau_oclass

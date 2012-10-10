@@ -64,6 +64,7 @@ nouveau-y += core/subdev/devinit/nv50.o
 nouveau-y += core/subdev/fb/base.o
 nouveau-y += core/subdev/fb/nv04.o
 nouveau-y += core/subdev/fb/nv10.o
+nouveau-y += core/subdev/fb/nv1a.o
 nouveau-y += core/subdev/fb/nv20.o
 nouveau-y += core/subdev/fb/nv25.o
 nouveau-y += core/subdev/fb/nv30.o

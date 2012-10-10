@@ -30,6 +30,21 @@ struct nv40_fb_priv {
 	struct nouveau_fb base;
 };
 
+static int
+nv40_fb_vram_init(struct nouveau_fb *pfb)
+{
+	u32 pbus1218 = nv_rd32(pfb, 0x001218);
+	switch (pbus1218 & 0x00000300) {
+	case 0x00000000: pfb->ram.type = NV_MEM_TYPE_SDRAM; break;
+	case 0x00000100: pfb->ram.type = NV_MEM_TYPE_DDR1; break;
+	case 0x00000200: pfb->ram.type = NV_MEM_TYPE_GDDR3; break;
+	case 0x00000300: pfb->ram.type = NV_MEM_TYPE_DDR2; break;
+	}
+
+	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	return nv_rd32(pfb, 0x100320);
+}
+
 static void
 nv40_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
@@ -56,9 +71,7 @@ nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
 	struct nv40_fb_priv *priv;
-	u32 pbus1218;
 	int ret;
 
 	ret = nouveau_fb_create(parent, engine, oclass, &priv);
@@ -66,23 +79,14 @@ nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	pbus1218 = nv_rd32(priv, 0x001218);
-	switch (pbus1218 & 0x00000300) {
-	case 0x00000000: priv->base.ram.type = NV_MEM_TYPE_SDRAM; break;
-	case 0x00000100: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000200: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 0x00000300: priv->base.ram.type = NV_MEM_TYPE_DDR2; break;
-	}
-
-	priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
-
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	priv->base.ram.init = nv40_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv30_fb_tile_init;
 	priv->base.tile.comp = nv40_fb_tile_comp;
 	priv->base.tile.fini = nv30_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
-	return nouveau_fb_created(&priv->base);
+	return nouveau_fb_preinit(&priv->base);
 }
 
 

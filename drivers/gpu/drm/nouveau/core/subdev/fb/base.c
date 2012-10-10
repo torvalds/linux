@@ -57,25 +57,45 @@ nouveau_fb_bios_memtype(struct nouveau_bios *bios)
 }
 
 int
-nouveau_fb_init(struct nouveau_fb *pfb)
+nouveau_fb_preinit(struct nouveau_fb *pfb)
 {
-	int ret, i;
+	static const char *name[] = {
+		[NV_MEM_TYPE_UNKNOWN] = "unknown",
+		[NV_MEM_TYPE_STOLEN ] = "stolen system memory",
+		[NV_MEM_TYPE_SGRAM  ] = "SGRAM",
+		[NV_MEM_TYPE_SDRAM  ] = "SDRAM",
+		[NV_MEM_TYPE_DDR1   ] = "DDR1",
+		[NV_MEM_TYPE_DDR2   ] = "DDR2",
+		[NV_MEM_TYPE_DDR3   ] = "DDR3",
+		[NV_MEM_TYPE_GDDR2  ] = "GDDR2",
+		[NV_MEM_TYPE_GDDR3  ] = "GDDR3",
+		[NV_MEM_TYPE_GDDR4  ] = "GDDR4",
+		[NV_MEM_TYPE_GDDR5  ] = "GDDR5",
+	};
+	int ret, tags;
 
-	ret = nouveau_subdev_init(&pfb->base);
-	if (ret)
-		return ret;
+	tags = pfb->ram.init(pfb);
+	if (tags < 0 || !pfb->ram.size) {
+		nv_fatal(pfb, "error detecting memory configuration!!\n");
+		return (tags < 0) ? tags : -ERANGE;
+	}
 
-	for (i = 0; i < pfb->tile.regions; i++)
-		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
+	if (!nouveau_mm_initialised(&pfb->vram)) {
+		ret = nouveau_mm_init(&pfb->vram, 0, pfb->ram.size >> 12, 1);
+		if (ret)
+			return ret;
+	}
 
+	if (!nouveau_mm_initialised(&pfb->tags) && tags) {
+		ret = nouveau_mm_init(&pfb->tags, 0, ++tags, 1);
+		if (ret)
+			return ret;
+	}
+
+	nv_info(pfb, "RAM type: %s\n", name[pfb->ram.type]);
+	nv_info(pfb, "RAM size: %d MiB\n", (int)(pfb->ram.size >> 20));
+	nv_info(pfb, "   ZCOMP: %d tags\n", tags);
 	return 0;
-}
-
-int
-_nouveau_fb_init(struct nouveau_object *object)
-{
-	struct nouveau_fb *pfb = (void *)object;
-	return nouveau_fb_init(pfb);
 }
 
 void
@@ -97,30 +117,24 @@ _nouveau_fb_dtor(struct nouveau_object *object)
 	struct nouveau_fb *pfb = (void *)object;
 	nouveau_fb_destroy(pfb);
 }
+int
+nouveau_fb_init(struct nouveau_fb *pfb)
+{
+	int ret, i;
+
+	ret = nouveau_subdev_init(&pfb->base);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < pfb->tile.regions; i++)
+		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
+
+	return 0;
+}
 
 int
-nouveau_fb_created(struct nouveau_fb *pfb)
+_nouveau_fb_init(struct nouveau_object *object)
 {
-	static const char *name[] = {
-		[NV_MEM_TYPE_UNKNOWN] = "unknown",
-		[NV_MEM_TYPE_STOLEN ] = "stolen system memory",
-		[NV_MEM_TYPE_SGRAM  ] = "SGRAM",
-		[NV_MEM_TYPE_SDRAM  ] = "SDRAM",
-		[NV_MEM_TYPE_DDR1   ] = "DDR1",
-		[NV_MEM_TYPE_DDR2   ] = "DDR2",
-		[NV_MEM_TYPE_DDR3   ] = "DDR3",
-		[NV_MEM_TYPE_GDDR2  ] = "GDDR2",
-		[NV_MEM_TYPE_GDDR3  ] = "GDDR3",
-		[NV_MEM_TYPE_GDDR4  ] = "GDDR4",
-		[NV_MEM_TYPE_GDDR5  ] = "GDDR5",
-	};
-
-	if (pfb->ram.size == 0) {
-		nv_fatal(pfb, "no vram detected!!\n");
-		return -ERANGE;
-	}
-
-	nv_info(pfb, "RAM type: %s\n", name[pfb->ram.type]);
-	nv_info(pfb, "RAM size: %d MiB\n", (int)(pfb->ram.size >> 20));
-	return 0;
+	struct nouveau_fb *pfb = (void *)object;
+	return nouveau_fb_init(pfb);
 }
