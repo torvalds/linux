@@ -105,20 +105,15 @@ static int skel_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
+	retval = usb_autopm_get_interface(interface);
+	if (retval)
+		goto exit;
+
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
 
-	/* lock the device to allow correctly handling errors
-	 * in resumption */
-	mutex_lock(&dev->io_mutex);
-
-	retval = usb_autopm_get_interface(interface);
-	if (retval)
-		goto out_err;
-
 	/* save our object in the file's private structure */
 	file->private_data = dev;
-	mutex_unlock(&dev->io_mutex);
 
 exit:
 	return retval;
