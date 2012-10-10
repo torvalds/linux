@@ -20,12 +20,8 @@
 #ifndef __ASM_ARCH_AUTCPU12_H
 #define __ASM_ARCH_AUTCPU12_H
 
-/*
- * The CS8900A ethernet chip has its I/O registers wired to chip select 2
- * (nCS2). This is the mapping for it.
- */
-#define AUTCPU12_PHYS_CS8900A		CS2_PHYS_BASE		/* physical */
-#define AUTCPU12_VIRT_CS8900A		(0xfe000000)		/* virtual */
+/* The CS8900A ethernet chip has its I/O registers wired to chip select 2 */
+#define AUTCPU12_PHYS_CS8900A		CS2_PHYS_BASE
 
 /*
  * The flash bank is wired to chip select 0
@@ -34,11 +30,9 @@
 
 /* offset for device specific information structure */
 #define AUTCPU12_LCDINFO_OFFS		(0x00010000)	
-/*
-* Videomemory is the internal SRAM (CS 6)	
-*/
+
+/* Videomemory in the internal SRAM (CS 6) */
 #define AUTCPU12_PHYS_VIDEO		CS6_PHYS_BASE
-#define AUTCPU12_VIRT_VIDEO		(0xfd000000)
 
 /*
 * All special IO's are tied to CS1

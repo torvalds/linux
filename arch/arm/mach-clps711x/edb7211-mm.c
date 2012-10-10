@@ -51,23 +51,23 @@ extern void clps711x_map_io(void);
  *     happens).
  */
 static struct map_desc edb7211_io_desc[] __initdata = {
- 	{	/* memory-mapped extra keyboard row */
-	 	.virtual 	= EP7211_VIRT_EXTKBD,
+	{	/* Memory-mapped extra keyboard row */
+		.virtual 	= IO_ADDRESS(EP7211_PHYS_EXTKBD),
 		.pfn		= __phys_to_pfn(EP7211_PHYS_EXTKBD),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE,
-	}, {	/* and CS8900A Ethernet chip */
-		.virtual	= EP7211_VIRT_CS8900A,
+	}, {	/* CS8900A Ethernet chip */
+		.virtual	= IO_ADDRESS(EP7211_PHYS_CS8900A),
 		.pfn		= __phys_to_pfn(EP7211_PHYS_CS8900A),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE,
-	}, { 	/* flash banks */
-		.virtual	= EP7211_VIRT_FLASH1,
+	}, {	/* Flash bank 0 */
+		.virtual	= IO_ADDRESS(EP7211_PHYS_FLASH1),
 		.pfn		= __phys_to_pfn(EP7211_PHYS_FLASH1),
 		.length		= SZ_8M,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= EP7211_VIRT_FLASH2,
+	}, {	/* Flash bank 1 */
+		.virtual	= IO_ADDRESS(EP7211_PHYS_FLASH2),
 		.pfn		= __phys_to_pfn(EP7211_PHYS_FLASH2),
 		.length		= SZ_8M,
 		.type		= MT_DEVICE,
