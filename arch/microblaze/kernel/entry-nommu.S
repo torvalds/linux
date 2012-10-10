@@ -567,10 +567,6 @@ sys_clone:
 	brid	microblaze_clone
 	addk	r7, r1, r0
 
-sys_execve:
-	brid	microblaze_execve
-	addk	r8, r1, r0
-
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0

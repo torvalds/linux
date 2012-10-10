@@ -489,10 +489,6 @@ C_ENTRY(sys_clone):
 	brid	do_fork		/* Do real work (tail-call) */
 	add     r8, r0, r0;             /* Arg 3: (unused) */
 
-C_ENTRY(sys_execve):
-	brid	microblaze_execve;	/* Do real work (tail-call).*/
-	addik	r8, r1, 0;		/* add user context as 4th arg */
-
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	brid	sys_rt_sigreturn	/* Do real work */
 	addik	r5, r1, 0;		/* add user context as 1st arg */

@@ -48,24 +48,6 @@ asmlinkage long microblaze_clone(int flags, unsigned long stack,
 	return do_fork(flags, stack, regs, 0, NULL, NULL);
 }
 
-asmlinkage long microblaze_execve(const char __user *filenamei,
-				  const char __user *const __user *argv,
-				  const char __user *const __user *envp,
-				  struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, off_t pgoff)
