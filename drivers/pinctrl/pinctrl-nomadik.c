@@ -44,11 +44,11 @@ static inline u32 prcmu_read(unsigned int reg) {
 static inline void prcmu_write(unsigned int reg, u32 value) {}
 static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
 #endif
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/mach/irq.h>
 
 #include <plat/pincfg.h>
-#include <plat/gpio-nomadik.h>
 
 #include "pinctrl-nomadik.h"
 

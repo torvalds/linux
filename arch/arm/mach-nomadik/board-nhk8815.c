@@ -24,6 +24,7 @@
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 #include <asm/hardware/vic.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
@@ -32,7 +33,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
 
-#include <plat/gpio-nomadik.h>
 #include <plat/mtu.h>
 #include <plat/pincfg.h>
 

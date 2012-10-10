@@ -4,7 +4,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
 #include <linux/platform_device.h>
-#include <plat/gpio-nomadik.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 #include <plat/pincfg.h>
 
 /*
