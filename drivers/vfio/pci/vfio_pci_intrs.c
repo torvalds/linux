@@ -400,18 +400,19 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 		return PTR_ERR(trigger);
 	}
 
+	vdev->ctx[0].trigger = trigger;
+
 	if (!vdev->pci_2_3)
 		irqflags = 0;
 
 	ret = request_irq(pdev->irq, vfio_intx_handler,
 			  irqflags, vdev->ctx[0].name, vdev);
 	if (ret) {
+		vdev->ctx[0].trigger = NULL;
 		kfree(vdev->ctx[0].name);
 		eventfd_ctx_put(trigger);
 		return ret;
 	}
-
-	vdev->ctx[0].trigger = trigger;
 
 	/*
 	 * INTx disable will stick across the new irq setup,
