@@ -257,10 +257,9 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	int rc;
 
 	match = of_match_device(sdhci_tegra_dt_match, &pdev->dev);
-	if (match)
-		soc_data = match->data;
-	else
-		soc_data = &soc_data_tegra20;
+	if (!match)
+		return -EINVAL;
+	soc_data = match->data;
 
 	host = sdhci_pltfm_init(pdev, soc_data->pdata);
 	if (IS_ERR(host))

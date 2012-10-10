@@ -1544,7 +1544,7 @@ S:	Supported
 F:	drivers/rtc/rtc-bfin.c
 
 BLACKFIN SDH DRIVER
-M:	Cliff Cai <cliff.cai@analog.com>
+M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
@@ -5207,8 +5207,10 @@ S:	Maintained
 F:	drivers/mmc/host/omap.c
 
 OMAP HS MMC SUPPORT
+M:	Venkatraman S <svenkatr@ti.com>
+L:	linux-mmc@vger.kernel.org
 L:	linux-omap@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	drivers/mmc/host/omap_hsmmc.c
 
 OMAP RANDOM NUMBER GENERATOR SUPPORT
