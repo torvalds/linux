@@ -2,10 +2,10 @@ config TS_FT5306
   bool "touch screen ft5306"
 	default n
  
-config TS_CT360
-  bool "touch screen ct360"
-	default n
-
 config TS_GT8110
   bool "touch screen gt8110"
-	default n	  
+	default n	
+
+config TS_GT828
+  bool "touch screen gt828"
+	default n

@@ -6,6 +6,8 @@
 #define	TS_DISABLE	0
 #define TS_UNKNOW_DATA	-1
 #define	TS_MAX_POINT	20
+#define	TS_MAX_VER_LEN	64
+
 
 enum ts_id {
 	TS_ID_INVALID = 0,
@@ -13,6 +15,7 @@ enum ts_id {
 	TS_ID_FT5306,
 	TS_ID_CT360,
 	TS_ID_GT8110,
+	TS_ID_GT828,
 	
 	TS_NUM_ID,
 };
@@ -51,9 +54,13 @@ struct ts_operate {
 	char *name;
 	char slave_addr;
 	int id_i2c;
-	struct ts_max_pixel pixel;	
+	struct ts_max_pixel pixel;
+	int reg_size;
 	int id_reg;
 	int id_data;
+	int version_reg;
+	char *version_data;
+	int version_len;	//<64
 	int read_reg;
 	int read_len;
 	int trig;	//intterupt trigger
@@ -65,7 +72,7 @@ struct ts_operate {
 	int irq_enable;         //if irq_enable=1 then use irq else use polling  
 	int poll_delay_ms;      //polling
 	int gpio_level_no_int;
-	int (*active)(struct i2c_client *client, int enable);	
+	int (*active)(struct i2c_client *client, int enable);
 	int (*init)(struct i2c_client *client);	
 	int (*check_irq)(struct i2c_client *client);
 	int (*report)(struct i2c_client *client);
@@ -111,6 +118,7 @@ extern int ts_unregister_slave(struct i2c_client *client,
 
 extern int ts_rx_data(struct i2c_client *client, char *rxData, int length);
 extern int ts_tx_data(struct i2c_client *client, char *txData, int length);
+extern int ts_rx_data_word(struct i2c_client *client, char *rxData, int length);
 extern int ts_write_reg(struct i2c_client *client, int addr, int value);
 extern int ts_read_reg(struct i2c_client *client, int addr);
 extern int ts_tx_data_normal(struct i2c_client *client, char *buf, int num);

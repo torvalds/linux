@@ -71,7 +71,7 @@ static int ts_i2c_write(struct i2c_adapter *i2c_adap,
 
 static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
 			   unsigned char address, unsigned char reg,
-			   unsigned int len, unsigned char *data)
+			   unsigned int tx_len, unsigned int rx_len, unsigned char *data)
 {
 	struct i2c_msg msgs[2];
 	int res;
@@ -84,13 +84,13 @@ static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
 	msgs[0].addr = address;
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = &reg;
-	msgs[0].len = 1;
+	msgs[0].len = tx_len;
 	msgs[0].scl_rate = TS_I2C_RATE;
 	
 	msgs[1].addr = address;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].buf = data;
-	msgs[1].len = len;
+	msgs[1].len = rx_len;
 	msgs[1].scl_rate = TS_I2C_RATE;	
 
 	res = i2c_transfer(i2c_adap, msgs, 2);
@@ -113,7 +113,7 @@ int ts_rx_data(struct i2c_client *client, char *rxData, int length)
 #endif
 	int ret = 0;
 	char reg = rxData[0];
-	ret = senosr_i2c_read(client->adapter, client->addr, reg, length, rxData);
+	ret = senosr_i2c_read(client->adapter, client->addr, reg, 1, length, rxData);
 	
 #ifdef TS_DEBUG_ENABLE
 	DBG("addr=0x%x,len=%d,rxdata:",reg,length);
@@ -124,6 +124,28 @@ int ts_rx_data(struct i2c_client *client, char *rxData, int length)
 	return ret;
 }
 EXPORT_SYMBOL(ts_rx_data);
+
+int ts_rx_data_word(struct i2c_client *client, char *rxData, int length)
+{
+#ifdef TS_DEBUG_ENABLE
+	struct ts_private_data* ts = 
+		(struct ts_private_data *)i2c_get_clientdata(client);
+	int i = 0;
+#endif
+	int ret = 0;
+	char reg = rxData[0];
+	ret = senosr_i2c_read(client->adapter, client->addr, reg, 2, length, rxData);
+	
+#ifdef TS_DEBUG_ENABLE
+	DBG("addr=0x%x,len=%d,rxdata:",reg,length);
+	for(i=0; i<length; i++)
+		DBG("0x%x,",rxData[i]);
+	DBG("\n");
+#endif	
+	return ret;
+}
+EXPORT_SYMBOL(ts_rx_data_word);
+
 
 int ts_tx_data(struct i2c_client *client, char *txData, int length)
 {

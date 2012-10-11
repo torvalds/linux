@@ -51,18 +51,29 @@ static int ts_get_id(struct ts_operate *ops, struct i2c_client *client, int *val
 	struct ts_private_data *ts =
 	    (struct ts_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	char temp = ops->id_reg;
+	char temp[4] = {ops->id_reg & 0xff};
 	int i = 0;
 	
 	DBG("%s:start\n",__func__);
 	if(ops->id_reg >= 0)
 	{
-		for(i=0; i<1; i++)
+		for(i=0; i<2; i++)
 		{
-			result = ts_rx_data(client, &temp, 1);
-			*value = temp;
+			if(ops->reg_size == 2)
+			{
+				temp[0] = ops->id_reg >> 8;
+				temp[1] = ops->id_reg & 0xff;
+				result = ts_rx_data_word(client, &temp, 2);
+				*value = (temp[0] << 8) | temp[1];
+			}
+			else
+			{
+				result = ts_rx_data(client, &temp, 1);
+				*value = temp[0];
+			}
 			if(!result)
 			break;
+
 		}
 
 		if(result)
@@ -75,6 +86,55 @@ static int ts_get_id(struct ts_operate *ops, struct i2c_client *client, int *val
 		}
 			
 		DBG("%s:devid=0x%x\n",__func__,*value);
+	}
+
+	return result;
+}
+
+
+static int ts_get_version(struct ts_operate *ops, struct i2c_client *client)
+{
+	struct ts_private_data *ts =
+	    (struct ts_private_data *) i2c_get_clientdata(client);	
+	int result = 0;
+	char temp[TS_MAX_VER_LEN + 1] = {0};
+	int i = 0;
+	
+	DBG("%s:start\n",__func__);
+	
+	if(ops->version_reg >= 0)
+	{
+		if((ops->version_len < 0) || (ops->version_len > TS_MAX_VER_LEN))
+		{
+			printk("%s:version_len is error\n",__func__,ops->version_len);
+			ops->version_len = TS_MAX_VER_LEN;
+		}
+	
+		if(ops->reg_size == 2)
+		{
+			result = ts_rx_data_word(client, temp, ops->version_len);
+		}
+		else
+		{
+			result = ts_rx_data(client, temp, ops->version_len);
+		}
+	
+
+		if(result)
+			return result;
+		
+		if(ops->version_data)
+		{
+			for(i=0; i<ops->version_len; i++)
+			{
+				if(temp[i] == ops->version_data[i])
+					continue;
+				printk("%s:version %s is not %s\n",__func__,temp, ops->version_data);
+				result = -1;
+			}
+		}
+			
+		DBG("%s:%s version: %s\n",__func__,ops->name, temp);
 	}
 
 	return result;
@@ -110,21 +170,28 @@ static int ts_chip_init(struct i2c_client *client)
 		}
 
 		client->addr = ops->slave_addr;	//use slave_addr of ops
-		
+#if 0		
 		if(ops->active)
 		{
 			result = ops->active(client, TS_ENABLE);
 			if(result < 0)
 			{
-				printk("%s:fail to init ts\n",__func__);
+				printk("%s:fail to active ts\n",__func__);
 				continue;
 			}
 		}
-
+#endif
 		result = ts_get_id(ops, client, &ts->devid);//get id
 		if(result < 0)
 		{	
 			printk("%s:fail to read %s devid:0x%x\n",__func__, ops->name, ts->devid);	
+			continue;
+		}
+
+		result = ts_get_version(ops, client);	//get version
+		if(result < 0)
+		{	
+			printk("%s:fail to read %s version\n",__func__, ops->name);	
 			continue;
 		}
 	
