@@ -764,6 +764,7 @@
 				reg = <0x80058000 0x2000>;
 				interrupts = <111 68>;
 				clock-frequency = <100000>;
+				fsl,i2c-dma-channel = <6>;
 				status = "disabled";
 			};
 
@@ -774,6 +775,7 @@
 				reg = <0x8005a000 0x2000>;
 				interrupts = <110 69>;
 				clock-frequency = <100000>;
+				fsl,i2c-dma-channel = <7>;
 				status = "disabled";
 			};
 

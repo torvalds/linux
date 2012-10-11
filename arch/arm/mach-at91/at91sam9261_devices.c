@@ -317,7 +317,6 @@ static struct resource twi_resources[] = {
 };
 
 static struct platform_device at91sam9261_twi_device = {
-	.name		= "at91_i2c",
 	.id		= -1,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),
@@ -325,12 +324,19 @@ static struct platform_device at91sam9261_twi_device = {
 
 void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices)
 {
+	/* IP version is not the same on 9261 and g10 */
+	if (cpu_is_at91sam9g10()) {
+		at91sam9261_twi_device.name = "i2c-at91sam9g10";
+		/* I2C PIO must not be configured as open-drain on this chip */
+	} else {
+		at91sam9261_twi_device.name = "i2c-at91sam9261";
+		at91_set_multi_drive(AT91_PIN_PA7, 1);
+		at91_set_multi_drive(AT91_PIN_PA8, 1);
+	}
+
 	/* pins used for TWI interface */
 	at91_set_A_periph(AT91_PIN_PA7, 0);		/* TWD */
-	at91_set_multi_drive(AT91_PIN_PA7, 1);
-
 	at91_set_A_periph(AT91_PIN_PA8, 0);		/* TWCK */
-	at91_set_multi_drive(AT91_PIN_PA8, 1);
 
 	i2c_register_board_info(0, devices, nr_devices);
 	platform_device_register(&at91sam9261_twi_device);

@@ -294,18 +294,21 @@ comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_AT91 && EXPERIMENTAL && BROKEN
+	depends on ARCH_AT91 && EXPERIMENTAL
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
 
-	  This driver is BROKEN because the controller which it uses
-	  will easily trigger RX overrun and TX underrun errors.  Using
-	  low I2C clock rates may partially work around those issues
-	  on some systems.  Another serious problem is that there is no
-	  documented way to issue repeated START conditions, as needed
+	  A serious problem is that there is no documented way to issue
+	  repeated START conditions for more than two messages, as needed
 	  to support combined I2C messages.  Use the i2c-gpio driver
-	  unless your system can cope with those limitations.
+	  unless your system can cope with this limitation.
+
+	  Caution! at91rm9200, at91sam9261, at91sam9260, at91sam9263 devices
+	  don't have clock stretching in transmission mode. For that reason,
+	  you can encounter underrun issues causing premature stop sendings if
+	  the latency to fill the transmission register is too long. If you
+	  are facing this situation, use the i2c-gpio driver.
 
 config I2C_AU1550
 	tristate "Au1550/Au1200/Au1300 SMBus interface"
@@ -717,6 +720,16 @@ config I2C_XLR
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-xlr.
+
+config I2C_RCAR
+	tristate "Renesas R-Car I2C Controller"
+	depends on ARCH_SHMOBILE && I2C
+	help
+	  If you say yes to this option, support will be included for the
+	  R-Car I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-rcar.
 
 comment "External I2C/SMBus adapter drivers"
 
