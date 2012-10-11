@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2012
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
@@ -12,10 +12,10 @@
 #define __MAX_CHPID 255
 
 struct chp_id {
-	u8 reserved1;
-	u8 cssid;
-	u8 reserved2;
-	u8 id;
+	__u8 reserved1;
+	__u8 cssid;
+	__u8 reserved2;
+	__u8 id;
 } __attribute__((packed));
 
 
