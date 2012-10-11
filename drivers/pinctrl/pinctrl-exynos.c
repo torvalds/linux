@@ -218,46 +218,43 @@ static int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 
 static void exynos_wkup_irq_unmask(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irq_data_get_irq_chip_data(irqd);
-	unsigned int bank = irqd->hwirq / EXYNOS_EINT_MAX_PER_BANK;
-	unsigned int pin = irqd->hwirq & (EXYNOS_EINT_MAX_PER_BANK - 1);
-	unsigned long reg_mask = d->ctrl->weint_mask + (bank << 2);
+	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = b->drvdata;
+	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << pin);
+	mask &= ~(1 << irqd->hwirq);
 	writel(mask, d->virt_base + reg_mask);
 }
 
 static void exynos_wkup_irq_mask(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irq_data_get_irq_chip_data(irqd);
-	unsigned int bank = irqd->hwirq / EXYNOS_EINT_MAX_PER_BANK;
-	unsigned int pin = irqd->hwirq & (EXYNOS_EINT_MAX_PER_BANK - 1);
-	unsigned long reg_mask = d->ctrl->weint_mask + (bank << 2);
+	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = b->drvdata;
+	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask |= 1 << pin;
+	mask |= 1 << irqd->hwirq;
 	writel(mask, d->virt_base + reg_mask);
 }
 
 static void exynos_wkup_irq_ack(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irq_data_get_irq_chip_data(irqd);
-	unsigned int bank = irqd->hwirq / EXYNOS_EINT_MAX_PER_BANK;
-	unsigned int pin = irqd->hwirq & (EXYNOS_EINT_MAX_PER_BANK - 1);
-	unsigned long pend = d->ctrl->weint_pend + (bank << 2);
+	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = b->drvdata;
+	unsigned long pend = d->ctrl->weint_pend + b->eint_offset;
 
-	writel(1 << pin, d->virt_base + pend);
+	writel(1 << irqd->hwirq, d->virt_base + pend);
 }
 
 static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
-	struct samsung_pinctrl_drv_data *d = irq_data_get_irq_chip_data(irqd);
-	unsigned int bank = irqd->hwirq / EXYNOS_EINT_MAX_PER_BANK;
-	unsigned int pin = irqd->hwirq & (EXYNOS_EINT_MAX_PER_BANK - 1);
-	unsigned long reg_con = d->ctrl->weint_con + (bank << 2);
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned int pin = irqd->hwirq;
+	unsigned long reg_con = d->ctrl->weint_con + bank->eint_offset;
 	unsigned long shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned long con, trig_type;
 
@@ -309,6 +306,7 @@ static struct irq_chip exynos_wkup_irq_chip = {
 static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 {
 	struct exynos_weint_data *eintd = irq_get_handler_data(irq);
+	struct samsung_pin_bank *bank = eintd->bank;
 	struct irq_chip *chip = irq_get_chip(irq);
 	int eint_irq;
 
@@ -318,20 +316,20 @@ static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	if (chip->irq_ack)
 		chip->irq_ack(&desc->irq_data);
 
-	eint_irq = irq_linear_revmap(eintd->domain, eintd->irq);
+	eint_irq = irq_linear_revmap(bank->irq_domain, eintd->irq);
 	generic_handle_irq(eint_irq);
 	chip->irq_unmask(&desc->irq_data);
 	chained_irq_exit(chip, desc);
 }
 
-static inline void exynos_irq_demux_eint(int irq_base, unsigned long pend,
-					struct irq_domain *domain)
+static inline void exynos_irq_demux_eint(unsigned long pend,
+						struct irq_domain *domain)
 {
 	unsigned int irq;
 
 	while (pend) {
 		irq = fls(pend) - 1;
-		generic_handle_irq(irq_find_mapping(domain, irq_base + irq));
+		generic_handle_irq(irq_find_mapping(domain, irq));
 		pend &= ~(1 << irq);
 	}
 }
@@ -340,18 +338,22 @@ static inline void exynos_irq_demux_eint(int irq_base, unsigned long pend,
 static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_get_chip(irq);
-	struct exynos_weint_data *eintd = irq_get_handler_data(irq);
-	struct samsung_pinctrl_drv_data *d = eintd->domain->host_data;
+	struct exynos_muxed_weint_data *eintd = irq_get_handler_data(irq);
+	struct samsung_pinctrl_drv_data *d = eintd->banks[0]->drvdata;
+	struct samsung_pin_ctrl *ctrl = d->ctrl;
 	unsigned long pend;
 	unsigned long mask;
+	int i;
 
 	chained_irq_enter(chip, desc);
-	pend = readl(d->virt_base + d->ctrl->weint_pend + 0x8);
-	mask = readl(d->virt_base + d->ctrl->weint_mask + 0x8);
-	exynos_irq_demux_eint(16, pend & ~mask, eintd->domain);
-	pend = readl(d->virt_base + d->ctrl->weint_pend + 0xC);
-	mask = readl(d->virt_base + d->ctrl->weint_mask + 0xC);
-	exynos_irq_demux_eint(24, pend & ~mask, eintd->domain);
+
+	for (i = 0; i < eintd->nr_banks; ++i) {
+		struct samsung_pin_bank *b = eintd->banks[i];
+		pend = readl(d->virt_base + ctrl->weint_pend + b->eint_offset);
+		mask = readl(d->virt_base + ctrl->weint_mask + b->eint_offset);
+		exynos_irq_demux_eint(pend & ~mask, b->irq_domain);
+	}
+
 	chained_irq_exit(chip, desc);
 }
 
@@ -381,7 +383,11 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 	struct device *dev = d->dev;
 	struct device_node *wkup_np = NULL;
 	struct device_node *np;
+	struct samsung_pin_bank *bank;
 	struct exynos_weint_data *weint_data;
+	struct exynos_muxed_weint_data *muxed_data;
+	unsigned int muxed_banks = 0;
+	unsigned int i;
 	int idx, irq;
 
 	for_each_child_of_node(dev->of_node, np) {
@@ -393,40 +399,74 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 	if (!wkup_np)
 		return -ENODEV;
 
-	d->wkup_irqd = irq_domain_add_linear(wkup_np, d->ctrl->nr_wint,
-				&exynos_wkup_irqd_ops, d);
-	if (!d->wkup_irqd) {
-		dev_err(dev, "wakeup irq domain allocation failed\n");
-		return -ENXIO;
+	bank = d->ctrl->pin_banks;
+	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+		if (bank->eint_type != EINT_TYPE_WKUP)
+			continue;
+
+		bank->irq_domain = irq_domain_add_linear(bank->of_node,
+				bank->nr_pins, &exynos_wkup_irqd_ops, bank);
+		if (!bank->irq_domain) {
+			dev_err(dev, "wkup irq domain add failed\n");
+			return -ENXIO;
+		}
+
+		if (!of_find_property(bank->of_node, "interrupts", NULL)) {
+			bank->eint_type = EINT_TYPE_WKUP_MUX;
+			++muxed_banks;
+			continue;
+		}
+
+		weint_data = devm_kzalloc(dev, bank->nr_pins
+					* sizeof(*weint_data), GFP_KERNEL);
+		if (!weint_data) {
+			dev_err(dev, "could not allocate memory for weint_data\n");
+			return -ENOMEM;
+		}
+
+		for (idx = 0; idx < bank->nr_pins; ++idx) {
+			irq = irq_of_parse_and_map(bank->of_node, idx);
+			if (!irq) {
+				dev_err(dev, "irq number for eint-%s-%d not found\n",
+							bank->name, idx);
+				continue;
+			}
+			weint_data[idx].irq = idx;
+			weint_data[idx].bank = bank;
+			irq_set_handler_data(irq, &weint_data[idx]);
+			irq_set_chained_handler(irq, exynos_irq_eint0_15);
+		}
 	}
 
-	weint_data = devm_kzalloc(dev, sizeof(*weint_data) * 17, GFP_KERNEL);
-	if (!weint_data) {
-		dev_err(dev, "could not allocate memory for weint_data\n");
+	if (!muxed_banks)
+		return 0;
+
+	irq = irq_of_parse_and_map(wkup_np, 0);
+	if (!irq) {
+		dev_err(dev, "irq number for muxed EINTs not found\n");
+		return 0;
+	}
+
+	muxed_data = devm_kzalloc(dev, sizeof(*muxed_data)
+		+ muxed_banks*sizeof(struct samsung_pin_bank *), GFP_KERNEL);
+	if (!muxed_data) {
+		dev_err(dev, "could not allocate memory for muxed_data\n");
 		return -ENOMEM;
 	}
 
-	irq = irq_of_parse_and_map(wkup_np, 16);
-	if (irq) {
-		weint_data[16].domain = d->wkup_irqd;
-		irq_set_chained_handler(irq, exynos_irq_demux_eint16_31);
-		irq_set_handler_data(irq, &weint_data[16]);
-	} else {
-		dev_err(dev, "irq number for EINT16-32 not found\n");
-	}
+	irq_set_chained_handler(irq, exynos_irq_demux_eint16_31);
+	irq_set_handler_data(irq, muxed_data);
 
-	for (idx = 0; idx < 16; idx++) {
-		weint_data[idx].domain = d->wkup_irqd;
-		weint_data[idx].irq = idx;
+	bank = d->ctrl->pin_banks;
+	idx = 0;
+	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+		if (bank->eint_type != EINT_TYPE_WKUP_MUX)
+			continue;
 
-		irq = irq_of_parse_and_map(wkup_np, idx);
-		if (irq) {
-			irq_set_handler_data(irq, &weint_data[idx]);
-			irq_set_chained_handler(irq, exynos_irq_eint0_15);
-		} else {
-			dev_err(dev, "irq number for eint-%x not found\n", idx);
-		}
+		muxed_data->banks[idx++] = bank;
 	}
+	muxed_data->nr_banks = muxed_banks;
+
 	return 0;
 }
 
@@ -468,10 +508,10 @@ static struct samsung_pin_bank exynos4210_pin_banks1[] = {
 	EXYNOS_PIN_BANK_EINTN(8, 0x1A0, "gpy4"),
 	EXYNOS_PIN_BANK_EINTN(8, 0x1C0, "gpy5"),
 	EXYNOS_PIN_BANK_EINTN(8, 0x1E0, "gpy6"),
-	EXYNOS_PIN_BANK_EINTN(8, 0xC00, "gpx0"),
-	EXYNOS_PIN_BANK_EINTN(8, 0xC20, "gpx1"),
-	EXYNOS_PIN_BANK_EINTN(8, 0xC40, "gpx2"),
-	EXYNOS_PIN_BANK_EINTN(8, 0xC60, "gpx3"),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC00, "gpx0", 0x00),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC20, "gpx1", 0x04),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC40, "gpx2", 0x08),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC60, "gpx3", 0x0c),
 };
 
 /* pin banks of exynos4210 pin-controller 2 */
@@ -498,7 +538,6 @@ struct samsung_pin_ctrl exynos4210_pin_ctrl[] = {
 		/* pin-controller instance 1 data */
 		.pin_banks	= exynos4210_pin_banks1,
 		.nr_banks	= ARRAY_SIZE(exynos4210_pin_banks1),
-		.nr_wint	= 32,
 		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
 		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
 		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,

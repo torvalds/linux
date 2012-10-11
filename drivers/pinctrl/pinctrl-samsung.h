@@ -66,6 +66,7 @@ enum pincfg_type {
  * @EINT_TYPE_NONE: bank does not support external interrupts
  * @EINT_TYPE_GPIO: bank supportes external gpio interrupts
  * @EINT_TYPE_WKUP: bank supportes external wakeup interrupts
+ * @EINT_TYPE_WKUP_MUX: bank supports multiplexed external wakeup interrupts
  *
  * Samsung GPIO controller groups all the available pins into banks. The pins
  * in a pin bank can support external gpio interrupts or external wakeup
@@ -78,6 +79,7 @@ enum eint_type {
 	EINT_TYPE_NONE,
 	EINT_TYPE_GPIO,
 	EINT_TYPE_WKUP,
+	EINT_TYPE_WKUP_MUX,
 };
 
 /* maximum length of a pin in pin descriptor (example: "gpa0-0") */
@@ -143,7 +145,6 @@ struct samsung_pin_bank {
  * @nr_banks: number of pin banks.
  * @base: starting system wide pin number.
  * @nr_pins: number of pins supported by the controller.
- * @nr_wint: number of external wakeup interrupts supported.
  * @geint_con: offset of the ext-gpio controller registers.
  * @geint_mask: offset of the ext-gpio interrupt mask registers.
  * @geint_pend: offset of the ext-gpio interrupt pending registers.
@@ -163,7 +164,6 @@ struct samsung_pin_ctrl {
 
 	u32		base;
 	u32		nr_pins;
-	u32		nr_wint;
 
 	u32		geint_con;
 	u32		geint_mask;
@@ -206,8 +206,6 @@ struct samsung_pinctrl_drv_data {
 	unsigned int			nr_groups;
 	const struct samsung_pmx_func	*pmx_functions;
 	unsigned int			nr_functions;
-
-	struct irq_domain		*wkup_irqd;
 };
 
 /**
