@@ -135,14 +135,10 @@ void new_thread_handler(void)
 	arg = current->thread.request.u.thread.arg;
 
 	/*
-	 * The return value is 1 if the kernel thread execs a process,
-	 * 0 if it just exits
+	 * callback returns only if the kernel thread execs a process
 	 */
-	n = run_kernel_thread(fn, arg, &current->thread.exec_buf);
-	if (n == 1)
-		userspace(&current->thread.regs.regs);
-	else
-		do_exit(0);
+	n = fn(arg);
+	userspace(&current->thread.regs.regs);
 }
 
 /* Called magically, see new_thread_handler above */

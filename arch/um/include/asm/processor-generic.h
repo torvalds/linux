@@ -26,7 +26,6 @@ struct thread_struct {
 	jmp_buf *fault_catcher;
 	struct task_struct *prev_sched;
 	unsigned long temp_stack;
-	jmp_buf *exec_buf;
 	struct arch_thread arch;
 	jmp_buf switch_buf;
 	int mm_count;
@@ -54,7 +53,6 @@ struct thread_struct {
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \
-	.exec_buf		= NULL, \
 	.arch			= INIT_ARCH_THREAD, \
 	.request		= { 0 } \
 }

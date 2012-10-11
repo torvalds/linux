@@ -47,8 +47,3 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 #endif
 }
 EXPORT_SYMBOL(start_thread);
-
-void __noreturn ret_from_kernel_execve(struct pt_regs *unused)
-{
-	UML_LONGJMP(current->thread.exec_buf, 1);
-}
