@@ -574,7 +574,7 @@ static struct regulator_init_data tps65910_ldo8 = {
 	.num_consumer_supplies = ARRAY_SIZE(tps65910_ldo8_supply),
 	.consumer_supplies =  tps65910_ldo8_supply,
 };
-void __sramfunc board_pmu_suspend(void)
+void __sramfunc board_pmu_tps65910_suspend(void)
 {	
 	int ret;
 	ret = gpio_readl(GPIO_SWPORTA_DDR);
@@ -582,7 +582,7 @@ void __sramfunc board_pmu_suspend(void)
 	ret = gpio_readl(GPIO_SWPORTA_DR);
 	gpio_writel(ret | GPIO1_A1_OUTPUT_HIGH, GPIO_SWPORTA_DR);  //set pmu_sleep output high
 }
-void __sramfunc board_pmu_resume(void)
+void __sramfunc board_pmu_tps65910_resume(void)
 {
 	int ret;
 	ret = gpio_readl(GPIO_SWPORTA_DDR);

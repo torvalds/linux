@@ -760,6 +760,21 @@ void  rk30_pwm_resume_voltage_set(void)
 #endif
 }
 
+void __sramfunc board_pmu_suspend(void)
+{      
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_suspend(); 
+   	#endif   
+}
+void __sramfunc board_pmu_resume(void)
+{      
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_resume(); 
+	#endif
+}
+
 #ifdef CONFIG_I2C1_RK30
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_GS_MMA7660)
