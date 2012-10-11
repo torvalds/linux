@@ -298,10 +298,20 @@ static inline void kvmppc_lazy_ee_enable(void)
 static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 {
 	ulong ea;
+	ulong msr_64bit = 0;
 
 	ea = kvmppc_get_gpr(vcpu, rb);
 	if (ra)
 		ea += kvmppc_get_gpr(vcpu, ra);
+
+#if defined(CONFIG_PPC_BOOK3E_64)
+	msr_64bit = MSR_CM;
+#elif defined(CONFIG_PPC_BOOK3S_64)
+	msr_64bit = MSR_SF;
+#endif
+
+	if (!(vcpu->arch.shared->msr & msr_64bit))
+		ea = (uint32_t)ea;
 
 	return ea;
 }
