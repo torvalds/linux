@@ -177,7 +177,7 @@ static ssize_t dgrp_node_description_show(struct device *c,
 	if (!nd)
 		return 0;
 
-	if (nd->nd_state == NS_READY && nd->nd_ps_desc)
+	if (nd->nd_state == NS_READY)
 		return snprintf(buf, PAGE_SIZE, "%s\n", nd->nd_ps_desc);
 	return 0;
 }

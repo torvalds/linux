@@ -1671,6 +1671,9 @@ static int dgrp_send(struct nd_struct *nd, long tmax)
 				 * do the job.
 				 */
 
+				/* FIXME: jiffies - ch->ch_waketime can never
+				   be < 0. Someone needs to work out what is
+				   actually intended here */
 				if (ch->ch_pun.un_open_count &&
 				    (ch->ch_pun.un_flag &
 				    (UN_EMPTY|UN_TIME|UN_LOW|UN_PWAIT)) != 0) {
