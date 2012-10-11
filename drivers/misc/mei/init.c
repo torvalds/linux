@@ -668,12 +668,10 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	if (cl->state != MEI_FILE_DISCONNECTING)
 		return 0;
 
-	cb = kzalloc(sizeof(struct mei_cl_cb), GFP_KERNEL);
+	cb = mei_io_cb_init(cl, NULL);
 	if (!cb)
 		return -ENOMEM;
 
-	mei_io_list_init(cb);
-	cb->file_private = cl;
 	cb->major_file_operations = MEI_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;

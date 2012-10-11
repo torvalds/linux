@@ -52,6 +52,80 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 	kfree(cb->response_buffer.data);
 	kfree(cb);
 }
+/**
+ * mei_io_cb_init - allocate and initialize io callback
+ *
+ * @cl - mei client
+ * @file: pointer to file structure
+ *
+ * returns mei_cl_cb pointer or NULL;
+ */
+struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
+{
+	struct mei_cl_cb *cb;
+
+	cb = kzalloc(sizeof(struct mei_cl_cb), GFP_KERNEL);
+	if (!cb)
+		return NULL;
+
+	mei_io_list_init(cb);
+
+	cb->file_object = fp;
+	cb->file_private = cl;
+	cb->buf_idx = 0;
+	return cb;
+}
+
+
+/**
+ * mei_io_cb_alloc_req_buf - allocate request buffer
+ *
+ * @cb -  io callback structure
+ * @size: size of the buffer
+ *
+ * returns 0 on success
+ *         -EINVAL if cb is NULL
+ *         -ENOMEM if allocation failed
+ */
+int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
+{
+	if (!cb)
+		return -EINVAL;
+
+	if (length == 0)
+		return 0;
+
+	cb->request_buffer.data = kmalloc(length, GFP_KERNEL);
+	if (!cb->request_buffer.data)
+		return -ENOMEM;
+	cb->request_buffer.size = length;
+	return 0;
+}
+/**
+ * mei_io_cb_alloc_req_buf - allocate respose buffer
+ *
+ * @cb -  io callback structure
+ * @size: size of the buffer
+ *
+ * returns 0 on success
+ *         -EINVAL if cb is NULL
+ *         -ENOMEM if allocation failed
+ */
+int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length)
+{
+	if (!cb)
+		return -EINVAL;
+
+	if (length == 0)
+		return 0;
+
+	cb->response_buffer.data = kmalloc(length, GFP_KERNEL);
+	if (!cb->response_buffer.data)
+		return -ENOMEM;
+	cb->response_buffer.size = length;
+	return 0;
+}
+
 
 /**
  * mei_me_cl_by_id return index to me_clients for client_id
@@ -112,14 +186,12 @@ int mei_ioctl_connect_client(struct file *file,
 
 	dev_dbg(&dev->pdev->dev, "mei_ioctl_connect_client() Entry\n");
 
-
 	/* buffered ioctl cb */
-	cb = kzalloc(sizeof(struct mei_cl_cb), GFP_KERNEL);
+	cb = mei_io_cb_init(cl, file);
 	if (!cb) {
 		rets = -ENOMEM;
 		goto end;
 	}
-	mei_io_list_init(cb);
 
 	cb->major_file_operations = MEI_IOCTL;
 
@@ -207,14 +279,12 @@ int mei_ioctl_connect_client(struct file *file,
 		} else {
 			dev_dbg(&dev->pdev->dev, "Sending connect message - succeeded\n");
 			cl->timer_count = MEI_CONNECT_TIMEOUT;
-			cb->file_private = cl;
 			list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 		}
 
 
 	} else {
 		dev_dbg(&dev->pdev->dev, "Queuing the connect request due to device busy\n");
-		cb->file_private = cl;
 		dev_dbg(&dev->pdev->dev, "add connect cb to control write list.\n");
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
@@ -407,7 +477,7 @@ out:
 int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_cl_cb *cb;
-	int rets = 0;
+	int rets;
 	int i;
 
 	if (cl->state != MEI_FILE_CONNECTED)
@@ -416,49 +486,40 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		return -ENODEV;
 
-	dev_dbg(&dev->pdev->dev, "check if read is pending.\n");
 	if (cl->read_pending || cl->read_cb) {
 		dev_dbg(&dev->pdev->dev, "read is pending.\n");
 		return -EBUSY;
 	}
+	i = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (i < 0) {
+		dev_err(&dev->pdev->dev, "no such me client %d\n",
+			cl->me_client_id);
+		return  -ENODEV;
+	}
 
-	cb = kzalloc(sizeof(struct mei_cl_cb), GFP_KERNEL);
+	cb = mei_io_cb_init(cl, NULL);
 	if (!cb)
 		return -ENOMEM;
 
-	dev_dbg(&dev->pdev->dev, "allocation call back successful. host client = %d, ME client = %d\n",
-		cl->host_client_id, cl->me_client_id);
-	i = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (i < 0) {
-		rets = -ENODEV;
-		goto unlock;
-	}
+	rets = mei_io_cb_alloc_resp_buf(cb,
+			dev->me_clients[i].props.max_msg_length);
+	if (rets)
+		goto err;
 
-	cb->response_buffer.size = dev->me_clients[i].props.max_msg_length;
-	cb->response_buffer.data =
-			kmalloc(cb->response_buffer.size, GFP_KERNEL);
-	if (!cb->response_buffer.data) {
-		rets = -ENOMEM;
-		goto unlock;
-	}
-	dev_dbg(&dev->pdev->dev, "allocation call back data success.\n");
 	cb->major_file_operations = MEI_READ;
-	/* make sure buffer index is zero before we start */
-	cb->buf_idx = 0;
-	cb->file_private = (void *) cl;
 	cl->read_cb = cb;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;
 		if (mei_send_flow_control(dev, cl)) {
 			rets = -ENODEV;
-			goto unlock;
+			goto err;
 		}
 		list_add_tail(&cb->list, &dev->read_list.list);
 	} else {
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return rets;
-unlock:
+err:
 	mei_io_cb_free(cb);
 	return rets;
 }
