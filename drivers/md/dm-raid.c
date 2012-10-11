@@ -539,7 +539,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 
 		/* Parameters that take a numeric value are checked here */
 		if (!strcasecmp(key, "rebuild")) {
-			if (value > rs->md.raid_disks) {
+			if (value >= rs->md.raid_disks) {
 				rs->ti->error = "Invalid rebuild index given";
 				return -EINVAL;
 			}
