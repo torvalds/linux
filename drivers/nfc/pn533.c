@@ -1169,8 +1169,7 @@ static void pn533_poll_create_mod_list(struct pn533 *dev,
 		pn533_poll_add_mod(dev, PN533_LISTEN_MOD);
 }
 
-static int pn533_start_poll_complete(struct pn533 *dev, void *arg,
-				     u8 *params, int params_len)
+static int pn533_start_poll_complete(struct pn533 *dev, u8 *params, int params_len)
 {
 	struct pn533_poll_response *resp;
 	int rc;
@@ -1308,8 +1307,7 @@ static void pn533_wq_tg_get_data(struct work_struct *work)
 }
 
 #define ATR_REQ_GB_OFFSET 17
-static int pn533_init_target_complete(struct pn533 *dev, void *arg,
-				      u8 *params, int params_len)
+static int pn533_init_target_complete(struct pn533 *dev, u8 *params, int params_len)
 {
 	struct pn533_cmd_init_target_response *resp;
 	u8 frame, comm_mode = NFC_COMM_PASSIVE, *gb;
@@ -1406,9 +1404,9 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	if (cur_mod->len == 0) {
 		del_timer(&dev->listen_timer);
 
-		return pn533_init_target_complete(dev, arg, params, params_len);
+		return pn533_init_target_complete(dev, params, params_len);
 	} else {
-		rc = pn533_start_poll_complete(dev, arg, params, params_len);
+		rc = pn533_start_poll_complete(dev, params, params_len);
 		if (!rc)
 			return rc;
 	}
