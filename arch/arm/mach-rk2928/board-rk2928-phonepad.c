@@ -500,7 +500,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .batt_low_pin    = INVALID_GPIO,
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK2928_PIN1_PA0,
-        .dc_det_level    = GPIO_HIGH,  //
+        .dc_det_level    = GPIO_LOW,  //
         .charge_ok_level = GPIO_HIGH,
 };
 
