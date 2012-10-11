@@ -372,7 +372,7 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 
 #define PTRACE_HBP_ADDR_SZ	sizeof(u64)
 #define PTRACE_HBP_CTRL_SZ	sizeof(u32)
-#define PTRACE_HBP_REG_OFF	sizeof(u32)
+#define PTRACE_HBP_PAD_SZ	sizeof(u32)
 
 static int hw_break_get(struct task_struct *target,
 			const struct user_regset *regset,
@@ -380,7 +380,7 @@ static int hw_break_get(struct task_struct *target,
 			void *kbuf, void __user *ubuf)
 {
 	unsigned int note_type = regset->core_note_type;
-	int ret, idx = 0, offset = PTRACE_HBP_REG_OFF, limit;
+	int ret, idx = 0, offset, limit;
 	u32 info, ctrl;
 	u64 addr;
 
@@ -389,11 +389,20 @@ static int hw_break_get(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &info, 0, 4);
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &info, 0,
+				  sizeof(info));
+	if (ret)
+		return ret;
+
+	/* Pad */
+	offset = offsetof(struct user_hwdebug_state, pad);
+	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, offset,
+				       offset + PTRACE_HBP_PAD_SZ);
 	if (ret)
 		return ret;
 
 	/* (address, ctrl) registers */
+	offset = offsetof(struct user_hwdebug_state, dbg_regs);
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
 		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
@@ -413,6 +422,13 @@ static int hw_break_get(struct task_struct *target,
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
+
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					       offset,
+					       offset + PTRACE_HBP_PAD_SZ);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
 	}
 
@@ -425,12 +441,13 @@ static int hw_break_set(struct task_struct *target,
 			const void *kbuf, const void __user *ubuf)
 {
 	unsigned int note_type = regset->core_note_type;
-	int ret, idx = 0, offset = PTRACE_HBP_REG_OFF, limit;
+	int ret, idx = 0, offset, limit;
 	u32 ctrl;
 	u64 addr;
 
-	/* Resource info */
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
+	/* Resource info and pad */
+	offset = offsetof(struct user_hwdebug_state, dbg_regs);
+	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
 	if (ret)
 		return ret;
 
@@ -454,6 +471,13 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
+
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+						offset,
+						offset + PTRACE_HBP_PAD_SZ);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
 	}
 
