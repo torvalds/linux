@@ -355,7 +355,7 @@ s_vFillTxKey (
         }
         // Append IV after Mac Header
         *pdwIV &= WEP_IV_MASK;//00000000 11111111 11111111 11111111
-        *pdwIV |= (pDevice->byKeyIndex << 30);
+        *pdwIV |= (unsigned long)pDevice->byKeyIndex << 30;
         *pdwIV = cpu_to_le32(*pdwIV);
         pDevice->dwIVCounter++;
         if (pDevice->dwIVCounter > WEP_IV_MASK) {
