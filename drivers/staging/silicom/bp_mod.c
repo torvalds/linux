@@ -5454,8 +5454,6 @@ static void if_scan_init(void)
 			dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
 		} else
 			continue;
-		if (!drvinfo.bus_info)
-			continue;
 		if (!strcmp(drvinfo.bus_info, "N/A"))
 			continue;
 		memcpy(&cbuf, drvinfo.bus_info, 32);
@@ -7703,13 +7701,8 @@ get_bypass_slave_pfs(char *page, char **start, off_t off, int count,
 		return len;
 	}
 	net_slave_dev = pbp_device_block_slave->ndev;
-	if (net_slave_dev) {
-		if (net_slave_dev)
-			len = sprintf(page, "%s\n", net_slave_dev->name);
-		else
-			len = sprintf(page, "fail\n");
-
-	}
+	if (net_slave_dev)
+		len = sprintf(page, "%s\n", net_slave_dev->name);
 
 	*eof = 1;
 	return len;
