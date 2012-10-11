@@ -46,6 +46,8 @@ struct pin_config {
 	{ "samsung,pin-pud-pdn", PINCFG_TYPE_PUD_PDN },
 };
 
+static unsigned int pin_base = 0;
+
 /* check if the selector is a valid pin group selector */
 static int samsung_get_group_count(struct pinctrl_dev *pctldev)
 {
@@ -792,6 +794,9 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 	int id;
 	const struct of_device_id *match;
 	const struct device_node *node = pdev->dev.of_node;
+	struct samsung_pin_ctrl *ctrl;
+	struct samsung_pin_bank *bank;
+	int i;
 
 	id = of_alias_get_id(pdev->dev.of_node, "pinctrl");
 	if (id < 0) {
@@ -799,7 +804,22 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 		return NULL;
 	}
 	match = of_match_node(samsung_pinctrl_dt_match, node);
-	return (struct samsung_pin_ctrl *)match->data + id;
+	ctrl = (struct samsung_pin_ctrl *)match->data + id;
+
+	bank = ctrl->pin_banks;
+	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
+		bank->pin_base = ctrl->nr_pins;
+		ctrl->nr_pins += bank->nr_pins;
+		if (bank->eint_type == EINT_TYPE_GPIO) {
+			bank->irq_base = ctrl->nr_gint;
+			ctrl->nr_gint += bank->nr_pins;
+		}
+	}
+
+	ctrl->base = pin_base;
+	pin_base += ctrl->nr_pins;
+
+	return ctrl;
 }
 
 static int __devinit samsung_pinctrl_probe(struct platform_device *pdev)

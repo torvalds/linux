@@ -165,11 +165,10 @@ enum exynos4210_gpio_xc_start {
 #define EXYNOS_EINT_MAX_PER_BANK	8
 #define EXYNOS_EINT_NR_WKUP_EINT
 
-#define EXYNOS_PIN_BANK_EINTN(reg, __gpio, id)		\
+#define EXYNOS_PIN_BANK_EINTN(pins, reg, id)		\
 	{						\
 		.pctl_offset	= reg,			\
-		.pin_base	= (__gpio##_START),	\
-		.nr_pins	= (__gpio##_NR),	\
+		.nr_pins	= pins,			\
 		.func_width	= 4,			\
 		.pud_width	= 2,			\
 		.drv_width	= 2,			\
@@ -179,18 +178,16 @@ enum exynos4210_gpio_xc_start {
 		.name		= id			\
 	}
 
-#define EXYNOS_PIN_BANK_EINTG(reg, __gpio, id)		\
+#define EXYNOS_PIN_BANK_EINTG(pins, reg, id)		\
 	{						\
 		.pctl_offset	= reg,			\
-		.pin_base	= (__gpio##_START),	\
-		.nr_pins	= (__gpio##_NR),	\
+		.nr_pins	= pins,			\
 		.func_width	= 4,			\
 		.pud_width	= 2,			\
 		.drv_width	= 2,			\
 		.conpdn_width	= 2,			\
 		.pudpdn_width	= 2,			\
 		.eint_type	= EINT_TYPE_GPIO,	\
-		.irq_base	= (__gpio##_IRQ),	\
 		.name		= id			\
 	}
 
