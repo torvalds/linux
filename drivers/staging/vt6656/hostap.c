@@ -542,9 +542,9 @@ static int hostap_set_encryption(PSDevice pDevice,
 
 	if (param->u.crypt.seq) {
 	    memcpy(&abySeq, param->u.crypt.seq, 8);
-		for (ii = 0 ; ii < 8 ; ii++) {
-	         KeyRSC |= (abySeq[ii] << (ii * 8));
-		}
+		for (ii = 0 ; ii < 8 ; ii++)
+			KeyRSC |= (unsigned long)abySeq[ii] << (ii * 8);
+
 		dwKeyIndex |= 1 << 29;
 		pMgmt->sNodeDBTable[iNodeIndex].KeyRSC = KeyRSC;
 	}
