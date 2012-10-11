@@ -1163,7 +1163,6 @@ done:
 static int rbd_do_op(struct request *rq,
 		     struct rbd_device *rbd_dev,
 		     struct ceph_snap_context *snapc,
-		     u64 snapid,
 		     u64 ofs, u64 len,
 		     struct bio *bio,
 		     struct rbd_req_coll *coll,
@@ -1177,6 +1176,7 @@ static int rbd_do_op(struct request *rq,
 	u32 payload_len;
 	int opcode;
 	int flags;
+	u64 snapid;
 
 	seg_name = rbd_segment_name(rbd_dev, ofs);
 	if (!seg_name)
@@ -1187,10 +1187,13 @@ static int rbd_do_op(struct request *rq,
 	if (rq_data_dir(rq) == WRITE) {
 		opcode = CEPH_OSD_OP_WRITE;
 		flags = CEPH_OSD_FLAG_WRITE|CEPH_OSD_FLAG_ONDISK;
+		snapid = CEPH_NOSNAP;
 		payload_len = seg_len;
 	} else {
 		opcode = CEPH_OSD_OP_READ;
 		flags = CEPH_OSD_FLAG_READ;
+		snapc = NULL;
+		snapid = rbd_dev->mapping.snap_id;
 		payload_len = 0;
 	}
 
@@ -1518,24 +1521,13 @@ static void rbd_rq_fn(struct request_queue *q)
 			kref_get(&coll->kref);
 			bio = bio_chain_clone(&rq_bio, &next_bio, &bp,
 					      op_size, GFP_ATOMIC);
-			if (!bio) {
+			if (bio)
+				(void) rbd_do_op(rq, rbd_dev, snapc,
+						ofs, op_size,
+						bio, coll, cur_seg);
+			else
 				rbd_coll_end_req_index(rq, coll, cur_seg,
 						       -ENOMEM, op_size);
-				goto next_seg;
-			}
-
-			/* init OSD command: write or read */
-			if (do_write)
-				(void) rbd_do_op(rq, rbd_dev,
-						snapc, CEPH_NOSNAP,
-						ofs, op_size, bio,
-						coll, cur_seg);
-			else
-				(void) rbd_do_op(rq, rbd_dev,
-						NULL, rbd_dev->mapping.snap_id,
-						ofs, op_size, bio,
-						coll, cur_seg);
-next_seg:
 			size -= op_size;
 			ofs += op_size;
 
