@@ -121,6 +121,7 @@ struct bfa_s {
 	bfa_boolean_t		fcs;		/*  FCS is attached to BFA */
 	struct bfa_msix_s	msix;
 	int			bfa_aen_seq;
+	bfa_boolean_t		intr_enabled;	/*  Status of interrupts */
 };
 
 extern bfa_boolean_t bfa_auto_recover;

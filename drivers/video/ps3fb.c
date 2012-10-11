@@ -31,7 +31,6 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 
-#include <asm/abs_addr.h>
 #include <asm/cell-regs.h>
 #include <asm/lv1call.h>
 #include <asm/ps3av.h>
@@ -1141,7 +1140,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	 */
 	fb_start = ps3fb_videomemory.address + GPU_FB_START;
 	info->screen_base = (char __force __iomem *)fb_start;
-	info->fix.smem_start = virt_to_abs(fb_start);
+	info->fix.smem_start = __pa(fb_start);
 	info->fix.smem_len = ps3fb_videomemory.size - GPU_FB_START;
 
 	info->pseudo_palette = par->pseudo_palette;

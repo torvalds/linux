@@ -31,7 +31,7 @@
 #include <mach/at91sam9g45_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at_hdmac.h>
+#include <linux/platform_data/dma-atmel.h>
 #include <mach/atmel-mci.h>
 
 #include <media/atmel-isi.h>

@@ -252,7 +252,7 @@ static int __devinit ili210x_i2c_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_Y, 0, ymax, 0, 0);
 
 	/* Multi touch */
-	input_mt_init_slots(input, MAX_TOUCHES);
+	input_mt_init_slots(input, MAX_TOUCHES, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, xmax, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, ymax, 0, 0);
 

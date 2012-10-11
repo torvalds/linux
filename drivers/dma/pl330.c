@@ -522,7 +522,7 @@ enum desc_status {
 	/* In the DMAC pool */
 	FREE,
 	/*
-	 * Allocted to some channel during prep_xxx
+	 * Allocated to some channel during prep_xxx
 	 * Also may be sitting on the work_list.
 	 */
 	PREP,
@@ -2685,7 +2685,7 @@ static inline int get_burst_len(struct dma_pl330_desc *desc, size_t len)
 static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t len,
 		size_t period_len, enum dma_transfer_direction direction,
-		void *context)
+		unsigned long flags, void *context)
 {
 	struct dma_pl330_desc *desc;
 	struct dma_pl330_chan *pch = to_pchan(chan);

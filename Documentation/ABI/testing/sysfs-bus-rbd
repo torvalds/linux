@@ -25,6 +25,10 @@ client_id
 
 	The ceph unique client id that was assigned for this specific session.
 
+features
+
+	A hexadecimal encoding of the feature bits for this image.
+
 major
 
 	The block device major number.
@@ -32,6 +36,11 @@ major
 name
 
 	The name of the rbd image.
+
+image_id
+
+	The unique id for the rbd image.  (For rbd image format 1
+	this is empty.)
 
 pool
 
@@ -57,12 +66,6 @@ current_snap
 
 	The current snapshot for which the device is mapped.
 
-create_snap
-
-	Create a snapshot:
-
-	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_create
-
 snap_*
 
 	A directory per each snapshot
@@ -79,4 +82,7 @@ snap_size
 
 	The size of the image when this snapshot was taken.
 
+snap_features
+
+	A hexadecimal encoding of the feature bits for this snapshot.
 

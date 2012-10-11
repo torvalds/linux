@@ -78,7 +78,8 @@ nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
 			flags		= hard, nointr, noposix, cto, ac
 
 
-ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
+ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
+   <dns0-ip>:<dns1-ip>
 
   This parameter tells the kernel how to configure IP addresses of devices
   and also how to set up the IP routing table. It was originally called
@@ -157,6 +158,13 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
 		               (old option kept for backwards compatibility)
 
                 Default: any
+
+  <dns0-ip>	IP address of first nameserver.
+		Value gets exported by /proc/net/pnp which is often linked
+		on embedded systems by /etc/resolv.conf.
+
+  <dns1-ip>	IP address of secound nameserver.
+		Same as above.
 
 
 nfsrootdebug

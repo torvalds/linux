@@ -66,15 +66,13 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	int ret;
 
-	unlazy_fpu(src);
-
 	*dst = *src;
 	if (fpu_allocated(&src->thread.fpu)) {
 		memset(&dst->thread.fpu, 0, sizeof(dst->thread.fpu));
 		ret = fpu_alloc(&dst->thread.fpu);
 		if (ret)
 			return ret;
-		fpu_copy(&dst->thread.fpu, &src->thread.fpu);
+		fpu_copy(dst, src);
 	}
 	return 0;
 }
@@ -95,16 +93,6 @@ void arch_task_cache_init(void)
         	kmem_cache_create("task_xstate", xstate_size,
 				  __alignof__(union thread_xstate),
 				  SLAB_PANIC | SLAB_NOTRACK, NULL);
-}
-
-static inline void drop_fpu(struct task_struct *tsk)
-{
-	/*
-	 * Forget coprocessor state..
-	 */
-	tsk->fpu_counter = 0;
-	clear_fpu(tsk);
-	clear_used_math();
 }
 
 /*
@@ -163,7 +151,13 @@ void flush_thread(void)
 
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
-	drop_fpu(tsk);
+	drop_init_fpu(tsk);
+	/*
+	 * Free the FPU state for non xsave platforms. They get reallocated
+	 * lazily at the first use.
+	 */
+	if (!use_eager_fpu())
+		free_thread_xstate(tsk);
 }
 
 static void hard_disable_TSC(void)

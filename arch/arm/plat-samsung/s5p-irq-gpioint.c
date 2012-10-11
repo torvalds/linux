@@ -24,7 +24,7 @@
 
 #include <asm/mach/irq.h>
 
-#define GPIO_BASE(chip)		(((unsigned long)(chip)->base) & 0xFFFFF000u)
+#define GPIO_BASE(chip)		((void __iomem *)((unsigned long)((chip)->base) & 0xFFFFF000u))
 
 #define CON_OFFSET		0x700
 #define MASK_OFFSET		0x900
@@ -153,7 +153,7 @@ static __init int s5p_gpioint_add(struct samsung_gpio_chip *chip)
 	bank->chips[group - bank->start] = chip;
 
 	gc = irq_alloc_generic_chip("s5p_gpioint", 1, chip->irq_base,
-				    (void __iomem *)GPIO_BASE(chip),
+				    GPIO_BASE(chip),
 				    handle_level_irq);
 	if (!gc)
 		return -ENOMEM;

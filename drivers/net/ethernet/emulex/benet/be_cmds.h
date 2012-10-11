@@ -1687,7 +1687,7 @@ struct be_cmd_req_set_ext_fat_caps {
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_fw_wait_ready(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle, u32 pmac_id);
+				 bool permanent, u32 if_handle, u32 pmac_id);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 			u32 if_id, u32 *pmac_id, u32 domain);
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
@@ -1714,8 +1714,8 @@ extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
 			struct be_queue_info *q);
-extern int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
-				    u16 *link_speed, u8 *link_status, u32 dom);
+extern int be_cmd_link_status_query(struct be_adapter *adapter, u16 *link_speed,
+				    u8 *link_status, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);

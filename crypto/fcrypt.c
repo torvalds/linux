@@ -396,7 +396,6 @@ static struct crypto_alg fcrypt_alg = {
 	.cra_ctxsize		=	sizeof(struct fcrypt_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_alignmask		=	3,
-	.cra_list		=	LIST_HEAD_INIT(fcrypt_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	8,
 	.cia_max_keysize	=	8,

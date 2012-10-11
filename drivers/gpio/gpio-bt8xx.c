@@ -50,7 +50,7 @@
 #include <linux/slab.h>
 
 /* Steal the hardware definitions from the bttv driver. */
-#include "../media/video/bt8xx/bt848.h"
+#include "../media/pci/bt8xx/bt848.h"
 
 
 #define BT8XXGPIO_NR_GPIOS		24 /* We have 24 GPIO pins */
@@ -310,7 +310,7 @@ static int bt8xxgpio_resume(struct pci_dev *pdev)
 #define bt8xxgpio_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id bt8xxgpio_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(bt8xxgpio_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT848) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT849) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT878) },

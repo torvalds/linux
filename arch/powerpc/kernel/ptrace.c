@@ -960,6 +960,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		thread->ptrace_bps[0] = bp;
 		ptrace_put_breakpoints(task);
 		thread->dabr = data;
+		thread->dabrx = DABRX_ALL;
 		return 0;
 	}
 
@@ -983,6 +984,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 
 	/* Move contents to the DABR register */
 	task->thread.dabr = data;
+	task->thread.dabrx = DABRX_ALL;
 #else /* CONFIG_PPC_ADV_DEBUG_REGS */
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
@@ -1397,6 +1399,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 		dabr |= DABR_DATA_WRITE;
 
 	child->thread.dabr = dabr;
+	child->thread.dabrx = DABRX_ALL;
 
 	return 1;
 #endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */

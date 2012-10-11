@@ -263,8 +263,6 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
-#ifndef CONFIG_IWLWIFI_IDI
-
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
@@ -282,8 +280,14 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!trans_pcie->drv)
 		goto out_free_trans;
 
+	/* register transport layer debugfs here */
+	if (iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir))
+		goto out_free_drv;
+
 	return 0;
 
+out_free_drv:
+	iwl_drv_stop(trans_pcie->drv);
 out_free_trans:
 	iwl_trans_pcie_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
@@ -300,8 +304,6 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 }
-
-#endif /* CONFIG_IWLWIFI_IDI */
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -346,15 +348,6 @@ static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);
 #define IWL_PM_OPS	NULL
 
 #endif
-
-#ifdef CONFIG_IWLWIFI_IDI
-/*
- * Defined externally in iwl-idi.c
- */
-int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-void __devexit iwl_pci_remove(struct pci_dev *pdev);
-
-#endif /* CONFIG_IWLWIFI_IDI */
 
 static struct pci_driver iwl_pci_driver = {
 	.name = DRV_NAME,

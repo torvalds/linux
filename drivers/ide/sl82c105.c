@@ -299,7 +299,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info sl82c105_chipset __devinitdata = {
+static const struct ide_port_info sl82c105_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},

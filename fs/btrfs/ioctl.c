@@ -575,13 +575,13 @@ fail:
 */
 static inline int btrfs_check_sticky(struct inode *dir, struct inode *inode)
 {
-	uid_t fsuid = current_fsuid();
+	kuid_t fsuid = current_fsuid();
 
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
-	if (inode->i_uid == fsuid)
+	if (uid_eq(inode->i_uid, fsuid))
 		return 0;
-	if (dir->i_uid == fsuid)
+	if (uid_eq(dir->i_uid, fsuid))
 		return 0;
 	return !capable(CAP_FOWNER);
 }
@@ -1397,7 +1397,6 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 				u64 *transid, bool readonly,
 				struct btrfs_qgroup_inherit **inherit)
 {
-	struct file *src_file;
 	int namelen;
 	int ret = 0;
 
@@ -1421,25 +1420,24 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
 				     NULL, transid, readonly, inherit);
 	} else {
+		struct fd src = fdget(fd);
 		struct inode *src_inode;
-		src_file = fget(fd);
-		if (!src_file) {
+		if (!src.file) {
 			ret = -EINVAL;
 			goto out_drop_write;
 		}
 
-		src_inode = src_file->f_path.dentry->d_inode;
+		src_inode = src.file->f_path.dentry->d_inode;
 		if (src_inode->i_sb != file->f_path.dentry->d_inode->i_sb) {
 			printk(KERN_INFO "btrfs: Snapshot src from "
 			       "another FS\n");
 			ret = -EINVAL;
-			fput(src_file);
-			goto out_drop_write;
+		} else {
+			ret = btrfs_mksubvol(&file->f_path, name, namelen,
+					     BTRFS_I(src_inode)->root,
+					     transid, readonly, inherit);
 		}
-		ret = btrfs_mksubvol(&file->f_path, name, namelen,
-				     BTRFS_I(src_inode)->root,
-				     transid, readonly, inherit);
-		fput(src_file);
+		fdput(src);
 	}
 out_drop_write:
 	mnt_drop_write_file(file);
@@ -2341,7 +2339,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct file *src_file;
+	struct fd src_file;
 	struct inode *src;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_path *path;
@@ -2376,24 +2374,24 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (ret)
 		return ret;
 
-	src_file = fget(srcfd);
-	if (!src_file) {
+	src_file = fdget(srcfd);
+	if (!src_file.file) {
 		ret = -EBADF;
 		goto out_drop_write;
 	}
 
 	ret = -EXDEV;
-	if (src_file->f_path.mnt != file->f_path.mnt)
+	if (src_file.file->f_path.mnt != file->f_path.mnt)
 		goto out_fput;
 
-	src = src_file->f_dentry->d_inode;
+	src = src_file.file->f_dentry->d_inode;
 
 	ret = -EINVAL;
 	if (src == inode)
 		goto out_fput;
 
 	/* the src must be open for reading */
-	if (!(src_file->f_mode & FMODE_READ))
+	if (!(src_file.file->f_mode & FMODE_READ))
 		goto out_fput;
 
 	/* don't make the dst file partly checksummed */
@@ -2724,7 +2722,7 @@ out_unlock:
 	vfree(buf);
 	btrfs_free_path(path);
 out_fput:
-	fput(src_file);
+	fdput(src_file);
 out_drop_write:
 	mnt_drop_write_file(file);
 	return ret;

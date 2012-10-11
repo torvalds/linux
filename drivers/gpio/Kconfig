@@ -82,7 +82,7 @@ config GPIO_GENERIC
 
 config GPIO_DA9052
 	tristate "Dialog DA9052 GPIO"
-	depends on PMIC_DA9052 && BROKEN
+	depends on PMIC_DA9052
 	help
 	  Say yes here to enable the GPIO driver for the DA9052 chip.
 
@@ -150,6 +150,12 @@ config GPIO_MSM_V2
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
 	  selected for GPIO, and are controlled by this driver.
 
+config GPIO_MVEBU
+	def_bool y
+	depends on ARCH_MVEBU
+	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
+
 config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
@@ -182,6 +188,12 @@ config GPIO_STA2X11
 	help
 	  Say yes here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
+
+config GPIO_VT8500
+	bool "VIA/Wondermedia SoC GPIO Support"
+	depends on ARCH_VT8500
+	help
+	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
@@ -324,6 +336,7 @@ config GPIO_PCA953X_IRQ
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C
+	select IRQ_DOMAIN
 	help
 	  Say yes here to provide access to most "quasi-bidirectional" I2C
 	  GPIO expanders used for additional digital outputs or inputs.
@@ -402,6 +415,13 @@ config GPIO_TWL4030
 	  Say yes here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
 
+config GPIO_TWL6040
+	tristate "TWL6040 GPO"
+	depends on TWL6040_CORE
+	help
+	  Say yes here to access the GPO signals of twl6040
+	  audio chip from Texas Instruments.
+
 config GPIO_WM831X
 	tristate "WM831x GPIOs"
 	depends on MFD_WM831X
@@ -443,6 +463,17 @@ config GPIO_ADP5588_IRQ
 	help
 	  Say yes here to enable the adp5588 to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
+
+config GPIO_ADNP
+	tristate "Avionic Design N-bit GPIO expander"
+	depends on I2C && OF
+	help
+	  This option enables support for N GPIOs found on Avionic Design
+	  I2C GPIO expanders. The register space will be extended by powers
+	  of two, so the controller will need to accomodate for that. For
+	  example: if a controller provides 48 pins, 6 registers will be
+	  enough to represent all pins, but the driver will assume a
+	  register layout for 64 pins (8 registers).
 
 comment "PCI GPIO expanders:"
 

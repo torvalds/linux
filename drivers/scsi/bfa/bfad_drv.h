@@ -37,6 +37,7 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
+#include <linux/aer.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
@@ -56,7 +57,7 @@
 #ifdef BFA_DRIVER_VERSION
 #define BFAD_DRIVER_VERSION    BFA_DRIVER_VERSION
 #else
-#define BFAD_DRIVER_VERSION    "3.0.23.0"
+#define BFAD_DRIVER_VERSION    "3.1.2.0"
 #endif
 
 #define BFAD_PROTO_NAME FCPI_NAME
@@ -81,6 +82,8 @@
 #define BFAD_FC4_PROBE_DONE			0x00000200
 #define BFAD_PORT_DELETE			0x00000001
 #define BFAD_INTX_ON				0x00000400
+#define BFAD_EEH_BUSY				0x00000800
+#define BFAD_EEH_PCI_CHANNEL_IO_PERM_FAILURE	0x00001000
 /*
  * BFAD related definition
  */

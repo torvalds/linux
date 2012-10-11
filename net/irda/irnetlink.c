@@ -100,7 +100,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
+	hdr = genlmsg_put(msg, info->snd_portid, info->snd_seq,
 			  &irda_nl_family, 0,  IRDA_NL_CMD_GET_MODE);
 	if (hdr == NULL) {
 		ret = -EMSGSIZE;

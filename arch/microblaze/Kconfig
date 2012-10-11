@@ -243,14 +243,11 @@ choice
 config MICROBLAZE_4K_PAGES
 	bool "4k page size"
 
-config MICROBLAZE_8K_PAGES
-	bool "8k page size"
-
 config MICROBLAZE_16K_PAGES
 	bool "16k page size"
 
-config MICROBLAZE_32K_PAGES
-	bool "32k page size"
+config MICROBLAZE_64K_PAGES
+	bool "64k page size"
 
 endchoice
 

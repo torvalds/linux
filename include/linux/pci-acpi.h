@@ -22,19 +22,24 @@ extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
 	struct pci_bus *pbus = pdev->bus;
+
 	/* Find a PCI root bus */
 	while (!pci_is_root_bus(pbus))
 		pbus = pbus->parent;
-	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pbus),
-					      pbus->number);
+
+	return DEVICE_ACPI_HANDLE(pbus->bridge);
 }
 
 static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 {
-	if (!pci_is_root_bus(pbus))
-		return DEVICE_ACPI_HANDLE(&(pbus->self->dev));
-	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pbus),
-					      pbus->number);
+	struct device *dev;
+
+	if (pci_is_root_bus(pbus))
+		dev = pbus->bridge;
+	else
+		dev = &pbus->self->dev;
+
+	return DEVICE_ACPI_HANDLE(dev);
 }
 #endif
 

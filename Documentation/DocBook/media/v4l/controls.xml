@@ -3505,7 +3505,7 @@ This encodes up to 31 pre-defined programme types.</entry>
 	  </row>
 	  <row><entry spanname="descr">Sets the Programme Service name (PS_NAME) for transmission.
 It is intended for static display on a receiver. It is the primary aid to listeners in programme service
-identification and selection.  In Annex E of <xref linkend="en50067" />, the RDS specification,
+identification and selection.  In Annex E of <xref linkend="iec62106" />, the RDS specification,
 there is a full description of the correct character encoding for Programme Service name strings.
 Also from RDS specification, PS is usually a single eight character text. However, it is also possible
 to find receivers which can scroll strings sized as 8 x N characters. So, this control must be configured
@@ -3519,7 +3519,7 @@ with steps of 8 characters. The result is it must always contain a string with s
 what is being broadcasted. RDS Radio Text can be applied when broadcaster wishes to transmit longer PS names,
 programme-related information or any other text. In these cases, RadioText should be used in addition to
 <constant>V4L2_CID_RDS_TX_PS_NAME</constant>. The encoding for Radio Text strings is also fully described
-in Annex E of <xref linkend="en50067" />. The length of Radio Text strings depends on which RDS Block is being
+in Annex E of <xref linkend="iec62106" />. The length of Radio Text strings depends on which RDS Block is being
 used to transmit it, either 32 (2A block) or 64 (2B block).  However, it is also possible
 to find receivers which can scroll strings sized as 32 x N or 64 x N characters. So, this control must be configured
 with steps of 32 or 64 characters. The result is it must always contain a string with size multiple of 32 or 64. </entry>
@@ -3650,7 +3650,7 @@ manually or automatically if set to zero. Unit, range and step are driver-specif
       </table>
 
 <para>For more details about RDS specification, refer to
-<xref linkend="en50067" /> document, from CENELEC.</para>
+<xref linkend="iec62106" /> document, from CENELEC.</para>
     </section>
 
     <section id="flash-controls">
@@ -3717,232 +3717,231 @@ interface and may change in the future.</para>
 	    use case involving camera or individually.
 	  </para>
 
+
+          <table pgwide="1" frame="none" id="flash-control-id">
+          <title>Flash Control IDs</title>
+    
+          <tgroup cols="4">
+    	<colspec colname="c1" colwidth="1*" />
+    	<colspec colname="c2" colwidth="6*" />
+    	<colspec colname="c3" colwidth="2*" />
+    	<colspec colname="c4" colwidth="6*" />
+    	<spanspec namest="c1" nameend="c2" spanname="id" />
+    	<spanspec namest="c2" nameend="c4" spanname="descr" />
+    	<thead>
+    	  <row>
+    	    <entry spanname="id" align="left">ID</entry>
+    	    <entry align="left">Type</entry>
+    	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+    	  </row>
+    	</thead>
+    	<tbody valign="top">
+    	  <row><entry></entry></row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_CLASS</constant></entry>
+    	    <entry>class</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">The FLASH class descriptor.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_LED_MODE</constant></entry>
+    	    <entry>menu</entry>
+    	  </row>
+    	  <row id="v4l2-flash-led-mode">
+    	    <entry spanname="descr">Defines the mode of the flash LED,
+    	    the high-power white LED attached to the flash controller.
+    	    Setting this control may not be possible in presence of
+    	    some faults. See V4L2_CID_FLASH_FAULT.</entry>
+    	  </row>
+    	  <row>
+    	    <entrytbl spanname="descr" cols="2">
+    	      <tbody valign="top">
+    		<row>
+    		  <entry><constant>V4L2_FLASH_LED_MODE_NONE</constant></entry>
+    		  <entry>Off.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_LED_MODE_FLASH</constant></entry>
+    		  <entry>Flash mode.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_LED_MODE_TORCH</constant></entry>
+    		  <entry>Torch mode. See V4L2_CID_FLASH_TORCH_INTENSITY.</entry>
+    		</row>
+    	      </tbody>
+    	    </entrytbl>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_SOURCE</constant></entry>
+    	    <entry>menu</entry>
+    	  </row>
+    	  <row id="v4l2-flash-strobe-source"><entry
+    	  spanname="descr">Defines the source of the flash LED
+    	  strobe.</entry>
+    	  </row>
+    	  <row>
+    	    <entrytbl spanname="descr" cols="2">
+    	      <tbody valign="top">
+    		<row>
+    		  <entry><constant>V4L2_FLASH_STROBE_SOURCE_SOFTWARE</constant></entry>
+    		  <entry>The flash strobe is triggered by using
+    		  the V4L2_CID_FLASH_STROBE control.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_STROBE_SOURCE_EXTERNAL</constant></entry>
+    		  <entry>The flash strobe is triggered by an
+    		  external source. Typically this is a sensor,
+    		  which makes it possible to synchronises the
+    		  flash strobe start to exposure start.</entry>
+    		</row>
+    	      </tbody>
+    	    </entrytbl>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE</constant></entry>
+    	    <entry>button</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Strobe flash. Valid when
+    	    V4L2_CID_FLASH_LED_MODE is set to
+    	    V4L2_FLASH_LED_MODE_FLASH and V4L2_CID_FLASH_STROBE_SOURCE
+    	    is set to V4L2_FLASH_STROBE_SOURCE_SOFTWARE. Setting this
+    	    control may not be possible in presence of some faults.
+    	    See V4L2_CID_FLASH_FAULT.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_STOP</constant></entry>
+    	    <entry>button</entry>
+    	  </row>
+    	  <row><entry spanname="descr">Stop flash strobe immediately.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_STATUS</constant></entry>
+    	    <entry>boolean</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Strobe status: whether the flash
+    	    is strobing at the moment or not. This is a read-only
+    	    control.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_TIMEOUT</constant></entry>
+    	    <entry>integer</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Hardware timeout for flash. The
+    	    flash strobe is stopped after this period of time has
+    	    passed from the start of the strobe.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_INTENSITY</constant></entry>
+    	    <entry>integer</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Intensity of the flash strobe when
+    	    the flash LED is in flash mode
+    	    (V4L2_FLASH_LED_MODE_FLASH). The unit should be milliamps
+    	    (mA) if possible.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_TORCH_INTENSITY</constant></entry>
+    	    <entry>integer</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Intensity of the flash LED in
+    	    torch mode (V4L2_FLASH_LED_MODE_TORCH). The unit should be
+    	    milliamps (mA) if possible. Setting this control may not
+    	    be possible in presence of some faults. See
+    	    V4L2_CID_FLASH_FAULT.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_INDICATOR_INTENSITY</constant></entry>
+    	    <entry>integer</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Intensity of the indicator LED.
+    	    The indicator LED may be fully independent of the flash
+    	    LED. The unit should be microamps (uA) if possible.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_FAULT</constant></entry>
+    	    <entry>bitmask</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Faults related to the flash. The
+    	    faults tell about specific problems in the flash chip
+    	    itself or the LEDs attached to it. Faults may prevent
+    	    further use of some of the flash controls. In particular,
+    	    V4L2_CID_FLASH_LED_MODE is set to V4L2_FLASH_LED_MODE_NONE
+    	    if the fault affects the flash LED. Exactly which faults
+    	    have such an effect is chip dependent. Reading the faults
+    	    resets the control and returns the chip to a usable state
+    	    if possible.</entry>
+    	  </row>
+    	  <row>
+    	    <entrytbl spanname="descr" cols="2">
+    	      <tbody valign="top">
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_OVER_VOLTAGE</constant></entry>
+    		  <entry>Flash controller voltage to the flash LED
+    		  has exceeded the limit specific to the flash
+    		  controller.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_TIMEOUT</constant></entry>
+    		  <entry>The flash strobe was still on when
+    		  the timeout set by the user ---
+    		  V4L2_CID_FLASH_TIMEOUT control --- has expired.
+    		  Not all flash controllers may set this in all
+    		  such conditions.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_OVER_TEMPERATURE</constant></entry>
+    		  <entry>The flash controller has overheated.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_SHORT_CIRCUIT</constant></entry>
+    		  <entry>The short circuit protection of the flash
+    		  controller has been triggered.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_OVER_CURRENT</constant></entry>
+    		  <entry>Current in the LED power supply has exceeded the limit
+    		  specific to the flash controller.</entry>
+    		</row>
+    		<row>
+    		  <entry><constant>V4L2_FLASH_FAULT_INDICATOR</constant></entry>
+    		  <entry>The flash controller has detected a short or open
+    		  circuit condition on the indicator LED.</entry>
+    		</row>
+    	      </tbody>
+    	    </entrytbl>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_CHARGE</constant></entry>
+    	    <entry>boolean</entry>
+    	  </row>
+    	  <row><entry spanname="descr">Enable or disable charging of the xenon
+    	  flash capacitor.</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="id"><constant>V4L2_CID_FLASH_READY</constant></entry>
+    	    <entry>boolean</entry>
+    	  </row>
+    	  <row>
+    	    <entry spanname="descr">Is the flash ready to strobe?
+    	    Xenon flashes require their capacitors charged before
+    	    strobing. LED flashes often require a cooldown period
+    	    after strobe during which another strobe will not be
+    	    possible. This is a read-only control.</entry>
+    	  </row>
+    	  <row><entry></entry></row>
+    	</tbody>
+          </tgroup>
+          </table>
 	</section>
-
       </section>
-
-      <table pgwide="1" frame="none" id="flash-control-id">
-      <title>Flash Control IDs</title>
-
-      <tgroup cols="4">
-	<colspec colname="c1" colwidth="1*" />
-	<colspec colname="c2" colwidth="6*" />
-	<colspec colname="c3" colwidth="2*" />
-	<colspec colname="c4" colwidth="6*" />
-	<spanspec namest="c1" nameend="c2" spanname="id" />
-	<spanspec namest="c2" nameend="c4" spanname="descr" />
-	<thead>
-	  <row>
-	    <entry spanname="id" align="left">ID</entry>
-	    <entry align="left">Type</entry>
-	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
-	  </row>
-	</thead>
-	<tbody valign="top">
-	  <row><entry></entry></row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_CLASS</constant></entry>
-	    <entry>class</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">The FLASH class descriptor.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_LED_MODE</constant></entry>
-	    <entry>menu</entry>
-	  </row>
-	  <row id="v4l2-flash-led-mode">
-	    <entry spanname="descr">Defines the mode of the flash LED,
-	    the high-power white LED attached to the flash controller.
-	    Setting this control may not be possible in presence of
-	    some faults. See V4L2_CID_FLASH_FAULT.</entry>
-	  </row>
-	  <row>
-	    <entrytbl spanname="descr" cols="2">
-	      <tbody valign="top">
-		<row>
-		  <entry><constant>V4L2_FLASH_LED_MODE_NONE</constant></entry>
-		  <entry>Off.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_LED_MODE_FLASH</constant></entry>
-		  <entry>Flash mode.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_LED_MODE_TORCH</constant></entry>
-		  <entry>Torch mode. See V4L2_CID_FLASH_TORCH_INTENSITY.</entry>
-		</row>
-	      </tbody>
-	    </entrytbl>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_SOURCE</constant></entry>
-	    <entry>menu</entry>
-	  </row>
-	  <row id="v4l2-flash-strobe-source"><entry
-	  spanname="descr">Defines the source of the flash LED
-	  strobe.</entry>
-	  </row>
-	  <row>
-	    <entrytbl spanname="descr" cols="2">
-	      <tbody valign="top">
-		<row>
-		  <entry><constant>V4L2_FLASH_STROBE_SOURCE_SOFTWARE</constant></entry>
-		  <entry>The flash strobe is triggered by using
-		  the V4L2_CID_FLASH_STROBE control.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_STROBE_SOURCE_EXTERNAL</constant></entry>
-		  <entry>The flash strobe is triggered by an
-		  external source. Typically this is a sensor,
-		  which makes it possible to synchronises the
-		  flash strobe start to exposure start.</entry>
-		</row>
-	      </tbody>
-	    </entrytbl>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE</constant></entry>
-	    <entry>button</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Strobe flash. Valid when
-	    V4L2_CID_FLASH_LED_MODE is set to
-	    V4L2_FLASH_LED_MODE_FLASH and V4L2_CID_FLASH_STROBE_SOURCE
-	    is set to V4L2_FLASH_STROBE_SOURCE_SOFTWARE. Setting this
-	    control may not be possible in presence of some faults.
-	    See V4L2_CID_FLASH_FAULT.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_STOP</constant></entry>
-	    <entry>button</entry>
-	  </row>
-	  <row><entry spanname="descr">Stop flash strobe immediately.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_STATUS</constant></entry>
-	    <entry>boolean</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Strobe status: whether the flash
-	    is strobing at the moment or not. This is a read-only
-	    control.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_TIMEOUT</constant></entry>
-	    <entry>integer</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Hardware timeout for flash. The
-	    flash strobe is stopped after this period of time has
-	    passed from the start of the strobe.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_INTENSITY</constant></entry>
-	    <entry>integer</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Intensity of the flash strobe when
-	    the flash LED is in flash mode
-	    (V4L2_FLASH_LED_MODE_FLASH). The unit should be milliamps
-	    (mA) if possible.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_TORCH_INTENSITY</constant></entry>
-	    <entry>integer</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Intensity of the flash LED in
-	    torch mode (V4L2_FLASH_LED_MODE_TORCH). The unit should be
-	    milliamps (mA) if possible. Setting this control may not
-	    be possible in presence of some faults. See
-	    V4L2_CID_FLASH_FAULT.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_INDICATOR_INTENSITY</constant></entry>
-	    <entry>integer</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Intensity of the indicator LED.
-	    The indicator LED may be fully independent of the flash
-	    LED. The unit should be microamps (uA) if possible.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_FAULT</constant></entry>
-	    <entry>bitmask</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Faults related to the flash. The
-	    faults tell about specific problems in the flash chip
-	    itself or the LEDs attached to it. Faults may prevent
-	    further use of some of the flash controls. In particular,
-	    V4L2_CID_FLASH_LED_MODE is set to V4L2_FLASH_LED_MODE_NONE
-	    if the fault affects the flash LED. Exactly which faults
-	    have such an effect is chip dependent. Reading the faults
-	    resets the control and returns the chip to a usable state
-	    if possible.</entry>
-	  </row>
-	  <row>
-	    <entrytbl spanname="descr" cols="2">
-	      <tbody valign="top">
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_OVER_VOLTAGE</constant></entry>
-		  <entry>Flash controller voltage to the flash LED
-		  has exceeded the limit specific to the flash
-		  controller.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_TIMEOUT</constant></entry>
-		  <entry>The flash strobe was still on when
-		  the timeout set by the user ---
-		  V4L2_CID_FLASH_TIMEOUT control --- has expired.
-		  Not all flash controllers may set this in all
-		  such conditions.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_OVER_TEMPERATURE</constant></entry>
-		  <entry>The flash controller has overheated.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_SHORT_CIRCUIT</constant></entry>
-		  <entry>The short circuit protection of the flash
-		  controller has been triggered.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_OVER_CURRENT</constant></entry>
-		  <entry>Current in the LED power supply has exceeded the limit
-		  specific to the flash controller.</entry>
-		</row>
-		<row>
-		  <entry><constant>V4L2_FLASH_FAULT_INDICATOR</constant></entry>
-		  <entry>The flash controller has detected a short or open
-		  circuit condition on the indicator LED.</entry>
-		</row>
-	      </tbody>
-	    </entrytbl>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_CHARGE</constant></entry>
-	    <entry>boolean</entry>
-	  </row>
-	  <row><entry spanname="descr">Enable or disable charging of the xenon
-	  flash capacitor.</entry>
-	  </row>
-	  <row>
-	    <entry spanname="id"><constant>V4L2_CID_FLASH_READY</constant></entry>
-	    <entry>boolean</entry>
-	  </row>
-	  <row>
-	    <entry spanname="descr">Is the flash ready to strobe?
-	    Xenon flashes require their capacitors charged before
-	    strobing. LED flashes often require a cooldown period
-	    after strobe during which another strobe will not be
-	    possible. This is a read-only control.</entry>
-	  </row>
-	  <row><entry></entry></row>
-	</tbody>
-      </tgroup>
-      </table>
     </section>
 
     <section id="jpeg-controls">
@@ -4266,6 +4265,167 @@ interface and may change in the future.</para>
 	    <entry spanname="descr">Pixel rate in the source pads of
 	    the subdev. This control is read-only and its unit is
 	    pixels / second.
+	    </entry>
+	  </row>
+	  <row><entry></entry></row>
+	</tbody>
+      </tgroup>
+      </table>
+
+    </section>
+
+    <section id="dv-controls">
+      <title>Digital Video Control Reference</title>
+
+      <note>
+	<title>Experimental</title>
+
+	<para>This is an <link
+	linkend="experimental">experimental</link> interface and may
+	change in the future.</para>
+      </note>
+
+      <para>
+	The Digital Video control class is intended to control receivers
+	and transmitters for <ulink url="http://en.wikipedia.org/wiki/Vga">VGA</ulink>,
+	<ulink url="http://en.wikipedia.org/wiki/Digital_Visual_Interface">DVI</ulink>
+	(Digital Visual Interface), HDMI (<xref linkend="hdmi" />) and DisplayPort (<xref linkend="dp" />).
+	These controls are generally expected to be private to the receiver or transmitter
+	subdevice that implements them, so they are only exposed on the
+	<filename>/dev/v4l-subdev*</filename> device node.
+      </para>
+
+      <para>Note that these devices can have multiple input or output pads which are
+      hooked up to e.g. HDMI connectors. Even though the subdevice will receive or
+      transmit video from/to only one of those pads, the other pads can still be
+      active when it comes to EDID (Extended Display Identification Data,
+      <xref linkend="vesaedid" />) and HDCP (High-bandwidth Digital Content
+      Protection System, <xref linkend="hdcp" />) processing, allowing the device
+      to do the fairly slow EDID/HDCP handling in advance. This allows for quick
+      switching between connectors.</para>
+
+      <para>These pads appear in several of the controls in this section as
+      bitmasks, one bit for each pad. Bit 0 corresponds to pad 0, bit 1 to pad 1,
+      etc. The maximum value of the control is the set of valid pads.</para>
+
+      <table pgwide="1" frame="none" id="dv-control-id">
+      <title>Digital Video Control IDs</title>
+
+      <tgroup cols="4">
+	<colspec colname="c1" colwidth="1*" />
+	<colspec colname="c2" colwidth="6*" />
+	<colspec colname="c3" colwidth="2*" />
+	<colspec colname="c4" colwidth="6*" />
+	<spanspec namest="c1" nameend="c2" spanname="id" />
+	<spanspec namest="c2" nameend="c4" spanname="descr" />
+	<thead>
+	  <row>
+	    <entry spanname="id" align="left">ID</entry>
+	    <entry align="left">Type</entry>
+	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row><entry></entry></row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_CLASS</constant></entry>
+	    <entry>class</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">The Digital Video class descriptor.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_TX_HOTPLUG</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Many connectors have a hotplug pin which is high
+	    if EDID information is available from the source. This control shows the
+	    state of the hotplug pin as seen by the transmitter.
+	    Each bit corresponds to an output pad on the transmitter. If an output pad
+	    does not have an associated hotplug pin, then the bit for that pad will be 0.
+	    This read-only control is applicable to DVI-D, HDMI and DisplayPort connectors.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_TX_RXSENSE</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Rx Sense is the detection of pull-ups on the TMDS
+            clock lines. This normally means that the sink has left/entered standby (i.e.
+	    the transmitter can sense that the receiver is ready to receive video).
+	    Each bit corresponds to an output pad on the transmitter. If an output pad
+	    does not have an associated Rx Sense, then the bit for that pad will be 0.
+	    This read-only control is applicable to DVI-D and HDMI devices.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_TX_EDID_PRESENT</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">When the transmitter sees the hotplug signal from the
+	    receiver it will attempt to read the EDID. If set, then the transmitter has read
+	    at least the first block (= 128 bytes).
+	    Each bit corresponds to an output pad on the transmitter. If an output pad
+	    does not support EDIDs, then the bit for that pad will be 0.
+	    This read-only control is applicable to VGA, DVI-A/D, HDMI and DisplayPort connectors.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_TX_MODE</constant></entry>
+	    <entry id="v4l2-dv-tx-mode">enum v4l2_dv_tx_mode</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">HDMI transmitters can transmit in DVI-D mode (just video)
+	    or in HDMI mode (video + audio + auxiliary data). This control selects which mode
+	    to use: V4L2_DV_TX_MODE_DVI_D or V4L2_DV_TX_MODE_HDMI.
+	    This control is applicable to HDMI connectors.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_TX_RGB_RANGE</constant></entry>
+	    <entry id="v4l2-dv-rgb-range">enum v4l2_dv_rgb_range</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Select the quantization range for RGB output. V4L2_DV_RANGE_AUTO
+	    follows the RGB quantization range specified in the standard for the video interface
+	    (ie. <xref linkend="cea861" /> for HDMI). V4L2_DV_RANGE_LIMITED and V4L2_DV_RANGE_FULL override the standard
+	    to be compatible with sinks that have not implemented the standard correctly
+	    (unfortunately quite common for HDMI and DVI-D). Full range allows all possible values to be
+	    used whereas limited range sets the range to (16 &lt;&lt; (N-8)) - (235 &lt;&lt; (N-8))
+	    where N is the number of bits per component.
+	    This control is applicable to VGA, DVI-A/D, HDMI and DisplayPort connectors.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_RX_POWER_PRESENT</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Detects whether the receiver receives power from the source
+	    (e.g. HDMI carries 5V on one of the pins). This is often used to power an eeprom
+	    which contains EDID information, such that the source can read the EDID even if
+	    the sink is in standby/power off.
+	    Each bit corresponds to an input pad on the transmitter. If an input pad
+	    cannot detect whether power is present, then the bit for that pad will be 0.
+	    This read-only control is applicable to DVI-D, HDMI and DisplayPort connectors.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_DV_RX_RGB_RANGE</constant></entry>
+	    <entry>enum v4l2_dv_rgb_range</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Select the quantization range for RGB input. V4L2_DV_RANGE_AUTO
+	    follows the RGB quantization range specified in the standard for the video interface
+	    (ie. <xref linkend="cea861" /> for HDMI). V4L2_DV_RANGE_LIMITED and V4L2_DV_RANGE_FULL override the standard
+	    to be compatible with sources that have not implemented the standard correctly
+	    (unfortunately quite common for HDMI and DVI-D). Full range allows all possible values to be
+	    used whereas limited range sets the range to (16 &lt;&lt; (N-8)) - (235 &lt;&lt; (N-8))
+	    where N is the number of bits per component.
+	    This control is applicable to VGA, DVI-A/D, HDMI and DisplayPort connectors.
 	    </entry>
 	  </row>
 	  <row><entry></entry></row>

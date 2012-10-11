@@ -3,6 +3,7 @@
 #
 
 menu "I2C Hardware Bus support"
+	depends on HAS_IOMEM
 
 comment "PC SMBus host controller drivers"
 	depends on PCI
@@ -80,6 +81,7 @@ config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
 	select CHECK_SIGNATURE if X86 && DMI
+	select GPIOLIB if I2C_MUX
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  801 family of mainboard I2C interfaces.  Specifically, the following
@@ -224,7 +226,7 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx"
+	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx/VX900"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -240,6 +242,7 @@ config I2C_VIAPRO
 	    CX700
 	    VX800/VX820
 	    VX855/VX875
+	    VX900
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
@@ -551,7 +554,7 @@ config I2C_PMCMSP
 
 config I2C_PNX
 	tristate "I2C bus support for Philips PNX and NXP LPC targets"
-	depends on ARCH_PNX4008 || ARCH_LPC32XX
+	depends on ARCH_LPC32XX
 	help
 	  This driver supports the Philips IP3204 I2C IP block master and/or
 	  slave controller
@@ -848,19 +851,6 @@ config I2C_SIBYTE
 	depends on SIBYTE_SB1xxx_SOC
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
-
-config I2C_STUB
-	tristate "I2C/SMBus Test Stub"
-	depends on EXPERIMENTAL && m
-	default 'n'
-	help
-	  This module may be useful to developers of SMBus client drivers,
-	  especially for certain kinds of sensor chips.
-
-	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
-
-	  If you don't know what to do here, definitely say N.
 
 config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"

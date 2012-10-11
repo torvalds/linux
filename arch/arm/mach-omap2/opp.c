@@ -64,25 +64,22 @@ int __init omap_init_opp_table(struct omap_opp_def *opp_def,
 		}
 		oh = omap_hwmod_lookup(opp_def->hwmod_name);
 		if (!oh || !oh->od) {
-			pr_debug("%s: no hwmod or odev for %s, [%d] "
-				"cannot add OPPs.\n", __func__,
-				opp_def->hwmod_name, i);
+			pr_debug("%s: no hwmod or odev for %s, [%d] cannot add OPPs.\n",
+				 __func__, opp_def->hwmod_name, i);
 			continue;
 		}
 		dev = &oh->od->pdev->dev;
 
 		r = opp_add(dev, opp_def->freq, opp_def->u_volt);
 		if (r) {
-			dev_err(dev, "%s: add OPP %ld failed for %s [%d] "
-				"result=%d\n",
-			       __func__, opp_def->freq,
-			       opp_def->hwmod_name, i, r);
+			dev_err(dev, "%s: add OPP %ld failed for %s [%d] result=%d\n",
+				__func__, opp_def->freq,
+				opp_def->hwmod_name, i, r);
 		} else {
 			if (!opp_def->default_available)
 				r = opp_disable(dev, opp_def->freq);
 			if (r)
-				dev_err(dev, "%s: disable %ld failed for %s "
-					"[%d] result=%d\n",
+				dev_err(dev, "%s: disable %ld failed for %s [%d] result=%d\n",
 					__func__, opp_def->freq,
 					opp_def->hwmod_name, i, r);
 		}

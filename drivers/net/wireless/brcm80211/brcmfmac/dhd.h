@@ -27,6 +27,7 @@
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
 #define BRCMF_C_UP				2
+#define BRCMF_C_DOWN				3
 #define BRCMF_C_SET_PROMISC			10
 #define BRCMF_C_GET_RATE			12
 #define BRCMF_C_GET_INFRA			19
@@ -50,7 +51,10 @@
 #define BRCMF_C_REASSOC				53
 #define BRCMF_C_SET_ROAM_TRIGGER		55
 #define BRCMF_C_SET_ROAM_DELTA			57
+#define BRCMF_C_GET_BCNPRD			75
+#define BRCMF_C_SET_BCNPRD			76
 #define BRCMF_C_GET_DTIMPRD			77
+#define BRCMF_C_SET_DTIMPRD			78
 #define BRCMF_C_SET_COUNTRY			84
 #define BRCMF_C_GET_PM				85
 #define BRCMF_C_SET_PM				86
@@ -130,6 +134,13 @@
 #define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
 #define BRCMF_EVENT_MSG_GROUP		0x04
 
+#define BRCMF_ESCAN_REQ_VERSION 1
+
+#define WLC_BSS_RSSI_ON_CHANNEL		0x0002
+
+#define BRCMF_MAXRATES_IN_SET		16	/* max # of rates in rateset */
+#define BRCMF_STA_ASSOC			0x10		/* Associated */
+
 struct brcmf_event_msg {
 	__be16 version;
 	__be16 flags;
@@ -140,6 +151,8 @@ struct brcmf_event_msg {
 	__be32 datalen;
 	u8 addr[ETH_ALEN];
 	char ifname[IFNAMSIZ];
+	u8 ifidx;
+	u8 bsscfgidx;
 } __packed;
 
 struct brcm_ethhdr {
@@ -454,6 +467,24 @@ struct brcmf_scan_results_le {
 	__le32 count;
 };
 
+struct brcmf_escan_params_le {
+	__le32 version;
+	__le16 action;
+	__le16 sync_id;
+	struct brcmf_scan_params_le params_le;
+};
+
+struct brcmf_escan_result_le {
+	__le32 buflen;
+	__le32 version;
+	__le16 sync_id;
+	__le16 bss_count;
+	struct brcmf_bss_info_le bss_info_le;
+};
+
+#define WL_ESCAN_RESULTS_FIXED_SIZE (sizeof(struct brcmf_escan_result_le) - \
+	sizeof(struct brcmf_bss_info_le))
+
 /* used for association with a specific BSSID and chanspec list */
 struct brcmf_assoc_params_le {
 	/* 00:00:00:00:00:00: broadcast scan */
@@ -542,6 +573,28 @@ struct brcmf_channel_info_le {
 	__le32 scan_channel;
 };
 
+struct brcmf_sta_info_le {
+	__le16	ver;		/* version of this struct */
+	__le16	len;		/* length in bytes of this structure */
+	__le16	cap;		/* sta's advertised capabilities */
+	__le32	flags;		/* flags defined below */
+	__le32	idle;		/* time since data pkt rx'd from sta */
+	u8	ea[ETH_ALEN];		/* Station address */
+	__le32	count;			/* # rates in this set */
+	u8	rates[BRCMF_MAXRATES_IN_SET];	/* rates in 500kbps units */
+						/* w/hi bit set if basic */
+	__le32	in;		/* seconds elapsed since associated */
+	__le32	listen_interval_inms; /* Min Listen interval in ms for STA */
+	__le32	tx_pkts;	/* # of packets transmitted */
+	__le32	tx_failures;	/* # of packets failed */
+	__le32	rx_ucast_pkts;	/* # of unicast packets received */
+	__le32	rx_mcast_pkts;	/* # of multicast packets received */
+	__le32	tx_rate;	/* Rate of last successful tx frame */
+	__le32	rx_rate;	/* Rate of last successful rx frame */
+	__le32	rx_decrypt_succeeds;	/* # of packet decrypted successfully */
+	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
+};
+
 /* Bus independent dongle command */
 struct brcmf_dcmd {
 	uint cmd;		/* common dongle cmd definition */
@@ -561,7 +614,7 @@ struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
-	struct brcmf_cfg80211_dev *config;
+	struct brcmf_cfg80211_info *config;
 	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
@@ -634,10 +687,13 @@ extern const struct bcmevent_name bcmevent_names[];
 
 extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
+extern uint brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
+				   char *buf, uint buflen, s32 bssidx);
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
+extern int brcmf_netlink_dcmd(struct net_device *ndev, struct brcmf_dcmd *dcmd);
 
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
@@ -656,10 +712,6 @@ extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void **data_ptr);
 
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
-
-/* Send packet to dongle via data channel */
-extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
-			 struct sk_buff *pkt);
 
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,

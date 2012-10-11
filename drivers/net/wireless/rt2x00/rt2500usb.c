@@ -283,7 +283,7 @@ static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	u16 reg;
 
 	rt2500usb_register_read(rt2x00dev, MAC_CSR19, &reg);
-	return rt2x00_get_field16(reg, MAC_CSR19_BIT7);
+	return rt2x00_get_field16(reg, MAC_CSR19_VAL7);
 }
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
@@ -1786,7 +1786,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * rfkill switch GPIO pin correctly.
 	 */
 	rt2500usb_register_read(rt2x00dev, MAC_CSR19, &reg);
-	rt2x00_set_field16(&reg, MAC_CSR19_BIT8, 0);
+	rt2x00_set_field16(&reg, MAC_CSR19_DIR0, 0);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR19, reg);
 
 	/*
@@ -1896,7 +1896,6 @@ static const struct data_queue_desc rt2500usb_queue_atim = {
 
 static const struct rt2x00_ops rt2500usb_ops = {
 	.name			= KBUILD_MODNAME,
-	.max_sta_intf		= 1,
 	.max_ap_intf		= 1,
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,

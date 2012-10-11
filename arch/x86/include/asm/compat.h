@@ -41,6 +41,7 @@ typedef s64 __attribute__((aligned(4))) compat_s64;
 typedef u32		compat_uint_t;
 typedef u32		compat_ulong_t;
 typedef u64 __attribute__((aligned(4))) compat_u64;
+typedef u32		compat_uptr_t;
 
 struct compat_timespec {
 	compat_time_t	tv_sec;
@@ -123,6 +124,78 @@ typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 #define _COMPAT_NSIG_BPW	32
 
 typedef u32               compat_sigset_word;
+
+typedef union compat_sigval {
+	compat_int_t	sival_int;
+	compat_uptr_t	sival_ptr;
+} compat_sigval_t;
+
+typedef struct compat_siginfo {
+	int si_signo;
+	int si_errno;
+	int si_code;
+
+	union {
+		int _pad[128/sizeof(int) - 3];
+
+		/* kill() */
+		struct {
+			unsigned int _pid;	/* sender's pid */
+			unsigned int _uid;	/* sender's uid */
+		} _kill;
+
+		/* POSIX.1b timers */
+		struct {
+			compat_timer_t _tid;	/* timer id */
+			int _overrun;		/* overrun count */
+			compat_sigval_t _sigval;	/* same as below */
+			int _sys_private;	/* not to be passed to user */
+			int _overrun_incr;	/* amount to add to overrun */
+		} _timer;
+
+		/* POSIX.1b signals */
+		struct {
+			unsigned int _pid;	/* sender's pid */
+			unsigned int _uid;	/* sender's uid */
+			compat_sigval_t _sigval;
+		} _rt;
+
+		/* SIGCHLD */
+		struct {
+			unsigned int _pid;	/* which child */
+			unsigned int _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_clock_t _utime;
+			compat_clock_t _stime;
+		} _sigchld;
+
+		/* SIGCHLD (x32 version) */
+		struct {
+			unsigned int _pid;	/* which child */
+			unsigned int _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_s64 _utime;
+			compat_s64 _stime;
+		} _sigchld_x32;
+
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
+		struct {
+			unsigned int _addr;	/* faulting insn/memory ref. */
+		} _sigfault;
+
+		/* SIGPOLL */
+		struct {
+			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			int _fd;
+		} _sigpoll;
+
+		struct {
+			unsigned int _call_addr; /* calling insn */
+			int _syscall;	/* triggering system call number */
+			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
+		} _sigsys;
+	} _sifields;
+} compat_siginfo_t;
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
 #define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
@@ -209,7 +282,6 @@ typedef struct user_regs_struct32 compat_elf_gregset_t;
  * as pointers because the syscall entry code will have
  * appropriately converted them already.
  */
-typedef	u32		compat_uptr_t;
 
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {

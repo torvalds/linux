@@ -12,6 +12,8 @@
 #ifndef S5P_FIMC_H_
 #define S5P_FIMC_H_
 
+#include <media/media-entity.h>
+
 enum cam_bus_type {
 	FIMC_ITU_601 = 1,
 	FIMC_ITU_656,
@@ -79,5 +81,21 @@ struct fimc_pipeline {
 	struct v4l2_subdev *subdevs[IDX_MAX];
 	struct media_pipeline *m_pipeline;
 };
+
+/*
+ * Media pipeline operations to be called from within the fimc(-lite)
+ * video node when it is the last entity of the pipeline. Implemented
+ * by corresponding media device driver.
+ */
+struct fimc_pipeline_ops {
+	int (*open)(struct fimc_pipeline *p, struct media_entity *me,
+			  bool resume);
+	int (*close)(struct fimc_pipeline *p);
+	int (*set_stream)(struct fimc_pipeline *p, bool state);
+};
+
+#define fimc_pipeline_call(f, op, p, args...)				\
+	(!(f) ? -ENODEV : (((f)->pipeline_ops && (f)->pipeline_ops->op) ? \
+			    (f)->pipeline_ops->op((p), ##args) : -ENOIOCTLCMD))
 
 #endif /* S5P_FIMC_H_ */

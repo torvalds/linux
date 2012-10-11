@@ -78,7 +78,7 @@ again:
 	else if (unlikely(err))
 		return err;
 
-	*id = *id & MAX_ID_MASK;
+	*id = *id & MAX_IDR_MASK;
 	return 0;
 }
 
@@ -694,17 +694,14 @@ thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 					    int delay)
 {
-	cancel_delayed_work(&(tz->poll_queue));
-
-	if (!delay)
-		return;
-
 	if (delay > 1000)
-		queue_delayed_work(system_freezable_wq, &(tz->poll_queue),
-				      round_jiffies(msecs_to_jiffies(delay)));
+		mod_delayed_work(system_freezable_wq, &tz->poll_queue,
+				 round_jiffies(msecs_to_jiffies(delay)));
+	else if (delay)
+		mod_delayed_work(system_freezable_wq, &tz->poll_queue,
+				 msecs_to_jiffies(delay));
 	else
-		queue_delayed_work(system_freezable_wq, &(tz->poll_queue),
-				      msecs_to_jiffies(delay));
+		cancel_delayed_work(&tz->poll_queue);
 }
 
 static void thermal_zone_device_passive(struct thermal_zone_device *tz,

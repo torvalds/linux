@@ -210,6 +210,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(hpfs_inode_cachep);
 }
 
@@ -251,7 +256,7 @@ static const match_table_t tokens = {
 	{Opt_err, NULL},
 };
 
-static int parse_opts(char *opts, uid_t *uid, gid_t *gid, umode_t *umask,
+static int parse_opts(char *opts, kuid_t *uid, kgid_t *gid, umode_t *umask,
 		      int *lowercase, int *eas, int *chk, int *errs,
 		      int *chkdsk, int *timeshift)
 {
@@ -276,12 +281,16 @@ static int parse_opts(char *opts, uid_t *uid, gid_t *gid, umode_t *umask,
 		case Opt_uid:
 			if (match_int(args, &option))
 				return 0;
-			*uid = option;
+			*uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(*uid))
+				return 0;
 			break;
 		case Opt_gid:
 			if (match_int(args, &option))
 				return 0;
-			*gid = option;
+			*gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(*gid))
+				return 0;
 			break;
 		case Opt_umask:
 			if (match_octal(args, &option))
@@ -378,8 +387,8 @@ HPFS filesystem options:\n\
 
 static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 {
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 	umode_t umask;
 	int lowercase, eas, chk, errs, chkdsk, timeshift;
 	int o;
@@ -455,8 +464,8 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	struct hpfs_sb_info *sbi;
 	struct inode *root;
 
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 	umode_t umask;
 	int lowercase, eas, chk, errs, chkdsk, timeshift;
 

@@ -177,6 +177,8 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 unsigned int regulator_get_mode(struct regulator *regulator);
 int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);
 
+int regulator_allow_bypass(struct regulator *regulator, bool allow);
+
 /* regulator notifier block */
 int regulator_register_notifier(struct regulator *regulator,
 			      struct notifier_block *nb);
@@ -328,6 +330,12 @@ static inline int regulator_set_optimum_mode(struct regulator *regulator,
 	return REGULATOR_MODE_NORMAL;
 }
 
+static inline int regulator_allow_bypass(struct regulator *regulator,
+					 bool allow)
+{
+	return 0;
+}
+
 static inline int regulator_register_notifier(struct regulator *regulator,
 			      struct notifier_block *nb)
 {
@@ -351,5 +359,12 @@ static inline void regulator_set_drvdata(struct regulator *regulator,
 }
 
 #endif
+
+static inline int regulator_set_voltage_tol(struct regulator *regulator,
+					    int new_uV, int tol_uV)
+{
+	return regulator_set_voltage(regulator,
+				     new_uV - tol_uV, new_uV + tol_uV);
+}
 
 #endif

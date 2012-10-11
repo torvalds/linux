@@ -33,7 +33,7 @@
 #ifndef _SB1250_L2C_H
 #define _SB1250_L2C_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*
  * Level 2 Cache Tag register (Table 5-3)

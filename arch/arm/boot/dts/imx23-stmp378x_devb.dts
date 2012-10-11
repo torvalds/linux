@@ -36,7 +36,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */

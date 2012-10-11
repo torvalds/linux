@@ -22,8 +22,6 @@
 #define DRIVER_AUTHOR "Qualcomm Inc"
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
-static bool debug;
-
 #define DEVICE_G1K(v, p) \
 	USB_DEVICE(v, p), .driver_info = 1
 
@@ -305,6 +303,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL v2");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

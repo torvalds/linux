@@ -20,21 +20,16 @@ header-y += netfilter_ipv6/
 header-y += usb/
 header-y += wimax/
 
-objhdr-y += version.h
-
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
-		  $(srctree)/include/asm-$(SRCARCH)/a.out.h \
-		  $(INSTALL_HDR_PATH)/include/asm-*/a.out.h),)
+		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/a.out.h),)
 header-y += a.out.h
 endif
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
-		  $(srctree)/include/asm-$(SRCARCH)/kvm.h \
-		  $(INSTALL_HDR_PATH)/include/asm-*/kvm.h),)
+		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm.h),)
 header-y += kvm.h
 endif
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
-		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h \
-		  $(INSTALL_HDR_PATH)/include/asm-*/kvm_para.h),)
+		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm_para.h),)
 header-y += kvm_para.h
 endif
 
@@ -84,7 +79,6 @@ header-y += capability.h
 header-y += capi.h
 header-y += cciss_defs.h
 header-y += cciss_ioctl.h
-header-y += cdk.h
 header-y += cdrom.h
 header-y += cgroupstats.h
 header-y += chio.h
@@ -93,7 +87,6 @@ header-y += cn_proc.h
 header-y += coda.h
 header-y += coda_psdev.h
 header-y += coff.h
-header-y += comstats.h
 header-y += connector.h
 header-y += const.h
 header-y += cramfs_fs.h
@@ -140,7 +133,6 @@ header-y += fuse.h
 header-y += futex.h
 header-y += gameport.h
 header-y += gen_stats.h
-header-y += generic_serial.h
 header-y += genetlink.h
 header-y += gfs2_ondisk.h
 header-y += gigaset_dev.h
@@ -195,6 +187,7 @@ header-y += in_route.h
 header-y += sock_diag.h
 header-y += inet_diag.h
 header-y += unix_diag.h
+header-y += packet_diag.h
 header-y += inotify.h
 header-y += input.h
 header-y += ioctl.h
@@ -362,6 +355,7 @@ header-y += sysctl.h
 header-y += sysinfo.h
 header-y += taskstats.h
 header-y += tcp.h
+header-y += tcp_metrics.h
 header-y += telephony.h
 header-y += termios.h
 header-y += time.h
@@ -372,6 +366,7 @@ header-y += tipc.h
 header-y += tipc_config.h
 header-y += toshiba.h
 header-y += tty.h
+header-y += tty_flags.h
 header-y += types.h
 header-y += udf_fs_i.h
 header-y += udp.h
@@ -387,6 +382,7 @@ header-y += utsname.h
 header-y += uuid.h
 header-y += uvcvideo.h
 header-y += v4l2-common.h
+header-y += v4l2-controls.h
 header-y += v4l2-dv-timings.h
 header-y += v4l2-mediabus.h
 header-y += v4l2-subdev.h

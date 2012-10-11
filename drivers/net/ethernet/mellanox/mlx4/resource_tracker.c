@@ -242,6 +242,15 @@ static int res_tracker_insert(struct rb_root *root, struct res_common *res)
 	return 0;
 }
 
+enum qp_transition {
+	QP_TRANS_INIT2RTR,
+	QP_TRANS_RTR2RTS,
+	QP_TRANS_RTS2RTS,
+	QP_TRANS_SQERR2RTS,
+	QP_TRANS_SQD2SQD,
+	QP_TRANS_SQD2RTS
+};
+
 /* For Debug uses */
 static const char *ResourceType(enum mlx4_resource rt)
 {
@@ -308,13 +317,40 @@ void mlx4_free_resource_tracker(struct mlx4_dev *dev,
 	}
 }
 
-static void update_ud_gid(struct mlx4_dev *dev,
-			  struct mlx4_qp_context *qp_ctx, u8 slave)
+static void update_pkey_index(struct mlx4_dev *dev, int slave,
+			      struct mlx4_cmd_mailbox *inbox)
 {
-	u32 ts = (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
+	u8 sched = *(u8 *)(inbox->buf + 64);
+	u8 orig_index = *(u8 *)(inbox->buf + 35);
+	u8 new_index;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int port;
+
+	port = (sched >> 6 & 1) + 1;
+
+	new_index = priv->virt2phys_pkey[slave][port - 1][orig_index];
+	*(u8 *)(inbox->buf + 35) = new_index;
+
+	mlx4_dbg(dev, "port = %d, orig pkey index = %d, "
+		 "new pkey index = %d\n", port, orig_index, new_index);
+}
+
+static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
+		       u8 slave)
+{
+	struct mlx4_qp_context	*qp_ctx = inbox->buf + 8;
+	enum mlx4_qp_optpar	optpar = be32_to_cpu(*(__be32 *) inbox->buf);
+	u32			ts = (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
 
 	if (MLX4_QP_ST_UD == ts)
 		qp_ctx->pri_path.mgid_index = 0x80 | slave;
+
+	if (MLX4_QP_ST_RC == ts || MLX4_QP_ST_UC == ts) {
+		if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH)
+			qp_ctx->pri_path.mgid_index = slave & 0x7F;
+		if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH)
+			qp_ctx->alt_path.mgid_index = slave & 0x7F;
+	}
 
 	mlx4_dbg(dev, "slave %d, new gid index: 0x%x ",
 		slave, qp_ctx->pri_path.mgid_index);
@@ -360,8 +396,6 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
-	mlx4_dbg(dev, "res %s id 0x%llx to busy\n",
-		 ResourceType(type), r->res_id);
 
 	if (res)
 		*((struct res_common **)res) = r;
@@ -1105,7 +1139,13 @@ static void res_end_move(struct mlx4_dev *dev, int slave,
 
 static int valid_reserved(struct mlx4_dev *dev, int slave, int qpn)
 {
-	return mlx4_is_qp_reserved(dev, qpn);
+	return mlx4_is_qp_reserved(dev, qpn) &&
+		(mlx4_is_master(dev) || mlx4_is_guest_proxy(dev, slave, qpn));
+}
+
+static int fw_reserved(struct mlx4_dev *dev, int qpn)
+{
+	return qpn < dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
 }
 
 static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
@@ -1145,7 +1185,7 @@ static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		if (!valid_reserved(dev, slave, qpn)) {
+		if (!fw_reserved(dev, qpn)) {
 			err = __mlx4_qp_alloc_icm(dev, qpn);
 			if (err) {
 				res_abort_move(dev, slave, RES_QP, qpn);
@@ -1498,7 +1538,7 @@ static int qp_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		if (!valid_reserved(dev, slave, qpn))
+		if (!fw_reserved(dev, qpn))
 			__mlx4_qp_free_icm(dev, qpn);
 
 		res_end_move(dev, slave, RES_QP, qpn);
@@ -1938,6 +1978,19 @@ static u32 qp_get_srqn(struct mlx4_qp_context *qpc)
 	return be32_to_cpu(qpc->srqn) & 0x1ffffff;
 }
 
+static void adjust_proxy_tun_qkey(struct mlx4_dev *dev, struct mlx4_vhcr *vhcr,
+				  struct mlx4_qp_context *context)
+{
+	u32 qpn = vhcr->in_modifier & 0xffffff;
+	u32 qkey = 0;
+
+	if (mlx4_get_parav_qkey(dev, qpn, &qkey))
+		return;
+
+	/* adjust qkey in qp context */
+	context->qkey = cpu_to_be32(qkey);
+}
+
 int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
@@ -1990,6 +2043,8 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 			goto ex_put_scq;
 	}
 
+	adjust_proxy_tun_qkey(dev, vhcr, qpc);
+	update_pkey_index(dev, slave, inbox);
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 	if (err)
 		goto ex_put_srq;
@@ -2133,6 +2188,48 @@ static int get_containing_mtt(struct mlx4_dev *dev, int slave, int start,
 	spin_unlock_irq(mlx4_tlock(dev));
 
 	return err;
+}
+
+static int verify_qp_parameters(struct mlx4_dev *dev,
+				struct mlx4_cmd_mailbox *inbox,
+				enum qp_transition transition, u8 slave)
+{
+	u32			qp_type;
+	struct mlx4_qp_context	*qp_ctx;
+	enum mlx4_qp_optpar	optpar;
+
+	qp_ctx  = inbox->buf + 8;
+	qp_type	= (be32_to_cpu(qp_ctx->flags) >> 16) & 0xff;
+	optpar	= be32_to_cpu(*(__be32 *) inbox->buf);
+
+	switch (qp_type) {
+	case MLX4_QP_ST_RC:
+	case MLX4_QP_ST_UC:
+		switch (transition) {
+		case QP_TRANS_INIT2RTR:
+		case QP_TRANS_RTR2RTS:
+		case QP_TRANS_RTS2RTS:
+		case QP_TRANS_SQD2SQD:
+		case QP_TRANS_SQD2RTS:
+			if (slave != mlx4_master_func_num(dev))
+				/* slaves have only gid index 0 */
+				if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH)
+					if (qp_ctx->pri_path.mgid_index)
+						return -EINVAL;
+				if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH)
+					if (qp_ctx->alt_path.mgid_index)
+						return -EINVAL;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 int mlx4_WRITE_MTT_wrapper(struct mlx4_dev *dev, int slave,
@@ -2622,16 +2719,123 @@ out:
 	return err;
 }
 
+int mlx4_INIT2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
+			      struct mlx4_vhcr *vhcr,
+			      struct mlx4_cmd_mailbox *inbox,
+			      struct mlx4_cmd_mailbox *outbox,
+			      struct mlx4_cmd_info *cmd)
+{
+	struct mlx4_qp_context *context = inbox->buf + 8;
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	update_pkey_index(dev, slave, inbox);
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
 int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
 			     struct mlx4_cmd_mailbox *outbox,
 			     struct mlx4_cmd_info *cmd)
 {
+	int err;
 	struct mlx4_qp_context *qpc = inbox->buf + 8;
 
-	update_ud_gid(dev, qpc, (u8)slave);
+	err = verify_qp_parameters(dev, inbox, QP_TRANS_INIT2RTR, slave);
+	if (err)
+		return err;
 
+	update_pkey_index(dev, slave, inbox);
+	update_gid(dev, inbox, (u8)slave);
+	adjust_proxy_tun_qkey(dev, vhcr, qpc);
+
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
+int mlx4_RTR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	struct mlx4_qp_context *context = inbox->buf + 8;
+
+	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTR2RTS, slave);
+	if (err)
+		return err;
+
+	update_pkey_index(dev, slave, inbox);
+	update_gid(dev, inbox, (u8)slave);
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
+int mlx4_RTS2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	struct mlx4_qp_context *context = inbox->buf + 8;
+
+	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTS2RTS, slave);
+	if (err)
+		return err;
+
+	update_pkey_index(dev, slave, inbox);
+	update_gid(dev, inbox, (u8)slave);
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
+
+int mlx4_SQERR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			      struct mlx4_vhcr *vhcr,
+			      struct mlx4_cmd_mailbox *inbox,
+			      struct mlx4_cmd_mailbox *outbox,
+			      struct mlx4_cmd_info *cmd)
+{
+	struct mlx4_qp_context *context = inbox->buf + 8;
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
+int mlx4_SQD2SQD_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	struct mlx4_qp_context *context = inbox->buf + 8;
+
+	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2SQD, slave);
+	if (err)
+		return err;
+
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	update_gid(dev, inbox, (u8)slave);
+	update_pkey_index(dev, slave, inbox);
+	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+}
+
+int mlx4_SQD2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	struct mlx4_qp_context *context = inbox->buf + 8;
+
+	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2RTS, slave);
+	if (err)
+		return err;
+
+	adjust_proxy_tun_qkey(dev, vhcr, context);
+	update_gid(dev, inbox, (u8)slave);
+	update_pkey_index(dev, slave, inbox);
 	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 }
 
@@ -2889,6 +3093,8 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	case MLX4_NET_TRANS_RULE_ID_ETH:
 		if (validate_eth_header_mac(slave, rule_header, rlist))
 			return -EINVAL;
+		break;
+	case MLX4_NET_TRANS_RULE_ID_IB:
 		break;
 	case MLX4_NET_TRANS_RULE_ID_IPV4:
 	case MLX4_NET_TRANS_RULE_ID_TCP:

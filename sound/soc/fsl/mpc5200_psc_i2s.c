@@ -130,13 +130,16 @@ static const struct snd_soc_dai_ops psc_i2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver psc_i2s_dai[] = {{
+	.name = "mpc5200-psc-i2s.0",
 	.playback = {
+		.stream_name = "I2S Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = PSC_I2S_RATES,
 		.formats = PSC_I2S_FORMATS,
 	},
 	.capture = {
+		.stream_name = "I2S Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = PSC_I2S_RATES,
@@ -155,6 +158,10 @@ static int __devinit psc_i2s_of_probe(struct platform_device *op)
 	int rc;
 	struct psc_dma *psc_dma;
 	struct mpc52xx_psc __iomem *regs;
+
+	rc = mpc5200_audio_dma_create(op);
+	if (rc != 0)
+		return rc;
 
 	rc = snd_soc_register_dais(&op->dev, psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
 	if (rc != 0) {
@@ -200,6 +207,7 @@ static int __devinit psc_i2s_of_probe(struct platform_device *op)
 
 static int __devexit psc_i2s_of_remove(struct platform_device *op)
 {
+	mpc5200_audio_dma_destroy(op);
 	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_i2s_dai));
 	return 0;
 }

@@ -119,8 +119,9 @@ three different userspace interfaces:
     *	/sys/class/rtc/rtcN ... sysfs attributes support readonly
 	access to some RTC attributes.
 
-    *	/proc/driver/rtc ... the first RTC (rtc0) may expose itself
-	using a procfs interface.  More information is (currently) shown
+    *	/proc/driver/rtc ... the system clock RTC may expose itself
+	using a procfs interface. If there is no RTC for the system clock,
+	rtc0 is used by default. More information is (currently) shown
 	here than through sysfs.
 
 The RTC Class framework supports a wide variety of RTCs, ranging from those

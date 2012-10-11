@@ -22,10 +22,11 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <core/object.h>
+#include <core/class.h>
+
+#include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include "nouveau_ramht.h"
 #include "nouveau_fence.h"
 
 struct nv10_fence_chan {
@@ -39,7 +40,7 @@ struct nv10_fence_priv {
 	u32 sequence;
 };
 
-static int
+int
 nv10_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
@@ -60,15 +61,15 @@ nv10_fence_sync(struct nouveau_fence *fence,
 	return -ENODEV;
 }
 
-static int
+int
 nv17_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
-	struct nv10_fence_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_FENCE);
+	struct nv10_fence_priv *priv = chan->drm->fence;
 	u32 value;
 	int ret;
 
-	if (!mutex_trylock(&prev->mutex))
+	if (!mutex_trylock(&prev->cli->mutex))
 		return -EBUSY;
 
 	spin_lock(&priv->lock);
@@ -95,34 +96,33 @@ nv17_fence_sync(struct nouveau_fence *fence,
 		FIRE_RING (chan);
 	}
 
-	mutex_unlock(&prev->mutex);
+	mutex_unlock(&prev->cli->mutex);
 	return 0;
 }
 
-static u32
+u32
 nv10_fence_read(struct nouveau_channel *chan)
 {
-	return nvchan_rd32(chan, 0x0048);
+	return nv_ro32(chan->object, 0x0048);
 }
 
-static void
-nv10_fence_context_del(struct nouveau_channel *chan, int engine)
+void
+nv10_fence_context_del(struct nouveau_channel *chan)
 {
-	struct nv10_fence_chan *fctx = chan->engctx[engine];
+	struct nv10_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
-	chan->engctx[engine] = NULL;
+	chan->fence = NULL;
 	kfree(fctx);
 }
 
 static int
-nv10_fence_context_new(struct nouveau_channel *chan, int engine)
+nv10_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nv10_fence_priv *priv = nv_engine(chan->dev, engine);
+	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
-	struct nouveau_gpuobj *obj;
 	int ret = 0;
 
-	fctx = chan->engctx[engine] = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
 		return -ENOMEM;
 
@@ -130,69 +130,56 @@ nv10_fence_context_new(struct nouveau_channel *chan, int engine)
 
 	if (priv->bo) {
 		struct ttm_mem_reg *mem = &priv->bo->bo.mem;
+		struct nouveau_object *object;
+		u32 start = mem->start * PAGE_SIZE;
+		u32 limit = mem->start + mem->size - 1;
 
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_FROM_MEMORY,
-					     mem->start * PAGE_SIZE, mem->size,
-					     NV_MEM_ACCESS_RW,
-					     NV_MEM_TARGET_VRAM, &obj);
-		if (!ret) {
-			ret = nouveau_ramht_insert(chan, NvSema, obj);
-			nouveau_gpuobj_ref(NULL, &obj);
-		}
+		ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
+					 NvSema, 0x0002,
+					 &(struct nv_dma_class) {
+						.flags = NV_DMA_TARGET_VRAM |
+							 NV_DMA_ACCESS_RDWR,
+						.start = start,
+						.limit = limit,
+					 }, sizeof(struct nv_dma_class),
+					 &object);
 	}
 
 	if (ret)
-		nv10_fence_context_del(chan, engine);
+		nv10_fence_context_del(chan);
 	return ret;
 }
 
-static int
-nv10_fence_fini(struct drm_device *dev, int engine, bool suspend)
+void
+nv10_fence_destroy(struct nouveau_drm *drm)
 {
-	return 0;
-}
-
-static int
-nv10_fence_init(struct drm_device *dev, int engine)
-{
-	return 0;
-}
-
-static void
-nv10_fence_destroy(struct drm_device *dev, int engine)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv10_fence_priv *priv = nv_engine(dev, engine);
-
+	struct nv10_fence_priv *priv = drm->fence;
+	nouveau_bo_unmap(priv->bo);
 	nouveau_bo_ref(NULL, &priv->bo);
-	dev_priv->eng[engine] = NULL;
+	drm->fence = NULL;
 	kfree(priv);
 }
 
 int
-nv10_fence_create(struct drm_device *dev)
+nv10_fence_create(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv10_fence_priv *priv;
 	int ret = 0;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->base.engine.destroy = nv10_fence_destroy;
-	priv->base.engine.init = nv10_fence_init;
-	priv->base.engine.fini = nv10_fence_fini;
-	priv->base.engine.context_new = nv10_fence_context_new;
-	priv->base.engine.context_del = nv10_fence_context_del;
+	priv->base.dtor = nv10_fence_destroy;
+	priv->base.context_new = nv10_fence_context_new;
+	priv->base.context_del = nv10_fence_context_del;
 	priv->base.emit = nv10_fence_emit;
 	priv->base.read = nv10_fence_read;
 	priv->base.sync = nv10_fence_sync;
-	dev_priv->eng[NVOBJ_ENGINE_FENCE] = &priv->base.engine;
 	spin_lock_init(&priv->lock);
 
-	if (dev_priv->chipset >= 0x17) {
-		ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	if (nv_device(drm->device)->chipset >= 0x17) {
+		ret = nouveau_bo_new(drm->dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 				     0, 0x0000, NULL, &priv->bo);
 		if (!ret) {
 			ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
@@ -209,6 +196,6 @@ nv10_fence_create(struct drm_device *dev)
 	}
 
 	if (ret)
-		nv10_fence_destroy(dev, NVOBJ_ENGINE_FENCE);
+		nv10_fence_destroy(drm);
 	return ret;
 }

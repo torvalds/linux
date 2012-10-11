@@ -291,14 +291,14 @@ static inline size_t dn_fib_nlmsg_size(struct dn_fib_info *fi)
 	return payload;
 }
 
-static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+static int dn_fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			u32 tb_id, u8 type, u8 scope, void *dst, int dst_len,
 			struct dn_fib_info *fi, unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*rtm), flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -374,14 +374,14 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
 			struct nlmsghdr *nlh, struct netlink_skb_parms *req)
 {
 	struct sk_buff *skb;
-	u32 pid = req ? req->pid : 0;
+	u32 portid = req ? req->portid : 0;
 	int err = -ENOBUFS;
 
 	skb = nlmsg_new(dn_fib_nlmsg_size(DN_FIB_INFO(f)), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
-	err = dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id,
+	err = dn_fib_dump_info(skb, portid, nlh->nlmsg_seq, event, tb_id,
 			       f->fn_type, f->fn_scope, &f->fn_key, z,
 			       DN_FIB_INFO(f), 0);
 	if (err < 0) {
@@ -390,7 +390,7 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, &init_net, pid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
+	rtnl_notify(skb, &init_net, portid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -411,7 +411,7 @@ static __inline__ int dn_hash_dump_bucket(struct sk_buff *skb,
 			continue;
 		if (f->fn_state & DN_S_ZOMBIE)
 			continue;
-		if (dn_fib_dump_info(skb, NETLINK_CB(cb->skb).pid,
+		if (dn_fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq,
 				RTM_NEWROUTE,
 				tb->n,

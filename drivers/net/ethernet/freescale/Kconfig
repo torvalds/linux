@@ -62,6 +62,13 @@ config FSL_PQ_MDIO
 	---help---
 	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
 
+config FSL_XGMAC_MDIO
+	tristate "Freescale XGMAC MDIO"
+	depends on FSL_SOC
+	select PHYLIB
+	---help---
+	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs.
+
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE

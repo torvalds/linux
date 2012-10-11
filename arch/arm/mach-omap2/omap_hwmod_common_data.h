@@ -2,9 +2,8 @@
  * omap_hwmod_common_data.h - OMAP hwmod common macros and declarations
  *
  * Copyright (C) 2010-2011 Nokia Corporation
+ * Copyright (C) 2010-2012 Texas Instruments, Inc.
  * Paul Walmsley
- *
- * Copyright (C) 2010-2011 Texas Instruments, Inc.
  * Benoît Cousson
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +15,7 @@
 
 #include <plat/omap_hwmod.h>
 
+#include "common.h"
 #include "display.h"
 
 /* Common address space across OMAP2xxx */
@@ -76,6 +76,8 @@ extern struct omap_hwmod omap2xxx_gpio4_hwmod;
 extern struct omap_hwmod omap2xxx_mcspi1_hwmod;
 extern struct omap_hwmod omap2xxx_mcspi2_hwmod;
 extern struct omap_hwmod omap2xxx_counter_32k_hwmod;
+extern struct omap_hwmod omap2xxx_gpmc_hwmod;
+extern struct omap_hwmod omap2xxx_rng_hwmod;
 
 /* Common interface data across OMAP2xxx */
 extern struct omap_hwmod_ocp_if omap2xxx_l3_main__l4_core;
@@ -102,6 +104,7 @@ extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_dispc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_rfbi;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc;
+extern struct omap_hwmod_ocp_if omap2xxx_l4_core__rng;
 
 /* Common IP block data */
 extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];

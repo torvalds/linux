@@ -25,6 +25,7 @@
 #define EPOLL_CTL_ADD 1
 #define EPOLL_CTL_DEL 2
 #define EPOLL_CTL_MOD 3
+#define EPOLL_CTL_DISABLE 4
 
 /*
  * Request the handling of system wakeup events so as to prevent system suspends

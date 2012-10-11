@@ -23,8 +23,8 @@
 #include <asm/thread_info.h>
 #include <asm/pgtable.h>
 
-#ifdef CONFIG_DEBUG_LL
-#include <mach/debug-macro.S>
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)
+#include CONFIG_DEBUG_LL_INCLUDE
 #endif
 
 /*

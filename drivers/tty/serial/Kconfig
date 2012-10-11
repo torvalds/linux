@@ -141,6 +141,25 @@ config SERIAL_ATMEL_TTYAT
 
 	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
 
+config SERIAL_KGDB_NMI
+	bool "Serial console over KGDB NMI debugger port"
+	depends on KGDB_SERIAL_CONSOLE
+	help
+	  This special driver allows you to temporary use NMI debugger port
+	  as a normal console (assuming that the port is attached to KGDB).
+
+	  Unlike KDB's disable_nmi command, with this driver you are always
+	  able to go back to the debugger using KGDB escape sequence ($3#33).
+	  This is because this console driver processes the input in NMI
+	  context, and thus is able to intercept the magic sequence.
+
+	  Note that since the console interprets input and uses polling
+	  communication methods, for things like PPP you still must fully
+	  detach debugger port from the KGDB NMI (i.e. disable_nmi), and
+	  use raw console.
+
+	  If unsure, say N.
+
 config SERIAL_KS8695
 	bool "Micrel KS8695 (Centaur) serial port support"
 	depends on ARCH_KS8695
@@ -257,12 +276,19 @@ config SERIAL_MAX3100
 	help
 	  MAX3100 chip support
 
-config SERIAL_MAX3107
-	tristate "MAX3107 support"
+config SERIAL_MAX310X
+	bool "MAX310X support"
 	depends on SPI
 	select SERIAL_CORE
+	select REGMAP_SPI if SPI
+	default n
 	help
-	  MAX3107 chip support
+	  This selects support for an advanced UART from Maxim (Dallas).
+	  Supported ICs are MAX3107, MAX3108.
+	  Each IC contains 128 words each of receive and transmit FIFO
+	  that can be controlled through I2C or high-speed SPI.
+
+	  Say Y here if you want to support this ICs.
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
@@ -686,7 +712,7 @@ config SERIAL_SH_SCI_CONSOLE
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
-	depends on SERIAL_SH_SCI && SH_DMAE && EXPERIMENTAL
+	depends on SERIAL_SH_SCI && SH_DMAE
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
@@ -703,6 +729,25 @@ config SERIAL_PNX8XXX_CONSOLE
 	help
 	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
 	  and you want to use serial console, say Y. Otherwise, say N.
+
+config SERIAL_HS_LPC32XX
+	tristate "LPC32XX high speed serial port support"
+	depends on ARCH_LPC32XX && OF
+	select SERIAL_CORE
+	help
+	  Support for the LPC32XX high speed serial ports (up to 900kbps).
+	  Those are UARTs completely different from the Standard UARTs on the
+	  LPC32XX SoC.
+	  Choose M or Y here to build this driver.
+
+config SERIAL_HS_LPC32XX_CONSOLE
+	bool "Enable LPC32XX high speed UART serial console"
+	depends on SERIAL_HS_LPC32XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you would like to be able to use one of the high speed serial
+	  ports on the LPC32XX as the console, you can do so by answering
+	  Y to this option.
 
 config SERIAL_CORE
 	tristate
@@ -1104,6 +1149,24 @@ config SERIAL_SC26XX_CONSOLE
 	help
 	  Support for Console on SC2681/SC2692 serial ports.
 
+config SERIAL_SCCNXP
+	bool "SCCNXP serial port support"
+	depends on !SERIAL_SC26XX
+	select SERIAL_CORE
+	default n
+	help
+	  This selects support for an advanced UART from NXP (Philips).
+	  Supported ICs are SCC2681, SCC2691, SCC2692, SC28L91, SC28L92,
+	  SC28L202, SCC68681 and SCC68692.
+	  Positioned as a replacement for the driver SC26XX.
+
+config SERIAL_SCCNXP_CONSOLE
+	bool "Console on SCCNXP serial port"
+	depends on SERIAL_SCCNXP
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for console on SCCNXP serial ports.
+
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART"
 	depends on BLACKFIN
@@ -1260,7 +1323,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 
 config SERIAL_IFX6X60
         tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && SPI && EXPERIMENTAL
+	depends on GPIOLIB && SPI
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 

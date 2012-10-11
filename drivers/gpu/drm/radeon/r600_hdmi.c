@@ -23,8 +23,8 @@
  *
  * Authors: Christian König
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "r600d.h"
@@ -53,7 +53,7 @@ enum r600_hdmi_iec_status_bits {
 	AUDIO_STATUS_LEVEL        = 0x80
 };
 
-struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
+static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
     /*	     32kHz	  44.1kHz	48kHz    */
     /* Clock      N     CTS      N     CTS      N     CTS */
     {  25174,  4576,  28125,  7007,  31250,  6864,  28125 }, /*  25,20/1.001 MHz */

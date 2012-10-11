@@ -344,7 +344,7 @@ static struct rtl_hal_cfg rtl92ce_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
 
-DEFINE_PCI_DEVICE_TABLE(rtl92ce_pci_ids) = {
+static DEFINE_PCI_DEVICE_TABLE(rtl92ce_pci_ids) = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8191, rtl92ce_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8178, rtl92ce_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8177, rtl92ce_hal_cfg)},

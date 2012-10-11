@@ -1,6 +1,3 @@
-#if !defined(_ASM_GENERIC_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_GENERIC_UNISTD_H
-
 #include <asm/bitsperlong.h>
 
 /*
@@ -691,9 +688,11 @@ __SC_COMP(__NR_process_vm_readv, sys_process_vm_readv, \
 #define __NR_process_vm_writev 271
 __SC_COMP(__NR_process_vm_writev, sys_process_vm_writev, \
           compat_sys_process_vm_writev)
+#define __NR_kcmp 272
+__SYSCALL(__NR_kcmp, sys_kcmp)
 
 #undef __NR_syscalls
-#define __NR_syscalls 272
+#define __NR_syscalls 273
 
 /*
  * All syscalls below here should go away really,
@@ -928,4 +927,3 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #endif
 
 #endif /* __KERNEL__ */
-#endif /* _ASM_GENERIC_UNISTD_H */

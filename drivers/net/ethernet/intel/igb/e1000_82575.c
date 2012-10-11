@@ -2223,11 +2223,10 @@ out:
 s32 igb_set_eee_i350(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
-	u32 ipcnfg, eeer, ctrl_ext;
+	u32 ipcnfg, eeer;
 
-	ctrl_ext = rd32(E1000_CTRL_EXT);
-	if ((hw->mac.type != e1000_i350) ||
-	    (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK))
+	if ((hw->mac.type < e1000_i350) ||
+	    (hw->phy.media_type != e1000_media_type_copper))
 		goto out;
 	ipcnfg = rd32(E1000_IPCNFG);
 	eeer = rd32(E1000_EEER);
@@ -2240,6 +2239,14 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 			E1000_EEER_RX_LPI_EN |
 			E1000_EEER_LPI_FC);
 
+		/* keep the LPI clock running before EEE is enabled */
+		if (hw->mac.type == e1000_i210 || hw->mac.type == e1000_i211) {
+			u32 eee_su;
+			eee_su = rd32(E1000_EEE_SU);
+			eee_su &= ~E1000_EEE_SU_LPI_CLK_STP;
+			wr32(E1000_EEE_SU, eee_su);
+		}
+
 	} else {
 		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |
 			E1000_IPCNFG_EEE_100M_AN);
@@ -2249,6 +2256,8 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 	}
 	wr32(E1000_IPCNFG, ipcnfg);
 	wr32(E1000_EEER, eeer);
+	rd32(E1000_IPCNFG);
+	rd32(E1000_EEER);
 out:
 
 	return ret_val;

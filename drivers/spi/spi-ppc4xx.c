@@ -101,7 +101,7 @@ struct spi_ppc4xx_regs {
 	u8 dummy;
 	/*
 	 * Clock divisor modulus register
-	 * This uses the follwing formula:
+	 * This uses the following formula:
 	 *    SCPClkOut = OPBCLK/(4(CDM + 1))
 	 * or
 	 *    CDM = (OPBCLK/4*SCPClkOut) - 1
@@ -201,7 +201,7 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 		return -EINVAL;
 	}
 
-	/* Write new configration */
+	/* Write new configuration */
 	out_8(&hw->regs->mode, cs->mode);
 
 	/* Set the clock */

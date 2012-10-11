@@ -962,7 +962,6 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 
 	return 1;
 out:
-	kfree(sensor->acpi_name);
 	kfree(sensor);
 	return err;
 }

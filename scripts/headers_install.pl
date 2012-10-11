@@ -4,8 +4,7 @@
 # user space and copy the files to their destination.
 #
 # Usage: headers_install.pl readdir installdir arch [files...]
-# readdir:    dir to open files
-# installdir: dir to install the files
+# installdir: dir to install the files to
 # arch:       current architecture
 #             arch is used to force a reinstallation when the arch
 #             changes because kbuild then detect a command line change.
@@ -18,15 +17,18 @@
 
 use strict;
 
-my ($readdir, $installdir, $arch, @files) = @ARGV;
+my ($installdir, $arch, @files) = @ARGV;
 
 my $unifdef = "scripts/unifdef -U__KERNEL__ -D__EXPORTED_HEADERS__";
 
-foreach my $file (@files) {
+foreach my $filename (@files) {
+	my $file = $filename;
+	$file =~ s!^.*/!!;
+
 	my $tmpfile = "$installdir/$file.tmp";
 
-	open(my $in, '<', "$readdir/$file")
-	    or die "$readdir/$file: $!\n";
+	open(my $in, '<', $filename)
+	    or die "$filename: $!\n";
 	open(my $out, '>', $tmpfile)
 	    or die "$tmpfile: $!\n";
 	while (my $line = <$in>) {

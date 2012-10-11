@@ -1476,7 +1476,7 @@ follows.<informaltable>
 		  </row>
 		  <row>
 		    <entry><constant>V4L2_BUF_TYPE_PRIVATE_BASE</constant></entry>
-		    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant></entry>
+		    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant> (but this is deprecated)</entry>
 		  </row>
 		</tbody>
 	      </tgroup>
@@ -2468,21 +2468,9 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <structfield>reserved2</structfield> and removed
 	  <constant>V4L2_BUF_FLAG_INPUT</constant>.</para>
 	</listitem>
-      </orderedlist>
-    </section>
-
-    <section>
-      <title>V4L2 in Linux 3.6</title>
-      <orderedlist>
         <listitem>
 	  <para>Added V4L2_CAP_VIDEO_M2M and V4L2_CAP_VIDEO_M2M_MPLANE capabilities.</para>
         </listitem>
-      </orderedlist>
-    </section>
-
-    <section>
-      <title>V4L2 in Linux 3.6</title>
-      <orderedlist>
         <listitem>
 	  <para>Added support for frequency band enumerations: &VIDIOC-ENUM-FREQ-BANDS;.</para>
         </listitem>
@@ -2567,29 +2555,6 @@ and may change in the future.</para>
 	  <para>Video Output Overlay (OSD) Interface, <xref
 	    linkend="osd" />.</para>
         </listitem>
-	<listitem>
-	  <para><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY</constant>,
-	&v4l2-buf-type;, <xref linkend="v4l2-buf-type" />.</para>
-        </listitem>
-        <listitem>
-	  <para><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant>,
-&VIDIOC-QUERYCAP; ioctl, <xref linkend="device-capabilities" />.</para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-ENUM-FRAMESIZES; and
-&VIDIOC-ENUM-FRAMEINTERVALS; ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-G-ENC-INDEX; ioctl.</para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-ENCODER-CMD; and &VIDIOC-TRY-ENCODER-CMD;
-ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-DECODER-CMD; and &VIDIOC-TRY-DECODER-CMD;
-ioctls.</para>
-        </listitem>
         <listitem>
 	  <para>&VIDIOC-DBG-G-REGISTER; and &VIDIOC-DBG-S-REGISTER;
 ioctls.</para>
@@ -2613,10 +2578,6 @@ ioctls.</para>
         <listitem>
 	  <para>Sub-device selection API: &VIDIOC-SUBDEV-G-SELECTION;
 	  and &VIDIOC-SUBDEV-S-SELECTION; ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para><link linkend="v4l2-auto-focus-area"><constant>
-	  V4L2_CID_AUTO_FOCUS_AREA</constant></link> control.</para>
         </listitem>
         <listitem>
 	  <para>Support for frequency band enumeration: &VIDIOC-ENUM-FREQ-BANDS; ioctl.</para>

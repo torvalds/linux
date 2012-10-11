@@ -240,12 +240,20 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = davinci_soc_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		snd_soc_unregister_dai(&pdev->dev);
+		return ret;
+	}
+
 	return 0;
 }
 
 static int davinci_vcif_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&pdev->dev);
+	davinci_soc_platform_unregister(&pdev->dev);
 
 	return 0;
 }

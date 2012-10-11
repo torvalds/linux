@@ -63,6 +63,7 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 {
 	return test_bit(BDI_writeback_running, &bdi->state);
 }
+EXPORT_SYMBOL(writeback_in_progress);
 
 static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 {
@@ -576,10 +577,6 @@ static long writeback_chunk_size(struct backing_dev_info *bdi,
 
 /*
  * Write a portion of b_io inodes which belong to @sb.
- *
- * If @only_this_sb is true, then find and write all such
- * inodes. Otherwise write only ones which go sequentially
- * in reverse order.
  *
  * Return the number of pages and/or inodes written.
  */

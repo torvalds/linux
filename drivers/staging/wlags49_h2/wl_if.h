@@ -95,7 +95,7 @@
 //              Manufacture ID: 0156,0003
 // Lowest measurment for noise floor seen is value 54
 // Highest signal strength in close proximity to the AP seen is value 118
-// Very good must be arround 100 (otherwise its never "full scale"
+// Very good must be around 100 (otherwise its never "full scale"
 // All other constants are derrived from these. This makes the signal gauge
 // work for me...
 #define HCF_MIN_SIGNAL_LEVEL        54

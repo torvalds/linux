@@ -186,7 +186,7 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = client->dev.platform_data;
-	int num, force;
+	int num, force, class;
 	struct pca954x *data;
 	int ret = -ENODEV;
 
@@ -216,18 +216,20 @@ static int pca954x_probe(struct i2c_client *client,
 	/* Now create an adapter for each channel */
 	for (num = 0; num < chips[data->type].nchans; num++) {
 		force = 0;			  /* dynamic adap number */
+		class = 0;			  /* no class by default */
 		if (pdata) {
-			if (num < pdata->num_modes)
+			if (num < pdata->num_modes) {
 				/* force static number */
 				force = pdata->modes[num].adap_id;
-			else
+				class = pdata->modes[num].class;
+			} else
 				/* discard unconfigured channels */
 				break;
 		}
 
 		data->virt_adaps[num] =
 			i2c_add_mux_adapter(adap, &client->dev, client,
-				force, num, pca954x_select_chan,
+				force, num, class, pca954x_select_chan,
 				(pdata && pdata->modes[num].deselect_on_exit)
 					? pca954x_deselect_mux : NULL);
 

@@ -327,7 +327,7 @@ static const struct ide_dma_ops cmd646_rev1_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
+static const struct ide_port_info cmd64x_chipsets[] __devinitconst = {
 	{	/* 0: CMD643 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,

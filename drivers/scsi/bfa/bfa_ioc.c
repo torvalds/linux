@@ -92,7 +92,6 @@ static void bfa_ioc_event_notify(struct bfa_ioc_s *ioc ,
 				enum bfa_ioc_event_e event);
 static void bfa_ioc_disable_comp(struct bfa_ioc_s *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc);
-static void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
 static void bfa_ioc_fail_notify(struct bfa_ioc_s *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc);
 
@@ -599,8 +598,9 @@ bfa_ioc_sm_fail(struct bfa_ioc_s *ioc, enum ioc_event event)
 		break;
 
 	case IOC_E_HWERROR:
+	case IOC_E_HWFAILED:
 		/*
-		 * HB failure notification, ignore.
+		 * HB failure / HW error notification, ignore.
 		 */
 		break;
 	default:
@@ -630,6 +630,10 @@ bfa_ioc_sm_hwfail(struct bfa_ioc_s *ioc, enum ioc_event event)
 
 	case IOC_E_DETACH:
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		break;
+
+	case IOC_E_HWERROR:
+		/* Ignore - already in hwfail state */
 		break;
 
 	default:
@@ -1455,7 +1459,7 @@ bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc, struct bfi_ioc_image_hdr_s *fwhdr)
 		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
 	for (i = 0; i < BFI_IOC_MD5SUM_SZ; i++) {
-		if (fwhdr->md5sum[i] != drv_fwhdr->md5sum[i]) {
+		if (fwhdr->md5sum[i] != cpu_to_le32(drv_fwhdr->md5sum[i])) {
 			bfa_trc(ioc, i);
 			bfa_trc(ioc, fwhdr->md5sum[i]);
 			bfa_trc(ioc, drv_fwhdr->md5sum[i]);
@@ -1480,7 +1484,7 @@ bfa_ioc_fwver_valid(struct bfa_ioc_s *ioc, u32 boot_env)
 	drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
 		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
-	if (fwhdr.signature != drv_fwhdr->signature) {
+	if (fwhdr.signature != cpu_to_le32(drv_fwhdr->signature)) {
 		bfa_trc(ioc, fwhdr.signature);
 		bfa_trc(ioc, drv_fwhdr->signature);
 		return BFA_FALSE;
@@ -1704,7 +1708,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 		 * write smem
 		 */
 		bfa_mem_write(ioc->ioc_regs.smem_page_start, loff,
-			      fwimg[BFA_IOC_FLASH_OFFSET_IN_CHUNK(i)]);
+			cpu_to_le32(fwimg[BFA_IOC_FLASH_OFFSET_IN_CHUNK(i)]));
 
 		loff += sizeof(u32);
 
@@ -2260,6 +2264,12 @@ bfa_ioc_disable(struct bfa_ioc_s *ioc)
 	bfa_fsm_send_event(ioc, IOC_E_DISABLE);
 }
 
+void
+bfa_ioc_suspend(struct bfa_ioc_s *ioc)
+{
+	ioc->dbg_fwsave_once = BFA_TRUE;
+	bfa_fsm_send_event(ioc, IOC_E_HWERROR);
+}
 
 /*
  * Initialize memory for saving firmware trace. Driver must initialize
@@ -2269,7 +2279,7 @@ void
 bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave)
 {
 	ioc->dbg_fwsave	    = dbg_fwsave;
-	ioc->dbg_fwsave_len = (ioc->iocpf.auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
+	ioc->dbg_fwsave_len = BFA_DBG_FWTRC_LEN;
 }
 
 /*
@@ -2856,7 +2866,7 @@ bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc)
 /*
  * Save firmware trace if configured.
  */
-static void
+void
 bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc)
 {
 	int		tlen;
@@ -5587,7 +5597,7 @@ static bfa_status_t bfa_dconf_flash_write(struct bfa_dconf_mod_s *dconf);
 static void bfa_dconf_init_cb(void *arg, bfa_status_t status);
 
 /*
- * Begining state of dconf module. Waiting for an event to start.
+ * Beginning state of dconf module. Waiting for an event to start.
  */
 static void
 bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
