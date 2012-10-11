@@ -94,7 +94,7 @@ static struct omap_hwmod omap3xxx_l4_sec_hwmod = {
 
 /* MPU */
 static struct omap_hwmod_irq_info omap3xxx_mpu_irqs[] = {
-	{ .name = "pmu", .irq = 3 },
+	{ .name = "pmu", .irq = 3 + OMAP_INTC_START },
 	{ .irq = -1 }
 };
 
@@ -3683,6 +3683,7 @@ static struct omap_hwmod_ocp_if *am35xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&omap3xxx_l4_core__hdq1w,
 	&am35xx_mdio__l3,
 	&am35xx_l4_core__mdio,
 	&am35xx_emac__l3,
@@ -3737,7 +3738,7 @@ int __init omap3xxx_hwmod_init(void)
 	} else {
 		WARN(1, "OMAP3 hwmod family init: unknown chip type\n");
 		return -EINVAL;
-	};
+	}
 
 	r = omap_hwmod_register_links(h);
 	if (r < 0)
@@ -3754,7 +3755,7 @@ int __init omap3xxx_hwmod_init(void)
 		   rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
 		   rev == OMAP3430_REV_ES3_1_2) {
 		h = omap3430es2plus_hwmod_ocp_ifs;
-	};
+	}
 
 	if (h) {
 		r = omap_hwmod_register_links(h);
@@ -3769,7 +3770,7 @@ int __init omap3xxx_hwmod_init(void)
 	} else if (rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
 		   rev == OMAP3430_REV_ES3_1_2) {
 		h = omap3430_es3plus_hwmod_ocp_ifs;
-	};
+	}
 
 	if (h)
 		r = omap_hwmod_register_links(h);

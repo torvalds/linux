@@ -494,7 +494,6 @@ config ARCH_IOP32X
 	depends on MMU
 	select CPU_XSCALE
 	select NEED_MACH_GPIO_H
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
@@ -508,7 +507,6 @@ config ARCH_IOP33X
 	depends on MMU
 	select CPU_XSCALE
 	select NEED_MACH_GPIO_H
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
@@ -1772,6 +1770,7 @@ source "mm/Kconfig"
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order" if ARCH_SHMOBILE
 	range 11 64 if ARCH_SHMOBILE
+	default "12" if SOC_AM33XX
 	default "9" if SA1111
 	default "11"
 	help

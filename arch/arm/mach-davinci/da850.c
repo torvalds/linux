@@ -939,7 +939,7 @@ static struct platform_device da850_cpufreq_device = {
 
 unsigned int da850_max_speed = 300000;
 
-int __init da850_register_cpufreq(char *async_clk)
+int da850_register_cpufreq(char *async_clk)
 {
 	int i;
 

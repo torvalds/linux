@@ -16,7 +16,7 @@ config ARCH_TEGRA_2x_SOC
 	select ARM_ERRATA_742230
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754327
-	select ARM_ERRATA_764369
+	select ARM_ERRATA_764369 if SMP
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PL310_ERRATA_769419 if CACHE_L2X0
 	select CPU_FREQ_TABLE if CPU_FREQ
@@ -37,7 +37,7 @@ config ARCH_TEGRA_3x_SOC
 	select ARM_ERRATA_743622
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
+	select ARM_ERRATA_764369 if SMP
 	select PL310_ERRATA_769419 if CACHE_L2X0
 	select CPU_FREQ_TABLE if CPU_FREQ
 	help
@@ -56,8 +56,6 @@ config TEGRA_AHB
 	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
 	  which controls AHB bus master arbitration and some
 	  perfomance parameters(priority, prefech size).
-
-comment "Tegra board type"
 
 choice
         prompt "Default low-level debug console UART"

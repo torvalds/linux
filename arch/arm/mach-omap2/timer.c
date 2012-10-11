@@ -378,7 +378,7 @@ static void __init realtime_counter_init(void)
 		return;
 	}
 	sys_clk = clk_get(NULL, "sys_clkin_ck");
-	if (!sys_clk) {
+	if (IS_ERR(sys_clk)) {
 		pr_err("%s: failed to get system clock handle\n", __func__);
 		iounmap(base);
 		return;
