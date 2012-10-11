@@ -350,16 +350,40 @@ s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
 		if (ret_val != E1000_SUCCESS)
 			hw_dbg("MAC Addr not found in iNVM\n");
 		break;
-	case NVM_ID_LED_SETTINGS:
 	case NVM_INIT_CTRL_2:
+		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
 	case NVM_INIT_CTRL_4:
+		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
 	case NVM_LED_1_CFG:
+		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_1_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
 	case NVM_LED_0_2_CFG:
 		igb_read_invm_i211(hw, offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
 		break;
-	case NVM_COMPAT:
-		*data = ID_LED_DEFAULT_I210;
-		break;
+	case NVM_ID_LED_SETTINGS:
+		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = ID_LED_RESERVED_FFFF;
+			ret_val = E1000_SUCCESS;
+		}
 	case NVM_SUB_DEV_ID:
 		*data = hw->subsystem_device_id;
 		break;
