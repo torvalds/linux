@@ -727,25 +727,9 @@ ENTRY(ret_from_kernel_thread)
 	LDREG	TASK_PT_GR26(%r1), %r1
 	ble	0(%sr7, %r1)
 	copy	%r31, %r2
-
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-	loadgp				/* Thread could have been in a module */
-#endif
-#ifndef CONFIG_64BIT
-	b	sys_exit
-#else
-	load32	sys_exit, %r1
-	bv	%r0(%r1)
-#endif
-	ldi	0, %r26
+	b	finish_child_return
+	nop
 ENDPROC(ret_from_kernel_thread)
-
-ENTRY(ret_from_kernel_execve)
-	mfctl   %cr30, %r1
-	b	syscall_exit	/* forward */
-	ldo	THREAD_SZ_ALGN+FRAME_SIZE(%r1), %r30
-ENDPROC(ret_from_kernel_execve)
 
 
 	/*
@@ -1721,7 +1705,7 @@ ENDPROC(sys_fork_wrapper)
 ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
-
+finish_child_return:
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1	 /* get pt regs */
 
