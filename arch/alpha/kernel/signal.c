@@ -568,8 +568,7 @@ do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 }
 
 void
-do_work_pending(struct pt_regs *regs, struct switch_stack *unused,
-		 unsigned long thread_flags,
+do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 		 unsigned long r0, unsigned long r19)
 {
 	do {

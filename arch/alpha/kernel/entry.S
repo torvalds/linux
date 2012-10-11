@@ -311,7 +311,7 @@ entSys:
 
 	.align	4
 ret_from_sys_call:
-	cmovne	$26, 0, $19		/* $19 = 0 => non-restartable */
+	cmovne	$26, 0, $18		/* $18 = 0 => non-restartable */
 	ldq	$0, SP_OFF($sp)
 	and	$0, 8, $0
 	beq	$0, ret_to_kernel
@@ -320,8 +320,8 @@ ret_to_user:
 		sampling and the rti.  */
 	lda	$16, 7
 	call_pal PAL_swpipl
-	ldl	$5, TI_FLAGS($8)
-	and	$5, _TIF_WORK_MASK, $2
+	ldl	$17, TI_FLAGS($8)
+	and	$17, _TIF_WORK_MASK, $2
 	bne	$2, work_pending
 restore_all:
 	RESTORE_ALL
@@ -341,10 +341,10 @@ $syscall_error:
 	 * frame to indicate that a negative return value wasn't an
 	 * error number..
 	 */
-	ldq	$19, 0($sp)	/* old syscall nr (zero if success) */
-	beq	$19, $ret_success
+	ldq	$18, 0($sp)	/* old syscall nr (zero if success) */
+	beq	$18, $ret_success
 
-	ldq	$20, 72($sp)	/* .. and this a3 */
+	ldq	$19, 72($sp)	/* .. and this a3 */
 	subq	$31, $0, $0	/* with error in v0 */
 	addq	$31, 1, $1	/* set a3 for errno return */
 	stq	$0, 0($sp)
@@ -362,34 +362,32 @@ $ret_success:
  * Do all cleanup when returning from all interrupts and system calls.
  *
  * Arguments:
- *       $5: TI_FLAGS.
  *       $8: current.
- *      $19: The old syscall number, or zero if this is not a return
+ *      $17: TI_FLAGS.
+ *      $18: The old syscall number, or zero if this is not a return
  *           from a syscall that errored and is possibly restartable.
- *      $20: The old a3 value
+ *      $19: The old a3 value
  */
 
 	.align	4
 	.ent	work_pending
 work_pending:
-	and	$5, _TIF_NOTIFY_RESUME | _TIF_SIGPENDING, $2
+	and	$17, _TIF_NOTIFY_RESUME | _TIF_SIGPENDING, $2
 	bne	$2, $work_notifysig
 
 $work_resched:
 	/*
 	 * We can get here only if we returned from syscall without SIGPENDING
 	 * or got through work_notifysig already.  Either case means no syscall
-	 * restarts for us, so let $19 and $20 burn.
+	 * restarts for us, so let $18 and $19 burn.
 	 */
 	jsr	$26, schedule
-	mov	0, $19
+	mov	0, $18
 	br	ret_to_user
 
 $work_notifysig:
 	mov	$sp, $16
 	bsr	$1, do_switch_stack
-	mov	$sp, $17
-	mov	$5, $18
 	jsr	$26, do_work_pending
 	bsr	$1, undo_switch_stack
 	br	restore_all
@@ -440,9 +438,9 @@ $strace_success:
 
 	.align	3
 $strace_error:
-	ldq	$19, 0($sp)	/* old syscall nr (zero if success) */
-	beq	$19, $strace_success
-	ldq	$20, 72($sp)	/* .. and this a3 */
+	ldq	$18, 0($sp)	/* old syscall nr (zero if success) */
+	beq	$18, $strace_success
+	ldq	$19, 72($sp)	/* .. and this a3 */
 
 	subq	$31, $0, $0	/* with error in v0 */
 	addq	$31, 1, $1	/* set a3 for errno return */
@@ -450,11 +448,11 @@ $strace_error:
 	stq	$1, 72($sp)	/* a3 for return */
 
 	bsr	$1, do_switch_stack
-	mov	$19, $9		/* save old syscall number */
-	mov	$20, $10	/* save old a3 */
+	mov	$18, $9		/* save old syscall number */
+	mov	$19, $10	/* save old a3 */
 	jsr	$26, syscall_trace_leave
-	mov	$9, $19
-	mov	$10, $20
+	mov	$9, $18
+	mov	$10, $19
 	bsr	$1, undo_switch_stack
 
 	mov	$31, $26	/* tell "ret_from_sys_call" we can restart */
