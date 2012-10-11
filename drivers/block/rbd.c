@@ -1211,41 +1211,6 @@ done:
 }
 
 /*
- * Request async osd write
- */
-static int rbd_req_write(struct request *rq,
-			 struct rbd_device *rbd_dev,
-			 struct ceph_snap_context *snapc,
-			 u64 ofs, u64 len,
-			 struct bio *bio,
-			 struct rbd_req_coll *coll,
-			 int coll_index)
-{
-	return rbd_do_op(rq, rbd_dev, snapc, CEPH_NOSNAP,
-			 CEPH_OSD_OP_WRITE,
-			 CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			 ofs, len, bio, coll, coll_index);
-}
-
-/*
- * Request async osd read
- */
-static int rbd_req_read(struct request *rq,
-			 struct rbd_device *rbd_dev,
-			 u64 snapid,
-			 u64 ofs, u64 len,
-			 struct bio *bio,
-			 struct rbd_req_coll *coll,
-			 int coll_index)
-{
-	return rbd_do_op(rq, rbd_dev, NULL,
-			 snapid,
-			 CEPH_OSD_OP_READ,
-			 CEPH_OSD_FLAG_READ,
-			 ofs, len, bio, coll, coll_index);
-}
-
-/*
  * Request sync osd read
  */
 static int rbd_req_sync_read(struct rbd_device *rbd_dev,
@@ -1550,21 +1515,22 @@ static void rbd_rq_fn(struct request_queue *q)
 				goto next_seg;
 			}
 
-
 			/* init OSD command: write or read */
 			if (do_write)
-				rbd_req_write(rq, rbd_dev,
-					      snapc,
-					      ofs,
-					      op_size, bio,
-					      coll, cur_seg);
+				(void) rbd_do_op(rq, rbd_dev,
+						snapc, CEPH_NOSNAP,
+						CEPH_OSD_OP_WRITE,
+						CEPH_OSD_FLAG_WRITE |
+						    CEPH_OSD_FLAG_ONDISK,
+						ofs, op_size, bio,
+						coll, cur_seg);
 			else
-				rbd_req_read(rq, rbd_dev,
-					     rbd_dev->mapping.snap_id,
-					     ofs,
-					     op_size, bio,
-					     coll, cur_seg);
-
+				(void) rbd_do_op(rq, rbd_dev,
+						NULL, rbd_dev->mapping.snap_id,
+						CEPH_OSD_OP_READ,
+						CEPH_OSD_FLAG_READ,
+						ofs, op_size, bio,
+						coll, cur_seg);
 next_seg:
 			size -= op_size;
 			ofs += op_size;
