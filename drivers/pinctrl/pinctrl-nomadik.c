@@ -30,7 +30,20 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
+/*
+ * For the U8500 archs, use the PRCMU register interface, for the older
+ * Nomadik, provide some stubs. The functions using these will only be
+ * called on the U8500 series.
+ */
+#ifdef CONFIG_ARCH_U8500
 #include <linux/mfd/dbx500-prcmu.h>
+#else
+static inline u32 prcmu_read(unsigned int reg) {
+	return 0;
+}
+static inline void prcmu_write(unsigned int reg, u32 value) {}
+static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
+#endif
 
 #include <asm/mach/irq.h>
 
