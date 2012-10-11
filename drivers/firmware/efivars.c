@@ -948,7 +948,6 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root;
 	struct efivar_entry *entry, *n;
 	struct efivars *efivars = &__efivars;
-	int err;
 
 	efivarfs_sb = sb;
 
@@ -960,18 +959,14 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran         = 1;
 
 	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0);
-	if (!inode) {
-		err = -ENOMEM;
-		goto fail;
-	}
+	if (!inode)
+		return -ENOMEM;
 	inode->i_op = &efivarfs_dir_inode_operations;
 
 	root = d_make_root(inode);
 	sb->s_root = root;
-	if (!root) {
-		err = -ENOMEM;
-		goto fail;
-	}
+	if (!root)
+		return -ENOMEM;
 
 	list_for_each_entry_safe(entry, n, &efivars->list, list) {
 		struct inode *inode;
@@ -1012,9 +1007,6 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	return 0;
-fail:
-	iput(inode);
-	return err;
 }
 
 static struct dentry *efivarfs_mount(struct file_system_type *fs_type,
