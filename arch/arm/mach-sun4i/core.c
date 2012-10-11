@@ -131,50 +131,82 @@ static u32 DRAMC_get_dram_size(void)
 }
 #endif
 
-static void __init sw_core_fixup(struct machine_desc *desc,
-                  struct tag *t, char **cmdline,
-                  struct meminfo *mi)
-{
-	u32 mali, size = 0;
-	int banks = 0;
-#if defined(CONFIG_MALI) || defined(CONFIG_MALI_MODULE)
-	mali = 64;
-#else
-	mali = 0;
-#endif
-
-#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
-	size = DRAMC_get_dram_size();
-
-	if (size <= 512) {
-		mi->nr_banks = 1;
-		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (size - mali);
-	} else {
-		mi->nr_banks = 2;
-		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (512 - mali);
-		mi->bank[1].start = 0x60000000;
-		mi->bank[1].size = SZ_1M * (size - 512);
-	}
-	banks = mi->nr_banks;
-#else
-	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
-		size += t->u.mem.size / SZ_1M;
-		if (banks++ == 0)
-			t->u.mem.size -= mali * SZ_1M;
-	}
-#endif
-	pr_info("Total Detected Memory: %uMB with %d banks\n", size, banks);
-	if (mali > 0)
-		pr_info("%u MB reserved for MALI\n", mali);
-}
-
 #define pr_reserve_info(L, START, SIZE) \
 	pr_info("\t" L " : 0x%08x - 0x%08x  (%4d %s)\n", \
 		(u32)(START), (u32)((START) + (SIZE) - 1), \
 		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
 		(SIZE) < SZ_1M ? "kB" : "MB")
+
+static void __init sw_core_fixup(struct machine_desc *desc,
+                  struct tag *t, char **cmdline,
+                  struct meminfo *mi)
+{
+#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
+	u32 size = DRAMC_get_dram_size();
+
+	pr_info("Total Detected Memory: %uMB (via Allwinner's Hack)\n", size);
+#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
+	if (size < 512) {
+		pr_err("MALI: not enough memory to make reserve.\n");
+		/* fallback to single bank will full size */
+	else {
+		mi->nr_banks = 1;
+		mi->bank[0].start = 0x40000000;
+		mi->bank[0].size = SZ_1M * (512 - 64);
+
+		size -= 512;
+		if (size) {
+			mi->nr_banks++;
+			mi->bank[1].start = 0x60000000;
+			mi->bank[1].size = SZ_1M * size;
+		}
+
+		pr_info("Memory cut off:\n");
+		pr_reserve_info("MALI", PLAT_PHYS_OFFSET + SZ_512M - SZ_64M, SZ_64M);
+		return;
+	}
+#endif
+	mi->nr_banks = 1;
+	mi->bank[0].start = 0x40000000;
+	mi->bank[0].size = SZ_1M * size;
+	return;
+#else /* !CONFIG_SUNXI_IGNORE_ATAG_MEM */
+#ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
+	u32 bank = 0;
+	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
+		if (bank) {
+			mi->nr_banks++;
+			mi->bank[bank].start = t->u.mem.start;
+			mi->bank[bank].size = t->u.mem.size;
+		} else { /* first bank */
+			u32 size = t->u.mem.size / SZ_1M;
+			mi->nr_banks = 1;
+			mi->bank[0].start = t->u.mem.start;
+			if (size < 512) {
+				mi->bank[0].size = SZ_1M * size;
+
+				pr_err("MALI: not enough memory in first bank to make reserve.\n");
+			} else {
+				mi->bank[0].size = SZ_1M * (512 - 64);
+
+				size -= 512;
+				if (size) {
+					bank++;
+					mi->nr_banks++;
+					mi->bank[1].start = t->u.mem.start + (512 * SZ_1M);
+					mi->bank[1].size = SZ_1M * size;
+				}
+
+				pr_info("Memory cut off:\n");
+				pr_reserve_info("MALI", t->u.mem.start + SZ_512M - SZ_64M,
+						SZ_64M);
+			}
+		}
+		bank++;
+	}
+#endif
+#endif
+}
 
 /* Only reserve certain important memory blocks if there are actually
  * drivers which use them.

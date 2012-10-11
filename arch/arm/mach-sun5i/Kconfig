@@ -12,4 +12,9 @@ config SUNXI_IGNORE_ATAG_MEM
 	bool "Use AllWinner's hack to assume memory size"
 	default n
 
+config SUNXI_MALI_RESERVED_MEM
+	bool
+	depends on MALI
+	default y
+
 endif
