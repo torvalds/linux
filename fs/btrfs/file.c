@@ -621,7 +621,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			} else {
 				split->block_len = split->len;
 				split->block_start = em->block_start + diff;
-				split->orig_start = split->start;
+				split->orig_start = em->orig_start;
 			}
 
 			ret = add_extent_mapping(em_tree, split);

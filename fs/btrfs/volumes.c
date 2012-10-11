@@ -4983,6 +4983,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	em->bdev = (struct block_device *)map;
 	em->start = logical;
 	em->len = length;
+	em->orig_start = 0;
 	em->block_start = 0;
 	em->block_len = em->len;
 
