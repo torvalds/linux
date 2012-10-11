@@ -642,7 +642,7 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->io = devm_ioremap(dev, res->start, resource_size(res));
+	priv->io = devm_request_and_ioremap(dev, res);
 	if (!priv->io) {
 		dev_err(dev, "cannot ioremap\n");
 		return -ENODEV;
