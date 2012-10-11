@@ -19,25 +19,58 @@
 #include <linux/of_dma.h>
 
 static LIST_HEAD(of_dma_list);
+static DEFINE_SPINLOCK(of_dma_lock);
 
 /**
- * of_dma_find_controller - Find a DMA controller in DT DMA helpers list
- * @np:		device node of DMA controller
+ * of_dma_get_controller - Get a DMA controller in DT DMA helpers list
+ * @dma_spec:	pointer to DMA specifier as found in the device tree
+ *
+ * Finds a DMA controller with matching device node and number for dma cells
+ * in a list of registered DMA controllers. If a match is found the use_count
+ * variable is increased and a valid pointer to the DMA data stored is retuned.
+ * A NULL pointer is returned if no match is found.
  */
-static struct of_dma *of_dma_find_controller(struct device_node *np)
+static struct of_dma *of_dma_get_controller(struct of_phandle_args *dma_spec)
 {
 	struct of_dma *ofdma;
 
+	spin_lock(&of_dma_lock);
+
 	if (list_empty(&of_dma_list)) {
-		pr_err("empty DMA controller list\n");
+		spin_unlock(&of_dma_lock);
 		return NULL;
 	}
 
-	list_for_each_entry_rcu(ofdma, &of_dma_list, of_dma_controllers)
-		if (ofdma->of_node == np)
+	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
+		if ((ofdma->of_node == dma_spec->np) &&
+		    (ofdma->of_dma_nbcells == dma_spec->args_count)) {
+			ofdma->use_count++;
+			spin_unlock(&of_dma_lock);
 			return ofdma;
+		}
+
+	spin_unlock(&of_dma_lock);
+
+	pr_debug("%s: can't find DMA controller %s\n", __func__,
+		 dma_spec->np->full_name);
 
 	return NULL;
+}
+
+/**
+ * of_dma_put_controller - Decrement use count for a registered DMA controller
+ * @of_dma:	pointer to DMA controller data
+ *
+ * Decrements the use_count variable in the DMA data structure. This function
+ * should be called only when a valid pointer is returned from
+ * of_dma_get_controller() and no further accesses to data referenced by that
+ * pointer are needed.
+ */
+static void of_dma_put_controller(struct of_dma *ofdma)
+{
+	spin_lock(&of_dma_lock);
+	ofdma->use_count--;
+	spin_unlock(&of_dma_lock);
 }
 
 /**
@@ -81,9 +114,10 @@ int of_dma_controller_register(struct device_node *np,
 	ofdma->of_dma_nbcells = nbcells;
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
+	ofdma->use_count = 0;
 
 	/* Now queue of_dma controller structure in list */
-	list_add_tail_rcu(&ofdma->of_dma_controllers, &of_dma_list);
+	list_add_tail(&ofdma->of_dma_controllers, &of_dma_list);
 
 	return 0;
 }
@@ -95,15 +129,32 @@ EXPORT_SYMBOL_GPL(of_dma_controller_register);
  *
  * Memory allocated by of_dma_controller_register() is freed here.
  */
-void of_dma_controller_free(struct device_node *np)
+int of_dma_controller_free(struct device_node *np)
 {
 	struct of_dma *ofdma;
 
-	ofdma = of_dma_find_controller(np);
-	if (ofdma) {
-		list_del_rcu(&ofdma->of_dma_controllers);
-		kfree(ofdma);
+	spin_lock(&of_dma_lock);
+
+	if (list_empty(&of_dma_list)) {
+		spin_unlock(&of_dma_lock);
+		return -ENODEV;
 	}
+
+	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
+		if (ofdma->of_node == np) {
+			if (ofdma->use_count) {
+				spin_unlock(&of_dma_lock);
+				return -EBUSY;
+			}
+
+			list_del(&ofdma->of_dma_controllers);
+			spin_unlock(&of_dma_lock);
+			kfree(ofdma);
+			return 0;
+		}
+
+	spin_unlock(&of_dma_lock);
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(of_dma_controller_free);
 
@@ -166,20 +217,14 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 		if (of_dma_match_channel(np, name, i, &dma_spec))
 			continue;
 
-		ofdma = of_dma_find_controller(dma_spec.np);
-		if (!ofdma) {
-			pr_debug("%s: can't find DMA controller %s\n",
-				 np->full_name, dma_spec.np->full_name);
-			continue;
-		}
+		ofdma = of_dma_get_controller(&dma_spec);
 
-		if (dma_spec.args_count != ofdma->of_dma_nbcells) {
-			pr_debug("%s: wrong #dma-cells for %s\n", np->full_name,
-				 dma_spec.np->full_name);
+		if (!ofdma)
 			continue;
-		}
 
 		chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
+
+		of_dma_put_controller(ofdma);
 
 		of_node_put(dma_spec.np);
 

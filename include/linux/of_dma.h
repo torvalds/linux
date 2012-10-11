@@ -25,6 +25,7 @@ struct of_dma {
 	struct dma_chan		*(*of_dma_xlate)
 				(struct of_phandle_args *, struct of_dma *);
 	void			*of_dma_data;
+	int			use_count;
 };
 
 struct of_dma_filter_info {
@@ -37,7 +38,7 @@ extern int of_dma_controller_register(struct device_node *np,
 		struct dma_chan *(*of_dma_xlate)
 		(struct of_phandle_args *, struct of_dma *),
 		void *data);
-extern void of_dma_controller_free(struct device_node *np);
+extern int of_dma_controller_free(struct device_node *np);
 extern struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 						     char *name);
 extern struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
@@ -51,7 +52,7 @@ static int of_dma_controller_register(struct device_node *np,
 	return -ENODEV;
 }
 
-static void of_dma_controller_free(struct device_node *np)
+static int of_dma_controller_free(struct device_node *np)
 {
 }
 
