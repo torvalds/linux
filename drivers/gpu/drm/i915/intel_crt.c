@@ -662,10 +662,22 @@ static int intel_crt_set_property(struct drm_connector *connector,
 static void intel_crt_reset(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev)) {
+		u32 adpa;
+
+		adpa = I915_READ(PCH_ADPA);
+		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		adpa |= ADPA_HOTPLUG_BITS;
+		I915_WRITE(PCH_ADPA, adpa);
+		POSTING_READ(PCH_ADPA);
+
+		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = 1;
+	}
+
 }
 
 /*
@@ -784,18 +796,6 @@ void intel_crt_init(struct drm_device *dev)
 	 * Configure the automatic hotplug detection stuff
 	 */
 	crt->force_hotplug_required = 0;
-	if (HAS_PCH_SPLIT(dev)) {
-		u32 adpa;
-
-		adpa = I915_READ(PCH_ADPA);
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-		adpa |= ADPA_HOTPLUG_BITS;
-		I915_WRITE(PCH_ADPA, adpa);
-		POSTING_READ(PCH_ADPA);
-
-		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
-		crt->force_hotplug_required = 1;
-	}
 
 	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
 }

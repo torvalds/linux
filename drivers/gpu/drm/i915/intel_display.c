@@ -8598,6 +8598,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 	intel_modeset_update_staged_output_state(dev);
 
 	intel_modeset_check_state(dev);
+
+	drm_mode_config_reset(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)

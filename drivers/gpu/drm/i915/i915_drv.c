@@ -547,7 +547,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 		intel_modeset_init_hw(dev);
 		intel_modeset_setup_hw_state(dev);
-		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 	}
 
