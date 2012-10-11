@@ -30,6 +30,8 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/sh_hspi.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <mach/hardware.h>
@@ -126,10 +128,27 @@ static struct platform_device thermal_device = {
 	.num_resources	= ARRAY_SIZE(thermal_resources),
 };
 
+/* HSPI */
+static struct resource hspi_resources[] = {
+	[0] = {
+		.start		= 0xFFFC7000,
+		.end		= 0xFFFC7018 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device hspi_device = {
+	.name	= "sh-hspi",
+	.id	= 0,
+	.resource	= hspi_resources,
+	.num_resources	= ARRAY_SIZE(hspi_resources),
+};
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
 	&sdhi0_device,
 	&thermal_device,
+	&hspi_device,
 };
 
 static void __init marzen_init(void)
@@ -162,6 +181,12 @@ static void __init marzen_init(void)
 	gpio_request(GPIO_FN_SD0_DAT3, NULL);
 	gpio_request(GPIO_FN_SD0_CD, NULL);
 	gpio_request(GPIO_FN_SD0_WP, NULL);
+
+	/* HSPI 0 */
+	gpio_request(GPIO_FN_HSPI_CLK0,	NULL);
+	gpio_request(GPIO_FN_HSPI_CS0,	NULL);
+	gpio_request(GPIO_FN_HSPI_TX0,	NULL);
+	gpio_request(GPIO_FN_HSPI_RX0,	NULL);
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
