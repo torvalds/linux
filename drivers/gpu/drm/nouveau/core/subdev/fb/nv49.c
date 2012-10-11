@@ -42,7 +42,8 @@ nv49_fb_vram_init(struct nouveau_fb *pfb)
 	case 0x00000003: break;
 	}
 
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	pfb->ram.size =   nv_rd32(pfb, 0x10020c) & 0xff000000;
+	pfb->ram.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
 	return nv_rd32(pfb, 0x100320);
 }
 
@@ -63,6 +64,7 @@ nv49_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.ram.init = nv49_fb_vram_init;
 	priv->base.tile.regions = 15;
 	priv->base.tile.init = nv30_fb_tile_init;
+	priv->base.tile.comp = nv40_fb_tile_comp;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv41_fb_tile_prog;
 

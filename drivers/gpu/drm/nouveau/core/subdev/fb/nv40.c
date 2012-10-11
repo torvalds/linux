@@ -41,15 +41,26 @@ nv40_fb_vram_init(struct nouveau_fb *pfb)
 	case 0x00000300: pfb->ram.type = NV_MEM_TYPE_DDR2; break;
 	}
 
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	pfb->ram.size  =  nv_rd32(pfb, 0x10020c) & 0xff000000;
+	pfb->ram.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
 	return nv_rd32(pfb, 0x100320);
 }
 
-static void
+void
 nv40_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
-	tile->zcomp = 0x00000000;
+	u32 tiles = DIV_ROUND_UP(size, 0x80);
+	u32 tags  = round_up(tiles / pfb->ram.parts, 0x100);
+	if ( (flags & 2) &&
+	    !nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
+		tile->zcomp  = 0x24000000; /* Z24S8_SPLIT */
+		tile->zcomp |= ((tile->tag->offset           ) >> 8);
+		tile->zcomp |= ((tile->tag->offset + tags - 1) >> 8) << 13;
+#ifdef __BIG_ENDIAN
+		tile->zcomp |= 0x40000000;
+#endif
+	}
 }
 
 static int
