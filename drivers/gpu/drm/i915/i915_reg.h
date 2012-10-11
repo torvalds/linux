@@ -4496,8 +4496,8 @@
 /* SPLL */
 #define SPLL_CTL			0x46020
 #define  SPLL_PLL_ENABLE		(1<<31)
-#define  SPLL_PLL_SCC			(1<<28)
-#define  SPLL_PLL_NON_SCC		(2<<28)
+#define  SPLL_PLL_SSC			(1<<28)
+#define  SPLL_PLL_NON_SSC		(2<<28)
 #define  SPLL_PLL_FREQ_810MHz		(0<<26)
 #define  SPLL_PLL_FREQ_1350MHz		(1<<26)
 
@@ -4506,7 +4506,7 @@
 #define WRPLL_CTL2			0x46060
 #define  WRPLL_PLL_ENABLE		(1<<31)
 #define  WRPLL_PLL_SELECT_SSC		(0x01<<28)
-#define  WRPLL_PLL_SELECT_NON_SCC	(0x02<<28)
+#define  WRPLL_PLL_SELECT_NON_SSC	(0x02<<28)
 #define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
 /* WRPLL divider programming */
 #define  WRPLL_DIVIDER_REFERENCE(x)	((x)<<0)

@@ -814,7 +814,7 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
 		WARN(I915_READ(reg) & SPLL_PLL_ENABLE,
 		     "SPLL already enabled\n");
 
-		val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SCC;
+		val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
 
 	} else {
 		WARN(1, "Invalid DDI encoder type %d\n", type);
