@@ -76,7 +76,8 @@ static int __devinit wm831x_on_probe(struct platform_device *pdev)
 	int irq = wm831x_irq(wm831x, platform_get_irq(pdev, 0));
 	int ret;
 
-	wm831x_on = kzalloc(sizeof(struct wm831x_on), GFP_KERNEL);
+	wm831x_on = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_on),
+				 GFP_KERNEL);
 	if (!wm831x_on) {
 		dev_err(&pdev->dev, "Can't allocate data\n");
 		return -ENOMEM;
@@ -120,7 +121,6 @@ err_irq:
 err_input_dev:
 	input_free_device(wm831x_on->dev);
 err:
-	kfree(wm831x_on);
 	return ret;
 }
 
@@ -132,7 +132,6 @@ static int __devexit wm831x_on_remove(struct platform_device *pdev)
 	free_irq(irq, wm831x_on);
 	cancel_delayed_work_sync(&wm831x_on->work);
 	input_unregister_device(wm831x_on->dev);
-	kfree(wm831x_on);
 
 	return 0;
 }
