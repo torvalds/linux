@@ -2150,8 +2150,8 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 		struct rbd_device *rbd_dev;
 
 		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_id > max_id)
-			max_id = rbd_id;
+		if (rbd_dev->id > max_id)
+			max_id = rbd_dev->id;
 	}
 	spin_unlock(&rbd_dev_list_lock);
 
