@@ -2249,9 +2249,6 @@ void synchronize_rcu_bh(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_bh);
 
-static atomic_long_t sync_sched_expedited_started = ATOMIC_LONG_INIT(0);
-static atomic_long_t sync_sched_expedited_done = ATOMIC_LONG_INIT(0);
-
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
 	/*
@@ -2310,6 +2307,7 @@ void synchronize_sched_expedited(void)
 {
 	long firstsnap, s, snap;
 	int trycount = 0;
+	struct rcu_state *rsp = &rcu_sched_state;
 
 	/*
 	 * If we are in danger of counter wrap, just do synchronize_sched().
@@ -2319,8 +2317,8 @@ void synchronize_sched_expedited(void)
 	 * counter wrap on a 32-bit system.  Quite a few more CPUs would of
 	 * course be required on a 64-bit system.
 	 */
-	if (ULONG_CMP_GE((ulong)atomic_read(&sync_sched_expedited_started),
-			 (ulong)atomic_read(&sync_sched_expedited_done) +
+	if (ULONG_CMP_GE((ulong)atomic_long_read(&rsp->expedited_start),
+			 (ulong)atomic_long_read(&rsp->expedited_done) +
 			 ULONG_MAX / 8)) {
 		synchronize_sched();
 		return;
@@ -2330,7 +2328,7 @@ void synchronize_sched_expedited(void)
 	 * Take a ticket.  Note that atomic_inc_return() implies a
 	 * full memory barrier.
 	 */
-	snap = atomic_long_inc_return(&sync_sched_expedited_started);
+	snap = atomic_long_inc_return(&rsp->expedited_start);
 	firstsnap = snap;
 	get_online_cpus();
 	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
@@ -2345,7 +2343,7 @@ void synchronize_sched_expedited(void)
 		put_online_cpus();
 
 		/* Check to see if someone else did our work for us. */
-		s = atomic_long_read(&sync_sched_expedited_done);
+		s = atomic_long_read(&rsp->expedited_done);
 		if (ULONG_CMP_GE((ulong)s, (ulong)firstsnap)) {
 			smp_mb(); /* ensure test happens before caller kfree */
 			return;
@@ -2360,7 +2358,7 @@ void synchronize_sched_expedited(void)
 		}
 
 		/* Recheck to see if someone else did our work for us. */
-		s = atomic_long_read(&sync_sched_expedited_done);
+		s = atomic_long_read(&rsp->expedited_done);
 		if (ULONG_CMP_GE((ulong)s, (ulong)firstsnap)) {
 			smp_mb(); /* ensure test happens before caller kfree */
 			return;
@@ -2374,7 +2372,7 @@ void synchronize_sched_expedited(void)
 		 * period works for us.
 		 */
 		get_online_cpus();
-		snap = atomic_long_read(&sync_sched_expedited_started);
+		snap = atomic_long_read(&rsp->expedited_start);
 		smp_mb(); /* ensure read is before try_stop_cpus(). */
 	}
 
@@ -2385,12 +2383,12 @@ void synchronize_sched_expedited(void)
 	 * than we did already did their update.
 	 */
 	do {
-		s = atomic_long_read(&sync_sched_expedited_done);
+		s = atomic_long_read(&rsp->expedited_done);
 		if (ULONG_CMP_GE((ulong)s, (ulong)snap)) {
 			smp_mb(); /* ensure test happens before caller kfree */
 			break;
 		}
-	} while (atomic_long_cmpxchg(&sync_sched_expedited_done, s, snap) != s);
+	} while (atomic_long_cmpxchg(&rsp->expedited_done, s, snap) != s);
 
 	put_online_cpus();
 }
