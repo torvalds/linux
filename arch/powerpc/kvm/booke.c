@@ -312,6 +312,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	bool crit;
 	bool keep_irq = false;
 	enum int_class int_class;
+	ulong new_msr = vcpu->arch.shared->msr;
 
 	/* Truncate crit indicators in 32 bit mode */
 	if (!(vcpu->arch.shared->msr & MSR_SF)) {
@@ -407,7 +408,13 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
-		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
+
+		new_msr &= msr_mask;
+#if defined(CONFIG_64BIT)
+		if (vcpu->arch.epcr & SPRN_EPCR_ICM)
+			new_msr |= MSR_CM;
+#endif
+		kvmppc_set_msr(vcpu, new_msr);
 
 		if (!keep_irq)
 			clear_bit(priority, &vcpu->arch.pending_exceptions);
