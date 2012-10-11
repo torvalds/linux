@@ -547,7 +547,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 				rw = WRITE_FUA;
 			else
 				rw = WRITE;
-			if (test_and_clear_bit(R5_Discard, &sh->dev[i].flags))
+			if (test_bit(R5_Discard, &sh->dev[i].flags))
 				rw |= REQ_DISCARD;
 		} else if (test_and_clear_bit(R5_Wantread, &sh->dev[i].flags))
 			rw = READ;
@@ -1172,11 +1172,9 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 					set_bit(R5_WantFUA, &dev->flags);
 				if (wbi->bi_rw & REQ_SYNC)
 					set_bit(R5_SyncIO, &dev->flags);
-				if (wbi->bi_rw & REQ_DISCARD) {
-					memset(page_address(dev->page), 0,
-						STRIPE_SECTORS << 9);
+				if (wbi->bi_rw & REQ_DISCARD)
 					set_bit(R5_Discard, &dev->flags);
-				} else
+				else
 					tx = async_copy_data(1, wbi, dev->page,
 						dev->sector, tx);
 				wbi = r5_next_bio(wbi, dev->sector);
@@ -1194,7 +1192,7 @@ static void ops_complete_reconstruct(void *stripe_head_ref)
 	int pd_idx = sh->pd_idx;
 	int qd_idx = sh->qd_idx;
 	int i;
-	bool fua = false, sync = false;
+	bool fua = false, sync = false, discard = false;
 
 	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
@@ -1202,13 +1200,15 @@ static void ops_complete_reconstruct(void *stripe_head_ref)
 	for (i = disks; i--; ) {
 		fua |= test_bit(R5_WantFUA, &sh->dev[i].flags);
 		sync |= test_bit(R5_SyncIO, &sh->dev[i].flags);
+		discard |= test_bit(R5_Discard, &sh->dev[i].flags);
 	}
 
 	for (i = disks; i--; ) {
 		struct r5dev *dev = &sh->dev[i];
 
 		if (dev->written || i == pd_idx || i == qd_idx) {
-			set_bit(R5_UPTODATE, &dev->flags);
+			if (!discard)
+				set_bit(R5_UPTODATE, &dev->flags);
 			if (fua)
 				set_bit(R5_WantFUA, &dev->flags);
 			if (sync)
@@ -1252,8 +1252,6 @@ ops_run_reconstruct5(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 	if (i >= sh->disks) {
 		atomic_inc(&sh->count);
-		memset(page_address(sh->dev[pd_idx].page), 0,
-			STRIPE_SECTORS << 9);
 		set_bit(R5_Discard, &sh->dev[pd_idx].flags);
 		ops_complete_reconstruct(sh);
 		return;
@@ -1314,10 +1312,6 @@ ops_run_reconstruct6(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 	if (i >= sh->disks) {
 		atomic_inc(&sh->count);
-		memset(page_address(sh->dev[sh->pd_idx].page), 0,
-			STRIPE_SECTORS << 9);
-		memset(page_address(sh->dev[sh->qd_idx].page), 0,
-			STRIPE_SECTORS << 9);
 		set_bit(R5_Discard, &sh->dev[sh->pd_idx].flags);
 		set_bit(R5_Discard, &sh->dev[sh->qd_idx].flags);
 		ops_complete_reconstruct(sh);
@@ -2775,7 +2769,8 @@ static void handle_stripe_clean_event(struct r5conf *conf,
 		if (sh->dev[i].written) {
 			dev = &sh->dev[i];
 			if (!test_bit(R5_LOCKED, &dev->flags) &&
-				test_bit(R5_UPTODATE, &dev->flags)) {
+			    (test_bit(R5_UPTODATE, &dev->flags) ||
+			     test_and_clear_bit(R5_Discard, &dev->flags))) {
 				/* We can return any write requests */
 				struct bio *wbi, *wbi2;
 				pr_debug("Return write for disc %d\n", i);
@@ -3493,10 +3488,12 @@ static void handle_stripe(struct stripe_head *sh)
 	if (s.written &&
 	    (s.p_failed || ((test_bit(R5_Insync, &pdev->flags)
 			     && !test_bit(R5_LOCKED, &pdev->flags)
-			     && test_bit(R5_UPTODATE, &pdev->flags)))) &&
+			     && (test_bit(R5_UPTODATE, &pdev->flags) ||
+				 test_bit(R5_Discard, &pdev->flags))))) &&
 	    (s.q_failed || ((test_bit(R5_Insync, &qdev->flags)
 			     && !test_bit(R5_LOCKED, &qdev->flags)
-			     && test_bit(R5_UPTODATE, &qdev->flags)))))
+			     && (test_bit(R5_UPTODATE, &qdev->flags) ||
+				 test_bit(R5_Discard, &qdev->flags))))))
 		handle_stripe_clean_event(conf, sh, disks, &s.return_bi);
 
 	/* Now we might consider reading some blocks, either to check/generate
@@ -3523,9 +3520,11 @@ static void handle_stripe(struct stripe_head *sh)
 		/* All the 'written' buffers and the parity block are ready to
 		 * be written back to disk
 		 */
-		BUG_ON(!test_bit(R5_UPTODATE, &sh->dev[sh->pd_idx].flags));
+		BUG_ON(!test_bit(R5_UPTODATE, &sh->dev[sh->pd_idx].flags) &&
+		       !test_bit(R5_Discard, &sh->dev[sh->pd_idx].flags));
 		BUG_ON(sh->qd_idx >= 0 &&
-		       !test_bit(R5_UPTODATE, &sh->dev[sh->qd_idx].flags));
+		       !test_bit(R5_UPTODATE, &sh->dev[sh->qd_idx].flags) &&
+		       !test_bit(R5_Discard, &sh->dev[sh->qd_idx].flags));
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 			if (test_bit(R5_LOCKED, &dev->flags) &&
