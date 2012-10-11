@@ -779,10 +779,13 @@ static long light_dev_ioctl(struct file *file,
 					printk("%s:fail to active sensor,ret=%d\n",__func__,result);         
 					goto error;           
 		            		}	
-					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					if(sensor->pdata->irq_enable)
 					{
-						DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-						enable_irq(client->irq);	//enable irq
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+							enable_irq(client->irq);	//enable irq
+						}
 					}	
 					else
 					{
@@ -802,10 +805,13 @@ static long light_dev_ioctl(struct file *file,
 					goto error;
 		            		}
 					
-					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					if(sensor->pdata->irq_enable)
 					{				
-						DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-						disable_irq_nosync(client->irq);//disable irq
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+							disable_irq_nosync(client->irq);//disable irq
+						}
 					}
 					else
 					cancel_delayed_work_sync(&sensor->delaywork);	
@@ -874,10 +880,13 @@ static long proximity_dev_ioctl(struct file *file,
 					goto error;           
 					}
 					
-					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					if(sensor->pdata->irq_enable)
 					{
-						DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
-						enable_irq(client->irq);	//enable irq
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+							enable_irq(client->irq);	//enable irq
+						}
 					}	
 					else
 					{
@@ -896,10 +905,13 @@ static long proximity_dev_ioctl(struct file *file,
 		                	mutex_unlock(&sensor->operation_mutex);              
 					goto error;
 					}
-					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					if(sensor->pdata->irq_enable)
 					{				
-						DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
-						disable_irq_nosync(client->irq);//disable irq
+						if(!(sensor->ops->trig & IRQF_SHARED))
+						{
+							DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+							disable_irq_nosync(client->irq);//disable irq
+						}
 					}
 					else
 					cancel_delayed_work_sync(&sensor->delaywork);		
