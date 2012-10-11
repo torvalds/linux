@@ -1388,6 +1388,11 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
 		break;
 	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR:
+		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1415,6 +1420,15 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			     (u64 __user *)(long)reg->addr, sizeof(u64));
 		break;
 	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR: {
+		u32 new_epcr;
+		r = get_user(new_epcr, (u32 __user *)(long)reg->addr);
+		if (r == 0)
+			kvmppc_set_epcr(vcpu, new_epcr);
+		break;
+	}
+#endif
 	default:
 		break;
 	}
