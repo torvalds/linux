@@ -23,6 +23,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 
+#include <linux/gpio.h>
+
 /* register offsets within a pin bank */
 #define DAT_REG		0x4
 #define PUD_REG		0x8
@@ -113,6 +115,8 @@ struct samsung_pinctrl_drv_data;
  * @of_node: OF node of the bank.
  * @drvdata: link to controller driver data
  * @irq_domain: IRQ domain of the bank.
+ * @gpio_chip: GPIO chip of the bank.
+ * @grange: linux gpio pin range supported by this bank.
  */
 struct samsung_pin_bank {
 	u32		pctl_offset;
@@ -129,6 +133,8 @@ struct samsung_pin_bank {
 	struct device_node *of_node;
 	struct samsung_pinctrl_drv_data *drvdata;
 	struct irq_domain *irq_domain;
+	struct gpio_chip gpio_chip;
+	struct pinctrl_gpio_range grange;
 };
 
 /**
@@ -186,8 +192,6 @@ struct samsung_pin_ctrl {
  * @nr_groups: number of such pin groups.
  * @pmx_functions: list of pin functions available to the driver.
  * @nr_function: number of such pin functions.
- * @gc: gpio_chip instance registered with gpiolib.
- * @grange: linux gpio pin range supported by this controller.
  */
 struct samsung_pinctrl_drv_data {
 	void __iomem			*virt_base;
@@ -204,9 +208,6 @@ struct samsung_pinctrl_drv_data {
 	unsigned int			nr_functions;
 
 	struct irq_domain		*wkup_irqd;
-
-	struct gpio_chip		*gc;
-	struct pinctrl_gpio_range	grange;
 };
 
 /**
