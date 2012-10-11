@@ -1473,6 +1473,18 @@ void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
 }
 
+void kvmppc_set_epcr(struct kvm_vcpu *vcpu, u32 new_epcr)
+{
+#if defined(CONFIG_64BIT)
+	vcpu->arch.epcr = new_epcr;
+#ifdef CONFIG_KVM_BOOKE_HV
+	vcpu->arch.shadow_epcr &= ~SPRN_EPCR_GICM;
+	if (vcpu->arch.epcr  & SPRN_EPCR_ICM)
+		vcpu->arch.shadow_epcr |= SPRN_EPCR_GICM;
+#endif
+#endif
+}
+
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)
 {
 	vcpu->arch.tcr = new_tcr;

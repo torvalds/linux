@@ -240,7 +240,14 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_MCSR:
 		vcpu->arch.mcsr &= ~spr_val;
 		break;
-
+#if defined(CONFIG_64BIT)
+	case SPRN_EPCR:
+		kvmppc_set_epcr(vcpu, spr_val);
+#ifdef CONFIG_KVM_BOOKE_HV
+		mtspr(SPRN_EPCR, vcpu->arch.shadow_epcr);
+#endif
+		break;
+#endif
 	default:
 		emulated = EMULATE_FAIL;
 	}
@@ -335,6 +342,11 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_MCSR:
 		*spr_val = vcpu->arch.mcsr;
 		break;
+#if defined(CONFIG_64BIT)
+	case SPRN_EPCR:
+		*spr_val = vcpu->arch.epcr;
+		break;
+#endif
 
 	default:
 		emulated = EMULATE_FAIL;
