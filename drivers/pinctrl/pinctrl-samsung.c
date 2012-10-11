@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/irqdomain.h>
 
 #include "core.h"
 #include "pinctrl-samsung.h"
@@ -528,6 +529,23 @@ static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 }
 
 /*
+ * gpiolib gpio_to_irq callback function. Creates a mapping between a GPIO pin
+ * and a virtual IRQ, if not already present.
+ */
+static int samsung_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
+	unsigned int virq;
+
+	if (!bank->irq_domain)
+		return -ENXIO;
+
+	virq = irq_create_mapping(bank->irq_domain, offset);
+
+	return (virq) ? : -ENXIO;
+}
+
+/*
  * Parse the pin names listed in the 'samsung,pins' property and convert it
  * into a list of gpio numbers are create a pin group from it.
  */
@@ -755,6 +773,7 @@ static const struct gpio_chip samsung_gpiolib_chip = {
 	.get = samsung_gpio_get,
 	.direction_input = samsung_gpio_direction_input,
 	.direction_output = samsung_gpio_direction_output,
+	.to_irq = samsung_gpio_to_irq,
 	.owner = THIS_MODULE,
 };
 
