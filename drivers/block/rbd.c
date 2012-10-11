@@ -1164,7 +1164,6 @@ static int rbd_do_op(struct request *rq,
 		     struct rbd_device *rbd_dev,
 		     struct ceph_snap_context *snapc,
 		     u64 snapid,
-		     int opcode, int flags,
 		     u64 ofs, u64 len,
 		     struct bio *bio,
 		     struct rbd_req_coll *coll,
@@ -1176,6 +1175,8 @@ static int rbd_do_op(struct request *rq,
 	int ret;
 	struct ceph_osd_req_op *ops;
 	u32 payload_len;
+	int opcode;
+	int flags;
 
 	seg_name = rbd_segment_name(rbd_dev, ofs);
 	if (!seg_name)
@@ -1183,7 +1184,15 @@ static int rbd_do_op(struct request *rq,
 	seg_len = rbd_segment_length(rbd_dev, ofs, len);
 	seg_ofs = rbd_segment_offset(rbd_dev, ofs);
 
-	payload_len = (flags & CEPH_OSD_FLAG_WRITE ? seg_len : 0);
+	if (rq_data_dir(rq) == WRITE) {
+		opcode = CEPH_OSD_OP_WRITE;
+		flags = CEPH_OSD_FLAG_WRITE|CEPH_OSD_FLAG_ONDISK;
+		payload_len = seg_len;
+	} else {
+		opcode = CEPH_OSD_OP_READ;
+		flags = CEPH_OSD_FLAG_READ;
+		payload_len = 0;
+	}
 
 	ret = -ENOMEM;
 	ops = rbd_create_rw_ops(1, opcode, payload_len);
@@ -1519,16 +1528,11 @@ static void rbd_rq_fn(struct request_queue *q)
 			if (do_write)
 				(void) rbd_do_op(rq, rbd_dev,
 						snapc, CEPH_NOSNAP,
-						CEPH_OSD_OP_WRITE,
-						CEPH_OSD_FLAG_WRITE |
-						    CEPH_OSD_FLAG_ONDISK,
 						ofs, op_size, bio,
 						coll, cur_seg);
 			else
 				(void) rbd_do_op(rq, rbd_dev,
 						NULL, rbd_dev->mapping.snap_id,
-						CEPH_OSD_OP_READ,
-						CEPH_OSD_FLAG_READ,
 						ofs, op_size, bio,
 						coll, cur_seg);
 next_seg:
