@@ -86,34 +86,13 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	bl	schedule_tail
+	cmp	r5, #0
+	movne	r0, r4
+	movne	lr, pc
+	movne	pc, r5
 	get_thread_info tsk
-	mov	why, #1
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
-
-ENTRY(ret_from_kernel_thread)
- UNWIND(.fnstart)
- UNWIND(.cantunwind)
-	bl	schedule_tail
-	mov	r0, r4
-	adr	lr, BSYM(1f)	@ kernel threads should not exit
-	mov	pc, r5
-1:	bl	do_exit
-	nop
- UNWIND(.fnend)
-ENDPROC(ret_from_kernel_thread)
-
-/*
- * turn a kernel thread into userland process
- * use: ret_from_kernel_execve(struct pt_regs *normal)
- */
-ENTRY(ret_from_kernel_execve)
-	mov	why, #0			@ not a syscall
-	str	why, [r0, #S_R0]	@ ... and we want 0 in ->ARM_r0 as well
-	get_thread_info tsk		@ thread structure
-	mov	sp, r0			@ stack pointer just under pt_regs
-	b	ret_slow_syscall
-ENDPROC(ret_from_kernel_execve)
 
 	.equ NR_syscalls,0
 #define CALL(x) .equ NR_syscalls,NR_syscalls+1
