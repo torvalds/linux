@@ -1682,6 +1682,7 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 	{.frequency = 266 * 1000,	.index = 1000 * 1000},
 	{.frequency = 400 * 1000,	.index = 1000 * 1000},
+	{.frequency = 600 * 1000,	.index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
