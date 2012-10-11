@@ -337,21 +337,32 @@ static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 	return 0;
 }
 
-struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
+struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id)
 {
 	struct hlist_head *head;
 	struct perf_sample_id *sid;
 	int hash;
-
-	if (evlist->nr_entries == 1)
-		return perf_evlist__first(evlist);
 
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->heads[hash];
 
 	hlist_for_each_entry(sid, head, node)
 		if (sid->id == id)
-			return sid->evsel;
+			return sid;
+
+	return NULL;
+}
+
+struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
+{
+	struct perf_sample_id *sid;
+
+	if (evlist->nr_entries == 1)
+		return perf_evlist__first(evlist);
+
+	sid = perf_evlist__id2sid(evlist, id);
+	if (sid)
+		return sid->evsel;
 
 	if (!perf_evlist__sample_id_all(evlist))
 		return perf_evlist__first(evlist);
