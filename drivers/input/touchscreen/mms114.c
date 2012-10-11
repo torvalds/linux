@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/i2c/mms114.h>
 #include <linux/input/mt.h>
@@ -360,14 +361,63 @@ static void mms114_input_close(struct input_dev *dev)
 	mms114_stop(data);
 }
 
+#ifdef CONFIG_OF
+static struct mms114_platform_data * __devinit mms114_parse_dt(struct device *dev)
+{
+	struct mms114_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate platform data\n");
+		return NULL;
+	}
+
+	if (of_property_read_u32(np, "x-size", &pdata->x_size)) {
+		dev_err(dev, "failed to get x-size property\n");
+		return NULL;
+	};
+
+	if (of_property_read_u32(np, "y-size", &pdata->y_size)) {
+		dev_err(dev, "failed to get y-size property\n");
+		return NULL;
+	};
+
+	of_property_read_u32(np, "contact-threshold",
+				&pdata->contact_threshold);
+	of_property_read_u32(np, "moving-threshold",
+				&pdata->moving_threshold);
+
+	if (of_find_property(np, "x-invert", NULL))
+		pdata->x_invert = true;
+	if (of_find_property(np, "y-invert", NULL))
+		pdata->y_invert = true;
+
+	return pdata;
+}
+#else
+static inline struct mms114_platform_data *mms114_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int __devinit mms114_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
+	const struct mms114_platform_data *pdata;
 	struct mms114_data *data;
 	struct input_dev *input_dev;
 	int error;
 
-	if (!client->dev.platform_data) {
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata)
+		pdata = mms114_parse_dt(&client->dev);
+
+	if (!pdata) {
 		dev_err(&client->dev, "Need platform data\n");
 		return -EINVAL;
 	}
@@ -389,7 +439,7 @@ static int __devinit mms114_probe(struct i2c_client *client,
 
 	data->client = client;
 	data->input_dev = input_dev;
-	data->pdata = client->dev.platform_data;
+	data->pdata = pdata;
 
 	input_dev->name = "MELPAS MMS114 Touchscreen";
 	input_dev->id.bustype = BUS_I2C;
@@ -525,11 +575,19 @@ static const struct i2c_device_id mms114_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mms114_id);
 
+#ifdef CONFIG_OF
+static struct of_device_id __devinitdata mms114_dt_match[] = {
+	{ .compatible = "melfas,mms114" },
+	{ }
+};
+#endif
+
 static struct i2c_driver mms114_driver = {
 	.driver = {
 		.name	= "mms114",
 		.owner	= THIS_MODULE,
 		.pm	= &mms114_pm_ops,
+		.of_match_table = of_match_ptr(mms114_dt_match),
 	},
 	.probe		= mms114_probe,
 	.remove		= __devexit_p(mms114_remove),
