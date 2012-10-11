@@ -948,6 +948,7 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root;
 	struct efivar_entry *entry, *n;
 	struct efivars *efivars = &__efivars;
+	char *name;
 
 	efivarfs_sb = sb;
 
@@ -969,16 +970,18 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	list_for_each_entry_safe(entry, n, &efivars->list, list) {
-		struct inode *inode;
 		struct dentry *dentry, *root = efivarfs_sb->s_root;
-		char *name;
 		unsigned long size = 0;
 		int len, i;
+
+		inode = NULL;
 
 		len = utf16_strlen(entry->var.VariableName);
 
 		/* GUID plus trailing NULL */
 		name = kmalloc(len + 38, GFP_ATOMIC);
+		if (!name)
+			goto fail;
 
 		for (i = 0; i < len; i++)
 			name[i] = entry->var.VariableName[i] & 0xFF;
@@ -991,7 +994,13 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 		inode = efivarfs_get_inode(efivarfs_sb, root->d_inode,
 					  S_IFREG | 0644, 0);
+		if (!inode)
+			goto fail_name;
+
 		dentry = d_alloc_name(root, name);
+		if (!dentry)
+			goto fail_inode;
+
 		/* copied by the above to local storage in the dentry. */
 		kfree(name);
 
@@ -1009,6 +1018,13 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	return 0;
+
+fail_inode:
+	iput(inode);
+fail_name:
+	kfree(name);
+fail:
+	return -ENOMEM;
 }
 
 static struct dentry *efivarfs_mount(struct file_system_type *fs_type,
