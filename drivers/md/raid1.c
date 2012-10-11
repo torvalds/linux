@@ -2294,8 +2294,9 @@ read_more:
 	}
 }
 
-static void raid1d(struct mddev *mddev)
+static void raid1d(struct md_thread *thread)
 {
+	struct mddev *mddev = thread->mddev;
 	struct r1bio *r1_bio;
 	unsigned long flags;
 	struct r1conf *conf = mddev->private;

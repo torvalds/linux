@@ -6641,7 +6641,7 @@ static int md_thread(void * arg)
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
 		if (!kthread_should_stop())
-			thread->run(thread->mddev);
+			thread->run(thread);
 	}
 
 	return 0;
@@ -6656,8 +6656,8 @@ void md_wakeup_thread(struct md_thread *thread)
 	}
 }
 
-struct md_thread *md_register_thread(void (*run) (struct mddev *), struct mddev *mddev,
-				 const char *name)
+struct md_thread *md_register_thread(void (*run) (struct md_thread *),
+		struct mddev *mddev, const char *name)
 {
 	struct md_thread *thread;
 
@@ -7206,8 +7206,9 @@ EXPORT_SYMBOL_GPL(md_allow_write);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
-void md_do_sync(struct mddev *mddev)
+void md_do_sync(struct md_thread *thread)
 {
+	struct mddev *mddev = thread->mddev;
 	struct mddev *mddev2;
 	unsigned int currspeed = 0,
 		 window;

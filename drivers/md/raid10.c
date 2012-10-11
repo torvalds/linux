@@ -2732,8 +2732,9 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 	}
 }
 
-static void raid10d(struct mddev *mddev)
+static void raid10d(struct md_thread *thread)
 {
+	struct mddev *mddev = thread->mddev;
 	struct r10bio *r10_bio;
 	unsigned long flags;
 	struct r10conf *conf = mddev->private;
