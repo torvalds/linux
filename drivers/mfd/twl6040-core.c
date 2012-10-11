@@ -499,6 +499,25 @@ static struct regmap_config twl6040_regmap_config = {
 	.readable_reg = twl6040_readable_reg,
 };
 
+static const struct regmap_irq twl6040_irqs[] = {
+	{ .reg_offset = 0, .mask = TWL6040_THINT, },
+	{ .reg_offset = 0, .mask = TWL6040_PLUGINT | TWL6040_UNPLUGINT, },
+	{ .reg_offset = 0, .mask = TWL6040_HOOKINT, },
+	{ .reg_offset = 0, .mask = TWL6040_HFINT, },
+	{ .reg_offset = 0, .mask = TWL6040_VIBINT, },
+	{ .reg_offset = 0, .mask = TWL6040_READYINT, },
+};
+
+static struct regmap_irq_chip twl6040_irq_chip = {
+	.name = "twl6040",
+	.irqs = twl6040_irqs,
+	.num_irqs = ARRAY_SIZE(twl6040_irqs),
+
+	.num_regs = 1,
+	.status_base = TWL6040_REG_INTID,
+	.mask_base = TWL6040_REG_INTMR,
+};
+
 static int __devinit twl6040_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
@@ -574,21 +593,27 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 			goto gpio_err;
 	}
 
-	/* codec interrupt */
-	ret = twl6040_irq_init(twl6040);
-	if (ret)
+	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq,
+			IRQF_ONESHOT, 0, &twl6040_irq_chip,
+			&twl6040->irq_data);
+	if (ret < 0)
 		goto irq_init_err;
 
-	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_READY,
-				   NULL, twl6040_readyint_handler, IRQF_ONESHOT,
+	twl6040->irq_ready = regmap_irq_get_virq(twl6040->irq_data,
+					       TWL6040_IRQ_READY);
+	twl6040->irq_th = regmap_irq_get_virq(twl6040->irq_data,
+					       TWL6040_IRQ_TH);
+
+	ret = request_threaded_irq(twl6040->irq_ready, NULL,
+				   twl6040_readyint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_ready", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "READY IRQ request failed: %d\n", ret);
 		goto readyirq_err;
 	}
 
-	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_TH,
-				   NULL, twl6040_thint_handler, IRQF_ONESHOT,
+	ret = request_threaded_irq(twl6040->irq_th, NULL,
+				   twl6040_thint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_th", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
@@ -604,7 +629,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	 * The ASoC codec can work without pdata, pass the platform_data only if
 	 * it has been provided.
 	 */
-	irq = twl6040->irq_base + TWL6040_IRQ_PLUG;
+	irq = regmap_irq_get_virq(twl6040->irq_data, TWL6040_IRQ_PLUG);
 	cell = &twl6040->cells[children];
 	cell->name = "twl6040-codec";
 	twl6040_codec_rsrc[0].start = irq;
@@ -618,7 +643,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	children++;
 
 	if (twl6040_has_vibra(pdata, node)) {
-		irq = twl6040->irq_base + TWL6040_IRQ_VIB;
+		irq = regmap_irq_get_virq(twl6040->irq_data, TWL6040_IRQ_VIB);
 
 		cell = &twl6040->cells[children];
 		cell->name = "twl6040-vibra";
@@ -657,11 +682,11 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	return 0;
 
 mfd_err:
-	free_irq(twl6040->irq_base + TWL6040_IRQ_TH, twl6040);
+	free_irq(twl6040->irq_th, twl6040);
 thirq_err:
-	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
+	free_irq(twl6040->irq_ready, twl6040);
 readyirq_err:
-	twl6040_irq_exit(twl6040);
+	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 irq_init_err:
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
@@ -685,9 +710,9 @@ static int __devexit twl6040_remove(struct i2c_client *client)
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
 
-	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
-	free_irq(twl6040->irq_base + TWL6040_IRQ_TH, twl6040);
-	twl6040_irq_exit(twl6040);
+	free_irq(twl6040->irq_ready, twl6040);
+	free_irq(twl6040->irq_th, twl6040);
+	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 
 	mfd_remove_devices(&client->dev);
 	i2c_set_clientdata(client, NULL);

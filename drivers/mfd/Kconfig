@@ -321,10 +321,10 @@ config MFD_TWL4030_AUDIO
 
 config TWL6040_CORE
 	bool "Support for TWL6040 audio codec"
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
-	select IRQ_DOMAIN
+	select REGMAP_IRQ
 	default n
 	help
 	  Say yes here if you want support for Texas Instruments TWL6040 audio
