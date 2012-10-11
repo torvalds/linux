@@ -235,7 +235,11 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
 	}
 
-	adpa = ADPA_HOTPLUG_BITS;
+	if (HAS_PCH_SPLIT(dev))
+		adpa = ADPA_HOTPLUG_BITS;
+	else
+		adpa = 0;
+
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
