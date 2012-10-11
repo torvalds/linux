@@ -201,28 +201,39 @@ static void android_bat_get_temp(struct android_bat_data *battery)
 	if (battery->pdata->get_temperature)
 		battery->pdata->get_temperature(&batt_temp);
 
-	if (batt_temp >= battery->pdata->temp_high_threshold) {
-		if (health != POWER_SUPPLY_HEALTH_OVERHEAT &&
+	if (battery->charge_source != CHARGE_SOURCE_NONE) {
+		if (batt_temp >= battery->pdata->temp_high_threshold) {
+			if (health != POWER_SUPPLY_HEALTH_OVERHEAT &&
 				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
-			pr_info("battery overheat (%d>=%d), charging unavailable\n",
-				batt_temp, battery->pdata->temp_high_threshold);
-			battery->batt_health = POWER_SUPPLY_HEALTH_OVERHEAT;
-		}
-	} else if (batt_temp <= battery->pdata->temp_high_recovery &&
+				pr_info("battery overheat (%d>=%d), " \
+					"charging unavailable\n",
+					batt_temp,
+					battery->pdata->temp_high_threshold);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_OVERHEAT;
+			}
+		} else if (batt_temp <= battery->pdata->temp_high_recovery &&
 			batt_temp >= battery->pdata->temp_low_recovery) {
-		if (health == POWER_SUPPLY_HEALTH_OVERHEAT ||
+			if (health == POWER_SUPPLY_HEALTH_OVERHEAT ||
 				health == POWER_SUPPLY_HEALTH_COLD) {
-			pr_info("battery recovery (%d,%d~%d), charging available\n",
-				batt_temp, battery->pdata->temp_low_recovery,
-				battery->pdata->temp_high_recovery);
-			battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
-		}
-	} else if (batt_temp <= battery->pdata->temp_low_threshold) {
-		if (health != POWER_SUPPLY_HEALTH_COLD &&
+				pr_info("battery recovery (%d,%d~%d),"	\
+					"charging available\n",
+					batt_temp,
+					battery->pdata->temp_low_recovery,
+					battery->pdata->temp_high_recovery);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_GOOD;
+			}
+		} else if (batt_temp <= battery->pdata->temp_low_threshold) {
+			if (health != POWER_SUPPLY_HEALTH_COLD &&
 				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
-			pr_info("battery cold (%d <= %d), charging unavailable\n",
-				batt_temp, battery->pdata->temp_low_threshold);
-			battery->batt_health = POWER_SUPPLY_HEALTH_COLD;
+				pr_info("battery cold (%d <= %d),"	\
+					"charging unavailable\n",
+					batt_temp,
+					battery->pdata->temp_low_threshold);
+				battery->batt_health =
+					POWER_SUPPLY_HEALTH_COLD;
+			}
 		}
 	}
 
