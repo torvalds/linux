@@ -395,6 +395,12 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		break;
 	}
 
+	/* CRT state */
+	if (HAS_PCH_SPLIT(dev))
+		dev_priv->saveADPA = I915_READ(PCH_ADPA);
+	else
+		dev_priv->saveADPA = I915_READ(ADPA);
+
 	return;
 }
 
@@ -601,6 +607,12 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	if (IS_GEN2(dev))
 		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
 
+	/* CRT state */
+	if (HAS_PCH_SPLIT(dev))
+		I915_WRITE(PCH_ADPA, dev_priv->saveADPA);
+	else
+		I915_WRITE(ADPA, dev_priv->saveADPA);
+
 	return;
 }
 
@@ -614,13 +626,6 @@ static void i915_save_display(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't save them in KMS mode */
 	i915_save_modeset_reg(dev);
-
-	/* CRT state */
-	if (HAS_PCH_SPLIT(dev)) {
-		dev_priv->saveADPA = I915_READ(PCH_ADPA);
-	} else {
-		dev_priv->saveADPA = I915_READ(ADPA);
-	}
 
 	/* LVDS state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -722,12 +727,6 @@ static void i915_restore_display(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't restore them in KMS mode */
 	i915_restore_modeset_reg(dev);
-
-	/* CRT state */
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(PCH_ADPA, dev_priv->saveADPA);
-	else
-		I915_WRITE(ADPA, dev_priv->saveADPA);
 
 	/* LVDS state */
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
