@@ -36,6 +36,7 @@
 #include <asm/dbell.h>
 #include <asm/hw_irq.h>
 #include <asm/irq.h>
+#include <asm/time.h>
 
 #include "timing.h"
 #include "booke.h"
