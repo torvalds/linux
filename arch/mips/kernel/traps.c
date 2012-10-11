@@ -13,6 +13,7 @@
  */
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <linux/kexec.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -408,6 +409,9 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 		ssleep(5);
 		panic("Fatal exception");
 	}
+
+	if (regs && kexec_should_crash(current))
+		crash_kexec(regs);
 
 	do_exit(sig);
 }
