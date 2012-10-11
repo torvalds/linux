@@ -1,41 +1,28 @@
-if ARCH_SUN3I
 menu "All winner system configure"
+depends on ARCH_SUN3I
 
 config SW_SYSMEM_TOTAL_MEM
 	int "Memory Size in MB"
 	default 128
-	depends on ARCH_SUN3I
 	---help---
 	  In MB size
 
 config SW_SYSMEM_RESERVED_BASE
 	hex "Physical address base to reserved for sun3i"
 	default 0x83000000
-	depends on ARCH_SUN3I
 	---help---
 	  Sun3i reserves some memory for its hardware
 
 config SW_SYSMEM_RESERVED_SIZE
 	int "Memory reserved size in KB"
 	default 16448
-	depends on ARCH_SUN3I
 	---help---
 	  In KB size. Lowwer 32KB for PIN, and then for FB & DE
 
 config SW_PIN_TEST
 	tristate "Test code for PIN module"
 	default n
-	depends on ARCH_SUN3I
 	---help---
 	  "Test code for PIN module"
 
-config SW_DEBUG_UART
-	int "UART to use for low-level debug"
-	depends on DEBUG_LL
-	default 0
-	help
-	  Choose the UART on which kernel low-level debug messages should be
-	  output.
-
 endmenu
-endif
