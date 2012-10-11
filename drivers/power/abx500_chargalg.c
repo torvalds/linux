@@ -2083,18 +2083,7 @@ static struct platform_driver abx500_chargalg_driver = {
 	},
 };
 
-static int __init abx500_chargalg_init(void)
-{
-	return platform_driver_register(&abx500_chargalg_driver);
-}
-
-static void __exit abx500_chargalg_exit(void)
-{
-	platform_driver_unregister(&abx500_chargalg_driver);
-}
-
-module_init(abx500_chargalg_init);
-module_exit(abx500_chargalg_exit);
+module_platform_driver(abx500_chargalg_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski");
