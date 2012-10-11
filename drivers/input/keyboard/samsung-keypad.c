@@ -431,6 +431,12 @@ static int __devinit samsung_keypad_probe(struct platform_device *pdev)
 		goto err_unmap_base;
 	}
 
+	error = clk_prepare(keypad->clk);
+	if (error) {
+		dev_err(&pdev->dev, "keypad clock prepare failed\n");
+		goto err_put_clk;
+	}
+
 	keypad->input_dev = input_dev;
 	keypad->pdev = pdev;
 	keypad->row_shift = row_shift;
@@ -461,7 +467,7 @@ static int __devinit samsung_keypad_probe(struct platform_device *pdev)
 					   keypad->keycodes, input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto err_put_clk;
+		goto err_unprepare_clk;
 	}
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -503,6 +509,8 @@ err_free_irq:
 	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
+err_unprepare_clk:
+	clk_unprepare(keypad->clk);
 err_put_clk:
 	clk_put(keypad->clk);
 	samsung_keypad_dt_gpio_free(keypad);
@@ -531,6 +539,7 @@ static int __devexit samsung_keypad_remove(struct platform_device *pdev)
 	 */
 	free_irq(keypad->irq, keypad);
 
+	clk_unprepare(keypad->clk);
 	clk_put(keypad->clk);
 	samsung_keypad_dt_gpio_free(keypad);
 
