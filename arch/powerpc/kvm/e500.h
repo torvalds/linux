@@ -154,7 +154,7 @@ get_tlb_size(const struct kvm_book3e_206_tlb_entry *tlbe)
 
 static inline gva_t get_tlb_eaddr(const struct kvm_book3e_206_tlb_entry *tlbe)
 {
-	return tlbe->mas2 & 0xfffff000;
+	return tlbe->mas2 & MAS2_EPN;
 }
 
 static inline u64 get_tlb_bytes(const struct kvm_book3e_206_tlb_entry *tlbe)
