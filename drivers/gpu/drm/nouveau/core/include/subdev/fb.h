@@ -121,6 +121,7 @@ extern struct nouveau_oclass nv20_fb_oclass;
 extern struct nouveau_oclass nv25_fb_oclass;
 extern struct nouveau_oclass nv30_fb_oclass;
 extern struct nouveau_oclass nv35_fb_oclass;
+extern struct nouveau_oclass nv36_fb_oclass;
 extern struct nouveau_oclass nv40_fb_oclass;
 extern struct nouveau_oclass nv41_fb_oclass;
 extern struct nouveau_oclass nv44_fb_oclass;

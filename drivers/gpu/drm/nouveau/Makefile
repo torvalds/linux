@@ -69,6 +69,7 @@ nouveau-y += core/subdev/fb/nv20.o
 nouveau-y += core/subdev/fb/nv25.o
 nouveau-y += core/subdev/fb/nv30.o
 nouveau-y += core/subdev/fb/nv35.o
+nouveau-y += core/subdev/fb/nv36.o
 nouveau-y += core/subdev/fb/nv40.o
 nouveau-y += core/subdev/fb/nv41.o
 nouveau-y += core/subdev/fb/nv44.o
