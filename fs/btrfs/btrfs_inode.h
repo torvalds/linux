@@ -39,6 +39,7 @@
 #define BTRFS_INODE_HAS_ORPHAN_ITEM		5
 #define BTRFS_INODE_HAS_ASYNC_EXTENT		6
 #define BTRFS_INODE_NEEDS_FULL_SYNC		7
+#define BTRFS_INODE_COPY_EVERYTHING		8
 
 /* in memory btrfs inode */
 struct btrfs_inode {

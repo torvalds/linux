@@ -5083,6 +5083,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	inode_inc_iversion(inode);
 	inode->i_ctime = CURRENT_TIME;
 	ihold(inode);
+	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 1, index);
 

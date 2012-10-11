@@ -3429,14 +3429,20 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	} else {
 		if (test_and_clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 				       &BTRFS_I(inode)->runtime_flags)) {
+			clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+				  &BTRFS_I(inode)->runtime_flags);
 			ret = btrfs_truncate_inode_items(trans, log,
 							 inode, 0, 0);
 		} else {
 			if (inode_only == LOG_INODE_ALL)
 				fast_search = true;
-			max_key.type = BTRFS_XATTR_ITEM_KEY;
+			if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+					       &BTRFS_I(inode)->runtime_flags))
+				max_key.type = BTRFS_XATTR_ITEM_KEY;
+			else
+				max_key.type = BTRFS_INODE_ITEM_KEY;
 			ret = drop_objectid_items(trans, log, path, ino,
-						  BTRFS_XATTR_ITEM_KEY);
+						  max_key.type);
 		}
 	}
 	if (ret) {
