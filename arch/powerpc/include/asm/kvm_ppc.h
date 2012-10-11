@@ -295,4 +295,15 @@ static inline void kvmppc_lazy_ee_enable(void)
 #endif
 }
 
+static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
+{
+	ulong ea;
+
+	ea = kvmppc_get_gpr(vcpu, rb);
+	if (ra)
+		ea += kvmppc_get_gpr(vcpu, ra);
+
+	return ea;
+}
+
 #endif /* __POWERPC_KVM_PPC_H__ */
