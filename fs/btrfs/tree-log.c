@@ -2996,6 +2996,26 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 
 }
 
+static int log_inode_item(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *log, struct btrfs_path *path,
+			  struct inode *inode)
+{
+	struct btrfs_inode_item *inode_item;
+	struct btrfs_key key;
+	int ret;
+
+	memcpy(&key, &BTRFS_I(inode)->location, sizeof(key));
+	ret = btrfs_insert_empty_item(trans, log, path, &key,
+				      sizeof(*inode_item));
+	if (ret && ret != -EEXIST)
+		return ret;
+	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				    struct btrfs_inode_item);
+	fill_inode_item(trans, path->nodes[0], inode_item, inode, 0);
+	btrfs_release_path(path);
+	return 0;
+}
+
 static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct inode *inode,
 			       struct btrfs_path *dst_path,
@@ -3433,17 +3453,24 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 				  &BTRFS_I(inode)->runtime_flags);
 			ret = btrfs_truncate_inode_items(trans, log,
 							 inode, 0, 0);
+		} else if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
+					      &BTRFS_I(inode)->runtime_flags)) {
+			if (inode_only == LOG_INODE_ALL)
+				fast_search = true;
+			max_key.type = BTRFS_XATTR_ITEM_KEY;
+			ret = drop_objectid_items(trans, log, path, ino,
+						  max_key.type);
 		} else {
 			if (inode_only == LOG_INODE_ALL)
 				fast_search = true;
-			if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
-					       &BTRFS_I(inode)->runtime_flags))
-				max_key.type = BTRFS_XATTR_ITEM_KEY;
-			else
-				max_key.type = BTRFS_INODE_ITEM_KEY;
-			ret = drop_objectid_items(trans, log, path, ino,
-						  max_key.type);
+			ret = log_inode_item(trans, log, dst_path, inode);
+			if (ret) {
+				err = ret;
+				goto out_unlock;
+			}
+			goto log_extents;
 		}
+
 	}
 	if (ret) {
 		err = ret;
@@ -3522,6 +3549,7 @@ next_slot:
 		ins_nr = 0;
 	}
 
+log_extents:
 	if (fast_search) {
 		btrfs_release_path(path);
 		btrfs_release_path(dst_path);
