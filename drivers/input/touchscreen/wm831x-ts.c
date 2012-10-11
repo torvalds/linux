@@ -390,7 +390,6 @@ static __devexit int wm831x_ts_remove(struct platform_device *pdev)
 	input_unregister_device(wm831x_ts->input_dev);
 	kfree(wm831x_ts);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
