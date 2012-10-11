@@ -59,7 +59,7 @@
 		.name		= id			\
 	}
 
-#define EXYNOS_PIN_BANK_EINTG(pins, reg, id)		\
+#define EXYNOS_PIN_BANK_EINTG(pins, reg, id, offs)	\
 	{						\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
@@ -69,6 +69,7 @@
 		.conpdn_width	= 2,			\
 		.pudpdn_width	= 2,			\
 		.eint_type	= EINT_TYPE_GPIO,	\
+		.eint_offset	= offs,			\
 		.name		= id			\
 	}
 

@@ -124,6 +124,7 @@ struct samsung_pin_bank {
 	u8		conpdn_width;
 	u8		pudpdn_width;
 	enum eint_type	eint_type;
+	u32		eint_offset;
 	u32		irq_base;
 	char		*name;
 	struct device_node *of_node;
