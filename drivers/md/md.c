@@ -2044,8 +2044,14 @@ EXPORT_SYMBOL(md_integrity_register);
 /* Disable data integrity if non-capable/non-matching disk is being added */
 void md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev)
 {
-	struct blk_integrity *bi_rdev = bdev_get_integrity(rdev->bdev);
-	struct blk_integrity *bi_mddev = blk_get_integrity(mddev->gendisk);
+	struct blk_integrity *bi_rdev;
+	struct blk_integrity *bi_mddev;
+
+	if (!mddev->gendisk)
+		return;
+
+	bi_rdev = bdev_get_integrity(rdev->bdev);
+	bi_mddev = blk_get_integrity(mddev->gendisk);
 
 	if (!bi_mddev) /* nothing to do */
 		return;
