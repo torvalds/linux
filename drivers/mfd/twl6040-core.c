@@ -218,8 +218,7 @@ static irqreturn_t twl6040_naudint_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int twl6040_power_up_completion(struct twl6040 *twl6040,
-				       int naudint)
+static int twl6040_power_up_completion(struct twl6040 *twl6040)
 {
 	int time_left;
 	u8 intid;
@@ -241,7 +240,6 @@ static int twl6040_power_up_completion(struct twl6040 *twl6040,
 int twl6040_power(struct twl6040 *twl6040, int on)
 {
 	int audpwron = twl6040->audpwron;
-	int naudint = twl6040->irq;
 	int ret = 0;
 
 	mutex_lock(&twl6040->mutex);
@@ -255,7 +253,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 			/* use AUDPWRON line */
 			gpio_set_value(audpwron, 1);
 			/* wait for power-up completion */
-			ret = twl6040_power_up_completion(twl6040, naudint);
+			ret = twl6040_power_up_completion(twl6040);
 			if (ret) {
 				dev_err(twl6040->dev,
 					"automatic power-up failed\n");
