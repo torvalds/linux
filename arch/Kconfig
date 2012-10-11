@@ -261,6 +261,9 @@ config ARCH_WANT_OLD_COMPAT_IPC
 config GENERIC_KERNEL_THREAD
 	bool
 
+config GENERIC_KERNEL_EXECVE
+	bool
+
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
