@@ -3782,6 +3782,8 @@ resync_start_store(struct mddev *mddev, const char *buf, size_t len)
 		return -EINVAL;
 
 	mddev->recovery_cp = n;
+	if (mddev->pers)
+		set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 	return len;
 }
 static struct md_sysfs_entry md_resync_start =
