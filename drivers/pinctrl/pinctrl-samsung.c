@@ -794,6 +794,7 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 	int id;
 	const struct of_device_id *match;
 	const struct device_node *node = pdev->dev.of_node;
+	struct device_node *np;
 	struct samsung_pin_ctrl *ctrl;
 	struct samsung_pin_bank *bank;
 	int i;
@@ -813,6 +814,18 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 		if (bank->eint_type == EINT_TYPE_GPIO) {
 			bank->irq_base = ctrl->nr_gint;
 			ctrl->nr_gint += bank->nr_pins;
+		}
+	}
+
+	for_each_child_of_node(node, np) {
+		if (!of_find_property(np, "gpio-controller", NULL))
+			continue;
+		bank = ctrl->pin_banks;
+		for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
+			if (!strcmp(bank->name, np->name)) {
+				bank->of_node = np;
+				break;
+			}
 		}
 	}
 

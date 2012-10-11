@@ -111,6 +111,7 @@ struct samsung_pinctrl_drv_data;
  * @eint_type: type of the external interrupt supported by the bank.
  * @irq_base: starting controller local irq number of the bank.
  * @name: name to be prefixed for each pin in this pin bank.
+ * @of_node: OF node of the bank.
  */
 struct samsung_pin_bank {
 	u32		pctl_offset;
@@ -124,6 +125,7 @@ struct samsung_pin_bank {
 	enum eint_type	eint_type;
 	u32		irq_base;
 	char		*name;
+	struct device_node *of_node;
 };
 
 /**
