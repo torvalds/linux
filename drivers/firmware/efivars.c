@@ -992,6 +992,8 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 		inode = efivarfs_get_inode(efivarfs_sb, root->d_inode,
 					  S_IFREG | 0644, 0);
 		dentry = d_alloc_name(root, name);
+		/* copied by the above to local storage in the dentry. */
+		kfree(name);
 
 		efivars->ops->get_variable(entry->var.VariableName,
 					   &entry->var.VendorGuid,
