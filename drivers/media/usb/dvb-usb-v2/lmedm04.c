@@ -1253,7 +1253,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 static int lme2510_get_rc_config(struct dvb_usb_device *d,
 	struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	return 0;
 }
 

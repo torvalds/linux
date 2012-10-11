@@ -1022,7 +1022,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->priv = data;
 	data->dev->dev.parent = &device->dev;
 	data->dev->timeout = MS_TO_NS(100);
-	data->dev->allowed_protos = RC_TYPE_ALL;
+	data->dev->allowed_protos = RC_BIT_ALL;
 
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",

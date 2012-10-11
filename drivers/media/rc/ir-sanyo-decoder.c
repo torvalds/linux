@@ -58,7 +58,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 address, command, not_command;
 
-	if (!(dev->raw->enabled_protocols & RC_TYPE_SANYO))
+	if (!(dev->raw->enabled_protocols & RC_BIT_SANYO))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -179,7 +179,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 }
 
 static struct ir_raw_handler sanyo_handler = {
-	.protocols	= RC_TYPE_SANYO,
+	.protocols	= RC_BIT_SANYO,
 	.decode		= ir_sanyo_decode,
 };
 

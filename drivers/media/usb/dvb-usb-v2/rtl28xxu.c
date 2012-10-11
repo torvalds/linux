@@ -1197,7 +1197,7 @@ static int rtl2831u_get_rc_config(struct dvb_usb_device *d,
 		struct dvb_usb_rc *rc)
 {
 	rc->map_name = RC_MAP_EMPTY;
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = rtl2831u_rc_query;
 	rc->interval = 400;
 
@@ -1269,7 +1269,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 		struct dvb_usb_rc *rc)
 {
 	rc->map_name = RC_MAP_EMPTY;
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = rtl2832u_rc_query;
 	rc->interval = 400;
 

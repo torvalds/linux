@@ -698,7 +698,7 @@ static int it913x_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 		return 0;
 	}
 
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = it913x_rc_query;
 	rc->interval = 250;
 

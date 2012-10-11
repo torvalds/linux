@@ -121,7 +121,7 @@ static struct rc_map_list imon_mce_map = {
 		.scan    = imon_mce,
 		.size    = ARRAY_SIZE(imon_mce),
 		/* its RC6, but w/a hardware decoder */
-		.rc_type = RC_TYPE_RC6,
+		.rc_type = RC_TYPE_RC6_MCE,
 		.name    = RC_MAP_IMON_MCE,
 	}
 };
