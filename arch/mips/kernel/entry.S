@@ -69,8 +69,7 @@ FEXPORT(ret_from_kernel_thread)
 	jal	schedule_tail		# a0 = struct task_struct *prev
 	move	a0, s1
 	jal	s0
-	li	a0, 0
-	j	sys_exit
+	j	syscall_exit
 
 FEXPORT(ret_from_fork)
 	jal	schedule_tail		# a0 = struct task_struct *prev
@@ -191,15 +190,6 @@ syscall_exit_work:
 	move	a0, sp
 	jal	syscall_trace_leave
 	b	resume_userspace
-
-LEAF(ret_from_kernel_execve)
-	move	sp, a0
-	ori	$28,  sp, _THREAD_SIZE - 1
-	xori	$28, $28, _THREAD_SIZE - 1
-	li	v0, 0
-	li	a3, 0
-	j	syscall_exit_partial
-	END(ret_from_kernel_execve)
 
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT)
 
