@@ -674,11 +674,33 @@ static struct md_rdev * find_rdev_nr(struct mddev *mddev, int nr)
 	return NULL;
 }
 
-static struct md_rdev * find_rdev(struct mddev * mddev, dev_t dev)
+static struct md_rdev *find_rdev_nr_rcu(struct mddev *mddev, int nr)
+{
+	struct md_rdev *rdev;
+
+	rdev_for_each_rcu(rdev, mddev)
+		if (rdev->desc_nr == nr)
+			return rdev;
+
+	return NULL;
+}
+
+static struct md_rdev *find_rdev(struct mddev *mddev, dev_t dev)
 {
 	struct md_rdev *rdev;
 
 	rdev_for_each(rdev, mddev)
+		if (rdev->bdev->bd_dev == dev)
+			return rdev;
+
+	return NULL;
+}
+
+static struct md_rdev *find_rdev_rcu(struct mddev *mddev, dev_t dev)
+{
+	struct md_rdev *rdev;
+
+	rdev_for_each_rcu(rdev, mddev)
 		if (rdev->bdev->bd_dev == dev)
 			return rdev;
 
@@ -5509,8 +5531,9 @@ static int get_array_info(struct mddev * mddev, void __user * arg)
 	int nr,working,insync,failed,spare;
 	struct md_rdev *rdev;
 
-	nr=working=insync=failed=spare=0;
-	rdev_for_each(rdev, mddev) {
+	nr = working = insync = failed = spare = 0;
+	rcu_read_lock();
+	rdev_for_each_rcu(rdev, mddev) {
 		nr++;
 		if (test_bit(Faulty, &rdev->flags))
 			failed++;
@@ -5522,6 +5545,7 @@ static int get_array_info(struct mddev * mddev, void __user * arg)
 				spare++;
 		}
 	}
+	rcu_read_unlock();
 
 	info.major_version = mddev->major_version;
 	info.minor_version = mddev->minor_version;
@@ -5605,7 +5629,8 @@ static int get_disk_info(struct mddev * mddev, void __user * arg)
 	if (copy_from_user(&info, arg, sizeof(info)))
 		return -EFAULT;
 
-	rdev = find_rdev_nr(mddev, info.number);
+	rcu_read_lock();
+	rdev = find_rdev_nr_rcu(mddev, info.number);
 	if (rdev) {
 		info.major = MAJOR(rdev->bdev->bd_dev);
 		info.minor = MINOR(rdev->bdev->bd_dev);
@@ -5624,6 +5649,7 @@ static int get_disk_info(struct mddev * mddev, void __user * arg)
 		info.raid_disk = -1;
 		info.state = (1<<MD_DISK_REMOVED);
 	}
+	rcu_read_unlock();
 
 	if (copy_to_user(arg, &info, sizeof(info)))
 		return -EFAULT;
@@ -6232,18 +6258,22 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 static int set_disk_faulty(struct mddev *mddev, dev_t dev)
 {
 	struct md_rdev *rdev;
+	int err = 0;
 
 	if (mddev->pers == NULL)
 		return -ENODEV;
 
-	rdev = find_rdev(mddev, dev);
+	rcu_read_lock();
+	rdev = find_rdev_rcu(mddev, dev);
 	if (!rdev)
-		return -ENODEV;
-
-	md_error(mddev, rdev);
-	if (!test_bit(Faulty, &rdev->flags))
-		return -EBUSY;
-	return 0;
+		err =  -ENODEV;
+	else {
+		md_error(mddev, rdev);
+		if (!test_bit(Faulty, &rdev->flags))
+			err = -EBUSY;
+	}
+	rcu_read_unlock();
+	return err;
 }
 
 /*
@@ -6312,6 +6342,27 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (!mddev) {
 		BUG();
+		goto abort;
+	}
+
+	/* Some actions do not requires the mutex */
+	switch (cmd) {
+	case GET_ARRAY_INFO:
+		if (!mddev->raid_disks && !mddev->external)
+			err = -ENODEV;
+		else
+			err = get_array_info(mddev, argp);
+		goto abort;
+
+	case GET_DISK_INFO:
+		if (!mddev->raid_disks && !mddev->external)
+			err = -ENODEV;
+		else
+			err = get_disk_info(mddev, argp);
+		goto abort;
+
+	case SET_DISK_FAULTY:
+		err = set_disk_faulty(mddev, new_decode_dev(arg));
 		goto abort;
 	}
 
@@ -6387,16 +6438,8 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	 */
 	switch (cmd)
 	{
-		case GET_ARRAY_INFO:
-			err = get_array_info(mddev, argp);
-			goto done_unlock;
-
 		case GET_BITMAP_FILE:
 			err = get_bitmap_file(mddev, argp);
-			goto done_unlock;
-
-		case GET_DISK_INFO:
-			err = get_disk_info(mddev, argp);
 			goto done_unlock;
 
 		case RESTART_ARRAY_RW:
@@ -6478,10 +6521,6 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 
 		case HOT_ADD_DISK:
 			err = hot_add_disk(mddev, new_decode_dev(arg));
-			goto done_unlock;
-
-		case SET_DISK_FAULTY:
-			err = set_disk_faulty(mddev, new_decode_dev(arg));
 			goto done_unlock;
 
 		case RUN_ARRAY:
