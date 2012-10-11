@@ -84,6 +84,10 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_LISTEN_TIME 2
 
 /* frame definitions */
+#define PN533_NORMAL_FRAME_MAX_LEN 262  /* 6   (PREAMBLE, SOF, LEN, LCS, TFI)
+					   254 (DATA)
+					   2   (DCS, postamble) */
+
 #define PN533_FRAME_TAIL_SIZE 2
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
 				PN533_FRAME_TAIL_SIZE)
@@ -2373,9 +2377,9 @@ static int pn533_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	dev->in_frame = kmalloc(dev->in_maxlen, GFP_KERNEL);
+	dev->in_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	dev->out_frame = kmalloc(dev->out_maxlen, GFP_KERNEL);
+	dev->out_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!dev->in_frame || !dev->out_frame ||
