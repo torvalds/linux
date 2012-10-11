@@ -32,9 +32,6 @@
 
 #include "../kernel/head_booke.h" /* for THREAD_NORMSAVE() */
 
-#define GET_VCPU(vcpu, thread)	\
-	PPC_LL	vcpu, THREAD_KVM_VCPU(thread)
-
 #define LONGBYTES		(BITS_PER_LONG / 8)
 
 #define VCPU_GUEST_SPRG(n)	(VCPU_GUEST_SPRGS + (n * LONGBYTES))
@@ -206,7 +203,7 @@
  */
 .macro kvm_handler intno srr0, srr1, flags
 _GLOBAL(kvmppc_handler_\intno\()_\srr1)
-	GET_VCPU(r11, r10)
+	PPC_LL	r11, THREAD_KVM_VCPU(r10)
 	PPC_STL r3, VCPU_GPR(R3)(r11)
 	mfspr	r3, SPRN_SPRG_RSCRATCH0
 	PPC_STL	r4, VCPU_GPR(R4)(r11)
@@ -233,7 +230,7 @@ _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 .macro kvm_lvl_handler intno scratch srr0, srr1, flags
 _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 	mfspr	r10, SPRN_SPRG_THREAD
-	GET_VCPU(r11, r10)
+	PPC_LL	r11, THREAD_KVM_VCPU(r10)
 	PPC_STL r3, VCPU_GPR(R3)(r11)
 	mfspr	r3, \scratch
 	PPC_STL	r4, VCPU_GPR(R4)(r11)
