@@ -1017,6 +1017,19 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 
 	freshest = NULL;
 	rdev_for_each_safe(rdev, tmp, mddev) {
+		/*
+		 * Skipping super_load due to DMPF_SYNC will cause
+		 * the array to undergo initialization again as
+		 * though it were new.  This is the intended effect
+		 * of the "sync" directive.
+		 *
+		 * When reshaping capability is added, we must ensure
+		 * that the "sync" directive is disallowed during the
+		 * reshape.
+		 */
+		if (rs->print_flags & DMPF_SYNC)
+			continue;
+
 		if (!rdev->meta_bdev)
 			continue;
 
