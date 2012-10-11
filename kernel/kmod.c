@@ -225,7 +225,7 @@ static int ____call_usermodehelper(void *data)
 	/* Exec failed? */
 fail:
 	sub_info->retval = retval;
-	return 0;
+	do_exit(0);
 }
 
 static int call_helper(void *data)
@@ -292,7 +292,7 @@ static int wait_for_helper(void *data)
 	}
 
 	umh_complete(sub_info);
-	return 0;
+	do_exit(0);
 }
 
 /* This is run by khelper thread  */
