@@ -244,7 +244,9 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	if (!newconf)
 		return -ENOMEM;
 
-	oldconf = rcu_dereference(mddev->private);
+	oldconf = rcu_dereference_protected(mddev->private,
+					    lockdep_is_held(
+						    &mddev->reconfig_mutex));
 	mddev->raid_disks++;
 	rcu_assign_pointer(mddev->private, newconf);
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
@@ -256,7 +258,10 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 
 static int linear_stop (struct mddev *mddev)
 {
-	struct linear_conf *conf = mddev->private;
+	struct linear_conf *conf =
+		rcu_dereference_protected(mddev->private,
+					  lockdep_is_held(
+						  &mddev->reconfig_mutex));
 
 	/*
 	 * We do not require rcu protection here since
