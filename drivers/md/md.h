@@ -282,7 +282,7 @@ struct mddev {
 
 	sector_t			resync_max_sectors; /* may be set by personality */
 
-	sector_t			resync_mismatches; /* count of sectors where
+	atomic64_t			resync_mismatches; /* count of sectors where
 							    * parity/replica mismatch found
 							    */
 
