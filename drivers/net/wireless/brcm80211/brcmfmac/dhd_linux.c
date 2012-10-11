@@ -1163,42 +1163,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return pend;
 }
 
-#ifdef DEBUG
-int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size)
-{
-	int ret = 0;
-	struct file *fp;
-	mm_segment_t old_fs;
-	loff_t pos = 0;
-
-	/* change to KERNEL_DS address limit */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	/* open file to write */
-	fp = filp_open("/tmp/mem_dump", O_WRONLY | O_CREAT, 0640);
-	if (!fp) {
-		brcmf_dbg(ERROR, "open file error\n");
-		ret = -1;
-		goto exit;
-	}
-
-	/* Write buf to file */
-	fp->f_op->write(fp, (char __user *)buf, size, &pos);
-
-exit:
-	/* free buf before return */
-	kfree(buf);
-	/* close file before return */
-	if (fp)
-		filp_close(fp, NULL);
-	/* restore previous address limit */
-	set_fs(old_fs);
-
-	return ret;
-}
-#endif				/* DEBUG */
-
 static void brcmf_driver_init(struct work_struct *work)
 {
 	brcmf_debugfs_init();

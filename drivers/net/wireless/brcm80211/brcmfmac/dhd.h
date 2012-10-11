@@ -702,10 +702,6 @@ extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
 
-#ifdef DEBUG
-extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
-#endif				/* DEBUG */
-
 extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
 extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
