@@ -349,6 +349,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 static int validate_rebuild_devices(struct raid_set *rs)
 {
 	unsigned i, rebuild_cnt = 0;
+	unsigned rebuilds_per_group, copies, d;
 
 	if (!(rs->print_flags & DMPF_REBUILD))
 		return 0;
@@ -369,6 +370,37 @@ static int validate_rebuild_devices(struct raid_set *rs)
 			goto too_many;
 		break;
 	case 10:
+		copies = raid10_md_layout_to_copies(rs->md.layout);
+		if (rebuild_cnt < copies)
+			break;
+
+		/*
+		 * It is possible to have a higher rebuild count for RAID10,
+		 * as long as the failed devices occur in different mirror
+		 * groups (i.e. different stripes).
+		 *
+		 * Right now, we only allow for "near" copies.  When other
+		 * formats are added, we will have to check those too.
+		 *
+		 * When checking "near" format, make sure no adjacent devices
+		 * have failed beyond what can be handled.  In addition to the
+		 * simple case where the number of devices is a multiple of the
+		 * number of copies, we must also handle cases where the number
+		 * of devices is not a multiple of the number of copies.
+		 * E.g.    dev1 dev2 dev3 dev4 dev5
+		 *          A    A    B    B    C
+		 *          C    D    D    E    E
+		 */
+		rebuilds_per_group = 0;
+		for (i = 0; i < rs->md.raid_disks * copies; i++) {
+			d = i % rs->md.raid_disks;
+			if (!test_bit(In_sync, &rs->dev[d].rdev.flags) &&
+			    (++rebuilds_per_group >= copies))
+				goto too_many;
+			if (!((i + 1) % copies))
+				rebuilds_per_group = 0;
+		}
+		break;
 	default:
 		DMERR("The rebuild parameter is not supported for %s",
 		      rs->raid_type->name);
@@ -1385,7 +1417,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 3, 0},
+	.version = {1, 3, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
