@@ -1559,10 +1559,10 @@ static int alloc_percpu_trace_buffer(void)
 	return -ENOMEM;
 }
 
+static int buffers_allocated;
+
 void trace_printk_init_buffers(void)
 {
-	static int buffers_allocated;
-
 	if (buffers_allocated)
 		return;
 
@@ -1575,6 +1575,34 @@ void trace_printk_init_buffers(void)
 	tracing_update_buffers();
 
 	buffers_allocated = 1;
+
+	/*
+	 * trace_printk_init_buffers() can be called by modules.
+	 * If that happens, then we need to start cmdline recording
+	 * directly here. If the global_trace.buffer is already
+	 * allocated here, then this was called by module code.
+	 */
+	if (global_trace.buffer)
+		tracing_start_cmdline_record();
+}
+
+void trace_printk_start_comm(void)
+{
+	/* Start tracing comms if trace printk is set */
+	if (!buffers_allocated)
+		return;
+	tracing_start_cmdline_record();
+}
+
+static void trace_printk_start_stop_comm(int enabled)
+{
+	if (!buffers_allocated)
+		return;
+
+	if (enabled)
+		tracing_start_cmdline_record();
+	else
+		tracing_stop_cmdline_record();
 }
 
 /**
@@ -2797,6 +2825,9 @@ static void set_tracer_flags(unsigned int mask, int enabled)
 
 	if (mask == TRACE_ITER_OVERWRITE)
 		ring_buffer_change_overwrite(global_trace.buffer, enabled);
+
+	if (mask == TRACE_ITER_PRINTK)
+		trace_printk_start_stop_comm(enabled);
 }
 
 static ssize_t
@@ -5099,6 +5130,7 @@ __init static int tracer_alloc_buffers(void)
 
 	/* Only allocate trace_printk buffers if a trace_printk exists */
 	if (__stop___trace_bprintk_fmt != __start___trace_bprintk_fmt)
+		/* Must be called before global_trace.buffer is allocated */
 		trace_printk_init_buffers();
 
 	/* To save memory, keep the ring buffer size to its minimum */

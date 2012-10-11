@@ -1489,6 +1489,9 @@ static __init int event_trace_enable(void)
 		if (ret)
 			pr_warn("Failed to enable trace event: %s\n", token);
 	}
+
+	trace_printk_start_comm();
+
 	return 0;
 }
 
