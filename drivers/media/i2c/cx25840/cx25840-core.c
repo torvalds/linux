@@ -599,7 +599,7 @@ static void cx23885_initialize(struct i2c_client *client)
 		cx25840_write4(client, 0x114, 0x01bf0c9e);
 		cx25840_write4(client, 0x110, 0x000a030c);
 		break;
-	};
+	}
 
 	/* ADC2 input select */
 	cx25840_write(client, 0x102, 0x10);

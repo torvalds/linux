@@ -677,8 +677,10 @@ memory, set by the application. See <xref linkend="userp" /> for details.
 	    <entry><structfield>length</structfield></entry>
 	    <entry></entry>
 	    <entry>Size of the buffer (not the payload) in bytes for the
-	    single-planar API. For the multi-planar API should contain the
-	    number of elements in the <structfield>planes</structfield> array.
+	    single-planar API. For the multi-planar API the application sets
+	    this to the number of elements in the <structfield>planes</structfield>
+	    array. The driver will fill in the actual number of valid elements in
+	    that array.
 	    </entry>
 	  </row>
 	  <row>

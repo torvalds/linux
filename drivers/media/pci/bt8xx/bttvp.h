@@ -429,6 +429,7 @@ struct bttv {
 	int opt_lumafilter;
 	int opt_automute;
 	int opt_chroma_agc;
+	int opt_color_killer;
 	int opt_adc_crush;
 	int opt_vcr_hack;
 	int opt_whitecrush_upper;

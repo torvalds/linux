@@ -378,10 +378,10 @@ static struct regulator_consumer_supply __initdata max8997_ldo1_[] = {
 };
 static struct regulator_consumer_supply __initdata max8997_ldo3_[] = {
 	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"), /* USB */
-	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"), /* MIPI */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo4_[] = {
-	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddio", "s5p-mipi-csis.0"), /* MIPI */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo5_[] = {
 	REGULATOR_SUPPLY("vhsic", "modemctl"), /* MODEM */
@@ -1180,9 +1180,7 @@ static struct platform_device cam_8m_12v_fixed_rdev = {
 static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 	.clk_rate	= 166000000UL,
 	.lanes		= 2,
-	.alignment	= 32,
 	.hs_settle	= 12,
-	.phy_enable	= s5p_csis_phy_enable,
 };
 
 #define GPIO_CAM_MEGA_RST	EXYNOS4_GPY3(7) /* ISP_RESET */
@@ -1226,7 +1224,6 @@ static struct s5p_fimc_isp_info nuri_camera_sensors[] = {
 		.bus_type	= FIMC_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.clk_frequency	= 24000000UL,
-		.csi_data_align	= 32,
 	},
 };
 

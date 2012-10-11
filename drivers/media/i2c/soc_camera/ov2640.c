@@ -684,6 +684,11 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 		&container_of(ctrl->handler, struct ov2640_priv, hdl)->subdev;
 	struct i2c_client  *client = v4l2_get_subdevdata(sd);
 	u8 val;
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
+	if (ret < 0)
+		return ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:

@@ -40,6 +40,8 @@
 #define SCALER_MAX_VRATIO	64
 #define DMA_MIN_SIZE		8
 #define FIMC_CAMIF_MAX_HEIGHT	0x2000
+#define FIMC_MAX_JPEG_BUF_SIZE	(10 * SZ_1M)
+#define FIMC_MAX_PLANES		3
 
 /* indices to the clocks array */
 enum {
@@ -83,7 +85,7 @@ enum fimc_datapath {
 };
 
 enum fimc_color_fmt {
-	FIMC_FMT_RGB444 = 0x10,
+	FIMC_FMT_RGB444	= 0x10,
 	FIMC_FMT_RGB555,
 	FIMC_FMT_RGB565,
 	FIMC_FMT_RGB666,
@@ -95,14 +97,15 @@ enum fimc_color_fmt {
 	FIMC_FMT_CBYCRY422,
 	FIMC_FMT_CRYCBY422,
 	FIMC_FMT_YCBCR444_LOCAL,
-	FIMC_FMT_JPEG = 0x40,
-	FIMC_FMT_RAW8 = 0x80,
+	FIMC_FMT_RAW8 = 0x40,
 	FIMC_FMT_RAW10,
 	FIMC_FMT_RAW12,
+	FIMC_FMT_JPEG = 0x80,
+	FIMC_FMT_YUYV_JPEG = 0x100,
 };
 
+#define fimc_fmt_is_user_defined(x) (!!((x) & 0x180))
 #define fimc_fmt_is_rgb(x) (!!((x) & 0x10))
-#define fimc_fmt_is_jpeg(x) (!!((x) & 0x40))
 
 #define IS_M2M(__strt) ((__strt) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || \
 			__strt == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
@@ -139,6 +142,7 @@ enum fimc_color_fmt {
  * @memplanes: number of physically non-contiguous data planes
  * @colplanes: number of physically contiguous data planes
  * @depth: per plane driver's private 'number of bits per pixel'
+ * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
  * @flags: flags indicating which operation mode format applies to
  */
 struct fimc_fmt {
@@ -149,12 +153,14 @@ struct fimc_fmt {
 	u16	memplanes;
 	u16	colplanes;
 	u8	depth[VIDEO_MAX_PLANES];
+	u16	mdataplanes;
 	u16	flags;
 #define FMT_FLAGS_CAM		(1 << 0)
 #define FMT_FLAGS_M2M_IN	(1 << 1)
 #define FMT_FLAGS_M2M_OUT	(1 << 2)
 #define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
 #define FMT_HAS_ALPHA		(1 << 3)
+#define FMT_FLAGS_COMPRESSED	(1 << 4)
 };
 
 /**
@@ -272,7 +278,7 @@ struct fimc_frame {
 	u32	offs_v;
 	u32	width;
 	u32	height;
-	unsigned long		payload[VIDEO_MAX_PLANES];
+	unsigned int		payload[VIDEO_MAX_PLANES];
 	struct fimc_addr	paddr;
 	struct fimc_dma_offset	dma_offset;
 	struct fimc_fmt		*fmt;
@@ -575,6 +581,18 @@ static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
 static inline int tiled_fmt(struct fimc_fmt *fmt)
 {
 	return fmt->fourcc == V4L2_PIX_FMT_NV12MT;
+}
+
+static inline bool fimc_jpeg_fourcc(u32 pixelformat)
+{
+	return (pixelformat == V4L2_PIX_FMT_JPEG ||
+		pixelformat == V4L2_PIX_FMT_S5C_UYVY_JPG);
+}
+
+static inline bool fimc_user_defined_mbus_fmt(u32 code)
+{
+	return (code == V4L2_MBUS_FMT_JPEG_1X8 ||
+		code == V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8);
 }
 
 /* Return the alpha component bit mask */

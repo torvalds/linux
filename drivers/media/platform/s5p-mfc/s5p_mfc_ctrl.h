@@ -20,6 +20,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev);
 int s5p_mfc_reload_firmware(struct s5p_mfc_dev *dev);
 
 int s5p_mfc_init_hw(struct s5p_mfc_dev *dev);
+void s5p_mfc_deinit_hw(struct s5p_mfc_dev *dev);
 
 int s5p_mfc_sleep(struct s5p_mfc_dev *dev);
 int s5p_mfc_wakeup(struct s5p_mfc_dev *dev);

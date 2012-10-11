@@ -625,7 +625,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 				cfg |= FIMC_REG_CISRCFMT_ITU601_16BIT;
 		} /* else defaults to ITU-R BT.656 8-bit */
 	} else if (cam->bus_type == FIMC_MIPI_CSI2) {
-		if (fimc_fmt_is_jpeg(f->fmt->color))
+		if (fimc_fmt_is_user_defined(f->fmt->color))
 			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 	}
 
@@ -680,6 +680,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			tmp = FIMC_REG_CSIIMGFMT_YCBCR422_8BIT;
 			break;
 		case V4L2_MBUS_FMT_JPEG_1X8:
+		case V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8:
 			tmp = FIMC_REG_CSIIMGFMT_USER(1);
 			cfg |= FIMC_REG_CIGCTRL_CAM_JPEG;
 			break;
@@ -744,19 +745,31 @@ void fimc_hw_dis_capture(struct fimc_dev *dev)
 }
 
 /* Return an index to the buffer actually being written. */
-u32 fimc_hw_get_frame_index(struct fimc_dev *dev)
+s32 fimc_hw_get_frame_index(struct fimc_dev *dev)
 {
-	u32 reg;
+	s32 reg;
 
 	if (dev->variant->has_cistatus2) {
-		reg = readl(dev->regs + FIMC_REG_CISTATUS2) & 0x3F;
-		return reg > 0 ? --reg : reg;
+		reg = readl(dev->regs + FIMC_REG_CISTATUS2) & 0x3f;
+		return reg - 1;
 	}
 
 	reg = readl(dev->regs + FIMC_REG_CISTATUS);
 
 	return (reg & FIMC_REG_CISTATUS_FRAMECNT_MASK) >>
 		FIMC_REG_CISTATUS_FRAMECNT_SHIFT;
+}
+
+/* Return an index to the buffer being written previously. */
+s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev)
+{
+	s32 reg;
+
+	if (!dev->variant->has_cistatus2)
+		return -1;
+
+	reg = readl(dev->regs + FIMC_REG_CISTATUS2);
+	return ((reg >> 7) & 0x3f) - 1;
 }
 
 /* Locking: the caller holds fimc->slock */

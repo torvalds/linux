@@ -212,7 +212,7 @@ void gsc_hw_set_in_image_format(struct gsc_ctx *ctx)
 		else
 			cfg |= GSC_IN_YUV422_3P;
 		break;
-	};
+	}
 
 	writel(cfg, dev->regs + GSC_IN_CON);
 }
@@ -332,7 +332,7 @@ void gsc_hw_set_out_image_format(struct gsc_ctx *ctx)
 	case 3:
 		cfg |= GSC_OUT_YUV420_3P;
 		break;
-	};
+	}
 
 end_set:
 	writel(cfg, dev->regs + GSC_OUT_CON);

@@ -73,7 +73,7 @@ static int lnbp22_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	dprintk(1, "%s: 0x%02x)\n", __func__, lnbp22->config[3]);
 	return (i2c_transfer(lnbp22->i2c, &msg, 1) == 1) ? 0 : -EIO;
