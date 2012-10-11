@@ -687,8 +687,8 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.status = rk29sdk_wifi_status,
 	.register_status_notify = rk29sdk_wifi_status_register,
 #endif
-#if 0
-	.detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#if 1
+	.detect_irq = INVALID_GPIO,//RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
