@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_X86
 #include <asm/mtrr.h>
@@ -28,7 +29,6 @@
 #include <asm/addrspace.h>
 #endif
 #include <asm/byteorder.h>
-#include <asm/io.h>
 #include <asm/tlbflush.h>
 
 #include <video/gbe.h>
