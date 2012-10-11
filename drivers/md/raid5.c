@@ -2806,12 +2806,25 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 				   int disks)
 {
 	int rmw = 0, rcw = 0, i;
-	if (conf->max_degraded == 2) {
-		/* RAID6 requires 'rcw' in current implementation
-		 * Calculate the real rcw later - for now fake it
+	sector_t recovery_cp = conf->mddev->recovery_cp;
+
+	/* RAID6 requires 'rcw' in current implementation.
+	 * Otherwise, check whether resync is now happening or should start.
+	 * If yes, then the array is dirty (after unclean shutdown or
+	 * initial creation), so parity in some stripes might be inconsistent.
+	 * In this case, we need to always do reconstruct-write, to ensure
+	 * that in case of drive failure or read-error correction, we
+	 * generate correct data from the parity.
+	 */
+	if (conf->max_degraded == 2 ||
+	    (recovery_cp < MaxSector && sh->sector >= recovery_cp)) {
+		/* Calculate the real rcw later - for now make it
 		 * look like rcw is cheaper
 		 */
 		rcw = 1; rmw = 2;
+		pr_debug("force RCW max_degraded=%u, recovery_cp=%llu sh->sector=%llu\n",
+			 conf->max_degraded, (unsigned long long)recovery_cp,
+			 (unsigned long long)sh->sector);
 	} else for (i = disks; i--; ) {
 		/* would I have to read this buffer for read_modify_write */
 		struct r5dev *dev = &sh->dev[i];
