@@ -751,12 +751,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 #ifdef CONFIG_PPC64
 		childregs->gpr[14] = *(unsigned long *)usp;
-		childregs->gpr[2] = ((unsigned long *)usp)[1],
 		clear_tsk_thread_flag(p, TIF_32BIT);
 		childregs->softe = 1;
 #else
 		childregs->gpr[14] = usp;	/* function */
-		childregs->gpr[2] = (unsigned long) p;
 #endif
 		childregs->gpr[15] = arg;
 		p->thread.regs = NULL;	/* no user register state */
