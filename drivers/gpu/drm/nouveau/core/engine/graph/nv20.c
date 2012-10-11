@@ -183,7 +183,7 @@ nv20_graph_tile_prog(struct nouveau_engine *engine, int i)
 	nv_wr32(priv, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
 	nv_wr32(priv, NV10_PGRAPH_RDI_DATA, tile->addr);
 
-	if (nv_device(engine)->card_type == NV_20) {
+	if (nv_device(engine)->chipset != 0x34) {
 		nv_wr32(priv, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
 		nv_wr32(priv, NV10_PGRAPH_RDI_INDEX, 0x00ea0090 + 4 * i);
 		nv_wr32(priv, NV10_PGRAPH_RDI_DATA, tile->zcomp);
