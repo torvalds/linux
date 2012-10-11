@@ -603,24 +603,9 @@ ret_from_kernel_thread:
 	mov	$9, $27
 	mov	$10, $16
 	jsr	$26, ($9)
-	ldgp	$gp, 0($26)
-	mov	$0, $16
-	mov	$31, $26
-	jmp	$31, sys_exit
-.end ret_from_kernel_thread
-
-	.globl	ret_from_kernel_execve
-	.align	4
-	.ent	ret_from_kernel_execve
-ret_from_kernel_execve:
-	mov	$16, $sp
-	/* Avoid the HAE being gratuitously wrong, to avoid restoring it.  */
-	ldq	$2, alpha_mv+HAE_CACHE
-	stq	$2, 152($sp)		/* HAE */
 	mov	$31, $19		/* to disable syscall restarts */
 	br	$31, ret_to_user
-
-.end	ret_from_kernel_execve
+.end ret_from_kernel_thread
 
 
 /*
