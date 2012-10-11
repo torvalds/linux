@@ -609,7 +609,7 @@ static int __init samsung_pinctrl_parse_dt(struct platform_device *pdev,
 	 */
 	for_each_child_of_node(dev_np, cfg_np) {
 		u32 function;
-		if (of_find_property(cfg_np, "interrupt-controller", NULL))
+		if (!of_find_property(cfg_np, "samsung,pins", NULL))
 			continue;
 
 		ret = samsung_pinctrl_parse_dt_pins(pdev, cfg_np,
