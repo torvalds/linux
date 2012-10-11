@@ -750,7 +750,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		goto out_err;
 
 	if (fl->num_fh > 0) {
-		fl->fh_array = kzalloc(fl->num_fh * sizeof(struct nfs_fh *),
+		fl->fh_array = kcalloc(fl->num_fh, sizeof(fl->fh_array[0]),
 				       gfp_flags);
 		if (!fl->fh_array)
 			goto out_err;
