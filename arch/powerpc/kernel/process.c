@@ -746,19 +746,21 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
 	if (!regs) {
-		/* for kernel thread, set `current' and stackptr in new task */
+		struct thread_info *ti = (void *)task_stack_page(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 #ifdef CONFIG_PPC64
 		childregs->gpr[14] = *(unsigned long *)usp;
 		childregs->gpr[2] = ((unsigned long *)usp)[1],
 		clear_tsk_thread_flag(p, TIF_32BIT);
+		childregs->softe = 1;
 #else
 		childregs->gpr[14] = usp;	/* function */
 		childregs->gpr[2] = (unsigned long) p;
 #endif
 		childregs->gpr[15] = arg;
 		p->thread.regs = NULL;	/* no user register state */
+		ti->flags |= _TIF_RESTOREALL;
 		f = ret_from_kernel_thread;
 	} else {
 		CHECK_FULL_REGS(regs);
@@ -1061,15 +1063,6 @@ int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
 	CHECK_FULL_REGS(regs);
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gpr[1],
 			regs, 0, NULL, NULL);
-}
-
-void __ret_from_kernel_execve(struct pt_regs *normal)
-__noreturn;
-
-void ret_from_kernel_execve(struct pt_regs *normal)
-{
-	set_thread_flag(TIF_RESTOREALL);
-	__ret_from_kernel_execve(normal);
 }
 
 static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
