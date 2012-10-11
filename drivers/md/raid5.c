@@ -5871,7 +5871,8 @@ static int check_reshape(struct mddev *mddev)
 	if (!check_stripe_cache(mddev))
 		return -ENOSPC;
 
-	return resize_stripes(conf, conf->raid_disks + mddev->delta_disks);
+	return resize_stripes(conf, (conf->previous_raid_disks
+				     + mddev->delta_disks));
 }
 
 static int raid5_start_reshape(struct mddev *mddev)
