@@ -245,7 +245,8 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	if (core_pdata)
 		pdata = core_pdata->touch;
 
-	wm831x_ts = kzalloc(sizeof(struct wm831x_ts), GFP_KERNEL);
+	wm831x_ts = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ts),
+				 GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!wm831x_ts || !input_dev) {
 		error = -ENOMEM;
@@ -376,7 +377,6 @@ err_data_irq:
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
 err_alloc:
 	input_free_device(input_dev);
-	kfree(wm831x_ts);
 
 	return error;
 }
@@ -388,7 +388,6 @@ static __devexit int wm831x_ts_remove(struct platform_device *pdev)
 	free_irq(wm831x_ts->pd_irq, wm831x_ts);
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
 	input_unregister_device(wm831x_ts->input_dev);
-	kfree(wm831x_ts);
 
 	return 0;
 }
