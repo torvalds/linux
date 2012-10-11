@@ -813,10 +813,6 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 		bank->drvdata = d;
 		bank->pin_base = ctrl->nr_pins;
 		ctrl->nr_pins += bank->nr_pins;
-		if (bank->eint_type == EINT_TYPE_GPIO) {
-			bank->irq_base = ctrl->nr_gint;
-			ctrl->nr_gint += bank->nr_pins;
-		}
 	}
 
 	for_each_child_of_node(node, np) {

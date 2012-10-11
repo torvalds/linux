@@ -46,16 +46,12 @@
 		compatible = "samsung,pinctrl-exynos4210";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
 	};
 
 	pinctrl_1: pinctrl@11000000 {
 		compatible = "samsung,pinctrl-exynos4210";
 		reg = <0x11000000 0x1000>;
 		interrupts = <0 46 0>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
 
 		wakup_eint: wakeup-interrupt-controller {
 			compatible = "samsung,exynos4210-wakeup-eint";

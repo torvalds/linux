@@ -40,46 +40,46 @@ static const struct of_device_id exynos_wkup_irq_ids[] = {
 
 static void exynos_gpio_irq_unmask(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irqd->domain->host_data;
-	struct exynos_geint_data *edata = irq_data_get_irq_handler_data(irqd);
-	unsigned long reg_mask = d->ctrl->geint_mask + edata->eint_offset;
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << edata->pin);
+	mask &= ~(1 << irqd->hwirq);
 	writel(mask, d->virt_base + reg_mask);
 }
 
 static void exynos_gpio_irq_mask(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irqd->domain->host_data;
-	struct exynos_geint_data *edata = irq_data_get_irq_handler_data(irqd);
-	unsigned long reg_mask = d->ctrl->geint_mask + edata->eint_offset;
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask |= 1 << edata->pin;
+	mask |= 1 << irqd->hwirq;
 	writel(mask, d->virt_base + reg_mask);
 }
 
 static void exynos_gpio_irq_ack(struct irq_data *irqd)
 {
-	struct samsung_pinctrl_drv_data *d = irqd->domain->host_data;
-	struct exynos_geint_data *edata = irq_data_get_irq_handler_data(irqd);
-	unsigned long reg_pend = d->ctrl->geint_pend + edata->eint_offset;
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned long reg_pend = d->ctrl->geint_pend + bank->eint_offset;
 
-	writel(1 << edata->pin, d->virt_base + reg_pend);
+	writel(1 << irqd->hwirq, d->virt_base + reg_pend);
 }
 
 static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
-	struct samsung_pinctrl_drv_data *d = irqd->domain->host_data;
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	struct samsung_pin_ctrl *ctrl = d->ctrl;
-	struct exynos_geint_data *edata = irq_data_get_irq_handler_data(irqd);
-	struct samsung_pin_bank *bank = edata->bank;
-	unsigned int shift = EXYNOS_EINT_CON_LEN * edata->pin;
+	unsigned int pin = irqd->hwirq;
+	unsigned int shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned int con, trig_type;
-	unsigned long reg_con = ctrl->geint_con + edata->eint_offset;
+	unsigned long reg_con = ctrl->geint_con + bank->eint_offset;
 	unsigned int mask;
 
 	switch (type) {
@@ -114,7 +114,7 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	writel(con, d->virt_base + reg_con);
 
 	reg_con = bank->pctl_offset;
-	shift = edata->pin * bank->func_width;
+	shift = pin * bank->func_width;
 	mask = (1 << bank->func_width) - 1;
 
 	con = readl(d->virt_base + reg_con);
@@ -136,73 +136,16 @@ static struct irq_chip exynos_gpio_irq_chip = {
 	.irq_set_type	= exynos_gpio_irq_set_type,
 };
 
-/*
- * given a controller-local external gpio interrupt number, prepare the handler
- * data for it.
- */
-static struct exynos_geint_data *exynos_get_eint_data(irq_hw_number_t hw,
-				struct samsung_pinctrl_drv_data *d)
-{
-	struct samsung_pin_bank *bank = d->ctrl->pin_banks;
-	struct exynos_geint_data *eint_data;
-	unsigned int nr_banks = d->ctrl->nr_banks, idx;
-	unsigned int irq_base = 0;
-
-	if (hw >= d->ctrl->nr_gint) {
-		dev_err(d->dev, "unsupported ext-gpio interrupt\n");
-		return NULL;
-	}
-
-	for (idx = 0; idx < nr_banks; idx++, bank++) {
-		if (bank->eint_type != EINT_TYPE_GPIO)
-			continue;
-		if ((hw >= irq_base) && (hw < (irq_base + bank->nr_pins)))
-			break;
-		irq_base += bank->nr_pins;
-	}
-
-	if (idx == nr_banks) {
-		dev_err(d->dev, "pin bank not found for ext-gpio interrupt\n");
-		return NULL;
-	}
-
-	eint_data = devm_kzalloc(d->dev, sizeof(*eint_data), GFP_KERNEL);
-	if (!eint_data) {
-		dev_err(d->dev, "no memory for eint-gpio data\n");
-		return NULL;
-	}
-
-	eint_data->bank	= bank;
-	eint_data->pin = hw - irq_base;
-	eint_data->eint_offset = bank->eint_offset;
-	return eint_data;
-}
-
 static int exynos_gpio_irq_map(struct irq_domain *h, unsigned int virq,
 					irq_hw_number_t hw)
 {
-	struct samsung_pinctrl_drv_data *d = h->host_data;
-	struct exynos_geint_data *eint_data;
+	struct samsung_pin_bank *b = h->host_data;
 
-	eint_data = exynos_get_eint_data(hw, d);
-	if (!eint_data)
-		return -EINVAL;
-
-	irq_set_handler_data(virq, eint_data);
-	irq_set_chip_data(virq, h->host_data);
+	irq_set_chip_data(virq, b);
 	irq_set_chip_and_handler(virq, &exynos_gpio_irq_chip,
 					handle_level_irq);
 	set_irq_flags(virq, IRQF_VALID);
 	return 0;
-}
-
-static void exynos_gpio_irq_unmap(struct irq_domain *h, unsigned int virq)
-{
-	struct samsung_pinctrl_drv_data *d = h->host_data;
-	struct exynos_geint_data *eint_data;
-
-	eint_data = irq_get_handler_data(virq);
-	devm_kfree(d->dev, eint_data);
 }
 
 /*
@@ -210,7 +153,6 @@ static void exynos_gpio_irq_unmap(struct irq_domain *h, unsigned int virq)
  */
 static const struct irq_domain_ops exynos_gpio_irqd_ops = {
 	.map	= exynos_gpio_irq_map,
-	.unmap	= exynos_gpio_irq_unmap,
 	.xlate	= irq_domain_xlate_twocell,
 };
 
@@ -229,7 +171,7 @@ static irqreturn_t exynos_eint_gpio_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	bank += (group - 1);
 
-	virq = irq_linear_revmap(d->gpio_irqd, bank->irq_base + pin);
+	virq = irq_linear_revmap(bank->irq_domain, pin);
 	if (!virq)
 		return IRQ_NONE;
 	generic_handle_irq(virq);
@@ -242,8 +184,10 @@ static irqreturn_t exynos_eint_gpio_irq(int irq, void *data)
  */
 static int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 {
+	struct samsung_pin_bank *bank;
 	struct device *dev = d->dev;
 	unsigned int ret;
+	unsigned int i;
 
 	if (!d->irq) {
 		dev_err(dev, "irq number not available\n");
@@ -257,11 +201,16 @@ static int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 		return -ENXIO;
 	}
 
-	d->gpio_irqd = irq_domain_add_linear(dev->of_node, d->ctrl->nr_gint,
-				&exynos_gpio_irqd_ops, d);
-	if (!d->gpio_irqd) {
-		dev_err(dev, "gpio irq domain allocation failed\n");
-		return -ENXIO;
+	bank = d->ctrl->pin_banks;
+	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+		if (bank->eint_type != EINT_TYPE_GPIO)
+			continue;
+		bank->irq_domain = irq_domain_add_linear(bank->of_node,
+				bank->nr_pins, &exynos_gpio_irqd_ops, bank);
+		if (!bank->irq_domain) {
+			dev_err(dev, "gpio irq domain add failed\n");
+			return -ENXIO;
+		}
 	}
 
 	return 0;

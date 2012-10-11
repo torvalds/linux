@@ -109,10 +109,10 @@ struct samsung_pinctrl_drv_data;
  * @conpdn_width: width of the sleep mode function selector bin field.
  * @pudpdn_width: width of the sleep mode pull up/down selector bit field.
  * @eint_type: type of the external interrupt supported by the bank.
- * @irq_base: starting controller local irq number of the bank.
  * @name: name to be prefixed for each pin in this pin bank.
  * @of_node: OF node of the bank.
  * @drvdata: link to controller driver data
+ * @irq_domain: IRQ domain of the bank.
  */
 struct samsung_pin_bank {
 	u32		pctl_offset;
@@ -125,10 +125,10 @@ struct samsung_pin_bank {
 	u8		pudpdn_width;
 	enum eint_type	eint_type;
 	u32		eint_offset;
-	u32		irq_base;
 	char		*name;
 	struct device_node *of_node;
 	struct samsung_pinctrl_drv_data *drvdata;
+	struct irq_domain *irq_domain;
 };
 
 /**
@@ -137,7 +137,6 @@ struct samsung_pin_bank {
  * @nr_banks: number of pin banks.
  * @base: starting system wide pin number.
  * @nr_pins: number of pins supported by the controller.
- * @nr_gint: number of external gpio interrupts supported.
  * @nr_wint: number of external wakeup interrupts supported.
  * @geint_con: offset of the ext-gpio controller registers.
  * @geint_mask: offset of the ext-gpio interrupt mask registers.
@@ -158,7 +157,6 @@ struct samsung_pin_ctrl {
 
 	u32		base;
 	u32		nr_pins;
-	u32		nr_gint;
 	u32		nr_wint;
 
 	u32		geint_con;
@@ -205,7 +203,6 @@ struct samsung_pinctrl_drv_data {
 	const struct samsung_pmx_func	*pmx_functions;
 	unsigned int			nr_functions;
 
-	struct irq_domain		*gpio_irqd;
 	struct irq_domain		*wkup_irqd;
 
 	struct gpio_chip		*gc;
