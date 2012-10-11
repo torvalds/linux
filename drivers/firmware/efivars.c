@@ -866,7 +866,7 @@ static void efivarfs_hex_to_guid(const char *str, efi_guid_t *guid)
 static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 			  umode_t mode, bool excl)
 {
-	struct inode *inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0);
+	struct inode *inode;
 	struct efivars *efivars = &__efivars;
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
@@ -874,13 +874,15 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_name.len < 38)
 		return -EINVAL;
 
+	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0);
 	if (!inode)
 		return -ENOSPC;
 
 	var = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
-
-	if (!var)
-		return -ENOMEM;
+	if (!var) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	namelen = dentry->d_name.len - GUID_LEN;
 
@@ -908,8 +910,10 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 	d_instantiate(dentry, inode);
 	dget(dentry);
 out:
-	if (err)
+	if (err) {
 		kfree(var);
+		iput(inode);
+	}
 	return err;
 }
 
