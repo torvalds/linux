@@ -381,23 +381,13 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
-	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
-	if (ret) {
-		dev_err(dwc->dev, "failed to allocate event buffers\n");
-		ret = -ENOMEM;
-		goto err1;
-	}
-
 	ret = dwc3_event_buffers_setup(dwc);
 	if (ret) {
 		dev_err(dwc->dev, "failed to setup event buffers\n");
-		goto err1;
+		goto err0;
 	}
 
 	return 0;
-
-err1:
-	dwc3_free_event_buffers(dwc);
 
 err0:
 	return ret;
@@ -406,7 +396,6 @@ err0:
 static void dwc3_core_exit(struct dwc3 *dwc)
 {
 	dwc3_event_buffers_cleanup(dwc);
-	dwc3_free_event_buffers(dwc);
 }
 
 #define DWC3_ALIGN_MASK		(16 - 1)
@@ -509,10 +498,17 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
 
+	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
+	if (ret) {
+		dev_err(dwc->dev, "failed to allocate event buffers\n");
+		ret = -ENOMEM;
+		goto err0;
+	}
+
 	ret = dwc3_core_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize core\n");
-		return ret;
+		goto err0;
 	}
 
 	mode = DWC3_MODE(dwc->hwparams.hwparams0);
@@ -583,6 +579,9 @@ err2:
 
 err1:
 	dwc3_core_exit(dwc);
+
+err0:
+	dwc3_free_event_buffers(dwc);
 
 	return ret;
 }
