@@ -766,7 +766,7 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	unsigned long datasize = 0;
 	u32 attributes;
 	void *data;
-	ssize_t size;
+	ssize_t size = 0;
 
 	status = efivars->ops->get_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
@@ -784,13 +784,13 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 					    &var->var.VendorGuid,
 					    &attributes, &datasize,
 					    (data + 4));
-
 	if (status != EFI_SUCCESS)
-		return 0;
+		goto out_free;
 
 	memcpy(data, &attributes, 4);
 	size = simple_read_from_buffer(userbuf, count, ppos,
 					data, datasize + 4);
+out_free:
 	kfree(data);
 
 	return size;
