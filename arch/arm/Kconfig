@@ -1031,8 +1031,6 @@ source "arch/arm/mach-s5pv210/Kconfig"
 if PLAT_SUNXI
 source "arch/arm/plat-sunxi/Kconfig"
 source "arch/arm/mach-sun3i/Kconfig"
-source "arch/arm/mach-sun4i/Kconfig"
-source "arch/arm/mach-sun5i/Kconfig"
 endif
 
 source "arch/arm/mach-exynos4/Kconfig"
