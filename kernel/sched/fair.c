@@ -5918,8 +5918,11 @@ static unsigned int hmp_down_migration(int cpu, struct sched_entity *se)
 
 #ifdef CONFIG_SCHED_HMP_PRIO_FILTER
 	/* Filter by task priority */
-	if (p->prio >= hmp_up_prio)
+	if ((p->prio >= hmp_up_prio) &&
+		cpumask_intersects(&hmp_slower_domain(cpu)->cpus,
+					tsk_cpus_allowed(p))) {
 		return 1;
+	}
 #endif
 
 	/* Let the task load settle before doing another down migration */
