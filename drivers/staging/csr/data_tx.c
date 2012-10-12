@@ -37,7 +37,7 @@ uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet, unsigned int lengt
 	  (p[4 + 5 + 8 + 32 + 16 + 8 + 8 + 16 + 0] == 0 && /* key data length (2 octets) 0 for 4/4 only */
 	   p[4 + 5 + 8 + 32 + 16 + 8 + 8 + 16 + 1] == 0)
 	) {
-		unifi_trace(priv, UDBG1, "uf_verify_m4: M4 detected \n");
+		unifi_trace(priv, UDBG1, "uf_verify_m4: M4 detected\n");
 		return 0;
 	} else {
 		return 1;
