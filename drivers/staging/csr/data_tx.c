@@ -22,9 +22,8 @@ uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet, unsigned int lengt
 	u16 keyinfo;
 
 
-	if (length < (4 + 5 + 8 + 32 + 16 + 8 + 8 + 16 + 1 + 8)) {
+	if (length < (4 + 5 + 8 + 32 + 16 + 8 + 8 + 16 + 1 + 8))
 		return 1;
-	}
 
 	p += 8;
 	keyinfo = p[5] << 8 | p[6]; /* big-endian */
@@ -40,9 +39,7 @@ uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet, unsigned int lengt
 	) {
 		unifi_trace(priv, UDBG1, "uf_verify_m4: M4 detected \n");
 		return 0;
-	}
-	else
-	{
+	} else {
 		return 1;
 	}
 }
