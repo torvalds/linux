@@ -597,40 +597,35 @@ static const struct option options[] = {
 
 static void ui_init(void)
 {
-	perf_hpp__init();
-
-	/* No overhead column. */
-	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
-
 	/*
 	 * Display baseline/delta/ratio/displacement/
 	 * formula/periods columns.
 	 */
-	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
+	perf_hpp__column_enable(PERF_HPP__BASELINE);
 
 	switch (compute) {
 	case COMPUTE_DELTA:
-		perf_hpp__column_enable(PERF_HPP__DELTA, true);
+		perf_hpp__column_enable(PERF_HPP__DELTA);
 		break;
 	case COMPUTE_RATIO:
-		perf_hpp__column_enable(PERF_HPP__RATIO, true);
+		perf_hpp__column_enable(PERF_HPP__RATIO);
 		break;
 	case COMPUTE_WEIGHTED_DIFF:
-		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF, true);
+		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF);
 		break;
 	default:
 		BUG_ON(1);
 	};
 
 	if (show_displacement)
-		perf_hpp__column_enable(PERF_HPP__DISPL, true);
+		perf_hpp__column_enable(PERF_HPP__DISPL);
 
 	if (show_formula)
-		perf_hpp__column_enable(PERF_HPP__FORMULA, true);
+		perf_hpp__column_enable(PERF_HPP__FORMULA);
 
 	if (show_period) {
-		perf_hpp__column_enable(PERF_HPP__PERIOD, true);
-		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE, true);
+		perf_hpp__column_enable(PERF_HPP__PERIOD);
+		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE);
 	}
 }
 

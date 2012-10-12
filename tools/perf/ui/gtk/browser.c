@@ -74,6 +74,8 @@ HPP__COLOR_FN(overhead_guest_us, period_guest_us)
 
 void perf_gtk__init_hpp(void)
 {
+	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
+
 	perf_hpp__init();
 
 	perf_hpp__format[PERF_HPP__OVERHEAD].color =
@@ -90,13 +92,14 @@ void perf_gtk__init_hpp(void)
 
 static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 {
+	struct perf_hpp_fmt *fmt;
 	GType col_types[MAX_COLUMNS];
 	GtkCellRenderer *renderer;
 	struct sort_entry *se;
 	GtkListStore *store;
 	struct rb_node *nd;
 	GtkWidget *view;
-	int i, col_idx;
+	int col_idx;
 	int nr_cols;
 	char s[512];
 
@@ -107,12 +110,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 	nr_cols = 0;
 
-	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-		if (!perf_hpp__format[i].cond)
-			continue;
-
+	perf_hpp__for_each_format(fmt)
 		col_types[nr_cols++] = G_TYPE_STRING;
-	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
@@ -129,12 +128,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 	col_idx = 0;
 
-	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-		if (!perf_hpp__format[i].cond)
-			continue;
-
-		perf_hpp__format[i].header(&hpp);
-
+	perf_hpp__for_each_format(fmt) {
+		fmt->header(&hpp);
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 							    -1, s,
 							    renderer, "markup",
@@ -166,14 +161,11 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 		col_idx = 0;
 
-		for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-			if (!perf_hpp__format[i].cond)
-				continue;
-
-			if (perf_hpp__format[i].color)
-				perf_hpp__format[i].color(&hpp, h);
+		perf_hpp__for_each_format(fmt) {
+			if (fmt->color)
+				fmt->color(&hpp, h);
 			else
-				perf_hpp__format[i].entry(&hpp, h);
+				fmt->entry(&hpp, h);
 
 			gtk_list_store_set(store, &iter, col_idx++, s, -1);
 		}

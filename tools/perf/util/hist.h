@@ -126,12 +126,18 @@ struct perf_hpp {
 };
 
 struct perf_hpp_fmt {
-	bool cond;
 	int (*header)(struct perf_hpp *hpp);
 	int (*width)(struct perf_hpp *hpp);
 	int (*color)(struct perf_hpp *hpp, struct hist_entry *he);
 	int (*entry)(struct perf_hpp *hpp, struct hist_entry *he);
+
+	struct list_head list;
 };
+
+extern struct list_head perf_hpp__list;
+
+#define perf_hpp__for_each_format(format) \
+	list_for_each_entry(format, &perf_hpp__list, list)
 
 extern struct perf_hpp_fmt perf_hpp__format[];
 
@@ -155,7 +161,8 @@ enum {
 };
 
 void perf_hpp__init(void);
-void perf_hpp__column_enable(unsigned col, bool enable);
+void perf_hpp__column_register(struct perf_hpp_fmt *format);
+void perf_hpp__column_enable(unsigned col);
 int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 				bool color);
 
