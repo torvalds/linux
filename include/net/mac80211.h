@@ -258,6 +258,7 @@ enum ieee80211_rssi_event {
  * @assoc: association status
  * @ibss_joined: indicates whether this station is part of an IBSS
  *	or not
+ * @ibss_creator: indicates if a new IBSS network is being created
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble;
@@ -313,6 +314,7 @@ struct ieee80211_bss_conf {
 	const u8 *bssid;
 	/* association related data */
 	bool assoc, ibss_joined;
+	bool ibss_creator;
 	u16 aid;
 	/* erp related data */
 	bool use_cts_prot;
