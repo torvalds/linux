@@ -112,6 +112,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 
 	bip->bip_slab = idx;
 	bip->bip_bio = bio;
+	bip->bip_vec = bip->bip_inline_vecs;
 	bio->bi_integrity = bip;
 
 	return bip;
@@ -697,8 +698,8 @@ void bio_integrity_split(struct bio *bio, struct bio_pair *bp, int sectors)
 	bp->iv1 = bip->bip_vec[0];
 	bp->iv2 = bip->bip_vec[0];
 
-	bp->bip1.bip_vec[0] = bp->iv1;
-	bp->bip2.bip_vec[0] = bp->iv2;
+	bp->bip1.bip_vec = &bp->iv1;
+	bp->bip2.bip_vec = &bp->iv2;
 
 	bp->iv1.bv_len = sectors * bi->tuple_size;
 	bp->iv2.bv_offset += sectors * bi->tuple_size;
