@@ -277,6 +277,7 @@ void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 void ar9003_mci_set_power_awake(struct ath_hw *ah);
 void ar9003_mci_check_gpm_offset(struct ath_hw *ah);
+u16 ar9003_mci_get_max_txpower(struct ath_hw *ah, u8 ctlmode);
 
 #else
 
@@ -322,6 +323,10 @@ static inline void ar9003_mci_set_power_awake(struct ath_hw *ah)
 }
 static inline void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
 {
+}
+static inline u16 ar9003_mci_get_max_txpower(struct ath_hw *ah, u8 ctlmode)
+{
+	return -1;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 

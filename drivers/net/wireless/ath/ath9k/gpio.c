@@ -227,6 +227,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
+	ath9k_mci_update_rssi(sc);
+
 	ath9k_ps_wakeup(sc);
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))

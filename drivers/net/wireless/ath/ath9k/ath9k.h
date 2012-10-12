@@ -479,6 +479,7 @@ struct ath_btcoex {
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
 	u32 bt_wait_time;
+	int rssi_count;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
 };

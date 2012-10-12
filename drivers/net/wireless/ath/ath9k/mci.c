@@ -710,3 +710,62 @@ send_wlan_chan:
 	ar9003_mci_send_wlan_channels(ah);
 	ar9003_mci_state(ah, MCI_STATE_SEND_VERSION_QUERY);
 }
+
+void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
+			   bool concur_tx)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_mci *mci_hw = &sc->sc_ah->btcoex_hw.mci;
+	bool old_concur_tx = mci_hw->concur_tx;
+
+	if (!(mci_hw->config & ATH_MCI_CONFIG_CONCUR_TX)) {
+		mci_hw->concur_tx = false;
+		return;
+	}
+
+	if (!IS_CHAN_2GHZ(ah->curchan))
+		return;
+
+	if (setchannel) {
+		struct ath9k_hw_cal_data *caldata = &sc->caldata;
+		if ((caldata->chanmode == CHANNEL_G_HT40PLUS) &&
+		    (ah->curchan->channel > caldata->channel) &&
+		    (ah->curchan->channel <= caldata->channel + 20))
+			return;
+		if ((caldata->chanmode == CHANNEL_G_HT40MINUS) &&
+		    (ah->curchan->channel < caldata->channel) &&
+		    (ah->curchan->channel >= caldata->channel - 20))
+			return;
+		mci_hw->concur_tx = false;
+	} else
+		mci_hw->concur_tx = concur_tx;
+
+	if (old_concur_tx != mci_hw->concur_tx)
+		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+}
+
+void ath9k_mci_update_rssi(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath9k_hw_mci *mci_hw = &sc->sc_ah->btcoex_hw.mci;
+
+	if (!(mci_hw->config & ATH_MCI_CONFIG_CONCUR_TX))
+		return;
+
+	if (ah->stats.avgbrssi >= 40) {
+		if (btcoex->rssi_count < 0)
+			btcoex->rssi_count = 0;
+		if (++btcoex->rssi_count >= ATH_MCI_CONCUR_TX_SWITCH) {
+			btcoex->rssi_count = 0;
+			ath9k_mci_set_txpower(sc, false, true);
+		}
+	} else {
+		if (btcoex->rssi_count > 0)
+			btcoex->rssi_count = 0;
+		if (--btcoex->rssi_count <= -ATH_MCI_CONCUR_TX_SWITCH) {
+			btcoex->rssi_count = 0;
+			ath9k_mci_set_txpower(sc, false, false);
+		}
+	}
+}

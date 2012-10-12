@@ -18,6 +18,7 @@
 #include "hw.h"
 #include "ar9003_phy.h"
 #include "ar9003_eeprom.h"
+#include "ar9003_mci.h"
 
 #define COMP_HDR_LEN 4
 #define COMP_CKSUM_LEN 2
@@ -40,7 +41,6 @@
 
 static int ar9003_hw_power_interpolate(int32_t x,
 				       int32_t *px, int32_t *py, u_int16_t np);
-
 
 static const struct ar9300_eeprom ar9300_default = {
 	.eepromVersion = 2,
@@ -5037,16 +5037,28 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 		case CTL_5GHT20:
 		case CTL_2GHT20:
 			for (i = ALL_TARGET_HT20_0_8_16;
-			     i <= ALL_TARGET_HT20_23; i++)
+			     i <= ALL_TARGET_HT20_23; i++) {
 				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
 						       minCtlPower);
+				if (ath9k_hw_mci_is_enabled(ah))
+					pPwrArray[i] =
+						(u8)min((u16)pPwrArray[i],
+						ar9003_mci_get_max_txpower(ah,
+							pCtlMode[ctlMode]));
+			}
 			break;
 		case CTL_5GHT40:
 		case CTL_2GHT40:
 			for (i = ALL_TARGET_HT40_0_8_16;
-			     i <= ALL_TARGET_HT40_23; i++)
+			     i <= ALL_TARGET_HT40_23; i++) {
 				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
 						       minCtlPower);
+				if (ath9k_hw_mci_is_enabled(ah))
+					pPwrArray[i] =
+						(u8)min((u16)pPwrArray[i],
+						ar9003_mci_get_max_txpower(ah,
+							pCtlMode[ctlMode]));
+			}
 			break;
 		default:
 			break;

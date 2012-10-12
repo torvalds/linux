@@ -293,6 +293,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		goto out;
 	}
 
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah) &&
+	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		ath9k_mci_set_txpower(sc, true, false);
+
 	if (!ath_complete_reset(sc, true))
 		r = -EIO;
 
