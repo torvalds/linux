@@ -1005,6 +1005,7 @@ struct cfg80211_ssid {
  * @flags: bit field of flags controlling operation
  * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
+ * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
  * @aborted: (internal) scan request was notified as aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
@@ -1023,6 +1024,7 @@ struct cfg80211_scan_request {
 
 	/* internal */
 	struct wiphy *wiphy;
+	unsigned long scan_start;
 	bool aborted;
 	bool no_cck;
 
@@ -1074,6 +1076,7 @@ struct cfg80211_sched_scan_request {
 	/* internal */
 	struct wiphy *wiphy;
 	struct net_device *dev;
+	unsigned long scan_start;
 
 	/* keep last */
 	struct ieee80211_channel *channels[0];
