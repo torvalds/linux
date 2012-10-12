@@ -75,7 +75,7 @@ void __init sw_core_map_io(void)
 {
 	iotable_init(sw_io_desc, ARRAY_SIZE(sw_io_desc));
 
-	sunxi_pr_brom((void*)SW_VA_BROM_BASE);
+	sunxi_pr_chip_id();
 }
 
 /* Only reserve certain important memory blocks if there are actually
