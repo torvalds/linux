@@ -291,9 +291,9 @@
 	/* Jump to .init code at _start which lives in the .head section
 	 * and will be discarded after boot.
 	 */
-	LOAD_SYMBOL_2_GPR(r4, _start)
-	tophys	(r3,r4)			/* MMU disabled */
-	l.jr	r3
+	LOAD_SYMBOL_2_GPR(r15, _start)
+	tophys	(r13,r15)			/* MMU disabled */
+	l.jr	r13
 	 l.nop
 
 /* ---[ 0x200: BUS exception ]------------------------------------------- */
