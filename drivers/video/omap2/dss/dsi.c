@@ -1386,6 +1386,11 @@ retry:
 				cur.dsi_pll_hsdiv_dispc_clk =
 					cur.clkin4ddr / cur.regm_dispc;
 
+				if (cur.regm_dispc > 1 &&
+						cur.regm_dispc % 2 != 0 &&
+						req_pck >= 1000000)
+					continue;
+
 				/* this will narrow down the search a bit,
 				 * but still give pixclocks below what was
 				 * requested */
