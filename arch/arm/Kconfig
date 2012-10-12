@@ -348,16 +348,6 @@ config ARCH_BCM2835
 	  This enables support for the Broadcom BCM2835 SoC. This SoC is
 	  use in the Raspberry Pi, and Roku 2 devices.
 
-config ARCH_CLPS711X
-	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
-	select ARCH_USES_GETTIMEOFFSET
-	select CLKDEV_LOOKUP
-	select COMMON_CLK
-	select CPU_ARM720T
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Cirrus Logic 711x/721x/731x based boards.
-
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
 	select ARM_GIC
@@ -368,6 +358,16 @@ config ARCH_CNS3XXX
 	select PCI_DOMAINS if PCI
 	help
 	  Support for Cavium Networks CNS3XXX platform.
+
+config ARCH_CLPS711X
+	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
+	select ARCH_USES_GETTIMEOFFSET
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_ARM720T
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Cirrus Logic 711x/721x/731x based boards.
 
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
@@ -549,21 +549,6 @@ config ARCH_KIRKWOOD
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
 
-config ARCH_LPC32XX
-	bool "NXP LPC32XX"
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_IDE
-	select HAVE_PWM
-	select USB_ARCH_HAS_OHCI
-	select USE_OF
-	help
-	  Support for the NXP LPC32XX family of processors
-
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select ARCH_REQUIRE_GPIOLIB
@@ -629,6 +614,21 @@ config ARCH_W90X900
 
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
+
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_IDE
+	select HAVE_PWM
+	select USB_ARCH_HAS_OHCI
+	select USE_OF
+	help
+	  Support for the NXP LPC32XX family of processors
 
 config ARCH_TEGRA
 	bool "NVIDIA Tegra"
@@ -823,7 +823,7 @@ config ARCH_S5PV210
 	  Samsung S5PV210/S5PC110 series based systems
 
 config ARCH_EXYNOS
-	bool "SAMSUNG EXYNOS"
+	bool "Samsung EXYNOS"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SPARSEMEM_ENABLE
@@ -899,6 +899,18 @@ config ARCH_NOMADIK
 	help
 	  Support for the Nomadik platform by ST-Ericsson
 
+config PLAT_SPEAR
+	bool "ST SPEAr"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	help
+	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
+
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -925,18 +937,6 @@ config ARCH_OMAP
 	select NEED_MACH_GPIO_H
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
-
-config PLAT_SPEAR
-	bool "ST SPEAr"
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	help
-	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
 config ARCH_VT8500
 	bool "VIA/WonderMedia 85xx"
