@@ -162,9 +162,9 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
 {
 	if (interruptible) {
 		return wait_event_interruptible(bo->event_queue,
-					       atomic_read(&bo->reserved) == 0);
+					       !ttm_bo_is_reserved(bo));
 	} else {
-		wait_event(bo->event_queue, atomic_read(&bo->reserved) == 0);
+		wait_event(bo->event_queue, !ttm_bo_is_reserved(bo));
 		return 0;
 	}
 }
@@ -175,7 +175,7 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man;
 
-	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
 
@@ -756,7 +756,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 		goto out;
 	}
 
-	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
@@ -1073,7 +1073,7 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg mem;
 	struct ttm_bo_device *bdev = bo->bdev;
 
-	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	/*
 	 * FIXME: It's possible to pipeline buffer moves.
@@ -1130,7 +1130,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 	/* Check that range is valid */
 	if (placement->lpfn || placement->fpfn)
 		if (placement->fpfn > placement->lpfn ||
