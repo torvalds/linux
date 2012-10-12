@@ -149,7 +149,7 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	if (size < 512) {
 		pr_err("MALI: not enough memory to make reserve.\n");
 		/* fallback to single bank will full size */
-	else {
+	} else {
 		mi->nr_banks = 1;
 		mi->bank[0].start = 0x40000000;
 		mi->bank[0].size = SZ_1M * (512 - 64);
