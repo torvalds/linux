@@ -69,7 +69,9 @@ struct nouveau_fb {
 		} type;
 		u64 stolen;
 		u64 size;
+
 		int ranks;
+		int parts;
 
 		int  (*init)(struct nouveau_fb *);
 		int  (*get)(struct nouveau_fb *, u64 size, u32 align,

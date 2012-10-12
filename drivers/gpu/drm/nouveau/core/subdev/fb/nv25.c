@@ -34,21 +34,12 @@ static void
 nv25_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
-	int bpp = (flags & 2) ? 32 : 16;
-
-	/* Allocate some of the on-die tag memory, used to store Z
-	 * compression meta-data (most likely just a bitmap determining
-	 * if a given tile is compressed or not).
-	 */
-	size /= 256;
-
-	if (!nouveau_mm_head(&pfb->tags, 1, size, size, 1, &tile->tag)) {
-		/* Enable Z compression */
-		tile->zcomp = tile->tag->offset;
-		if (bpp == 16)
-			tile->zcomp |= 0x00100000;
-		else
-			tile->zcomp |= 0x00200000;
+	u32 tiles = DIV_ROUND_UP(size, 0x40);
+	u32 tags  = round_up(tiles / pfb->ram.parts, 0x40);
+	if (!nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
+		if (!(flags & 2)) tile->zcomp = 0x00100000; /* Z16 */
+		else              tile->zcomp = 0x00200000; /* Z24S8 */
+		tile->zcomp |= tile->tag->offset;
 #ifdef __BIG_ENDIAN
 		tile->zcomp |= 0x01000000;
 #endif

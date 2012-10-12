@@ -41,7 +41,8 @@ nv20_fb_vram_init(struct nouveau_fb *pfb)
 	case 0x00000200: pfb->ram.type = NV_MEM_TYPE_GDDR3; break;
 	case 0x00000300: pfb->ram.type = NV_MEM_TYPE_GDDR2; break;
 	}
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	pfb->ram.size  = (nv_rd32(pfb, 0x10020c) & 0xff000000);
+	pfb->ram.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
 
 	return nv_rd32(pfb, 0x100320);
 }
@@ -63,20 +64,13 @@ static void
 nv20_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
-	int bpp = (flags & 2) ? 32 : 16;
-
-	/* Allocate some of the on-die tag memory, used to store Z
-	 * compression meta-data (most likely just a bitmap determining
-	 * if a given tile is compressed or not).
-	 */
-	size /= 256;
-
-	if (!nouveau_mm_head(&pfb->tags, 1, size, size, 1, &tile->tag)) {
-		/* Enable Z compression */
-		tile->zcomp = tile->tag->offset;
-		tile->zcomp |= 0x80000000;
-		if (bpp != 16)
-			tile->zcomp |= 0x04000000;
+	u32 tiles = DIV_ROUND_UP(size, 0x40);
+	u32 tags  = round_up(tiles / pfb->ram.parts, 0x40);
+	if (!nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
+		if (!(flags & 2)) tile->zcomp = 0x00000000; /* Z16 */
+		else              tile->zcomp = 0x04000000; /* Z24S8 */
+		tile->zcomp |= tile->tag->offset;
+		tile->zcomp |= 0x80000000; /* enable */
 #ifdef __BIG_ENDIAN
 		tile->zcomp |= 0x08000000;
 #endif
