@@ -97,12 +97,14 @@ static struct platform_device_id c_can_id_table[] = {
 	}, {
 	}
 };
+MODULE_DEVICE_TABLE(platform, c_can_id_table);
 
 static const struct of_device_id c_can_of_table[] = {
 	{ .compatible = "bosch,c_can", .data = &c_can_id_table[BOSCH_C_CAN] },
 	{ .compatible = "bosch,d_can", .data = &c_can_id_table[BOSCH_D_CAN] },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, c_can_of_table);
 
 static int __devinit c_can_plat_probe(struct platform_device *pdev)
 {
