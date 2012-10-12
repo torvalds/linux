@@ -660,6 +660,7 @@ PIPEnsSendBulkOut(
     	if (status != 0)
     	{
     		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Tx URB failed %d\n", status);
+		pContext->bBoolInUse = FALSE;
     		return STATUS_FAILURE;
     	}
         return STATUS_PENDING;
