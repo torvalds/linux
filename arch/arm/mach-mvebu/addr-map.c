@@ -108,6 +108,9 @@ static int __init armada_setup_cpu_mbus(void)
 
 	addr_map_cfg.bridge_virt_base = mbus_unit_addr_decoding_base;
 
+	if (of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric"))
+		addr_map_cfg.hw_io_coherency = 1;
+
 	/*
 	 * Disable, clear and configure windows.
 	 */

@@ -38,7 +38,8 @@
 
 	coherency-fabric@d0020200 {
 		compatible = "marvell,coherency-fabric";
-		reg = <0xd0020200 0xb0>;
+		reg = <0xd0020200 0xb0>,
+		      <0xd0021810 0x1c>;
 	};
 
 	soc {
