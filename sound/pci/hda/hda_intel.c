@@ -554,7 +554,6 @@ enum {
 #define AZX_DCAPS_BUFSIZE	(1 << 21)	/* no buffer size alignment */
 #define AZX_DCAPS_ALIGN_BUFSIZE	(1 << 22)	/* buffer size alignment */
 #define AZX_DCAPS_4K_BDLE_BOUNDARY (1 << 23)	/* BDLE in 4k boundary */
-#define AZX_DCAPS_POSFIX_COMBO  (1 << 24)	/* Use COMBO as default */
 #define AZX_DCAPS_COUNT_LPIB_DELAY  (1 << 25)	/* Take LPIB as delay */
 
 /* quirks for ATI SB / AMD Hudson */
@@ -2857,10 +2856,6 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	if (chip->driver_caps & AZX_DCAPS_POSFIX_LPIB) {
 		snd_printd(SFX "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
-	}
-	if (chip->driver_caps & AZX_DCAPS_POSFIX_COMBO) {
-		snd_printd(SFX "Using COMBO position fix\n");
-		return POS_FIX_COMBO;
 	}
 	return POS_FIX_AUTO;
 }
