@@ -541,6 +541,7 @@ struct l2cap_ops {
 	void			(*state_change) (struct l2cap_chan *chan,
 						 int state);
 	void			(*ready) (struct l2cap_chan *chan);
+	void			(*defer) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -745,6 +746,10 @@ static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
 }
 
 static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
+{
+}
+
+static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
 {
 }
 

@@ -699,6 +699,7 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.new_connection = l2cap_chan_no_new_connection,
 	.teardown = l2cap_chan_no_teardown,
 	.ready = l2cap_chan_no_ready,
+	.defer = l2cap_chan_no_defer,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
