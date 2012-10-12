@@ -43,10 +43,10 @@ Y   TX11    G7              G1              GND             GND
     TX23    RSVD            RSVD            RSVD            RSVD
 ----------------------------------------------------------------------        
 */
-#define LVDS_8BIT_1     0x00
-#define LVDS_8BIT_2     0x01
-#define LVDS_8BIT_3     0x10
-#define LVDS_6BIT       0x11
+#define LVDS_8BIT_1     0
+#define LVDS_8BIT_2     1
+#define LVDS_8BIT_3     2
+#define LVDS_6BIT       3
 //LVDS lane input format
 #define DATA_D0_MSB         0
 #define DATA_D7_MSB         1
