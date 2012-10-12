@@ -8,6 +8,7 @@ config MN10300
 	select HAVE_ARCH_KGDB
 	select HAVE_NMI_WATCHDOG if MN10300_WD_TIMER
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_KERNEL_THREAD
 
 config AM33_2
 	def_bool n

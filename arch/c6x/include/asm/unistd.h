@@ -14,6 +14,9 @@
  *   more details.
  */
 
+#define __ARCH_WANT_KERNEL_EXECVE
+#define __ARCH_WANT_SYS_EXECVE
+
 /* Use the standard ABI for syscalls. */
 #include <asm-generic/unistd.h>
 
