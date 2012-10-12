@@ -11,19 +11,16 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  */
-#ifndef _ASM_TILE_SIGNAL_H
-#define _ASM_TILE_SIGNAL_H
 
-#include <uapi/asm/signal.h>
+#ifndef _UAPI__ARCH_SPR_DEF_H__
+#define _UAPI__ARCH_SPR_DEF_H__
 
-#if !defined(__ASSEMBLY__)
-struct pt_regs;
-int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
-int setup_sigcontext(struct sigcontext __user *, struct pt_regs *);
-void do_signal(struct pt_regs *regs);
-void signal_fault(const char *type, struct pt_regs *,
-		  void __user *frame, int sig);
-void trace_unhandled_signal(const char *type, struct pt_regs *regs,
-			    unsigned long address, int signo);
+/* Include the proper base SPR definition file. */
+#ifdef __tilegx__
+#include <arch/spr_def_64.h>
+#else
+#include <arch/spr_def_32.h>
 #endif
-#endif /* _ASM_TILE_SIGNAL_H */
+
+
+#endif /* _UAPI__ARCH_SPR_DEF_H__ */
