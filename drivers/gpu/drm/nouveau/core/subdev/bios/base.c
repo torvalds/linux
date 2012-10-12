@@ -210,11 +210,19 @@ nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 		return;
 
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
-	for (i = 0; bios->data && i < bios->size; i += cnt) {
-		cnt = min((bios->size - i), (u32)4096);
-		ret = nouveau_acpi_get_bios_chunk(bios->data, i, cnt);
-		if (ret != cnt)
-			break;
+	if (bios->data) {
+		/* disobey the acpi spec - much faster on at least w530 ... */
+		ret = nouveau_acpi_get_bios_chunk(bios->data, 0, bios->size);
+		if (ret != bios->size ||
+		    nvbios_checksum(bios->data, bios->size)) {
+			/* ... that didn't work, ok, i'll be good now */
+			for (i = 0; i < bios->size; i += cnt) {
+				cnt = min((bios->size - i), (u32)4096);
+				ret = nouveau_acpi_get_bios_chunk(bios->data, i, cnt);
+				if (ret != cnt)
+					break;
+			}
+		}
 	}
 }
 
