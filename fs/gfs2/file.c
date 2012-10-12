@@ -677,10 +677,8 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t writesize = iov_length(iov, nr_segs);
 	struct dentry *dentry = file->f_dentry;
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	struct gfs2_sbd *sdp;
 	int ret;
 
-	sdp = GFS2_SB(file->f_mapping->host);
 	ret = gfs2_rs_alloc(ip);
 	if (ret)
 		return ret;
