@@ -253,6 +253,7 @@ int omap_framebuffer_replace(struct drm_framebuffer *a,
 	int ret = 0, i, na, nb;
 	struct omap_framebuffer *ofba = to_omap_framebuffer(a);
 	struct omap_framebuffer *ofbb = to_omap_framebuffer(b);
+	uint32_t pinned_mask = 0;
 
 	na = a ? drm_format_num_planes(a->pixel_format) : 0;
 	nb = b ? drm_format_num_planes(b->pixel_format) : 0;
@@ -263,25 +264,24 @@ int omap_framebuffer_replace(struct drm_framebuffer *a,
 		pa = (i < na) ? &ofba->planes[i] : NULL;
 		pb = (i < nb) ? &ofbb->planes[i] : NULL;
 
-		if (pa) {
+		if (pa)
 			unpin(arg, pa->bo);
-			pa->paddr = 0;
-		}
 
 		if (pb && !ret) {
 			ret = omap_gem_get_paddr(pb->bo, &pb->paddr, true);
-			if (!ret)
+			if (!ret) {
 				omap_gem_dma_sync(pb->bo, DMA_TO_DEVICE);
+				pinned_mask |= (1 << i);
+			}
 		}
 	}
 
 	if (ret) {
 		/* something went wrong.. unpin what has been pinned */
 		for (i = 0; i < nb; i++) {
-			struct plane *pb = &ofba->planes[i];
-			if (pb->paddr) {
+			if (pinned_mask & (1 << i)) {
+				struct plane *pb = &ofba->planes[i];
 				unpin(arg, pb->bo);
-				pb->paddr = 0;
 			}
 		}
 	}
