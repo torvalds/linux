@@ -1229,6 +1229,13 @@ static void __init eva_add_early_devices(void)
 	shmobile_timer.init = eva_earlytimer_init;
 }
 
+#define RESCNT2 IOMEM(0xe6188020)
+static void eva_restart(char mode, const char *cmd)
+{
+	/* Do soft power on reset */
+	writel((1 << 31), RESCNT2);
+}
+
 static const char *eva_boards_compat_dt[] __initdata = {
 	"renesas,armadillo800eva",
 	NULL,
@@ -1243,4 +1250,5 @@ DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 	.dt_compat	= eva_boards_compat_dt,
+	.restart	= eva_restart,
 MACHINE_END
