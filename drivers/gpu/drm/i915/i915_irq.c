@@ -606,6 +606,9 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
 
+	if (pch_iir & SDE_HOTPLUG_MASK)
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
 				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -645,6 +648,9 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
+
+	if (pch_iir & SDE_HOTPLUG_MASK_CPT)
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
@@ -709,8 +715,6 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		if (de_iir & DE_PCH_EVENT_IVB) {
 			u32 pch_iir = I915_READ(SDEIIR);
 
-			if (pch_iir & SDE_HOTPLUG_MASK_CPT)
-				queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 			cpt_irq_handler(dev, pch_iir);
 
 			/* clear PCH hotplug event before clear CPU irq */
@@ -751,7 +755,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
-	u32 hotplug_mask;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -768,11 +771,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
 	    (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
-
-	if (HAS_PCH_CPT(dev))
-		hotplug_mask = SDE_HOTPLUG_MASK_CPT;
-	else
-		hotplug_mask = SDE_HOTPLUG_MASK;
 
 	ret = IRQ_HANDLED;
 
@@ -802,8 +800,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
-		if (pch_iir & hotplug_mask)
-			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 		if (HAS_PCH_CPT(dev))
 			cpt_irq_handler(dev, pch_iir);
 		else
