@@ -3651,7 +3651,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_INACTIVITY_TIMEOUT,
 		     ar->fw_capabilities))
-		ar->wiphy->features = NL80211_FEATURE_INACTIVITY_TIMER;
+		ar->wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 
 	ar->wiphy->probe_resp_offload =
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |

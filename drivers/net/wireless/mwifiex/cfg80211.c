@@ -2250,8 +2250,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->available_antennas_tx = BIT(adapter->number_of_antenna) - 1;
 	wiphy->available_antennas_rx = BIT(adapter->number_of_antenna) - 1;
 
-	wiphy->features = NL80211_FEATURE_HT_IBSS |
-			  NL80211_FEATURE_INACTIVITY_TIMER;
+	wiphy->features |= NL80211_FEATURE_HT_IBSS |
+			   NL80211_FEATURE_INACTIVITY_TIMER;
 
 	/* Reserve space for mwifiex specific private data for BSS */
 	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
