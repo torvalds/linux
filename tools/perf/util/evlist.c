@@ -314,6 +314,13 @@ static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 
 	/* Legacy way to get event id.. All hail to old kernels! */
 
+	/*
+	 * This way does not work with group format read, so bail
+	 * out in that case.
+	 */
+	if (perf_evlist__read_format(evlist) & PERF_FORMAT_GROUP)
+		return -1;
+
 	if (!(evsel->attr.read_format & PERF_FORMAT_ID) ||
 	    read(fd, &read_data, sizeof(read_data)) == -1)
 		return -1;
