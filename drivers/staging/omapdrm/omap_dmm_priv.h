@@ -141,9 +141,6 @@ struct refill_engine {
 	/* only one trans per engine for now */
 	struct dmm_txn txn;
 
-	/* offset to lut associated with container */
-	u32 *lut_offset;
-
 	wait_queue_head_t wait_for_refill;
 
 	struct list_head idle_node;
@@ -175,9 +172,6 @@ struct dmm {
 
 	/* array of LUT - TCM containers */
 	struct tcm **tcm;
-
-	/* LUT table storage */
-	u32 *lut;
 
 	/* allocation list and lock */
 	struct list_head alloc_head;

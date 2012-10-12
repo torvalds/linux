@@ -184,9 +184,6 @@ static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	int columns = (1 + area->x1 - area->x0);
 	int rows = (1 + area->y1 - area->y0);
 	int i = columns*rows;
-	u32 *lut = omap_dmm->lut + (engine->tcm->lut_id * omap_dmm->lut_width *
-			omap_dmm->lut_height) +
-			(area->y0 * omap_dmm->lut_width) + area->x0;
 
 	pat = alloc_dma(txn, sizeof(struct pat), &pat_pa);
 
@@ -208,10 +205,6 @@ static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 		data[i] = (pages && pages[n]) ?
 			page_to_phys(pages[n]) : engine->dmm->dummy_pa;
 	}
-
-	/* fill in lut with new addresses */
-	for (i = 0; i < rows; i++, lut += omap_dmm->lut_width)
-		memcpy(lut, &data[i*columns], columns * sizeof(u32));
 
 	txn->last_pat = pat;
 
@@ -539,8 +532,6 @@ static int omap_dmm_remove(struct platform_device *dev)
 		if (omap_dmm->dummy_page)
 			__free_page(omap_dmm->dummy_page);
 
-		vfree(omap_dmm->lut);
-
 		if (omap_dmm->irq > 0)
 			free_irq(omap_dmm->irq, omap_dmm);
 
@@ -556,7 +547,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 {
 	int ret = -EFAULT, i;
 	struct tcm_area area = {0};
-	u32 hwinfo, pat_geom, lut_table_size;
+	u32 hwinfo, pat_geom;
 	struct resource *mem;
 
 	omap_dmm = kzalloc(sizeof(*omap_dmm), GFP_KERNEL);
@@ -627,16 +618,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 	 * we just generally don't care about.
 	 */
 	writel(0x7e7e7e7e, omap_dmm->base + DMM_PAT_IRQENABLE_SET);
-
-	lut_table_size = omap_dmm->lut_width * omap_dmm->lut_height *
-			omap_dmm->num_lut;
-
-	omap_dmm->lut = vmalloc(lut_table_size * sizeof(*omap_dmm->lut));
-	if (!omap_dmm->lut) {
-		dev_err(&dev->dev, "could not allocate lut table\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
 
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
@@ -719,9 +700,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 		.p1.x = omap_dmm->container_width - 1,
 		.p1.y = omap_dmm->container_height - 1,
 	};
-
-	for (i = 0; i < lut_table_size; i++)
-		omap_dmm->lut[i] = omap_dmm->dummy_pa;
 
 	/* initialize all LUTs to dummy page entries */
 	for (i = 0; i < omap_dmm->num_lut; i++) {
