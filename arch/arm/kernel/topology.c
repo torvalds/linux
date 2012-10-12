@@ -368,10 +368,12 @@ void __init arch_get_hmp_domains(struct list_head *hmp_domains_list)
 	 * Must be ordered with respect to compute capacity.
 	 * Fastest domain at head of list.
 	 */
-	domain = (struct hmp_domain *)
-		kmalloc(sizeof(struct hmp_domain), GFP_KERNEL);
-	cpumask_copy(&domain->cpus, &hmp_slow_cpu_mask);
-	list_add(&domain->hmp_domains, hmp_domains_list);
+	if(!cpumask_empty(&hmp_slow_cpu_mask)) {
+		domain = (struct hmp_domain *)
+			kmalloc(sizeof(struct hmp_domain), GFP_KERNEL);
+		cpumask_copy(&domain->cpus, &hmp_slow_cpu_mask);
+		list_add(&domain->hmp_domains, hmp_domains_list);
+	}
 	domain = (struct hmp_domain *)
 		kmalloc(sizeof(struct hmp_domain), GFP_KERNEL);
 	cpumask_copy(&domain->cpus, &hmp_fast_cpu_mask);
