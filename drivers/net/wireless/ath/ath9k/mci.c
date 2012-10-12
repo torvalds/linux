@@ -600,3 +600,53 @@ void ath_mci_enable(struct ath_softc *sc)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
 		sc->sc_ah->imask |= ATH9K_INT_MCI;
 }
+
+void ath9k_mci_update_wlan_channels(struct ath_softc *sc, bool allow_all)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	struct ath9k_channel *chan = ah->curchan;
+	u32 channelmap[] = {0x00000000, 0xffff0000, 0xffffffff, 0x7fffffff};
+	int i;
+	s16 chan_start, chan_end;
+	u16 wlan_chan;
+
+	if (!chan || !IS_CHAN_2GHZ(chan))
+		return;
+
+	if (allow_all)
+		goto send_wlan_chan;
+
+	wlan_chan = chan->channel - 2402;
+
+	chan_start = wlan_chan - 10;
+	chan_end = wlan_chan + 10;
+
+	if (chan->chanmode == CHANNEL_G_HT40PLUS)
+		chan_end += 20;
+	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
+		chan_start -= 20;
+
+	/* adjust side band */
+	chan_start -= 7;
+	chan_end += 7;
+
+	if (chan_start <= 0)
+		chan_start = 0;
+	if (chan_end >= ATH_MCI_NUM_BT_CHANNELS)
+		chan_end = ATH_MCI_NUM_BT_CHANNELS - 1;
+
+	ath_dbg(ath9k_hw_common(ah), MCI,
+		"WLAN current channel %d mask BT channel %d - %d\n",
+		wlan_chan, chan_start, chan_end);
+
+	for (i = chan_start; i < chan_end; i++)
+		MCI_GPM_CLR_CHANNEL_BIT(&channelmap, i);
+
+send_wlan_chan:
+	/* update and send wlan channels info to BT */
+	for (i = 0; i < 4; i++)
+		mci->wlan_channels[i] = channelmap[i];
+	ar9003_mci_send_wlan_channels(ah);
+	ar9003_mci_state(ah, MCI_STATE_SEND_VERSION_QUERY);
+}

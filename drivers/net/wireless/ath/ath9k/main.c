@@ -1450,6 +1450,9 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+		ath9k_mci_update_wlan_channels(sc, false);
+
 	ath_dbg(common, CONFIG,
 		"Primary Station interface: %pM, BSSID: %pM\n",
 		vif->addr, common->curbssid);
@@ -1506,6 +1509,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			memset(common->curbssid, 0, ETH_ALEN);
 			common->curaid = 0;
 			ath9k_hw_write_associd(sc->sc_ah);
+			if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+				ath9k_mci_update_wlan_channels(sc, true);
 		}
 	}
 

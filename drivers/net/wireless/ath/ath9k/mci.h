@@ -32,6 +32,24 @@
 #define ATH_MCI_MAX_PROFILE		(ATH_MCI_MAX_ACL_PROFILE +\
 					 ATH_MCI_MAX_SCO_PROFILE)
 
+#define ATH_MCI_NUM_BT_CHANNELS      79
+
+#define MCI_GPM_SET_CHANNEL_BIT(_p_gpm, _bt_chan)			  \
+	do {								  \
+		if (_bt_chan < ATH_MCI_NUM_BT_CHANNELS) {		  \
+			*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_CHANNEL_MAP + \
+				(_bt_chan / 8)) |= (1 << (_bt_chan & 7)); \
+		}							  \
+	} while (0)
+
+#define MCI_GPM_CLR_CHANNEL_BIT(_p_gpm, _bt_chan)			  \
+	do {								  \
+		if (_bt_chan < ATH_MCI_NUM_BT_CHANNELS) {		  \
+			*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_CHANNEL_MAP + \
+				(_bt_chan / 8)) &= ~(1 << (_bt_chan & 7));\
+		}							  \
+	} while (0)
+
 #define INC_PROF(_mci, _info) do {		 \
 		switch (_info->type) {		 \
 		case MCI_GPM_COEX_PROFILE_RFCOMM:\
@@ -133,8 +151,13 @@ void ath_mci_intr(struct ath_softc *sc);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 void ath_mci_enable(struct ath_softc *sc);
+void ath9k_mci_update_wlan_channels(struct ath_softc *sc, bool allow_all);
 #else
 static inline void ath_mci_enable(struct ath_softc *sc)
+{
+}
+static inline void ath9k_mci_update_wlan_channels(struct ath_softc *sc,
+						  bool allow_all)
 {
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
