@@ -691,3 +691,4 @@ module_platform_driver(bfin_can_driver);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Blackfin on-chip CAN netdevice driver");
+MODULE_ALIAS("platform:" DRV_NAME);
