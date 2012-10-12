@@ -833,8 +833,6 @@ int vmw_surface_do_validate(struct vmw_private *dev_priv,
 	if (srf->backup) {
 		INIT_LIST_HEAD(&val_list);
 		val_buf.bo = ttm_bo_reference(srf->backup);
-		val_buf.new_sync_obj_arg = (void *)((unsigned long)
-						    DRM_VMW_FENCE_FLAG_EXEC);
 		list_add_tail(&val_buf.head, &val_list);
 		ret = ttm_eu_reserve_buffers(&val_list);
 		if (unlikely(ret != 0))
@@ -966,8 +964,6 @@ int vmw_surface_evict(struct vmw_private *dev_priv,
 
 	INIT_LIST_HEAD(&val_list);
 	val_buf.bo = ttm_bo_reference(srf->backup);
-	val_buf.new_sync_obj_arg = (void *)(unsigned long)
-		DRM_VMW_FENCE_FLAG_EXEC;
 	list_add_tail(&val_buf.head, &val_list);
 	ret = ttm_eu_reserve_buffers(&val_list);
 	if (unlikely(ret != 0))

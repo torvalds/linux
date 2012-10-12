@@ -318,19 +318,16 @@ static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
 
 static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
 {
-	unsigned long flags = (unsigned long) sync_arg;
 	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
-				       (uint32_t) flags);
+				       DRM_VMW_FENCE_FLAG_EXEC);
 
 }
 
 static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 			     bool lazy, bool interruptible)
 {
-	unsigned long flags = (unsigned long) sync_arg;
-
 	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
-				  (uint32_t) flags,
+				  DRM_VMW_FENCE_FLAG_EXEC,
 				  lazy, interruptible,
 				  VMW_FENCE_WAIT_TIMEOUT);
 }
