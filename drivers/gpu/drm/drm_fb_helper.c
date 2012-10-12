@@ -348,7 +348,7 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			connector = fb_helper->connector_info[j]->connector;
 			connector->funcs->dpms(connector, dpms_mode);
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 				dev->mode_config.dpms_property, dpms_mode);
 		}
 	}
