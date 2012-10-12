@@ -280,9 +280,7 @@ static void __cache_size_refresh(void)
 	BUG_ON(!mutex_is_locked(&dm_bufio_clients_lock));
 	BUG_ON(dm_bufio_client_count < 0);
 
-	dm_bufio_cache_size_latch = dm_bufio_cache_size;
-
-	barrier();
+	dm_bufio_cache_size_latch = ACCESS_ONCE(dm_bufio_cache_size);
 
 	/*
 	 * Use default if set to 0 and report the actual cache size used.
@@ -812,7 +810,7 @@ static void __get_memory_limit(struct dm_bufio_client *c,
 {
 	unsigned long buffers;
 
-	if (dm_bufio_cache_size != dm_bufio_cache_size_latch) {
+	if (ACCESS_ONCE(dm_bufio_cache_size) != dm_bufio_cache_size_latch) {
 		mutex_lock(&dm_bufio_clients_lock);
 		__cache_size_refresh();
 		mutex_unlock(&dm_bufio_clients_lock);
@@ -1590,10 +1588,8 @@ EXPORT_SYMBOL_GPL(dm_bufio_client_destroy);
 
 static void cleanup_old_buffers(void)
 {
-	unsigned long max_age = dm_bufio_max_age;
+	unsigned long max_age = ACCESS_ONCE(dm_bufio_max_age);
 	struct dm_bufio_client *c;
-
-	barrier();
 
 	if (max_age > ULONG_MAX / HZ)
 		max_age = ULONG_MAX / HZ;
