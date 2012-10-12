@@ -3048,6 +3048,7 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_SAE: This driver supports simultaneous authentication of
  *	equals (SAE) with user space SME (NL80211_CMD_AUTHENTICATE) in station
  *	mode
+ * @NL80211_FEATURE_LOW_PRIORITY_SCAN: This driver supports low priority scan
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3056,6 +3057,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_CELL_BASE_REG_HINTS		= 1 << 3,
 	NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL	= 1 << 4,
 	NL80211_FEATURE_SAE				= 1 << 5,
+	NL80211_FEATURE_LOW_PRIORITY_SCAN		= 1 << 6,
 };
 
 /**
@@ -3096,9 +3098,11 @@ enum nl80211_connect_failed_reason {
  * Scan request control flags are used to control the handling
  * of NL80211_CMD_TRIGGER_SCAN and NL80211_CMD_START_SCHED_SCAN
  * requests.
- * (will be filled)
-enum nl80211_scan_flags {
-};
+ *
+ * @NL80211_SCAN_FLAG_LOW_PRIORITY: scan request has low priority
  */
+enum nl80211_scan_flags {
+	NL80211_SCAN_FLAG_LOW_PRIORITY			= 1<<0,
+};
 
 #endif /* __LINUX_NL80211_H */
