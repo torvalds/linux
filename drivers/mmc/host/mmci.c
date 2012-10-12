@@ -664,12 +664,14 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 			datactrl |= MCI_ST_DPSM_SDIOEN;
 
 			/*
-			 * The ST Micro variant for SDIO transfer sizes
-			 * less then 8 bytes should have clock H/W flow
-			 * control disabled.
+			 * The ST Micro variant for SDIO small write transfers
+			 * needs to have clock H/W flow control disabled,
+			 * otherwise the transfer will not start. The threshold
+			 * depends on the rate of MCLK.
 			 */
-			if ((host->size < 8) &&
-			    (data->flags & MMC_DATA_WRITE))
+			if (data->flags & MMC_DATA_WRITE &&
+			    (host->size < 8 ||
+			     (host->size <= 8 && host->mclk > 50000000)))
 				clk = host->clk_reg & ~variant->clkreg_enable;
 			else
 				clk = host->clk_reg | variant->clkreg_enable;
