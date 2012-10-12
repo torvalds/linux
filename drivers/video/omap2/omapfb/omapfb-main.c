@@ -2256,7 +2256,7 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 {
 	struct fb_monspecs *specs;
 	u8 *edid;
-	int r, i, best_xres, best_idx, len;
+	int r, i, best_idx, len;
 
 	if (!display->driver->read_edid)
 		return -ENODEV;
@@ -2272,7 +2272,6 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 
 	fb_edid_to_monspecs(edid, specs);
 
-	best_xres = 0;
 	best_idx = -1;
 
 	for (i = 0; i < specs->modedb_len; ++i) {
@@ -2288,16 +2287,20 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 		if (m->xres == 2880 || m->xres == 1440)
 			continue;
 
+		if (m->vmode & FB_VMODE_INTERLACED ||
+				m->vmode & FB_VMODE_DOUBLE)
+			continue;
+
 		fb_videomode_to_omap_timings(m, display, &t);
 
 		r = display->driver->check_timings(display, &t);
-		if (r == 0 && best_xres < m->xres) {
-			best_xres = m->xres;
+		if (r == 0) {
 			best_idx = i;
+			break;
 		}
 	}
 
-	if (best_xres == 0) {
+	if (best_idx == -1) {
 		r = -ENOENT;
 		goto err2;
 	}
