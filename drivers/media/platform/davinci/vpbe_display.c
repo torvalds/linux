@@ -393,7 +393,7 @@ vpbe_disp_calculate_scale_factor(struct vpbe_display *disp_dev,
 	int h_scale;
 	int v_scale;
 
-	v4l2_std_id standard_id = vpbe_dev->current_timings.timings.std_id;
+	v4l2_std_id standard_id = vpbe_dev->current_timings.std_id;
 
 	/*
 	 * Application initially set the image format. Current display
@@ -637,7 +637,7 @@ static int vpbe_display_s_crop(struct file *file, void *priv,
 	struct vpbe_device *vpbe_dev = disp_dev->vpbe_dev;
 	struct osd_layer_config *cfg = &layer->layer_info.config;
 	struct osd_state *osd_device = disp_dev->osd_device;
-	struct v4l2_rect *rect = &crop->c;
+	struct v4l2_rect rect = crop->c;
 	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
@@ -648,21 +648,21 @@ static int vpbe_display_s_crop(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (rect->top < 0)
-		rect->top = 0;
-	if (rect->left < 0)
-		rect->left = 0;
+	if (rect.top < 0)
+		rect.top = 0;
+	if (rect.left < 0)
+		rect.left = 0;
 
-	vpbe_disp_check_window_params(disp_dev, rect);
+	vpbe_disp_check_window_params(disp_dev, &rect);
 
 	osd_device->ops.get_layer_config(osd_device,
 			layer->layer_info.id, cfg);
 
 	vpbe_disp_calculate_scale_factor(disp_dev, layer,
-					rect->width,
-					rect->height);
-	vpbe_disp_adj_position(disp_dev, layer, rect->top,
-					rect->left);
+					rect.width,
+					rect.height);
+	vpbe_disp_adj_position(disp_dev, layer, rect.top,
+					rect.left);
 	ret = osd_device->ops.set_layer_config(osd_device,
 				layer->layer_info.id, cfg);
 	if (ret < 0) {
@@ -943,7 +943,7 @@ static int vpbe_display_g_std(struct file *file, void *priv,
 
 	/* Get the standard from the current encoder */
 	if (vpbe_dev->current_timings.timings_type & VPBE_ENC_STD) {
-		*std_id = vpbe_dev->current_timings.timings.std_id;
+		*std_id = vpbe_dev->current_timings.std_id;
 		return 0;
 	}
 
@@ -1029,29 +1029,29 @@ static int vpbe_display_g_output(struct file *file, void *priv,
 }
 
 /**
- * vpbe_display_enum_dv_presets - Enumerate the dv presets
+ * vpbe_display_enum_dv_timings - Enumerate the dv timings
  *
- * enum the preset in the current encoder. Return the status. 0 - success
+ * enum the timings in the current encoder. Return the status. 0 - success
  * -EINVAL on error
  */
 static int
-vpbe_display_enum_dv_presets(struct file *file, void *priv,
-			struct v4l2_dv_enum_preset *preset)
+vpbe_display_enum_dv_timings(struct file *file, void *priv,
+			struct v4l2_enum_dv_timings *timings)
 {
 	struct vpbe_fh *fh = priv;
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_ENUM_DV_PRESETS\n");
+	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_ENUM_DV_TIMINGS\n");
 
 	/* Enumerate outputs */
-	if (NULL == vpbe_dev->ops.enum_dv_presets)
+	if (NULL == vpbe_dev->ops.enum_dv_timings)
 		return -EINVAL;
 
-	ret = vpbe_dev->ops.enum_dv_presets(vpbe_dev, preset);
+	ret = vpbe_dev->ops.enum_dv_timings(vpbe_dev, timings);
 	if (ret) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
-			"Failed to enumerate dv presets info\n");
+			"Failed to enumerate dv timings info\n");
 		return -EINVAL;
 	}
 
@@ -1059,21 +1059,21 @@ vpbe_display_enum_dv_presets(struct file *file, void *priv,
 }
 
 /**
- * vpbe_display_s_dv_preset - Set the dv presets
+ * vpbe_display_s_dv_timings - Set the dv timings
  *
- * Set the preset in the current encoder. Return the status. 0 - success
+ * Set the timings in the current encoder. Return the status. 0 - success
  * -EINVAL on error
  */
 static int
-vpbe_display_s_dv_preset(struct file *file, void *priv,
-				struct v4l2_dv_preset *preset)
+vpbe_display_s_dv_timings(struct file *file, void *priv,
+				struct v4l2_dv_timings *timings)
 {
 	struct vpbe_fh *fh = priv;
 	struct vpbe_layer *layer = fh->layer;
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_S_DV_PRESETS\n");
+	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_S_DV_TIMINGS\n");
 
 
 	/* If streaming is started, return error */
@@ -1083,13 +1083,13 @@ vpbe_display_s_dv_preset(struct file *file, void *priv,
 	}
 
 	/* Set the given standard in the encoder */
-	if (!vpbe_dev->ops.s_dv_preset)
+	if (!vpbe_dev->ops.s_dv_timings)
 		return -EINVAL;
 
-	ret = vpbe_dev->ops.s_dv_preset(vpbe_dev, preset);
+	ret = vpbe_dev->ops.s_dv_timings(vpbe_dev, timings);
 	if (ret) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
-			"Failed to set the dv presets info\n");
+			"Failed to set the dv timings info\n");
 		return -EINVAL;
 	}
 	/* set the current norm to zero to be consistent. If STD is used
@@ -1101,26 +1101,25 @@ vpbe_display_s_dv_preset(struct file *file, void *priv,
 }
 
 /**
- * vpbe_display_g_dv_preset - Set the dv presets
+ * vpbe_display_g_dv_timings - Set the dv timings
  *
- * Get the preset in the current encoder. Return the status. 0 - success
+ * Get the timings in the current encoder. Return the status. 0 - success
  * -EINVAL on error
  */
 static int
-vpbe_display_g_dv_preset(struct file *file, void *priv,
-				struct v4l2_dv_preset *dv_preset)
+vpbe_display_g_dv_timings(struct file *file, void *priv,
+				struct v4l2_dv_timings *dv_timings)
 {
 	struct vpbe_fh *fh = priv;
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_G_DV_PRESETS\n");
+	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_G_DV_TIMINGS\n");
 
 	/* Get the given standard in the encoder */
 
 	if (vpbe_dev->current_timings.timings_type &
-				VPBE_ENC_DV_PRESET) {
-		dv_preset->preset =
-			vpbe_dev->current_timings.timings.dv_preset;
+				VPBE_ENC_CUSTOM_TIMINGS) {
+		*dv_timings = vpbe_dev->current_timings.dv_timings;
 	} else {
 		return -EINVAL;
 	}
@@ -1572,9 +1571,9 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_enum_output	 = vpbe_display_enum_output,
 	.vidioc_s_output	 = vpbe_display_s_output,
 	.vidioc_g_output	 = vpbe_display_g_output,
-	.vidioc_s_dv_preset	 = vpbe_display_s_dv_preset,
-	.vidioc_g_dv_preset	 = vpbe_display_g_dv_preset,
-	.vidioc_enum_dv_presets	 = vpbe_display_enum_dv_presets,
+	.vidioc_s_dv_timings	 = vpbe_display_s_dv_timings,
+	.vidioc_g_dv_timings	 = vpbe_display_g_dv_timings,
+	.vidioc_enum_dv_timings	 = vpbe_display_enum_dv_timings,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	 = vpbe_display_g_register,
 	.vidioc_s_register	 = vpbe_display_s_register,
@@ -1639,8 +1638,7 @@ static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 			VPBE_ENC_STD) {
 		vbd->tvnorms = (V4L2_STD_525_60 | V4L2_STD_625_50);
 		vbd->current_norm =
-			disp_dev->vpbe_dev->
-			current_timings.timings.std_id;
+			disp_dev->vpbe_dev->current_timings.std_id;
 	} else
 		vbd->current_norm = 0;
 

@@ -575,8 +575,8 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 	struct stb6100_state *state = NULL;
 
 	state = kzalloc(sizeof (struct stb6100_state), GFP_KERNEL);
-	if (state == NULL)
-		goto error;
+	if (!state)
+		return NULL;
 
 	state->config		= config;
 	state->i2c		= i2c;
@@ -587,10 +587,6 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 
 	printk("%s: Attaching STB6100 \n", __func__);
 	return fe;
-
-error:
-	kfree(state);
-	return NULL;
 }
 
 static int stb6100_release(struct dvb_frontend *fe)

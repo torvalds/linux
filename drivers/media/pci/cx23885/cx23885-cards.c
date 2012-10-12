@@ -542,11 +542,13 @@ struct cx23885_board cx23885_boards[] = {
 			{
 				.type   = CX23885_VMUX_COMPOSITE1,
 				.vmux   = CX25840_COMPOSITE8,
+				.amux   = CX25840_AUDIO7,
 			},
 			{
 				.type   = CX23885_VMUX_SVIDEO,
 				.vmux   = CX25840_SVIDEO_LUMA3 |
 						CX25840_SVIDEO_CHROMA4,
+				.amux   = CX25840_AUDIO7,
 			},
 			{
 				.type   = CX23885_VMUX_COMPONENT,
@@ -554,6 +556,7 @@ struct cx23885_board cx23885_boards[] = {
 					CX25840_VIN1_CH1 |
 					CX25840_VIN6_CH2 |
 					CX25840_VIN7_CH3,
+				.amux   = CX25840_AUDIO7,
 			},
 		},
 	},

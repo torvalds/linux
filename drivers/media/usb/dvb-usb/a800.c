@@ -93,7 +93,7 @@ static int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	/* call the universal NEC remote processor, to find out the key's state and event */
 	dvb_usb_nec_rc_key_to_event(d,key,event,state);
 	if (key[0] != 0)
-		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
+		deb_rc("key: %*ph\n", 5, key);
 	ret = 0;
 out:
 	kfree(key);

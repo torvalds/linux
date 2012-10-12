@@ -446,7 +446,7 @@ static void si470x_int_in_callback(struct urb *urb)
 						READCHAN_BLERD) >> 10;
 				rds = radio->registers[RDSD];
 				break;
-			};
+			}
 
 			/* Fill the V4L2 RDS buffer */
 			put_unaligned_le16(rds, &tmpbuf);

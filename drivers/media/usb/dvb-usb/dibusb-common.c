@@ -473,7 +473,7 @@ int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
 	dvb_usb_nec_rc_key_to_event(d,key,event,state);
 	if (key[0] != 0)
-		deb_info("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
+		deb_info("key: %*ph\n", 5, key);
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_rc_query);

@@ -890,6 +890,9 @@ static int redrat3_set_tx_carrier(struct rc_dev *rcdev, u32 carrier)
 	struct device *dev = rr3->dev;
 
 	rr3_dbg(dev, "Setting modulation frequency to %u", carrier);
+	if (carrier == 0)
+		return -EINVAL;
+
 	rr3->carrier = carrier;
 
 	return carrier;

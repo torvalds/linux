@@ -241,7 +241,7 @@ static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
 				KBUILD_MODNAME, gpio);
 		ret = -EINVAL;
 		goto err;
-	};
+	}
 
 	switch (gpio) {
 	case 0:
@@ -253,7 +253,7 @@ static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
 	default:
 		pos = 4;
 		break;
-	};
+	}
 
 	ret = af9013_wr_reg_bits(state, addr, pos, 4, gpioval);
 	if (ret)
@@ -726,7 +726,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid hierarchy\n", __func__);
 		auto_mode = 1;
-	};
+	}
 
 	switch (c->modulation) {
 	case QAM_AUTO:

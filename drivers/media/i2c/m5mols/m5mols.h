@@ -16,8 +16,16 @@
 #ifndef M5MOLS_H
 #define M5MOLS_H
 
+#include <linux/sizes.h>
 #include <media/v4l2-subdev.h>
 #include "m5mols_reg.h"
+
+
+/* An amount of data transmitted in addition to the value
+ * determined by CAPP_JPEG_SIZE_MAX register.
+ */
+#define M5MOLS_JPEG_TAGS_SIZE		0x20000
+#define M5MOLS_MAIN_JPEG_SIZE_MAX	(5 * SZ_1M)
 
 extern int m5mols_debug;
 
@@ -67,12 +75,14 @@ struct m5mols_exif {
 /**
  * struct m5mols_capture - Structure for the capture capability
  * @exif: EXIF information
+ * @buf_size: internal JPEG frame buffer size, in bytes
  * @main: size in bytes of the main image
  * @thumb: size in bytes of the thumb image, if it was accompanied
  * @total: total size in bytes of the produced image
  */
 struct m5mols_capture {
 	struct m5mols_exif exif;
+	unsigned int buf_size;
 	u32 main;
 	u32 thumb;
 	u32 total;

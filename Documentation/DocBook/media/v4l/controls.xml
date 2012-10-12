@@ -1586,7 +1586,6 @@ frame counter of the frame that is currently displayed (decoded). This value is 
 the decoder is started.</entry>
 	      </row>
 
-
 	      <row><entry></entry></row>
 	      <row>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE</constant>&nbsp;</entry>
@@ -2270,6 +2269,14 @@ Applicable to the MPEG1, MPEG2, MPEG4 encoders.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-vbv-delay">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_VBV_DELAY</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row><row><entry spanname="descr">Sets the initial delay in milliseconds for
+VBV buffer control.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
 	      <row>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE</constant>&nbsp;</entry>
 		<entry>integer</entry>
@@ -2332,6 +2339,265 @@ Applicable to the MPEG4 decoder.</entry>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_MPEG4_VOP_TIME_INC</constant>&nbsp;</entry>
 		<entry>integer</entry>
 	      </row><row><entry spanname="descr">vop_time_increment value for MPEG4. Applicable to the MPEG4 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_SEI_FRAME_PACKING</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Enable generation of frame packing supplemental enhancement information in the encoded bitstream.
+The frame packing SEI message contains the arrangement of L and R planes for 3D viewing. Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_SEI_FP_CURRENT_FRAME_0</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Sets current frame as frame0 in frame packing SEI.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-h264-sei-fp-arrangement-type">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_sei_fp_arrangement_type</entry>
+	      </row>
+	      <row><entry spanname="descr">Frame packing arrangement type for H264 SEI.
+Applicable to the H264 encoder.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_CHEKERBOARD</constant>&nbsp;</entry>
+		      <entry>Pixels are alternatively from L and R.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_COLUMN</constant>&nbsp;</entry>
+		      <entry>L and R are interlaced by column.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_ROW</constant>&nbsp;</entry>
+		      <entry>L and R are interlaced by row.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_SIDE_BY_SIDE</constant>&nbsp;</entry>
+		      <entry>L is on the left, R on the right.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TOP_BOTTOM</constant>&nbsp;</entry>
+		      <entry>L is on top, R on bottom.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TEMPORAL</constant>&nbsp;</entry>
+		      <entry>One view per frame.</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Enables flexible macroblock ordering in the encoded bitstream. It is a technique
+used for restructuring the ordering of macroblocks in pictures. Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-h264-fmo-map-type">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO_MAP_TYPE</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_fmo_map_type</entry>
+	      </row>
+	      <row><entry spanname="descr">When using FMO, the map type divides the image in different scan patterns of macroblocks.
+Applicable to the H264 encoder.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_INTERLEAVED_SLICES</constant>&nbsp;</entry>
+		      <entry>Slices are interleaved one after other with macroblocks in run length order.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES</constant>&nbsp;</entry>
+		      <entry>Scatters the macroblocks based on a mathematical function known to both encoder and decoder.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_FOREGROUND_WITH_LEFT_OVER</constant>&nbsp;</entry>
+		      <entry>Macroblocks arranged in rectangular areas or regions of interest.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_BOX_OUT</constant>&nbsp;</entry>
+		      <entry>Slice groups grow in a cyclic way from centre to outwards.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_RASTER_SCAN</constant>&nbsp;</entry>
+		      <entry>Slice groups grow in raster scan pattern from left to right.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_WIPE_SCAN</constant>&nbsp;</entry>
+		      <entry>Slice groups grow in wipe scan pattern from top to bottom.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_EXPLICIT</constant>&nbsp;</entry>
+		      <entry>User defined map type.</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO_SLICE_GROUP</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Number of slice groups in FMO.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-h264-fmo-change-direction">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO_CHANGE_DIRECTION</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_fmo_change_dir</entry>
+	      </row>
+	      <row><entry spanname="descr">Specifies a direction of the slice group change for raster and wipe maps.
+Applicable to the H264 encoder.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_RIGHT</constant>&nbsp;</entry>
+		      <entry>Raster scan or wipe right.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_LEFT</constant>&nbsp;</entry>
+		      <entry>Reverse raster scan or wipe left.</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO_CHANGE_RATE</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Specifies the size of the first slice group for raster and wipe map.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_FMO_RUN_LENGTH</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Specifies the number of consecutive macroblocks for the interleaved map.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_ASO</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Enables arbitrary slice ordering in encoded bitstream.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_ASO_SLICE_ORDER</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row><row><entry spanname="descr">Specifies the slice order in ASO. Applicable to the H264 encoder.
+The supplied 32-bit integer is interpreted as follows (bit
+0 = least significant bit):</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry>Bit 0:15</entry>
+		      <entry>Slice ID</entry>
+		    </row>
+		    <row>
+		      <entry>Bit 16:32</entry>
+		      <entry>Slice position or order</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row>
+	      <row><entry spanname="descr">Enables H264 hierarchical coding.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-h264-hierarchical-coding-type">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_TYPE</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_hierarchical_coding_type</entry>
+	      </row>
+	      <row><entry spanname="descr">Specifies the hierarchical coding type.
+Applicable to the H264 encoder.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_B</constant>&nbsp;</entry>
+		      <entry>Hierarchical B coding.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_P</constant>&nbsp;</entry>
+		      <entry>Hierarchical P coding.</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row>
+	      <row><entry spanname="descr">Specifies the number of hierarchical coding layers.
+Applicable to the H264 encoder.</entry>
+	      </row>
+
+	      <row><entry></entry></row>
+	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_QP</constant>&nbsp;</entry>
+		<entry>integer</entry>
+	      </row><row><entry spanname="descr">Specifies a user defined QP for each layer. Applicable to the H264 encoder.
+The supplied 32-bit integer is interpreted as follows (bit
+0 = least significant bit):</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry>Bit 0:15</entry>
+		      <entry>QP value</entry>
+		    </row>
+		    <row>
+		      <entry>Bit 16:32</entry>
+		      <entry>Layer number</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
 	      </row>
 
 	    </tbody>
@@ -4266,6 +4532,16 @@ interface and may change in the future.</para>
 	    the subdev. This control is read-only and its unit is
 	    pixels / second.
 	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN</constant></entry>
+	    <entry>menu</entry>
+	  </row>
+	  <row id="v4l2-test-pattern">
+	    <entry spanname="descr"> Some capture/display/sensor devices have
+	    the capability to generate test pattern images. These hardware
+	    specific test patterns can be used to test if a device is working
+	    properly.</entry>
 	  </row>
 	  <row><entry></entry></row>
 	</tbody>

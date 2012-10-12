@@ -1421,8 +1421,8 @@ struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 	       config ? config->i2c_addr : 0);
 
 	state = kzalloc(sizeof(struct lg216x_state), GFP_KERNEL);
-	if (state == NULL)
-		goto fail;
+	if (!state)
+		return NULL;
 
 	state->cfg = config;
 	state->i2c_adap = i2c_adap;
@@ -1449,10 +1449,6 @@ struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 	state->frontend.dtv_property_cache.atscmh_parade_id = 1;
 
 	return &state->frontend;
-fail:
-	lg_warn("unable to detect LG216x hardware\n");
-	kfree(state);
-	return NULL;
 }
 EXPORT_SYMBOL(lg2160_attach);
 

@@ -1535,7 +1535,7 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 			cx88_core_irq(core,status);
 		if (status & PCI_INT_VIDINT)
 			cx8800_vid_irq(dev);
-	};
+	}
 	if (10 == loop) {
 		printk(KERN_WARNING "%s/0: irq loop -- clearing mask\n",
 		       core->name);

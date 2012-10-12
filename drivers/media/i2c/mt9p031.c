@@ -574,7 +574,6 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
  * V4L2 subdev control operations
  */
 
-#define V4L2_CID_TEST_PATTERN		(V4L2_CID_USER_BASE | 0x1001)
 #define V4L2_CID_BLC_AUTO		(V4L2_CID_USER_BASE | 0x1002)
 #define V4L2_CID_BLC_TARGET_LEVEL	(V4L2_CID_USER_BASE | 0x1003)
 #define V4L2_CID_BLC_ANALOG_OFFSET	(V4L2_CID_USER_BASE | 0x1004)
@@ -739,18 +738,6 @@ static const char * const mt9p031_test_pattern_menu[] = {
 
 static const struct v4l2_ctrl_config mt9p031_ctrls[] = {
 	{
-		.ops		= &mt9p031_ctrl_ops,
-		.id		= V4L2_CID_TEST_PATTERN,
-		.type		= V4L2_CTRL_TYPE_MENU,
-		.name		= "Test Pattern",
-		.min		= 0,
-		.max		= ARRAY_SIZE(mt9p031_test_pattern_menu) - 1,
-		.step		= 0,
-		.def		= 0,
-		.flags		= 0,
-		.menu_skip_mask	= 0,
-		.qmenu		= mt9p031_test_pattern_menu,
-	}, {
 		.ops		= &mt9p031_ctrl_ops,
 		.id		= V4L2_CID_BLC_AUTO,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -950,7 +937,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->model = did->driver_data;
 	mt9p031->reset = -1;
 
-	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 5);
+	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
 	v4l2_ctrl_new_std(&mt9p031->ctrls, &mt9p031_ctrl_ops,
 			  V4L2_CID_EXPOSURE, MT9P031_SHUTTER_WIDTH_MIN,
@@ -966,6 +953,10 @@ static int mt9p031_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&mt9p031->ctrls, &mt9p031_ctrl_ops,
 			  V4L2_CID_PIXEL_RATE, pdata->target_freq,
 			  pdata->target_freq, 1, pdata->target_freq);
+	v4l2_ctrl_new_std_menu_items(&mt9p031->ctrls, &mt9p031_ctrl_ops,
+			  V4L2_CID_TEST_PATTERN,
+			  ARRAY_SIZE(mt9p031_test_pattern_menu) - 1, 0,
+			  0, mt9p031_test_pattern_menu);
 
 	for (i = 0; i < ARRAY_SIZE(mt9p031_ctrls); ++i)
 		v4l2_ctrl_new_custom(&mt9p031->ctrls, &mt9p031_ctrls[i], NULL);

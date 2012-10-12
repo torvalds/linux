@@ -23,10 +23,6 @@ static inline struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 	return NULL;
 }
 
-/* FIXME: Should use the standard DVB attachment interfaces */
-unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe);
-unsigned int tuner_MT2063_ClearPowerMaskBits(struct dvb_frontend *fe);
-
 #endif /* CONFIG_DVB_MT2063 */
 
 #endif /* __MT2063_H__ */

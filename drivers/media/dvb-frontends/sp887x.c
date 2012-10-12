@@ -229,7 +229,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	switch (p->hierarchy) {
 	case HIERARCHY_NONE:
@@ -248,7 +248,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	switch (p->code_rate_HP) {
 	case FEC_1_2:
@@ -270,7 +270,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (known_parameters)
 		*reg0xc05 |= (2 << 1);	/* use specified parameters */
