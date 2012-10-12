@@ -970,8 +970,6 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @sync_obj: A sync object that signals when moving is complete.
- * @sync_obj_arg: An argument to pass to the sync object idle / wait
- * functions.
  * @evict: This is an evict move. Don't return until the buffer is idle.
  * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
@@ -987,7 +985,6 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 				     void *sync_obj,
-				     void *sync_obj_arg,
 				     bool evict, bool no_wait_reserve,
 				     bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);

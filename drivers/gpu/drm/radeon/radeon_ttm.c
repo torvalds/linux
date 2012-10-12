@@ -265,7 +265,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 			new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE), /* GPU pages */
 			&fence);
 	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, (void *)fence, NULL,
+	r = ttm_bo_move_accel_cleanup(bo, (void *)fence,
 				      evict, no_wait_reserve, no_wait_gpu, new_mem);
 	radeon_fence_unref(&fence);
 	return r;

@@ -611,7 +611,6 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      void *sync_obj,
-			      void *sync_obj_arg,
 			      bool evict, bool no_wait_reserve,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
