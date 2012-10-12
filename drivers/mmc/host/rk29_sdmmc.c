@@ -80,7 +80,7 @@ int debug_level = 5;
     #define RK29_SDMMC0DETECTN_GPIO RK30_PIN3_PB6
     #define RK29_SDMMC0PWREN_GPIO   RK30_PIN3_PA7
 #elif defined(CONFIG_ARCH_RK2928)
-    #define RK29_SDMMC0DETECTN_GPIO RK2928_PIN1_PC7
+    #define RK29_SDMMC0DETECTN_GPIO RK2928_PIN1_PC1
     #define RK29_SDMMC0PWREN_GPIO   RK2928_PIN1_PB6
 #endif
 
@@ -109,7 +109,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.4.08 The last modify date is 2012-10-07"
+#define RK29_SDMMC_VERSION "Ver.4.09 The last modify date is 2012-10-12"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -212,6 +212,7 @@ struct rk29_sdmmc {
 	u32			cmdr;   //the value setted into command-register
 	u32			dodma;  //sign the DMA used for transfer.
 	u32         errorstep;//record the error point.
+	int         timeout_times;  //use to force close the sdmmc0 when the timeout_times exceeds the limit.
 	u32         *pbuf;
 	SDC_INT_INFO_T    intInfo; 
     struct rk29_sdmmc_dma_info 	dma_info;
@@ -1586,6 +1587,9 @@ static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
                 cdetect = cdetect?0:1;
                 
          #else
+        	if(host->gpio_det == INVALID_GPIO)
+        		return 1;
+
         	cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
 
             cdetect = (cdetect & SDMMC_CARD_DETECT_N)?0:1;
@@ -1599,6 +1603,9 @@ static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
             #if defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
             cdetect = 1;
             #else
+            if(host->gpio_det == INVALID_GPIO)
+        		return 1;
+        		
             cdetect = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags)?1:0;
             #endif
             break;
@@ -2050,7 +2057,7 @@ static void rk29_sdmmc_dealwith_timeout(struct rk29_sdmmc *host)
 static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
-
+    
 	rk29_sdmmc_enable_irq(host, false);
 	
 	if(STATE_SENDING_CMD == host->state)
@@ -2059,9 +2066,16 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 	    {
     	    printk(KERN_WARNING "%d... cmd=%d(arg=0x%x), INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x [%s]\n",\
                  __LINE__,host->cmd->opcode, host->cmd->arg,host->errorstep,host->state,host->dma_name);
+
+            if(++host->timeout_times >= 3)
+            {
+                printk(KERN_WARNING "I am very sorry to tell you,in order to make the machine correctly,you must remove-insert card again.");                                  
+                host->mmc->re_initialized_flags = 0;
+                host->timeout_times = 0;
+            }
         }
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFE); // clear INT,except for SDMMC_INT_CD
-        rk29_sdmmc_dealwith_timeout(host);        
+        rk29_sdmmc_dealwith_timeout(host);  
 	}
 	
     rk29_sdmmc_enable_irq(host, true);
@@ -2071,7 +2085,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
-
+  
 	rk29_sdmmc_enable_irq(host, false);
 
 #if SDMMC_USE_INT_UNBUSY
@@ -2084,6 +2098,13 @@ static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 	    {
     	   printk(KERN_WARNING "%s..%d...cmd=%d DTO_timeout,cmdr=0x%x, errorStep=0x%x, Hoststate=%x [%s]\n", \
     	        __FUNCTION__, __LINE__,host->cmd->opcode,host->cmdr ,host->errorstep,host->state,host->dma_name);
+
+    	    if(++host->timeout_times >= 3)
+            {
+                printk(KERN_WARNING "I am very sorry to tell you,in order to make the machine correctly,you must remove-insert card again.");
+                host->mmc->re_initialized_flags = 0;
+                host->timeout_times = 0;
+            }     
 	    }
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFE); // clear INT,except for SDMMC_INT_CD
 	    rk29_sdmmc_dealwith_timeout(host);  
@@ -2283,7 +2304,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
     	    	         ((24==host->old_cmd)&&(25==mrq->cmd->opcode)) || ((25==host->old_cmd)&&(24==mrq->cmd->opcode)))
     	    	    {
     	    	        host->old_cmd = mrq->cmd->opcode;
-    	    	        if(host->error_times++ %RK29_ERROR_PRINTK_INTERVAL ==0)
+    	    	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*100) ==0)
             	        {
                     		printk(KERN_INFO "%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  1==[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
@@ -2299,7 +2320,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
         	    }
         	    else
         	    {
-        	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*10) ==0)
+        	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*100) ==0)
         	        {
                 		printk(KERN_INFO "%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  3==[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
@@ -3591,7 +3612,8 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	host->mrq = NULL;
 	host->new_mrq = NULL;
 	host->irq_state = true;
-
+	host->timeout_times = 0;
+	
 #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)	
     host->gpio_det = pdata->detect_irq;
     host->insert_level = pdata->insert_card_level;
@@ -3791,7 +3813,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	}
 
 #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
-    if(INVALID_GPIO != host->gpio_det)
+    if((RK29_CTRL_SDMMC_ID == host->pdev->id) && (INVALID_GPIO != host->gpio_det))
     {
         INIT_DELAYED_WORK(&host->work, rk29_sdmmc_detect_change_work);
         ret = gpio_request(host->gpio_det, "sd_detect");
@@ -3802,7 +3824,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		gpio_direction_input(host->gpio_det);
 
         level_value = gpio_get_value(host->gpio_det);       
-        printk("%d..%s:   level value =%d    ======trace detect =====\n",__LINE__ ,__FUNCTION__, level_value);
         
 		host->gpio_irq = gpio_to_irq(host->gpio_det);
         ret = request_irq(host->gpio_irq, det_keys_isr,
