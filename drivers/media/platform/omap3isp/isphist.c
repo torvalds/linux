@@ -72,11 +72,14 @@ static void hist_reset_mem(struct ispstat *hist)
 
 static void hist_dma_config(struct ispstat *hist)
 {
+	struct isp_device *isp = hist->isp;
+
 	hist->dma_config.data_type = OMAP_DMA_DATA_TYPE_S32;
 	hist->dma_config.sync_mode = OMAP_DMA_SYNC_ELEMENT;
 	hist->dma_config.frame_count = 1;
 	hist->dma_config.src_amode = OMAP_DMA_AMODE_CONSTANT;
-	hist->dma_config.src_start = OMAP3ISP_HIST_REG_BASE + ISPHIST_DATA;
+	hist->dma_config.src_start = isp->mmio_base_phys[OMAP3_ISP_IOMEM_HIST]
+				   + ISPHIST_DATA;
 	hist->dma_config.dst_amode = OMAP_DMA_AMODE_POST_INC;
 	hist->dma_config.src_or_dst_synch = OMAP_DMA_SRC_SYNC;
 }
@@ -477,6 +480,8 @@ int omap3isp_hist_init(struct isp_device *isp)
 		return -ENOMEM;
 
 	memset(hist, 0, sizeof(*hist));
+	hist->isp = isp;
+
 	if (HIST_CONFIG_DMA)
 		ret = omap_request_dma(OMAP24XX_DMA_NO_DEVICE, "DMA_ISP_HIST",
 				       hist_dma_cb, hist, &hist->dma_ch);
@@ -494,7 +499,6 @@ int omap3isp_hist_init(struct isp_device *isp)
 	hist->ops = &hist_ops;
 	hist->priv = hist_cfg;
 	hist->event_type = V4L2_EVENT_OMAP3ISP_HIST;
-	hist->isp = isp;
 
 	ret = omap3isp_stat_init(hist, "histogram", &hist_subdev_ops);
 	if (ret) {
