@@ -310,21 +310,20 @@ static void vmw_sync_obj_unref(void **sync_obj)
 	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
 }
 
-static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
+static int vmw_sync_obj_flush(void *sync_obj)
 {
 	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
 	return 0;
 }
 
-static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
+static bool vmw_sync_obj_signaled(void *sync_obj)
 {
 	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
 				       DRM_VMW_FENCE_FLAG_EXEC);
 
 }
 
-static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
-			     bool lazy, bool interruptible)
+static int vmw_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
 {
 	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
 				  DRM_VMW_FENCE_FLAG_EXEC,

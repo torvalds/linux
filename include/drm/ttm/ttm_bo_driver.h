@@ -422,10 +422,10 @@ struct ttm_bo_driver {
 	 * documentation.
 	 */
 
-	bool (*sync_obj_signaled) (void *sync_obj, void *sync_arg);
-	int (*sync_obj_wait) (void *sync_obj, void *sync_arg,
+	bool (*sync_obj_signaled) (void *sync_obj);
+	int (*sync_obj_wait) (void *sync_obj,
 			      bool lazy, bool interruptible);
-	int (*sync_obj_flush) (void *sync_obj, void *sync_arg);
+	int (*sync_obj_flush) (void *sync_obj);
 	void (*sync_obj_unref) (void **sync_obj);
 	void *(*sync_obj_ref) (void *sync_obj);
 

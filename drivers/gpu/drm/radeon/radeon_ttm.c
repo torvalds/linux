@@ -471,13 +471,12 @@ static void radeon_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_re
 {
 }
 
-static int radeon_sync_obj_wait(void *sync_obj, void *sync_arg,
-				bool lazy, bool interruptible)
+static int radeon_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
 {
 	return radeon_fence_wait((struct radeon_fence *)sync_obj, interruptible);
 }
 
-static int radeon_sync_obj_flush(void *sync_obj, void *sync_arg)
+static int radeon_sync_obj_flush(void *sync_obj)
 {
 	return 0;
 }
@@ -492,7 +491,7 @@ static void *radeon_sync_obj_ref(void *sync_obj)
 	return radeon_fence_ref((struct radeon_fence *)sync_obj);
 }
 
-static bool radeon_sync_obj_signaled(void *sync_obj, void *sync_arg)
+static bool radeon_sync_obj_signaled(void *sync_obj)
 {
 	return radeon_fence_signaled((struct radeon_fence *)sync_obj);
 }

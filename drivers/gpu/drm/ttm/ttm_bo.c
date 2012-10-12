@@ -543,7 +543,7 @@ queue:
 	spin_unlock(&bdev->fence_lock);
 
 	if (sync_obj) {
-		driver->sync_obj_flush(sync_obj, NULL);
+		driver->sync_obj_flush(sync_obj);
 		driver->sync_obj_unref(&sync_obj);
 	}
 	schedule_delayed_work(&bdev->wq,
@@ -1721,7 +1721,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 
 	while (bo->sync_obj) {
 
-		if (driver->sync_obj_signaled(bo->sync_obj, NULL)) {
+		if (driver->sync_obj_signaled(bo->sync_obj)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
 			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
@@ -1736,7 +1736,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
 		spin_unlock(&bdev->fence_lock);
-		ret = driver->sync_obj_wait(sync_obj, NULL,
+		ret = driver->sync_obj_wait(sync_obj,
 					    lazy, interruptible);
 		if (unlikely(ret != 0)) {
 			driver->sync_obj_unref(&sync_obj);
