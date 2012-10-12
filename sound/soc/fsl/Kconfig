@@ -46,6 +46,20 @@ config SND_SOC_P1022_DS
 	  This will also include the Wolfson Microelectronics WM8776 codec
 	  driver.
 
+config SND_SOC_P1022_RDK
+	tristate "ALSA SoC support for the Freescale / iVeia P1022 RDK board"
+	# I2C is necessary for the WM8960 driver
+	depends on P1022_RDK && I2C
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
+	select SND_SOC_WM8960
+	default y if P1022_RDK
+	help
+	  Say Y if you want to enable audio on the Freescale / iVeia
+	  P1022 RDK board.  This will also include the Wolfson
+	  Microelectronics WM8960 codec driver.
+
 config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
