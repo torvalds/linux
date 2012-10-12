@@ -32,6 +32,8 @@
 #define ATH_MCI_MAX_PROFILE		(ATH_MCI_MAX_ACL_PROFILE +\
 					 ATH_MCI_MAX_SCO_PROFILE)
 
+#define ATH_MCI_INQUIRY_PRIO         62
+#define ATH_MCI_HI_PRIO              60
 #define ATH_MCI_NUM_BT_CHANNELS      79
 
 #define MCI_GPM_SET_CHANNEL_BIT(_p_gpm, _bt_chan)			  \
@@ -131,6 +133,7 @@ struct ath_mci_profile {
 	u8 num_pan;
 	u8 num_other_acl;
 	u8 num_bdr;
+	u8 voice_priority;
 };
 
 struct ath_mci_buf {

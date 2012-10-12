@@ -43,6 +43,7 @@ static bool ath_mci_add_profile(struct ath_common *common,
 				struct ath_mci_profile_info *info)
 {
 	struct ath_mci_profile_info *entry;
+	u8 voice_priority[] = { 110, 110, 110, 112, 110, 110, 114, 116, 118 };
 
 	if ((mci->num_sco == ATH_MCI_MAX_SCO_PROFILE) &&
 	    (info->type == MCI_GPM_COEX_PROFILE_VOICE))
@@ -59,6 +60,12 @@ static bool ath_mci_add_profile(struct ath_common *common,
 	memcpy(entry, info, 10);
 	INC_PROF(mci, info);
 	list_add_tail(&entry->list, &mci->info);
+	if (info->type == MCI_GPM_COEX_PROFILE_VOICE) {
+		if (info->voice_type < sizeof(voice_priority))
+			mci->voice_priority = voice_priority[info->voice_type];
+		else
+			mci->voice_priority = 110;
+	}
 
 	return true;
 }
@@ -250,6 +257,57 @@ static void ath9k_mci_work(struct work_struct *work)
 	ath_mci_update_scheme(sc);
 }
 
+static void ath_mci_update_stomp_txprio(u8 cur_txprio, u8 *stomp_prio)
+{
+	if (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_NONE])
+		stomp_prio[ATH_BTCOEX_STOMP_NONE] = cur_txprio;
+
+	if (cur_txprio > stomp_prio[ATH_BTCOEX_STOMP_ALL])
+		stomp_prio[ATH_BTCOEX_STOMP_ALL] = cur_txprio;
+
+	if ((cur_txprio > ATH_MCI_HI_PRIO) &&
+	    (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_LOW]))
+		stomp_prio[ATH_BTCOEX_STOMP_LOW] = cur_txprio;
+}
+
+static void ath_mci_set_concur_txprio(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_mci_profile *mci = &btcoex->mci;
+	u8 stomp_txprio[] = { 0, 0, 0, 0 }; /* all, low, none, low_ftp */
+
+	if (mci->num_mgmt) {
+		stomp_txprio[ATH_BTCOEX_STOMP_ALL] = ATH_MCI_INQUIRY_PRIO;
+		if (!mci->num_pan && !mci->num_other_acl)
+			stomp_txprio[ATH_BTCOEX_STOMP_NONE] =
+				ATH_MCI_INQUIRY_PRIO;
+	} else {
+		u8 prof_prio[] = { 50, 90, 94, 52 };/* RFCOMM, A2DP, HID, PAN */
+
+		stomp_txprio[ATH_BTCOEX_STOMP_LOW] =
+		stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0xff;
+
+		if (mci->num_sco)
+			ath_mci_update_stomp_txprio(mci->voice_priority,
+						    stomp_txprio);
+		if (mci->num_other_acl)
+			ath_mci_update_stomp_txprio(prof_prio[0], stomp_txprio);
+		if (mci->num_a2dp)
+			ath_mci_update_stomp_txprio(prof_prio[1], stomp_txprio);
+		if (mci->num_hid)
+			ath_mci_update_stomp_txprio(prof_prio[2], stomp_txprio);
+		if (mci->num_pan)
+			ath_mci_update_stomp_txprio(prof_prio[3], stomp_txprio);
+
+		if (stomp_txprio[ATH_BTCOEX_STOMP_NONE] == 0xff)
+			stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0;
+
+		if (stomp_txprio[ATH_BTCOEX_STOMP_LOW] == 0xff)
+			stomp_txprio[ATH_BTCOEX_STOMP_LOW] = 0;
+	}
+	ath9k_hw_btcoex_set_concur_txprio(sc->sc_ah, stomp_txprio);
+}
+
 static u8 ath_mci_process_profile(struct ath_softc *sc,
 				  struct ath_mci_profile_info *info)
 {
@@ -281,6 +339,7 @@ static u8 ath_mci_process_profile(struct ath_softc *sc,
 	} else
 		ath_mci_del_profile(common, mci, entry);
 
+	ath_mci_set_concur_txprio(sc);
 	return 1;
 }
 
@@ -314,6 +373,7 @@ static u8 ath_mci_process_status(struct ath_softc *sc,
 			mci->num_mgmt++;
 	} while (++i < ATH_MCI_MAX_PROFILE);
 
+	ath_mci_set_concur_txprio(sc);
 	if (old_num_mgmt != mci->num_mgmt)
 		return 1;
 
