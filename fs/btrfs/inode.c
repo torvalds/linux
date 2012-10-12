@@ -700,6 +700,8 @@ retry:
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
 		em->orig_start = em->start;
+		em->mod_start = em->start;
+		em->mod_len = em->len;
 
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
@@ -892,6 +894,8 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 		em->orig_start = em->start;
 		ram_size = ins.offset;
 		em->len = ins.offset;
+		em->mod_start = em->start;
+		em->mod_len = em->len;
 
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
@@ -1338,6 +1342,8 @@ out_check:
 			em->block_start = disk_bytenr;
 			em->orig_block_len = disk_num_bytes;
 			em->bdev = root->fs_info->fs_devices->latest_bdev;
+			em->mod_start = em->start;
+			em->mod_len = em->len;
 			set_bit(EXTENT_FLAG_PINNED, &em->flags);
 			set_bit(EXTENT_FLAG_FILLING, &em->flags);
 			em->generation = -1;
@@ -5966,6 +5972,8 @@ static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 
 	em->start = start;
 	em->orig_start = orig_start;
+	em->mod_start = start;
+	em->mod_len = len;
 	em->len = len;
 	em->block_len = block_len;
 	em->block_start = block_start;

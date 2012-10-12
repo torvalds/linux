@@ -1655,16 +1655,21 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 	struct btrfs_trans_handle *trans;
+	bool full_sync = 0;
 
 	trace_btrfs_sync_file(file, datasync);
 
 	/*
 	 * We write the dirty pages in the range and wait until they complete
 	 * out of the ->i_mutex. If so, we can flush the dirty pages by
-	 * multi-task, and make the performance up.
+	 * multi-task, and make the performance up.  See
+	 * btrfs_wait_ordered_range for an explanation of the ASYNC check.
 	 */
 	atomic_inc(&BTRFS_I(inode)->sync_writers);
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+			     &BTRFS_I(inode)->runtime_flags))
+		ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
 	atomic_dec(&BTRFS_I(inode)->sync_writers);
 	if (ret)
 		return ret;
@@ -1676,7 +1681,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * range being left.
 	 */
 	atomic_inc(&root->log_batch);
-	btrfs_wait_ordered_range(inode, start, end - start + 1);
+	full_sync = test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			     &BTRFS_I(inode)->runtime_flags);
+	if (full_sync)
+		btrfs_wait_ordered_range(inode, start, end - start + 1);
 	atomic_inc(&root->log_batch);
 
 	/*
@@ -1743,13 +1751,25 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (ret > 0) {
+			/*
+			 * If we didn't already wait for ordered extents we need
+			 * to do that now.
+			 */
+			if (!full_sync)
+				btrfs_wait_ordered_range(inode, start,
+							 end - start + 1);
 			ret = btrfs_commit_transaction(trans, root);
 		} else {
 			ret = btrfs_sync_log(trans, root);
-			if (ret == 0)
+			if (ret == 0) {
 				ret = btrfs_end_transaction(trans, root);
-			else
+			} else {
+				if (!full_sync)
+					btrfs_wait_ordered_range(inode, start,
+								 end -
+								 start + 1);
 				ret = btrfs_commit_transaction(trans, root);
+			}
 		}
 	} else {
 		ret = btrfs_end_transaction(trans, root);

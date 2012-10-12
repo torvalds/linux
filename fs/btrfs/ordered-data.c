@@ -196,6 +196,9 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->file_offset = file_offset;
 	entry->start = start;
 	entry->len = len;
+	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM) &&
+	    !(type == BTRFS_ORDERED_NOCOW))
+		entry->csum_bytes_left = disk_len;
 	entry->disk_len = disk_len;
 	entry->bytes_left = len;
 	entry->inode = igrab(inode);
@@ -213,6 +216,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	INIT_LIST_HEAD(&entry->root_extent_list);
 	INIT_LIST_HEAD(&entry->work_list);
 	init_completion(&entry->completion);
+	INIT_LIST_HEAD(&entry->log_list);
 
 	trace_btrfs_ordered_extent_add(inode, entry);
 
@@ -270,6 +274,10 @@ void btrfs_add_ordered_sum(struct inode *inode,
 	tree = &BTRFS_I(inode)->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	list_add_tail(&sum->list, &entry->list);
+	WARN_ON(entry->csum_bytes_left < sum->len);
+	entry->csum_bytes_left -= sum->len;
+	if (entry->csum_bytes_left == 0)
+		wake_up(&entry->wait);
 	spin_unlock_irq(&tree->lock);
 }
 
@@ -403,6 +411,66 @@ out:
 	}
 	spin_unlock_irqrestore(&tree->lock, flags);
 	return ret == 0;
+}
+
+/* Needs to either be called under a log transaction or the log_mutex */
+void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct btrfs_ordered_extent *ordered;
+	struct rb_node *n;
+	int index = log->log_transid % 2;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	spin_lock_irq(&tree->lock);
+	for (n = rb_first(&tree->tree); n; n = rb_next(n)) {
+		ordered = rb_entry(n, struct btrfs_ordered_extent, rb_node);
+		spin_lock(&log->log_extents_lock[index]);
+		if (list_empty(&ordered->log_list)) {
+			list_add_tail(&ordered->log_list, &log->logged_list[index]);
+			atomic_inc(&ordered->refs);
+		}
+		spin_unlock(&log->log_extents_lock[index]);
+	}
+	spin_unlock_irq(&tree->lock);
+}
+
+void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid)
+{
+	struct btrfs_ordered_extent *ordered;
+	int index = transid % 2;
+
+	spin_lock_irq(&log->log_extents_lock[index]);
+	while (!list_empty(&log->logged_list[index])) {
+		ordered = list_first_entry(&log->logged_list[index],
+					   struct btrfs_ordered_extent,
+					   log_list);
+		list_del_init(&ordered->log_list);
+		spin_unlock_irq(&log->log_extents_lock[index]);
+		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_IO_DONE,
+						   &ordered->flags));
+		btrfs_put_ordered_extent(ordered);
+		spin_lock_irq(&log->log_extents_lock[index]);
+	}
+	spin_unlock_irq(&log->log_extents_lock[index]);
+}
+
+void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid)
+{
+	struct btrfs_ordered_extent *ordered;
+	int index = transid % 2;
+
+	spin_lock_irq(&log->log_extents_lock[index]);
+	while (!list_empty(&log->logged_list[index])) {
+		ordered = list_first_entry(&log->logged_list[index],
+					   struct btrfs_ordered_extent,
+					   log_list);
+		list_del_init(&ordered->log_list);
+		spin_unlock_irq(&log->log_extents_lock[index]);
+		btrfs_put_ordered_extent(ordered);
+		spin_lock_irq(&log->log_extents_lock[index]);
+	}
+	spin_unlock_irq(&log->log_extents_lock[index]);
 }
 
 /*
