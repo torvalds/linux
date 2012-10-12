@@ -1741,6 +1741,12 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 
 	DSSDBG("PLL init\n");
 
+	/*
+	 * It seems that on many OMAPs we need to enable both to have a
+	 * functional HSDivider.
+	 */
+	enable_hsclk = enable_hsdiv = true;
+
 	if (dsi->vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
