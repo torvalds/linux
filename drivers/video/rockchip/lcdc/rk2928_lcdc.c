@@ -39,9 +39,9 @@
 
 
 
-static int dbg_thresd = 0;
+static int dbg_thresd = 2;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
-#define DBG(level,x...) do { if(unlikely(dbg_thresd >= level)) printk(KERN_INFO x); } while (0)
+#define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
 
 
@@ -747,8 +747,8 @@ int rk2928_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, u
 	switch(cmd)
 	{
 		case FBIOGET_PANEL_SIZE:    //get panel size
-                	panel_size[0] = dev_drv->screen0->x_res;
-                	panel_size[1] = dev_drv->screen0->y_res;
+                	panel_size[0] = lcdc_dev->screen->x_res;
+                	panel_size[1] = lcdc_dev->screen->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 
 				return -EFAULT;
 			break;
@@ -959,7 +959,7 @@ static int rk2928_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
         mutex_lock(&dev_drv->fb_win_id_mutex);
 	if(order == FB_DEFAULT_ORDER)
 	{
-		order = FB0_WIN1_FB1_WIN0_FB2_WIN2;
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;
 	}
         dev_drv->fb2_win_id  = order/100;
         dev_drv->fb1_win_id = (order/10)%10;
