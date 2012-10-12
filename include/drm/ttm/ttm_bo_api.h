@@ -170,7 +170,6 @@ struct ttm_tt;
  * @seq_valid: The value of @val_seq is valid. This value is protected by
  * the bo_device::lru_lock.
  * @reserved: Deadlock-free lock used for synchronization state transitions.
- * @sync_obj_arg: Opaque argument to synchronization object function.
  * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
  * @vm_rb: Rb node for the vm rb tree.
@@ -252,7 +251,6 @@ struct ttm_buffer_object {
 	 * checking NULL while reserved but not holding the mentioned lock.
 	 */
 
-	void *sync_obj_arg;
 	void *sync_obj;
 	unsigned long priv_flags;
 

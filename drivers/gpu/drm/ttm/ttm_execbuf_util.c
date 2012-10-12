@@ -223,7 +223,6 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 		bo = entry->bo;
 		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
-		bo->sync_obj_arg = entry->new_sync_obj_arg;
 		ttm_bo_unreserve_locked(bo);
 		entry->reserved = false;
 	}

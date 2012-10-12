@@ -501,7 +501,6 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	struct ttm_bo_global *glob = bo->glob;
 	struct ttm_bo_driver *driver;
 	void *sync_obj = NULL;
-	void *sync_obj_arg;
 	int put_count;
 	int ret;
 
@@ -537,7 +536,6 @@ queue:
 	driver = bdev->driver;
 	if (bo->sync_obj)
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-	sync_obj_arg = bo->sync_obj_arg;
 
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
@@ -545,7 +543,7 @@ queue:
 	spin_unlock(&bdev->fence_lock);
 
 	if (sync_obj) {
-		driver->sync_obj_flush(sync_obj, sync_obj_arg);
+		driver->sync_obj_flush(sync_obj, NULL);
 		driver->sync_obj_unref(&sync_obj);
 	}
 	schedule_delayed_work(&bdev->wq,
@@ -1716,7 +1714,6 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	struct ttm_bo_driver *driver = bo->bdev->driver;
 	struct ttm_bo_device *bdev = bo->bdev;
 	void *sync_obj;
-	void *sync_obj_arg;
 	int ret = 0;
 
 	if (likely(bo->sync_obj == NULL))
@@ -1724,7 +1721,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 
 	while (bo->sync_obj) {
 
-		if (driver->sync_obj_signaled(bo->sync_obj, bo->sync_obj_arg)) {
+		if (driver->sync_obj_signaled(bo->sync_obj, NULL)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
 			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
@@ -1738,9 +1735,8 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			return -EBUSY;
 
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-		sync_obj_arg = bo->sync_obj_arg;
 		spin_unlock(&bdev->fence_lock);
-		ret = driver->sync_obj_wait(sync_obj, sync_obj_arg,
+		ret = driver->sync_obj_wait(sync_obj, NULL,
 					    lazy, interruptible);
 		if (unlikely(ret != 0)) {
 			driver->sync_obj_unref(&sync_obj);
@@ -1748,8 +1744,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			return ret;
 		}
 		spin_lock(&bdev->fence_lock);
-		if (likely(bo->sync_obj == sync_obj &&
-			   bo->sync_obj_arg == sync_obj_arg)) {
+		if (likely(bo->sync_obj == sync_obj)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
 			clear_bit(TTM_BO_PRIV_FLAG_MOVING,

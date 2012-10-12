@@ -630,7 +630,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		bo->sync_obj = NULL;
 	}
 	bo->sync_obj = driver->sync_obj_ref(sync_obj);
-	bo->sync_obj_arg = sync_obj_arg;
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
 		spin_unlock(&bdev->fence_lock);
