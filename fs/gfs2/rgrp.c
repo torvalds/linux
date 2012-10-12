@@ -553,7 +553,6 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
  */
 int gfs2_rs_alloc(struct gfs2_inode *ip)
 {
-	int error = 0;
 	struct gfs2_blkreserv *res;
 
 	if (ip->i_res)
@@ -561,7 +560,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 
 	res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
 	if (!res)
-		error = -ENOMEM;
+		return -ENOMEM;
 
 	RB_CLEAR_NODE(&res->rs_node);
 
@@ -571,7 +570,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	else
 		ip->i_res = res;
 	up_write(&ip->i_rw_mutex);
-	return error;
+	return 0;
 }
 
 static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
