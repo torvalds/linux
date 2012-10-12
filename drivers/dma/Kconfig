@@ -125,6 +125,8 @@ config MPC512X_DMA
 	---help---
 	  Enable support for the Freescale MPC512x built-in DMA engine.
 
+source "drivers/dma/bestcomm/Kconfig"
+
 config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION

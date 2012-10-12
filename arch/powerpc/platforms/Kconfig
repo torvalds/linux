@@ -352,8 +352,6 @@ config OF_RTC
 	  Uses information from the OF or flattened device tree to instantiate
 	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
-source "arch/powerpc/sysdev/bestcomm/Kconfig"
-
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
