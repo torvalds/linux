@@ -1589,9 +1589,10 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 
-		err = snd_hda_create_spdif_out_ctls(codec,
-						    per_pin->pin_nid,
-						    per_pin->mux_nids[0]);
+		err = snd_hda_create_dig_out_ctls(codec,
+						  per_pin->pin_nid,
+						  per_pin->mux_nids[0],
+						  HDA_PCM_TYPE_HDMI);
 		if (err < 0)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
