@@ -304,7 +304,7 @@ void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin)
 	uint32_t old_mem_type = bo->mem.mem_type;
 	int ret;
 
-	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 	BUG_ON(old_mem_type != TTM_PL_VRAM &&
 	       old_mem_type != VMW_PL_FLAG_GMR);
 
