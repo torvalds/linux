@@ -191,6 +191,7 @@ static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
 	//#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
     rk_cif_power(on);
+	return 0;
 }
 #endif
 

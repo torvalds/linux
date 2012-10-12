@@ -300,7 +300,11 @@ static int rk_sensor_io_init(void);
 static int rk_sensor_io_deinit(int sensor);
 static int rk_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, int on);
 static int rk_sensor_power(struct device *dev, int on);
+#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO) \
+    || (CONFIG_SENSOR_RESET_PIN_01 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_02 != INVALID_GPIO) \
+    || (CONFIG_SENSOR_RESET_PIN_11 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_12 != INVALID_GPIO)
 static int rk_sensor_reset(struct device *dev);
+#endif
 static int rk_sensor_powerdown(struct device *dev, int on);
 
 static struct rk29camera_platform_data rk_camera_platform_data = {
@@ -570,7 +574,7 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
             	.power		= rk_sensor_power,
-                #if (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+                #if (CONFIG_SENSOR_RESET_PIN_01 != INVALID_GPIO)
             	.reset		= rk_sensor_reset,
                 #endif	  
             	.powerdown	= rk_sensor_powerdown,
@@ -603,7 +607,7 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
             	.power		= rk_sensor_power,
-                #if (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+                #if (CONFIG_SENSOR_RESET_PIN_02 != INVALID_GPIO)
             	.reset		= rk_sensor_reset,
                 #endif	  
             	.powerdown	= rk_sensor_powerdown,
@@ -636,7 +640,7 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
             	.power		= rk_sensor_power,
-                #if (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+                #if (CONFIG_SENSOR_RESET_PIN_11 != INVALID_GPIO)
             	.reset		= rk_sensor_reset,
                 #endif	  
             	.powerdown	= rk_sensor_powerdown,
@@ -669,7 +673,7 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
             	.power		= rk_sensor_power,
-                #if (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+                #if (CONFIG_SENSOR_RESET_PIN_12 != INVALID_GPIO)
             	.reset		= rk_sensor_reset,
                 #endif	  
             	.powerdown	= rk_sensor_powerdown,
@@ -1281,7 +1285,9 @@ static int rk_sensor_power(struct device *dev, int on)
 	rk_sensor_ioctrl(dev,Cam_Power,on);
     return 0;
 }
-#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO) \
+    || (CONFIG_SENSOR_RESET_PIN_01 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_02 != INVALID_GPIO) \
+    || (CONFIG_SENSOR_RESET_PIN_11 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_12 != INVALID_GPIO)
 static int rk_sensor_reset(struct device *dev)
 {
 	rk_sensor_ioctrl(dev,Cam_Reset,1);
@@ -1294,8 +1300,7 @@ static int rk_sensor_powerdown(struct device *dev, int on)
 {
 	return rk_sensor_ioctrl(dev,Cam_PowerDown,on);
 }
-
-#ifdef PMEM_CAM_NECESSARY
+#if ((defined PMEM_CAM_NECESSARY)&&(defined CONFIG_VIDEO_RK29_CAMMEM_PMEM))
 static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.name		= "pmem_cam",
 	.start		= PMEM_CAM_BASE,
