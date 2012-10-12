@@ -7607,7 +7607,7 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 				dev->mode_config.dpms_property;
 
 			connector->dpms = DRM_MODE_DPMS_ON;
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 dpms_property,
 							 DRM_MODE_DPMS_ON);
 

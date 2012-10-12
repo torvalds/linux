@@ -1864,7 +1864,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	uint8_t cmd;
 	int ret;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret)
 		return ret;
 
@@ -1919,7 +1919,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	} else if (IS_TV_OR_LVDS(intel_sdvo_connector)) {
 		temp_value = val;
 		if (intel_sdvo_connector->left == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->right, val);
 			if (intel_sdvo_connector->left_margin == temp_value)
 				return 0;
@@ -1931,7 +1931,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
 			goto set_value;
 		} else if (intel_sdvo_connector->right == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->left, val);
 			if (intel_sdvo_connector->right_margin == temp_value)
 				return 0;
@@ -1943,7 +1943,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
 			goto set_value;
 		} else if (intel_sdvo_connector->top == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->bottom, val);
 			if (intel_sdvo_connector->top_margin == temp_value)
 				return 0;
@@ -1955,7 +1955,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_V;
 			goto set_value;
 		} else if (intel_sdvo_connector->bottom == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->top, val);
 			if (intel_sdvo_connector->bottom_margin == temp_value)
 				return 0;
@@ -2465,7 +2465,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
 	intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[0];
-	drm_connector_attach_property(&intel_sdvo_connector->base.base,
+	drm_object_attach_property(&intel_sdvo_connector->base.base.base,
 				      intel_sdvo_connector->tv_format, 0);
 	return true;
 
@@ -2481,7 +2481,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 		intel_sdvo_connector->name = \
 			drm_property_create_range(dev, 0, #name, 0, data_value[0]); \
 		if (!intel_sdvo_connector->name) return false; \
-		drm_connector_attach_property(connector, \
+		drm_object_attach_property(&connector->base, \
 					      intel_sdvo_connector->name, \
 					      intel_sdvo_connector->cur_##name); \
 		DRM_DEBUG_KMS(#name ": max %d, default %d, current %d\n", \
@@ -2518,7 +2518,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->left)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->left,
 					      intel_sdvo_connector->left_margin);
 
@@ -2527,7 +2527,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->right)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->right,
 					      intel_sdvo_connector->right_margin);
 		DRM_DEBUG_KMS("h_overscan: max %d, "
@@ -2555,7 +2555,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->top)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->top,
 					      intel_sdvo_connector->top_margin);
 
@@ -2565,7 +2565,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->bottom)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->bottom,
 					      intel_sdvo_connector->bottom_margin);
 		DRM_DEBUG_KMS("v_overscan: max %d, "
@@ -2597,7 +2597,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->dot_crawl)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->dot_crawl,
 					      intel_sdvo_connector->cur_dot_crawl);
 		DRM_DEBUG_KMS("dot crawl: current %d\n", response);
