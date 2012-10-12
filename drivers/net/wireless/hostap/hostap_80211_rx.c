@@ -415,7 +415,7 @@ static void hostap_rx_sta_beacon(local_info_t *local, struct sk_buff *skb,
 			ssid = pos + 2;
 			ssid_len = pos[1];
 			break;
-		case WLAN_EID_GENERIC:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if (pos[1] >= 4 &&
 			    pos[2] == 0x00 && pos[3] == 0x50 &&
 			    pos[4] == 0xf2 && pos[5] == 1) {
