@@ -299,12 +299,20 @@ ENTRY(ret_from_fork)
 	CFI_ENDPROC
 END(ret_from_fork)
 
-ENTRY(ret_from_kernel_execve)
-	movl %eax, %esp
-	movl $0,PT_EAX(%esp)
+ENTRY(ret_from_kernel_thread)
+	CFI_STARTPROC
+	pushl_cfi %eax
+	call schedule_tail
 	GET_THREAD_INFO(%ebp)
+	popl_cfi %eax
+	pushl_cfi $0x0202		# Reset kernel eflags
+	popfl_cfi
+	movl PT_EBP(%esp),%eax
+	call *PT_EBX(%esp)
+	movl $0,PT_EAX(%esp)
 	jmp syscall_exit
-END(ret_from_kernel_execve)
+	CFI_ENDPROC
+ENDPROC(ret_from_kernel_thread)
 
 /*
  * Interrupt exit functions should be protected against kprobes
@@ -1014,21 +1022,6 @@ END(spurious_interrupt_bug)
  * End of kprobes section
  */
 	.popsection
-
-ENTRY(ret_from_kernel_thread)
-	CFI_STARTPROC
-	pushl_cfi %eax
-	call schedule_tail
-	GET_THREAD_INFO(%ebp)
-	popl_cfi %eax
-	pushl_cfi $0x0202		# Reset kernel eflags
-	popfl_cfi
-	movl PT_EBP(%esp),%eax
-	call *PT_EBX(%esp)
-	call do_exit
-	ud2			# padding for call trace
-	CFI_ENDPROC
-ENDPROC(ret_from_kernel_thread)
 
 #ifdef CONFIG_XEN
 /* Xen doesn't set %esp to be precisely what the normal sysenter

@@ -373,7 +373,6 @@ void release_thread(struct task_struct *dead_task)
 }
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
-asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
 int
 copy_thread(unsigned long clone_flags, unsigned long stack_start,
@@ -388,13 +387,13 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		*childregs = *regs;
 		childregs->ARM_r0 = 0;
 		childregs->ARM_sp = stack_start;
-		thread->cpu_context.pc = (unsigned long)ret_from_fork;
 	} else {
+		memset(childregs, 0, sizeof(struct pt_regs));
 		thread->cpu_context.r4 = stk_sz;
 		thread->cpu_context.r5 = stack_start;
-		thread->cpu_context.pc = (unsigned long)ret_from_kernel_thread;
 		childregs->ARM_cpsr = SVC_MODE;
 	}
+	thread->cpu_context.pc = (unsigned long)ret_from_fork;
 	thread->cpu_context.sp = (unsigned long)childregs;
 
 	clear_ptrace_hw_breakpoint(p);

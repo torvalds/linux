@@ -563,15 +563,13 @@ ENTRY(ret_from_fork)
 	jmp ret_from_sys_call			# go to the SYSRET fastpath
 
 1:
-	subq $REST_SKIP, %rsp	# move the stack pointer back
+	subq $REST_SKIP, %rsp	# leave space for volatiles
 	CFI_ADJUST_CFA_OFFSET	REST_SKIP
 	movq %rbp, %rdi
 	call *%rbx
-	# exit
-	mov %eax, %edi
-	call do_exit
-	ud2			# padding for call trace
-
+	movl $0, RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
 	CFI_ENDPROC
 END(ret_from_fork)
 
@@ -1325,20 +1323,6 @@ bad_gs:
 	movl %eax,%gs
 	jmp  2b
 	.previous
-
-ENTRY(ret_from_kernel_execve)
-	movq %rdi, %rsp
-	movl $0, RAX(%rsp)
-	// RESTORE_REST
-	movq 0*8(%rsp), %r15
-	movq 1*8(%rsp), %r14
-	movq 2*8(%rsp), %r13
-	movq 3*8(%rsp), %r12
-	movq 4*8(%rsp), %rbp
-	movq 5*8(%rsp), %rbx
-	addq $(6*8), %rsp
-	jmp int_ret_from_sys_call
-END(ret_from_kernel_execve)
 
 /* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)
