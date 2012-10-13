@@ -25,12 +25,6 @@
 #ifndef _LINUX_NETDEVICE_H
 #define _LINUX_NETDEVICE_H
 
-#include <linux/if.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/if_link.h>
-
-#ifdef __KERNEL__
 #include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/bug.h>
@@ -55,6 +49,7 @@
 
 #include <linux/netdev_features.h>
 #include <linux/neighbour.h>
+#include <uapi/linux/netdevice.h>
 
 struct netpoll_info;
 struct device;
@@ -133,14 +128,6 @@ static inline bool dev_xmit_complete(int rc)
 	return false;
 }
 
-#endif
-
-#define MAX_ADDR_LEN	32		/* Largest hardware address length */
-
-/* Initial net device group. All devices belong to group 0 by default. */
-#define INIT_NETDEV_GROUP	0
-
-#ifdef  __KERNEL__
 /*
  *	Compute the worst case header length according to the protocols
  *	used.
@@ -196,21 +183,6 @@ struct net_device_stats {
 	unsigned long	tx_compressed;
 };
 
-#endif  /*  __KERNEL__  */
-
-
-/* Media selection options. */
-enum {
-        IF_PORT_UNKNOWN = 0,
-        IF_PORT_10BASE2,
-        IF_PORT_10BASET,
-        IF_PORT_AUI,
-        IF_PORT_100BASET,
-        IF_PORT_100BASETX,
-        IF_PORT_100BASEFX
-};
-
-#ifdef __KERNEL__
 
 #include <linux/cache.h>
 #include <linux/skbuff.h>
@@ -2843,7 +2815,5 @@ do {								\
 	0;							\
 })
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif	/* _LINUX_NETDEVICE_H */

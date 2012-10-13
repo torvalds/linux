@@ -31,6 +31,7 @@ struct elf32_fdpic_loadmap {
 
 #define ELF32_FDPIC_LOADMAP_VERSION	0x0000
 
+#ifndef __KERNEL__
 /*
  * binfmt binary parameters structure
  */
@@ -58,7 +59,6 @@ struct elf_fdpic_params {
 #define ELF_FDPIC_FLAG_PRESENT		0x80000000	/* T if this object is present */
 };
 
-#ifdef __KERNEL__
 #ifdef CONFIG_MMU
 extern void elf_fdpic_arch_lay_out_mm(struct elf_fdpic_params *exec_params,
 				      struct elf_fdpic_params *interp_params,

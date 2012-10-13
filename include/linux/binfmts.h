@@ -1,26 +1,10 @@
 #ifndef _LINUX_BINFMTS_H
 #define _LINUX_BINFMTS_H
 
-#include <linux/capability.h>
-
-struct pt_regs;
-
-/*
- * These are the maximum length and maximum number of strings passed to the
- * execve() system call.  MAX_ARG_STRLEN is essentially random but serves to
- * prevent the kernel from being unduly impacted by misaddressed pointers.
- * MAX_ARG_STRINGS is chosen to fit in a signed 32-bit integer.
- */
-#define MAX_ARG_STRLEN (PAGE_SIZE * 32)
-#define MAX_ARG_STRINGS 0x7FFFFFFF
-
-/* sizeof(linux_binprm->buf) */
-#define BINPRM_BUF_SIZE 128
-
-#ifdef __KERNEL__
 #include <linux/sched.h>
 #include <linux/unistd.h>
 #include <asm/exec.h>
+#include <uapi/linux/binfmts.h>
 
 #define CORENAME_MAX_SIZE 128
 
@@ -141,5 +125,4 @@ extern void free_bprm(struct linux_binprm *);
 extern void ret_from_kernel_execve(struct pt_regs *normal) __noreturn;
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_BINFMTS_H */
