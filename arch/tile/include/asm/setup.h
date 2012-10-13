@@ -11,16 +11,13 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  */
-
 #ifndef _ASM_TILE_SETUP_H
 #define _ASM_TILE_SETUP_H
 
-#define COMMAND_LINE_SIZE	2048
-
-#ifdef __KERNEL__
 
 #include <linux/pfn.h>
 #include <linux/init.h>
+#include <uapi/asm/setup.h>
 
 /*
  * Reserved space for vmalloc and iomap - defined in asm/page.h
@@ -52,7 +49,5 @@ int hardwall_ipi_valid(int cpu);
 		hardwall_deactivate_all(p); \
 } while (0)
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_SETUP_H */

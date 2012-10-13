@@ -548,6 +548,9 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (!user_mode(regs))
 		return 0;
 
+	/* Enable interrupts; they are disabled again on return to caller. */
+	local_irq_enable();
+
 	if (thread_info_flags & _TIF_NEED_RESCHED) {
 		schedule();
 		return 1;
