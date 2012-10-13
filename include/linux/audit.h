@@ -452,6 +452,16 @@ struct audit_field {
 extern int __init audit_register_class(int class, unsigned *list);
 extern int audit_classify_syscall(int abi, unsigned syscall);
 extern int audit_classify_arch(int arch);
+
+/* audit_names->type values */
+#define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */
+#define	AUDIT_TYPE_NORMAL	1	/* a "normal" audit record */
+#define	AUDIT_TYPE_PARENT	2	/* a parent audit record */
+#define	AUDIT_TYPE_CHILD_DELETE 3	/* a child being deleted */
+#define	AUDIT_TYPE_CHILD_CREATE 4	/* a child being created */
+
+struct filename;
+
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
@@ -461,11 +471,14 @@ extern void __audit_syscall_entry(int arch,
 				  int major, unsigned long a0, unsigned long a1,
 				  unsigned long a2, unsigned long a3);
 extern void __audit_syscall_exit(int ret_success, long ret_value);
-extern void __audit_getname(const char *name);
-extern void audit_putname(const char *name);
-extern void __audit_inode(const char *name, const struct dentry *dentry);
-extern void __audit_inode_child(const struct dentry *dentry,
-				const struct inode *parent);
+extern struct filename *__audit_reusename(const __user char *uptr);
+extern void __audit_getname(struct filename *name);
+extern void audit_putname(struct filename *name);
+extern void __audit_inode(struct filename *name, const struct dentry *dentry,
+				unsigned int parent);
+extern void __audit_inode_child(const struct inode *parent,
+				const struct dentry *dentry,
+				const unsigned char type);
 extern void __audit_seccomp(unsigned long syscall, long signr, int code);
 extern void __audit_ptrace(struct task_struct *t);
 
@@ -495,19 +508,27 @@ static inline void audit_syscall_exit(void *pt_regs)
 		__audit_syscall_exit(success, return_code);
 	}
 }
-static inline void audit_getname(const char *name)
+static inline struct filename *audit_reusename(const __user char *name)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_reusename(name);
+	return NULL;
+}
+static inline void audit_getname(struct filename *name)
 {
 	if (unlikely(!audit_dummy_context()))
 		__audit_getname(name);
 }
-static inline void audit_inode(const char *name, const struct dentry *dentry) {
+static inline void audit_inode(struct filename *name, const struct dentry *dentry,
+				unsigned int parent) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode(name, dentry);
+		__audit_inode(name, dentry, parent);
 }
-static inline void audit_inode_child(const struct dentry *dentry,
-				     const struct inode *parent) {
+static inline void audit_inode_child(const struct inode *parent,
+				     const struct dentry *dentry,
+				     const unsigned char type) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode_child(dentry, parent);
+		__audit_inode_child(parent, dentry, type);
 }
 void audit_core_dumps(long signr);
 
@@ -651,19 +672,29 @@ static inline int audit_dummy_context(void)
 {
 	return 1;
 }
-static inline void audit_getname(const char *name)
+static inline struct filename *audit_reusename(const __user char *name)
+{
+	return NULL;
+}
+static inline void audit_getname(struct filename *name)
 { }
-static inline void audit_putname(const char *name)
+static inline void audit_putname(struct filename *name)
 { }
-static inline void __audit_inode(const char *name, const struct dentry *dentry)
+static inline void __audit_inode(struct filename *name,
+					const struct dentry *dentry,
+					unsigned int parent)
 { }
-static inline void __audit_inode_child(const struct dentry *dentry,
-					const struct inode *parent)
+static inline void __audit_inode_child(const struct inode *parent,
+					const struct dentry *dentry,
+					const unsigned char type)
 { }
-static inline void audit_inode(const char *name, const struct dentry *dentry)
+static inline void audit_inode(struct filename *name,
+				const struct dentry *dentry,
+				unsigned int parent)
 { }
-static inline void audit_inode_child(const struct dentry *dentry,
-				     const struct inode *parent)
+static inline void audit_inode_child(const struct inode *parent,
+				     const struct dentry *dentry,
+				     const unsigned char type)
 { }
 static inline void audit_core_dumps(long signr)
 { }

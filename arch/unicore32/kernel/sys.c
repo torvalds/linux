@@ -51,13 +51,13 @@ asmlinkage long __sys_execve(const char __user *filename,
 			  struct pt_regs *regs)
 {
 	int error;
-	char *fn;
+	struct filename *fn;
 
 	fn = getname(filename);
 	error = PTR_ERR(fn);
 	if (IS_ERR(fn))
 		goto out;
-	error = do_execve(fn, argv, envp, regs);
+	error = do_execve(fn->name, argv, envp, regs);
 	putname(fn);
 out:
 	return error;

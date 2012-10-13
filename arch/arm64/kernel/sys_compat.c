@@ -56,14 +56,14 @@ asmlinkage int compat_sys_execve(const char __user *filenamei,
 				 struct pt_regs *regs)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname(filenamei);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, compat_ptr(argv), compat_ptr(envp),
-				 regs);
+	error = compat_do_execve(filename->name, compat_ptr(argv),
+					compat_ptr(envp), regs);
 	putname(filename);
 out:
 	return error;
