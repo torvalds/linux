@@ -8,15 +8,6 @@
 #include "adis16209.h"
 
 /**
- * adis16209_data_rdy_trig_poll() the event handler for the data rdy trig
- **/
-static irqreturn_t adis16209_data_rdy_trig_poll(int irq, void *trig)
-{
-	iio_trigger_poll(trig, iio_get_time_ns());
-	return IRQ_HANDLED;
-}
-
-/**
  * adis16209_data_rdy_trigger_set_state() set datardy interrupt state
  **/
 static int adis16209_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -45,7 +36,7 @@ int adis16209_probe_trigger(struct iio_dev *indio_dev)
 	}
 
 	ret = request_irq(st->us->irq,
-			  adis16209_data_rdy_trig_poll,
+			  iio_trigger_generic_data_rdy_poll,
 			  IRQF_TRIGGER_RISING,
 			  "adis16209",
 			  st->trig);
