@@ -155,6 +155,8 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 //				rk2928_write(codec, CODEC_REG_DAC_GAIN, v_GAIN_DAC(DAC_GAIN_3DB_P));
 				if(!rk2928_data.hdmi_enable)
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
+				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
 				rk2928_data.mute = 0;
 				if(rk2928_data.spkctl != INVALID_GPIO) {
 					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
