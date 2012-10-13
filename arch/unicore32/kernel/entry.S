@@ -668,11 +668,6 @@ __cr_alignment:
 #endif
 	.ltorg
 
-ENTRY(sys_execve)
-		add	r3, sp, #S_OFF
-		b	__sys_execve
-ENDPROC(sys_execve)
-
 ENTRY(sys_clone)
 		add	ip, sp, #S_OFF
 		stw	ip, [sp+], #4
