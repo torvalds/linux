@@ -2,7 +2,7 @@
 
 int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		unsigned int addr,
-		PVOID buff,
+		void *buff,
 		int len)
 {
 	int bytes;
@@ -59,7 +59,7 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 
 int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		unsigned int addr,
-		PVOID buff,
+		void *buff,
 		int len)
 {
 	int retval = 0;
@@ -117,17 +117,17 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 	}
 }
 
-int BcmRDM(PVOID arg,
+int BcmRDM(void *arg,
 	unsigned int addr,
-	PVOID buff,
+	void *buff,
 	int len)
 {
 	return InterfaceRDM((PS_INTERFACE_ADAPTER)arg, addr, buff, len);
 }
 
-int BcmWRM(PVOID arg,
+int BcmWRM(void *arg,
 	unsigned int addr,
-	PVOID buff,
+	void *buff,
 	int len)
 {
 	return InterfaceWRM((PS_INTERFACE_ADAPTER)arg, addr, buff, len);
