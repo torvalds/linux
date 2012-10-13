@@ -8,7 +8,7 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 	int bytes;
 	unsigned short usRetries = 0;
 
-	if (psIntfAdapter == NULL) {
+	if (!psIntfAdapter) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter is NULL");
 		return -EINVAL;
 	}
@@ -65,7 +65,7 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 	int retval = 0;
 	unsigned short usRetries = 0;
 
-	if (psIntfAdapter == NULL) {
+	if (!psIntfAdapter) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter  is NULL");
 		return -EINVAL;
 	}
@@ -193,7 +193,7 @@ VOID Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
 	 */
 
 	/* Cancel submitted Interrupt-URB's */
-	if (psIntfAdapter->psInterruptUrb != NULL) {
+	if (psIntfAdapter->psInterruptUrb) {
 		if (psIntfAdapter->psInterruptUrb->status == -EINPROGRESS)
 			usb_kill_urb(psIntfAdapter->psInterruptUrb);
 	}
