@@ -81,7 +81,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	buffer->access->store_to(buffer, (u8 *)st->buffer);
+	iio_push_to_buffer(buffer, st->buffer);
 
 	iio_trigger_notify_done(idev->trig);
 
