@@ -184,26 +184,6 @@ copy_thread(unsigned long clone_flags,
 	return 0;
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *name,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp)
-{
-	int error;
-	struct filename *filename;
-	struct pt_regs *regs = (struct pt_regs *)((&name) + 6);
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
