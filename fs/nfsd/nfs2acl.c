@@ -218,8 +218,7 @@ static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
  * There must be an encoding function for void results so svc_process
  * will work properly.
  */
-int
-nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+static int nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_ressize_check(rqstp, p);
 }
