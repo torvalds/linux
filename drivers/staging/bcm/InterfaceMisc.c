@@ -6,7 +6,6 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		int len)
 {
 	int bytes;
-	unsigned short usRetries = 0;
 
 	if (!psIntfAdapter) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter is NULL");
@@ -29,27 +28,21 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 	}
 	psIntfAdapter->psAdapter->DeviceAccess = TRUE;
 
-	do {
-		bytes = usb_control_msg(psIntfAdapter->udev,
-					usb_rcvctrlpipe(psIntfAdapter->udev, 0),
-					0x02,
-					0xC2,
-					(addr & 0xFFFF),
-					((addr >> 16) & 0xFFFF),
-					buff,
-					len,
-					5000);
+	bytes = usb_control_msg(psIntfAdapter->udev,
+				usb_rcvctrlpipe(psIntfAdapter->udev, 0),
+				0x02,
+				0xC2,
+				(addr & 0xFFFF),
+				((addr >> 16) & 0xFFFF),
+				buff,
+				len,
+				5000);
 
-		usRetries++;
-		if (-ENODEV == bytes) {
-			psIntfAdapter->psAdapter->device_removed = TRUE;
-			break;
-		}
-
-	} while ((bytes < 0) && (usRetries < MAX_RDM_WRM_RETIRES));
+	if (-ENODEV == bytes)
+		psIntfAdapter->psAdapter->device_removed = TRUE;
 
 	if (bytes < 0)
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM, DBG_LVL_ALL, "RDM failed status :%d, retires :%d", bytes, usRetries);
+		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM, DBG_LVL_ALL, "RDM failed status :%d", bytes);
 	else
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM, DBG_LVL_ALL, "RDM sent %d", bytes);
 
