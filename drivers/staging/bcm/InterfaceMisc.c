@@ -56,7 +56,6 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		int len)
 {
 	int retval = 0;
-	unsigned short usRetries = 0;
 
 	if (!psIntfAdapter) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter  is NULL");
@@ -80,27 +79,21 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 
 	psIntfAdapter->psAdapter->DeviceAccess = TRUE;
 
-	do {
-		retval = usb_control_msg(psIntfAdapter->udev,
-					usb_sndctrlpipe(psIntfAdapter->udev, 0),
-					0x01,
-					0x42,
-					(addr & 0xFFFF),
-					((addr >> 16) & 0xFFFF),
-					buff,
-					len,
-					5000);
+	retval = usb_control_msg(psIntfAdapter->udev,
+				usb_sndctrlpipe(psIntfAdapter->udev, 0),
+				0x01,
+				0x42,
+				(addr & 0xFFFF),
+				((addr >> 16) & 0xFFFF),
+				buff,
+				len,
+				5000);
 
-		usRetries++;
-		if (-ENODEV == retval) {
-			psIntfAdapter->psAdapter->device_removed = TRUE;
-			break;
-		}
-
-	} while ((retval < 0) && (usRetries < MAX_RDM_WRM_RETIRES));
+	if (-ENODEV == retval)
+		psIntfAdapter->psAdapter->device_removed = TRUE;
 
 	if (retval < 0)	{
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM, DBG_LVL_ALL, "WRM failed status :%d, retires :%d", retval, usRetries);
+		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM, DBG_LVL_ALL, "WRM failed status :%d", retval);
 		psIntfAdapter->psAdapter->DeviceAccess = FALSE;
 		return retval;
 	} else {
