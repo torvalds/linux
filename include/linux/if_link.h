@@ -284,9 +284,15 @@ enum {
 	IFLA_VXLAN_LEARNING,
 	IFLA_VXLAN_AGEING,
 	IFLA_VXLAN_LIMIT,
+	IFLA_VXLAN_PORT_RANGE,
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)
+
+struct ifla_vxlan_port_range {
+	__be16	low;
+	__be16	high;
+};
 
 /* SR-IOV virtual function management section */
 

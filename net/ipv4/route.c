@@ -2220,7 +2220,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 		goto nla_put_failure;
 
 	if (fl4->flowi4_mark &&
-	    nla_put_be32(skb, RTA_MARK, fl4->flowi4_mark))
+	    nla_put_u32(skb, RTA_MARK, fl4->flowi4_mark))
 		goto nla_put_failure;
 
 	error = rt->dst.error;
