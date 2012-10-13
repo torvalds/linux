@@ -24,6 +24,8 @@
 #include <linux/iio/iio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/iio/machine.h>
+#include <linux/iio/driver.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 
@@ -84,29 +86,46 @@ static void tiadc_step_config(struct tiadc_device *adc_dev)
 	am335x_tsc_se_set(adc_dev->mfd_tscadc, step_en);
 }
 
+static const char * const chan_name_ain[] = {
+	"AIN0",
+	"AIN1",
+	"AIN2",
+	"AIN3",
+	"AIN4",
+	"AIN5",
+	"AIN6",
+	"AIN7",
+};
+
 static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 {
+	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	struct iio_chan_spec *chan_array;
+	struct iio_chan_spec *chan;
 	int i;
 
 	indio_dev->num_channels = channels;
-	chan_array = kcalloc(indio_dev->num_channels,
+	chan_array = kcalloc(channels,
 			sizeof(struct iio_chan_spec), GFP_KERNEL);
-
 	if (chan_array == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < (indio_dev->num_channels); i++) {
-		struct iio_chan_spec *chan = chan_array + i;
+	chan = chan_array;
+	for (i = 0; i < channels; i++, chan++) {
+
 		chan->type = IIO_VOLTAGE;
 		chan->indexed = 1;
 		chan->channel = i;
 		chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
+		chan->datasheet_name = chan_name_ain[i];
+		chan->scan_type.sign = 'u';
+		chan->scan_type.realbits = 12;
+		chan->scan_type.storagebits = 32;
 	}
 
 	indio_dev->channels = chan_array;
 
-	return indio_dev->num_channels;
+	return 0;
 }
 
 static void tiadc_channels_remove(struct iio_dev *indio_dev)
