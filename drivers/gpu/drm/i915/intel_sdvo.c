@@ -140,6 +140,11 @@ struct intel_sdvo {
 
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
+
+	/*
+	 * the sdvo flag gets lost in round trip: dtd->adjusted_mode->dtd
+	 */
+	uint8_t dtd_sdvo_flags;
 };
 
 struct intel_sdvo_connector {
@@ -985,6 +990,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 		return false;
 
 	intel_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
+	intel_sdvo->dtd_sdvo_flags = input_dtd.part2.sdvo_flags;
 
 	return true;
 }
@@ -1093,6 +1099,8 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	 * adjusted_mode.
 	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
+		input_dtd.part2.sdvo_flags = intel_sdvo->dtd_sdvo_flags;
 	if (!intel_sdvo_set_input_timing(intel_sdvo, &input_dtd))
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
