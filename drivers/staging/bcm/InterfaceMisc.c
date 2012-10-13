@@ -172,7 +172,7 @@ int Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter)
 	return status;
 }
 
-VOID Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
+void Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	struct urb *tempUrb = NULL;
 	unsigned int i;
@@ -222,7 +222,7 @@ VOID Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
 	atomic_set(&psIntfAdapter->uCurrRcb, 0);
 }
 
-VOID putUsbSuspend(struct work_struct *work)
+void putUsbSuspend(struct work_struct *work)
 {
 	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
 	struct usb_interface *intf = NULL;
