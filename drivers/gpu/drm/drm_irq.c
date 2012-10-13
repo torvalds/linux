@@ -106,6 +106,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	s64 diff_ns;
 	int vblrc;
 	struct timeval tvblank;
+	int count = DRM_TIMESTAMP_MAXRETRIES;
 
 	/* Prevent vblank irq processing while disabling vblank irqs,
 	 * so no updates of timestamps or count can happen after we've
@@ -131,7 +132,10 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	do {
 		dev->last_vblank[crtc] = dev->driver->get_vblank_counter(dev, crtc);
 		vblrc = drm_get_last_vbltimestamp(dev, crtc, &tvblank, 0);
-	} while (dev->last_vblank[crtc] != dev->driver->get_vblank_counter(dev, crtc));
+	} while (dev->last_vblank[crtc] != dev->driver->get_vblank_counter(dev, crtc) && (--count) && vblrc);
+
+	if (!count)
+		vblrc = 0;
 
 	/* Compute time difference to stored timestamp of last vblank
 	 * as updated by last invocation of drm_handle_vblank() in vblank irq.
