@@ -25,13 +25,18 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/mtd/gpmi-nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
 #include "gpmi-nand.h"
+
+/* Resource names for the GPMI NAND driver. */
+#define GPMI_NAND_GPMI_REGS_ADDR_RES_NAME  "gpmi-nand"
+#define GPMI_NAND_BCH_REGS_ADDR_RES_NAME   "bch"
+#define GPMI_NAND_BCH_INTERRUPT_RES_NAME   "bch"
+#define GPMI_NAND_DMA_INTERRUPT_RES_NAME   "gpmi-dma"
 
 /* add our owner bbt descriptor */
 static uint8_t scan_ff_pattern[] = { 0xff };
