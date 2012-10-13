@@ -6,7 +6,7 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		int len)
 {
 	int bytes;
-	USHORT usRetries = 0;
+	unsigned short usRetries = 0;
 
 	if (psIntfAdapter == NULL) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter is NULL");
@@ -63,7 +63,7 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 		int len)
 {
 	int retval = 0;
-	USHORT usRetries = 0;
+	unsigned short usRetries = 0;
 
 	if (psIntfAdapter == NULL) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter  is NULL");
