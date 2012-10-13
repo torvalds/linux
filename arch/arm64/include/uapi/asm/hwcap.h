@@ -13,17 +13,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef CONFIG_COMPAT
-#define __ARCH_WANT_COMPAT_IPC_PARSE_VERSION
-#define __ARCH_WANT_COMPAT_STAT64
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_SIGPENDING
-#define __ARCH_WANT_SYS_SIGPROCMASK
-#define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-#define __ARCH_WANT_COMPAT_SYS_SENDFILE
-#endif
-#include <uapi/asm/unistd.h>
+#ifndef _UAPI__ASM_HWCAP_H
+#define _UAPI__ASM_HWCAP_H
+
+/*
+ * HWCAP flags - for elf_hwcap (in kernel) and AT_HWCAP
+ */
+#define HWCAP_FP		(1 << 0)
+#define HWCAP_ASIMD		(1 << 1)
+
+
+#endif /* _UAPI__ASM_HWCAP_H */
