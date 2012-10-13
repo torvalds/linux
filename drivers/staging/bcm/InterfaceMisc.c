@@ -7,10 +7,8 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 {
 	int bytes;
 
-	if (!psIntfAdapter) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Interface Adapter is NULL");
+	if (!psIntfAdapter)
 		return -EINVAL;
-	}
 
 	if (psIntfAdapter->psAdapter->device_removed == TRUE) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Device got removed");
