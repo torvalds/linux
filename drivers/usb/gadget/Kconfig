@@ -342,6 +342,26 @@ config USB_GADGET_MUSB_HDRC
 	  This OTG-capable silicon IP is used in dual designs including
 	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
 
+# dwc_otg builds in ../dwc_otg along with host support
+	config USB_GADGET_DWC_HDRC
+	boolean "DesignWare USB Peripheral"
+	depends on DWC_OTG_MODE || DWC_DEVICE_ONLY
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	select USB_GADGET_DWC_OTG
+	help
+	  This OTG-capable Designware USB IP
+
+	config USB_GADGET_DWC_OTG
+	boolean "OTG Support"
+	depends on USB_GADGET_DWC_HDRC
+	help
+	  The most notable feature of USB OTG is support for a
+	  "Dual-Role" device, which can act as either a device
+	  or a host.  The initial role choice can be changed
+	  later, when two dual-role devices talk to each other.
+	  Select this only if your board has a Mini-AB connector.
+
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
 	help
