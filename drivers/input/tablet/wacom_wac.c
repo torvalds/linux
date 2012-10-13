@@ -25,6 +25,11 @@
 #define WACOM_INTUOS_RES	100
 #define WACOM_INTUOS3_RES	200
 
+/* Scale factor relating reported contact size to logical contact area.
+ * 2^14/pi is a good approximation on Intuos5 and 3rd-gen Bamboo
+ */
+#define WACOM_CONTACT_AREA_SCALE 2607
+
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
@@ -326,7 +331,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Enter report */
 	if ((data[1] & 0xfc) == 0xc0) {
-		if (features->type >= INTUOS5S && features->type <= INTUOS5L)
+		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
 			wacom->shared->stylus_in_proximity = true;
 
 		/* serial number of the tool */
@@ -414,7 +419,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
-		if (features->type >= INTUOS5S && features->type <= INTUOS5L)
+		if (features->quirks == WACOM_QUIRK_MULTI_INPUT)
 			wacom->shared->stylus_in_proximity = false;
 
 		/*
@@ -1043,11 +1048,19 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, unsigned char *data)
 	if (touch) {
 		int x = (data[2] << 4) | (data[4] >> 4);
 		int y = (data[3] << 4) | (data[4] & 0x0f);
-		int w = data[6];
+		int a = data[5];
+
+		// "a" is a scaled-down area which we assume is roughly
+		// circular and which can be described as: a=(pi*r^2)/C.
+		int x_res  = input_abs_get_res(input, ABS_X);
+		int y_res  = input_abs_get_res(input, ABS_Y);
+		int width  = 2 * int_sqrt(a * WACOM_CONTACT_AREA_SCALE);
+		int height = width * y_res / x_res;
 
 		input_report_abs(input, ABS_MT_POSITION_X, x);
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
-		input_report_abs(input, ABS_MT_TOUCH_MAJOR, w);
+		input_report_abs(input, ABS_MT_TOUCH_MAJOR, width);
+		input_report_abs(input, ABS_MT_TOUCH_MINOR, height);
 	}
 }
 
@@ -1533,7 +1546,9 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			input_mt_init_slots(input_dev, features->touch_max, 0);
 
 			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
-			                     0, 255, 0, 0);
+			                     0, features->x_max, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR,
+			                     0, features->y_max, 0, 0);
 
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 					     0, features->x_max,
@@ -1641,7 +1656,10 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 				input_set_abs_params(input_dev,
 						     ABS_MT_TOUCH_MAJOR,
-						     0, 255, 0, 0);
+						     0, features->x_max, 0, 0);
+				input_set_abs_params(input_dev,
+						     ABS_MT_TOUCH_MINOR,
+						     0, features->y_max, 0, 0);
 			}
 
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
