@@ -1,7 +1,7 @@
 #include "headers.h"
 
 int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
-		UINT addr,
+		unsigned int addr,
 		PVOID buff,
 		int len)
 {
@@ -58,7 +58,7 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 }
 
 int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
-		UINT addr,
+		unsigned int addr,
 		PVOID buff,
 		int len)
 {
@@ -118,7 +118,7 @@ int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
 }
 
 int BcmRDM(PVOID arg,
-	UINT addr,
+	unsigned int addr,
 	PVOID buff,
 	int len)
 {
@@ -126,7 +126,7 @@ int BcmRDM(PVOID arg,
 }
 
 int BcmWRM(PVOID arg,
-	UINT addr,
+	unsigned int addr,
 	PVOID buff,
 	int len)
 {
@@ -175,7 +175,7 @@ int Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter)
 VOID Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	struct urb *tempUrb = NULL;
-	UINT i;
+	unsigned int i;
 
 	/*
 	 * usb_kill_urb - cancel a transfer request and wait for it to finish
