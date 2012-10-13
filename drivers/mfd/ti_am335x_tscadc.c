@@ -107,9 +107,12 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	of_property_read_u32(node, "ti,adc-channels", &adc_channels);
 
 	total_channels = tsc_wires + adc_channels;
-
 	if (total_channels > 8) {
 		dev_err(&pdev->dev, "Number of i/p channels more than 8\n");
+		return -EINVAL;
+	}
+	if (total_channels == 0) {
+		dev_err(&pdev->dev, "Need atleast one channel.\n");
 		return -EINVAL;
 	}
 
@@ -202,28 +205,37 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	ctrl |= CNTRLREG_TSCSSENB;
 	tscadc_writel(tscadc, REG_CTRL, ctrl);
 
+	tscadc->used_cells = 0;
+	tscadc->tsc_cell = -1;
+	tscadc->adc_cell = -1;
+
 	/* TSC Cell */
-	cell = &tscadc->cells[TSC_CELL];
-	cell->name = "tsc";
-	cell->of_compatible = "ti,am3359-tsc";
-	cell->platform_data = &tscadc;
-	cell->pdata_size = sizeof(tscadc);
+	if (tsc_wires > 0) {
+		tscadc->tsc_cell = tscadc->used_cells;
+		cell = &tscadc->cells[tscadc->used_cells++];
+		cell->name = "tsc";
+		cell->of_compatible = "ti,am3359-tsc";
+		cell->platform_data = &tscadc;
+		cell->pdata_size = sizeof(tscadc);
+	}
 
 	/* ADC Cell */
-	cell = &tscadc->cells[ADC_CELL];
-	cell->name = "tiadc";
-	cell->of_compatible = "ti,am3359-adc";
-	cell->platform_data = &tscadc;
-	cell->pdata_size = sizeof(tscadc);
+	if (adc_channels > 0) {
+		tscadc->adc_cell = tscadc->used_cells;
+		cell = &tscadc->cells[tscadc->used_cells++];
+		cell->name = "tiadc";
+		cell->of_compatible = "ti,am3359-adc";
+		cell->platform_data = &tscadc;
+		cell->pdata_size = sizeof(tscadc);
+	}
 
 	err = mfd_add_devices(&pdev->dev, pdev->id, tscadc->cells,
-			TSCADC_CELLS, NULL, 0, NULL);
+			tscadc->used_cells, NULL, 0, NULL);
 	if (err < 0)
 		goto err_disable_clk;
 
 	device_init_wakeup(&pdev->dev, true);
 	platform_set_drvdata(pdev, tscadc);
-
 	return 0;
 
 err_disable_clk:
