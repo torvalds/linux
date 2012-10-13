@@ -69,7 +69,6 @@ header-y += b1lli.h
 header-y += baycom.h
 header-y += bfs_fs.h
 header-y += binfmts.h
-header-y += blk_types.h
 header-y += blkpg.h
 header-y += blktrace_api.h
 header-y += bpqether.h
