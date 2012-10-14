@@ -1,0 +1,115 @@
+#!/bin/sh
+#
+# Sign a module file using the given key.
+#
+# Format: sign-file <key> <x509> <src-file> <dst-file>
+#
+
+scripts=`dirname $0`
+
+CONFIG_MODULE_SIG_SHA512=y
+if [ -r .config ]
+then
+    . ./.config
+fi
+
+key="$1"
+x509="$2"
+src="$3"
+dst="$4"
+
+if [ ! -r "$key" ]
+then
+    echo "Can't read private key" >&2
+    exit 2
+fi
+
+if [ ! -r "$x509" ]
+then
+    echo "Can't read X.509 certificate" >&2
+    exit 2
+fi
+if [ ! -r "$x509.signer" ]
+then
+    echo "Can't read Signer name" >&2
+    exit 2;
+fi
+if [ ! -r "$x509.keyid" ]
+then
+    echo "Can't read Key identifier" >&2
+    exit 2;
+fi
+
+#
+# Signature parameters
+#
+algo=1		# Public-key crypto algorithm: RSA
+hash=		# Digest algorithm
+id_type=1	# Identifier type: X.509
+
+#
+# Digest the data
+#
+dgst=
+if [ "$CONFIG_MODULE_SIG_SHA1" = "y" ]
+then
+    prologue="0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14"
+    dgst=-sha1
+    hash=2
+elif [ "$CONFIG_MODULE_SIG_SHA224" = "y" ]
+then
+    prologue="0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1C"
+    dgst=-sha224
+    hash=7
+elif [ "$CONFIG_MODULE_SIG_SHA256" = "y" ]
+then
+    prologue="0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20"
+    dgst=-sha256
+    hash=4
+elif [ "$CONFIG_MODULE_SIG_SHA384" = "y" ]
+then
+    prologue="0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30"
+    dgst=-sha384
+    hash=5
+elif [ "$CONFIG_MODULE_SIG_SHA512" = "y" ]
+then
+    prologue="0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40"
+    dgst=-sha512
+    hash=6
+else
+    echo "$0: Can't determine hash algorithm" >&2
+    exit 2
+fi
+
+(
+perl -e "binmode STDOUT; print pack(\"C*\", $prologue)" || exit $?
+openssl dgst $dgst -binary $src || exit $?
+) >$src.dig || exit $?
+
+#
+# Generate the binary signature, which will be just the integer that comprises
+# the signature with no metadata attached.
+#
+openssl rsautl -sign -inkey $key -keyform PEM -in $src.dig -out $src.sig || exit $?
+signerlen=`stat -c %s $x509.signer`
+keyidlen=`stat -c %s $x509.keyid`
+siglen=`stat -c %s $src.sig`
+
+#
+# Build the signed binary
+#
+(
+    cat $src || exit $?
+    echo '~Module signature appended~' || exit $?
+    cat $x509.signer $x509.keyid || exit $?
+
+    # Preface each signature integer with a 2-byte BE length
+    perl -e "binmode STDOUT; print pack(\"n\", $siglen)" || exit $?
+    cat $src.sig || exit $?
+
+    # Generate the information block
+    perl -e "binmode STDOUT; print pack(\"CCCCCxxxN\", $algo, $hash, $id_type, $signerlen, $keyidlen, $siglen + 2)" || exit $?
+) >$dst~ || exit $?
+
+# Permit in-place signing
+mv $dst~ $dst || exit $?

@@ -2,7 +2,7 @@
 #define __PMU_H
 
 #include <linux/bitops.h>
-#include "../../../include/linux/perf_event.h"
+#include "../../../include/uapi/linux/perf_event.h"
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
