@@ -32,6 +32,94 @@
 #include "ispreg.h"
 #include "ispcsiphy.h"
 
+static void csiphy_routing_cfg_3630(struct isp_csiphy *phy, u32 iface,
+				    bool ccp2_strobe)
+{
+	u32 reg = isp_reg_readl(
+		phy->isp, OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL, 0);
+	u32 shift, mode;
+
+	switch (iface) {
+	case ISP_INTERFACE_CCP2B_PHY1:
+		reg &= ~OMAP3630_CONTROL_CAMERA_PHY_CTRL_CSI1_RX_SEL_PHY2;
+		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY1_SHIFT;
+		break;
+	case ISP_INTERFACE_CSI2C_PHY1:
+		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY1_SHIFT;
+		mode = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_DPHY;
+		break;
+	case ISP_INTERFACE_CCP2B_PHY2:
+		reg |= OMAP3630_CONTROL_CAMERA_PHY_CTRL_CSI1_RX_SEL_PHY2;
+		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY2_SHIFT;
+		break;
+	case ISP_INTERFACE_CSI2A_PHY2:
+		shift = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_PHY2_SHIFT;
+		mode = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_DPHY;
+		break;
+	}
+
+	/* Select data/clock or data/strobe mode for CCP2 */
+	switch (iface) {
+	case ISP_INTERFACE_CCP2B_PHY1:
+	case ISP_INTERFACE_CCP2B_PHY2:
+		if (ccp2_strobe)
+			mode = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_CCP2_DATA_STROBE;
+		else
+			mode = OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_CCP2_DATA_CLOCK;
+	}
+
+	reg &= ~(OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_MASK << shift);
+	reg |= mode << shift;
+
+	isp_reg_writel(phy->isp, reg,
+		       OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL, 0);
+}
+
+static void csiphy_routing_cfg_3430(struct isp_csiphy *phy, u32 iface, bool on,
+				    bool ccp2_strobe)
+{
+	u32 csirxfe = OMAP343X_CONTROL_CSIRXFE_PWRDNZ
+		| OMAP343X_CONTROL_CSIRXFE_RESET;
+
+	/* Only the CCP2B on PHY1 is configurable. */
+	if (iface != ISP_INTERFACE_CCP2B_PHY1)
+		return;
+
+	if (!on) {
+		isp_reg_writel(phy->isp, 0,
+			       OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE, 0);
+		return;
+	}
+
+	if (ccp2_strobe)
+		csirxfe |= OMAP343X_CONTROL_CSIRXFE_SELFORM;
+
+	isp_reg_writel(phy->isp, csirxfe,
+		       OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE, 0);
+}
+
+/*
+ * Configure OMAP 3 CSI PHY routing.
+ * @phy: relevant phy device
+ * @iface: ISP_INTERFACE_*
+ * @on: power on or off
+ * @ccp2_strobe: false: data/clock, true: data/strobe
+ *
+ * Note that the underlying routing configuration registers are part of the
+ * control (SCM) register space and part of the CORE power domain on both 3430
+ * and 3630, so they will not hold their contents in off-mode. This isn't an
+ * issue since the MPU power domain is forced on whilst the ISP is in use.
+ */
+static void csiphy_routing_cfg(struct isp_csiphy *phy, u32 iface, bool on,
+			       bool ccp2_strobe)
+{
+	if (phy->isp->mmio_base[OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL]
+	    && on)
+		return csiphy_routing_cfg_3630(phy, iface, ccp2_strobe);
+	if (phy->isp->mmio_base[OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE])
+		return csiphy_routing_cfg_3430(phy, iface, on, ccp2_strobe);
+}
+
 /*
  * csiphy_lanes_config - Configuration of CSIPHY lanes.
  *
