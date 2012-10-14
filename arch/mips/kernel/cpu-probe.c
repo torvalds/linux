@@ -142,7 +142,7 @@ int __cpuinitdata mips_dsp_disabled;
 
 static int __init dsp_disable(char *s)
 {
-	cpu_data[0].ases &= ~MIPS_ASE_DSP;
+	cpu_data[0].ases &= ~(MIPS_ASE_DSP | MIPS_ASE_DSP2P);
 	mips_dsp_disabled = 1;
 
 	return 1;
@@ -429,6 +429,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_RIXI;
 	if (config3 & MIPS_CONF3_DSP)
 		c->ases |= MIPS_ASE_DSP;
+	if (config3 & MIPS_CONF3_DSP2P)
+		c->ases |= MIPS_ASE_DSP2P;
 	if (config3 & MIPS_CONF3_VINT)
 		c->options |= MIPS_CPU_VINT;
 	if (config3 & MIPS_CONF3_VEIC)
@@ -1180,7 +1182,7 @@ __cpuinit void cpu_probe(void)
 		c->options &= ~MIPS_CPU_FPU;
 
 	if (mips_dsp_disabled)
-		c->ases &= ~MIPS_ASE_DSP;
+		c->ases &= ~(MIPS_ASE_DSP | MIPS_ASE_DSP2P);
 
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
@@ -1194,8 +1196,11 @@ __cpuinit void cpu_probe(void)
 		}
 	}
 
-	if (cpu_has_mips_r2)
+	if (cpu_has_mips_r2) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
+		/* R2 has Performance Counter Interrupt indicator */
+		c->options |= MIPS_CPU_PCI;
+	}
 	else
 		c->srsets = 1;
 
