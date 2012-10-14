@@ -37,9 +37,12 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
+
+#define UART_CLPS711X_NAME	"uart-clps711x"
 
 #define UART_NR		2
 
@@ -543,7 +546,7 @@ static struct uart_driver clps711x_reg = {
 	.cons			= CLPS711X_CONSOLE,
 };
 
-static int __init clps711xuart_init(void)
+static int __devinit uart_clps711x_probe(struct platform_device *pdev)
 {
 	int ret, i;
 
@@ -559,7 +562,7 @@ static int __init clps711xuart_init(void)
 	return 0;
 }
 
-static void __exit clps711xuart_exit(void)
+static int __devexit uart_clps711x_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -567,12 +570,36 @@ static void __exit clps711xuart_exit(void)
 		uart_remove_one_port(&clps711x_reg, &clps711x_ports[i]);
 
 	uart_unregister_driver(&clps711x_reg);
+
+	return 0;
 }
 
-module_init(clps711xuart_init);
-module_exit(clps711xuart_exit);
+static struct platform_driver clps711x_uart_driver = {
+	.driver = {
+		.name	= UART_CLPS711X_NAME,
+		.owner	= THIS_MODULE,
+	},
+	.probe	= uart_clps711x_probe,
+	.remove	= __devexit_p(uart_clps711x_remove),
+};
+module_platform_driver(clps711x_uart_driver);
+
+static struct platform_device clps711x_uart_device = {
+	.name	= UART_CLPS711X_NAME,
+};
+
+static int __init uart_clps711x_init(void)
+{
+	return platform_device_register(&clps711x_uart_device);
+}
+module_init(uart_clps711x_init);
+
+static void __exit uart_clps711x_exit(void)
+{
+	platform_device_unregister(&clps711x_uart_device);
+}
+module_exit(uart_clps711x_exit);
 
 MODULE_AUTHOR("Deep Blue Solutions Ltd");
-MODULE_DESCRIPTION("CLPS-711x generic serial driver");
+MODULE_DESCRIPTION("CLPS711X serial driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV(SERIAL_CLPS711X_MAJOR, SERIAL_CLPS711X_MINOR);
