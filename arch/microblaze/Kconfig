@@ -25,6 +25,7 @@ config MICROBLAZE
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select MODULES_USE_ELF_RELA
 
 config SWAP
 	def_bool n

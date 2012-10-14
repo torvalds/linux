@@ -24,9 +24,11 @@ config X86_32
 	def_bool !64BIT
 	select HAVE_AOUT
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select MODULES_USE_ELF_REL
 
 config X86_64
 	def_bool 64BIT
+	select MODULES_USE_ELF_RELA
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD && 64BIT

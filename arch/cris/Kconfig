@@ -48,6 +48,7 @@ config CRIS
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD if ETRAX_ARCH_V32
 	select GENERIC_CMOS_UPDATE
+	select MODULES_USE_ELF_RELA
 
 config HZ
 	int
