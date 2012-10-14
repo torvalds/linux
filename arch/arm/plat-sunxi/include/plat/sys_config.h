@@ -24,9 +24,8 @@
 #ifndef __SW_SYS_CONFIG_H
 #define __SW_SYS_CONFIG_H
 
+#include <plat/script.h>
 
-#define   SYS_CONFIG_MEMBASE                 (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)
-#define   SYS_CONFIG_MEMSIZE                 (SZ_64K)
 #define   SCRIPT_PARSER_OK                   (0)
 #define   SCRIPT_PARSER_EMPTY_BUFFER         (-1)
 #define   SCRIPT_PARSER_KEYNAME_NULL         (-2)
@@ -54,26 +53,9 @@ typedef struct
 	int data;
 } script_gpio_set_t;
 
-typedef struct
-{
-	int  main_key_count;
-	int  version[3];
-} script_head_t;
-
-typedef struct
-{
-	char main_name[32];
-	int  lenth;
-	int  offset;
-} script_main_key_t;
-
-typedef struct
-{
-	char sub_name[32];
-	int  offset;
-	int  pattern;
-} script_sub_key_t;
-
+typedef struct sunxi_script script_head_t;
+typedef struct sunxi_script_section script_main_key_t;
+typedef struct sunxi_script_property script_sub_key_t;
 
 #define   EGPIO_FAIL             (-1)
 #define   EGPIO_SUCCESS          (0)
@@ -114,16 +96,7 @@ typedef enum
 #define	PIN_PHY_GROUP_I			0x08
 #define	PIN_PHY_GROUP_J			0x09
 
-typedef struct
-{
-    char  gpio_name[32];
-    int port;
-    int port_num;
-    int mul_sel;
-    int pull;
-    int drv_level;
-    int data;
-} user_gpio_set_t;
+typedef script_gpio_set_t user_gpio_set_t;
 
 /* script operations */
 extern int script_parser_init(char *script_buf);
