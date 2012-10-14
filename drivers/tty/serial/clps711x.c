@@ -273,10 +273,9 @@ clps711xuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int ubrlcr, baud, quot;
 	unsigned long flags;
 
-	/*
-	 * We don't implement CREAD.
-	 */
-	termios->c_cflag |= CREAD;
+	/* Mask termios capabilities we don't support */
+	termios->c_cflag &= ~CMSPAR;
+	termios->c_iflag &= ~(BRKINT | IGNBRK);
 
 	/* Ask the core to calculate the divisor for us */
 	baud = uart_get_baud_rate(port, termios, old, port->uartclk / 4096,
@@ -297,8 +296,10 @@ clps711xuart_set_termios(struct uart_port *port, struct ktermios *termios,
 		ubrlcr = UBRLCR_WRDLEN8;
 		break;
 	}
+
 	if (termios->c_cflag & CSTOPB)
 		ubrlcr |= UBRLCR_XSTOP;
+
 	if (termios->c_cflag & PARENB) {
 		ubrlcr |= UBRLCR_PRTEN;
 		if (!(termios->c_cflag & PARODD))
@@ -310,33 +311,20 @@ clps711xuart_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/*
-	 * Update the per-port timeout.
-	 */
-	uart_update_timeout(port, termios->c_cflag, baud);
-
+	/* Set read status mask */
 	port->read_status_mask = UARTDR_OVERR;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UARTDR_PARERR | UARTDR_FRMERR;
 
-	/*
-	 * Characters to ignore
-	 */
+	/* Set status ignore mask */
 	port->ignore_status_mask = 0;
-	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UARTDR_FRMERR | UARTDR_PARERR;
-	if (termios->c_iflag & IGNBRK) {
-		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns to (for real raw support).
-		 */
-		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UARTDR_OVERR;
-	}
+	if (!(termios->c_cflag & CREAD))
+		port->ignore_status_mask |= UARTDR_OVERR | UARTDR_PARERR |
+					    UARTDR_FRMERR;
 
-	quot -= 1;
+	uart_update_timeout(port, termios->c_cflag, baud);
 
-	clps_writel(ubrlcr | quot, UBRLCR(port));
+	clps_writel(ubrlcr | (quot - 1), UBRLCR(port));
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
