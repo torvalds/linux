@@ -2348,6 +2348,7 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 				ice->eeprom.subvendor = c->subvendor;
 			} else if (c->subvendor != ice->eeprom.subvendor)
 				continue;
+			ice->card_info = c;
 			if (!c->eeprom_size || !c->eeprom_data)
 				goto found;
 			/* if the EEPROM is given by the driver, use it */
@@ -2788,7 +2789,12 @@ __found:
 
 static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (ice->card_info && ice->card_info->chip_exit)
+		ice->card_info->chip_exit(ice);
+	snd_card_free(card);
 	pci_set_drvdata(pci, NULL);
 }
 

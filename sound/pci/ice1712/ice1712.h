@@ -288,6 +288,7 @@ struct snd_ice1712_spdif {
 	} ops;
 };
 
+struct snd_ice1712_card_info;
 
 struct snd_ice1712 {
 	unsigned long conp_dma_size;
@@ -324,6 +325,7 @@ struct snd_ice1712 {
 	struct snd_info_entry *proc_entry;
 
 	struct snd_ice1712_eeprom eeprom;
+	struct snd_ice1712_card_info *card_info;
 
 	unsigned int pro_volumes[20];
 	unsigned int omni:1;		/* Delta Omni I/O */
@@ -517,6 +519,7 @@ struct snd_ice1712_card_info {
 	char *model;
 	char *driver;
 	int (*chip_init)(struct snd_ice1712 *);
+	void (*chip_exit)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
 	unsigned int no_mpu401:1;
 	unsigned int mpu401_1_info_flags;

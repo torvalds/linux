@@ -2686,6 +2686,7 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	for (tbl = card_tables; *tbl; tbl++) {
 		for (c = *tbl; c->subvendor; c++) {
 			if (c->subvendor == ice->eeprom.subvendor) {
+				ice->card_info = c;
 				strcpy(card->shortname, c->name);
 				if (c->driver) /* specific driver? */
 					strcpy(card->driver, c->driver);
@@ -2799,7 +2800,12 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 
 static void __devexit snd_ice1712_remove(struct pci_dev *pci)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (ice->card_info && ice->card_info->chip_exit)
+		ice->card_info->chip_exit(ice);
+	snd_card_free(card);
 	pci_set_drvdata(pci, NULL);
 }
 
