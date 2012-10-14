@@ -54,6 +54,7 @@
 #include "wtm.h"
 #include "se.h"
 #include "quartet.h"
+#include "psc724.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("VIA ICEnsemble ICE1724/1720 (Envy24HT/PT)");
@@ -2257,6 +2258,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_se_cards,
 	snd_vt1724_qtet_cards,
 	snd_vt1724_ooaoo_cards,
+	snd_vt1724_psc724_cards,
 	NULL,
 };
 
@@ -2372,7 +2374,7 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 		return -EIO;
 	}
 	ice->eeprom.version = snd_vt1724_read_i2c(ice, dev, 0x05);
-	if (ice->eeprom.version != 2)
+	if (ice->eeprom.version != 1 && ice->eeprom.version != 2)
 		printk(KERN_WARNING "ice1724: Invalid EEPROM version %i\n",
 		       ice->eeprom.version);
 	size = ice->eeprom.size - 6;

@@ -630,7 +630,7 @@ config SND_ICE1724
 	  AudioTrak Prodigy 192, 7.1 (HIFI/LT/XT), HD2; Hercules
 	  Fortissimo IV; ESI Juli@; Pontis MS300; EGO-SYS WaveTerminal
 	  192M; Albatron K8X800 Pro II; Chaintech ZNF3-150/250, 9CJS,
-	  AV-710; Shuttle SN25P.
+	  AV-710; Shuttle SN25P; Philips PSC724 Ultimate Edge.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ice1724.
