@@ -191,12 +191,9 @@ static unsigned int clps711xuart_tx_empty(struct uart_port *port)
 
 static unsigned int clps711xuart_get_mctrl(struct uart_port *port)
 {
-	unsigned int port_addr;
-	unsigned int result = 0;
-	unsigned int status;
+	unsigned int status, result = 0;
 
-	port_addr = SYSFLG(port);
-	if (port_addr == SYSFLG1) {
+	if (port->line == 0) {
 		status = clps_readl(SYSFLG1);
 		if (status & SYSFLG1_DCD)
 			result |= TIOCM_CAR;
@@ -204,7 +201,8 @@ static unsigned int clps711xuart_get_mctrl(struct uart_port *port)
 			result |= TIOCM_DSR;
 		if (status & SYSFLG1_CTS)
 			result |= TIOCM_CTS;
-	}
+	} else
+		result = TIOCM_DSR | TIOCM_CTS | TIOCM_CAR;
 
 	return result;
 }
