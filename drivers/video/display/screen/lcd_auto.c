@@ -25,31 +25,36 @@
 #include <linux/ts-auto.h>
 #include "screen.h"
 
+extern struct rk29_bl_info rk29_bl_info;
+
 
 //FOR ID0
 /* Base */
 #define OUT_TYPE_ID0			SCREEN_RGB
-
 #define OUT_FACE_ID0			OUT_P888
-#define OUT_CLK_ID0			50000000
-#define LCDC_ACLK_ID0       		500000000
+#define OUT_CLK_ID0			71000000
+#define LCDC_ACLK_ID0       		300000000     //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
-#define H_PW_ID0			100
-#define H_BP_ID0			100
-#define H_VD_ID0			1024
-#define H_FP_ID0			120
+#define H_PW_ID0			10
+#define H_BP_ID0			64
+#define H_VD_ID0			800
+#define H_FP_ID0			16
 
-#define V_PW_ID0			10
-#define V_BP_ID0			10
-#define V_VD_ID0			600
-#define V_FP_ID0			15
+#define V_PW_ID0			3
+#define V_BP_ID0			8
+#define V_VD_ID0			1280
+#define V_FP_ID0			10
 
-#define LCD_WIDTH_ID0       		202
-#define LCD_HEIGHT_ID0      		152
+
 /* Other */
 #define DCLK_POL_ID0			0
-#define SWAP_RB_ID0			0   
+#define SWAP_RB_ID0			0
+
+#define LCD_WIDTH_ID0                  152
+#define LCD_HEIGHT_ID0                 202
+
+
 
 //FOR ID2
 #define OUT_TYPE_ID2			SCREEN_RGB
@@ -101,29 +106,48 @@
 #define LCD_WIDTH_ID3       		270
 #define LCD_HEIGHT_ID3      		202
 
-
+#if defined(CONFIG_TS_AUTO)
 extern struct ts_private_data *g_ts;
-extern int rk_get_board_id(void);
+#else
+static struct ts_private_data *g_ts = NULL;
+#endif
 
+#if defined(CONFIG_RK_BOARD_ID)
+extern int rk_get_board_id(void);
+#else
+static int rk_get_board_id(void)
+{
+	return -1;
+}
+#endif
 static int lcd_get_id(void)
 {
 	int id = -1;
-#if 0
-	id = rk_get_board_id();
+	int ts_id = -1;
 	
-#else
-	struct ts_max_pixel pixel;
-
+#if defined(CONFIG_RK_BOARD_ID)
+	id = rk_get_board_id();	
+#elif defined(CONFIG_TS_AUTO)
 	if(!g_ts)
 		return -1;
-	
-	pixel = g_ts->ops->pixel;
-	if((pixel.max_x == 1024)&&(pixel.max_y == 600))
-		id = 0;
-	else if((pixel.max_x == 1024)&&(pixel.max_y == 768)) 	
-		id = 2;
-	else if((pixel.max_x == 1280)&&(pixel.max_y == 800))	
-		id = 3;
+
+	ts_id = g_ts->ops->id_i2c;
+
+	switch(ts_id)
+	{
+		case TS_ID_FT5306:	
+			id = 2;
+			break;
+		case TS_ID_GT8110:	
+			id = 3;
+			break;
+		case TS_ID_GT828:
+			id = 0;
+			break;
+		default:
+			break;
+	}
+
 #endif
 	return id;
 }
