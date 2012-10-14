@@ -61,14 +61,13 @@ ENTRY(ia64_execve)
 	 * Allocate 8 input registers since ptrace() may clobber them
 	 */
 	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
-	alloc loc1=ar.pfs,8,2,4,0
+	alloc loc1=ar.pfs,8,2,3,0
 	mov loc0=rp
 	.body
 	mov out0=in0			// filename
 	;;				// stop bit between alloc and call
 	mov out1=in1			// argv
 	mov out2=in2			// envp
-	add out3=16,sp			// regs
 	br.call.sptk.many rp=sys_execve
 .ret0:
 	cmp4.ge p6,p7=r8,r0
@@ -76,7 +75,6 @@ ENTRY(ia64_execve)
 	sxt4 r8=r8			// return 64-bit result
 	;;
 	stf.spill [sp]=f0
-(p6)	cmp.ne pKStk,pUStk=r0,r0	// a successful execve() lands us in user-mode...
 	mov rp=loc0
 (p6)	mov ar.pfs=r0			// clear ar.pfs on success
 (p7)	br.ret.sptk.many rp
