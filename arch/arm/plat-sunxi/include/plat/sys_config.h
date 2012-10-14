@@ -125,10 +125,6 @@ typedef struct
     int data;
 } user_gpio_set_t;
 
-/* functions for early boot */
-extern int sw_cfg_get_int(const char *script_buf, const char *main_key, const char *sub_key);
-extern char *sw_cfg_get_str(const char *script_buf, const char *main_key, const char *sub_key, char *buf);
-
 /* script operations */
 extern int script_parser_init(char *script_buf);
 extern int script_parser_exit(void);

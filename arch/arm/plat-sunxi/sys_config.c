@@ -32,69 +32,6 @@
 #include <mach/platform.h>
 #include <plat/sys_config.h>
 
-static script_sub_key_t *sw_cfg_get_subkey(const char *script_buf,
-				    const char *main_key, const char *sub_key)
-{
-	script_head_t *hd = (script_head_t *)script_buf;
-	script_main_key_t *mk = (script_main_key_t *)(hd + 1);
-	script_sub_key_t *sk = NULL;
-	int i, j;
-
-	for (i = 0; i < hd->main_key_count; i++) {
-		if (strcmp(main_key, mk->main_name)) {
-			mk++;
-			continue;
-		}
-
-		for (j = 0; j < mk->lenth; j++) {
-			sk = (script_sub_key_t *)(script_buf + (mk->offset<<2) + j * sizeof(script_sub_key_t));
-			if (!strcmp(sub_key, sk->sub_name))
-				return sk;
-		}
-	}
-	return NULL;
-}
-
-int sw_cfg_get_int(const char *script_buf, const char *main_key,
-		   const char *sub_key)
-{
-	script_sub_key_t *sk = NULL;
-	char *pdata;
-	int value;
-
-	sk = sw_cfg_get_subkey(script_buf, main_key, sub_key);
-	if (sk == NULL)
-		return -1;
-
-	if (((sk->pattern >> 16) & 0xffff) == SCRIPT_PARSER_VALUE_TYPE_SINGLE_WORD) {
-		pdata = (char *)(script_buf + (sk->offset<<2));
-		value = *((int *)pdata);
-		return value;
-	}
-
-	return -1;
-}
-
-char *sw_cfg_get_str(const char *script_buf, const char *main_key,
-		     const char *sub_key, char *buf)
-{
-	script_sub_key_t *sk = NULL;
-	char *pdata;
-
-	sk = sw_cfg_get_subkey(script_buf, main_key, sub_key);
-	if (sk == NULL)
-		return NULL;
-
-	if (((sk->pattern >> 16) & 0xffff) == SCRIPT_PARSER_VALUE_TYPE_STRING) {
-		pdata = (char *)(script_buf + (sk->offset<<2));
-		memcpy(buf, pdata, ((sk->pattern >> 0) & 0xffff));
-		return (char *)buf;
-	}
-
-	return NULL;
-}
-
-
 /*
  * Script Operations
  */
