@@ -155,7 +155,6 @@ static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	struct circ_buf *xmit = &port->state->xmit;
-	int count;
 
 	if (port->x_char) {
 		clps_writel(port->x_char, UARTDR(port));
@@ -170,14 +169,13 @@ static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	count = port->fifosize >> 1;
-	do {
-		clps_writel(xmit->buf[xmit->tail], UARTDR(port));
+	while (!uart_circ_empty(xmit)) {
+		clps_writew(xmit->buf[xmit->tail], UARTDR(port));
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
-		if (uart_circ_empty(xmit))
+		if (clps_readl(SYSFLG(port) & SYSFLG_UTXFF))
 			break;
-	} while (--count > 0);
+	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -327,8 +325,9 @@ clps711xuart_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (!(termios->c_cflag & PARODD))
 			ubrlcr |= UBRLCR_EVENPRT;
 	}
-	if (port->fifosize > 1)
-		ubrlcr |= UBRLCR_FIFOEN;
+
+	/* Enable FIFO */
+	ubrlcr |= UBRLCR_FIFOEN;
 
 	spin_lock_irqsave(&port->lock, flags);
 
