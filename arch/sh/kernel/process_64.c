@@ -454,31 +454,6 @@ asmlinkage int sys_vfork(unsigned long r2, unsigned long r3,
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, pregs->regs[15], pregs, 0, 0, 0);
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char *ufilename, char **uargv,
-			  char **uenvp, unsigned long r5,
-			  unsigned long r6, unsigned long r7,
-			  struct pt_regs *pregs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname((char __user *)ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name,
-			  (const char __user *const __user *)uargv,
-			  (const char __user *const __user *)uenvp,
-			  pregs);
-	putname(filename);
-out:
-	return error;
-}
-
 #ifdef CONFIG_FRAME_POINTER
 static int in_sh64_switch_to(unsigned long pc)
 {

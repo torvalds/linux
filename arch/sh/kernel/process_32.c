@@ -262,29 +262,6 @@ asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
 		       0, NULL, NULL);
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  unsigned long r7, struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long pc;
