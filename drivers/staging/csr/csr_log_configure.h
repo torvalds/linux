@@ -2,13 +2,13 @@
 #define CSR_LOG_CONFIGURE_H__
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2010
-            All rights reserved and confidential information of CSR
+  (c) Cambridge Silicon Radio Limited 2010
+  All rights reserved and confidential information of CSR
 
-            Refer to LICENSE.txt included with this source for details
-            on the license terms.
+  Refer to LICENSE.txt included with this source for details
+  on the license terms.
 
-*****************************************************************************/
+ *****************************************************************************/
 
 #include "csr_log.h"
 
@@ -37,7 +37,7 @@ void CsrLogLevelTaskSetAll(CsrLogLevelTask tasksLogLevelMask);
 
 /* Set the logging level for a given Task */
 /* This function can be used as a complement to CsrLogLevelTaskSetAll() to add more _or_ less log from a given task than what is set
-generally with CsrLogLevelTaskSetAll(). */
+   generally with CsrLogLevelTaskSetAll(). */
 void CsrLogLevelTaskSetSpecific(CsrSchedQid taskId, CsrLogLevelTask taskLogLevelMask);
 
 
@@ -81,51 +81,51 @@ void CsrLogLevelTextSetTaskSubOrigin(CsrLogTextTaskId taskId, u16 subOrigin, Csr
 
 /*******************************************************************************
 
-    NAME
-        CsrLogLevelTextSet
+  NAME
+  CsrLogLevelTextSet
 
-    DESCRIPTION
-        Set the text logging level for a given origin and optionally sub origin
-        by name. If either string is NULL or zero length, it is interpreted as
-        all origins and/or all sub origins respectively. If originName is NULL
-        or zero length, subOriginName is ignored.
+  DESCRIPTION
+  Set the text logging level for a given origin and optionally sub origin
+  by name. If either string is NULL or zero length, it is interpreted as
+  all origins and/or all sub origins respectively. If originName is NULL
+  or zero length, subOriginName is ignored.
 
-        Passing NULL or zero length strings in both originName and subOriginName
-        is equivalent to calling CsrLogLevelTextSetAll, and overrides all
-        previous filter configurations for all origins and sub origins.
+  Passing NULL or zero length strings in both originName and subOriginName
+  is equivalent to calling CsrLogLevelTextSetAll, and overrides all
+  previous filter configurations for all origins and sub origins.
 
-        Passing NULL or a zero length string in subOriginName overrides all
-        previous filter configurations for all sub origins of the specified
-        origin.
+  Passing NULL or a zero length string in subOriginName overrides all
+  previous filter configurations for all sub origins of the specified
+  origin.
 
-        Note: the supplied strings may be accessed after the function returns
-        and must remain valid and constant until CsrLogDeinit is called.
+Note: the supplied strings may be accessed after the function returns
+and must remain valid and constant until CsrLogDeinit is called.
 
-        Note: when specifying an origin (originName is not NULL and not zero
-        length), this function can only be used for origins that use the
-        csr_log_text_2.h interface for registration and logging. Filtering for
-        origins that use the legacy csr_log_text.h interface must be be
-        configured using the legacy filter configuration functions that accept
-        a CsrLogTextTaskId as origin specifier. However, when not specifying an
-        origin this function also affects origins that have been registered with
-        the legacy csr_log_text.h interface. Furthermore, using this function
-        and the legacy filter configuration functions on the same origin is not
-        allowed.
+Note: when specifying an origin (originName is not NULL and not zero
+length), this function can only be used for origins that use the
+csr_log_text_2.h interface for registration and logging. Filtering for
+origins that use the legacy csr_log_text.h interface must be be
+configured using the legacy filter configuration functions that accept
+a CsrLogTextTaskId as origin specifier. However, when not specifying an
+origin this function also affects origins that have been registered with
+the legacy csr_log_text.h interface. Furthermore, using this function
+and the legacy filter configuration functions on the same origin is not
+allowed.
 
-    PARAMETERS
-        originName - a string containing the name of the origin. Can be NULL or
-            zero length to set the log level for all origins. In this case, the
-            subOriginName parameter will be ignored.
-        subOriginName - a string containing the name of the sub origin. Can be
-            NULL or zero length to set the log level for all sub origins of the
-            specified origin.
-        warningLevelMask - The desired log level for the specified origin(s) and
-            sub origin(s).
+PARAMETERS
+originName - a string containing the name of the origin. Can be NULL or
+zero length to set the log level for all origins. In this case, the
+subOriginName parameter will be ignored.
+subOriginName - a string containing the name of the sub origin. Can be
+NULL or zero length to set the log level for all sub origins of the
+specified origin.
+warningLevelMask - The desired log level for the specified origin(s) and
+sub origin(s).
 
-*******************************************************************************/
+ *******************************************************************************/
 void CsrLogLevelTextSet(const char *originName,
-    const char *subOriginName,
-    CsrLogLevelText warningLevelMask);
+		const char *subOriginName,
+		CsrLogLevelText warningLevelMask);
 
 #ifdef __cplusplus
 }
