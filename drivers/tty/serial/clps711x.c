@@ -231,7 +231,6 @@ static void clps711xuart_break_ctl(struct uart_port *port, int break_state)
 static int clps711xuart_startup(struct uart_port *port)
 {
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	unsigned int syscon;
 	int ret;
 
 	s->tx_enabled[port->line] = 1;
@@ -248,37 +247,23 @@ static int clps711xuart_startup(struct uart_port *port)
 		return ret;
 	}
 
-	/*
-	 * enable the port
-	 */
-	syscon = clps_readl(SYSCON(port));
-	syscon |= SYSCON_UARTEN;
-	clps_writel(syscon, SYSCON(port));
+	/* Disable break */
+	clps_writel(clps_readl(UBRLCR(port)) & ~UBRLCR_BREAK, UBRLCR(port));
+
+	/* Enable the port */
+	clps_writel(clps_readl(SYSCON(port)) | SYSCON_UARTEN, SYSCON(port));
 
 	return 0;
 }
 
 static void clps711xuart_shutdown(struct uart_port *port)
 {
-	unsigned int ubrlcr, syscon;
-
 	/* Free the interrupts */
 	devm_free_irq(port->dev, TX_IRQ(port), port);
 	devm_free_irq(port->dev, RX_IRQ(port), port);
 
-	/*
-	 * disable the port
-	 */
-	syscon = clps_readl(SYSCON(port));
-	syscon &= ~SYSCON_UARTEN;
-	clps_writel(syscon, SYSCON(port));
-
-	/*
-	 * disable break condition and fifos
-	 */
-	ubrlcr = clps_readl(UBRLCR(port));
-	ubrlcr &= ~(UBRLCR_FIFOEN | UBRLCR_BREAK);
-	clps_writel(ubrlcr, UBRLCR(port));
+	/* Disable the port */
+	clps_writel(clps_readl(SYSCON(port)) & ~SYSCON_UARTEN, SYSCON(port));
 }
 
 static void
