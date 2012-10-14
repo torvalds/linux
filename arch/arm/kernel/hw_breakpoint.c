@@ -28,6 +28,7 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
+#include <linux/cpu_pm.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
@@ -1032,6 +1033,30 @@ static struct notifier_block __cpuinitdata dbg_reset_nb = {
 	.notifier_call = dbg_reset_notify,
 };
 
+#ifdef CONFIG_CPU_PM
+static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
+			     void *v)
+{
+	if (action == CPU_PM_EXIT)
+		reset_ctrl_regs(NULL);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata dbg_cpu_pm_nb = {
+	.notifier_call = dbg_cpu_pm_notify,
+};
+
+static void __init pm_init(void)
+{
+	cpu_pm_register_notifier(&dbg_cpu_pm_nb);
+}
+#else
+static inline void pm_init(void)
+{
+}
+#endif
+
 static int __init arch_hw_breakpoint_init(void)
 {
 	debug_arch = get_debug_arch();
@@ -1081,8 +1106,9 @@ static int __init arch_hw_breakpoint_init(void)
 	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
 			TRAP_HWBKPT, "breakpoint debug exception");
 
-	/* Register hotplug notifier. */
+	/* Register hotplug and PM notifiers. */
 	register_cpu_notifier(&dbg_reset_nb);
+	pm_init();
 	return 0;
 }
 arch_initcall(arch_hw_breakpoint_init);
