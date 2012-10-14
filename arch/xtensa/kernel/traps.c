@@ -202,8 +202,8 @@ extern void do_IRQ(int, struct pt_regs *);
 
 void do_interrupt (struct pt_regs *regs)
 {
-	unsigned long intread = get_sr (INTREAD);
-	unsigned long intenable = get_sr (INTENABLE);
+	unsigned long intread = get_sr (interrupt);
+	unsigned long intenable = get_sr (intenable);
 	int i, mask;
 
 	/* Handle all interrupts (no priorities).
@@ -213,7 +213,7 @@ void do_interrupt (struct pt_regs *regs)
 
 	for (i=0, mask = 1; i < XCHAL_NUM_INTERRUPTS; i++, mask <<= 1) {
 		if (mask & (intread & intenable)) {
-			set_sr (mask, INTCLEAR);
+			set_sr (mask, intclear);
 			do_IRQ (i,regs);
 		}
 	}
@@ -339,7 +339,7 @@ void __init trap_init(void)
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */
 
 	i = (unsigned long)exc_table;
-	__asm__ __volatile__("wsr  %0, "__stringify(EXCSAVE_1)"\n" : : "a" (i));
+	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (i));
 }
 
 /*
@@ -386,16 +386,16 @@ static inline void spill_registers(void)
 	unsigned int a0, ps;
 
 	__asm__ __volatile__ (
-		"movi	a14," __stringify (PS_EXCM_BIT) " | 1\n\t"
+		"movi	a14, " __stringify(PS_EXCM_BIT | 1) "\n\t"
 		"mov	a12, a0\n\t"
-		"rsr	a13," __stringify(SAR) "\n\t"
-		"xsr	a14," __stringify(PS) "\n\t"
+		"rsr	a13, sar\n\t"
+		"xsr	a14, ps\n\t"
 		"movi	a0, _spill_registers\n\t"
 		"rsync\n\t"
 		"callx0 a0\n\t"
 		"mov	a0, a12\n\t"
-		"wsr	a13," __stringify(SAR) "\n\t"
-		"wsr	a14," __stringify(PS) "\n\t"
+		"wsr	a13, sar\n\t"
+		"wsr	a14, ps\n\t"
 		:: "a" (&a0), "a" (&ps)
 		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15", "memory");
 }
