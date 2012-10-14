@@ -4,9 +4,6 @@
 #include <uapi/asm/ptrace.h>
 
 #ifndef __ASSEMBLY__
-#ifdef CONFIG_COLDFIRE
-#else
-#endif
 
 #ifndef PS_S
 #define PS_S  (0x2000)
