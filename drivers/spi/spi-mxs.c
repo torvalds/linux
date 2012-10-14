@@ -323,6 +323,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 	if (!ret) {
 		dev_err(ssp->dev, "DMA transfer timeout\n");
 		ret = -ETIMEDOUT;
+		dmaengine_terminate_all(ssp->dmach);
 		goto err_vmalloc;
 	}
 
