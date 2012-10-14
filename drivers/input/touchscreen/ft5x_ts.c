@@ -110,11 +110,7 @@ static int key_val = 0;
 #endif
 ///////////////////////////////////////////////
 //specific tp related macro: need be configured for specific tp
-#ifdef CONFIG_ARCH_SUN4I
-#define CTP_IRQ_NO			(IRQ_EINT21)
-#elif defined(CONFIG_ARCH_SUN5I)
-#define CTP_IRQ_NO			(IRQ_EINT9)
-#endif
+#define CTP_IRQ_NO			(gpio_int_info[0].port_num)
 
 #define CTP_IRQ_MODE			(NEGATIVE_EDGE)
 #define CTP_NAME			FT5X_NAME
