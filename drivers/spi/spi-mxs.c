@@ -480,7 +480,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 		first = last = 0;
 	}
 
-	m->status = 0;
+	m->status = status;
 	spi_finalize_current_message(master);
 
 	return status;
