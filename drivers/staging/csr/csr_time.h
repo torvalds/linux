@@ -29,24 +29,6 @@ DESCRIPTION
 *******************************************************************************/
 typedef u32 CsrTime;
 
-
-/*******************************************************************************
-
-NAME
-	CsrTimeUtc
-
-DESCRIPTION
-	Type to hold a value describing a UTC wallclock time expressed in
-	seconds and milliseconds elapsed since midnight January 1st 1970.
-
-*******************************************************************************/
-typedef struct
-{
-    u32 sec;
-    u16 msec;
-} CsrTimeUtc;
-
-
 /*******************************************************************************
 
 NAME
