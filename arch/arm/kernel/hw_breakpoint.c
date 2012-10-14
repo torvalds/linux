@@ -50,6 +50,9 @@ static int core_num_wrps;
 /* Debug architecture version. */
 static u8 debug_arch;
 
+/* Does debug architecture support OS Save and Restore? */
+static bool has_ossr;
+
 /* Maximum supported watchpoint length. */
 static u8 max_watchpoint_len;
 
@@ -904,6 +907,23 @@ static struct undef_hook debug_reg_hook = {
 	.fn		= debug_reg_trap,
 };
 
+/* Does this core support OS Save and Restore? */
+static bool core_has_os_save_restore(void)
+{
+	u32 oslsr;
+
+	switch (get_debug_arch()) {
+	case ARM_DEBUG_ARCH_V7_1:
+		return true;
+	case ARM_DEBUG_ARCH_V7_ECP14:
+		ARM_DBG_READ(c1, c1, 4, oslsr);
+		if (oslsr & ARM_OSLSR_OSLM0)
+			return true;
+	default:
+		return false;
+	}
+}
+
 static void reset_ctrl_regs(void *unused)
 {
 	int i, raw_num_brps, err = 0, cpu = smp_processor_id();
@@ -931,11 +951,7 @@ static void reset_ctrl_regs(void *unused)
 		if ((val & 0x1) == 0)
 			err = -EPERM;
 
-		/*
-		 * Check whether we implement OS save and restore.
-		 */
-		ARM_DBG_READ(c1, c1, 4, val);
-		if ((val & 0x9) == 0)
+		if (!has_ossr)
 			goto clear_vcr;
 		break;
 	case ARM_DEBUG_ARCH_V7_1:
@@ -1024,6 +1040,8 @@ static int __init arch_hw_breakpoint_init(void)
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
 		return 0;
 	}
+
+	has_ossr = core_has_os_save_restore();
 
 	/* Determine how many BRPs/WRPs are available. */
 	core_num_brps = get_num_brps();
