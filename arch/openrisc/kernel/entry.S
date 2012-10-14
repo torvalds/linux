@@ -1044,8 +1044,13 @@ ENTRY(_switch)
 	/* Unwind stack to pre-switch state */
 	l.addi  r1,r1,(INT_FRAME_SIZE)
 
-	/* Return via the link-register back to where we 'came from', where that can be
-	 * either schedule() or return_from_fork()... */
+	/* Return via the link-register back to where we 'came from', where
+	 * that may be either schedule(), ret_from_fork(), or
+	 * ret_from_kernel_thread().  If we are returning to a new thread,
+	 * we are expected to have set up the arg to schedule_tail already,
+	 * hence we do so here unconditionally:
+	 */
+	l.lwz   r3,TI_STACK(r3)		/* Load 'prev' as schedule_tail arg */
 	l.jr	r9
 	 l.nop
 

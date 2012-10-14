@@ -165,7 +165,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * the kernel stack.
 	 */
 	kregs->sp = top_of_kernel_stack;
-	kregs->gpr[3] = (unsigned long)current;	/* arg to schedule_tail */
 	kregs->gpr[10] = (unsigned long)task_thread_info(p);
 	kregs->gpr[9] = (unsigned long)ret_from_fork;
 
