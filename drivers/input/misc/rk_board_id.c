@@ -88,6 +88,9 @@ static int __devinit rk_board_id_probe(struct platform_device *pdev)
 	
 	result = _rk_get_board_id(id);
 
+	if(pdata->init_parameter)
+		pdata->init_parameter(id->board_id);
+
 	if(pdata->exit_platform_hw)
 		pdata->exit_platform_hw();
 	

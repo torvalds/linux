@@ -191,7 +191,8 @@ struct board_id_platform_data {
 	int gpio_pin[32];
 	int num_gpio;
 	int (*init_platform_hw)(void);	
-	int (*exit_platform_hw)(void);	
+	int (*exit_platform_hw)(void);
+	int (*init_parameter)(int id);  
 };
 
 
