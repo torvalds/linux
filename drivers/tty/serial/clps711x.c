@@ -218,12 +218,14 @@ static void clps711xuart_break_ctl(struct uart_port *port, int break_state)
 	unsigned int ubrlcr;
 
 	spin_lock_irqsave(&port->lock, flags);
+
 	ubrlcr = clps_readl(UBRLCR(port));
-	if (break_state == -1)
+	if (break_state)
 		ubrlcr |= UBRLCR_BREAK;
 	else
 		ubrlcr &= ~UBRLCR_BREAK;
 	clps_writel(ubrlcr, UBRLCR(port));
+
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
