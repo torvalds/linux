@@ -57,6 +57,9 @@
 /* #define EXIT_DEBUG_SIMPLE */
 /* #define EXIT_DEBUG_INT */
 
+/* Used to indicate that a guest page fault needs to be handled */
+#define RESUME_PAGE_FAULT	(RESUME_GUEST | RESUME_FLAG_ARCH1)
+
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
@@ -431,7 +434,6 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			      struct task_struct *tsk)
 {
 	int r = RESUME_HOST;
-	int srcu_idx;
 
 	vcpu->stat.sum_exits++;
 
@@ -491,16 +493,12 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * have been handled already.
 	 */
 	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
-		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = kvmppc_book3s_hv_page_fault(run, vcpu,
-				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
-		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		r = RESUME_PAGE_FAULT;
 		break;
 	case BOOK3S_INTERRUPT_H_INST_STORAGE:
-		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = kvmppc_book3s_hv_page_fault(run, vcpu,
-				kvmppc_get_pc(vcpu), 0);
-		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		vcpu->arch.fault_dar = kvmppc_get_pc(vcpu);
+		vcpu->arch.fault_dsisr = 0;
+		r = RESUME_PAGE_FAULT;
 		break;
 	/*
 	 * This occurs if the guest executes an illegal instruction.
@@ -984,22 +982,24 @@ static int on_primary_thread(void)
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
  */
-static int kvmppc_run_core(struct kvmppc_vcore *vc)
+static void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
 	struct kvm_vcpu *vcpu, *vcpu0, *vnext;
 	long ret;
 	u64 now;
 	int ptid, i, need_vpa_update;
 	int srcu_idx;
+	struct kvm_vcpu *vcpus_to_update[threads_per_core];
 
 	/* don't start if any threads have a signal pending */
 	need_vpa_update = 0;
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		if (signal_pending(vcpu->arch.run_task))
-			return 0;
-		need_vpa_update |= vcpu->arch.vpa.update_pending |
-			vcpu->arch.slb_shadow.update_pending |
-			vcpu->arch.dtl.update_pending;
+			return;
+		if (vcpu->arch.vpa.update_pending ||
+		    vcpu->arch.slb_shadow.update_pending ||
+		    vcpu->arch.dtl.update_pending)
+			vcpus_to_update[need_vpa_update++] = vcpu;
 	}
 
 	/*
@@ -1019,8 +1019,8 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	if (need_vpa_update) {
 		spin_unlock(&vc->lock);
-		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
-			kvmppc_update_vpas(vcpu);
+		for (i = 0; i < need_vpa_update; ++i)
+			kvmppc_update_vpas(vcpus_to_update[i]);
 		spin_lock(&vc->lock);
 	}
 
@@ -1037,8 +1037,10 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 			vcpu->arch.ptid = ptid++;
 		}
 	}
-	if (!vcpu0)
-		return 0;		/* nothing to run */
+	if (!vcpu0) {
+		vc->vcore_state = VCORE_INACTIVE;
+		return;		/* nothing to run; should never happen */
+	}
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
 		if (vcpu->arch.ceded)
 			vcpu->arch.ptid = ptid++;
@@ -1091,6 +1093,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	preempt_enable();
 	kvm_resched(vcpu);
 
+	spin_lock(&vc->lock);
 	now = get_tb();
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		/* cancel pending dec exception if dec is positive */
@@ -1114,7 +1117,6 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 		}
 	}
 
-	spin_lock(&vc->lock);
  out:
 	vc->vcore_state = VCORE_INACTIVE;
 	vc->preempt_tb = mftb();
@@ -1125,8 +1127,6 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 			wake_up(&vcpu->arch.cpu_run);
 		}
 	}
-
-	return 1;
 }
 
 /*
@@ -1150,20 +1150,11 @@ static void kvmppc_wait_for_exec(struct kvm_vcpu *vcpu, int wait_state)
 static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 {
 	DEFINE_WAIT(wait);
-	struct kvm_vcpu *v;
-	int all_idle = 1;
 
 	prepare_to_wait(&vc->wq, &wait, TASK_INTERRUPTIBLE);
 	vc->vcore_state = VCORE_SLEEPING;
 	spin_unlock(&vc->lock);
-	list_for_each_entry(v, &vc->runnable_threads, arch.run_list) {
-		if (!v->arch.ceded || v->arch.pending_exceptions) {
-			all_idle = 0;
-			break;
-		}
-	}
-	if (all_idle)
-		schedule();
+	schedule();
 	finish_wait(&vc->wq, &wait);
 	spin_lock(&vc->lock);
 	vc->vcore_state = VCORE_INACTIVE;
@@ -1219,7 +1210,8 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		vc->runner = vcpu;
 		n_ceded = 0;
 		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
-			n_ceded += v->arch.ceded;
+			if (!v->arch.pending_exceptions)
+				n_ceded += v->arch.ceded;
 		if (n_ceded == vc->n_runnable)
 			kvmppc_vcore_blocked(vc);
 		else
@@ -1240,8 +1232,9 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	if (signal_pending(current)) {
-		if (vc->vcore_state == VCORE_RUNNING ||
-		    vc->vcore_state == VCORE_EXITING) {
+		while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
+		       (vc->vcore_state == VCORE_RUNNING ||
+			vc->vcore_state == VCORE_EXITING)) {
 			spin_unlock(&vc->lock);
 			kvmppc_wait_for_exec(vcpu, TASK_UNINTERRUPTIBLE);
 			spin_lock(&vc->lock);
@@ -1261,6 +1254,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int r;
+	int srcu_idx;
 
 	if (!vcpu->arch.sane) {
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -1299,6 +1293,11 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
 			r = kvmppc_pseries_do_hcall(vcpu);
 			kvmppc_core_prepare_to_enter(vcpu);
+		} else if (r == RESUME_PAGE_FAULT) {
+			srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+			r = kvmppc_book3s_hv_page_fault(run, vcpu,
+				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
+			srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 		}
 	} while (r == RESUME_GUEST);
 
