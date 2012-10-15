@@ -313,7 +313,7 @@ static int
 cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	return *rdp->nxttail[RCU_DONE_TAIL +
-			     ACCESS_ONCE(rsp->completed) != rdp->completed] &&
+			     (ACCESS_ONCE(rsp->completed) != rdp->completed)] &&
 	       !rcu_gp_in_progress(rsp);
 }
 
