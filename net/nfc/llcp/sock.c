@@ -663,11 +663,28 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return -EFAULT;
 	}
 
+	if (sk->sk_type == SOCK_DGRAM && msg->msg_name) {
+		struct nfc_llcp_ui_cb *ui_cb = nfc_llcp_ui_skb_cb(skb);
+		struct sockaddr_nfc_llcp sockaddr;
+
+		pr_debug("Datagram socket %d %d\n", ui_cb->dsap, ui_cb->ssap);
+
+		sockaddr.sa_family = AF_NFC;
+		sockaddr.nfc_protocol = NFC_PROTO_NFC_DEP;
+		sockaddr.dsap = ui_cb->dsap;
+		sockaddr.ssap = ui_cb->ssap;
+
+		memcpy(msg->msg_name, &sockaddr, sizeof(sockaddr));
+		msg->msg_namelen = sizeof(sockaddr);
+	}
+
 	/* Mark read part of skb as used */
 	if (!(flags & MSG_PEEK)) {
 
 		/* SOCK_STREAM: re-queue skb if it contains unreceived data */
-		if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_RAW) {
+		if (sk->sk_type == SOCK_STREAM ||
+		    sk->sk_type == SOCK_DGRAM ||
+		    sk->sk_type == SOCK_RAW) {
 			skb_pull(skb, copied);
 			if (skb->len) {
 				skb_queue_head(&sk->sk_receive_queue, skb);
