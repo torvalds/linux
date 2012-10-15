@@ -338,20 +338,10 @@ static const char * u8500_dt_board_compat[] = {
 	NULL,
 };
 
-DT_MACHINE_START(U8500_DT, "ST-Ericsson U8500 platform (Device Tree Support)")
+DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &ux500_timer,
-	.handle_irq	= gic_handle_irq,
-	.init_machine	= u8500_init_machine,
-	.init_late	= NULL,
-	.dt_compat      = u8500_dt_board_compat,
-MACHINE_END
-
-DT_MACHINE_START(U9540_DT, "ST-Ericsson 9540 platform (Device Tree Support)")
-	.map_io		= u8500_map_io,
-	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= u8500_init_machine,
