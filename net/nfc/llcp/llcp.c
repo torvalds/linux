@@ -1071,20 +1071,54 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 			service_name = (char *) &tlv[3];
 			service_name_len = length - 1;
 
-			pr_debug("Looking for %s\n", service_name);
+			pr_debug("Looking for %.16s\n", service_name);
 
 			if (service_name_len == strlen("urn:nfc:sn:sdp") &&
 			    !strncmp(service_name, "urn:nfc:sn:sdp",
 				     service_name_len)) {
 				sap = 1;
-			} else {
-				llcp_sock =
-					nfc_llcp_sock_from_sn(local,
-							      service_name,
-							      service_name_len);
-				sap = llcp_sock ? llcp_sock->ssap : 0;
+				goto send_snl;
 			}
 
+			llcp_sock = nfc_llcp_sock_from_sn(local, service_name,
+							  service_name_len);
+			if (!llcp_sock) {
+				sap = 0;
+				goto send_snl;
+			}
+
+			/*
+			 * We found a socket but its ssap has not been reserved
+			 * yet. We need to assign it for good and send a reply.
+			 * The ssap will be freed when the socket is closed.
+			 */
+			if (llcp_sock->ssap == LLCP_SDP_UNBOUND) {
+				atomic_t *client_count;
+
+				sap = nfc_llcp_reserve_sdp_ssap(local);
+
+				pr_debug("Reserving %d\n", sap);
+
+				if (sap == LLCP_SAP_MAX) {
+					sap = 0;
+					goto send_snl;
+				}
+
+				client_count =
+					&local->local_sdp_cnt[sap -
+							      LLCP_WKS_NUM_SAP];
+
+				atomic_inc(client_count);
+
+				llcp_sock->ssap = sap;
+				llcp_sock->reserved_ssap = sap;
+			} else {
+				sap = llcp_sock->ssap;
+			}
+
+			pr_debug("%p %d\n", llcp_sock, sap);
+
+		send_snl:
 			nfc_llcp_send_snl(local, tid, sap);
 			break;
 
