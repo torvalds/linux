@@ -349,7 +349,7 @@ static struct port_buffer *alloc_buf(size_t buf_size)
 	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto fail;
-	buf->buf = kzalloc(buf_size, GFP_KERNEL);
+	buf->buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf->buf)
 		goto free_buf;
 	buf->len = 0;
