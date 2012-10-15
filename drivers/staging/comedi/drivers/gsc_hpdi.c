@@ -244,27 +244,24 @@ struct hpdi_private {
 	unsigned dio_config_output:1;
 };
 
-static inline struct hpdi_private *priv(struct comedi_device *dev)
-{
-	return dev->private;
-}
-
 static int dio_config_insn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct hpdi_private *devpriv = dev->private;
+
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		priv(dev)->dio_config_output = 1;
+		devpriv->dio_config_output = 1;
 		return insn->n;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		priv(dev)->dio_config_output = 0;
+		devpriv->dio_config_output = 0;
 		return insn->n;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-		    priv(dev)->dio_config_output ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    devpriv->dio_config_output ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	case INSN_CONFIG_BLOCK_SIZE:
@@ -279,21 +276,24 @@ static int dio_config_insn(struct comedi_device *dev,
 
 static void disable_plx_interrupts(struct comedi_device *dev)
 {
-	writel(0, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	struct hpdi_private *devpriv = dev->private;
+
+	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 }
 
 /* initialize plx9080 chip */
 static void init_plx9080(struct comedi_device *dev)
 {
+	struct hpdi_private *devpriv = dev->private;
 	uint32_t bits;
-	void __iomem *plx_iobase = priv(dev)->plx9080_iobase;
+	void __iomem *plx_iobase = devpriv->plx9080_iobase;
 
 	/*  plx9080 dump */
 	DEBUG_PRINT(" plx interrupt status 0x%x\n",
 		    readl(plx_iobase + PLX_INTRCS_REG));
 	DEBUG_PRINT(" plx id bits 0x%x\n", readl(plx_iobase + PLX_ID_REG));
 	DEBUG_PRINT(" plx control reg 0x%x\n",
-		    readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG));
+		    readl(devpriv->plx9080_iobase + PLX_CONTROL_REG));
 
 	DEBUG_PRINT(" plx revision 0x%x\n",
 		    readl(plx_iobase + PLX_REVISION_REG));
@@ -319,7 +319,7 @@ static void init_plx9080(struct comedi_device *dev)
 #else
 	bits = 0;
 #endif
-	writel(bits, priv(dev)->plx9080_iobase + PLX_BIGEND_REG);
+	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
 
 	disable_plx_interrupts(dev);
 
@@ -380,28 +380,29 @@ static int setup_subdevices(struct comedi_device *dev)
 
 static int init_hpdi(struct comedi_device *dev)
 {
+	struct hpdi_private *devpriv = dev->private;
 	uint32_t plx_intcsr_bits;
 
-	writel(BOARD_RESET_BIT, priv(dev)->hpdi_iobase + BOARD_CONTROL_REG);
+	writel(BOARD_RESET_BIT, devpriv->hpdi_iobase + BOARD_CONTROL_REG);
 	udelay(10);
 
 	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       priv(dev)->hpdi_iobase + RX_PROG_ALMOST_REG);
+	       devpriv->hpdi_iobase + RX_PROG_ALMOST_REG);
 	writel(almost_empty_bits(32) | almost_full_bits(32),
-	       priv(dev)->hpdi_iobase + TX_PROG_ALMOST_REG);
+	       devpriv->hpdi_iobase + TX_PROG_ALMOST_REG);
 
-	priv(dev)->tx_fifo_size = fifo_size(readl(priv(dev)->hpdi_iobase +
+	devpriv->tx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
 						  TX_FIFO_SIZE_REG));
-	priv(dev)->rx_fifo_size = fifo_size(readl(priv(dev)->hpdi_iobase +
+	devpriv->rx_fifo_size = fifo_size(readl(devpriv->hpdi_iobase +
 						  RX_FIFO_SIZE_REG));
 
-	writel(0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
 	/*  enable interrupts */
 	plx_intcsr_bits =
 	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
 	    ICS_DMA0_E;
-	writel(plx_intcsr_bits, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	writel(plx_intcsr_bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 
 	return 0;
 }
@@ -410,6 +411,7 @@ static int init_hpdi(struct comedi_device *dev)
 static int setup_dma_descriptors(struct comedi_device *dev,
 				 unsigned int transfer_size)
 {
+	struct hpdi_private *devpriv = dev->private;
 	unsigned int buffer_index, buffer_offset;
 	uint32_t next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
 	    PLX_XFER_LOCAL_TO_PCI;
@@ -423,25 +425,25 @@ static int setup_dma_descriptors(struct comedi_device *dev,
 
 	DEBUG_PRINT(" transfer_size %i\n", transfer_size);
 	DEBUG_PRINT(" descriptors at 0x%lx\n",
-		    (unsigned long)priv(dev)->dma_desc_phys_addr);
+		    (unsigned long)devpriv->dma_desc_phys_addr);
 
 	buffer_offset = 0;
 	buffer_index = 0;
 	for (i = 0; i < NUM_DMA_DESCRIPTORS &&
 	     buffer_index < NUM_DMA_BUFFERS; i++) {
-		priv(dev)->dma_desc[i].pci_start_addr =
-		    cpu_to_le32(priv(dev)->dio_buffer_phys_addr[buffer_index] +
+		devpriv->dma_desc[i].pci_start_addr =
+		    cpu_to_le32(devpriv->dio_buffer_phys_addr[buffer_index] +
 				buffer_offset);
-		priv(dev)->dma_desc[i].local_start_addr = cpu_to_le32(FIFO_REG);
-		priv(dev)->dma_desc[i].transfer_size =
+		devpriv->dma_desc[i].local_start_addr = cpu_to_le32(FIFO_REG);
+		devpriv->dma_desc[i].transfer_size =
 		    cpu_to_le32(transfer_size);
-		priv(dev)->dma_desc[i].next =
-		    cpu_to_le32((priv(dev)->dma_desc_phys_addr + (i +
+		devpriv->dma_desc[i].next =
+		    cpu_to_le32((devpriv->dma_desc_phys_addr + (i +
 								  1) *
-				 sizeof(priv(dev)->dma_desc[0])) | next_bits);
+				 sizeof(devpriv->dma_desc[0])) | next_bits);
 
-		priv(dev)->desc_dio_buffer[i] =
-		    priv(dev)->dio_buffer[buffer_index] +
+		devpriv->desc_dio_buffer[i] =
+		    devpriv->dio_buffer[buffer_index] +
 		    (buffer_offset / sizeof(uint32_t));
 
 		buffer_offset += transfer_size;
@@ -452,34 +454,37 @@ static int setup_dma_descriptors(struct comedi_device *dev,
 
 		DEBUG_PRINT(" desc %i\n", i);
 		DEBUG_PRINT(" start addr virt 0x%p, phys 0x%lx\n",
-			    priv(dev)->desc_dio_buffer[i],
-			    (unsigned long)priv(dev)->dma_desc[i].
+			    devpriv->desc_dio_buffer[i],
+			    (unsigned long)devpriv->dma_desc[i].
 			    pci_start_addr);
 		DEBUG_PRINT(" next 0x%lx\n",
-			    (unsigned long)priv(dev)->dma_desc[i].next);
+			    (unsigned long)devpriv->dma_desc[i].next);
 	}
-	priv(dev)->num_dma_descriptors = i;
+	devpriv->num_dma_descriptors = i;
 	/*  fix last descriptor to point back to first */
-	priv(dev)->dma_desc[i - 1].next =
-	    cpu_to_le32(priv(dev)->dma_desc_phys_addr | next_bits);
+	devpriv->dma_desc[i - 1].next =
+	    cpu_to_le32(devpriv->dma_desc_phys_addr | next_bits);
 	DEBUG_PRINT(" desc %i next fixup 0x%lx\n", i - 1,
-		    (unsigned long)priv(dev)->dma_desc[i - 1].next);
+		    (unsigned long)devpriv->dma_desc[i - 1].next);
 
-	priv(dev)->block_size = transfer_size;
+	devpriv->block_size = transfer_size;
 
 	return transfer_size;
 }
 
 static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct hpdi_private *devpriv;
 	struct pci_dev *pcidev;
 	int i;
 	int retval;
 
 	printk(KERN_WARNING "comedi%d: gsc_hpdi\n", dev->minor);
 
-	if (alloc_private(dev, sizeof(struct hpdi_private)) < 0)
-		return -ENOMEM;
+	retval = alloc_private(dev, sizeof(*devpriv));
+	if (retval)
+		return retval;
+	devpriv = dev->private;
 
 	pcidev = NULL;
 	for (i = 0; i < ARRAY_SIZE(hpdi_boards) &&
@@ -498,7 +503,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					continue;
 			}
 			if (pcidev) {
-				priv(dev)->hw_dev = pcidev;
+				devpriv->hw_dev = pcidev;
 				dev->board_ptr = hpdi_boards + i;
 				break;
 			}
@@ -523,25 +528,25 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Initialize dev->board_name */
 	dev->board_name = board(dev)->name;
 
-	priv(dev)->plx9080_phys_iobase =
+	devpriv->plx9080_phys_iobase =
 	    pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	priv(dev)->hpdi_phys_iobase =
+	devpriv->hpdi_phys_iobase =
 	    pci_resource_start(pcidev, HPDI_BADDRINDEX);
 
 	/*  remap, won't work with 2.0 kernels but who cares */
-	priv(dev)->plx9080_iobase = ioremap(priv(dev)->plx9080_phys_iobase,
+	devpriv->plx9080_iobase = ioremap(devpriv->plx9080_phys_iobase,
 					    pci_resource_len(pcidev,
 					    PLX9080_BADDRINDEX));
-	priv(dev)->hpdi_iobase =
-	    ioremap(priv(dev)->hpdi_phys_iobase,
+	devpriv->hpdi_iobase =
+	    ioremap(devpriv->hpdi_phys_iobase,
 		    pci_resource_len(pcidev, HPDI_BADDRINDEX));
-	if (!priv(dev)->plx9080_iobase || !priv(dev)->hpdi_iobase) {
+	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
 		printk(KERN_WARNING " failed to remap io memory\n");
 		return -ENOMEM;
 	}
 
-	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", priv(dev)->plx9080_iobase);
-	DEBUG_PRINT(" hpdi remapped to 0x%p\n", priv(dev)->hpdi_iobase);
+	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", devpriv->plx9080_iobase);
+	DEBUG_PRINT(" hpdi remapped to 0x%p\n", devpriv->hpdi_iobase);
 
 	init_plx9080(dev);
 
@@ -558,20 +563,20 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/*  allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-		priv(dev)->dio_buffer[i] =
-		    pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
-					 &priv(dev)->dio_buffer_phys_addr[i]);
+		devpriv->dio_buffer[i] =
+		    pci_alloc_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE,
+					 &devpriv->dio_buffer_phys_addr[i]);
 		DEBUG_PRINT("dio_buffer at virt 0x%p, phys 0x%lx\n",
-			    priv(dev)->dio_buffer[i],
-			    (unsigned long)priv(dev)->dio_buffer_phys_addr[i]);
+			    devpriv->dio_buffer[i],
+			    (unsigned long)devpriv->dio_buffer_phys_addr[i]);
 	}
 	/*  allocate dma descriptors */
-	priv(dev)->dma_desc = pci_alloc_consistent(priv(dev)->hw_dev,
+	devpriv->dma_desc = pci_alloc_consistent(devpriv->hw_dev,
 						   sizeof(struct plx_dma_desc) *
 						   NUM_DMA_DESCRIPTORS,
-						   &priv(dev)->
+						   &devpriv->
 						   dma_desc_phys_addr);
-	if (priv(dev)->dma_desc_phys_addr & 0xf) {
+	if (devpriv->dma_desc_phys_addr & 0xf) {
 		printk(KERN_WARNING
 		       " dma descriptors not quad-word aligned (bug)\n");
 		return -EIO;
@@ -590,39 +595,36 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void hpdi_detach(struct comedi_device *dev)
 {
+	struct hpdi_private *devpriv = dev->private;
 	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if ((priv(dev)) && (priv(dev)->hw_dev)) {
-		if (priv(dev)->plx9080_iobase) {
+	if (devpriv && devpriv->hw_dev) {
+		if (devpriv->plx9080_iobase) {
 			disable_plx_interrupts(dev);
-			iounmap(priv(dev)->plx9080_iobase);
+			iounmap(devpriv->plx9080_iobase);
 		}
-		if (priv(dev)->hpdi_iobase)
-			iounmap(priv(dev)->hpdi_iobase);
+		if (devpriv->hpdi_iobase)
+			iounmap(devpriv->hpdi_iobase);
 		/*  free pci dma buffers */
 		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-			if (priv(dev)->dio_buffer[i])
-				pci_free_consistent(priv(dev)->hw_dev,
-						    DMA_BUFFER_SIZE,
-						    priv(dev)->
-						    dio_buffer[i],
-						    priv
-						    (dev)->dio_buffer_phys_addr
-						    [i]);
+			if (devpriv->dio_buffer[i])
+				pci_free_consistent(devpriv->hw_dev,
+					DMA_BUFFER_SIZE,
+					devpriv->dio_buffer[i],
+					devpriv->dio_buffer_phys_addr[i]);
 		}
 		/*  free dma descriptors */
-		if (priv(dev)->dma_desc)
-			pci_free_consistent(priv(dev)->hw_dev,
-					    sizeof(struct plx_dma_desc)
-					    * NUM_DMA_DESCRIPTORS,
-					    priv(dev)->dma_desc,
-					    priv(dev)->
-					    dma_desc_phys_addr);
-		if (priv(dev)->hpdi_phys_iobase)
-			comedi_pci_disable(priv(dev)->hw_dev);
-		pci_dev_put(priv(dev)->hw_dev);
+		if (devpriv->dma_desc)
+			pci_free_consistent(devpriv->hw_dev,
+				sizeof(struct plx_dma_desc) *
+				NUM_DMA_DESCRIPTORS,
+				devpriv->dma_desc,
+				devpriv-> dma_desc_phys_addr);
+		if (devpriv->hpdi_phys_iobase)
+			comedi_pci_disable(devpriv->hw_dev);
+		pci_dev_put(devpriv->hw_dev);
 	}
 }
 
@@ -726,7 +728,9 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	if (priv(dev)->dio_config_output)
+	struct hpdi_private *devpriv = dev->private;
+
+	if (devpriv->dio_config_output)
 		return -EINVAL;
 	else
 		return di_cmd_test(dev, s, cmd);
@@ -735,12 +739,15 @@ static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static inline void hpdi_writel(struct comedi_device *dev, uint32_t bits,
 			       unsigned int offset)
 {
-	writel(bits | priv(dev)->bits[offset / sizeof(uint32_t)],
-	       priv(dev)->hpdi_iobase + offset);
+	struct hpdi_private *devpriv = dev->private;
+
+	writel(bits | devpriv->bits[offset / sizeof(uint32_t)],
+	       devpriv->hpdi_iobase + offset);
 }
 
 static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct hpdi_private *devpriv = dev->private;
 	uint32_t bits;
 	unsigned long flags;
 	struct comedi_async *async = s->async;
@@ -752,39 +759,39 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	abort_dma(dev, 0);
 
-	priv(dev)->dma_desc_index = 0;
+	devpriv->dma_desc_index = 0;
 
 	/* These register are supposedly unused during chained dma,
 	 * but I have found that left over values from last operation
 	 * occasionally cause problems with transfer of first dma
 	 * block.  Initializing them to zero seems to fix the problem. */
-	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
-	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
-	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+	writel(0, devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
 	/*  give location of first dma descriptor */
 	bits =
-	    priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
+	    devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
 	    PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
-	writel(bits, priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 
 	/*  spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	/*  enable dma transfer */
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
-	       priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+	       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		priv(dev)->dio_count = cmd->stop_arg;
+		devpriv->dio_count = cmd->stop_arg;
 	else
-		priv(dev)->dio_count = 1;
+		devpriv->dio_count = 1;
 
 	/*  clear over/under run status flags */
 	writel(RX_UNDERRUN_BIT | RX_OVERRUN_BIT,
-	       priv(dev)->hpdi_iobase + BOARD_STATUS_REG);
+	       devpriv->hpdi_iobase + BOARD_STATUS_REG);
 	/*  enable interrupts */
 	writel(intr_bit(RX_FULL_INTR),
-	       priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	       devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
 	DEBUG_PRINT("hpdi: starting rx\n");
 	hpdi_writel(dev, RX_ENABLE_BIT, BOARD_CONTROL_REG);
@@ -794,7 +801,9 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	if (priv(dev)->dio_config_output)
+	struct hpdi_private *devpriv = dev->private;
+
+	if (devpriv->dio_config_output)
 		return -EINVAL;
 	else
 		return di_cmd(dev, s);
@@ -802,6 +811,7 @@ static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 {
+	struct hpdi_private *devpriv = dev->private;
 	struct comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
 	int j;
@@ -810,37 +820,37 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 
 	if (channel)
 		pci_addr_reg =
-		    priv(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
+		    devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
 	else
 		pci_addr_reg =
-		    priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+		    devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
 
 	/*  loop until we have read all the full buffers */
 	j = 0;
 	for (next_transfer_addr = readl(pci_addr_reg);
 	     (next_transfer_addr <
-	      le32_to_cpu(priv(dev)->dma_desc[priv(dev)->dma_desc_index].
+	      le32_to_cpu(devpriv->dma_desc[devpriv->dma_desc_index].
 			  pci_start_addr)
 	      || next_transfer_addr >=
-	      le32_to_cpu(priv(dev)->dma_desc[priv(dev)->dma_desc_index].
-			  pci_start_addr) + priv(dev)->block_size)
-	     && j < priv(dev)->num_dma_descriptors; j++) {
+	      le32_to_cpu(devpriv->dma_desc[devpriv->dma_desc_index].
+			  pci_start_addr) + devpriv->block_size)
+	     && j < devpriv->num_dma_descriptors; j++) {
 		/*  transfer data from dma buffer to comedi buffer */
-		num_samples = priv(dev)->block_size / sizeof(uint32_t);
+		num_samples = devpriv->block_size / sizeof(uint32_t);
 		if (async->cmd.stop_src == TRIG_COUNT) {
-			if (num_samples > priv(dev)->dio_count)
-				num_samples = priv(dev)->dio_count;
-			priv(dev)->dio_count -= num_samples;
+			if (num_samples > devpriv->dio_count)
+				num_samples = devpriv->dio_count;
+			devpriv->dio_count -= num_samples;
 		}
 		cfc_write_array_to_buffer(dev->read_subdev,
-					  priv(dev)->desc_dio_buffer[priv(dev)->
+					  devpriv->desc_dio_buffer[devpriv->
 								     dma_desc_index],
 					  num_samples * sizeof(uint32_t));
-		priv(dev)->dma_desc_index++;
-		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
+		devpriv->dma_desc_index++;
+		devpriv->dma_desc_index %= devpriv->num_dma_descriptors;
 
 		DEBUG_PRINT("next desc addr 0x%lx\n", (unsigned long)
-			    priv(dev)->dma_desc[priv(dev)->dma_desc_index].
+			    devpriv->dma_desc[devpriv->dma_desc_index].
 			    next);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
@@ -850,6 +860,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 static irqreturn_t handle_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct hpdi_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	uint32_t hpdi_intr_status, hpdi_board_status;
@@ -861,26 +872,26 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
 	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
 		return IRQ_NONE;
 
-	hpdi_intr_status = readl(priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
-	hpdi_board_status = readl(priv(dev)->hpdi_iobase + BOARD_STATUS_REG);
+	hpdi_intr_status = readl(devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);
+	hpdi_board_status = readl(devpriv->hpdi_iobase + BOARD_STATUS_REG);
 
 	async->events = 0;
 
 	if (hpdi_intr_status) {
 		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
 		writel(hpdi_intr_status,
-		       priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
+		       devpriv->hpdi_iobase + INTERRUPT_STATUS_REG);
 	}
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+	dma0_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+		       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
 		if (dma0_status & PLX_DMA_EN_BIT)
@@ -891,10 +902,10 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+	dma1_status = readb(devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
 	if (plx_status & ICS_DMA1_A) {	/*  XXX *//*  dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+		       devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
 		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
@@ -903,8 +914,8 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 
 	/*  clear possible plx9080 interrupt sources */
 	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
-		plx_bits = readl(priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
-		writel(plx_bits, priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
+		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
 	}
 
@@ -912,7 +923,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 		comedi_error(dev, "rx fifo overrun");
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		DEBUG_PRINT("dma0_status 0x%x\n",
-			    (int)readb(priv(dev)->plx9080_iobase +
+			    (int)readb(devpriv->plx9080_iobase +
 				       PLX_DMA0_CS_REG));
 	}
 
@@ -921,7 +932,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
-	if (priv(dev)->dio_count == 0)
+	if (devpriv->dio_count == 0)
 		async->events |= COMEDI_CB_EOA;
 
 	DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
@@ -936,21 +947,24 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 
 static void abort_dma(struct comedi_device *dev, unsigned int channel)
 {
+	struct hpdi_private *devpriv = dev->private;
 	unsigned long flags;
 
 	/*  spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 
-	plx9080_abort_dma(priv(dev)->plx9080_iobase, channel);
+	plx9080_abort_dma(devpriv->plx9080_iobase, channel);
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct hpdi_private *devpriv = dev->private;
+
 	hpdi_writel(dev, 0, BOARD_CONTROL_REG);
 
-	writel(0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG);
+	writel(0, devpriv->hpdi_iobase + INTERRUPT_CONTROL_REG);
 
 	abort_dma(dev, 0);
 
