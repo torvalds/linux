@@ -881,6 +881,8 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 	if (likely(ret > 0))
 		ret = send_pages(port, sgl.sg, sgl.n, sgl.len, true);
 
+	if (unlikely(ret <= 0))
+		kfree(sgl.sg);
 	return ret;
 }
 
