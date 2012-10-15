@@ -2162,7 +2162,18 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 	skb->data_len = 0;
 
 	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
+
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		hci_add_acl_hdr(skb, conn->handle, flags);
+		break;
+	case HCI_AMP:
+		hci_add_acl_hdr(skb, chan->handle, flags);
+		break;
+	default:
+		BT_ERR("%s unknown dev_type %d", hdev->name, hdev->dev_type);
+		return;
+	}
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
