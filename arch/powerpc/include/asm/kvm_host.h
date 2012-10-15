@@ -563,9 +563,8 @@ struct kvm_vcpu_arch {
 };
 
 /* Values for vcpu->arch.state */
-#define KVMPPC_VCPU_STOPPED		0
-#define KVMPPC_VCPU_BUSY_IN_HOST	1
-#define KVMPPC_VCPU_RUNNABLE		2
+#define KVMPPC_VCPU_NOTREADY		0
+#define KVMPPC_VCPU_RUNNABLE		1
 
 /* Values for vcpu->arch.io_gpr */
 #define KVM_MMIO_REG_MASK	0x001f

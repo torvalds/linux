@@ -776,10 +776,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
-	/*
-	 * We consider the vcpu stopped until we see the first run ioctl for it.
-	 */
-	vcpu->arch.state = KVMPPC_VCPU_STOPPED;
+	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 
 	init_waitqueue_head(&vcpu->arch.cpu_run);
 
@@ -866,9 +863,8 @@ static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 {
 	if (vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 		return;
-	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
+	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	--vc->n_runnable;
-	++vc->n_busy;
 	list_del(&vcpu->arch.run_list);
 }
 
@@ -1169,7 +1165,6 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int n_ceded;
-	int prev_state;
 	struct kvmppc_vcore *vc;
 	struct kvm_vcpu *v, *vn;
 
@@ -1186,7 +1181,6 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	vcpu->arch.ceded = 0;
 	vcpu->arch.run_task = current;
 	vcpu->arch.kvm_run = kvm_run;
-	prev_state = vcpu->arch.state;
 	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
 	list_add_tail(&vcpu->arch.run_list, &vc->runnable_threads);
 	++vc->n_runnable;
@@ -1196,35 +1190,26 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * If the vcore is already running, we may be able to start
 	 * this thread straight away and have it join in.
 	 */
-	if (prev_state == KVMPPC_VCPU_STOPPED) {
+	if (!signal_pending(current)) {
 		if (vc->vcore_state == VCORE_RUNNING &&
 		    VCORE_EXIT_COUNT(vc) == 0) {
 			vcpu->arch.ptid = vc->n_runnable - 1;
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
+		} else if (vc->vcore_state == VCORE_SLEEPING) {
+			wake_up(&vc->wq);
 		}
 
-	} else if (prev_state == KVMPPC_VCPU_BUSY_IN_HOST)
-		--vc->n_busy;
+	}
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       !signal_pending(current)) {
-		if (vc->n_busy || vc->vcore_state != VCORE_INACTIVE) {
+		if (vc->vcore_state != VCORE_INACTIVE) {
 			spin_unlock(&vc->lock);
 			kvmppc_wait_for_exec(vcpu, TASK_INTERRUPTIBLE);
 			spin_lock(&vc->lock);
 			continue;
 		}
-		vc->runner = vcpu;
-		n_ceded = 0;
-		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
-			if (!v->arch.pending_exceptions)
-				n_ceded += v->arch.ceded;
-		if (n_ceded == vc->n_runnable)
-			kvmppc_vcore_blocked(vc);
-		else
-			kvmppc_run_core(vc);
-
 		list_for_each_entry_safe(v, vn, &vc->runnable_threads,
 					 arch.run_list) {
 			kvmppc_core_prepare_to_enter(v);
@@ -1236,23 +1221,40 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 				wake_up(&v->arch.cpu_run);
 			}
 		}
+		if (!vc->n_runnable || vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
+			break;
+		vc->runner = vcpu;
+		n_ceded = 0;
+		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
+			if (!v->arch.pending_exceptions)
+				n_ceded += v->arch.ceded;
+		if (n_ceded == vc->n_runnable)
+			kvmppc_vcore_blocked(vc);
+		else
+			kvmppc_run_core(vc);
 		vc->runner = NULL;
 	}
 
-	if (signal_pending(current)) {
-		while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
-		       (vc->vcore_state == VCORE_RUNNING ||
-			vc->vcore_state == VCORE_EXITING)) {
-			spin_unlock(&vc->lock);
-			kvmppc_wait_for_exec(vcpu, TASK_UNINTERRUPTIBLE);
-			spin_lock(&vc->lock);
-		}
-		if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE) {
-			kvmppc_remove_runnable(vc, vcpu);
-			vcpu->stat.signal_exits++;
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			vcpu->arch.ret = -EINTR;
-		}
+	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
+	       (vc->vcore_state == VCORE_RUNNING ||
+		vc->vcore_state == VCORE_EXITING)) {
+		spin_unlock(&vc->lock);
+		kvmppc_wait_for_exec(vcpu, TASK_UNINTERRUPTIBLE);
+		spin_lock(&vc->lock);
+	}
+
+	if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE) {
+		kvmppc_remove_runnable(vc, vcpu);
+		vcpu->stat.signal_exits++;
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		vcpu->arch.ret = -EINTR;
+	}
+
+	if (vc->n_runnable && vc->vcore_state == VCORE_INACTIVE) {
+		/* Wake up some vcpu to run the core */
+		v = list_first_entry(&vc->runnable_threads,
+				     struct kvm_vcpu, arch.run_list);
+		wake_up(&v->arch.cpu_run);
 	}
 
 	spin_unlock(&vc->lock);
