@@ -1334,15 +1334,15 @@ static int dio200_pci_common_attach(struct comedi_device *dev,
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv;
 	int ret;
 
 	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
 
-	ret = alloc_private(dev, sizeof(struct dio200_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
-	}
+	devpriv = dev->private;
 
 	/* Process options and reserve resources according to bus type. */
 	if (is_isa_board(thisboard)) {
@@ -1377,6 +1377,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int __devinit dio200_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pci_dev)
 {
+	struct dio200_private *devpriv;
 	int ret;
 
 	if (!DO_PCI)
@@ -1384,11 +1385,12 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 
 	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
-	ret = alloc_private(dev, sizeof(struct dio200_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
-	}
+	devpriv = dev->private;
+
 	dev->board_ptr = dio200_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");

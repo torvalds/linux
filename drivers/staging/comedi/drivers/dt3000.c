@@ -257,8 +257,6 @@ struct dt3k_private {
 	unsigned int ai_rear;
 };
 
-#define devpriv ((struct dt3k_private *)dev->private)
-
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 			       struct comedi_subdevice *s);
 static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *arg,
@@ -273,6 +271,7 @@ static void debug_intr_flags(unsigned int flags);
 
 static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 {
+	struct dt3k_private *devpriv = dev->private;
 	int i;
 	unsigned int status = 0;
 
@@ -297,6 +296,8 @@ static unsigned int dt3k_readsingle(struct comedi_device *dev,
 				    unsigned int subsys, unsigned int chan,
 				    unsigned int gain)
 {
+	struct dt3k_private *devpriv = dev->private;
+
 	writew(subsys, devpriv->io_addr + DPR_SubSys);
 
 	writew(chan, devpriv->io_addr + DPR_Params(0));
@@ -310,6 +311,8 @@ static unsigned int dt3k_readsingle(struct comedi_device *dev,
 static void dt3k_writesingle(struct comedi_device *dev, unsigned int subsys,
 			     unsigned int chan, unsigned int data)
 {
+	struct dt3k_private *devpriv = dev->private;
+
 	writew(subsys, devpriv->io_addr + DPR_SubSys);
 
 	writew(chan, devpriv->io_addr + DPR_Params(0));
@@ -326,6 +329,7 @@ static int debug_n_ints;
 static irqreturn_t dt3k_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct dt3k_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	unsigned int status;
 
@@ -377,6 +381,7 @@ static void debug_intr_flags(unsigned int flags)
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
+	struct dt3k_private *devpriv = dev->private;
 	int front;
 	int rear;
 	int count;
@@ -550,6 +555,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 
 static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct dt3k_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int i;
 	unsigned int chan, range, aref;
@@ -618,6 +624,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int dt3k_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct dt3k_private *devpriv = dev->private;
 	int ret;
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
@@ -648,6 +655,7 @@ static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int dt3k_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt3k_private *devpriv = dev->private;
 	int i;
 	unsigned int chan;
 
@@ -664,6 +672,7 @@ static int dt3k_ao_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt3k_private *devpriv = dev->private;
 	int i;
 	unsigned int chan;
 
@@ -676,6 +685,8 @@ static int dt3k_ao_insn_read(struct comedi_device *dev,
 
 static void dt3k_dio_config(struct comedi_device *dev, int bits)
 {
+	struct dt3k_private *devpriv = dev->private;
+
 	/* XXX */
 	writew(SUBS_DOUT, devpriv->io_addr + DPR_SubSys);
 
@@ -739,6 +750,7 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt3k_private *devpriv = dev->private;
 	unsigned int addr = CR_CHAN(insn->chanspec);
 	int i;
 
@@ -786,6 +798,7 @@ static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
 
 static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dt3k_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	resource_size_t pci_base;
@@ -793,9 +806,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_dbg(dev->class_dev, "dt3000:\n");
 
-	ret = alloc_private(dev, sizeof(struct dt3k_private));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	pcidev = dt3000_find_pci_dev(dev, it);
 	if (!pcidev)
@@ -885,6 +899,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void dt3000_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct dt3k_private *devpriv = dev->private;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);

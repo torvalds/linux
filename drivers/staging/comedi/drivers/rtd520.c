@@ -1608,12 +1608,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		comedi_debug = 1;
 #endif
 
-	/*
-	 * Allocate the private structure area.  alloc_private() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_private(dev, sizeof(struct rtdPrivate)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
 	devpriv = dev->private;
 
 	pcidev = rtd_find_pci(dev, it);

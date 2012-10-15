@@ -112,12 +112,11 @@ struct ni6527_private {
 	unsigned int filter_enable;
 };
 
-#define devpriv ((struct ni6527_private *)dev->private)
-
 static int ni6527_di_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni6527_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int interval;
 
@@ -164,6 +163,8 @@ static int ni6527_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni6527_private *devpriv = dev->private;
+
 	data[1] = readb(devpriv->mite->daq_io_addr + Port_Register(0));
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(1)) << 8;
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(2)) << 16;
@@ -175,6 +176,8 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni6527_private *devpriv = dev->private;
+
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -202,6 +205,7 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t ni6527_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct ni6527_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[2];
 	unsigned int status;
 
@@ -281,6 +285,7 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 static int ni6527_intr_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
+	struct ni6527_private *devpriv = dev->private;
 	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
@@ -295,6 +300,8 @@ static int ni6527_intr_cmd(struct comedi_device *dev,
 static int ni6527_intr_cancel(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
+	struct ni6527_private *devpriv = dev->private;
+
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	return 0;
@@ -312,6 +319,8 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni6527_private *devpriv = dev->private;
+
 	if (insn->n < 1)
 		return -EINVAL;
 	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
@@ -351,12 +360,14 @@ ni6527_find_boardinfo(struct pci_dev *pcidev)
 static int __devinit ni6527_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pcidev)
 {
+	struct ni6527_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = alloc_private(dev, sizeof(struct ni6527_private));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	dev->board_ptr = ni6527_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
@@ -430,6 +441,8 @@ static int __devinit ni6527_attach_pci(struct comedi_device *dev,
 
 static void ni6527_detach(struct comedi_device *dev)
 {
+	struct ni6527_private *devpriv = dev->private;
+
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr)
 		writeb(0x00,
 		       devpriv->mite->daq_io_addr + Master_Interrupt_Control);

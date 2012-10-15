@@ -169,8 +169,6 @@ struct a2150_private {
 	int config_bits;	/*  config register bits */
 };
 
-#define devpriv ((struct a2150_private *)dev->private)
-
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
@@ -182,6 +180,8 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 
 static void ni_dump_regs(struct comedi_device *dev)
 {
+	struct a2150_private *devpriv = dev->private;
+
 	printk("config bits 0x%x\n", devpriv->config_bits);
 	printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
 	printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
@@ -196,6 +196,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	int status;
 	unsigned long flags;
 	struct comedi_device *dev = d;
+	struct a2150_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
@@ -300,6 +301,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct a2150_private *devpriv = dev->private;
+
 	/*  disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
@@ -425,6 +428,7 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 
 static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct a2150_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long lock_flags;
@@ -536,6 +540,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct a2150_private *devpriv = dev->private;
 	unsigned int i, n;
 	static const int timeout = 100000;
 	static const int filter_delay = 36;
@@ -615,6 +620,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags)
 {
+	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
 	int i, j;
@@ -689,6 +695,8 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 			      unsigned int start_channel,
 			      unsigned int num_channels)
 {
+	struct a2150_private *devpriv = dev->private;
+
 	if (start_channel + num_channels > 4)
 		return -1;
 
@@ -727,6 +735,7 @@ static int a2150_probe(struct comedi_device *dev)
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
@@ -749,9 +758,10 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	printk("\n");
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct a2150_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	if (iobase == 0) {
 		printk(" io base address required\n");
@@ -855,6 +865,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void a2150_detach(struct comedi_device *dev)
 {
+	struct a2150_private *devpriv = dev->private;
+
 	if (dev->iobase) {
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
 		release_region(dev->iobase, A2150_SIZE);

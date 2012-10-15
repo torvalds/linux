@@ -156,7 +156,6 @@ struct pci20xxx_private {
 	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
-#define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
 static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -196,6 +195,7 @@ static int pci20xxx_dio_init(struct comedi_device *dev,
 static int pci20xxx_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	struct pci20xxx_private *devpriv;
 	unsigned char i;
 	int ret;
 	int id;
@@ -206,9 +206,10 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct pci20xxx_private));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 	dev->board_name = "pci20kc";
@@ -541,6 +542,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 
 	s->state &= ~mask;
@@ -571,6 +573,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 static void pci20xxx_dio_config(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned char control_01;
 	unsigned char control_23;
 	unsigned char buffer;
@@ -627,6 +630,8 @@ static void pci20xxx_dio_config(struct comedi_device *dev,
 #if 0
 static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci20xxx_private *devpriv = dev->private;
+
 	/* XXX if the channel is configured for input, does this
 	   do bad things? */
 	/* XXX it would be a good idea to only update the registers
@@ -641,9 +646,10 @@ static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
 static unsigned int pci20xxx_di(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	/* XXX same note as above */
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned int bits;
 
+	/* XXX same note as above */
 	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
 	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
 	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;

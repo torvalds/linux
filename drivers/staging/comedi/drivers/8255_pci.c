@@ -236,7 +236,7 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 	dev->board_name = board->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

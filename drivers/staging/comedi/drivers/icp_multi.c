@@ -506,7 +506,7 @@ static int icp_multi_attach_pci(struct comedi_device *dev,
 	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

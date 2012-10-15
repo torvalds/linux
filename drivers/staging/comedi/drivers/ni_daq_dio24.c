@@ -96,8 +96,6 @@ struct dio24_private {
 	int data;		/* number of data points left to be taken */
 };
 
-#define devpriv ((struct dio24_private *)dev->private)
-
 static struct comedi_driver driver_dio24 = {
 	.driver_name = "ni_daq_dio24",
 	.module = THIS_MODULE,
@@ -110,6 +108,7 @@ static struct comedi_driver driver_dio24 = {
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
@@ -118,9 +117,10 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmcia_device *link;
 	int ret;
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {

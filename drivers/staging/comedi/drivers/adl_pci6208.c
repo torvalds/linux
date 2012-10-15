@@ -192,7 +192,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	dev->board_name = boardinfo->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

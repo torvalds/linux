@@ -762,11 +762,12 @@ static int jr3_pci_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	result = alloc_private(dev, sizeof(struct jr3_pci_dev_private));
-	if (result < 0)
-		return -ENOMEM;
-	card = NULL;
+	result = alloc_private(dev, sizeof(*devpriv));
+	if (result)
+		return result;
 	devpriv = dev->private;
+
+	card = NULL;
 	init_timer(&devpriv->timer);
 	while (1) {
 		card = pci_get_device(PCI_VENDOR_ID_JR3, PCI_ANY_ID, card);

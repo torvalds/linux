@@ -229,11 +229,6 @@ struct pcmmio_private {
 	struct pcmmio_subdev_private *sprivs;
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct pcmmio_private *)dev->private)
 #define subpriv ((struct pcmmio_subdev_private *)s->private)
 
 /* DIO devices are slightly special.  Although it is possible to
@@ -387,6 +382,8 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 
 static void switch_page(struct comedi_device *dev, int asic, int page)
 {
+	struct pcmmio_private *devpriv = dev->private;
+
 	if (asic < 0 || asic >= 1)
 		return;		/* paranoia */
 	if (page < 0 || page >= NUM_PAGES)
@@ -403,6 +400,7 @@ static void switch_page(struct comedi_device *dev, int asic, int page)
 static void init_asics(struct comedi_device *dev)
 {				/* sets up an
 				   ASIC chip to defaults */
+	struct pcmmio_private *devpriv = dev->private;
 	int asic;
 
 	for (asic = 0; asic < 1; ++asic) {
@@ -440,6 +438,8 @@ static void init_asics(struct comedi_device *dev)
 #ifdef notused
 static void lock_port(struct comedi_device *dev, int asic, int port)
 {
+	struct pcmmio_private *devpriv = dev->private;
+
 	if (asic < 0 || asic >= 1)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
@@ -454,6 +454,8 @@ static void lock_port(struct comedi_device *dev, int asic, int port)
 
 static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
+	struct pcmmio_private *devpriv = dev->private;
+
 	if (asic < 0 || asic >= 1)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
@@ -468,6 +470,7 @@ static void unlock_port(struct comedi_device *dev, int asic, int port)
 static void pcmmio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmmio_private *devpriv = dev->private;
 	int nports, firstport, asic, port;
 
 	asic = subpriv->dio.intr.asic;
@@ -490,6 +493,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
@@ -649,6 +653,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 static int pcmmio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmmio_private *devpriv = dev->private;
+
 	if (!subpriv->dio.intr.continuous && subpriv->dio.intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -976,6 +982,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct pcmmio_private *devpriv;
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
@@ -998,15 +1005,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmmio_private)) < 0) {
-		printk(KERN_ERR "comedi%d: cannot allocate private data structure\n",
-				dev->minor);
-		return -ENOMEM;
-	}
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
@@ -1165,6 +1167,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcmmio_detach(struct comedi_device *dev)
 {
+	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
 	if (dev->iobase)

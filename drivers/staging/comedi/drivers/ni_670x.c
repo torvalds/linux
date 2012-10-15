@@ -211,9 +211,10 @@ static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
 	int i;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
+
 	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;

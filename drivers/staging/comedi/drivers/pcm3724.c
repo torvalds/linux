@@ -148,13 +148,12 @@ static void do_3724_config(struct comedi_device *dev,
 static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s,
 			int chanspec)
 {
+	struct priv_pcm3724 *priv = dev->private;
 	struct comedi_subdevice *s_dio1 = &dev->subdevices[0];
 	unsigned int mask;
 	int gatecfg;
-	struct priv_pcm3724 *priv;
 
 	gatecfg = 0;
-	priv = dev->private;
 
 	mask = 1 << CR_CHAN(chanspec);
 	if (s == s_dio1)
@@ -225,6 +224,7 @@ static int subdev_3724_insn_config(struct comedi_device *dev,
 static int pcm3724_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct priv_pcm3724 *priv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
@@ -235,12 +235,10 @@ static int pcm3724_attach(struct comedi_device *dev,
 	iobase = it->options[0];
 	iorange = PCM3724_SIZE;
 
-	ret = alloc_private(dev, sizeof(struct priv_pcm3724));
-	if (ret < 0)
-		return -ENOMEM;
-
-	((struct priv_pcm3724 *)(dev->private))->dio_1 = 0;
-	((struct priv_pcm3724 *)(dev->private))->dio_2 = 0;
+	ret = alloc_private(dev, sizeof(*priv));
+	if (ret)
+		return ret;
+	priv = dev->private;
 
 	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
 	       dev->board_name, iobase);

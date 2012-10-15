@@ -369,8 +369,6 @@ struct pcl812_private {
 	unsigned int ao_readback[2];	/*  data for AO readback */
 };
 
-#define devpriv ((struct pcl812_private *)dev->private)
-
 /*
 ==============================================================================
 */
@@ -388,6 +386,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl812_private *devpriv = dev->private;
 	int n;
 	int timeout, hi;
 
@@ -465,6 +464,7 @@ static int pcl812_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl812_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
 
@@ -486,6 +486,7 @@ static int pcl812_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl812_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
 
@@ -533,6 +534,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
 	int tmp, divisor1, divisor2;
@@ -639,6 +641,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv = dev->private;
 	unsigned int divisor1 = 0, divisor2 = 0, i, dma_flags, bytes;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -789,6 +792,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	char err = 1;
 	unsigned int mask, timeout;
 	struct comedi_device *dev = d;
+	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned int next_chan;
 
@@ -862,6 +866,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s, short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
+	struct pcl812_private *devpriv = dev->private;
 	unsigned int i;
 
 	s->async->events = 0;
@@ -892,6 +897,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long dma_flags;
 	int len, bufptr;
@@ -938,6 +944,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl812(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl812_private *devpriv = dev->private;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -954,6 +961,7 @@ static irqreturn_t interrupt_pcl812(int irq, void *d)
 */
 static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcl812_private *devpriv = dev->private;
 	unsigned long flags;
 	unsigned int top1, top2, i;
 
@@ -1002,6 +1010,7 @@ static void setup_range_channel(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int rangechan, char wait)
 {
+	struct pcl812_private *devpriv = dev->private;
 	unsigned char chan_reg = CR_CHAN(rangechan);	/*  normal board */
 							/*  gain index */
 	unsigned char gain_reg = CR_RANGE(rangechan) +
@@ -1063,8 +1072,9 @@ static void start_pacer(struct comedi_device *dev, int mode,
 static void free_resources(struct comedi_device *dev)
 {
 	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv = dev->private;
 
-	if (dev->private) {
+	if (devpriv) {
 		if (devpriv->dmabuf[0])
 			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
 		if (devpriv->dmabuf[1])
@@ -1084,6 +1094,8 @@ static void free_resources(struct comedi_device *dev)
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pcl812_private *devpriv = dev->private;
+
 	if (devpriv->ai_dma)
 		disable_dma(devpriv->dma);
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
@@ -1100,6 +1112,7 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 static void pcl812_reset(struct comedi_device *dev)
 {
 	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv = dev->private;
 
 	outb(0, dev->iobase + PCL812_MUX);
 	outb(0 + devpriv->range_correction, dev->iobase + PCL812_GAIN);
@@ -1135,6 +1148,7 @@ static void pcl812_reset(struct comedi_device *dev)
 static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv;
 	int ret, subdev;
 	unsigned long iobase;
 	unsigned int irq;
@@ -1153,11 +1167,12 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	ret = alloc_private(dev, sizeof(struct pcl812_private));
-	if (ret < 0) {
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret) {
 		free_resources(dev);
-		return ret;	/* Can't alloc mem */
+		return ret;
 	}
+	devpriv = dev->private;
 
 	dev->board_name = board->name;
 

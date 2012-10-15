@@ -144,7 +144,6 @@ struct das16m1_private_struct {
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
 };
-#define devpriv ((struct das16m1_private_struct *)(dev->private))
 
 static inline short munge_sample(short data)
 {
@@ -162,6 +161,7 @@ static void munge_sample_array(short *array, unsigned int num_elements)
 static int das16m1_cmd_test(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	unsigned int err = 0, tmp, i;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -271,6 +271,8 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 static unsigned int das16m1_set_pacer(struct comedi_device *dev,
 				      unsigned int ns, int rounding_flags)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
+
 	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
 				       &(devpriv->divisor2), &ns,
 				       rounding_flags & TRIG_ROUND_MASK);
@@ -287,6 +289,7 @@ static unsigned int das16m1_set_pacer(struct comedi_device *dev,
 static int das16m1_cmd_exec(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
@@ -350,6 +353,8 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 
 static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
+
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
@@ -360,6 +365,7 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	int i, n;
 	int byte;
 	const int timeout = 1000;
@@ -411,6 +417,7 @@ static int das16m1_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	unsigned int wbits;
 
 	/*  only set bits that have been masked */
@@ -430,6 +437,7 @@ static int das16m1_do_wbits(struct comedi_device *dev,
 
 static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
@@ -576,6 +584,7 @@ static int das16m1_irq_bits(unsigned int irq)
 static int das16m1_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct das16m1_private_struct *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
@@ -585,9 +594,10 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 
-	ret = alloc_private(dev, sizeof(struct das16m1_private_struct));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	if (!request_region(iobase, DAS16M1_SIZE, dev->board_name)) {
 		comedi_error(dev, "I/O port conflict\n");

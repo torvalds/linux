@@ -1924,10 +1924,8 @@ static int pci9118_attach(struct comedi_device *dev,
 		master = 1;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
+	if (ret)
+		return ret;
 	devpriv = dev->private;
 
 	pcidev = pci9118_find_pci(dev, it);

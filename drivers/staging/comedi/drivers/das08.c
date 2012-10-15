@@ -778,14 +778,18 @@ das08_find_pci_board(struct pci_dev *pdev)
 static int __devinit __maybe_unused
 das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 {
+	struct das08_private_struct *devpriv;
 	unsigned long iobase;
 	int ret;
 
 	if (!DO_PCI)
 		return -EINVAL;
-	ret = alloc_private(dev, sizeof(struct das08_private_struct));
-	if (ret < 0)
+
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
+
 	dev_info(dev->class_dev, "attach pci %s\n", pci_name(pdev));
 	dev->board_ptr = das08_find_pci_board(pdev);
 	if (dev->board_ptr == NULL) {
@@ -812,8 +816,8 @@ das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	unsigned long iobase;
 
-	ret = alloc_private(dev, sizeof(struct das08_private_struct));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

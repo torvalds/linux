@@ -146,12 +146,6 @@ struct skel_private {
 };
 
 /*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct skel_private *)dev->private)
-
-/*
  * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
@@ -211,6 +205,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
  */
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct skel_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -229,12 +224,11 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
-		return -ENOMEM;
+	/* Allocate the private data */
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -504,6 +498,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct skel_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -525,6 +520,7 @@ static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct skel_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 

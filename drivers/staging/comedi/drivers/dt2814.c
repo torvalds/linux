@@ -68,8 +68,6 @@ struct dt2814_private {
 	int curadchan;
 };
 
-#define devpriv ((struct dt2814_private *)dev->private)
-
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
@@ -200,6 +198,7 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct dt2814_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int chan;
 	int trigvar;
@@ -221,6 +220,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 {
 	int lo, hi;
 	struct comedi_device *dev = d;
+	struct dt2814_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int data;
 
@@ -258,6 +258,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 
 static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dt2814_private *devpriv;
 	int i, irq;
 	int ret;
 	struct comedi_subdevice *s;
@@ -324,9 +325,10 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct dt2814_private));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;

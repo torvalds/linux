@@ -428,6 +428,7 @@ static int das16cs_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	const struct das16cs_board *thisboard;
+	struct das16cs_private *devpriv;
 	struct pcmcia_device *link;
 	struct comedi_subdevice *s;
 	int ret;
@@ -451,8 +452,10 @@ static int das16cs_attach(struct comedi_device *dev,
 		return ret;
 	dev->irq = link->irq;
 
-	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

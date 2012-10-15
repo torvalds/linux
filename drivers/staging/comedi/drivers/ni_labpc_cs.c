@@ -127,13 +127,16 @@ static struct comedi_driver driver_labpc_cs = {
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct labpc_private *devpriv;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	struct pcmcia_device *link;
+	int ret;
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {

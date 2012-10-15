@@ -454,8 +454,6 @@ struct das1800_private {
 	short ao_update_bits;	/* remembers the last write to the 'update' dac */
 };
 
-#define devpriv ((struct das1800_private *)dev->private)
-
 /* analog out range for boards with basic analog out */
 static const struct comedi_lrange range_ao_1 = {
 	1,
@@ -501,6 +499,7 @@ static void munge_data(struct comedi_device *dev, uint16_t * array,
 static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
+	struct das1800_private *devpriv = dev->private;
 	int numPoints = 0;	/* number of points to read */
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -520,6 +519,7 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
+	struct das1800_private *devpriv = dev->private;
 	short dpnt;
 	int unipolar;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -548,6 +548,7 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      unsigned int channel, uint16_t *buffer)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned int num_bytes, num_samples;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -578,6 +579,7 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 static void das1800_flush_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
@@ -609,6 +611,7 @@ static void das1800_flush_dma(struct comedi_device *dev,
 static void das1800_handle_dma(struct comedi_device *dev,
 			       struct comedi_subdevice *s, unsigned int status)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
@@ -643,6 +646,8 @@ static void das1800_handle_dma(struct comedi_device *dev,
 
 static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct das1800_private *devpriv = dev->private;
+
 	outb(0x0, dev->iobase + DAS1800_STATUS);	/* disable conversions */
 	outb(0x0, dev->iobase + DAS1800_CONTROL_B);	/* disable interrupts and dma */
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* disable and clear fifo and stop triggering */
@@ -656,6 +661,7 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 /* the guts of the interrupt handler, that is shared with das1800_ai_poll */
 static void das1800_ai_handler(struct comedi_device *dev)
 {
+	struct das1800_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -783,6 +789,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
+	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp_arg;
 	int i;
@@ -1006,6 +1013,7 @@ static int control_c_bits(const struct comedi_cmd *cmd)
 /* loads counters with divisor1, divisor2 from private structure */
 static int das1800_set_frequency(struct comedi_device *dev)
 {
+	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 
 	/*  counter 1, mode 2 */
@@ -1026,6 +1034,7 @@ static int das1800_set_frequency(struct comedi_device *dev)
 static int setup_counters(struct comedi_device *dev,
 			  const struct comedi_cmd *cmd)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned int period;
 
 	/*  setup cascaded counters for conversion/scan frequency */
@@ -1107,6 +1116,7 @@ static unsigned int suggest_transfer_size(const struct comedi_cmd *cmd)
 /* sets up dma */
 static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned long lock_flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
@@ -1174,6 +1184,7 @@ static void program_chanlist(struct comedi_device *dev,
 static int das1800_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct das1800_private *devpriv = dev->private;
 	int ret;
 	int control_a, control_c;
 	struct comedi_async *async = s->async;
@@ -1300,6 +1311,7 @@ static int das1800_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das1800_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
 	int update_chan = thisboard->ao_n_chan - 1;
@@ -1342,6 +1354,7 @@ static int das1800_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned int wbits;
 
 	/*  only set bits that have been masked */
@@ -1361,6 +1374,7 @@ static int das1800_do_wbits(struct comedi_device *dev,
 static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			    unsigned int dma1)
 {
+	struct das1800_private *devpriv = dev->private;
 	unsigned long flags;
 
 	/*  need an irq to do dma */
@@ -1518,6 +1532,7 @@ static int das1800_probe(struct comedi_device *dev)
 static int das1800_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
@@ -1527,9 +1542,10 @@ static int das1800_attach(struct comedi_device *dev,
 	int board;
 	int retval;
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct das1800_private)) < 0)
-		return -ENOMEM;
+	retval = alloc_private(dev, sizeof(*devpriv));
+	if (retval)
+		return retval;
+	devpriv = dev->private;
 
 	printk(KERN_DEBUG "comedi%d: %s: io 0x%lx", dev->minor,
 	       dev->driver->driver_name, iobase);
@@ -1699,11 +1715,13 @@ static int das1800_attach(struct comedi_device *dev,
 
 static void das1800_detach(struct comedi_device *dev)
 {
+	struct das1800_private *devpriv = dev->private;
+
 	if (dev->iobase)
 		release_region(dev->iobase, DAS1800_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->private) {
+	if (devpriv) {
 		if (devpriv->iobase2)
 			release_region(devpriv->iobase2, DAS1800_SIZE);
 		if (devpriv->dma0)

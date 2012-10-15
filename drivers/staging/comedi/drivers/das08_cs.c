@@ -90,13 +90,15 @@ static int das08_cs_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv;
 	int ret;
 	unsigned long iobase;
 	struct pcmcia_device *link = cur_dev;	/*  XXX hack */
 
-	ret = alloc_private(dev, sizeof(struct das08_private_struct));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	dev_info(dev->class_dev, "das08_cs: attach\n");
 	/*  deal with a pci board */

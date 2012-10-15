@@ -793,8 +793,9 @@ static int dmm32at_attach(struct comedi_device *dev,
 		dev->irq = irq;
 	}
 
-	if (alloc_private(dev, sizeof(*devpriv)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
 	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 3);

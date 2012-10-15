@@ -415,7 +415,7 @@ static int waveform_attach(struct comedi_device *dev,
 	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

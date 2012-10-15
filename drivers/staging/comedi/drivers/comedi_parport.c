@@ -306,7 +306,7 @@ static int parport_attach(struct comedi_device *dev,
 		return ret;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
+	if (ret)
 		return ret;
 	devpriv = dev->private;
 

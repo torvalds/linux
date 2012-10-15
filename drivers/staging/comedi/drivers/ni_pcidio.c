@@ -310,7 +310,6 @@ struct nidio96_private {
 	struct mite_dma_descriptor_ring *di_mite_ring;
 	spinlock_t mite_channel_lock;
 };
-#define devpriv ((struct nidio96_private *)dev->private)
 
 static int ni_pcidio_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
@@ -332,6 +331,7 @@ static void ni_pcidio_print_status(unsigned int status);
 
 static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -355,6 +355,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 
 static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -384,6 +385,7 @@ static void ni_pcidio_event(struct comedi_device *dev,
 
 static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct nidio96_private *devpriv = dev->private;
 	unsigned long irq_flags;
 	int count;
 
@@ -400,6 +402,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct nidio96_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
@@ -609,6 +612,7 @@ static void ni_pcidio_print_status(unsigned int flags)
 #ifdef unused
 static void debug_int(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
 	int a, b;
 	static int n_int;
 	struct timeval tv;
@@ -640,6 +644,8 @@ static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	if (insn->n != 1)
 		return -EINVAL;
 	switch (data[0]) {
@@ -668,6 +674,8 @@ static int ni_pcidio_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -793,6 +801,7 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
 
 static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct nidio96_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* XXX configure ports for input */
@@ -910,6 +919,7 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct nidio96_private *devpriv = dev->private;
 	int retval;
 	unsigned long flags;
 
@@ -934,6 +944,8 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 static int ni_pcidio_inttrig(struct comedi_device *dev,
 			     struct comedi_subdevice *s, unsigned int trignum)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	if (trignum != 0)
 		return -EINVAL;
 
@@ -946,6 +958,8 @@ static int ni_pcidio_inttrig(struct comedi_device *dev,
 static int ni_pcidio_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	writeb(0x00,
 	       devpriv->mite->daq_io_addr + Master_DMA_And_Interrupt_Control);
 	ni_pcidio_release_di_mite_channel(dev);
@@ -956,6 +970,7 @@ static int ni_pcidio_cancel(struct comedi_device *dev,
 static int ni_pcidio_change(struct comedi_device *dev,
 			    struct comedi_subdevice *s, unsigned long new_size)
 {
+	struct nidio96_private *devpriv = dev->private;
 	int ret;
 
 	ret = mite_buf_change(devpriv->di_mite_ring, s->async);
@@ -970,6 +985,7 @@ static int ni_pcidio_change(struct comedi_device *dev,
 static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 			      const u8 *data, size_t data_len)
 {
+	struct nidio96_private *devpriv = dev->private;
 	static const int timeout = 1000;
 	int i;
 	size_t j;
@@ -1033,8 +1049,10 @@ static int pci_6534_reset_fpga(struct comedi_device *dev, int fpga_index)
 
 static int pci_6534_reset_fpgas(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
 	int ret;
 	int i;
+
 	writew(0x0, devpriv->mite->daq_io_addr + Firmware_Control_Register);
 	for (i = 0; i < 3; ++i) {
 		ret = pci_6534_reset_fpga(dev, i);
@@ -1047,6 +1065,8 @@ static int pci_6534_reset_fpgas(struct comedi_device *dev)
 
 static void pci_6534_init_main_fpga(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	writel(0, devpriv->mite->daq_io_addr + FPGA_Control1_Register);
 	writel(0, devpriv->mite->daq_io_addr + FPGA_Control2_Register);
 	writel(0, devpriv->mite->daq_io_addr + FPGA_SCALS_Counter_Register);
@@ -1057,6 +1077,7 @@ static void pci_6534_init_main_fpga(struct comedi_device *dev)
 
 static int pci_6534_upload_firmware(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
 	int ret;
 	const struct firmware *fw;
 	static const char *const fw_file[3] = {
@@ -1102,13 +1123,16 @@ nidio_find_boardinfo(struct pci_dev *pcidev)
 static int __devinit nidio_attach_pci(struct comedi_device *dev,
 				      struct pci_dev *pcidev)
 {
+	struct nidio96_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
 
-	ret = alloc_private(dev, sizeof(struct nidio96_private));
-	if (ret < 0)
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
 		return ret;
+	devpriv = dev->private;
+
 	spin_lock_init(&devpriv->mite_channel_lock);
 
 	dev->board_ptr = nidio_find_boardinfo(pcidev);
@@ -1184,6 +1208,8 @@ static int __devinit nidio_attach_pci(struct comedi_device *dev,
 
 static void nidio_detach(struct comedi_device *dev)
 {
+	struct nidio96_private *devpriv = dev->private;
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {

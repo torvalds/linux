@@ -79,8 +79,6 @@ struct pcmda12_private {
 	int simultaneous_xfer_mode;
 };
 
-#define devpriv ((struct pcmda12_private *)(dev->private))
-
 static void zero_chans(struct comedi_device *dev)
 {				/* sets up an
 				   ASIC chip to defaults */
@@ -97,6 +95,7 @@ static void zero_chans(struct comedi_device *dev)
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmda12_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -139,6 +138,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmda12_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -155,6 +155,7 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcmda12_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pcmda12_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int ret;
@@ -172,14 +173,10 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	dev->board_name = dev->driver->driver_name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
-		printk(KERN_ERR "cannot allocate private data structure\n");
-		return -ENOMEM;
-	}
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	devpriv->simultaneous_xfer_mode = it->options[1];
 

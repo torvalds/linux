@@ -2662,13 +2662,11 @@ static int pci230_alloc_private(struct comedi_device *dev)
 	struct pci230_private *devpriv;
 	int err;
 
-	/* sets dev->private to allocated memory */
-	err = alloc_private(dev, sizeof(struct pci230_private));
-	if (err) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	err = alloc_private(dev, sizeof(*devpriv));
+	if (err)
 		return err;
-	}
 	devpriv = dev->private;
+
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);
 	spin_lock_init(&devpriv->ai_stop_spinlock);
@@ -2836,9 +2834,11 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
 		 thisboard->name, it->options[0], it->options[1]);
-	rc = pci230_alloc_private(dev); /* sets dev->private */
+
+	rc = pci230_alloc_private(dev);
 	if (rc)
 		return rc;
+
 	pci_dev = pci230_find_pci_dev(dev, it);
 	if (!pci_dev)
 		return -EIO;
@@ -2852,9 +2852,11 @@ static int __devinit pci230_attach_pci(struct comedi_device *dev,
 
 	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
 		 pci_name(pci_dev));
-	rc = pci230_alloc_private(dev); /* sets dev->private */
+
+	rc = pci230_alloc_private(dev);
 	if (rc)
 		return rc;
+
 	dev->board_ptr = pci230_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
 		dev_err(dev->class_dev,

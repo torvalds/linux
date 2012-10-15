@@ -64,12 +64,6 @@ struct serial2002_private {
 	struct serial2002_range_table_t in_range[32], out_range[32];
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct serial2002_private *)dev->private)
-
 struct serial_data {
 	enum { is_invalid, is_digital, is_channel } kind;
 	int index;
@@ -344,6 +338,7 @@ static void serial_write(struct file *f, struct serial_data data)
 
 static int serial_2002_open(struct comedi_device *dev)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int result;
 	char port[20];
 
@@ -651,6 +646,8 @@ err_alloc_configs:
 
 static void serial_2002_close(struct comedi_device *dev)
 {
+	struct serial2002_private *devpriv = dev->private;
+
 	if (!IS_ERR(devpriv->tty) && devpriv->tty)
 		filp_close(devpriv->tty, NULL);
 }
@@ -659,6 +656,7 @@ static int serial2002_di_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan;
 
@@ -681,6 +679,7 @@ static int serial2002_do_winsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan;
 
@@ -700,6 +699,7 @@ static int serial2002_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan;
 
@@ -722,6 +722,7 @@ static int serial2002_ao_winsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan;
 
@@ -742,6 +743,7 @@ static int serial2002_ao_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -755,6 +757,7 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct serial2002_private *devpriv = dev->private;
 	int n;
 	int chan;
 
@@ -776,13 +779,18 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 static int serial2002_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
+	struct serial2002_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev_dbg(dev->class_dev, "serial2002: attach\n");
 	dev->board_name = dev->driver->driver_name;
-	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
-		return -ENOMEM;
+
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
+
 	dev->open = serial_2002_open;
 	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
