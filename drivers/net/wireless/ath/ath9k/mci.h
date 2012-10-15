@@ -70,6 +70,7 @@
 			_mci->num_pan++;	 \
 			break;			 \
 		case MCI_GPM_COEX_PROFILE_VOICE: \
+		case MCI_GPM_COEX_PROFILE_A2DPVO:\
 			_mci->num_sco++;	 \
 			break;			 \
 		default:			 \
@@ -94,6 +95,7 @@
 			_mci->num_pan--;	 \
 			break;			 \
 		case MCI_GPM_COEX_PROFILE_VOICE: \
+		case MCI_GPM_COEX_PROFILE_A2DPVO:\
 			_mci->num_sco--;	 \
 			break;			 \
 		default:			 \
