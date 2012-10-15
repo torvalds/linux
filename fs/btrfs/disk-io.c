@@ -1001,6 +1001,7 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 
 static int btree_set_page_dirty(struct page *page)
 {
+#ifdef DEBUG
 	struct extent_buffer *eb;
 
 	BUG_ON(!PagePrivate(page));
@@ -1009,6 +1010,7 @@ static int btree_set_page_dirty(struct page *page)
 	BUG_ON(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
 	BUG_ON(!atomic_read(&eb->refs));
 	btrfs_assert_tree_locked(eb);
+#endif
 	return __set_page_dirty_nobuffers(page);
 }
 
