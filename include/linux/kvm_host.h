@@ -841,9 +841,9 @@ extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_seq)
+static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 {
-	if (unlikely(vcpu->kvm->mmu_notifier_count))
+	if (unlikely(kvm->mmu_notifier_count))
 		return 1;
 	/*
 	 * Ensure the read of mmu_notifier_count happens before the read
@@ -856,7 +856,7 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 	 * can't rely on kvm->mmu_lock to keep things ordered.
 	 */
 	smp_rmb();
-	if (vcpu->kvm->mmu_notifier_seq != mmu_seq)
+	if (kvm->mmu_notifier_seq != mmu_seq)
 		return 1;
 	return 0;
 }
