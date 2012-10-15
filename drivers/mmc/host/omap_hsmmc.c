@@ -2009,8 +2009,8 @@ static int __devexit omap_hsmmc_remove(struct platform_device *pdev)
 		clk_put(host->dbclk);
 	}
 
-	mmc_free_host(host->mmc);
 	iounmap(host->base);
+	mmc_free_host(host->mmc);
 	omap_hsmmc_gpio_free(pdev->dev.platform_data);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
