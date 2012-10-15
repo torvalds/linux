@@ -195,7 +195,7 @@ void ath9k_hw_btcoex_init_mci(struct ath_hw *ah)
 	ah->btcoex_hw.mci.need_flush_btinfo = false;
 	ah->btcoex_hw.mci.wlan_cal_seq = 0;
 	ah->btcoex_hw.mci.wlan_cal_done = 0;
-	ah->btcoex_hw.mci.config = 0x2201;
+	ah->btcoex_hw.mci.config = (AR_SREV_9462(ah)) ? 0x2201 : 0xa4c1;
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_init_mci);
 
