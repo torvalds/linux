@@ -48,34 +48,22 @@ const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0x81, 0x4c);
 
 /**
- * mei_io_list_init - Sets up a queue list.
- *
- * @list: An instance io list structure
- * @dev: the device structure
- */
-void mei_io_list_init(struct mei_io_list *list)
-{
-	/* initialize our queue list */
-	INIT_LIST_HEAD(&list->mei_cb.cb_list);
-}
-
-/**
  * mei_io_list_flush - removes list entry belonging to cl.
  *
  * @list:  An instance of our list structure
  * @cl: private data of the file object
  */
-void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
 {
 	struct mei_cl_cb *pos;
 	struct mei_cl_cb *next;
 
-	list_for_each_entry_safe(pos, next, &list->mei_cb.cb_list, cb_list) {
+	list_for_each_entry_safe(pos, next, &list->list, list) {
 		if (pos->file_private) {
 			struct mei_cl *cl_tmp;
 			cl_tmp = (struct mei_cl *)pos->file_private;
 			if (mei_cl_cmp_id(cl, cl_tmp))
-				list_del(&pos->cb_list);
+				list_del(&pos->list);
 		}
 	}
 }
@@ -351,9 +339,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		}
 	}
 	/* remove all waiting requests */
-	list_for_each_entry_safe(cb_pos, cb_next,
-			&dev->write_list.mei_cb.cb_list, cb_list) {
-		list_del(&cb_pos->cb_list);
+	list_for_each_entry_safe(cb_pos, cb_next, &dev->write_list.list, list) {
+		list_del(&cb_pos->list);
 		mei_free_cb_private(cb_pos);
 	}
 }
@@ -685,7 +672,7 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	if (!cb)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&cb->cb_list);
+	mei_io_list_init(cb);
 	cb->file_private = cl;
 	cb->major_file_operations = MEI_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
@@ -696,11 +683,11 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 			goto free;
 		}
 		mdelay(10); /* Wait for hardware disconnection ready */
-		list_add_tail(&cb->cb_list, &dev->ctrl_rd_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
 		dev_dbg(&dev->pdev->dev, "add disconnect cb to control write list\n");
-		list_add_tail(&cb->cb_list,
-				&dev->ctrl_wr_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+
 	}
 	mutex_unlock(&dev->device_lock);
 

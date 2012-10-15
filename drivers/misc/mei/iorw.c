@@ -104,7 +104,7 @@ int mei_ioctl_connect_client(struct file *file,
 		rets = -ENOMEM;
 		goto end;
 	}
-	INIT_LIST_HEAD(&cb->cb_list);
+	mei_io_list_init(cb);
 
 	cb->major_file_operations = MEI_IOCTL;
 
@@ -193,9 +193,7 @@ int mei_ioctl_connect_client(struct file *file,
 			dev_dbg(&dev->pdev->dev, "Sending connect message - succeeded\n");
 			cl->timer_count = MEI_CONNECT_TIMEOUT;
 			cb->file_private = cl;
-			list_add_tail(&cb->cb_list,
-				      &dev->ctrl_rd_list.mei_cb.
-				      cb_list);
+			list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 		}
 
 
@@ -203,8 +201,7 @@ int mei_ioctl_connect_client(struct file *file,
 		dev_dbg(&dev->pdev->dev, "Queuing the connect request due to device busy\n");
 		cb->file_private = cl;
 		dev_dbg(&dev->pdev->dev, "add connect cb to control write list.\n");
-		list_add_tail(&cb->cb_list,
-			      &dev->ctrl_wr_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	mutex_unlock(&dev->device_lock);
 	err = wait_event_timeout(dev->wait_recvd_msg,
@@ -255,7 +252,7 @@ struct mei_cl_cb *find_amthi_read_list_entry(
 	struct mei_cl_cb *next = NULL;
 
 	list_for_each_entry_safe(pos, next,
-	    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
+	    &dev->amthi_read_complete_list.list, list) {
 		cl_temp = (struct mei_cl *)pos->file_private;
 		if (cl_temp && cl_temp == &dev->iamthif_cl &&
 			pos->file_object == file)
@@ -340,17 +337,17 @@ int amthi_read(struct mei_device *dev, struct file *file,
 		if  (time_after(jiffies, timeout)) {
 			dev_dbg(&dev->pdev->dev, "amthi Time out\n");
 			/* 15 sec for the message has expired */
-			list_del(&cb->cb_list);
+			list_del(&cb->list);
 			rets = -ETIMEDOUT;
 			goto free;
 		}
 	}
 	/* if the whole message will fit remove it from the list */
 	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
-		list_del(&cb->cb_list);
+		list_del(&cb->list);
 	else if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
 		/* end of the message has been reached */
-		list_del(&cb->cb_list);
+		list_del(&cb->list);
 		rets = 0;
 		goto free;
 	}
@@ -441,9 +438,9 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 			rets = -ENODEV;
 			goto unlock;
 		}
-		list_add_tail(&cb->cb_list, &dev->read_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->read_list.list);
 	} else {
-		list_add_tail(&cb->cb_list, &dev->ctrl_wr_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return rets;
 unlock:
@@ -510,13 +507,11 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 			dev_dbg(&dev->pdev->dev, "add amthi cb to write waiting list\n");
 			dev->iamthif_current_cb = cb;
 			dev->iamthif_file_object = cb->file_object;
-			list_add_tail(&cb->cb_list,
-				      &dev->write_waiting_list.mei_cb.cb_list);
+			list_add_tail(&cb->list, &dev->write_waiting_list.list);
 		} else {
 			dev_dbg(&dev->pdev->dev, "message does not complete, "
 					"so add amthi cb to write list.\n");
-			list_add_tail(&cb->cb_list,
-				      &dev->write_list.mei_cb.cb_list);
+			list_add_tail(&cb->list, &dev->write_list.list);
 		}
 	} else {
 		if (!(dev->mei_host_buffer_is_empty))
@@ -524,7 +519,7 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 
 		dev_dbg(&dev->pdev->dev, "No flow control credentials, "
 				"so add iamthif cb to write list.\n");
-		list_add_tail(&cb->cb_list, &dev->write_list.mei_cb.cb_list);
+		list_add_tail(&cb->list, &dev->write_list.list);
 	}
 	return 0;
 }
@@ -556,9 +551,8 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev)
 
 	dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
 
-	list_for_each_entry_safe(pos, next,
-			&dev->amthi_cmd_list.mei_cb.cb_list, cb_list) {
-		list_del(&pos->cb_list);
+	list_for_each_entry_safe(pos, next, &dev->amthi_cmd_list.list, list) {
+		list_del(&pos->list);
 		cl_tmp = (struct mei_cl *)pos->file_private;
 
 		if (cl_tmp && cl_tmp == &dev->iamthif_cl) {

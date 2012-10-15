@@ -111,12 +111,12 @@ static bool mei_clear_list(struct mei_device *dev,
 	bool removed = false;
 
 	/* list all list member */
-	list_for_each_entry_safe(cb_pos, cb_next, mei_cb_list, cb_list) {
+	list_for_each_entry_safe(cb_pos, cb_next, mei_cb_list, list) {
 		file_temp = (struct file *)cb_pos->file_object;
 		/* check if list member associated with a file */
 		if (file_temp == file) {
 			/* remove member from the list */
-			list_del(&cb_pos->cb_list);
+			list_del(&cb_pos->list);
 			/* check if cb equal to current iamthif cb */
 			if (dev->iamthif_current_cb == cb_pos) {
 				dev->iamthif_current_cb = NULL;
@@ -148,20 +148,20 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 	bool removed = false;
 
 	/* remove callbacks associated with a file */
-	mei_clear_list(dev, file, &dev->amthi_cmd_list.mei_cb.cb_list);
+	mei_clear_list(dev, file, &dev->amthi_cmd_list.list);
 	if (mei_clear_list(dev, file,
-			    &dev->amthi_read_complete_list.mei_cb.cb_list))
+			    &dev->amthi_read_complete_list.list))
 		removed = true;
 
-	mei_clear_list(dev, file, &dev->ctrl_rd_list.mei_cb.cb_list);
+	mei_clear_list(dev, file, &dev->ctrl_rd_list.list);
 
-	if (mei_clear_list(dev, file, &dev->ctrl_wr_list.mei_cb.cb_list))
+	if (mei_clear_list(dev, file, &dev->ctrl_wr_list.list))
 		removed = true;
 
-	if (mei_clear_list(dev, file, &dev->write_waiting_list.mei_cb.cb_list))
+	if (mei_clear_list(dev, file, &dev->write_waiting_list.list))
 		removed = true;
 
-	if (mei_clear_list(dev, file, &dev->write_list.mei_cb.cb_list))
+	if (mei_clear_list(dev, file, &dev->write_list.list))
 		removed = true;
 
 	/* check if iamthif_current_cb not NULL */
@@ -192,8 +192,7 @@ static struct mei_cl_cb *find_read_list_entry(
 	struct mei_cl_cb *next = NULL;
 
 	dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
-	list_for_each_entry_safe(pos, next,
-			&dev->read_list.mei_cb.cb_list, cb_list) {
+	list_for_each_entry_safe(pos, next, &dev->read_list.list, list) {
 		struct mei_cl *cl_temp;
 		cl_temp = (struct mei_cl *)pos->file_private;
 
@@ -324,7 +323,7 @@ static int mei_release(struct inode *inode, struct file *file)
 			cb = find_read_list_entry(dev, cl);
 			/* Remove entry from read list */
 			if (cb)
-				list_del(&cb->cb_list);
+				list_del(&cb->list);
 
 			cb = cl->read_cb;
 			cl->read_cb = NULL;
@@ -504,7 +503,7 @@ free:
 	cb_pos = find_read_list_entry(dev, cl);
 	/* Remove entry from read list */
 	if (cb_pos)
-		list_del(&cb_pos->cb_list);
+		list_del(&cb_pos->list);
 	mei_free_cb_private(cb);
 	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;
@@ -534,7 +533,7 @@ static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 	if (!cb)
 		return NULL;
 
-	INIT_LIST_HEAD(&cb->cb_list);
+	mei_io_list_init(cb);
 
 	cb->file_object = fp;
 	cb->file_private = cl;
@@ -651,7 +650,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			if (time_after(jiffies, timeout) ||
 			    cl->reading_state == MEI_READ_COMPLETE) {
 				*offset = 0;
-				list_del(&write_cb->cb_list);
+				list_del(&write_cb->list);
 				mei_free_cb_private(write_cb);
 				write_cb = NULL;
 			}
@@ -663,7 +662,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		*offset = 0;
 		write_cb = find_read_list_entry(dev, cl);
 		if (write_cb) {
-			list_del(&write_cb->cb_list);
+			list_del(&write_cb->list);
 			mei_free_cb_private(write_cb);
 			write_cb = NULL;
 			cl->reading_state = MEI_IDLE;
@@ -707,13 +706,12 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 		write_cb->major_file_operations = MEI_IOCTL;
 
-		if (!list_empty(&dev->amthi_cmd_list.mei_cb.cb_list) ||
+		if (!list_empty(&dev->amthi_cmd_list.list) ||
 				dev->iamthif_state != MEI_IAMTHIF_IDLE) {
 			dev_dbg(&dev->pdev->dev, "amthi_state = %d\n",
 					(int) dev->iamthif_state);
 			dev_dbg(&dev->pdev->dev, "add amthi cb to amthi cmd waiting list\n");
-			list_add_tail(&write_cb->cb_list,
-					&dev->amthi_cmd_list.mei_cb.cb_list);
+			list_add_tail(&write_cb->list, &dev->amthi_cmd_list.list);
 		} else {
 			dev_dbg(&dev->pdev->dev, "call amthi write\n");
 			rets = amthi_write(dev, write_cb);
@@ -764,19 +762,16 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 				rets = -ENODEV;
 				goto unlock_dev;
 			}
-			list_add_tail(&write_cb->cb_list,
-				      &dev->write_waiting_list.mei_cb.cb_list);
+			list_add_tail(&write_cb->list, &dev->write_waiting_list.list);
 		} else {
-			list_add_tail(&write_cb->cb_list,
-				      &dev->write_list.mei_cb.cb_list);
+			list_add_tail(&write_cb->list, &dev->write_list.list);
 		}
 
 	} else {
 
 		write_cb->buf_idx = 0;
 		cl->writing_state = MEI_WRITING;
-		list_add_tail(&write_cb->cb_list,
-			      &dev->write_list.mei_cb.cb_list);
+		list_add_tail(&write_cb->list, &dev->write_list.list);
 	}
 	mutex_unlock(&dev->device_lock);
 	return length;

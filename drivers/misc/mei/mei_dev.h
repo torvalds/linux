@@ -144,7 +144,7 @@ struct mei_message_data {
 
 
 struct mei_cl_cb {
-	struct list_head cb_list;
+	struct list_head list;
 	enum mei_cb_major_types major_file_operations;
 	void *file_private;
 	struct mei_message_data request_buffer;
@@ -175,10 +175,6 @@ struct mei_cl {
 	struct mei_cl_cb *read_cb;
 };
 
-struct mei_io_list {
-	struct mei_cl_cb mei_cb;
-};
-
 /**
  * struct mei_deive -  MEI private device struct
  * @hbuf_depth - depth of host(write) buffer
@@ -189,15 +185,15 @@ struct mei_device {
 	 * lists of queues
 	 */
 	 /* array of pointers to aio lists */
-	struct mei_io_list read_list;		/* driver read queue */
-	struct mei_io_list write_list;		/* driver write queue */
-	struct mei_io_list write_waiting_list;	/* write waiting queue */
-	struct mei_io_list ctrl_wr_list;	/* managed write IOCTL list */
-	struct mei_io_list ctrl_rd_list;	/* managed read IOCTL list */
-	struct mei_io_list amthi_cmd_list;	/* amthi list for cmd waiting */
+	struct mei_cl_cb read_list;		/* driver read queue */
+	struct mei_cl_cb write_list;		/* driver write queue */
+	struct mei_cl_cb write_waiting_list;	/* write waiting queue */
+	struct mei_cl_cb ctrl_wr_list;		/* managed write IOCTL list */
+	struct mei_cl_cb ctrl_rd_list;		/* managed read IOCTL list */
+	struct mei_cl_cb amthi_cmd_list;	/* amthi list for cmd waiting */
 
 	/* driver managed amthi list for reading completed amthi cmd data */
-	struct mei_io_list amthi_read_complete_list;
+	struct mei_cl_cb amthi_read_complete_list;
 	/*
 	 * list of files
 	 */
@@ -297,8 +293,16 @@ int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 /*
  * MEI IO List Functions
  */
-void mei_io_list_init(struct mei_io_list *list);
-void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl);
+/**
+ * mei_io_list_init - Sets up a queue list.
+ *
+ * @list: An instance cl callback structure
+ */
+static inline void mei_io_list_init(struct mei_cl_cb *list)
+{
+	INIT_LIST_HEAD(&list->list);
+}
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl);
 
 /*
  * MEI ME Client Functions
