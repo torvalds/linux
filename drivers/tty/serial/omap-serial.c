@@ -707,63 +707,6 @@ static void serial_omap_shutdown(struct uart_port *port)
 	free_irq(up->port.irq, up);
 }
 
-static inline void
-serial_omap_configure_xonxoff
-		(struct uart_omap_port *up, struct ktermios *termios)
-{
-	up->lcr = serial_in(up, UART_LCR);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	up->efr = serial_in(up, UART_EFR);
-	serial_out(up, UART_EFR, up->efr & ~UART_EFR_ECB);
-
-	serial_out(up, UART_XON1, termios->c_cc[VSTART]);
-	serial_out(up, UART_XOFF1, termios->c_cc[VSTOP]);
-
-	/* clear SW control mode bits */
-	up->efr &= OMAP_UART_SW_CLR;
-
-	/*
-	 * IXON Flag:
-	 * Enable XON/XOFF flow control on output.
-	 * Transmit XON1, XOFF1
-	 */
-	if (termios->c_iflag & IXON)
-		up->efr |= OMAP_UART_SW_TX;
-
-	/*
-	 * IXOFF Flag:
-	 * Enable XON/XOFF flow control on input.
-	 * Receiver compares XON1, XOFF1.
-	 */
-	if (termios->c_iflag & IXOFF)
-		up->efr |= OMAP_UART_SW_RX;
-
-	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
-
-	up->mcr = serial_in(up, UART_MCR);
-
-	/*
-	 * IXANY Flag:
-	 * Enable any character to restart output.
-	 * Operation resumes after receiving any
-	 * character after recognition of the XOFF character
-	 */
-	if (termios->c_iflag & IXANY)
-		up->mcr |= UART_MCR_XONANY;
-	else
-		up->mcr &= ~UART_MCR_XONANY;
-
-	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
-	serial_out(up, UART_MCR, up->mcr & ~UART_MCR_TCRTLR);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_EFR, up->efr);
-	serial_out(up, UART_LCR, up->lcr);
-}
-
 static void serial_omap_uart_qos_work(struct work_struct *work)
 {
 	struct uart_omap_port *up = container_of(work, struct uart_omap_port,
@@ -984,8 +927,59 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	/* Software Flow Control Configuration */
-	if (up->port.flags & UPF_SOFT_FLOW)
-		serial_omap_configure_xonxoff(up, termios);
+	if (up->port.flags & UPF_SOFT_FLOW) {
+		up->lcr = serial_in(up, UART_LCR);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		up->efr = serial_in(up, UART_EFR);
+		serial_out(up, UART_EFR, up->efr & ~UART_EFR_ECB);
+
+		serial_out(up, UART_XON1, termios->c_cc[VSTART]);
+		serial_out(up, UART_XOFF1, termios->c_cc[VSTOP]);
+
+		/* clear SW control mode bits */
+		up->efr &= OMAP_UART_SW_CLR;
+
+		/*
+		 * IXON Flag:
+		 * Enable XON/XOFF flow control on output.
+		 * Transmit XON1, XOFF1
+		 */
+		if (termios->c_iflag & IXON)
+			up->efr |= OMAP_UART_SW_TX;
+
+		/*
+		 * IXOFF Flag:
+		 * Enable XON/XOFF flow control on input.
+		 * Receiver compares XON1, XOFF1.
+		 */
+		if (termios->c_iflag & IXOFF)
+			up->efr |= OMAP_UART_SW_RX;
+
+		serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
+
+		up->mcr = serial_in(up, UART_MCR);
+
+		/*
+		 * IXANY Flag:
+		 * Enable any character to restart output.
+		 * Operation resumes after receiving any
+		 * character after recognition of the XOFF character
+		 */
+		if (termios->c_iflag & IXANY)
+			up->mcr |= UART_MCR_XONANY;
+		else
+			up->mcr &= ~UART_MCR_XONANY;
+
+		serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
+		serial_out(up, UART_MCR, up->mcr & ~UART_MCR_TCRTLR);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_out(up, UART_EFR, up->efr);
+		serial_out(up, UART_LCR, up->lcr);
+	}
 
 	serial_omap_set_mctrl(&up->port, up->port.mctrl);
 
