@@ -33,7 +33,6 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
-#include <asm/cputype.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/virt.h>
@@ -299,22 +298,6 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	return 0;
-}
-
-int __attribute_const__ kvm_target_cpu(void)
-{
-	unsigned long implementor = read_cpuid_implementor();
-	unsigned long part_number = read_cpuid_part_number();
-
-	if (implementor != ARM_CPU_IMP_ARM)
-		return -EINVAL;
-
-	switch (part_number) {
-	case ARM_CPU_PART_CORTEX_A15:
-		return KVM_ARM_TARGET_CORTEX_A15;
-	default:
-		return -EINVAL;
-	}
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
