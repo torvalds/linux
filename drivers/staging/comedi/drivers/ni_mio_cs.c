@@ -177,8 +177,6 @@ struct ni_private {
 
  NI_PRIVATE_COMMON};
 
-#define devpriv ((struct ni_private *)dev->private)
-
 /* How we access registers */
 
 #define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
@@ -196,6 +194,7 @@ struct ni_private {
 
 static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
@@ -210,6 +209,7 @@ static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 
 static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 	uint16_t ret;
 
@@ -324,6 +324,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct ni_private *devpriv;
 	struct pcmcia_device *link;
 	unsigned int irq;
 	int ret;
@@ -372,10 +373,10 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->irq = irq;
 
-	/* allocate private area */
 	ret = ni_alloc_private(dev);
-	if (ret < 0)
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	devpriv->stc_writew = &mio_cs_win_out;
 	devpriv->stc_readw = &mio_cs_win_in;
