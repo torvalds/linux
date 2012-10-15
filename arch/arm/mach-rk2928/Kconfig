@@ -14,6 +14,9 @@ config MACH_RK2928_FPGA
 config MACH_RK2928_SDK
 	bool "RK2928 SDK board"
 
+config MACH_RK2926_SDK
+	bool "RK2926 SDK board"
+
 config MACH_RK2928_A720
 	bool "RK2928 A720 board"
 
