@@ -795,7 +795,7 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
 
 //out_csc: 0:rgb, 1:yuv for tv, 2:yuv for hdmi
 //out_color_range:  0:16~255, 1:0~255, 2:16~235
-__s32 DE_BE_Set_Enhance_ex(__u8 sel, __u32 out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
+__s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
 {
 	__s32 i_bright;
 	__s32 i_contrast;
@@ -839,7 +839,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __u32 out_csc, __u32 out_color_range, __u32
 	matrixEn.x32 = 0;
 	matrixEn.x33 = 1024;
 
-	if(out_csc == 0) {	//RGB output
+	if (out_csc == DE_RGB) { /* RGB output */
 		if(enhance_en == 1) {
 			for (i=0; i<16; i++) {
 				*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x20 + i) <<32 ) >>32;	//bt709 rgb2yuv coeff
@@ -919,7 +919,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __u32 out_csc, __u32 out_color_range, __u32
 		matrixresult.x12 = matrixresult.x12;	matrixresult.x13 = matrixresult.x13 + 8;
 		matrixresult.x20 = matrixresult.x20;	matrixresult.x21 = matrixresult.x21;
 		matrixresult.x22 = matrixresult.x22;	matrixresult.x23 = matrixresult.x23 + 8;
-	} else if (out_csc == 1) { //YUV for tv(range 16-235)
+	} else if (out_csc == DE_YUV_TV) { /* YUV for tv(range 16-235) */
 		for (i=0; i<16; i++) {
 			*((__s64 *)(&tmpcoeff.x00) + i)  = ((__s64)*(image_enhance_tab + i) <<32)>>32;  //bt601 rgb2yuv coeff
 		}
@@ -945,7 +945,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __u32 out_csc, __u32 out_color_range, __u32
 			matrixresult.x20 = tmpcoeff.x20/4;  matrixresult.x21 = tmpcoeff.x21/4;
 			matrixresult.x22 = tmpcoeff.x22/4;  matrixresult.x23 = tmpcoeff.x23/256 + 8;
 		}
-	} else { //if(out_csc == 2)//YUV for HDMI(range 16-235)
+	} else { /* if(out_csc == DE_YUV_HDMI) */ /* YUV for HDMI(range 16-235) */
 		for(i=0; i<16; i++) {
 			*((__s64 *)(&tmpcoeff.x00) + i)  = ((__s64)*(image_enhance_tab + i) <<32)>>32;	//bt601 rgb2yuv coeff
 		}
