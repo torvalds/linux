@@ -707,12 +707,16 @@ static void ft5306_suspend(struct early_suspend *h)
 	int err;
     ft5x0x_ts = container_of(h, struct ft5x0x_ts_data, ft5306_early_suspend);
 	FTprintk("TSP ft5306_suspend\n");
+    err = ft5306_set_regs(this_client, 0xA5, buf_w, 1);
+    if (err > 0)
+        printk("ft5306_set_regs OK!!\n");
+
+    msleep(20);
+
 	if (ft5x0x_ts->platform_sleep){ 
 		ft5x0x_ts->platform_sleep();
 	}
-		err = ft5306_set_regs(this_client,0xA5,buf_w,1);
-	if (err>0)
-		printk("ft5306_set_regs OK!!\n");
+
 	disable_irq(ft5x0x_ts->irq);
 }
 
