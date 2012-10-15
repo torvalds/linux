@@ -28,9 +28,6 @@
  * the omap drivers hwmod adapted.
  */
 
-/* Move omap4 specific defines to dma-44xx.h */
-#include "dma-44xx.h"
-
 #define INT_DMA_LCD			25
 
 /* DMA channels for omap1 */
