@@ -811,9 +811,8 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		addr = val->vpaval.addr;
 		len = val->vpaval.length;
 		r = -EINVAL;
-		if (len < sizeof(struct dtl_entry))
-			break;
-		if (addr && !vcpu->arch.vpa.next_gpa)
+		if (addr && (len < sizeof(struct dtl_entry) ||
+			     !vcpu->arch.vpa.next_gpa))
 			break;
 		len -= len % sizeof(struct dtl_entry);
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
