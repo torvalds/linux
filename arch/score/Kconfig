@@ -13,6 +13,8 @@ config SCORE
        select GENERIC_CLOCKEVENTS
        select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_REL
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
 
 choice
 	prompt "System type"

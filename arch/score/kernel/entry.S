@@ -278,6 +278,13 @@ need_resched:
 	nop
 #endif
 
+ENTRY(ret_from_kernel_thread)
+	bl	schedule_tail			# r4=struct task_struct *prev
+	nop
+	mv	r4, r13
+	brl	r12
+	j	syscall_exit
+
 ENTRY(ret_from_fork)
 	bl	schedule_tail			# r4=struct task_struct *prev
 
