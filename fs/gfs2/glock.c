@@ -55,8 +55,6 @@ struct gfs2_glock_iter {
 
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
-static int __dump_glock(struct seq_file *seq, const struct gfs2_glock *gl);
-#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) { __dump_glock(NULL, gl); BUG(); } } while(0)
 static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int target);
 
 static struct dentry *gfs2_root;
@@ -1013,7 +1011,7 @@ trap_recursive:
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
-	__dump_glock(NULL, gl);
+	gfs2_dump_glock(NULL, gl);
 	BUG();
 }
 
@@ -1508,7 +1506,7 @@ static int dump_glock(struct seq_file *seq, struct gfs2_glock *gl)
 {
 	int ret;
 	spin_lock(&gl->gl_spin);
-	ret = __dump_glock(seq, gl);
+	ret = gfs2_dump_glock(seq, gl);
 	spin_unlock(&gl->gl_spin);
 	return ret;
 }
@@ -1655,7 +1653,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 }
 
 /**
- * __dump_glock - print information about a glock
+ * gfs2_dump_glock - print information about a glock
  * @seq: The seq_file struct
  * @gl: the glock
  *
@@ -1672,7 +1670,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
  * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int __dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
+int gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned long long dtime;
