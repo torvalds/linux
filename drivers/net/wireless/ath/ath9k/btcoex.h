@@ -88,6 +88,7 @@ struct ath9k_hw_mci {
 	u8 bt_state;
 	u8 stomp_ftp;
 	bool concur_tx;
+	u32 last_recovery;
 };
 
 struct ath_btcoex_hw {

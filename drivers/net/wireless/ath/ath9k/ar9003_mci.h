@@ -18,6 +18,7 @@
 #define AR9003_MCI_H
 
 #define MCI_FLAG_DISABLE_TIMESTAMP      0x00000001      /* Disable time stamp */
+#define MCI_RECOVERY_DUR_TSF		(100 * 1000)    /* 100 ms */
 
 /* Default remote BT device MCI COEX version */
 #define MCI_GPM_COEX_MAJOR_VERSION_DEFAULT  3

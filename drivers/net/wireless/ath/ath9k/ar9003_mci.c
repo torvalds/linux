@@ -1203,7 +1203,7 @@ EXPORT_SYMBOL(ar9003_mci_cleanup);
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
-	u32 value = 0;
+	u32 value = 0, tsf;
 	u8 query_type;
 
 	switch (state_type) {
@@ -1261,6 +1261,14 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		ar9003_mci_send_coex_bt_status_query(ah, true, query_type);
 		break;
 	case MCI_STATE_RECOVER_RX:
+		tsf = ath9k_hw_gettsf32(ah);
+		if ((tsf - mci->last_recovery) <= MCI_RECOVERY_DUR_TSF) {
+			ath_dbg(ath9k_hw_common(ah), MCI,
+				"(MCI) ignore Rx recovery\n");
+			break;
+		}
+		ath_dbg(ath9k_hw_common(ah), MCI, "(MCI) RECOVER RX\n");
+		mci->last_recovery = tsf;
 		ar9003_mci_prep_interface(ah);
 		mci->query_bt = true;
 		mci->need_flush_btinfo = true;
