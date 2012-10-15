@@ -122,6 +122,7 @@ static void tick_sched_do_timer(ktime_t now)
 
 static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 {
+#ifdef CONFIG_NO_HZ
 	/*
 	 * When we are idle and the tick is stopped, we have to touch
 	 * the watchdog as we might not schedule for a really long
@@ -135,6 +136,7 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 		if (is_idle_task(current))
 			ts->idle_jiffies++;
 	}
+#endif
 	update_process_times(user_mode(regs));
 	profile_tick(CPU_PROFILING);
 }
