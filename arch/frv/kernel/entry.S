@@ -863,6 +863,19 @@ ret_from_fork:
 	setlos.p	#0,gr8
 	bra		__syscall_exit
 
+	.globl		ret_from_kernel_thread
+ret_from_kernel_thread:
+	lddi.p		@(gr28,#REG_GR(8)),gr20
+	call		schedule_tail
+	or.p		gr20,gr20,gr8
+	calll		@(gr21,gr0)
+	bra		sys_exit
+
+	.globl		ret_from_kernel_execve
+ret_from_kernel_execve:
+	ori		gr28,0,sp
+	bra		__syscall_exit
+
 ###################################################################################################
 #
 # Return to user mode is not as complex as all this looks,

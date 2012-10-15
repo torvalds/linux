@@ -60,12 +60,12 @@ void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
 		return;
 	}
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 	count = fs16_to_cpu(sbi, *sbi->s_bcache_count);
 
 	if (count > sbi->s_flc_size) {
 		printk("sysv_free_block: flc_count > flc_size\n");
-		unlock_super(sb);
+		mutex_unlock(&sbi->s_lock);
 		return;
 	}
 	/* If the free list head in super-block is full, it is copied
@@ -77,7 +77,7 @@ void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
 		bh = sb_getblk(sb, block);
 		if (!bh) {
 			printk("sysv_free_block: getblk() failed\n");
-			unlock_super(sb);
+			mutex_unlock(&sbi->s_lock);
 			return;
 		}
 		memset(bh->b_data, 0, sb->s_blocksize);
@@ -93,7 +93,7 @@ void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
 	*sbi->s_bcache_count = cpu_to_fs16(sbi, count);
 	fs32_add(sbi, sbi->s_free_blocks, 1);
 	dirty_sb(sb);
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 }
 
 sysv_zone_t sysv_new_block(struct super_block * sb)
@@ -104,7 +104,7 @@ sysv_zone_t sysv_new_block(struct super_block * sb)
 	struct buffer_head * bh;
 	unsigned count;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 	count = fs16_to_cpu(sbi, *sbi->s_bcache_count);
 
 	if (count == 0) /* Applies only to Coherent FS */
@@ -147,11 +147,11 @@ sysv_zone_t sysv_new_block(struct super_block * sb)
 	/* Now the free list head in the superblock is valid again. */
 	fs32_add(sbi, sbi->s_free_blocks, -1);
 	dirty_sb(sb);
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 	return nr;
 
 Enospc:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 	return 0;
 }
 
@@ -173,7 +173,7 @@ unsigned long sysv_count_free_blocks(struct super_block * sb)
 	if (sbi->s_type == FSTYPE_AFS)
 		return 0;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 	sb_count = fs32_to_cpu(sbi, *sbi->s_free_blocks);
 
 	if (0)
@@ -211,7 +211,7 @@ unsigned long sysv_count_free_blocks(struct super_block * sb)
 	if (count != sb_count)
 		goto Ecount;
 done:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 	return count;
 
 Einval:

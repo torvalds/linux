@@ -752,11 +752,11 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 /* Helper function to process the process SACK command.  */
 static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
 				 struct sctp_association *asoc,
-				 struct sctp_sackhdr *sackh)
+				 struct sctp_chunk *chunk)
 {
 	int err = 0;
 
-	if (sctp_outq_sack(&asoc->outqueue, sackh)) {
+	if (sctp_outq_sack(&asoc->outqueue, chunk)) {
 		struct net *net = sock_net(asoc->base.sk);
 
 		/* There are no more TSNs awaiting SACK.  */

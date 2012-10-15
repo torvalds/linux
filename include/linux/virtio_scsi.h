@@ -72,6 +72,7 @@ struct virtio_scsi_config {
 /* Feature Bits */
 #define VIRTIO_SCSI_F_INOUT                    0
 #define VIRTIO_SCSI_F_HOTPLUG                  1
+#define VIRTIO_SCSI_F_CHANGE                   2
 
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
@@ -108,6 +109,7 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_T_NO_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+#define VIRTIO_SCSI_T_PARAM_CHANGE             3
 
 /* Reasons of transport reset event */
 #define VIRTIO_SCSI_EVT_RESET_HARD             0

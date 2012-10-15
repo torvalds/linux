@@ -1,1 +1,18 @@
 # UAPI Header export list
+header-y += abi.h
+header-y += chip.h
+header-y += chip_tile64.h
+header-y += chip_tilegx.h
+header-y += chip_tilepro.h
+header-y += icache.h
+header-y += interrupts.h
+header-y += interrupts_32.h
+header-y += interrupts_64.h
+header-y += opcode.h
+header-y += opcode_tilegx.h
+header-y += opcode_tilepro.h
+header-y += sim.h
+header-y += sim_def.h
+header-y += spr_def.h
+header-y += spr_def_32.h
+header-y += spr_def_64.h

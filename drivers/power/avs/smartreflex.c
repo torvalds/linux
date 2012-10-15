@@ -930,7 +930,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	if (!sr_info->base) {
 		dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
 		ret = -ENOMEM;
-		goto err_release_region;
+		goto err_free_name;
 	}
 
 	if (irq)
@@ -969,7 +969,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
 			__func__);
 		ret = PTR_ERR(sr_info->dbg_dir);
-		goto err_free_name;
+		goto err_debugfs;
 	}
 
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
@@ -1013,11 +1013,11 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 err_debugfs:
 	debugfs_remove_recursive(sr_info->dbg_dir);
-err_free_name:
-	kfree(sr_info->name);
 err_iounmap:
 	list_del(&sr_info->node);
 	iounmap(sr_info->base);
+err_free_name:
+	kfree(sr_info->name);
 err_release_region:
 	release_mem_region(mem->start, resource_size(mem));
 err_free_devinfo:

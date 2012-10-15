@@ -719,7 +719,7 @@ static const struct ide_dma_ops sil_dma_ops = {
 		.udma_mask	= ATA_UDMA6,		\
 	}
 
-static const struct ide_port_info siimage_chipsets[] __devinitdata = {
+static const struct ide_port_info siimage_chipsets[] __devinitconst = {
 	/* 0: SiI680 */  DECLARE_SII_DEV(&sil_pata_port_ops),
 	/* 1: SiI3112 */ DECLARE_SII_DEV(&sil_sata_port_ops)
 };

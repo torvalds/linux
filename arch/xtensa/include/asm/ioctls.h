@@ -71,8 +71,8 @@
 #define TIOCSSOFTCAR	_IOW('T', 26, unsigned int)
 #define TIOCLINUX	_IOW('T', 28, char)
 #define TIOCCONS	_IO('T', 29)
-#define TIOCGSERIAL	_IOR('T', 30, struct serial_struct)
-#define TIOCSSERIAL	_IOW('T', 31, struct serial_struct)
+#define TIOCGSERIAL	0x803C541E	/*_IOR('T', 30, struct serial_struct)*/
+#define TIOCSSERIAL	0x403C541F	/*_IOW('T', 31, struct serial_struct)*/
 #define TIOCPKT		_IOW('T', 32, int)
 # define TIOCPKT_DATA		 0
 # define TIOCPKT_FLUSHREAD	 1

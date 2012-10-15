@@ -38,9 +38,6 @@
 #define PWR_EVENT_EXIT -1
 
 
-static const char	*input_name;
-static const char	*output_name = "output.svg";
-
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
 static u64		max_freq;	/* Highest CPU frequency seen */
@@ -968,16 +965,15 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static struct perf_tool perf_timechart = {
-	.comm			= process_comm_event,
-	.fork			= process_fork_event,
-	.exit			= process_exit_event,
-	.sample			= process_sample_event,
-	.ordered_samples	= true,
-};
-
-static int __cmd_timechart(void)
+static int __cmd_timechart(const char *input_name, const char *output_name)
 {
+	struct perf_tool perf_timechart = {
+		.comm		 = process_comm_event,
+		.fork		 = process_fork_event,
+		.exit		 = process_exit_event,
+		.sample		 = process_sample_event,
+		.ordered_samples = true,
+	};
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
 							 0, false, &perf_timechart);
 	int ret = -EINVAL;
@@ -1005,40 +1001,25 @@ out_delete:
 	return ret;
 }
 
-static const char * const timechart_usage[] = {
-	"perf timechart [<options>] {record}",
-	NULL
-};
-
-#ifdef SUPPORT_OLD_POWER_EVENTS
-static const char * const record_old_args[] = {
-	"record",
-	"-a",
-	"-R",
-	"-f",
-	"-c", "1",
-	"-e", "power:power_start",
-	"-e", "power:power_end",
-	"-e", "power:power_frequency",
-	"-e", "sched:sched_wakeup",
-	"-e", "sched:sched_switch",
-};
-#endif
-
-static const char * const record_new_args[] = {
-	"record",
-	"-a",
-	"-R",
-	"-f",
-	"-c", "1",
-	"-e", "power:cpu_frequency",
-	"-e", "power:cpu_idle",
-	"-e", "sched:sched_wakeup",
-	"-e", "sched:sched_switch",
-};
-
 static int __cmd_record(int argc, const char **argv)
 {
+#ifdef SUPPORT_OLD_POWER_EVENTS
+	const char * const record_old_args[] = {
+		"record", "-a", "-R", "-f", "-c", "1",
+		"-e", "power:power_start",
+		"-e", "power:power_end",
+		"-e", "power:power_frequency",
+		"-e", "sched:sched_wakeup",
+		"-e", "sched:sched_switch",
+	};
+#endif
+	const char * const record_new_args[] = {
+		"record", "-a", "-R", "-f", "-c", "1",
+		"-e", "power:cpu_frequency",
+		"-e", "power:cpu_idle",
+		"-e", "sched:sched_wakeup",
+		"-e", "sched:sched_switch",
+	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
 	const char * const *record_args = record_new_args;
@@ -1077,27 +1058,28 @@ parse_process(const struct option *opt __maybe_unused, const char *arg,
 	return 0;
 }
 
-static const struct option options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
-		    "input file name"),
-	OPT_STRING('o', "output", &output_name, "file",
-		    "output file name"),
-	OPT_INTEGER('w', "width", &svg_page_width,
-		    "page width"),
-	OPT_BOOLEAN('P', "power-only", &power_only,
-		    "output power data only"),
+int cmd_timechart(int argc, const char **argv,
+		  const char *prefix __maybe_unused)
+{
+	const char *input_name;
+	const char *output_name = "output.svg";
+	const struct option options[] = {
+	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_STRING('o', "output", &output_name, "file", "output file name"),
+	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
+	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_END()
-};
+	};
+	const char * const timechart_usage[] = {
+		"perf timechart [<options>] {record}",
+		NULL
+	};
 
-
-int cmd_timechart(int argc, const char **argv,
-		  const char *prefix __maybe_unused)
-{
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -1110,5 +1092,5 @@ int cmd_timechart(int argc, const char **argv,
 
 	setup_pager();
 
-	return __cmd_timechart();
+	return __cmd_timechart(input_name, output_name);
 }

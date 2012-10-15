@@ -63,6 +63,17 @@ config LEDS_LM3533
 	  hardware-accelerated blinking with maximum on and off periods of 9.8
 	  and 77 seconds respectively.
 
+config LEDS_LM3642
+	tristate "LED support for LM3642 Chip"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to LM3642.
+	  The LM3642 is a 4MHz fixed-frequency synchronous boost
+	  converter plus 1.5A constant current driver for a high-current
+	  white LED.
+
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS
@@ -192,11 +203,12 @@ config LEDS_LP5521
 	  programming the engines.
 
 config LEDS_LP5523
-	tristate "LED Support for N.S. LP5523 LED driver chip"
+	tristate "LED Support for TI/National LP5523/55231 LED driver chip"
 	depends on LEDS_CLASS && I2C
 	help
-	  If you say yes here you get support for the National Semiconductor
-	  LP5523 LED driver. It is 9 channel chip with programmable engines.
+	  If you say yes here you get support for TI/National Semiconductor
+	  LP5523/55231 LED driver.
+	  It is 9 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
 
@@ -422,13 +434,13 @@ config LEDS_MAX8997
 	  This option enables support for on-chip LED drivers on
 	  MAXIM MAX8997 PMIC.
 
-config LEDS_LM3556
-	tristate "LED support for LM3556 Chip"
+config LEDS_LM355x
+	tristate "LED support for LM355x Chips, LM3554 and LM3556"
 	depends on LEDS_CLASS && I2C
 	select REGMAP_I2C
 	help
-	  This option enables support for LEDs connected to LM3556.
-	  LM3556 includes Torch, Flash and Indicator functions.
+	  This option enables support for LEDs connected to LM355x.
+	  LM355x includes Torch, Flash and Indicator functions.
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"

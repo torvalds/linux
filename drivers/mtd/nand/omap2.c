@@ -425,7 +425,7 @@ static void omap_nand_dma_callback(void *data)
 }
 
 /*
- * omap_nand_dma_transfer: configer and start dma transfer
+ * omap_nand_dma_transfer: configure and start dma transfer
  * @mtd: MTD device structure
  * @addr: virtual address in RAM of source/destination
  * @len: number of data bytes to be transferred
@@ -546,7 +546,7 @@ static void omap_write_buf_dma_pref(struct mtd_info *mtd,
 }
 
 /*
- * omap_nand_irq - GMPC irq handler
+ * omap_nand_irq - GPMC irq handler
  * @this_irq: gpmc irq number
  * @dev: omap_nand_info structure pointer is passed here
  */
@@ -695,27 +695,6 @@ out_copy:
 		omap_write_buf16(mtd, buf, len);
 	else
 		omap_write_buf8(mtd, buf, len);
-}
-
-/**
- * omap_verify_buf - Verify chip data against buffer
- * @mtd: MTD device structure
- * @buf: buffer containing the data to compare
- * @len: number of bytes to compare
- */
-static int omap_verify_buf(struct mtd_info *mtd, const u_char * buf, int len)
-{
-	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
-							mtd);
-	u16 *p = (u16 *) buf;
-
-	len >>= 1;
-	while (len--) {
-		if (*p++ != cpu_to_le16(readw(info->nand.IO_ADDR_R)))
-			return -EFAULT;
-	}
-
-	return 0;
 }
 
 /**
@@ -1326,8 +1305,8 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 
 	/*
 	 * If RDY/BSY line is connected to OMAP then use the omap ready
-	 * funcrtion and the generic nand_wait function which reads the status
-	 * register after monitoring the RDY/BSY line.Otherwise use a standard
+	 * function and the generic nand_wait function which reads the status
+	 * register after monitoring the RDY/BSY line. Otherwise use a standard
 	 * chip delay which is slightly more than tR (AC Timing) of the NAND
 	 * device and read status register until you get a failure or success
 	 */
@@ -1428,9 +1407,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		goto out_release_mem_region;
 	}
 
-	info->nand.verify_buf = omap_verify_buf;
-
-	/* selsect the ecc type */
+	/* select the ecc type */
 	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_DEFAULT)
 		info->nand.ecc.mode = NAND_ECC_SOFT;
 	else if ((pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW) ||
@@ -1536,7 +1513,8 @@ static int omap_nand_remove(struct platform_device *pdev)
 	/* Release NAND device, its internal structures and partitions */
 	nand_release(&info->mtd);
 	iounmap(info->nand.IO_ADDR_R);
-	kfree(&info->mtd);
+	release_mem_region(info->phys_base, NAND_IO_SIZE);
+	kfree(info);
 	return 0;
 }
 

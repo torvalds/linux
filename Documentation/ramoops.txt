@@ -102,9 +102,7 @@ related hangs. The functions call chain log is stored in a "ftrace-ramoops"
 file. Here is an example of usage:
 
  # mount -t debugfs debugfs /sys/kernel/debug/
- # cd /sys/kernel/debug/tracing
- # echo function > current_tracer
- # echo 1 > options/func_pstore
+ # echo 1 > /sys/kernel/debug/pstore/record_ftrace
  # reboot -f
  [...]
  # mount -t pstore pstore /mnt/

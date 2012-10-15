@@ -18,6 +18,10 @@
 
 	ahb {
 		apb {
+			i2c0: i2c@fffac000 {
+				compatible = "atmel,at91sam9g20-i2c";
+			};
+
 			adc0: adc@fffe0000 {
 				atmel,adc-startup-time = <40>;
 			};

@@ -28,15 +28,15 @@ case "${1}" in
 		file_ext=""
 		;;
 	targz-pkg)
-		compress="gzip -c9"
+		compress="gzip"
 		file_ext=".gz"
 		;;
 	tarbz2-pkg)
-		compress="bzip2 -c9"
+		compress="bzip2"
 		file_ext=".bz2"
 		;;
 	tarxz-pkg)
-		compress="xz -c9"
+		compress="xz"
 		file_ext=".xz"
 		;;
 	*)
@@ -109,7 +109,7 @@ esac
 	if tar --owner=root --group=root --help >/dev/null 2>&1; then
 		opts="--owner=root --group=root"
 	fi
-	tar cf - . $opts | ${compress} > "${tarball}${file_ext}"
+	tar cf - boot/* lib/* $opts | ${compress} > "${tarball}${file_ext}"
 )
 
 echo "Tarball successfully created in ${tarball}${file_ext}"

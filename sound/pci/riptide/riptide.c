@@ -464,7 +464,7 @@ struct snd_riptide {
 
 	unsigned long received_irqs;
 	unsigned long handled_irqs;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	int in_suspend;
 #endif
 };
@@ -1150,7 +1150,7 @@ static void riptide_handleirq(unsigned long dev_id)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int riptide_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -1193,7 +1193,7 @@ static SIMPLE_DEV_PM_OPS(riptide_pm, riptide_suspend, riptide_resume);
 #define RIPTIDE_PM_OPS	&riptide_pm
 #else
 #define RIPTIDE_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 {

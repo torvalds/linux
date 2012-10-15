@@ -40,8 +40,8 @@ _F(int,  pcibios_fixup, (void), { return 0; });
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 _F(void, calibrate_ccount, (void),
 {
-  printk ("ERROR: Cannot calibrate cpu frequency! Assuming 100MHz.\n");
-  ccount_per_jiffy = 100 * (1000000UL/HZ);
+	pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
+	ccount_per_jiffy = 10 * (1000000UL/HZ);
 });
 #endif
 

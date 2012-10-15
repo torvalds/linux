@@ -193,7 +193,7 @@ static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
 	}
 }
 
-static int acct_on(char *name)
+static int acct_on(struct filename *pathname)
 {
 	struct file *file;
 	struct vfsmount *mnt;
@@ -201,7 +201,7 @@ static int acct_on(char *name)
 	struct bsd_acct_struct *acct = NULL;
 
 	/* Difference from BSD - they don't do O_APPEND */
-	file = filp_open(name, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
+	file = file_open_name(pathname, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
@@ -260,7 +260,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		return -EPERM;
 
 	if (name) {
-		char *tmp = getname(name);
+		struct filename *tmp = getname(name);
 		if (IS_ERR(tmp))
 			return (PTR_ERR(tmp));
 		error = acct_on(tmp);

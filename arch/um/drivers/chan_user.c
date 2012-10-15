@@ -11,8 +11,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include "chan_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <os.h>
+#include <um_malloc.h>
 
 void generic_close(int fd, void *unused)
 {

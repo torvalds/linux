@@ -91,7 +91,10 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (IS_VALLEYVIEW(dev)) {
+		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		uint32_t dimm_c0, dimm_c1;
 		dimm_c0 = I915_READ(MAD_DIMM_C0);
 		dimm_c1 = I915_READ(MAD_DIMM_C1);

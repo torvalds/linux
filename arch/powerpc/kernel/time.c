@@ -73,7 +73,7 @@
 /* powerpc clocksource/clockevent code */
 
 #include <linux/clockchips.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 
 static cycle_t rtc_read(struct clocksource *);
 static struct clocksource clocksource_rtc = {
@@ -508,8 +508,6 @@ void timer_interrupt(struct pt_regs * regs)
 	 */
 	may_hard_irq_enable();
 
-	trace_timer_interrupt_entry(regs);
-
 	__get_cpu_var(irq_stat).timer_irqs++;
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
@@ -519,6 +517,8 @@ void timer_interrupt(struct pt_regs * regs)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
+
+	trace_timer_interrupt_entry(regs);
 
 	if (test_irq_work_pending()) {
 		clear_irq_work_pending();
@@ -544,10 +544,10 @@ void timer_interrupt(struct pt_regs * regs)
 	}
 #endif
 
+	trace_timer_interrupt_exit(regs);
+
 	irq_exit();
 	set_irq_regs(old_regs);
-
-	trace_timer_interrupt_exit(regs);
 }
 
 /*
@@ -727,7 +727,7 @@ static cycle_t timebase_read(struct clocksource *cs)
 	return (cycle_t)get_tb();
 }
 
-void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
 			struct clocksource *clock, u32 mult)
 {
 	u64 new_tb_to_xs, new_stamp_xsec;

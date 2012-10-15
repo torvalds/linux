@@ -221,7 +221,7 @@ static int ipmr_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	return 0;
 }
 
-static const struct fib_rules_ops __net_initdata ipmr_rules_ops_template = {
+static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
 	.family		= RTNL_FAMILY_IPMR,
 	.rule_size	= sizeof(struct ipmr_rule),
 	.addr_size	= sizeof(u32),

@@ -554,7 +554,7 @@ ENTRY(ret_from_fork)
 	RESTORE_REST
 
 	testl $3, CS-ARGOFFSET(%rsp)		# from kernel_thread?
-	jz   retint_restore_args
+	jz   1f
 
 	testl $_TIF_IA32, TI_flags(%rcx)	# 32-bit compat task needs IRET
 	jnz  int_ret_from_sys_call
@@ -562,6 +562,14 @@ ENTRY(ret_from_fork)
 	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
 	jmp ret_from_sys_call			# go to the SYSRET fastpath
 
+1:
+	subq $REST_SKIP, %rsp	# leave space for volatiles
+	CFI_ADJUST_CFA_OFFSET	REST_SKIP
+	movq %rbp, %rdi
+	call *%rbx
+	movl $0, RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
 	CFI_ENDPROC
 END(ret_from_fork)
 
@@ -862,7 +870,6 @@ ENTRY(stub_execve)
 	PARTIAL_FRAME 0
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
-	movq %rsp, %rcx
 	call sys_execve
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
@@ -912,8 +919,7 @@ ENTRY(stub_x32_execve)
 	PARTIAL_FRAME 0
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
-	movq %rsp, %rcx
-	call sys32_execve
+	call compat_sys_execve
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
@@ -1317,52 +1323,6 @@ bad_gs:
 	movl %eax,%gs
 	jmp  2b
 	.previous
-
-ENTRY(kernel_thread_helper)
-	pushq $0		# fake return address
-	CFI_STARTPROC
-	/*
-	 * Here we are in the child and the registers are set as they were
-	 * at kernel_thread() invocation in the parent.
-	 */
-	call *%rsi
-	# exit
-	mov %eax, %edi
-	call do_exit
-	ud2			# padding for call trace
-	CFI_ENDPROC
-END(kernel_thread_helper)
-
-/*
- * execve(). This function needs to use IRET, not SYSRET, to set up all state properly.
- *
- * C extern interface:
- *	 extern long execve(const char *name, char **argv, char **envp)
- *
- * asm input arguments:
- *	rdi: name, rsi: argv, rdx: envp
- *
- * We want to fallback into:
- *	extern long sys_execve(const char *name, char **argv,char **envp, struct pt_regs *regs)
- *
- * do_sys_execve asm fallback arguments:
- *	rdi: name, rsi: argv, rdx: envp, rcx: fake frame on the stack
- */
-ENTRY(kernel_execve)
-	CFI_STARTPROC
-	FAKE_STACK_FRAME $0
-	SAVE_ALL
-	movq %rsp,%rcx
-	call sys_execve
-	movq %rax, RAX(%rsp)
-	RESTORE_REST
-	testq %rax,%rax
-	je int_ret_from_sys_call
-	RESTORE_ARGS
-	UNFAKE_STACK_FRAME
-	ret
-	CFI_ENDPROC
-END(kernel_execve)
 
 /* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)

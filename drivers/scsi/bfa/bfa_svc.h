@@ -474,8 +474,10 @@ struct bfa_fcport_s {
 	/*  supported speeds */
 	enum bfa_port_speed speed;	/*  current speed */
 	enum bfa_port_topology topology;	/*  current topology */
-	u8			myalpa;	/*  my ALPA in LOOP topology */
 	u8			rsvd[3];
+	u8			myalpa;	/*  my ALPA in LOOP topology */
+	u8			alpabm_valid; /* alpa bitmap valid or not */
+	struct fc_alpabm_s	alpabm;	/* alpa bitmap */
 	struct bfa_port_cfg_s	cfg;	/*  current port configuration */
 	bfa_boolean_t		use_flash_cfg; /* get port cfg from flash */
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
@@ -512,6 +514,7 @@ struct bfa_fcport_s {
 	struct bfa_fcport_trunk_s trunk;
 	u16		fcoe_vlan;
 	struct bfa_mem_dma_s	fcport_dma;
+	bfa_boolean_t		stats_dma_ready;
 };
 
 #define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)
@@ -534,6 +537,7 @@ enum bfa_port_speed bfa_fcport_get_speed(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_cfg_topology(struct bfa_s *bfa,
 				     enum bfa_port_topology topo);
 enum bfa_port_topology bfa_fcport_get_topology(struct bfa_s *bfa);
+enum bfa_port_topology bfa_fcport_get_cfg_topology(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_cfg_hardalpa(struct bfa_s *bfa, u8 alpa);
 bfa_boolean_t bfa_fcport_get_hardalpa(struct bfa_s *bfa, u8 *alpa);
 u8 bfa_fcport_get_myalpa(struct bfa_s *bfa);
@@ -547,6 +551,9 @@ void bfa_fcport_event_register(struct bfa_s *bfa,
 			void (*event_cbfn) (void *cbarg,
 			enum bfa_port_linkstate event), void *event_cbarg);
 bfa_boolean_t bfa_fcport_is_disabled(struct bfa_s *bfa);
+bfa_boolean_t bfa_fcport_is_dport(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_set_qos_bw(struct bfa_s *bfa,
+				   struct bfa_qos_bw_s *qos_bw);
 enum bfa_port_speed bfa_fcport_get_ratelim_speed(struct bfa_s *bfa);
 
 void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn);
@@ -560,6 +567,8 @@ bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa,
 			struct bfa_cb_pending_q_s *cb);
 bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_is_trunk_enabled(struct bfa_s *bfa);
+void bfa_fcport_dportenable(struct bfa_s *bfa);
+void bfa_fcport_dportdisable(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_is_pbcdisabled(struct bfa_s *bfa);
 void bfa_fcport_cfg_faa(struct bfa_s *bfa, u8 state);
 
@@ -575,6 +584,9 @@ void bfa_cb_rport_offline(void *rport);
 void bfa_cb_rport_qos_scn_flowid(void *rport,
 				 struct bfa_rport_qos_attr_s old_qos_attr,
 				 struct bfa_rport_qos_attr_s new_qos_attr);
+void bfa_cb_rport_scn_online(struct bfa_s *bfa);
+void bfa_cb_rport_scn_offline(struct bfa_s *bfa);
+void bfa_cb_rport_scn_no_dev(void *rp);
 void bfa_cb_rport_qos_scn_prio(void *rport,
 			       struct bfa_rport_qos_attr_s old_qos_attr,
 			       struct bfa_rport_qos_attr_s new_qos_attr);
@@ -697,11 +709,21 @@ struct bfa_fcdiag_lb_s {
 	u32        status;
 };
 
+struct bfa_dport_s {
+	struct bfa_s	*bfa;		/* Back pointer to BFA	*/
+	bfa_sm_t	sm;		/* finite state machine */
+	u32		msgtag;		/* firmware msg tag for reply */
+	struct bfa_reqq_wait_s reqq_wait;
+	bfa_cb_diag_t	cbfn;
+	void		*cbarg;
+};
+
 struct bfa_fcdiag_s {
 	struct bfa_s    *bfa;           /* Back pointer to BFA */
 	struct bfa_trc_mod_s   *trcmod;
 	struct bfa_fcdiag_lb_s lb;
 	struct bfa_fcdiag_qtest_s qtest;
+	struct bfa_dport_s	dport;
 };
 
 #define BFA_FCDIAG_MOD(__bfa)	(&(__bfa)->modules.fcdiag)
@@ -717,5 +739,11 @@ bfa_status_t	bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 ignore,
 			u32 queue, struct bfa_diag_qtest_result_s *result,
 			bfa_cb_diag_t cbfn, void *cbarg);
 bfa_status_t	bfa_fcdiag_lb_is_running(struct bfa_s *bfa);
+bfa_status_t	bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn,
+				 void *cbarg);
+bfa_status_t	bfa_dport_disable(struct bfa_s *bfa, bfa_cb_diag_t cbfn,
+				  void *cbarg);
+bfa_status_t	bfa_dport_get_state(struct bfa_s *bfa,
+				    enum bfa_dport_state *state);
 
 #endif /* __BFA_SVC_H__ */

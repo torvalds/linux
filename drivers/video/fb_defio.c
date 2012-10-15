@@ -166,7 +166,7 @@ static const struct address_space_operations fb_deferred_io_aops = {
 static int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	vma->vm_ops = &fb_deferred_io_vm_ops;
-	vma->vm_flags |= ( VM_RESERVED | VM_DONTEXPAND );
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	if (!(info->flags & FBINFO_VIRTFB))
 		vma->vm_flags |= VM_IO;
 	vma->vm_private_data = info;

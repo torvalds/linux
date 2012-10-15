@@ -433,34 +433,23 @@ static void omap_init_mcspi(void)
 static inline void omap_init_mcspi(void) {}
 #endif
 
-static struct resource omap2_pmu_resource = {
-	.start	= 3 + OMAP_INTC_START,
-	.flags	= IORESOURCE_IRQ,
-};
-
-static struct resource omap3_pmu_resource = {
-	.start	= 3 + OMAP_INTC_START,
-	.flags	= IORESOURCE_IRQ,
-};
-
-static struct platform_device omap_pmu_device = {
-	.name		= "arm-pmu",
-	.id		= -1,
-	.num_resources	= 1,
-};
-
-static void omap_init_pmu(void)
+/**
+ * omap_init_rng - bind the RNG hwmod to the RNG omap_device
+ *
+ * Bind the RNG hwmod to the RNG omap_device.  No return value.
+ */
+static void omap_init_rng(void)
 {
-	if (cpu_is_omap24xx())
-		omap_pmu_device.resource = &omap2_pmu_resource;
-	else if (cpu_is_omap34xx())
-		omap_pmu_device.resource = &omap3_pmu_resource;
-	else
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+
+	oh = omap_hwmod_lookup("rng");
+	if (!oh)
 		return;
 
-	platform_device_register(&omap_pmu_device);
+	pdev = omap_device_build("omap_rng", -1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for omap_rng\n");
 }
-
 
 #if defined(CONFIG_CRYPTO_DEV_OMAP_SHAM) || defined(CONFIG_CRYPTO_DEV_OMAP_SHAM_MODULE)
 
@@ -646,8 +635,8 @@ static int __init omap2_init_devices(void)
 		omap_init_mcpdm();
 		omap_init_mcspi();
 	}
-	omap_init_pmu();
 	omap_init_sti();
+	omap_init_rng();
 	omap_init_sham();
 	omap_init_aes();
 	omap_init_vout();

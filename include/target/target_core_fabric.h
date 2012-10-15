@@ -62,8 +62,6 @@ struct target_core_fabric_ops {
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	int (*queue_tm_rsp)(struct se_cmd *);
-	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
-	u16 (*get_fabric_sense_len)(void);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */
@@ -102,6 +100,9 @@ void	transport_init_se_cmd(struct se_cmd *, struct target_core_fabric_ops *,
 		struct se_session *, u32, int, int, unsigned char *);
 int	transport_lookup_cmd_lun(struct se_cmd *, u32);
 int	target_setup_cmd_from_cdb(struct se_cmd *, unsigned char *);
+int	target_submit_cmd_map_sgls(struct se_cmd *, struct se_session *,
+		unsigned char *, unsigned char *, u32, u32, int, int, int,
+		struct scatterlist *, u32, struct scatterlist *, u32);
 int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u32, u32, int, int, int);
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,

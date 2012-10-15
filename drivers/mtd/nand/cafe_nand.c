@@ -377,7 +377,7 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * @buf:	buffer to store read data
  * @oob_required:	caller expects OOB data read to chip->oob_poi
  *
- * The hw generator calculates the error syndrome automatically. Therefor
+ * The hw generator calculates the error syndrome automatically. Therefore
  * we need a special oob layout and handling.
  */
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
@@ -520,7 +520,7 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 };
 
 
-static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
+static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 					  struct nand_chip *chip,
 					  const uint8_t *buf, int oob_required)
 {
@@ -531,6 +531,8 @@ static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
+
+	return 0;
 }
 
 static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
@@ -542,9 +544,12 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
 	if (unlikely(raw))
-		chip->ecc.write_page_raw(mtd, chip, buf, oob_required);
+		status = chip->ecc.write_page_raw(mtd, chip, buf, oob_required);
 	else
-		chip->ecc.write_page(mtd, chip, buf, oob_required);
+		status = chip->ecc.write_page(mtd, chip, buf, oob_required);
+
+	if (status < 0)
+		return status;
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
@@ -571,13 +576,6 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		status = chip->waitfunc(mtd, chip);
 	}
 
-#ifdef CONFIG_MTD_NAND_VERIFY_WRITE
-	/* Send command to read back the data */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-
-	if (chip->verify_buf(mtd, buf, mtd->writesize))
-		return -EIO;
-#endif
 	return 0;
 }
 

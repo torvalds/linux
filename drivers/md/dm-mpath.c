@@ -1309,13 +1309,14 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 {
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = map_context->ptr;
-	struct pgpath *pgpath = mpio->pgpath;
+	struct pgpath *pgpath;
 	struct path_selector *ps;
 	int r;
 
 	BUG_ON(!mpio);
 
 	r  = do_end_io(m, clone, error, mpio);
+	pgpath = mpio->pgpath;
 	if (pgpath) {
 		ps = &pgpath->pg->ps;
 		if (ps->type->end_io)

@@ -566,11 +566,13 @@ static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip
 	return 0;
 }
 
-static void bf5xx_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-		const uint8_t *buf, int oob_required)
+static int bf5xx_nand_write_page_raw(struct mtd_info *mtd,
+		struct nand_chip *chip,	const uint8_t *buf, int oob_required)
 {
 	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
 }
 
 /*

@@ -337,7 +337,7 @@ static const struct ide_port_ops svwks_port_ops = {
 	.cable_detect		= svwks_cable_detect,
 };
 
-static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
+static const struct ide_port_info serverworks_chipsets[] __devinitconst = {
 	{	/* 0: OSB4 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,

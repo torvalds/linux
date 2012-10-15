@@ -77,15 +77,14 @@ static void __init bfin_init_tables(unsigned long cclk, unsigned long sclk)
 	csel = bfin_read32(CGU0_DIV) & 0x1F;
 #endif
 
-	for (index = 0;  (cclk >> index) >= min_cclk && csel <= 3; index++, csel++) {
+	for (index = 0;  (cclk >> index) >= min_cclk && csel <= 3 && index < 3; index++, csel++) {
 		bfin_freq_table[index].frequency = cclk >> index;
 #ifndef CONFIG_BF60x
 		dpm_state_table[index].csel = csel << 4; /* Shift now into PLL_DIV bitpos */
-		dpm_state_table[index].tscale =  (TIME_SCALE / (1 << csel)) - 1;
 #else
 		dpm_state_table[index].csel = csel;
-		dpm_state_table[index].tscale =  TIME_SCALE >> index;
 #endif
+		dpm_state_table[index].tscale =  (TIME_SCALE >> index) - 1;
 
 		pr_debug("cpufreq: freq:%d csel:0x%x tscale:%d\n",
 						 bfin_freq_table[index].frequency,
@@ -135,7 +134,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 	unsigned int plldiv;
 #endif
 	unsigned int index, cpu;
-	unsigned long flags, cclk_hz;
+	unsigned long cclk_hz;
 	struct cpufreq_freqs freqs;
 	static unsigned long lpj_ref;
 	static unsigned int  lpj_ref_freq;
@@ -166,7 +165,6 @@ static int bfin_target(struct cpufreq_policy *poli,
 
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 		if (cpu == CPUFREQ_CPU) {
-			flags = hard_local_irq_save();
 #ifndef CONFIG_BF60x
 			plldiv = (bfin_read_PLL_DIV() & SSEL) |
 						dpm_state_table[index].csel;
@@ -195,7 +193,6 @@ static int bfin_target(struct cpufreq_policy *poli,
 				loops_per_jiffy = cpufreq_scale(lpj_ref,
 						lpj_ref_freq, freqs.new);
 			}
-			hard_local_irq_restore(flags);
 		}
 		/* TODO: just test case for cycles clock source, remove later */
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);

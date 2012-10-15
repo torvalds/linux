@@ -2792,7 +2792,7 @@ static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_vt1724_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -2878,7 +2878,7 @@ static SIMPLE_DEV_PM_OPS(snd_vt1724_pm, snd_vt1724_suspend, snd_vt1724_resume);
 #define SND_VT1724_PM_OPS	&snd_vt1724_pm
 #else
 #define SND_VT1724_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver vt1724_driver = {
 	.name = KBUILD_MODNAME,

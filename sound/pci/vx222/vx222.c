@@ -257,7 +257,7 @@ static void __devexit snd_vx222_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_vx222_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);

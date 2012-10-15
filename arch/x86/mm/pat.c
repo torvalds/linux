@@ -664,20 +664,20 @@ static void free_pfn_range(u64 paddr, unsigned long size)
 }
 
 /*
- * track_pfn_vma_copy is called when vma that is covering the pfnmap gets
+ * track_pfn_copy is called when vma that is covering the pfnmap gets
  * copied through copy_page_range().
  *
  * If the vma has a linear pfn mapping for the entire range, we get the prot
  * from pte and reserve the entire vma range with single reserve_pfn_range call.
  */
-int track_pfn_vma_copy(struct vm_area_struct *vma)
+int track_pfn_copy(struct vm_area_struct *vma)
 {
 	resource_size_t paddr;
 	unsigned long prot;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 	pgprot_t pgprot;
 
-	if (is_linear_pfn_mapping(vma)) {
+	if (vma->vm_flags & VM_PAT) {
 		/*
 		 * reserve the whole chunk covered by vma. We need the
 		 * starting address and protection from pte.
@@ -694,31 +694,59 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 }
 
 /*
- * track_pfn_vma_new is called when a _new_ pfn mapping is being established
- * for physical range indicated by pfn and size.
- *
  * prot is passed in as a parameter for the new mapping. If the vma has a
  * linear pfn mapping for the entire range reserve the entire vma range with
  * single reserve_pfn_range call.
  */
-int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
-			unsigned long pfn, unsigned long size)
+int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+		    unsigned long pfn, unsigned long addr, unsigned long size)
 {
+	resource_size_t paddr = (resource_size_t)pfn << PAGE_SHIFT;
 	unsigned long flags;
-	resource_size_t paddr;
-	unsigned long vma_size = vma->vm_end - vma->vm_start;
 
-	if (is_linear_pfn_mapping(vma)) {
-		/* reserve the whole chunk starting from vm_pgoff */
-		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
-		return reserve_pfn_range(paddr, vma_size, prot, 0);
+	/* reserve the whole chunk starting from paddr */
+	if (addr == vma->vm_start && size == (vma->vm_end - vma->vm_start)) {
+		int ret;
+
+		ret = reserve_pfn_range(paddr, size, prot, 0);
+		if (!ret)
+			vma->vm_flags |= VM_PAT;
+		return ret;
 	}
 
 	if (!pat_enabled)
 		return 0;
 
-	/* for vm_insert_pfn and friends, we set prot based on lookup */
-	flags = lookup_memtype(pfn << PAGE_SHIFT);
+	/*
+	 * For anything smaller than the vma size we set prot based on the
+	 * lookup.
+	 */
+	flags = lookup_memtype(paddr);
+
+	/* Check memtype for the remaining pages */
+	while (size > PAGE_SIZE) {
+		size -= PAGE_SIZE;
+		paddr += PAGE_SIZE;
+		if (flags != lookup_memtype(paddr))
+			return -EINVAL;
+	}
+
+	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+			 flags);
+
+	return 0;
+}
+
+int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+		     unsigned long pfn)
+{
+	unsigned long flags;
+
+	if (!pat_enabled)
+		return 0;
+
+	/* Set prot based on lookup */
+	flags = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
 	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
 			 flags);
 
@@ -726,22 +754,31 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
 }
 
 /*
- * untrack_pfn_vma is called while unmapping a pfnmap for a region.
+ * untrack_pfn is called while unmapping a pfnmap for a region.
  * untrack can be called for a specific region indicated by pfn and size or
- * can be for the entire vma (in which case size can be zero).
+ * can be for the entire vma (in which case pfn, size are zero).
  */
-void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
-			unsigned long size)
+void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+		 unsigned long size)
 {
 	resource_size_t paddr;
-	unsigned long vma_size = vma->vm_end - vma->vm_start;
+	unsigned long prot;
 
-	if (is_linear_pfn_mapping(vma)) {
-		/* free the whole chunk starting from vm_pgoff */
-		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
-		free_pfn_range(paddr, vma_size);
+	if (!(vma->vm_flags & VM_PAT))
 		return;
+
+	/* free the chunk starting from pfn or the whole chunk */
+	paddr = (resource_size_t)pfn << PAGE_SHIFT;
+	if (!paddr && !size) {
+		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr)) {
+			WARN_ON_ONCE(1);
+			return;
+		}
+
+		size = vma->vm_end - vma->vm_start;
 	}
+	free_pfn_range(paddr, size);
+	vma->vm_flags &= ~VM_PAT;
 }
 
 pgprot_t pgprot_writecombine(pgprot_t prot)

@@ -251,6 +251,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	if (arch_irqs_disabled() && !arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
+	current->thread.trap_nr = code;
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;
 	info.si_code = code;

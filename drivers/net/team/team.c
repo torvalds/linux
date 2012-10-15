@@ -1315,6 +1315,7 @@ static const struct team_option team_options[] = {
 
 static struct lock_class_key team_netdev_xmit_lock_key;
 static struct lock_class_key team_netdev_addr_lock_key;
+static struct lock_class_key team_tx_busylock_key;
 
 static void team_set_lockdep_class_one(struct net_device *dev,
 				       struct netdev_queue *txq,
@@ -1327,6 +1328,7 @@ static void team_set_lockdep_class(struct net_device *dev)
 {
 	lockdep_set_class(&dev->addr_list_lock, &team_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, team_set_lockdep_class_one, NULL);
+	dev->qdisc_tx_busylock = &team_tx_busylock_key;
 }
 
 static int team_init(struct net_device *dev)

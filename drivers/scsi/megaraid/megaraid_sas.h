@@ -1,7 +1,7 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2011  LSI Corporation.
+ *  Copyright (c) 2003-2012  LSI Corporation.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.06.18-rc1"
-#define MEGASAS_RELDATE				"Jun. 17, 2012"
-#define MEGASAS_EXT_VERSION			"Tue. Jun. 17 17:00:00 PDT 2012"
+#define MEGASAS_VERSION				"06.504.01.00-rc1"
+#define MEGASAS_RELDATE				"Oct. 1, 2012"
+#define MEGASAS_EXT_VERSION			"Mon. Oct. 1 17:00:00 PDT 2012"
 
 /*
  * Device IDs

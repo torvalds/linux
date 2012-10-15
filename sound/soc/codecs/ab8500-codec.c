@@ -391,10 +391,10 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_CLOCK_SUPPLY("audioclk"),
 
 	/* Regulators */
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0, 0),
 
 	/* Power */
 	SND_SOC_DAPM_SUPPLY("Audio Power",
@@ -2462,10 +2462,7 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
 	/* Setup AB8500 according to board-settings */
-	pdata = (struct ab8500_platform_data *)dev_get_platdata(dev->parent);
-
-	/* Inform SoC Core that we have our own I/O arrangements. */
-	codec->control_data = (void *)true;
+	pdata = dev_get_platdata(dev->parent);
 
 	if (np) {
 		if (!pdata)

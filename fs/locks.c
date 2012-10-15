@@ -1289,7 +1289,7 @@ EXPORT_SYMBOL(__break_lease);
 void lease_get_mtime(struct inode *inode, struct timespec *time)
 {
 	struct file_lock *flock = inode->i_flock;
-	if (flock && IS_LEASE(flock) && (flock->fl_type & F_WRLCK))
+	if (flock && IS_LEASE(flock) && (flock->fl_type == F_WRLCK))
 		*time = current_fs_time(inode->i_sb);
 	else
 		*time = inode->i_mtime;
@@ -2185,8 +2185,8 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	} else {
 		seq_printf(f, "%s ",
 			       (lease_breaking(fl))
-			       ? (fl->fl_type & F_UNLCK) ? "UNLCK" : "READ "
-			       : (fl->fl_type & F_WRLCK) ? "WRITE" : "READ ");
+			       ? (fl->fl_type == F_UNLCK) ? "UNLCK" : "READ "
+			       : (fl->fl_type == F_WRLCK) ? "WRITE" : "READ ");
 	}
 	if (inode) {
 #ifdef WE_CAN_BREAK_LSLK_NOW
