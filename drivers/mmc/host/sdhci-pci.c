@@ -114,6 +114,7 @@ static int ricoh_mmc_probe_slot(struct sdhci_pci_slot *slot)
 
 		SDHCI_TIMEOUT_CLK_UNIT |
 		SDHCI_CAN_VDD_330 |
+		SDHCI_CAN_DO_HISPD |
 		SDHCI_CAN_DO_SDMA;
 	return 0;
 }
