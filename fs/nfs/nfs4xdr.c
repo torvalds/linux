@@ -936,7 +936,7 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 	 * but this is not required as a MUST for the server to do so. */
 	hdr->replen = RPC_REPHDRSIZE + auth->au_rslack + 3 + hdr->taglen;
 
-	BUG_ON(hdr->taglen > NFS4_MAXTAGLEN);
+	WARN_ON_ONCE(hdr->taglen > NFS4_MAXTAGLEN);
 	encode_string(xdr, hdr->taglen, hdr->tag);
 	p = reserve_space(xdr, 8);
 	*p++ = cpu_to_be32(hdr->minorversion);
@@ -955,7 +955,7 @@ static void encode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 op,
 
 static void encode_nops(struct compound_hdr *hdr)
 {
-	BUG_ON(hdr->nops > NFS4_MAX_OPS);
+	WARN_ON_ONCE(hdr->nops > NFS4_MAX_OPS);
 	*hdr->nops_p = htonl(hdr->nops);
 }
 
@@ -1403,7 +1403,6 @@ static void encode_opentype(struct xdr_stream *xdr, const struct nfs_openargs *a
 		*p = cpu_to_be32(NFS4_OPEN_NOCREATE);
 		break;
 	default:
-		BUG_ON(arg->claim != NFS4_OPEN_CLAIM_NULL);
 		*p = cpu_to_be32(NFS4_OPEN_CREATE);
 		encode_createmode(xdr, arg);
 	}
@@ -1621,7 +1620,6 @@ encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg, struct compoun
 	p = reserve_space(xdr, 2*4);
 	*p++ = cpu_to_be32(1);
 	*p = cpu_to_be32(FATTR4_WORD0_ACL);
-	BUG_ON(arg->acl_len % 4);
 	p = reserve_space(xdr, 4);
 	*p = cpu_to_be32(arg->acl_len);
 	xdr_write_pages(xdr, arg->acl_pages, arg->acl_pgbase, arg->acl_len);
