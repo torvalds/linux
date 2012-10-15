@@ -38,8 +38,6 @@
 #include "wmgr.h"
 #include "datarate.h"
 
-//#define	PLICE_DEBUG
-
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 //static int          msglevel                =MSG_LEVEL_INFO;
@@ -62,7 +60,7 @@
  * Parameters:
  *  In:
  *      pMgmtHandle - pointer to management object
- *      eOPMode     - Opreation Mode
+ *      eOPMode     - Operation Mode
  *  Out:
  *      none
  *

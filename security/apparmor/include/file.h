@@ -71,7 +71,7 @@ struct path;
 
 /* need to make conditional which ones are being set */
 struct path_cond {
-	uid_t uid;
+	kuid_t uid;
 	umode_t mode;
 };
 
@@ -146,7 +146,7 @@ static inline u16 dfa_map_xindex(u16 mask)
 
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
 		  gfp_t gfp, int op, u32 request, const char *name,
-		  const char *target, uid_t ouid, const char *info, int error);
+		  const char *target, kuid_t ouid, const char *info, int error);
 
 /**
  * struct aa_file_rules - components used for file rule permissions

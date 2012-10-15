@@ -6,9 +6,10 @@ config COMEDI
 	  Enable support a wide range of data acquisition devices
 	  for Linux.
 
+if COMEDI
+
 config COMEDI_DEBUG
 	bool "Comedi debugging"
-	depends on COMEDI != n
 	---help---
 	  This is an option for use by developers; most people should
 	  say N here. This enables comedi core and driver debugging.
@@ -16,7 +17,6 @@ config COMEDI_DEBUG
 config COMEDI_DEFAULT_BUF_SIZE_KB
 	int "Comedi default initial asynchronous buffer size in KiB"
 	default "2048"
-	depends on COMEDI != n
 	---help---
 	  This is the default asynchronous buffer size which is used for
 	  commands running in the background in kernel space.  This
@@ -26,7 +26,6 @@ config COMEDI_DEFAULT_BUF_SIZE_KB
 config COMEDI_DEFAULT_BUF_MAXSIZE_KB
 	int "Comedi default maximum asynchronous buffer size in KiB"
 	default "20480"
-	depends on COMEDI != n
 	---help---
 	  This is the default maximum asynchronous buffer size which can
 	  be requested by a userspace program without root privileges.
@@ -34,8 +33,7 @@ config COMEDI_DEFAULT_BUF_MAXSIZE_KB
 	  channels running at 100 kHz has 2-4 seconds of buffer.
 
 menuconfig COMEDI_MISC_DRIVERS
-	tristate "Comedi misc drivers"
-	depends on COMEDI
+	bool "Comedi misc drivers"
 	---help---
 	  Enable comedi misc drivers to be built
 
@@ -102,8 +100,8 @@ config COMEDI_SKEL
 endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
-	tristate "Comedi ISA and PC/104 drivers"
-	depends on COMEDI && ISA
+	bool "Comedi ISA and PC/104 drivers"
+	depends on ISA
 	---help---
 	  Enable comedi ISA and PC/104 drivers to be built
 
@@ -111,7 +109,7 @@ menuconfig COMEDI_ISA_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about ISA and PC/104 comedi drivers.
 
-if COMEDI_ISA_DRIVERS && ISA
+if COMEDI_ISA_DRIVERS
 
 config COMEDI_ACL7225B
 	tristate "ADlink NuDAQ ACL-7225b and compatibles support"
@@ -215,7 +213,6 @@ config COMEDI_PCM3730
 config COMEDI_AMPLC_DIO200_ISA
 	tristate "Amplicon PC212E/PC214E/PC215E/PC218E/PC272E"
 	select COMEDI_AMPLC_DIO200
-	depends on COMEDI_ISA_DRIVERS
 	---help---
 	  Enable support for Amplicon PC212E, PC214E, PC215E, PC218E and
 	  PC272E ISA DIO boards
@@ -447,7 +444,6 @@ config COMEDI_ADQ12B
 
 config COMEDI_NI_AT_A2150
 	tristate "NI AT-A2150 ISA card support"
-	depends on COMEDI_NI_COMMON
 	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for National Instruments AT-A2150 cards
@@ -457,7 +453,6 @@ config COMEDI_NI_AT_A2150
 
 config COMEDI_NI_AT_AO
 	tristate "NI AT-AO-6/10 EISA card support"
-	depends on COMEDI_NI_COMMON
 	---help---
 	  Enable support for National Instruments AT-AO-6/10 cards
 
@@ -466,8 +461,9 @@ config COMEDI_NI_AT_AO
 
 config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
-	depends on ISAPNP && COMEDI_NI_TIO && COMEDI_NI_COMMON
+	depends on ISAPNP
 	select COMEDI_8255
+	select COMEDI_NI_TIO
 	---help---
 	  Enable support for National Instruments AT-MIO E series cards
 	  National Instruments AT-MIO-16E-1 (ni_atmio),
@@ -479,7 +475,7 @@ config COMEDI_NI_ATMIO
 
 config COMEDI_NI_ATMIO16D
 	tristate "NI AT-MIO16/AT-MIO16D series ISA-PNP card support"
-	depends on ISAPNP && COMEDI_NI_COMMON
+	depends on ISAPNP
 	select COMEDI_8255
 	---help---
 	  Enable support for National Instruments AT-MIO16/AT-MIO16D cards.
@@ -542,8 +538,8 @@ config COMEDI_POC
 endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
-	tristate "Comedi PCI drivers"
-	depends on COMEDI && PCI
+	bool "Comedi PCI drivers"
+	depends on PCI
 	---help---
 	  Enable comedi PCI drivers to be built
 
@@ -551,7 +547,24 @@ menuconfig COMEDI_PCI_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about PCI comedi drivers.
 
-if COMEDI_PCI_DRIVERS && PCI
+if COMEDI_PCI_DRIVERS
+
+config COMEDI_8255_PCI
+	tristate "Generic PCI based 8255 digital i/o board support"
+	select COMEDI_8255
+	---help---
+	  Enable support for PCI based 8255 digital i/o boards. This driver
+	  provides a PCI wrapper around the generic 8255 driver.
+
+	  Supported boards:
+	    ADlink - PCI-7224, PCI-7248, and PCI-7296
+	    Measurement Computing - PCI-DIO24, PCI-DIO24H, PCI-DIO48H and
+	                            PCI-DIO96H
+	    National Instruments - PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503,
+	                           PCI-6503B, PCI-6503X, and PXI-6503
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called 8255_pci.
 
 config COMEDI_ADDI_APCI_035
 	tristate "ADDI-DATA APCI_035 support"
@@ -674,36 +687,22 @@ config COMEDI_ADDI_APCI_3XXX
 
 config COMEDI_ADL_PCI6208
 	tristate "ADLink PCI-6208A support"
-	select COMEDI_8255
 	---help---
 	  Enable support for ADLink PCI-6208A cards
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adl_pci6208.
 
-config COMEDI_ADL_PCI7230
-	tristate "ADLink PCI-7230 digital io board support"
+config COMEDI_ADL_PCI7X3X
+	tristate "ADLink PCI-723X/743X isolated digital i/o board support"
 	---help---
-	  Enable support for ADlink PCI-7230 digital io board support
+	  Enable support for ADlink PCI-723X/743X isolated digital i/o boards.
+	  Supported boards include the 32-channel PCI-7230 (16 in/16 out),
+	  PCI-7233 (32 in), and PCI-7234 (32 out) as well as the 64-channel
+	  PCI-7432 (32 in/32 out), PCI-7433 (64 in), and PCI-7434 (64 out).
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called adl_pci7230.
-
-config COMEDI_ADL_PCI7296
-	tristate "ADLink PCI-7296 96 ch. digital io board support"
-	---help---
-	  Enable support for ADlink PCI-7296 96 ch. digital io board support
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called adl_pci7296.
-
-config COMEDI_ADL_PCI7432
-	tristate "ADLink PCI-7432 64 ch. isolated digital io board support"
-	---help---
-	  Enable support for ADlink PCI-7432 64 ch. isolated digital io board
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called adl_pci7432.
+	  called adl_pci7x3x.
 
 config COMEDI_ADL_PCI8164
 	tristate "ADLink PCI-8164 4 Axes Motion Control board support"
@@ -939,16 +938,6 @@ config COMEDI_CB_PCIDDA
 	  To compile this driver as a module, choose M here: the module will be
 	  called cb_pcidda.
 
-config COMEDI_CB_PCIDIO
-	tristate "MeasurementComputing PCI-DIO series support"
-	select COMEDI_8255
-	---help---
-	  Enable support for ComputerBoards/MeasurementComputing PCI-DIO series
-	  PCI-DIO24, PCI-DIO24H and PCI-DIO48H
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called cb_pcidio.
-
 config COMEDI_CB_PCIMDAS
 	tristate "MeasurementComputing PCIM-DAS1602/16 support"
 	select COMEDI_8255
@@ -988,7 +977,7 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
 
@@ -997,7 +986,7 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
 	  Supported devices: National Instruments PCI-6509 (ni_65xx),
@@ -1010,7 +999,7 @@ config COMEDI_NI_65XX
 
 config COMEDI_NI_660X
 	tristate "NI 660x counter/timer PCI card support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_NI_TIOCMD
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
 	  PXI-6602 and PXI-6608.
@@ -1020,30 +1009,42 @@ config COMEDI_NI_660X
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_670x.
 
+config COMEDI_NI_LABPC
+	tristate "NI Lab-PC and compatibles ISA and PCI support"
+	select COMEDI_MITE
+	select COMEDI_8255
+	select COMEDI_FC
+	depends on VIRT_TO_BUS
+	---help---
+	  Enable support for National Instruments Lab-PC and compatibles
+	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+ and PCI-1200.
+	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
+	  not yet been added to the driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni_labpc.
+
 config COMEDI_NI_PCIDIO
-	tristate "NI PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503 support"
-	depends on COMEDI_MITE
+	tristate "NI PCI-DIO32HS, PCI-6533, PCI-6534 support"
+	select COMEDI_MITE
 	select COMEDI_8255
 	---help---
 	  Enable support for National Instruments PCI-DIO-32HS, PXI-6533,
-	  PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
-	  PXI-6503, PCI-6533 and PCI-6534
-	  The DIO-96 appears as four 8255 subdevices. See the 8255
-	  driver notes for details.
+	  PCI-6533 and PCI-6534
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_pcidio.
 
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_NI_TIOCMD
 	select COMEDI_8255
 	select COMEDI_FC
 	---help---
@@ -1063,7 +1064,6 @@ config COMEDI_NI_PCIMIO
 
 config COMEDI_RTD520
 	tristate "Real Time Devices PCI4520/DM7520 support"
-	select COMEDI_8255
 	---help---
 	  Enable support for Real Time Devices PCI4520/DM7520
 
@@ -1095,11 +1095,19 @@ config COMEDI_SSV_DNP
 	  To compile this driver as a module, choose M here: the module will be
 	  called ssv_dnp.
 
+config COMEDI_MITE
+	tristate
+
+config COMEDI_NI_TIOCMD
+	tristate
+	select COMEDI_NI_TIO
+	select COMEDI_MITE
+
 endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
-	tristate "Comedi PCMCIA drivers"
-	depends on COMEDI && (PCMCIA || PCCARD)
+	bool "Comedi PCMCIA drivers"
+	depends on PCMCIA
 	---help---
 	  Enable comedi PCMCIA and PCCARD drivers to be built
 
@@ -1107,7 +1115,7 @@ menuconfig COMEDI_PCMCIA_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about PCMCIA comedi drivers.
 
-if COMEDI_PCMCIA_DRIVERS && PCMCIA
+if COMEDI_PCMCIA_DRIVERS
 
 config COMEDI_CB_DAS16_CS
 	tristate "CB DAS16 series PCMCIA support"
@@ -1130,7 +1138,6 @@ config COMEDI_DAS08_CS
 
 config COMEDI_NI_DAQ_700_CS
 	tristate "NI DAQCard-700 PCMCIA support"
-	depends on COMEDI_NI_COMMON
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQCard-700 DIO
 
@@ -1139,7 +1146,6 @@ config COMEDI_NI_DAQ_700_CS
 
 config COMEDI_NI_DAQ_DIO24_CS
 	tristate "NI DAQ-Card DIO-24 PCMCIA support"
-	depends on COMEDI_NI_COMMON
 	select COMEDI_8255
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQ-Card DIO-24
@@ -1158,7 +1164,7 @@ config COMEDI_NI_LABPC_CS
 
 config COMEDI_NI_MIO_CS
 	tristate "NI DAQCard E series PCMCIA support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_NI_TIO
 	select COMEDI_8255
 	select COMEDI_FC
 	---help---
@@ -1181,8 +1187,8 @@ config COMEDI_QUATECH_DAQP_CS
 endif # COMEDI_PCMCIA_DRIVERS
 
 menuconfig COMEDI_USB_DRIVERS
-	tristate "Comedi USB drivers"
-	depends on COMEDI && USB
+	bool "Comedi USB drivers"
+	depends on USB
 	---help---
 	  Enable comedi USB drivers to be built
 
@@ -1190,7 +1196,7 @@ menuconfig COMEDI_USB_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about USB comedi drivers.
 
-if COMEDI_USB_DRIVERS && USB
+if COMEDI_USB_DRIVERS
 
 config COMEDI_DT9812
 	tristate "DataTranslation DT9812 USB module support"
@@ -1237,60 +1243,8 @@ config COMEDI_VMK80XX
 
 endif # COMEDI_USB_DRIVERS
 
-menuconfig COMEDI_NI_COMMON
-	tristate "Comedi National Instruments card support"
-	depends on COMEDI
-	---help---
-	  Enable comedi support for National Instruments cards.
-	  Modules in this section are used by many comedi NI drivers.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about National Instruments cards.
-
-if COMEDI_NI_COMMON
-
-config COMEDI_MITE
-	tristate "NI Mite PCI interface chip support"
-	depends on PCI
-	---help---
-	  Enable support for National Instruments Mite PCI interface chip
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called mite.
-
-config COMEDI_NI_TIO
-	tristate "NI general purpose counter support"
-	depends on COMEDI_MITE
-	---help---
-	  Enable support for National Instruments general purpose counters.
-	  This module is not used directly by end-users. Rather, it
-	  is used by other drivers (for example ni_660x and ni_pcimio)
-	  to provide support for NI's general purpose counters.
-
-	  To compile this driver as a modules, choose M here: two modules will
-	  be build: ni_tio and ni_tiocmd.
-
-config COMEDI_NI_LABPC
-	tristate "NI Lab-PC and compatibles ISA and PCI support"
-	depends on COMEDI_MITE
-	select COMEDI_8255
-	select COMEDI_FC
-	depends on VIRT_TO_BUS
-	---help---
-	  Enable support for National Instruments Lab-PC and compatibles
-	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+ and PCI-1200.
-	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
-	  not yet been added to the driver.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ni_labpc.
-
-endif # COMEDI_NI_COMMON
-
 config COMEDI_8255
 	tristate "Generic 8255 support"
-	depends on COMEDI
 	---help---
 	  Enable generic 8255 support.
 
@@ -1298,38 +1252,31 @@ config COMEDI_8255
 	  that has an 8255 chip. For multifunction boards, the main driver will
 	  configure the 8255 subdevice automatically.
 
-	  Note that most PCI 8255 boards do NOT work with this driver, and
-	  need a separate driver as a wrapper.
+	  Note that most PCI based 8255 boards use the 8255_pci driver as a
+	  wrapper around this driver.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.
 
 config COMEDI_FC
-	tristate "Comedi shared functions for low-level driver support"
-	depends on COMEDI
-	---help---
-	  Enable support for shared functions for low-level drivers.
-	  This module is not used directly by end-users. Rather, it
-	  is used by many other comedi drivers.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called comedi_fc.
+	tristate
 
 config COMEDI_AMPLC_DIO200
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
 
 config COMEDI_AMPLC_PC236
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
 
 config COMEDI_AMPLC_PC263
 	tristate
-	depends on COMEDI
 
 config COMEDI_DAS08
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
+
+config COMEDI_NI_TIO
+	tristate
+
+endif # COMEDI

@@ -79,6 +79,8 @@ struct fw_wr_hdr {
 #define FW_WR_FLOWID(x)	((x) << 8)
 #define FW_WR_LEN16(x)	((x) << 0)
 
+#define HW_TPL_FR_MT_PR_IV_P_FC         0X32B
+
 struct fw_ulptx_wr {
 	__be32 op_to_compl;
 	__be32 flowid_len16;
@@ -154,6 +156,17 @@ struct fw_eth_tx_pkt_vm_wr {
 };
 
 #define FW_CMD_MAX_TIMEOUT 3000
+
+/*
+ * If a host driver does a HELLO and discovers that there's already a MASTER
+ * selected, we may have to wait for that MASTER to finish issuing RESET,
+ * configuration and INITIALIZE commands.  Also, there's a possibility that
+ * our own HELLO may get lost if it happens right as the MASTER is issuign a
+ * RESET command, so we need to be willing to make a few retries of our HELLO.
+ */
+#define FW_CMD_HELLO_TIMEOUT	(3 * FW_CMD_MAX_TIMEOUT)
+#define FW_CMD_HELLO_RETRIES	3
+
 
 enum fw_cmd_opcodes {
 	FW_LDST_CMD                    = 0x01,
@@ -304,7 +317,17 @@ struct fw_reset_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
 	__be32 val;
-	__be32 r3;
+	__be32 halt_pkd;
+};
+
+#define FW_RESET_CMD_HALT_SHIFT    31
+#define FW_RESET_CMD_HALT_MASK     0x1
+#define FW_RESET_CMD_HALT(x)       ((x) << FW_RESET_CMD_HALT_SHIFT)
+#define FW_RESET_CMD_HALT_GET(x)  \
+	(((x) >> FW_RESET_CMD_HALT_SHIFT) & FW_RESET_CMD_HALT_MASK)
+
+enum fw_hellow_cmd {
+	fw_hello_cmd_stage_os		= 0x0
 };
 
 struct fw_hello_cmd {
@@ -315,8 +338,14 @@ struct fw_hello_cmd {
 #define FW_HELLO_CMD_INIT	    (1U << 30)
 #define FW_HELLO_CMD_MASTERDIS(x)   ((x) << 29)
 #define FW_HELLO_CMD_MASTERFORCE(x) ((x) << 28)
-#define FW_HELLO_CMD_MBMASTER(x)    ((x) << 24)
+#define FW_HELLO_CMD_MBMASTER_MASK   0xfU
+#define FW_HELLO_CMD_MBMASTER_SHIFT  24
+#define FW_HELLO_CMD_MBMASTER(x)     ((x) << FW_HELLO_CMD_MBMASTER_SHIFT)
+#define FW_HELLO_CMD_MBMASTER_GET(x) \
+	(((x) >> FW_HELLO_CMD_MBMASTER_SHIFT) & FW_HELLO_CMD_MBMASTER_MASK)
 #define FW_HELLO_CMD_MBASYNCNOT(x)  ((x) << 20)
+#define FW_HELLO_CMD_STAGE(x)       ((x) << 17)
+#define FW_HELLO_CMD_CLEARINIT      (1U << 16)
 	__be32 fwrev;
 };
 
@@ -401,6 +430,14 @@ enum fw_caps_config_fcoe {
 	FW_CAPS_CONFIG_FCOE_TARGET	= 0x00000002,
 };
 
+enum fw_memtype_cf {
+	FW_MEMTYPE_CF_EDC0		= 0x0,
+	FW_MEMTYPE_CF_EDC1		= 0x1,
+	FW_MEMTYPE_CF_EXTMEM		= 0x2,
+	FW_MEMTYPE_CF_FLASH		= 0x4,
+	FW_MEMTYPE_CF_INTERNAL		= 0x5,
+};
+
 struct fw_caps_config_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
@@ -416,9 +453,14 @@ struct fw_caps_config_cmd {
 	__be16 r4;
 	__be16 iscsicaps;
 	__be16 fcoecaps;
-	__be32 r5;
-	__be64 r6;
+	__be32 cfcsum;
+	__be32 finiver;
+	__be32 finicsum;
 };
+
+#define FW_CAPS_CONFIG_CMD_CFVALID          (1U << 27)
+#define FW_CAPS_CONFIG_CMD_MEMTYPE_CF(x)    ((x) << 24)
+#define FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(x) ((x) << 16)
 
 /*
  * params command mnemonics
@@ -451,6 +493,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_INTVER_FCOE = 0x0A,
 	FW_PARAMS_PARAM_DEV_FWREV = 0x0B,
 	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
+	FW_PARAMS_PARAM_DEV_CF = 0x0D,
 };
 
 /*
@@ -492,6 +535,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_IQFLINT_END = 0x2A,
 	FW_PARAMS_PARAM_PFVF_EQ_START	= 0x2B,
 	FW_PARAMS_PARAM_PFVF_EQ_END	= 0x2C,
+	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_START = 0x2D,
+	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E
 };
 
 /*
@@ -507,8 +552,16 @@ enum fw_params_param_dmaq {
 
 #define FW_PARAMS_MNEM(x)      ((x) << 24)
 #define FW_PARAMS_PARAM_X(x)   ((x) << 16)
-#define FW_PARAMS_PARAM_Y(x)   ((x) << 8)
-#define FW_PARAMS_PARAM_Z(x)   ((x) << 0)
+#define FW_PARAMS_PARAM_Y_SHIFT  8
+#define FW_PARAMS_PARAM_Y_MASK   0xffU
+#define FW_PARAMS_PARAM_Y(x)     ((x) << FW_PARAMS_PARAM_Y_SHIFT)
+#define FW_PARAMS_PARAM_Y_GET(x) (((x) >> FW_PARAMS_PARAM_Y_SHIFT) &\
+		FW_PARAMS_PARAM_Y_MASK)
+#define FW_PARAMS_PARAM_Z_SHIFT  0
+#define FW_PARAMS_PARAM_Z_MASK   0xffu
+#define FW_PARAMS_PARAM_Z(x)     ((x) << FW_PARAMS_PARAM_Z_SHIFT)
+#define FW_PARAMS_PARAM_Z_GET(x) (((x) >> FW_PARAMS_PARAM_Z_SHIFT) &\
+		FW_PARAMS_PARAM_Z_MASK)
 #define FW_PARAMS_PARAM_XYZ(x) ((x) << 0)
 #define FW_PARAMS_PARAM_YZ(x)  ((x) << 0)
 
@@ -1599,6 +1652,16 @@ struct fw_debug_cmd {
 	} u;
 };
 
+#define FW_PCIE_FW_ERR           (1U << 31)
+#define FW_PCIE_FW_INIT          (1U << 30)
+#define FW_PCIE_FW_HALT          (1U << 29)
+#define FW_PCIE_FW_MASTER_VLD    (1U << 15)
+#define FW_PCIE_FW_MASTER_MASK   0x7
+#define FW_PCIE_FW_MASTER_SHIFT  12
+#define FW_PCIE_FW_MASTER(x)     ((x) << FW_PCIE_FW_MASTER_SHIFT)
+#define FW_PCIE_FW_MASTER_GET(x) (((x) >> FW_PCIE_FW_MASTER_SHIFT) & \
+				 FW_PCIE_FW_MASTER_MASK)
+
 struct fw_hdr {
 	u8 ver;
 	u8 reserved1;
@@ -1613,7 +1676,11 @@ struct fw_hdr {
 	u8 intfver_iscsi;
 	u8 intfver_fcoe;
 	u8 reserved2;
-	__be32  reserved3[27];
+	__u32   reserved3;
+	__u32   reserved4;
+	__u32   reserved5;
+	__be32  flags;
+	__be32  reserved6[23];
 };
 
 #define FW_HDR_FW_VER_MAJOR_GET(x) (((x) >> 24) & 0xff)
@@ -1621,18 +1688,8 @@ struct fw_hdr {
 #define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
 #define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
 
-#define S_FW_CMD_OP 24
-#define V_FW_CMD_OP(x) ((x) << S_FW_CMD_OP)
-
-#define S_FW_CMD_REQUEST 23
-#define V_FW_CMD_REQUEST(x) ((x) << S_FW_CMD_REQUEST)
-#define F_FW_CMD_REQUEST V_FW_CMD_REQUEST(1U)
-
-#define S_FW_CMD_WRITE 21
-#define V_FW_CMD_WRITE(x) ((x) << S_FW_CMD_WRITE)
-#define F_FW_CMD_WRITE V_FW_CMD_WRITE(1U)
-
-#define S_FW_LDST_CMD_ADDRSPACE 0
-#define V_FW_LDST_CMD_ADDRSPACE(x) ((x) << S_FW_LDST_CMD_ADDRSPACE)
+enum fw_hdr_flags {
+	FW_HDR_FLAGS_RESET_HALT = 0x00000001,
+};
 
 #endif /* _T4FW_INTERFACE_H_ */

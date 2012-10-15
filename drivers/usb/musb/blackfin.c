@@ -15,9 +15,11 @@
 #include <linux/list.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/prefetch.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include <asm/cacheflush.h>
 
@@ -183,8 +185,8 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	}
 
 	/* Start sampling ID pin, when plug is removed from MUSB */
-	if ((is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
-		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) ||
+	if ((musb->xceiv->state == OTG_STATE_B_IDLE
+		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON) ||
 		(musb->int_usb & MUSB_INTR_DISCONNECT && is_host_active(musb))) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
@@ -227,18 +229,13 @@ static void musb_conn_timer_handler(unsigned long _musb)
 
 			val = MUSB_INTR_SUSPEND | MUSB_INTR_VBUSERROR;
 			musb_writeb(musb->mregs, MUSB_INTRUSB, val);
-			if (is_otg_enabled(musb))
-				musb->xceiv->state = OTG_STATE_B_IDLE;
-			else
-				musb_writeb(musb->mregs, MUSB_POWER, MUSB_POWER_HSENAB);
+			musb->xceiv->state = OTG_STATE_B_IDLE;
 		}
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		break;
 	case OTG_STATE_B_IDLE:
-
-		if (!is_peripheral_enabled(musb))
-			break;
-		/* Start a new session.  It seems that MUSB needs taking
+		/*
+		 * Start a new session.  It seems that MUSB needs taking
 		 * some time to recognize the type of the plug inserted?
 		 */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
@@ -294,10 +291,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 
 static void bfin_musb_enable(struct musb *musb)
 {
-	if (!is_otg_enabled(musb) && is_host_enabled(musb)) {
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
-		musb->a_wait_bcon = TIMER_DELAY;
-	}
+	/* REVISIT is this really correct ? */
 }
 
 static void bfin_musb_disable(struct musb *musb)
@@ -320,12 +314,6 @@ static void bfin_musb_set_vbus(struct musb *musb, int is_on)
 static int bfin_musb_set_power(struct usb_phy *x, unsigned mA)
 {
 	return 0;
-}
-
-static void bfin_musb_try_idle(struct musb *musb, unsigned long timeout)
-{
-	if (!is_otg_enabled(musb) && is_host_enabled(musb))
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
 static int bfin_musb_vbus_status(struct musb *musb)
@@ -415,20 +403,18 @@ static int bfin_musb_init(struct musb *musb)
 	gpio_direction_output(musb->config->gpio_vrsel, 0);
 
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_transceiver();
-	if (!musb->xceiv) {
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		gpio_free(musb->config->gpio_vrsel);
 		return -ENODEV;
 	}
 
 	bfin_musb_reg_init(musb);
 
-	if (is_host_enabled(musb)) {
-		setup_timer(&musb_conn_timer,
-			musb_conn_timer_handler, (unsigned long) musb);
-	}
-	if (is_peripheral_enabled(musb))
-		musb->xceiv->set_power = bfin_musb_set_power;
+	setup_timer(&musb_conn_timer, musb_conn_timer_handler,
+			(unsigned long) musb);
+
+	musb->xceiv->set_power = bfin_musb_set_power;
 
 	musb->isr = blackfin_interrupt;
 	musb->double_buffer_not_ok = true;
@@ -440,7 +426,7 @@ static int bfin_musb_exit(struct musb *musb)
 {
 	gpio_free(musb->config->gpio_vrsel);
 
-	usb_put_transceiver(musb->xceiv);
+	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return 0;
 }
@@ -453,7 +439,6 @@ static const struct musb_platform_ops bfin_ops = {
 	.disable	= bfin_musb_disable,
 
 	.set_mode	= bfin_musb_set_mode,
-	.try_idle	= bfin_musb_try_idle,
 
 	.vbus_status	= bfin_musb_vbus_status,
 	.set_vbus	= bfin_musb_set_vbus,
@@ -470,6 +455,7 @@ static int __devinit bfin_probe(struct platform_device *pdev)
 	struct bfin_glue		*glue;
 
 	int				ret = -ENOMEM;
+	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -477,12 +463,21 @@ static int __devinit bfin_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
 		goto err1;
 	}
 
+	musb = platform_device_alloc("musb-hdrc", musbid);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
+		goto err2;
+	}
+
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &bfin_dmamask;
 	musb->dev.coherent_dma_mask	= bfin_dmamask;
@@ -498,25 +493,28 @@ static int __devinit bfin_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err3;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err3;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err3;
 	}
 
 	return 0;
 
-err2:
+err3:
 	platform_device_put(musb);
+
+err2:
+	musb_put_id(&pdev->dev, musbid);
 
 err1:
 	kfree(glue);
@@ -529,6 +527,7 @@ static int __devexit bfin_remove(struct platform_device *pdev)
 {
 	struct bfin_glue		*glue = platform_get_drvdata(pdev);
 
+	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	kfree(glue);

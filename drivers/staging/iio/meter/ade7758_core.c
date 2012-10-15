@@ -661,7 +661,7 @@ static const struct attribute_group ade7758_attribute_group = {
 	.attrs = ade7758_attributes,
 };
 
-static struct iio_chan_spec ade7758_channels[] = {
+static const struct iio_chan_spec ade7758_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -883,7 +883,7 @@ static const struct iio_info ade7758_info = {
 
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
-	int i, ret;
+	int ret;
 	struct ade7758_state *st;
 	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
@@ -915,11 +915,6 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ade7758_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-
-	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
-		set_bit(i, &st->available_scan_masks[i]);
-
-	indio_dev->available_scan_masks = st->available_scan_masks;
 
 	ret = ade7758_configure_ring(indio_dev);
 	if (ret)
@@ -967,17 +962,13 @@ error_ret:
 	return ret;
 }
 
-static int ade7758_remove(struct spi_device *spi)
+static int __devexit ade7758_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ade7758_state *st = iio_priv(indio_dev);
-	int ret;
 
 	iio_device_unregister(indio_dev);
-	ret = ade7758_stop_device(&indio_dev->dev);
-	if (ret)
-		goto err_ret;
-
+	ade7758_stop_device(&indio_dev->dev);
 	ade7758_remove_trigger(indio_dev);
 	ade7758_uninitialize_ring(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);
@@ -986,8 +977,7 @@ static int ade7758_remove(struct spi_device *spi)
 
 	iio_device_free(indio_dev);
 
-err_ret:
-	return ret;
+	return 0;
 }
 
 static const struct spi_device_id ade7758_id[] = {

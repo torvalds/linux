@@ -72,10 +72,10 @@
     <section>
       <title>Types of selection targets</title>
 
-      <para>There are two types of selection targets: actual and bounds.
-      The ACTUAL targets are the targets which configure the hardware.
-      The BOUNDS target will return a rectangle that contain all
-      possible ACTUAL rectangles.</para>
+      <para>There are two types of selection targets: actual and bounds. The
+      actual targets are the targets which configure the hardware. The BOUNDS
+      target will return a rectangle that contain all possible actual
+      rectangles.</para>
     </section>
 
     <section>
@@ -87,71 +87,8 @@
       <constant>EINVAL</constant>.</para>
     </section>
 
-    <table pgwide="1" frame="none" id="v4l2-subdev-selection-targets">
-      <title>V4L2 subdev selection targets</title>
-      <tgroup cols="3">
-        &cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL</constant></entry>
-	    <entry>0x0000</entry>
-	    <entry>Actual crop. Defines the cropping
-	    performed by the processing step.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS</constant></entry>
-	    <entry>0x0002</entry>
-	    <entry>Bounds of the crop rectangle.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL</constant></entry>
-	    <entry>0x0100</entry>
-	    <entry>Actual compose rectangle. Used to configure scaling
-	    on sink pads and composition on source pads.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
-	    <entry>0x0102</entry>
-	    <entry>Bounds of the compose rectangle.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-
-    <table pgwide="1" frame="none" id="v4l2-subdev-selection-flags">
-      <title>V4L2 subdev selection flags</title>
-      <tgroup cols="3">
-        &cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_SIZE_GE</constant></entry>
-	    <entry>(1 &lt;&lt; 0)</entry> <entry>Suggest the driver it
-	    should choose greater or equal rectangle (in size) than
-	    was requested. Albeit the driver may choose a lesser size,
-	    it will only do so due to hardware limitations. Without
-	    this flag (and
-	    <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant>) the
-	    behaviour is to choose the closest possible
-	    rectangle.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant></entry>
-	    <entry>(1 &lt;&lt; 1)</entry> <entry>Suggest the driver it
-	    should choose lesser or equal rectangle (in size) than was
-	    requested. Albeit the driver may choose a greater size, it
-	    will only do so due to hardware limitations.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG</constant></entry>
-	    <entry>(1 &lt;&lt; 2)</entry>
-	    <entry>The configuration should not be propagated to any
-	    further processing steps. If this flag is not given, the
-	    configuration is propagated inside the subdevice to all
-	    further processing steps.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
+    <para>Selection targets and flags are documented in <xref
+    linkend="v4l2-selections-common"/>.</para>
 
     <table pgwide="1" frame="none" id="v4l2-subdev-selection">
       <title>struct <structname>v4l2_subdev_selection</structname></title>
@@ -173,13 +110,13 @@
 	    <entry>__u32</entry>
 	    <entry><structfield>target</structfield></entry>
 	    <entry>Target selection rectangle. See
-	    <xref linkend="v4l2-subdev-selection-targets">.</xref>.</entry>
+	    <xref linkend="v4l2-selections-common" />.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>flags</structfield></entry>
 	    <entry>Flags. See
-	    <xref linkend="v4l2-subdev-selection-flags">.</xref></entry>
+	    <xref linkend="v4l2-selection-flags" />.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-rect;</entry>

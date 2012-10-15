@@ -262,8 +262,8 @@ static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
 
 	if (blocks & TC3589x_BLOCK_GPIO) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_gpio,
-				ARRAY_SIZE(tc3589x_dev_gpio), NULL,
-				tc3589x->irq_base);
+				      ARRAY_SIZE(tc3589x_dev_gpio), NULL,
+				      tc3589x->irq_base, NULL);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to add gpio child\n");
 			return ret;
@@ -273,8 +273,8 @@ static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
 
 	if (blocks & TC3589x_BLOCK_KEYPAD) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_keypad,
-				ARRAY_SIZE(tc3589x_dev_keypad), NULL,
-				tc3589x->irq_base);
+				      ARRAY_SIZE(tc3589x_dev_keypad), NULL,
+				      tc3589x->irq_base, NULL);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to keypad child\n");
 			return ret;
@@ -357,7 +357,7 @@ static int __devexit tc3589x_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int tc3589x_suspend(struct device *dev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(dev);
@@ -385,10 +385,9 @@ static int tc3589x_resume(struct device *dev)
 
 	return ret;
 }
-
-static const SIMPLE_DEV_PM_OPS(tc3589x_dev_pm_ops, tc3589x_suspend,
-						tc3589x_resume);
 #endif
+
+static SIMPLE_DEV_PM_OPS(tc3589x_dev_pm_ops, tc3589x_suspend, tc3589x_resume);
 
 static const struct i2c_device_id tc3589x_id[] = {
 	{ "tc3589x", 24 },
@@ -399,9 +398,7 @@ MODULE_DEVICE_TABLE(i2c, tc3589x_id);
 static struct i2c_driver tc3589x_driver = {
 	.driver.name	= "tc3589x",
 	.driver.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 	.driver.pm	= &tc3589x_dev_pm_ops,
-#endif
 	.probe		= tc3589x_probe,
 	.remove		= __devexit_p(tc3589x_remove),
 	.id_table	= tc3589x_id,

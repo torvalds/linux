@@ -4,7 +4,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm-space-map-checker.h"
 #include "dm-space-map-common.h"
 #include "dm-space-map-disk.h"
 #include "dm-space-map.h"
@@ -252,9 +251,8 @@ static struct dm_space_map ops = {
 	.copy_root = sm_disk_copy_root
 };
 
-static struct dm_space_map *dm_sm_disk_create_real(
-	struct dm_transaction_manager *tm,
-	dm_block_t nr_blocks)
+struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
+				       dm_block_t nr_blocks)
 {
 	int r;
 	struct sm_disk *smd;
@@ -285,27 +283,10 @@ bad:
 	kfree(smd);
 	return ERR_PTR(r);
 }
-
-struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
-				       dm_block_t nr_blocks)
-{
-	struct dm_space_map *sm = dm_sm_disk_create_real(tm, nr_blocks);
-	struct dm_space_map *smc;
-
-	if (IS_ERR_OR_NULL(sm))
-		return sm;
-
-	smc = dm_sm_checker_create_fresh(sm);
-	if (IS_ERR(smc))
-		dm_sm_destroy(sm);
-
-	return smc;
-}
 EXPORT_SYMBOL_GPL(dm_sm_disk_create);
 
-static struct dm_space_map *dm_sm_disk_open_real(
-	struct dm_transaction_manager *tm,
-	void *root_le, size_t len)
+struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
+				     void *root_le, size_t len)
 {
 	int r;
 	struct sm_disk *smd;
@@ -331,13 +312,6 @@ static struct dm_space_map *dm_sm_disk_open_real(
 bad:
 	kfree(smd);
 	return ERR_PTR(r);
-}
-
-struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
-				     void *root_le, size_t len)
-{
-	return dm_sm_checker_create(
-		dm_sm_disk_open_real(tm, root_le, len));
 }
 EXPORT_SYMBOL_GPL(dm_sm_disk_open);
 

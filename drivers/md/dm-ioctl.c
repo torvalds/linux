@@ -1054,6 +1054,7 @@ static void retrieve_status(struct dm_table *table,
 	char *outbuf, *outptr;
 	status_type_t type;
 	size_t remaining, len, used = 0;
+	unsigned status_flags = 0;
 
 	outptr = outbuf = get_result_buffer(param, param_size, &len);
 
@@ -1090,7 +1091,9 @@ static void retrieve_status(struct dm_table *table,
 
 		/* Get the status/table string from the target driver */
 		if (ti->type->status) {
-			if (ti->type->status(ti, type, outptr, remaining)) {
+			if (param->flags & DM_NOFLUSH_FLAG)
+				status_flags |= DM_STATUS_NOFLUSH_FLAG;
+			if (ti->type->status(ti, type, status_flags, outptr, remaining)) {
 				param->flags |= DM_BUFFER_FULL_FLAG;
 				break;
 			}

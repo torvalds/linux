@@ -9,6 +9,8 @@ int __init bcm63xx_gpio_init(void);
 static inline unsigned long bcm63xx_gpio_count(void)
 {
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM6328_CPU_ID:
+		return 32;
 	case BCM6358_CPU_ID:
 		return 40;
 	case BCM6338_CPU_ID:

@@ -30,10 +30,13 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
+#include <linux/delay.h>
+#include <linux/usb/musb-omap.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -41,10 +44,35 @@
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	enum omap_musb_vbus_id_status status;
+	struct work_struct	omap_musb_mailbox_work;
+	u32 __iomem		*control_otghs;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
+struct omap2430_glue		*_glue;
+
 static struct timer_list musb_idle_timer;
+
+/**
+ * omap4_usb_phy_mailbox - write to usb otg mailbox
+ * @glue: struct omap2430_glue *
+ * @val: the value to be written to the mailbox
+ *
+ * On detection of a device (ID pin is grounded), this API should be called
+ * to set AVALID, VBUSVALID and ID pin is grounded.
+ *
+ * When OMAP is connected to a host (OMAP in device mode), this API
+ * is called to set AVALID, VBUSVALID and ID pin in high impedance.
+ *
+ * XXX: This function will be removed once we have a seperate driver for
+ * control module
+ */
+static void omap4_usb_phy_mailbox(struct omap2430_glue *glue, u32 val)
+{
+	if (glue->control_otghs)
+		writel(val, glue->control_otghs);
+}
 
 static void musb_do_idle(unsigned long _musb)
 {
@@ -135,7 +163,6 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		devctl;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
-	int ret = 1;
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
 	 * that must be ignored.
@@ -145,6 +172,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 
 	if (is_on) {
 		if (musb->xceiv->state == OTG_STATE_A_IDLE) {
+			int loops = 100;
 			/* start the session */
 			devctl |= MUSB_DEVCTL_SESSION;
 			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
@@ -154,17 +182,18 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 			 */
 			while (musb_readb(musb->mregs, MUSB_DEVCTL) & 0x80) {
 
+				mdelay(5);
 				cpu_relax();
 
-				if (time_after(jiffies, timeout)) {
+				if (time_after(jiffies, timeout)
+				    || loops-- <= 0) {
 					dev_err(musb->controller,
 					"configured as A device timeout");
-					ret = -EINVAL;
 					break;
 				}
 			}
 
-			if (ret && otg->set_vbus)
+			if (otg->set_vbus)
 				otg_set_vbus(otg, 1);
 		} else {
 			musb->is_active = 1;
@@ -223,61 +252,85 @@ static inline void omap2430_low_level_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
 }
 
-static int musb_otg_notifications(struct notifier_block *nb,
-		unsigned long event, void *unused)
+void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
-	struct musb	*musb = container_of(nb, struct musb, nb);
+	struct omap2430_glue	*glue = _glue;
+	struct musb		*musb = glue_to_musb(glue);
 
-	musb->xceiv_event = event;
-	schedule_work(&musb->otg_notifier_work);
+	glue->status = status;
+	if (!musb) {
+		dev_err(glue->dev, "musb core is not yet ready\n");
+		return;
+	}
 
-	return NOTIFY_OK;
+	schedule_work(&glue->omap_musb_mailbox_work);
 }
+EXPORT_SYMBOL_GPL(omap_musb_mailbox);
 
-static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
+static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
-	struct musb *musb = container_of(data_notifier_work, struct musb, otg_notifier_work);
+	u32 val;
+	struct musb *musb = glue_to_musb(glue);
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
+	struct usb_otg *otg = musb->xceiv->otg;
 
-	switch (musb->xceiv_event) {
-	case USB_EVENT_ID:
-		dev_dbg(musb->controller, "ID GND\n");
+	switch (glue->status) {
+	case OMAP_MUSB_ID_GROUND:
+		dev_dbg(dev, "ID GND\n");
 
-		if (!is_otg_enabled(musb) || musb->gadget_driver) {
-			pm_runtime_get_sync(musb->controller);
-			usb_phy_init(musb->xceiv);
+		otg->default_a = true;
+		musb->xceiv->state = OTG_STATE_A_IDLE;
+		musb->xceiv->last_event = USB_EVENT_ID;
+		if (musb->gadget_driver) {
+			pm_runtime_get_sync(dev);
+			val = AVALID | VBUSVALID;
+			omap4_usb_phy_mailbox(glue, val);
 			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
 
-	case USB_EVENT_VBUS:
-		dev_dbg(musb->controller, "VBUS Connect\n");
+	case OMAP_MUSB_VBUS_VALID:
+		dev_dbg(dev, "VBUS Connect\n");
 
+		otg->default_a = false;
+		musb->xceiv->state = OTG_STATE_B_IDLE;
+		musb->xceiv->last_event = USB_EVENT_VBUS;
 		if (musb->gadget_driver)
-			pm_runtime_get_sync(musb->controller);
-		usb_phy_init(musb->xceiv);
+			pm_runtime_get_sync(dev);
+		val = IDDIG | AVALID | VBUSVALID;
+		omap4_usb_phy_mailbox(glue, val);
 		break;
 
-	case USB_EVENT_NONE:
-		dev_dbg(musb->controller, "VBUS Disconnect\n");
+	case OMAP_MUSB_ID_FLOAT:
+	case OMAP_MUSB_VBUS_OFF:
+		dev_dbg(dev, "VBUS Disconnect\n");
 
-		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
-			if (musb->gadget_driver) {
-				pm_runtime_mark_last_busy(musb->controller);
-				pm_runtime_put_autosuspend(musb->controller);
-			}
+		musb->xceiv->last_event = USB_EVENT_NONE;
+		if (musb->gadget_driver) {
+			pm_runtime_mark_last_busy(dev);
+			pm_runtime_put_autosuspend(dev);
+		}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
 			if (musb->xceiv->otg->set_vbus)
 				otg_set_vbus(musb->xceiv->otg, 0);
 		}
-		usb_phy_shutdown(musb->xceiv);
+		val = SESSEND | IDDIG;
+		omap4_usb_phy_mailbox(glue, val);
 		break;
 	default:
-		dev_dbg(musb->controller, "ID float\n");
+		dev_dbg(dev, "ID float\n");
 	}
+}
+
+
+static void omap_musb_mailbox_work(struct work_struct *mailbox_work)
+{
+	struct omap2430_glue *glue = container_of(mailbox_work,
+				struct omap2430_glue, omap_musb_mailbox_work);
+	omap_musb_set_mailbox(glue);
 }
 
 static int omap2430_musb_init(struct musb *musb)
@@ -285,6 +338,7 @@ static int omap2430_musb_init(struct musb *musb)
 	u32 l;
 	int status = 0;
 	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct omap_musb_board_data *data = plat->board_data;
 
@@ -292,13 +346,11 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	musb->xceiv = usb_get_transceiver();
-	if (!musb->xceiv) {
+	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
-
-	INIT_WORK(&musb->otg_notifier_work, musb_otg_notifier_work);
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
@@ -326,13 +378,10 @@ static int omap2430_musb_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
 
-	musb->nb.notifier_call = musb_otg_notifications;
-	status = usb_register_notifier(musb->xceiv, &musb->nb);
-
-	if (status)
-		dev_dbg(musb->controller, "notification register failed\n");
-
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
+
+	if (glue->status != OMAP_MUSB_UNKNOWN)
+		omap_musb_set_mailbox(glue);
 
 	pm_runtime_put_noidle(musb->controller);
 	return 0;
@@ -344,15 +393,18 @@ err1:
 static void omap2430_musb_enable(struct musb *musb)
 {
 	u8		devctl;
+	u32		val;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	switch (musb->xceiv->last_event) {
+	switch (glue->status) {
 
-	case USB_EVENT_ID:
-		usb_phy_init(musb->xceiv);
+	case OMAP_MUSB_ID_GROUND:
+		val = AVALID | VBUSVALID;
+		omap4_usb_phy_mailbox(glue, val);
 		if (data->interface_type != MUSB_INTERFACE_UTMI)
 			break;
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -370,8 +422,9 @@ static void omap2430_musb_enable(struct musb *musb)
 		}
 		break;
 
-	case USB_EVENT_VBUS:
-		usb_phy_init(musb->xceiv);
+	case OMAP_MUSB_VBUS_VALID:
+		val = IDDIG | AVALID | VBUSVALID;
+		omap4_usb_phy_mailbox(glue, val);
 		break;
 
 	default:
@@ -381,17 +434,21 @@ static void omap2430_musb_enable(struct musb *musb)
 
 static void omap2430_musb_disable(struct musb *musb)
 {
-	if (musb->xceiv->last_event)
-		usb_phy_shutdown(musb->xceiv);
+	u32 val;
+	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
+
+	if (glue->status != OMAP_MUSB_UNKNOWN) {
+		val = SESSEND | IDDIG;
+		omap4_usb_phy_mailbox(glue, val);
+	}
 }
 
 static int omap2430_musb_exit(struct musb *musb)
 {
 	del_timer_sync(&musb_idle_timer);
-	cancel_work_sync(&musb->otg_notifier_work);
 
 	omap2430_low_level_exit(musb);
-	usb_put_transceiver(musb->xceiv);
 
 	return 0;
 }
@@ -414,32 +471,97 @@ static u64 omap2430_dmamask = DMA_BIT_MASK(32);
 static int __devinit omap2430_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct omap_musb_board_data	*data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
+	struct device_node		*np = pdev->dev.of_node;
+	struct musb_hdrc_config		*config;
+	struct resource			*res;
 	int				ret = -ENOMEM;
+	int				musbid;
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
+		goto err0;
+	}
+
+	musb = platform_device_alloc("musb-hdrc", musbid);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
 	}
 
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+	glue->status			= OMAP_MUSB_UNKNOWN;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+
+	glue->control_otghs = devm_request_and_ioremap(&pdev->dev, res);
+	if (glue->control_otghs == NULL)
+		dev_dbg(&pdev->dev, "Failed to obtain control memory\n");
+
+	if (np) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&pdev->dev,
+				"failed to allocate musb platfrom data\n");
+			ret = -ENOMEM;
+			goto err1;
+		}
+
+		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+		if (!data) {
+			dev_err(&pdev->dev,
+					"failed to allocate musb board data\n");
+			ret = -ENOMEM;
+			goto err1;
+		}
+
+		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
+		if (!data) {
+			dev_err(&pdev->dev,
+				"failed to allocate musb hdrc config\n");
+			goto err1;
+		}
+
+		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
+		of_property_read_u32(np, "interface_type",
+						(u32 *)&data->interface_type);
+		of_property_read_u32(np, "num_eps", (u32 *)&config->num_eps);
+		of_property_read_u32(np, "ram_bits", (u32 *)&config->ram_bits);
+		of_property_read_u32(np, "power", (u32 *)&pdata->power);
+		config->multipoint = of_property_read_bool(np, "multipoint");
+
+		pdata->board_data	= data;
+		pdata->config		= config;
+	}
 
 	pdata->platform_ops		= &omap2430_ops;
 
 	platform_set_drvdata(pdev, glue);
+
+	/*
+	 * REVISIT if we ever have two instances of the wrapper, we will be
+	 * in big trouble
+	 */
+	_glue	= glue;
+
+	INIT_WORK(&glue->omap_musb_mailbox_work, omap_musb_mailbox_work);
 
 	ret = platform_device_add_resources(musb, pdev->resource,
 			pdev->num_resources);
@@ -468,7 +590,7 @@ err2:
 	platform_device_put(musb);
 
 err1:
-	kfree(glue);
+	musb_put_id(&pdev->dev, musbid);
 
 err0:
 	return ret;
@@ -478,9 +600,9 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
-	kfree(glue);
+	cancel_work_sync(&glue->omap_musb_mailbox_work);
+	musb_put_id(&pdev->dev, glue->musb->id);
+	platform_device_unregister(glue->musb);
 
 	return 0;
 }
@@ -529,12 +651,26 @@ static struct dev_pm_ops omap2430_pm_ops = {
 #define DEV_PM_OPS	NULL
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id omap2430_id_table[] = {
+	{
+		.compatible = "ti,omap4-musb"
+	},
+	{
+		.compatible = "ti,omap3-musb"
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap2430_id_table);
+#endif
+
 static struct platform_driver omap2430_driver = {
 	.probe		= omap2430_probe,
 	.remove		= __devexit_p(omap2430_remove),
 	.driver		= {
 		.name	= "musb-omap2430",
 		.pm	= DEV_PM_OPS,
+		.of_match_table = of_match_ptr(omap2430_id_table),
 	},
 };
 
@@ -546,7 +682,7 @@ static int __init omap2430_init(void)
 {
 	return platform_driver_register(&omap2430_driver);
 }
-module_init(omap2430_init);
+subsys_initcall(omap2430_init);
 
 static void __exit omap2430_exit(void)
 {

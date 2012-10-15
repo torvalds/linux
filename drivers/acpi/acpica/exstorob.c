@@ -110,7 +110,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		 * NOTE: ACPI versions up to 3.0 specified that the buffer must be
 		 * truncated if the string is smaller than the buffer.  However, "other"
 		 * implementations of ACPI never did this and thus became the defacto
-		 * standard. ACPI 3.0_a changes this behavior such that the buffer
+		 * standard. ACPI 3.0A changes this behavior such that the buffer
 		 * is no longer truncated.
 		 */
 

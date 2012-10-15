@@ -116,6 +116,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq = 0;
 #endif
 	struct pcmcia_device *link;
+	int ret;
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
@@ -158,11 +159,12 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	/* 8255 dio */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	subdev_8255_init(dev, s, NULL, dev->iobase);
 
 	return 0;
@@ -170,8 +172,12 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 0);
+	struct comedi_subdevice *s;
+
+	if (dev->subdevices) {
+		s = &dev->subdevices[0];
+		subdev_8255_cleanup(dev, s);
+	}
 	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
 		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
@@ -302,7 +308,7 @@ MODULE_DESCRIPTION("Comedi driver for National Instruments "
 		   "PCMCIA DAQ-Card DIO-24");
 MODULE_LICENSE("GPL");
 
-struct pcmcia_driver dio24_cs_driver = {
+static struct pcmcia_driver dio24_cs_driver = {
 	.probe = dio24_cs_attach,
 	.remove = dio24_cs_detach,
 	.suspend = dio24_cs_suspend,

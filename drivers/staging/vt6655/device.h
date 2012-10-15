@@ -69,10 +69,6 @@
 #ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #endif
-//2008-4-14<add> by chester for led issue
-//#define FOR_LED_ON_NOTEBOOK
-//
-
 
 //
 // device specific
@@ -91,12 +87,6 @@
 #include "key.h"
 #include "mac.h"
 
-//PLICE_DEBUG->
-//#define		THREAD
-
-//#define	TASK_LET
-//PLICE_DEBUG<-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -104,11 +94,6 @@
 
 #define MAX_MULTICAST_ADDRESS_NUM       32
 #define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
-
-
-//#define OP_MODE_INFRASTRUCTURE  0
-//#define OP_MODE_ADHOC           1
-//#define OP_MODE_AP              2
 
 #define DUPLICATE_RX_CACHE_LENGTH       5
 
@@ -342,7 +327,7 @@ typedef struct tagSDeFragControlBlock
 //flags for driver status
 #define     DEVICE_FLAGS_OPENED          0x00010000UL
 #define     DEVICE_FLAGS_WOL_ENABLED     0x00080000UL
-//flags for capbilities
+//flags for capabilities
 #define     DEVICE_FLAGS_TX_ALIGN        0x01000000UL
 #define     DEVICE_FLAGS_HAVE_CAM        0x02000000UL
 #define     DEVICE_FLAGS_FLOW_CTRL       0x04000000UL
@@ -582,7 +567,7 @@ typedef struct __device_info {
     bool bPrvActive4RadioOFF;
     bool bGPIOBlockRead;
 
-    // Beacon releated
+    // Beacon related
     unsigned short wSeqCounter;
     unsigned short wBCNBufLen;
     bool bBeaconBufReady;

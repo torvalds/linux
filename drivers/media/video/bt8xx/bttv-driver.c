@@ -196,7 +196,7 @@ static void request_modules(struct bttv *dev)
 
 static void flush_request_modules(struct bttv *dev)
 {
-	flush_work_sync(&dev->request_module_wk);
+	flush_work(&dev->request_module_wk);
 }
 #else
 #define request_modules(dev)
@@ -550,12 +550,6 @@ static const struct bttv_format formats[] = {
 		.btformat = BT848_COLOR_FMT_RGB32,
 		.btswap   = 0x0f, /* byte+word swap */
 		.depth    = 32,
-		.flags    = FORMAT_FLAGS_PACKED,
-	},{
-		.name     = "4:2:2, packed, YUYV",
-		.fourcc   = V4L2_PIX_FMT_YUYV,
-		.btformat = BT848_COLOR_FMT_YUY2,
-		.depth    = 16,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "4:2:2, packed, YUYV",

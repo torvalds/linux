@@ -4,6 +4,9 @@
 ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_USB_GADGET)	+= udc-core.o
+obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o
+libcomposite-y			:= usbstring.o config.o epautoconf.o
+libcomposite-y			+= composite.o
 obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
 obj-$(CONFIG_USB_NET2272)	+= net2272.o
 obj-$(CONFIG_USB_NET2280)	+= net2280.o
@@ -16,6 +19,7 @@ obj-$(CONFIG_USB_OMAP)		+= omap_udc.o
 obj-$(CONFIG_USB_S3C2410)	+= s3c2410_udc.o
 obj-$(CONFIG_USB_AT91)		+= at91_udc.o
 obj-$(CONFIG_USB_ATMEL_USBA)	+= atmel_usba_udc.o
+obj-$(CONFIG_USB_BCM63XX_UDC)	+= bcm63xx_udc.o
 obj-$(CONFIG_USB_FSL_USB2)	+= fsl_usb2_udc.o
 fsl_usb2_udc-y			:= fsl_udc_core.o
 fsl_usb2_udc-$(CONFIG_ARCH_MXC)	+= fsl_mxc_udc.o
@@ -29,6 +33,7 @@ obj-$(CONFIG_USB_EG20T)		+= pch_udc.o
 obj-$(CONFIG_USB_MV_UDC)	+= mv_udc.o
 mv_udc-y			:= mv_udc_core.o
 obj-$(CONFIG_USB_FUSB300)	+= fusb300_udc.o
+obj-$(CONFIG_USB_MV_U3D)	+= mv_u3d_core.o
 
 #
 # USB gadget drivers

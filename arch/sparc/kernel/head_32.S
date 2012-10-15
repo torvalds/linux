@@ -58,8 +58,6 @@ sun4e_notsup:
 /* This was the only reasonable way I could think of to properly align
  * these page-table data structures.
  */
-	.globl swapper_pg_dir
-swapper_pg_dir:		.skip PAGE_SIZE
 	.globl empty_zero_page
 empty_zero_page:	.skip PAGE_SIZE
 

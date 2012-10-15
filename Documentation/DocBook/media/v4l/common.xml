@@ -464,14 +464,14 @@ The <structfield>type</structfield> field of the respective
 <structfield>tuner</structfield> field contains the index number of
 the tuner.</para>
 
-      <para>Radio devices have exactly one tuner with index zero, no
+      <para>Radio input devices have exactly one tuner with index zero, no
 video inputs.</para>
 
       <para>To query and change tuner properties applications use the
 &VIDIOC-G-TUNER; and &VIDIOC-S-TUNER; ioctl, respectively. The
 &v4l2-tuner; returned by <constant>VIDIOC_G_TUNER</constant> also
 contains signal status information applicable when the tuner of the
-current video input, or a radio tuner is queried. Note that
+current video or radio input is queried. Note that
 <constant>VIDIOC_S_TUNER</constant> does not switch the current tuner,
 when there is more than one at all. The tuner is solely determined by
 the current video input. Drivers must support both ioctls and set the
@@ -491,8 +491,17 @@ the modulator. The <structfield>type</structfield> field of the
 respective &v4l2-output; returned by the &VIDIOC-ENUMOUTPUT; ioctl is
 set to <constant>V4L2_OUTPUT_TYPE_MODULATOR</constant> and its
 <structfield>modulator</structfield> field contains the index number
-of the modulator. This specification does not define radio output
-devices.</para>
+of the modulator.</para>
+
+      <para>Radio output devices have exactly one modulator with index
+zero, no video outputs.</para>
+
+      <para>A video or radio device cannot support both a tuner and a
+modulator. Two separate device nodes will have to be used for such
+hardware, one that supports the tuner functionality and one that supports
+the modulator functionality. The reason is a limitation with the
+&VIDIOC-S-FREQUENCY; ioctl where you cannot specify whether the frequency
+is for a tuner or a modulator.</para>
 
       <para>To query and change modulator properties applications use
 the &VIDIOC-G-MODULATOR; and &VIDIOC-S-MODULATOR; ioctl. Note that

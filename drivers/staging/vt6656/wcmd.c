@@ -263,7 +263,7 @@ s_vProbeChannel(
  *
  *
  * Return Value:
- *    A ptr to Tx frame or NULL on allocation failue
+ *    A ptr to Tx frame or NULL on allocation failure
  *
 -*/
 
@@ -751,7 +751,7 @@ void vRunCommand(void *hDeviceContext)
                       pDevice->nTxDataTimeCout = 0;
 		 }
 		 else {
-		   // printk("mike:-->First time triger TimerTxData InSleep\n");
+		   // printk("mike:-->First time trigger TimerTxData InSleep\n");
 		 }
 		pDevice->IsTxDataTrigger = TRUE;
                 add_timer(&pDevice->sTimerTxData);
@@ -794,7 +794,7 @@ void vRunCommand(void *hDeviceContext)
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "vMgrCreateOwnIBSS fail!\n");
                 }
-                // alway turn off unicast bit
+                // always turn off unicast bit
                 MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
                 pDevice->byRxMode &= ~RCR_UNICAST;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode );
@@ -946,7 +946,7 @@ void vRunCommand(void *hDeviceContext)
                   pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
                   pItemSSID->len = 0;
                   memset(pItemSSID->abySSID, 0, WLAN_SSID_MAXLEN);
-                //clear dessire SSID
+                //clear desired SSID
                 pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
                 pItemSSID->len = 0;
                 memset(pItemSSID->abySSID, 0, WLAN_SSID_MAXLEN);
@@ -1254,51 +1254,50 @@ static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
 //mike add:reset command timer
 void vResetCommandTimer(void *hDeviceContext)
 {
-  PSDevice        pDevice = (PSDevice)hDeviceContext;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
 
-  //delete timer
-      del_timer(&pDevice->sTimerCommand);
-  //init timer
-      init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (unsigned long)pDevice;
-    pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-    pDevice->sTimerCommand.expires = RUN_AT(HZ);
-    pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
-    pDevice->uCmdDequeueIdx = 0;
-    pDevice->uCmdEnqueueIdx = 0;
-    pDevice->eCommandState = WLAN_CMD_IDLE;
-    pDevice->bCmdRunning = FALSE;
-    pDevice->bCmdClear = FALSE;
+	//delete timer
+	del_timer(&pDevice->sTimerCommand);
+	//init timer
+	init_timer(&pDevice->sTimerCommand);
+	pDevice->sTimerCommand.data = (unsigned long)pDevice;
+	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
+	pDevice->sTimerCommand.expires = RUN_AT(HZ);
+	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
+	pDevice->uCmdDequeueIdx = 0;
+	pDevice->uCmdEnqueueIdx = 0;
+	pDevice->eCommandState = WLAN_CMD_IDLE;
+	pDevice->bCmdRunning = FALSE;
+	pDevice->bCmdClear = FALSE;
 }
 
 void BSSvSecondTxData(void *hDeviceContext)
 {
-  PSDevice        pDevice = (PSDevice)hDeviceContext;
-  PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 
-  pDevice->nTxDataTimeCout++;
+	pDevice->nTxDataTimeCout++;
 
-  if(pDevice->nTxDataTimeCout<4)     //don't tx data if timer less than 40s
-    {
-     // printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
-	//  	(int)pDevice->nTxDataTimeCout);
-     pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-     add_timer(&pDevice->sTimerTxData);
-      return;
-    }
+	if (pDevice->nTxDataTimeCout < 4) {   //don't tx data if timer less than 40s
+		// printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
+		//  	(int)pDevice->nTxDataTimeCout);
+		pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
+		add_timer(&pDevice->sTimerTxData);
+		return;
+	}
 
-  spin_lock_irq(&pDevice->lock);
-  //is wap_supplicant running successful OR only open && sharekey mode!
-  if(((pDevice->bLinkPass ==TRUE)&&(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
-      (pDevice->fWPA_Authened == TRUE)) {   //wpa linking
-        //   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
-	  pDevice->fTxDataInSleep = TRUE;
-	  PSbSendNullPacket(pDevice);      //send null packet
-	  pDevice->fTxDataInSleep = FALSE;
-  	}
-  spin_unlock_irq(&pDevice->lock);
+	spin_lock_irq(&pDevice->lock);
+	//is wap_supplicant running successful OR only open && sharekey mode!
+	if (((pDevice->bLinkPass == TRUE) &&
+		(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
+		(pDevice->fWPA_Authened == TRUE)) {   //wpa linking
+		//   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
+		pDevice->fTxDataInSleep = TRUE;
+		PSbSendNullPacket(pDevice);      //send null packet
+		pDevice->fTxDataInSleep = FALSE;
+	}
+	spin_unlock_irq(&pDevice->lock);
 
-  pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-  add_timer(&pDevice->sTimerTxData);
-  return;
+	pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
+	add_timer(&pDevice->sTimerTxData);
 }

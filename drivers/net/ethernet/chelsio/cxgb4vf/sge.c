@@ -653,7 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 
 alloc_small_pages:
 	while (n--) {
-		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
 		if (unlikely(!page)) {
 			fl->alloc_failed++;
 			break;
@@ -2421,7 +2421,7 @@ int t4vf_sge_init(struct adapter *adapter)
 			fl0, fl1);
 		return -EINVAL;
 	}
-	if ((sge_params->sge_control & RXPKTCPLMODE) == 0) {
+	if ((sge_params->sge_control & RXPKTCPLMODE_MASK) == 0) {
 		dev_err(adapter->pdev_dev, "bad SGE CPL MODE\n");
 		return -EINVAL;
 	}
@@ -2431,7 +2431,8 @@ int t4vf_sge_init(struct adapter *adapter)
 	 */
 	if (fl1)
 		FL_PG_ORDER = ilog2(fl1) - PAGE_SHIFT;
-	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE) ? 128 : 64);
+	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE_MASK)
+		    ? 128 : 64);
 	PKTSHIFT = PKTSHIFT_GET(sge_params->sge_control);
 	FL_ALIGN = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
 			 SGE_INGPADBOUNDARY_SHIFT);

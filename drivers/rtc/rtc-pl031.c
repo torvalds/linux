@@ -68,11 +68,26 @@
 
 #define RTC_TIMER_FREQ 32768
 
+/**
+ * struct pl031_vendor_data - per-vendor variations
+ * @ops: the vendor-specific operations used on this silicon version
+ * @clockwatch: if this is an ST Microelectronics silicon version with a
+ *	clockwatch function
+ * @st_weekday: if this is an ST Microelectronics silicon version that need
+ *	the weekday fix
+ * @irqflags: special IRQ flags per variant
+ */
+struct pl031_vendor_data {
+	struct rtc_class_ops ops;
+	bool clockwatch;
+	bool st_weekday;
+	unsigned long irqflags;
+};
+
 struct pl031_local {
+	struct pl031_vendor_data *vendor;
 	struct rtc_device *rtc;
 	void __iomem *base;
-	u8 hw_designer;
-	u8 hw_revision:4;
 };
 
 static int pl031_alarm_irq_enable(struct device *dev,
@@ -303,7 +318,8 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
 	struct pl031_local *ldata;
-	struct rtc_class_ops *ops = id->data;
+	struct pl031_vendor_data *vendor = id->data;
+	struct rtc_class_ops *ops = &vendor->ops;
 	unsigned long time;
 
 	ret = amba_request_regions(adev, NULL);
@@ -315,6 +331,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = -ENOMEM;
 		goto out;
 	}
+	ldata->vendor = vendor;
 
 	ldata->base = ioremap(adev->res.start, resource_size(&adev->res));
 
@@ -325,14 +342,11 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, ldata);
 
-	ldata->hw_designer = amba_manf(adev);
-	ldata->hw_revision = amba_rev(adev);
-
-	dev_dbg(&adev->dev, "designer ID = 0x%02x\n", ldata->hw_designer);
-	dev_dbg(&adev->dev, "revision = 0x%01x\n", ldata->hw_revision);
+	dev_dbg(&adev->dev, "designer ID = 0x%02x\n", amba_manf(adev));
+	dev_dbg(&adev->dev, "revision = 0x%01x\n", amba_rev(adev));
 
 	/* Enable the clockwatch on ST Variants */
-	if (ldata->hw_designer == AMBA_VENDOR_ST)
+	if (vendor->clockwatch)
 		writel(readl(ldata->base + RTC_CR) | RTC_CR_CWEN,
 		       ldata->base + RTC_CR);
 
@@ -340,7 +354,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	 * On ST PL031 variants, the RTC reset value does not provide correct
 	 * weekday for 2000-01-01. Correct the erroneous sunday to saturday.
 	 */
-	if (ldata->hw_designer == AMBA_VENDOR_ST) {
+	if (vendor->st_weekday) {
 		if (readl(ldata->base + RTC_YDR) == 0x2000) {
 			time = readl(ldata->base + RTC_DR);
 			if ((time &
@@ -361,7 +375,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	if (request_irq(adev->irq[0], pl031_interrupt,
-			0, "rtc-pl031", ldata)) {
+			vendor->irqflags, "rtc-pl031", ldata)) {
 		ret = -EIO;
 		goto out_no_irq;
 	}
@@ -383,48 +397,65 @@ err_req:
 }
 
 /* Operations for the original ARM version */
-static struct rtc_class_ops arm_pl031_ops = {
-	.read_time = pl031_read_time,
-	.set_time = pl031_set_time,
-	.read_alarm = pl031_read_alarm,
-	.set_alarm = pl031_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data arm_pl031 = {
+	.ops = {
+		.read_time = pl031_read_time,
+		.set_time = pl031_set_time,
+		.read_alarm = pl031_read_alarm,
+		.set_alarm = pl031_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
+	.irqflags = IRQF_NO_SUSPEND,
 };
 
 /* The First ST derivative */
-static struct rtc_class_ops stv1_pl031_ops = {
-	.read_time = pl031_read_time,
-	.set_time = pl031_set_time,
-	.read_alarm = pl031_read_alarm,
-	.set_alarm = pl031_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data stv1_pl031 = {
+	.ops = {
+		.read_time = pl031_read_time,
+		.set_time = pl031_set_time,
+		.read_alarm = pl031_read_alarm,
+		.set_alarm = pl031_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
+	.clockwatch = true,
+	.st_weekday = true,
+	.irqflags = IRQF_NO_SUSPEND,
 };
 
 /* And the second ST derivative */
-static struct rtc_class_ops stv2_pl031_ops = {
-	.read_time = pl031_stv2_read_time,
-	.set_time = pl031_stv2_set_time,
-	.read_alarm = pl031_stv2_read_alarm,
-	.set_alarm = pl031_stv2_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data stv2_pl031 = {
+	.ops = {
+		.read_time = pl031_stv2_read_time,
+		.set_time = pl031_stv2_set_time,
+		.read_alarm = pl031_stv2_read_alarm,
+		.set_alarm = pl031_stv2_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
+	.clockwatch = true,
+	.st_weekday = true,
+	/*
+	 * This variant shares the IRQ with another block and must not
+	 * suspend that IRQ line.
+	 */
+	.irqflags = IRQF_SHARED | IRQF_NO_SUSPEND,
 };
 
 static struct amba_id pl031_ids[] = {
 	{
 		.id = 0x00041031,
 		.mask = 0x000fffff,
-		.data = &arm_pl031_ops,
+		.data = &arm_pl031,
 	},
 	/* ST Micro variants */
 	{
 		.id = 0x00180031,
 		.mask = 0x00ffffff,
-		.data = &stv1_pl031_ops,
+		.data = &stv1_pl031,
 	},
 	{
 		.id = 0x00280031,
 		.mask = 0x00ffffff,
-		.data = &stv2_pl031_ops,
+		.data = &stv2_pl031,
 	},
 	{0, 0},
 };

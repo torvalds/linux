@@ -41,7 +41,6 @@
 #define RF_MAXIMAG              0x02
 #define RF_AIROHA               0x03
 
-//#define RF_GCT5103              0x04
 #define RF_UW2451               0x05
 #define RF_MAXIMG               0x06
 #define RF_MAXIM2829            0x07 // RobertYu: 20041118
@@ -76,7 +75,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool IFRFbWriteEmbeded(unsigned long dwIoBase, unsigned long dwData);
+bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData);
 bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel);
 bool RFbInit (
     PSDevice  pDevice

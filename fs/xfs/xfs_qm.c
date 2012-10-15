@@ -940,7 +940,7 @@ xfs_qm_dqiterate(
 	map = kmem_alloc(XFS_DQITER_MAP_SIZE * sizeof(*map), KM_SLEEP);
 
 	lblkno = 0;
-	maxlblkcnt = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
+	maxlblkcnt = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	do {
 		nmaps = XFS_DQITER_MAP_SIZE;
 		/*

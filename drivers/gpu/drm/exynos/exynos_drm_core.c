@@ -33,7 +33,6 @@
 #include "exynos_drm_fbdev.h"
 
 static LIST_HEAD(exynos_drm_subdrv_list);
-static struct drm_device *drm_dev;
 
 static int exynos_drm_subdrv_probe(struct drm_device *dev,
 					struct exynos_drm_subdrv *subdrv)
@@ -120,8 +119,6 @@ int exynos_drm_device_register(struct drm_device *dev)
 	if (!dev)
 		return -EINVAL;
 
-	drm_dev = dev;
-
 	list_for_each_entry_safe(subdrv, n, &exynos_drm_subdrv_list, list) {
 		subdrv->drm_dev = dev;
 		err = exynos_drm_subdrv_probe(dev, subdrv);
@@ -148,8 +145,6 @@ int exynos_drm_device_unregister(struct drm_device *dev)
 
 	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list)
 		exynos_drm_subdrv_remove(dev, subdrv);
-
-	drm_dev = NULL;
 
 	return 0;
 }

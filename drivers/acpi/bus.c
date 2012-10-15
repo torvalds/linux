@@ -237,6 +237,16 @@ static int __acpi_bus_get_power(struct acpi_device *device, int *state)
 	} else if (result == ACPI_STATE_D3_HOT) {
 		result = ACPI_STATE_D3;
 	}
+
+	/*
+	 * If we were unsure about the device parent's power state up to this
+	 * point, the fact that the device is in D0 implies that the parent has
+	 * to be in D0 too.
+	 */
+	if (device->parent && device->parent->power.state == ACPI_STATE_UNKNOWN
+	    && result == ACPI_STATE_D0)
+		device->parent->power.state = ACPI_STATE_D0;
+
 	*state = result;
 
  out:
@@ -572,6 +582,10 @@ static void acpi_bus_osc_support(void)
 
 #if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
 	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_PPC_OST_SUPPORT;
+#endif
+
+#ifdef ACPI_HOTPLUG_OST
+	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 #endif
 
 	if (!ghes_disable)

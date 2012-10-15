@@ -438,8 +438,8 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	if (submode)
 		wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE(ULP2_MODE_ISCSI) |
 				FW_OFLD_TX_DATA_WR_ULPSUBMODE(submode);
-	req->tunnel_to_proxy = htonl(wr_ulp_mode) |
-		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1);
+	req->tunnel_to_proxy = htonl(wr_ulp_mode |
+		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1));
 	req->plen = htonl(len);
 	if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT))
 		cxgbi_sock_set_flag(csk, CTPF_TX_DATA_SENT);

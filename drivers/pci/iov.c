@@ -47,7 +47,7 @@ static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 	if (!child)
 		return NULL;
 
-	child->subordinate = busnr;
+	pci_bus_insert_busn_res(child, busnr, busnr);
 	child->dev.parent = bus->bridge;
 	rc = pci_bus_add_child(child);
 	if (rc) {
@@ -327,7 +327,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	iov->offset = offset;
 	iov->stride = stride;
 
-	if (virtfn_bus(dev, nr_virtfn - 1) > dev->bus->subordinate) {
+	if (virtfn_bus(dev, nr_virtfn - 1) > dev->bus->busn_res.end) {
 		dev_err(&dev->dev, "SR-IOV: bus number out of range\n");
 		return -ENOMEM;
 	}
@@ -433,8 +433,8 @@ static int sriov_init(struct pci_dev *dev, int pos)
 	struct resource *res;
 	struct pci_dev *pdev;
 
-	if (dev->pcie_type != PCI_EXP_TYPE_RC_END &&
-	    dev->pcie_type != PCI_EXP_TYPE_ENDPOINT)
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_RC_END &&
+	    pci_pcie_type(dev) != PCI_EXP_TYPE_ENDPOINT)
 		return -ENODEV;
 
 	pci_read_config_word(dev, pos + PCI_SRIOV_CTRL, &ctrl);
@@ -503,7 +503,7 @@ found:
 	iov->self = dev;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
-	if (dev->pcie_type == PCI_EXP_TYPE_RC_END)
+	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
 		iov->link = PCI_DEVFN(PCI_SLOT(dev->devfn), iov->link);
 
 	if (pdev)

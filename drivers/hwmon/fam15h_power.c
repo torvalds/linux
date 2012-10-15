@@ -67,7 +67,8 @@ static ssize_t show_power(struct device *dev,
 				  REG_TDP_LIMIT3, &val);
 
 	tdp_limit = val >> 16;
-	curr_pwr_watts = (tdp_limit + data->base_tdp) << running_avg_range;
+	curr_pwr_watts = ((u64)(tdp_limit +
+				data->base_tdp)) << running_avg_range;
 	curr_pwr_watts -= running_avg_capture;
 	curr_pwr_watts *= data->tdp_to_watts;
 
@@ -128,12 +129,12 @@ static bool __devinit fam15h_power_is_internal_node0(struct pci_dev *f4)
  * counter saturations resulting in bogus power readings.
  * We correct this value ourselves to cope with older BIOSes.
  */
-static DEFINE_PCI_DEVICE_TABLE(affected_device) = {
+static const struct pci_device_id affected_device[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
 	{ 0 }
 };
 
-static void __devinit tweak_runavg_range(struct pci_dev *pdev)
+static void tweak_runavg_range(struct pci_dev *pdev)
 {
 	u32 val;
 
@@ -156,6 +157,16 @@ static void __devinit tweak_runavg_range(struct pci_dev *pdev)
 		PCI_DEVFN(PCI_SLOT(pdev->devfn), 5),
 		REG_TDP_RUNNING_AVERAGE, val);
 }
+
+#ifdef CONFIG_PM
+static int fam15h_power_resume(struct pci_dev *pdev)
+{
+	tweak_runavg_range(pdev);
+	return 0;
+}
+#else
+#define fam15h_power_resume NULL
+#endif
 
 static void __devinit fam15h_power_init_data(struct pci_dev *f4,
 					     struct fam15h_power_data *data)
@@ -187,7 +198,7 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct fam15h_power_data *data;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 	int err;
 
 	/*
@@ -197,23 +208,19 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev)) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!fam15h_power_is_internal_node0(pdev))
+		return -ENODEV;
 
-	data = kzalloc(sizeof(struct fam15h_power_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	fam15h_power_init_data(pdev, data);
-	dev = &pdev->dev;
 
 	dev_set_drvdata(dev, data);
 	err = sysfs_create_group(&dev->kobj, &fam15h_power_attr_group);
 	if (err)
-		goto exit_free_data;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -225,9 +232,6 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 
 exit_remove_group:
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-exit_free_data:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -240,8 +244,6 @@ static void __devexit fam15h_power_remove(struct pci_dev *pdev)
 	data = dev_get_drvdata(dev);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-	dev_set_drvdata(dev, NULL);
-	kfree(data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
@@ -255,6 +257,7 @@ static struct pci_driver fam15h_power_driver = {
 	.id_table = fam15h_power_id_table,
 	.probe = fam15h_power_probe,
 	.remove = __devexit_p(fam15h_power_remove),
+	.resume = fam15h_power_resume,
 };
 
 module_pci_driver(fam15h_power_driver);

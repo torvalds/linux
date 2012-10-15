@@ -189,8 +189,8 @@ lba_dump_res(struct resource *r, int d)
 
 static int lba_device_present(u8 bus, u8 dfn, struct lba_device *d)
 {
-	u8 first_bus = d->hba.hba_bus->secondary;
-	u8 last_sub_bus = d->hba.hba_bus->subordinate;
+	u8 first_bus = d->hba.hba_bus->busn_res.start;
+	u8 last_sub_bus = d->hba.hba_bus->busn_res.end;
 
 	if ((bus < first_bus) ||
 	    (bus > last_sub_bus) ||
@@ -364,7 +364,7 @@ lba_rd_cfg(struct lba_device *d, u32 tok, u8 reg, u32 size)
 static int elroy_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 *data)
 {
 	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 tok = LBA_CFG_TOK(local_bus, devfn);
 	void __iomem *data_reg = d->hba.base_addr + LBA_PCI_CFG_DATA;
 
@@ -380,7 +380,7 @@ static int elroy_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int 
 		return 0;
 	}
 
-	if (LBA_SKIP_PROBE(d) && !lba_device_present(bus->secondary, devfn, d)) {
+	if (LBA_SKIP_PROBE(d) && !lba_device_present(bus->busn_res.start, devfn, d)) {
 		DBG_CFG("%s(%x+%2x) -> -1 (b)\n", __func__, tok, pos);
 		/* either don't want to look or know device isn't present. */
 		*data = ~0U;
@@ -431,7 +431,7 @@ lba_wr_cfg(struct lba_device *d, u32 tok, u8 reg, u32 data, u32 size)
 static int elroy_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 data)
 {
 	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 tok = LBA_CFG_TOK(local_bus,devfn);
 
 	if ((pos > 255) || (devfn > 255))
@@ -444,7 +444,7 @@ static int elroy_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, int
 		return 0;
 	}
 
-	if (LBA_SKIP_PROBE(d) && (!lba_device_present(bus->secondary, devfn, d))) {
+	if (LBA_SKIP_PROBE(d) && (!lba_device_present(bus->busn_res.start, devfn, d))) {
 		DBG_CFG("%s(%x+%2x) = 0x%x (b)\n", __func__, tok, pos,data);
 		return 1; /* New Workaround */
 	}
@@ -481,7 +481,7 @@ static struct pci_ops elroy_cfg_ops = {
 static int mercury_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 *data)
 {
 	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 tok = LBA_CFG_TOK(local_bus, devfn);
 	void __iomem *data_reg = d->hba.base_addr + LBA_PCI_CFG_DATA;
 
@@ -514,7 +514,7 @@ static int mercury_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, i
 {
 	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
 	void __iomem *data_reg = d->hba.base_addr + LBA_PCI_CFG_DATA;
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 tok = LBA_CFG_TOK(local_bus,devfn);
 
 	if ((pos > 255) || (devfn > 255))
@@ -629,14 +629,14 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 static void
 lba_fixup_bus(struct pci_bus *bus)
 {
-	struct list_head *ln;
+	struct pci_dev *dev;
 #ifdef FBB_SUPPORT
 	u16 status;
 #endif
 	struct lba_device *ldev = LBA_DEV(parisc_walk_tree(bus->bridge));
 
 	DBG("lba_fixup_bus(0x%p) bus %d platform_data 0x%p\n",
-		bus, bus->secondary, bus->bridge->platform_data);
+		bus, (int)bus->busn_res.start, bus->bridge->platform_data);
 
 	/*
 	** Properly Setup MMIO resources for this bus.
@@ -710,9 +710,8 @@ lba_fixup_bus(struct pci_bus *bus)
 
 	}
 
-	list_for_each(ln, &bus->devices) {
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
-		struct pci_dev *dev = pci_dev_b(ln);
 
 		DBG("lba_fixup_bus() %s\n", pci_name(dev));
 
@@ -770,7 +769,7 @@ lba_fixup_bus(struct pci_bus *bus)
 	}
 
 	/* Lastly enable FBB/PERR/SERR on all devices too */
-	list_for_each(ln, &bus->devices) {
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		(void) pci_read_config_word(dev, PCI_COMMAND, &status);
 		status |= PCI_COMMAND_PARITY | PCI_COMMAND_SERR | fbb_enable;
 		(void) pci_write_config_word(dev, PCI_COMMAND, status);
@@ -989,6 +988,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		case PAT_PBNUM:
 			lba_dev->hba.bus_num.start = p->start;
 			lba_dev->hba.bus_num.end   = p->end;
+			lba_dev->hba.bus_num.flags = IORESOURCE_BUS;
 			break;
 
 		case PAT_LMMIO:
@@ -1366,6 +1366,7 @@ lba_driver_probe(struct parisc_device *dev)
 	void *tmp_obj;
 	char *version;
 	void __iomem *addr = ioremap_nocache(dev->hpa.start, 4096);
+	int max;
 
 	/* Read HW Rev First */
 	func_class = READ_REG32(addr + LBA_FCLASS);
@@ -1502,6 +1503,8 @@ lba_driver_probe(struct parisc_device *dev)
 	if (lba_dev->hba.gmmio_space.flags)
 		pci_add_resource(&resources, &lba_dev->hba.gmmio_space);
 
+	pci_add_resource(&resources, &lba_dev->hba.bus_num);
+
 	dev->dev.platform_data = lba_dev;
 	lba_bus = lba_dev->hba.hba_bus =
 		pci_create_root_bus(&dev->dev, lba_dev->hba.bus_num.start,
@@ -1511,7 +1514,7 @@ lba_driver_probe(struct parisc_device *dev)
 		return 0;
 	}
 
-	lba_bus->subordinate = pci_scan_child_bus(lba_bus);
+	max = pci_scan_child_bus(lba_bus);
 
 	/* This is in lieu of calling pci_assign_unassigned_resources() */
 	if (is_pdc_pat()) {
@@ -1541,7 +1544,7 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_dev->flags |= LBA_FLAG_SKIP_PROBE;
 	}
 
-	lba_next_bus = lba_bus->subordinate + 1;
+	lba_next_bus = max + 1;
 	pci_bus_add_devices(lba_bus);
 
 	/* Whew! Finally done! Tell services we got this one covered. */

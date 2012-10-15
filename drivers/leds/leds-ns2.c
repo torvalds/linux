@@ -29,7 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/module.h>
-#include <mach/leds-ns2.h>
+#include <linux/platform_data/leds-kirkwood-ns2.h>
 
 /*
  * The Network Space v2 dual-GPIO LED is wired to a CPLD and can blink in
@@ -273,29 +273,23 @@ static int __devinit ns2_led_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	leds_data = kzalloc(sizeof(struct ns2_led_data) *
+	leds_data = devm_kzalloc(&pdev->dev, sizeof(struct ns2_led_data) *
 			    pdata->num_leds, GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;
 
 	for (i = 0; i < pdata->num_leds; i++) {
 		ret = create_ns2_led(pdev, &leds_data[i], &pdata->leds[i]);
-		if (ret < 0)
-			goto err;
-
+		if (ret < 0) {
+			for (i = i - 1; i >= 0; i--)
+				delete_ns2_led(&leds_data[i]);
+			return ret;
+		}
 	}
 
 	platform_set_drvdata(pdev, leds_data);
 
 	return 0;
-
-err:
-	for (i = i - 1; i >= 0; i--)
-		delete_ns2_led(&leds_data[i]);
-
-	kfree(leds_data);
-
-	return ret;
 }
 
 static int __devexit ns2_led_remove(struct platform_device *pdev)
@@ -309,7 +303,6 @@ static int __devexit ns2_led_remove(struct platform_device *pdev)
 	for (i = 0; i < pdata->num_leds; i++)
 		delete_ns2_led(&leds_data[i]);
 
-	kfree(leds_data);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

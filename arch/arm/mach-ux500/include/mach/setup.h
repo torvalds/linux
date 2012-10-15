@@ -13,11 +13,12 @@
 
 #include <asm/mach/time.h>
 #include <linux/init.h>
+#include <linux/mfd/abx500/ab8500.h>
 
 void __init ux500_map_io(void);
 extern void __init u8500_map_io(void);
 
-extern struct device * __init u8500_init_devices(void);
+extern struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500);
 
 extern void __init ux500_init_irq(void);
 extern void __init ux500_init_late(void);
@@ -43,5 +44,8 @@ extern struct sys_timer ux500_timer;
 	.length		= sz,			\
 	.type		= MT_MEMORY,		\
 }
+
+extern struct smp_operations ux500_smp_ops;
+extern void ux500_cpu_die(unsigned int cpu);
 
 #endif /*  __ASM_ARCH_SETUP_H */

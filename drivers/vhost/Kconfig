@@ -9,3 +9,6 @@ config VHOST_NET
 	  To compile this driver as a module, choose M here: the module will
 	  be called vhost_net.
 
+if STAGING
+source "drivers/vhost/Kconfig.tcm"
+endif

@@ -827,7 +827,7 @@ static int arp_process(struct sk_buff *skb)
 	}
 
 	if (arp->ar_op == htons(ARPOP_REQUEST) &&
-	    ip_route_input(skb, tip, sip, 0, dev) == 0) {
+	    ip_route_input_noref(skb, tip, sip, 0, dev) == 0) {
 
 		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
@@ -1225,7 +1225,7 @@ static int arp_netdev_event(struct notifier_block *this, unsigned long event,
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&arp_tbl, dev);
-		rt_cache_flush(dev_net(dev), 0);
+		rt_cache_flush(dev_net(dev));
 		break;
 	default:
 		break;

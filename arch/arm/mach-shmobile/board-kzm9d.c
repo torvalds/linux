@@ -21,12 +21,20 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /* Ether */
 static struct resource smsc911x_resources[] = {
@@ -63,6 +71,8 @@ static struct platform_device *kzm9d_devices[] __initdata = {
 
 void __init kzm9d_add_standard_devices(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	emev2_add_standard_devices();
 
 	platform_add_devices(kzm9d_devices, ARRAY_SIZE(kzm9d_devices));
@@ -74,6 +84,7 @@ static const char *kzm9d_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(KZM9D_DT, "kzm9d")
+	.smp		= smp_ops(emev2_smp_ops),
 	.map_io		= emev2_map_io,
 	.init_early	= emev2_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,

@@ -16,7 +16,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 
 #include <linux/types.h>
 /*  ----------------------------------- Host OS */
@@ -328,7 +328,7 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 					   ul_num_bytes, mem_type);
 		return status;
 	}
-	/* copy the data from  DSP memory, */
+	/* copy the data from DSP memory */
 	memcpy(host_buff, (void *)(dsp_base_addr + offset), ul_num_bytes);
 	return status;
 }
@@ -415,10 +415,10 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Assert RST1 i.e only the RST only for DSP megacell */
 		if (!status) {
 			/*
-			 * XXX: ioremapping  MUST be removed once ctrl
+			 * XXX: OMAP343X_CTRL_BASE ioremapping  MUST be removed once ctrl
 			 * function is made available.
 			 */
-			void __iomem *ctrl = ioremap(OMAP343X_CTRL_BASE, SZ_4K);
+			void __iomem *ctrl = ioremap(0x48002000, SZ_4K);
 			if (!ctrl)
 				return -ENOMEM;
 
@@ -1547,20 +1547,27 @@ EXIT_LOOP:
 static u32 user_va2_pa(struct mm_struct *mm, u32 address)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
 	pgd = pgd_offset(mm, address);
-	if (!(pgd_none(*pgd) || pgd_bad(*pgd))) {
-		pmd = pmd_offset(pgd, address);
-		if (!(pmd_none(*pmd) || pmd_bad(*pmd))) {
-			ptep = pte_offset_map(pmd, address);
-			if (ptep) {
-				pte = *ptep;
-				if (pte_present(pte))
-					return pte & PAGE_MASK;
-			}
-		}
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		return 0;
+
+	pud = pud_offset(pgd, address);
+	if (pud_none(*pud) || pud_bad(*pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+
+	ptep = pte_offset_map(pmd, address);
+	if (ptep) {
+		pte = *ptep;
+		if (pte_present(pte))
+			return pte & PAGE_MASK;
 	}
 
 	return 0;
@@ -1738,7 +1745,7 @@ static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 	pa_next = page_to_phys(page[0]);
 	while (!status && (i < num_pages)) {
 		/*
-		 * Reuse pa_next from the previous iteraion to avoid
+		 * Reuse pa_next from the previous iteration to avoid
 		 * an extra va2pa call
 		 */
 		pa_curr = pa_next;

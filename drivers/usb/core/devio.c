@@ -47,6 +47,7 @@
 #include <linux/notifier.h>
 #include <linux/security.h>
 #include <linux/user_namespace.h>
+#include <linux/scatterlist.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/moduleparam.h>
@@ -55,6 +56,7 @@
 
 #define USB_MAXBUS			64
 #define USB_DEVICE_MAX			USB_MAXBUS * 128
+#define USB_SG_SIZE			16384 /* split-size for large txs */
 
 /* Mutual exclusion for removal, open, and release */
 DEFINE_MUTEX(usbfs_mutex);
@@ -285,9 +287,16 @@ static struct async *alloc_async(unsigned int numisoframes)
 
 static void free_async(struct async *as)
 {
+	int i;
+
 	put_pid(as->pid);
 	if (as->cred)
 		put_cred(as->cred);
+	for (i = 0; i < as->urb->num_sgs; i++) {
+		if (sg_page(&as->urb->sg[i]))
+			kfree(sg_virt(&as->urb->sg[i]));
+	}
+	kfree(as->urb->sg);
 	kfree(as->urb->transfer_buffer);
 	kfree(as->urb->setup_packet);
 	usb_free_urb(as->urb);
@@ -388,6 +397,53 @@ static void snoop_urb(struct usb_device *udev,
 	}
 }
 
+static void snoop_urb_data(struct urb *urb, unsigned len)
+{
+	int i, size;
+
+	if (!usbfs_snoop)
+		return;
+
+	if (urb->num_sgs == 0) {
+		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+			urb->transfer_buffer, len, 1);
+		return;
+	}
+
+	for (i = 0; i < urb->num_sgs && len; i++) {
+		size = (len > USB_SG_SIZE) ? USB_SG_SIZE : len;
+		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+			sg_virt(&urb->sg[i]), size, 1);
+		len -= size;
+	}
+}
+
+static int copy_urb_data_to_user(u8 __user *userbuffer, struct urb *urb)
+{
+	unsigned i, len, size;
+
+	if (urb->number_of_packets > 0)		/* Isochronous */
+		len = urb->transfer_buffer_length;
+	else					/* Non-Isoc */
+		len = urb->actual_length;
+
+	if (urb->num_sgs == 0) {
+		if (copy_to_user(userbuffer, urb->transfer_buffer, len))
+			return -EFAULT;
+		return 0;
+	}
+
+	for (i = 0; i < urb->num_sgs && len; i++) {
+		size = (len > USB_SG_SIZE) ? USB_SG_SIZE : len;
+		if (copy_to_user(userbuffer, sg_virt(&urb->sg[i]), size))
+			return -EFAULT;
+		userbuffer += size;
+		len -= size;
+	}
+
+	return 0;
+}
+
 #define AS_CONTINUATION	1
 #define AS_UNLINK	2
 
@@ -454,9 +510,10 @@ static void async_completed(struct urb *urb)
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb->dev, as->userurb, urb->pipe, urb->actual_length,
-			as->status, COMPLETE,
-			((urb->transfer_flags & URB_DIR_MASK) == USB_DIR_OUT) ?
-				NULL : urb->transfer_buffer, urb->actual_length);
+			as->status, COMPLETE, NULL, 0);
+	if ((urb->transfer_flags & URB_DIR_MASK) == USB_DIR_IN)
+		snoop_urb_data(urb, urb->actual_length);
+
 	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
 			as->status != -ENOENT)
 		cancel_bulk_urbs(ps, as->bulk_addr);
@@ -1114,8 +1171,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	struct async *as = NULL;
 	struct usb_ctrlrequest *dr = NULL;
 	unsigned int u, totlen, isofrmlen;
-	int ret, ifnum = -1;
-	int is_in;
+	int i, ret, is_in, num_sgs = 0, ifnum = -1;
+	void *buf;
 
 	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP |
 				USBDEVFS_URB_SHORT_NOT_OK |
@@ -1199,6 +1256,9 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			goto interrupt_urb;
 		}
 		uurb->number_of_packets = 0;
+		num_sgs = DIV_ROUND_UP(uurb->buffer_length, USB_SG_SIZE);
+		if (num_sgs == 1 || num_sgs > ps->dev->bus->sg_tablesize)
+			num_sgs = 0;
 		break;
 
 	case USBDEVFS_URB_TYPE_INTERRUPT:
@@ -1255,26 +1315,67 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		ret = -ENOMEM;
 		goto error;
 	}
-	u += sizeof(struct async) + sizeof(struct urb) + uurb->buffer_length;
+
+	u += sizeof(struct async) + sizeof(struct urb) + uurb->buffer_length +
+	     num_sgs * sizeof(struct scatterlist);
 	ret = usbfs_increase_memory_usage(u);
 	if (ret)
 		goto error;
 	as->mem_usage = u;
 
-	if (uurb->buffer_length > 0) {
+	if (num_sgs) {
+		as->urb->sg = kmalloc(num_sgs * sizeof(struct scatterlist),
+				      GFP_KERNEL);
+		if (!as->urb->sg) {
+			ret = -ENOMEM;
+			goto error;
+		}
+		as->urb->num_sgs = num_sgs;
+		sg_init_table(as->urb->sg, as->urb->num_sgs);
+
+		totlen = uurb->buffer_length;
+		for (i = 0; i < as->urb->num_sgs; i++) {
+			u = (totlen > USB_SG_SIZE) ? USB_SG_SIZE : totlen;
+			buf = kmalloc(u, GFP_KERNEL);
+			if (!buf) {
+				ret = -ENOMEM;
+				goto error;
+			}
+			sg_set_buf(&as->urb->sg[i], buf, u);
+
+			if (!is_in) {
+				if (copy_from_user(buf, uurb->buffer, u)) {
+					ret = -EFAULT;
+					goto error;
+				}
+			}
+			totlen -= u;
+		}
+	} else if (uurb->buffer_length > 0) {
 		as->urb->transfer_buffer = kmalloc(uurb->buffer_length,
 				GFP_KERNEL);
 		if (!as->urb->transfer_buffer) {
 			ret = -ENOMEM;
 			goto error;
 		}
-		/* Isochronous input data may end up being discontiguous
-		 * if some of the packets are short.  Clear the buffer so
-		 * that the gaps don't leak kernel data to userspace.
-		 */
-		if (is_in && uurb->type == USBDEVFS_URB_TYPE_ISO)
+
+		if (!is_in) {
+			if (copy_from_user(as->urb->transfer_buffer,
+					   uurb->buffer,
+					   uurb->buffer_length)) {
+				ret = -EFAULT;
+				goto error;
+			}
+		} else if (uurb->type == USBDEVFS_URB_TYPE_ISO) {
+			/*
+			 * Isochronous input data may end up being
+			 * discontiguous if some of the packets are short.
+			 * Clear the buffer so that the gaps don't leak
+			 * kernel data to userspace.
+			 */
 			memset(as->urb->transfer_buffer, 0,
 					uurb->buffer_length);
+		}
 	}
 	as->urb->dev = ps->dev;
 	as->urb->pipe = (uurb->type << 30) |
@@ -1328,17 +1429,12 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->pid = get_pid(task_pid(current));
 	as->cred = get_current_cred();
 	security_task_getsecid(current, &as->secid);
-	if (!is_in && uurb->buffer_length > 0) {
-		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer,
-				uurb->buffer_length)) {
-			ret = -EFAULT;
-			goto error;
-		}
-	}
 	snoop_urb(ps->dev, as->userurb, as->urb->pipe,
 			as->urb->transfer_buffer_length, 0, SUBMIT,
-			is_in ? NULL : as->urb->transfer_buffer,
-				uurb->buffer_length);
+			NULL, 0);
+	if (!is_in)
+		snoop_urb_data(as->urb, as->urb->transfer_buffer_length);
+
 	async_newpending(as);
 
 	if (usb_endpoint_xfer_bulk(&ep->desc)) {
@@ -1433,11 +1529,7 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	unsigned int i;
 
 	if (as->userbuffer && urb->actual_length) {
-		if (urb->number_of_packets > 0)		/* Isochronous */
-			i = urb->transfer_buffer_length;
-		else					/* Non-Isoc */
-			i = urb->actual_length;
-		if (copy_to_user(as->userbuffer, urb->transfer_buffer, i))
+		if (copy_urb_data_to_user(as->userbuffer, urb))
 			goto err_out;
 	}
 	if (put_user(as->status, &userurb->status))
@@ -1604,10 +1696,10 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	void __user *addr = as->userurb;
 	unsigned int i;
 
-	if (as->userbuffer && urb->actual_length)
-		if (copy_to_user(as->userbuffer, urb->transfer_buffer,
-				 urb->actual_length))
+	if (as->userbuffer && urb->actual_length) {
+		if (copy_urb_data_to_user(as->userbuffer, urb))
 			return -EFAULT;
+	}
 	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
 	if (put_user(urb->actual_length, &userurb->actual_length))
@@ -1820,6 +1912,54 @@ static int proc_release_port(struct dev_state *ps, void __user *arg)
 	return usb_hub_release_port(ps->dev, portnum, ps);
 }
 
+static int proc_get_capabilities(struct dev_state *ps, void __user *arg)
+{
+	__u32 caps;
+
+	caps = USBDEVFS_CAP_ZERO_PACKET | USBDEVFS_CAP_NO_PACKET_SIZE_LIM;
+	if (!ps->dev->bus->no_stop_on_short)
+		caps |= USBDEVFS_CAP_BULK_CONTINUATION;
+	if (ps->dev->bus->sg_tablesize)
+		caps |= USBDEVFS_CAP_BULK_SCATTER_GATHER;
+
+	if (put_user(caps, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int proc_disconnect_claim(struct dev_state *ps, void __user *arg)
+{
+	struct usbdevfs_disconnect_claim dc;
+	struct usb_interface *intf;
+
+	if (copy_from_user(&dc, arg, sizeof(dc)))
+		return -EFAULT;
+
+	intf = usb_ifnum_to_if(ps->dev, dc.interface);
+	if (!intf)
+		return -EINVAL;
+
+	if (intf->dev.driver) {
+		struct usb_driver *driver = to_usb_driver(intf->dev.driver);
+
+		if ((dc.flags & USBDEVFS_DISCONNECT_CLAIM_IF_DRIVER) &&
+				strncmp(dc.driver, intf->dev.driver->name,
+					sizeof(dc.driver)) != 0)
+			return -EBUSY;
+
+		if ((dc.flags & USBDEVFS_DISCONNECT_CLAIM_EXCEPT_DRIVER) &&
+				strncmp(dc.driver, intf->dev.driver->name,
+					sizeof(dc.driver)) == 0)
+			return -EBUSY;
+
+		dev_dbg(&intf->dev, "disconnect by usbfs\n");
+		usb_driver_release_interface(driver, intf);
+	}
+
+	return claimintf(ps, dc.interface);
+}
+
 /*
  * NOTE:  All requests here that have interface numbers as parameters
  * are assuming that somehow the configuration has been prevented from
@@ -1989,6 +2129,12 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 	case USBDEVFS_RELEASE_PORT:
 		snoop(&dev->dev, "%s: RELEASE_PORT\n", __func__);
 		ret = proc_release_port(ps, p);
+		break;
+	case USBDEVFS_GET_CAPABILITIES:
+		ret = proc_get_capabilities(ps, p);
+		break;
+	case USBDEVFS_DISCONNECT_CLAIM:
+		ret = proc_disconnect_claim(ps, p);
 		break;
 	}
 	usb_unlock_device(dev);

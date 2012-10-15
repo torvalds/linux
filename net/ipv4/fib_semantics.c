@@ -140,6 +140,21 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
+static void rt_fibinfo_free(struct rtable __rcu **rtp)
+{
+	struct rtable *rt = rcu_dereference_protected(*rtp, 1);
+
+	if (!rt)
+		return;
+
+	/* Not even needed : RCU_INIT_POINTER(*rtp, NULL);
+	 * because we waited an RCU grace period before calling
+	 * free_fib_info_rcu()
+	 */
+
+	dst_free(&rt->dst);
+}
+
 static void free_nh_exceptions(struct fib_nh *nh)
 {
 	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
@@ -153,12 +168,32 @@ static void free_nh_exceptions(struct fib_nh *nh)
 			struct fib_nh_exception *next;
 			
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
+
+			rt_fibinfo_free(&fnhe->fnhe_rth);
+
 			kfree(fnhe);
 
 			fnhe = next;
 		}
 	}
 	kfree(hash);
+}
+
+static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
+{
+	int cpu;
+
+	if (!rtp)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct rtable *rt;
+
+		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
+		if (rt)
+			dst_free(&rt->dst);
+	}
+	free_percpu(rtp);
 }
 
 /* Release a nexthop info record */
@@ -171,10 +206,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 			dev_put(nexthop_nh->nh_dev);
 		if (nexthop_nh->nh_exceptions)
 			free_nh_exceptions(nexthop_nh);
-		if (nexthop_nh->nh_rth_output)
-			dst_release(&nexthop_nh->nh_rth_output->dst);
-		if (nexthop_nh->nh_rth_input)
-			dst_release(&nexthop_nh->nh_rth_input->dst);
+		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
+		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);
@@ -281,6 +314,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 		    nfi->fib_scope == fi->fib_scope &&
 		    nfi->fib_prefsrc == fi->fib_prefsrc &&
 		    nfi->fib_priority == fi->fib_priority &&
+		    nfi->fib_type == fi->fib_type &&
 		    memcmp(nfi->fib_metrics, fi->fib_metrics,
 			   sizeof(u32) * RTAX_MAX) == 0 &&
 		    ((nfi->fib_flags ^ fi->fib_flags) & ~RTNH_F_DEAD) == 0 &&
@@ -358,7 +392,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	if (skb == NULL)
 		goto errout;
 
-	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
+	err = fib_dump_info(skb, info->portid, seq, event, tb_id,
 			    fa->fa_type, key, dst_len,
 			    fa->fa_tos, fa->fa_info, nlm_flags);
 	if (err < 0) {
@@ -367,7 +401,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, info->nl_net, info->pid, RTNLGRP_IPV4_ROUTE,
+	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV4_ROUTE,
 		    info->nlh, GFP_KERNEL);
 	return;
 errout:
@@ -800,10 +834,12 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_flags = cfg->fc_flags;
 	fi->fib_priority = cfg->fc_priority;
 	fi->fib_prefsrc = cfg->fc_prefsrc;
+	fi->fib_type = cfg->fc_type;
 
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
+		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {
@@ -955,14 +991,14 @@ failure:
 	return ERR_PTR(err);
 }
 
-int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		  u32 tb_id, u8 type, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*rtm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 

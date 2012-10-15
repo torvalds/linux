@@ -180,7 +180,7 @@ static inline unsigned int total_nr_queued(struct throtl_data *td)
 
 /*
  * Worker for allocating per cpu stat for tgs. This is scheduled on the
- * system_nrt_wq once there are some groups on the alloc_list waiting for
+ * system_wq once there are some groups on the alloc_list waiting for
  * allocation.
  */
 static void tg_stats_alloc_fn(struct work_struct *work)
@@ -194,8 +194,7 @@ alloc_stats:
 		stats_cpu = alloc_percpu(struct tg_stats_cpu);
 		if (!stats_cpu) {
 			/* allocation failed, try again after some time */
-			queue_delayed_work(system_nrt_wq, dwork,
-					   msecs_to_jiffies(10));
+			schedule_delayed_work(dwork, msecs_to_jiffies(10));
 			return;
 		}
 	}
@@ -238,7 +237,7 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	 */
 	spin_lock_irqsave(&tg_stats_alloc_lock, flags);
 	list_add(&tg->stats_alloc_node, &tg_stats_alloc_list);
-	queue_delayed_work(system_nrt_wq, &tg_stats_alloc_work, 0);
+	schedule_delayed_work(&tg_stats_alloc_work, 0);
 	spin_unlock_irqrestore(&tg_stats_alloc_lock, flags);
 }
 
@@ -930,12 +929,7 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 
 	/* schedule work if limits changed even if no bio is queued */
 	if (total_nr_queued(td) || td->limits_changed) {
-		/*
-		 * We might have a work scheduled to be executed in future.
-		 * Cancel that and schedule a new one.
-		 */
-		__cancel_delayed_work(dwork);
-		queue_delayed_work(kthrotld_workqueue, dwork, delay);
+		mod_delayed_work(kthrotld_workqueue, dwork, delay);
 		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
 				delay, jiffies);
 	}
@@ -1122,9 +1116,6 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 		bio->bi_rw &= ~REQ_THROTTLED;
 		goto out;
 	}
-
-	/* bio_associate_current() needs ioc, try creating */
-	create_io_context(GFP_ATOMIC, q->node);
 
 	/*
 	 * A throtl_grp pointer retrieved under rcu can be used to access

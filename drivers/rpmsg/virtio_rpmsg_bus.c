@@ -956,7 +956,8 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	vrp->svq = vqs[1];
 
 	/* allocate coherent memory for the buffers */
-	bufs_va = dma_alloc_coherent(vdev->dev.parent, RPMSG_TOTAL_BUF_SPACE,
+	bufs_va = dma_alloc_coherent(vdev->dev.parent->parent,
+				RPMSG_TOTAL_BUF_SPACE,
 				&vrp->bufs_dma, GFP_KERNEL);
 	if (!bufs_va)
 		goto vqs_del;
@@ -1007,8 +1008,8 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	return 0;
 
 free_coherent:
-	dma_free_coherent(vdev->dev.parent, RPMSG_TOTAL_BUF_SPACE, bufs_va,
-					vrp->bufs_dma);
+	dma_free_coherent(vdev->dev.parent->parent, RPMSG_TOTAL_BUF_SPACE,
+					bufs_va, vrp->bufs_dma);
 vqs_del:
 	vdev->config->del_vqs(vrp->vdev);
 free_vrp:
@@ -1042,7 +1043,7 @@ static void __devexit rpmsg_remove(struct virtio_device *vdev)
 
 	vdev->config->del_vqs(vrp->vdev);
 
-	dma_free_coherent(vdev->dev.parent, RPMSG_TOTAL_BUF_SPACE,
+	dma_free_coherent(vdev->dev.parent->parent, RPMSG_TOTAL_BUF_SPACE,
 					vrp->rbufs, vrp->bufs_dma);
 
 	kfree(vrp);

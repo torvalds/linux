@@ -78,6 +78,9 @@ struct ieee1394_device_id {
  *	of a given interface; other interfaces may support other classes.
  * @bInterfaceSubClass: Subclass of interface; associated with bInterfaceClass.
  * @bInterfaceProtocol: Protocol of interface; associated with bInterfaceClass.
+ * @bInterfaceNumber: Number of interface; composite devices may use
+ *	fixed interface numbers to differentiate between vendor-specific
+ *	interfaces.
  * @driver_info: Holds information used by the driver.  Usually it holds
  *	a pointer to a descriptor understood by the driver, or perhaps
  *	device flags.
@@ -115,8 +118,12 @@ struct usb_device_id {
 	__u8		bInterfaceSubClass;
 	__u8		bInterfaceProtocol;
 
+	/* Used for vendor-specific interface matches */
+	__u8		bInterfaceNumber;
+
 	/* not matched against */
-	kernel_ulong_t	driver_info;
+	kernel_ulong_t	driver_info
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
 /* Some useful macros to use to create struct usb_device_id */
@@ -130,6 +137,7 @@ struct usb_device_id {
 #define USB_DEVICE_ID_MATCH_INT_CLASS		0x0080
 #define USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
+#define USB_DEVICE_ID_MATCH_INT_NUMBER		0x0400
 
 #define HID_ANY_ID				(~0)
 #define HID_BUS_ANY				0xffff
@@ -224,7 +232,7 @@ struct of_device_id
 	char	type[32];
 	char	compatible[128];
 #ifdef __KERNEL__
-	void	*data;
+	const void *data;
 #else
 	kernel_ulong_t data;
 #endif
@@ -591,5 +599,13 @@ struct x86_cpu_id {
 #define X86_FAMILY_ANY 0
 #define X86_MODEL_ANY  0
 #define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
+
+#define IPACK_ANY_FORMAT 0xff
+#define IPACK_ANY_ID (~0)
+struct ipack_device_id {
+	__u8  format;			/* Format version or IPACK_ANY_ID */
+	__u32 vendor;			/* Vendor ID or IPACK_ANY_ID */
+	__u32 device;			/* Device ID or IPACK_ANY_ID */
+};
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

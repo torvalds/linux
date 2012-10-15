@@ -1,6 +1,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/cpumask.h>
 #include <linux/errno.h>
+#include <linux/msi.h>
+
+#include <asm/hw_irq.h>
+#include <asm/irq_remapping.h>
 
 #include "irq_remapping.h"
 

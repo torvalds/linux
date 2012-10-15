@@ -1236,7 +1236,7 @@ static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 }
 
 static int pch_udc_start(struct usb_gadget_driver *driver,
-	int (*bind)(struct usb_gadget *));
+	int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int pch_udc_stop(struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops pch_udc_ops = {
 	.get_frame = pch_udc_pcd_get_frame,
@@ -2208,7 +2208,7 @@ static void pch_udc_complete_receiver(struct pch_udc_ep *ep)
 			return;
 		}
 		if ((td->status & PCH_UDC_BUFF_STS) == PCH_UDC_BS_DMA_DONE)
-			if (td->status | PCH_UDC_DMA_LAST) {
+			if (td->status & PCH_UDC_DMA_LAST) {
 				count = td->status & PCH_UDC_RXTX_BYTES;
 				break;
 			}
@@ -2982,7 +2982,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 }
 
 static int pch_udc_start(struct usb_gadget_driver *driver,
-	int (*bind)(struct usb_gadget *))
+	int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct pch_udc_dev	*dev = pch_udc;
 	int			retval;
@@ -3006,7 +3006,7 @@ static int pch_udc_start(struct usb_gadget_driver *driver,
 	dev->gadget.dev.driver = &driver->driver;
 
 	/* Invoke the bind routine of the gadget driver */
-	retval = bind(&dev->gadget);
+	retval = bind(&dev->gadget, driver);
 
 	if (retval) {
 		dev_err(&dev->pdev->dev, "%s: binding to %s returning %d\n",

@@ -18,6 +18,7 @@
 #include "super.h"
 #include "mds_client.h"
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/decode.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>

@@ -30,18 +30,18 @@
 #include <linux/omapfb.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/flash.h>
-#include <plat/mux.h>
+#include <mach/flash.h>
+#include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/board.h>
-#include <plat/irda.h>
-#include <plat/keypad.h>
+#include <mach/irda.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
@@ -288,8 +288,7 @@ palmz71_gpio_setup(int early)
 		}
 		gpio_direction_input(PALMZ71_USBDETECT_GPIO);
 		if (request_irq(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
-				palmz71_powercable, IRQF_SAMPLE_RANDOM,
-				"palmz71-cable", NULL))
+				palmz71_powercable, 0, "palmz71-cable", NULL))
 			printk(KERN_ERR
 					"IRQ request for power cable failed!\n");
 		palmz71_powercable(gpio_to_irq(PALMZ71_USBDETECT_GPIO), NULL);

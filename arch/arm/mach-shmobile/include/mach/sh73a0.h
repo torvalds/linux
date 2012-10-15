@@ -516,6 +516,13 @@ enum {
 	SHDMA_SLAVE_SDHI2_RX,
 	SHDMA_SLAVE_MMCIF_TX,
 	SHDMA_SLAVE_MMCIF_RX,
+	SHDMA_SLAVE_FSI2A_TX,
+	SHDMA_SLAVE_FSI2A_RX,
+	SHDMA_SLAVE_FSI2B_TX,
+	SHDMA_SLAVE_FSI2B_RX,
+	SHDMA_SLAVE_FSI2C_TX,
+	SHDMA_SLAVE_FSI2C_RX,
+	SHDMA_SLAVE_FSI2D_RX,
 };
 
 /*
@@ -549,5 +556,7 @@ enum {
 /* PINT interrupts are located at Linux IRQ 700 and up */
 #define SH73A0_PINT0_IRQ(irq) ((irq) + 700)
 #define SH73A0_PINT1_IRQ(irq) ((irq) + 732)
+
+extern struct smp_operations sh73a0_smp_ops;
 
 #endif /* __ASM_SH73A0_H__ */

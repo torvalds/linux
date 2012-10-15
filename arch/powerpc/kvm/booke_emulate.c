@@ -24,6 +24,7 @@
 #include "booke.h"
 
 #define OP_19_XOP_RFI     50
+#define OP_19_XOP_RFCI    51
 
 #define OP_31_XOP_MFMSR   83
 #define OP_31_XOP_WRTEE   131
@@ -34,6 +35,12 @@ static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pc = vcpu->arch.shared->srr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
+}
+
+static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.pc = vcpu->arch.csrr0;
+	kvmppc_set_msr(vcpu, vcpu->arch.csrr1);
 }
 
 int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -49,6 +56,12 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case OP_19_XOP_RFI:
 			kvmppc_emul_rfi(vcpu);
 			kvmppc_set_exit_type(vcpu, EMULATED_RFI_EXITS);
+			*advance = 0;
+			break;
+
+		case OP_19_XOP_RFCI:
+			kvmppc_emul_rfci(vcpu);
+			kvmppc_set_exit_type(vcpu, EMULATED_RFCI_EXITS);
 			*advance = 0;
 			break;
 
@@ -113,6 +126,12 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_ESR:
 		vcpu->arch.shared->esr = spr_val;
 		break;
+	case SPRN_CSRR0:
+		vcpu->arch.csrr0 = spr_val;
+		break;
+	case SPRN_CSRR1:
+		vcpu->arch.csrr1 = spr_val;
+		break;
 	case SPRN_DBCR0:
 		vcpu->arch.dbcr0 = spr_val;
 		break;
@@ -129,6 +148,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 
+	case SPRN_DECAR:
+		vcpu->arch.decar = spr_val;
+		break;
 	/*
 	 * Note: SPRG4-7 are user-readable.
 	 * These values are loaded into the real SPRGs when resuming the
@@ -228,6 +250,12 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		break;
 	case SPRN_ESR:
 		*spr_val = vcpu->arch.shared->esr;
+		break;
+	case SPRN_CSRR0:
+		*spr_val = vcpu->arch.csrr0;
+		break;
+	case SPRN_CSRR1:
+		*spr_val = vcpu->arch.csrr1;
 		break;
 	case SPRN_DBCR0:
 		*spr_val = vcpu->arch.dbcr0;

@@ -2984,8 +2984,8 @@ static int get_command(char *pos, Scsi_Cmnd * ptr)
 	char *start = pos;
 	int i;
 
-	SPRINTF("0x%08x: target=%d; lun=%d; cmnd=( ",
-		(unsigned int) ptr, ptr->device->id, ptr->device->lun);
+	SPRINTF("%p: target=%d; lun=%d; cmnd=( ",
+		ptr, ptr->device->id, ptr->device->lun);
 
 	for (i = 0; i < COMMAND_SIZE(ptr->cmnd[0]); i++)
 		SPRINTF("0x%02x ", ptr->cmnd[i]);

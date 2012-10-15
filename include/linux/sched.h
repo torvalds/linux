@@ -273,11 +273,11 @@ extern void init_idle_bootup_task(struct task_struct *idle);
 extern int runqueue_is_locked(int cpu);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ)
-extern void select_nohz_load_balancer(int stop_tick);
+extern void nohz_balance_enter_idle(int cpu);
 extern void set_cpu_sd_state_idle(void);
 extern int get_nohz_timer_target(void);
 #else
-static inline void select_nohz_load_balancer(int stop_tick) { }
+static inline void nohz_balance_enter_idle(int cpu) { }
 static inline void set_cpu_sd_state_idle(void) { }
 #endif
 
@@ -406,6 +406,11 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm) {}
 extern void set_dumpable(struct mm_struct *mm, int value);
 extern int get_dumpable(struct mm_struct *mm);
 
+/* get/set_dumpable() values */
+#define SUID_DUMPABLE_DISABLED	0
+#define SUID_DUMPABLE_ENABLED	1
+#define SUID_DUMPABLE_SAFE	2
+
 /* mm flags */
 /* dumpable bits */
 #define MMF_DUMPABLE      0  /* core dump is permitted */
@@ -440,6 +445,9 @@ extern int get_dumpable(struct mm_struct *mm);
 #define MMF_VM_MERGEABLE	16	/* KSM may merge identical pages */
 #define MMF_VM_HUGEPAGE		17	/* set when VM_HUGEPAGE is set on vma */
 #define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
+
+#define MMF_HAS_UPROBES		19	/* has uprobes */
+#define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
 
 #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
 
@@ -673,11 +681,6 @@ struct signal_struct {
 					 * (notably. ptrace) */
 };
 
-/* Context switch must be unlocked if interrupts are to be enabled */
-#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-# define __ARCH_WANT_UNLOCKED_CTXSW
-#endif
-
 /*
  * Bits in flags field of signal_struct.
  */
@@ -855,7 +858,6 @@ enum cpu_idle_type {
 #define SD_BALANCE_FORK		0x0008	/* Balance on fork, clone */
 #define SD_BALANCE_WAKE		0x0010  /* Balance on wakeup */
 #define SD_WAKE_AFFINE		0x0020	/* Wake task to waking CPU */
-#define SD_PREFER_LOCAL		0x0040  /* Prefer to keep tasks local to this domain */
 #define SD_SHARE_CPUPOWER	0x0080	/* Domain members share cpu power */
 #define SD_SHARE_PKG_RESOURCES	0x0200	/* Domain members share cpu pkg resources */
 #define SD_SERIALIZE		0x0400	/* Only a single load balancing instance */
@@ -1244,6 +1246,9 @@ struct task_struct {
 	const struct sched_class *sched_class;
 	struct sched_entity se;
 	struct sched_rt_entity rt;
+#ifdef CONFIG_CGROUP_SCHED
+	struct task_group *sched_task_group;
+#endif
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	/* list of struct preempt_notifier: */
@@ -1409,7 +1414,7 @@ struct task_struct {
 
 	struct audit_context *audit_context;
 #ifdef CONFIG_AUDITSYSCALL
-	uid_t loginuid;
+	kuid_t loginuid;
 	unsigned int sessionid;
 #endif
 	struct seccomp seccomp;
@@ -1521,6 +1526,9 @@ struct task_struct {
 	 * cache last used pipe for splice
 	 */
 	struct pipe_inode_info *splice_pipe;
+
+	struct page_frag task_frag;
+
 #ifdef	CONFIG_TASK_DELAY_ACCT
 	struct task_delay_info *delays;
 #endif
@@ -1567,7 +1575,7 @@ struct task_struct {
 	/* bitmask and counter of trace recursion */
 	unsigned long trace_recursion;
 #endif /* CONFIG_TRACING */
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR /* memcg uses this to do batch job */
+#ifdef CONFIG_MEMCG /* memcg uses this to do batch job */
 	struct memcg_batch_info {
 		int do_batch;	/* incremented when batch uncharge started */
 		struct mem_cgroup *memcg; /* target memcg of uncharge */
@@ -1876,6 +1884,21 @@ static inline void rcu_copy_process(struct task_struct *p)
 }
 
 #endif
+
+static inline void rcu_switch(struct task_struct *prev,
+			      struct task_struct *next)
+{
+#ifdef CONFIG_RCU_USER_QS
+	rcu_user_hooks_switch(prev, next);
+#endif
+}
+
+static inline void tsk_restore_flags(struct task_struct *task,
+				unsigned long orig_flags, unsigned long flags)
+{
+	task->flags &= ~flags;
+	task->flags |= orig_flags & flags;
+}
 
 #ifdef CONFIG_SMP
 extern void do_set_cpus_allowed(struct task_struct *p,
@@ -2721,7 +2744,7 @@ extern int sched_group_set_rt_period(struct task_group *tg,
 extern long sched_group_rt_period(struct task_group *tg);
 extern int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk);
 #endif
-#endif
+#endif /* CONFIG_CGROUP_SCHED */
 
 extern int task_can_switch_user(struct user_struct *up,
 					struct task_struct *tsk);

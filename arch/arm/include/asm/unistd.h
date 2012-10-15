@@ -404,6 +404,7 @@
 #define __NR_setns			(__NR_SYSCALL_BASE+375)
 #define __NR_process_vm_readv		(__NR_SYSCALL_BASE+376)
 #define __NR_process_vm_writev		(__NR_SYSCALL_BASE+377)
+					/* 378 for kcmp */
 
 /*
  * The following SWIs are ARM private.
@@ -446,7 +447,6 @@
 
 #ifdef __KERNEL__
 
-#define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
@@ -484,6 +484,7 @@
  */
 #define __IGNORE_fadvise64_64
 #define __IGNORE_migrate_pages
+#define __IGNORE_kcmp
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

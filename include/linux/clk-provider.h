@@ -25,6 +25,8 @@
 #define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
 #define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
 #define CLK_IS_ROOT		BIT(4) /* root clk, has no parent */
+#define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
+#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 
 struct clk_hw;
 
@@ -143,7 +145,7 @@ struct clk_init_data {
  */
 struct clk_hw {
 	struct clk *clk;
-	struct clk_init_data *init;
+	const struct clk_init_data *init;
 };
 
 /*
@@ -170,6 +172,8 @@ extern const struct clk_ops clk_fixed_rate_ops;
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate);
+
+void of_fixed_clk_setup(struct device_node *np);
 
 /**
  * struct clk_gate - gating clock
@@ -203,6 +207,11 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 		void __iomem *reg, u8 bit_idx,
 		u8 clk_gate_flags, spinlock_t *lock);
 
+struct clk_div_table {
+	unsigned int	val;
+	unsigned int	div;
+};
+
 /**
  * struct clk_divider - adjustable divider clock
  *
@@ -210,6 +219,7 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @reg:	register containing the divider
  * @shift:	shift to the divider bit field
  * @width:	width of the divider bit field
+ * @table:	array of value/divider pairs, last entry should have div = 0
  * @lock:	register lock
  *
  * Clock with an adjustable divider affecting its output frequency.  Implements
@@ -229,6 +239,7 @@ struct clk_divider {
 	u8		shift;
 	u8		width;
 	u8		flags;
+	const struct clk_div_table	*table;
 	spinlock_t	*lock;
 };
 
@@ -240,6 +251,11 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_divider_flags, spinlock_t *lock);
+struct clk *clk_register_divider_table(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		void __iomem *reg, u8 shift, u8 width,
+		u8 clk_divider_flags, const struct clk_div_table *table,
+		spinlock_t *lock);
 
 /**
  * struct clk_mux - multiplexer clock
@@ -333,6 +349,25 @@ int __clk_prepare(struct clk *clk);
 void __clk_unprepare(struct clk *clk);
 void __clk_reparent(struct clk *clk, struct clk *new_parent);
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate);
+
+struct of_device_id;
+
+typedef void (*of_clk_init_cb_t)(struct device_node *);
+
+int of_clk_add_provider(struct device_node *np,
+			struct clk *(*clk_src_get)(struct of_phandle_args *args,
+						   void *data),
+			void *data);
+void of_clk_del_provider(struct device_node *np);
+struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
+				  void *data);
+struct clk_onecell_data {
+	struct clk **clks;
+	unsigned int clk_num;
+};
+struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
+const char *of_clk_get_parent_name(struct device_node *np, int index);
+void of_clk_init(const struct of_device_id *matches);
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */

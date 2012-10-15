@@ -28,9 +28,9 @@
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDbSoftwareReset - Sortware reset NIC
- *      CARDqGetTSFOffset - Caculate TSFOffset
+ *      CARDqGetTSFOffset - Calculate TSFOffset
  *      CARDbGetCurrentTSF - Read Current NIC TSF counter
- *      CARDqGetNextTBTT - Caculate Next Beacon TSF counter
+ *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
@@ -40,7 +40,7 @@
  *
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
- *      08-26-2003 Kyle Hsu:      Modify the defination type of dwIoBase.
+ *      08-26-2003 Kyle Hsu:      Modify the definition type of dwIoBase.
  *      09-01-2003 Bryan YC Fan:  Add vUpdateIFS().
  *
  */
@@ -66,7 +66,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 /*---------------------  Static Definitions -------------------------*/
-#define CB_TXPOWER_LEVEL            6
 
 /*---------------------  Static Classes  ----------------------------*/
 
@@ -201,7 +200,7 @@ static WORD swGetOFDMControlRate(void *pDeviceHandler, WORD wRateIdx)
 }
 
 /*
- * Description: Caculate TxRate and RsvTime fields for RSPINF in OFDM mode.
+ * Description: Calculate TxRate and RsvTime fields for RSPINF in OFDM mode.
  *
  * Parameters:
  *  In:
@@ -215,7 +214,7 @@ static WORD swGetOFDMControlRate(void *pDeviceHandler, WORD wRateIdx)
  *
  */
 void
-CARDvCaculateOFDMRParameter (
+CARDvCalculateOFDMRParameter (
       WORD wRate,
       BYTE byBBType,
      PBYTE pbyTxRate,
@@ -338,7 +337,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     int     i;
 
     //RSPINF_b_1
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_1M),
                          PK_TYPE_11B,
@@ -348,7 +347,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     ///RSPINF_b_2
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_2M),
                          PK_TYPE_11B,
@@ -358,7 +357,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_b_5
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_5M),
                          PK_TYPE_11B,
@@ -368,7 +367,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_b_11
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_11M),
                          PK_TYPE_11B,
@@ -378,55 +377,55 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_a_6
-    CARDvCaculateOFDMRParameter (RATE_6M,
+    CARDvCalculateOFDMRParameter (RATE_6M,
                                  byBBType,
                                  &abyTxRate[0],
                                  &abyRsvTime[0]);
 
     //RSPINF_a_9
-    CARDvCaculateOFDMRParameter (RATE_9M,
+    CARDvCalculateOFDMRParameter (RATE_9M,
                                  byBBType,
                                  &abyTxRate[1],
                                  &abyRsvTime[1]);
 
     //RSPINF_a_12
-    CARDvCaculateOFDMRParameter (RATE_12M,
+    CARDvCalculateOFDMRParameter (RATE_12M,
                                  byBBType,
                                  &abyTxRate[2],
                                  &abyRsvTime[2]);
 
     //RSPINF_a_18
-    CARDvCaculateOFDMRParameter (RATE_18M,
+    CARDvCalculateOFDMRParameter (RATE_18M,
                                  byBBType,
                                  &abyTxRate[3],
                                  &abyRsvTime[3]);
 
     //RSPINF_a_24
-    CARDvCaculateOFDMRParameter (RATE_24M,
+    CARDvCalculateOFDMRParameter (RATE_24M,
                                  byBBType,
                                  &abyTxRate[4],
                                  &abyRsvTime[4]);
 
     //RSPINF_a_36
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_36M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_36M),
                                  byBBType,
                                  &abyTxRate[5],
                                  &abyRsvTime[5]);
 
     //RSPINF_a_48
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_48M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_48M),
                                  byBBType,
                                  &abyTxRate[6],
                                  &abyRsvTime[6]);
 
     //RSPINF_a_54
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
                                  byBBType,
                                  &abyTxRate[7],
                                  &abyRsvTime[7]);
 
     //RSPINF_a_72
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
                                  byBBType,
                                  &abyTxRate[8],
                                  &abyRsvTime[8]);
@@ -641,7 +640,7 @@ BYTE CARDbyGetPktType(void *pDeviceHandler)
 
 
 /*
- * Description: Caculate TSF offset of two TSF input
+ * Description: Calculate TSF offset of two TSF input
  *              Get TSF Offset from RxBCN's TSF and local TSF
  *
  * Parameters:

@@ -612,9 +612,9 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(mapping->host);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
+	unsigned requested = 0;
 	int alloc_required;
 	int error = 0;
-	struct gfs2_qadata *qa = NULL;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	struct page *page;
@@ -638,17 +638,12 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
 
 	if (alloc_required) {
-		qa = gfs2_qadata_get(ip);
-		if (!qa) {
-			error = -ENOMEM;
-			goto out_unlock;
-		}
-
 		error = gfs2_quota_lock_check(ip);
 		if (error)
-			goto out_alloc_put;
+			goto out_unlock;
 
-		error = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
+		requested = data_blocks + ind_blocks;
+		error = gfs2_inplace_reserve(ip, requested);
 		if (error)
 			goto out_qunlock;
 	}
@@ -661,7 +656,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	if (&ip->i_inode == sdp->sd_rindex)
 		rblocks += 2 * RES_STATFS;
 	if (alloc_required)
-		rblocks += gfs2_rg_blocks(ip);
+		rblocks += gfs2_rg_blocks(ip, requested);
 
 	error = gfs2_trans_begin(sdp, rblocks,
 				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
@@ -708,8 +703,6 @@ out_trans_fail:
 		gfs2_inplace_release(ip);
 out_qunlock:
 		gfs2_quota_unlock(ip);
-out_alloc_put:
-		gfs2_qadata_put(ip);
 	}
 out_unlock:
 	if (&ip->i_inode == sdp->sd_rindex) {
@@ -846,7 +839,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct buffer_head *dibh;
-	struct gfs2_qadata *qa = ip->i_qadata;
 	unsigned int from = pos & (PAGE_CACHE_SIZE - 1);
 	unsigned int to = from + len;
 	int ret;
@@ -878,12 +870,9 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	brelse(dibh);
 failed:
 	gfs2_trans_end(sdp);
-	if (ip->i_res)
-		gfs2_inplace_release(ip);
-	if (qa) {
+	gfs2_inplace_release(ip);
+	if (ip->i_res->rs_qa_qd_num)
 		gfs2_quota_unlock(ip);
-		gfs2_qadata_put(ip);
-	}
 	if (inode == sdp->sd_rindex) {
 		gfs2_glock_dq(&m_ip->i_gh);
 		gfs2_holder_uninit(&m_ip->i_gh);
@@ -1035,7 +1024,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 				  offset, nr_segs, gfs2_get_block_direct,
 				  NULL, NULL, 0);
 out:
-	gfs2_glock_dq_m(1, &gh);
+	gfs2_glock_dq(&gh);
 	gfs2_holder_uninit(&gh);
 	return rv;
 }

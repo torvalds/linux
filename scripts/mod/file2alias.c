@@ -156,7 +156,7 @@ static void device_id_check(const char *modname, const char *device_id,
 }
 
 /* USB is special because the bcdDevice can be matched against a numeric range */
-/* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipN" */
+/* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipNinN" */
 static void do_usb_entry(struct usb_device_id *id,
 			 unsigned int bcdDevice_initial, int bcdDevice_initial_digits,
 			 unsigned char range_lo, unsigned char range_hi,
@@ -210,6 +210,9 @@ static void do_usb_entry(struct usb_device_id *id,
 	ADD(alias, "ip",
 	    id->match_flags&USB_DEVICE_ID_MATCH_INT_PROTOCOL,
 	    id->bInterfaceProtocol);
+	ADD(alias, "in",
+	    id->match_flags&USB_DEVICE_ID_MATCH_INT_NUMBER,
+	    id->bInterfaceNumber);
 
 	add_wildcard(alias);
 	buf_printf(&mod->dev_table_buf,
@@ -962,6 +965,21 @@ static int do_isapnp_entry(const char *filename,
 	return 1;
 }
 ADD_TO_DEVTABLE("isapnp", struct isapnp_device_id, do_isapnp_entry);
+
+/* Looks like: "ipack:fNvNdN". */
+static int do_ipack_entry(const char *filename,
+			  struct ipack_device_id *id, char *alias)
+{
+	id->vendor = TO_NATIVE(id->vendor);
+	id->device = TO_NATIVE(id->device);
+	strcpy(alias, "ipack:");
+	ADD(alias, "f", id->format != IPACK_ANY_FORMAT, id->format);
+	ADD(alias, "v", id->vendor != IPACK_ANY_ID, id->vendor);
+	ADD(alias, "d", id->device != IPACK_ANY_ID, id->device);
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("ipack", struct ipack_device_id, do_ipack_entry);
 
 /*
  * Append a match expression for a single masked hex digit.

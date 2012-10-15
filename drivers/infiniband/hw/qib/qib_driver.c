@@ -46,7 +46,7 @@
  * The size has to be longer than this string, so we can append
  * board/chip information to it in the init code.
  */
-const char ib_qib_version[] = QIB_IDSTR "\n";
+const char ib_qib_version[] = QIB_DRIVER_VERSION "\n";
 
 DEFINE_SPINLOCK(qib_devs_lock);
 LIST_HEAD(qib_dev_list);
@@ -65,6 +65,7 @@ MODULE_PARM_DESC(compat_ddr_negotiate,
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("QLogic <support@qlogic.com>");
 MODULE_DESCRIPTION("QLogic IB driver");
+MODULE_VERSION(QIB_DRIVER_VERSION);
 
 /*
  * QIB_PIO_MAXIBHDR is the max IB header size allowed for in our
@@ -764,8 +765,9 @@ int qib_reset_device(int unit)
 	qib_devinfo(dd->pcidev, "Reset on unit %u requested\n", unit);
 
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT)) {
-		qib_devinfo(dd->pcidev, "Invalid unit number %u or "
-			    "not initialized or not present\n", unit);
+		qib_devinfo(dd->pcidev,
+			"Invalid unit number %u or not initialized or not present\n",
+			unit);
 		ret = -ENXIO;
 		goto bail;
 	}
@@ -802,11 +804,13 @@ int qib_reset_device(int unit)
 	else
 		ret = -EAGAIN;
 	if (ret)
-		qib_dev_err(dd, "Reinitialize unit %u after "
-			    "reset failed with %d\n", unit, ret);
+		qib_dev_err(dd,
+			"Reinitialize unit %u after reset failed with %d\n",
+			unit, ret);
 	else
-		qib_devinfo(dd->pcidev, "Reinitialized unit %u after "
-			    "resetting\n", unit);
+		qib_devinfo(dd->pcidev,
+			"Reinitialized unit %u after resetting\n",
+			unit);
 
 bail:
 	return ret;

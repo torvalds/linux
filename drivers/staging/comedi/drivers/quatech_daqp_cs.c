@@ -56,6 +56,8 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include <linux/completion.h>
 
+#include "comedi_fc.h"
+
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
@@ -456,51 +458,26 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources
-	 * are unique and mutually compatible
-	 */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
-		err++;
-	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -871,14 +848,14 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->iobase = local->link->resource[0]->start;
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	printk(KERN_INFO "comedi%d: attaching daqp%d (io 0x%04lx)\n",
 	       dev->minor, it->options[0], dev->iobase);
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AI;
@@ -892,7 +869,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmd = daqp_ai_cmd;
 	s->cancel = daqp_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	dev->write_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AO;
@@ -903,7 +880,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_daqp_ao;
 	s->insn_write = daqp_ao_insn_write;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->private = local;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -911,7 +888,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->insn_read = daqp_di_insn_read;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->private = local;
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;

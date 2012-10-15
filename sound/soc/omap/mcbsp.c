@@ -25,7 +25,9 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+
+#include <plat/cpu.h>
 
 #include "mcbsp.h"
 
@@ -745,7 +747,7 @@ int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
 {
 	const char *signal, *src;
 
-	if (mcbsp->pdata->mux_signal)
+	if (!mcbsp->pdata->mux_signal)
 		return -EINVAL;
 
 	switch (mux) {

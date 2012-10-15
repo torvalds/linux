@@ -20,7 +20,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 
-#include <plat/ske.h>
+#include <linux/platform_data/keypad-nomadik-ske.h>
 
 /* SKE_CR bits */
 #define SKE_KPMLT	(0x1 << 6)
@@ -49,6 +49,7 @@
 #define SKE_ASR3	0x2C
 
 #define SKE_NUM_ASRX_REGISTERS	(4)
+#define	KEY_PRESSED_DELAY	10
 
 /**
  * struct ske_keypad  - data structure used by keypad driver
@@ -92,7 +93,7 @@ static void ske_keypad_set_bits(struct ske_keypad *keypad, u16 addr,
 static int __init ske_keypad_chip_init(struct ske_keypad *keypad)
 {
 	u32 value;
-	int timeout = 50;
+	int timeout = keypad->board->debounce_ms;
 
 	/* check SKE_RIS to be 0 */
 	while ((readl(keypad->reg_base + SKE_RIS) != 0x00000000) && timeout--)
@@ -135,12 +136,37 @@ static int __init ske_keypad_chip_init(struct ske_keypad *keypad)
 	return 0;
 }
 
+static void ske_keypad_report(struct ske_keypad *keypad, u8 status, int col)
+{
+	int row = 0, code, pos;
+	struct input_dev *input = keypad->input;
+	u32 ske_ris;
+	int key_pressed;
+	int num_of_rows;
+
+	/* find out the row */
+	num_of_rows = hweight8(status);
+	do {
+		pos = __ffs(status);
+		row = pos;
+		status &= ~(1 << pos);
+
+		code = MATRIX_SCAN_CODE(row, col, SKE_KEYPAD_ROW_SHIFT);
+		ske_ris = readl(keypad->reg_base + SKE_RIS);
+		key_pressed = ske_ris & SKE_KPRISA;
+
+		input_event(input, EV_MSC, MSC_SCAN, code);
+		input_report_key(input, keypad->keymap[code], key_pressed);
+		input_sync(input);
+		num_of_rows--;
+	} while (num_of_rows);
+}
+
 static void ske_keypad_read_data(struct ske_keypad *keypad)
 {
-	struct input_dev *input = keypad->input;
-	u16 status;
-	int col = 0, row = 0, code;
-	int ske_asr, ske_ris, key_pressed, i;
+	u8 status;
+	int col = 0;
+	int ske_asr, i;
 
 	/*
 	 * Read the auto scan registers
@@ -154,44 +180,38 @@ static void ske_keypad_read_data(struct ske_keypad *keypad)
 		if (!ske_asr)
 			continue;
 
-		/* now that ASRx is zero, find out the column x and row y*/
-		if (ske_asr & 0xff) {
+		/* now that ASRx is zero, find out the coloumn x and row y */
+		status = ske_asr & 0xff;
+		if (status) {
 			col = i * 2;
-			status = ske_asr & 0xff;
-		} else {
-			col = (i * 2) + 1;
-			status = (ske_asr & 0xff00) >> 8;
+			ske_keypad_report(keypad, status, col);
 		}
-
-		/* find out the row */
-		row = __ffs(status);
-
-		code = MATRIX_SCAN_CODE(row, col, SKE_KEYPAD_ROW_SHIFT);
-		ske_ris = readl(keypad->reg_base + SKE_RIS);
-		key_pressed = ske_ris & SKE_KPRISA;
-
-		input_event(input, EV_MSC, MSC_SCAN, code);
-		input_report_key(input, keypad->keymap[code], key_pressed);
-		input_sync(input);
+		status = (ske_asr & 0xff00) >> 8;
+		if (status) {
+			col = (i * 2) + 1;
+			ske_keypad_report(keypad, status, col);
+		}
 	}
 }
 
 static irqreturn_t ske_keypad_irq(int irq, void *dev_id)
 {
 	struct ske_keypad *keypad = dev_id;
-	int retries = 20;
+	int timeout = keypad->board->debounce_ms;
 
 	/* disable auto scan interrupt; mask the interrupt generated */
 	ske_keypad_set_bits(keypad, SKE_IMSC, ~SKE_KPIMA, 0x0);
 	ske_keypad_set_bits(keypad, SKE_ICR, 0x0, SKE_KPICA);
 
-	while ((readl(keypad->reg_base + SKE_CR) & SKE_KPASON) && --retries)
-		msleep(5);
+	while ((readl(keypad->reg_base + SKE_CR) & SKE_KPASON) && --timeout)
+		cpu_relax();
 
-	if (retries) {
-		/* SKEx registers are stable and can be read */
-		ske_keypad_read_data(keypad);
-	}
+	/* SKEx registers are stable and can be read */
+	ske_keypad_read_data(keypad);
+
+	/* wait until raw interrupt is clear */
+	while ((readl(keypad->reg_base + SKE_RIS)) && --timeout)
+		msleep(KEY_PRESSED_DELAY);
 
 	/* enable auto scan interrupts */
 	ske_keypad_set_bits(keypad, SKE_IMSC, 0x0, SKE_KPIMA);

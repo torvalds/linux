@@ -962,7 +962,7 @@ static int __devinit stmpe_add_device(struct stmpe *stmpe,
 				      struct mfd_cell *cell, int irq)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
-			       NULL, stmpe->irq_base + irq);
+			       NULL, stmpe->irq_base + irq, NULL);
 }
 
 static int __devinit stmpe_devices_init(struct stmpe *stmpe)

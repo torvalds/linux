@@ -352,7 +352,7 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int lis3lv02d_suspend(struct device *dev)
 {
 	/* make sure the device is off when we suspend */

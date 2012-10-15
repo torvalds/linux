@@ -151,12 +151,10 @@ void new_thread_handler(void)
 	 * 0 if it just exits
 	 */
 	n = run_kernel_thread(fn, arg, &current->thread.exec_buf);
-	if (n == 1) {
-		/* Handle any immediate reschedules or signals */
-		interrupt_end();
+	if (n == 1)
 		userspace(&current->thread.regs.regs);
-	}
-	else do_exit(0);
+	else
+		do_exit(0);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -175,9 +173,6 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	/* Handle any immediate reschedules or signals */
-	interrupt_end();
-
 	userspace(&current->thread.regs.regs);
 }
 
@@ -186,22 +181,22 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		struct pt_regs *regs)
 {
 	void (*handler)(void);
+	int kthread = current->flags & PF_KTHREAD;
 	int ret = 0;
 
 	p->thread = (struct thread_struct) INIT_THREAD;
 
-	if (current->thread.forking) {
+	if (!kthread) {
 	  	memcpy(&p->thread.regs.regs, &regs->regs,
 		       sizeof(p->thread.regs.regs));
-		UPT_SET_SYSCALL_RETURN(&p->thread.regs.regs, 0);
+		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;
 
 		handler = fork_handler;
 
 		arch_copy_thread(&current->thread.arch, &p->thread.arch);
-	}
-	else {
+	} else {
 		get_safe_registers(p->thread.regs.regs.gp, p->thread.regs.regs.fp);
 		p->thread.request.u.thread = current->thread.request.u.thread;
 		handler = new_thread_handler;
@@ -209,7 +204,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	new_thread(task_stack_page(p), &p->thread.switch_buf, handler);
 
-	if (current->thread.forking) {
+	if (!kthread) {
 		clear_flushed_tls(p);
 
 		/*

@@ -174,6 +174,16 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
+config CRYPTO_ABLK_HELPER_X86
+	tristate
+	depends on X86
+	select CRYPTO_CRYPTD
+
+config CRYPTO_GLUE_HELPER_X86
+	tristate
+	depends on X86
+	select CRYPTO_ALGAPI
+
 comment "Authenticated Encryption with Associated Data"
 
 config CRYPTO_CCM
@@ -326,6 +336,15 @@ config CRYPTO_CRC32C_INTEL
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
 
+config CRYPTO_CRC32C_SPARC64
+	tristate "CRC32c CRC algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32c CRC algorithm implemented using sparc64 crypto instructions,
+	  when available.
+
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
@@ -343,6 +362,15 @@ config CRYPTO_MD5
 	select CRYPTO_HASH
 	help
 	  MD5 message digest algorithm (RFC1321).
+
+config CRYPTO_MD5_SPARC64
+	tristate "MD5 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_MD5
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321) implemented
+	  using sparc64 crypto instructions, when available.
 
 config CRYPTO_MICHAEL_MIC
 	tristate "Michael MIC keyed digest algorithm"
@@ -423,6 +451,15 @@ config CRYPTO_SHA1_SSSE3
 	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
 	  Extensions (AVX), when available.
 
+config CRYPTO_SHA1_SPARC64
+	tristate "SHA1 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
@@ -435,6 +472,15 @@ config CRYPTO_SHA256
 	  This code also includes SHA-224, a 224 bit hash with 112 bits
 	  of security against collision attacks.
 
+config CRYPTO_SHA256_SPARC64
+	tristate "SHA224 and SHA256 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
+
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
 	select CRYPTO_HASH
@@ -446,6 +492,15 @@ config CRYPTO_SHA512
 
 	  This code also includes SHA-384, a 384 bit hash with 192 bits
 	  of security against collision attacks.
+
+config CRYPTO_SHA512_SPARC64
+	tristate "SHA384 and SHA512 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
@@ -552,6 +607,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AES_X86_64 if 64BIT
 	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
 	select CRYPTO_ALGAPI
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
@@ -577,6 +633,34 @@ config CRYPTO_AES_NI_INTEL
 	  ECB, CBC, LRW, PCBC, XTS. The 64 bit version has additional
 	  acceleration for CTR.
 
+config CRYPTO_AES_SPARC64
+	tristate "AES cipher algorithms (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_CRYPTD
+	select CRYPTO_ALGAPI
+	help
+	  Use SPARC64 crypto opcodes for AES algorithm.
+
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+	  In addition to AES cipher algorithm support, the acceleration
+	  for some popular block cipher mode is supported too, including
+	  ECB and CBC.
+
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
 	select CRYPTO_ALGAPI
@@ -593,7 +677,7 @@ config CRYPTO_ANUBIS
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  ARC4 cipher algorithm.
 
@@ -660,10 +744,27 @@ config CRYPTO_CAMELLIA_X86_64
 	depends on X86 && 64BIT
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_SPARC64
+	tristate "Camellia cipher algorithm (SPARC64)"
+	depends on SPARC64
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Camellia cipher algorithm module (SPARC64).
 
 	  Camellia is a symmetric key block cipher developed jointly
 	  at NTT and Mitsubishi Electric Corporation.
@@ -692,6 +793,14 @@ config CRYPTO_DES
 	select CRYPTO_ALGAPI
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+config CRYPTO_DES_SPARC64
+	tristate "DES and Triple DES EDE cipher algorithms (SPARC64)"
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	help
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
+	  optimized using SPARC64 crypto opcodes.
 
 config CRYPTO_FCRYPT
 	tristate "FCrypt cipher algorithm"
@@ -786,6 +895,8 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
 	select CRYPTO_XTS
@@ -806,6 +917,8 @@ config CRYPTO_SERPENT_SSE2_586
 	depends on X86 && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
 	select CRYPTO_XTS
@@ -817,6 +930,28 @@ config CRYPTO_SERPENT_SSE2_586
 
 	  This module provides Serpent cipher algorithm that processes four
 	  blocks parallel using SSE2 instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_AVX_X86_64
+	tristate "Serpent cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides the Serpent cipher algorithm that processes
+	  eight blocks parallel using the AVX instruction set.
 
 	  See also:
 	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
@@ -897,6 +1032,7 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
@@ -909,6 +1045,32 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 
 	  This module provides Twofish cipher algorithm that processes three
 	  blocks parallel, utilizing resources of out-of-order CPUs better.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_AVX_X86_64
+	tristate "Twofish cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_TWOFISH_X86_64_3WAY
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Twofish cipher algorithm (x86_64/AVX).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  This module provides the Twofish cipher algorithm that processes
+	  eight blocks parallel using the AVX Instruction Set.
 
 	  See also:
 	  <http://www.schneier.com/twofish.html>

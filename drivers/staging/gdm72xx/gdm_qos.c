@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <asm/byteorder.h>
 
@@ -107,8 +106,8 @@ void gdm_qos_init(void *nic_ptr)
 
 	for (i = 0 ; i < QOS_MAX; i++) {
 		INIT_LIST_HEAD(&qcb->qos_list[i]);
-		qcb->csr[i].QoSBufCount = 0;
-		qcb->csr[i].Enabled = 0;
+		qcb->csr[i].qos_buf_count = 0;
+		qcb->csr[i].enabled = 0;
 	}
 
 	qcb->qos_list_cnt = 0;
@@ -134,8 +133,8 @@ void gdm_qos_release_list(void *nic_ptr)
 	spin_lock_irqsave(&qcb->qos_lock, flags);
 
 	for (i = 0; i < QOS_MAX; i++) {
-		qcb->csr[i].QoSBufCount = 0;
-		qcb->csr[i].Enabled = 0;
+		qcb->csr[i].qos_buf_count = 0;
+		qcb->csr[i].enabled = 0;
 	}
 
 	qcb->qos_list_cnt = 0;
@@ -154,49 +153,49 @@ static u32 chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *Stream, u8 *port)
 {
 	int i;
 
-	if (csr->ClassifierRuleEnable&IPTYPEOFSERVICE) {
-		if (((Stream[1] & csr->IPToSMask) < csr->IPToSLow) ||
-		((Stream[1] & csr->IPToSMask) > csr->IPToSHigh))
+	if (csr->classifier_rule_en&IPTYPEOFSERVICE) {
+		if (((Stream[1] & csr->ip2s_mask) < csr->ip2s_lo) ||
+		((Stream[1] & csr->ip2s_mask) > csr->ip2s_hi))
 			return 1;
 	}
 
-	if (csr->ClassifierRuleEnable&PROTOCOL) {
-		if (Stream[9] != csr->Protocol)
+	if (csr->classifier_rule_en&PROTOCOL) {
+		if (Stream[9] != csr->protocol)
 			return 1;
 	}
 
-	if (csr->ClassifierRuleEnable&IPMASKEDSRCADDRESS) {
+	if (csr->classifier_rule_en&IPMASKEDSRCADDRESS) {
 		for (i = 0; i < 4; i++) {
-			if ((Stream[12 + i] & csr->IPSrcAddrMask[i]) !=
-			(csr->IPSrcAddr[i] & csr->IPSrcAddrMask[i]))
+			if ((Stream[12 + i] & csr->ipsrc_addrmask[i]) !=
+			(csr->ipsrc_addr[i] & csr->ipsrc_addrmask[i]))
 				return 1;
 		}
 	}
 
-	if (csr->ClassifierRuleEnable&IPMASKEDDSTADDRESS) {
+	if (csr->classifier_rule_en&IPMASKEDDSTADDRESS) {
 		for (i = 0; i < 4; i++) {
-			if ((Stream[16 + i] & csr->IPDstAddrMask[i]) !=
-			(csr->IPDstAddr[i] & csr->IPDstAddrMask[i]))
+			if ((Stream[16 + i] & csr->ipdst_addrmask[i]) !=
+			(csr->ipdst_addr[i] & csr->ipdst_addrmask[i]))
 				return 1;
 		}
 	}
 
-	if (csr->ClassifierRuleEnable&PROTOCOLSRCPORTRANGE) {
+	if (csr->classifier_rule_en&PROTOCOLSRCPORTRANGE) {
 		i = ((port[0]<<8)&0xff00)+port[1];
-		if ((i < csr->SrcPortLow) || (i > csr->SrcPortHigh))
+		if ((i < csr->srcport_lo) || (i > csr->srcport_hi))
 			return 1;
 	}
 
-	if (csr->ClassifierRuleEnable&PROTOCOLDSTPORTRANGE) {
+	if (csr->classifier_rule_en&PROTOCOLDSTPORTRANGE) {
 		i = ((port[2]<<8)&0xff00)+port[3];
-		if ((i < csr->DstPortLow) || (i > csr->DstPortHigh))
+		if ((i < csr->dstport_lo) || (i > csr->dstport_hi))
 			return 1;
 	}
 
 	return 0;
 }
 
-static u32 get_qos_index(struct nic *nic, u8* iph, u8* tcpudph)
+static u32 get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 {
 	u32	IP_Ver, Header_Len, i;
 	struct qos_cb_s *qcb = &nic->qos;
@@ -209,8 +208,8 @@ static u32 get_qos_index(struct nic *nic, u8* iph, u8* tcpudph)
 
 	if (IP_Ver == 4) {
 		for (i = 0; i < QOS_MAX; i++) {
-			if (qcb->csr[i].Enabled) {
-				if (qcb->csr[i].ClassifierRuleEnable) {
+			if (qcb->csr[i].enabled) {
+				if (qcb->csr[i].classifier_rule_en) {
 					if (chk_ipv4_rule(&qcb->csr[i], iph,
 					tcpudph) == 0)
 						return i;
@@ -231,18 +230,17 @@ static u32 extract_qos_list(struct nic *nic, struct list_head *head)
 	INIT_LIST_HEAD(head);
 
 	for (i = 0; i < QOS_MAX; i++) {
-		if (qcb->csr[i].Enabled) {
-			if (qcb->csr[i].QoSBufCount < qcb->qos_limit_size) {
+		if (qcb->csr[i].enabled) {
+			if (qcb->csr[i].qos_buf_count < qcb->qos_limit_size) {
 				if (!list_empty(&qcb->qos_list[i])) {
 					entry = list_entry(
 					qcb->qos_list[i].prev,
 					struct qos_entry_s, list);
 					list_move_tail(&entry->list, head);
-					qcb->csr[i].QoSBufCount++;
+					qcb->csr[i].qos_buf_count++;
 
 					if (!list_empty(&qcb->qos_list[i]))
-						wprintk("QoS Index(%d) "
-							"is piled!!\n", i);
+						wprintk("QoS Index(%d) is piled!!\n", i);
 				}
 			}
 		}
@@ -324,8 +322,8 @@ static u32 get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
 
 	if (mode) {
 		for (i = 0; i < QOS_MAX; i++) {
-			if (qcb->csr[i].Enabled == 0) {
-				qcb->csr[i].Enabled = 1;
+			if (qcb->csr[i].enabled == 0) {
+				qcb->csr[i].enabled = 1;
 				qcb->qos_list_cnt++;
 				return i;
 			}
@@ -367,7 +365,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 				eprintk("QoS ERROR: No SF\n");
 				return;
 			}
-			qcb->csr[index].QoSBufCount = buf[(i*5)+10];
+			qcb->csr[index].qos_buf_count = buf[(i*5)+10];
 		}
 
 		extract_qos_list(nic, &send_list);
@@ -393,38 +391,38 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		qcb->csr[index].SFID = SFID;
-		qcb->csr[index].ClassifierRuleEnable = ((buf[pos++]<<8)&0xff00);
-		qcb->csr[index].ClassifierRuleEnable += buf[pos++];
-		if (qcb->csr[index].ClassifierRuleEnable == 0)
+		qcb->csr[index].classifier_rule_en = ((buf[pos++]<<8)&0xff00);
+		qcb->csr[index].classifier_rule_en += buf[pos++];
+		if (qcb->csr[index].classifier_rule_en == 0)
 			qcb->qos_null_idx = index;
-		qcb->csr[index].IPToSMask = buf[pos++];
-		qcb->csr[index].IPToSLow = buf[pos++];
-		qcb->csr[index].IPToSHigh = buf[pos++];
-		qcb->csr[index].Protocol = buf[pos++];
-		qcb->csr[index].IPSrcAddrMask[0] = buf[pos++];
-		qcb->csr[index].IPSrcAddrMask[1] = buf[pos++];
-		qcb->csr[index].IPSrcAddrMask[2] = buf[pos++];
-		qcb->csr[index].IPSrcAddrMask[3] = buf[pos++];
-		qcb->csr[index].IPSrcAddr[0] = buf[pos++];
-		qcb->csr[index].IPSrcAddr[1] = buf[pos++];
-		qcb->csr[index].IPSrcAddr[2] = buf[pos++];
-		qcb->csr[index].IPSrcAddr[3] = buf[pos++];
-		qcb->csr[index].IPDstAddrMask[0] = buf[pos++];
-		qcb->csr[index].IPDstAddrMask[1] = buf[pos++];
-		qcb->csr[index].IPDstAddrMask[2] = buf[pos++];
-		qcb->csr[index].IPDstAddrMask[3] = buf[pos++];
-		qcb->csr[index].IPDstAddr[0] = buf[pos++];
-		qcb->csr[index].IPDstAddr[1] = buf[pos++];
-		qcb->csr[index].IPDstAddr[2] = buf[pos++];
-		qcb->csr[index].IPDstAddr[3] = buf[pos++];
-		qcb->csr[index].SrcPortLow = ((buf[pos++]<<8)&0xff00);
-		qcb->csr[index].SrcPortLow += buf[pos++];
-		qcb->csr[index].SrcPortHigh = ((buf[pos++]<<8)&0xff00);
-		qcb->csr[index].SrcPortHigh += buf[pos++];
-		qcb->csr[index].DstPortLow = ((buf[pos++]<<8)&0xff00);
-		qcb->csr[index].DstPortLow += buf[pos++];
-		qcb->csr[index].DstPortHigh = ((buf[pos++]<<8)&0xff00);
-		qcb->csr[index].DstPortHigh += buf[pos++];
+		qcb->csr[index].ip2s_mask = buf[pos++];
+		qcb->csr[index].ip2s_lo = buf[pos++];
+		qcb->csr[index].ip2s_hi = buf[pos++];
+		qcb->csr[index].protocol = buf[pos++];
+		qcb->csr[index].ipsrc_addrmask[0] = buf[pos++];
+		qcb->csr[index].ipsrc_addrmask[1] = buf[pos++];
+		qcb->csr[index].ipsrc_addrmask[2] = buf[pos++];
+		qcb->csr[index].ipsrc_addrmask[3] = buf[pos++];
+		qcb->csr[index].ipsrc_addr[0] = buf[pos++];
+		qcb->csr[index].ipsrc_addr[1] = buf[pos++];
+		qcb->csr[index].ipsrc_addr[2] = buf[pos++];
+		qcb->csr[index].ipsrc_addr[3] = buf[pos++];
+		qcb->csr[index].ipdst_addrmask[0] = buf[pos++];
+		qcb->csr[index].ipdst_addrmask[1] = buf[pos++];
+		qcb->csr[index].ipdst_addrmask[2] = buf[pos++];
+		qcb->csr[index].ipdst_addrmask[3] = buf[pos++];
+		qcb->csr[index].ipdst_addr[0] = buf[pos++];
+		qcb->csr[index].ipdst_addr[1] = buf[pos++];
+		qcb->csr[index].ipdst_addr[2] = buf[pos++];
+		qcb->csr[index].ipdst_addr[3] = buf[pos++];
+		qcb->csr[index].srcport_lo = ((buf[pos++]<<8)&0xff00);
+		qcb->csr[index].srcport_lo += buf[pos++];
+		qcb->csr[index].srcport_hi = ((buf[pos++]<<8)&0xff00);
+		qcb->csr[index].srcport_hi += buf[pos++];
+		qcb->csr[index].dstport_lo = ((buf[pos++]<<8)&0xff00);
+		qcb->csr[index].dstport_lo += buf[pos++];
+		qcb->csr[index].dstport_hi = ((buf[pos++]<<8)&0xff00);
+		qcb->csr[index].dstport_hi += buf[pos++];
 
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
@@ -446,7 +444,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		INIT_LIST_HEAD(&free_list);
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
-		qcb->csr[index].Enabled = 0;
+		qcb->csr[index].enabled = 0;
 		qcb->qos_list_cnt--;
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 

@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
+#include <linux/platform_data/clk-integrator.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -49,6 +50,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
+#include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 
 #include <plat/fpga-irq.h>
@@ -72,7 +74,7 @@
  * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
  * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
  * ed000000	62000000	PCI V3 regs		PHYS_PCI_V3_BASE	(max 64k)
- * ee000000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
+ * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
  * ef000000			Cache flush
  * f1000000	10000000	Core module registers
  * f1100000	11000000	System controller registers
@@ -132,23 +134,18 @@ static struct map_desc ap_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_MEMORY_VADDR,
+		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_CONFIG_VADDR,
+		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_V3_VADDR,
+		.virtual	= (unsigned long)PCI_V3_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_V3_BASE),
-		.length		= SZ_64K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= PCI_IO_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_IO_BASE),
 		.length		= SZ_64K,
 		.type		= MT_DEVICE
 	}
@@ -158,6 +155,7 @@ static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
 	vga_base = PCI_MEMORY_VADDR;
+	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
 }
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
@@ -174,6 +172,7 @@ static void __init ap_init_irq(void)
 
 	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
 		-1, INTEGRATOR_SC_VALID_INT, NULL);
+	integrator_clk_init(false);
 }
 
 #ifdef CONFIG_PM
@@ -315,9 +314,9 @@ static void __init ap_init(void)
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER0_BASE)
-#define TIMER1_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER1_BASE)
-#define TIMER2_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER2_BASE)
+#define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
+#define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
+#define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
 
 static unsigned long timer_reload;
 
@@ -440,6 +439,10 @@ static void integrator_clockevent_init(unsigned long inrate)
 					0xffffU);
 }
 
+void __init ap_init_early(void)
+{
+}
+
 /*
  * Set up timer(s).
  */
@@ -450,7 +453,7 @@ static void __init ap_init_timer(void)
 
 	clk = clk_get_sys("ap_timer", NULL);
 	BUG_ON(IS_ERR(clk));
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
 
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
@@ -471,7 +474,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
-	.init_early	= integrator_init_early,
+	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
 	.handle_irq	= fpga_handle_irq,
 	.timer		= &ap_timer,

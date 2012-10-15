@@ -50,9 +50,8 @@
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <plat/omap44xx.h>
-
 #include "common.h"
+#include "omap44xx.h"
 #include "omap4-sar-layout.h"
 #include "pm.h"
 #include "prcm_mpu44xx.h"
@@ -313,7 +312,7 @@ int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 	scu_pwrst_prepare(cpu, power_state);
 
 	/*
-	 * CPU never retuns back if targetted power state is OFF mode.
+	 * CPU never retuns back if targeted power state is OFF mode.
 	 * CPU ONLINE follows normal CPU ONLINE ptah via
 	 * omap_secondary_startup().
 	 */

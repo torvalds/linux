@@ -142,7 +142,7 @@ static void drm_hdmi_disable_vblank(struct device *subdrv_dev)
 
 static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 				struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
@@ -345,7 +345,7 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_LOG_KMS("failed to alloc common hdmi context.\n");
 		return -ENOMEM;
@@ -371,7 +371,6 @@ static int __devexit exynos_drm_hdmi_remove(struct platform_device *pdev)
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_drm_subdrv_unregister(&ctx->subdrv);
-	kfree(ctx);
 
 	return 0;
 }

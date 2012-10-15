@@ -230,21 +230,10 @@ static struct pci_driver mpiix_pci_driver = {
 #endif
 };
 
-static int __init mpiix_init(void)
-{
-	return pci_register_driver(&mpiix_pci_driver);
-}
-
-static void __exit mpiix_exit(void)
-{
-	pci_unregister_driver(&mpiix_pci_driver);
-}
+module_pci_driver(mpiix_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Intel MPIIX");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, mpiix);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(mpiix_init);
-module_exit(mpiix_exit);

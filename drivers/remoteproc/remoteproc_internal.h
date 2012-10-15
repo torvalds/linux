@@ -21,8 +21,26 @@
 #define REMOTEPROC_INTERNAL_H
 
 #include <linux/irqreturn.h>
+#include <linux/firmware.h>
 
 struct rproc;
+
+/**
+ * struct rproc_fw_ops - firmware format specific operations.
+ * @find_rsc_table:	finds the resource table inside the firmware image
+ * @load:		load firmeware to memory, where the remote processor
+ *			expects to find it
+ * @sanity_check:	sanity check the fw image
+ * @get_boot_addr:	get boot address to entry point specified in firmware
+ */
+struct rproc_fw_ops {
+	struct resource_table *(*find_rsc_table) (struct rproc *rproc,
+						const struct firmware *fw,
+						int *tablesz);
+	int (*load)(struct rproc *rproc, const struct firmware *fw);
+	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
+	u32 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
+};
 
 /* from remoteproc_core.c */
 void rproc_release(struct kref *kref);
@@ -40,5 +58,49 @@ void rproc_delete_debug_dir(struct rproc *rproc);
 void rproc_create_debug_dir(struct rproc *rproc);
 void rproc_init_debugfs(void);
 void rproc_exit_debugfs(void);
+
+void rproc_free_vring(struct rproc_vring *rvring);
+int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
+
+void *rproc_da_to_va(struct rproc *rproc, u64 da, int len);
+
+static inline
+int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
+{
+	if (rproc->fw_ops->sanity_check)
+		return rproc->fw_ops->sanity_check(rproc, fw);
+
+	return 0;
+}
+
+static inline
+u32 rproc_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
+{
+	if (rproc->fw_ops->get_boot_addr)
+		return rproc->fw_ops->get_boot_addr(rproc, fw);
+
+	return 0;
+}
+
+static inline
+int rproc_load_segments(struct rproc *rproc, const struct firmware *fw)
+{
+	if (rproc->fw_ops->load)
+		return rproc->fw_ops->load(rproc, fw);
+
+	return -EINVAL;
+}
+
+static inline
+struct resource_table *rproc_find_rsc_table(struct rproc *rproc,
+				const struct firmware *fw, int *tablesz)
+{
+	if (rproc->fw_ops->find_rsc_table)
+		return rproc->fw_ops->find_rsc_table(rproc, fw, tablesz);
+
+	return NULL;
+}
+
+extern const struct rproc_fw_ops rproc_elf_fw_ops;
 
 #endif /* REMOTEPROC_INTERNAL_H */

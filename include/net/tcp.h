@@ -98,11 +98,21 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 				 * 15 is ~13-30min depending on RTO.
 				 */
 
-#define TCP_SYN_RETRIES	 5	/* number of times to retry active opening a
-				 * connection: ~180sec is RFC minimum	*/
+#define TCP_SYN_RETRIES	 6	/* This is how many retries are done
+				 * when active opening a connection.
+				 * RFC1122 says the minimum retry MUST
+				 * be at least 180secs.  Nevertheless
+				 * this value is corresponding to
+				 * 63secs of retransmission with the
+				 * current initial RTO.
+				 */
 
-#define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
-				 * connection: ~180sec is RFC minimum	*/
+#define TCP_SYNACK_RETRIES 5	/* This is how may retries are done
+				 * when passive opening a connection.
+				 * This is corresponding to 31secs of
+				 * retransmission with the current
+				 * initial RTO.
+				 */
 
 #define TCP_TIMEWAIT_LEN (60*HZ) /* how long to wait to destroy TIME-WAIT
 				  * state, about 60 seconds	*/
@@ -214,7 +224,23 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 /* Bit Flags for sysctl_tcp_fastopen */
 #define	TFO_CLIENT_ENABLE	1
+#define	TFO_SERVER_ENABLE	2
 #define	TFO_CLIENT_NO_COOKIE	4	/* Data in SYN w/o cookie option */
+
+/* Process SYN data but skip cookie validation */
+#define	TFO_SERVER_COOKIE_NOT_CHKED	0x100
+/* Accept SYN data w/o any cookie option */
+#define	TFO_SERVER_COOKIE_NOT_REQD	0x200
+
+/* Force enable TFO on all listeners, i.e., not requiring the
+ * TCP_FASTOPEN socket option. SOCKOPT1/2 determine how to set max_qlen.
+ */
+#define	TFO_SERVER_WO_SOCKOPT1	0x400
+#define	TFO_SERVER_WO_SOCKOPT2	0x800
+/* Always create TFO child sockets on a TFO listener even when
+ * cookie/data not present. (For testing purpose!)
+ */
+#define	TFO_SERVER_ALWAYS	0x1000
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -398,7 +424,8 @@ extern enum tcp_tw_status tcp_timewait_state_process(struct inet_timewait_sock *
 						     const struct tcphdr *th);
 extern struct sock * tcp_check_req(struct sock *sk,struct sk_buff *skb,
 				   struct request_sock *req,
-				   struct request_sock **prev);
+				   struct request_sock **prev,
+				   bool fastopen);
 extern int tcp_child_process(struct sock *parent, struct sock *child,
 			     struct sk_buff *skb);
 extern bool tcp_use_frto(struct sock *sk);
@@ -411,12 +438,6 @@ extern void tcp_metrics_init(void);
 extern bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst, bool paws_check);
 extern bool tcp_remember_stamp(struct sock *sk);
 extern bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw);
-extern void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
-				   struct tcp_fastopen_cookie *cookie,
-				   int *syn_loss, unsigned long *last_syn_loss);
-extern void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
-				   struct tcp_fastopen_cookie *cookie,
-				   bool syn_lost);
 extern void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst);
 extern void tcp_disable_fack(struct tcp_sock *tp);
 extern void tcp_close(struct sock *sk, long timeout);
@@ -458,12 +479,14 @@ extern int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int tcp_connect(struct sock *sk);
 extern struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 					struct request_sock *req,
-					struct request_values *rvp);
+					struct request_values *rvp,
+					struct tcp_fastopen_cookie *foc);
 extern int tcp_disconnect(struct sock *sk, int flags);
 
 void tcp_connect_init(struct sock *sk);
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
 int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size);
+void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
@@ -526,6 +549,7 @@ extern void tcp_send_delayed_ack(struct sock *sk);
 extern void tcp_cwnd_application_limited(struct sock *sk);
 extern void tcp_resume_early_retransmit(struct sock *sk);
 extern void tcp_rearm_rto(struct sock *sk);
+extern void tcp_reset(struct sock *sk);
 
 /* tcp_timer.c */
 extern void tcp_init_xmit_timers(struct sock *);
@@ -575,6 +599,7 @@ extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 extern int tcp_mss_to_mtu(struct sock *sk, int mss);
 extern void tcp_mtup_init(struct sock *sk);
 extern void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt);
+extern void tcp_init_buffer_space(struct sock *sk);
 
 static inline void tcp_bound_rto(const struct sock *sk)
 {
@@ -888,15 +913,21 @@ static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
 	return tp->snd_ssthresh >= TCP_INFINITE_SSTHRESH;
 }
 
+static inline bool tcp_in_cwnd_reduction(const struct sock *sk)
+{
+	return (TCPF_CA_CWR | TCPF_CA_Recovery) &
+	       (1 << inet_csk(sk)->icsk_ca_state);
+}
+
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
- * The exception is rate halving phase, when cwnd is decreasing towards
+ * The exception is cwnd reduction phase, when cwnd is decreasing towards
  * ssthresh.
  */
 static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
-	if ((1 << inet_csk(sk)->icsk_ca_state) & (TCPF_CA_CWR | TCPF_CA_Recovery))
+	if (tcp_in_cwnd_reduction(sk))
 		return tp->snd_ssthresh;
 	else
 		return max(tp->snd_ssthresh,
@@ -1093,6 +1124,8 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
 	req->cookie_ts = 0;
 	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
+	tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
+	tcp_rsk(req)->snt_synack = 0;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
 	ireq->tstamp_ok = rx_opt->tstamp_ok;
@@ -1103,6 +1136,15 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->ecn_ok = 0;
 	ireq->rmt_port = tcp_hdr(skb)->source;
 	ireq->loc_port = tcp_hdr(skb)->dest;
+}
+
+/* Compute time elapsed between SYNACK and the ACK completing 3WHS */
+static inline void tcp_synack_rtt_meas(struct sock *sk,
+				       struct request_sock *req)
+{
+	if (tcp_rsk(req)->snt_synack)
+		tcp_valid_rtt_meas(sk,
+		    tcp_time_stamp - tcp_rsk(req)->snt_synack);
 }
 
 extern void tcp_enter_memory_pressure(struct sock *sk);
@@ -1297,14 +1339,33 @@ extern int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, const struct sk_buff 
 extern int tcp_md5_hash_key(struct tcp_md5sig_pool *hp,
 			    const struct tcp_md5sig_key *key);
 
+/* From tcp_fastopen.c */
+extern void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
+				   struct tcp_fastopen_cookie *cookie,
+				   int *syn_loss, unsigned long *last_syn_loss);
+extern void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
+				   struct tcp_fastopen_cookie *cookie,
+				   bool syn_lost);
 struct tcp_fastopen_request {
 	/* Fast Open cookie. Size 0 means a cookie request */
 	struct tcp_fastopen_cookie	cookie;
 	struct msghdr			*data;  /* data in MSG_FASTOPEN */
 	u16				copied;	/* queued in tcp_connect() */
 };
-
 void tcp_free_fastopen_req(struct tcp_sock *tp);
+
+extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
+int tcp_fastopen_reset_cipher(void *key, unsigned int len);
+void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc);
+
+#define TCP_FASTOPEN_KEY_LENGTH 16
+
+/* Fastopen key context */
+struct tcp_fastopen_context {
+	struct crypto_cipher __rcu	*tfm;
+	__u8				key[TCP_FASTOPEN_KEY_LENGTH];
+	struct rcu_head			rcu;
+};
 
 /* write queue abstraction */
 static inline void tcp_write_queue_purge(struct sock *sk)
@@ -1509,7 +1570,8 @@ struct tcp_iter_state {
 	sa_family_t		family;
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;
-	int			bucket, offset, sbucket, num, uid;
+	int			bucket, offset, sbucket, num;
+	kuid_t			uid;
 	loff_t			last_pos;
 };
 

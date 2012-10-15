@@ -91,6 +91,8 @@
 #define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
 #define E1000_TSAUXC     0x0B640 /* Timesync Auxiliary Control register */
 #define E1000_SYSTIMR    0x0B6F8 /* System time register Residue */
+#define E1000_TSICR      0x0B66C /* Interrupt Cause Register */
+#define E1000_TSIM       0x0B674 /* Interrupt Mask Register */
 
 /* Filtering Registers */
 #define E1000_SAQF(_n) (0x5980 + 4 * (_n))
@@ -156,8 +158,12 @@
 				    : (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) \
 				    : (0x0E028 + ((_n) * 0x40)))
-#define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
-#define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
+#define E1000_RXCTL(_n)	  ((_n) < 4 ? (0x02814 + ((_n) * 0x100)) : \
+				      (0x0C014 + ((_n) * 0x40)))
+#define E1000_DCA_RXCTRL(_n)	E1000_RXCTL(_n)
+#define E1000_TXCTL(_n)   ((_n) < 4 ? (0x03814 + ((_n) * 0x100)) : \
+				      (0x0E014 + ((_n) * 0x40)))
+#define E1000_DCA_TXCTRL(_n) E1000_TXCTL(_n)
 #define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) \
 				    : (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) \
@@ -343,6 +349,7 @@
 /* Energy Efficient Ethernet "EEE" register */
 #define E1000_IPCNFG  0x0E38  /* Internal PHY Configuration */
 #define E1000_EEER    0x0E30  /* Energy Efficient Ethernet */
+#define E1000_EEE_SU  0X0E34  /* EEE Setup */
 
 /* Thermal Sensor Register */
 #define E1000_THSTAT    0x08110 /* Thermal Sensor Status */

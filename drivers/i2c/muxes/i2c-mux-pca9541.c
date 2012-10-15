@@ -396,6 +396,6 @@ static struct i2c_driver pca9541_driver = {
 
 module_i2c_driver(pca9541_driver);
 
-MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
+MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("PCA9541 I2C master selector driver");
 MODULE_LICENSE("GPL v2");

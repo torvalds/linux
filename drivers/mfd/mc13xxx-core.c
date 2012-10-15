@@ -612,7 +612,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 	if (!cell.name)
 		return -ENOMEM;
 
-	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0);
+	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0, NULL);
 }
 
 static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
@@ -723,10 +723,6 @@ void mc13xxx_common_cleanup(struct mc13xxx *mc13xxx)
 	free_irq(mc13xxx->irq, mc13xxx);
 
 	mfd_remove_devices(mc13xxx->dev);
-
-	regmap_exit(mc13xxx->regmap);
-
-	kfree(mc13xxx);
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_cleanup);
 

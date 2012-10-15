@@ -1321,35 +1321,30 @@ static int snd_es1938_put_double(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static unsigned int db_scale_master[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_master,
 	0, 54, TLV_DB_SCALE_ITEM(-3600, 50, 1),
 	54, 63, TLV_DB_SCALE_ITEM(-900, 100, 0),
-};
+);
 
-static unsigned int db_scale_audio1[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio1,
 	0, 8, TLV_DB_SCALE_ITEM(-3300, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-900, 150, 0),
-};
+);
 
-static unsigned int db_scale_audio2[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio2,
 	0, 8, TLV_DB_SCALE_ITEM(-3450, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-1050, 150, 0),
-};
+);
 
-static unsigned int db_scale_mic[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_mic,
 	0, 8, TLV_DB_SCALE_ITEM(-2400, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(0, 150, 0),
-};
+);
 
-static unsigned int db_scale_line[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_line,
 	0, 8, TLV_DB_SCALE_ITEM(-3150, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-750, 150, 0),
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
 
@@ -1474,9 +1469,10 @@ static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 };
 
 
-static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
+static int es1938_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
@@ -1494,13 +1490,14 @@ static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int es1938_resume(struct pci_dev *pci)
+static int es1938_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
@@ -1534,6 +1531,11 @@ static int es1938_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(es1938_pm, es1938_suspend, es1938_resume);
+#define ES1938_PM_OPS	&es1938_pm
+#else
+#define ES1938_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 #ifdef SUPPORT_JOYSTICK
@@ -1887,10 +1889,9 @@ static struct pci_driver es1938_driver = {
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),
-#ifdef CONFIG_PM
-	.suspend = es1938_suspend,
-	.resume = es1938_resume,
-#endif
+	.driver = {
+		.pm = ES1938_PM_OPS,
+	},
 };
 
 module_pci_driver(es1938_driver);

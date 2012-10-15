@@ -5,7 +5,7 @@ source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	def_bool y
-	prompt "Virtualization"
+	prompt "KVM"
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).

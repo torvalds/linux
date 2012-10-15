@@ -246,16 +246,13 @@ static void __devinit fixup_read_and_payload_sizes(void)
 
 	/* Scan for the smallest maximum payload size. */
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		int pcie_caps_offset;
 		u32 devcap;
 		int max_payload;
 
-		pcie_caps_offset = pci_find_capability(dev, PCI_CAP_ID_EXP);
-		if (pcie_caps_offset == 0)
+		if (!pci_is_pcie(dev))
 			continue;
 
-		pci_read_config_dword(dev, pcie_caps_offset + PCI_EXP_DEVCAP,
-				      &devcap);
+		pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &devcap);
 		max_payload = devcap & PCI_EXP_DEVCAP_PAYLOAD;
 		if (max_payload < smallest_max_payload)
 			smallest_max_payload = max_payload;
@@ -263,21 +260,10 @@ static void __devinit fixup_read_and_payload_sizes(void)
 
 	/* Now, set the max_payload_size for all devices to that value. */
 	new_values = (max_read_size << 12) | (smallest_max_payload << 5);
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		int pcie_caps_offset;
-		u16 devctl;
-
-		pcie_caps_offset = pci_find_capability(dev, PCI_CAP_ID_EXP);
-		if (pcie_caps_offset == 0)
-			continue;
-
-		pci_read_config_word(dev, pcie_caps_offset + PCI_EXP_DEVCTL,
-				     &devctl);
-		devctl &= ~(PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ);
-		devctl |= new_values;
-		pci_write_config_word(dev, pcie_caps_offset + PCI_EXP_DEVCTL,
-				      devctl);
-	}
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
+		pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ,
+				new_values);
 }
 
 
@@ -310,6 +296,7 @@ int __init pcibios_init(void)
 		if (pci_scan_flags[i] == 0 && controllers[i].ops != NULL) {
 			struct pci_controller *controller = &controllers[i];
 			struct pci_bus *bus;
+			LIST_HEAD(resources);
 
 			if (tile_init_irqs(i, controller)) {
 				pr_err("PCI: Could not initialize IRQs\n");
@@ -327,9 +314,11 @@ int __init pcibios_init(void)
 			 * This is inlined in linux/pci.h and calls into
 			 * pci_scan_bus_parented() in probe.c.
 			 */
-			bus = pci_scan_bus(0, controller->ops, controller);
+			pci_add_resource(&resources, &ioport_resource);
+			pci_add_resource(&resources, &iomem_resource);
+			bus = pci_scan_root_bus(NULL, 0, controller->ops, controller, &resources);
 			controller->root_bus = bus;
-			controller->last_busno = bus->subordinate;
+			controller->last_busno = bus->busn_res.end;
 		}
 	}
 
@@ -398,24 +387,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling. */
-}
-
-/*
- * This can be called from the generic PCI layer, but doesn't need to
- * do anything.
- */
-char __devinit *pcibios_setup(char *str)
-{
-	/* Nothing needs to be done. */
-	return str;
-}
-
-/*
- * This is called from the generic Linux layer.
- */
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 /*

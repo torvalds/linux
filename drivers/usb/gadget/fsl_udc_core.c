@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -1229,7 +1230,7 @@ static int fsl_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	struct fsl_udc *udc;
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -ENOTSUPP;
 }
@@ -1254,7 +1255,7 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int fsl_stop(struct usb_gadget_driver *driver);
 /* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
@@ -1950,7 +1951,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
  * Called by initialization code of gadget drivers
 *----------------------------------------------------------------*/
 static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	int retval = -ENODEV;
 	unsigned long flags = 0;
@@ -1975,7 +1976,7 @@ static int fsl_start(struct usb_gadget_driver *driver,
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
 	/* bind udc driver to gadget driver */
-	retval = bind(&udc_controller->gadget);
+	retval = bind(&udc_controller->gadget, driver);
 	if (retval) {
 		VDBG("bind to %s --> %d", driver->driver.name, retval);
 		udc_controller->gadget.dev.driver = NULL;
@@ -1983,13 +1984,13 @@ static int fsl_start(struct usb_gadget_driver *driver,
 		goto out;
 	}
 
-	if (udc_controller->transceiver) {
+	if (!IS_ERR_OR_NULL(udc_controller->transceiver)) {
 		/* Suspend the controller until OTG enable it */
 		udc_controller->stopped = 1;
 		printk(KERN_INFO "Suspend udc for OTG auto detect\n");
 
 		/* connect to bus through transceiver */
-		if (udc_controller->transceiver) {
+		if (!IS_ERR_OR_NULL(udc_controller->transceiver)) {
 			retval = otg_set_peripheral(
 					udc_controller->transceiver->otg,
 						    &udc_controller->gadget);
@@ -2030,7 +2031,7 @@ static int fsl_stop(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc_controller->driver || !driver->unbind)
 		return -EINVAL;
 
-	if (udc_controller->transceiver)
+	if (!IS_ERR_OR_NULL(udc_controller->transceiver))
 		otg_set_peripheral(udc_controller->transceiver->otg, NULL);
 
 	/* stop DR, disable intr */
@@ -2455,8 +2456,8 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_OTG
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
-		udc_controller->transceiver = usb_get_transceiver();
-		if (!udc_controller->transceiver) {
+		udc_controller->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (IS_ERR_OR_NULL(udc_controller->transceiver)) {
 			ERR("Can't find OTG driver!\n");
 			ret = -ENODEV;
 			goto err_kfree;
@@ -2540,7 +2541,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	if (!udc_controller->transceiver) {
+	if (IS_ERR_OR_NULL(udc_controller->transceiver)) {
 		/* initialize usb hw reg except for regs for EP,
 		 * leave usbintr reg untouched */
 		dr_controller_setup(udc_controller);
@@ -2560,11 +2561,12 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	dev_set_name(&udc_controller->gadget.dev, "gadget");
 	udc_controller->gadget.dev.release = fsl_udc_release;
 	udc_controller->gadget.dev.parent = &pdev->dev;
+	udc_controller->gadget.dev.of_node = pdev->dev.of_node;
 	ret = device_register(&udc_controller->gadget.dev);
 	if (ret < 0)
 		goto err_free_irq;
 
-	if (udc_controller->transceiver)
+	if (!IS_ERR_OR_NULL(udc_controller->transceiver))
 		udc_controller->gadget.is_otg = 1;
 
 	/* setup QH and epctrl for ep0 */

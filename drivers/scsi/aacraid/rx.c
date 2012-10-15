@@ -471,7 +471,7 @@ static int aac_rx_ioremap(struct aac_dev * dev, u32 size)
 		iounmap(dev->regs.rx);
 		return 0;
 	}
-	dev->base = dev->regs.rx = ioremap(dev->scsi_host_ptr->base, size);
+	dev->base = dev->regs.rx = ioremap(dev->base_start, size);
 	if (dev->base == NULL)
 		return -1;
 	dev->IndexRegs = &dev->regs.rx->IndexRegs;
@@ -653,7 +653,7 @@ int _aac_rx_init(struct aac_dev *dev)
 			name, instance);
 		goto error_iounmap;
 	}
-	dev->dbg_base = dev->scsi_host_ptr->base;
+	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
 	dev->dbg_size = dev->base_size;
 

@@ -371,7 +371,6 @@ void __init setup_arch(char **cmdline_p)
 		(*(linux_dbvec->teach_debugger))();
 	}
 
-	init_mm.context = (unsigned long) NO_CONTEXT;
 	init_task.thread.kregs = &fake_swapper_regs;
 
 	/* Run-time patch instructions to match the cpu model */

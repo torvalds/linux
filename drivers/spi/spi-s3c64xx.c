@@ -32,7 +32,7 @@
 #include <linux/of_gpio.h>
 
 #include <mach/dma.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 #define MAX_SPI_PORTS		3
 
@@ -826,7 +826,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
 				struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs;
-	struct device_node *slave_np, *data_np;
+	struct device_node *slave_np, *data_np = NULL;
 	u32 fb_delay = 0;
 
 	slave_np = spi->dev.of_node;
@@ -976,7 +976,8 @@ err_msgq:
 	spi_set_ctldata(spi, NULL);
 
 err_gpio_req:
-	kfree(cs);
+	if (spi->dev.of_node)
+		kfree(cs);
 
 	return err;
 }
@@ -1409,7 +1410,7 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int s3c64xx_spi_suspend(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
@@ -1428,7 +1429,7 @@ static int s3c64xx_spi_suspend(struct device *dev)
 
 static int s3c64xx_spi_resume(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
@@ -1452,7 +1453,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int s3c64xx_spi_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
 	clk_disable(sdd->clk);
@@ -1463,7 +1464,7 @@ static int s3c64xx_spi_runtime_suspend(struct device *dev)
 
 static int s3c64xx_spi_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
 	clk_enable(sdd->src_clk);
@@ -1479,40 +1480,40 @@ static const struct dev_pm_ops s3c64xx_spi_pm = {
 			   s3c64xx_spi_runtime_resume, NULL)
 };
 
-struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
+static struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
+static struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 };
 
-struct s3c64xx_spi_port_config s5p64x0_spi_port_config = {
+static struct s3c64xx_spi_port_config s5p64x0_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
 };
 
-struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
+static struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
+static struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config exynos4_spi_port_config = {
+static struct s3c64xx_spi_port_config exynos4_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,

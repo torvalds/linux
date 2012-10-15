@@ -435,6 +435,9 @@ static void tsi721_db_dpc(struct work_struct *work)
 				" info %4.4x\n", DBELL_SID(idb.bytes),
 				DBELL_TID(idb.bytes), DBELL_INF(idb.bytes));
 		}
+
+		wr_ptr = ioread32(priv->regs +
+				  TSI721_IDQ_WP(IDB_QUEUE)) % IDB_QSIZE;
 	}
 
 	iowrite32(rd_ptr & (IDB_QSIZE - 1),
@@ -445,6 +448,10 @@ static void tsi721_db_dpc(struct work_struct *work)
 	regval |= TSI721_SR_CHINT_IDBQRCV;
 	iowrite32(regval,
 		priv->regs + TSI721_SR_CHINTE(IDB_QUEUE));
+
+	wr_ptr = ioread32(priv->regs + TSI721_IDQ_WP(IDB_QUEUE)) % IDB_QSIZE;
+	if (wr_ptr != rd_ptr)
+		schedule_work(&priv->idb_work);
 }
 
 /**
@@ -2212,9 +2219,7 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
 	struct tsi721_device *priv;
-	int i, cap;
 	int err;
-	u32 regval;
 
 	priv = kzalloc(sizeof(struct tsi721_device), GFP_KERNEL);
 	if (priv == NULL) {
@@ -2232,11 +2237,14 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 	priv->pdev = pdev;
 
 #ifdef DEBUG
+	{
+	int i;
 	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
 		dev_dbg(&pdev->dev, "res[%d] @ 0x%llx (0x%lx, 0x%lx)\n",
 			i, (unsigned long long)pci_resource_start(pdev, i),
 			(unsigned long)pci_resource_len(pdev, i),
 			pci_resource_flags(pdev, i));
+	}
 	}
 #endif
 	/*
@@ -2320,20 +2328,16 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev, "Unable to set consistent DMA mask\n");
 	}
 
-	cap = pci_pcie_cap(pdev);
-	BUG_ON(cap == 0);
+	BUG_ON(!pci_is_pcie(pdev));
 
 	/* Clear "no snoop" and "relaxed ordering" bits, use default MRRS. */
-	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL, &regval);
-	regval &= ~(PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
-		    PCI_EXP_DEVCTL_NOSNOOP_EN);
-	regval |= 0x2 << MAX_READ_REQUEST_SZ_SHIFT;
-	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL, regval);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+		PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
+		PCI_EXP_DEVCTL_NOSNOOP_EN,
+		0x2 << MAX_READ_REQUEST_SZ_SHIFT);
 
 	/* Adjust PCIe completion timeout. */
-	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL2, &regval);
-	regval &= ~(0x0f);
-	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL2, regval | 0x2);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);
 
 	/*
 	 * FIXUP: correct offsets of MSI-X tables in the MSI-X Capability Block

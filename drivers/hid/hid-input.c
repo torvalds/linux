@@ -837,6 +837,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		}
 		break;
 
+	case HID_UP_HPVENDOR2:
+		set_bit(EV_REP, input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0x003: map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x004: map_key_clear(KEY_BRIGHTNESSUP);	break;
+		default:    goto ignore;
+		}
+		break;
+
 	case HID_UP_MSVENDOR:
 		goto ignore;
 
@@ -1145,6 +1154,7 @@ static void report_features(struct hid_device *hid)
 
 int hidinput_connect(struct hid_device *hid, unsigned int force)
 {
+	struct hid_driver *drv = hid->driver;
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
@@ -1219,6 +1229,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
+				if (drv->input_configured)
+					drv->input_configured(hid, hidinput);
 				if (input_register_device(hidinput->input))
 					goto out_cleanup;
 				hidinput = NULL;
@@ -1226,8 +1238,12 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 		}
 	}
 
-	if (hidinput && input_register_device(hidinput->input))
-		goto out_cleanup;
+	if (hidinput) {
+		if (drv->input_configured)
+			drv->input_configured(hid, hidinput);
+		if (input_register_device(hidinput->input))
+			goto out_cleanup;
+	}
 
 	return 0;
 

@@ -191,6 +191,7 @@ static int print_unex = 1;
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/async.h>
 
 /*
  * PS/2 floppies have much slower step rates than regular floppies.
@@ -671,7 +672,6 @@ static void __reschedule_timeout(int drive, const char *message)
 
 	if (drive == current_reqD)
 		drive = current_drive;
-	__cancel_delayed_work(&fd_timeout);
 
 	if (drive < 0 || drive >= N_DRIVE) {
 		delay = 20UL * HZ;
@@ -679,7 +679,7 @@ static void __reschedule_timeout(int drive, const char *message)
 	} else
 		delay = UDP->timeout;
 
-	queue_delayed_work(floppy_wq, &fd_timeout, delay);
+	mod_delayed_work(floppy_wq, &fd_timeout, delay);
 	if (UDP->flags & FD_DEBUG)
 		DPRINT("reschedule timeout %s\n", message);
 	timeout_message = message;
@@ -890,7 +890,7 @@ static void unlock_fdc(void)
 
 	raw_cmd = NULL;
 	command_status = FD_COMMAND_NONE;
-	__cancel_delayed_work(&fd_timeout);
+	cancel_delayed_work(&fd_timeout);
 	do_floppy = NULL;
 	cont = NULL;
 	clear_bit(0, &fdc_busy);
@@ -2516,8 +2516,7 @@ static int make_raw_rw_request(void)
 	set_fdc((long)current_req->rq_disk->private_data);
 
 	raw_cmd = &default_raw_cmd;
-	raw_cmd->flags = FD_RAW_SPIN | FD_RAW_NEED_DISK | FD_RAW_NEED_DISK |
-	    FD_RAW_NEED_SEEK;
+	raw_cmd->flags = FD_RAW_SPIN | FD_RAW_NEED_DISK | FD_RAW_NEED_SEEK;
 	raw_cmd->cmd_count = NR_RW;
 	if (rq_data_dir(current_req) == READ) {
 		raw_cmd->flags |= FD_RAW_READ;
@@ -4123,7 +4122,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(disks[drive]);
 }
 
-static int __init floppy_init(void)
+static int __init do_floppy_init(void)
 {
 	int i, unit, drive;
 	int err, dr;
@@ -4336,6 +4335,24 @@ out_put_disk:
 		put_disk(disks[dr]);
 	}
 	return err;
+}
+
+#ifndef MODULE
+static __init void floppy_async_init(void *data, async_cookie_t cookie)
+{
+	do_floppy_init();
+}
+#endif
+
+static int __init floppy_init(void)
+{
+#ifdef MODULE
+	return do_floppy_init();
+#else
+	/* Don't hold up the bootup by the floppy initialization */
+	async_schedule(floppy_async_init, NULL);
+	return 0;
+#endif
 }
 
 static const struct io_region {

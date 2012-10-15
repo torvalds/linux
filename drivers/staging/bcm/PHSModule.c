@@ -54,11 +54,11 @@ Function:				PHSTransmit
 
 Description:			This routine handle PHS(Payload Header Suppression for Tx path.
 					It extracts a fragment of the NDIS_PACKET containing the header
-					to be suppressed.It then supresses the header by invoking PHS exported compress routine.
-					The header data after supression is copied back to the NDIS_PACKET.
+					to be suppressed. It then suppresses the header by invoking PHS exported compress routine.
+					The header data after suppression is copied back to the NDIS_PACKET.
 
 
-Input parameters:		IN PMINI_ADAPTER Adapter         - Miniport Adapter Context
+Input parameters:		IN struct bcm_mini_adapter *Adapter         - Miniport Adapter Context
 						IN Packet 				- NDIS packet containing data to be transmitted
 						IN USHORT Vcid        - vcid pertaining to connection on which the packet is being sent.Used to
 										        identify PHS rule to be applied.
@@ -66,10 +66,10 @@ Input parameters:		IN PMINI_ADAPTER Adapter         - Miniport Adapter Context
 						BOOLEAN bHeaderSuppressionEnabled - indicates if header suprression is enabled for SF.
 
 Return:					STATUS_SUCCESS - If the send was successful.
-						Other          - If an error occured.
+						Other  - If an error occurred.
 */
 
-int PHSTransmit(PMINI_ADAPTER Adapter,
+int PHSTransmit(struct bcm_mini_adapter *Adapter,
 					 struct sk_buff	**pPacket,
 					 USHORT Vcid,
 					 B_UINT16 uiClassifierRuleID,
@@ -84,10 +84,10 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 	UINT	unPHSNewPktHeaderLen = 0;
 	/* Pointer to PHS IN Hdr Buffer */
 	PUCHAR pucPHSPktHdrInBuf =
-				Adapter->stPhsTxContextInfo.ucaHdrSupressionInBuf;
+				Adapter->stPhsTxContextInfo.ucaHdrSuppressionInBuf;
 	/* Pointer to PHS OUT Hdr Buffer */
 	PUCHAR  pucPHSPktHdrOutBuf =
-					Adapter->stPhsTxContextInfo.ucaHdrSupressionOutBuf;
+					Adapter->stPhsTxContextInfo.ucaHdrSuppressionOutBuf;
 	UINT       usPacketType;
 	UINT       BytesToRemove=0;
 	BOOLEAN  bPHSI = 0;
@@ -101,7 +101,7 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 	if(!bEthCSSupport)
 		BytesToRemove=ETH_HLEN;
 	/*
-		Accumulate the header upto the size we support supression
+		Accumulate the header upto the size we support suppression
 		from NDIS packet
 	*/
 
@@ -125,7 +125,7 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 	{
 
 
-		// Step 2 Supress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
+		// Step 2 Suppress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
 	// Suppress only if IP Header and PHS Enabled For the Service Flow
 		if(((usPacketType == ETHERNET_FRAMETYPE_IPV4) ||
 			(usPacketType == ETHERNET_FRAMETYPE_IPV6)) &&
@@ -209,7 +209,7 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 	return STATUS_SUCCESS;
 }
 
-int PHSReceive(PMINI_ADAPTER Adapter,
+int PHSReceive(struct bcm_mini_adapter *Adapter,
 					USHORT usVcid,
 					struct sk_buff *packet,
 					UINT *punPacketLen,
@@ -217,7 +217,7 @@ int PHSReceive(PMINI_ADAPTER Adapter,
 					UINT	bHeaderSuppressionEnabled)
 {
 	u32   nStandardPktHdrLen            		= 0;
-	u32   nTotalsupressedPktHdrBytes  = 0;
+	u32   nTotalsuppressedPktHdrBytes  = 0;
 	int     ulPhsStatus 		= 0;
 	PUCHAR pucInBuff = NULL ;
 	UINT TotalBytesAdded = 0;
@@ -235,11 +235,11 @@ int PHSReceive(PMINI_ADAPTER Adapter,
 		usVcid,
 		pucInBuff,
 		Adapter->ucaPHSPktRestoreBuf,
-		&nTotalsupressedPktHdrBytes,
+		&nTotalsuppressedPktHdrBytes,
 		&nStandardPktHdrLen);
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nSupressed PktHdrLen : 0x%x Restored PktHdrLen : 0x%x",
-					nTotalsupressedPktHdrBytes,nStandardPktHdrLen);
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nSuppressed PktHdrLen : 0x%x Restored PktHdrLen : 0x%x",
+					nTotalsuppressedPktHdrBytes,nStandardPktHdrLen);
 
 	if(ulPhsStatus != STATUS_PHS_COMPRESSED)
 	{
@@ -248,7 +248,7 @@ int PHSReceive(PMINI_ADAPTER Adapter,
 	}
 	else
 	{
-		TotalBytesAdded = nStandardPktHdrLen - nTotalsupressedPktHdrBytes - PHSI_LEN;
+		TotalBytesAdded = nStandardPktHdrLen - nTotalsuppressedPktHdrBytes - PHSI_LEN;
 		if(TotalBytesAdded)
 		{
 			if(skb_headroom(packet) >= (SKB_RESERVE_ETHERNET_HEADER + TotalBytesAdded))
@@ -273,7 +273,7 @@ int PHSReceive(PMINI_ADAPTER Adapter,
 
 void DumpFullPacket(UCHAR *pBuf,UINT nPktLen)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,"Dumping Data Packet");
     BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,pBuf,nPktLen);
 }
@@ -291,7 +291,7 @@ void DumpFullPacket(UCHAR *pBuf,UINT nPktLen)
 // TRUE(1)	-If allocation of memory was success full.
 // FALSE	-If allocation of memory fails.
 //-----------------------------------------------------------------------------
-int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension,PMINI_ADAPTER Adapter)
+int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
 {
 	int i;
 	S_SERVICEFLOW_TABLE *pstServiceFlowTable;
@@ -346,7 +346,7 @@ int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension,PMINI_ADAPTER Adapter)
 
 
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n phs_init Successfull");
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n phs_init Successful");
 	return STATUS_SUCCESS;
 }
 
@@ -398,7 +398,7 @@ ULONG PhsUpdateClassifierRule(IN void* pvContext,
 	ULONG lStatus =0;
 	UINT nSFIndex =0 ;
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 
 
@@ -462,7 +462,7 @@ ULONG PhsDeletePHSRule(IN void* pvContext,IN B_UINT16 uiVcid,IN B_UINT8 u8PHSI)
 	UINT nSFIndex =0, nClsidIndex =0 ;
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierRulesTable = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 
 	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
@@ -528,7 +528,7 @@ ULONG PhsDeleteClassifierRule(IN void* pvContext,IN B_UINT16 uiVcid ,IN B_UINT16
 	UINT nSFIndex =0, nClsidIndex =0 ;
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
 
 	if(pDeviceExtension)
@@ -592,7 +592,7 @@ ULONG PhsDeleteSFRules(IN void* pvContext,IN B_UINT16 uiVcid)
 	UINT nSFIndex =0, nClsidIndex =0  ;
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierRulesTable = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,"====> \n");
 
@@ -684,7 +684,7 @@ ULONG PhsCompress(IN void* pvContext,
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
 	ULONG lStatus =0;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 
 
@@ -778,7 +778,7 @@ ULONG PhsDeCompress(IN void* pvContext,
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
 	UINT phsi;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PPHS_DEVICE_EXTENSION pDeviceExtension=
         (PPHS_DEVICE_EXTENSION)pvContext;
 
@@ -847,7 +847,7 @@ ULONG PhsDeCompress(IN void* pvContext,
 static void free_phs_serviceflow_rules(S_SERVICEFLOW_TABLE *psServiceFlowRulesTable)
 {
 	int i,j;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "=======>\n");
     if(psServiceFlowRulesTable)
@@ -1057,7 +1057,7 @@ UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
 	UINT uiStatus =PHS_SUCCESS;
 	UINT nClassifierIndex = 0;
 	S_CLASSIFIER_TABLE *psaClassifiertable = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     psaClassifiertable = pstServiceFlowEntry->pstClassifierTable;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "==>");
@@ -1148,7 +1148,7 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 	BOOLEAN bFreeEntryFound = FALSE;
 	S_CLASSIFIER_ENTRY *psClassifierRules = NULL;
 	UINT nStatus = PHS_SUCCESS;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,"Inside CreateClassifierPHSRule");
     if(psaClassifiertable == NULL)
 	{
@@ -1259,7 +1259,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 	S_PHS_RULE *pstAddPhsRule = NULL;
 	UINT              nPhsRuleIndex = 0;
 	BOOLEAN       bPHSRuleOrphaned = FALSE;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	psPhsRule->u8RefCnt =0;
 
 	/* Step 1 Deref Any Exisiting PHS Rule in this classifier Entry*/
@@ -1334,7 +1334,7 @@ static BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId,S_CLASSIFIER_TABLE *psaClassifi
 void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension)
 {
 	int i,j,k,l;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n Dumping PHS Rules : \n");
 	for(i=0;i<MAX_SERVICEFLOWS;i++)
 	{
@@ -1415,7 +1415,7 @@ int phs_decompress(unsigned char *in_buf,unsigned char *out_buf,
 	int bit,i=0;
 	unsigned char *phsf,*phsm;
 	int in_buf_len = *header_size-1;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	in_buf++;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"====>\n");
 	*header_size = 0;
@@ -1494,8 +1494,8 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 			,unsigned char *out_buf,UINT *header_size,UINT *new_header_size)
 {
 	unsigned char *old_addr = out_buf;
-	int supress = 0;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	int suppress = 0;
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     if(phs_rule == NULL)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nphs_compress(): phs_rule null!");
@@ -1514,10 +1514,10 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 	}
 	//To copy PHSI
 	out_buf++;
-	supress = verify_suppress_phsf(in_buf,out_buf,phs_rule->u8PHSF,
+	suppress = verify_suppress_phsf(in_buf,out_buf,phs_rule->u8PHSF,
         phs_rule->u8PHSM, phs_rule->u8PHSS, phs_rule->u8PHSV,new_header_size);
 
-	if(supress == STATUS_PHS_COMPRESSED)
+	if(suppress == STATUS_PHS_COMPRESSED)
 	{
 		*old_addr = (unsigned char)phs_rule->u8PHSI;
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nCOMP:In phs_compress phsi %d",phs_rule->u8PHSI);
@@ -1527,7 +1527,7 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 		*old_addr = ZERO_PHSI;
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nCOMP:In phs_compress PHSV Verification failed");
 	}
-	return supress;
+	return suppress;
 }
 
 
@@ -1557,7 +1557,7 @@ static int verify_suppress_phsf(unsigned char *in_buffer,unsigned char *out_buff
 {
 	unsigned int size=0;
 	int bit,i=0;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nCOMP:In verify_phsf PHSM - 0x%X",*phsm);
 
 

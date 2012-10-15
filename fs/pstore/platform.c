@@ -1,6 +1,7 @@
 /*
  * Persistent Storage - platform driver interface parts.
  *
+ * Copyright (C) 2007-2008 Google, Inc.
  * Copyright (C) 2010 Intel Corporation <tony.luck@intel.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kmsg_dump.h>
+#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/string.h>
@@ -29,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#include <linux/jiffies.h>
 #include <linux/workqueue.h>
 
 #include "internal.h"
@@ -38,7 +41,12 @@
  * whether the system is actually still running well enough
  * to let someone see the entry
  */
-#define	PSTORE_INTERVAL	(60 * HZ)
+static int pstore_update_ms = -1;
+module_param_named(update_ms, pstore_update_ms, int, 0600);
+MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
+		 "(default is -1, which means runtime updates are disabled; "
+		 "enabling this option is not safe, it may lead to further "
+		 "corruption on Oopses)");
 
 static int pstore_new_entry;
 
@@ -53,7 +61,7 @@ static DECLARE_WORK(pstore_work, pstore_dowork);
  * calls to pstore_register()
  */
 static DEFINE_SPINLOCK(pstore_lock);
-static struct pstore_info *psinfo;
+struct pstore_info *psinfo;
 
 static char *backend;
 
@@ -146,6 +154,48 @@ static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
 };
 
+#ifdef CONFIG_PSTORE_CONSOLE
+static void pstore_console_write(struct console *con, const char *s, unsigned c)
+{
+	const char *e = s + c;
+
+	while (s < e) {
+		unsigned long flags;
+
+		if (c > psinfo->bufsize)
+			c = psinfo->bufsize;
+		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		memcpy(psinfo->buf, s, c);
+		psinfo->write(PSTORE_TYPE_CONSOLE, 0, NULL, 0, c, psinfo);
+		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+		s += c;
+		c = e - s;
+	}
+}
+
+static struct console pstore_console = {
+	.name	= "pstore",
+	.write	= pstore_console_write,
+	.flags	= CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME,
+	.index	= -1,
+};
+
+static void pstore_register_console(void)
+{
+	register_console(&pstore_console);
+}
+#else
+static void pstore_register_console(void) {}
+#endif
+
+static int pstore_write_compat(enum pstore_type_id type,
+			       enum kmsg_dump_reason reason,
+			       u64 *id, unsigned int part,
+			       size_t size, struct pstore_info *psi)
+{
+	return psi->write_buf(type, reason, id, part, psinfo->buf, size, psi);
+}
+
 /*
  * platform specific persistent storage driver registers with
  * us here. If pstore is already mounted, call the platform
@@ -170,6 +220,8 @@ int pstore_register(struct pstore_info *psi)
 		return -EINVAL;
 	}
 
+	if (!psi->write)
+		psi->write = pstore_write_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
 	spin_unlock(&pstore_lock);
@@ -183,9 +235,13 @@ int pstore_register(struct pstore_info *psi)
 		pstore_get_records(0);
 
 	kmsg_dump_register(&pstore_dumper);
+	pstore_register_console();
 
-	pstore_timer.expires = jiffies + PSTORE_INTERVAL;
-	add_timer(&pstore_timer);
+	if (pstore_update_ms >= 0) {
+		pstore_timer.expires = jiffies +
+			msecs_to_jiffies(pstore_update_ms);
+		add_timer(&pstore_timer);
+	}
 
 	return 0;
 }
@@ -244,7 +300,7 @@ static void pstore_timefunc(unsigned long dummy)
 		schedule_work(&pstore_work);
 	}
 
-	mod_timer(&pstore_timer, jiffies + PSTORE_INTERVAL);
+	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
 module_param(backend, charp, 0444);

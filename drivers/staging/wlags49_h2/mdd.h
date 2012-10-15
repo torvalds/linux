@@ -1,5 +1,4 @@
 
-//   vim:tw=110:ts=4:
 #ifndef MDD_H
 #define MDD_H 1
 
@@ -653,7 +652,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CNF_WDS_ADDR6				0xFC16		//[AP] Port 6 MAC Adrs of corresponding WDS Link node
 #define CFG_CNF_PM_MCAST_BUF			0xFC17		//[AP] Switch for PM buffereing of Multicast Messages
 #define CFG_CNF_MCAST_PM_BUF			CFG_CNF_PM_MCAST_BUF	//name does not match H-II spec
-#define CFG_CNF_REJECT_ANY				0xFC18		//[AP] Switch for PM buffereing of Multicast Messages
+#define CFG_CNF_REJECT_ANY				0xFC18		//[AP] Switch for PM buffering of Multicast Messages
 
 #define CFG_CNF_ENCRYPTION				0xFC20		//select en/de-cryption of Tx/Rx messages
 #define CFG_CNF_AUTHENTICATION			0xFC21		//[STA] selects Authentication algorithm
@@ -845,13 +844,13 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 
 
 #define HCF_SUCCESS					0x00	// OK
-#define HCF_ERR_TIME_OUT			0x04	// Expected Hermes event did not occure in expected time
+#define HCF_ERR_TIME_OUT			0x04	// Expected Hermes event did not occur in expected time
 #define HCF_ERR_NO_NIC				0x05	/* card not found (usually yanked away during hcfio_in_string
 										  	 * Also: card is either absent or disabled while it should be neither */
 #define HCF_ERR_LEN					0x08	/* buffer size insufficient
 		 								  	 *		  -	IFB_ConfigTable too small
 		 								  	 *		  -	hcf_get_info buffer has a size of 0 or 1 or less than needed
-		 							  		 *			to accomodate all data
+		 							  		 *			to accommodate all data
 		 							  		 *		  -	hcf_put_info: CFG_DLNV_DATA exceeds intermediate
 											 *		  buffer size */
 #define HCF_ERR_INCOMP_PRI			0x09	// primary functions are not compatible
@@ -1005,7 +1004,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got through 0xF200 LinkEvent
 
 /*============================================================ INFORMATION FRAMES =========================*/
-#define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Informatio Frame
+#define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Information Frame
 
 #define CFG_TALLIES						0xF100		//Communications Tallies
 #define CFG_SCAN						0xF101		//Scan results

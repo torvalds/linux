@@ -1,6 +1,9 @@
 #!/bin/bash
 # Manipulate options in a .config file from the command line
 
+# If no prefix forced, use the default CONFIG_
+CONFIG_="${CONFIG_-CONFIG_}"
+
 usage() {
 	cat >&2 <<EOL
 Manipulate options in a .config file from the command line.
@@ -14,6 +17,7 @@ commands:
 	                     Set option to "string"
 	--set-val option value
 	                     Set option to value
+	--undefine|-u option Undefine option
 	--state|-s option    Print state of option (n,y,m,undef)
 
 	--enable-after|-E beforeopt option
@@ -26,10 +30,17 @@ commands:
 	commands can be repeated multiple times
 
 options:
-	--file .config file to change (default .config)
+	--file config-file   .config file to change (default .config)
+	--keep-case|-k       Keep next symbols' case (dont' upper-case it)
 
 config doesn't check the validity of the .config file. This is done at next
- make time.
+make time.
+
+By default, config will upper-case the given symbol. Use --keep-case to keep
+the case of all following symbols unchanged.
+
+config uses 'CONFIG_' as the default symbol prefix. Set the environment
+variable CONFIG_ to the prefix to use. Eg.: CONFIG_="FOO_" config ...
 EOL
 	exit 1
 }
@@ -40,11 +51,13 @@ checkarg() {
 		usage
 	fi
 	case "$ARG" in
-	CONFIG_*)
-		ARG="${ARG/CONFIG_/}"
+	${CONFIG_}*)
+		ARG="${ARG/${CONFIG_}/}"
 		;;
 	esac
-	ARG="`echo $ARG | tr a-z A-Z`"
+	if [ "$MUNGE_CASE" = "yes" ] ; then
+		ARG="`echo $ARG | tr a-z A-Z`"
+	fi
 }
 
 set_var() {
@@ -61,6 +74,12 @@ set_var() {
 	fi
 }
 
+undef_var() {
+	local name=$1
+
+	sed -ri "/^($name=|# $name is not set)/d" "$FN"
+}
+
 if [ "$1" = "--file" ]; then
 	FN="$2"
 	if [ "$FN" = "" ] ; then
@@ -75,10 +94,16 @@ if [ "$1" = "" ] ; then
 	usage
 fi
 
+MUNGE_CASE=yes
 while [ "$1" != "" ] ; do
 	CMD="$1"
 	shift
 	case "$CMD" in
+	--keep-case|-k)
+		MUNGE_CASE=no
+		shift
+		continue
+		;;
 	--refresh)
 		;;
 	--*-after)
@@ -95,55 +120,58 @@ while [ "$1" != "" ] ; do
 	esac
 	case "$CMD" in
 	--enable|-e)
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=y"
+		set_var "${CONFIG_}$ARG" "${CONFIG_}$ARG=y"
 		;;
 
 	--disable|-d)
-		set_var "CONFIG_$ARG" "# CONFIG_$ARG is not set"
+		set_var "${CONFIG_}$ARG" "# ${CONFIG_}$ARG is not set"
 		;;
 
 	--module|-m)
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=m"
+		set_var "${CONFIG_}$ARG" "${CONFIG_}$ARG=m"
 		;;
 
 	--set-str)
 		# sed swallows one level of escaping, so we need double-escaping
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=\"${1//\"/\\\\\"}\""
+		set_var "${CONFIG_}$ARG" "${CONFIG_}$ARG=\"${1//\"/\\\\\"}\""
 		shift
 		;;
 
 	--set-val)
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=$1"
+		set_var "${CONFIG_}$ARG" "${CONFIG_}$ARG=$1"
 		shift
+		;;
+	--undefine|-u)
+		undef_var "${CONFIG_}$ARG"
 		;;
 
 	--state|-s)
-		if grep -q "# CONFIG_$ARG is not set" $FN ; then
+		if grep -q "# ${CONFIG_}$ARG is not set" $FN ; then
 			echo n
 		else
-			V="$(grep "^CONFIG_$ARG=" $FN)"
+			V="$(grep "^${CONFIG_}$ARG=" $FN)"
 			if [ $? != 0 ] ; then
 				echo undef
 			else
-				V="${V/#CONFIG_$ARG=/}"
+				V="${V/#${CONFIG_}$ARG=/}"
 				V="${V/#\"/}"
 				V="${V/%\"/}"
-				V="${V/\\\"/\"}"
+				V="${V//\\\"/\"}"
 				echo "${V}"
 			fi
 		fi
 		;;
 
 	--enable-after|-E)
-		set_var "CONFIG_$B" "CONFIG_$B=y" "CONFIG_$A"
+		set_var "${CONFIG_}$B" "${CONFIG_}$B=y" "${CONFIG_}$A"
 		;;
 
 	--disable-after|-D)
-		set_var "CONFIG_$B" "# CONFIG_$B is not set" "CONFIG_$A"
+		set_var "${CONFIG_}$B" "# ${CONFIG_}$B is not set" "${CONFIG_}$A"
 		;;
 
 	--module-after|-M)
-		set_var "CONFIG_$B" "CONFIG_$B=m" "CONFIG_$A"
+		set_var "${CONFIG_}$B" "${CONFIG_}$B=m" "${CONFIG_}$A"
 		;;
 
 	# undocumented because it ignores --file (fixme)

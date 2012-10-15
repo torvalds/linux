@@ -48,7 +48,6 @@ struct kmem_cache_cpu {
 	unsigned long tid;	/* Globally unique transaction id */
 	struct page *page;	/* The slab from which we are allocating */
 	struct page *partial;	/* Partially allocated frozen slabs */
-	int node;		/* The node of the page (or -1 for debug) */
 #ifdef CONFIG_SLUB_STATS
 	unsigned stat[NR_SLUB_STAT_ITEMS];
 #endif
@@ -83,7 +82,7 @@ struct kmem_cache {
 	unsigned long flags;
 	unsigned long min_partial;
 	int size;		/* The size of an object including meta data */
-	int objsize;		/* The size of an object without meta data */
+	int object_size;	/* The size of an object without meta data */
 	int offset;		/* Free pointer offset. */
 	int cpu_partial;	/* Number of per cpu partial objects to keep around */
 	struct kmem_cache_order_objects oo;

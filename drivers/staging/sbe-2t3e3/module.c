@@ -67,6 +67,7 @@ static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *
 	dev = alloc_hdlcdev(channel);
 	if (!dev) {
 		printk(KERN_ERR "SBE 2T3E3" ": Out of memory\n");
+		err = -ENOMEM;
 		goto free_regions;
 	}
 
@@ -82,8 +83,9 @@ static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *
 	else
 		channel->h.slot = 0;
 
-	if (setup_device(dev, channel))
-		goto free_regions;
+	err = setup_device(dev, channel);
+	if (err)
+		goto free_dev;
 
 	pci_read_config_dword(channel->pdev, 0x40, &val); /* mask sleep mode */
 	pci_write_config_dword(channel->pdev, 0x40, val & 0x3FFFFFFF);
@@ -92,14 +94,19 @@ static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *
 	pci_read_config_dword(channel->pdev, PCI_COMMAND, &channel->h.command);
 	t3e3_init(channel);
 
-	if (request_irq(dev->irq, &t3e3_intr, IRQF_SHARED, dev->name, dev)) {
+	err = request_irq(dev->irq, &t3e3_intr, IRQF_SHARED, dev->name, dev);
+	if (err) {
 		printk(KERN_WARNING "%s: could not get irq: %d\n", dev->name, dev->irq);
-		goto free_regions;
+		goto unregister_dev;
 	}
 
 	pci_set_drvdata(pdev, channel);
 	return 0;
 
+unregister_dev:
+	unregister_hdlc_device(dev);
+free_dev:
+	free_netdev(dev);
 free_regions:
 	pci_release_regions(pdev);
 disable:
@@ -194,17 +201,6 @@ static struct pci_driver t3e3_pci_driver = {
 	.remove   = t3e3_remove_card,
 };
 
-static int __init t3e3_init_module(void)
-{
-	return pci_register_driver(&t3e3_pci_driver);
-}
-
-static void __exit t3e3_cleanup_module(void)
-{
-	pci_unregister_driver(&t3e3_pci_driver);
-}
-
-module_init(t3e3_init_module);
-module_exit(t3e3_cleanup_module);
+module_pci_driver(t3e3_pci_driver);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, t3e3_pci_tbl);

@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/mutex.h>
 #include <linux/types.h>
 
 #include <linux/io.h>
@@ -65,13 +64,13 @@ static unsigned int bus_num;
  *
  * However the VME driver at http://www.vmelinux.org/ is rather old and doesn't
  * even support the tsi148 chipset (which has 8 master and 8 slave windows).
- * We'll run with this or now as far as possible, however it probably makes
+ * We'll run with this for now as far as possible, however it probably makes
  * sense to get rid of the old mappings and just do everything dynamically.
  *
  * So for now, we'll restrict the driver to providing 4 masters and 4 slaves as
  * defined above and try to support at least some of the interface from
- * http://www.vmelinux.org/ as an alternative drive can be written providing a
- * saner interface later.
+ * http://www.vmelinux.org/ as an alternative the driver can be written
+ * providing a saner interface later.
  *
  * The vmelinux.org driver never supported slave images, the devices reserved
  * for slaves were repurposed to support all 8 master images on the UniverseII!
@@ -243,7 +242,7 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 }
 
 /*
- * We are going ot alloc a page during init per window for small transfers.
+ * We are going to alloc a page during init per window for small transfers.
  * Small transfers will go user space -> buffer -> VME. Larger (more than a
  * page) transfers will lock the user space buffer into memory and then
  * transfer the data directly from the user space buffers out to VME.
@@ -397,7 +396,7 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 	default:
 		retval = -EINVAL;
 	}
-	
+
 	mutex_unlock(&image[minor].mutex);
 
 	if (retval > 0)
@@ -474,7 +473,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	case CONTROL_MINOR:
 		switch (cmd) {
 		case VME_IRQ_GEN:
-			copied = copy_from_user(&irq_req, (char *)arg,
+			copied = copy_from_user(&irq_req, argp,
 						sizeof(struct vme_irq_id));
 			if (copied != 0) {
 				printk(KERN_WARNING "Partial copy from userspace\n");

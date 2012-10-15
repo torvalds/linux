@@ -35,10 +35,6 @@
 #include "internal.h"
 #include "iwl-op-mode.h"
 
-#ifdef CONFIG_IWLWIFI_IDI
-#include "iwl-amfh.h"
-#endif
-
 /******************************************************************************
  *
  * RX path functions
@@ -181,15 +177,15 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 }
 
 /**
- * iwlagn_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
+ * iwl_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
-static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
+static inline __le32 iwl_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 {
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
 
 /**
- * iwlagn_rx_queue_restock - refill RX queue from pre-allocated pool
+ * iwl_rx_queue_restock - refill RX queue from pre-allocated pool
  *
  * If there are slots in the RX queue that need to be restocked,
  * and we have free pre-allocated buffers, fill the ranks as much
@@ -199,13 +195,24 @@ static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
+static void iwl_rx_queue_restock(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
+
+	/*
+	 * If the device isn't enabled - not need to try to add buffers...
+	 * This can happen when we stop the device and still have an interrupt
+	 * pending. We stop the APM before we sync the interrupts / tasklets
+	 * because we have to (see comment there). On the other hand, since
+	 * the APM is stopped, we cannot access the HW (in particular not prph).
+	 * So don't try to restock if the APM has been already stopped.
+	 */
+	if (!test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status))
+		return;
 
 	spin_lock_irqsave(&rxq->lock, flags);
 	while ((iwl_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
@@ -219,7 +226,7 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(rxb->page_dma);
+		rxq->bd[rxq->write] = iwl_dma_addr2rbd_ptr(rxb->page_dma);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -229,7 +236,6 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
 		schedule_work(&trans_pcie->rx_replenish);
-
 
 	/* If we've added more space for the firmware to place data, tell it.
 	 * Increment device's write pointer in multiples of 8. */
@@ -241,15 +247,16 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 	}
 }
 
-/**
- * iwlagn_rx_replenish - Move all used packet from rx_used to rx_free
+/*
+ * iwl_rx_allocate - allocate a page for each used RBD
  *
- * When moving to rx_free an SKB is allocated for the slot.
- *
- * Also restock the Rx queue via iwl_rx_queue_restock.
- * This is called as a scheduled work item (except for during initialization)
+ * A used RBD is an Rx buffer that has been given to the stack. To use it again
+ * a page must be allocated and the RBD must point to the page. This function
+ * doesn't change the HW pointer but handles the list of pages that is used by
+ * iwl_rx_queue_restock. The latter function will update the HW to use the newly
+ * allocated buffers.
  */
-static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
+static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
@@ -328,23 +335,31 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 	}
 }
 
-void iwlagn_rx_replenish(struct iwl_trans *trans)
+/*
+ * iwl_rx_replenish - Move all used buffers from rx_used to rx_free
+ *
+ * When moving to rx_free an page is allocated for the slot.
+ *
+ * Also restock the Rx queue via iwl_rx_queue_restock.
+ * This is called as a scheduled work item (except for during initialization)
+ */
+void iwl_rx_replenish(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
-	iwlagn_rx_allocate(trans, GFP_KERNEL);
+	iwl_rx_allocate(trans, GFP_KERNEL);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-	iwlagn_rx_queue_restock(trans);
+	iwl_rx_queue_restock(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
-static void iwlagn_rx_replenish_now(struct iwl_trans *trans)
+static void iwl_rx_replenish_now(struct iwl_trans *trans)
 {
-	iwlagn_rx_allocate(trans, GFP_ATOMIC);
+	iwl_rx_allocate(trans, GFP_ATOMIC);
 
-	iwlagn_rx_queue_restock(trans);
+	iwl_rx_queue_restock(trans);
 }
 
 void iwl_bg_rx_replenish(struct work_struct *data)
@@ -352,7 +367,7 @@ void iwl_bg_rx_replenish(struct work_struct *data)
 	struct iwl_trans_pcie *trans_pcie =
 	    container_of(data, struct iwl_trans_pcie, rx_replenish);
 
-	iwlagn_rx_replenish(trans_pcie->trans);
+	iwl_rx_replenish(trans_pcie->trans);
 }
 
 static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
@@ -421,12 +436,22 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		if (reclaim)
-			cmd = txq->entries[cmd_index].cmd;
-		else
+		if (reclaim) {
+			struct iwl_pcie_tx_queue_entry *ent;
+			ent = &txq->entries[cmd_index];
+			cmd = ent->copy_cmd;
+			WARN_ON_ONCE(!cmd && ent->meta.flags & CMD_WANT_HCMD);
+		} else {
 			cmd = NULL;
+		}
 
 		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
+
+		if (reclaim) {
+			/* The original command isn't needed any more */
+			kfree(txq->entries[cmd_index].copy_cmd);
+			txq->entries[cmd_index].copy_cmd = NULL;
+		}
 
 		/*
 		 * After here, we should always check rxcb._page_stolen,
@@ -520,7 +545,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			count++;
 			if (count >= 8) {
 				rxq->read = i;
-				iwlagn_rx_replenish_now(trans);
+				iwl_rx_replenish_now(trans);
 				count = 0;
 			}
 		}
@@ -529,9 +554,9 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 	/* Backtrack one entry */
 	rxq->read = i;
 	if (fill_rx)
-		iwlagn_rx_replenish_now(trans);
+		iwl_rx_replenish_now(trans);
 	else
-		iwlagn_rx_queue_restock(trans);
+		iwl_rx_queue_restock(trans);
 }
 
 /**
@@ -555,7 +580,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	}
 
 	iwl_dump_csr(trans);
-	iwl_dump_fh(trans, NULL, false);
+	iwl_dump_fh(trans, NULL);
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
@@ -713,11 +738,9 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		/* Disable periodic interrupt; we use it as just a one-shot. */
 		iwl_write8(trans, CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
-#ifdef CONFIG_IWLWIFI_IDI
-		iwl_amfh_rx_handler();
-#else
+
 		iwl_rx_handle(trans);
-#endif
+
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received
 		 * real RX interrupt (instead of just periodic int), to catch

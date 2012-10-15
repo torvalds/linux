@@ -38,6 +38,7 @@
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/intlist.h"
 
 #include "util/debug.h"
 
@@ -94,7 +95,8 @@ static void perf_top__update_print_entries(struct perf_top *top)
 		top->print_entries -= 9;
 }
 
-static void perf_top__sig_winch(int sig __used, siginfo_t *info __used, void *arg)
+static void perf_top__sig_winch(int sig __maybe_unused,
+				siginfo_t *info __maybe_unused, void *arg)
 {
 	struct perf_top *top = arg;
 
@@ -125,7 +127,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 	/*
 	 * We can't annotate with just /proc/kallsyms
 	 */
-	if (map->dso->symtab_type == SYMTAB__KALLSYMS) {
+	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
 		       "path\n", sym->name);
 		sleep(1);
@@ -508,7 +510,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->nr_entries) {
-					top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+					top->sym_evsel = perf_evlist__first(top->evlist);
 					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
@@ -517,7 +519,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
-				top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+				top->sym_evsel = perf_evlist__first(top->evlist);
 			break;
 		case 'f':
 			prompt_integer(&top->count_filter, "Enter display event count filter");
@@ -662,7 +664,7 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct map *map __used, struct symbol *sym)
+static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 {
 	const char *name = sym->name;
 	int i;
@@ -706,8 +708,16 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	int err;
 
 	if (!machine && perf_guest) {
-		pr_err("Can't find guest [%d]'s kernel information\n",
-			event->ip.pid);
+		static struct intlist *seen;
+
+		if (!seen)
+			seen = intlist__new();
+
+		if (!intlist__has_entry(seen, event->ip.pid)) {
+			pr_err("Can't find guest [%d]'s kernel information\n",
+				event->ip.pid);
+			intlist__add(seen, event->ip.pid);
+		}
 		return;
 	}
 
@@ -774,8 +784,10 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = machine__resolve_callchain(machine, al.thread,
-							 sample->callchain, &parent);
+			err = machine__resolve_callchain(machine, evsel,
+							 al.thread, sample,
+							 &parent);
+
 			if (err)
 				return;
 		}
@@ -811,7 +823,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	int ret;
 
 	while ((event = perf_evlist__mmap_read(top->evlist, idx)) != NULL) {
-		ret = perf_session__parse_sample(session, event, &sample);
+		ret = perf_evlist__parse_sample(top->evlist, event, &sample);
 		if (ret) {
 			pr_err("Can't parse sample, err = %d\n", ret);
 			continue;
@@ -875,17 +887,14 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
-	struct perf_evsel *counter, *first;
+	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	if (top->group)
+		perf_evlist__set_leader(evlist);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
-		struct xyarray *group_fd = NULL;
-
-		if (top->group && counter != first)
-			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -916,8 +925,7 @@ retry_sample_id:
 		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
-				     top->evlist->threads, top->group,
-				     group_fd) < 0) {
+				     top->evlist->threads) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
@@ -943,8 +951,10 @@ try_again:
 			 * based cpu-clock-tick sw counter, which
 			 * is always available even if no PMU support:
 			 */
-			if (attr->type == PERF_TYPE_HARDWARE &&
-			    attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+			if ((err == ENOENT || err == ENXIO) &&
+			    (attr->type == PERF_TYPE_HARDWARE) &&
+			    (attr->config == PERF_COUNT_HW_CPU_CYCLES)) {
+
 				if (verbose)
 					ui__warning("Cycles event not supported,\n"
 						    "trying to fall back to cpu-clock-ticks\n");
@@ -1032,7 +1042,7 @@ static int __cmd_top(struct perf_top *top)
 					       &top->session->host_machine);
 	perf_top__start_counters(top);
 	top->session->evlist = top->evlist;
-	perf_session__update_sample_type(top->session);
+	perf_session__set_id_hdr_size(top->session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top->evlist->pollfd, top->evlist->nr_fds, 100);
@@ -1154,7 +1164,7 @@ static const char * const top_usage[] = {
 	NULL
 };
 
-int cmd_top(int argc, const char **argv, const char *prefix __used)
+int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_evsel *pos;
 	int status;
@@ -1317,7 +1327,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 			pos->attr.sample_period = top.default_interval;
 	}
 
-	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
+	top.sym_evsel = perf_evlist__first(top.evlist);
 
 	symbol_conf.priv_size = sizeof(struct annotation);
 

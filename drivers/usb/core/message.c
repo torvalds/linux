@@ -146,8 +146,6 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 	dr->wIndex = cpu_to_le16(index);
 	dr->wLength = cpu_to_le16(size);
 
-	/* dbg("usb_control_msg"); */
-
 	ret = usb_internal_control_msg(dev, pipe, dr, data, size, timeout);
 
 	kfree(dr);
@@ -1174,6 +1172,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			put_device(&dev->actconfig->interface[i]->dev);
 			dev->actconfig->interface[i] = NULL;
 		}
+		usb_unlocked_disable_lpm(dev);
+		usb_disable_ltm(dev);
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);
@@ -1559,7 +1559,7 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (add_uevent_var(env,
 		   "MODALIAS=usb:"
-		   "v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+		   "v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02Xin%02X",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
 		   le16_to_cpu(usb_dev->descriptor.idProduct),
 		   le16_to_cpu(usb_dev->descriptor.bcdDevice),
@@ -1568,7 +1568,8 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 		   usb_dev->descriptor.bDeviceProtocol,
 		   alt->desc.bInterfaceClass,
 		   alt->desc.bInterfaceSubClass,
-		   alt->desc.bInterfaceProtocol))
+		   alt->desc.bInterfaceProtocol,
+		   alt->desc.bInterfaceNumber))
 		return -ENOMEM;
 
 	return 0;
@@ -1791,14 +1792,15 @@ free_interfaces:
 	 * installed, so that the xHCI driver can recalculate the U1/U2
 	 * timeouts.
 	 */
-	if (usb_disable_lpm(dev)) {
+	if (dev->actconfig && usb_disable_lpm(dev)) {
 		dev_err(&dev->dev, "%s Failed to disable LPM\n.", __func__);
 		mutex_unlock(hcd->bandwidth_mutex);
 		return -ENOMEM;
 	}
 	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
-		usb_enable_lpm(dev);
+		if (dev->actconfig)
+			usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
@@ -1818,7 +1820,7 @@ free_interfaces:
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
-		usb_enable_lpm(dev);
+		/* Leave LPM disabled while the device is unconfigured. */
 		mutex_unlock(hcd->bandwidth_mutex);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
@@ -1876,6 +1878,8 @@ free_interfaces:
 
 	/* Now that the interfaces are installed, re-enable LPM. */
 	usb_unlocked_enable_lpm(dev);
+	/* Enable LTM if it was turned off by usb_disable_device. */
+	usb_enable_ltm(dev);
 
 	/* Now that all the interfaces are set up, register them
 	 * to trigger binding of drivers to interfaces.  probe()

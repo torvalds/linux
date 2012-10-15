@@ -36,6 +36,7 @@
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/mm_types.h>
 
 #include "internal.h"
 
@@ -1253,7 +1254,7 @@ retry:
 /*
  * Cross CPU call to disable a performance event
  */
-static int __perf_event_disable(void *info)
+int __perf_event_disable(void *info)
 {
 	struct perf_event *event = info;
 	struct perf_event_context *ctx = event->ctx;
@@ -2935,12 +2936,12 @@ EXPORT_SYMBOL_GPL(perf_event_release_kernel);
 /*
  * Called when the last reference to the file is gone.
  */
-static int perf_release(struct inode *inode, struct file *file)
+static void put_event(struct perf_event *event)
 {
-	struct perf_event *event = file->private_data;
 	struct task_struct *owner;
 
-	file->private_data = NULL;
+	if (!atomic_long_dec_and_test(&event->refcount))
+		return;
 
 	rcu_read_lock();
 	owner = ACCESS_ONCE(event->owner);
@@ -2975,7 +2976,13 @@ static int perf_release(struct inode *inode, struct file *file)
 		put_task_struct(owner);
 	}
 
-	return perf_event_release_kernel(event);
+	perf_event_release_kernel(event);
+}
+
+static int perf_release(struct inode *inode, struct file *file)
+{
+	put_event(file->private_data);
+	return 0;
 }
 
 u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
@@ -3227,7 +3234,7 @@ unlock:
 
 static const struct file_operations perf_fops;
 
-static struct perf_event *perf_fget_light(int fd, int *fput_needed)
+static struct file *perf_fget_light(int fd, int *fput_needed)
 {
 	struct file *file;
 
@@ -3241,7 +3248,7 @@ static struct perf_event *perf_fget_light(int fd, int *fput_needed)
 		return ERR_PTR(-EBADF);
 	}
 
-	return file->private_data;
+	return file;
 }
 
 static int perf_event_set_output(struct perf_event *event,
@@ -3273,19 +3280,21 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PERF_EVENT_IOC_SET_OUTPUT:
 	{
+		struct file *output_file = NULL;
 		struct perf_event *output_event = NULL;
 		int fput_needed = 0;
 		int ret;
 
 		if (arg != -1) {
-			output_event = perf_fget_light(arg, &fput_needed);
-			if (IS_ERR(output_event))
-				return PTR_ERR(output_event);
+			output_file = perf_fget_light(arg, &fput_needed);
+			if (IS_ERR(output_file))
+				return PTR_ERR(output_file);
+			output_event = output_file->private_data;
 		}
 
 		ret = perf_event_set_output(event, output_event);
 		if (output_event)
-			fput_light(output_event->filp, fput_needed);
+			fput_light(output_file, fput_needed);
 
 		return ret;
 	}
@@ -3756,6 +3765,132 @@ int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks *cbs)
 }
 EXPORT_SYMBOL_GPL(perf_unregister_guest_info_callbacks);
 
+static void
+perf_output_sample_regs(struct perf_output_handle *handle,
+			struct pt_regs *regs, u64 mask)
+{
+	int bit;
+
+	for_each_set_bit(bit, (const unsigned long *) &mask,
+			 sizeof(mask) * BITS_PER_BYTE) {
+		u64 val;
+
+		val = perf_reg_value(regs, bit);
+		perf_output_put(handle, val);
+	}
+}
+
+static void perf_sample_regs_user(struct perf_regs_user *regs_user,
+				  struct pt_regs *regs)
+{
+	if (!user_mode(regs)) {
+		if (current->mm)
+			regs = task_pt_regs(current);
+		else
+			regs = NULL;
+	}
+
+	if (regs) {
+		regs_user->regs = regs;
+		regs_user->abi  = perf_reg_abi(current);
+	}
+}
+
+/*
+ * Get remaining task size from user stack pointer.
+ *
+ * It'd be better to take stack vma map and limit this more
+ * precisly, but there's no way to get it safely under interrupt,
+ * so using TASK_SIZE as limit.
+ */
+static u64 perf_ustack_task_size(struct pt_regs *regs)
+{
+	unsigned long addr = perf_user_stack_pointer(regs);
+
+	if (!addr || addr >= TASK_SIZE)
+		return 0;
+
+	return TASK_SIZE - addr;
+}
+
+static u16
+perf_sample_ustack_size(u16 stack_size, u16 header_size,
+			struct pt_regs *regs)
+{
+	u64 task_size;
+
+	/* No regs, no stack pointer, no dump. */
+	if (!regs)
+		return 0;
+
+	/*
+	 * Check if we fit in with the requested stack size into the:
+	 * - TASK_SIZE
+	 *   If we don't, we limit the size to the TASK_SIZE.
+	 *
+	 * - remaining sample size
+	 *   If we don't, we customize the stack size to
+	 *   fit in to the remaining sample size.
+	 */
+
+	task_size  = min((u64) USHRT_MAX, perf_ustack_task_size(regs));
+	stack_size = min(stack_size, (u16) task_size);
+
+	/* Current header size plus static size and dynamic size. */
+	header_size += 2 * sizeof(u64);
+
+	/* Do we fit in with the current stack dump size? */
+	if ((u16) (header_size + stack_size) < header_size) {
+		/*
+		 * If we overflow the maximum size for the sample,
+		 * we customize the stack dump size to fit in.
+		 */
+		stack_size = USHRT_MAX - header_size - sizeof(u64);
+		stack_size = round_up(stack_size, sizeof(u64));
+	}
+
+	return stack_size;
+}
+
+static void
+perf_output_sample_ustack(struct perf_output_handle *handle, u64 dump_size,
+			  struct pt_regs *regs)
+{
+	/* Case of a kernel thread, nothing to dump */
+	if (!regs) {
+		u64 size = 0;
+		perf_output_put(handle, size);
+	} else {
+		unsigned long sp;
+		unsigned int rem;
+		u64 dyn_size;
+
+		/*
+		 * We dump:
+		 * static size
+		 *   - the size requested by user or the best one we can fit
+		 *     in to the sample max size
+		 * data
+		 *   - user stack dump data
+		 * dynamic size
+		 *   - the actual dumped size
+		 */
+
+		/* Static size. */
+		perf_output_put(handle, dump_size);
+
+		/* Data. */
+		sp = perf_user_stack_pointer(regs);
+		rem = __output_copy_user(handle, (void *) sp, dump_size);
+		dyn_size = dump_size - rem;
+
+		perf_output_skip(handle, rem);
+
+		/* Dynamic size. */
+		perf_output_put(handle, dyn_size);
+	}
+}
+
 static void __perf_event_header__init_id(struct perf_event_header *header,
 					 struct perf_sample_data *data,
 					 struct perf_event *event)
@@ -4016,6 +4151,28 @@ void perf_output_sample(struct perf_output_handle *handle,
 			perf_output_put(handle, nr);
 		}
 	}
+
+	if (sample_type & PERF_SAMPLE_REGS_USER) {
+		u64 abi = data->regs_user.abi;
+
+		/*
+		 * If there are no regs to dump, notice it through
+		 * first u64 being zero (PERF_SAMPLE_REGS_ABI_NONE).
+		 */
+		perf_output_put(handle, abi);
+
+		if (abi) {
+			u64 mask = event->attr.sample_regs_user;
+			perf_output_sample_regs(handle,
+						data->regs_user.regs,
+						mask);
+		}
+	}
+
+	if (sample_type & PERF_SAMPLE_STACK_USER)
+		perf_output_sample_ustack(handle,
+					  data->stack_user_size,
+					  data->regs_user.regs);
 }
 
 void perf_prepare_sample(struct perf_event_header *header,
@@ -4039,7 +4196,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		int size = 1;
 
-		data->callchain = perf_callchain(regs);
+		data->callchain = perf_callchain(event, regs);
 
 		if (data->callchain)
 			size += data->callchain->nr;
@@ -4065,6 +4222,49 @@ void perf_prepare_sample(struct perf_event_header *header,
 			size += data->br_stack->nr
 			      * sizeof(struct perf_branch_entry);
 		}
+		header->size += size;
+	}
+
+	if (sample_type & PERF_SAMPLE_REGS_USER) {
+		/* regs dump ABI info */
+		int size = sizeof(u64);
+
+		perf_sample_regs_user(&data->regs_user, regs);
+
+		if (data->regs_user.regs) {
+			u64 mask = event->attr.sample_regs_user;
+			size += hweight64(mask) * sizeof(u64);
+		}
+
+		header->size += size;
+	}
+
+	if (sample_type & PERF_SAMPLE_STACK_USER) {
+		/*
+		 * Either we need PERF_SAMPLE_STACK_USER bit to be allways
+		 * processed as the last one or have additional check added
+		 * in case new sample type is added, because we could eat
+		 * up the rest of the sample size.
+		 */
+		struct perf_regs_user *uregs = &data->regs_user;
+		u16 stack_size = event->attr.sample_stack_user;
+		u16 size = sizeof(u64);
+
+		if (!uregs->abi)
+			perf_sample_regs_user(uregs, regs);
+
+		stack_size = perf_sample_ustack_size(stack_size, header->size,
+						     uregs->regs);
+
+		/*
+		 * If there is something to dump, add space for the dump
+		 * itself and for the field that tells the dynamic size,
+		 * which is how many have been actually dumped.
+		 */
+		if (stack_size)
+			size += sizeof(u64) + stack_size;
+
+		data->stack_user_size = stack_size;
 		header->size += size;
 	}
 }
@@ -5209,7 +5409,8 @@ static int perf_tp_event_match(struct perf_event *event,
 }
 
 void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
-		   struct pt_regs *regs, struct hlist_head *head, int rctx)
+		   struct pt_regs *regs, struct hlist_head *head, int rctx,
+		   struct task_struct *task)
 {
 	struct perf_sample_data data;
 	struct perf_event *event;
@@ -5226,6 +5427,31 @@ void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
 	hlist_for_each_entry_rcu(event, node, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
 			perf_swevent_event(event, count, &data, regs);
+	}
+
+	/*
+	 * If we got specified a target task, also iterate its context and
+	 * deliver this event there too.
+	 */
+	if (task && task != current) {
+		struct perf_event_context *ctx;
+		struct trace_entry *entry = record;
+
+		rcu_read_lock();
+		ctx = rcu_dereference(task->perf_event_ctxp[perf_sw_context]);
+		if (!ctx)
+			goto unlock;
+
+		list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
+			if (event->attr.type != PERF_TYPE_TRACEPOINT)
+				continue;
+			if (event->attr.config != entry->type)
+				continue;
+			if (perf_tp_event_match(event, &data, regs))
+				perf_swevent_event(event, count, &data, regs);
+		}
+unlock:
+		rcu_read_unlock();
 	}
 
 	perf_swevent_put_recursion_context(rctx);
@@ -5924,6 +6150,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	mutex_init(&event->mmap_mutex);
 
+	atomic_long_set(&event->refcount, 1);
 	event->cpu		= cpu;
 	event->attr		= *attr;
 	event->group_leader	= group_leader;
@@ -6116,6 +6343,28 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 			attr->branch_sample_type = mask;
 		}
 	}
+
+	if (attr->sample_type & PERF_SAMPLE_REGS_USER) {
+		ret = perf_reg_validate(attr->sample_regs_user);
+		if (ret)
+			return ret;
+	}
+
+	if (attr->sample_type & PERF_SAMPLE_STACK_USER) {
+		if (!arch_perf_have_user_stack_dump())
+			return -ENOSYS;
+
+		/*
+		 * We have __u32 type for the size, but so far
+		 * we can only use __u16 as maximum due to the
+		 * __u16 sample size limit.
+		 */
+		if (attr->sample_stack_user >= USHRT_MAX)
+			ret = -EINVAL;
+		else if (!IS_ALIGNED(attr->sample_stack_user, sizeof(u64)))
+			ret = -EINVAL;
+	}
+
 out:
 	return ret;
 
@@ -6234,12 +6483,12 @@ SYSCALL_DEFINE5(perf_event_open,
 		return event_fd;
 
 	if (group_fd != -1) {
-		group_leader = perf_fget_light(group_fd, &fput_needed);
-		if (IS_ERR(group_leader)) {
-			err = PTR_ERR(group_leader);
+		group_file = perf_fget_light(group_fd, &fput_needed);
+		if (IS_ERR(group_file)) {
+			err = PTR_ERR(group_file);
 			goto err_fd;
 		}
-		group_file = group_leader->filp;
+		group_leader = group_file->private_data;
 		if (flags & PERF_FLAG_FD_OUTPUT)
 			output_event = group_leader;
 		if (flags & PERF_FLAG_FD_NO_GROUP)
@@ -6376,7 +6625,6 @@ SYSCALL_DEFINE5(perf_event_open,
 		put_ctx(gctx);
 	}
 
-	event->filp = event_file;
 	WARN_ON_ONCE(ctx->parent_ctx);
 	mutex_lock(&ctx->mutex);
 
@@ -6470,7 +6718,6 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		goto err_free;
 	}
 
-	event->filp = NULL;
 	WARN_ON_ONCE(ctx->parent_ctx);
 	mutex_lock(&ctx->mutex);
 	perf_install_in_context(ctx, event, cpu);
@@ -6552,7 +6799,7 @@ static void sync_child_event(struct perf_event *child_event,
 	 * Release the parent event, if this was the last
 	 * reference to it.
 	 */
-	fput(parent_event->filp);
+	put_event(parent_event);
 }
 
 static void
@@ -6628,9 +6875,8 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 *
 	 *   __perf_event_exit_task()
 	 *     sync_child_event()
-	 *       fput(parent_event->filp)
-	 *         perf_release()
-	 *           mutex_lock(&ctx->mutex)
+	 *       put_event()
+	 *         mutex_lock(&ctx->mutex)
 	 *
 	 * But since its the parent context it won't be the same instance.
 	 */
@@ -6698,7 +6944,7 @@ static void perf_free_event(struct perf_event *event,
 	list_del_init(&event->child_list);
 	mutex_unlock(&parent->child_mutex);
 
-	fput(parent->filp);
+	put_event(parent);
 
 	perf_group_detach(event);
 	list_del_event(event, ctx);
@@ -6778,6 +7024,12 @@ inherit_event(struct perf_event *parent_event,
 				           NULL, NULL);
 	if (IS_ERR(child_event))
 		return child_event;
+
+	if (!atomic_long_inc_not_zero(&parent_event->refcount)) {
+		free_event(child_event);
+		return NULL;
+	}
+
 	get_ctx(child_ctx);
 
 	/*
@@ -6817,14 +7069,6 @@ inherit_event(struct perf_event *parent_event,
 	raw_spin_lock_irqsave(&child_ctx->lock, flags);
 	add_event_to_ctx(child_event, child_ctx);
 	raw_spin_unlock_irqrestore(&child_ctx->lock, flags);
-
-	/*
-	 * Get a reference to the parent filp - we will fput it
-	 * when the child event exits. This is safe to do because
-	 * we are in the parent and we know that the filp still
-	 * exists and has a nonzero count:
-	 */
-	atomic_long_inc(&parent_event->filp->f_count);
 
 	/*
 	 * Link this into the parent event's child list
@@ -7259,5 +7503,12 @@ struct cgroup_subsys perf_subsys = {
 	.destroy	= perf_cgroup_destroy,
 	.exit		= perf_cgroup_exit,
 	.attach		= perf_cgroup_attach,
+
+	/*
+	 * perf_event cgroup doesn't handle nesting correctly.
+	 * ctx->nr_cgroups adjustments should be propagated through the
+	 * cgroup hierarchy.  Fix it and remove the following.
+	 */
+	.broken_hierarchy = true,
 };
 #endif /* CONFIG_CGROUP_PERF */

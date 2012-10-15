@@ -276,16 +276,13 @@ static void smscore_notify_clients(struct smscore_device_t *coredev)
 static int smscore_notify_callbacks(struct smscore_device_t *coredev,
 				    struct device *device, int arrival)
 {
-	struct list_head *next, *first;
+	struct smscore_device_notifyee_t *elem;
 	int rc = 0;
 
 	/* note: must be called under g_deviceslock */
 
-	first = &g_smscore_notifyees;
-
-	for (next = first->next; next != first; next = next->next) {
-		rc = ((struct smscore_device_notifyee_t *) next)->
-				hotplug(coredev, device, arrival);
+	list_for_each_entry(elem, &g_smscore_notifyees, entry) {
+		rc = elem->hotplug(coredev, device, arrival);
 		if (rc < 0)
 			break;
 	}
@@ -940,29 +937,25 @@ static struct
 smscore_client_t *smscore_find_client(struct smscore_device_t *coredev,
 				      int data_type, int id)
 {
-	struct smscore_client_t *client = NULL;
-	struct list_head *next, *first;
+	struct list_head *first;
+	struct smscore_client_t *client;
 	unsigned long flags;
-	struct list_head *firstid, *nextid;
-
+	struct list_head *firstid;
+	struct smscore_idlist_t *client_id;
 
 	spin_lock_irqsave(&coredev->clientslock, flags);
 	first = &coredev->clients;
-	for (next = first->next;
-	     (next != first) && !client;
-	     next = next->next) {
-		firstid = &((struct smscore_client_t *)next)->idlist;
-		for (nextid = firstid->next;
-		     nextid != firstid;
-		     nextid = nextid->next) {
-			if ((((struct smscore_idlist_t *)nextid)->id == id) &&
-			    (((struct smscore_idlist_t *)nextid)->data_type == data_type ||
-			    (((struct smscore_idlist_t *)nextid)->data_type == 0))) {
-				client = (struct smscore_client_t *) next;
-				break;
-			}
+	list_for_each_entry(client, first, entry) {
+		firstid = &client->idlist;
+		list_for_each_entry(client_id, firstid, entry) {
+			if ((client_id->id == id) &&
+			    (client_id->data_type == data_type ||
+			    (client_id->data_type == 0)))
+				goto found;
 		}
 	}
+	client = NULL;
+found:
 	spin_unlock_irqrestore(&coredev->clientslock, flags);
 	return client;
 }

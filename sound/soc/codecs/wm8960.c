@@ -1,6 +1,8 @@
 /*
  * wm8960.c  --  WM8960 ALSA SoC Audio driver
  *
+ * Copyright 2007-11 Wolfson Microelectronics, plc
+ *
  * Author: Liam Girdwood
  *
  * This program is free software; you can redistribute it and/or modify

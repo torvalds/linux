@@ -13,7 +13,8 @@
 	ERSN(DEBUG), ERSN(HLT), ERSN(MMIO), ERSN(IRQ_WINDOW_OPEN),	\
 	ERSN(SHUTDOWN), ERSN(FAIL_ENTRY), ERSN(INTR), ERSN(SET_TPR),	\
 	ERSN(TPR_ACCESS), ERSN(S390_SIEIC), ERSN(S390_RESET), ERSN(DCR),\
-	ERSN(NMI), ERSN(INTERNAL_ERROR), ERSN(OSI)
+	ERSN(NMI), ERSN(INTERNAL_ERROR), ERSN(OSI), ERSN(PAPR_HCALL),	\
+	ERSN(S390_UCONTROL)
 
 TRACE_EVENT(kvm_userspace_exit,
 	    TP_PROTO(__u32 reason, int errno),
@@ -36,7 +37,7 @@ TRACE_EVENT(kvm_userspace_exit,
 		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
 );
 
-#if defined(__KVM_HAVE_IOAPIC)
+#if defined(__KVM_HAVE_IRQ_LINE)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
 	TP_ARGS(gsi, level, irq_source_id),
@@ -56,7 +57,9 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
+#endif
 
+#if defined(__KVM_HAVE_IOAPIC)
 #define kvm_deliver_mode		\
 	{0x0, "Fixed"},			\
 	{0x1, "LowPrio"},		\

@@ -45,7 +45,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
 #include "plx9052.h"
 #include "8255.h"
 
@@ -57,11 +56,7 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 /* Registers for the PCIM-DAS1602/16 */
 
 /* sizes of io regions (bytes) */
-#define BADR0_SIZE 2		/* ?? */
-#define BADR1_SIZE 4
-#define BADR2_SIZE 6
 #define BADR3_SIZE 16
-#define BADR4_SIZE 4
 
 /* DAC Offsets */
 #define ADC_TRIG 0
@@ -123,13 +118,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 	 },
 };
 
-#define N_BOARDS 1		/*  Max number of boards supported */
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct cb_pcimdas_board *)dev->board_ptr)
-
 /*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -137,191 +125,12 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
  * struct.
  */
 struct cb_pcimdas_private {
-	int data;
-
-	/*  would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	/* base addresses */
-	unsigned long BADR0;
-	unsigned long BADR1;
-	unsigned long BADR2;
 	unsigned long BADR3;
-	unsigned long BADR4;
 
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
-
-	/*  Used for DIO */
-	unsigned short int port_a;	/*  copy of BADR4+0 */
-	unsigned short int port_b;	/*  copy of BADR4+1 */
-	unsigned short int port_c;	/*  copy of BADR4+2 */
-	unsigned short int dio_mode;	/*  copy of BADR4+3 */
-
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct cb_pcimdas_private *)dev->private)
-
-static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int cb_pcimdas_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	struct pci_dev *pcidev = NULL;
-	int index;
-	/* int i; */
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct cb_pcimdas_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < N_BOARDS; index++) {
-			if (cb_pcimdas_boards[index].device_id !=
-			    pcidev->device)
-				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			dev->board_ptr = cb_pcimdas_boards + index;
-			goto found;
-		}
-	}
-
-	dev_err(dev->hw_dev, "No supported ComputerBoards/MeasurementComputing card found on requested position\n");
-	return -EIO;
-
-found:
-
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n",
-		cb_pcimdas_boards[index].name, pcidev->bus->number,
-		PCI_SLOT(pcidev->devfn));
-
-	/*  Warn about non-tested features */
-	switch (thisboard->device_id) {
-	case 0x56:
-		break;
-	default:
-		dev_dbg(dev->hw_dev, "THIS CARD IS UNSUPPORTED.\n"
-			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
-	}
-
-	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
-		dev_err(dev->hw_dev, "Failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
-
-	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1);
-	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2);
-	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
-	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
-
-	dev_dbg(dev->hw_dev, "devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
-	dev_dbg(dev->hw_dev, "devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
-	dev_dbg(dev->hw_dev, "devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
-	dev_dbg(dev->hw_dev, "devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
-	dev_dbg(dev->hw_dev, "devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
-
-/* Dont support IRQ yet */
-/*  get irq */
-/* if(request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
-/* { */
-/* printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq); */
-/* return -EINVAL; */
-/* } */
-/* dev->irq = devpriv->pci_dev->irq; */
-
-	/* Initialize dev->board_name */
-	dev->board_name = thisboard->name;
-
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
-	/* dev->read_subdev=s; */
-	/*  analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = thisboard->ai_se_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &range_unknown;
-	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
-	/*  the board can handle */
-	s->insn_read = cb_pcimdas_ai_rinsn;
-
-	s = dev->subdevices + 1;
-	/*  analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->ao_nchan;
-	s->maxdata = 1 << thisboard->ao_bits;
-	/* ranges are hardware settable, but not software readable. */
-	s->range_table = &range_unknown;
-	s->insn_write = &cb_pcimdas_ao_winsn;
-	s->insn_read = &cb_pcimdas_ao_rinsn;
-
-	s = dev->subdevices + 2;
-	/* digital i/o subdevice */
-	if (thisboard->has_dio)
-		subdev_8255_init(dev, s, NULL, devpriv->BADR4);
-	else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	return 1;
-}
-
-static void cb_pcimdas_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (devpriv->BADR0)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
-	}
-}
 
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
@@ -331,6 +140,8 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	const struct cb_pcimdas_board *thisboard = comedi_board(dev);
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int n, i;
 	unsigned int d;
 	unsigned int busy;
@@ -368,7 +179,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, devpriv->BADR2 + 0);
+		outw(0, dev->iobase + 0);
 
 #define TIMEOUT 1000		/* typically takes 5 loops on a lightly loaded Pentium 100MHz, */
 		/* this is likely to be 100 loops on a 2GHz machine, so set 1000 as the limit. */
@@ -384,7 +195,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return -ETIMEDOUT;
 		}
 		/* read data */
-		d = inw(devpriv->BADR2 + 0);
+		d = inw(dev->iobase + 0);
 
 		/* mangle the data as necessary */
 		/* d ^= 1<<(thisboard->ai_bits-1); // 16 bit data from ADC, so no mangle needed. */
@@ -400,6 +211,7 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -408,10 +220,10 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		switch (chan) {
 		case 0:
-			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC0_OFFSET);
+			outw(data[i] & 0x0FFF, dev->iobase + DAC0_OFFSET);
 			break;
 		case 1:
-			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC1_OFFSET);
+			outw(data[i] & 0x0FFF, dev->iobase + DAC1_OFFSET);
 			break;
 		default:
 			return -1;
@@ -429,6 +241,7 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -438,10 +251,124 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
+static const void *cb_pcimdas_find_boardinfo(struct comedi_device *dev,
+					     struct pci_dev *pcidev)
+{
+	const struct cb_pcimdas_board *thisboard;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cb_pcimdas_boards); i++) {
+		thisboard = &cb_pcimdas_boards[i];
+		if (thisboard->device_id == pcidev->device)
+			return thisboard;
+	}
+	return NULL;
+}
+
+static int cb_pcimdas_attach_pci(struct comedi_device *dev,
+				 struct pci_dev *pcidev)
+{
+	const struct cb_pcimdas_board *thisboard;
+	struct cb_pcimdas_private *devpriv;
+	struct comedi_subdevice *s;
+	unsigned long iobase_8255;
+	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	thisboard = cb_pcimdas_find_boardinfo(dev, pcidev);
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
+
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
+
+	/*  Warn about non-tested features */
+	switch (thisboard->device_id) {
+	case 0x56:
+		break;
+	default:
+		dev_dbg(dev->class_dev, "THIS CARD IS UNSUPPORTED.\n");
+		dev_dbg(dev->class_dev,
+			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
+	}
+
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+
+	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->BADR3 = pci_resource_start(pcidev, 3);
+	iobase_8255 = pci_resource_start(pcidev, 4);
+
+/* Dont support IRQ yet */
+/*  get irq */
+/* if(request_irq(pcidev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
+/* { */
+/* printk(" unable to allocate irq %u\n", pcidev->irq); */
+/* return -EINVAL; */
+/* } */
+/* dev->irq = pcidev->irq; */
+
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
+
+	s = &dev->subdevices[0];
+	/* dev->read_subdev=s; */
+	/*  analog input subdevice */
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->n_chan = thisboard->ai_se_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &range_unknown;
+	s->len_chanlist = 1;	/*  This is the maximum chanlist length that */
+	/*  the board can handle */
+	s->insn_read = cb_pcimdas_ai_rinsn;
+
+	s = &dev->subdevices[1];
+	/*  analog output subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = thisboard->ao_nchan;
+	s->maxdata = 1 << thisboard->ao_bits;
+	/* ranges are hardware settable, but not software readable. */
+	s->range_table = &range_unknown;
+	s->insn_write = &cb_pcimdas_ao_winsn;
+	s->insn_read = &cb_pcimdas_ao_rinsn;
+
+	s = &dev->subdevices[2];
+	/* digital i/o subdevice */
+	if (thisboard->has_dio)
+		subdev_8255_init(dev, s, NULL, iobase_8255);
+	else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+
+	return 0;
+}
+
+static void cb_pcimdas_detach(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+	}
+}
+
 static struct comedi_driver cb_pcimdas_driver = {
 	.driver_name	= "cb_pcimdas",
 	.module		= THIS_MODULE,
-	.attach		= cb_pcimdas_attach,
+	.attach_pci	= cb_pcimdas_attach_pci,
 	.detach		= cb_pcimdas_detach,
 };
 

@@ -16,68 +16,29 @@
 #include <linux/perf_event.h>
 
 /*
- * Types of PMUs that can be accessed directly and require mutual
- * exclusion between profiling tools.
- */
-enum arm_pmu_type {
-	ARM_PMU_DEVICE_CPU	= 0,
-	ARM_NUM_PMU_DEVICES,
-};
-
-/*
  * struct arm_pmu_platdata - ARM PMU platform data
  *
  * @handle_irq: an optional handler which will be called from the
  *	interrupt and passed the address of the low level handler,
  *	and can be used to implement any platform specific handling
  *	before or after calling it.
- * @enable_irq: an optional handler which will be called after
- *	request_irq and be used to handle some platform specific
- *	irq enablement
- * @disable_irq: an optional handler which will be called before
- *	free_irq and be used to handle some platform specific
- *	irq disablement
+ * @runtime_resume: an optional handler which will be called by the
+ *	runtime PM framework following a call to pm_runtime_get().
+ *	Note that if pm_runtime_get() is called more than once in
+ *	succession this handler will only be called once.
+ * @runtime_suspend: an optional handler which will be called by the
+ *	runtime PM framework following a call to pm_runtime_put().
+ *	Note that if pm_runtime_get() is called more than once in
+ *	succession this handler will only be called following the
+ *	final call to pm_runtime_put() that actually disables the
+ *	hardware.
  */
 struct arm_pmu_platdata {
 	irqreturn_t (*handle_irq)(int irq, void *dev,
 				  irq_handler_t pmu_handler);
-	void (*enable_irq)(int irq);
-	void (*disable_irq)(int irq);
+	int (*runtime_resume)(struct device *dev);
+	int (*runtime_suspend)(struct device *dev);
 };
-
-#ifdef CONFIG_CPU_HAS_PMU
-
-/**
- * reserve_pmu() - reserve the hardware performance counters
- *
- * Reserve the hardware performance counters in the system for exclusive use.
- * Returns 0 on success or -EBUSY if the lock is already held.
- */
-extern int
-reserve_pmu(enum arm_pmu_type type);
-
-/**
- * release_pmu() - Relinquish control of the performance counters
- *
- * Release the performance counters and allow someone else to use them.
- */
-extern void
-release_pmu(enum arm_pmu_type type);
-
-#else /* CONFIG_CPU_HAS_PMU */
-
-#include <linux/err.h>
-
-static inline int
-reserve_pmu(enum arm_pmu_type type)
-{
-	return -ENODEV;
-}
-
-static inline void
-release_pmu(enum arm_pmu_type type)	{ }
-
-#endif /* CONFIG_CPU_HAS_PMU */
 
 #ifdef CONFIG_HW_PERF_EVENTS
 
@@ -103,10 +64,8 @@ struct pmu_hw_events {
 
 struct arm_pmu {
 	struct pmu	pmu;
-	enum arm_perf_pmu_ids id;
-	enum arm_pmu_type type;
 	cpumask_t	active_irqs;
-	const char	*name;
+	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
 	void		(*enable)(struct hw_perf_event *evt, int idx);
 	void		(*disable)(struct hw_perf_event *evt, int idx);
@@ -119,6 +78,8 @@ struct arm_pmu {
 	void		(*start)(void);
 	void		(*stop)(void);
 	void		(*reset)(void *);
+	int		(*request_irq)(irq_handler_t handler);
+	void		(*free_irq)(void);
 	int		(*map_event)(struct perf_event *event);
 	int		num_events;
 	atomic_t	active_events;
@@ -130,7 +91,9 @@ struct arm_pmu {
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
 
-int __init armpmu_register(struct arm_pmu *armpmu, char *name, int type);
+extern const struct dev_pm_ops armpmu_dev_pm_ops;
+
+int armpmu_register(struct arm_pmu *armpmu, char *name, int type);
 
 u64 armpmu_event_update(struct perf_event *event,
 			struct hw_perf_event *hwc,
@@ -139,6 +102,13 @@ u64 armpmu_event_update(struct perf_event *event,
 int armpmu_event_set_period(struct perf_event *event,
 			    struct hw_perf_event *hwc,
 			    int idx);
+
+int armpmu_map_event(struct perf_event *event,
+		     const unsigned (*event_map)[PERF_COUNT_HW_MAX],
+		     const unsigned (*cache_map)[PERF_COUNT_HW_CACHE_MAX]
+						[PERF_COUNT_HW_CACHE_OP_MAX]
+						[PERF_COUNT_HW_CACHE_RESULT_MAX],
+		     u32 raw_event_mask);
 
 #endif /* CONFIG_HW_PERF_EVENTS */
 

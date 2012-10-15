@@ -434,7 +434,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
 /**
  * nmk_config_pin - configure a pin's mux attributes
  * @cfg: pin confguration
- *
+ * @sleep: Non-zero to apply the sleep mode configuration
  * Configures a pin's mode (alternate function or GPIO), its pull up status,
  * and its sleep mode based on the specified configuration.  The @cfg is
  * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
@@ -819,6 +819,7 @@ static struct irq_chip nmk_gpio_irq_chip = {
 	.irq_set_wake	= nmk_gpio_irq_set_wake,
 	.irq_startup	= nmk_gpio_irq_startup,
 	.irq_shutdown	= nmk_gpio_irq_shutdown,
+	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
@@ -826,16 +827,14 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct irq_chip *host_chip = irq_get_chip(irq);
-	unsigned int first_irq;
 
 	chained_irq_enter(host_chip, desc);
 
 	nmk_chip = irq_get_handler_data(irq);
-	first_irq = nmk_chip->domain->revmap_data.legacy.first_irq;
 	while (status) {
 		int bit = __ffs(status);
 
-		generic_handle_irq(first_irq + bit);
+		generic_handle_irq(irq_find_mapping(nmk_chip->domain, bit));
 		status &= ~BIT(bit);
 	}
 
@@ -1194,7 +1193,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	}
 
 	if (np) {
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -1229,29 +1228,23 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		goto out;
 	}
 
-	if (request_mem_region(res->start, resource_size(res),
-			       dev_name(&dev->dev)) == NULL) {
-		ret = -EBUSY;
+	base = devm_request_and_ioremap(&dev->dev, res);
+	if (!base) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		ret = -ENOMEM;
-		goto out_release;
-	}
-
-	clk = clk_get(&dev->dev, NULL);
+	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto out_unmap;
+		goto out;
 	}
 	clk_prepare(clk);
 
-	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
+	nmk_chip = devm_kzalloc(&dev->dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
-		goto out_clk;
+		goto out;
 	}
 
 	/*
@@ -1286,7 +1279,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
-		goto out_free;
+		goto out;
 
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 
@@ -1298,9 +1291,9 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 						NOMADIK_GPIO_TO_IRQ(pdata->first_gpio),
 						0, &nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
-		pr_err("%s: Failed to create irqdomain\n", np->full_name);
+		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
-		goto out_free;
+		goto out;
 	}
 
 	nmk_gpio_init_irq(nmk_chip);
@@ -1309,20 +1302,9 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	return 0;
 
-out_free:
-	kfree(nmk_chip);
-out_clk:
-	clk_disable(clk);
-	clk_put(clk);
-out_unmap:
-	iounmap(base);
-out_release:
-	release_mem_region(res->start, resource_size(res));
 out:
 	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
 		  pdata->first_gpio, pdata->first_gpio+31);
-	if (np)
-		kfree(pdata);
 
 	return ret;
 }
@@ -1737,8 +1719,12 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
 
 	/* Poke in other ASIC variants here */
+	if (version == PINCTRL_NMK_STN8815)
+		nmk_pinctrl_stn8815_init(&npct->soc);
 	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
+	if (version == PINCTRL_NMK_DB8540)
+		nmk_pinctrl_db8540_init(&npct->soc);
 
 	/*
 	 * We need all the GPIO drivers to probe FIRST, or we will not be able
@@ -1748,7 +1734,6 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
 		if (!nmk_gpio_chips[i]) {
 			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
-			devm_kfree(&pdev->dev, npct);
 			return -EPROBE_DEFER;
 		}
 		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;
@@ -1790,6 +1775,7 @@ static struct platform_driver nmk_gpio_driver = {
 static const struct platform_device_id nmk_pinctrl_id[] = {
 	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
 	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
+	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
 };
 
 static struct platform_driver nmk_pinctrl_driver = {

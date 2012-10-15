@@ -807,18 +807,20 @@ struct input_keymap_entry {
 #define ABS_MT_WIDTH_MAJOR	0x32	/* Major axis of approaching ellipse */
 #define ABS_MT_WIDTH_MINOR	0x33	/* Minor axis (omit if circular) */
 #define ABS_MT_ORIENTATION	0x34	/* Ellipse orientation */
-#define ABS_MT_POSITION_X	0x35	/* Center X ellipse position */
-#define ABS_MT_POSITION_Y	0x36	/* Center Y ellipse position */
+#define ABS_MT_POSITION_X	0x35	/* Center X touch position */
+#define ABS_MT_POSITION_Y	0x36	/* Center Y touch position */
 #define ABS_MT_TOOL_TYPE	0x37	/* Type of touching device */
 #define ABS_MT_BLOB_ID		0x38	/* Group a set of packets as a blob */
 #define ABS_MT_TRACKING_ID	0x39	/* Unique ID of initiated contact */
 #define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 #define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
+#define ABS_MT_TOOL_X		0x3c	/* Center X tool position */
+#define ABS_MT_TOOL_Y		0x3d	/* Center Y tool position */
 
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
-#define ABS_MT_LAST		ABS_MT_DISTANCE
+#define ABS_MT_LAST		ABS_MT_TOOL_Y
 #endif
 
 #define ABS_MAX			0x3f
@@ -1167,6 +1169,18 @@ struct ff_effect {
 #include <linux/mod_devicetable.h>
 
 /**
+ * struct input_value - input value representation
+ * @type: type of value (EV_KEY, EV_ABS, etc)
+ * @code: the value code
+ * @value: the value
+ */
+struct input_value {
+	__u16 type;
+	__u16 code;
+	__s32 value;
+};
+
+/**
  * struct input_dev - represents an input device
  * @name: name of the device
  * @phys: physical path to the device in the system hierarchy
@@ -1201,11 +1215,7 @@ struct ff_effect {
  *	software autorepeat
  * @timer: timer for software autorepeat
  * @rep: current values for autorepeat parameters (delay, rate)
- * @mt: pointer to array of struct input_mt_slot holding current values
- *	of tracked contacts
- * @mtsize: number of MT slots the device uses
- * @slot: MT slot currently being transmitted
- * @trkid: stores MT tracking ID for the current contact
+ * @mt: pointer to multitouch state
  * @absinfo: array of &struct input_absinfo elements holding information
  *	about absolute axes (current value, min, max, flat, fuzz,
  *	resolution)
@@ -1242,7 +1252,6 @@ struct ff_effect {
  *	last user closes the device
  * @going_away: marks devices that are in a middle of unregistering and
  *	causes input_open_device*() fail with -ENODEV.
- * @sync: set to %true when there were no new events since last EV_SYN
  * @dev: driver model's view of this device
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held
@@ -1285,10 +1294,7 @@ struct input_dev {
 
 	int rep[REP_CNT];
 
-	struct input_mt_slot *mt;
-	int mtsize;
-	int slot;
-	int trkid;
+	struct input_mt *mt;
 
 	struct input_absinfo *absinfo;
 
@@ -1310,12 +1316,14 @@ struct input_dev {
 	unsigned int users;
 	bool going_away;
 
-	bool sync;
-
 	struct device dev;
 
 	struct list_head	h_list;
 	struct list_head	node;
+
+	unsigned int num_vals;
+	unsigned int max_vals;
+	struct input_value *vals;
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
 
@@ -1376,6 +1384,9 @@ struct input_handle;
  * @event: event handler. This method is being called by input core with
  *	interrupts disabled and dev->event_lock spinlock held and so
  *	it may not sleep
+ * @events: event sequence handler. This method is being called by
+ *	input core with interrupts disabled and dev->event_lock
+ *	spinlock held and so it may not sleep
  * @filter: similar to @event; separates normal event handlers from
  *	"filters".
  * @match: called after comparing device's id with handler's id_table
@@ -1412,6 +1423,8 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+	void (*events)(struct input_handle *handle,
+		       const struct input_value *vals, unsigned int count);
 	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);

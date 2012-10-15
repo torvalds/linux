@@ -655,6 +655,50 @@ char *resource_string(char *buf, char *end, struct resource *res,
 }
 
 static noinline_for_stack
+char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
+		 const char *fmt)
+{
+	int i, len = 1;		/* if we pass '%ph[CDN]', field witdh remains
+				   negative value, fallback to the default */
+	char separator;
+
+	if (spec.field_width == 0)
+		/* nothing to print */
+		return buf;
+
+	if (ZERO_OR_NULL_PTR(addr))
+		/* NULL pointer */
+		return string(buf, end, NULL, spec);
+
+	switch (fmt[1]) {
+	case 'C':
+		separator = ':';
+		break;
+	case 'D':
+		separator = '-';
+		break;
+	case 'N':
+		separator = 0;
+		break;
+	default:
+		separator = ' ';
+		break;
+	}
+
+	if (spec.field_width > 0)
+		len = min_t(int, spec.field_width, 64);
+
+	for (i = 0; i < len && buf < end - 1; i++) {
+		buf = hex_byte_pack(buf, addr[i]);
+
+		if (buf < end && separator && i != len - 1)
+			*buf++ = separator;
+	}
+
+	return buf;
+}
+
+static noinline_for_stack
 char *mac_address_string(char *buf, char *end, u8 *addr,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -662,15 +706,28 @@ char *mac_address_string(char *buf, char *end, u8 *addr,
 	char *p = mac_addr;
 	int i;
 	char separator;
+	bool reversed = false;
 
-	if (fmt[1] == 'F') {		/* FDDI canonical format */
+	switch (fmt[1]) {
+	case 'F':
 		separator = '-';
-	} else {
+		break;
+
+	case 'R':
+		reversed = true;
+		/* fall through */
+
+	default:
 		separator = ':';
+		break;
 	}
 
 	for (i = 0; i < 6; i++) {
-		p = hex_byte_pack(p, addr[i]);
+		if (reversed)
+			p = hex_byte_pack(p, addr[5 - i]);
+		else
+			p = hex_byte_pack(p, addr[i]);
+
 		if (fmt[0] == 'M' && i != 5)
 			*p++ = separator;
 	}
@@ -933,6 +990,7 @@ int kptr_restrict __read_mostly;
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
  *       with a dash-separated hex notation
+ * - '[mM]R For a 6-byte MAC address, Reverse order (Bluetooth)
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
  *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
@@ -960,6 +1018,13 @@ int kptr_restrict __read_mostly;
  *       correctness of the format string and va_list arguments.
  * - 'K' For a kernel pointer that should be hidden from unprivileged users
  * - 'NF' For a netdev_features_t
+ * - 'h[CDN]' For a variable-length buffer, it prints it as a hex string with
+ *            a certain separator (' ' by default):
+ *              C colon
+ *              D dash
+ *              N no separator
+ *            The maximum supported length is 64 bytes of the input. Consider
+ *            to use print_hex_dump() for the larger input.
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -993,9 +1058,12 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'R':
 	case 'r':
 		return resource_string(buf, end, ptr, spec, fmt);
+	case 'h':
+		return hex_string(buf, end, ptr, spec, fmt);
 	case 'M':			/* Colon separated: 00:01:02:03:04:05 */
 	case 'm':			/* Contiguous: 000102030405 */
-					/* [mM]F (FDDI, bit reversed) */
+					/* [mM]F (FDDI) */
+					/* [mM]R (Reverse order; Bluetooth) */
 		return mac_address_string(buf, end, ptr, spec, fmt);
 	case 'I':			/* Formatted IP supported
 					 * 4:	1.2.3.4
@@ -1030,7 +1098,8 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		 * %pK cannot be used in IRQ context because its test
 		 * for CAP_SYSLOG would be meaningless.
 		 */
-		if (in_irq() || in_serving_softirq() || in_nmi()) {
+		if (kptr_restrict && (in_irq() || in_serving_softirq() ||
+				      in_nmi())) {
 			if (spec.field_width == -1)
 				spec.field_width = default_width;
 			return string(buf, end, "pK-error", spec);
@@ -1280,7 +1349,11 @@ qualifier:
  * %pI6c print an IPv6 address as specified by RFC 5952
  * %pU[bBlL] print a UUID/GUID in big or little endian using lower or upper
  *   case.
+ * %*ph[CDN] a variable-length hex string with a separator (supports up to 64
+ *           bytes of the input)
  * %n is ignored
+ *
+ * ** Please update Documentation/printk-formats.txt when making changes **
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing

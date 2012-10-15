@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -32,7 +33,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
@@ -993,13 +993,13 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
 
 static int pxa25x_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int pxa25x_stop(struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops pxa25x_udc_ops = {
@@ -1257,7 +1257,7 @@ static void udc_enable (struct pxa25x_udc *dev)
  * the driver might get unbound.
  */
 static int pxa25x_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct pxa25x_udc	*dev = the_controller;
 	int			retval;
@@ -1285,7 +1285,7 @@ fail:
 		dev->gadget.dev.driver = NULL;
 		return retval;
 	}
-	retval = bind(&dev->gadget);
+	retval = bind(&dev->gadget, driver);
 	if (retval) {
 		DMSG("bind to driver %s --> error %d\n",
 				driver->driver.name, retval);
@@ -1299,7 +1299,7 @@ fail:
 	DMSG("registered gadget driver '%s'\n", driver->driver.name);
 
 	/* connect to bus through transceiver */
-	if (dev->transceiver) {
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
 		retval = otg_set_peripheral(dev->transceiver->otg,
 						&dev->gadget);
 		if (retval) {
@@ -1359,7 +1359,7 @@ static int pxa25x_stop(struct usb_gadget_driver *driver)
 	stop_activity(dev, driver);
 	local_irq_enable();
 
-	if (dev->transceiver)
+	if (!IS_ERR_OR_NULL(dev->transceiver))
 		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
 	driver->unbind(&dev->gadget);
@@ -2159,7 +2159,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	dev->transceiver = usb_get_transceiver();
+	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
@@ -2200,19 +2200,15 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_LUBBOCK
 	if (machine_is_lubbock()) {
-		retval = request_irq(LUBBOCK_USB_DISC_IRQ,
-				lubbock_vbus_irq,
-				IRQF_SAMPLE_RANDOM,
-				driver_name, dev);
+		retval = request_irq(LUBBOCK_USB_DISC_IRQ, lubbock_vbus_irq,
+				     0, driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 			goto err_irq_lub;
 		}
-		retval = request_irq(LUBBOCK_USB_IRQ,
-				lubbock_vbus_irq,
-				IRQF_SAMPLE_RANDOM,
-				driver_name, dev);
+		retval = request_irq(LUBBOCK_USB_IRQ, lubbock_vbus_irq,
+				     0, driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_IRQ, retval);
@@ -2237,8 +2233,8 @@ lubbock_fail0:
 	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
-	if (dev->transceiver) {
-		usb_put_transceiver(dev->transceiver);
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
+		usb_put_phy(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 	clk_put(dev->clk);
@@ -2279,8 +2275,8 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 
 	clk_put(dev->clk);
 
-	if (dev->transceiver) {
-		usb_put_transceiver(dev->transceiver);
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
+		usb_put_phy(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 

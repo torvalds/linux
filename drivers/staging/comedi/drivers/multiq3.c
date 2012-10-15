@@ -161,28 +161,22 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
 
-	return 2;
+	return insn->n;
 }
 
 static int multiq3_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	s->state &= ~data[0];
 	s->state |= (data[0] & data[1]);
 	outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int multiq3_encoder_insn_read(struct comedi_device *dev,
@@ -210,8 +204,10 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 
 static void encoder_reset(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s = &dev->subdevices[4];
 	int chan;
-	for (chan = 0; chan < dev->subdevices[4].n_chan; chan++) {
+
+	for (chan = 0; chan < s->n_chan; chan++) {
 		int control =
 		    MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3);
 		outw(control, dev->iobase + MULTIQ3_CONTROL);
@@ -255,15 +251,16 @@ static int multiq3_attach(struct comedi_device *dev,
 	else
 		printk(KERN_WARNING "comedi%d: no irq\n", dev->minor);
 	dev->board_name = "multiq3";
-	result = alloc_subdevices(dev, 5);
-	if (result < 0)
+
+	result = comedi_alloc_subdevices(dev, 5);
+	if (result)
 		return result;
 
 	result = alloc_private(dev, sizeof(struct multiq3_private));
 	if (result < 0)
 		return result;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -272,7 +269,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->maxdata = 0x1fff;
 	s->range_table = &range_bipolar5;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -282,7 +279,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->maxdata = 0xfff;
 	s->range_table = &range_bipolar5;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -291,7 +288,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -301,7 +298,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->state = 0;
 
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	/* encoder (counter) subdevice */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;

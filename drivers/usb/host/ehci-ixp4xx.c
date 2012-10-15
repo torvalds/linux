@@ -22,14 +22,10 @@ static int ixp4xx_ehci_init(struct usb_hcd *hcd)
 	ehci->big_endian_mmio = 1;
 
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100
-		+ HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	hcd->has_tt = 1;
-	ehci_reset(ehci);
 
-	retval = ehci_init(hcd);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
@@ -102,30 +98,19 @@ static int ixp4xx_ehci_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				driver->description)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		retval = -EBUSY;
-		goto fail_request_resource;
-	}
-
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (hcd->regs == NULL) {
 		dev_dbg(&pdev->dev, "error mapping memory\n");
 		retval = -EFAULT;
-		goto fail_ioremap;
+		goto fail_request_resource;
 	}
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
-		goto fail_add_hcd;
+		goto fail_request_resource;
 
 	return retval;
 
-fail_add_hcd:
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 fail_request_resource:
 	usb_put_hcd(hcd);
 fail_create_hcd:
@@ -138,8 +123,6 @@ static int ixp4xx_ehci_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
 	return 0;

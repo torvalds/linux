@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <asm/byteorder.h>
 #include <linux/ip.h>
@@ -256,13 +255,15 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 
 static int gdm_wimax_event_init(void)
 {
-	if (wm_event.ref_cnt == 0) {
+	if (!wm_event.ref_cnt) {
 		wm_event.sock = netlink_init(NETLINK_WIMAX,
 						gdm_wimax_event_rcv);
-		INIT_LIST_HEAD(&wm_event.evtq);
-		INIT_LIST_HEAD(&wm_event.freeq);
-		INIT_WORK(&wm_event.ws, __gdm_wimax_event_send);
-		spin_lock_init(&wm_event.evt_lock);
+		if (wm_event.sock) {
+			INIT_LIST_HEAD(&wm_event.evtq);
+			INIT_LIST_HEAD(&wm_event.freeq);
+			INIT_WORK(&wm_event.ws, __gdm_wimax_event_send);
+			spin_lock_init(&wm_event.evt_lock);
+		}
 	}
 
 	if (wm_event.sock) {
@@ -745,13 +746,8 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 					"[%x/%d]\n", __func__, T, L);
 				return -1;
 			}
-			printk(KERN_INFO
-				"MAC change [%02x:%02x:%02x:%02x:%02x:%02x]"
-				"->[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-				dev->dev_addr[0], dev->dev_addr[1],
-				dev->dev_addr[2], dev->dev_addr[3],
-				dev->dev_addr[4], dev->dev_addr[5],
-				V[0], V[1], V[2], V[3], V[4], V[5]);
+			printk(KERN_INFO "MAC change [%pM]->[%pM]\n",
+				dev->dev_addr, V);
 			memcpy(dev->dev_addr, V, dev->addr_len);
 			return 1;
 		}

@@ -21,6 +21,7 @@
 #include <linux/cdrom.h>
 #include <linux/parser.h>
 #include <linux/mpage.h>
+#include <linux/user_namespace.h>
 
 #include "isofs.h"
 #include "zisofs.h"
@@ -171,8 +172,8 @@ struct iso9660_options{
 	unsigned int blocksize;
 	umode_t fmode;
 	umode_t dmode;
-	gid_t gid;
-	uid_t uid;
+	kgid_t gid;
+	kuid_t uid;
 	char *iocharset;
 	/* LVE */
 	s32 session;
@@ -383,8 +384,8 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	popt->fmode = popt->dmode = ISOFS_INVALID_MODE;
 	popt->uid_set = 0;
 	popt->gid_set = 0;
-	popt->gid = 0;
-	popt->uid = 0;
+	popt->gid = GLOBAL_ROOT_GID;
+	popt->uid = GLOBAL_ROOT_UID;
 	popt->iocharset = NULL;
 	popt->utf8 = 0;
 	popt->overriderockperm = 0;
@@ -460,13 +461,17 @@ static int parse_options(char *options, struct iso9660_options *popt)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return 0;
-			popt->uid = option;
+			popt->uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(popt->uid))
+				return 0;
 			popt->uid_set = 1;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return 0;
-			popt->gid = option;
+			popt->gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(popt->gid))
+				return 0;
 			popt->gid_set = 1;
 			break;
 		case Opt_mode:

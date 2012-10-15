@@ -97,7 +97,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	    min(dev->attr.max_ord_per_qp, dev->attr.max_ird_per_qp);
 	attr->max_qp_init_rd_atom = dev->attr.max_ord_per_qp;
 	attr->max_srq = (dev->attr.max_qp - 1);
-	attr->max_srq_sge = attr->max_srq_sge;
+	attr->max_srq_sge = dev->attr.max_srq_sge;
 	attr->max_srq_wr = dev->attr.max_rqe;
 	attr->local_ca_ack_delay = dev->attr.local_ca_ack_delay;
 	attr->max_fast_reg_page_list_len = 0;
@@ -893,7 +893,9 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 	/* verify consumer QPs are not trying to use GSI QP's CQ */
 	if ((attrs->qp_type != IB_QPT_GSI) && (dev->gsi_qp_created)) {
 		if ((dev->gsi_sqcq == get_ocrdma_cq(attrs->send_cq)) ||
-		    (dev->gsi_sqcq == get_ocrdma_cq(attrs->send_cq))) {
+		    (dev->gsi_sqcq == get_ocrdma_cq(attrs->recv_cq)) ||
+		    (dev->gsi_rqcq == get_ocrdma_cq(attrs->send_cq)) ||
+		    (dev->gsi_rqcq == get_ocrdma_cq(attrs->recv_cq))) {
 			ocrdma_err("%s(%d) Consumer QP cannot use GSI CQs.\n",
 				   __func__, dev->id);
 			return -EINVAL;
@@ -2217,7 +2219,6 @@ static bool ocrdma_poll_success_scqe(struct ocrdma_qp *qp,
 	u32 wqe_idx;
 
 	if (!qp->wqe_wr_id_tbl[tail].signaled) {
-		expand = true;	/* CQE cannot be consumed yet */
 		*polled = false;    /* WC cannot be consumed yet */
 	} else {
 		ibwc->status = IB_WC_SUCCESS;
@@ -2225,10 +2226,11 @@ static bool ocrdma_poll_success_scqe(struct ocrdma_qp *qp,
 		ibwc->qp = &qp->ibqp;
 		ocrdma_update_wc(qp, ibwc, tail);
 		*polled = true;
-		wqe_idx = le32_to_cpu(cqe->wq.wqeidx) &	OCRDMA_CQE_WQEIDX_MASK;
-		if (tail != wqe_idx)
-			expand = true; /* Coalesced CQE can't be consumed yet */
 	}
+	wqe_idx = le32_to_cpu(cqe->wq.wqeidx) &	OCRDMA_CQE_WQEIDX_MASK;
+	if (tail != wqe_idx)
+		expand = true; /* Coalesced CQE can't be consumed yet */
+
 	ocrdma_hwq_inc_tail(&qp->sq);
 	return expand;
 }

@@ -23,7 +23,12 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 
 static const struct i2c_device_id pcf857x_id[] = {
@@ -60,62 +65,34 @@ struct pcf857x {
 	struct gpio_chip	chip;
 	struct i2c_client	*client;
 	struct mutex		lock;		/* protect 'out' */
+	struct work_struct	work;		/* irq demux work */
+	struct irq_domain	*irq_domain;	/* for irq demux  */
+	spinlock_t		slock;		/* protect irq demux */
 	unsigned		out;		/* software latch */
+	unsigned		status;		/* current status */
+	int			irq;		/* real irq number */
+
+	int (*write)(struct i2c_client *client, unsigned data);
+	int (*read)(struct i2c_client *client);
 };
 
 /*-------------------------------------------------------------------------*/
 
 /* Talk to 8-bit I/O expander */
 
-static int pcf857x_input8(struct gpio_chip *chip, unsigned offset)
+static int i2c_write_le8(struct i2c_client *client, unsigned data)
 {
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
-	int		status;
-
-	mutex_lock(&gpio->lock);
-	gpio->out |= (1 << offset);
-	status = i2c_smbus_write_byte(gpio->client, gpio->out);
-	mutex_unlock(&gpio->lock);
-
-	return status;
+	return i2c_smbus_write_byte(client, data);
 }
 
-static int pcf857x_get8(struct gpio_chip *chip, unsigned offset)
+static int i2c_read_le8(struct i2c_client *client)
 {
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
-	s32		value;
-
-	value = i2c_smbus_read_byte(gpio->client);
-	return (value < 0) ? 0 : (value & (1 << offset));
+	return (int)i2c_smbus_read_byte(client);
 }
-
-static int pcf857x_output8(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
-	unsigned	bit = 1 << offset;
-	int		status;
-
-	mutex_lock(&gpio->lock);
-	if (value)
-		gpio->out |= bit;
-	else
-		gpio->out &= ~bit;
-	status = i2c_smbus_write_byte(gpio->client, gpio->out);
-	mutex_unlock(&gpio->lock);
-
-	return status;
-}
-
-static void pcf857x_set8(struct gpio_chip *chip, unsigned offset, int value)
-{
-	pcf857x_output8(chip, offset, value);
-}
-
-/*-------------------------------------------------------------------------*/
 
 /* Talk to 16-bit I/O expander */
 
-static int i2c_write_le16(struct i2c_client *client, u16 word)
+static int i2c_write_le16(struct i2c_client *client, unsigned word)
 {
 	u8 buf[2] = { word & 0xff, word >> 8, };
 	int status;
@@ -135,29 +112,31 @@ static int i2c_read_le16(struct i2c_client *client)
 	return (buf[1] << 8) | buf[0];
 }
 
-static int pcf857x_input16(struct gpio_chip *chip, unsigned offset)
+/*-------------------------------------------------------------------------*/
+
+static int pcf857x_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
 	int		status;
 
 	mutex_lock(&gpio->lock);
 	gpio->out |= (1 << offset);
-	status = i2c_write_le16(gpio->client, gpio->out);
+	status = gpio->write(gpio->client, gpio->out);
 	mutex_unlock(&gpio->lock);
 
 	return status;
 }
 
-static int pcf857x_get16(struct gpio_chip *chip, unsigned offset)
+static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
 	int		value;
 
-	value = i2c_read_le16(gpio->client);
+	value = gpio->read(gpio->client);
 	return (value < 0) ? 0 : (value & (1 << offset));
 }
 
-static int pcf857x_output16(struct gpio_chip *chip, unsigned offset, int value)
+static int pcf857x_output(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
 	unsigned	bit = 1 << offset;
@@ -168,15 +147,109 @@ static int pcf857x_output16(struct gpio_chip *chip, unsigned offset, int value)
 		gpio->out |= bit;
 	else
 		gpio->out &= ~bit;
-	status = i2c_write_le16(gpio->client, gpio->out);
+	status = gpio->write(gpio->client, gpio->out);
 	mutex_unlock(&gpio->lock);
 
 	return status;
 }
 
-static void pcf857x_set16(struct gpio_chip *chip, unsigned offset, int value)
+static void pcf857x_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	pcf857x_output16(chip, offset, value);
+	pcf857x_output(chip, offset, value);
+}
+
+/*-------------------------------------------------------------------------*/
+
+static int pcf857x_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct pcf857x *gpio = container_of(chip, struct pcf857x, chip);
+
+	return irq_create_mapping(gpio->irq_domain, offset);
+}
+
+static void pcf857x_irq_demux_work(struct work_struct *work)
+{
+	struct pcf857x *gpio = container_of(work,
+					       struct pcf857x,
+					       work);
+	unsigned long change, i, status, flags;
+
+	status = gpio->read(gpio->client);
+
+	spin_lock_irqsave(&gpio->slock, flags);
+
+	change = gpio->status ^ status;
+	for_each_set_bit(i, &change, gpio->chip.ngpio)
+		generic_handle_irq(irq_find_mapping(gpio->irq_domain, i));
+	gpio->status = status;
+
+	spin_unlock_irqrestore(&gpio->slock, flags);
+}
+
+static irqreturn_t pcf857x_irq_demux(int irq, void *data)
+{
+	struct pcf857x	*gpio = data;
+
+	/*
+	 * pcf857x can't read/write data here,
+	 * since i2c data access might go to sleep.
+	 */
+	schedule_work(&gpio->work);
+
+	return IRQ_HANDLED;
+}
+
+static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int virq,
+				 irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(virq,
+				 &dummy_irq_chip,
+				 handle_level_irq);
+	return 0;
+}
+
+static struct irq_domain_ops pcf857x_irq_domain_ops = {
+	.map	= pcf857x_irq_domain_map,
+};
+
+static void pcf857x_irq_domain_cleanup(struct pcf857x *gpio)
+{
+	if (gpio->irq_domain)
+		irq_domain_remove(gpio->irq_domain);
+
+	if (gpio->irq)
+		free_irq(gpio->irq, gpio);
+}
+
+static int pcf857x_irq_domain_init(struct pcf857x *gpio,
+				   struct pcf857x_platform_data *pdata,
+				   struct device *dev)
+{
+	int status;
+
+	gpio->irq_domain = irq_domain_add_linear(dev->of_node,
+						 gpio->chip.ngpio,
+						 &pcf857x_irq_domain_ops,
+						 NULL);
+	if (!gpio->irq_domain)
+		goto fail;
+
+	/* enable real irq */
+	status = request_irq(pdata->irq, pcf857x_irq_demux, 0,
+			     dev_name(dev), gpio);
+	if (status)
+		goto fail;
+
+	/* enable gpio_to_irq() */
+	INIT_WORK(&gpio->work, pcf857x_irq_demux_work);
+	gpio->chip.to_irq	= pcf857x_to_irq;
+	gpio->irq		= pdata->irq;
+
+	return 0;
+
+fail:
+	pcf857x_irq_domain_cleanup(gpio);
+	return -EINVAL;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -199,11 +272,26 @@ static int pcf857x_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mutex_init(&gpio->lock);
+	spin_lock_init(&gpio->slock);
 
-	gpio->chip.base = pdata ? pdata->gpio_base : -1;
-	gpio->chip.can_sleep = 1;
-	gpio->chip.dev = &client->dev;
-	gpio->chip.owner = THIS_MODULE;
+	gpio->chip.base			= pdata ? pdata->gpio_base : -1;
+	gpio->chip.can_sleep		= 1;
+	gpio->chip.dev			= &client->dev;
+	gpio->chip.owner		= THIS_MODULE;
+	gpio->chip.get			= pcf857x_get;
+	gpio->chip.set			= pcf857x_set;
+	gpio->chip.direction_input	= pcf857x_input;
+	gpio->chip.direction_output	= pcf857x_output;
+	gpio->chip.ngpio		= id->driver_data;
+
+	/* enable gpio_to_irq() if platform has settings */
+	if (pdata && pdata->irq) {
+		status = pcf857x_irq_domain_init(gpio, pdata, &client->dev);
+		if (status < 0) {
+			dev_err(&client->dev, "irq_domain init failed\n");
+			goto fail;
+		}
+	}
 
 	/* NOTE:  the OnSemi jlc1562b is also largely compatible with
 	 * these parts, notably for output.  It has a low-resolution
@@ -216,12 +304,9 @@ static int pcf857x_probe(struct i2c_client *client,
 	 *
 	 * NOTE: we don't distinguish here between *4 and *4a parts.
 	 */
-	gpio->chip.ngpio = id->driver_data;
 	if (gpio->chip.ngpio == 8) {
-		gpio->chip.direction_input = pcf857x_input8;
-		gpio->chip.get = pcf857x_get8;
-		gpio->chip.direction_output = pcf857x_output8;
-		gpio->chip.set = pcf857x_set8;
+		gpio->write	= i2c_write_le8;
+		gpio->read	= i2c_read_le8;
 
 		if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_BYTE))
@@ -238,10 +323,8 @@ static int pcf857x_probe(struct i2c_client *client,
 	 * NOTE: we don't distinguish here between '75 and '75c parts.
 	 */
 	} else if (gpio->chip.ngpio == 16) {
-		gpio->chip.direction_input = pcf857x_input16;
-		gpio->chip.get = pcf857x_get16;
-		gpio->chip.direction_output = pcf857x_output16;
-		gpio->chip.set = pcf857x_set16;
+		gpio->write	= i2c_write_le16;
+		gpio->read	= i2c_read_le16;
 
 		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 			status = -EIO;
@@ -279,6 +362,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	 * all-ones reset state.  Otherwise it flags pins to be driven low.
 	 */
 	gpio->out = pdata ? ~pdata->n_latch : ~0;
+	gpio->status = gpio->out;
 
 	status = gpiochip_add(&gpio->chip);
 	if (status < 0)
@@ -309,6 +393,10 @@ static int pcf857x_probe(struct i2c_client *client,
 fail:
 	dev_dbg(&client->dev, "probe error %d for '%s'\n",
 			status, client->name);
+
+	if (pdata && pdata->irq)
+		pcf857x_irq_domain_cleanup(gpio);
+
 	kfree(gpio);
 	return status;
 }
@@ -329,6 +417,9 @@ static int pcf857x_remove(struct i2c_client *client)
 			return status;
 		}
 	}
+
+	if (pdata && pdata->irq)
+		pcf857x_irq_domain_cleanup(gpio);
 
 	status = gpiochip_remove(&gpio->chip);
 	if (status == 0)

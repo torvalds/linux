@@ -34,7 +34,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
 #include <plat/fb.h>
 #include <plat/mfc.h>
@@ -43,7 +43,7 @@
 #include <plat/fimc-core.h>
 #include <plat/s5p-time.h>
 #include <plat/camport.h>
-#include <plat/mipi_csis.h>
+#include <linux/platform_data/mipi-csis.h>
 
 #include <mach/map.h>
 
@@ -1155,6 +1155,7 @@ static void __init universal_machine_init(void)
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= universal_map_io,
 	.handle_irq	= gic_handle_irq,

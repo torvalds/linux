@@ -32,7 +32,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/usb/ch9.h>
-#include <linux/usb/composite.h>
+#include "composite.h"
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
@@ -44,19 +44,19 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "../../usb/gadget/usbstring.c"
-#include "../../usb/gadget/config.c"
-#include "../../usb/gadget/epautoconf.c"
-#include "../../usb/gadget/composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+#include "composite.c"
 
-#include "../../usb/gadget/f_mass_storage.c"
-#include "../../usb/gadget/u_serial.c"
-#include "../../usb/gadget/f_acm.c"
+#include "f_mass_storage.c"
+#include "u_serial.c"
+#include "f_acm.c"
 #define USB_ETH_RNDIS y
-#include "../../usb/gadget/f_rndis.c"
-#include "../../usb/gadget/rndis.c"
-#include "../../usb/gadget/u_ether.c"
-#include "../../usb/gadget/f_fs.c"
+#include "f_rndis.c"
+#include "rndis.c"
+#include "u_ether.c"
+#include "f_fs.c"
 
 MODULE_AUTHOR("Mike Lockwood, Andrzej Pietrasiewicz");
 MODULE_DESCRIPTION("Configurable Composite USB Gadget");
@@ -564,9 +564,7 @@ static int rndis_function_bind_config(struct ccg_usb_function *f,
 		return -1;
 	}
 
-	pr_info("%s MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,
-		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
-		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
+	pr_info("%s MAC: %pM\n", __func__, rndis->ethaddr);
 
 	ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "rndis");
 	if (ret) {
@@ -654,9 +652,7 @@ static ssize_t rndis_ethaddr_show(struct device *dev,
 {
 	struct ccg_usb_function *f = dev_get_drvdata(dev);
 	struct rndis_function_config *rndis = f->config;
-	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
-		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
+	return sprintf(buf, "%pM\n", rndis->ethaddr);
 }
 
 static ssize_t rndis_ethaddr_store(struct device *dev,
@@ -732,7 +728,7 @@ static int mass_storage_function_init(struct ccg_usb_function *f,
 	struct fsg_common *common;
 	int err;
 
-	memset(&fsg, 0, sizeof fsg);
+	memset(&fsg, 0, sizeof(fsg));
 	fsg.nluns = 1;
 	fsg.luns[0].removable = 1;
 	fsg.vendor_name = iManufacturer;
@@ -1105,13 +1101,7 @@ static struct device_attribute *ccg_usb_attributes[] = {
 static int ccg_bind_config(struct usb_configuration *c)
 {
 	struct ccg_dev *dev = _ccg_dev;
-	int ret = 0;
-
-	ret = ccg_bind_enabled_functions(dev, c);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ccg_bind_enabled_functions(dev, c);
 }
 
 static void ccg_unbind_config(struct usb_configuration *c)
@@ -1143,7 +1133,7 @@ static int ccg_bind(struct usb_composite_dev *cdev)
 	if (gcnum >= 0)
 		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
 	else {
-		pr_warning("%s: controller '%s' not recognized\n",
+		pr_warn("%s: controller '%s' not recognized\n",
 			longname, gadget->name);
 		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
 	}
@@ -1166,6 +1156,7 @@ static int ccg_usb_unbind(struct usb_composite_dev *cdev)
 static struct usb_composite_driver ccg_usb_driver = {
 	.name		= "configurable_usb",
 	.dev		= &device_desc,
+	.bind		= ccg_bind,
 	.unbind		= ccg_usb_unbind,
 	.needs_serial	= true,
 	.iManufacturer	= "Linux Foundation",
@@ -1258,8 +1249,10 @@ static int __init init(void)
 		return PTR_ERR(ccg_class);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	if (!dev) {
+		class_destroy(ccg_class);
 		return -ENOMEM;
+	}
 
 	dev->functions = supported_functions;
 	INIT_LIST_HEAD(&dev->enabled_functions);
@@ -1279,7 +1272,7 @@ static int __init init(void)
 	composite_driver.setup = ccg_setup;
 	composite_driver.disconnect = ccg_disconnect;
 
-	err = usb_composite_probe(&ccg_usb_driver, ccg_bind);
+	err = usb_composite_probe(&ccg_usb_driver);
 	if (err) {
 		class_destroy(ccg_class);
 		kfree(dev);

@@ -129,9 +129,8 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
     unsigned int ii = 0;
     unsigned int jj = 0;
     if (pbyDesireBSSID != NULL) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList BSSID[%02X %02X %02X-%02X %02X %02X]\n",
-                            *pbyDesireBSSID,*(pbyDesireBSSID+1),*(pbyDesireBSSID+2),
-                            *(pbyDesireBSSID+3),*(pbyDesireBSSID+4),*(pbyDesireBSSID+5));
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"BSSpSearchBSSList BSSID[%pM]\n", pbyDesireBSSID);
 	if ((!is_broadcast_ether_addr(pbyDesireBSSID)) &&
 	     (memcmp(pbyDesireBSSID, ZeroBSSID, 6)!= 0)){
             pbyBSSID = pbyDesireBSSID;
@@ -218,14 +217,16 @@ PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
                 }
 
         pMgmt->pSameBSS[jj].uChannel = pCurrBSS->uChannel;
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList pSelect1[%02X %02X %02X-%02X %02X %02X]\n",*pCurrBSS->abyBSSID,*(pCurrBSS->abyBSSID+1),*(pCurrBSS->abyBSSID+2),*(pCurrBSS->abyBSSID+3),*(pCurrBSS->abyBSSID+4),*(pCurrBSS->abyBSSID+5));
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"BSSpSearchBSSList pSelect1[%pM]\n",
+			pCurrBSS->abyBSSID);
         jj++;
 
 
                 if (pSelect == NULL) {
                     pSelect = pCurrBSS;
                 } else {
-                    // compare RSSI, select signal strong one
+                    // compare RSSI, select the strongest signal 
                     if (pCurrBSS->uRSSI < pSelect->uRSSI) {
                         pSelect = pCurrBSS;
                     }
@@ -273,9 +274,9 @@ void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID)
             if (pMgmt->sBSSList[ii].bActive &&
 		!compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
 				    pMgmt->abyCurrBSSID)) {
- //mike mark: there are two same BSSID in list if that AP is in hidden ssid mode,one 's SSID is null,
- //                 but other's is obvious, so if it acssociate with your STA  exactly,you must keep two
- //                 of them!!!!!!!!!
+ //mike mark: there are two BSSID's in list. If that AP is in hidden ssid mode, one SSID is null,
+ //                 but other's might not be obvious, so if it associate's with your STA,
+ //                 you must keep the two of them!!
                // bKeepCurrBSSID = FALSE;
                 continue;
             }
@@ -488,7 +489,7 @@ BOOL BSSbInsertToBSSList(void *hDeviceContext,
     }
 
     if (pDevice->bUpdateBBVGA) {
-        // Moniter if RSSI is too strong.
+        // Monitor if RSSI is too strong.
         pBSSList->byRSSIStatCnt = 0;
         RFvRSSITodBm(pDevice, (BYTE)(pRxPacket->uRSSI), &pBSSList->ldBmMAX);
         pBSSList->ldBmAverage[0] = pBSSList->ldBmMAX;
@@ -620,7 +621,7 @@ BOOL BSSbUpdateToBSSList(void *hDeviceContext,
 
     if (pRxPacket->uRSSI != 0) {
         RFvRSSITodBm(pDevice, (BYTE)(pRxPacket->uRSSI), &ldBm);
-        // Moniter if RSSI is too strong.
+        // Monitor if RSSI is too strong.
         pBSSList->byRSSIStatCnt++;
         pBSSList->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pBSSList->ldBmAverage[pBSSList->byRSSIStatCnt] = ldBm;
@@ -686,8 +687,8 @@ BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
 /*+
  *
  * Routine Description:
- *    Find an empty node and allocated; if no empty found,
- *    instand used of most inactive one.
+ *    Find an empty node and allocate it; if no empty node
+ *    is found, then use the most inactive one.
  *
  * Return Value:
  *    None
@@ -717,7 +718,7 @@ void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
         }
     }
 
-    // if not found replace uInActiveCount is largest one.
+    // if not found replace uInActiveCount with the largest one.
     if ( ii == (MAX_NODE_NUM + 1)) {
         *puNodeIndex = SelectIndex;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Replace inactive node = %d\n", SelectIndex);

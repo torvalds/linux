@@ -41,6 +41,7 @@ Configuration Options:
 #include <linux/io.h>
 #include <asm/dma.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 #define DEBUG(x) x
@@ -126,7 +127,6 @@ struct pcl816_board {
 };
 
 #define devpriv ((struct pcl816_private *)dev->private)
-#define this_board ((const struct pcl816_board *)dev->board_ptr)
 
 #ifdef unused
 static int RTC_lock;	/* RTC lock */
@@ -259,7 +259,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low, hi;
 	int timeout = 50;	/* wait max 50us */
 
@@ -350,7 +350,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
 	short *ptr;
@@ -415,8 +415,8 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	}
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	if ((!dev->irq) | (!devpriv->irq_free) | (!devpriv->irq_blocked) |
-	    (!devpriv->int816_mode)) {
+	if (!dev->irq || !devpriv->irq_free || !devpriv->irq_blocked ||
+	    !devpriv->int816_mode) {
 		if (devpriv->irq_was_now_closed) {
 			devpriv->irq_was_now_closed = 0;
 			/*  comedi_error(dev,"last IRQ.."); */
@@ -451,6 +451,7 @@ static void pcl816_cmdtest_out(int e, struct comedi_cmd *cmd)
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct pcl816_board *board = comedi_board(dev);
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
 
@@ -458,63 +459,23 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	      pcl816_cmdtest_out(-1, cmd);
 	     );
 
-	/* step 1: make sure trigger sources are trivially valid */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_EXT | TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*
-	 * step 2: make sure trigger sources
-	 * are unique and mutually compatible
-	 */
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->start_src != TRIG_NOW) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
-
-	if (cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_TIMER) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
-
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -531,8 +492,8 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_ns_min) {
-			cmd->convert_arg = this_board->ai_ns_min;
+		if (cmd->convert_arg < board->ai_ns_min) {
+			cmd->convert_arg = board->ai_ns_min;
 			err++;
 		}
 	} else {		/* TRIG_EXT */
@@ -565,12 +526,12 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(this_board->i8254_osc_base,
+		i8253_cascade_ns_to_timer(board->i8254_osc_base,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg,
 					  cmd->flags & TRIG_ROUND_MASK);
-		if (cmd->convert_arg < this_board->ai_ns_min)
-			cmd->convert_arg = this_board->ai_ns_min;
+		if (cmd->convert_arg < board->ai_ns_min)
+			cmd->convert_arg = board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -592,6 +553,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	const struct pcl816_board *board = comedi_board(dev);
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int seglen;
@@ -609,10 +571,10 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EBUSY;
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_ns_min)
-			cmd->convert_arg = this_board->ai_ns_min;
+		if (cmd->convert_arg < board->ai_ns_min)
+			cmd->convert_arg = board->ai_ns_min;
 
-		i8253_cascade_ns_to_timer(this_board->i8254_osc_base, &divisor1,
+		i8253_cascade_ns_to_timer(board->i8254_osc_base, &divisor1,
 					  &divisor2, &cmd->convert_arg,
 					  cmd->flags & TRIG_ROUND_MASK);
 
@@ -1028,6 +990,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl816_board *board = comedi_board(dev);
 	int ret;
 	unsigned long iobase;
 	unsigned int irq, dma;
@@ -1038,9 +1001,9 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* claim our I/O space */
 	iobase = it->options[0];
 	printk("comedi%d: pcl816:  board=%s, ioport=0x%03lx", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 
-	if (!request_region(iobase, this_board->io_range, "pcl816")) {
+	if (!request_region(iobase, board->io_range, "pcl816")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
@@ -1056,15 +1019,14 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;	/* Can't alloc mem */
 
-	/* set up some name stuff */
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	/* grab our IRQ */
 	irq = 0;
-	if (this_board->IRQbits != 0) {	/* board support IRQ */
+	if (board->IRQbits != 0) {	/* board support IRQ */
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & this_board->IRQbits) == 0) {
+			if (((1 << irq) & board->IRQbits) == 0) {
 				printk
 				    (", IRQ %u is out of allowed range, "
 				     "DISABLING IT", irq);
@@ -1134,12 +1096,12 @@ no_rtc:
 	if ((devpriv->irq_free == 0) && (devpriv->dma_rtc == 0))
 		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
 
-	if (this_board->DMAbits != 0) {	/* board support DMA */
+	if (board->DMAbits != 0) {	/* board support DMA */
 		dma = it->options[2];
 		if (dma < 1)
 			goto no_dma;	/* DMA disabled */
 
-		if (((1 << dma) & this_board->DMAbits) == 0) {
+		if (((1 << dma) & board->DMAbits) == 0) {
 			printk(", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
@@ -1185,30 +1147,30 @@ no_rtc:
 
 no_dma:
 
-/*  if (this_board->n_aochan > 0)
+/*  if (board->n_aochan > 0)
     subdevs[1] = COMEDI_SUBD_AO;
-  if (this_board->n_dichan > 0)
+  if (board->n_dichan > 0)
     subdevs[2] = COMEDI_SUBD_DI;
-  if (this_board->n_dochan > 0)
+  if (board->n_dochan > 0)
     subdevs[3] = COMEDI_SUBD_DO;
 */
 
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
-	if (this_board->n_aichan > 0) {
+	s = &dev->subdevices[0];
+	if (board->n_aichan > 0) {
 		s->type = COMEDI_SUBD_AI;
 		devpriv->sub_ai = s;
 		dev->read_subdev = s;
 		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-		s->n_chan = this_board->n_aichan;
+		s->n_chan = board->n_aichan;
 		s->subdev_flags |= SDF_DIFF;
 		/* printk (", %dchans DIFF DAC - %d", s->n_chan, i); */
-		s->maxdata = this_board->ai_maxdata;
-		s->len_chanlist = this_board->ai_chanlist;
-		s->range_table = this_board->ai_range_type;
+		s->maxdata = board->ai_maxdata;
+		s->len_chanlist = board->ai_chanlist;
+		s->range_table = board->ai_range_type;
 		s->cancel = pcl816_ai_cancel;
 		s->do_cmdtest = pcl816_ai_cmdtest;
 		s->do_cmd = pcl816_ai_cmd;
@@ -1221,25 +1183,25 @@ no_dma:
 #if 0
 case COMEDI_SUBD_AO:
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-	s->n_chan = this_board->n_aochan;
-	s->maxdata = this_board->ao_maxdata;
-	s->len_chanlist = this_board->ao_chanlist;
-	s->range_table = this_board->ao_range_type;
+	s->n_chan = board->n_aochan;
+	s->maxdata = board->ao_maxdata;
+	s->len_chanlist = board->ao_chanlist;
+	s->range_table = board->ao_range_type;
 	break;
 
 case COMEDI_SUBD_DI:
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = this_board->n_dichan;
+	s->n_chan = board->n_dichan;
 	s->maxdata = 1;
-	s->len_chanlist = this_board->n_dichan;
+	s->len_chanlist = board->n_dichan;
 	s->range_table = &range_digital;
 	break;
 
 case COMEDI_SUBD_DO:
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = this_board->n_dochan;
+	s->n_chan = board->n_dochan;
 	s->maxdata = 1;
-	s->len_chanlist = this_board->n_dochan;
+	s->len_chanlist = board->n_dochan;
 	s->range_table = &range_digital;
 	break;
 #endif
@@ -1253,6 +1215,8 @@ case COMEDI_SUBD_DO:
 
 static void pcl816_detach(struct comedi_device *dev)
 {
+	const struct pcl816_board *board = comedi_board(dev);
+
 	if (dev->private) {
 		pcl816_ai_cancel(dev, devpriv->sub_ai);
 		pcl816_reset(dev);
@@ -1275,7 +1239,7 @@ static void pcl816_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
+		release_region(dev->iobase, board->io_range);
 #ifdef unused
 	if (devpriv->dma_rtc)
 		RTC_lock--;

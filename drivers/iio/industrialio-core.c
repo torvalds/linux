@@ -29,7 +29,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-/* IDA to assign each registered device a unique id*/
+/* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
 
 static dev_t iio_devt;
@@ -64,14 +64,21 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
 	[IIO_ALTVOLTAGE] = "altvoltage",
+	[IIO_CCT] = "cct",
 };
 
 static const char * const iio_modifier_names[] = {
 	[IIO_MOD_X] = "x",
 	[IIO_MOD_Y] = "y",
 	[IIO_MOD_Z] = "z",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y] = "sqrt(x^2+y^2)",
+	[IIO_MOD_SUM_SQUARED_X_Y_Z] = "x^2+y^2+z^2",
 	[IIO_MOD_LIGHT_BOTH] = "both",
 	[IIO_MOD_LIGHT_IR] = "ir",
+	[IIO_MOD_LIGHT_CLEAR] = "clear",
+	[IIO_MOD_LIGHT_RED] = "red",
+	[IIO_MOD_LIGHT_GREEN] = "green",
+	[IIO_MOD_LIGHT_BLUE] = "blue",
 };
 
 /* relies on pairs of these shared then separate */
@@ -92,6 +99,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_FREQUENCY] = "frequency",
 	[IIO_CHAN_INFO_PHASE] = "phase",
 	[IIO_CHAN_INFO_HARDWAREGAIN] = "hardwaregain",
+	[IIO_CHAN_INFO_HYSTERESIS] = "hysteresis",
 };
 
 const struct iio_chan_spec
@@ -289,12 +297,76 @@ static ssize_t iio_write_channel_ext_info(struct device *dev,
 			       this_attr->c, buf, len);
 }
 
+ssize_t iio_enum_available_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	unsigned int i;
+	size_t len = 0;
+
+	if (!e->num_items)
+		return 0;
+
+	for (i = 0; i < e->num_items; ++i)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s ", e->items[i]);
+
+	/* replace last space with a newline */
+	buf[len - 1] = '\n';
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(iio_enum_available_read);
+
+ssize_t iio_enum_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	int i;
+
+	if (!e->get)
+		return -EINVAL;
+
+	i = e->get(indio_dev, chan);
+	if (i < 0)
+		return i;
+	else if (i >= e->num_items)
+		return -EINVAL;
+
+	return sprintf(buf, "%s\n", e->items[i]);
+}
+EXPORT_SYMBOL_GPL(iio_enum_read);
+
+ssize_t iio_enum_write(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, const char *buf,
+	size_t len)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	unsigned int i;
+	int ret;
+
+	if (!e->set)
+		return -EINVAL;
+
+	for (i = 0; i < e->num_items; i++) {
+		if (sysfs_streq(buf, e->items[i]))
+			break;
+	}
+
+	if (i == e->num_items)
+		return -EINVAL;
+
+	ret = e->set(indio_dev, chan, i);
+	return ret ? ret : len;
+}
+EXPORT_SYMBOL_GPL(iio_enum_write);
+
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	unsigned long long tmp;
 	int val, val2;
 	bool scale_db = false;
 	int ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
@@ -320,6 +392,11 @@ static ssize_t iio_read_channel_info(struct device *dev,
 			return sprintf(buf, "-%d.%09u\n", val, -val2);
 		else
 			return sprintf(buf, "%d.%09u\n", val, val2);
+	case IIO_VAL_FRACTIONAL:
+		tmp = div_s64((s64)val * 1000000000LL, val2);
+		val2 = do_div(tmp, 1000000000LL);
+		val = tmp;
+		return sprintf(buf, "%d.%09u\n", val, val2);
 	default:
 		return 0;
 	}
@@ -659,7 +736,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	attrcount = attrcount_orig;
 	/*
 	 * New channel registration method - relies on the fact a group does
-	 * not need to be initialized if it is name is NULL.
+	 * not need to be initialized if its name is NULL.
 	 */
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
@@ -910,6 +987,6 @@ EXPORT_SYMBOL(iio_device_unregister);
 subsys_initcall(iio_init);
 module_exit(iio_exit);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Industrial I/O core");
 MODULE_LICENSE("GPL");

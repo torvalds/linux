@@ -758,7 +758,7 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4)
 		uh->check = CSUM_MANGLED_0;
 
 send:
-	err = ip_send_skb(skb);
+	err = ip_send_skb(sock_net(sk), skb);
 	if (err) {
 		if (err == -ENOBUFS && !inet->recverr) {
 			UDP_INC_STATS_USER(sock_net(sk),
@@ -1226,6 +1226,11 @@ try_again:
 
 	if (unlikely(err)) {
 		trace_kfree_skb(skb, udp_recvmsg);
+		if (!peeked) {
+			atomic_inc(&sk->sk_drops);
+			UDP_INC_STATS_USER(sock_net(sk),
+					   UDP_MIB_INERRORS, is_udplite);
+		}
 		goto out_free;
 	}
 
@@ -2110,7 +2115,9 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 		bucket, src, srcp, dest, destp, sp->sk_state,
 		sk_wmem_alloc_get(sp),
 		sk_rmem_alloc_get(sp),
-		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
+		0, 0L, 0,
+		from_kuid_munged(seq_user_ns(f), sock_i_uid(sp)),
+		0, sock_i_ino(sp),
 		atomic_read(&sp->sk_refcnt), sp,
 		atomic_read(&sp->sk_drops), len);
 }

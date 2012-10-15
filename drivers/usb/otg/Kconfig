@@ -68,7 +68,7 @@ config TWL4030_USB
 
 config TWL6030_USB
 	tristate "TWL6030 USB Transceiver Driver"
-	depends on TWL4030_CORE
+	depends on TWL4030_CORE && OMAP_USB2
 	select USB_OTG_UTILS
 	help
 	  Enable this to support the USB OTG transceiver on TWL6030
@@ -115,6 +115,16 @@ config FSL_USB2_OTG
 	select USB_OTG_UTILS
 	help
 	  Enable this to support Freescale USB OTG transceiver.
+
+config USB_MXS_PHY
+	tristate "Freescale MXS USB PHY support"
+	depends on ARCH_MXC || ARCH_MXS
+	select STMP_DEVICE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the Freescale MXS USB PHY.
+
+	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
 
 config USB_MV_OTG
 	tristate "Marvell USB OTG support"

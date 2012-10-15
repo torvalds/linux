@@ -21,6 +21,7 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <linux/export.h>
+#include <linux/hid.h>
 #include <asm/unaligned.h>
 
 #include <linux/usb/composite.h>
@@ -33,11 +34,15 @@
 /* Debugging ****************************************************************/
 
 #ifdef VERBOSE_DEBUG
+#ifndef pr_vdebug
 #  define pr_vdebug pr_debug
+#endif /* pr_vdebug */
 #  define ffs_dump_mem(prefix, ptr, len) \
 	print_hex_dump_bytes(pr_fmt(prefix ": "), DUMP_PREFIX_NONE, ptr, len)
 #else
+#ifndef pr_vdebug
 #  define pr_vdebug(...)                 do { } while (0)
+#endif /* pr_vdebug */
 #  define ffs_dump_mem(prefix, ptr, len) do { } while (0)
 #endif /* VERBOSE_DEBUG */
 
@@ -219,8 +224,8 @@ struct ffs_data {
 	/* File permissions, written once when fs is mounted */
 	struct ffs_file_perms {
 		umode_t				mode;
-		uid_t				uid;
-		gid_t				gid;
+		kuid_t				uid;
+		kgid_t				gid;
 	}				file_perms;
 
 	/*
@@ -1142,10 +1147,19 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 			break;
 
 		case 3:
-			if (!memcmp(opts, "uid", 3))
-				data->perms.uid = value;
+			if (!memcmp(opts, "uid", 3)) {
+				data->perms.uid = make_kuid(current_user_ns(), value);
+				if (!uid_valid(data->perms.uid)) {
+					pr_err("%s: unmapped value: %lu\n", opts, value);
+					return -EINVAL;
+				}
+			}
 			else if (!memcmp(opts, "gid", 3))
-				data->perms.gid = value;
+				data->perms.gid = make_kgid(current_user_ns(), value);
+				if (!gid_valid(data->perms.gid)) {
+					pr_err("%s: unmapped value: %lu\n", opts, value);
+					return -EINVAL;
+				}
 			else
 				goto invalid;
 			break;
@@ -1174,8 +1188,8 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	struct ffs_sb_fill_data data = {
 		.perms = {
 			.mode = S_IFREG | 0600,
-			.uid = 0,
-			.gid = 0
+			.uid = GLOBAL_ROOT_UID,
+			.gid = GLOBAL_ROOT_GID,
 		},
 		.root_mode = S_IFDIR | 0500,
 	};
@@ -1669,6 +1683,12 @@ static int __must_check ffs_do_desc(char *data, unsigned len,
 			goto inv_length;
 		__entity(ENDPOINT, ds->bEndpointAddress);
 	}
+		break;
+
+	case HID_DT_HID:
+		pr_vdebug("hid descriptor\n");
+		if (length != sizeof(struct hid_descriptor))
+			goto inv_length;
 		break;
 
 	case USB_DT_OTG:

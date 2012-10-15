@@ -611,8 +611,8 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->fanout        = le32_to_cpu(sup->fanout);
 	c->lsave_cnt     = le32_to_cpu(sup->lsave_cnt);
 	c->rp_size       = le64_to_cpu(sup->rp_size);
-	c->rp_uid        = le32_to_cpu(sup->rp_uid);
-	c->rp_gid        = le32_to_cpu(sup->rp_gid);
+	c->rp_uid        = make_kuid(&init_user_ns, le32_to_cpu(sup->rp_uid));
+	c->rp_gid        = make_kgid(&init_user_ns, le32_to_cpu(sup->rp_gid));
 	sup_flags        = le32_to_cpu(sup->flags);
 	if (!c->mount_opts.override_compr)
 		c->default_compr = le16_to_cpu(sup->default_compr);

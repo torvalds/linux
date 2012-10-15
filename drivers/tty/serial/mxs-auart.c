@@ -73,6 +73,7 @@
 #define AUART_CTRL0_CLKGATE			(1 << 30)
 
 #define AUART_CTRL2_CTSEN			(1 << 15)
+#define AUART_CTRL2_RTSEN			(1 << 14)
 #define AUART_CTRL2_RTS				(1 << 11)
 #define AUART_CTRL2_RXE				(1 << 9)
 #define AUART_CTRL2_TXE				(1 << 8)
@@ -259,9 +260,12 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 
 	u32 ctrl = readl(u->membase + AUART_CTRL2);
 
-	ctrl &= ~AUART_CTRL2_RTS;
-	if (mctrl & TIOCM_RTS)
-		ctrl |= AUART_CTRL2_RTS;
+	ctrl &= ~AUART_CTRL2_RTSEN;
+	if (mctrl & TIOCM_RTS) {
+		if (tty_port_cts_enabled(&u->state->port))
+			ctrl |= AUART_CTRL2_RTSEN;
+	}
+
 	s->ctrl = mctrl;
 	writel(ctrl, u->membase + AUART_CTRL2);
 }
@@ -359,9 +363,9 @@ static void mxs_auart_settermios(struct uart_port *u,
 
 	/* figure out the hardware flow control settings */
 	if (cflag & CRTSCTS)
-		ctrl2 |= AUART_CTRL2_CTSEN;
+		ctrl2 |= AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN;
 	else
-		ctrl2 &= ~AUART_CTRL2_CTSEN;
+		ctrl2 &= ~(AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN);
 
 	/* set baud rate */
 	baud = uart_get_baud_rate(u, termios, old, 0, u->uartclk);
@@ -453,10 +457,10 @@ static void mxs_auart_shutdown(struct uart_port *u)
 
 	writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_CLR);
 
-	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
-
 	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
 			u->membase + AUART_INTR_CLR);
+
+	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
 
 	clk_disable_unprepare(s->clk);
 }
@@ -777,6 +781,7 @@ out_free_irq:
 	auart_port[pdev->id] = NULL;
 	free_irq(s->irq, s);
 out_free_clk:
+	put_device(s->dev);
 	clk_put(s->clk);
 out_free:
 	kfree(s);
@@ -792,6 +797,7 @@ static int __devexit mxs_auart_remove(struct platform_device *pdev)
 
 	auart_port[pdev->id] = NULL;
 
+	put_device(s->dev);
 	clk_put(s->clk);
 	free_irq(s->irq, s);
 	kfree(s);

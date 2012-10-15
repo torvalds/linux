@@ -48,12 +48,13 @@
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
+#define CR3_PCID_ENABLED_RESERVED_BITS 0xFFFFFF0000000000ULL
 #define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS |	\
 				  0xFFFFFF0000000000ULL)
 #define CR4_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE\
 			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE     \
-			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR  \
+			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_PCIDE \
 			  | X86_CR4_OSXSAVE | X86_CR4_SMEP | X86_CR4_RDWRGSFS \
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
 
@@ -73,22 +74,6 @@
 #define KVM_HPAGE_SIZE(x)	(1UL << KVM_HPAGE_SHIFT(x))
 #define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
 #define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
-
-#define DE_VECTOR 0
-#define DB_VECTOR 1
-#define BP_VECTOR 3
-#define OF_VECTOR 4
-#define BR_VECTOR 5
-#define UD_VECTOR 6
-#define NM_VECTOR 7
-#define DF_VECTOR 8
-#define TS_VECTOR 10
-#define NP_VECTOR 11
-#define SS_VECTOR 12
-#define GP_VECTOR 13
-#define PF_VECTOR 14
-#define MF_VECTOR 16
-#define MC_VECTOR 18
 
 #define SELECTOR_TI_MASK (1 << 2)
 #define SELECTOR_RPL_MASK 0x03
@@ -175,6 +160,13 @@ enum {
 
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
+/*
+ * The following bit is set with PV-EOI, unset on EOI.
+ * We detect PV-EOI changes by guest by comparing
+ * this bit with PV-EOI in guest memory.
+ * See the implementation in apic_update_pv_eoi.
+ */
+#define KVM_APIC_PV_EOI_PENDING	1
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
@@ -484,6 +476,11 @@ struct kvm_vcpu_arch {
 		u64 length;
 		u64 status;
 	} osvw;
+
+	struct {
+		u64 msr_val;
+		struct gfn_to_hva_cache data;
+	} pv_eoi;
 };
 
 struct kvm_lpage_info {
@@ -661,6 +658,7 @@ struct kvm_x86_ops {
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	int (*get_lpage_level)(void);
 	bool (*rdtscp_supported)(void);
+	bool (*invpcid_supported)(void);
 	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment, bool host);
 
 	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
@@ -802,7 +800,20 @@ int kvm_read_guest_page_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 void kvm_propagate_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault);
 bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl);
 
-int kvm_pic_set_irq(void *opaque, int irq, int level);
+static inline int __kvm_irq_line_state(unsigned long *irq_state,
+				       int irq_source_id, int level)
+{
+	/* Logical OR for level trig interrupt */
+	if (level)
+		__set_bit(irq_source_id, irq_state);
+	else
+		__clear_bit(irq_source_id, irq_state);
+
+	return !!(*irq_state);
+}
+
+int kvm_pic_set_irq(struct kvm_pic *pic, int irq, int irq_source_id, int level);
+void kvm_pic_clear_all(struct kvm_pic *pic, int irq_source_id);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 

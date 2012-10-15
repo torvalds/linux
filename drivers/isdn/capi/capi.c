@@ -234,7 +234,8 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 
 	mp->minor = minor;
 
-	dev = tty_register_device(capinc_tty_driver, minor, NULL);
+	dev = tty_port_register_device(&mp->port, capinc_tty_driver, minor,
+			NULL);
 	if (IS_ERR(dev))
 		goto err_out2;
 

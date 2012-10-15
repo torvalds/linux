@@ -153,7 +153,7 @@ static int s3c2416_cpufreq_enter_dvs(struct s3c2416_data *s3c_freq, int idx)
 	if (s3c_freq->vddarm) {
 		dvfs = &s3c2416_dvfs_table[idx];
 
-		pr_debug("cpufreq: setting regultor to %d-%d\n",
+		pr_debug("cpufreq: setting regulator to %d-%d\n",
 			 dvfs->vddarm_min, dvfs->vddarm_max);
 		ret = regulator_set_voltage(s3c_freq->vddarm,
 					    dvfs->vddarm_min,
@@ -186,7 +186,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 	if (s3c_freq->vddarm) {
 		dvfs = &s3c2416_dvfs_table[idx];
 
-		pr_debug("cpufreq: setting regultor to %d-%d\n",
+		pr_debug("cpufreq: setting regulator to %d-%d\n",
 			 dvfs->vddarm_min, dvfs->vddarm_max);
 		ret = regulator_set_voltage(s3c_freq->vddarm,
 					    dvfs->vddarm_min,

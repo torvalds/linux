@@ -30,6 +30,7 @@
 #include <linux/security.h>
 #include <linux/ctype.h>
 #include <linux/kmemcheck.h>
+#include <linux/kmemleak.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -174,6 +175,11 @@ static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
+static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
+static int proc_dostring_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
+
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses it's own private copy */
 static int __sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
@@ -301,7 +307,7 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &max_sched_tunable_scaling,
 	},
 	{
-		.procname	= "sched_migration_cost",
+		.procname	= "sched_migration_cost_ns",
 		.data		= &sysctl_sched_migration_cost,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
@@ -315,14 +321,14 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "sched_time_avg",
+		.procname	= "sched_time_avg_ms",
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "sched_shares_window",
+		.procname	= "sched_shares_window_ns",
 		.data		= &sysctl_sched_shares_window,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
@@ -410,7 +416,7 @@ static struct ctl_table kern_table[] = {
 		.data		= core_pattern,
 		.maxlen		= CORENAME_MAX_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.proc_handler	= proc_dostring_coredump,
 	},
 	{
 		.procname	= "core_pipe_limit",
@@ -1095,11 +1101,9 @@ static struct ctl_table vm_table[] = {
 		.extra1		= &zero,
 	},
 	{
-		.procname	= "nr_pdflush_threads",
-		.data		= &nr_pdflush_threads,
-		.maxlen		= sizeof nr_pdflush_threads,
-		.mode		= 0444 /* read-only*/,
-		.proc_handler	= proc_dointvec,
+		.procname       = "nr_pdflush_threads",
+		.mode           = 0444 /* read-only */,
+		.proc_handler   = pdflush_proc_obsolete,
 	},
 	{
 		.procname	= "swappiness",
@@ -1494,11 +1498,29 @@ static struct ctl_table fs_table[] = {
 #endif
 #endif
 	{
+		.procname	= "protected_symlinks",
+		.data		= &sysctl_protected_symlinks,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "protected_hardlinks",
+		.data		= &sysctl_protected_hardlinks,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
 		.procname	= "suid_dumpable",
 		.data		= &suid_dumpable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax_coredump,
 		.extra1		= &zero,
 		.extra2		= &two,
 	},
@@ -1522,7 +1544,7 @@ static struct ctl_table fs_table[] = {
 
 static struct ctl_table debug_table[] = {
 #if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || \
-    defined(CONFIG_S390) || defined(CONFIG_TILE)
+    defined(CONFIG_S390) || defined(CONFIG_TILE) || defined(CONFIG_ARM64)
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,
@@ -1551,7 +1573,10 @@ static struct ctl_table dev_table[] = {
 
 int __init sysctl_init(void)
 {
-	register_sysctl_table(sysctl_base_table);
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_table(sysctl_base_table);
+	kmemleak_not_leak(hdr);
 	return 0;
 }
 
@@ -2007,6 +2032,34 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	};
 	return do_proc_dointvec(table, write, buffer, lenp, ppos,
 				do_proc_dointvec_minmax_conv, &param);
+}
+
+static void validate_coredump_safety(void)
+{
+	if (suid_dumpable == SUID_DUMPABLE_SAFE &&
+	    core_pattern[0] != '/' && core_pattern[0] != '|') {
+		printk(KERN_WARNING "Unsafe core_pattern used with "\
+			"suid_dumpable=2. Pipe handler or fully qualified "\
+			"core dump path required.\n");
+	}
+}
+
+static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!error)
+		validate_coredump_safety();
+	return error;
+}
+
+static int proc_dostring_coredump(struct ctl_table *table, int write,
+		  void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error = proc_dostring(table, write, buffer, lenp, ppos);
+	if (!error)
+		validate_coredump_safety();
+	return error;
 }
 
 static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int write,

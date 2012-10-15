@@ -90,49 +90,49 @@
 	faligndata	%x7, %x8, %f14;
 
 #define FREG_MOVE_1(x0) \
-	fmovd		%x0, %f0;
+	fsrc2		%x0, %f0;
 #define FREG_MOVE_2(x0, x1) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2;
 #define FREG_MOVE_3(x0, x1, x2) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4;
 #define FREG_MOVE_4(x0, x1, x2, x3) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4; \
-	fmovd		%x3, %f6;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4; \
+	fsrc2		%x3, %f6;
 #define FREG_MOVE_5(x0, x1, x2, x3, x4) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4; \
-	fmovd		%x3, %f6; \
-	fmovd		%x4, %f8;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4; \
+	fsrc2		%x3, %f6; \
+	fsrc2		%x4, %f8;
 #define FREG_MOVE_6(x0, x1, x2, x3, x4, x5) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4; \
-	fmovd		%x3, %f6; \
-	fmovd		%x4, %f8; \
-	fmovd		%x5, %f10;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4; \
+	fsrc2		%x3, %f6; \
+	fsrc2		%x4, %f8; \
+	fsrc2		%x5, %f10;
 #define FREG_MOVE_7(x0, x1, x2, x3, x4, x5, x6) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4; \
-	fmovd		%x3, %f6; \
-	fmovd		%x4, %f8; \
-	fmovd		%x5, %f10; \
-	fmovd		%x6, %f12;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4; \
+	fsrc2		%x3, %f6; \
+	fsrc2		%x4, %f8; \
+	fsrc2		%x5, %f10; \
+	fsrc2		%x6, %f12;
 #define FREG_MOVE_8(x0, x1, x2, x3, x4, x5, x6, x7) \
-	fmovd		%x0, %f0; \
-	fmovd		%x1, %f2; \
-	fmovd		%x2, %f4; \
-	fmovd		%x3, %f6; \
-	fmovd		%x4, %f8; \
-	fmovd		%x5, %f10; \
-	fmovd		%x6, %f12; \
-	fmovd		%x7, %f14;
+	fsrc2		%x0, %f0; \
+	fsrc2		%x1, %f2; \
+	fsrc2		%x2, %f4; \
+	fsrc2		%x3, %f6; \
+	fsrc2		%x4, %f8; \
+	fsrc2		%x5, %f10; \
+	fsrc2		%x6, %f12; \
+	fsrc2		%x7, %f14;
 #define FREG_LOAD_1(base, x0) \
 	EX_LD(LOAD(ldd, base + 0x00, %x0))
 #define FREG_LOAD_2(base, x0, x1) \

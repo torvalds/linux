@@ -178,44 +178,32 @@ void rh_port_disconnect(int rhport)
 	  | USB_PORT_STAT_C_RESET) << 16)
 
 /*
- * This function is almostly the same as dummy_hcd.c:dummy_hub_status() without
- * suspend/resume support. But, it is modified to provide multiple ports.
+ * Returns 0 if the status hasn't changed, or the number of bytes in buf.
+ * Ports are 0-indexed from the HCD point of view,
+ * and 1-indexed from the USB core pointer of view.
  *
  * @buf: a bitmap to show which port status has been changed.
- *  bit  0: reserved or used for another purpose?
+ *  bit  0: reserved
  *  bit  1: the status of port 0 has been changed.
  *  bit  2: the status of port 1 has been changed.
  *  ...
- *  bit  7: the status of port 6 has been changed.
- *  bit  8: the status of port 7 has been changed.
- *  ...
- *  bit 15: the status of port 14 has been changed.
- *
- * So, the maximum number of ports is 31 ( port 0 to port 30) ?
- *
- * The return value is the actual transferred length in byte. If nothing has
- * been changed, return 0. In the case that the number of ports is less than or
- * equal to 6 (VHCI_NPORTS==7), return 1.
- *
  */
 static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 {
 	struct vhci_hcd	*vhci;
 	unsigned long	flags;
-	int		retval = 0;
-
-	/* the enough buffer is allocated according to USB_MAXCHILDREN */
-	unsigned long	*event_bits = (unsigned long *) buf;
+	int		retval;
 	int		rhport;
 	int		changed = 0;
 
-	*event_bits = 0;
+	retval = DIV_ROUND_UP(VHCI_NPORTS + 1, 8);
+	memset(buf, 0, retval);
 
 	vhci = hcd_to_vhci(hcd);
 
 	spin_lock_irqsave(&vhci->lock, flags);
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
-		usbip_dbg_vhci_rh("hw accessible flag in on?\n");
+		usbip_dbg_vhci_rh("hw accessible flag not on?\n");
 		goto done;
 	}
 
@@ -223,26 +211,21 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 	for (rhport = 0; rhport < VHCI_NPORTS; rhport++) {
 		if ((vhci->port_status[rhport] & PORT_C_MASK)) {
 			/* The status of a port has been changed, */
-			usbip_dbg_vhci_rh("port %d is changed\n", rhport);
+			usbip_dbg_vhci_rh("port %d status changed\n", rhport);
 
-			*event_bits |= 1 << (rhport + 1);
+			buf[(rhport + 1) / 8] |= 1 << (rhport + 1) % 8;
 			changed = 1;
 		}
 	}
 
 	pr_info("changed %d\n", changed);
 
-	if (hcd->state == HC_STATE_SUSPENDED)
+	if ((hcd->state == HC_STATE_SUSPENDED) && (changed == 1))
 		usb_hcd_resume_root_hub(hcd);
-
-	if (changed)
-		retval = 1 + (VHCI_NPORTS / 8);
-	else
-		retval = 0;
 
 done:
 	spin_unlock_irqrestore(&vhci->lock, flags);
-	return retval;
+	return changed ? retval : 0;
 }
 
 /* See hub_configure in hub.c */
@@ -766,6 +749,7 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 {
 	struct vhci_unlink *unlink, *tmp;
 
+	spin_lock(&the_controller->lock);
 	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
@@ -774,8 +758,11 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 		kfree(unlink);
 	}
 
-	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
+	while (!list_empty(&vdev->unlink_rx)) {
 		struct urb *urb;
+
+		unlink = list_first_entry(&vdev->unlink_rx, struct vhci_unlink,
+			list);
 
 		/* give back URB of unanswered unlink request */
 		pr_info("unlink cleanup rx %lu\n", unlink->unlink_seqnum);
@@ -791,18 +778,24 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 
 		urb->status = -ENODEV;
 
-		spin_lock(&the_controller->lock);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
+
+		list_del(&unlink->list);
+
+		spin_unlock(&vdev->priv_lock);
 		spin_unlock(&the_controller->lock);
 
 		usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb,
 				     urb->status);
 
-		list_del(&unlink->list);
+		spin_lock(&the_controller->lock);
+		spin_lock(&vdev->priv_lock);
+
 		kfree(unlink);
 	}
 
 	spin_unlock(&vdev->priv_lock);
+	spin_unlock(&the_controller->lock);
 }
 
 /*
@@ -821,11 +814,14 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* kill threads related to this sdev, if v.c. exists */
-	if (vdev->ud.tcp_rx)
+	if (vdev->ud.tcp_rx) {
 		kthread_stop_put(vdev->ud.tcp_rx);
-	if (vdev->ud.tcp_tx)
+		vdev->ud.tcp_rx = NULL;
+	}
+	if (vdev->ud.tcp_tx) {
 		kthread_stop_put(vdev->ud.tcp_tx);
-
+		vdev->ud.tcp_tx = NULL;
+	}
 	pr_info("stop threads\n");
 
 	/* active connection is closed */
@@ -845,11 +841,11 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	 *	disable endpoints. pending urbs are unlinked(dequeued).
 	 *
 	 * NOTE: After calling rh_port_disconnect(), the USB device drivers of a
-	 * deteched device should release used urbs in a cleanup function(i.e.
+	 * detached device should release used urbs in a cleanup function (i.e.
 	 * xxx_disconnect()). Therefore, vhci_hcd does not need to release
 	 * pushed urbs and their private data in this function.
 	 *
-	 * NOTE: vhci_dequeue() must be considered carefully. When shutdowning
+	 * NOTE: vhci_dequeue() must be considered carefully. When shutting down
 	 * a connection, vhci_shutdown_connection() expects vhci_dequeue()
 	 * gives back pushed urbs and frees their private data by request of
 	 * the cleanup function of a USB driver. When unlinking a urb with an

@@ -16,7 +16,7 @@
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/types.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #ifdef CONFIG_NEED_MACH_MEMORY_H
 #include <mach/memory.h>
@@ -187,6 +187,7 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
 #endif
 #endif
+#endif /* __ASSEMBLY__ */
 
 #ifndef PHYS_OFFSET
 #ifdef PLAT_PHYS_OFFSET
@@ -195,6 +196,8 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #define PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
 #endif
 #endif
+
+#ifndef __ASSEMBLY__
 
 /*
  * PFNs are used to describe any physical page; this means

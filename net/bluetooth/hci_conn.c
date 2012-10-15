@@ -29,8 +29,9 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/smp.h>
 
-static void hci_le_connect(struct hci_conn *conn)
+static void hci_le_create_connection(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_create_conn cp;
@@ -54,12 +55,12 @@ static void hci_le_connect(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
 }
 
-static void hci_le_connect_cancel(struct hci_conn *conn)
+static void hci_le_create_connection_cancel(struct hci_conn *conn)
 {
 	hci_send_cmd(conn->hdev, HCI_OP_LE_CREATE_CONN_CANCEL, 0, NULL);
 }
 
-void hci_acl_connect(struct hci_conn *conn)
+static void hci_acl_create_connection(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct inquiry_entry *ie;
@@ -103,7 +104,7 @@ void hci_acl_connect(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_CREATE_CONN, sizeof(cp), &cp);
 }
 
-static void hci_acl_connect_cancel(struct hci_conn *conn)
+static void hci_acl_create_connection_cancel(struct hci_conn *conn)
 {
 	struct hci_cp_create_conn_cancel cp;
 
@@ -129,7 +130,7 @@ void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
-void hci_add_sco(struct hci_conn *conn, __u16 handle)
+static void hci_add_sco(struct hci_conn *conn, __u16 handle)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_add_sco cp;
@@ -245,9 +246,9 @@ static void hci_conn_timeout(struct work_struct *work)
 	case BT_CONNECT2:
 		if (conn->out) {
 			if (conn->type == ACL_LINK)
-				hci_acl_connect_cancel(conn);
+				hci_acl_create_connection_cancel(conn);
 			else if (conn->type == LE_LINK)
-				hci_le_connect_cancel(conn);
+				hci_le_create_connection_cancel(conn);
 		}
 		break;
 	case BT_CONFIG:
@@ -470,40 +471,37 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 }
 EXPORT_SYMBOL(hci_get_route);
 
-/* Create SCO, ACL or LE connection.
- * Device _must_ be locked */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
-			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
+static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
+				    u8 dst_type, u8 sec_level, u8 auth_type)
 {
-	struct hci_conn *acl;
-	struct hci_conn *sco;
 	struct hci_conn *le;
 
-	BT_DBG("%s dst %s", hdev->name, batostr(dst));
+	le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
+	if (!le) {
+		le = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+		if (le)
+			return ERR_PTR(-EBUSY);
 
-	if (type == LE_LINK) {
-		le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
-		if (!le) {
-			le = hci_conn_hash_lookup_state(hdev, LE_LINK,
-							BT_CONNECT);
-			if (le)
-				return ERR_PTR(-EBUSY);
+		le = hci_conn_add(hdev, LE_LINK, dst);
+		if (!le)
+			return ERR_PTR(-ENOMEM);
 
-			le = hci_conn_add(hdev, LE_LINK, dst);
-			if (!le)
-				return ERR_PTR(-ENOMEM);
-
-			le->dst_type = bdaddr_to_le(dst_type);
-			hci_le_connect(le);
-		}
-
-		le->pending_sec_level = sec_level;
-		le->auth_type = auth_type;
-
-		hci_conn_hold(le);
-
-		return le;
+		le->dst_type = bdaddr_to_le(dst_type);
+		hci_le_create_connection(le);
 	}
+
+	le->pending_sec_level = sec_level;
+	le->auth_type = auth_type;
+
+	hci_conn_hold(le);
+
+	return le;
+}
+
+static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
+						u8 sec_level, u8 auth_type)
+{
+	struct hci_conn *acl;
 
 	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (!acl) {
@@ -518,10 +516,20 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		acl->sec_level = BT_SECURITY_LOW;
 		acl->pending_sec_level = sec_level;
 		acl->auth_type = auth_type;
-		hci_acl_connect(acl);
+		hci_acl_create_connection(acl);
 	}
 
-	if (type == ACL_LINK)
+	return acl;
+}
+
+static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type,
+				bdaddr_t *dst, u8 sec_level, u8 auth_type)
+{
+	struct hci_conn *acl;
+	struct hci_conn *sco;
+
+	acl = hci_connect_acl(hdev, dst, sec_level, auth_type);
+	if (IS_ERR(acl))
 		return acl;
 
 	sco = hci_conn_hash_lookup_ba(hdev, type, dst);
@@ -553,6 +561,25 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	}
 
 	return sco;
+}
+
+/* Create SCO, ACL or LE connection. */
+struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
+			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
+{
+	BT_DBG("%s dst %s type 0x%x", hdev->name, batostr(dst), type);
+
+	switch (type) {
+	case LE_LINK:
+		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
+	case ACL_LINK:
+		return hci_connect_acl(hdev, dst, sec_level, auth_type);
+	case SCO_LINK:
+	case ESCO_LINK:
+		return hci_connect_sco(hdev, type, dst, sec_level, auth_type);
+	}
+
+	return ERR_PTR(-EINVAL);
 }
 
 /* Check link security requirement */
@@ -618,6 +645,9 @@ static void hci_conn_encrypt(struct hci_conn *conn)
 int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("hcon %p", conn);
+
+	if (conn->type == LE_LINK)
+		return smp_conn_security(conn, sec_level);
 
 	/* For sdp we don't need the link key. */
 	if (sec_level == BT_SECURITY_SDP)
@@ -771,7 +801,7 @@ void hci_conn_check_pending(struct hci_dev *hdev)
 
 	conn = hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECT2);
 	if (conn)
-		hci_acl_connect(conn);
+		hci_acl_create_connection(conn);
 
 	hci_dev_unlock(hdev);
 }
@@ -909,7 +939,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 	return chan;
 }
 
-int hci_chan_del(struct hci_chan *chan)
+void hci_chan_del(struct hci_chan *chan)
 {
 	struct hci_conn *conn = chan->conn;
 	struct hci_dev *hdev = conn->hdev;
@@ -922,8 +952,6 @@ int hci_chan_del(struct hci_chan *chan)
 
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);
-
-	return 0;
 }
 
 void hci_chan_list_flush(struct hci_conn *conn)

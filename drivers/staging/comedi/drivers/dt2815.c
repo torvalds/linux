@@ -166,6 +166,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	const struct comedi_lrange *current_range_type, *voltage_range_type;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
@@ -177,12 +178,14 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name = "dt2815";
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
+
 	if (alloc_private(dev, sizeof(struct dt2815_private)) < 0)
 		return -ENOMEM;
 
-	s = dev->subdevices;
+	s = &dev->subdevices[0];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;

@@ -853,7 +853,7 @@ int __init pcibios_init(void)
 		bus = pci_scan_root_bus(NULL, next_busno, controller->ops,
 					controller, &resources);
 		controller->root_bus = bus;
-		next_busno = bus->subordinate + 1;
+		next_busno = bus->busn_res.end + 1;
 
 	}
 
@@ -1031,14 +1031,6 @@ char __devinit *pcibios_setup(char *str)
 		return NULL;
 	}
 	return str;
-}
-
-/*
- * This is called from the generic Linux layer.
- */
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 /*

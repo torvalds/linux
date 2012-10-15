@@ -1124,14 +1124,17 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 				if (err)
 					return err;
 				down_write(&iinfo->i_data_sem);
-			} else
+			} else {
 				iinfo->i_lenAlloc = newsize;
+				goto set_size;
+			}
 		}
 		err = udf_extend_file(inode, newsize);
 		if (err) {
 			up_write(&iinfo->i_data_sem);
 			return err;
 		}
+set_size:
 		truncate_setsize(inode, newsize);
 		up_write(&iinfo->i_data_sem);
 	} else {
@@ -1247,7 +1250,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 {
 	struct fileEntry *fe;
 	struct extendedFileEntry *efe;
-	int offset;
 	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	unsigned int link_count;
@@ -1310,14 +1312,14 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	}
 
 	read_lock(&sbi->s_cred_lock);
-	inode->i_uid = le32_to_cpu(fe->uid);
-	if (inode->i_uid == -1 ||
+	i_uid_write(inode, le32_to_cpu(fe->uid));
+	if (!uid_valid(inode->i_uid) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_SET))
 		inode->i_uid = UDF_SB(inode->i_sb)->s_uid;
 
-	inode->i_gid = le32_to_cpu(fe->gid);
-	if (inode->i_gid == -1 ||
+	i_gid_write(inode, le32_to_cpu(fe->gid));
+	if (!gid_valid(inode->i_gid) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_SET))
 		inode->i_gid = UDF_SB(inode->i_sb)->s_gid;
@@ -1359,7 +1361,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(fe->lengthAllocDescs);
 		iinfo->i_checkpoint = le32_to_cpu(fe->checkpoint);
-		offset = sizeof(struct fileEntry) + iinfo->i_lenEAttr;
 	} else {
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
 		    (inode->i_sb->s_blocksize_bits - 9);
@@ -1381,8 +1382,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(efe->lengthAllocDescs);
 		iinfo->i_checkpoint = le32_to_cpu(efe->checkpoint);
-		offset = sizeof(struct extendedFileEntry) +
-							iinfo->i_lenEAttr;
 	}
 
 	switch (fe->icbTag.fileType) {
@@ -1543,12 +1542,12 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_FORGET))
 		fe->uid = cpu_to_le32(-1);
 	else
-		fe->uid = cpu_to_le32(inode->i_uid);
+		fe->uid = cpu_to_le32(i_uid_read(inode));
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_FORGET))
 		fe->gid = cpu_to_le32(-1);
 	else
-		fe->gid = cpu_to_le32(inode->i_gid);
+		fe->gid = cpu_to_le32(i_gid_read(inode));
 
 	udfperms = ((inode->i_mode & S_IRWXO)) |
 		   ((inode->i_mode & S_IRWXG) << 2) |

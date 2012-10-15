@@ -106,7 +106,7 @@ static void exynos_mipi_update_cfg(struct mipi_dsim_device *dsim)
 
 	/*
 	 * data from Display controller(FIMD) is transferred in video mode
-	 * but in case of command mode, all settigs is updated to registers.
+	 * but in case of command mode, all settings are updated to registers.
 	 */
 	exynos_mipi_dsi_stand_by(dsim, 1);
 }
@@ -154,7 +154,7 @@ static int exynos_mipi_dsi_blank_mode(struct mipi_dsim_device *dsim, int power)
 		if (client_drv && client_drv->power_on)
 			client_drv->power_on(client_dev, 1);
 
-		exynos_mipi_regulator_disable(dsim);
+		exynos_mipi_regulator_enable(dsim);
 
 		/* enable MIPI-DSI PHY. */
 		if (dsim->pd->phy_enable)
@@ -461,7 +461,7 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 done:
 	platform_set_drvdata(pdev, dsim);
 
-	dev_dbg(&pdev->dev, "%s() completed sucessfuly (%s mode)\n", __func__,
+	dev_dbg(&pdev->dev, "%s() completed successfully (%s mode)\n", __func__,
 		dsim_config->e_interface == DSIM_COMMAND ? "CPU" : "RGB");
 
 	return 0;

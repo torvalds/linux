@@ -1,30 +1,34 @@
-config DISPLAY_DAVINCI_DM646X_EVM
-	tristate "DM646x EVM Video Display"
-	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
-	select VIDEOBUF_DMA_CONTIG
+config VIDEO_DAVINCI_VPIF_DISPLAY
+	tristate "DM646x/DA850/OMAPL138 EVM Video Display"
+	depends on VIDEO_DEV && (MACH_DAVINCI_DM6467_EVM || MACH_DAVINCI_DA850_EVM)
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_DAVINCI_VPIF
-	select VIDEO_ADV7343
-	select VIDEO_THS7303
+	select VIDEO_ADV7343 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_THS7303 if VIDEO_HELPER_CHIPS_AUTO
 	help
-	  Support for DM6467 based display device.
+	  Enables Davinci VPIF module used for display devices.
+	  This module is common for following DM6467/DA850/OMAPL138
+	  based display devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vpif_display.
 
-config CAPTURE_DAVINCI_DM646X_EVM
-	tristate "DM646x EVM Video Capture"
-	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
-	select VIDEOBUF_DMA_CONTIG
+config VIDEO_DAVINCI_VPIF_CAPTURE
+	tristate "DM646x/DA850/OMAPL138 EVM Video Capture"
+	depends on VIDEO_DEV && (MACH_DAVINCI_DM6467_EVM || MACH_DAVINCI_DA850_EVM)
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_DAVINCI_VPIF
 	help
-	  Support for DM6467 based capture device.
+	  Enables Davinci VPIF module used for captur devices.
+	  This module is common for following DM6467/DA850/OMAPL138
+	  based capture devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vpif_capture.
 
 config VIDEO_DAVINCI_VPIF
 	tristate "DaVinci VPIF Driver"
-	depends on DISPLAY_DAVINCI_DM646X_EVM
+	depends on VIDEO_DAVINCI_VPIF_DISPLAY || VIDEO_DAVINCI_VPIF_CAPTURE
 	help
 	  Support for DaVinci VPIF Driver.
 

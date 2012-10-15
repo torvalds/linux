@@ -111,6 +111,7 @@ static int fl512_ao_insn_readback(struct comedi_device *dev,
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase;
+	int ret;
 
 	/* pointer to the subdevice: Analog in, Analog out,
 	   (not made ->and Digital IO) */
@@ -131,14 +132,15 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_DEBUG "malloc ok\n");
 #endif
 
-	if (alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	/*
 	 * this if the definitions of the supdevices, 2 have been defined
 	 */
 	/* Analog indput */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* define subdevice as Analog In */
 	s->type = COMEDI_SUBD_AI;
 	/* you can read it from userspace */
@@ -154,7 +156,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi: fl512: subdevice 0 initialized\n");
 
 	/* Analog output */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* define subdevice as Analog OUT */
 	s->type = COMEDI_SUBD_AO;
 	/* you can write it from userspace */

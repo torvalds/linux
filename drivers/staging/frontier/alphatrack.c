@@ -333,7 +333,7 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&usb_alphatrack_driver, subminor);
 
 	if (!interface) {
-		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
+		pr_err("%s - error, can't find device for minor %d\n",
 		       __func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
@@ -494,7 +494,7 @@ static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer,
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "%s: No device or device unplugged %d\n",
+		pr_err("%s: No device or device unplugged %d\n",
 		       __func__, retval);
 		goto unlock_exit;
 	}
@@ -565,7 +565,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "%s: No device or device unplugged %d\n",
+		pr_err("%s: No device or device unplugged %d\n",
 		       __func__, retval);
 		goto unlock_exit;
 	}

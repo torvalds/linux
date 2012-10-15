@@ -1,7 +1,7 @@
 /*
  * wm8753.c  --  WM8753 ALSA Soc Audio driver
  *
- * Copyright 2003 Wolfson Microelectronics PLC.
+ * Copyright 2003-11 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -1509,7 +1509,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 /* power down chip */
 static int wm8753_remove(struct snd_soc_codec *codec)
 {
-	flush_delayed_work_sync(&codec->dapm.delayed_work);
+	flush_delayed_work(&codec->dapm.delayed_work);
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;

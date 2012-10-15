@@ -894,21 +894,10 @@ static struct pci_driver inic_pci_driver = {
 	.remove		= ata_pci_remove_one,
 };
 
-static int __init inic_init(void)
-{
-	return pci_register_driver(&inic_pci_driver);
-}
-
-static void __exit inic_exit(void)
-{
-	pci_unregister_driver(&inic_pci_driver);
-}
+module_pci_driver(inic_pci_driver);
 
 MODULE_AUTHOR("Tejun Heo");
 MODULE_DESCRIPTION("low-level driver for Initio 162x SATA");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(pci, inic_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(inic_init);
-module_exit(inic_exit);

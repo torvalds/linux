@@ -18,6 +18,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
 
 int mfd_cell_enable(struct platform_device *pdev)
 {
@@ -72,10 +74,11 @@ static int mfd_platform_add_cell(struct platform_device *pdev,
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
 			  struct resource *mem_base,
-			  int irq_base)
+			  int irq_base, struct irq_domain *domain)
 {
 	struct resource *res;
 	struct platform_device *pdev;
+	struct device_node *np = NULL;
 	int ret = -ENOMEM;
 	int r;
 
@@ -88,6 +91,15 @@ static int mfd_add_device(struct device *parent, int id,
 		goto fail_device;
 
 	pdev->dev.parent = parent;
+
+	if (parent->of_node && cell->of_compatible) {
+		for_each_child_of_node(parent->of_node, np) {
+			if (of_device_is_compatible(np, cell->of_compatible)) {
+				pdev->dev.of_node = np;
+				break;
+			}
+		}
+	}
 
 	if (cell->pdata_size) {
 		ret = platform_device_add_data(pdev,
@@ -112,10 +124,18 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].end = mem_base->start +
 				cell->resources[r].end;
 		} else if (cell->resources[r].flags & IORESOURCE_IRQ) {
-			res[r].start = irq_base +
-				cell->resources[r].start;
-			res[r].end   = irq_base +
-				cell->resources[r].end;
+			if (domain) {
+				/* Unable to create mappings for IRQ ranges. */
+				WARN_ON(cell->resources[r].start !=
+					cell->resources[r].end);
+				res[r].start = res[r].end = irq_create_mapping(
+					domain, cell->resources[r].start);
+			} else {
+				res[r].start = irq_base +
+					cell->resources[r].start;
+				res[r].end   = irq_base +
+					cell->resources[r].end;
+			}
 		} else {
 			res[r].parent = cell->resources[r].parent;
 			res[r].start = cell->resources[r].start;
@@ -155,7 +175,7 @@ fail_alloc:
 int mfd_add_devices(struct device *parent, int id,
 		    struct mfd_cell *cells, int n_devs,
 		    struct resource *mem_base,
-		    int irq_base)
+		    int irq_base, struct irq_domain *domain)
 {
 	int i;
 	int ret = 0;
@@ -169,7 +189,8 @@ int mfd_add_devices(struct device *parent, int id,
 	for (i = 0; i < n_devs; i++) {
 		atomic_set(&cnts[i], 0);
 		cells[i].usage_count = &cnts[i];
-		ret = mfd_add_device(parent, id, cells + i, mem_base, irq_base);
+		ret = mfd_add_device(parent, id, cells + i, mem_base,
+				     irq_base, domain);
 		if (ret)
 			break;
 	}
@@ -225,7 +246,8 @@ int mfd_clone_cell(const char *cell, const char **clones, size_t n_clones)
 	for (i = 0; i < n_clones; i++) {
 		cell_entry.name = clones[i];
 		/* don't give up if a single call fails; just report error */
-		if (mfd_add_device(pdev->dev.parent, -1, &cell_entry, NULL, 0))
+		if (mfd_add_device(pdev->dev.parent, -1, &cell_entry, NULL, 0,
+				   NULL))
 			dev_err(dev, "failed to create platform device '%s'\n",
 					clones[i]);
 	}

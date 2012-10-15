@@ -37,7 +37,6 @@ struct zorro_dev zorro_autocon[ZORRO_NUM_AUTO];
      */
 
 struct zorro_bus {
-	struct list_head devices;	/* list of devices on this bus */
 	struct device dev;
 };
 
@@ -136,7 +135,6 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	if (!bus)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&bus->devices);
 	bus->dev.parent = &pdev->dev;
 	dev_set_name(&bus->dev, "zorro");
 	error = device_register(&bus->dev);

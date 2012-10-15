@@ -2517,7 +2517,7 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
 
 	usb_unregister_notifier(di->usb_phy, &di->nb);
-	usb_put_transceiver(di->usb_phy);
+	usb_put_phy(di->usb_phy);
 
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
@@ -2618,9 +2618,9 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Init work for HW failure check */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_hw_failure_work,
+	INIT_DEFERRABLE_WORK(&di->check_hw_failure_work,
 		ab8500_charger_check_hw_failure_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_usbchgnotok_work,
+	INIT_DEFERRABLE_WORK(&di->check_usbchgnotok_work,
 		ab8500_charger_check_usbchargernotok_work);
 
 	/*
@@ -2632,10 +2632,10 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	 * watchdog have to be kicked by the charger driver
 	 * when the AC charger is disabled
 	 */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->kick_wd_work,
+	INIT_DEFERRABLE_WORK(&di->kick_wd_work,
 		ab8500_charger_kick_watchdog_work);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_vbat_work,
+	INIT_DEFERRABLE_WORK(&di->check_vbat_work,
 		ab8500_charger_check_vbat_work);
 
 	/* Init work for charger detection */
@@ -2688,8 +2688,8 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		goto free_ac;
 	}
 
-	di->usb_phy = usb_get_transceiver();
-	if (!di->usb_phy) {
+	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(di->usb_phy)) {
 		dev_err(di->dev, "failed to get usb transceiver\n");
 		ret = -EINVAL;
 		goto free_usb;
@@ -2747,7 +2747,7 @@ free_irq:
 		free_irq(irq, di);
 	}
 put_usb_phy:
-	usb_put_transceiver(di->usb_phy);
+	usb_put_phy(di->usb_phy);
 free_usb:
 	power_supply_unregister(&di->usb_chg.psy);
 free_ac:

@@ -1383,6 +1383,8 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfa_sm_set_state(bfad, bfad_sm_uninit);
 
 	spin_lock_init(&bfad->bfad_lock);
+	spin_lock_init(&bfad->bfad_aen_spinlock);
+
 	pci_set_drvdata(pdev, bfad);
 
 	bfad->ref_count = 0;

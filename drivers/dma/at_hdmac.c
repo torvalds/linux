@@ -9,10 +9,9 @@
  * (at your option) any later version.
  *
  *
- * This supports the Atmel AHB DMA Controller,
- *
- * The driver has currently been tested with the Atmel AT91SAM9RL
- * and AT91SAM9G45 series.
+ * This supports the Atmel AHB DMA Controller found in several Atmel SoCs.
+ * The only Atmel DMA Controller that is not covered by this driver is the one
+ * found on AT91SAM9263.
  */
 
 #include <linux/clk.h>
@@ -169,9 +168,9 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 }
 
 /**
- * atc_desc_chain - build chain adding a descripor
- * @first: address of first descripor of the chain
- * @prev: address of previous descripor of the chain
+ * atc_desc_chain - build chain adding a descriptor
+ * @first: address of first descriptor of the chain
+ * @prev: address of previous descriptor of the chain
  * @desc: descriptor to queue
  *
  * Called from prep_* functions
@@ -662,7 +661,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			flags);
 
 	if (unlikely(!atslave || !sg_len)) {
-		dev_dbg(chan2dev(chan), "prep_dma_memcpy: length is zero!\n");
+		dev_dbg(chan2dev(chan), "prep_slave_sg: sg length is zero!\n");
 		return NULL;
 	}
 
@@ -690,6 +689,11 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
+			if (unlikely(!len)) {
+				dev_dbg(chan2dev(chan),
+					"prep_slave_sg: sg(%d) data length is zero\n", i);
+				goto err;
+			}
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
 				mem_width = 0;
@@ -725,6 +729,11 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
+			if (unlikely(!len)) {
+				dev_dbg(chan2dev(chan),
+					"prep_slave_sg: sg(%d) data length is zero\n", i);
+				goto err;
+			}
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
 				mem_width = 0;
@@ -758,6 +767,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 err_desc_get:
 	dev_err(chan2dev(chan), "not enough descriptors available\n");
+err:
 	atc_desc_put(atchan, first);
 	return NULL;
 }
@@ -786,7 +796,7 @@ err_out:
 }
 
 /**
- * atc_dma_cyclic_fill_desc - Fill one period decriptor
+ * atc_dma_cyclic_fill_desc - Fill one period descriptor
  */
 static int
 atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
@@ -1217,7 +1227,7 @@ static const struct platform_device_id atdma_devtypes[] = {
 	}
 };
 
-static inline struct at_dma_platform_data * __init at_dma_get_driver_data(
+static inline const struct at_dma_platform_data * __init at_dma_get_driver_data(
 						struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
@@ -1255,7 +1265,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	int			irq;
 	int			err;
 	int			i;
-	struct at_dma_platform_data *plat_dat;
+	const struct at_dma_platform_data *plat_dat;
 
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);

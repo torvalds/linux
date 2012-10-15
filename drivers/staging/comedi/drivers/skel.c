@@ -76,6 +76,8 @@ Configuration Options:
 
 #include <linux/pci.h>		/* for PCI devices */
 
+#include "comedi_fc.h"
+
 /* Imaginary registers for the imaginary board */
 
 #define SKEL_SIZE 0
@@ -210,6 +212,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	pr_info("comedi%d: skel: ", dev->minor);
 
@@ -233,14 +236,11 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* dev->read_subdev=s; */
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -258,7 +258,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 */
 	s->do_cmdtest = skel_ai_cmdtest;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -268,7 +268,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = skel_ao_winsn;
 	s->insn_read = skel_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		s->type = COMEDI_SUBD_DIO;
@@ -351,60 +351,40 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
+/*
+ * cmdtest tests a particular command to see if it is valid.
+ * Using the cmdtest ioctl, a user can create a valid cmd
+ * and then have it executes by the cmd ioctl.
+ *
+ * cmdtest returns 1,2,3,4 or 0, depending on which tests
+ * the command passes.
+ */
 static int skel_ai_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
+			   struct comedi_subdevice *s,
+			   struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* step 1: make sure trigger sources are trivially valid */
-
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible
-     */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -563,9 +543,6 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
@@ -582,7 +559,7 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 	 * it was a purely digital output subdevice */
 	/* data[1]=s->state; */
 
-	return 2;
+	return insn->n;
 }
 
 static int skel_dio_insn_config(struct comedi_device *dev,
@@ -616,7 +593,7 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
 static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {

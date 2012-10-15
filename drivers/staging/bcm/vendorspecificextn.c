@@ -28,7 +28,7 @@ INT vendorextnGetSectionInfo(PVOID  pContext,PFLASH2X_VENDORSPECIFIC_INFO pVendo
 //              STATUS_SUCCESS/STATUS_FAILURE
 //
 //-----------------------------------------------------------------------------
-INT vendorextnInit(PMINI_ADAPTER Adapter)
+INT vendorextnInit(struct bcm_mini_adapter *Adapter)
 {
 	return STATUS_SUCCESS;
 }
@@ -45,7 +45,7 @@ INT vendorextnInit(PMINI_ADAPTER Adapter)
 //              STATUS_SUCCESS/STATUS_FAILURE
 //
 //-----------------------------------------------------------------------------
-INT vendorextnExit(PMINI_ADAPTER Adapter)
+INT vendorextnExit(struct bcm_mini_adapter *Adapter)
 {
 	return STATUS_SUCCESS;
 }
@@ -65,7 +65,7 @@ INT vendorextnExit(PMINI_ADAPTER Adapter)
 //		STATUS_SUCCESS/STATUS_FAILURE as per the IOCTL return value
 //
 //--------------------------------------------------------------------------
-INT vendorextnIoctl(PMINI_ADAPTER Adapter, UINT cmd, ULONG arg)
+INT vendorextnIoctl(struct bcm_mini_adapter *Adapter, UINT cmd, ULONG arg)
 {
 	return CONTINUE_COMMON_PATH;
 }

@@ -71,7 +71,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_CTL_SHIFT] = "shift",
 	[MSG_CTL_ALTGR] = "altgr",
 	[MSG_CTL_CONTROL] = "control",
-	[MSG_CTL_ALT] = "ault",
+	[MSG_CTL_ALT] = "alt",
 	[MSG_CTL_LSHIFT] = "l shift",
 	[MSG_CTL_SPEAKUP] = "speakup",
 	[MSG_CTL_LCONTROL] = "l control",
@@ -555,6 +555,7 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
 			&& index <= MSG_FORMATTED_END)
 				&& !fmt_validate(speakup_default_msgs[index],
 				newstr)) {
+				kfree(newstr);
 				return -EINVAL;
 			}
 			spk_lock(flags);

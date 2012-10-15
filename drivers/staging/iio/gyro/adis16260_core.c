@@ -195,6 +195,8 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 	ret = strict_strtol(buf, 10, &val);
 	if (ret)
 		return ret;
+	if (val == 0)
+		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
 	if (spi_get_device_id(st->us)) {
@@ -231,22 +233,6 @@ static int adis16260_reset(struct iio_dev *indio_dev)
 		dev_err(&indio_dev->dev, "problem resetting device");
 
 	return ret;
-}
-
-static ssize_t adis16260_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	if (len < 1)
-		return -EINVAL;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16260_reset(indio_dev);
-	}
-	return -EINVAL;
 }
 
 int adis16260_set_irq(struct iio_dev *indio_dev, bool enable)
@@ -374,8 +360,6 @@ err_ret:
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16260_read_frequency,
 		adis16260_write_frequency);
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16260_write_reset, 0);
 
 static IIO_DEVICE_ATTR(sampling_frequency_available,
 		       S_IRUGO, adis16260_read_frequency_available, NULL, 0);
@@ -604,7 +588,6 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 static struct attribute *adis16260_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	NULL
 };
 
@@ -636,7 +619,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	if (pd)
 		st->negate = pd->negate;
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;
 	mutex_init(&st->buf_lock);
@@ -717,26 +700,18 @@ error_ret:
 	return ret;
 }
 
-static int adis16260_remove(struct spi_device *spi)
+static int __devexit adis16260_remove(struct spi_device *spi)
 {
-	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-
-	ret = adis16260_stop_device(indio_dev);
-	if (ret)
-		goto err_ret;
-
-	flush_scheduled_work();
-
+	adis16260_stop_device(indio_dev);
 	adis16260_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
 	iio_device_free(indio_dev);
 
-err_ret:
-	return ret;
+	return 0;
 }
 
 /*

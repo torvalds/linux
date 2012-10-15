@@ -326,8 +326,10 @@ int i2400m_barker_db_init(const char *_options)
 		unsigned barker;
 
 		options_orig = kstrdup(_options, GFP_KERNEL);
-		if (options_orig == NULL)
+		if (options_orig == NULL) {
+			result = -ENOMEM;
 			goto error_parse;
+		}
 		options = options_orig;
 
 		while ((token = strsep(&options, ",")) != NULL) {

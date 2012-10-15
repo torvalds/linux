@@ -604,9 +604,11 @@ void show_scroll_win(WINDOW *main_window,
 		switch (res) {
 		case KEY_NPAGE:
 		case ' ':
+		case 'd':
 			start_y += text_lines-2;
 			break;
 		case KEY_PPAGE:
+		case 'u':
 			start_y -= text_lines+2;
 			break;
 		case KEY_HOME:
@@ -632,10 +634,10 @@ void show_scroll_win(WINDOW *main_window,
 			start_x++;
 			break;
 		}
-		if (res == 10 || res == 27 || res == 'q'
-		    || res == KEY_F(F_BACK) || res == KEY_F(F_EXIT)) {
+		if (res == 10 || res == 27 || res == 'q' ||
+			res == KEY_F(F_HELP) || res == KEY_F(F_BACK) ||
+			res == KEY_F(F_EXIT))
 			break;
-		}
 		if (start_y < 0)
 			start_y = 0;
 		if (start_y >= total_lines-text_lines)

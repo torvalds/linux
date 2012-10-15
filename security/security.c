@@ -434,7 +434,7 @@ int security_path_chmod(struct path *path, umode_t mode)
 	return security_ops->path_chmod(path, mode);
 }
 
-int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 {
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;

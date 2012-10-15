@@ -91,14 +91,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 	}
 }
 
-/*
- * Other archs parse arguments here.
- */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
 {
@@ -108,15 +100,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	return pci_enable_resources(dev, mask);
-}
-
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-#ifdef CONFIG_PCI_DEBUG
-	printk(KERN_DEBUG "LEONPCI: Assigning IRQ %02d to %s\n", irq,
-		pci_name(dev));
-#endif
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 /* in/out routines taken from pcic.c

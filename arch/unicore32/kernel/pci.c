@@ -154,14 +154,6 @@ void __init puv3_pci_adjust_zones(unsigned long *zone_size,
 	zhole_size[0] = 0;
 }
 
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	if (debug_pci)
-		printk(KERN_DEBUG "PCI: Assigning IRQ %02d to %s\n",
-				irq, pci_name(dev));
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 /*
  * If the bus contains any of these devices, then we must not turn on
  * parity checking of any kind.
@@ -296,7 +288,7 @@ static int __init pci_common_init(void)
 }
 subsys_initcall(pci_common_init);
 
-char * __devinit pcibios_setup(char *str)
+char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "debug")) {
 		debug_pci = 1;

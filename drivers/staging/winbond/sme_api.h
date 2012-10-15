@@ -12,7 +12,6 @@
 #include "localpara.h"
 
 /****************** CONSTANT AND MACRO SECTION ******************************/
-#define _INLINE				__inline
 
 #define MEDIA_STATE_DISCONNECTED	0
 #define MEDIA_STATE_CONNECTED		1
@@ -26,17 +25,17 @@
 
 /* OID_802_11_BSSID */
 s8 sme_get_bssid(void *pcore_data, u8 *pbssid);
-s8 sme_get_desired_bssid(void *pcore_data, u8 *pbssid); /* Not use */
+s8 sme_get_desired_bssid(void *pcore_data, u8 *pbssid); /* Unused */
 s8 sme_set_desired_bssid(void *pcore_data, u8 *pbssid);
 
 /* OID_802_11_SSID */
 s8 sme_get_ssid(void *pcore_data, u8 *pssid, u8 *pssid_len);
-s8 sme_get_desired_ssid(void *pcore_data, u8 *pssid, u8 *pssid_len);/* Not use */
+s8 sme_get_desired_ssid(void *pcore_data, u8 *pssid, u8 *pssid_len);/* Unused */
 s8 sme_set_desired_ssid(void *pcore_data, u8 *pssid, u8 ssid_len);
 
 /* OID_802_11_INFRASTRUCTURE_MODE */
 s8 sme_get_bss_type(void *pcore_data, u8 *pbss_type);
-s8 sme_get_desired_bss_type(void *pcore_data, u8 *pbss_type); /* Not use */
+s8 sme_get_desired_bss_type(void *pcore_data, u8 *pbss_type); /* Unused */
 s8 sme_set_desired_bss_type(void *pcore_data, u8 bss_type);
 
 /* OID_802_11_FRAGMENTATION_THRESHOLD */
@@ -107,7 +106,7 @@ s8 sme_set_bssid_list_scan(void *pcore_data, void *pscan_para);
 s8 sme_set_reload_defaults(void *pcore_data, u8 reload_type);
 
 
-/*------------------------- none-standard ----------------------------------*/
+/*------------------------- non-standard ----------------------------------*/
 s8 sme_get_connect_status(void *pcore_data, u8 *pstatus);
 /*--------------------------------------------------------------------------*/
 
@@ -138,7 +137,7 @@ s8 sme_set_txrate_policy(void *pcore_data, u8 policy);
 s8 sme_get_txrate_policy(void *pcore_data, u8 *policy);
 s8 sme_get_cwmin_value(void *pcore_data, u8 *cwmin);
 s8 sme_get_cwmax_value(void *pcore_data, u16 *cwmax);
-s8 sme_get_ms_radio_mode(void *pcore_data, u8 * pMsRadioOff);
+s8 sme_get_ms_radio_mode(void *pcore_data, u8 *pMsRadioOff);
 s8 sme_set_ms_radio_mode(void *pcore_data, u8 boMsRadioOff);
 
 void sme_get_tx_power_level(void *pcore_data, u32 *TxPower);

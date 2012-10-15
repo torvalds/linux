@@ -162,8 +162,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		    );
 void oxygen_pci_remove(struct pci_dev *pci);
 #ifdef CONFIG_PM
-int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
-int oxygen_pci_resume(struct pci_dev *pci);
+extern const struct dev_pm_ops oxygen_pci_pm;
 #endif
 void oxygen_pci_shutdown(struct pci_dev *pci);
 

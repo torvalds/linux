@@ -23,6 +23,8 @@
 	apb@80000000 {
 		apbh@80000000 {
 			gpmi-nand@8000c000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
 				status = "okay";
@@ -61,19 +63,40 @@
 					     &mmc0_cd_cfg
 					     &mmc0_sck_cfg>;
 				bus-width = <8>;
-				wp-gpios = <&gpio3 10 1>;
+				wp-gpios = <&gpio3 10 0>;
+				vmmc-supply = <&reg_vddio_sd0>;
 				status = "okay";
+			};
+
+			ssp2: ssp@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+
+				flash: m25p80@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "m25p80";
+					spi-max-frequency = <40000000>;
+					reg = <0>;
+				};
 			};
 
 			pinctrl@80018000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
+						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x30a3 /* MX28_PAD_AUART2_CTS__GPIO_3_10 */
 						0x30b3 /* MX28_PAD_AUART2_RTS__GPIO_3_11 */
+						0x30c3 /* MX28_PAD_AUART3_RX__GPIO_3_12 */
+						0x30d3 /* MX28_PAD_AUART3_TX__GPIO_3_13 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -129,6 +152,7 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
+				clock-frequency = <400000>;
 				status = "okay";
 
 				sgtl5000: codec@0a {
@@ -151,9 +175,21 @@
 				};
 			};
 
+			lradc@80050000 {
+				status = "okay";
+			};
+
 			duart: serial@80074000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&duart_pins_a>;
+				status = "okay";
+			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+
+			usbphy1: usbphy@8007e000 {
 				status = "okay";
 			};
 
@@ -162,21 +198,28 @@
 				pinctrl-0 = <&auart0_2pins_a>;
 				status = "okay";
 			};
-
-			auart3: serial@80070000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&auart3_pins_a>;
-				status = "okay";
-			};
 		};
 	};
 
 	ahb@80080000 {
+		usb0: usb@80080000 {
+			vbus-supply = <&reg_usb0_vbus>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&usbphy0_pins_a>;
+			status = "okay";
+		};
+
+		usb1: usb@80090000 {
+			vbus-supply = <&reg_usb1_vbus>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&usbphy1_pins_a>;
+			status = "okay";
+		};
+
 		mac0: ethernet@800f0000 {
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
-			phy-reset-gpios = <&gpio3 11 0>;
 			status = "okay";
 		};
 
@@ -197,6 +240,30 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
+		};
+
+		reg_vddio_sd0: vddio-sd0 {
+			compatible = "regulator-fixed";
+			regulator-name = "vddio-sd0";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 28 0>;
+		};
+
+		reg_usb0_vbus: usb0_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 12 0>;
+		};
+
+		reg_usb1_vbus: usb1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 13 0>;
 		};
 	};
 

@@ -241,7 +241,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 		.scan_type = IIO_ST('s', 16, 16, 0),		\
 	}
 
-static struct iio_chan_spec ad7606_8_channels[] = {
+static const struct iio_chan_spec ad7606_8_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -253,7 +253,7 @@ static struct iio_chan_spec ad7606_8_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
-static struct iio_chan_spec ad7606_6_channels[] = {
+static const struct iio_chan_spec ad7606_6_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -263,7 +263,7 @@ static struct iio_chan_spec ad7606_6_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(6),
 };
 
-static struct iio_chan_spec ad7606_4_channels[] = {
+static const struct iio_chan_spec ad7606_4_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -533,20 +533,12 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		goto error_free_irq;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret)
-		goto error_cleanup_ring;
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_unregister_ring;
 
 	return indio_dev;
 error_unregister_ring:
-	iio_buffer_unregister(indio_dev);
-
-error_cleanup_ring:
 	ad7606_ring_cleanup(indio_dev);
 
 error_free_irq:
@@ -571,7 +563,6 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7606_ring_cleanup(indio_dev);
 
 	free_irq(irq, indio_dev);

@@ -67,7 +67,6 @@ kvmppc_skip_Hinterrupt:
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
 #define FUNC(name)		name
-#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 .macro INTERRUPT_TRAMPOLINE intno
 

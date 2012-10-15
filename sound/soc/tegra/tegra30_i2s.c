@@ -44,18 +44,6 @@
 
 #define DRV_NAME "tegra30-i2s"
 
-static inline void tegra30_i2s_write(struct tegra30_i2s *i2s, u32 reg, u32 val)
-{
-	regmap_write(i2s->regmap, reg, val);
-}
-
-static inline u32 tegra30_i2s_read(struct tegra30_i2s *i2s, u32 reg)
-{
-	u32 val;
-	regmap_read(i2s->regmap, reg, &val);
-	return val;
-}
-
 static int tegra30_i2s_runtime_suspend(struct device *dev)
 {
 	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
@@ -128,6 +116,7 @@ static int tegra30_i2s_set_fmt(struct snd_soc_dai *dai,
 				unsigned int fmt)
 {
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	unsigned int mask, val;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
@@ -136,10 +125,10 @@ static int tegra30_i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	i2s->reg_ctrl &= ~TEGRA30_I2S_CTRL_MASTER_ENABLE;
+	mask = TEGRA30_I2S_CTRL_MASTER_ENABLE;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_MASTER_ENABLE;
+		val = TEGRA30_I2S_CTRL_MASTER_ENABLE;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
@@ -147,32 +136,36 @@ static int tegra30_i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	i2s->reg_ctrl &= ~(TEGRA30_I2S_CTRL_FRAME_FORMAT_MASK |
-			   TEGRA30_I2S_CTRL_LRCK_MASK);
+	mask |= TEGRA30_I2S_CTRL_FRAME_FORMAT_MASK |
+		TEGRA30_I2S_CTRL_LRCK_MASK;
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_FRAME_FORMAT_FSYNC;
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
+		val |= TEGRA30_I2S_CTRL_FRAME_FORMAT_FSYNC;
+		val |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_FRAME_FORMAT_FSYNC;
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_LRCK_R_LOW;
+		val |= TEGRA30_I2S_CTRL_FRAME_FORMAT_FSYNC;
+		val |= TEGRA30_I2S_CTRL_LRCK_R_LOW;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
+		val |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
+		val |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
+		val |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
+		val |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
+		val |= TEGRA30_I2S_CTRL_FRAME_FORMAT_LRCK;
+		val |= TEGRA30_I2S_CTRL_LRCK_L_LOW;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	pm_runtime_get_sync(dai->dev);
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL, mask, val);
+	pm_runtime_put(dai->dev);
 
 	return 0;
 }
@@ -181,23 +174,25 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct device *dev = substream->pcm->card->dev;
+	struct device *dev = dai->dev;
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
-	u32 val;
+	unsigned int mask, val, reg;
 	int ret, sample_size, srate, i2sclock, bitcnt;
 
 	if (params_channels(params) != 2)
 		return -EINVAL;
 
-	i2s->reg_ctrl &= ~TEGRA30_I2S_CTRL_BIT_SIZE_MASK;
+	mask = TEGRA30_I2S_CTRL_BIT_SIZE_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		i2s->reg_ctrl |= TEGRA30_I2S_CTRL_BIT_SIZE_16;
+		val = TEGRA30_I2S_CTRL_BIT_SIZE_16;
 		sample_size = 16;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL, mask, val);
 
 	srate = params_rate(params);
 
@@ -219,7 +214,7 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (i2sclock % (2 * srate))
 		val |= TEGRA30_I2S_TIMING_NON_SYM_ENABLE;
 
-	tegra30_i2s_write(i2s, TEGRA30_I2S_TIMING, val);
+	regmap_write(i2s->regmap, TEGRA30_I2S_TIMING, val);
 
 	val = (0 << TEGRA30_AUDIOCIF_CTRL_FIFO_THRESHOLD_SHIFT) |
 	      (1 << TEGRA30_AUDIOCIF_CTRL_AUDIO_CHANNELS_SHIFT) |
@@ -229,15 +224,17 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		val |= TEGRA30_AUDIOCIF_CTRL_DIRECTION_RX;
-		tegra30_i2s_write(i2s, TEGRA30_I2S_CIF_RX_CTRL, val);
+		reg = TEGRA30_I2S_CIF_RX_CTRL;
 	} else {
 		val |= TEGRA30_AUDIOCIF_CTRL_DIRECTION_TX;
-		tegra30_i2s_write(i2s, TEGRA30_I2S_CIF_TX_CTRL, val);
+		reg = TEGRA30_I2S_CIF_RX_CTRL;
 	}
+
+	regmap_write(i2s->regmap, reg, val);
 
 	val = (1 << TEGRA30_I2S_OFFSET_RX_DATA_OFFSET_SHIFT) |
 	      (1 << TEGRA30_I2S_OFFSET_TX_DATA_OFFSET_SHIFT);
-	tegra30_i2s_write(i2s, TEGRA30_I2S_OFFSET, val);
+	regmap_write(i2s->regmap, TEGRA30_I2S_OFFSET, val);
 
 	return 0;
 }
@@ -245,29 +242,31 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 static void tegra30_i2s_start_playback(struct tegra30_i2s *i2s)
 {
 	tegra30_ahub_enable_tx_fifo(i2s->playback_fifo_cif);
-	i2s->reg_ctrl |= TEGRA30_I2S_CTRL_XFER_EN_TX;
-	tegra30_i2s_write(i2s, TEGRA30_I2S_CTRL, i2s->reg_ctrl);
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL,
+			   TEGRA30_I2S_CTRL_XFER_EN_TX,
+			   TEGRA30_I2S_CTRL_XFER_EN_TX);
 }
 
 static void tegra30_i2s_stop_playback(struct tegra30_i2s *i2s)
 {
 	tegra30_ahub_disable_tx_fifo(i2s->playback_fifo_cif);
-	i2s->reg_ctrl &= ~TEGRA30_I2S_CTRL_XFER_EN_TX;
-	tegra30_i2s_write(i2s, TEGRA30_I2S_CTRL, i2s->reg_ctrl);
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL,
+			   TEGRA30_I2S_CTRL_XFER_EN_TX, 0);
 }
 
 static void tegra30_i2s_start_capture(struct tegra30_i2s *i2s)
 {
 	tegra30_ahub_enable_rx_fifo(i2s->capture_fifo_cif);
-	i2s->reg_ctrl |= TEGRA30_I2S_CTRL_XFER_EN_RX;
-	tegra30_i2s_write(i2s, TEGRA30_I2S_CTRL, i2s->reg_ctrl);
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL,
+			   TEGRA30_I2S_CTRL_XFER_EN_RX,
+			   TEGRA30_I2S_CTRL_XFER_EN_RX);
 }
 
 static void tegra30_i2s_stop_capture(struct tegra30_i2s *i2s)
 {
 	tegra30_ahub_disable_rx_fifo(i2s->capture_fifo_cif);
-	i2s->reg_ctrl &= ~TEGRA30_I2S_CTRL_XFER_EN_RX;
-	tegra30_i2s_write(i2s, TEGRA30_I2S_CTRL, i2s->reg_ctrl);
+	regmap_update_bits(i2s->regmap, TEGRA30_I2S_CTRL,
+			   TEGRA30_I2S_CTRL_XFER_EN_RX, 0);
 }
 
 static int tegra30_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -320,12 +319,14 @@ static struct snd_soc_dai_ops tegra30_i2s_dai_ops = {
 static const struct snd_soc_dai_driver tegra30_i2s_dai_template = {
 	.probe = tegra30_i2s_probe,
 	.playback = {
+		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
+		.stream_name = "Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,

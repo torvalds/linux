@@ -292,19 +292,11 @@
 //
 #define EnCFG_BarkerPream   0x00020000
 #define EnCFG_NXTBTTCFPSTR  0x00010000
-//#define EnCFG_TXLMT3UPDATE  0x00008000
-//#define EnCFG_TXLMT2UPDATE  0x00004000
-//#define EnCFG_TXLMT1UPDATE  0x00002000
-//#define EnCFG_TXLMT3EN      0x00001000
-//#define EnCFG_TXLMT2EN      0x00000800
-//#define EnCFG_TXLMT1EN      0x00000400
 #define EnCFG_BcnSusClr     0x00000200
 #define EnCFG_BcnSusInd     0x00000100
-//#define EnCFG_CWOFF1        0x00000080
 #define EnCFG_CFP_ProtectEn 0x00000040
 #define EnCFG_ProtectMd     0x00000020
 #define EnCFG_HwParCFP      0x00000010
-//#define EnCFG_QOS           0x00000008
 #define EnCFG_CFNULRSP      0x00000004
 #define EnCFG_BBType_MASK   0x00000003
 #define EnCFG_BBType_g      0x00000002
@@ -392,14 +384,6 @@
 #define IMR_RADARDETECT     0x10000000      //
 #define IMR_MEASUREEND      0x08000000      //
 #define IMR_SOFTTIMER1      0x00200000      //
-//#define IMR_SYNCFLUSHOK     0x00100000      //
-//#define IMR_ATIMEND         0x00080000      //0000 1000 0000 0000 0000 0000
-//#define IMR_CFPEND          0x00040000      //0000 0100 0000 0000 0000 0000
-//#define IMR_AC3DMA          0x00020000      //0000 0010 0000 0000 0000 0000
-//#define IMR_AC2DMA          0x00010000      //0000 0001 0000 0000 0000 0000
-//#define IMR_AC1DMA          0x00008000      //0000 0000 1000 0000 0000 0000
-//#define IMR_SYNCTX          0x00004000      //0000 0000 0100 0000 0000 0000
-//#define IMR_ATIMTX          0x00002000      //0000 0000 0010 0000 0000 0000
 #define IMR_RXDMA1          0x00001000      //0000 0000 0001 0000 0000 0000
 #define IMR_RXNOBUF         0x00000800      //
 #define IMR_MIBNEARFULL     0x00000400      //
@@ -424,14 +408,6 @@
 #define ISR_RADARDETECT     0x10000000      //
 #define ISR_MEASUREEND      0x08000000      //
 #define ISR_SOFTTIMER1      0x00200000      //
-//#define ISR_SYNCFLUSHOK     0x00100000      //0001 0000 0000 0000 0000 0000
-//#define ISR_ATIMEND         0x00080000      //0000 1000 0000 0000 0000 0000
-//#define ISR_CFPEND          0x00040000      //0000 0100 0000 0000 0000 0000
-//#define ISR_AC3DMA          0x00020000      //0000 0010 0000 0000 0000 0000
-//#define ISR_AC2DMA          0x00010000      //0000 0001 0000 0000 0000 0000
-//#define ISR_AC1DMA          0x00008000      //0000 0000 1000 0000 0000 0000
-//#define ISR_SYNCTX          0x00004000      //0000 0000 0100 0000 0000 0000
-//#define ISR_ATIMTX          0x00002000      //0000 0000 0010 0000 0000 0000
 #define ISR_RXDMA1          0x00001000      //0000 0000 0001 0000 0000 0000
 #define ISR_RXNOBUF         0x00000800      //0000 0000 0000 1000 0000 0000
 #define ISR_MIBNEARFULL     0x00000400      //0000 0000 0000 0100 0000 0000
@@ -610,7 +586,7 @@
 #define PKT_TYPE_NONE           0x00    // turn off receiver
 #define PKT_TYPE_ALL_MULTICAST  0x80
 #define PKT_TYPE_PROMISCUOUS    0x40
-#define PKT_TYPE_DIRECTED       0x20    // obselete, directed address is always accepted
+#define PKT_TYPE_DIRECTED       0x20    // obsolete, directed address is always accepted
 #define PKT_TYPE_BROADCAST      0x10
 #define PKT_TYPE_MULTICAST      0x08
 #define PKT_TYPE_ERROR_WPA      0x04

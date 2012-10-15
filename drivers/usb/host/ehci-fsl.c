@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
 
@@ -142,19 +143,19 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
 		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-		ehci->transceiver = usb_get_transceiver();
-		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, transceiver=0x%p\n",
-			hcd, ehci, ehci->transceiver);
+		hcd->phy = usb_get_phy(USB_PHY_TYPE_USB2);
+		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, phy=0x%p\n",
+			hcd, ehci, hcd->phy);
 
-		if (ehci->transceiver) {
-			retval = otg_set_host(ehci->transceiver->otg,
+		if (!IS_ERR_OR_NULL(hcd->phy)) {
+			retval = otg_set_host(hcd->phy->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
-				usb_put_transceiver(ehci->transceiver);
+				usb_put_phy(hcd->phy);
 				goto err4;
 			}
 		} else {
-			dev_err(&pdev->dev, "can't find transceiver\n");
+			dev_err(&pdev->dev, "can't find phy\n");
 			retval = -ENODEV;
 			goto err4;
 		}
@@ -190,11 +191,10 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 			       struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	if (ehci->transceiver) {
-		otg_set_host(ehci->transceiver->otg, NULL);
-		usb_put_transceiver(ehci->transceiver);
+	if (!IS_ERR_OR_NULL(hcd->phy)) {
+		otg_set_host(hcd->phy->otg, NULL);
+		usb_put_phy(hcd->phy);
 	}
 
 	usb_remove_hcd(hcd);
@@ -210,11 +210,11 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 	usb_put_hcd(hcd);
 }
 
-static void ehci_fsl_setup_phy(struct usb_hcd *hcd,
+static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 			       enum fsl_usb2_phy_modes phy_mode,
 			       unsigned int port_offset)
 {
-	u32 portsc, temp;
+	u32 portsc;
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	void __iomem *non_ehci = hcd->regs;
 	struct device *dev = hcd->self.controller;
@@ -232,9 +232,15 @@ static void ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_ULPI:
 		if (pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
-			out_be32(non_ehci + FSL_SOC_USB_CTRL, temp |
-				USB_CTRL_USB_EN | ULPI_PHY_CLK_SEL);
+			setbits32(non_ehci + FSL_SOC_USB_CTRL,
+					ULPI_PHY_CLK_SEL);
+			/*
+			 * Due to controller issue of PHY_CLK_VALID in ULPI
+			 * mode, we set USB_CTRL_USB_EN before checking
+			 * PHY_CLK_VALID, otherwise PHY_CLK_VALID doesn't work.
+			 */
+			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
+					UTMI_PHY_EN, USB_CTRL_USB_EN);
 		}
 		portsc |= PORT_PTS_ULPI;
 		break;
@@ -247,9 +253,7 @@ static void ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_UTMI:
 		if (pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
-			out_be32(non_ehci + FSL_SOC_USB_CTRL, temp |
-				UTMI_PHY_EN | USB_CTRL_USB_EN);
+			setbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);
 			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
 						become stable - 10ms*/
 		}
@@ -262,23 +266,33 @@ static void ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_NONE:
 		break;
 	}
+
+	if (pdata->controller_ver && (phy_mode == FSL_USB2_PHY_ULPI)) {
+		/* check PHY_CLK_VALID to get phy clk valid */
+		if (!spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
+				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0)) {
+			printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
+			return -EINVAL;
+		}
+	}
+
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
+
+	if (phy_mode != FSL_USB2_PHY_ULPI)
+		setbits32(non_ehci + FSL_SOC_USB_CTRL, USB_CTRL_USB_EN);
+
+	return 0;
 }
 
-static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
+static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 {
 	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	struct fsl_usb2_platform_data *pdata;
 	void __iomem *non_ehci = hcd->regs;
-	u32 temp;
 
 	pdata = hcd->self.controller->platform_data;
 
-	/* Enable PHY interface in the control reg. */
 	if (pdata->have_sysif_regs) {
-		temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
-		out_be32(non_ehci + FSL_SOC_USB_CTRL, temp | 0x00000004);
-
 		/*
 		* Turn on cache snooping hardware, since some PowerPC platforms
 		* wholly rely on hardware to deal with cache coherent
@@ -293,7 +307,8 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
-		ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0);
+		if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0))
+			return -EINVAL;
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
 		unsigned int chip, rev, svr;
@@ -307,13 +322,16 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 			ehci->has_fsl_port_bug = 1;
 
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)
-			ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0);
+			if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0))
+				return -EINVAL;
+
 		if (pdata->port_enables & FSL_USB2_PORT1_ENABLED)
-			ehci_fsl_setup_phy(hcd, pdata->phy_mode, 1);
+			if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 1))
+				return -EINVAL;
 	}
 
 	if (pdata->have_sysif_regs) {
-#ifdef CONFIG_PPC_85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
 		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
 #else
@@ -322,12 +340,15 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 #endif
 		out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
 	}
+
+	return 0;
 }
 
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_fsl_reinit(struct ehci_hcd *ehci)
 {
-	ehci_fsl_usb_setup(ehci);
+	if (ehci_fsl_usb_setup(ehci))
+		return -EINVAL;
 	ehci_port_power(ehci, 0);
 
 	return 0;
@@ -348,28 +369,12 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	hcd->has_tt = 1;
 
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
-
-	/* data structure init */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
-
-	ehci_reset(ehci);
 
 	if (of_device_is_compatible(dev->parent->of_node,
 				    "fsl,mpc5121-usb2-dr")) {

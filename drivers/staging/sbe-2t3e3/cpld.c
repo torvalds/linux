@@ -41,14 +41,6 @@ static inline void cpld_clear_bit(struct channel *channel, unsigned reg, u32 bit
 void cpld_init(struct channel *sc)
 {
 	u32 val;
-#if 0
-	/* reset LIU and Framer */
-	val = cpld_val_map[SBE_2T3E3_CPLD_VAL_LIU_FRAMER_RESET][sc->h.slot];
-	cpld_write(sc, SBE_2T3E3_CPLD_REG_STATIC_RESET, val);
-	udelay(10000); /* TODO - how long? */
-	val = 0;
-	cpld_write(sc, SBE_2T3E3_CPLD_REG_STATIC_RESET, val);
-#endif
 
 	/* PCRA */
 	val = SBE_2T3E3_CPLD_VAL_CRC32 |
@@ -109,13 +101,6 @@ void cpld_start_intr(struct channel *sc)
 	val = SBE_2T3E3_CPLD_VAL_INTERRUPT_FROM_ETHERNET_ENABLE |
 		SBE_2T3E3_CPLD_VAL_INTERRUPT_FROM_FRAMER_ENABLE;
 	cpld_write(sc, SBE_2T3E3_CPLD_REG_PIER, val);
-#if 0
-	/*
-	  do you want to hang up your computer?
-	  ENABLE REST OF INTERRUPTS !!!
-	  you have been warned :).
-	*/
-#endif
 }
 
 void cpld_stop_intr(struct channel *sc)

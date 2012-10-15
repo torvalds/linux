@@ -563,8 +563,7 @@ static int tps65010_probe(struct i2c_client *client,
 	 */
 	if (client->irq > 0) {
 		status = request_irq(client->irq, tps65010_irq,
-			IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_FALLING,
-			DRIVER_NAME, tps);
+				     IRQF_TRIGGER_FALLING, DRIVER_NAME, tps);
 		if (status < 0) {
 			dev_dbg(&client->dev, "can't get IRQ %d, err %d\n",
 					client->irq, status);

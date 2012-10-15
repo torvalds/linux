@@ -130,6 +130,7 @@
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
 #define AUDIT_ANOM_PROMISCUOUS      1700 /* Device changed promiscuous mode */
 #define AUDIT_ANOM_ABEND            1701 /* Process ended abnormally */
+#define AUDIT_ANOM_LINK		    1702 /* Suspicious use of file links */
 #define AUDIT_INTEGRITY_DATA	    1800 /* Data integrity verification */
 #define AUDIT_INTEGRITY_METADATA    1801 /* Metadata integrity verification */
 #define AUDIT_INTEGRITY_STATUS	    1802 /* Integrity enable status */
@@ -441,6 +442,8 @@ struct audit_krule {
 struct audit_field {
 	u32				type;
 	u32				val;
+	kuid_t				uid;
+	kgid_t				gid;
 	u32				op;
 	char				*lsm_str;
 	void				*lsm_rule;
@@ -524,7 +527,7 @@ static inline void audit_ptrace(struct task_struct *t)
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
-extern int  audit_set_loginuid(uid_t loginuid);
+extern int  audit_set_loginuid(kuid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
 #define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
@@ -636,7 +639,7 @@ extern int audit_signals;
 #define audit_core_dumps(i) do { ; } while (0)
 #define audit_seccomp(i,s,c) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) (0)
-#define audit_get_loginuid(t) (-1)
+#define audit_get_loginuid(t) (INVALID_UID)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
 #define audit_ipc_obj(i) ((void)0)
@@ -687,6 +690,8 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const struct path *path);
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
+extern void		    audit_log_link_denied(const char *operation,
+						  struct path *link);
 extern void		    audit_log_lost(const char *message);
 #ifdef CONFIG_SECURITY
 extern void 		    audit_log_secctx(struct audit_buffer *ab, u32 secid);
@@ -697,10 +702,10 @@ extern void 		    audit_log_secctx(struct audit_buffer *ab, u32 secid);
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_filter_user(struct netlink_skb_parms *cb);
+extern int audit_filter_user(void);
 extern int audit_filter_type(int type);
-extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				void *data, size_t datasz, uid_t loginuid,
+extern int  audit_receive_filter(int type, int pid, int seq,
+				void *data, size_t datasz, kuid_t loginuid,
 				u32 sessionid, u32 sid);
 extern int audit_enabled;
 #else
@@ -716,6 +721,7 @@ extern int audit_enabled;
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b, p, d) do { ; } while (0)
 #define audit_log_key(b, k) do { ; } while (0)
+#define audit_log_link_denied(o, l) do { ; } while (0)
 #define audit_log_secctx(b,s) do { ; } while (0)
 #define audit_enabled 0
 #endif

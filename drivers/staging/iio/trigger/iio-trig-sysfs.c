@@ -10,12 +10,14 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/irq_work.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 
 struct iio_sysfs_trig {
 	struct iio_trigger *trig;
+	struct irq_work work;
 	int id;
 	struct list_head l;
 };
@@ -89,11 +91,21 @@ static struct device iio_sysfs_trig_dev = {
 	.release = &iio_trigger_sysfs_release,
 };
 
+static void iio_sysfs_trigger_work(struct irq_work *work)
+{
+	struct iio_sysfs_trig *trig = container_of(work, struct iio_sysfs_trig,
+							work);
+
+	iio_trigger_poll(trig->trig, 0);
+}
+
 static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	iio_trigger_poll_chained(trig, 0);
+	struct iio_trigger *trig = to_iio_trigger(dev);
+	struct iio_sysfs_trig *sysfs_trig = trig->private_data;
+
+	irq_work_queue(&sysfs_trig->work);
 
 	return count;
 }
@@ -148,6 +160,9 @@ static int iio_sysfs_trigger_probe(int id)
 	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
 	t->trig->ops = &iio_sysfs_trigger_ops;
 	t->trig->dev.parent = &iio_sysfs_trig_dev;
+	t->trig->private_data = t;
+
+	init_irq_work(&t->work, iio_sysfs_trigger_work);
 
 	ret = iio_trigger_register(t->trig);
 	if (ret)

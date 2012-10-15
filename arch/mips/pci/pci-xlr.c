@@ -375,7 +375,3 @@ static int __init pcibios_init(void)
 }
 
 arch_initcall(pcibios_init);
-
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};

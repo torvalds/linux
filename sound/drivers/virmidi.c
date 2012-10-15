@@ -142,7 +142,8 @@ static struct platform_driver snd_virmidi_driver = {
 	.probe		= snd_virmidi_probe,
 	.remove		= __devexit_p(snd_virmidi_remove),
 	.driver		= {
-		.name	= SND_VIRMIDI_DRIVER
+		.name	= SND_VIRMIDI_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

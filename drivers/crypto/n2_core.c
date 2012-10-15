@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("Niagara2 Crypto driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-#define N2_CRA_PRIORITY		300
+#define N2_CRA_PRIORITY		200
 
 static DEFINE_MUTEX(spu_lock);
 
@@ -1610,8 +1610,7 @@ static int spu_map_ino(struct platform_device *dev, struct spu_mdesc_info *ip,
 
 	sprintf(p->irq_name, "%s-%d", irq_name, index);
 
-	return request_irq(p->irq, handler, IRQF_SAMPLE_RANDOM,
-			   p->irq_name, p);
+	return request_irq(p->irq, handler, 0, p->irq_name, p);
 }
 
 static struct kmem_cache *queue_cache[2];

@@ -728,7 +728,7 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_fla
 	pdev->layout_type = LAYOUT_NFSV4_1_FILES;
 	pdev->pages = pages;
 	pdev->pgbase = 0;
-	pdev->pglen = PAGE_SIZE * max_pages;
+	pdev->pglen = max_resp_sz;
 	pdev->mincount = 0;
 
 	rc = nfs4_proc_getdeviceinfo(server, pdev);

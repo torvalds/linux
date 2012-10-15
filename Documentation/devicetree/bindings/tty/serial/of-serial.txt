@@ -9,6 +9,7 @@ Required properties:
 	- "ns16750"
 	- "ns16850"
 	- "nvidia,tegra20-uart"
+	- "nxp,lpc3220-uart"
 	- "ibm,qpace-nwp-serial"
 	- "serial" if the port type is unknown.
 - reg : offset and length of the register set for the device.
@@ -24,6 +25,8 @@ Optional properties:
   accesses to the UART (e.g. TI davinci).
 - used-by-rtas : set to indicate that the port is in use by the OpenFirmware
   RTAS and should not be registered.
+- no-loopback-test: set to indicate that the port does not implements loopback
+  test mode
 
 Example:
 

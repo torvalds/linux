@@ -17,6 +17,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "logger: " fmt
+
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -30,38 +32,50 @@
 
 #include <asm/ioctls.h>
 
-/*
+/**
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
+ * @buffer:	The actual ring buffer
+ * @misc:	The "misc" device representing the log
+ * @wq:		The wait queue for @readers
+ * @readers:	This log's readers
+ * @mutex:	The mutex that protects the @buffer
+ * @w_off:	The current write head offset
+ * @head:	The head, or location that readers start reading at.
+ * @size:	The size of the log
+ * @logs:	The list of log channels
  *
  * This structure lives from module insertion until module removal, so it does
  * not need additional reference counting. The structure is protected by the
  * mutex 'mutex'.
  */
 struct logger_log {
-	unsigned char		*buffer;/* the ring buffer itself */
-	struct miscdevice	misc;	/* misc device representing the log */
-	wait_queue_head_t	wq;	/* wait queue for readers */
-	struct list_head	readers; /* this log's readers */
-	struct mutex		mutex;	/* mutex protecting buffer */
-	size_t			w_off;	/* current write head offset */
-	size_t			head;	/* new readers start here */
-	size_t			size;	/* size of the log */
-	struct list_head	logs;	/* list of log channels (myself)*/
+	unsigned char		*buffer;
+	struct miscdevice	misc;
+	wait_queue_head_t	wq;
+	struct list_head	readers;
+	struct mutex		mutex;
+	size_t			w_off;
+	size_t			head;
+	size_t			size;
+	struct list_head	logs;
 };
 
 static LIST_HEAD(log_list);
 
 
-/*
+/**
  * struct logger_reader - a logging device open for reading
+ * @log:	The associated log
+ * @list:	The associated entry in @logger_log's list
+ * @r_off:	The current read head offset.
  *
  * This object lives from open to release, so we don't need additional
  * reference counting. The structure is protected by log->mutex.
  */
 struct logger_reader {
-	struct logger_log	*log;	/* associated log */
-	struct list_head	list;	/* entry in logger_log's list */
-	size_t			r_off;	/* current read head offset */
+	struct logger_log	*log;
+	struct list_head	list;
+	size_t			r_off;
 };
 
 /* logger_offset - returns index 'n' into the log via (optimized) modulus */
@@ -621,13 +635,13 @@ static int __init create_log(char *log_name, int size)
 	/* finally, initialize the misc device for this log */
 	ret = misc_register(&log->misc);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "logger: failed to register misc "
-		       "device for log '%s'!\n", log->misc.name);
+		pr_err("failed to register misc device for log '%s'!\n",
+				log->misc.name);
 		goto out_free_log;
 	}
 
-	printk(KERN_INFO "logger: created %luK log '%s'\n",
-	       (unsigned long) log->size >> 10, log->misc.name);
+	pr_info("created %luK log '%s'\n",
+		(unsigned long) log->size >> 10, log->misc.name);
 
 	return 0;
 

@@ -261,21 +261,10 @@ static struct pci_driver sc1200_pci_driver = {
 #endif
 };
 
-static int __init sc1200_init(void)
-{
-	return pci_register_driver(&sc1200_pci_driver);
-}
-
-static void __exit sc1200_exit(void)
-{
-	pci_unregister_driver(&sc1200_pci_driver);
-}
+module_pci_driver(sc1200_pci_driver);
 
 MODULE_AUTHOR("Alan Cox, Mark Lord");
 MODULE_DESCRIPTION("low-level driver for the NS/AMD SC1200");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sc1200);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sc1200_init);
-module_exit(sc1200_exit);

@@ -19,9 +19,79 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
+
+#if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
+struct clk *of_clk_get(struct device_node *np, int index)
+{
+	struct of_phandle_args clkspec;
+	struct clk *clk;
+	int rc;
+
+	if (index < 0)
+		return ERR_PTR(-EINVAL);
+
+	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
+					&clkspec);
+	if (rc)
+		return ERR_PTR(rc);
+
+	clk = of_clk_get_from_provider(&clkspec);
+	of_node_put(clkspec.np);
+	return clk;
+}
+EXPORT_SYMBOL(of_clk_get);
+
+/**
+ * of_clk_get_by_name() - Parse and lookup a clock referenced by a device node
+ * @np: pointer to clock consumer node
+ * @name: name of consumer's clock input, or NULL for the first clock reference
+ *
+ * This function parses the clocks and clock-names properties,
+ * and uses them to look up the struct clk from the registered list of clock
+ * providers.
+ */
+struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
+{
+	struct clk *clk = ERR_PTR(-ENOENT);
+
+	/* Walk up the tree of devices looking for a clock that matches */
+	while (np) {
+		int index = 0;
+
+		/*
+		 * For named clocks, first look up the name in the
+		 * "clock-names" property.  If it cannot be found, then
+		 * index will be an error code, and of_clk_get() will fail.
+		 */
+		if (name)
+			index = of_property_match_string(np, "clock-names", name);
+		clk = of_clk_get(np, index);
+		if (!IS_ERR(clk))
+			break;
+		else if (name && index >= 0) {
+			pr_err("ERROR: could not get clock %s:%s(%i)\n",
+				np->full_name, name ? name : "", index);
+			return clk;
+		}
+
+		/*
+		 * No matching clock found on this node.  If the parent node
+		 * has a "clock-ranges" property, then we can try one of its
+		 * clocks.
+		 */
+		np = np->parent;
+		if (np && !of_get_property(np, "clock-ranges", NULL))
+			break;
+	}
+
+	return clk;
+}
+EXPORT_SYMBOL(of_clk_get_by_name);
+#endif
 
 /*
  * Find the correct struct clk for the device and connection ID.
@@ -83,6 +153,13 @@ EXPORT_SYMBOL(clk_get_sys);
 struct clk *clk_get(struct device *dev, const char *con_id)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
+	struct clk *clk;
+
+	if (dev) {
+		clk = of_clk_get_by_name(dev->of_node, con_id);
+		if (!IS_ERR(clk) && __clk_get(clk))
+			return clk;
+	}
 
 	return clk_get_sys(dev_id, con_id);
 }
@@ -93,51 +170,6 @@ void clk_put(struct clk *clk)
 	__clk_put(clk);
 }
 EXPORT_SYMBOL(clk_put);
-
-static void devm_clk_release(struct device *dev, void *res)
-{
-	clk_put(*(struct clk **)res);
-}
-
-struct clk *devm_clk_get(struct device *dev, const char *id)
-{
-	struct clk **ptr, *clk;
-
-	ptr = devres_alloc(devm_clk_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	clk = clk_get(dev, id);
-	if (!IS_ERR(clk)) {
-		*ptr = clk;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return clk;
-}
-EXPORT_SYMBOL(devm_clk_get);
-
-static int devm_clk_match(struct device *dev, void *res, void *data)
-{
-	struct clk **c = res;
-	if (!c || !*c) {
-		WARN_ON(!c || !*c);
-		return 0;
-	}
-	return *c == data;
-}
-
-void devm_clk_put(struct device *dev, struct clk *clk)
-{
-	int ret;
-
-	ret = devres_destroy(dev, devm_clk_release, devm_clk_match, clk);
-
-	WARN_ON(ret);
-}
-EXPORT_SYMBOL(devm_clk_put);
 
 void clkdev_add(struct clk_lookup *cl)
 {

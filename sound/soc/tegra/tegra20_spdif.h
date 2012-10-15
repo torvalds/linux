@@ -465,7 +465,6 @@ struct tegra20_spdif {
 	struct tegra_pcm_dma_params capture_dma_data;
 	struct tegra_pcm_dma_params playback_dma_data;
 	struct regmap *regmap;
-	u32 reg_ctrl;
 };
 
 #endif

@@ -29,14 +29,14 @@
  *   vt6656_probe - module initial (insmod) driver entry
  *   device_remove1 - module remove entry
  *   device_open - allocate dma/descripter resource & initial mac/bbp function
- *   device_xmit - asynchrous data tx function
+ *   device_xmit - asynchronous data tx function
  *   device_set_multi - set mac filter
  *   device_ioctl - ioctl entry
- *   device_close - shutdown mac/bbp & free dma/descripter resource
+ *   device_close - shutdown mac/bbp & free dma/descriptor resource
  *   device_alloc_frag_buf - rx fragement pre-allocated function
  *   device_free_tx_bufs - free tx buffer function
  *   device_dma0_tx_80211- tx 802.11 frame via dma0
- *   device_dma0_xmit- tx PS bufferred frame via dma0
+ *   device_dma0_xmit- tx PS buffered frame via dma0
  *   device_init_registers- initial MAC & BBP & RF internal registers.
  *   device_init_rings- initial tx/rx ring buffer
  *   device_init_defrag_cb- initial & allocate de-fragement buffer.
@@ -92,22 +92,14 @@ MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
         module_param_array(N, int, NULL, 0);\
         MODULE_PARM_DESC(N, D);
 
-#define RX_DESC_MIN0     16
-#define RX_DESC_MAX0     128
 #define RX_DESC_DEF0     64
 DEVICE_PARAM(RxDescriptors0,"Number of receive usb desc buffer");
 
 
-#define TX_DESC_MIN0     16
-#define TX_DESC_MAX0     128
 #define TX_DESC_DEF0     64
 DEVICE_PARAM(TxDescriptors0,"Number of transmit usb desc buffer");
 
-
-#define CHANNEL_MIN     1
-#define CHANNEL_MAX     14
 #define CHANNEL_DEF     6
-
 DEVICE_PARAM(Channel, "Channel number");
 
 
@@ -120,23 +112,13 @@ DEVICE_PARAM(Channel, "Channel number");
 
 DEVICE_PARAM(PreambleType, "Preamble Type");
 
-
-#define RTS_THRESH_MIN     512
-#define RTS_THRESH_MAX     2347
 #define RTS_THRESH_DEF     2347
-
 DEVICE_PARAM(RTSThreshold, "RTS threshold");
 
-
-#define FRAG_THRESH_MIN     256
-#define FRAG_THRESH_MAX     2346
 #define FRAG_THRESH_DEF     2346
-
 DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
 
 
-#define DATA_RATE_MIN     0
-#define DATA_RATE_MAX     13
 #define DATA_RATE_DEF     13
 /* datarate[] index
    0: indicate 1 Mbps   0x02
@@ -157,10 +139,7 @@ DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
 
 DEVICE_PARAM(ConnectionRate, "Connection data rate");
 
-#define OP_MODE_MAX     2
 #define OP_MODE_DEF     0
-#define OP_MODE_MIN     0
-
 DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 
 /* OpMode[] is used for transmit.
@@ -176,34 +155,22 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 */
 
 #define PS_MODE_DEF     0
-
 DEVICE_PARAM(PSMode, "Power saving mode");
 
 
-#define SHORT_RETRY_MIN     0
-#define SHORT_RETRY_MAX     31
 #define SHORT_RETRY_DEF     8
-
-
 DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
 
-#define LONG_RETRY_MIN     0
-#define LONG_RETRY_MAX     15
 #define LONG_RETRY_DEF     4
-
-
 DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
-
 
 /* BasebandType[] baseband type selected
    0: indicate 802.11a type
    1: indicate 802.11b type
    2: indicate 802.11g type
 */
-#define BBP_TYPE_MIN     0
-#define BBP_TYPE_MAX     2
-#define BBP_TYPE_DEF     2
 
+#define BBP_TYPE_DEF     2
 DEVICE_PARAM(BasebandType, "baseband type");
 
 
@@ -222,7 +189,7 @@ DEVICE_PARAM(b80211hEnable, "802.11h mode");
 // Static vars definitions
 //
 
-static struct usb_device_id vt6656_table[] __devinitdata = {
+static struct usb_device_id vt6656_table[] = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
@@ -237,11 +204,6 @@ static const long frequency_list[] = {
     5700, 5745, 5765, 5785, 5805, 5825
 	};
 
-
-#ifndef IW_ENCODE_NOKEY
-#define IW_ENCODE_NOKEY         0x0800
-#define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
-#endif
 
 static const struct iw_handler_def	iwctl_handler_def;
 */
@@ -354,7 +316,7 @@ static void device_init_diversity_timer(PSDevice pDevice)
 
 
 //
-// Initialiation of MAC & BBP registers
+// Initialization of MAC & BBP registers
 //
 
 static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
@@ -677,7 +639,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
   viawget_wpa_header *wpahdr;
   int ii=0;
  // wait_queue_head_t	Set_wait;
-  //send device close to wpa_supplicnat layer
+  //send device close to wpa_supplicant layer
     if (pDevice->bWPADEVUp==TRUE) {
                  wpahdr = (viawget_wpa_header *)pDevice->skb->data;
                  wpahdr->type = VIAWGET_DEVICECLOSE_MSG;
@@ -1048,7 +1010,7 @@ static int  device_open(struct net_device *dev) {
     }
 
     if (device_init_defrag_cb(pDevice)== FALSE) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Initial defragement cb fail \n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Initial defragment cb fail \n");
         goto free_rx_tx;
     }
 
@@ -1334,7 +1296,7 @@ static inline u32 ether_crc(int length, unsigned char *data)
     return crc;
 }
 
-//find out  the start  position of str2 from str1
+//find out the start  position of str2 from str1
 static unsigned char *kstrstr(const unsigned char *str1,
 			      const unsigned char *str2) {
   int str1_len = strlen(str1);
@@ -1383,7 +1345,7 @@ static int Config_FileGetParameter(unsigned char *string,
        }
 
    memset(buf2,0,100);
-   memcpy(buf2,start_p,end_p-start_p);    //get the tartget line
+   memcpy(buf2,start_p,end_p-start_p);    //get the target line
    buf2[end_p-start_p]='\0';
 
    //find value
@@ -1434,7 +1396,7 @@ static unsigned char *Config_FileOperation(PSDevice pDevice)
 	  }
 
      if(!(filp->f_op) || !(filp->f_op->read) ||!(filp->f_op->write)) {
-           printk("file %s cann't readable or writable?\n",config_path);
+           printk("file %s is not read or writeable?\n",config_path);
 	  result = -1;
 	  goto error1;
      	}
@@ -2007,7 +1969,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 	default:
 		rc = -EOPNOTSUPP;
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Ioctl command not support..%x\n", cmd);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Ioctl command not supported..%x\n", cmd);
 
 
     }

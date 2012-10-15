@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/olpc-ec.h>
 
 #ifdef CONFIG_OLPC
 #include <asm/olpc.h>

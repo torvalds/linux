@@ -21,8 +21,6 @@ struct workqueue_struct *virtblk_wq;
 
 struct virtio_blk
 {
-	spinlock_t lock;
-
 	struct virtio_device *vdev;
 	struct virtqueue *vq;
 
@@ -65,7 +63,7 @@ static void blk_done(struct virtqueue *vq)
 	unsigned int len;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vblk->lock, flags);
+	spin_lock_irqsave(vblk->disk->queue->queue_lock, flags);
 	while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
 		int error;
 
@@ -99,7 +97,7 @@ static void blk_done(struct virtqueue *vq)
 	}
 	/* In case queue is stopped waiting for more buffers. */
 	blk_start_queue(vblk->disk->queue);
-	spin_unlock_irqrestore(&vblk->lock, flags);
+	spin_unlock_irqrestore(vblk->disk->queue->queue_lock, flags);
 }
 
 static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
@@ -397,6 +395,83 @@ static int virtblk_name_format(char *prefix, int index, char *buf, int buflen)
 	return 0;
 }
 
+static int virtblk_get_cache_mode(struct virtio_device *vdev)
+{
+	u8 writeback;
+	int err;
+
+	err = virtio_config_val(vdev, VIRTIO_BLK_F_CONFIG_WCE,
+				offsetof(struct virtio_blk_config, wce),
+				&writeback);
+	if (err)
+		writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_WCE);
+
+	return writeback;
+}
+
+static void virtblk_update_cache_mode(struct virtio_device *vdev)
+{
+	u8 writeback = virtblk_get_cache_mode(vdev);
+	struct virtio_blk *vblk = vdev->priv;
+
+	if (writeback)
+		blk_queue_flush(vblk->disk->queue, REQ_FLUSH);
+	else
+		blk_queue_flush(vblk->disk->queue, 0);
+
+	revalidate_disk(vblk->disk);
+}
+
+static const char *const virtblk_cache_types[] = {
+	"write through", "write back"
+};
+
+static ssize_t
+virtblk_cache_type_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct virtio_blk *vblk = disk->private_data;
+	struct virtio_device *vdev = vblk->vdev;
+	int i;
+	u8 writeback;
+
+	BUG_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
+	for (i = ARRAY_SIZE(virtblk_cache_types); --i >= 0; )
+		if (sysfs_streq(buf, virtblk_cache_types[i]))
+			break;
+
+	if (i < 0)
+		return -EINVAL;
+
+	writeback = i;
+	vdev->config->set(vdev,
+			  offsetof(struct virtio_blk_config, wce),
+			  &writeback, sizeof(writeback));
+
+	virtblk_update_cache_mode(vdev);
+	return count;
+}
+
+static ssize_t
+virtblk_cache_type_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct virtio_blk *vblk = disk->private_data;
+	u8 writeback = virtblk_get_cache_mode(vblk->vdev);
+
+	BUG_ON(writeback >= ARRAY_SIZE(virtblk_cache_types));
+	return snprintf(buf, 40, "%s\n", virtblk_cache_types[writeback]);
+}
+
+static const struct device_attribute dev_attr_cache_type_ro =
+	__ATTR(cache_type, S_IRUGO,
+	       virtblk_cache_type_show, NULL);
+static const struct device_attribute dev_attr_cache_type_rw =
+	__ATTR(cache_type, S_IRUGO|S_IWUSR,
+	       virtblk_cache_type_show, virtblk_cache_type_store);
+
 static int __devinit virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
@@ -431,7 +506,6 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 		goto out_free_index;
 	}
 
-	spin_lock_init(&vblk->lock);
 	vblk->vdev = vdev;
 	vblk->sg_elems = sg_elems;
 	sg_init_table(vblk->sg, vblk->sg_elems);
@@ -456,7 +530,7 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 		goto out_mempool;
 	}
 
-	q = vblk->disk->queue = blk_init_queue(do_virtblk_request, &vblk->lock);
+	q = vblk->disk->queue = blk_init_queue(do_virtblk_request, NULL);
 	if (!q) {
 		err = -ENOMEM;
 		goto out_put_disk;
@@ -474,8 +548,7 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->index = index;
 
 	/* configure queue flush support */
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
-		blk_queue_flush(q, REQ_FLUSH);
+	virtblk_update_cache_mode(vdev);
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
@@ -553,6 +626,14 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	if (err)
 		goto out_del_disk;
 
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE))
+		err = device_create_file(disk_to_dev(vblk->disk),
+					 &dev_attr_cache_type_rw);
+	else
+		err = device_create_file(disk_to_dev(vblk->disk),
+					 &dev_attr_cache_type_ro);
+	if (err)
+		goto out_del_disk;
 	return 0;
 
 out_del_disk:
@@ -576,30 +657,20 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	int index = vblk->index;
-	struct virtblk_req *vbr;
-	unsigned long flags;
 
 	/* Prevent config work handler from accessing the device. */
 	mutex_lock(&vblk->config_lock);
 	vblk->config_enable = false;
 	mutex_unlock(&vblk->config_lock);
 
+	del_gendisk(vblk->disk);
+	blk_cleanup_queue(vblk->disk->queue);
+
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
 	flush_work(&vblk->config_work);
 
-	del_gendisk(vblk->disk);
-
-	/* Abort requests dispatched to driver. */
-	spin_lock_irqsave(&vblk->lock, flags);
-	while ((vbr = virtqueue_detach_unused_buf(vblk->vq))) {
-		__blk_end_request_all(vbr->req, -EIO);
-		mempool_free(vbr, vblk->pool);
-	}
-	spin_unlock_irqrestore(&vblk->lock, flags);
-
-	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vqs(vdev);
@@ -655,7 +726,7 @@ static const struct virtio_device_id id_table[] = {
 static unsigned int features[] = {
 	VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX, VIRTIO_BLK_F_GEOMETRY,
 	VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE, VIRTIO_BLK_F_SCSI,
-	VIRTIO_BLK_F_FLUSH, VIRTIO_BLK_F_TOPOLOGY
+	VIRTIO_BLK_F_WCE, VIRTIO_BLK_F_TOPOLOGY, VIRTIO_BLK_F_CONFIG_WCE
 };
 
 /*

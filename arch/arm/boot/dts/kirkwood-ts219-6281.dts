@@ -1,0 +1,21 @@
+/dts-v1/;
+
+/include/ "kirkwood-ts219.dtsi"
+
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "USB Copy";
+			linux,code = <133>;
+			gpios = <&gpio0 15 1>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 16 1>;
+		};
+	};
+};

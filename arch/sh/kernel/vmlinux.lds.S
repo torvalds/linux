@@ -78,7 +78,6 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 	BSS_SECTION(0, PAGE_SIZE, 4)
-	_ebss = .;			/* uClinux MTD sucks */
 	_end = . ;
 
 	STABS_DEBUG

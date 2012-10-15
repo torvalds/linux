@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <linux/clk.h>
-#include <plat/mv_xor.h>
+#include <linux/platform_data/dma-mv_xor.h>
 
 #include "dmaengine.h"
 #include "mv_xor.h"

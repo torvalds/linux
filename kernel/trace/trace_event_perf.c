@@ -258,7 +258,8 @@ EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static void
-perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip)
+perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
+			  struct ftrace_ops *ops, struct pt_regs *pt_regs)
 {
 	struct ftrace_entry *entry;
 	struct hlist_head *head;
@@ -281,7 +282,7 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip)
 
 	head = this_cpu_ptr(event_function.perf_events);
 	perf_trace_buf_submit(entry, ENTRY_SIZE, rctx, 0,
-			      1, &regs, head);
+			      1, &regs, head, NULL);
 
 #undef ENTRY_SIZE
 }

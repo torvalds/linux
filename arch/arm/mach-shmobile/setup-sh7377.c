@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/uio_driver.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -483,7 +484,7 @@ static void __init sh7377_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-#define SMSTPCR3 0xe615013c
+#define SMSTPCR3 IOMEM(0xe615013c)
 #define SMSTPCR3_CMT1 (1 << 29)
 
 void __init sh7377_add_early_devices(void)
@@ -500,3 +501,49 @@ void __init sh7377_add_early_devices(void)
 	/* override timer setup with soc-specific code */
 	shmobile_timer.init = sh7377_earlytimer_init;
 }
+
+#ifdef CONFIG_USE_OF
+
+void __init sh7377_add_early_devices_dt(void)
+{
+	shmobile_setup_delay(600, 1, 3); /* Cortex-A8 @ 600MHz */
+
+	early_platform_add_devices(sh7377_early_devices,
+				   ARRAY_SIZE(sh7377_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+}
+
+static const struct of_dev_auxdata sh7377_auxdata_lookup[] __initconst = {
+	{ }
+};
+
+void __init sh7377_add_standard_devices_dt(void)
+{
+	/* clocks are setup late during boot in the case of DT */
+	sh7377_clock_init();
+
+	platform_add_devices(sh7377_early_devices,
+			    ARRAY_SIZE(sh7377_early_devices));
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     sh7377_auxdata_lookup, NULL);
+}
+
+static const char *sh7377_boards_compat_dt[] __initdata = {
+	"renesas,sh7377",
+	NULL,
+};
+
+DT_MACHINE_START(SH7377_DT, "Generic SH7377 (Flattened Device Tree)")
+	.map_io		= sh7377_map_io,
+	.init_early	= sh7377_add_early_devices_dt,
+	.init_irq	= sh7377_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
+	.init_machine	= sh7377_add_standard_devices_dt,
+	.timer		= &shmobile_timer,
+	.dt_compat	= sh7377_boards_compat_dt,
+MACHINE_END
+
+#endif /* CONFIG_USE_OF */

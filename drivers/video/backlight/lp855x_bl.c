@@ -14,11 +14,15 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/err.h>
-#include <linux/lp855x.h>
+#include <linux/platform_data/lp855x.h>
 
 /* Registers */
-#define BRIGHTNESS_CTRL		(0x00)
-#define DEVICE_CTRL		(0x01)
+#define BRIGHTNESS_CTRL		0x00
+#define DEVICE_CTRL		0x01
+#define EEPROM_START		0xA0
+#define EEPROM_END		0xA7
+#define EPROM_START		0xA0
+#define EPROM_END		0xAF
 
 #define BUF_SIZE		20
 #define DEFAULT_BL_NAME		"lcd-backlight"

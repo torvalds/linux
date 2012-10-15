@@ -683,14 +683,12 @@ memory, set by the application. See <xref linkend="userp" /> for details.
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>input</structfield></entry>
+	    <entry><structfield>reserved2</structfield></entry>
 	    <entry></entry>
-	    <entry>Some video capture drivers support rapid and
-synchronous video input changes, a function useful for example in
-video surveillance applications. For this purpose applications set the
-<constant>V4L2_BUF_FLAG_INPUT</constant> flag, and this field to the
-number of a video input as in &v4l2-input; field
-<structfield>index</structfield>.</entry>
+	    <entry>A place holder for future extensions and custom
+(driver defined) buffer types
+<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher. Applications
+should set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -921,13 +919,6 @@ previous key frame.</entry>
 	    <entry>The <structfield>timecode</structfield> field is valid.
 Drivers set or clear this flag when the <constant>VIDIOC_DQBUF</constant>
 ioctl is called.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_BUF_FLAG_INPUT</constant></entry>
-	    <entry>0x0200</entry>
-	    <entry>The <structfield>input</structfield> field is valid.
-Applications set or clear this flag before calling the
-<constant>VIDIOC_QBUF</constant> ioctl.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_PREPARED</constant></entry>

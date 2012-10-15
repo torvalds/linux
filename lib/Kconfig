@@ -340,6 +340,9 @@ config NLATTR
 config GENERIC_ATOMIC64
        bool
 
+config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	def_bool y if GENERIC_ATOMIC64
+
 config LRU_CACHE
 	tristate
 
@@ -386,5 +389,11 @@ config SIGNATURE
 	help
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
+
+#
+# libfdt files, only selected if needed.
+#
+config LIBFDT
+	bool
 
 endmenu

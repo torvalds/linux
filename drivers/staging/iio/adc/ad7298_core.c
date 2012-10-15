@@ -38,15 +38,15 @@
 		},							\
 	}
 
-static struct iio_chan_spec ad7298_channels[] = {
+static const struct iio_chan_spec ad7298_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		.address = 9,
-		.scan_index = AD7298_CH_TEMP,
+		.address = AD7298_CH_TEMP,
+		.scan_index = -1,
 		.scan_type = {
 			.sign = 's',
 			.realbits = 32,
@@ -171,6 +171,7 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ad7298_info = {
 	.read_raw = &ad7298_read_raw,
+	.update_scan_mode = ad7298_update_scan_mode,
 	.driver_module = THIS_MODULE,
 };
 
@@ -231,19 +232,12 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_buffer_register(indio_dev,
-				  &ad7298_channels[1], /* skip temp0 */
-				  ARRAY_SIZE(ad7298_channels) - 1);
-	if (ret)
-		goto error_cleanup_ring;
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_unregister_ring;
+		goto error_cleanup_ring;
 
 	return 0;
 
-error_unregister_ring:
-	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -263,7 +257,6 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 	struct ad7298_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7298_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

@@ -110,7 +110,7 @@ struct dst_entry {
 };
 
 extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
-extern const u32 dst_default_metrics[RTAX_MAX];
+extern const u32 dst_default_metrics[];
 
 #define DST_METRICS_READ_ONLY	0x1UL
 #define __DST_METRICS_PTR(Y)	\
@@ -396,11 +396,15 @@ static inline void dst_confirm(struct dst_entry *dst)
 static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 				   struct sk_buff *skb)
 {
-	struct hh_cache *hh;
+	const struct hh_cache *hh;
 
-	if (unlikely(dst->pending_confirm)) {
-		n->confirmed = jiffies;
+	if (dst->pending_confirm) {
+		unsigned long now = jiffies;
+
 		dst->pending_confirm = 0;
+		/* avoid dirtying neighbour */
+		if (n->confirmed != now)
+			n->confirmed = now;
 	}
 
 	hh = &n->hh;

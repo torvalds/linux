@@ -205,9 +205,9 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		if (!filelayout_test_devid_invalid(devid))
-			_pnfs_return_layout(inode);
 		filelayout_mark_devid_invalid(devid);
+		clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
+		_pnfs_return_layout(inode);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		nfs4_ds_disconnect(clp);
 		/* fall through */
@@ -351,9 +351,9 @@ static void prepare_to_resend_writes(struct nfs_commit_data *data)
 	struct nfs_page *first = nfs_list_entry(data->pages.next);
 
 	data->task.tk_status = 0;
-	memcpy(data->verf.verifier, first->wb_verf.verifier,
-	       sizeof(first->wb_verf.verifier));
-	data->verf.verifier[0]++; /* ensure verifier mismatch */
+	memcpy(&data->verf.verifier, &first->wb_verf,
+	       sizeof(data->verf.verifier));
+	data->verf.verifier.data[0]++; /* ensure verifier mismatch */
 }
 
 static int filelayout_commit_done_cb(struct rpc_task *task,

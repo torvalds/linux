@@ -149,7 +149,15 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-const u32 dst_default_metrics[RTAX_MAX];
+const u32 dst_default_metrics[RTAX_MAX + 1] = {
+	/* This initializer is needed to force linker to place this variable
+	 * into const section. Otherwise it might end into bss section.
+	 * We really want to avoid false sharing on this variable, and catch
+	 * any writes on it.
+	 */
+	[RTAX_MAX] = 0xdeadbeef,
+};
+
 
 void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 		int initial_ref, int initial_obsolete, unsigned short flags)
@@ -214,8 +222,8 @@ void __dst_free(struct dst_entry *dst)
 	if (dst_garbage.timer_inc > DST_GC_INC) {
 		dst_garbage.timer_inc = DST_GC_INC;
 		dst_garbage.timer_expires = DST_GC_MIN;
-		cancel_delayed_work(&dst_gc_work);
-		schedule_delayed_work(&dst_gc_work, dst_garbage.timer_expires);
+		mod_delayed_work(system_wq, &dst_gc_work,
+				 dst_garbage.timer_expires);
 	}
 	spin_unlock_bh(&dst_garbage.lock);
 }
@@ -366,7 +374,7 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event,
 	struct dst_entry *dst, *last = NULL;
 
 	switch (event) {
-	case NETDEV_UNREGISTER:
+	case NETDEV_UNREGISTER_FINAL:
 	case NETDEV_DOWN:
 		mutex_lock(&dst_gc_mutex);
 		for (dst = dst_busy_list; dst; dst = dst->next) {

@@ -574,8 +574,8 @@ struct inode *qnx6_iget(struct super_block *sb, unsigned ino)
 	raw_inode = ((struct qnx6_inode_entry *)page_address(page)) + offs;
 
 	inode->i_mode    = fs16_to_cpu(sbi, raw_inode->di_mode);
-	inode->i_uid     = (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid);
-	inode->i_gid     = (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid);
+	i_uid_write(inode, (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid));
+	i_gid_write(inode, (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid));
 	inode->i_size    = fs64_to_cpu(sbi, raw_inode->di_size);
 	inode->i_mtime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_mtime);
 	inode->i_mtime.tv_nsec = 0;

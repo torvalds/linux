@@ -1,12 +1,12 @@
 #include "headers.h"
 
-static int BcmFileDownload(PMINI_ADAPTER Adapter, const char *path, unsigned int loc);
-static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter);
-static void HandleShutDownModeRequest(PMINI_ADAPTER Adapter, PUCHAR pucBuffer);
-static int bcm_parse_target_params(PMINI_ADAPTER Adapter);
-static void beceem_protocol_reset(PMINI_ADAPTER Adapter);
+static int BcmFileDownload(struct bcm_mini_adapter *Adapter, const char *path, unsigned int loc);
+static VOID doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter);
+static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer);
+static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter);
+static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter);
 
-static VOID default_wimax_protocol_initialize(PMINI_ADAPTER Adapter)
+static VOID default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiLoopIndex;
 
@@ -24,7 +24,7 @@ static VOID default_wimax_protocol_initialize(PMINI_ADAPTER Adapter)
 	return;
 }
 
-INT InitAdapter(PMINI_ADAPTER psAdapter)
+INT InitAdapter(struct bcm_mini_adapter *psAdapter)
 {
 	int i = 0;
 	INT Status = STATUS_SUCCESS;
@@ -93,7 +93,7 @@ INT InitAdapter(PMINI_ADAPTER psAdapter)
 	return STATUS_SUCCESS;
 }
 
-VOID AdapterFree(PMINI_ADAPTER Adapter)
+VOID AdapterFree(struct bcm_mini_adapter *Adapter)
 {
 	int count;
 	beceem_protocol_reset(Adapter);
@@ -134,7 +134,7 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 	free_netdev(Adapter->dev);
 }
 
-static int create_worker_threads(PMINI_ADAPTER psAdapter)
+static int create_worker_threads(struct bcm_mini_adapter *psAdapter)
 {
 	/* Rx Control Packets Processing */
 	psAdapter->control_packet_handler = kthread_run((int (*)(void *))
@@ -155,14 +155,9 @@ static int create_worker_threads(PMINI_ADAPTER psAdapter)
 	return 0;
 }
 
-static struct file *open_firmware_file(PMINI_ADAPTER Adapter, const char *path)
+static struct file *open_firmware_file(struct bcm_mini_adapter *Adapter, const char *path)
 {
-	struct file *flp = NULL;
-	mm_segment_t oldfs;
-	oldfs = get_fs();
-	set_fs(get_ds());
-	flp = filp_open(path, O_RDONLY, S_IRWXU);
-	set_fs(oldfs);
+	struct file *flp = filp_open(path, O_RDONLY, S_IRWXU);
 	if (IS_ERR(flp)) {
 		pr_err(DRV_NAME "Unable To Open File %s, err %ld", path, PTR_ERR(flp));
 		flp = NULL;
@@ -179,18 +174,16 @@ static struct file *open_firmware_file(PMINI_ADAPTER Adapter, const char *path)
  * Path to image file
  * Download Address on the chip
  */
-static int BcmFileDownload(PMINI_ADAPTER Adapter, const char *path, unsigned int loc)
+static int BcmFileDownload(struct bcm_mini_adapter *Adapter, const char *path, unsigned int loc)
 {
 	int errorno = 0;
 	struct file *flp = NULL;
-	mm_segment_t oldfs;
 	struct timeval tv = {0};
 
 	flp = open_firmware_file(Adapter, path);
 	if (!flp) {
-		errorno = -ENOENT;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Unable to Open %s\n", path);
-		goto exit_download;
+		return -ENOENT;
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Opened file is = %s and length =0x%lx to be downloaded at =0x%x", path, (unsigned long)flp->f_dentry->d_inode->i_size, loc);
 	do_gettimeofday(&tv);
@@ -201,10 +194,7 @@ static int BcmFileDownload(PMINI_ADAPTER Adapter, const char *path, unsigned int
 		errorno = -EIO;
 		goto exit_download;
 	}
-	oldfs = get_fs();
-	set_fs(get_ds());
 	vfs_llseek(flp, 0, 0);
-	set_fs(oldfs);
 	if (Adapter->bcm_file_readback_from_chip(Adapter->pvInterfaceAdapter, flp, loc)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Failed to read back firmware!");
 		errorno = -EIO;
@@ -212,12 +202,7 @@ static int BcmFileDownload(PMINI_ADAPTER Adapter, const char *path, unsigned int
 	}
 
 exit_download:
-	oldfs = get_fs();
-	set_fs(get_ds());
-	if (flp && !(IS_ERR(flp)))
-		filp_close(flp, current->files);
-	set_fs(oldfs);
-
+	filp_close(flp, NULL);
 	return errorno;
 }
 
@@ -231,13 +216,13 @@ exit_download:
  * Logical Adapter
  * Control Packet Buffer
  */
-INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
+INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, PVOID ioBuffer)
 {
-	PLEADER	pLeader = NULL;
+	struct bcm_leader *pLeader = NULL;
 	INT Status = 0;
 	unsigned char *ctrl_buff = NULL;
 	UINT pktlen = 0;
-	PLINK_REQUEST pLinkReq = NULL;
+	struct bcm_link_request *pLinkReq = NULL;
 	PUCHAR pucAddIndication = NULL;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "======>");
@@ -246,8 +231,8 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 		return -EINVAL;
 	}
 
-	pLinkReq = (PLINK_REQUEST)ioBuffer;
-	pLeader = (PLEADER)ioBuffer; /* ioBuffer Contains sw_Status and Payload */
+	pLinkReq = (struct bcm_link_request *)ioBuffer;
+	pLeader = (struct bcm_leader *)ioBuffer; /* ioBuffer Contains sw_Status and Payload */
 
 	if (Adapter->bShutStatus == TRUE &&
 		pLinkReq->szData[0] == LINK_DOWN_REQ_PAYLOAD &&
@@ -373,7 +358,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 
 		memset(ctrl_buff, 0, pktlen+LEADER_SIZE);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Copying the Control Packet Buffer with length=%d\n", pLeader->PLength);
-		*(PLEADER)ctrl_buff = *pLeader;
+		*(struct bcm_leader *)ctrl_buff = *pLeader;
 		memcpy(ctrl_buff + LEADER_SIZE, ((PUCHAR)ioBuffer + LEADER_SIZE), pLeader->PLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Enqueuing the Control Packet");
 
@@ -402,30 +387,6 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 	return Status;
 }
 
-#if 0
-/*****************************************************************
-* Function    - SendStatisticsPointerRequest()
-*
-* Description - This function builds and forwards the Statistics
-* Pointer Request control Packet.
-*
-* Parameters  - Adapter					: Pointer to Adapter structure.
-* - pstStatisticsPtrRequest : Pointer to link request.
-*
-* Returns     - None.
-*****************************************************************/
-static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter, PLINK_REQUEST pstStatisticsPtrRequest)
-{
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "======>");
-	pstStatisticsPtrRequest->Leader.Status = STATS_POINTER_REQ_STATUS;
-	pstStatisticsPtrRequest->Leader.PLength = sizeof(ULONG); /* minimum 4 bytes */
-	pstStatisticsPtrRequest->szData[0] = STATISTICS_POINTER_REQ;
-	CopyBufferToControlPacket(Adapter, pstStatisticsPtrRequest);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "<=====");
-	return;
-}
-#endif
-
 /******************************************************************
 * Function    - LinkMessage()
 *
@@ -436,12 +397,12 @@ static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter, PLINK_REQUEST ps
 *
 * Returns     - None.
 *******************************************************************/
-VOID LinkMessage(PMINI_ADAPTER Adapter)
+VOID LinkMessage(struct bcm_mini_adapter *Adapter)
 {
-	PLINK_REQUEST pstLinkRequest = NULL;
+	struct bcm_link_request *pstLinkRequest = NULL;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
 	if (Adapter->LinkStatus == SYNC_UP_REQUEST && Adapter->AutoSyncup) {
-		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(struct bcm_link_request), GFP_ATOMIC);
 		if (!pstLinkRequest) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
@@ -456,7 +417,7 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 		Adapter->bSyncUpRequestSent = TRUE;
 
 	} else if (Adapter->LinkStatus == PHY_SYNC_ACHIVED && Adapter->AutoLinkUp) {
-		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(struct bcm_link_request), GFP_ATOMIC);
 		if (!pstLinkRequest) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
@@ -487,7 +448,7 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 *
 * Returns     - None.
 ************************************************************************/
-VOID StatisticsResponse(PMINI_ADAPTER Adapter, PVOID pvBuffer)
+VOID StatisticsResponse(struct bcm_mini_adapter *Adapter, PVOID pvBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __func__);
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
@@ -506,7 +467,7 @@ VOID StatisticsResponse(PMINI_ADAPTER Adapter, PVOID pvBuffer)
 *
 * Returns     - None.
 ***********************************************************************/
-VOID LinkControlResponseMessage(PMINI_ADAPTER Adapter, PUCHAR pucBuffer)
+VOID LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "=====>");
 
@@ -580,11 +541,11 @@ VOID LinkControlResponseMessage(PMINI_ADAPTER Adapter, PUCHAR pucBuffer)
 	return;
 }
 
-void SendIdleModeResponse(PMINI_ADAPTER Adapter)
+void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 {
 	INT status = 0, NVMAccess = 0, lowPwrAbortMsg = 0;
 	struct timeval tv;
-	CONTROL_MESSAGE stIdleResponse = {{0} };
+	struct bcm_link_request stIdleResponse = {{0} };
 	memset(&tv, 0, sizeof(tv));
 	stIdleResponse.Leader.Status = IDLE_MESSAGE;
 	stIdleResponse.Leader.PLength = IDLE_MODE_PAYLOAD_LENGTH;
@@ -679,12 +640,12 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter)
 *
 * Returns     - None.
 *******************************************************************/
-VOID DumpPackInfo(PMINI_ADAPTER Adapter)
+VOID DumpPackInfo(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIndex = 0;
 	UINT uiClsfrIndex = 0;
-	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
+	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 
 	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "*********** Showing Details Of Queue %d***** ******", uiLoopIndex);
@@ -791,7 +752,10 @@ VOID DumpPackInfo(PMINI_ADAPTER Adapter)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "AuthzSet: %x\n", Adapter->PackInfo[uiLoopIndex].bAuthorizedSet);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "ClassifyPrority: %x\n", Adapter->PackInfo[uiLoopIndex].bClassifierPriority);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "uiMaxLatency: %x\n", Adapter->PackInfo[uiLoopIndex].uiMaxLatency);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "ServiceClassName: %x %x %x %x\n", Adapter->PackInfo[uiLoopIndex].ucServiceClassName[0], Adapter->PackInfo[uiLoopIndex].ucServiceClassName[1], Adapter->PackInfo[uiLoopIndex].ucServiceClassName[2], Adapter->PackInfo[uiLoopIndex].ucServiceClassName[3]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO,
+				DBG_LVL_ALL, "ServiceClassName: %*ph\n",
+				4, Adapter->PackInfo[uiLoopIndex].
+					    ucServiceClassName);
 /* BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "bHeaderSuppressionEnabled :%X\n", Adapter->PackInfo[uiLoopIndex].bHeaderSuppressionEnabled);
  * BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "uiTotalTxBytes:%X\n", Adapter->PackInfo[uiLoopIndex].uiTotalTxBytes);
  * BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "uiTotalRxBytes:%X\n", Adapter->PackInfo[uiLoopIndex].uiTotalRxBytes);
@@ -808,10 +772,10 @@ VOID DumpPackInfo(PMINI_ADAPTER Adapter)
 	return;
 }
 
-int reset_card_proc(PMINI_ADAPTER ps_adapter)
+int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
 {
 	int retval = STATUS_SUCCESS;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
 	unsigned int value = 0, uiResetValue = 0;
 	int bytes;
@@ -926,7 +890,7 @@ err_exit:
 	return retval;
 }
 
-int run_card_proc(PMINI_ADAPTER ps_adapter)
+int run_card_proc(struct bcm_mini_adapter *ps_adapter)
 {
 	int status = STATUS_SUCCESS;
 	int bytes;
@@ -953,7 +917,7 @@ int run_card_proc(PMINI_ADAPTER ps_adapter)
 	return status;
 }
 
-int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
+int InitCardAndDownloadFirmware(struct bcm_mini_adapter *ps_adapter)
 {
 	int status;
 	UINT value = 0;
@@ -1077,13 +1041,11 @@ OUT:
 	return status;
 }
 
-static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
+static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter)
 {
 	struct file *flp = NULL;
-	mm_segment_t oldfs = {0};
 	char *buff;
 	int len = 0;
-	loff_t pos = 0;
 
 	buff = kmalloc(BUFFER_1K, GFP_KERNEL);
 	if (!buff)
@@ -1103,20 +1065,16 @@ static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 		Adapter->pstargetparams = NULL;
 		return -ENOENT;
 	}
-	oldfs = get_fs();
-	set_fs(get_ds());
-	len = vfs_read(flp, (void __user __force *)buff, BUFFER_1K, &pos);
-	set_fs(oldfs);
+	len = kernel_read(flp, 0, buff, BUFFER_1K);
+	filp_close(flp, NULL);
 
 	if (len != sizeof(STARGETPARAMS)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Mismatch in Target Param Structure!\n");
 		kfree(buff);
 		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
-		filp_close(flp, current->files);
 		return -ENOENT;
 	}
-	filp_close(flp, current->files);
 
 	/* Check for autolink in config params */
 	/*
@@ -1128,7 +1086,7 @@ static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	return STATUS_SUCCESS;
 }
 
-void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
+void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiHostDrvrCfg6 = 0, uiEEPROMFlag = 0;
 
@@ -1186,7 +1144,7 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 		doPowerAutoCorrection(Adapter);
 }
 
-static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
+static VOID doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 {
 	UINT reporting_mode;
 
@@ -1217,45 +1175,6 @@ static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 	}
 }
 
-#if 0
-static unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
-{
-	int status = 0, i = 0;
-	unsigned int temp = 0;
-	unsigned char *pucmacaddr = kmalloc(MAC_ADDRESS_SIZE, GFP_KERNEL);
-	int bytes;
-
-	if (!pucmacaddr) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No Buffers to Read the EEPROM Address\n");
-		return NULL;
-	}
-
-	dwAddress |= 0x5b000000;
-	status = wrmalt(Adapter, EEPROM_COMMAND_Q_REG, (PUINT)&dwAddress, sizeof(UINT));
-	if (status != STATUS_SUCCESS) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "wrm Failed..\n");
-		kfree(pucmacaddr);
-		pucmacaddr = NULL;
-		goto OUT;
-	}
-
-	for (i = 0; i < MAC_ADDRESS_SIZE; i++) {
-		bytes = rdmalt(Adapter, EEPROM_READ_DATA_Q_REG, &temp, sizeof(temp));
-		if (bytes < 0) {
-			status = bytes;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "rdm Failed..\n");
-			kfree(pucmacaddr);
-			pucmacaddr = NULL;
-			goto OUT;
-		}
-		pucmacaddr[i] = temp & 0xff;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "%x\n", pucmacaddr[i]);
-	}
-OUT:
-	return pucmacaddr;
-}
-#endif
-
 static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 {
 	UINT uiIndex = 0;
@@ -1269,16 +1188,13 @@ static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 	}
 }
 
-#define CACHE_ADDRESS_MASK 0x80000000
-#define UNCACHE_ADDRESS_MASK 0xa0000000
-
-int rdm(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int rdm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	return Adapter->interface_rdm(Adapter->pvInterfaceAdapter,
 				uiAddress, pucBuff, sSize);
 }
 
-int wrm(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int wrm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	int iRetVal;
 
@@ -1287,13 +1203,13 @@ int wrm(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 	return iRetVal;
 }
 
-int wrmalt(PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int wrmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 {
 	convertEndian(RWM_WRITE, pucBuff, size);
 	return wrm(Adapter, uiAddress, (PUCHAR)pucBuff, size);
 }
 
-int rdmalt(PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int rdmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 {
 	INT uiRetVal = 0;
 
@@ -1303,7 +1219,7 @@ int rdmalt(PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 	return uiRetVal;
 }
 
-int wrmWithLock(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int wrmWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	INT status = STATUS_SUCCESS;
 	down(&Adapter->rdmwrmsync);
@@ -1322,7 +1238,7 @@ exit:
 	return status;
 }
 
-int wrmaltWithLock(PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int wrmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 {
 	int iRetVal = STATUS_SUCCESS;
 
@@ -1342,7 +1258,7 @@ exit:
 	return iRetVal;
 }
 
-int rdmaltWithLock(PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int rdmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 {
 	INT uiRetVal = STATUS_SUCCESS;
 
@@ -1361,7 +1277,7 @@ exit:
 	return uiRetVal;
 }
 
-static VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
+static VOID HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 {
 	int clear_abort_pattern = 0, Status = 0;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
@@ -1390,13 +1306,13 @@ static VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
 }
 
-static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
+static VOID SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 {
-	CONTROL_MESSAGE stShutdownResponse;
+	struct bcm_link_request stShutdownResponse;
 	UINT NVMAccess = 0, lowPwrAbortMsg = 0;
 	UINT Status = 0;
 
-	memset(&stShutdownResponse, 0, sizeof(CONTROL_MESSAGE));
+	memset(&stShutdownResponse, 0, sizeof(struct bcm_link_request));
 	stShutdownResponse.Leader.Status  = LINK_UP_CONTROL_REQ;
 	stShutdownResponse.Leader.PLength = 8; /* 8 bytes; */
 	stShutdownResponse.szData[0] = LINK_UP_ACK;
@@ -1474,7 +1390,7 @@ static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 	}
 }
 
-static void HandleShutDownModeRequest(PMINI_ADAPTER Adapter, PUCHAR pucBuffer)
+static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer)
 {
 	B_UINT32 uiResetValue = 0;
 
@@ -1503,7 +1419,7 @@ static void HandleShutDownModeRequest(PMINI_ADAPTER Adapter, PUCHAR pucBuffer)
 	return;
 }
 
-VOID ResetCounters(PMINI_ADAPTER Adapter)
+VOID ResetCounters(struct bcm_mini_adapter *Adapter)
 {
 	beceem_protocol_reset(Adapter);
 	Adapter->CurrNumRecvDescs = 0;
@@ -1519,7 +1435,7 @@ VOID ResetCounters(PMINI_ADAPTER Adapter)
 	Adapter->bShutStatus = FALSE;
 }
 
-S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG SrcIP)
+struct bcm_classifier_rule *GetFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIP)
 {
 	UINT uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
@@ -1533,18 +1449,18 @@ S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentific
 	return NULL;
 }
 
-void AddFragIPClsEntry(PMINI_ADAPTER Adapter, PS_FRAGMENTED_PACKET_INFO psFragPktInfo)
+void AddFragIPClsEntry(struct bcm_mini_adapter *Adapter, struct bcm_fragmented_packet_info *psFragPktInfo)
 {
 	UINT uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if (!Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) {
-			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(S_FRAGMENTED_PACKET_INFO));
+			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(struct bcm_fragmented_packet_info));
 			break;
 		}
 	}
 }
 
-void DelFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG SrcIp)
+void DelFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIp)
 {
 	UINT uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
@@ -1552,11 +1468,11 @@ void DelFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG S
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].ulSrcIpAddress == SrcIp))
 
-			memset(&Adapter->astFragmentedPktClassifierTable[uiIndex], 0, sizeof(S_FRAGMENTED_PACKET_INFO));
+			memset(&Adapter->astFragmentedPktClassifierTable[uiIndex], 0, sizeof(struct bcm_fragmented_packet_info));
 	}
 }
 
-void update_per_cid_rx(PMINI_ADAPTER Adapter)
+void update_per_cid_rx(struct bcm_mini_adapter *Adapter)
 {
 	UINT qindex = 0;
 
@@ -1580,7 +1496,7 @@ void update_per_cid_rx(PMINI_ADAPTER Adapter)
 	Adapter->liDrainCalculated = jiffies;
 }
 
-void update_per_sf_desc_cnts(PMINI_ADAPTER Adapter)
+void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 {
 	INT iIndex = 0;
 	u32 uibuff[MAX_TARGET_DSX_BUFFERS];
@@ -1606,7 +1522,7 @@ void update_per_sf_desc_cnts(PMINI_ADAPTER Adapter)
 	atomic_set(&Adapter->uiMBupdate, FALSE);
 }
 
-void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
+void flush_queue(struct bcm_mini_adapter *Adapter, UINT iQIndex)
 {
 	struct sk_buff *PacketToDrop = NULL;
 	struct net_device_stats *netstats = &Adapter->dev->stats;
@@ -1630,7 +1546,7 @@ void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 	spin_unlock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 }
 
-static void beceem_protocol_reset(PMINI_ADAPTER Adapter)
+static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter)
 {
 	int i;
 	if (netif_msg_link(Adapter))
@@ -1652,7 +1568,7 @@ static void beceem_protocol_reset(PMINI_ADAPTER Adapter)
 	if (Adapter->TimerActive == TRUE)
 		Adapter->TimerActive = FALSE;
 
-	memset(Adapter->astFragmentedPktClassifierTable, 0, sizeof(S_FRAGMENTED_PACKET_INFO) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
+	memset(Adapter->astFragmentedPktClassifierTable, 0, sizeof(struct bcm_fragmented_packet_info) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
 
 	for (i = 0; i < HiPriority; i++) {
 		/* resetting only the first size (S_MIBS_SERVICEFLOW_TABLE) for the SF. */

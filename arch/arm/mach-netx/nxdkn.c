@@ -30,7 +30,7 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/vic.h>
 #include <mach/netx-regs.h>
-#include <mach/eth.h>
+#include <linux/platform_data/eth-netx.h>
 
 #include "generic.h"
 

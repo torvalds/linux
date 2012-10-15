@@ -29,6 +29,7 @@ struct oz_tx_frame {
 	struct list_head link;
 	struct list_head elt_list;
 	struct oz_hdr hdr;
+	struct sk_buff *skb;
 	int total_size;
 };
 
@@ -81,8 +82,10 @@ struct oz_pd {
 	u8		heartbeat_requested;
 	u8		mode;
 	u8		ms_per_isoc;
+	unsigned	isoc_latency;
 	unsigned	max_stream_buffering;
 	int		nb_queued_frames;
+	int		nb_queued_isoc_frames;
 	struct list_head *tx_pool;
 	int		tx_pool_count;
 	spinlock_t	tx_frame_lock;
@@ -118,4 +121,3 @@ void oz_apps_init(void);
 void oz_apps_term(void);
 
 #endif /* Sentry */
-

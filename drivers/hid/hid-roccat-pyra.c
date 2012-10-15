@@ -42,43 +42,19 @@ static void profile_activated(struct pyra_device *pyra,
 static int pyra_send_control(struct usb_device *usb_dev, int value,
 		enum pyra_control_requests request)
 {
-	struct pyra_control control;
+	struct roccat_common2_control control;
 
 	if ((request == PYRA_CONTROL_REQUEST_PROFILE_SETTINGS ||
 			request == PYRA_CONTROL_REQUEST_PROFILE_BUTTONS) &&
 			(value < 0 || value > 4))
 		return -EINVAL;
 
-	control.command = PYRA_COMMAND_CONTROL;
+	control.command = ROCCAT_COMMON_COMMAND_CONTROL;
 	control.value = value;
 	control.request = request;
 
-	return roccat_common_send(usb_dev, PYRA_COMMAND_CONTROL,
-			&control, sizeof(struct pyra_control));
-}
-
-static int pyra_receive_control_status(struct usb_device *usb_dev)
-{
-	int retval;
-	struct pyra_control control;
-
-	do {
-		msleep(10);
-		retval = roccat_common_receive(usb_dev, PYRA_COMMAND_CONTROL,
-				&control, sizeof(struct pyra_control));
-
-		/* requested too early, try again */
-	} while (retval == -EPROTO);
-
-	if (!retval && control.command == PYRA_COMMAND_CONTROL &&
-			control.request == PYRA_CONTROL_REQUEST_STATUS &&
-			control.value == 1)
-		return 0;
-	else {
-		hid_err(usb_dev, "receive control status: unknown response 0x%x 0x%x\n",
-			control.request, control.value);
-		return retval ? retval : -EINVAL;
-	}
+	return roccat_common2_send(usb_dev, ROCCAT_COMMON_COMMAND_CONTROL,
+			&control, sizeof(struct roccat_common2_control));
 }
 
 static int pyra_get_profile_settings(struct usb_device *usb_dev,
@@ -89,7 +65,7 @@ static int pyra_get_profile_settings(struct usb_device *usb_dev,
 			PYRA_CONTROL_REQUEST_PROFILE_SETTINGS);
 	if (retval)
 		return retval;
-	return roccat_common_receive(usb_dev, PYRA_COMMAND_PROFILE_SETTINGS,
+	return roccat_common2_receive(usb_dev, PYRA_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct pyra_profile_settings));
 }
 
@@ -101,51 +77,44 @@ static int pyra_get_profile_buttons(struct usb_device *usb_dev,
 			PYRA_CONTROL_REQUEST_PROFILE_BUTTONS);
 	if (retval)
 		return retval;
-	return roccat_common_receive(usb_dev, PYRA_COMMAND_PROFILE_BUTTONS,
+	return roccat_common2_receive(usb_dev, PYRA_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct pyra_profile_buttons));
 }
 
 static int pyra_get_settings(struct usb_device *usb_dev,
 		struct pyra_settings *buf)
 {
-	return roccat_common_receive(usb_dev, PYRA_COMMAND_SETTINGS,
+	return roccat_common2_receive(usb_dev, PYRA_COMMAND_SETTINGS,
 			buf, sizeof(struct pyra_settings));
 }
 
 static int pyra_get_info(struct usb_device *usb_dev, struct pyra_info *buf)
 {
-	return roccat_common_receive(usb_dev, PYRA_COMMAND_INFO,
+	return roccat_common2_receive(usb_dev, PYRA_COMMAND_INFO,
 			buf, sizeof(struct pyra_info));
-}
-
-static int pyra_send(struct usb_device *usb_dev, uint command,
-		void const *buf, uint size)
-{
-	int retval;
-	retval = roccat_common_send(usb_dev, command, buf, size);
-	if (retval)
-		return retval;
-	return pyra_receive_control_status(usb_dev);
 }
 
 static int pyra_set_profile_settings(struct usb_device *usb_dev,
 		struct pyra_profile_settings const *settings)
 {
-	return pyra_send(usb_dev, PYRA_COMMAND_PROFILE_SETTINGS, settings,
+	return roccat_common2_send_with_status(usb_dev,
+			PYRA_COMMAND_PROFILE_SETTINGS, settings,
 			sizeof(struct pyra_profile_settings));
 }
 
 static int pyra_set_profile_buttons(struct usb_device *usb_dev,
 		struct pyra_profile_buttons const *buttons)
 {
-	return pyra_send(usb_dev, PYRA_COMMAND_PROFILE_BUTTONS, buttons,
+	return roccat_common2_send_with_status(usb_dev,
+			PYRA_COMMAND_PROFILE_BUTTONS, buttons,
 			sizeof(struct pyra_profile_buttons));
 }
 
 static int pyra_set_settings(struct usb_device *usb_dev,
 		struct pyra_settings const *settings)
 {
-	return pyra_send(usb_dev, PYRA_COMMAND_SETTINGS, settings,
+	return roccat_common2_send_with_status(usb_dev,
+			PYRA_COMMAND_SETTINGS, settings,
 			sizeof(struct pyra_settings));
 }
 

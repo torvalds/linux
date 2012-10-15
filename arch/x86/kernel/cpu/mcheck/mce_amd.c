@@ -759,4 +759,24 @@ static __init int threshold_init_device(void)
 
 	return 0;
 }
-device_initcall(threshold_init_device);
+/*
+ * there are 3 funcs which need to be _initcalled in a logic sequence:
+ * 1. xen_late_init_mcelog
+ * 2. mcheck_init_device
+ * 3. threshold_init_device
+ *
+ * xen_late_init_mcelog must register xen_mce_chrdev_device before
+ * native mce_chrdev_device registration if running under xen platform;
+ *
+ * mcheck_init_device should be inited before threshold_init_device to
+ * initialize mce_device, otherwise a NULL ptr dereference will cause panic.
+ *
+ * so we use following _initcalls
+ * 1. device_initcall(xen_late_init_mcelog);
+ * 2. device_initcall_sync(mcheck_init_device);
+ * 3. late_initcall(threshold_init_device);
+ *
+ * when running under xen, the initcall order is 1,2,3;
+ * on baremetal, we skip 1 and we do only 2 and 3.
+ */
+late_initcall(threshold_init_device);

@@ -1349,8 +1349,11 @@ static int c_show(struct seq_file *m, void *p)
 	if (cache_check(cd, cp, NULL))
 		/* cache_check does a cache_put on failure */
 		seq_printf(m, "# ");
-	else
+	else {
+		if (cache_is_expired(cd, cp))
+			seq_printf(m, "# ");
 		cache_put(cp, cd);
+	}
 
 	return cd->cache_show(m, cd, cp);
 }
@@ -1632,7 +1635,7 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 
 void __init cache_initialize(void)
 {
-	INIT_DELAYED_WORK_DEFERRABLE(&cache_cleaner, do_cache_clean);
+	INIT_DEFERRABLE_WORK(&cache_cleaner, do_cache_clean);
 }
 
 int cache_register_net(struct cache_detail *cd, struct net *net)

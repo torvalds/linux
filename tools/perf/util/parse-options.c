@@ -1,6 +1,7 @@
 #include "util.h"
 #include "parse-options.h"
 #include "cache.h"
+#include "header.h"
 
 #define OPT_SHORT 1
 #define OPT_UNSET 2
@@ -413,6 +414,8 @@ int parse_options(int argc, const char **argv, const struct option *options,
 {
 	struct parse_opt_ctx_t ctx;
 
+	perf_header__set_cmdline(argc, argv);
+
 	parse_options_start(&ctx, argc, argv, flags);
 	switch (parse_options_step(&ctx, options, usagestr)) {
 	case PARSE_OPT_HELP:
@@ -554,7 +557,8 @@ int parse_options_usage(const char * const *usagestr,
 }
 
 
-int parse_opt_verbosity_cb(const struct option *opt, const char *arg __used,
+int parse_opt_verbosity_cb(const struct option *opt,
+			   const char *arg __maybe_unused,
 			   int unset)
 {
 	int *target = opt->value;

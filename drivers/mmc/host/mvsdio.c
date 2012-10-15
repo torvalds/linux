@@ -25,7 +25,7 @@
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
-#include <plat/mvsdio.h>
+#include <linux/platform_data/mmc-mvsdio.h>
 
 #include "mvsdio.h"
 
@@ -839,6 +839,10 @@ out:
 	if (r)
 		release_resource(r);
 	if (mmc)
+		if (!IS_ERR_OR_NULL(host->clk)) {
+			clk_disable_unprepare(host->clk);
+			clk_put(host->clk);
+		}
 		mmc_free_host(mmc);
 
 	return ret;

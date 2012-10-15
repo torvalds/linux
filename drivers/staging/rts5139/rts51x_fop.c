@@ -36,7 +36,6 @@
 #include "rts51x_card.h"
 #include "rts51x_fop.h"
 #include "sd_cprm.h"
-#include "rts51x.h"
 
 #define RTS5139_IOC_MAGIC		0x39
 
@@ -80,7 +79,7 @@ static int rts51x_sd_direct_cmnd(struct rts51x_chip *chip,
 
 	case 1:
 		/* Read from card */
-		buf = kmalloc(cmnd->buf_len, GFP_KERNEL);
+		buf = kzalloc(cmnd->buf_len, GFP_KERNEL);
 		if (!buf)
 			TRACE_RET(chip, STATUS_NOMEM);
 

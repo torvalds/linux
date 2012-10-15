@@ -8,6 +8,7 @@ static struct usb_device_id InterfaceUsbtable[] = {
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_226) },
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_FOXCONN, BCM_USB_PRODUCT_ID_1901) },
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_ZTE_TU25) },
+	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_ZTE_226) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
@@ -65,7 +66,7 @@ static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
+static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter)
 {
 	unsigned long ulReg = 0;
 	int bytes;
@@ -143,12 +144,12 @@ static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_devi
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int retval;
-	PMINI_ADAPTER psAdapter;
+	struct bcm_mini_adapter *psAdapter;
 	PS_INTERFACE_ADAPTER psIntfAdapter;
 	struct net_device *ndev;
 
 	/* Reserve one extra queue for the bit-bucket */
-	ndev = alloc_etherdev_mq(sizeof(MINI_ADAPTER), NO_OF_QUEUES+1);
+	ndev = alloc_etherdev_mq(sizeof(struct bcm_mini_adapter), NO_OF_QUEUES+1);
 	if (ndev == NULL) {
 		dev_err(&udev->dev, DRV_NAME ": no memory for device\n");
 		return -ENOMEM;
@@ -257,7 +258,7 @@ static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_devi
 static void usbbcm_disconnect(struct usb_interface *intf)
 {
 	PS_INTERFACE_ADAPTER psIntfAdapter = usb_get_intfdata(intf);
-	PMINI_ADAPTER psAdapter;
+	struct bcm_mini_adapter *psAdapter;
 	struct usb_device  *udev = interface_to_usbdev(intf);
 
 	if (psIntfAdapter == NULL)
@@ -669,16 +670,24 @@ struct class *bcm_class;
 
 static __init int bcm_init(void)
 {
-	printk(KERN_INFO "%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
-	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
+	int retval;
+
+	pr_info("%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
+	pr_info("%s\n", DRV_COPYRIGHT);
 
 	bcm_class = class_create(THIS_MODULE, DRV_NAME);
 	if (IS_ERR(bcm_class)) {
-		printk(KERN_ERR DRV_NAME ": could not create class\n");
+		pr_err(DRV_NAME ": could not create class\n");
 		return PTR_ERR(bcm_class);
 	}
 
-	return usb_register(&usbbcm_driver);
+	retval = usb_register(&usbbcm_driver);
+	if (retval < 0) {
+		pr_err(DRV_NAME ": could not register usb driver\n");
+		class_destroy(bcm_class);
+		return retval;
+	}
+	return 0;
 }
 
 static __exit void bcm_exit(void)

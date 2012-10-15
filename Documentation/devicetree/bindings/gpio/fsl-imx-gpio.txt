@@ -22,7 +22,7 @@ Required properties:
 Example:
 
 gpio0: gpio@73f84000 {
-	compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+	compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 	reg = <0x73f84000 0x4000>;
 	interrupts = <50 51>;
 	gpio-controller;

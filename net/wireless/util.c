@@ -684,22 +684,10 @@ EXPORT_SYMBOL(cfg80211_classify8021d);
 
 const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
 {
-	u8 *end, *pos;
-
-	pos = bss->information_elements;
-	if (pos == NULL)
+	if (bss->information_elements == NULL)
 		return NULL;
-	end = pos + bss->len_information_elements;
-
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
-			break;
-		if (pos[0] == ie)
-			return pos;
-		pos += 2 + pos[1];
-	}
-
-	return NULL;
+	return cfg80211_find_ie(ie, bss->information_elements,
+				 bss->len_information_elements);
 }
 EXPORT_SYMBOL(ieee80211_bss_get_ie);
 
@@ -735,7 +723,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	wdev->connect_keys = NULL;
 }
 
-static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
+void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 {
 	struct cfg80211_event *ev;
 	unsigned long flags;
@@ -810,6 +798,10 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 	/* don't support changing VLANs, you just re-create them */
 	if (otype == NL80211_IFTYPE_AP_VLAN)
+		return -EOPNOTSUPP;
+
+	/* cannot change into P2P device type */
+	if (ntype == NL80211_IFTYPE_P2P_DEVICE)
 		return -EOPNOTSUPP;
 
 	if (!rdev->ops->change_virtual_intf ||
@@ -888,6 +880,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
 			/* not happening */
+			break;
+		case NL80211_IFTYPE_P2P_DEVICE:
+			WARN_ON(1);
 			break;
 		}
 	}
@@ -1053,8 +1048,15 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
 		if (wdev_iter == wdev)
 			continue;
-		if (!netif_running(wdev_iter->netdev))
-			continue;
+		if (wdev_iter->netdev) {
+			if (!netif_running(wdev_iter->netdev))
+				continue;
+		} else if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
+			if (!wdev_iter->p2p_started)
+				continue;
+		} else {
+			WARN_ON(1);
+		}
 
 		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
 			continue;

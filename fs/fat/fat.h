@@ -23,8 +23,8 @@
 #define FAT_ERRORS_RO		3      /* remount r/o on error */
 
 struct fat_mount_options {
-	uid_t fs_uid;
-	gid_t fs_gid;
+	kuid_t fs_uid;
+	kgid_t fs_gid;
 	unsigned short fs_fmask;
 	unsigned short fs_dmask;
 	unsigned short codepage;  /* Codepage for shortname conversions */
@@ -215,6 +215,21 @@ static inline void fat16_towchar(wchar_t *dst, const __u8 *src, size_t len)
 #else
 	memcpy(dst, src, len * 2);
 #endif
+}
+
+static inline int fat_get_start(const struct msdos_sb_info *sbi,
+				const struct msdos_dir_entry *de)
+{
+	int cluster = le16_to_cpu(de->start);
+	if (sbi->fat_bits == 32)
+		cluster |= (le16_to_cpu(de->starthi) << 16);
+	return cluster;
+}
+
+static inline void fat_set_start(struct msdos_dir_entry *de, int cluster)
+{
+	de->start   = cpu_to_le16(cluster);
+	de->starthi = cpu_to_le16(cluster >> 16);
 }
 
 static inline void fatwchar_to16(__u8 *dst, const wchar_t *src, size_t len)

@@ -63,6 +63,7 @@ struct isl29018_chip {
 	struct regmap		*regmap;
 	struct mutex		lock;
 	unsigned int		lux_scale;
+	unsigned int		lux_uscale;
 	unsigned int		range;
 	unsigned int		adc_bit;
 	int			prox_scheme;
@@ -145,13 +146,22 @@ static int isl29018_read_sensor_input(struct isl29018_chip *chip, int mode)
 static int isl29018_read_lux(struct isl29018_chip *chip, int *lux)
 {
 	int lux_data;
+	unsigned int data_x_range, lux_unshifted;
 
 	lux_data = isl29018_read_sensor_input(chip, COMMMAND1_OPMODE_ALS_ONCE);
 
 	if (lux_data < 0)
 		return lux_data;
 
-	*lux = (lux_data * chip->range * chip->lux_scale) >> chip->adc_bit;
+	/* To support fractional scaling, separate the unshifted lux
+	 * into two calculations: int scaling and micro-scaling.
+	 * lux_uscale ranges from 0-999999, so about 20 bits.  Split
+	 * the /1,000,000 in two to reduce the risk of over/underflow.
+	 */
+	data_x_range = lux_data * chip->range;
+	lux_unshifted = data_x_range * chip->lux_scale;
+	lux_unshifted += data_x_range / 1000 * chip->lux_uscale / 1000;
+	*lux = lux_unshifted >> chip->adc_bit;
 
 	return 0;
 }
@@ -292,18 +302,18 @@ static ssize_t store_resolution(struct device *dev,
 }
 
 /* proximity scheme */
-static ssize_t show_prox_infrared_supression(struct device *dev,
+static ssize_t show_prox_infrared_suppression(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	/* return the "proximity scheme" i.e. if the chip does on chip
-	infrared supression (1 means perform on chip supression) */
+	infrared suppression (1 means perform on chip suppression) */
 	return sprintf(buf, "%d\n", chip->prox_scheme);
 }
 
-static ssize_t store_prox_infrared_supression(struct device *dev,
+static ssize_t store_prox_infrared_suppression(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -318,7 +328,7 @@ static ssize_t store_prox_infrared_supression(struct device *dev,
 	}
 
 	/* get the  "proximity scheme" i.e. if the chip does on chip
-	infrared supression (1 means perform on chip supression) */
+	infrared suppression (1 means perform on chip suppression) */
 	mutex_lock(&chip->lock);
 	chip->prox_scheme = (int)lval;
 	mutex_unlock(&chip->lock);
@@ -339,6 +349,8 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&chip->lock);
 	if (mask == IIO_CHAN_INFO_CALIBSCALE && chan->type == IIO_LIGHT) {
 		chip->lux_scale = val;
+		/* With no write_raw_get_fmt(), val2 is a MICRO fraction. */
+		chip->lux_uscale = val2;
 		ret = 0;
 	}
 	mutex_unlock(&chip->lock);
@@ -379,7 +391,8 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
 			*val = chip->lux_scale;
-			ret = IIO_VAL_INT;
+			*val2 = chip->lux_uscale;
+			ret = IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
 	default:
@@ -413,10 +426,10 @@ static IIO_CONST_ATTR(range_available, "1000 4000 16000 64000");
 static IIO_CONST_ATTR(adc_resolution_available, "4 8 12 16");
 static IIO_DEVICE_ATTR(adc_resolution, S_IRUGO | S_IWUSR,
 					show_resolution, store_resolution, 0);
-static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_supression,
+static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_suppression,
 					S_IRUGO | S_IWUSR,
-					show_prox_infrared_supression,
-					store_prox_infrared_supression, 0);
+					show_prox_infrared_suppression,
+					store_prox_infrared_suppression, 0);
 
 #define ISL29018_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 #define ISL29018_CONST_ATTR(name) (&iio_const_attr_##name.dev_attr.attr)
@@ -425,7 +438,7 @@ static struct attribute *isl29018_attributes[] = {
 	ISL29018_CONST_ATTR(range_available),
 	ISL29018_DEV_ATTR(adc_resolution),
 	ISL29018_CONST_ATTR(adc_resolution_available),
-	ISL29018_DEV_ATTR(proximity_on_chip_ambient_infrared_supression),
+	ISL29018_DEV_ATTR(proximity_on_chip_ambient_infrared_suppression),
 	NULL
 };
 

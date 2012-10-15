@@ -47,11 +47,6 @@ struct serial2002_board {
 	const char *name;
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct serial2002_board *)dev->board_ptr)
-
 struct serial2002_range_table_t {
 
 	/*  HACK... */
@@ -593,7 +588,9 @@ static int serial_2002_open(struct comedi_device *dev)
 				kfree(s->range_table_list);
 				s->range_table = NULL;
 				s->range_table_list = NULL;
-				if (range) {
+				if (kind == 1 || kind == 2) {
+					s->range_table = &range_digital;
+				} else if (range) {
 					s->range_table_list = range_table_list =
 					    kmalloc(sizeof
 						    (struct
@@ -648,7 +645,7 @@ err_alloc_configs:
 
 		if (result) {
 			if (devpriv->tty) {
-				filp_close(devpriv->tty, 0);
+				filp_close(devpriv->tty, NULL);
 				devpriv->tty = NULL;
 			}
 		}
@@ -658,8 +655,8 @@ err_alloc_configs:
 
 static void serial_2002_close(struct comedi_device *dev)
 {
-	if (!IS_ERR(devpriv->tty) && (devpriv->tty != 0))
-		filp_close(devpriv->tty, 0);
+	if (!IS_ERR(devpriv->tty) && devpriv->tty)
+		filp_close(devpriv->tty, NULL);
 }
 
 static int serial2002_di_rinsn(struct comedi_device *dev,
@@ -783,24 +780,27 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 static int serial2002_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
+	const struct serial2002_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	int ret;
 
-	dev_dbg(dev->hw_dev, "comedi%d: attached\n", dev->minor);
-	dev->board_name = thisboard->name;
+	dev_dbg(dev->class_dev, "serial2002: attach\n");
+	dev->board_name = board->name;
 	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
 		return -ENOMEM;
 	dev->open = serial_2002_open;
 	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];
-	dev_dbg(dev->hw_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
+	dev_dbg(dev->class_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
 		devpriv->speed);
 
-	if (alloc_subdevices(dev, 5) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	/* digital input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 0;
@@ -809,7 +809,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_read = &serial2002_di_rinsn;
 
 	/* digital output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
@@ -818,31 +818,31 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_write = &serial2002_do_winsn;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ai_rinsn;
 
 	/* analog output subdevice */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_write = &serial2002_ao_winsn;
 	s->insn_read = &serial2002_ao_rinsn;
 
 	/* encoder input subdevice */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ei_rinsn;
 
 	return 1;

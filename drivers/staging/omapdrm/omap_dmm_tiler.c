@@ -40,6 +40,9 @@
 static struct tcm *containers[TILFMT_NFORMATS];
 static struct dmm *omap_dmm;
 
+/* global spinlock for protecting lists */
+static DEFINE_SPINLOCK(list_lock);
+
 /* Geometry table */
 #define GEOM(xshift, yshift, bytes_per_pixel) { \
 		.x_shft = (xshift), \
@@ -117,7 +120,7 @@ static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
 	return 0;
 }
 
-irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
+static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 {
 	struct dmm *dmm = arg;
 	uint32_t status = readl(dmm->base + DMM_PAT_IRQSTATUS);
@@ -147,13 +150,13 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	down(&dmm->engine_sem);
 
 	/* grab an idle engine */
-	spin_lock(&dmm->list_lock);
+	spin_lock(&list_lock);
 	if (!list_empty(&dmm->idle_head)) {
 		engine = list_entry(dmm->idle_head.next, struct refill_engine,
 					idle_node);
 		list_del(&engine->idle_node);
 	}
-	spin_unlock(&dmm->list_lock);
+	spin_unlock(&list_lock);
 
 	BUG_ON(!engine);
 
@@ -256,9 +259,9 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	}
 
 cleanup:
-	spin_lock(&dmm->list_lock);
+	spin_lock(&list_lock);
 	list_add(&engine->idle_node, &dmm->idle_head);
-	spin_unlock(&dmm->list_lock);
+	spin_unlock(&list_lock);
 
 	up(&omap_dmm->engine_sem);
 	return ret;
@@ -351,9 +354,9 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	}
 
 	/* add to allocation list */
-	spin_lock(&omap_dmm->list_lock);
+	spin_lock(&list_lock);
 	list_add(&block->alloc_node, &omap_dmm->alloc_head);
-	spin_unlock(&omap_dmm->list_lock);
+	spin_unlock(&list_lock);
 
 	return block;
 }
@@ -364,7 +367,7 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 	int num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	if (!block)
-		return 0;
+		return ERR_PTR(-ENOMEM);
 
 	block->fmt = TILFMT_PAGE;
 
@@ -374,9 +377,9 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	spin_lock(&omap_dmm->list_lock);
+	spin_lock(&list_lock);
 	list_add(&block->alloc_node, &omap_dmm->alloc_head);
-	spin_unlock(&omap_dmm->list_lock);
+	spin_unlock(&list_lock);
 
 	return block;
 }
@@ -389,9 +392,9 @@ int tiler_release(struct tiler_block *block)
 	if (block->area.tcm)
 		dev_err(omap_dmm->dev, "failed to release block\n");
 
-	spin_lock(&omap_dmm->list_lock);
+	spin_lock(&list_lock);
 	list_del(&block->alloc_node);
-	spin_unlock(&omap_dmm->list_lock);
+	spin_unlock(&list_lock);
 
 	kfree(block);
 	return ret;
@@ -401,8 +404,26 @@ int tiler_release(struct tiler_block *block)
  * Utils
  */
 
-/* calculate the tiler space address of a pixel in a view orientation */
-static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
+/* calculate the tiler space address of a pixel in a view orientation...
+ * below description copied from the display subsystem section of TRM:
+ *
+ * When the TILER is addressed, the bits:
+ *   [28:27] = 0x0 for 8-bit tiled
+ *             0x1 for 16-bit tiled
+ *             0x2 for 32-bit tiled
+ *             0x3 for page mode
+ *   [31:29] = 0x0 for 0-degree view
+ *             0x1 for 180-degree view + mirroring
+ *             0x2 for 0-degree view + mirroring
+ *             0x3 for 180-degree view
+ *             0x4 for 270-degree view + mirroring
+ *             0x5 for 270-degree view
+ *             0x6 for 90-degree view
+ *             0x7 for 90-degree view + mirroring
+ * Otherwise the bits indicated the corresponding bit address to access
+ * the SDRAM.
+ */
+static u32 tiler_get_address(enum tiler_fmt fmt, u32 orient, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
 
@@ -414,8 +435,11 @@ static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 	x_mask = MASK(x_bits);
 	y_mask = MASK(y_bits);
 
-	if (x < 0 || x > x_mask || y < 0 || y > y_mask)
+	if (x < 0 || x > x_mask || y < 0 || y > y_mask) {
+		DBG("invalid coords: %u < 0 || %u > %u || %u < 0 || %u > %u",
+				x, x, x_mask, y, y, y_mask);
 		return 0;
+	}
 
 	/* account for mirroring */
 	if (orient & MASK_X_INVERT)
@@ -436,9 +460,20 @@ dma_addr_t tiler_ssptr(struct tiler_block *block)
 {
 	BUG_ON(!validfmt(block->fmt));
 
-	return TILVIEW_8BIT + tiler_get_address(0, block->fmt,
+	return TILVIEW_8BIT + tiler_get_address(block->fmt, 0,
 			block->area.p0.x * geom[block->fmt].slot_w,
 			block->area.p0.y * geom[block->fmt].slot_h);
+}
+
+dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
+		uint32_t x, uint32_t y)
+{
+	struct tcm_pt *p = &block->area.p0;
+	BUG_ON(!validfmt(block->fmt));
+
+	return tiler_get_address(block->fmt, orient,
+			(p->x * geom[block->fmt].slot_w) + x,
+			(p->y * geom[block->fmt].slot_h) + y);
 }
 
 void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
@@ -448,11 +483,14 @@ void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
 	*h = round_up(*h, geom[fmt].slot_h);
 }
 
-uint32_t tiler_stride(enum tiler_fmt fmt)
+uint32_t tiler_stride(enum tiler_fmt fmt, uint32_t orient)
 {
 	BUG_ON(!validfmt(fmt));
 
-	return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
+	if (orient & MASK_XY_FLIP)
+		return 1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft);
+	else
+		return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
 }
 
 size_t tiler_size(enum tiler_fmt fmt, uint16_t w, uint16_t h)
@@ -479,13 +517,13 @@ static int omap_dmm_remove(struct platform_device *dev)
 
 	if (omap_dmm) {
 		/* free all area regions */
-		spin_lock(&omap_dmm->list_lock);
+		spin_lock(&list_lock);
 		list_for_each_entry_safe(block, _block, &omap_dmm->alloc_head,
 					alloc_node) {
 			list_del(&block->alloc_node);
 			kfree(block);
 		}
-		spin_unlock(&omap_dmm->list_lock);
+		spin_unlock(&list_lock);
 
 		for (i = 0; i < omap_dmm->num_lut; i++)
 			if (omap_dmm->tcm && omap_dmm->tcm[i])
@@ -503,7 +541,7 @@ static int omap_dmm_remove(struct platform_device *dev)
 
 		vfree(omap_dmm->lut);
 
-		if (omap_dmm->irq != -1)
+		if (omap_dmm->irq > 0)
 			free_irq(omap_dmm->irq, omap_dmm);
 
 		iounmap(omap_dmm->base);
@@ -526,6 +564,10 @@ static int omap_dmm_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "failed to allocate driver data section\n");
 		goto fail;
 	}
+
+	/* initialize lists */
+	INIT_LIST_HEAD(&omap_dmm->alloc_head);
+	INIT_LIST_HEAD(&omap_dmm->idle_head);
 
 	/* lookup hwmod data - base address and irq */
 	mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -629,7 +671,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 	}
 
 	sema_init(&omap_dmm->engine_sem, omap_dmm->num_engines);
-	INIT_LIST_HEAD(&omap_dmm->idle_head);
 	for (i = 0; i < omap_dmm->num_engines; i++) {
 		omap_dmm->engines[i].id = i;
 		omap_dmm->engines[i].dmm = omap_dmm;
@@ -672,9 +713,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 	containers[TILFMT_32BIT] = omap_dmm->tcm[0];
 	containers[TILFMT_PAGE] = omap_dmm->tcm[0];
 
-	INIT_LIST_HEAD(&omap_dmm->alloc_head);
-	spin_lock_init(&omap_dmm->list_lock);
-
 	area = (struct tcm_area) {
 		.is2d = true,
 		.tcm = NULL,
@@ -697,7 +735,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 	return 0;
 
 fail:
-	omap_dmm_remove(dev);
+	if (omap_dmm_remove(dev))
+		dev_err(&dev->dev, "cleanup failed\n");
 	return ret;
 }
 
@@ -810,7 +849,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 		map[i] = global_map + i * (w_adj + 1);
 		map[i][w_adj] = 0;
 	}
-	spin_lock_irqsave(&omap_dmm->list_lock, flags);
+	spin_lock_irqsave(&list_lock, flags);
 
 	list_for_each_entry(block, &omap_dmm->alloc_head, alloc_node) {
 		if (block->fmt != TILFMT_PAGE) {
@@ -836,7 +875,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 		}
 	}
 
-	spin_unlock_irqrestore(&omap_dmm->list_lock, flags);
+	spin_unlock_irqrestore(&list_lock, flags);
 
 	if (s) {
 		seq_printf(s, "BEGIN DMM TILER MAP\n");

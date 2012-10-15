@@ -27,6 +27,8 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <mach/hardware.h>
 
@@ -396,6 +398,14 @@ static int __exit pxa_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id pxa_rtc_dt_ids[] = {
+	{ .compatible = "marvell,pxa-rtc" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, pxa_rtc_dt_ids);
+#endif
+
 #ifdef CONFIG_PM
 static int pxa_rtc_suspend(struct device *dev)
 {
@@ -425,6 +435,7 @@ static struct platform_driver pxa_rtc_driver = {
 	.remove		= __exit_p(pxa_rtc_remove),
 	.driver		= {
 		.name	= "pxa-rtc",
+		.of_match_table = of_match_ptr(pxa_rtc_dt_ids),
 #ifdef CONFIG_PM
 		.pm	= &pxa_rtc_pm_ops,
 #endif

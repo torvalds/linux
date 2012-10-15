@@ -24,31 +24,31 @@
 #include <mach/common.h>
 
 /* SH7377 registers */
-#define RTFRQCR    0xe6150000
-#define SYFRQCR    0xe6150004
-#define CMFRQCR    0xe61500E0
-#define VCLKCR1    0xe6150008
-#define VCLKCR2    0xe615000C
-#define VCLKCR3    0xe615001C
-#define FMSICKCR   0xe6150010
-#define FMSOCKCR   0xe6150014
-#define FSICKCR    0xe6150018
-#define PLLC1CR    0xe6150028
-#define PLLC2CR    0xe615002C
-#define SUBUSBCKCR 0xe6150080
-#define SPUCKCR    0xe6150084
-#define MSUCKCR    0xe6150088
-#define MVI3CKCR   0xe6150090
-#define HDMICKCR   0xe6150094
-#define MFCK1CR    0xe6150098
-#define MFCK2CR    0xe615009C
-#define DSITCKCR   0xe6150060
-#define DSIPCKCR   0xe6150064
-#define SMSTPCR0   0xe6150130
-#define SMSTPCR1   0xe6150134
-#define SMSTPCR2   0xe6150138
-#define SMSTPCR3   0xe615013C
-#define SMSTPCR4   0xe6150140
+#define RTFRQCR    IOMEM(0xe6150000)
+#define SYFRQCR    IOMEM(0xe6150004)
+#define CMFRQCR    IOMEM(0xe61500E0)
+#define VCLKCR1    IOMEM(0xe6150008)
+#define VCLKCR2    IOMEM(0xe615000C)
+#define VCLKCR3    IOMEM(0xe615001C)
+#define FMSICKCR   IOMEM(0xe6150010)
+#define FMSOCKCR   IOMEM(0xe6150014)
+#define FSICKCR    IOMEM(0xe6150018)
+#define PLLC1CR    IOMEM(0xe6150028)
+#define PLLC2CR    IOMEM(0xe615002C)
+#define SUBUSBCKCR IOMEM(0xe6150080)
+#define SPUCKCR    IOMEM(0xe6150084)
+#define MSUCKCR    IOMEM(0xe6150088)
+#define MVI3CKCR   IOMEM(0xe6150090)
+#define HDMICKCR   IOMEM(0xe6150094)
+#define MFCK1CR    IOMEM(0xe6150098)
+#define MFCK2CR    IOMEM(0xe615009C)
+#define DSITCKCR   IOMEM(0xe6150060)
+#define DSIPCKCR   IOMEM(0xe6150064)
+#define SMSTPCR0   IOMEM(0xe6150130)
+#define SMSTPCR1   IOMEM(0xe6150134)
+#define SMSTPCR2   IOMEM(0xe6150138)
+#define SMSTPCR3   IOMEM(0xe615013C)
+#define SMSTPCR4   IOMEM(0xe6150140)
 
 /* Fixed 32 KHz root clock from EXTALR pin */
 static struct clk r_clk = {
@@ -355,7 +355,7 @@ void __init sh7377_clock_init(void)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+		ret = sh_clk_mstp_register(mstp_clks, MSTP_NR);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

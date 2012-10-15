@@ -16,6 +16,7 @@
  *
  */
 
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 static int ehci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
@@ -48,7 +49,7 @@ static const struct hc_driver vt8500_ehci_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_init,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -106,33 +107,15 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		pr_debug("request_mem_region failed");
-		ret = -EBUSY;
-		goto err1;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hcd->regs) {
 		pr_debug("ioremap failed");
 		ret = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
-
-	ehci_port_power(ehci, 1);
-
-	ehci_reset(ehci);
 
 	ret = usb_add_hcd(hcd, pdev->resource[1].start,
 			  IRQF_SHARED);
@@ -141,9 +124,6 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iounmap(hcd->regs);
-err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err1:
 	usb_put_hcd(hcd);
 	return ret;
@@ -154,13 +134,17 @@ static int vt8500_ehci_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
+
+static const struct of_device_id vt8500_ehci_ids[] = {
+	{ .compatible = "via,vt8500-ehci", },
+	{ .compatible = "wm,prizm-ehci", },
+	{}
+};
 
 static struct platform_driver vt8500_ehci_driver = {
 	.probe		= vt8500_ehci_drv_probe,
@@ -169,7 +153,9 @@ static struct platform_driver vt8500_ehci_driver = {
 	.driver = {
 		.name	= "vt8500-ehci",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(vt8500_ehci_ids),
 	}
 };
 
 MODULE_ALIAS("platform:vt8500-ehci");
+MODULE_DEVICE_TABLE(of, vt8500_ehci_ids);

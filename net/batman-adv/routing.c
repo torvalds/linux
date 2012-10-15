@@ -579,32 +579,45 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
 	return router;
 }
 
-int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
+static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
 {
-	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_tt_query_packet *tt_query;
-	uint16_t tt_size;
 	struct ethhdr *ethhdr;
-	char tt_flag;
-	size_t packet_size;
 
 	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb,
-				    sizeof(struct batadv_tt_query_packet))))
-		goto out;
-
-	/* I could need to modify it */
-	if (skb_cow(skb, sizeof(struct batadv_tt_query_packet)) < 0)
-		goto out;
+	if (unlikely(!pskb_may_pull(skb, hdr_size)))
+		return -1;
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with unicast indication but broadcast recipient */
 	if (is_broadcast_ether_addr(ethhdr->h_dest))
-		goto out;
+		return -1;
 
 	/* packet with broadcast sender address */
 	if (is_broadcast_ether_addr(ethhdr->h_source))
+		return -1;
+
+	/* not for me */
+	if (!batadv_is_my_mac(ethhdr->h_dest))
+		return -1;
+
+	return 0;
+}
+
+int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct batadv_tt_query_packet *tt_query;
+	uint16_t tt_size;
+	int hdr_size = sizeof(*tt_query);
+	char tt_flag;
+	size_t packet_size;
+
+	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	/* I could need to modify it */
+	if (skb_cow(skb, sizeof(struct batadv_tt_query_packet)) < 0)
 		goto out;
 
 	tt_query = (struct batadv_tt_query_packet *)skb->data;
@@ -721,7 +734,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	 * been incremented yet. This flag will make me check all the incoming
 	 * packets for the correct destination.
 	 */
-	bat_priv->tt_poss_change = true;
+	bat_priv->tt.poss_change = true;
 
 	batadv_orig_node_free_ref(orig_node);
 out:
@@ -817,31 +830,6 @@ err:
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	return NULL;
-}
-
-static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
-{
-	struct ethhdr *ethhdr;
-
-	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb, hdr_size)))
-		return -1;
-
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
-
-	/* packet with unicast indication but broadcast recipient */
-	if (is_broadcast_ether_addr(ethhdr->h_dest))
-		return -1;
-
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
-		return -1;
-
-	/* not for me */
-	if (!batadv_is_my_mac(ethhdr->h_dest))
-		return -1;
-
-	return 0;
 }
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
@@ -947,8 +935,8 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	if (batadv_is_my_mac(unicast_packet->dest)) {
-		tt_poss_change = bat_priv->tt_poss_change;
-		curr_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
+		tt_poss_change = bat_priv->tt.poss_change;
+		curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
 	} else {
 		orig_node = batadv_orig_hash_find(bat_priv,
 						  unicast_packet->dest);
@@ -993,8 +981,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 		} else {
 			memcpy(unicast_packet->dest, orig_node->orig,
 			       ETH_ALEN);
-			curr_ttvn = (uint8_t)
-				atomic_read(&orig_node->last_ttvn);
+			curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 			batadv_orig_node_free_ref(orig_node);
 		}
 
@@ -1025,8 +1012,9 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 
 	/* packet for me */
 	if (batadv_is_my_mac(unicast_packet->dest)) {
-		batadv_interface_rx(recv_if->soft_iface, skb, recv_if,
-				    hdr_size);
+		batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
+				    NULL);
+
 		return NET_RX_SUCCESS;
 	}
 
@@ -1063,7 +1051,7 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 			return NET_RX_SUCCESS;
 
 		batadv_interface_rx(recv_if->soft_iface, new_skb, recv_if,
-				    sizeof(struct batadv_unicast_packet));
+				    sizeof(struct batadv_unicast_packet), NULL);
 		return NET_RX_SUCCESS;
 	}
 
@@ -1150,7 +1138,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 		goto out;
 
 	/* broadcast for me */
-	batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
+	batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
+			    orig_node);
 	ret = NET_RX_SUCCESS;
 	goto out;
 

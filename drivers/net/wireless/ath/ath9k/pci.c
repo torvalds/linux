@@ -37,6 +37,8 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
+	{ PCI_VDEVICE(ATHEROS, 0x0037) }, /* PCI-E  AR1111/AR9485 */
+	{ PCI_VDEVICE(ATHEROS, 0x0036) }, /* PCI-E  AR9565 */
 	{ 0 }
 };
 
@@ -112,41 +114,33 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	struct ath_hw *ah = sc->sc_ah;
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	struct pci_dev *parent;
-	int pos;
-	u8 aspm;
+	u16 aspm;
 
 	if (!ah->is_pciexpress)
-		return;
-
-	pos = pci_pcie_cap(pdev);
-	if (!pos)
 		return;
 
 	parent = pdev->bus->self;
 	if (!parent)
 		return;
 
-	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
+	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
+	    (AR_SREV_9285(ah))) {
 		/* Bluetooth coexistance requires disabling ASPM. */
-		pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &aspm);
-		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
-		pci_write_config_byte(pdev, pos + PCI_EXP_LNKCTL, aspm);
+		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
+			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 		/*
 		 * Both upstream and downstream PCIe components should
 		 * have the same ASPM settings.
 		 */
-		pos = pci_pcie_cap(parent);
-		pci_read_config_byte(parent, pos + PCI_EXP_LNKCTL, &aspm);
-		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
-		pci_write_config_byte(parent, pos + PCI_EXP_LNKCTL, aspm);
+		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
+			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 		ath_info(common, "Disabling ASPM since BTCOEX is enabled\n");
 		return;
 	}
 
-	pos = pci_pcie_cap(parent);
-	pci_read_config_byte(parent, pos +  PCI_EXP_LNKCTL, &aspm);
+	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
 	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
@@ -320,6 +314,7 @@ static int ath_pci_suspend(struct device *device)
 	 * Otherwise the chip never moved to full sleep,
 	 * when no interface is up.
 	 */
+	ath9k_stop_btcoex(sc);
 	ath9k_hw_disable(sc->sc_ah);
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
@@ -329,6 +324,10 @@ static int ath_pci_suspend(struct device *device)
 static int ath_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 val;
 
 	/*
@@ -339,6 +338,9 @@ static int ath_pci_resume(struct device *device)
 	pci_read_config_dword(pdev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+
+	ath_pci_aspm_init(common);
+	ah->reset_power_on = false;
 
 	return 0;
 }

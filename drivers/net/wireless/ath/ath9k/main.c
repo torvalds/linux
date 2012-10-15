@@ -462,8 +462,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (!ath9k_hw_intrpend(ah))
 		return IRQ_NONE;
 
-	if(test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags)) {
+		ath9k_hw_kill_interrupts(ah);
 		return IRQ_HANDLED;
+	}
 
 	/*
 	 * Figure out the reason(s) for the interrupt.  Note
@@ -637,8 +639,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		ath_err(common,
 			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
 			r, curchan->center_freq);
-		spin_unlock_bh(&sc->sc_pcu_lock);
-		goto mutex_unlock;
+		ah->reset_power_on = false;
 	}
 
 	/* Setup our intr mask. */
@@ -663,11 +664,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	clear_bit(SC_OP_INVALID, &sc->sc_flags);
 	sc->sc_ah->is_monitoring = false;
 
-	if (!ath_complete_reset(sc, false)) {
-		r = -EIO;
-		spin_unlock_bh(&sc->sc_pcu_lock);
-		goto mutex_unlock;
-	}
+	if (!ath_complete_reset(sc, false))
+		ah->reset_power_on = false;
 
 	if (ah->led_pin >= 0) {
 		ath9k_hw_cfg_output(ah, ah->led_pin,
@@ -686,15 +684,16 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
 
-mutex_unlock:
 	mutex_unlock(&sc->mutex);
 
 	ath9k_ps_restore(sc);
 
-	return r;
+	return 0;
 }
 
-static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void ath9k_tx(struct ieee80211_hw *hw,
+		     struct ieee80211_tx_control *control,
+		     struct sk_buff *skb)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -754,6 +753,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 	txctl.txq = sc->tx.txq_map[skb_get_queue_mapping(skb)];
+	txctl.sta = control->sta;
 
 	ath_dbg(common, XMIT, "transmitting packet, skb: %p\n", skb);
 
@@ -765,7 +765,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	return;
 exit:
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(hw, skb);
 }
 
 static void ath9k_stop(struct ieee80211_hw *hw)
@@ -981,47 +981,21 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int ret = 0;
 
-	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	switch (vif->type) {
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_WDS:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_MESH_POINT:
-		break;
-	default:
-		ath_err(common, "Interface type %d not yet supported\n",
-			vif->type);
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
-
-	if (ath9k_uses_beacons(vif->type)) {
-		if (sc->nbcnvifs >= ATH_BCBUF) {
-			ath_err(common, "Not enough beacon buffers when adding"
-				" new interface of type: %i\n",
-				vif->type);
-			ret = -ENOBUFS;
-			goto out;
-		}
-	}
-
 	ath_dbg(common, CONFIG, "Attach a VIF of type: %d\n", vif->type);
-
 	sc->nvifs++;
 
+	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, vif);
+	ath9k_ps_restore(sc);
+
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
 
-out:
 	mutex_unlock(&sc->mutex);
-	ath9k_ps_restore(sc);
-	return ret;
+	return 0;
 }
 
 static int ath9k_change_interface(struct ieee80211_hw *hw,
@@ -1031,21 +1005,9 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	int ret = 0;
 
 	ath_dbg(common, CONFIG, "Change Interface\n");
-
 	mutex_lock(&sc->mutex);
-	ath9k_ps_wakeup(sc);
-
-	if (ath9k_uses_beacons(new_type) &&
-	    !ath9k_uses_beacons(vif->type)) {
-		if (sc->nbcnvifs >= ATH_BCBUF) {
-			ath_err(common, "No beacon slot available\n");
-			ret = -ENOBUFS;
-			goto out;
-		}
-	}
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
@@ -1053,14 +1015,15 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	vif->type = new_type;
 	vif->p2p = p2p;
 
+	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, vif);
+	ath9k_ps_restore(sc);
+
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
 
-out:
-	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
-	return ret;
+	return 0;
 }
 
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
@@ -1071,7 +1034,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	ath_dbg(common, CONFIG, "Detach Interface\n");
 
-	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
 	sc->nvifs--;
@@ -1079,10 +1041,11 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
 
+	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, NULL);
+	ath9k_ps_restore(sc);
 
 	mutex_unlock(&sc->mutex);
-	ath9k_ps_restore(sc);
 }
 
 static void ath9k_enable_ps(struct ath_softc *sc)
@@ -1438,7 +1401,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 			if (sc->sc_ah->sw_mgmt_crypto &&
 			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
-				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
+				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 			ret = 0;
 		}
 		break;
@@ -2255,7 +2218,7 @@ static int ath9k_suspend(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
-	del_timer_sync(&common->ani.timer);
+	ath_stop_ani(sc);
 	del_timer_sync(&sc->rx_poll_timer);
 
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {

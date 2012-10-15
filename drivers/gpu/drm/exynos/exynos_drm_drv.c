@@ -85,8 +85,11 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	for (nr = 0; nr < MAX_PLANE; nr++) {
-		ret = exynos_plane_init(dev, nr);
-		if (ret)
+		struct drm_plane *plane;
+		unsigned int possible_crtcs = (1 << MAX_CRTC) - 1;
+
+		plane = exynos_plane_init(dev, possible_crtcs, false);
+		if (!plane)
 			goto err_crtc;
 	}
 
@@ -157,7 +160,6 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 	if (!file_priv)
 		return -ENOMEM;
 
-	drm_prime_init_file_private(&file->prime);
 	file->driver_priv = file_priv;
 
 	return exynos_drm_subdrv_open(dev, file);
@@ -181,7 +183,6 @@ static void exynos_drm_preclose(struct drm_device *dev,
 			e->base.destroy(&e->base);
 		}
 	}
-	drm_prime_destroy_file_private(&file->prime);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	exynos_drm_subdrv_close(dev, file);
@@ -221,8 +222,6 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET,
 			exynos_drm_gem_get_ioctl, DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
-			DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
 			vidi_connection_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER,
@@ -240,6 +239,9 @@ static const struct file_operations exynos_drm_driver_fops = {
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl	= drm_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.release	= drm_release,
 };
 

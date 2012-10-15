@@ -1,0 +1,12 @@
+LPC32XX PWM controller
+
+Required properties:
+- compatible: should be "nxp,lpc3220-pwm"
+- reg: physical base address and length of the controller's registers
+
+Examples:
+
+pwm@0x4005C000 {
+	compatible = "nxp,lpc3220-pwm";
+	reg = <0x4005C000 0x8>;
+};

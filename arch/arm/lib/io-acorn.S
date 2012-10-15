@@ -11,13 +11,14 @@
  *
  */
 #include <linux/linkage.h>
+#include <linux/kern_levels.h>
 #include <asm/assembler.h>
 
 		.text
 		.align
 
 .Liosl_warning:
-		.ascii	"<4>insl/outsl not implemented, called from %08lX\0"
+		.ascii	KERN_WARNING "insl/outsl not implemented, called from %08lX\0"
 		.align
 
 /*

@@ -243,7 +243,7 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
-	return rt2x00_get_field32(reg, MAC_CSR13_BIT5);
+	return rt2x00_get_field32(reg, MAC_CSR13_VAL5);
 }
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
@@ -715,11 +715,11 @@ static void rt61pci_config_antenna_2529_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
 
-	rt2x00_set_field32(&reg, MAC_CSR13_BIT4, p1);
-	rt2x00_set_field32(&reg, MAC_CSR13_BIT12, 0);
+	rt2x00_set_field32(&reg, MAC_CSR13_DIR4, 0);
+	rt2x00_set_field32(&reg, MAC_CSR13_VAL4, p1);
 
-	rt2x00_set_field32(&reg, MAC_CSR13_BIT3, !p2);
-	rt2x00_set_field32(&reg, MAC_CSR13_BIT11, 0);
+	rt2x00_set_field32(&reg, MAC_CSR13_DIR3, 0);
+	rt2x00_set_field32(&reg, MAC_CSR13_VAL3, !p2);
 
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR13, reg);
 }
@@ -2243,8 +2243,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
 {
-	struct ieee80211_conf conf = { .flags = 0 };
-	struct rt2x00lib_conf libconf = { .conf = &conf };
+	struct rt2x00lib_conf libconf = { .conf = &rt2x00dev->hw->conf };
 
 	rt61pci_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
@@ -2833,6 +2832,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
+	u32 reg;
 
 	/*
 	 * Disable power saving.
@@ -2849,6 +2849,14 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	retval = rt61pci_init_eeprom(rt2x00dev);
 	if (retval)
 		return retval;
+
+	/*
+	 * Enable rfkill polling by setting GPIO direction of the
+	 * rfkill switch GPIO pin correctly.
+	 */
+	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
+	rt2x00_set_field32(&reg, MAC_CSR13_DIR5, 1);
+	rt2x00pci_register_write(rt2x00dev, MAC_CSR13, reg);
 
 	/*
 	 * Initialize hw specifications.
@@ -3037,7 +3045,6 @@ static const struct data_queue_desc rt61pci_queue_bcn = {
 
 static const struct rt2x00_ops rt61pci_ops = {
 	.name			= KBUILD_MODNAME,
-	.max_sta_intf		= 1,
 	.max_ap_intf		= 4,
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,

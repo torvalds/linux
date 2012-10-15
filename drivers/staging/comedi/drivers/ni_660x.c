@@ -448,68 +448,46 @@ static inline struct ni_660x_private *private(struct comedi_device *dev)
 	return dev->private;
 }
 
-/* initialized in ni_660x_find_device() */
+/* initialized in ni_660x_attach_pci() */
 static inline const struct ni_660x_board *board(struct comedi_device *dev)
 {
 	return dev->board_ptr;
 }
 
-#define n_ni_660x_boards ARRAY_SIZE(ni_660x_boards)
-
-static int ni_660x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
+static int ni_660x_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev);
 static void ni_660x_detach(struct comedi_device *dev);
 static void init_tio_chip(struct comedi_device *dev, int chipset);
 static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
 				      unsigned output_select);
 
-static struct comedi_driver driver_ni_660x = {
+static struct comedi_driver ni_660x_driver = {
 	.driver_name = "ni_660x",
 	.module = THIS_MODULE,
-	.attach = ni_660x_attach,
+	.attach_pci = ni_660x_attach_pci,
 	.detach = ni_660x_detach,
 };
 
-static int __devinit driver_ni_660x_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static int __devinit ni_660x_pci_probe(struct pci_dev *dev,
+				       const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_ni_660x);
+	return comedi_pci_auto_config(dev, &ni_660x_driver);
 }
 
-static void __devexit driver_ni_660x_pci_remove(struct pci_dev *dev)
+static void __devexit ni_660x_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_ni_660x_pci_driver = {
+static struct pci_driver ni_660x_pci_driver = {
+	.name = "ni_660x",
 	.id_table = ni_660x_pci_table,
-	.probe = &driver_ni_660x_pci_probe,
-	.remove = __devexit_p(&driver_ni_660x_pci_remove)
+	.probe = ni_660x_pci_probe,
+	.remove = __devexit_p(ni_660x_pci_remove)
 };
+module_comedi_pci_driver(ni_660x_driver, ni_660x_pci_driver);
 
-static int __init driver_ni_660x_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_ni_660x);
-	if (retval < 0)
-		return retval;
-
-	driver_ni_660x_pci_driver.name = (char *)driver_ni_660x.driver_name;
-	return pci_register_driver(&driver_ni_660x_pci_driver);
-}
-
-static void __exit driver_ni_660x_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_ni_660x_pci_driver);
-	comedi_driver_unregister(&driver_ni_660x);
-}
-
-module_init(driver_ni_660x_init_module);
-module_exit(driver_ni_660x_cleanup_module);
-
-static int ni_660x_find_device(struct comedi_device *dev, int bus, int slot);
 static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 				   unsigned source);
 
@@ -748,8 +726,6 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 		ni_660x_register = G3InterruptEnable;
 		break;
 	default:
-		printk(KERN_WARNING "%s: unhandled register 0x%x in switch.\n",
-		       __func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -773,8 +749,6 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 		writel(bits, write_address);
 		break;
 	default:
-		printk(KERN_WARNING "%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
-		       __FILE__, __func__, reg);
 		BUG();
 		break;
 	}
@@ -796,8 +770,6 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 		return readl(read_address);
 		break;
 	default:
-		printk(KERN_WARNING "%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
-		       __FILE__, __func__, reg);
 		BUG();
 		break;
 	}
@@ -893,8 +865,8 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	return 0;
 }
 
-void ni_660x_release_mite_channel(struct comedi_device *dev,
-				  struct ni_gpct *counter)
+static void ni_660x_release_mite_channel(struct comedi_device *dev,
+					 struct ni_gpct *counter)
 {
 	unsigned long flags;
 
@@ -985,7 +957,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	smp_mb();
 	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
-		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
+		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
 		ni_660x_handle_gpct_interrupt(dev, s);
 	}
 	spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
@@ -1062,28 +1034,43 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static int ni_660x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static const struct ni_660x_board *
+ni_660x_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(ni_660x_boards); n++) {
+		const struct ni_660x_board *board = &ni_660x_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned i;
 	unsigned global_interrupt_config_bits;
 
-	printk(KERN_INFO "comedi%d: ni_660x: ", dev->minor);
-
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
 		return ret;
-	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	private(dev)->mite = mite_alloc(pcidev);
+	if (!private(dev)->mite)
+		return -ENOMEM;
 
 	dev->board_name = board(dev)->name;
 
 	ret = mite_setup2(private(dev)->mite, 1);
 	if (ret < 0) {
-		printk(KERN_WARNING "error setting up mite\n");
+		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &private(dev)->mite->pcidev->dev);
@@ -1091,18 +1078,15 @@ static int ni_660x_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	printk(KERN_INFO " %s ", dev->board_name);
+	ret = comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS);
+	if (ret)
+		return ret;
 
-	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
-
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
-	s = dev->subdevices + NI_660X_DIO_SUBDEV;
+	s = &dev->subdevices[NI_660X_DIO_SUBDEV];
 	/* DIGITAL I/O SUBDEVICE */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -1125,7 +1109,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 	if (private(dev)->counter_dev == NULL)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
-		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
+		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
 		if (i < ni_660x_num_counters(dev)) {
 			s->type = COMEDI_SUBD_COUNTER;
 			s->subdev_flags =
@@ -1175,7 +1159,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 	ret = request_irq(mite_irq(private(dev)->mite), ni_660x_interrupt,
 			  IRQF_SHARED, "ni_660x", dev);
 	if (ret < 0) {
-		printk(KERN_WARNING " irq not available\n");
+		dev_warn(dev->class_dev, " irq not available\n");
 		return ret;
 	}
 	dev->irq = mite_irq(private(dev)->mite);
@@ -1184,7 +1168,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       GlobalInterruptConfigRegister);
-	printk(KERN_INFO "attached\n");
+	dev_info(dev->class_dev, "ni_660x: %s attached\n", dev->board_name);
 	return 0;
 }
 
@@ -1198,6 +1182,7 @@ static void ni_660x_detach(struct comedi_device *dev)
 		if (private(dev)->mite) {
 			ni_660x_free_mite_rings(dev);
 			mite_unsetup(private(dev)->mite);
+			mite_free(private(dev)->mite);
 		}
 	}
 }
@@ -1241,33 +1226,6 @@ static int ni_660x_GPCT_winsn(struct comedi_device *dev,
 	return ni_tio_winsn(subdev_to_counter(s), insn, data);
 }
 
-static int ni_660x_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-
-		for (i = 0; i < n_ni_660x_boards; i++) {
-			if (mite_device_id(mite) == ni_660x_boards[i].dev_id) {
-				dev->board_ptr = ni_660x_boards + i;
-				private(dev)->mite = mite;
-				return 0;
-			}
-		}
-	}
-	printk(KERN_WARNING "no device found\n");
-	mite_list_devices();
-	return -EIO;
-}
-
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -1286,7 +1244,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	data[1] =
 	    (ni_660x_read_register(dev, 0,
 				   DIO32Input) >> base_bitfield_channel);
-	return 2;
+	return insn->n;
 }
 
 static void ni_660x_select_pfi_output(struct comedi_device *dev,

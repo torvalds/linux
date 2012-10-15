@@ -193,7 +193,7 @@ for (or detection of) various hardware problems added by Ian Abbott.
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
+#include "comedi_fc.h"
 #include "8253.h"
 #include "8255.h"
 
@@ -431,9 +431,6 @@ enum {
 /* Combine old and new bits. */
 #define COMBINE(old, new, mask)	(((old) & ~(mask)) | ((new) & (mask)))
 
-/* A generic null function pointer value.  */
-#define NULLFUNC	0
-
 /* Current CPU.  XXX should this be hard_smp_processor_id()? */
 #define THISCPU		smp_processor_id()
 
@@ -500,17 +497,10 @@ static const struct pci230_board pci230_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define n_pci230_boards ARRAY_SIZE(pci230_boards)
-#define thisboard ((const struct pci230_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pci230_private {
-	struct pci_dev *pci_dev;
 	spinlock_t isr_spinlock;	/* Interrupt spin lock */
 	spinlock_t res_spinlock;	/* Shared resources spin lock */
 	spinlock_t ai_stop_spinlock;	/* Spin lock for stopping AI command */
@@ -549,8 +539,6 @@ struct pci230_private {
 	unsigned char res_owner[NUM_RESOURCES];	/* Shared resource owners. */
 };
 
-#define devpriv ((struct pci230_private *)dev->private)
-
 /* PCI230 clock source periods in ns */
 static const unsigned int pci230_timebase[8] = {
 	[CLK_10MHZ] = TIMEBASE_10MHZ,
@@ -588,49 +576,14 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
-static int pci230_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int pci230_ao_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int pci230_ao_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
-				    unsigned int round);
-static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
-static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct);
-static irqreturn_t pci230_interrupt(int irq, void *d);
-static int pci230_ao_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pci230_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static void pci230_ao_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s);
-static void pci230_handle_ao_nofifo(struct comedi_device *dev,
-				    struct comedi_subdevice *s);
-static int pci230_handle_ao_fifo(struct comedi_device *dev,
-				 struct comedi_subdevice *s);
-static int pci230_ai_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pci230_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static void pci230_ai_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s);
-static void pci230_handle_ai(struct comedi_device *dev,
-			     struct comedi_subdevice *s);
-
 static short pci230_ai_read(struct comedi_device *dev)
 {
-	/* Read sample. */
-	short data = (short)inw(dev->iobase + PCI230_ADCDATA);
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
+	short data;
 
+	/* Read sample. */
+	data = (short)inw(dev->iobase + PCI230_ADCDATA);
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion). */
 	/* PCI230+ is 16 bit AI. */
@@ -647,11 +600,13 @@ static short pci230_ai_read(struct comedi_device *dev)
 static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 						    short datum)
 {
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
+
 	/* If a bipolar range was specified, mangle it (straight binary->twos
 	 * complement). */
 	if (devpriv->ao_bipolar)
 		datum ^= 1 << (thisboard->ao_bits - 1);
-
 
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower
 	 * four bits reserved for expansion). */
@@ -663,6 +618,8 @@ static inline unsigned short pci230_ao_mangle_datum(struct comedi_device *dev,
 static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 					  short datum, unsigned int chan)
 {
+	struct pci230_private *devpriv = dev->private;
+
 	/* Store unmangled datum to be read back later. */
 	devpriv->ao_readback[chan] = datum;
 
@@ -676,6 +633,8 @@ static inline void pci230_ao_write_nofifo(struct comedi_device *dev,
 static inline void pci230_ao_write_fifo(struct comedi_device *dev, short datum,
 					unsigned int chan)
 {
+	struct pci230_private *devpriv = dev->private;
+
 	/* Store unmangled datum to be read back later. */
 	devpriv->ao_readback[chan] = datum;
 
@@ -684,277 +643,10 @@ static inline void pci230_ao_write_fifo(struct comedi_device *dev, short datum,
 	     dev->iobase + PCI230P2_DACDATA);
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	unsigned long iobase1, iobase2;
-	/* PCI230's I/O spaces 1 and 2 respectively. */
-	struct pci_dev *pci_dev = NULL;
-	int i = 0, irq_hdl, rc;
-
-	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
-	       thisboard->name, it->options[0], it->options[1]);
-
-	/* Allocate the private structure area using alloc_private().
-	 * Macro defined in comedidev.h - memsets struct fields to 0. */
-	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0)
-		return -ENOMEM;
-
-	spin_lock_init(&devpriv->isr_spinlock);
-	spin_lock_init(&devpriv->res_spinlock);
-	spin_lock_init(&devpriv->ai_stop_spinlock);
-	spin_lock_init(&devpriv->ao_stop_spinlock);
-	/* Find card */
-	for_each_pci_dev(pci_dev) {
-		if (it->options[0] || it->options[1]) {
-			/* Match against bus/slot options. */
-			if (it->options[0] != pci_dev->bus->number ||
-			    it->options[1] != PCI_SLOT(pci_dev->devfn))
-				continue;
-		}
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
-			/* The name was specified as "amplc_pci230" which is
-			 * used to match any supported device.  Replace the
-			 * current dev->board_ptr with one that matches the
-			 * PCI device ID. */
-			for (i = 0; i < n_pci230_boards; i++) {
-				if (pci_dev->device == pci230_boards[i].id) {
-					if (pci230_boards[i].min_hwver > 0) {
-						/* Check for a '+' model.
-						 * First check length of
-						 * registers. */
-						if (pci_resource_len(pci_dev, 3)
-						    < 32) {
-							/* Not a '+' model. */
-							continue;
-						}
-						/* TODO: temporarily enable the
-						 * PCI device and read the
-						 * hardware version register.
-						 * For now assume it's okay. */
-					}
-					/* Change board_ptr to matched board */
-					dev->board_ptr = &pci230_boards[i];
-					break;
-				}
-			}
-			if (i < n_pci230_boards)
-				break;
-		} else {
-			/* The name was specified as a specific device name.
-			 * The current dev->board_ptr is correct.  Check
-			 * whether it matches the PCI device ID. */
-			if (thisboard->id == pci_dev->device) {
-				/* Check minimum hardware version. */
-				if (thisboard->min_hwver > 0) {
-					/* Looking for a '+' model.  First
-					 * check length of registers. */
-					if (pci_resource_len(pci_dev, 3) < 32) {
-						/* Not a '+' model. */
-						continue;
-					}
-					/* TODO: temporarily enable the PCI
-					 * device and read the hardware version
-					 * register.  For now, assume it's
-					 * okay. */
-					break;
-				} else {
-					break;
-				}
-			}
-		}
-	}
-	if (!pci_dev) {
-		printk("comedi%d: No %s card found\n", dev->minor,
-		       thisboard->name);
-		return -EIO;
-	}
-	devpriv->pci_dev = pci_dev;
-
-	/*
-	 * Initialize dev->board_name.
-	 */
-	dev->board_name = thisboard->name;
-
-	/* Enable PCI device and reserve I/O spaces. */
-	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
-		printk("comedi%d: failed to enable PCI device "
-		       "and request regions\n", dev->minor);
-		return -EIO;
-	}
-
-	/* Read base addresses of the PCI230's two I/O regions from PCI
-	 * configuration register. */
-	iobase1 = pci_resource_start(pci_dev, 2);
-	iobase2 = pci_resource_start(pci_dev, 3);
-
-	printk("comedi%d: %s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
-	       dev->minor, dev->board_name, iobase1, iobase2);
-
-	devpriv->iobase1 = iobase1;
-	dev->iobase = iobase2;
-
-	/* Read bits of DACCON register - only the output range. */
-	devpriv->daccon = inw(dev->iobase + PCI230_DACCON) & PCI230_DAC_OR_MASK;
-
-	/* Read hardware version register and set extended function register
-	 * if they exist. */
-	if (pci_resource_len(pci_dev, 3) >= 32) {
-		unsigned short extfunc = 0;
-
-		devpriv->hwver = inw(dev->iobase + PCI230P_HWVER);
-		if (devpriv->hwver < thisboard->min_hwver) {
-			printk("comedi%d: %s - bad hardware version "
-			       "- got %u, need %u\n", dev->minor,
-			       dev->board_name, devpriv->hwver,
-			       thisboard->min_hwver);
-			return -EIO;
-		}
-		if (devpriv->hwver > 0) {
-			if (!thisboard->have_dio) {
-				/* No DIO ports.  Route counters' external gates
-				 * to the EXTTRIG signal (PCI260+ pin 17).
-				 * (Otherwise, they would be routed to DIO
-				 * inputs PC0, PC1 and PC2 which don't exist
-				 * on PCI260[+].) */
-				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
-			}
-			if ((thisboard->ao_chans > 0)
-			    && (devpriv->hwver >= 2)) {
-				/* Enable DAC FIFO functionality. */
-				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
-			}
-		}
-		outw(extfunc, dev->iobase + PCI230P_EXTFUNC);
-		if ((extfunc & PCI230P2_EXTFUNC_DACFIFO) != 0) {
-			/* Temporarily enable DAC FIFO, reset it and disable
-			 * FIFO wraparound. */
-			outw(devpriv->daccon | PCI230P2_DAC_FIFO_EN
-			     | PCI230P2_DAC_FIFO_RESET,
-			     dev->iobase + PCI230_DACCON);
-			/* Clear DAC FIFO channel enable register. */
-			outw(0, dev->iobase + PCI230P2_DACEN);
-			/* Disable DAC FIFO. */
-			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
-		}
-	}
-
-	/* Disable board's interrupts. */
-	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
-
-	/* Set ADC to a reasonable state. */
-	devpriv->adcg = 0;
-	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE
-	    | PCI230_ADC_IR_BIP;
-	outw(1 << 0, dev->iobase + PCI230_ADCEN);
-	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
-	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
-	     dev->iobase + PCI230_ADCCON);
-
-	/* Register the interrupt handler. */
-	irq_hdl = request_irq(devpriv->pci_dev->irq, pci230_interrupt,
-			      IRQF_SHARED, "amplc_pci230", dev);
-	if (irq_hdl < 0) {
-		printk("comedi%d: unable to register irq, "
-		       "commands will not be available %d\n", dev->minor,
-		       devpriv->pci_dev->irq);
-	} else {
-		dev->irq = devpriv->pci_dev->irq;
-		printk("comedi%d: registered irq %u\n", dev->minor,
-		       devpriv->pci_dev->irq);
-	}
-
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
-	s->n_chan = thisboard->ai_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &pci230_ai_range;
-	s->insn_read = &pci230_ai_rinsn;
-	s->len_chanlist = 256;	/* but there are restrictions. */
-	/* Only register commands if the interrupt handler is installed. */
-	if (irq_hdl == 0) {
-		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmd = &pci230_ai_cmd;
-		s->do_cmdtest = &pci230_ai_cmdtest;
-		s->cancel = pci230_ai_cancel;
-	}
-
-	s = dev->subdevices + 1;
-	/* analog output subdevice */
-	if (thisboard->ao_chans > 0) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_chans;
-		s->maxdata = (1 << thisboard->ao_bits) - 1;
-		s->range_table = &pci230_ao_range;
-		s->insn_write = &pci230_ao_winsn;
-		s->insn_read = &pci230_ao_rinsn;
-		s->len_chanlist = thisboard->ao_chans;
-		/* Only register commands if the interrupt handler is
-		 * installed. */
-		if (irq_hdl == 0) {
-			dev->write_subdev = s;
-			s->subdev_flags |= SDF_CMD_WRITE;
-			s->do_cmd = &pci230_ao_cmd;
-			s->do_cmdtest = &pci230_ao_cmdtest;
-			s->cancel = pci230_ao_cancel;
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	s = dev->subdevices + 2;
-	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
-		rc = subdev_8255_init(dev, s, NULL,
-				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
-		if (rc < 0)
-			return rc;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	printk("comedi%d: attached\n", dev->minor);
-
-	return 1;
-}
-
-static void pci230_detach(struct comedi_device *dev)
-{
-	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
-	}
-}
-
 static int get_resources(struct comedi_device *dev, unsigned int res_mask,
 			 unsigned char owner)
 {
+	struct pci230_private *devpriv = dev->private;
 	int ok;
 	unsigned int i;
 	unsigned int b;
@@ -997,6 +689,7 @@ static inline int get_one_resource(struct comedi_device *dev,
 static void put_resources(struct comedi_device *dev, unsigned int res_mask,
 			  unsigned char owner)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned int b;
 	unsigned long irqflags;
@@ -1026,6 +719,86 @@ static inline void put_all_resources(struct comedi_device *dev,
 	put_resources(dev, (1U << NUM_RESOURCES) - 1, owner);
 }
 
+static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
+			      unsigned int round_mode)
+{
+	uint64_t div;
+	unsigned int rem;
+
+	div = ns;
+	rem = do_div(div, timebase);
+	round_mode &= TRIG_ROUND_MASK;
+	switch (round_mode) {
+	default:
+	case TRIG_ROUND_NEAREST:
+		div += (rem + (timebase / 2)) / timebase;
+		break;
+	case TRIG_ROUND_DOWN:
+		break;
+	case TRIG_ROUND_UP:
+		div += (rem + timebase - 1) / timebase;
+		break;
+	}
+	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;
+}
+
+/* Given desired period in ns, returns the required internal clock source
+ * and gets the initial count. */
+static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
+					    unsigned int round_mode)
+{
+	unsigned int clk_src, cnt;
+
+	for (clk_src = CLK_10MHZ;; clk_src++) {
+		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
+		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
+			break;
+
+	}
+	*count = cnt;
+	return clk_src;
+}
+
+static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
+{
+	unsigned int count;
+	unsigned int clk_src;
+
+	clk_src = pci230_choose_clk_count(*ns, &count, round);
+	*ns = count * pci230_timebase[clk_src];
+	return;
+}
+
+static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
+				    unsigned int mode, uint64_t ns,
+				    unsigned int round)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned int clk_src;
+	unsigned int count;
+
+	/* Set mode. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
+	/* Determine clock source and count. */
+	clk_src = pci230_choose_clk_count(ns, &count, round);
+	/* Program clock source. */
+	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
+	/* Set initial count. */
+	if (count >= 65536)
+		count = 0;
+
+	i8254_write(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, count);
+}
+
+static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
+{
+	struct pci230_private *devpriv = dev->private;
+
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct,
+		       I8254_MODE1);
+	/* Counter ct, 8254 mode 1, initial count not written. */
+}
+
 /*
  *  COMEDI_SUBD_AI instruction;
  */
@@ -1033,6 +806,7 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned int n, i;
 	unsigned int chan, range, aref;
 	unsigned int gainshift;
@@ -1118,9 +892,7 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 			udelay(1);
 		}
 		if (i == TIMEOUT) {
-			/* printk() should be used instead of printk()
-			 * whenever the code can be called from real-time. */
-			printk("timeout\n");
+			dev_err(dev->class_dev, "timeout\n");
 			return -ETIMEDOUT;
 		}
 
@@ -1139,6 +911,7 @@ static int pci230_ao_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct pci230_private *devpriv = dev->private;
 	int i;
 	int chan, range;
 
@@ -1168,6 +941,7 @@ static int pci230_ao_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct pci230_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1180,26 +954,16 @@ static int pci230_ao_rinsn(struct comedi_device *dev,
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* Step 1: make sure trigger sources are trivially valid.
-	 * "invalid source" returned by comedilib to user mode process
-	 * if this fails. */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT);
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
+	tmp = TRIG_TIMER | TRIG_INT;
 	if ((thisboard->min_hwver > 0) && (devpriv->hwver >= 2)) {
 		/*
 		 * For PCI230+ hardware version 2 onwards, allow external
@@ -1215,46 +979,23 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		 * scan_begin_src==TRIG_EXT support to be a bonus rather than a
 		 * guarantee!
 		 */
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
-	} else {
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT;
+		tmp |= TRIG_EXT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
 
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually compatible
-	 * "source conflict" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1389,10 +1130,201 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void pci230_ao_stop(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned long irqflags;
+	unsigned char intsrc;
+	int started;
+	struct comedi_cmd *cmd;
+
+	spin_lock_irqsave(&devpriv->ao_stop_spinlock, irqflags);
+	started = test_and_clear_bit(AO_CMD_STARTED, &devpriv->state);
+	spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
+	if (!started)
+		return;
+	cmd = &s->async->cmd;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* Stop scan rate generator. */
+		pci230_cancel_ct(dev, 1);
+	}
+	/* Determine interrupt source. */
+	if (devpriv->hwver < 2) {
+		/* Not using DAC FIFO.  Using CT1 interrupt. */
+		intsrc = PCI230_INT_ZCLK_CT1;
+	} else {
+		/* Using DAC FIFO interrupt. */
+		intsrc = PCI230P2_INT_DAC;
+	}
+	/* Disable interrupt and wait for interrupt routine to finish running
+	 * unless we are called from the interrupt routine. */
+	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	devpriv->int_en &= ~intsrc;
+	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
+		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	}
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+	if (devpriv->hwver >= 2) {
+		/* Using DAC FIFO.  Reset FIFO, clear underrun error,
+		 * disable FIFO. */
+		devpriv->daccon &= PCI230_DAC_OR_MASK;
+		outw(devpriv->daccon | PCI230P2_DAC_FIFO_RESET
+		     | PCI230P2_DAC_FIFO_UNDERRUN_CLEAR,
+		     dev->iobase + PCI230_DACCON);
+	}
+	/* Release resources. */
+	put_all_resources(dev, OWNER_AOCMD);
+}
+
+static void pci230_handle_ao_nofifo(struct comedi_device *dev,
+				    struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	short data;
+	int i, ret;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
+		return;
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		/* Read sample from Comedi's circular buffer. */
+		ret = comedi_buf_get(s->async, &data);
+		if (ret == 0) {
+			s->async->events |= COMEDI_CB_OVERFLOW;
+			pci230_ao_stop(dev, s);
+			comedi_error(dev, "AO buffer underrun");
+			return;
+		}
+		/* Write value to DAC. */
+		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
+	}
+	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	if (!devpriv->ao_continuous) {
+		devpriv->ao_scan_count--;
+		if (devpriv->ao_scan_count == 0) {
+			/* End of acquisition. */
+			async->events |= COMEDI_CB_EOA;
+			pci230_ao_stop(dev, s);
+		}
+	}
+}
+
+/* Loads DAC FIFO (if using it) from buffer. */
+/* Returns 0 if AO finished due to completion or error, 1 if still going. */
+static int pci230_handle_ao_fifo(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int num_scans;
+	unsigned int room;
+	unsigned short dacstat;
+	unsigned int i, n;
+	unsigned int bytes_per_scan;
+	unsigned int events = 0;
+	int running;
+
+	/* Get DAC FIFO status. */
+	dacstat = inw(dev->iobase + PCI230_DACCON);
+	/* Determine number of scans available in buffer. */
+	bytes_per_scan = cmd->chanlist_len * sizeof(short);
+	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
+	if (!devpriv->ao_continuous) {
+		/* Fixed number of scans. */
+		if (num_scans > devpriv->ao_scan_count)
+			num_scans = devpriv->ao_scan_count;
+		if (devpriv->ao_scan_count == 0) {
+			/* End of acquisition. */
+			events |= COMEDI_CB_EOA;
+		}
+	}
+	if (events == 0) {
+		/* Check for FIFO underrun. */
+		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
+			comedi_error(dev, "AO FIFO underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+		/* Check for buffer underrun if FIFO less than half full
+		 * (otherwise there will be loads of "DAC FIFO not half full"
+		 * interrupts). */
+		if ((num_scans == 0)
+		    && ((dacstat & PCI230P2_DAC_FIFO_HALF) == 0)) {
+			comedi_error(dev, "AO buffer underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+	}
+	if (events == 0) {
+		/* Determine how much room is in the FIFO (in samples). */
+		if ((dacstat & PCI230P2_DAC_FIFO_FULL) != 0)
+			room = PCI230P2_DAC_FIFOROOM_FULL;
+		else if ((dacstat & PCI230P2_DAC_FIFO_HALF) != 0)
+			room = PCI230P2_DAC_FIFOROOM_HALFTOFULL;
+		else if ((dacstat & PCI230P2_DAC_FIFO_EMPTY) != 0)
+			room = PCI230P2_DAC_FIFOROOM_EMPTY;
+		else
+			room = PCI230P2_DAC_FIFOROOM_ONETOHALF;
+		/* Convert room to number of scans that can be added. */
+		room /= cmd->chanlist_len;
+		/* Determine number of scans to process. */
+		if (num_scans > room)
+			num_scans = room;
+		/* Process scans. */
+		for (n = 0; n < num_scans; n++) {
+			for (i = 0; i < cmd->chanlist_len; i++) {
+				short datum;
+
+				comedi_buf_get(async, &datum);
+				pci230_ao_write_fifo(dev, datum,
+						     CR_CHAN(cmd->chanlist[i]));
+			}
+		}
+		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
+		if (!devpriv->ao_continuous) {
+			devpriv->ao_scan_count -= num_scans;
+			if (devpriv->ao_scan_count == 0) {
+				/* All data for the command has been written
+				 * to FIFO.  Set FIFO interrupt trigger level
+				 * to 'empty'. */
+				devpriv->daccon = (devpriv->daccon
+						   &
+						   ~PCI230P2_DAC_INT_FIFO_MASK)
+				    | PCI230P2_DAC_INT_FIFO_EMPTY;
+				outw(devpriv->daccon,
+				     dev->iobase + PCI230_DACCON);
+			}
+		}
+		/* Check if FIFO underrun occurred while writing to FIFO. */
+		dacstat = inw(dev->iobase + PCI230_DACCON);
+		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
+			comedi_error(dev, "AO FIFO underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+	}
+	if ((events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+	    != 0) {
+		/* Stopping AO due to completion or error. */
+		pci230_ao_stop(dev, s);
+		running = 0;
+	} else {
+		running = 1;
+	}
+	async->events |= events;
+	return running;
+}
+
 static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					unsigned int trig_num)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned long irqflags;
 
 	if (trig_num != 0)
@@ -1417,6 +1349,8 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 		/* Delay.  Should driver be responsible for this? */
 		/* XXX TODO: See if DAC busy bit can be used. */
 		udelay(8);
+	} else {
+		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
 	}
 
 	return 1;
@@ -1425,6 +1359,7 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 static void pci230_ao_start(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pci230_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long irqflags;
@@ -1518,7 +1453,7 @@ static int pci230_ao_inttrig_start(struct comedi_device *dev,
 	if (trig_num != 0)
 		return -EINVAL;
 
-	s->async->inttrig = NULLFUNC;
+	s->async->inttrig = NULL;
 	pci230_ao_start(dev, s);
 
 	return 1;
@@ -1526,6 +1461,7 @@ static int pci230_ao_inttrig_start(struct comedi_device *dev,
 
 static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned short daccon;
 	unsigned int range;
 
@@ -1601,6 +1537,13 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int pci230_ao_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	pci230_ao_stop(dev, s);
+	return 0;
+}
+
 static int pci230_ai_check_scan_period(struct comedi_cmd *cmd)
 {
 	unsigned int min_scan_period, chanlist_len;
@@ -1628,78 +1571,50 @@ static int pci230_ai_check_scan_period(struct comedi_cmd *cmd)
 static int pci230_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4,5 or 0, depending on which tests
-	 * the command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* Step 1: make sure trigger sources are trivially valid.
-	 * "invalid source" returned by comedilib to user mode process
-	 * if this fails. */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	/* Unfortunately, we cannot trigger a scan off an external source
-	 * on the PCI260 board, since it uses the PPIC0 (DIO) input, which
-	 * isn't present on the PCI260.  For PCI260+ we can use the
-	 * EXTTRIG/EXTCONVCLK input on pin 17 instead. */
+	tmp = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
 	if ((thisboard->have_dio) || (thisboard->min_hwver > 0)) {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
-		    | TRIG_EXT;
-	} else {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
+		/*
+		 * Unfortunately, we cannot trigger a scan off an external
+		 * source on the PCI260 board, since it uses the PPIC0 (DIO)
+		 * input, which isn't present on the PCI260.  For PCI260+
+		 * we can use the EXTTRIG/EXTCONVCLK input on pin 17 instead.
+		 */
+		tmp |= TRIG_EXT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually compatible
-	 * "source conflict" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/* If scan_begin_src is not TRIG_FOLLOW, then a monostable will be
-	 * set up to generate a fixed number of timed conversion pulses. */
+	/* Step 2b : and mutually compatible */
+
+	/*
+	 * If scan_begin_src is not TRIG_FOLLOW, then a monostable will be
+	 * set up to generate a fixed number of timed conversion pulses.
+	 */
 	if ((cmd->scan_begin_src != TRIG_FOLLOW)
 	    && (cmd->convert_src != TRIG_TIMER))
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -1993,13 +1908,9 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 					(s->n_chan / 2) - 1);
 			}
 			if ((errors & buggy_chan0_err) != 0) {
-				/* Use printk instead of DPRINTK here. */
-				printk("comedi: comedi%d: amplc_pci230: "
-				       "ai_cmdtest: Buggy PCI230+/260+ "
-				       "h/w version %u requires first channel "
-				       "of multi-channel sequence to be 0 "
-				       "(corrected in h/w version 4)\n",
-				       dev->minor, devpriv->hwver);
+				dev_info(dev->class_dev,
+					 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
+					 devpriv->hwver);
 			}
 		}
 	}
@@ -2013,6 +1924,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 						struct comedi_subdevice *s)
 {
+	struct pci230_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int scanlen = cmd->scan_end_arg;
 	unsigned int wake;
@@ -2057,6 +1969,7 @@ static int pci230_ai_inttrig_convert(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     unsigned int trig_num)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned long irqflags;
 
 	if (trig_num != 0)
@@ -2099,6 +2012,7 @@ static int pci230_ai_inttrig_scan_begin(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					unsigned int trig_num)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned long irqflags;
 	unsigned char zgat;
 
@@ -2118,9 +2032,56 @@ static int pci230_ai_inttrig_scan_begin(struct comedi_device *dev,
 	return 1;
 }
 
+static void pci230_ai_stop(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned long irqflags;
+	struct comedi_cmd *cmd;
+	int started;
+
+	spin_lock_irqsave(&devpriv->ai_stop_spinlock, irqflags);
+	started = test_and_clear_bit(AI_CMD_STARTED, &devpriv->state);
+	spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
+	if (!started)
+		return;
+	cmd = &s->async->cmd;
+	if (cmd->convert_src == TRIG_TIMER) {
+		/* Stop conversion rate generator. */
+		pci230_cancel_ct(dev, 2);
+	}
+	if (cmd->scan_begin_src != TRIG_FOLLOW) {
+		/* Stop scan period monostable. */
+		pci230_cancel_ct(dev, 0);
+	}
+	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	/* Disable ADC interrupt and wait for interrupt routine to finish
+	 * running unless we are called from the interrupt routine. */
+	devpriv->int_en &= ~PCI230_INT_ADC;
+	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
+		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	}
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+	/* Reset FIFO, disable FIFO and set start conversion source to none.
+	 * Keep se/diff and bip/uni settings */
+	devpriv->adccon = (devpriv->adccon & (PCI230_ADC_IR_MASK
+					      | PCI230_ADC_IM_MASK)) |
+	    PCI230_ADC_TRIG_NONE;
+	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
+	     dev->iobase + PCI230_ADCCON);
+	/* Release resources. */
+	put_all_resources(dev, OWNER_AICMD);
+}
+
 static void pci230_ai_start(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned long irqflags;
 	unsigned short conv;
 	struct comedi_async *async = s->async;
@@ -2263,14 +2224,108 @@ static int pci230_ai_inttrig_start(struct comedi_device *dev,
 	if (trig_num != 0)
 		return -EINVAL;
 
-	s->async->inttrig = NULLFUNC;
+	s->async->inttrig = NULL;
 	pci230_ai_start(dev, s);
 
 	return 1;
 }
 
+static void pci230_handle_ai(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned int events = 0;
+	unsigned int status_fifo;
+	unsigned int i;
+	unsigned int todo;
+	unsigned int fifoamount;
+	struct comedi_async *async = s->async;
+	unsigned int scanlen = async->cmd.scan_end_arg;
+
+	/* Determine number of samples to read. */
+	if (devpriv->ai_continuous) {
+		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
+	} else if (devpriv->ai_scan_count == 0) {
+		todo = 0;
+	} else if ((devpriv->ai_scan_count > PCI230_ADC_FIFOLEVEL_HALFFULL)
+		   || (scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
+	} else {
+		todo = (devpriv->ai_scan_count * scanlen)
+		    - devpriv->ai_scan_pos;
+		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL)
+			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
+	}
+	if (todo == 0)
+		return;
+	fifoamount = 0;
+	for (i = 0; i < todo; i++) {
+		if (fifoamount == 0) {
+			/* Read FIFO state. */
+			status_fifo = inw(dev->iobase + PCI230_ADCCON);
+			if ((status_fifo & PCI230_ADC_FIFO_FULL_LATCHED) != 0) {
+				/* Report error otherwise FIFO overruns will go
+				 * unnoticed by the caller. */
+				comedi_error(dev, "AI FIFO overrun");
+				events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+				break;
+			} else if ((status_fifo & PCI230_ADC_FIFO_EMPTY) != 0) {
+				/* FIFO empty. */
+				break;
+			} else if ((status_fifo & PCI230_ADC_FIFO_HALF) != 0) {
+				/* FIFO half full. */
+				fifoamount = PCI230_ADC_FIFOLEVEL_HALFFULL;
+			} else {
+				/* FIFO not empty. */
+				if (devpriv->hwver > 0) {
+					/* Read PCI230+/260+ ADC FIFO level. */
+					fifoamount = inw(dev->iobase
+							 + PCI230P_ADCFFLEV);
+					if (fifoamount == 0) {
+						/* Shouldn't happen. */
+						break;
+					}
+				} else {
+					fifoamount = 1;
+				}
+			}
+		}
+		/* Read sample and store in Comedi's circular buffer. */
+		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
+			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+			comedi_error(dev, "AI buffer overflow");
+			break;
+		}
+		fifoamount--;
+		devpriv->ai_scan_pos++;
+		if (devpriv->ai_scan_pos == scanlen) {
+			/* End of scan. */
+			devpriv->ai_scan_pos = 0;
+			devpriv->ai_scan_count--;
+			async->events |= COMEDI_CB_EOS;
+		}
+	}
+	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+		/* End of acquisition. */
+		events |= COMEDI_CB_EOA;
+	} else {
+		/* More samples required, tell Comedi to block. */
+		events |= COMEDI_CB_BLOCK;
+	}
+	async->events |= events;
+	if ((async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
+			      COMEDI_CB_OVERFLOW)) != 0) {
+		/* disable hardware conversions */
+		pci230_ai_stop(dev, s);
+	} else {
+		/* update FIFO interrupt trigger level */
+		pci230_ai_update_fifo_trigger_level(dev, s);
+	}
+}
+
 static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci230_private *devpriv = dev->private;
 	unsigned int i, chan, range, diff;
 	unsigned int res_mask;
 	unsigned short adccon, adcen;
@@ -2462,81 +2517,11 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
-			      unsigned int round_mode)
+static int pci230_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
-	uint64_t div;
-	unsigned int rem;
-
-	div = ns;
-	rem = do_div(div, timebase);
-	round_mode &= TRIG_ROUND_MASK;
-	switch (round_mode) {
-	default:
-	case TRIG_ROUND_NEAREST:
-		div += (rem + (timebase / 2)) / timebase;
-		break;
-	case TRIG_ROUND_DOWN:
-		break;
-	case TRIG_ROUND_UP:
-		div += (rem + timebase - 1) / timebase;
-		break;
-	}
-	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;
-}
-
-/* Given desired period in ns, returns the required internal clock source
- * and gets the initial count. */
-static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
-					    unsigned int round_mode)
-{
-	unsigned int clk_src, cnt;
-
-	for (clk_src = CLK_10MHZ;; clk_src++) {
-		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
-		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
-			break;
-
-	}
-	*count = cnt;
-	return clk_src;
-}
-
-static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
-{
-	unsigned int count;
-	unsigned int clk_src;
-
-	clk_src = pci230_choose_clk_count(*ns, &count, round);
-	*ns = count * pci230_timebase[clk_src];
-	return;
-}
-
-static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
-				    unsigned int round)
-{
-	unsigned int clk_src;
-	unsigned int count;
-
-	/* Set mode. */
-	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
-	/* Determine clock source and count. */
-	clk_src = pci230_choose_clk_count(ns, &count, round);
-	/* Program clock source. */
-	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
-	/* Set initial count. */
-	if (count >= 65536)
-		count = 0;
-
-	i8254_write(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, count);
-}
-
-static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
-{
-	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct,
-		       I8254_MODE1);
-	/* Counter ct, 8254 mode 1, initial count not written. */
+	pci230_ai_stop(dev, s);
+	return 0;
 }
 
 /* Interrupt handler */
@@ -2544,6 +2529,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 {
 	unsigned char status_int, valid_status_int;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pci230_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	unsigned long irqflags;
 
@@ -2603,373 +2589,309 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pci230_handle_ao_nofifo(struct comedi_device *dev,
-				    struct comedi_subdevice *s)
+/* Check if PCI device matches a specific board. */
+static bool pci230_match_pci_board(const struct pci230_board *board,
+				   struct pci_dev *pci_dev)
 {
-	short data;
-	int i, ret;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
-		return;
-
-
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s->async, &data);
-		if (ret == 0) {
-			s->async->events |= COMEDI_CB_OVERFLOW;
-			pci230_ao_stop(dev, s);
-			comedi_error(dev, "AO buffer underrun");
-			return;
-		}
-		/* Write value to DAC. */
-		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
-	}
-
-	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (!devpriv->ao_continuous) {
-		devpriv->ao_scan_count--;
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			async->events |= COMEDI_CB_EOA;
-			pci230_ao_stop(dev, s);
-		}
-	}
+	/* assume pci_dev->device != PCI_DEVICE_ID_INVALID */
+	if (board->id != pci_dev->device)
+		return false;
+	if (board->min_hwver == 0)
+		return true;
+	/* Looking for a '+' model.  First check length of registers. */
+	if (pci_resource_len(pci_dev, 3) < 32)
+		return false;	/* Not a '+' model. */
+	/* TODO: temporarily enable PCI device and read the hardware version
+	 * register.  For now, assume it's okay. */
+	return true;
 }
 
-/* Loads DAC FIFO (if using it) from buffer. */
-/* Returns 0 if AO finished due to completion or error, 1 if still going. */
-static int pci230_handle_ao_fifo(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
+/* Look for board matching PCI device. */
+static const struct pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
 {
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int num_scans;
-	unsigned int room;
-	unsigned short dacstat;
-	unsigned int i, n;
-	unsigned int bytes_per_scan;
-	unsigned int events = 0;
-	int running;
-
-	/* Get DAC FIFO status. */
-	dacstat = inw(dev->iobase + PCI230_DACCON);
-
-	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
-	if (!devpriv->ao_continuous) {
-		/* Fixed number of scans. */
-		if (num_scans > devpriv->ao_scan_count)
-			num_scans = devpriv->ao_scan_count;
-
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			events |= COMEDI_CB_EOA;
-		}
-	}
-	if (events == 0) {
-		/* Check for FIFO underrun. */
-		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-		/* Check for buffer underrun if FIFO less than half full
-		 * (otherwise there will be loads of "DAC FIFO not half full"
-		 * interrupts). */
-		if ((num_scans == 0)
-		    && ((dacstat & PCI230P2_DAC_FIFO_HALF) == 0)) {
-			comedi_error(dev, "AO buffer underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-	}
-	if (events == 0) {
-		/* Determine how much room is in the FIFO (in samples). */
-		if ((dacstat & PCI230P2_DAC_FIFO_FULL) != 0)
-			room = PCI230P2_DAC_FIFOROOM_FULL;
-		else if ((dacstat & PCI230P2_DAC_FIFO_HALF) != 0)
-			room = PCI230P2_DAC_FIFOROOM_HALFTOFULL;
-		else if ((dacstat & PCI230P2_DAC_FIFO_EMPTY) != 0)
-			room = PCI230P2_DAC_FIFOROOM_EMPTY;
-		else
-			room = PCI230P2_DAC_FIFOROOM_ONETOHALF;
-
-		/* Convert room to number of scans that can be added. */
-		room /= cmd->chanlist_len;
-		/* Determine number of scans to process. */
-		if (num_scans > room)
-			num_scans = room;
-
-		/* Process scans. */
-		for (n = 0; n < num_scans; n++) {
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				short datum;
-
-				comedi_buf_get(async, &datum);
-				pci230_ao_write_fifo(dev, datum,
-						     CR_CHAN(cmd->chanlist[i]));
-			}
-		}
-		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (!devpriv->ao_continuous) {
-			devpriv->ao_scan_count -= num_scans;
-			if (devpriv->ao_scan_count == 0) {
-				/* All data for the command has been written
-				 * to FIFO.  Set FIFO interrupt trigger level
-				 * to 'empty'. */
-				devpriv->daccon = (devpriv->daccon
-						   &
-						   ~PCI230P2_DAC_INT_FIFO_MASK)
-				    | PCI230P2_DAC_INT_FIFO_EMPTY;
-				outw(devpriv->daccon,
-				     dev->iobase + PCI230_DACCON);
-			}
-		}
-		/* Check if FIFO underrun occurred while writing to FIFO. */
-		dacstat = inw(dev->iobase + PCI230_DACCON);
-		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-	}
-	if ((events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-	    != 0) {
-		/* Stopping AO due to completion or error. */
-		pci230_ao_stop(dev, s);
-		running = 0;
-	} else {
-		running = 1;
-	}
-	async->events |= events;
-	return running;
-}
-
-static void pci230_handle_ai(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
-{
-	unsigned int events = 0;
-	unsigned int status_fifo;
 	unsigned int i;
-	unsigned int todo;
-	unsigned int fifoamount;
-	struct comedi_async *async = s->async;
-	unsigned int scanlen = async->cmd.scan_end_arg;
 
-	/* Determine number of samples to read. */
-	if (devpriv->ai_continuous) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else if (devpriv->ai_scan_count == 0) {
-		todo = 0;
-	} else if ((devpriv->ai_scan_count > PCI230_ADC_FIFOLEVEL_HALFFULL)
-		   || (scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL)) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else {
-		todo = (devpriv->ai_scan_count * scanlen)
-		    - devpriv->ai_scan_pos;
-		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL)
-			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-
-	}
-
-	if (todo == 0)
-		return;
-
-
-	fifoamount = 0;
-	for (i = 0; i < todo; i++) {
-		if (fifoamount == 0) {
-			/* Read FIFO state. */
-			status_fifo = inw(dev->iobase + PCI230_ADCCON);
-
-			if ((status_fifo & PCI230_ADC_FIFO_FULL_LATCHED) != 0) {
-				/* Report error otherwise FIFO overruns will go
-				 * unnoticed by the caller. */
-				comedi_error(dev, "AI FIFO overrun");
-				events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-				break;
-			} else if ((status_fifo & PCI230_ADC_FIFO_EMPTY) != 0) {
-				/* FIFO empty. */
-				break;
-			} else if ((status_fifo & PCI230_ADC_FIFO_HALF) != 0) {
-				/* FIFO half full. */
-				fifoamount = PCI230_ADC_FIFOLEVEL_HALFFULL;
-			} else {
-				/* FIFO not empty. */
-				if (devpriv->hwver > 0) {
-					/* Read PCI230+/260+ ADC FIFO level. */
-					fifoamount = inw(dev->iobase
-							 + PCI230P_ADCFFLEV);
-					if (fifoamount == 0) {
-						/* Shouldn't happen. */
-						break;
-					}
-				} else {
-					fifoamount = 1;
-				}
-			}
-		}
-
-		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
-			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-			comedi_error(dev, "AI buffer overflow");
-			break;
-		}
-		fifoamount--;
-		devpriv->ai_scan_pos++;
-		if (devpriv->ai_scan_pos == scanlen) {
-			/* End of scan. */
-			devpriv->ai_scan_pos = 0;
-			devpriv->ai_scan_count--;
-			async->events |= COMEDI_CB_EOS;
-		}
-	}
-
-	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
-		/* End of acquisition. */
-		events |= COMEDI_CB_EOA;
-	} else {
-		/* More samples required, tell Comedi to block. */
-		events |= COMEDI_CB_BLOCK;
-	}
-	async->events |= events;
-
-	if ((async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			      COMEDI_CB_OVERFLOW)) != 0) {
-		/* disable hardware conversions */
-		pci230_ai_stop(dev, s);
-	} else {
-		/* update FIFO interrupt trigger level */
-		pci230_ai_update_fifo_trigger_level(dev, s);
-	}
+	for (i = 0; i < ARRAY_SIZE(pci230_boards); i++)
+		if (pci230_match_pci_board(&pci230_boards[i], pci_dev))
+			return &pci230_boards[i];
+	return NULL;
 }
 
-static void pci230_ao_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
+/* Look for PCI device matching requested board name, bus and slot. */
+static struct pci_dev *pci230_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
-	unsigned long irqflags;
-	unsigned char intsrc;
-	int started;
-	struct comedi_cmd *cmd;
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	spin_lock_irqsave(&devpriv->ao_stop_spinlock, irqflags);
-	started = test_and_clear_bit(AO_CMD_STARTED, &devpriv->state);
-	spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
-	if (!started)
-		return;
+	for_each_pci_dev(pci_dev) {
+		/* Check vendor ID (same for all supported PCI boards). */
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+		/* If bus/slot specified, check them. */
+		if ((bus || slot) &&
+		    (bus != pci_dev->bus->number ||
+		     slot != PCI_SLOT(pci_dev->devfn)))
+			continue;
+		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
+			/* Wildcard board matches any supported PCI board. */
+			const struct pci230_board *foundboard;
 
-
-	cmd = &s->async->cmd;
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* Stop scan rate generator. */
-		pci230_cancel_ct(dev, 1);
+			foundboard = pci230_find_pci_board(pci_dev);
+			if (foundboard == NULL)
+				continue;
+			/* Replace wildcard board_ptr. */
+			dev->board_ptr = foundboard;
+		} else {
+			/* Need to match a specific board. */
+			if (!pci230_match_pci_board(thisboard, pci_dev))
+				continue;
+		}
+		return pci_dev;
 	}
-
-	/* Determine interrupt source. */
-	if (devpriv->hwver < 2) {
-		/* Not using DAC FIFO.  Using CT1 interrupt. */
-		intsrc = PCI230_INT_ZCLK_CT1;
-	} else {
-		/* Using DAC FIFO interrupt. */
-		intsrc = PCI230P2_INT_DAC;
-	}
-	/* Disable interrupt and wait for interrupt routine to finish running
-	 * unless we are called from the interrupt routine. */
-	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	devpriv->int_en &= ~intsrc;
-	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
-		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	}
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
-		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-	}
-	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-
-	if (devpriv->hwver >= 2) {
-		/* Using DAC FIFO.  Reset FIFO, clear underrun error,
-		 * disable FIFO. */
-		devpriv->daccon &= PCI230_DAC_OR_MASK;
-		outw(devpriv->daccon | PCI230P2_DAC_FIFO_RESET
-		     | PCI230P2_DAC_FIFO_UNDERRUN_CLEAR,
-		     dev->iobase + PCI230_DACCON);
-	}
-
-	/* Release resources. */
-	put_all_resources(dev, OWNER_AOCMD);
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
-static int pci230_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int pci230_alloc_private(struct comedi_device *dev)
 {
-	pci230_ao_stop(dev, s);
+	struct pci230_private *devpriv;
+	int err;
+
+	/* sets dev->private to allocated memory */
+	err = alloc_private(dev, sizeof(struct pci230_private));
+	if (err) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return err;
+	}
+	devpriv = dev->private;
+	spin_lock_init(&devpriv->isr_spinlock);
+	spin_lock_init(&devpriv->res_spinlock);
+	spin_lock_init(&devpriv->ai_stop_spinlock);
+	spin_lock_init(&devpriv->ao_stop_spinlock);
 	return 0;
 }
 
-static void pci230_ai_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
+/* Common part of attach and attach_pci. */
+static int pci230_attach_common(struct comedi_device *dev,
+				struct pci_dev *pci_dev)
 {
-	unsigned long irqflags;
-	struct comedi_cmd *cmd;
-	int started;
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	unsigned long iobase1, iobase2;
+	/* PCI230's I/O spaces 1 and 2 respectively. */
+	int irq_hdl, rc;
 
-	spin_lock_irqsave(&devpriv->ai_stop_spinlock, irqflags);
-	started = test_and_clear_bit(AI_CMD_STARTED, &devpriv->state);
-	spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
-	if (!started)
-		return;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
 
-
-	cmd = &s->async->cmd;
-	if (cmd->convert_src == TRIG_TIMER) {
-		/* Stop conversion rate generator. */
-		pci230_cancel_ct(dev, 2);
+	dev->board_name = thisboard->name;
+	/* Enable PCI device and reserve I/O spaces. */
+	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
+		dev_err(dev->class_dev,
+			"failed to enable PCI device and request regions\n");
+		return -EIO;
 	}
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		/* Stop scan period monostable. */
-		pci230_cancel_ct(dev, 0);
-	}
+	/* Read base addresses of the PCI230's two I/O regions from PCI
+	 * configuration register. */
+	iobase1 = pci_resource_start(pci_dev, 2);
+	iobase2 = pci_resource_start(pci_dev, 3);
+	dev_dbg(dev->class_dev,
+		"%s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
+		dev->board_name, iobase1, iobase2);
+	devpriv->iobase1 = iobase1;
+	dev->iobase = iobase2;
+	/* Read bits of DACCON register - only the output range. */
+	devpriv->daccon = inw(dev->iobase + PCI230_DACCON) & PCI230_DAC_OR_MASK;
+	/* Read hardware version register and set extended function register
+	 * if they exist. */
+	if (pci_resource_len(pci_dev, 3) >= 32) {
+		unsigned short extfunc = 0;
 
-	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	/* Disable ADC interrupt and wait for interrupt routine to finish
-	 * running unless we are called from the interrupt routine. */
-	devpriv->int_en &= ~PCI230_INT_ADC;
-	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
-		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+		devpriv->hwver = inw(dev->iobase + PCI230P_HWVER);
+		if (devpriv->hwver < thisboard->min_hwver) {
+			dev_err(dev->class_dev,
+				"%s - bad hardware version - got %u, need %u\n",
+				dev->board_name, devpriv->hwver,
+				thisboard->min_hwver);
+			return -EIO;
+		}
+		if (devpriv->hwver > 0) {
+			if (!thisboard->have_dio) {
+				/* No DIO ports.  Route counters' external gates
+				 * to the EXTTRIG signal (PCI260+ pin 17).
+				 * (Otherwise, they would be routed to DIO
+				 * inputs PC0, PC1 and PC2 which don't exist
+				 * on PCI260[+].) */
+				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
+			}
+			if ((thisboard->ao_chans > 0)
+			    && (devpriv->hwver >= 2)) {
+				/* Enable DAC FIFO functionality. */
+				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
+			}
+		}
+		outw(extfunc, dev->iobase + PCI230P_EXTFUNC);
+		if ((extfunc & PCI230P2_EXTFUNC_DACFIFO) != 0) {
+			/* Temporarily enable DAC FIFO, reset it and disable
+			 * FIFO wraparound. */
+			outw(devpriv->daccon | PCI230P2_DAC_FIFO_EN
+			     | PCI230P2_DAC_FIFO_RESET,
+			     dev->iobase + PCI230_DACCON);
+			/* Clear DAC FIFO channel enable register. */
+			outw(0, dev->iobase + PCI230P2_DACEN);
+			/* Disable DAC FIFO. */
+			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
+		}
 	}
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
-		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-	}
-	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-
-	/* Reset FIFO, disable FIFO and set start conversion source to none.
-	 * Keep se/diff and bip/uni settings */
-	devpriv->adccon = (devpriv->adccon & (PCI230_ADC_IR_MASK
-					      | PCI230_ADC_IM_MASK)) |
-	    PCI230_ADC_TRIG_NONE;
+	/* Disable board's interrupts. */
+	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
+	/* Set ADC to a reasonable state. */
+	devpriv->adcg = 0;
+	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE
+	    | PCI230_ADC_IR_BIP;
+	outw(1 << 0, dev->iobase + PCI230_ADCEN);
+	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     dev->iobase + PCI230_ADCCON);
+	/* Register the interrupt handler. */
+	irq_hdl = request_irq(pci_dev->irq, pci230_interrupt,
+			      IRQF_SHARED, "amplc_pci230", dev);
+	if (irq_hdl < 0) {
+		dev_warn(dev->class_dev,
+			 "unable to register irq %u, commands will not be available\n",
+			 pci_dev->irq);
+	} else {
+		dev->irq = pci_dev->irq;
+		dev_dbg(dev->class_dev, "registered irq %u\n", pci_dev->irq);
+	}
 
-	/* Release resources. */
-	put_all_resources(dev, OWNER_AICMD);
+	rc = comedi_alloc_subdevices(dev, 3);
+	if (rc)
+		return rc;
+
+	s = &dev->subdevices[0];
+	/* analog input subdevice */
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
+	s->n_chan = thisboard->ai_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &pci230_ai_range;
+	s->insn_read = &pci230_ai_rinsn;
+	s->len_chanlist = 256;	/* but there are restrictions. */
+	/* Only register commands if the interrupt handler is installed. */
+	if (irq_hdl == 0) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->do_cmd = &pci230_ai_cmd;
+		s->do_cmdtest = &pci230_ai_cmdtest;
+		s->cancel = pci230_ai_cancel;
+	}
+	s = &dev->subdevices[1];
+	/* analog output subdevice */
+	if (thisboard->ao_chans > 0) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
+		s->n_chan = thisboard->ao_chans;
+		s->maxdata = (1 << thisboard->ao_bits) - 1;
+		s->range_table = &pci230_ao_range;
+		s->insn_write = &pci230_ao_winsn;
+		s->insn_read = &pci230_ao_rinsn;
+		s->len_chanlist = thisboard->ao_chans;
+		/* Only register commands if the interrupt handler is
+		 * installed. */
+		if (irq_hdl == 0) {
+			dev->write_subdev = s;
+			s->subdev_flags |= SDF_CMD_WRITE;
+			s->do_cmd = &pci230_ao_cmd;
+			s->do_cmdtest = &pci230_ao_cmdtest;
+			s->cancel = pci230_ao_cancel;
+		}
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	s = &dev->subdevices[2];
+	/* digital i/o subdevice */
+	if (thisboard->have_dio) {
+		rc = subdev_8255_init(dev, s, NULL,
+				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
+		if (rc < 0)
+			return rc;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	dev_info(dev->class_dev, "attached\n");
+	return 1;
 }
 
-static int pci230_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	pci230_ai_stop(dev, s);
-	return 0;
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci_dev *pci_dev;
+	int rc;
+
+	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
+		 thisboard->name, it->options[0], it->options[1]);
+	rc = pci230_alloc_private(dev); /* sets dev->private */
+	if (rc)
+		return rc;
+	pci_dev = pci230_find_pci_dev(dev, it);
+	if (!pci_dev)
+		return -EIO;
+	return pci230_attach_common(dev, pci_dev);
+}
+
+static int __devinit pci230_attach_pci(struct comedi_device *dev,
+				       struct pci_dev *pci_dev)
+{
+	int rc;
+
+	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
+		 pci_name(pci_dev));
+	rc = pci230_alloc_private(dev); /* sets dev->private */
+	if (rc)
+		return rc;
+	dev->board_ptr = pci230_find_pci_board(pci_dev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev,
+			"amplc_pci230: BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci230_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via pci230_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pci_dev);
+	return pci230_attach_common(dev, pci_dev);
+}
+
+static void pci230_detach(struct comedi_device *dev)
+{
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (dev->subdevices && thisboard->have_dio)
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
+	}
 }
 
 static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.attach		= pci230_attach,
+	.attach_pci	= pci230_attach_pci,
 	.detach		= pci230_detach,
 	.board_name	= &pci230_boards[0].name,
 	.offset		= sizeof(pci230_boards[0]),

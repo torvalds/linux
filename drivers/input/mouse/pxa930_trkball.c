@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa930_trkball.h>
+#include <linux/platform_data/mouse-pxa930_trkball.h>
 
 /* Trackball Controller Register Definitions */
 #define TBCR		(0x000C)

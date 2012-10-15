@@ -12,6 +12,25 @@ config PSTORE
 	   If you don't have a platform persistent store driver,
 	   say N.
 
+config PSTORE_CONSOLE
+	bool "Log kernel console messages"
+	depends on PSTORE
+	help
+	  When the option is enabled, pstore will log all kernel
+	  messages, even if no oops or panic happened.
+
+config PSTORE_FTRACE
+	bool "Persistent function tracer"
+	depends on PSTORE
+	depends on FUNCTION_TRACER
+	help
+	  With this option kernel traces function calls into a persistent
+	  ram buffer that can be decoded and dumped after reboot through
+	  pstore filesystem. It can be used to determine what function
+	  was last called before a reset or panic.
+
+	  If unsure, say N.
+
 config PSTORE_RAM
 	tristate "Log panic/oops to a RAM buffer"
 	depends on PSTORE

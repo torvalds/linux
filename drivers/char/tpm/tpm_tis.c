@@ -807,6 +807,7 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 static int tpm_tis_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
@@ -816,6 +817,7 @@ static int tpm_tis_resume(struct device *dev)
 
 	return tpm_pm_resume(dev);
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
 

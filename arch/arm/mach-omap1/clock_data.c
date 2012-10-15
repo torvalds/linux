@@ -25,7 +25,6 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/clkdev_omap.h>
-#include <plat/board.h>
 #include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
 
 #include <mach/hardware.h>
@@ -776,11 +775,10 @@ static struct clk_functions omap1_clk_functions = {
 
 static void __init omap1_show_rates(void)
 {
-	pr_notice("Clocking rate (xtal/DPLL1/MPU): "
-			"%ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
-		ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
-		ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
-		arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
+	pr_notice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
+		  ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
+		  ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
+		  arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
 }
 
 u32 cpu_mask;
@@ -788,7 +786,6 @@ u32 cpu_mask;
 int __init omap1_clk_init(void)
 {
 	struct omap_clk *c;
-	const struct omap_clock_config *info;
 	int crystal_type = 0; /* Default 12 MHz */
 	u32 reg;
 
@@ -837,19 +834,13 @@ int __init omap1_clk_init(void)
 	ck_dpll1_p = clk_get(NULL, "ck_dpll1");
 	ck_ref_p = clk_get(NULL, "ck_ref");
 
-	info = omap_get_config(OMAP_TAG_CLOCK, struct omap_clock_config);
-	if (info != NULL) {
-		if (!cpu_is_omap15xx())
-			crystal_type = info->system_clock_type;
-	}
-
 	if (cpu_is_omap7xx())
 		ck_ref.rate = 13000000;
 	if (cpu_is_omap16xx() && crystal_type == 2)
 		ck_ref.rate = 19200000;
 
-	pr_info("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: "
-		"0x%04x\n", omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
+	pr_info("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: 0x%04x\n",
+		omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
 		omap_readw(ARM_CKCTL));
 
 	/* We want to be in syncronous scalable mode */

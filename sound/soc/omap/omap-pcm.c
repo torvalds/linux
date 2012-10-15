@@ -30,6 +30,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include <plat/cpu.h>
 #include <plat/dma.h>
 #include "omap-pcm.h"
 
@@ -441,3 +442,4 @@ module_platform_driver(omap_pcm_driver);
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:omap-pcm-audio");

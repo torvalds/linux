@@ -508,7 +508,7 @@ void __init dump_machine_table(void)
 		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
-int __init arm_add_memory(phys_addr_t start, unsigned long size)
+int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 
@@ -538,7 +538,7 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 	}
 #endif
 
-	bank->size = size & PAGE_MASK;
+	bank->size = size & ~(phys_addr_t)(PAGE_SIZE - 1);
 
 	/*
 	 * Check whether this memory region has non-zero size or
@@ -558,7 +558,7 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 static int __init early_mem(char *p)
 {
 	static int usermem __initdata = 0;
-	unsigned long size;
+	phys_addr_t size;
 	phys_addr_t start;
 	char *endp;
 
@@ -977,8 +977,10 @@ void __init setup_arch(char **cmdline_p)
 	unflatten_device_tree();
 
 #ifdef CONFIG_SMP
-	if (is_smp())
+	if (is_smp()) {
+		smp_set_ops(mdesc->smp);
 		smp_init_cpus();
+	}
 #endif
 	reserve_crashkernel();
 

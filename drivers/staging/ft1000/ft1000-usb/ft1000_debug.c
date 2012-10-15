@@ -167,7 +167,7 @@ int ft1000_create_dev(struct ft1000_device *dev)
 		goto fail;
 	}
 
-	dir = debugfs_create_dir(info->DeviceName, 0);
+	dir = debugfs_create_dir(info->DeviceName, NULL);
 	if (IS_ERR(dir)) {
 		result = PTR_ERR(dir);
 		goto debug_dir_fail;

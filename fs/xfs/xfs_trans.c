@@ -576,8 +576,12 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
-	return _xfs_trans_alloc(mp, type, KM_SLEEP);
+	xfs_trans_t     *tp;
+
+	sb_start_intwrite(mp->m_super);
+	tp = _xfs_trans_alloc(mp, type, KM_SLEEP);
+	tp->t_flags |= XFS_TRANS_FREEZE_PROT;
+	return tp;
 }
 
 xfs_trans_t *
@@ -588,6 +592,7 @@ _xfs_trans_alloc(
 {
 	xfs_trans_t	*tp;
 
+	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	atomic_inc(&mp->m_active_trans);
 
 	tp = kmem_zone_zalloc(xfs_trans_zone, memflags);
@@ -611,6 +616,8 @@ xfs_trans_free(
 	xfs_extent_busy_clear(tp->t_mountp, &tp->t_busy, false);
 
 	atomic_dec(&tp->t_mountp->m_active_trans);
+	if (tp->t_flags & XFS_TRANS_FREEZE_PROT)
+		sb_end_intwrite(tp->t_mountp->m_super);
 	xfs_trans_free_dqinfo(tp);
 	kmem_zone_free(xfs_trans_zone, tp);
 }
@@ -643,7 +650,11 @@ xfs_trans_dup(
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(tp->t_ticket != NULL);
 
-	ntp->t_flags = XFS_TRANS_PERM_LOG_RES | (tp->t_flags & XFS_TRANS_RESERVE);
+	ntp->t_flags = XFS_TRANS_PERM_LOG_RES |
+		       (tp->t_flags & XFS_TRANS_RESERVE) |
+		       (tp->t_flags & XFS_TRANS_FREEZE_PROT);
+	/* We gave our writer reference to the new transaction */
+	tp->t_flags &= ~XFS_TRANS_FREEZE_PROT;
 	ntp->t_ticket = xfs_log_ticket_get(tp->t_ticket);
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
 	tp->t_blk_res = tp->t_blk_res_used;

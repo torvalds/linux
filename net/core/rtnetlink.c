@@ -618,16 +618,20 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 		       long expires, u32 error)
 {
 	struct rta_cacheinfo ci = {
-		.rta_lastuse = jiffies_to_clock_t(jiffies - dst->lastuse),
+		.rta_lastuse = jiffies_delta_to_clock_t(jiffies - dst->lastuse),
 		.rta_used = dst->__use,
 		.rta_clntref = atomic_read(&(dst->__refcnt)),
 		.rta_error = error,
 		.rta_id =  id,
 	};
 
-	if (expires)
-		ci.rta_expires = jiffies_to_clock_t(expires);
+	if (expires) {
+		unsigned long clock;
 
+		clock = jiffies_to_clock_t(abs(expires));
+		clock = min_t(unsigned long, clock, INT_MAX);
+		ci.rta_expires = (expires > 0) ? clock : -clock;
+	}
 	return nla_put(skb, RTA_CACHEINFO, sizeof(ci), &ci);
 }
 EXPORT_SYMBOL_GPL(rtnl_put_cacheinfo);
@@ -659,6 +663,12 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 	}
 }
 
+static unsigned int rtnl_dev_get_flags(const struct net_device *dev)
+{
+	return (dev->flags & ~(IFF_PROMISC | IFF_ALLMULTI)) |
+	       (dev->gflags & (IFF_PROMISC | IFF_ALLMULTI));
+}
+
 static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 					   const struct ifinfomsg *ifm)
 {
@@ -667,7 +677,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 	/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
 	if (ifm->ifi_change)
 		flags = (flags & ifm->ifi_change) |
-			(dev->flags & ~ifm->ifi_change);
+			(rtnl_dev_get_flags(dev) & ~ifm->ifi_change);
 
 	return flags;
 }
@@ -1071,7 +1081,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			if (idx < s_idx)
 				goto cont;
 			if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
-					     NETLINK_CB(cb->skb).pid,
+					     NETLINK_CB(cb->skb).portid,
 					     cb->nlh->nlmsg_seq, 0,
 					     NLM_F_MULTI,
 					     ext_filter_mask) <= 0)
@@ -1371,6 +1381,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 			goto errout;
 		send_addr_notify = 1;
 		modified = 1;
+		add_device_randomness(dev->dev_addr, dev->addr_len);
 	}
 
 	if (tb[IFLA_MTU]) {
@@ -1801,8 +1812,6 @@ replay:
 			return -ENODEV;
 		}
 
-		if (ifm->ifi_index)
-			return -EOPNOTSUPP;
 		if (tb[IFLA_MAP] || tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
 			return -EOPNOTSUPP;
 
@@ -1828,10 +1837,14 @@ replay:
 			return PTR_ERR(dest_net);
 
 		dev = rtnl_create_link(net, dest_net, ifname, ops, tb);
-
-		if (IS_ERR(dev))
+		if (IS_ERR(dev)) {
 			err = PTR_ERR(dev);
-		else if (ops->newlink)
+			goto out;
+		}
+
+		dev->ifindex = ifm->ifi_index;
+
+		if (ops->newlink)
 			err = ops->newlink(net, dev, tb, data);
 		else
 			err = register_netdevice(dev);
@@ -1886,14 +1899,14 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (nskb == NULL)
 		return -ENOBUFS;
 
-	err = rtnl_fill_ifinfo(nskb, dev, RTM_NEWLINK, NETLINK_CB(skb).pid,
+	err = rtnl_fill_ifinfo(nskb, dev, RTM_NEWLINK, NETLINK_CB(skb).portid,
 			       nlh->nlmsg_seq, 0, 0, ext_filter_mask);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_size */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(nskb);
 	} else
-		err = rtnl_unicast(nskb, net, NETLINK_CB(skb).pid);
+		err = rtnl_unicast(nskb, net, NETLINK_CB(skb).portid);
 
 	return err;
 }
@@ -2077,7 +2090,8 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
 	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
 		master = dev->master;
-		err = master->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+		err = master->netdev_ops->ndo_fdb_add(ndm, tb,
+						      dev, addr,
 						      nlh->nlmsg_flags);
 		if (err)
 			goto out;
@@ -2087,7 +2101,8 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	/* Embedded bridge, macvlan, and any other device support */
 	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_add) {
-		err = dev->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+		err = dev->netdev_ops->ndo_fdb_add(ndm, tb,
+						   dev, addr,
 						   nlh->nlmsg_flags);
 
 		if (!err) {
@@ -2167,9 +2182,9 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 {
 	struct netdev_hw_addr *ha;
 	int err;
-	u32 pid, seq;
+	u32 portid, seq;
 
-	pid = NETLINK_CB(cb->skb).pid;
+	portid = NETLINK_CB(cb->skb).portid;
 	seq = cb->nlh->nlmsg_seq;
 
 	list_for_each_entry(ha, &list->list, list) {
@@ -2177,7 +2192,7 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 			goto skip;
 
 		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr,
-					      pid, seq, 0, NTF_SELF);
+					      portid, seq, 0, NTF_SELF);
 		if (err < 0)
 			return err;
 skip:
@@ -2345,7 +2360,7 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	case NETDEV_PRE_TYPE_CHANGE:
 	case NETDEV_GOING_DOWN:
 	case NETDEV_UNREGISTER:
-	case NETDEV_UNREGISTER_BATCH:
+	case NETDEV_UNREGISTER_FINAL:
 	case NETDEV_RELEASE:
 	case NETDEV_JOIN:
 		break;
@@ -2368,9 +2383,10 @@ static int __net_init rtnetlink_net_init(struct net *net)
 		.groups		= RTNLGRP_MAX,
 		.input		= rtnetlink_rcv,
 		.cb_mutex	= &rtnl_mutex,
+		.flags		= NL_CFG_F_NONROOT_RECV,
 	};
 
-	sk = netlink_kernel_create(net, NETLINK_ROUTE, THIS_MODULE, &cfg);
+	sk = netlink_kernel_create(net, NETLINK_ROUTE, &cfg);
 	if (!sk)
 		return -ENOMEM;
 	net->rtnl = sk;
@@ -2403,7 +2419,6 @@ void __init rtnetlink_init(void)
 	if (register_pernet_subsys(&rtnetlink_net_ops))
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 
-	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);
 	register_netdevice_notifier(&rtnetlink_dev_notifier);
 
 	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink,

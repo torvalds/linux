@@ -702,6 +702,8 @@ int usb_get_configuration(struct usb_device *dev)
 		if (result < 0) {
 			dev_err(ddev, "unable to read config index %d "
 			    "descriptor/%s: %d\n", cfgno, "start", result);
+			if (result != -EPIPE)
+				goto err;
 			dev_err(ddev, "chopping to %d config(s)\n", cfgno);
 			dev->descriptor.bNumConfigurations = cfgno;
 			break;

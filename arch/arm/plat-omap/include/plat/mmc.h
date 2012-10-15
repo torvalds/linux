@@ -15,7 +15,6 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 
-#include <plat/board.h>
 #include <plat/omap_hwmod.h>
 
 #define OMAP15XX_NR_MMC		1
@@ -80,8 +79,6 @@ struct omap_mmc_platform_data {
 
 	/* Return context loss count due to PM states changing */
 	int (*get_context_loss_count)(struct device *dev);
-
-	u64 dma_mask;
 
 	/* Integrating attributes from the omap_hwmod layer */
 	u8 controller_flags;

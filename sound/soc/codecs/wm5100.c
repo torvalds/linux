@@ -1,7 +1,7 @@
 /*
  * wm5100.c  --  WM5100 ALSA SoC Audio driver
  *
- * Copyright 2011 Wolfson Microelectronics plc
+ * Copyright 2011-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -2378,13 +2378,6 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm5100_soc_volatile(struct snd_soc_codec *codec,
-			       unsigned int reg)
-{
-	return true;
-}
-
-
 static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.probe =	wm5100_probe,
 	.remove =	wm5100_remove,
@@ -2392,8 +2385,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.set_sysclk = wm5100_set_sysclk,
 	.set_pll = wm5100_set_fll,
 	.idle_bias_off = 1,
-	.reg_cache_size = WM5100_MAX_REGISTER,
-	.volatile_register = wm5100_soc_volatile,
 
 	.seq_notifier = wm5100_seq_notifier,
 	.controls = wm5100_snd_controls,

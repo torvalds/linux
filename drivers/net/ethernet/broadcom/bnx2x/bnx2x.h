@@ -23,8 +23,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.72.51-0"
-#define DRV_MODULE_RELDATE      "2012/06/18"
+#define DRV_MODULE_VERSION      "1.78.00-0"
+#define DRV_MODULE_RELDATE      "2012/09/27"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -1278,7 +1278,7 @@ struct bnx2x {
 #define BNX2X_FW_RX_ALIGN_START	(1UL << BNX2X_RX_ALIGN_SHIFT)
 
 #define BNX2X_FW_RX_ALIGN_END					\
-	max(1UL << BNX2X_RX_ALIGN_SHIFT, 			\
+	max_t(u64, 1UL << BNX2X_RX_ALIGN_SHIFT,			\
 	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BNX2X_PXP_DRAM_ALIGN		(BNX2X_RX_ALIGN_SHIFT - 5)
@@ -1458,7 +1458,7 @@ struct bnx2x {
 	int				fw_stats_req_sz;
 
 	/*
-	 * FW statistics data shortcut (points at the begining of
+	 * FW statistics data shortcut (points at the beginning of
 	 * fw_stats buffer + fw_stats_req_sz).
 	 */
 	struct bnx2x_fw_stats_data	*fw_stats_data;
@@ -1707,9 +1707,6 @@ struct bnx2x_func_init_params {
 		if (skip_rx_queue(bp, var))	\
 			continue;		\
 		else
-
-#define for_each_napi_rx_queue(bp, var) \
-	for ((var) = 0; (var) < bp->num_napi_queues; (var)++)
 
 /* Skip OOO FP */
 #define for_each_tx_queue(bp, var) \

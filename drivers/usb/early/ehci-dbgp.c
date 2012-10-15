@@ -334,7 +334,7 @@ static int dbgp_control_msg(unsigned devnum, int requesttype,
 	int ret;
 
 	read = (requesttype & USB_DIR_IN) != 0;
-	if (size > (read ? DBGP_MAX_PACKET:0))
+	if (size > (read ? DBGP_MAX_PACKET : 0))
 		return -1;
 
 	/* Compute the control message */
@@ -450,7 +450,7 @@ static int dbgp_ehci_startup(void)
 	writel(FLAG_CF, &ehci_regs->configured_flag);
 
 	/* Wait until the controller is no longer halted */
-	loop = 10;
+	loop = 1000;
 	do {
 		status = readl(&ehci_regs->status);
 		if (!(status & STS_HALT))
@@ -491,7 +491,7 @@ static int ehci_wait_for_port(int port);
  * Return -ENODEV for any general failure
  * Return -EIO if wait for port fails
  */
-int dbgp_external_startup(void)
+static int _dbgp_external_startup(void)
 {
 	int devnum;
 	struct usb_debug_descriptor dbgp_desc;
@@ -612,6 +612,11 @@ err:
 	if (tries--)
 		goto try_again;
 	return -ENODEV;
+}
+
+int dbgp_external_startup(struct usb_hcd *hcd)
+{
+	return xen_dbgp_external_startup(hcd) ?: _dbgp_external_startup();
 }
 EXPORT_SYMBOL_GPL(dbgp_external_startup);
 
@@ -804,7 +809,7 @@ try_next_port:
 		dbgp_ehci_status("ehci skip - already configured");
 	}
 
-	ret = dbgp_external_startup();
+	ret = _dbgp_external_startup();
 	if (ret == -EIO)
 		goto next_debug_port;
 
@@ -934,7 +939,7 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 		ctrl = readl(&ehci_debug->control);
 		if (!(ctrl & DBGP_ENABLED)) {
 			dbgp_not_safe = 1;
-			dbgp_external_startup();
+			_dbgp_external_startup();
 		} else {
 			cmd |= CMD_RUN;
 			writel(cmd, &ehci_regs->command);
@@ -974,9 +979,13 @@ struct console early_dbgp_console = {
 	.index =	-1,
 };
 
-int dbgp_reset_prep(void)
+int dbgp_reset_prep(struct usb_hcd *hcd)
 {
+	int ret = xen_dbgp_reset_prep(hcd);
 	u32 ctrl;
+
+	if (ret)
+		return ret;
 
 	dbgp_not_safe = 1;
 	if (!ehci_debug)

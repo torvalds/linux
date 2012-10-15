@@ -203,6 +203,34 @@ out:
 	return index;
 }
 
+/* Length of the next packet (0 if the queue is empty). */
+static unsigned int qdisc_peek_len(struct Qdisc *sch)
+{
+	struct sk_buff *skb;
+
+	skb = sch->ops->peek(sch);
+	return skb ? qdisc_pkt_len(skb) : 0;
+}
+
+static void qfq_deactivate_class(struct qfq_sched *, struct qfq_class *);
+static void qfq_activate_class(struct qfq_sched *q, struct qfq_class *cl,
+			       unsigned int len);
+
+static void qfq_update_class_params(struct qfq_sched *q, struct qfq_class *cl,
+				    u32 lmax, u32 inv_w, int delta_w)
+{
+	int i;
+
+	/* update qfq-specific data */
+	cl->lmax = lmax;
+	cl->inv_w = inv_w;
+	i = qfq_calc_index(cl->inv_w, cl->lmax);
+
+	cl->grp = &q->groups[i];
+
+	q->wsum += delta_w;
+}
+
 static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			    struct nlattr **tca, unsigned long *arg)
 {
@@ -250,6 +278,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		lmax = 1UL << QFQ_MTU_SHIFT;
 
 	if (cl != NULL) {
+		bool need_reactivation = false;
+
 		if (tca[TCA_RATE]) {
 			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
 						    qdisc_root_sleeping_lock(sch),
@@ -258,12 +288,29 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 				return err;
 		}
 
-		if (inv_w != cl->inv_w) {
-			sch_tree_lock(sch);
-			q->wsum += delta_w;
-			cl->inv_w = inv_w;
-			sch_tree_unlock(sch);
+		if (lmax == cl->lmax && inv_w == cl->inv_w)
+			return 0; /* nothing to update */
+
+		i = qfq_calc_index(inv_w, lmax);
+		sch_tree_lock(sch);
+		if (&q->groups[i] != cl->grp && cl->qdisc->q.qlen > 0) {
+			/*
+			 * shift cl->F back, to not charge the
+			 * class for the not-yet-served head
+			 * packet
+			 */
+			cl->F = cl->S;
+			/* remove class from its slot in the old group */
+			qfq_deactivate_class(q, cl);
+			need_reactivation = true;
 		}
+
+		qfq_update_class_params(q, cl, lmax, inv_w, delta_w);
+
+		if (need_reactivation) /* activate in new group */
+			qfq_activate_class(q, cl, qdisc_peek_len(cl->qdisc));
+		sch_tree_unlock(sch);
+
 		return 0;
 	}
 
@@ -273,11 +320,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	cl->refcnt = 1;
 	cl->common.classid = classid;
-	cl->lmax = lmax;
-	cl->inv_w = inv_w;
-	i = qfq_calc_index(cl->inv_w, cl->lmax);
 
-	cl->grp = &q->groups[i];
+	qfq_update_class_params(q, cl, lmax, inv_w, delta_w);
 
 	cl->qdisc = qdisc_create_dflt(sch->dev_queue,
 				      &pfifo_qdisc_ops, classid);
@@ -294,7 +338,6 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			return err;
 		}
 	}
-	q->wsum += weight;
 
 	sch_tree_lock(sch);
 	qdisc_class_hash_insert(&q->clhash, &cl->common);
@@ -711,15 +754,6 @@ static void qfq_update_eligible(struct qfq_sched *q, u64 old_V)
 	}
 }
 
-/* What is length of next packet in queue (0 if queue is empty) */
-static unsigned int qdisc_peek_len(struct Qdisc *sch)
-{
-	struct sk_buff *skb;
-
-	skb = sch->ops->peek(sch);
-	return skb ? qdisc_pkt_len(skb) : 0;
-}
-
 /*
  * Updates the class, returns true if also the group needs to be updated.
  */
@@ -831,7 +865,10 @@ static void qfq_update_start(struct qfq_sched *q, struct qfq_class *cl)
 		if (mask) {
 			struct qfq_group *next = qfq_ffs(q, mask);
 			if (qfq_gt(roundedF, next->F)) {
-				cl->S = next->F;
+				if (qfq_gt(limit, next->F))
+					cl->S = next->F;
+				else /* preserve timestamp correctness */
+					cl->S = limit;
 				return;
 			}
 		}
@@ -843,11 +880,8 @@ static void qfq_update_start(struct qfq_sched *q, struct qfq_class *cl)
 static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
-	struct qfq_group *grp;
 	struct qfq_class *cl;
-	int err;
-	u64 roundedS;
-	int s;
+	int err = 0;
 
 	cl = qfq_classify(skb, sch, &err);
 	if (cl == NULL) {
@@ -876,11 +910,25 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return err;
 
 	/* If reach this point, queue q was idle */
-	grp = cl->grp;
+	qfq_activate_class(q, cl, qdisc_pkt_len(skb));
+
+	return err;
+}
+
+/*
+ * Handle class switch from idle to backlogged.
+ */
+static void qfq_activate_class(struct qfq_sched *q, struct qfq_class *cl,
+			       unsigned int pkt_len)
+{
+	struct qfq_group *grp = cl->grp;
+	u64 roundedS;
+	int s;
+
 	qfq_update_start(q, cl);
 
 	/* compute new finish time and rounded start. */
-	cl->F = cl->S + (u64)qdisc_pkt_len(skb) * cl->inv_w;
+	cl->F = cl->S + (u64)pkt_len * cl->inv_w;
 	roundedS = qfq_round_down(cl->S, grp->slot_shift);
 
 	/*
@@ -917,8 +965,6 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 skip_update:
 	qfq_slot_insert(grp, cl, roundedS);
-
-	return err;
 }
 
 

@@ -64,6 +64,7 @@ supported.
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 #define PCL711_SIZE 16
@@ -148,8 +149,6 @@ struct pcl711_board {
 	const struct comedi_lrange *ai_range_type;
 };
 
-#define this_board ((const struct pcl711_board *)dev->board_ptr)
-
 struct pcl711_private {
 
 	int board;
@@ -169,7 +168,8 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	int lo, hi;
 	int data;
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	const struct pcl711_board *board = comedi_board(dev);
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -184,7 +184,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
-		if (this_board->is_8112)
+		if (board->is_8112)
 			outb(1, dev->iobase + PCL711_MODE);
 		else
 			outb(0, dev->iobase + PCL711_MODE);
@@ -197,13 +197,14 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 static void pcl711_set_changain(struct comedi_device *dev, int chan)
 {
+	const struct pcl711_board *board = comedi_board(dev);
 	int chan_register;
 
 	outb(CR_RANGE(chan), dev->iobase + PCL711_GAIN);
 
 	chan_register = CR_CHAN(chan);
 
-	if (this_board->is_8112) {
+	if (board->is_8112) {
 
 		/*
 		 *  Set the correct channel.  The two channel banks are switched
@@ -225,6 +226,7 @@ static void pcl711_set_changain(struct comedi_device *dev, int chan)
 static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	const struct pcl711_board *board = comedi_board(dev);
 	int i, n;
 	int hi, lo;
 
@@ -237,7 +239,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		 */
 		outb(1, dev->iobase + PCL711_MODE);
 
-		if (!this_board->is_8112)
+		if (!board->is_8112)
 			outb(0, dev->iobase + PCL711_SOFTTRIG);
 
 		i = PCL711_TIMEOUT;
@@ -265,42 +267,24 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	int tmp;
 	int err = 0;
 
-	/* step 1 */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2 */
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -448,13 +432,10 @@ static int pcl711_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + PCL711_DI_LO) |
 	    (inb(dev->iobase + PCL711_DI_HI) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 /* Digital port write - Untested on 8112 */
@@ -462,9 +443,6 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
@@ -476,11 +454,12 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl711_board *board = comedi_board(dev);
 	int ret;
 	unsigned long iobase;
 	unsigned int irq;
@@ -498,12 +477,11 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* there should be a sanity check here */
 
-	/* set up some name stuff */
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	/* grab our IRQ */
 	irq = it->options[1];
-	if (irq > this_board->maxirq) {
+	if (irq > board->maxirq) {
 		printk(KERN_ERR "irq out of range\n");
 		return -EINVAL;
 	}
@@ -517,22 +495,22 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->irq = irq;
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pcl711_private));
 	if (ret < 0)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* AI subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = this_board->n_aichan;
+	s->n_chan = board->n_aichan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
-	s->range_table = this_board->ai_range_type;
+	s->range_table = board->ai_range_type;
 	s->insn_read = pcl711_ai_insn;
 	if (irq) {
 		dev->read_subdev = s;
@@ -541,18 +519,18 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->do_cmd = pcl711_ai_cmd;
 	}
 
-	s++;
+	s = &dev->subdevices[1];
 	/* AO subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = this_board->n_aochan;
+	s->n_chan = board->n_aochan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
 	s->range_table = &range_bipolar5;
 	s->insn_write = pcl711_ao_insn;
 	s->insn_read = pcl711_ao_insn_read;
 
-	s++;
+	s = &dev->subdevices[2];
 	/* 16-bit digital input */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -562,7 +540,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = pcl711_di_insn_bits;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* 16-bit digital out */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -577,7 +555,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	   this is the "base value" for the mode register, which is
 	   used for the irq on the PCL711
 	 */
-	if (this_board->is_pcl711b)
+	if (board->is_pcl711b)
 		devpriv->mode = (dev->irq << 4);
 
 	/* clear DAC */

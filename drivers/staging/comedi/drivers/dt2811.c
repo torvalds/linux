@@ -211,8 +211,6 @@ struct dt2811_board {
 	const struct comedi_lrange *unip_5;
 };
 
-#define this_board ((const struct dt2811_board *)dev->board_ptr)
-
 enum { card_2811_pgh, card_2811_pgl };
 
 struct dt2811_private {
@@ -354,28 +352,22 @@ static int dt2811_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + DT2811_DIO);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt2811_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	s->state &= ~data[0];
 	s->state |= data[0] & data[1];
 	outb(s->state, dev->iobase + DT2811_DIO);
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -404,6 +396,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* unsigned long irqs; */
 	/* long flags; */
 
+	const struct dt2811_board *board = comedi_board(dev);
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -418,7 +411,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	dev->iobase = iobase;
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
@@ -466,8 +459,8 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 #endif
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct dt2811_private));
@@ -517,7 +510,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -527,17 +520,17 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	switch (it->options[3]) {
 	case 0:
 	default:
-		s->range_table = this_board->bip_5;
+		s->range_table = board->bip_5;
 		break;
 	case 1:
-		s->range_table = this_board->bip_2_5;
+		s->range_table = board->bip_2_5;
 		break;
 	case 2:
-		s->range_table = this_board->unip_5;
+		s->range_table = board->unip_5;
 		break;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -549,7 +542,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -558,7 +551,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;

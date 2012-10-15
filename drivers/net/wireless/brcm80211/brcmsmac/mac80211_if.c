@@ -86,7 +86,9 @@ MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
-
+/* This needs to be adjusted when brcms_firmwares changes */
+MODULE_FIRMWARE("brcm/bcm43xx-0.fw");
+MODULE_FIRMWARE("brcm/bcm43xx_hdr-0.fw");
 
 /* recognized BCMA Core IDs */
 static struct bcma_device_id brcms_coreid_table[] = {
@@ -121,7 +123,8 @@ static struct ieee80211_channel brcms_2ghz_chantable[] = {
 		 IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(14, 2484,
 		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
+		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS |
+		 IEEE80211_CHAN_NO_OFDM)
 };
 
 static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
@@ -264,7 +267,9 @@ static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
 	}
 }
 
-static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void brcms_ops_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct brcms_info *wl = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -276,7 +281,7 @@ static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto done;
 	}
 	brcms_c_sendpkt_mac80211(wl->wlc, skb, hw);
-	tx_info->rate_driver_data[0] = tx_info->control.sta;
+	tx_info->rate_driver_data[0] = control->sta;
  done:
 	spin_unlock_bh(&wl->lock);
 }
@@ -299,7 +304,10 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	wl->mute_tx = true;
 
 	if (!wl->pub->up)
-		err = brcms_up(wl);
+		if (!blocked)
+			err = brcms_up(wl);
+		else
+			err = -ERFKILL;
 	else
 		err = -ENODEV;
 	spin_unlock_bh(&wl->lock);
@@ -1231,6 +1239,9 @@ uint brcms_reset(struct brcms_info *wl)
 
 	/* dpc will not be rescheduled */
 	wl->resched = false;
+
+	/* inform publicly that interface is down */
+	wl->pub->up = false;
 
 	return 0;
 }

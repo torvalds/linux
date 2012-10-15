@@ -29,6 +29,13 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config GENERIC_ADC_BATTERY
+	tristate "Generic battery support using IIO"
+	depends on IIO
+	help
+	  Say Y here to enable support for the generic battery driver
+	  which uses IIO framework to read adc.
+
 config MAX8925_POWER
 	tristate "MAX8925 battery charger support"
 	depends on MFD_MAX8925
@@ -268,6 +275,7 @@ config CHARGER_GPIO
 config CHARGER_MANAGER
 	bool "Battery charger manager for multiple chargers"
 	depends on REGULATOR && RTC_CLASS
+	select EXTCON
 	help
           Say Y to enable charger-manager support, which allows multiple
           chargers attached to a battery and multiple batteries attached to a
@@ -301,7 +309,7 @@ config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
 	help
-	  Say Y to include support for AB5500 battery management.
+	  Say Y to include support for AB8500 battery management.
 
 config AB8500_BATTERY_THERM_ON_BATCTRL
 	bool "Thermistor connected on BATCTRL ADC"

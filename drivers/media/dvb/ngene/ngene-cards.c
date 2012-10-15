@@ -217,6 +217,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 
 	memset(&config, 0, sizeof(config));
 	config.microcode_name = "drxk_a3.mc";
+	config.qam_demod_parameter_count = 4;
 	config.adr = 0x29 + (chan->number ^ 2);
 
 	chan->fe = dvb_attach(drxk_attach, &config, i2c);
@@ -523,7 +524,7 @@ static void ngene_resume(struct pci_dev *dev)
 	printk(KERN_INFO DEVICE_NAME ": resume\n");
 }
 
-static struct pci_error_handlers ngene_errors = {
+static const struct pci_error_handlers ngene_errors = {
 	.error_detected = ngene_error_detected,
 	.link_reset = ngene_link_reset,
 	.slot_reset = ngene_slot_reset,

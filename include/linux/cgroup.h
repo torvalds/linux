@@ -17,6 +17,7 @@
 #include <linux/rwsem.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
+#include <linux/xattr.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -45,17 +46,13 @@ extern const struct file_operations proc_cgroup_operations;
 
 /* Define the enumeration of all builtin cgroup subsystems */
 #define SUBSYS(_x) _x ## _subsys_id,
+#define IS_SUBSYS_ENABLED(option) IS_ENABLED(option)
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
-	CGROUP_BUILTIN_SUBSYS_COUNT
+	CGROUP_SUBSYS_COUNT,
 };
+#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
-/*
- * This define indicates the maximum number of subsystems that can be loaded
- * at once. We limit to this many since cgroupfs_root has subsys_bits to keep
- * track of all of them.
- */
-#define CGROUP_SUBSYS_COUNT (BITS_PER_BYTE*sizeof(unsigned long))
 
 /* Per-subsystem/per-cgroup state maintained by the system. */
 struct cgroup_subsys_state {
@@ -216,6 +213,9 @@ struct cgroup {
 	/* List of events which userspace want to receive */
 	struct list_head event_list;
 	spinlock_t event_list_lock;
+
+	/* directory xattrs */
+	struct simple_xattrs xattrs;
 };
 
 /*
@@ -309,6 +309,9 @@ struct cftype {
 	/* CFTYPE_* flags */
 	unsigned int flags;
 
+	/* file xattrs */
+	struct simple_xattrs xattrs;
+
 	int (*open)(struct inode *inode, struct file *file);
 	ssize_t (*read)(struct cgroup *cgrp, struct cftype *cft,
 			struct file *file,
@@ -394,7 +397,7 @@ struct cftype {
  */
 struct cftype_set {
 	struct list_head		node;	/* chained at subsys->cftsets */
-	const struct cftype		*cfts;
+	struct cftype			*cfts;
 };
 
 struct cgroup_scanner {
@@ -406,8 +409,8 @@ struct cgroup_scanner {
 	void *data;
 };
 
-int cgroup_add_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts);
-int cgroup_rm_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts);
+int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
+int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 
 int cgroup_is_removed(const struct cgroup *cgrp);
 
@@ -496,25 +499,27 @@ struct cgroup_subsys {
 	 */
 	bool __DEPRECATED_clear_css_refs;
 
+	/*
+	 * If %false, this subsystem is properly hierarchical -
+	 * configuration, resource accounting and restriction on a parent
+	 * cgroup cover those of its children.  If %true, hierarchy support
+	 * is broken in some ways - some subsystems ignore hierarchy
+	 * completely while others are only implemented half-way.
+	 *
+	 * It's now disallowed to create nested cgroups if the subsystem is
+	 * broken and cgroup core will emit a warning message on such
+	 * cases.  Eventually, all subsystems will be made properly
+	 * hierarchical and this will go away.
+	 */
+	bool broken_hierarchy;
+	bool warned_broken_hierarchy;
+
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
 	/*
-	 * Protects sibling/children links of cgroups in this
-	 * hierarchy, plus protects which hierarchy (or none) the
-	 * subsystem is a part of (i.e. root/sibling).  To avoid
-	 * potential deadlocks, the following operations should not be
-	 * undertaken while holding any hierarchy_mutex:
-	 *
-	 * - allocating memory
-	 * - initiating hotplug events
-	 */
-	struct mutex hierarchy_mutex;
-	struct lock_class_key subsys_key;
-
-	/*
 	 * Link to parent, and list entry in parent's children.
-	 * Protected by this->hierarchy_mutex and cgroup_lock()
+	 * Protected by cgroup_lock()
 	 */
 	struct cgroupfs_root *root;
 	struct list_head sibling;
@@ -534,7 +539,9 @@ struct cgroup_subsys {
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
+#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 #include <linux/cgroup_subsys.h>
+#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 
 static inline struct cgroup_subsys_state *cgroup_subsys_state(
@@ -602,7 +609,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
  * the lifetime of cgroup_subsys_state is subsys's matter.
  *
  * Looking up and scanning function should be called under rcu_read_lock().
- * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+ * Taking cgroup_mutex is not necessary for following calls.
  * But the css returned by this routine can be "not populated yet" or "being
  * destroyed". The caller should check css and cgroup's status.
  */

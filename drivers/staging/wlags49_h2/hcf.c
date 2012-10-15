@@ -508,7 +508,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  *    - HCF_ACT_INT_FORCE_ON enable interrupt generation by WaveLAN NIC
  *    - HCF_ACT_INT_OFF      disable interrupt generation by WaveLAN NIC
  *    - HCF_ACT_INT_ON       compensate 1 HCF_ACT_INT_OFF, enable interrupt generation if balance reached
- *    - HCF_ACT_PRS_SCAN     Hermes Probe Respons Scan (F102) command
+ *    - HCF_ACT_PRS_SCAN     Hermes Probe Response Scan (F102) command
  *    - HCF_ACT_RX_ACK       acknowledge non-DMA receiver to Hermes
  *    - HCF_ACT_SCAN         Hermes Inquire Scan (F101) command (non-WARP only)
  *    - HCF_ACT_SLEEP        DDS Sleep request
@@ -571,7 +571,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  * The F/W is wokenup by the HCF when the NIC Interrupts mode are disabled, i.e. at the first HCF_ACT_INT_OFF
  * after going into sleep.
  *
- * The following Miscellanuous actions are defined:
+ * The following Miscellaneous actions are defined:
  *
  * o HCF_ACT_RX_ACK: Receiver Acknowledgement (non-DMA, non-USB mode only)
  * Acking the receiver, frees the NIC memory used to hold the Rx frame and allows the F/W to
@@ -579,7 +579,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  * If the MSF does not need access (any longer) to the current frame, e.g. because it is rejected based on the
  * look ahead or copied to another buffer, the receiver may be acked. Acking earlier is assumed to have the
  * potential of improving the performance.
- * If the MSF does not explitly ack te receiver, the acking is done implicitly if:
+ * If the MSF does not explicitly ack the receiver, the acking is done implicitly if:
  * - the received frame fits in the look ahead buffer, by the hcf_service_nic call that reported the Rx frame
  * - if not in the above step, by hcf_rcv_msg (assuming hcf_rcv_msg is called)
  * - if neither of the above implicit acks nor an explicit ack by the MSF, by the first hcf_service_nic after
@@ -591,9 +591,9 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  * The Inquire Tallies command requests the F/W to provide its current set of tallies.
  * See also hcf_get_info with CFG_TALLIES as parameter.
  *
- * o HCF_ACT_PRS_SCAN: Inquire Probe Respons Scan command
+ * o HCF_ACT_PRS_SCAN: Inquire Probe Response Scan command
  * This command is only operational if the F/W is enabled.
- * The Probe Respons Scan command starts a scan sequence.
+ * The Probe Response Scan command starts a scan sequence.
  * The HCF puts the result of this action in an MSF defined buffer (see CFG_RID_LOG_STRCT).
  *
  * o HCF_ACT_SCAN: Inquire Scan command
@@ -606,7 +606,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  * - NIC interrupts are not disabled while required by parameter action.
  * - an invalid code is specified in parameter action.
  * - HCF_ACT_INT_ON commands outnumber the HCF_ACT_INT_OFF commands.
- * - reentrancy, may be  caused by calling hcf_functions without adequate protection against NIC interrupts or
+ * - reentrancy, may be caused by calling hcf_functions without adequate protection against NIC interrupts or
  *   multi-threading
  *
  * - Since the HCF does not maintain status information relative to the F/W enabled state, it is not asserted
@@ -625,7 +625,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
  *   change in HREG_EV_STAT matching a bit in HREG_INT_EN, i.e. not if invoked as result of another device
  *   generating an interrupt on the shared interrupt line.
  *   Note 1: it has been observed that under certain adverse conditions on certain platforms the writing of
- *   HREG_INT_EN can apparently fail, therefor it is paramount that HREG_INT_EN is written again with 0 for
+ *   HREG_INT_EN can apparently fail, therefore it is paramount that HREG_INT_EN is written again with 0 for
  *   each and every call to HCF_ACT_INT_OFF.
  *   Note 2: it has been observed that under certain H/W & S/W architectures this logic is called when there is
  *   no NIC at all. To cater for this, the value of HREG_INT_EN is validated. If the unused bit 0x0100 is set,
@@ -705,7 +705,7 @@ hcf_action( IFBP ifbp, hcf_16 action )
 			// 800 us latency before FW switches to high power
 			MSF_WAIT(800);                              // MSF-defined function to wait n microseconds.
 //OOR			if ( ifbp->IFB_DSLinkStat & CFG_LINK_STAT_DS_OOR ) { // OutOfRange
-//				printk( "<5>ACT_INT_OFF: Deepsleep phase terminated, enable and go to AwaitConnection\n" );     //;?remove me 1 day
+//				printk(KERN_NOTICE "ACT_INT_OFF: Deepsleep phase terminated, enable and go to AwaitConnection\n" );     //;?remove me 1 day
 //				hcf_cntl( ifbp, HCF_CNTL_ENABLE );
 //			}
 //			ifbp->IFB_DSLinkStat &= ~( CFG_LINK_STAT_DS_IR | CFG_LINK_STAT_DS_OOR); //clear IR/OOR state
@@ -902,7 +902,7 @@ hcf_action( IFBP ifbp, hcf_16 action )
  * - A command other than Continue, Enable, Disable, Connect or Disconnect is given.
  * - An invalid combination of the subfields is given or a bit outside the subfields is given.
  * - any return code besides HCF_SUCCESS.
- * - reentrancy, may be  caused by calling a hcf_function without adequate protection against NIC interrupts or
+ * - reentrancy, may be caused by calling a hcf_function without adequate protection against NIC interrupts or
  *   multi-threading
  *
  *.DIAGRAM
@@ -1030,7 +1030,7 @@ hcf_cntl( IFBP ifbp, hcf_16 cmd )
  * hcf_connect passes the MSF-defined location of the IFB to the HCF and grants or revokes access right for the
  * HCF to the IFB. Revoking is done by specifying HCF_DISCONNECT rather than an I/O address for the parameter
  * io_base.  Every call of hcf_connect in "connect" mode, must eventually be followed by a call of hcf_connect
- * in "disconnect" mode. Clalling hcf_connect in "connect"/"disconnect" mode can not be nested.
+ * in "disconnect" mode. Calling hcf_connect in "connect"/"disconnect" mode can not be nested.
  * The IFB address must be used as a handle with all subsequent HCF-function calls and the HCF uses the IFB
  * address as a handle when it performs a call(back) of an MSF-function (i.e. msf_assert).
  *
@@ -1058,7 +1058,7 @@ hcf_cntl( IFBP ifbp, hcf_16 cmd )
  *   specification for S/W reset
  *   Note 2: it turns out that on some H/W constellations, the clock to access the EEProm is not lowered
  *   to an appropriate frequency by HREG_IO_SRESET. By giving an HCMD_INI first, this problem is worked around.
- *2b: Experimentally it is determined over a wide range of F/W versions that waiting for the for Cmd bit in
+ *2b: Experimentally it is determined over a wide range of F/W versions that are waiting for the for Cmd bit in
  *   Ev register gives a workable strategy. The available documentation does not give much clues.
  *4: clear and initialize the IFB
  *   The HCF house keeping info is designed such that zero is the appropriate initial value for as much as
@@ -2979,7 +2979,7 @@ hcf_service_nic( IFBP ifbp, wci_bufp bufp, unsigned int len )
 			ltv.typ = CFG_DDS_TICK_TIME;
 			ltv.tick_time = ( ( ifbp->IFB_DSLinkStat & CFG_LINK_STAT_TIMER ) + 0x10 ) *64; //78 is more right
 			hcf_put_info( ifbp, (LTVP)&ltv );
-			printk( "<5>Preparing for sleep, link_status: %04X, timer : %d\n",
+			printk(KERN_NOTICE "Preparing for sleep, link_status: %04X, timer : %d\n",
 				ifbp->IFB_DSLinkStat, ltv.tick_time );//;?remove me 1 day
 			ifbp->IFB_TickCnt++; //;?just to make sure we do not keep on printing above message
 			if ( ltv.tick_time < 300 * 125 ) ifbp->IFB_DSLinkStat += 0x0010;
@@ -4221,11 +4221,11 @@ isr_info( IFBP ifbp )
 // /*4*/    if ( info[1] == CFG_LINK_STAT ) {
 //          ifbp->IFB_DSLinkStat = IPW( HREG_DATA_1 ) | CFG_LINK_STAT_CHANGE;   //corrupts BAP !! ;?
 //          ifbp->IFB_LinkStat = ifbp->IFB_DSLinkStat & CFG_LINK_STAT_FW; //;? to be obsoleted
-//          printk( "<4>linkstatus: %04x\n", ifbp->IFB_DSLinkStat );        //;?remove me 1 day
+//          printk(KERN_ERR "linkstatus: %04x\n", ifbp->IFB_DSLinkStat );        //;?remove me 1 day
 // #if (HCF_SLEEP) & HCF_DDS
 //          if ( ( ifbp->IFB_DSLinkStat & CFG_LINK_STAT_CONNECTED ) == 0 ) {    //even values are disconnected etc.
 //              ifbp->IFB_TickCnt = 0;              //start 2 second period (with 1 tick uncertanty)
-//              printk( "<5>isr_info: AwaitConnection phase started, IFB_TickCnt = 0\n" );      //;?remove me 1 day
+//              printk(KERN_NOTICE "isr_info: AwaitConnection phase started, IFB_TickCnt = 0\n" );      //;?remove me 1 day
 //          }
 // #endif // HCF_DDS
 //      }

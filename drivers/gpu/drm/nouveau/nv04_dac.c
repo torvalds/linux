@@ -332,7 +332,7 @@ nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 }
 
 static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	if (nv04_dac_in_use(encoder))

@@ -25,17 +25,19 @@
 /*
  * watch dog definition
  */
-#define MEI_WATCHDOG_DATA_SIZE         16
-#define MEI_START_WD_DATA_SIZE         20
-#define MEI_WD_PARAMS_SIZE             4
+#define MEI_WD_HDR_SIZE       4
+#define MEI_WD_STOP_MSG_SIZE  MEI_WD_HDR_SIZE
+#define MEI_WD_START_MSG_SIZE (MEI_WD_HDR_SIZE + 16)
+
+#define MEI_WD_DEFAULT_TIMEOUT   120  /* seconds */
+#define MEI_WD_MIN_TIMEOUT       120  /* seconds */
+#define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
+
+#define MEI_WD_STOP_TIMEOUT      10 /* msecs */
+
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
-
-/*
- * MEI PCI Device object
- */
-extern struct pci_dev *mei_device;
 
 
 /*
@@ -54,19 +56,21 @@ extern const uuid_le mei_wd_guid;
 extern const u8 mei_wd_state_independence_msg[3][4];
 
 /*
+ * Number of Maximum MEI Clients
+ */
+#define MEI_CLIENTS_MAX 256
+
+/*
  * Number of File descriptors/handles
  * that can be opened to the driver.
  *
- * Limit to 253: 255 Total Clients
+ * Limit to 253: 256 Total Clients
+ * minus internal client for MEI Bus Messags
  * minus internal client for AMTHI
  * minus internal client for Watchdog
  */
-#define  MEI_MAX_OPEN_HANDLE_COUNT	253
+#define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 3)
 
-/*
- * Number of Maximum MEI Clients
- */
-#define MEI_CLIENTS_MAX 255
 
 /* File state */
 enum file_state {
@@ -78,16 +82,18 @@ enum file_state {
 };
 
 /* MEI device states */
-enum mei_states {
-	MEI_INITIALIZING = 0,
-	MEI_INIT_CLIENTS,
-	MEI_ENABLED,
-	MEI_RESETING,
-	MEI_DISABLED,
-	MEI_RECOVERING_FROM_RESET,
-	MEI_POWER_DOWN,
-	MEI_POWER_UP
+enum mei_dev_state {
+	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_INIT_CLIENTS,
+	MEI_DEV_ENABLED,
+	MEI_DEV_RESETING,
+	MEI_DEV_DISABLED,
+	MEI_DEV_RECOVERING_FROM_RESET,
+	MEI_DEV_POWER_DOWN,
+	MEI_DEV_POWER_UP
 };
+
+const char *mei_dev_state_str(int state);
 
 /* init clients states*/
 enum mei_init_clients_states {
@@ -113,6 +119,12 @@ enum mei_file_transaction_states {
 	MEI_READ_COMPLETE
 };
 
+enum mei_wd_states {
+	MEI_WD_IDLE,
+	MEI_WD_RUNNING,
+	MEI_WD_STOPPING,
+};
+
 /* MEI CB */
 enum mei_cb_major_types {
 	MEI_READ = 0,
@@ -128,7 +140,7 @@ enum mei_cb_major_types {
 struct mei_message_data {
 	u32 size;
 	unsigned char *data;
-} __packed;
+};
 
 
 struct mei_cl_cb {
@@ -167,7 +179,10 @@ struct mei_io_list {
 	struct mei_cl_cb mei_cb;
 };
 
-/* MEI private device struct */
+/**
+ * struct mei_deive -  MEI private device struct
+ * @hbuf_depth - depth of host(write) buffer
+ */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
 	/*
@@ -205,6 +220,7 @@ struct mei_device {
 	 */
 	u32 host_hw_state;
 	u32 me_hw_state;
+	u8  hbuf_depth;
 	/*
 	 * waiting queue for receive message from FW
 	 */
@@ -214,10 +230,9 @@ struct mei_device {
 	/*
 	 * mei device  states
 	 */
-	enum mei_states mei_state;
+	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	bool stop;
 	bool need_reset;
 
 	u32 extra_write_index;
@@ -237,13 +252,11 @@ struct mei_device {
 	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
+	enum mei_wd_states wd_state;
+	bool wd_interface_reg;
 	bool wd_pending;
-	bool wd_stopped;
-	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
-	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	u16 wd_due_counter;
-	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
-
+	u16 wd_timeout;
+	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 
 	struct file *iamthif_file_object;
@@ -259,8 +272,6 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
-
-	bool wd_interface_reg;
 };
 
 
@@ -278,9 +289,10 @@ void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
-u8 mei_find_me_client_update_filext(struct mei_device *dev,
-				struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id);
+int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+			const uuid_le *cguid, u8 host_client_id);
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
+int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 
 /*
  * MEI IO List Functions
@@ -347,7 +359,6 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev);
 
 void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
 
 /*
  * Register Access Function
@@ -361,7 +372,8 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
  *
  * returns register value (u32)
  */
-static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
+static inline u32 mei_reg_read(const struct mei_device *dev,
+			       unsigned long offset)
 {
 	return ioread32(dev->mem_addr + offset);
 }
@@ -373,8 +385,8 @@ static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
  * @offset: offset from which to write the data
  * @value: register value to write (u32)
  */
-static inline void mei_reg_write(struct mei_device *dev,
-				unsigned long offset, u32 value)
+static inline void mei_reg_write(const struct mei_device *dev,
+				 unsigned long offset, u32 value)
 {
 	iowrite32(value, dev->mem_addr + offset);
 }
@@ -386,7 +398,7 @@ static inline void mei_reg_write(struct mei_device *dev,
  *
  * returns the byte read.
  */
-static inline u32 mei_hcsr_read(struct mei_device *dev)
+static inline u32 mei_hcsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, H_CSR);
 }
@@ -398,7 +410,7 @@ static inline u32 mei_hcsr_read(struct mei_device *dev)
  *
  * returns ME_CSR_HA register value (u32)
  */
-static inline u32 mei_mecsr_read(struct mei_device *dev)
+static inline u32 mei_mecsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CSR_HA);
 }
@@ -410,7 +422,7 @@ static inline u32 mei_mecsr_read(struct mei_device *dev)
  *
  * returns ME_CB_RW register value (u32)
  */
-static inline u32 mei_mecbrw_read(struct mei_device *dev)
+static inline u32 mei_mecbrw_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CB_RW);
 }

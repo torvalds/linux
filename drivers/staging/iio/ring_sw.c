@@ -24,7 +24,7 @@
  * @read_p:		read pointer (oldest available)
  * @write_p:		write pointer
  * @half_p:		half buffer length behind write_p (event generation)
- * @update_needed:	flag to indicated change in size requested
+ * @update_needed:	flag to indicate change in size requested
  *
  * Note that the first element of all ring buffers must be a
  * struct iio_buffer.
@@ -65,7 +65,7 @@ static inline void __iio_free_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
 /* Lock always held if their is a chance this may be called */
 /* Only one of these per ring may run concurrently - enforced by drivers */
 static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
-				unsigned char *data, s64 timestamp)
+				unsigned char *data)
 {
 	int ret = 0;
 	unsigned char *temp_ptr, *change_test_ptr;
@@ -256,11 +256,10 @@ error_ret:
 }
 
 static int iio_store_to_sw_rb(struct iio_buffer *r,
-			      u8 *data,
-			      s64 timestamp)
+			      u8 *data)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
-	return iio_store_to_sw_ring(ring, data, timestamp);
+	return iio_store_to_sw_ring(ring, data);
 }
 
 static int iio_request_update_sw_rb(struct iio_buffer *r)
@@ -363,5 +362,5 @@ void iio_sw_rb_free(struct iio_buffer *r)
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
 
-MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
+MODULE_DESCRIPTION("Industrial I/O software ring buffer");
 MODULE_LICENSE("GPL");

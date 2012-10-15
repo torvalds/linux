@@ -53,6 +53,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -85,8 +87,7 @@
 MODULE_AUTHOR("Victor Soriano <vjsoriano@agere.com>");
 MODULE_AUTHOR("Mark Einon <mark.einon@gmail.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
-		   "for the ET1310 by Agere Systems");
+MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere Systems");
 
 /* EEPROM defines */
 #define MAX_NUM_REGISTER_POLLS          1000
@@ -1767,8 +1768,8 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	/* Set the link status interrupt only.  Bad behavior when link status
 	 * and auto neg are set, we run into a nested interrupt problem
 	 */
-	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT &
-		ET_PHY_INT_MASK_LINKSTAT &
+	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT |
+		ET_PHY_INT_MASK_LINKSTAT |
 		ET_PHY_INT_MASK_ENABLE);
 
 	et131x_mii_write(adapter, PHY_INTERRUPT_MASK, imr);
@@ -1784,7 +1785,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	if ((adapter->eeprom_data[1] & 0x4) == 0) {
 		et131x_mii_read(adapter, PHY_LED_2, &lcr2);
 
-		lcr2 &= (ET_LED2_LED_100TX & ET_LED2_LED_1000T);
+		lcr2 &= (ET_LED2_LED_100TX | ET_LED2_LED_1000T);
 		lcr2 |= (LED_VAL_LINKON_ACTIVE << LED_LINK_SHIFT);
 
 		if ((adapter->eeprom_data[1] & 0x8) == 0)
@@ -2554,8 +2555,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			  "Cannot alloc memory for Packet Status Ring\n");
 		return -ENOMEM;
 	}
-	printk(KERN_INFO "Packet Status Ring %lx\n",
-	    (unsigned long) rx_ring->ps_ring_physaddr);
+	pr_info("Packet Status Ring %llx\n",
+		(unsigned long long) rx_ring->ps_ring_physaddr);
 
 	/*
 	 * NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
@@ -2575,7 +2576,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 	}
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
-	printk(KERN_INFO "PRS %lx\n", (unsigned long)rx_ring->rx_status_bus);
+	pr_info("PRS %llx\n", (unsigned long long)rx_ring->rx_status_bus);
 
 	/* Recv
 	 * kmem_cache_create initializes a lookaside list. After successful
@@ -2967,11 +2968,10 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		(ring_index == 0 &&
 		buff_index > rx_local->fbr[1]->num_entries - 1) ||
 		(ring_index == 1 &&
-		buff_index > rx_local->fbr[0]->num_entries - 1))
+		buff_index > rx_local->fbr[0]->num_entries - 1)) {
 #else
-	if (ring_index != 1 || buff_index > rx_local->fbr[0]->num_entries - 1)
+	if (ring_index != 1 || buff_index > rx_local->fbr[0]->num_entries - 1) {
 #endif
-	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
 			  "NICRxPkts PSR Entry %d indicates "
@@ -3945,12 +3945,6 @@ static struct ethtool_ops et131x_ethtool_ops = {
 	.get_regs	= et131x_get_regs,
 	.get_link = ethtool_op_get_link,
 };
-
-static void et131x_set_ethtool_ops(struct net_device *netdev)
-{
-	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
-}
-
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
  * @adapter: pointer to our private adapter structure
@@ -3961,12 +3955,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
-	if (adapter->rom_addr[0] == 0x00 &&
-	    adapter->rom_addr[1] == 0x00 &&
-	    adapter->rom_addr[2] == 0x00 &&
-	    adapter->rom_addr[3] == 0x00 &&
-	    adapter->rom_addr[4] == 0x00 &&
-	    adapter->rom_addr[5] == 0x00) {
+	if (is_zero_ether_addr(adapter->rom_addr)) {
 		/*
 		 * We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to
@@ -4001,16 +3990,14 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 static int et131x_pci_init(struct et131x_adapter *adapter,
 						struct pci_dev *pdev)
 {
-	int cap = pci_pcie_cap(pdev);
 	u16 max_payload;
-	u16 ctl;
 	int i, rc;
 
 	rc = et131x_init_eeprom(adapter);
 	if (rc < 0)
 		goto out;
 
-	if (!cap) {
+	if (!pci_is_pcie(pdev)) {
 		dev_err(&pdev->dev, "Missing PCIe capabilities\n");
 		goto err_out;
 	}
@@ -4018,7 +4005,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	/* Let's set up the PORT LOGIC Register.  First we need to know what
 	 * the max_payload_size is
 	 */
-	if (pci_read_config_word(pdev, cap + PCI_EXP_DEVCAP, &max_payload)) {
+	if (pcie_capability_read_word(pdev, PCI_EXP_DEVCAP, &max_payload)) {
 		dev_err(&pdev->dev,
 		    "Could not read PCI config space for Max Payload Size\n");
 		goto err_out;
@@ -4055,17 +4042,10 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	}
 
 	/* Change the max read size to 2k */
-	if (pci_read_config_word(pdev, cap + PCI_EXP_DEVCTL, &ctl)) {
+	if (pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_READRQ, 0x4 << 12)) {
 		dev_err(&pdev->dev,
-			"Could not read PCI config space for Max read size\n");
-		goto err_out;
-	}
-
-	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | (0x04 << 12);
-
-	if (pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl)) {
-		dev_err(&pdev->dev,
-		      "Could not write PCI config space for Max read size\n");
+			"Couldn't change PCI config space for Max read size\n");
 		goto err_out;
 	}
 
@@ -4326,8 +4306,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	phydev->advertising = phydev->supported;
 	adapter->phydev = phydev;
 
-	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] "
-		 "(mii_bus:phy_addr=%s)\n",
+	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
 		 phydev->drv->name, dev_name(&phydev->dev));
 
 	return 0;
@@ -5189,8 +5168,8 @@ static int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	memcpy(netdev->dev_addr, address->sa_data, netdev->addr_len);
 
-	printk(KERN_INFO "%s: Setting MAC address to %pM\n",
-			netdev->name, netdev->dev_addr);
+	netdev_info(netdev, "Setting MAC address to %pM\n",
+		    netdev->dev_addr);
 
 	/* Free Rx DMA memory */
 	et131x_adapter_memory_free(adapter);
@@ -5304,7 +5283,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	netdev->netdev_ops     = &et131x_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	et131x_set_ethtool_ops(netdev);
+	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
 
 	adapter = et131x_adapter_init(netdev, pdev);
 
@@ -5448,24 +5427,4 @@ static struct pci_driver et131x_driver = {
 	.driver.pm	= ET131X_PM_OPS,
 };
 
-/**
- * et131x_init_module - The "main" entry point called on driver initialization
- *
- * Returns 0 on success, errno on failure (as defined in errno.h)
- */
-static int __init et131x_init_module(void)
-{
-	return pci_register_driver(&et131x_driver);
-}
-
-/**
- * et131x_cleanup_module - The entry point called on driver cleanup
- */
-static void __exit et131x_cleanup_module(void)
-{
-	pci_unregister_driver(&et131x_driver);
-}
-
-module_init(et131x_init_module);
-module_exit(et131x_cleanup_module);
-
+module_pci_driver(et131x_driver);

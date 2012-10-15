@@ -192,6 +192,19 @@ linkend="output">Video Output</link> interface.</entry>
 	    <link linkend="output">Video Output</link> interface.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_M2M</constant></entry>
+	    <entry>0x00004000</entry>
+	    <entry>The device supports the single-planar API through the
+	    Video Memory-To-Memory interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_M2M_MPLANE</constant></entry>
+	    <entry>0x00008000</entry>
+	    <entry>The device supports the
+	    <link linkend="planar-apis">multi-planar API</link> through the
+	    Video Memory-To-Memory  interface.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OVERLAY</constant></entry>
 	    <entry>0x00000004</entry>
 	    <entry>The device supports the <link

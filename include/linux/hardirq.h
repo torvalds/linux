@@ -22,7 +22,7 @@
  *
  * - bits 16-25 are the hardirq count (max # of nested hardirqs: 1024)
  * - bit 26 is the NMI_MASK
- * - bit 28 is the PREEMPT_ACTIVE flag
+ * - bit 27 is the PREEMPT_ACTIVE flag
  *
  * PREEMPT_MASK: 0x000000ff
  * SOFTIRQ_MASK: 0x0000ff00
@@ -132,11 +132,11 @@ extern void synchronize_irq(unsigned int irq);
 struct task_struct;
 
 #if !defined(CONFIG_VIRT_CPU_ACCOUNTING) && !defined(CONFIG_IRQ_TIME_ACCOUNTING)
-static inline void account_system_vtime(struct task_struct *tsk)
+static inline void vtime_account(struct task_struct *tsk)
 {
 }
 #else
-extern void account_system_vtime(struct task_struct *tsk);
+extern void vtime_account(struct task_struct *tsk);
 #endif
 
 #if defined(CONFIG_TINY_RCU) || defined(CONFIG_TINY_PREEMPT_RCU)
@@ -162,7 +162,7 @@ extern void rcu_nmi_exit(void);
  */
 #define __irq_enter()					\
 	do {						\
-		account_system_vtime(current);		\
+		vtime_account(current);		\
 		add_preempt_count(HARDIRQ_OFFSET);	\
 		trace_hardirq_enter();			\
 	} while (0)
@@ -178,7 +178,7 @@ extern void irq_enter(void);
 #define __irq_exit()					\
 	do {						\
 		trace_hardirq_exit();			\
-		account_system_vtime(current);		\
+		vtime_account(current);		\
 		sub_preempt_count(HARDIRQ_OFFSET);	\
 	} while (0)
 

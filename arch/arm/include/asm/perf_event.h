@@ -12,21 +12,13 @@
 #ifndef __ARM_PERF_EVENT_H__
 #define __ARM_PERF_EVENT_H__
 
-/* ARM perf PMU IDs for use by internal perf clients. */
-enum arm_perf_pmu_ids {
-	ARM_PERF_PMU_ID_XSCALE1	= 0,
-	ARM_PERF_PMU_ID_XSCALE2,
-	ARM_PERF_PMU_ID_V6,
-	ARM_PERF_PMU_ID_V6MP,
-	ARM_PERF_PMU_ID_CA8,
-	ARM_PERF_PMU_ID_CA9,
-	ARM_PERF_PMU_ID_CA5,
-	ARM_PERF_PMU_ID_CA15,
-	ARM_PERF_PMU_ID_CA7,
-	ARM_NUM_PMU_IDS,
-};
+/*
+ * The ARMv7 CPU PMU supports up to 32 event counters.
+ */
+#define ARMPMU_MAX_HWEVENTS		32
 
-extern enum arm_perf_pmu_ids
-armpmu_get_pmu_id(void);
+#define HW_OP_UNSUPPORTED		0xFFFF
+#define C(_x)				PERF_COUNT_HW_CACHE_##_x
+#define CACHE_OP_UNSUPPORTED		0xFFFF
 
 #endif /* __ARM_PERF_EVENT_H__ */

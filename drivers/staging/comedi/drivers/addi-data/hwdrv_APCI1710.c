@@ -62,13 +62,12 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	int ret = 0;
 	int n_subdevices = 9;
 
-	/* Update-0.7.57->0.7.68dev->n_subdevices = 9; */
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 
 	s->type = COMEDI_SUBD_TIMER;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -82,7 +81,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsTimer;
 
 	/*  Allocate and Initialise DIO Subdevice Structures */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags =
@@ -97,7 +96,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_write = i_APCI1710_InsnWriteDigitalIOChlOnOff;
 
 	/*  Allocate and Initialise Chrono Subdevice Structures */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 
 	s->type = COMEDI_SUBD_CHRONO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -111,7 +110,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsChronoDigitalIO;
 
 	/*  Allocate and Initialise PWM Subdevice Structures */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_PWM;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -126,7 +125,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsReadPWMInterrupt;
 
 	/*  Allocate and Initialise TTLIO Subdevice Structures */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_TTLIO;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -140,7 +139,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_read = i_APCI1710_InsnReadTTLIOAllPortValue;
 
 	/*  Allocate and Initialise TOR Subdevice Structures */
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	s->type = COMEDI_SUBD_TOR;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -155,7 +154,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue;
 
 	/*  Allocate and Initialise SSI Subdevice Structures */
-	s = dev->subdevices + 6;
+	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_SSI;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -168,7 +167,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsSSIDigitalIO;
 
 	/*  Allocate and Initialise PULSEENCODER Subdevice Structures */
-	s = dev->subdevices + 7;
+	s = &dev->subdevices[7];
 	s->type = COMEDI_SUBD_PULSEENCODER;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -182,7 +181,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_read = i_APCI1710_InsnReadInterruptPulseEncoder;
 
 	/*  Allocate and Initialise INCREMENTALCOUNTER Subdevice Structures */
-	s = dev->subdevices + 8;
+	s = &dev->subdevices[8];
 	s->type = COMEDI_SUBD_INCREMENTALCOUNTER;
 	s->subdev_flags =
 		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;

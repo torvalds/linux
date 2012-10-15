@@ -21,9 +21,9 @@
 #include <linux/list.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "clock3xxx.h"
@@ -3226,6 +3226,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"virt_26000000_ck",	&virt_26000000_ck,	CK_3XXX),
 	CLK(NULL,	"virt_38_4m_ck", &virt_38_4m_ck, CK_3XXX),
 	CLK(NULL,	"osc_sys_ck",	&osc_sys_ck,	CK_3XXX),
+	CLK("twl",	"fck",		&osc_sys_ck,	CK_3XXX),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_3XXX),
 	CLK(NULL,	"sys_altclk",	&sys_altclk,	CK_3XXX),
 	CLK(NULL,	"mcbsp_clks",	&mcbsp_clks,	CK_3XXX),
@@ -3376,15 +3377,15 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"usbhost_48m_fck", &usbhost_48m_fck, CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"usbhost_ick",	&usbhost_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK("usbhs_omap",	"usbhost_ick",	&usbhost_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
-	CLK("usbhs_omap",	"utmi_p1_gfclk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"utmi_p2_gfclk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"xclk60mhsp1_ck",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"xclk60mhsp2_ck",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"usb_host_hs_utmi_p1_clk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"usb_host_hs_utmi_p2_clk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"utmi_p1_gfclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"utmi_p2_gfclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"xclk60mhsp1_ck",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"xclk60mhsp2_ck",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"usb_host_hs_utmi_p1_clk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"usb_host_hs_utmi_p2_clk",	&dummy_ck,	CK_3XXX),
 	CLK("usbhs_omap",	"usb_tll_hs_usb_ch0_clk",	&dummy_ck,	CK_3XXX),
 	CLK("usbhs_omap",	"usb_tll_hs_usb_ch1_clk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"init_60m_fclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"init_60m_fclk",	&dummy_ck,	CK_3XXX),
 	CLK(NULL,	"usim_fck",	&usim_fck,	CK_3430ES2PLUS | CK_36XX),
 	CLK(NULL,	"gpt1_fck",	&gpt1_fck,	CK_3XXX),
 	CLK(NULL,	"wkup_32k_fck",	&wkup_32k_fck,	CK_3XXX),

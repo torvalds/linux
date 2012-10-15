@@ -8,7 +8,7 @@ node's name represents the name of the corresponding LED.
 
 LED sub-node properties:
 - gpios :  Should specify the LED's GPIO, see "gpios property" in
-  Documentation/devicetree/gpio.txt.  Active low LEDs should be
+  Documentation/devicetree/bindings/gpio/gpio.txt.  Active low LEDs should be
   indicated using flags in the GPIO specifier.
 - label :  (optional) The label for this LED.  If omitted, the label is
   taken from the node name (excluding the unit address).
@@ -55,4 +55,4 @@ run-control {
 		gpios = <&mpc8572 7 0>;
 		default-state = "on";
 	};
-}
+};

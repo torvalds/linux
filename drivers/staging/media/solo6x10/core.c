@@ -318,15 +318,4 @@ static struct pci_driver solo_pci_driver = {
 	.remove = solo_pci_remove,
 };
 
-static int __init solo_module_init(void)
-{
-	return pci_register_driver(&solo_pci_driver);
-}
-
-static void __exit solo_module_exit(void)
-{
-	pci_unregister_driver(&solo_pci_driver);
-}
-
-module_init(solo_module_init);
-module_exit(solo_module_exit);
+module_pci_driver(solo_pci_driver);

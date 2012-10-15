@@ -398,7 +398,7 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
 	skb->queue_mapping = qdisc_skb_cb(skb)->slave_dev_queue_mapping;
 
-	if (unlikely(netpoll_tx_running(slave_dev)))
+	if (unlikely(netpoll_tx_running(bond->dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
 	else
 		dev_queue_xmit(skb);
@@ -1120,10 +1120,10 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
 
-			netdev_bonding_change(bond->dev, NETDEV_BONDING_FAILOVER);
+			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
 			if (should_notify_peers)
-				netdev_bonding_change(bond->dev,
-						      NETDEV_NOTIFY_PEERS);
+				call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
+							 bond->dev);
 
 			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
@@ -1235,12 +1235,12 @@ static inline int slave_enable_netpoll(struct slave *slave)
 	struct netpoll *np;
 	int err = 0;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc(sizeof(*np), GFP_ATOMIC);
 	err = -ENOMEM;
 	if (!np)
 		goto out;
 
-	err = __netpoll_setup(np, slave->dev);
+	err = __netpoll_setup(np, slave->dev, GFP_ATOMIC);
 	if (err) {
 		kfree(np);
 		goto out;
@@ -1257,9 +1257,7 @@ static inline void slave_disable_netpoll(struct slave *slave)
 		return;
 
 	slave->np = NULL;
-	synchronize_rcu_bh();
-	__netpoll_cleanup(np);
-	kfree(np);
+	__netpoll_free_rcu(np);
 }
 static inline bool slave_dev_support_netpoll(struct net_device *slave_dev)
 {
@@ -1292,7 +1290,7 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 	read_unlock(&bond->lock);
 }
 
-static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
+static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni, gfp_t gfp)
 {
 	struct bonding *bond = netdev_priv(dev);
 	struct slave *slave;
@@ -1560,8 +1558,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 bond_dev->name,
 				 bond_dev->type, slave_dev->type);
 
-			res = netdev_bonding_change(bond_dev,
-						    NETDEV_PRE_TYPE_CHANGE);
+			res = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
+						       bond_dev);
 			res = notifier_to_errno(res);
 			if (res) {
 				pr_err("%s: refused to change device type\n",
@@ -1581,8 +1579,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 			}
 
-			netdev_bonding_change(bond_dev,
-					      NETDEV_POST_TYPE_CHANGE);
+			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,
+						 bond_dev);
 		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err("%s ether type (%d) is different from other slaves (%d), can not enslave it.\n",
@@ -1943,7 +1941,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	block_netpoll_tx();
-	netdev_bonding_change(bond_dev, NETDEV_RELEASE);
+	call_netdevice_notifiers(NETDEV_RELEASE, bond_dev);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -2586,7 +2584,7 @@ re_arm:
 			read_unlock(&bond->lock);
 			return;
 		}
-		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
 }
@@ -2813,12 +2811,13 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 					    arp_work.work);
 	struct slave *slave, *oldcurrent;
 	int do_failover = 0;
-	int delta_in_ticks;
+	int delta_in_ticks, extra_ticks;
 	int i;
 
 	read_lock(&bond->lock);
 
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
+	extra_ticks = delta_in_ticks / 2;
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
@@ -2841,10 +2840,10 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 		if (slave->link != BOND_LINK_UP) {
 			if (time_in_range(jiffies,
 				trans_start - delta_in_ticks,
-				trans_start + delta_in_ticks) &&
+				trans_start + delta_in_ticks + extra_ticks) &&
 			    time_in_range(jiffies,
 				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + delta_in_ticks)) {
+				slave->dev->last_rx + delta_in_ticks + extra_ticks)) {
 
 				slave->link  = BOND_LINK_UP;
 				bond_set_active_slave(slave);
@@ -2874,10 +2873,10 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			 */
 			if (!time_in_range(jiffies,
 				trans_start - delta_in_ticks,
-				trans_start + 2 * delta_in_ticks) ||
+				trans_start + 2 * delta_in_ticks + extra_ticks) ||
 			    !time_in_range(jiffies,
 				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + 2 * delta_in_ticks)) {
+				slave->dev->last_rx + 2 * delta_in_ticks + extra_ticks)) {
 
 				slave->link  = BOND_LINK_DOWN;
 				bond_set_backup_slave(slave);
@@ -2935,6 +2934,14 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 	struct slave *slave;
 	int i, commit = 0;
 	unsigned long trans_start;
+	int extra_ticks;
+
+	/* All the time comparisons below need some extra time. Otherwise, on
+	 * fast networks the ARP probe/reply may arrive within the same jiffy
+	 * as it was sent.  Then, the next time the ARP monitor is run, one
+	 * arp_interval will already have passed in the comparisons.
+	 */
+	extra_ticks = delta_in_ticks / 2;
 
 	bond_for_each_slave(bond, slave, i) {
 		slave->new_link = BOND_LINK_NOCHANGE;
@@ -2942,7 +2949,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		if (slave->link != BOND_LINK_UP) {
 			if (time_in_range(jiffies,
 				slave_last_rx(bond, slave) - delta_in_ticks,
-				slave_last_rx(bond, slave) + delta_in_ticks)) {
+				slave_last_rx(bond, slave) + delta_in_ticks + extra_ticks)) {
 
 				slave->new_link = BOND_LINK_UP;
 				commit++;
@@ -2958,7 +2965,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 */
 		if (time_in_range(jiffies,
 				  slave->jiffies - delta_in_ticks,
-				  slave->jiffies + 2 * delta_in_ticks))
+				  slave->jiffies + 2 * delta_in_ticks + extra_ticks))
 			continue;
 
 		/*
@@ -2978,7 +2985,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		    !bond->current_arp_slave &&
 		    !time_in_range(jiffies,
 			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 3 * delta_in_ticks)) {
+			slave_last_rx(bond, slave) + 3 * delta_in_ticks + extra_ticks)) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -2994,10 +3001,10 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		if (bond_is_active_slave(slave) &&
 		    (!time_in_range(jiffies,
 			trans_start - delta_in_ticks,
-			trans_start + 2 * delta_in_ticks) ||
+			trans_start + 2 * delta_in_ticks + extra_ticks) ||
 		     !time_in_range(jiffies,
 			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 2 * delta_in_ticks))) {
+			slave_last_rx(bond, slave) + 2 * delta_in_ticks + extra_ticks))) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -3029,7 +3036,7 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 			if ((!bond->curr_active_slave &&
 			     time_in_range(jiffies,
 					   trans_start - delta_in_ticks,
-					   trans_start + delta_in_ticks)) ||
+					   trans_start + delta_in_ticks + delta_in_ticks / 2)) ||
 			    bond->curr_active_slave != slave) {
 				slave->link = BOND_LINK_UP;
 				if (bond->current_arp_slave) {
@@ -3205,7 +3212,7 @@ re_arm:
 			read_unlock(&bond->lock);
 			return;
 		}
-		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
 }
@@ -3354,56 +3361,93 @@ static struct notifier_block bond_netdev_notifier = {
 /*---------------------------- Hashing Policies -----------------------------*/
 
 /*
- * Hash for the output device based upon layer 2 and layer 3 data. If
- * the packet is not IP mimic bond_xmit_hash_policy_l2()
- */
-static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
-{
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = ip_hdr(skb);
-
-	if (skb->protocol == htons(ETH_P_IP)) {
-		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
-			(data->h_dest[5] ^ data->h_source[5])) % count;
-	}
-
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
-}
-
-/*
- * Hash for the output device based upon layer 3 and layer 4 data. If
- * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
- * altogether not IP, mimic bond_xmit_hash_policy_l2()
- */
-static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
-{
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = ip_hdr(skb);
-	__be16 *layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
-	int layer4_xor = 0;
-
-	if (skb->protocol == htons(ETH_P_IP)) {
-		if (!ip_is_fragment(iph) &&
-		    (iph->protocol == IPPROTO_TCP ||
-		     iph->protocol == IPPROTO_UDP)) {
-			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
-		}
-		return (layer4_xor ^
-			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
-
-	}
-
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
-}
-
-/*
  * Hash for the output device based upon layer 2 data
  */
 static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
+	if (skb_headlen(skb) >= offsetof(struct ethhdr, h_proto))
+		return (data->h_dest[5] ^ data->h_source[5]) % count;
+
+	return 0;
+}
+
+/*
+ * Hash for the output device based upon layer 2 and layer 3 data. If
+ * the packet is not IP, fall back on bond_xmit_hash_policy_l2()
+ */
+static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
+{
+	struct ethhdr *data = (struct ethhdr *)skb->data;
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
+	u32 v6hash;
+	__be32 *s, *d;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    skb_network_header_len(skb) >= sizeof(*iph)) {
+		iph = ip_hdr(skb);
+		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
+			(data->h_dest[5] ^ data->h_source[5])) % count;
+	} else if (skb->protocol == htons(ETH_P_IPV6) &&
+		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		ipv6h = ipv6_hdr(skb);
+		s = &ipv6h->saddr.s6_addr32[0];
+		d = &ipv6h->daddr.s6_addr32[0];
+		v6hash = (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
+		v6hash ^= (v6hash >> 24) ^ (v6hash >> 16) ^ (v6hash >> 8);
+		return (v6hash ^ data->h_dest[5] ^ data->h_source[5]) % count;
+	}
+
+	return bond_xmit_hash_policy_l2(skb, count);
+}
+
+/*
+ * Hash for the output device based upon layer 3 and layer 4 data. If
+ * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
+ * altogether not IP, fall back on bond_xmit_hash_policy_l2()
+ */
+static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
+{
+	u32 layer4_xor = 0;
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
+	__be32 *s, *d;
+	__be16 *layer4hdr;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    skb_network_header_len(skb) >= sizeof(*iph)) {
+		iph = ip_hdr(skb);
+		if (!ip_is_fragment(iph) &&
+		    (iph->protocol == IPPROTO_TCP ||
+		     iph->protocol == IPPROTO_UDP) &&
+		    (skb_headlen(skb) - skb_network_offset(skb) >=
+		     iph->ihl * sizeof(u32) + sizeof(*layer4hdr) * 2)) {
+			layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
+			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		}
+		return (layer4_xor ^
+			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
+	} else if (skb->protocol == htons(ETH_P_IPV6) &&
+		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		ipv6h = ipv6_hdr(skb);
+		if ((ipv6h->nexthdr == IPPROTO_TCP ||
+		     ipv6h->nexthdr == IPPROTO_UDP) &&
+		    (skb_headlen(skb) - skb_network_offset(skb) >=
+		     sizeof(*ipv6h) + sizeof(*layer4hdr) * 2)) {
+			layer4hdr = (__be16 *)(ipv6h + 1);
+			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		}
+		s = &ipv6h->saddr.s6_addr32[0];
+		d = &ipv6h->daddr.s6_addr32[0];
+		layer4_xor ^= (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
+		layer4_xor ^= (layer4_xor >> 24) ^ (layer4_xor >> 16) ^
+			       (layer4_xor >> 8);
+		return layer4_xor % count;
+	}
+
+	return bond_xmit_hash_policy_l2(skb, count);
 }
 
 /*-------------------------- Device entry points ----------------------------*/
@@ -4782,6 +4826,7 @@ static int bond_check_params(struct bond_params *params)
 
 static struct lock_class_key bonding_netdev_xmit_lock_key;
 static struct lock_class_key bonding_netdev_addr_lock_key;
+static struct lock_class_key bonding_tx_busylock_key;
 
 static void bond_set_lockdep_class_one(struct net_device *dev,
 				       struct netdev_queue *txq,
@@ -4796,6 +4841,7 @@ static void bond_set_lockdep_class(struct net_device *dev)
 	lockdep_set_class(&dev->addr_list_lock,
 			  &bonding_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, bond_set_lockdep_class_one, NULL);
+	dev->qdisc_tx_busylock = &bonding_tx_busylock_key;
 }
 
 /*

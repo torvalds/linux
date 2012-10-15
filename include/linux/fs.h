@@ -165,6 +165,8 @@ struct inodes_stat_t {
 #define READ			0
 #define WRITE			RW_MASK
 #define READA			RWA_MASK
+#define KERNEL_READ		(READ|REQ_KERNEL)
+#define KERNEL_WRITE		(WRITE|REQ_KERNEL)
 
 #define READ_SYNC		(READ | REQ_SYNC)
 #define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE)
@@ -412,6 +414,7 @@ struct inodes_stat_t {
 #include <linux/shrinker.h>
 #include <linux/migrate_mode.h>
 #include <linux/uidgid.h>
+#include <linux/lockdep.h>
 
 #include <asm/byteorder.h>
 
@@ -427,6 +430,7 @@ struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
 struct cred;
+struct swap_info_struct;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -437,6 +441,8 @@ extern unsigned long get_max_files(void);
 extern int sysctl_nr_open;
 extern struct inodes_stat_t inodes_stat;
 extern int leases_enable, lease_break_time;
+extern int sysctl_protected_symlinks;
+extern int sysctl_protected_hardlinks;
 
 struct buffer_head;
 typedef int (get_block_t)(struct inode *inode, sector_t iblock,
@@ -636,6 +642,11 @@ struct address_space_operations {
 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
 					unsigned long);
 	int (*error_remove_page)(struct address_space *, struct page *);
+
+	/* swapfile support */
+	int (*swap_activate)(struct swap_info_struct *sis, struct file *file,
+				sector_t *span);
+	void (*swap_deactivate)(struct file *file);
 };
 
 extern const struct address_space_operations empty_aops;
@@ -1154,7 +1165,6 @@ struct lock_manager_operations {
 	int (*lm_compare_owner)(struct file_lock *, struct file_lock *);
 	void (*lm_notify)(struct file_lock *);	/* unblock callback */
 	int (*lm_grant)(struct file_lock *, struct file_lock *, int);
-	void (*lm_release_private)(struct file_lock *);
 	void (*lm_break)(struct file_lock *);
 	int (*lm_change)(struct file_lock **, int);
 };
@@ -1163,9 +1173,10 @@ struct lock_manager {
 	struct list_head list;
 };
 
-void locks_start_grace(struct lock_manager *);
+struct net;
+void locks_start_grace(struct net *, struct lock_manager *);
 void locks_end_grace(struct lock_manager *);
-int locks_in_grace(void);
+int locks_in_grace(struct net *);
 
 /* that will die - we need it for nfs_lock_info */
 #include <linux/nfs_fs_i.h>
@@ -1437,6 +1448,8 @@ extern void f_delown(struct file *filp);
 extern pid_t f_getown(struct file *filp);
 extern int send_sigurg(struct fown_struct *fown);
 
+struct mm_struct;
+
 /*
  *	Umount options
  */
@@ -1450,10 +1463,34 @@ extern int send_sigurg(struct fown_struct *fown);
 extern struct list_head super_blocks;
 extern spinlock_t sb_lock;
 
+/* Possible states of 'frozen' field */
+enum {
+	SB_UNFROZEN = 0,		/* FS is unfrozen */
+	SB_FREEZE_WRITE	= 1,		/* Writes, dir ops, ioctls frozen */
+	SB_FREEZE_PAGEFAULT = 2,	/* Page faults stopped as well */
+	SB_FREEZE_FS = 3,		/* For internal FS use (e.g. to stop
+					 * internal threads if needed) */
+	SB_FREEZE_COMPLETE = 4,		/* ->freeze_fs finished successfully */
+};
+
+#define SB_FREEZE_LEVELS (SB_FREEZE_COMPLETE - 1)
+
+struct sb_writers {
+	/* Counters for counting writers at each level */
+	struct percpu_counter	counter[SB_FREEZE_LEVELS];
+	wait_queue_head_t	wait;		/* queue for waiting for
+						   writers / faults to finish */
+	int			frozen;		/* Is sb frozen? */
+	wait_queue_head_t	wait_unfrozen;	/* queue for waiting for
+						   sb to be thawed */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	lock_map[SB_FREEZE_LEVELS];
+#endif
+};
+
 struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
-	unsigned char		s_dirt;
 	unsigned char		s_blocksize_bits;
 	unsigned long		s_blocksize;
 	loff_t			s_maxbytes;	/* Max file size */
@@ -1497,8 +1534,7 @@ struct super_block {
 	struct hlist_node	s_instances;
 	struct quota_info	s_dquot;	/* Diskquota specific options */
 
-	int			s_frozen;
-	wait_queue_head_t	s_wait_unfrozen;
+	struct sb_writers	s_writers;
 
 	char s_id[32];				/* Informational name */
 	u8 s_uuid[16];				/* UUID */
@@ -1553,14 +1589,117 @@ extern struct timespec current_fs_time(struct super_block *sb);
 /*
  * Snapshotting support.
  */
-enum {
-	SB_UNFROZEN = 0,
-	SB_FREEZE_WRITE	= 1,
-	SB_FREEZE_TRANS = 2,
-};
 
-#define vfs_check_frozen(sb, level) \
-	wait_event((sb)->s_wait_unfrozen, ((sb)->s_frozen < (level)))
+void __sb_end_write(struct super_block *sb, int level);
+int __sb_start_write(struct super_block *sb, int level, bool wait);
+
+/**
+ * sb_end_write - drop write access to a superblock
+ * @sb: the super we wrote to
+ *
+ * Decrement number of writers to the filesystem. Wake up possible waiters
+ * wanting to freeze the filesystem.
+ */
+static inline void sb_end_write(struct super_block *sb)
+{
+	__sb_end_write(sb, SB_FREEZE_WRITE);
+}
+
+/**
+ * sb_end_pagefault - drop write access to a superblock from a page fault
+ * @sb: the super we wrote to
+ *
+ * Decrement number of processes handling write page fault to the filesystem.
+ * Wake up possible waiters wanting to freeze the filesystem.
+ */
+static inline void sb_end_pagefault(struct super_block *sb)
+{
+	__sb_end_write(sb, SB_FREEZE_PAGEFAULT);
+}
+
+/**
+ * sb_end_intwrite - drop write access to a superblock for internal fs purposes
+ * @sb: the super we wrote to
+ *
+ * Decrement fs-internal number of writers to the filesystem.  Wake up possible
+ * waiters wanting to freeze the filesystem.
+ */
+static inline void sb_end_intwrite(struct super_block *sb)
+{
+	__sb_end_write(sb, SB_FREEZE_FS);
+}
+
+/**
+ * sb_start_write - get write access to a superblock
+ * @sb: the super we write to
+ *
+ * When a process wants to write data or metadata to a file system (i.e. dirty
+ * a page or an inode), it should embed the operation in a sb_start_write() -
+ * sb_end_write() pair to get exclusion against file system freezing. This
+ * function increments number of writers preventing freezing. If the file
+ * system is already frozen, the function waits until the file system is
+ * thawed.
+ *
+ * Since freeze protection behaves as a lock, users have to preserve
+ * ordering of freeze protection and other filesystem locks. Generally,
+ * freeze protection should be the outermost lock. In particular, we have:
+ *
+ * sb_start_write
+ *   -> i_mutex			(write path, truncate, directory ops, ...)
+ *   -> s_umount		(freeze_super, thaw_super)
+ */
+static inline void sb_start_write(struct super_block *sb)
+{
+	__sb_start_write(sb, SB_FREEZE_WRITE, true);
+}
+
+static inline int sb_start_write_trylock(struct super_block *sb)
+{
+	return __sb_start_write(sb, SB_FREEZE_WRITE, false);
+}
+
+/**
+ * sb_start_pagefault - get write access to a superblock from a page fault
+ * @sb: the super we write to
+ *
+ * When a process starts handling write page fault, it should embed the
+ * operation into sb_start_pagefault() - sb_end_pagefault() pair to get
+ * exclusion against file system freezing. This is needed since the page fault
+ * is going to dirty a page. This function increments number of running page
+ * faults preventing freezing. If the file system is already frozen, the
+ * function waits until the file system is thawed.
+ *
+ * Since page fault freeze protection behaves as a lock, users have to preserve
+ * ordering of freeze protection and other filesystem locks. It is advised to
+ * put sb_start_pagefault() close to mmap_sem in lock ordering. Page fault
+ * handling code implies lock dependency:
+ *
+ * mmap_sem
+ *   -> sb_start_pagefault
+ */
+static inline void sb_start_pagefault(struct super_block *sb)
+{
+	__sb_start_write(sb, SB_FREEZE_PAGEFAULT, true);
+}
+
+/*
+ * sb_start_intwrite - get write access to a superblock for internal fs purposes
+ * @sb: the super we write to
+ *
+ * This is the third level of protection against filesystem freezing. It is
+ * free for use by a filesystem. The only requirement is that it must rank
+ * below sb_start_pagefault.
+ *
+ * For example filesystem can call sb_start_intwrite() when starting a
+ * transaction which somewhat eases handling of freezing for internal sources
+ * of filesystem changes (internal fs threads, discarding preallocation on file
+ * close, etc.).
+ */
+static inline void sb_start_intwrite(struct super_block *sb)
+{
+	__sb_start_write(sb, SB_FREEZE_FS, true);
+}
+
 
 extern bool inode_owner_or_capable(const struct inode *inode);
 
@@ -1721,7 +1860,6 @@ struct super_operations {
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
-	void (*write_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
 	int (*freeze_fs) (struct super_block *);
 	int (*unfreeze_fs) (struct super_block *);
@@ -1884,6 +2022,7 @@ struct file_system_type {
 	struct lock_class_key s_lock_key;
 	struct lock_class_key s_umount_key;
 	struct lock_class_key s_vfs_rename_key;
+	struct lock_class_key s_writers_key[SB_FREEZE_LEVELS];
 
 	struct lock_class_key i_lock_key;
 	struct lock_class_key i_mutex_key;
@@ -2256,7 +2395,6 @@ extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
 			   int datasync);
 extern int vfs_fsync(struct file *file, int datasync);
 extern int generic_write_sync(struct file *file, loff_t pos, loff_t count);
-extern void sync_supers(void);
 extern void emergency_sync(void);
 extern void emergency_remount(void);
 #ifdef CONFIG_BLOCK
@@ -2326,9 +2464,6 @@ static inline void i_readcount_inc(struct inode *inode)
 }
 #endif
 extern int do_pipe_flags(int *, int);
-extern struct file *create_read_pipe(struct file *f, int flags);
-extern struct file *create_write_pipe(int flags);
-extern void free_write_pipe(struct file *);
 
 extern int kernel_read(struct file *, loff_t, char *, unsigned long);
 extern struct file * open_exec(const char *);

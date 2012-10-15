@@ -500,31 +500,6 @@ static ssize_t set_aout(struct device *dev,
 }
 static DEVICE_ATTR(aout_output, S_IRUGO | S_IWUSR, show_aout, set_aout);
 
-/* chassis_clear */
-static ssize_t chassis_clear_legacy(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	long val;
-	int err;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	dev_warn(dev, "Attribute chassis_clear is deprecated, "
-		 "use intrusion0_alarm instead\n");
-
-	if (val == 1) {
-		i2c_smbus_write_byte_data(client,
-				ADM9240_REG_CHASSIS_CLEAR, 0x80);
-		dev_dbg(&client->dev, "chassis intrusion latch cleared\n");
-	}
-	return count;
-}
-static DEVICE_ATTR(chassis_clear, S_IWUSR, NULL, chassis_clear_legacy);
-
 static ssize_t chassis_clear(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -586,7 +561,6 @@ static struct attribute *adm9240_attributes[] = {
 	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
 	&dev_attr_alarms.attr,
 	&dev_attr_aout_output.attr,
-	&dev_attr_chassis_clear.attr,
 	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
 	&dev_attr_cpu0_vid.attr,
 	NULL
@@ -650,11 +624,9 @@ static int adm9240_probe(struct i2c_client *new_client,
 	struct adm9240_data *data;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&new_client->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(new_client, data);
 	mutex_init(&data->update_lock);
@@ -664,7 +636,7 @@ static int adm9240_probe(struct i2c_client *new_client,
 	/* populate sysfs filesystem */
 	err = sysfs_create_group(&new_client->dev.kobj, &adm9240_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -676,9 +648,6 @@ static int adm9240_probe(struct i2c_client *new_client,
 
 exit_remove:
 	sysfs_remove_group(&new_client->dev.kobj, &adm9240_group);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -689,7 +658,6 @@ static int adm9240_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm9240_group);
 
-	kfree(data);
 	return 0;
 }
 

@@ -272,6 +272,8 @@ const struct omap_video_timings omap_dss_pal_timings = {
 	.vsw		= 5,
 	.vfp		= 5,
 	.vbp		= 41,
+
+	.interlace	= true,
 };
 EXPORT_SYMBOL(omap_dss_pal_timings);
 
@@ -285,6 +287,8 @@ const struct omap_video_timings omap_dss_ntsc_timings = {
 	.vsw		= 6,
 	.vfp		= 6,
 	.vbp		= 31,
+
+	.interlace	= true,
 };
 EXPORT_SYMBOL(omap_dss_ntsc_timings);
 
@@ -930,7 +934,7 @@ static int __exit omap_venchw_remove(struct platform_device *pdev)
 static int venc_runtime_suspend(struct device *dev)
 {
 	if (venc.tv_dac_clk)
-		clk_disable(venc.tv_dac_clk);
+		clk_disable_unprepare(venc.tv_dac_clk);
 
 	dispc_runtime_put();
 
@@ -946,7 +950,7 @@ static int venc_runtime_resume(struct device *dev)
 		return r;
 
 	if (venc.tv_dac_clk)
-		clk_enable(venc.tv_dac_clk);
+		clk_prepare_enable(venc.tv_dac_clk);
 
 	return 0;
 }

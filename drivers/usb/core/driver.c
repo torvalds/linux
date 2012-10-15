@@ -125,10 +125,9 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct usb_dynid *dynid, *n;
 	struct usb_driver *usb_driver = to_usb_driver(driver);
-	u32 idVendor = 0;
-	u32 idProduct = 0;
-	int fields = 0;
-	int retval = 0;
+	u32 idVendor;
+	u32 idProduct;
+	int fields;
 
 	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
 	if (fields < 2)
@@ -141,14 +140,10 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 		    (id->idProduct == idProduct)) {
 			list_del(&dynid->node);
 			kfree(dynid);
-			retval = 0;
 			break;
 		}
 	}
 	spin_unlock(&usb_driver->dynids.lock);
-
-	if (retval)
-		return retval;
 	return count;
 }
 static DRIVER_ATTR(remove_id, S_IRUGO | S_IWUSR, show_dynids, store_remove_id);
@@ -367,6 +362,7 @@ static int usb_probe_interface(struct device *dev)
 	return error;
 
  err:
+	usb_set_intfdata(intf, NULL);
 	intf->needs_remote_wakeup = 0;
 	intf->condition = USB_INTERFACE_UNBOUND;
 	usb_cancel_queued_reset(intf);
@@ -606,6 +602,41 @@ int usb_match_device(struct usb_device *dev, const struct usb_device_id *id)
 }
 
 /* returns 0 if no match, 1 if match */
+int usb_match_one_id_intf(struct usb_device *dev,
+			  struct usb_host_interface *intf,
+			  const struct usb_device_id *id)
+{
+	/* The interface class, subclass, protocol and number should never be
+	 * checked for a match if the device class is Vendor Specific,
+	 * unless the match record specifies the Vendor ID. */
+	if (dev->descriptor.bDeviceClass == USB_CLASS_VENDOR_SPEC &&
+			!(id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
+			(id->match_flags & (USB_DEVICE_ID_MATCH_INT_CLASS |
+				USB_DEVICE_ID_MATCH_INT_SUBCLASS |
+				USB_DEVICE_ID_MATCH_INT_PROTOCOL |
+				USB_DEVICE_ID_MATCH_INT_NUMBER)))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
+	    (id->bInterfaceClass != intf->desc.bInterfaceClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS) &&
+	    (id->bInterfaceSubClass != intf->desc.bInterfaceSubClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL) &&
+	    (id->bInterfaceProtocol != intf->desc.bInterfaceProtocol))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_NUMBER) &&
+	    (id->bInterfaceNumber != intf->desc.bInterfaceNumber))
+		return 0;
+
+	return 1;
+}
+
+/* returns 0 if no match, 1 if match */
 int usb_match_one_id(struct usb_interface *interface,
 		     const struct usb_device_id *id)
 {
@@ -622,29 +653,7 @@ int usb_match_one_id(struct usb_interface *interface,
 	if (!usb_match_device(dev, id))
 		return 0;
 
-	/* The interface class, subclass, and protocol should never be
-	 * checked for a match if the device class is Vendor Specific,
-	 * unless the match record specifies the Vendor ID. */
-	if (dev->descriptor.bDeviceClass == USB_CLASS_VENDOR_SPEC &&
-			!(id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
-			(id->match_flags & (USB_DEVICE_ID_MATCH_INT_CLASS |
-				USB_DEVICE_ID_MATCH_INT_SUBCLASS |
-				USB_DEVICE_ID_MATCH_INT_PROTOCOL)))
-		return 0;
-
-	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
-	    (id->bInterfaceClass != intf->desc.bInterfaceClass))
-		return 0;
-
-	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS) &&
-	    (id->bInterfaceSubClass != intf->desc.bInterfaceSubClass))
-		return 0;
-
-	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL) &&
-	    (id->bInterfaceProtocol != intf->desc.bInterfaceProtocol))
-		return 0;
-
-	return 1;
+	return usb_match_one_id_intf(dev, intf, id);
 }
 EXPORT_SYMBOL_GPL(usb_match_one_id);
 

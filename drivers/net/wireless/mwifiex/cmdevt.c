@@ -170,7 +170,20 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	cmd_code = le16_to_cpu(host_cmd->command);
 	cmd_size = le16_to_cpu(host_cmd->size);
 
-	skb_trim(cmd_node->cmd_skb, cmd_size);
+	/* Adjust skb length */
+	if (cmd_node->cmd_skb->len > cmd_size)
+		/*
+		 * cmd_size is less than sizeof(struct host_cmd_ds_command).
+		 * Trim off the unused portion.
+		 */
+		skb_trim(cmd_node->cmd_skb, cmd_size);
+	else if (cmd_node->cmd_skb->len < cmd_size)
+		/*
+		 * cmd_size is larger than sizeof(struct host_cmd_ds_command)
+		 * because we have appended custom IE TLV. Increase skb length
+		 * accordingly.
+		 */
+		skb_put(cmd_node->cmd_skb, cmd_size - cmd_node->cmd_skb->len);
 
 	do_gettimeofday(&tstamp);
 	dev_dbg(adapter->dev, "cmd: DNLD_CMD: (%lu.%lu): %#x, act %#x, len %d,"
@@ -447,7 +460,10 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
-	ret = mwifiex_process_sta_event(priv);
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		ret = mwifiex_process_uap_event(priv);
+	else
+		ret = mwifiex_process_sta_event(priv);
 
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;
@@ -1072,6 +1088,8 @@ mwifiex_hs_activated_event(struct mwifiex_private *priv, u8 activated)
 	if (activated) {
 		if (priv->adapter->is_hs_configured) {
 			priv->adapter->hs_activated = true;
+			mwifiex_update_rxreor_flags(priv->adapter,
+						    RXREOR_FORCE_NO_DROP);
 			dev_dbg(priv->adapter->dev, "event: hs_activated\n");
 			priv->adapter->hs_activate_wait_q_woken = true;
 			wake_up_interruptible(

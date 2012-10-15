@@ -36,51 +36,7 @@ static void isku_profile_activated(struct isku_device *isku, uint new_profile)
 static int isku_receive(struct usb_device *usb_dev, uint command,
 		void *buf, uint size)
 {
-	return roccat_common_receive(usb_dev, command, buf, size);
-}
-
-static int isku_receive_control_status(struct usb_device *usb_dev)
-{
-	int retval;
-	struct isku_control control;
-
-	do {
-		msleep(50);
-		retval = isku_receive(usb_dev, ISKU_COMMAND_CONTROL,
-				&control, sizeof(struct isku_control));
-
-		if (retval)
-			return retval;
-
-		switch (control.value) {
-		case ISKU_CONTROL_VALUE_STATUS_OK:
-			return 0;
-		case ISKU_CONTROL_VALUE_STATUS_WAIT:
-			continue;
-		case ISKU_CONTROL_VALUE_STATUS_INVALID:
-		/* seems to be critical - replug necessary */
-		case ISKU_CONTROL_VALUE_STATUS_OVERLOAD:
-			return -EINVAL;
-		default:
-			hid_err(usb_dev, "isku_receive_control_status: "
-					"unknown response value 0x%x\n",
-					control.value);
-			return -EINVAL;
-		}
-
-	} while (1);
-}
-
-static int isku_send(struct usb_device *usb_dev, uint command,
-		void const *buf, uint size)
-{
-	int retval;
-
-	retval = roccat_common_send(usb_dev, command, buf, size);
-	if (retval)
-		return retval;
-
-	return isku_receive_control_status(usb_dev);
+	return roccat_common2_receive(usb_dev, command, buf, size);
 }
 
 static int isku_get_actual_profile(struct usb_device *usb_dev)
@@ -100,7 +56,8 @@ static int isku_set_actual_profile(struct usb_device *usb_dev, int new_profile)
 	buf.command = ISKU_COMMAND_ACTUAL_PROFILE;
 	buf.size = sizeof(struct isku_actual_profile);
 	buf.actual_profile = new_profile;
-	return isku_send(usb_dev, ISKU_COMMAND_ACTUAL_PROFILE, &buf,
+	return roccat_common2_send_with_status(usb_dev,
+			ISKU_COMMAND_ACTUAL_PROFILE, &buf,
 			sizeof(struct isku_actual_profile));
 }
 
@@ -197,7 +154,8 @@ static ssize_t isku_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&isku->isku_lock);
-	retval = isku_send(usb_dev, command, (void *)buf, real_size);
+	retval = roccat_common2_send_with_status(usb_dev, command,
+			(void *)buf, real_size);
 	mutex_unlock(&isku->isku_lock);
 
 	return retval ? retval : real_size;

@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -61,27 +60,20 @@ static void hexdump(char *title, u8 *data, int len)
 
 static struct sdio_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
-	struct sdio_tx *t = NULL;
+	struct sdio_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
 
-	t = kmalloc(sizeof(*t), GFP_ATOMIC);
-	if (t == NULL)
-		goto out;
-
-	memset(t, 0, sizeof(*t));
+	if (!t)
+		return NULL;
 
 	t->buf = kmalloc(TX_BUF_SIZE, GFP_ATOMIC);
-	if (t->buf == NULL)
-		goto out;
+	if (!t->buf) {
+		kfree(t);
+		return NULL;
+	}
 
 	t->tx_cxt = tx;
 
 	return t;
-out:
-	if (t) {
-		kfree(t->buf);
-		kfree(t);
-	}
-	return NULL;
 }
 
 static void free_tx_struct(struct sdio_tx *t)
@@ -94,20 +86,12 @@ static void free_tx_struct(struct sdio_tx *t)
 
 static struct sdio_rx *alloc_rx_struct(struct rx_cxt *rx)
 {
-	struct sdio_rx *r = NULL;
+	struct sdio_rx *r = kzalloc(sizeof(*r), GFP_ATOMIC);
 
-	r = kmalloc(sizeof(*r), GFP_ATOMIC);
-	if (r == NULL)
-		goto out;
-
-	memset(r, 0, sizeof(*r));
-
-	r->rx_cxt = rx;
+	if (r)
+		r->rx_cxt = rx;
 
 	return r;
-out:
-	kfree(r);
-	return NULL;
 }
 
 static void free_rx_struct(struct sdio_rx *r)
@@ -665,26 +649,23 @@ static int sdio_wimax_probe(struct sdio_func *func,
 	if (ret)
 		return ret;
 
-	phy_dev = kmalloc(sizeof(*phy_dev), GFP_KERNEL);
+	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (phy_dev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	sdev = kmalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (sdev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(phy_dev, 0, sizeof(*phy_dev));
-	memset(sdev, 0, sizeof(*sdev));
 
 	phy_dev->priv_dev = (void *)sdev;
 	phy_dev->send_func = gdm_sdio_send;
 	phy_dev->rcv_func = gdm_sdio_receive;
 
 	ret = init_sdio(sdev);
-	if (sdev < 0)
+	if (ret < 0)
 		goto out;
 
 	sdev->func = func;

@@ -59,6 +59,6 @@ module_exit(ozwpan_exit);
 
 MODULE_AUTHOR("Chris Kelly");
 MODULE_DESCRIPTION("Ozmo Devices USB over WiFi hcd driver");
-MODULE_VERSION("1.0.9");
+MODULE_VERSION("1.0.13");
 MODULE_LICENSE("GPL");
 

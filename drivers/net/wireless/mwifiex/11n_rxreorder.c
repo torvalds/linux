@@ -54,8 +54,13 @@ mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		if (rx_tmp_ptr)
-			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+		if (rx_tmp_ptr) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  rx_tmp_ptr);
+		}
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -97,7 +102,11 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+			mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+		else
+			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -148,7 +157,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
  * This function returns the pointer to an entry in Rx reordering
  * table which matches the given TA/TID pair.
  */
-static struct mwifiex_rx_reorder_tbl *
+struct mwifiex_rx_reorder_tbl *
 mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 {
 	struct mwifiex_rx_reorder_tbl *tbl;
@@ -165,6 +174,31 @@ mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return NULL;
+}
+
+/* This function retrieves the pointer to an entry in Rx reordering
+ * table which matches the given TA and deletes it.
+ */
+void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta)
+{
+	struct mwifiex_rx_reorder_tbl *tbl, *tmp;
+	unsigned long flags;
+
+	if (!ta)
+		return;
+
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	list_for_each_entry_safe(tbl, tmp, &priv->rx_reorder_tbl_ptr, list) {
+		if (!memcmp(tbl->ta, ta, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
+			mwifiex_del_rx_reorder_entry(priv, tbl);
+			spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+
+	return;
 }
 
 /*
@@ -226,6 +260,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
 	u16 last_seq = 0;
 	unsigned long flags;
+	struct mwifiex_sta_node *node;
 
 	/*
 	 * If we get a TID, ta pair which is already present dispatch all the
@@ -248,19 +283,26 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node->tid = tid;
 	memcpy(new_node->ta, ta, ETH_ALEN);
 	new_node->start_win = seq_num;
-	if (mwifiex_queuing_ra_based(priv))
-		/* TODO for adhoc */
+
+	if (mwifiex_queuing_ra_based(priv)) {
 		dev_dbg(priv->adapter->dev,
-			"info: ADHOC:last_seq=%d start_win=%d\n",
+			"info: AP/ADHOC:last_seq=%d start_win=%d\n",
 			last_seq, new_node->start_win);
-	else
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
+			node = mwifiex_get_sta_entry(priv, ta);
+			if (node)
+				last_seq = node->rx_seq[tid];
+		}
+	} else {
 		last_seq = priv->rx_seq[tid];
+	}
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
 	    last_seq >= new_node->start_win)
 		new_node->start_win = last_seq + 1;
 
 	new_node->win_size = win_size;
+	new_node->flags = 0;
 
 	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
 					GFP_KERNEL);
@@ -396,8 +438,13 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		if (pkt_type != PKT_TYPE_BAR)
-			mwifiex_process_rx_packet(priv->adapter, payload);
+		if (pkt_type != PKT_TYPE_BAR) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, payload);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  payload);
+		}
 		return 0;
 	}
 	start_win = tbl->start_win;
@@ -411,13 +458,20 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	 * If seq_num is less then starting win then ignore and drop the
 	 * packet
 	 */
-	if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {/* Wrap */
-		if (seq_num >= ((start_win + TWOPOW11) &
-				(MAX_TID_VALUE - 1)) && (seq_num < start_win))
+	if (tbl->flags & RXREOR_FORCE_NO_DROP) {
+		dev_dbg(priv->adapter->dev,
+			"RXREOR_FORCE_NO_DROP when HS is activated\n");
+		tbl->flags &= ~RXREOR_FORCE_NO_DROP;
+	} else {
+		if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {
+			if (seq_num >= ((start_win + TWOPOW11) &
+					(MAX_TID_VALUE - 1)) &&
+			    seq_num < start_win)
+				return -1;
+		} else if ((seq_num < start_win) ||
+			   (seq_num > (start_win + TWOPOW11))) {
 			return -1;
-	} else if ((seq_num < start_win) ||
-		   (seq_num > (start_win + TWOPOW11))) {
-		return -1;
+		}
 	}
 
 	/*
@@ -428,8 +482,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 		seq_num = ((seq_num + win_size) - 1) & (MAX_TID_VALUE - 1);
 
 	if (((end_win < start_win) &&
-	     (seq_num < (TWOPOW11 - (MAX_TID_VALUE - start_win))) &&
-	     (seq_num > end_win)) ||
+	     (seq_num < start_win) && (seq_num > end_win)) ||
 	    ((end_win > start_win) && ((seq_num > end_win) ||
 				       (seq_num < start_win)))) {
 		end_win = seq_num;
@@ -590,4 +643,30 @@ void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 
 	INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 	mwifiex_reset_11n_rx_seq_num(priv);
+}
+
+/*
+ * This function updates all rx_reorder_tbl's flags.
+ */
+void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
+{
+	struct mwifiex_private *priv;
+	struct mwifiex_rx_reorder_tbl *tbl;
+	unsigned long lock_flags;
+	int i;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (!priv)
+			continue;
+		if (list_empty(&priv->rx_reorder_tbl_ptr))
+			continue;
+
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, lock_flags);
+		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
+			tbl->flags = flags;
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, lock_flags);
+	}
+
+	return;
 }

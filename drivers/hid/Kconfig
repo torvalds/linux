@@ -53,6 +53,27 @@ config HIDRAW
 
 	If unsure, say Y.
 
+config UHID
+	tristate "User-space I/O driver support for HID subsystem"
+	depends on HID
+	default n
+	---help---
+	Say Y here if you want to provide HID I/O Drivers from user-space.
+	This allows to write I/O drivers in user-space and feed the data from
+	the device into the kernel. The kernel parses the HID reports, loads the
+	corresponding HID Device Driver or provides input devices on top of your
+	user-space device.
+
+	This driver cannot be used to parse HID-reports in user-space and write
+	special HID-drivers. You should use hidraw for that.
+	Instead, this driver allows to write the transport-layer driver in
+	user-space like USB-HID and Bluetooth-HID do in kernel-space.
+
+	If unsure, say N.
+
+	To compile this driver as a module, choose M here: the
+	module will be called uhid.
+
 config HID_GENERIC
 	tristate "Generic HID driver"
 	depends on HID
@@ -193,10 +214,12 @@ config HID_EZKEY
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_HOLTEK
-	tristate "Holtek On Line Grip based game controller support"
+	tristate "Holtek HID devices"
 	depends on USB_HID
 	---help---
-	  Say Y here if you have a Holtek On Line Grip based game controller.
+	Support for Holtek based devices:
+	  - Holtek On Line Grip based game controller
+	  - Trust GXT 18 Gaming Keyboard
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -261,6 +284,19 @@ config HID_LCPOWER
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
 
+config HID_LENOVO_TPKBD
+	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
+	depends on USB_HID
+	select NEW_LEDS
+	select LEDS_CLASS
+	---help---
+	Support for the Lenovo ThinkPad USB Keyboard with TrackPoint.
+
+	Say Y here if you have a Lenovo ThinkPad USB Keyboard with TrackPoint
+	and would like to use device-specific features like changing the
+	sensitivity of the trackpoint, using the microphone mute button or
+	controlling the mute and microphone mute LEDs.
+
 config HID_LOGITECH
 	tristate "Logitech devices" if EXPERT
 	depends on USB_HID
@@ -271,7 +307,6 @@ config HID_LOGITECH
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
 	depends on HID_LOGITECH
-	default m
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
@@ -491,12 +526,29 @@ config HID_PICOLCD_LEDS
 	---help---
 	  Provide access to PicoLCD's GPO pins via leds class.
 
+config HID_PICOLCD_CIR
+	bool "CIR via RC class" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=RC_CORE || RC_CORE=y
+	---help---
+	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on USB_HID
 	---help---
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
+
+config HID_PS3REMOTE
+	tristate "Sony PS3 BD Remote Control"
+	depends on BT_HIDP
+	---help---
+	Support for the Sony PS3 Blue-ray Disk Remote Control and Logitech
+	Harmony Adapter for PS3, which connect over Bluetooth.
+
+	Support for the 6-axis controllers is provided by HID_SONY.
 
 config HID_ROCCAT
 	tristate "Roccat device support"
@@ -525,7 +577,9 @@ config HID_SONY
 	tristate "Sony PS3 controller"
 	depends on USB_HID
 	---help---
-	Support for Sony PS3 controller.
+	Support for Sony PS3 6-axis controllers.
+
+	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
@@ -653,6 +707,20 @@ config HID_ZYDACRON
 	depends on USB_HID
 	---help---
 	Support for Zydacron remote control.
+
+config HID_SENSOR_HUB
+	tristate "HID Sensors framework support"
+	depends on USB_HID
+	select MFD_CORE
+	default n
+	-- help---
+	  Support for HID Sensor framework. This creates a MFD instance
+	  for a sensor hub and identifies all the sensors connected to it.
+	  Each sensor is registered as a MFD cell, so that sensor specific
+	  processing can be done in a separate driver. Each sensor
+	  drivers can use the service provided by this driver to register
+	  for events and handle data streams. Each sensor driver can format
+	  data and present to user mode using input or IIO interface.
 
 endmenu
 

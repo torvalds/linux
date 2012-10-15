@@ -66,7 +66,6 @@ static struct _intel_private {
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
 	phys_addr_t gtt_bus_addr;
-	phys_addr_t gma_bus_addr;
 	u32 PGETBL_save;
 	u32 __iomem *gtt;		/* I915G */
 	bool clear_fake_agp; /* on first access via agp, fill with scratch */
@@ -76,6 +75,7 @@ static struct _intel_private {
 	struct resource ifp_resource;
 	int resource_valid;
 	struct page *scratch_page;
+	int refcount;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -648,6 +648,7 @@ static void intel_gtt_cleanup(void)
 
 static int intel_gtt_init(void)
 {
+	u32 gma_addr;
 	u32 gtt_map_size;
 	int ret;
 
@@ -693,6 +694,15 @@ static int intel_gtt_init(void)
 		intel_gtt_cleanup();
 		return ret;
 	}
+
+	if (INTEL_GTT_GEN <= 2)
+		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
+				      &gma_addr);
+	else
+		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
+				      &gma_addr);
+
+	intel_private.base.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	return 0;
 }
@@ -767,19 +777,9 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static bool intel_enable_gtt(void)
+bool intel_enable_gtt(void)
 {
-	u32 gma_addr;
 	u8 __iomem *reg;
-
-	if (INTEL_GTT_GEN <= 2)
-		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
-				      &gma_addr);
-	else
-		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
-				      &gma_addr);
-
-	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	if (INTEL_GTT_GEN >= 6)
 	    return true;
@@ -823,6 +823,7 @@ static bool intel_enable_gtt(void)
 
 	return true;
 }
+EXPORT_SYMBOL(intel_enable_gtt);
 
 static int i830_setup(void)
 {
@@ -860,7 +861,7 @@ static int intel_fake_agp_configure(void)
 	    return -EIO;
 
 	intel_private.clear_fake_agp = true;
-	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
+	agp_bridge->gart_bus_addr = intel_private.base.gma_bus_addr;
 
 	return 0;
 }
@@ -1155,6 +1156,30 @@ static bool gen6_check_flags(unsigned int flags)
 	return true;
 }
 
+static void haswell_write_entry(dma_addr_t addr, unsigned int entry,
+				unsigned int flags)
+{
+	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
+	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
+	u32 pte_flags;
+
+	if (type_mask == AGP_USER_MEMORY)
+		pte_flags = HSW_PTE_UNCACHED | I810_PTE_VALID;
+	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
+		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	} else { /* set 'normal'/'cached' to LLC by default */
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	}
+
+	/* gen6 has bit11-4 for physical addr bit39-32 */
+	addr |= (addr >> 28) & 0xff0;
+	writel(addr | pte_flags, intel_private.gtt + entry);
+}
+
 static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 			     unsigned int flags)
 {
@@ -1182,9 +1207,17 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 static void valleyview_write_entry(dma_addr_t addr, unsigned int entry,
 				   unsigned int flags)
 {
+	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
+	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
 	u32 pte_flags;
 
-	pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
+	if (type_mask == AGP_USER_MEMORY)
+		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
+	else {
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	}
 
 	/* gen6 has bit11-4 for physical addr bit39-32 */
 	addr |= (addr >> 28) & 0xff0;
@@ -1244,6 +1277,7 @@ static int i9xx_setup(void)
 		switch (INTEL_GTT_GEN) {
 		case 5:
 		case 6:
+		case 7:
 			gtt_offset = MB(2);
 			break;
 		case 4:
@@ -1372,6 +1406,15 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.check_flags = gen6_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
+static const struct intel_gtt_driver haswell_gtt_driver = {
+	.gen = 6,
+	.setup = i9xx_setup,
+	.cleanup = gen6_cleanup,
+	.write_entry = haswell_write_entry,
+	.dma_mask_size = 40,
+	.check_flags = gen6_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
+};
 static const struct intel_gtt_driver valleyview_gtt_driver = {
 	.gen = 7,
 	.setup = i9xx_setup,
@@ -1379,7 +1422,6 @@ static const struct intel_gtt_driver valleyview_gtt_driver = {
 	.write_entry = valleyview_write_entry,
 	.dma_mask_size = 40,
 	.check_flags = gen6_check_flags,
-	.chipset_flush = i9xx_chipset_flush,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
@@ -1490,19 +1532,77 @@ static const struct intel_gtt_driver_description {
 	{ PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG,
 	    "ValleyView", &valleyview_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ 0, NULL, NULL }
 };
 
@@ -1523,14 +1623,32 @@ static int find_gmch(u16 device)
 	return 1;
 }
 
-int intel_gmch_probe(struct pci_dev *pdev,
-				      struct agp_bridge_data *bridge)
+int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
+		     struct agp_bridge_data *bridge)
 {
 	int i, mask;
-	intel_private.driver = NULL;
+
+	/*
+	 * Can be called from the fake agp driver but also directly from
+	 * drm/i915.ko. Hence we need to check whether everything is set up
+	 * already.
+	 */
+	if (intel_private.driver) {
+		intel_private.refcount++;
+		return 1;
+	}
 
 	for (i = 0; intel_gtt_chipsets[i].name != NULL; i++) {
-		if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
+		if (gpu_pdev) {
+			if (gpu_pdev->device ==
+			    intel_gtt_chipsets[i].gmch_chip_id) {
+				intel_private.pcidev = pci_dev_get(gpu_pdev);
+				intel_private.driver =
+					intel_gtt_chipsets[i].gtt_driver;
+
+				break;
+			}
+		} else if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
 			intel_private.driver =
 				intel_gtt_chipsets[i].gtt_driver;
 			break;
@@ -1540,13 +1658,17 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	if (!intel_private.driver)
 		return 0;
 
-	bridge->driver = &intel_fake_agp_driver;
-	bridge->dev_private_data = &intel_private;
-	bridge->dev = pdev;
+	intel_private.refcount++;
 
-	intel_private.bridge_dev = pci_dev_get(pdev);
+	if (bridge) {
+		bridge->driver = &intel_fake_agp_driver;
+		bridge->dev_private_data = &intel_private;
+		bridge->dev = bridge_pdev;
+	}
 
-	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
+	intel_private.bridge_dev = pci_dev_get(bridge_pdev);
+
+	dev_info(&bridge_pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
 	mask = intel_private.driver->dma_mask_size;
 	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
@@ -1556,11 +1678,11 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
 
-	/*if (bridge->driver == &intel_810_driver)
-		return 1;*/
+	if (intel_gtt_init() != 0) {
+		intel_gmch_remove();
 
-	if (intel_gtt_init() != 0)
 		return 0;
+	}
 
 	return 1;
 }
@@ -1579,12 +1701,16 @@ void intel_gtt_chipset_flush(void)
 }
 EXPORT_SYMBOL(intel_gtt_chipset_flush);
 
-void intel_gmch_remove(struct pci_dev *pdev)
+void intel_gmch_remove(void)
 {
+	if (--intel_private.refcount)
+		return;
+
 	if (intel_private.pcidev)
 		pci_dev_put(intel_private.pcidev);
 	if (intel_private.bridge_dev)
 		pci_dev_put(intel_private.bridge_dev);
+	intel_private.driver = NULL;
 }
 EXPORT_SYMBOL(intel_gmch_remove);
 

@@ -26,6 +26,8 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/videodev2.h>
 #include <mach/common.h>
@@ -75,6 +77,12 @@
  * S38.2 = OFF
  */
 
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
+
 /*
  * FPGA
  */
@@ -100,12 +108,12 @@
 #define FPGA_ETH_IRQ		(FPGA_IRQ0 + 15)
 static u16 bonito_fpga_read(u32 offset)
 {
-	return __raw_readw(0xf0003000 + offset);
+	return __raw_readw(IOMEM(0xf0003000) + offset);
 }
 
 static void bonito_fpga_write(u32 offset, u16 val)
 {
-	__raw_writew(val, 0xf0003000 + offset);
+	__raw_writew(val, IOMEM(0xf0003000) + offset);
 }
 
 static void bonito_fpga_irq_disable(struct irq_data *data)
@@ -353,12 +361,14 @@ static void __init bonito_map_io(void)
 #define BIT_ON(sw, bit)		(sw & (1 << bit))
 #define BIT_OFF(sw, bit)	(!(sw & (1 << bit)))
 
-#define VCCQ1CR		0xE6058140
-#define VCCQ1LCDCR	0xE6058186
+#define VCCQ1CR		IOMEM(0xE6058140)
+#define VCCQ1LCDCR	IOMEM(0xE6058186)
 
 static void __init bonito_init(void)
 {
 	u16 val;
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	r8a7740_pinmux_init();
 	bonito_fpga_init();

@@ -57,7 +57,7 @@ static int tegra_wm8753_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = codec_dai->codec;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
 	int srate, mclk;
@@ -157,9 +157,9 @@ static __devinit int tegra_wm8753_driver_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	tegra_wm8753_dai.cpu_dai_of_node = of_parse_phandle(
+	tegra_wm8753_dai.cpu_of_node = of_parse_phandle(
 			pdev->dev.of_node, "nvidia,i2s-controller", 0);
-	if (!tegra_wm8753_dai.cpu_dai_of_node) {
+	if (!tegra_wm8753_dai.cpu_of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
@@ -167,7 +167,7 @@ static __devinit int tegra_wm8753_driver_probe(struct platform_device *pdev)
 	}
 
 	tegra_wm8753_dai.platform_of_node =
-				tegra_wm8753_dai.cpu_dai_of_node;
+				tegra_wm8753_dai.cpu_of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

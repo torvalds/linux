@@ -30,6 +30,7 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
+#include <mach/dma-register.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/sh73a0.h>
@@ -415,32 +416,6 @@ static struct platform_device i2c4_device = {
 	.num_resources	= ARRAY_SIZE(i2c4_resources),
 };
 
-/* Transmit sizes and respective CHCR register values */
-enum {
-	XMIT_SZ_8BIT		= 0,
-	XMIT_SZ_16BIT		= 1,
-	XMIT_SZ_32BIT		= 2,
-	XMIT_SZ_64BIT		= 7,
-	XMIT_SZ_128BIT		= 3,
-	XMIT_SZ_256BIT		= 4,
-	XMIT_SZ_512BIT		= 5,
-};
-
-/* log2(size / 8) - used to calculate number of transfers */
-#define TS_SHIFT {			\
-	[XMIT_SZ_8BIT]		= 0,	\
-	[XMIT_SZ_16BIT]		= 1,	\
-	[XMIT_SZ_32BIT]		= 2,	\
-	[XMIT_SZ_64BIT]		= 3,	\
-	[XMIT_SZ_128BIT]	= 4,	\
-	[XMIT_SZ_256BIT]	= 5,	\
-	[XMIT_SZ_512BIT]	= 6,	\
-}
-
-#define TS_INDEX2VAL(i) ((((i) & 3) << 3) | (((i) & 0xc) << (20 - 2)))
-#define CHCR_TX(xmit_sz) (DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL((xmit_sz)))
-#define CHCR_RX(xmit_sz) (DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL((xmit_sz)))
-
 static const struct sh_dmae_slave_config sh73a0_dmae_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF0_TX,
@@ -604,19 +579,17 @@ static const struct sh_dmae_channel sh73a0_dmae_channels[] = {
 	DMAE_CHANNEL(0x8980),
 };
 
-static const unsigned int ts_shift[] = TS_SHIFT;
-
 static struct sh_dmae_pdata sh73a0_dmae_platform_data = {
 	.slave          = sh73a0_dmae_slaves,
 	.slave_num      = ARRAY_SIZE(sh73a0_dmae_slaves),
 	.channel        = sh73a0_dmae_channels,
 	.channel_num    = ARRAY_SIZE(sh73a0_dmae_channels),
-	.ts_low_shift   = 3,
-	.ts_low_mask    = 0x18,
-	.ts_high_shift  = (20 - 2),     /* 2 bits for shifted low TS */
-	.ts_high_mask   = 0x00300000,
-	.ts_shift       = ts_shift,
-	.ts_shift_num   = ARRAY_SIZE(ts_shift),
+	.ts_low_shift   = TS_LOW_SHIFT,
+	.ts_low_mask    = TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift  = TS_HI_SHIFT,
+	.ts_high_mask   = TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift       = dma_ts_shift,
+	.ts_shift_num   = ARRAY_SIZE(dma_ts_shift),
 	.dmaor_init     = DMAOR_DME,
 };
 
@@ -651,6 +624,136 @@ static struct platform_device dma0_device = {
 	},
 };
 
+/* MPDMAC */
+static const struct sh_dmae_slave_config sh73a0_mpdma_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_FSI2A_RX,
+		.addr		= 0xec230020,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd6, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2A_TX,
+		.addr		= 0xec230024,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd5, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2C_RX,
+		.addr		= 0xec230060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xda, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2C_TX,
+		.addr		= 0xec230064,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd9, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2B_RX,
+		.addr		= 0xec240020,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x8e, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2B_TX,
+		.addr		= 0xec240024,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x8d, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2D_RX,
+		.addr		=  0xec240060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x9a, /* CHECK ME */
+	},
+};
+
+#define MPDMA_CHANNEL(a, b, c)			\
+{						\
+	.offset		= a,			\
+	.dmars		= b,			\
+	.dmars_bit	= c,			\
+	.chclr_offset	= (0x220 - 0x20) + a	\
+}
+
+static const struct sh_dmae_channel sh73a0_mpdma_channels[] = {
+	MPDMA_CHANNEL(0x00, 0, 0),
+	MPDMA_CHANNEL(0x10, 0, 8),
+	MPDMA_CHANNEL(0x20, 4, 0),
+	MPDMA_CHANNEL(0x30, 4, 8),
+	MPDMA_CHANNEL(0x50, 8, 0),
+	MPDMA_CHANNEL(0x70, 8, 8),
+};
+
+static struct sh_dmae_pdata sh73a0_mpdma_platform_data = {
+	.slave		= sh73a0_mpdma_slaves,
+	.slave_num	= ARRAY_SIZE(sh73a0_mpdma_slaves),
+	.channel	= sh73a0_mpdma_channels,
+	.channel_num	= ARRAY_SIZE(sh73a0_mpdma_channels),
+	.ts_low_shift	= TS_LOW_SHIFT,
+	.ts_low_mask	= TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift	= TS_HI_SHIFT,
+	.ts_high_mask	= TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift	= dma_ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_ts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chclr_present	= 1,
+};
+
+/* Resource order important! */
+static struct resource sh73a0_mpdma_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xec618020,
+		.end	= 0xec61828f,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMARSx */
+		.start	= 0xec619000,
+		.end	= 0xec61900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "error_irq",
+		.start	= gic_spi(181),
+		.end	= gic_spi(181),
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-5 */
+		.start	= gic_spi(175),
+		.end	= gic_spi(180),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mpdma0_device = {
+	.name		= "sh-dma-engine",
+	.id		= 1,
+	.resource	= sh73a0_mpdma_resources,
+	.num_resources	= ARRAY_SIZE(sh73a0_mpdma_resources),
+	.dev		= {
+		.platform_data	= &sh73a0_mpdma_platform_data,
+	},
+};
+
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= gic_spi(55),
+		.end	= gic_spi(55),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= gic_spi(56),
+		.end	= gic_spi(56),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name		= "arm-pmu",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pmu_resources),
+	.resource	= pmu_resources,
+};
+
 static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -673,9 +776,11 @@ static struct platform_device *sh73a0_late_devices[] __initdata = {
 	&i2c3_device,
 	&i2c4_device,
 	&dma0_device,
+	&mpdma0_device,
+	&pmu_device,
 };
 
-#define SRCR2          0xe61580b0
+#define SRCR2          IOMEM(0xe61580b0)
 
 void __init sh73a0_add_standard_devices(void)
 {

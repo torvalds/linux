@@ -1,6 +1,3 @@
-#define DRIVER_VERSION "v0.6"
-#define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
-#define DRIVER_DESC "Stirling/ITL USB-DUX SIGMA -- Bernd.Porr@f2s.com"
 /*
    comedi/drivers/usbdux.c
    Copyright (C) 2011 Bernd Porr, Bernd.Porr@f2s.com
@@ -62,12 +59,11 @@ Status: testing
 #include "comedi_fc.h"
 #include "../comedidev.h"
 
-#define BOARDNAME "usbduxsigma"
-
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
 
 /* constants for "firmware" upload and download */
+#define FIRMWARE "usbduxsigma_firmware.bin"
 #define USBDUXSUB_FIRMWARE 0xA0
 #define VENDOR_DIR_IN  0xC0
 #define VENDOR_DIR_OUT 0x40
@@ -267,8 +263,6 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-static struct comedi_driver driver_usbduxsigma;	/* see below for initializer */
-
 /*
  * Stops the data acquision
  * It should be safe to call this function from any context
@@ -362,7 +356,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 	/* subdevice which is the AD converter */
-	s = this_comedidev->subdevices + SUBDEV_AD;
+	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -564,7 +558,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -903,9 +897,9 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
-	int err = 0, tmp, i;
-	unsigned int tmpTimer;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0, i;
+	unsigned int tmpTimer;
 
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
@@ -913,51 +907,23 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* start a new _scan_ with a timer */
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1358,7 +1324,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 		/* 32 bits big endian from the A/D converter */
 		one = be32_to_cpu(*((int32_t *)
 				    ((this_usbduxsub->insnBuffer)+1)));
-		/* mask out the staus byte */
+		/* mask out the status byte */
 		one = one & 0x00ffffff;
 		/* turn it into an unsigned integer */
 		one = one ^ 0x00800000;
@@ -1564,8 +1530,9 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
-	int err = 0, tmp;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0;
+	unsigned int flags;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1576,63 +1543,35 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi%d: usbdux_ao_cmdtest\n", dev->minor);
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* just now we scan also in the high speed mode every frame */
-	/* this is due to ehci driver limitations */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+
 	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* start immediately a new scan */
-		/* the sampling rate is set by the coversion rate */
-		cmd->scan_begin_src &= TRIG_FOLLOW;
+		/*
+		 * start immediately a new scan
+		 * the sampling rate is set by the coversion rate
+		 */
+		flags = TRIG_FOLLOW;
 	} else {
 		/* start a new scan (output at once) with a timer */
-		cmd->scan_begin_src &= TRIG_TIMER;
+		flags = TRIG_TIMER;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
 
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-
-	/* all conversion events happen simultaneously */
-	cmd->convert_src &= TRIG_NOW;
-
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources
-	 * are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1845,9 +1784,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	if (!this_usbduxsub)
 		return -EFAULT;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	down(&this_usbduxsub->sem);
 
 	if (!(this_usbduxsub->probed)) {
@@ -1887,7 +1823,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	s->state = data[1];
 
 	up(&this_usbduxsub->sem);
-	return 2;
+	return insn->n;
 }
 
 /***********************************/
@@ -1959,7 +1895,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -2310,6 +2246,162 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->pwm_cmd_running = 0;
 }
 
+static int usbduxsigma_attach_common(struct comedi_device *dev,
+				     struct usbduxsub *uds)
+{
+	int ret;
+	struct comedi_subdevice *s;
+	int n_subdevs;
+	int offset;
+
+	down(&uds->sem);
+	/* pointer back to the corresponding comedi device */
+	uds->comedidev = dev;
+	dev->board_name = "usbduxsigma";
+	/* set number of subdevices */
+	if (uds->high_speed)
+		n_subdevs = 4;	/* with pwm */
+	else
+		n_subdevs = 3;	/* without pwm */
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	if (ret) {
+		up(&uds->sem);
+		return ret;
+	}
+	/* private structure is also simply the usb-structure */
+	dev->private = uds;
+	/* the first subdevice is the A/D converter */
+	s = &dev->subdevices[SUBDEV_AD];
+	/* the URBs get the comedi subdevice */
+	/* which is responsible for reading */
+	/* this is the subdevice which reads data */
+	dev->read_subdev = s;
+	/* the subdevice receives as private structure the */
+	/* usb-structure */
+	s->private = NULL;
+	/* analog input */
+	s->type = COMEDI_SUBD_AI;
+	/* readable and ref is to ground, 32 bit wide data! */
+	s->subdev_flags = SDF_READABLE | SDF_GROUND |
+		SDF_CMD_READ | SDF_LSAMPL;
+	/* 16 A/D channels */
+	s->n_chan = NUMCHANNELS;
+	/* length of the channellist */
+	s->len_chanlist = NUMCHANNELS;
+	/* callback functions */
+	s->insn_read = usbdux_ai_insn_read;
+	s->do_cmdtest = usbdux_ai_cmdtest;
+	s->do_cmd = usbdux_ai_cmd;
+	s->cancel = usbdux_ai_cancel;
+	/* max value from the A/D converter (24bit) */
+	s->maxdata = 0x00FFFFFF;
+	/* range table to convert to physical units */
+	s->range_table = (&range_usbdux_ai_range);
+	/* analog output subdevice */
+	s = &dev->subdevices[SUBDEV_DA];
+	/* analog out */
+	s->type = COMEDI_SUBD_AO;
+	/* backward pointer */
+	dev->write_subdev = s;
+	/* the subdevice receives as private structure the */
+	/* usb-structure */
+	s->private = NULL;
+	/* are writable */
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
+	/* 4 channels */
+	s->n_chan = 4;
+	/* length of the channellist */
+	s->len_chanlist = 4;
+	/* 8 bit resolution */
+	s->maxdata = 0x00ff;
+	/* unipolar range */
+	s->range_table = (&range_usbdux_ao_range);
+	/* callback */
+	s->do_cmdtest = usbdux_ao_cmdtest;
+	s->do_cmd = usbdux_ao_cmd;
+	s->cancel = usbdux_ao_cancel;
+	s->insn_read = usbdux_ao_insn_read;
+	s->insn_write = usbdux_ao_insn_write;
+	/* digital I/O subdevice */
+	s = &dev->subdevices[SUBDEV_DIO];
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	/* 8 external and 16 internal channels */
+	s->n_chan = 24;
+	s->maxdata = 1;
+	s->range_table = (&range_digital);
+	s->insn_bits = usbdux_dio_insn_bits;
+	s->insn_config = usbdux_dio_insn_config;
+	/* we don't use it */
+	s->private = NULL;
+	if (uds->high_speed) {
+		/* timer / pwm subdevice */
+		s = &dev->subdevices[SUBDEV_PWM];
+		s->type = COMEDI_SUBD_PWM;
+		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
+		s->n_chan = 8;
+		/* this defines the max duty cycle resolution */
+		s->maxdata = uds->sizePwmBuf;
+		s->insn_write = usbdux_pwm_write;
+		s->insn_read = usbdux_pwm_read;
+		s->insn_config = usbdux_pwm_config;
+		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
+	}
+	/* finally decide that it's attached */
+	uds->attached = 1;
+	up(&uds->sem);
+	offset = usbdux_getstatusinfo(dev, 0);
+	if (offset < 0)
+		dev_err(&uds->interface->dev,
+			"Communication to USBDUXSIGMA failed! Check firmware and cabling.");
+	dev_info(&uds->interface->dev,
+		 "comedi%d: attached, ADC_zero = %x\n", dev->minor, offset);
+	return 0;
+}
+
+static int usbduxsigma_attach_usb(struct comedi_device *dev,
+				  struct usb_interface *uinterf)
+{
+	int ret;
+	struct usbduxsub *uds;
+
+	dev->private = NULL;
+	down(&start_stop_sem);
+	uds = usb_get_intfdata(uinterf);
+	if (!uds || !uds->probed) {
+		dev_err(dev->class_dev,
+			"usbduxsigma: error: attach_usb failed, not connected\n");
+		ret = -ENODEV;
+	} else if (uds->attached) {
+		dev_err(dev->class_dev,
+		       "usbduxsigma: error: attach_usb failed, already attached\n");
+		ret = -ENODEV;
+	} else
+		ret = usbduxsigma_attach_common(dev, uds);
+	up(&start_stop_sem);
+	return ret;
+}
+
+static void usbduxsigma_detach(struct comedi_device *dev)
+{
+	struct usbduxsub *usb = dev->private;
+
+	if (usb) {
+		down(&usb->sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&usb->sem);
+	}
+}
+
+static struct comedi_driver usbduxsigma_driver = {
+	.driver_name	= "usbduxsigma",
+	.module		= THIS_MODULE,
+	.attach_usb	= usbduxsigma_attach_usb,
+	.detach		= usbduxsigma_detach,
+};
+
 static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 						     void *context)
 {
@@ -2334,14 +2426,13 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(uinterf, &driver_usbduxsigma);
+	comedi_usb_auto_config(uinterf, &usbduxsigma_driver);
 out:
 	release_firmware(fw);
 }
 
-/* allocate memory for the urbs and initialise them */
-static int usbduxsigma_probe(struct usb_interface *uinterf,
-			   const struct usb_device_id *id)
+static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
+				 const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
 	struct device *dev = &uinterf->dev;
@@ -2588,7 +2679,7 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxsigma_firmware.bin",
+				      FIRMWARE,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxsub + index,
@@ -2605,7 +2696,7 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 	return 0;
 }
 
-static void usbduxsigma_disconnect(struct usb_interface *intf)
+static void usbduxsigma_usb_disconnect(struct usb_interface *intf)
 {
 	struct usbduxsub *usbduxsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -2634,234 +2725,23 @@ static void usbduxsigma_disconnect(struct usb_interface *intf)
 	dev_info(&intf->dev, "comedi_: disconnected from the usb\n");
 }
 
-/* is called when comedi-config is called */
-static int usbduxsigma_attach(struct comedi_device *dev,
-			      struct comedi_devconfig *it)
-{
-	int ret;
-	int index;
-	int i;
-	struct usbduxsub *udev;
-
-	int offset;
-
-	struct comedi_subdevice *s = NULL;
-	dev->private = NULL;
-
-	down(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR "comedi%d: usbduxsigma: error: attach failed,"
-		       "dev not connected to the usb bus.\n", dev->minor);
-		up(&start_stop_sem);
-		return -ENODEV;
-	}
-
-	udev = &usbduxsub[index];
-	down(&udev->sem);
-	/* pointer back to the corresponding comedi device */
-	udev->comedidev = dev;
-
-	/* trying to upload the firmware into the FX2 */
-	if (comedi_aux_data(it->options, 0) &&
-	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		firmwareUpload(udev, comedi_aux_data(it->options, 0),
-			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
-
-	dev->board_name = BOARDNAME;
-
-	/* set number of subdevices */
-	if (udev->high_speed) {
-		/* with pwm */
-		dev->n_subdevices = 4;
-	} else {
-		/* without pwm */
-		dev->n_subdevices = 3;
-	}
-
-	/* allocate space for the subdevices */
-	ret = alloc_subdevices(dev, dev->n_subdevices);
-	if (ret < 0) {
-		dev_err(&udev->interface->dev,
-			"comedi%d: no space for subdev\n", dev->minor);
-		up(&udev->sem);
-		up(&start_stop_sem);
-		return ret;
-	}
-
-	/* private structure is also simply the usb-structure */
-	dev->private = udev;
-
-	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
-	/* the URBs get the comedi subdevice */
-	/* which is responsible for reading */
-	/* this is the subdevice which reads data */
-	dev->read_subdev = s;
-	/* the subdevice receives as private structure the */
-	/* usb-structure */
-	s->private = NULL;
-	/* analog input */
-	s->type = COMEDI_SUBD_AI;
-	/* readable and ref is to ground, 32 bit wide data! */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND |
-		SDF_CMD_READ | SDF_LSAMPL;
-	/* 16 A/D channels */
-	s->n_chan = NUMCHANNELS;
-	/* length of the channellist */
-	s->len_chanlist = NUMCHANNELS;
-	/* callback functions */
-	s->insn_read = usbdux_ai_insn_read;
-	s->do_cmdtest = usbdux_ai_cmdtest;
-	s->do_cmd = usbdux_ai_cmd;
-	s->cancel = usbdux_ai_cancel;
-	/* max value from the A/D converter (24bit) */
-	s->maxdata = 0x00FFFFFF;
-	/* range table to convert to physical units */
-	s->range_table = (&range_usbdux_ai_range);
-
-	/* analog out */
-	s = dev->subdevices + SUBDEV_DA;
-	/* analog out */
-	s->type = COMEDI_SUBD_AO;
-	/* backward pointer */
-	dev->write_subdev = s;
-	/* the subdevice receives as private structure the */
-	/* usb-structure */
-	s->private = NULL;
-	/* are writable */
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	/* 4 channels */
-	s->n_chan = 4;
-	/* length of the channellist */
-	s->len_chanlist = 4;
-	/* 8 bit resolution */
-	s->maxdata = 0x00ff;
-	/* unipolar range */
-	s->range_table = (&range_usbdux_ao_range);
-	/* callback */
-	s->do_cmdtest = usbdux_ao_cmdtest;
-	s->do_cmd = usbdux_ao_cmd;
-	s->cancel = usbdux_ao_cancel;
-	s->insn_read = usbdux_ao_insn_read;
-	s->insn_write = usbdux_ao_insn_write;
-
-	/* digital I/O */
-	s = dev->subdevices + SUBDEV_DIO;
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	/* 8 external and 16 internal channels */
-	s->n_chan = 24;
-	s->maxdata = 1;
-	s->range_table = (&range_digital);
-	s->insn_bits = usbdux_dio_insn_bits;
-	s->insn_config = usbdux_dio_insn_config;
-	/* we don't use it */
-	s->private = NULL;
-
-	if (udev->high_speed) {
-		/* timer / pwm */
-		s = dev->subdevices + SUBDEV_PWM;
-		s->type = COMEDI_SUBD_PWM;
-		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
-		s->n_chan = 8;
-		/* this defines the max duty cycle resolution */
-		s->maxdata = udev->sizePwmBuf;
-		s->insn_write = usbdux_pwm_write;
-		s->insn_read = usbdux_pwm_read;
-		s->insn_config = usbdux_pwm_config;
-		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
-	}
-	/* finally decide that it's attached */
-	udev->attached = 1;
-
-	up(&udev->sem);
-
-	up(&start_stop_sem);
-
-	offset = usbdux_getstatusinfo(dev, 0);
-	if (offset < 0)
-		dev_err(&udev->interface->dev,
-			"Communication to USBDUXSIGMA failed!"
-			"Check firmware and cabling.");
-
-	dev_info(&udev->interface->dev,
-		 "comedi%d: attached, ADC_zero = %x", dev->minor, offset);
-
-	return 0;
-}
-
-static void usbduxsigma_detach(struct comedi_device *dev)
-{
-	struct usbduxsub *usb = dev->private;
-
-	if (usb) {
-		down(&usb->sem);
-		dev->private = NULL;
-		usb->attached = 0;
-		usb->comedidev = NULL;
-		up(&usb->sem);
-	}
-}
-
-/* main driver struct */
-static struct comedi_driver driver_usbduxsigma = {
-	.driver_name = "usbduxsigma",
-	.module = THIS_MODULE,
-	.attach = usbduxsigma_attach,
-	.detach = usbduxsigma_detach,
+static const struct usb_device_id usbduxsigma_usb_table[] = {
+	{ USB_DEVICE(0x13d8, 0x0020) },
+	{ USB_DEVICE(0x13d8, 0x0021) },
+	{ USB_DEVICE(0x13d8, 0x0022) },
+	{ }
 };
+MODULE_DEVICE_TABLE(usb, usbduxsigma_usb_table);
 
-/* Table with the USB-devices */
-static const struct usb_device_id usbduxsigma_table[] = {
-	{USB_DEVICE(0x13d8, 0x0020)},
-	{USB_DEVICE(0x13d8, 0x0021)},
-	{USB_DEVICE(0x13d8, 0x0022)},
-	{}			/* Terminating entry */
+static struct usb_driver usbduxsigma_usb_driver = {
+	.name		= "usbduxsigma",
+	.probe		= usbduxsigma_usb_probe,
+	.disconnect	= usbduxsigma_usb_disconnect,
+	.id_table	= usbduxsigma_usb_table,
 };
+module_comedi_usb_driver(usbduxsigma_driver, usbduxsigma_usb_driver);
 
-MODULE_DEVICE_TABLE(usb, usbduxsigma_table);
-
-/* The usbduxsub-driver */
-static struct usb_driver usbduxsigma_driver = {
-	.name = BOARDNAME,
-	.probe = usbduxsigma_probe,
-	.disconnect = usbduxsigma_disconnect,
-	.id_table = usbduxsigma_table,
-};
-
-/* Can't use the nice macro as I have also to initialise the USB */
-/* subsystem: */
-/* registering the usb-system _and_ the comedi-driver */
-static int __init init_usbduxsigma(void)
-{
-	printk(KERN_INFO KBUILD_MODNAME ": "
-	       DRIVER_VERSION ":" DRIVER_DESC "\n");
-	usb_register(&usbduxsigma_driver);
-	comedi_driver_register(&driver_usbduxsigma);
-	return 0;
-}
-
-/* deregistering the comedi driver and the usb-subsystem */
-static void __exit exit_usbduxsigma(void)
-{
-	comedi_driver_unregister(&driver_usbduxsigma);
-	usb_deregister(&usbduxsigma_driver);
-}
-
-module_init(init_usbduxsigma);
-module_exit(exit_usbduxsigma);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
+MODULE_DESCRIPTION("Stirling/ITL USB-DUX SIGMA -- Bernd.Porr@f2s.com");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE);

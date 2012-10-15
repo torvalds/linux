@@ -40,14 +40,8 @@
 
 #define VIAWGET_HOSTAPD_MAX_BUF_SIZE 1024
 #define HOSTAP_CRYPT_FLAG_SET_TX_KEY BIT0
-#define HOSTAP_CRYPT_FLAG_PERMANENT BIT1
-#define HOSTAP_CRYPT_ERR_UNKNOWN_ALG 2
 #define HOSTAP_CRYPT_ERR_UNKNOWN_ADDR 3
-#define HOSTAP_CRYPT_ERR_CRYPT_INIT_FAILED 4
 #define HOSTAP_CRYPT_ERR_KEY_SET_FAILED 5
-#define HOSTAP_CRYPT_ERR_TX_KEY_SET_FAILED 6
-#define HOSTAP_CRYPT_ERR_CARD_CONF_FAILED 7
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -501,9 +495,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 		return -EINVAL;
 	}
 
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= MAX_GROUP_KEY)
 			return -EINVAL;
         iNodeIndex = 0;
@@ -722,9 +714,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 
 	param->u.crypt.err = 0;
 
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
         iNodeIndex = 0;
 	} else {
 	    if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &iNodeIndex) == false) {

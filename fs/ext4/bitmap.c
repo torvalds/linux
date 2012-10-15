@@ -11,23 +11,10 @@
 #include <linux/jbd2.h>
 #include "ext4.h"
 
-#ifdef EXT4FS_DEBUG
-
-static const int nibblemap[] = {4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0};
-
-unsigned int ext4_count_free(struct buffer_head *map, unsigned int numchars)
+unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
 {
-	unsigned int i, sum = 0;
-
-	if (!map)
-		return 0;
-	for (i = 0; i < numchars; i++)
-		sum += nibblemap[map->b_data[i] & 0xf] +
-			nibblemap[(map->b_data[i] >> 4) & 0xf];
-	return sum;
+	return numchars * BITS_PER_BYTE - memweight(bitmap, numchars);
 }
-
-#endif  /*  EXT4FS_DEBUG  */
 
 int ext4_inode_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 				  struct ext4_group_desc *gdp,
@@ -92,7 +79,6 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 	if (provided == calculated)
 		return 1;
 
-	ext4_error(sb, "Bad block bitmap checksum: block_group = %u", group);
 	return 0;
 }
 

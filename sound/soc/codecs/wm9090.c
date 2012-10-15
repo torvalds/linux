@@ -1,7 +1,7 @@
 /*
  * ALSA SoC WM9090 driver
  *
- * Copyright 2009, 2010 Wolfson Microelectronics
+ * Copyright 2009-12 Wolfson Microelectronics
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

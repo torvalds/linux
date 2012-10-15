@@ -4,7 +4,7 @@
 
 ccflags-y := -Iinclude/drm
 nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
-             nouveau_object.o nouveau_irq.o nouveau_notifier.o \
+             nouveau_gpuobj.o nouveau_irq.o nouveau_notifier.o \
              nouveau_sgdma.o nouveau_dma.o nouveau_util.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
@@ -12,6 +12,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_hdmi.o nouveau_dp.o nouveau_ramht.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
 	     nouveau_mm.o nouveau_vm.o nouveau_mxm.o nouveau_gpio.o \
+	     nouveau_abi16.o \
              nv04_timer.o \
              nv04_mc.o nv40_mc.o nv50_mc.o \
              nv04_fb.o nv10_fb.o nv20_fb.o nv30_fb.o nv40_fb.o \

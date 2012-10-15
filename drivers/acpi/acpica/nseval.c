@@ -59,11 +59,11 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
  *
  * FUNCTION:    acpi_ns_evaluate
  *
- * PARAMETERS:  Info            - Evaluation info block, contains:
+ * PARAMETERS:  info            - Evaluation info block, contains:
  *                  prefix_node     - Prefix or Method/Object Node to execute
- *                  Pathname        - Name of method to execute, If NULL, the
+ *                  pathname        - Name of method to execute, If NULL, the
  *                                    Node is the object to execute
- *                  Parameters      - List of parameters to pass to the method,
+ *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
  *                  return_object   - Where to put method's return value (if
@@ -71,7 +71,7 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
  *                  parameter_type  - Type of Parameter list
  *                  return_object   - Where to put method's return value (if
  *                                    any). If NULL, no value is returned.
- *                  Flags           - ACPI_IGNORE_RETURN_VALUE to delete return
+ *                  flags           - ACPI_IGNORE_RETURN_VALUE to delete return
  *
  * RETURN:      Status
  *
@@ -351,7 +351,7 @@ void acpi_ns_exec_module_code_list(void)
  * FUNCTION:    acpi_ns_exec_module_code
  *
  * PARAMETERS:  method_obj          - Object container for the module-level code
- *              Info                - Info block for method evaluation
+ *              info                - Info block for method evaluation
  *
  * RETURN:      None. Exceptions during method execution are ignored, since
  *              we cannot abort a table load.

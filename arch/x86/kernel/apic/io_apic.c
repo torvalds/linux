@@ -1204,7 +1204,7 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 	BUG_ON(!cfg->vector);
 
 	vector = cfg->vector;
-	for_each_cpu(cpu, cfg->domain)
+	for_each_cpu_and(cpu, cfg->domain, cpu_online_mask)
 		per_cpu(vector_irq, cpu)[vector] = -1;
 
 	cfg->vector = 0;
@@ -1212,7 +1212,7 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 
 	if (likely(!cfg->move_in_progress))
 		return;
-	for_each_cpu(cpu, cfg->old_domain) {
+	for_each_cpu_and(cpu, cfg->old_domain, cpu_online_mask) {
 		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
 								vector++) {
 			if (per_cpu(vector_irq, cpu)[vector] != irq)
@@ -1355,6 +1355,16 @@ static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
 
 	if (!IO_APIC_IRQ(irq))
 		return;
+
+	/*
+	 * For legacy irqs, cfg->domain starts with cpu 0. Now that IO-APIC
+	 * can handle this irq and the apic driver is finialized at this point,
+	 * update the cfg->domain.
+	 */
+	if (irq < legacy_pic->nr_legacy_irqs &&
+	    cpumask_equal(cfg->domain, cpumask_of(0)))
+		apic->vector_allocation_domain(0, cfg->domain,
+					       apic->target_cpus());
 
 	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;

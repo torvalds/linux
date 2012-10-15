@@ -32,10 +32,6 @@ SYSSEG		= 0x1000		/* historical load address >> 4 */
 #define SVGA_MODE ASK_VGA
 #endif
 
-#ifndef RAMDISK
-#define RAMDISK 0
-#endif
-
 #ifndef ROOT_RDONLY
 #define ROOT_RDONLY 1
 #endif
@@ -283,7 +279,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x020a		# header version number (>= 0x0105)
+		.word	0x020b		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -401,18 +397,13 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 #define INIT_SIZE VO_INIT_SIZE
 #endif
 init_size:		.long INIT_SIZE		# kernel initialization size
+handover_offset:	.long 0x30		# offset to the handover
+						# protocol entry point
 
 # End of setup header #####################################################
 
 	.section ".entrytext", "ax"
 start_of_setup:
-#ifdef SAFE_RESET_DISK_CONTROLLER
-# Reset the disk controller.
-	movw	$0x0000, %ax		# Reset disk controller
-	movb	$0x80, %dl		# All disks
-	int	$0x13
-#endif
-
 # Force %es = %ds
 	movw	%ds, %ax
 	movw	%ax, %es

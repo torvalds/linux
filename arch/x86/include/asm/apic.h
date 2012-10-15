@@ -465,6 +465,8 @@ static inline u32 safe_apic_wait_icr_idle(void)
 	return apic->safe_wait_icr_idle();
 }
 
+extern void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v));
+
 #else /* CONFIG_X86_LOCAL_APIC */
 
 static inline u32 apic_read(u32 reg) { return 0; }
@@ -474,6 +476,7 @@ static inline u64 apic_icr_read(void) { return 0; }
 static inline void apic_icr_write(u32 low, u32 high) { }
 static inline void apic_wait_icr_idle(void) { }
 static inline u32 safe_apic_wait_icr_idle(void) { return 0; }
+static inline void apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v)) {}
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 
@@ -543,7 +546,7 @@ static inline const struct cpumask *online_target_cpus(void)
 	return cpu_online_mask;
 }
 
-DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
+DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_bios_cpu_apicid);
 
 
 static inline unsigned int read_apic_id(void)

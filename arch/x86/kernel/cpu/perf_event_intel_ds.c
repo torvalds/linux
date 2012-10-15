@@ -407,6 +407,20 @@ struct event_constraint intel_snb_pebs_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+struct event_constraint intel_ivb_pebs_event_constraints[] = {
+        INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PRECDIST */
+        INTEL_UEVENT_CONSTRAINT(0x01c2, 0xf), /* UOPS_RETIRED.ALL */
+        INTEL_UEVENT_CONSTRAINT(0x02c2, 0xf), /* UOPS_RETIRED.RETIRE_SLOTS */
+        INTEL_EVENT_CONSTRAINT(0xc4, 0xf),    /* BR_INST_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xc5, 0xf),    /* BR_MISP_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xcd, 0x8),    /* MEM_TRANS_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xd0, 0xf),    /* MEM_UOP_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xd1, 0xf),    /* MEM_LOAD_UOPS_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xd2, 0xf),    /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
+        INTEL_EVENT_CONSTRAINT(0xd3, 0xf),    /* MEM_LOAD_UOPS_LLC_MISS_RETIRED.* */
+        EVENT_CONSTRAINT_END
+};
+
 struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 {
 	struct event_constraint *c;
@@ -499,7 +513,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	 * We sampled a branch insn, rewind using the LBR stack
 	 */
 	if (ip == to) {
-		regs->ip = from;
+		set_linear_ip(regs, from);
 		return 1;
 	}
 
@@ -529,7 +543,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	} while (to < ip);
 
 	if (to == ip) {
-		regs->ip = old_to;
+		set_linear_ip(regs, old_to);
 		return 1;
 	}
 
@@ -569,7 +583,8 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 * A possible PERF_SAMPLE_REGS will have to transfer all regs.
 	 */
 	regs = *iregs;
-	regs.ip = pebs->ip;
+	regs.flags = pebs->flags;
+	set_linear_ip(&regs, pebs->ip);
 	regs.bp = pebs->bp;
 	regs.sp = pebs->sp;
 

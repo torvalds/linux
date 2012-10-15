@@ -29,13 +29,11 @@
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
 #include <plat/led.h>
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 
@@ -311,7 +309,7 @@ static void __init omap_apollon_init(void)
 	/* LCD PWR_EN */
 	omap_mux_init_signal("mcbsp2_dr.gpio_11", OMAP_PULL_ENA | OMAP_PULL_UP);
 
-	/* Use Interal loop-back in MMC/SDIO Module Input Clock selection */
+	/* Use Internal loop-back in MMC/SDIO Module Input Clock selection */
 	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	v |= (1 << 24);
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);

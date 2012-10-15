@@ -976,7 +976,8 @@ static int __devinit abituguru3_probe(struct platform_device *pdev)
 	u8 buf[2];
 	u16 id;
 
-	data = kzalloc(sizeof(struct abituguru3_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru3_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1068,7 +1069,6 @@ abituguru3_probe_error:
 	for (i = 0; i < ARRAY_SIZE(abituguru3_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru3_sysfs_attr[i].dev_attr);
-	kfree(data);
 	return res;
 }
 
@@ -1084,8 +1084,6 @@ static int __devexit abituguru3_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru3_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru3_sysfs_attr[i].dev_attr);
-	kfree(data);
-
 	return 0;
 }
 
@@ -1141,10 +1139,10 @@ LEAVE_UPDATE:
 		return NULL;
 }
 
-#ifdef CONFIG_PM
-static int abituguru3_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int abituguru3_suspend(struct device *dev)
 {
-	struct abituguru3_data *data = platform_get_drvdata(pdev);
+	struct abituguru3_data *data = dev_get_drvdata(dev);
 	/*
 	 * make sure all communications with the uguru3 are done and no new
 	 * ones are started
@@ -1153,26 +1151,27 @@ static int abituguru3_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int abituguru3_resume(struct platform_device *pdev)
+static int abituguru3_resume(struct device *dev)
 {
-	struct abituguru3_data *data = platform_get_drvdata(pdev);
+	struct abituguru3_data *data = dev_get_drvdata(dev);
 	mutex_unlock(&data->update_lock);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(abituguru3_pm, abituguru3_suspend, abituguru3_resume);
+#define ABIT_UGURU3_PM	&abituguru3_pm
 #else
-#define abituguru3_suspend	NULL
-#define abituguru3_resume	NULL
+#define ABIT_UGURU3_PM	NULL
 #endif /* CONFIG_PM */
 
 static struct platform_driver abituguru3_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= ABIT_UGURU3_NAME,
+		.pm	= ABIT_UGURU3_PM
 	},
 	.probe	= abituguru3_probe,
 	.remove	= __devexit_p(abituguru3_remove),
-	.suspend = abituguru3_suspend,
-	.resume = abituguru3_resume
 };
 
 static int __init abituguru3_dmi_detect(void)

@@ -571,7 +571,10 @@ static int lbs_thread(void *data)
 			netdev_info(dev, "Timeout submitting command 0x%04x\n",
 				    le16_to_cpu(cmdnode->cmdbuf->command));
 			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
-			if (priv->reset_card)
+
+			/* Reset card, but only when it isn't in the process
+			 * of being shutdown anyway. */
+			if (!dev->dismantle && priv->reset_card)
 				priv->reset_card(priv);
 		}
 		priv->cmd_timed_out = 0;
@@ -679,8 +682,10 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 
 	/* Send cmd to FW to enable 11D function */
 	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_11D_ENABLE, 1);
+	if (ret)
+		goto done;
 
-	lbs_set_mac_control(priv);
+	ret = lbs_set_mac_control_sync(priv);
 done:
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;

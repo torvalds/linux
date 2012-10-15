@@ -117,16 +117,21 @@ nv84_fifo_context_del(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	unsigned long flags;
+	u32 save;
 
 	/* remove channel from playlist, will context switch if active */
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 	nv_mask(dev, 0x002600 + (chan->id * 4), 0x80000000, 0x00000000);
 	nv50_fifo_playlist_update(dev);
 
+	save = nv_mask(dev, 0x002520, 0x0000003f, 0x15);
+
 	/* tell any engines on this channel to unload their contexts */
 	nv_wr32(dev, 0x0032fc, chan->ramin->vinst >> 12);
 	if (!nv_wait_ne(dev, 0x0032fc, 0xffffffff, 0xffffffff))
 		NV_INFO(dev, "PFIFO: channel %d unload timeout\n", chan->id);
+
+	nv_wr32(dev, 0x002520, save);
 
 	nv_wr32(dev, 0x002600 + (chan->id * 4), 0x00000000);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
@@ -184,9 +189,12 @@ nv84_fifo_fini(struct drm_device *dev, int engine, bool suspend)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv84_fifo_priv *priv = nv_engine(dev, engine);
 	int i;
+	u32 save;
 
 	/* set playlist length to zero, fifo will unload context */
 	nv_wr32(dev, 0x0032ec, 0);
+
+	save = nv_mask(dev, 0x002520, 0x0000003f, 0x15);
 
 	/* tell all connected engines to unload their contexts */
 	for (i = 0; i < priv->base.channels; i++) {
@@ -199,6 +207,7 @@ nv84_fifo_fini(struct drm_device *dev, int engine, bool suspend)
 		}
 	}
 
+	nv_wr32(dev, 0x002520, save);
 	nv_wr32(dev, 0x002140, 0);
 	return 0;
 }

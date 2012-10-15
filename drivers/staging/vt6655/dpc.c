@@ -55,7 +55,6 @@
 #include "iowpa.h"
 #include "aes_ccmp.h"
 
-//#define	PLICE_DEBUG
 
 
 /*---------------------  Static Definitions -------------------------*/
@@ -719,7 +718,7 @@ device_receive_frame (
     if ((*pbyRSSI != 0) &&
         (pMgmt->pCurrBSS!=NULL)) {
         RFvRSSITodBm(pDevice, *pbyRSSI, &ldBm);
-        // Moniter if RSSI is too strong.
+        // Monitor if RSSI is too strong.
         pMgmt->pCurrBSS->byRSSIStatCnt++;
         pMgmt->pCurrBSS->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pMgmt->pCurrBSS->ldBmAverage[pMgmt->pCurrBSS->byRSSIStatCnt] = ldBm;

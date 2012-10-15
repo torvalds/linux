@@ -2904,7 +2904,7 @@ _scsih_ublock_io_all_device(struct MPT2SAS_ADAPTER *ioc)
 		dewtprintk(ioc, sdev_printk(KERN_INFO, sdev, "device_running, "
 		    "handle(0x%04x)\n",
 		    sas_device_priv_data->sas_target->handle));
-		scsi_internal_device_unblock(sdev);
+		scsi_internal_device_unblock(sdev, SDEV_RUNNING);
 	}
 }
 /**
@@ -2933,7 +2933,7 @@ _scsih_ublock_io_device(struct MPT2SAS_ADAPTER *ioc, u64 sas_address)
 			    "sas address(0x%016llx)\n", ioc->name,
 				(unsigned long long)sas_address));
 			sas_device_priv_data->block = 0;
-			scsi_internal_device_unblock(sdev);
+			scsi_internal_device_unblock(sdev, SDEV_RUNNING);
 		}
 	}
 }
@@ -8306,7 +8306,7 @@ _scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-static struct pci_error_handlers _scsih_err_handler = {
+static const struct pci_error_handlers _scsih_err_handler = {
 	.error_detected = _scsih_pci_error_detected,
 	.mmio_enabled = _scsih_pci_mmio_enabled,
 	.slot_reset =	_scsih_pci_slot_reset,

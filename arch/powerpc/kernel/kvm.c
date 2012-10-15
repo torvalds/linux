@@ -31,6 +31,7 @@
 #include <asm/cacheflush.h>
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
+#include <asm/epapr_hcalls.h>
 
 #define KVM_MAGIC_PAGE		(-4096L)
 #define magic_var(x) KVM_MAGIC_PAGE + offsetof(struct kvm_vcpu_arch_shared, x)
@@ -726,7 +727,7 @@ unsigned long kvm_hypercall(unsigned long *in,
 	unsigned long register r11 asm("r11") = nr;
 	unsigned long register r12 asm("r12");
 
-	asm volatile("bl	kvm_hypercall_start"
+	asm volatile("bl	epapr_hypercall_start"
 		     : "=r"(r0), "=r"(r3), "=r"(r4), "=r"(r5), "=r"(r6),
 		       "=r"(r7), "=r"(r8), "=r"(r9), "=r"(r10), "=r"(r11),
 		       "=r"(r12)
@@ -746,29 +747,6 @@ unsigned long kvm_hypercall(unsigned long *in,
 	return r3;
 }
 EXPORT_SYMBOL_GPL(kvm_hypercall);
-
-static int kvm_para_setup(void)
-{
-	extern u32 kvm_hypercall_start;
-	struct device_node *hyper_node;
-	u32 *insts;
-	int len, i;
-
-	hyper_node = of_find_node_by_path("/hypervisor");
-	if (!hyper_node)
-		return -1;
-
-	insts = (u32*)of_get_property(hyper_node, "hcall-instructions", &len);
-	if (len % 4)
-		return -1;
-	if (len > (4 * 4))
-		return -1;
-
-	for (i = 0; i < (len / 4); i++)
-		kvm_patch_ins(&(&kvm_hypercall_start)[i], insts[i]);
-
-	return 0;
-}
 
 static __init void kvm_free_tmp(void)
 {
@@ -791,7 +769,7 @@ static int __init kvm_guest_init(void)
 	if (!kvm_para_available())
 		goto free_tmp;
 
-	if (kvm_para_setup())
+	if (!epapr_paravirt_enabled)
 		goto free_tmp;
 
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))

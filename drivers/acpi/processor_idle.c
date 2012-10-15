@@ -301,16 +301,16 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	pr->power.states[ACPI_STATE_C3].address = pr->pblk + 5;
 
 	/* determine latencies from FADT */
-	pr->power.states[ACPI_STATE_C2].latency = acpi_gbl_FADT.C2latency;
-	pr->power.states[ACPI_STATE_C3].latency = acpi_gbl_FADT.C3latency;
+	pr->power.states[ACPI_STATE_C2].latency = acpi_gbl_FADT.c2_latency;
+	pr->power.states[ACPI_STATE_C3].latency = acpi_gbl_FADT.c3_latency;
 
 	/*
 	 * FADT specified C2 latency must be less than or equal to
 	 * 100 microseconds.
 	 */
-	if (acpi_gbl_FADT.C2latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
+	if (acpi_gbl_FADT.c2_latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"C2 latency too large [%d]\n", acpi_gbl_FADT.C2latency));
+			"C2 latency too large [%d]\n", acpi_gbl_FADT.c2_latency));
 		/* invalidate C2 */
 		pr->power.states[ACPI_STATE_C2].address = 0;
 	}
@@ -319,9 +319,9 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * FADT supplied C3 latency must be less than or equal to
 	 * 1000 microseconds.
 	 */
-	if (acpi_gbl_FADT.C3latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
+	if (acpi_gbl_FADT.c3_latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"C3 latency too large [%d]\n", acpi_gbl_FADT.C3latency));
+			"C3 latency too large [%d]\n", acpi_gbl_FADT.c3_latency));
 		/* invalidate C3 */
 		pr->power.states[ACPI_STATE_C3].address = 0;
 	}

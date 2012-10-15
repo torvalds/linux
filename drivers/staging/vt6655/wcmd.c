@@ -121,7 +121,7 @@ vAdHocBeaconStop(PSDevice  pDevice)
 
     /*
      * temporarily stop Beacon packet for AdHoc Server
-     * if all of the following coditions are met:
+     * if all of the following conditions are met:
      *  (1) STA is in AdHoc mode
      *  (2) VT3253 is programmed as automatic Beacon Transmitting
      *  (3) One of the following conditions is met
@@ -684,18 +684,6 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
-		 #if 0
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-                    // if(pDevice->bWPASuppWextEnabled == true)
-                        {
-                  	union iwreq_data  wrqu;
-                  	memset(&wrqu, 0, sizeof (wrqu));
-                          wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-                  	printk("wireless_send_event--->SIOCGIWAP(disassociated:AUTHENTICATE_WAIT_timeout)\n");
-                  	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
-                       }
-                    #endif
-	         #endif
             s_bCommandComplete(pDevice);
             break;
 
@@ -748,18 +736,6 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
-		#if 0
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-                    // if(pDevice->bWPASuppWextEnabled == true)
-                        {
-                  	union iwreq_data  wrqu;
-                  	memset(&wrqu, 0, sizeof (wrqu));
-                          wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-                  	printk("wireless_send_event--->SIOCGIWAP(disassociated:ASSOCIATE_WAIT_timeout)\n");
-                  	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
-                       }
-                    #endif
-		#endif
 
             s_bCommandComplete(pDevice);
             break;
@@ -836,8 +812,8 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
                         }
                         pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
-                        // check if sta ps enable, wait next pspoll
-                        // if sta ps disable, send all pending buffers.
+                        // check if sta ps enabled, and wait next pspoll.
+                        // if sta ps disable, then send all pending buffers.
                         if (pMgmt->sNodeDBTable[ii].bPSEnable)
                             break;
                     }

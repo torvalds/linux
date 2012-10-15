@@ -138,7 +138,9 @@ static int hfs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",creator=%.4s", (char *)&sbi->s_creator);
 	if (sbi->s_type != cpu_to_be32(0x3f3f3f3f))
 		seq_printf(seq, ",type=%.4s", (char *)&sbi->s_type);
-	seq_printf(seq, ",uid=%u,gid=%u", sbi->s_uid, sbi->s_gid);
+	seq_printf(seq, ",uid=%u,gid=%u",
+			from_kuid_munged(&init_user_ns, sbi->s_uid),
+			from_kgid_munged(&init_user_ns, sbi->s_gid));
 	if (sbi->s_file_umask != 0133)
 		seq_printf(seq, ",file_umask=%o", sbi->s_file_umask);
 	if (sbi->s_dir_umask != 0022)
@@ -254,14 +256,22 @@ static int parse_options(char *options, struct hfs_sb_info *hsb)
 				printk(KERN_ERR "hfs: uid requires an argument\n");
 				return 0;
 			}
-			hsb->s_uid = (uid_t)tmp;
+			hsb->s_uid = make_kuid(current_user_ns(), (uid_t)tmp);
+			if (!uid_valid(hsb->s_uid)) {
+				printk(KERN_ERR "hfs: invalid uid %d\n", tmp);
+				return 0;
+			}
 			break;
 		case opt_gid:
 			if (match_int(&args[0], &tmp)) {
 				printk(KERN_ERR "hfs: gid requires an argument\n");
 				return 0;
 			}
-			hsb->s_gid = (gid_t)tmp;
+			hsb->s_gid = make_kgid(current_user_ns(), (gid_t)tmp);
+			if (!gid_valid(hsb->s_gid)) {
+				printk(KERN_ERR "hfs: invalid gid %d\n", tmp);
+				return 0;
+			}
 			break;
 		case opt_umask:
 			if (match_octal(&args[0], &tmp)) {

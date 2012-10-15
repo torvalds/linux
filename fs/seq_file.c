@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -56,6 +57,9 @@ int seq_open(struct file *file, const struct seq_operations *op)
 	memset(p, 0, sizeof(*p));
 	mutex_init(&p->lock);
 	p->op = op;
+#ifdef CONFIG_USER_NS
+	p->user_ns = file->f_cred->user_ns;
+#endif
 
 	/*
 	 * Wrappers around seq_open(e.g. swaps_open) need to be
@@ -385,15 +389,12 @@ int seq_escape(struct seq_file *m, const char *s, const char *esc)
 }
 EXPORT_SYMBOL(seq_escape);
 
-int seq_printf(struct seq_file *m, const char *f, ...)
+int seq_vprintf(struct seq_file *m, const char *f, va_list args)
 {
-	va_list args;
 	int len;
 
 	if (m->count < m->size) {
-		va_start(args, f);
 		len = vsnprintf(m->buf + m->count, m->size - m->count, f, args);
-		va_end(args);
 		if (m->count + len < m->size) {
 			m->count += len;
 			return 0;
@@ -401,6 +402,19 @@ int seq_printf(struct seq_file *m, const char *f, ...)
 	}
 	seq_set_overflow(m);
 	return -1;
+}
+EXPORT_SYMBOL(seq_vprintf);
+
+int seq_printf(struct seq_file *m, const char *f, ...)
+{
+	int ret;
+	va_list args;
+
+	va_start(args, f);
+	ret = seq_vprintf(m, f, args);
+	va_end(args);
+
+	return ret;
 }
 EXPORT_SYMBOL(seq_printf);
 

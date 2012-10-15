@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 
-#include <mach/sram.h>
+#include <linux/platform_data/dma-mmp_tdma.h>
 
 struct sram_bank_info {
 	char *pool_name;
@@ -68,7 +68,7 @@ static int __devinit sram_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	if (!pdata && !pdata->pool_name)
+	if (!pdata || !pdata->pool_name)
 		return -ENODEV;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);

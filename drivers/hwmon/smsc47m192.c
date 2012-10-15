@@ -554,11 +554,10 @@ static int smsc47m192_probe(struct i2c_client *client,
 	int config;
 	int err;
 
-	data = kzalloc(sizeof(struct smsc47m192_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct smsc47m192_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->vrm = vid_which_vrm();
@@ -570,7 +569,7 @@ static int smsc47m192_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &smsc47m192_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	/* Pin 110 is either in4 (+12V) or VID4 */
 	config = i2c_smbus_read_byte_data(client, SMSC47M192_REG_CONFIG);
@@ -592,9 +591,6 @@ static int smsc47m192_probe(struct i2c_client *client,
 exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group);
 	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group_in4);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -605,8 +601,6 @@ static int smsc47m192_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group);
 	sysfs_remove_group(&client->dev.kobj, &smsc47m192_group_in4);
-
-	kfree(data);
 
 	return 0;
 }

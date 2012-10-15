@@ -460,8 +460,8 @@ static struct inode *V1_minix_iget(struct inode *inode)
 		return ERR_PTR(-EIO);
 	}
 	inode->i_mode = raw_inode->i_mode;
-	inode->i_uid = (uid_t)raw_inode->i_uid;
-	inode->i_gid = (gid_t)raw_inode->i_gid;
+	i_uid_write(inode, raw_inode->i_uid);
+	i_gid_write(inode, raw_inode->i_gid);
 	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = raw_inode->i_time;
@@ -493,8 +493,8 @@ static struct inode *V2_minix_iget(struct inode *inode)
 		return ERR_PTR(-EIO);
 	}
 	inode->i_mode = raw_inode->i_mode;
-	inode->i_uid = (uid_t)raw_inode->i_uid;
-	inode->i_gid = (gid_t)raw_inode->i_gid;
+	i_uid_write(inode, raw_inode->i_uid);
+	i_gid_write(inode, raw_inode->i_gid);
 	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
 	inode->i_mtime.tv_sec = raw_inode->i_mtime;
@@ -545,8 +545,8 @@ static struct buffer_head * V1_minix_update_inode(struct inode * inode)
 	if (!raw_inode)
 		return NULL;
 	raw_inode->i_mode = inode->i_mode;
-	raw_inode->i_uid = fs_high2lowuid(inode->i_uid);
-	raw_inode->i_gid = fs_high2lowgid(inode->i_gid);
+	raw_inode->i_uid = fs_high2lowuid(i_uid_read(inode));
+	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
 	raw_inode->i_nlinks = inode->i_nlink;
 	raw_inode->i_size = inode->i_size;
 	raw_inode->i_time = inode->i_mtime.tv_sec;
@@ -572,8 +572,8 @@ static struct buffer_head * V2_minix_update_inode(struct inode * inode)
 	if (!raw_inode)
 		return NULL;
 	raw_inode->i_mode = inode->i_mode;
-	raw_inode->i_uid = fs_high2lowuid(inode->i_uid);
-	raw_inode->i_gid = fs_high2lowgid(inode->i_gid);
+	raw_inode->i_uid = fs_high2lowuid(i_uid_read(inode));
+	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
 	raw_inode->i_nlinks = inode->i_nlink;
 	raw_inode->i_size = inode->i_size;
 	raw_inode->i_mtime = inode->i_mtime.tv_sec;

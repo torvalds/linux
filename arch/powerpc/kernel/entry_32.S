@@ -89,10 +89,14 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,_SRR1(r11)
 
+	/* set the stack limit to the current stack
+	 * and set the limit to protect the thread_info
+	 * struct
+	 */
 	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,SAVED_KSP_LIMIT(r11)
-	CURRENT_THREAD_INFO(r0, r1)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
@@ -109,10 +113,14 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,crit_srr1@l(0)
 
+	/* set the stack limit to the current stack
+	 * and set the limit to protect the thread_info
+	 * struct
+	 */
 	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,saved_ksp_limit@l(0)
-	CURRENT_THREAD_INFO(r0, r1)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif

@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
 #include <linux/clk.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
 #define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
@@ -106,20 +106,9 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	hcd->has_tt = 1;
-
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
-
-	/*
-	 * data structure init
-	 */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
 
 	ehci_port_power(ehci, 0);
 
@@ -261,11 +250,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 	hcd->has_tt = 1;
-	ehci->sbrn = 0x20;
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -298,6 +283,10 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 err4:
 	usb_put_hcd(hcd);
 err3:
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	iounmap(regs);
 err2:
 	release_mem_region(res->start, resource_size(res));

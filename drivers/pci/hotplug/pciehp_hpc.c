@@ -44,25 +44,25 @@
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_word(dev, reg, value);
 }
 
 static inline int pciehp_readl(struct controller *ctrl, int reg, u32 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_dword(dev, reg, value);
 }
 
 static inline int pciehp_writew(struct controller *ctrl, int reg, u16 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_word(dev, reg, value);
 }
 
 static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_dword(dev, reg, value);
 }
 
 /* Power Control Command */
@@ -705,107 +705,6 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pciehp_get_max_lnk_width(struct slot *slot,
-				 enum pcie_link_width *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_width lnk_wdth;
-	u32	lnk_cap;
-	int retval = 0;
-
-	retval = pciehp_readl(ctrl, PCI_EXP_LNKCAP, &lnk_cap);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKCAP register\n", __func__);
-		return retval;
-	}
-
-	switch ((lnk_cap & PCI_EXP_LNKSTA_NLW) >> 4){
-	case 0:
-		lnk_wdth = PCIE_LNK_WIDTH_RESRV;
-		break;
-	case 1:
-		lnk_wdth = PCIE_LNK_X1;
-		break;
-	case 2:
-		lnk_wdth = PCIE_LNK_X2;
-		break;
-	case 4:
-		lnk_wdth = PCIE_LNK_X4;
-		break;
-	case 8:
-		lnk_wdth = PCIE_LNK_X8;
-		break;
-	case 12:
-		lnk_wdth = PCIE_LNK_X12;
-		break;
-	case 16:
-		lnk_wdth = PCIE_LNK_X16;
-		break;
-	case 32:
-		lnk_wdth = PCIE_LNK_X32;
-		break;
-	default:
-		lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_wdth;
-	ctrl_dbg(ctrl, "Max link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
-int pciehp_get_cur_lnk_width(struct slot *slot,
-				 enum pcie_link_width *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_width lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-	int retval = 0;
-	u16 lnk_status;
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTATUS register\n",
-			 __func__);
-		return retval;
-	}
-
-	switch ((lnk_status & PCI_EXP_LNKSTA_NLW) >> 4){
-	case 0:
-		lnk_wdth = PCIE_LNK_WIDTH_RESRV;
-		break;
-	case 1:
-		lnk_wdth = PCIE_LNK_X1;
-		break;
-	case 2:
-		lnk_wdth = PCIE_LNK_X2;
-		break;
-	case 4:
-		lnk_wdth = PCIE_LNK_X4;
-		break;
-	case 8:
-		lnk_wdth = PCIE_LNK_X8;
-		break;
-	case 12:
-		lnk_wdth = PCIE_LNK_X12;
-		break;
-	case 16:
-		lnk_wdth = PCIE_LNK_X16;
-		break;
-	case 32:
-		lnk_wdth = PCIE_LNK_X32;
-		break;
-	default:
-		lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_wdth;
-	ctrl_dbg(ctrl, "Current link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
 int pcie_enable_notification(struct controller *ctrl)
 {
 	u16 cmd, mask;
@@ -956,10 +855,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		goto abort;
 	}
 	ctrl->pcie = dev;
-	if (!pci_pcie_cap(pdev)) {
-		ctrl_err(ctrl, "Cannot find PCI Express capability\n");
-		goto abort_ctrl;
-	}
 	if (pciehp_readl(ctrl, PCI_EXP_SLTCAP, &slot_cap)) {
 		ctrl_err(ctrl, "Cannot read SLOTCAP register\n");
 		goto abort_ctrl;

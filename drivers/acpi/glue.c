@@ -39,6 +39,7 @@ int register_acpi_bus_type(struct acpi_bus_type *type)
 	}
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(register_acpi_bus_type);
 
 int unregister_acpi_bus_type(struct acpi_bus_type *type)
 {
@@ -54,6 +55,7 @@ int unregister_acpi_bus_type(struct acpi_bus_type *type)
 	}
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(unregister_acpi_bus_type);
 
 static struct acpi_bus_type *acpi_get_bus_type(struct bus_type *type)
 {
@@ -69,7 +71,6 @@ static struct acpi_bus_type *acpi_get_bus_type(struct bus_type *type)
 	up_read(&bus_type_sem);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_acpi_bus_type);
 
 static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
 {
@@ -86,7 +87,6 @@ static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
 	up_read(&bus_type_sem);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(unregister_acpi_bus_type);
 
 /* Get device's handler per its address under its parent */
 struct acpi_find_child {

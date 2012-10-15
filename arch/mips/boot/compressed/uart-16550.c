@@ -18,6 +18,11 @@
 #define PORT(offset) (CKSEG1ADDR(AR7_REGS_UART0) + (4 * offset))
 #endif
 
+#ifdef CONFIG_MACH_JZ4740
+#define UART0_BASE  0xB0030000
+#define PORT(offset) (UART0_BASE + (4 * offset))
+#endif
+
 #ifndef PORT
 #error please define the serial port address for your own machine
 #endif

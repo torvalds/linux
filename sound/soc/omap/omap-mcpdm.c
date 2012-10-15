@@ -45,6 +45,8 @@
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
+#define OMAP44XX_MCPDM_L3_BASE		0x49032000
+
 struct omap_mcpdm {
 	struct device *dev;
 	unsigned long phys_base;
@@ -527,6 +529,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 
 module_platform_driver(asoc_mcpdm_driver);
 
+MODULE_ALIAS("platform:omap-mcpdm");
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");
 MODULE_DESCRIPTION("OMAP PDM SoC Interface");
 MODULE_LICENSE("GPL");

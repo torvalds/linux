@@ -487,7 +487,7 @@ struct xlog_grant_head {
  * overflow 31 bits worth of byte offset, so using a byte number will mean
  * that round off problems won't occur when releasing partial reservations.
  */
-typedef struct xlog {
+struct xlog {
 	/* The following fields don't need locking */
 	struct xfs_mount	*l_mp;	        /* mount point */
 	struct xfs_ail		*l_ailp;	/* AIL log is working with */
@@ -540,7 +540,7 @@ typedef struct xlog {
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 #endif
 
-} xlog_t;
+};
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
 	((log)->l_buf_cancel_table + ((__uint64_t)blkno % XLOG_BC_TABLE_SIZE))
@@ -548,9 +548,17 @@ typedef struct xlog {
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
 /* common routines */
-extern int	 xlog_recover(xlog_t *log);
-extern int	 xlog_recover_finish(xlog_t *log);
-extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
+extern int
+xlog_recover(
+	struct xlog		*log);
+extern int
+xlog_recover_finish(
+	struct xlog		*log);
+extern void
+xlog_pack_data(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
 struct xlog_ticket *

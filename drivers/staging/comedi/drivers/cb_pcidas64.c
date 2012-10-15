@@ -87,7 +87,6 @@ TODO:
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
@@ -1048,8 +1047,6 @@ struct ext_clock_info {
 
 /* this structure is for data unique to this hardware driver. */
 struct pcidas64_private {
-
-	struct pci_dev *hw_dev;	/*  pointer to board's pci_dev struct */
 	/*  base addresses (physical) */
 	resource_size_t plx9080_phys_iobase;
 	resource_size_t main_phys_iobase;
@@ -1153,7 +1150,7 @@ static int eeprom_read_insn(struct comedi_device *dev,
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t * data, unsigned int length);
+		      const uint8_t *data, unsigned int length);
 static void caldac_write(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value);
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
@@ -1230,7 +1227,7 @@ static unsigned int hw_revision(const struct comedi_device *dev,
 }
 
 static void set_dac_range_bits(struct comedi_device *dev,
-			       volatile uint16_t * bits, unsigned int channel,
+			       volatile uint16_t *bits, unsigned int channel,
 			       unsigned int range)
 {
 	unsigned int code = board(dev)->ao_range_code[range];
@@ -1345,11 +1342,13 @@ static int setup_subdevices(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	void __iomem *dio_8255_iobase;
 	int i;
+	int ret;
 
-	if (alloc_subdevices(dev, 10) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 10);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
@@ -1380,7 +1379,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/* analog output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board(dev)->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags =
@@ -1402,7 +1401,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/*  digital input */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
@@ -1415,7 +1414,7 @@ static int setup_subdevices(struct comedi_device *dev)
 
 	/*  digital output */
 	if (board(dev)->layout == LAYOUT_64XX) {
-		s = dev->subdevices + 3;
+		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 4;
@@ -1426,7 +1425,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* 8255 */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	if (board(dev)->has_8255) {
 		if (board(dev)->layout == LAYOUT_4020) {
 			dio_8255_iobase =
@@ -1443,7 +1442,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  8 channel dio for 60xx */
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	if (board(dev)->layout == LAYOUT_60XX) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -1456,7 +1455,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  caldac */
-	s = dev->subdevices + 6;
+	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
@@ -1470,7 +1469,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		caldac_write(dev, i, s->maxdata / 2);
 
 	/*  2 channel ad8402 potentiometer */
-	s = dev->subdevices + 7;
+	s = &dev->subdevices[7];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -1484,7 +1483,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* serial EEPROM, if present */
-	s = dev->subdevices + 8;
+	s = &dev->subdevices[8];
 	if (readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
@@ -1495,7 +1494,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  user counter subd XXX */
-	s = dev->subdevices + 9;
+	s = &dev->subdevices[9];
 	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
@@ -1552,12 +1551,13 @@ static void init_stc_registers(struct comedi_device *dev)
 
 static int alloc_and_init_dma_members(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int i;
 
 	/*  alocate pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 		priv(dev)->ai_buffer[i] =
-		    pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
+		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					 &priv(dev)->ai_buffer_bus_addr[i]);
 		if (priv(dev)->ai_buffer[i] == NULL)
 			return -ENOMEM;
@@ -1566,7 +1566,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board(dev))) {
 			priv(dev)->ao_buffer[i] =
-			    pci_alloc_consistent(priv(dev)->hw_dev,
+			    pci_alloc_consistent(pcidev,
 						 DMA_BUFFER_SIZE,
 						 &priv(dev)->
 						 ao_buffer_bus_addr[i]);
@@ -1577,7 +1577,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	}
 	/*  allocate dma descriptors */
 	priv(dev)->ai_dma_desc =
-	    pci_alloc_consistent(priv(dev)->hw_dev,
+	    pci_alloc_consistent(pcidev,
 				 sizeof(struct plx_dma_desc) *
 				 ai_dma_ring_count(board(dev)),
 				 &priv(dev)->ai_dma_desc_bus_addr);
@@ -1588,7 +1588,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		    priv(dev)->ai_dma_desc_bus_addr);
 	if (ao_cmd_is_supported(board(dev))) {
 		priv(dev)->ao_dma_desc =
-		    pci_alloc_consistent(priv(dev)->hw_dev,
+		    pci_alloc_consistent(pcidev,
 					 sizeof(struct plx_dma_desc) *
 					 AO_DMA_RING_COUNT,
 					 &priv(dev)->ao_dma_desc_bus_addr);
@@ -1649,14 +1649,43 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
 }
 
+static struct pci_dev *cb_pcidas64_find_pci_dev(struct comedi_device *dev,
+						struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++) {
+			if (pcidas64_boards[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = pcidas64_boards + i;
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev = NULL;
-	int index;
+	struct pci_dev *pcidev;
 	uint32_t local_range, local_decode;
 	int retval;
 
@@ -1666,45 +1695,14 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct pcidas64_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < ARRAY_SIZE(pcidas64_boards); index++) {
-			if (pcidas64_boards[index].device_id != pcidev->device)
-				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			priv(dev)->hw_dev = pcidev;
-			dev->board_ptr = pcidas64_boards + index;
-			break;
-		}
-		if (dev->board_ptr)
-			break;
-	}
-
-	if (dev->board_ptr == NULL) {
-		printk
-		    ("No supported ComputerBoards/MeasurementComputing card found\n");
+	pcidev = cb_pcidas64_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
-
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n", board(dev)->name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_warn(dev->hw_dev, "failed to enable PCI device and request regions\n");
+		dev_warn(dev->class_dev,
+			 "failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	pci_set_master(pcidev);
@@ -1712,10 +1710,11 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Initialize dev->board_name */
 	dev->board_name = board(dev)->name;
 
+	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+
 	priv(dev)->plx9080_phys_iobase =
 	    pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	priv(dev)->main_phys_iobase =
-	    pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	priv(dev)->main_phys_iobase = dev->iobase;
 	priv(dev)->dio_counter_phys_iobase =
 	    pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
 
@@ -1732,7 +1731,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (!priv(dev)->plx9080_iobase || !priv(dev)->main_iobase
 	    || !priv(dev)->dio_counter_iobase) {
-		dev_warn(dev->hw_dev, "failed to remap io memory\n");
+		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
 
@@ -1768,19 +1767,19 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	priv(dev)->hw_revision =
 	    hw_revision(dev, readw(priv(dev)->main_iobase + HW_STATUS_REG));
-	dev_dbg(dev->hw_dev, "stc hardware revision %i\n",
+	dev_dbg(dev->class_dev, "stc hardware revision %i\n",
 		priv(dev)->hw_revision);
 	init_plx9080(dev);
 	init_stc_registers(dev);
 	/*  get irq */
 	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			"cb_pcidas64", dev)) {
-		dev_dbg(dev->hw_dev, "unable to allocate irq %u\n",
+		dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
 			pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-	dev_dbg(dev->hw_dev, "irq %u\n", dev->irq);
+	dev_dbg(dev->class_dev, "irq %u\n", dev->irq);
 
 	retval = setup_subdevices(dev);
 	if (retval < 0)
@@ -1792,12 +1791,13 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (priv(dev)) {
-		if (priv(dev)->hw_dev) {
+		if (pcidev) {
 			if (priv(dev)->plx9080_iobase) {
 				disable_plx_interrupts(dev);
 				iounmap(priv(dev)->plx9080_iobase);
@@ -1809,7 +1809,7 @@ static void detach(struct comedi_device *dev)
 			/*  free pci dma buffers */
 			for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 				if (priv(dev)->ai_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					pci_free_consistent(pcidev,
 							    DMA_BUFFER_SIZE,
 							    priv(dev)->
 							    ai_buffer[i],
@@ -1819,7 +1819,7 @@ static void detach(struct comedi_device *dev)
 			}
 			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 				if (priv(dev)->ao_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					pci_free_consistent(pcidev,
 							    DMA_BUFFER_SIZE,
 							    priv(dev)->
 							    ao_buffer[i],
@@ -1829,7 +1829,7 @@ static void detach(struct comedi_device *dev)
 			}
 			/*  free dma descriptors */
 			if (priv(dev)->ai_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				pci_free_consistent(pcidev,
 						    sizeof(struct plx_dma_desc)
 						    *
 						    ai_dma_ring_count(board
@@ -1838,20 +1838,22 @@ static void detach(struct comedi_device *dev)
 						    priv(dev)->
 						    ai_dma_desc_bus_addr);
 			if (priv(dev)->ao_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				pci_free_consistent(pcidev,
 						    sizeof(struct plx_dma_desc)
 						    * AO_DMA_RING_COUNT,
 						    priv(dev)->ao_dma_desc,
 						    priv(dev)->
 						    ao_dma_desc_bus_addr);
-			if (priv(dev)->main_phys_iobase)
-				comedi_pci_disable(priv(dev)->hw_dev);
-
-			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 4);
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+
+		pci_dev_put(pcidev);
+	}
 }
 
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -2001,7 +2003,7 @@ static int ai_config_calibration_source(struct comedi_device *dev,
 	else
 		num_calibration_sources = 8;
 	if (source >= num_calibration_sources) {
-		dev_dbg(dev->hw_dev, "invalid calibration source: %i\n",
+		dev_dbg(dev->class_dev, "invalid calibration source: %i\n",
 			source);
 		return -EINVAL;
 	}
@@ -2106,74 +2108,50 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg, tmp_arg2;
 	int i;
 	int aref;
 	unsigned int triggers;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
 
-	tmp = cmd->scan_begin_src;
 	triggers = TRIG_TIMER;
 	if (board(dev)->layout == LAYOUT_4020)
 		triggers |= TRIG_OTHER;
 	else
 		triggers |= TRIG_FOLLOW;
-	cmd->scan_begin_src &= triggers;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, triggers);
 
-	tmp = cmd->convert_src;
 	triggers = TRIG_TIMER;
 	if (board(dev)->layout == LAYOUT_4020)
 		triggers |= TRIG_NOW;
 	else
 		triggers |= TRIG_EXT;
-	cmd->convert_src &= triggers;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, triggers);
 
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*  uniqueness check */
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_OTHER &&
-	    cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-	    cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/*  compatibility check */
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
-		err++;
+		err |= -EINVAL;
 	if (cmd->stop_src != TRIG_COUNT &&
 	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -2833,7 +2811,8 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		}
 
 		if (num_samples < 0) {
-			dev_err(dev->hw_dev, "cb_pcidas64: bug! num_samples < 0\n");
+			dev_err(dev->class_dev,
+				"cb_pcidas64: bug! num_samples < 0\n");
 			break;
 		}
 
@@ -3463,55 +3442,33 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg;
 	int i;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*  uniqueness check */
-	if (cmd->start_src != TRIG_INT && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
 
-	/*  compatibility check */
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
-		err++;
+		err |= -EINVAL;
 	if (cmd->stop_src != TRIG_COUNT &&
 	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -3614,7 +3571,7 @@ static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -3630,7 +3587,7 @@ static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int dio_60xx_config_insn(struct comedi_device *dev,
@@ -3673,7 +3630,7 @@ static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = readb(priv(dev)->dio_counter_iobase + DIO_DATA_60XX_REG);
 
-	return 2;
+	return insn->n;
 }
 
 static void caldac_write(struct comedi_device *dev, unsigned int channel,
@@ -4191,7 +4148,7 @@ static void i2c_stop(struct comedi_device *dev)
 }
 
 static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t * data, unsigned int length)
+		      const uint8_t *data, unsigned int length)
 {
 	unsigned int i;
 	uint8_t bitstream;

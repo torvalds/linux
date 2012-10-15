@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  *
- * For the i_aSL compiler case, the output is redirected to stderr so that
+ * For the iASL compiler case, the output is redirected to stderr so that
  * any of the various ACPI errors and warnings do not appear in the output
  * files, for either the compiler or disassembler portions of the tool.
  */
@@ -70,7 +70,7 @@ extern FILE *acpi_gbl_output_file;
 
 #else
 /*
- * non-i_aSL case - no redirection, nothing to do
+ * non-iASL case - no redirection, nothing to do
  */
 #define ACPI_MSG_REDIRECT_BEGIN
 #define ACPI_MSG_REDIRECT_END
@@ -82,6 +82,8 @@ extern FILE *acpi_gbl_output_file;
 #define ACPI_MSG_EXCEPTION      "ACPI Exception: "
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
 /*
  * Common message suffix
  */
@@ -93,7 +95,7 @@ extern FILE *acpi_gbl_output_file;
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -124,8 +126,8 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Status              - Status to be formatted
- *              Format              - Printf format string + additional args
+ *              status              - Status to be formatted
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -159,7 +161,7 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -190,7 +192,7 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -217,6 +219,72 @@ acpi_info(const char *module_name, u32 line_number, const char *format, ...)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_info)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_bios_error
+ *
+ * PARAMETERS:  module_name         - Caller's module name (for error output)
+ *              line_number         - Caller's line number (for error output)
+ *              format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print "ACPI Firmware Error" message with module/line/version
+ *              info
+ *
+ ******************************************************************************/
+void ACPI_INTERNAL_VAR_XFACE
+acpi_bios_error(const char *module_name,
+		u32 line_number, const char *format, ...)
+{
+	va_list arg_list;
+
+	ACPI_MSG_REDIRECT_BEGIN;
+	acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+
+	va_start(arg_list, format);
+	acpi_os_vprintf(format, arg_list);
+	ACPI_MSG_SUFFIX;
+	va_end(arg_list);
+
+	ACPI_MSG_REDIRECT_END;
+}
+
+ACPI_EXPORT_SYMBOL(acpi_bios_error)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_bios_warning
+ *
+ * PARAMETERS:  module_name         - Caller's module name (for error output)
+ *              line_number         - Caller's line number (for error output)
+ *              format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print "ACPI Firmware Warning" message with module/line/version
+ *              info
+ *
+ ******************************************************************************/
+void ACPI_INTERNAL_VAR_XFACE
+acpi_bios_warning(const char *module_name,
+		  u32 line_number, const char *format, ...)
+{
+	va_list arg_list;
+
+	ACPI_MSG_REDIRECT_BEGIN;
+	acpi_os_printf(ACPI_MSG_BIOS_WARNING);
+
+	va_start(arg_list, format);
+	acpi_os_vprintf(format, arg_list);
+	ACPI_MSG_SUFFIX;
+	va_end(arg_list);
+
+	ACPI_MSG_REDIRECT_END;
+}
+
+ACPI_EXPORT_SYMBOL(acpi_bios_warning)
 
 /*
  * The remainder of this module contains internal error functions that may
@@ -271,9 +339,9 @@ acpi_ut_predefined_warning(const char *module_name,
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              Pathname        - Full pathname to the node
+ *              pathname        - Full pathname to the node
  *              node_flags      - From Namespace node for the method/object
- *              Format          - Printf format string + additional args
+ *              format          - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -373,9 +441,9 @@ acpi_ut_namespace_error(const char *module_name,
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Message             - Error message to use on failure
+ *              message             - Error message to use on failure
  *              prefix_node         - Prefix relative to the path
- *              Path                - Path to the node (optional)
+ *              path                - Path to the node (optional)
  *              method_status       - Execution status
  *
  * RETURN:      None

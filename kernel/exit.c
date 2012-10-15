@@ -483,7 +483,7 @@ static void close_files(struct files_struct * files)
 	rcu_read_unlock();
 	for (;;) {
 		unsigned long set;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds[j++];
@@ -1045,6 +1045,9 @@ void do_exit(long code)
 
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
+
+	if (tsk->task_frag.page)
+		put_page(tsk->task_frag.page);
 
 	validate_creds_for_do_exit(tsk);
 

@@ -239,22 +239,34 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 
 EXPORT_SYMBOL_GPL(gss_mech_get_by_pseudoflavor);
 
-int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr)
+/**
+ * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
+ * @array: array to fill in
+ * @size: size of "array"
+ *
+ * Returns the number of array items filled in, or a negative errno.
+ *
+ * The returned array is not sorted by any policy.  Callers should not
+ * rely on the order of the items in the returned array.
+ */
+int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
 {
 	struct gss_api_mech *pos = NULL;
 	int j, i = 0;
 
 	spin_lock(&registered_mechs_lock);
 	list_for_each_entry(pos, &registered_mechs, gm_list) {
-		for (j=0; j < pos->gm_pf_num; j++) {
+		for (j = 0; j < pos->gm_pf_num; j++) {
+			if (i >= size) {
+				spin_unlock(&registered_mechs_lock);
+				return -ENOMEM;
+			}
 			array_ptr[i++] = pos->gm_pfs[j].pseudoflavor;
 		}
 	}
 	spin_unlock(&registered_mechs_lock);
 	return i;
 }
-
-EXPORT_SYMBOL_GPL(gss_mech_list_pseudoflavors);
 
 u32
 gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)

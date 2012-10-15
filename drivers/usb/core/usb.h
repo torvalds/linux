@@ -1,4 +1,7 @@
 #include <linux/pm.h>
+#include <linux/acpi.h>
+
+struct dev_state;
 
 /* Functions local to drivers/usb/core/ */
 
@@ -24,6 +27,7 @@ extern void usb_disable_device(struct usb_device *dev, int skip_ep0);
 extern int usb_deauthorize_device(struct usb_device *);
 extern int usb_authorize_device(struct usb_device *);
 extern void usb_detect_quirks(struct usb_device *udev);
+extern void usb_detect_interface_quirks(struct usb_device *udev);
 extern int usb_remove_device(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
@@ -35,16 +39,20 @@ extern int usb_set_configuration(struct usb_device *dev, int configuration);
 extern int usb_choose_configuration(struct usb_device *udev);
 
 extern void usb_kick_khubd(struct usb_device *dev);
+extern int usb_match_one_id_intf(struct usb_device *dev,
+				 struct usb_host_interface *intf,
+				 const struct usb_device_id *id);
 extern int usb_match_device(struct usb_device *dev,
 			    const struct usb_device_id *id);
 extern void usb_forced_unbind_intf(struct usb_interface *intf);
 extern void usb_rebind_intf(struct usb_interface *intf);
 
 extern int usb_hub_claim_port(struct usb_device *hdev, unsigned port,
-		void *owner);
+		struct dev_state *owner);
 extern int usb_hub_release_port(struct usb_device *hdev, unsigned port,
-		void *owner);
-extern void usb_hub_release_all_ports(struct usb_device *hdev, void *owner);
+		struct dev_state *owner);
+extern void usb_hub_release_all_ports(struct usb_device *hdev,
+		struct dev_state *owner);
 extern bool usb_device_is_owned(struct usb_device *udev);
 
 extern int  usb_hub_init(void);
@@ -108,6 +116,7 @@ extern struct bus_type usb_bus_type;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
 extern struct device_type usb_ep_device_type;
+extern struct device_type usb_port_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)
@@ -123,6 +132,11 @@ static inline int is_usb_interface(const struct device *dev)
 static inline int is_usb_endpoint(const struct device *dev)
 {
 	return dev->type == &usb_ep_device_type;
+}
+
+static inline int is_usb_port(const struct device *dev)
+{
+	return dev->type == &usb_port_device_type;
 }
 
 /* Do the same for device drivers and interface drivers. */
@@ -155,10 +169,16 @@ extern void usb_notify_add_device(struct usb_device *udev);
 extern void usb_notify_remove_device(struct usb_device *udev);
 extern void usb_notify_add_bus(struct usb_bus *ubus);
 extern void usb_notify_remove_bus(struct usb_bus *ubus);
+extern enum usb_port_connect_type
+	usb_get_hub_port_connect_type(struct usb_device *hdev, int port1);
+extern void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
+	enum usb_port_connect_type type);
 
 #ifdef CONFIG_ACPI
 extern int usb_acpi_register(void);
 extern void usb_acpi_unregister(void);
+extern acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
+	int port1);
 #else
 static inline int usb_acpi_register(void) { return 0; };
 static inline void usb_acpi_unregister(void) { };

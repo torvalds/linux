@@ -136,6 +136,7 @@ enum prcmu_clock {
 	PRCMU_TIMCLK,
 	PRCMU_PLLSOC0,
 	PRCMU_PLLSOC1,
+	PRCMU_ARMSS,
 	PRCMU_PLLDDR,
 	PRCMU_PLLDSI,
 	PRCMU_DSI0CLK,
@@ -345,7 +346,7 @@ static inline u16 prcmu_get_reset_code(void)
 	return db8500_prcmu_get_reset_code();
 }
 
-void prcmu_ac_wake_req(void);
+int prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
 static inline void prcmu_modem_reset(void)
 {
@@ -533,7 +534,10 @@ static inline u16 prcmu_get_reset_code(void)
 	return 0;
 }
 
-static inline void prcmu_ac_wake_req(void) {}
+static inline int prcmu_ac_wake_req(void)
+{
+	return 0;
+}
 
 static inline void prcmu_ac_sleep_req(void) {}
 

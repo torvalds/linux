@@ -22,7 +22,7 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <mach/hardware.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
@@ -183,6 +183,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	return 0;
 
 no_dev:
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	platform_set_drvdata(pdev, NULL);
 	iounmap(io_base);
 no_res:
@@ -214,7 +218,7 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct of_device_id orion_nand_of_match_table[] = {
-	{ .compatible = "mrvl,orion-nand", },
+	{ .compatible = "marvell,orion-nand", },
 	{},
 };
 #endif

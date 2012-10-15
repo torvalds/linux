@@ -1,0 +1,128 @@
+One-register-per-pin type device tree based pinctrl driver
+
+Required properties:
+- compatible : "pinctrl-single"
+
+- reg : offset and length of the register set for the mux registers
+
+- pinctrl-single,register-width : pinmux register access width in bits
+
+- pinctrl-single,function-mask : mask of allowed pinmux function bits
+  in the pinmux register
+
+Optional properties:
+- pinctrl-single,function-off : function off mode for disabled state if
+  available and same for all registers; if not specified, disabling of
+  pin functions is ignored
+- pinctrl-single,bit-per-mux : boolean to indicate that one register controls
+  more than one pin
+
+This driver assumes that there is only one register for each pin (unless the
+pinctrl-single,bit-per-mux is set), and uses the common pinctrl bindings as
+specified in the pinctrl-bindings.txt document in this directory.
+
+The pin configuration nodes for pinctrl-single are specified as pinctrl
+register offset and value pairs using pinctrl-single,pins. Only the bits
+specified in pinctrl-single,function-mask are updated. For example, setting
+a pin for a device could be done with:
+
+	pinctrl-single,pins = <0xdc 0x118>;
+
+Where 0xdc is the offset from the pinctrl register base address for the
+device pinctrl register, and 0x118 contains the desired value of the
+pinctrl register. See the device example and static board pins example
+below for more information.
+
+In case when one register changes more than one pin's mux the
+pinctrl-single,bits need to be used which takes three parameters:
+
+	pinctrl-single,bits = <0xdc 0x18, 0xff>;
+
+Where 0xdc is the offset from the pinctrl register base address for the
+device pinctrl register, 0x18 is the desired value, and 0xff is the sub mask to
+be used when applying this change to the register.
+
+Example:
+
+/* SoC common file */
+
+/* first controller instance for pins in core domain */
+pmx_core: pinmux@4a100040 {
+	compatible = "pinctrl-single";
+	reg = <0x4a100040 0x0196>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,register-width = <16>;
+	pinctrl-single,function-mask = <0xffff>;
+};
+
+/* second controller instance for pins in wkup domain */
+pmx_wkup: pinmux@4a31e040 {
+	compatible = "pinctrl-single;
+	reg = <0x4a31e040 0x0038>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,register-width = <16>;
+	pinctrl-single,function-mask = <0xffff>;
+};
+
+control_devconf0: pinmux@48002274 {
+	compatible = "pinctrl-single";
+	reg = <0x48002274 4>;	/* Single register */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,bit-per-mux;
+	pinctrl-single,register-width = <32>;
+	pinctrl-single,function-mask = <0x5F>;
+};
+
+/* board specific .dts file */
+
+&pmx_core {
+
+	/*
+	 * map all board specific static pins enabled by the pinctrl driver
+	 * itself during the boot (or just set them up in the bootloader)
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&board_pins>;
+
+	board_pins: pinmux_board_pins {
+		pinctrl-single,pins = <
+			0x6c 0xf
+			0x6e 0xf
+			0x70 0xf
+			0x72 0xf
+		>;
+	};
+
+	/* map uart2 pins */
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0xd8 0x118
+			0xda 0
+			0xdc 0x118
+			0xde 0
+		>;
+	};
+};
+
+&control_devconf0 {
+	mcbsp1_pins: pinmux_mcbsp1_pins {
+		pinctrl-single,bits = <
+			0x00 0x18 0x18 /* FSR/CLKR signal from FSX/CLKX pin */
+		>;
+	};
+
+	mcbsp2_clks_pins: pinmux_mcbsp2_clks_pins {
+		pinctrl-single,bits = <
+			0x00 0x40 0x40 /* McBSP2 CLKS from McBSP_CLKS pin */
+		>;
+	};
+
+};
+
+&uart2 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart2_pins>;
+};

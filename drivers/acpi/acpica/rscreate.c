@@ -190,8 +190,8 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
  *
  * FUNCTION:    acpi_rs_create_pci_routing_table
  *
- * PARAMETERS:  package_object          - Pointer to a union acpi_operand_object
- *                                        package
+ * PARAMETERS:  package_object          - Pointer to a package containing one
+ *                                        of more ACPI_OPERAND_OBJECTs
  *              output_buffer           - Pointer to the user's buffer
  *
  * RETURN:      Status  AE_OK if okay, else a valid acpi_status code.
@@ -199,7 +199,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
  *              AE_BUFFER_OVERFLOW and output_buffer->Length will point
  *              to the size buffer needed.
  *
- * DESCRIPTION: Takes the union acpi_operand_object    package and creates a
+ * DESCRIPTION: Takes the union acpi_operand_object package and creates a
  *              linked list of PCI interrupt descriptions
  *
  * NOTE: It is the caller's responsibility to ensure that the start of the

@@ -200,6 +200,6 @@ extern void line6_pod_midi_postprocess(struct usb_line6_pod *pod,
 				       unsigned char *data, int length);
 extern void line6_pod_process_message(struct usb_line6_pod *pod);
 extern void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-					 int value);
+					 u8 value);
 
 #endif

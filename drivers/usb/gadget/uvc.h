@@ -153,9 +153,11 @@ struct uvc_device
 
 	/* Descriptors */
 	struct {
-		const struct uvc_descriptor_header * const *control;
+		const struct uvc_descriptor_header * const *fs_control;
+		const struct uvc_descriptor_header * const *ss_control;
 		const struct uvc_descriptor_header * const *fs_streaming;
 		const struct uvc_descriptor_header * const *hs_streaming;
+		const struct uvc_descriptor_header * const *ss_streaming;
 	} desc;
 
 	unsigned int control_intf;

@@ -1376,7 +1376,11 @@
 #define TG3_LSO_RD_DMA_CRPTEN_CTRL	0x00004910
 #define TG3_LSO_RD_DMA_CRPTEN_CTRL_BLEN_BD_4K	 0x00030000
 #define TG3_LSO_RD_DMA_CRPTEN_CTRL_BLEN_LSO_4K	 0x000c0000
-/* 0x4914 --> 0x4c00 unused */
+#define TG3_LSO_RD_DMA_TX_LENGTH_WA	 0x02000000
+/* 0x4914 --> 0x4be0 unused */
+
+#define TG3_NUM_RDMA_CHANNELS		4
+#define TG3_RDMA_LENGTH			0x00004be0
 
 /* Write DMA control registers */
 #define WDMAC_MODE			0x00004c00
@@ -2856,7 +2860,8 @@ struct tg3_rx_prodring_set {
 	dma_addr_t			rx_jmb_mapping;
 };
 
-#define TG3_IRQ_MAX_VECS_RSS		5
+#define TG3_RSS_MAX_NUM_QS		4
+#define TG3_IRQ_MAX_VECS_RSS		(TG3_RSS_MAX_NUM_QS + 1)
 #define TG3_IRQ_MAX_VECS		TG3_IRQ_MAX_VECS_RSS
 
 struct tg3_napi {
@@ -2959,6 +2964,7 @@ enum TG3_FLAGS {
 	TG3_FLAG_L1PLLPD_EN,
 	TG3_FLAG_APE_HAS_NCSI,
 	TG3_FLAG_4K_FIFO_LIMIT,
+	TG3_FLAG_5719_RDMA_BUG,
 	TG3_FLAG_RESET_TASK_PENDING,
 	TG3_FLAG_5705_PLUS,
 	TG3_FLAG_IS_5788,
@@ -3032,6 +3038,9 @@ struct tg3 {
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				dma_limit;
+	u32				txq_req;
+	u32				txq_cnt;
+	u32				txq_max;
 
 	/* begin "rx thread" cacheline section */
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
@@ -3046,6 +3055,9 @@ struct tg3 {
 	u32				rx_std_max_post;
 	u32				rx_offset;
 	u32				rx_pkt_map_sz;
+	u32				rxq_req;
+	u32				rxq_cnt;
+	u32				rxq_max;
 	bool				rx_refill;
 
 
@@ -3107,6 +3119,7 @@ struct tg3 {
 	int				old_link;
 
 	u8				phy_addr;
+	u8				phy_ape_lock;
 
 	/* PHY info */
 	u32				phy_id;

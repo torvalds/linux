@@ -21,7 +21,7 @@
 #include <linux/mfd/dbx500-prcmu.h>
 
 #include <mach/hardware.h>
-#include <mach/board-mop500-msp.h>
+#include <mach/msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -830,14 +830,20 @@ static int __devexit ux500_msp_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ux500_msp_i2s_match[] = {
+	{ .compatible = "stericsson,ux500-msp-i2s", },
+	{},
+};
+
 static struct platform_driver msp_i2s_driver = {
 	.driver = {
 		.name = "ux500-msp-i2s",
 		.owner = THIS_MODULE,
+		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,
 	.remove = ux500_msp_drv_remove,
 };
 module_platform_driver(msp_i2s_driver);
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

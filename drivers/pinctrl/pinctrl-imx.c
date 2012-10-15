@@ -146,7 +146,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct pinctrl_map *new_map;
 	struct device_node *parent;
 	int map_num = 1;
-	int i;
+	int i, j;
 
 	/*
 	 * first find the group of this node and check if we need create
@@ -184,13 +184,14 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* create config map */
 	new_map++;
-	for (i = 0; i < grp->npins; i++) {
+	for (i = j = 0; i < grp->npins; i++) {
 		if (!(grp->configs[i] & IMX_NO_PAD_CTL)) {
-			new_map[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
-			new_map[i].data.configs.group_or_pin =
+			new_map[j].type = PIN_MAP_TYPE_CONFIGS_PIN;
+			new_map[j].data.configs.group_or_pin =
 					pin_get_name(pctldev, grp->pins[i]);
-			new_map[i].data.configs.configs = &grp->configs[i];
-			new_map[i].data.configs.num_configs = 1;
+			new_map[j].data.configs.configs = &grp->configs[i];
+			new_map[j].data.configs.num_configs = 1;
+			j++;
 		}
 	}
 
@@ -431,7 +432,7 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 {
 	unsigned int pin_func_id;
 	int ret, size;
-	const const __be32 *list;
+	const __be32 *list;
 	int i, j;
 	u32 config;
 

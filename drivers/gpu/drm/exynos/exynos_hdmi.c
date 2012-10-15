@@ -63,7 +63,6 @@ struct hdmi_context {
 	bool				dvi_mode;
 	struct mutex			hdmi_mutex;
 
-	struct resource			*regs_res;
 	void __iomem			*regs;
 	unsigned int			external_irq;
 	unsigned int			internal_irq;
@@ -1940,7 +1939,7 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 }
 
 static void hdmi_mode_fixup(void *ctx, struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_display_mode *m;
@@ -2173,7 +2172,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
 
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 
 	/* get clocks, power */
 	res->hdmi = clk_get(dev, "hdmi");
@@ -2205,7 +2204,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 
 	res->regul_bulk = kzalloc(ARRAY_SIZE(supply) *
-		sizeof res->regul_bulk[0], GFP_KERNEL);
+		sizeof(res->regul_bulk[0]), GFP_KERNEL);
 	if (!res->regul_bulk) {
 		DRM_ERROR("failed to get memory for regulators\n");
 		goto fail;
@@ -2244,7 +2243,7 @@ static int hdmi_resources_cleanup(struct hdmi_context *hdata)
 		clk_put(res->sclk_hdmi);
 	if (!IS_ERR_OR_NULL(res->hdmi))
 		clk_put(res->hdmi);
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 
 	return 0;
 }
@@ -2280,16 +2279,17 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drm_hdmi_ctx = kzalloc(sizeof(*drm_hdmi_ctx), GFP_KERNEL);
+	drm_hdmi_ctx = devm_kzalloc(&pdev->dev, sizeof(*drm_hdmi_ctx),
+								GFP_KERNEL);
 	if (!drm_hdmi_ctx) {
 		DRM_ERROR("failed to allocate common hdmi context.\n");
 		return -ENOMEM;
 	}
 
-	hdata = kzalloc(sizeof(struct hdmi_context), GFP_KERNEL);
+	hdata = devm_kzalloc(&pdev->dev, sizeof(struct hdmi_context),
+								GFP_KERNEL);
 	if (!hdata) {
 		DRM_ERROR("out of memory\n");
-		kfree(drm_hdmi_ctx);
 		return -ENOMEM;
 	}
 
@@ -2312,32 +2312,19 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("failed to find registers\n");
-		ret = -ENOENT;
-		goto err_resource;
-	}
 
-	hdata->regs_res = request_mem_region(res->start, resource_size(res),
-					   dev_name(dev));
-	if (!hdata->regs_res) {
-		DRM_ERROR("failed to claim register region\n");
-		ret = -ENOENT;
-		goto err_resource;
-	}
-
-	hdata->regs = ioremap(res->start, resource_size(res));
+	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hdata->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -ENXIO;
-		goto err_req_region;
+		goto err_resource;
 	}
 
 	/* DDC i2c driver */
 	if (i2c_add_driver(&ddc_driver)) {
 		DRM_ERROR("failed to register ddc i2c driver\n");
 		ret = -ENOENT;
-		goto err_iomap;
+		goto err_resource;
 	}
 
 	hdata->ddc_port = hdmi_ddc;
@@ -2398,16 +2385,9 @@ err_hdmiphy:
 	i2c_del_driver(&hdmiphy_driver);
 err_ddc:
 	i2c_del_driver(&ddc_driver);
-err_iomap:
-	iounmap(hdata->regs);
-err_req_region:
-	release_mem_region(hdata->regs_res->start,
-			resource_size(hdata->regs_res));
 err_resource:
 	hdmi_resources_cleanup(hdata);
 err_data:
-	kfree(hdata);
-	kfree(drm_hdmi_ctx);
 	return ret;
 }
 
@@ -2425,17 +2405,10 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 
 	hdmi_resources_cleanup(hdata);
 
-	iounmap(hdata->regs);
-
-	release_mem_region(hdata->regs_res->start,
-			resource_size(hdata->regs_res));
-
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);
 	/* DDC i2c driver */
 	i2c_del_driver(&ddc_driver);
-
-	kfree(hdata);
 
 	return 0;
 }

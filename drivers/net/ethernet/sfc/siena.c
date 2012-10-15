@@ -335,6 +335,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail5;
 
 	efx_sriov_probe(efx);
+	efx_ptp_probe(efx);
 
 	return 0;
 

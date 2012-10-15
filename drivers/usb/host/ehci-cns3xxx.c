@@ -33,14 +33,10 @@ static int cns3xxx_ehci_init(struct usb_hcd *hcd)
 	}
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs
-		+ HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	hcd->has_tt = 0;
-	ehci_reset(ehci);
 
-	retval = ehci_init(hcd);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
@@ -109,27 +105,17 @@ static int cns3xxx_ehci_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				driver->description)) {
-		dev_dbg(dev, "controller already in use\n");
-		retval = -EBUSY;
-		goto err1;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (hcd->regs == NULL) {
 		dev_dbg(dev, "error mapping memory\n");
 		retval = -EFAULT;
-		goto err2;
+		goto err1;
 	}
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval == 0)
 		return retval;
 
-	iounmap(hcd->regs);
-err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err1:
 	usb_put_hcd(hcd);
 
@@ -141,8 +127,6 @@ static int cns3xxx_ehci_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	/*
 	 * EHCI and OHCI share the same clock and power,

@@ -38,10 +38,10 @@
 
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -633,9 +633,8 @@ static struct platform_device bq24022 = {
 static int magician_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
-	return request_irq(IRQ_MAGICIAN_SD, detect_irq,
-				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
-				"mmc card detect", data);
+	return request_irq(IRQ_MAGICIAN_SD, detect_irq, IRQF_DISABLED,
+			   "mmc card detect", data);
 }
 
 static void magician_mci_exit(struct device *dev, void *data)

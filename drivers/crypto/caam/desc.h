@@ -8,6 +8,16 @@
 #ifndef DESC_H
 #define DESC_H
 
+struct sec4_sg_entry {
+	u64 ptr;
+#define SEC4_SG_LEN_FIN 0x40000000
+#define SEC4_SG_LEN_EXT 0x80000000
+	u32 len;
+	u8 reserved;
+	u8 buf_pool_id;
+	u16 offset;
+};
+
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
 #define MAX_CAAM_DESCSIZE	64
 
@@ -1162,6 +1172,11 @@
 #define OP_ALG_AAI_GSM		(0x10 << OP_ALG_AAI_SHIFT)
 #define OP_ALG_AAI_EDGE		(0x20 << OP_ALG_AAI_SHIFT)
 
+/* RNG4 set */
+#define OP_ALG_RNG4_SHIFT	4
+#define OP_ALG_RNG4_MASK	(0x1f3 << OP_ALG_RNG4_SHIFT)
+
+#define OP_ALG_RNG4_SK		(0x100 << OP_ALG_RNG4_SHIFT)
 
 #define OP_ALG_AS_SHIFT		2
 #define OP_ALG_AS_MASK		(0x3 << OP_ALG_AS_SHIFT)
@@ -1584,21 +1599,5 @@
 
 #define NFIFOENTRY_PLEN_SHIFT	0
 #define NFIFOENTRY_PLEN_MASK	(0xFF << NFIFOENTRY_PLEN_SHIFT)
-
-/*
- * PDB internal definitions
- */
-
-/* IPSec ESP CBC Encap/Decap Options */
-#define PDBOPTS_ESPCBC_ARSNONE	0x00	/* no antireplay window	*/
-#define PDBOPTS_ESPCBC_ARS32	0x40	/* 32-entry antireplay window */
-#define PDBOPTS_ESPCBC_ARS64	0xc0	/* 64-entry antireplay window */
-#define PDBOPTS_ESPCBC_IVSRC	0x20	/* IV comes from internal random gen */
-#define PDBOPTS_ESPCBC_ESN	0x10	/* extended sequence included */
-#define PDBOPTS_ESPCBC_OUTFMT	0x08	/* output only decapsulation (decap) */
-#define PDBOPTS_ESPCBC_IPHDRSRC 0x08	/* IP header comes from PDB (encap) */
-#define PDBOPTS_ESPCBC_INCIPHDR 0x04	/* Prepend IP header to output frame */
-#define PDBOPTS_ESPCBC_IPVSN	0x02	/* process IPv6 header */
-#define PDBOPTS_ESPCBC_TUNNEL	0x01	/* tunnel mode next-header byte */
 
 #endif /* DESC_H */

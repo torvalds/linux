@@ -613,7 +613,6 @@ static const struct addi_board boardtypes[] = {
 		.i_IorangeBase0		= 128,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 48,
-		.pr_TTLRangelist	= &range_apci16xx_ttl,
 		.reset			= i_APCI16XX_Reset,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
@@ -626,7 +625,6 @@ static const struct addi_board boardtypes[] = {
 		.i_IorangeBase0		= 128,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 96,
-		.pr_TTLRangelist	= &range_apci16xx_ttl,
 		.reset			= i_APCI16XX_Reset,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
@@ -651,7 +649,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 4095,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -678,7 +675,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 4095,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -705,7 +701,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 4095,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -732,7 +727,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 65535,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -759,7 +753,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 65535,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -786,7 +779,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AiMaxdata		= 65535,
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -816,7 +808,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -851,7 +842,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -886,7 +876,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -921,7 +910,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -956,7 +944,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -991,7 +978,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1026,7 +1012,6 @@ static const struct addi_board boardtypes[] = {
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1057,7 +1042,6 @@ static const struct addi_board boardtypes[] = {
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1088,7 +1072,6 @@ static const struct addi_board boardtypes[] = {
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1119,7 +1102,6 @@ static const struct addi_board boardtypes[] = {
 		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1153,7 +1135,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1192,7 +1173,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1231,7 +1211,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1270,7 +1249,6 @@ static const struct addi_board boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
@@ -1413,7 +1391,6 @@ static const struct addi_board boardtypes[] = {
 		.i_AoMaxdata		= 4095,
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
-		.pr_TTLRangelist	= &range_apci3XXX_ttl,
 		.interrupt		= v_APCI3XXX_Interrupt,
 		.reset			= i_APCI3XXX_Reset,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -1686,14 +1663,13 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->s_BoardInfos.ui_Address = io_addr[2];
 #endif
 	} else {
-		/* Update-0.7.57->0.7.68dev->n_subdevices = 7; */
 		n_subdevices = 7;
-		ret = alloc_subdevices(dev, n_subdevices);
-		if (ret < 0)
+		ret = comedi_alloc_subdevices(dev, n_subdevices);
+		if (ret)
 			return ret;
 
 		/*  Allocate and Initialise AI Subdevice Structures */
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		if ((devpriv->s_EeParameters.i_NbrAiChannel)
 			|| (this_board->i_NbrAiChannelDiff)) {
 			dev->read_subdev = s;
@@ -1729,7 +1705,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise AO Subdevice Structures */
-		s = dev->subdevices + 1;
+		s = &dev->subdevices[1];
 		if (devpriv->s_EeParameters.i_NbrAoChannel) {
 			s->type = COMEDI_SUBD_AO;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -1744,7 +1720,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 		/*  Allocate and Initialise DI Subdevice Structures */
-		s = dev->subdevices + 2;
+		s = &dev->subdevices[2];
 		if (devpriv->s_EeParameters.i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
 			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -1762,7 +1738,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 		/*  Allocate and Initialise DO Subdevice Structures */
-		s = dev->subdevices + 3;
+		s = &dev->subdevices[3];
 		if (devpriv->s_EeParameters.i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
 			s->subdev_flags =
@@ -1784,7 +1760,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise Timer Subdevice Structures */
-		s = dev->subdevices + 4;
+		s = &dev->subdevices[4];
 		if (devpriv->s_EeParameters.i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -1802,7 +1778,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise TTL */
-		s = dev->subdevices + 5;
+		s = &dev->subdevices[5];
 		if (this_board->i_NbrTTLChannel) {
 			s->type = COMEDI_SUBD_TTLIO;
 			s->subdev_flags =
@@ -1821,7 +1797,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/* EEPROM */
-		s = dev->subdevices + 6;
+		s = &dev->subdevices[6];
 		if (this_board->i_PCIEeprom) {
 			s->type = COMEDI_SUBD_MEMORY;
 			s->subdev_flags = SDF_READABLE | SDF_INTERNAL;

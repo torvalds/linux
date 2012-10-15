@@ -1,7 +1,7 @@
 /*
  * wm8994.c  --  WM8994 ALSA SoC Audio driver
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -2649,7 +2649,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	bclk_rate = params_rate(params) * 2;
+	bclk_rate = params_rate(params) * 4;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		bclk_rate *= 16;
@@ -2967,22 +2967,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 static int wm8994_codec_suspend(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = wm8994->wm8994;
 	int i, ret;
-
-	switch (control->type) {
-	case WM8994:
-		snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, 0);
-		break;
-	case WM1811:
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM1811_JACKDET_MODE_MASK, 0);
-		/* Fall through */
-	case WM8958:
-		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
-				    WM8958_MICD_ENA, 0);
-		break;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
 		memcpy(&wm8994->fll_suspend[i], &wm8994->fll[i],
@@ -3031,28 +3016,6 @@ static int wm8994_codec_resume(struct snd_soc_codec *codec)
 		if (ret < 0)
 			dev_warn(codec->dev, "Failed to restore FLL%d: %d\n",
 				 i + 1, ret);
-	}
-
-	switch (control->type) {
-	case WM8994:
-		if (wm8994->micdet[0].jack || wm8994->micdet[1].jack)
-			snd_soc_update_bits(codec, WM8994_MICBIAS,
-					    WM8994_MICD_ENA, WM8994_MICD_ENA);
-		break;
-	case WM1811:
-		if (wm8994->jackdet && wm8994->jack_cb) {
-			/* Restart from idle */
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM1811_JACKDET_MODE_MASK,
-					    WM1811_JACKDET_MODE_JACK);
-			break;
-		}
-		break;
-	case WM8958:
-		if (wm8994->jack_cb)
-			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
-					    WM8958_MICD_ENA, WM8958_MICD_ENA);
-		break;
 	}
 
 	return 0;
@@ -3290,10 +3253,13 @@ static void wm8994_mic_work(struct work_struct *work)
 	int ret;
 	int report;
 
+	pm_runtime_get_sync(dev);
+
 	ret = regmap_read(regmap, WM8994_INTERRUPT_RAW_STATUS_2, &reg);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read microphone status: %d\n",
 			ret);
+		pm_runtime_put(dev);
 		return;
 	}
 
@@ -3336,6 +3302,8 @@ static void wm8994_mic_work(struct work_struct *work)
 
 	snd_soc_jack_report(priv->micdet[1].jack, report,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
+
+	pm_runtime_put(dev);
 }
 
 static irqreturn_t wm8994_mic_irq(int irq, void *data)
@@ -3458,12 +3426,15 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 	int reg;
 	bool present;
 
+	pm_runtime_get_sync(codec->dev);
+
 	mutex_lock(&wm8994->accdet_lock);
 
 	reg = snd_soc_read(codec, WM1811_JACKDET_CTRL);
 	if (reg < 0) {
 		dev_err(codec->dev, "Failed to read jack status: %d\n", reg);
 		mutex_unlock(&wm8994->accdet_lock);
+		pm_runtime_put(codec->dev);
 		return IRQ_NONE;
 	}
 
@@ -3528,6 +3499,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
 				    wm8994->btn_mask);
 
+	pm_runtime_put(codec->dev);
 	return IRQ_HANDLED;
 }
 
@@ -3639,6 +3611,8 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	if (!(snd_soc_read(codec, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
 
+	pm_runtime_get_sync(codec->dev);
+
 	/* We may occasionally read a detection without an impedence
 	 * range being provided - if that happens loop again.
 	 */
@@ -3649,6 +3623,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 			dev_err(codec->dev,
 				"Failed to read mic detect status: %d\n",
 				reg);
+			pm_runtime_put(codec->dev);
 			return IRQ_NONE;
 		}
 
@@ -3676,6 +3651,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		dev_warn(codec->dev, "Accessory detection with no callback\n");
 
 out:
+	pm_runtime_put(codec->dev);
 	return IRQ_HANDLED;
 }
 
@@ -3729,9 +3705,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	if (wm8994->pdata && wm8994->pdata->micdet_irq)
 		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
-	else if (wm8994->pdata && wm8994->pdata->irq_base)
-		wm8994->micdet_irq = wm8994->pdata->irq_base +
-				     WM8994_IRQ_MIC1_DET;
 
 	pm_runtime_enable(codec->dev);
 	pm_runtime_idle(codec->dev);
@@ -3870,6 +3843,10 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				dev_warn(codec->dev,
 					 "Failed to request Mic detect IRQ: %d\n",
 					 ret);
+		} else {
+			wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_MIC1_DET,
+					   wm8958_mic_irq, "Mic detect",
+					   wm8994);
 		}
 	}
 
@@ -4061,6 +4038,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 	case WM8958:
 		if (wm8994->revision < 1) {
+			snd_soc_dapm_add_routes(dapm, wm8994_intercon,
+						ARRAY_SIZE(wm8994_intercon));
 			snd_soc_dapm_add_routes(dapm, wm8994_revd_intercon,
 						ARRAY_SIZE(wm8994_revd_intercon));
 			snd_soc_dapm_add_routes(dapm, wm8994_lateclk_revd_intercon,

@@ -83,10 +83,10 @@ static const char nconf_readme[] = N_(
 "Text Box    (Help Window)\n"
 "--------\n"
 "o  Use the cursor keys to scroll up/down/left/right.  The VI editor\n"
-"   keys h,j,k,l function here as do <SPACE BAR> for those\n"
-"   who are familiar with less and lynx.\n"
+"   keys h,j,k,l function here as do <u>, <d> and <SPACE BAR> for\n"
+"   those who are familiar with less and lynx.\n"
 "\n"
-"o  Press <Enter>, <F1>, <F5>, <F7> or <Esc> to exit.\n"
+"o  Press <Enter>, <F1>, <F5>, <F9>, <q> or <Esc> to exit.\n"
 "\n"
 "\n"
 "Alternate Configuration Files\n"
@@ -1503,7 +1503,11 @@ int main(int ac, char **av)
 	}
 
 	notimeout(stdscr, FALSE);
+#if NCURSES_REENTRANT
+	set_escdelay(1);
+#else
 	ESCDELAY = 1;
+#endif
 
 	/* set btns menu */
 	curses_menu = new_menu(curses_menu_items);

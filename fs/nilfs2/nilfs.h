@@ -32,8 +32,21 @@
 #include "the_nilfs.h"
 #include "bmap.h"
 
-/*
- * nilfs inode data in memory
+/**
+ * struct nilfs_inode_info - nilfs inode data in memory
+ * @i_flags: inode flags
+ * @i_state: dynamic state flags
+ * @i_bmap: pointer on i_bmap_data
+ * @i_bmap_data: raw block mapping
+ * @i_xattr: <TODO>
+ * @i_dir_start_lookup: page index of last successful search
+ * @i_cno: checkpoint number for GC inode
+ * @i_btnode_cache: cached pages of b-tree nodes
+ * @i_dirty: list for connecting dirty files
+ * @xattr_sem: semaphore for extended attributes processing
+ * @i_bh: buffer contains disk inode
+ * @i_root: root object of the current filesystem tree
+ * @vfs_inode: VFS inode object
  */
 struct nilfs_inode_info {
 	__u32 i_flags;

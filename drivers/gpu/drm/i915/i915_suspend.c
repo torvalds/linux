@@ -828,10 +828,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	if (IS_IRONLAKE_M(dev))
-		ironlake_disable_drps(dev);
-	if (INTEL_INFO(dev)->gen >= 6)
-		gen6_disable_rps(dev);
+	intel_disable_gt_powersave(dev);
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);

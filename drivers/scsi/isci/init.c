@@ -166,6 +166,9 @@ static struct scsi_host_template isci_sht = {
 	.sg_tablesize			= SG_ALL,
 	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.eh_abort_handler		= sas_eh_abort_handler,
+	.eh_device_reset_handler        = sas_eh_device_reset_handler,
+	.eh_bus_reset_handler           = sas_eh_bus_reset_handler,
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
 	.shost_attrs			= isci_host_attrs,
@@ -219,7 +222,7 @@ static struct sas_domain_function_template isci_transport_ops  = {
  * @isci_host: This parameter specifies the lldd specific wrapper for the
  *    libsas sas_ha struct.
  *
- * This method returns an error code indicating sucess or failure. The user
+ * This method returns an error code indicating success or failure. The user
  * should check for possible memory allocation error return otherwise, a zero
  * indicates success.
  */

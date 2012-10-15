@@ -430,12 +430,11 @@ xscale1pmu_write_counter(int counter, u32 val)
 
 static int xscale_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &xscale_perf_map,
+	return armpmu_map_event(event, &xscale_perf_map,
 				&xscale_perf_cache_map, 0xFF);
 }
 
 static struct arm_pmu xscale1pmu = {
-	.id		= ARM_PERF_PMU_ID_XSCALE1,
 	.name		= "xscale1",
 	.handle_irq	= xscale1pmu_handle_irq,
 	.enable		= xscale1pmu_enable_event,
@@ -450,7 +449,7 @@ static struct arm_pmu xscale1pmu = {
 	.max_period	= (1LLU << 32) - 1,
 };
 
-static struct arm_pmu *__init xscale1pmu_init(void)
+static struct arm_pmu *__devinit xscale1pmu_init(void)
 {
 	return &xscale1pmu;
 }
@@ -803,7 +802,6 @@ xscale2pmu_write_counter(int counter, u32 val)
 }
 
 static struct arm_pmu xscale2pmu = {
-	.id		= ARM_PERF_PMU_ID_XSCALE2,
 	.name		= "xscale2",
 	.handle_irq	= xscale2pmu_handle_irq,
 	.enable		= xscale2pmu_enable_event,
@@ -818,17 +816,17 @@ static struct arm_pmu xscale2pmu = {
 	.max_period	= (1LLU << 32) - 1,
 };
 
-static struct arm_pmu *__init xscale2pmu_init(void)
+static struct arm_pmu *__devinit xscale2pmu_init(void)
 {
 	return &xscale2pmu;
 }
 #else
-static struct arm_pmu *__init xscale1pmu_init(void)
+static struct arm_pmu *__devinit xscale1pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init xscale2pmu_init(void)
+static struct arm_pmu *__devinit xscale2pmu_init(void)
 {
 	return NULL;
 }

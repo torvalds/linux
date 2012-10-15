@@ -24,10 +24,17 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/err.h>
-#include <linux/regulator/of_regulator.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65217.h>
+
+static struct mfd_cell tps65217s[] = {
+	{
+		.name = "tps65217-pmic",
+	},
+};
 
 /**
  * tps65217_reg_read: Read a single tps65217 register.
@@ -133,83 +140,48 @@ int tps65217_clear_bits(struct tps65217 *tps, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(tps65217_clear_bits);
 
-#ifdef CONFIG_OF
-static struct of_regulator_match reg_matches[] = {
-	{ .name = "dcdc1", .driver_data = (void *)TPS65217_DCDC_1 },
-	{ .name = "dcdc2", .driver_data = (void *)TPS65217_DCDC_2 },
-	{ .name = "dcdc3", .driver_data = (void *)TPS65217_DCDC_3 },
-	{ .name = "ldo1", .driver_data = (void *)TPS65217_LDO_1 },
-	{ .name = "ldo2", .driver_data = (void *)TPS65217_LDO_2 },
-	{ .name = "ldo3", .driver_data = (void *)TPS65217_LDO_3 },
-	{ .name = "ldo4", .driver_data = (void *)TPS65217_LDO_4 },
-};
-
-static struct tps65217_board *tps65217_parse_dt(struct i2c_client *client)
-{
-	struct device_node *node = client->dev.of_node;
-	struct tps65217_board *pdata;
-	struct device_node *regs;
-	int count = ARRAY_SIZE(reg_matches);
-	int ret, i;
-
-	regs = of_find_node_by_name(node, "regulators");
-	if (!regs)
-		return NULL;
-
-	ret = of_regulator_match(&client->dev, regs, reg_matches, count);
-	of_node_put(regs);
-	if ((ret < 0) || (ret > count))
-		return NULL;
-
-	count = ret;
-	pdata = devm_kzalloc(&client->dev, count * sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return NULL;
-
-	for (i = 0; i < count; i++) {
-		if (!reg_matches[i].init_data || !reg_matches[i].of_node)
-			continue;
-
-		pdata->tps65217_init_data[i] = reg_matches[i].init_data;
-		pdata->of_node[i] = reg_matches[i].of_node;
-	}
-
-	return pdata;
-}
-
-static struct of_device_id tps65217_of_match[] = {
-	{ .compatible = "ti,tps65217", },
-	{ },
-};
-#else
-static struct tps65217_board *tps65217_parse_dt(struct i2c_client *client)
-{
-	return NULL;
-}
-#endif
-
 static struct regmap_config tps65217_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+};
+
+static const struct of_device_id tps65217_of_match[] = {
+	{ .compatible = "ti,tps65217", .data = (void *)TPS65217 },
+	{ /* sentinel */ },
 };
 
 static int __devinit tps65217_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct tps65217 *tps;
-	struct regulator_init_data *reg_data;
-	struct tps65217_board *pdata = client->dev.platform_data;
-	int i, ret;
 	unsigned int version;
+	unsigned int chip_id = ids->driver_data;
+	const struct of_device_id *match;
+	int ret;
 
-	if (!pdata && client->dev.of_node)
-		pdata = tps65217_parse_dt(client);
+	if (client->dev.of_node) {
+		match = of_match_device(tps65217_of_match, &client->dev);
+		if (!match) {
+			dev_err(&client->dev,
+				"Failed to find matching dt id\n");
+			return -EINVAL;
+		}
+		chip_id = (unsigned int)match->data;
+	}
+
+	if (!chip_id) {
+		dev_err(&client->dev, "id is null.\n");
+		return -ENODEV;
+	}
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
-	tps->pdata = pdata;
+	i2c_set_clientdata(client, tps);
+	tps->dev = &client->dev;
+	tps->id = chip_id;
+
 	tps->regmap = devm_regmap_init_i2c(client, &tps65217_regmap_config);
 	if (IS_ERR(tps->regmap)) {
 		ret = PTR_ERR(tps->regmap);
@@ -218,8 +190,12 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	i2c_set_clientdata(client, tps);
-	tps->dev = &client->dev;
+	ret = mfd_add_devices(tps->dev, -1, tps65217s,
+			      ARRAY_SIZE(tps65217s), NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(tps->dev, "mfd_add_devices failed: %d\n", ret);
+		return ret;
+	}
 
 	ret = tps65217_reg_read(tps, TPS65217_REG_CHIPID, &version);
 	if (ret < 0) {
@@ -232,41 +208,21 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 			(version & TPS65217_CHIPID_CHIP_MASK) >> 4,
 			version & TPS65217_CHIPID_REV_MASK);
 
-	for (i = 0; i < TPS65217_NUM_REGULATOR; i++) {
-		struct platform_device *pdev;
-
-		pdev = platform_device_alloc("tps65217-pmic", i);
-		if (!pdev) {
-			dev_err(tps->dev, "Cannot create regulator %d\n", i);
-			continue;
-		}
-
-		pdev->dev.parent = tps->dev;
-		pdev->dev.of_node = pdata->of_node[i];
-		reg_data = pdata->tps65217_init_data[i];
-		platform_device_add_data(pdev, reg_data, sizeof(*reg_data));
-		tps->regulator_pdev[i] = pdev;
-
-		platform_device_add(pdev);
-	}
-
 	return 0;
 }
 
 static int __devexit tps65217_remove(struct i2c_client *client)
 {
 	struct tps65217 *tps = i2c_get_clientdata(client);
-	int i;
 
-	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
-		platform_device_unregister(tps->regulator_pdev[i]);
+	mfd_remove_devices(tps->dev);
 
 	return 0;
 }
 
 static const struct i2c_device_id tps65217_id_table[] = {
-	{"tps65217", 0xF0},
-	{/* end of list */}
+	{"tps65217", TPS65217},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, tps65217_id_table);
 

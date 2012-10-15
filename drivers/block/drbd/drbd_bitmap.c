@@ -889,6 +889,7 @@ struct bm_aio_ctx {
 	unsigned int done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
+#define BM_WRITE_ALL_PAGES	2
 	int error;
 	struct kref kref;
 };
@@ -1059,7 +1060,8 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
 			break;
 		if (rw & WRITE) {
-			if (bm_test_page_unchanged(b->bm_pages[i])) {
+			if (!(flags & BM_WRITE_ALL_PAGES) &&
+			    bm_test_page_unchanged(b->bm_pages[i])) {
 				dynamic_dev_dbg(DEV, "skipped bm write for idx %u\n", i);
 				continue;
 			}
@@ -1096,7 +1098,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 
 	if (ctx->error) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 		err = -EIO; /* ctx->error ? */
 	}
 
@@ -1138,6 +1140,17 @@ int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
 int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
 {
 	return bm_rw(mdev, WRITE, 0, 0);
+}
+
+/**
+ * drbd_bm_write_all() - Write the whole bitmap to its on disk location.
+ * @mdev:	DRBD device.
+ *
+ * Will write all pages.
+ */
+int drbd_bm_write_all(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_WRITE_ALL_PAGES, 0);
 }
 
 /**
@@ -1212,7 +1225,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 	wait_until_done_or_disk_failure(mdev, mdev->ldev, &ctx->done);
 
 	if (ctx->error)
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 		/* that should force detach, so the in memory bitmap will be
 		 * gone in a moment as well. */
 

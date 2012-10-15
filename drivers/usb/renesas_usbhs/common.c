@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include "./common.h"
+#include "common.h"
 
 /*
  *		image of renesas_usbhs
@@ -432,17 +432,16 @@ static int usbhs_probe(struct platform_device *pdev)
 	}
 
 	/* usb private data */
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "Could not allocate priv\n");
 		return -ENOMEM;
 	}
 
-	priv->base = ioremap_nocache(res->start, resource_size(res));
+	priv->base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!priv->base) {
 		dev_err(&pdev->dev, "ioremap error.\n");
-		ret = -ENOMEM;
-		goto probe_end_kfree;
+		return -ENOMEM;
 	}
 
 	/*
@@ -485,7 +484,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	/* call pipe and module init */
 	ret = usbhs_pipe_probe(priv);
 	if (ret < 0)
-		goto probe_end_iounmap;
+		return ret;
 
 	ret = usbhs_fifo_probe(priv);
 	if (ret < 0)
@@ -546,10 +545,6 @@ probe_end_fifo_exit:
 	usbhs_fifo_remove(priv);
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
-probe_end_iounmap:
-	iounmap(priv->base);
-probe_end_kfree:
-	kfree(priv);
 
 	dev_info(&pdev->dev, "probe failed\n");
 
@@ -576,8 +571,6 @@ static int __devexit usbhs_remove(struct platform_device *pdev)
 	usbhs_mod_remove(priv);
 	usbhs_fifo_remove(priv);
 	usbhs_pipe_remove(priv);
-	iounmap(priv->base);
-	kfree(priv);
 
 	return 0;
 }
@@ -603,12 +596,12 @@ static int usbhsc_resume(struct device *dev)
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	usbhs_platform_call(priv, phy_reset, pdev);
-
 	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
 		usbhsc_power_ctrl(priv, 1);
 
-	usbhsc_hotplug(priv);
+	usbhs_platform_call(priv, phy_reset, pdev);
+
+	usbhsc_drvcllbck_notify_hotplug(pdev);
 
 	return 0;
 }

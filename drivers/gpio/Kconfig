@@ -82,7 +82,7 @@ config GPIO_GENERIC
 
 config GPIO_DA9052
 	tristate "Dialog DA9052 GPIO"
-	depends on PMIC_DA9052 && BROKEN
+	depends on PMIC_DA9052
 	help
 	  Say yes here to enable the GPIO driver for the DA9052 chip.
 
@@ -183,6 +183,12 @@ config GPIO_STA2X11
 	  Say yes here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
 
+config GPIO_VT8500
+	bool "VIA/Wondermedia SoC GPIO Support"
+	depends on ARCH_VT8500
+	help
+	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE
@@ -253,6 +259,12 @@ config GPIO_GE_FPGA
 
 comment "I2C GPIO expanders:"
 
+config GPIO_ARIZONA
+	tristate "Wolfson Microelectronics Arizona class devices"
+	depends on MFD_ARIZONA
+	help
+	  Support for GPIOs on Wolfson Arizona class devices.
+
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
 	depends on I2C
@@ -288,7 +300,7 @@ config GPIO_MAX732X_IRQ
 
 config GPIO_MC9S08DZ60
 	bool "MX35 3DS BOARD MC9S08DZ60 GPIO functions"
-	depends on I2C && MACH_MX35_3DS
+	depends on I2C=y && MACH_MX35_3DS
 	help
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
@@ -318,6 +330,7 @@ config GPIO_PCA953X_IRQ
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C
+	select IRQ_DOMAIN
 	help
 	  Say yes here to provide access to most "quasi-bidirectional" I2C
 	  GPIO expanders used for additional digital outputs or inputs.
@@ -438,6 +451,17 @@ config GPIO_ADP5588_IRQ
 	  Say yes here to enable the adp5588 to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
 
+config GPIO_ADNP
+	tristate "Avionic Design N-bit GPIO expander"
+	depends on I2C && OF
+	help
+	  This option enables support for N GPIOs found on Avionic Design
+	  I2C GPIO expanders. The register space will be extended by powers
+	  of two, so the controller will need to accomodate for that. For
+	  example: if a controller provides 48 pins, 6 registers will be
+	  enough to represent all pins, but the driver will assume a
+	  register layout for 64 pins (8 registers).
+
 comment "PCI GPIO expanders:"
 
 config GPIO_CS5535
@@ -465,6 +489,18 @@ config GPIO_BT8XX
 	  Documentation/bt8xxgpio.txt
 
 	  If unsure, say N.
+
+config GPIO_AMD8111
+	tristate "AMD 8111 GPIO driver"
+	depends on PCI
+	help
+	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
+
+	  Note, that usually system firmware/ACPI handles GPIO pins on their
+	  own and users might easily break their systems with uncarefull usage
+	  of this driver!
+
+	  If unsure, say N
 
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
@@ -578,6 +614,13 @@ config GPIO_AB8500
 	depends on AB8500_CORE && BROKEN
 	help
 	  Select this to enable the AB8500 IC GPIO driver
+
+config GPIO_TPS6586X
+	bool "TPS6586X GPIO"
+	depends on MFD_TPS6586X
+	help
+	  Select this option to enable GPIO driver for the TPS6586X
+	  chip family.
 
 config GPIO_TPS65910
 	bool "TPS65910 GPIO"

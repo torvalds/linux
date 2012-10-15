@@ -118,6 +118,7 @@ void reset_security_ops(void);
 extern unsigned long mmap_min_addr;
 extern unsigned long dac_mmap_min_addr;
 #else
+#define mmap_min_addr		0UL
 #define dac_mmap_min_addr	0UL
 #endif
 
@@ -1242,8 +1243,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Check that the @parent process has sufficient permission to trace the
  *	current process before allowing the current process to present itself
  *	to the @parent process for tracing.
- *	The parent process will still have to undergo the ptrace_access_check
- *	checks before it is allowed to trace this one.
  *	@parent contains the task_struct structure for debugger process.
  *	Return 0 if permission is granted.
  * @capget:
@@ -1437,7 +1436,7 @@ struct security_operations {
 	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
 			    struct path *new_dir, struct dentry *new_dentry);
 	int (*path_chmod) (struct path *path, umode_t mode);
-	int (*path_chown) (struct path *path, uid_t uid, gid_t gid);
+	int (*path_chown) (struct path *path, kuid_t uid, kgid_t gid);
 	int (*path_chroot) (struct path *path);
 #endif
 
@@ -2832,7 +2831,7 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry);
 int security_path_chmod(struct path *path, umode_t mode);
-int security_path_chown(struct path *path, uid_t uid, gid_t gid);
+int security_path_chown(struct path *path, kuid_t uid, kgid_t gid);
 int security_path_chroot(struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
 static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
@@ -2888,7 +2887,7 @@ static inline int security_path_chmod(struct path *path, umode_t mode)
 	return 0;
 }
 
-static inline int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+static inline int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 {
 	return 0;
 }

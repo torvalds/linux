@@ -295,7 +295,6 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->resource.flags = flags;
 	window->resource.start = addr.minimum + offset;
 	window->resource.end = window->resource.start + addr.address_length - 1;
-	window->resource.child = NULL;
 	window->offset = offset;
 
 	if (insert_resource(root, &window->resource)) {
@@ -351,11 +350,13 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 #endif
 
 	INIT_LIST_HEAD(&info.resources);
+	/* insert busn resource at first */
+	pci_add_resource(&info.resources, &root->secondary);
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
 			&windows);
 	if (windows) {
 		controller->window =
-			kmalloc_node(sizeof(*controller->window) * windows,
+			kzalloc_node(sizeof(*controller->window) * windows,
 				     GFP_KERNEL, controller->node);
 		if (!controller->window)
 			goto out2;
@@ -384,7 +385,7 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 	}
 
-	pbus->subordinate = pci_scan_child_bus(pbus);
+	pci_scan_child_bus(pbus);
 	return pbus;
 
 out3:
@@ -459,14 +460,6 @@ void pcibios_set_master (struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
-void __devinit
-pcibios_update_irq (struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-
-	/* ??? FIXME -- record old value for shutdown.  */
-}
-
 int
 pcibios_enable_device (struct pci_dev *dev, int mask)
 {
@@ -494,15 +487,6 @@ pcibios_align_resource (void *data, const struct resource *res,
 		        resource_size_t size, resource_size_t align)
 {
 	return res->start;
-}
-
-/*
- * PCI BIOS setup, always defaults to SAL interface
- */
-char * __init
-pcibios_setup (char *str)
-{
-	return str;
 }
 
 int

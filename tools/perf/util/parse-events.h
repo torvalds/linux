@@ -55,7 +55,7 @@ struct parse_events__term {
 	char *config;
 	union {
 		char *str;
-		long  num;
+		u64  num;
 	} val;
 	int type_val;
 	int type_term;
@@ -73,17 +73,19 @@ struct parse_events_data__terms {
 
 int parse_events__is_hardcoded_term(struct parse_events__term *term);
 int parse_events__term_num(struct parse_events__term **_term,
-			   int type_term, char *config, long num);
+			   int type_term, char *config, u64 num);
 int parse_events__term_str(struct parse_events__term **_term,
 			   int type_term, char *config, char *str);
 int parse_events__term_clone(struct parse_events__term **new,
 			     struct parse_events__term *term);
 void parse_events__free_terms(struct list_head *terms);
-int parse_events_modifier(struct list_head *list, char *str);
+int parse_events__modifier_event(struct list_head *list, char *str, bool add);
+int parse_events__modifier_group(struct list_head *list, char *event_mod);
+int parse_events_name(struct list_head *list, char *name);
 int parse_events_add_tracepoint(struct list_head **list, int *idx,
 				char *sys, char *event);
 int parse_events_add_numeric(struct list_head **list, int *idx,
-			     unsigned long type, unsigned long config,
+			     u32 type, u64 config,
 			     struct list_head *head_config);
 int parse_events_add_cache(struct list_head **list, int *idx,
 			   char *type, char *op_result1, char *op_result2);
@@ -91,15 +93,17 @@ int parse_events_add_breakpoint(struct list_head **list, int *idx,
 				void *ptr, char *type);
 int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *pmu , struct list_head *head_config);
+void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
 void parse_events_error(void *data, void *scanner, char const *msg);
 int parse_events__test(void);
 
-void print_events(const char *event_glob);
+void print_events(const char *event_glob, bool name_only);
 void print_events_type(u8 type);
-void print_tracepoint_events(const char *subsys_glob, const char *event_glob);
-int print_hwcache_events(const char *event_glob);
+void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
+			     bool name_only);
+int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
 extern int valid_debugfs_mount(const char *debugfs);

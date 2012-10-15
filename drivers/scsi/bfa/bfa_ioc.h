@@ -530,7 +530,7 @@ struct bfa_diag_results_fwping {
 
 struct bfa_diag_qtest_result_s {
 	u32	status;
-	u16	count;	/* sucessful queue test count */
+	u16	count;	/* successful queue test count */
 	u8	queue;
 	u8	rsvd;	/* 64-bit align */
 };

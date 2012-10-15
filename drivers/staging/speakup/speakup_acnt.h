@@ -12,5 +12,5 @@
 				   to accept a byte of data. */
 #define SYNTH_QUIET	'S' /* synth is not speaking */
 #define SYNTH_FULL	'F' /* synth is full. */
-#define SYNTH_ALMOST_EMPTY 'M' /* synth has les than 2 seconds of text left */
+#define SYNTH_ALMOST_EMPTY 'M' /* synth has less than 2 seconds of text left */
 #define SYNTH_SPEAKING	's' /* synth is speaking and has a fare way to go */

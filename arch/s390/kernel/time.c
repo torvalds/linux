@@ -329,7 +329,7 @@ static unsigned long clock_sync_flags;
  * The synchronous get_clock function. It will write the current clock
  * value to the clock pointer and return 0 if the clock is in sync with
  * the external time source. If the clock mode is local it will return
- * -ENOSYS and -EAGAIN if the clock is not in sync with the external
+ * -EOPNOTSUPP and -EAGAIN if the clock is not in sync with the external
  * reference.
  */
 int get_sync_clock(unsigned long long *clock)
@@ -347,7 +347,7 @@ int get_sync_clock(unsigned long long *clock)
 		return 0;
 	if (!test_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags) &&
 	    !test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	if (!test_bit(CLOCK_SYNC_ETR, &clock_sync_flags) &&
 	    !test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
 		return -EACCES;

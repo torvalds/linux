@@ -334,7 +334,7 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 			reg->receiver_fn(evbuf);
 			spin_lock_irqsave(&sclp_lock, flags);
 		} else if (reg == NULL)
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	return rc;
@@ -653,16 +653,6 @@ sclp_remove_processed(struct sccb_header *sccb)
 }
 
 EXPORT_SYMBOL(sclp_remove_processed);
-
-struct init_sccb {
-	struct sccb_header header;
-	u16 _reserved;
-	u16 mask_length;
-	sccb_mask_t receive_mask;
-	sccb_mask_t send_mask;
-	sccb_mask_t sclp_receive_mask;
-	sccb_mask_t sclp_send_mask;
-} __attribute__((packed));
 
 /* Prepare init mask request. Called while sclp_lock is locked. */
 static inline void

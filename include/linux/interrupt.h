@@ -42,7 +42,6 @@
  *
  * IRQF_DISABLED - keep irqs disabled when calling the action handler.
  *                 DEPRECATED. This flag is a NOOP and scheduled to be removed
- * IRQF_SAMPLE_RANDOM - irq is used to feed the random generator
  * IRQF_SHARED - allow sharing the irq among several devices
  * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
  * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
@@ -61,7 +60,6 @@
  *                resume time.
  */
 #define IRQF_DISABLED		0x00000020
-#define IRQF_SAMPLE_RANDOM	0x00000040
 #define IRQF_SHARED		0x00000080
 #define IRQF_PROBE_SHARED	0x00000100
 #define __IRQF_TIMER		0x00000200
@@ -431,6 +429,8 @@ enum
 
 	NR_SOFTIRQS
 };
+
+#define SOFTIRQ_STOP_IDLE_MASK (~(1 << RCU_SOFTIRQ))
 
 /* map softirq index to softirq name. update 'softirq_to_name' in
  * kernel/softirq.c when adding a new softirq.

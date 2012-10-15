@@ -60,7 +60,7 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
-		struct drm_display_mode *mode,
+		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -155,6 +155,7 @@ static void page_flip_cb(void *arg)
 	struct drm_crtc *crtc = arg;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
+	struct drm_gem_object *bo;
 
 	omap_crtc->old_fb = NULL;
 
@@ -165,6 +166,9 @@ static void page_flip_cb(void *arg)
 	 * cycle.. for now go for correctness and later figure out speed..
 	 */
 	omap_plane_on_endwin(omap_crtc->plane, vblank_cb, crtc);
+
+	bo = omap_framebuffer_bo(crtc->fb, 0);
+	drm_gem_object_unreference_unlocked(bo);
 }
 
 static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
@@ -173,6 +177,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_gem_object *bo;
 
 	DBG("%d -> %d", crtc->fb ? crtc->fb->base.id : -1, fb->base.id);
 
@@ -185,16 +190,38 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	omap_crtc->event = event;
 	crtc->fb = fb;
 
-	omap_gem_op_async(omap_framebuffer_bo(fb, 0), OMAP_GEM_READ,
-			page_flip_cb, crtc);
+	/*
+	 * Hold a reference temporarily until the crtc is updated
+	 * and takes the reference to the bo.  This avoids it
+	 * getting freed from under us:
+	 */
+	bo = omap_framebuffer_bo(fb, 0);
+	drm_gem_object_reference(bo);
+
+	omap_gem_op_async(bo, OMAP_GEM_READ, page_flip_cb, crtc);
 
 	return 0;
+}
+
+static int omap_crtc_set_property(struct drm_crtc *crtc,
+		struct drm_property *property, uint64_t val)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+
+	if (property == priv->rotation_prop) {
+		crtc->invert_dimensions =
+				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
+	}
+
+	return omap_plane_set_property(omap_crtc->plane, property, val);
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = omap_crtc_destroy,
 	.page_flip = omap_crtc_page_flip_locked,
+	.set_property = omap_crtc_set_property,
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
@@ -230,6 +257,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	drm_crtc_init(dev, crtc, &omap_crtc_funcs);
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);
+
+	omap_plane_install_properties(omap_crtc->plane, &crtc->base);
 
 	return crtc;
 

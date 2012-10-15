@@ -5,10 +5,10 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	PUSB_TCB pTcb= (PUSB_TCB)urb->context;
 	PS_INTERFACE_ADAPTER psIntfAdapter = pTcb->psIntfAdapter;
-	CONTROL_MESSAGE *pControlMsg = (CONTROL_MESSAGE *)urb->transfer_buffer;
-	PMINI_ADAPTER psAdapter = psIntfAdapter->psAdapter ;
+	struct bcm_link_request *pControlMsg = (struct bcm_link_request *)urb->transfer_buffer;
+	struct bcm_mini_adapter *psAdapter = psIntfAdapter->psAdapter ;
 	BOOLEAN bpowerDownMsg = FALSE ;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
     if (unlikely(netif_msg_tx_done(Adapter)))
 	    pr_info(PFX "%s: transmit status %d\n", Adapter->dev->name, urb->status);

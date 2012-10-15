@@ -25,7 +25,7 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 #include <mach/hardware.h>
 #include <mach/ep93xx-regs.h>
 
@@ -136,7 +136,7 @@ static struct snd_pcm_ops ep93xx_pcm_ops = {
 	.hw_params	= ep93xx_pcm_hw_params,
 	.hw_free	= ep93xx_pcm_hw_free,
 	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer,
+	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
 	.mmap		= ep93xx_pcm_mmap,
 };
 

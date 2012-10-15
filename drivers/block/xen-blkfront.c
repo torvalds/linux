@@ -670,7 +670,7 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 	spin_unlock_irqrestore(&info->io_lock, flags);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
-	flush_work_sync(&info->work);
+	flush_work(&info->work);
 
 	del_gendisk(info->gd);
 
@@ -719,7 +719,7 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	spin_unlock_irq(&info->io_lock);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
-	flush_work_sync(&info->work);
+	flush_work(&info->work);
 
 	/* Free resources associated with old device channel. */
 	if (info->ring_ref != GRANT_INVALID_REF) {
@@ -888,9 +888,8 @@ static int setup_blkring(struct xenbus_device *dev,
 	if (err)
 		goto fail;
 
-	err = bind_evtchn_to_irqhandler(info->evtchn,
-					blkif_interrupt,
-					IRQF_SAMPLE_RANDOM, "blkif", info);
+	err = bind_evtchn_to_irqhandler(info->evtchn, blkif_interrupt, 0,
+					"blkif", info);
 	if (err <= 0) {
 		xenbus_dev_fatal(dev, err,
 				 "bind_evtchn_to_irqhandler failed");

@@ -82,7 +82,7 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 			     long mask)
 {
 	int ret = -EINVAL;
-	u16 ut;
+	u16 ut = 0;
 	/* Take the iio_dev status lock */
 
 	mutex_lock(&indio_dev->mlock);
@@ -177,7 +177,7 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int adis16080_remove(struct spi_device *spi)
+static int __devexit adis16080_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));

@@ -59,40 +59,6 @@ Configuration Options:
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
-#define MODULE_NAME "comedi_bond"
-#ifndef STR
-#  define STR1(x) #x
-#  define STR(x) STR1(x)
-#endif
-
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful"
-		 "only to developers.");
-
-#define LOG_MSG(x...) printk(KERN_INFO MODULE_NAME": "x)
-#define DEBUG(x...)							\
-	do {								\
-		if (debug)						\
-			printk(KERN_DEBUG MODULE_NAME": DEBUG: "x);	\
-	} while (0)
-#define WARNING(x...)  printk(KERN_WARNING MODULE_NAME ": WARNING: "x)
-#define ERROR(x...)  printk(KERN_ERR MODULE_NAME ": INTERNAL ERROR: "x)
-
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
-struct BondingBoard {
-	const char *name;
-};
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct BondingBoard *)dev->board_ptr)
-
 struct BondedDevice {
 	struct comedi_device *dev;
 	unsigned minor;
@@ -107,7 +73,7 @@ struct BondedDevice {
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-struct Private {
+struct comedi_bond_private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
 	struct BondedDevice **devs;
@@ -115,12 +81,6 @@ struct Private {
 	struct BondedDevice *chanIdDevMap[MAX_CHANS];
 	unsigned nchans;
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct Private *)dev->private)
 
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
@@ -131,10 +91,9 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	if (devpriv->nchans < nchans)
 		nchans = devpriv->nchans;
@@ -179,6 +138,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
 	struct BondedDevice *bdev;
@@ -232,6 +192,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int i;
 	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
@@ -247,15 +208,18 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		struct BondedDevice *bdev = NULL;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
-			ERROR("Minor %d is invalid!\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %d is invalid!\n", minor);
 			return 0;
 		}
 		if (minor == dev->minor) {
-			ERROR("Cannot bond this driver to itself!\n");
+			dev_err(dev->class_dev,
+				"Cannot bond this driver to itself!\n");
 			return 0;
 		}
 		if (devs_opened[minor]) {
-			ERROR("Minor %d specified more than once!\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %d specified more than once!\n", minor);
 			return 0;
 		}
 
@@ -265,7 +229,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		d = devs_opened[minor] = comedi_open(file);
 
 		if (!d) {
-			ERROR("Minor %u could not be opened\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %u could not be opened\n", minor);
 			return 0;
 		}
 
@@ -274,14 +239,14 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
-				ERROR("comedi_get_n_channels() returned %d "
-				      "on minor %u subdev %d!\n",
-				      nchans, minor, sdev);
+				dev_err(dev->class_dev,
+					"comedi_get_n_channels() returned %d on minor %u subdev %d!\n",
+					nchans, minor, sdev);
 				return 0;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
 			if (!bdev) {
-				ERROR("Out of memory.\n");
+				dev_err(dev->class_dev, "Out of memory\n");
 				return 0;
 			}
 			bdev->dev = d;
@@ -304,8 +269,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			    Realloc(devpriv->devs,
 				    ++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
-				ERROR("Could not allocate memory. "
-				      "Out of memory?");
+				dev_err(dev->class_dev,
+					"Could not allocate memory. Out of memory?\n");
 				return 0;
 			}
 
@@ -325,7 +290,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	if (!devpriv->nchans) {
-		ERROR("No channels found!\n");
+		dev_err(dev->class_dev, "No channels found!\n");
 		return 0;
 	}
 
@@ -335,37 +300,28 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 static int bonding_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv;
 	struct comedi_subdevice *s;
+	int ret;
 
-	LOG_MSG("comedi%d\n", dev->minor);
-
-	/*
-	 * Allocate the private structure area.  alloc_private() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_private(dev, sizeof(struct Private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	/*
-	 * Setup our bonding from config params.. sets up our Private struct..
+	 * Setup our bonding from config params.. sets up our private struct..
 	 */
 	if (!doDevConfig(dev, it))
 		return -EINVAL;
 
-	/*
-	 * Initialize dev->board_name.  Note that we can use the "thisboard"
-	 * macro now, since we just initialized it in the last line.
-	 */
 	dev->board_name = devpriv->name;
 
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = devpriv->nchans;
@@ -374,9 +330,9 @@ static int bonding_attach(struct comedi_device *dev,
 	s->insn_bits = bonding_dio_insn_bits;
 	s->insn_config = bonding_dio_insn_config;
 
-	LOG_MSG("attached with %u DIO channels coming from %u different "
-		"subdevices all bonded together.  "
-		"John Lennon would be proud!\n",
+	dev_info(dev->class_dev,
+		"%s: %s attached, %u channels from %u devices\n",
+		dev->driver->driver_name, dev->board_name,
 		devpriv->nchans, devpriv->ndevs);
 
 	return 1;
@@ -384,6 +340,7 @@ static int bonding_attach(struct comedi_device *dev,
 
 static void bonding_detach(struct comedi_device *dev)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	unsigned long devs_closed = 0;
 
 	if (devpriv) {
@@ -406,25 +363,16 @@ static void bonding_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct BondingBoard bondingBoards[] = {
-	{
-		.name		= "comedi_bond",
-	},
-};
-
 static struct comedi_driver bonding_driver = {
 	.driver_name	= "comedi_bond",
 	.module		= THIS_MODULE,
 	.attach		= bonding_attach,
 	.detach		= bonding_detach,
-	.board_name	= &bondingBoards[0].name,
-	.offset		= sizeof(struct BondingBoard),
-	.num_names	= ARRAY_SIZE(bondingBoards),
 };
 module_comedi_driver(bonding_driver);
 
 MODULE_AUTHOR("Calin A. Culianu");
-MODULE_DESCRIPTION(MODULE_NAME "A driver for COMEDI to bond multiple COMEDI "
+MODULE_DESCRIPTION("comedi_bond: A driver for COMEDI to bond multiple COMEDI "
 		   "devices together as one.  In the words of John Lennon: "
 		   "'And the world will live as one...'");
 MODULE_LICENSE("GPL");

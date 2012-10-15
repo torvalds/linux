@@ -106,7 +106,7 @@ static void usb_host_port_power(int port, int power)
 		return;
 
 	/* set VBOUT/PWEN and EXTLP0 in DVSTCTR */
-	__raw_writew(__raw_readw(0xe6890008) | 0x600, 0xe6890008);
+	__raw_writew(__raw_readw(IOMEM(0xe6890008)) | 0x600, IOMEM(0xe6890008));
 }
 
 static struct r8a66597_platdata usb_host_data = {
@@ -279,10 +279,10 @@ static void __init g3evm_init(void)
 	gpio_request(GPIO_FN_IDIN, NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x0300, 0xe605810a);	/* USBCR1 */
-	__raw_writew(0x00e0, 0xe60581c0);	/* CPFCH */
-	__raw_writew(0x6010, 0xe60581c6);	/* CGPOSR */
-	__raw_writew(0x8a0a, 0xe605810c);	/* USBCR2 */
+	__raw_writew(0x0300, IOMEM(0xe605810a));	/* USBCR1 */
+	__raw_writew(0x00e0, IOMEM(0xe60581c0));	/* CPFCH */
+	__raw_writew(0x6010, IOMEM(0xe60581c6));	/* CGPOSR */
+	__raw_writew(0x8a0a, IOMEM(0xe605810c));	/* USBCR2 */
 
 	/* KEYSC @ CN7 */
 	gpio_request(GPIO_FN_PORT42_KEYOUT0, NULL);
@@ -320,7 +320,7 @@ static void __init g3evm_init(void)
 	gpio_request(GPIO_FN_WE0_XWR0_FWE, NULL);
 	gpio_request(GPIO_FN_FRB, NULL);
 	/* FOE, FCDE, FSC on dedicated pins */
-	__raw_writel(__raw_readl(0xe6158048) & ~(1 << 15), 0xe6158048);
+	__raw_writel(__raw_readl(IOMEM(0xe6158048)) & ~(1 << 15), IOMEM(0xe6158048));
 
 	/* IrDA */
 	gpio_request(GPIO_FN_IRDA_OUT, NULL);

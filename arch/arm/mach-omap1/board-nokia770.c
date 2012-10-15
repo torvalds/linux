@@ -21,14 +21,14 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 
+#include <linux/platform_data/keypad-omap.h>
+#include <linux/platform_data/lcd-mipid.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
-#include <plat/board.h>
-#include <plat/keypad.h>
-#include <plat/lcd_mipid.h>
+#include <mach/mux.h>
 #include <plat/mmc.h>
 #include <plat/clock.h>
 
@@ -185,7 +185,6 @@ static int nokia770_mmc_get_cover_state(struct device *dev, int slot)
 
 static struct omap_mmc_platform_data nokia770_mmc2_data = {
 	.nr_slots                       = 1,
-	.dma_mask			= 0xffffffff,
 	.max_freq                       = 12000000,
 	.slots[0]       = {
 		.set_power		= nokia770_mmc_set_power,

@@ -231,6 +231,9 @@ static void amp_init(struct hci_dev *hdev)
 
 	/* Read Local AMP Info */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
+
+	/* Read Data Blk size */
+	hci_send_cmd(hdev, HCI_OP_READ_DATA_BLOCK_SIZE, 0, NULL);
 }
 
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
@@ -268,7 +271,6 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 		BT_ERR("Unknown device type %d", hdev->dev_type);
 		break;
 	}
-
 }
 
 static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
@@ -696,7 +698,8 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
-		if (!test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+		    mgmt_valid_hdev(hdev)) {
 			hci_dev_lock(hdev);
 			mgmt_powered(hdev, 1);
 			hci_dev_unlock(hdev);
@@ -733,6 +736,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	BT_DBG("%s %p", hdev->name, hdev);
 
 	cancel_work_sync(&hdev->le_scan);
+
+	cancel_delayed_work(&hdev->power_off);
 
 	hci_req_cancel(hdev, ENODEV);
 	hci_req_lock(hdev);
@@ -797,7 +802,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	 * and no tasks are scheduled. */
 	hdev->close(hdev);
 
-	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
+	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags) &&
+	    mgmt_valid_hdev(hdev)) {
 		hci_dev_lock(hdev);
 		mgmt_powered(hdev, 0);
 		hci_dev_unlock(hdev);
@@ -1650,6 +1656,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->link_keys);
 	INIT_LIST_HEAD(&hdev->long_term_keys);
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
+	INIT_LIST_HEAD(&hdev->conn_hash.list);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
 	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
@@ -1672,7 +1679,6 @@ struct hci_dev *hci_alloc_dev(void)
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
-	hci_conn_hash_init(hdev);
 
 	return hdev;
 }

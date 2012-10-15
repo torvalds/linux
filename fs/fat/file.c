@@ -43,10 +43,10 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 	if (err)
 		goto out;
 
-	mutex_lock(&inode->i_mutex);
 	err = mnt_want_write_file(file);
 	if (err)
-		goto out_unlock_inode;
+		goto out;
+	mutex_lock(&inode->i_mutex);
 
 	/*
 	 * ATTR_VOLUME and ATTR_DIR cannot be changed; this also
@@ -73,14 +73,14 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 	/* The root directory has no attributes */
 	if (inode->i_ino == MSDOS_ROOT_INO && attr != ATTR_DIR) {
 		err = -EINVAL;
-		goto out_drop_write;
+		goto out_unlock_inode;
 	}
 
 	if (sbi->options.sys_immutable &&
 	    ((attr | oldattr) & ATTR_SYS) &&
 	    !capable(CAP_LINUX_IMMUTABLE)) {
 		err = -EPERM;
-		goto out_drop_write;
+		goto out_unlock_inode;
 	}
 
 	/*
@@ -90,12 +90,12 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 	 */
 	err = security_inode_setattr(file->f_path.dentry, &ia);
 	if (err)
-		goto out_drop_write;
+		goto out_unlock_inode;
 
 	/* This MUST be done before doing anything irreversible... */
 	err = fat_setattr(file->f_path.dentry, &ia);
 	if (err)
-		goto out_drop_write;
+		goto out_unlock_inode;
 
 	fsnotify_change(file->f_path.dentry, ia.ia_valid);
 	if (sbi->options.sys_immutable) {
@@ -107,10 +107,9 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 
 	fat_save_attrs(inode, attr);
 	mark_inode_dirty(inode);
-out_drop_write:
-	mnt_drop_write_file(file);
 out_unlock_inode:
 	mutex_unlock(&inode->i_mutex);
+	mnt_drop_write_file(file);
 out:
 	return err;
 }
@@ -353,7 +352,7 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 {
 	umode_t allow_utime = sbi->options.allow_utime;
 
-	if (current_fsuid() != inode->i_uid) {
+	if (!uid_eq(current_fsuid(), inode->i_uid)) {
 		if (in_group_p(inode->i_gid))
 			allow_utime >>= 3;
 		if (allow_utime & MAY_WRITE)
@@ -408,9 +407,9 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (((attr->ia_valid & ATTR_UID) &&
-	     (attr->ia_uid != sbi->options.fs_uid)) ||
+	     (!uid_eq(attr->ia_uid, sbi->options.fs_uid))) ||
 	    ((attr->ia_valid & ATTR_GID) &&
-	     (attr->ia_gid != sbi->options.fs_gid)) ||
+	     (!gid_eq(attr->ia_gid, sbi->options.fs_gid))) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
 	     (attr->ia_mode & ~FAT_VALID_MODE)))
 		error = -EPERM;

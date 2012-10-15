@@ -479,7 +479,7 @@ void ext2_discard_reservation(struct inode *inode)
 /**
  * ext2_free_blocks() -- Free given blocks and update quota and i_blocks
  * @inode:		inode
- * @block:		start physcial block to free
+ * @block:		start physical block to free
  * @count:		number of blocks to free
  */
 void ext2_free_blocks (struct inode * inode, unsigned long block,
@@ -1444,19 +1444,9 @@ ext2_fsblk_t ext2_new_block(struct inode *inode, unsigned long goal, int *errp)
 
 #ifdef EXT2FS_DEBUG
 
-static const int nibblemap[] = {4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0};
-
-unsigned long ext2_count_free (struct buffer_head * map, unsigned int numchars)
+unsigned long ext2_count_free(struct buffer_head *map, unsigned int numchars)
 {
-	unsigned int i;
-	unsigned long sum = 0;
-
-	if (!map)
-		return (0);
-	for (i = 0; i < numchars; i++)
-		sum += nibblemap[map->b_data[i] & 0xf] +
-			nibblemap[(map->b_data[i] >> 4) & 0xf];
-	return (sum);
+	return numchars * BITS_PER_BYTE - memweight(map->b_data, numchars);
 }
 
 #endif  /*  EXT2FS_DEBUG  */

@@ -47,6 +47,9 @@ static void mgag200_kick_out_firmware_fb(struct pci_dev *pdev)
 	bool primary = false;
 
 	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
@@ -81,6 +84,9 @@ static const struct file_operations mgag200_driver_fops = {
 	.mmap = mgag200_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.read = drm_read,
 };
 

@@ -265,7 +265,7 @@ out:
  * assign_requested_resources_sorted() - satisfy resource requests
  *
  * @head : head of the list tracking requests for resources
- * @failed_list : head of the list tracking requests that could
+ * @fail_head : head of the list tracking requests that could
  *		not be allocated
  *
  * Satisfy resource requests of each element in the list. Add
@@ -308,7 +308,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	 * Should not assign requested resources at first.
 	 *   they could be adjacent, so later reassign can not reallocate
 	 *   them one by one in parent resource window.
-	 * Try to assign requested + add_size at begining
+	 * Try to assign requested + add_size at beginning
 	 *  if could do that, could get out early.
 	 *  if could not do that, we still try to assign requested at first,
 	 *    then try to reassign add_size for some resources.
@@ -404,8 +404,8 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	struct resource *res;
 	struct pci_bus_region region;
 
-	dev_info(&bridge->dev, "CardBus bridge to [bus %02x-%02x]\n",
-		 bus->secondary, bus->subordinate);
+	dev_info(&bridge->dev, "CardBus bridge to %pR\n",
+		 &bus->busn_res);
 
 	res = bus->resource[0];
 	pcibios_resource_to_bus(bridge, &region, res);
@@ -469,7 +469,13 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	struct pci_dev *bridge = bus->self;
 	struct resource *res;
 	struct pci_bus_region region;
+	unsigned long io_mask;
+	u8 io_base_lo, io_limit_lo;
 	u32 l, io_upper16;
+
+	io_mask = PCI_IO_RANGE_MASK;
+	if (bridge->io_window_1k)
+		io_mask = PCI_IO_1K_RANGE_MASK;
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	res = bus->resource[0];
@@ -477,8 +483,9 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	if (res->flags & IORESOURCE_IO) {
 		pci_read_config_dword(bridge, PCI_IO_BASE, &l);
 		l &= 0xffff0000;
-		l |= (region.start >> 8) & 0x00f0;
-		l |= region.end & 0xf000;
+		io_base_lo = (region.start >> 8) & io_mask;
+		io_limit_lo = (region.end >> 8) & io_mask;
+		l |= ((u32) io_limit_lo << 8) | io_base_lo;
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
@@ -553,8 +560,8 @@ static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 	struct pci_dev *bridge = bus->self;
 
-	dev_info(&bridge->dev, "PCI bridge to [bus %02x-%02x]\n",
-		 bus->secondary, bus->subordinate);
+	dev_info(&bridge->dev, "PCI bridge to %pR\n",
+		 &bus->busn_res);
 
 	if (type & IORESOURCE_IO)
 		pci_setup_bridge_io(bus);
@@ -690,6 +697,38 @@ static resource_size_t calculate_memsize(resource_size_t size,
 	return size;
 }
 
+resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
+						unsigned long type)
+{
+	return 1;
+}
+
+#define PCI_P2P_DEFAULT_MEM_ALIGN	0x100000	/* 1MiB */
+#define PCI_P2P_DEFAULT_IO_ALIGN	0x1000		/* 4KiB */
+#define PCI_P2P_DEFAULT_IO_ALIGN_1K	0x400		/* 1KiB */
+
+static resource_size_t window_alignment(struct pci_bus *bus,
+					unsigned long type)
+{
+	resource_size_t align = 1, arch_align;
+
+	if (type & IORESOURCE_MEM)
+		align = PCI_P2P_DEFAULT_MEM_ALIGN;
+	else if (type & IORESOURCE_IO) {
+		/*
+		 * Per spec, I/O windows are 4K-aligned, but some
+		 * bridges have an extension to support 1K alignment.
+		 */
+		if (bus->self->io_window_1k)
+			align = PCI_P2P_DEFAULT_IO_ALIGN_1K;
+		else
+			align = PCI_P2P_DEFAULT_IO_ALIGN;
+	}
+
+	arch_align = pcibios_window_alignment(bus, type);
+	return max(align, arch_align);
+}
+
 /**
  * pbus_size_io() - size the io window of a given bus
  *
@@ -699,7 +738,7 @@ static resource_size_t calculate_memsize(resource_size_t size,
  * @realloc_head : track the additional io window on this list
  *
  * Sizing the IO windows of the PCI-PCI bridge is trivial,
- * since these windows have 4K granularity and the IO ranges
+ * since these windows have 1K or 4K granularity and the IO ranges
  * of non-bridge PCI devices are limited to 256 bytes.
  * We must be careful with the ISA aliasing though.
  */
@@ -710,10 +749,12 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
 	unsigned long size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
+	resource_size_t min_align, io_align, align;
 
 	if (!b_res)
  		return;
 
+	io_align = min_align = window_alignment(bus, IORESOURCE_IO);
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
 
@@ -731,35 +772,66 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 			else
 				size1 += r_size;
 
+			align = pci_resource_alignment(dev, r);
+			if (align > min_align)
+				min_align = align;
+
 			if (realloc_head)
 				children_add_size += get_res_add_size(realloc_head, r);
 		}
 	}
+
+	if (min_align > io_align)
+		min_align = io_align;
+
 	size0 = calculate_iosize(size, min_size, size1,
-			resource_size(b_res), 4096);
+			resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
 	size1 = (!realloc_head || (realloc_head && !add_size)) ? size0 :
 		calculate_iosize(size, min_size, add_size + size1,
-			resource_size(b_res), 4096);
+			resource_size(b_res), min_align);
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
-				 bus->secondary, bus->subordinate);
+				 "%pR to %pR (unused)\n", b_res,
+				 &bus->busn_res);
 		b_res->flags = 0;
 		return;
 	}
-	/* Alignment of the IO window is always 4K */
-	b_res->start = 4096;
+
+	b_res->start = min_align;
 	b_res->end = b_res->start + size0 - 1;
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (size1 > size0 && realloc_head) {
-		add_to_list(realloc_head, bus->self, b_res, size1-size0, 4096);
+		add_to_list(realloc_head, bus->self, b_res, size1-size0,
+			    min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to [bus %02x-%02x] add_size %lx\n", b_res,
-				 bus->secondary, bus->subordinate, size1-size0);
+				 "%pR to %pR add_size %lx\n", b_res,
+				 &bus->busn_res, size1-size0);
 	}
+}
+
+static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
+						  int max_order)
+{
+	resource_size_t align = 0;
+	resource_size_t min_align = 0;
+	int order;
+
+	for (order = 0; order <= max_order; order++) {
+		resource_size_t align1 = 1;
+
+		align1 <<= (order + 20);
+
+		if (!align)
+			min_align = align1;
+		else if (ALIGN(align + min_align, min_align) < align1)
+			min_align = align1 >> 1;
+		align += aligns[order];
+	}
+
+	return min_align;
 }
 
 /**
@@ -841,19 +913,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				children_add_size += get_res_add_size(realloc_head, r);
 		}
 	}
-	align = 0;
-	min_align = 0;
-	for (order = 0; order <= max_order; order++) {
-		resource_size_t align1 = 1;
 
-		align1 <<= (order + 20);
-
-		if (!align)
-			min_align = align1;
-		else if (ALIGN(align + min_align, min_align) < align1)
-			min_align = align1 >> 1;
-		align += aligns[order];
-	}
+	min_align = calculate_mem_align(aligns, max_order);
+	min_align = max(min_align, window_alignment(bus, b_res->flags & mask));
 	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
@@ -863,8 +925,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
-				 bus->secondary, bus->subordinate);
+				 "%pR to %pR (unused)\n", b_res,
+				 &bus->busn_res);
 		b_res->flags = 0;
 		return 1;
 	}
@@ -874,8 +936,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to [bus %02x-%02x] add_size %llx\n", b_res,
-				 bus->secondary, bus->subordinate, (unsigned long long)size1-size0);
+				 "%pR to %pR add_size %llx\n", b_res,
+				 &bus->busn_res, (unsigned long long)size1-size0);
 	}
 	return 1;
 }

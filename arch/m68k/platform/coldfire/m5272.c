@@ -19,7 +19,6 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
-#include <asm/mcfgpio.h>
 
 /***************************************************************************/
 
@@ -28,16 +27,6 @@
  */
 unsigned short ppdata;
 unsigned char ledbank = 0xff;
-
-/***************************************************************************/
-
-struct mcf_gpio_chip mcf_gpio_chips[] = {
-	MCFGPS(PA,  0, 16, MCFSIM_PADDR, MCFSIM_PADAT, MCFSIM_PADAT),
-	MCFGPS(PB, 16, 16, MCFSIM_PBDDR, MCFSIM_PBDAT, MCFSIM_PBDAT),
-	MCFGPS(Pc, 32, 16, MCFSIM_PCDDR, MCFSIM_PCDAT, MCFSIM_PCDAT),
-};
-
-unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);
 
 /***************************************************************************/
 

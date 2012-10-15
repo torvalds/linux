@@ -40,18 +40,13 @@ static int ehci_grlib_setup(struct usb_hcd *hcd)
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 	int		retval;
 
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
 	ehci_port_power(ehci, 1);
 
-	return ehci_reset(ehci);
+	return retval;
 }
 
 
@@ -132,12 +127,6 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
-		rv = -EBUSY;
-		goto err_rmr;
-	}
-
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
 		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
@@ -145,9 +134,9 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
 	if (!hcd->regs) {
-		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
+		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
 		rv = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -164,25 +153,15 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 		ehci->big_endian_capbase = 1;
 	}
 
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-
 	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv)
-		goto err_ehci;
+		goto err_ioremap;
 
 	return 0;
 
-err_ehci:
-	iounmap(hcd->regs);
 err_ioremap:
 	irq_dispose_mapping(irq);
 err_irq:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err_rmr:
 	usb_put_hcd(hcd);
 
 	return rv;
@@ -199,9 +178,7 @@ static int ehci_hcd_grlib_remove(struct platform_device *op)
 
 	usb_remove_hcd(hcd);
 
-	iounmap(hcd->regs);
 	irq_dispose_mapping(hcd->irq);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	usb_put_hcd(hcd);
 

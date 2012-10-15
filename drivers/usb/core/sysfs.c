@@ -196,7 +196,7 @@ show_avoid_reset_quirk(struct device *dev, struct device_attribute *attr, char *
 	struct usb_device *udev;
 
 	udev = to_usb_device(dev);
-	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET_MORPHS));
+	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET));
 }
 
 static ssize_t
@@ -204,15 +204,15 @@ set_avoid_reset_quirk(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device	*udev = to_usb_device(dev);
-	int			config;
+	int			val;
 
-	if (sscanf(buf, "%d", &config) != 1 || config < 0 || config > 1)
+	if (sscanf(buf, "%d", &val) != 1 || val < 0 || val > 1)
 		return -EINVAL;
 	usb_lock_device(udev);
-	if (config)
-		udev->quirks |= USB_QUIRK_RESET_MORPHS;
+	if (val)
+		udev->quirks |= USB_QUIRK_RESET;
 	else
-		udev->quirks &= ~USB_QUIRK_RESET_MORPHS;
+		udev->quirks &= ~USB_QUIRK_RESET;
 	usb_unlock_device(udev);
 	return count;
 }
@@ -252,6 +252,15 @@ show_removable(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%s\n", state);
 }
 static DEVICE_ATTR(removable, S_IRUGO, show_removable, NULL);
+
+static ssize_t
+show_ltm_capable(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	if (usb_device_supports_ltm(to_usb_device(dev)))
+		return sprintf(buf, "%s\n", "yes");
+	return sprintf(buf, "%s\n", "no");
+}
+static DEVICE_ATTR(ltm_capable, S_IRUGO, show_ltm_capable, NULL);
 
 #ifdef	CONFIG_PM
 
@@ -649,6 +658,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_authorized.attr,
 	&dev_attr_remove.attr,
 	&dev_attr_removable.attr,
+	&dev_attr_ltm_capable.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {
@@ -840,7 +850,7 @@ static ssize_t show_modalias(struct device *dev,
 	alt = intf->cur_altsetting;
 
 	return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02X"
-			"ic%02Xisc%02Xip%02X\n",
+			"ic%02Xisc%02Xip%02Xin%02X\n",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct),
 			le16_to_cpu(udev->descriptor.bcdDevice),
@@ -849,7 +859,8 @@ static ssize_t show_modalias(struct device *dev,
 			udev->descriptor.bDeviceProtocol,
 			alt->desc.bInterfaceClass,
 			alt->desc.bInterfaceSubClass,
-			alt->desc.bInterfaceProtocol);
+			alt->desc.bInterfaceProtocol,
+			alt->desc.bInterfaceNumber);
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 

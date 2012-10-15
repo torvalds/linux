@@ -460,8 +460,8 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static bool ast_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }
@@ -680,7 +680,7 @@ static void ast_encoder_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool ast_mode_fixup(struct drm_encoder *encoder,
-			   struct drm_display_mode *mode,
+			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -841,7 +841,7 @@ int ast_cursor_init(struct drm_device *dev)
 
 	ast->cursor_cache = obj;
 	ast->cursor_cache_gpu_addr = gpu_addr;
-	DRM_ERROR("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
+	DRM_DEBUG_KMS("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
 	return 0;
 fail:
 	return ret;

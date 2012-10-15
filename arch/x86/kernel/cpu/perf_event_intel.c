@@ -138,6 +138,84 @@ static u64 intel_pmu_event_map(int hw_event)
 	return intel_perfmon_event_map[hw_event];
 }
 
+#define SNB_DMND_DATA_RD	(1ULL << 0)
+#define SNB_DMND_RFO		(1ULL << 1)
+#define SNB_DMND_IFETCH		(1ULL << 2)
+#define SNB_DMND_WB		(1ULL << 3)
+#define SNB_PF_DATA_RD		(1ULL << 4)
+#define SNB_PF_RFO		(1ULL << 5)
+#define SNB_PF_IFETCH		(1ULL << 6)
+#define SNB_LLC_DATA_RD		(1ULL << 7)
+#define SNB_LLC_RFO		(1ULL << 8)
+#define SNB_LLC_IFETCH		(1ULL << 9)
+#define SNB_BUS_LOCKS		(1ULL << 10)
+#define SNB_STRM_ST		(1ULL << 11)
+#define SNB_OTHER		(1ULL << 15)
+#define SNB_RESP_ANY		(1ULL << 16)
+#define SNB_NO_SUPP		(1ULL << 17)
+#define SNB_LLC_HITM		(1ULL << 18)
+#define SNB_LLC_HITE		(1ULL << 19)
+#define SNB_LLC_HITS		(1ULL << 20)
+#define SNB_LLC_HITF		(1ULL << 21)
+#define SNB_LOCAL		(1ULL << 22)
+#define SNB_REMOTE		(0xffULL << 23)
+#define SNB_SNP_NONE		(1ULL << 31)
+#define SNB_SNP_NOT_NEEDED	(1ULL << 32)
+#define SNB_SNP_MISS		(1ULL << 33)
+#define SNB_NO_FWD		(1ULL << 34)
+#define SNB_SNP_FWD		(1ULL << 35)
+#define SNB_HITM		(1ULL << 36)
+#define SNB_NON_DRAM		(1ULL << 37)
+
+#define SNB_DMND_READ		(SNB_DMND_DATA_RD|SNB_LLC_DATA_RD)
+#define SNB_DMND_WRITE		(SNB_DMND_RFO|SNB_LLC_RFO)
+#define SNB_DMND_PREFETCH	(SNB_PF_DATA_RD|SNB_PF_RFO)
+
+#define SNB_SNP_ANY		(SNB_SNP_NONE|SNB_SNP_NOT_NEEDED| \
+				 SNB_SNP_MISS|SNB_NO_FWD|SNB_SNP_FWD| \
+				 SNB_HITM)
+
+#define SNB_DRAM_ANY		(SNB_LOCAL|SNB_REMOTE|SNB_SNP_ANY)
+#define SNB_DRAM_REMOTE		(SNB_REMOTE|SNB_SNP_ANY)
+
+#define SNB_L3_ACCESS		SNB_RESP_ANY
+#define SNB_L3_MISS		(SNB_DRAM_ANY|SNB_NON_DRAM)
+
+static __initconst const u64 snb_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+ [ C(LL  ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_READ|SNB_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = SNB_DMND_READ|SNB_L3_MISS,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_WRITE|SNB_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = SNB_DMND_WRITE|SNB_L3_MISS,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_PREFETCH|SNB_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = SNB_DMND_PREFETCH|SNB_L3_MISS,
+	},
+ },
+ [ C(NODE) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_READ|SNB_DRAM_ANY,
+		[ C(RESULT_MISS)   ] = SNB_DMND_READ|SNB_DRAM_REMOTE,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_WRITE|SNB_DRAM_ANY,
+		[ C(RESULT_MISS)   ] = SNB_DMND_WRITE|SNB_DRAM_REMOTE,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = SNB_DMND_PREFETCH|SNB_DRAM_ANY,
+		[ C(RESULT_MISS)   ] = SNB_DMND_PREFETCH|SNB_DRAM_REMOTE,
+	},
+ },
+};
+
 static __initconst const u64 snb_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -235,16 +313,16 @@ static __initconst const u64 snb_hw_cache_event_ids
  },
  [ C(NODE) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = -1,
-		[ C(RESULT_MISS)   ] = -1,
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = -1,
-		[ C(RESULT_MISS)   ] = -1,
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = -1,
-		[ C(RESULT_MISS)   ] = -1,
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
 
@@ -1444,8 +1522,16 @@ static struct perf_guest_switch_msr *intel_guest_get_msrs(int *nr)
 	arr[0].msr = MSR_CORE_PERF_GLOBAL_CTRL;
 	arr[0].host = x86_pmu.intel_ctrl & ~cpuc->intel_ctrl_guest_mask;
 	arr[0].guest = x86_pmu.intel_ctrl & ~cpuc->intel_ctrl_host_mask;
+	/*
+	 * If PMU counter has PEBS enabled it is not enough to disable counter
+	 * on a guest entry since PEBS memory write can overshoot guest entry
+	 * and corrupt guest memory. Disabling PEBS solves the problem.
+	 */
+	arr[1].msr = MSR_IA32_PEBS_ENABLE;
+	arr[1].host = cpuc->pebs_enabled;
+	arr[1].guest = 0;
 
-	*nr = 1;
+	*nr = 2;
 	return arr;
 }
 
@@ -1922,6 +2008,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case 28: /* Atom */
+	case 54: /* Cedariew */
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
@@ -1961,9 +2048,10 @@ __init int intel_pmu_init(void)
 	case 42: /* SandyBridge */
 	case 45: /* SandyBridge, "Romely-EP" */
 		x86_add_quirk(intel_sandybridge_quirk);
-	case 58: /* IvyBridge */
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
 
 		intel_pmu_lbr_init_snb();
 
@@ -1984,6 +2072,29 @@ __init int intel_pmu_init(void)
 
 		pr_cont("SandyBridge events, ");
 		break;
+	case 58: /* IvyBridge */
+		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
+		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
+
+		intel_pmu_lbr_init_snb();
+
+		x86_pmu.event_constraints = intel_snb_event_constraints;
+		x86_pmu.pebs_constraints = intel_ivb_pebs_event_constraints;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
+		x86_pmu.extra_regs = intel_snb_extra_regs;
+		/* all extra regs are per-cpu when HT is on */
+		x86_pmu.er_flags |= ERF_HAS_RSP_1;
+		x86_pmu.er_flags |= ERF_NO_HT_SHARING;
+
+		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =
+			X86_CONFIG(.event=0x0e, .umask=0x01, .inv=1, .cmask=1);
+
+		pr_cont("IvyBridge events, ");
+		break;
+
 
 	default:
 		switch (x86_pmu.version) {

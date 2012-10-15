@@ -58,7 +58,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * The table is used to implement the Microsoft port access rules that
  * first appeared in Windows XP. Some ports are always illegal, and some
- * ports are only illegal if the BIOS calls _OSI with a win_xP string or
+ * ports are only illegal if the BIOS calls _OSI with a win_XP string or
  * later (meaning that the BIOS itelf is post-XP.)
  *
  * This provides ACPICA with the desired port protections and
@@ -66,7 +66,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * Description of port entries:
  *  DMA:   DMA controller
- *  PIC0:  Programmable Interrupt Controller (8259_a)
+ *  PIC0:  Programmable Interrupt Controller (8259A)
  *  PIT1:  System Timer 1
  *  PIT2:  System Timer 2 failsafe
  *  RTC:   Real-time clock

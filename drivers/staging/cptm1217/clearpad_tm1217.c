@@ -396,8 +396,8 @@ static int cp_tm1217_setup_gpio_irq(struct cp_tm1217_device *ts)
 
 	retval = gpio_to_irq(ts->gpio);
 	if (retval < 0) {
-		dev_err(ts->dev, "cp_tm1217: GPIO to IRQ failedi,"
-		" error %d\n", retval);
+		dev_err(ts->dev,
+			"cp_tm1217: GPIO to IRQ failed, error %d\n", retval);
 		gpio_free(ts->gpio);
 	}
 	dev_dbg(ts->dev,
@@ -658,18 +658,7 @@ static struct i2c_driver cp_tm1217_driver = {
 	.resume     = cp_tm1217_resume,
 };
 
-static int __init clearpad_tm1217_init(void)
-{
-	return i2c_add_driver(&cp_tm1217_driver);
-}
-
-static void __exit clearpad_tm1217_exit(void)
-{
-	i2c_del_driver(&cp_tm1217_driver);
-}
-
-module_init(clearpad_tm1217_init);
-module_exit(clearpad_tm1217_exit);
+module_i2c_driver(cp_tm1217_driver);
 
 MODULE_AUTHOR("Ramesh Agarwal <ramesh.agarwal@intel.com>");
 MODULE_DESCRIPTION("Synaptics TM1217 TouchScreen Driver");

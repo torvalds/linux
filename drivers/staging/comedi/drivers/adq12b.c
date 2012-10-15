@@ -125,8 +125,6 @@ struct adq12b_board {
 	int do_chans;
 };
 
-#define thisboard ((const struct adq12b_board *)dev->board_ptr)
-
 struct adq12b_private {
 	int unipolar;		/* option 2 of comedi_config (1 is iobase) */
 	int differential;	/* option 3 of comedi_config */
@@ -134,8 +132,6 @@ struct adq12b_private {
 	int last_range;
 	unsigned int digital_state;
 };
-
-#define devpriv ((struct adq12b_private *)dev->private)
 
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
@@ -146,6 +142,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct adq12b_private *devpriv = dev->private;
 	int n, i;
 	int range, channel;
 	unsigned char hi, lo, status;
@@ -195,13 +192,14 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,
 	/* only bits 0-4 have information about digital inputs */
 	data[1] = (inb(dev->iobase + ADQ12B_STINR) & (0x1f));
 
-	return 2;
+	return insn->n;
 }
 
 static int adq12b_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct adq12b_private *devpriv = dev->private;
 	int channel;
 
 	for (channel = 0; channel < 8; channel++)
@@ -217,14 +215,17 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = devpriv->digital_state;
 
-	return 2;
+	return insn->n;
 }
 
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct adq12b_board *board = comedi_board(dev);
+	struct adq12b_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int unipolar, differential;
+	int ret;
 
 	iobase = it->options[0];
 	unipolar = it->options[1];
@@ -250,44 +251,36 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct adq12b_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
-/* fill in devpriv structure */
 	devpriv->unipolar = unipolar;
 	devpriv->differential = differential;
 	devpriv->digital_state = 0;
-/* initialize channel and range to -1 so we make sure we always write
-   at least once to the CTREG in the instruction */
+	/*
+	 * initialize channel and range to -1 so we make sure we
+	 * always write at least once to the CTREG in the instruction
+	 */
 	devpriv->last_channel = -1;
 	devpriv->last_range = -1;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	if (differential) {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-		s->n_chan = thisboard->ai_diff_chans;
+		s->n_chan = board->ai_diff_chans;
 	} else {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
-		s->n_chan = thisboard->ai_se_chans;
+		s->n_chan = board->ai_se_chans;
 	}
 
 	if (unipolar)
@@ -295,26 +288,26 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		s->range_table = &range_adq12b_ai_bipolar;
 
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->maxdata = (1 << board->ai_bits) - 1;
 
 	s->len_chanlist = 4;	/* This is the maximum chanlist length that
 				   the board can handle */
 	s->insn_read = adq12b_ai_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital input subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = thisboard->di_chans;
+	s->n_chan = board->di_chans;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_di_insn_bits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->do_chans;
+	s->n_chan = board->do_chans;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_do_insn_bits;
@@ -328,7 +321,6 @@ static void adq12b_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, ADQ12B_SIZE);
-	kfree(devpriv);
 }
 
 static const struct adq12b_board adq12b_boards[] = {

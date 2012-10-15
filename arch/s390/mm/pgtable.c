@@ -85,7 +85,6 @@ repeat:
 		crst_table_free(mm, table);
 	if (mm->context.asce_limit < limit)
 		goto repeat;
-	update_mm(mm, current);
 	return 0;
 }
 
@@ -93,9 +92,6 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 {
 	pgd_t *pgd;
 
-	if (mm->context.asce_limit <= limit)
-		return;
-	__tlb_flush_mm(mm);
 	while (mm->context.asce_limit > limit) {
 		pgd = mm->pgd;
 		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
@@ -118,7 +114,6 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 		mm->task_size = mm->context.asce_limit;
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
-	update_mm(mm, current);
 }
 #endif
 
@@ -614,8 +609,8 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
  */
 unsigned long *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr)
 {
-	struct page *page;
-	unsigned long *table;
+	unsigned long *uninitialized_var(table);
+	struct page *uninitialized_var(page);
 	unsigned int mask, bit;
 
 	if (mm_has_pgste(mm))
@@ -801,7 +796,7 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have switched amode? If no, we cannot do sie */
-	if (user_mode == HOME_SPACE_MODE)
+	if (s390_user_mode == HOME_SPACE_MODE)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */

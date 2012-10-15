@@ -275,6 +275,7 @@ struct radeon_crtc {
 	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
+	bool in_mode_set;
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
@@ -488,7 +489,7 @@ extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern int radeon_dp_mode_valid_helper(struct drm_connector *connector,
 				       struct drm_display_mode *mode);
 extern void radeon_dp_set_link_config(struct drm_connector *connector,
-				      struct drm_display_mode *mode);
+				      const struct drm_display_mode *mode);
 extern void radeon_dp_link_train(struct drm_encoder *encoder,
 				 struct drm_connector *connector);
 extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);
@@ -678,7 +679,7 @@ void radeon_enc_destroy(struct drm_encoder *encoder);
 void radeon_copy_fb(struct drm_device *dev, struct drm_gem_object *dst_obj);
 void radeon_combios_asic_init(struct drm_device *dev);
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
-					struct drm_display_mode *mode,
+					const struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);
 void radeon_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);

@@ -43,10 +43,10 @@
 #include <mach/pxa27x.h>
 #include <mach/trizeps4.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -332,8 +332,8 @@ static int trizeps4_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 	int err;
 
 	err = request_irq(TRIZEPS4_MMC_IRQ, mci_detect_int,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_SAMPLE_RANDOM,
-		"MMC card detect", data);
+			  IRQF_DISABLED | IRQF_TRIGGER_RISING,
+			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "trizeps4_mci_init: MMC/SD: can't request"
 						"MMC card detect IRQ\n");

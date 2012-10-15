@@ -50,8 +50,7 @@ int xterm_fd(int socket, int *pid_out)
 	init_completion(&data->ready);
 
 	err = um_request_irq(XTERM_IRQ, socket, IRQ_READ, xterm_interrupt,
-			     IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			     "xterm", data);
+			     IRQF_SHARED, "xterm", data);
 	if (err) {
 		printk(KERN_ERR "xterm_fd : failed to get IRQ for xterm, "
 		       "err = %d\n",  err);

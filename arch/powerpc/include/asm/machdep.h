@@ -214,6 +214,9 @@ struct machdep_calls {
 	/* Called after scan and before resource survey */
 	void (*pcibios_fixup_phb)(struct pci_controller *hose);
 
+	/* Called during PCI resource reassignment */
+	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
+
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
 	 */

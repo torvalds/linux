@@ -369,10 +369,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		inode->i_op = sbi->dir_ops;
 		inode->i_fop = &fat_dir_operations;
 
-		MSDOS_I(inode)->i_start = le16_to_cpu(de->start);
-		if (sbi->fat_bits == 32)
-			MSDOS_I(inode)->i_start |= (le16_to_cpu(de->starthi) << 16);
-
+		MSDOS_I(inode)->i_start = fat_get_start(sbi, de);
 		MSDOS_I(inode)->i_logstart = MSDOS_I(inode)->i_start;
 		error = fat_calc_dir_size(inode);
 		if (error < 0)
@@ -385,9 +382,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		inode->i_mode = fat_make_mode(sbi, de->attr,
 			((sbi->options.showexec && !is_exec(de->name + 8))
 			 ? S_IRUGO|S_IWUGO : S_IRWXUGO));
-		MSDOS_I(inode)->i_start = le16_to_cpu(de->start);
-		if (sbi->fat_bits == 32)
-			MSDOS_I(inode)->i_start |= (le16_to_cpu(de->starthi) << 16);
+		MSDOS_I(inode)->i_start = fat_get_start(sbi, de);
 
 		MSDOS_I(inode)->i_logstart = MSDOS_I(inode)->i_start;
 		inode->i_size = le32_to_cpu(de->size);
@@ -613,8 +608,7 @@ retry:
 	else
 		raw_entry->size = cpu_to_le32(inode->i_size);
 	raw_entry->attr = fat_make_attrs(inode);
-	raw_entry->start = cpu_to_le16(MSDOS_I(inode)->i_logstart);
-	raw_entry->starthi = cpu_to_le16(MSDOS_I(inode)->i_logstart >> 16);
+	fat_set_start(raw_entry, MSDOS_I(inode)->i_logstart);
 	fat_time_unix2fat(sbi, &inode->i_mtime, &raw_entry->time,
 			  &raw_entry->date, NULL);
 	if (sbi->options.isvfat) {
@@ -797,10 +791,12 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 	struct fat_mount_options *opts = &sbi->options;
 	int isvfat = opts->isvfat;
 
-	if (opts->fs_uid != 0)
-		seq_printf(m, ",uid=%u", opts->fs_uid);
-	if (opts->fs_gid != 0)
-		seq_printf(m, ",gid=%u", opts->fs_gid);
+	if (!uid_eq(opts->fs_uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+				from_kuid_munged(&init_user_ns, opts->fs_uid));
+	if (!gid_eq(opts->fs_gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+				from_kgid_munged(&init_user_ns, opts->fs_gid));
 	seq_printf(m, ",fmask=%04o", opts->fs_fmask);
 	seq_printf(m, ",dmask=%04o", opts->fs_dmask);
 	if (opts->allow_utime)
@@ -1043,12 +1039,16 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return 0;
-			opts->fs_uid = option;
+			opts->fs_uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(opts->fs_uid))
+				return 0;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return 0;
-			opts->fs_gid = option;
+			opts->fs_gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(opts->fs_gid))
+				return 0;
 			break;
 		case Opt_umask:
 			if (match_octal(&args[0], &option))

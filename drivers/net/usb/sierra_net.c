@@ -68,16 +68,8 @@ static	atomic_t iface_counter = ATOMIC_INIT(0);
  */
 #define SIERRA_NET_USBCTL_BUF_LEN	1024
 
-/* list of interface numbers - used for constructing interface lists */
-struct sierra_net_iface_info {
-	const u32 infolen;	/* number of interface numbers on list */
-	const u8  *ifaceinfo;	/* pointer to the array holding the numbers */
-};
-
-struct sierra_net_info_data {
-	u16 rx_urb_size;
-	struct sierra_net_iface_info whitelist;
-};
+/* Overriding the default usbnet rx_urb_size */
+#define SIERRA_NET_RX_URB_SIZE		(8 * 1024)
 
 /* Private data structure */
 struct sierra_net_data {
@@ -567,7 +559,7 @@ static void sierra_net_defer_kevent(struct usbnet *dev, int work)
 /*
  * Sync Retransmit Timer Handler. On expiry, kick the work queue
  */
-void sierra_sync_timer(unsigned long syncdata)
+static void sierra_sync_timer(unsigned long syncdata)
 {
 	struct usbnet *dev = (struct usbnet *)syncdata;
 
@@ -637,21 +629,6 @@ static int sierra_net_change_mtu(struct net_device *net, int new_mtu)
 	return usbnet_change_mtu(net, new_mtu);
 }
 
-static int is_whitelisted(const u8 ifnum,
-			const struct sierra_net_iface_info *whitelist)
-{
-	if (whitelist) {
-		const u8 *list = whitelist->ifaceinfo;
-		int i;
-
-		for (i = 0; i < whitelist->infolen; i++) {
-			if (list[i] == ifnum)
-				return 1;
-		}
-	}
-	return 0;
-}
-
 static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 {
 	int result = 0;
@@ -678,7 +655,7 @@ static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 		return -EIO;
 	}
 
-	*datap = *attrdata;
+	*datap = le16_to_cpu(*attrdata);
 
 	kfree(attrdata);
 	return result;
@@ -700,17 +677,9 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	static const u8 shdwn_tmplate[sizeof(priv->shdwn_msg)] = {
 		0x00, 0x00, SIERRA_NET_HIP_SHUTD_ID, 0x00};
 
-	struct sierra_net_info_data *data =
-			(struct sierra_net_info_data *)dev->driver_info->data;
-
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 
 	ifacenum = intf->cur_altsetting->desc.bInterfaceNumber;
-	/* We only accept certain interfaces */
-	if (!is_whitelisted(ifacenum, &data->whitelist)) {
-		dev_dbg(&dev->udev->dev, "Ignoring interface: %d", ifacenum);
-		return -ENODEV;
-	}
 	numendpoints = intf->cur_altsetting->desc.bNumEndpoints;
 	/* We have three endpoints, bulk in and out, and a status */
 	if (numendpoints != 3) {
@@ -752,9 +721,9 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	sierra_net_set_ctx_index(priv, 0);
 
 	/* decrease the rx_urb_size and max_tx_size to 4k on USB 1.1 */
-	dev->rx_urb_size  = data->rx_urb_size;
+	dev->rx_urb_size  = SIERRA_NET_RX_URB_SIZE;
 	if (dev->udev->speed != USB_SPEED_HIGH)
-		dev->rx_urb_size  = min_t(size_t, 4096, data->rx_urb_size);
+		dev->rx_urb_size  = min_t(size_t, 4096, SIERRA_NET_RX_URB_SIZE);
 
 	dev->net->hard_header_len += SIERRA_NET_HIP_EXT_HDR_LEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
@@ -869,7 +838,7 @@ static int sierra_net_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				netdev_err(dev->net, "HIP/ETH: Invalid pkt\n");
 
 			dev->net->stats.rx_frame_errors++;
-			/* dev->net->stats.rx_errors incremented by caller */;
+			/* dev->net->stats.rx_errors incremented by caller */
 			return 0;
 		}
 
@@ -893,8 +862,8 @@ static int sierra_net_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 /* ---------------------------- Transmit data path ----------------------*/
-struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
-		gfp_t flags)
+static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
+					   struct sk_buff *skb, gfp_t flags)
 {
 	struct sierra_net_data *priv = sierra_net_get_private(dev);
 	u16 len;
@@ -945,15 +914,6 @@ struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	return NULL;
 }
 
-static const u8 sierra_net_ifnum_list[] = { 7, 10, 11 };
-static const struct sierra_net_info_data sierra_net_info_data_direct_ip = {
-	.rx_urb_size = 8 * 1024,
-	.whitelist = {
-		.infolen = ARRAY_SIZE(sierra_net_ifnum_list),
-		.ifaceinfo = sierra_net_ifnum_list
-	}
-};
-
 static const struct driver_info sierra_net_info_direct_ip = {
 	.description = "Sierra Wireless USB-to-WWAN Modem",
 	.flags = FLAG_WWAN | FLAG_SEND_ZLP,
@@ -962,18 +922,21 @@ static const struct driver_info sierra_net_info_direct_ip = {
 	.status = sierra_net_status,
 	.rx_fixup = sierra_net_rx_fixup,
 	.tx_fixup = sierra_net_tx_fixup,
-	.data = (unsigned long)&sierra_net_info_data_direct_ip,
 };
 
+#define DIRECT_IP_DEVICE(vend, prod) \
+	{USB_DEVICE_INTERFACE_NUMBER(vend, prod, 7), \
+	.driver_info = (unsigned long)&sierra_net_info_direct_ip}, \
+	{USB_DEVICE_INTERFACE_NUMBER(vend, prod, 10), \
+	.driver_info = (unsigned long)&sierra_net_info_direct_ip}, \
+	{USB_DEVICE_INTERFACE_NUMBER(vend, prod, 11), \
+	.driver_info = (unsigned long)&sierra_net_info_direct_ip}
+
 static const struct usb_device_id products[] = {
-	{USB_DEVICE(0x1199, 0x68A3), /* Sierra Wireless USB-to-WWAN modem */
-	.driver_info = (unsigned long) &sierra_net_info_direct_ip},
-	{USB_DEVICE(0x0F3D, 0x68A3), /* AT&T Direct IP modem */
-	.driver_info = (unsigned long) &sierra_net_info_direct_ip},
-	{USB_DEVICE(0x1199, 0x68AA), /* Sierra Wireless Direct IP LTE modem */
-	.driver_info = (unsigned long) &sierra_net_info_direct_ip},
-	{USB_DEVICE(0x0F3D, 0x68AA), /* AT&T Direct IP LTE modem */
-	.driver_info = (unsigned long) &sierra_net_info_direct_ip},
+	DIRECT_IP_DEVICE(0x1199, 0x68A3), /* Sierra Wireless USB-to-WWAN modem */
+	DIRECT_IP_DEVICE(0x0F3D, 0x68A3), /* AT&T Direct IP modem */
+	DIRECT_IP_DEVICE(0x1199, 0x68AA), /* Sierra Wireless Direct IP LTE modem */
+	DIRECT_IP_DEVICE(0x0F3D, 0x68AA), /* AT&T Direct IP LTE modem */
 
 	{}, /* last item */
 };

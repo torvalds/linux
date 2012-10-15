@@ -699,11 +699,9 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 	struct tw9910_priv *priv = to_tw9910(client);
 
 	if (!priv->scale) {
-		int ret;
-		u32 width = 640, height = 480;
-		ret = tw9910_set_frame(sd, &width, &height);
-		if (ret < 0)
-			return ret;
+		priv->scale = tw9910_select_norm(priv->norm, 640, 480);
+		if (!priv->scale)
+			return -EINVAL;
 	}
 
 	mf->width	= priv->scale->width;

@@ -94,9 +94,8 @@ protected.
 ---
 [mandatory]
 
-BKL is also moved from around sb operations.  ->write_super() Is now called 
-without BKL held.  BKL should have been shifted into individual fs sb_op
-functions.  If you don't need it, remove it.  
+BKL is also moved from around sb operations. BKL should have been shifted into
+individual fs sb_op functions.  If you don't need it, remove it.
 
 ---
 [informational]

@@ -107,6 +107,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #include <linux/io.h>
 #include <asm/dma.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 /* #define PCL818_MODE13_AO 1 */
@@ -326,7 +327,6 @@ static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0
 };
 
 #define devpriv ((struct pcl818_private *)dev->private)
-#define this_board ((const struct pcl818_board *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -443,13 +443,10 @@ static int pcl818_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + PCL818_DI_LO) |
 	    (inb(dev->iobase + PCL818_DI_HI) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -462,9 +459,6 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	s->state &= ~data[0];
 	s->state |= (data[0] & data[1]);
 
@@ -473,7 +467,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -484,7 +478,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low;
 	int timeout = 50;	/* wait max 50us */
 
@@ -543,7 +537,7 @@ conv_finish:
 static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
 	short *ptr;
@@ -622,7 +616,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long tmp;
 	unsigned int top1, top2, i, bufptr;
 	long ofs_dats;
@@ -727,7 +721,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
@@ -818,7 +812,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			   being reprogrammed while a DMA transfer is in
 			   progress.
 			 */
-			struct comedi_subdevice *s = dev->subdevices + 0;
+			struct comedi_subdevice *s = &dev->subdevices[0];
 			devpriv->ai_act_scan = 0;
 			devpriv->neverending_ai = 0;
 			pcl818_ai_cancel(dev, s);
@@ -953,7 +947,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
-	dev_dbg(dev->hw_dev, "pcl818_ai_cmd_mode()\n");
+	dev_dbg(dev->class_dev, "pcl818_ai_cmd_mode()\n");
 	if ((!dev->irq) && (!devpriv->dma_rtc)) {
 		comedi_error(dev, "IRQ not defined!");
 		return -EINVAL;
@@ -1056,7 +1050,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		break;
 	}
 #endif
-	dev_dbg(dev->hw_dev, "pcl818_ai_cmd_mode() end\n");
+	dev_dbg(dev->class_dev, "pcl818_ai_cmd_mode() end\n");
 	return 0;
 }
 
@@ -1264,59 +1258,27 @@ static int check_single_ended(unsigned int port)
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
+	const struct pcl818_board *board = comedi_board(dev);
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->start_src != TRIG_NOW) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1334,8 +1296,8 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ns_min) {
-			cmd->convert_arg = this_board->ns_min;
+		if (cmd->convert_arg < board->ns_min) {
+			cmd->convert_arg = board->ns_min;
 			err++;
 		}
 	} else {		/* TRIG_EXT */
@@ -1371,8 +1333,8 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
 					  &divisor2, &cmd->convert_arg,
 					  cmd->flags & TRIG_ROUND_MASK);
-		if (cmd->convert_arg < this_board->ns_min)
-			cmd->convert_arg = this_board->ns_min;
+		if (cmd->convert_arg < board->ns_min)
+			cmd->convert_arg = board->ns_min;
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -1399,7 +1361,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	dev_dbg(dev->hw_dev, "pcl818_ai_cmd()\n");
+	dev_dbg(dev->class_dev, "pcl818_ai_cmd()\n");
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
@@ -1417,7 +1379,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
 			devpriv->ai_timer1 = cmd->convert_arg;
 			retval = pcl818_ai_cmd_mode(1, dev, s);
-			dev_dbg(dev->hw_dev, "pcl818_ai_cmd() end\n");
+			dev_dbg(dev->class_dev, "pcl818_ai_cmd() end\n");
 			return retval;
 		}
 		if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
@@ -1436,7 +1398,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	if (devpriv->irq_blocked > 0) {
-		dev_dbg(dev->hw_dev, "pcl818_ai_cancel()\n");
+		dev_dbg(dev->class_dev, "pcl818_ai_cancel()\n");
 		devpriv->irq_was_now_closed = 1;
 
 		switch (devpriv->ai_mode) {
@@ -1486,7 +1448,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 	}
 
 end:
-	dev_dbg(dev->hw_dev, "pcl818_ai_cancel() end\n");
+	dev_dbg(dev->class_dev, "pcl818_ai_cancel() end\n");
 	return 0;
 }
 
@@ -1519,6 +1481,8 @@ static int pcl818_check(unsigned long iobase)
 */
 static void pcl818_reset(struct comedi_device *dev)
 {
+	const struct pcl818_board *board = comedi_board(dev);
+
 	if (devpriv->usefifo) {	/*  FIFO shutdown */
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
 		outb(0, dev->iobase + PCL818_FI_FLUSH);
@@ -1537,7 +1501,7 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0xb0, dev->iobase + PCL818_CTRCTL);	/* Stop pacer */
 	outb(0x70, dev->iobase + PCL818_CTRCTL);
 	outb(0x30, dev->iobase + PCL818_CTRCTL);
-	if (this_board->is_818) {
+	if (board->is_818) {
 		outb(0, dev->iobase + PCL818_RANGE);
 	} else {
 		outb(0, dev->iobase + PCL718_DA2_LO);
@@ -1636,6 +1600,7 @@ static int rtc_setfreq_irq(int freq)
 
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl818_board *board = comedi_board(dev);
 	int ret;
 	unsigned long iobase;
 	unsigned int irq;
@@ -1651,9 +1616,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iobase = it->options[0];
 	printk
 	    ("comedi%d: pcl818:  board=%s, ioport=0x%03lx",
-	     dev->minor, this_board->name, iobase);
-	devpriv->io_range = this_board->io_range;
-	if ((this_board->fifo) && (it->options[2] == -1)) {	/*  we've board with FIFO and we want to use FIFO */
+	     dev->minor, board->name, iobase);
+	devpriv->io_range = board->io_range;
+	if ((board->fifo) && (it->options[2] == -1)) {
+		/*  we've board with FIFO and we want to use FIFO */
 		devpriv->io_range = PCLx1xFIFO_RANGE;
 		devpriv->usefifo = 1;
 	}
@@ -1669,14 +1635,14 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-	/* set up some name stuff */
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
+
 	/* grab our IRQ */
 	irq = 0;
-	if (this_board->IRQbits != 0) {	/* board support IRQ */
+	if (board->IRQbits != 0) {	/* board support IRQ */
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & this_board->IRQbits) == 0) {
+			if (((1 << irq) & board->IRQbits) == 0) {
 				printk
 				    (", IRQ %u is out of allowed range, DISABLING IT",
 				     irq);
@@ -1740,11 +1706,11 @@ no_rtc:
 	devpriv->dma = dma;
 	if ((devpriv->irq_free == 0) && (devpriv->dma_rtc == 0))
 		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
-	if (this_board->DMAbits != 0) {	/* board support DMA */
+	if (board->DMAbits != 0) {	/* board support DMA */
 		dma = it->options[2];
 		if (dma < 1)
 			goto no_dma;	/* DMA disabled */
-		if (((1 << dma) & this_board->DMAbits) == 0) {
+		if (((1 << dma) & board->DMAbits) == 0) {
 			printk(KERN_ERR "DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
@@ -1774,29 +1740,29 @@ no_rtc:
 
 no_dma:
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
-	if (!this_board->n_aichan_se) {
+	s = &dev->subdevices[0];
+	if (!board->n_aichan_se) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
 		s->type = COMEDI_SUBD_AI;
 		devpriv->sub_ai = s;
 		s->subdev_flags = SDF_READABLE;
 		if (check_single_ended(dev->iobase)) {
-			s->n_chan = this_board->n_aichan_se;
+			s->n_chan = board->n_aichan_se;
 			s->subdev_flags |= SDF_COMMON | SDF_GROUND;
 			printk(", %dchans S.E. DAC", s->n_chan);
 		} else {
-			s->n_chan = this_board->n_aichan_diff;
+			s->n_chan = board->n_aichan_diff;
 			s->subdev_flags |= SDF_DIFF;
 			printk(", %dchans DIFF DAC", s->n_chan);
 		}
-		s->maxdata = this_board->ai_maxdata;
+		s->maxdata = board->ai_maxdata;
 		s->len_chanlist = s->n_chan;
-		s->range_table = this_board->ai_range_type;
+		s->range_table = board->ai_range_type;
 		s->cancel = pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
 		if ((irq) || (devpriv->dma_rtc)) {
@@ -1805,7 +1771,7 @@ no_dma:
 			s->do_cmdtest = ai_cmdtest;
 			s->do_cmd = ai_cmd;
 		}
-		if (this_board->is_818) {
+		if (board->is_818) {
 			if ((it->options[4] == 1) || (it->options[4] == 10))
 				s->range_table = &range_pcl818l_h_ai;	/*  secondary range list jumper selectable */
 		} else {
@@ -1844,16 +1810,16 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 1;
-	if (!this_board->n_aochan) {
+	s = &dev->subdevices[1];
+	if (!board->n_aochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = this_board->n_aochan;
-		s->maxdata = this_board->ao_maxdata;
-		s->len_chanlist = this_board->n_aochan;
-		s->range_table = this_board->ao_range_type;
+		s->n_chan = board->n_aochan;
+		s->maxdata = board->ao_maxdata;
+		s->len_chanlist = board->n_aochan;
+		s->range_table = board->ao_range_type;
 		s->insn_read = pcl818_ao_insn_read;
 		s->insn_write = pcl818_ao_insn_write;
 #ifdef unused
@@ -1864,7 +1830,7 @@ no_dma:
 		}
 #endif
 #endif
-		if (this_board->is_818) {
+		if (board->is_818) {
 			if ((it->options[4] == 1) || (it->options[4] == 10))
 				s->range_table = &range_unipolar10;
 			if (it->options[4] == 2)
@@ -1877,28 +1843,28 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 2;
-	if (!this_board->n_dichan) {
+	s = &dev->subdevices[2];
+	if (!board->n_dichan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan = this_board->n_dichan;
+		s->n_chan = board->n_dichan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->n_dichan;
+		s->len_chanlist = board->n_dichan;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl818_di_insn_bits;
 	}
 
-	s = dev->subdevices + 3;
-	if (!this_board->n_dochan) {
+	s = &dev->subdevices[3];
+	if (!board->n_dochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = this_board->n_dochan;
+		s->n_chan = board->n_dochan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->n_dochan;
+		s->len_chanlist = board->n_dochan;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl818_do_insn_bits;
 	}
@@ -1910,9 +1876,9 @@ no_dma:
 		devpriv->i8253_osc_base = 1000;
 
 	/* max sampling speed */
-	devpriv->ns_min = this_board->ns_min;
+	devpriv->ns_min = board->ns_min;
 
-	if (!this_board->is_818) {
+	if (!board->is_818) {
 		if ((it->options[6] == 1) || (it->options[6] == 100))
 			devpriv->ns_min = 10000;	/* extended PCL718 to 100kHz DAC */
 	}

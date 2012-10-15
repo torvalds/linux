@@ -299,6 +299,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume  = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

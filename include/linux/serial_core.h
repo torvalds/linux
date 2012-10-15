@@ -47,7 +47,9 @@
 #define PORT_U6_16550A	19	/* ST-Ericsson U6xxx internal UART */
 #define PORT_TEGRA	20	/* NVIDIA Tegra internal UART */
 #define PORT_XR17D15X	21	/* Exar XR17D15x UART */
-#define PORT_MAX_8250	21	/* max port ID */
+#define PORT_LPC3220	22	/* NXP LPC32xx SoC "Standard" UART */
+#define PORT_8250_CIR	23	/* CIR infrared port, has its own driver */
+#define PORT_MAX_8250	23	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -192,8 +194,8 @@
 /* SH-SCI */
 #define PORT_SCIFB	93
 
-/* MAX3107 */
-#define PORT_MAX3107	94
+/* MAX310X */
+#define PORT_MAX310X	94
 
 /* High Speed UART for Medfield */
 #define PORT_MFD	95
@@ -273,6 +275,7 @@ struct uart_ops {
 	int		(*verify_port)(struct uart_port *, struct serial_struct *);
 	int		(*ioctl)(struct uart_port *, unsigned int, unsigned long);
 #ifdef CONFIG_CONSOLE_POLL
+	int		(*poll_init)(struct uart_port *);
 	void	(*poll_put_char)(struct uart_port *, unsigned char);
 	int		(*poll_get_char)(struct uart_port *);
 #endif

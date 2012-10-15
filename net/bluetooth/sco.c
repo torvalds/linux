@@ -131,6 +131,15 @@ static int sco_conn_del(struct hci_conn *hcon, int err)
 		sco_sock_clear_timer(sk);
 		sco_chan_del(sk, err);
 		bh_unlock_sock(sk);
+
+		sco_conn_lock(conn);
+		conn->sk = NULL;
+		sco_pi(sk)->conn = NULL;
+		sco_conn_unlock(conn);
+
+		if (conn->hcon)
+			hci_conn_put(conn->hcon);
+
 		sco_sock_kill(sk);
 	}
 
@@ -821,16 +830,6 @@ static void sco_chan_del(struct sock *sk, int err)
 
 	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
 
-	if (conn) {
-		sco_conn_lock(conn);
-		conn->sk = NULL;
-		sco_pi(sk)->conn = NULL;
-		sco_conn_unlock(conn);
-
-		if (conn->hcon)
-			hci_conn_put(conn->hcon);
-	}
-
 	sk->sk_state = BT_CLOSED;
 	sk->sk_err   = err;
 	sk->sk_state_change(sk);
@@ -913,7 +912,7 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return lm;
 }
 
-int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
+void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
 	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
 	if (!status) {
@@ -924,16 +923,13 @@ int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 			sco_conn_ready(conn);
 	} else
 		sco_conn_del(hcon, bt_to_errno(status));
-
-	return 0;
 }
 
-int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
+void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	sco_conn_del(hcon, bt_to_errno(reason));
-	return 0;
 }
 
 int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
@@ -1026,6 +1022,13 @@ int __init sco_init(void)
 		goto error;
 	}
 
+	err = bt_procfs_init(THIS_MODULE, &init_net, "sco", &sco_sk_list, NULL);
+	if (err < 0) {
+		BT_ERR("Failed to create SCO proc file");
+		bt_sock_unregister(BTPROTO_SCO);
+		goto error;
+	}
+
 	if (bt_debugfs) {
 		sco_debugfs = debugfs_create_file("sco", 0444, bt_debugfs,
 						  NULL, &sco_debugfs_fops);
@@ -1044,6 +1047,8 @@ error:
 
 void __exit sco_exit(void)
 {
+	bt_procfs_cleanup(&init_net, "sco");
+
 	debugfs_remove(sco_debugfs);
 
 	if (bt_sock_unregister(BTPROTO_SCO) < 0)

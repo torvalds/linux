@@ -337,7 +337,8 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 				  unsigned int test_index,
 				  struct ethtool_string *strings, u64 *data)
 {
-	struct efx_channel *channel = efx_get_channel(efx, 0);
+	struct efx_channel *channel =
+		efx_get_channel(efx, efx->tx_channel_offset);
 	struct efx_tx_queue *tx_queue;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
@@ -529,9 +530,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!efx_tests)
 		goto fail;
 
-
-	ASSERT_RTNL();
-	if (efx->state != STATE_RUNNING) {
+	if (efx->state != STATE_READY) {
 		rc = -EIO;
 		goto fail1;
 	}
@@ -680,21 +679,27 @@ static int efx_ethtool_set_ringparam(struct net_device *net_dev,
 				     struct ethtool_ringparam *ring)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	u32 txq_entries;
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
 	    ring->rx_pending > EFX_MAX_DMAQ_SIZE ||
 	    ring->tx_pending > EFX_MAX_DMAQ_SIZE)
 		return -EINVAL;
 
-	if (ring->rx_pending < EFX_MIN_RING_SIZE ||
-	    ring->tx_pending < EFX_MIN_RING_SIZE) {
+	if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
 		netif_err(efx, drv, efx->net_dev,
-			  "TX and RX queues cannot be smaller than %ld\n",
-			  EFX_MIN_RING_SIZE);
+			  "RX queues cannot be smaller than %u\n",
+			  EFX_RXQ_MIN_ENT);
 		return -EINVAL;
 	}
 
-	return efx_realloc_channels(efx, ring->rx_pending, ring->tx_pending);
+	txq_entries = max(ring->tx_pending, EFX_TXQ_MIN_ENT(efx));
+	if (txq_entries != ring->tx_pending)
+		netif_warn(efx, drv, efx->net_dev,
+			   "increasing TX queue size to minimum of %u\n",
+			   txq_entries);
+
+	return efx_realloc_channels(efx, ring->rx_pending, txq_entries);
 }
 
 static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
@@ -857,8 +862,8 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				       &ip_entry->ip4dst, &ip_entry->pdst);
 	if (rc != 0) {
 		rc = efx_filter_get_ipv4_full(
-			&spec, &proto, &ip_entry->ip4src, &ip_entry->psrc,
-			&ip_entry->ip4dst, &ip_entry->pdst);
+			&spec, &proto, &ip_entry->ip4dst, &ip_entry->pdst,
+			&ip_entry->ip4src, &ip_entry->psrc);
 		EFX_WARN_ON_PARANOID(rc);
 		ip_mask->ip4src = ~0;
 		ip_mask->psrc = ~0;
@@ -956,9 +961,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	int rc;
 
 	/* Check that user wants us to choose the location */
-	if (rule->location != RX_CLS_LOC_ANY &&
-	    rule->location != RX_CLS_LOC_FIRST &&
-	    rule->location != RX_CLS_LOC_LAST)
+	if (rule->location != RX_CLS_LOC_ANY)
 		return -EINVAL;
 
 	/* Range-check ring_cookie */
@@ -972,9 +975,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	     rule->m_ext.data[1]))
 		return -EINVAL;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL,
-			   (rule->location == RX_CLS_LOC_FIRST) ?
-			   EFX_FILTER_FLAG_RX_OVERRIDE_IP : 0,
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL, 0,
 			   (rule->ring_cookie == RX_CLS_FLOW_DISC) ?
 			   0xfff : rule->ring_cookie);
 
@@ -1170,6 +1171,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
 	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
 	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
+	.get_ts_info		= efx_ptp_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
 };

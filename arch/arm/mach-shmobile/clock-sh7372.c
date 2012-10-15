@@ -24,36 +24,36 @@
 #include <mach/common.h>
 
 /* SH7372 registers */
-#define FRQCRA		0xe6150000
-#define FRQCRB		0xe6150004
-#define FRQCRC		0xe61500e0
-#define FRQCRD		0xe61500e4
-#define VCLKCR1		0xe6150008
-#define VCLKCR2		0xe615000c
-#define VCLKCR3		0xe615001c
-#define FMSICKCR	0xe6150010
-#define FMSOCKCR	0xe6150014
-#define FSIACKCR	0xe6150018
-#define FSIBCKCR	0xe6150090
-#define SUBCKCR		0xe6150080
-#define SPUCKCR		0xe6150084
-#define VOUCKCR		0xe6150088
-#define HDMICKCR	0xe6150094
-#define DSITCKCR	0xe6150060
-#define DSI0PCKCR	0xe6150064
-#define DSI1PCKCR	0xe6150098
-#define PLLC01CR	0xe6150028
-#define PLLC2CR		0xe615002c
-#define RMSTPCR0	0xe6150110
-#define RMSTPCR1	0xe6150114
-#define RMSTPCR2	0xe6150118
-#define RMSTPCR3	0xe615011c
-#define RMSTPCR4	0xe6150120
-#define SMSTPCR0	0xe6150130
-#define SMSTPCR1	0xe6150134
-#define SMSTPCR2	0xe6150138
-#define SMSTPCR3	0xe615013c
-#define SMSTPCR4	0xe6150140
+#define FRQCRA		IOMEM(0xe6150000)
+#define FRQCRB		IOMEM(0xe6150004)
+#define FRQCRC		IOMEM(0xe61500e0)
+#define FRQCRD		IOMEM(0xe61500e4)
+#define VCLKCR1		IOMEM(0xe6150008)
+#define VCLKCR2		IOMEM(0xe615000c)
+#define VCLKCR3		IOMEM(0xe615001c)
+#define FMSICKCR	IOMEM(0xe6150010)
+#define FMSOCKCR	IOMEM(0xe6150014)
+#define FSIACKCR	IOMEM(0xe6150018)
+#define FSIBCKCR	IOMEM(0xe6150090)
+#define SUBCKCR		IOMEM(0xe6150080)
+#define SPUCKCR		IOMEM(0xe6150084)
+#define VOUCKCR		IOMEM(0xe6150088)
+#define HDMICKCR	IOMEM(0xe6150094)
+#define DSITCKCR	IOMEM(0xe6150060)
+#define DSI0PCKCR	IOMEM(0xe6150064)
+#define DSI1PCKCR	IOMEM(0xe6150098)
+#define PLLC01CR	IOMEM(0xe6150028)
+#define PLLC2CR		IOMEM(0xe615002c)
+#define RMSTPCR0	IOMEM(0xe6150110)
+#define RMSTPCR1	IOMEM(0xe6150114)
+#define RMSTPCR2	IOMEM(0xe6150118)
+#define RMSTPCR3	IOMEM(0xe615011c)
+#define RMSTPCR4	IOMEM(0xe6150120)
+#define SMSTPCR0	IOMEM(0xe6150130)
+#define SMSTPCR1	IOMEM(0xe6150134)
+#define SMSTPCR2	IOMEM(0xe6150138)
+#define SMSTPCR3	IOMEM(0xe615013c)
+#define SMSTPCR4	IOMEM(0xe6150140)
 
 #define FSIDIVA		0xFE1F8000
 #define FSIDIVB		0xFE1F8008
@@ -704,7 +704,7 @@ void __init sh7372_clock_init(void)
 		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_REPARENT_NR);
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+		ret = sh_clk_mstp_register(mstp_clks, MSTP_NR);
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
 		ret = clk_register(late_main_clks[k]);

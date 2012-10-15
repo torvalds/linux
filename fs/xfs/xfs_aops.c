@@ -124,6 +124,12 @@ xfs_setfilesize_trans_alloc(
 	ioend->io_append_trans = tp;
 
 	/*
+	 * We will pass freeze protection with a transaction.  So tell lockdep
+	 * we released it.
+	 */
+	rwsem_release(&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+		      1, _THIS_IP_);
+	/*
 	 * We hand off the transaction to the completion thread now, so
 	 * clear the flag here.
 	 */
@@ -179,7 +185,7 @@ xfs_finish_ioend(
 	if (atomic_dec_and_test(&ioend->io_remaining)) {
 		struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
 
-		if (ioend->io_type == IO_UNWRITTEN)
+		if (ioend->io_type == XFS_IO_UNWRITTEN)
 			queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
 		else if (ioend->io_append_trans)
 			queue_work(mp->m_data_workqueue, &ioend->io_work);
@@ -199,6 +205,15 @@ xfs_end_io(
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
 	int		error = 0;
 
+	if (ioend->io_append_trans) {
+		/*
+		 * We've got freeze protection passed with the transaction.
+		 * Tell lockdep about it.
+		 */
+		rwsem_acquire_read(
+			&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+			0, 1, _THIS_IP_);
+	}
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		ioend->io_error = -EIO;
 		goto done;
@@ -210,7 +225,7 @@ xfs_end_io(
 	 * For unwritten extents we need to issue transactions to convert a
 	 * range to normal written extens after the data I/O has finished.
 	 */
-	if (ioend->io_type == IO_UNWRITTEN) {
+	if (ioend->io_type == XFS_IO_UNWRITTEN) {
 		/*
 		 * For buffered I/O we never preallocate a transaction when
 		 * doing the unwritten extent conversion, but for direct I/O
@@ -312,7 +327,7 @@ xfs_map_blocks(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -XFS_ERROR(EIO);
 
-	if (type == IO_UNWRITTEN)
+	if (type == XFS_IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
 
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED)) {
@@ -323,10 +338,10 @@ xfs_map_blocks(
 
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
-	ASSERT(offset <= mp->m_maxioffset);
+	ASSERT(offset <= mp->m_super->s_maxbytes);
 
-	if (offset + count > mp->m_maxioffset)
-		count = mp->m_maxioffset - offset;
+	if (offset + count > mp->m_super->s_maxbytes)
+		count = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
@@ -336,7 +351,7 @@ xfs_map_blocks(
 	if (error)
 		return -XFS_ERROR(error);
 
-	if (type == IO_DELALLOC &&
+	if (type == XFS_IO_DELALLOC &&
 	    (!nimaps || isnullstartblock(imap->br_startblock))) {
 		error = xfs_iomap_write_allocate(ip, offset, count, imap);
 		if (!error)
@@ -345,7 +360,7 @@ xfs_map_blocks(
 	}
 
 #ifdef DEBUG
-	if (type == IO_UNWRITTEN) {
+	if (type == XFS_IO_UNWRITTEN) {
 		ASSERT(nimaps);
 		ASSERT(imap->br_startblock != HOLESTARTBLOCK);
 		ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
@@ -634,11 +649,11 @@ xfs_check_page_type(
 		bh = head = page_buffers(page);
 		do {
 			if (buffer_unwritten(bh))
-				acceptable += (type == IO_UNWRITTEN);
+				acceptable += (type == XFS_IO_UNWRITTEN);
 			else if (buffer_delay(bh))
-				acceptable += (type == IO_DELALLOC);
+				acceptable += (type == XFS_IO_DELALLOC);
 			else if (buffer_dirty(bh) && buffer_mapped(bh))
-				acceptable += (type == IO_OVERWRITE);
+				acceptable += (type == XFS_IO_OVERWRITE);
 			else
 				break;
 		} while ((bh = bh->b_this_page) != head);
@@ -721,11 +736,11 @@ xfs_convert_page(
 		if (buffer_unwritten(bh) || buffer_delay(bh) ||
 		    buffer_mapped(bh)) {
 			if (buffer_unwritten(bh))
-				type = IO_UNWRITTEN;
+				type = XFS_IO_UNWRITTEN;
 			else if (buffer_delay(bh))
-				type = IO_DELALLOC;
+				type = XFS_IO_DELALLOC;
 			else
-				type = IO_OVERWRITE;
+				type = XFS_IO_OVERWRITE;
 
 			if (!xfs_imap_valid(inode, imap, offset)) {
 				done = 1;
@@ -733,7 +748,7 @@ xfs_convert_page(
 			}
 
 			lock_buffer(bh);
-			if (type != IO_OVERWRITE)
+			if (type != XFS_IO_OVERWRITE)
 				xfs_map_at_offset(inode, bh, imap, offset);
 			xfs_add_to_ioend(inode, bh, offset, type,
 					 ioendp, done);
@@ -831,7 +846,7 @@ xfs_aops_discard_page(
 	struct buffer_head	*bh, *head;
 	loff_t			offset = page_offset(page);
 
-	if (!xfs_check_page_type(page, IO_DELALLOC))
+	if (!xfs_check_page_type(page, XFS_IO_DELALLOC))
 		goto out_invalidate;
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
@@ -927,11 +942,26 @@ xfs_vm_writepage(
 	end_index = offset >> PAGE_CACHE_SHIFT;
 	last_index = (offset - 1) >> PAGE_CACHE_SHIFT;
 	if (page->index >= end_index) {
-		if ((page->index >= end_index + 1) ||
-		    !(i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
+		unsigned offset_into_page = offset & (PAGE_CACHE_SIZE - 1);
+
+		/*
+		 * Just skip the page if it is fully outside i_size, e.g. due
+		 * to a truncate operation that is in progress.
+		 */
+		if (page->index >= end_index + 1 || offset_into_page == 0) {
 			unlock_page(page);
 			return 0;
 		}
+
+		/*
+		 * The page straddles i_size.  It must be zeroed out on each
+		 * and every writepage invocation because it may be mmapped.
+		 * "A file is mapped in multiples of the page size.  For a file
+		 * that is not a multiple of the  page size, the remaining
+		 * memory is zeroed when mapped, and writes to that region are
+		 * not written out to the file."
+		 */
+		zero_user_segment(page, offset_into_page, PAGE_CACHE_SIZE);
 	}
 
 	end_offset = min_t(unsigned long long,
@@ -941,7 +971,7 @@ xfs_vm_writepage(
 
 	bh = head = page_buffers(page);
 	offset = page_offset(page);
-	type = IO_OVERWRITE;
+	type = XFS_IO_OVERWRITE;
 
 	if (wbc->sync_mode == WB_SYNC_NONE)
 		nonblocking = 1;
@@ -966,18 +996,18 @@ xfs_vm_writepage(
 		}
 
 		if (buffer_unwritten(bh)) {
-			if (type != IO_UNWRITTEN) {
-				type = IO_UNWRITTEN;
+			if (type != XFS_IO_UNWRITTEN) {
+				type = XFS_IO_UNWRITTEN;
 				imap_valid = 0;
 			}
 		} else if (buffer_delay(bh)) {
-			if (type != IO_DELALLOC) {
-				type = IO_DELALLOC;
+			if (type != XFS_IO_DELALLOC) {
+				type = XFS_IO_DELALLOC;
 				imap_valid = 0;
 			}
 		} else if (buffer_uptodate(bh)) {
-			if (type != IO_OVERWRITE) {
-				type = IO_OVERWRITE;
+			if (type != XFS_IO_OVERWRITE) {
+				type = XFS_IO_OVERWRITE;
 				imap_valid = 0;
 			}
 		} else {
@@ -1013,7 +1043,7 @@ xfs_vm_writepage(
 		}
 		if (imap_valid) {
 			lock_buffer(bh);
-			if (type != IO_OVERWRITE)
+			if (type != XFS_IO_OVERWRITE)
 				xfs_map_at_offset(inode, bh, &imap, offset);
 			xfs_add_to_ioend(inode, bh, offset, type, &ioend,
 					 new_ioend);
@@ -1054,7 +1084,7 @@ xfs_vm_writepage(
 		 * Reserve log space if we might write beyond the on-disk
 		 * inode size.
 		 */
-		if (ioend->io_type != IO_UNWRITTEN &&
+		if (ioend->io_type != XFS_IO_UNWRITTEN &&
 		    xfs_ioend_is_append(ioend)) {
 			err = xfs_setfilesize_trans_alloc(ioend);
 			if (err)
@@ -1162,9 +1192,9 @@ __xfs_get_blocks(
 		lockmode = xfs_ilock_map_shared(ip);
 	}
 
-	ASSERT(offset <= mp->m_maxioffset);
-	if (offset + size > mp->m_maxioffset)
-		size = mp->m_maxioffset - offset;
+	ASSERT(offset <= mp->m_super->s_maxbytes);
+	if (offset + size > mp->m_super->s_maxbytes)
+		size = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
@@ -1351,7 +1381,7 @@ xfs_end_io_direct_write(
 	ioend->io_iocb = iocb;
 	ioend->io_result = ret;
 	if (private && size > 0)
-		ioend->io_type = IO_UNWRITTEN;
+		ioend->io_type = XFS_IO_UNWRITTEN;
 
 	if (is_async) {
 		ioend->io_isasync = 1;
@@ -1383,7 +1413,7 @@ xfs_vm_direct_IO(
 		 * and converts at least on unwritten extent we will cancel
 		 * the still clean transaction after the I/O has finished.
 		 */
-		iocb->private = ioend = xfs_alloc_ioend(inode, IO_DIRECT);
+		iocb->private = ioend = xfs_alloc_ioend(inode, XFS_IO_DIRECT);
 		if (offset + size > XFS_I(inode)->i_d.di_size) {
 			ret = xfs_setfilesize_trans_alloc(ioend);
 			if (ret)
@@ -1410,6 +1440,9 @@ out_trans_cancel:
 	if (ioend->io_append_trans) {
 		current_set_flags_nested(&ioend->io_append_trans->t_pflags,
 					 PF_FSTRANS);
+		rwsem_acquire_read(
+			&inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+			0, 1, _THIS_IP_);
 		xfs_trans_cancel(ioend->io_append_trans, 0);
 	}
 out_destroy_ioend:

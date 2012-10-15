@@ -1424,7 +1424,7 @@ static void update_vmcoreinfo_note(void)
 
 void crash_save_vmcoreinfo(void)
 {
-	vmcoreinfo_append_str("CRASHTIME=%ld", get_seconds());
+	vmcoreinfo_append_str("CRASHTIME=%ld\n", get_seconds());
 	update_vmcoreinfo_note();
 }
 

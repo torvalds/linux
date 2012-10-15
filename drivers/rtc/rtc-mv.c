@@ -297,7 +297,7 @@ static int __exit mv_rtc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct of_device_id rtc_mv_of_match_table[] = {
-	{ .compatible = "mrvl,orion-rtc", },
+	{ .compatible = "marvell,orion-rtc", },
 	{}
 };
 #endif

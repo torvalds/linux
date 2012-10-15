@@ -254,7 +254,7 @@ static int __devexit puv3_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int puv3_i2c_suspend(struct platform_device *dev, pm_message_t state)
+static int puv3_i2c_suspend(struct device *dev)
 {
 	int poll_count;
 	/* Disable the IIC */
@@ -267,23 +267,20 @@ static int puv3_i2c_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int puv3_i2c_resume(struct platform_device *dev)
-{
-	return 0 ;
-}
+static SIMPLE_DEV_PM_OPS(puv3_i2c_pm, puv3_i2c_suspend, NULL);
+#define PUV3_I2C_PM	(&puv3_i2c_pm)
+
 #else
-#define puv3_i2c_suspend NULL
-#define puv3_i2c_resume NULL
+#define PUV3_I2C_PM	NULL
 #endif
 
 static struct platform_driver puv3_i2c_driver = {
 	.probe		= puv3_i2c_probe,
 	.remove		= __devexit_p(puv3_i2c_remove),
-	.suspend	= puv3_i2c_suspend,
-	.resume		= puv3_i2c_resume,
 	.driver		= {
 		.name	= "PKUnity-v3-I2C",
 		.owner	= THIS_MODULE,
+		.pm	= PUV3_I2C_PM,
 	}
 };
 

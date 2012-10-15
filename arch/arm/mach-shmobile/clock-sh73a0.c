@@ -23,43 +23,43 @@
 #include <linux/clkdev.h>
 #include <mach/common.h>
 
-#define FRQCRA		0xe6150000
-#define FRQCRB		0xe6150004
-#define FRQCRD		0xe61500e4
-#define VCLKCR1		0xe6150008
-#define VCLKCR2		0xe615000C
-#define VCLKCR3		0xe615001C
-#define ZBCKCR		0xe6150010
-#define FLCKCR		0xe6150014
-#define SD0CKCR		0xe6150074
-#define SD1CKCR		0xe6150078
-#define SD2CKCR		0xe615007C
-#define FSIACKCR	0xe6150018
-#define FSIBCKCR	0xe6150090
-#define SUBCKCR		0xe6150080
-#define SPUACKCR	0xe6150084
-#define SPUVCKCR	0xe6150094
-#define MSUCKCR		0xe6150088
-#define HSICKCR		0xe615008C
-#define MFCK1CR		0xe6150098
-#define MFCK2CR		0xe615009C
-#define DSITCKCR	0xe6150060
-#define DSI0PCKCR	0xe6150064
-#define DSI1PCKCR	0xe6150068
+#define FRQCRA		IOMEM(0xe6150000)
+#define FRQCRB		IOMEM(0xe6150004)
+#define FRQCRD		IOMEM(0xe61500e4)
+#define VCLKCR1		IOMEM(0xe6150008)
+#define VCLKCR2		IOMEM(0xe615000C)
+#define VCLKCR3		IOMEM(0xe615001C)
+#define ZBCKCR		IOMEM(0xe6150010)
+#define FLCKCR		IOMEM(0xe6150014)
+#define SD0CKCR		IOMEM(0xe6150074)
+#define SD1CKCR		IOMEM(0xe6150078)
+#define SD2CKCR		IOMEM(0xe615007C)
+#define FSIACKCR	IOMEM(0xe6150018)
+#define FSIBCKCR	IOMEM(0xe6150090)
+#define SUBCKCR		IOMEM(0xe6150080)
+#define SPUACKCR	IOMEM(0xe6150084)
+#define SPUVCKCR	IOMEM(0xe6150094)
+#define MSUCKCR		IOMEM(0xe6150088)
+#define HSICKCR		IOMEM(0xe615008C)
+#define MFCK1CR		IOMEM(0xe6150098)
+#define MFCK2CR		IOMEM(0xe615009C)
+#define DSITCKCR	IOMEM(0xe6150060)
+#define DSI0PCKCR	IOMEM(0xe6150064)
+#define DSI1PCKCR	IOMEM(0xe6150068)
 #define DSI0PHYCR	0xe615006C
 #define DSI1PHYCR	0xe6150070
-#define PLLECR		0xe61500d0
-#define PLL0CR		0xe61500d8
-#define PLL1CR		0xe6150028
-#define PLL2CR		0xe615002c
-#define PLL3CR		0xe61500dc
-#define SMSTPCR0	0xe6150130
-#define SMSTPCR1	0xe6150134
-#define SMSTPCR2	0xe6150138
-#define SMSTPCR3	0xe615013c
-#define SMSTPCR4	0xe6150140
-#define SMSTPCR5	0xe6150144
-#define CKSCR		0xe61500c0
+#define PLLECR		IOMEM(0xe61500d0)
+#define PLL0CR		IOMEM(0xe61500d8)
+#define PLL1CR		IOMEM(0xe6150028)
+#define PLL2CR		IOMEM(0xe615002c)
+#define PLL3CR		IOMEM(0xe61500dc)
+#define SMSTPCR0	IOMEM(0xe6150130)
+#define SMSTPCR1	IOMEM(0xe6150134)
+#define SMSTPCR2	IOMEM(0xe6150138)
+#define SMSTPCR3	IOMEM(0xe615013c)
+#define SMSTPCR4	IOMEM(0xe6150140)
+#define SMSTPCR5	IOMEM(0xe6150144)
+#define CKSCR		IOMEM(0xe61500c0)
 
 /* Fixed 32 KHz root clock from EXTALR pin */
 static struct clk r_clk = {
@@ -475,9 +475,9 @@ static struct clk *late_main_clks[] = {
 
 enum { MSTP001,
 	MSTP129, MSTP128, MSTP127, MSTP126, MSTP125, MSTP118, MSTP116, MSTP100,
-	MSTP219, MSTP218,
+	MSTP219, MSTP218, MSTP217,
 	MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
-	MSTP331, MSTP329, MSTP325, MSTP323,
+	MSTP331, MSTP329, MSTP328, MSTP325, MSTP323, MSTP322,
 	MSTP314, MSTP313, MSTP312, MSTP311,
 	MSTP303, MSTP302, MSTP301, MSTP300,
 	MSTP411, MSTP410, MSTP403,
@@ -498,6 +498,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP100] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 0, 0), /* LCDC0 */
 	[MSTP219] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 19, 0), /* SCIFA7 */
 	[MSTP218] = MSTP(&div4_clks[DIV4_HP], SMSTPCR2, 18, 0), /* SY-DMAC */
+	[MSTP217] = MSTP(&div4_clks[DIV4_HP], SMSTPCR2, 17, 0), /* MP-DMAC */
 	[MSTP207] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 7, 0), /* SCIFA5 */
 	[MSTP206] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 6, 0), /* SCIFB */
 	[MSTP204] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 4, 0), /* SCIFA0 */
@@ -507,8 +508,10 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP200] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 0, 0), /* SCIFA4 */
 	[MSTP331] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR3, 31, 0), /* SCIFA6 */
 	[MSTP329] = MSTP(&r_clk, SMSTPCR3, 29, 0), /* CMT10 */
+	[MSTP328] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 28, 0), /*FSI*/
 	[MSTP325] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR3, 25, 0), /* IrDA */
 	[MSTP323] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 23, 0), /* IIC1 */
+	[MSTP322] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 22, 0), /* USB */
 	[MSTP314] = MSTP(&div6_clks[DIV6_SDHI0], SMSTPCR3, 14, 0), /* SDHI0 */
 	[MSTP313] = MSTP(&div6_clks[DIV6_SDHI1], SMSTPCR3, 13, 0), /* SDHI1 */
 	[MSTP312] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 12, 0), /* MMCIF0 */
@@ -553,6 +556,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.0", &mstp_clks[MSTP100]), /* LCDC0 */
 	CLKDEV_DEV_ID("sh-sci.7", &mstp_clks[MSTP219]), /* SCIFA7 */
 	CLKDEV_DEV_ID("sh-dma-engine.0", &mstp_clks[MSTP218]), /* SY-DMAC */
+	CLKDEV_DEV_ID("sh-dma-engine.1", &mstp_clks[MSTP217]), /* MP-DMAC */
 	CLKDEV_DEV_ID("sh-sci.5", &mstp_clks[MSTP207]), /* SCIFA5 */
 	CLKDEV_DEV_ID("sh-sci.8", &mstp_clks[MSTP206]), /* SCIFB */
 	CLKDEV_DEV_ID("sh-sci.0", &mstp_clks[MSTP204]), /* SCIFA0 */
@@ -562,8 +566,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP200]), /* SCIFA4 */
 	CLKDEV_DEV_ID("sh-sci.6", &mstp_clks[MSTP331]), /* SCIFA6 */
 	CLKDEV_DEV_ID("sh_cmt.10", &mstp_clks[MSTP329]), /* CMT10 */
+	CLKDEV_DEV_ID("sh_fsi2", &mstp_clks[MSTP328]), /* FSI */
 	CLKDEV_DEV_ID("sh_irda.0", &mstp_clks[MSTP325]), /* IrDA */
 	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP323]), /* I2C1 */
+	CLKDEV_DEV_ID("renesas_usbhs", &mstp_clks[MSTP322]), /* USB */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP314]), /* SDHI0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP313]), /* SDHI1 */
 	CLKDEV_DEV_ID("sh_mmcif.0", &mstp_clks[MSTP312]), /* MMCIF0 */
@@ -612,7 +618,7 @@ void __init sh73a0_clock_init(void)
 		ret = sh_clk_div6_reparent_register(div6_clks, DIV6_NR);
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+		ret = sh_clk_mstp_register(mstp_clks, MSTP_NR);
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
 		ret = clk_register(late_main_clks[k]);

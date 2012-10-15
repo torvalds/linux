@@ -548,8 +548,8 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	}
 
 	if (mpa_rev_to_use == 2) {
-		mpa->private_data_size +=
-			htons(sizeof(struct mpa_v2_conn_params));
+		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
+					       sizeof (struct mpa_v2_conn_params));
 		mpa_v2_params.ird = htons((u16)ep->ird);
 		mpa_v2_params.ord = htons((u16)ep->ord);
 
@@ -635,8 +635,8 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		mpa->flags |= MPA_ENHANCED_RDMA_CONN;
-		mpa->private_data_size +=
-			htons(sizeof(struct mpa_v2_conn_params));
+		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
+					       sizeof (struct mpa_v2_conn_params));
 		mpa_v2_params.ird = htons(((u16)ep->ird) |
 					  (peer2peer ? MPA_V2_PEER2PEER_MODEL :
 					   0));
@@ -715,8 +715,8 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		mpa->flags |= MPA_ENHANCED_RDMA_CONN;
-		mpa->private_data_size +=
-			htons(sizeof(struct mpa_v2_conn_params));
+		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
+					       sizeof (struct mpa_v2_conn_params));
 		mpa_v2_params.ird = htons((u16)ep->ird);
 		mpa_v2_params.ord = htons((u16)ep->ord);
 		if (peer2peer && (ep->mpa_attr.p2p_type !=
@@ -1361,11 +1361,11 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct tid_info *t = dev->rdev.lldi.tids;
 
 	ep = lookup_tid(t, tid);
-	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	if (!ep) {
 		printk(KERN_WARNING MOD "Abort rpl to freed endpoint\n");
 		return 0;
 	}
+	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:

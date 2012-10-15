@@ -443,52 +443,17 @@ static int palmas_list_voltage_ldo(struct regulator_dev *dev,
 	return  850000 + (selector * 50000);
 }
 
-static int palmas_get_voltage_ldo_sel(struct regulator_dev *dev)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	int selector;
-	unsigned int reg;
-	unsigned int addr;
-
-	addr = palmas_regs_info[id].vsel_addr;
-
-	palmas_ldo_read(pmic->palmas, addr, &reg);
-
-	selector = reg & PALMAS_LDO1_VOLTAGE_VSEL_MASK;
-
-	/* Adjust selector to match list_voltage ranges */
-	if (selector > 49)
-		selector = 49;
-
-	return selector;
-}
-
-static int palmas_set_voltage_ldo_sel(struct regulator_dev *dev,
-		unsigned selector)
-{
-	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev);
-	unsigned int reg = 0;
-	unsigned int addr;
-
-	addr = palmas_regs_info[id].vsel_addr;
-
-	reg = selector;
-
-	palmas_ldo_write(pmic->palmas, addr, reg);
-
-	return 0;
-}
-
 static int palmas_map_voltage_ldo(struct regulator_dev *rdev,
 		int min_uV, int max_uV)
 {
 	int ret, voltage;
 
-	ret = ((min_uV - 900000) / 50000) + 1;
-	if (ret < 0)
-		return ret;
+	if (min_uV == 0)
+		return 0;
+
+	if (min_uV < 900000)
+		min_uV = 900000;
+	ret = DIV_ROUND_UP(min_uV - 900000, 50000) + 1;
 
 	/* Map back into a voltage to verify we're still in bounds */
 	voltage = palmas_list_voltage_ldo(rdev, ret);
@@ -502,8 +467,8 @@ static struct regulator_ops palmas_ops_ldo = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
-	.get_voltage_sel	= palmas_get_voltage_ldo_sel,
-	.set_voltage_sel	= palmas_set_voltage_ldo_sel,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= palmas_list_voltage_ldo,
 	.map_voltage		= palmas_map_voltage_ldo,
 };
@@ -586,7 +551,7 @@ static int palmas_ldo_init(struct palmas *palmas, int id,
 
 	addr = palmas_regs_info[id].ctrl_addr;
 
-	ret = palmas_smps_read(palmas, addr, &reg);
+	ret = palmas_ldo_read(palmas, addr, &reg);
 	if (ret)
 		return ret;
 
@@ -596,7 +561,7 @@ static int palmas_ldo_init(struct palmas *palmas, int id,
 	if (reg_init->mode_sleep)
 		reg |= PALMAS_LDO1_CTRL_MODE_SLEEP;
 
-	ret = palmas_smps_write(palmas, addr, reg);
+	ret = palmas_ldo_write(palmas, addr, reg);
 	if (ret)
 		return ret;
 
@@ -630,7 +595,7 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 
 	ret = palmas_smps_read(palmas, PALMAS_SMPS_CTRL, &reg);
 	if (ret)
-		goto err_unregister_regulator;
+		return ret;
 
 	if (reg & PALMAS_SMPS_CTRL_SMPS12_SMPS123_EN)
 		pmic->smps123 = 1;
@@ -676,7 +641,9 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 		case PALMAS_REG_SMPS10:
 			pmic->desc[id].n_voltages = PALMAS_SMPS10_NUM_VOLTAGES;
 			pmic->desc[id].ops = &palmas_ops_smps10;
-			pmic->desc[id].vsel_reg = PALMAS_SMPS10_CTRL;
+			pmic->desc[id].vsel_reg =
+					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
+							PALMAS_SMPS10_CTRL);
 			pmic->desc[id].vsel_mask = SMPS10_VSEL;
 			pmic->desc[id].enable_reg =
 					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
@@ -752,6 +719,9 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
 		pmic->desc[id].owner = THIS_MODULE;
+		pmic->desc[id].vsel_reg = PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
+						palmas_regs_info[id].vsel_addr);
+		pmic->desc[id].vsel_mask = PALMAS_LDO1_VOLTAGE_VSEL_MASK;
 		pmic->desc[id].enable_reg = PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
 						palmas_regs_info[id].ctrl_addr);
 		pmic->desc[id].enable_mask = PALMAS_LDO1_CTRL_MODE_ACTIVE;
@@ -778,8 +748,10 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 			reg_init = pdata->reg_init[id];
 			if (reg_init) {
 				ret = palmas_ldo_init(palmas, id, reg_init);
-				if (ret)
+				if (ret) {
+					regulator_unregister(pmic->rdev[id]);
 					goto err_unregister_regulator;
+				}
 			}
 		}
 	}

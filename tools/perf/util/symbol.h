@@ -10,22 +10,31 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 #include <byteswap.h>
+#include <libgen.h>
+
+#ifndef NO_LIBELF_SUPPORT
+#include <libelf.h>
+#include <gelf.h>
+#include <elf.h>
+#endif
 
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 
-static inline char *bfd_demangle(void __used *v, const char *c, int i)
+static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
 {
 	return cplus_demangle(c, i);
 }
 #else
 #ifdef NO_DEMANGLE
-static inline char *bfd_demangle(void __used *v, const char __used *c,
-				 int __used i)
+static inline char *bfd_demangle(void __maybe_unused *v,
+				 const char __maybe_unused *c,
+				 int __maybe_unused i)
 {
 	return NULL;
 }
 #else
+#define PACKAGE 'perf'
 #include <bfd.h>
 #endif
 #endif
@@ -155,6 +164,23 @@ struct addr_location {
 	s32	      cpu;
 };
 
+enum dso_binary_type {
+	DSO_BINARY_TYPE__KALLSYMS = 0,
+	DSO_BINARY_TYPE__GUEST_KALLSYMS,
+	DSO_BINARY_TYPE__VMLINUX,
+	DSO_BINARY_TYPE__GUEST_VMLINUX,
+	DSO_BINARY_TYPE__JAVA_JIT,
+	DSO_BINARY_TYPE__DEBUGLINK,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
+	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
+	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
+	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
+	DSO_BINARY_TYPE__GUEST_KMODULE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__NOT_FOUND,
+};
+
 enum dso_kernel_type {
 	DSO_TYPE_USER = 0,
 	DSO_TYPE_KERNEL,
@@ -167,19 +193,31 @@ enum dso_swap_type {
 	DSO_SWAP__YES,
 };
 
+#define DSO__DATA_CACHE_SIZE 4096
+#define DSO__DATA_CACHE_MASK ~(DSO__DATA_CACHE_SIZE - 1)
+
+struct dso_cache {
+	struct rb_node	rb_node;
+	u64 offset;
+	u64 size;
+	char data[0];
+};
+
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct rb_root	 cache;
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
+	enum dso_binary_type	symtab_type;
+	enum dso_binary_type	data_type;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
 	u8		 sname_alloc:1;
 	u8		 lname_alloc:1;
-	unsigned char	 symtab_type;
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
@@ -189,6 +227,36 @@ struct dso {
 	u16		 short_name_len;
 	char		 name[0];
 };
+
+struct symsrc {
+	char *name;
+	int fd;
+	enum dso_binary_type type;
+
+#ifndef NO_LIBELF_SUPPORT
+	Elf *elf;
+	GElf_Ehdr ehdr;
+
+	Elf_Scn *opdsec;
+	size_t opdidx;
+	GElf_Shdr opdshdr;
+
+	Elf_Scn *symtab;
+	GElf_Shdr symshdr;
+
+	Elf_Scn *dynsym;
+	size_t dynsym_idx;
+	GElf_Shdr dynshdr;
+
+	bool adjust_symbols;
+#endif
+};
+
+void symsrc__destroy(struct symsrc *ss);
+int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
+		 enum dso_binary_type type);
+bool symsrc__has_symtab(struct symsrc *ss);
+bool symsrc__possibly_runtime(struct symsrc *ss);
 
 #define DSO__SWAP(dso, type, val)			\
 ({							\
@@ -227,6 +295,8 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 
 void dso__sort_by_name(struct dso *dso, enum map_type type);
 
+void dsos__add(struct list_head *head, struct dso *dso);
+struct dso *dsos__find(struct list_head *head, const char *name);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
@@ -253,24 +323,10 @@ size_t dso__fprintf_symbols_by_name(struct dso *dso,
 				    enum map_type type, FILE *fp);
 size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
 
-enum symtab_type {
-	SYMTAB__KALLSYMS = 0,
-	SYMTAB__GUEST_KALLSYMS,
-	SYMTAB__JAVA_JIT,
-	SYMTAB__DEBUGLINK,
-	SYMTAB__BUILD_ID_CACHE,
-	SYMTAB__FEDORA_DEBUGINFO,
-	SYMTAB__UBUNTU_DEBUGINFO,
-	SYMTAB__BUILDID_DEBUGINFO,
-	SYMTAB__SYSTEM_PATH_DSO,
-	SYMTAB__GUEST_KMODULE,
-	SYMTAB__SYSTEM_PATH_KMODULE,
-	SYMTAB__NOT_FOUND,
-};
-
 char dso__symtab_origin(const struct dso *dso);
 void dso__set_long_name(struct dso *dso, char *name);
 void dso__set_build_id(struct dso *dso, void *build_id);
+bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
 void dso__read_running_kernel_build_id(struct dso *dso,
 				       struct machine *machine);
 struct map *dso__new_map(const char *name);
@@ -285,7 +341,9 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 int build_id__sprintf(const u8 *build_id, int len, char *bf);
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start, u64 end));
+					  char type, u64 start));
+int filename__read_debuglink(const char *filename, char *debuglink,
+			     size_t size);
 
 void machine__destroy_kernel_maps(struct machine *machine);
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);
@@ -297,11 +355,34 @@ void machines__destroy_guest_kernel_maps(struct rb_root *machines);
 
 int symbol__init(void);
 void symbol__exit(void);
+void symbol__elf_init(void);
+struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
+
+int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
+			  char *root_dir, char *file, size_t size);
+
+int dso__data_fd(struct dso *dso, struct machine *machine);
+ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size);
+ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
+			    struct machine *machine, u64 addr,
+			    u8 *data, ssize_t size);
+int dso__test_data(void);
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, symbol_filter_t filter,
+		  int kmodule);
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
+				struct map *map, symbol_filter_t filter);
+
+void symbols__insert(struct rb_root *symbols, struct symbol *sym);
+void symbols__fixup_duplicate(struct rb_root *symbols);
+void symbols__fixup_end(struct rb_root *symbols);
+void __map_groups__fixup_end(struct map_groups *mg, enum map_type type);
 
 #endif /* __PERF_SYMBOL */
