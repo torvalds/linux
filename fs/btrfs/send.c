@@ -2462,7 +2462,8 @@ verbose_printk("btrfs: send_create_inode %llu\n", ino);
 		TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH_LINK, p);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
-		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, rdev);
+		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, new_encode_dev(rdev));
+		TLV_PUT_U64(sctx, BTRFS_SEND_A_MODE, mode);
 	}
 
 	ret = send_cmd(sctx);
