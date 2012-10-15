@@ -2038,7 +2038,8 @@ static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 
 static u32 harmonize_features(struct sk_buff *skb, __be16 protocol, u32 features)
 {
-	if (!can_checksum_protocol(features, protocol)) {
+	if (skb->ip_summed != CHECKSUM_NONE &&
+	    !can_checksum_protocol(features, protocol)) {
 		features &= ~NETIF_F_ALL_CSUM;
 		features &= ~NETIF_F_SG;
 	} else if (illegal_highdma(skb->dev, skb)) {
@@ -2559,16 +2560,17 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 	poff = proto_ports_offset(ip_proto);
 	if (poff >= 0) {
 		nhoff += ihl * 4 + poff;
-		if (pskb_may_pull(skb, nhoff + 4)) {
+		if (pskb_may_pull(skb, nhoff + 4))
 			ports.v32 = * (__force u32 *) (skb->data + nhoff);
-			if (ports.v16[1] < ports.v16[0])
-				swap(ports.v16[0], ports.v16[1]);
-		}
 	}
 
 	/* get a consistent hash (same value on both flow directions) */
-	if (addr2 < addr1)
+	if (addr2 < addr1 ||
+	    (addr2 == addr1 &&
+	     ports.v16[1] < ports.v16[0])) {
 		swap(addr1, addr2);
+		swap(ports.v16[0], ports.v16[1]);
+	}
 
 	hash = jhash_3words(addr1, addr2, ports.v32, hashrnd);
 	if (!hash)
