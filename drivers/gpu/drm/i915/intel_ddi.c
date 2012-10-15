@@ -987,11 +987,11 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	enum port port = intel_ddi_get_encoder_port(encoder);
 	u32 tmp;
 	int i;
 
-	tmp = I915_READ(DDI_BUF_CTL(intel_hdmi->ddi_port));
+	tmp = I915_READ(DDI_BUF_CTL(port));
 
 	if (!(tmp & DDI_BUF_CTL_ENABLE))
 		return false;
@@ -1000,13 +1000,13 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 		tmp = I915_READ(DDI_FUNC_CTL(i));
 
 		if ((tmp & PIPE_DDI_PORT_MASK)
-		    == PIPE_DDI_SELECT_PORT(intel_hdmi->ddi_port)) {
+		    == PIPE_DDI_SELECT_PORT(port)) {
 			*pipe = i;
 			return true;
 		}
 	}
 
-	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", intel_hdmi->ddi_port);
+	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", port);
 
 	return true;
 }
