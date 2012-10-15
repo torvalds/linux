@@ -14,7 +14,6 @@
  * 2.4/2.5 port                 David McCullough
  */
 
-#include <asm/dbg.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/serial.h>
