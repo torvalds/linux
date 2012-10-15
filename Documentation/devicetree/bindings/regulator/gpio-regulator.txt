@@ -1,0 +1,36 @@
+GPIO controlled regulators
+
+Required properties:
+- compatible		: Must be "regulator-gpio".
+
+Optional properties:
+- gpio-enable		: GPIO to use to enable/disable the regulator.
+- gpios			: GPIO group used to control voltage.
+- states		: Selection of available voltages and GPIO configs.
+- startup-delay-us	: Startup time in microseconds.
+- enable-active-high	: Polarity of GPIO is active high (default is low).
+
+Any property defined as part of the core regulator binding defined in
+regulator.txt can also be used.
+
+Example:
+
+	mmciv: gpio-regulator {
+		compatible = "regulator-gpio";
+
+		regulator-name = "mmci-gpio-supply";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2600000>;
+		regulator-boot-on;
+
+		gpio-enable = <&gpio0 23 0x4>;
+		gpios = <&gpio0 24 0x4
+			 &gpio0 25 0x4>;
+		states = <1800000 0x3
+			  2200000 0x2
+			  2600000 0x1
+			  2900000 0x0>;
+
+		startup-delay-us = <100000>;
+		enable-active-high;
+	};
