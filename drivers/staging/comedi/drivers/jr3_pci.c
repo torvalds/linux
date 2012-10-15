@@ -62,7 +62,7 @@ struct jr3_pci_dev_private {
 
 	struct pci_dev *pci_dev;
 	int pci_enabled;
-	volatile struct jr3_t *iobase;
+	struct jr3_t __iomem *iobase;
 	int n_channels;
 	struct timer_list timer;
 };
@@ -74,7 +74,7 @@ struct poll_delay_t {
 };
 
 struct jr3_pci_subdev_private {
-	volatile struct jr3_channel *channel;
+	struct jr3_channel __iomem *channel;
 	unsigned long next_time_min;
 	unsigned long next_time_max;
 	enum { state_jr3_poll,
@@ -138,7 +138,7 @@ static struct poll_delay_t poll_delay_min_max(int min, int max)
 	return result;
 }
 
-static int is_complete(volatile struct jr3_channel *channel)
+static int is_complete(struct jr3_channel __iomem *channel)
 {
 	return get_s16(&channel->command_word0) == 0;
 }
@@ -150,7 +150,7 @@ struct transform_t {
 	} link[8];
 };
 
-static void set_transforms(volatile struct jr3_channel *channel,
+static void set_transforms(struct jr3_channel __iomem *channel,
 			   struct transform_t transf, short num)
 {
 	int i;
@@ -169,18 +169,18 @@ static void set_transforms(volatile struct jr3_channel *channel,
 	}
 }
 
-static void use_transform(volatile struct jr3_channel *channel,
+static void use_transform(struct jr3_channel __iomem *channel,
 			  short transf_num)
 {
 	set_s16(&channel->command_word0, 0x0500 + (transf_num & 0x000f));
 }
 
-static void use_offset(volatile struct jr3_channel *channel, short offset_num)
+static void use_offset(struct jr3_channel __iomem *channel, short offset_num)
 {
 	set_s16(&channel->command_word0, 0x0600 + (offset_num & 0x000f));
 }
 
-static void set_offset(volatile struct jr3_channel *channel)
+static void set_offset(struct jr3_channel __iomem *channel)
 {
 	set_s16(&channel->command_word0, 0x0700);
 }
@@ -194,7 +194,7 @@ struct six_axis_t {
 	s16 mz;
 };
 
-static void set_full_scales(volatile struct jr3_channel *channel,
+static void set_full_scales(struct jr3_channel __iomem *channel,
 			    struct six_axis_t full_scale)
 {
 	printk("%d %d %d %d %d %d\n",
@@ -210,7 +210,7 @@ static void set_full_scales(volatile struct jr3_channel *channel,
 	set_s16(&channel->command_word0, 0x0a00);
 }
 
-static struct six_axis_t get_min_full_scales(volatile struct jr3_channel
+static struct six_axis_t get_min_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -223,7 +223,7 @@ static struct six_axis_t get_min_full_scales(volatile struct jr3_channel
 	return result;
 }
 
-static struct six_axis_t get_max_full_scales(volatile struct jr3_channel
+static struct six_axis_t get_max_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -492,7 +492,7 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 	int i;
 
 	if (p) {
-		volatile struct jr3_channel *channel = p->channel;
+		struct jr3_channel __iomem *channel = p->channel;
 		int errors = get_u16(&channel->errors);
 
 		if (errors != p->errors) {
@@ -607,7 +607,7 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 					     is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
-					volatile struct force_array *full_scale;
+					struct force_array __iomem *full_scale;
 
 					/*  Use ranges in kN or we will overflow arount 2000N! */
 					full_scale = &channel->full_scale;
@@ -849,8 +849,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 			p->channel = &devpriv->iobase->channel[i].data;
 			dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
 				p->channel, devpriv->iobase,
-				((char *)(p->channel) -
-				 (char *)(devpriv->iobase)));
+				((char __iomem *)p->channel -
+				 (char __iomem *)devpriv->iobase));
 			p->channel_no = i;
 			for (j = 0; j < 8; j++) {
 				int k;
@@ -941,7 +941,7 @@ static void jr3_pci_detach(struct comedi_device *dev)
 				kfree(dev->subdevices[i].private);
 		}
 		if (devpriv->iobase)
-			iounmap((void *)devpriv->iobase);
+			iounmap(devpriv->iobase);
 		if (devpriv->pci_enabled)
 			comedi_pci_disable(devpriv->pci_dev);
 		if (devpriv->pci_dev)
