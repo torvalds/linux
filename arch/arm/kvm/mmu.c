@@ -28,8 +28,6 @@
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
-#include <asm/mach/map.h>
-#include <trace/events/kvm.h>
 
 #include "trace.h"
 
@@ -40,16 +38,6 @@ static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 static void kvm_tlb_flush_vmid(struct kvm *kvm)
 {
 	kvm_call_hyp(__kvm_tlb_flush_vmid, kvm);
-}
-
-static void kvm_set_pte(pte_t *pte, pte_t new_pte)
-{
-	pte_val(*pte) = new_pte;
-	/*
-	 * flush_pmd_entry just takes a void pointer and cleans the necessary
-	 * cache entries, so we can reuse the function for ptes.
-	 */
-	flush_pmd_entry(pte);
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -290,7 +278,7 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 	VM_BUG_ON((unsigned long)pgd & (S2_PGD_SIZE - 1));
 
 	memset(pgd, 0, PTRS_PER_S2_PGD * sizeof(pgd_t));
-	clean_dcache_area(pgd, PTRS_PER_S2_PGD * sizeof(pgd_t));
+	kvm_clean_pgd(pgd);
 	kvm->arch.pgd = pgd;
 
 	return 0;
@@ -422,22 +410,22 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 			return 0; /* ignore calls from kvm_set_spte_hva */
 		pmd = mmu_memory_cache_alloc(cache);
 		pud_populate(NULL, pud, pmd);
-		pmd += pmd_index(addr);
 		get_page(virt_to_page(pud));
-	} else
-		pmd = pmd_offset(pud, addr);
+	}
+
+	pmd = pmd_offset(pud, addr);
 
 	/* Create 2nd stage page table mapping - Level 2 */
 	if (pmd_none(*pmd)) {
 		if (!cache)
 			return 0; /* ignore calls from kvm_set_spte_hva */
 		pte = mmu_memory_cache_alloc(cache);
-		clean_pte_table(pte);
+		kvm_clean_pte(pte);
 		pmd_populate_kernel(NULL, pmd, pte);
-		pte += pte_index(addr);
 		get_page(virt_to_page(pmd));
-	} else
-		pte = pte_offset_kernel(pmd, addr);
+	}
+
+	pte = pte_offset_kernel(pmd, addr);
 
 	if (iomap && pte_present(*pte))
 		return -EFAULT;
@@ -473,7 +461,8 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 	pfn = __phys_to_pfn(pa);
 
 	for (addr = guest_ipa; addr < end; addr += PAGE_SIZE) {
-		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE | L_PTE_S2_RDWR);
+		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE);
+		kvm_set_s2pte_writable(&pte);
 
 		ret = mmu_topup_memory_cache(&cache, 2, 2);
 		if (ret)
@@ -490,29 +479,6 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 out:
 	mmu_free_memory_cache(&cache);
 	return ret;
-}
-
-static void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
-{
-	/*
-	 * If we are going to insert an instruction page and the icache is
-	 * either VIPT or PIPT, there is a potential problem where the host
-	 * (or another VM) may have used the same page as this guest, and we
-	 * read incorrect data from the icache.  If we're using a PIPT cache,
-	 * we can invalidate just that page, but if we are using a VIPT cache
-	 * we need to invalidate the entire icache - damn shame - as written
-	 * in the ARM ARM (DDI 0406C.b - Page B3-1393).
-	 *
-	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
-	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
-	 */
-	if (icache_is_pipt()) {
-		unsigned long hva = gfn_to_hva(kvm, gfn);
-		__cpuc_coherent_user_range(hva, hva + PAGE_SIZE);
-	} else if (!icache_is_vivt_asid_tagged()) {
-		/* any kind of VIPT cache */
-		__flush_icache_all();
-	}
 }
 
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
@@ -560,7 +526,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 	if (writable) {
-		pte_val(new_pte) |= L_PTE_S2_RDWR;
+		kvm_set_s2pte_writable(&new_pte);
 		kvm_set_pfn_dirty(pfn);
 	}
 	stage2_set_pte(vcpu->kvm, memcache, fault_ipa, &new_pte, false);
@@ -774,7 +740,7 @@ void kvm_clear_hyp_idmap(void)
 		pmd = pmd_offset(pud, addr);
 
 		pud_clear(pud);
-		clean_pmd_entry(pmd);
+		kvm_clean_pmd_entry(pmd);
 		pmd_free(NULL, (pmd_t *)((unsigned long)pmd & PAGE_MASK));
 	} while (pgd++, addr = next, addr < end);
 }
