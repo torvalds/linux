@@ -1600,10 +1600,34 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 
+#define POWEROFF_CHARGING_ANIMATION		(1)
 #define POWER_ON_PIN RK30_PIN0_PA0   //power_hold
 static void rk30_pm_power_off(void)
 {
-	printk(KERN_ERR "rk30_pm_power_off start...\n");
+#if POWEROFF_CHARGING_ANIMATION
+	int pwr_cnt = 0;
+	struct rk30_adc_battery_platform_data *batt_plat_data = &rk30_adc_battery_platdata;
+	if (gpio_get_value (batt_plat_data->dc_det_pin)  ==
+		batt_plat_data->dc_det_level) {
+		printk("AC Charging, try to restart...\n");
+		while (1) {
+			 if (gpio_get_value (batt_plat_data->dc_det_pin) !=
+				batt_plat_data->dc_det_level ) {
+				pwr_cnt = 0;
+				break;
+			 }
+			 if (pwr_cnt++ > 40)
+				break;
+			 mdelay(50);
+		}
+		if (pwr_cnt > 40)  {
+			printk("AC Charging, will restart system...\n");
+			arm_pm_restart(0, NULL);
+		}
+	}
+#endif
+
+	printk("rk30_pm_power_off start...\n");
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 #if defined(CONFIG_MFD_WM831X)
 	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
