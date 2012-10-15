@@ -216,12 +216,11 @@ int copy_thread(unsigned long clone_flags, unsigned long spu,
 	return 0;
 }
 
-asmlinkage int sys_fork(unsigned long r0, unsigned long r1, unsigned long r2,
-	unsigned long r3, unsigned long r4, unsigned long r5, unsigned long r6,
-	struct pt_regs regs)
+asmlinkage int sys_fork(void)
 {
 #ifdef CONFIG_MMU
-	return do_fork(SIGCHLD, regs.spu, &regs, 0, NULL, NULL);
+	struct pt_regs *regs = current_pt_regs();
+	return do_fork(SIGCHLD, regs->spu, regs, 0, NULL, NULL);
 #else
 	return -EINVAL;
 #endif /* CONFIG_MMU */
@@ -229,14 +228,13 @@ asmlinkage int sys_fork(unsigned long r0, unsigned long r1, unsigned long r2,
 
 asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr,
-			 unsigned long r4, unsigned long r5, unsigned long r6,
-			 struct pt_regs regs)
+			 unsigned long child_tidptr)
 {
+	struct pt_regs *regs = current_pt_regs();
 	if (!newsp)
-		newsp = regs.spu;
+		newsp = regs->spu;
 
-	return do_fork(clone_flags, newsp, &regs, 0,
+	return do_fork(clone_flags, newsp, regs, 0,
 		       (int __user *)parent_tidptr, (int __user *)child_tidptr);
 }
 
@@ -250,35 +248,11 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
  * do not have enough call-clobbered registers to hold all
  * the information you need.
  */
-asmlinkage int sys_vfork(unsigned long r0, unsigned long r1, unsigned long r2,
-	unsigned long r3, unsigned long r4, unsigned long r5, unsigned long r6,
-	struct pt_regs regs)
+asmlinkage int sys_vfork(void)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.spu, &regs, 0,
+	struct pt_regs *regs = current_pt_regs();
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->spu, regs, 0,
 			NULL, NULL);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  unsigned long r3, unsigned long r4, unsigned long r5,
-			  unsigned long r6, struct pt_regs regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, &regs);
-	putname(filename);
-out:
-	return error;
 }
 
 /*
