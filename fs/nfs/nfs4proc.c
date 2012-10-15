@@ -5581,8 +5581,8 @@ static void nfs4_get_lease_time_prepare(struct rpc_task *task,
 				   &data->args->la_seq_args,
 				   &data->res->lr_seq_res, task);
 
-	BUG_ON(ret == -EAGAIN);
-	rpc_call_start(task);
+	if (ret != -EAGAIN)
+		rpc_call_start(task);
 	dprintk("<-- %s\n", __func__);
 }
 
