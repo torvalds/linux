@@ -1138,13 +1138,22 @@ void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	uint32_t val;
+	bool wait = false;
 
 	val = I915_READ(DDI_BUF_CTL(port));
 	if (val & DDI_BUF_CTL_ENABLE) {
 		val &= ~DDI_BUF_CTL_ENABLE;
 		I915_WRITE(DDI_BUF_CTL(port), val);
-		intel_wait_ddi_buf_idle(dev_priv, port);
+		wait = true;
 	}
+
+	val = I915_READ(DP_TP_CTL(port));
+	val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
+	val |= DP_TP_CTL_LINK_TRAIN_PAT1;
+	I915_WRITE(DP_TP_CTL(port), val);
+
+	if (wait)
+		intel_wait_ddi_buf_idle(dev_priv, port);
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
