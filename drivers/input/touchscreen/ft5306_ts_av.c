@@ -700,7 +700,7 @@ static irqreturn_t ft5306_interrupt(int irq, void *dev_id)
 }
 #ifdef CONFIG_HAS_EARLYSUSPEND
 
-static int ft5306_suspend(struct early_suspend *h)
+static void ft5306_suspend(struct early_suspend *h)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts;
 	char buf_w[1] = {3};
@@ -714,11 +714,10 @@ static int ft5306_suspend(struct early_suspend *h)
 	if (err>0)
 		printk("ft5306_set_regs OK!!\n");
 	disable_irq(ft5x0x_ts->irq);
-	return 0;
 }
 
 
-static int ft5306_resume(struct early_suspend *h)
+static void ft5306_resume(struct early_suspend *h)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts;	
 	int trytimes;
@@ -743,7 +742,6 @@ static int ft5306_resume(struct early_suspend *h)
 	//gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	//mdelay(100);
 	//gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	return 0;
 }
 #endif
 
@@ -774,7 +772,7 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 	int retry = 0;
 	u8 buf_w[1];
 	u8 buf_r[1];
-	const u8 buf_test[1] = {0};
+	u8 buf_test[1] = {0};
     unsigned char reg_value;
     unsigned char reg_version;
 
