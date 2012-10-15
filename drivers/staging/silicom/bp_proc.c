@@ -87,10 +87,10 @@ static struct proc_dir_entry *proc_getdir(char *name,
 		/* create the directory */
 		pde = create_proc_entry(name, S_IFDIR, proc_dir);
 		if (pde == (struct proc_dir_entry *)0) {
-			return (pde);
+			return pde;
 		}
 	}
-	return (pde);
+	return pde;
 }
 
 #ifdef BYPASS_SUPPORT
