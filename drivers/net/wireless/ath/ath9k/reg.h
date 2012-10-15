@@ -2363,5 +2363,8 @@ enum {
 #define AR_MCI_MISC                    0x1a74
 #define AR_MCI_MISC_HW_FIX_EN          0x00000001
 #define AR_MCI_MISC_HW_FIX_EN_S        0
+#define AR_MCI_DBG_CNT_CTRL            0x1a78
+#define AR_MCI_DBG_CNT_CTRL_ENABLE     0x00000001
+#define AR_MCI_DBG_CNT_CTRL_ENABLE_S   0
 
 #endif
