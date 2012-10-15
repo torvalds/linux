@@ -1364,9 +1364,11 @@ extern unsigned long fb_size;
 
 __s32 Fb_Init(__u32 from)
 {    
-    __disp_fb_create_para_t fb_para;
     __s32 i;
     __bool need_open_hdmi = 0;
+	__disp_fb_create_para_t fb_para = {
+		.primary_screen_id = 0,
+	};
 
     __inf("Fb_Init:%d\n", from);
 
