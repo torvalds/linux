@@ -860,6 +860,7 @@ comedi_auto_config_helper(struct device *hardware_device,
 	else if (!try_module_get(driver->module))
 		ret = -EIO;
 	else {
+		comedi_set_hw_dev(comedi_dev, hardware_device);
 		/* set comedi_dev->driver here for attach wrapper */
 		comedi_dev->driver = driver;
 		ret = (*attach_wrapper)(comedi_dev, context);
