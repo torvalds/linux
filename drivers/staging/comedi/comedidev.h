@@ -436,9 +436,10 @@ into comedi's buffer */
 static inline void comedi_set_hw_dev(struct comedi_device *dev,
 				     struct device *hw_dev)
 {
+	if (dev->hw_dev == hw_dev)
+		return;
 	if (dev->hw_dev)
 		put_device(dev->hw_dev);
-
 	dev->hw_dev = hw_dev;
 	if (dev->hw_dev) {
 		dev->hw_dev = get_device(dev->hw_dev);
