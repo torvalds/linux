@@ -336,6 +336,11 @@ static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 
 static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 {
+	if (!(vcpu->arch.vpa.update_pending ||
+	      vcpu->arch.slb_shadow.update_pending ||
+	      vcpu->arch.dtl.update_pending))
+		return;
+
 	spin_lock(&vcpu->arch.vpa_update_lock);
 	if (vcpu->arch.vpa.update_pending) {
 		kvmppc_update_vpa(vcpu, &vcpu->arch.vpa);
@@ -1009,7 +1014,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->n_woken = 0;
 	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
-	vc->vcore_state = VCORE_RUNNING;
+	vc->vcore_state = VCORE_STARTING;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
 
@@ -1062,6 +1067,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 		kvmppc_create_dtl_entry(vcpu, vc);
 	}
 
+	vc->vcore_state = VCORE_RUNNING;
 	preempt_disable();
 	spin_unlock(&vc->lock);
 
@@ -1070,8 +1076,6 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	srcu_idx = srcu_read_lock(&vcpu0->kvm->srcu);
 
 	__kvmppc_vcore_entry(NULL, vcpu0);
-	for (i = 0; i < threads_per_core; ++i)
-		kvmppc_release_hwthread(vc->pcpu + i);
 
 	spin_lock(&vc->lock);
 	/* disable sending of IPIs on virtual external irqs */
@@ -1080,6 +1084,8 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/* wait for secondary threads to finish writing their state to memory */
 	if (vc->nap_count < vc->n_woken)
 		kvmppc_wait_for_nap(vc);
+	for (i = 0; i < threads_per_core; ++i)
+		kvmppc_release_hwthread(vc->pcpu + i);
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
 	vc->vcore_state = VCORE_EXITING;
 	spin_unlock(&vc->lock);
@@ -1170,6 +1176,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvm_run->exit_reason = 0;
 	vcpu->arch.ret = RESUME_GUEST;
 	vcpu->arch.trap = 0;
+	kvmppc_update_vpas(vcpu);
 
 	/*
 	 * Synchronize with other threads in this virtual core
@@ -1193,6 +1200,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		if (vc->vcore_state == VCORE_RUNNING &&
 		    VCORE_EXIT_COUNT(vc) == 0) {
 			vcpu->arch.ptid = vc->n_runnable - 1;
+			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
 		}
 
