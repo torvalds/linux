@@ -64,8 +64,6 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	local_paca->kvm_hstate.kvm_vcpu = vcpu;
-	local_paca->kvm_hstate.kvm_vcore = vc;
 	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
 		vc->stolen_tb += mftb() - vc->preempt_tb;
 }
@@ -880,6 +878,7 @@ static int kvmppc_grab_hwthread(int cpu)
 
 	/* Ensure the thread won't go into the kernel if it wakes */
 	tpaca->kvm_hstate.hwthread_req = 1;
+	tpaca->kvm_hstate.kvm_vcpu = NULL;
 
 	/*
 	 * If the thread is already executing in the kernel (e.g. handling
@@ -929,7 +928,6 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	smp_wmb();
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (vcpu->arch.ptid) {
-		kvmppc_grab_hwthread(cpu);
 		xics_wake_cpu(cpu);
 		++vc->n_woken;
 	}
@@ -955,7 +953,8 @@ static void kvmppc_wait_for_nap(struct kvmppc_vcore *vc)
 
 /*
  * Check that we are on thread 0 and that any other threads in
- * this core are off-line.
+ * this core are off-line.  Then grab the threads so they can't
+ * enter the kernel.
  */
 static int on_primary_thread(void)
 {
@@ -967,6 +966,17 @@ static int on_primary_thread(void)
 	while (++thr < threads_per_core)
 		if (cpu_online(cpu + thr))
 			return 0;
+
+	/* Grab all hw threads so they can't go into the kernel */
+	for (thr = 1; thr < threads_per_core; ++thr) {
+		if (kvmppc_grab_hwthread(cpu + thr)) {
+			/* Couldn't grab one; let the others go */
+			do {
+				kvmppc_release_hwthread(cpu + thr);
+			} while (--thr > 0);
+			return 0;
+		}
+	}
 	return 1;
 }
 
@@ -1015,16 +1025,6 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	}
 
 	/*
-	 * Make sure we are running on thread 0, and that
-	 * secondary threads are offline.
-	 */
-	if (threads_per_core > 1 && !on_primary_thread()) {
-		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
-			vcpu->arch.ret = -EBUSY;
-		goto out;
-	}
-
-	/*
 	 * Assign physical thread IDs, first to non-ceded vcpus
 	 * and then to ceded ones.
 	 */
@@ -1043,15 +1043,22 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 		if (vcpu->arch.ceded)
 			vcpu->arch.ptid = ptid++;
 
+	/*
+	 * Make sure we are running on thread 0, and that
+	 * secondary threads are offline.
+	 */
+	if (threads_per_core > 1 && !on_primary_thread()) {
+		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+			vcpu->arch.ret = -EBUSY;
+		goto out;
+	}
+
 	vc->stolen_tb += mftb() - vc->preempt_tb;
 	vc->pcpu = smp_processor_id();
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		kvmppc_start_thread(vcpu);
 		kvmppc_create_dtl_entry(vcpu, vc);
 	}
-	/* Grab any remaining hw threads so they can't go into the kernel */
-	for (i = ptid; i < threads_per_core; ++i)
-		kvmppc_grab_hwthread(vc->pcpu + i);
 
 	preempt_disable();
 	spin_unlock(&vc->lock);

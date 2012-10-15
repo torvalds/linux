@@ -134,8 +134,11 @@ kvm_start_guest:
 
 27:	/* XXX should handle hypervisor maintenance interrupts etc. here */
 
+	/* reload vcpu pointer after clearing the IPI */
+	ld	r4,HSTATE_KVM_VCPU(r13)
+	cmpdi	r4,0
 	/* if we have no vcpu to run, go back to sleep */
-	beq	cr1,kvm_no_guest
+	beq	kvm_no_guest
 
 	/* were we napping due to cede? */
 	lbz	r0,HSTATE_NAPPING(r13)
@@ -1587,6 +1590,10 @@ secondary_too_late:
 	.endr
 
 secondary_nap:
+	/* Clear our vcpu pointer so we don't come back in early */
+	li	r0, 0
+	std	r0, HSTATE_KVM_VCPU(r13)
+	lwsync
 	/* Clear any pending IPI - assume we're a secondary thread */
 	ld	r5, HSTATE_XICS_PHYS(r13)
 	li	r7, XICS_XIRR
@@ -1612,8 +1619,6 @@ secondary_nap:
 kvm_no_guest:
 	li	r0, KVM_HWTHREAD_IN_NAP
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
-	li	r0, 0
-	std	r0, HSTATE_KVM_VCPU(r13)
 
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
