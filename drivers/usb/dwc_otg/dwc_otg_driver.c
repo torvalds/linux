@@ -1370,7 +1370,7 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     }
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
-    dwc_otg_disable_global_interrupts(core_if);
+//    dwc_otg_disable_global_interrupts(core_if);
     if( pldata->phy_status == 0 ){ 
         /* no vbus detect here , close usb phy  */
         pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
@@ -1530,16 +1530,17 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     if(pldata->hw_init)
         pldata->hw_init();
         
-    if(pldata->soft_reset)
-        pldata->soft_reset();
-    
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        
     if(pldata->clock_init){
         pldata->clock_init(pldata);
         pldata->clock_enable(pldata, 1);
         }
-
-    if(pldata->phy_suspend)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        
+    if(pldata->soft_reset)
+        pldata->soft_reset();
+    
 	/*
 	 *Enable usb phy
 	 */
