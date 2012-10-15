@@ -151,9 +151,8 @@ static void xhci_usb3_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		if (portsc & PORT_DEV_REMOVE)
 			port_removable |= 1 << (i + 1);
 	}
-	memset(&desc->u.ss.DeviceRemovable,
-			(__force __u16) cpu_to_le16(port_removable),
-			sizeof(__u16));
+
+	desc->u.ss.DeviceRemovable = cpu_to_le16(port_removable);
 }
 
 static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
