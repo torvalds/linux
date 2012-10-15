@@ -83,7 +83,7 @@
 #define SCREEN_MAX_X              1024
 #define SCREEN_MAX_Y              600
 #define PRESS_MAX                 255
-#define FT5X0X_NAME	              "ft5x0x_ts"//"synaptics_i2c_rmi"//"synaptics-rmi-ts"// 
+#define FT5X0X_NAME	              "ft5x0x_ts"
 #define TOUCH_MAJOR_MAX           200
 #define WIDTH_MAJOR_MAX           200
 //FT5X0X_REG_PMODE
@@ -92,6 +92,15 @@
 #define PMODE_STANDBY             0x02
 #define PMODE_HIBERNATE           0x03
 
+/* zhengxing@rock-chips: avoid to firmwarm upgrade directly cause barrage when startup. */
+#define FT5X0X_FW_UPGRADE_ASYNC         (1)
+#define FT5X0X_FW_UPGRADE_DIRECTLY      (2)
+
+#ifdef CONFIG_MACH_RK3066B_M701
+#define FT5X0X_FW_UPGRADE_MODE          FT5X0X_FW_UPGRADE_ASYNC
+#else
+#define FT5X0X_FW_UPGRADE_MODE          FT5X0X_FW_UPGRADE_DIRECTLY
+#endif
 
 struct ts_event {
 	u16	x1;
@@ -134,6 +143,10 @@ struct ft5x0x_ts_data {
 	struct workqueue_struct *ts_workqueue;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend ft5306_early_suspend;
+#endif
+#if (FT5X0X_FW_UPGRADE_MODE == FT5X0X_FW_UPGRADE_ASYNC)
+    struct work_struct  fw_upgrade_work;
+    struct workqueue_struct *fw_workqueue;
 #endif
 };
 static struct i2c_client *this_client;
@@ -576,6 +589,44 @@ static int ft5306_set_regs(struct i2c_client *client, u8 reg, u8 *buf, unsigned 
 	return ret;
 }
 
+#if (FT5X0X_FW_UPGRADE_MODE == FT5X0X_FW_UPGRADE_ASYNC)
+static void ft5306_firmware_upgrade_work(struct work_struct *work)
+{
+    struct ft5x0x_ts_data *data = container_of(work, struct ft5x0x_ts_data, fw_upgrade_work);
+    int err = 0;
+    unsigned char reg_value;
+    unsigned char reg_version;
+
+    printk("<-- %s --> enter\n", __FUNCTION__);
+
+    fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
+    printk("cdy == [TSP] firmware version = 0x%2x\n", reg_version);
+
+    fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
+    FTprintk("[TSP] firmware version = 0x%2x\n", reg_version);
+    if (fts_ctpm_get_upg_ver() != reg_version)  
+    {
+      FTprintk("[TSP] start upgrade new verison 0x%2x\n", fts_ctpm_get_upg_ver());
+      msleep(200);
+      err =  fts_ctpm_fw_upgrade_with_i_file();
+      if (err == 0)
+      {
+          FTprintk("[TSP] ugrade successfuly.\n");
+          msleep(300);
+          fts_register_read(FT5X0X_REG_FIRMID, &reg_value,1);
+          FTprintk("FTS_DBG from old version 0x%2x to new version = 0x%2x\n", reg_version, reg_value);
+      }
+      else
+      {
+          FTprintk("[TSP]  ugrade fail err=%d, line = %d.\n",err, __LINE__);
+      }
+      msleep(4000);
+    }
+    cancel_work_sync(&data->fw_upgrade_work);
+    destroy_workqueue(data->fw_workqueue);
+}
+#endif
+
 static void ft5306_queue_work(struct work_struct *work)
 {
 	struct ft5x0x_ts_data *data = container_of(work, struct ft5x0x_ts_data, pen_event_work);
@@ -873,11 +924,22 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 
 	/***wait CTP to bootup normally***/
 	msleep(200); 
-	
-	fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
-	printk("cdy == [TSP] firmware version = 0x%2x\n", reg_version);
-	
-#if 1	//write firmware 
+
+//write firmware 
+#if (FT5X0X_FW_UPGRADE_MODE == FT5X0X_FW_UPGRADE_ASYNC)
+/* zhengxing: will upgrade firmware async */
+    printk("will create ft tp firmware upgrade workqueue...\n");
+    ft5x0x_ts->fw_workqueue = create_singlethread_workqueue("ft5x0x_fw");
+    if (!ft5x0x_ts->fw_workqueue) {
+        err = -ESRCH;
+        goto exit_create_singlethread;
+    }
+    INIT_WORK(&ft5x0x_ts->fw_upgrade_work, ft5306_firmware_upgrade_work);    
+#else
+/* zhengxing: will upgrade firmware directly */
+    fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
+    printk("cdy == [TSP] firmware version = 0x%2x\n", reg_version);
+
 	fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
 	FTprintk("[TSP] firmware version = 0x%2x\n", reg_version);
 	if (fts_ctpm_get_upg_ver() != reg_version)  
@@ -916,6 +978,11 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 	buf_r[0] = 0;
 	err = ft5306_read_regs(client,0x88,buf_r,1);
 	FTprintk("read buf[0x88] = %d\n", buf_r[0]);
+
+#if (FT5X0X_FW_UPGRADE_MODE == FT5X0X_FW_UPGRADE_ASYNC) 
+    queue_work(ft5x0x_ts->fw_workqueue, &ft5x0x_ts->fw_upgrade_work);
+#endif
+
     return 0;
 
 	i2c_set_clientdata(client, NULL);
