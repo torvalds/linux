@@ -557,26 +557,27 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
 }
 EXPORT_SYMBOL_GPL(swiotlb_tbl_unmap_single);
 
-void
-swiotlb_tbl_sync_single(struct device *hwdev, char *dma_addr, size_t size,
-			enum dma_data_direction dir,
-			enum dma_sync_target target)
+void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+			     size_t size, enum dma_data_direction dir,
+			     enum dma_sync_target target)
 {
-	int index = (dma_addr - (char *)phys_to_virt(io_tlb_start)) >> IO_TLB_SHIFT;
-	phys_addr_t phys = io_tlb_orig_addr[index];
+	int index = (tlb_addr - io_tlb_start) >> IO_TLB_SHIFT;
+	phys_addr_t orig_addr = io_tlb_orig_addr[index];
 
-	phys += ((unsigned long)dma_addr & ((1 << IO_TLB_SHIFT) - 1));
+	orig_addr += (unsigned long)tlb_addr & ((1 << IO_TLB_SHIFT) - 1);
 
 	switch (target) {
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
-			swiotlb_bounce(phys, dma_addr, size, DMA_FROM_DEVICE);
+			swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
+				       size, DMA_FROM_DEVICE);
 		else
 			BUG_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
-			swiotlb_bounce(phys, dma_addr, size, DMA_TO_DEVICE);
+			swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
+				       size, DMA_TO_DEVICE);
 		else
 			BUG_ON(dir != DMA_FROM_DEVICE);
 		break;
@@ -785,8 +786,7 @@ swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 	BUG_ON(dir == DMA_NONE);
 
 	if (is_swiotlb_buffer(paddr)) {
-		swiotlb_tbl_sync_single(hwdev, phys_to_virt(paddr), size, dir,
-				       target);
+		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);
 		return;
 	}
 

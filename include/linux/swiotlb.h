@@ -47,7 +47,8 @@ extern void swiotlb_tbl_unmap_single(struct device *hwdev,
 				     phys_addr_t tlb_addr,
 				     size_t size, enum dma_data_direction dir);
 
-extern void swiotlb_tbl_sync_single(struct device *hwdev, char *dma_addr,
+extern void swiotlb_tbl_sync_single(struct device *hwdev,
+				    phys_addr_t tlb_addr,
 				    size_t size, enum dma_data_direction dir,
 				    enum dma_sync_target target);
 
