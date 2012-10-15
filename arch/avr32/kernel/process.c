@@ -349,27 +349,6 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
 		       0, NULL, NULL);
 }
 
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, regs);
-	putname(filename);
-
-out:
-	return error;
-}
-
-
 /*
  * This function is supposed to answer the question "who called
  * schedule()?"
