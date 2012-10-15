@@ -911,15 +911,27 @@ static void __init rk2928_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
-	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
-	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
-	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 912 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1008 * 1000,	.cpu_volt = 1500 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#if defined(CONFIG_MACH_RK2926_M713)
+	{.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 408 * 1000,	.cpu_volt =  950 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 600 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
+	{.frequency = 696 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 816 * 1000,	.cpu_volt = 1250 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 912 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#else
+	{.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 408 * 1000,	.cpu_volt =  975 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 600 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
+	{.frequency = 696 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 816 * 1000,	.cpu_volt = 1325 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1475 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#endif
 #if 0
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
