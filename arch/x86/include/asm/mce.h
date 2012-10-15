@@ -119,6 +119,13 @@ struct mce_log {
 #define K8_MCE_THRESHOLD_BASE      (MCE_EXTENDED_BANK + 1)
 
 #ifdef __KERNEL__
+
+struct mca_config {
+	bool dont_log_ce;
+	u8 banks;
+	int tolerant;
+};
+
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
