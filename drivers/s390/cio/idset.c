@@ -90,6 +90,14 @@ void idset_sch_del(struct idset *set, struct subchannel_id schid)
 	idset_del(set, schid.ssid, schid.sch_no);
 }
 
+/* Clear ids starting from @schid up to end of subchannel set. */
+void idset_sch_del_subseq(struct idset *set, struct subchannel_id schid)
+{
+	int pos = schid.ssid * set->num_id + schid.sch_no;
+
+	bitmap_clear(set->bitmap, pos, set->num_id - schid.sch_no);
+}
+
 int idset_sch_contains(struct idset *set, struct subchannel_id schid)
 {
 	return idset_contains(set, schid.ssid, schid.sch_no);
