@@ -11,7 +11,7 @@
 /******************************************************************************/
 
 #include <linux/version.h>
-#if defined(CONFIG_SMP) && ! defined(__SMP__)
+#if defined(CONFIG_SMP) && !defined(__SMP__)
 #define __SMP__
 #endif
 
@@ -24,7 +24,7 @@
 #define BP_PROC_DIR "bypass"
 //#define BYPASS_SUPPORT "bypass"
 
-#ifdef  BYPASS_SUPPORT
+#ifdef BYPASS_SUPPORT
 
 #define GPIO6_SET_ENTRY_SD           "gpio6_set"
 #define GPIO6_CLEAR_ENTRY_SD         "gpio6_clear"
@@ -98,8 +98,8 @@ static struct proc_dir_entry *proc_getdir(char *name,
 int
 bypass_proc_create_entry_sd(struct pfs_unit *pfs_unit_curr,
 			    char *proc_name,
-			    write_proc_t * write_proc,
-			    read_proc_t * read_proc,
+			    write_proc_t *write_proc,
+			    read_proc_t *read_proc,
 			    struct proc_dir_entry *parent_pfs, void *data)
 {
 	strcpy(pfs_unit_curr->proc_name, proc_name);
@@ -1147,7 +1147,7 @@ set_hw_reset_pfs(struct file *file, const char *buffer,
 
 #endif				/*PMC_FIX_FLAG */
 
-int bypass_proc_create_dev_sd(bpctl_dev_t * pbp_device_block)
+int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 	struct bypass_pfs_sd *current_pfs = &(pbp_device_block->bypass_pfs_set);
 	static struct proc_dir_entry *procfs_dir = NULL;
@@ -1327,7 +1327,7 @@ int bypass_proc_create_dev_sd(bpctl_dev_t * pbp_device_block)
 	return ret;
 }
 
-int bypass_proc_remove_dev_sd(bpctl_dev_t * pbp_device_block)
+int bypass_proc_remove_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 
 	struct bypass_pfs_sd *current_pfs = &pbp_device_block->bypass_pfs_set;
