@@ -25,6 +25,13 @@
 
 #define MAX_DMAREQ		5	/* REVISIT: Really 6, but req5 not OK */
 
+#define OMAP24XX_DMA_EXT_DMAREQ0	2
+#define OMAP24XX_DMA_EXT_DMAREQ1	3
+#define OMAP242X_DMA_EXT_DMAREQ2	14
+#define OMAP242X_DMA_EXT_DMAREQ3	15
+#define OMAP242X_DMA_EXT_DMAREQ4	16
+#define OMAP242X_DMA_EXT_DMAREQ5	64
+
 struct tusb_omap_dma_ch {
 	struct musb		*musb;
 	void __iomem		*tbase;

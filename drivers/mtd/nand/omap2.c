@@ -111,6 +111,8 @@
 #define	ECCCLEAR			0x100
 #define	ECC1				0x1
 
+#define OMAP24XX_DMA_GPMC		4
+
 /* oob info generated runtime depending on ecc algorithm and layout selected */
 static struct nand_ecclayout omap_oobinfo;
 /* Define some generic bad / good block scan pattern which are used

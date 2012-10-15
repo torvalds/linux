@@ -89,6 +89,12 @@
 #define OMAP_DMA_MMC2_TX	54
 #define OMAP_DMA_MMC2_RX	55
 
+#define OMAP24XX_DMA_MMC2_TX	47
+#define OMAP24XX_DMA_MMC2_RX	48
+#define OMAP24XX_DMA_MMC1_TX	61
+#define OMAP24XX_DMA_MMC1_RX	62
+
+
 #define DRIVER_NAME "mmci-omap"
 
 /* Specifies how often in millisecs to poll for card status changes

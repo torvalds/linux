@@ -35,6 +35,8 @@
 #include "omap_hwmod_common_data.h"
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
+
+#include "dma.h"
 #include "wd_timer.h"
 
 /*

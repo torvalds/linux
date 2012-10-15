@@ -16,6 +16,7 @@
 #include "hdq1w.h"
 
 #include "omap_hwmod_common_data.h"
+#include "dma.h"
 
 /* UART */
 
