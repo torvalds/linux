@@ -102,8 +102,6 @@ bool intel_encoder_is_pch_edp(struct drm_encoder *encoder)
 	return is_pch_edp(intel_dp);
 }
 
-static void intel_dp_start_link_train(struct intel_dp *intel_dp);
-static void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 static void intel_dp_link_down(struct intel_dp *intel_dp);
 
 void
@@ -1266,7 +1264,7 @@ static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 }
 
 /* If the sink supports it, try to set the power state appropriately */
-static void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
+void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 {
 	int ret, i;
 
@@ -1854,15 +1852,19 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 }
 
 /* Enable corresponding port and start training pattern 1 */
-static void
+void
 intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_encoder *encoder = &intel_dp->base.base;
+	struct drm_device *dev = encoder->dev;
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
 	int voltage_tries, loop_tries;
 	uint32_t DP = intel_dp->DP;
+
+	if (IS_HASWELL(dev))
+		intel_ddi_prepare_link_retrain(encoder);
 
 	/* Write the link configuration data */
 	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
@@ -1949,7 +1951,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	intel_dp->DP = DP;
 }
 
-static void
+void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
@@ -2034,6 +2036,24 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t DP = intel_dp->DP;
+
+	/*
+	 * DDI code has a strict mode set sequence and we should try to respect
+	 * it, otherwise we might hang the machine in many different ways. So we
+	 * really should be disabling the port only on a complete crtc_disable
+	 * sequence. This function is just called under two conditions on DDI
+	 * code:
+	 * - Link train failed while doing crtc_enable, and on this case we
+	 *   really should respect the mode set sequence and wait for a
+	 *   crtc_disable.
+	 * - Someone turned the monitor off and intel_dp_check_link_status
+	 *   called us. We don't need to disable the whole port on this case, so
+	 *   when someone turns the monitor on again,
+	 *   intel_ddi_prepare_link_retrain will take care of redoing the link
+	 *   train.
+	 */
+	if (IS_HASWELL(dev))
+		return;
 
 	if (WARN_ON((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0))
 		return;

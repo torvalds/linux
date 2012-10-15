@@ -423,6 +423,9 @@ void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
 extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
+extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
+extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
+extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern int intel_edp_target_clock(struct intel_encoder *,
@@ -599,5 +602,6 @@ extern void intel_ddi_pre_enable(struct intel_encoder *intel_encoder);
 extern void intel_ddi_post_disable(struct intel_encoder *intel_encoder);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
+extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
 
 #endif /* __INTEL_DRV_H__ */

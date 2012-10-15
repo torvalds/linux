@@ -1108,14 +1108,23 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 
 void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
-	struct drm_crtc *crtc = intel_encoder->base.crtc;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
 
 	I915_WRITE(PORT_CLK_SEL(port), intel_crtc->ddi_pll_sel);
+
+	if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+		intel_dp_start_link_train(intel_dp);
+		intel_dp_complete_link_train(intel_dp);
+	}
 }
 
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
@@ -1209,4 +1218,44 @@ void intel_ddi_pll_init(struct drm_device *dev)
 
 	if (val & LCPLL_PLL_DISABLE)
 		DRM_ERROR("LCPLL is disabled\n");
+}
+
+void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	enum port port = intel_dp->port;
+	bool wait;
+	uint32_t val;
+
+	if (I915_READ(DP_TP_CTL(port)) & DP_TP_CTL_ENABLE) {
+		val = I915_READ(DDI_BUF_CTL(port));
+		if (val & DDI_BUF_CTL_ENABLE) {
+			val &= ~DDI_BUF_CTL_ENABLE;
+			I915_WRITE(DDI_BUF_CTL(port), val);
+			wait = true;
+		}
+
+		val = I915_READ(DP_TP_CTL(port));
+		val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
+		val |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		I915_WRITE(DP_TP_CTL(port), val);
+		POSTING_READ(DP_TP_CTL(port));
+
+		if (wait)
+			intel_wait_ddi_buf_idle(dev_priv, port);
+	}
+
+	val = DP_TP_CTL_ENABLE | DP_TP_CTL_MODE_SST |
+	      DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
+	if (intel_dp->link_configuration[1] & DP_LANE_COUNT_ENHANCED_FRAME_EN)
+		val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
+	I915_WRITE(DP_TP_CTL(port), val);
+	POSTING_READ(DP_TP_CTL(port));
+
+	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
+	I915_WRITE(DDI_BUF_CTL(port), intel_dp->DP);
+	POSTING_READ(DDI_BUF_CTL(port));
+
+	udelay(600);
 }
