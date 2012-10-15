@@ -1130,7 +1130,7 @@ set_hw_reset_pfs(struct file *file, const char *buffer,
 int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 	struct bypass_pfs_sd *current_pfs = &(pbp_device_block->bypass_pfs_set);
-	static struct proc_dir_entry *procfs_dir = NULL;
+	static struct proc_dir_entry *procfs_dir;
 	int ret = 0;
 
 	sprintf(current_pfs->dir_name, "bypass_%s", dev->name);
