@@ -432,6 +432,29 @@ enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 	}
 }
 
+/* calculate clock rates using dividers in cinfo */
+int dss_calc_clock_rates(struct dss_clock_info *cinfo)
+{
+	if (dss.dpll4_m4_ck) {
+		unsigned long prate;
+
+		if (cinfo->fck_div > dss.feat->fck_div_max ||
+				cinfo->fck_div == 0)
+			return -EINVAL;
+
+		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
+
+		cinfo->fck = prate / cinfo->fck_div *
+			dss.feat->dss_fck_multiplier;
+	} else {
+		if (cinfo->fck_div != 0)
+			return -EINVAL;
+		cinfo->fck = clk_get_rate(dss.dss_clk);
+	}
+
+	return 0;
+}
+
 int dss_set_clock_div(struct dss_clock_info *cinfo)
 {
 	if (dss.dpll4_m4_ck) {
