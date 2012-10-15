@@ -320,8 +320,8 @@ static void __init u8500_init_machine(void)
 		snowball_pinmaps_init();
 	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
-	else if (of_machine_is_compatible("st-ericsson,u9540")) {}
-		/* TODO: Add u9540 pinmaps. */
+	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
+		/* TODO: Add pinmaps for ccu9540 board. */
 
 	/* TODO: Export SoC, USB, cpu-freq and DMA40 */
 	parent = u8500_of_init_devices();
@@ -334,7 +334,7 @@ static const char * u8500_dt_board_compat[] = {
 	"calaosystems,snowball-a9500",
 	"st-ericsson,hrefv60+",
 	"st-ericsson,mop500",
-	"st-ericsson,u9540",
+	"st-ericsson,ccu9540",
 	NULL,
 };
 

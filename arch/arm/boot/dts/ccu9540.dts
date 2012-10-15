@@ -13,8 +13,8 @@
 /include/ "dbx5x0.dtsi"
 
 / {
-	model = "ST-Ericsson U9540 platform with Device Tree";
-	compatible = "st-ericsson,u9540";
+	model = "ST-Ericsson CCU9540 platform with Device Tree";
+	compatible = "st-ericsson,ccu9540";
 
 	memory {
 		reg = <0x00000000 0x20000000>;
