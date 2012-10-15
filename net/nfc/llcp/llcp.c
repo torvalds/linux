@@ -249,7 +249,12 @@ struct nfc_llcp_sock *nfc_llcp_sock_from_sn(struct nfc_llcp_local *local,
 
 		pr_debug("llcp sock %p\n", tmp_sock);
 
-		if (tmp_sock->sk.sk_state != LLCP_LISTEN)
+		if (tmp_sock->sk.sk_type == SOCK_STREAM &&
+		    tmp_sock->sk.sk_state != LLCP_LISTEN)
+			continue;
+
+		if (tmp_sock->sk.sk_type == SOCK_DGRAM &&
+		    tmp_sock->sk.sk_state != LLCP_BOUND)
 			continue;
 
 		if (tmp_sock->service_name == NULL ||
