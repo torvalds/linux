@@ -2553,6 +2553,12 @@ static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 	.disable = intel_encoder_noop,
 };
 
+static const struct drm_encoder_helper_funcs intel_dp_helper_funcs_hsw = {
+	.mode_fixup = intel_dp_mode_fixup,
+	.mode_set = intel_ddi_mode_set,
+	.disable = intel_encoder_noop,
+};
+
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
@@ -2688,16 +2694,30 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
+
+	if (IS_HASWELL(dev))
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_dp_helper_funcs_hsw);
+	else
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_dp_helper_funcs);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);
 
-	intel_encoder->enable = intel_enable_dp;
-	intel_encoder->pre_enable = intel_pre_enable_dp;
-	intel_encoder->disable = intel_disable_dp;
-	intel_encoder->post_disable = intel_post_disable_dp;
-	intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	if (IS_HASWELL(dev)) {
+		intel_encoder->enable = intel_enable_ddi;
+		intel_encoder->pre_enable = intel_ddi_pre_enable;
+		intel_encoder->disable = intel_disable_ddi;
+		intel_encoder->post_disable = intel_ddi_post_disable;
+		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
+	} else {
+		intel_encoder->enable = intel_enable_dp;
+		intel_encoder->pre_enable = intel_pre_enable_dp;
+		intel_encoder->disable = intel_disable_dp;
+		intel_encoder->post_disable = intel_post_disable_dp;
+		intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	}
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	/* Set up the DDC bus. */
