@@ -4542,6 +4542,16 @@
 #define  PIPE_CLK_SEL_DISABLED		(0x0<<29)
 #define  PIPE_CLK_SEL_PORT(x)		((x+1)<<29)
 
+#define _PIPEA_MSA_MISC			0x60410
+#define _PIPEB_MSA_MISC			0x61410
+#define PIPE_MSA_MISC(pipe) _PIPE(pipe, _PIPEA_MSA_MISC, _PIPEB_MSA_MISC)
+#define  PIPE_MSA_SYNC_CLK		(1<<0)
+#define  PIPE_MSA_6_BPC			(0<<5)
+#define  PIPE_MSA_8_BPC			(1<<5)
+#define  PIPE_MSA_10_BPC		(2<<5)
+#define  PIPE_MSA_12_BPC		(3<<5)
+#define  PIPE_MSA_16_BPC		(4<<5)
+
 /* LCPLL Control */
 #define LCPLL_CTL			0x130040
 #define  LCPLL_PLL_DISABLE		(1<<31)
