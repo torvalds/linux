@@ -515,20 +515,20 @@ phys_addr_t map_single(struct device *hwdev, phys_addr_t phys, size_t size,
 /*
  * dma_addr is the kernel virtual address of the bounce buffer to unmap.
  */
-void
-swiotlb_tbl_unmap_single(struct device *hwdev, char *dma_addr, size_t size,
-			enum dma_data_direction dir)
+void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
+			      size_t size, enum dma_data_direction dir)
 {
 	unsigned long flags;
 	int i, count, nslots = ALIGN(size, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
-	int index = (dma_addr - (char *)phys_to_virt(io_tlb_start)) >> IO_TLB_SHIFT;
-	phys_addr_t phys = io_tlb_orig_addr[index];
+	int index = (tlb_addr - io_tlb_start) >> IO_TLB_SHIFT;
+	phys_addr_t orig_addr = io_tlb_orig_addr[index];
 
 	/*
 	 * First, sync the memory before unmapping the entry
 	 */
 	if (phys && ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
-		swiotlb_bounce(phys, dma_addr, size, DMA_FROM_DEVICE);
+		swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
+			       size, DMA_FROM_DEVICE);
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
@@ -621,17 +621,18 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 
 		ret = phys_to_virt(paddr);
 		dev_addr = phys_to_dma(hwdev, paddr);
-	}
 
-	/* Confirm address can be DMA'd by device */
-	if (dev_addr + size - 1 > dma_mask) {
-		printk("hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
-		       (unsigned long long)dma_mask,
-		       (unsigned long long)dev_addr);
+		/* Confirm address can be DMA'd by device */
+		if (dev_addr + size - 1 > dma_mask) {
+			printk("hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
+			       (unsigned long long)dma_mask,
+			       (unsigned long long)dev_addr);
 
-		/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
-		swiotlb_tbl_unmap_single(hwdev, ret, size, DMA_TO_DEVICE);
-		return NULL;
+			/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
+			swiotlb_tbl_unmap_single(hwdev, paddr,
+						 size, DMA_TO_DEVICE);
+			return NULL;
+		}
 	}
 
 	*dma_handle = dev_addr;
@@ -652,7 +653,7 @@ swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 		free_pages((unsigned long)vaddr, get_order(size));
 	else
 		/* DMA_TO_DEVICE to avoid memcpy in swiotlb_tbl_unmap_single */
-		swiotlb_tbl_unmap_single(hwdev, vaddr, size, DMA_TO_DEVICE);
+		swiotlb_tbl_unmap_single(hwdev, paddr, size, DMA_TO_DEVICE);
 }
 EXPORT_SYMBOL(swiotlb_free_coherent);
 
@@ -716,7 +717,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 
 	/* Ensure that the address returned is DMA'ble */
 	if (!dma_capable(dev, dev_addr, size)) {
-		swiotlb_tbl_unmap_single(dev, phys_to_virt(map), size, dir);
+		swiotlb_tbl_unmap_single(dev, map, size, dir);
 		return phys_to_dma(dev, io_tlb_overflow_buffer);
 	}
 
@@ -740,7 +741,7 @@ static void unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 	BUG_ON(dir == DMA_NONE);
 
 	if (is_swiotlb_buffer(paddr)) {
-		swiotlb_tbl_unmap_single(hwdev, phys_to_virt(paddr), size, dir);
+		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
 		return;
 	}
 
