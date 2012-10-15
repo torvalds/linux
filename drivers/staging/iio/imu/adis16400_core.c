@@ -553,10 +553,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_VOLTAGE:
 			*val = 0;
-			if (chan->channel == 0)
-				*val2 = 2418;
-			else
-				*val2 = 806;
+			if (chan->channel == 0) {
+				*val = 2;
+				*val2 = 418000; /* 2.418 mV */
+			} else {
+				*val = 0;
+				*val2 = 805800; /* 805.8 uV */
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
@@ -564,11 +567,11 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_MAGN:
 			*val = 0;
-			*val2 = 500;
+			*val2 = 500; /* 0.5 mgauss */
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = 0;
-			*val2 = 140000;
+			*val = 140; /* 0.14 C */
+			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
@@ -585,10 +588,8 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
-		/* currently only temperature */
-		*val = 198;
-		*val2 = 160000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = 2500 / 14; /* 25 C = 0x00 */
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		mutex_lock(&indio_dev->mlock);
 		/* Need both the number of taps and the sampling frequency */
@@ -1058,7 +1059,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16300] = {
 		.channels = adis16300_channels,
 		.num_channels = ARRAY_SIZE(adis16300_channels),
-		.gyro_scale_micro = 873,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = 5884,
 		.default_scan_mask = (1 << ADIS16400_SCAN_SUPPLY) |
 		(1 << ADIS16400_SCAN_GYRO_X) | (1 << ADIS16400_SCAN_ACC_X) |
@@ -1070,8 +1071,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16334] = {
 		.channels = adis16334_channels,
 		.num_channels = ARRAY_SIZE(adis16334_channels),
-		.gyro_scale_micro = 873,
-		.accel_scale_micro = 981,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.default_scan_mask = (1 << ADIS16400_SCAN_GYRO_X) |
 		(1 << ADIS16400_SCAN_GYRO_Y) | (1 << ADIS16400_SCAN_GYRO_Z) |
 		(1 << ADIS16400_SCAN_ACC_X) | (1 << ADIS16400_SCAN_ACC_Y) |
@@ -1080,8 +1081,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16350] = {
 		.channels = adis16350_channels,
 		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.gyro_scale_micro = 872664,
-		.accel_scale_micro = 24732,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(73260), /* 0.07326 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(2522), /* 0.002522 g */
 		.default_scan_mask = 0x7FF,
 		.flags = ADIS16400_NO_BURST,
 	},
@@ -1090,8 +1091,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16350_channels),
 		.flags = ADIS16400_HAS_PROD_ID,
 		.product_id = 0x3FE8,
-		.gyro_scale_micro = 1279,
-		.accel_scale_micro = 24732,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
 		.default_scan_mask = 0x7FF,
 	},
 	[ADIS16362] = {
@@ -1099,8 +1100,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16350_channels),
 		.flags = ADIS16400_HAS_PROD_ID,
 		.product_id = 0x3FEA,
-		.gyro_scale_micro = 1279,
-		.accel_scale_micro = 24732,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
 		.default_scan_mask = 0x7FF,
 	},
 	[ADIS16364] = {
@@ -1108,8 +1109,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16350_channels),
 		.flags = ADIS16400_HAS_PROD_ID,
 		.product_id = 0x3FEC,
-		.gyro_scale_micro = 1279,
-		.accel_scale_micro = 24732,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.default_scan_mask = 0x7FF,
 	},
 	[ADIS16365] = {
@@ -1117,8 +1118,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16350_channels),
 		.flags = ADIS16400_HAS_PROD_ID,
 		.product_id = 0x3FED,
-		.gyro_scale_micro = 1279,
-		.accel_scale_micro = 24732,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.default_scan_mask = 0x7FF,
 	},
 	[ADIS16400] = {
@@ -1126,8 +1127,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16400_channels),
 		.flags = ADIS16400_HAS_PROD_ID,
 		.product_id = 0x4015,
-		.gyro_scale_micro = 873,
-		.accel_scale_micro = 32656,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
 		.default_scan_mask = 0xFFF,
 	}
 };
