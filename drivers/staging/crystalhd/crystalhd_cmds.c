@@ -308,9 +308,9 @@ static enum BC_STATUS bc_cproc_download_fw(struct crystalhd_cmd *ctx,
 	sts = crystalhd_download_fw(ctx->adp, (uint8_t *)idata->add_cdata,
 				  idata->add_cdata_sz);
 
-	if (sts != BC_STS_SUCCESS) {
+	if (sts != BC_STS_SUCCESS)
 		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts);
-	} else
+	else
 		ctx->state |= BC_LINK_INIT;
 
 	return sts;
