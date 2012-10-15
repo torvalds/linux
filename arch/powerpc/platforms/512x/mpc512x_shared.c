@@ -58,6 +58,8 @@ void mpc512x_restart(char *cmd)
 		;
 }
 
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+
 struct fsl_diu_shared_fb {
 	u8		gamma[0x300];	/* 32-bit aligned! */
 	struct diu_ad	ad0;		/* 32-bit aligned! */
@@ -65,25 +67,6 @@ struct fsl_diu_shared_fb {
 	size_t		fb_len;
 	bool		in_use;
 };
-
-u32 mpc512x_get_pixel_format(enum fsl_diu_monitor_port port,
-			     unsigned int bits_per_pixel)
-{
-	switch (bits_per_pixel) {
-	case 32:
-		return 0x88883316;
-	case 24:
-		return 0x88082219;
-	case 16:
-		return 0x65053118;
-	}
-	return 0x00000400;
-}
-
-void mpc512x_set_gamma_table(enum fsl_diu_monitor_port port,
-			     char *gamma_table_base)
-{
-}
 
 void mpc512x_set_monitor_port(enum fsl_diu_monitor_port port)
 {
@@ -320,13 +303,13 @@ void __init mpc512x_setup_diu(void)
 		}
 	}
 
-	diu_ops.get_pixel_format	= mpc512x_get_pixel_format;
-	diu_ops.set_gamma_table		= mpc512x_set_gamma_table;
 	diu_ops.set_monitor_port	= mpc512x_set_monitor_port;
 	diu_ops.set_pixel_clock		= mpc512x_set_pixel_clock;
 	diu_ops.valid_monitor_port	= mpc512x_valid_monitor_port;
 	diu_ops.release_bootmem		= mpc512x_release_bootmem;
 }
+
+#endif
 
 void __init mpc512x_init_IRQ(void)
 {
