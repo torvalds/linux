@@ -650,28 +650,55 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-	int port = intel_hdmi->ddi_port;
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+	int port = intel_ddi_get_encoder_port(intel_encoder);
 	int pipe = intel_crtc->pipe;
+	int type = intel_encoder->type;
 
-	/* On Haswell, we need to enable the clocks and prepare DDI function to
-	 * work in HDMI mode for this pipe.
-	 */
-	DRM_DEBUG_KMS("Preparing HDMI DDI mode for Haswell on port %c, pipe %c\n", port_name(port), pipe_name(pipe));
+	DRM_DEBUG_KMS("Preparing DDI mode for Haswell on port %c, pipe %c\n",
+		      port_name(port), pipe_name(pipe));
 
-	if (intel_hdmi->has_audio) {
-		/* Proper support for digital audio needs a new logic and a new set
-		 * of registers, so we leave it for future patch bombing.
-		 */
-		DRM_DEBUG_DRIVER("HDMI audio on pipe %c on DDI\n",
-				 pipe_name(intel_crtc->pipe));
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		/* write eld */
-		DRM_DEBUG_DRIVER("HDMI audio: write eld information\n");
-		intel_write_eld(encoder, adjusted_mode);
+		intel_dp->DP = DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+		switch (intel_dp->lane_count) {
+		case 1:
+			intel_dp->DP |= DDI_PORT_WIDTH_X1;
+			break;
+		case 2:
+			intel_dp->DP |= DDI_PORT_WIDTH_X2;
+			break;
+		case 4:
+			intel_dp->DP |= DDI_PORT_WIDTH_X4;
+			break;
+		default:
+			intel_dp->DP |= DDI_PORT_WIDTH_X4;
+			WARN(1, "Unexpected DP lane count %d\n",
+			     intel_dp->lane_count);
+			break;
+		}
+
+		intel_dp_init_link_config(intel_dp);
+
+	} else if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		if (intel_hdmi->has_audio) {
+			/* Proper support for digital audio needs a new logic
+			 * and a new set of registers, so we leave it for future
+			 * patch bombing.
+			 */
+			DRM_DEBUG_DRIVER("HDMI audio on pipe %c on DDI\n",
+					 pipe_name(intel_crtc->pipe));
+
+			/* write eld */
+			DRM_DEBUG_DRIVER("HDMI audio: write eld information\n");
+			intel_write_eld(encoder, adjusted_mode);
+		}
+
+		intel_hdmi->set_infoframes(encoder, adjusted_mode);
 	}
-
-	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
 static struct intel_encoder *

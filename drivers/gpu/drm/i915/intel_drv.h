@@ -422,6 +422,7 @@ extern void intel_dp_init(struct drm_device *dev, int output_reg,
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
+extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern int intel_edp_target_clock(struct intel_encoder *,

@@ -835,6 +835,21 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	}
 }
 
+void intel_dp_init_link_config(struct intel_dp *intel_dp)
+{
+	memset(intel_dp->link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
+	intel_dp->link_configuration[0] = intel_dp->link_bw;
+	intel_dp->link_configuration[1] = intel_dp->lane_count;
+	intel_dp->link_configuration[8] = DP_SET_ANSI_8B10B;
+	/*
+	 * Check for DPCD version > 1.1 and enhanced framing support
+	 */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    (intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)) {
+		intel_dp->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+	}
+}
+
 static void
 intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
@@ -887,17 +902,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 		intel_write_eld(encoder, adjusted_mode);
 	}
-	memset(intel_dp->link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
-	intel_dp->link_configuration[0] = intel_dp->link_bw;
-	intel_dp->link_configuration[1] = intel_dp->lane_count;
-	intel_dp->link_configuration[8] = DP_SET_ANSI_8B10B;
-	/*
-	 * Check for DPCD version > 1.1 and enhanced framing support
-	 */
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    (intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)) {
-		intel_dp->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-	}
+
+	intel_dp_init_link_config(intel_dp);
 
 	/* Split out the IBX/CPU vs CPT settings */
 
