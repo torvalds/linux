@@ -53,9 +53,9 @@ static void __init m527x_uarts_init(void)
 	/*
 	 * External Pin Mask Setting & Enable External Pin for Interface
 	 */
-	sepmask = readw(MCF_IPSBAR + MCF_GPIO_PAR_UART);
+	sepmask = readw(MCFGPIO_PAR_UART);
 	sepmask |= UART0_ENABLE_MASK | UART1_ENABLE_MASK | UART2_ENABLE_MASK;
-	writew(sepmask, MCF_IPSBAR + MCF_GPIO_PAR_UART);
+	writew(sepmask, MCFGPIO_PAR_UART);
 }
 
 /***************************************************************************/
@@ -67,19 +67,19 @@ static void __init m527x_fec_init(void)
 
 	/* Set multi-function pins to ethernet mode for fec0 */
 #if defined(CONFIG_M5271)
-	v = readb(MCF_IPSBAR + 0x100047);
-	writeb(v | 0xf0, MCF_IPSBAR + 0x100047);
+	v = readb(MCFGPIO_PAR_FECI2C);
+	writeb(v | 0xf0, MCFGPIO_PAR_FECI2C);
 #else
-	par = readw(MCF_IPSBAR + 0x100082);
-	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
-	v = readb(MCF_IPSBAR + 0x100078);
-	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
+	par = readw(MCFGPIO_PAR_FECI2C);
+	writew(par | 0xf00, MCFGPIO_PAR_FECI2C);
+	v = readb(MCFGPIO_PAR_FEC0HL);
+	writeb(v | 0xc0, MCFGPIO_PAR_FEC0HL);
 
 	/* Set multi-function pins to ethernet mode for fec1 */
-	par = readw(MCF_IPSBAR + 0x100082);
-	writew(par | 0xa0, MCF_IPSBAR + 0x100082);
-	v = readb(MCF_IPSBAR + 0x100079);
-	writeb(v | 0xc0, MCF_IPSBAR + 0x100079);
+	par = readw(MCFGPIO_PAR_FECI2C);
+	writew(par | 0xa0, MCFGPIO_PAR_FECI2C);
+	v = readb(MCFGPIO_PAR_FEC1HL);
+	writeb(v | 0xc0, MCFGPIO_PAR_FEC1HL);
 #endif
 }
 

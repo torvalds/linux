@@ -186,7 +186,6 @@ struct mpage_da_data {
 #define EXT4_IO_END_ERROR	0x0002
 #define EXT4_IO_END_QUEUED	0x0004
 #define EXT4_IO_END_DIRECT	0x0008
-#define EXT4_IO_END_IN_FSYNC	0x0010
 
 struct ext4_io_page {
 	struct page	*p_page;
@@ -912,9 +911,7 @@ struct ext4_inode_info {
 	struct list_head i_completed_io_list;
 	spinlock_t i_completed_io_lock;
 	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
-	/* current io_end structure for async DIO write*/
-	ext4_io_end_t *cur_aio_dio;
-	atomic_t i_aiodio_unwritten; /* Nr. of inflight conversions pending */
+	atomic_t i_unwritten; /* Nr. of inflight conversions pending */
 
 	spinlock_t i_block_reservation_lock;
 
@@ -1233,6 +1230,7 @@ struct ext4_sb_info {
 	spinlock_t s_md_lock;
 	unsigned short *s_mb_offsets;
 	unsigned int *s_mb_maxs;
+	unsigned int s_group_info_size;
 
 	/* tunables */
 	unsigned long s_stripe;
@@ -1243,6 +1241,7 @@ struct ext4_sb_info {
 	unsigned int s_mb_order2_reqs;
 	unsigned int s_mb_group_prealloc;
 	unsigned int s_max_writeback_mb_bump;
+	unsigned int s_max_dir_size_kb;
 	/* where last allocation was done - for stream allocation */
 	unsigned long s_mb_last_group;
 	unsigned long s_mb_last_start;
@@ -1270,8 +1269,12 @@ struct ext4_sb_info {
 	unsigned long s_sectors_written_start;
 	u64 s_kbytes_written;
 
+	/* the size of zero-out chunk */
+	unsigned int s_extent_max_zeroout_kb;
+
 	unsigned int s_log_groups_per_flex;
 	struct flex_groups *s_flex_groups;
+	ext4_group_t s_flex_groups_allocated;
 
 	/* workqueue for dio unwritten */
 	struct workqueue_struct *dio_unwritten_wq;
@@ -1328,8 +1331,18 @@ static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 {
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		io_end->flag |= EXT4_IO_END_UNWRITTEN;
-		atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+		atomic_inc(&EXT4_I(inode)->i_unwritten);
 	}
+}
+
+static inline ext4_io_end_t *ext4_inode_aio(struct inode *inode)
+{
+	return inode->i_private;
+}
+
+static inline void ext4_inode_aio_set(struct inode *inode, ext4_io_end_t *io)
+{
+	inode->i_private = io;
 }
 
 /*
@@ -1345,6 +1358,8 @@ enum {
 	EXT4_STATE_DIO_UNWRITTEN,	/* need convert on dio done*/
 	EXT4_STATE_NEWENTRY,		/* File just added to dir */
 	EXT4_STATE_DELALLOC_RESERVED,	/* blks already reserved for delalloc */
+	EXT4_STATE_DIOREAD_LOCK,	/* Disable support for dio read
+					   nolocking */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -1932,7 +1947,7 @@ extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);
-extern int ext4_flush_completed_IO(struct inode *);
+extern int ext4_flush_unwritten_io(struct inode *);
 
 /* hash.c */
 extern int ext4fs_dirhash(const char *name, int len, struct
@@ -1966,6 +1981,8 @@ extern void ext4_exit_mballoc(void);
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     struct buffer_head *bh, ext4_fsblk_t block,
 			     unsigned long count, int flags);
+extern int ext4_mb_alloc_groupinfo(struct super_block *sb,
+				   ext4_group_t ngroups);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
 extern int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
@@ -2051,6 +2068,8 @@ extern void ext4_superblock_csum_set(struct super_block *sb,
 extern void *ext4_kvmalloc(size_t size, gfp_t flags);
 extern void *ext4_kvzalloc(size_t size, gfp_t flags);
 extern void ext4_kvfree(void *ptr);
+extern int ext4_alloc_flex_bg_array(struct super_block *sb,
+				    ext4_group_t ngroup);
 extern __printf(4, 5)
 void __ext4_error(struct super_block *, const char *, unsigned int,
 		  const char *, ...);
@@ -2352,6 +2371,7 @@ extern const struct file_operations ext4_dir_operations;
 extern const struct inode_operations ext4_file_inode_operations;
 extern const struct file_operations ext4_file_operations;
 extern loff_t ext4_llseek(struct file *file, loff_t offset, int origin);
+extern void ext4_unwritten_wait(struct inode *inode);
 
 /* namei.c */
 extern const struct inode_operations ext4_dir_inode_operations;
@@ -2400,11 +2420,11 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 
 /* page-io.c */
 extern int __init ext4_init_pageio(void);
+extern void ext4_add_complete_io(ext4_io_end_t *io_end);
 extern void ext4_exit_pageio(void);
 extern void ext4_ioend_wait(struct inode *);
 extern void ext4_free_io_end(ext4_io_end_t *io);
 extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
-extern int ext4_end_io_nolock(ext4_io_end_t *io);
 extern void ext4_io_submit(struct ext4_io_submit *io);
 extern int ext4_bio_write_page(struct ext4_io_submit *io,
 			       struct page *page,
@@ -2450,6 +2470,21 @@ static inline int bitmap_uptodate(struct buffer_head *bh)
 static inline void set_bitmap_uptodate(struct buffer_head *bh)
 {
 	set_bit(BH_BITMAP_UPTODATE, &(bh)->b_state);
+}
+
+/*
+ * Disable DIO read nolock optimization, so new dioreaders will be forced
+ * to grab i_mutex
+ */
+static inline void ext4_inode_block_unlocked_dio(struct inode *inode)
+{
+	ext4_set_inode_state(inode, EXT4_STATE_DIOREAD_LOCK);
+	smp_mb();
+}
+static inline void ext4_inode_resume_unlocked_dio(struct inode *inode)
+{
+	smp_mb();
+	ext4_clear_inode_state(inode, EXT4_STATE_DIOREAD_LOCK);
 }
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)

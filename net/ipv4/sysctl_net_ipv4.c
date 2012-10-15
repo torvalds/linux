@@ -248,6 +248,8 @@ int proc_tcp_fastopen_key(ctl_table *ctl, int write, void __user *buffer,
 	ctxt = rcu_dereference(tcp_fastopen_ctx);
 	if (ctxt)
 		memcpy(user_key, ctxt->key, TCP_FASTOPEN_KEY_LENGTH);
+	else
+		memset(user_key, 0, sizeof(user_key));
 	rcu_read_unlock();
 
 	snprintf(tbl.data, tbl.maxlen, "%08x-%08x-%08x-%08x",

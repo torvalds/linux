@@ -74,6 +74,7 @@ static struct lock_class_key rcu_fqs_class[RCU_NUM_LVLS];
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
+	.onoff_mutex = __MUTEX_INITIALIZER(sname##_state.onoff_mutex), \
 	.name = #sname, \
 }
 
@@ -1197,7 +1198,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 	raw_spin_unlock_irq(&rnp->lock);
 
 	/* Exclude any concurrent CPU-hotplug operations. */
-	get_online_cpus();
+	mutex_lock(&rsp->onoff_mutex);
 
 	/*
 	 * Set the quiescent-state-needed bits in all the rcu_node
@@ -1234,7 +1235,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 		cond_resched();
 	}
 
-	put_online_cpus();
+	mutex_unlock(&rsp->onoff_mutex);
 	return 1;
 }
 
@@ -1700,6 +1701,7 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	/* Remove the dead CPU from the bitmasks in the rcu_node hierarchy. */
 
 	/* Exclude any attempts to start a new grace period. */
+	mutex_lock(&rsp->onoff_mutex);
 	raw_spin_lock_irqsave(&rsp->onofflock, flags);
 
 	/* Orphan the dead CPU's callbacks, and adopt them if appropriate. */
@@ -1744,6 +1746,7 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	init_callback_list(rdp);
 	/* Disallow further callbacks on this CPU. */
 	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
+	mutex_unlock(&rsp->onoff_mutex);
 }
 
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
@@ -2648,6 +2651,9 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
+	/* Exclude new grace periods. */
+	mutex_lock(&rsp->onoff_mutex);
+
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rdp->beenonline = 1;	 /* We have now been online. */
@@ -2661,14 +2667,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 		   (atomic_read(&rdp->dynticks->dynticks) & ~0x1) + 1);
 	rcu_prepare_for_idle_init(cpu);
 	raw_spin_unlock(&rnp->lock);		/* irqs remain disabled. */
-
-	/*
-	 * A new grace period might start here.  If so, we won't be part
-	 * of it, but that is OK, as we are currently in a quiescent state.
-	 */
-
-	/* Exclude any attempts to start a new GP on large systems. */
-	raw_spin_lock(&rsp->onofflock);		/* irqs already disabled. */
 
 	/* Add CPU to rcu_node bitmasks. */
 	rnp = rdp->mynode;
@@ -2693,8 +2691,9 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 		raw_spin_unlock(&rnp->lock); /* irqs already disabled. */
 		rnp = rnp->parent;
 	} while (rnp != NULL && !(rnp->qsmaskinit & mask));
+	local_irq_restore(flags);
 
-	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
+	mutex_unlock(&rsp->onoff_mutex);
 }
 
 static void __cpuinit rcu_prepare_cpu(int cpu)

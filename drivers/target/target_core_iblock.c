@@ -454,14 +454,11 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 				ret = -EEXIST;
 				goto out;
 			}
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
+			if (match_strlcpy(ib_dev->ibd_udev_path, &args[0],
+				SE_UDEV_PATH_LEN) == 0) {
+				ret = -EINVAL;
 				break;
 			}
-			snprintf(ib_dev->ibd_udev_path, SE_UDEV_PATH_LEN,
-					"%s", arg_p);
-			kfree(arg_p);
 			pr_debug("IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
@@ -556,14 +553,6 @@ static void iblock_complete_cmd(struct se_cmd *cmd)
 	kfree(ibr);
 }
 
-static void iblock_bio_destructor(struct bio *bio)
-{
-	struct se_cmd *cmd = bio->bi_private;
-	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
-
-	bio_free(bio, ib_dev->ibd_bio_set);
-}
-
 static struct bio *
 iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 {
@@ -585,7 +574,6 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 
 	bio->bi_bdev = ib_dev->ibd_bd;
 	bio->bi_private = cmd;
-	bio->bi_destructor = iblock_bio_destructor;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_sector = lba;
 	return bio;
@@ -656,6 +644,12 @@ static int iblock_execute_rw(struct se_cmd *cmd)
 	if (!ibr)
 		goto fail;
 	cmd->priv = ibr;
+
+	if (!sgl_nents) {
+		atomic_set(&ibr->pending, 1);
+		iblock_complete_cmd(cmd);
+		return 0;
+	}
 
 	bio = iblock_get_bio(cmd, block_lba, sgl_nents);
 	if (!bio)
@@ -769,8 +763,6 @@ static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
-	.write_cache_emulated	= 1,
-	.fua_write_emulated	= 1,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.allocate_virtdevice	= iblock_allocate_virtdevice,

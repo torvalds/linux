@@ -74,9 +74,6 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	if (!audmux_base)
-		return -ENOSYS;
-
 	if (audmux_clk)
 		clk_prepare_enable(audmux_clk);
 

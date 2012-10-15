@@ -1,13 +1,6 @@
   <title>Video Output Overlay Interface</title>
   <subtitle>Also known as On-Screen Display (OSD)</subtitle>
 
-  <note>
-    <title>Experimental</title>
-
-    <para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-  </note>
-
   <para>Some video output devices can overlay a framebuffer image onto
 the outgoing video signal. Applications can set up such an overlay
 using this interface, which borrows structures and ioctls of the <link

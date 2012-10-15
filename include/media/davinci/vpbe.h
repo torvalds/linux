@@ -35,7 +35,7 @@ struct osd_config_info {
 struct vpbe_output {
 	struct v4l2_output output;
 	/*
-	 * If output capabilities include dv_preset, list supported presets
+	 * If output capabilities include dv_timings, list supported timings
 	 * below
 	 */
 	char *subdev_name;
@@ -120,16 +120,16 @@ struct vpbe_device_ops {
 	unsigned int (*get_output)(struct vpbe_device *vpbe_dev);
 
 	/* Set DV preset at current output */
-	int (*s_dv_preset)(struct vpbe_device *vpbe_dev,
-			   struct v4l2_dv_preset *dv_preset);
+	int (*s_dv_timings)(struct vpbe_device *vpbe_dev,
+			   struct v4l2_dv_timings *dv_timings);
 
 	/* Get DV presets supported at the output */
-	int (*g_dv_preset)(struct vpbe_device *vpbe_dev,
-			   struct v4l2_dv_preset *dv_preset);
+	int (*g_dv_timings)(struct vpbe_device *vpbe_dev,
+			   struct v4l2_dv_timings *dv_timings);
 
 	/* Enumerate the DV Presets supported at the output */
-	int (*enum_dv_presets)(struct vpbe_device *vpbe_dev,
-			       struct v4l2_dv_enum_preset *preset_info);
+	int (*enum_dv_timings)(struct vpbe_device *vpbe_dev,
+			       struct v4l2_enum_dv_timings *timings_info);
 
 	/* Set std at the output */
 	int (*s_std)(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id);

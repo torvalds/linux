@@ -78,8 +78,6 @@ struct nand_bbt_descr {
 #define NAND_BBT_LASTBLOCK	0x00000010
 /* The bbt is at the given page, else we must scan for the bbt */
 #define NAND_BBT_ABSPAGE	0x00000020
-/* The bbt is at the given page, else we must scan for the bbt */
-#define NAND_BBT_SEARCH		0x00000040
 /* bbt is stored per chip on multichip devices */
 #define NAND_BBT_PERCHIP	0x00000080
 /* bbt has a version counter at offset veroffs */
@@ -110,7 +108,10 @@ struct nand_bbt_descr {
  * OOB area. This option is passed to the default bad block table function.
  */
 #define NAND_BBT_USE_FLASH	0x00020000
-/* Do not store flash based bad block table in OOB area; store it in-band */
+/*
+ * Do not store flash based bad block table marker in the OOB area; store it
+ * in-band.
+ */
 #define NAND_BBT_NO_OOB		0x00040000
 /*
  * Do not write new bad block markers to OOB; useful, e.g., when ECC covers

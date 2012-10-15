@@ -303,16 +303,30 @@ static void
 bfa_fcs_fabric_sm_created(struct bfa_fcs_fabric_s *fabric,
 			  enum bfa_fcs_fabric_event event)
 {
+	struct bfa_s	*bfa = fabric->fcs->bfa;
+
 	bfa_trc(fabric->fcs, fabric->bport.port_cfg.pwwn);
 	bfa_trc(fabric->fcs, event);
 
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_START:
-		if (bfa_fcport_is_linkup(fabric->fcs->bfa)) {
+		if (!bfa_fcport_is_linkup(fabric->fcs->bfa)) {
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
+			break;
+		}
+		if (bfa_fcport_get_topology(bfa) ==
+				BFA_PORT_TOPOLOGY_LOOP) {
+			fabric->fab_type = BFA_FCS_FABRIC_LOOP;
+			fabric->bport.pid = bfa_fcport_get_myalpa(bfa);
+			fabric->bport.pid = bfa_hton3b(fabric->bport.pid);
+			bfa_sm_set_state(fabric,
+					bfa_fcs_fabric_sm_online);
+			bfa_fcs_fabric_set_opertype(fabric);
+			bfa_fcs_lport_online(&fabric->bport);
+		} else {
 			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_flogi);
 			bfa_fcs_fabric_login(fabric);
-		} else
-			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
+		}
 		break;
 
 	case BFA_FCS_FABRIC_SM_LINK_UP:
@@ -337,16 +351,28 @@ static void
 bfa_fcs_fabric_sm_linkdown(struct bfa_fcs_fabric_s *fabric,
 			   enum bfa_fcs_fabric_event event)
 {
+	struct bfa_s	*bfa = fabric->fcs->bfa;
+
 	bfa_trc(fabric->fcs, fabric->bport.port_cfg.pwwn);
 	bfa_trc(fabric->fcs, event);
 
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_LINK_UP:
-		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_flogi);
-		bfa_fcs_fabric_login(fabric);
+		if (bfa_fcport_get_topology(bfa) != BFA_PORT_TOPOLOGY_LOOP) {
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_flogi);
+			bfa_fcs_fabric_login(fabric);
+			break;
+		}
+		fabric->fab_type = BFA_FCS_FABRIC_LOOP;
+		fabric->bport.pid = bfa_fcport_get_myalpa(bfa);
+		fabric->bport.pid = bfa_hton3b(fabric->bport.pid);
+		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_online);
+		bfa_fcs_fabric_set_opertype(fabric);
+		bfa_fcs_lport_online(&fabric->bport);
 		break;
 
 	case BFA_FCS_FABRIC_SM_RETRY_OP:
+	case BFA_FCS_FABRIC_SM_LOOPBACK:
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
@@ -595,14 +621,20 @@ void
 bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
 			 enum bfa_fcs_fabric_event event)
 {
+	struct bfa_s	*bfa = fabric->fcs->bfa;
+
 	bfa_trc(fabric->fcs, fabric->bport.port_cfg.pwwn);
 	bfa_trc(fabric->fcs, event);
 
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
-		bfa_sm_send_event(fabric->lps, BFA_LPS_SM_OFFLINE);
-		bfa_fcs_fabric_notify_offline(fabric);
+		if (bfa_fcport_get_topology(bfa) == BFA_PORT_TOPOLOGY_LOOP) {
+			bfa_fcs_lport_offline(&fabric->bport);
+		} else {
+			bfa_sm_send_event(fabric->lps, BFA_LPS_SM_OFFLINE);
+			bfa_fcs_fabric_notify_offline(fabric);
+		}
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
@@ -719,20 +751,29 @@ static void
 bfa_fcs_fabric_sm_stopping(struct bfa_fcs_fabric_s *fabric,
 			   enum bfa_fcs_fabric_event event)
 {
+	struct bfa_s	*bfa = fabric->fcs->bfa;
+
 	bfa_trc(fabric->fcs, fabric->bport.port_cfg.pwwn);
 	bfa_trc(fabric->fcs, event);
 
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_STOPCOMP:
-		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_cleanup);
-		bfa_sm_send_event(fabric->lps, BFA_LPS_SM_LOGOUT);
+		if (bfa_fcport_get_topology(bfa) == BFA_PORT_TOPOLOGY_LOOP) {
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_created);
+		} else {
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_cleanup);
+			bfa_sm_send_event(fabric->lps, BFA_LPS_SM_LOGOUT);
+		}
 		break;
 
 	case BFA_FCS_FABRIC_SM_LINK_UP:
 		break;
 
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
-		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_cleanup);
+		if (bfa_fcport_get_topology(bfa) == BFA_PORT_TOPOLOGY_LOOP)
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_created);
+		else
+			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_cleanup);
 		break;
 
 	default:
@@ -974,9 +1015,6 @@ bfa_fcs_fabric_login(struct bfa_fcs_fabric_s *fabric)
 	struct bfa_s		*bfa = fabric->fcs->bfa;
 	struct bfa_lport_cfg_s	*pcfg = &fabric->bport.port_cfg;
 	u8			alpa = 0, bb_scn = 0;
-
-	if (bfa_fcport_get_topology(bfa) == BFA_PORT_TOPOLOGY_LOOP)
-		alpa = bfa_fcport_get_myalpa(bfa);
 
 	if (bfa_fcs_fabric_is_bbscn_enabled(fabric) &&
 	    (!fabric->fcs->bbscn_flogi_rjt))

@@ -36,6 +36,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#define DP_RECEIVER_CAP_SIZE	0xf
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
@@ -1796,8 +1797,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 				break;
 		if (i == intel_dp->lane_count && voltage_tries == 5) {
-			++loop_tries;
-			if (loop_tries == 5) {
+			if (++loop_tries == 5) {
 				DRM_DEBUG_KMS("too many full retries, give up\n");
 				break;
 			}
@@ -1807,15 +1807,11 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		}
 
 		/* Check to see if we've tried the same voltage 5 times */
-		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
-			++voltage_tries;
-			if (voltage_tries == 5) {
-				DRM_DEBUG_KMS("too many voltage retries, give up\n");
-				break;
-			}
-		} else
+		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) != voltage) {
+			voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 			voltage_tries = 0;
-		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
+		} else
+			++voltage_tries;
 
 		/* Compute new intel_dp->train_set as requested by target */
 		intel_get_adjust_train(intel_dp, link_status);
@@ -1963,12 +1959,25 @@ static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
 	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
-					   sizeof(intel_dp->dpcd)) &&
-	    (intel_dp->dpcd[DP_DPCD_REV] != 0)) {
-		return true;
-	}
+					   sizeof(intel_dp->dpcd)) == 0)
+		return false; /* aux transfer failed */
 
-	return false;
+	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
+		return false; /* DPCD not present */
+
+	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+	      DP_DWN_STRM_PORT_PRESENT))
+		return true; /* native DP sink */
+
+	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
+		return true; /* no per-port downstream info */
+
+	if (intel_dp_aux_native_read_retry(intel_dp, DP_DOWNSTREAM_PORT_0,
+					   intel_dp->downstream_ports,
+					   DP_MAX_DOWNSTREAM_PORTS) == 0)
+		return false; /* downstream port status fetch failed */
+
+	return true;
 }
 
 static void
@@ -2068,11 +2077,43 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	}
 }
 
+/* XXX this is probably wrong for multiple downstream ports */
 static enum drm_connector_status
 intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 {
-	if (intel_dp_get_dpcd(intel_dp))
+	uint8_t *dpcd = intel_dp->dpcd;
+	bool hpd;
+	uint8_t type;
+
+	if (!intel_dp_get_dpcd(intel_dp))
+		return connector_status_disconnected;
+
+	/* if there's no downstream port, we're done */
+	if (!(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
 		return connector_status_connected;
+
+	/* If we're HPD-aware, SINK_COUNT changes dynamically */
+	hpd = !!(intel_dp->downstream_ports[0] & DP_DS_PORT_HPD);
+	if (hpd) {
+		uint8_t reg;
+		if (!intel_dp_aux_native_read_retry(intel_dp, DP_SINK_COUNT,
+						    &reg, 1))
+			return connector_status_unknown;
+		return DP_GET_SINK_COUNT(reg) ? connector_status_connected
+					      : connector_status_disconnected;
+	}
+
+	/* If no HPD, poke DDC gently */
+	if (drm_probe_ddc(&intel_dp->adapter))
+		return connector_status_connected;
+
+	/* Well we tried, say unknown for unreliable port types */
+	type = intel_dp->downstream_ports[0] & DP_DS_PORT_TYPE_MASK;
+	if (type == DP_DS_PORT_TYPE_VGA || type == DP_DS_PORT_TYPE_NON_EDID)
+		return connector_status_unknown;
+
+	/* Anything else is out of spec, warn and ignore */
+	DRM_DEBUG_KMS("Broken DP branch device, ignoring\n");
 	return connector_status_disconnected;
 }
 

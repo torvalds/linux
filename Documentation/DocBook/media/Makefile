@@ -300,7 +300,7 @@ $(MEDIA_OBJ_DIR)/media-entities.tmpl: $(MEDIA_OBJ_DIR)/v4l2.xml
 	@(								\
 	for ident in $(IOCTLS) ; do					\
 	  entity=`echo $$ident | tr _ -` ;				\
-	  id=`grep "<refname>$$ident" $(MEDIA_OBJ_DIR)/vidioc-*.xml | sed -r s,"^.*/(.*).xml.*","\1",` ; \
+	  id=`grep "<refname>$$ident" $(MEDIA_OBJ_DIR)/vidioc-*.xml $(MEDIA_OBJ_DIR)/media-ioc-*.xml | sed -r s,"^.*/(.*).xml.*","\1",` ; \
 	  echo "<!ENTITY $$entity \"<link"				\
 	    "linkend='$$id'><constant>$$ident</constant></link>\">"	\
 	  >>$@ ;							\

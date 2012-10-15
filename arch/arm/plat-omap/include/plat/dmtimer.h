@@ -60,6 +60,7 @@
 #define OMAP_TIMER_ALWON				0x40000000
 #define OMAP_TIMER_HAS_PWM				0x20000000
 #define OMAP_TIMER_NEEDS_RESET				0x10000000
+#define OMAP_TIMER_HAS_DSP_IRQ				0x08000000
 
 struct omap_timer_capability_dev_attr {
 	u32 timer_capability;

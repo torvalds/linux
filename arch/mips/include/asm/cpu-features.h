@@ -95,8 +95,8 @@
 #ifndef cpu_has_smartmips
 #define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
-#ifndef kernel_uses_smartmips_rixi
-#define kernel_uses_smartmips_rixi 0
+#ifndef cpu_has_rixi
+#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
 #endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
@@ -169,6 +169,10 @@
 
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+#endif
+
+#ifndef cpu_has_dsp2
+#define cpu_has_dsp2		(cpu_data[0].ases & MIPS_ASE_DSP2P)
 #endif
 
 #ifndef cpu_has_mipsmt
@@ -250,6 +254,10 @@
 
 #ifndef cpu_hwrena_impl_bits
 #define cpu_hwrena_impl_bits		0
+#endif
+
+#ifndef cpu_has_perf_cntr_intr_bit
+#define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

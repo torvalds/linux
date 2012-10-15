@@ -491,7 +491,7 @@ static int snd_ad1816a_capture_close(struct snd_pcm_substream *substream)
 }
 
 
-static void __devinit snd_ad1816a_init(struct snd_ad1816a *chip)
+static void snd_ad1816a_init(struct snd_ad1816a *chip)
 {
 	unsigned long flags;
 
@@ -510,6 +510,32 @@ static void __devinit snd_ad1816a_init(struct snd_ad1816a *chip)
 
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
+
+#ifdef CONFIG_PM
+void snd_ad1816a_suspend(struct snd_ad1816a *chip)
+{
+	int reg;
+	unsigned long flags;
+
+	snd_pcm_suspend_all(chip->pcm);
+	spin_lock_irqsave(&chip->lock, flags);
+	for (reg = 0; reg < 48; reg++)
+		chip->image[reg] = snd_ad1816a_read(chip, reg);
+	spin_unlock_irqrestore(&chip->lock, flags);
+}
+
+void snd_ad1816a_resume(struct snd_ad1816a *chip)
+{
+	int reg;
+	unsigned long flags;
+
+	snd_ad1816a_init(chip);
+	spin_lock_irqsave(&chip->lock, flags);
+	for (reg = 0; reg < 48; reg++)
+		snd_ad1816a_write(chip, reg, chip->image[reg]);
+	spin_unlock_irqrestore(&chip->lock, flags);
+}
+#endif
 
 static int __devinit snd_ad1816a_probe(struct snd_ad1816a *chip)
 {
@@ -548,7 +574,6 @@ static int snd_ad1816a_free(struct snd_ad1816a *chip)
 		snd_dma_disable(chip->dma2);
 		free_dma(chip->dma2);
 	}
-	kfree(chip);
 	return 0;
 }
 
@@ -573,19 +598,13 @@ static const char __devinit *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 
 int __devinit snd_ad1816a_create(struct snd_card *card,
 				 unsigned long port, int irq, int dma1, int dma2,
-				 struct snd_ad1816a **rchip)
+				 struct snd_ad1816a *chip)
 {
         static struct snd_device_ops ops = {
 		.dev_free =	snd_ad1816a_dev_free,
 	};
 	int error;
-	struct snd_ad1816a *chip;
 
-	*rchip = NULL;
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
-		return -ENOMEM;
 	chip->irq = -1;
 	chip->dma1 = -1;
 	chip->dma2 = -1;
@@ -631,7 +650,6 @@ int __devinit snd_ad1816a_create(struct snd_card *card,
 		return error;
 	}
 
-	*rchip = chip;
 	return 0;
 }
 

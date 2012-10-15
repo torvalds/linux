@@ -63,7 +63,7 @@
  *
  *	0	RapidIO inbound doorbells
  *	1	RapidIO inbound mailboxes
- *	1	RapidIO outbound mailboxes
+ *	2	RapidIO outbound mailboxes
  */
 #define RIO_DOORBELL_RESOURCE	0
 #define RIO_INB_MBOX_RESOURCE	1
@@ -266,7 +266,6 @@ struct rio_mport {
 
 struct rio_id_table {
 	u16 start;	/* logical minimal id */
-	u16 next;	/* hint for find */
 	u32 max;	/* max number of IDs in table */
 	spinlock_t lock;
 	unsigned long *table;

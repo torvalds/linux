@@ -386,6 +386,10 @@ enum {
 /* DIGITAL2 bits */
 #define AC_DIG2_CC			(0x7f<<0)
 
+/* DIGITAL3 bits */
+#define AC_DIG3_ICT			(0xf<<0)
+#define AC_DIG3_KAE			(1<<7)
+
 /* Pin widget control - 8bit */
 #define AC_PINCTL_EPT			(0x3<<0)
 #define AC_PINCTL_EPT_NATIVE		0
@@ -610,9 +614,9 @@ struct hda_bus_ops {
 			  struct hda_pcm *pcm);
 	/* reset bus for retry verb */
 	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_bus *bus);
+	void (*pm_notify)(struct hda_bus *bus, bool power_up);
 #endif
 };
 
@@ -708,8 +712,6 @@ struct hda_codec_ops {
 #ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
-#endif
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 	void (*reboot_notify)(struct hda_codec *codec);
@@ -774,6 +776,7 @@ struct hda_pcm {
 	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
 	int device;		/* device number to assign */
 	struct snd_pcm *pcm;	/* assigned PCM instance */
+	bool own_chmap;		/* codec driver provides own channel maps */
 };
 
 /* codec information */
@@ -859,12 +862,13 @@ struct hda_codec {
 	unsigned int no_sticky_stream:1; /* no sticky-PCM stream assignment */
 	unsigned int pins_shutup:1;	/* pins are shut up */
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
-	unsigned int ignore_misc_bit:1; /* ignore MISC_NO_PRESENCE bit */
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int epss:1;		/* supporting EPSS? */
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	unsigned int power_on :1;	/* current (global) power-state */
+	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
+	unsigned int pm_down_notified:1; /* PM notified to controller */
 	int power_transition;	/* power-state in transition */
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */
@@ -1042,7 +1046,7 @@ int snd_hda_resume(struct hda_bus *bus);
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	if (codec->patch_ops.check_power_status)
 		return codec->patch_ops.check_power_status(codec, nid);
 #endif
@@ -1059,22 +1063,70 @@ const char *snd_hda_get_jack_location(u32 cfg);
 /*
  * power saving
  */
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-void snd_hda_power_up(struct hda_codec *codec);
-void snd_hda_power_up_d3wait(struct hda_codec *codec);
-void snd_hda_power_down(struct hda_codec *codec);
+#ifdef CONFIG_PM
+void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_up(struct hda_codec *codec) {}
-static inline void snd_hda_power_up_d3wait(struct hda_codec *codec) {}
-static inline void snd_hda_power_down(struct hda_codec *codec) {}
+static inline void snd_hda_power_save(struct hda_codec *codec, int delta,
+				      bool d3wait) {}
 #endif
+
+/**
+ * snd_hda_power_up - Power-up the codec
+ * @codec: HD-audio codec
+ *
+ * Increment the power-up counter and power up the hardware really when
+ * not turned on yet.
+ */
+static inline void snd_hda_power_up(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 1, false);
+}
+
+/**
+ * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
+ *   D3 transition to complete.  This differs from snd_hda_power_up() when
+ *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
+ *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
+ *   back up.
+ * @codec: HD-audio codec
+ *
+ * Cancel any power down operation hapenning on the work queue, then power up.
+ */
+static inline void snd_hda_power_up_d3wait(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 1, true);
+}
+
+/**
+ * snd_hda_power_down - Power-down the codec
+ * @codec: HD-audio codec
+ *
+ * Decrement the power-up counter and schedules the power-off work if
+ * the counter rearches to zero.
+ */
+static inline void snd_hda_power_down(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, -1, false);
+}
+
+/**
+ * snd_hda_power_sync - Synchronize the power-save status
+ * @codec: HD-audio codec
+ *
+ * Synchronize the actual power state with the power account;
+ * called when power_save parameter is changed
+ */
+static inline void snd_hda_power_sync(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 0, false);
+}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*
  * patch firmware
  */
-int snd_hda_load_patch(struct hda_bus *bus, const char *patch);
+int snd_hda_load_patch(struct hda_bus *bus, size_t size, const void *buf);
 #endif
 
 /*

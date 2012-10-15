@@ -569,7 +569,8 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 static int hist_browser__hpp_color_ ## _name(struct perf_hpp *hpp,	\
 					     struct hist_entry *he)	\
 {									\
-	double percent = 100.0 * he->_field / hpp->total_period;	\
+	struct hists *hists = he->hists;				\
+	double percent = 100.0 * he->stat._field / hists->stats.total_period; \
 	*(double *)hpp->ptr = percent;					\
 	return scnprintf(hpp->buf, hpp->size, "%6.2f%%", percent);	\
 }
@@ -584,7 +585,7 @@ HPP__COLOR_FN(overhead_guest_us, period_guest_us)
 
 void hist_browser__init_hpp(void)
 {
-	perf_hpp__init(false, false);
+	perf_hpp__init();
 
 	perf_hpp__format[PERF_HPP__OVERHEAD].color =
 				hist_browser__hpp_color_overhead;
@@ -624,7 +625,6 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		struct perf_hpp hpp = {
 			.buf		= s,
 			.size		= sizeof(s),
-			.total_period	= browser->hists->stats.total_period,
 		};
 
 		ui_browser__gotorc(&browser->b, row, 0);
@@ -982,7 +982,7 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 		folded_sign = hist_entry__folded(he);
 
 	hist_entry__sort_snprintf(he, s, sizeof(s), browser->hists);
-	percent = (he->period * 100.0) / browser->hists->stats.total_period;
+	percent = (he->stat.period * 100.0) / browser->hists->stats.total_period;
 
 	if (symbol_conf.use_callchain)
 		printed += fprintf(fp, "%c ", folded_sign);
@@ -990,10 +990,10 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 	printed += fprintf(fp, " %5.2f%%", percent);
 
 	if (symbol_conf.show_nr_samples)
-		printed += fprintf(fp, " %11u", he->nr_events);
+		printed += fprintf(fp, " %11u", he->stat.nr_events);
 
 	if (symbol_conf.show_total_period)
-		printed += fprintf(fp, " %12" PRIu64, he->period);
+		printed += fprintf(fp, " %12" PRIu64, he->stat.period);
 
 	printed += fprintf(fp, "%s\n", rtrim(s));
 

@@ -3094,6 +3094,8 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		if (validate_eth_header_mac(slave, rule_header, rlist))
 			return -EINVAL;
 		break;
+	case MLX4_NET_TRANS_RULE_ID_IB:
+		break;
 	case MLX4_NET_TRANS_RULE_ID_IPV4:
 	case MLX4_NET_TRANS_RULE_ID_TCP:
 	case MLX4_NET_TRANS_RULE_ID_UDP:

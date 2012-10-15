@@ -141,10 +141,14 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	spinlock_t *ptl;
 	pte_t *ptep;
 	int err;
+	/* For mmu_notifiers */
+	const unsigned long mmun_start = addr;
+	const unsigned long mmun_end   = addr + PAGE_SIZE;
 
 	/* For try_to_free_swap() and munlock_vma_page() below */
 	lock_page(page);
 
+	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 	err = -EAGAIN;
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
@@ -173,6 +177,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	err = 0;
  unlock:
+	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 	unlock_page(page);
 	return err;
 }
@@ -735,7 +740,6 @@ static struct map_info *
 build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 {
 	unsigned long pgoff = offset >> PAGE_SHIFT;
-	struct prio_tree_iter iter;
 	struct vm_area_struct *vma;
 	struct map_info *curr = NULL;
 	struct map_info *prev = NULL;
@@ -744,7 +748,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 
  again:
 	mutex_lock(&mapping->i_mmap_mutex);
-	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 		if (!valid_vma(vma, is_register))
 			continue;
 
