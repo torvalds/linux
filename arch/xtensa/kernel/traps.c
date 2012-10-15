@@ -97,7 +97,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 /* EXCCAUSE_INTEGER_DIVIDE_BY_ZERO unhandled */
 /* EXCCAUSE_PRIVILEGED unhandled */
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-#ifdef CONFIG_UNALIGNED_USER
+#ifdef CONFIG_XTENSA_UNALIGNED_USER
 { EXCCAUSE_UNALIGNED,		USER,	   fast_unaligned },
 #else
 { EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
@@ -244,7 +244,7 @@ do_illegal_instruction(struct pt_regs *regs)
  */
 
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-#ifndef CONFIG_UNALIGNED_USER
+#ifndef CONFIG_XTENSA_UNALIGNED_USER
 void
 do_unaligned_user (struct pt_regs *regs)
 {
