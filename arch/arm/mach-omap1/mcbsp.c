@@ -27,6 +27,7 @@
 #include <mach/irqs.h>
 
 #include "iomap.h"
+#include "dma.h"
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)

@@ -50,6 +50,7 @@
 
 #include "common.h"
 #include "board-h2.h"
+#include "dma.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300

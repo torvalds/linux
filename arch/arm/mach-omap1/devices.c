@@ -30,6 +30,7 @@
 
 #include "common.h"
 #include "clock.h"
+#include "dma.h"
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 

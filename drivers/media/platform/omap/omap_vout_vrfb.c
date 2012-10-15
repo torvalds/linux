@@ -22,6 +22,8 @@
 #include "omap_voutdef.h"
 #include "omap_voutlib.h"
 
+#define OMAP_DMA_NO_DEVICE	0
+
 /*
  * Function for allocating video buffers
  */

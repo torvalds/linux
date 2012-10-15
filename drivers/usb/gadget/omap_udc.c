@@ -61,6 +61,8 @@
 #define	DRIVER_DESC	"OMAP UDC driver"
 #define	DRIVER_VERSION	"4 October 2004"
 
+#define OMAP_DMA_USB_W2FC_TX0		29
+
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the
  * D+ pullup to allow enumeration.  That's too early for the gadget

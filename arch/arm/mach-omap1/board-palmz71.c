@@ -47,6 +47,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 #define PALMZ71_USBDETECT_GPIO	0
 #define PALMZ71_PENIRQ_GPIO	6

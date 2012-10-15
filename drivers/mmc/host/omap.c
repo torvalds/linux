@@ -84,6 +84,10 @@
 #define OMAP_MMC_CMDTYPE_AC	2
 #define OMAP_MMC_CMDTYPE_ADTC	3
 
+#define OMAP_DMA_MMC_TX		21
+#define OMAP_DMA_MMC_RX		22
+#define OMAP_DMA_MMC2_TX	54
+#define OMAP_DMA_MMC2_RX	55
 
 #define DRIVER_NAME "mmci-omap"
 

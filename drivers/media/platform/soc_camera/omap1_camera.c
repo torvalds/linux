@@ -40,6 +40,7 @@
 #define DRIVER_NAME		"omap1-camera"
 #define DRIVER_VERSION		"0.0.2"
 
+#define OMAP_DMA_CAMERA_IF_RX		20
 
 /*
  * ---------------------------------------------------------------------------

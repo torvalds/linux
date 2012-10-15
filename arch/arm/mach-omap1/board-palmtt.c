@@ -45,6 +45,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 #define PALMTT_USBDETECT_GPIO	0
 #define PALMTT_CABLE_GPIO	1
