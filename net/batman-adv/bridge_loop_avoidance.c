@@ -77,8 +77,15 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_backbone_gw,
 					 hash_entry);
+	const struct batadv_backbone_gw *gw1 = data1, *gw2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(gw1->orig, gw2->orig))
+		return 0;
+
+	if (gw1->vid != gw2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* compares address and vid of two claims */
@@ -87,8 +94,15 @@ static int batadv_compare_claim(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_claim,
 					 hash_entry);
+	const struct batadv_claim *cl1 = data1, *cl2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(cl1->addr, cl2->addr))
+		return 0;
+
+	if (cl1->vid != cl2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* free a backbone gw */
