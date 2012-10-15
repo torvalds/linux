@@ -29,11 +29,6 @@
  */
 #define OMAP_UART_INFO_OFS	0x3ffc
 
-/* OMAP1 serial ports */
-#define OMAP1_UART1_BASE	0xfffb0000
-#define OMAP1_UART2_BASE	0xfffb0800
-#define OMAP1_UART3_BASE	0xfffb9800
-
 /* OMAP2 serial ports */
 #define OMAP2_UART1_BASE	0x4806a000
 #define OMAP2_UART2_BASE	0x4806c000
@@ -76,20 +71,14 @@
 #define ZOOM_UART_VIRT		0xfa400000
 
 #define OMAP_PORT_SHIFT		2
-#define OMAP7XX_PORT_SHIFT	0
 #define ZOOM_PORT_SHIFT		1
 
-#define OMAP1510_BASE_BAUD	(12000000/16)
-#define OMAP16XX_BASE_BAUD	(48000000/16)
 #define OMAP24XX_BASE_BAUD	(48000000/16)
 
 /*
  * DEBUG_LL port encoding stored into the UART1 scratchpad register by
  * decomp_setup in uncompress.h
  */
-#define OMAP1UART1		11
-#define OMAP1UART2		12
-#define OMAP1UART3		13
 #define OMAP2UART1		21
 #define OMAP2UART2		22
 #define OMAP2UART3		23

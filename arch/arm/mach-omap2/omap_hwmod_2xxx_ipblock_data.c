@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <plat/serial.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <plat-omap/dma-omap.h>
 #include <plat/dmtimer.h>

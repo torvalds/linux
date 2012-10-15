@@ -20,8 +20,6 @@
 #include <linux/platform_data/gpio-omap.h>
 
 #include <plat-omap/dma-omap.h>
-#include <plat/serial.h>
-
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
 #include <linux/platform_data/asoc-ti-mcbsp.h>
@@ -41,6 +39,7 @@
 #include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"
+#include "serial.h"
 
 /*
  * OMAP3xxx hardware module integration data

@@ -23,7 +23,7 @@
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 
-#include <plat/serial.h>
+#include <../mach-omap2/serial.h>
 
 #define MDR1_MODE_MASK			0x07
 

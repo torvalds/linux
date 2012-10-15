@@ -72,7 +72,7 @@ static inline u32 omap_cs3_phys(void)
 
 #endif	/* ifndef __ASSEMBLER__ */
 
-#include <plat/serial.h>
+#include <mach/serial.h>
 
 /*
  * ---------------------------------------------------------------------------

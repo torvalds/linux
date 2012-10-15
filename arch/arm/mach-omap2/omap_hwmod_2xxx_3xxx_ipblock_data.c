@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <plat/serial.h>
 #include <plat-omap/dma-omap.h>
 
 #include "../plat-omap/common.h"

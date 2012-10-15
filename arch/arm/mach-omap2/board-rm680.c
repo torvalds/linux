@@ -25,7 +25,6 @@
 #include <plat/usb.h>
 #include "gpmc.h"
 #include "common.h"
-#include <plat/serial.h>
 
 #include "mux.h"
 #include "mmc.h"
