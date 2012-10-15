@@ -101,6 +101,9 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	if (suspend_flag)
 		return 0;	
 
+	if (bl->props.brightness < rk29_bl_info->min_brightness && bl->props.brightness != 0)	/*avoid can't view screen when close backlight*/
+		brightness = rk29_bl_info->min_brightness;
+
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
 
@@ -109,9 +112,6 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 
 	if (bl->props.state & BL_CORE_SUSPENDED)
 		brightness = 0;
-
-	if (bl->props.brightness < rk29_bl_info->min_brightness)	/*avoid can't view screen when close backlight*/
-		brightness = rk29_bl_info->min_brightness;
 
 	div_total = read_pwm_reg(id, PWM_REG_LRC);
 	if (ref) {
