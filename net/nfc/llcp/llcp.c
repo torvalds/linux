@@ -85,6 +85,16 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 			}
 		}
 
+		/*
+		 * If we have a connection less socket bound, we keep it alive
+		 * if the device is still present.
+		 */
+		if (sk->sk_state == LLCP_BOUND && sk->sk_type == SOCK_DGRAM &&
+		    listen == true) {
+			bh_unlock_sock(sk);
+			continue;
+		}
+
 		sk->sk_state = LLCP_CLOSED;
 
 		bh_unlock_sock(sk);
