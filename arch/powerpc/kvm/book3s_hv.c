@@ -60,23 +60,74 @@
 /* Used to indicate that a guest page fault needs to be handled */
 #define RESUME_PAGE_FAULT	(RESUME_GUEST | RESUME_FLAG_ARCH1)
 
+/* Used as a "null" value for timebase values */
+#define TB_NIL	(~(u64)0)
+
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
+
+/*
+ * We use the vcpu_load/put functions to measure stolen time.
+ * Stolen time is counted as time when either the vcpu is able to
+ * run as part of a virtual core, but the task running the vcore
+ * is preempted or sleeping, or when the vcpu needs something done
+ * in the kernel by the task running the vcpu, but that task is
+ * preempted or sleeping.  Those two things have to be counted
+ * separately, since one of the vcpu tasks will take on the job
+ * of running the core, and the other vcpu tasks in the vcore will
+ * sleep waiting for it to do that, but that sleep shouldn't count
+ * as stolen time.
+ *
+ * Hence we accumulate stolen time when the vcpu can run as part of
+ * a vcore using vc->stolen_tb, and the stolen time when the vcpu
+ * needs its task to do other things in the kernel (for example,
+ * service a page fault) in busy_stolen.  We don't accumulate
+ * stolen time for a vcore when it is inactive, or for a vcpu
+ * when it is in state RUNNING or NOTREADY.  NOTREADY is a bit of
+ * a misnomer; it means that the vcpu task is not executing in
+ * the KVM_VCPU_RUN ioctl, i.e. it is in userspace or elsewhere in
+ * the kernel.  We don't have any way of dividing up that time
+ * between time that the vcpu is genuinely stopped, time that
+ * the task is actively working on behalf of the vcpu, and time
+ * that the task is preempted, so we don't count any of it as
+ * stolen.
+ *
+ * Updates to busy_stolen are protected by arch.tbacct_lock;
+ * updates to vc->stolen_tb are protected by the arch.tbacct_lock
+ * of the vcpu that has taken responsibility for running the vcore
+ * (i.e. vc->runner).  The stolen times are measured in units of
+ * timebase ticks.  (Note that the != TB_NIL checks below are
+ * purely defensive; they should never fail.)
+ */
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+	spin_lock(&vcpu->arch.tbacct_lock);
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE &&
+	    vc->preempt_tb != TB_NIL) {
 		vc->stolen_tb += mftb() - vc->preempt_tb;
+		vc->preempt_tb = TB_NIL;
+	}
+	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST &&
+	    vcpu->arch.busy_preempt != TB_NIL) {
+		vcpu->arch.busy_stolen += mftb() - vcpu->arch.busy_preempt;
+		vcpu->arch.busy_preempt = TB_NIL;
+	}
+	spin_unlock(&vcpu->arch.tbacct_lock);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
+	spin_lock(&vcpu->arch.tbacct_lock);
 	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
 		vc->preempt_tb = mftb();
+	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
+		vcpu->arch.busy_preempt = mftb();
+	spin_unlock(&vcpu->arch.tbacct_lock);
 }
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
@@ -357,24 +408,61 @@ static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 	spin_unlock(&vcpu->arch.vpa_update_lock);
 }
 
+/*
+ * Return the accumulated stolen time for the vcore up until `now'.
+ * The caller should hold the vcore lock.
+ */
+static u64 vcore_stolen_time(struct kvmppc_vcore *vc, u64 now)
+{
+	u64 p;
+
+	/*
+	 * If we are the task running the vcore, then since we hold
+	 * the vcore lock, we can't be preempted, so stolen_tb/preempt_tb
+	 * can't be updated, so we don't need the tbacct_lock.
+	 * If the vcore is inactive, it can't become active (since we
+	 * hold the vcore lock), so the vcpu load/put functions won't
+	 * update stolen_tb/preempt_tb, and we don't need tbacct_lock.
+	 */
+	if (vc->vcore_state != VCORE_INACTIVE &&
+	    vc->runner->arch.run_task != current) {
+		spin_lock(&vc->runner->arch.tbacct_lock);
+		p = vc->stolen_tb;
+		if (vc->preempt_tb != TB_NIL)
+			p += now - vc->preempt_tb;
+		spin_unlock(&vc->runner->arch.tbacct_lock);
+	} else {
+		p = vc->stolen_tb;
+	}
+	return p;
+}
+
 static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 				    struct kvmppc_vcore *vc)
 {
 	struct dtl_entry *dt;
 	struct lppaca *vpa;
-	unsigned long old_stolen;
+	unsigned long stolen;
+	unsigned long core_stolen;
+	u64 now;
 
 	dt = vcpu->arch.dtl_ptr;
 	vpa = vcpu->arch.vpa.pinned_addr;
-	old_stolen = vcpu->arch.stolen_logged;
-	vcpu->arch.stolen_logged = vc->stolen_tb;
+	now = mftb();
+	core_stolen = vcore_stolen_time(vc, now);
+	stolen = core_stolen - vcpu->arch.stolen_logged;
+	vcpu->arch.stolen_logged = core_stolen;
+	spin_lock(&vcpu->arch.tbacct_lock);
+	stolen += vcpu->arch.busy_stolen;
+	vcpu->arch.busy_stolen = 0;
+	spin_unlock(&vcpu->arch.tbacct_lock);
 	if (!dt || !vpa)
 		return;
 	memset(dt, 0, sizeof(struct dtl_entry));
 	dt->dispatch_reason = 7;
 	dt->processor_id = vc->pcpu + vcpu->arch.ptid;
-	dt->timebase = mftb();
-	dt->enqueue_to_dispatch_time = vc->stolen_tb - old_stolen;
+	dt->timebase = now;
+	dt->enqueue_to_dispatch_time = stolen;
 	dt->srr0 = kvmppc_get_pc(vcpu);
 	dt->srr1 = vcpu->arch.shregs.msr;
 	++dt;
@@ -773,6 +861,8 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.pvr = mfspr(SPRN_PVR);
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
 	spin_lock_init(&vcpu->arch.vpa_update_lock);
+	spin_lock_init(&vcpu->arch.tbacct_lock);
+	vcpu->arch.busy_preempt = TB_NIL;
 
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
@@ -788,7 +878,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			INIT_LIST_HEAD(&vcore->runnable_threads);
 			spin_lock_init(&vcore->lock);
 			init_waitqueue_head(&vcore->wq);
-			vcore->preempt_tb = mftb();
+			vcore->preempt_tb = TB_NIL;
 		}
 		kvm->arch.vcores[core] = vcore;
 	}
@@ -801,7 +891,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	++vcore->num_threads;
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
-	vcpu->arch.stolen_logged = vcore->stolen_tb;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -861,9 +950,17 @@ extern void xics_wake_cpu(int cpu);
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)
 {
+	u64 now;
+
 	if (vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 		return;
-	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
+	spin_lock(&vcpu->arch.tbacct_lock);
+	now = mftb();
+	vcpu->arch.busy_stolen += vcore_stolen_time(vc, now) -
+		vcpu->arch.stolen_logged;
+	vcpu->arch.busy_preempt = now;
+	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
+	spin_unlock(&vcpu->arch.tbacct_lock);
 	--vc->n_runnable;
 	list_del(&vcpu->arch.run_list);
 }
@@ -1038,10 +1135,8 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 			vcpu->arch.ptid = ptid++;
 		}
 	}
-	if (!vcpu0) {
-		vc->vcore_state = VCORE_INACTIVE;
-		return;		/* nothing to run; should never happen */
-	}
+	if (!vcpu0)
+		goto out;	/* nothing to run; should never happen */
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
 		if (vcpu->arch.ceded)
 			vcpu->arch.ptid = ptid++;
@@ -1056,7 +1151,6 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 		goto out;
 	}
 
-	vc->stolen_tb += mftb() - vc->preempt_tb;
 	vc->pcpu = smp_processor_id();
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		kvmppc_start_thread(vcpu);
@@ -1121,7 +1215,6 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 
  out:
 	vc->vcore_state = VCORE_INACTIVE;
-	vc->preempt_tb = mftb();
 	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
 				 arch.run_list) {
 		if (vcpu->arch.ret != RESUME_GUEST) {
@@ -1181,7 +1274,9 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	vcpu->arch.ceded = 0;
 	vcpu->arch.run_task = current;
 	vcpu->arch.kvm_run = kvm_run;
+	vcpu->arch.stolen_logged = vcore_stolen_time(vc, mftb());
 	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
+	vcpu->arch.busy_preempt = TB_NIL;
 	list_add_tail(&vcpu->arch.run_list, &vc->runnable_threads);
 	++vc->n_runnable;
 
@@ -1295,6 +1390,7 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	flush_vsx_to_thread(current);
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
 	vcpu->arch.pgdir = current->mm->pgd;
+	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	do {
 		r = kvmppc_run_vcpu(run, vcpu);
@@ -1312,6 +1408,7 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	} while (r == RESUME_GUEST);
 
  out:
+	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&vcpu->kvm->arch.vcpus_running);
 	return r;
 }

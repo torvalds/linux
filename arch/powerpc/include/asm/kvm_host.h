@@ -559,12 +559,17 @@ struct kvm_vcpu_arch {
 	unsigned long dtl_index;
 	u64 stolen_logged;
 	struct kvmppc_vpa slb_shadow;
+
+	spinlock_t tbacct_lock;
+	u64 busy_stolen;
+	u64 busy_preempt;
 #endif
 };
 
 /* Values for vcpu->arch.state */
 #define KVMPPC_VCPU_NOTREADY		0
 #define KVMPPC_VCPU_RUNNABLE		1
+#define KVMPPC_VCPU_BUSY_IN_HOST	2
 
 /* Values for vcpu->arch.io_gpr */
 #define KVM_MMIO_REG_MASK	0x001f
