@@ -157,7 +157,7 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 			 * For single PAN/FTP profile, allocate 35% for BT
 			 * to improve WLAN throughput.
 			 */
-			btcoex->duty_cycle = 35;
+			btcoex->duty_cycle = AR_SREV_9565(sc->sc_ah) ? 40 : 35;
 			btcoex->btcoex_period = 53;
 			ath_dbg(common, MCI,
 				"Single PAN/FTP bt period %d ms dutycycle %d\n",
