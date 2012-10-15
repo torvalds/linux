@@ -157,7 +157,7 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
 __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 {
     __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
-    __u32 out_csc = 0;
+	__csc_t out_csc = DE_RGB;
     __u32 enhance_en, bright, contrast, saturation, hue;
 
     enhance_en = gdisp.screen[sel].enhance_en;
@@ -172,6 +172,7 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
         __s32 value = 0;
 
         out_color_range = DISP_COLOR_RANGE_16_255;
+		out_csc = DE_YUV_HDMI;
 
         ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
         if(ret < 0)
@@ -186,7 +187,7 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
     }
     else if(type == DISP_OUTPUT_TYPE_TV)
     {
-        out_csc = 1;
+		out_csc = DE_YUV_TV;
     }
 
     else if(type == DISP_OUTPUT_TYPE_LCD)

@@ -334,14 +334,15 @@ __s32 video_config(__s32 vic)
     HDMI_WUINT8 (0x081,0x02);
     HDMI_WUINT8 (0x082,0x0d);
     HDMI_WUINT8 (0x083,0x00);
-    HDMI_WUINT8 (0x084,0x50);
-    if( video_timing[vic_tab].PCLK < 74250000)				//SD format
-    {
-    	HDMI_WUINT8 (0x085,0x58);							//4:3 601
-    }else													//HD format
-    {
-    	HDMI_WUINT8 (0x085,0xa8);							//16:9 709
-    }
+	/* 4:4:4 YCbCr */
+	HDMI_WUINT8 (0x084,0x50);  /* Data Byte 1 */
+	if( video_timing[vic_tab].PCLK < 74250000) {
+		/* 4:3 601 */
+		HDMI_WUINT8 (0x085,0x58); /* Data Byte 2 */
+	} else  {
+		/* 16:9 709 */
+		HDMI_WUINT8 (0x085,0xa8); /* Data Byte 2 */
+	}
     HDMI_WUINT8 (0x086,0x00);
     HDMI_WUINT8 (0x087,video_timing[vic_tab].VIC	 );
     HDMI_WUINT8 (0x088,video_timing[vic_tab].AVI_PR);
