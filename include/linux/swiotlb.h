@@ -34,9 +34,14 @@ enum dma_sync_target {
 	SYNC_FOR_CPU = 0,
 	SYNC_FOR_DEVICE = 1,
 };
-extern void *swiotlb_tbl_map_single(struct device *hwdev, dma_addr_t tbl_dma_addr,
-				    phys_addr_t phys, size_t size,
-				    enum dma_data_direction dir);
+
+/* define the last possible byte of physical address space as a mapping error */
+#define SWIOTLB_MAP_ERROR (~(phys_addr_t)0x0)
+
+extern phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+					  dma_addr_t tbl_dma_addr,
+					  phys_addr_t phys, size_t size,
+					  enum dma_data_direction dir);
 
 extern void swiotlb_tbl_unmap_single(struct device *hwdev, char *dma_addr,
 				     size_t size, enum dma_data_direction dir);
