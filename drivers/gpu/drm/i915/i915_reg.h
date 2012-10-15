@@ -4435,12 +4435,16 @@
 #define  DP_TP_CTL_LINK_TRAIN_MASK		(7<<8)
 #define  DP_TP_CTL_LINK_TRAIN_PAT1		(0<<8)
 #define  DP_TP_CTL_LINK_TRAIN_PAT2		(1<<8)
+#define  DP_TP_CTL_LINK_TRAIN_PAT3		(4<<8)
+#define  DP_TP_CTL_LINK_TRAIN_IDLE		(2<<8)
 #define  DP_TP_CTL_LINK_TRAIN_NORMAL		(3<<8)
+#define  DP_TP_CTL_SCRAMBLE_DISABLE		(1<<7)
 
 /* DisplayPort Transport Status */
 #define DP_TP_STATUS_A			0x64044
 #define DP_TP_STATUS_B			0x64144
 #define DP_TP_STATUS(port) _PORT(port, DP_TP_STATUS_A, DP_TP_STATUS_B)
+#define  DP_TP_STATUS_IDLE_DONE		(1<<25)
 #define  DP_TP_STATUS_AUTOTRAIN_DONE	(1<<12)
 
 /* DDI Buffer Control */

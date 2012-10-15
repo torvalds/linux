@@ -1470,7 +1470,19 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 
-	if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+	if (IS_HASWELL(dev)) {
+		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			return DP_TRAIN_PRE_EMPHASIS_9_5;
+		case DP_TRAIN_VOLTAGE_SWING_600:
+			return DP_TRAIN_PRE_EMPHASIS_6;
+		case DP_TRAIN_VOLTAGE_SWING_800:
+			return DP_TRAIN_PRE_EMPHASIS_3_5;
+		case DP_TRAIN_VOLTAGE_SWING_1200:
+		default:
+			return DP_TRAIN_PRE_EMPHASIS_0;
+		}
+	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_400:
 			return DP_TRAIN_PRE_EMPHASIS_6;
@@ -1624,6 +1636,40 @@ intel_gen7_edp_signal_levels(uint8_t train_set)
 	}
 }
 
+/* Gen7.5's (HSW) DP voltage swing and pre-emphasis control */
+static uint32_t
+intel_dp_signal_levels_hsw(uint8_t train_set)
+{
+	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					 DP_TRAIN_PRE_EMPHASIS_MASK);
+	switch (signal_levels) {
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
+		return DDI_BUF_EMP_400MV_0DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return DDI_BUF_EMP_400MV_3_5DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
+		return DDI_BUF_EMP_400MV_6DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_9_5:
+		return DDI_BUF_EMP_400MV_9_5DB_HSW;
+
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_0:
+		return DDI_BUF_EMP_600MV_0DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return DDI_BUF_EMP_600MV_3_5DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_6:
+		return DDI_BUF_EMP_600MV_6DB_HSW;
+
+	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
+		return DDI_BUF_EMP_800MV_0DB_HSW;
+	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return DDI_BUF_EMP_800MV_3_5DB_HSW;
+	default:
+		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
+			      "0x%x\n", signal_levels);
+		return DDI_BUF_EMP_400MV_0DB_HSW;
+	}
+}
+
 static uint8_t
 intel_get_lane_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 		      int lane)
@@ -1680,8 +1726,44 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+	uint32_t temp;
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
+	if (IS_HASWELL(dev)) {
+		temp = I915_READ(DP_TP_CTL(intel_dp->port));
+
+		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
+			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
+		else
+			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
+
+		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			temp |= DP_TP_CTL_LINK_TRAIN_IDLE;
+			I915_WRITE(DP_TP_CTL(intel_dp->port), temp);
+
+			if (wait_for((I915_READ(DP_TP_STATUS(intel_dp->port)) &
+				      DP_TP_STATUS_IDLE_DONE), 1))
+				DRM_ERROR("Timed out waiting for DP idle patterns\n");
+
+			temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
+
+			break;
+		case DP_TRAINING_PATTERN_1:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT2;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
+			break;
+		}
+		I915_WRITE(DP_TP_CTL(intel_dp->port), temp);
+
+	} else if (HAS_PCH_CPT(dev) &&
+		   (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
 		dp_reg_value &= ~DP_LINK_TRAIN_MASK_CPT;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
@@ -1768,8 +1850,11 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		uint8_t	    link_status[DP_LINK_STATUS_SIZE];
 		uint32_t    signal_levels;
 
-
-		if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+		if (IS_HASWELL(dev)) {
+			signal_levels = intel_dp_signal_levels_hsw(
+							intel_dp->train_set[0]);
+			DP = (DP & ~DDI_BUF_EMP_MASK) | signal_levels;
+		} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
 		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
@@ -1777,9 +1862,10 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
 		} else {
 			signal_levels = intel_dp_signal_levels(intel_dp->train_set[0]);
-			DRM_DEBUG_KMS("training pattern 1 signal levels %08x\n", signal_levels);
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
+		DRM_DEBUG_KMS("training pattern 1 signal levels %08x\n",
+			      signal_levels);
 
 		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_1 |
@@ -1855,7 +1941,10 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			break;
 		}
 
-		if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+		if (IS_HASWELL(dev)) {
+			signal_levels = intel_dp_signal_levels_hsw(intel_dp->train_set[0]);
+			DP = (DP & ~DDI_BUF_EMP_MASK) | signal_levels;
+		} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
 		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
@@ -1901,6 +1990,9 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		intel_get_adjust_train(intel_dp, link_status);
 		++tries;
 	}
+
+	if (channel_eq)
+		DRM_DEBUG_KMS("Channel EQ done. DP Training successfull\n");
 
 	intel_dp_set_link_train(intel_dp, DP, DP_TRAINING_PATTERN_DISABLE);
 }
