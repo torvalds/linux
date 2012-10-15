@@ -20,7 +20,7 @@
 #include <plat/serial.h>
 #include <plat/i2c.h>
 #include <plat/dmtimer.h>
-#include <plat/mmc.h>
+#include "mmc.h"
 #include "l3_2xxx.h"
 
 #include "soc.h"

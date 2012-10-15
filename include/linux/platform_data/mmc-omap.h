@@ -8,27 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __OMAP2_MMC_H
-#define __OMAP2_MMC_H
-
-#include <linux/types.h>
-#include <linux/device.h>
-#include <linux/mmc/host.h>
-
-#include <plat/omap_hwmod.h>
-
-#define OMAP15XX_NR_MMC		1
-#define OMAP16XX_NR_MMC		2
-#define OMAP1_MMC_SIZE		0x080
-#define OMAP1_MMC1_BASE		0xfffb7800
-#define OMAP1_MMC2_BASE		0xfffb7c00	/* omap16xx only */
-
-#define OMAP24XX_NR_MMC		2
-#define OMAP2420_MMC_SIZE	OMAP1_MMC_SIZE
-#define OMAP2_MMC1_BASE		0x4809c000
-
-#define OMAP4_MMC_REG_OFFSET	0x100
-
 #define OMAP_MMC_MAX_SLOTS	2
 
 /*
@@ -49,6 +28,8 @@
  */
 #define OMAP_HSMMC_SUPPORTS_DUAL_VOLT		BIT(0)
 #define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ	BIT(1)
+
+struct mmc_card;
 
 struct omap_mmc_dev_attr {
 	u8 flags;
@@ -164,25 +145,3 @@ struct omap_mmc_platform_data {
 
 	} slots[OMAP_MMC_MAX_SLOTS];
 };
-
-/* called from board-specific card detection service routine */
-extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
-					int is_closed);
-
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
-void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
-				int nr_controllers);
-void omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data);
-#else
-static inline void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
-				int nr_controllers)
-{
-}
-static inline void omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
-{
-}
-#endif
-
-extern int omap_msdi_reset(struct omap_hwmod *oh);
-
-#endif

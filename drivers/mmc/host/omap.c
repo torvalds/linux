@@ -28,8 +28,9 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/platform_data/mmc-omap.h>
 
-#include <plat/mmc.h>
+#include <plat/cpu.h>
 #include <plat/dma.h>
 
 #define	OMAP_MMC_REG_CMD	0x00

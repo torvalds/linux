@@ -36,13 +36,13 @@
 #include <plat/fpga.h>
 #include <plat/tc.h>
 #include <linux/platform_data/keypad-omap.h>
-#include <plat/mmc.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
 
 #include "iomap.h"
 #include "common.h"
+#include "mmc.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define INNOVATOR1610_ETHR_START	0x04000300

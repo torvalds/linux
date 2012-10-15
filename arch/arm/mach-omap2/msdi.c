@@ -27,11 +27,11 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
-#include <plat/mmc.h>
 
 #include "common.h"
 #include "control.h"
 #include "mux.h"
+#include "mmc.h"
 
 /*
  * MSDI_CON_OFFSET: offset in bytes of the MSDI IP block's CON register
