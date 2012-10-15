@@ -720,6 +720,39 @@ static u8 *nfc_llcp_connect_sn(struct sk_buff *skb, size_t *sn_len)
 	return NULL;
 }
 
+static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
+			     struct sk_buff *skb)
+{
+	struct nfc_llcp_sock *llcp_sock;
+	struct nfc_llcp_ui_cb *ui_cb;
+	u8 dsap, ssap;
+
+	dsap = nfc_llcp_dsap(skb);
+	ssap = nfc_llcp_ssap(skb);
+
+	ui_cb = nfc_llcp_ui_skb_cb(skb);
+	ui_cb->dsap = dsap;
+	ui_cb->ssap = ssap;
+
+	printk("%s %d %d\n", __func__, dsap, ssap);
+
+	pr_debug("%d %d\n", dsap, ssap);
+
+	/* We're looking for a bound socket, not a client one */
+	llcp_sock = nfc_llcp_sock_get(local, dsap, LLCP_SAP_SDP);
+	if (llcp_sock == NULL || llcp_sock->sk.sk_type != SOCK_DGRAM)
+		return;
+
+	/* There is no sequence with UI frames */
+	skb_pull(skb, LLCP_HEADER_SIZE);
+	if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
+		pr_err("receive queue is full\n");
+		skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+	}
+
+	nfc_llcp_sock_put(llcp_sock);
+}
+
 static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 				  struct sk_buff *skb)
 {
@@ -1175,6 +1208,11 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	switch (ptype) {
 	case LLCP_PDU_SYMM:
 		pr_debug("SYMM\n");
+		break;
+
+	case LLCP_PDU_UI:
+		pr_debug("UI\n");
+		nfc_llcp_recv_ui(local, skb);
 		break;
 
 	case LLCP_PDU_CONNECT:

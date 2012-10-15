@@ -124,6 +124,13 @@ struct nfc_llcp_sock {
 	struct sock *parent;
 };
 
+struct nfc_llcp_ui_cb {
+	__u8 dsap;
+	__u8 ssap;
+};
+
+#define nfc_llcp_ui_skb_cb(__skb) ((struct nfc_llcp_ui_cb *)&((__skb)->cb[0]))
+
 #define nfc_llcp_sock(sk) ((struct nfc_llcp_sock *) (sk))
 #define nfc_llcp_dev(sk)  (nfc_llcp_sock((sk))->dev)
 
