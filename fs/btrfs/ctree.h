@@ -1860,7 +1860,7 @@ struct btrfs_map_token {
 
 static inline void btrfs_init_map_token (struct btrfs_map_token *token)
 {
-	memset(token, 0, sizeof(*token));
+	token->kaddr = NULL;
 }
 
 /* some macros to generate set/get funcs for the struct fields.  This
