@@ -277,7 +277,7 @@ void nfs_put_client(struct nfs_client *clp)
 		nfs_cb_idr_remove_locked(clp);
 		spin_unlock(&nn->nfs_client_lock);
 
-		BUG_ON(!list_empty(&clp->cl_superblocks));
+		WARN_ON_ONCE(!list_empty(&clp->cl_superblocks));
 
 		clp->rpc_ops->free_client(clp);
 	}
@@ -1060,10 +1060,6 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 	error = nfs_init_server(server, mount_info->parsed, nfs_mod);
 	if (error < 0)
 		goto error;
-
-	BUG_ON(!server->nfs_client);
-	BUG_ON(!server->nfs_client->rpc_ops);
-	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
 	error = nfs_probe_fsinfo(server, mount_info->mntfh, fattr);
