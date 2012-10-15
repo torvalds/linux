@@ -907,10 +907,6 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
 	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
 
-#define AR_SREV_9462_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
-
 #define AR_SREV_9565(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
 
