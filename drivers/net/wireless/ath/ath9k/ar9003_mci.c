@@ -750,6 +750,9 @@ int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	mci_hw->bt_state = MCI_BT_AWAKE;
 
+	REG_CLR_BIT(ah, AR_PHY_TIMING4,
+		    1 << AR_PHY_TIMING_CONTROL4_DO_GAIN_DC_IQ_CAL_SHIFT);
+
 	if (caldata) {
 		caldata->done_txiqcal_once = false;
 		caldata->done_txclcal_once = false;
@@ -758,6 +761,9 @@ int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
+
+	REG_SET_BIT(ah, AR_PHY_TIMING4,
+		    1 << AR_PHY_TIMING_CONTROL4_DO_GAIN_DC_IQ_CAL_SHIFT);
 
 exit:
 	ar9003_mci_enable_interrupt(ah);
