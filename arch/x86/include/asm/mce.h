@@ -123,7 +123,10 @@ struct mce_log {
 struct mca_config {
 	bool dont_log_ce;
 	u8 banks;
+	s8 bootlog;
 	int tolerant;
+	int monarch_timeout;
+	u32 rip_msr;
 };
 
 extern void mce_register_decode_chain(struct notifier_block *nb);
