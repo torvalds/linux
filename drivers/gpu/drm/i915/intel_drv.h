@@ -474,6 +474,11 @@ static inline struct intel_encoder *intel_attached_encoder(struct drm_connector 
 	return to_intel_connector(connector)->encoder;
 }
 
+static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
+{
+	return container_of(encoder, struct intel_dp, base.base);
+}
+
 extern void intel_connector_attach_encoder(struct intel_connector *connector,
 					   struct intel_encoder *encoder);
 extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);

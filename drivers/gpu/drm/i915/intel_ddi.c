@@ -831,8 +831,10 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
+	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
+	int type = intel_encoder->type;
 	uint32_t temp;
 
 	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
@@ -861,9 +863,8 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= PIPE_DDI_PHSYNC;
 
-	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi =
-			enc_to_intel_hdmi(&intel_encoder->base);
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
 		if (intel_hdmi->has_hdmi_sink)
 			temp |= PIPE_DDI_MODE_SELECT_HDMI;
@@ -871,9 +872,34 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 			temp |= PIPE_DDI_MODE_SELECT_DVI;
 
 		temp |= PIPE_DDI_SELECT_PORT(intel_hdmi->ddi_port);
-	} else if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
+
+	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= PIPE_DDI_MODE_SELECT_FDI;
 		temp |= PIPE_DDI_SELECT_PORT(PORT_E);
+
+	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
+		   type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		temp |= PIPE_DDI_MODE_SELECT_DP_SST;
+		temp |= PIPE_DDI_SELECT_PORT(intel_dp->port);
+
+		switch (intel_dp->lane_count) {
+		case 1:
+			temp |= PIPE_DDI_PORT_WIDTH_X1;
+			break;
+		case 2:
+			temp |= PIPE_DDI_PORT_WIDTH_X2;
+			break;
+		case 4:
+			temp |= PIPE_DDI_PORT_WIDTH_X4;
+			break;
+		default:
+			temp |= PIPE_DDI_PORT_WIDTH_X4;
+			WARN(1, "Unsupported lane count %d\n",
+			     intel_dp->lane_count);
+		}
+
 	} else {
 		WARN(1, "Invalid encoder type %d for pipe %d\n",
 		     intel_encoder->type, pipe);

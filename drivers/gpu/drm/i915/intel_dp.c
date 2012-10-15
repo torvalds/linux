@@ -77,11 +77,6 @@ static bool is_cpu_edp(struct intel_dp *intel_dp)
 	return is_edp(intel_dp) && !is_pch_edp(intel_dp);
 }
 
-static struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct intel_dp, base.base);
-}
-
 static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 {
 	return container_of(intel_attached_encoder(connector),
