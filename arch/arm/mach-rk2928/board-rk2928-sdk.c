@@ -985,22 +985,22 @@ static void __init rk2928_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
-	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
-	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
-	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
-	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 #if 0
-	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 #endif
-	//{.frequency = 1000 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
+	//{.frequency = 1000 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
