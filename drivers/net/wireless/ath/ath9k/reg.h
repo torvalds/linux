@@ -2360,4 +2360,8 @@ enum {
 #define AR_GLB_SWREG_DISCONT_MODE         0x2002c
 #define AR_GLB_SWREG_DISCONT_EN_BT_WLAN   0x3
 
+#define AR_MCI_MISC                    0x1a74
+#define AR_MCI_MISC_HW_FIX_EN          0x00000001
+#define AR_MCI_MISC_HW_FIX_EN_S        0
+
 #endif

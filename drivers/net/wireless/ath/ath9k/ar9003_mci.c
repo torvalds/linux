@@ -799,6 +799,9 @@ static void ar9003_mci_osla_setup(struct ath_hw *ah, bool enable)
 	REG_RMW_FIELD(ah, AR_MCI_SCHD_TABLE_2,
 		      AR_MCI_SCHD_TABLE_2_MEM_BASED, 1);
 
+	if (AR_SREV_9565(ah))
+		REG_RMW_FIELD(ah, AR_MCI_MISC, AR_MCI_MISC_HW_FIX_EN, 1);
+
 	if (!(mci->config & ATH_MCI_CONFIG_DISABLE_AGGR_THRESH)) {
 		thresh = MS(mci->config, ATH_MCI_CONFIG_AGGR_THRESH);
 		REG_RMW_FIELD(ah, AR_BTCOEX_CTRL,
