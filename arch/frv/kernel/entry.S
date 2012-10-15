@@ -869,11 +869,6 @@ ret_from_kernel_thread:
 	call		schedule_tail
 	calll.p		@(gr21,gr0)
 	or		gr20,gr20,gr8
-	bra		sys_exit
-
-	.globl		ret_from_kernel_execve
-ret_from_kernel_execve:
-	ori		gr28,0,sp
 	bra		__syscall_exit
 
 ###################################################################################################
