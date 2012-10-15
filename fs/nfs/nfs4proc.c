@@ -206,7 +206,6 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 {
 	__be32 *start, *p;
 
-	BUG_ON(readdir->count < 80);
 	if (cookie > 2) {
 		readdir->cookie = cookie;
 		memcpy(&readdir->verifier, verifier, sizeof(readdir->verifier));
@@ -415,7 +414,6 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 static void
 nfs4_free_slot(struct nfs4_slot_table *tbl, u32 slotid)
 {
-	BUG_ON(slotid >= NFS4_MAX_SLOT_TABLE);
 	/* clear used bit in bitmap */
 	__clear_bit(slotid, tbl->used_slots);
 
@@ -2533,7 +2531,8 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
 
 	len = rpcauth_list_flavors(flav_array, ARRAY_SIZE(flav_array));
-	BUG_ON(len < 0);
+	if (len < 0)
+		return len;
 
 	for (i = 0; i < len; i++) {
 		/* AUTH_UNIX is the default flavor if none was specified,
@@ -3362,9 +3361,6 @@ static int _nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 	int mode = sattr->ia_mode;
 	int status = -ENOMEM;
 
-	BUG_ON(!(sattr->ia_valid & ATTR_MODE));
-	BUG_ON(!S_ISFIFO(mode) && !S_ISBLK(mode) && !S_ISCHR(mode) && !S_ISSOCK(mode));
-
 	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4SOCK);
 	if (data == NULL)
 		goto out;
@@ -3380,10 +3376,13 @@ static int _nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 		data->arg.ftype = NF4CHR;
 		data->arg.u.device.specdata1 = MAJOR(rdev);
 		data->arg.u.device.specdata2 = MINOR(rdev);
+	} else if (!S_ISSOCK(mode)) {
+		status = -EINVAL;
+		goto out_free;
 	}
 	
 	status = nfs4_do_create(dir, dentry, data);
-
+out_free:
 	nfs4_free_createdata(data);
 out:
 	return status;
@@ -5357,7 +5356,6 @@ int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred
 	};
 
 	dprintk("--> %s\n", __func__);
-	BUG_ON(clp == NULL);
 
 	res.session = kzalloc(sizeof(struct nfs4_session), GFP_NOFS);
 	if (unlikely(res.session == NULL)) {

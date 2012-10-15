@@ -1086,7 +1086,6 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
  */
 static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 {
-	BUG_ON(list_first_entry(&seqid->sequence->list, struct nfs_seqid, list) != seqid);
 	switch (status) {
 		case 0:
 			break;
