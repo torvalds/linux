@@ -175,6 +175,13 @@ static int __init omap_mmc_add(const char *name, int id, unsigned long base,
 	res[3].name = "tx";
 	res[3].flags = IORESOURCE_DMA;
 
+	if (cpu_is_omap7xx())
+		data->slots[0].features = MMC_OMAP7XX;
+	if (cpu_is_omap15xx())
+		data->slots[0].features = MMC_OMAP15XX;
+	if (cpu_is_omap16xx())
+		data->slots[0].features = MMC_OMAP16XX;
+
 	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
 	if (ret == 0)
 		ret = platform_device_add_data(pdev, data, sizeof(*data));

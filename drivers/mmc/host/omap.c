@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/platform_data/mmc-omap.h>
 
-#include <plat/cpu.h>
 #include <plat/dma.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
@@ -72,6 +71,13 @@
 #define	OMAP_MMC_STAT_END_OF_DATA	(1 <<  3)
 #define	OMAP_MMC_STAT_CARD_BUSY		(1 <<  2)
 #define	OMAP_MMC_STAT_END_OF_CMD	(1 <<  0)
+
+#define mmc_omap7xx()	(host->features & MMC_OMAP7XX)
+#define mmc_omap15xx()	(host->features & MMC_OMAP15XX)
+#define mmc_omap16xx()	(host->features & MMC_OMAP16XX)
+#define MMC_OMAP1_MASK	(MMC_OMAP7XX | MMC_OMAP15XX | MMC_OMAP16XX)
+#define mmc_omap1()	(host->features & MMC_OMAP1_MASK)
+#define mmc_omap2()	(!mmc_omap1())
 
 #define OMAP_MMC_REG(host, reg)		(OMAP_MMC_REG_##reg << (host)->reg_shift)
 #define OMAP_MMC_READ(host, reg)	__raw_readw((host)->virt_base + OMAP_MMC_REG(host, reg))
@@ -148,6 +154,7 @@ struct mmc_omap_host {
 	u32			buffer_bytes_left;
 	u32			total_bytes_left;
 
+	unsigned		features;
 	unsigned		use_dma:1;
 	unsigned		brs_received:1, dma_done:1;
 	unsigned		dma_in_use:1;
@@ -989,7 +996,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 		 * blocksize is at least that large. Blocksize is
 		 * usually 512 bytes; but not for some SD reads.
 		 */
-		burst = cpu_is_omap15xx() ? 32 : 64;
+		burst = mmc_omap15xx() ? 32 : 64;
 		if (burst > data->blksz)
 			burst = data->blksz;
 
@@ -1105,8 +1112,7 @@ static void mmc_omap_set_power(struct mmc_omap_slot *slot, int power_on,
 	if (slot->pdata->set_power != NULL)
 		slot->pdata->set_power(mmc_dev(slot->mmc), slot->id, power_on,
 					vdd);
-
-	if (cpu_is_omap24xx()) {
+	if (mmc_omap2()) {
 		u16 w;
 
 		if (power_on) {
@@ -1240,7 +1246,7 @@ static int __devinit mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;
 
-	if (cpu_class_is_omap2())
+	if (mmc_omap2())
 		mmc->f_max = 48000000;
 	else
 		mmc->f_max = 24000000;
@@ -1360,6 +1366,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	init_waitqueue_head(&host->slot_wq);
 
 	host->pdata = pdata;
+	host->features = host->pdata->slots[0].features;
 	host->dev = &pdev->dev;
 	platform_set_drvdata(pdev, host);
 
@@ -1392,7 +1399,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	host->dma_tx_burst = -1;
 	host->dma_rx_burst = -1;
 
-	if (cpu_is_omap24xx())
+	if (mmc_omap2())
 		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_TX : OMAP24XX_DMA_MMC2_TX;
 	else
 		sig = host->id == 0 ? OMAP_DMA_MMC_TX : OMAP_DMA_MMC2_TX;
@@ -1408,7 +1415,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 		dev_warn(host->dev, "unable to obtain TX DMA engine channel %u\n",
 			sig);
 #endif
-	if (cpu_is_omap24xx())
+	if (mmc_omap2())
 		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_RX : OMAP24XX_DMA_MMC2_RX;
 	else
 		sig = host->id == 0 ? OMAP_DMA_MMC_RX : OMAP_DMA_MMC2_RX;
@@ -1436,7 +1443,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	}
 
 	host->nr_slots = pdata->nr_slots;
-	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
+	host->reg_shift = (mmc_omap7xx() ? 1 : 2);
 
 	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
 	if (!host->mmc_omap_wq)

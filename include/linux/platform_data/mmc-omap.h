@@ -107,6 +107,9 @@ struct omap_mmc_platform_data {
 		/* we can put the features above into this variable */
 #define HSMMC_HAS_PBIAS		(1 << 0)
 #define HSMMC_HAS_UPDATED_RESET	(1 << 1)
+#define MMC_OMAP7XX		(1 << 2)
+#define MMC_OMAP15XX		(1 << 3)
+#define MMC_OMAP16XX		(1 << 4)
 		unsigned features;
 
 		int switch_pin;			/* gpio (card detect) */
