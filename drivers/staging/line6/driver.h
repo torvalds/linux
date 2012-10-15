@@ -25,7 +25,6 @@
 #endif
 
 #define LINE6_TIMEOUT 1
-#define LINE6_MAX_DEVICES 8
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
 
@@ -78,7 +77,6 @@ do {					\
 } while (0)
 
 extern const unsigned char line6_midi_id[3];
-extern struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
 
 static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;

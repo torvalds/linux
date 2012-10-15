@@ -96,8 +96,6 @@ static const char line6_request_version[] = {
 	0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7
 };
 
-struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
-
 /**
 	 Class for asynchronous messages.
 */
@@ -740,7 +738,6 @@ static int line6_probe(struct usb_interface *interface,
 	struct usb_device *usbdev;
 	struct usb_line6 *line6;
 	const struct line6_properties *properties;
-	int devnum;
 	int interface_number, alternate = 0;
 	int product;
 	int size = 0;
@@ -770,16 +767,6 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	if (devtype < 0) {
-		ret = -ENODEV;
-		goto err_put;
-	}
-
-	/* find free slot in device table: */
-	for (devnum = 0; devnum < LINE6_MAX_DEVICES; ++devnum)
-		if (line6_devices[devnum] == NULL)
-			break;
-
-	if (devnum == LINE6_MAX_DEVICES) {
 		ret = -ENODEV;
 		goto err_put;
 	}
@@ -1112,7 +1099,6 @@ static int line6_probe(struct usb_interface *interface,
 
 	dev_info(&interface->dev, "Line6 %s now attached\n",
 		 line6->properties->name);
-	line6_devices[devnum] = line6;
 
 	switch (product) {
 	case LINE6_DEVID_PODX3:
@@ -1141,7 +1127,7 @@ static void line6_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6 *line6;
 	struct usb_device *usbdev;
-	int interface_number, i;
+	int interface_number;
 
 	if (interface == NULL)
 		return;
@@ -1214,10 +1200,6 @@ static void line6_disconnect(struct usb_interface *interface)
 
 		dev_info(&interface->dev, "Line6 %s now disconnected\n",
 			 line6->properties->name);
-
-		for (i = LINE6_MAX_DEVICES; i--;)
-			if (line6_devices[i] == line6)
-				line6_devices[i] = NULL;
 	}
 
 	line6_destruct(interface);
