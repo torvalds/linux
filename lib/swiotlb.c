@@ -57,7 +57,8 @@ int swiotlb_force;
  * swiotlb_tbl_sync_single_*, to see if the memory was in fact allocated by this
  * API.
  */
-static char *io_tlb_start, *io_tlb_end;
+static char *io_tlb_start;
+static phys_addr_t io_tlb_end;
 
 /*
  * The number of IO TLB blocks (in groups of 64) between io_tlb_start and
@@ -125,14 +126,16 @@ static dma_addr_t swiotlb_virt_to_bus(struct device *hwdev,
 void swiotlb_print_info(void)
 {
 	unsigned long bytes = io_tlb_nslabs << IO_TLB_SHIFT;
-	phys_addr_t pstart, pend;
+	phys_addr_t pstart;
+	unsigned char *vend;
 
 	pstart = virt_to_phys(io_tlb_start);
-	pend = virt_to_phys(io_tlb_end);
+	vend = phys_to_virt(io_tlb_end);
 
 	printk(KERN_INFO "software IO TLB [mem %#010llx-%#010llx] (%luMB) mapped at [%p-%p]\n",
-	       (unsigned long long)pstart, (unsigned long long)pend - 1,
-	       bytes >> 20, io_tlb_start, io_tlb_end - 1);
+	       (unsigned long long)pstart,
+	       (unsigned long long)io_tlb_end,
+	       bytes >> 20, io_tlb_start, vend - 1);
 }
 
 void __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
@@ -143,7 +146,7 @@ void __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 
 	io_tlb_nslabs = nslabs;
 	io_tlb_start = tlb;
-	io_tlb_end = io_tlb_start + bytes;
+	io_tlb_end = __pa(io_tlb_start) + bytes;
 
 	/*
 	 * Allocate and initialize the free list array.  This array is used
@@ -254,7 +257,7 @@ swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
 
 	io_tlb_nslabs = nslabs;
 	io_tlb_start = tlb;
-	io_tlb_end = io_tlb_start + bytes;
+	io_tlb_end = virt_to_phys(io_tlb_start) + bytes;
 
 	memset(io_tlb_start, 0, bytes);
 
@@ -304,7 +307,7 @@ cleanup3:
 	                                                 sizeof(int)));
 	io_tlb_list = NULL;
 cleanup2:
-	io_tlb_end = NULL;
+	io_tlb_end = 0;
 	io_tlb_start = NULL;
 	io_tlb_nslabs = 0;
 	return -ENOMEM;
@@ -339,8 +342,7 @@ void __init swiotlb_free(void)
 
 static int is_swiotlb_buffer(phys_addr_t paddr)
 {
-	return paddr >= virt_to_phys(io_tlb_start) &&
-		paddr < virt_to_phys(io_tlb_end);
+	return paddr >= virt_to_phys(io_tlb_start) && paddr < io_tlb_end;
 }
 
 /*
@@ -938,6 +940,6 @@ EXPORT_SYMBOL(swiotlb_dma_mapping_error);
 int
 swiotlb_dma_supported(struct device *hwdev, u64 mask)
 {
-	return swiotlb_virt_to_bus(hwdev, io_tlb_end - 1) <= mask;
+	return phys_to_dma(hwdev, io_tlb_end - 1) <= mask;
 }
 EXPORT_SYMBOL(swiotlb_dma_supported);
