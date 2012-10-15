@@ -318,6 +318,15 @@ static struct snd_soc_dai_link mfld_msic_dailink[] = {
 		.platform_name = "sst-platform",
 		.init = NULL,
 	},
+	{
+		.name = "Medfield Compress",
+		.stream_name = "Speaker",
+		.cpu_dai_name = "Compress-cpu-dai",
+		.codec_dai_name = "SN95031 Speaker",
+		.codec_name = "sn95031",
+		.platform_name = "sst-platform",
+		.init = NULL,
+	},
 };
 
 /* SoC card */

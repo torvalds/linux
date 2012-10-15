@@ -105,23 +105,11 @@ void *memdup_user(const void __user *src, size_t len)
 }
 EXPORT_SYMBOL(memdup_user);
 
-/**
- * __krealloc - like krealloc() but don't free @p.
- * @p: object to reallocate memory for.
- * @new_size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * This function is like krealloc() except it never frees the originally
- * allocated buffer. Use this if you don't want to free the buffer immediately
- * like, for example, with RCU.
- */
-void *__krealloc(const void *p, size_t new_size, gfp_t flags)
+static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+					   gfp_t flags)
 {
 	void *ret;
 	size_t ks = 0;
-
-	if (unlikely(!new_size))
-		return ZERO_SIZE_PTR;
 
 	if (p)
 		ks = ksize(p);
@@ -134,6 +122,25 @@ void *__krealloc(const void *p, size_t new_size, gfp_t flags)
 		memcpy(ret, p, ks);
 
 	return ret;
+}
+
+/**
+ * __krealloc - like krealloc() but don't free @p.
+ * @p: object to reallocate memory for.
+ * @new_size: how many bytes of memory are required.
+ * @flags: the type of memory to allocate.
+ *
+ * This function is like krealloc() except it never frees the originally
+ * allocated buffer. Use this if you don't want to free the buffer immediately
+ * like, for example, with RCU.
+ */
+void *__krealloc(const void *p, size_t new_size, gfp_t flags)
+{
+	if (unlikely(!new_size))
+		return ZERO_SIZE_PTR;
+
+	return __do_krealloc(p, new_size, flags);
+
 }
 EXPORT_SYMBOL(__krealloc);
 
@@ -157,7 +164,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 		return ZERO_SIZE_PTR;
 	}
 
-	ret = __krealloc(p, new_size, flags);
+	ret = __do_krealloc(p, new_size, flags);
 	if (ret && p != ret)
 		kfree(p);
 

@@ -43,6 +43,7 @@
 #include <linux/leds.h>
 #include <linux/hwmon.h>
 #include <linux/workqueue.h>
+#include <linux/err.h>
 
 /* data port used by Apple SMC */
 #define APPLESMC_DATA_PORT	0x300

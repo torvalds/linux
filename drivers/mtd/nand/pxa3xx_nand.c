@@ -683,11 +683,13 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	info->state = STATE_IDLE;
 }
 
-static void pxa3xx_nand_write_page_hwecc(struct mtd_info *mtd,
+static int pxa3xx_nand_write_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, const uint8_t *buf, int oob_required)
 {
 	chip->write_buf(mtd, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
 }
 
 static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
@@ -769,12 +771,6 @@ static void pxa3xx_nand_write_buf(struct mtd_info *mtd,
 
 	memcpy(info->data_buff + info->buf_start, buf, real_len);
 	info->buf_start += real_len;
-}
-
-static int pxa3xx_nand_verify_buf(struct mtd_info *mtd,
-		const uint8_t *buf, int len)
-{
-	return 0;
 }
 
 static void pxa3xx_nand_select_chip(struct mtd_info *mtd, int chip)
@@ -1007,7 +1003,6 @@ KEEP_CONFIG:
 	chip->ecc.size = host->page_size;
 	chip->ecc.strength = 1;
 
-	chip->options |= NAND_NO_READRDY;
 	if (host->reg_ndcr & NDCR_DWIDTH_M)
 		chip->options |= NAND_BUSWIDTH_16;
 
@@ -1070,7 +1065,6 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		chip->read_byte		= pxa3xx_nand_read_byte;
 		chip->read_buf		= pxa3xx_nand_read_buf;
 		chip->write_buf		= pxa3xx_nand_write_buf;
-		chip->verify_buf	= pxa3xx_nand_verify_buf;
 	}
 
 	spin_lock_init(&chip->controller->lock);

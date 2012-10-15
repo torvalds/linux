@@ -424,7 +424,7 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 
 	netdev_dbg(kaweth->net,
 		   "Downloading firmware at %p to kaweth device at %p\n",
-		   fw->data, kaweth);
+		   kaweth->firmware_buf, kaweth);
 	netdev_dbg(kaweth->net, "Firmware length: %d\n", data_len);
 
 	return kaweth_control(kaweth,

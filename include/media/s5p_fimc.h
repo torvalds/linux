@@ -12,6 +12,8 @@
 #ifndef S5P_FIMC_H_
 #define S5P_FIMC_H_
 
+#include <media/media-entity.h>
+
 enum cam_bus_type {
 	FIMC_ITU_601 = 1,
 	FIMC_ITU_656,
@@ -28,7 +30,6 @@ struct i2c_board_info;
  * @board_info: pointer to I2C subdevice's board info
  * @clk_frequency: frequency of the clock the host interface provides to sensor
  * @bus_type: determines bus type, MIPI, ITU-R BT.601 etc.
- * @csi_data_align: MIPI-CSI interface data alignment in bits
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
  * @clk_id: index of the SoC peripheral clock for sensors
@@ -38,7 +39,6 @@ struct s5p_fimc_isp_info {
 	struct i2c_board_info *board_info;
 	unsigned long clk_frequency;
 	enum cam_bus_type bus_type;
-	u16 csi_data_align;
 	u16 i2c_bus_num;
 	u16 mux_id;
 	u16 flags;
@@ -79,5 +79,21 @@ struct fimc_pipeline {
 	struct v4l2_subdev *subdevs[IDX_MAX];
 	struct media_pipeline *m_pipeline;
 };
+
+/*
+ * Media pipeline operations to be called from within the fimc(-lite)
+ * video node when it is the last entity of the pipeline. Implemented
+ * by corresponding media device driver.
+ */
+struct fimc_pipeline_ops {
+	int (*open)(struct fimc_pipeline *p, struct media_entity *me,
+			  bool resume);
+	int (*close)(struct fimc_pipeline *p);
+	int (*set_stream)(struct fimc_pipeline *p, bool state);
+};
+
+#define fimc_pipeline_call(f, op, p, args...)				\
+	(!(f) ? -ENODEV : (((f)->pipeline_ops && (f)->pipeline_ops->op) ? \
+			    (f)->pipeline_ops->op((p), ##args) : -ENOIOCTLCMD))
 
 #endif /* S5P_FIMC_H_ */

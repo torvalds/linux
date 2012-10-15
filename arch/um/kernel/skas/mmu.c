@@ -3,14 +3,14 @@
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
-#include "asm/pgalloc.h"
-#include "asm/pgtable.h"
-#include "as-layout.h"
-#include "os.h"
-#include "skas.h"
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+#include <as-layout.h>
+#include <os.h>
+#include <skas.h>
 
 extern int __syscall_stub_start;
 

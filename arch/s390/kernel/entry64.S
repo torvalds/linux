@@ -295,7 +295,7 @@ sysc_sigpending:
 	jno	sysc_return
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
 	lghi	%r8,0			# svc 0 returns -ENOSYS
-	lh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
+	llgh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
 	cghi	%r1,NR_syscalls
 	jnl	sysc_nr_ok		# invalid svc number -> do svc 0
 	slag	%r8,%r1,2
@@ -353,41 +353,31 @@ ENTRY(ret_from_fork)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	lg	%r12,__LC_THREAD_INFO
 	tm	__PT_PSW+1(%r11),0x01	# forking a kernel thread ?
-	jo	0f
-	stg	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
-0:	brasl	%r14,schedule_tail
+	je	1f
+	brasl	%r14,schedule_tail
 	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	j	sysc_tracenogo
-
-#
-# kernel_execve function needs to deal with pt_regs that is not
-# at the usual place
-#
-ENTRY(kernel_execve)
-	stmg	%r12,%r15,96(%r15)
-	lgr	%r14,%r15
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	stg	%r14,__SF_BACKCHAIN(%r15)
-	la	%r12,STACK_FRAME_OVERHEAD(%r15)
-	xc	0(__PT_SIZE,%r12),0(%r12)
-	lgr	%r5,%r12
-	brasl	%r14,do_execve
-	ltgfr	%r2,%r2
-	je	0f
-	aghi	%r15,(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	lmg	%r12,%r15,96(%r15)
-	br	%r14
-	# execve succeeded.
-0:	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
-	lg	%r15,__LC_KERNEL_STACK	# load ksp
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	mvc	0(__PT_SIZE,%r11),0(%r12)	# copy pt_regs
-	lg	%r12,__LC_THREAD_INFO
-	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+1:	# it's a kernel thread
+	stg	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
+	brasl	%r14,schedule_tail
+	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	brasl	%r14,execve_tail
+	lmg	%r9,%r11,__PT_R9(%r11)	# load gprs
+ENTRY(kernel_thread_starter)
+	la	%r2,0(%r10)
+	basr	%r14,%r9
+	la	%r2,0
+	br	%r11			# do_exit
+
+ENTRY(ret_from_kernel_execve)
+	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
+	lgr	%r15,%r2
+	lgr	%r11,%r2
+	aghi	%r15,-STACK_FRAME_OVERHEAD
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+	lg	%r12,__LC_THREAD_INFO
+	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	j	sysc_return
 
 /*

@@ -7,9 +7,9 @@
 config PLAT_S3C64XX
 	bool
 	depends on ARCH_S3C64XX
-	select SAMSUNG_WAKEMASK
-	select PM_GENERIC_DOMAINS
 	default y
+	select PM_GENERIC_DOMAINS
+	select SAMSUNG_WAKEMASK
 	help
 	  Base platform code for any Samsung S3C64XX device
 
@@ -31,8 +31,8 @@ config S3C64XX_DMA
 	select S3C_DMA
 
 config S3C64XX_SETUP_SDHCI
-	select S3C64XX_SETUP_SDHCI_GPIO
 	bool
+	select S3C64XX_SETUP_SDHCI_GPIO
 	help
 	  Internal configuration for default SDHCI setup for S3C6400 and
 	  S3C6410 SoCs.
@@ -93,9 +93,9 @@ config S3C64XX_SETUP_USB_PHY
 config MACH_SMDK6400
        bool "SMDK6400"
 	select CPU_S3C6400
+	select S3C64XX_SETUP_SDHCI
 	select S3C_DEV_HSMMC
 	select S3C_DEV_NAND
-	select S3C64XX_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDK6400
 
@@ -104,21 +104,21 @@ config MACH_SMDK6400
 config MACH_ANW6410
 	bool "A&W6410"
 	select CPU_S3C6410
-	select S3C_DEV_FB
 	select S3C64XX_SETUP_FB_24BPP
+	select S3C_DEV_FB
 	help
 	  Machine support for the A&W6410
 
 config MACH_MINI6410
 	bool "MINI6410"
 	select CPU_S3C6410
+	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_SDHCI
+	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
-	select S3C64XX_SETUP_SDHCI
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
-	select S3C_DEV_FB
-	select S3C64XX_SETUP_FB_24BPP
+	select S3C_DEV_USB_HOST
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_TS
 	help
@@ -127,42 +127,42 @@ config MACH_MINI6410
 config MACH_REAL6410
 	bool "REAL6410"
 	select CPU_S3C6410
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
+	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_SDHCI
 	select S3C_DEV_FB
-	select S3C64XX_SETUP_FB_24BPP
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_TS
-	select S3C_DEV_USB_HOST
 	help
 	  Machine support for the CoreWind REAL6410
 
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
-	select SAMSUNG_DEV_ADC
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_I2C1
+	select S3C64XX_SETUP_IDE
+	select S3C64XX_SETUP_KEYPAD
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_USB_PHY
+	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_I2C1
-	select SAMSUNG_DEV_IDE
-	select S3C_DEV_FB
 	select S3C_DEV_RTC
-	select SAMSUNG_DEV_TS
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
+	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_IDE
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select S3C64XX_SETUP_SDHCI
-	select S3C64XX_SETUP_I2C1
-	select S3C64XX_SETUP_IDE
-	select S3C64XX_SETUP_FB_24BPP
-	select S3C64XX_SETUP_KEYPAD
-	select S3C64XX_SETUP_USB_PHY
+	select SAMSUNG_DEV_TS
 	help
 	  Machine support for the Samsung SMDK6410
 
@@ -198,13 +198,13 @@ endchoice
 config SMDK6410_WM1190_EV1
 	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	select MFD_WM8350_CONFIG_MODE_0
+	select MFD_WM8350_CONFIG_MODE_3
+	select MFD_WM8350_I2C
+	select MFD_WM8352_CONFIG_MODE_0
 	select REGULATOR
 	select REGULATOR_WM8350
 	select SAMSUNG_GPIO_EXTRA64
-	select MFD_WM8350_I2C
-	select MFD_WM8350_CONFIG_MODE_0
-	select MFD_WM8350_CONFIG_MODE_3
-	select MFD_WM8352_CONFIG_MODE_0
 	help
 	  The Wolfson Microelectronics 1190-EV1 is a WM835x based PMIC
 	  and audio daughtercard for the Samsung SMDK6410 reference
@@ -216,11 +216,11 @@ config SMDK6410_WM1190_EV1
 config SMDK6410_WM1192_EV1
 	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	select MFD_WM831X
+	select MFD_WM831X_I2C
 	select REGULATOR
 	select REGULATOR_WM831X
 	select SAMSUNG_GPIO_EXTRA64
-	select MFD_WM831X
-	select MFD_WM831X_I2C
 	help
 	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
 	  daughtercard for the Samsung SMDK6410 reference platform.
@@ -232,19 +232,19 @@ config SMDK6410_WM1192_EV1
 config MACH_NCP
 	bool "NCP"
 	select CPU_S3C6410
-	select S3C_DEV_I2C1
-	select S3C_DEV_HSMMC1
 	select S3C64XX_SETUP_I2C1
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_I2C1
 	help
           Machine support for the Samsung NCP
 
 config MACH_HMT
 	bool "Airgoo HMT"
 	select CPU_S3C6410
+	select S3C64XX_SETUP_FB_24BPP
 	select S3C_DEV_FB
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
-	select S3C64XX_SETUP_FB_24BPP
 	select SAMSUNG_DEV_PWM
 	help
 	  Machine support for the Airgoo HMT
@@ -252,17 +252,17 @@ config MACH_HMT
 config MACH_SMARTQ
 	bool
 	select CPU_S3C6410
+	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_USB_PHY
+	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
-	select S3C_DEV_FB
 	select S3C_DEV_HWMON
 	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_USB_HOST
-	select S3C64XX_SETUP_SDHCI
-	select S3C64XX_SETUP_FB_24BPP
-	select S3C64XX_SETUP_USB_PHY
+	select S3C_DEV_USB_HSOTG
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
@@ -284,26 +284,26 @@ config MACH_SMARTQ7
 config MACH_WLF_CRAGG_6410
 	bool "Wolfson Cragganmore 6410"
 	select CPU_S3C6410
-	select S3C64XX_SETUP_SDHCI
+	select I2C
+	select LEDS_GPIO_REGISTER
+	select S3C64XX_DEV_SPI0
+	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_I2C1
 	select S3C64XX_SETUP_IDE
-	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_KEYPAD
+	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_SPI
 	select S3C64XX_SETUP_USB_PHY
-	select SAMSUNG_DEV_ADC
-	select SAMSUNG_DEV_KEYPAD
-	select S3C_DEV_USB_HOST
-	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_I2C1
-	select S3C_DEV_WDT
 	select S3C_DEV_RTC
-	select S3C64XX_DEV_SPI0
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_GPIO_EXTRA128
-	select I2C
-	select LEDS_GPIO_REGISTER
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.

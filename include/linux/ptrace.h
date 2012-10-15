@@ -1,82 +1,12 @@
 #ifndef _LINUX_PTRACE_H
 #define _LINUX_PTRACE_H
-/* ptrace.h */
-/* structs and defines to help the user use the ptrace system call. */
 
-/* has the defines to get at the registers. */
+#include <linux/compiler.h>		/* For unlikely.  */
+#include <linux/sched.h>		/* For struct task_struct.  */
+#include <linux/err.h>			/* for IS_ERR_VALUE */
+#include <linux/bug.h>			/* For BUG_ON.  */
+#include <uapi/linux/ptrace.h>
 
-#define PTRACE_TRACEME		   0
-#define PTRACE_PEEKTEXT		   1
-#define PTRACE_PEEKDATA		   2
-#define PTRACE_PEEKUSR		   3
-#define PTRACE_POKETEXT		   4
-#define PTRACE_POKEDATA		   5
-#define PTRACE_POKEUSR		   6
-#define PTRACE_CONT		   7
-#define PTRACE_KILL		   8
-#define PTRACE_SINGLESTEP	   9
-
-#define PTRACE_ATTACH		  16
-#define PTRACE_DETACH		  17
-
-#define PTRACE_SYSCALL		  24
-
-/* 0x4200-0x4300 are reserved for architecture-independent additions.  */
-#define PTRACE_SETOPTIONS	0x4200
-#define PTRACE_GETEVENTMSG	0x4201
-#define PTRACE_GETSIGINFO	0x4202
-#define PTRACE_SETSIGINFO	0x4203
-
-/*
- * Generic ptrace interface that exports the architecture specific regsets
- * using the corresponding NT_* types (which are also used in the core dump).
- * Please note that the NT_PRSTATUS note type in a core dump contains a full
- * 'struct elf_prstatus'. But the user_regset for NT_PRSTATUS contains just the
- * elf_gregset_t that is the pr_reg field of 'struct elf_prstatus'. For all the
- * other user_regset flavors, the user_regset layout and the ELF core dump note
- * payload are exactly the same layout.
- *
- * This interface usage is as follows:
- *	struct iovec iov = { buf, len};
- *
- *	ret = ptrace(PTRACE_GETREGSET/PTRACE_SETREGSET, pid, NT_XXX_TYPE, &iov);
- *
- * On the successful completion, iov.len will be updated by the kernel,
- * specifying how much the kernel has written/read to/from the user's iov.buf.
- */
-#define PTRACE_GETREGSET	0x4204
-#define PTRACE_SETREGSET	0x4205
-
-#define PTRACE_SEIZE		0x4206
-#define PTRACE_INTERRUPT	0x4207
-#define PTRACE_LISTEN		0x4208
-
-/* Wait extended result codes for the above trace options.  */
-#define PTRACE_EVENT_FORK	1
-#define PTRACE_EVENT_VFORK	2
-#define PTRACE_EVENT_CLONE	3
-#define PTRACE_EVENT_EXEC	4
-#define PTRACE_EVENT_VFORK_DONE	5
-#define PTRACE_EVENT_EXIT	6
-#define PTRACE_EVENT_SECCOMP	7
-/* Extended result codes which enabled by means other than options.  */
-#define PTRACE_EVENT_STOP	128
-
-/* Options set using PTRACE_SETOPTIONS or using PTRACE_SEIZE @data param */
-#define PTRACE_O_TRACESYSGOOD	1
-#define PTRACE_O_TRACEFORK	(1 << PTRACE_EVENT_FORK)
-#define PTRACE_O_TRACEVFORK	(1 << PTRACE_EVENT_VFORK)
-#define PTRACE_O_TRACECLONE	(1 << PTRACE_EVENT_CLONE)
-#define PTRACE_O_TRACEEXEC	(1 << PTRACE_EVENT_EXEC)
-#define PTRACE_O_TRACEVFORKDONE	(1 << PTRACE_EVENT_VFORK_DONE)
-#define PTRACE_O_TRACEEXIT	(1 << PTRACE_EVENT_EXIT)
-#define PTRACE_O_TRACESECCOMP	(1 << PTRACE_EVENT_SECCOMP)
-
-#define PTRACE_O_MASK		0x000000ff
-
-#include <asm/ptrace.h>
-
-#ifdef __KERNEL__
 /*
  * Ptrace flags
  *
@@ -107,12 +37,6 @@
 #define PT_SINGLESTEP		(1<<PT_SINGLESTEP_BIT)
 #define PT_BLOCKSTEP_BIT	30
 #define PT_BLOCKSTEP		(1<<PT_BLOCKSTEP_BIT)
-
-#include <linux/compiler.h>		/* For unlikely.  */
-#include <linux/sched.h>		/* For struct task_struct.  */
-#include <linux/err.h>			/* for IS_ERR_VALUE */
-#include <linux/bug.h>			/* For BUG_ON.  */
-
 
 extern long arch_ptrace(struct task_struct *child, long request,
 			unsigned long addr, unsigned long data);
@@ -401,6 +325,10 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 #define arch_ptrace_stop(code, info)		do { } while (0)
 #endif
 
+#ifndef current_pt_regs
+#define current_pt_regs() task_pt_regs(current)
+#endif
+
 extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);
@@ -411,7 +339,5 @@ extern void ptrace_put_breakpoints(struct task_struct *tsk);
 #else
 static inline void ptrace_put_breakpoints(struct task_struct *tsk) { }
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-
-#endif /* __KERNEL */
 
 #endif

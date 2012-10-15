@@ -1506,9 +1506,10 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		}
 	}
 
-	/* If FCF not available return 0 */
+	/* FCF not valid/available or solicitation in progress */
 	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
-		!bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record))
+	    !bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record) ||
+	    bf_get(lpfc_fcf_record_fcf_sol, new_fcf_record))
 		return 0;
 
 	if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
@@ -1842,6 +1843,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 			"\tFCF_Index     : x%x\n"
 			"\tFCF_Avail     : x%x\n"
 			"\tFCF_Valid     : x%x\n"
+			"\tFCF_SOL       : x%x\n"
 			"\tFIP_Priority  : x%x\n"
 			"\tMAC_Provider  : x%x\n"
 			"\tLowest VLANID : x%x\n"
@@ -1852,6 +1854,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 			bf_get(lpfc_fcf_record_fcf_index, fcf_record),
 			bf_get(lpfc_fcf_record_fcf_avail, fcf_record),
 			bf_get(lpfc_fcf_record_fcf_valid, fcf_record),
+			bf_get(lpfc_fcf_record_fcf_sol, fcf_record),
 			fcf_record->fip_priority,
 			bf_get(lpfc_fcf_record_mac_addr_prov, fcf_record),
 			vlan_id,
@@ -2185,12 +2188,14 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					       new_fcf_record));
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2781 FCF (x%x) failed connection "
-				"list check: (x%x/x%x)\n",
+				"list check: (x%x/x%x/%x)\n",
 				bf_get(lpfc_fcf_record_fcf_index,
 				       new_fcf_record),
 				bf_get(lpfc_fcf_record_fcf_avail,
 				       new_fcf_record),
 				bf_get(lpfc_fcf_record_fcf_valid,
+				       new_fcf_record),
+				bf_get(lpfc_fcf_record_fcf_sol,
 				       new_fcf_record));
 		if ((phba->fcf.fcf_flag & FCF_IN_USE) &&
 		    lpfc_sli4_fcf_record_match(phba, &phba->fcf.current_rec,

@@ -16,8 +16,8 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include "hostfs.h"
-#include "init.h"
-#include "kern.h"
+#include <init.h>
+#include <kern.h>
 
 struct hostfs_inode_info {
 	int fd;
@@ -848,9 +848,11 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	    attr->ia_size != i_size_read(inode)) {
 		int error;
 
-		error = vmtruncate(inode, attr->ia_size);
-		if (err)
-			return err;
+		error = inode_newsize_ok(inode, attr->ia_size);
+		if (error)
+			return error;
+
+		truncate_setsize(inode, attr->ia_size);
 	}
 
 	setattr_copy(inode, attr);

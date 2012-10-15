@@ -317,10 +317,6 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
 	       sig, current->comm, current->pid, frame, regs->pc,
@@ -398,10 +394,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
 
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
 	       sig, current->comm, current->pid, frame, regs->pc,
@@ -474,11 +466,6 @@ static void do_signal(struct pt_regs *regs)
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-
-	/* we want the common case to go fast, which is why we may in certain
-	 * cases get here from kernel mode */
-	if (!user_mode(regs))
-		return;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {

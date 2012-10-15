@@ -1,1 +1,3 @@
 # UAPI Header export list
+header-y += evtchn.h
+header-y += privcmd.h

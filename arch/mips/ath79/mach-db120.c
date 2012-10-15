@@ -25,6 +25,7 @@
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
+#include "dev-usb.h"
 #include "dev-wmac.h"
 #include "pci.h"
 
@@ -126,6 +127,7 @@ static void __init db120_setup(void)
 					db120_gpio_keys);
 	ath79_register_spi(&db120_spi_data, db120_spi_info,
 			   ARRAY_SIZE(db120_spi_info));
+	ath79_register_usb();
 	ath79_register_wmac(art + DB120_WMAC_CALDATA_OFFSET);
 	db120_pci_init(art + DB120_PCIE_CALDATA_OFFSET);
 }

@@ -15,7 +15,6 @@
 #include <sys/types.h>
 #include <sys/vfs.h>
 #include "hostfs.h"
-#include "os.h"
 #include <utime.h>
 
 static void stat64_to_hostfs(const struct stat64 *buf, struct hostfs_stat *p)

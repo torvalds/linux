@@ -1804,7 +1804,7 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	int ret;
 	struct ath5k_hw *ah = hw->priv;
-	struct ath5k_vif *avf = (void *)vif->drv_priv;
+	struct ath5k_vif *avf;
 	struct sk_buff *skb;
 
 	if (WARN_ON(!vif)) {
@@ -1819,6 +1819,7 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
+	avf = (void *)vif->drv_priv;
 	ath5k_txbuf_free_skb(ah, avf->bbuf);
 	avf->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(ah, avf->bbuf);

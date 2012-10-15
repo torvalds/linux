@@ -333,7 +333,7 @@ __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
 	int prot = pgprot_val(vma->vm_page_prot);
 
 	/* Set to write-through */
-	prot &= ~_PAGE_NO_CACHE;
+	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
 #if 0
 	if (!write_combine)
 		prot |= _PAGE_WRITETHRU;

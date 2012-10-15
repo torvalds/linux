@@ -88,11 +88,10 @@ enum {
 
 static u8 omap3_evm_version;
 
-u8 get_omap3_evm_rev(void)
+static u8 get_omap3_evm_rev(void)
 {
 	return omap3_evm_version;
 }
-EXPORT_SYMBOL(get_omap3_evm_rev);
 
 static void __init omap3_evm_get_revision(void)
 {
@@ -739,6 +738,7 @@ static void __init omap3_evm_init(void)
 	omap3evm_init_smsc911x();
 	omap3_evm_display_init();
 	omap3_evm_wl12xx_init();
+	omap_twl4030_audio_init("omap3evm");
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")

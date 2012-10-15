@@ -2,10 +2,12 @@ include include/asm-generic/Kbuild.asm
 header-y += cachectl.h
 
 generic-y += bitsperlong.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += device.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += futex.h
 generic-y += ioctl.h
 generic-y += ipcbuf.h

@@ -84,12 +84,12 @@ static void xtensa_irq_unmask(struct irq_data *d)
 static void xtensa_irq_enable(struct irq_data *d)
 {
 	variant_irq_enable(d->irq);
-	xtensa_irq_unmask(d->irq);
+	xtensa_irq_unmask(d);
 }
 
 static void xtensa_irq_disable(struct irq_data *d)
 {
-	xtensa_irq_mask(d->irq);
+	xtensa_irq_mask(d);
 	variant_irq_disable(d->irq);
 }
 

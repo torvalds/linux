@@ -403,7 +403,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 asmlinkage long sparc32_execve(struct pt_regs *regs)
 {
 	int error, base = 0;
-	char *filename;
+	struct filename *filename;
 
 	/* User register window flush is done by entry.S */
 
@@ -416,7 +416,7 @@ asmlinkage long sparc32_execve(struct pt_regs *regs)
 	if (IS_ERR(filename))
 		goto out;
 
-	error = compat_do_execve(filename,
+	error = compat_do_execve(filename->name,
 				 compat_ptr(regs->u_regs[base + UREG_I1]),
 				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
 

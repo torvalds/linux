@@ -167,17 +167,17 @@ static struct shrinker cifs_shrinker = {
 };
 
 static int
-cifs_idmap_key_instantiate(struct key *key, const void *data, size_t datalen)
+cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 {
 	char *payload;
 
-	payload = kmalloc(datalen, GFP_KERNEL);
+	payload = kmalloc(prep->datalen, GFP_KERNEL);
 	if (!payload)
 		return -ENOMEM;
 
-	memcpy(payload, data, datalen);
+	memcpy(payload, prep->data, prep->datalen);
 	key->payload.data = payload;
-	key->datalen = datalen;
+	key->datalen = prep->datalen;
 	return 0;
 }
 
