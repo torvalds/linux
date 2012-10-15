@@ -317,7 +317,7 @@ static struct resource twi_resources[] = {
 };
 
 static struct platform_device at91sam9261_twi_device = {
-	.id		= -1,
+	.id		= 0,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),
 };
