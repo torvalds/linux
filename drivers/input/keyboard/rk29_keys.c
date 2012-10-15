@@ -46,6 +46,7 @@ struct rk29_button_data {
 	struct rk29_keys_button *button;
 	struct input_dev *input;
 	struct timer_list timer;
+        struct rk29_keys_drvdata *ddata;
 };
 
 struct rk29_keys_drvdata {
@@ -248,7 +249,19 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 {
 	struct rk29_button_data *bdata = dev_id;
 	struct rk29_keys_button *button = bdata->button;
+	struct input_dev *input = bdata->input;
+	unsigned int type = EV_KEY;
 	BUG_ON(irq != gpio_to_irq(button->gpio));
+
+        if(button->wakeup == 1 && bdata->ddata->in_suspend == true){
+		key_dbg(bdata, "wakeup: %skey[%s]: report ev[%d] state[%d]\n", 
+			(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code, bdata->state);
+		input_event(input, type, button->code, 1);
+		input_sync(input);
+		input_event(input, type, button->code, 0);
+		input_sync(input);
+	        return IRQ_HANDLED;
+        }
 	bdata->long_press_count = 0;
 	mod_timer(&bdata->timer,
 				jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
@@ -348,6 +361,7 @@ static int __devinit keys_probe(struct platform_device *pdev)
 
 		bdata->input = input;
 		bdata->button = button;
+                bdata->ddata = ddata;
 		if(button->code_long_press)
 			setup_timer(&bdata->timer,
 			    	keys_long_press_timer, (unsigned long)bdata);
