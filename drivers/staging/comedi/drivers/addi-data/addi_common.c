@@ -76,7 +76,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
 /* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
 
-#define devpriv ((struct addi_private *)dev->private)
 #define this_board ((const struct addi_board *)dev->board_ptr)
 
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
@@ -1472,6 +1471,7 @@ module_exit(driver_addi_cleanup_module);
 
 static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
 	unsigned int dw_Dummy;
@@ -1482,9 +1482,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
 
-	ret = alloc_private(dev, sizeof(struct addi_private));
-	if (ret < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	if (!pci_list_builded) {
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
@@ -1817,7 +1818,9 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
-	if (dev->private) {
+	struct addi_private *devpriv = dev->private;
+
+	if (devpriv) {
 		if (devpriv->b_ValidDriver)
 			i_ADDI_Reset(dev);
 		if (dev->irq)
@@ -1923,6 +1926,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned short w_Data;
 	unsigned short w_Address;
 	w_Address = CR_CHAN(insn->chanspec);	/*  address to be read as 0,1,2,3...255 */

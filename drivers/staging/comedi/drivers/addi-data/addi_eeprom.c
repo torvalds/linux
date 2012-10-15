@@ -805,6 +805,7 @@ void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned
 int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned short w_Temp, i, w_Count = 0;
 	unsigned int ui_Temp;
 	struct str_MainHeader s_MainHeader;

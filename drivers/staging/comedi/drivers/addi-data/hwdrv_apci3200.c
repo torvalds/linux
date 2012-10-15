@@ -548,8 +548,10 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 int i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp = 0;
 	unsigned int ui_NoOfChannel = 0;
+
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->i_IobaseReserved);
@@ -606,6 +608,7 @@ int i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevi
 int i_APCI3200_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -651,8 +654,10 @@ int i_APCI3200_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 int i_APCI3200_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp = 0, ui_Temp1 = 0;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
+
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->i_IobaseAddon);
 
@@ -764,8 +769,10 @@ int i_APCI3200_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3200_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
+
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->i_IobaseAddon);
@@ -872,7 +879,7 @@ int i_APCI3200_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Config = 0, ul_Temp = 0;
 	unsigned int ui_ChannelNo = 0;
 	unsigned int ui_Dummy = 0;
@@ -1649,6 +1656,7 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_EOC = 0;
 	unsigned int ui_ChannelNo = 0;
 	unsigned int ui_CommandRegister = 0;
@@ -1773,6 +1781,7 @@ int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 */
 int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp = 0, ui_EOC = 0;
 	unsigned int ui_CommandRegister = 0;
 
@@ -1909,6 +1918,7 @@ int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, unsigned in
 */
 int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
 
@@ -2045,6 +2055,7 @@ int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, unsigned int 
 
 int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
 
@@ -2164,8 +2175,10 @@ int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data)
 */
 int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
+
   /*******************************************/
 	/*Read calibration offset value for the CJC */
   /*******************************************/
@@ -2280,8 +2293,10 @@ int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev, unsigned int *data)
 */
 int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_EOC = 0;
 	int ui_CommandRegister = 0;
+
   /*******************************/
 	/* Set the convert timing unit */
   /*******************************/
@@ -2402,8 +2417,10 @@ int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev, unsigned int *data)
 int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
 	int i_Temp;		/* ,i_TimeUnit; */
+
 	/* if(i_Initialised==0) */
 
 	if (s_BoardInfos[dev->minor].i_Initialised == 0) {
@@ -2736,7 +2753,9 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 
 int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
+
 	/* i_InterruptFlag=0; */
 	/* i_Initialised=0; */
 	/* i_Count=0; */
@@ -2786,6 +2805,7 @@ int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_su
 
 int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ui_Configuration = 0;
 	/* INT  i_CurrentSource = 0; */
@@ -2798,6 +2818,7 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
 	unsigned int ui_DelayMode = 0;
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	/* i_LastChannel=cmd->chanlist[1]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
@@ -2973,8 +2994,10 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 
 int i_APCI3200_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Temp;
 	unsigned int dw_Dummy;
+
 	/* i_InterruptFlag=0; */
 	/* i_Initialised==0; */
 	/* i_Count=0; */
@@ -3030,6 +3053,7 @@ int i_APCI3200_Reset(struct comedi_device *dev)
 void v_APCI3200_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_StatusRegister = 0;
 	unsigned int ui_ChannelNumber = 0;
 	int i_CalibrationFlag = 0;
@@ -3038,7 +3062,6 @@ void v_APCI3200_Interrupt(int irq, void *d)
 	unsigned int ui_DigitalTemperature = 0;
 	unsigned int ui_DigitalInput = 0;
 	int i_ConvertCJCCalibration;
-
 	/* BEGIN JK TEST */
 	int i_ReturnValue = 0;
 	/* END JK TEST */
@@ -3471,6 +3494,7 @@ void v_APCI3200_Interrupt(int irq, void *d)
 */
 int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_StatusRegister = 0;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 

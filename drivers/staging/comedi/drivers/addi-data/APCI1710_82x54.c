@@ -222,7 +222,7 @@ int i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 int i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
@@ -452,6 +452,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_DummyRead;
 	unsigned char b_ModulNbr;
@@ -593,6 +594,7 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_sub
 int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
 				     struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_ReadType;
 	unsigned int *pul_TimerValueArray;
@@ -764,6 +766,7 @@ int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
 			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			      unsigned int *pul_TimerValue)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 
 	/* Test the module number */
@@ -852,6 +855,7 @@ int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
 				   unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 				   unsigned char *pb_OutputLevel)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_TimerStatus;
 
@@ -931,6 +935,7 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 				      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 				      unsigned char *pb_TimerStatus)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_TimerStatus;
 
@@ -1010,6 +1015,7 @@ int i_APCI1710_WriteTimerValue(struct comedi_device *dev,
 			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
 			       unsigned int ul_WriteValue)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 
 	/* Test the module number */

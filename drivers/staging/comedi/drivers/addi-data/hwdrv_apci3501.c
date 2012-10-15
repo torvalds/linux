@@ -76,8 +76,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
+
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->iobase + APCI3501_DIGITAL_IP);
@@ -124,6 +126,7 @@ int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevi
 int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -164,8 +167,10 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp, ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
+
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
 	}			/* if(devpriv->b_OutputMemoryStatus ) */
@@ -251,6 +256,7 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
 
@@ -301,6 +307,8 @@ int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	outl(data[0],
 		devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
@@ -339,6 +347,7 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
@@ -413,7 +422,9 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdev
 int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
+
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 
@@ -514,8 +525,10 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 	int i_Temp;
+
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 
 		if (data[1] == 1) {
@@ -616,6 +629,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		data[0] =
@@ -656,8 +670,10 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 
 int i_APCI3501_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Count = 0, i_temp = 0;
 	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
+
 	outl(0x0, devpriv->iobase + APCI3501_DIGITAL_OP);
 	outl(1, devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
@@ -709,8 +725,10 @@ void v_APCI3501_Interrupt(int irq, void *d)
 {
 	int i_temp;
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timer_AOWatchdog;
 	unsigned long ul_Command1;
+
 	/*  Disable Interrupt */
 	ul_Command1 =
 		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);

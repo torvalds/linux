@@ -77,6 +77,7 @@ static unsigned int ui_Temp;
 int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int i;
 
 	if ((data[0] != APCI3120_EOC_MODE) && (data[0] != APCI3120_EOS_MODE))
@@ -146,6 +147,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_su
 int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
 
@@ -407,6 +409,8 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 
 int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
+
 	/*  Disable A2P Fifo write and AMWEN signal */
 	outw(0, devpriv->i_IobaseAddon + 4);
 
@@ -478,6 +482,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_su
 int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd)
 {
+	struct addi_private *devpriv = dev->private;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -604,6 +609,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 
 int i_APCI3120_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* loading private structure with cmd structure inputs */
@@ -678,6 +684,7 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 	struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_Tmp;
 	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
 		0, dmalen1 = 0, ui_TimerValue2 =
@@ -1211,6 +1218,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 
 int i_APCI3120_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned short us_TmpValue;
 
@@ -1292,6 +1300,7 @@ int i_APCI3120_Reset(struct comedi_device *dev)
 int i_APCI3120_SetupChannelList(struct comedi_device *dev, struct comedi_subdevice *s,
 	int n_chan, unsigned int *chanlist, char check)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int i;		/* , differencial=0, bipolar=0; */
 	unsigned int gain;
 	unsigned short us_TmpValue;
@@ -1354,6 +1363,7 @@ int i_APCI3120_SetupChannelList(struct comedi_device *dev, struct comedi_subdevi
 
 int i_APCI3120_ExttrigEnable(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 
 	devpriv->us_OutputRegister |= APCI3120_ENABLE_EXT_TRIGGER;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
@@ -1379,6 +1389,8 @@ int i_APCI3120_ExttrigEnable(struct comedi_device *dev)
 
 int i_APCI3120_ExttrigDisable(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->us_OutputRegister &= ~APCI3120_ENABLE_EXT_TRIGGER;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
 	return 0;
@@ -1414,13 +1426,13 @@ int i_APCI3120_ExttrigDisable(struct comedi_device *dev)
 void v_APCI3120_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned short int_daq;
-
 	unsigned int int_amcc, ui_Check, i;
 	unsigned short us_TmpValue;
 	unsigned char b_DummyRead;
-
 	struct comedi_subdevice *s = &dev->subdevices[0];
+
 	ui_Check = 1;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
@@ -1624,6 +1636,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 
 int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int n_chan, i;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int err = 1;
@@ -1667,11 +1680,12 @@ int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 void v_APCI3120_InterruptDma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
-
 	unsigned int ui_Tmp;
+
 	samplesinbuf =
 		devpriv->ui_DmaBufferUsesize[devpriv->ui_DmaActualBuffer] -
 		inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_MWTC);
@@ -1837,6 +1851,8 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 	struct comedi_subdevice *s, short *dma_buffer, unsigned int num_samples)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->ui_AiActualScan +=
 		(s->async->cur_chan + num_samples) / devpriv->ui_AiScanLength;
 	s->async->cur_chan += num_samples;
@@ -1879,7 +1895,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 int i_APCI3120_InsnConfigTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
@@ -2037,7 +2053,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device *dev, struct comedi_subdevic
 int i_APCI3120_InsnWriteTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2 = 0;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
@@ -2221,6 +2237,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device *dev, struct comedi_subdevice
 int i_APCI3120_InsnReadTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_Tmp;
 	unsigned short us_TmpValue, us_TmpValue_2, us_StatusValue;
 
@@ -2296,6 +2313,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Chan, ui_TmpValue;
 
 	ui_Chan = CR_CHAN(insn->chanspec);	/*  channel specified */
@@ -2340,7 +2358,9 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 int i_APCI3120_InsnBitsDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue;
+
 	ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
 	/*****	state of 4 channels  in the 11, 10, 9, 8   bits of status reg
 			rotated right 8 times to bring them to last four bits
@@ -2379,6 +2399,7 @@ int i_APCI3120_InsnBitsDigitalInput(struct comedi_device *dev, struct comedi_sub
 int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -2426,6 +2447,8 @@ int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	if ((data[0] > devpriv->s_EeParameters.i_DoMaxdata) || (data[0] < 0)) {
 
 		comedi_error(dev, "Data is not valid !!! \n");
@@ -2479,9 +2502,8 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp1;
-
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -2558,6 +2580,7 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Range, ui_Channel;
 	unsigned short us_TmpValue;
 

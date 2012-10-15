@@ -201,6 +201,7 @@ void v_APCI1710_Interrupt(int irq, void *d);
 
 int i_APCI1710_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int ret;
 	unsigned int dw_Dummy;
 
@@ -250,6 +251,7 @@ int i_APCI1710_Reset(struct comedi_device *dev)
 void v_APCI1710_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_ModuleCpt = 0;
 	unsigned char b_InterruptFlag = 0;
 	unsigned char b_PWMCpt = 0;

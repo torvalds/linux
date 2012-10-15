@@ -141,6 +141,7 @@ static int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device *dev,
 					      struct comedi_insn *insn,
 					      unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
 	int i_PatternTransitionCount = 0, i_RegValue;
@@ -525,8 +526,10 @@ static int i_APCI1500_StartStopInputEvent(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
+
 	switch (data[0]) {
 	case START:
 	      /*************************/
@@ -792,7 +795,9 @@ static int i_APCI1500_Initialisation(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_DummyRead = 0;
+
     /******************/
 	/* Software reset */
     /******************/
@@ -966,6 +971,7 @@ static int i_APCI1500_ReadMoreDigitalInput(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_PortValue = data[1];
 	unsigned int ui_Mask = 0;
 	unsigned int ui_Channel;
@@ -1051,6 +1057,8 @@ static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device *de
 							struct comedi_insn *insn,
 							unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
 }
@@ -1079,9 +1087,9 @@ static int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev,
 					 struct comedi_insn *insn,
 					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	static unsigned int ui_Temp = 0;
 	unsigned int ui_Temp1;
-
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
 	if (!devpriv->b_OutputMemoryStatus) {
@@ -1274,6 +1282,7 @@ static int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
 						 struct comedi_insn *insn,
 						 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_TimerCounterMode, i_MasterConfiguration;
 
 	devpriv->tsk_Current = current;
@@ -1875,6 +1884,7 @@ static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device 
 							   struct comedi_insn *insn,
 							   unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -2198,7 +2208,9 @@ static int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device *dev,
 					       struct comedi_insn *insn,
 					       unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
+
 	switch (data[0]) {
 	case COUNTER1:
 		/* Read counter/timer1 */
@@ -2421,9 +2433,11 @@ static int i_APCI1500_ConfigureInterrupt(struct comedi_device *dev,
 					 struct comedi_insn *insn,
 					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
+
 	devpriv->tsk_Current = current;
 	outl(0x0, devpriv->i_IobaseAmcc + 0x38);
 	if (data[0] == 1) {
@@ -2597,6 +2611,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_InterruptStatus = 0;
 	int i_RegValue = 0;
 	i_InterruptMask = 0;
@@ -2840,7 +2855,9 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 */
 static int i_APCI1500_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_DummyRead = 0;
+
 	i_TimerCounter1Init = 0;
 	i_TimerCounter2Init = 0;
 	i_WatchdogCounter3Init = 0;

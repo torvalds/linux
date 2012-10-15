@@ -188,6 +188,7 @@ int i_APCI1710_InitPWM(struct comedi_device *dev,
 	unsigned int ul_HighTiming,
 	unsigned int *pul_RealLowTiming, unsigned int *pul_RealHighTiming)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int ul_LowTimerValue = 0;
 	unsigned int ul_HighTimerValue = 0;
@@ -1545,6 +1546,7 @@ int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 	unsigned char *pb_StopLevel,
 	unsigned char *pb_ExternGate, unsigned char *pb_InterruptEnable, unsigned char *pb_Enable)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 	unsigned int dw_Command;
@@ -1813,6 +1815,7 @@ int i_APCI1710_EnablePWM(struct comedi_device *dev,
 	unsigned char b_StopMode,
 	unsigned char b_StopLevel, unsigned char b_ExternGate, unsigned char b_InterruptEnable)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 	unsigned int dw_Command;
@@ -2064,6 +2067,7 @@ int i_APCI1710_EnablePWM(struct comedi_device *dev,
 
 int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 
@@ -2193,6 +2197,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 	unsigned char b_ModulNbr,
 	unsigned char b_PWM, unsigned char b_TimingUnit, unsigned int ul_LowTiming, unsigned int ul_HighTiming)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_ClockSelection;
 	int i_ReturnValue = 0;
 	unsigned int ul_LowTimerValue = 0;
@@ -3463,9 +3468,9 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
-
 	unsigned char b_ModulNbr;
 	unsigned char b_PWM;
 	unsigned char *pb_PWMOutputStatus;
@@ -3564,6 +3569,8 @@ int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_sub
 int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	data[0] = devpriv->s_InterruptParameters.
 		s_FIFOInterruptParameters[devpriv->
 		s_InterruptParameters.ui_Read].b_OldModuleMask;

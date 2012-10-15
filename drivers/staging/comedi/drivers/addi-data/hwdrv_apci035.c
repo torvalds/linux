@@ -112,9 +112,11 @@ static int i_Flag = 1;
 int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status = 0;
 	unsigned int ui_Command = 0;
 	unsigned int ui_Mode = 0;
+
 	i_Temp = 0;
 	devpriv->tsk_Current = current;
 	devpriv->b_TimerSelectMode = data[0];
@@ -281,8 +283,10 @@ int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subde
 int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Command = 0;
 	int i_Count = 0;
+
 	if (data[0] == 1) {
 		ui_Command =
 			inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -396,7 +400,9 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status = 0;	/*  Status register */
+
 	i_WatchdogNbr = insn->unused[0];
 
 	/******************/
@@ -456,6 +462,8 @@ int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevi
 int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->tsk_Current = current;
 	outl(0x200 | 0, devpriv->iobase + 128 + 0x4);
 	outl(0, devpriv->iobase + 128 + 0);
@@ -493,7 +501,9 @@ int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevi
 int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_CommandRegister = 0;
+
 /******************/
 /*  Set the start */
 /******************/
@@ -527,7 +537,9 @@ int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice
 */
 int i_APCI035_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Count = 0;
+
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
 		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	/* stop all timers */
@@ -557,11 +569,13 @@ int i_APCI035_Reset(struct comedi_device *dev)
 static void v_APCI035_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_StatusRegister1 = 0;
 	unsigned int ui_StatusRegister2 = 0;
 	unsigned int ui_ReadCommand = 0;
 	unsigned int ui_ChannelNumber = 0;
 	unsigned int ui_DigitalTemperature = 0;
+
 	if (i_Temp == 1) {
 		i_WatchdogNbr = i_Flag;
 		i_Flag = i_Flag + 1;

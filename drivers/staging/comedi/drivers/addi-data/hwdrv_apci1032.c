@@ -87,10 +87,11 @@ static unsigned int ui_InterruptStatus;
 int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue;
-
 	unsigned int ul_Command1 = 0;
 	unsigned int ul_Command2 = 0;
+
 	devpriv->tsk_Current = current;
 
   /*******************************/
@@ -147,9 +148,11 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subde
 int i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
+
 	if (ui_Channel <= 31) {
 		ui_TmpValue = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 /*
@@ -188,6 +191,7 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_PortValue = data[0];
 	unsigned int ui_Mask = 0;
 	unsigned int ui_NoOfChannels;
@@ -248,8 +252,9 @@ int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 static void v_APCI1032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
+
 	/* disable the interrupt */
 	ui_Temp = inl(devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
 	outl(ui_Temp & APCI1032_DIGITAL_IP_INTERRUPT_DISABLE,
@@ -279,6 +284,8 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 
 int i_APCI1032_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
+
 	outl(0x0, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);	/* disable the interrupts */
 	inl(devpriv->iobase + APCI1032_DIGITAL_IP_INTERRUPT_STATUS);	/* Reset the interrupt status register */
 	outl(0x0, devpriv->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE1);	/* Disable the and/or interrupt */

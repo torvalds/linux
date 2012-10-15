@@ -82,7 +82,9 @@ static unsigned int ui_InterruptData, ui_Type;
 int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command = 0;
+
 	devpriv->tsk_Current = current;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -137,8 +139,10 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp, ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
+
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->iobase + APCI2032_DIGITAL_OP);
 
@@ -316,8 +320,10 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
+
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	ui_Temp = data[0];
 	*data = inl(devpriv->iobase + APCI2032_DIGITAL_OP_RW);
@@ -383,6 +389,8 @@ int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 int i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	if (data[0] == 0) {
 		/* Disable the watchdog */
 		outl(0x0,
@@ -424,6 +432,8 @@ int i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice
 int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
 		outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);	/* disable the watchdog */
@@ -469,6 +479,7 @@ int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_s
 int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	data[0] =
 		inl(devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
@@ -496,6 +507,7 @@ int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *
 void v_APCI2032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_DO;
 
 	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occurred. */
@@ -569,6 +581,8 @@ int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subd
 
 int i_APCI2032_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;
 	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP);	/* Resets the output channels */
