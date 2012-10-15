@@ -122,13 +122,17 @@ struct mce_log {
 
 struct mca_config {
 	bool dont_log_ce;
+	bool cmci_disabled;
+	bool ignore_ce;
 	u8 banks;
 	s8 bootlog;
 	int tolerant;
 	int monarch_timeout;
+	int panic_timeout;
 	u32 rip_msr;
 };
 
+extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
@@ -169,8 +173,6 @@ DECLARE_PER_CPU(struct device *, mce_device);
 #define MAX_NR_BANKS 32
 
 #ifdef CONFIG_X86_MCE_INTEL
-extern int mce_cmci_disabled;
-extern int mce_ignore_ce;
 extern int mce_bios_cmci_threshold;
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);

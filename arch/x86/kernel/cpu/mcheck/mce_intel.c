@@ -53,7 +53,7 @@ static int cmci_supported(int *banks)
 {
 	u64 cap;
 
-	if (mce_cmci_disabled || mce_ignore_ce)
+	if (mca_cfg.cmci_disabled || mca_cfg.ignore_ce)
 		return 0;
 
 	/*

@@ -66,9 +66,6 @@ atomic_t mce_entry;
 
 DEFINE_PER_CPU(unsigned, mce_exception_count);
 
-static int			mce_panic_timeout	__read_mostly;
-int				mce_cmci_disabled	__read_mostly;
-int				mce_ignore_ce		__read_mostly;
 int				mce_ser			__read_mostly;
 int				mce_bios_cmci_threshold	__read_mostly;
 
@@ -302,7 +299,7 @@ static void wait_for_panic(void)
 	while (timeout-- > 0)
 		udelay(1);
 	if (panic_timeout == 0)
-		panic_timeout = mce_panic_timeout;
+		panic_timeout = mca_cfg.panic_timeout;
 	panic("Panicing machine check CPU died");
 }
 
@@ -360,7 +357,7 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		pr_emerg(HW_ERR "Machine check: %s\n", exp);
 	if (!fake_panic) {
 		if (panic_timeout == 0)
-			panic_timeout = mce_panic_timeout;
+			panic_timeout = mca_cfg.panic_timeout;
 		panic(msg);
 	} else
 		pr_emerg(HW_ERR "Fake kernel panic: %s\n", msg);
@@ -1600,7 +1597,7 @@ static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
 	if (cfg->bootlog != 0)
-		mce_panic_timeout = 30;
+		cfg->panic_timeout = 30;
 
 	return 0;
 }
@@ -1645,7 +1642,7 @@ static void mce_start_timer(unsigned int cpu, struct timer_list *t)
 
 	__this_cpu_write(mce_next_interval, iv);
 
-	if (mce_ignore_ce || !iv)
+	if (mca_cfg.ignore_ce || !iv)
 		return;
 
 	t->expires = round_jiffies(jiffies + iv);
@@ -1972,11 +1969,11 @@ static int __init mcheck_enable(char *str)
 	if (!strcmp(str, "off"))
 		mce_disabled = 1;
 	else if (!strcmp(str, "no_cmci"))
-		mce_cmci_disabled = 1;
+		cfg->cmci_disabled = true;
 	else if (!strcmp(str, "dont_log_ce"))
 		cfg->dont_log_ce = true;
 	else if (!strcmp(str, "ignore_ce"))
-		mce_ignore_ce = 1;
+		cfg->ignore_ce = true;
 	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
 		cfg->bootlog = (str[0] == 'b');
 	else if (!strcmp(str, "bios_cmci_threshold"))
@@ -2154,15 +2151,15 @@ static ssize_t set_ignore_ce(struct device *s,
 	if (strict_strtoull(buf, 0, &new) < 0)
 		return -EINVAL;
 
-	if (mce_ignore_ce ^ !!new) {
+	if (mca_cfg.ignore_ce ^ !!new) {
 		if (new) {
 			/* disable ce features */
 			mce_timer_delete_all();
 			on_each_cpu(mce_disable_cmci, NULL, 1);
-			mce_ignore_ce = 1;
+			mca_cfg.ignore_ce = true;
 		} else {
 			/* enable ce features */
-			mce_ignore_ce = 0;
+			mca_cfg.ignore_ce = false;
 			on_each_cpu(mce_enable_ce, (void *)1, 1);
 		}
 	}
@@ -2178,14 +2175,14 @@ static ssize_t set_cmci_disabled(struct device *s,
 	if (strict_strtoull(buf, 0, &new) < 0)
 		return -EINVAL;
 
-	if (mce_cmci_disabled ^ !!new) {
+	if (mca_cfg.cmci_disabled ^ !!new) {
 		if (new) {
 			/* disable cmci */
 			on_each_cpu(mce_disable_cmci, NULL, 1);
-			mce_cmci_disabled = 1;
+			mca_cfg.cmci_disabled = true;
 		} else {
 			/* enable cmci */
-			mce_cmci_disabled = 0;
+			mca_cfg.cmci_disabled = false;
 			on_each_cpu(mce_enable_ce, NULL, 1);
 		}
 	}
@@ -2212,13 +2209,13 @@ static struct dev_ext_attribute dev_attr_check_interval = {
 };
 
 static struct dev_ext_attribute dev_attr_ignore_ce = {
-	__ATTR(ignore_ce, 0644, device_show_int, set_ignore_ce),
-	&mce_ignore_ce
+	__ATTR(ignore_ce, 0644, device_show_bool, set_ignore_ce),
+	&mca_cfg.ignore_ce
 };
 
 static struct dev_ext_attribute dev_attr_cmci_disabled = {
-	__ATTR(cmci_disabled, 0644, device_show_int, set_cmci_disabled),
-	&mce_cmci_disabled
+	__ATTR(cmci_disabled, 0644, device_show_bool, set_cmci_disabled),
+	&mca_cfg.cmci_disabled
 };
 
 static struct device_attribute *mce_device_attrs[] = {
