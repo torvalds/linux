@@ -147,6 +147,11 @@ static inline u8 kvm_vcpu_trap_get_class(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) >> HSR_EC_SHIFT;
 }
 
+static inline bool kvm_vcpu_trap_is_iabt(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_trap_get_class(vcpu) == HSR_EC_IABT;
+}
+
 static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;

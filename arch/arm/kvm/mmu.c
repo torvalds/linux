@@ -585,7 +585,6 @@ out_unlock:
  */
 int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	unsigned long hsr_ec;
 	unsigned long fault_status;
 	phys_addr_t fault_ipa;
 	struct kvm_memory_slot *memslot;
@@ -593,8 +592,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	gfn_t gfn;
 	int ret, idx;
 
-	hsr_ec = kvm_vcpu_trap_get_class(vcpu);
-	is_iabt = (hsr_ec == HSR_EC_IABT);
+	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 
 	trace_kvm_guest_fault(*vcpu_pc(vcpu), kvm_vcpu_get_hsr(vcpu),
@@ -603,8 +601,8 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	/* Check the stage-2 fault is trans. fault or write fault */
 	fault_status = kvm_vcpu_trap_get_fault(vcpu);
 	if (fault_status != FSC_FAULT && fault_status != FSC_PERM) {
-		kvm_err("Unsupported fault status: EC=%#lx DFCS=%#lx\n",
-			hsr_ec, fault_status);
+		kvm_err("Unsupported fault status: EC=%#x DFCS=%#lx\n",
+			kvm_vcpu_trap_get_class(vcpu), fault_status);
 		return -EFAULT;
 	}
 
