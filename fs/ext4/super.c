@@ -1970,7 +1970,7 @@ static int ext4_fill_flex_info(struct super_block *sb)
 		sbi->s_log_groups_per_flex = 0;
 		return 1;
 	}
-	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
+	groups_per_flex = 1U << sbi->s_log_groups_per_flex;
 
 	err = ext4_alloc_flex_bg_array(sb, sbi->s_groups_count);
 	if (err)
