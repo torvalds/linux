@@ -83,27 +83,3 @@ score_vfork(struct pt_regs *regs)
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
 			regs->regs[0], regs, 0, NULL, NULL);
 }
-
-/*
- * sys_execve() executes a new program.
- * This is called indirectly via a small wrapper
- */
-asmlinkage long
-score_execve(struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname((char __user*)regs->regs[4]);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-
-	error = do_execve(filename->name,
-			  (const char __user *const __user *)regs->regs[5],
-			  (const char __user *const __user *)regs->regs[6],
-			  regs);
-
-	putname(filename);
-	return error;
-}

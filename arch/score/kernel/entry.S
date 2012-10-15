@@ -487,11 +487,6 @@ illegal_syscall:
 	sw	r9, [r0, PT_R7]
 	j	syscall_return
 
-ENTRY(sys_execve)
-	mv	r4, r0
-	la	r8, score_execve
-	br	r8
-
 ENTRY(sys_clone)
 	mv	r4, r0
 	la	r8, score_clone
