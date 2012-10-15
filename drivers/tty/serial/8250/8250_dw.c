@@ -161,6 +161,29 @@ static int __devexit dw8250_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int dw8250_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct dw8250_data *data = platform_get_drvdata(pdev);
+
+	serial8250_suspend_port(data->line);
+
+	return 0;
+}
+
+static int dw8250_resume(struct platform_device *pdev)
+{
+	struct dw8250_data *data = platform_get_drvdata(pdev);
+
+	serial8250_resume_port(data->line);
+
+	return 0;
+}
+#else
+#define dw8250_suspend NULL
+#define dw8250_resume NULL
+#endif /* CONFIG_PM */
+
 static const struct of_device_id dw8250_match[] = {
 	{ .compatible = "snps,dw-apb-uart" },
 	{ /* Sentinel */ }
@@ -175,6 +198,8 @@ static struct platform_driver dw8250_platform_driver = {
 	},
 	.probe			= dw8250_probe,
 	.remove			= __devexit_p(dw8250_remove),
+	.suspend		= dw8250_suspend,
+	.resume			= dw8250_resume,
 };
 
 module_platform_driver(dw8250_platform_driver);
