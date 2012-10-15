@@ -6,3 +6,5 @@ header-y += kvm_para.h
 header-y += ptrace.h
 header-y += sigcontext.h
 header-y += unistd.h
+
+generic-y += kvm_para.h
