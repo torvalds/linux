@@ -3709,7 +3709,11 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 
 		/* check compatibility */
 
-		l2cap_send_efs_conf_rsp(chan, rsp, cmd->ident, flags);
+		/* Send rsp for BR/EDR channel */
+		if (!chan->ctrl_id)
+			l2cap_send_efs_conf_rsp(chan, rsp, cmd->ident, flags);
+		else
+			chan->ident = cmd->ident;
 	}
 
 unlock:
@@ -3758,7 +3762,11 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn,
 
 			/* check compatibility */
 
-			l2cap_send_efs_conf_rsp(chan, buf, cmd->ident, 0);
+			if (!chan->ctrl_id)
+				l2cap_send_efs_conf_rsp(chan, buf, cmd->ident,
+							0);
+			else
+				chan->ident = cmd->ident;
 		}
 		goto done;
 
