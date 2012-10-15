@@ -71,22 +71,41 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		unsigned long old_addr, unsigned long old_end,
 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-		unsigned long new_addr)
+		unsigned long new_addr, bool need_rmap_locks)
 {
 	struct address_space *mapping = NULL;
+	struct anon_vma *anon_vma = NULL;
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *old_pte, *new_pte, pte;
 	spinlock_t *old_ptl, *new_ptl;
 
-	if (vma->vm_file) {
-		/*
-		 * Subtle point from Rajesh Venkatasubramanian: before
-		 * moving file-based ptes, we must lock truncate_pagecache
-		 * out, since it might clean the dst vma before the src vma,
-		 * and we propagate stale pages into the dst afterward.
-		 */
-		mapping = vma->vm_file->f_mapping;
-		mutex_lock(&mapping->i_mmap_mutex);
+	/*
+	 * When need_rmap_locks is true, we take the i_mmap_mutex and anon_vma
+	 * locks to ensure that rmap will always observe either the old or the
+	 * new ptes. This is the easiest way to avoid races with
+	 * truncate_pagecache(), page migration, etc...
+	 *
+	 * When need_rmap_locks is false, we use other ways to avoid
+	 * such races:
+	 *
+	 * - During exec() shift_arg_pages(), we use a specially tagged vma
+	 *   which rmap call sites look for using is_vma_temporary_stack().
+	 *
+	 * - During mremap(), new_vma is often known to be placed after vma
+	 *   in rmap traversal order. This ensures rmap will always observe
+	 *   either the old pte, or the new pte, or both (the page table locks
+	 *   serialize access to individual ptes, but only rmap traversal
+	 *   order guarantees that we won't miss both the old and new ptes).
+	 */
+	if (need_rmap_locks) {
+		if (vma->vm_file) {
+			mapping = vma->vm_file->f_mapping;
+			mutex_lock(&mapping->i_mmap_mutex);
+		}
+		if (vma->anon_vma) {
+			anon_vma = vma->anon_vma;
+			anon_vma_lock(anon_vma);
+		}
 	}
 
 	/*
@@ -114,6 +133,8 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		spin_unlock(new_ptl);
 	pte_unmap(new_pte - 1);
 	pte_unmap_unlock(old_pte - 1, old_ptl);
+	if (anon_vma)
+		anon_vma_unlock(anon_vma);
 	if (mapping)
 		mutex_unlock(&mapping->i_mmap_mutex);
 }
@@ -122,16 +143,21 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 
 unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long old_addr, struct vm_area_struct *new_vma,
-		unsigned long new_addr, unsigned long len)
+		unsigned long new_addr, unsigned long len,
+		bool need_rmap_locks)
 {
 	unsigned long extent, next, old_end;
 	pmd_t *old_pmd, *new_pmd;
 	bool need_flush = false;
+	unsigned long mmun_start;	/* For mmu_notifiers */
+	unsigned long mmun_end;		/* For mmu_notifiers */
 
 	old_end = old_addr + len;
 	flush_cache_range(vma, old_addr, old_end);
 
-	mmu_notifier_invalidate_range_start(vma->vm_mm, old_addr, old_end);
+	mmun_start = old_addr;
+	mmun_end   = old_end;
+	mmu_notifier_invalidate_range_start(vma->vm_mm, mmun_start, mmun_end);
 
 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
@@ -169,13 +195,13 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		if (extent > LATENCY_LIMIT)
 			extent = LATENCY_LIMIT;
 		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-				new_vma, new_pmd, new_addr);
+			  new_vma, new_pmd, new_addr, need_rmap_locks);
 		need_flush = true;
 	}
 	if (likely(need_flush))
 		flush_tlb_range(vma, old_end-len, old_addr);
 
-	mmu_notifier_invalidate_range_end(vma->vm_mm, old_end-len, old_end);
+	mmu_notifier_invalidate_range_end(vma->vm_mm, mmun_start, mmun_end);
 
 	return len + old_addr - old_end;	/* how much done */
 }
@@ -193,6 +219,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	unsigned long hiwater_vm;
 	int split = 0;
 	int err;
+	bool need_rmap_locks;
 
 	/*
 	 * We'd prefer to avoid failure later on in do_munmap:
@@ -214,27 +241,21 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		return err;
 
 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
-	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff);
+	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
+			   &need_rmap_locks);
 	if (!new_vma)
 		return -ENOMEM;
 
-	moved_len = move_page_tables(vma, old_addr, new_vma, new_addr, old_len);
+	moved_len = move_page_tables(vma, old_addr, new_vma, new_addr, old_len,
+				     need_rmap_locks);
 	if (moved_len < old_len) {
-		/*
-		 * Before moving the page tables from the new vma to
-		 * the old vma, we need to be sure the old vma is
-		 * queued after new vma in the same_anon_vma list to
-		 * prevent SMP races with rmap_walk (that could lead
-		 * rmap_walk to miss some page table).
-		 */
-		anon_vma_moveto_tail(vma);
-
 		/*
 		 * On error, move entries back from new area to old,
 		 * which will succeed since page tables still there,
 		 * and then proceed to unmap new area instead of old.
 		 */
-		move_page_tables(new_vma, new_addr, vma, old_addr, moved_len);
+		move_page_tables(new_vma, new_addr, vma, old_addr, moved_len,
+				 true);
 		vma = new_vma;
 		old_len = new_len;
 		old_addr = new_addr;

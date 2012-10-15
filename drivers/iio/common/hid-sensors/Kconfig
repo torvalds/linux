@@ -1,0 +1,26 @@
+#
+# Hid Sensor common modules
+#
+menu "Hid Sensor IIO Common"
+
+config HID_SENSOR_IIO_COMMON
+	tristate "Common modules for all HID Sensor IIO drivers"
+	depends on HID_SENSOR_HUB
+	select IIO_TRIGGER if IIO_BUFFER
+	help
+	  Say yes here to build support for HID sensor to use
+	  HID sensor common processing for attributes and IIO triggers.
+	  There are many attributes which can be shared among multiple
+	  HID sensor drivers, this module contains processing for those
+	  attributes.
+
+config HID_SENSOR_ENUM_BASE_QUIRKS
+	tristate "ENUM base quirks for HID Sensor IIO drivers"
+	depends on HID_SENSOR_IIO_COMMON
+	help
+	  Say yes here to build support for sensor hub FW using
+	  enumeration, which is using 1 as base instead of 0.
+	  Since logical minimum is still set 0 instead of 1,
+	  there is no easy way to differentiate.
+
+endmenu

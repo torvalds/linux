@@ -1051,6 +1051,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
 
+	ima_appraise=	[IMA] appraise integrity measurements
+			Format: { "off" | "enforce" | "fix" }
+			default: "enforce"
+
+	ima_appraise_tcb [IMA]
+			The builtin appraise policy appraises all files
+			owned by uid=0.
+
 	ima_audit=	[IMA]
 			Format: { "0" | "1" }
 			0 -- integrity auditing messages. (Default)
@@ -1350,6 +1358,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
 
+			* rstonce: only attempt one reset during
+			  hot-unplug link recovery
+
 			* dump_id: dump IDENTIFY data.
 
 			If there are multiple matching configurations changing
@@ -1582,6 +1593,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			log everything. Information is printed at KERN_DEBUG
 			so loglevel=8 may also need to be specified.
 
+	module.sig_enforce
+			[KNL] When CONFIG_MODULE_SIG is set, this means that
+			modules without (valid) signatures will fail to load.
+			Note that if CONFIG_MODULE_SIG_ENFORCE is set, that
+			is always true, so this option does nothing.
+
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
 			leaving touchpad surface for touch to be considered
@@ -1719,6 +1736,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
+	nfs.nfs4_unique_id=
+			[NFS4] Specify an additional fixed unique ident-
+			ification string that NFSv4 clients can insert into
+			their nfs_client_id4 string.  This is typically a
+			UUID that is generated at system install time.
 
 	nfs.send_implementation_id =
 			[NFSv4.1] Send client implementation identification
@@ -1812,8 +1834,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable non-executable mappings
 
+	nosmap		[X86]
+			Disable SMAP (Supervisor Mode Access Prevention)
+			even if it is supported by processor.
+
 	nosmep		[X86]
-			Disable SMEP (Supervisor Mode Execution Protection)
+			Disable SMEP (Supervisor Mode Execution Prevention)
 			even if it is supported by processor.
 
 	noexec32	[X86-64]
@@ -1832,6 +1858,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
+
+	eagerfpu=	[X86]
+			on	enable eager fpu restore
+			off	disable eager fpu restore
+			auto	selects the default scheme, which automatically
+				enables eagerfpu restore for xsaveopt.
 
 	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
 			wfi(ARM) instruction doesn't work correctly and not to
@@ -2385,6 +2417,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutree.rcu_cpu_stall_timeout= [KNL,BOOT]
 			Set timeout for RCU CPU stall warning messages.
 
+	rcutree.jiffies_till_first_fqs= [KNL,BOOT]
+			Set delay from grace-period initialization to
+			first attempt to force quiescent states.
+			Units are jiffies, minimum value is zero,
+			and maximum value is HZ.
+
+	rcutree.jiffies_till_next_fqs= [KNL,BOOT]
+			Set delay between subsequent attempts to force
+			quiescent states.  Units are jiffies, minimum
+			value is one, and maximum value is HZ.
+
 	rcutorture.fqs_duration= [KNL,BOOT]
 			Set duration of force_quiescent_state bursts.
 
@@ -2637,9 +2680,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
-
-	smp-alt-once	[X86-32,SMP] On a hotplug CPU system, only
-			attempt to substitute SMP alternatives once at boot.
 
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
 	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port

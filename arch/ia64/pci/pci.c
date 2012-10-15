@@ -295,7 +295,6 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->resource.flags = flags;
 	window->resource.start = addr.minimum + offset;
 	window->resource.end = window->resource.start + addr.address_length - 1;
-	window->resource.child = NULL;
 	window->offset = offset;
 
 	if (insert_resource(root, &window->resource)) {
@@ -357,7 +356,7 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 			&windows);
 	if (windows) {
 		controller->window =
-			kmalloc_node(sizeof(*controller->window) * windows,
+			kzalloc_node(sizeof(*controller->window) * windows,
 				     GFP_KERNEL, controller->node);
 		if (!controller->window)
 			goto out2;
@@ -459,14 +458,6 @@ pcibios_fixup_bus (struct pci_bus *b)
 void pcibios_set_master (struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
-}
-
-void __devinit
-pcibios_update_irq (struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-
-	/* ??? FIXME -- record old value for shutdown.  */
 }
 
 int

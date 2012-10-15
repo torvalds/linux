@@ -468,7 +468,7 @@ static int irda_open_tsap(struct irda_sock *self, __u8 tsap_sel, char *name)
 	notify_t notify;
 
 	if (self->tsap) {
-		IRDA_WARNING("%s: busy!\n", __func__);
+		IRDA_DEBUG(0, "%s: busy!\n", __func__);
 		return -EBUSY;
 	}
 

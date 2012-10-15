@@ -264,7 +264,7 @@ pscsi_get_inquiry_vpd_device_ident(struct scsi_device *sdev,
 					" length zero!\n");
 			break;
 		}
-		pr_debug("T10 VPD Identifer Length: %d\n", ident_len);
+		pr_debug("T10 VPD Identifier Length: %d\n", ident_len);
 
 		vpd = kzalloc(sizeof(struct t10_vpd), GFP_KERNEL);
 		if (!vpd) {

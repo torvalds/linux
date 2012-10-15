@@ -44,10 +44,8 @@
 #include <linux/prefetch.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
-#if IS_ENABLED(CONFIG_HWMON)
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#endif
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -92,10 +90,10 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 #define DRV_MODULE_NAME		"tg3"
 #define TG3_MAJ_NUM			3
-#define TG3_MIN_NUM			124
+#define TG3_MIN_NUM			125
 #define DRV_MODULE_VERSION	\
 	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
-#define DRV_MODULE_RELDATE	"March 21, 2012"
+#define DRV_MODULE_RELDATE	"September 26, 2012"
 
 #define RESET_KIND_SHUTDOWN	0
 #define RESET_KIND_INIT		1
@@ -784,7 +782,8 @@ static int tg3_ape_wait_for_event(struct tg3 *tp, u32 timeout_us)
 	return i == timeout_us / 10;
 }
 
-int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off, u32 len)
+static int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off,
+				   u32 len)
 {
 	int err;
 	u32 i, bufoff, msgoff, maxlen, apedata;
@@ -3653,17 +3652,9 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	tg3_enable_register_access(tp);
 
 	/* Restore the CLKREQ setting. */
-	if (tg3_flag(tp, CLKREQ_BUG)) {
-		u16 lnkctl;
-
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &lnkctl);
-		lnkctl |= PCI_EXP_LNKCTL_CLKREQ_EN;
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				      lnkctl);
-	}
+	if (tg3_flag(tp, CLKREQ_BUG))
+		pcie_capability_set_word(tp->pdev, PCI_EXP_LNKCTL,
+					 PCI_EXP_LNKCTL_CLKREQ_EN);
 
 	misc_host_ctrl = tr32(TG3PCI_MISC_HOST_CTRL);
 	tw32(TG3PCI_MISC_HOST_CTRL,
@@ -4434,20 +4425,13 @@ relink:
 
 	/* Prevent send BD corruption. */
 	if (tg3_flag(tp, CLKREQ_BUG)) {
-		u16 oldlnkctl, newlnkctl;
-
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &oldlnkctl);
 		if (tp->link_config.active_speed == SPEED_100 ||
 		    tp->link_config.active_speed == SPEED_10)
-			newlnkctl = oldlnkctl & ~PCI_EXP_LNKCTL_CLKREQ_EN;
+			pcie_capability_clear_word(tp->pdev, PCI_EXP_LNKCTL,
+						   PCI_EXP_LNKCTL_CLKREQ_EN);
 		else
-			newlnkctl = oldlnkctl | PCI_EXP_LNKCTL_CLKREQ_EN;
-		if (newlnkctl != oldlnkctl)
-			pci_write_config_word(tp->pdev,
-					      pci_pcie_cap(tp->pdev) +
-					      PCI_EXP_LNKCTL, newlnkctl);
+			pcie_capability_set_word(tp->pdev, PCI_EXP_LNKCTL,
+						 PCI_EXP_LNKCTL_CLKREQ_EN);
 	}
 
 	if (current_link_up != netif_carrier_ok(tp->dev)) {
@@ -6278,7 +6262,7 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
 		tp->rx_refill = false;
-		for (i = 1; i < tp->irq_cnt; i++)
+		for (i = 1; i <= tp->rxq_cnt; i++)
 			err |= tg3_rx_prodring_xfer(tp, dpr,
 						    &tp->napi[i].prodring);
 
@@ -7607,6 +7591,118 @@ static int tg3_init_rings(struct tg3 *tp)
 	return 0;
 }
 
+static void tg3_mem_tx_release(struct tg3 *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->irq_max; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tnapi->tx_ring) {
+			dma_free_coherent(&tp->pdev->dev, TG3_TX_RING_BYTES,
+				tnapi->tx_ring, tnapi->tx_desc_mapping);
+			tnapi->tx_ring = NULL;
+		}
+
+		kfree(tnapi->tx_buffers);
+		tnapi->tx_buffers = NULL;
+	}
+}
+
+static int tg3_mem_tx_acquire(struct tg3 *tp)
+{
+	int i;
+	struct tg3_napi *tnapi = &tp->napi[0];
+
+	/* If multivector TSS is enabled, vector 0 does not handle
+	 * tx interrupts.  Don't allocate any resources for it.
+	 */
+	if (tg3_flag(tp, ENABLE_TSS))
+		tnapi++;
+
+	for (i = 0; i < tp->txq_cnt; i++, tnapi++) {
+		tnapi->tx_buffers = kzalloc(sizeof(struct tg3_tx_ring_info) *
+					    TG3_TX_RING_SIZE, GFP_KERNEL);
+		if (!tnapi->tx_buffers)
+			goto err_out;
+
+		tnapi->tx_ring = dma_alloc_coherent(&tp->pdev->dev,
+						    TG3_TX_RING_BYTES,
+						    &tnapi->tx_desc_mapping,
+						    GFP_KERNEL);
+		if (!tnapi->tx_ring)
+			goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	tg3_mem_tx_release(tp);
+	return -ENOMEM;
+}
+
+static void tg3_mem_rx_release(struct tg3 *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->irq_max; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		tg3_rx_prodring_fini(tp, &tnapi->prodring);
+
+		if (!tnapi->rx_rcb)
+			continue;
+
+		dma_free_coherent(&tp->pdev->dev,
+				  TG3_RX_RCB_RING_BYTES(tp),
+				  tnapi->rx_rcb,
+				  tnapi->rx_rcb_mapping);
+		tnapi->rx_rcb = NULL;
+	}
+}
+
+static int tg3_mem_rx_acquire(struct tg3 *tp)
+{
+	unsigned int i, limit;
+
+	limit = tp->rxq_cnt;
+
+	/* If RSS is enabled, we need a (dummy) producer ring
+	 * set on vector zero.  This is the true hw prodring.
+	 */
+	if (tg3_flag(tp, ENABLE_RSS))
+		limit++;
+
+	for (i = 0; i < limit; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tg3_rx_prodring_init(tp, &tnapi->prodring))
+			goto err_out;
+
+		/* If multivector RSS is enabled, vector 0
+		 * does not handle rx or tx interrupts.
+		 * Don't allocate any resources for it.
+		 */
+		if (!i && tg3_flag(tp, ENABLE_RSS))
+			continue;
+
+		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
+						   TG3_RX_RCB_RING_BYTES(tp),
+						   &tnapi->rx_rcb_mapping,
+						   GFP_KERNEL);
+		if (!tnapi->rx_rcb)
+			goto err_out;
+
+		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
+	}
+
+	return 0;
+
+err_out:
+	tg3_mem_rx_release(tp);
+	return -ENOMEM;
+}
+
 /*
  * Must not be invoked with interrupt sources disabled and
  * the hardware shutdown down.
@@ -7618,25 +7714,6 @@ static void tg3_free_consistent(struct tg3 *tp)
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 
-		if (tnapi->tx_ring) {
-			dma_free_coherent(&tp->pdev->dev, TG3_TX_RING_BYTES,
-				tnapi->tx_ring, tnapi->tx_desc_mapping);
-			tnapi->tx_ring = NULL;
-		}
-
-		kfree(tnapi->tx_buffers);
-		tnapi->tx_buffers = NULL;
-
-		if (tnapi->rx_rcb) {
-			dma_free_coherent(&tp->pdev->dev,
-					  TG3_RX_RCB_RING_BYTES(tp),
-					  tnapi->rx_rcb,
-					  tnapi->rx_rcb_mapping);
-			tnapi->rx_rcb = NULL;
-		}
-
-		tg3_rx_prodring_fini(tp, &tnapi->prodring);
-
 		if (tnapi->hw_status) {
 			dma_free_coherent(&tp->pdev->dev, TG3_HW_STATUS_SIZE,
 					  tnapi->hw_status,
@@ -7644,6 +7721,9 @@ static void tg3_free_consistent(struct tg3 *tp)
 			tnapi->hw_status = NULL;
 		}
 	}
+
+	tg3_mem_rx_release(tp);
+	tg3_mem_tx_release(tp);
 
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
@@ -7683,71 +7763,37 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 		sblk = tnapi->hw_status;
 
-		if (tg3_rx_prodring_init(tp, &tnapi->prodring))
-			goto err_out;
+		if (tg3_flag(tp, ENABLE_RSS)) {
+			u16 *prodptr = NULL;
 
-		/* If multivector TSS is enabled, vector 0 does not handle
-		 * tx interrupts.  Don't allocate any resources for it.
-		 */
-		if ((!i && !tg3_flag(tp, ENABLE_TSS)) ||
-		    (i && tg3_flag(tp, ENABLE_TSS))) {
-			tnapi->tx_buffers = kzalloc(
-					       sizeof(struct tg3_tx_ring_info) *
-					       TG3_TX_RING_SIZE, GFP_KERNEL);
-			if (!tnapi->tx_buffers)
-				goto err_out;
-
-			tnapi->tx_ring = dma_alloc_coherent(&tp->pdev->dev,
-							    TG3_TX_RING_BYTES,
-							&tnapi->tx_desc_mapping,
-							    GFP_KERNEL);
-			if (!tnapi->tx_ring)
-				goto err_out;
-		}
-
-		/*
-		 * When RSS is enabled, the status block format changes
-		 * slightly.  The "rx_jumbo_consumer", "reserved",
-		 * and "rx_mini_consumer" members get mapped to the
-		 * other three rx return ring producer indexes.
-		 */
-		switch (i) {
-		default:
-			if (tg3_flag(tp, ENABLE_RSS)) {
-				tnapi->rx_rcb_prod_idx = NULL;
+			/*
+			 * When RSS is enabled, the status block format changes
+			 * slightly.  The "rx_jumbo_consumer", "reserved",
+			 * and "rx_mini_consumer" members get mapped to the
+			 * other three rx return ring producer indexes.
+			 */
+			switch (i) {
+			case 1:
+				prodptr = &sblk->idx[0].rx_producer;
+				break;
+			case 2:
+				prodptr = &sblk->rx_jumbo_consumer;
+				break;
+			case 3:
+				prodptr = &sblk->reserved;
+				break;
+			case 4:
+				prodptr = &sblk->rx_mini_consumer;
 				break;
 			}
-			/* Fall through */
-		case 1:
+			tnapi->rx_rcb_prod_idx = prodptr;
+		} else {
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
-			break;
-		case 2:
-			tnapi->rx_rcb_prod_idx = &sblk->rx_jumbo_consumer;
-			break;
-		case 3:
-			tnapi->rx_rcb_prod_idx = &sblk->reserved;
-			break;
-		case 4:
-			tnapi->rx_rcb_prod_idx = &sblk->rx_mini_consumer;
-			break;
 		}
-
-		/*
-		 * If multivector RSS is enabled, vector 0 does not handle
-		 * rx or tx interrupts.  Don't allocate any resources for it.
-		 */
-		if (!i && tg3_flag(tp, ENABLE_RSS))
-			continue;
-
-		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
-						   TG3_RX_RCB_RING_BYTES(tp),
-						   &tnapi->rx_rcb_mapping,
-						   GFP_KERNEL);
-		if (!tnapi->rx_rcb)
-			goto err_out;
-
-		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 	}
+
+	if (tg3_mem_tx_acquire(tp) || tg3_mem_rx_acquire(tp))
+		goto err_out;
 
 	return 0;
 
@@ -8054,15 +8100,15 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	udelay(120);
 
-	if (tg3_flag(tp, PCI_EXPRESS) && pci_pcie_cap(tp->pdev)) {
+	if (tg3_flag(tp, PCI_EXPRESS) && pci_is_pcie(tp->pdev)) {
 		u16 val16;
 
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
-			int i;
+			int j;
 			u32 cfg_val;
 
 			/* Wait for link training to complete.  */
-			for (i = 0; i < 5000; i++)
+			for (j = 0; j < 5000; j++)
 				udelay(100);
 
 			pci_read_config_dword(tp->pdev, 0xc4, &cfg_val);
@@ -8071,24 +8117,17 @@ static int tg3_chip_reset(struct tg3 *tp)
 		}
 
 		/* Clear the "no snoop" and "relaxed ordering" bits. */
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
-				     &val16);
-		val16 &= ~(PCI_EXP_DEVCTL_RELAX_EN |
-			   PCI_EXP_DEVCTL_NOSNOOP_EN);
+		val16 = PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN;
 		/*
 		 * Older PCIe devices only support the 128 byte
 		 * MPS setting.  Enforce the restriction.
 		 */
 		if (!tg3_flag(tp, CPMU_PRESENT))
-			val16 &= ~PCI_EXP_DEVCTL_PAYLOAD;
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
-				      val16);
+			val16 |= PCI_EXP_DEVCTL_PAYLOAD;
+		pcie_capability_clear_word(tp->pdev, PCI_EXP_DEVCTL, val16);
 
 		/* Clear error status */
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVSTA,
+		pcie_capability_write_word(tp->pdev, PCI_EXP_DEVSTA,
 				      PCI_EXP_DEVSTA_CED |
 				      PCI_EXP_DEVSTA_NFED |
 				      PCI_EXP_DEVSTA_FED |
@@ -8269,9 +8308,10 @@ static void tg3_set_bdinfo(struct tg3 *tp, u32 bdinfo_addr,
 			      nic_addr);
 }
 
-static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+
+static void tg3_coal_tx_init(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
-	int i;
+	int i = 0;
 
 	if (!tg3_flag(tp, ENABLE_TSS)) {
 		tw32(HOSTCC_TXCOL_TICKS, ec->tx_coalesce_usecs);
@@ -8281,17 +8321,64 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 		tw32(HOSTCC_TXCOL_TICKS, 0);
 		tw32(HOSTCC_TXMAX_FRAMES, 0);
 		tw32(HOSTCC_TXCOAL_MAXF_INT, 0);
+
+		for (; i < tp->txq_cnt; i++) {
+			u32 reg;
+
+			reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_coalesce_usecs);
+			reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames);
+			reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames_irq);
+		}
 	}
+
+	for (; i < tp->irq_max - 1; i++) {
+		tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+	}
+}
+
+static void tg3_coal_rx_init(struct tg3 *tp, struct ethtool_coalesce *ec)
+{
+	int i = 0;
+	u32 limit = tp->rxq_cnt;
 
 	if (!tg3_flag(tp, ENABLE_RSS)) {
 		tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
 		tw32(HOSTCC_RXMAX_FRAMES, ec->rx_max_coalesced_frames);
 		tw32(HOSTCC_RXCOAL_MAXF_INT, ec->rx_max_coalesced_frames_irq);
+		limit--;
 	} else {
 		tw32(HOSTCC_RXCOL_TICKS, 0);
 		tw32(HOSTCC_RXMAX_FRAMES, 0);
 		tw32(HOSTCC_RXCOAL_MAXF_INT, 0);
 	}
+
+	for (; i < limit; i++) {
+		u32 reg;
+
+		reg = HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_coalesce_usecs);
+		reg = HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_max_coalesced_frames);
+		reg = HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_max_coalesced_frames_irq);
+	}
+
+	for (; i < tp->irq_max - 1; i++) {
+		tw32(HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+	}
+}
+
+static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+{
+	tg3_coal_tx_init(tp, ec);
+	tg3_coal_rx_init(tp, ec);
 
 	if (!tg3_flag(tp, 5705_PLUS)) {
 		u32 val = ec->stats_block_coalesce_usecs;
@@ -8303,38 +8390,6 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 			val = 0;
 
 		tw32(HOSTCC_STAT_COAL_TICKS, val);
-	}
-
-	for (i = 0; i < tp->irq_cnt - 1; i++) {
-		u32 reg;
-
-		reg = HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_coalesce_usecs);
-		reg = HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_max_coalesced_frames);
-		reg = HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_max_coalesced_frames_irq);
-
-		if (tg3_flag(tp, ENABLE_TSS)) {
-			reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_coalesce_usecs);
-			reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_max_coalesced_frames);
-			reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_max_coalesced_frames_irq);
-		}
-	}
-
-	for (; i < tp->irq_max - 1; i++) {
-		tw32(HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
-
-		if (tg3_flag(tp, ENABLE_TSS)) {
-			tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
-			tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
-			tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
-		}
 	}
 }
 
@@ -8592,13 +8647,12 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 	}
 }
 
-static void tg3_rss_init_dflt_indir_tbl(struct tg3 *tp)
+static void tg3_rss_init_dflt_indir_tbl(struct tg3 *tp, u32 qcnt)
 {
 	int i;
 
 	for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++)
-		tp->rss_ind_tbl[i] =
-			ethtool_rxfh_indir_default(i, tp->irq_cnt - 1);
+		tp->rss_ind_tbl[i] = ethtool_rxfh_indir_default(i, qcnt);
 }
 
 static void tg3_rss_check_indir_tbl(struct tg3 *tp)
@@ -8620,7 +8674,7 @@ static void tg3_rss_check_indir_tbl(struct tg3 *tp)
 	}
 
 	if (i != TG3_RSS_INDIR_TBL_SIZE)
-		tg3_rss_init_dflt_indir_tbl(tp);
+		tg3_rss_init_dflt_indir_tbl(tp, tp->rxq_cnt);
 }
 
 static void tg3_rss_write_indir_tbl(struct tg3 *tp)
@@ -9517,7 +9571,6 @@ static int tg3_init_hw(struct tg3 *tp, int reset_phy)
 	return tg3_reset_hw(tp, reset_phy);
 }
 
-#if IS_ENABLED(CONFIG_HWMON)
 static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
 {
 	int i;
@@ -9570,22 +9623,17 @@ static const struct attribute_group tg3_group = {
 	.attrs = tg3_attributes,
 };
 
-#endif
-
 static void tg3_hwmon_close(struct tg3 *tp)
 {
-#if IS_ENABLED(CONFIG_HWMON)
 	if (tp->hwmon_dev) {
 		hwmon_device_unregister(tp->hwmon_dev);
 		tp->hwmon_dev = NULL;
 		sysfs_remove_group(&tp->pdev->dev.kobj, &tg3_group);
 	}
-#endif
 }
 
 static void tg3_hwmon_open(struct tg3 *tp)
 {
-#if IS_ENABLED(CONFIG_HWMON)
 	int i, err;
 	u32 size = 0;
 	struct pci_dev *pdev = tp->pdev;
@@ -9617,7 +9665,6 @@ static void tg3_hwmon_open(struct tg3 *tp)
 		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
 		sysfs_remove_group(&pdev->dev.kobj, &tg3_group);
 	}
-#endif
 }
 
 
@@ -10141,20 +10188,42 @@ static int tg3_request_firmware(struct tg3 *tp)
 	return 0;
 }
 
-static bool tg3_enable_msix(struct tg3 *tp)
+static u32 tg3_irq_count(struct tg3 *tp)
 {
-	int i, rc;
-	struct msix_entry msix_ent[tp->irq_max];
+	u32 irq_cnt = max(tp->rxq_cnt, tp->txq_cnt);
 
-	tp->irq_cnt = netif_get_num_default_rss_queues();
-	if (tp->irq_cnt > 1) {
+	if (irq_cnt > 1) {
 		/* We want as many rx rings enabled as there are cpus.
 		 * In multiqueue MSI-X mode, the first MSI-X vector
 		 * only deals with link interrupts, etc, so we add
 		 * one to the number of vectors we are requesting.
 		 */
-		tp->irq_cnt = min_t(unsigned, tp->irq_cnt + 1, tp->irq_max);
+		irq_cnt = min_t(unsigned, irq_cnt + 1, tp->irq_max);
 	}
+
+	return irq_cnt;
+}
+
+static bool tg3_enable_msix(struct tg3 *tp)
+{
+	int i, rc;
+	struct msix_entry msix_ent[TG3_IRQ_MAX_VECS];
+
+	tp->txq_cnt = tp->txq_req;
+	tp->rxq_cnt = tp->rxq_req;
+	if (!tp->rxq_cnt)
+		tp->rxq_cnt = netif_get_num_default_rss_queues();
+	if (tp->rxq_cnt > tp->rxq_max)
+		tp->rxq_cnt = tp->rxq_max;
+
+	/* Disable multiple TX rings by default.  Simple round-robin hardware
+	 * scheduling of the TX rings can cause starvation of rings with
+	 * small packets when other rings have TSO or jumbo packets.
+	 */
+	if (!tp->txq_req)
+		tp->txq_cnt = 1;
+
+	tp->irq_cnt = tg3_irq_count(tp);
 
 	for (i = 0; i < tp->irq_max; i++) {
 		msix_ent[i].entry  = i;
@@ -10170,27 +10239,28 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		netdev_notice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
+		tp->rxq_cnt = max(rc - 1, 1);
+		if (tp->txq_cnt)
+			tp->txq_cnt = min(tp->rxq_cnt, tp->txq_max);
 	}
 
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
-	netif_set_real_num_tx_queues(tp->dev, 1);
-	rc = tp->irq_cnt > 1 ? tp->irq_cnt - 1 : 1;
-	if (netif_set_real_num_rx_queues(tp->dev, rc)) {
+	if (netif_set_real_num_rx_queues(tp->dev, tp->rxq_cnt)) {
 		pci_disable_msix(tp->pdev);
 		return false;
 	}
 
-	if (tp->irq_cnt > 1) {
-		tg3_flag_set(tp, ENABLE_RSS);
+	if (tp->irq_cnt == 1)
+		return true;
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
-			tg3_flag_set(tp, ENABLE_TSS);
-			netif_set_real_num_tx_queues(tp->dev, tp->irq_cnt - 1);
-		}
-	}
+	tg3_flag_set(tp, ENABLE_RSS);
+
+	if (tp->txq_cnt > 1)
+		tg3_flag_set(tp, ENABLE_TSS);
+
+	netif_set_real_num_tx_queues(tp->dev, tp->txq_cnt);
 
 	return true;
 }
@@ -10224,6 +10294,11 @@ defcfg:
 	if (!tg3_flag(tp, USING_MSIX)) {
 		tp->irq_cnt = 1;
 		tp->napi[0].irq_vec = tp->pdev->irq;
+	}
+
+	if (tp->irq_cnt == 1) {
+		tp->txq_cnt = 1;
+		tp->rxq_cnt = 1;
 		netif_set_real_num_tx_queues(tp->dev, 1);
 		netif_set_real_num_rx_queues(tp->dev, 1);
 	}
@@ -10241,37 +10316,10 @@ static void tg3_ints_fini(struct tg3 *tp)
 	tg3_flag_clear(tp, ENABLE_TSS);
 }
 
-static int tg3_open(struct net_device *dev)
+static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq)
 {
-	struct tg3 *tp = netdev_priv(dev);
+	struct net_device *dev = tp->dev;
 	int i, err;
-
-	if (tp->fw_needed) {
-		err = tg3_request_firmware(tp);
-		if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0) {
-			if (err)
-				return err;
-		} else if (err) {
-			netdev_warn(tp->dev, "TSO capability disabled\n");
-			tg3_flag_clear(tp, TSO_CAPABLE);
-		} else if (!tg3_flag(tp, TSO_CAPABLE)) {
-			netdev_notice(tp->dev, "TSO capability restored\n");
-			tg3_flag_set(tp, TSO_CAPABLE);
-		}
-	}
-
-	netif_carrier_off(tp->dev);
-
-	err = tg3_power_up(tp);
-	if (err)
-		return err;
-
-	tg3_full_lock(tp, 0);
-
-	tg3_disable_ints(tp);
-	tg3_flag_clear(tp, INIT_COMPLETE);
-
-	tg3_full_unlock(tp);
 
 	/*
 	 * Setup interrupts first so we know how
@@ -10306,7 +10354,7 @@ static int tg3_open(struct net_device *dev)
 
 	tg3_full_lock(tp, 0);
 
-	err = tg3_init_hw(tp, 1);
+	err = tg3_init_hw(tp, reset_phy);
 	if (err) {
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_free_rings(tp);
@@ -10317,7 +10365,7 @@ static int tg3_open(struct net_device *dev)
 	if (err)
 		goto err_out3;
 
-	if (tg3_flag(tp, USING_MSI)) {
+	if (test_irq && tg3_flag(tp, USING_MSI)) {
 		err = tg3_test_msi(tp);
 
 		if (err) {
@@ -10373,20 +10421,18 @@ err_out2:
 
 err_out1:
 	tg3_ints_fini(tp);
-	tg3_frob_aux_power(tp, false);
-	pci_set_power_state(tp->pdev, PCI_D3hot);
+
 	return err;
 }
 
-static int tg3_close(struct net_device *dev)
+static void tg3_stop(struct tg3 *tp)
 {
 	int i;
-	struct tg3 *tp = netdev_priv(dev);
 
 	tg3_napi_disable(tp);
 	tg3_reset_task_cancel(tp);
 
-	netif_tx_stop_all_queues(dev);
+	netif_tx_disable(tp->dev);
 
 	tg3_timer_stop(tp);
 
@@ -10411,13 +10457,60 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_ints_fini(tp);
 
-	/* Clear stats across close / open calls */
-	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
-	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
-
 	tg3_napi_fini(tp);
 
 	tg3_free_consistent(tp);
+}
+
+static int tg3_open(struct net_device *dev)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	int err;
+
+	if (tp->fw_needed) {
+		err = tg3_request_firmware(tp);
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0) {
+			if (err)
+				return err;
+		} else if (err) {
+			netdev_warn(tp->dev, "TSO capability disabled\n");
+			tg3_flag_clear(tp, TSO_CAPABLE);
+		} else if (!tg3_flag(tp, TSO_CAPABLE)) {
+			netdev_notice(tp->dev, "TSO capability restored\n");
+			tg3_flag_set(tp, TSO_CAPABLE);
+		}
+	}
+
+	netif_carrier_off(tp->dev);
+
+	err = tg3_power_up(tp);
+	if (err)
+		return err;
+
+	tg3_full_lock(tp, 0);
+
+	tg3_disable_ints(tp);
+	tg3_flag_clear(tp, INIT_COMPLETE);
+
+	tg3_full_unlock(tp);
+
+	err = tg3_start(tp, true, true);
+	if (err) {
+		tg3_frob_aux_power(tp, false);
+		pci_set_power_state(tp->pdev, PCI_D3hot);
+	}
+	return err;
+}
+
+static int tg3_close(struct net_device *dev)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	tg3_stop(tp);
+
+	/* Clear stats across close / open calls */
+	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
+	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
 	tg3_power_down(tp);
 
@@ -11207,11 +11300,11 @@ static int tg3_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		if (netif_running(tp->dev))
-			info->data = tp->irq_cnt;
+			info->data = tp->rxq_cnt;
 		else {
 			info->data = num_online_cpus();
-			if (info->data > TG3_IRQ_MAX_VECS_RSS)
-				info->data = TG3_IRQ_MAX_VECS_RSS;
+			if (info->data > TG3_RSS_MAX_NUM_QS)
+				info->data = TG3_RSS_MAX_NUM_QS;
 		}
 
 		/* The first interrupt vector only
@@ -11264,6 +11357,58 @@ static int tg3_set_rxfh_indir(struct net_device *dev, const u32 *indir)
 	tg3_full_lock(tp, 0);
 	tg3_rss_write_indir_tbl(tp);
 	tg3_full_unlock(tp);
+
+	return 0;
+}
+
+static void tg3_get_channels(struct net_device *dev,
+			     struct ethtool_channels *channel)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	u32 deflt_qs = netif_get_num_default_rss_queues();
+
+	channel->max_rx = tp->rxq_max;
+	channel->max_tx = tp->txq_max;
+
+	if (netif_running(dev)) {
+		channel->rx_count = tp->rxq_cnt;
+		channel->tx_count = tp->txq_cnt;
+	} else {
+		if (tp->rxq_req)
+			channel->rx_count = tp->rxq_req;
+		else
+			channel->rx_count = min(deflt_qs, tp->rxq_max);
+
+		if (tp->txq_req)
+			channel->tx_count = tp->txq_req;
+		else
+			channel->tx_count = min(deflt_qs, tp->txq_max);
+	}
+}
+
+static int tg3_set_channels(struct net_device *dev,
+			    struct ethtool_channels *channel)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (!tg3_flag(tp, SUPPORT_MSIX))
+		return -EOPNOTSUPP;
+
+	if (channel->rx_count > tp->rxq_max ||
+	    channel->tx_count > tp->txq_max)
+		return -EINVAL;
+
+	tp->rxq_req = channel->rx_count;
+	tp->txq_req = channel->tx_count;
+
+	if (!netif_running(dev))
+		return 0;
+
+	tg3_stop(tp);
+
+	netif_carrier_off(dev);
+
+	tg3_start(tp, true, false);
 
 	return 0;
 }
@@ -12516,6 +12661,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_rxfh_indir_size    = tg3_get_rxfh_indir_size,
 	.get_rxfh_indir		= tg3_get_rxfh_indir,
 	.set_rxfh_indir		= tg3_set_rxfh_indir,
+	.get_channels		= tg3_get_channels,
+	.set_channels		= tg3_set_channels,
 	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
@@ -14532,8 +14679,18 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		if (tg3_flag(tp, 57765_PLUS)) {
 			tg3_flag_set(tp, SUPPORT_MSIX);
 			tp->irq_max = TG3_IRQ_MAX_VECS;
-			tg3_rss_init_dflt_indir_tbl(tp);
 		}
+	}
+
+	tp->txq_max = 1;
+	tp->rxq_max = 1;
+	if (tp->irq_max > 1) {
+		tp->rxq_max = TG3_RSS_MAX_NUM_QS;
+		tg3_rss_init_dflt_indir_tbl(tp, TG3_RSS_MAX_NUM_QS);
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+			tp->txq_max = tp->irq_max - 1;
 	}
 
 	if (tg3_flag(tp, 5755_PLUS) ||
@@ -14565,9 +14722,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 		tg3_flag_set(tp, PCI_EXPRESS);
 
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &lnkctl);
+		pcie_capability_read_word(tp->pdev, PCI_EXP_LNKCTL, &lnkctl);
 		if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN) {
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
 			    ASIC_REV_5906) {
@@ -16397,7 +16552,7 @@ done:
 	rtnl_unlock();
 }
 
-static struct pci_error_handlers tg3_err_handler = {
+static const struct pci_error_handlers tg3_err_handler = {
 	.error_detected	= tg3_io_error_detected,
 	.slot_reset	= tg3_io_slot_reset,
 	.resume		= tg3_io_resume

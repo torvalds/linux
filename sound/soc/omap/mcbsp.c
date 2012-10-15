@@ -26,7 +26,9 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+
+#include <plat/cpu.h>
 
 #include "mcbsp.h"
 

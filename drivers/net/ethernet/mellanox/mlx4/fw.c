@@ -183,7 +183,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET		0x24
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x28
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
-#define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0X30
+#define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0x30
 
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
@@ -194,20 +194,38 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
 #define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
 
+#define QUERY_FUNC_CAP_QP0_TUNNEL		0x10
+#define QUERY_FUNC_CAP_QP0_PROXY		0x14
+#define QUERY_FUNC_CAP_QP1_TUNNEL		0x18
+#define QUERY_FUNC_CAP_QP1_PROXY		0x1c
+
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
 
 #define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
-		field = vhcr->in_modifier;
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
-
 		field = 0;
 		/* ensure force vlan and force mac bits are not set */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
 		/* ensure that phy_wqe_gid bit is not set */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+
+		field = vhcr->in_modifier; /* phys-port = logical-port */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
+
+		/* size is now the QP number */
+		size = dev->phys_caps.base_tunnel_sqpn + 8 * slave + field - 1;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_TUNNEL);
+
+		size += 2;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_TUNNEL);
+
+		size = dev->phys_caps.base_proxy_sqpn + 8 * slave + field - 1;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_PROXY);
+
+		size += 2;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_PROXY);
 
 	} else if (vhcr->op_modifier == 0) {
 		/* enable rdma and ethernet interfaces */
@@ -253,98 +271,117 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
+int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
+			struct mlx4_func_cap *func_cap)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	u32			*outbox;
-	u8			field;
+	u8			field, op_modifier;
 	u32			size;
-	int			i;
 	int			err = 0;
 
+	op_modifier = !!gen_or_port; /* 0 = general, 1 = logical port */
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_FUNC_CAP,
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, gen_or_port, op_modifier,
+			   MLX4_CMD_QUERY_FUNC_CAP,
 			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 
 	outbox = mailbox->buf;
 
-	MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
-	if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
-		mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
-		err = -EPROTONOSUPPORT;
+	if (!op_modifier) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
+		if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
+			mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
+		func_cap->flags = field;
+
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
+		func_cap->num_ports = field;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
+		func_cap->pf_context_behaviour = size;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
+		func_cap->qp_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
+		func_cap->srq_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
+		func_cap->cq_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
+		func_cap->max_eq = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
+		func_cap->reserved_eq = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
+		func_cap->mpt_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
+		func_cap->mtt_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
+		func_cap->mcg_quota = size & 0xFFFFFF;
 		goto out;
 	}
-	func_cap->flags = field;
 
-	MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
-	func_cap->num_ports = field;
+	/* logical port query */
+	if (gen_or_port > dev->caps.num_ports) {
+		err = -EINVAL;
+		goto out;
+	}
 
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
-	func_cap->pf_context_behaviour = size;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
-	func_cap->qp_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
-	func_cap->srq_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
-	func_cap->cq_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
-	func_cap->max_eq = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
-	func_cap->reserved_eq = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
-	func_cap->mpt_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
-	func_cap->mtt_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
-	func_cap->mcg_quota = size & 0xFFFFFF;
-
-	for (i = 1; i <= func_cap->num_ports; ++i) {
-		err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 1,
-				   MLX4_CMD_QUERY_FUNC_CAP,
-				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
-		if (err)
+	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
+		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
+			mlx4_err(dev, "VLAN is enforced on this port\n");
+			err = -EPROTONOSUPPORT;
 			goto out;
-
-		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_ETH) {
-			MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
-				mlx4_err(dev, "VLAN is enforced on this port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
-
-			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
-				mlx4_err(dev, "Force mac is enabled on this port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
-		} else if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB) {
-			MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
-			if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
-				mlx4_err(dev, "phy_wqe_gid is "
-					 "enforced on this ib port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
 		}
 
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
-		func_cap->physical_port[i] = field;
+		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
+			mlx4_err(dev, "Force mac is enabled on this port\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
+	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+		if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
+			mlx4_err(dev, "phy_wqe_gid is "
+				 "enforced on this ib port\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
 	}
+
+	MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
+	func_cap->physical_port = field;
+	if (func_cap->physical_port != gen_or_port) {
+		err = -ENOSYS;
+		goto out;
+	}
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_TUNNEL);
+	func_cap->qp0_tunnel_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_PROXY);
+	func_cap->qp0_proxy_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_TUNNEL);
+	func_cap->qp1_tunnel_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_PROXY);
+	func_cap->qp1_proxy_qpn = size & 0xFFFFFF;
 
 	/* All other resources are allocated by the master, but we still report
 	 * 'num' and 'reserved' capabilities as follows:
@@ -559,7 +596,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->max_pds = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_XRC_OFFSET);
 	dev_cap->reserved_xrcds = field >> 4;
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_PD_OFFSET);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_XRC_OFFSET);
 	dev_cap->max_xrcds = 1 << (field & 0x1f);
 
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET);
@@ -715,6 +752,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_mailbox *outbox,
 			       struct mlx4_cmd_info *cmd)
 {
+	u64	flags;
 	int	err = 0;
 	u8	field;
 
@@ -722,6 +760,11 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		return err;
+
+	/* add port mng change event capability unconditionally to slaves */
+	MLX4_GET(flags, outbox->buf, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
+	flags |= MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV;
+	MLX4_PUT(outbox->buf, flags, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 
 	/* For guests, report Blueflame disabled */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
@@ -1345,6 +1388,19 @@ out:
 	return err;
 }
 
+/* for IB-type ports only in SRIOV mode. Checks that both proxy QP0
+ * and real QP0 are active, so that the paravirtualized QP0 is ready
+ * to operate */
+static int check_qp0_state(struct mlx4_dev *dev, int function, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	/* irrelevant if not infiniband */
+	if (priv->mfunc.master.qp0_state[port].proxy_qp0_active &&
+	    priv->mfunc.master.qp0_state[port].qp0_active)
+		return 1;
+	return 0;
+}
+
 int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
 			   struct mlx4_cmd_mailbox *inbox,
@@ -1358,17 +1414,29 @@ int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (priv->mfunc.master.slave_state[slave].init_port_mask & (1 << port))
 		return 0;
 
-	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
-		return -ENODEV;
-
-	/* Enable port only if it was previously disabled */
-	if (!priv->mfunc.master.init_port_ref[port]) {
-		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
-			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
-		if (err)
-			return err;
+	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
+		/* Enable port only if it was previously disabled */
+		if (!priv->mfunc.master.init_port_ref[port]) {
+			err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
+				       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+			if (err)
+				return err;
+		}
+		priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
+	} else {
+		if (slave == mlx4_master_func_num(dev)) {
+			if (check_qp0_state(dev, slave, port) &&
+			    !priv->mfunc.master.qp0_state[port].port_active) {
+				err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
+					       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+				if (err)
+					return err;
+				priv->mfunc.master.qp0_state[port].port_active = 1;
+				priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
+			}
+		} else
+			priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	}
-	priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	++priv->mfunc.master.init_port_ref[port];
 	return 0;
 }
@@ -1441,15 +1509,29 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	    (1 << port)))
 		return 0;
 
-	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
-		return -ENODEV;
-	if (priv->mfunc.master.init_port_ref[port] == 1) {
-		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT, 1000,
-			       MLX4_CMD_NATIVE);
-		if (err)
-			return err;
+	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
+		if (priv->mfunc.master.init_port_ref[port] == 1) {
+			err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
+				       1000, MLX4_CMD_NATIVE);
+			if (err)
+				return err;
+		}
+		priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
+	} else {
+		/* infiniband port */
+		if (slave == mlx4_master_func_num(dev)) {
+			if (!priv->mfunc.master.qp0_state[port].qp0_active &&
+			    priv->mfunc.master.qp0_state[port].port_active) {
+				err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
+					       1000, MLX4_CMD_NATIVE);
+				if (err)
+					return err;
+				priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
+				priv->mfunc.master.qp0_state[port].port_active = 0;
+			}
+		} else
+			priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
 	}
-	priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
 	--priv->mfunc.master.init_port_ref[port];
 	return 0;
 }

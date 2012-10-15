@@ -917,9 +917,6 @@ static void xs_local_data_ready(struct sock *sk, int len)
 	if (skb == NULL)
 		goto out;
 
-	if (xprt->shutdown)
-		goto dropit;
-
 	repsize = skb->len - sizeof(rpc_fraghdr);
 	if (repsize < 4) {
 		dprintk("RPC:       impossible RPC reply size %d\n", repsize);
@@ -981,9 +978,6 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	if ((skb = skb_recv_datagram(sk, 0, 1, &err)) == NULL)
 		goto out;
 
-	if (xprt->shutdown)
-		goto dropit;
-
 	repsize = skb->len - sizeof(struct udphdr);
 	if (repsize < 4) {
 		dprintk("RPC:       impossible RPC reply size %d!\n", repsize);
@@ -1025,6 +1019,16 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 
+/*
+ * Helper function to force a TCP close if the server is sending
+ * junk and/or it has put us in CLOSE_WAIT
+ */
+static void xs_tcp_force_close(struct rpc_xprt *xprt)
+{
+	set_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
+	xprt_force_disconnect(xprt);
+}
+
 static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, struct xdr_skb_reader *desc)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -1051,7 +1055,7 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, struct xdr_skb_rea
 	/* Sanity check of the record length */
 	if (unlikely(transport->tcp_reclen < 8)) {
 		dprintk("RPC:       invalid TCP record fragment length\n");
-		xprt_force_disconnect(xprt);
+		xs_tcp_force_close(xprt);
 		return;
 	}
 	dprintk("RPC:       reading TCP record fragment of length %d\n",
@@ -1132,7 +1136,7 @@ static inline void xs_tcp_read_calldir(struct sock_xprt *transport,
 		break;
 	default:
 		dprintk("RPC:       invalid request message type\n");
-		xprt_force_disconnect(&transport->xprt);
+		xs_tcp_force_close(&transport->xprt);
 	}
 	xs_tcp_check_fraghdr(transport);
 }
@@ -1402,9 +1406,6 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 	read_lock_bh(&sk->sk_callback_lock);
 	if (!(xprt = xprt_from_sock(sk)))
 		goto out;
-	if (xprt->shutdown)
-		goto out;
-
 	/* Any data means we had a useful conversation, so
 	 * the we don't need to delay the next reconnect
 	 */
@@ -1455,6 +1456,8 @@ static void xs_tcp_cancel_linger_timeout(struct rpc_xprt *xprt)
 static void xs_sock_mark_closed(struct rpc_xprt *xprt)
 {
 	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+	clear_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
@@ -1512,8 +1515,8 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_CLOSE_WAIT:
 		/* The server initiated a shutdown of the socket */
-		xprt_force_disconnect(xprt);
 		xprt->connect_cookie++;
+		xs_tcp_force_close(xprt);
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -1889,9 +1892,6 @@ static void xs_local_setup_socket(struct work_struct *work)
 	struct socket *sock;
 	int status = -EIO;
 
-	if (xprt->shutdown)
-		goto out;
-
 	current->flags |= PF_FSTRANS;
 
 	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
@@ -2007,9 +2007,6 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
 	int status = -EIO;
-
-	if (xprt->shutdown)
-		goto out;
 
 	current->flags |= PF_FSTRANS;
 
@@ -2156,9 +2153,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	struct rpc_xprt *xprt = &transport->xprt;
 	int status = -EIO;
 
-	if (xprt->shutdown)
-		goto out;
-
 	current->flags |= PF_FSTRANS;
 
 	if (!sock) {
@@ -2199,8 +2193,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		/* We're probably in TIME_WAIT. Get rid of existing socket,
 		 * and retry
 		 */
-		set_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
-		xprt_force_disconnect(xprt);
+		xs_tcp_force_close(xprt);
 		break;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
@@ -2528,6 +2521,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 static struct rpc_xprt_ops bc_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xprt_release_xprt,
+	.alloc_slot		= xprt_alloc_slot,
 	.rpcbind		= xs_local_rpcbind,
 	.buf_alloc		= bc_malloc,
 	.buf_free		= bc_free,

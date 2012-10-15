@@ -401,7 +401,7 @@ void __cpuinit tlb_init(void)
 	    current_cpu_type() == CPU_R14000)
 		write_c0_framemask(0);
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		/*
 		 * Enable the no read, no exec bits, and enable large virtual
 		 * address.

@@ -25,8 +25,6 @@ source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/dt3155v4l/Kconfig"
 
-source "drivers/staging/media/easycap/Kconfig"
-
 source "drivers/staging/media/go7007/Kconfig"
 
 source "drivers/staging/media/solo6x10/Kconfig"

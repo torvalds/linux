@@ -158,6 +158,7 @@ enum bfa_tskim_event {
 	BFA_TSKIM_SM_IOS_DONE	= 7,	/*  IO and sub TM completions	*/
 	BFA_TSKIM_SM_CLEANUP	= 8,	/*  TM cleanup on ITN offline	*/
 	BFA_TSKIM_SM_CLEANUP_DONE = 9,	/*  TM abort completion	*/
+	BFA_TSKIM_SM_UTAG	= 10,	/*  TM completion unknown tag  */
 };
 
 /*
@@ -1466,7 +1467,13 @@ bfa_status_t
 bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
 			struct bfa_itnim_ioprofile_s *ioprofile)
 {
-	struct bfa_fcpim_s *fcpim = BFA_FCPIM(itnim->bfa);
+	struct bfa_fcpim_s *fcpim;
+
+	if (!itnim)
+		return BFA_STATUS_NO_FCPIM_NEXUS;
+
+	fcpim = BFA_FCPIM(itnim->bfa);
+
 	if (!fcpim->io_profile)
 		return BFA_STATUS_IOPROFILE_OFF;
 
@@ -1484,6 +1491,10 @@ void
 bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 {
 	int j;
+
+	if (!itnim)
+		return;
+
 	memset(&itnim->stats, 0, sizeof(itnim->stats));
 	memset(&itnim->ioprofile, 0, sizeof(itnim->ioprofile));
 	for (j = 0; j < BFA_IOBUCKET_MAX; j++)
@@ -3026,7 +3037,7 @@ bfa_ioim_abort(struct bfa_ioim_s *ioim)
 static void
 bfa_tskim_sm_uninit(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_START:
@@ -3064,7 +3075,7 @@ bfa_tskim_sm_uninit(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_active(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3100,7 +3111,7 @@ bfa_tskim_sm_active(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3109,6 +3120,7 @@ bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 		 */
 		break;
 
+	case BFA_TSKIM_SM_UTAG:
 	case BFA_TSKIM_SM_CLEANUP_DONE:
 		bfa_sm_set_state(tskim, bfa_tskim_sm_iocleanup);
 		bfa_tskim_cleanup_ios(tskim);
@@ -3128,7 +3140,7 @@ bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_iocleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_IOS_DONE:
@@ -3160,7 +3172,7 @@ bfa_tskim_sm_iocleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_qfull(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_QRESUME:
@@ -3197,7 +3209,7 @@ static void
 bfa_tskim_sm_cleanup_qfull(struct bfa_tskim_s *tskim,
 		enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3228,7 +3240,7 @@ bfa_tskim_sm_cleanup_qfull(struct bfa_tskim_s *tskim,
 static void
 bfa_tskim_sm_hcb(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_HCB:
@@ -3550,6 +3562,8 @@ bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	if (rsp->tsk_status == BFI_TSKIM_STS_ABORTED) {
 		bfa_stats(tskim->itnim, tm_cleanup_comps);
 		bfa_sm_send_event(tskim, BFA_TSKIM_SM_CLEANUP_DONE);
+	} else if (rsp->tsk_status == BFI_TSKIM_STS_UTAG) {
+		bfa_sm_send_event(tskim, BFA_TSKIM_SM_UTAG);
 	} else {
 		bfa_stats(tskim->itnim, tm_fw_rsps);
 		bfa_sm_send_event(tskim, BFA_TSKIM_SM_DONE);
@@ -3689,6 +3703,7 @@ bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_mem_dma_s *seg_ptr;
 	u16	idx, nsegs, num_io_req;
 
+	fcp->max_ioim_reqs = cfg->fwcfg.num_ioim_reqs;
 	fcp->num_ioim_reqs = cfg->fwcfg.num_ioim_reqs;
 	fcp->num_fwtio_reqs  = cfg->fwcfg.num_fwtio_reqs;
 	fcp->num_itns   = cfg->fwcfg.num_rports;
@@ -3711,6 +3726,7 @@ bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		bfa_iocfc_set_snsbase(bfa, idx, fcp->snsbase[idx].pa);
 	}
 
+	fcp->throttle_update_required = 1;
 	bfa_fcpim_attach(fcp, bfad, cfg, pcidev);
 
 	bfa_iotag_attach(fcp);
@@ -3749,23 +3765,33 @@ bfa_fcp_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
 
-	/* Enqueue unused ioim resources to free_q */
-	list_splice_tail_init(&fcp->iotag_unused_q, &fcp->iotag_ioim_free_q);
-
 	bfa_fcpim_iocdisable(fcp);
 }
 
 void
-bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw)
+bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw, u16 max_ioim_fw)
 {
 	struct bfa_fcp_mod_s	*mod = BFA_FCP_MOD(bfa);
 	struct list_head	*qe;
 	int	i;
 
+	/* Update io throttle value only once during driver load time */
+	if (!mod->throttle_update_required)
+		return;
+
 	for (i = 0; i < (mod->num_ioim_reqs - num_ioim_fw); i++) {
 		bfa_q_deq_tail(&mod->iotag_ioim_free_q, &qe);
 		list_add_tail(qe, &mod->iotag_unused_q);
 	}
+
+	if (mod->num_ioim_reqs != num_ioim_fw) {
+		bfa_trc(bfa, mod->num_ioim_reqs);
+		bfa_trc(bfa, num_ioim_fw);
+	}
+
+	mod->max_ioim_reqs = max_ioim_fw;
+	mod->num_ioim_reqs = num_ioim_fw;
+	mod->throttle_update_required = 0;
 }
 
 void
@@ -3822,4 +3848,89 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 	}
 
 	bfa_mem_kva_curp(fcp) = (u8 *) iotag;
+}
+
+
+/**
+ * To send config req, first try to use throttle value from flash
+ * If 0, then use driver parameter
+ * We need to use min(flash_val, drv_val) because
+ * memory allocation was done based on this cfg'd value
+ */
+u16
+bfa_fcpim_get_throttle_cfg(struct bfa_s *bfa, u16 drv_cfg_param)
+{
+	u16 tmp;
+	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
+
+	/*
+	 * If throttle value from flash is already in effect after driver is
+	 * loaded then until next load, always return current value instead
+	 * of actual flash value
+	 */
+	if (!fcp->throttle_update_required)
+		return (u16)fcp->num_ioim_reqs;
+
+	tmp = bfa_dconf_read_data_valid(bfa) ? bfa_fcpim_read_throttle(bfa) : 0;
+	if (!tmp || (tmp > drv_cfg_param))
+		tmp = drv_cfg_param;
+
+	return tmp;
+}
+
+bfa_status_t
+bfa_fcpim_write_throttle(struct bfa_s *bfa, u16 value)
+{
+	if (!bfa_dconf_get_min_cfg(bfa)) {
+		BFA_DCONF_MOD(bfa)->dconf->throttle_cfg.value = value;
+		BFA_DCONF_MOD(bfa)->dconf->throttle_cfg.is_valid = 1;
+		return BFA_STATUS_OK;
+	}
+
+	return BFA_STATUS_FAILED;
+}
+
+u16
+bfa_fcpim_read_throttle(struct bfa_s *bfa)
+{
+	struct bfa_throttle_cfg_s *throttle_cfg =
+			&(BFA_DCONF_MOD(bfa)->dconf->throttle_cfg);
+
+	return ((!bfa_dconf_get_min_cfg(bfa)) ?
+	       ((throttle_cfg->is_valid == 1) ? (throttle_cfg->value) : 0) : 0);
+}
+
+bfa_status_t
+bfa_fcpim_throttle_set(struct bfa_s *bfa, u16 value)
+{
+	/* in min cfg no commands should run. */
+	if ((bfa_dconf_get_min_cfg(bfa) == BFA_TRUE) ||
+	    (!bfa_dconf_read_data_valid(bfa)))
+		return BFA_STATUS_FAILED;
+
+	bfa_fcpim_write_throttle(bfa, value);
+
+	return bfa_dconf_update(bfa);
+}
+
+bfa_status_t
+bfa_fcpim_throttle_get(struct bfa_s *bfa, void *buf)
+{
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(bfa);
+	struct bfa_defs_fcpim_throttle_s throttle;
+
+	if ((bfa_dconf_get_min_cfg(bfa) == BFA_TRUE) ||
+	    (!bfa_dconf_read_data_valid(bfa)))
+		return BFA_STATUS_FAILED;
+
+	memset(&throttle, 0, sizeof(struct bfa_defs_fcpim_throttle_s));
+
+	throttle.cur_value = (u16)(fcpim->fcp->num_ioim_reqs);
+	throttle.cfg_value = bfa_fcpim_read_throttle(bfa);
+	if (!throttle.cfg_value)
+		throttle.cfg_value = throttle.cur_value;
+	throttle.max_value = (u16)(fcpim->fcp->max_ioim_reqs);
+	memcpy(buf, &throttle, sizeof(struct bfa_defs_fcpim_throttle_s));
+
+	return BFA_STATUS_OK;
 }

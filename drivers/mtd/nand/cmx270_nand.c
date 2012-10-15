@@ -76,18 +76,6 @@ static void cmx270_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		*buf++ = readl(this->IO_ADDR_R) >> 16;
 }
 
-static int cmx270_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-	struct nand_chip *this = mtd->priv;
-
-	for (i=0; i<len; i++)
-		if (buf[i] != (u_char)(readl(this->IO_ADDR_R) >> 16))
-			return -EFAULT;
-
-	return 0;
-}
-
 static inline void nand_cs_on(void)
 {
 	gpio_set_value(GPIO_NAND_CS, 0);
@@ -209,7 +197,6 @@ static int __init cmx270_init(void)
 	this->read_byte = cmx270_read_byte;
 	this->read_buf = cmx270_read_buf;
 	this->write_buf = cmx270_write_buf;
-	this->verify_buf = cmx270_verify_buf;
 
 	/* Scan to find existence of the device */
 	if (nand_scan (cmx270_nand_mtd, 1)) {

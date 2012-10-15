@@ -1162,14 +1162,9 @@ static int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
 
 static u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 {
-	int pos;
 	u16 status;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+	pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 	return status & PCI_EXP_DEVSTA_TRPND;
 }
 
@@ -2171,7 +2166,6 @@ void bnx2x_link_set(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 
@@ -2184,10 +2178,17 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+		bnx2x_lfa_reset(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not reset link\n");
+}
+
+void bnx2x_force_link_reset(struct bnx2x *bp)
+{
+	bnx2x_acquire_phy_lock(bp);
+	bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+	bnx2x_release_phy_lock(bp);
 }
 
 u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
@@ -3051,9 +3052,8 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 	struct eth_stats_info *ether_stat =
 		&bp->slowpath->drv_info_to_mcp.ether_stat;
 
-	/* leave last char as NULL */
-	memcpy(ether_stat->version, DRV_MODULE_VERSION,
-	       ETH_STAT_INFO_VERSION_LEN - 1);
+	strlcpy(ether_stat->version, DRV_MODULE_VERSION,
+		ETH_STAT_INFO_VERSION_LEN);
 
 	bp->sp_objs[0].mac_obj.get_n_elements(bp, &bp->sp_objs[0].mac_obj,
 					DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
@@ -6135,8 +6135,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	u16 devctl;
 	int r_order, w_order;
 
-	pci_read_config_word(bp->pdev,
-			     pci_pcie_cap(bp->pdev) + PCI_EXP_DEVCTL, &devctl);
+	pcie_capability_read_word(bp->pdev, PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -6757,7 +6756,6 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	u32 low, high;
 	u32 val;
 
-	bnx2x__link_reset(bp);
 
 	DP(NETIF_MSG_HW, "starting port init  port %d\n", port);
 
@@ -8250,12 +8248,15 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
  * bnx2x_send_unload_done - send UNLOAD_DONE command to the MCP.
  *
  * @bp:		driver handle
+ * @keep_link:		true iff link should be kept up
  */
-void bnx2x_send_unload_done(struct bnx2x *bp)
+void bnx2x_send_unload_done(struct bnx2x *bp, bool keep_link)
 {
+	u32 reset_param = keep_link ? DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET : 0;
+
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, reset_param);
 }
 
 static int bnx2x_func_wait_started(struct bnx2x *bp)
@@ -8324,7 +8325,7 @@ static int bnx2x_func_wait_started(struct bnx2x *bp)
 	return 0;
 }
 
-void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
+void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 {
 	int port = BP_PORT(bp);
 	int i, rc = 0;
@@ -8446,7 +8447,7 @@ unload_error:
 
 
 	/* Report UNLOAD_DONE to MCP */
-	bnx2x_send_unload_done(bp);
+	bnx2x_send_unload_done(bp, keep_link);
 }
 
 void bnx2x_disable_close_the_gate(struct bnx2x *bp)
@@ -8858,7 +8859,8 @@ int bnx2x_leader_reset(struct bnx2x *bp)
 	 * driver is owner of the HW
 	 */
 	if (!global && !BP_NOMCP(bp)) {
-		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ, 0);
+		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ,
+					     DRV_MSG_CODE_LOAD_REQ_WITH_LFA);
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EAGAIN;
@@ -8964,7 +8966,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 
 			/* Stop the driver */
 			/* If interface has been removed - break */
-			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY))
+			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY, false))
 				return;
 
 			bp->recovery_state = BNX2X_RECOVERY_WAIT;
@@ -9130,7 +9132,7 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		bp->sp_rtnl_state = 0;
 		smp_mb();
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 
 		goto sp_rtnl_exit;
@@ -9316,7 +9318,8 @@ static void __devinit bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port,
 
 static int __devinit bnx2x_prev_mcp_done(struct bnx2x *bp)
 {
-	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE,
+				  DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET);
 	if (!rc) {
 		BNX2X_ERR("MCP response failure, aborting\n");
 		return -EBUSY;
@@ -9380,7 +9383,7 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 
 static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 {
-	int i, pos;
+	int i;
 	u16 status;
 	struct pci_dev *dev = bp->pdev;
 
@@ -9397,16 +9400,12 @@ static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 		return -EINVAL;
 	}
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return -ENOTTY;
-
 	/* Wait for Transaction Pending bit clean */
 	for (i = 0; i < 4; i++) {
 		if (i)
 			msleep((1 << (i - 1)) * 100);
 
-		pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 		if (!(status & PCI_EXP_DEVSTA_TRPND))
 			goto clear;
 	}
@@ -9831,12 +9830,13 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 	}
 
 #ifdef CONFIG_PCI_MSI
-	/*
-	 * It's expected that number of CAM entries for this functions is equal
-	 * to the number evaluated based on the MSI-X table size. We want a
-	 * harsh warning if these values are different!
+	/* Due to new PF resource allocation by MFW T7.4 and above, it's
+	 * optional that number of CAM entries will not be equal to the value
+	 * advertised in PCI.
+	 * Driver should use the minimal value of both as the actual status
+	 * block count
 	 */
-	WARN_ON(bp->igu_sb_cnt != igu_sb_cnt);
+	bp->igu_sb_cnt = min_t(int, bp->igu_sb_cnt, igu_sb_cnt);
 #endif
 
 	if (igu_sb_cnt == 0)
@@ -11009,7 +11009,7 @@ static int bnx2x_close(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* Unload the driver, release IRQs */
-	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
 	/* Power off */
 	bnx2x_set_power_state(bp, PCI_D3hot);
@@ -12166,7 +12166,7 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 	rtnl_unlock();
 }
 
-static struct pci_error_handlers bnx2x_err_handler = {
+static const struct pci_error_handlers bnx2x_err_handler = {
 	.error_detected = bnx2x_io_error_detected,
 	.slot_reset     = bnx2x_io_slot_reset,
 	.resume         = bnx2x_io_resume,

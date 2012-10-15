@@ -166,7 +166,7 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
-void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
+void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 
 static struct xfrm_state_afinfo *xfrm_state_lock_afinfo(unsigned int family)
 {
@@ -1674,13 +1674,13 @@ void km_state_notify(struct xfrm_state *x, const struct km_event *c)
 EXPORT_SYMBOL(km_policy_notify);
 EXPORT_SYMBOL(km_state_notify);
 
-void km_state_expired(struct xfrm_state *x, int hard, u32 pid)
+void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 {
 	struct net *net = xs_net(x);
 	struct km_event c;
 
 	c.data.hard = hard;
-	c.pid = pid;
+	c.portid = portid;
 	c.event = XFRM_MSG_EXPIRE;
 	km_state_notify(x, &c);
 
@@ -1700,7 +1700,7 @@ int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list) {
-		acqret = km->acquire(x, t, pol, XFRM_POLICY_OUT);
+		acqret = km->acquire(x, t, pol);
 		if (!acqret)
 			err = acqret;
 	}
@@ -1726,13 +1726,13 @@ int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport)
 }
 EXPORT_SYMBOL(km_new_mapping);
 
-void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
+void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 portid)
 {
 	struct net *net = xp_net(pol);
 	struct km_event c;
 
 	c.data.hard = hard;
-	c.pid = pid;
+	c.portid = portid;
 	c.event = XFRM_MSG_POLEXPIRE;
 	km_policy_notify(pol, dir, &c);
 
@@ -2060,7 +2060,7 @@ void xfrm_state_fini(struct net *net)
 	unsigned int sz;
 
 	flush_work(&net->xfrm.state_hash_work);
-	audit_info.loginuid = -1;
+	audit_info.loginuid = INVALID_UID;
 	audit_info.sessionid = -1;
 	audit_info.secid = 0;
 	xfrm_state_flush(net, IPSEC_PROTO_ANY, &audit_info);
@@ -2127,7 +2127,7 @@ static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 }
 
 void xfrm_audit_state_add(struct xfrm_state *x, int result,
-			  uid_t auid, u32 sessionid, u32 secid)
+			  kuid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 
@@ -2142,7 +2142,7 @@ void xfrm_audit_state_add(struct xfrm_state *x, int result,
 EXPORT_SYMBOL_GPL(xfrm_audit_state_add);
 
 void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-			     uid_t auid, u32 sessionid, u32 secid)
+			     kuid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 

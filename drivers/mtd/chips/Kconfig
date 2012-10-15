@@ -43,9 +43,6 @@ choice
 	prompt "Flash cmd/query data swapping"
 	depends on MTD_CFI_ADV_OPTIONS
 	default MTD_CFI_NOSWAP
-
-config MTD_CFI_NOSWAP
-	bool "NO"
 	---help---
 	  This option defines the way in which the CPU attempts to arrange
 	  data bits when writing the 'magic' commands to the chips. Saying
@@ -55,12 +52,8 @@ config MTD_CFI_NOSWAP
 	  Specific arrangements are possible with the BIG_ENDIAN_BYTE and
 	  LITTLE_ENDIAN_BYTE, if the bytes are reversed.
 
-	  If you have a LART, on which the data (and address) lines were
-	  connected in a fashion which ensured that the nets were as short
-	  as possible, resulting in a bit-shuffling which seems utterly
-	  random to the untrained eye, you need the LART_ENDIAN_BYTE option.
-
-	  Yes, there really exists something sicker than PDP-endian :)
+config MTD_CFI_NOSWAP
+	bool "NO"
 
 config MTD_CFI_BE_BYTE_SWAP
 	bool "BIG_ENDIAN_BYTE"

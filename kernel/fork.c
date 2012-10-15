@@ -330,6 +330,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk->btrace_seq = 0;
 #endif
 	tsk->splice_pipe = NULL;
+	tsk->task_frag.page = NULL;
 
 	account_kernel_stack(ti, 1);
 
@@ -353,6 +354,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 	down_write(&oldmm->mmap_sem);
 	flush_cache_dup_mm(oldmm);
+	uprobe_dup_mmap(oldmm, mm);
 	/*
 	 * Not linked in yet - no deadlock potential:
 	 */
@@ -421,7 +423,12 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 				mapping->i_mmap_writable++;
 			flush_dcache_mmap_lock(mapping);
 			/* insert tmp into the share list, just after mpnt */
-			vma_prio_tree_add(tmp, mpnt);
+			if (unlikely(tmp->vm_flags & VM_NONLINEAR))
+				vma_nonlinear_insert(tmp,
+						&mapping->i_mmap_nonlinear);
+			else
+				vma_interval_tree_insert_after(tmp, mpnt,
+							&mapping->i_mmap);
 			flush_dcache_mmap_unlock(mapping);
 			mutex_unlock(&mapping->i_mmap_mutex);
 		}
@@ -454,9 +461,6 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 		if (retval)
 			goto out;
-
-		if (file)
-			uprobe_mmap(tmp);
 	}
 	/* a new mm has just been created */
 	arch_dup_mmap(oldmm, mm);
@@ -623,26 +627,6 @@ void mmput(struct mm_struct *mm)
 }
 EXPORT_SYMBOL_GPL(mmput);
 
-/*
- * We added or removed a vma mapping the executable. The vmas are only mapped
- * during exec and are not mapped with the mmap system call.
- * Callers must hold down_write() on the mm's mmap_sem for these
- */
-void added_exe_file_vma(struct mm_struct *mm)
-{
-	mm->num_exe_file_vmas++;
-}
-
-void removed_exe_file_vma(struct mm_struct *mm)
-{
-	mm->num_exe_file_vmas--;
-	if ((mm->num_exe_file_vmas == 0) && mm->exe_file) {
-		fput(mm->exe_file);
-		mm->exe_file = NULL;
-	}
-
-}
-
 void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 {
 	if (new_exe_file)
@@ -650,15 +634,13 @@ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 	if (mm->exe_file)
 		fput(mm->exe_file);
 	mm->exe_file = new_exe_file;
-	mm->num_exe_file_vmas = 0;
 }
 
 struct file *get_mm_exe_file(struct mm_struct *mm)
 {
 	struct file *exe_file;
 
-	/* We need mmap_sem to protect against races with removal of
-	 * VM_EXECUTABLE vmas */
+	/* We need mmap_sem to protect against races with removal of exe_file */
 	down_read(&mm->mmap_sem);
 	exe_file = mm->exe_file;
 	if (exe_file)
@@ -839,8 +821,6 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	mm->pmd_huge_pte = NULL;
 #endif
-	uprobe_reset_state(mm);
-
 	if (!mm_init(mm, tsk))
 		goto fail_nomem;
 
@@ -1081,7 +1061,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	init_rwsem(&sig->group_rwsem);
 #endif
 
-	sig->oom_adj = current->signal->oom_adj;
 	sig->oom_score_adj = current->signal->oom_score_adj;
 	sig->oom_score_adj_min = current->signal->oom_score_adj_min;
 
@@ -1280,11 +1259,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	p->irq_events = 0;
-#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-	p->hardirqs_enabled = 1;
-#else
 	p->hardirqs_enabled = 0;
-#endif
 	p->hardirq_enable_ip = 0;
 	p->hardirq_enable_event = 0;
 	p->hardirq_disable_ip = _THIS_IP_;
@@ -1609,7 +1584,7 @@ long do_fork(unsigned long clone_flags,
 	 * requested, no event is reported; otherwise, report if the event
 	 * for the type of forking is enabled.
 	 */
-	if (likely(user_mode(regs)) && !(clone_flags & CLONE_UNTRACED)) {
+	if (!(clone_flags & CLONE_UNTRACED) && likely(user_mode(regs))) {
 		if (clone_flags & CLONE_VFORK)
 			trace = PTRACE_EVENT_VFORK;
 		else if ((clone_flags & CSIGNAL) != SIGCHLD)
@@ -1658,6 +1633,17 @@ long do_fork(unsigned long clone_flags,
 	}
 	return nr;
 }
+
+#ifdef CONFIG_GENERIC_KERNEL_THREAD
+/*
+ * Create a kernel thread.
+ */
+pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
+{
+	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, (unsigned long)fn, NULL,
+		(unsigned long)arg, NULL, NULL);
+}
+#endif
 
 #ifndef ARCH_MIN_MMSTRUCT_ALIGN
 #define ARCH_MIN_MMSTRUCT_ALIGN 0

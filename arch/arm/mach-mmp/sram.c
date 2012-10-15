@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 
-#include <mach/sram.h>
+#include <linux/platform_data/dma-mmp_tdma.h>
 
 struct sram_bank_info {
 	char *pool_name;

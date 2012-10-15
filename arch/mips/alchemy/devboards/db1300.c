@@ -110,11 +110,6 @@ static void __init db1300_gpio_config(void)
 	au1300_set_dbdma_gpio(1, AU1300_PIN_FG3AUX);
 }
 
-char *get_system_type(void)
-{
-	return "DB1300";
-}
-
 /**********************************************************************/
 
 static void au1300_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
@@ -701,7 +696,7 @@ static struct platform_device *db1300_dev[] __initdata = {
 	&db1300_sndi2s_dev,
 };
 
-static int __init db1300_device_init(void)
+int __init db1300_dev_setup(void)
 {
 	int swapped, cpldirq;
 
@@ -758,10 +753,9 @@ static int __init db1300_device_init(void)
 
 	return platform_add_devices(db1300_dev, ARRAY_SIZE(db1300_dev));
 }
-device_initcall(db1300_device_init);
 
 
-void __init board_setup(void)
+int __init db1300_board_setup(void)
 {
 	unsigned short whoami;
 
@@ -779,4 +773,6 @@ void __init board_setup(void)
 	alchemy_uart_enable(AU1300_UART0_PHYS_ADDR);
 	alchemy_uart_enable(AU1300_UART1_PHYS_ADDR);
 	alchemy_uart_enable(AU1300_UART3_PHYS_ADDR);
+
+	return 0;
 }

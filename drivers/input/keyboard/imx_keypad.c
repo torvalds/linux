@@ -516,9 +516,9 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	input_set_drvdata(input_dev, keypad);
 
 	/* Ensure that the keypad will stay dormant until opened */
-	clk_enable(keypad->clk);
+	clk_prepare_enable(keypad->clk);
 	imx_keypad_inhibit(keypad);
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
 
 	error = request_irq(irq, imx_keypad_irq_handler, 0,
 			    pdev->name, keypad);

@@ -31,14 +31,16 @@
 #include <linux/irqnr.h>
 #include <linux/pci.h>
 
+#ifdef CONFIG_X86
 #include <asm/desc.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
 #include <asm/io_apic.h>
-#include <asm/sync_bitops.h>
 #include <asm/xen/page.h>
 #include <asm/xen/pci.h>
+#endif
+#include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
@@ -50,6 +52,9 @@
 #include <xen/interface/event_channel.h>
 #include <xen/interface/hvm/hvm_op.h>
 #include <xen/interface/hvm/params.h>
+#include <xen/interface/physdev.h>
+#include <xen/interface/sched.h>
+#include <asm/hw_irq.h>
 
 /*
  * This lock protects updates to the following mapping and reference-count
@@ -373,11 +378,22 @@ static void unmask_evtchn(int port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	unsigned int cpu = get_cpu();
+	int do_hypercall = 0, evtchn_pending = 0;
 
 	BUG_ON(!irqs_disabled());
 
-	/* Slow path (hypercall) if this is a non-local port. */
-	if (unlikely(cpu != cpu_from_evtchn(port))) {
+	if (unlikely((cpu != cpu_from_evtchn(port))))
+		do_hypercall = 1;
+	else
+		evtchn_pending = sync_test_bit(port, &s->evtchn_pending[0]);
+
+	if (unlikely(evtchn_pending && xen_hvm_domain()))
+		do_hypercall = 1;
+
+	/* Slow path (hypercall) if this is a non-local port or if this is
+	 * an hvm domain and an event is pending (hvm domains don't have
+	 * their own implementation of irq_enable). */
+	if (do_hypercall) {
 		struct evtchn_unmask unmask = { .port = port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	} else {
@@ -390,7 +406,7 @@ static void unmask_evtchn(int port)
 		 * 'hw_resend_irq'. Just like a real IO-APIC we 'lose
 		 * the interrupt edge' if the channel is masked.
 		 */
-		if (sync_test_bit(port, &s->evtchn_pending[0]) &&
+		if (evtchn_pending &&
 		    !sync_test_and_set_bit(port / BITS_PER_LONG,
 					   &vcpu_info->evtchn_pending_sel))
 			vcpu_info->evtchn_upcall_pending = 1;
@@ -831,6 +847,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		struct irq_info *info = info_for_irq(irq);
 		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
 	}
+	irq_clear_status_flags(irq, IRQ_NOREQUEST|IRQ_NOAUTOEN);
 
 out:
 	mutex_unlock(&irq_mapping_update_lock);
@@ -1374,7 +1391,9 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
+#ifdef CONFIG_X86
 	exit_idle();
+#endif
 	irq_enter();
 
 	__xen_evtchn_do_upcall();
@@ -1785,7 +1804,7 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i, rc;
+	int i;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);
@@ -1801,6 +1820,7 @@ void __init xen_init_IRQ(void)
 
 	pirq_needs_eoi = pirq_needs_eoi_flag;
 
+#ifdef CONFIG_X86
 	if (xen_hvm_domain()) {
 		xen_callback_vector();
 		native_init_IRQ();
@@ -1808,6 +1828,7 @@ void __init xen_init_IRQ(void)
 		 * __acpi_register_gsi can point at the right function */
 		pci_xen_hvm_init();
 	} else {
+		int rc;
 		struct physdev_pirq_eoi_gmfn eoi_gmfn;
 
 		irq_ctx_init(smp_processor_id());
@@ -1823,4 +1844,5 @@ void __init xen_init_IRQ(void)
 		} else
 			pirq_needs_eoi = pirq_check_eoi_map;
 	}
+#endif
 }

@@ -601,7 +601,7 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (!capable(CAP_NET_BIND_SERVICE)) {
 			dev_put(dev);
 			release_sock(sk);
-			return -EACCES;
+			return -EPERM;
 		}
 		nr->user_addr   = addr->fsa_digipeater[0];
 		nr->source_addr = addr->fsa_ax25.sax25_call;

@@ -241,7 +241,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 		.scan_type = IIO_ST('s', 16, 16, 0),		\
 	}
 
-static struct iio_chan_spec ad7606_8_channels[] = {
+static const struct iio_chan_spec ad7606_8_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -253,7 +253,7 @@ static struct iio_chan_spec ad7606_8_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
-static struct iio_chan_spec ad7606_6_channels[] = {
+static const struct iio_chan_spec ad7606_6_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -263,7 +263,7 @@ static struct iio_chan_spec ad7606_6_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(6),
 };
 
-static struct iio_chan_spec ad7606_4_channels[] = {
+static const struct iio_chan_spec ad7606_4_channels[] = {
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),

@@ -163,7 +163,7 @@ static DEFINE_PER_CPU(u64, current_tsc_ratio);
 
 #define MSR_INVALID			0xffffffffU
 
-static struct svm_direct_access_msrs {
+static const struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
 	bool always; /* True if intercept is always on */
 } direct_access_msrs[] = {
@@ -400,7 +400,7 @@ struct svm_init_data {
 	int r;
 };
 
-static u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
+static const u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 
 #define NUM_MSR_MAPS ARRAY_SIZE(msrpm_ranges)
 #define MSRS_RANGE_SIZE 2048
@@ -1146,7 +1146,6 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 	svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
-	save->dr7 = 0x400;
 	kvm_set_rflags(&svm->vcpu, 2);
 	save->rip = 0x0000fff0;
 	svm->vcpu.arch.regs[VCPU_REGS_RIP] = save->rip;
@@ -1643,7 +1642,7 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 	mark_dirty(svm->vmcb, VMCB_SEG);
 }
 
-static void update_db_intercept(struct kvm_vcpu *vcpu)
+static void update_db_bp_intercept(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -1661,20 +1660,6 @@ static void update_db_intercept(struct kvm_vcpu *vcpu)
 			set_exception_intercept(svm, BP_VECTOR);
 	} else
 		vcpu->guest_debug = 0;
-}
-
-static void svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
-	else
-		svm->vmcb->save.dr7 = vcpu->arch.dr7;
-
-	mark_dirty(svm->vmcb, VMCB_DR);
-
-	update_db_intercept(vcpu);
 }
 
 static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
@@ -1748,7 +1733,7 @@ static int db_interception(struct vcpu_svm *svm)
 		if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP))
 			svm->vmcb->save.rflags &=
 				~(X86_EFLAGS_TF | X86_EFLAGS_RF);
-		update_db_intercept(&svm->vcpu);
+		update_db_bp_intercept(&svm->vcpu);
 	}
 
 	if (svm->vcpu.guest_debug &
@@ -2063,7 +2048,7 @@ static inline bool nested_svm_intr(struct vcpu_svm *svm)
 	if (svm->nested.intercept & 1ULL) {
 		/*
 		 * The #vmexit can't be emulated here directly because this
-		 * code path runs with irqs and preemtion disabled. A
+		 * code path runs with irqs and preemption disabled. A
 		 * #vmexit emulation might sleep. Only signal request for
 		 * the #vmexit here.
 		 */
@@ -2105,7 +2090,6 @@ static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
 	return kmap(page);
 
 error:
-	kvm_release_page_clean(page);
 	kvm_inject_gp(&svm->vcpu, 0);
 
 	return NULL;
@@ -2409,7 +2393,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 {
 	/*
 	 * This function merges the msr permission bitmaps of kvm and the
-	 * nested vmcb. It is omptimized in that it only merges the parts where
+	 * nested vmcb. It is optimized in that it only merges the parts where
 	 * the kvm msr permission bitmap may contain zero bits
 	 */
 	int i;
@@ -3268,7 +3252,7 @@ static int pause_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
-static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
+static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR0]			= cr_interception,
 	[SVM_EXIT_READ_CR3]			= cr_interception,
 	[SVM_EXIT_READ_CR4]			= cr_interception,
@@ -3660,7 +3644,7 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	 */
 	svm->nmi_singlestep = true;
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
-	update_db_intercept(vcpu);
+	update_db_bp_intercept(vcpu);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -3783,12 +3767,6 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 	svm_complete_interrupts(svm);
 }
 
-#ifdef CONFIG_X86_64
-#define R "r"
-#else
-#define R "e"
-#endif
-
 static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3815,13 +3793,13 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 
 	asm volatile (
-		"push %%"R"bp; \n\t"
-		"mov %c[rbx](%[svm]), %%"R"bx \n\t"
-		"mov %c[rcx](%[svm]), %%"R"cx \n\t"
-		"mov %c[rdx](%[svm]), %%"R"dx \n\t"
-		"mov %c[rsi](%[svm]), %%"R"si \n\t"
-		"mov %c[rdi](%[svm]), %%"R"di \n\t"
-		"mov %c[rbp](%[svm]), %%"R"bp \n\t"
+		"push %%" _ASM_BP "; \n\t"
+		"mov %c[rbx](%[svm]), %%" _ASM_BX " \n\t"
+		"mov %c[rcx](%[svm]), %%" _ASM_CX " \n\t"
+		"mov %c[rdx](%[svm]), %%" _ASM_DX " \n\t"
+		"mov %c[rsi](%[svm]), %%" _ASM_SI " \n\t"
+		"mov %c[rdi](%[svm]), %%" _ASM_DI " \n\t"
+		"mov %c[rbp](%[svm]), %%" _ASM_BP " \n\t"
 #ifdef CONFIG_X86_64
 		"mov %c[r8](%[svm]),  %%r8  \n\t"
 		"mov %c[r9](%[svm]),  %%r9  \n\t"
@@ -3834,20 +3812,20 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 
 		/* Enter guest mode */
-		"push %%"R"ax \n\t"
-		"mov %c[vmcb](%[svm]), %%"R"ax \n\t"
+		"push %%" _ASM_AX " \n\t"
+		"mov %c[vmcb](%[svm]), %%" _ASM_AX " \n\t"
 		__ex(SVM_VMLOAD) "\n\t"
 		__ex(SVM_VMRUN) "\n\t"
 		__ex(SVM_VMSAVE) "\n\t"
-		"pop %%"R"ax \n\t"
+		"pop %%" _ASM_AX " \n\t"
 
 		/* Save guest registers, load host registers */
-		"mov %%"R"bx, %c[rbx](%[svm]) \n\t"
-		"mov %%"R"cx, %c[rcx](%[svm]) \n\t"
-		"mov %%"R"dx, %c[rdx](%[svm]) \n\t"
-		"mov %%"R"si, %c[rsi](%[svm]) \n\t"
-		"mov %%"R"di, %c[rdi](%[svm]) \n\t"
-		"mov %%"R"bp, %c[rbp](%[svm]) \n\t"
+		"mov %%" _ASM_BX ", %c[rbx](%[svm]) \n\t"
+		"mov %%" _ASM_CX ", %c[rcx](%[svm]) \n\t"
+		"mov %%" _ASM_DX ", %c[rdx](%[svm]) \n\t"
+		"mov %%" _ASM_SI ", %c[rsi](%[svm]) \n\t"
+		"mov %%" _ASM_DI ", %c[rdi](%[svm]) \n\t"
+		"mov %%" _ASM_BP ", %c[rbp](%[svm]) \n\t"
 #ifdef CONFIG_X86_64
 		"mov %%r8,  %c[r8](%[svm]) \n\t"
 		"mov %%r9,  %c[r9](%[svm]) \n\t"
@@ -3858,7 +3836,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r14, %c[r14](%[svm]) \n\t"
 		"mov %%r15, %c[r15](%[svm]) \n\t"
 #endif
-		"pop %%"R"bp"
+		"pop %%" _ASM_BP
 		:
 		: [svm]"a"(svm),
 		  [vmcb]"i"(offsetof(struct vcpu_svm, vmcb_pa)),
@@ -3879,9 +3857,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		  [r15]"i"(offsetof(struct vcpu_svm, vcpu.arch.regs[VCPU_REGS_R15]))
 #endif
 		: "cc", "memory"
-		, R"bx", R"cx", R"dx", R"si", R"di"
 #ifdef CONFIG_X86_64
+		, "rbx", "rcx", "rdx", "rsi", "rdi"
 		, "r8", "r9", "r10", "r11" , "r12", "r13", "r14", "r15"
+#else
+		, "ebx", "ecx", "edx", "esi", "edi"
 #endif
 		);
 
@@ -3940,8 +3920,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	mark_all_clean(svm->vmcb);
 }
-
-#undef R
 
 static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 {
@@ -4069,7 +4047,7 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 #define POST_MEM(exit) { .exit_code = (exit), \
 			.stage = X86_ICPT_POST_MEMACCESS, }
 
-static struct __x86_intercept {
+static const struct __x86_intercept {
 	u32 exit_code;
 	enum x86_intercept_stage stage;
 } x86_intercept_map[] = {
@@ -4260,7 +4238,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
 
-	.set_guest_debug = svm_guest_debug,
+	.update_db_bp_intercept = update_db_bp_intercept,
 	.get_msr = svm_get_msr,
 	.set_msr = svm_set_msr,
 	.get_segment_base = svm_get_segment_base,

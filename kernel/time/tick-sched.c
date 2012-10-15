@@ -372,7 +372,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		 * the scheduler tick in nohz_restart_sched_tick.
 		 */
 		if (!ts->tick_stopped) {
-			select_nohz_load_balancer(1);
+			nohz_balance_enter_idle(cpu);
 			calc_load_enter_idle();
 
 			ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
@@ -436,7 +436,8 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 	if (unlikely(local_softirq_pending() && cpu_online(cpu))) {
 		static int ratelimit;
 
-		if (ratelimit < 10) {
+		if (ratelimit < 10 &&
+		    (local_softirq_pending() & SOFTIRQ_STOP_IDLE_MASK)) {
 			printk(KERN_ERR "NOHZ: local_softirq_pending %02x\n",
 			       (unsigned int) local_softirq_pending());
 			ratelimit++;
@@ -569,7 +570,6 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 {
 	/* Update jiffies first */
-	select_nohz_load_balancer(0);
 	tick_do_update_jiffies64(now);
 	update_cpu_load_nohz();
 
@@ -835,7 +835,7 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 		 */
 		if (ts->tick_stopped) {
 			touch_softlockup_watchdog();
-			if (idle_cpu(cpu))
+			if (is_idle_task(current))
 				ts->idle_jiffies++;
 		}
 		update_process_times(user_mode(regs));

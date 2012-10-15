@@ -34,18 +34,10 @@
 /* Number of SGL entries can be posted in a 4KB nonembedded mbox command */
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
-/* Multi-queue arrangement for fast-path FCP work queues */
-#define LPFC_FN_EQN_MAX       8
-#define LPFC_SP_EQN_DEF       1
-#define LPFC_FP_EQN_DEF       4
-#define LPFC_FP_EQN_MIN       1
-#define LPFC_FP_EQN_MAX       (LPFC_FN_EQN_MAX - LPFC_SP_EQN_DEF)
-
-#define LPFC_FN_WQN_MAX       32
-#define LPFC_SP_WQN_DEF       1
-#define LPFC_FP_WQN_DEF       4
-#define LPFC_FP_WQN_MIN       1
-#define LPFC_FP_WQN_MAX       (LPFC_FN_WQN_MAX - LPFC_SP_WQN_DEF)
+/* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
+#define LPFC_FCP_IO_CHAN_DEF       4
+#define LPFC_FCP_IO_CHAN_MIN       1
+#define LPFC_FCP_IO_CHAN_MAX       16
 
 /*
  * Provide the default FCF Record attributes used by the driver
@@ -141,11 +133,42 @@ struct lpfc_queue {
 	uint32_t page_count;	/* Number of pages allocated for this queue */
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
+
+	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
+
+	/* For q stats */
+	uint32_t q_cnt_1;
+	uint32_t q_cnt_2;
+	uint32_t q_cnt_3;
+	uint64_t q_cnt_4;
+/* defines for EQ stats */
+#define	EQ_max_eqe		q_cnt_1
+#define	EQ_no_entry		q_cnt_2
+#define	EQ_badstate		q_cnt_3
+#define	EQ_processed		q_cnt_4
+
+/* defines for CQ stats */
+#define	CQ_mbox			q_cnt_1
+#define	CQ_max_cqe		q_cnt_1
+#define	CQ_release_wqe		q_cnt_2
+#define	CQ_xri_aborted		q_cnt_3
+#define	CQ_wq			q_cnt_4
+
+/* defines for WQ stats */
+#define	WQ_overflow		q_cnt_1
+#define	WQ_posted		q_cnt_4
+
+/* defines for RQ stats */
+#define	RQ_no_posted_buf	q_cnt_1
+#define	RQ_no_buf_found		q_cnt_2
+#define	RQ_buf_trunc		q_cnt_3
+#define	RQ_rcv_buf		q_cnt_4
+
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
 
 struct lpfc_sli4_link {
-	uint8_t speed;
+	uint16_t speed;
 	uint8_t duplex;
 	uint8_t status;
 	uint8_t type;
@@ -350,6 +373,7 @@ struct lpfc_hba;
 struct lpfc_fcp_eq_hdl {
 	uint32_t idx;
 	struct lpfc_hba *phba;
+	atomic_t fcp_eq_in_use;
 };
 
 /* Port Capabilities for SLI4 Parameters */
@@ -407,6 +431,8 @@ struct lpfc_sli4_lnk_info {
 	uint8_t lnk_no;
 };
 
+#define LPFC_SLI4_HANDLER_NAME_SZ	16
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -463,20 +489,21 @@ struct lpfc_sli4_hba {
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
-	uint32_t cfg_eqn;
-	uint32_t msix_vec_nr;
+	uint8_t handler_name[LPFC_FCP_IO_CHAN_MAX][LPFC_SLI4_HANDLER_NAME_SZ];
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
+
 	/* Pointers to the constructed SLI4 queues */
-	struct lpfc_queue **fp_eq; /* Fast-path event queue */
-	struct lpfc_queue *sp_eq;  /* Slow-path event queue */
+	struct lpfc_queue **hba_eq;/* Event queues for HBA */
+	struct lpfc_queue **fcp_cq;/* Fast-path FCP compl queue */
 	struct lpfc_queue **fcp_wq;/* Fast-path FCP work queue */
+	uint16_t *fcp_cq_map;
+
+	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
+	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
 	struct lpfc_queue *mbx_wq; /* Slow-path MBOX work queue */
 	struct lpfc_queue *els_wq; /* Slow-path ELS work queue */
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
-	struct lpfc_queue **fcp_cq;/* Fast-path FCP compl queue */
-	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
-	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
 
 	/* Setup information for various queue parameters */
 	int eq_esize;
@@ -597,7 +624,7 @@ void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
 			uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
-uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint16_t);
+uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 uint32_t lpfc_modify_fcp_eq_delay(struct lpfc_hba *, uint16_t);
 uint32_t lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);

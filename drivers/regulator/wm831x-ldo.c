@@ -205,6 +205,8 @@ static int wm831x_gp_ldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
@@ -271,9 +273,9 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -473,6 +475,8 @@ static int wm831x_aldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
@@ -526,9 +530,9 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -683,9 +687,9 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}

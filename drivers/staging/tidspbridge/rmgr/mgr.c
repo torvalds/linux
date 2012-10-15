@@ -262,8 +262,8 @@ int mgr_enum_processor_info(u32 processor_id,
 				    IVAPROCTYPE_ARM7)
 					proc_detect = true;
 			}
-			/* User applciatiuons aonly check for chip type, so
-			 * this clumsy overwrite */
+			/* User applications only check for chip type, so
+			 * this is a clumsy overwrite */
 			processor_info->processor_type = DSPTYPE64;
 		} else {
 			dev_dbg(bridge, "%s: Failed to get DCD processor info "

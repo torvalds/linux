@@ -23,6 +23,8 @@
 #ifndef _SMB2_GLOB_H
 #define _SMB2_GLOB_H
 
+#define SMB2_MAGIC_NUMBER 0xFE534D42
+
 /*
  *****************************************************************
  * Constants go here
@@ -40,5 +42,17 @@
 #define SMB2_OP_MKDIR 5
 #define SMB2_OP_RENAME 6
 #define SMB2_OP_DELETE 7
+#define SMB2_OP_HARDLINK 8
+#define SMB2_OP_SET_EOF 9
+
+/* Used when constructing chained read requests. */
+#define CHAINED_REQUEST 1
+#define START_OF_CHAIN 2
+#define END_OF_CHAIN 4
+#define RELATED_REQUEST 8
+
+#define SMB2_SIGNATURE_SIZE (16)
+#define SMB2_NTLMV2_SESSKEY_SIZE (16)
+#define SMB2_HMACSHA256_SIZE (32)
 
 #endif	/* _SMB2_GLOB_H */

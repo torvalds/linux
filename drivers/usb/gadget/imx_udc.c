@@ -35,7 +35,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#include <mach/usb.h>
+#include <linux/platform_data/usb-imx_udc.h>
 #include <mach/hardware.h>
 
 #include "imx_udc.h"

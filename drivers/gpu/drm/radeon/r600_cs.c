@@ -26,7 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/kernel.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "r600d.h"
 #include "r600_reg_safe.h"
@@ -847,7 +847,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
  * Assume that chunk_ib_index is properly set. Will return -EINVAL
  * if packet is bigger than remaining ib size. or if packets is unknown.
  **/
-int r600_cs_packet_parse(struct radeon_cs_parser *p,
+static int r600_cs_packet_parse(struct radeon_cs_parser *p,
 			struct radeon_cs_packet *pkt,
 			unsigned idx)
 {
@@ -2180,7 +2180,8 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_STRMOUT_BASE_UPDATE:
-		if (p->family < CHIP_RV770) {
+		/* RS780 and RS880 also need this */
+		if (p->family < CHIP_RS780) {
 			DRM_ERROR("STRMOUT_BASE_UPDATE only supported on 7xx\n");
 			return -EINVAL;
 		}

@@ -250,6 +250,7 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to find BOOT_LOADER_CONTROL\n");
+            kfree(pfw);
             return CSR_RESULT_FAILURE;
         }
 
@@ -265,6 +266,7 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
         desc = unifi_fw_open_buffer(card->ospriv, pfw, psize);
         if (!desc)
         {
+            kfree(pfw);
             return CSR_WIFI_HIP_RESULT_NO_MEMORY;
         }
 

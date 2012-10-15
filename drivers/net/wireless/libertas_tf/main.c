@@ -227,7 +227,9 @@ static void lbtf_free_adapter(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
-static void lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void lbtf_op_tx(struct ieee80211_hw *hw,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct lbtf_private *priv = hw->priv;
 

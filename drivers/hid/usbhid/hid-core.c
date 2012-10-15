@@ -1415,20 +1415,20 @@ static int hid_post_reset(struct usb_interface *intf)
 	 * configuration descriptors passed, we already know that
 	 * the size of the HID report descriptor has not changed.
 	 */
-	rdesc = kmalloc(hid->rsize, GFP_KERNEL);
+	rdesc = kmalloc(hid->dev_rsize, GFP_KERNEL);
 	if (!rdesc) {
 		dbg_hid("couldn't allocate rdesc memory (post_reset)\n");
 		return 1;
 	}
 	status = hid_get_class_descriptor(dev,
 				interface->desc.bInterfaceNumber,
-				HID_DT_REPORT, rdesc, hid->rsize);
+				HID_DT_REPORT, rdesc, hid->dev_rsize);
 	if (status < 0) {
 		dbg_hid("reading report descriptor failed (post_reset)\n");
 		kfree(rdesc);
 		return 1;
 	}
-	status = memcmp(rdesc, hid->rdesc, hid->rsize);
+	status = memcmp(rdesc, hid->dev_rdesc, hid->dev_rsize);
 	kfree(rdesc);
 	if (status != 0) {
 		dbg_hid("report descriptor changed\n");

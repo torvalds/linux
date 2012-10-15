@@ -20,6 +20,7 @@ struct uid_gid_map {	/* 64 bytes -- 1 cache line */
 struct user_namespace {
 	struct uid_gid_map	uid_map;
 	struct uid_gid_map	gid_map;
+	struct uid_gid_map	projid_map;
 	struct kref		kref;
 	struct user_namespace	*parent;
 	kuid_t			owner;
@@ -49,8 +50,10 @@ static inline void put_user_ns(struct user_namespace *ns)
 struct seq_operations;
 extern struct seq_operations proc_uid_seq_operations;
 extern struct seq_operations proc_gid_seq_operations;
+extern struct seq_operations proc_projid_seq_operations;
 extern ssize_t proc_uid_map_write(struct file *, const char __user *, size_t, loff_t *);
 extern ssize_t proc_gid_map_write(struct file *, const char __user *, size_t, loff_t *);
+extern ssize_t proc_projid_map_write(struct file *, const char __user *, size_t, loff_t *);
 #else
 
 static inline struct user_namespace *get_user_ns(struct user_namespace *ns)

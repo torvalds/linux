@@ -2,7 +2,7 @@
 #define __PMU_H
 
 #include <linux/bitops.h>
-#include "../../../include/linux/perf_event.h"
+#include "../../../include/uapi/linux/perf_event.h"
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -28,6 +28,7 @@ struct perf_pmu__alias {
 struct perf_pmu {
 	char *name;
 	__u32 type;
+	struct cpu_map *cpus;
 	struct list_head format;
 	struct list_head aliases;
 	struct list_head list;
@@ -45,6 +46,8 @@ void perf_pmu_error(struct list_head *list, char *name, char const *msg);
 int perf_pmu__new_format(struct list_head *list, char *name,
 			 int config, unsigned long *bits);
 void perf_pmu__set_format(unsigned long *bits, long from, long to);
+
+struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
 int perf_pmu__test(void);
 #endif /* __PMU_H */

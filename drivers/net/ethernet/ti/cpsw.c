@@ -28,6 +28,9 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
+#include <linux/of_device.h>
 
 #include <linux/platform_data/cpsw.h>
 
@@ -383,6 +386,11 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			mac_control |= BIT(7);	/* GIGABITEN	*/
 		if (phy->duplex)
 			mac_control |= BIT(0);	/* FULLDUPLEXEN	*/
+
+		/* set speed_in input in case RMII mode is used in 100Mbps */
+		if (phy->speed == 100)
+			mac_control |= BIT(15);
+
 		*link = true;
 	} else {
 		mac_control = 0;
@@ -709,6 +717,158 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave->sliver	= regs + data->sliver_reg_ofs;
 }
 
+static int cpsw_probe_dt(struct cpsw_platform_data *data,
+			 struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *slave_node;
+	int i = 0, ret;
+	u32 prop;
+
+	if (!node)
+		return -EINVAL;
+
+	if (of_property_read_u32(node, "slaves", &prop)) {
+		pr_err("Missing slaves property in the DT.\n");
+		return -EINVAL;
+	}
+	data->slaves = prop;
+
+	data->slave_data = kzalloc(sizeof(struct cpsw_slave_data) *
+				   data->slaves, GFP_KERNEL);
+	if (!data->slave_data) {
+		pr_err("Could not allocate slave memory.\n");
+		return -EINVAL;
+	}
+
+	data->no_bd_ram = of_property_read_bool(node, "no_bd_ram");
+
+	if (of_property_read_u32(node, "cpdma_channels", &prop)) {
+		pr_err("Missing cpdma_channels property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->channels = prop;
+
+	if (of_property_read_u32(node, "host_port_no", &prop)) {
+		pr_err("Missing host_port_no property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->host_port_num = prop;
+
+	if (of_property_read_u32(node, "cpdma_reg_ofs", &prop)) {
+		pr_err("Missing cpdma_reg_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->cpdma_reg_ofs = prop;
+
+	if (of_property_read_u32(node, "cpdma_sram_ofs", &prop)) {
+		pr_err("Missing cpdma_sram_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->cpdma_sram_ofs = prop;
+
+	if (of_property_read_u32(node, "ale_reg_ofs", &prop)) {
+		pr_err("Missing ale_reg_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->ale_reg_ofs = prop;
+
+	if (of_property_read_u32(node, "ale_entries", &prop)) {
+		pr_err("Missing ale_entries property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->ale_entries = prop;
+
+	if (of_property_read_u32(node, "host_port_reg_ofs", &prop)) {
+		pr_err("Missing host_port_reg_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->host_port_reg_ofs = prop;
+
+	if (of_property_read_u32(node, "hw_stats_reg_ofs", &prop)) {
+		pr_err("Missing hw_stats_reg_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->hw_stats_reg_ofs = prop;
+
+	if (of_property_read_u32(node, "bd_ram_ofs", &prop)) {
+		pr_err("Missing bd_ram_ofs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->bd_ram_ofs = prop;
+
+	if (of_property_read_u32(node, "bd_ram_size", &prop)) {
+		pr_err("Missing bd_ram_size property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->bd_ram_size = prop;
+
+	if (of_property_read_u32(node, "rx_descs", &prop)) {
+		pr_err("Missing rx_descs property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->rx_descs = prop;
+
+	if (of_property_read_u32(node, "mac_control", &prop)) {
+		pr_err("Missing mac_control property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->mac_control = prop;
+
+	for_each_child_of_node(node, slave_node) {
+		struct cpsw_slave_data *slave_data = data->slave_data + i;
+		const char *phy_id = NULL;
+		const void *mac_addr = NULL;
+
+		if (of_property_read_string(slave_node, "phy_id", &phy_id)) {
+			pr_err("Missing slave[%d] phy_id property\n", i);
+			ret = -EINVAL;
+			goto error_ret;
+		}
+		slave_data->phy_id = phy_id;
+
+		if (of_property_read_u32(slave_node, "slave_reg_ofs", &prop)) {
+			pr_err("Missing slave[%d] slave_reg_ofs property\n", i);
+			ret = -EINVAL;
+			goto error_ret;
+		}
+		slave_data->slave_reg_ofs = prop;
+
+		if (of_property_read_u32(slave_node, "sliver_reg_ofs",
+					 &prop)) {
+			pr_err("Missing slave[%d] sliver_reg_ofs property\n",
+				i);
+			ret = -EINVAL;
+			goto error_ret;
+		}
+		slave_data->sliver_reg_ofs = prop;
+
+		mac_addr = of_get_mac_address(slave_node);
+		if (mac_addr)
+			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
+
+		i++;
+	}
+
+	return 0;
+
+error_ret:
+	kfree(data->slave_data);
+	return ret;
+}
+
 static int __devinit cpsw_probe(struct platform_device *pdev)
 {
 	struct cpsw_platform_data	*data = pdev->dev.platform_data;
@@ -720,11 +880,6 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	struct resource			*res;
 	int ret = 0, i, k = 0;
 
-	if (!data) {
-		pr_err("platform data missing\n");
-		return -ENODEV;
-	}
-
 	ndev = alloc_etherdev(sizeof(struct cpsw_priv));
 	if (!ndev) {
 		pr_err("error allocating net_device\n");
@@ -734,12 +889,18 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	priv = netdev_priv(ndev);
 	spin_lock_init(&priv->lock);
-	priv->data = *data;
 	priv->pdev = pdev;
 	priv->ndev = ndev;
 	priv->dev  = &ndev->dev;
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	priv->rx_packet_max = max(rx_packet_max, 128);
+
+	if (cpsw_probe_dt(&priv->data, pdev)) {
+		pr_err("cpsw: platform data missing\n");
+		ret = -ENODEV;
+		goto clean_ndev_ret;
+	}
+	data = &priv->data;
 
 	if (is_valid_ether_addr(data->slave_data[0].mac_addr)) {
 		memcpy(priv->mac_addr, data->slave_data[0].mac_addr, ETH_ALEN);
@@ -996,11 +1157,17 @@ static const struct dev_pm_ops cpsw_pm_ops = {
 	.resume		= cpsw_resume,
 };
 
+static const struct of_device_id cpsw_of_mtable[] = {
+	{ .compatible = "ti,cpsw", },
+	{ /* sentinel */ },
+};
+
 static struct platform_driver cpsw_driver = {
 	.driver = {
 		.name	 = "cpsw",
 		.owner	 = THIS_MODULE,
 		.pm	 = &cpsw_pm_ops,
+		.of_match_table = of_match_ptr(cpsw_of_mtable),
 	},
 	.probe = cpsw_probe,
 	.remove = __devexit_p(cpsw_remove),

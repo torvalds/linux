@@ -5,17 +5,17 @@
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  */
 
-#include "linux/cpumask.h"
-#include "linux/hardirq.h"
-#include "linux/interrupt.h"
-#include "linux/kernel_stat.h"
-#include "linux/module.h"
-#include "linux/sched.h"
-#include "linux/seq_file.h"
-#include "linux/slab.h"
-#include "as-layout.h"
-#include "kern_util.h"
-#include "os.h"
+#include <linux/cpumask.h>
+#include <linux/hardirq.h>
+#include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <as-layout.h>
+#include <kern_util.h>
+#include <os.h>
 
 /*
  * This list is accessed under irq_lock, except in sigio_handler,

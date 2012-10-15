@@ -181,6 +181,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%p	pid
 	%u	uid
 	%g	gid
+	%d	dump mode, matches PR_SET_DUMPABLE and
+		/proc/sys/fs/suid_dumpable
 	%s	signal number
 	%t	UNIX time of dump
 	%h	hostname

@@ -30,19 +30,19 @@
 
 /*
  * The standard cable name is to help support general notifier
- * and notifee device drivers to share the common names.
+ * and notifiee device drivers to share the common names.
  * Please use standard cable names unless your notifier device has
  * a very unique and abnormal cable or
  * the cable type is supposed to be used with only one unique
- * pair of notifier/notifee devices.
+ * pair of notifier/notifiee devices.
  *
  * Please add any other "standard" cables used with extcon dev.
  *
  * You may add a dot and number to specify version or specification
  * of the specific cable if it is required. (e.g., "Fast-charger.18"
  * and "Fast-charger.10" for 1.8A and 1.0A chargers)
- * However, the notifee and notifier should be able to handle such
- * string and if the notifee can negotiate the protocol or idenify,
+ * However, the notifiee and notifier should be able to handle such
+ * string and if the notifiee can negotiate the protocol or identify,
  * you don't need such convention. This convention is helpful when
  * notifier can distinguish but notifiee cannot.
  */
@@ -76,7 +76,7 @@ struct extcon_cable;
  * struct extcon_dev - An extcon device represents one external connector.
  * @name	The name of this extcon device. Parent device name is used
  *		if NULL.
- * @supported_cable	Array of supported cable name ending with NULL.
+ * @supported_cable	Array of supported cable names ending with NULL.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
  * @mutually_exclusive	Array of mutually exclusive set of cables that cannot
@@ -95,7 +95,7 @@ struct extcon_cable;
  * @state	Attach/detach state of this extcon. Do not provide at
  *		register-time
  * @nh	Notifier for the state change events from this extcon
- * @entry	To support list of extcon devices so that uses can search
+ * @entry	To support list of extcon devices so that users can search
  *		for extcon devices based on the extcon name.
  * @lock
  * @max_supported	Internal value to store the number of cables.
@@ -199,7 +199,7 @@ extern int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
 /*
  * get/set_cable_state access each bit of the 32b encoded state value.
  * They are used to access the status of each cable based on the cable_name
- * or cable_index, which is retrived by extcon_find_cable_index
+ * or cable_index, which is retrieved by extcon_find_cable_index
  */
 extern int extcon_find_cable_index(struct extcon_dev *sdev,
 				   const char *cable_name);
@@ -226,9 +226,9 @@ extern int extcon_unregister_interest(struct extcon_specific_cable_nb *nb);
 
 /*
  * Following APIs are to monitor every action of a notifier.
- * Registerer gets notified for every external port of a connection device.
+ * Registrar gets notified for every external port of a connection device.
  * Probably this could be used to debug an action of notifier; however,
- * we do not recommend to use this at normal 'notifiee' device drivers who
+ * we do not recommend to use this for normal 'notifiee' device drivers who
  * want to be notified by a specific external port of the notifier.
  */
 extern int extcon_register_notifier(struct extcon_dev *edev,

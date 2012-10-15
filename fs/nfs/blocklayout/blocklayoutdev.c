@@ -53,22 +53,6 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 	return 0;
 }
 
-/* Open a block_device by device number. */
-struct block_device *nfs4_blkdev_get(dev_t dev)
-{
-	struct block_device *bd;
-
-	dprintk("%s enter\n", __func__);
-	bd = blkdev_get_by_dev(dev, FMODE_READ, NULL);
-	if (IS_ERR(bd))
-		goto fail;
-	return bd;
-fail:
-	dprintk("%s failed to open device : %ld\n",
-			__func__, PTR_ERR(bd));
-	return NULL;
-}
-
 /*
  * Release the block device
  */
@@ -172,11 +156,12 @@ nfs4_blk_decode_device(struct nfs_server *server,
 		goto out;
 	}
 
-	bd = nfs4_blkdev_get(MKDEV(reply->major, reply->minor));
+	bd = blkdev_get_by_dev(MKDEV(reply->major, reply->minor),
+			       FMODE_READ, NULL);
 	if (IS_ERR(bd)) {
-		rc = PTR_ERR(bd);
-		dprintk("%s failed to open device : %d\n", __func__, rc);
-		rv = ERR_PTR(rc);
+		dprintk("%s failed to open device : %ld\n", __func__,
+			PTR_ERR(bd));
+		rv = ERR_CAST(bd);
 		goto out;
 	}
 

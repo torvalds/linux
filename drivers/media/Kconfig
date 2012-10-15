@@ -99,11 +99,6 @@ config VIDEO_DEV
 	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT
 	default y
 
-config VIDEO_V4L2_COMMON
-	tristate
-	depends on (I2C || I2C=n) && VIDEO_DEV
-	default (I2C || I2C=n) && VIDEO_DEV
-
 config VIDEO_V4L2_SUBDEV_API
 	bool "V4L2 sub-device userspace API (EXPERIMENTAL)"
 	depends on VIDEO_DEV && MEDIA_CONTROLLER && EXPERIMENTAL
@@ -112,6 +107,8 @@ config VIDEO_V4L2_SUBDEV_API
 	  video format, size and frame rate between hardware blocks.
 
 	  This API is mostly used by camera interfaces in embedded platforms.
+
+source "drivers/media/v4l2-core/Kconfig"
 
 #
 # DVB Core
@@ -138,28 +135,54 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
+source "drivers/media/dvb-core/Kconfig"
+
 comment "Media drivers"
-source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
 #
-# Tuner drivers for DVB and V4L
+# V4L platform/mem2mem drivers
 #
 
-source "drivers/media/common/tuners/Kconfig"
-
-#
-# Video/Radio/Hybrid adapters
-#
-
-source "drivers/media/video/Kconfig"
-
+source "drivers/media/usb/Kconfig"
+source "drivers/media/pci/Kconfig"
+source "drivers/media/platform/Kconfig"
+source "drivers/media/mmc/Kconfig"
+source "drivers/media/parport/Kconfig"
 source "drivers/media/radio/Kconfig"
 
+comment "Supported FireWire (IEEE 1394) Adapters"
+	depends on DVB_CORE && FIREWIRE
+source "drivers/media/firewire/Kconfig"
+
+# Common driver options
+source "drivers/media/common/Kconfig"
+
 #
-# DVB adapters
+# Ancillary drivers (tuners, i2c, frontends)
 #
 
-source "drivers/media/dvb/Kconfig"
+config MEDIA_SUBDRV_AUTOSELECT
+	bool "Autoselect analog and hybrid tuner modules to build"
+	depends on MEDIA_TUNER
+	default y
+	help
+	  By default, a TV driver auto-selects all possible tuners
+	  thar could be used by the driver.
+
+	  This is generally the right thing to do, except when there
+	  are strict constraints with regards to the kernel size.
+
+	  Use this option with care, as deselecting tuner drivers which
+	  are in fact necessary will result in TV devices which cannot
+	  be tuned due to lack of the tuning driver.
+
+	  If unsure say Y.
+
+comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
+
+source "drivers/media/i2c/Kconfig"
+source "drivers/media/tuners/Kconfig"
+source "drivers/media/dvb-frontends/Kconfig"
 
 endif # MEDIA_SUPPORT

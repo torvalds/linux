@@ -17,51 +17,11 @@
 #include <linux/dma-mapping.h>
 
 #include <plat/common.h>
-#include <plat/board.h>
 #include <plat/vram.h>
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 #include <plat/dma.h>
 
 #include <plat/omap-secure.h>
-
-
-#define NO_LENGTH_CHECK 0xffffffff
-
-struct omap_board_config_kernel *omap_board_config __initdata;
-int omap_board_config_size;
-
-static const void *__init get_config(u16 tag, size_t len,
-		int skip, size_t *len_out)
-{
-	struct omap_board_config_kernel *kinfo = NULL;
-	int i;
-
-	/* Try to find the config from the board-specific structures
-	 * in the kernel. */
-	for (i = 0; i < omap_board_config_size; i++) {
-		if (omap_board_config[i].tag == tag) {
-			if (skip == 0) {
-				kinfo = &omap_board_config[i];
-				break;
-			} else {
-				skip--;
-			}
-		}
-	}
-	if (kinfo == NULL)
-		return NULL;
-	return kinfo->data;
-}
-
-const void *__init __omap_get_config(u16 tag, size_t len, int nr)
-{
-        return get_config(tag, len, nr, NULL);
-}
-
-const void *__init omap_get_var_config(u16 tag, size_t *len)
-{
-        return get_config(tag, NO_LENGTH_CHECK, 0, len);
-}
 
 void __init omap_reserve(void)
 {

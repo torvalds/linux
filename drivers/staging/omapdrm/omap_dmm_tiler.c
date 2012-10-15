@@ -120,7 +120,7 @@ static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
 	return 0;
 }
 
-irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
+static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 {
 	struct dmm *dmm = arg;
 	uint32_t status = readl(dmm->base + DMM_PAT_IRQSTATUS);
@@ -367,7 +367,7 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 	int num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	if (!block)
-		return 0;
+		return ERR_PTR(-ENOMEM);
 
 	block->fmt = TILFMT_PAGE;
 
@@ -404,8 +404,26 @@ int tiler_release(struct tiler_block *block)
  * Utils
  */
 
-/* calculate the tiler space address of a pixel in a view orientation */
-static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
+/* calculate the tiler space address of a pixel in a view orientation...
+ * below description copied from the display subsystem section of TRM:
+ *
+ * When the TILER is addressed, the bits:
+ *   [28:27] = 0x0 for 8-bit tiled
+ *             0x1 for 16-bit tiled
+ *             0x2 for 32-bit tiled
+ *             0x3 for page mode
+ *   [31:29] = 0x0 for 0-degree view
+ *             0x1 for 180-degree view + mirroring
+ *             0x2 for 0-degree view + mirroring
+ *             0x3 for 180-degree view
+ *             0x4 for 270-degree view + mirroring
+ *             0x5 for 270-degree view
+ *             0x6 for 90-degree view
+ *             0x7 for 90-degree view + mirroring
+ * Otherwise the bits indicated the corresponding bit address to access
+ * the SDRAM.
+ */
+static u32 tiler_get_address(enum tiler_fmt fmt, u32 orient, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
 
@@ -417,8 +435,11 @@ static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 	x_mask = MASK(x_bits);
 	y_mask = MASK(y_bits);
 
-	if (x < 0 || x > x_mask || y < 0 || y > y_mask)
+	if (x < 0 || x > x_mask || y < 0 || y > y_mask) {
+		DBG("invalid coords: %u < 0 || %u > %u || %u < 0 || %u > %u",
+				x, x, x_mask, y, y, y_mask);
 		return 0;
+	}
 
 	/* account for mirroring */
 	if (orient & MASK_X_INVERT)
@@ -439,9 +460,20 @@ dma_addr_t tiler_ssptr(struct tiler_block *block)
 {
 	BUG_ON(!validfmt(block->fmt));
 
-	return TILVIEW_8BIT + tiler_get_address(0, block->fmt,
+	return TILVIEW_8BIT + tiler_get_address(block->fmt, 0,
 			block->area.p0.x * geom[block->fmt].slot_w,
 			block->area.p0.y * geom[block->fmt].slot_h);
+}
+
+dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
+		uint32_t x, uint32_t y)
+{
+	struct tcm_pt *p = &block->area.p0;
+	BUG_ON(!validfmt(block->fmt));
+
+	return tiler_get_address(block->fmt, orient,
+			(p->x * geom[block->fmt].slot_w) + x,
+			(p->y * geom[block->fmt].slot_h) + y);
 }
 
 void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
@@ -451,11 +483,14 @@ void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
 	*h = round_up(*h, geom[fmt].slot_h);
 }
 
-uint32_t tiler_stride(enum tiler_fmt fmt)
+uint32_t tiler_stride(enum tiler_fmt fmt, uint32_t orient)
 {
 	BUG_ON(!validfmt(fmt));
 
-	return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
+	if (orient & MASK_XY_FLIP)
+		return 1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft);
+	else
+		return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
 }
 
 size_t tiler_size(enum tiler_fmt fmt, uint16_t w, uint16_t h)

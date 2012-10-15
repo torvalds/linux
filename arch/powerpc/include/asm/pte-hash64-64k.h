@@ -58,14 +58,16 @@
 /* Trick: we set __end to va + 64k, which happens works for
  * a 16M page as well as we want only one iteration
  */
-#define pte_iterate_hashed_subpages(rpte, psize, va, index, shift)	    \
-        do {                                                                \
-                unsigned long __end = va + PAGE_SIZE;                       \
-                unsigned __split = (psize == MMU_PAGE_4K ||                 \
-				    psize == MMU_PAGE_64K_AP);              \
-                shift = mmu_psize_defs[psize].shift;                        \
-		for (index = 0; va < __end; index++, va += (1L << shift)) { \
-		        if (!__split || __rpte_sub_valid(rpte, index)) do { \
+#define pte_iterate_hashed_subpages(rpte, psize, vpn, index, shift)	\
+	do {								\
+		unsigned long __end = vpn + (1UL << (PAGE_SHIFT - VPN_SHIFT));	\
+		unsigned __split = (psize == MMU_PAGE_4K ||		\
+				    psize == MMU_PAGE_64K_AP);		\
+		shift = mmu_psize_defs[psize].shift;			\
+		for (index = 0; vpn < __end; index++,			\
+			     vpn += (1L << (shift - VPN_SHIFT))) {	\
+			if (!__split || __rpte_sub_valid(rpte, index))	\
+				do {
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)
 

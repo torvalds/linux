@@ -66,7 +66,7 @@ static inline unsigned keyring_hash(const char *desc)
  * operations.
  */
 static int keyring_instantiate(struct key *keyring,
-			       const void *data, size_t datalen);
+			       struct key_preparsed_payload *prep);
 static int keyring_match(const struct key *keyring, const void *criterion);
 static void keyring_revoke(struct key *keyring);
 static void keyring_destroy(struct key *keyring);
@@ -121,12 +121,12 @@ static void keyring_publish_name(struct key *keyring)
  * Returns 0 on success, -EINVAL if given any data.
  */
 static int keyring_instantiate(struct key *keyring,
-			       const void *data, size_t datalen)
+			       struct key_preparsed_payload *prep)
 {
 	int ret;
 
 	ret = -EINVAL;
-	if (datalen == 0) {
+	if (prep->datalen == 0) {
 		/* make the keyring available by name if it has one */
 		keyring_publish_name(keyring);
 		ret = 0;
@@ -256,7 +256,7 @@ error:
 /*
  * Allocate a keyring and link into the destination keyring.
  */
-struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
+struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 			  const struct cred *cred, unsigned long flags,
 			  struct key *dest)
 {
@@ -612,7 +612,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 				    &keyring_name_hash[bucket],
 				    type_data.link
 				    ) {
-			if (keyring->user->user_ns != current_user_ns())
+			if (!kuid_has_mapping(current_user_ns(), keyring->user->uid))
 				continue;
 
 			if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))

@@ -55,7 +55,8 @@ struct nfulnl_instance {
 	unsigned int qlen;		/* number of nlmsgs in skb */
 	struct sk_buff *skb;		/* pre-allocatd skb */
 	struct timer_list timer;
-	int peer_pid;			/* PID of the peer process */
+	struct user_namespace *peer_user_ns;	/* User namespace of the peer process */
+	int peer_portid;			/* PORTID of the peer process */
 
 	/* configurable parameters */
 	unsigned int flushtimeout;	/* timeout until queue flush */
@@ -132,7 +133,7 @@ instance_put(struct nfulnl_instance *inst)
 static void nfulnl_timer(unsigned long data);
 
 static struct nfulnl_instance *
-instance_create(u_int16_t group_num, int pid)
+instance_create(u_int16_t group_num, int portid, struct user_namespace *user_ns)
 {
 	struct nfulnl_instance *inst;
 	int err;
@@ -162,7 +163,8 @@ instance_create(u_int16_t group_num, int pid)
 
 	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
 
-	inst->peer_pid = pid;
+	inst->peer_user_ns = user_ns;
+	inst->peer_portid = portid;
 	inst->group_num = group_num;
 
 	inst->qthreshold 	= NFULNL_QTHRESH_DEFAULT;
@@ -334,7 +336,7 @@ __nfulnl_send(struct nfulnl_instance *inst)
 		if (!nlh)
 			goto out;
 	}
-	status = nfnetlink_unicast(inst->skb, &init_net, inst->peer_pid,
+	status = nfnetlink_unicast(inst->skb, &init_net, inst->peer_portid,
 				   MSG_DONTWAIT);
 
 	inst->qlen = 0;
@@ -505,8 +507,10 @@ __build_packet_message(struct nfulnl_instance *inst,
 		read_lock_bh(&sk->sk_callback_lock);
 		if (sk->sk_socket && sk->sk_socket->file) {
 			struct file *file = sk->sk_socket->file;
-			__be32 uid = htonl(file->f_cred->fsuid);
-			__be32 gid = htonl(file->f_cred->fsgid);
+			const struct cred *cred = file->f_cred;
+			struct user_namespace *user_ns = inst->peer_user_ns;
+			__be32 uid = htonl(from_kuid_munged(user_ns, cred->fsuid));
+			__be32 gid = htonl(from_kgid_munged(user_ns, cred->fsgid));
 			read_unlock_bh(&sk->sk_callback_lock);
 			if (nla_put_be32(inst->skb, NFULA_UID, uid) ||
 			    nla_put_be32(inst->skb, NFULA_GID, gid))
@@ -700,7 +704,7 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
 		int i;
 
-		/* destroy all instances for this pid */
+		/* destroy all instances for this portid */
 		spin_lock_bh(&instances_lock);
 		for  (i = 0; i < INSTANCE_BUCKETS; i++) {
 			struct hlist_node *tmp, *t2;
@@ -709,7 +713,7 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 
 			hlist_for_each_entry_safe(inst, tmp, t2, head, hlist) {
 				if ((net_eq(n->net, &init_net)) &&
-				    (n->pid == inst->peer_pid))
+				    (n->portid == inst->peer_portid))
 					__instance_destroy(inst);
 			}
 		}
@@ -771,7 +775,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	inst = instance_lookup_get(group_num);
-	if (inst && inst->peer_pid != NETLINK_CB(skb).pid) {
+	if (inst && inst->peer_portid != NETLINK_CB(skb).portid) {
 		ret = -EPERM;
 		goto out_put;
 	}
@@ -785,7 +789,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			}
 
 			inst = instance_create(group_num,
-					       NETLINK_CB(skb).pid);
+					       NETLINK_CB(skb).portid,
+					       sk_user_ns(NETLINK_CB(skb).ssk));
 			if (IS_ERR(inst)) {
 				ret = PTR_ERR(inst);
 				goto out;
@@ -943,7 +948,7 @@ static int seq_show(struct seq_file *s, void *v)
 
 	return seq_printf(s, "%5d %6d %5d %1d %5d %6d %2d\n",
 			  inst->group_num,
-			  inst->peer_pid, inst->qlen,
+			  inst->peer_portid, inst->qlen,
 			  inst->copy_mode, inst->copy_range,
 			  inst->flushtimeout, atomic_read(&inst->use));
 }

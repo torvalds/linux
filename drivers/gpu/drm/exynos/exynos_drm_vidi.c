@@ -10,7 +10,7 @@
  * option) any later version.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -18,8 +18,8 @@
 
 #include <drm/exynos_drm.h>
 
-#include "drm_edid.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_edid.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
@@ -56,6 +56,7 @@ struct vidi_context {
 	unsigned int			connected;
 	bool				vblank_on;
 	bool				suspended;
+	bool				direct_vblank;
 	struct work_struct		work;
 	struct mutex			lock;
 };
@@ -102,7 +103,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 				u8 *edid, int len)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
-	struct edid *raw_edid;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -114,18 +114,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 		DRM_DEBUG_KMS("raw_edid is null.\n");
 		return -EFAULT;
 	}
-
-	raw_edid = kzalloc(len, GFP_KERNEL);
-	if (!raw_edid) {
-		DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
-		return -ENOMEM;
-	}
-
-	memcpy(raw_edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
-						* EDID_LENGTH, len));
-
-	/* attach the edid data to connector. */
-	connector->display_info.raw_edid = (char *)raw_edid;
 
 	memcpy(edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
 					* EDID_LENGTH, len));
@@ -236,6 +224,15 @@ static int vidi_enable_vblank(struct device *dev)
 
 	if (!test_and_set_bit(0, &ctx->irq_flags))
 		ctx->vblank_on = true;
+
+	ctx->direct_vblank = true;
+
+	/*
+	 * in case of page flip request, vidi_finish_pageflip function
+	 * will not be called because direct_vblank is true and then
+	 * that function will be called by overlay_ops->commit callback
+	 */
+	schedule_work(&ctx->work);
 
 	return 0;
 }
@@ -438,7 +435,17 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	/* refresh rate is about 50Hz. */
 	usleep_range(16000, 20000);
 
-	drm_handle_vblank(subdrv->drm_dev, manager->pipe);
+	mutex_lock(&ctx->lock);
+
+	if (ctx->direct_vblank) {
+		drm_handle_vblank(subdrv->drm_dev, manager->pipe);
+		ctx->direct_vblank = false;
+		mutex_unlock(&ctx->lock);
+		return;
+	}
+
+	mutex_unlock(&ctx->lock);
+
 	vidi_finish_pageflip(subdrv->drm_dev, manager->pipe);
 }
 
@@ -466,7 +473,7 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	return 0;
 }
 
-static void vidi_subdrv_remove(struct drm_device *drm_dev)
+static void vidi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 

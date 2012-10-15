@@ -133,7 +133,7 @@ struct regmap_config {
 	enum regmap_endian val_format_endian;
 
 	const struct regmap_range_cfg *ranges;
-	unsigned int n_ranges;
+	unsigned int num_ranges;
 };
 
 /**
@@ -141,6 +141,8 @@ struct regmap_config {
  * Registers, mapped to this virtual range, are accessed in two steps:
  *     1. page selector register update;
  *     2. access through data window registers.
+ *
+ * @name: Descriptive name for diagnostics
  *
  * @range_min: Address of the lowest register address in virtual range.
  * @range_max: Address of the highest register in virtual range.
@@ -153,6 +155,8 @@ struct regmap_config {
  * @window_len: Number of registers in data window.
  */
 struct regmap_range_cfg {
+	const char *name;
+
 	/* Registers of virtual address range */
 	unsigned int range_min;
 	unsigned int range_max;
@@ -285,6 +289,7 @@ struct regmap_irq {
  * @ack_base:    Base ack address.  If zero then the chip is clear on read.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
+ * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
@@ -299,6 +304,8 @@ struct regmap_irq_chip {
 	unsigned int ack_base;
 	unsigned int wake_base;
 	unsigned int irq_reg_stride;
+	unsigned int mask_invert;
+	bool runtime_pm;
 
 	int num_regs;
 

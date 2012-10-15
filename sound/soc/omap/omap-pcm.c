@@ -32,6 +32,7 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 
+#include <plat/cpu.h>
 #include "omap-pcm.h"
 
 static const struct snd_pcm_hardware omap_pcm_hardware = {

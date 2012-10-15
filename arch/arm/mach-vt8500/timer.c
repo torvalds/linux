@@ -1,6 +1,7 @@
 /*
- *  arch/arm/mach-vt8500/timer.c
+ *  arch/arm/mach-vt8500/timer_dt.c
  *
+ *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,18 +19,25 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ * This file is copied and modified from the original timer.c provided by
+ * Alexey Charkov. Minor changes have been made for Device Tree Support.
+ */
+
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/delay.h>
-
 #include <asm/mach/time.h>
 
-#include "devices.h"
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #define VT8500_TIMER_OFFSET	0x0100
+#define VT8500_TIMER_HZ		3000000
 #define TIMER_MATCH_VAL		0x0000
 #define TIMER_COUNT_VAL		0x0010
 #define TIMER_STATUS_VAL	0x0014
@@ -39,7 +47,6 @@
 #define TIMER_COUNT_R_ACTIVE	(1 << 5)	/* not ready for read */
 #define TIMER_COUNT_W_ACTIVE	(1 << 4)	/* not ready for write */
 #define TIMER_MATCH_W_ACTIVE	(1 << 0)	/* not ready for write */
-#define VT8500_TIMER_HZ		3000000
 
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
 
@@ -55,7 +62,7 @@ static cycle_t vt8500_timer_read(struct clocksource *cs)
 	return readl(regbase + TIMER_COUNT_VAL);
 }
 
-struct clocksource clocksource = {
+static struct clocksource clocksource = {
 	.name           = "vt8500_timer",
 	.rating         = 200,
 	.read           = vt8500_timer_read,
@@ -98,7 +105,7 @@ static void vt8500_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-struct clock_event_device clockevent = {
+static struct clock_event_device clockevent = {
 	.name           = "vt8500_timer",
 	.features       = CLOCK_EVT_FEAT_ONESHOT,
 	.rating         = 200,
@@ -115,26 +122,51 @@ static irqreturn_t vt8500_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct irqaction irq = {
+static struct irqaction irq = {
 	.name    = "vt8500_timer",
 	.flags   = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = vt8500_timer_interrupt,
 	.dev_id  = &clockevent,
 };
 
-static void __init vt8500_timer_init(void)
+static struct of_device_id vt8500_timer_ids[] = {
+	{ .compatible = "via,vt8500-timer" },
+	{ }
+};
+
+void __init vt8500_timer_init(void)
 {
-	regbase = ioremap(wmt_pmc_base + VT8500_TIMER_OFFSET, 0x28);
-	if (!regbase)
-		printk(KERN_ERR "vt8500_timer_init: failed to map MMIO registers\n");
+	struct device_node *np;
+	int timer_irq;
+
+	np = of_find_matching_node(NULL, vt8500_timer_ids);
+	if (!np) {
+		pr_err("%s: Timer description missing from Device Tree\n",
+								__func__);
+		return;
+	}
+	regbase = of_iomap(np, 0);
+	if (!regbase) {
+		pr_err("%s: Missing iobase description in Device Tree\n",
+								__func__);
+		of_node_put(np);
+		return;
+	}
+	timer_irq = irq_of_parse_and_map(np, 0);
+	if (!timer_irq) {
+		pr_err("%s: Missing irq description in Device Tree\n",
+								__func__);
+		of_node_put(np);
+		return;
+	}
 
 	writel(1, regbase + TIMER_CTRL_VAL);
 	writel(0xf, regbase + TIMER_STATUS_VAL);
 	writel(~0, regbase + TIMER_MATCH_VAL);
 
 	if (clocksource_register_hz(&clocksource, VT8500_TIMER_HZ))
-		printk(KERN_ERR "vt8500_timer_init: clocksource_register failed for %s\n",
-					clocksource.name);
+		pr_err("%s: vt8500_timer_init: clocksource_register failed for %s\n",
+					__func__, clocksource.name);
 
 	clockevents_calc_mult_shift(&clockevent, VT8500_TIMER_HZ, 4);
 
@@ -144,12 +176,9 @@ static void __init vt8500_timer_init(void)
 	clockevent.min_delta_ns = clockevent_delta2ns(4, &clockevent);
 	clockevent.cpumask = cpumask_of(0);
 
-	if (setup_irq(wmt_timer_irq, &irq))
-		printk(KERN_ERR "vt8500_timer_init: setup_irq failed for %s\n",
-					clockevent.name);
+	if (setup_irq(timer_irq, &irq))
+		pr_err("%s: setup_irq failed for %s\n", __func__,
+							clockevent.name);
 	clockevents_register_device(&clockevent);
 }
 
-struct sys_timer vt8500_timer = {
-	.init = vt8500_timer_init
-};

@@ -22,20 +22,23 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
-#include "nouveau_drv.h"
+#include "nouveau_drm.h"
 #include "nouveau_pm.h"
-#include "nouveau_gpio.h"
 
-static const enum dcb_gpio_tag vidtag[] = { 0x04, 0x05, 0x06, 0x1a, 0x73 };
+#include <subdev/bios/gpio.h>
+#include <subdev/gpio.h>
+
+static const enum dcb_gpio_func_name vidtag[] = { 0x04, 0x05, 0x06, 0x1a, 0x73 };
 static int nr_vidtag = sizeof(vidtag) / sizeof(vidtag[0]);
 
 int
 nouveau_voltage_gpio_get(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
+	struct nouveau_pm_voltage *volt = &nouveau_pm(dev)->voltage;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_gpio *gpio = nouveau_gpio(device);
 	u8 vid = 0;
 	int i;
 
@@ -43,7 +46,7 @@ nouveau_voltage_gpio_get(struct drm_device *dev)
 		if (!(volt->vid_mask & (1 << i)))
 			continue;
 
-		vid |= nouveau_gpio_func_get(dev, vidtag[i]) << i;
+		vid |= gpio->get(gpio, 0, vidtag[i], 0xff) << i;
 	}
 
 	return nouveau_volt_lvl_lookup(dev, vid);
@@ -52,8 +55,9 @@ nouveau_voltage_gpio_get(struct drm_device *dev)
 int
 nouveau_voltage_gpio_set(struct drm_device *dev, int voltage)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_gpio *gpio = nouveau_gpio(device);
+	struct nouveau_pm_voltage *volt = &nouveau_pm(dev)->voltage;
 	int vid, i;
 
 	vid = nouveau_volt_vid_lookup(dev, voltage);
@@ -64,7 +68,7 @@ nouveau_voltage_gpio_set(struct drm_device *dev, int voltage)
 		if (!(volt->vid_mask & (1 << i)))
 			continue;
 
-		nouveau_gpio_func_set(dev, vidtag[i], !!(vid & (1 << i)));
+		gpio->set(gpio, 0, vidtag[i], 0xff, !!(vid & (1 << i)));
 	}
 
 	return 0;
@@ -73,8 +77,7 @@ nouveau_voltage_gpio_set(struct drm_device *dev, int voltage)
 int
 nouveau_volt_vid_lookup(struct drm_device *dev, int voltage)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
+	struct nouveau_pm_voltage *volt = &nouveau_pm(dev)->voltage;
 	int i;
 
 	for (i = 0; i < volt->nr_level; i++) {
@@ -88,8 +91,7 @@ nouveau_volt_vid_lookup(struct drm_device *dev, int voltage)
 int
 nouveau_volt_lvl_lookup(struct drm_device *dev, int vid)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
+	struct nouveau_pm_voltage *volt = &nouveau_pm(dev)->voltage;
 	int i;
 
 	for (i = 0; i < volt->nr_level; i++) {
@@ -103,10 +105,12 @@ nouveau_volt_lvl_lookup(struct drm_device *dev, int vid)
 void
 nouveau_volt_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
+	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_voltage *voltage = &pm->voltage;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nvbios *bios = &drm->vbios;
+	struct dcb_gpio_func func;
 	struct bit_entry P;
 	u8 *volt = NULL, *entry;
 	int i, headerlen, recordlen, entries, vidmask, vidshift;
@@ -121,11 +125,11 @@ nouveau_volt_init(struct drm_device *dev)
 		if (P.version == 2)
 			volt = ROMPTR(dev, P.data[12]);
 		else {
-			NV_WARN(dev, "unknown volt for BIT P %d\n", P.version);
+			NV_WARN(drm, "unknown volt for BIT P %d\n", P.version);
 		}
 	} else {
 		if (bios->data[bios->offset + 6] < 0x27) {
-			NV_DEBUG(dev, "BMP version too old for voltage\n");
+			NV_DEBUG(drm, "BMP version too old for voltage\n");
 			return;
 		}
 
@@ -133,7 +137,7 @@ nouveau_volt_init(struct drm_device *dev)
 	}
 
 	if (!volt) {
-		NV_DEBUG(dev, "voltage table pointer invalid\n");
+		NV_DEBUG(drm, "voltage table pointer invalid\n");
 		return;
 	}
 
@@ -177,7 +181,7 @@ nouveau_volt_init(struct drm_device *dev)
 		vidshift  = 0;
 		break;
 	default:
-		NV_WARN(dev, "voltage table 0x%02x unknown\n", volt[0]);
+		NV_WARN(drm, "voltage table 0x%02x unknown\n", volt[0]);
 		return;
 	}
 
@@ -189,12 +193,12 @@ nouveau_volt_init(struct drm_device *dev)
 	i = 0;
 	while (vidmask) {
 		if (i > nr_vidtag) {
-			NV_DEBUG(dev, "vid bit %d unknown\n", i);
+			NV_DEBUG(drm, "vid bit %d unknown\n", i);
 			return;
 		}
 
-		if (!nouveau_gpio_func_valid(dev, vidtag[i])) {
-			NV_DEBUG(dev, "vid bit %d has no gpio tag\n", i);
+		if (gpio && gpio->find(gpio, 0, vidtag[i], 0xff, &func)) {
+			NV_DEBUG(drm, "vid bit %d has no gpio tag\n", i);
 			return;
 		}
 
@@ -240,8 +244,7 @@ nouveau_volt_init(struct drm_device *dev)
 void
 nouveau_volt_fini(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
+	struct nouveau_pm_voltage *volt = &nouveau_pm(dev)->voltage;
 
 	kfree(volt->level);
 }

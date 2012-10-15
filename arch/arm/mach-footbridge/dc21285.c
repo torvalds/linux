@@ -276,8 +276,8 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 
 	sys->mem_offset  = DC21285_PCI_MEM;
 
-	pci_add_resource_offset(&sys->resources,
-				&ioport_resource, sys->io_offset);
+	pci_ioremap_io(0, DC21285_PCI_IO);
+
 	pci_add_resource_offset(&sys->resources, &res[0], sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
@@ -298,7 +298,7 @@ void __init dc21285_preinit(void)
 	mem_size = (unsigned int)high_memory - PAGE_OFFSET;
 	for (mem_mask = 0x00100000; mem_mask < 0x10000000; mem_mask <<= 1)
 		if (mem_mask >= mem_size)
-			break;		
+			break;
 
 	/*
 	 * These registers need to be set up whether we're the
@@ -350,14 +350,6 @@ void __init dc21285_preinit(void)
 			    "PCI data parity", NULL);
 
 	if (cfn_mode) {
-		static struct resource csrio;
-
-		csrio.flags  = IORESOURCE_IO;
-		csrio.name   = "Footbridge";
-
-		allocate_resource(&ioport_resource, &csrio, 128,
-				  0xff00, 0xffff, 128, NULL, NULL);
-
 		/*
 		 * Map our SDRAM at a known address in PCI space, just in case
 		 * the firmware had other ideas.  Using a nonzero base is
@@ -365,7 +357,7 @@ void __init dc21285_preinit(void)
 		 * in the range 0x000a0000 to 0x000c0000. (eg, S3 cards).
 		 */
 		*CSR_PCICSRBASE       = 0xf4000000;
-		*CSR_PCICSRIOBASE     = csrio.start;
+		*CSR_PCICSRIOBASE     = 0;
 		*CSR_PCISDRAMBASE     = __virt_to_bus(PAGE_OFFSET);
 		*CSR_PCIROMBASE       = 0;
 		*CSR_PCICMD = PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |

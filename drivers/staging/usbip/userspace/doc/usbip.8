@@ -3,69 +3,87 @@
 usbip \- manage USB/IP devices
 .SH SYNOPSIS
 .B usbip
-[\fIoptions\fR]
+[\foptions\R] <\fIcommand\fR> <\fIargs\fR>
 
 .SH DESCRIPTION
-Devices exported by USB/IP servers can be listed, attached and
-detached using this program.
+On a USB/IP server, devices can be listed, bound, and unbound using
+this program.  On a USB/IP client, devices exported by USB/IP servers
+can be listed, attached and detached.
 
 .SH OPTIONS
 .HP
-\fB\-a\fR, \fB\-\-attach\fR <host> <bus_id>
-.IP
-Attach a remote USB device.
-.PP
-
-.HP
-\fB\-x\fR, \fB\-\-attachall\fR <host>
-.IP
-Attach all remote USB devices on the specific host.
-.PP
-
-.HP
-\fB\-d\fR, \fB\-\-detach\fR <ports>
-.IP
-Detach an imported USB device.
-.PP
-
-.HP
-\fB\-l\fR, \fB\-\-list\fR <hosts>
-.IP
-List exported USB devices.
-.PP
-
-.HP
-\fB\-p\fR, \fB\-\-port\fR
-.IP
-List virtual USB port status.
-.PP
-
-.HP
-\fB\-D\fR, \fB\-\-debug\fR
+\fB\-\-debug\fR
 .IP
 Print debugging information.
 .PP
 
 .HP
-\fB\-v\fR, \fB\-\-version\fR
+\fB\-\-log\fR
 .IP
-Show version.
+Log to syslog.
 .PP
+
+.SH COMMANDS
+.HP
+\fBversion\fR
+.IP
+Show version and exit.
+.PP
+
+.HP
+\fBhelp\fR [\fIcommand\fR]
+.IP
+Print the program help message, or help on a specific command, and
+then exit.
+.PP
+
+.HP
+\fBattach\fR \-\-host=<\fIhost\fR> \-\-busid=<\fIbus_id\fR>
+.IP
+Attach a remote USB device.
+.PP
+
+.HP
+\fBdetach\fR \-\-port=<\fIport\fR>
+.IP
+Detach an imported USB device.
+.PP
+
+.HP
+\fBbind\fR \-\-busid=<\fIbusid\fR>
+.IP
+Make a device exportable.
+.PP
+
+.HP
+\fBunbind\fR \-\-busid=<\fIbusid\fR>
+.IP
+Stop exporting a device so it can be used by a local driver.
+.PP
+
+.HP
+\fBlist\fR \-\-remote=<\fIhost\fR>
+.IP
+List USB devices exported by a remote host.
+.PP
+
+.HP
+\fBlist\fR \-\-local
+.IP
+List local USB devices.
+.PP
+
 
 .SH EXAMPLES
 
-    client:# usbip --list server
+    client:# usbip list --remote=server
         - List exportable usb devices on the server.
 
-    client:# usbip --attach server 1-2
+    client:# usbip attach --host=server --busid=1-2
         - Connect the remote USB device.
 
-    client:# usbip --port
-        - Show virtual port status.
-
-    client:# usbip --detach 0
+    client:# usbip detach --port=0
         - Detach the usb device.
 
 .SH "SEE ALSO"
-\fBusbipd\fP\fB(8)\fB\fP,
-\fBusbip_attach_driver\fP\fB(8)\fB\fP
+\fBusbipd\fP\fB(8)\fB\fP

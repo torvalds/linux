@@ -41,6 +41,7 @@ Configuration Options:
 #include <linux/io.h>
 #include <asm/dma.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 #define DEBUG(x) x
@@ -258,7 +259,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low, hi;
 	int timeout = 50;	/* wait max 50us */
 
@@ -349,7 +350,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
 	short *ptr;
@@ -458,48 +459,23 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	      pcl816_cmdtest_out(-1, cmd);
 	     );
 
-	/* step 1: make sure trigger sources are trivially valid */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_EXT | TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
+	/* Step 2a : make sure trigger sources are unique */
 
-	/*
-	 * step 2: make sure trigger sources
-	 * are unique and mutually compatible
-	 */
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_TIMER) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1183,7 +1159,7 @@ no_dma:
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (board->n_aichan > 0) {
 		s->type = COMEDI_SUBD_AI;
 		devpriv->sub_ai = s;

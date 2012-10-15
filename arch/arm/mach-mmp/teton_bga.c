@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/i2c.h>
 
 #include <asm/mach-types.h>

@@ -24,28 +24,28 @@
 #include <mach/common.h>
 
 /* SH7367 registers */
-#define RTFRQCR    0xe6150000
-#define SYFRQCR    0xe6150004
-#define CMFRQCR    0xe61500E0
-#define VCLKCR1    0xe6150008
-#define VCLKCR2    0xe615000C
-#define VCLKCR3    0xe615001C
-#define SCLKACR    0xe6150010
-#define SCLKBCR    0xe6150014
-#define SUBUSBCKCR 0xe6158080
-#define SPUCKCR    0xe6150084
-#define MSUCKCR    0xe6150088
-#define MVI3CKCR   0xe6150090
-#define VOUCKCR    0xe6150094
-#define MFCK1CR    0xe6150098
-#define MFCK2CR    0xe615009C
-#define PLLC1CR    0xe6150028
-#define PLLC2CR    0xe615002C
-#define RTMSTPCR0  0xe6158030
-#define RTMSTPCR2  0xe6158038
-#define SYMSTPCR0  0xe6158040
-#define SYMSTPCR2  0xe6158048
-#define CMMSTPCR0  0xe615804c
+#define RTFRQCR    IOMEM(0xe6150000)
+#define SYFRQCR    IOMEM(0xe6150004)
+#define CMFRQCR    IOMEM(0xe61500E0)
+#define VCLKCR1    IOMEM(0xe6150008)
+#define VCLKCR2    IOMEM(0xe615000C)
+#define VCLKCR3    IOMEM(0xe615001C)
+#define SCLKACR    IOMEM(0xe6150010)
+#define SCLKBCR    IOMEM(0xe6150014)
+#define SUBUSBCKCR IOMEM(0xe6158080)
+#define SPUCKCR    IOMEM(0xe6150084)
+#define MSUCKCR    IOMEM(0xe6150088)
+#define MVI3CKCR   IOMEM(0xe6150090)
+#define VOUCKCR    IOMEM(0xe6150094)
+#define MFCK1CR    IOMEM(0xe6150098)
+#define MFCK2CR    IOMEM(0xe615009C)
+#define PLLC1CR    IOMEM(0xe6150028)
+#define PLLC2CR    IOMEM(0xe615002C)
+#define RTMSTPCR0  IOMEM(0xe6158030)
+#define RTMSTPCR2  IOMEM(0xe6158038)
+#define SYMSTPCR0  IOMEM(0xe6158040)
+#define SYMSTPCR2  IOMEM(0xe6158048)
+#define CMMSTPCR0  IOMEM(0xe615804c)
 
 /* Fixed 32 KHz root clock from EXTALR pin */
 static struct clk r_clk = {

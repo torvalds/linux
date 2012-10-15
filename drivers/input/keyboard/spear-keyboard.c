@@ -24,7 +24,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <plat/keyboard.h>
+#include <linux/platform_data/keyboard-spear.h>
 
 /* Keyboard Registers */
 #define MODE_CTL_REG	0x00

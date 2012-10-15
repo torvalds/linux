@@ -34,97 +34,93 @@
 #define MV_DRIVER_NAME			"mvumi"
 #define PCI_VENDOR_ID_MARVELL_2		0x1b4b
 #define PCI_DEVICE_ID_MARVELL_MV9143	0x9143
+#define PCI_DEVICE_ID_MARVELL_MV9580	0x9580
 
 #define MVUMI_INTERNAL_CMD_WAIT_TIME	45
+#define MVUMI_INQUIRY_LENGTH		44
+#define MVUMI_INQUIRY_UUID_OFF		36
+#define MVUMI_INQUIRY_UUID_LEN		8
 
 #define IS_DMA64			(sizeof(dma_addr_t) == 8)
 
 enum mvumi_qc_result {
-	MV_QUEUE_COMMAND_RESULT_SENT	= 0,
+	MV_QUEUE_COMMAND_RESULT_SENT = 0,
 	MV_QUEUE_COMMAND_RESULT_NO_RESOURCE,
 };
 
+struct mvumi_hw_regs {
+	/* For CPU */
+	void *main_int_cause_reg;
+	void *enpointa_mask_reg;
+	void *enpointb_mask_reg;
+	void *rstoutn_en_reg;
+	void *ctrl_sts_reg;
+	void *rstoutn_mask_reg;
+	void *sys_soft_rst_reg;
+
+	/* For Doorbell */
+	void *pciea_to_arm_drbl_reg;
+	void *arm_to_pciea_drbl_reg;
+	void *arm_to_pciea_mask_reg;
+	void *pciea_to_arm_msg0;
+	void *pciea_to_arm_msg1;
+	void *arm_to_pciea_msg0;
+	void *arm_to_pciea_msg1;
+
+	/* reset register */
+	void *reset_request;
+	void *reset_enable;
+
+	/* For Message Unit */
+	void *inb_list_basel;
+	void *inb_list_baseh;
+	void *inb_aval_count_basel;
+	void *inb_aval_count_baseh;
+	void *inb_write_pointer;
+	void *inb_read_pointer;
+	void *outb_list_basel;
+	void *outb_list_baseh;
+	void *outb_copy_basel;
+	void *outb_copy_baseh;
+	void *outb_copy_pointer;
+	void *outb_read_pointer;
+	void *inb_isr_cause;
+	void *outb_isr_cause;
+	void *outb_coal_cfg;
+	void *outb_coal_timeout;
+
+	/* Bit setting for HW */
+	u32 int_comaout;
+	u32 int_comaerr;
+	u32 int_dl_cpu2pciea;
+	u32 int_mu;
+	u32 int_drbl_int_mask;
+	u32 int_main_int_mask;
+	u32 cl_pointer_toggle;
+	u32 cl_slot_num_mask;
+	u32 clic_irq;
+	u32 clic_in_err;
+	u32 clic_out_err;
+};
+
+struct mvumi_dyn_list_entry {
+	u32 src_low_addr;
+	u32 src_high_addr;
+	u32 if_length;
+	u32 reserve;
+};
+
+#define SCSI_CMD_MARVELL_SPECIFIC	0xE1
+#define CDB_CORE_MODULE			0x1
+#define CDB_CORE_SHUTDOWN		0xB
+
 enum {
-	/*******************************************/
-
-	/* ARM Mbus Registers Map	*/
-
-	/*******************************************/
-	CPU_MAIN_INT_CAUSE_REG	= 0x20200,
-	CPU_MAIN_IRQ_MASK_REG	= 0x20204,
-	CPU_MAIN_FIQ_MASK_REG	= 0x20208,
-	CPU_ENPOINTA_MASK_REG	= 0x2020C,
-	CPU_ENPOINTB_MASK_REG	= 0x20210,
-
-	INT_MAP_COMAERR		= 1 << 6,
-	INT_MAP_COMAIN		= 1 << 7,
-	INT_MAP_COMAOUT		= 1 << 8,
-	INT_MAP_COMBERR		= 1 << 9,
-	INT_MAP_COMBIN		= 1 << 10,
-	INT_MAP_COMBOUT		= 1 << 11,
-
-	INT_MAP_COMAINT	= (INT_MAP_COMAOUT | INT_MAP_COMAERR),
-	INT_MAP_COMBINT	= (INT_MAP_COMBOUT | INT_MAP_COMBIN | INT_MAP_COMBERR),
-
-	INT_MAP_DL_PCIEA2CPU	= 1 << 0,
-	INT_MAP_DL_CPU2PCIEA	= 1 << 1,
-
-	/***************************************/
-
-	/* ARM Doorbell Registers Map		*/
-
-	/***************************************/
-	CPU_PCIEA_TO_ARM_DRBL_REG	= 0x20400,
-	CPU_PCIEA_TO_ARM_MASK_REG	= 0x20404,
-	CPU_ARM_TO_PCIEA_DRBL_REG	= 0x20408,
-	CPU_ARM_TO_PCIEA_MASK_REG	= 0x2040C,
-
 	DRBL_HANDSHAKE			= 1 << 0,
 	DRBL_SOFT_RESET			= 1 << 1,
 	DRBL_BUS_CHANGE			= 1 << 2,
 	DRBL_EVENT_NOTIFY		= 1 << 3,
 	DRBL_MU_RESET			= 1 << 4,
 	DRBL_HANDSHAKE_ISR		= DRBL_HANDSHAKE,
-
-	CPU_PCIEA_TO_ARM_MSG0		= 0x20430,
-	CPU_PCIEA_TO_ARM_MSG1		= 0x20434,
-	CPU_ARM_TO_PCIEA_MSG0		= 0x20438,
-	CPU_ARM_TO_PCIEA_MSG1		= 0x2043C,
-
-	/*******************************************/
-
-	/* ARM Communication List Registers Map    */
-
-	/*******************************************/
-	CLA_INB_LIST_BASEL		= 0x500,
-	CLA_INB_LIST_BASEH		= 0x504,
-	CLA_INB_AVAL_COUNT_BASEL	= 0x508,
-	CLA_INB_AVAL_COUNT_BASEH	= 0x50C,
-	CLA_INB_DESTI_LIST_BASEL	= 0x510,
-	CLA_INB_DESTI_LIST_BASEH	= 0x514,
-	CLA_INB_WRITE_POINTER		= 0x518,
-	CLA_INB_READ_POINTER		= 0x51C,
-
-	CLA_OUTB_LIST_BASEL		= 0x530,
-	CLA_OUTB_LIST_BASEH		= 0x534,
-	CLA_OUTB_SOURCE_LIST_BASEL	= 0x538,
-	CLA_OUTB_SOURCE_LIST_BASEH	= 0x53C,
-	CLA_OUTB_COPY_POINTER		= 0x544,
-	CLA_OUTB_READ_POINTER		= 0x548,
-
-	CLA_ISR_CAUSE			= 0x560,
-	CLA_ISR_MASK			= 0x564,
-
-	INT_MAP_MU		= (INT_MAP_DL_CPU2PCIEA | INT_MAP_COMAINT),
-
-	CL_POINTER_TOGGLE		= 1 << 12,
-
-	CLIC_IN_IRQ			= 1 << 0,
-	CLIC_OUT_IRQ			= 1 << 1,
-	CLIC_IN_ERR_IRQ			= 1 << 8,
-	CLIC_OUT_ERR_IRQ		= 1 << 12,
-
-	CL_SLOT_NUM_MASK		= 0xFFF,
 
 	/*
 	* Command flag is the flag for the CDB command itself
@@ -137,14 +133,22 @@ enum {
 	CMD_FLAG_DATA_IN		= 1 << 3,
 	/* 1-host write data */
 	CMD_FLAG_DATA_OUT		= 1 << 4,
-
-	SCSI_CMD_MARVELL_SPECIFIC	= 0xE1,
-	CDB_CORE_SHUTDOWN		= 0xB,
+	CMD_FLAG_PRDT_IN_HOST		= 1 << 5,
 };
 
 #define APICDB0_EVENT			0xF4
 #define APICDB1_EVENT_GETEVENT		0
+#define APICDB1_HOST_GETEVENT		1
 #define MAX_EVENTS_RETURNED		6
+
+#define DEVICE_OFFLINE	0
+#define DEVICE_ONLINE	1
+
+struct mvumi_hotplug_event {
+	u16 size;
+	u8 dummy[2];
+	u8 bitmap[0];
+};
 
 struct mvumi_driver_event {
 	u32	time_stamp;
@@ -172,8 +176,14 @@ struct mvumi_events_wq {
 	void *param;
 };
 
+#define HS_CAPABILITY_SUPPORT_COMPACT_SG	(1U << 4)
+#define HS_CAPABILITY_SUPPORT_PRD_HOST		(1U << 5)
+#define HS_CAPABILITY_SUPPORT_DYN_SRC		(1U << 6)
+#define HS_CAPABILITY_NEW_PAGE_IO_DEPTH_DEF	(1U << 14)
+
 #define MVUMI_MAX_SG_ENTRY	32
 #define SGD_EOT			(1L << 27)
+#define SGD_EOT_CP		(1L << 22)
 
 struct mvumi_sgl {
 	u32	baseaddr_l;
@@ -181,6 +191,39 @@ struct mvumi_sgl {
 	u32	flags;
 	u32	size;
 };
+struct mvumi_compact_sgl {
+	u32	baseaddr_l;
+	u32	baseaddr_h;
+	u32	flags;
+};
+
+#define GET_COMPACT_SGD_SIZE(sgd)	\
+	((((struct mvumi_compact_sgl *)(sgd))->flags) & 0x3FFFFFL)
+
+#define SET_COMPACT_SGD_SIZE(sgd, sz) do {			\
+	(((struct mvumi_compact_sgl *)(sgd))->flags) &= ~0x3FFFFFL;	\
+	(((struct mvumi_compact_sgl *)(sgd))->flags) |= (sz);		\
+} while (0)
+#define sgd_getsz(_mhba, sgd, sz) do {				\
+	if (_mhba->hba_capability & HS_CAPABILITY_SUPPORT_COMPACT_SG)	\
+		(sz) = GET_COMPACT_SGD_SIZE(sgd);	\
+	else \
+		(sz) = (sgd)->size;			\
+} while (0)
+
+#define sgd_setsz(_mhba, sgd, sz) do {				\
+	if (_mhba->hba_capability & HS_CAPABILITY_SUPPORT_COMPACT_SG)	\
+		SET_COMPACT_SGD_SIZE(sgd, sz);		\
+	else \
+		(sgd)->size = (sz);			\
+} while (0)
+
+#define sgd_inc(_mhba, sgd) do {	\
+	if (_mhba->hba_capability & HS_CAPABILITY_SUPPORT_COMPACT_SG)	\
+		sgd = (struct mvumi_sgl *)(((unsigned char *) (sgd)) + 12); \
+	else \
+		sgd = (struct mvumi_sgl *)(((unsigned char *) (sgd)) + 16); \
+} while (0)
 
 struct mvumi_res {
 	struct list_head entry;
@@ -197,7 +240,7 @@ enum resource_type {
 };
 
 struct mvumi_sense_data {
-	u8 error_eode:7;
+	u8 error_code:7;
 	u8 valid:1;
 	u8 segment_number;
 	u8 sense_key:4;
@@ -220,6 +263,7 @@ struct mvumi_sense_data {
 struct mvumi_cmd {
 	struct list_head queue_pointer;
 	struct mvumi_msg_frame *frame;
+	dma_addr_t frame_phys;
 	struct scsi_cmnd *scmd;
 	atomic_t sync_cmd;
 	void *data_buf;
@@ -393,7 +437,8 @@ struct mvumi_hs_page2 {
 	u16 frame_length;
 
 	u8 host_type;
-	u8 reserved[3];
+	u8 host_cap;
+	u8 reserved[2];
 	struct version_info host_ver;
 	u32 system_io_bus;
 	u32 slot_number;
@@ -435,8 +480,17 @@ struct mvumi_tag {
 	unsigned short size;
 };
 
+struct mvumi_device {
+	struct list_head list;
+	struct scsi_device *sdev;
+	u64	wwid;
+	u8	dev_type;
+	int	id;
+};
+
 struct mvumi_hba {
 	void *base_addr[MAX_BASE_ADDRESS];
+	u32 pci_base[MAX_BASE_ADDRESS];
 	void *mmio;
 	struct list_head cmd_pool;
 	struct Scsi_Host *shost;
@@ -448,6 +502,9 @@ struct mvumi_hba {
 
 	void *ib_list;
 	dma_addr_t ib_list_phys;
+
+	void *ib_frame;
+	dma_addr_t ib_frame_phys;
 
 	void *ob_list;
 	dma_addr_t ob_list_phys;
@@ -477,12 +534,14 @@ struct mvumi_hba {
 	unsigned char hba_total_pages;
 	unsigned char fw_flag;
 	unsigned char request_id_enabled;
+	unsigned char eot_flag;
 	unsigned short hba_capability;
 	unsigned short io_seq;
 
 	unsigned int ib_cur_slot;
 	unsigned int ob_cur_slot;
 	unsigned int fw_state;
+	struct mutex sas_discovery_mutex;
 
 	struct list_head ob_data_list;
 	struct list_head free_ob_list;
@@ -491,14 +550,24 @@ struct mvumi_hba {
 
 	struct mvumi_tag tag_pool;
 	struct mvumi_cmd **tag_cmd;
+	struct mvumi_hw_regs *regs;
+	struct mutex device_lock;
+	struct list_head mhba_dev_list;
+	struct list_head shost_dev_list;
+	struct task_struct *dm_thread;
+	atomic_t pnp_count;
 };
 
 struct mvumi_instance_template {
-	void (*fire_cmd)(struct mvumi_hba *, struct mvumi_cmd *);
-	void (*enable_intr)(void *) ;
-	void (*disable_intr)(void *);
-	int (*clear_intr)(void *);
-	unsigned int (*read_fw_status_reg)(void *);
+	void (*fire_cmd) (struct mvumi_hba *, struct mvumi_cmd *);
+	void (*enable_intr) (struct mvumi_hba *);
+	void (*disable_intr) (struct mvumi_hba *);
+	int (*clear_intr) (void *);
+	unsigned int (*read_fw_status_reg) (struct mvumi_hba *);
+	unsigned int (*check_ib_list) (struct mvumi_hba *);
+	int (*check_ob_list) (struct mvumi_hba *, unsigned int *,
+			      unsigned int *);
+	int (*reset_host) (struct mvumi_hba *);
 };
 
 extern struct timezone sys_tz;

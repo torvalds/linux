@@ -3,7 +3,7 @@
  * for access to MPT (Message Passing Technology) firmware.
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.c
- * Copyright (C) 2007-2010  LSI Corporation
+ * Copyright (C) 2007-2012  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -1209,6 +1209,13 @@ _base_check_enable_msix(struct MPT2SAS_ADAPTER *ioc)
 	u16 message_control;
 
 
+	/* Check whether controller SAS2008 B0 controller,
+	   if it is SAS2008 B0 controller use IO-APIC instead of MSIX */
+	if (ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2008 &&
+	    ioc->pdev->revision == 0x01) {
+		return -EINVAL;
+	}
+
 	base = pci_find_capability(ioc->pdev, PCI_CAP_ID_MSIX);
 	if (!base) {
 		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "msix not "
@@ -1971,9 +1978,9 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 			    MPT2SAS_INTEL_RMS2LL040_BRANDING);
 			break;
-		case MPT2SAS_INTEL_RAMSDALE_SSDID:
+		case MPT2SAS_INTEL_SSD910_SSDID:
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
-			    MPT2SAS_INTEL_RAMSDALE_BRANDING);
+			    MPT2SAS_INTEL_SSD910_BRANDING);
 			break;
 		default:
 			break;

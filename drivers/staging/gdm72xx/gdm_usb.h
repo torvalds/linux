@@ -18,8 +18,8 @@
 #include <linux/usb.h>
 #include <linux/list.h>
 
-#define B_DIFF_DL_DRV		(1<<4)
-#define B_DOWNLOAD			(1 << 5)
+#define B_DIFF_DL_DRV		(1 << 4)
+#define B_DOWNLOAD		(1 << 5)
 #define MAX_NR_SDU_BUF		64
 
 struct usb_tx {
@@ -29,7 +29,7 @@ struct usb_tx {
 #endif
 	struct tx_cxt		*tx_cxt;
 
-	struct urb	*urb;
+	struct urb		*urb;
 	u8			*buf;
 
 	void (*callback)(void *cb_data);
@@ -44,14 +44,14 @@ struct tx_cxt {
 	struct list_head	pending_list;
 #endif
 
-	spinlock_t			lock;
+	spinlock_t		lock;
 };
 
 struct usb_rx {
 	struct list_head	list;
 	struct rx_cxt		*rx_cxt;
 
-	struct urb	*urb;
+	struct urb		*urb;
 	u8			*buf;
 
 	void (*callback)(void *cb_data, void *data, int len);
@@ -61,7 +61,7 @@ struct usb_rx {
 struct rx_cxt {
 	struct list_head	free_list;
 	struct list_head	used_list;
-	spinlock_t			lock;
+	spinlock_t		lock;
 };
 
 struct usbwm_dev {
@@ -76,8 +76,8 @@ struct usbwm_dev {
 	struct list_head	list;
 #endif
 
-	struct tx_cxt	tx;
-	struct rx_cxt	rx;
+	struct tx_cxt		tx;
+	struct rx_cxt		rx;
 
 	int padding;
 };

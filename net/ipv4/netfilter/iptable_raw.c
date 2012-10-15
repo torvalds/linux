@@ -48,9 +48,7 @@ static int __net_init iptable_raw_net_init(struct net *net)
 	net->ipv4.iptable_raw =
 		ipt_register_table(net, &packet_raw, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv4.iptable_raw))
-		return PTR_ERR(net->ipv4.iptable_raw);
-	return 0;
+	return PTR_RET(net->ipv4.iptable_raw);
 }
 
 static void __net_exit iptable_raw_net_exit(struct net *net)
@@ -75,13 +73,9 @@ static int __init iptable_raw_init(void)
 	rawtable_ops = xt_hook_link(&packet_raw, iptable_raw_hook);
 	if (IS_ERR(rawtable_ops)) {
 		ret = PTR_ERR(rawtable_ops);
-		goto cleanup_table;
+		unregister_pernet_subsys(&iptable_raw_net_ops);
 	}
 
-	return ret;
-
- cleanup_table:
-	unregister_pernet_subsys(&iptable_raw_net_ops);
 	return ret;
 }
 

@@ -60,6 +60,7 @@ enum regulator_status {
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
+ *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  *
  * @set_mode: Set the configured operating mode for the regulator.
@@ -232,7 +233,8 @@ struct regulator_desc {
  * @driver_data: private regulator data
  * @of_node: OpenFirmware node to parse for device tree bindings (may be
  *           NULL).
- * @regmap: regmap to use for core regmap helpers
+ * @regmap: regmap to use for core regmap helpers if dev_get_regulator() is
+ *          insufficient.
  * @ena_gpio: GPIO controlling regulator enable.
  * @ena_gpio_invert: Sense for GPIO enable control.
  * @ena_gpio_flags: Flags to use when calling gpio_request_one()

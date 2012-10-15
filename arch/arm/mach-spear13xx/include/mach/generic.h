@@ -33,6 +33,9 @@ void __init spear13xx_l2x0_init(void);
 bool dw_dma_filter(struct dma_chan *chan, void *slave);
 void spear_restart(char, const char *);
 void spear13xx_secondary_startup(void);
+void __cpuinit spear13xx_cpu_die(unsigned int cpu);
+
+extern struct smp_operations spear13xx_smp_ops;
 
 #ifdef CONFIG_MACH_SPEAR1310
 void __init spear1310_clk_init(void);

@@ -826,7 +826,7 @@ static int __init mmtimer_init(void)
 
 	/* Allocate list of node ptrs to mmtimer_t's */
 	timers = kzalloc(sizeof(struct mmtimer_node)*maxn, GFP_KERNEL);
-	if (timers == NULL) {
+	if (!timers) {
 		printk(KERN_ERR "%s: failed to allocate memory for device\n",
 				MMTIMER_NAME);
 		goto out3;
@@ -848,7 +848,6 @@ static int __init mmtimer_init(void)
 	return 0;
 
 out3:
-	kfree(timers);
 	misc_deregister(&mmtimer_miscdev);
 out2:
 	free_irq(SGI_MMTIMER_VECTOR, NULL);

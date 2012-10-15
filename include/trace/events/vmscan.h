@@ -8,7 +8,7 @@
 #include <linux/tracepoint.h>
 #include <linux/mm.h>
 #include <linux/memcontrol.h>
-#include "gfpflags.h"
+#include <trace/events/gfpflags.h>
 
 #define RECLAIM_WB_ANON		0x0001u
 #define RECLAIM_WB_FILE		0x0002u

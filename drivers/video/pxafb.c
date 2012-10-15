@@ -61,7 +61,7 @@
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <mach/bitfield.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 /*
  * Complain if VAR is out of range.

@@ -734,6 +734,26 @@ static struct platform_device mpdma0_device = {
 	},
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= gic_spi(55),
+		.end	= gic_spi(55),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= gic_spi(56),
+		.end	= gic_spi(56),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name		= "arm-pmu",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pmu_resources),
+	.resource	= pmu_resources,
+};
+
 static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -757,9 +777,10 @@ static struct platform_device *sh73a0_late_devices[] __initdata = {
 	&i2c4_device,
 	&dma0_device,
 	&mpdma0_device,
+	&pmu_device,
 };
 
-#define SRCR2          0xe61580b0
+#define SRCR2          IOMEM(0xe61580b0)
 
 void __init sh73a0_add_standard_devices(void)
 {

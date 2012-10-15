@@ -116,7 +116,8 @@ do {							\
 } while (0)
 
 #ifdef __KERNEL__
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX_32BIT)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
 #endif
 
 #endif /* __uClinux__ */

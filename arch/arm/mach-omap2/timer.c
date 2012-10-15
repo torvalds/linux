@@ -36,16 +36,20 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <asm/mach/time.h>
-#include <plat/dmtimer.h>
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
-#include "common.h"
+
+#include <asm/arch_timer.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/dmtimer.h>
 #include <plat/omap-pm.h>
 
+#include "soc.h"
+#include "common.h"
 #include "powerdomain.h"
 
 /* Parent clocks, eventually these will come from the clock framework */
@@ -68,6 +72,11 @@
 #define OMAP4_CLKEV_SOURCE	OMAP4_MPU_SOURCE
 #define OMAP3_SECURE_TIMER	1
 #endif
+
+#define REALTIME_COUNTER_BASE				0x48243200
+#define INCREMENTER_NUMERATOR_OFFSET			0x10
+#define INCREMENTER_DENUMERATOR_RELOAD_OFFSET		0x14
+#define NUMERATOR_DENUMERATOR_MASK			0xfffff000
 
 /* Clockevent code */
 
@@ -211,7 +220,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
 	BUG_ON(res);
 
-	omap2_gp_timer_irq.dev_id = (void *)&clkev;
+	omap2_gp_timer_irq.dev_id = &clkev;
 	setup_irq(clkev.irq, &omap2_gp_timer_irq);
 
 	__omap_dm_timer_int_enable(&clkev, OMAP_TIMER_INT_OVERFLOW);
@@ -346,6 +355,84 @@ static void __init omap2_clocksource_init(int gptimer_id,
 		omap2_gptimer_clocksource_init(gptimer_id, fck_source);
 }
 
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
+/*
+ * The realtime counter also called master counter, is a free-running
+ * counter, which is related to real time. It produces the count used
+ * by the CPU local timer peripherals in the MPU cluster. The timer counts
+ * at a rate of 6.144 MHz. Because the device operates on different clocks
+ * in different power modes, the master counter shifts operation between
+ * clocks, adjusting the increment per clock in hardware accordingly to
+ * maintain a constant count rate.
+ */
+static void __init realtime_counter_init(void)
+{
+	void __iomem *base;
+	static struct clk *sys_clk;
+	unsigned long rate;
+	unsigned int reg, num, den;
+
+	base = ioremap(REALTIME_COUNTER_BASE, SZ_32);
+	if (!base) {
+		pr_err("%s: ioremap failed\n", __func__);
+		return;
+	}
+	sys_clk = clk_get(NULL, "sys_clkin_ck");
+	if (IS_ERR(sys_clk)) {
+		pr_err("%s: failed to get system clock handle\n", __func__);
+		iounmap(base);
+		return;
+	}
+
+	rate = clk_get_rate(sys_clk);
+	/* Numerator/denumerator values refer TRM Realtime Counter section */
+	switch (rate) {
+	case 1200000:
+		num = 64;
+		den = 125;
+		break;
+	case 1300000:
+		num = 768;
+		den = 1625;
+		break;
+	case 19200000:
+		num = 8;
+		den = 25;
+		break;
+	case 2600000:
+		num = 384;
+		den = 1625;
+		break;
+	case 2700000:
+		num = 256;
+		den = 1125;
+		break;
+	case 38400000:
+	default:
+		/* Program it for 38.4 MHz */
+		num = 4;
+		den = 25;
+		break;
+	}
+
+	/* Program numerator and denumerator registers */
+	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+			NUMERATOR_DENUMERATOR_MASK;
+	reg |= num;
+	__raw_writel(reg, base + INCREMENTER_NUMERATOR_OFFSET);
+
+	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+			NUMERATOR_DENUMERATOR_MASK;
+	reg |= den;
+	__raw_writel(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+
+	iounmap(base);
+}
+#else
+static inline void __init realtime_counter_init(void)
+{}
+#endif
+
 #define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src,			\
 				clksrc_nr, clksrc_src)			\
 static void __init omap##name##_timer_init(void)			\
@@ -380,8 +467,7 @@ OMAP_SYS_TIMER(3_am33xx)
 #ifdef CONFIG_ARCH_OMAP4
 #ifdef CONFIG_LOCAL_TIMERS
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
-			      OMAP44XX_LOCAL_TWD_BASE,
-			      OMAP44XX_IRQ_LOCALTIMER);
+			      OMAP44XX_LOCAL_TWD_BASE, 29 + OMAP_INTC_START);
 #endif
 
 static void __init omap4_timer_init(void)
@@ -393,6 +479,11 @@ static void __init omap4_timer_init(void)
 	if (omap_rev() != OMAP4430_REV_ES1_0) {
 		int err;
 
+		if (of_have_populated_dt()) {
+			twd_local_timer_of_register();
+			return;
+		}
+
 		err = twd_local_timer_register(&twd_local_timer);
 		if (err)
 			pr_err("twd_local_timer_register failed %d\n", err);
@@ -403,7 +494,18 @@ OMAP_SYS_TIMER(4)
 #endif
 
 #ifdef CONFIG_SOC_OMAP5
-OMAP_SYS_TIMER_INIT(5, 1, OMAP4_CLKEV_SOURCE, 2, OMAP4_MPU_SOURCE)
+static void __init omap5_timer_init(void)
+{
+	int err;
+
+	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
+	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
+	realtime_counter_init();
+
+	err = arch_timer_of_register();
+	if (err)
+		pr_err("%s: arch_timer_register failed %d\n", __func__, err);
+}
 OMAP_SYS_TIMER(5)
 #endif
 

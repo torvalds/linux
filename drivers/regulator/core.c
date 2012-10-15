@@ -803,6 +803,9 @@ static void print_constraints(struct regulator_dev *rdev)
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
 		count += sprintf(buf + count, "standby");
 
+	if (!count)
+		sprintf(buf, "no parameters");
+
 	rdev_info(rdev, "%s\n", buf);
 
 	if ((constraints->min_uV != constraints->max_uV) &&
@@ -999,6 +1002,7 @@ static int set_supply(struct regulator_dev *rdev,
 		err = -ENOMEM;
 		return err;
 	}
+	supply_rdev->open_count++;
 
 	return 0;
 }
@@ -1745,6 +1749,9 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 	if (regulator->always_on)
 		return 0;
 
+	if (!ms)
+		return regulator_disable(regulator);
+
 	mutex_lock(&rdev->mutex);
 	rdev->deferred_disables++;
 	mutex_unlock(&rdev->mutex);
@@ -2203,9 +2210,12 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		}
 	}
 
-	if (ret == 0 && best_val >= 0)
+	if (ret == 0 && best_val >= 0) {
+		unsigned long data = best_val;
+
 		_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE,
-				     (void *)best_val);
+				     (void *)data);
+	}
 
 	trace_regulator_set_voltage_complete(rdev_get_name(rdev), best_val);
 
@@ -2316,8 +2326,8 @@ int regulator_set_voltage_time(struct regulator *regulator,
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time);
 
 /**
- *regulator_set_voltage_time_sel - get raise/fall time
- * @regulator: regulator source
+ * regulator_set_voltage_time_sel - get raise/fall time
+ * @rdev: regulator source device
  * @old_selector: selector for starting voltage
  * @new_selector: selector for target voltage
  *
@@ -2413,6 +2423,8 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		ret = rdev->desc->ops->list_voltage(rdev, sel);
 	} else if (rdev->desc->ops->get_voltage) {
 		ret = rdev->desc->ops->get_voltage(rdev);
+	} else if (rdev->desc->ops->list_voltage) {
+		ret = rdev->desc->ops->list_voltage(rdev, 0);
 	} else {
 		return -EINVAL;
 	}
@@ -3130,7 +3142,8 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 
 	/* some attributes need specific methods to be displayed */
 	if ((ops->get_voltage && ops->get_voltage(rdev) >= 0) ||
-	    (ops->get_voltage_sel && ops->get_voltage_sel(rdev) >= 0)) {
+	    (ops->get_voltage_sel && ops->get_voltage_sel(rdev) >= 0) ||
+	    (ops->list_voltage && ops->list_voltage(rdev, 0) >= 0)) {
 		status = device_create_file(dev, &dev_attr_microvolts);
 		if (status < 0)
 			return status;
@@ -3315,8 +3328,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	rdev->desc = regulator_desc;
 	if (config->regmap)
 		rdev->regmap = config->regmap;
-	else
+	else if (dev_get_regmap(dev, NULL))
 		rdev->regmap = dev_get_regmap(dev, NULL);
+	else if (dev->parent)
+		rdev->regmap = dev_get_regmap(dev->parent, NULL);
 	INIT_LIST_HEAD(&rdev->consumer_list);
 	INIT_LIST_HEAD(&rdev->list);
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
@@ -3461,7 +3476,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 		regulator_put(rdev->supply);
 	mutex_lock(&regulator_list_mutex);
 	debugfs_remove_recursive(rdev->debugfs);
-	flush_work_sync(&rdev->disable_work.work);
+	flush_work(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);

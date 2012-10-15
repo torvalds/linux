@@ -281,15 +281,42 @@ static inline unsigned long fat_hash(loff_t i_pos)
 	return hash_32(i_pos, FAT_HASH_BITS);
 }
 
+static void dir_hash_init(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	int i;
+
+	spin_lock_init(&sbi->dir_hash_lock);
+	for (i = 0; i < FAT_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&sbi->dir_hashtable[i]);
+}
+
 void fat_attach(struct inode *inode, loff_t i_pos)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
-	struct hlist_head *head = sbi->inode_hashtable + fat_hash(i_pos);
 
-	spin_lock(&sbi->inode_hash_lock);
-	MSDOS_I(inode)->i_pos = i_pos;
-	hlist_add_head(&MSDOS_I(inode)->i_fat_hash, head);
-	spin_unlock(&sbi->inode_hash_lock);
+	if (inode->i_ino != MSDOS_ROOT_INO) {
+		struct hlist_head *head =   sbi->inode_hashtable
+					  + fat_hash(i_pos);
+
+		spin_lock(&sbi->inode_hash_lock);
+		MSDOS_I(inode)->i_pos = i_pos;
+		hlist_add_head(&MSDOS_I(inode)->i_fat_hash, head);
+		spin_unlock(&sbi->inode_hash_lock);
+	}
+
+	/* If NFS support is enabled, cache the mapping of start cluster
+	 * to directory inode. This is used during reconnection of
+	 * dentries to the filesystem root.
+	 */
+	if (S_ISDIR(inode->i_mode) && sbi->options.nfs) {
+		struct hlist_head *d_head = sbi->dir_hashtable;
+		d_head += fat_dir_hash(MSDOS_I(inode)->i_logstart);
+
+		spin_lock(&sbi->dir_hash_lock);
+		hlist_add_head(&MSDOS_I(inode)->i_dir_hash, d_head);
+		spin_unlock(&sbi->dir_hash_lock);
+	}
 }
 EXPORT_SYMBOL_GPL(fat_attach);
 
@@ -300,6 +327,12 @@ void fat_detach(struct inode *inode)
 	MSDOS_I(inode)->i_pos = 0;
 	hlist_del_init(&MSDOS_I(inode)->i_fat_hash);
 	spin_unlock(&sbi->inode_hash_lock);
+
+	if (S_ISDIR(inode->i_mode) && sbi->options.nfs) {
+		spin_lock(&sbi->dir_hash_lock);
+		hlist_del_init(&MSDOS_I(inode)->i_dir_hash);
+		spin_unlock(&sbi->dir_hash_lock);
+	}
 }
 EXPORT_SYMBOL_GPL(fat_detach);
 
@@ -504,6 +537,7 @@ static void init_once(void *foo)
 	ei->cache_valid_id = FAT_CACHE_VALID + 1;
 	INIT_LIST_HEAD(&ei->cache_lru);
 	INIT_HLIST_NODE(&ei->i_fat_hash);
+	INIT_HLIST_NODE(&ei->i_dir_hash);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -521,6 +555,11 @@ static int __init fat_init_inodecache(void)
 
 static void __exit fat_destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(fat_inode_cachep);
 }
 
@@ -634,9 +673,9 @@ static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (inode->i_ino == MSDOS_FSINFO_INO) {
 		struct super_block *sb = inode->i_sb;
 
-		lock_super(sb);
+		mutex_lock(&MSDOS_SB(sb)->s_lock);
 		err = fat_clusters_flush(sb);
-		unlock_super(sb);
+		mutex_unlock(&MSDOS_SB(sb)->s_lock);
 	} else
 		err = __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 
@@ -663,125 +702,9 @@ static const struct super_operations fat_sops = {
 	.show_options	= fat_show_options,
 };
 
-/*
- * a FAT file handle with fhtype 3 is
- *  0/  i_ino - for fast, reliable lookup if still in the cache
- *  1/  i_generation - to see if i_ino is still valid
- *          bit 0 == 0 iff directory
- *  2/  i_pos(8-39) - if ino has changed, but still in cache
- *  3/  i_pos(4-7)|i_logstart - to semi-verify inode found at i_pos
- *  4/  i_pos(0-3)|parent->i_logstart - maybe used to hunt for the file on disc
- *
- * Hack for NFSv2: Maximum FAT entry number is 28bits and maximum
- * i_pos is 40bits (blocknr(32) + dir offset(8)), so two 4bits
- * of i_logstart is used to store the directory entry offset.
- */
-
-static struct dentry *fat_fh_to_dentry(struct super_block *sb,
-		struct fid *fid, int fh_len, int fh_type)
-{
-	struct inode *inode = NULL;
-	u32 *fh = fid->raw;
-
-	if (fh_len < 5 || fh_type != 3)
-		return NULL;
-
-	inode = ilookup(sb, fh[0]);
-	if (!inode || inode->i_generation != fh[1]) {
-		if (inode)
-			iput(inode);
-		inode = NULL;
-	}
-	if (!inode) {
-		loff_t i_pos;
-		int i_logstart = fh[3] & 0x0fffffff;
-
-		i_pos = (loff_t)fh[2] << 8;
-		i_pos |= ((fh[3] >> 24) & 0xf0) | (fh[4] >> 28);
-
-		/* try 2 - see if i_pos is in F-d-c
-		 * require i_logstart to be the same
-		 * Will fail if you truncate and then re-write
-		 */
-
-		inode = fat_iget(sb, i_pos);
-		if (inode && MSDOS_I(inode)->i_logstart != i_logstart) {
-			iput(inode);
-			inode = NULL;
-		}
-	}
-
-	/*
-	 * For now, do nothing if the inode is not found.
-	 *
-	 * What we could do is:
-	 *
-	 *	- follow the file starting at fh[4], and record the ".." entry,
-	 *	  and the name of the fh[2] entry.
-	 *	- then follow the ".." file finding the next step up.
-	 *
-	 * This way we build a path to the root of the tree. If this works, we
-	 * lookup the path and so get this inode into the cache.  Finally try
-	 * the fat_iget lookup again.  If that fails, then we are totally out
-	 * of luck.  But all that is for another day
-	 */
-	return d_obtain_alias(inode);
-}
-
-static int
-fat_encode_fh(struct inode *inode, __u32 *fh, int *lenp, struct inode *parent)
-{
-	int len = *lenp;
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
-	loff_t i_pos;
-
-	if (len < 5) {
-		*lenp = 5;
-		return 255; /* no room */
-	}
-
-	i_pos = fat_i_pos_read(sbi, inode);
-	*lenp = 5;
-	fh[0] = inode->i_ino;
-	fh[1] = inode->i_generation;
-	fh[2] = i_pos >> 8;
-	fh[3] = ((i_pos & 0xf0) << 24) | MSDOS_I(inode)->i_logstart;
-	fh[4] = (i_pos & 0x0f) << 28;
-	if (parent)
-		fh[4] |= MSDOS_I(parent)->i_logstart;
-	return 3;
-}
-
-static struct dentry *fat_get_parent(struct dentry *child)
-{
-	struct super_block *sb = child->d_sb;
-	struct buffer_head *bh;
-	struct msdos_dir_entry *de;
-	loff_t i_pos;
-	struct dentry *parent;
-	struct inode *inode;
-	int err;
-
-	lock_super(sb);
-
-	err = fat_get_dotdot_entry(child->d_inode, &bh, &de, &i_pos);
-	if (err) {
-		parent = ERR_PTR(err);
-		goto out;
-	}
-	inode = fat_build_inode(sb, de, i_pos);
-	brelse(bh);
-
-	parent = d_obtain_alias(inode);
-out:
-	unlock_super(sb);
-
-	return parent;
-}
-
 static const struct export_operations fat_export_ops = {
-	.encode_fh	= fat_encode_fh,
 	.fh_to_dentry	= fat_fh_to_dentry,
+	.fh_to_parent	= fat_fh_to_parent,
 	.get_parent	= fat_get_parent,
 };
 
@@ -791,10 +714,12 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 	struct fat_mount_options *opts = &sbi->options;
 	int isvfat = opts->isvfat;
 
-	if (opts->fs_uid != 0)
-		seq_printf(m, ",uid=%u", opts->fs_uid);
-	if (opts->fs_gid != 0)
-		seq_printf(m, ",gid=%u", opts->fs_gid);
+	if (!uid_eq(opts->fs_uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+				from_kuid_munged(&init_user_ns, opts->fs_uid));
+	if (!gid_eq(opts->fs_gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+				from_kgid_munged(&init_user_ns, opts->fs_gid));
 	seq_printf(m, ",fmask=%04o", opts->fs_fmask);
 	seq_printf(m, ",dmask=%04o", opts->fs_dmask);
 	if (opts->allow_utime)
@@ -829,6 +754,8 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",usefree");
 	if (opts->quiet)
 		seq_puts(m, ",quiet");
+	if (opts->nfs)
+		seq_puts(m, ",nfs");
 	if (opts->showexec)
 		seq_puts(m, ",showexec");
 	if (opts->sys_immutable)
@@ -873,7 +800,7 @@ enum {
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
 	Opt_obsolete, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
-	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_err,
+	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_nfs, Opt_err,
 };
 
 static const match_table_t fat_tokens = {
@@ -902,6 +829,7 @@ static const match_table_t fat_tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_discard, "discard"},
+	{Opt_nfs, "nfs"},
 	{Opt_obsolete, "conv=binary"},
 	{Opt_obsolete, "conv=text"},
 	{Opt_obsolete, "conv=auto"},
@@ -982,6 +910,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->numtail = 1;
 	opts->usefree = opts->nocase = 0;
 	opts->tz_utc = 0;
+	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
 	*debug = 0;
 
@@ -1037,12 +966,16 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return 0;
-			opts->fs_uid = option;
+			opts->fs_uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(opts->fs_uid))
+				return 0;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return 0;
-			opts->fs_gid = option;
+			opts->fs_gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(opts->fs_gid))
+				return 0;
 			break;
 		case Opt_umask:
 			if (match_octal(&args[0], &option))
@@ -1141,6 +1074,9 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 		case Opt_discard:
 			opts->discard = 1;
+			break;
+		case Opt_nfs:
+			opts->nfs = 1;
 			break;
 
 		/* obsolete mount options */
@@ -1332,6 +1268,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		b = (struct fat_boot_sector *) bh->b_data;
 	}
 
+	mutex_init(&sbi->s_lock);
 	sbi->cluster_size = sb->s_blocksize * sbi->sec_per_clus;
 	sbi->cluster_bits = ffs(sbi->cluster_size) - 1;
 	sbi->fats = b->fats;
@@ -1432,6 +1369,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 
 	/* set up enough so that it can read an inode */
 	fat_hash_init(sb);
+	dir_hash_init(sb);
 	fat_ent_access_init(sb);
 
 	/*
@@ -1486,6 +1424,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	}
 	error = -ENOMEM;
 	insert_inode_hash(root_inode);
+	fat_attach(root_inode, 0);
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		fat_msg(sb, KERN_ERR, "get root inode failed");
@@ -1525,18 +1464,14 @@ static int writeback_inode(struct inode *inode)
 {
 
 	int ret;
-	struct address_space *mapping = inode->i_mapping;
-	struct writeback_control wbc = {
-	       .sync_mode = WB_SYNC_NONE,
-	      .nr_to_write = 0,
-	};
-	/* if we used WB_SYNC_ALL, sync_inode waits for the io for the
-	* inode to finish.  So WB_SYNC_NONE is sent down to sync_inode
+
+	/* if we used wait=1, sync_inode_metadata waits for the io for the
+	* inode to finish.  So wait=0 is sent down to sync_inode_metadata
 	* and filemap_fdatawrite is used for the data blocks
 	*/
-	ret = sync_inode(inode, &wbc);
+	ret = sync_inode_metadata(inode, 0);
 	if (!ret)
-	       ret = filemap_fdatawrite(mapping);
+		ret = filemap_fdatawrite(inode->i_mapping);
 	return ret;
 }
 

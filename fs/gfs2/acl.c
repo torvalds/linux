@@ -63,7 +63,7 @@ struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 	if (len == 0)
 		return NULL;
 
-	acl = posix_acl_from_xattr(data, len);
+	acl = posix_acl_from_xattr(&init_user_ns, data, len);
 	kfree(data);
 	return acl;
 }
@@ -88,13 +88,13 @@ static int gfs2_acl_set(struct inode *inode, int type, struct posix_acl *acl)
 	const char *name = gfs2_acl_name(type);
 
 	BUG_ON(name == NULL);
-	len = posix_acl_to_xattr(acl, NULL, 0);
+	len = posix_acl_to_xattr(&init_user_ns, acl, NULL, 0);
 	if (len == 0)
 		return 0;
 	data = kmalloc(len, GFP_NOFS);
 	if (data == NULL)
 		return -ENOMEM;
-	error = posix_acl_to_xattr(acl, data, len);
+	error = posix_acl_to_xattr(&init_user_ns, acl, data, len);
 	if (error < 0)
 		goto out;
 	error = __gfs2_xattr_set(inode, name, data, len, 0, GFS2_EATYPE_SYS);
@@ -166,12 +166,12 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 	if (error)
 		return error;
 
-	len = posix_acl_to_xattr(acl, NULL, 0);
+	len = posix_acl_to_xattr(&init_user_ns, acl, NULL, 0);
 	data = kmalloc(len, GFP_NOFS);
 	error = -ENOMEM;
 	if (data == NULL)
 		goto out;
-	posix_acl_to_xattr(acl, data, len);
+	posix_acl_to_xattr(&init_user_ns, acl, data, len);
 	error = gfs2_xattr_acl_chmod(ip, attr, data);
 	kfree(data);
 	set_cached_acl(&ip->i_inode, ACL_TYPE_ACCESS, acl);
@@ -212,7 +212,7 @@ static int gfs2_xattr_system_get(struct dentry *dentry, const char *name,
 	if (acl == NULL)
 		return -ENODATA;
 
-	error = posix_acl_to_xattr(acl, buffer, size);
+	error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
 
 	return error;
@@ -245,7 +245,7 @@ static int gfs2_xattr_system_set(struct dentry *dentry, const char *name,
 	if (!value)
 		goto set_acl;
 
-	acl = posix_acl_from_xattr(value, size);
+	acl = posix_acl_from_xattr(&init_user_ns, value, size);
 	if (!acl) {
 		/*
 		 * acl_set_file(3) may request that we set default ACLs with

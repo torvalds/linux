@@ -118,7 +118,7 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
  * through nf_reinject().
  */
 static int __nf_queue(struct sk_buff *skb,
-		      struct list_head *elem,
+		      struct nf_hook_ops *elem,
 		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
 		      struct net_device *outdev,
@@ -155,7 +155,7 @@ static int __nf_queue(struct sk_buff *skb,
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
-		.elem	= list_entry(elem, struct nf_hook_ops, list),
+		.elem	= elem,
 		.pf	= pf,
 		.hook	= hook,
 		.indev	= indev,
@@ -225,7 +225,7 @@ static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
 #endif
 
 int nf_queue(struct sk_buff *skb,
-	     struct list_head *elem,
+	     struct nf_hook_ops *elem,
 	     u_int8_t pf, unsigned int hook,
 	     struct net_device *indev,
 	     struct net_device *outdev,
@@ -287,7 +287,7 @@ int nf_queue(struct sk_buff *skb,
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	struct sk_buff *skb = entry->skb;
-	struct list_head *elem = &entry->elem->list;
+	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
 	int err;
 
@@ -297,7 +297,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT) {
-		elem = elem->prev;
+		elem = list_entry(elem->list.prev, struct nf_hook_ops, list);
 		verdict = NF_ACCEPT;
 	}
 

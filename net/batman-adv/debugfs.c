@@ -267,6 +267,15 @@ static int batadv_bla_claim_table_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_bla_claim_table_seq_print_text,
 			   net_dev);
 }
+
+static int batadv_bla_backbone_table_open(struct inode *inode,
+					  struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	return single_open(file, batadv_bla_backbone_table_seq_print_text,
+			   net_dev);
+}
+
 #endif
 
 static int batadv_transtable_local_open(struct inode *inode, struct file *file)
@@ -305,6 +314,8 @@ static BATADV_DEBUGINFO(transtable_global, S_IRUGO,
 			batadv_transtable_global_open);
 #ifdef CONFIG_BATMAN_ADV_BLA
 static BATADV_DEBUGINFO(bla_claim_table, S_IRUGO, batadv_bla_claim_table_open);
+static BATADV_DEBUGINFO(bla_backbone_table, S_IRUGO,
+			batadv_bla_backbone_table_open);
 #endif
 static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 			batadv_transtable_local_open);
@@ -316,6 +327,7 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_transtable_global,
 #ifdef CONFIG_BATMAN_ADV_BLA
 	&batadv_debuginfo_bla_claim_table,
+	&batadv_debuginfo_bla_backbone_table,
 #endif
 	&batadv_debuginfo_transtable_local,
 	&batadv_debuginfo_vis_data,

@@ -1015,7 +1015,7 @@ static irqreturn_t fsldma_chan_irq(int irq, void *data)
 	/*
 	 * Programming Error
 	 * The DMA_INTERRUPT async_tx is a NULL transfer, which will
-	 * triger a PE interrupt.
+	 * trigger a PE interrupt.
 	 */
 	if (stat & FSL_DMA_SR_PE) {
 		chan_dbg(chan, "irq: Programming Error INT\n");

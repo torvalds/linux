@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <media/soc_camera.h>
 
@@ -34,10 +35,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board-ams-delta.h>
-#include <plat/keypad.h>
-#include <plat/mux.h>
-#include <plat/board.h>
+#include <mach/board-ams-delta.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <mach/mux.h>
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>

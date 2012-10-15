@@ -66,7 +66,7 @@
 #define ICOUNTLEVEL	237
 #define EXCVADDR	238
 #define CCOMPARE	240
-#define MISC		244
+#define MISC_SR		244
 
 /*  Special names for read-only and write-only interrupt registers.  */
 

@@ -804,6 +804,8 @@ int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
 			tmp = "union ";
 		else if (tag == DW_TAG_structure_type)
 			tmp = "struct ";
+		else if (tag == DW_TAG_enumeration_type)
+			tmp = "enum ";
 		/* Write a base name */
 		ret = snprintf(buf, len, "%s%s", tmp, dwarf_diename(&type));
 		return (ret >= len) ? -E2BIG : ret;

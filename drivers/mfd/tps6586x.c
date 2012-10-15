@@ -25,9 +25,14 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/regulator/machine.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
+
+#define TPS6586X_SUPPLYENE	0x14
+#define EXITSLREQ_BIT		BIT(1)
+#define SLEEP_MODE_BIT		BIT(3)
 
 /* interrupt control registers */
 #define TPS6586X_INT_ACK1	0xb5
@@ -346,6 +351,7 @@ failed:
 
 #ifdef CONFIG_OF
 static struct of_regulator_match tps6586x_matches[] = {
+	{ .name = "sys",     .driver_data = (void *)TPS6586X_ID_SYS     },
 	{ .name = "sm0",     .driver_data = (void *)TPS6586X_ID_SM_0    },
 	{ .name = "sm1",     .driver_data = (void *)TPS6586X_ID_SM_1    },
 	{ .name = "sm2",     .driver_data = (void *)TPS6586X_ID_SM_2    },
@@ -369,6 +375,7 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 	struct tps6586x_platform_data *pdata;
 	struct tps6586x_subdev_info *devs;
 	struct device_node *regs;
+	const char *sys_rail_name = NULL;
 	unsigned int count;
 	unsigned int i, j;
 	int err;
@@ -391,12 +398,22 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 		return NULL;
 
 	for (i = 0, j = 0; i < num && j < count; i++) {
+		struct regulator_init_data *reg_idata;
+
 		if (!tps6586x_matches[i].init_data)
 			continue;
 
+		reg_idata  = tps6586x_matches[i].init_data;
 		devs[j].name = "tps6586x-regulator";
 		devs[j].platform_data = tps6586x_matches[i].init_data;
 		devs[j].id = (int)tps6586x_matches[i].driver_data;
+		if (devs[j].id == TPS6586X_ID_SYS)
+			sys_rail_name = reg_idata->constraints.name;
+
+		if ((devs[j].id == TPS6586X_ID_LDO_5) ||
+			(devs[j].id == TPS6586X_ID_LDO_RTC))
+			reg_idata->supply_regulator = sys_rail_name;
+
 		devs[j].of_node = tps6586x_matches[i].of_node;
 		j++;
 	}
@@ -409,6 +426,7 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 	pdata->subdevs = devs;
 	pdata->gpio_base = -1;
 	pdata->irq_base = -1;
+	pdata->pm_off = of_property_read_bool(np, "ti,system-power-controller");
 
 	return pdata;
 }
@@ -440,6 +458,15 @@ static const struct regmap_config tps6586x_regmap_config = {
 	.volatile_reg = is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
+
+static struct device *tps6586x_dev;
+static void tps6586x_power_off(void)
+{
+	if (tps6586x_clr_bits(tps6586x_dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT))
+		return;
+
+	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+}
 
 static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -504,6 +531,11 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev, "add devices failed: %d\n", ret);
 		goto err_add_devs;
+	}
+
+	if (pdata->pm_off && !pm_power_off) {
+		tps6586x_dev = &client->dev;
+		pm_power_off = tps6586x_power_off;
 	}
 
 	return 0;

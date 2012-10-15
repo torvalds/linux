@@ -19,6 +19,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -194,8 +195,7 @@ static struct platform_device omap_vwlan_device = {
 };
 
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
-	/* ZOOM ref clock is 26 MHz */
-	.board_ref_clock = 1,
+	.board_ref_clock = WL12XX_REFCLOCK_26, /* 26 MHz */
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -246,9 +246,6 @@ static int zoom_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data zoom_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup		= zoom_twl_gpio_setup,
 };
 
@@ -276,7 +273,7 @@ static int __init omap_i2c_init(void)
 		codec_data->hs_extmute = 1;
 		codec_data->hs_extmute_gpio = ZOOM2_HEADSET_EXTMUTE_GPIO;
 	}
-	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &zoom_twldata);
+	omap_pmic_init(1, 2400, "twl5030", 7 + OMAP_INTC_START, &zoom_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;

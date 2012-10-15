@@ -105,7 +105,7 @@ static ssize_t show_channel(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read channel=%u\n", pk->pm->midi_channel);
 
@@ -118,7 +118,7 @@ static ssize_t store_channel(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned channel = 0;
 
@@ -142,7 +142,7 @@ static ssize_t show_sustain(struct device *dev,
  struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read sustain=%u\n", pk->pm->midi_sustain);
 
@@ -155,7 +155,7 @@ static ssize_t store_sustain(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned sustain = 0;
 
@@ -181,7 +181,7 @@ static ssize_t show_octave(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read octave=%d\n", pk->pm->midi_octave);
 
@@ -194,7 +194,7 @@ static ssize_t store_octave(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	int octave = 0;
 
@@ -759,7 +759,7 @@ static int pk_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 	struct pcmidi_snd *pm;
 
 	pm = pk->pm;
@@ -777,7 +777,7 @@ static int pk_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 static int pk_raw_event(struct hid_device *hdev, struct hid_report *report,
 	u8 *data, int size)
 {
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 	int ret = 0;
 
 	if (1 == pk->pm->ifnum) {
@@ -858,7 +858,7 @@ err_free_pk:
 
 static void pk_remove(struct hid_device *hdev)
 {
-	struct pk_device *pk = (struct pk_device *)hid_get_drvdata(hdev);
+	struct pk_device *pk = hid_get_drvdata(hdev);
 	struct pcmidi_snd *pm;
 
 	pm = pk->pm;

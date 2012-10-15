@@ -37,8 +37,6 @@
 #include <linux/usb/serial.h>
 #include "belkin_sa.h"
 
-static bool debug;
-
 /*
  * Version Information
  */
@@ -206,8 +204,7 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-					urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	/* Handle known interrupt data */
 	/* ignore data[0] and data[1] */
@@ -307,7 +304,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;
@@ -515,6 +512,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

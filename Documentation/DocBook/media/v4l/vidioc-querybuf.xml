@@ -48,8 +48,8 @@
   <refsect1>
     <title>Description</title>
 
-    <para>This ioctl is part of the <link linkend="mmap">memory
-mapping</link> I/O method. It can be used to query the status of a
+    <para>This ioctl is part of the <link linkend="mmap">streaming
+</link> I/O method. It can be used to query the status of a
 buffer at any time after buffers have been allocated with the
 &VIDIOC-REQBUFS; ioctl.</para>
 
@@ -71,6 +71,7 @@ the structure.</para>
 
     <para>In the <structfield>flags</structfield> field the
 <constant>V4L2_BUF_FLAG_MAPPED</constant>,
+<constant>V4L2_BUF_FLAG_PREPARED</constant>,
 <constant>V4L2_BUF_FLAG_QUEUED</constant> and
 <constant>V4L2_BUF_FLAG_DONE</constant> flags will be valid. The
 <structfield>memory</structfield> field will be set to the current
@@ -79,8 +80,10 @@ contains the offset of the buffer from the start of the device memory,
 the <structfield>length</structfield> field its size. For the multi-planar API,
 fields <structfield>m.mem_offset</structfield> and
 <structfield>length</structfield> in the <structfield>m.planes</structfield>
-array elements will be used instead. The driver may or may not set the remaining
-fields and flags, they are meaningless in this context.</para>
+array elements will be used instead and the <structfield>length</structfield>
+field of &v4l2-buffer; is set to the number of filled-in array elements.
+The driver may or may not set the remaining fields and flags, they are
+meaningless in this context.</para>
 
     <para>The <structname>v4l2_buffer</structname> structure is
     specified in <xref linkend="buffer" />.</para>

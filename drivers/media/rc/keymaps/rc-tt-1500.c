@@ -61,7 +61,7 @@ static struct rc_map_list tt_1500_map = {
 	.map = {
 		.scan    = tt_1500,
 		.size    = ARRAY_SIZE(tt_1500),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_RC5,
 		.name    = RC_MAP_TT_1500,
 	}
 };
