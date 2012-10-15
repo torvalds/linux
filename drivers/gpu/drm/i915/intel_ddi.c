@@ -60,14 +60,20 @@ static const u32 hsw_ddi_translations_fdi[] = {
 
 static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
+	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
 
-	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi =
-			enc_to_intel_hdmi(&intel_encoder->base);
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		return intel_dp->port;
+
+	} else if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 		return intel_hdmi->ddi_port;
+
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		return PORT_E;
+
 	} else {
 		DRM_ERROR("Invalid DDI encoder type %d\n", type);
 		BUG();
