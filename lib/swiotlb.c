@@ -355,14 +355,15 @@ static int is_swiotlb_buffer(phys_addr_t paddr)
 /*
  * Bounce: copy the swiotlb buffer back to the original dma location
  */
-void swiotlb_bounce(phys_addr_t phys, char *dma_addr, size_t size,
-		    enum dma_data_direction dir)
+static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
+			   size_t size, enum dma_data_direction dir)
 {
-	unsigned long pfn = PFN_DOWN(phys);
+	unsigned long pfn = PFN_DOWN(orig_addr);
+	unsigned char *vaddr = phys_to_virt(tlb_addr);
 
 	if (PageHighMem(pfn_to_page(pfn))) {
 		/* The buffer does not have a mapping.  Map it in and copy */
-		unsigned int offset = phys & ~PAGE_MASK;
+		unsigned int offset = orig_addr & ~PAGE_MASK;
 		char *buffer;
 		unsigned int sz = 0;
 		unsigned long flags;
@@ -373,25 +374,23 @@ void swiotlb_bounce(phys_addr_t phys, char *dma_addr, size_t size,
 			local_irq_save(flags);
 			buffer = kmap_atomic(pfn_to_page(pfn));
 			if (dir == DMA_TO_DEVICE)
-				memcpy(dma_addr, buffer + offset, sz);
+				memcpy(vaddr, buffer + offset, sz);
 			else
-				memcpy(buffer + offset, dma_addr, sz);
+				memcpy(buffer + offset, vaddr, sz);
 			kunmap_atomic(buffer);
 			local_irq_restore(flags);
 
 			size -= sz;
 			pfn++;
-			dma_addr += sz;
+			vaddr += sz;
 			offset = 0;
 		}
+	} else if (dir == DMA_TO_DEVICE) {
+		memcpy(vaddr, phys_to_virt(orig_addr), size);
 	} else {
-		if (dir == DMA_TO_DEVICE)
-			memcpy(dma_addr, phys_to_virt(phys), size);
-		else
-			memcpy(phys_to_virt(phys), dma_addr, size);
+		memcpy(phys_to_virt(orig_addr), vaddr, size);
 	}
 }
-EXPORT_SYMBOL_GPL(swiotlb_bounce);
 
 phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 				   dma_addr_t tbl_dma_addr,
@@ -493,8 +492,7 @@ found:
 	for (i = 0; i < nslots; i++)
 		io_tlb_orig_addr[index+i] = orig_addr + (i << IO_TLB_SHIFT);
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
-		swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr), size,
-			       DMA_TO_DEVICE);
+		swiotlb_bounce(orig_addr, tlb_addr, size, DMA_TO_DEVICE);
 
 	return tlb_addr;
 }
@@ -526,9 +524,8 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
 	/*
 	 * First, sync the memory before unmapping the entry
 	 */
-	if (phys && ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
-		swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
-			       size, DMA_FROM_DEVICE);
+	if (orig_addr && ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
+		swiotlb_bounce(orig_addr, tlb_addr, size, DMA_FROM_DEVICE);
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
@@ -569,14 +566,14 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
 	switch (target) {
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
-			swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
+			swiotlb_bounce(orig_addr, tlb_addr,
 				       size, DMA_FROM_DEVICE);
 		else
 			BUG_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
-			swiotlb_bounce(orig_addr, phys_to_virt(tlb_addr),
+			swiotlb_bounce(orig_addr, tlb_addr,
 				       size, DMA_TO_DEVICE);
 		else
 			BUG_ON(dir != DMA_FROM_DEVICE);
