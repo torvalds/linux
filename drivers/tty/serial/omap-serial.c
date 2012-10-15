@@ -99,7 +99,6 @@ struct uart_omap_port {
 	u32			context_loss_cnt;
 	u32			errata;
 	u8			wakeups_enabled;
-	unsigned int		irq_pending:1;
 
 	int			DTR_gpio;
 	int			DTR_inverted;
