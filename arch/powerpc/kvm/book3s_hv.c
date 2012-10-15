@@ -47,6 +47,7 @@
 #include <asm/page.h>
 #include <asm/hvcall.h>
 #include <asm/switch_to.h>
+#include <asm/smp.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -1016,8 +1017,6 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	/*
 	 * Make sure we are running on thread 0, and that
 	 * secondary threads are offline.
-	 * XXX we should also block attempts to bring any
-	 * secondary threads online.
 	 */
 	if (threads_per_core > 1 && !on_primary_thread()) {
 		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
@@ -1730,11 +1729,20 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 	kvm->arch.using_mmu_notifiers = !!cpu_has_feature(CPU_FTR_ARCH_206);
 	spin_lock_init(&kvm->arch.slot_phys_lock);
+
+	/*
+	 * Don't allow secondary CPU threads to come online
+	 * while any KVM VMs exist.
+	 */
+	inhibit_secondary_onlining();
+
 	return 0;
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
+	uninhibit_secondary_onlining();
+
 	if (kvm->arch.rma) {
 		kvm_release_rma(kvm->arch.rma);
 		kvm->arch.rma = NULL;
