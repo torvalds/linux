@@ -260,6 +260,12 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "fff88000.i2c", &twi1_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff200.gpio", &pioA_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioC_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioDE_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioDE_clk),
+
 	CLKDEV_CON_ID("pioA", &pioA_clk),
 	CLKDEV_CON_ID("pioB", &pioB_clk),
 	CLKDEV_CON_ID("pioC", &pioC_clk),
@@ -409,10 +415,10 @@ static unsigned int at91sam9g45_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller (IRQ0) */
 };
 
-struct at91_init_soc __initdata at91sam9g45_soc = {
+AT91_SOC_START(sam9g45)
 	.map_io = at91sam9g45_map_io,
 	.default_irq_priority = at91sam9g45_default_irq_priority,
 	.ioremap_registers = at91sam9g45_ioremap_registers,
 	.register_clocks = at91sam9g45_register_clocks,
 	.init = at91sam9g45_initialize,
-};
+AT91_SOC_END

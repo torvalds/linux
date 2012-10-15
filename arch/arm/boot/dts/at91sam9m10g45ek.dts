@@ -39,6 +39,7 @@
 			};
 
 			usart1: serial@fff90000 {
+				pinctrl-0 = <&pinctrl_uart0 &pinctrl_uart1_rts_cts>;
 				status = "okay";
 			};
 
