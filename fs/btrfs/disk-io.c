@@ -1142,11 +1142,11 @@ void clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 					  root->fs_info->dirty_metadata_bytes);
 			}
 			spin_unlock(&root->fs_info->delalloc_lock);
-		}
 
-		/* ugh, clear_extent_buffer_dirty needs to lock the page */
-		btrfs_set_lock_blocking(buf);
-		clear_extent_buffer_dirty(buf);
+			/* ugh, clear_extent_buffer_dirty needs to lock the page */
+			btrfs_set_lock_blocking(buf);
+			clear_extent_buffer_dirty(buf);
+		}
 	}
 }
 
