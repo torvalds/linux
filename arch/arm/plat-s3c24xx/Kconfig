@@ -6,8 +6,8 @@ config PLAT_S3C24XX
 	bool
 	depends on ARCH_S3C24XX
 	default y
-	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
+	select NO_IOPORT
 	select S3C_DEV_NAND
 	help
 	  Base platform code for any Samsung S3C24XX device

@@ -25,6 +25,7 @@ void	(*c6x_restart)(void);
 void	(*c6x_halt)(void);
 
 extern asmlinkage void ret_from_fork(void);
+extern asmlinkage void ret_from_kernel_thread(void);
 
 /*
  * power off function, if any
@@ -103,37 +104,6 @@ void machine_power_off(void)
 	halt_loop();
 }
 
-static void kernel_thread_helper(int dummy, void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	/*
-	 * copy_thread sets a4 to zero (child return from fork)
-	 * so we can't just set things up to directly return to
-	 * fn.
-	 */
-	memset(&regs, 0, sizeof(regs));
-	regs.b4 = (unsigned long) arg;
-	regs.a6 = (unsigned long) fn;
-	regs.pc = (unsigned long) kernel_thread_helper;
-	local_save_flags(regs.csr);
-	regs.csr |= 1;
-	regs.tsr = 5; /* Set GEE and GIE in TSR */
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, -1, &regs,
-		       0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
 void flush_thread(void)
 {
 }
@@ -191,22 +161,24 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	childregs = task_pt_regs(p);
 
-	*childregs = *regs;
-	childregs->a4 = 0;
-
-	if (usp == -1)
+	if (!regs) {
 		/* case of  __kernel_thread: we return to supervisor space */
+		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->sp = (unsigned long)(childregs + 1);
-	else
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		childregs->a0 = usp;		/* function */
+		childregs->a1 = ustk_size;	/* argument */
+	} else {
 		/* Otherwise use the given stack */
+		*childregs = *regs;
 		childregs->sp = usp;
+		p->thread.pc = (unsigned long) ret_from_fork;
+	}
 
 	/* Set usp/ksp */
 	p->thread.usp = childregs->sp;
-	/* switch_to uses stack to save/restore 14 callee-saved regs */
 	thread_saved_ksp(p) = (unsigned long)childregs - 8;
-	p->thread.pc = (unsigned int) ret_from_fork;
-	p->thread.wchan	= (unsigned long) ret_from_fork;
+	p->thread.wchan	= p->thread.pc;
 #ifdef __DSBT__
 	{
 		unsigned long dp;
@@ -219,28 +191,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	}
 #endif
 	return 0;
-}
-
-/*
- * c6x_execve() executes a new program.
- */
-SYSCALL_DEFINE4(c6x_execve, const char __user *, name,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
 }
 
 unsigned long get_wchan(struct task_struct *p)

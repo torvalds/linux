@@ -689,6 +689,8 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 
 	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
 	msp = *msp_p;
+	if (!msp)
+		return -ENOMEM;
 
 	if (np) {
 		if (!platform_data) {

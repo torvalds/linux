@@ -82,8 +82,38 @@ struct dw_dma_regs {
 	DW_REG(ID);
 	DW_REG(TEST);
 
+	/* reserved */
+	DW_REG(__reserved0);
+	DW_REG(__reserved1);
+
 	/* optional encoded params, 0x3c8..0x3f7 */
+	u32	__reserved;
+
+	/* per-channel configuration registers */
+	u32	DWC_PARAMS[DW_DMA_MAX_NR_CHANNELS];
+	u32	MULTI_BLK_TYPE;
+	u32	MAX_BLK_SIZE;
+
+	/* top-level parameters */
+	u32	DW_PARAMS;
 };
+
+/* To access the registers in early stage of probe */
+#define dma_read_byaddr(addr, name) \
+	readl((addr) + offsetof(struct dw_dma_regs, name))
+
+/* Bitfields in DW_PARAMS */
+#define DW_PARAMS_NR_CHAN	8		/* number of channels */
+#define DW_PARAMS_NR_MASTER	11		/* number of AHB masters */
+#define DW_PARAMS_DATA_WIDTH(n)	(15 + 2 * (n))
+#define DW_PARAMS_DATA_WIDTH1	15		/* master 1 data width */
+#define DW_PARAMS_DATA_WIDTH2	17		/* master 2 data width */
+#define DW_PARAMS_DATA_WIDTH3	19		/* master 3 data width */
+#define DW_PARAMS_DATA_WIDTH4	21		/* master 4 data width */
+#define DW_PARAMS_EN		28		/* encoded parameters */
+
+/* Bitfields in DWC_PARAMS */
+#define DWC_PARAMS_MBLK_EN	11		/* multi block transfer */
 
 /* Bitfields in CTL_LO */
 #define DWC_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
@@ -140,10 +170,9 @@ struct dw_dma_regs {
 /* Bitfields in CFG */
 #define DW_CFG_DMA_EN		(1 << 0)
 
-#define DW_REGLEN		0x400
-
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
+	DW_DMA_IS_SOFT_LLP = 1,
 };
 
 struct dw_dma_chan {
@@ -153,6 +182,10 @@ struct dw_dma_chan {
 	u8			priority;
 	bool			paused;
 	bool			initialized;
+
+	/* software emulation of the LLP transfers */
+	struct list_head	*tx_list;
+	struct list_head	*tx_node_active;
 
 	spinlock_t		lock;
 
@@ -165,8 +198,15 @@ struct dw_dma_chan {
 
 	unsigned int		descs_allocated;
 
+	/* hardware configuration */
+	unsigned int		block_size;
+	bool			nollp;
+
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
+
+	/* backlink to dw_dma */
+	struct dw_dma		*dw;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
@@ -192,6 +232,10 @@ struct dw_dma {
 	struct clk		*clk;
 
 	u8			all_chan_mask;
+
+	/* hardware configuration */
+	unsigned char		nr_masters;
+	unsigned char		data_width[4];
 
 	struct dw_dma_chan	chan[0];
 };

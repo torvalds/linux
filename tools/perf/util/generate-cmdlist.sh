@@ -22,7 +22,7 @@ do
      }' "Documentation/perf-$cmd.txt"
 done
 
-echo "#ifndef NO_LIBELF_SUPPORT"
+echo "#ifdef LIBELF_SUPPORT"
 sed -n -e 's/^perf-\([^ 	]*\)[ 	].* full.*/\1/p' command-list.txt |
 sort |
 while read cmd
@@ -35,5 +35,5 @@ do
 	    p
      }' "Documentation/perf-$cmd.txt"
 done
-echo "#endif /* NO_LIBELF_SUPPORT */"
+echo "#endif /* LIBELF_SUPPORT */"
 echo "};"

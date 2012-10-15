@@ -8,7 +8,9 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/memblock.h>
 #include <asm/pgtable.h>
+#include <linux/of_fdt.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
@@ -32,6 +34,29 @@ static atomic_t waiting_for_crash_ipi;
 
 int machine_kexec_prepare(struct kimage *image)
 {
+	struct kexec_segment *current_segment;
+	__be32 header;
+	int i, err;
+
+	/*
+	 * No segment at default ATAGs address. try to locate
+	 * a dtb using magic.
+	 */
+	for (i = 0; i < image->nr_segments; i++) {
+		current_segment = &image->segment[i];
+
+		err = memblock_is_region_memory(current_segment->mem,
+						current_segment->memsz);
+		if (err)
+			return - EINVAL;
+
+		err = get_user(header, (__be32*)current_segment->buf);
+		if (err)
+			return err;
+
+		if (be32_to_cpu(header) == OF_DT_HEADER)
+			kexec_boot_atags = current_segment->mem;
+	}
 	return 0;
 }
 
@@ -122,7 +147,9 @@ void machine_kexec(struct kimage *image)
 	kexec_start_address = image->start;
 	kexec_indirection_page = page_list;
 	kexec_mach_type = machine_arch_type;
-	kexec_boot_atags = image->start - KEXEC_ARM_ZIMAGE_OFFSET + KEXEC_ARM_ATAGS_OFFSET;
+	if (!kexec_boot_atags)
+		kexec_boot_atags = image->start - KEXEC_ARM_ZIMAGE_OFFSET + KEXEC_ARM_ATAGS_OFFSET;
+
 
 	/* copy our kernel relocation code to the control code page */
 	memcpy(reboot_code_buffer,

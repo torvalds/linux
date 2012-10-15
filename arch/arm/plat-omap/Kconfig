@@ -14,10 +14,10 @@ config ARCH_OMAP1
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
 	select HAVE_IDE
-	select NEED_MACH_MEMORY_H
+	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
+	select NEED_MACH_MEMORY_H
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 
@@ -25,10 +25,10 @@ config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
-	select SPARSE_IRQ
 	select OMAP_DM_TIMER
-	select USE_OF
 	select PROC_DEVICETREE if PROC_FS
+	select SPARSE_IRQ
+	select USE_OF
 	help
 	  "Systems based on OMAP2, OMAP3, OMAP4 or OMAP5"
 
@@ -44,10 +44,12 @@ config OMAP_DEBUG_DEVICES
 config OMAP_DEBUG_LEDS
 	def_bool y if NEW_LEDS
 	depends on OMAP_DEBUG_DEVICES
+	select LEDS_CLASS
 
 config POWER_AVS_OMAP
 	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"
 	depends on POWER_AVS && (ARCH_OMAP3 || ARCH_OMAP4) && PM
+	select POWER_SUPPLY
 	help
 	  Say Y to enable AVS(Adaptive Voltage Scaling)
 	  support on OMAP containing the version 1 or

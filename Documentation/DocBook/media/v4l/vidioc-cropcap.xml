@@ -59,6 +59,9 @@ constant except when switching the video standard. Remember this
 switch can occur implicit when switching the video input or
 output.</para>
 
+    <para>This ioctl must be implemented for video capture or output devices that
+support cropping and/or scaling and/or have non-square pixels, and for overlay devices.</para>
+
     <table pgwide="1" frame="none" id="v4l2-cropcap">
       <title>struct <structname>v4l2_cropcap</structname></title>
       <tgroup cols="3">
@@ -70,10 +73,10 @@ output.</para>
 	    <entry>Type of the data stream, set by the application.
 Only these types are valid here:
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
-defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
-and higher. See <xref linkend="v4l2-buf-type" />.</entry>
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant> and
+<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>. See <xref linkend="v4l2-buf-type" />.</entry>
 	  </row>
 	  <row>
 	    <entry>struct <link linkend="v4l2-rect-crop">v4l2_rect</link></entry>
@@ -156,8 +159,7 @@ on 22 Oct 2002 subject "Re:[V4L][patches!] Re:v4l2/kernel-2.5" -->
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-cropcap; <structfield>type</structfield> is
-invalid. This is not permitted for video capture, output and overlay devices,
-which must support <constant>VIDIOC_CROPCAP</constant>.</para>
+invalid.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

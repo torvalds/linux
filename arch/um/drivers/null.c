@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include "chan_user.h"
-#include "os.h"
+#include <os.h>
 
 /* This address is used only as a unique identifier */
 static int null_chan;

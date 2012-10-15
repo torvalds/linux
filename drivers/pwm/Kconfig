@@ -1,6 +1,5 @@
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
-	depends on !MACH_JZ4740 && !PUV3_PWM
 	help
 	  Generic Pulse-Width Modulation (PWM) support.
 
@@ -29,6 +28,15 @@ menuconfig PWM
 
 if PWM
 
+config PWM_AB8500
+	tristate "AB8500 PWM support"
+	depends on AB8500_CORE && ARCH_U8500
+	help
+	  Generic PWM framework driver for Analog Baseband AB8500.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-ab8500.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
@@ -46,6 +54,16 @@ config PWM_IMX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx.
+
+config PWM_JZ4740
+	tristate "Ingenic JZ4740 PWM support"
+	depends on MACH_JZ4740
+	help
+	  Generic PWM framework driver for Ingenic JZ4740 based
+	  machines.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-jz4740.
 
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
@@ -66,6 +84,15 @@ config PWM_MXS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
+
+config PWM_PUV3
+	tristate "PKUnity NetBook-0916 PWM support"
+	depends on ARCH_PUV3
+	help
+	  Generic PWM framework driver for PKUnity NetBook-0916.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-puv3.
 
 config PWM_PXA
 	tristate "PXA PWM support"

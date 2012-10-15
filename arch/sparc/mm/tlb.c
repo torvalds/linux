@@ -43,16 +43,37 @@ void flush_tlb_pending(void)
 	put_cpu_var(tlb_batch);
 }
 
-void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-		   pte_t *ptep, pte_t orig, int fullmm)
+static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
+			      bool exec)
 {
 	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
 	unsigned long nr;
 
 	vaddr &= PAGE_MASK;
-	if (pte_exec(orig))
+	if (exec)
 		vaddr |= 0x1UL;
 
+	nr = tb->tlb_nr;
+
+	if (unlikely(nr != 0 && mm != tb->mm)) {
+		flush_tlb_pending();
+		nr = 0;
+	}
+
+	if (nr == 0)
+		tb->mm = mm;
+
+	tb->vaddrs[nr] = vaddr;
+	tb->tlb_nr = ++nr;
+	if (nr >= TLB_BATCH_NR)
+		flush_tlb_pending();
+
+	put_cpu_var(tlb_batch);
+}
+
+void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+		   pte_t *ptep, pte_t orig, int fullmm)
+{
 	if (tlb_type != hypervisor &&
 	    pte_dirty(orig)) {
 		unsigned long paddr, pfn = pte_pfn(orig);
@@ -77,26 +98,91 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 	}
 
 no_cache_flush:
-
-	if (fullmm) {
-		put_cpu_var(tlb_batch);
-		return;
-	}
-
-	nr = tb->tlb_nr;
-
-	if (unlikely(nr != 0 && mm != tb->mm)) {
-		flush_tlb_pending();
-		nr = 0;
-	}
-
-	if (nr == 0)
-		tb->mm = mm;
-
-	tb->vaddrs[nr] = vaddr;
-	tb->tlb_nr = ++nr;
-	if (nr >= TLB_BATCH_NR)
-		flush_tlb_pending();
-
-	put_cpu_var(tlb_batch);
+	if (!fullmm)
+		tlb_batch_add_one(mm, vaddr, pte_exec(orig));
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static void tlb_batch_pmd_scan(struct mm_struct *mm, unsigned long vaddr,
+			       pmd_t pmd, bool exec)
+{
+	unsigned long end;
+	pte_t *pte;
+
+	pte = pte_offset_map(&pmd, vaddr);
+	end = vaddr + HPAGE_SIZE;
+	while (vaddr < end) {
+		if (pte_val(*pte) & _PAGE_VALID)
+			tlb_batch_add_one(mm, vaddr, exec);
+		pte++;
+		vaddr += PAGE_SIZE;
+	}
+	pte_unmap(pte);
+}
+
+void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+		pmd_t *pmdp, pmd_t pmd)
+{
+	pmd_t orig = *pmdp;
+
+	*pmdp = pmd;
+
+	if (mm == &init_mm)
+		return;
+
+	if ((pmd_val(pmd) ^ pmd_val(orig)) & PMD_ISHUGE) {
+		if (pmd_val(pmd) & PMD_ISHUGE)
+			mm->context.huge_pte_count++;
+		else
+			mm->context.huge_pte_count--;
+		if (mm->context.huge_pte_count == 1)
+			hugetlb_setup(mm);
+	}
+
+	if (!pmd_none(orig)) {
+		bool exec = ((pmd_val(orig) & PMD_HUGE_EXEC) != 0);
+
+		addr &= HPAGE_MASK;
+		if (pmd_val(orig) & PMD_ISHUGE)
+			tlb_batch_add_one(mm, addr, exec);
+		else
+			tlb_batch_pmd_scan(mm, addr, orig, exec);
+	}
+}
+
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
+{
+	struct list_head *lh = (struct list_head *) pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	/* FIFO */
+	if (!mm->pmd_huge_pte)
+		INIT_LIST_HEAD(lh);
+	else
+		list_add(lh, (struct list_head *) mm->pmd_huge_pte);
+	mm->pmd_huge_pte = pgtable;
+}
+
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
+{
+	struct list_head *lh;
+	pgtable_t pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	/* FIFO */
+	pgtable = mm->pmd_huge_pte;
+	lh = (struct list_head *) pgtable;
+	if (list_empty(lh))
+		mm->pmd_huge_pte = NULL;
+	else {
+		mm->pmd_huge_pte = (pgtable_t) lh->next;
+		list_del(lh);
+	}
+	pte_val(pgtable[0]) = 0;
+	pte_val(pgtable[1]) = 0;
+
+	return pgtable;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */

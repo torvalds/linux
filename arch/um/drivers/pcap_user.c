@@ -7,9 +7,9 @@
 #include <pcap.h>
 #include <string.h>
 #include <asm/types.h>
-#include "net_user.h"
+#include <net_user.h>
 #include "pcap_user.h"
-#include "um_malloc.h"
+#include <um_malloc.h>
 
 #define PCAP_FD(p) (*(int *)(p))
 

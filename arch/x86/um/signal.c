@@ -11,8 +11,8 @@
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
-#include "frame_kern.h"
-#include "skas.h"
+#include <frame_kern.h>
+#include <skas.h>
 
 #ifdef CONFIG_X86_32
 

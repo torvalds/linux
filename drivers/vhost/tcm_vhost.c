@@ -330,17 +330,6 @@ static int tcm_vhost_queue_tm_rsp(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static u16 tcm_vhost_set_fabric_sense_len(struct se_cmd *se_cmd,
-	u32 sense_length)
-{
-	return 0;
-}
-
-static u16 tcm_vhost_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
 static void vhost_scsi_free_cmd(struct tcm_vhost_cmd *tv_cmd)
 {
 	struct se_cmd *se_cmd = &tv_cmd->tvc_se_cmd;
@@ -426,10 +415,7 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 {
 	struct tcm_vhost_cmd *tv_cmd;
 	struct tcm_vhost_nexus *tv_nexus;
-	struct se_portal_group *se_tpg = &tv_tpg->se_tpg;
 	struct se_session *se_sess;
-	struct se_cmd *se_cmd;
-	int sam_task_attr;
 
 	tv_nexus = tv_tpg->tpg_nexus;
 	if (!tv_nexus) {
@@ -445,23 +431,11 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 	}
 	INIT_LIST_HEAD(&tv_cmd->tvc_completion_list);
 	tv_cmd->tvc_tag = v_req->tag;
+	tv_cmd->tvc_task_attr = v_req->task_attr;
+	tv_cmd->tvc_exp_data_len = exp_data_len;
+	tv_cmd->tvc_data_direction = data_direction;
+	tv_cmd->tvc_nexus = tv_nexus;
 
-	se_cmd = &tv_cmd->tvc_se_cmd;
-	/*
-	 * Locate the SAM Task Attr from virtio_scsi_cmd_req
-	 */
-	sam_task_attr = v_req->task_attr;
-	/*
-	 * Initialize struct se_cmd descriptor from TCM infrastructure
-	 */
-	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, exp_data_len,
-				data_direction, sam_task_attr,
-				&tv_cmd->tvc_sense_buf[0]);
-
-#if 0	/* FIXME: vhost_scsi_allocate_cmd() BIDI operation */
-	if (bidi)
-		se_cmd->se_cmd_flags |= SCF_BIDI;
-#endif
 	return tv_cmd;
 }
 
@@ -560,37 +534,10 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 {
 	struct tcm_vhost_cmd *tv_cmd =
 		container_of(work, struct tcm_vhost_cmd, work);
+	struct tcm_vhost_nexus *tv_nexus;
 	struct se_cmd *se_cmd = &tv_cmd->tvc_se_cmd;
 	struct scatterlist *sg_ptr, *sg_bidi_ptr = NULL;
 	int rc, sg_no_bidi = 0;
-	/*
-	 * Locate the struct se_lun pointer based on v_req->lun, and
-	 * attach it to struct se_cmd
-	 */
-	rc = transport_lookup_cmd_lun(&tv_cmd->tvc_se_cmd, tv_cmd->tvc_lun);
-	if (rc < 0) {
-		pr_err("Failed to look up lun: %d\n", tv_cmd->tvc_lun);
-		transport_send_check_condition_and_sense(&tv_cmd->tvc_se_cmd,
-			tv_cmd->tvc_se_cmd.scsi_sense_reason, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-		return;
-	}
-
-	rc = target_setup_cmd_from_cdb(se_cmd, tv_cmd->tvc_cdb);
-	if (rc == -ENOMEM) {
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-		return;
-	} else if (rc < 0) {
-		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
-			tcm_vhost_queue_status(se_cmd);
-		else
-			transport_send_check_condition_and_sense(se_cmd,
-					se_cmd->scsi_sense_reason, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-		return;
-	}
 
 	if (tv_cmd->tvc_sgl_count) {
 		sg_ptr = tv_cmd->tvc_sgl;
@@ -608,17 +555,19 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 	} else {
 		sg_ptr = NULL;
 	}
+	tv_nexus = tv_cmd->tvc_nexus;
 
-	rc = transport_generic_map_mem_to_cmd(se_cmd, sg_ptr,
-				tv_cmd->tvc_sgl_count, sg_bidi_ptr,
-				sg_no_bidi);
+	rc = target_submit_cmd_map_sgls(se_cmd, tv_nexus->tvn_se_sess,
+			tv_cmd->tvc_cdb, &tv_cmd->tvc_sense_buf[0],
+			tv_cmd->tvc_lun, tv_cmd->tvc_exp_data_len,
+			tv_cmd->tvc_task_attr, tv_cmd->tvc_data_direction,
+			0, sg_ptr, tv_cmd->tvc_sgl_count,
+			sg_bidi_ptr, sg_no_bidi);
 	if (rc < 0) {
 		transport_send_check_condition_and_sense(se_cmd,
-				se_cmd->scsi_sense_reason, 0);
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
 		transport_generic_free_cmd(se_cmd, 0);
-		return;
 	}
-	transport_handle_cdb_direct(se_cmd);
 }
 
 static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
@@ -1531,8 +1480,6 @@ static struct target_core_fabric_ops tcm_vhost_ops = {
 	.queue_data_in			= tcm_vhost_queue_data_in,
 	.queue_status			= tcm_vhost_queue_status,
 	.queue_tm_rsp			= tcm_vhost_queue_tm_rsp,
-	.get_fabric_sense_len		= tcm_vhost_get_fabric_sense_len,
-	.set_fabric_sense_len		= tcm_vhost_set_fabric_sense_len,
 	/*
 	 * Setup callers for generic logic in target_core_fabric_configfs.c
 	 */

@@ -162,7 +162,6 @@ typedef struct { unsigned long pmd; } pmd_t;
 
 
 extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
-extern pmd_t empty_bad_pmd_table[PTRS_PER_PMD];
 #endif
 
 /*

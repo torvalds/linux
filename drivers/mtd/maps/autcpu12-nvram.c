@@ -15,43 +15,54 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
+#include <linux/sizes.h>
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/init.h>
-#include <asm/io.h>
-#include <asm/sizes.h>
-#include <mach/hardware.h>
-#include <mach/autcpu12.h>
+#include <linux/device.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
-#include <linux/mtd/partitions.h>
 
-
-static struct mtd_info *sram_mtd;
-
-struct map_info autcpu12_sram_map = {
-	.name = "SRAM",
-	.size = 32768,
-	.bankwidth = 4,
-	.phys = 0x12000000,
+struct autcpu12_nvram_priv {
+	struct mtd_info *mtd;
+	struct map_info map;
 };
 
-static int __init init_autcpu12_sram (void)
+static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 {
-	int err, save0, save1;
+	map_word tmp, save0, save1;
+	struct resource *res;
+	struct autcpu12_nvram_priv *priv;
 
-	autcpu12_sram_map.virt = ioremap(0x12000000, SZ_128K);
-	if (!autcpu12_sram_map.virt) {
-		printk("Failed to ioremap autcpu12 NV-RAM space\n");
-		err = -EIO;
-		goto out;
+	priv = devm_kzalloc(&pdev->dev,
+			    sizeof(struct autcpu12_nvram_priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, priv);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "failed to get memory resource\n");
+		return -ENOENT;
 	}
-	simple_map_init(&autcpu_sram_map);
+
+	priv->map.bankwidth	= 4;
+	priv->map.phys		= res->start;
+	priv->map.size		= resource_size(res);
+	priv->map.virt		= devm_request_and_ioremap(&pdev->dev, res);
+	strcpy((char *)priv->map.name, res->name);
+	if (!priv->map.virt) {
+		dev_err(&pdev->dev, "failed to remap mem resource\n");
+		return -EBUSY;
+	}
+
+	simple_map_init(&priv->map);
 
 	/*
 	 * Check for 32K/128K
@@ -61,65 +72,59 @@ static int __init init_autcpu12_sram (void)
 	 * Read	and check result on ofs 0x0
 	 * Restore contents
 	 */
-	save0 = map_read32(&autcpu12_sram_map,0);
-	save1 = map_read32(&autcpu12_sram_map,0x10000);
-	map_write32(&autcpu12_sram_map,~save0,0x10000);
-	/* if we find this pattern on 0x0, we have 32K size
-	 * restore contents and exit
-	 */
-	if ( map_read32(&autcpu12_sram_map,0) != save0) {
-		map_write32(&autcpu12_sram_map,save0,0x0);
-		goto map;
-	}
-	/* We have a 128K found, restore 0x10000 and set size
-	 * to 128K
-	 */
-	map_write32(&autcpu12_sram_map,save1,0x10000);
-	autcpu12_sram_map.size = SZ_128K;
+	save0 = map_read(&priv->map, 0);
+	save1 = map_read(&priv->map, 0x10000);
+	tmp.x[0] = ~save0.x[0];
+	map_write(&priv->map, tmp, 0x10000);
+	tmp = map_read(&priv->map, 0);
+	/* if we find this pattern on 0x0, we have 32K size */
+	if (!map_word_equal(&priv->map, tmp, save0)) {
+		map_write(&priv->map, save0, 0x0);
+		priv->map.size = SZ_32K;
+	} else
+		map_write(&priv->map, save1, 0x10000);
 
-map:
-	sram_mtd = do_map_probe("map_ram", &autcpu12_sram_map);
-	if (!sram_mtd) {
-		printk("NV-RAM probe failed\n");
-		err = -ENXIO;
-		goto out_ioremap;
+	priv->mtd = do_map_probe("map_ram", &priv->map);
+	if (!priv->mtd) {
+		dev_err(&pdev->dev, "probing failed\n");
+		return -ENXIO;
 	}
 
-	sram_mtd->owner = THIS_MODULE;
-	sram_mtd->erasesize = 16;
-
-	if (mtd_device_register(sram_mtd, NULL, 0)) {
-		printk("NV-RAM device addition failed\n");
-		err = -ENOMEM;
-		goto out_probe;
+	priv->mtd->owner	= THIS_MODULE;
+	priv->mtd->erasesize	= 16;
+	priv->mtd->dev.parent	= &pdev->dev;
+	if (!mtd_device_register(priv->mtd, NULL, 0)) {
+		dev_info(&pdev->dev,
+			 "NV-RAM device size %ldKiB registered on AUTCPU12\n",
+			 priv->map.size / SZ_1K);
+		return 0;
 	}
 
-	printk("NV-RAM device size %ldKiB registered on AUTCPU12\n",autcpu12_sram_map.size/SZ_1K);
+	map_destroy(priv->mtd);
+	dev_err(&pdev->dev, "NV-RAM device addition failed\n");
+	return -ENOMEM;
+}
+
+static int __devexit autcpu12_nvram_remove(struct platform_device *pdev)
+{
+	struct autcpu12_nvram_priv *priv = platform_get_drvdata(pdev);
+
+	mtd_device_unregister(priv->mtd);
+	map_destroy(priv->mtd);
 
 	return 0;
-
-out_probe:
-	map_destroy(sram_mtd);
-	sram_mtd = 0;
-
-out_ioremap:
-	iounmap((void *)autcpu12_sram_map.virt);
-out:
-	return err;
 }
 
-static void __exit cleanup_autcpu12_maps(void)
-{
-	if (sram_mtd) {
-		mtd_device_unregister(sram_mtd);
-		map_destroy(sram_mtd);
-		iounmap((void *)autcpu12_sram_map.virt);
-	}
-}
-
-module_init(init_autcpu12_sram);
-module_exit(cleanup_autcpu12_maps);
+static struct platform_driver autcpu12_nvram_driver = {
+	.driver		= {
+		.name	= "autcpu12_nvram",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= autcpu12_nvram_probe,
+	.remove		= __devexit_p(autcpu12_nvram_remove),
+};
+module_platform_driver(autcpu12_nvram_driver);
 
 MODULE_AUTHOR("Thomas Gleixner");
-MODULE_DESCRIPTION("autcpu12 NV-RAM map driver");
+MODULE_DESCRIPTION("autcpu12 NVRAM map driver");
 MODULE_LICENSE("GPL");

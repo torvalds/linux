@@ -1,1 +1,19 @@
 # UAPI Header export list
+header-y += ebt_802_3.h
+header-y += ebt_among.h
+header-y += ebt_arp.h
+header-y += ebt_arpreply.h
+header-y += ebt_ip.h
+header-y += ebt_ip6.h
+header-y += ebt_limit.h
+header-y += ebt_log.h
+header-y += ebt_mark_m.h
+header-y += ebt_mark_t.h
+header-y += ebt_nat.h
+header-y += ebt_nflog.h
+header-y += ebt_pkttype.h
+header-y += ebt_redirect.h
+header-y += ebt_stp.h
+header-y += ebt_ulog.h
+header-y += ebt_vlan.h
+header-y += ebtables.h

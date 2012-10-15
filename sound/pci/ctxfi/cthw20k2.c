@@ -2201,7 +2201,7 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int hw_suspend(struct hw *hw)
 {
 	struct pci_dev *pci = hw->pci;
@@ -2250,7 +2250,7 @@ static struct hw ct20k2_preset __devinitdata = {
 	.output_switch_put = hw_output_switch_put,
 	.mic_source_switch_get = hw_mic_source_switch_get,
 	.mic_source_switch_put = hw_mic_source_switch_put,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = hw_suspend,
 	.resume = hw_resume,
 #endif

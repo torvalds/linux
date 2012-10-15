@@ -1906,6 +1906,8 @@ __init int intel_pmu_init(void)
 		switch (boot_cpu_data.x86) {
 		case 0x6:
 			return p6_pmu_init();
+		case 0xb:
+			return knc_pmu_init();
 		case 0xf:
 			return p4_pmu_init();
 		}

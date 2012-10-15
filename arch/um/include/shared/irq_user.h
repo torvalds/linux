@@ -6,7 +6,7 @@
 #ifndef __IRQ_USER_H__
 #define __IRQ_USER_H__
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 struct irq_fd {
 	struct irq_fd *next;

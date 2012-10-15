@@ -107,18 +107,6 @@ static void ams_delta_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		buf[i] = ams_delta_read_byte(mtd);
 }
 
-static int ams_delta_verify_buf(struct mtd_info *mtd, const u_char *buf,
-				int len)
-{
-	int i;
-
-	for (i=0; i<len; i++)
-		if (buf[i] != ams_delta_read_byte(mtd))
-			return -EFAULT;
-
-	return 0;
-}
-
 /*
  * Command control function
  *
@@ -237,7 +225,6 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	this->read_byte = ams_delta_read_byte;
 	this->write_buf = ams_delta_write_buf;
 	this->read_buf = ams_delta_read_buf;
-	this->verify_buf = ams_delta_verify_buf;
 	this->cmd_ctrl = ams_delta_hwcontrol;
 	if (gpio_request(AMS_DELTA_GPIO_PIN_NAND_RB, "nand_rdy") == 0) {
 		this->dev_ready = ams_delta_nand_ready;

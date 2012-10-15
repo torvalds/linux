@@ -6,7 +6,7 @@ extra-y := head.o vmlinux.lds
 
 obj-y := align.o entry.o irq.o coprocessor.o process.o ptrace.o \
 	 setup.o signal.o syscall.o time.o traps.o vectors.o platform.o  \
-	 pci-dma.o io.o
+	 pci-dma.o
 
 obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
@@ -24,6 +24,7 @@ obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 # Replicate rules in scripts/Makefile.build
 
 sed-y = -e 's/\*(\(\.[a-z]*it\|\.ref\|\)\.text)/*(\1.literal \1.text)/g'    \
+	-e 's/\.text\.unlikely/.literal.unlikely .text.unlikely/g' \
 	-e 's/\*(\(\.text\.[a-z]*\))/*(\1.literal \1)/g'
 
 quiet_cmd__cpp_lds_S = LDS     $@

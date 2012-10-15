@@ -9,18 +9,18 @@ if ARCH_S5P64X0
 
 config CPU_S5P6440
 	bool
-	select SAMSUNG_DMADEV
 	select S5P_HRT
 	select S5P_SLEEP if PM
+	select SAMSUNG_DMADEV
 	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6440 CPU support
 
 config CPU_S5P6450
 	bool
-	select SAMSUNG_DMADEV
 	select S5P_HRT
 	select S5P_SLEEP if PM
+	select SAMSUNG_DMADEV
 	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6450 CPU support
@@ -52,19 +52,19 @@ config MACH_SMDK6440
 	bool "SMDK6440"
 	select CPU_S5P6440
 	select S3C_DEV_FB
-	select S3C_DEV_I2C1
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
+	select S3C_DEV_I2C1
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S5P64X0_SETUP_FB_24BPP
+	select S5P64X0_SETUP_I2C1
+	select S5P64X0_SETUP_SDHCI_GPIO
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
-	select S5P64X0_SETUP_FB_24BPP
-	select S5P64X0_SETUP_I2C1
-	select S5P64X0_SETUP_SDHCI_GPIO
 	help
 	  Machine support for the Samsung SMDK6440
 
@@ -72,19 +72,19 @@ config MACH_SMDK6450
 	bool "SMDK6450"
 	select CPU_S5P6450
 	select S3C_DEV_FB
-	select S3C_DEV_I2C1
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
+	select S3C_DEV_I2C1
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S5P64X0_SETUP_FB_24BPP
+	select S5P64X0_SETUP_I2C1
+	select S5P64X0_SETUP_SDHCI_GPIO
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
-	select S5P64X0_SETUP_FB_24BPP
-	select S5P64X0_SETUP_I2C1
-	select S5P64X0_SETUP_SDHCI_GPIO
 	help
 	  Machine support for the Samsung SMDK6450
 

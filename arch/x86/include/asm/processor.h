@@ -588,11 +588,6 @@ typedef struct {
 } mm_segment_t;
 
 
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 

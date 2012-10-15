@@ -185,23 +185,22 @@ static void
 nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
-	int cnt = 65536 / 4096;
-	int ret;
+	int ret, cnt, i;
+	u8  data[3];
 
 	if (!nouveau_acpi_rom_supported(pdev))
 		return;
 
-	bios->data = kmalloc(65536, GFP_KERNEL);
 	bios->size = 0;
-	if (!bios->data)
-		return;
+	if (nouveau_acpi_get_bios_chunk(data, 0, 3) == 3)
+		bios->size = data[2] * 512;
 
-	while (cnt--) {
-		ret = nouveau_acpi_get_bios_chunk(bios->data, bios->size, 4096);
-		if (ret != 4096)
-			return;
-
-		bios->size += 4096;
+	bios->data = kmalloc(bios->size, GFP_KERNEL);
+	for (i = 0; bios->data && i < bios->size; i += cnt) {
+		cnt = min((bios->size - i), (u32)4096);
+		ret = nouveau_acpi_get_bios_chunk(bios->data, i, cnt);
+		if (ret != cnt)
+			break;
 	}
 }
 

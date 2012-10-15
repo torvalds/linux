@@ -39,11 +39,10 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/err.h>
 
 /* error message prefix */
 #define ERRP "mtd: "
@@ -72,7 +71,7 @@ static struct cmdline_mtd_partition *partitions;
 
 /* the command line passed to mtdpart_setup() */
 static char *cmdline;
-static int cmdline_parsed = 0;
+static int cmdline_parsed;
 
 /*
  * Parse one partition definition for an MTD. Since there can be many
@@ -83,15 +82,14 @@ static int cmdline_parsed = 0;
  * syntax has been verified ok.
  */
 static struct mtd_partition * newpart(char *s,
-                                      char **retptr,
-                                      int *num_parts,
-                                      int this_part,
-                                      unsigned char **extra_mem_ptr,
-                                      int extra_mem_size)
+				      char **retptr,
+				      int *num_parts,
+				      int this_part,
+				      unsigned char **extra_mem_ptr,
+				      int extra_mem_size)
 {
 	struct mtd_partition *parts;
-	unsigned long size;
-	unsigned long offset = OFFSET_CONTINUOUS;
+	unsigned long size, offset = OFFSET_CONTINUOUS;
 	char *name;
 	int name_len;
 	unsigned char *extra_mem;
@@ -99,124 +97,106 @@ static struct mtd_partition * newpart(char *s,
 	unsigned int mask_flags;
 
 	/* fetch the partition size */
-	if (*s == '-')
-	{	/* assign all remaining space to this partition */
+	if (*s == '-') {
+		/* assign all remaining space to this partition */
 		size = SIZE_REMAINING;
 		s++;
-	}
-	else
-	{
+	} else {
 		size = memparse(s, &s);
-		if (size < PAGE_SIZE)
-		{
+		if (size < PAGE_SIZE) {
 			printk(KERN_ERR ERRP "partition size too small (%lx)\n", size);
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 	}
 
 	/* fetch partition name and flags */
 	mask_flags = 0; /* this is going to be a regular partition */
 	delim = 0;
-        /* check for offset */
-        if (*s == '@')
-	{
-                s++;
-                offset = memparse(s, &s);
-        }
-        /* now look for name */
-	if (*s == '(')
-	{
-		delim = ')';
+
+	/* check for offset */
+	if (*s == '@') {
+		s++;
+		offset = memparse(s, &s);
 	}
 
-	if (delim)
-	{
+	/* now look for name */
+	if (*s == '(')
+		delim = ')';
+
+	if (delim) {
 		char *p;
 
-	    	name = ++s;
+		name = ++s;
 		p = strchr(name, delim);
-		if (!p)
-		{
+		if (!p) {
 			printk(KERN_ERR ERRP "no closing %c found in partition name\n", delim);
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 		name_len = p - name;
 		s = p + 1;
-	}
-	else
-	{
-	    	name = NULL;
+	} else {
+		name = NULL;
 		name_len = 13; /* Partition_000 */
 	}
 
 	/* record name length for memory allocation later */
 	extra_mem_size += name_len + 1;
 
-        /* test for options */
-        if (strncmp(s, "ro", 2) == 0)
-	{
+	/* test for options */
+	if (strncmp(s, "ro", 2) == 0) {
 		mask_flags |= MTD_WRITEABLE;
 		s += 2;
-        }
+	}
 
-        /* if lk is found do NOT unlock the MTD partition*/
-        if (strncmp(s, "lk", 2) == 0)
-	{
+	/* if lk is found do NOT unlock the MTD partition*/
+	if (strncmp(s, "lk", 2) == 0) {
 		mask_flags |= MTD_POWERUP_LOCK;
 		s += 2;
-        }
+	}
 
 	/* test if more partitions are following */
-	if (*s == ',')
-	{
-		if (size == SIZE_REMAINING)
-		{
+	if (*s == ',') {
+		if (size == SIZE_REMAINING) {
 			printk(KERN_ERR ERRP "no partitions allowed after a fill-up partition\n");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 		/* more partitions follow, parse them */
 		parts = newpart(s + 1, &s, num_parts, this_part + 1,
 				&extra_mem, extra_mem_size);
-		if (!parts)
-			return NULL;
-	}
-	else
-	{	/* this is the last partition: allocate space for all */
+		if (IS_ERR(parts))
+			return parts;
+	} else {
+		/* this is the last partition: allocate space for all */
 		int alloc_size;
 
 		*num_parts = this_part + 1;
 		alloc_size = *num_parts * sizeof(struct mtd_partition) +
 			     extra_mem_size;
+
 		parts = kzalloc(alloc_size, GFP_KERNEL);
 		if (!parts)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		extra_mem = (unsigned char *)(parts + *num_parts);
 	}
+
 	/* enter this partition (offset will be calculated later if it is zero at this point) */
 	parts[this_part].size = size;
 	parts[this_part].offset = offset;
 	parts[this_part].mask_flags = mask_flags;
 	if (name)
-	{
 		strlcpy(extra_mem, name, name_len + 1);
-	}
 	else
-	{
 		sprintf(extra_mem, "Partition_%03d", this_part);
-	}
 	parts[this_part].name = extra_mem;
 	extra_mem += name_len + 1;
 
 	dbg(("partition %d: name <%s>, offset %llx, size %llx, mask flags %x\n",
-	     this_part,
-	     parts[this_part].name,
-	     parts[this_part].offset,
-	     parts[this_part].size,
-	     parts[this_part].mask_flags));
+	     this_part, parts[this_part].name, parts[this_part].offset,
+	     parts[this_part].size, parts[this_part].mask_flags));
 
 	/* return (updated) pointer to extra_mem memory */
 	if (extra_mem_ptr)
-	  *extra_mem_ptr = extra_mem;
+		*extra_mem_ptr = extra_mem;
 
 	/* return (updated) pointer command line string */
 	*retptr = s;
@@ -236,16 +216,16 @@ static int mtdpart_setup_real(char *s)
 	{
 		struct cmdline_mtd_partition *this_mtd;
 		struct mtd_partition *parts;
-	    	int mtd_id_len;
-		int num_parts;
+		int mtd_id_len, num_parts;
 		char *p, *mtd_id;
 
-	    	mtd_id = s;
+		mtd_id = s;
+
 		/* fetch <mtd-id> */
-		if (!(p = strchr(s, ':')))
-		{
+		p = strchr(s, ':');
+		if (!p) {
 			printk(KERN_ERR ERRP "no mtd-id\n");
-			return 0;
+			return -EINVAL;
 		}
 		mtd_id_len = p - mtd_id;
 
@@ -262,8 +242,7 @@ static int mtdpart_setup_real(char *s)
 				(unsigned char**)&this_mtd, /* out: extra mem */
 				mtd_id_len + 1 + sizeof(*this_mtd) +
 				sizeof(void*)-1 /*alignment*/);
-		if(!parts)
-		{
+		if (IS_ERR(parts)) {
 			/*
 			 * An error occurred. We're either:
 			 * a) out of memory, or
@@ -271,12 +250,12 @@ static int mtdpart_setup_real(char *s)
 			 * Either way, this mtd is hosed and we're
 			 * unlikely to succeed in parsing any more
 			 */
-			 return 0;
+			 return PTR_ERR(parts);
 		 }
 
 		/* align this_mtd */
 		this_mtd = (struct cmdline_mtd_partition *)
-			ALIGN((unsigned long)this_mtd, sizeof(void*));
+				ALIGN((unsigned long)this_mtd, sizeof(void *));
 		/* enter results */
 		this_mtd->parts = parts;
 		this_mtd->num_parts = num_parts;
@@ -296,14 +275,14 @@ static int mtdpart_setup_real(char *s)
 			break;
 
 		/* does another spec follow? */
-		if (*s != ';')
-		{
+		if (*s != ';') {
 			printk(KERN_ERR ERRP "bad character after partition (%c)\n", *s);
-			return 0;
+			return -EINVAL;
 		}
 		s++;
 	}
-	return 1;
+
+	return 0;
 }
 
 /*
@@ -318,44 +297,58 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 				    struct mtd_part_parser_data *data)
 {
 	unsigned long offset;
-	int i;
+	int i, err;
 	struct cmdline_mtd_partition *part;
 	const char *mtd_id = master->name;
 
 	/* parse command line */
-	if (!cmdline_parsed)
-		mtdpart_setup_real(cmdline);
+	if (!cmdline_parsed) {
+		err = mtdpart_setup_real(cmdline);
+		if (err)
+			return err;
+	}
 
-	for(part = partitions; part; part = part->next)
-	{
-		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
-		{
-			for(i = 0, offset = 0; i < part->num_parts; i++)
-			{
+	for (part = partitions; part; part = part->next) {
+		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id))) {
+			for (i = 0, offset = 0; i < part->num_parts; i++) {
 				if (part->parts[i].offset == OFFSET_CONTINUOUS)
-				  part->parts[i].offset = offset;
+					part->parts[i].offset = offset;
 				else
-				  offset = part->parts[i].offset;
+					offset = part->parts[i].offset;
+
 				if (part->parts[i].size == SIZE_REMAINING)
-				  part->parts[i].size = master->size - offset;
-				if (offset + part->parts[i].size > master->size)
-				{
+					part->parts[i].size = master->size - offset;
+
+				if (part->parts[i].size == 0) {
+					printk(KERN_WARNING ERRP
+					       "%s: skipping zero sized partition\n",
+					       part->mtd_id);
+					part->num_parts--;
+					memmove(&part->parts[i],
+						&part->parts[i + 1],
+						sizeof(*part->parts) * (part->num_parts - i));
+					continue;
+				}
+
+				if (offset + part->parts[i].size > master->size) {
 					printk(KERN_WARNING ERRP
 					       "%s: partitioning exceeds flash size, truncating\n",
 					       part->mtd_id);
 					part->parts[i].size = master->size - offset;
-					part->num_parts = i;
 				}
 				offset += part->parts[i].size;
 			}
+
 			*pparts = kmemdup(part->parts,
 					sizeof(*part->parts) * part->num_parts,
 					GFP_KERNEL);
 			if (!*pparts)
 				return -ENOMEM;
+
 			return part->num_parts;
 		}
 	}
+
 	return 0;
 }
 

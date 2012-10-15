@@ -461,7 +461,7 @@ static void __init beagle_opp_init(void)
 		mpu_dev = omap_device_get_by_hwmod_name("mpu");
 		iva_dev = omap_device_get_by_hwmod_name("iva");
 
-		if (!mpu_dev || !iva_dev) {
+		if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
 				__func__, mpu_dev, iva_dev);
 			return;
@@ -514,6 +514,7 @@ static void __init omap3_beagle_init(void)
 	usbhs_init(&usbhs_bdata);
 	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3beagle_nand_partitions,
 			     ARRAY_SIZE(omap3beagle_nand_partitions));
+	omap_twl4030_audio_init("omap3beagle");
 
 	/* Ensure msecure is mux'd to be able to set the RTC. */
 	omap_mux_init_signal("sys_drm_msecure", OMAP_PIN_OFF_OUTPUT_HIGH);

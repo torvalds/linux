@@ -1,6 +1,4 @@
-include include/asm-generic/Kbuild.asm
 
-header-y += hwcap.h
 
 generic-y += bug.h
 generic-y += bugs.h

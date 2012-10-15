@@ -171,6 +171,7 @@ static inline void clkdev_add_sys(const char *dev, unsigned int module,
 	clk->cl.con_id = NULL;
 	clk->cl.clk = clk;
 	clk->module = module;
+	clk->bits = bits;
 	clk->activate = sysctl_activate;
 	clk->deactivate = sysctl_deactivate;
 	clk->enable = sysctl_clken;

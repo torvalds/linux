@@ -15,6 +15,13 @@ config MACH_CM_A510
 	  Say 'Y' here if you want your kernel to support the
 	  CompuLab CM-A510 Board.
 
+config MACH_DOVE_DT
+	bool "Marvell Dove Flattened Device Tree"
+	select USE_OF
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Dove using flattened device tree.
+
 endmenu
 
 endif

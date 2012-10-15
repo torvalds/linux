@@ -1,24 +1,11 @@
 # User exported sparc header files
-include include/asm-generic/Kbuild.asm
 
-header-y += apc.h
-header-y += asi.h
-header-y += display7seg.h
-header-y += envctrl.h
-header-y += fbio.h
-header-y += jsflash.h
-header-y += openpromio.h
-header-y += perfctr.h
-header-y += psrcompat.h
-header-y += psr.h
-header-y += pstate.h
-header-y += traps.h
-header-y += uctx.h
-header-y += utrap.h
-header-y += watchdog.h
 
+generic-y += clkdev.h
 generic-y += div64.h
+generic-y += exec.h
 generic-y += local64.h
 generic-y += irq_regs.h
 generic-y += local.h
+generic-y += module.h
 generic-y += word-at-a-time.h

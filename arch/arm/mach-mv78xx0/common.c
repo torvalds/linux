@@ -130,12 +130,12 @@ static int get_tclk(void)
  ****************************************************************************/
 static struct map_desc mv78xx0_io_desc[] __initdata = {
 	{
-		.virtual	= MV78XX0_CORE_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_CORE_REGS_VIRT_BASE,
 		.pfn		= 0,
 		.length		= MV78XX0_CORE_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= MV78XX0_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(MV78XX0_REGS_PHYS_BASE),
 		.length		= MV78XX0_REGS_SIZE,
 		.type		= MT_DEVICE,
@@ -336,7 +336,7 @@ void __init mv78xx0_init_early(void)
 	orion_time_set_base(TIMER_VIRT_BASE);
 }
 
-static void mv78xx0_timer_init(void)
+static void __init_refok mv78xx0_timer_init(void)
 {
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_MV78XX0_TIMER_1, get_tclk());

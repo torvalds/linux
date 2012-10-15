@@ -40,8 +40,6 @@ struct v4l2_ioctl_ops {
 					      struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vid_out_mplane)(struct file *file, void *fh,
 					      struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
 
 	/* VIDIOC_G_FMT handlers */
 	int (*vidioc_g_fmt_vid_cap)    (struct file *file, void *fh,
@@ -64,8 +62,6 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_format *f);
 	int (*vidioc_g_fmt_vid_out_mplane)(struct file *file, void *fh,
 					   struct v4l2_format *f);
-	int (*vidioc_g_fmt_type_private)(struct file *file, void *fh,
-					struct v4l2_format *f);
 
 	/* VIDIOC_S_FMT handlers */
 	int (*vidioc_s_fmt_vid_cap)    (struct file *file, void *fh,
@@ -88,8 +84,6 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_format *f);
 	int (*vidioc_s_fmt_vid_out_mplane)(struct file *file, void *fh,
 					   struct v4l2_format *f);
-	int (*vidioc_s_fmt_type_private)(struct file *file, void *fh,
-					struct v4l2_format *f);
 
 	/* VIDIOC_TRY_FMT handlers */
 	int (*vidioc_try_fmt_vid_cap)    (struct file *file, void *fh,
@@ -112,8 +106,6 @@ struct v4l2_ioctl_ops {
 					     struct v4l2_format *f);
 	int (*vidioc_try_fmt_vid_out_mplane)(struct file *file, void *fh,
 					     struct v4l2_format *f);
-	int (*vidioc_try_fmt_type_private)(struct file *file, void *fh,
-					  struct v4l2_format *f);
 
 	/* Buffer handlers */
 	int (*vidioc_reqbufs) (struct file *file, void *fh, struct v4l2_requestbuffers *b);
@@ -128,7 +120,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_fbuf)   (struct file *file, void *fh,
 				struct v4l2_framebuffer *a);
 	int (*vidioc_s_fbuf)   (struct file *file, void *fh,
-				struct v4l2_framebuffer *a);
+				const struct v4l2_framebuffer *a);
 
 		/* Stream on/off */
 	int (*vidioc_streamon) (struct file *file, void *fh, enum v4l2_buf_type i);
@@ -175,7 +167,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_audio)          (struct file *file, void *fh,
 					struct v4l2_audio *a);
 	int (*vidioc_s_audio)          (struct file *file, void *fh,
-					struct v4l2_audio *a);
+					const struct v4l2_audio *a);
 
 	/* Audio out ioctls */
 	int (*vidioc_enumaudout)       (struct file *file, void *fh,
@@ -183,18 +175,18 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_audout)         (struct file *file, void *fh,
 					struct v4l2_audioout *a);
 	int (*vidioc_s_audout)         (struct file *file, void *fh,
-					struct v4l2_audioout *a);
+					const struct v4l2_audioout *a);
 	int (*vidioc_g_modulator)      (struct file *file, void *fh,
 					struct v4l2_modulator *a);
 	int (*vidioc_s_modulator)      (struct file *file, void *fh,
-					struct v4l2_modulator *a);
+					const struct v4l2_modulator *a);
 	/* Crop ioctls */
 	int (*vidioc_cropcap)          (struct file *file, void *fh,
 					struct v4l2_cropcap *a);
 	int (*vidioc_g_crop)           (struct file *file, void *fh,
 					struct v4l2_crop *a);
 	int (*vidioc_s_crop)           (struct file *file, void *fh,
-					struct v4l2_crop *a);
+					const struct v4l2_crop *a);
 	int (*vidioc_g_selection)      (struct file *file, void *fh,
 					struct v4l2_selection *s);
 	int (*vidioc_s_selection)      (struct file *file, void *fh,
@@ -203,7 +195,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_jpegcomp)       (struct file *file, void *fh,
 					struct v4l2_jpegcompression *a);
 	int (*vidioc_s_jpegcomp)       (struct file *file, void *fh,
-					struct v4l2_jpegcompression *a);
+					const struct v4l2_jpegcompression *a);
 	int (*vidioc_g_enc_index)      (struct file *file, void *fh,
 					struct v4l2_enc_idx *a);
 	int (*vidioc_encoder_cmd)      (struct file *file, void *fh,
@@ -241,7 +233,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_log_status)       (struct file *file, void *fh);
 
 	int (*vidioc_s_hw_freq_seek)   (struct file *file, void *fh,
-					struct v4l2_hw_freq_seek *a);
+					const struct v4l2_hw_freq_seek *a);
 
 	/* Debugging ioctls */
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -281,9 +273,9 @@ struct v4l2_ioctl_ops {
 				    struct v4l2_dv_timings_cap *cap);
 
 	int (*vidioc_subscribe_event)  (struct v4l2_fh *fh,
-					struct v4l2_event_subscription *sub);
+					const struct v4l2_event_subscription *sub);
 	int (*vidioc_unsubscribe_event)(struct v4l2_fh *fh,
-					struct v4l2_event_subscription *sub);
+					const struct v4l2_event_subscription *sub);
 
 	/* For other private ioctls */
 	long (*vidioc_default)	       (struct file *file, void *fh,
