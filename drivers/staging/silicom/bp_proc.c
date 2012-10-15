@@ -18,11 +18,11 @@
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
 #include <asm/uaccess.h>
-//#include <linux/smp_lock.h>
+/* #include <linux/smp_lock.h> */
 #include "bp_mod.h"
 
 #define BP_PROC_DIR "bypass"
-//#define BYPASS_SUPPORT "bypass"
+/* #define BYPASS_SUPPORT "bypass" */
 
 #ifdef BYPASS_SUPPORT
 
@@ -70,7 +70,7 @@
 #define DISC_CHANGE_ENTRY_SD      "disc_change"
 #define DIS_DISC_ENTRY_SD         "dis_disc"
 #define DISC_PWUP_ENTRY_SD        "disc_pwup"
-#endif				//bypass_support
+#endif	/* bypass_support */
 static struct proc_dir_entry *bp_procfs_dir;
 
 static struct proc_dir_entry *proc_getdir(char *name,
