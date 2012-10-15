@@ -16,7 +16,7 @@
 
 / {
 	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
-	compatible = "st-ericsson,mop500";
+	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
 
 	gpio_keys {
 		button@1 {

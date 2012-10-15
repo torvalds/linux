@@ -330,11 +330,11 @@ static void __init u8500_init_machine(void)
 	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
 }
 
-static const char * u8500_dt_board_compat[] = {
-	"calaosystems,snowball-a9500",
-	"st-ericsson,hrefv60+",
-	"st-ericsson,mop500",
-	"st-ericsson,ccu9540",
+static const char * stericsson_dt_platform_compat[] = {
+	"st-ericsson,u8500",
+	"st-ericsson,u8540",
+	"st-ericsson,u9500",
+	"st-ericsson,u9540",
 	NULL,
 };
 
@@ -346,7 +346,7 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= u8500_init_machine,
 	.init_late	= NULL,
-	.dt_compat      = u8500_dt_board_compat,
+	.dt_compat      = stericsson_dt_platform_compat,
 MACHINE_END
 
 #endif
