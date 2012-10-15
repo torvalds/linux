@@ -34,7 +34,7 @@
 #include <media/videobuf-dma-contig.h>
 #include <media/videobuf-dma-sg.h>
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 
 #define DRIVER_NAME		"omap1-camera"

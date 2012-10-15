@@ -38,7 +38,7 @@
 #include <crypto/internal/hash.h>
 
 #include <plat/cpu.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irqs.h>
 
 #define SHA_REG_DIGEST(x)		(0x00 + ((x) * 0x04))

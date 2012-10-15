@@ -38,7 +38,7 @@
 
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "common.h"
 #include "prm2xxx_3xxx.h"

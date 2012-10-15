@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 
 #include <plat/mmc.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x01

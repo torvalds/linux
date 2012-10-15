@@ -36,7 +36,7 @@
 
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irda.h>
 #include <plat/tc.h>
 #include <mach/board-sx1.h>

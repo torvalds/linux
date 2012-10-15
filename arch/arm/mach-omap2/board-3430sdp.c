@@ -32,7 +32,7 @@
 
 #include <plat/usb.h>
 #include "common.h"
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/gpmc.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>

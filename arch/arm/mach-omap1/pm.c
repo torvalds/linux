@@ -54,7 +54,7 @@
 #include <plat/sram.h>
 #include <plat/tc.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/dmtimer.h>
 
 #include <mach/irqs.h>

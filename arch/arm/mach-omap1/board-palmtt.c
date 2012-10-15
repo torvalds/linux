@@ -36,7 +36,7 @@
 #include <plat/led.h>
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/tc.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>

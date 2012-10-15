@@ -18,7 +18,7 @@
 #include <linux/platform_data/gpio-omap.h>
 
 #include <plat/omap_hwmod.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/serial.h>
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"

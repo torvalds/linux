@@ -30,7 +30,7 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #define OMAP2_DMA_STRIDE	0x60
 

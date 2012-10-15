@@ -1,5 +1,5 @@
 /*
- *  arch/arm/plat-omap/include/mach/dma.h
+ *  OMAP DMA handling defines and function
  *
  *  Copyright (C) 2003 Nokia Corporation
  *  Author: Juha Yrjölä <juha.yrjola@nokia.com>

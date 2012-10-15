@@ -24,7 +24,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 

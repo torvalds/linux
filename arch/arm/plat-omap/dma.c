@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 
 #include <plat/cpu.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/tc.h>
 
 /*

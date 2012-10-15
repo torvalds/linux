@@ -11,7 +11,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/dmtimer.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 

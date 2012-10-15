@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "musb_core.h"
 #include "tusb6010.h"
