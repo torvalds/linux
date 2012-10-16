@@ -446,17 +446,20 @@ static void __init v2m_dt_init_irq(void)
 
 static void __init v2m_dt_timer_init(void)
 {
-	struct device_node *node;
-	const char *path;
-	int err;
+	struct device_node *node = NULL;
 
 	vexpress_clk_of_init();
 
-	err = of_property_read_string(of_aliases, "arm,v2m_timer", &path);
-	if (WARN_ON(err))
-		return;
-	node = of_find_node_by_path(path);
-	v2m_sp804_init(of_iomap(node, 0), irq_of_parse_and_map(node, 0));
+	do {
+		node = of_find_compatible_node(node, NULL, "arm,sp804");
+	} while (node && vexpress_get_site_by_node(node) != VEXPRESS_SITE_MB);
+	if (node) {
+		pr_info("Using SP804 '%s' as a clock & events source\n",
+				node->full_name);
+		v2m_sp804_init(of_iomap(node, 0),
+				irq_of_parse_and_map(node, 0));
+	}
+
 	if (arch_timer_of_register() != 0)
 		twd_local_timer_of_register();
 

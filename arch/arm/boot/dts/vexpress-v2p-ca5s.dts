@@ -182,7 +182,11 @@
 		};
 	};
 
-	motherboard {
+	smb {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
 		ranges = <0 0 0x08000000 0x04000000>,
 			 <1 0 0x14000000 0x04000000>,
 			 <2 0 0x18000000 0x04000000>,
@@ -190,6 +194,7 @@
 			 <4 0 0x0c000000 0x04000000>,
 			 <5 0 0x10000000 0x04000000>;
 
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic 0  0 4>,
 				<0 0  1 &gic 0  1 4>,
@@ -234,7 +239,7 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
+
+		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 };
-
-/include/ "vexpress-v2m-rs1.dtsi"
