@@ -218,7 +218,7 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->resume_sources = resume_sources;
 	v->irq = irq;
 	vic_id++;
-	v->domain = irq_domain_add_legacy(node, fls(valid_sources), irq, 0,
+	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
 					  &vic_irqdomain_ops, v);
 }
 
@@ -350,7 +350,7 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 	vic_register(base, irq_start, vic_sources, 0, node);
 }
 
-void __init __vic_init(void __iomem *base, unsigned int irq_start,
+void __init __vic_init(void __iomem *base, int irq_start,
 			      u32 vic_sources, u32 resume_sources,
 			      struct device_node *node)
 {
@@ -416,18 +416,12 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 	if (WARN_ON(!regs))
 		return -EIO;
 
-	irq_base = irq_alloc_descs(-1, 0, 32, numa_node_id());
-	if (WARN_ON(irq_base < 0))
-		goto out_unmap;
-
-	__vic_init(regs, irq_base, ~0, ~0, node);
+	/*
+	 * Passing -1 as first IRQ makes the simple domain allocate descriptors
+	 */
+	__vic_init(regs, -1, ~0, ~0, node);
 
 	return 0;
-
- out_unmap:
-	iounmap(regs);
-
-	return -EIO;
 }
 #endif /* CONFIG OF */
 
