@@ -105,7 +105,7 @@ static void fimc_device_run(void *priv)
 	struct fimc_frame *sf, *df;
 	struct fimc_dev *fimc;
 	unsigned long flags;
-	u32 ret;
+	int ret;
 
 	if (WARN(!ctx, "Null context\n"))
 		return;
