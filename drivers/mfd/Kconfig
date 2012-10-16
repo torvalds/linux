@@ -94,6 +94,17 @@ config MFD_TI_SSP
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti-ssp.
 
+config MFD_TI_AM335X_TSCADC
+	tristate "TI ADC / Touch Screen chip support"
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  If you say yes here you get support for Texas Instruments series
+	  of Touch Screen /ADC chips.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti_am335x_tscadc.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
