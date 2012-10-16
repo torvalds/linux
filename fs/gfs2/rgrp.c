@@ -1270,11 +1270,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
 
-	if (argp == NULL) {
-		r.start = 0;
-		r.len = ULLONG_MAX;
-		r.minlen = 0;
-	} else if (copy_from_user(&r, argp, sizeof(r)))
+	if (copy_from_user(&r, argp, sizeof(r)))
 		return -EFAULT;
 
 	ret = gfs2_rindex_update(sdp);
@@ -1323,7 +1319,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 
 out:
 	r.len = trimmed << 9;
-	if (argp && copy_to_user(argp, &r, sizeof(r)))
+	if (copy_to_user(argp, &r, sizeof(r)))
 		return -EFAULT;
 
 	return ret;
