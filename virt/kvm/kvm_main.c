@@ -1208,7 +1208,7 @@ __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
 		return KVM_PFN_ERR_RO_FAULT;
 
 	if (kvm_is_error_hva(addr))
-		return KVM_PFN_ERR_BAD;
+		return KVM_PFN_NOSLOT;
 
 	/* Do not map writable pfn in the readonly memslot. */
 	if (writable && memslot_is_readonly(slot)) {
@@ -1290,7 +1290,7 @@ EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
 static struct page *kvm_pfn_to_page(pfn_t pfn)
 {
-	if (is_error_pfn(pfn))
+	if (is_error_noslot_pfn(pfn))
 		return KVM_ERR_PTR_BAD_PAGE;
 
 	if (kvm_is_mmio_pfn(pfn)) {
@@ -1322,7 +1322,7 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn))
+	if (!is_error_noslot_pfn(pfn) && !kvm_is_mmio_pfn(pfn))
 		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);

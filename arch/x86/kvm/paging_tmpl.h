@@ -323,7 +323,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	protect_clean_gpte(&pte_access, gpte);
 	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 			no_dirty_log && (pte_access & ACC_WRITE_MASK));
-	if (is_invalid_pfn(pfn))
+	if (is_error_pfn(pfn))
 		return false;
 
 	/*

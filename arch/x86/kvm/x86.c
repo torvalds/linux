@@ -4504,7 +4504,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 	 * instruction -> ...
 	 */
 	pfn = gfn_to_pfn(vcpu->kvm, gpa_to_gfn(gpa));
-	if (!is_error_pfn(pfn)) {
+	if (!is_error_noslot_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
 		return true;
 	}
