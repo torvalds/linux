@@ -1544,8 +1544,7 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int s3c_fb_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb *sfb = dev_get_drvdata(dev);
 	struct s3c_fb_win *win;
 	int win_no;
 
@@ -1572,8 +1571,7 @@ static int s3c_fb_suspend(struct device *dev)
 
 static int s3c_fb_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb *sfb = dev_get_drvdata(dev);
 	struct s3c_fb_platdata *pd = sfb->pdata;
 	struct s3c_fb_win *win;
 	int win_no;
@@ -1623,7 +1621,7 @@ static int s3c_fb_resume(struct device *dev)
 		if (!win)
 			continue;
 
-		dev_dbg(&pdev->dev, "resuming window %d\n", win_no);
+		dev_dbg(dev, "resuming window %d\n", win_no);
 		s3c_fb_set_par(win->fbinfo);
 	}
 
@@ -1636,8 +1634,7 @@ static int s3c_fb_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int s3c_fb_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb *sfb = dev_get_drvdata(dev);
 
 	if (!sfb->variant.has_clksel)
 		clk_disable_unprepare(sfb->lcd_clk);
@@ -1649,8 +1646,7 @@ static int s3c_fb_runtime_suspend(struct device *dev)
 
 static int s3c_fb_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb *sfb = dev_get_drvdata(dev);
 	struct s3c_fb_platdata *pd = sfb->pdata;
 
 	clk_prepare_enable(sfb->bus_clk);
