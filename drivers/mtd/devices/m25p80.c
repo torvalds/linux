@@ -65,6 +65,15 @@
 #define	OPCODE_BRWR		0x17	/* Bank register write */
 #define	OPCODE_BRRD		0x16	/* Bank register read */
 
+/* Used for Numonyx flashes only */
+#define NUMONYX_ID             0x20
+#define OPCODE_RVCR            0x85    /* Read volatile configuration register */
+#define OPCODE_WVCR            0x81    /* Write volatile configuration register */
+#define VCR_XIP_SHIFT                  0x03
+#define VCR_XIP_MASK                   0x08
+#define VCR_DUMMY_CLK_CYCLES_SHIFT     0x04
+#define VCR_DUMMY_CLK_CYCLES_MASK      0xf0
+
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
 #define	SR_WEL			2	/* Write enable latch */
@@ -965,6 +974,10 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
 	{ "320s33b",  INFO(0x898912, 0, 64 * 1024,  64, 0) },
 	{ "640s33b",  INFO(0x898913, 0, 64 * 1024, 128, 0) },
+	{ "n25q064",  INFO(0x20ba17, 0, 64 * 1024, 128, 0) },
+	
+	/* Micron/Numonyx */
+	{ "n25q128",  INFO(0x20ba18, 0, 64 * 1024, 256, 0) },
 
 	/* Macronix */
 	{ "mx25l2005a",  INFO(0xc22012, 0, 64 * 1024,   4, SECT_4K) },
@@ -1368,6 +1381,8 @@ static int m25p_probe(struct spi_device *spi)
 		} else
 			flash->addr_width = 3;
 	}
+
+	spi->addr_width = flash->addr_width;
 
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", id->name,
 			(long long)flash->mtd.size >> 10);
