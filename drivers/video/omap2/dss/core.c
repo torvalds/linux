@@ -117,7 +117,7 @@ void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask)
 {
 	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
 
-	if (!board_data->dsi_enable_pads)
+	if (!board_data->dsi_disable_pads)
 		return;
 
 	return board_data->dsi_disable_pads(dsi_id, lane_mask);
