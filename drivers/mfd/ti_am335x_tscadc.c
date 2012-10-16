@@ -24,6 +24,7 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
+#include <linux/input/ti_am335x_tsc.h>
 
 static unsigned int tscadc_readl(struct ti_tscadc_dev *tsadc, unsigned int reg)
 {
@@ -62,14 +63,18 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 	struct resource		*res;
 	struct clk		*clk;
 	struct mfd_tscadc_board	*pdata = pdev->dev.platform_data;
+	struct mfd_cell		*cell;
 	int			irq;
 	int			err, ctrl;
 	int			clk_value, clock_rate;
+	int			tsc_wires;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "Could not find platform data\n");
 		return -EINVAL;
 	}
+
+	tsc_wires = pdata->tsc_init->wires;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -160,6 +165,12 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 	ctrl = tscadc_readl(tscadc, REG_CTRL);
 	ctrl |= CNTRLREG_TSCSSENB;
 	tscadc_writel(tscadc, REG_CTRL, ctrl);
+
+	/* TSC Cell */
+	cell = &tscadc->cells[TSC_CELL];
+	cell->name = "tsc";
+	cell->platform_data = tscadc;
+	cell->pdata_size = sizeof(*tscadc);
 
 	err = mfd_add_devices(&pdev->dev, pdev->id, tscadc->cells,
 			TSCADC_CELLS, NULL, 0, NULL);

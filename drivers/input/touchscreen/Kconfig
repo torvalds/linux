@@ -531,7 +531,7 @@ config TOUCHSCREEN_TOUCHWIN
 
 config TOUCHSCREEN_TI_AM335X_TSC
 	tristate "TI Touchscreen Interface"
-	depends on ARCH_OMAP2PLUS
+	depends on MFD_TI_AM335X_TSCADC
 	help
 	  Say Y here if you have 4/5/8 wire touchscreen controller
 	  to be connected to the ADC controller on your TI AM335x SoC.

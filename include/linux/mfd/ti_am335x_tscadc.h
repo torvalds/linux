@@ -47,6 +47,7 @@
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
 #define STPENB_STEPENB		STEPENB(0x1FFFF)
+#define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
@@ -120,7 +121,11 @@
 #define ADC_CLK			3000000
 #define	MAX_CLK_DIV		7
 
-#define TSCADC_CELLS		0
+#define TSCADC_CELLS		1
+
+enum tscadc_cells {
+	TSC_CELL,
+};
 
 struct mfd_tscadc_board {
 	struct tsc_data *tsc_init;
@@ -132,6 +137,9 @@ struct ti_tscadc_dev {
 	void __iomem *tscadc_base;
 	int irq;
 	struct mfd_cell cells[TSCADC_CELLS];
+
+	/* tsc device */
+	struct titsc *tsc;
 };
 
 #endif
