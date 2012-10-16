@@ -41,10 +41,6 @@
 #define REG_CHARGEDELAY		0x060
 #define REG_STEPCONFIG(n)	(0x64 + ((n - 1) * 8))
 #define REG_STEPDELAY(n)	(0x68 + ((n - 1) * 8))
-#define REG_STEPCONFIG13	0x0C4
-#define REG_STEPDELAY13		0x0C8
-#define REG_STEPCONFIG14	0x0CC
-#define REG_STEPDELAY14		0x0D0
 #define REG_FIFO0CNT		0xE4
 #define REG_FIFO1THR		0xF4
 #define REG_FIFO0		0x100
@@ -134,6 +130,7 @@ struct tscadc {
 	unsigned int		wires;
 	unsigned int		x_plate_resistance;
 	bool			pen_down;
+	int			steps_to_configure;
 };
 
 static unsigned int tscadc_readl(struct tscadc *ts, unsigned int reg)
@@ -150,9 +147,10 @@ static void tscadc_writel(struct tscadc *tsc, unsigned int reg,
 static void tscadc_step_config(struct tscadc *ts_dev)
 {
 	unsigned int	config;
-	int i;
+	int i, total_steps;
 
 	/* Configure the Step registers */
+	total_steps = 2 * ts_dev->steps_to_configure;
 
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | STEPCONFIG_XPP;
@@ -170,7 +168,7 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 		break;
 	}
 
-	for (i = 1; i < 7; i++) {
+	for (i = 1; i <= ts_dev->steps_to_configure; i++) {
 		tscadc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		tscadc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -192,7 +190,7 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 		break;
 	}
 
-	for (i = 7; i < 13; i++) {
+	for (i = (ts_dev->steps_to_configure + 1); i <= total_steps; i++) {
 		tscadc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		tscadc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -211,12 +209,14 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | STEPCONFIG_YPP |
 			STEPCONFIG_XNN | STEPCONFIG_INM_ADCREFM;
-	tscadc_writel(ts_dev, REG_STEPCONFIG13, config);
-	tscadc_writel(ts_dev, REG_STEPDELAY13, STEPCONFIG_OPENDLY);
+	tscadc_writel(ts_dev, REG_STEPCONFIG(total_steps + 1), config);
+	tscadc_writel(ts_dev, REG_STEPDELAY(total_steps + 1),
+			STEPCONFIG_OPENDLY);
 
 	config |= STEPCONFIG_INP_AN3 | STEPCONFIG_FIFO1;
-	tscadc_writel(ts_dev, REG_STEPCONFIG14, config);
-	tscadc_writel(ts_dev, REG_STEPDELAY14, STEPCONFIG_OPENDLY);
+	tscadc_writel(ts_dev, REG_STEPCONFIG(total_steps + 2), config);
+	tscadc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
+			STEPCONFIG_OPENDLY);
 
 	tscadc_writel(ts_dev, REG_SE, STPENB_STEPENB);
 }
@@ -379,6 +379,7 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 	ts_dev->irq = irq;
 	ts_dev->wires = pdata->wires;
 	ts_dev->x_plate_resistance = pdata->x_plate_resistance;
+	ts_dev->steps_to_configure = pdata->steps_to_configure;
 
 	res = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!res) {
@@ -447,7 +448,7 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 	tscadc_idle_config(ts_dev);
 	tscadc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO1THRES);
 	tscadc_step_config(ts_dev);
-	tscadc_writel(ts_dev, REG_FIFO1THR, 6);
+	tscadc_writel(ts_dev, REG_FIFO1THR, ts_dev->steps_to_configure);
 
 	ctrl |= CNTRLREG_TSCSSENB;
 	tscadc_writel(ts_dev, REG_CTRL, ctrl);
