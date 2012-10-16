@@ -3668,9 +3668,9 @@ static int can_overcommit(struct btrfs_root *root,
 		avail >>= 1;
 
 	/*
-	 * If we aren't flushing don't let us overcommit too much, say
-	 * 1/8th of the space.  If we can flush, let it overcommit up to
-	 * 1/2 of the space.
+	 * If we aren't flushing all things, let us overcommit up to
+	 * 1/2th of the space. If we can flush, don't let us overcommit
+	 * too much, let it overcommit up to 1/8 of the space.
 	 */
 	if (flush)
 		avail >>= 3;
