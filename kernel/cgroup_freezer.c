@@ -84,50 +84,6 @@ static const char *freezer_state_strs[] = {
 
 struct cgroup_subsys freezer_subsys;
 
-/* Locks taken and their ordering
- * ------------------------------
- * cgroup_mutex (AKA cgroup_lock)
- * freezer->lock
- * css_set_lock
- * task->alloc_lock (AKA task_lock)
- * task->sighand->siglock
- *
- * cgroup code forces css_set_lock to be taken before task->alloc_lock
- *
- * freezer_create(), freezer_destroy():
- * cgroup_mutex [ by cgroup core ]
- *
- * freezer_can_attach():
- * cgroup_mutex (held by caller of can_attach)
- *
- * freezer_fork() (preserving fork() performance means can't take cgroup_mutex):
- * freezer->lock
- *  sighand->siglock (if the cgroup is freezing)
- *
- * freezer_read():
- * cgroup_mutex
- *  freezer->lock
- *   write_lock css_set_lock (cgroup iterator start)
- *    task->alloc_lock
- *   read_lock css_set_lock (cgroup iterator start)
- *
- * freezer_write() (freeze):
- * cgroup_mutex
- *  freezer->lock
- *   write_lock css_set_lock (cgroup iterator start)
- *    task->alloc_lock
- *   read_lock css_set_lock (cgroup iterator start)
- *    sighand->siglock (fake signal delivery inside freeze_task())
- *
- * freezer_write() (unfreeze):
- * cgroup_mutex
- *  freezer->lock
- *   write_lock css_set_lock (cgroup iterator start)
- *    task->alloc_lock
- *   read_lock css_set_lock (cgroup iterator start)
- *    task->alloc_lock (inside __thaw_task(), prevents race with refrigerator())
- *     sighand->siglock
- */
 static struct cgroup_subsys_state *freezer_create(struct cgroup *cgroup)
 {
 	struct freezer *freezer;
@@ -151,9 +107,13 @@ static void freezer_destroy(struct cgroup *cgroup)
 }
 
 /*
- * The call to cgroup_lock() in the freezer.state write method prevents
- * a write to that file racing against an attach, and hence we don't need
- * to worry about racing against migration.
+ * Tasks can be migrated into a different freezer anytime regardless of its
+ * current state.  freezer_attach() is responsible for making new tasks
+ * conform to the current state.
+ *
+ * Freezer state changes and task migration are synchronized via
+ * @freezer->lock.  freezer_attach() makes the new tasks conform to the
+ * current state and all following state changes can see the new tasks.
  */
 static void freezer_attach(struct cgroup *new_cgrp, struct cgroup_taskset *tset)
 {
@@ -217,8 +177,8 @@ out:
  * partially frozen when we exitted write.  Caller must hold freezer->lock.
  *
  * Task states and freezer state might disagree while tasks are being
- * migrated into @cgroup, so we can't verify task states against @freezer
- * state here.  See freezer_attach() for details.
+ * migrated into or out of @cgroup, so we can't verify task states against
+ * @freezer state here.  See freezer_attach() for details.
  */
 static void update_if_frozen(struct cgroup *cgroup, struct freezer *freezer)
 {
@@ -255,15 +215,11 @@ static int freezer_read(struct cgroup *cgroup, struct cftype *cft,
 	struct freezer *freezer;
 	enum freezer_state state;
 
-	if (!cgroup_lock_live_group(cgroup))
-		return -ENODEV;
-
 	freezer = cgroup_freezer(cgroup);
 	spin_lock_irq(&freezer->lock);
 	update_if_frozen(cgroup, freezer);
 	state = freezer->state;
 	spin_unlock_irq(&freezer->lock);
-	cgroup_unlock();
 
 	seq_puts(m, freezer_state_strs[state]);
 	seq_putc(m, '\n');
@@ -297,6 +253,7 @@ static void freezer_change_state(struct cgroup *cgroup,
 {
 	struct freezer *freezer = cgroup_freezer(cgroup);
 
+	/* also synchronizes against task migration, see freezer_attach() */
 	spin_lock_irq(&freezer->lock);
 
 	switch (goal_state) {
@@ -332,10 +289,7 @@ static int freezer_write(struct cgroup *cgroup,
 	else
 		return -EINVAL;
 
-	if (!cgroup_lock_live_group(cgroup))
-		return -ENODEV;
 	freezer_change_state(cgroup, goal_state);
-	cgroup_unlock();
 	return 0;
 }
 
