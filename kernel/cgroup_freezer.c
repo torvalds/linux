@@ -214,10 +214,18 @@ static void update_if_frozen(struct cgroup *cgroup,
 
 	cgroup_iter_start(cgroup, &it);
 	while ((task = cgroup_iter_next(cgroup, &it))) {
-		ntotal++;
-		if (freezing(task) && (frozen(task) ||
-				       task_is_stopped_or_traced(task)))
-			nfrozen++;
+		if (freezing(task)) {
+			ntotal++;
+			/*
+			 * freezer_should_skip() indicates that the task
+			 * should be skipped when determining freezing
+			 * completion.  Consider it frozen in addition to
+			 * the usual frozen condition.
+			 */
+			if (frozen(task) || task_is_stopped_or_traced(task) ||
+			    freezer_should_skip(task))
+				nfrozen++;
+		}
 	}
 
 	if (old_state == CGROUP_THAWED) {
