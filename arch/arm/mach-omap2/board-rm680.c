@@ -25,7 +25,7 @@
 #include <plat/i2c.h>
 #include <plat/mmc.h>
 #include <plat/usb.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include "common.h"
 #include <plat/serial.h>
 
@@ -33,6 +33,7 @@
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
+#include "gpmc-onenand.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),

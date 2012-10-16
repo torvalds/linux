@@ -32,7 +32,7 @@
 
 #include "common.h"
 #include <plat/dma.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/omap-pm.h>
 #include "gpmc-smc91x.h"
 
@@ -54,6 +54,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "gpmc-onenand.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8

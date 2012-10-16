@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/smc91x.h>
 
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include "gpmc-smc91x.h"
 
 #include "soc.h"

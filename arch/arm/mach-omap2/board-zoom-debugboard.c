@@ -17,7 +17,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
 #include <mach/board-zoom.h>
