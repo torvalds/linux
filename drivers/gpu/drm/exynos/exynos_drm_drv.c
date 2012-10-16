@@ -50,6 +50,9 @@
 
 #define VBLANK_OFF_DELAY	50000
 
+/* platform device pointer for eynos drm device. */
+static struct platform_device *exynos_drm_pdev;
+
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -296,6 +299,7 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	exynos_drm_driver.num_ioctls = DRM_ARRAY_SIZE(exynos_ioctls);
 
 	return drm_platform_init(&exynos_drm_driver, pdev);
@@ -357,11 +361,21 @@ static int __init exynos_drm_init(void)
 
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret < 0)
+		goto out_drm;
+
+	exynos_drm_pdev = platform_device_register_simple("exynos-drm", -1,
+				NULL, 0);
+	if (IS_ERR_OR_NULL(exynos_drm_pdev)) {
+		ret = PTR_ERR(exynos_drm_pdev);
 		goto out;
+	}
 
 	return 0;
 
 out:
+	platform_driver_unregister(&exynos_drm_platform_driver);
+
+out_drm:
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	platform_driver_unregister(&g2d_driver);
 out_g2d:
@@ -391,6 +405,8 @@ out_fimd:
 static void __exit exynos_drm_exit(void)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+
+	platform_device_unregister(exynos_drm_pdev);
 
 	platform_driver_unregister(&exynos_drm_platform_driver);
 
