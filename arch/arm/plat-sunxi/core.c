@@ -78,11 +78,11 @@ int sunxi_pr_chip_id()
 	u32 chip_id = sunxi_chip_id();
 #ifdef CONFIG_ARCH_SUN4I
 	pr_info("chip-id: %s (AW%u revision %c)\n",
-		chip_id == 1623 ? "A10" : "Unknown",
+		chip_id == SUNXI_CHIP_ID_A10 ? "A10" : "Unknown",
 		chip_id, 'A'+sw_get_ic_ver());
 #else
 	pr_info("chip-id: %s (AW%u)\n",
-		chip_id == 1625 ? "A13" : "Unknown",
+		chip_id == SUNXI_CHIP_ID_A13 ? "A13" : "Unknown",
 		chip_id);
 #endif
 	return (chip_id != 0);

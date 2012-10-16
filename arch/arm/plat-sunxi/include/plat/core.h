@@ -23,11 +23,18 @@
 		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
 		(SIZE) < SZ_1M ? "kB" : "MB")
 
+enum {
+	SUNXI_CHIP_ID_A10 = 1623,
+	SUNXI_CHIP_ID_A13 = 1625,
+};
+
 /* BROM access only possible after iomap()s */
 u32 sunxi_chip_id(void);
 int sunxi_pr_chip_id(void);
 int sunxi_pr_brom(void);
 
+struct meminfo;
+struct tag;
 void __init sunxi_core_fixup(struct machine_desc *desc,
 			     struct tag *t, char **cmdline,
 			     struct meminfo *mi);
