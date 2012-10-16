@@ -1123,7 +1123,7 @@ static int adv7604_query_dv_timings(struct v4l2_subdev *sd,
 		adv7604_fill_optional_dv_timings_fields(sd, timings);
 	} else {
 		/* find format
-		 * Since LCVS values are inaccurate (REF_03, page 275-276),
+		 * Since LCVS values are inaccurate [REF_03, p. 275-276],
 		 * stdi2dv_timings() is called with lcvs +-1 if the first attempt fails.
 		 */
 		if (!stdi2dv_timings(sd, &stdi, timings))
@@ -1712,9 +1712,9 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 	cp_write(sd, 0xba, (pdata->hdmi_free_run_mode << 1) | 0x01); /* HDMI free run */
 	cp_write(sd, 0xf3, 0xdc); /* Low threshold to enter/exit free run mode */
 	cp_write(sd, 0xf9, 0x23); /*  STDI ch. 1 - LCVS change threshold -
-				      ADI recommended setting [REF_01 c. 2.3.3] */
+				      ADI recommended setting [REF_01, c. 2.3.3] */
 	cp_write(sd, 0x45, 0x23); /*  STDI ch. 2 - LCVS change threshold -
-				      ADI recommended setting [REF_01 c. 2.3.3] */
+				      ADI recommended setting [REF_01, c. 2.3.3] */
 	cp_write(sd, 0xc9, 0x2d); /* use prim_mode and vid_std as free run resolution
 				     for digital formats */
 
