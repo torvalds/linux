@@ -88,6 +88,25 @@
 			status = "disabled";
 		};
 
+		dma@ea800000 {
+			slave_info {
+				uart1_tx {
+					bus_id = "uart1_tx";
+					cfg_hi = <0x6000>;	/* 0xC << 11 */
+					cfg_lo = <0>;
+					src_master = <0>;
+					dst_master = <1>;
+				};
+				uart1_tx {
+					bus_id = "uart1_tx";
+					cfg_hi = <0x680>;	/* 0xD << 7 */
+					cfg_lo = <0>;
+					src_master = <1>;
+					dst_master = <0>;
+				};
+			};
+		};
+
 		spi1: spi@5d400000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x5d400000 0x1000>;

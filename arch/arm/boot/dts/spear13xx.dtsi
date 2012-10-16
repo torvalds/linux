@@ -105,6 +105,37 @@
 			reg = <0xea800000 0x1000>;
 			interrupts = <0 19 0x4>;
 			status = "disabled";
+
+			nr_channels = <8>;
+			chan_allocation_order = <1>;
+			chan_priority = <1>;
+			block_size = <0xfff>;
+			nr_masters = <2>;
+			data_width = <3 3 0 0>;
+
+			slave_info {
+				ssp0_tx {
+					bus_id = "ssp0_tx";
+					cfg_hi = <0x2000>;	/* 0x4 << 11 */
+					cfg_lo = <0>;
+					src_master = <0>;
+					dst_master = <0>;
+				};
+				ssp0_rx {
+					bus_id = "ssp0_rx";
+					cfg_hi = <0x280>;	/* 0x5 << 7 */
+					cfg_lo = <0>;
+					src_master = <0>;
+					dst_master = <0>;
+				};
+				cf {
+					bus_id = "cf";
+					cfg_hi = <0>;
+					cfg_lo = <0>;
+					src_master = <0>;
+					dst_master = <0>;
+				};
+			};
 		};
 
 		dma@eb000000 {
@@ -112,6 +143,13 @@
 			reg = <0xeb000000 0x1000>;
 			interrupts = <0 59 0x4>;
 			status = "disabled";
+
+			nr_channels = <8>;
+			chan_allocation_order = <1>;
+			chan_priority = <1>;
+			block_size = <0xfff>;
+			nr_masters = <2>;
+			data_width = <3 3 0 0>;
 		};
 
 		fsmc: flash@b0000000 {
