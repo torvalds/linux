@@ -817,15 +817,17 @@ static u64 nop_for_index(int idx)
 
 static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
-	u64 val, mask = mask_for_index(idx);
+	u64 enc, val, mask = mask_for_index(idx);
 	int pcr_index = 0;
 
 	if (sparc_pmu->num_pcrs > 1)
 		pcr_index = idx;
 
+	enc = perf_event_get_enc(cpuc->events[idx]);
+
 	val = cpuc->pcr[pcr_index];
 	val &= ~mask;
-	val |= hwc->config;
+	val |= event_encoding(enc, idx);
 	cpuc->pcr[pcr_index] = val;
 
 	pcr_ops->write_pcr(pcr_index, cpuc->pcr[pcr_index]);
