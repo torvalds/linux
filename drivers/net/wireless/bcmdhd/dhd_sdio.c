@@ -3950,49 +3950,55 @@ dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	if (enforce_mutex)
 		dhd_os_sdlock(bus->dhd);
 
-	BUS_WAKE(bus);
+	if ((bus->dhd->busstate == DHD_BUS_DOWN) || bus->dhd->hang_was_sent) {
+		bus->dhd->busstate = DHD_BUS_DOWN;
+		bus->hostintmask = 0;
+		bcmsdh_intr_disable(bus->sdh);
+	} else {
+		BUS_WAKE(bus);
 
-	if (KSO_ENAB(bus)) {
-		/* Mask the interrupt */
-		dat = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_INTEN, NULL);
-		dat &= ~(INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN);
-		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_INTEN, dat, NULL);
+		if (KSO_ENAB(bus)) {
+			/* Mask the interrupt */
+			dat = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_INTEN, NULL);
+			dat &= ~(INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN);
+			bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_INTEN, dat, NULL);
+		}
+
+		/* Change our idea of bus state */
+		bus->dhd->busstate = DHD_BUS_DOWN;
+
+		if (KSO_ENAB(bus)) {
+
+			/* Enable clock for device interrupts */
+			dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+
+			/* Disable and clear interrupts at the chip level also */
+			W_SDREG(0, &bus->regs->hostintmask, retries);
+			local_hostintmask = bus->hostintmask;
+			bus->hostintmask = 0;
+
+			/* Force clocks on backplane to be sure F2 interrupt propagates */
+			saveclk = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, &err);
+			if (!err) {
+				bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
+						 (saveclk | SBSDIO_FORCE_HT), &err);
+			}
+			if (err) {
+				DHD_ERROR(("%s: Failed to force clock for F2: err %d\n", __FUNCTION__, err));
+			}
+
+			/* Turn off the bus (F2), free any pending packets */
+			DHD_INTR(("%s: disable SDIO interrupts\n", __FUNCTION__));
+			bcmsdh_intr_disable(bus->sdh);
+			bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, SDIO_FUNC_ENABLE_1, NULL);
+
+			/* Clear any pending interrupts now that F2 is disabled */
+			W_SDREG(local_hostintmask, &bus->regs->intstatus, retries);
+		}
+
+		/* Turn off the backplane clock (only) */
+		dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
 	}
-
-	/* Change our idea of bus state */
-	bus->dhd->busstate = DHD_BUS_DOWN;
-
-	if (KSO_ENAB(bus)) {
-
-	/* Enable clock for device interrupts */
-	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
-
-	/* Disable and clear interrupts at the chip level also */
-	W_SDREG(0, &bus->regs->hostintmask, retries);
-	local_hostintmask = bus->hostintmask;
-	bus->hostintmask = 0;
-
-	/* Force clocks on backplane to be sure F2 interrupt propagates */
-	saveclk = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, &err);
-	if (!err) {
-		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
-		                 (saveclk | SBSDIO_FORCE_HT), &err);
-	}
-	if (err) {
-		DHD_ERROR(("%s: Failed to force clock for F2: err %d\n", __FUNCTION__, err));
-	}
-
-	/* Turn off the bus (F2), free any pending packets */
-	DHD_INTR(("%s: disable SDIO interrupts\n", __FUNCTION__));
-	bcmsdh_intr_disable(bus->sdh);
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, SDIO_FUNC_ENABLE_1, NULL);
-
-	/* Clear any pending interrupts now that F2 is disabled */
-	W_SDREG(local_hostintmask, &bus->regs->intstatus, retries);
-	}
-
-	/* Turn off the backplane clock (only) */
-	dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
 
 	/* Clear the data packet queues */
 	pktq_flush(osh, &bus->txq, TRUE, NULL, 0);
