@@ -471,10 +471,11 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 			err = add_recvbuf_small(vi, gfp);
 
 		oom = err == -ENOMEM;
-		if (err < 0)
+		if (err)
 			break;
 		++vi->num;
-	} while (err > 0);
+	} while (vi->rvq->num_free);
+
 	if (unlikely(vi->num > vi->max))
 		vi->max = vi->num;
 	virtqueue_kick(vi->rvq);
@@ -625,27 +626,20 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	int capacity;
+	int err;
 
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(vi);
 
 	/* Try to transmit */
-	capacity = xmit_skb(vi, skb);
+	err = xmit_skb(vi, skb);
 
-	/* This can happen with OOM and indirect buffers. */
-	if (unlikely(capacity < 0)) {
-		if (likely(capacity == -ENOMEM)) {
-			if (net_ratelimit())
-				dev_warn(&dev->dev,
-					 "TX queue failure: out of memory\n");
-		} else {
-			dev->stats.tx_fifo_errors++;
-			if (net_ratelimit())
-				dev_warn(&dev->dev,
-					 "Unexpected TX queue failure: %d\n",
-					 capacity);
-		}
+	/* This should not happen! */
+	if (unlikely(err < 0)) {
+		dev->stats.tx_fifo_errors++;
+		if (net_ratelimit())
+			dev_warn(&dev->dev,
+				 "Unexpected TX queue failure: %d\n", err);
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -658,13 +652,12 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Apparently nice girls don't return TX_BUSY; stop the queue
 	 * before it gets out of hand.  Naturally, this wastes entries. */
-	if (capacity < 2+MAX_SKB_FRAGS) {
+	if (vi->svq->num_free < 2+MAX_SKB_FRAGS) {
 		netif_stop_queue(dev);
 		if (unlikely(!virtqueue_enable_cb_delayed(vi->svq))) {
 			/* More just got used, free them then recheck. */
 			free_old_xmit_skbs(vi);
-			capacity = vi->svq->num_free;
-			if (capacity >= 2+MAX_SKB_FRAGS) {
+			if (vi->svq->num_free >= 2+MAX_SKB_FRAGS) {
 				netif_start_queue(dev);
 				virtqueue_disable_cb(vi->svq);
 			}
