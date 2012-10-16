@@ -2895,6 +2895,12 @@ F:	drivers/video/
 F:	include/video/
 F:	include/linux/fb.h
 
+FREESCALE DIU FRAMEBUFFER DRIVER
+M:	Timur Tabi <timur@freescale.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Supported
+F:	drivers/video/fsl-diu-fb.*
+
 FREESCALE DMA DRIVER
 M:	Li Yang <leoli@freescale.com>
 M:	Zhang Wei <zw@zh-kernel.org>
