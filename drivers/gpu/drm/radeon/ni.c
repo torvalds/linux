@@ -770,9 +770,13 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(0x15DC, 0);
 
 	/* empty context1-7 */
+	/* Assign the pt base to something valid for now; the pts used for
+	 * the VMs are determined by the application and setup and assigned
+	 * on the fly in the vm part of radeon_gart.c
+	 */
 	for (i = 1; i < 8; i++) {
 		WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (i << 2), 0);
-		WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (i << 2), 0);
+		WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (i << 2), rdev->vm_manager.max_pfn);
 		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
 			rdev->gart.table_addr >> 12);
 	}
@@ -1571,12 +1575,6 @@ void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	if (vm == NULL)
 		return;
-
-	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (vm->id << 2), 0));
-	radeon_ring_write(ring, 0);
-
-	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (vm->id << 2), 0));
-	radeon_ring_write(ring, vm->last_pfn);
 
 	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2), 0));
 	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
