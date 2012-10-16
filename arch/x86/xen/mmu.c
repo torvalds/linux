@@ -2478,7 +2478,7 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       unsigned long mfn, int nr,
+			       xen_pfn_t mfn, int nr,
 			       pgprot_t prot, unsigned domid,
 			       struct page **pages)
 
