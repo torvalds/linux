@@ -142,6 +142,46 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 }
 
 /*
+ * This function processes the received management packet and send it
+ * to the kernel.
+ */
+int
+mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
+			    struct sk_buff *skb)
+{
+	struct rxpd *rx_pd;
+	struct mwifiex_private *priv;
+	u16 pkt_len;
+
+	if (!skb)
+		return -1;
+
+	rx_pd = (struct rxpd *)skb->data;
+	priv = mwifiex_get_priv_by_id(adapter, rx_pd->bss_num, rx_pd->bss_type);
+	if (!priv)
+		return -1;
+
+	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
+	skb_pull(skb, sizeof(pkt_len));
+
+	pkt_len = le16_to_cpu(rx_pd->rx_pkt_length);
+
+	/* Remove address4 */
+	memmove(skb->data + sizeof(struct ieee80211_hdr_3addr),
+		skb->data + sizeof(struct ieee80211_hdr),
+		pkt_len - sizeof(struct ieee80211_hdr));
+
+	pkt_len -= ETH_ALEN + sizeof(pkt_len);
+	rx_pd->rx_pkt_length = cpu_to_le16(pkt_len);
+
+	cfg80211_rx_mgmt(priv->wdev, priv->roc_cfg.chan.center_freq,
+			 CAL_RSSI(rx_pd->snr, rx_pd->nf),
+			 skb->data, pkt_len, GFP_ATOMIC);
+
+	return 0;
+}
+
+/*
  * This function processes the received packet before sending it to the
  * kernel.
  *

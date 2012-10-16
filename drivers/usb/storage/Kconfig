@@ -213,17 +213,3 @@ config USB_UAS
 	  say 'Y' or 'M' here and the kernel will use the right driver.
 
 	  If you compile this driver as a module, it will be named uas.
-
-config USB_LIBUSUAL
-	bool "The shared table of common (or usual) storage devices"
-	depends on USB
-	help
-	  This module contains a table of common (or usual) devices
-	  for usb-storage and ub drivers, and allows to switch binding
-	  of these devices without rebuilding modules.
-
-	  Typical syntax of /etc/modprobe.d/*conf is:
-
-		options libusual bias="ub"
-
-	  If unsure, say N.

@@ -1486,8 +1486,8 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
 	err = ubifs_budget_space(c, &req);
 	if (unlikely(err)) {
 		if (err == -ENOSPC)
-			ubifs_warn("out of space for mmapped file "
-				   "(inode number %lu)", inode->i_ino);
+			ubifs_warn("out of space for mmapped file (inode number %lu)",
+				   inode->i_ino);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -1536,6 +1536,7 @@ out_unlock:
 static const struct vm_operations_struct ubifs_file_vm_ops = {
 	.fault        = filemap_fault,
 	.page_mkwrite = ubifs_vm_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
 };
 
 static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)

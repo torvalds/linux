@@ -39,14 +39,39 @@ static inline long bnx2x_hilo(u32 *hiref)
 #endif
 }
 
-static u16 bnx2x_get_port_stats_dma_len(struct bnx2x *bp)
+static inline u16 bnx2x_get_port_stats_dma_len(struct bnx2x *bp)
 {
-	u16 res = sizeof(struct host_port_stats) >> 2;
+	u16 res = 0;
 
-	/* if PFC stats are not supported by the MFW, don't DMA them */
-	if (!(bp->flags &  BC_SUPPORTS_PFC_STATS))
-		res -= (sizeof(u32)*4) >> 2;
+	/* 'newest' convention - shmem2 cotains the size of the port stats */
+	if (SHMEM2_HAS(bp, sizeof_port_stats)) {
+		u32 size = SHMEM2_RD(bp, sizeof_port_stats);
+		if (size)
+			res = size;
 
+		/* prevent newer BC from causing buffer overflow */
+		if (res > sizeof(struct host_port_stats))
+			res = sizeof(struct host_port_stats);
+	}
+
+	/* Older convention - all BCs support the port stats' fields up until
+	 * the 'not_used' field
+	 */
+	if (!res) {
+		res = offsetof(struct host_port_stats, not_used) + 4;
+
+		/* if PFC stats are supported by the MFW, DMA them as well */
+		if (bp->flags & BC_SUPPORTS_PFC_STATS) {
+			res += offsetof(struct host_port_stats,
+					pfc_frames_rx_lo) -
+			       offsetof(struct host_port_stats,
+					pfc_frames_tx_hi) + 4 ;
+		}
+	}
+
+	res >>= 2;
+
+	WARN_ON(res > 2 * DMAE_LEN32_RD_MAX);
 	return res;
 }
 
@@ -101,6 +126,11 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 	if (CHIP_REV_IS_SLOW(bp))
 		return;
 
+	/* Update MCP's statistics if possible */
+	if (bp->func_stx)
+		memcpy(bnx2x_sp(bp, func_stats), &bp->func_stats,
+		       sizeof(bp->func_stats));
+
 	/* loader */
 	if (bp->executer_idx) {
 		int loader_idx = PMF_DMAE_C(bp);
@@ -128,8 +158,6 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 
 	} else if (bp->func_stx) {
 		*stats_comp = 0;
-		memcpy(bnx2x_sp(bp, func_stats), &bp->func_stats,
-		       sizeof(bp->func_stats));
 		bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
 	}
 }
@@ -1151,9 +1179,11 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 	if (bp->port.pmf)
 		bnx2x_hw_stats_update(bp);
 
-	if (bnx2x_storm_stats_update(bp) && (bp->stats_pending++ == 3)) {
-		BNX2X_ERR("storm stats were not updated for 3 times\n");
-		bnx2x_panic();
+	if (bnx2x_storm_stats_update(bp)) {
+		if (bp->stats_pending++ == 3) {
+			BNX2X_ERR("storm stats were not updated for 3 times\n");
+			bnx2x_panic();
+		}
 		return;
 	}
 

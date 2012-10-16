@@ -13,9 +13,6 @@ struct se_subsystem_api {
 
 	u8 transport_type;
 
-	unsigned int fua_write_emulated : 1;
-	unsigned int write_cache_emulated : 1;
-
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);
 	int (*pmode_enable_hba)(struct se_hba *, unsigned long);
@@ -23,7 +20,9 @@ struct se_subsystem_api {
 	struct se_device *(*create_virtdevice)(struct se_hba *,
 				struct se_subsystem_dev *, void *);
 	void (*free_device)(void *);
-	int (*transport_complete)(struct se_cmd *cmd, struct scatterlist *);
+	void (*transport_complete)(struct se_cmd *cmd,
+				   struct scatterlist *,
+				   unsigned char *);
 
 	int (*parse_cdb)(struct se_cmd *cmd);
 	ssize_t (*check_configfs_dev_params)(struct se_hba *,

@@ -21,6 +21,7 @@
 
 #include "usbaudio.h"
 #include "helper.h"
+#include "quirks.h"
 
 /*
  * combine bytes and get an integer value
@@ -97,6 +98,10 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 		memcpy(data, buf, size);
 		kfree(buf);
 	}
+
+	snd_usb_ctl_msg_quirk(dev, pipe, request, requesttype,
+			      value, index, data, size);
+
 	return err;
 }
 

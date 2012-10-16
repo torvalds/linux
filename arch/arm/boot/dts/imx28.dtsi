@@ -27,6 +27,8 @@
 		serial2 = &auart2;
 		serial3 = &auart3;
 		serial4 = &auart4;
+		ethernet0 = &mac0;
+		ethernet1 = &mac1;
 	};
 
 	cpus {
@@ -50,7 +52,7 @@
 			ranges;
 
 			icoll: interrupt-controller@80000000 {
-				compatible = "fsl,imx28-icoll", "fsl,mxs-icoll";
+				compatible = "fsl,imx28-icoll", "fsl,icoll";
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				reg = <0x80000000 0x2000>;
@@ -65,6 +67,7 @@
 			dma-apbh@80004000 {
 				compatible = "fsl,imx28-dma-apbh";
 				reg = <0x80004000 0x2000>;
+				clocks = <&clks 25>;
 			};
 
 			perfmon@80006000 {
@@ -81,34 +84,47 @@
 				reg-names = "gpmi-nand", "bch";
 				interrupts = <88>, <41>;
 				interrupt-names = "gpmi-dma", "bch";
+				clocks = <&clks 50>;
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
 
 			ssp0: ssp@80010000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80010000 0x2000>;
 				interrupts = <96 82>;
+				clocks = <&clks 46>;
 				fsl,ssp-dma-channel = <0>;
 				status = "disabled";
 			};
 
 			ssp1: ssp@80012000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80012000 0x2000>;
 				interrupts = <97 83>;
+				clocks = <&clks 47>;
 				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
 			ssp2: ssp@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80014000 0x2000>;
 				interrupts = <98 84>;
+				clocks = <&clks 48>;
 				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
 			ssp3: ssp@80016000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80016000 0x2000>;
 				interrupts = <99 85>;
+				clocks = <&clks 49>;
 				fsl,ssp-dma-channel = <3>;
 				status = "disabled";
 			};
@@ -410,6 +426,28 @@
 					fsl,pull-up = <1>;
 				};
 
+				i2c0_pins_b: i2c0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3001 /* MX28_PAD_AUART0_RX__I2C0_SCL */
+						0x3011 /* MX28_PAD_AUART0_TX__I2C0_SDA */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				i2c1_pins_a: i2c1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3101 /* MX28_PAD_PWM0__I2C1_SCL */
+						0x3111 /* MX28_PAD_PWM1__I2C1_SDA */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
 				saif0_pins_a: saif0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -447,6 +485,16 @@
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x3120 /* MX28_PAD_PWM2__PWM_2 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				pwm4_pins_a: pwm4@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x31d0 /* MX28_PAD_PWM4__PWM_4 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -507,6 +555,49 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				spi2_pins_a: spi2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2100 /* MX28_PAD_SSP2_SCK__SSP2_SCK */
+						0x2110 /* MX28_PAD_SSP2_MOSI__SSP2_CMD */
+						0x2120 /* MX28_PAD_SSP2_MISO__SSP2_D0 */
+						0x2130 /* MX28_PAD_SSP2_SS0__SSP2_D3 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				usbphy0_pins_a: usbphy0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2152 /* MX28_PAD_SSP2_SS2__USB0_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				usbphy0_pins_b: usbphy0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3061 /* MX28_PAD_AUART1_CTS__USB0_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				usbphy1_pins_a: usbphy1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2142 /* MX28_PAD_SSP2_SS1__USB1_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -523,6 +614,7 @@
 			dma-apbx@80024000 {
 				compatible = "fsl,imx28-dma-apbx";
 				reg = <0x80024000 0x2000>;
+				clocks = <&clks 26>;
 			};
 
 			dcp@80028000 {
@@ -551,6 +643,7 @@
 				compatible = "fsl,imx28-lcdif";
 				reg = <0x80030000 0x2000>;
 				interrupts = <38 86>;
+				clocks = <&clks 55>;
 				status = "disabled";
 			};
 
@@ -558,6 +651,8 @@
 				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
 				reg = <0x80032000 0x2000>;
 				interrupts = <8>;
+				clocks = <&clks 58>, <&clks 58>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -565,6 +660,8 @@
 				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
 				reg = <0x80034000 0x2000>;
 				interrupts = <9>;
+				clocks = <&clks 59>, <&clks 59>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -611,15 +708,17 @@
 			reg = <0x80040000 0x40000>;
 			ranges;
 
-			clkctl@80040000 {
+			clks: clkctrl@80040000 {
+				compatible = "fsl,imx28-clkctrl";
 				reg = <0x80040000 0x2000>;
-				status = "disabled";
+				#clock-cells = <1>;
 			};
 
 			saif0: saif@80042000 {
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
 				interrupts = <59 80>;
+				clocks = <&clks 53>;
 				fsl,saif-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -633,12 +732,16 @@
 				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 0x2000>;
 				interrupts = <58 81>;
+				clocks = <&clks 54>;
 				fsl,saif-dma-channel = <5>;
 				status = "disabled";
 			};
 
 			lradc@80050000 {
+				compatible = "fsl,imx28-lradc";
 				reg = <0x80050000 0x2000>;
+				interrupts = <10 14 15 16 17 18 19
+						20 21 22 23 24 25>;
 				status = "disabled";
 			};
 
@@ -661,6 +764,7 @@
 				reg = <0x80058000 0x2000>;
 				interrupts = <111 68>;
 				clock-frequency = <100000>;
+				fsl,i2c-dma-channel = <6>;
 				status = "disabled";
 			};
 
@@ -671,26 +775,30 @@
 				reg = <0x8005a000 0x2000>;
 				interrupts = <110 69>;
 				clock-frequency = <100000>;
+				fsl,i2c-dma-channel = <7>;
 				status = "disabled";
 			};
 
 			pwm: pwm@80064000 {
 				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
+				clocks = <&clks 44>;
 				#pwm-cells = <2>;
 				fsl,pwm-number = <8>;
 				status = "disabled";
 			};
 
 			timrot@80068000 {
+				compatible = "fsl,imx28-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
-				status = "disabled";
+				interrupts = <48 49 50 51>;
 			};
 
 			auart0: serial@8006a000 {
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006a000 0x2000>;
 				interrupts = <112 70 71>;
+				clocks = <&clks 45>;
 				status = "disabled";
 			};
 
@@ -698,6 +806,7 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
 				interrupts = <113 72 73>;
+				clocks = <&clks 45>;
 				status = "disabled";
 			};
 
@@ -705,6 +814,7 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
 				interrupts = <114 74 75>;
+				clocks = <&clks 45>;
 				status = "disabled";
 			};
 
@@ -712,6 +822,7 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80070000 0x2000>;
 				interrupts = <115 76 77>;
+				clocks = <&clks 45>;
 				status = "disabled";
 			};
 
@@ -719,6 +830,7 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80072000 0x2000>;
 				interrupts = <116 78 79>;
+				clocks = <&clks 45>;
 				status = "disabled";
 			};
 
@@ -726,18 +838,22 @@
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x80074000 0x1000>;
 				interrupts = <47>;
+				clocks = <&clks 45>, <&clks 26>;
+				clock-names = "uart", "apb_pclk";
 				status = "disabled";
 			};
 
 			usbphy0: usbphy@8007c000 {
 				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
 				reg = <0x8007c000 0x2000>;
+				clocks = <&clks 62>;
 				status = "disabled";
 			};
 
 			usbphy1: usbphy@8007e000 {
 				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
 				reg = <0x8007e000 0x2000>;
+				clocks = <&clks 63>;
 				status = "disabled";
 			};
 		};
@@ -754,6 +870,7 @@
 			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
 			reg = <0x80080000 0x10000>;
 			interrupts = <93>;
+			clocks = <&clks 60>;
 			fsl,usbphy = <&usbphy0>;
 			status = "disabled";
 		};
@@ -762,6 +879,7 @@
 			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
 			reg = <0x80090000 0x10000>;
 			interrupts = <92>;
+			clocks = <&clks 61>;
 			fsl,usbphy = <&usbphy1>;
 			status = "disabled";
 		};
@@ -775,6 +893,8 @@
 			compatible = "fsl,imx28-fec";
 			reg = <0x800f0000 0x4000>;
 			interrupts = <101>;
+			clocks = <&clks 57>, <&clks 57>;
+			clock-names = "ipg", "ahb";
 			status = "disabled";
 		};
 
@@ -782,6 +902,8 @@
 			compatible = "fsl,imx28-fec";
 			reg = <0x800f4000 0x4000>;
 			interrupts = <102>;
+			clocks = <&clks 57>, <&clks 57>;
+			clock-names = "ipg", "ahb";
 			status = "disabled";
 		};
 

@@ -29,36 +29,5 @@
 #include <mach/iomap.h>
 
 #include "flowctrl.h"
+#include "sleep.h"
 
-#define TEGRA_FLOW_CTRL_VIRT (TEGRA_FLOW_CTRL_BASE - IO_PPSB_PHYS \
-					+ IO_PPSB_VIRT)
-
-/* returns the offset of the flow controller halt register for a cpu */
-.macro cpu_to_halt_reg rd, rcpu
-	cmp	\rcpu, #0
-	subne	\rd, \rcpu, #1
-	movne	\rd, \rd, lsl #3
-	addne	\rd, \rd, #0x14
-	moveq	\rd, #0
-.endm
-
-/* returns the offset of the flow controller csr register for a cpu */
-.macro cpu_to_csr_reg rd, rcpu
-	cmp	\rcpu, #0
-	subne	\rd, \rcpu, #1
-	movne	\rd, \rd, lsl #3
-	addne	\rd, \rd, #0x18
-	moveq	\rd, #8
-.endm
-
-/* returns the ID of the current processor */
-.macro cpu_id, rd
-	mrc	p15, 0, \rd, c0, c0, 5
-	and	\rd, \rd, #0xF
-.endm
-
-/* loads a 32-bit value into a register without a data access */
-.macro mov32, reg, val
-	movw	\reg, #:lower16:\val
-	movt	\reg, #:upper16:\val
-.endm

@@ -24,15 +24,10 @@
 #include <linux/platform_device.h>
 
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/irq.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1044,7 +1039,6 @@ static int atmel_tdes_register_algs(struct atmel_tdes_dev *dd)
 	int err, i, j;
 
 	for (i = 0; i < ARRAY_SIZE(tdes_algs); i++) {
-		INIT_LIST_HEAD(&tdes_algs[i].cra_list);
 		err = crypto_register_alg(&tdes_algs[i]);
 		if (err)
 			goto err_tdes_algs;

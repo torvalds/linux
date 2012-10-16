@@ -71,6 +71,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04b4, 0x0526), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
 
+	/* Microchip Joss Optical infrared touchboard device */
+	{ USB_DEVICE(0x04d8, 0x000c), .driver_info =
+			USB_QUIRK_CONFIG_INTF_STRINGS },
+
 	/* Samsung Android phone modem - ID conflict with SPH-I500 */
 	{ USB_DEVICE(0x04e8, 0x6601), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
@@ -205,7 +209,7 @@ void usb_detect_quirks(struct usb_device *udev)
 	 * for all devices.  It will affect things like hub resets
 	 * and EMF-related port disables.
 	 */
-	if (!(udev->quirks & USB_QUIRK_RESET_MORPHS))
+	if (!(udev->quirks & USB_QUIRK_RESET))
 		udev->persist_enabled = 1;
 #endif	/* CONFIG_PM */
 }

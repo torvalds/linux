@@ -197,12 +197,8 @@ the pages are also "rescued" from the unevictable list in the process of
 freeing them.
 
 page_evictable() also checks for mlocked pages by testing an additional page
-flag, PG_mlocked (as wrapped by PageMlocked()).  If the page is NOT mlocked,
-and a non-NULL VMA is supplied, page_evictable() will check whether the VMA is
-VM_LOCKED via is_mlocked_vma().  is_mlocked_vma() will SetPageMlocked() and
-update the appropriate statistics if the vma is VM_LOCKED.  This method allows
-efficient "culling" of pages in the fault path that are being faulted in to
-VM_LOCKED VMAs.
+flag, PG_mlocked (as wrapped by PageMlocked()), which is set when a page is
+faulted into a VM_LOCKED vma, or found in a vma being VM_LOCKED.
 
 
 VMSCAN'S HANDLING OF UNEVICTABLE PAGES
@@ -371,8 +367,8 @@ mlock_fixup() filters several classes of "special" VMAs:
    mlock_fixup() will call make_pages_present() in the hugetlbfs VMA range to
    allocate the huge pages and populate the ptes.
 
-3) VMAs with VM_DONTEXPAND or VM_RESERVED are generally userspace mappings of
-   kernel pages, such as the VDSO page, relay channel pages, etc.  These pages
+3) VMAs with VM_DONTEXPAND are generally userspace mappings of kernel pages,
+   such as the VDSO page, relay channel pages, etc. These pages
    are inherently unevictable and are not managed on the LRU lists.
    mlock_fixup() treats these VMAs the same as hugetlbfs VMAs.  It calls
    make_pages_present() to populate the ptes.
@@ -651,7 +647,7 @@ PAGE RECLAIM IN shrink_*_list()
 -------------------------------
 
 shrink_active_list() culls any obviously unevictable pages - i.e.
-!page_evictable(page, NULL) - diverting these to the unevictable list.
+!page_evictable(page) - diverting these to the unevictable list.
 However, shrink_active_list() only sees unevictable pages that made it onto the
 active/inactive lru lists.  Note that these pages do not have PageUnevictable
 set - otherwise they would be on the unevictable list and shrink_active_list

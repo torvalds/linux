@@ -503,10 +503,10 @@ EXPORT_SYMBOL(sch56xx_watchdog_unregister);
  * platform dev find, add and remove functions
  */
 
-static int __init sch56xx_find(int sioaddr, unsigned short *address,
-			       const char **name)
+static int __init sch56xx_find(int sioaddr, const char **name)
 {
 	u8 devid;
+	unsigned short address;
 	int err;
 
 	err = superio_enter(sioaddr);
@@ -540,20 +540,21 @@ static int __init sch56xx_find(int sioaddr, unsigned short *address,
 	 * Warning the order of the low / high byte is the other way around
 	 * as on most other superio devices!!
 	 */
-	*address = superio_inb(sioaddr, SIO_REG_ADDR) |
+	address = superio_inb(sioaddr, SIO_REG_ADDR) |
 		   superio_inb(sioaddr, SIO_REG_ADDR + 1) << 8;
-	if (*address == 0) {
+	if (address == 0) {
 		pr_warn("Base address not set\n");
 		err = -ENODEV;
 		goto exit;
 	}
+	err = address;
 
 exit:
 	superio_exit(sioaddr);
 	return err;
 }
 
-static int __init sch56xx_device_add(unsigned short address, const char *name)
+static int __init sch56xx_device_add(int address, const char *name)
 {
 	struct resource res = {
 		.start	= address,
@@ -593,15 +594,14 @@ exit_device_put:
 
 static int __init sch56xx_init(void)
 {
-	int err;
-	unsigned short address;
-	const char *name;
+	int address;
+	const char *name = NULL;
 
-	err = sch56xx_find(0x4e, &address, &name);
-	if (err)
-		err = sch56xx_find(0x2e, &address, &name);
-	if (err)
-		return err;
+	address = sch56xx_find(0x4e, &name);
+	if (address < 0)
+		address = sch56xx_find(0x2e, &name);
+	if (address < 0)
+		return address;
 
 	return sch56xx_device_add(address, name);
 }

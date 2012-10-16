@@ -78,8 +78,7 @@ static inline int ep_to_bit(struct ci13xxx *ci, int n)
 }
 
 /**
- * hw_device_state: enables/disables interrupts & starts/stops device (execute
- *                  without interruption)
+ * hw_device_state: enables/disables interrupts (execute without interruption)
  * @dma: 0 => disable, !0 => enable and set dma engine
  *
  * This function returns an error code
@@ -91,9 +90,7 @@ static int hw_device_state(struct ci13xxx *ci, u32 dma)
 		/* interrupt, error, port change, reset, sleep/suspend */
 		hw_write(ci, OP_USBINTR, ~0,
 			     USBi_UI|USBi_UEI|USBi_PCI|USBi_URI|USBi_SLI);
-		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
 	} else {
-		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 		hw_write(ci, OP_USBINTR, ~0, 0);
 	}
 	return 0;
@@ -308,6 +305,18 @@ static u32 hw_test_and_clear_intr_active(struct ci13xxx *ci)
 	return reg;
 }
 
+static void hw_enable_vbus_intr(struct ci13xxx *ci)
+{
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIS, OTGSC_AVVIS);
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIE, OTGSC_AVVIE);
+	queue_work(ci->wq, &ci->vbus_work);
+}
+
+static void hw_disable_vbus_intr(struct ci13xxx *ci)
+{
+	hw_write(ci, OP_OTGSC, OTGSC_AVVIE, 0);
+}
+
 /**
  * hw_test_and_clear_setup_guard: test & clear setup guard (execute without
  *                                interruption)
@@ -372,6 +381,16 @@ static int hw_usb_reset(struct ci13xxx *ci)
 	   no need to verify the port reset status (ESS does it) */
 
 	return 0;
+}
+
+static void vbus_work(struct work_struct *work)
+{
+	struct ci13xxx *ci = container_of(work, struct ci13xxx, vbus_work);
+
+	if (hw_read(ci, OP_OTGSC, OTGSC_AVV))
+		usb_gadget_vbus_connect(&ci->gadget);
+	else
+		usb_gadget_vbus_disconnect(&ci->gadget);
 }
 
 /******************************************************************************
@@ -774,10 +793,7 @@ __acquires(mEp->lock)
 {
 	struct ci13xxx_req *mReq, *mReqTemp;
 	struct ci13xxx_ep *mEpTemp = mEp;
-	int uninitialized_var(retval);
-
-	if (list_empty(&mEp->qh.queue))
-		return -EINVAL;
+	int retval = 0;
 
 	list_for_each_entry_safe(mReq, mReqTemp, &mEp->qh.queue,
 			queue) {
@@ -1376,6 +1392,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 		if (is_active) {
 			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(ci, USBMODE_CM_DC);
+			hw_enable_vbus_intr(ci);
 			hw_device_state(ci, ci->ep0out->qh.dma);
 		} else {
 			hw_device_state(ci, 0);
@@ -1420,6 +1437,21 @@ static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -ENOTSUPP;
 }
 
+/* Change Data+ pullup status
+ * this func is used by usb_gadget_connect/disconnet
+ */
+static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_on)
+{
+	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+
+	if (is_on)
+		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
+	else
+		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+
+	return 0;
+}
+
 static int ci13xxx_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver);
 static int ci13xxx_stop(struct usb_gadget *gadget,
@@ -1432,6 +1464,7 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
 static const struct usb_gadget_ops usb_gadget_ops = {
 	.vbus_session	= ci13xxx_vbus_session,
 	.wakeup		= ci13xxx_wakeup,
+	.pullup		= ci13xxx_pullup,
 	.vbus_draw	= ci13xxx_vbus_draw,
 	.udc_start	= ci13xxx_start,
 	.udc_stop	= ci13xxx_stop,
@@ -1455,7 +1488,12 @@ static int init_eps(struct ci13xxx *ci)
 
 			mEp->ep.name      = mEp->name;
 			mEp->ep.ops       = &usb_ep_ops;
-			mEp->ep.maxpacket = CTRL_PAYLOAD_MAX;
+			/*
+			 * for ep0: maxP defined in desc, for other
+			 * eps, maxP is set by epautoconfig() called
+			 * by gadget layer
+			 */
+			mEp->ep.maxpacket = (unsigned short)~0;
 
 			INIT_LIST_HEAD(&mEp->qh.queue);
 			mEp->qh.ptr = dma_pool_alloc(ci->qh_pool, GFP_KERNEL,
@@ -1475,6 +1513,7 @@ static int init_eps(struct ci13xxx *ci)
 				else
 					ci->ep0in = mEp;
 
+				mEp->ep.maxpacket = CTRL_PAYLOAD_MAX;
 				continue;
 			}
 
@@ -1482,6 +1521,17 @@ static int init_eps(struct ci13xxx *ci)
 		}
 
 	return retval;
+}
+
+static void destroy_eps(struct ci13xxx *ci)
+{
+	int i;
+
+	for (i = 0; i < ci->hw_ep_max; i++) {
+		struct ci13xxx_ep *mEp = &ci->ci13xxx_ep[i];
+
+		dma_pool_free(ci->qh_pool, mEp->qh.ptr, mEp->qh.dma);
+	}
 }
 
 /**
@@ -1517,8 +1567,10 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->platdata->flags & CI13XXX_PULLUP_ON_VBUS) {
 		if (ci->vbus_active) {
-			if (ci->platdata->flags & CI13XXX_REGS_SHARED)
+			if (ci->platdata->flags & CI13XXX_REGS_SHARED) {
 				hw_device_reset(ci, USBMODE_CM_DC);
+				hw_enable_vbus_intr(ci);
+			}
 		} else {
 			pm_runtime_put_sync(&ci->gadget.dev);
 			goto done;
@@ -1624,6 +1676,13 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
 	} else {
 		retval = IRQ_NONE;
 	}
+
+	intr = hw_read(ci, OP_OTGSC, ~0);
+	hw_write(ci, OP_OTGSC, ~0, intr);
+
+	if (intr & (OTGSC_AVVIE & OTGSC_AVVIS))
+		queue_work(ci->wq, &ci->vbus_work);
+
 	spin_unlock(&ci->lock);
 
 	return retval;
@@ -1691,7 +1750,7 @@ static int udc_start(struct ci13xxx *ci)
 	if (ci->platdata->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
 		if (ci->transceiver == NULL) {
 			retval = -ENODEV;
-			goto free_pools;
+			goto destroy_eps;
 		}
 	}
 
@@ -1699,6 +1758,7 @@ static int udc_start(struct ci13xxx *ci)
 		retval = hw_device_reset(ci, USBMODE_CM_DC);
 		if (retval)
 			goto put_transceiver;
+		hw_enable_vbus_intr(ci);
 	}
 
 	retval = device_register(&ci->gadget.dev);
@@ -1729,7 +1789,7 @@ static int udc_start(struct ci13xxx *ci)
 
 remove_trans:
 	if (!IS_ERR_OR_NULL(ci->transceiver)) {
-		otg_set_peripheral(ci->transceiver->otg, &ci->gadget);
+		otg_set_peripheral(ci->transceiver->otg, NULL);
 		if (ci->global_phy)
 			usb_put_phy(ci->transceiver);
 	}
@@ -1742,6 +1802,8 @@ unreg_device:
 put_transceiver:
 	if (!IS_ERR_OR_NULL(ci->transceiver) && ci->global_phy)
 		usb_put_phy(ci->transceiver);
+destroy_eps:
+	destroy_eps(ci);
 free_pools:
 	dma_pool_destroy(ci->td_pool);
 free_qh_pool:
@@ -1756,18 +1818,15 @@ free_qh_pool:
  */
 static void udc_stop(struct ci13xxx *ci)
 {
-	int i;
-
 	if (ci == NULL)
 		return;
 
+	hw_disable_vbus_intr(ci);
+	cancel_work_sync(&ci->vbus_work);
+
 	usb_del_gadget_udc(&ci->gadget);
 
-	for (i = 0; i < ci->hw_ep_max; i++) {
-		struct ci13xxx_ep *mEp = &ci->ci13xxx_ep[i];
-
-		dma_pool_free(ci->qh_pool, mEp->qh.ptr, mEp->qh.dma);
-	}
+	destroy_eps(ci);
 
 	dma_pool_destroy(ci->td_pool);
 	dma_pool_destroy(ci->qh_pool);
@@ -1805,6 +1864,7 @@ int ci_hdrc_gadget_init(struct ci13xxx *ci)
 	rdrv->irq	= udc_irq;
 	rdrv->name	= "gadget";
 	ci->roles[CI_ROLE_GADGET] = rdrv;
+	INIT_WORK(&ci->vbus_work, vbus_work);
 
 	return 0;
 }

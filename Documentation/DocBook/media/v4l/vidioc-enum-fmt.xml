@@ -58,6 +58,9 @@ structure. Drivers fill the rest of the structure or return an
 incrementing by one until <errorcode>EINVAL</errorcode> is
 returned.</para>
 
+    <para>Note that after switching input or output the list of enumerated image
+formats may be different.</para>
+
     <table pgwide="1" frame="none" id="v4l2-fmtdesc">
       <title>struct <structname>v4l2_fmtdesc</structname></title>
       <tgroup cols="3">
@@ -78,10 +81,8 @@ Only these types are valid here:
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
-defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
-and higher. See <xref linkend="v4l2-buf-type" />.</entry>
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant> and
+<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>. See <xref linkend="v4l2-buf-type" />.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

@@ -25,6 +25,8 @@
 #include "btrfs_inode.h"
 #include "extent_io.h"
 
+static struct kmem_cache *btrfs_ordered_extent_cache;
+
 static u64 entry_end(struct btrfs_ordered_extent *entry)
 {
 	if (entry->file_offset + entry->len < entry->file_offset)
@@ -187,7 +189,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	struct btrfs_ordered_extent *entry;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
 	if (!entry)
 		return -ENOMEM;
 
@@ -421,7 +423,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 			list_del(&sum->list);
 			kfree(sum);
 		}
-		kfree(entry);
+		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}
 }
 
@@ -466,8 +468,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
  * wait for all the ordered extents in a root.  This is done when balancing
  * space between drives.
  */
-void btrfs_wait_ordered_extents(struct btrfs_root *root,
-				int nocow_only, int delay_iput)
+void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
 {
 	struct list_head splice;
 	struct list_head *cur;
@@ -482,15 +483,6 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root,
 		cur = splice.next;
 		ordered = list_entry(cur, struct btrfs_ordered_extent,
 				     root_extent_list);
-		if (nocow_only &&
-		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
-		    !test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags)) {
-			list_move(&ordered->root_extent_list,
-				  &root->fs_info->ordered_extents);
-			cond_resched_lock(&root->fs_info->ordered_extent_lock);
-			continue;
-		}
-
 		list_del_init(&ordered->root_extent_list);
 		atomic_inc(&ordered->refs);
 
@@ -775,7 +767,6 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
 	u64 disk_i_size;
 	u64 new_i_size;
-	u64 i_size_test;
 	u64 i_size = i_size_read(inode);
 	struct rb_node *node;
 	struct rb_node *prev = NULL;
@@ -835,55 +826,30 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 			break;
 		if (test->file_offset >= i_size)
 			break;
-		if (test->file_offset >= disk_i_size)
+		if (test->file_offset >= disk_i_size) {
+			/*
+			 * we don't update disk_i_size now, so record this
+			 * undealt i_size. Or we will not know the real
+			 * i_size.
+			 */
+			if (test->outstanding_isize < offset)
+				test->outstanding_isize = offset;
+			if (ordered &&
+			    ordered->outstanding_isize >
+			    test->outstanding_isize)
+				test->outstanding_isize =
+						ordered->outstanding_isize;
 			goto out;
+		}
 	}
 	new_i_size = min_t(u64, offset, i_size);
 
 	/*
-	 * at this point, we know we can safely update i_size to at least
-	 * the offset from this ordered extent.  But, we need to
-	 * walk forward and see if ios from higher up in the file have
-	 * finished.
+	 * Some ordered extents may completed before the current one, and
+	 * we hold the real i_size in ->outstanding_isize.
 	 */
-	if (ordered) {
-		node = rb_next(&ordered->rb_node);
-	} else {
-		if (prev)
-			node = rb_next(prev);
-		else
-			node = rb_first(&tree->tree);
-	}
-
-	/*
-	 * We are looking for an area between our current extent and the next
-	 * ordered extent to update the i_size to.  There are 3 cases here
-	 *
-	 * 1) We don't actually have anything and we can update to i_size.
-	 * 2) We have stuff but they already did their i_size update so again we
-	 * can just update to i_size.
-	 * 3) We have an outstanding ordered extent so the most we can update
-	 * our disk_i_size to is the start of the next offset.
-	 */
-	i_size_test = i_size;
-	for (; node; node = rb_next(node)) {
-		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-
-		if (test_bit(BTRFS_ORDERED_UPDATED_ISIZE, &test->flags))
-			continue;
-		if (test->file_offset > offset) {
-			i_size_test = test->file_offset;
-			break;
-		}
-	}
-
-	/*
-	 * i_size_test is the end of a region after this ordered
-	 * extent where there are no ordered extents, we can safely set
-	 * disk_i_size to this.
-	 */
-	if (i_size_test > offset)
-		new_i_size = min_t(u64, i_size_test, i_size);
+	if (ordered && ordered->outstanding_isize > new_i_size)
+		new_i_size = min_t(u64, ordered->outstanding_isize, i_size);
 	BTRFS_I(inode)->disk_i_size = new_i_size;
 	ret = 0;
 out:
@@ -983,4 +949,21 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 			      &root->fs_info->ordered_operations);
 	}
 	spin_unlock(&root->fs_info->ordered_extent_lock);
+}
+
+int __init ordered_data_init(void)
+{
+	btrfs_ordered_extent_cache = kmem_cache_create("btrfs_ordered_extent",
+				     sizeof(struct btrfs_ordered_extent), 0,
+				     SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+				     NULL);
+	if (!btrfs_ordered_extent_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void ordered_data_exit(void)
+{
+	if (btrfs_ordered_extent_cache)
+		kmem_cache_destroy(btrfs_ordered_extent_cache);
 }

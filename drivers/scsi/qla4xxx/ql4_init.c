@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -102,11 +102,18 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 
 	if (is_qla8022(ha)) {
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->req_q_out);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->req_q_out);
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->rsp_q_in);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_in);
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->rsp_q_out);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_out);
+	} else if (is_qla8032(ha)) {
+		writel(0,
+		       (unsigned long __iomem *)&ha->qla4_83xx_reg->req_q_in);
+		writel(0,
+		       (unsigned long __iomem *)&ha->qla4_83xx_reg->rsp_q_in);
+		writel(0,
+		       (unsigned long __iomem *)&ha->qla4_83xx_reg->rsp_q_out);
 	} else {
 		/*
 		 * Initialize DMA Shadow registers.  The firmware is really
@@ -524,7 +531,7 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 	/* For 82xx, stop firmware before initializing because if BIOS
 	 * has previously initialized firmware, then driver's initialize
 	 * firmware will fail. */
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		qla4_8xxx_stop_firmware(ha);
 
 	ql4_printk(KERN_INFO, ha, "Initializing firmware..\n");
@@ -537,7 +544,7 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 	if (!qla4xxx_fw_ready(ha))
 		return status;
 
-	if (is_qla8022(ha) && !test_bit(AF_INIT_DONE, &ha->flags))
+	if (is_qla80XX(ha) && !test_bit(AF_INIT_DONE, &ha->flags))
 		qla4xxx_alloc_fw_dump(ha);
 
 	return qla4xxx_get_firmware_status(ha);
@@ -946,9 +953,9 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 
 	set_bit(AF_ONLINE, &ha->flags);
 exit_init_hba:
-	if (is_qla8022(ha) && (status == QLA_ERROR)) {
+	if (is_qla80XX(ha) && (status == QLA_ERROR)) {
 		/* Since interrupts are registered in start_firmware for
-		 * 82xx, release them here if initialize_adapter fails */
+		 * 80XX, release them here if initialize_adapter fails */
 		qla4xxx_free_irqs(ha);
 	}
 

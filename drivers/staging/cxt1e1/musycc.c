@@ -1761,15 +1761,15 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
     u_int32_t   len;
 
     if (!(ch = sd_find_chan (ci, channum)))
-        return ENOENT;
+        return -ENOENT;
 
     if (ci->state != C_RUNNING)     /* full interrupt processing available */
-        return EINVAL;
+        return -EINVAL;
     if (ch->state != UP)
-        return EINVAL;
+        return -EINVAL;
 
     if (!(ch->status & TX_ENABLED))
-        return EROFS;               /* how else to flag unwritable state ? */
+        return -EROFS;               /* how else to flag unwritable state ? */
 
 #ifdef RLD_TRANS_DEBUGx
     if (1 || cxt1e1_log_level >= LOG_MONITOR2)
@@ -1836,7 +1836,7 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
 #if 0
         spin_unlock_irqrestore (&ch->ch_txlock, flags);
 #endif
-        return EBUSY;               /* tell user to try again later */
+        return -EBUSY;               /* tell user to try again later */
     }
     /**************************************************/
     /** Put the user data into MUSYCC data buffer(s) **/

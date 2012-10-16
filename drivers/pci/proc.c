@@ -434,25 +434,6 @@ int pci_proc_detach_device(struct pci_dev *dev)
 	return 0;
 }
 
-#if 0
-int pci_proc_attach_bus(struct pci_bus* bus)
-{
-	struct proc_dir_entry *de = bus->procdir;
-
-	if (!proc_initialized)
-		return -EACCES;
-
-	if (!de) {
-		char name[16];
-		sprintf(name, "%02x", bus->number);
-		de = bus->procdir = proc_mkdir(name, proc_bus_pci_dir);
-		if (!de)
-			return -ENOMEM;
-	}
-	return 0;
-}
-#endif  /*  0  */
-
 int pci_proc_detach_bus(struct pci_bus* bus)
 {
 	struct proc_dir_entry *de = bus->procdir;

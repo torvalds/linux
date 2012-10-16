@@ -440,7 +440,7 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 	 */
 	lsap = irlmp_open_lsap(stsap_sel, &ttp_notify, 0);
 	if (lsap == NULL) {
-		IRDA_WARNING("%s: unable to allocate LSAP!!\n", __func__);
+		IRDA_DEBUG(0, "%s: unable to allocate LSAP!!\n", __func__);
 		return NULL;
 	}
 

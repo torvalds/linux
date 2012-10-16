@@ -564,7 +564,7 @@ automatically.</para>
     <para>To query and select the standard used by the current video
 input or output applications call the &VIDIOC-G-STD; and
 &VIDIOC-S-STD; ioctl, respectively. The <emphasis>received</emphasis>
-standard can be sensed with the &VIDIOC-QUERYSTD; ioctl. Note parameter of all these ioctls is a pointer to a &v4l2-std-id; type (a standard set), <emphasis>not</emphasis> an index into the standard enumeration.<footnote>
+standard can be sensed with the &VIDIOC-QUERYSTD; ioctl. Note that the parameter of all these ioctls is a pointer to a &v4l2-std-id; type (a standard set), <emphasis>not</emphasis> an index into the standard enumeration.<footnote>
 	<para>An alternative to the current scheme is to use pointers
 to indices as arguments of <constant>VIDIOC_G_STD</constant> and
 <constant>VIDIOC_S_STD</constant>, the &v4l2-input; and
@@ -588,30 +588,28 @@ switch to a standard by &v4l2-std-id;.</para>
       </footnote> Drivers must implement all video standard ioctls
 when the device has one or more video inputs or outputs.</para>
 
-    <para>Special rules apply to USB cameras where the notion of video
-standards makes little sense. More generally any capture device,
-output devices accordingly, which is <itemizedlist>
+    <para>Special rules apply to devices such as USB cameras where the notion of video
+standards makes little sense. More generally for any capture or output device
+which is: <itemizedlist>
 	<listitem>
 	  <para>incapable of capturing fields or frames at the nominal
 rate of the video standard, or</para>
 	</listitem>
 	<listitem>
-	  <para>where <link linkend="buffer">timestamps</link> refer
-to the instant the field or frame was received by the driver, not the
-capture time, or</para>
-	</listitem>
-	<listitem>
-	  <para>where <link linkend="buffer">sequence numbers</link>
-refer to the frames received by the driver, not the captured
-frames.</para>
+	  <para>that does not support the video standard formats at all.</para>
 	</listitem>
       </itemizedlist> Here the driver shall set the
 <structfield>std</structfield> field of &v4l2-input; and &v4l2-output;
-to zero, the <constant>VIDIOC_G_STD</constant>,
+to zero and the <constant>VIDIOC_G_STD</constant>,
 <constant>VIDIOC_S_STD</constant>,
 <constant>VIDIOC_QUERYSTD</constant> and
 <constant>VIDIOC_ENUMSTD</constant> ioctls shall return the
-&EINVAL;.<footnote>
+&ENOTTY;.<footnote>
+	<para>See <xref linkend="buffer" /> for a rationale.</para>
+	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
+<xref linkend="output-capabilities"/> flags to determine whether the video standard ioctls
+are available for the device.</para>
+&ENOTTY;.
 	<para>See <xref linkend="buffer" /> for a rationale. Probably
 even USB cameras follow some well known video standard. It might have
 been better to explicitly indicate elsewhere if a device cannot live
@@ -626,9 +624,9 @@ up to normal expectations, instead of this exception.</para>
 &v4l2-standard; standard;
 
 if (-1 == ioctl (fd, &VIDIOC-G-STD;, &amp;std_id)) {
-	/* Note when VIDIOC_ENUMSTD always returns EINVAL this
+	/* Note when VIDIOC_ENUMSTD always returns ENOTTY this
 	   is no video device or it falls under the USB exception,
-	   and VIDIOC_G_STD returning EINVAL is no error. */
+	   and VIDIOC_G_STD returning ENOTTY is no error. */
 
 	perror ("VIDIOC_G_STD");
 	exit (EXIT_FAILURE);

@@ -213,7 +213,4 @@ static inline unsigned long __must_check copy_from_user(void *to,
 	return n;
 }
 
-unsigned long __must_check clear_user(void __user *mem, unsigned long len);
-unsigned long __must_check __clear_user(void __user *mem, unsigned long len);
-
 #endif /* _ASM_X86_UACCESS_32_H */

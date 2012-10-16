@@ -17,28 +17,10 @@
 #ifndef _LINUX_UDP_H
 #define _LINUX_UDP_H
 
-#include <linux/types.h>
-
-struct udphdr {
-	__be16	source;
-	__be16	dest;
-	__be16	len;
-	__sum16	check;
-};
-
-/* UDP socket options */
-#define UDP_CORK	1	/* Never send partially complete segments */
-#define UDP_ENCAP	100	/* Set the socket to accept encapsulated packets */
-
-/* UDP encapsulation types */
-#define UDP_ENCAP_ESPINUDP_NON_IKE	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
-#define UDP_ENCAP_ESPINUDP	2 /* draft-ietf-ipsec-udp-encaps-06 */
-#define UDP_ENCAP_L2TPINUDP	3 /* rfc2661 */
-
-#ifdef __KERNEL__
 #include <net/inet_sock.h>
 #include <linux/skbuff.h>
 #include <net/netns/hash.h>
+#include <uapi/linux/udp.h>
 
 static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 {
@@ -95,7 +77,5 @@ static inline struct udp_sock *udp_sk(const struct sock *sk)
 	hlist_nulls_for_each_entry_rcu(__sk, node, list, __sk_common.skc_portaddr_node)
 
 #define IS_UDPLITE(__sk) (udp_sk(__sk)->pcflag)
-
-#endif
 
 #endif	/* _LINUX_UDP_H */

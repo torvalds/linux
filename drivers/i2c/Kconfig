@@ -4,7 +4,7 @@
 
 menuconfig I2C
 	tristate "I2C support"
-	depends on HAS_IOMEM
+	depends on !S390
 	select RT_MUTEXES
 	---help---
 	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
@@ -49,6 +49,7 @@ config I2C_CHARDEV
 
 config I2C_MUX
 	tristate "I2C bus multiplexing support"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if you want the I2C core to support the ability to
 	  handle multiplexed I2C bus topologies, by presenting each
@@ -86,6 +87,19 @@ config I2C_SMBUS
 source drivers/i2c/algos/Kconfig
 source drivers/i2c/busses/Kconfig
 
+config I2C_STUB
+	tristate "I2C/SMBus Test Stub"
+	depends on EXPERIMENTAL && m
+	default 'n'
+	help
+	  This module may be useful to developers of SMBus client drivers,
+	  especially for certain kinds of sensor chips.
+
+	  If you do build this module, be sure to read the notes and warnings
+	  in <file:Documentation/i2c/i2c-stub>.
+
+	  If you don't know what to do here, definitely say N.
+
 config I2C_DEBUG_CORE
 	bool "I2C Core debugging messages"
 	help
@@ -103,6 +117,7 @@ config I2C_DEBUG_ALGO
 
 config I2C_DEBUG_BUS
 	bool "I2C Bus debugging messages"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if you want the I2C bus drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having

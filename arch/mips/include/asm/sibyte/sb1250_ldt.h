@@ -33,7 +33,7 @@
 #ifndef _SB1250_LDT_H
 #define _SB1250_LDT_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 #define K_LDT_VENDOR_SIBYTE	0x166D
 #define K_LDT_DEVICE_SB1250	0x0002

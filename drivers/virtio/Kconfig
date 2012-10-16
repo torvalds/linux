@@ -1,11 +1,9 @@
-# Virtio always gets selected by whoever wants it.
 config VIRTIO
 	tristate
-
-# Similarly the virtio ring implementation.
-config VIRTIO_RING
-	tristate
-	depends on VIRTIO
+	---help---
+	  This option is selected by any driver which implements the virtio
+	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_LGUEST,
+	  CONFIG_RPMSG or CONFIG_S390_GUEST.
 
 menu "Virtio drivers"
 
@@ -13,7 +11,6 @@ config VIRTIO_PCI
 	tristate "PCI driver for virtio devices (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
 	select VIRTIO
-	select VIRTIO_RING
 	---help---
 	  This drivers provides support for virtio based paravirtual device
 	  drivers over PCI.  This requires that your VMM has appropriate PCI
@@ -26,9 +23,8 @@ config VIRTIO_PCI
 	  If unsure, say M.
 
 config VIRTIO_BALLOON
-	tristate "Virtio balloon driver (EXPERIMENTAL)"
-	select VIRTIO
-	select VIRTIO_RING
+	tristate "Virtio balloon driver"
+	depends on VIRTIO
 	---help---
 	 This driver supports increasing and decreasing the amount
 	 of memory within a KVM guest.
@@ -39,7 +35,6 @@ config VIRTIO_BALLOON
  	tristate "Platform bus driver for memory mapped virtio devices (EXPERIMENTAL)"
  	depends on HAS_IOMEM && EXPERIMENTAL
  	select VIRTIO
- 	select VIRTIO_RING
  	---help---
  	 This drivers provides support for memory mapped virtio
 	 platform device driver.

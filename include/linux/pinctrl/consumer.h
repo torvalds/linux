@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
-#include "pinctrl-state.h"
+#include <linux/pinctrl/pinctrl-state.h>
 
 /* This struct is private to the core and should be regarded as a cookie */
 struct pinctrl;
@@ -140,7 +140,7 @@ static inline struct pinctrl * __must_check devm_pinctrl_get_select(
 	s = pinctrl_lookup_state(p, name);
 	if (IS_ERR(s)) {
 		devm_pinctrl_put(p);
-		return ERR_PTR(PTR_ERR(s));
+		return ERR_CAST(s);
 	}
 
 	ret = pinctrl_select_state(p, s);

@@ -24,8 +24,11 @@ struct hist_browser {
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
 	int		     print_seq;
+	bool		     show_dso;
 	bool		     has_symbols;
 };
+
+extern void hist_browser__init_hpp(void);
 
 static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 				const char *ev_name);
@@ -376,12 +379,19 @@ out:
 }
 
 static char *callchain_list__sym_name(struct callchain_list *cl,
-				      char *bf, size_t bfsize)
+				      char *bf, size_t bfsize, bool show_dso)
 {
-	if (cl->ms.sym)
-		return cl->ms.sym->name;
+	int printed;
 
-	snprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+	if (cl->ms.sym)
+		printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+	else
+		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+
+	if (show_dso)
+		scnprintf(bf + printed, bfsize - printed, " %s",
+			  cl->ms.map ? cl->ms.map->dso->short_name : "unknown");
+
 	return bf;
 }
 
@@ -417,7 +427,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
-			char ipstr[BITS_PER_LONG / 4 + 1], *alloc_str;
+			char bf[1024], *alloc_str;
 			const char *str;
 			int color;
 			bool was_first = first;
@@ -434,7 +444,8 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			}
 
 			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+			str = callchain_list__sym_name(chain, bf, sizeof(bf),
+						       browser->show_dso);
 			if (was_first) {
 				double percent = cumul * 100.0 / new_total;
 
@@ -493,7 +504,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 	char folded_sign = ' ';
 
 	list_for_each_entry(chain, &node->val, list) {
-		char ipstr[BITS_PER_LONG / 4 + 1], *s;
+		char bf[1024], *s;
 		int color;
 
 		folded_sign = callchain_list__folded(chain);
@@ -510,7 +521,8 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 			*is_current_entry = true;
 		}
 
-		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+		s = callchain_list__sym_name(chain, bf, sizeof(bf),
+					     browser->show_dso);
 		ui_browser__gotorc(&browser->b, row, 0);
 		ui_browser__set_color(&browser->b, color);
 		slsmg_write_nstring(" ", offset);
@@ -553,14 +565,48 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 	return row - first_row;
 }
 
+#define HPP__COLOR_FN(_name, _field)					\
+static int hist_browser__hpp_color_ ## _name(struct perf_hpp *hpp,	\
+					     struct hist_entry *he)	\
+{									\
+	struct hists *hists = he->hists;				\
+	double percent = 100.0 * he->stat._field / hists->stats.total_period; \
+	*(double *)hpp->ptr = percent;					\
+	return scnprintf(hpp->buf, hpp->size, "%6.2f%%", percent);	\
+}
+
+HPP__COLOR_FN(overhead, period)
+HPP__COLOR_FN(overhead_sys, period_sys)
+HPP__COLOR_FN(overhead_us, period_us)
+HPP__COLOR_FN(overhead_guest_sys, period_guest_sys)
+HPP__COLOR_FN(overhead_guest_us, period_guest_us)
+
+#undef HPP__COLOR_FN
+
+void hist_browser__init_hpp(void)
+{
+	perf_hpp__init();
+
+	perf_hpp__format[PERF_HPP__OVERHEAD].color =
+				hist_browser__hpp_color_overhead;
+	perf_hpp__format[PERF_HPP__OVERHEAD_SYS].color =
+				hist_browser__hpp_color_overhead_sys;
+	perf_hpp__format[PERF_HPP__OVERHEAD_US].color =
+				hist_browser__hpp_color_overhead_us;
+	perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_SYS].color =
+				hist_browser__hpp_color_overhead_guest_sys;
+	perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_US].color =
+				hist_browser__hpp_color_overhead_guest_us;
+}
+
 static int hist_browser__show_entry(struct hist_browser *browser,
 				    struct hist_entry *entry,
 				    unsigned short row)
 {
 	char s[256];
 	double percent;
-	int printed = 0;
-	int width = browser->b.width - 6; /* The percentage */
+	int i, printed = 0;
+	int width = browser->b.width;
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
 	off_t row_offset = entry->row_offset;
@@ -576,35 +622,49 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	}
 
 	if (row_offset == 0) {
-		hist_entry__snprintf(entry, s, sizeof(s), browser->hists);
-		percent = (entry->period * 100.0) / browser->hists->stats.total_period;
+		struct perf_hpp hpp = {
+			.buf		= s,
+			.size		= sizeof(s),
+		};
 
-		ui_browser__set_percent_color(&browser->b, percent, current_entry);
 		ui_browser__gotorc(&browser->b, row, 0);
-		if (symbol_conf.use_callchain) {
-			slsmg_printf("%c ", folded_sign);
-			width -= 2;
-		}
 
-		slsmg_printf(" %5.2f%%", percent);
+		for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
+			if (!perf_hpp__format[i].cond)
+				continue;
+
+			if (i) {
+				slsmg_printf("  ");
+				width -= 2;
+			}
+
+			if (perf_hpp__format[i].color) {
+				hpp.ptr = &percent;
+				/* It will set percent for us. See HPP__COLOR_FN above. */
+				width -= perf_hpp__format[i].color(&hpp, entry);
+
+				ui_browser__set_percent_color(&browser->b, percent, current_entry);
+
+				if (i == 0 && symbol_conf.use_callchain) {
+					slsmg_printf("%c ", folded_sign);
+					width -= 2;
+				}
+
+				slsmg_printf("%s", s);
+
+				if (!current_entry || !browser->b.navkeypressed)
+					ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
+			} else {
+				width -= perf_hpp__format[i].entry(&hpp, entry);
+				slsmg_printf("%s", s);
+			}
+		}
 
 		/* The scroll bar isn't being used */
 		if (!browser->b.navkeypressed)
 			width += 1;
 
-		if (!current_entry || !browser->b.navkeypressed)
-			ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
-
-		if (symbol_conf.show_nr_samples) {
-			slsmg_printf(" %11u", entry->nr_events);
-			width -= 12;
-		}
-
-		if (symbol_conf.show_total_period) {
-			slsmg_printf(" %12" PRIu64, entry->period);
-			width -= 13;
-		}
-
+		hist_entry__sort_snprintf(entry, s, sizeof(s), browser->hists);
 		slsmg_write_nstring(s, width);
 		++row;
 		++printed;
@@ -830,7 +890,7 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
-			char ipstr[BITS_PER_LONG / 4 + 1], *alloc_str;
+			char bf[1024], *alloc_str;
 			const char *str;
 			bool was_first = first;
 
@@ -842,7 +902,8 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 			folded_sign = callchain_list__folded(chain);
 
 			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+			str = callchain_list__sym_name(chain, bf, sizeof(bf),
+						       browser->show_dso);
 			if (was_first) {
 				double percent = cumul * 100.0 / new_total;
 
@@ -880,10 +941,10 @@ static int hist_browser__fprintf_callchain_node(struct hist_browser *browser,
 	int printed = 0;
 
 	list_for_each_entry(chain, &node->val, list) {
-		char ipstr[BITS_PER_LONG / 4 + 1], *s;
+		char bf[1024], *s;
 
 		folded_sign = callchain_list__folded(chain);
-		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+		s = callchain_list__sym_name(chain, bf, sizeof(bf), browser->show_dso);
 		printed += fprintf(fp, "%*s%c %s\n", offset, " ", folded_sign, s);
 	}
 
@@ -920,8 +981,8 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 	if (symbol_conf.use_callchain)
 		folded_sign = hist_entry__folded(he);
 
-	hist_entry__snprintf(he, s, sizeof(s), browser->hists);
-	percent = (he->period * 100.0) / browser->hists->stats.total_period;
+	hist_entry__sort_snprintf(he, s, sizeof(s), browser->hists);
+	percent = (he->stat.period * 100.0) / browser->hists->stats.total_period;
 
 	if (symbol_conf.use_callchain)
 		printed += fprintf(fp, "%c ", folded_sign);
@@ -929,10 +990,10 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 	printed += fprintf(fp, " %5.2f%%", percent);
 
 	if (symbol_conf.show_nr_samples)
-		printed += fprintf(fp, " %11u", he->nr_events);
+		printed += fprintf(fp, " %11u", he->stat.nr_events);
 
 	if (symbol_conf.show_total_period)
-		printed += fprintf(fp, " %12" PRIu64, he->period);
+		printed += fprintf(fp, " %12" PRIu64, he->stat.period);
 
 	printed += fprintf(fp, "%s\n", rtrim(s));
 
@@ -1133,6 +1194,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'd':
 			goto zoom_dso;
+		case 'V':
+			browser->show_dso = !browser->show_dso;
+			continue;
 		case 't':
 			goto zoom_thread;
 		case '/':
@@ -1164,6 +1228,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"d             Zoom into current DSO\n"
 					"t             Zoom into current Thread\n"
 					"P             Print histograms to perf.hist.N\n"
+					"V             Verbose (DSO names in callchains, etc)\n"
 					"/             Filter symbol by name");
 			continue;
 		case K_ENTER:

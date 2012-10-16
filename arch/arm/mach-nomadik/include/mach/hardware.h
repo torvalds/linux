@@ -30,7 +30,7 @@
 			- NOMADIK_IO_VIRTUAL + NOMADIK_IO_PHYSICAL)
 
 /* used in asm code, so no casts */
-#define IO_ADDRESS(x) ((x) - NOMADIK_IO_PHYSICAL + NOMADIK_IO_VIRTUAL)
+#define IO_ADDRESS(x) IOMEM((x) - NOMADIK_IO_PHYSICAL + NOMADIK_IO_VIRTUAL)
 
 /*
  *   Base address defination for Nomadik Onchip Logic Block

@@ -222,7 +222,6 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 	struct sk_buff *skb;
 	const struct i2400m_tlv_detailed_device_info *ddi;
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
-	const unsigned char zeromac[ETH_ALEN] = { 0 };
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	skb = i2400m_get_device_info(i2400m);
@@ -244,7 +243,7 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 		 "to that of boot mode's\n");
 	dev_warn(dev, "device reports     %pM\n", ddi->mac_address);
 	dev_warn(dev, "boot mode reported %pM\n", net_dev->perm_addr);
-	if (!memcmp(zeromac, ddi->mac_address, sizeof(zeromac)))
+	if (is_zero_ether_addr(ddi->mac_address))
 		dev_err(dev, "device reports an invalid MAC address, "
 			"not updating\n");
 	else {

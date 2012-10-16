@@ -131,7 +131,9 @@ typedef struct lpfcMboxq {
 
 #define LPFC_MAX_RING_MASK  5	/* max num of rctl/type masks allowed per
 				   ring */
-#define LPFC_MAX_RING       4	/* max num of SLI rings used by driver */
+#define LPFC_SLI3_MAX_RING  4	/* Max num of SLI3 rings used by driver.
+				   For SLI4, an additional ring for each
+				   FCP WQ will be allocated.  */
 
 struct lpfc_sli_ring;
 
@@ -158,6 +160,24 @@ struct lpfc_sli_ring_stat {
 	uint64_t iocb_rsp_full;	 /* IOCB rsp ring full */
 };
 
+struct lpfc_sli3_ring {
+	uint32_t local_getidx;  /* last available cmd index (from cmdGetInx) */
+	uint32_t next_cmdidx;   /* next_cmd index */
+	uint32_t rspidx;	/* current index in response ring */
+	uint32_t cmdidx;	/* current index in command ring */
+	uint16_t numCiocb;	/* number of command iocb's per ring */
+	uint16_t numRiocb;	/* number of rsp iocb's per ring */
+	uint16_t sizeCiocb;	/* Size of command iocb's in this ring */
+	uint16_t sizeRiocb;	/* Size of response iocb's in this ring */
+	uint32_t *cmdringaddr;	/* virtual address for cmd rings */
+	uint32_t *rspringaddr;	/* virtual address for rsp rings */
+};
+
+struct lpfc_sli4_ring {
+	struct lpfc_queue *wqp;	/* Pointer to associated WQ */
+};
+
+
 /* Structure used to hold SLI ring information */
 struct lpfc_sli_ring {
 	uint16_t flag;		/* ring flags */
@@ -166,16 +186,10 @@ struct lpfc_sli_ring {
 #define LPFC_STOP_IOCB_EVENT     0x020	/* Stop processing IOCB cmds event */
 	uint16_t abtsiotag;	/* tracks next iotag to use for ABTS */
 
-	uint32_t local_getidx;   /* last available cmd index (from cmdGetInx) */
-	uint32_t next_cmdidx;    /* next_cmd index */
-	uint32_t rspidx;	/* current index in response ring */
-	uint32_t cmdidx;	/* current index in command ring */
 	uint8_t rsvd;
 	uint8_t ringno;		/* ring number */
-	uint16_t numCiocb;	/* number of command iocb's per ring */
-	uint16_t numRiocb;	/* number of rsp iocb's per ring */
-	uint16_t sizeCiocb;	/* Size of command iocb's in this ring */
-	uint16_t sizeRiocb;	/* Size of response iocb's in this ring */
+
+	spinlock_t ring_lock;	/* lock for issuing commands */
 
 	uint32_t fast_iotag;	/* max fastlookup based iotag           */
 	uint32_t iotag_ctr;	/* keeps track of the next iotag to use */
@@ -186,8 +200,6 @@ struct lpfc_sli_ring {
 	struct list_head txcmplq;
 	uint16_t txcmplq_cnt;	/* current length of queue */
 	uint16_t txcmplq_max;	/* max length */
-	uint32_t *cmdringaddr;	/* virtual address for cmd rings */
-	uint32_t *rspringaddr;	/* virtual address for rsp rings */
 	uint32_t missbufcnt;	/* keep track of buffers to post */
 	struct list_head postbufq;
 	uint16_t postbufq_cnt;	/* current length of queue */
@@ -207,6 +219,10 @@ struct lpfc_sli_ring {
 	/* cmd ring available */
 	void (*lpfc_sli_cmd_available) (struct lpfc_hba *,
 					struct lpfc_sli_ring *);
+	union {
+		struct lpfc_sli3_ring sli3;
+		struct lpfc_sli4_ring sli4;
+	} sli;
 };
 
 /* Structure used for configuring rings to a specific profile or rctl / type */
@@ -239,6 +255,8 @@ struct lpfc_sli_stat {
 	uint64_t mbox_stat_err;  /* Mbox cmds completed status error */
 	uint64_t mbox_cmd;       /* Mailbox commands issued */
 	uint64_t sli_intr;       /* Count of Host Attention interrupts */
+	uint64_t sli_prev_intr;  /* Previous cnt of Host Attention interrupts */
+	uint64_t sli_ips;        /* Host Attention interrupts per sec */
 	uint32_t err_attn_event; /* Error Attn event counters */
 	uint32_t link_event;     /* Link event counters */
 	uint32_t mbox_event;     /* Mailbox event counters */
@@ -270,7 +288,7 @@ struct lpfc_sli {
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 
-	struct lpfc_sli_ring ring[LPFC_MAX_RING];
+	struct lpfc_sli_ring *ring;
 	int fcp_ring;		/* ring used for FCP initiator commands */
 	int next_ring;
 

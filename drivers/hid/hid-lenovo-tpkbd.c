@@ -56,9 +56,8 @@ static int tpkbd_input_mapping(struct hid_device *hdev,
 static int tpkbd_features_set(struct hid_device *hdev)
 {
 	struct hid_report *report;
-	struct tpkbd_data_pointer *data_pointer;
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[4];
 
 	report->field[0]->value[0]  = data_pointer->press_to_select   ? 0x01 : 0x02;
@@ -77,14 +76,8 @@ static ssize_t pointer_press_to_select_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->press_to_select);
 }
@@ -94,15 +87,9 @@ static ssize_t pointer_press_to_select_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value))
 		return -EINVAL;
@@ -119,14 +106,8 @@ static ssize_t pointer_dragging_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->dragging);
 }
@@ -136,15 +117,9 @@ static ssize_t pointer_dragging_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value))
 		return -EINVAL;
@@ -161,14 +136,8 @@ static ssize_t pointer_release_to_select_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->release_to_select);
 }
@@ -178,15 +147,9 @@ static ssize_t pointer_release_to_select_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value))
 		return -EINVAL;
@@ -203,14 +166,8 @@ static ssize_t pointer_select_right_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->select_right);
 }
@@ -220,15 +177,9 @@ static ssize_t pointer_select_right_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value))
 		return -EINVAL;
@@ -245,14 +196,8 @@ static ssize_t pointer_sensitivity_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->sensitivity);
@@ -263,15 +208,9 @@ static ssize_t pointer_sensitivity_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
 		return -EINVAL;
@@ -286,14 +225,10 @@ static ssize_t pointer_press_speed_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
+	data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->press_speed);
@@ -304,15 +239,9 @@ static ssize_t pointer_press_speed_store(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int value;
-
-	hdev = container_of(dev, struct hid_device, dev);
-	if (hdev == NULL)
-		return -ENODEV;
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
 		return -EINVAL;
@@ -370,14 +299,10 @@ static const struct attribute_group tpkbd_attr_group_pointer = {
 static enum led_brightness tpkbd_led_brightness_get(
 			struct led_classdev *led_cdev)
 {
-	struct device *dev;
-	struct hid_device *hdev;
-	struct tpkbd_data_pointer *data_pointer;
+	struct device *dev = led_cdev->dev->parent;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	int led_nr = 0;
-
-	dev = led_cdev->dev->parent;
-	hdev = container_of(dev, struct hid_device, dev);
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (led_cdev == &data_pointer->led_micmute)
 		led_nr = 1;
@@ -390,15 +315,11 @@ static enum led_brightness tpkbd_led_brightness_get(
 static void tpkbd_led_brightness_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
-	struct device *dev;
-	struct hid_device *hdev;
+	struct device *dev = led_cdev->dev->parent;
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 	struct hid_report *report;
-	struct tpkbd_data_pointer *data_pointer;
 	int led_nr = 0;
-
-	dev = led_cdev->dev->parent;
-	hdev = container_of(dev, struct hid_device, dev);
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	if (led_cdev == &data_pointer->led_micmute)
 		led_nr = 1;
@@ -508,17 +429,17 @@ err_free:
 
 static void tpkbd_remove_tp(struct hid_device *hdev)
 {
-	struct tpkbd_data_pointer *data_pointer;
+	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
 	sysfs_remove_group(&hdev->dev.kobj,
 			&tpkbd_attr_group_pointer);
-
-	data_pointer = (struct tpkbd_data_pointer *) hid_get_drvdata(hdev);
 
 	led_classdev_unregister(&data_pointer->led_micmute);
 	led_classdev_unregister(&data_pointer->led_mute);
 
 	hid_set_drvdata(hdev, NULL);
+	kfree(data_pointer->led_micmute.name);
+	kfree(data_pointer->led_mute.name);
 	kfree(data_pointer);
 }
 

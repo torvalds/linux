@@ -876,7 +876,8 @@ ssetup_ntlmssp_authenticate:
 	pSMB = (SESSION_SETUP_ANDX *)iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)iov[0].iov_base;
 
-	if ((type == RawNTLMSSP) && (smb_buf->Status.CifsError ==
+	if ((type == RawNTLMSSP) && (resp_buf_type != CIFS_NO_BUFFER) &&
+	    (smb_buf->Status.CifsError ==
 			cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))) {
 		if (phase != NtLmNegotiate) {
 			cERROR(1, "Unexpected more processing error");

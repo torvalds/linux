@@ -132,3 +132,12 @@ Here we can see the RAID type is raid4, there are 5 devices - all of
 which are 'A'live, and the array is 2/490221568 complete with recovery.
 Faulty or missing devices are marked 'D'.  Devices that are out-of-sync
 are marked 'a'.
+
+
+Version History
+---------------
+1.0.0	Initial version.  Support for RAID 4/5/6
+1.1.0	Added support for RAID 1
+1.2.0	Handle creation of arrays that contain failed devices.
+1.3.0	Added support for RAID 10
+1.3.1	Allow device replacement/rebuild for RAID 10

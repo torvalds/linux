@@ -316,7 +316,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	}
 
 	ret = mfd_add_devices(arizona->dev, -1, early_devs,
-			      ARRAY_SIZE(early_devs), NULL, 0);
+			      ARRAY_SIZE(early_devs), NULL, 0, NULL);
 	if (ret != 0) {
 		dev_err(dev, "Failed to add early children: %d\n", ret);
 		return ret;
@@ -516,11 +516,11 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM5102:
 		ret = mfd_add_devices(arizona->dev, -1, wm5102_devs,
-				      ARRAY_SIZE(wm5102_devs), NULL, 0);
+				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
 		break;
 	case WM5110:
 		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
-				      ARRAY_SIZE(wm5102_devs), NULL, 0);
+				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
 		break;
 	}
 

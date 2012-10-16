@@ -20,6 +20,8 @@
 #include <asm/pgtable.h>
 #include <asm/exception-64e.h>
 #include <asm/ppc-opcode.h>
+#include <asm/kvm_asm.h>
+#include <asm/kvm_booke_hv_asm.h>
 
 #ifdef CONFIG_PPC_64K_PAGES
 #define VPTE_PMD_SHIFT	(PTE_INDEX_SIZE+1)
@@ -37,12 +39,18 @@
  *                                                                    *
  **********************************************************************/
 
-.macro tlb_prolog_bolted addr
-	mtspr	SPRN_SPRG_TLB_SCRATCH,r13
+.macro tlb_prolog_bolted intnum addr
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r13
 	mfspr	r13,SPRN_SPRG_PACA
 	std	r10,PACA_EXTLB+EX_TLB_R10(r13)
 	mfcr	r10
 	std	r11,PACA_EXTLB+EX_TLB_R11(r13)
+#ifdef CONFIG_KVM_BOOKE_HV
+BEGIN_FTR_SECTION
+	mfspr	r11, SPRN_SRR1
+END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
+#endif
+	DO_KVM	\intnum, SPRN_SRR1
 	std	r16,PACA_EXTLB+EX_TLB_R16(r13)
 	mfspr	r16,\addr		/* get faulting address */
 	std	r14,PACA_EXTLB+EX_TLB_R14(r13)
@@ -61,12 +69,12 @@
 	ld	r15,PACA_EXTLB+EX_TLB_R15(r13)
 	TLB_MISS_RESTORE_STATS_BOLTED
 	ld	r16,PACA_EXTLB+EX_TLB_R16(r13)
-	mfspr	r13,SPRN_SPRG_TLB_SCRATCH
+	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
 .endm
 
 /* Data TLB miss */
 	START_EXCEPTION(data_tlb_miss_bolted)
-	tlb_prolog_bolted SPRN_DEAR
+	tlb_prolog_bolted BOOKE_INTERRUPT_DTLB_MISS SPRN_DEAR
 
 	/* We need _PAGE_PRESENT and  _PAGE_ACCESSED set */
 
@@ -214,7 +222,7 @@ itlb_miss_fault_bolted:
 
 /* Instruction TLB miss */
 	START_EXCEPTION(instruction_tlb_miss_bolted)
-	tlb_prolog_bolted SPRN_SRR0
+	tlb_prolog_bolted BOOKE_INTERRUPT_ITLB_MISS SPRN_SRR0
 
 	rldicl.	r10,r16,64-PGTABLE_EADDR_SIZE,PGTABLE_EADDR_SIZE+4
 	srdi	r15,r16,60		/* get region */

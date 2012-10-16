@@ -131,7 +131,7 @@ struct peak_usb_device {
 	struct peak_usb_device *next_siblings;
 };
 
-void dump_mem(char *prompt, void *p, int l);
+void pcan_dump_mem(char *prompt, void *p, int l);
 
 /* common timestamp management */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,

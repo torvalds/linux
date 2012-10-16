@@ -329,9 +329,13 @@ struct _lowcore {
 	__u8	pad_0x1338[0x1340-0x1338];	/* 0x1338 */
 	__u32	access_regs_save_area[16];	/* 0x1340 */
 	__u64	cregs_save_area[16];		/* 0x1380 */
+	__u8	pad_0x1400[0x1800-0x1400];	/* 0x1400 */
+
+	/* Transaction abort diagnostic block */
+	__u8	pgm_tdb[256];			/* 0x1800 */
 
 	/* align to the top of the prefix area */
-	__u8	pad_0x1400[0x2000-0x1400];	/* 0x1400 */
+	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed;
 
 #endif /* CONFIG_32BIT */

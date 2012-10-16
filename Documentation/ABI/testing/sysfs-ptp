@@ -19,7 +19,11 @@ Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file contains the name of the PTP hardware clock
-		as a human readable string.
+		as a human readable string. The purpose of this
+		attribute is to provide the user with a "friendly
+		name" and to help distinguish PHY based devices from
+		MAC based ones. The string does not necessarily have
+		to be any kind of unique id.
 
 What:		/sys/class/ptp/ptpN/max_adjustment
 Date:		September 2010

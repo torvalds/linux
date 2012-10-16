@@ -1,6 +1,6 @@
-#include "linux/threads.h"
-#include "linux/stddef.h"  // for NULL
-#include "linux/elf.h"  // for AT_NULL
+#include <linux/threads.h>
+#include <linux/stddef.h>  // for NULL
+#include <linux/elf.h>  // for AT_NULL
 
 /* The following function nicked from arch/ppc/kernel/process.c and
  * adapted slightly */

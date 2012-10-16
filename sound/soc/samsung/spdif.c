@@ -17,7 +17,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-s3c.h>
 #include <mach/dma.h>
 
 #include "dma.h"

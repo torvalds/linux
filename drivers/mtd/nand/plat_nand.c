@@ -37,6 +37,11 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 	const char **part_types;
 	int err = 0;
 
+	if (!pdata) {
+		dev_err(&pdev->dev, "platform_nand_data is missing\n");
+		return -EINVAL;
+	}
+
 	if (pdata->chip.nr_chips < 1) {
 		dev_err(&pdev->dev, "invalid number of chips specified\n");
 		return -EINVAL;

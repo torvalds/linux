@@ -38,11 +38,11 @@
  * Constants and masks
  */
 #define UINT64_C(x) x##ULL
-const u64 p64   = UINT64_C(0xfffffffffffffeff);  /* 2^64 - 257 prime  */
-const u64 m62   = UINT64_C(0x3fffffffffffffff);  /* 62-bit mask       */
-const u64 m63   = UINT64_C(0x7fffffffffffffff);  /* 63-bit mask       */
-const u64 m64   = UINT64_C(0xffffffffffffffff);  /* 64-bit mask       */
-const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
+static const u64 p64   = UINT64_C(0xfffffffffffffeff);	/* 2^64 - 257 prime  */
+static const u64 m62   = UINT64_C(0x3fffffffffffffff);	/* 62-bit mask       */
+static const u64 m63   = UINT64_C(0x7fffffffffffffff);	/* 63-bit mask       */
+static const u64 m64   = UINT64_C(0xffffffffffffffff);	/* 64-bit mask       */
+static const u64 mpoly = UINT64_C(0x1fffffff1fffffff);	/* Poly key mask     */
 
 #define pe64_to_cpup le64_to_cpup		/* Prefer little endian */
 

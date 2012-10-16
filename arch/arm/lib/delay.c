@@ -34,7 +34,18 @@ struct arm_delay_ops arm_delay_ops = {
 	.udelay		= __loop_udelay,
 };
 
-#ifdef ARCH_HAS_READ_CURRENT_TIMER
+static const struct delay_timer *delay_timer;
+static bool delay_calibrated;
+
+int read_current_timer(unsigned long *timer_val)
+{
+	if (!delay_timer)
+		return -ENXIO;
+
+	*timer_val = delay_timer->read_current_timer();
+	return 0;
+}
+
 static void __timer_delay(unsigned long cycles)
 {
 	cycles_t start = get_cycles();
@@ -55,17 +66,24 @@ static void __timer_udelay(unsigned long usecs)
 	__timer_const_udelay(usecs * UDELAY_MULT);
 }
 
-void __init init_current_timer_delay(unsigned long freq)
+void __init register_current_timer_delay(const struct delay_timer *timer)
 {
-	pr_info("Switching to timer-based delay loop\n");
-	lpj_fine			= freq / HZ;
-	arm_delay_ops.delay		= __timer_delay;
-	arm_delay_ops.const_udelay	= __timer_const_udelay;
-	arm_delay_ops.udelay		= __timer_udelay;
+	if (!delay_calibrated) {
+		pr_info("Switching to timer-based delay loop\n");
+		delay_timer			= timer;
+		lpj_fine			= timer->freq / HZ;
+		loops_per_jiffy			= lpj_fine;
+		arm_delay_ops.delay		= __timer_delay;
+		arm_delay_ops.const_udelay	= __timer_const_udelay;
+		arm_delay_ops.udelay		= __timer_udelay;
+		delay_calibrated		= true;
+	} else {
+		pr_info("Ignoring duplicate/late registration of read_current_timer delay\n");
+	}
 }
 
 unsigned long __cpuinit calibrate_delay_is_known(void)
 {
+	delay_calibrated = true;
 	return lpj_fine;
 }
-#endif

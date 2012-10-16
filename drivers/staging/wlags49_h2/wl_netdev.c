@@ -652,7 +652,6 @@ void wl_tx_timeout( struct net_device *dev )
     wl_unlock( lp, &flags );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_tx_timeout
 /*============================================================================*/
 
@@ -836,8 +835,7 @@ int wl_tx( struct sk_buff *skb, struct net_device *dev, int port )
         txF->frame.port = port;
         /* Move the frame to the txQ */
         /* NOTE: Here's where we would do priority queueing */
-        list_del( &( txF->node ));
-        list_add( &( txF->node ), &( lp->txQ[0] ));
+        list_move(&(txF->node), &(lp->txQ[0]));
 
         lp->txQ_count++;
         if( lp->txQ_count >= DEFAULT_NUM_TX_FRAMES ) {
@@ -1252,7 +1250,7 @@ struct net_device * wl_device_alloc( void )
 
     netif_stop_queue( dev );
 
-    /* Allocate virutal devices for WDS support if needed */
+    /* Allocate virtual devices for WDS support if needed */
     WL_WDS_DEVICE_ALLOC( lp );
 
     DBG_LEAVE( DbgInfo );
@@ -1292,7 +1290,6 @@ void wl_device_dealloc( struct net_device *dev )
     free_netdev( dev );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_device_dealloc
 /*============================================================================*/
 
@@ -1547,7 +1544,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
     WL_WDS_NETIF_STOP_QUEUE( lp );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_alloc
 /*============================================================================*/
 
@@ -1593,7 +1589,6 @@ void wl_wds_device_dealloc( struct wl_private *lp )
     }
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_dealloc
 /*============================================================================*/
 
@@ -1604,7 +1599,7 @@ void wl_wds_device_dealloc( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to start the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1629,8 +1624,6 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_start_queue
 /*============================================================================*/
 
@@ -1641,7 +1634,7 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to stop the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1666,8 +1659,6 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_stop_queue
 /*============================================================================*/
 
@@ -1678,7 +1669,7 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to wake the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1703,8 +1694,6 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_wake_queue
 /*============================================================================*/
 
@@ -1715,7 +1704,7 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is present on all of the
- *      "virtual" network devices which repesent the WDS ports.
+ *      "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1738,8 +1727,6 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_carrier_on
 /*============================================================================*/
 
@@ -1750,7 +1737,7 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is NOT present on all of
- *      the "virtual" network devices which repesent the WDS ports.
+ *      the "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1763,18 +1750,15 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  ******************************************************************************/
 void wl_wds_netif_carrier_off( struct wl_private *lp )
 {
-    int count;
-    /*------------------------------------------------------------------------*/
+	int count;
 
-    if( lp != NULL ) {
-        for( count = 0; count < NUM_WDS_PORTS; count++ ) {
-            if( lp->wds_port[count].is_registered ) {
-                netif_carrier_off( lp->wds_port[count].dev );
-            }
-        }
-    }
+	if(lp != NULL) {
+		for(count = 0; count < NUM_WDS_PORTS; count++) {
+			if(lp->wds_port[count].is_registered)
+				netif_carrier_off(lp->wds_port[count].dev);
+		}
+	}
 
-    return;
 } // wl_wds_netif_carrier_off
 /*============================================================================*/
 
@@ -1810,22 +1794,19 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     DBG_FUNC( "wl_send_dma" );
 
-    if( lp == NULL )
-    {
+    if( lp == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct is NULL\n" );
         return FALSE;
     }
 
-    if( lp->dev == NULL )
-    {
+    if( lp->dev == NULL ) {
         DBG_ERROR( DbgInfo, "net_device struct in wl_private is NULL\n" );
         return FALSE;
     }
 
     /* AGAIN, ALL THE QUEUEING DONE HERE IN I/O MODE IS NOT PERFORMED */
 
-    if( skb == NULL )
-    {
+    if( skb == NULL ) {
         DBG_WARNING (DbgInfo, "Nothing to send.\n");
         return FALSE;
     }
@@ -1835,8 +1816,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
     /* Get a free descriptor */
     desc = wl_pci_dma_get_tx_packet( lp );
 
-    if( desc == NULL )
-    {
+    if( desc == NULL ) {
         if( lp->netif_queue_on == TRUE ) {
             netif_stop_queue( lp->dev );
             WL_WDS_NETIF_STOP_QUEUE( lp );
@@ -1852,8 +1832,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     desc_next = desc->next_desc_addr;
 
-    if( desc_next->buf_addr == NULL )
-    {
+    if( desc_next->buf_addr == NULL ) {
         DBG_ERROR( DbgInfo, "DMA descriptor buf_addr is NULL\n" );
         return FALSE;
     }

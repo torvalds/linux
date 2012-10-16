@@ -952,7 +952,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 			return r;
 		}
 
-		INIT_DELAYED_WORK_DEFERRABLE(&td->te_timeout_work,
+		INIT_DEFERRABLE_WORK(&td->te_timeout_work,
 					taal_te_timeout_work_callback);
 
 		dev_dbg(&dssdev->dev, "Using GPIO TE\n");
@@ -963,7 +963,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		dev_err(&dssdev->dev, "can't create ESD workqueue\n");
 		return -ENOMEM;
 	}
-	INIT_DELAYED_WORK_DEFERRABLE(&td->esd_work, taal_esd_work);
+	INIT_DEFERRABLE_WORK(&td->esd_work, taal_esd_work);
 	INIT_DELAYED_WORK(&td->ulps_work, taal_ulps_work);
 
 	taal_hw_reset(dssdev);

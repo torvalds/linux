@@ -120,7 +120,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
-				 "opcode %d-%d is not permitted\n",
+				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
 		} else {
 			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
@@ -165,14 +165,13 @@ static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
 	}
 }
 
-/* Grp5 QOS Speed evt */
+/* Grp5 QOS Speed evt: qos_link_speed is in units of 10 Mbps */
 static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 		struct be_async_event_grp5_qos_link_speed *evt)
 {
-	if (evt->physical_port == adapter->port_num) {
-		/* qos_link_speed is in units of 10 Mbps */
-		adapter->phy.link_speed = evt->qos_link_speed * 10;
-	}
+	if (adapter->phy.link_speed >= 0 &&
+	    evt->physical_port == adapter->port_num)
+		adapter->phy.link_speed = le16_to_cpu(evt->qos_link_speed) * 10;
 }
 
 /*Grp5 PVID evt*/
@@ -259,7 +258,7 @@ int be_process_mcc(struct be_adapter *adapter)
 	int num = 0, status = 0;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
-	spin_lock_bh(&adapter->mcc_cq_lock);
+	spin_lock(&adapter->mcc_cq_lock);
 	while ((compl = be_mcc_compl_get(adapter))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
 			/* Interpret flags as an async trailer */
@@ -280,7 +279,7 @@ int be_process_mcc(struct be_adapter *adapter)
 	if (num)
 		be_cq_notify(adapter, mcc_obj->cq.id, mcc_obj->rearm_cq, num);
 
-	spin_unlock_bh(&adapter->mcc_cq_lock);
+	spin_unlock(&adapter->mcc_cq_lock);
 	return status;
 }
 
@@ -295,7 +294,9 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 		if (be_error(adapter))
 			return -EIO;
 
+		local_bh_disable();
 		status = be_process_mcc(adapter);
+		local_bh_enable();
 
 		if (atomic_read(&mcc_obj->q.used) == 0)
 			break;
@@ -715,7 +716,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 
 /* Use MCC */
 int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle, u32 pmac_id)
+			  bool permanent, u32 if_handle, u32 pmac_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mac_query *req;
@@ -732,7 +733,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_MAC_QUERY, sizeof(*req), wrb, NULL);
-	req->type = type;
+	req->type = MAC_ADDRESS_TYPE_NETWORK;
 	if (permanent) {
 		req->permanent = 1;
 	} else {
@@ -1324,9 +1325,28 @@ err:
 	return status;
 }
 
-/* Uses synchronous mcc */
-int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
-			     u16 *link_speed, u8 *link_status, u32 dom)
+static int be_mac_to_link_speed(int mac_speed)
+{
+	switch (mac_speed) {
+	case PHY_LINK_SPEED_ZERO:
+		return 0;
+	case PHY_LINK_SPEED_10MBPS:
+		return 10;
+	case PHY_LINK_SPEED_100MBPS:
+		return 100;
+	case PHY_LINK_SPEED_1GBPS:
+		return 1000;
+	case PHY_LINK_SPEED_10GBPS:
+		return 10000;
+	}
+	return 0;
+}
+
+/* Uses synchronous mcc
+ * Returns link_speed in Mbps
+ */
+int be_cmd_link_status_query(struct be_adapter *adapter, u16 *link_speed,
+			     u8 *link_status, u32 dom)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_link_status *req;
@@ -1355,11 +1375,13 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_link_status *resp = embedded_payload(wrb);
-		if (resp->mac_speed != PHY_LINK_SPEED_ZERO) {
-			if (link_speed)
-				*link_speed = le16_to_cpu(resp->link_speed);
-			if (mac_speed)
-				*mac_speed = resp->mac_speed;
+		if (link_speed) {
+			*link_speed = resp->link_speed ?
+				      le16_to_cpu(resp->link_speed) * 10 :
+				      be_mac_to_link_speed(resp->mac_speed);
+
+			if (!resp->logical_link_status)
+				*link_speed = 0;
 		}
 		if (link_status)
 			*link_status = resp->logical_link_status;
@@ -2403,6 +2425,9 @@ int be_cmd_req_native_mode(struct be_adapter *adapter)
 		struct be_cmd_resp_set_func_cap *resp = embedded_payload(wrb);
 		adapter->be3_native = le32_to_cpu(resp->cap_flags) &
 					CAPABILITY_BE3_NATIVE_ERX_API;
+		if (!adapter->be3_native)
+			dev_warn(&adapter->pdev->dev,
+				 "adapter not in advanced mode\n");
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);

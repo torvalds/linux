@@ -7,9 +7,9 @@
 #define __OS_H__
 
 #include <stdarg.h>
-#include "irq_user.h"
-#include "longjmp.h"
-#include "mm_id.h"
+#include <irq_user.h>
+#include <longjmp.h>
+#include <mm_id.h>
 
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
@@ -191,7 +191,6 @@ extern int os_getpid(void);
 extern int os_getpgrp(void);
 
 extern void init_new_thread_signals(void);
-extern int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
 			 unsigned long len, int r, int w, int x);

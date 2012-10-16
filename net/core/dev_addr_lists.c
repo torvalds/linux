@@ -22,7 +22,7 @@
  */
 
 static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
-			       unsigned char *addr, int addr_len,
+			       const unsigned char *addr, int addr_len,
 			       unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
@@ -46,7 +46,7 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 }
 
 static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
-			    unsigned char *addr, int addr_len,
+			    const unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
@@ -72,14 +72,15 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 	return __hw_addr_create_ex(list, addr, addr_len, addr_type, global);
 }
 
-static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
+static int __hw_addr_add(struct netdev_hw_addr_list *list,
+			 const unsigned char *addr, int addr_len,
+			 unsigned char addr_type)
 {
 	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false);
 }
 
 static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
-			    unsigned char *addr, int addr_len,
+			    const unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
@@ -104,8 +105,9 @@ static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
 	return -ENOENT;
 }
 
-static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
+static int __hw_addr_del(struct netdev_hw_addr_list *list,
+			 const unsigned char *addr, int addr_len,
+			 unsigned char addr_type)
 {
 	return __hw_addr_del_ex(list, addr, addr_len, addr_type, false);
 }
@@ -278,7 +280,7 @@ EXPORT_SYMBOL(dev_addr_init);
  *
  *	The caller must hold the rtnl_mutex.
  */
-int dev_addr_add(struct net_device *dev, unsigned char *addr,
+int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 		 unsigned char addr_type)
 {
 	int err;
@@ -303,7 +305,7 @@ EXPORT_SYMBOL(dev_addr_add);
  *
  *	The caller must hold the rtnl_mutex.
  */
-int dev_addr_del(struct net_device *dev, unsigned char *addr,
+int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 		 unsigned char addr_type)
 {
 	int err;
@@ -390,7 +392,7 @@ EXPORT_SYMBOL(dev_addr_del_multiple);
  *	@dev: device
  *	@addr: address to add
  */
-int dev_uc_add_excl(struct net_device *dev, unsigned char *addr)
+int dev_uc_add_excl(struct net_device *dev, const unsigned char *addr)
 {
 	struct netdev_hw_addr *ha;
 	int err;
@@ -421,7 +423,7 @@ EXPORT_SYMBOL(dev_uc_add_excl);
  *	Add a secondary unicast address to the device or increase
  *	the reference count if it already exists.
  */
-int dev_uc_add(struct net_device *dev, unsigned char *addr)
+int dev_uc_add(struct net_device *dev, const unsigned char *addr)
 {
 	int err;
 
@@ -443,7 +445,7 @@ EXPORT_SYMBOL(dev_uc_add);
  *	Release reference to a secondary unicast address and remove it
  *	from the device if the reference count drops to zero.
  */
-int dev_uc_del(struct net_device *dev, unsigned char *addr)
+int dev_uc_del(struct net_device *dev, const unsigned char *addr)
 {
 	int err;
 
@@ -543,7 +545,7 @@ EXPORT_SYMBOL(dev_uc_init);
  *	@dev: device
  *	@addr: address to add
  */
-int dev_mc_add_excl(struct net_device *dev, unsigned char *addr)
+int dev_mc_add_excl(struct net_device *dev, const unsigned char *addr)
 {
 	struct netdev_hw_addr *ha;
 	int err;
@@ -566,7 +568,7 @@ out:
 }
 EXPORT_SYMBOL(dev_mc_add_excl);
 
-static int __dev_mc_add(struct net_device *dev, unsigned char *addr,
+static int __dev_mc_add(struct net_device *dev, const unsigned char *addr,
 			bool global)
 {
 	int err;
@@ -587,7 +589,7 @@ static int __dev_mc_add(struct net_device *dev, unsigned char *addr,
  *	Add a multicast address to the device or increase
  *	the reference count if it already exists.
  */
-int dev_mc_add(struct net_device *dev, unsigned char *addr)
+int dev_mc_add(struct net_device *dev, const unsigned char *addr)
 {
 	return __dev_mc_add(dev, addr, false);
 }
@@ -600,13 +602,13 @@ EXPORT_SYMBOL(dev_mc_add);
  *
  *	Add a global multicast address to the device.
  */
-int dev_mc_add_global(struct net_device *dev, unsigned char *addr)
+int dev_mc_add_global(struct net_device *dev, const unsigned char *addr)
 {
 	return __dev_mc_add(dev, addr, true);
 }
 EXPORT_SYMBOL(dev_mc_add_global);
 
-static int __dev_mc_del(struct net_device *dev, unsigned char *addr,
+static int __dev_mc_del(struct net_device *dev, const unsigned char *addr,
 			bool global)
 {
 	int err;
@@ -628,7 +630,7 @@ static int __dev_mc_del(struct net_device *dev, unsigned char *addr,
  *	Release reference to a multicast address and remove it
  *	from the device if the reference count drops to zero.
  */
-int dev_mc_del(struct net_device *dev, unsigned char *addr)
+int dev_mc_del(struct net_device *dev, const unsigned char *addr)
 {
 	return __dev_mc_del(dev, addr, false);
 }
@@ -642,7 +644,7 @@ EXPORT_SYMBOL(dev_mc_del);
  *	Release reference to a multicast address and remove it
  *	from the device if the reference count drops to zero.
  */
-int dev_mc_del_global(struct net_device *dev, unsigned char *addr)
+int dev_mc_del_global(struct net_device *dev, const unsigned char *addr)
 {
 	return __dev_mc_del(dev, addr, true);
 }

@@ -48,6 +48,7 @@ module_param(loose, bool, 0600);
 unsigned int (*nf_nat_ftp_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
 				enum nf_ct_ftp_type type,
+				unsigned int protoff,
 				unsigned int matchoff,
 				unsigned int matchlen,
 				struct nf_conntrack_expect *exp);
@@ -395,6 +396,12 @@ static int help(struct sk_buff *skb,
 
 	/* Look up to see if we're just after a \n. */
 	if (!find_nl_seq(ntohl(th->seq), ct_ftp_info, dir)) {
+		/* We're picking up this, clear flags and let it continue */
+		if (unlikely(ct_ftp_info->flags[dir] & NF_CT_FTP_SEQ_PICKUP)) {
+			ct_ftp_info->flags[dir] ^= NF_CT_FTP_SEQ_PICKUP;
+			goto skip_nl_seq;
+		}
+
 		/* Now if this ends in \n, update ftp info. */
 		pr_debug("nf_conntrack_ftp: wrong seq pos %s(%u) or %s(%u)\n",
 			 ct_ftp_info->seq_aft_nl_num[dir] > 0 ? "" : "(UNSET)",
@@ -405,6 +412,7 @@ static int help(struct sk_buff *skb,
 		goto out_update_nl;
 	}
 
+skip_nl_seq:
 	/* Initialize IP/IPv6 addr to expected address (it's not mentioned
 	   in EPSV responses) */
 	cmd.l3num = nf_ct_l3num(ct);
@@ -489,7 +497,7 @@ static int help(struct sk_buff *skb,
 	nf_nat_ftp = rcu_dereference(nf_nat_ftp_hook);
 	if (nf_nat_ftp && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_ftp(skb, ctinfo, search[dir][i].ftptype,
-				 matchoff, matchlen, exp);
+				 protoff, matchoff, matchlen, exp);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (nf_ct_expect_related(exp) != 0)
@@ -509,6 +517,19 @@ out_update_nl:
  out:
 	spin_unlock_bh(&nf_ftp_lock);
 	return ret;
+}
+
+static int nf_ct_ftp_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
+{
+	struct nf_ct_ftp_master *ftp = nfct_help_data(ct);
+
+	/* This conntrack has been injected from user-space, always pick up
+	 * sequence tracking. Otherwise, the first FTP command after the
+	 * failover breaks.
+	 */
+	ftp->flags[IP_CT_DIR_ORIGINAL] |= NF_CT_FTP_SEQ_PICKUP;
+	ftp->flags[IP_CT_DIR_REPLY] |= NF_CT_FTP_SEQ_PICKUP;
+	return 0;
 }
 
 static struct nf_conntrack_helper ftp[MAX_PORTS][2] __read_mostly;
@@ -560,6 +581,7 @@ static int __init nf_conntrack_ftp_init(void)
 			ftp[i][j].expect_policy = &ftp_exp_policy;
 			ftp[i][j].me = THIS_MODULE;
 			ftp[i][j].help = help;
+			ftp[i][j].from_nlattr = nf_ct_ftp_from_nlattr;
 			if (ports[i] == FTP_PORT)
 				sprintf(ftp[i][j].name, "ftp");
 			else

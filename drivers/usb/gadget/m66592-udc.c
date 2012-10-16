@@ -1466,7 +1466,7 @@ static struct usb_ep_ops m66592_ep_ops = {
 static struct m66592 *the_controller;
 
 static int m66592_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct m66592 *m66592 = the_controller;
 	int retval;
@@ -1492,7 +1492,7 @@ static int m66592_start(struct usb_gadget_driver *driver,
 		goto error;
 	}
 
-	retval = bind(&m66592->gadget);
+	retval = bind(&m66592->gadget, driver);
 	if (retval) {
 		pr_err("bind to driver error (%d)\n", retval);
 		device_del(&m66592->gadget.dev);
