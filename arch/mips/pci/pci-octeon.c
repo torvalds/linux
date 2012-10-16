@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/swiotlb.h>
 
 #include <asm/time.h>
@@ -703,6 +704,9 @@ static int __init octeon_pci_setup(void)
 	 * was setup properly.
 	 */
 	cvmx_write_csr(CVMX_NPI_PCI_INT_SUM2, -1);
+
+	if (IS_ERR(platform_device_register_simple("co_pci_edac", 0, NULL, 0)))
+		pr_err("Registation of co_pci_edac failed!\n");
 
 	octeon_pci_dma_init();
 

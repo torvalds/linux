@@ -4,9 +4,11 @@
  * for more details.
  *
  * Copyright (C) 2004-2007 Cavium Networks
- * Copyright (C) 2008 Wind River Systems
+ * Copyright (C) 2008, 2009 Wind River Systems
+ *   written by Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -821,3 +823,29 @@ void __init device_tree_init(void)
 	}
 	unflatten_device_tree();
 }
+
+static char *edac_device_names[] = {
+	"co_l2c_edac",
+	"co_lmc_edac",
+	"co_pc_edac",
+};
+
+static int __init edac_devinit(void)
+{
+	struct platform_device *dev;
+	int i, err = 0;
+	char *name;
+
+	for (i = 0; i < ARRAY_SIZE(edac_device_names); i++) {
+		name = edac_device_names[i];
+		dev = platform_device_register_simple(name, -1, NULL, 0);
+		if (IS_ERR(dev)) {
+			pr_err("Registation of %s failed!\n", name);
+			err = PTR_ERR(dev);
+		}
+	}
+
+	return err;
+}
+
+device_initcall(edac_devinit);

@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2005-2007 Cavium Networks
  */
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -28,6 +29,7 @@
 #include <asm/octeon/octeon.h>
 
 unsigned long long cache_err_dcache[NR_CPUS];
+EXPORT_SYMBOL_GPL(cache_err_dcache);
 
 /**
  * Octeon automatically flushes the dcache on tlb changes, so
@@ -288,42 +290,42 @@ void __cpuinit octeon_cache_init(void)
  * Handle a cache error exception
  */
 
-static void  cache_parity_error_octeon(int non_recoverable)
+static RAW_NOTIFIER_HEAD(co_cache_error_chain);
+
+int register_co_cache_error_notifier(struct notifier_block *nb)
 {
-	unsigned long coreid = cvmx_get_core_num();
-	uint64_t icache_err = read_octeon_c0_icacheerr();
+	return raw_notifier_chain_register(&co_cache_error_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_co_cache_error_notifier);
 
-	pr_err("Cache error exception:\n");
-	pr_err("cp0_errorepc == %lx\n", read_c0_errorepc());
-	if (icache_err & 1) {
-		pr_err("CacheErr (Icache) == %llx\n",
-		       (unsigned long long)icache_err);
-		write_octeon_c0_icacheerr(0);
-	}
-	if (cache_err_dcache[coreid] & 1) {
-		pr_err("CacheErr (Dcache) == %llx\n",
-		       (unsigned long long)cache_err_dcache[coreid]);
-		cache_err_dcache[coreid] = 0;
-	}
+int unregister_co_cache_error_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_unregister(&co_cache_error_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_co_cache_error_notifier);
 
-	if (non_recoverable)
-		panic("Can't handle cache error: nested exception");
+static inline int co_cache_error_call_notifiers(unsigned long val)
+{
+	return raw_notifier_call_chain(&co_cache_error_chain, val, NULL);
 }
 
 /**
  * Called when the the exception is recoverable
  */
-
 asmlinkage void cache_parity_error_octeon_recoverable(void)
 {
-	cache_parity_error_octeon(0);
+	co_cache_error_call_notifiers(0);
 }
 
 /**
  * Called when the the exception is not recoverable
+ *
+ * The issue not that the cache error exception itself was non-recoverable
+ * but that due to nesting of exception may have lost some state so can't
+ * continue.
  */
-
 asmlinkage void cache_parity_error_octeon_non_recoverable(void)
 {
-	cache_parity_error_octeon(1);
+	co_cache_error_call_notifiers(1);
+	panic("Can't handle cache error: nested exception");
 }
