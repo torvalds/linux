@@ -1141,23 +1141,13 @@ int max_width, max_height;</synopsis>
             the <methodname>page_flip</methodname> operation will be called with a
             non-NULL <parameter>event</parameter> argument pointing to a
             <structname>drm_pending_vblank_event</structname> instance. Upon page
-            flip completion the driver must fill the
-            <parameter>event</parameter>::<structfield>event</structfield>
-            <structfield>sequence</structfield>, <structfield>tv_sec</structfield>
-            and <structfield>tv_usec</structfield> fields with the associated
-            vertical blanking count and timestamp, add the event to the
-            <parameter>drm_file</parameter> list of events to be signaled, and wake
-            up any waiting process. This can be performed with
+            flip completion the driver must call <methodname>drm_send_vblank_event</methodname>
+            to fill in the event and send to wake up any waiting processes.
+            This can be performed with
             <programlisting><![CDATA[
-            struct timeval now;
-
-            event->event.sequence = drm_vblank_count_and_time(..., &now);
-            event->event.tv_sec = now.tv_sec;
-            event->event.tv_usec = now.tv_usec;
-
             spin_lock_irqsave(&dev->event_lock, flags);
-            list_add_tail(&event->base.link, &event->base.file_priv->event_list);
-            wake_up_interruptible(&event->base.file_priv->event_wait);
+            ...
+            drm_send_vblank_event(dev, pipe, event);
             spin_unlock_irqrestore(&dev->event_lock, flags);
             ]]></programlisting>
           </para>
