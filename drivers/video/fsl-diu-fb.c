@@ -792,7 +792,8 @@ static void update_lcdc(struct fb_info *info)
 
 	hw = data->diu_reg;
 
-	diu_ops.set_monitor_port(data->monitor_port);
+	if (diu_ops.set_monitor_port)
+		diu_ops.set_monitor_port(data->monitor_port);
 	gamma_table_base = data->gamma;
 
 	/* Prep for DIU init  - gamma table, cursor table */
