@@ -120,14 +120,52 @@
 			};
 
 		rstmgr@ffd05000 {
-				compatible = "altr,rst-mgr";
-				reg = <0xffd05000 0x1000>;
+			compatible = "altr,rst-mgr";
+			reg = <0xffd05000 0x1000>;
+		};
+
+		spi0: spi@fff00000 {
+			compatible = "snps,dw-spi-mmio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff00000 0x1000>;
+			interrupts = <0 154 4>;
+			num-chipselect = <4>;
+			bus-num = <0>;
+			tx-dma-channel = <&pdma 16>;
+			rx-dma-channel = <&pdma 17>;
+
+			spidev@0 {
+				compatible = "spidev";
+				reg = <0>;	/* chip select */
+				spi-max-frequency = <100000000>;
+				enable-dma = <1>;
 			};
+		};
+
+		spi1: spi@fff01000 {
+			compatible = "snps,dw-spi-mmio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff01000 0x1000>;
+			interrupts = <0 156 4>;
+			num-chipselect = <4>;
+			bus-num = <1>;
+			tx-dma-channel = <&pdma 20>;
+			rx-dma-channel = <&pdma 21>;
+
+			spidev@0 {
+				compatible = "spidev";
+				reg = <0>;
+				spi-max-frequency = <100000000>;
+				enable-dma = <1>;
+			};
+		};
 		
 		sysmgr@ffd08000 {
-				compatible = "altr,sys-mgr";
-				reg = <0xffd08000 0x4000>;
-			};
+			compatible = "altr,sys-mgr";
+			reg = <0xffd08000 0x4000>;
+		};
 
 		/* Local timer */
 		timer@fffec600 {
