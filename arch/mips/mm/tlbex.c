@@ -443,7 +443,6 @@ static void __cpuinit __maybe_unused build_tlb_probe_entry(u32 **p)
 	case CPU_R4600:
 	case CPU_R4700:
 	case CPU_R5000:
-	case CPU_R5000A:
 	case CPU_NEVADA:
 		uasm_i_nop(p);
 		uasm_i_tlbp(p);
@@ -517,7 +516,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		break;
 
 	case CPU_R5000:
-	case CPU_R5000A:
 	case CPU_NEVADA:
 		uasm_i_nop(p); /* QED specifies 2 nops hazard */
 		uasm_i_nop(p); /* QED specifies 2 nops hazard */
