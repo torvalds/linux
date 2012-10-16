@@ -48,16 +48,73 @@
 #define GTP_REG_CONFIG_DATA   0x0F80
 #define GTP_REG_VERSION       0x0F7D
 
+#define GTP_CONFIG_LENGTH	112
+#define TRIGGER_LOC		64
+
+//STEP_1(REQUIRED):Change config table.
+/*TODO: puts the config info corresponded to your TP here, the following is just
+a sample config, send this config should cause the chip cannot work normally*/
+//default or float
+
+u8 cfg_info_group[][GTP_CONFIG_LENGTH] = 
+{
+	{
+		0x00,0x0F,0x01,0x10,0x02,0x11,0x03,0x12,0x04,0x13,
+		0x05,0x14,0x06,0x15,0x07,0x16,0x08,0x17,0x09,0x18,
+		0x0A,0x19,0x0B,0x1A,0x0C,0x1B,0x0D,0x1C,0xFF,0xFF,
+		0x02,0x0C,0x03,0x0D,0x04,0x0E,0x05,0x0F,0x06,0x10,
+		0x07,0x11,0x08,0x12,0x09,0x13,0xFF,0x11,0x12,0x13,
+		0x0F,0x03,0x88,0x10,0x10,0x2A,0x00,0x00,0x00,0x00,
+		0x00,0x0E,0x45,0x30,0x58,0x03,0x00,0x05,0x00,0x02,
+		0x58,0x03,0x20,0x55,0x5E,0x50,0x58,0x27,0x00,0x05,
+		0x19,0x05,0x14,0x10,0x00,0x05,0x00,0x00,0x00,0x00,
+		0x00,0x00,0x40,0x30,0x30,0x3C,0x00,0x00,0x00,0x00,
+		0x0F,0x88,0x28,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
+		0x00,0x01
+	},
+	{
+		0x00,0x0F,0x01,0x10,0x02,0x11,0x03,0x12,0x04,0x13,
+		0x05,0x14,0x06,0x15,0x07,0x16,0x08,0x17,0x09,0x18,
+		0x0A,0x19,0x0B,0x1A,0x0C,0x1B,0x0D,0x1C,0xFF,0xFF,
+		0x02,0x0C,0x03,0x0D,0x04,0x0E,0x05,0x0F,0x06,0x10,
+		0x07,0x11,0x08,0x12,0x09,0x13,0xFF,0x11,0x12,0x13,
+		0x0F,0x03,0x88,0x10,0x10,0x2A,0x00,0x00,0x00,0x00,
+		0x00,0x0E,0x45,0x30,0x58,0x03,0x00,0x05,0x00,0x02,
+		0x58,0x03,0x20,0x55,0x5E,0x50,0x58,0x27,0x00,0x05,
+		0x19,0x05,0x14,0x10,0x00,0x05,0x00,0x00,0x00,0x00,
+		0x00,0x00,0x40,0x30,0x30,0x3C,0x00,0x00,0x00,0x00,
+		0x0F,0x88,0x28,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
+		0x00,0x01
+	},
+		
+	{
+		0x00,0x0F,0x01,0x10,0x02,0x11,0x03,0x12,0x04,0x13,
+		0x05,0x14,0x06,0x15,0x07,0x16,0x08,0x17,0x09,0x18,
+		0x0A,0x19,0x0B,0x1A,0x0C,0x1B,0x0D,0x1C,0xFF,0xFF,
+		0x02,0x0C,0x03,0x0D,0x04,0x0E,0x05,0x0F,0x06,0x10,
+		0x07,0x11,0x08,0x12,0x09,0x13,0xFF,0x11,0x12,0x13,
+		0x0F,0x03,0x88,0x10,0x10,0x2A,0x00,0x00,0x00,0x00,
+		0x00,0x0E,0x45,0x30,0x58,0x03,0x00,0x05,0x00,0x02,
+		0x58,0x03,0x20,0x55,0x5E,0x50,0x58,0x27,0x00,0x05,
+		0x19,0x05,0x14,0x10,0x00,0x05,0x00,0x00,0x00,0x00,
+		0x00,0x00,0x40,0x30,0x30,0x3C,0x00,0x00,0x00,0x00,
+		0x0F,0x88,0x28,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
+		0x00,0x01
+	}
+
+};
+
+static u8 config[GTP_CONFIG_LENGTH+2] = {GTP_REG_CONFIG_DATA >> 8, GTP_REG_CONFIG_DATA & 0xff};
 
 
 /****************operate according to ts chip:start************/
 
-int ts_i2c_end_cmd(struct i2c_client *client)
+int ts_i2c_end_cmd(struct ts_private_data *ts)
 {
 	int result  = -1;
 	char end_cmd_data[2]={0x80, 0x00};
 
-	result = ts_tx_data(client, end_cmd_data, 2);
+	result = ts_reg_write(ts, end_cmd_data[0], end_cmd_data[1]);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -68,10 +125,8 @@ int ts_i2c_end_cmd(struct i2c_client *client)
 }
 
 
-static int ts_active(struct i2c_client *client, int enable)
-{
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);	
+static int ts_active(struct ts_private_data *ts, int enable)
+{	
 	int result = 0;
 
 	if(enable)
@@ -90,15 +145,59 @@ static int ts_active(struct i2c_client *client, int enable)
 	return result;
 }
 
-static int ts_init(struct i2c_client *client)
+static int ts_init(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);
 	int result = 0;
-	char version_data[4] = {ts->ops->version_reg >> 8, ts->ops->version_reg & 0xff};
+	char version_data[5] = {ts->ops->version_reg >> 8, ts->ops->version_reg & 0xff};
+	u8 rd_cfg_buf[2];
 	
+	//init some register	
+	result = ts_bulk_read(ts, ts->ops->version_reg, 1, (unsigned short *)rd_cfg_buf);
+	if(result < 0)
+	{
+		printk("%s:fail to read rd_cfg_buf\n",__func__);
+		return result;
+	}
+
+	result = ts_i2c_end_cmd(ts);
+	if(result < 0)
+	{
+		printk("%s:fail to end cmd\n",__func__);	
+		rd_cfg_buf[0] = 0;
+		//return result;
+	}
+
+	rd_cfg_buf[0] &= 0x03;
+		
+	printk("%s:%s id is %d\n",__func__,ts->ops->name, rd_cfg_buf[0]);
+	
+	memcpy(&config[2], cfg_info_group[rd_cfg_buf[0]], GTP_CONFIG_LENGTH);
+
+	if((ts->ops->trig & IRQF_TRIGGER_FALLING) || (ts->ops->trig & IRQF_TRIGGER_LOW))  //FALLING
+	{
+		config[TRIGGER_LOC+2] &= 0xf7;
+	}
+	else if((ts->ops->trig & IRQF_TRIGGER_RISING) || (ts->ops->trig & IRQF_TRIGGER_HIGH))  //RISING
+	{
+		config[TRIGGER_LOC+2] |= 0x08;
+	}
+	
+	result = ts_bulk_write(ts, GTP_REG_CONFIG_DATA, GTP_CONFIG_LENGTH, (unsigned short *)config);
+	if(result < 0)
+	{
+		printk("%s:fail to send config data\n",__func__);
+		return result;
+	}
+
+	result = ts_i2c_end_cmd(ts);
+	if(result < 0)
+	{
+		printk("%s:fail to end cmd\n",__func__);	
+		//return result;
+	}
+
 	//read version
-	result = ts_rx_data(client, version_data, 4);
+	result = ts_bulk_read(ts, ts->ops->version_reg, 4, (unsigned short *)version_data);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -106,26 +205,21 @@ static int ts_init(struct i2c_client *client)
 	}
 	version_data[4]='\0';
 	
-	result = ts_i2c_end_cmd(client);
+	result = ts_i2c_end_cmd(ts);
 	if(result < 0)
 	{
-		printk("%s:fail to end ts\n",__func__);
+		printk("%s:fail to end cmd\n",__func__);
 		//return result;
 	}
 	
 	printk("%s:%s version is %s\n",__func__,ts->ops->name, version_data);
-
-	//init some register
-	//to do
 	
 	return result;
 }
 
 
-static int ts_report_value(struct i2c_client *client)
+static int ts_report_value(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	struct ts_event *event = &ts->event;
 	unsigned char buf[2 + 2 + 5 * 5 + 1] = {0};
@@ -133,16 +227,14 @@ static int ts_report_value(struct i2c_client *client)
 	int finger = 0;
 	int checksum = 0;
 
-	buf[0] = ts->ops->read_reg >> 8;
-	buf[1] = ts->ops->read_reg & 0xff;
-	result = ts_rx_data_word(client, buf, ts->ops->read_len);
+	result = ts_bulk_read(ts, ts->ops->read_reg, ts->ops->read_len, (unsigned short *)buf);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
 		return result;
 	}
 
-	result = ts_i2c_end_cmd(client);
+	result = ts_i2c_end_cmd(ts);
 	if(result < 0)
 	{
 		printk("%s:fail to end ts\n",__func__);
@@ -152,32 +244,11 @@ static int ts_report_value(struct i2c_client *client)
 	//for(i=0; i<ts->ops->read_len; i++)
 	//DBG("buf[%d]=0x%x\n",i,buf[i]);
 	finger = buf[0];
-	if((finger & 0xc0) != 0x80)
+	if((finger & 0x80) != 0x80)
 	{
-		DBG("%s:data not ready!\n",__func__);
-		return -1;
+		DBG("%s:data not ready!,finger=0x%x\n",__func__,finger);
+		//return -1;
 	}
-
-
-#if 0	
-	event->touch_point = 0;
-	for(i=0; i<ts->ops->max_point; i++)
-	{
-		if(finger & (1<<i))
-			event->touch_point++;
-	}
-
-	check_sum = 0;
-	for ( i = 0; i < 5 * event->touch_point; i++)
-	{
-		check_sum += buf[2+i];
-	}
-	if (check_sum != buf[5 * event->touch_point])
-	{
-		DBG("%s:check sum error!\n",__func__);
-		return -1;
-	}
-#endif
 	
 	for(i = 0; i<ts->ops->max_point; i++)
 	{
@@ -190,6 +261,8 @@ static int ts_report_value(struct i2c_client *client)
 		event->point[id].y = (buf[off+2]<<8) | buf[off+3];
 		event->point[id].press = buf[off+4];	
 		
+		DBG("data:0x%x,0x%x,0x%x,0x%x\n",buf[off+0],buf[off+1],buf[off+2],buf[off+3]);
+		
 		if(ts->ops->xy_swap)
 		{
 			swap(event->point[id].x, event->point[id].y);
@@ -197,12 +270,12 @@ static int ts_report_value(struct i2c_client *client)
 
 		if(ts->ops->x_revert)
 		{
-			event->point[id].x = ts->ops->pixel.max_x - event->point[id].x;	
+			event->point[id].x = ts->ops->range[0] - event->point[id].x;	
 		}
 
 		if(ts->ops->y_revert)
 		{
-			event->point[id].y = ts->ops->pixel.max_y - event->point[id].y;
+			event->point[id].y = ts->ops->range[1] - event->point[id].y;
 		}
 
 		if(event->point[id].status != 0)
@@ -232,14 +305,12 @@ static int ts_report_value(struct i2c_client *client)
 	return 0;
 }
 
-static int ts_suspend(struct i2c_client *client)
+static int ts_suspend(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 
 	if(ts->ops->active)
-		ts->ops->active(client, 0);
+		ts->ops->active(ts, 0);
 	
 	return 0;
 }
@@ -247,14 +318,12 @@ static int ts_suspend(struct i2c_client *client)
 
 
 
-static int ts_resume(struct i2c_client *client)
+static int ts_resume(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	
 	if(ts->ops->active)
-		ts->ops->active(client, 1);
+		ts->ops->active(ts, 1);
 	return 0;
 }
 
@@ -265,9 +334,9 @@ static int ts_resume(struct i2c_client *client)
 struct ts_operate ts_gt828_ops = {
 	.name				= "gt828",
 	.slave_addr			= 0x5d,
-	.id_i2c				= TS_ID_GT828,			//i2c id number
+	.ts_id				= TS_ID_GT828,			//i2c id number
+	.bus_type			= TS_BUS_TYPE_I2C,
 	.reg_size			= 2,
-	.pixel				= {1024,600},
 	.id_reg				= GTP_REG_SENSOR_ID,
 	.id_data			= TS_UNKNOW_DATA,
 	.version_reg			= 0x0F7D,
@@ -280,7 +349,7 @@ struct ts_operate ts_gt828_ops = {
 	.xy_swap 			= 0,
 	.x_revert 			= 0,
 	.y_revert			= 0,
-	.range				= {1024,600},
+	.range				= {800,1280},
 	.irq_enable			= 1,
 	.poll_delay_ms			= 0,
 	.active				= ts_active,	

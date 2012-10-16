@@ -1,11 +1,35 @@
+menuconfig TS_AUTO_I2C
+	bool "Support auto touch screen with I2C"
+	default n	
+	
+if TS_AUTO_I2C
+
 config TS_FT5306
-  bool "touch screen ft5306"
+bool "touch screen ft5306"
 	default n
  
 config TS_GT8110
-  bool "touch screen gt8110"
+	bool "touch screen gt8110"
 	default n	
 
 config TS_GT828
-  bool "touch screen gt828"
+	bool "touch screen gt828"
 	default n
+	
+endif
+
+config TS_AUTO_SPI
+	bool "Support auto touch screen with SPI"
+	depends on SPI_MASTER
+
+if TS_AUTO_SPI
+	
+endif
+
+config TS_AUTO_SERIAL
+	bool "Support auto touch screen with UART"
+	
+if TS_AUTO_SERIAL
+	
+endif
+

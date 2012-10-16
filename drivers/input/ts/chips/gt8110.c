@@ -51,10 +51,8 @@
 
 /****************operate according to ts chip:start************/
 
-static int ts_active(struct i2c_client *client, int enable)
+static int ts_active(struct ts_private_data *ts, int enable)
 {
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);
 	unsigned char buf_suspend[2] = {0x38, 0x56};		//suspend cmd
 	int result = 0;
 
@@ -67,7 +65,7 @@ static int ts_active(struct i2c_client *client, int enable)
 	}
 	else
 	{
-		result = ts_tx_data(client, buf_suspend, 2);
+		result = ts_bulk_write(ts, (unsigned short )buf_suspend[0], 2, (unsigned short *)&buf_suspend[1]);
 		if(result < 0)
 		{
 			printk("%s:fail to init ts\n",__func__);
@@ -81,10 +79,8 @@ static int ts_active(struct i2c_client *client, int enable)
 	return result;
 }
 
-static int ts_init(struct i2c_client *client)
+static int ts_init(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);
 	int irq_pin = irq_to_gpio(ts->pdata->irq);
 	char version_data[18] = {240};
 	char init_data[95] = {
@@ -101,8 +97,8 @@ static int ts_init(struct i2c_client *client)
         };
 	int result = 0, i = 0;
 
-	//read version
-	result = ts_rx_data(client, version_data, 17);
+	//read version	
+	result = ts_bulk_read(ts, (unsigned short)version_data[0], 16, (unsigned short *)&version_data[1]);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -113,14 +109,14 @@ static int ts_init(struct i2c_client *client)
 	printk("%s:%s version is %s\n",__func__,ts->ops->name, version_data);
 #if 1
 	//init some register
-	result = ts_tx_data(client, init_data, 95);
+	result = ts_bulk_write(ts, (unsigned short )init_data[0], 94, (unsigned short *)&init_data[1]);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
 		return result;
 	}
 #endif
-	result = ts_rx_data(client, init_data, 95);
+	result = ts_bulk_read(ts, (unsigned short)init_data[0], 94, (unsigned short *)&init_data[1]);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -128,16 +124,16 @@ static int ts_init(struct i2c_client *client)
 	}
 
 	
-	printk("%s:rx:",__func__);
+	DBG("%s:rx:",__func__);
 	for(i=0; i<95; i++)
-	printk("0x%x,",init_data[i]);
+	DBG("0x%x,",init_data[i]);
 
-	printk("\n");
+	DBG("\n");
 	
 	return result;
 }
 
-static bool goodix_get_status(char *p1,int*p2)
+static bool goodix_get_status(int *p1,int*p2)
 {
 	bool status = PEN_DOWN;
 	if((*p2==PEN_DOWN) && (*p1==PEN_RELEASE))
@@ -159,10 +155,8 @@ static bool goodix_get_status(char *p1,int*p2)
 
 
 
-static int ts_check_irq(struct i2c_client *client)
+static int ts_check_irq(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;	
 	struct ts_event *event = &ts->event;
 	int gpio_level_no_int = GPIO_HIGH;
@@ -190,26 +184,25 @@ static int ts_check_irq(struct i2c_client *client)
 		
 		input_sync(ts->input_dev);	
 		memset(event, 0x00, sizeof(struct ts_event));	
-		enable_irq(ts->client->irq);
+		enable_irq(ts->irq);
 	}
 	else
 	schedule_delayed_work(&ts->delaywork, msecs_to_jiffies(ts->ops->poll_delay_ms));
+
+	return 0;
 	
 }
 
 
-static int ts_report_value(struct i2c_client *client)
+static int ts_report_value(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	struct ts_event *event = &ts->event;
 	unsigned char buf[54] = {0};
 	int result = 0 , i = 0, j = 0, off = 0, id = 0;
 	int temp = 0, num = 0;
 
-	buf[0] = ts->ops->read_reg;
-	result = ts_rx_data(client, buf, ts->ops->read_len);
+	result = ts_bulk_read(ts, ts->ops->read_reg, ts->ops->read_len, (unsigned short *)buf);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -261,12 +254,12 @@ static int ts_report_value(struct i2c_client *client)
 
 		if(ts->ops->x_revert)
 		{
-			event->point[id].x = ts->ops->pixel.max_x - event->point[id].x;	
+			event->point[id].x = ts->ops->range[0] - event->point[id].x;	
 		}
 
 		if(ts->ops->y_revert)
 		{
-			event->point[id].y = ts->ops->pixel.max_y - event->point[id].y;
+			event->point[id].y = ts->ops->range[1] - event->point[id].y;
 		}
 
 		
@@ -299,27 +292,23 @@ static int ts_report_value(struct i2c_client *client)
 	return 0;
 }
 
-static int ts_suspend(struct i2c_client *client)
-{
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
+static int ts_suspend(struct ts_private_data *ts)
+{	
 	struct ts_platform_data *pdata = ts->pdata;
 
 	if(ts->ops->active)
-		ts->ops->active(client, 0);
+		ts->ops->active(ts, 0);
 	
 	return 0;
 }
 
 
-static int ts_resume(struct i2c_client *client)
+static int ts_resume(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	
 	if(ts->ops->active)
-		ts->ops->active(client, 1);
+		ts->ops->active(ts, 1);
 	return 0;
 }
 
@@ -328,9 +317,9 @@ static int ts_resume(struct i2c_client *client)
 struct ts_operate ts_gt8110_ops = {
 	.name				= "gt8110",
 	.slave_addr			= 0x5c,
-	.id_i2c				= TS_ID_GT8110,			//i2c id number
+	.ts_id				= TS_ID_GT8110,			//i2c id number
+	.bus_type			= TS_BUS_TYPE_I2C,
 	.reg_size			= 1,
-	.pixel				= {1280,800},
 	.id_reg				= GT8110_ID_REG,
 	.id_data			= TS_UNKNOW_DATA,
 	.version_reg			= TS_UNKNOW_DATA,

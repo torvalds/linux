@@ -48,10 +48,8 @@
 
 /****************operate according to ts chip:start************/
 
-static int ts_active(struct i2c_client *client, int enable)
-{
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);	
+static int ts_active(struct ts_private_data *ts, int enable)
+{	
 	int result = 0;
 
 	if(enable)
@@ -70,10 +68,8 @@ static int ts_active(struct i2c_client *client, int enable)
 	return result;
 }
 
-static int ts_init(struct i2c_client *client)
+static int ts_init(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-	    (struct ts_private_data *) i2c_get_clientdata(client);
 	int irq_pin = irq_to_gpio(ts->pdata->irq);
 	int result = 0;
 	
@@ -89,17 +85,14 @@ static int ts_init(struct i2c_client *client)
 }
 
 
-static int ts_report_value(struct i2c_client *client)
+static int ts_report_value(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	struct ts_event *event = &ts->event;
 	unsigned char buf[32] = {0};
 	int result = 0 , i = 0, off = 0, id = 0;
 
-	buf[0] = ts->ops->read_reg;
-	result = ts_rx_data(client, buf, ts->ops->read_len);
+	result = ts_bulk_read(ts, (unsigned short)ts->ops->read_reg, ts->ops->read_len, (unsigned short *)buf);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -111,13 +104,20 @@ static int ts_report_value(struct i2c_client *client)
 	
 	event->touch_point = buf[2] & 0x07;// 0000 1111
 
+	for(i=0; i<ts->ops->max_point; i++)
+	{
+		event->point[i].status = 0;
+		event->point[i].x = 0;
+		event->point[i].y = 0;
+	}
+
 	if(event->touch_point == 0)
 	{	
 		for(i=0; i<ts->ops->max_point; i++)
 		{
-			if(event->point[i].status != 0)
+			if(event->point[i].last_status != 0)
 			{
-				event->point[i].status = 0;				
+				event->point[i].last_status = 0;				
 				input_mt_slot(ts->input_dev, event->point[i].id);				
 				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
 				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
@@ -130,7 +130,7 @@ static int ts_report_value(struct i2c_client *client)
 				
 		return 0;
 	}
-	
+
 	for(i = 0; i<event->touch_point; i++)
 	{
 		off = i*6+3;
@@ -147,41 +147,49 @@ static int ts_report_value(struct i2c_client *client)
 
 		if(ts->ops->x_revert)
 		{
-			event->point[id].x = ts->ops->pixel.max_x - event->point[id].x;	
+			event->point[id].x = ts->ops->range[0] - event->point[id].x;	
 		}
 
 		if(ts->ops->y_revert)
 		{
-			event->point[id].y = ts->ops->pixel.max_y - event->point[id].y;
-		}
+			event->point[id].y = ts->ops->range[1] - event->point[id].y;
+		}	
+		
+	}
 
-		if(event->point[id].status != 0)
+	for(i=0; i<ts->ops->max_point; i++)
+	{
+		if(event->point[i].status != 0)
 		{		
-			input_mt_slot(ts->input_dev, event->point[id].id);
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, event->point[id].id);
+			input_mt_slot(ts->input_dev, event->point[i].id);
+			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, event->point[i].id);
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, event->point[id].x);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, event->point[id].y);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, event->point[i].x);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, event->point[i].y);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 1);
 	   		DBG("%s:%s press down,id=%d,x=%d,y=%d\n",__func__,ts->ops->name, event->point[id].id, event->point[id].x,event->point[id].y);
 		}
-		
-		
+		else if ((event->point[i].status == 0) && (event->point[i].last_status != 0))
+		{				
+			input_mt_slot(ts->input_dev, event->point[i].id);				
+			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, -1);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+			DBG("%s:%s press up1,id=%d\n",__func__,ts->ops->name, event->point[i].id);
+		}
+
+		event->point[i].last_status = event->point[i].status;
 	}
-	
 	input_sync(ts->input_dev);
 
 	return 0;
 }
 
-static int ts_suspend(struct i2c_client *client)
+static int ts_suspend(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 
 	if(ts->ops->active)
-		ts->ops->active(client, 0);
+		ts->ops->active(ts, 0);
 	
 	return 0;
 }
@@ -189,14 +197,12 @@ static int ts_suspend(struct i2c_client *client)
 
 
 
-static int ts_resume(struct i2c_client *client)
+static int ts_resume(struct ts_private_data *ts)
 {
-	struct ts_private_data *ts =
-		(struct ts_private_data *) i2c_get_clientdata(client);	
 	struct ts_platform_data *pdata = ts->pdata;
 	
 	if(ts->ops->active)
-		ts->ops->active(client, 1);
+		ts->ops->active(ts, 1);
 	return 0;
 }
 
@@ -207,9 +213,9 @@ static int ts_resume(struct i2c_client *client)
 struct ts_operate ts_ft5306_ops = {
 	.name				= "ft5306",
 	.slave_addr			= 0x3e,
-	.id_i2c				= TS_ID_FT5306,			//i2c id number
+	.ts_id				= TS_ID_FT5306,			//i2c id number
+	.bus_type			= TS_BUS_TYPE_I2C,
 	.reg_size			= 1,
-	.pixel				= {1024,768},
 	.id_reg				= FT5306_ID_REG,
 	.id_data			= TS_UNKNOW_DATA,
 	.version_reg			= TS_UNKNOW_DATA,

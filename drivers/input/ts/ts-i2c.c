@@ -41,22 +41,100 @@
 #define DBG(x...)
 #endif
 
-static int ts_i2c_write(struct i2c_adapter *i2c_adap,
-			    unsigned char address,
-			    unsigned int len, unsigned char const *data)
-{
-	struct i2c_msg msgs[1];
-	int res;
 
-	if (!data || !i2c_adap) {
+static int ts_i2c_read_device(struct ts_private_data *ts, unsigned short reg,
+				  int bytes, void *dest, int reg_size)
+{
+	const struct i2c_client *client = ts->control_data;
+	struct i2c_adapter *i2c_adap = client->adapter;
+	struct i2c_msg msgs[2];
+	int i,res;
+	
+	if (!dest || !i2c_adap) {
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return -EINVAL;
 	}
 
-	msgs[0].addr = address;
+	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;	/* write */
-	msgs[0].buf = (unsigned char *)data;
-	msgs[0].len = len;
+	msgs[0].buf = (unsigned char *)&reg;
+	if(reg_size == 2)		
+	msgs[0].len = 2;
+	else	
+	msgs[0].len = 1;
+	msgs[0].scl_rate = TS_I2C_RATE;
+	
+	msgs[1].addr = client->addr;
+	msgs[1].flags = I2C_M_RD;
+	msgs[1].buf = dest;
+	msgs[1].len = bytes;
+	msgs[1].scl_rate = TS_I2C_RATE; 
+
+	res = i2c_transfer(i2c_adap, msgs, 2);
+	if (res == 2)
+		return 0;
+	else if(res == 0)
+		return -EBUSY;
+	else
+		return res;
+	
+#ifdef TS_DEBUG_ENABLE
+	DBG("%s:reg=0x%x,len=%d,rxdata:",__func__, reg, bytes);
+	for(i=0; i<bytes; i++)
+		DBG("0x%x,",(unsigned char *)dest[i]);
+	DBG("\n");
+#endif	
+
+	
+}
+
+/* Currently we allocate the write buffer on the stack; this is OK for
+ * small writes - if we need to do large writes this will need to be
+ * revised.
+ */
+static int ts_i2c_write_device(struct ts_private_data *ts, unsigned short reg,
+				   int bytes, void *src, int reg_size)
+{
+	const struct i2c_client *client = ts->control_data;
+	struct i2c_adapter *i2c_adap = client->adapter;
+	struct i2c_msg msgs[1];
+	int res;
+	unsigned char buf[bytes + 2];
+	
+	if (!src || !i2c_adap) {
+		printk("%s:line=%d,error\n",__func__,__LINE__);
+		return -EINVAL;
+	}
+	
+	if(ts->ops->reg_size == 2)
+	{
+		buf[0] = (reg & 0xff00) >> 8;
+		buf[1] = (reg & 0x00ff) & 0xff;
+		memcpy(&buf[2], src, bytes);
+	}
+	else
+	{
+		buf[0] = reg & 0xff;
+		memcpy(&buf[1], src, bytes);
+	}
+
+#ifdef TS_DEBUG_ENABLE
+	int i = 0;
+	DBG("%s:reg=0x%x,len=%d,txdata:",__func__, reg, bytes);
+	for(i=0; i<length; i++)
+		DBG("0x%x,",buf[i]);
+	DBG("\n");
+#endif	
+
+	if (!src || !i2c_adap) {
+		printk("%s:line=%d,error\n",__func__,__LINE__);
+		return -EINVAL;
+	}
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = 0;	/* write */
+	msgs[0].buf = buf;
+	msgs[0].len = bytes;
 	msgs[0].scl_rate = TS_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
@@ -66,190 +144,113 @@ static int ts_i2c_write(struct i2c_adapter *i2c_adap,
 		return -EBUSY;
 	else
 		return res;
-
+			
 }
 
-static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
-			   unsigned char address, unsigned char reg,
-			   unsigned int tx_len, unsigned int rx_len, unsigned char *data)
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void ts_suspend(struct early_suspend *h)
 {
-	struct i2c_msg msgs[2];
-	int res;
+	struct ts_private_data *ts = 
+			container_of(h, struct ts_private_data, early_suspend);
+	
+	return ts_device_suspend(ts);
+}
 
-	if (!data || !i2c_adap) {
-		printk("%s:line=%d,error\n",__func__,__LINE__);
-		return -EINVAL;
+static void ts_resume(struct early_suspend *h)
+{
+	struct ts_private_data *ts = 
+			container_of(h, struct ts_private_data, early_suspend);
+
+	return ts_device_resume(ts);
+}
+#endif
+
+static int ts_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct ts_private_data *ts;
+	int ret,gpio,irq;
+	int type = TS_BUS_TYPE_I2C;
+
+	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
+		dev_err(&i2c->adapter->dev, "%s failed\n", __func__);
+		return -ENODEV;
 	}
-
-	msgs[0].addr = address;
-	msgs[0].flags = 0;	/* write */
-	msgs[0].buf = &reg;
-	msgs[0].len = tx_len;
-	msgs[0].scl_rate = TS_I2C_RATE;
 	
-	msgs[1].addr = address;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].buf = data;
-	msgs[1].len = rx_len;
-	msgs[1].scl_rate = TS_I2C_RATE;	
+	ts = kzalloc(sizeof(struct ts_private_data), GFP_KERNEL);
+	if (ts == NULL)
+		return -ENOMEM;
 
-	res = i2c_transfer(i2c_adap, msgs, 2);
-	if (res == 2)
-		return 0;
-	else if(res == 0)
-		return -EBUSY;
-	else
-		return res;
+	i2c_set_clientdata(i2c, ts);
+	
+	ts->irq = i2c->irq;
+	ts->dev = &i2c->dev;
+	ts->control_data = i2c;
+	ts->read_dev = ts_i2c_read_device;
+	ts->write_dev = ts_i2c_write_device;
 
-}
-
-
-int ts_rx_data(struct i2c_client *client, char *rxData, int length)
-{
-#ifdef TS_DEBUG_ENABLE
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	int i = 0;
+	ret = ts_device_init(ts, type, ts->irq);
+	if(ret)
+	{
+		printk("%s:fail to regist touch, type is %d\n",__func__, type);
+		return -1;
+	}
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if((ts->ops->suspend) && (ts->ops->resume))
+	{
+		ts->early_suspend.suspend = ts_suspend;
+		ts->early_suspend.resume = ts_resume;
+		ts->early_suspend.level = 0x02;
+		register_early_suspend(&ts->early_suspend);
+	}
 #endif
-	int ret = 0;
-	char reg = rxData[0];
-	ret = senosr_i2c_read(client->adapter, client->addr, reg, 1, length, rxData);
-	
-#ifdef TS_DEBUG_ENABLE
-	DBG("addr=0x%x,len=%d,rxdata:",reg,length);
-	for(i=0; i<length; i++)
-		DBG("0x%x,",rxData[i]);
-	DBG("\n");
-#endif	
+
+	return 0;
+}
+
+static int ts_i2c_remove(struct i2c_client *i2c)
+{
+	struct ts_private_data *ts = i2c_get_clientdata(i2c);
+
+	ts_device_exit(ts);
+
+	return 0;
+}
+
+
+static const struct i2c_device_id ts_i2c_id[] = {
+	{"auto_ts_i2c", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(i2c, ts_i2c_id);
+
+static struct i2c_driver ts_i2c_driver = {
+	.driver = {
+		.name = "auto_ts_i2c",
+		.owner = THIS_MODULE,
+	},
+	.probe = ts_i2c_probe,
+	.remove = ts_i2c_remove,
+	.id_table = ts_i2c_id,
+};
+
+static int __init ts_i2c_init(void)
+{
+	int ret;
+
+	printk("%s\n", __FUNCTION__);
+	ret = i2c_add_driver(&ts_i2c_driver);
+	if (ret != 0)
+		pr_err("Failed to register ts I2C driver: %d\n", ret);
+
 	return ret;
 }
-EXPORT_SYMBOL(ts_rx_data);
+subsys_initcall_sync(ts_i2c_init);
 
-int ts_rx_data_word(struct i2c_client *client, char *rxData, int length)
+static void __exit ts_i2c_exit(void)
 {
-#ifdef TS_DEBUG_ENABLE
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	int i = 0;
-#endif
-	int ret = 0;
-	char reg = rxData[0];
-	ret = senosr_i2c_read(client->adapter, client->addr, reg, 2, length, rxData);
-	
-#ifdef TS_DEBUG_ENABLE
-	DBG("addr=0x%x,len=%d,rxdata:",reg,length);
-	for(i=0; i<length; i++)
-		DBG("0x%x,",rxData[i]);
-	DBG("\n");
-#endif	
-	return ret;
+	i2c_del_driver(&ts_i2c_driver);
 }
-EXPORT_SYMBOL(ts_rx_data_word);
-
-
-int ts_tx_data(struct i2c_client *client, char *txData, int length)
-{
-#ifdef TS_DEBUG_ENABLE	
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	int i = 0;
-#endif
-	int ret = 0;
-#ifdef TS_DEBUG_ENABLE	
-	DBG("addr=0x%x,len=%d,txdata:",txData[0],length);
-	for(i=1; i<length; i++)
-		DBG("0x%x,",txData[i]);
-	DBG("\n");
-#endif
-	ret = ts_i2c_write(client->adapter, client->addr, length, txData);
-	return ret;
-
-}
-EXPORT_SYMBOL(ts_tx_data);
-
-int ts_write_reg(struct i2c_client *client, int addr, int value)
-{
-	char buffer[2];
-	int ret = 0;
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	
-	mutex_lock(&ts->i2c_mutex);	
-	buffer[0] = addr;
-	buffer[1] = value;
-	ret = ts_tx_data(client, &buffer[0], 2);	
-	mutex_unlock(&ts->i2c_mutex);	
-	return ret;
-}
-EXPORT_SYMBOL(ts_write_reg);
-
-int ts_read_reg(struct i2c_client *client, int addr)
-{
-	char tmp[1] = {0};
-	int ret = 0;	
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	
-	mutex_lock(&ts->i2c_mutex);	
-	tmp[0] = addr;
-	ret = ts_rx_data(client, tmp, 1);
-	mutex_unlock(&ts->i2c_mutex);
-	
-	return tmp[0];
-}
-
-EXPORT_SYMBOL(ts_read_reg);
-
-
-int ts_tx_data_normal(struct i2c_client *client, char *buf, int num)
-{
-	int ret = 0;
-	ret = i2c_master_normal_send(client, buf, num, TS_I2C_RATE);
-	
-	return (ret == num) ? 0 : ret;
-}
-EXPORT_SYMBOL(ts_tx_data_normal);
-
-
-int ts_rx_data_normal(struct i2c_client *client, char *buf, int num)
-{
-	int ret = 0;
-	ret = i2c_master_normal_recv(client, buf, num, TS_I2C_RATE);
-	
-	return (ret == num) ? 0 : ret;
-}
-
-EXPORT_SYMBOL(ts_rx_data_normal);
-
-
-int ts_write_reg_normal(struct i2c_client *client, char value)
-{
-	char buffer[2];
-	int ret = 0;
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	
-	mutex_lock(&ts->i2c_mutex);	
-	buffer[0] = value;
-	ret = ts_tx_data_normal(client, &buffer[0], 1);	
-	mutex_unlock(&ts->i2c_mutex);	
-	return ret;
-}
-EXPORT_SYMBOL(ts_write_reg_normal);
-
-int ts_read_reg_normal(struct i2c_client *client)
-{
-	char tmp[1] = {0};
-	int ret = 0;	
-	struct ts_private_data* ts = 
-		(struct ts_private_data *)i2c_get_clientdata(client);
-	
-	mutex_lock(&ts->i2c_mutex);	
-	ret = ts_rx_data_normal(client, tmp, 1);
-	mutex_unlock(&ts->i2c_mutex);
-	
-	return tmp[0];
-}
-
-EXPORT_SYMBOL(ts_read_reg_normal);
+module_exit(ts_i2c_exit);
 
