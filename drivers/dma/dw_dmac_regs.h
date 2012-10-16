@@ -239,6 +239,10 @@ struct dw_dma {
 	struct tasklet_struct	tasklet;
 	struct clk		*clk;
 
+	/* slave information */
+	struct dw_dma_slave	*sd;
+	unsigned int		sd_count;
+
 	u8			all_chan_mask;
 
 	/* hardware configuration */
