@@ -68,7 +68,7 @@ void ssc_free(struct ssc_device *ssc)
 }
 EXPORT_SYMBOL(ssc_free);
 
-static int __init ssc_probe(struct platform_device *pdev)
+static int ssc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct ssc_device *ssc;
@@ -135,24 +135,14 @@ static int __devexit ssc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ssc_driver = {
-	.remove		= __devexit_p(ssc_remove),
 	.driver		= {
 		.name		= "ssc",
 		.owner		= THIS_MODULE,
 	},
+	.probe		= ssc_probe,
+	.remove		= __devexit_p(ssc_remove),
 };
-
-static int __init ssc_init(void)
-{
-	return platform_driver_probe(&ssc_driver, ssc_probe);
-}
-module_init(ssc_init);
-
-static void __exit ssc_exit(void)
-{
-	platform_driver_unregister(&ssc_driver);
-}
-module_exit(ssc_exit);
+module_platform_driver(ssc_driver);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
 MODULE_DESCRIPTION("SSC driver for Atmel AVR32 and AT91");
