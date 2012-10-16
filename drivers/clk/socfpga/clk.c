@@ -167,4 +167,16 @@ void __init socfpga_init_clocks(void)
 	clk = clk_register_gate(NULL, "spi1_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "fff01000.spi");
+
+	clk = clk_register_gate(NULL, "gpio0_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_GPIO_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff708000.gpio");
+
+	clk = clk_register_gate(NULL, "gpio1_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_GPIO_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff709000.gpio");
+
+	clk = clk_register_gate(NULL, "gpio2_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_GPIO_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff70a000.gpio");
 }
