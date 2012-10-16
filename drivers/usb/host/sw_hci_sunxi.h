@@ -1,5 +1,5 @@
 /*
- * drivers/usb/host/sw_hci_sun5i.h
+ * drivers/usb/host/sw_hci_sunxi.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -28,7 +28,7 @@
 *				        (c) Copyright 2006-2010, All winners Co,Ld.
 *							       All Rights Reserved
 *
-* File Name 	: sw_hci_sun5i.h
+* File Name 	: sw_hci_sunxi.h
 *
 * Author 		: yangnaitian
 *
@@ -43,8 +43,8 @@
 *************************************************************************************
 */
 
-#ifndef __SW_HCI_SUN5I_H__
-#define __SW_HCI_SUN5I_H__
+#ifndef __SW_HCI_SUNXI_H__
+#define __SW_HCI_SUNXI_H__
 
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -55,7 +55,7 @@
 #define  DMSG_PRINT(stuff...)		printk(stuff)
 #define  DMSG_ERR(...)        		(DMSG_PRINT("WRN:L%d(%s):", __LINE__, __FILE__), DMSG_PRINT(__VA_ARGS__))
 
-#if 1
+#if 0
     #define DMSG_DEBUG         		DMSG_PRINT
 #else
     #define DMSG_DEBUG(...)
@@ -251,7 +251,7 @@ struct sw_hci_hcd{
 
 
 
-#endif   //__SW_HCI_SUN5I_H__
+#endif   //__SW_HCI_SUNXI_H__
 
 
 

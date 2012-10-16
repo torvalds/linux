@@ -1,5 +1,5 @@
 /*
- * drivers/usb/host/ehci_sun4i.c
+ * drivers/usb/host/ehci-sunxi.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -28,7 +28,7 @@
 *				        (c) Copyright 2006-2010, All winners Co,Ld.
 *							       All Rights Reserved
 *
-* File Name 	: ehci_sun4i.c
+* File Name 	: ehci_sunxi.c
 *
 * Author 		: javen
 *
@@ -53,7 +53,7 @@
 #include <linux/clk.h>
 
 #include  <mach/clock.h>
-#include "sw_hci_sun4i.h"
+#include "sw_hci_sunxi.h"
 
 /*.......................................................................................*/
 //                               全局信息定义
