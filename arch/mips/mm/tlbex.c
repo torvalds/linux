@@ -206,19 +206,58 @@ static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
 }
 
 /*
- * For debug purposes.
+ * pgtable bits are assigned dynamically depending on processor feature
+ * and statically based on kernel configuration.  This spits out the actual
+ * values the kernel is using.  Required to make sense from disassembled
+ * TLB exception handlers.
  */
-static inline void dump_handler(const u32 *handler, int count)
+static void output_pgtable_bits_defines(void)
+{
+#define pr_define(fmt, ...)					\
+	pr_debug("#define " fmt, ##__VA_ARGS__)
+
+	pr_debug("#include <asm/asm.h>\n");
+	pr_debug("#include <asm/regdef.h>\n");
+	pr_debug("\n");
+
+	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
+	pr_define("_PAGE_READ_SHIFT %d\n", _PAGE_READ_SHIFT);
+	pr_define("_PAGE_WRITE_SHIFT %d\n", _PAGE_WRITE_SHIFT);
+	pr_define("_PAGE_ACCESSED_SHIFT %d\n", _PAGE_ACCESSED_SHIFT);
+	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+#ifdef _PAGE_HUGE_SHIFT
+	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+#endif
+	if (cpu_has_rixi) {
+#ifdef _PAGE_NO_EXEC_SHIFT
+		pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
+#endif
+#ifdef _PAGE_NO_READ_SHIFT
+		pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
+#endif
+	}
+	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
+	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
+	pr_define("_PAGE_DIRTY_SHIFT %d\n", _PAGE_DIRTY_SHIFT);
+	pr_define("_PFN_SHIFT %d\n", _PFN_SHIFT);
+	pr_debug("\n");
+}
+
+static inline void dump_handler(const char *symbol, const u32 *handler, int count)
 {
 	int i;
+
+	pr_debug("LEAF(%s)\n", symbol);
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
 
 	for (i = 0; i < count; i++)
-		pr_debug("\t%p\t.word 0x%08x\n", &handler[i], handler[i]);
+		pr_debug("\t.word\t0x%08x\t\t# %p\n", handler[i], &handler[i]);
 
-	pr_debug("\t.set pop\n");
+	pr_debug("\t.set\tpop\n");
+
+	pr_debug("\tEND(%s)\n", symbol);
 }
 
 /* The only general purpose registers allowed in TLB handlers. */
@@ -401,7 +440,7 @@ static void __cpuinit build_r3000_tlb_refill_handler(void)
 
 	memcpy((void *)ebase, tlb_handler, 0x80);
 
-	dump_handler((u32 *)ebase, 32);
+	dump_handler("r3000_tlb_refill", (u32 *)ebase, 32);
 }
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
@@ -1434,7 +1473,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 
 	memcpy((void *)ebase, final_handler, 0x100);
 
-	dump_handler((u32 *)ebase, 64);
+	dump_handler("r4000_tlb_refill", (u32 *)ebase, 64);
 }
 
 /*
@@ -1491,7 +1530,8 @@ static void __cpuinit build_r4000_setup_pgd(void)
 	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
 		 (unsigned int)(p - tlbmiss_handler_setup_pgd));
 
-	dump_handler(tlbmiss_handler_setup_pgd,
+	dump_handler("tlbmiss_handler",
+		     tlbmiss_handler_setup_pgd,
 		     ARRAY_SIZE(tlbmiss_handler_setup_pgd));
 }
 #endif
@@ -1761,7 +1801,7 @@ static void __cpuinit build_r3000_tlb_load_handler(void)
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r3000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __cpuinit build_r3000_tlb_store_handler(void)
@@ -1791,7 +1831,7 @@ static void __cpuinit build_r3000_tlb_store_handler(void)
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r3000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __cpuinit build_r3000_tlb_modify_handler(void)
@@ -1821,7 +1861,7 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r3000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
@@ -2028,7 +2068,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r4000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __cpuinit build_r4000_tlb_store_handler(void)
@@ -2075,7 +2115,7 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r4000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __cpuinit build_r4000_tlb_modify_handler(void)
@@ -2123,7 +2163,7 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r4000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 
 void __cpuinit build_tlb_refill_handler(void)
@@ -2134,6 +2174,8 @@ void __cpuinit build_tlb_refill_handler(void)
 	 * needed once.
 	 */
 	static int run_once = 0;
+
+	output_pgtable_bits_defines();
 
 #ifdef CONFIG_64BIT
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
