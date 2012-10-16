@@ -12,10 +12,6 @@
 #ifndef DA8XX_FB_H
 #define DA8XX_FB_H
 
-enum panel_type {
-	QVGA = 0
-};
-
 enum panel_shade {
 	MONOCHROME = 0,
 	COLOR_ACTIVE,
@@ -27,13 +23,6 @@ enum raster_load_mode {
 	LOAD_PALETTE,
 };
 
-struct display_panel {
-	enum panel_type panel_type; /* QVGA */
-	int max_bpp;
-	int min_bpp;
-	enum panel_shade panel_shade;
-};
-
 struct da8xx_lcdc_platform_data {
 	const char manu_name[10];
 	void *controller_data;
@@ -42,7 +31,7 @@ struct da8xx_lcdc_platform_data {
 };
 
 struct lcd_ctrl_config {
-	const struct display_panel *p_disp_panel;
+	enum panel_shade panel_shade;
 
 	/* AC Bias Pin Frequency */
 	int ac_bias;
@@ -68,17 +57,8 @@ struct lcd_ctrl_config {
 	/* Mono 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
 	unsigned char mono_8bit_mode;
 
-	/* Invert line clock */
-	unsigned char invert_line_clock;
-
-	/* Invert frame clock  */
-	unsigned char invert_frm_clock;
-
 	/* Horizontal and Vertical Sync Edge: 0=rising 1=falling */
 	unsigned char sync_edge;
-
-	/* Horizontal and Vertical Sync: Control: 0=ignore */
-	unsigned char sync_ctrl;
 
 	/* Raster Data Order Select: 1=Most-to-least 0=Least-to-most */
 	unsigned char raster_order;

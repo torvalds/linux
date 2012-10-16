@@ -518,29 +518,9 @@ void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 	}
 }
 
-static const struct display_panel disp_panel = {
-	QVGA,
-	16,
-	16,
-	COLOR_ACTIVE,
-};
-
 static struct lcd_ctrl_config lcd_cfg = {
-	&disp_panel,
-	.ac_bias		= 255,
-	.ac_bias_intrpt		= 0,
-	.dma_burst_sz		= 16,
+	.panel_shade		= COLOR_ACTIVE,
 	.bpp			= 16,
-	.fdd			= 255,
-	.tft_alt_mode		= 0,
-	.stn_565_mode		= 0,
-	.mono_8bit_mode		= 0,
-	.invert_line_clock	= 1,
-	.invert_frm_clock	= 1,
-	.sync_edge		= 0,
-	.sync_ctrl		= 1,
-	.raster_order		= 0,
-	.fifo_th		= 6,
 };
 
 struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {

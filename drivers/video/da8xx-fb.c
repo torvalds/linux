@@ -226,7 +226,8 @@ static struct fb_videomode known_lcd_panels[] = {
 		.lower_margin   = 2,
 		.hsync_len      = 0,
 		.vsync_len      = 0,
-		.sync           = FB_SYNC_CLK_INVERT,
+		.sync           = FB_SYNC_CLK_INVERT |
+			FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 	/* Sharp LK043T1DG01 */
 	[1] = {
@@ -240,7 +241,7 @@ static struct fb_videomode known_lcd_panels[] = {
 		.lower_margin   = 2,
 		.hsync_len      = 41,
 		.vsync_len      = 10,
-		.sync           = 0,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.flag           = 0,
 	},
 	[2] = {
@@ -255,7 +256,7 @@ static struct fb_videomode known_lcd_panels[] = {
 		.lower_margin   = 10,
 		.hsync_len      = 10,
 		.vsync_len      = 10,
-		.sync           = 0,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.flag           = 0,
 	},
 };
@@ -387,10 +388,9 @@ static int lcd_cfg_dma(int burst_size, int fifo_th)
 		reg |= LCD_DMA_BURST_SIZE(LCD_DMA_BURST_8);
 		break;
 	case 16:
+	default:
 		reg |= LCD_DMA_BURST_SIZE(LCD_DMA_BURST_16);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	reg |= (fifo_th << 8);
@@ -435,7 +435,8 @@ static void lcd_cfg_vertical_sync(int back_porch, int pulse_width,
 	lcdc_write(reg, LCD_RASTER_TIMING_1_REG);
 }
 
-static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
+static int lcd_cfg_display(const struct lcd_ctrl_config *cfg,
+		struct fb_videomode *panel)
 {
 	u32 reg;
 	u32 reg_int;
@@ -444,7 +445,7 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 						LCD_MONO_8BIT_MODE |
 						LCD_MONOCHROME_MODE);
 
-	switch (cfg->p_disp_panel->panel_shade) {
+	switch (cfg->panel_shade) {
 	case MONOCHROME:
 		reg |= LCD_MONOCHROME_MODE;
 		if (cfg->mono_8bit_mode)
@@ -457,7 +458,9 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 		break;
 
 	case COLOR_PASSIVE:
-		if (cfg->stn_565_mode)
+		/* AC bias applicable only for Pasive panels */
+		lcd_cfg_ac_bias(cfg->ac_bias, cfg->ac_bias_intrpt);
+		if (cfg->bpp == 12 && cfg->stn_565_mode)
 			reg |= LCD_STN_565_ENABLE;
 		break;
 
@@ -478,22 +481,19 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 
 	reg = lcdc_read(LCD_RASTER_TIMING_2_REG);
 
-	if (cfg->sync_ctrl)
-		reg |= LCD_SYNC_CTRL;
-	else
-		reg &= ~LCD_SYNC_CTRL;
+	reg |= LCD_SYNC_CTRL;
 
 	if (cfg->sync_edge)
 		reg |= LCD_SYNC_EDGE;
 	else
 		reg &= ~LCD_SYNC_EDGE;
 
-	if (cfg->invert_line_clock)
+	if (panel->sync & FB_SYNC_HOR_HIGH_ACT)
 		reg |= LCD_INVERT_LINE_CLOCK;
 	else
 		reg &= ~LCD_INVERT_LINE_CLOCK;
 
-	if (cfg->invert_frm_clock)
+	if (panel->sync & FB_SYNC_VERT_HIGH_ACT)
 		reg |= LCD_INVERT_FRAME_CLOCK;
 	else
 		reg &= ~LCD_INVERT_FRAME_CLOCK;
@@ -738,9 +738,6 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 	if (ret < 0)
 		return ret;
 
-	/* Configure the AC bias properties. */
-	lcd_cfg_ac_bias(cfg->ac_bias, cfg->ac_bias_intrpt);
-
 	/* Configure the vertical and horizontal sync properties. */
 	lcd_cfg_vertical_sync(panel->lower_margin, panel->vsync_len,
 			panel->upper_margin);
@@ -748,18 +745,12 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 			panel->left_margin);
 
 	/* Configure for disply */
-	ret = lcd_cfg_display(cfg);
+	ret = lcd_cfg_display(cfg, panel);
 	if (ret < 0)
 		return ret;
 
-	if (QVGA != cfg->p_disp_panel->panel_type)
-		return -EINVAL;
+	bpp = cfg->bpp;
 
-	if (cfg->bpp <= cfg->p_disp_panel->max_bpp &&
-	    cfg->bpp >= cfg->p_disp_panel->min_bpp)
-		bpp = cfg->bpp;
-	else
-		bpp = cfg->p_disp_panel->max_bpp;
 	if (bpp == 12)
 		bpp = 16;
 	ret = lcd_cfg_frame_buffer(par, (unsigned int)panel->xres,
@@ -1381,7 +1372,7 @@ static int __devinit fb_probe(struct platform_device *device)
 	da8xx_fb_var.yres_virtual = lcdc_info->yres * LCD_NUM_BUFFERS;
 
 	da8xx_fb_var.grayscale =
-	    lcd_cfg->p_disp_panel->panel_shade == MONOCHROME ? 1 : 0;
+	    lcd_cfg->panel_shade == MONOCHROME ? 1 : 0;
 	da8xx_fb_var.bits_per_pixel = lcd_cfg->bpp;
 
 	da8xx_fb_var.hsync_len = lcdc_info->hsync_len;
