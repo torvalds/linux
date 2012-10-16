@@ -305,26 +305,6 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 					addr, access);
 }
 
-static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
-				    struct kvm_mmu_page *sp, u64 *spte,
-				    pt_element_t gpte)
-{
-	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
-		goto no_present;
-
-	if (!is_present_gpte(gpte))
-		goto no_present;
-
-	if (!(gpte & PT_ACCESSED_MASK))
-		goto no_present;
-
-	return false;
-
-no_present:
-	drop_spte(vcpu->kvm, spte);
-	return true;
-}
-
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			      u64 *spte, const void *pte)
 {
@@ -333,7 +313,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pfn_t pfn;
 
 	gpte = *(const pt_element_t *)pte;
-	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
+	if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
 		return;
 
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
@@ -408,7 +388,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 
 		gpte = gptep[i];
 
-		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
+		if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
 			continue;
 
 		pte_access = sp->role.access & gpte_access(vcpu, gpte);
@@ -751,7 +731,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					  sizeof(pt_element_t)))
 			return -EINVAL;
 
-		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+		if (prefetch_invalid_gpte(vcpu, sp, &sp->spt[i], gpte)) {
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
