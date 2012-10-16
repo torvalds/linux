@@ -93,8 +93,6 @@ struct vring_virtqueue
 	/* Host publishes avail event idx */
 	bool event;
 
-	/* Number of free buffers */
-	unsigned int num_free;
 	/* Head of free buffer list. */
 	unsigned int free_head;
 	/* Number we've added since last sync. */
@@ -105,9 +103,6 @@ struct vring_virtqueue
 
 	/* How to notify other side. FIXME: commonalize hcalls! */
 	void (*notify)(struct virtqueue *vq);
-
-	/* Index of the queue */
-	int queue_index;
 
 #ifdef DEBUG
 	/* They're supposed to lock for us. */
@@ -167,7 +162,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 	desc[i-1].next = 0;
 
 	/* We're about to use a buffer */
-	vq->num_free--;
+	vq->vq.num_free--;
 
 	/* Use a single buffer which doesn't continue */
 	head = vq->free_head;
@@ -180,13 +175,6 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 
 	return head;
 }
-
-int virtqueue_get_queue_index(struct virtqueue *_vq)
-{
-	struct vring_virtqueue *vq = to_vvq(_vq);
-	return vq->queue_index;
-}
-EXPORT_SYMBOL_GPL(virtqueue_get_queue_index);
 
 /**
  * virtqueue_add_buf - expose buffer to other end
@@ -235,7 +223,7 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 
 	/* If the host supports indirect descriptor tables, and we have multiple
 	 * buffers, then go indirect. FIXME: tune this threshold */
-	if (vq->indirect && (out + in) > 1 && vq->num_free) {
+	if (vq->indirect && (out + in) > 1 && vq->vq.num_free) {
 		head = vring_add_indirect(vq, sg, out, in, gfp);
 		if (likely(head >= 0))
 			goto add_head;
@@ -244,9 +232,9 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 	BUG_ON(out + in > vq->vring.num);
 	BUG_ON(out + in == 0);
 
-	if (vq->num_free < out + in) {
+	if (vq->vq.num_free < out + in) {
 		pr_debug("Can't add buf len %i - avail = %i\n",
-			 out + in, vq->num_free);
+			 out + in, vq->vq.num_free);
 		/* FIXME: for historical reasons, we force a notify here if
 		 * there are outgoing parts to the buffer.  Presumably the
 		 * host should service the ring ASAP. */
@@ -257,7 +245,7 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 	}
 
 	/* We're about to use some buffers from the free list. */
-	vq->num_free -= out + in;
+	vq->vq.num_free -= out + in;
 
 	head = vq->free_head;
 	for (i = vq->free_head; out; i = vq->vring.desc[i].next, out--) {
@@ -303,7 +291,7 @@ add_head:
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
-	return vq->num_free;
+	return vq->vq.num_free;
 }
 EXPORT_SYMBOL_GPL(virtqueue_add_buf);
 
@@ -400,13 +388,13 @@ static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 
 	while (vq->vring.desc[i].flags & VRING_DESC_F_NEXT) {
 		i = vq->vring.desc[i].next;
-		vq->num_free++;
+		vq->vq.num_free++;
 	}
 
 	vq->vring.desc[i].next = vq->free_head;
 	vq->free_head = head;
 	/* Plus final descriptor */
-	vq->num_free++;
+	vq->vq.num_free++;
 }
 
 static inline bool more_used(const struct vring_virtqueue *vq)
@@ -606,7 +594,7 @@ void *virtqueue_detach_unused_buf(struct virtqueue *_vq)
 		return buf;
 	}
 	/* That should have freed everything. */
-	BUG_ON(vq->num_free != vq->vring.num);
+	BUG_ON(vq->vq.num_free != vq->vring.num);
 
 	END_USE(vq);
 	return NULL;
@@ -660,12 +648,13 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 	vq->vq.callback = callback;
 	vq->vq.vdev = vdev;
 	vq->vq.name = name;
+	vq->vq.num_free = num;
+	vq->vq.index = index;
 	vq->notify = notify;
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
 	vq->last_used_idx = 0;
 	vq->num_added = 0;
-	vq->queue_index = index;
 	list_add_tail(&vq->vq.list, &vdev->vqs);
 #ifdef DEBUG
 	vq->in_use = false;
@@ -680,7 +669,6 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 		vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
 
 	/* Put everything in free lists. */
-	vq->num_free = num;
 	vq->free_head = 0;
 	for (i = 0; i < num-1; i++) {
 		vq->vring.desc[i].next = i+1;

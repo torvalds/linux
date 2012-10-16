@@ -225,7 +225,7 @@ static void vm_notify(struct virtqueue *vq)
 
 	/* We write the queue's selector into the notification register to
 	 * signal the other end */
-	writel(virtqueue_get_queue_index(vq), vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
 }
 
 /* Notify all virtqueues on an interrupt. */
@@ -266,7 +266,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 	struct virtio_mmio_vq_info *info = vq->priv;
 	unsigned long flags, size;
-	unsigned int index = virtqueue_get_queue_index(vq);
+	unsigned int index = vq->index;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
 	list_del(&info->node);
