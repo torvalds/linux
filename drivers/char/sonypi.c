@@ -1456,7 +1456,7 @@ static int __devexit sonypi_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int old_camera_power;
 
 static int sonypi_suspend(struct device *dev)
