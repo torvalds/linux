@@ -55,8 +55,8 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
-#include "board-rk2928-a720-camera.c" 
-#include "board-rk2928-a720-key.c"
+#include "board-rk2928-sdk-camera.c" 
+#include "board-rk2928-sdk-key.c"
 
 int __sramdata g_pmic_type =  0;
 #define PMIC_TYPE_TPS65910	2
@@ -619,7 +619,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_I2C0_RK30
 #ifdef CONFIG_MFD_TPS65910
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB2
-#include "board-rk2928-a720-tps65910.c"
+#include "board-rk2928-sdk-tps65910.c"
 #endif
 #ifdef CONFIG_REGULATOR_ACT8931
 #define ACT8931_HOST_IRQ		RK2928_PIN1_PB1

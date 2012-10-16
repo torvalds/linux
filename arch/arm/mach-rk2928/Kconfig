@@ -10,7 +10,7 @@ config MACH_RK2928
 
 
 config MACH_RK2928_SDK
-	bool "RK2928 SDK board"
+	bool "RK2928(BGA) SDK board"
 
 config MACH_RK2926_SDK
 	bool "RK2926 SDK board"

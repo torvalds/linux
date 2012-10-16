@@ -64,8 +64,8 @@
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
 
-#include "board-rk2928-sdk-camera.c"
-#include "board-rk2928-sdk-key.c"
+#include "board-rk2928-tb-camera.c"
+#include "board-rk2928-tb-key.c"
 
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN  RK2928_PIN3_PC3

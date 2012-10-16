@@ -8,7 +8,12 @@
 
 #ifdef CONFIG_REGULATOR_ACT8931
 
+#if defined(CONFIG_MACH_RK2928_SDK)
+#define ACT8931_CHGSEL_PIN RK2928_PIN0_PD0
+#else
 #define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
+#endif
+
 #define ACT8931_CHGSEL_VALUE GPIO_LOW /* Decline to 20% current */
 
 extern int platform_device_register(struct platform_device *pdev);
