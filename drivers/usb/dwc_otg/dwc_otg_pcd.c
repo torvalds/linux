@@ -1820,7 +1820,6 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
         if(_pcd->conn_status)
         {
              _pcd->conn_status = 0;
-             dwc_otg_msc_unlock(_pcd);
         }
         else if( pldata->phy_status == USB_PHY_ENABLED )
         { 
@@ -1831,6 +1830,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
             /* usb phy bypass to uart mode  */
             if( pldata->dwc_otg_uart_mode != NULL )
                 pldata->dwc_otg_uart_mode( pldata, PHY_UART_MODE);    
+            /* release wake lock */
+            dwc_otg_msc_unlock(_pcd);
         }  
     }
     add_timer(&_pcd->check_vbus_timer); 
