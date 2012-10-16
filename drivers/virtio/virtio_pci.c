@@ -830,16 +830,4 @@ static struct pci_driver virtio_pci_driver = {
 #endif
 };
 
-static int __init virtio_pci_init(void)
-{
-	return pci_register_driver(&virtio_pci_driver);
-}
-
-module_init(virtio_pci_init);
-
-static void __exit virtio_pci_exit(void)
-{
-	pci_unregister_driver(&virtio_pci_driver);
-}
-
-module_exit(virtio_pci_exit);
+module_pci_driver(virtio_pci_driver);
