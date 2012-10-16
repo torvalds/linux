@@ -131,7 +131,7 @@ static int lcd_get_id(void)
 	if(!g_ts)
 		return -1;
 
-	ts_id = g_ts->ops->id_i2c;
+	ts_id = g_ts->ops->ts_id;
 
 	switch(ts_id)
 	{
