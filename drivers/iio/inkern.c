@@ -314,6 +314,9 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 		*processed = div_s64(raw64 * (s64)scale_val * scale,
 				     scale_val2);
 		break;
+	case IIO_VAL_FRACTIONAL_LOG2:
+		*processed = (raw64 * (s64)scale_val * scale) >> scale_val2;
+		break;
 	default:
 		return -EINVAL;
 	}
