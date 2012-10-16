@@ -152,27 +152,38 @@ static void freezer_destroy(struct cgroup *cgroup)
 
 /*
  * The call to cgroup_lock() in the freezer.state write method prevents
- * a write to that file racing against an attach, and hence the
- * can_attach() result will remain valid until the attach completes.
+ * a write to that file racing against an attach, and hence we don't need
+ * to worry about racing against migration.
  */
-static int freezer_can_attach(struct cgroup *new_cgroup,
-			      struct cgroup_taskset *tset)
+static void freezer_attach(struct cgroup *new_cgrp, struct cgroup_taskset *tset)
 {
-	struct freezer *freezer;
+	struct freezer *freezer = cgroup_freezer(new_cgrp);
 	struct task_struct *task;
 
+	spin_lock_irq(&freezer->lock);
+
 	/*
-	 * Anything frozen can't move or be moved to/from.
+	 * Make the new tasks conform to the current state of @new_cgrp.
+	 * For simplicity, when migrating any task to a FROZEN cgroup, we
+	 * revert it to FREEZING and let update_if_frozen() determine the
+	 * correct state later.
+	 *
+	 * Tasks in @tset are on @new_cgrp but may not conform to its
+	 * current state before executing the following - !frozen tasks may
+	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
+	 * This means that, to determine whether to freeze, one should test
+	 * whether the state equals THAWED.
 	 */
-	cgroup_taskset_for_each(task, new_cgroup, tset)
-		if (cgroup_freezing(task))
-			return -EBUSY;
+	cgroup_taskset_for_each(task, new_cgrp, tset) {
+		if (freezer->state == CGROUP_THAWED) {
+			__thaw_task(task);
+		} else {
+			freeze_task(task);
+			freezer->state = CGROUP_FREEZING;
+		}
+	}
 
-	freezer = cgroup_freezer(new_cgroup);
-	if (freezer->state != CGROUP_THAWED)
-		return -EBUSY;
-
-	return 0;
+	spin_unlock_irq(&freezer->lock);
 }
 
 static void freezer_fork(struct task_struct *task)
@@ -190,12 +201,12 @@ static void freezer_fork(struct task_struct *task)
 		goto out;
 
 	spin_lock_irq(&freezer->lock);
-	BUG_ON(freezer->state == CGROUP_FROZEN);
-
-	/* Locking avoids race with FREEZING -> THAWED transitions. */
-	if (freezer->state == CGROUP_FREEZING)
+	/*
+	 * @task might have been just migrated into a FROZEN cgroup.  Test
+	 * equality with THAWED.  Read the comment in freezer_attach().
+	 */
+	if (freezer->state != CGROUP_THAWED)
 		freeze_task(task);
-
 	spin_unlock_irq(&freezer->lock);
 out:
 	rcu_read_unlock();
@@ -352,7 +363,7 @@ struct cgroup_subsys freezer_subsys = {
 	.create		= freezer_create,
 	.destroy	= freezer_destroy,
 	.subsys_id	= freezer_subsys_id,
-	.can_attach	= freezer_can_attach,
+	.attach		= freezer_attach,
 	.fork		= freezer_fork,
 	.base_cftypes	= files,
 
