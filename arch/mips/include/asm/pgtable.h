@@ -107,7 +107,6 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
-	//printk("pte_high %x pte_low %x\n", ptep->pte_high, ptep->pte_low);
 
 	if (pte.pte_low & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
