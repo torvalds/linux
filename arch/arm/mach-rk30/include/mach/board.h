@@ -126,6 +126,7 @@ enum _codec_pll {
 	codec_pll_768mhz = 768000000,
 	codec_pll_798mhz = 798000000,
 	codec_pll_1188mhz = 1188000000,
+	codec_pll_1200mhz = 1200000000,
 };
 
 //has extern 27mhz
@@ -154,9 +155,9 @@ enum _codec_pll {
 #if (RK30_CLOCKS_DEFAULT_FLAGS&CLK_FLG_UART_1_3M)
 #define codec_pll_default codec_pll_768mhz
 #else
-#define codec_pll_default codec_pll_798mhz
+#define codec_pll_default codec_pll_1200mhz
 #endif
-#define periph_pll_default periph_pll_594mhz
+#define periph_pll_default periph_pll_297mhz
 
 #endif
 

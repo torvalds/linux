@@ -1013,6 +1013,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(300000,	1,	50,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
+	_PLL_SET_CLKS(1200000,	1,	50,	1),
 	_PLL_SET_CLKS(0,	0,	 0,	0),
 };
 static struct _pll_data gpll_data = SET_PLL_DATA(GPLL_ID, (void *)gpll_clks);
@@ -1517,7 +1518,7 @@ static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clkset_rate_freediv_autosel_parents,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
@@ -1530,7 +1531,7 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clkset_rate_freediv_autosel_parents,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
@@ -3137,8 +3138,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300 * MHZ);
 	//gpu auto sel
-	clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
-	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
+	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
+	clk_set_parent_nolock(&aclk_gpu, &codec_pll_clk);
 	clk_set_rate_nolock(&clk_gpu, 200 * MHZ);
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 }
