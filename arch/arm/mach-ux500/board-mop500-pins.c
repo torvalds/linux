@@ -77,10 +77,6 @@ BIAS(slpm_in_nopull_wkup_pdis, PIN_SLEEPMODE_ENABLED|PIN_SLPM_INPUT_NOPULL|PIN_S
 	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
 			    pin, conf)
 
-#define DB8500_PIN_SLEEP(pin,conf,dev) \
-	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
-			    pin, conf)
-
 /* Pin control settings */
 static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	/*
