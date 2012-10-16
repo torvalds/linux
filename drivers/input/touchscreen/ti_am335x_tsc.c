@@ -24,7 +24,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/input/ti_tscadc.h>
+#include <linux/input/ti_am335x_tsc.h>
 #include <linux/delay.h>
 
 #define REG_RAWIRQSTATUS	0x024
@@ -123,7 +123,7 @@
 #define ADC_CLK			3000000
 #define MAX_12BIT		((1 << 12) - 1)
 
-struct tscadc {
+struct titsc {
 	struct input_dev	*input;
 	struct clk		*tsc_ick;
 	void __iomem		*tsc_base;
@@ -134,18 +134,18 @@ struct tscadc {
 	int			steps_to_configure;
 };
 
-static unsigned int tscadc_readl(struct tscadc *ts, unsigned int reg)
+static unsigned int titsc_readl(struct titsc *ts, unsigned int reg)
 {
 	return readl(ts->tsc_base + reg);
 }
 
-static void tscadc_writel(struct tscadc *tsc, unsigned int reg,
+static void titsc_writel(struct titsc *tsc, unsigned int reg,
 					unsigned int val)
 {
 	writel(val, tsc->tsc_base + reg);
 }
 
-static void tscadc_step_config(struct tscadc *ts_dev)
+static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
 	int i, total_steps;
@@ -170,8 +170,8 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 	}
 
 	for (i = 1; i <= ts_dev->steps_to_configure; i++) {
-		tscadc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		tscadc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
+		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
 
 	config = 0;
@@ -192,8 +192,8 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 	}
 
 	for (i = (ts_dev->steps_to_configure + 1); i <= total_steps; i++) {
-		tscadc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		tscadc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
+		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
 
 	config = 0;
@@ -202,40 +202,40 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 			STEPCHARGE_RFP_XPUL | STEPCHARGE_RFM_XNUR |
 			STEPCHARGE_INM_AN1 | STEPCHARGE_INP_AN1;
 
-	tscadc_writel(ts_dev, REG_CHARGECONFIG, config);
-	tscadc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
+	titsc_writel(ts_dev, REG_CHARGECONFIG, config);
+	titsc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
 
 	config = 0;
 	/* Configure to calculate pressure */
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | STEPCONFIG_YPP |
 			STEPCONFIG_XNN | STEPCONFIG_INM_ADCREFM;
-	tscadc_writel(ts_dev, REG_STEPCONFIG(total_steps + 1), config);
-	tscadc_writel(ts_dev, REG_STEPDELAY(total_steps + 1),
+	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 1), config);
+	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 1),
 			STEPCONFIG_OPENDLY);
 
 	config |= STEPCONFIG_INP_AN3 | STEPCONFIG_FIFO1;
-	tscadc_writel(ts_dev, REG_STEPCONFIG(total_steps + 2), config);
-	tscadc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
+	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 2), config);
+	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
 			STEPCONFIG_OPENDLY);
 
-	tscadc_writel(ts_dev, REG_SE, STPENB_STEPENB);
+	titsc_writel(ts_dev, REG_SE, STPENB_STEPENB);
 }
 
-static void tscadc_idle_config(struct tscadc *ts_config)
+static void titsc_idle_config(struct titsc *ts_config)
 {
 	unsigned int idleconfig;
 
 	idleconfig = STEPCONFIG_YNN |
 			STEPCONFIG_INM_ADCREFM |
 			STEPCONFIG_YPN | STEPCONFIG_INP_ADCREFM;
-	tscadc_writel(ts_config, REG_IDLECONFIG, idleconfig);
+	titsc_writel(ts_config, REG_IDLECONFIG, idleconfig);
 }
 
-static void tscadc_read_coordinates(struct tscadc *ts_dev,
+static void titsc_read_coordinates(struct titsc *ts_dev,
 				    unsigned int *x, unsigned int *y)
 {
-	unsigned int fifocount = tscadc_readl(ts_dev, REG_FIFO0CNT);
+	unsigned int fifocount = titsc_readl(ts_dev, REG_FIFO0CNT);
 	unsigned int prev_val_x = ~0, prev_val_y = ~0;
 	unsigned int prev_diff_x = ~0, prev_diff_y = ~0;
 	unsigned int read, diff;
@@ -250,7 +250,7 @@ static void tscadc_read_coordinates(struct tscadc *ts_dev,
 	 * if true the value is reported to the sub system.
 	 */
 	for (i = 0; i < fifocount - 1; i++) {
-		read = tscadc_readl(ts_dev, REG_FIFO0) & 0xfff;
+		read = titsc_readl(ts_dev, REG_FIFO0) & 0xfff;
 		diff = abs(read - prev_val_x);
 		if (diff < prev_diff_x) {
 			prev_diff_x = diff;
@@ -258,7 +258,7 @@ static void tscadc_read_coordinates(struct tscadc *ts_dev,
 		}
 		prev_val_x = read;
 
-		read = tscadc_readl(ts_dev, REG_FIFO1) & 0xfff;
+		read = titsc_readl(ts_dev, REG_FIFO1) & 0xfff;
 		diff = abs(read - prev_val_y);
 		if (diff < prev_diff_y) {
 			prev_diff_y = diff;
@@ -268,21 +268,21 @@ static void tscadc_read_coordinates(struct tscadc *ts_dev,
 	}
 }
 
-static irqreturn_t tscadc_irq(int irq, void *dev)
+static irqreturn_t titsc_irq(int irq, void *dev)
 {
-	struct tscadc *ts_dev = dev;
+	struct titsc *ts_dev = dev;
 	struct input_dev *input_dev = ts_dev->input;
 	unsigned int status, irqclr = 0;
 	unsigned int x = 0, y = 0;
 	unsigned int z1, z2, z;
 	unsigned int fsm;
 
-	status = tscadc_readl(ts_dev, REG_IRQSTATUS);
+	status = titsc_readl(ts_dev, REG_IRQSTATUS);
 	if (status & IRQENB_FIFO0THRES) {
-		tscadc_read_coordinates(ts_dev, &x, &y);
+		titsc_read_coordinates(ts_dev, &x, &y);
 
-		z1 = tscadc_readl(ts_dev, REG_FIFO0) & 0xfff;
-		z2 = tscadc_readl(ts_dev, REG_FIFO1) & 0xfff;
+		z1 = titsc_readl(ts_dev, REG_FIFO0) & 0xfff;
+		z2 = titsc_readl(ts_dev, REG_FIFO1) & 0xfff;
 
 		if (ts_dev->pen_down && z1 != 0 && z2 != 0) {
 			/*
@@ -313,10 +313,10 @@ static irqreturn_t tscadc_irq(int irq, void *dev)
 	 */
 	udelay(SEQ_SETTLE);
 
-	status = tscadc_readl(ts_dev, REG_RAWIRQSTATUS);
+	status = titsc_readl(ts_dev, REG_RAWIRQSTATUS);
 	if (status & IRQENB_PENUP) {
 		/* Pen up event */
-		fsm = tscadc_readl(ts_dev, REG_ADCFSM);
+		fsm = titsc_readl(ts_dev, REG_ADCFSM);
 		if (fsm == ADCFSM_STEPID) {
 			ts_dev->pen_down = false;
 			input_report_key(input_dev, BTN_TOUCH, 0);
@@ -328,9 +328,9 @@ static irqreturn_t tscadc_irq(int irq, void *dev)
 		irqclr |= IRQENB_PENUP;
 	}
 
-	tscadc_writel(ts_dev, REG_IRQSTATUS, irqclr);
+	titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
 
-	tscadc_writel(ts_dev, REG_SE, STPENB_STEPENB);
+	titsc_writel(ts_dev, REG_SE, STPENB_STEPENB);
 	return IRQ_HANDLED;
 }
 
@@ -338,11 +338,11 @@ static irqreturn_t tscadc_irq(int irq, void *dev)
  * The functions for inserting/removing driver as a module.
  */
 
-static int __devinit tscadc_probe(struct platform_device *pdev)
+static int __devinit titsc_probe(struct platform_device *pdev)
 {
 	const struct tsc_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
-	struct tscadc *ts_dev;
+	struct titsc *ts_dev;
 	struct input_dev *input_dev;
 	struct clk *clk;
 	int err;
@@ -366,7 +366,7 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate memory for device */
-	ts_dev = kzalloc(sizeof(struct tscadc), GFP_KERNEL);
+	ts_dev = kzalloc(sizeof(struct titsc), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ts_dev || !input_dev) {
 		dev_err(&pdev->dev, "failed to allocate memory.\n");
@@ -394,7 +394,7 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 		goto err_release_mem_region;
 	}
 
-	err = request_irq(ts_dev->irq, tscadc_irq,
+	err = request_irq(ts_dev->irq, titsc_irq,
 			  0, pdev->dev.driver->name, ts_dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to allocate irq.\n");
@@ -423,10 +423,10 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 	}
 	/* CLKDIV needs to be configured to the value minus 1 */
-	tscadc_writel(ts_dev, REG_CLKDIV, clk_value - 1);
+	titsc_writel(ts_dev, REG_CLKDIV, clk_value - 1);
 
 	 /* Enable wake-up of the SoC using touchscreen */
-	tscadc_writel(ts_dev, REG_IRQWAKEUP, IRQWKUP_ENB);
+	titsc_writel(ts_dev, REG_IRQWAKEUP, IRQWKUP_ENB);
 
 	ctrl = CNTRLREG_STEPCONFIGWRT |
 			CNTRLREG_TSCENB |
@@ -442,15 +442,15 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 		ctrl |= CNTRLREG_8WIRE;
 		break;
 	}
-	tscadc_writel(ts_dev, REG_CTRL, ctrl);
+	titsc_writel(ts_dev, REG_CTRL, ctrl);
 
-	tscadc_idle_config(ts_dev);
-	tscadc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
-	tscadc_step_config(ts_dev);
-	tscadc_writel(ts_dev, REG_FIFO0THR, ts_dev->steps_to_configure);
+	titsc_idle_config(ts_dev);
+	titsc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
+	titsc_step_config(ts_dev);
+	titsc_writel(ts_dev, REG_FIFO0THR, ts_dev->steps_to_configure);
 
 	ctrl |= CNTRLREG_TSCSSENB;
-	tscadc_writel(ts_dev, REG_CTRL, ctrl);
+	titsc_writel(ts_dev, REG_CTRL, ctrl);
 
 	input_dev->name = "ti-tsc-adc";
 	input_dev->dev.parent = &pdev->dev;
@@ -485,9 +485,9 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit tscadc_remove(struct platform_device *pdev)
+static int __devexit titsc_remove(struct platform_device *pdev)
 {
-	struct tscadc *ts_dev = platform_get_drvdata(pdev);
+	struct titsc *ts_dev = platform_get_drvdata(pdev);
 	struct resource *res;
 
 	free_irq(ts_dev->irq, ts_dev);
@@ -508,8 +508,8 @@ static int __devexit tscadc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ti_tsc_driver = {
-	.probe	= tscadc_probe,
-	.remove	= __devexit_p(tscadc_remove),
+	.probe	= titsc_probe,
+	.remove	= __devexit_p(titsc_remove),
 	.driver	= {
 		.name   = "tsc",
 		.owner	= THIS_MODULE,

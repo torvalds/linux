@@ -1,5 +1,5 @@
-#ifndef __LINUX_TI_TSCADC_H
-#define __LINUX_TI_TSCADC_H
+#ifndef __LINUX_TI_AM335X_TSC_H
+#define __LINUX_TI_AM335X_TSC_H
 
 /**
  * struct tsc_data	Touchscreen wire configuration
