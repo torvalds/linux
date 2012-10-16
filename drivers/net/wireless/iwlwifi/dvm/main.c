@@ -2151,8 +2151,6 @@ static int __init iwl_init(void)
 {
 
 	int ret;
-	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {
