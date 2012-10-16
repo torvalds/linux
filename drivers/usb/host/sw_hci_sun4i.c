@@ -73,7 +73,7 @@
 #include  <mach/clock.h>
 #include <mach/sys_config.h>
 
-#include  "sw_hci_sun4i.h"
+#include  "sw_hci_sunxi.h"
 
 static char* usbc_name[3] 			= {"usbc0", "usbc1", "usbc2"};
 static char* usbc_ahb_ehci_name[3]  = {"", "ahb_ehci0", "ahb_ehci1"};
