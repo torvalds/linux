@@ -91,6 +91,11 @@
 #include <linux/gps.h>
 #endif
 
+#if defined (CONFIG_TS_AUTO)
+#include <linux/ts-auto.h>
+#endif
+
+
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
@@ -109,7 +114,7 @@
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PB6
 #define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
@@ -134,7 +139,7 @@
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PB6
 #define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_H
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
@@ -152,14 +157,14 @@
 #define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
 #endif
 
-#define CONFIG_SENSOR_01  RK29_CAM_SENSOR_OV5642                   /* back camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_01 	    0x00
-#define CONFIG_SENSOR_CIF_INDEX_01                    1
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_01    4
+#define CONFIG_SENSOR_01  RK29_CAM_SENSOR_HI253                   /* back camera sensor 1 */
+#define CONFIG_SENSOR_IIC_ADDR_01 	    0x40
+#define CONFIG_SENSOR_CIF_INDEX_01                    0
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_01    3
 #define CONFIG_SENSOR_ORIENTATION_01       90
 #define CONFIG_SENSOR_POWER_PIN_01         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_01         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_01       RK30_PIN1_PD6
+#define CONFIG_SENSOR_POWERDN_PIN_01       RK30_PIN1_PB6
 #define CONFIG_SENSOR_FALSH_PIN_01         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_01 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_01 RK29_CAM_RESETACTIVE_L
@@ -176,13 +181,13 @@
 #define CONFIG_SENSOR_720P_FPS_FIXED_01     30000
 
 #define CONFIG_SENSOR_02 RK29_CAM_SENSOR_OV5640                      /* back camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_02 	    0x00
-#define CONFIG_SENSOR_CIF_INDEX_02                    1
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_02    4
+#define CONFIG_SENSOR_IIC_ADDR_02 	    0x78
+#define CONFIG_SENSOR_CIF_INDEX_02                    0
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_02    3
 #define CONFIG_SENSOR_ORIENTATION_02       90
 #define CONFIG_SENSOR_POWER_PIN_02         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_02         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_02       RK30_PIN1_PD6
+#define CONFIG_SENSOR_POWERDN_PIN_02       RK30_PIN1_PB6
 #define CONFIG_SENSOR_FALSH_PIN_02         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_02 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_02 RK29_CAM_RESETACTIVE_L
@@ -206,7 +211,7 @@
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB6
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
@@ -231,7 +236,7 @@
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB6
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
@@ -249,14 +254,14 @@
 #define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
 #endif
 
-#define CONFIG_SENSOR_11 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_11 	    0x00
+#define CONFIG_SENSOR_11 RK29_CAM_SENSOR_HI704                      /* front camera sensor 1 */
+#define CONFIG_SENSOR_IIC_ADDR_11 	    0x60
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_11    3
 #define CONFIG_SENSOR_CIF_INDEX_11				  0
 #define CONFIG_SENSOR_ORIENTATION_11       270
 #define CONFIG_SENSOR_POWER_PIN_11         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_11         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_11       INVALID_GPIO//RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_11       RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_11         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_11 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_11 RK29_CAM_RESETACTIVE_L
@@ -273,13 +278,13 @@
 #define CONFIG_SENSOR_720P_FPS_FIXED_11      30000
 
 #define CONFIG_SENSOR_12 RK29_CAM_SENSOR_OV2659//RK29_CAM_SENSOR_OV2655                      /* front camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_12 	   0x00
+#define CONFIG_SENSOR_IIC_ADDR_12 	   0x60
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_12    3
 #define CONFIG_SENSOR_CIF_INDEX_12				  0
 #define CONFIG_SENSOR_ORIENTATION_12       270
 #define CONFIG_SENSOR_POWER_PIN_12         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_12         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_12       INVALID_GPIO//RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_12       RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_12         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_12 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_12 RK29_CAM_RESETACTIVE_L
@@ -755,7 +760,7 @@ static struct syna_gpio_data s3202_gpiodata = {
 static unsigned char s3202_key_array[4]={ KEY_BACK, KEY_MENU, KEY_HOMEPAGE, KEY_SEARCH };
 
 struct rmi_f1a_button_map s3202_buttons = {
-		.nbuttons = 4,
+		.nbuttons = 0,
 		.map = s3202_key_array,
 };
 
@@ -769,8 +774,9 @@ static struct rmi_device_platform_data s3202_platformdata = {
 	.gpio_config = synaptics_touchpad_gpio_setup,
 	.init_hw = syna_init_platform_hw,
 	.axis_align = {
-		.flip_x = 1,
-		.flip_y = 1,
+		.swap_axes = 1,
+		.flip_x = 0,
+		.flip_y = 0,
 		.clip_X_low = 0,
 		.clip_Y_low = 0,
 		.clip_X_high = 0,
@@ -1011,6 +1017,33 @@ struct goodix_8110_platform_data  goodix_info = {
         .hw_init = goodix_init_platform_hw,
         .hw_exit = goodix_exit_platform_hw,
 };
+#endif
+
+#if defined(CONFIG_TS_AUTO_I2C)
+#define TOUCH_RESET_PIN	 RK30_PIN4_PD0
+#define TOUCH_INT_PIN 	 RK30_PIN4_PC2
+int ts_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);	
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, 0);
+
+	gpio_request(TOUCH_INT_PIN, "ts_irq_pin");
+	gpio_request(TOUCH_RESET_PIN, "ts_reset_pin");
+	gpio_direction_output(TOUCH_RESET_PIN, GPIO_LOW);
+	msleep(10);
+	gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+	msleep(200);
+	printk("%s\n",__func__);
+	return 0;
+}
+
+struct ts_platform_data  auto_ts_info = {
+	.irq = TOUCH_INT_PIN,
+	.power_pin = INVALID_GPIO,
+	.reset_pin = TOUCH_RESET_PIN,
+	.init_platform_hw = ts_init_platform_hw,
+};
+
 #endif
 
 static struct spi_board_info board_spi_devices[] = {
@@ -2184,6 +2217,70 @@ static struct platform_device device_rfkill_rk = {
 };
 #endif
 
+#ifdef CONFIG_RK_BOARD_ID
+static int board_id_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_GPIO0D5);
+	rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_GPIO0D4);
+	rk30_mux_api_set(GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3);
+	rk30_mux_api_set(GPIO0D2_I2S22CHLRCKRX_SMCOEN_NAME, GPIO0D_GPIO0D2);
+
+	return 0;
+}
+
+static int board_id_exit_platform_hw(void)
+{
+
+	return 0;
+}
+
+//setting someting according to board id
+static int init_paramter_according_id(int id)
+{
+	if(id < 0)
+		return -1;
+	
+#if defined(CONFIG_MACH_RK30_PHONE_PAD_C8003)
+
+	signed char orientation[4][9] = {
+		{0, -1, 0, 0, 0, 1, 1, 0, 0},
+		{1, 0, 0, 0, 0, -1, 0, -1, 0},
+		{1, 0, 0, 0, 0, -1, 0, -1, 0},
+		{0, -1, 0, 0, 0, -1, -1, 0, 0},
+	};
+
+	u32 bl_ref[4] = {1, 0, 0, 0};
+	
+	memcpy(mma7660_info.orientation, orientation[id], 9);	
+	rk29_bl_info.bl_ref = bl_ref[id];
+#else
+
+
+#endif
+	return 0;
+}
+
+
+static struct board_id_platform_data rk_board_id = {
+	.gpio_pin = {RK30_PIN0_PD2,RK30_PIN0_PD3,RK30_PIN0_PD4,RK30_PIN0_PD5},
+	.num_gpio = 4,
+	.init_platform_hw = board_id_init_platform_hw,
+	.exit_platform_hw = board_id_exit_platform_hw,
+	.init_parameter	= init_paramter_according_id,
+};
+
+
+static struct platform_device device_board_id = {
+    .name   = "rk-board-id",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &rk_board_id,
+    },
+};
+
+
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
@@ -2246,6 +2343,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RFKILL_RK
 	&device_rfkill_rk,
 #endif
+#ifdef CONFIG_RK_BOARD_ID
+	&device_board_id,
+#endif
+
 };
 
 // i2c
@@ -2602,6 +2703,17 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &goodix_info,
 	},
 #endif
+
+#if defined (CONFIG_TS_AUTO_I2C)
+	{
+		.type          = "auto_ts_i2c",
+		.addr          = 0x3e,
+		.flags         = 0,
+		.irq           = TOUCH_INT_PIN,
+		.platform_data = &auto_ts_info,
+	},
+#endif
+
 
 #if defined (CONFIG_LS_ISL29023)
 	{
