@@ -144,7 +144,7 @@ static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	struct nfc_llcp_sock *llcp_sock;
+	struct nfc_llcp_sock *llcp_sock, *tmp_sock;
 
 	pr_debug("ssap dsap %d %d\n", ssap, dsap);
 
@@ -156,10 +156,12 @@ static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
 	llcp_sock = NULL;
 
 	sk_for_each(sk, node, &local->sockets.head) {
-		llcp_sock = nfc_llcp_sock(sk);
+		tmp_sock = nfc_llcp_sock(sk);
 
-		if (llcp_sock->ssap == ssap && llcp_sock->dsap == dsap)
+		if (tmp_sock->ssap == ssap && tmp_sock->dsap == dsap) {
+			llcp_sock = tmp_sock;
 			break;
+		}
 	}
 
 	read_unlock(&local->sockets.lock);
@@ -1073,7 +1075,7 @@ static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
 	}
 
 	if (llcp_sock == NULL) {
-		pr_err("Invalid DM\n");
+		pr_debug("Already closed\n");
 		return;
 	}
 
