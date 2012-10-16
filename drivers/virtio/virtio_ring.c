@@ -188,10 +188,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
  * Caller must ensure we don't call this with other virtqueue operations
  * at the same time (except where noted).
  *
- * Returns remaining capacity of queue or a negative error
- * (ie. ENOSPC).  Note that it only really makes sense to treat all
- * positive return values as "available": indirect buffers mean that
- * we can put an entire sg[] array inside a single queue entry.
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
  */
 int virtqueue_add_buf(struct virtqueue *_vq,
 		      struct scatterlist sg[],
@@ -291,7 +288,7 @@ add_head:
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
-	return vq->vq.num_free;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(virtqueue_add_buf);
 
