@@ -461,7 +461,7 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 	vq = portdev->c_ovq;
 
 	sg_init_one(sg, &cpkt, sizeof(cpkt));
-	if (virtqueue_add_buf(vq, sg, 1, 0, &cpkt, GFP_ATOMIC) >= 0) {
+	if (virtqueue_add_buf(vq, sg, 1, 0, &cpkt, GFP_ATOMIC) == 0) {
 		virtqueue_kick(vq);
 		while (!virtqueue_get_buf(vq, &len))
 			cpu_relax();
@@ -526,7 +526,7 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 			      struct buffer_token *tok, bool nonblock)
 {
 	struct virtqueue *out_vq;
-	ssize_t ret;
+	int err;
 	unsigned long flags;
 	unsigned int len;
 
@@ -536,17 +536,17 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 
 	reclaim_consumed_buffers(port);
 
-	ret = virtqueue_add_buf(out_vq, sg, nents, 0, tok, GFP_ATOMIC);
+	err = virtqueue_add_buf(out_vq, sg, nents, 0, tok, GFP_ATOMIC);
 
 	/* Tell Host to go! */
 	virtqueue_kick(out_vq);
 
-	if (ret < 0) {
+	if (err) {
 		in_count = 0;
 		goto done;
 	}
 
-	if (ret == 0)
+	if (out_vq->num_free == 0)
 		port->outvq_full = true;
 
 	if (nonblock)
