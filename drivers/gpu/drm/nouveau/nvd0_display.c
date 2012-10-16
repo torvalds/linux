@@ -75,6 +75,10 @@ struct nvd0_display {
 	u32 modeset;
 };
 
+struct nvd0_head {
+	struct nouveau_crtc base;
+};
+
 static struct nvd0_display *
 nvd0_display(struct drm_device *dev)
 {
@@ -866,51 +870,51 @@ nvd0_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 static int
 nvd0_crtc_create(struct drm_device *dev, int index)
 {
-	struct nouveau_crtc *nv_crtc;
+	struct nvd0_head *head;
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
-	if (!nv_crtc)
+	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	if (!head)
 		return -ENOMEM;
 
-	nv_crtc->index = index;
-	nv_crtc->set_dither = nvd0_crtc_set_dither;
-	nv_crtc->set_scale = nvd0_crtc_set_scale;
-	nv_crtc->cursor.set_offset = nvd0_cursor_set_offset;
-	nv_crtc->cursor.set_pos = nvd0_cursor_set_pos;
+	head->base.index = index;
+	head->base.set_dither = nvd0_crtc_set_dither;
+	head->base.set_scale = nvd0_crtc_set_scale;
+	head->base.cursor.set_offset = nvd0_cursor_set_offset;
+	head->base.cursor.set_pos = nvd0_cursor_set_pos;
 	for (i = 0; i < 256; i++) {
-		nv_crtc->lut.r[i] = i << 8;
-		nv_crtc->lut.g[i] = i << 8;
-		nv_crtc->lut.b[i] = i << 8;
+		head->base.lut.r[i] = i << 8;
+		head->base.lut.g[i] = i << 8;
+		head->base.lut.b[i] = i << 8;
 	}
 
-	crtc = &nv_crtc->base;
+	crtc = &head->base.base;
 	drm_crtc_init(dev, crtc, &nvd0_crtc_func);
 	drm_crtc_helper_add(crtc, &nvd0_crtc_hfunc);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
+			     0, 0x0000, NULL, &head->base.cursor.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)
-			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+			ret = nouveau_bo_map(head->base.cursor.nvbo);
 		if (ret)
-			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+			nouveau_bo_ref(NULL, &head->base.cursor.nvbo);
 	}
 
 	if (ret)
 		goto out;
 
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &nv_crtc->lut.nvbo);
+			     0, 0x0000, NULL, &head->base.lut.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(nv_crtc->lut.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)
-			ret = nouveau_bo_map(nv_crtc->lut.nvbo);
+			ret = nouveau_bo_map(head->base.lut.nvbo);
 		if (ret)
-			nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+			nouveau_bo_ref(NULL, &head->base.lut.nvbo);
 	}
 
 	if (ret)
