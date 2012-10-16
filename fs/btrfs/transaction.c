@@ -295,9 +295,9 @@ static int may_wait_transaction(struct btrfs_root *root, int type)
 	return 0;
 }
 
-static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
-						    u64 num_items, int type,
-						    int noflush)
+static struct btrfs_trans_handle *
+start_transaction(struct btrfs_root *root, u64 num_items, int type,
+		  enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
@@ -331,14 +331,9 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 		}
 
 		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
-		if (noflush)
-			ret = btrfs_block_rsv_add_noflush(root,
-						&root->fs_info->trans_block_rsv,
-						num_bytes);
-		else
-			ret = btrfs_block_rsv_add(root,
-						&root->fs_info->trans_block_rsv,
-						num_bytes);
+		ret = btrfs_block_rsv_add(root,
+					  &root->fs_info->trans_block_rsv,
+					  num_bytes, flush);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -422,13 +417,15 @@ got_it:
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_items)
 {
-	return start_transaction(root, num_items, TRANS_START, 0);
+	return start_transaction(root, num_items, TRANS_START,
+				 BTRFS_RESERVE_FLUSH_ALL);
 }
 
-struct btrfs_trans_handle *btrfs_start_transaction_noflush(
+struct btrfs_trans_handle *btrfs_start_transaction_lflush(
 					struct btrfs_root *root, int num_items)
 {
-	return start_transaction(root, num_items, TRANS_START, 1);
+	return start_transaction(root, num_items, TRANS_START,
+				 BTRFS_RESERVE_FLUSH_LIMIT);
 }
 
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root)
@@ -1032,8 +1029,9 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		ret = btrfs_block_rsv_add_noflush(root, &pending->block_rsv,
-						  to_reserve);
+		ret = btrfs_block_rsv_add(root, &pending->block_rsv,
+					  to_reserve,
+					  BTRFS_RESERVE_NO_FLUSH);
 		if (ret) {
 			pending->error = ret;
 			goto no_free_objectid;

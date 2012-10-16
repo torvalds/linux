@@ -3644,7 +3644,7 @@ out:
 
 static int can_overcommit(struct btrfs_root *root,
 			  struct btrfs_space_info *space_info, u64 bytes,
-			  int flush)
+			  enum btrfs_reserve_flush_enum flush)
 {
 	u64 profile = btrfs_get_alloc_profile(root, 0);
 	u64 avail;
@@ -3672,7 +3672,7 @@ static int can_overcommit(struct btrfs_root *root,
 	 * 1/2th of the space. If we can flush, don't let us overcommit
 	 * too much, let it overcommit up to 1/8 of the space.
 	 */
-	if (flush)
+	if (flush == BTRFS_RESERVE_FLUSH_ALL)
 		avail >>= 3;
 	else
 		avail >>= 1;
@@ -3696,6 +3696,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	long time_left;
 	unsigned long nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
 	int loops = 0;
+	enum btrfs_reserve_flush_enum flush;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 	block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -3723,8 +3724,12 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		wait_event(root->fs_info->async_submit_wait,
 			   !atomic_read(&root->fs_info->async_delalloc_pages));
 
+		if (!trans)
+			flush = BTRFS_RESERVE_FLUSH_ALL;
+		else
+			flush = BTRFS_RESERVE_NO_FLUSH;
 		spin_lock(&space_info->lock);
-		if (can_overcommit(root, space_info, orig, !trans)) {
+		if (can_overcommit(root, space_info, orig, flush)) {
 			spin_unlock(&space_info->lock);
 			break;
 		}
@@ -3882,7 +3887,8 @@ static int flush_space(struct btrfs_root *root,
  */
 static int reserve_metadata_bytes(struct btrfs_root *root,
 				  struct btrfs_block_rsv *block_rsv,
-				  u64 orig_bytes, int flush)
+				  u64 orig_bytes,
+				  enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_space_info *space_info = block_rsv->space_info;
 	u64 used;
@@ -3895,10 +3901,11 @@ again:
 	ret = 0;
 	spin_lock(&space_info->lock);
 	/*
-	 * We only want to wait if somebody other than us is flushing and we are
-	 * actually alloed to flush.
+	 * We only want to wait if somebody other than us is flushing and we
+	 * are actually allowed to flush all things.
 	 */
-	while (flush && !flushing && space_info->flush) {
+	while (flush == BTRFS_RESERVE_FLUSH_ALL && !flushing &&
+	       space_info->flush) {
 		spin_unlock(&space_info->lock);
 		/*
 		 * If we have a trans handle we can't wait because the flusher
@@ -3964,23 +3971,40 @@ again:
 	 * Couldn't make our reservation, save our place so while we're trying
 	 * to reclaim space we can actually use it instead of somebody else
 	 * stealing it from us.
+	 *
+	 * We make the other tasks wait for the flush only when we can flush
+	 * all things.
 	 */
-	if (ret && flush) {
+	if (ret && flush == BTRFS_RESERVE_FLUSH_ALL) {
 		flushing = true;
 		space_info->flush = 1;
 	}
 
 	spin_unlock(&space_info->lock);
 
-	if (!ret || !flush)
+	if (!ret || flush == BTRFS_RESERVE_NO_FLUSH)
 		goto out;
 
 	ret = flush_space(root, space_info, num_bytes, orig_bytes,
 			  flush_state);
 	flush_state++;
+
+	/*
+	 * If we are FLUSH_LIMIT, we can not flush delalloc, or the deadlock
+	 * would happen. So skip delalloc flush.
+	 */
+	if (flush == BTRFS_RESERVE_FLUSH_LIMIT &&
+	    (flush_state == FLUSH_DELALLOC ||
+	     flush_state == FLUSH_DELALLOC_WAIT))
+		flush_state = ALLOC_CHUNK;
+
 	if (!ret)
 		goto again;
-	else if (flush_state <= COMMIT_TRANS)
+	else if (flush == BTRFS_RESERVE_FLUSH_LIMIT &&
+		 flush_state < COMMIT_TRANS)
+		goto again;
+	else if (flush == BTRFS_RESERVE_FLUSH_ALL &&
+		 flush_state <= COMMIT_TRANS)
 		goto again;
 
 out:
@@ -4131,9 +4155,9 @@ void btrfs_free_block_rsv(struct btrfs_root *root,
 	kfree(rsv);
 }
 
-static inline int __block_rsv_add(struct btrfs_root *root,
-				  struct btrfs_block_rsv *block_rsv,
-				  u64 num_bytes, int flush)
+int btrfs_block_rsv_add(struct btrfs_root *root,
+			struct btrfs_block_rsv *block_rsv, u64 num_bytes,
+			enum btrfs_reserve_flush_enum flush)
 {
 	int ret;
 
@@ -4147,20 +4171,6 @@ static inline int __block_rsv_add(struct btrfs_root *root,
 	}
 
 	return ret;
-}
-
-int btrfs_block_rsv_add(struct btrfs_root *root,
-			struct btrfs_block_rsv *block_rsv,
-			u64 num_bytes)
-{
-	return __block_rsv_add(root, block_rsv, num_bytes, 1);
-}
-
-int btrfs_block_rsv_add_noflush(struct btrfs_root *root,
-				struct btrfs_block_rsv *block_rsv,
-				u64 num_bytes)
-{
-	return __block_rsv_add(root, block_rsv, num_bytes, 0);
 }
 
 int btrfs_block_rsv_check(struct btrfs_root *root,
@@ -4181,9 +4191,9 @@ int btrfs_block_rsv_check(struct btrfs_root *root,
 	return ret;
 }
 
-static inline int __btrfs_block_rsv_refill(struct btrfs_root *root,
-					   struct btrfs_block_rsv *block_rsv,
-					   u64 min_reserved, int flush)
+int btrfs_block_rsv_refill(struct btrfs_root *root,
+			   struct btrfs_block_rsv *block_rsv, u64 min_reserved,
+			   enum btrfs_reserve_flush_enum flush)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -4209,20 +4219,6 @@ static inline int __btrfs_block_rsv_refill(struct btrfs_root *root,
 	}
 
 	return ret;
-}
-
-int btrfs_block_rsv_refill(struct btrfs_root *root,
-			   struct btrfs_block_rsv *block_rsv,
-			   u64 min_reserved)
-{
-	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 1);
-}
-
-int btrfs_block_rsv_refill_noflush(struct btrfs_root *root,
-				   struct btrfs_block_rsv *block_rsv,
-				   u64 min_reserved)
-{
-	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 0);
 }
 
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
@@ -4515,14 +4511,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	u64 csum_bytes;
 	unsigned nr_extents = 0;
 	int extra_reserve = 0;
-	int flush = 1;
+	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_FLUSH_ALL;
 	int ret;
 
 	/* Need to be holding the i_mutex here if we aren't free space cache */
 	if (btrfs_is_free_space_inode(inode))
-		flush = 0;
+		flush = BTRFS_RESERVE_NO_FLUSH;
 
-	if (flush && btrfs_transaction_in_commit(root->fs_info))
+	if (flush != BTRFS_RESERVE_NO_FLUSH &&
+	    btrfs_transaction_in_commit(root->fs_info))
 		schedule_timeout(1);
 
 	mutex_lock(&BTRFS_I(inode)->delalloc_mutex);
@@ -6252,7 +6249,8 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 	block_rsv = get_block_rsv(trans, root);
 
 	if (block_rsv->size == 0) {
-		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0);
+		ret = reserve_metadata_bytes(root, block_rsv, blocksize,
+					     BTRFS_RESERVE_NO_FLUSH);
 		/*
 		 * If we couldn't reserve metadata bytes try and use some from
 		 * the global reserve.
@@ -6279,7 +6277,8 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 			printk(KERN_DEBUG "btrfs: block rsv returned %d\n", ret);
 			WARN_ON(1);
 		}
-		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0);
+		ret = reserve_metadata_bytes(root, block_rsv, blocksize,
+					     BTRFS_RESERVE_NO_FLUSH);
 		if (!ret) {
 			return block_rsv;
 		} else if (ret && block_rsv != global_rsv) {
