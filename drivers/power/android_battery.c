@@ -412,15 +412,24 @@ static void android_bat_charger_work(struct work_struct *work)
 	case CHARGE_SOURCE_AC:
 		/*
 		 * If charging status indicates a charger was already
-		 * connected prior to this and a non-charging status is
-		 * set, leave the status alone.
+		 * connected prior to this and the status is something
+		 * other than charging ("full" or "not-charging"), leave
+		 * the status alone.
 		 */
 		if (battery->charging_status ==
 		    POWER_SUPPLY_STATUS_DISCHARGING ||
-		    battery->charging_status == POWER_SUPPLY_STATUS_UNKNOWN) {
+		    battery->charging_status == POWER_SUPPLY_STATUS_UNKNOWN)
 			battery->charging_status = POWER_SUPPLY_STATUS_CHARGING;
+
+		/*
+		 * Don't re-enable charging if the battery is full and we
+		 * are not actively re-charging it, or if "not-charging"
+		 * status is set.
+		 */
+		if (!((battery->charging_status == POWER_SUPPLY_STATUS_FULL
+		       && !battery->recharging) || battery->charging_status ==
+		      POWER_SUPPLY_STATUS_NOT_CHARGING))
 			android_bat_enable_charging(battery, true);
-		}
 
 		break;
 	default:
