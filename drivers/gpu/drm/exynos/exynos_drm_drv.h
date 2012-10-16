@@ -328,6 +328,17 @@ int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
+/*
+ * this function registers exynos drm hdmi platform device. It ensures only one
+ * instance of the device is created.
+ */
+extern int exynos_platform_device_hdmi_register(void);
+
+/*
+ * this function unregisters exynos drm hdmi platform device if it exists.
+ */
+void exynos_platform_device_hdmi_unregister(void);
+
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
