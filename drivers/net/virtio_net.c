@@ -635,7 +635,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	err = xmit_skb(vi, skb);
 
 	/* This should not happen! */
-	if (unlikely(err < 0)) {
+	if (unlikely(err)) {
 		dev->stats.tx_fifo_errors++;
 		if (net_ratelimit())
 			dev_warn(&dev->dev,
