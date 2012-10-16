@@ -4372,7 +4372,7 @@ F:	Documentation/scsi/53c700.txt
 F:	drivers/scsi/53c700*
 
 LED SUBSYSTEM
-M:	Bryan Wu <bryan.wu@canonical.com>
+M:	Bryan Wu <cooloney@gmail.com>
 M:	Richard Purdie <rpurdie@rpsys.net>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cooloney/linux-leds.git
