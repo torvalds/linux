@@ -2554,9 +2554,14 @@ static void nfsd_break_deleg_cb(struct file_lock *fl)
 	struct nfs4_file *fp = (struct nfs4_file *)fl->fl_owner;
 	struct nfs4_delegation *dp;
 
-	BUG_ON(!fp);
-	/* We assume break_lease is only called once per lease: */
-	BUG_ON(fp->fi_had_conflict);
+	if (!fp) {
+		WARN(1, "(%p)->fl_owner NULL\n", fl);
+		return;
+	}
+	if (fp->fi_had_conflict) {
+		WARN(1, "duplicate break on %p\n", fp);
+		return;
+	}
 	/*
 	 * We don't want the locks code to timeout the lease for us;
 	 * we'll remove it ourself if a delegation isn't returned
