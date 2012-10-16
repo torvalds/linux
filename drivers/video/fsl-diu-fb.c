@@ -1181,6 +1181,23 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 			ad->ckmin_b = ck.blue_min;
 		}
 		break;
+#ifdef CONFIG_PPC_MPC512x
+	case MFB_SET_GAMMA: {
+		struct fsl_diu_data *data = mfbi->parent;
+
+		if (copy_from_user(data->gamma, buf, sizeof(data->gamma)))
+			return -EFAULT;
+		setbits32(&data->diu_reg->gamma, 0); /* Force table reload */
+		break;
+	}
+	case MFB_GET_GAMMA: {
+		struct fsl_diu_data *data = mfbi->parent;
+
+		if (copy_to_user(buf, data->gamma, sizeof(data->gamma)))
+			return -EFAULT;
+		break;
+	}
+#endif
 	default:
 		dev_err(info->dev, "unknown ioctl command (0x%08X)\n", cmd);
 		return -ENOIOCTLCMD;
