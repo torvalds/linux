@@ -53,8 +53,7 @@ MODULE_LICENSE("GPL");
 /* ADV7604 system clock frequency */
 #define ADV7604_fsc (28636360)
 
-#define DIGITAL_INPUT ((state->prim_mode == ADV7604_PRIM_MODE_HDMI_COMP) || \
-			(state->prim_mode == ADV7604_PRIM_MODE_HDMI_GR))
+#define DIGITAL_INPUT (state->mode == ADV7604_MODE_HDMI)
 
 /*
  **********************************************************************
@@ -68,7 +67,7 @@ struct adv7604_state {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
-	enum adv7604_prim_mode prim_mode;
+	enum adv7604_mode mode;
 	struct v4l2_dv_timings timings;
 	u8 edid[256];
 	unsigned edid_blocks;
@@ -738,12 +737,7 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 	switch (state->rgb_quantization_range) {
 	case V4L2_DV_RGB_RANGE_AUTO:
 		/* automatic */
-		if ((hdmi_read(sd, 0x05) & 0x80) ||
-				(state->prim_mode == ADV7604_PRIM_MODE_COMP) ||
-				(state->prim_mode == ADV7604_PRIM_MODE_RGB)) {
-			/* receiving HDMI or analog signal */
-			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
-		} else {
+		if (DIGITAL_INPUT && !(hdmi_read(sd, 0x05) & 0x80)) {
 			/* receiving DVI-D signal */
 
 			/* ADV7604 selects RGB limited range regardless of
@@ -756,6 +750,9 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 				/* RGB full range (0-255) */
 				io_write_and_or(sd, 0x02, 0x0f, 0x10);
 			}
+		} else {
+			/* receiving HDMI or analog signal, set automode */
+			io_write_and_or(sd, 0x02, 0x0f, 0xf0);
 		}
 		break;
 	case V4L2_DV_RGB_RANGE_LIMITED:
@@ -1203,24 +1200,25 @@ static int adv7604_g_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void enable_input(struct v4l2_subdev *sd, enum adv7604_prim_mode prim_mode)
+static void enable_input(struct v4l2_subdev *sd)
 {
-	switch (prim_mode) {
-	case ADV7604_PRIM_MODE_COMP:
-	case ADV7604_PRIM_MODE_RGB:
+	struct adv7604_state *state = to_state(sd);
+
+	switch (state->mode) {
+	case ADV7604_MODE_COMP:
+	case ADV7604_MODE_GR:
 		/* enable */
 		io_write(sd, 0x15, 0xb0);   /* Disable Tristate of Pins (no audio) */
 		break;
-	case ADV7604_PRIM_MODE_HDMI_COMP:
-	case ADV7604_PRIM_MODE_HDMI_GR:
+	case ADV7604_MODE_HDMI:
 		/* enable */
 		hdmi_write(sd, 0x1a, 0x0a); /* Unmute audio */
 		hdmi_write(sd, 0x01, 0x00); /* Enable HDMI clock terminators */
 		io_write(sd, 0x15, 0xa0);   /* Disable Tristate of Pins */
 		break;
 	default:
-		v4l2_err(sd, "%s: reserved primary mode 0x%0x\n",
-				__func__, prim_mode);
+		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+				__func__, state->mode);
 		break;
 	}
 }
@@ -1233,11 +1231,13 @@ static void disable_input(struct v4l2_subdev *sd)
 	hdmi_write(sd, 0x01, 0x78); /* Disable HDMI clock terminators */
 }
 
-static void select_input(struct v4l2_subdev *sd, enum adv7604_prim_mode prim_mode)
+static void select_input(struct v4l2_subdev *sd)
 {
-	switch (prim_mode) {
-	case ADV7604_PRIM_MODE_COMP:
-	case ADV7604_PRIM_MODE_RGB:
+	struct adv7604_state *state = to_state(sd);
+
+	switch (state->mode) {
+	case ADV7604_MODE_COMP:
+	case ADV7604_MODE_GR:
 		/* set mode and select free run resolution */
 		io_write(sd, 0x00, 0x07); /* video std */
 		io_write(sd, 0x01, 0x02); /* prim mode */
@@ -1271,13 +1271,10 @@ static void select_input(struct v4l2_subdev *sd, enum adv7604_prim_mode prim_mod
 		cp_write(sd, 0x40, 0x5c); /* CP core pre-gain control. Graphics mode */
 		break;
 
-	case ADV7604_PRIM_MODE_HDMI_COMP:
-	case ADV7604_PRIM_MODE_HDMI_GR:
+	case ADV7604_MODE_HDMI:
 		/* set mode and select free run resolution */
-		/* video std */
-		io_write(sd, 0x00,
-			(prim_mode == ADV7604_PRIM_MODE_HDMI_GR) ? 0x02 : 0x1e);
-		io_write(sd, 0x01, prim_mode); /* prim mode */
+		io_write(sd, 0x00, 0x02); /* video std */
+		io_write(sd, 0x01, 0x06); /* prim mode */
 		/* disable embedded syncs for auto graphics mode */
 		cp_write_and_or(sd, 0x81, 0xef, 0x00);
 
@@ -1309,7 +1306,8 @@ static void select_input(struct v4l2_subdev *sd, enum adv7604_prim_mode prim_mod
 
 		break;
 	default:
-		v4l2_err(sd, "%s: reserved primary mode 0x%0x\n", __func__, prim_mode);
+		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+				__func__, state->mode);
 		break;
 	}
 }
@@ -1321,26 +1319,13 @@ static int adv7604_s_routing(struct v4l2_subdev *sd,
 
 	v4l2_dbg(2, debug, sd, "%s: input %d", __func__, input);
 
-	switch (input) {
-	case 0:
-		/* TODO select HDMI_COMP or HDMI_GR */
-		state->prim_mode = ADV7604_PRIM_MODE_HDMI_COMP;
-		break;
-	case 1:
-		state->prim_mode = ADV7604_PRIM_MODE_RGB;
-		break;
-	case 2:
-		state->prim_mode = ADV7604_PRIM_MODE_COMP;
-		break;
-	default:
-		return -EINVAL;
-	}
+	state->mode = input;
 
 	disable_input(sd);
 
-	select_input(sd, state->prim_mode);
+	select_input(sd);
 
-	enable_input(sd, state->prim_mode);
+	enable_input(sd);
 
 	return 0;
 }
@@ -1723,11 +1708,6 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 
 	afe_write(sd, 0x02, pdata->ain_sel); /* Select analog input muxing mode */
 	io_write_and_or(sd, 0x30, ~(1 << 4), pdata->output_bus_lsb_to_msb << 4);
-
-	state->prim_mode = pdata->prim_mode;
-	select_input(sd, pdata->prim_mode);
-
-	enable_input(sd, pdata->prim_mode);
 
 	/* interrupts */
 	io_write(sd, 0x40, 0xc2); /* Configure INT1 */
