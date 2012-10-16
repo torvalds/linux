@@ -214,23 +214,27 @@ static unsigned int regmap_parse_32_native(void *buf)
 	return *(u32 *)buf;
 }
 
-static void regmap_lock_mutex(struct regmap *map)
+static void regmap_lock_mutex(void *__map)
 {
+	struct regmap *map = __map;
 	mutex_lock(&map->mutex);
 }
 
-static void regmap_unlock_mutex(struct regmap *map)
+static void regmap_unlock_mutex(void *__map)
 {
+	struct regmap *map = __map;
 	mutex_unlock(&map->mutex);
 }
 
-static void regmap_lock_spinlock(struct regmap *map)
+static void regmap_lock_spinlock(void *__map)
 {
+	struct regmap *map = __map;
 	spin_lock(&map->spinlock);
 }
 
-static void regmap_unlock_spinlock(struct regmap *map)
+static void regmap_unlock_spinlock(void *__map)
 {
+	struct regmap *map = __map;
 	spin_unlock(&map->spinlock);
 }
 
@@ -335,14 +339,21 @@ struct regmap *regmap_init(struct device *dev,
 		goto err;
 	}
 
-	if (bus->fast_io) {
-		spin_lock_init(&map->spinlock);
-		map->lock = regmap_lock_spinlock;
-		map->unlock = regmap_unlock_spinlock;
+	if (config->lock && config->unlock) {
+		map->lock = config->lock;
+		map->unlock = config->unlock;
+		map->lock_arg = config->lock_arg;
 	} else {
-		mutex_init(&map->mutex);
-		map->lock = regmap_lock_mutex;
-		map->unlock = regmap_unlock_mutex;
+		if (bus->fast_io) {
+			spin_lock_init(&map->spinlock);
+			map->lock = regmap_lock_spinlock;
+			map->unlock = regmap_unlock_spinlock;
+		} else {
+			mutex_init(&map->mutex);
+			map->lock = regmap_lock_mutex;
+			map->unlock = regmap_unlock_mutex;
+		}
+		map->lock_arg = map;
 	}
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
@@ -939,11 +950,11 @@ int regmap_write(struct regmap *map, unsigned int reg, unsigned int val)
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	ret = _regmap_write(map, reg, val);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -975,11 +986,11 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	ret = _regmap_raw_write(map, reg, val, val_len);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -1011,7 +1022,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	/* No formatting is require if val_byte is 1 */
 	if (val_bytes == 1) {
@@ -1047,7 +1058,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		kfree(wval);
 
 out:
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_write);
@@ -1137,11 +1148,11 @@ int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val)
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	ret = _regmap_read(map, reg, val);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -1171,7 +1182,7 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	if (regmap_volatile_range(map, reg, val_count) || map->cache_bypass ||
 	    map->cache_type == REGCACHE_NONE) {
@@ -1193,7 +1204,7 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	}
 
  out:
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -1300,9 +1311,9 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 	bool change;
 	int ret;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 	ret = _regmap_update_bits(map, reg, mask, val, &change);
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -1326,9 +1337,9 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 	ret = _regmap_update_bits(map, reg, mask, val, change);
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits_check);
@@ -1357,7 +1368,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	if (map->patch)
 		return -EBUSY;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	bypass = map->cache_bypass;
 
@@ -1385,7 +1396,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 out:
 	map->cache_bypass = bypass;
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
