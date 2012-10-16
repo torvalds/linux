@@ -965,8 +965,10 @@ static struct platform_device_id gsc_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, gsc_driver_ids);
 
 static const struct of_device_id exynos_gsc_match[] = {
-	{ .compatible = "samsung,exynos5250-gsc",
-	.data = &gsc_v_100_drvdata, },
+	{
+		.compatible = "samsung,exynos5-gsc",
+		.data = &gsc_v_100_drvdata,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_gsc_match);
