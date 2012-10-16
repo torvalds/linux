@@ -1224,8 +1224,22 @@ static int fsl_diu_open(struct fb_info *info, int user)
 		res = fsl_diu_set_par(info);
 		if (res < 0)
 			mfbi->count--;
-		else
+		else {
+			struct fsl_diu_data *data = mfbi->parent;
+
+#ifdef CONFIG_NOT_COHERENT_CACHE
+			/*
+			 * Enable underrun detection and vertical sync
+			 * interrupts.
+			 */
+			clrbits32(&data->diu_reg->int_mask,
+				  INT_UNDRUN | INT_VSYNC);
+#else
+			/* Enable underrun detection */
+			clrbits32(&data->diu_reg->int_mask, INT_UNDRUN);
+#endif
 			fsl_diu_enable_panel(info);
+		}
 	}
 
 	spin_unlock(&diu_lock);
@@ -1241,8 +1255,13 @@ static int fsl_diu_release(struct fb_info *info, int user)
 
 	spin_lock(&diu_lock);
 	mfbi->count--;
-	if (mfbi->count == 0)
+	if (mfbi->count == 0) {
+		struct fsl_diu_data *data = mfbi->parent;
+
+		/* Disable interrupts */
+		out_be32(&data->diu_reg->int_mask, 0xffffffff);
 		fsl_diu_disable_panel(info);
+	}
 
 	spin_unlock(&diu_lock);
 	return res;
@@ -1380,7 +1399,7 @@ static void uninstall_fb(struct fb_info *info)
 static irqreturn_t fsl_diu_isr(int irq, void *dev_id)
 {
 	struct diu __iomem *hw = dev_id;
-	unsigned int status = in_be32(&hw->int_status);
+	uint32_t status = in_be32(&hw->int_status);
 
 	if (status) {
 		/* This is the workaround for underrun */
@@ -1403,40 +1422,6 @@ static irqreturn_t fsl_diu_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
-}
-
-static int request_irq_local(struct fsl_diu_data *data)
-{
-	struct diu __iomem *hw = data->diu_reg;
-	u32 ints;
-	int ret;
-
-	/* Read to clear the status */
-	in_be32(&hw->int_status);
-
-	ret = request_irq(data->irq, fsl_diu_isr, 0, "fsl-diu-fb", hw);
-	if (!ret) {
-		ints = INT_PARERR | INT_LS_BF_VS;
-#if !defined(CONFIG_NOT_COHERENT_CACHE)
-		ints |=	INT_VSYNC;
-#endif
-
-		/* Read to clear the status */
-		in_be32(&hw->int_status);
-		out_be32(&hw->int_mask, ints);
-	}
-
-	return ret;
-}
-
-static void free_irq_local(struct fsl_diu_data *data)
-{
-	struct diu __iomem *hw = data->diu_reg;
-
-	/* Disable all LCDC interrupt */
-	out_be32(&hw->int_mask, 0x1f);
-
-	free_irq(data->irq, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -1621,7 +1606,16 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (request_irq_local(data)) {
+	/*
+	 * Older versions of U-Boot leave interrupts enabled, so disable
+	 * all of them and clear the status register.
+	 */
+	out_be32(&data->diu_reg->int_mask, 0xffffffff);
+	in_be32(&data->diu_reg->int_status);
+
+	ret = request_irq(data->irq, fsl_diu_isr, 0, "fsl-diu-fb",
+			  &data->diu_reg);
+	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq\n");
 		goto error;
 	}
@@ -1656,7 +1650,8 @@ static int fsl_diu_remove(struct platform_device *pdev)
 
 	data = dev_get_drvdata(&pdev->dev);
 	disable_lcdc(&data->fsl_diu_info[0]);
-	free_irq_local(data);
+
+	free_irq(data->irq, &data->diu_reg);
 
 	for (i = 0; i < NUM_AOIS; i++)
 		uninstall_fb(&data->fsl_diu_info[i]);
