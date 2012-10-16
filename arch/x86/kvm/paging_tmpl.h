@@ -305,31 +305,43 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 					addr, access);
 }
 
+static bool
+FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+		     u64 *spte, pt_element_t gpte, bool no_dirty_log)
+{
+	unsigned pte_access;
+	gfn_t gfn;
+	pfn_t pfn;
+
+	if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
+		return false;
+
+	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
+
+	gfn = gpte_to_gfn(gpte);
+	pte_access = sp->role.access & gpte_access(vcpu, gpte);
+	protect_clean_gpte(&pte_access, gpte);
+	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
+			no_dirty_log && (pte_access & ACC_WRITE_MASK));
+	if (is_invalid_pfn(pfn))
+		return false;
+
+	/*
+	 * we call mmu_set_spte() with host_writable = true because
+	 * pte_prefetch_gfn_to_pfn always gets a writable pfn.
+	 */
+	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
+		     NULL, PT_PAGE_TABLE_LEVEL, gfn, pfn, true, true);
+
+	return true;
+}
+
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			      u64 *spte, const void *pte)
 {
-	pt_element_t gpte;
-	unsigned pte_access;
-	pfn_t pfn;
+	pt_element_t gpte = *(const pt_element_t *)pte;
 
-	gpte = *(const pt_element_t *)pte;
-	if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
-		return;
-
-	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
-	pte_access = sp->role.access & gpte_access(vcpu, gpte);
-	protect_clean_gpte(&pte_access, gpte);
-	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
-	if (is_invalid_pfn(pfn))
-		return;
-
-	/*
-	 * we call mmu_set_spte() with host_writable = true because that
-	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
-	 */
-	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
-		     NULL, PT_PAGE_TABLE_LEVEL,
-		     gpte_to_gfn(gpte), pfn, true, true);
+	FNAME(prefetch_gpte)(vcpu, sp, spte, gpte, false);
 }
 
 static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
@@ -375,33 +387,14 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 	spte = sp->spt + i;
 
 	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
-		pt_element_t gpte;
-		unsigned pte_access;
-		gfn_t gfn;
-		pfn_t pfn;
-
 		if (spte == sptep)
 			continue;
 
 		if (is_shadow_present_pte(*spte))
 			continue;
 
-		gpte = gptep[i];
-
-		if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
-			continue;
-
-		pte_access = sp->role.access & gpte_access(vcpu, gpte);
-		protect_clean_gpte(&pte_access, gpte);
-		gfn = gpte_to_gfn(gpte);
-		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
-				      pte_access & ACC_WRITE_MASK);
-		if (is_invalid_pfn(pfn))
+		if (!FNAME(prefetch_gpte)(vcpu, sp, spte, gptep[i], true))
 			break;
-
-		mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
-			     NULL, PT_PAGE_TABLE_LEVEL, gfn,
-			     pfn, true, true);
 	}
 }
 
