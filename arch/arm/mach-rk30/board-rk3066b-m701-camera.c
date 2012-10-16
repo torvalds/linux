@@ -92,7 +92,7 @@
 
 #define CONFIG_SENSOR_11 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 1 */
 #define CONFIG_SENSOR_IIC_ADDR_11 	    0x00
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_11    3
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_11    4
 #define CONFIG_SENSOR_ORIENTATION_11       270
 #define CONFIG_SENSOR_POWER_PIN_11         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_11         INVALID_GPIO
@@ -154,8 +154,8 @@
 static void rk_cif_power(int on)
 {
     struct regulator *ldo_18,*ldo_28;
-	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
-	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+	ldo_28 = regulator_get(NULL, "vmmc");	// vcc28_cif
+	ldo_18 = regulator_get(NULL, "vdig1");	// vcc18_cif
 	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
         printk("get cif ldo failed!\n");
 		return;

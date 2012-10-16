@@ -1191,7 +1191,7 @@ static struct reginfo sensor_sxga[] =
 };
 static struct reginfo sensor_xga[] =
 {
-	{0x01, 0xf8},
+	//{0x01, 0xf8},
 	{END_REG, END_REG},
 };
 /* 800X600 SVGA,30fps*/
