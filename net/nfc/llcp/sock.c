@@ -608,6 +608,25 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	lock_sock(sk);
 
+	if (sk->sk_type == SOCK_DGRAM) {
+		struct sockaddr_nfc_llcp *addr =
+			(struct sockaddr_nfc_llcp *)msg->msg_name;
+
+		if (msg->msg_namelen < sizeof(*addr)) {
+			release_sock(sk);
+
+			pr_err("Invalid socket address length %d\n",
+			       msg->msg_namelen);
+
+			return -EINVAL;
+		}
+
+		release_sock(sk);
+
+		return nfc_llcp_send_ui_frame(llcp_sock, addr->dsap, addr->ssap,
+					      msg, len);
+	}
+
 	if (sk->sk_state != LLCP_CONNECTED) {
 		release_sock(sk);
 		return -ENOTCONN;
