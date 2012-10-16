@@ -1262,7 +1262,9 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	int ret = 0;
 	u64 amt;
 	u64 trimmed = 0;
+	u64 start, end, minlen;
 	unsigned int x;
+	unsigned bs_shift = sdp->sd_sb.sb_bsize_shift;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1277,8 +1279,18 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	if (ret)
 		return ret;
 
-	rgd = gfs2_blk2rgrpd(sdp, r.start, 0);
-	rgd_end = gfs2_blk2rgrpd(sdp, r.start + r.len, 0);
+	start = r.start >> bs_shift;
+	end = start + (r.len >> bs_shift);
+	minlen = max_t(u64, r.minlen,
+		       q->limits.discard_granularity) >> bs_shift;
+
+	rgd = gfs2_blk2rgrpd(sdp, start, 0);
+	rgd_end = gfs2_blk2rgrpd(sdp, end - 1, 0);
+
+	if (end <= start ||
+	    minlen > sdp->sd_max_rg_data ||
+	    start > rgd_end->rd_data0 + rgd_end->rd_data)
+		return -EINVAL;
 
 	while (1) {
 
@@ -1290,7 +1302,9 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 			/* Trim each bitmap in the rgrp */
 			for (x = 0; x < rgd->rd_length; x++) {
 				struct gfs2_bitmap *bi = rgd->rd_bits + x;
-				ret = gfs2_rgrp_send_discards(sdp, rgd->rd_data0, NULL, bi, r.minlen, &amt);
+				ret = gfs2_rgrp_send_discards(sdp,
+						rgd->rd_data0, NULL, bi, minlen,
+						&amt);
 				if (ret) {
 					gfs2_glock_dq_uninit(&gh);
 					goto out;
