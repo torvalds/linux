@@ -50,8 +50,8 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	if (!host->regs)
 		return -ENOMEM;
 
-	if (host->drv_data->init) {
-		ret = host->drv_data->init(host);
+	if (drv_data && drv_data->init) {
+		ret = drv_data->init(host);
 		if (ret)
 			return ret;
 	}

@@ -232,6 +232,7 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct mmc_data	*data;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 cmdr;
 	cmd->error = -EINPROGRESS;
 
@@ -261,8 +262,8 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 			cmdr |= SDMMC_CMD_DAT_WR;
 	}
 
-	if (slot->host->drv_data->prepare_command)
-		slot->host->drv_data->prepare_command(slot->host, &cmdr);
+	if (drv_data && drv_data->prepare_command)
+		drv_data->prepare_command(slot->host, &cmdr);
 
 	return cmdr;
 }
@@ -772,6 +773,7 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 regs;
 
 	/* set default 1 bit mode */
@@ -807,8 +809,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		slot->clock = ios->clock;
 	}
 
-	if (slot->host->drv_data->set_ios)
-		slot->host->drv_data->set_ios(slot->host, ios);
+	if (drv_data && drv_data->set_ios)
+		drv_data->set_ios(slot->host, ios);
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
@@ -1815,6 +1817,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
 	struct dw_mci_slot *slot;
+	struct dw_mci_drv_data *drv_data = host->drv_data;
 	int ctrl_id, ret;
 	u8 bus_width;
 
@@ -1854,8 +1857,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	} else {
 		ctrl_id = to_platform_device(host->dev)->id;
 	}
-	if (host->drv_data && host->drv_data->caps)
-		mmc->caps |= host->drv_data->caps[ctrl_id];
+	if (drv_data && drv_data->caps)
+		mmc->caps |= drv_data->caps[ctrl_id];
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
@@ -1867,10 +1870,10 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	else
 		bus_width = 1;
 
-	if (host->drv_data->setup_bus) {
+	if (drv_data && drv_data->setup_bus) {
 		struct device_node *slot_np;
 		slot_np = dw_mci_of_find_slot_node(host->dev, slot->id);
-		ret = host->drv_data->setup_bus(host, slot_np, bus_width);
+		ret = drv_data->setup_bus(host, slot_np, bus_width);
 		if (ret)
 			goto err_setup_bus;
 	}
@@ -2035,6 +2038,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	struct dw_mci_board *pdata;
 	struct device *dev = host->dev;
 	struct device_node *np = dev->of_node;
+	struct dw_mci_drv_data *drv_data = host->drv_data;
 	int idx, ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2062,8 +2066,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	of_property_read_u32(np, "card-detect-delay", &pdata->detect_delay_ms);
 
-	if (host->drv_data->parse_dt) {
-		ret = host->drv_data->parse_dt(host);
+	if (drv_data && drv_data->parse_dt) {
+		ret = drv_data->parse_dt(host);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -2080,6 +2084,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 int dw_mci_probe(struct dw_mci *host)
 {
+	struct dw_mci_drv_data *drv_data = host->drv_data;
 	int width, i, ret = 0;
 	u32 fifo_size;
 	int init_slots = 0;
@@ -2127,8 +2132,8 @@ int dw_mci_probe(struct dw_mci *host)
 	else
 		host->bus_hz = clk_get_rate(host->ciu_clk);
 
-	if (host->drv_data->setup_clock) {
-		ret = host->drv_data->setup_clock(host);
+	if (drv_data && drv_data->setup_clock) {
+		ret = drv_data->setup_clock(host);
 		if (ret) {
 			dev_err(host->dev,
 				"implementation specific clock setup failed\n");
