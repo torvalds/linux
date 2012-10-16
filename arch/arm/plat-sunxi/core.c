@@ -76,8 +76,8 @@ int sunxi_pr_chip_id()
 {
 	u32 chip_id = sunxi_chip_id();
 	pr_info("BROM chip-id: %u (%s)\n", chip_id,
-		(chip_id == 1623) ? "A10" :
-		((chip_id == 1625) ? "A13" : "Unknown"));
+		(chip_id == SUNXI_CHIP_ID_A10) ? "A10" :
+		((chip_id == SUNXI_CHIP_ID_A13) ? "A13" : "Unknown"));
 	return (chip_id != 0);
 }
 
