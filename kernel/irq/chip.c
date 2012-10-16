@@ -272,6 +272,7 @@ void handle_nested_irq(unsigned int irq)
 
 	raw_spin_lock_irq(&desc->lock);
 
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	action = desc->action;
