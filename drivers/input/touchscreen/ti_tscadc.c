@@ -52,43 +52,79 @@
 
 /*	Register Bitfields	*/
 #define IRQWKUP_ENB		BIT(0)
-#define STPENB_STEPENB		0x7FFF
+
+/* Step Enable */
+#define STEPENB_MASK		(0x1FFFF << 0)
+#define STEPENB(val)		(val << 0)
+#define STPENB_STEPENB		STEPENB(0x7FFF)
+
+/* IRQ enable */
 #define IRQENB_FIFO1THRES	BIT(5)
 #define IRQENB_PENUP		BIT(9)
-#define STEPCONFIG_MODE_HWSYNC	0x2
-#define STEPCONFIG_SAMPLES_AVG	(1 << 4)
-#define STEPCONFIG_XPP		(1 << 5)
-#define STEPCONFIG_XNN		(1 << 6)
-#define STEPCONFIG_YPP		(1 << 7)
-#define STEPCONFIG_YNN		(1 << 8)
-#define STEPCONFIG_XNP		(1 << 9)
-#define STEPCONFIG_YPN		(1 << 10)
-#define STEPCONFIG_INM		(1 << 18)
-#define STEPCONFIG_INP		(1 << 20)
-#define STEPCONFIG_INP_5	(1 << 21)
-#define STEPCONFIG_FIFO1	(1 << 26)
-#define STEPCONFIG_OPENDLY	0xff
-#define STEPCONFIG_Z1		(3 << 19)
-#define STEPIDLE_INP		(1 << 22)
-#define STEPCHARGE_RFP		(1 << 12)
-#define STEPCHARGE_INM		(1 << 15)
-#define STEPCHARGE_INP		(1 << 19)
-#define STEPCHARGE_RFM		(1 << 23)
-#define STEPCHARGE_DELAY	0x1
-#define CNTRLREG_TSCSSENB	(1 << 0)
-#define CNTRLREG_STEPID		(1 << 1)
-#define CNTRLREG_STEPCONFIGWRT	(1 << 2)
-#define CNTRLREG_4WIRE		(1 << 5)
-#define CNTRLREG_5WIRE		(1 << 6)
-#define CNTRLREG_8WIRE		(3 << 5)
-#define CNTRLREG_TSCENB		(1 << 7)
-#define ADCFSM_STEPID		0x10
 
+/* Step Configuration */
+#define STEPCONFIG_MODE_MASK	(3 << 0)
+#define STEPCONFIG_MODE(val)	(val << 0)
+#define STEPCONFIG_MODE_HWSYNC	STEPCONFIG_MODE(2)
+#define STEPCONFIG_AVG_MASK	(7 << 2)
+#define STEPCONFIG_AVG(val)	(val << 2)
+#define STEPCONFIG_AVG_16	STEPCONFIG_AVG(4)
+#define STEPCONFIG_XPP		BIT(5)
+#define STEPCONFIG_XNN		BIT(6)
+#define STEPCONFIG_YPP		BIT(7)
+#define STEPCONFIG_YNN		BIT(8)
+#define STEPCONFIG_XNP		BIT(9)
+#define STEPCONFIG_YPN		BIT(10)
+#define STEPCONFIG_INM_MASK	(0xF << 15)
+#define STEPCONFIG_INM(val)	(val << 15)
+#define STEPCONFIG_INM_ADCREFM	STEPCONFIG_INM(8)
+#define STEPCONFIG_INP_MASK	(0xF << 19)
+#define STEPCONFIG_INP(val)	(val << 19)
+#define STEPCONFIG_INP_AN2	STEPCONFIG_INP(2)
+#define STEPCONFIG_INP_AN3	STEPCONFIG_INP(3)
+#define STEPCONFIG_INP_AN4	STEPCONFIG_INP(4)
+#define STEPCONFIG_INP_ADCREFM	STEPCONFIG_INP(8)
+#define STEPCONFIG_FIFO1	BIT(26)
+
+/* Delay register */
+#define STEPDELAY_OPEN_MASK	(0x3FFFF << 0)
+#define STEPDELAY_OPEN(val)	(val << 0)
+#define STEPCONFIG_OPENDLY	STEPDELAY_OPEN(0x098)
+
+/* Charge Config */
+#define STEPCHARGE_RFP_MASK	(7 << 12)
+#define STEPCHARGE_RFP(val)	(val << 12)
+#define STEPCHARGE_RFP_XPUL	STEPCHARGE_RFP(1)
+#define STEPCHARGE_INM_MASK	(0xF << 15)
+#define STEPCHARGE_INM(val)	(val << 15)
+#define STEPCHARGE_INM_AN1	STEPCHARGE_INM(1)
+#define STEPCHARGE_INP_MASK	(0xF << 19)
+#define STEPCHARGE_INP(val)	(val << 19)
+#define STEPCHARGE_INP_AN1	STEPCHARGE_INP(1)
+#define STEPCHARGE_RFM_MASK	(3 << 23)
+#define STEPCHARGE_RFM(val)	(val << 23)
+#define STEPCHARGE_RFM_XNUR	STEPCHARGE_RFM(1)
+
+/* Charge delay */
+#define CHARGEDLY_OPEN_MASK	(0x3FFFF << 0)
+#define CHARGEDLY_OPEN(val)	(val << 0)
+#define CHARGEDLY_OPENDLY	CHARGEDLY_OPEN(1)
+
+/* Control register */
+#define CNTRLREG_TSCSSENB	BIT(0)
+#define CNTRLREG_STEPID		BIT(1)
+#define CNTRLREG_STEPCONFIGWRT	BIT(2)
+#define CNTRLREG_AFE_CTRL_MASK	(3 << 5)
+#define CNTRLREG_AFE_CTRL(val)	(val << 5)
+#define CNTRLREG_4WIRE		CNTRLREG_AFE_CTRL(1)
+#define CNTRLREG_5WIRE		CNTRLREG_AFE_CTRL(2)
+#define CNTRLREG_8WIRE		CNTRLREG_AFE_CTRL(3)
+#define CNTRLREG_TSCENB		BIT(7)
+
+#define ADCFSM_STEPID		0x10
 #define SEQ_SETTLE		275
 #define ADC_CLK			3000000
 #define MAX_12BIT		((1 << 12) - 1)
-#define TSCADC_DELTA_X		15
-#define TSCADC_DELTA_Y		15
 
 struct tscadc {
 	struct input_dev	*input;
@@ -119,18 +155,18 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 	/* Configure the Step registers */
 
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_SAMPLES_AVG | STEPCONFIG_XPP;
+			STEPCONFIG_AVG_16 | STEPCONFIG_XPP;
 	switch (ts_dev->wires) {
 	case 4:
-		config |= STEPCONFIG_INP | STEPCONFIG_XNN;
+		config |= STEPCONFIG_INP_AN2 | STEPCONFIG_XNN;
 		break;
 	case 5:
 		config |= STEPCONFIG_YNN |
-				STEPCONFIG_INP_5 | STEPCONFIG_XNN |
+				STEPCONFIG_INP_AN4 | STEPCONFIG_XNN |
 				STEPCONFIG_YPP;
 		break;
 	case 8:
-		config |= STEPCONFIG_INP | STEPCONFIG_XNN;
+		config |= STEPCONFIG_INP_AN2 | STEPCONFIG_XNN;
 		break;
 	}
 
@@ -141,14 +177,14 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 
 	config = 0;
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_SAMPLES_AVG | STEPCONFIG_YNN |
-			STEPCONFIG_INM | STEPCONFIG_FIFO1;
+			STEPCONFIG_AVG_16 | STEPCONFIG_YNN |
+			STEPCONFIG_INM_ADCREFM | STEPCONFIG_FIFO1;
 	switch (ts_dev->wires) {
 	case 4:
 		config |= STEPCONFIG_YPP;
 		break;
 	case 5:
-		config |= STEPCONFIG_XPP | STEPCONFIG_INP_5 |
+		config |= STEPCONFIG_XPP | STEPCONFIG_INP_AN4 |
 				STEPCONFIG_XNP | STEPCONFIG_YPN;
 		break;
 	case 8:
@@ -164,21 +200,21 @@ static void tscadc_step_config(struct tscadc *ts_dev)
 	config = 0;
 	/* Charge step configuration */
 	config = STEPCONFIG_XPP | STEPCONFIG_YNN |
-			STEPCHARGE_RFP | STEPCHARGE_RFM |
-			STEPCHARGE_INM | STEPCHARGE_INP;
+			STEPCHARGE_RFP_XPUL | STEPCHARGE_RFM_XNUR |
+			STEPCHARGE_INM_AN1 | STEPCHARGE_INP_AN1;
 
 	tscadc_writel(ts_dev, REG_CHARGECONFIG, config);
-	tscadc_writel(ts_dev, REG_CHARGEDELAY, STEPCHARGE_DELAY);
+	tscadc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
 
 	config = 0;
 	/* Configure to calculate pressure */
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_SAMPLES_AVG | STEPCONFIG_YPP |
-			STEPCONFIG_XNN | STEPCONFIG_INM;
+			STEPCONFIG_AVG_16 | STEPCONFIG_YPP |
+			STEPCONFIG_XNN | STEPCONFIG_INM_ADCREFM;
 	tscadc_writel(ts_dev, REG_STEPCONFIG13, config);
 	tscadc_writel(ts_dev, REG_STEPDELAY13, STEPCONFIG_OPENDLY);
 
-	config |= STEPCONFIG_Z1 | STEPCONFIG_FIFO1;
+	config |= STEPCONFIG_INP_AN3 | STEPCONFIG_FIFO1;
 	tscadc_writel(ts_dev, REG_STEPCONFIG14, config);
 	tscadc_writel(ts_dev, REG_STEPDELAY14, STEPCONFIG_OPENDLY);
 
@@ -190,8 +226,8 @@ static void tscadc_idle_config(struct tscadc *ts_config)
 	unsigned int idleconfig;
 
 	idleconfig = STEPCONFIG_YNN |
-			STEPCONFIG_INM |
-			STEPCONFIG_YPN | STEPIDLE_INP;
+			STEPCONFIG_INM_ADCREFM |
+			STEPCONFIG_YPN | STEPCONFIG_INP_ADCREFM;
 	tscadc_writel(ts_config, REG_IDLECONFIG, idleconfig);
 }
 
