@@ -67,7 +67,17 @@ enum max77686_ramp_rate {
 
 struct max77686_data {
 	struct regulator_dev *rdev[MAX77686_REGULATORS];
+	unsigned int opmode[MAX77686_REGULATORS];
 };
+
+int max77686_enable(struct regulator_dev *rdev)
+{
+	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  max77686->opmode[rdev->desc->id]);
+}
 
 static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
@@ -98,7 +108,7 @@ static struct regulator_ops max77686_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
+	.enable			= max77686_enable,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -109,7 +119,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
+	.enable			= max77686_enable,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -314,12 +324,14 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap;
+	config.driver_data = max77686;
 	platform_set_drvdata(pdev, max77686);
 
 	for (i = 0; i < MAX77686_REGULATORS; i++) {
 		config.init_data = pdata->regulators[i].initdata;
 		config.of_node = pdata->regulators[i].of_node;
 
+		max77686->opmode[i] = regulators[i].enable_mask;
 		max77686->rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(max77686->rdev[i])) {
 			ret = PTR_ERR(max77686->rdev[i]);
