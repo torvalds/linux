@@ -103,5 +103,8 @@ struct lcd_sync_arg {
 #define FBIPUT_HSYNC		_IOW('F', 9, int)
 #define FBIPUT_VSYNC		_IOW('F', 10, int)
 
+/* Proprietary FB_SYNC_ flags */
+#define FB_SYNC_CLK_INVERT 0x40000000
+
 #endif  /* ifndef DA8XX_FB_H */
 
