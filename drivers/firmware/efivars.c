@@ -653,6 +653,36 @@ static int efivarfs_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int efi_status_to_err(efi_status_t status)
+{
+	int err;
+
+	switch (status) {
+	case EFI_INVALID_PARAMETER:
+		err = -EINVAL;
+		break;
+	case EFI_OUT_OF_RESOURCES:
+		err = -ENOSPC;
+		break;
+	case EFI_DEVICE_ERROR:
+		err = -EIO;
+		break;
+	case EFI_WRITE_PROTECTED:
+		err = -EROFS;
+		break;
+	case EFI_SECURITY_VIOLATION:
+		err = -EACCES;
+		break;
+	case EFI_NOT_FOUND:
+		err = -ENOENT;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
 static ssize_t efivarfs_file_write(struct file *file,
 		const char __user *userbuf, size_t count, loff_t *ppos)
 {
@@ -711,29 +741,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 		spin_unlock(&efivars->lock);
 		kfree(data);
 
-		switch (status) {
-		case EFI_INVALID_PARAMETER:
-			count = -EINVAL;
-			break;
-		case EFI_OUT_OF_RESOURCES:
-			count = -ENOSPC;
-			break;
-		case EFI_DEVICE_ERROR:
-			count = -EIO;
-			break;
-		case EFI_WRITE_PROTECTED:
-			count = -EROFS;
-			break;
-		case EFI_SECURITY_VIOLATION:
-			count = -EACCES;
-			break;
-		case EFI_NOT_FOUND:
-			count = -ENOENT;
-			break;
-		default:
-			count = -EINVAL;
-		}
-		return count;
+		return efi_status_to_err(status);
 	}
 
 	/*
@@ -791,12 +799,12 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	spin_unlock(&efivars->lock);
 
 	if (status != EFI_BUFFER_TOO_SMALL)
-		return 0;
+		return efi_status_to_err(status);
 
 	data = kmalloc(datasize + 4, GFP_KERNEL);
 
 	if (!data)
-		return 0;
+		return -ENOMEM;
 
 	spin_lock(&efivars->lock);
 	status = efivars->ops->get_variable(var->var.VariableName,
@@ -805,8 +813,10 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 					    (data + 4));
 	spin_unlock(&efivars->lock);
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		size = efi_status_to_err(status);
 		goto out_free;
+	}
 
 	memcpy(data, &attributes, 4);
 	size = simple_read_from_buffer(userbuf, count, ppos,
