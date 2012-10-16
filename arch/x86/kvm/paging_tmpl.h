@@ -340,7 +340,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pte_access = sp->role.access & gpte_access(vcpu, gpte);
 	protect_clean_gpte(&pte_access, gpte);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
-	if (mmu_invalid_pfn(pfn))
+	if (is_invalid_pfn(pfn))
 		return;
 
 	/*
@@ -416,7 +416,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 		gfn = gpte_to_gfn(gpte);
 		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 				      pte_access & ACC_WRITE_MASK);
-		if (mmu_invalid_pfn(pfn))
+		if (is_invalid_pfn(pfn))
 			break;
 
 		mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,

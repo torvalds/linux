@@ -2700,11 +2700,6 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool mmu_invalid_pfn(pfn_t pfn)
-{
-	return unlikely(is_invalid_pfn(pfn));
-}
-
 static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 				pfn_t pfn, unsigned access, int *ret_val)
 {
