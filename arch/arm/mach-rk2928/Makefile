@@ -17,8 +17,11 @@ obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
 board-y := board-rk2928.o
 obj-$(CONFIG_MACH_RK2928) += board.o
+
 obj-$(CONFIG_MACH_RK2928_SDK) += board-rk2928-sdk.o
 obj-$(CONFIG_MACH_RK2926_SDK) += board-rk2926-sdk.o
-obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
 obj-$(CONFIG_MACH_RK2928_PHONEPAD) += board-rk2928-phonepad.o
+
+obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
+obj-$(CONFIG_MACH_RK2928_TB) += board-rk2928-tb.o
 obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o
