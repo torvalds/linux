@@ -158,7 +158,7 @@ enum label_id {
 	label_smp_pgtable_change,
 	label_r3000_write_probe_fail,
 	label_large_segbits_fault,
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	label_tlb_huge_update,
 #endif
 };
@@ -177,7 +177,7 @@ UASM_L_LA(_nopage_tlbm)
 UASM_L_LA(_smp_pgtable_change)
 UASM_L_LA(_r3000_write_probe_fail)
 UASM_L_LA(_large_segbits_fault)
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 UASM_L_LA(_tlb_huge_update)
 #endif
 
@@ -666,7 +666,7 @@ static __cpuinit __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 	}
 }
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 
 static __cpuinit void build_restore_pagemask(u32 **p,
 					     struct uasm_reloc **r,
@@ -792,7 +792,7 @@ static __cpuinit void build_huge_handler_tail(u32 **p,
 	build_huge_update_entries(p, pte, ptr);
 	build_huge_tlb_write_entry(p, l, r, pte, tlb_indexed, 0);
 }
-#endif /* CONFIG_HUGETLB_PAGE */
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #ifdef CONFIG_64BIT
 /*
@@ -1237,7 +1237,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	/* Adjust the context during the load latency. */
 	build_adjust_context(p, tmp);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_il_bbit1(p, r, scratch, ilog2(_PAGE_HUGE), label_tlb_huge_update);
 	/*
 	 * The in the LWX case we don't want to do the load in the
@@ -1246,7 +1246,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	 */
 	if (use_lwx_insns())
 		uasm_i_nop(p);
-#endif /* CONFIG_HUGETLB_PAGE */
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 
 	/* build_update_entries */
@@ -1349,7 +1349,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		build_get_pgde32(&p, K0, K1); /* get pgd in K1 */
 #endif
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 		build_is_huge_pte(&p, &r, K0, K1, label_tlb_huge_update);
 #endif
 
@@ -1359,7 +1359,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		uasm_l_leave(&l, p);
 		uasm_i_eret(&p); /* return from trap */
 	}
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_l_tlb_huge_update(&l, p);
 	build_huge_update_entries(&p, htlb_info.huge_pte, K1);
 	build_huge_tlb_write_entry(&p, &l, &r, K0, tlb_random,
@@ -1404,7 +1404,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		uasm_copy_handler(relocs, labels, tlb_handler, p, f);
 		final_len = p - tlb_handler;
 	} else {
-#if defined(CONFIG_HUGETLB_PAGE)
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 		const enum label_id ls = label_tlb_huge_update;
 #else
 		const enum label_id ls = label_vmalloc;
@@ -1880,7 +1880,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 	build_get_pgde32(p, wr.r1, wr.r2); /* get pgd in ptr */
 #endif
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * For huge tlb entries, pmd doesn't contain an address but
 	 * instead contains the tlb pte. Check the PAGE_HUGE bit and
@@ -1996,7 +1996,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	build_make_valid(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when build_r4000_tlbchange_handler_head
 	 * spots a huge page.
@@ -2089,7 +2089,7 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	build_make_write(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when
 	 * build_r4000_tlbchange_handler_head spots a huge page.
@@ -2137,7 +2137,7 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	build_make_write(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when
 	 * build_r4000_tlbchange_handler_head spots a huge page.

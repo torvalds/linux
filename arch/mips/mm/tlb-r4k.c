@@ -305,7 +305,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/* this could be a huge page  */
 	if (pmd_huge(*pmdp)) {
 		unsigned long lo;

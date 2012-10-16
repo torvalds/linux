@@ -240,7 +240,7 @@
 #define PM_HUGE_MASK	PM_64M
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define PM_HUGE_MASK	PM_256M
-#elif defined(CONFIG_HUGETLB_PAGE)
+#elif defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
 #error Bad page size configuration for hugetlbfs!
 #endif
 
