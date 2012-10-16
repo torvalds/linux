@@ -187,12 +187,46 @@ static const struct of_device_id exynos_dwc3_match[] = {
 MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
 #endif
 
+#ifdef CONFIG_PM
+static int dwc3_exynos_suspend(struct device *dev)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+
+	clk_disable(exynos->clk);
+
+	return 0;
+}
+
+static int dwc3_exynos_resume(struct device *dev)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+
+	clk_enable(exynos->clk);
+
+	/* runtime set active to reflect active state. */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dwc3_exynos_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_exynos_suspend, dwc3_exynos_resume)
+};
+
+#define DEV_PM_OPS	(&dwc3_exynos_dev_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
+
 static struct platform_driver dwc3_exynos_driver = {
 	.probe		= dwc3_exynos_probe,
 	.remove		= dwc3_exynos_remove,
 	.driver		= {
 		.name	= "exynos-dwc3",
 		.of_match_table = of_match_ptr(exynos_dwc3_match),
+		.pm	= DEV_PM_OPS,
 	},
 };
 
