@@ -12,3 +12,4 @@ obj-y += config.o
 obj-y += sram.o
 CFLAGS_sram.o += -mthumb
 obj-$(CONFIG_DDR_TEST) += memtester.o
+obj-$(CONFIG_DDR_FREQ) += video_state.o
