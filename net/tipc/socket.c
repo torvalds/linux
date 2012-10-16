@@ -412,7 +412,7 @@ static int get_name(struct socket *sock, struct sockaddr *uaddr,
  * socket state		flags set
  * ------------		---------
  * unconnected		no read flags
- *			no write flags
+ *			POLLOUT if port is not congested
  *
  * connecting		POLLIN/POLLRDNORM if ACK/NACK in rx queue
  *			no write flags
@@ -442,6 +442,10 @@ static unsigned int poll(struct file *file, struct socket *sock,
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	switch ((int)sock->state) {
+	case SS_UNCONNECTED:
+		if (!tipc_sk_port(sk)->congested)
+			mask |= POLLOUT;
+		break;
 	case SS_READY:
 	case SS_CONNECTED:
 		if (!tipc_sk_port(sk)->congested)
