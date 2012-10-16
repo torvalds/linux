@@ -131,10 +131,6 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  */
 #define CHECK_IOVEC_ONLY -1
 
-#define SEL_IN		1
-#define SEL_OUT		2
-#define SEL_EX		4
-
 /*
  * The below are the various read and write types that we support. Some of
  * them include behavioral modifiers that send information down to the
