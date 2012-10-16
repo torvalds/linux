@@ -337,7 +337,6 @@ struct mfb_info {
 	int registered;
 	unsigned long pseudo_palette[16];
 	struct diu_ad *ad;
-	int cursor_reset;
 	unsigned char g_alpha;
 	unsigned int count;
 	int x_aoi_d;		/* aoi display x offset to physical screen */
@@ -982,7 +981,6 @@ static int fsl_diu_set_par(struct fb_info *info)
 	hw = data->diu_reg;
 
 	set_fix(info);
-	mfbi->cursor_reset = 1;
 
 	len = info->var.yres_virtual * info->fix.line_length;
 	/* Alloc & dealloc each time resolution/bpp change */
