@@ -18,8 +18,9 @@
 #include <asm/proc-fns.h>
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
+
+#include "common.h"
+#include "hardware.h"
 
 extern unsigned long phys_l2x0_saved_regs;
 

@@ -31,12 +31,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/board-mx31lite.h>
-
+#include "board-mx31lite.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /*
  * This file contains board-specific initialization routines for the

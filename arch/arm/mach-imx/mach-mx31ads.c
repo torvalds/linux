@@ -28,8 +28,6 @@
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 #include <linux/mfd/wm8350/audio.h>
@@ -37,7 +35,10 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /* Base address of PBC controller */
 #define PBC_BASE_ADDRESS	MX31_CS4_BASE_ADDR_VIRT

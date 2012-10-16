@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx27.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fec_data imx27_fec_data;
 #define imx27_add_fec(pdata)	\

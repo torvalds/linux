@@ -14,11 +14,10 @@
 #include <linux/of.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-
 #include "crmregs-imx3.h"
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;
@@ -226,9 +225,9 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[i2c1_gate], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c2_gate], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c3_gate], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c1_gate], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[ipu_gate], NULL, "ipu-core");
 	clk_register_clkdev(clk[ipu_gate], NULL, "mx3_sdc_fb");
 	clk_register_clkdev(clk[kpp_gate], NULL, "imx-keypad");
@@ -256,7 +255,7 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usbotg_gate], "ahb", "fsl-usb2-udc");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[nfc_div], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc_div], NULL, "imx25-nand.0");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
 
 	clk_prepare_enable(clk[spba_gate]);

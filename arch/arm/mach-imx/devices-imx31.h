@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx31.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fsl_usb2_udc_data imx31_fsl_usb2_udc_data;
 #define imx31_add_fsl_usb2_udc(pdata)	\

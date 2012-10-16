@@ -24,10 +24,10 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/mx25.h>
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
+#include "mx25.h"
 
 #define CRM_BASE	MX25_IO_ADDRESS(MX25_CRM_BASE_ADDR)
 
@@ -197,7 +197,7 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usbotg_ahb], "ahb", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[nfc_ipg_per], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc_ipg_per], NULL, "imx25-nand.0");
 	/* i.mx25 has the i.mx35 type cspi */
 	clk_register_clkdev(clk[cspi1_ipg], NULL, "imx35-cspi.0");
 	clk_register_clkdev(clk[cspi2_ipg], NULL, "imx35-cspi.1");
@@ -212,15 +212,15 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[per10], "per", "mxc_pwm.3");
 	clk_register_clkdev(clk[kpp_ipg], NULL, "imx-keypad");
 	clk_register_clkdev(clk[tsc_ipg], NULL, "mx25-adc");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[fec_ipg], "ipg", "imx25-fec.0");
 	clk_register_clkdev(clk[fec_ahb], "ahb", "imx25-fec.0");
 	clk_register_clkdev(clk[dryice_ipg], NULL, "imxdi_rtc.0");
-	clk_register_clkdev(clk[lcdc_ipg_per], "per", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg_per], "per", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx21-fb.0");
 	clk_register_clkdev(clk[wdt_ipg], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[ssi1_ipg], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg], NULL, "imx-ssi.1");
@@ -230,9 +230,9 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[esdhc2_ipg_per], "per", "sdhci-esdhc-imx25.1");
 	clk_register_clkdev(clk[esdhc2_ipg], "ipg", "sdhci-esdhc-imx25.1");
 	clk_register_clkdev(clk[esdhc2_ahb], "ahb", "sdhci-esdhc-imx25.1");
-	clk_register_clkdev(clk[csi_ipg_per], "per", "mx2-camera.0");
-	clk_register_clkdev(clk[csi_ipg], "ipg", "mx2-camera.0");
-	clk_register_clkdev(clk[csi_ahb], "ahb", "mx2-camera.0");
+	clk_register_clkdev(clk[csi_ipg_per], "per", "imx25-camera.0");
+	clk_register_clkdev(clk[csi_ipg], "ipg", "imx25-camera.0");
+	clk_register_clkdev(clk[csi_ahb], "ahb", "imx25-camera.0");
 	clk_register_clkdev(clk[dummy], "audmux", NULL);
 	clk_register_clkdev(clk[can1_ipg], NULL, "flexcan.0");
 	clk_register_clkdev(clk[can2_ipg], NULL, "flexcan.1");

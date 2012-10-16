@@ -18,10 +18,10 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/devices-common.h>
-#include <mach/iomux-v3.h>
+#include "common.h"
+#include "devices/devices-common.h"
+#include "hardware.h"
+#include "iomux-v3.h"
 
 /*
  * Define the MX50 memory map.
@@ -138,6 +138,8 @@ static const struct resource imx51_audmux_res[] __initconst = {
 
 void __init imx50_soc_init(void)
 {
+	mxc_device_init();
+
 	/* i.mx50 has the i.mx35 type gpio */
 	mxc_register_gpio("imx35-gpio", 0, MX50_GPIO1_BASE_ADDR, SZ_16K, MX50_INT_GPIO1_LOW, MX50_INT_GPIO1_HIGH);
 	mxc_register_gpio("imx35-gpio", 1, MX50_GPIO2_BASE_ADDR, SZ_16K, MX50_INT_GPIO2_LOW, MX50_INT_GPIO2_HIGH);
@@ -153,6 +155,8 @@ void __init imx50_soc_init(void)
 
 void __init imx51_soc_init(void)
 {
+	mxc_device_init();
+
 	/* i.mx51 has the i.mx35 type gpio */
 	mxc_register_gpio("imx35-gpio", 0, MX51_GPIO1_BASE_ADDR, SZ_16K, MX51_INT_GPIO1_LOW, MX51_INT_GPIO1_HIGH);
 	mxc_register_gpio("imx35-gpio", 1, MX51_GPIO2_BASE_ADDR, SZ_16K, MX51_INT_GPIO2_LOW, MX51_INT_GPIO2_HIGH);
