@@ -1817,6 +1817,8 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	case COMP_EBADSLT:
 		dev_warn(&udev->dev, "WARN: slot not enabled for"
 				"evaluate context command.\n");
+		ret = -EINVAL;
+		break;
 	case COMP_CTX_STATE:
 		dev_warn(&udev->dev, "WARN: invalid context state for "
 				"evaluate context command.\n");
