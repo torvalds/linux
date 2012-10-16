@@ -511,11 +511,17 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 
 	case CPU_R4600:
 	case CPU_R4700:
-	case CPU_R5000:
-	case CPU_R5000A:
 		uasm_i_nop(p);
 		tlbw(p);
 		uasm_i_nop(p);
+		break;
+
+	case CPU_R5000:
+	case CPU_R5000A:
+	case CPU_NEVADA:
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		tlbw(p);
 		break;
 
 	case CPU_R4300:
@@ -549,19 +555,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 			uasm_i_nop(p);
 	case CPU_ALCHEMY:
 		tlbw(p);
-		break;
-
-	case CPU_NEVADA:
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
-		/*
-		 * This branch uses up a mtc0 hazard nop slot and saves
-		 * a nop after the tlbw instruction.
-		 */
-		uasm_bgezl_hazard(p, r, hazard_instance);
-		tlbw(p);
-		uasm_bgezl_label(l, p, hazard_instance);
-		hazard_instance++;
 		break;
 
 	case CPU_RM7000:
