@@ -120,15 +120,19 @@
 
 #define ADC_CLK			3000000
 #define	MAX_CLK_DIV		7
+#define TOTAL_STEPS		16
+#define TOTAL_CHANNELS		8
 
-#define TSCADC_CELLS		1
+#define TSCADC_CELLS		2
 
 enum tscadc_cells {
 	TSC_CELL,
+	ADC_CELL,
 };
 
 struct mfd_tscadc_board {
 	struct tsc_data *tsc_init;
+	struct adc_data *adc_init;
 };
 
 struct ti_tscadc_dev {
@@ -140,6 +144,9 @@ struct ti_tscadc_dev {
 
 	/* tsc device */
 	struct titsc *tsc;
+
+	/* adc device */
+	struct adc_device *adc;
 };
 
 #endif

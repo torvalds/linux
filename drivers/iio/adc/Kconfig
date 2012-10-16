@@ -60,4 +60,11 @@ config LP8788_ADC
 	help
 	  Say yes here to build support for TI LP8788 ADC.
 
+config TI_AM335X_ADC
+	tristate "TI's ADC driver"
+	depends on MFD_TI_AM335X_TSCADC
+	help
+	  Say yes here to build support for Texas Instruments ADC
+	  driver which is also a MFD client.
+
 endmenu
