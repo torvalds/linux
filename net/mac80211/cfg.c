@@ -1855,7 +1855,16 @@ static int ieee80211_scan(struct wiphy *wiphy,
 		 * beaconing hasn't been configured yet
 		 */
 	case NL80211_IFTYPE_AP:
-		if (sdata->u.ap.beacon)
+		/*
+		 * If the scan has been forced (and the driver supports
+		 * forcing), don't care about being beaconing already.
+		 * This will create problems to the attached stations (e.g. all
+		 * the  frames sent while scanning on other channel will be
+		 * lost)
+		 */
+		if (sdata->u.ap.beacon &&
+		    (!(wiphy->features & NL80211_FEATURE_AP_SCAN) ||
+		     !(req->flags & NL80211_SCAN_FLAG_AP)))
 			return -EOPNOTSUPP;
 		break;
 	default:

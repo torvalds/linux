@@ -3050,6 +3050,7 @@ enum nl80211_ap_sme_features {
  *	mode
  * @NL80211_FEATURE_LOW_PRIORITY_SCAN: This driver supports low priority scan
  * @NL80211_FEATURE_SCAN_FLUSH: Scan flush is supported
+ * @NL80211_FEATURE_AP_SCAN: Support scanning using an AP vif
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3060,6 +3061,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_SAE				= 1 << 5,
 	NL80211_FEATURE_LOW_PRIORITY_SCAN		= 1 << 6,
 	NL80211_FEATURE_SCAN_FLUSH			= 1 << 7,
+	NL80211_FEATURE_AP_SCAN				= 1 << 8,
 };
 
 /**
@@ -3103,10 +3105,16 @@ enum nl80211_connect_failed_reason {
  *
  * @NL80211_SCAN_FLAG_LOW_PRIORITY: scan request has low priority
  * @NL80211_SCAN_FLAG_FLUSH: flush cache before scanning
+ * @NL80211_SCAN_FLAG_AP: force a scan even if the interface is configured
+ *	as AP and the beaconing has already been configured. This attribute is
+ *	dangerous because will destroy stations performance as a lot of frames
+ *	will be lost while scanning off-channel, therefore it must be used only
+ *	when really needed
  */
 enum nl80211_scan_flags {
 	NL80211_SCAN_FLAG_LOW_PRIORITY			= 1<<0,
 	NL80211_SCAN_FLAG_FLUSH				= 1<<1,
+	NL80211_SCAN_FLAG_AP				= 1<<2,
 };
 
 #endif /* __LINUX_NL80211_H */

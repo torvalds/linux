@@ -603,7 +603,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			   NL80211_FEATURE_HT_IBSS;
 
 	if (!ops->hw_scan)
-		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN;
+		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
+				   NL80211_FEATURE_AP_SCAN;
+
 
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
