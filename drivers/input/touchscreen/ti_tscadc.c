@@ -42,6 +42,7 @@
 #define REG_STEPCONFIG(n)	(0x64 + ((n - 1) * 8))
 #define REG_STEPDELAY(n)	(0x68 + ((n - 1) * 8))
 #define REG_FIFO0CNT		0xE4
+#define REG_FIFO0THR		0xE8
 #define REG_FIFO1THR		0xF4
 #define REG_FIFO0		0x100
 #define REG_FIFO1		0x200
@@ -55,6 +56,7 @@
 #define STPENB_STEPENB		STEPENB(0x7FFF)
 
 /* IRQ enable */
+#define IRQENB_FIFO0THRES	BIT(2)
 #define IRQENB_FIFO1THRES	BIT(5)
 #define IRQENB_PENUP		BIT(9)
 
@@ -277,7 +279,7 @@ static irqreturn_t tscadc_irq(int irq, void *dev)
 	unsigned int fsm;
 
 	status = tscadc_readl(ts_dev, REG_IRQSTATUS);
-	if (status & IRQENB_FIFO1THRES) {
+	if (status & IRQENB_FIFO0THRES) {
 		tscadc_read_coordinates(ts_dev, &x, &y);
 
 		z1 = tscadc_readl(ts_dev, REG_FIFO0) & 0xfff;
@@ -303,7 +305,7 @@ static irqreturn_t tscadc_irq(int irq, void *dev)
 				input_sync(input_dev);
 			}
 		}
-		irqclr |= IRQENB_FIFO1THRES;
+		irqclr |= IRQENB_FIFO0THRES;
 	}
 
 	/*
@@ -446,9 +448,9 @@ static int __devinit tscadc_probe(struct platform_device *pdev)
 	tscadc_writel(ts_dev, REG_CTRL, ctrl);
 
 	tscadc_idle_config(ts_dev);
-	tscadc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO1THRES);
+	tscadc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
 	tscadc_step_config(ts_dev);
-	tscadc_writel(ts_dev, REG_FIFO1THR, ts_dev->steps_to_configure);
+	tscadc_writel(ts_dev, REG_FIFO0THR, ts_dev->steps_to_configure);
 
 	ctrl |= CNTRLREG_TSCSSENB;
 	tscadc_writel(ts_dev, REG_CTRL, ctrl);
