@@ -164,7 +164,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 				r = virtqueue_add_buf(vq->vq, &sl, 1, 0,
 						      dev->buf + started,
 						      GFP_ATOMIC);
-				if (likely(r >= 0)) {
+				if (likely(r == 0)) {
 					++started;
 					virtqueue_kick(vq->vq);
 				}
@@ -177,7 +177,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 				r = 0;
 			}
 
-		} while (r >= 0);
+		} while (r == 0);
 		if (completed == completed_before)
 			++spurious;
 		assert(completed <= bufs);
