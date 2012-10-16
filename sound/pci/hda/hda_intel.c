@@ -527,6 +527,9 @@ struct azx {
 	struct list_head list;
 };
 
+#define CREATE_TRACE_POINTS
+#include "hda_intel_trace.h"
+
 /* driver types */
 enum {
 	AZX_DRIVER_ICH,
@@ -2059,6 +2062,9 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	int rstart = 0, start, nsync = 0, sbits = 0;
 	int nwait, timeout;
 
+	azx_dev = get_azx_dev(substream);
+	trace_azx_pcm_trigger(chip, azx_dev, cmd);
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		rstart = 1;
@@ -2231,6 +2237,7 @@ static unsigned int azx_get_position(struct azx *chip,
 {
 	unsigned int pos;
 	int stream = azx_dev->substream->stream;
+	int delay = 0;
 
 	switch (chip->position_fix[stream]) {
 	case POS_FIX_LPIB:
@@ -2264,7 +2271,6 @@ static unsigned int azx_get_position(struct azx *chip,
 	    chip->position_fix[stream] == POS_FIX_POSBUF &&
 	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
 		unsigned int lpib_pos = azx_sd_readl(azx_dev, SD_LPIB);
-		int delay;
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 			delay = pos - lpib_pos;
 		else
@@ -2279,6 +2285,7 @@ static unsigned int azx_get_position(struct azx *chip,
 		azx_dev->substream->runtime->delay =
 			bytes_to_frames(azx_dev->substream->runtime, delay);
 	}
+	trace_azx_get_position(chip, azx_dev, pos, delay);
 	return pos;
 }
 
