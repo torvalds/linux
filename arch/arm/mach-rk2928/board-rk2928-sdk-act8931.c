@@ -5,6 +5,7 @@
 
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/board.h>
 
 #ifdef CONFIG_REGULATOR_ACT8931
 

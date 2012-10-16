@@ -12,6 +12,12 @@
 #include <mach/sram.h>
 #include <linux/i2c-gpio.h>
 
+#define GPIO_SWPORTA_DR  0x0000
+#define GPIO_SWPORTA_DDR 0x0004
+
+#define PMIC_TYPE_TPS65910	2
+#define PMIC_TYPE_ACT8931	3
+
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 

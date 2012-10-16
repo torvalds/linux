@@ -58,15 +58,13 @@
 #include "board-rk2928-a720-camera.c" 
 #include "board-rk2928-a720-key.c"
 
-int __sramdata g_pmic_type =  0;
-#define PMIC_TYPE_TPS65910	2
-#define PMIC_TYPE_ACT8931	3
-
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
+
+int __sramdata g_pmic_type =  0;
 
 static struct spi_board_info board_spi_devices[] = {
 };

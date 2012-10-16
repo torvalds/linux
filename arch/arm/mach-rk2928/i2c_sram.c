@@ -309,8 +309,6 @@ uint8 __sramfunc sram_i2c_read(uint8 I2CSlaveAddr, uint8 regAddr)
 	return data;
 }
 extern int __sramdata g_pmic_type ;
-#define PMIC_TYPE_TPS65910	2
-#define PMIC_TYPE_ACT8931	3
 void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 {
     uint8 slaveaddr;

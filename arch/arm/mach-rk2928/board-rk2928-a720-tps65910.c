@@ -6,12 +6,10 @@
 
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/board.h>
 
 #define gpio_readl(offset)	readl_relaxed(RK2928_GPIO1_BASE + offset)
 #define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO1_BASE + offset); dsb(); } while (0)
-
-#define GPIO_SWPORTA_DR  0x0000
-#define GPIO_SWPORTA_DDR 0x0004
 
 #define GPIO1_A1_OUTPUT  (1<<1)
 #define GPIO1_A1_OUTPUT_HIGH  (1<<1)
