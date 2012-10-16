@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/i2c-omap.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
 
 /* I2C controller revisions */
 #define OMAP_I2C_OMAP1_REV_2		0x20
@@ -213,6 +214,8 @@ struct omap_i2c_dev {
 	u16			syscstate;
 	u16			westate;
 	u16			errata;
+
+	struct pinctrl		*pins;
 };
 
 static const u8 reg_map_ip_v1[] = {
@@ -1102,6 +1105,16 @@ omap_i2c_probe(struct platform_device *pdev)
 		dev->flags = pdata->flags;
 		dev->set_mpu_wkup_lat = pdata->set_mpu_wkup_lat;
 		dev->dtrev = pdata->rev;
+	}
+
+	dev->pins = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(dev->pins)) {
+		if (PTR_ERR(dev->pins) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		dev_warn(&pdev->dev, "did not get pins for i2c error: %li\n",
+			 PTR_ERR(dev->pins));
+		dev->pins = NULL;
 	}
 
 	dev->dev = &pdev->dev;
