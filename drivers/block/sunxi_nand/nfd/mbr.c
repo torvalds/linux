@@ -132,15 +132,16 @@ int mbr2disks(struct nand_disk* disk_array)
 	//查找出所有的LINUX盘符
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-	    if((mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-	    {
-			PRINT("The %d disk name = %s, class name = %s, disk size = %d\n", part_index, mbr->array[part_cnt].name,
-						mbr->array[part_cnt].classname, mbr->array[part_cnt].lenlo);
+		if (mbr->array[part_cnt].user_type < 3) {
+			PRINT("The %d disk name = %s, type = %u, class name = %s, disk size = %d\n",
+			      part_index,
+			      mbr->array[part_cnt].name, mbr->array[part_cnt].user_type,
+			      mbr->array[part_cnt].classname, mbr->array[part_cnt].lenlo);
 
-	        disk_array[part_index].offset = mbr->array[part_cnt].addrlo;
+			disk_array[part_index].offset = mbr->array[part_cnt].addrlo;
 			disk_array[part_index].size = mbr->array[part_cnt].lenlo;
 			part_index ++;
-	    }
+		}
 	}
 	disk_array[part_index - 1].size = DiskSize - mbr->array[mbr->PartCount - 1].addrlo;
 	_free_mbr();
