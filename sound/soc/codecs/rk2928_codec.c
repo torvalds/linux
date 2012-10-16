@@ -38,6 +38,7 @@
 #include <sound/tlv.h>
 
 #include <mach/iomux.h>
+#include <mach/cpu.h>
 #include <linux/clk.h>
 #include "rk2928_codec.h"
 
@@ -61,10 +62,8 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 //	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
-	#ifndef CONFIG_MACH_RK2926_SDK
 	SND_SOC_DAPM_ADC("ADCL", "HIFI Capture", CODEC_REG_POWER, 3, 1),
 	SND_SOC_DAPM_INPUT("MICL"),
-	#endif
 	SND_SOC_DAPM_ADC("ADCR", "HIFI Capture", CODEC_REG_POWER, 2, 1),
 	SND_SOC_DAPM_INPUT("MICR"),
 };
@@ -74,11 +73,31 @@ static const struct snd_soc_dapm_route rk2928_audio_map[] = {
 	{"SPKR", "DACR Amp", "DACR"},
 //	{"SPKL", NULL, "DACL Drv"},
 //	{"SPKR", NULL, "DACR Drv"},
-	#ifndef CONFIG_MACH_RK2926_SDK
 	{"ADCL", NULL, "MICL"},
-	#endif
 	{"ADCR", NULL, "MICR"},
 };
+
+static const struct snd_soc_dapm_widget rk2926_dapm_widgets[] = {
+	SND_SOC_DAPM_DAC("DACL", "HIFI Playback", CODEC_REG_POWER, 5, 1),
+	SND_SOC_DAPM_DAC("DACR", "HIFI Playback", CODEC_REG_POWER, 4, 1),
+	SND_SOC_DAPM_PGA("DACL Amp", CODEC_REG_DAC_GAIN, 2, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DACR Amp", CODEC_REG_DAC_GAIN, 0, 0, NULL, 0),
+//	SND_SOC_DAPM_OUT_DRV("DACL Drv", CODEC_REG_DAC_MUTE, 1, 1, NULL, 0),
+//	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
+	SND_SOC_DAPM_OUTPUT("SPKL"),
+	SND_SOC_DAPM_OUTPUT("SPKR"),
+	SND_SOC_DAPM_ADC("ADCR", "HIFI Capture", CODEC_REG_POWER, 2, 1),
+	SND_SOC_DAPM_INPUT("MICR"),
+};
+
+static const struct snd_soc_dapm_route rk2926_audio_map[] = {
+	{"SPKL", "DACL Amp", "DACL"},
+	{"SPKR", "DACR Amp", "DACR"},
+//	{"SPKL", NULL, "DACL Drv"},
+//	{"SPKR", NULL, "DACR Drv"},
+	{"ADCR", NULL, "MICR"},
+};
+
 
 
 static unsigned int rk2928_read(struct snd_soc_codec *codec, unsigned int reg)
@@ -288,10 +307,15 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 	// Mute and Power off codec
 	rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	
-	snd_soc_dapm_new_controls(dapm, rk2928_dapm_widgets,
+        if(soc_is_rk2928g()){	
+	        snd_soc_dapm_new_controls(dapm, rk2928_dapm_widgets,
 			ARRAY_SIZE(rk2928_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, rk2928_audio_map, ARRAY_SIZE(rk2928_audio_map));
+	        snd_soc_dapm_add_routes(dapm, rk2928_audio_map, ARRAY_SIZE(rk2928_audio_map));
+        }else{
+	        snd_soc_dapm_new_controls(dapm, rk2926_dapm_widgets,
+			ARRAY_SIZE(rk2926_dapm_widgets));
+	        snd_soc_dapm_add_routes(dapm, rk2926_audio_map, ARRAY_SIZE(rk2926_audio_map));
+        }
 
 	return 0;
 	
