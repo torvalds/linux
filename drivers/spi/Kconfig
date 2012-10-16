@@ -60,6 +60,12 @@ config SPI_ALTERA
 	help
 	  This is the driver for the Altera SPI Controller.
 
+config SPI_CADENCE_QSPI
+	tristate "Cadence QSPI Controller"
+	depends on ARCH_SOCFPGA
+	help
+	  This is the driver for the Cadence QSPI Controller.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 && GPIOLIB
@@ -515,6 +521,10 @@ config SPI_DESIGNWARE
 	tristate "DesignWare SPI controller core support"
 	help
 	  general driver for SPI controller core from DesignWare
+
+config SPI_DW_PL330_DMA
+	bool "DMA support for DW SPI controller through DMA PL330 controller"
+	depends on SPI_DESIGNWARE && PL330_DMA
 
 config SPI_DW_PCI
 	tristate "PCI interface driver for DW SPI core"

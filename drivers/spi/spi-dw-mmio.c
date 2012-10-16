@@ -16,6 +16,10 @@
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include "spi-dw.h"
 
@@ -32,7 +36,9 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	struct dw_spi *dws;
 	struct resource *mem, *ioarea;
 	int ret;
-
+#ifdef CONFIG_OF
+	unsigned int prop;
+#endif
 	dwsmmio = kzalloc(sizeof(struct dw_spi_mmio), GFP_KERNEL);
 	if (!dwsmmio) {
 		ret = -ENOMEM;
@@ -58,6 +64,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	}
 
 	dws->regs = ioremap_nocache(mem->start, resource_size(mem));
+	dws->paddr = mem->start;
 	if (!dws->regs) {
 		dev_err(&pdev->dev, "SPI region already mapped\n");
 		ret = -ENOMEM;
@@ -76,12 +83,36 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dwsmmio->clk);
 		goto err_irq;
 	}
+	clk_prepare(dwsmmio->clk);
 	clk_enable(dwsmmio->clk);
 
-	dws->parent_dev = &pdev->dev;
-	dws->bus_num = 0;
+#ifdef CONFIG_OF
+	if(of_property_read_u32(pdev->dev.of_node, "num-chipselect", &prop)) {
+		ret = -ENXIO;
+		dev_err(&pdev->dev, "couldn't determine num-chipselect\n");
+		goto err_irq;
+	}
+	dws->num_cs = prop;
+
+	if(of_property_read_u32(pdev->dev.of_node, "bus-num", &prop)) {
+		ret = -ENXIO;
+		dev_err(&pdev->dev, "couldn't determine bus-num\n");
+		goto err_irq;
+	}
+	dws->bus_num = prop;
+#else
 	dws->num_cs = 4;
+	dws->bus_num = 0;
+#endif
+
+	dws->parent_dev = &pdev->dev;
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
+
+#ifdef CONFIG_SPI_DW_PL330_DMA
+	ret = dw_spi_pl330_init(dws);
+	if (ret)
+		goto err_clk;
+#endif
 
 	ret = dw_spi_add_host(dws);
 	if (ret)
@@ -127,12 +158,23 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id dw_spi_mmio_of_match[] __devinitdata = {
+	{ .compatible = "snps,dw-spi-mmio", },
+	{ /* end of table */}
+};
+MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
+#else
+#define dw_spi_mmio_of_match NULL
+#endif /* CONFIG_OF */
+
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
 	.remove		= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = dw_spi_mmio_of_match,
 	},
 };
 module_platform_driver(dw_spi_mmio_driver);

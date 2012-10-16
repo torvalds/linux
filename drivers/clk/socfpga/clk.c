@@ -159,4 +159,12 @@ void __init socfpga_init_clocks(void)
 	clk = clk_register_gate(NULL, "gmac_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_EMAC0_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff700000.stmmac");
+
+	clk = clk_register_gate(NULL, "spi0_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "fff00000.spi");
+
+	clk = clk_register_gate(NULL, "spi1_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "fff01000.spi");
 }

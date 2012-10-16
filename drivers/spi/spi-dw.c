@@ -24,6 +24,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
+#include <linux/spi/spi-dw.h>
 
 #include "spi-dw.h"
 
@@ -244,6 +246,43 @@ static void *next_transfer(struct dw_spi *dws)
  */
 static int map_dma_buffers(struct dw_spi *dws)
 {
+#ifdef CONFIG_SPI_DW_PL330_DMA
+	if (!dws->dma_inited
+		|| !dws->cur_chip->enable_dma
+		|| !dws->dma_ops)
+		return 0;
+
+	if (dws->cur_msg->is_dma_mapped) {
+		if (dws->cur_transfer->tx_dma)
+			dws->tx_dma = dws->cur_transfer->tx_dma;
+
+		if (dws->cur_transfer->rx_dma)
+			dws->rx_dma = dws->cur_transfer->rx_dma;
+	} else {
+		if (dws->cur_transfer->tx_buf != NULL) {
+			dws->tx_dma = dma_map_single(dws->parent_dev,
+					(void *)dws->cur_transfer->tx_buf,
+					dws->cur_transfer->len,
+					DMA_TO_DEVICE);
+			if (dma_mapping_error(dws->parent_dev, dws->tx_dma)) {
+				dev_err(dws->parent_dev, "dma_map_single Tx failed\n");
+				return 0;
+			}
+		}
+
+		if (dws->cur_transfer->rx_buf != NULL) {
+			dws->rx_dma = dma_map_single(dws->parent_dev,
+					dws->cur_transfer->rx_buf,
+					dws->cur_transfer->len, DMA_FROM_DEVICE);
+			if (dma_mapping_error(dws->parent_dev, dws->rx_dma)) {
+				dev_err(dws->parent_dev, "dma_map_single Rx failed\n");
+				dma_unmap_single(dws->parent_dev, dws->tx_dma,
+						dws->cur_transfer->len, DMA_TO_DEVICE);
+				return 0;
+			}
+		}
+	}
+#else
 	if (!dws->cur_msg->is_dma_mapped
 		|| !dws->dma_inited
 		|| !dws->cur_chip->enable_dma
@@ -255,6 +294,7 @@ static int map_dma_buffers(struct dw_spi *dws)
 
 	if (dws->cur_transfer->rx_dma)
 		dws->rx_dma = dws->cur_transfer->rx_dma;
+#endif
 
 	return 1;
 }
@@ -302,6 +342,15 @@ void dw_spi_xfer_done(struct dw_spi *dws)
 {
 	/* Update total byte transferred return count actual bytes read */
 	dws->cur_msg->actual_length += dws->len;
+
+	if (dws->dma_mapped) {
+		if (!dws->cur_msg->is_dma_mapped) {
+			dma_unmap_single(dws->parent_dev, dws->rx_dma,
+						dws->cur_transfer->len, DMA_FROM_DEVICE);
+			dma_unmap_single(dws->parent_dev, dws->tx_dma,
+						dws->cur_transfer->len, DMA_TO_DEVICE);
+		}
+	}
 
 	/* Move to next transfer */
 	dws->cur_msg->state = next_transfer(dws);
@@ -560,6 +609,9 @@ static void pump_messages(struct work_struct *work)
 	if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {
 		dws->busy = 0;
 		spin_unlock_irqrestore(&dws->lock, flags);
+		if (dws->dma_inited && dws->dma_ops && dws->dma_ops->dma_chan_release) {
+			dws->dma_ops->dma_chan_release(dws);
+		}
 		return;
 	}
 
@@ -592,6 +644,7 @@ static int dw_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 {
 	struct dw_spi *dws = spi_master_get_devdata(spi->master);
 	unsigned long flags;
+	struct chip_data *chip = spi_get_ctldata(spi);
 
 	spin_lock_irqsave(&dws->lock, flags);
 
@@ -607,6 +660,13 @@ static int dw_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	list_add_tail(&msg->queue, &dws->queue);
 
 	if (dws->run == QUEUE_RUNNING && !dws->busy) {
+		if (chip->enable_dma &&
+			dws->dma_ops && dws->dma_ops->dma_chan_alloc) {
+			if (dws->dma_ops->dma_chan_alloc(dws)) {
+				dev_warn(&dws->master->dev, "DMA chan alloc failed\n");
+				dws->dma_inited = 0;
+			}
+		}
 
 		if (dws->cur_transfer || dws->cur_msg)
 			queue_work(dws->workqueue,
@@ -628,6 +688,12 @@ static int dw_spi_setup(struct spi_device *spi)
 {
 	struct dw_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
+
+#ifdef CONFIG_OF
+	struct device_node *nc = spi->dev.of_node;
+	unsigned int prop;
+#endif
+
 
 	if (spi->bits_per_word != 8 && spi->bits_per_word != 16)
 		return -EINVAL;
@@ -660,6 +726,20 @@ static int dw_spi_setup(struct spi_device *spi)
 		chip->enable_dma = chip_info->enable_dma;
 	}
 
+#ifdef CONFIG_OF
+	if(of_property_read_u32(nc, "enable-dma", &prop) == 0) {
+		chip->enable_dma = prop;
+	}
+
+	if(of_property_read_u32(nc, "poll-mode", &prop) == 0) {
+		chip->poll_mode = prop;
+	}
+
+	if(of_property_read_u32(nc, "type", &prop) == 0) {
+		chip->type = prop;
+	}
+#endif
+
 	if (spi->bits_per_word <= 8) {
 		chip->n_bytes = 1;
 		chip->dma_width = 1;
@@ -687,6 +767,7 @@ static int dw_spi_setup(struct spi_device *spi)
 			| (chip->tmode << SPI_TMOD_OFFSET);
 
 	spi_set_ctldata(spi, chip);
+
 	return 0;
 }
 
@@ -829,6 +910,7 @@ int dw_spi_add_host(struct dw_spi *dws)
 	master->cleanup = dw_spi_cleanup;
 	master->setup = dw_spi_setup;
 	master->transfer = dw_spi_transfer;
+	master->dev.of_node = dws->parent_dev->of_node;
 
 	/* Basic HW init */
 	spi_hw_init(dws);

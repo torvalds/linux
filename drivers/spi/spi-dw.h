@@ -87,6 +87,8 @@ struct dw_spi_dma_ops {
 	int (*dma_init)(struct dw_spi *dws);
 	void (*dma_exit)(struct dw_spi *dws);
 	int (*dma_transfer)(struct dw_spi *dws, int cs_change);
+	int (*dma_chan_alloc)(struct dw_spi *dws);
+	void (*dma_chan_release)(struct dw_spi *dws);
 };
 
 struct dw_spi {
@@ -239,4 +241,5 @@ extern void dw_spi_xfer_done(struct dw_spi *dws);
 
 /* platform related setup */
 extern int dw_spi_mid_init(struct dw_spi *dws); /* Intel MID platforms */
+extern int dw_spi_pl330_init(struct dw_spi *dws); /* PL330 support setup */
 #endif /* DW_SPI_HEADER_H */
