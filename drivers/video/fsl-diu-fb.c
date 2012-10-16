@@ -825,12 +825,8 @@ static void update_lcdc(struct fb_info *info)
 	out_be32(&hw->gamma, DMA_ADDR(data, gamma));
 	out_be32(&hw->cursor, DMA_ADDR(data, cursor));
 
-	out_be32(&hw->bgnd, 0x007F7F7F); 	/* BGND */
-	out_be32(&hw->bgnd_wb, 0); 		/* BGND_WB */
-	out_be32(&hw->disp_size, (var->yres << 16 | var->xres));
-						/* DISP SIZE */
-	out_be32(&hw->wb_size, 0); /* WB SIZE */
-	out_be32(&hw->wb_mem_addr, 0); /* WB MEM ADDR */
+	out_be32(&hw->bgnd, 0x007F7F7F); /* Set background to grey */
+	out_be32(&hw->disp_size, (var->yres << 16) | var->xres);
 
 	/* Horizontal and vertical configuration register */
 	temp = var->left_margin << 22 | /* BP_H */
@@ -847,9 +843,20 @@ static void update_lcdc(struct fb_info *info)
 
 	diu_ops.set_pixel_clock(var->pixclock);
 
-	out_be32(&hw->syn_pol, 0);	/* SYNC SIGNALS POLARITY */
-	out_be32(&hw->int_status, 0);	/* INTERRUPT STATUS */
+#ifndef CONFIG_PPC_MPC512x
+	/*
+	 * The PLUT register is defined differently on the MPC5121 than it
+	 * is on other SOCs.  Unfortunately, there's no documentation that
+	 * explains how it's supposed to be programmed, so for now, we leave
+	 * it at the default value on the MPC5121.
+	 *
+	 * For other SOCs, program it for the highest priority, which will
+	 * reduce the chance of underrun. Technically, we should scale the
+	 * priority to match the screen resolution, but doing that properly
+	 * requires delicate fine-tuning for each use-case.
+	 */
 	out_be32(&hw->plut, 0x01F5F666);
+#endif
 
 	/* Enable the DIU */
 	enable_lcdc(info);
