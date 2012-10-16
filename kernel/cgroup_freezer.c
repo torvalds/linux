@@ -150,13 +150,6 @@ static void freezer_destroy(struct cgroup *cgroup)
 	kfree(freezer);
 }
 
-/* task is frozen or will freeze immediately when next it gets woken */
-static bool is_task_frozen_enough(struct task_struct *task)
-{
-	return frozen(task) ||
-		(task_is_stopped_or_traced(task) && freezing(task));
-}
-
 /*
  * The call to cgroup_lock() in the freezer.state write method prevents
  * a write to that file racing against an attach, and hence the
@@ -222,7 +215,8 @@ static void update_if_frozen(struct cgroup *cgroup,
 	cgroup_iter_start(cgroup, &it);
 	while ((task = cgroup_iter_next(cgroup, &it))) {
 		ntotal++;
-		if (freezing(task) && is_task_frozen_enough(task))
+		if (freezing(task) && (frozen(task) ||
+				       task_is_stopped_or_traced(task)))
 			nfrozen++;
 	}
 
@@ -264,24 +258,15 @@ static int freezer_read(struct cgroup *cgroup, struct cftype *cft,
 	return 0;
 }
 
-static int try_to_freeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
+static void freeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 {
 	struct cgroup_iter it;
 	struct task_struct *task;
-	unsigned int num_cant_freeze_now = 0;
 
 	cgroup_iter_start(cgroup, &it);
-	while ((task = cgroup_iter_next(cgroup, &it))) {
-		if (!freeze_task(task))
-			continue;
-		if (is_task_frozen_enough(task))
-			continue;
-		if (!freezing(task) && !freezer_should_skip(task))
-			num_cant_freeze_now++;
-	}
+	while ((task = cgroup_iter_next(cgroup, &it)))
+		freeze_task(task);
 	cgroup_iter_end(cgroup, &it);
-
-	return num_cant_freeze_now ? -EBUSY : 0;
 }
 
 static void unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
@@ -295,13 +280,10 @@ static void unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 	cgroup_iter_end(cgroup, &it);
 }
 
-static int freezer_change_state(struct cgroup *cgroup,
-				enum freezer_state goal_state)
+static void freezer_change_state(struct cgroup *cgroup,
+				 enum freezer_state goal_state)
 {
-	struct freezer *freezer;
-	int retval = 0;
-
-	freezer = cgroup_freezer(cgroup);
+	struct freezer *freezer = cgroup_freezer(cgroup);
 
 	spin_lock_irq(&freezer->lock);
 
@@ -318,22 +300,19 @@ static int freezer_change_state(struct cgroup *cgroup,
 		if (freezer->state == CGROUP_THAWED)
 			atomic_inc(&system_freezing_cnt);
 		freezer->state = CGROUP_FREEZING;
-		retval = try_to_freeze_cgroup(cgroup, freezer);
+		freeze_cgroup(cgroup, freezer);
 		break;
 	default:
 		BUG();
 	}
 
 	spin_unlock_irq(&freezer->lock);
-
-	return retval;
 }
 
 static int freezer_write(struct cgroup *cgroup,
 			 struct cftype *cft,
 			 const char *buffer)
 {
-	int retval;
 	enum freezer_state goal_state;
 
 	if (strcmp(buffer, freezer_state_strs[CGROUP_THAWED]) == 0)
@@ -345,9 +324,9 @@ static int freezer_write(struct cgroup *cgroup,
 
 	if (!cgroup_lock_live_group(cgroup))
 		return -ENODEV;
-	retval = freezer_change_state(cgroup, goal_state);
+	freezer_change_state(cgroup, goal_state);
 	cgroup_unlock();
-	return retval;
+	return 0;
 }
 
 static struct cftype files[] = {
