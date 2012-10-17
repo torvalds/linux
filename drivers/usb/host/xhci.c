@@ -4021,7 +4021,7 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
 {
-	return (1 << (desc->bInterval - 1)) * 125 * 1000;
+	return (1ULL << (desc->bInterval - 1)) * 125 * 1000;
 }
 
 static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
