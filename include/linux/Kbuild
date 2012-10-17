@@ -19,13 +19,3 @@ header-y += netfilter_ipv4/
 header-y += netfilter_ipv6/
 header-y += usb/
 header-y += wimax/
-
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
-		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/a.out.h),)
-endif
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
-		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm.h),)
-endif
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
-		  $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm_para.h),)
-endif
