@@ -1445,7 +1445,6 @@ static struct platform_device pinctrl_device = {
 static struct u300_gpio_platform u300_gpio_plat = {
 	.ports = 7,
 	.gpio_base = 0,
-	.gpio_irq_base = IRQ_U300_GPIO_BASE,
 	.pinctrl_device = &pinctrl_device,
 };
 
