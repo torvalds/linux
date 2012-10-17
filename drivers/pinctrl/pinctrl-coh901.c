@@ -65,7 +65,6 @@ struct u300_gpio {
 	struct gpio_chip chip;
 	struct list_head port_list;
 	struct clk *clk;
-	struct resource *memres;
 	void __iomem *base;
 	struct device *dev;
 	u32 stride;
@@ -663,17 +662,16 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 {
 	struct u300_gpio_platform *plat = dev_get_platdata(&pdev->dev);
 	struct u300_gpio *gpio;
+	struct resource *memres;
 	int err = 0;
 	int portno;
 	u32 val;
 	u32 ifr;
 	int i;
 
-	gpio = kzalloc(sizeof(struct u300_gpio), GFP_KERNEL);
-	if (gpio == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	gpio = devm_kzalloc(&pdev->dev, sizeof(struct u300_gpio), GFP_KERNEL);
+	if (gpio == NULL)
 		return -ENOMEM;
-	}
 
 	gpio->chip = u300_gpio_chip;
 	gpio->chip.ngpio = plat->ports * U300_GPIO_PINS_PER_PORT;
@@ -681,37 +679,29 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	gpio->chip.base = plat->gpio_base;
 	gpio->dev = &pdev->dev;
 
-	/* Get GPIO clock */
-	gpio->clk = clk_get(gpio->dev, NULL);
+	memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!memres) {
+		dev_err(gpio->dev, "could not get GPIO memory resource\n");
+		return -ENODEV;
+	}
+
+	gpio->base = devm_request_and_ioremap(&pdev->dev, memres);
+	if (!gpio->base) {
+		dev_err(gpio->dev, "could not get remap memory\n");
+		return -ENOMEM;
+	}
+
+	gpio->clk = devm_clk_get(gpio->dev, NULL);
 	if (IS_ERR(gpio->clk)) {
 		err = PTR_ERR(gpio->clk);
 		dev_err(gpio->dev, "could not get GPIO clock\n");
-		goto err_no_clk;
+		return err;
 	}
+
 	err = clk_prepare_enable(gpio->clk);
 	if (err) {
 		dev_err(gpio->dev, "could not enable GPIO clock\n");
-		goto err_no_clk_enable;
-	}
-
-	gpio->memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!gpio->memres) {
-		dev_err(gpio->dev, "could not get GPIO memory resource\n");
-		err = -ENODEV;
-		goto err_no_resource;
-	}
-
-	if (!request_mem_region(gpio->memres->start,
-				resource_size(gpio->memres),
-				"GPIO Controller")) {
-		err = -ENODEV;
-		goto err_no_ioregion;
-	}
-
-	gpio->base = ioremap(gpio->memres->start, resource_size(gpio->memres));
-	if (!gpio->base) {
-		err = -ENOMEM;
-		goto err_no_ioremap;
+		return err;
 	}
 
 	dev_info(gpio->dev,
@@ -810,16 +800,7 @@ err_no_chip:
 err_no_domain:
 err_no_port:
 	u300_gpio_free_ports(gpio);
-	iounmap(gpio->base);
-err_no_ioremap:
-	release_mem_region(gpio->memres->start, resource_size(gpio->memres));
-err_no_ioregion:
-err_no_resource:
 	clk_disable_unprepare(gpio->clk);
-err_no_clk_enable:
-	clk_put(gpio->clk);
-err_no_clk:
-	kfree(gpio);
 	dev_info(&pdev->dev, "module ERROR:%d\n", err);
 	return err;
 }
@@ -838,13 +819,8 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 		return err;
 	}
 	u300_gpio_free_ports(gpio);
-	iounmap(gpio->base);
-	release_mem_region(gpio->memres->start,
-			   resource_size(gpio->memres));
 	clk_disable_unprepare(gpio->clk);
-	clk_put(gpio->clk);
 	platform_set_drvdata(pdev, NULL);
-	kfree(gpio);
 	return 0;
 }
 
