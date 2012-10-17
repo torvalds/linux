@@ -66,6 +66,12 @@
 
 int __sramdata g_pmic_type =  0;
 
+#if defined(CONFIG_REGULATOR_ACT8931)
+extern  int act8931_charge_det ;
+extern  int act8931_charge_ok  ;
+#endif
+
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -577,13 +583,51 @@ static struct platform_device device_acodec = {
 #endif
 
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
-static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
-        .dc_det_pin      = INVALID_GPIO,
-        .batt_low_pin    = INVALID_GPIO,
-        .charge_set_pin  = INVALID_GPIO,
-        .charge_ok_pin   = INVALID_GPIO,
-};
+#define   DC_DET_PIN  RK2928_PIN1_PA5
+int rk30_battery_adc_io_init(void){
+	int ret = 0;
+		
+	//dc charge detect pin
+    	ret = gpio_request(DC_DET_PIN, NULL);
+    	if (ret) {
+    		printk("failed to request dc_det gpio\n");
+    		return ret ;
+    	}
 
+    	gpio_pull_updown(DC_DET_PIN, 0);//important
+    	ret = gpio_direction_input(DC_DET_PIN);
+    	if (ret) {
+    		printk("failed to set gpio dc_det input\n");
+    		return ret ;
+    	}
+	
+	return 0;
+
+}
+#if defined(CONFIG_REGULATOR_ACT8931)
+int rk30_battery_adc_is_dc_charging( ){
+        return  act8931_charge_det  ;  
+}
+int rk30_battery_adc_charging_ok( ){
+       return act8931_charge_ok ;
+}
+#endif	
+ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+         .dc_det_pin      = INVALID_GPIO,
+         .batt_low_pin    = INVALID_GPIO,
+         .charge_set_pin  = INVALID_GPIO,
+         .charge_ok_pin   = INVALID_GPIO,
+
+        //.io_init = rk30_battery_adc_io_init,
+        #if defined(CONFIG_REGULATOR_ACT8931)
+        .is_dc_charging  = rk30_battery_adc_is_dc_charging,
+	  .charging_ok     = rk30_battery_adc_charging_ok ,
+        #endif
+        
+        .charging_sleep   = 0 ,
+        .save_capacity   = 1 ,
+        .adc_channel      =0 ,
+ };
 static struct platform_device rk30_device_adc_battery = {
         .name   = "rk30-battery",
         .id     = -1,
@@ -786,9 +830,6 @@ static void __init rk30_i2c_register_board_info(void)
 //end of i2c
 
 #define POWER_ON_PIN RK2928_PIN1_PA2   //power_hold
-#if defined(CONFIG_REGULATOR_ACT8931)
-extern  int act8931_charge_det ;
-#endif
 static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
