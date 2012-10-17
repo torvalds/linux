@@ -31,7 +31,6 @@
 #include <asm/mach-types.h>
 
 #include <plat/cpu.h>
-#include <plat/sdrc.h>
 #include <plat/omap_device.h>
 
 #include "soc.h"

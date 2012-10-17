@@ -38,7 +38,6 @@
 #include <plat/sram.h>
 #include "clockdomain.h"
 #include "powerdomain.h"
-#include <plat/sdrc.h>
 #include <plat/prcm.h>
 #include <plat-omap/dma-omap.h>
 

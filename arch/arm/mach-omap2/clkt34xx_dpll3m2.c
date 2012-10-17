@@ -23,7 +23,6 @@
 
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/sdrc.h>
 
 #include "clock.h"
 #include "clock3xxx.h"

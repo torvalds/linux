@@ -35,8 +35,6 @@
 
 #include <video/omapdss.h>
 
-#include <plat/cpu.h>
-
 #include "dss.h"
 #include "dss_features.h"
 
@@ -792,29 +790,46 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
 };
 
-static int __init dss_init_features(struct device *dev)
+static int __init dss_init_features(struct platform_device *pdev)
 {
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dss_features *src;
 	struct dss_features *dst;
 
-	dst = devm_kzalloc(dev, sizeof(*dst), GFP_KERNEL);
+	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
 	if (!dst) {
-		dev_err(dev, "Failed to allocate local DSS Features\n");
+		dev_err(&pdev->dev, "Failed to allocate local DSS Features\n");
 		return -ENOMEM;
 	}
 
-	if (cpu_is_omap24xx())
+	switch (pdata->version) {
+	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dss_feats;
-	else if (cpu_is_omap34xx())
+		break;
+
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_AM35xx:
 		src = &omap34xx_dss_feats;
-	else if (cpu_is_omap3630())
+		break;
+
+	case OMAPDSS_VER_OMAP3630:
 		src = &omap3630_dss_feats;
-	else if (cpu_is_omap44xx())
+		break;
+
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
 		src = &omap44xx_dss_feats;
-	else if (soc_is_omap54xx())
+		break;
+
+	case OMAPDSS_VER_OMAP5:
 		src = &omap54xx_dss_feats;
-	else
+		break;
+
+	default:
 		return -ENODEV;
+	}
 
 	memcpy(dst, src, sizeof(*dst));
 	dss.feat = dst;
@@ -831,7 +846,7 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	dss.pdev = pdev;
 
-	r = dss_init_features(&dss.pdev->dev);
+	r = dss_init_features(dss.pdev);
 	if (r)
 		return r;
 

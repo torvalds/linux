@@ -237,7 +237,7 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	core.pdev = pdev;
 
-	dss_features_init();
+	dss_features_init(pdata->version);
 
 	dss_apply_init();
 
