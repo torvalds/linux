@@ -1117,6 +1117,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
 		.charge_set_level = GPIO_HIGH,
+		.save_capacity   = 1,
 };
 
 static struct platform_device rk30_device_adc_battery = {
