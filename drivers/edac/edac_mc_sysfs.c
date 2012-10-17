@@ -846,14 +846,8 @@ static ssize_t edac_fake_inject_write(struct file *file,
 	return count;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations debug_fake_inject_fops = {
-	.open = debugfs_open,
+	.open = simple_open,
 	.write = edac_fake_inject_write,
 	.llseek = generic_file_llseek,
 };
