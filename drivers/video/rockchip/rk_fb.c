@@ -304,10 +304,17 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	{
 		return  -ENODEV;
 	}
-	
-    	dev_drv->blank(dev_drv,layer_id,blank_mode);
-
-    	return 0;
+#if defined(CONFIG_RK_HDMI)
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED){
+		printk("hdmi is connect , not blank lcdc\n");
+	}else
+#endif
+#endif
+	{
+		dev_drv->blank(dev_drv,layer_id,blank_mode);
+	}
+	return 0;
 }
 
 static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
