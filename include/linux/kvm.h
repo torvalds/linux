@@ -170,8 +170,12 @@ struct kvm_pit_config {
 #define KVM_EXIT_WATCHDOG         21
 
 /* For KVM_EXIT_INTERNAL_ERROR */
-#define KVM_INTERNAL_ERROR_EMULATION 1
-#define KVM_INTERNAL_ERROR_SIMUL_EX 2
+/* Emulate instruction failed. */
+#define KVM_INTERNAL_ERROR_EMULATION	1
+/* Encounter unexpected simultaneous exceptions. */
+#define KVM_INTERNAL_ERROR_SIMUL_EX	2
+/* Encounter unexpected vm-exit due to delivery event. */
+#define KVM_INTERNAL_ERROR_DELIVERY_EV	3
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
