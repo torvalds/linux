@@ -3034,6 +3034,31 @@ static void set_buffer_entries(struct trace_array *tr, unsigned long val)
 		tr->data[cpu]->entries = val;
 }
 
+/* resize @tr's buffer to the size of @size_tr's entries */
+static int resize_buffer_duplicate_size(struct trace_array *tr,
+					struct trace_array *size_tr, int cpu_id)
+{
+	int cpu, ret = 0;
+
+	if (cpu_id == RING_BUFFER_ALL_CPUS) {
+		for_each_tracing_cpu(cpu) {
+			ret = ring_buffer_resize(tr->buffer,
+					size_tr->data[cpu]->entries, cpu);
+			if (ret < 0)
+				break;
+			tr->data[cpu]->entries = size_tr->data[cpu]->entries;
+		}
+	} else {
+		ret = ring_buffer_resize(tr->buffer,
+					size_tr->data[cpu_id]->entries, cpu_id);
+		if (ret == 0)
+			tr->data[cpu_id]->entries =
+				size_tr->data[cpu_id]->entries;
+	}
+
+	return ret;
+}
+
 static int __tracing_resize_ring_buffer(unsigned long size, int cpu)
 {
 	int ret;
@@ -3058,23 +3083,8 @@ static int __tracing_resize_ring_buffer(unsigned long size, int cpu)
 
 	ret = ring_buffer_resize(max_tr.buffer, size, cpu);
 	if (ret < 0) {
-		int r = 0;
-
-		if (cpu == RING_BUFFER_ALL_CPUS) {
-			int i;
-			for_each_tracing_cpu(i) {
-				r = ring_buffer_resize(global_trace.buffer,
-						global_trace.data[i]->entries,
-						i);
-				if (r < 0)
-					break;
-			}
-		} else {
-			r = ring_buffer_resize(global_trace.buffer,
-						global_trace.data[cpu]->entries,
-						cpu);
-		}
-
+		int r = resize_buffer_duplicate_size(&global_trace,
+						     &global_trace, cpu);
 		if (r < 0) {
 			/*
 			 * AARGH! We are left with different
@@ -3212,17 +3222,11 @@ static int tracing_set_tracer(const char *buf)
 
 	topts = create_trace_option_files(t);
 	if (t->use_max_tr) {
-		int cpu;
 		/* we need to make per cpu buffer sizes equivalent */
-		for_each_tracing_cpu(cpu) {
-			ret = ring_buffer_resize(max_tr.buffer,
-						global_trace.data[cpu]->entries,
-						cpu);
-			if (ret < 0)
-				goto out;
-			max_tr.data[cpu]->entries =
-					global_trace.data[cpu]->entries;
-		}
+		ret = resize_buffer_duplicate_size(&max_tr, &global_trace,
+						   RING_BUFFER_ALL_CPUS);
+		if (ret < 0)
+			goto out;
 	}
 
 	if (t->init) {
