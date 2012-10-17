@@ -213,7 +213,7 @@ static int fimc_pipeline_close(struct fimc_pipeline *p)
  * @pipeline: video pipeline structure
  * @on: passed as the s_stream call argument
  */
-int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
+static int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
 {
 	int i, ret;
 
