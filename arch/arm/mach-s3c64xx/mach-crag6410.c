@@ -304,6 +304,13 @@ static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDDR", "1-001a"),
 
+	REGULATOR_SUPPLY("SPKVDDL", "spi0.1"),
+	REGULATOR_SUPPLY("SPKVDDR", "spi0.1"),
+	REGULATOR_SUPPLY("SPKVDDL", "wm5102-codec"),
+	REGULATOR_SUPPLY("SPKVDDR", "wm5102-codec"),
+	REGULATOR_SUPPLY("SPKVDDL", "wm5110-codec"),
+	REGULATOR_SUPPLY("SPKVDDR", "wm5110-codec"),
+
 	REGULATOR_SUPPLY("DC1VDD", "0-0034"),
 	REGULATOR_SUPPLY("DC2VDD", "0-0034"),
 	REGULATOR_SUPPLY("DC3VDD", "0-0034"),
@@ -597,6 +604,7 @@ static struct s3c2410_platform_i2c i2c0_pdata = {
 static struct regulator_consumer_supply pvdd_1v2_consumers[] __devinitdata = {
 	REGULATOR_SUPPLY("DCVDD", "spi0.0"),
 	REGULATOR_SUPPLY("AVDD", "spi0.0"),
+	REGULATOR_SUPPLY("AVDD", "spi0.1"),
 };
 
 static struct regulator_init_data pvdd_1v2 __devinitdata = {
@@ -621,6 +629,19 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] __devinitdata = {
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "spi0.0"),
+	REGULATOR_SUPPLY("DBVDD1", "spi0.1"),
+	REGULATOR_SUPPLY("DBVDD2", "spi0.1"),
+	REGULATOR_SUPPLY("DBVDD3", "spi0.1"),
+	REGULATOR_SUPPLY("LDOVDD", "spi0.1"),
+	REGULATOR_SUPPLY("CPVDD", "spi0.1"),
+
+	REGULATOR_SUPPLY("DBVDD2", "wm5102-codec"),
+	REGULATOR_SUPPLY("DBVDD3", "wm5102-codec"),
+	REGULATOR_SUPPLY("CPVDD", "wm5102-codec"),
+
+	REGULATOR_SUPPLY("DBVDD2", "wm5110-codec"),
+	REGULATOR_SUPPLY("DBVDD3", "wm5110-codec"),
+	REGULATOR_SUPPLY("CPVDD", "wm5110-codec"),
 };
 
 static struct regulator_init_data pvdd_1v8 __devinitdata = {
@@ -810,7 +831,7 @@ static void __init crag6410_machine_init(void)
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
 
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
-	s3c64xx_spi0_set_platdata(NULL, 0, 1);
+	s3c64xx_spi0_set_platdata(NULL, 0, 2);
 
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
 

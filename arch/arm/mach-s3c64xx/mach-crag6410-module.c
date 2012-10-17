@@ -202,7 +202,7 @@ static struct spi_board_info wm5102_spi_devs[] = {
 		.modalias	= "wm5102",
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 0,
-		.chip_select	= 0,
+		.chip_select	= 1,
 		.mode		= SPI_MODE_0,
 		.irq		= GLENFARCLAS_PMIC_IRQ_BASE +
 				  WM831X_IRQ_GPIO_2,
