@@ -1409,8 +1409,6 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 };
 #endif
 
-#define PMIC_TYPE_WM8326	1
-#define PMIC_TYPE_TPS65910	2
 int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_WM831X_I2C
@@ -1446,11 +1444,11 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 void __sramfunc board_pmu_suspend(void)
 {      
 	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(g_pmic_type == PMIC_TYPE_WM8326)
+       if(pmic_is_wm8326())
        board_pmu_wm8326_suspend();
 	#endif
 	#if defined (CONFIG_MFD_TPS65910)
-       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       if(pmic_is_tps65910())
        board_pmu_tps65910_suspend(); 
     #endif   
 }
@@ -1458,11 +1456,11 @@ void __sramfunc board_pmu_suspend(void)
 void __sramfunc board_pmu_resume(void)
 {      
 	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(g_pmic_type == PMIC_TYPE_WM8326)
+       if(pmic_is_wm8326())
        board_pmu_wm8326_resume();
 	#endif
 	#if defined (CONFIG_MFD_TPS65910)
-       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       if(pmic_is_tps65910())
        board_pmu_tps65910_resume(); 
 	#endif
 }

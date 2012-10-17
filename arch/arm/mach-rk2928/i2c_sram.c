@@ -308,7 +308,7 @@ uint8 __sramfunc sram_i2c_read(uint8 I2CSlaveAddr, uint8 regAddr)
 	sram_i2c_disenable();
 	return data;
 }
-extern int __sramdata g_pmic_type ;
+
 void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 {
     uint8 slaveaddr;
@@ -317,7 +317,7 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 	uint8 rtc_status_reg = 0x11;
 	sram_i2c_init();  //init i2c device
     	#if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	if(pmic_is_tps65910())
 	{
 	slaveaddr = 0x2d;            //slave device addr
 	slavereg = 0x22;            // reg addr
@@ -332,7 +332,7 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 	#endif
 	
 	#if defined(CONFIG_REGULATOR_ACT8931)	
-	if(g_pmic_type == PMIC_TYPE_ACT8931)
+	if(pmic_is_act8931())
 	{
 	slaveaddr = 0x5b;            //slave device addr
 	slavereg = 0x40;            // reg addr
@@ -357,7 +357,7 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 	data = arm_voltage;
 	sram_i2c_init();  //init i2c device
 	#if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	if(pmic_is_tps65910())
 	{
 		slaveaddr = 0x2d;            //slave device addr
 		slavereg = 0x22;            // reg add
@@ -366,7 +366,7 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 	}
 	#endif
 	#if defined(CONFIG_REGULATOR_ACT8931)	
-	if(g_pmic_type == PMIC_TYPE_ACT8931)
+	if(pmic_is_act8931())
 	{
 		slaveaddr = 0x5b;            //slave device addr
 		slavereg = 0x40;            // reg addr
