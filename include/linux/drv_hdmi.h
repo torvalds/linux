@@ -1,6 +1,4 @@
 /*
- * include/linux/drv_hdmi.h
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  *
