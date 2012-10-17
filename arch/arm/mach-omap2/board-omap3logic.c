@@ -35,7 +35,7 @@
 #include <asm/mach/map.h>
 
 #include "gpmc-smsc911x.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/sdrc.h>
 #include <plat/usb.h>
 

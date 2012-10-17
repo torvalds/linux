@@ -35,7 +35,7 @@
 
 #include <plat/led.h>
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>

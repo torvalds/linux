@@ -33,10 +33,10 @@
 #include <plat/usb.h>
 #include "common.h"
 #include <plat-omap/dma-omap.h>
-#include <plat/gpmc.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "gpmc.h"
 #include "gpmc-smc91x.h"
 
 #include "board-flash.h"
