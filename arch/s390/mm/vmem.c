@@ -205,7 +205,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 	start_addr = (unsigned long) start;
 	end_addr = (unsigned long) (start + nr);
 
-	for (address = start_addr; address < end_addr; address += PAGE_SIZE) {
+	for (address = start_addr; address < end_addr;) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
 			pu_dir = vmem_pud_alloc();
@@ -224,10 +224,33 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 
 		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir)) {
+#ifdef CONFIG_64BIT
+			/* Use 1MB frames for vmemmap if available. We always
+			 * use large frames even if they are only partially
+			 * used.
+			 * Otherwise we would have also page tables since
+			 * vmemmap_populate gets called for each section
+			 * separately. */
+			if (MACHINE_HAS_EDAT1) {
+				void *new_page;
+
+				new_page = vmemmap_alloc_block(PMD_SIZE, node);
+				if (!new_page)
+					goto out;
+				pte = mk_pte_phys(__pa(new_page), PAGE_RW);
+				pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
+				pmd_val(*pm_dir) = pte_val(pte);
+				address = (address + PMD_SIZE) & PMD_MASK;
+				continue;
+			}
+#endif
 			pt_dir = vmem_pte_alloc(address);
 			if (!pt_dir)
 				goto out;
 			pmd_populate(&init_mm, pm_dir, pt_dir);
+		} else if (pmd_large(*pm_dir)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
@@ -240,6 +263,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 			pte = pfn_pte(new_page >> PAGE_SHIFT, PAGE_KERNEL);
 			*pt_dir = pte;
 		}
+		address += PAGE_SIZE;
 	}
 	memset(start, 0, nr * sizeof(struct page));
 	ret = 0;
