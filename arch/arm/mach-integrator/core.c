@@ -28,12 +28,13 @@
 #include <mach/cm.h>
 #include <mach/irqs.h>
 
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
 #include <asm/pgtable.h>
 
-static struct amba_pl010_data integrator_uart_data;
+#include "common.h"
+
+#ifdef CONFIG_ATAGS
 
 #define INTEGRATOR_RTC_IRQ	{ IRQ_RTCINT }
 #define INTEGRATOR_UART0_IRQ	{ IRQ_UARTINT0 }
@@ -61,7 +62,7 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi1_device,
 };
 
-static int __init integrator_init(void)
+int __init integrator_init(bool is_cp)
 {
 	int i;
 
@@ -70,7 +71,7 @@ static int __init integrator_init(void)
 	 * hard-code them. The Integator/CP and forward have proper cell IDs.
 	 * Else we leave them undefined to the bus driver can autoprobe them.
 	 */
-	if (machine_is_integrator()) {
+	if (!is_cp) {
 		rtc_device.periphid	= 0x00041030;
 		uart0_device.periphid	= 0x00041010;
 		uart1_device.periphid	= 0x00041010;
@@ -86,7 +87,7 @@ static int __init integrator_init(void)
 	return 0;
 }
 
-arch_initcall(integrator_init);
+#endif
 
 /*
  * On the Integrator platform, the port RTS and DTR are provided by
@@ -95,17 +96,20 @@ arch_initcall(integrator_init);
  *  UART0  7    6
  *  UART1  5    4
  */
-#define SC_CTRLC	IO_ADDRESS(INTEGRATOR_SC_CTRLC)
-#define SC_CTRLS	IO_ADDRESS(INTEGRATOR_SC_CTRLS)
+#define SC_CTRLC	__io_address(INTEGRATOR_SC_CTRLC)
+#define SC_CTRLS	__io_address(INTEGRATOR_SC_CTRLS)
 
 static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
 {
 	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
+	u32 phybase = dev->res.start;
 
-	if (dev == &uart0_device) {
+	if (phybase == INTEGRATOR_UART0_BASE) {
+		/* UART0 */
 		rts_mask = 1 << 4;
 		dtr_mask = 1 << 5;
 	} else {
+		/* UART1 */
 		rts_mask = 1 << 6;
 		dtr_mask = 1 << 7;
 	}
@@ -124,11 +128,9 @@ static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *bas
 	__raw_writel(ctrlc, SC_CTRLC);
 }
 
-static struct amba_pl010_data integrator_uart_data = {
+struct amba_pl010_data integrator_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
-
-#define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_CTRL)
 
 static DEFINE_RAW_SPINLOCK(cm_lock);
 

@@ -86,32 +86,6 @@ static struct {
 #endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
-#ifdef CONFIG_HIGHMEM
-/*
- * On arches that have high memory, kmap address space is limited. By
- * serializing the kmap operations on those arches, we ensure that we don't
- * end up with a bunch of threads in writeback with partially mapped page
- * arrays, stuck waiting for kmap to come back. That situation prevents
- * progress and can deadlock.
- */
-static DEFINE_MUTEX(cifs_kmap_mutex);
-
-static inline void
-cifs_kmap_lock(void)
-{
-	mutex_lock(&cifs_kmap_mutex);
-}
-
-static inline void
-cifs_kmap_unlock(void)
-{
-	mutex_unlock(&cifs_kmap_mutex);
-}
-#else /* !CONFIG_HIGHMEM */
-#define cifs_kmap_lock() do { ; } while(0)
-#define cifs_kmap_unlock() do { ; } while(0)
-#endif /* CONFIG_HIGHMEM */
-
 /*
  * Mark as invalid, all open files on tree connections since they
  * were closed when session to server was lost.
@@ -751,6 +725,8 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	ECHO_REQ *smb;
 	int rc = 0;
 	struct kvec iov;
+	struct smb_rqst rqst = { .rq_iov = &iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "In echo request");
 
@@ -768,7 +744,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov.iov_base = smb;
 	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
-	rc = cifs_call_async(server, &iov, 1, NULL, cifs_echo_callback,
+	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback,
 			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
@@ -902,15 +878,15 @@ PsxDelete:
 }
 
 int
-CIFSSMBDelFile(const unsigned int xid, struct cifs_tcon *tcon,
-	       const char *fileName, const struct nls_table *nls_codepage,
-	       int remap)
+CIFSSMBDelFile(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	       struct cifs_sb_info *cifs_sb)
 {
 	DELETE_FILE_REQ *pSMB = NULL;
 	DELETE_FILE_RSP *pSMBr = NULL;
 	int rc = 0;
 	int bytes_returned;
 	int name_len;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 DelFileRetry:
 	rc = smb_init(SMB_COM_DELETE, 1, tcon, (void **) &pSMB,
@@ -919,15 +895,15 @@ DelFileRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->fileName, fileName,
-				       PATH_MAX, nls_codepage, remap);
+		name_len = cifsConvertToUTF16((__le16 *) pSMB->fileName, name,
+					      PATH_MAX, cifs_sb->local_nls,
+					      remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve check for buffer overruns BB */
-		name_len = strnlen(fileName, PATH_MAX);
+		name_len = strnlen(name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->fileName, fileName, name_len);
+		strncpy(pSMB->fileName, name, name_len);
 	}
 	pSMB->SearchAttributes =
 	    cpu_to_le16(ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM);
@@ -1440,7 +1416,7 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	return 0;
 }
 
-static int
+int
 cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length, len;
@@ -1460,10 +1436,10 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = min_t(unsigned int, buflen, server->vals->read_rsp_size) -
 							HEADER_SIZE(server) + 1;
 
-	rdata->iov[0].iov_base = buf + HEADER_SIZE(server) - 1;
-	rdata->iov[0].iov_len = len;
+	rdata->iov.iov_base = buf + HEADER_SIZE(server) - 1;
+	rdata->iov.iov_len = len;
 
-	length = cifs_readv_from_socket(server, rdata->iov, 1, len);
+	length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -1509,19 +1485,19 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = data_offset - server->total_read;
 	if (len > 0) {
 		/* read any junk before data into the rest of smallbuf */
-		rdata->iov[0].iov_base = buf + server->total_read;
-		rdata->iov[0].iov_len = len;
-		length = cifs_readv_from_socket(server, rdata->iov, 1, len);
+		rdata->iov.iov_base = buf + server->total_read;
+		rdata->iov.iov_len = len;
+		length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
 		if (length < 0)
 			return length;
 		server->total_read += length;
 	}
 
 	/* set up first iov for signature check */
-	rdata->iov[0].iov_base = buf;
-	rdata->iov[0].iov_len = server->total_read;
+	rdata->iov.iov_base = buf;
+	rdata->iov.iov_len = server->total_read;
 	cFYI(1, "0: iov_base=%p iov_len=%zu",
-		rdata->iov[0].iov_base, rdata->iov[0].iov_len);
+		rdata->iov.iov_base, rdata->iov.iov_len);
 
 	/* how much data is in the response? */
 	data_len = server->ops->read_data_length(buf);
@@ -1531,23 +1507,11 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		return cifs_readv_discard(server, mid);
 	}
 
-	/* marshal up the page array */
-	cifs_kmap_lock();
-	len = rdata->marshal_iov(rdata, data_len);
-	cifs_kmap_unlock();
-	data_len -= len;
+	length = rdata->read_into_pages(server, rdata, data_len);
+	if (length < 0)
+		return length;
 
-	/* issue the read if we have any iovecs left to fill */
-	if (rdata->nr_iov > 1) {
-		length = cifs_readv_from_socket(server, &rdata->iov[1],
-						rdata->nr_iov - 1, len);
-		if (length < 0)
-			return length;
-		server->total_read += length;
-	} else {
-		length = 0;
-	}
-
+	server->total_read += length;
 	rdata->bytes = length;
 
 	cFYI(1, "total_read=%u buflen=%u remaining=%u", server->total_read,
@@ -1567,6 +1531,12 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
+				 .rq_nvec = 1,
+				 .rq_pages = rdata->pages,
+				 .rq_npages = rdata->nr_pages,
+				 .rq_pagesz = rdata->pagesz,
+				 .rq_tailsz = rdata->tailsz };
 
 	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
 		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
@@ -1578,9 +1548,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 			int rc = 0;
 
-			rc = cifs_verify_signature(rdata->iov, rdata->nr_iov,
-						   server,
-						   mid->sequence_number + 1);
+			rc = cifs_verify_signature(&rqst, server,
+						  mid->sequence_number + 1);
 			if (rc)
 				cERROR(1, "SMB signature verification returned "
 				       "error = %d", rc);
@@ -1610,6 +1579,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	READ_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
 		rdata->offset, rdata->bytes);
@@ -1632,7 +1603,7 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(rdata->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
-	smb->Fid = rdata->cfile->netfid;
+	smb->Fid = rdata->cfile->fid.netfid;
 	smb->OffsetLow = cpu_to_le32(rdata->offset & 0xFFFFFFFF);
 	if (wct == 12)
 		smb->OffsetHigh = cpu_to_le32(rdata->offset >> 32);
@@ -1649,13 +1620,12 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	}
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	rdata->iov[0].iov_base = smb;
-	rdata->iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
+	rdata->iov.iov_base = smb;
+	rdata->iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
 	kref_get(&rdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, rdata->iov, 1,
-			     cifs_readv_receive, cifs_readv_callback,
-			     rdata, 0);
+	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,
+			     cifs_readv_callback, rdata, 0);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->stats.cifs_stats.num_reads);
@@ -1926,6 +1896,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 {
 	int i, rc;
 	struct inode *inode = wdata->cfile->dentry->d_inode;
+	struct TCP_Server_Info *server;
 
 	for (i = 0; i < wdata->nr_pages; i++) {
 		lock_page(wdata->pages[i]);
@@ -1933,7 +1904,8 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	}
 
 	do {
-		rc = cifs_async_writev(wdata);
+		server = tlink_tcon(wdata->cfile->tlink)->ses->server;
+		rc = server->ops->async_writev(wdata);
 	} while (rc == -EAGAIN);
 
 	for (i = 0; i < wdata->nr_pages; i++) {
@@ -2053,11 +2025,12 @@ cifs_writev_callback(struct mid_q_entry *mid)
 int
 cifs_async_writev(struct cifs_writedata *wdata)
 {
-	int i, rc = -EACCES;
+	int rc = -EACCES;
 	WRITE_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct kvec *iov = NULL;
+	struct kvec iov;
+	struct smb_rqst rqst = { };
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
 		wct = 14;
@@ -2073,18 +2046,11 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	if (rc)
 		goto async_writev_out;
 
-	/* 1 iov per page + 1 for header */
-	iov = kzalloc((wdata->nr_pages + 1) * sizeof(*iov), GFP_NOFS);
-	if (iov == NULL) {
-		rc = -ENOMEM;
-		goto async_writev_out;
-	}
-
 	smb->hdr.Pid = cpu_to_le16((__u16)wdata->pid);
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
-	smb->Fid = wdata->cfile->netfid;
+	smb->Fid = wdata->cfile->fid.netfid;
 	smb->OffsetLow = cpu_to_le32(wdata->offset & 0xFFFFFFFF);
 	if (wct == 14)
 		smb->OffsetHigh = cpu_to_le32(wdata->offset >> 32);
@@ -2096,18 +2062,15 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	    cpu_to_le16(offsetof(struct smb_com_write_req, Data) - 4);
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
-	iov[0].iov_base = smb;
+	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
+	iov.iov_base = smb;
 
-	/*
-	 * This function should marshal up the page array into the kvec
-	 * array, reserving [0] for the header. It should kmap the pages
-	 * and set the iov_len properly for each one. It may also set
-	 * wdata->bytes too.
-	 */
-	cifs_kmap_lock();
-	wdata->marshal_iov(iov, wdata);
-	cifs_kmap_unlock();
+	rqst.rq_iov = &iov;
+	rqst.rq_nvec = 1;
+	rqst.rq_pages = wdata->pages;
+	rqst.rq_npages = wdata->nr_pages;
+	rqst.rq_pagesz = wdata->pagesz;
+	rqst.rq_tailsz = wdata->tailsz;
 
 	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
 
@@ -2123,32 +2086,26 @@ cifs_async_writev(struct cifs_writedata *wdata)
 				(struct smb_com_writex_req *)smb;
 		inc_rfc1001_len(&smbw->hdr, wdata->bytes + 5);
 		put_bcc(wdata->bytes + 5, &smbw->hdr);
-		iov[0].iov_len += 4; /* pad bigger by four bytes */
+		iov.iov_len += 4; /* pad bigger by four bytes */
 	}
 
 	kref_get(&wdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
-			     NULL, cifs_writev_callback, wdata, 0);
+	rc = cifs_call_async(tcon->ses->server, &rqst, NULL,
+				cifs_writev_callback, wdata, 0);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);
 	else
 		kref_put(&wdata->refcount, cifs_writedata_release);
 
-	/* send is done, unmap pages */
-	for (i = 0; i < wdata->nr_pages; i++)
-		kunmap(wdata->pages[i]);
-
 async_writev_out:
 	cifs_small_buf_release(smb);
-	kfree(iov);
 	return rc;
 }
 
 int
 CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
-	      unsigned int *nbytes, struct kvec *iov, int n_vec,
-	      const int long_op)
+	      unsigned int *nbytes, struct kvec *iov, int n_vec)
 {
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
@@ -2219,8 +2176,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 		iov[0].iov_len = smb_hdr_len + 8;
 
 
-	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type,
-			  long_op);
+	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);
 	if (rc) {
 		cFYI(1, "Send error Write2 = %d", rc);
@@ -2557,8 +2513,8 @@ CIFSSMBFlush(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 
 int
 CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
-	      const char *fromName, const char *toName,
-	      const struct nls_table *nls_codepage, int remap)
+	      const char *from_name, const char *to_name,
+	      struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
 	RENAME_REQ *pSMB = NULL;
@@ -2566,6 +2522,7 @@ CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	int name_len, name_len2;
 	__u16 count;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	cFYI(1, "In CIFSSMBRename");
 renameRetry:
@@ -2580,9 +2537,9 @@ renameRetry:
 			ATTR_DIRECTORY);
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->OldFileName, fromName,
-				       PATH_MAX, nls_codepage, remap);
+		name_len = cifsConvertToUTF16((__le16 *) pSMB->OldFileName,
+					      from_name, PATH_MAX,
+					      cifs_sb->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->OldFileName[name_len] = 0x04;	/* pad */
@@ -2590,17 +2547,18 @@ renameRetry:
 		pSMB->OldFileName[name_len + 1] = 0x00;
 		name_len2 =
 		    cifsConvertToUTF16((__le16 *)&pSMB->OldFileName[name_len+2],
-				       toName, PATH_MAX, nls_codepage, remap);
+				       to_name, PATH_MAX, cifs_sb->local_nls,
+				       remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(fromName, PATH_MAX);
+		name_len = strnlen(from_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->OldFileName, fromName, name_len);
-		name_len2 = strnlen(toName, PATH_MAX);
+		strncpy(pSMB->OldFileName, from_name, name_len);
+		name_len2 = strnlen(to_name, PATH_MAX);
 		name_len2++;	/* trailing null */
 		pSMB->OldFileName[name_len] = 0x04;  /* 2nd buffer format */
-		strncpy(&pSMB->OldFileName[name_len + 1], toName, name_len2);
+		strncpy(&pSMB->OldFileName[name_len + 1], to_name, name_len2);
 		name_len2++;	/* trailing null */
 		name_len2++;	/* signature byte */
 	}
@@ -2948,8 +2906,8 @@ createHardLinkRetry:
 
 int
 CIFSCreateHardLink(const unsigned int xid, struct cifs_tcon *tcon,
-		   const char *fromName, const char *toName,
-		   const struct nls_table *nls_codepage, int remap)
+		   const char *from_name, const char *to_name,
+		   struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
 	NT_RENAME_REQ *pSMB = NULL;
@@ -2957,6 +2915,7 @@ CIFSCreateHardLink(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	int name_len, name_len2;
 	__u16 count;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	cFYI(1, "In CIFSCreateHardLink");
 winCreateHardLinkRetry:
@@ -2976,8 +2935,8 @@ winCreateHardLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->OldFileName, fromName,
-				       PATH_MAX, nls_codepage, remap);
+		    cifsConvertToUTF16((__le16 *) pSMB->OldFileName, from_name,
+				       PATH_MAX, cifs_sb->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 
@@ -2986,17 +2945,18 @@ winCreateHardLinkRetry:
 		pSMB->OldFileName[name_len + 1] = 0x00; /* pad */
 		name_len2 =
 		    cifsConvertToUTF16((__le16 *)&pSMB->OldFileName[name_len+2],
-				       toName, PATH_MAX, nls_codepage, remap);
+				       to_name, PATH_MAX, cifs_sb->local_nls,
+				       remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(fromName, PATH_MAX);
+		name_len = strnlen(from_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->OldFileName, fromName, name_len);
-		name_len2 = strnlen(toName, PATH_MAX);
+		strncpy(pSMB->OldFileName, from_name, name_len);
+		name_len2 = strnlen(to_name, PATH_MAX);
 		name_len2++;	/* trailing null */
 		pSMB->OldFileName[name_len] = 0x04;	/* 2nd buffer format */
-		strncpy(&pSMB->OldFileName[name_len + 1], toName, name_len2);
+		strncpy(&pSMB->OldFileName[name_len + 1], to_name, name_len2);
 		name_len2++;	/* trailing null */
 		name_len2++;	/* signature byte */
 	}
@@ -4254,10 +4214,9 @@ UnixQPathInfoRetry:
 /* xid, tcon, searchName and codepage are input parms, rest are returned */
 int
 CIFSFindFirst(const unsigned int xid, struct cifs_tcon *tcon,
-	      const char *searchName,
-	      const struct nls_table *nls_codepage,
+	      const char *searchName, struct cifs_sb_info *cifs_sb,
 	      __u16 *pnetfid, __u16 search_flags,
-	      struct cifs_search_info *psrch_inf, int remap, const char dirsep)
+	      struct cifs_search_info *psrch_inf, bool msearch)
 {
 /* level 257 SMB_ */
 	TRANSACTION2_FFIRST_REQ *pSMB = NULL;
@@ -4265,8 +4224,9 @@ CIFSFindFirst(const unsigned int xid, struct cifs_tcon *tcon,
 	T2_FFIRST_RSP_PARMS *parms;
 	int rc = 0;
 	int bytes_returned = 0;
-	int name_len;
+	int name_len, remap;
 	__u16 params, byte_count;
+	struct nls_table *nls_codepage;
 
 	cFYI(1, "In FindFirst for %s", searchName);
 
@@ -4276,6 +4236,9 @@ findFirstRetry:
 	if (rc)
 		return rc;
 
+	nls_codepage = cifs_sb->local_nls;
+	remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
+
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->FileName, searchName,
@@ -4284,24 +4247,29 @@ findFirstRetry:
 		it got remapped to 0xF03A as if it were part of the
 		directory name instead of a wildcard */
 		name_len *= 2;
-		pSMB->FileName[name_len] = dirsep;
-		pSMB->FileName[name_len+1] = 0;
-		pSMB->FileName[name_len+2] = '*';
-		pSMB->FileName[name_len+3] = 0;
-		name_len += 4; /* now the trailing null */
-		pSMB->FileName[name_len] = 0; /* null terminate just in case */
-		pSMB->FileName[name_len+1] = 0;
-		name_len += 2;
+		if (msearch) {
+			pSMB->FileName[name_len] = CIFS_DIR_SEP(cifs_sb);
+			pSMB->FileName[name_len+1] = 0;
+			pSMB->FileName[name_len+2] = '*';
+			pSMB->FileName[name_len+3] = 0;
+			name_len += 4; /* now the trailing null */
+			/* null terminate just in case */
+			pSMB->FileName[name_len] = 0;
+			pSMB->FileName[name_len+1] = 0;
+			name_len += 2;
+		}
 	} else {	/* BB add check for overrun of SMB buf BB */
 		name_len = strnlen(searchName, PATH_MAX);
 /* BB fix here and in unicode clause above ie
 		if (name_len > buffersize-header)
 			free buffer exit; BB */
 		strncpy(pSMB->FileName, searchName, name_len);
-		pSMB->FileName[name_len] = dirsep;
-		pSMB->FileName[name_len+1] = '*';
-		pSMB->FileName[name_len+2] = 0;
-		name_len += 3;
+		if (msearch) {
+			pSMB->FileName[name_len] = CIFS_DIR_SEP(cifs_sb);
+			pSMB->FileName[name_len+1] = '*';
+			pSMB->FileName[name_len+2] = 0;
+			name_len += 3;
+		}
 	}
 
 	params = 12 + name_len /* includes null */ ;
@@ -4389,7 +4357,8 @@ findFirstRetry:
 			psrch_inf->last_entry = psrch_inf->srch_entries_start +
 							lnoff;
 
-			*pnetfid = parms->SearchHandle;
+			if (pnetfid)
+				*pnetfid = parms->SearchHandle;
 		} else {
 			cifs_buf_release(pSMB);
 		}
@@ -5417,16 +5386,16 @@ QFSPosixRetry:
 }
 
 
-/* We can not use write of zero bytes trick to
-   set file size due to need for large file support.  Also note that
-   this SetPathInfo is preferred to SetFileInfo based method in next
-   routine which is only needed to work around a sharing violation bug
-   in Samba which this routine can run into */
-
+/*
+ * We can not use write of zero bytes trick to set file size due to need for
+ * large file support. Also note that this SetPathInfo is preferred to
+ * SetFileInfo based method in next routine which is only needed to work around
+ * a sharing violation bugin Samba which this routine can run into.
+ */
 int
 CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
-	      const char *fileName, __u64 size, bool SetAllocation,
-	      const struct nls_table *nls_codepage, int remap)
+	      const char *file_name, __u64 size, struct cifs_sb_info *cifs_sb,
+	      bool set_allocation)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -5434,6 +5403,8 @@ CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	int rc = 0;
 	int bytes_returned = 0;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
+
 	__u16 params, byte_count, data_count, param_offset, offset;
 
 	cFYI(1, "In SetEOF");
@@ -5445,14 +5416,14 @@ SetEOFRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fileName,
-				       PATH_MAX, nls_codepage, remap);
+		    cifsConvertToUTF16((__le16 *) pSMB->FileName, file_name,
+				       PATH_MAX, cifs_sb->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(fileName, PATH_MAX);
+		name_len = strnlen(file_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->FileName, fileName, name_len);
+		strncpy(pSMB->FileName, file_name, name_len);
 	}
 	params = 6 + name_len;
 	data_count = sizeof(struct file_end_of_file_info);
@@ -5466,7 +5437,7 @@ SetEOFRetry:
 	param_offset = offsetof(struct smb_com_transaction2_spi_req,
 				InformationLevel) - 4;
 	offset = param_offset + params;
-	if (SetAllocation) {
+	if (set_allocation) {
 		if (tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)
 			pSMB->InformationLevel =
 				cpu_to_le16(SMB_SET_FILE_ALLOCATION_INFO2);
@@ -5513,8 +5484,8 @@ SetEOFRetry:
 }
 
 int
-CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
-		   __u16 fid, __u32 pid_of_opener, bool SetAllocation)
+CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile, __u64 size, bool set_allocation)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct file_end_of_file_info *parm_data;
@@ -5528,8 +5499,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
 	if (rc)
 		return rc;
 
-	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
-	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
+	pSMB->hdr.Pid = cpu_to_le16((__u16)cfile->pid);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(cfile->pid >> 16));
 
 	params = 6;
 	pSMB->MaxSetupCount = 0;
@@ -5558,8 +5529,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
 				+ offset);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	parm_data->FileSize = cpu_to_le64(size);
-	pSMB->Fid = fid;
-	if (SetAllocation) {
+	pSMB->Fid = cfile->fid.netfid;
+	if (set_allocation) {
 		if (tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)
 			pSMB->InformationLevel =
 				cpu_to_le16(SMB_SET_FILE_ALLOCATION_INFO2);

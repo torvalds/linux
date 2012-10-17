@@ -10,12 +10,11 @@
  */
 #include <linux/module.h>
 #include <linux/console.h>
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include "mgag200_drv.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 
 /*
  * This is the generic driver code. This binds the driver to the drm core,

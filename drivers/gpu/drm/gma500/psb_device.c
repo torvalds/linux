@@ -20,7 +20,7 @@
 #include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -290,6 +290,7 @@ static void psb_get_core_freq(struct drm_device *dev)
 	case 6:
 	case 7:
 		dev_priv->core_freq = 266;
+		break;
 	default:
 		dev_priv->core_freq = 0;
 	}

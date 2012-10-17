@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
+#include <linux/bootmem.h>
 
 #include <asm/reboot.h>
 #include <asm/time.h>
@@ -56,6 +57,7 @@ unsigned long nlm_common_ebase = 0x0;
 /* default to uniprocessor */
 uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
 int  nlm_threads_per_core = 1;
+extern u32 __dtb_start[];
 
 static void nlm_linux_exit(void)
 {
@@ -96,9 +98,18 @@ void __init prom_init(void)
 {
 	void *fdtp;
 
-	fdtp = (void *)(long)fw_arg0;
 	xlp_mmu_init();
 	nlm_hal_init();
+
+	/*
+	 * If no FDT pointer is passed in, use the built-in FDT.
+	 * device_tree_init() does not handle CKSEG0 pointers in
+	 * 64-bit, so convert pointer.
+	 */
+	fdtp = (void *)(long)fw_arg0;
+	if (!fdtp)
+		fdtp = __dtb_start;
+	fdtp = phys_to_virt(__pa(fdtp));
 	early_init_devtree(fdtp);
 
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
@@ -110,6 +121,25 @@ void __init prom_init(void)
 
 	register_smp_ops(&nlm_smp_ops);
 #endif
+}
+
+void __init device_tree_init(void)
+{
+	unsigned long base, size;
+
+	if (!initial_boot_params)
+		return;
+
+	base = virt_to_phys((void *)initial_boot_params);
+	size = be32_to_cpu(initial_boot_params->totalsize);
+
+	/* Before we do anything, lets reserve the dt blob */
+	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
+
+	unflatten_device_tree();
+
+	/* free the space reserved for the dt blob */
+	free_bootmem(base, size);
 }
 
 static struct of_device_id __initdata xlp_ids[] = {

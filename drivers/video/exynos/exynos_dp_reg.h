@@ -187,7 +187,7 @@
 #define PD_RING_OSC				(0x1 << 6)
 #define AUX_TERMINAL_CTRL_50_OHM		(0x2 << 4)
 #define TX_CUR1_2X				(0x1 << 2)
-#define TX_CUR_8_MA				(0x2 << 0)
+#define TX_CUR_16_MA				(0x3 << 0)
 
 /* EXYNOS_DP_TX_AMP_TUNING_CTL */
 #define CH3_AMP_400_MV				(0x0 << 24)
@@ -285,6 +285,7 @@
 #define SW_TRAINING_PATTERN_SET_NORMAL		(0x0 << 0)
 
 /* EXYNOS_DP_LN0_LINK_TRAINING_CTL */
+#define PRE_EMPHASIS_SET_MASK			(0x3 << 3)
 #define PRE_EMPHASIS_SET_SHIFT			(3)
 
 /* EXYNOS_DP_DEBUG_CTL */

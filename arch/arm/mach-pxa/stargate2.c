@@ -52,7 +52,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mfd/da903x.h>
-#include <linux/sht15.h>
+#include <linux/platform_data/sht15.h>
 
 #include "devices.h"
 #include "generic.h"

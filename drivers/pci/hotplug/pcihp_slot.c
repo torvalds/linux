@@ -96,15 +96,9 @@ static void program_hpp_type1(struct pci_dev *dev, struct hpp_type1 *hpp)
 static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 {
 	int pos;
-	u16 reg16;
 	u32 reg32;
 
 	if (!hpp)
-		return;
-
-	/* Find PCI Express capability */
-	pos = pci_pcie_cap(dev);
-	if (!pos)
 		return;
 
 	if (hpp->revision > 1) {
@@ -114,17 +108,13 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	}
 
 	/* Initialize Device Control Register */
-	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
-	reg16 = (reg16 & hpp->pci_exp_devctl_and) | hpp->pci_exp_devctl_or;
-	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
+	pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
+			~hpp->pci_exp_devctl_and, hpp->pci_exp_devctl_or);
 
 	/* Initialize Link Control Register */
-	if (dev->subordinate) {
-		pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &reg16);
-		reg16 = (reg16 & hpp->pci_exp_lnkctl_and)
-			| hpp->pci_exp_lnkctl_or;
-		pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, reg16);
-	}
+	if (dev->subordinate)
+		pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
+			~hpp->pci_exp_lnkctl_and, hpp->pci_exp_lnkctl_or);
 
 	/* Find Advanced Error Reporting Enhanced Capability */
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);

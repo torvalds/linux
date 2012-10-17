@@ -209,7 +209,7 @@ void usb_detect_quirks(struct usb_device *udev)
 	 * for all devices.  It will affect things like hub resets
 	 * and EMF-related port disables.
 	 */
-	if (!(udev->quirks & USB_QUIRK_RESET_MORPHS))
+	if (!(udev->quirks & USB_QUIRK_RESET))
 		udev->persist_enabled = 1;
 #endif	/* CONFIG_PM */
 }

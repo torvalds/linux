@@ -272,8 +272,8 @@ static int __init mcf_pci_init(void)
 		PACR_EXTMINTE(0x1f), PACR);
 
 	/* Set required multi-function pins for PCI bus use */
-	__raw_writew(0x3ff, MCF_PAR_PCIBG);
-	__raw_writew(0x3ff, MCF_PAR_PCIBR);
+	__raw_writew(0x3ff, MCFGPIO_PAR_PCIBG);
+	__raw_writew(0x3ff, MCFGPIO_PAR_PCIBR);
 
 	/* Set up config space for local host bus controller */
 	__raw_writel(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |

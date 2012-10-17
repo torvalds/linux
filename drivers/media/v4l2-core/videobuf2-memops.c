@@ -163,7 +163,7 @@ int vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
 		return ret;
 	}
 
-	vma->vm_flags		|= VM_DONTEXPAND | VM_RESERVED;
+	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data	= priv;
 	vma->vm_ops		= vm_ops;
 

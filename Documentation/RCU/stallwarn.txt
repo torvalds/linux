@@ -99,7 +99,7 @@ In kernels with CONFIG_RCU_FAST_NO_HZ, even more information is
 printed:
 
 	INFO: rcu_preempt detected stall on CPU
-	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 drain=0 . timer=-1
+	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 drain=0 . timer not pending
 	   (t=65000 jiffies)
 
 The "(64628 ticks this GP)" indicates that this CPU has taken more
@@ -116,13 +116,13 @@ number between the two "/"s is the value of the nesting, which will
 be a small positive number if in the idle loop and a very large positive
 number (as shown above) otherwise.
 
-For CONFIG_RCU_FAST_NO_HZ kernels, the "drain=0" indicates that the
-CPU is not in the process of trying to force itself into dyntick-idle
-state, the "." indicates that the CPU has not given up forcing RCU
-into dyntick-idle mode (it would be "H" otherwise), and the "timer=-1"
-indicates that the CPU has not recented forced RCU into dyntick-idle
-mode (it would otherwise indicate the number of microseconds remaining
-in this forced state).
+For CONFIG_RCU_FAST_NO_HZ kernels, the "drain=0" indicates that the CPU is
+not in the process of trying to force itself into dyntick-idle state, the
+"." indicates that the CPU has not given up forcing RCU into dyntick-idle
+mode (it would be "H" otherwise), and the "timer not pending" indicates
+that the CPU has not recently forced RCU into dyntick-idle mode (it
+would otherwise indicate the number of microseconds remaining in this
+forced state).
 
 
 Multiple Warnings From One Stall

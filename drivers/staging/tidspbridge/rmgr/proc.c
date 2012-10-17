@@ -300,7 +300,7 @@ proc_attach(u32 processor_id,
 	if (status)
 		goto func_end;
 
-	/* If we made it this far, create the Proceesor object: */
+	/* If we made it this far, create the Processor object: */
 	p_proc_object = kzalloc(sizeof(struct proc_object), GFP_KERNEL);
 	/* Fill out the Processor Object: */
 	if (p_proc_object == NULL) {

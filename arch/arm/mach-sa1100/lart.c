@@ -5,6 +5,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
+#include <linux/platform_device.h>
 
 #include <video/sa1100fb.h>
 
@@ -126,6 +129,27 @@ static struct map_desc lart_io_desc[] __initdata = {
 	}
 };
 
+/* LEDs */
+struct gpio_led lart_gpio_leds[] = {
+	{
+		.name			= "lart:red",
+		.default_trigger	= "cpu0",
+		.gpio			= 23,
+	},
+};
+
+static struct gpio_led_platform_data lart_gpio_led_info = {
+	.leds		= lart_gpio_leds,
+	.num_leds	= ARRAY_SIZE(lart_gpio_leds),
+};
+
+static struct platform_device lart_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &lart_gpio_led_info,
+	}
+};
 static void __init lart_map_io(void)
 {
 	sa1100_map_io();
@@ -139,6 +163,8 @@ static void __init lart_map_io(void)
 	GPDR |= GPIO_UART_TXD;
 	GPDR &= ~GPIO_UART_RXD;
 	PPAR |= PPAR_UPR;
+
+	platform_device_register(&lart_leds);
 }
 
 MACHINE_START(LART, "LART")

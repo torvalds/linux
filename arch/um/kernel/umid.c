@@ -4,9 +4,9 @@
  */
 
 #include <asm/errno.h>
-#include "init.h"
-#include "kern.h"
-#include "os.h"
+#include <init.h>
+#include <kern.h>
+#include <os.h>
 
 /* Changed by set_umid_arg */
 static int umid_inited = 0;

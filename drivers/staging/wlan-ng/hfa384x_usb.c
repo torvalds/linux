@@ -2140,11 +2140,7 @@ exit_proc:
 ----------------------------------------------------------------*/
 int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
-	int result;
-
-	result = hfa384x_dorrid_wait(hw, rid, buf, len);
-
-	return result;
+	return hfa384x_dorrid_wait(hw, rid, buf, len);
 }
 
 /*----------------------------------------------------------------
@@ -3790,7 +3786,7 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 #endif
 	if ((urb->status == -ESHUTDOWN) ||
 	    (urb->status == -ENODEV) || (hw == NULL))
-		goto done;
+		return;
 
 retry:
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3803,7 +3799,7 @@ retry:
 	 */
 	if (list_empty(&hw->ctlxq.active)) {
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		goto done;
+		return;
 	}
 
 	/*
@@ -3886,9 +3882,6 @@ delresp:
 
 	if (run_queue)
 		hfa384x_usbctlxq_run(hw);
-
-done:
-	;
 }
 
 /*----------------------------------------------------------------
@@ -3985,15 +3978,10 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0) {
 			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 			hfa384x_usbctlxq_run(hw);
-			goto done;
+			return;
 		}
 	}
-
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-
-done:
-	;
-
 }
 
 /*----------------------------------------------------------------
@@ -4057,23 +4045,20 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
 	unsigned long flags;
-	int ret;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
 	if (hw->wlandev->hwremoved) {
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		ret = -ENODEV;
-	} else {
-		ctlx->state = CTLX_PENDING;
-		list_add_tail(&ctlx->list, &hw->ctlxq.pending);
-
-		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		hfa384x_usbctlxq_run(hw);
-		ret = 0;
+		return -ENODEV;
 	}
 
-	return ret;
+	ctlx->state = CTLX_PENDING;
+	list_add_tail(&ctlx->list, &hw->ctlxq.pending);
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+	hfa384x_usbctlxq_run(hw);
+
+	return 0;
 }
 
 /*----------------------------------------------------------------

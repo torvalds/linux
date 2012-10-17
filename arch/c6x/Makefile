@@ -6,6 +6,8 @@
 # for more details.
 #
 
+KBUILD_DEFCONFIG := dsk6455_defconfig
+
 cflags-y += -mno-dsbt -msdata=none
 
 cflags-$(CONFIG_C6X_BIG_KERNEL) += -mlong-calls

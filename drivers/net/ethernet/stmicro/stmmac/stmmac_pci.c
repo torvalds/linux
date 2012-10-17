@@ -40,7 +40,6 @@ static void stmmac_default_data(void)
 	plat_dat.has_gmac = 1;
 	plat_dat.force_sf_dma_mode = 1;
 
-	mdio_data.bus_id = 1;
 	mdio_data.phy_reset = NULL;
 	mdio_data.phy_mask = 0;
 	plat_dat.mdio_bus_data = &mdio_data;

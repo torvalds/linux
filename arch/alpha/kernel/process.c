@@ -28,6 +28,7 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 #include <asm/reg.h>
 #include <asm/uaccess.h>
@@ -54,9 +55,12 @@ cpu_idle(void)
 		/* FIXME -- EV6 and LCA45 know how to power down
 		   the CPU.  */
 
+		rcu_idle_enter();
 		while (!need_resched())
 			cpu_relax();
-		schedule();
+
+		rcu_idle_exit();
+		schedule_preempt_disabled();
 	}
 }
 
@@ -259,33 +263,35 @@ alpha_vfork(struct pt_regs *regs)
 
 /*
  * Copy an alpha thread..
- *
- * Note the "stack_offset" stuff: when returning to kernel mode, we need
- * to have some extra stack-space for the kernel stack that still exists
- * after the "ret_from_fork".  When returning to user mode, we only want
- * the space needed by the syscall stack frame (ie "struct pt_regs").
- * Use the passed "regs" pointer to determine how much space we need
- * for a kernel fork().
  */
 
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long unused,
+	    unsigned long arg,
 	    struct task_struct * p, struct pt_regs * regs)
 {
 	extern void ret_from_fork(void);
+	extern void ret_from_kernel_thread(void);
 
 	struct thread_info *childti = task_thread_info(p);
-	struct pt_regs * childregs;
-	struct switch_stack * childstack, *stack;
-	unsigned long stack_offset, settls;
+	struct pt_regs *childregs = task_pt_regs(p);
+	struct switch_stack *childstack, *stack;
+	unsigned long settls;
 
-	stack_offset = PAGE_SIZE - sizeof(struct pt_regs);
-	if (!(regs->ps & 8))
-		stack_offset = (PAGE_SIZE-1) & (unsigned long) regs;
-	childregs = (struct pt_regs *)
-	  (stack_offset + PAGE_SIZE + task_stack_page(p));
-		
+	childstack = ((struct switch_stack *) childregs) - 1;
+	if (unlikely(!regs)) {
+		/* kernel thread */
+		memset(childstack, 0,
+			sizeof(struct switch_stack) + sizeof(struct pt_regs));
+		childstack->r26 = (unsigned long) ret_from_kernel_thread;
+		childstack->r9 = usp;	/* function */
+		childstack->r10 = arg;
+		childregs->hae = alpha_mv.hae_cache,
+		childti->pcb.usp = 0;
+		childti->pcb.ksp = (unsigned long) childstack;
+		childti->pcb.flags = 1;	/* set FEN, clear everything else */
+		return 0;
+	}
 	*childregs = *regs;
 	settls = regs->r20;
 	childregs->r0 = 0;
@@ -293,7 +299,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs->r20 = 1;	/* OSF/1 has some strange fork() semantics.  */
 	regs->r20 = 0;
 	stack = ((struct switch_stack *) regs) - 1;
-	childstack = ((struct switch_stack *) childregs) - 1;
 	*childstack = *stack;
 	childstack->r26 = (unsigned long) ret_from_fork;
 	childti->pcb.usp = usp;
@@ -382,27 +387,6 @@ dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
 EXPORT_SYMBOL(dump_elf_task_fp);
 
 /*
- * sys_execve() executes a new program.
- */
-asmlinkage int
-do_sys_execve(const char __user *ufilename,
-	      const char __user *const __user *argv,
-	      const char __user *const __user *envp, struct pt_regs *regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
-/*
  * Return saved PC of a blocked thread.  This assumes the frame
  * pointer is the 6th saved long on the kernel stack and that the
  * saved return address is the first long in the frame.  This all
@@ -455,22 +439,3 @@ get_wchan(struct task_struct *p)
 	}
 	return pc;
 }
-
-int kernel_execve(const char *path, const char *const argv[], const char *const envp[])
-{
-	/* Avoid the HAE being gratuitously wrong, which would cause us
-	   to do the whole turn off interrupts thing and restore it.  */
-	struct pt_regs regs = {.hae = alpha_mv.hae_cache};
-	int err = do_execve(path, argv, envp, &regs);
-	if (!err) {
-		struct pt_regs *p = current_pt_regs();
-		/* copy regs to normal position and off to userland we go... */
-		*p = regs;
-		__asm__ __volatile__ (
-			"mov	%0, $sp;"
-			"br	$31, ret_from_sys_call"
-			: : "r"(p));
-	}
-	return err;
-}
-EXPORT_SYMBOL(kernel_execve);

@@ -25,9 +25,9 @@
  *
  **************************************************************************/
 
-#include "ttm/ttm_execbuf_util.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/module.h>

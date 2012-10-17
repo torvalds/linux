@@ -115,7 +115,7 @@ static const struct ide_port_ops it8172_port_ops = {
 	.set_dma_mode	= it8172_set_dma_mode,
 };
 
-static const struct ide_port_info it8172_port_info __devinitdata = {
+static const struct ide_port_info it8172_port_info __devinitconst = {
 	.name		= DRV_NAME,
 	.port_ops	= &it8172_port_ops,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x00, 0x00, 0x00} },

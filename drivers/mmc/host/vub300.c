@@ -806,7 +806,7 @@ static void command_res_completed(struct urb *urb)
 		 * we suspect a buggy USB host controller
 		 */
 	} else if (!vub300->data) {
-		/* this means that the command (typically CMD52) suceeded */
+		/* this means that the command (typically CMD52) succeeded */
 	} else if (vub300->resp.common.header_type != 0x02) {
 		/*
 		 * this is an error response from the VUB300 chip
@@ -2358,9 +2358,9 @@ error5:
 	 * which is contained at the end of struct mmc
 	 */
 error4:
-	usb_free_urb(command_out_urb);
-error1:
 	usb_free_urb(command_res_urb);
+error1:
+	usb_free_urb(command_out_urb);
 error0:
 	return retval;
 }

@@ -4,12 +4,12 @@ config AINTC
 	bool
 
 config CP_INTC
-	select IRQ_DOMAIN
 	bool
+	select IRQ_DOMAIN
 
 config ARCH_DAVINCI_DMx
-	select CPU_ARM926T
 	bool
+	select CPU_ARM926T
 
 menu "TI DaVinci Implementations"
 
@@ -32,19 +32,19 @@ config ARCH_DAVINCI_DM646x
 
 config ARCH_DAVINCI_DA830
 	bool "DA830/OMAP-L137/AM17x based system"
-	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 	select CPU_DCACHE_WRITETHROUGH # needed on silicon revs 1.0, 1.1
+	select CP_INTC
 
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
-	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 	select ARCH_HAS_CPUFREQ
+	select CP_INTC
 
 config ARCH_DAVINCI_DA8XX
-	select CPU_ARM926T
 	bool
+	select CPU_ARM926T
 
 config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
@@ -52,9 +52,9 @@ config ARCH_DAVINCI_DM365
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_TNETV107X
+	bool "TNETV107X based system"
 	select CPU_V6
 	select CP_INTC
-	bool "TNETV107X based system"
 
 comment "DaVinci Board Type"
 
@@ -103,9 +103,9 @@ config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
 	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
-	select MACH_DAVINCI_DM6467TEVM
 	select EEPROM_AT24
 	select I2C
+	select MACH_DAVINCI_DM6467TEVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
@@ -127,8 +127,8 @@ config MACH_DAVINCI_DA830_EVM
 	bool "TI DA830/OMAP-L137/AM17x Reference Platform"
 	default ARCH_DAVINCI_DA830
 	depends on ARCH_DAVINCI_DA830
-	select GPIO_PCF857X
 	select EEPROM_AT24
+	select GPIO_PCF857X
 	select I2C
 	help
 	  Say Y here to select the TI DA830/OMAP-L137/AM17x Evaluation Module.

@@ -26,124 +26,6 @@
 #include <asm/siginfo.h>
 #include <asm/uaccess.h>
 
-void set_close_on_exec(unsigned int fd, int flag)
-{
-	struct files_struct *files = current->files;
-	struct fdtable *fdt;
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (flag)
-		__set_close_on_exec(fd, fdt);
-	else
-		__clear_close_on_exec(fd, fdt);
-	spin_unlock(&files->file_lock);
-}
-
-static bool get_close_on_exec(unsigned int fd)
-{
-	struct files_struct *files = current->files;
-	struct fdtable *fdt;
-	bool res;
-	rcu_read_lock();
-	fdt = files_fdtable(files);
-	res = close_on_exec(fd, fdt);
-	rcu_read_unlock();
-	return res;
-}
-
-SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
-{
-	int err = -EBADF;
-	struct file * file, *tofree;
-	struct files_struct * files = current->files;
-	struct fdtable *fdt;
-
-	if ((flags & ~O_CLOEXEC) != 0)
-		return -EINVAL;
-
-	if (unlikely(oldfd == newfd))
-		return -EINVAL;
-
-	spin_lock(&files->file_lock);
-	err = expand_files(files, newfd);
-	file = fcheck(oldfd);
-	if (unlikely(!file))
-		goto Ebadf;
-	if (unlikely(err < 0)) {
-		if (err == -EMFILE)
-			goto Ebadf;
-		goto out_unlock;
-	}
-	/*
-	 * We need to detect attempts to do dup2() over allocated but still
-	 * not finished descriptor.  NB: OpenBSD avoids that at the price of
-	 * extra work in their equivalent of fget() - they insert struct
-	 * file immediately after grabbing descriptor, mark it larval if
-	 * more work (e.g. actual opening) is needed and make sure that
-	 * fget() treats larval files as absent.  Potentially interesting,
-	 * but while extra work in fget() is trivial, locking implications
-	 * and amount of surgery on open()-related paths in VFS are not.
-	 * FreeBSD fails with -EBADF in the same situation, NetBSD "solution"
-	 * deadlocks in rather amusing ways, AFAICS.  All of that is out of
-	 * scope of POSIX or SUS, since neither considers shared descriptor
-	 * tables and this condition does not arise without those.
-	 */
-	err = -EBUSY;
-	fdt = files_fdtable(files);
-	tofree = fdt->fd[newfd];
-	if (!tofree && fd_is_open(newfd, fdt))
-		goto out_unlock;
-	get_file(file);
-	rcu_assign_pointer(fdt->fd[newfd], file);
-	__set_open_fd(newfd, fdt);
-	if (flags & O_CLOEXEC)
-		__set_close_on_exec(newfd, fdt);
-	else
-		__clear_close_on_exec(newfd, fdt);
-	spin_unlock(&files->file_lock);
-
-	if (tofree)
-		filp_close(tofree, files);
-
-	return newfd;
-
-Ebadf:
-	err = -EBADF;
-out_unlock:
-	spin_unlock(&files->file_lock);
-	return err;
-}
-
-SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
-{
-	if (unlikely(newfd == oldfd)) { /* corner case */
-		struct files_struct *files = current->files;
-		int retval = oldfd;
-
-		rcu_read_lock();
-		if (!fcheck_files(files, oldfd))
-			retval = -EBADF;
-		rcu_read_unlock();
-		return retval;
-	}
-	return sys_dup3(oldfd, newfd, 0);
-}
-
-SYSCALL_DEFINE1(dup, unsigned int, fildes)
-{
-	int ret = -EBADF;
-	struct file *file = fget_raw(fildes);
-
-	if (file) {
-		ret = get_unused_fd();
-		if (ret >= 0)
-			fd_install(ret, file);
-		else
-			fput(file);
-	}
-	return ret;
-}
-
 #define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
@@ -267,7 +149,7 @@ pid_t f_getown(struct file *filp)
 
 static int f_setown_ex(struct file *filp, unsigned long arg)
 {
-	struct f_owner_ex * __user owner_p = (void * __user)arg;
+	struct f_owner_ex __user *owner_p = (void __user *)arg;
 	struct f_owner_ex owner;
 	struct pid *pid;
 	int type;
@@ -307,7 +189,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 
 static int f_getown_ex(struct file *filp, unsigned long arg)
 {
-	struct f_owner_ex * __user owner_p = (void * __user)arg;
+	struct f_owner_ex __user *owner_p = (void __user *)arg;
 	struct f_owner_ex owner;
 	int ret = 0;
 
@@ -345,7 +227,7 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 static int f_getowner_uids(struct file *filp, unsigned long arg)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	uid_t * __user dst = (void * __user)arg;
+	uid_t __user *dst = (void __user *)arg;
 	uid_t src[2];
 	int err;
 
@@ -373,14 +255,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 
 	switch (cmd) {
 	case F_DUPFD:
+		err = f_dupfd(arg, filp, 0);
+		break;
 	case F_DUPFD_CLOEXEC:
-		if (arg >= rlimit(RLIMIT_NOFILE))
-			break;
-		err = alloc_fd(arg, cmd == F_DUPFD_CLOEXEC ? O_CLOEXEC : 0);
-		if (err >= 0) {
-			get_file(filp);
-			fd_install(err, filp);
-		}
+		err = f_dupfd(arg, filp, O_CLOEXEC);
 		break;
 	case F_GETFD:
 		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;
@@ -470,25 +348,23 @@ static int check_fcntl_cmd(unsigned cmd)
 
 SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {	
-	struct file *filp;
-	int fput_needed;
+	struct fd f = fdget_raw(fd);
 	long err = -EBADF;
 
-	filp = fget_raw_light(fd, &fput_needed);
-	if (!filp)
+	if (!f.file)
 		goto out;
 
-	if (unlikely(filp->f_mode & FMODE_PATH)) {
+	if (unlikely(f.file->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
 			goto out1;
 	}
 
-	err = security_file_fcntl(filp, cmd, arg);
+	err = security_file_fcntl(f.file, cmd, arg);
 	if (!err)
-		err = do_fcntl(fd, cmd, arg, filp);
+		err = do_fcntl(fd, cmd, arg, f.file);
 
 out1:
- 	fput_light(filp, fput_needed);
+ 	fdput(f);
 out:
 	return err;
 }
@@ -497,38 +373,36 @@ out:
 SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
-	struct file * filp;
+	struct fd f = fdget_raw(fd);
 	long err = -EBADF;
-	int fput_needed;
 
-	filp = fget_raw_light(fd, &fput_needed);
-	if (!filp)
+	if (!f.file)
 		goto out;
 
-	if (unlikely(filp->f_mode & FMODE_PATH)) {
+	if (unlikely(f.file->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
 			goto out1;
 	}
 
-	err = security_file_fcntl(filp, cmd, arg);
+	err = security_file_fcntl(f.file, cmd, arg);
 	if (err)
 		goto out1;
 	
 	switch (cmd) {
 		case F_GETLK64:
-			err = fcntl_getlk64(filp, (struct flock64 __user *) arg);
+			err = fcntl_getlk64(f.file, (struct flock64 __user *) arg);
 			break;
 		case F_SETLK64:
 		case F_SETLKW64:
-			err = fcntl_setlk64(fd, filp, cmd,
+			err = fcntl_setlk64(fd, f.file, cmd,
 					(struct flock64 __user *) arg);
 			break;
 		default:
-			err = do_fcntl(fd, cmd, arg, filp);
+			err = do_fcntl(fd, cmd, arg, f.file);
 			break;
 	}
 out1:
-	fput_light(filp, fput_needed);
+	fdput(f);
 out:
 	return err;
 }

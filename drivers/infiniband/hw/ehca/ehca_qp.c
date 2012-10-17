@@ -321,7 +321,7 @@ static inline int init_qp_queue(struct ehca_shca *shca,
 			ret = -EINVAL;
 			goto init_qp_queue1;
 		}
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 
 		h_ret = hipz_h_register_rpage_qp(ipz_hca_handle,
 						 my_qp->ipz_qp_handle,
@@ -1094,7 +1094,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 	ehca_dbg(&shca->ib_device, "qp_num=%x bad_send_wqe_p=%p",
 		 qp_num, bad_send_wqe_p);
 	/* convert wqe pointer to vadr */
-	bad_send_wqe_v = abs_to_virt((u64)bad_send_wqe_p);
+	bad_send_wqe_v = __va((u64)bad_send_wqe_p);
 	if (ehca_debug_level >= 2)
 		ehca_dmp(bad_send_wqe_v, 32, "qp_num=%x bad_wqe", qp_num);
 	squeue = &my_qp->ipz_squeue;
@@ -1138,7 +1138,7 @@ static int calc_left_cqes(u64 wqe_p, struct ipz_queue *ipz_queue,
 	/* convert real to abs address */
 	wqe_p = wqe_p & (~(1UL << 63));
 
-	wqe_v = abs_to_virt(wqe_p);
+	wqe_v = __va(wqe_p);
 
 	if (ipz_queue_abs_to_offset(ipz_queue, wqe_p, &q_ofs)) {
 		ehca_gen_err("Invalid offset for calculating left cqes "

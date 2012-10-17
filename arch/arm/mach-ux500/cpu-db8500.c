@@ -18,8 +18,8 @@
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
 
-#include <asm/mach/map.h>
 #include <asm/pmu.h>
+#include <asm/mach/map.h>
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -80,7 +80,7 @@ void __init u8500_map_io(void)
 
 	iotable_init(u8500_common_io_desc, ARRAY_SIZE(u8500_common_io_desc));
 
-	if (cpu_is_u9540())
+	if (cpu_is_ux540_family())
 		iotable_init(u9540_io_desc, ARRAY_SIZE(u9540_io_desc));
 	else
 		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
@@ -122,7 +122,7 @@ struct arm_pmu_platdata db8500_pmu_platdata = {
 
 static struct platform_device db8500_pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= ARRAY_SIZE(db8500_pmu_resources),
 	.resource		= db8500_pmu_resources,
 	.dev.platform_data	= &db8500_pmu_platdata,
@@ -136,10 +136,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&u8500_dma40_device,
 	&db8500_pmu_device,
 	&db8500_prcmu_device,
-};
-
-static struct platform_device *of_platform_devs[] __initdata = {
-	&u8500_dma40_device,
 };
 
 static resource_size_t __initdata db8500_gpio_base[] = {
@@ -235,7 +231,6 @@ struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 struct device * __init u8500_of_init_devices(void)
 {
 	struct device *parent;
-	int i;
 
 	parent = db8500_soc_device_init();
 
@@ -244,8 +239,7 @@ struct device * __init u8500_of_init_devices(void)
 	platform_device_register_data(parent,
 		"cpufreq-u8500", -1, NULL, 0);
 
-	for (i = 0; i < ARRAY_SIZE(of_platform_devs); i++)
-		of_platform_devs[i]->dev.parent = parent;
+	u8500_dma40_device.dev.parent = parent;
 
 	/*
 	 * Devices to be DT:ed:
@@ -253,7 +247,7 @@ struct device * __init u8500_of_init_devices(void)
 	 *   db8500_pmu_device   = done
 	 *   db8500_prcmu_device = done
 	 */
-	platform_add_devices(of_platform_devs, ARRAY_SIZE(of_platform_devs));
+	platform_device_register(&u8500_dma40_device);
 
 	return parent;
 }

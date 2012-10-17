@@ -2285,7 +2285,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Wait for all pending SP commands to complete */
 	if (!bnx2x_wait_sp_comp(bp, ~0x0UL)) {
 		BNX2X_ERR("Timeout waiting for SP elements to complete\n");
-		bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+		bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 		return -EBUSY;
 	}
 
@@ -2333,7 +2333,7 @@ load_error0:
 }
 
 /* must be called with rtnl_lock */
-int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
+int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 {
 	int i;
 	bool global = false;
@@ -2395,7 +2395,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Cleanup the chip if needed */
 	if (unload_mode != UNLOAD_RECOVERY)
-		bnx2x_chip_cleanup(bp, unload_mode);
+		bnx2x_chip_cleanup(bp, unload_mode, keep_link);
 	else {
 		/* Send the UNLOAD_REQUEST to the MCP */
 		bnx2x_send_unload_req(bp, unload_mode);
@@ -2419,7 +2419,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		bnx2x_free_irq(bp);
 
 		/* Report UNLOAD_DONE to MCP */
-		bnx2x_send_unload_done(bp);
+		bnx2x_send_unload_done(bp, false);
 	}
 
 	/*
@@ -3026,8 +3026,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	first_bd = tx_start_bd;
 
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
-	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_ETH_ADDR_TYPE,
-		 mac_type);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_PARSE_NBDS,
+		 0);
 
 	/* header nbd */
 	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_HDR_NBDS, 1);
@@ -3077,13 +3078,20 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					      &pbd_e2->dst_mac_addr_lo,
 					      eth->h_dest);
 		}
+
+		SET_FLAG(pbd_e2_parsing_data,
+			 ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE, mac_type);
 	} else {
+		u16 global_data = 0;
 		pbd_e1x = &txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
 		memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
 		/* Set PBD in checksum offload case */
 		if (xmit_type & XMIT_CSUM)
 			hlen = bnx2x_set_pbd_csum(bp, skb, pbd_e1x, xmit_type);
 
+		SET_FLAG(global_data,
+			 ETH_TX_PARSE_BD_E1X_ETH_ADDR_TYPE, mac_type);
+		pbd_e1x->global_data |= cpu_to_le16(global_data);
 	}
 
 	/* Setup the data pointer of the first BD of the packet */
@@ -3515,15 +3523,18 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	} else
 #endif
 	if (!bp->rx_ring_size) {
-		u32 cfg = SHMEM_RD(bp,
-			     dev_info.port_hw_config[BP_PORT(bp)].default_cfg);
-
 		rx_ring_size = MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
 
-		/* Dercease ring size for 1G functions */
-		if ((cfg & PORT_HW_CFG_NET_SERDES_IF_MASK) ==
-		    PORT_HW_CFG_NET_SERDES_IF_SGMII)
-			rx_ring_size /= 10;
+		if (CHIP_IS_E3(bp)) {
+			u32 cfg = SHMEM_RD(bp,
+					   dev_info.port_hw_config[BP_PORT(bp)].
+					   default_cfg);
+
+			/* Decrease ring size for 1G functions */
+			if ((cfg & PORT_HW_CFG_NET_SERDES_IF_MASK) ==
+			    PORT_HW_CFG_NET_SERDES_IF_SGMII)
+				rx_ring_size /= 10;
+		}
 
 		/* allocate at least number of buffers required by FW */
 		rx_ring_size = max_t(int, bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
@@ -3770,7 +3781,7 @@ int bnx2x_reload_if_running(struct net_device *dev)
 	if (unlikely(!netif_running(dev)))
 		return 0;
 
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }
 
@@ -3967,7 +3978,7 @@ int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netif_device_detach(dev);
 
-	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
 	bnx2x_set_power_state(bp, pci_choose_state(pdev, state));
 

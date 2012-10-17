@@ -28,13 +28,13 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
-#include "drm_fb_helper.h"
+#include <drm/drm_fb_helper.h>
 
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_module.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -94,7 +94,6 @@ struct ast_private {
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
-		atomic_t validate_sequence;
 	} ttm;
 
 	struct drm_gem_object *cursor_cache;

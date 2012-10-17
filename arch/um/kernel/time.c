@@ -10,8 +10,8 @@
 #include <linux/threads.h>
 #include <asm/irq.h>
 #include <asm/param.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 
 void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {

@@ -406,7 +406,7 @@ static int s3c2410ts_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops s3c_ts_pmops = {
+static const struct dev_pm_ops s3c_ts_pmops = {
 	.suspend	= s3c2410ts_suspend,
 	.resume		= s3c2410ts_resume,
 };

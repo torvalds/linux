@@ -42,17 +42,7 @@
  ****************************************************************************/
 static struct map_desc kirkwood_io_desc[] __initdata = {
 	{
-		.virtual	= KIRKWOOD_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= KIRKWOOD_PCIE1_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE1_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE1_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= KIRKWOOD_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) KIRKWOOD_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
 		.length		= KIRKWOOD_REGS_SIZE,
 		.type		= MT_DEVICE,
@@ -215,8 +205,7 @@ static struct clk *tclk;
 
 static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 {
-	return clk_register_gate(NULL, name, "tclk", 0,
-				 (void __iomem *)CLOCK_GATING_CTRL,
+	return clk_register_gate(NULL, name, "tclk", 0, CLOCK_GATING_CTRL,
 				 bit_idx, 0, &gating_lock);
 }
 
@@ -225,8 +214,7 @@ static struct clk __init *kirkwood_register_gate_fn(const char *name,
 						    void (*fn_en)(void),
 						    void (*fn_dis)(void))
 {
-	return clk_register_gate_fn(NULL, name, "tclk", 0,
-				    (void __iomem *)CLOCK_GATING_CTRL,
+	return clk_register_gate_fn(NULL, name, "tclk", 0, CLOCK_GATING_CTRL,
 				    bit_idx, 0, &gating_lock, fn_en, fn_dis);
 }
 

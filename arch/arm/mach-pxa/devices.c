@@ -6,7 +6,6 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/i2c/pxa-i2c.h>
 
-#include <asm/pmu.h>
 #include <mach/udc.h>
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 #include <linux/platform_data/video-pxafb.h>
@@ -42,7 +41,7 @@ static struct resource pxa_resource_pmu = {
 
 struct platform_device pxa_device_pmu = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.resource	= &pxa_resource_pmu,
 	.num_resources	= 1,
 };
@@ -384,9 +383,24 @@ struct platform_device pxa_device_asoc_platform = {
 
 static u64 pxaficp_dmamask = ~(u32)0;
 
+static struct resource pxa_ir_resources[] = {
+	[0] = {
+		.start  = IRQ_STUART,
+		.end    = IRQ_STUART,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start  = IRQ_ICP,
+		.end    = IRQ_ICP,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 struct platform_device pxa_device_ficp = {
 	.name		= "pxa2xx-ir",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pxa_ir_resources),
+	.resource	= pxa_ir_resources,
 	.dev		= {
 		.dma_mask = &pxaficp_dmamask,
 		.coherent_dma_mask = 0xffffffff,

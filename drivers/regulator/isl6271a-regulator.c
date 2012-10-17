@@ -73,13 +73,7 @@ static struct regulator_ops isl_core_ops = {
 	.map_voltage	= regulator_map_voltage_linear,
 };
 
-static int isl6271a_get_fixed_voltage(struct regulator_dev *dev)
-{
-	return dev->desc->min_uV;
-}
-
 static struct regulator_ops isl_fixed_ops = {
-	.get_voltage	= isl6271a_get_fixed_voltage,
 	.list_voltage	= regulator_list_voltage_linear,
 };
 

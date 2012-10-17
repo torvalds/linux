@@ -307,7 +307,10 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 {
 	struct ceph_mount_options *fsopt;
 	const char *dev_name_end;
-	int err = -ENOMEM;
+	int err;
+
+	if (!dev_name || !*dev_name)
+		return -EINVAL;
 
 	fsopt = kzalloc(sizeof(*fsopt), GFP_KERNEL);
 	if (!fsopt)
@@ -328,21 +331,33 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	fsopt->congestion_kb = default_congestion_kb();
 
-	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
+	/*
+	 * Distinguish the server list from the path in "dev_name".
+	 * Internally we do not include the leading '/' in the path.
+	 *
+	 * "dev_name" will look like:
+	 *     <server_spec>[,<server_spec>...]:[<path>]
+	 * where
+	 *     <server_spec> is <ip>[:<port>]
+	 *     <path> is optional, but if present must begin with '/'
+	 */
+	dev_name_end = strchr(dev_name, '/');
+	if (dev_name_end) {
+		/* skip over leading '/' for path */
+		*path = dev_name_end + 1;
+	} else {
+		/* path is empty */
+		dev_name_end = dev_name + strlen(dev_name);
+		*path = dev_name_end;
+	}
 	err = -EINVAL;
-	if (!dev_name)
-		goto out;
-	*path = strstr(dev_name, ":/");
-	if (*path == NULL) {
-		pr_err("device name is missing path (no :/ in %s)\n",
+	dev_name_end--;		/* back up to ':' separator */
+	if (*dev_name_end != ':') {
+		pr_err("device name is missing path (no : separator in %s)\n",
 				dev_name);
 		goto out;
 	}
-	dev_name_end = *path;
 	dout("device name '%.*s'\n", (int)(dev_name_end - dev_name), dev_name);
-
-	/* path on server */
-	*path += 2;
 	dout("server path '%s'\n", *path);
 
 	*popt = ceph_parse_options(options, dev_name, dev_name_end,
@@ -603,6 +618,11 @@ bad_cap:
 
 static void destroy_caches(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ceph_inode_cachep);
 	kmem_cache_destroy(ceph_cap_cachep);
 	kmem_cache_destroy(ceph_dentry_cachep);

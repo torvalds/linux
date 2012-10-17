@@ -638,9 +638,9 @@ static void __init mini2440_init(void)
 	gpio_free(S3C2410_GPG(4));
 
 	/* remove pullup on optional PWM backlight -- unused on 3.5 and 7"s */
+	gpio_request_one(S3C2410_GPB(1), GPIOF_IN, NULL);
 	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_UP);
-	s3c2410_gpio_setpin(S3C2410_GPB(1), 0);
-	s3c_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
+	gpio_free(S3C2410_GPB(1));
 
 	/* mark the key as input, without pullups (there is one on the board) */
 	for (i = 0; i < ARRAY_SIZE(mini2440_buttons); i++) {

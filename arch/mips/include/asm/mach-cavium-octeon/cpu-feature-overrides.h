@@ -53,12 +53,13 @@
 #define cpu_has_mips64r2	1
 #define cpu_has_mips_r2_exec_hazard 0
 #define cpu_has_dsp		0
+#define cpu_has_dsp2		0
 #define cpu_has_mipsmt		0
 #define cpu_has_vint		0
 #define cpu_has_veic		0
 #define cpu_hwrena_impl_bits	0xc0000000
 
-#define kernel_uses_smartmips_rixi (cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
+#define cpu_has_rixi		(cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
 
 #define ARCH_HAS_IRQ_PER_CPU	1
 #define ARCH_HAS_SPINLOCK_PREFETCH 1

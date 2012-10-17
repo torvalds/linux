@@ -106,6 +106,83 @@ static struct sock_filter ptp_filter[] = {
 };
 
 /**
+ * ixgbe_ptp_setup_sdp
+ * @hw: the hardware private structure
+ *
+ * this function enables or disables the clock out feature on SDP0 for
+ * the X540 device. It will create a 1second periodic output that can
+ * be used as the PPS (via an interrupt).
+ *
+ * It calculates when the systime will be on an exact second, and then
+ * aligns the start of the PPS signal to that value. The shift is
+ * necessary because it can change based on the link speed.
+ */
+static void ixgbe_ptp_setup_sdp(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int shift = adapter->cc.shift;
+	u32 esdp, tsauxc, clktiml, clktimh, trgttiml, trgttimh, rem;
+	u64 ns = 0, clock_edge = 0;
+
+	if ((adapter->flags2 & IXGBE_FLAG2_PTP_PPS_ENABLED) &&
+	    (hw->mac.type == ixgbe_mac_X540)) {
+
+		/* disable the pin first */
+		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC, 0x0);
+		IXGBE_WRITE_FLUSH(hw);
+
+		esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+		/*
+		 * enable the SDP0 pin as output, and connected to the
+		 * native function for Timesync (ClockOut)
+		 */
+		esdp |= (IXGBE_ESDP_SDP0_DIR |
+			 IXGBE_ESDP_SDP0_NATIVE);
+
+		/*
+		 * enable the Clock Out feature on SDP0, and allow
+		 * interrupts to occur when the pin changes
+		 */
+		tsauxc = (IXGBE_TSAUXC_EN_CLK |
+			  IXGBE_TSAUXC_SYNCLK |
+			  IXGBE_TSAUXC_SDP0_INT);
+
+		/* clock period (or pulse length) */
+		clktiml = (u32)(NSECS_PER_SEC << shift);
+		clktimh = (u32)((NSECS_PER_SEC << shift) >> 32);
+
+		/*
+		 * Account for the cyclecounter wrap-around value by
+		 * using the converted ns value of the current time to
+		 * check for when the next aligned second would occur.
+		 */
+		clock_edge |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIML);
+		clock_edge |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIMH) << 32;
+		ns = timecounter_cyc2time(&adapter->tc, clock_edge);
+
+		div_u64_rem(ns, NSECS_PER_SEC, &rem);
+		clock_edge += ((NSECS_PER_SEC - (u64)rem) << shift);
+
+		/* specify the initial clock start time */
+		trgttiml = (u32)clock_edge;
+		trgttimh = (u32)(clock_edge >> 32);
+
+		IXGBE_WRITE_REG(hw, IXGBE_CLKTIML, clktiml);
+		IXGBE_WRITE_REG(hw, IXGBE_CLKTIMH, clktimh);
+		IXGBE_WRITE_REG(hw, IXGBE_TRGTTIML0, trgttiml);
+		IXGBE_WRITE_REG(hw, IXGBE_TRGTTIMH0, trgttimh);
+
+		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp);
+		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC, tsauxc);
+	} else {
+		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC, 0x0);
+	}
+
+	IXGBE_WRITE_FLUSH(hw);
+}
+
+/**
  * ixgbe_ptp_read - read raw cycle counter (to be used by time counter)
  * @cc: the cyclecounter structure
  *
@@ -198,6 +275,9 @@ static int ixgbe_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 			 now);
 
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
+
+	ixgbe_ptp_setup_sdp(adapter);
+
 	return 0;
 }
 
@@ -251,6 +331,7 @@ static int ixgbe_ptp_settime(struct ptp_clock_info *ptp,
 	timecounter_init(&adapter->tc, &adapter->cc, ns);
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
 
+	ixgbe_ptp_setup_sdp(adapter);
 	return 0;
 }
 
@@ -281,8 +362,9 @@ static int ixgbe_ptp_enable(struct ptp_clock_info *ptp,
 			if (on)
 				adapter->flags2 |= IXGBE_FLAG2_PTP_PPS_ENABLED;
 			else
-				adapter->flags2 &=
-					~IXGBE_FLAG2_PTP_PPS_ENABLED;
+				adapter->flags2 &= ~IXGBE_FLAG2_PTP_PPS_ENABLED;
+
+			ixgbe_ptp_setup_sdp(adapter);
 			return 0;
 		default:
 			break;
@@ -305,109 +387,15 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
 
-	event.type = PTP_CLOCK_PPS;
-
-	/* Make sure ptp clock is valid, and PPS event enabled */
-	if (!adapter->ptp_clock ||
-	    !(adapter->flags2 & IXGBE_FLAG2_PTP_PPS_ENABLED))
-		return;
-
-	if (unlikely(eicr & IXGBE_EICR_TIMESYNC)) {
-		switch (hw->mac.type) {
-		case ixgbe_mac_X540:
-			ptp_clock_event(adapter->ptp_clock, &event);
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-/**
- * ixgbe_ptp_enable_sdp
- * @hw: the hardware private structure
- * @shift: the clock shift for calculating nanoseconds
- *
- * this function enables the clock out feature on the sdp0 for the
- * X540 device. It will create a 1second periodic output that can be
- * used as the PPS (via an interrupt).
- *
- * It calculates when the systime will be on an exact second, and then
- * aligns the start of the PPS signal to that value. The shift is
- * necessary because it can change based on the link speed.
- */
-static void ixgbe_ptp_enable_sdp(struct ixgbe_hw *hw, int shift)
-{
-	u32 esdp, tsauxc, clktiml, clktimh, trgttiml, trgttimh;
-	u64 clock_edge = 0;
-	u32 rem;
-
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
-		esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
-
-		/*
-		 * enable the SDP0 pin as output, and connected to the native
-		 * function for Timesync (ClockOut)
-		 */
-		esdp |= (IXGBE_ESDP_SDP0_DIR |
-			 IXGBE_ESDP_SDP0_NATIVE);
-
-		/*
-		 * enable the Clock Out feature on SDP0, and allow interrupts
-		 * to occur when the pin changes
-		 */
-		tsauxc = (IXGBE_TSAUXC_EN_CLK |
-			  IXGBE_TSAUXC_SYNCLK |
-			  IXGBE_TSAUXC_SDP0_INT);
-
-		/* clock period (or pulse length) */
-		clktiml = (u32)(NSECS_PER_SEC << shift);
-		clktimh = (u32)((NSECS_PER_SEC << shift) >> 32);
-
-		clock_edge |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIML);
-		clock_edge |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIMH) << 32;
-
-		/*
-		 * account for the fact that we can't do u64 division
-		 * with remainder, by converting the clock values into
-		 * nanoseconds first
-		 */
-		clock_edge >>= shift;
-		div_u64_rem(clock_edge, NSECS_PER_SEC, &rem);
-		clock_edge += (NSECS_PER_SEC - rem);
-		clock_edge <<= shift;
-
-		/* specify the initial clock start time */
-		trgttiml = (u32)clock_edge;
-		trgttimh = (u32)(clock_edge >> 32);
-
-		IXGBE_WRITE_REG(hw, IXGBE_CLKTIML, clktiml);
-		IXGBE_WRITE_REG(hw, IXGBE_CLKTIMH, clktimh);
-		IXGBE_WRITE_REG(hw, IXGBE_TRGTTIML0, trgttiml);
-		IXGBE_WRITE_REG(hw, IXGBE_TRGTTIMH0, trgttimh);
-
-		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp);
-		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC, tsauxc);
-
-		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EICR_TIMESYNC);
+		ptp_clock_event(adapter->ptp_clock, &event);
 		break;
 	default:
 		break;
 	}
 }
 
-/**
- * ixgbe_ptp_disable_sdp
- * @hw: the private hardware structure
- *
- * this function disables the auxiliary SDP clock out feature
- */
-static void ixgbe_ptp_disable_sdp(struct ixgbe_hw *hw)
-{
-	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_TIMESYNC);
-	IXGBE_WRITE_REG(hw, IXGBE_TSAUXC, 0);
-}
 
 /**
  * ixgbe_ptp_overflow_check - delayed work to detect SYSTIME overflow
@@ -822,9 +810,6 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	if (adapter->cycle_speed == cycle_speed && timinca)
 		return;
 
-	/* disable the SDP clock out */
-	ixgbe_ptp_disable_sdp(hw);
-
 	/**
 	 * Scale the NIC cycle counter by a large factor so that
 	 * relatively small corrections to the frequency can be added
@@ -877,10 +862,6 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0x00000000);
 	IXGBE_WRITE_FLUSH(hw);
 
-	/* now that the shift has been calculated and the systime
-	 * registers reset, (re-)enable the Clock out feature*/
-	ixgbe_ptp_enable_sdp(hw, shift);
-
 	/* store the new cycle speed */
 	adapter->cycle_speed = cycle_speed;
 
@@ -901,6 +882,12 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 			 ktime_to_ns(ktime_get_real()));
 
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
+
+	/*
+	 * Now that the shift has been calculated and the systime
+	 * registers reset, (re-)enable the Clock out feature
+	 */
+	ixgbe_ptp_setup_sdp(adapter);
 }
 
 /**
@@ -960,7 +947,8 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 	/* (Re)start the overflow check */
 	adapter->flags2 |= IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED;
 
-	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps);
+	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
+						&adapter->pdev->dev);
 	if (IS_ERR(adapter->ptp_clock)) {
 		adapter->ptp_clock = NULL;
 		e_dev_err("ptp_clock_register failed\n");
@@ -978,10 +966,11 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
  */
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
 {
-	ixgbe_ptp_disable_sdp(&adapter->hw);
-
 	/* stop the overflow check task */
-	adapter->flags2 &= ~IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED;
+	adapter->flags2 &= ~(IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED |
+			     IXGBE_FLAG2_PTP_PPS_ENABLED);
+
+	ixgbe_ptp_setup_sdp(adapter);
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);

@@ -1,0 +1,85 @@
+* Marvell 88PM860x Power Management IC
+
+Required parent device properties:
+- compatible : "marvell,88pm860x"
+- reg : the I2C slave address for the 88pm860x chip
+- interrupts : IRQ line for the 88pm860x chip
+- interrupt-controller: describes the 88pm860x as an interrupt controller (has its own domain)
+- #interrupt-cells : should be 1.
+		- The cell is the 88pm860x local IRQ number
+
+Optional parent device properties:
+- marvell,88pm860x-irq-read-clr: inicates whether interrupt status is cleared by read
+- marvell,88pm860x-slave-addr: 88pm860x are two chips solution. <reg> stores the I2C address
+				of one chip, and this property stores the I2C address of
+				another chip.
+
+88pm860x consists of a large and varied group of sub-devices:
+
+Device			 Supply Names	 Description
+------			 ------------	 -----------
+88pm860x-onkey		:		: On key
+88pm860x-rtc		:		: RTC
+88pm8607		:		: Regulators
+88pm860x-backlight	:		: Backlight
+88pm860x-led		:		: Led
+88pm860x-touch		:		: Touchscreen
+
+Example:
+
+	pmic: 88pm860x@34 {
+		compatible = "marvell,88pm860x";
+		reg = <0x34>;
+		interrupts = <4>;
+		interrupt-parent = <&intc>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		marvell,88pm860x-irq-read-clr;
+		marvell,88pm860x-slave-addr = <0x11>;
+
+		regulators {
+			BUCK1 {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+			LDO1 {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+		rtc {
+			marvell,88pm860x-vrtc = <1>;
+		};
+		touch {
+			marvell,88pm860x-gpadc-prebias = <1>;
+			marvell,88pm860x-gpadc-slot-cycle = <1>;
+			marvell,88pm860x-tsi-prebias = <6>;
+			marvell,88pm860x-pen-prebias = <16>;
+			marvell,88pm860x-pen-prechg = <2>;
+			marvell,88pm860x-resistor-X = <300>;
+		};
+		backlights {
+			backlight-0 {
+				marvell,88pm860x-iset = <4>;
+				marvell,88pm860x-pwm = <3>;
+			};
+			backlight-2 {
+			};
+		};
+		leds {
+			led0-red {
+				marvell,88pm860x-iset = <12>;
+			};
+			led0-green {
+				marvell,88pm860x-iset = <12>;
+			};
+			led0-blue {
+				marvell,88pm860x-iset = <12>;
+			};
+		};
+	};

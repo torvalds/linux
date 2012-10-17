@@ -29,8 +29,8 @@
 
 #include <mach/dma.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/regs-uart.h>
 #include <mach/regs-ost.h>
+#include <mach/regs-uart.h>
 
 #define FICP		__REG(0x40800000)  /* Start of FICP area */
 #define ICCR0		__REG(0x40800000)  /* ICP Control Register 0 */
@@ -111,6 +111,9 @@ struct pxa_irda {
 	unsigned int		dma_tx_buff_len;
 	int			txdma;
 	int			rxdma;
+
+	int			uart_irq;
+	int			icp_irq;
 
 	struct irlap_cb		*irlap;
 	struct qos_info		qos;
@@ -672,19 +675,19 @@ static int pxa_irda_start(struct net_device *dev)
 
 	si->speed = 9600;
 
-	err = request_irq(IRQ_STUART, pxa_irda_sir_irq, 0, dev->name, dev);
+	err = request_irq(si->uart_irq, pxa_irda_sir_irq, 0, dev->name, dev);
 	if (err)
 		goto err_irq1;
 
-	err = request_irq(IRQ_ICP, pxa_irda_fir_irq, 0, dev->name, dev);
+	err = request_irq(si->icp_irq, pxa_irda_fir_irq, 0, dev->name, dev);
 	if (err)
 		goto err_irq2;
 
 	/*
 	 * The interrupt must remain disabled for now.
 	 */
-	disable_irq(IRQ_STUART);
-	disable_irq(IRQ_ICP);
+	disable_irq(si->uart_irq);
+	disable_irq(si->icp_irq);
 
 	err = -EBUSY;
 	si->rxdma = pxa_request_dma("FICP_RX",DMA_PRIO_LOW, pxa_irda_fir_dma_rx_irq, dev);
@@ -720,8 +723,8 @@ static int pxa_irda_start(struct net_device *dev)
 	/*
 	 * Now enable the interrupt and start the queue
 	 */
-	enable_irq(IRQ_STUART);
-	enable_irq(IRQ_ICP);
+	enable_irq(si->uart_irq);
+	enable_irq(si->icp_irq);
 	netif_start_queue(dev);
 
 	printk(KERN_DEBUG "pxa_ir: irda driver opened\n");
@@ -738,9 +741,9 @@ err_dma_rx_buff:
 err_tx_dma:
 	pxa_free_dma(si->rxdma);
 err_rx_dma:
-	free_irq(IRQ_ICP, dev);
+	free_irq(si->icp_irq, dev);
 err_irq2:
-	free_irq(IRQ_STUART, dev);
+	free_irq(si->uart_irq, dev);
 err_irq1:
 
 	return err;
@@ -760,8 +763,8 @@ static int pxa_irda_stop(struct net_device *dev)
 		si->irlap = NULL;
 	}
 
-	free_irq(IRQ_STUART, dev);
-	free_irq(IRQ_ICP, dev);
+	free_irq(si->uart_irq, dev);
+	free_irq(si->icp_irq, dev);
 
 	pxa_free_dma(si->rxdma);
 	pxa_free_dma(si->txdma);
@@ -843,13 +846,18 @@ static int pxa_irda_probe(struct platform_device *pdev)
 		goto err_mem_2;
 
 	dev = alloc_irdadev(sizeof(struct pxa_irda));
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_mem_3;
+	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	si = netdev_priv(dev);
 	si->dev = &pdev->dev;
 	si->pdata = pdev->dev.platform_data;
+
+	si->uart_irq = platform_get_irq(pdev, 0);
+	si->icp_irq = platform_get_irq(pdev, 1);
 
 	si->sir_clk = clk_get(&pdev->dev, "UARTCLK");
 	si->fir_clk = clk_get(&pdev->dev, "FICPCLK");

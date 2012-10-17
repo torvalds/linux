@@ -18,9 +18,6 @@
  * 02110-1301, USA.
  */
 
-#if !defined(_ASM_HEXAGON_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_HEXAGON_UNISTD_H
-
 /*
  *  The kernel pulls this unistd.h in three different ways:
  *  1.  the "normal" way which gets all the __NR defines
@@ -32,5 +29,3 @@
 #define sys_mmap2 sys_mmap_pgoff
 
 #include <asm-generic/unistd.h>
-
-#endif

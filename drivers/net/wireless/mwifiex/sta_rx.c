@@ -54,8 +54,8 @@ int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
-	rx_pkt_hdr = (struct rx_packet_hdr *) ((u8 *) local_rx_pd +
-				local_rx_pd->rx_pkt_offset);
+	rx_pkt_hdr = (void *)local_rx_pd +
+		     le16_to_cpu(local_rx_pd->rx_pkt_offset);
 
 	if (!memcmp(&rx_pkt_hdr->rfc1042_hdr,
 		    rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr))) {
@@ -125,7 +125,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u8 ta[ETH_ALEN];
-	u16 rx_pkt_type;
+	u16 rx_pkt_type, rx_pkt_offset, rx_pkt_length, seq_num;
 	struct mwifiex_private *priv =
 			mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
 					       rx_info->bss_type);
@@ -134,16 +134,17 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 		return -1;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
-	rx_pkt_type = local_rx_pd->rx_pkt_type;
+	rx_pkt_type = le16_to_cpu(local_rx_pd->rx_pkt_type);
+	rx_pkt_offset = le16_to_cpu(local_rx_pd->rx_pkt_offset);
+	rx_pkt_length = le16_to_cpu(local_rx_pd->rx_pkt_length);
+	seq_num = le16_to_cpu(local_rx_pd->seq_num);
 
-	rx_pkt_hdr = (struct rx_packet_hdr *) ((u8 *) local_rx_pd +
-					local_rx_pd->rx_pkt_offset);
+	rx_pkt_hdr = (void *)local_rx_pd + rx_pkt_offset;
 
-	if ((local_rx_pd->rx_pkt_offset + local_rx_pd->rx_pkt_length) >
-	    (u16) skb->len) {
-		dev_err(adapter->dev, "wrong rx packet: len=%d,"
-			" rx_pkt_offset=%d, rx_pkt_length=%d\n", skb->len,
-		       local_rx_pd->rx_pkt_offset, local_rx_pd->rx_pkt_length);
+	if ((rx_pkt_offset + rx_pkt_length) > (u16) skb->len) {
+		dev_err(adapter->dev,
+			"wrong rx packet: len=%d, rx_pkt_offset=%d, rx_pkt_length=%d\n",
+			skb->len, rx_pkt_offset, rx_pkt_length);
 		priv->stats.rx_dropped++;
 
 		if (adapter->if_ops.data_complete)
@@ -154,14 +155,14 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 		return ret;
 	}
 
-	if (local_rx_pd->rx_pkt_type == PKT_TYPE_AMSDU) {
+	if (rx_pkt_type == PKT_TYPE_AMSDU) {
 		struct sk_buff_head list;
 		struct sk_buff *rx_skb;
 
 		__skb_queue_head_init(&list);
 
-		skb_pull(skb, local_rx_pd->rx_pkt_offset);
-		skb_trim(skb, local_rx_pd->rx_pkt_length);
+		skb_pull(skb, rx_pkt_offset);
+		skb_trim(skb, rx_pkt_length);
 
 		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
 					 priv->wdev->iftype, 0, false);
@@ -173,6 +174,12 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 				dev_err(adapter->dev, "Rx of A-MSDU failed");
 		}
 		return 0;
+	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+		ret = mwifiex_process_mgmt_packet(adapter, skb);
+		if (ret)
+			dev_err(adapter->dev, "Rx of mgmt packet failed");
+		dev_kfree_skb_any(skb);
+		return ret;
 	}
 
 	/*
@@ -189,17 +196,14 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 		memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
 	} else {
 		if (rx_pkt_type != PKT_TYPE_BAR)
-			priv->rx_seq[local_rx_pd->priority] =
-						local_rx_pd->seq_num;
+			priv->rx_seq[local_rx_pd->priority] = seq_num;
 		memcpy(ta, priv->curr_bss_params.bss_descriptor.mac_address,
 		       ETH_ALEN);
 	}
 
 	/* Reorder and send to OS */
-	ret = mwifiex_11n_rx_reorder_pkt(priv, local_rx_pd->seq_num,
-					     local_rx_pd->priority, ta,
-					     (u8) local_rx_pd->rx_pkt_type,
-					     skb);
+	ret = mwifiex_11n_rx_reorder_pkt(priv, seq_num, local_rx_pd->priority,
+					 ta, (u8) rx_pkt_type, skb);
 
 	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
 		if (adapter->if_ops.data_complete)

@@ -537,45 +537,27 @@ void complement_pos(struct vc_data *vc, int offset)
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
 {
-	unsigned short *p, *q = (unsigned short *)vc->vc_pos;
+	unsigned short *p = (unsigned short *) vc->vc_pos;
 
-	p = q + vc->vc_cols - nr - vc->vc_x;
-	while (--p >= q)
-		scr_writew(scr_readw(p), p + nr);
-	scr_memsetw(q, vc->vc_video_erase_char, nr * 2);
+	scr_memmovew(p + nr, p, vc->vc_cols - vc->vc_x);
+	scr_memsetw(p, vc->vc_video_erase_char, nr * 2);
 	vc->vc_need_wrap = 0;
-	if (DO_UPDATE(vc)) {
-		unsigned short oldattr = vc->vc_attr;
-		vc->vc_sw->con_bmove(vc, vc->vc_y, vc->vc_x, vc->vc_y, vc->vc_x + nr, 1,
-				     vc->vc_cols - vc->vc_x - nr);
-		vc->vc_attr = vc->vc_video_erase_char >> 8;
-		while (nr--)
-			vc->vc_sw->con_putc(vc, vc->vc_video_erase_char, vc->vc_y, vc->vc_x + nr);
-		vc->vc_attr = oldattr;
-	}
+	if (DO_UPDATE(vc))
+		do_update_region(vc, (unsigned long) p,
+			(vc->vc_cols - vc->vc_x) / 2 + 1);
 }
 
 static void delete_char(struct vc_data *vc, unsigned int nr)
 {
-	unsigned int i = vc->vc_x;
-	unsigned short *p = (unsigned short *)vc->vc_pos;
+	unsigned short *p = (unsigned short *) vc->vc_pos;
 
-	while (++i <= vc->vc_cols - nr) {
-		scr_writew(scr_readw(p+nr), p);
-		p++;
-	}
-	scr_memsetw(p, vc->vc_video_erase_char, nr * 2);
+	scr_memcpyw(p, p + nr, vc->vc_cols - vc->vc_x - nr);
+	scr_memsetw(p + vc->vc_cols - vc->vc_x - nr, vc->vc_video_erase_char,
+			nr * 2);
 	vc->vc_need_wrap = 0;
-	if (DO_UPDATE(vc)) {
-		unsigned short oldattr = vc->vc_attr;
-		vc->vc_sw->con_bmove(vc, vc->vc_y, vc->vc_x + nr, vc->vc_y, vc->vc_x, 1,
-				     vc->vc_cols - vc->vc_x - nr);
-		vc->vc_attr = vc->vc_video_erase_char >> 8;
-		while (nr--)
-			vc->vc_sw->con_putc(vc, vc->vc_video_erase_char, vc->vc_y,
-				     vc->vc_cols - 1 - nr);
-		vc->vc_attr = oldattr;
-	}
+	if (DO_UPDATE(vc))
+		do_update_region(vc, (unsigned long) p,
+			(vc->vc_cols - vc->vc_x) / 2);
 }
 
 static int softcursor_original;
@@ -1172,45 +1154,26 @@ static void csi_J(struct vc_data *vc, int vpar)
 		case 0:	/* erase from cursor to end of display */
 			count = (vc->vc_scr_end - vc->vc_pos) >> 1;
 			start = (unsigned short *)vc->vc_pos;
-			if (DO_UPDATE(vc)) {
-				/* do in two stages */
-				vc->vc_sw->con_clear(vc, vc->vc_y, vc->vc_x, 1,
-					      vc->vc_cols - vc->vc_x);
-				vc->vc_sw->con_clear(vc, vc->vc_y + 1, 0,
-					      vc->vc_rows - vc->vc_y - 1,
-					      vc->vc_cols);
-			}
 			break;
 		case 1:	/* erase from start to cursor */
 			count = ((vc->vc_pos - vc->vc_origin) >> 1) + 1;
 			start = (unsigned short *)vc->vc_origin;
-			if (DO_UPDATE(vc)) {
-				/* do in two stages */
-				vc->vc_sw->con_clear(vc, 0, 0, vc->vc_y,
-					      vc->vc_cols);
-				vc->vc_sw->con_clear(vc, vc->vc_y, 0, 1,
-					      vc->vc_x + 1);
-			}
 			break;
 		case 3: /* erase scroll-back buffer (and whole display) */
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size >> 1);
 			set_origin(vc);
-			if (CON_IS_VISIBLE(vc))
-				update_screen(vc);
 			/* fall through */
 		case 2: /* erase whole display */
 			count = vc->vc_cols * vc->vc_rows;
 			start = (unsigned short *)vc->vc_origin;
-			if (DO_UPDATE(vc))
-				vc->vc_sw->con_clear(vc, 0, 0,
-					      vc->vc_rows,
-					      vc->vc_cols);
 			break;
 		default:
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
+	if (DO_UPDATE(vc))
+		do_update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
 
@@ -1223,29 +1186,22 @@ static void csi_K(struct vc_data *vc, int vpar)
 		case 0:	/* erase from cursor to end of line */
 			count = vc->vc_cols - vc->vc_x;
 			start = (unsigned short *)vc->vc_pos;
-			if (DO_UPDATE(vc))
-				vc->vc_sw->con_clear(vc, vc->vc_y, vc->vc_x, 1,
-						     vc->vc_cols - vc->vc_x);
 			break;
 		case 1:	/* erase from start of line to cursor */
 			start = (unsigned short *)(vc->vc_pos - (vc->vc_x << 1));
 			count = vc->vc_x + 1;
-			if (DO_UPDATE(vc))
-				vc->vc_sw->con_clear(vc, vc->vc_y, 0, 1,
-						     vc->vc_x + 1);
 			break;
 		case 2: /* erase whole line */
 			start = (unsigned short *)(vc->vc_pos - (vc->vc_x << 1));
 			count = vc->vc_cols;
-			if (DO_UPDATE(vc))
-				vc->vc_sw->con_clear(vc, vc->vc_y, 0, 1,
-					      vc->vc_cols);
 			break;
 		default:
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
 	vc->vc_need_wrap = 0;
+	if (DO_UPDATE(vc))
+		do_update_region(vc, (unsigned long) start, count);
 }
 
 static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar positions */
@@ -1380,7 +1336,7 @@ static void respond_string(const char *p, struct tty_struct *tty)
 		tty_insert_flip_char(tty, *p, 0);
 		p++;
 	}
-	con_schedule_flip(tty);
+	tty_schedule_flip(tty);
 }
 
 static void cursor_report(struct vc_data *vc, struct tty_struct *tty)
@@ -2792,40 +2748,51 @@ static void con_flush_chars(struct tty_struct *tty)
 /*
  * Allocate the console screen memory.
  */
-static int con_open(struct tty_struct *tty, struct file *filp)
+static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	unsigned int currcons = tty->index;
-	int ret = 0;
+	struct vc_data *vc;
+	int ret;
 
 	console_lock();
-	if (tty->driver_data == NULL) {
-		ret = vc_allocate(currcons);
-		if (ret == 0) {
-			struct vc_data *vc = vc_cons[currcons].d;
+	ret = vc_allocate(currcons);
+	if (ret)
+		goto unlock;
 
-			/* Still being freed */
-			if (vc->port.tty) {
-				console_unlock();
-				return -ERESTARTSYS;
-			}
-			tty->driver_data = vc;
-			vc->port.tty = tty;
+	vc = vc_cons[currcons].d;
 
-			if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
-				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
-				tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
-			}
-			if (vc->vc_utf)
-				tty->termios->c_iflag |= IUTF8;
-			else
-				tty->termios->c_iflag &= ~IUTF8;
-			console_unlock();
-			return ret;
-		}
+	/* Still being freed */
+	if (vc->port.tty) {
+		ret = -ERESTARTSYS;
+		goto unlock;
 	}
+
+	ret = tty_port_install(&vc->port, driver, tty);
+	if (ret)
+		goto unlock;
+
+	tty->driver_data = vc;
+	vc->port.tty = tty;
+
+	if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
+		tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
+		tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
+	}
+	if (vc->vc_utf)
+		tty->termios.c_iflag |= IUTF8;
+	else
+		tty->termios.c_iflag &= ~IUTF8;
+unlock:
 	console_unlock();
 	return ret;
 }
+
+static int con_open(struct tty_struct *tty, struct file *filp)
+{
+	/* everything done in install */
+	return 0;
+}
+
 
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
@@ -2839,7 +2806,6 @@ static void con_shutdown(struct tty_struct *tty)
 	console_lock();
 	vc->port.tty = NULL;
 	console_unlock();
-	tty_shutdown(tty);
 }
 
 static int default_italic_color    = 2; // green (ASCII)
@@ -2947,6 +2913,7 @@ static int __init con_init(void)
 console_initcall(con_init);
 
 static const struct tty_operations con_ops = {
+	.install = con_install,
 	.open = con_open,
 	.close = con_close,
 	.write = con_write,
@@ -3472,6 +3439,19 @@ int con_debug_enter(struct vc_data *vc)
 		};
 		if (kdbgetintenv(setargs[0], &linecount)) {
 			snprintf(lns, 4, "%i", vc->vc_rows);
+			kdb_set(2, setargs);
+		}
+	}
+	if (vc->vc_cols < 999) {
+		int colcount;
+		char cols[4];
+		const char *setargs[3] = {
+			"set",
+			"COLUMNS",
+			cols,
+		};
+		if (kdbgetintenv(setargs[0], &colcount)) {
+			snprintf(cols, 4, "%i", vc->vc_cols);
 			kdb_set(2, setargs);
 		}
 	}

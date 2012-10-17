@@ -6,23 +6,27 @@ config ARCH_OMAP2PLUS_TYPICAL
 	bool "Typical OMAP configuration"
 	default y
 	select AEABI
-	select REGULATOR
-	select PM_RUNTIME
-	select VFP
-	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
-	select SERIAL_OMAP
-	select SERIAL_OMAP_CONSOLE
+	select HIGHMEM
 	select I2C
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
+	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
+	select PINCTRL
+	select PM_RUNTIME
+	select REGULATOR
+	select SERIAL_OMAP
+	select SERIAL_OMAP_CONSOLE
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
-	select HIGHMEM
+	select VFP
 	help
 	  Compile a kernel suitable for booting most boards
 
 config SOC_HAS_OMAP2_SDRC
 	bool "OMAP2 SDRAM Controller support"
+
+config SOC_HAS_REALTIME_COUNTER
+	bool "Real time free running counter"
 
 config ARCH_OMAP2
 	bool "TI OMAP2"
@@ -36,40 +40,44 @@ config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_OMAP2PLUS
 	default y
-	select CPU_V7
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARCH_HAS_OPP
-	select PM_RUNTIME if CPU_IDLE
-	select PM_OPP if PM
 	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
 	select MULTI_IRQ_HANDLER
+	select OMAP_INTERCONNECT
+	select PM_OPP if PM
+	select PM_RUNTIME if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_CPU_SUSPEND if PM
+	select ARM_ERRATA_720789
+	select ARM_GIC
 	select CACHE_L2X0
 	select CPU_V7
-	select ARM_GIC
 	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
+	select OMAP_INTERCONNECT
 	select PL310_ERRATA_588369
 	select PL310_ERRATA_727915
-	select ARM_ERRATA_720789
-	select ARCH_HAS_OPP
-	select PM_RUNTIME if CPU_IDLE
 	select PM_OPP if PM
+	select PM_RUNTIME if CPU_IDLE
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select ARM_CPU_SUSPEND if PM
-	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 
 config SOC_OMAP5
 	bool "TI OMAP5"
-	select CPU_V7
-	select ARM_GIC
-	select HAVE_SMP
+	select ARM_ARCH_TIMER
 	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select SOC_HAS_REALTIME_COUNTER
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -101,8 +109,8 @@ config SOC_TI81XX
 config SOC_AM33XX
 	bool "AM33XX support"
 	default y
-	select CPU_V7
 	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
 	select MULTI_IRQ_HANDLER
 
 config OMAP_PACKAGE_ZAF
@@ -149,8 +157,8 @@ config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
 	depends on SOC_OMAP2420
 	default y
-	select OMAP_PACKAGE_ZAF
 	select OMAP_DEBUG_DEVICES
+	select OMAP_PACKAGE_ZAF
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
@@ -185,8 +193,8 @@ config MACH_OMAP_LDP
 config MACH_OMAP3530_LV_SOM
 	bool "OMAP3 Logic 3530 LV SOM board"
 	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 	default y
+	select OMAP_PACKAGE_CBB
 	help
 	 Support for the LogicPD OMAP3530 SOM Development kit
 	 for full description please see the products webpage at
@@ -195,8 +203,8 @@ config MACH_OMAP3530_LV_SOM
 config MACH_OMAP3_TORPEDO
 	bool "OMAP3 Logic 35x Torpedo board"
 	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 	default y
+	select OMAP_PACKAGE_CBB
 	help
 	 Support for the LogicPD OMAP35x Torpedo Development kit
 	 for full description please see the products webpage at
@@ -257,17 +265,17 @@ config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
 	depends on SOC_OMAP2420
 	default y
-	select OMAP_PACKAGE_ZAC
 	select MACH_NOKIA_N800
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
+	select OMAP_PACKAGE_ZAC
 
 config MACH_NOKIA_RM680
 	bool "Nokia RM-680/696 board"
 	depends on ARCH_OMAP3
 	default y
-	select OMAP_PACKAGE_CBB
 	select MACH_NOKIA_RM696
+	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_RX51
 	bool "Nokia RX-51 board"
@@ -280,20 +288,20 @@ config MACH_OMAP_ZOOM2
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SERIAL_8250
+	select SERIAL_8250_CONSOLE
+	select SERIAL_CORE_CONSOLE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SERIAL_8250
+	select SERIAL_8250_CONSOLE
+	select SERIAL_CORE_CONSOLE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
@@ -321,8 +329,8 @@ config MACH_IGEP0030
 	bool "IGEP OMAP3 module"
 	depends on ARCH_OMAP3
 	default y
-	select OMAP_PACKAGE_CBB
 	select MACH_IGEP0020
+	select OMAP_PACKAGE_CBB
 
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"

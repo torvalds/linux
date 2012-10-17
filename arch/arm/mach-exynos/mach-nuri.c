@@ -29,6 +29,7 @@
 #include <drm/exynos_drm.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 #include <media/m5mols.h>
 #include <media/s5k6aa.h>
 #include <media/s5p_fimc.h>
@@ -39,7 +40,6 @@
 #include <asm/mach-types.h>
 
 #include <plat/adc.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/regs-serial.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -1380,6 +1380,7 @@ static void __init nuri_machine_init(void)
 MACHINE_START(NURI, "NURI")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= nuri_map_io,
 	.handle_irq	= gic_handle_irq,

@@ -104,10 +104,10 @@ ssize_t oz_cdev_read(struct file *filp, char __user *buf, size_t count,
 	if (pd)
 		oz_pd_get(pd);
 	spin_unlock_bh(&g_cdev.lock);
-	if (pd == 0)
+	if (pd == NULL)
 		return -1;
 	ctx = oz_cdev_claim_ctx(pd);
-	if (ctx == 0)
+	if (ctx == NULL)
 		goto out2;
 	n = ctx->rd_in - ctx->rd_out;
 	if (n < 0)
@@ -157,11 +157,11 @@ ssize_t oz_cdev_write(struct file *filp, const char __user *buf, size_t count,
 	if (pd)
 		oz_pd_get(pd);
 	spin_unlock_bh(&g_cdev.lock);
-	if (pd == 0)
+	if (pd == NULL)
 		return -1;
 	eb = &pd->elt_buff;
 	ei = oz_elt_info_alloc(eb);
-	if (ei == 0) {
+	if (ei == NULL) {
 		count = 0;
 		goto out;
 	}
@@ -410,7 +410,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 		return 0;
 	}
 	ctx = kzalloc(sizeof(struct oz_serial_ctx), GFP_ATOMIC);
-	if (ctx == 0)
+	if (ctx == NULL)
 		return -ENOMEM;
 	atomic_set(&ctx->ref_count, 1);
 	ctx->tx_seq_num = 1;
@@ -424,7 +424,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
 	}
 	spin_lock(&g_cdev.lock);
-	if ((g_cdev.active_pd == 0) &&
+	if ((g_cdev.active_pd == NULL) &&
 		(memcmp(pd->mac_addr, g_cdev.active_addr, ETH_ALEN) == 0)) {
 		oz_pd_get(pd);
 		g_cdev.active_pd = pd;
@@ -477,7 +477,7 @@ void oz_cdev_rx(struct oz_pd *pd, struct oz_elt *elt)
 	int ix;
 
 	ctx = oz_cdev_claim_ctx(pd);
-	if (ctx == 0) {
+	if (ctx == NULL) {
 		oz_trace("Cannot claim serial context.\n");
 		return;
 	}

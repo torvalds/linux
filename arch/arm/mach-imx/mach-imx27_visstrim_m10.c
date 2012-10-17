@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/leds.h>
+#include <linux/platform_data/asoc-mx27vis.h>
 #include <media/soc_camera.h>
 #include <sound/tlv320aic32x4.h>
 #include <asm/mach-types.h>
@@ -57,6 +58,11 @@
 #define EXPBOARD_BIT2		(GPIO_PORTD + 25)
 #define EXPBOARD_BIT1		(GPIO_PORTD + 27)
 #define EXPBOARD_BIT0		(GPIO_PORTD + 28)
+
+#define AMP_GAIN_0		(GPIO_PORTF + 9)
+#define AMP_GAIN_1		(GPIO_PORTF + 8)
+#define AMP_MUTE_SDL		(GPIO_PORTE + 5)
+#define AMP_MUTE_SDR		(GPIO_PORTF + 7)
 
 static const int visstrim_m10_pins[] __initconst = {
 	/* UART1 (console) */
@@ -139,6 +145,11 @@ static const int visstrim_m10_pins[] __initconst = {
 	EXPBOARD_BIT2 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
 	EXPBOARD_BIT1 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
 	EXPBOARD_BIT0 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	/* Audio AMP control */
+	AMP_GAIN_0 | GPIO_GPIO | GPIO_OUT,
+	AMP_GAIN_1 | GPIO_GPIO | GPIO_OUT,
+	AMP_MUTE_SDL | GPIO_GPIO | GPIO_OUT,
+	AMP_MUTE_SDR | GPIO_GPIO | GPIO_OUT,
 };
 
 static struct gpio visstrim_m10_version_gpios[] = {
@@ -165,6 +176,26 @@ static const struct gpio visstrim_m10_gpios[] __initconst = {
 		.gpio = OTG_PHY_CS_GPIO,
 		.flags = GPIOF_DIR_OUT | GPIOF_INIT_LOW,
 		.label = "usbotg_cs",
+	},
+	{
+		.gpio = AMP_GAIN_0,
+		.flags = GPIOF_DIR_OUT,
+		.label = "amp-gain-0",
+	},
+	{
+		.gpio = AMP_GAIN_1,
+		.flags = GPIOF_DIR_OUT,
+		.label = "amp-gain-1",
+	},
+	{
+		.gpio = AMP_MUTE_SDL,
+		.flags = GPIOF_DIR_OUT,
+		.label = "amp-mute-sdl",
+	},
+	{
+		.gpio = AMP_MUTE_SDR,
+		.flags = GPIOF_DIR_OUT,
+		.label = "amp-mute-sdr",
 	},
 };
 
@@ -444,6 +475,14 @@ static void __init visstrim_deinterlace_init(void)
 }
 
 
+/* Audio */
+static const struct snd_mx27vis_platform_data snd_mx27vis_pdata __initconst = {
+	.amp_gain0_gpio = AMP_GAIN_0,
+	.amp_gain1_gpio = AMP_GAIN_1,
+	.amp_mutel_gpio = AMP_MUTE_SDL,
+	.amp_muter_gpio = AMP_MUTE_SDR,
+};
+
 static void __init visstrim_m10_revision(void)
 {
 	int exp_version = 0;
@@ -502,7 +541,8 @@ static void __init visstrim_m10_board_init(void)
 	imx27_add_fec(NULL);
 	imx_add_gpio_keys(&visstrim_gpio_keys_platform_data);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx_add_platform_device("mx27vis", 0, NULL, 0, NULL, 0);
+	imx_add_platform_device("mx27vis", 0, NULL, 0, &snd_mx27vis_pdata,
+				sizeof(snd_mx27vis_pdata));
 	platform_device_register_resndata(NULL, "soc-camera-pdrv", 0, NULL, 0,
 				      &iclink_tvp5150, sizeof(iclink_tvp5150));
 	gpio_led_register_device(0, &visstrim_m10_led_data);

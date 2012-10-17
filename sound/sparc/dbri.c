@@ -592,7 +592,7 @@ static __u32 reverse_bytes(__u32 b, int len)
 		break;
 	default:
 		printk(KERN_ERR "DBRI reverse_bytes: unsupported length\n");
-	};
+	}
 
 	return b;
 }

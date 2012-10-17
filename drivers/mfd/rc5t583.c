@@ -85,7 +85,7 @@ static int __rc5t583_set_ext_pwrreq1_control(struct device *dev,
 	int id, int ext_pwr, int slots)
 {
 	int ret;
-	uint8_t sleepseq_val;
+	uint8_t sleepseq_val = 0;
 	unsigned int en_bit;
 	unsigned int slot_bit;
 
@@ -281,7 +281,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 
 	if (i2c->irq) {
 		ret = rc5t583_irq_init(rc5t583, i2c->irq, pdata->irq_base);
-		/* Still continue with waring if irq init fails */
+		/* Still continue with warning, if irq init fails */
 		if (ret)
 			dev_warn(&i2c->dev, "IRQ init failed: %d\n", ret);
 		else

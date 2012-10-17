@@ -23,11 +23,11 @@
 #include <linux/kref.h>
 
 #include <drm/drmP.h>
-#include "drm_global.h"
-#include "gem_glue.h"
-#include "gma_drm.h"
+#include <drm/drm_global.h>
+#include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
+#include "intel_bios.h"
 #include "gtt.h"
 #include "power.h"
 #include "opregion.h"
@@ -613,6 +613,8 @@ struct drm_psb_private {
 	 */
 	struct backlight_device *backlight_device;
 	struct drm_property *backlight_property;
+	bool backlight_enabled;
+	int backlight_level;
 	uint32_t blc_adj1;
 	uint32_t blc_adj2;
 
@@ -640,6 +642,19 @@ struct drm_psb_private {
 	int mdfld_panel_id;
 
 	bool dplla_96mhz;	/* DPLL data from the VBT */
+
+	struct {
+		int rate;
+		int lanes;
+		int preemphasis;
+		int vswing;
+
+		bool initialized;
+		bool support;
+		int bpp;
+		struct edp_power_seq pps;
+	} edp;
+	uint8_t panel_type;
 };
 
 
@@ -796,6 +811,9 @@ extern int psb_fbdev_init(struct drm_device *dev);
 /* backlight.c */
 int gma_backlight_init(struct drm_device *dev);
 void gma_backlight_exit(struct drm_device *dev);
+void gma_backlight_disable(struct drm_device *dev);
+void gma_backlight_enable(struct drm_device *dev);
+void gma_backlight_set(struct drm_device *dev, int v);
 
 /* oaktrail_crtc.c */
 extern const struct drm_crtc_helper_funcs oaktrail_helper_funcs;

@@ -56,6 +56,12 @@ _GLOBAL(slb_allocate_realmode)
 	 */
 _GLOBAL(slb_miss_kernel_load_linear)
 	li	r11,0
+	li	r9,0x1
+	/*
+	 * for 1T we shift 12 bits more.  slb_finish_load_1T will do
+	 * the necessary adjustment
+	 */
+	rldimi  r10,r9,(CONTEXT_BITS + USER_ESID_BITS),0
 BEGIN_FTR_SECTION
 	b	slb_finish_load
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
@@ -85,6 +91,12 @@ _GLOBAL(slb_miss_kernel_load_vmemmap)
 	_GLOBAL(slb_miss_kernel_load_io)
 	li	r11,0
 6:
+	li	r9,0x1
+	/*
+	 * for 1T we shift 12 bits more.  slb_finish_load_1T will do
+	 * the necessary adjustment
+	 */
+	rldimi  r10,r9,(CONTEXT_BITS + USER_ESID_BITS),0
 BEGIN_FTR_SECTION
 	b	slb_finish_load
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
@@ -108,17 +120,31 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	 * between 4k and 64k standard page size
 	 */
 #ifdef CONFIG_PPC_MM_SLICES
+	/* r10 have esid */
 	cmpldi	r10,16
-
-	/* Get the slice index * 4 in r11 and matching slice size mask in r9 */
-	ld	r9,PACALOWSLICESPSIZE(r13)
-	sldi	r11,r10,2
+	/* below SLICE_LOW_TOP */
 	blt	5f
-	ld	r9,PACAHIGHSLICEPSIZE(r13)
-	srdi	r11,r10,(SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT - 2)
-	andi.	r11,r11,0x3c
+	/*
+	 * Handle hpsizes,
+	 * r9 is get_paca()->context.high_slices_psize[index], r11 is mask_index
+	 */
+	srdi    r11,r10,(SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT + 1) /* index */
+	addi	r9,r11,PACAHIGHSLICEPSIZE
+	lbzx	r9,r13,r9		/* r9 is hpsizes[r11] */
+	/* r11 = (r10 >> (SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT)) & 0x1 */
+	rldicl	r11,r10,(64 - (SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT)),63
+	b	6f
 
-5:	/* Extract the psize and multiply to get an array offset */
+5:
+	/*
+	 * Handle lpsizes
+	 * r9 is get_paca()->context.low_slices_psize, r11 is index
+	 */
+	ld	r9,PACALOWSLICESPSIZE(r13)
+	mr	r11,r10
+6:
+	sldi	r11,r11,2  /* index * 4 */
+	/* Extract the psize and multiply to get an array offset */
 	srd	r9,r9,r11
 	andi.	r9,r9,0xf
 	mulli	r9,r9,MMUPSIZEDEFSIZE
@@ -209,7 +235,11 @@ _GLOBAL(slb_allocate_user)
  */
 slb_finish_load:
 	ASM_VSID_SCRAMBLE(r10,r9,256M)
-	rldimi	r11,r10,SLB_VSID_SHIFT,16	/* combine VSID and flags */
+	/*
+	 * bits above VSID_BITS_256M need to be ignored from r10
+	 * also combine VSID and flags
+	 */
+	rldimi	r11,r10,SLB_VSID_SHIFT,(64 - (SLB_VSID_SHIFT + VSID_BITS_256M))
 
 	/* r3 = EA, r11 = VSID data */
 	/*
@@ -252,10 +282,10 @@ _GLOBAL(slb_compare_rr_to_size)
 	bge	1f
 
 	/* still room in the slb cache */
-	sldi	r11,r3,1		/* r11 = offset * sizeof(u16) */
-	rldicl	r10,r10,36,28		/* get low 16 bits of the ESID */
-	add	r11,r11,r13		/* r11 = (u16 *)paca + offset */
-	sth	r10,PACASLBCACHE(r11)	/* paca->slb_cache[offset] = esid */
+	sldi	r11,r3,2		/* r11 = offset * sizeof(u32) */
+	srdi    r10,r10,28		/* get the 36 bits of the ESID */
+	add	r11,r11,r13		/* r11 = (u32 *)paca + offset */
+	stw	r10,PACASLBCACHE(r11)	/* paca->slb_cache[offset] = esid */
 	addi	r3,r3,1			/* offset++ */
 	b	2f
 1:					/* offset >= SLB_CACHE_ENTRIES */
@@ -273,7 +303,11 @@ _GLOBAL(slb_compare_rr_to_size)
 slb_finish_load_1T:
 	srdi	r10,r10,40-28		/* get 1T ESID */
 	ASM_VSID_SCRAMBLE(r10,r9,1T)
-	rldimi	r11,r10,SLB_VSID_SHIFT_1T,16	/* combine VSID and flags */
+	/*
+	 * bits above VSID_BITS_1T need to be ignored from r10
+	 * also combine VSID and flags
+	 */
+	rldimi	r11,r10,SLB_VSID_SHIFT_1T,(64 - (SLB_VSID_SHIFT_1T + VSID_BITS_1T))
 	li	r10,MMU_SEGSIZE_1T
 	rldimi	r11,r10,SLB_VSID_SSIZE_SHIFT,0	/* insert segment size */
 

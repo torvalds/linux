@@ -97,8 +97,8 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
     
 	inode->i_mode  = be16_to_cpu(efs_inode->di_mode);
 	set_nlink(inode, be16_to_cpu(efs_inode->di_nlink));
-	inode->i_uid   = (uid_t)be16_to_cpu(efs_inode->di_uid);
-	inode->i_gid   = (gid_t)be16_to_cpu(efs_inode->di_gid);
+	i_uid_write(inode, (uid_t)be16_to_cpu(efs_inode->di_uid));
+	i_gid_write(inode, (gid_t)be16_to_cpu(efs_inode->di_gid));
 	inode->i_size  = be32_to_cpu(efs_inode->di_size);
 	inode->i_atime.tv_sec = be32_to_cpu(efs_inode->di_atime);
 	inode->i_mtime.tv_sec = be32_to_cpu(efs_inode->di_mtime);

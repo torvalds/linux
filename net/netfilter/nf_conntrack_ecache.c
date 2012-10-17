@@ -61,7 +61,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 		goto out_unlock;
 
 	item.ct = ct;
-	item.pid = 0;
+	item.portid = 0;
 	item.report = 0;
 
 	ret = notify->fcn(events | missed, &item);

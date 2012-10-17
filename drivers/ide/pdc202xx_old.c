@@ -270,7 +270,7 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 		.max_sectors	= sectors, \
 	}
 
-static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
+static const struct ide_port_info pdc202xx_chipsets[] __devinitconst = {
 	{	/* 0: PDC20246 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_pdc202xx,

@@ -26,7 +26,7 @@
  */
 
 #include <linux/export.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /**
  * Register.

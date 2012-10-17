@@ -199,21 +199,15 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->xprt;
 	int rc = 0;
 
-	if (!xprt->shutdown) {
-		current->flags |= PF_FSTRANS;
-		xprt_clear_connected(xprt);
+	current->flags |= PF_FSTRANS;
+	xprt_clear_connected(xprt);
 
-		dprintk("RPC:       %s: %sconnect\n", __func__,
-				r_xprt->rx_ep.rep_connected != 0 ? "re" : "");
-		rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
-		if (rc)
-			goto out;
-	}
-	goto out_clear;
+	dprintk("RPC:       %s: %sconnect\n", __func__,
+			r_xprt->rx_ep.rep_connected != 0 ? "re" : "");
+	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	if (rc)
+		xprt_wake_pending_tasks(xprt, rc);
 
-out:
-	xprt_wake_pending_tasks(xprt, rc);
-out_clear:
 	dprintk("RPC:       %s: exit\n", __func__);
 	xprt_clear_connecting(xprt);
 	current->flags &= ~PF_FSTRANS;

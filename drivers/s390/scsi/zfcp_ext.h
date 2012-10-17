@@ -54,6 +54,7 @@ extern void zfcp_dbf_hba_fsf_res(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_berr(struct zfcp_dbf *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_def_err(struct zfcp_adapter *, u64, u16, void **);
+extern void zfcp_dbf_hba_basic(char *, struct zfcp_adapter *);
 extern void zfcp_dbf_san_req(char *, struct zfcp_fsf_req *, u32);
 extern void zfcp_dbf_san_res(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_san_in_els(char *, struct zfcp_fsf_req *);
@@ -98,6 +99,8 @@ extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
 extern int zfcp_fc_exec_bsg_job(struct fc_bsg_job *);
 extern int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *);
 extern void zfcp_fc_sym_name_update(struct work_struct *);
+extern void zfcp_fc_conditional_port_scan(struct zfcp_adapter *);
+extern void zfcp_fc_inverse_conditional_port_scan(struct zfcp_adapter *);
 
 /* zfcp_fsf.c */
 extern struct kmem_cache *zfcp_fsf_qtcb_cache;
@@ -158,6 +161,7 @@ extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
 extern struct attribute_group zfcp_sysfs_unit_attrs;
 extern struct attribute_group zfcp_sysfs_adapter_attrs;
 extern struct attribute_group zfcp_sysfs_port_attrs;
+extern struct mutex zfcp_sysfs_port_units_mutex;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];
 

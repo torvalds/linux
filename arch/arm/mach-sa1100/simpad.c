@@ -124,7 +124,7 @@ static struct map_desc simpad_io_desc[] __initdata = {
 		.length		= 0x00800000,
 		.type		= MT_DEVICE
 	}, {	/* Simpad CS3 */
-		.virtual	= CS3_BASE,
+		.virtual	= (unsigned long)CS3_BASE,
 		.pfn		= __phys_to_pfn(SA1100_CS3_PHYS),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE

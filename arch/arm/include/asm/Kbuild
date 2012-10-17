@@ -1,20 +1,35 @@
-include include/asm-generic/Kbuild.asm
 
-header-y += hwcap.h
 
 generic-y += auxvec.h
 generic-y += bitsperlong.h
 generic-y += cputime.h
+generic-y += current.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += ioctl.h
+generic-y += ipcbuf.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
 generic-y += local.h
 generic-y += local64.h
+generic-y += msgbuf.h
+generic-y += param.h
+generic-y += parport.h
 generic-y += percpu.h
 generic-y += poll.h
 generic-y += resource.h
 generic-y += sections.h
+generic-y += segment.h
+generic-y += sembuf.h
+generic-y += serial.h
+generic-y += shmbuf.h
 generic-y += siginfo.h
 generic-y += sizes.h
+generic-y += socket.h
+generic-y += sockios.h
+generic-y += termbits.h
+generic-y += termios.h
+generic-y += timex.h
+generic-y += types.h
+generic-y += unaligned.h

@@ -97,7 +97,8 @@ static void kgdboc_restore_input(void)
 
 static int kgdboc_register_kbd(char **cptr)
 {
-	if (strncmp(*cptr, "kbd", 3) == 0) {
+	if (strncmp(*cptr, "kbd", 3) == 0 ||
+		strncmp(*cptr, "kdb", 3) == 0) {
 		if (kdb_poll_idx < KDB_POLL_FUNC_MAX) {
 			kdb_poll_funcs[kdb_poll_idx] = kdb_get_kbd_char;
 			kdb_poll_idx++;
@@ -122,7 +123,7 @@ static void kgdboc_unregister_kbd(void)
 			i--;
 		}
 	}
-	flush_work_sync(&kgdboc_restore_input_work);
+	flush_work(&kgdboc_restore_input_work);
 }
 #else /* ! CONFIG_KDB_KEYBOARD */
 #define kgdboc_register_kbd(x) 0
@@ -145,6 +146,8 @@ __setup("kgdboc=", kgdboc_option_setup);
 
 static void cleanup_kgdboc(void)
 {
+	if (kgdb_unregister_nmi_console())
+		return;
 	kgdboc_unregister_kbd();
 	if (configured == 1)
 		kgdb_unregister_io_module(&kgdboc_io_ops);
@@ -198,11 +201,18 @@ do_register:
 	if (err)
 		goto noconfig;
 
+	err = kgdb_register_nmi_console();
+	if (err)
+		goto nmi_con_failed;
+
 	configured = 1;
 
 	return 0;
 
+nmi_con_failed:
+	kgdb_unregister_io_module(&kgdboc_io_ops);
 noconfig:
+	kgdboc_unregister_kbd();
 	config[0] = 0;
 	configured = 0;
 	cleanup_kgdboc();

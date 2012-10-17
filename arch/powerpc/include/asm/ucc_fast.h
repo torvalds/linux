@@ -19,7 +19,7 @@
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
 
-#include "ucc.h"
+#include <asm/ucc.h>
 
 /* Receive BD's status */
 #define R_E	0x80000000	/* buffer empty */

@@ -23,11 +23,11 @@
 #include <linux/input/mt.h>
 #include <linux/major.h>
 #include <linux/device.h>
+#include <linux/cdev.h>
 #include "input-compat.h"
 
 struct evdev {
 	int open;
-	int minor;
 	struct input_handle handle;
 	wait_queue_head_t wait;
 	struct evdev_client __rcu *grab;
@@ -35,6 +35,7 @@ struct evdev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
+	struct cdev cdev;
 	bool exist;
 };
 
@@ -51,19 +52,9 @@ struct evdev_client {
 	struct input_event buffer[];
 };
 
-static struct evdev *evdev_table[EVDEV_MINORS];
-static DEFINE_MUTEX(evdev_table_mutex);
-
-static void evdev_pass_event(struct evdev_client *client,
-			     struct input_event *event,
-			     ktime_t mono, ktime_t real)
+static void __pass_event(struct evdev_client *client,
+			 const struct input_event *event)
 {
-	event->time = ktime_to_timeval(client->clkid == CLOCK_MONOTONIC ?
-					mono : real);
-
-	/* Interrupts are disabled, just acquire the lock. */
-	spin_lock(&client->buffer_lock);
-
 	client->buffer[client->head++] = *event;
 	client->head &= client->bufsize - 1;
 
@@ -86,8 +77,63 @@ static void evdev_pass_event(struct evdev_client *client,
 		client->packet_head = client->head;
 		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 	}
+}
+
+static void evdev_pass_values(struct evdev_client *client,
+			const struct input_value *vals, unsigned int count,
+			ktime_t mono, ktime_t real)
+{
+	struct evdev *evdev = client->evdev;
+	const struct input_value *v;
+	struct input_event event;
+	bool wakeup = false;
+
+	event.time = ktime_to_timeval(client->clkid == CLOCK_MONOTONIC ?
+				      mono : real);
+
+	/* Interrupts are disabled, just acquire the lock. */
+	spin_lock(&client->buffer_lock);
+
+	for (v = vals; v != vals + count; v++) {
+		event.type = v->type;
+		event.code = v->code;
+		event.value = v->value;
+		__pass_event(client, &event);
+		if (v->type == EV_SYN && v->code == SYN_REPORT)
+			wakeup = true;
+	}
 
 	spin_unlock(&client->buffer_lock);
+
+	if (wakeup)
+		wake_up_interruptible(&evdev->wait);
+}
+
+/*
+ * Pass incoming events to all connected clients.
+ */
+static void evdev_events(struct input_handle *handle,
+			 const struct input_value *vals, unsigned int count)
+{
+	struct evdev *evdev = handle->private;
+	struct evdev_client *client;
+	ktime_t time_mono, time_real;
+
+	time_mono = ktime_get();
+	time_real = ktime_sub(time_mono, ktime_get_monotonic_offset());
+
+	rcu_read_lock();
+
+	client = rcu_dereference(evdev->grab);
+
+	if (client)
+		evdev_pass_values(client, vals, count, time_mono, time_real);
+	else
+		list_for_each_entry_rcu(client, &evdev->client_list, node)
+			evdev_pass_values(client, vals, count,
+					  time_mono, time_real);
+
+	rcu_read_unlock();
 }
 
 /*
@@ -96,32 +142,9 @@ static void evdev_pass_event(struct evdev_client *client,
 static void evdev_event(struct input_handle *handle,
 			unsigned int type, unsigned int code, int value)
 {
-	struct evdev *evdev = handle->private;
-	struct evdev_client *client;
-	struct input_event event;
-	ktime_t time_mono, time_real;
+	struct input_value vals[] = { { type, code, value } };
 
-	time_mono = ktime_get();
-	time_real = ktime_sub(time_mono, ktime_get_monotonic_offset());
-
-	event.type = type;
-	event.code = code;
-	event.value = value;
-
-	rcu_read_lock();
-
-	client = rcu_dereference(evdev->grab);
-
-	if (client)
-		evdev_pass_event(client, &event, time_mono, time_real);
-	else
-		list_for_each_entry_rcu(client, &evdev->client_list, node)
-			evdev_pass_event(client, &event, time_mono, time_real);
-
-	rcu_read_unlock();
-
-	if (type == EV_SYN && code == SYN_REPORT)
-		wake_up_interruptible(&evdev->wait);
+	evdev_events(handle, vals, 1);
 }
 
 static int evdev_fasync(int fd, struct file *file, int on)
@@ -285,35 +308,16 @@ static unsigned int evdev_compute_buffer_size(struct input_dev *dev)
 
 static int evdev_open(struct inode *inode, struct file *file)
 {
-	struct evdev *evdev;
+	struct evdev *evdev = container_of(inode->i_cdev, struct evdev, cdev);
+	unsigned int bufsize = evdev_compute_buffer_size(evdev->handle.dev);
 	struct evdev_client *client;
-	int i = iminor(inode) - EVDEV_MINOR_BASE;
-	unsigned int bufsize;
 	int error;
-
-	if (i >= EVDEV_MINORS)
-		return -ENODEV;
-
-	error = mutex_lock_interruptible(&evdev_table_mutex);
-	if (error)
-		return error;
-	evdev = evdev_table[i];
-	if (evdev)
-		get_device(&evdev->dev);
-	mutex_unlock(&evdev_table_mutex);
-
-	if (!evdev)
-		return -ENODEV;
-
-	bufsize = evdev_compute_buffer_size(evdev->handle.dev);
 
 	client = kzalloc(sizeof(struct evdev_client) +
 				bufsize * sizeof(struct input_event),
 			 GFP_KERNEL);
-	if (!client) {
-		error = -ENOMEM;
-		goto err_put_evdev;
-	}
+	if (!client)
+		return -ENOMEM;
 
 	client->bufsize = bufsize;
 	spin_lock_init(&client->buffer_lock);
@@ -327,13 +331,12 @@ static int evdev_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 	nonseekable_open(inode, file);
 
+	get_device(&evdev->dev);
 	return 0;
 
  err_free_client:
 	evdev_detach_client(evdev, client);
 	kfree(client);
- err_put_evdev:
-	put_device(&evdev->dev);
 	return error;
 }
 
@@ -653,20 +656,22 @@ static int evdev_handle_mt_request(struct input_dev *dev,
 				   unsigned int size,
 				   int __user *ip)
 {
-	const struct input_mt_slot *mt = dev->mt;
+	const struct input_mt *mt = dev->mt;
 	unsigned int code;
 	int max_slots;
 	int i;
 
 	if (get_user(code, &ip[0]))
 		return -EFAULT;
-	if (!input_is_mt_value(code))
+	if (!mt || !input_is_mt_value(code))
 		return -EINVAL;
 
 	max_slots = (size - sizeof(__u32)) / sizeof(__s32);
-	for (i = 0; i < dev->mtsize && i < max_slots; i++)
-		if (put_user(input_mt_get_value(&mt[i], code), &ip[1 + i]))
+	for (i = 0; i < mt->num_slots && i < max_slots; i++) {
+		int value = input_mt_get_value(&mt->slots[i], code);
+		if (put_user(value, &ip[1 + i]))
 			return -EFAULT;
+	}
 
 	return 0;
 }
@@ -915,26 +920,6 @@ static const struct file_operations evdev_fops = {
 	.llseek		= no_llseek,
 };
 
-static int evdev_install_chrdev(struct evdev *evdev)
-{
-	/*
-	 * No need to do any locking here as calls to connect and
-	 * disconnect are serialized by the input core
-	 */
-	evdev_table[evdev->minor] = evdev;
-	return 0;
-}
-
-static void evdev_remove_chrdev(struct evdev *evdev)
-{
-	/*
-	 * Lock evdev table to prevent race with evdev_open()
-	 */
-	mutex_lock(&evdev_table_mutex);
-	evdev_table[evdev->minor] = NULL;
-	mutex_unlock(&evdev_table_mutex);
-}
-
 /*
  * Mark device non-existent. This disables writes, ioctls and
  * prevents new users from opening the device. Already posted
@@ -953,7 +938,8 @@ static void evdev_cleanup(struct evdev *evdev)
 
 	evdev_mark_dead(evdev);
 	evdev_hangup(evdev);
-	evdev_remove_chrdev(evdev);
+
+	cdev_del(&evdev->cdev);
 
 	/* evdev is marked dead so no one else accesses evdev->open */
 	if (evdev->open) {
@@ -964,43 +950,47 @@ static void evdev_cleanup(struct evdev *evdev)
 
 /*
  * Create new evdev device. Note that input core serializes calls
- * to connect and disconnect so we don't need to lock evdev_table here.
+ * to connect and disconnect.
  */
 static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 			 const struct input_device_id *id)
 {
 	struct evdev *evdev;
 	int minor;
+	int dev_no;
 	int error;
 
-	for (minor = 0; minor < EVDEV_MINORS; minor++)
-		if (!evdev_table[minor])
-			break;
-
-	if (minor == EVDEV_MINORS) {
-		pr_err("no more free evdev devices\n");
-		return -ENFILE;
+	minor = input_get_new_minor(EVDEV_MINOR_BASE, EVDEV_MINORS, true);
+	if (minor < 0) {
+		error = minor;
+		pr_err("failed to reserve new minor: %d\n", error);
+		return error;
 	}
 
 	evdev = kzalloc(sizeof(struct evdev), GFP_KERNEL);
-	if (!evdev)
-		return -ENOMEM;
+	if (!evdev) {
+		error = -ENOMEM;
+		goto err_free_minor;
+	}
 
 	INIT_LIST_HEAD(&evdev->client_list);
 	spin_lock_init(&evdev->client_lock);
 	mutex_init(&evdev->mutex);
 	init_waitqueue_head(&evdev->wait);
-
-	dev_set_name(&evdev->dev, "event%d", minor);
 	evdev->exist = true;
-	evdev->minor = minor;
+
+	dev_no = minor;
+	/* Normalize device number if it falls into legacy range */
+	if (dev_no < EVDEV_MINOR_BASE + EVDEV_MINORS)
+		dev_no -= EVDEV_MINOR_BASE;
+	dev_set_name(&evdev->dev, "event%d", dev_no);
 
 	evdev->handle.dev = input_get_device(dev);
 	evdev->handle.name = dev_name(&evdev->dev);
 	evdev->handle.handler = handler;
 	evdev->handle.private = evdev;
 
-	evdev->dev.devt = MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor);
+	evdev->dev.devt = MKDEV(INPUT_MAJOR, minor);
 	evdev->dev.class = &input_class;
 	evdev->dev.parent = &dev->dev;
 	evdev->dev.release = evdev_free;
@@ -1010,7 +1000,8 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	if (error)
 		goto err_free_evdev;
 
-	error = evdev_install_chrdev(evdev);
+	cdev_init(&evdev->cdev, &evdev_fops);
+	error = cdev_add(&evdev->cdev, evdev->dev.devt, 1);
 	if (error)
 		goto err_unregister_handle;
 
@@ -1026,6 +1017,8 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	input_unregister_handle(&evdev->handle);
  err_free_evdev:
 	put_device(&evdev->dev);
+ err_free_minor:
+	input_free_minor(minor);
 	return error;
 }
 
@@ -1035,6 +1028,7 @@ static void evdev_disconnect(struct input_handle *handle)
 
 	device_del(&evdev->dev);
 	evdev_cleanup(evdev);
+	input_free_minor(MINOR(evdev->dev.devt));
 	input_unregister_handle(handle);
 	put_device(&evdev->dev);
 }
@@ -1048,9 +1042,10 @@ MODULE_DEVICE_TABLE(input, evdev_ids);
 
 static struct input_handler evdev_handler = {
 	.event		= evdev_event,
+	.events		= evdev_events,
 	.connect	= evdev_connect,
 	.disconnect	= evdev_disconnect,
-	.fops		= &evdev_fops,
+	.legacy_minors	= true,
 	.minor		= EVDEV_MINOR_BASE,
 	.name		= "evdev",
 	.id_table	= evdev_ids,

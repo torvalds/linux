@@ -18,6 +18,10 @@ typedef struct {
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
+	/*
+	 * irq_tlb_count is double-counted in irq_call_count, so it must be
+	 * subtracted from irq_call_count when displaying irq_call_count
+	 */
 	unsigned int irq_tlb_count;
 #endif
 #ifdef CONFIG_X86_THERMAL_VECTOR

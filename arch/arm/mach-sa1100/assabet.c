@@ -20,6 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/leds.h>
+#include <linux/slab.h>
 
 #include <video/sa1100fb.h>
 
@@ -386,7 +388,7 @@ static void __init map_sa1100_gpio_regs( void )
  */
 static void __init get_assabet_scr(void)
 {
-	unsigned long scr, i;
+	unsigned long uninitialized_var(scr), i;
 
 	GPDR |= 0x3fc;			/* Configure GPIO 9:2 as outputs */
 	GPSR = 0x3fc;			/* Write 0xFF to GPIO 9:2 */
@@ -529,6 +531,89 @@ static void __init assabet_map_io(void)
 	sa1100_register_uart(2, 3);
 }
 
+/* LEDs */
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct assabet_led {
+	struct led_classdev cdev;
+	u32 mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} assabet_leds[] = {
+	{ "assabet:red", "cpu0",},
+	{ "assabet:green", "heartbeat", },
+};
+
+/*
+ * The LED control in Assabet is reversed:
+ *  - setting bit means turn off LED
+ *  - clearing bit means turn on LED
+ */
+static void assabet_led_set(struct led_classdev *cdev,
+		enum led_brightness b)
+{
+	struct assabet_led *led = container_of(cdev,
+			struct assabet_led, cdev);
+
+	if (b != LED_OFF)
+		ASSABET_BCR_clear(led->mask);
+	else
+		ASSABET_BCR_set(led->mask);
+}
+
+static enum led_brightness assabet_led_get(struct led_classdev *cdev)
+{
+	struct assabet_led *led = container_of(cdev,
+			struct assabet_led, cdev);
+
+	return (ASSABET_BCR & led->mask) ? LED_OFF : LED_FULL;
+}
+
+static int __init assabet_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_assabet())
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(assabet_leds); i++) {
+		struct assabet_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = assabet_leds[i].name;
+		led->cdev.brightness_set = assabet_led_set;
+		led->cdev.brightness_get = assabet_led_get;
+		led->cdev.default_trigger = assabet_leds[i].trigger;
+
+		if (!i)
+			led->mask = ASSABET_BCR_LED_RED;
+		else
+			led->mask = ASSABET_BCR_LED_GREEN;
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(assabet_leds_init);
+#endif
 
 MACHINE_START(ASSABET, "Intel-Assabet")
 	.atag_offset	= 0x100,

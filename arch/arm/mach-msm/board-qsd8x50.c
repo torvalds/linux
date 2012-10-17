@@ -35,11 +35,10 @@
 #include <linux/platform_data/mmc-msm_sdcc.h>
 
 #include "devices.h"
+#include "common.h"
 
-extern struct sys_timer msm_timer;
-
-static const resource_size_t qsd8x50_surf_smc91x_base __initdata = 0x70000300;
-static const unsigned        qsd8x50_surf_smc91x_gpio __initdata = 156;
+static const resource_size_t qsd8x50_surf_smc91x_base __initconst = 0x70000300;
+static const unsigned        qsd8x50_surf_smc91x_gpio __initconst = 156;
 
 /* Leave smc91x resources empty here, as we'll fill them in
  * at run-time: they vary from board to board, and the true
@@ -201,7 +200,7 @@ MACHINE_START(QSD8X50_SURF, "QCT QSD8X50 SURF")
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
 	.init_late = qsd8x50_init_late,
-	.timer = &msm_timer,
+	.timer = &qsd8x50_timer,
 MACHINE_END
 
 MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
@@ -210,5 +209,5 @@ MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
 	.init_late = qsd8x50_init_late,
-	.timer = &msm_timer,
+	.timer = &qsd8x50_timer,
 MACHINE_END

@@ -191,8 +191,6 @@ mpc512x_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 static struct fsl_diu_shared_fb __attribute__ ((__aligned__(8))) diu_shared_fb;
 
-#if defined(CONFIG_FB_FSL_DIU) || \
-    defined(CONFIG_FB_FSL_DIU_MODULE)
 static inline void mpc512x_free_bootmem(struct page *page)
 {
 	__ClearPageReserved(page);
@@ -220,7 +218,6 @@ void mpc512x_release_bootmem(void)
 	}
 	diu_ops.release_bootmem	= NULL;
 }
-#endif
 
 /*
  * Check if DIU was pre-initialized. If so, perform steps
@@ -323,15 +320,12 @@ void __init mpc512x_setup_diu(void)
 		}
 	}
 
-#if defined(CONFIG_FB_FSL_DIU) || \
-    defined(CONFIG_FB_FSL_DIU_MODULE)
 	diu_ops.get_pixel_format	= mpc512x_get_pixel_format;
 	diu_ops.set_gamma_table		= mpc512x_set_gamma_table;
 	diu_ops.set_monitor_port	= mpc512x_set_monitor_port;
 	diu_ops.set_pixel_clock		= mpc512x_set_pixel_clock;
 	diu_ops.valid_monitor_port	= mpc512x_valid_monitor_port;
 	diu_ops.release_bootmem		= mpc512x_release_bootmem;
-#endif
 }
 
 void __init mpc512x_init_IRQ(void)

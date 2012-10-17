@@ -1029,7 +1029,7 @@ extern void do_reipl_asm(__u32 schid);
 /* Make sure all subchannels are quiet before we re-ipl an lpar. */
 void reipl_ccw_dev(struct ccw_dev_id *devid)
 {
-	struct subchannel_id schid;
+	struct subchannel_id uninitialized_var(schid);
 
 	s390_reset_system(NULL, NULL);
 	if (reipl_find_schid(devid, &schid) != 0)

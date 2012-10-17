@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
@@ -283,7 +282,7 @@ static int __devinit adt7411_probe(struct i2c_client *client,
 	struct adt7411_data *data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -294,14 +293,14 @@ static int __devinit adt7411_probe(struct i2c_client *client,
 	ret = adt7411_modify_bit(client, ADT7411_REG_CFG1,
 				 ADT7411_CFG1_START_MONITOR, 1);
 	if (ret < 0)
-		goto exit_free;
+		return ret;
 
 	/* force update on first occasion */
 	data->next_update = jiffies;
 
 	ret = sysfs_create_group(&client->dev.kobj, &adt7411_attr_grp);
 	if (ret)
-		goto exit_free;
+		return ret;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -315,8 +314,6 @@ static int __devinit adt7411_probe(struct i2c_client *client,
 
  exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
- exit_free:
-	kfree(data);
 	return ret;
 }
 
@@ -326,7 +323,6 @@ static int __devexit adt7411_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
-	kfree(data);
 	return 0;
 }
 

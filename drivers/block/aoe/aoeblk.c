@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2012 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoeblk.c
  * block device routines
@@ -161,68 +161,22 @@ aoeblk_release(struct gendisk *disk, fmode_t mode)
 }
 
 static void
-aoeblk_make_request(struct request_queue *q, struct bio *bio)
+aoeblk_request(struct request_queue *q)
 {
-	struct sk_buff_head queue;
 	struct aoedev *d;
-	struct buf *buf;
-	ulong flags;
+	struct request *rq;
 
-	blk_queue_bounce(q, &bio);
-
-	if (bio == NULL) {
-		printk(KERN_ERR "aoe: bio is NULL\n");
-		BUG();
-		return;
-	}
-	d = bio->bi_bdev->bd_disk->private_data;
-	if (d == NULL) {
-		printk(KERN_ERR "aoe: bd_disk->private_data is NULL\n");
-		BUG();
-		bio_endio(bio, -ENXIO);
-		return;
-	} else if (bio->bi_io_vec == NULL) {
-		printk(KERN_ERR "aoe: bi_io_vec is NULL\n");
-		BUG();
-		bio_endio(bio, -ENXIO);
-		return;
-	}
-	buf = mempool_alloc(d->bufpool, GFP_NOIO);
-	if (buf == NULL) {
-		printk(KERN_INFO "aoe: buf allocation failure\n");
-		bio_endio(bio, -ENOMEM);
-		return;
-	}
-	memset(buf, 0, sizeof(*buf));
-	INIT_LIST_HEAD(&buf->bufs);
-	buf->stime = jiffies;
-	buf->bio = bio;
-	buf->resid = bio->bi_size;
-	buf->sector = bio->bi_sector;
-	buf->bv = &bio->bi_io_vec[bio->bi_idx];
-	buf->bv_resid = buf->bv->bv_len;
-	WARN_ON(buf->bv_resid == 0);
-	buf->bv_off = buf->bv->bv_offset;
-
-	spin_lock_irqsave(&d->lock, flags);
-
+	d = q->queuedata;
 	if ((d->flags & DEVFL_UP) == 0) {
 		pr_info_ratelimited("aoe: device %ld.%d is not up\n",
 			d->aoemajor, d->aoeminor);
-		spin_unlock_irqrestore(&d->lock, flags);
-		mempool_free(buf, d->bufpool);
-		bio_endio(bio, -ENXIO);
+		while ((rq = blk_peek_request(q))) {
+			blk_start_request(rq);
+			aoe_end_request(d, rq, 1);
+		}
 		return;
 	}
-
-	list_add_tail(&buf->bufs, &d->bufq);
-
 	aoecmd_work(d);
-	__skb_queue_head_init(&queue);
-	skb_queue_splice_init(&d->sendq, &queue);
-
-	spin_unlock_irqrestore(&d->lock, flags);
-	aoenet_xmit(&queue);
 }
 
 static int
@@ -254,41 +208,54 @@ aoeblk_gdalloc(void *vp)
 {
 	struct aoedev *d = vp;
 	struct gendisk *gd;
+	mempool_t *mp;
+	struct request_queue *q;
+	enum { KB = 1024, MB = KB * KB, READ_AHEAD = 2 * MB, };
 	ulong flags;
 
 	gd = alloc_disk(AOE_PARTITIONS);
 	if (gd == NULL) {
-		printk(KERN_ERR
-			"aoe: cannot allocate disk structure for %ld.%d\n",
+		pr_err("aoe: cannot allocate disk structure for %ld.%d\n",
 			d->aoemajor, d->aoeminor);
 		goto err;
 	}
 
-	d->bufpool = mempool_create_slab_pool(MIN_BUFS, buf_pool_cache);
-	if (d->bufpool == NULL) {
+	mp = mempool_create(MIN_BUFS, mempool_alloc_slab, mempool_free_slab,
+		buf_pool_cache);
+	if (mp == NULL) {
 		printk(KERN_ERR "aoe: cannot allocate bufpool for %ld.%d\n",
 			d->aoemajor, d->aoeminor);
+		goto err_disk;
+	}
+	q = blk_init_queue(aoeblk_request, &d->lock);
+	if (q == NULL) {
+		pr_err("aoe: cannot allocate block queue for %ld.%d\n",
+			d->aoemajor, d->aoeminor);
+		mempool_destroy(mp);
 		goto err_disk;
 	}
 
 	d->blkq = blk_alloc_queue(GFP_KERNEL);
 	if (!d->blkq)
 		goto err_mempool;
-	blk_queue_make_request(d->blkq, aoeblk_make_request);
 	d->blkq->backing_dev_info.name = "aoe";
 	if (bdi_init(&d->blkq->backing_dev_info))
 		goto err_blkq;
 	spin_lock_irqsave(&d->lock, flags);
+	blk_queue_max_hw_sectors(d->blkq, BLK_DEF_MAX_SECTORS);
+	q->backing_dev_info.ra_pages = READ_AHEAD / PAGE_CACHE_SIZE;
+	d->bufpool = mp;
+	d->blkq = gd->queue = q;
+	q->queuedata = d;
+	d->gd = gd;
 	gd->major = AOE_MAJOR;
-	gd->first_minor = d->sysminor * AOE_PARTITIONS;
+	gd->first_minor = d->sysminor;
 	gd->fops = &aoe_bdops;
 	gd->private_data = d;
 	set_capacity(gd, d->ssize);
 	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%d",
 		d->aoemajor, d->aoeminor);
 
-	gd->queue = d->blkq;
-	d->gd = gd;
 	d->flags &= ~DEVFL_GDALLOC;
 	d->flags |= DEVFL_UP;
 

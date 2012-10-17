@@ -636,8 +636,8 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 
 static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 {
-	struct file *eventfp, *filep = NULL,
-		    *pollstart = NULL, *pollstop = NULL;
+	struct file *eventfp, *filep = NULL;
+	bool pollstart = false, pollstop = false;
 	struct eventfd_ctx *ctx = NULL;
 	u32 __user *idxp = argp;
 	struct vhost_virtqueue *vq;
@@ -763,8 +763,8 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 			break;
 		}
 		if (eventfp != vq->kick) {
-			pollstop = filep = vq->kick;
-			pollstart = vq->kick = eventfp;
+			pollstop = (filep = vq->kick) != NULL;
+			pollstart = (vq->kick = eventfp) != NULL;
 		} else
 			filep = eventfp;
 		break;

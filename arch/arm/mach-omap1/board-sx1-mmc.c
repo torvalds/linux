@@ -17,7 +17,7 @@
 
 #include <mach/hardware.h>
 #include <plat/mmc.h>
-#include <plat/board-sx1.h>
+#include <mach/board-sx1.h>
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 

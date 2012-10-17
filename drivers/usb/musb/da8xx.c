@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include <mach/da8xx.h>
 #include <linux/platform_data/usb-davinci.h>
@@ -155,9 +156,8 @@ static void da8xx_musb_enable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_SET_REG, mask);
 
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
-	if (is_otg_enabled(musb))
-		musb_writel(reg_base, DA8XX_USB_INTR_SRC_SET_REG,
-			    DA8XX_INTR_DRVVBUS << DA8XX_INTR_USB_SHIFT);
+	musb_writel(reg_base, DA8XX_USB_INTR_SRC_SET_REG,
+			DA8XX_INTR_DRVVBUS << DA8XX_INTR_USB_SHIFT);
 }
 
 /**
@@ -231,9 +231,6 @@ static void otg_timer(unsigned long _musb)
 			    MUSB_INTR_VBUSERROR << DA8XX_INTR_USB_SHIFT);
 		break;
 	case OTG_STATE_B_IDLE:
-		if (!is_peripheral_enabled(musb))
-			break;
-
 		/*
 		 * There's no ID-changed IRQ, so we have no good way to tell
 		 * when to switch to the A-Default state machine (by setting
@@ -262,9 +259,6 @@ static void otg_timer(unsigned long _musb)
 static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	static unsigned long last_timer;
-
-	if (!is_otg_enabled(musb))
-		return;
 
 	if (timeout == 0)
 		timeout = jiffies + msecs_to_jiffies(3);
@@ -333,8 +327,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 		u8 devctl = musb_readb(mregs, MUSB_DEVCTL);
 		int err;
 
-		err = is_host_enabled(musb) && (musb->int_usb &
-						MUSB_INTR_VBUSERROR);
+		err = musb->int_usb & USB_INTR_VBUSERROR;
 		if (err) {
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
@@ -351,7 +344,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
-		} else if (is_host_enabled(musb) && drvvbus) {
+		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -382,7 +375,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 		musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 
 	/* Poll for ID change */
-	if (is_otg_enabled(musb) && musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->state == OTG_STATE_B_IDLE)
 		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -430,8 +423,7 @@ static int da8xx_musb_init(struct musb *musb)
 	if (IS_ERR_OR_NULL(musb->xceiv))
 		goto fail;
 
-	if (is_host_enabled(musb))
-		setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
+	setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
 
 	/* Reset the controller */
 	musb_writel(reg_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
@@ -454,8 +446,7 @@ fail:
 
 static int da8xx_musb_exit(struct musb *musb)
 {
-	if (is_host_enabled(musb))
-		del_timer_sync(&otg_workaround);
+	del_timer_sync(&otg_workaround);
 
 	phy_off();
 
@@ -489,6 +480,7 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
+	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -496,25 +488,34 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	musb = platform_device_alloc("musb-hdrc", musbid);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
+		goto err2;
 	}
 
 	clk = clk_get(&pdev->dev, "usb20");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
-		goto err2;
+		goto err3;
 	}
 
 	ret = clk_enable(clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err3;
+		goto err4;
 	}
 
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &da8xx_dmamask;
 	musb->dev.coherent_dma_mask	= da8xx_dmamask;
@@ -531,31 +532,34 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err4;
+		goto err5;
 	}
 
 	return 0;
 
-err4:
+err5:
 	clk_disable(clk);
 
-err3:
+err4:
 	clk_put(clk);
 
-err2:
+err3:
 	platform_device_put(musb);
+
+err2:
+	musb_put_id(&pdev->dev, musbid);
 
 err1:
 	kfree(glue);
@@ -568,6 +572,7 @@ static int __devexit da8xx_remove(struct platform_device *pdev)
 {
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
+	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	clk_disable(glue->clk);

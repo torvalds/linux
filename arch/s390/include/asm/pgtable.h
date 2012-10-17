@@ -42,6 +42,7 @@ extern void fault_init(void);
  * tables contain all the necessary information.
  */
 #define update_mmu_cache(vma, address, ptep)     do { } while (0)
+#define update_mmu_cache_pmd(vma, address, ptep) do { } while (0)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero; used
@@ -118,19 +119,26 @@ static inline int is_zero_pfn(unsigned long pfn)
 
 #ifndef __ASSEMBLY__
 /*
- * The vmalloc area will always be on the topmost area of the kernel
- * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc,
- * which should be enough for any sane case.
- * By putting vmalloc at the top, we maximise the gap between physical
- * memory and vmalloc to catch misplaced memory accesses. As a side
- * effect, this also makes sure that 64 bit module code cannot be used
- * as system call address.
+ * The vmalloc and module area will always be on the topmost area of the kernel
+ * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc and modules.
+ * On 64 bit kernels we have a 2GB area at the top of the vmalloc area where
+ * modules will reside. That makes sure that inter module branches always
+ * happen without trampolines and in addition the placement within a 2GB frame
+ * is branch prediction unit friendly.
  */
 extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
 extern struct page *vmemmap;
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
+
+#ifdef CONFIG_64BIT
+extern unsigned long MODULES_VADDR;
+extern unsigned long MODULES_END;
+#define MODULES_VADDR	MODULES_VADDR
+#define MODULES_END	MODULES_END
+#define MODULES_LEN	(1UL << 31)
+#endif
 
 /*
  * A 31 bit pagetable entry of S390 has following format:
@@ -347,6 +355,12 @@ extern struct page *vmemmap;
 
 #define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
 #define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
+#define _SEGMENT_ENTRY_SPLIT_BIT 0	/* THP splitting bit number */
+#define _SEGMENT_ENTRY_SPLIT	(1UL << _SEGMENT_ENTRY_SPLIT_BIT)
+
+/* Set of bits not changed in pmd_modify */
+#define _SEGMENT_CHG_MASK	(_SEGMENT_ENTRY_ORIGIN | _SEGMENT_ENTRY_LARGE \
+				 | _SEGMENT_ENTRY_SPLIT | _SEGMENT_ENTRY_CO)
 
 /* Page status table bits for virtualization */
 #define RCP_ACC_BITS	0xf000000000000000UL
@@ -500,10 +514,43 @@ static inline int pmd_none(pmd_t pmd)
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_INV) != 0UL;
 }
 
+static inline int pmd_large(pmd_t pmd)
+{
+#ifdef CONFIG_64BIT
+	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
+#else
+	return 0;
+#endif
+}
+
 static inline int pmd_bad(pmd_t pmd)
 {
 	unsigned long mask = ~_SEGMENT_ENTRY_ORIGIN & ~_SEGMENT_ENTRY_INV;
 	return (pmd_val(pmd) & mask) != _SEGMENT_ENTRY;
+}
+
+#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+				 unsigned long addr, pmd_t *pmdp);
+
+#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+				 unsigned long address, pmd_t *pmdp,
+				 pmd_t entry, int dirty);
+
+#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+				  unsigned long address, pmd_t *pmdp);
+
+#define __HAVE_ARCH_PMD_WRITE
+static inline int pmd_write(pmd_t pmd)
+{
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_RO) == 0;
+}
+
+static inline int pmd_young(pmd_t pmd)
+{
+	return 0;
 }
 
 static inline int pte_none(pte_t pte)
@@ -1158,6 +1205,185 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 #define pte_offset_kernel(pmd, address) pte_offset(pmd,address)
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_unmap(pte) do { } while (0)
+
+static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
+{
+	unsigned long sto = (unsigned long) pmdp -
+			    pmd_index(address) * sizeof(pmd_t);
+
+	if (!(pmd_val(*pmdp) & _SEGMENT_ENTRY_INV)) {
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%2,%3,0,0"
+			: "=m" (*pmdp)
+			: "m" (*pmdp), "a" (sto),
+			  "a" ((address & HPAGE_MASK))
+			: "cc"
+		);
+	}
+}
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define __HAVE_ARCH_PGTABLE_DEPOSIT
+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
+
+#define __HAVE_ARCH_PGTABLE_WITHDRAW
+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
+
+static inline int pmd_trans_splitting(pmd_t pmd)
+{
+	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
+}
+
+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+			      pmd_t *pmdp, pmd_t entry)
+{
+	*pmdp = entry;
+}
+
+static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
+{
+	unsigned long pgprot_pmd = 0;
+
+	if (pgprot_val(pgprot) & _PAGE_INVALID) {
+		if (pgprot_val(pgprot) & _PAGE_SWT)
+			pgprot_pmd |= _HPAGE_TYPE_NONE;
+		pgprot_pmd |= _SEGMENT_ENTRY_INV;
+	}
+	if (pgprot_val(pgprot) & _PAGE_RO)
+		pgprot_pmd |= _SEGMENT_ENTRY_RO;
+	return pgprot_pmd;
+}
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	pmd_val(pmd) &= _SEGMENT_CHG_MASK;
+	pmd_val(pmd) |= massage_pgprot_pmd(newprot);
+	return pmd;
+}
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkwrite(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_RO;
+	return pmd;
+}
+
+static inline pmd_t pmd_wrprotect(pmd_t pmd)
+{
+	pmd_val(pmd) |= _SEGMENT_ENTRY_RO;
+	return pmd;
+}
+
+static inline pmd_t pmd_mkdirty(pmd_t pmd)
+{
+	/* No dirty bit in the segment table entry. */
+	return pmd;
+}
+
+static inline pmd_t pmd_mkold(pmd_t pmd)
+{
+	/* No referenced bit in the segment table entry. */
+	return pmd;
+}
+
+static inline pmd_t pmd_mkyoung(pmd_t pmd)
+{
+	/* No referenced bit in the segment table entry. */
+	return pmd;
+}
+
+#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long address, pmd_t *pmdp)
+{
+	unsigned long pmd_addr = pmd_val(*pmdp) & HPAGE_MASK;
+	long tmp, rc;
+	int counter;
+
+	rc = 0;
+	if (MACHINE_HAS_RRBM) {
+		counter = PTRS_PER_PTE >> 6;
+		asm volatile(
+			"0:	.insn	rre,0xb9ae0000,%0,%3\n"	/* rrbm */
+			"	ogr	%1,%0\n"
+			"	la	%3,0(%4,%3)\n"
+			"	brct	%2,0b\n"
+			: "=&d" (tmp), "+&d" (rc), "+d" (counter),
+			  "+a" (pmd_addr)
+			: "a" (64 * 4096UL) : "cc");
+		rc = !!rc;
+	} else {
+		counter = PTRS_PER_PTE;
+		asm volatile(
+			"0:	rrbe	0,%2\n"
+			"	la	%2,0(%3,%2)\n"
+			"	brc	12,1f\n"
+			"	lhi	%0,1\n"
+			"1:	brct	%1,0b\n"
+			: "+d" (rc), "+d" (counter), "+a" (pmd_addr)
+			: "a" (4096UL) : "cc");
+	}
+	return rc;
+}
+
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+				       unsigned long address, pmd_t *pmdp)
+{
+	pmd_t pmd = *pmdp;
+
+	__pmd_idte(address, pmdp);
+	pmd_clear(pmdp);
+	return pmd;
+}
+
+#define __HAVE_ARCH_PMDP_CLEAR_FLUSH
+static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
+				     unsigned long address, pmd_t *pmdp)
+{
+	return pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+}
+
+#define __HAVE_ARCH_PMDP_INVALIDATE
+static inline void pmdp_invalidate(struct vm_area_struct *vma,
+				   unsigned long address, pmd_t *pmdp)
+{
+	__pmd_idte(address, pmdp);
+}
+
+static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
+{
+	pmd_t __pmd;
+	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
+	return __pmd;
+}
+
+#define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))
+#define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
+
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	return pmd_val(pmd) & _SEGMENT_ENTRY_LARGE;
+}
+
+static inline int has_transparent_hugepage(void)
+{
+	return MACHINE_HAS_HPAGE ? 1 : 0;
+}
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	if (pmd_trans_huge(pmd))
+		return pmd_val(pmd) >> HPAGE_SHIFT;
+	else
+		return pmd_val(pmd) >> PAGE_SHIFT;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
  * 31 bit swap entry format:

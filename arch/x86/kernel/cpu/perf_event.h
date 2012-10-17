@@ -626,6 +626,8 @@ int p4_pmu_init(void);
 
 int p6_pmu_init(void);
 
+int knc_pmu_init(void);
+
 #else /* CONFIG_CPU_SUP_INTEL */
 
 static inline void reserve_ds_buffers(void)

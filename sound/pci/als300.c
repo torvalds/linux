@@ -765,7 +765,7 @@ static int __devinit snd_als300_create(struct snd_card *card,
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_als300_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
