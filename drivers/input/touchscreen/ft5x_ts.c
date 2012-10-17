@@ -81,6 +81,7 @@ static LIST_HEAD (i2c_dev_list);
 static DEFINE_SPINLOCK(i2c_dev_list_lock);
 
 #define FT5X_NAME	"ft5x_ts"//"synaptics_i2c_rmi"//"synaptics-rmi-ts"//
+#define CHARDEV_NAME    "aw_i2c_ts"
 
 static struct i2c_client *this_client;
 #ifdef TOUCH_KEY_LIGHT_SUPPORT
@@ -1811,9 +1812,12 @@ static int __devexit ft5x_ts_remove(struct i2c_client *client)
 	unregister_early_suspend(&ft5x_ts->early_suspend);
 #endif
 	input_unregister_device(ft5x_ts->input_dev);
+	unregister_chrdev(I2C_MAJOR, CHARDEV_NAME);
 	input_free_device(ft5x_ts->input_dev);
 	cancel_work_sync(&ft5x_ts->pen_event_work);
 	destroy_workqueue(ft5x_ts->ts_workqueue);
+	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR,client->adapter->nr));
+	class_destroy(i2c_dev_class);	
 	kfree(ft5x_ts);
 
 	i2c_set_clientdata(client, NULL);
@@ -1963,7 +1967,7 @@ static int __init ft5x_ts_init(void)
 
 	ft5x_ts_driver.detect = ctp_ops.ts_detect;
 
-	ret= register_chrdev(I2C_MAJOR,"aw_i2c_ts",&aw_i2c_ts_fops );
+	ret= register_chrdev(I2C_MAJOR,CHARDEV_NAME,&aw_i2c_ts_fops );
 	if(ret) {
 		pr_info(KERN_ERR "%s:register chrdev failed\n",__FILE__);
 		return ret;
