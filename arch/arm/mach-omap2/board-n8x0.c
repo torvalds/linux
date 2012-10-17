@@ -29,7 +29,7 @@
 
 #include "common.h"
 #include <plat/menelaus.h>
-#include <plat/mmc.h>
+#include "mmc.h"
 
 #include "mux.h"
 #include "gpmc-onenand.h"

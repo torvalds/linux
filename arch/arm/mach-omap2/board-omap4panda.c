@@ -40,10 +40,10 @@
 
 #include "common.h"
 #include <plat/usb.h>
-#include <plat/mmc.h>
 #include <video/omap-panel-tfp410.h>
 
 #include "soc.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"

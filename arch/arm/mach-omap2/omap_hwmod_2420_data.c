@@ -21,12 +21,12 @@
 #include <plat/dmtimer.h>
 #include "l3_2xxx.h"
 #include "l4_2xxx.h"
-#include <plat/mmc.h>
 
 #include "omap_hwmod_common_data.h"
 
 #include "cm-regbits-24xx.h"
 #include "prm-regbits-24xx.h"
+#include "mmc.h"
 #include "wd_timer.h"
 
 /*

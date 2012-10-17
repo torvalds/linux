@@ -43,7 +43,7 @@
 #include <asm/mach/arch.h>
 
 #include <mach/omap7xx.h>
-#include <plat/mmc.h>
+#include "mmc.h"
 
 #include <mach/irqs.h>
 #include <mach/usb.h>

@@ -23,13 +23,13 @@
 #include <asm/mach-types.h>
 
 #include <plat/i2c.h>
-#include <plat/mmc.h>
 #include <plat/usb.h>
 #include "gpmc.h"
 #include "common.h"
 #include <plat/serial.h>
 
 #include "mux.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"

@@ -35,7 +35,6 @@
 
 #include "common.h"
 #include <plat/usb.h>
-#include <plat/mmc.h>
 #include "omap4-keypad.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-nokia-dsi.h>
@@ -45,6 +44,7 @@
 
 #include "soc.h"
 #include "mux.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"

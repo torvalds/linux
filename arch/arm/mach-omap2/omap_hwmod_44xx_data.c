@@ -27,7 +27,6 @@
 #include <plat-omap/dma-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include <plat/mmc.h>
 #include <plat/dmtimer.h>
 #include <plat/common.h>
 #include <plat/iommu.h>
@@ -37,6 +36,7 @@
 #include "cm2_44xx.h"
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
+#include "mmc.h"
 #include "wd_timer.h"
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */
