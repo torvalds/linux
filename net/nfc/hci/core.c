@@ -38,6 +38,8 @@ static int nfc_hci_result_to_errno(u8 result)
 	switch (result) {
 	case NFC_HCI_ANY_OK:
 		return 0;
+	case NFC_HCI_ANY_E_REG_PAR_UNKNOWN:
+		return -EOPNOTSUPP;
 	case NFC_HCI_ANY_E_TIMEOUT:
 		return -ETIME;
 	default:
@@ -419,6 +421,10 @@ static int hci_dev_version(struct nfc_hci_dev *hdev)
 
 	r = nfc_hci_get_param(hdev, NFC_HCI_ID_MGMT_GATE,
 			      NFC_HCI_ID_MGMT_VERSION_SW, &skb);
+	if (r == -EOPNOTSUPP) {
+		pr_info("Software/Hardware info not available\n");
+		return 0;
+	}
 	if (r < 0)
 		return r;
 
