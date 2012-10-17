@@ -16,6 +16,8 @@
 #ifndef __DAVINCI_ASP_H
 #define __DAVINCI_ASP_H
 
+#include <linux/genalloc.h>
+
 struct snd_platform_data {
 	u32 tx_dma_offset;
 	u32 rx_dma_offset;
@@ -30,6 +32,7 @@ struct snd_platform_data {
 	unsigned enable_channel_combine:1;
 	unsigned sram_size_playback;
 	unsigned sram_size_capture;
+	struct gen_pool *sram_pool;
 
 	/*
 	 * If McBSP peripheral gets the clock from an external pin,
