@@ -1804,7 +1804,7 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
 	.atag_offset	= 0x100,
 	.map_io		= u300_map_io,
-	.nr_irqs	= NR_IRQS_U300,
+	.nr_irqs	= 0,
 	.init_irq	= u300_init_irq,
 	.handle_irq	= vic_handle_irq,
 	.timer		= &u300_timer,
