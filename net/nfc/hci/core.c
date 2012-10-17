@@ -286,6 +286,12 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
 {
 	int r = 0;
+	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+
+	if (gate == 0xff) {
+		pr_err("Discarded event %x to unopened pipe %x\n", event, pipe);
+		goto exit;
+	}
 
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
@@ -309,14 +315,11 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			goto exit;
 		}
 
-		r = nfc_hci_target_discovered(hdev,
-					      nfc_hci_pipe2gate(hdev, pipe));
+		r = nfc_hci_target_discovered(hdev, gate);
 		break;
 	default:
 		if (hdev->ops->event_received) {
-			hdev->ops->event_received(hdev,
-						nfc_hci_pipe2gate(hdev, pipe),
-						event, skb);
+			hdev->ops->event_received(hdev, gate, event, skb);
 			return;
 		}
 
