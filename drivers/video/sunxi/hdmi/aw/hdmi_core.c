@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/hdmi/aw/hdmi_core.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>

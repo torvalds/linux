@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/lcd/lcd_panel_cfg.h
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>

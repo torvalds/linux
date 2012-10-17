@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/disp/dev_disp.c
- *
  * (C) Copyright 2012
  * Henrik Nordstrom <henrik@henriknordstrom.net>
  *

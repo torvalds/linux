@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/disp/de_bsp_sun4i/de/ebios/de_be.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>

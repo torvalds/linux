@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/disp/OSAL/OSAL_Dma.h
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  *

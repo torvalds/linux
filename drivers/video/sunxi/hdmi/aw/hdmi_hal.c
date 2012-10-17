@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/hdmi/aw/hdmi_hal.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>
