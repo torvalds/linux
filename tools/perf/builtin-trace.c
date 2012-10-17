@@ -69,6 +69,7 @@ struct thread_trace {
 	bool		  entry_pending;
 	unsigned long	  nr_events;
 	char		  *entry_str;
+	double		  runtime_ms;
 };
 
 static struct thread_trace *thread_trace__new(void)
@@ -109,8 +110,10 @@ struct trace {
 	struct machine		host;
 	u64			base_time;
 	unsigned long		nr_events;
+	bool			sched;
 	bool			multiple_threads;
 	double			duration_filter;
+	double			runtime_ms;
 };
 
 static bool trace__filter_duration(struct trace *trace, double t)
@@ -389,6 +392,31 @@ out:
 	return 0;
 }
 
+static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evsel,
+				     struct perf_sample *sample)
+{
+        u64 runtime = perf_evsel__intval(evsel, sample, "runtime");
+	double runtime_ms = (double)runtime / NSEC_PER_MSEC;
+	struct thread *thread = machine__findnew_thread(&trace->host, sample->tid);
+	struct thread_trace *ttrace = thread__trace(thread);
+
+	if (ttrace == NULL)
+		goto out_dump;
+
+	ttrace->runtime_ms += runtime_ms;
+	trace->runtime_ms += runtime_ms;
+	return 0;
+
+out_dump:
+	printf("%s: comm=%s,pid=%u,runtime=%" PRIu64 ",vruntime=%" PRIu64 ")\n",
+	       evsel->name,
+	       perf_evsel__strval(evsel, sample, "comm"),
+	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
+	       runtime,
+	       perf_evsel__intval(evsel, sample, "vruntime"));
+	return 0;
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
@@ -405,6 +433,13 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
 	    perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit)) {
 		printf("Couldn't read the raw_syscalls tracepoints information!\n");
+		goto out_delete_evlist;
+	}
+
+	if (trace->sched &&
+	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
+				   trace__sched_stat_runtime)) {
+		printf("Couldn't read the sched_stat_runtime tracepoint information!\n");
 		goto out_delete_evlist;
 	}
 
@@ -521,6 +556,51 @@ out:
 	return err;
 }
 
+static size_t trace__fprintf_threads_header(FILE *fp)
+{
+	size_t printed;
+
+	printed  = fprintf(fp, "\n _____________________________________________________________________\n");
+	printed += fprintf(fp," __)    Summary of events    (__\n\n");
+	printed += fprintf(fp,"              [ task - pid ]     [ events ] [ ratio ]  [ runtime ]\n");
+	printed += fprintf(fp," _____________________________________________________________________\n\n");
+
+	return printed;
+}
+
+static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
+{
+	size_t printed = trace__fprintf_threads_header(fp);
+	struct rb_node *nd;
+
+	for (nd = rb_first(&trace->host.threads); nd; nd = rb_next(nd)) {
+		struct thread *thread = rb_entry(nd, struct thread, rb_node);
+		struct thread_trace *ttrace = thread->priv;
+		const char *color;
+		double ratio;
+
+		if (ttrace == NULL)
+			continue;
+
+		ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
+
+		color = PERF_COLOR_NORMAL;
+		if (ratio > 50.0)
+			color = PERF_COLOR_RED;
+		else if (ratio > 25.0)
+			color = PERF_COLOR_GREEN;
+		else if (ratio > 5.0)
+			color = PERF_COLOR_YELLOW;
+
+		printed += color_fprintf(fp, color, "%20s", thread->comm);
+		printed += fprintf(fp, " - %-5d :%11lu   [", thread->pid, ttrace->nr_events);
+		printed += color_fprintf(fp, color, "%5.1f%%", ratio);
+		printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
+	}
+
+	return printed;
+}
+
 static int trace__set_duration(const struct option *opt, const char *str,
 			       int unset __maybe_unused)
 {
@@ -571,6 +651,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK(0, "duration", &trace, "float",
 		     "show only events with duration > N.M ms",
 		     trace__set_duration),
+	OPT_BOOLEAN(0, "sched", &trace.sched, "show blocking scheduler events"),
 	OPT_END()
 	};
 	int err;
@@ -595,5 +676,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!argc && perf_target__none(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
-	return trace__run(&trace, argc, argv);
+	err = trace__run(&trace, argc, argv);
+
+	if (trace.sched && !err)
+		trace__fprintf_thread_summary(&trace, stdout);
+
+	return err;
 }
