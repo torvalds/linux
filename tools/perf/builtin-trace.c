@@ -67,6 +67,7 @@ struct thread_trace {
 	u64		  entry_time;
 	u64		  exit_time;
 	bool		  entry_pending;
+	unsigned long	  nr_events;
 	char		  *entry_str;
 };
 
@@ -77,16 +78,21 @@ static struct thread_trace *thread_trace__new(void)
 
 static struct thread_trace *thread__trace(struct thread *thread)
 {
+	struct thread_trace *ttrace;
+
 	if (thread == NULL)
 		goto fail;
 
 	if (thread->priv == NULL)
 		thread->priv = thread_trace__new();
-
+		
 	if (thread->priv == NULL)
 		goto fail;
 
-	return thread->priv;
+	ttrace = thread->priv;
+	++ttrace->nr_events;
+
+	return ttrace;
 fail:
 	color_fprintf(stdout, PERF_COLOR_RED,
 		      "WARNING: not enough memory, dropping samples!\n");
@@ -102,6 +108,7 @@ struct trace {
 	struct perf_record_opts opts;
 	struct machine		host;
 	u64			base_time;
+	unsigned long		nr_events;
 	bool			multiple_threads;
 	double			duration_filter;
 };
@@ -386,7 +393,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
 	struct perf_evsel *evsel;
-	int err = -1, i, nr_events = 0, before;
+	int err = -1, i;
+	unsigned long before;
 	const bool forks = argc > 0;
 
 	if (evlist == NULL) {
@@ -444,7 +452,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->multiple_threads = evlist->threads->map[0] == -1 || evlist->threads->nr > 1;
 again:
-	before = nr_events;
+	before = trace->nr_events;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
@@ -454,7 +462,7 @@ again:
 			tracepoint_handler handler;
 			struct perf_sample sample;
 
-			++nr_events;
+			++trace->nr_events;
 
 			err = perf_evlist__parse_sample(evlist, event, &sample);
 			if (err) {
@@ -495,7 +503,7 @@ again:
 		}
 	}
 
-	if (nr_events == before) {
+	if (trace->nr_events == before) {
 		if (done)
 			goto out_delete_evlist;
 
