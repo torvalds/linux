@@ -31,7 +31,7 @@
 #include <plat/omap-pm.h>
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "soc.h"
 #include "iomap.h"

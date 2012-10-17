@@ -36,7 +36,7 @@
 
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irda.h>
 #include <plat/tc.h>
 #include <mach/board-sx1.h>
@@ -45,6 +45,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)

@@ -24,7 +24,7 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/i2c.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <plat/mmc.h>

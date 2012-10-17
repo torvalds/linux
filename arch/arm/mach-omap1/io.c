@@ -18,7 +18,7 @@
 
 #include <mach/mux.h>
 #include <plat/tc.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "iomap.h"
 #include "common.h"

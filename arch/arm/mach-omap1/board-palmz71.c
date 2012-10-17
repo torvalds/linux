@@ -38,7 +38,7 @@
 
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/tc.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
@@ -47,6 +47,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 #define PALMZ71_USBDETECT_GPIO	0
 #define PALMZ71_PENIRQ_GPIO	6

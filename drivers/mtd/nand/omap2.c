@@ -27,7 +27,7 @@
 #include <linux/bch.h>
 #endif
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/gpmc.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
@@ -110,6 +110,8 @@
 #define	ECC1RESULTSIZE			0x1
 #define	ECCCLEAR			0x100
 #define	ECC1				0x1
+
+#define OMAP24XX_DMA_GPMC		4
 
 /* oob info generated runtime depending on ecc algorithm and layout selected */
 static struct nand_ecclayout omap_oobinfo;

@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 
 #include <plat/mmc.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x01
@@ -83,6 +83,16 @@
 #define OMAP_MMC_CMDTYPE_BCR	1
 #define OMAP_MMC_CMDTYPE_AC	2
 #define OMAP_MMC_CMDTYPE_ADTC	3
+
+#define OMAP_DMA_MMC_TX		21
+#define OMAP_DMA_MMC_RX		22
+#define OMAP_DMA_MMC2_TX	54
+#define OMAP_DMA_MMC2_RX	55
+
+#define OMAP24XX_DMA_MMC2_TX	47
+#define OMAP24XX_DMA_MMC2_RX	48
+#define OMAP24XX_DMA_MMC1_TX	61
+#define OMAP24XX_DMA_MMC1_RX	62
 
 
 #define DRIVER_NAME "mmci-omap"

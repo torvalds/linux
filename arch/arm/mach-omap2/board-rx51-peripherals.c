@@ -31,7 +31,7 @@
 #include <asm/system_info.h>
 
 #include "common.h"
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/gpmc.h>
 #include <plat/omap-pm.h>
 #include "gpmc-smc91x.h"

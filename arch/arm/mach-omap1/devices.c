@@ -21,7 +21,6 @@
 
 #include <plat/tc.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
 #include <plat/mmc.h>
 
 #include <mach/omap7xx.h>
@@ -30,6 +29,7 @@
 
 #include "common.h"
 #include "clock.h"
+#include "dma.h"
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 

@@ -37,7 +37,7 @@
 #include <mach/flash.h>
 #include <mach/mux.h>
 #include <plat/tc.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 
@@ -45,6 +45,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1

@@ -41,7 +41,7 @@
 #include <plat/sdrc.h>
 #include <plat/prcm.h>
 #include <plat/gpmc.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "common.h"
 #include "cm2xxx_3xxx.h"

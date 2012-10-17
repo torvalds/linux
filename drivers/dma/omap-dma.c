@@ -19,7 +19,7 @@
 
 #include "virt-dma.h"
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
 #define dma_omap2plus()	1
