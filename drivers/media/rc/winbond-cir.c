@@ -184,7 +184,7 @@ enum wbcir_txstate {
 };
 
 /* Misc */
-#define WBCIR_NAME	"winbond-cir"
+#define WBCIR_NAME	"Winbond CIR"
 #define WBCIR_ID_FAMILY          0xF1 /* Family ID for the WPCD376I	*/
 #define	WBCIR_ID_CHIP            0x04 /* Chip ID for the WPCD376I	*/
 #define INVALID_SCANCODE   0x7FFFFFFF /* Invalid with all protos	*/
@@ -1007,7 +1007,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	}
 
 	data->dev->driver_type = RC_DRIVER_IR_RAW;
-	data->dev->driver_name = WBCIR_NAME;
+	data->dev->driver_name = DRVNAME;
 	data->dev->input_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
 	data->dev->input_id.bustype = BUS_HOST;
