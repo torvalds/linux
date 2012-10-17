@@ -34,3 +34,4 @@ obj-$(CONFIG_MACH_KM_KIRKWOOD_DT)	+= board-km_kirkwood.o
 obj-$(CONFIG_MACH_INETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_MAX_V2_DT)	+= board-ns2.o
+obj-$(CONFIG_MACH_NETSPACE_LITE_V2_DT)	+= board-ns2.o
