@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
+#include <linux/err.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
