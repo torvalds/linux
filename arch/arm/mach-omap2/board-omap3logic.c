@@ -36,7 +36,6 @@
 
 #include "gpmc-smsc911x.h"
 #include <plat/gpmc.h>
-#include <plat/sdrc.h>
 #include <plat/usb.h>
 
 #include "common.h"

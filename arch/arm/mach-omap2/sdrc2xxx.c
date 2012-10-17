@@ -26,7 +26,6 @@
 
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/sdrc.h>
 
 #include "soc.h"
 #include "iomap.h"
