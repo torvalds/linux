@@ -477,7 +477,8 @@ extern void *CsrWifiSmePacketFilterSetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmePacketFilterSetCfmSizeof(void *msg);
 #define CsrWifiSmePacketFilterSetCfmSerFree CsrWifiSmePfree
 
-extern u8 *CsrWifiSmePermanentMacAddressGetCfmSer(u8 *ptr, size_t *len, void *msg);
+extern u8 *CsrWifiSmePermanentMacAddressGetCfmSer(u8 *ptr, size_t *len,
+	void *msg);
 extern void *CsrWifiSmePermanentMacAddressGetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmePermanentMacAddressGetCfmSizeof(void *msg);
 #define CsrWifiSmePermanentMacAddressGetCfmSerFree CsrWifiSmePfree
@@ -502,7 +503,8 @@ extern size_t CsrWifiSmePowerConfigGetCfmSizeof(void *msg);
 #define CsrWifiSmePowerConfigSetCfmSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiSmePowerConfigSetCfmSerFree CsrWifiSmePfree
 
-extern u8 *CsrWifiSmeRegulatoryDomainInfoGetCfmSer(u8 *ptr, size_t *len, void *msg);
+extern u8 *CsrWifiSmeRegulatoryDomainInfoGetCfmSer(u8 *ptr, size_t *len,
+	void *msg);
 extern void *CsrWifiSmeRegulatoryDomainInfoGetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmeRegulatoryDomainInfoGetCfmSizeof(void *msg);
 #define CsrWifiSmeRegulatoryDomainInfoGetCfmSerFree CsrWifiSmePfree
@@ -567,7 +569,8 @@ extern void *CsrWifiSmeSmeStaConfigSetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmeSmeStaConfigSetCfmSizeof(void *msg);
 #define CsrWifiSmeSmeStaConfigSetCfmSerFree CsrWifiSmePfree
 
-extern u8 *CsrWifiSmeStationMacAddressGetCfmSer(u8 *ptr, size_t *len, void *msg);
+extern u8 *CsrWifiSmeStationMacAddressGetCfmSer(u8 *ptr, size_t *len,
+	void *msg);
 extern void *CsrWifiSmeStationMacAddressGetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmeStationMacAddressGetCfmSizeof(void *msg);
 #define CsrWifiSmeStationMacAddressGetCfmSerFree CsrWifiSmePfree
@@ -632,7 +635,8 @@ extern size_t CsrWifiSmeSmeCommonConfigGetCfmSizeof(void *msg);
 #define CsrWifiSmeSmeCommonConfigSetCfmSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiSmeSmeCommonConfigSetCfmSerFree CsrWifiSmePfree
 
-extern u8 *CsrWifiSmeInterfaceCapabilityGetCfmSer(u8 *ptr, size_t *len, void *msg);
+extern u8 *CsrWifiSmeInterfaceCapabilityGetCfmSer(u8 *ptr, size_t *len,
+	void *msg);
 extern void *CsrWifiSmeInterfaceCapabilityGetCfmDes(u8 *buffer, size_t len);
 extern size_t CsrWifiSmeInterfaceCapabilityGetCfmSizeof(void *msg);
 #define CsrWifiSmeInterfaceCapabilityGetCfmSerFree CsrWifiSmePfree
