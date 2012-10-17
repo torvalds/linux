@@ -216,12 +216,12 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
  */
 
 static inline long __must_check
-strncpy_from_user(char *dst, const char *src, long count)
+strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	char *tmp;
 	if (!access_ok(VERIFY_READ, src, 1))
 		return -EFAULT;
-	strncpy(dst, src, count);
+	strncpy(dst, (const char __force *)src, count);
 	for (tmp = dst; *tmp && count > 0; tmp++, count--) ;
 	return (tmp - dst);
 }
