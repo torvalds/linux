@@ -542,6 +542,11 @@ u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 	return mgr_desc[channel].framedone_irq;
 }
 
+u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel)
+{
+	return mgr_desc[channel].sync_lost_irq;
+}
+
 u32 dispc_wb_get_framedone_irq(void)
 {
 	return DISPC_IRQ_FRAMEDONEWB;
