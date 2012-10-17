@@ -284,17 +284,20 @@ static ssize_t rkbatt_restore_debug_attrs(struct device *dev,
 	}
 	return size;
 }
+static int  is_charge_ok(struct rk30_adc_battery_data *bat);
 
 static ssize_t rkbatt_show_state_attrs(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf) 
 {
-	struct rk30_adc_battery_platform_data *pdata = gBatteryData->pdata;
+//	struct rk30_adc_battery_platform_data *pdata = gBatteryData->pdata;
+	int charge_ok_value =0 ;
+	charge_ok_value = is_charge_ok(gBatteryData) ;
 
 	return 	sprintf(buf,
 		"gBatVol=%d,gBatCap=%d,charge_ok=%d,%s\n",
 		gBatteryData->bat_voltage,gBatteryData->bat_capacity,
-		gpio_get_value(pdata->charge_ok_pin),gDischargeFlag);
+		charge_ok_value,gDischargeFlag);
 }
 
 static ssize_t rkbatt_restore_state_attrs(struct device *dev, 
