@@ -316,9 +316,10 @@ asmlinkage int sparc_do_fork(unsigned long clone_flags,
  * XXX See comment above sys_vfork in sparc64. todo.
  */
 extern void ret_from_fork(void);
+extern void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long unused,
+		unsigned long arg,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *ti = task_thread_info(p);
@@ -336,16 +337,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	}
 
 	/*
-	 *  p->thread_info         new_stack   childregs
-	 *  !                      !           !             {if(PSR_PS) }
-	 *  V                      V (stk.fr.) V  (pt_regs)  { (stk.fr.) }
-	 *  +----- - - - - - ------+===========+============={+==========}+
+	 *  p->thread_info         new_stack   childregs stack bottom
+	 *  !                      !           !             !
+	 *  V                      V (stk.fr.) V  (pt_regs)  V
+	 *  +----- - - - - - ------+===========+=============+
 	 */
 	new_stack = task_stack_page(p) + THREAD_SIZE;
-	if (regs->psr & PSR_PS)
-		new_stack -= STACKFRAME_SZ;
 	new_stack -= STACKFRAME_SZ + TRACEREG_SZ;
-	memcpy(new_stack, (char *)regs - STACKFRAME_SZ, STACKFRAME_SZ + TRACEREG_SZ);
 	childregs = (struct pt_regs *) (new_stack + STACKFRAME_SZ);
 
 	/*
@@ -356,55 +354,58 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	 * Thus, kpsr|=PSR_PIL.
 	 */
 	ti->ksp = (unsigned long) new_stack;
+	p->thread.kregs = childregs;
+
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		extern int nwindows;
+		unsigned long psr;
+		memset(new_stack, 0, STACKFRAME_SZ + TRACEREG_SZ);
+		p->thread.flags |= SPARC_FLAG_KTHREAD;
+		p->thread.current_ds = KERNEL_DS;
+		ti->kpc = (((unsigned long) ret_from_kernel_thread) - 0x8);
+		childregs->u_regs[UREG_G1] = sp; /* function */
+		childregs->u_regs[UREG_G2] = arg;
+		psr = childregs->psr = get_psr();
+		ti->kpsr = psr | PSR_PIL;
+		ti->kwim = 1 << (((psr & PSR_CWP) + 1) % nwindows);
+		return 0;
+	}
+	memcpy(new_stack, (char *)regs - STACKFRAME_SZ, STACKFRAME_SZ + TRACEREG_SZ);
+	childregs->u_regs[UREG_FP] = sp;
+	p->thread.flags &= ~SPARC_FLAG_KTHREAD;
+	p->thread.current_ds = USER_DS;
 	ti->kpc = (((unsigned long) ret_from_fork) - 0x8);
 	ti->kpsr = current->thread.fork_kpsr | PSR_PIL;
 	ti->kwim = current->thread.fork_kwim;
 
-	if(regs->psr & PSR_PS) {
-		extern struct pt_regs fake_swapper_regs;
+	if (sp != regs->u_regs[UREG_FP]) {
+		struct sparc_stackf __user *childstack;
+		struct sparc_stackf __user *parentstack;
 
-		p->thread.kregs = &fake_swapper_regs;
-		new_stack += STACKFRAME_SZ + TRACEREG_SZ;
-		childregs->u_regs[UREG_FP] = (unsigned long) new_stack;
-		p->thread.flags |= SPARC_FLAG_KTHREAD;
-		p->thread.current_ds = KERNEL_DS;
-		memcpy(new_stack, (void *)regs->u_regs[UREG_FP], STACKFRAME_SZ);
-		childregs->u_regs[UREG_G6] = (unsigned long) ti;
-	} else {
-		p->thread.kregs = childregs;
-		childregs->u_regs[UREG_FP] = sp;
-		p->thread.flags &= ~SPARC_FLAG_KTHREAD;
-		p->thread.current_ds = USER_DS;
-
-		if (sp != regs->u_regs[UREG_FP]) {
-			struct sparc_stackf __user *childstack;
-			struct sparc_stackf __user *parentstack;
-
-			/*
-			 * This is a clone() call with supplied user stack.
-			 * Set some valid stack frames to give to the child.
-			 */
-			childstack = (struct sparc_stackf __user *)
-				(sp & ~0xfUL);
-			parentstack = (struct sparc_stackf __user *)
-				regs->u_regs[UREG_FP];
+		/*
+		 * This is a clone() call with supplied user stack.
+		 * Set some valid stack frames to give to the child.
+		 */
+		childstack = (struct sparc_stackf __user *)
+			(sp & ~0xfUL);
+		parentstack = (struct sparc_stackf __user *)
+			regs->u_regs[UREG_FP];
 
 #if 0
-			printk("clone: parent stack:\n");
-			show_stackframe(parentstack);
+		printk("clone: parent stack:\n");
+		show_stackframe(parentstack);
 #endif
 
-			childstack = clone_stackframe(childstack, parentstack);
-			if (!childstack)
-				return -EFAULT;
+		childstack = clone_stackframe(childstack, parentstack);
+		if (!childstack)
+			return -EFAULT;
 
 #if 0
-			printk("clone: child stack:\n");
-			show_stackframe(childstack);
+		printk("clone: child stack:\n");
+		show_stackframe(childstack);
 #endif
 
-			childregs->u_regs[UREG_FP] = (unsigned long)childstack;
-		}
+		childregs->u_regs[UREG_FP] = (unsigned long)childstack;
 	}
 
 #ifdef CONFIG_SMP
@@ -474,69 +475,6 @@ int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs)
 	       sizeof(struct fpq) * (32 - fpregs->pr_qcnt));
 	return 1;
 }
-
-/*
- * sparc_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage int sparc_execve(struct pt_regs *regs)
-{
-	int error, base = 0;
-	struct filename *filename;
-
-	/* Check for indirect call. */
-	if(regs->u_regs[UREG_G1] == 0)
-		base = 1;
-
-	filename = getname((char __user *)regs->u_regs[base + UREG_I0]);
-	error = PTR_ERR(filename);
-	if(IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name,
-			  (const char __user *const  __user *)
-			  regs->u_regs[base + UREG_I1],
-			  (const char __user *const  __user *)
-			  regs->u_regs[base + UREG_I2],
-			  regs);
-	putname(filename);
-out:
-	return error;
-}
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- * NOTE! Only a kernel-only process(ie the swapper or direct descendants
- * who haven't done an "execve()") should use this: it will work within
- * a system call from a "real" process, but the process memory space will
- * not be freed until both the parent and the child have exited.
- */
-pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	long retval;
-
-	__asm__ __volatile__("mov %4, %%g2\n\t"    /* Set aside fn ptr... */
-			     "mov %5, %%g3\n\t"    /* and arg. */
-			     "mov %1, %%g1\n\t"
-			     "mov %2, %%o0\n\t"    /* Clone flags. */
-			     "mov 0, %%o1\n\t"     /* usp arg == 0 */
-			     "t 0x10\n\t"          /* Linux/Sparc clone(). */
-			     "cmp %%o1, 0\n\t"
-			     "be 1f\n\t"           /* The parent, just return. */
-			     " nop\n\t"            /* Delay slot. */
-			     "jmpl %%g2, %%o7\n\t" /* Call the function. */
-			     " mov %%g3, %%o0\n\t" /* Get back the arg in delay. */
-			     "mov %3, %%g1\n\t"
-			     "t 0x10\n\t"          /* Linux/Sparc exit(). */
-			     /* Notreached by child. */
-			     "1: mov %%o0, %0\n\t" :
-			     "=r" (retval) :
-			     "i" (__NR_clone), "r" (flags | CLONE_VM | CLONE_UNTRACED),
-			     "i" (__NR_exit),  "r" (fn), "r" (arg) :
-			     "g1", "g2", "g3", "o0", "o1", "memory", "cc");
-	return retval;
-}
-EXPORT_SYMBOL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *task)
 {
