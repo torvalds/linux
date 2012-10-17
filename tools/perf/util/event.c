@@ -405,16 +405,15 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
-
-		if (__event__synthesize_thread(comm_event, mmap_event, pid, 1,
-					   process, tool, machine) != 0) {
-			err = -1;
-			goto out_closedir;
-		}
+		/*
+ 		 * We may race with exiting thread, so don't stop just because
+ 		 * one thread couldn't be synthesized.
+ 		 */
+		__event__synthesize_thread(comm_event, mmap_event, pid, 1,
+					   process, tool, machine);
 	}
 
 	err = 0;
-out_closedir:
 	closedir(proc);
 out_free_mmap:
 	free(mmap_event);
