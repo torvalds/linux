@@ -38,6 +38,7 @@
  * @max_speed: the maximum speed supported
  * @host_caps: Standard MMC host capabilities bit field.
  * @quirks: quirks of platfrom
+ * @quirks2: quirks2 of platfrom
  * @pm_caps: pm_caps of platfrom
  */
 struct sdhci_pxa_platdata {
@@ -51,6 +52,7 @@ struct sdhci_pxa_platdata {
 	u32		host_caps;
 	u32		host_caps2;
 	unsigned int	quirks;
+	unsigned int	quirks2;
 	unsigned int	pm_caps;
 };
 

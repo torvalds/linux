@@ -280,6 +280,8 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 
 		if (pdata->quirks)
 			host->quirks |= pdata->quirks;
+		if (pdata->quirks2)
+			host->quirks2 |= pdata->quirks2;
 		if (pdata->host_caps)
 			host->mmc->caps |= pdata->host_caps;
 		if (pdata->host_caps2)
