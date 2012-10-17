@@ -187,12 +187,13 @@ static struct regulator_init_data wm8994_ldo2 = {
 
 static struct wm8994_pdata wm8994_pdata = {
 	.gpio_base = CODEC_GPIO_BASE,
+	.micb2_delay = 150,
 	.gpio_defaults = {
 		0x3,          /* IRQ out, active high, CMOS */
 	},
 	.ldo = {
-		 { .init_data = &wm8994_ldo1, },
-		 { .init_data = &wm8994_ldo2, },
+		 { .enable = S3C64XX_GPN(6), .init_data = &wm8994_ldo1, },
+		 { .enable = S3C64XX_GPN(4), .init_data = &wm8994_ldo2, },
 	},
 };
 
@@ -203,7 +204,7 @@ static const struct i2c_board_info wm1277_devs[] = {
 	},
 };
 
-static struct arizona_pdata wm5102_pdata = {
+static struct arizona_pdata wm5102_reva_pdata = {
 	.ldoena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_active_high = true,
@@ -216,6 +217,31 @@ static struct arizona_pdata wm5102_pdata = {
 
 static struct s3c64xx_spi_csinfo wm5102_spi_csinfo = {
 	.line = S3C64XX_GPN(5),
+};
+
+static struct spi_board_info wm5102_reva_spi_devs[] = {
+	[0] = {
+		.modalias	= "wm5102",
+		.max_speed_hz	= 10 * 1000 * 1000,
+		.bus_num	= 0,
+		.chip_select	= 1,
+		.mode		= SPI_MODE_0,
+		.irq		= GLENFARCLAS_PMIC_IRQ_BASE +
+				  WM831X_IRQ_GPIO_2,
+		.controller_data = &wm5102_spi_csinfo,
+		.platform_data = &wm5102_reva_pdata,
+	},
+};
+
+static struct arizona_pdata wm5102_pdata = {
+	.ldoena = S3C64XX_GPN(7),
+	.gpio_base = CODEC_GPIO_BASE,
+	.irq_active_high = true,
+	.micd_pol_gpio = CODEC_GPIO_BASE + 2,
+	.gpio_defaults = {
+		[2] = 0x10000, /* AIF3TXLRCLK */
+		[3] = 0x4,     /* OPCLK */
+	},
 };
 
 static struct spi_board_info wm5102_spi_devs[] = {
@@ -278,6 +304,9 @@ static __devinitdata const struct {
 	{ .id = 0x3c, .rev = 0xff, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .rev = 0xff, .name = "1277-EV1 Littlemill",
 	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs) },
+	{ .id = 0x3e, .rev = 0, .name = "WM5102-6271-EV1-CS127 Amrut",
+	  .spi_devs = wm5102_reva_spi_devs,
+	  .num_spi_devs = ARRAY_SIZE(wm5102_reva_spi_devs) },
 	{ .id = 0x3e, .rev = -1, .name = "WM5102-6271-EV1-CS127 Amrut",
 	  .spi_devs = wm5102_spi_devs,
 	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs) },
