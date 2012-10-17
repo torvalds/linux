@@ -647,7 +647,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 
 				ui_browser__set_percent_color(&browser->b, percent, current_entry);
 
-				if (i == 0 && symbol_conf.use_callchain) {
+				if (i == PERF_HPP__OVERHEAD && symbol_conf.use_callchain) {
 					slsmg_printf("%c ", folded_sign);
 					width -= 2;
 				}
