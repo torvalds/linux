@@ -317,7 +317,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_13C, 0x07000000);
 		TVE_WUINT32(sel,TVE_00C, 0x01be0124);
 		TVE_WUINT32(sel,TVE_128, 0x00000000);//
-		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fc重影？
+		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fc ghost?
 		TVE_WUINT32(sel,TVE_118, 0x0000a0a0);
 		break;
 
@@ -327,7 +327,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_014, 0x00c0002c);//60hz
 		TVE_WUINT32(sel,TVE_018, 0x07bc002c);//60hz
 		TVE_WUINT32(sel,TVE_01C, 0x00290465);//
-		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fc重影？
+		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fc ghost?
 		TVE_WUINT32(sel,TVE_114, 0x582c022c);//
 		TVE_WUINT32(sel,TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel,TVE_124, 0x00000780);//

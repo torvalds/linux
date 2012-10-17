@@ -178,10 +178,9 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 
 #define ____SEPARATOR_IEP_BSP____
 
-/******************************************************************************/
-/************BSP_disp_iep_drc_enable********************************/
-/**开启/关闭自动背光控制功能**************************/
-/******************************************************************************/
+/*
+ *Enable / disable automatic backlight control function
+ */
 __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en)
 {
 	if(sel == 0)
@@ -231,10 +230,9 @@ __s32 BSP_disp_iep_get_drc_enable(__u32 sel)
 	}
 }
 
-/******************************************************************************/
-/************BSP_disp_iep_deflicker_enable*************************/
-/**开启/关闭去行间抖动功能      **************************/
-/******************************************************************************/
+/*
+ *On / Off go jitter function between the lines
+ */
 __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en)
 {
 	if(sel == 0)

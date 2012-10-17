@@ -955,12 +955,12 @@ typedef union
 	u32 dwval;
 	struct
 	{
-		u32 field_cnt                    :  8 ;    // Default: 0x0; FIELD_CNT , Field counter, each bit specify a field to display，0：top
-                                                   // field，1：bottom field,
+		u32 field_cnt                    :  8 ;    // Default: 0x0; FIELD_CNT , Field counter, each bit specify a field to display; 0: top
+                                                   // field, 1: bottom field,
 		u32 valid_field_cnt              :  3 ;    // Default: 0x0; VALID_FIELD_CNT , Valid field counter bit, the valid value = this
-                                                   // value + 1；
+                                                   // value + 1;
 		u32 res0                         :  1 ;    // Default: ; /
-		u32 field_loop_mod               :  1 ;    // Default: 0x0; FIELD_LOOP_MOD , Field loop mode, 0：the last field； 1：the full
+		u32 field_loop_mod               :  1 ;    // Default: 0x0; FIELD_LOOP_MOD , Field loop mode, 0: the last field; 1: the full
                                                    // frame
 		u32 res1                         : 19 ;    // Default: ; /
 	} bits;
@@ -995,10 +995,10 @@ typedef union
 		u32 res1                         :  1 ;    // Default: ; /
 		u32 out_ctrl                     :  1 ;    // Default: 0x0; OUT_CTRL , Scaler output control, 0: enable scaler output to image,
                                                    // 1: disable scaler output to image, , If scaler write back function is enable, scaler
-                                                   // output to image isn’t recommended.
+                                                   // output to image isn't recommended.
 		u32 in_ctrl                      :  3 ;    // Default: 0x0; IN_CTRL , Scaler input source control, 000: from dram, 100: from
-                                                   // image0 interface of image2lcd (don’t influence the interface timing of image),
-                                                   // 101: from image1 interface of image2lcd(don’t influence the interface timing of
+                                                   // image0 interface of image2lcd (don't influence the interface timing of image),
+                                                   // 101: from image1 interface of image2lcd(don't influence the interface timing of
                                                    // image), 110: from image0(influence the interface timing of image), 111: from image1(influence
                                                    // the interface timing of image), Other: reserved
 		u32 res2                         :  1 ;    // Default: ; /
@@ -1286,11 +1286,11 @@ typedef union
                                                    //
 		u32 uv_diff_sign_maxmin_mode_sel :  1 ;    // Default: 0x0; UV_DIFF_SIGN_ MAX/MIN_MODE_SEL , UV direction detection using max
                                                    // or min of |U|/|V| in different sign condition, when related separate mode select
-                                                   // “Using Max/Min mode” and U/V path shift are in the different sign, path shift
+                                                   // "Using Max/Min mode" and U/V path shift are in the different sign, path shift
                                                    // use, 0: min(|U|,|V|), 1: max(|U|,|V|)
 		u32 uv_same_sign_maxmin_mode_sel :  1 ;    // Default: 0x0; UV_SAME_SIGN_MAX/MIN_MODE_SEL , UV direction detection using max
-                                                   // or min of |U|/|V| in same sign condition, when related separate mode select “Using
-                                                   // Max/Min mode” and U/V path shift are in the same sign, path shift use, 0: min(|U|,|V|),
+                                                   // or min of |U|/|V| in same sign condition, when related separate mode select "Using
+                                                   // Max/Min mode" and U/V path shift are in the same sign, path shift use, 0: min(|U|,|V|),
                                                    // 1: max(|U|,|V|)
 		u32 res2                         :  1 ;    // Default: ; /
 		u32 uv_separate_en               :  1 ;    // Default: 0x0; UV_SEPARATE_EN , UV separate enable, 0: U/V will be under direction
