@@ -591,7 +591,7 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 	    ((!info->attrs[NFC_ATTR_IM_PROTOCOLS] &&
 	      !info->attrs[NFC_ATTR_PROTOCOLS]) &&
-	     !info->attrs[NFC_ATTR_TM_PROTOCOLS]))
+	      !info->attrs[NFC_ATTR_TM_PROTOCOLS]))
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);

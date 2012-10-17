@@ -198,7 +198,7 @@ static struct nfc_target *nfc_find_target(struct nfc_dev *dev, u32 target_idx)
 	if (dev->n_targets == 0)
 		return NULL;
 
-	for (i = 0; i < dev->n_targets ; i++) {
+	for (i = 0; i < dev->n_targets; i++) {
 		if (dev->targets[i].idx == target_idx)
 			return &dev->targets[i];
 	}

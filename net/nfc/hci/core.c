@@ -65,8 +65,9 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 							  -ETIME);
 			kfree(hdev->cmd_pending_msg);
 			hdev->cmd_pending_msg = NULL;
-		} else
+		} else {
 			goto exit;
+		}
 	}
 
 next_msg:
@@ -535,7 +536,8 @@ static int hci_start_poll(struct nfc_dev *nfc_dev,
 		return hdev->ops->start_poll(hdev, im_protocols, tm_protocols);
 	else
 		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
+					  NFC_HCI_EVT_READER_REQUESTED,
+					  NULL, 0);
 }
 
 static void hci_stop_poll(struct nfc_dev *nfc_dev)
@@ -639,9 +641,9 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 						     cb_context);
 			if (r == 1)
 				r = -ENOTSUPP;
-		}
-		else
+		} else {
 			r = -ENOTSUPP;
+		}
 		break;
 	}
 
@@ -891,7 +893,7 @@ void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
 }
 EXPORT_SYMBOL(nfc_hci_driver_failure);
 
-void inline nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
+void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
 	nfc_llc_rcv_from_drv(hdev->llc, skb);
 }

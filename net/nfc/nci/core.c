@@ -577,7 +577,6 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	}
 }
 
-
 static int nci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			   __u8 comm_mode, __u8 *gb, size_t gb_len)
 {
