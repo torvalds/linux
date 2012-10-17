@@ -215,7 +215,7 @@ static struct arizona_pdata wm5102_reva_pdata = {
 	},
 };
 
-static struct s3c64xx_spi_csinfo wm5102_spi_csinfo = {
+static struct s3c64xx_spi_csinfo codec_spi_csinfo = {
 	.line = S3C64XX_GPN(5),
 };
 
@@ -228,7 +228,7 @@ static struct spi_board_info wm5102_reva_spi_devs[] = {
 		.mode		= SPI_MODE_0,
 		.irq		= GLENFARCLAS_PMIC_IRQ_BASE +
 				  WM831X_IRQ_GPIO_2,
-		.controller_data = &wm5102_spi_csinfo,
+		.controller_data = &codec_spi_csinfo,
 		.platform_data = &wm5102_reva_pdata,
 	},
 };
@@ -253,8 +253,22 @@ static struct spi_board_info wm5102_spi_devs[] = {
 		.mode		= SPI_MODE_0,
 		.irq		= GLENFARCLAS_PMIC_IRQ_BASE +
 				  WM831X_IRQ_GPIO_2,
-		.controller_data = &wm5102_spi_csinfo,
+		.controller_data = &codec_spi_csinfo,
 		.platform_data = &wm5102_pdata,
+	},
+};
+
+static struct spi_board_info wm5110_spi_devs[] = {
+	[0] = {
+		.modalias	= "wm5110",
+		.max_speed_hz	= 10 * 1000 * 1000,
+		.bus_num	= 0,
+		.chip_select	= 1,
+		.mode		= SPI_MODE_0,
+		.irq		= GLENFARCLAS_PMIC_IRQ_BASE +
+				  WM831X_IRQ_GPIO_2,
+		.controller_data = &codec_spi_csinfo,
+		.platform_data = &wm5102_reva_pdata,
 	},
 };
 
@@ -276,7 +290,9 @@ static __devinitdata const struct {
 	{ .id = 0x02, .rev = 0xff, .name = "1251-EV1 Jura" },
 	{ .id = 0x03, .rev = 0xff, .name = "1252-EV1 Glenlivet" },
 	{ .id = 0x06, .rev = 0xff, .name = "WM8997-6721-CS96-EV1 Lapraoig" },
-	{ .id = 0x07, .rev = 0xff, .name = "WM5110-6271 Deanston" },
+	{ .id = 0x07, .rev = 0xff, .name = "WM5110-6271 Deanston",
+	  .spi_devs = wm5110_spi_devs,
+	  .num_spi_devs = ARRAY_SIZE(wm5110_spi_devs) },
 	{ .id = 0x08, .rev = 0xff, .name = "WM8903-6102 Tamdhu" },
 	{ .id = 0x09, .rev = 0xff, .name = "WM1811A-6305 Adelphi" },
 	{ .id = 0x0a, .rev = 0xff, .name = "WM8996-6272 Blackadder" },
