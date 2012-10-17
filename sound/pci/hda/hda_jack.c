@@ -206,6 +206,8 @@ int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 		jack->action = action;
 	if (cb)
 		jack->callback = cb;
+	if (codec->jackpoll_interval > 0)
+		return 0; /* No unsol if we're polling instead */
 	return snd_hda_codec_write_cache(codec, nid, 0,
 					 AC_VERB_SET_UNSOLICITED_ENABLE,
 					 AC_USRSP_EN | jack->tag);
