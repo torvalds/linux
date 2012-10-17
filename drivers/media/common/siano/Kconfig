@@ -7,14 +7,7 @@ config SMS_SIANO_MDTV
 	depends on DVB_CORE && HAS_DMA
 	depends on SMS_USB_DRV || SMS_SDIO_DRV
 	default y
-	---help---
-	  Choose Y or M here if you have MDTV receiver with a Siano chipset.
 
-	  To compile this driver as a module, choose M here
-	  (The module will be called smsmdtv).
-
-	  Further documentation on this driver can be found on the WWW
-	  at http://www.siano-ms.com/
 config SMS_SIANO_RC
 	bool "Enable Remote Controller support for Siano devices"
 	depends on SMS_SIANO_MDTV && RC_CORE
