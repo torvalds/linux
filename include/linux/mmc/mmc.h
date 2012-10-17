@@ -344,7 +344,13 @@ struct _mmc_csd {
 #define FOD_FREQ              (300000)    //  in the identify stage, unit: hz,  max is 400Khz,
                                        //  the least frequency is FREQ_HCLK_MAX/8
 #define SD_FPP_FREQ           (24000000)  //   normal sd freq,  25Mhz
+
+#if defined(CONFIG_ARCH_RK2928)
+//In rk2926 machine,very prone to occur data-timeout-error,the machine reduces the frequency.
+#define SDHC_FPP_FREQ         (39500000)  // SDHC in the highspeed. unit is hz,  max is 50Mhz.
+#else
 #define SDHC_FPP_FREQ         (49500000)  // SDHC in the highspeed. unit is hz,  max is 50Mhz.
+#endif
 #define MMC_FPP_FREQ          (19000000)  // MMC freq, unit is hz,   max is 20MHz
 #define MMCHS_26_FPP_FREQ     (24000000)  //  highspeed mode support 26M  HS-MMC, unit is hz, max is 26Mhz, 
 #define MMCHS_52_FPP_FREQ     (49500000)  //  highspeed support 52M HS-MMC,   unit is hz,   max is 52Mhz,
