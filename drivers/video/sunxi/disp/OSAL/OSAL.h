@@ -25,11 +25,7 @@
 
 #include  "OSAL_Cache.h"
 #include  "OSAL_Clock.h"
-#include  "OSAL_Dma.h"
 #include  "OSAL_Pin.h"
-#include  "OSAL_Semi.h"
-#include  "OSAL_Thread.h"
-#include  "OSAL_Time.h"
 #include  "OSAL_Lib_C.h"
 #include  "OSAL_Int.h"
 #include  "OSAL_IrqLock.h"
