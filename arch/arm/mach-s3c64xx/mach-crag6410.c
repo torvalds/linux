@@ -629,6 +629,11 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] __devinitdata = {
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "spi0.0"),
+
+	REGULATOR_SUPPLY("DBVDD", "1-003a"),
+	REGULATOR_SUPPLY("LDOVDD", "1-003a"),
+	REGULATOR_SUPPLY("CPVDD", "1-003a"),
+	REGULATOR_SUPPLY("AVDD", "1-003a"),
 	REGULATOR_SUPPLY("DBVDD1", "spi0.1"),
 	REGULATOR_SUPPLY("DBVDD2", "spi0.1"),
 	REGULATOR_SUPPLY("DBVDD3", "spi0.1"),

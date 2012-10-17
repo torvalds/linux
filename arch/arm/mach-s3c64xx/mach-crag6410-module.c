@@ -21,6 +21,7 @@
 #include <linux/regulator/machine.h>
 
 #include <sound/wm0010.h>
+#include <sound/wm2200.h>
 #include <sound/wm5100.h>
 #include <sound/wm8996.h>
 #include <sound/wm8962.h>
@@ -277,6 +278,18 @@ static const struct i2c_board_info wm6230_i2c_devs[] = {
 	  .platform_data = &wm9081_pdata, },
 };
 
+static struct wm2200_pdata wm2200_pdata = {
+	.ldo_ena = S3C64XX_GPN(7),
+	.gpio_defaults = {
+		[2] = 0x0005,  /* GPIO3 24.576MHz output clock */
+	},
+};
+
+static const struct i2c_board_info wm2200_i2c[] = {
+	{ I2C_BOARD_INFO("wm2200", 0x3a),
+	  .platform_data = &wm2200_pdata, },
+};
+
 static __devinitdata const struct {
 	u8 id;
 	u8 rev;
@@ -326,6 +339,8 @@ static __devinitdata const struct {
 	{ .id = 0x3e, .rev = -1, .name = "WM5102-6271-EV1-CS127 Amrut",
 	  .spi_devs = wm5102_spi_devs,
 	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs) },
+	{ .id = 0x3f, .rev = -1, .name = "WM2200-6271-CS90-M-REV1",
+	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c) },
 };
 
 static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
