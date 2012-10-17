@@ -233,7 +233,8 @@ static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
 
 	ib_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
 
-	wc.pkey_index = 0;
+	if (ib_find_cached_pkey(&dev->ib_dev, ctx->port, IB_DEFAULT_PKEY_FULL, &wc.pkey_index))
+		return -EINVAL;
 	wc.sl = 0;
 	wc.dlid_path_bits = 0;
 	wc.port_num = ctx->port;
