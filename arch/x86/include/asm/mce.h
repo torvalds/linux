@@ -124,6 +124,9 @@ struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
 	bool ignore_ce;
+	bool disabled;
+	bool ser;
+	bool bios_cmci_threshold;
 	u8 banks;
 	s8 bootlog;
 	int tolerant;
@@ -140,7 +143,6 @@ extern void mce_unregister_decode_chain(struct notifier_block *nb);
 #include <linux/init.h>
 #include <linux/atomic.h>
 
-extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_MCE
@@ -173,7 +175,6 @@ DECLARE_PER_CPU(struct device *, mce_device);
 #define MAX_NR_BANKS 32
 
 #ifdef CONFIG_X86_MCE_INTEL
-extern int mce_bios_cmci_threshold;
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);

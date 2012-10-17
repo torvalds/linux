@@ -58,18 +58,13 @@ static DEFINE_MUTEX(mce_chrdev_read_mutex);
 #define CREATE_TRACE_POINTS
 #include <trace/events/mce.h>
 
-int mce_disabled __read_mostly;
-
 #define SPINUNIT 100	/* 100ns */
 
 atomic_t mce_entry;
 
 DEFINE_PER_CPU(unsigned, mce_exception_count);
 
-int				mce_ser			__read_mostly;
-int				mce_bios_cmci_threshold	__read_mostly;
-
-struct mce_bank                *mce_banks		__read_mostly;
+struct mce_bank *mce_banks __read_mostly;
 
 struct mca_config mca_cfg __read_mostly = {
 	.bootlog  = -1,
@@ -510,7 +505,7 @@ static int mce_ring_add(unsigned long pfn)
 
 int mce_available(struct cpuinfo_x86 *c)
 {
-	if (mce_disabled)
+	if (mca_cfg.disabled)
 		return 0;
 	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
 }
@@ -562,7 +557,7 @@ static void mce_read_aux(struct mce *m, int i)
 		/*
 		 * Mask the reported address by the reported granularity.
 		 */
-		if (mce_ser && (m->status & MCI_STATUS_MISCV)) {
+		if (mca_cfg.ser && (m->status & MCI_STATUS_MISCV)) {
 			u8 shift = MCI_MISC_ADDR_LSB(m->misc);
 			m->addr >>= shift;
 			m->addr <<= shift;
@@ -617,7 +612,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 * TBD do the same check for MCI_STATUS_EN here?
 		 */
 		if (!(flags & MCP_UC) &&
-		    (m.status & (mce_ser ? MCI_STATUS_S : MCI_STATUS_UC)))
+		    (m.status & (mca_cfg.ser ? MCI_STATUS_S : MCI_STATUS_UC)))
 			continue;
 
 		mce_read_aux(&m, i);
@@ -1009,6 +1004,7 @@ static void mce_clear_info(struct mce_info *mi)
  */
 void do_machine_check(struct pt_regs *regs, long error_code)
 {
+	struct mca_config *cfg = &mca_cfg;
 	struct mce m, *final;
 	int i;
 	int worst = 0;
@@ -1036,7 +1032,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	this_cpu_inc(mce_exception_count);
 
-	if (!mca_cfg.banks)
+	if (!cfg->banks)
 		goto out;
 
 	mce_gather_info(&m, regs);
@@ -1063,7 +1059,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * because the first one to see it will clear it.
 	 */
 	order = mce_start(&no_way_out);
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < cfg->banks; i++) {
 		__clear_bit(i, toclear);
 		if (!test_bit(i, valid_banks))
 			continue;
@@ -1082,7 +1078,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		 * Non uncorrected or non signaled errors are handled by
 		 * machine_check_poll. Leave them alone, unless this panics.
 		 */
-		if (!(m.status & (mce_ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
+		if (!(m.status & (cfg->ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
 			!no_way_out)
 			continue;
 
@@ -1091,7 +1087,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		 */
 		add_taint(TAINT_MACHINE_CHECK);
 
-		severity = mce_severity(&m, mca_cfg.tolerant, NULL);
+		severity = mce_severity(&m, cfg->tolerant, NULL);
 
 		/*
 		 * When machine check was for corrected handler don't touch,
@@ -1147,7 +1143,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * issues we try to recover, or limit damage to the current
 	 * process.
 	 */
-	if (mca_cfg.tolerant < 3) {
+	if (cfg->tolerant < 3) {
 		if (no_way_out)
 			mce_panic("Fatal machine check on current CPU", &m, msg);
 		if (worst == MCE_AR_SEVERITY) {
@@ -1426,7 +1422,7 @@ static int __cpuinit __mcheck_cpu_cap_init(void)
 		mca_cfg.rip_msr = MSR_IA32_MCG_EIP;
 
 	if (cap & MCG_SER_P)
-		mce_ser = 1;
+		mca_cfg.ser = true;
 
 	return 0;
 }
@@ -1675,7 +1671,7 @@ void (*machine_check_vector)(struct pt_regs *, long error_code) =
  */
 void __cpuinit mcheck_cpu_init(struct cpuinfo_x86 *c)
 {
-	if (mce_disabled)
+	if (mca_cfg.disabled)
 		return;
 
 	if (__mcheck_cpu_ancient_init(c))
@@ -1685,7 +1681,7 @@ void __cpuinit mcheck_cpu_init(struct cpuinfo_x86 *c)
 		return;
 
 	if (__mcheck_cpu_cap_init() < 0 || __mcheck_cpu_apply_quirks(c) < 0) {
-		mce_disabled = 1;
+		mca_cfg.disabled = true;
 		return;
 	}
 
@@ -1967,7 +1963,7 @@ static int __init mcheck_enable(char *str)
 	if (*str == '=')
 		str++;
 	if (!strcmp(str, "off"))
-		mce_disabled = 1;
+		cfg->disabled = true;
 	else if (!strcmp(str, "no_cmci"))
 		cfg->cmci_disabled = true;
 	else if (!strcmp(str, "dont_log_ce"))
@@ -1977,7 +1973,7 @@ static int __init mcheck_enable(char *str)
 	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
 		cfg->bootlog = (str[0] == 'b');
 	else if (!strcmp(str, "bios_cmci_threshold"))
-		mce_bios_cmci_threshold = 1;
+		cfg->bios_cmci_threshold = true;
 	else if (isdigit(str[0])) {
 		get_option(&str, &(cfg->tolerant));
 		if (*str == ',') {
@@ -2435,7 +2431,7 @@ device_initcall_sync(mcheck_init_device);
  */
 static int __init mcheck_disable(char *str)
 {
-	mce_disabled = 1;
+	mca_cfg.disabled = true;
 	return 1;
 }
 __setup("nomce", mcheck_disable);
