@@ -578,15 +578,6 @@ static int rk30_pm_enter(suspend_state_t state)
 	cpll_con3 = cru_readl(PLL_CONS(CPLL_ID, 3));
 	power_off_pll(CPLL_ID);
 
-	//gpll
-	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
-	clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
-	cru_writel(CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
-		   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
-		   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
-		   , CRU_CLKSELS_CON(10));
-	power_off_pll(GPLL_ID);
-
 	//apll
 	clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
 	clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
@@ -606,6 +597,15 @@ static int rk30_pm_enter(suspend_state_t state)
 		   , CRU_CLKSELS_CON(1));
 	power_off_pll(APLL_ID);
 
+	//gpll
+	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
+	clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
+	cru_writel(CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
+		   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
+		   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
+		   , CRU_CLKSELS_CON(10));
+	power_off_pll(GPLL_ID);
+
 	sram_printch('3');
 	rk30_pwm_suspend_voltage_set();
 
@@ -621,16 +621,17 @@ static int rk30_pm_enter(suspend_state_t state)
 	rk30_pwm_resume_voltage_set();
 	sram_printch('3');
 
-	//apll
-	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
-	cru_writel(0xffff0000 | clk_sel0, CRU_CLKSELS_CON(0));
-	power_on_pll(APLL_ID);
-	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//gpll
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
 	power_on_pll(GPLL_ID);
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
+
+	//apll
+	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
+	cru_writel(0xffff0000 | clk_sel0, CRU_CLKSELS_CON(0));
+	power_on_pll(APLL_ID);
+	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//cpll
 	if (((cpll_con3 & PLL_PWR_DN_MSK) == PLL_PWR_ON) &&
