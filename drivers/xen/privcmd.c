@@ -178,7 +178,7 @@ static int mmap_mfn_range(void *data, void *state)
 					msg->va & PAGE_MASK,
 					msg->mfn, msg->npages,
 					vma->vm_page_prot,
-					st->domain);
+					st->domain, NULL);
 	if (rc < 0)
 		return rc;
 
@@ -267,7 +267,8 @@ static int mmap_batch_fn(void *data, void *state)
 	int ret;
 
 	ret = xen_remap_domain_mfn_range(st->vma, st->va & PAGE_MASK, *mfnp, 1,
-					 st->vma->vm_page_prot, st->domain);
+					 st->vma->vm_page_prot, st->domain,
+					 NULL);
 
 	/* Store error code for second pass. */
 	*(st->err++) = ret;
