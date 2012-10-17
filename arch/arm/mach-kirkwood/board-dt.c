@@ -99,7 +99,8 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("lacie,inetspace_v2") ||
 	    of_machine_is_compatible("lacie,netspace_v2") ||
 	    of_machine_is_compatible("lacie,netspace_max_v2") ||
-	    of_machine_is_compatible("lacie,netspace_lite_v2"))
+	    of_machine_is_compatible("lacie,netspace_lite_v2") ||
+	    of_machine_is_compatible("lacie,netspace_mini_v2"))
 		ns2_init();
 
 	of_platform_populate(NULL, kirkwood_dt_match_table,
@@ -122,6 +123,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"lacie,netspace_max_v2",
 	"lacie,netspace_v2",
 	"lacie,netspace_lite_v2",
+	"lacie,netspace_mini_v2",
 	NULL
 };
 

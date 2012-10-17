@@ -35,3 +35,4 @@ obj-$(CONFIG_MACH_INETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_MAX_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_LITE_V2_DT)	+= board-ns2.o
+obj-$(CONFIG_MACH_NETSPACE_MINI_V2_DT)	+= board-ns2.o

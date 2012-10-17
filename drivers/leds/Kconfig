@@ -381,7 +381,7 @@ config LEDS_NS2
 	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || \
 		   MACH_NETSPACE_MAX_V2 || MACH_D2NET_V2 || \
 		   MACH_NETSPACE_V2_DT || MACH_INETSPACE_V2_DT || \
-		   MACH_NETSPACE_MAX_V2_DT
+		   MACH_NETSPACE_MAX_V2_DT || MACH_NETSPACE_MINI_V2_DT
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
