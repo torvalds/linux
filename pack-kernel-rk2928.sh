@@ -4,7 +4,7 @@ set -e
 FILES=(
 # arch
 arch/arm/mach-rk2928/clock_data.c
-arch/arm/mach-rk2928/ddr*.c
+arch/arm/mach-rk2928/ddr.c
 )
 
 DIRS=(
@@ -43,6 +43,17 @@ drivers/video/rockchip/hdmi/chips/rk30/hdcp/rk30*
 arch/arm/mach-rk2928/*fpga*
 arch/arm/configs/*fpga*
 
+arch/arm/mach-rk2928/board-rk2928-a720*
+arch/arm/configs/rk2928_a720_defconfig
+
+arch/arm/mach-rk2928/board-rk2928-tb*
+arch/arm/configs/rk2928_tb_defconfig
+
+arch/arm/mach-rk2928/board-rk2928.c
+arch/arm/configs/rk2928_defconfig
+
+arch/arm/mach-rk2928/board-rk2928-phonepad*
+arch/arm/configs/rk2928_phonepad_defconfig
 )
 
 defconfig=${2-rk2928_sdk_defconfig}
