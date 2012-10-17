@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra20-tamonten.dtsi"
+#include "tegra20-tamonten.dtsi"
 
 / {
 	model = "Avionic Design Medcom-Wide board";

@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra30-cardhu.dtsi"
+#include "tegra30-cardhu.dtsi"
 
 /* This dts file support the cardhu A02 version of board */
 

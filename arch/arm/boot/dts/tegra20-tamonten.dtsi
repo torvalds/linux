@@ -1,4 +1,4 @@
-/include/ "tegra20.dtsi"
+#include "tegra20.dtsi"
 
 / {
 	model = "Avionic Design Tamonten SOM";

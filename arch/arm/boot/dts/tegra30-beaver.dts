@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra30.dtsi"
+#include "tegra30.dtsi"
 
 / {
 	model = "NVIDIA Tegra30 Beaver evaluation board";

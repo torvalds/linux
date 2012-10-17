@@ -1,4 +1,4 @@
-/include/ "tegra30.dtsi"
+#include "tegra30.dtsi"
 
 /**
  * This file contains common DT entry for all fab version of Cardhu.

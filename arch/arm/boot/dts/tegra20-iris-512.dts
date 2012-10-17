@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra20-colibri-512.dtsi"
+#include "tegra20-colibri-512.dtsi"
 
 / {
 	model = "Toradex Colibri T20 512MB on Iris";

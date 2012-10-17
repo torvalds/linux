@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra20.dtsi"
+#include "tegra20.dtsi"
 
 / {
 	model = "NVIDIA Tegra20 Whistler evaluation board";
