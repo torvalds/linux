@@ -2,6 +2,7 @@
 #define _PSERIES_PLPAR_WRAPPERS_H
 
 #include <linux/string.h>
+#include <linux/irqflags.h>
 
 #include <asm/hvcall.h>
 #include <asm/paca.h>
@@ -41,7 +42,14 @@ static inline long extended_cede_processor(unsigned long latency_hint)
 	u8 old_latency_hint = get_cede_latency_hint();
 
 	set_cede_latency_hint(latency_hint);
+
 	rc = cede_processor();
+#ifdef CONFIG_TRACE_IRQFLAGS
+		/* Ensure that H_CEDE returns with IRQs on */
+		if (WARN_ON(!(mfmsr() & MSR_EE)))
+			__hard_irq_enable();
+#endif
+
 	set_cede_latency_hint(old_latency_hint);
 
 	return rc;
