@@ -965,7 +965,9 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 }
 
 static int
-i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
+i965_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			 u32 offset, u32 length,
+			 unsigned flags)
 {
 	int ret;
 
@@ -976,7 +978,7 @@ i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			MI_BATCH_GTT |
-			MI_BATCH_NON_SECURE_I965);
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
 
@@ -985,7 +987,8 @@ i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 
 static int
 i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				u32 offset, u32 len)
+				u32 offset, u32 len,
+				unsigned flags)
 {
 	int ret;
 
@@ -994,7 +997,7 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER);
-	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
 	intel_ring_emit(ring, offset + len - 8);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
@@ -1004,7 +1007,8 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static int
 i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				u32 offset, u32 len)
+			 u32 offset, u32 len,
+			 unsigned flags)
 {
 	int ret;
 
@@ -1013,7 +1017,7 @@ i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
-	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
 	intel_ring_advance(ring);
 
 	return 0;
@@ -1403,8 +1407,9 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
-gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-			      u32 offset, u32 len)
+hsw_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			      u32 offset, u32 len,
+			      unsigned flags)
 {
 	int ret;
 
@@ -1412,7 +1417,30 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
+	intel_ring_emit(ring,
+			MI_BATCH_BUFFER_START | MI_BATCH_PPGTT_HSW |
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_HSW));
+	/* bit0-7 is the length on GEN6+ */
+	intel_ring_emit(ring, offset);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
+gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			      u32 offset, u32 len,
+			      unsigned flags)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring,
+			MI_BATCH_BUFFER_START |
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
@@ -1491,7 +1519,9 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (IS_HASWELL(dev))
+		ring->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
+	else if (INTEL_INFO(dev)->gen >= 6)
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	else if (INTEL_INFO(dev)->gen >= 4)
 		ring->dispatch_execbuffer = i965_dispatch_execbuffer;

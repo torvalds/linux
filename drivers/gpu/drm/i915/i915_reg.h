@@ -244,8 +244,11 @@
 #define   MI_INVALIDATE_TLB	(1<<18)
 #define   MI_INVALIDATE_BSD	(1<<7)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
-#define   MI_BATCH_NON_SECURE	(1)
-#define   MI_BATCH_NON_SECURE_I965 (1<<8)
+#define   MI_BATCH_NON_SECURE		(1)
+/* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
+#define   MI_BATCH_NON_SECURE_I965 	(1<<8)
+#define   MI_BATCH_PPGTT_HSW		(1<<8)
+#define   MI_BATCH_NON_SECURE_HSW 	(1<<13)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */

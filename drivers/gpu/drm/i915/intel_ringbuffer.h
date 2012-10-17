@@ -81,7 +81,9 @@ struct  intel_ring_buffer {
 	u32		(*get_seqno)(struct intel_ring_buffer *ring,
 				     bool lazy_coherency);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       u32 offset, u32 length);
+					       u32 offset, u32 length,
+					       unsigned flags);
+#define I915_DISPATCH_SECURE 0x1
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 	int		(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
