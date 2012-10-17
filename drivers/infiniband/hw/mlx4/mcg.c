@@ -1075,10 +1075,6 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	unsigned long end;
 	int count;
 
-	if (ctx->flushing)
-		return;
-
-	ctx->flushing = 1;
 	for (i = 0; i < MAX_VFS; ++i)
 		clean_vf_mcast(ctx, i);
 
@@ -1108,9 +1104,6 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 		force_clean_group(group);
 	}
 	mutex_unlock(&ctx->mcg_table_lock);
-
-	if (!destroy_wq)
-		ctx->flushing = 0;
 }
 
 struct clean_work {
@@ -1124,6 +1117,7 @@ static void mcg_clean_task(struct work_struct *work)
 	struct clean_work *cw = container_of(work, struct clean_work, work);
 
 	_mlx4_ib_mcg_port_cleanup(cw->ctx, cw->destroy_wq);
+	cw->ctx->flushing = 0;
 	kfree(cw);
 }
 
@@ -1131,13 +1125,20 @@ void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 {
 	struct clean_work *work;
 
+	if (ctx->flushing)
+		return;
+
+	ctx->flushing = 1;
+
 	if (destroy_wq) {
 		_mlx4_ib_mcg_port_cleanup(ctx, destroy_wq);
+		ctx->flushing = 0;
 		return;
 	}
 
 	work = kmalloc(sizeof *work, GFP_KERNEL);
 	if (!work) {
+		ctx->flushing = 0;
 		mcg_warn("failed allocating work for cleanup\n");
 		return;
 	}
