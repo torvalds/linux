@@ -126,6 +126,7 @@ static int __devexit vexpress_regulator_remove(struct platform_device *pdev)
 
 static struct of_device_id vexpress_regulator_of_match[] = {
 	{ .compatible = "arm,vexpress-volt", },
+	{ }
 };
 
 static struct platform_driver vexpress_regulator_driver = {
