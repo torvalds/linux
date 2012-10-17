@@ -11,23 +11,48 @@
 #include <plat/board.h>
 #include <mach/sram.h>
 #include <linux/i2c-gpio.h>
-
 /* adc battery */
 struct rk30_adc_battery_platform_data {
-        int (*io_init)(void);
-        int (*io_deinit)(void);
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	int (*is_dc_charging)(void);
+	int (*charging_ok)(void);
 
-        int dc_det_pin;
-        int batt_low_pin;
-        int charge_ok_pin;
-        int charge_set_pin;
+	int (*is_usb_charging)(void);
+	int spport_usb_charging ;
 
-//        int adc_channel;
+	int dc_det_pin;
+	int batt_low_pin;
+	int charge_ok_pin;
+	int charge_set_pin;
 
-        int dc_det_level;
-        int batt_low_level;
-        int charge_ok_level;
-        int charge_set_level;
+	int dc_det_level;
+	int batt_low_level;
+	int charge_ok_level;
+	int charge_set_level;
+	
+      	int adc_channel;
+
+	int dc_det_pin_pull;    //pull up/down enable/disbale
+	int batt_low_pin_pull;
+	int charge_ok_pin_pull;
+	int charge_set_pin_pull;
+
+	int low_voltage_protection; // low voltage protection
+
+	int charging_sleep; // don't have lock,if chargeing_sleep = 0;else have lock
+	
+
+	int save_capacity;  //save capacity to /data/bat_last_capacity.dat,  suggested use
+
+	int reference_voltage; // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
+	int pull_up_res;      //divider resistance ,  pull-up resistor
+	int pull_down_res; //divider resistance , pull-down resistor
+
+	int time_down_discharge; //the time of capactiy drop 1% --discharge
+	int time_up_charge; //the time of capacity up 1% ---charging 
+
+
 };
 
 #ifndef _LINUX_WLAN_PLAT_H_
