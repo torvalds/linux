@@ -29,6 +29,14 @@ struct dma_pl330_platdata {
 	dma_cap_mask_t cap_mask;
 	/* Bytes to allocate for MC buffer */
 	unsigned mcbuf_sz;
+	/* Start of IRQ numbers if support multiple IRQs */
+	int irq_start;
+	/* End of IRQ numbers if support multiple IRQs */
+	int irq_end;
+	/* Platform specific initialization function pointer*/
+	int (*init)(struct amba_device *adev);
+	/* Platform specific exit function pointer*/
+	void (*exit)(struct amba_device *adev);
 };
 
 extern bool pl330_filter(struct dma_chan *chan, void *param);
