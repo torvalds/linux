@@ -654,21 +654,23 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->savePP_DIVISOR = I915_READ(PP_DIVISOR);
 	}
 
-	/* Display Port state */
-	if (SUPPORTS_INTEGRATED_DP(dev)) {
-		dev_priv->saveDP_B = I915_READ(DP_B);
-		dev_priv->saveDP_C = I915_READ(DP_C);
-		dev_priv->saveDP_D = I915_READ(DP_D);
-		dev_priv->savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_GMCH_DATA_M);
-		dev_priv->savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_GMCH_DATA_M);
-		dev_priv->savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_GMCH_DATA_N);
-		dev_priv->savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_GMCH_DATA_N);
-		dev_priv->savePIPEA_DP_LINK_M = I915_READ(_PIPEA_DP_LINK_M);
-		dev_priv->savePIPEB_DP_LINK_M = I915_READ(_PIPEB_DP_LINK_M);
-		dev_priv->savePIPEA_DP_LINK_N = I915_READ(_PIPEA_DP_LINK_N);
-		dev_priv->savePIPEB_DP_LINK_N = I915_READ(_PIPEB_DP_LINK_N);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Display Port state */
+		if (SUPPORTS_INTEGRATED_DP(dev)) {
+			dev_priv->saveDP_B = I915_READ(DP_B);
+			dev_priv->saveDP_C = I915_READ(DP_C);
+			dev_priv->saveDP_D = I915_READ(DP_D);
+			dev_priv->savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_GMCH_DATA_M);
+			dev_priv->savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_GMCH_DATA_M);
+			dev_priv->savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_GMCH_DATA_N);
+			dev_priv->savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_GMCH_DATA_N);
+			dev_priv->savePIPEA_DP_LINK_M = I915_READ(_PIPEA_DP_LINK_M);
+			dev_priv->savePIPEB_DP_LINK_M = I915_READ(_PIPEB_DP_LINK_M);
+			dev_priv->savePIPEA_DP_LINK_N = I915_READ(_PIPEA_DP_LINK_N);
+			dev_priv->savePIPEB_DP_LINK_N = I915_READ(_PIPEB_DP_LINK_N);
+		}
+		/* FIXME: save TV & SDVO state */
 	}
-	/* FIXME: save TV & SDVO state */
 
 	/* Only save FBC state on the platform that supports FBC */
 	if (I915_HAS_FBC(dev)) {
@@ -703,16 +705,18 @@ static void i915_restore_display(struct drm_device *dev)
 	/* Display arbitration */
 	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
-	/* Display port ratios (must be done before clock is set) */
-	if (SUPPORTS_INTEGRATED_DP(dev)) {
-		I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->savePIPEA_GMCH_DATA_M);
-		I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->savePIPEB_GMCH_DATA_M);
-		I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->savePIPEA_GMCH_DATA_N);
-		I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->savePIPEB_GMCH_DATA_N);
-		I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->savePIPEA_DP_LINK_M);
-		I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->savePIPEB_DP_LINK_M);
-		I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->savePIPEA_DP_LINK_N);
-		I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->savePIPEB_DP_LINK_N);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Display port ratios (must be done before clock is set) */
+		if (SUPPORTS_INTEGRATED_DP(dev)) {
+			I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->savePIPEA_GMCH_DATA_M);
+			I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->savePIPEB_GMCH_DATA_M);
+			I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->savePIPEA_GMCH_DATA_N);
+			I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->savePIPEB_GMCH_DATA_N);
+			I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->savePIPEA_DP_LINK_M);
+			I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->savePIPEB_DP_LINK_M);
+			I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->savePIPEA_DP_LINK_N);
+			I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->savePIPEB_DP_LINK_N);
+		}
 	}
 
 	/* This is only meaningful in non-KMS mode */
@@ -761,13 +765,15 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PP_CONTROL, dev_priv->savePP_CONTROL);
 	}
 
-	/* Display Port state */
-	if (SUPPORTS_INTEGRATED_DP(dev)) {
-		I915_WRITE(DP_B, dev_priv->saveDP_B);
-		I915_WRITE(DP_C, dev_priv->saveDP_C);
-		I915_WRITE(DP_D, dev_priv->saveDP_D);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Display Port state */
+		if (SUPPORTS_INTEGRATED_DP(dev)) {
+			I915_WRITE(DP_B, dev_priv->saveDP_B);
+			I915_WRITE(DP_C, dev_priv->saveDP_C);
+			I915_WRITE(DP_D, dev_priv->saveDP_D);
+		}
+		/* FIXME: restore TV & SDVO state */
 	}
-	/* FIXME: restore TV & SDVO state */
 
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_disable_fbc(dev);
