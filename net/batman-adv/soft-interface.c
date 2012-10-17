@@ -180,7 +180,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		goto dropped;
 
 	/* Register the client MAC in the transtable */
-	batadv_tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
+	if (!is_multicast_ether_addr(ethhdr->h_source))
+		batadv_tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
 
 	/* don't accept stp packets. STP does not help in meshes.
 	 * better use the bridge loop avoidance ...
