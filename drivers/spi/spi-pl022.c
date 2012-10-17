@@ -2349,6 +2349,8 @@ static int pl022_suspend(struct device *dev)
 		dev_warn(dev, "cannot suspend master\n");
 		return ret;
 	}
+
+	pm_runtime_get_sync(dev);
 	pl022_suspend_resources(pl022);
 
 	dev_dbg(dev, "suspended\n");
@@ -2361,6 +2363,7 @@ static int pl022_resume(struct device *dev)
 	int ret;
 
 	pl022_resume_resources(pl022);
+	pm_runtime_put(dev);
 
 	/* Start the queue running */
 	ret = spi_master_resume(pl022->master);
