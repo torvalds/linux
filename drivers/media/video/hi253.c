@@ -1244,27 +1244,35 @@ static struct reginfo sensor_vga[] =
 
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
-{};
+{
+	{END_REG, END_REG},
+};
 
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
-{};
+{
+	{END_REG, END_REG},
+};
 
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
-{};
+{
+	{END_REG, END_REG},
+};
 
 #endif
 static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
 
-    {0x00, 0x00}
+    //{0x00, 0x00}
+	{END_REG, END_REG},
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
 
-    {0x00, 0x00}
+    //{0x00, 0x00}
+	{END_REG, END_REG},
 };
 
 #if CONFIG_SENSOR_WhiteBalance
