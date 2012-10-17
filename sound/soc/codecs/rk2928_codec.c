@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
+#include <asm/delay.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -58,8 +59,6 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DACR", "HIFI Playback", CODEC_REG_POWER, 4, 1),
 	SND_SOC_DAPM_PGA("DACL Amp", CODEC_REG_DAC_GAIN, 2, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("DACR Amp", CODEC_REG_DAC_GAIN, 0, 0, NULL, 0),
-//	SND_SOC_DAPM_OUT_DRV("DACL Drv", CODEC_REG_DAC_MUTE, 1, 1, NULL, 0),
-//	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
 	SND_SOC_DAPM_ADC("ADCL", "HIFI Capture", CODEC_REG_POWER, 3, 1),
@@ -71,8 +70,6 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rk2928_audio_map[] = {
 	{"SPKL", "DACL Amp", "DACL"},
 	{"SPKR", "DACR Amp", "DACR"},
-//	{"SPKL", NULL, "DACL Drv"},
-//	{"SPKR", NULL, "DACR Drv"},
 	{"ADCL", NULL, "MICL"},
 	{"ADCR", NULL, "MICR"},
 };
@@ -82,8 +79,6 @@ static const struct snd_soc_dapm_widget rk2926_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DACR", "HIFI Playback", CODEC_REG_POWER, 4, 1),
 	SND_SOC_DAPM_PGA("DACL Amp", CODEC_REG_DAC_GAIN, 2, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("DACR Amp", CODEC_REG_DAC_GAIN, 0, 0, NULL, 0),
-//	SND_SOC_DAPM_OUT_DRV("DACL Drv", CODEC_REG_DAC_MUTE, 1, 1, NULL, 0),
-//	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
 	SND_SOC_DAPM_ADC("ADCR", "HIFI Capture", CODEC_REG_POWER, 2, 1),
@@ -93,8 +88,6 @@ static const struct snd_soc_dapm_widget rk2926_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rk2926_audio_map[] = {
 	{"SPKL", "DACL Amp", "DACL"},
 	{"SPKR", "DACR Amp", "DACR"},
-//	{"SPKL", NULL, "DACL Drv"},
-//	{"SPKR", NULL, "DACR Drv"},
 	{"ADCR", NULL, "MICR"},
 };
 
@@ -110,7 +103,7 @@ static int rk2928_write(struct snd_soc_codec *codec, unsigned int reg, unsigned 
 	DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, reg, value);
 	writel(value, rk2928_data.regbase + reg*4);
 	if( (reg == CODEC_REG_POWER) && ( (value & m_PD_DAC) == 0)) {
-		msleep(80);
+		msleep(100);
 	}
 	return 0;
 }
@@ -163,7 +156,7 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct snd_soc_codec *codec = rtd->codec;
 	struct rk2928_codec_data *priv = snd_soc_codec_get_drvdata(codec);
 	int err = 0;
-
+	int data, pd_adc;
 	DBG("%s cmd 0x%x", __FUNCTION__, cmd);
 	
 	switch (cmd) {
@@ -172,10 +165,52 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 //				rk2928_write(codec, CODEC_REG_DAC_GAIN, v_GAIN_DAC(DAC_GAIN_3DB_P));
-				if(!rk2928_data.hdmi_enable)
+				if(!rk2928_data.hdmi_enable) {
+					data = rk2928_read(codec, CODEC_REG_POWER);
+					if(soc_is_rk2928g()){
+						if( (data & m_PD_ADC) == 0) {
+							data &= ~m_PD_ADC;
+							data |= v_PD_ADC(1);
+							pd_adc = 1;
+						}
+						else
+							pd_adc = 0;
+					}
+					else{
+						if( (data & m_PD_ADC_R) == 0) {
+							data &= ~m_PD_ADC_R;
+							data |= v_PD_ADC_R(1);
+							pd_adc = 1;
+						}
+						else
+							pd_adc = 0;
+					}
+					if(pd_adc == 1) {
+						DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
+						writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
+						udelay(100);						
+					}
+					rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
+					udelay(100);
+					rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
+					
+					if(pd_adc == 1) {
+						udelay(100);
+						data = rk2928_read(codec, CODEC_REG_POWER);
+						if( soc_is_rk2928g() ) {
+							data &= ~m_PD_ADC;
+							data |= v_PD_ADC(0);
+						}
+						else {
+							data &= ~m_PD_ADC_R;
+							data |= v_PD_ADC_R(0);
+						}
+						DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
+						writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
+					}
+					
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
-				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
-				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
+				}
 				rk2928_data.mute = 0;
 				if(rk2928_data.spkctl != INVALID_GPIO) {
 					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
@@ -307,15 +342,15 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 	// Mute and Power off codec
 	rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);
-        if(soc_is_rk2928g()){	
-	        snd_soc_dapm_new_controls(dapm, rk2928_dapm_widgets,
-			ARRAY_SIZE(rk2928_dapm_widgets));
-	        snd_soc_dapm_add_routes(dapm, rk2928_audio_map, ARRAY_SIZE(rk2928_audio_map));
-        }else{
-	        snd_soc_dapm_new_controls(dapm, rk2926_dapm_widgets,
-			ARRAY_SIZE(rk2926_dapm_widgets));
-	        snd_soc_dapm_add_routes(dapm, rk2926_audio_map, ARRAY_SIZE(rk2926_audio_map));
-        }
+	if(soc_is_rk2928g()){	
+	    snd_soc_dapm_new_controls(dapm, rk2928_dapm_widgets,
+		ARRAY_SIZE(rk2928_dapm_widgets));
+	    snd_soc_dapm_add_routes(dapm, rk2928_audio_map, ARRAY_SIZE(rk2928_audio_map));
+	}else{
+	    snd_soc_dapm_new_controls(dapm, rk2926_dapm_widgets,
+		ARRAY_SIZE(rk2926_dapm_widgets));
+	    snd_soc_dapm_add_routes(dapm, rk2926_audio_map, ARRAY_SIZE(rk2926_audio_map));
+	}
 
 	return 0;
 	

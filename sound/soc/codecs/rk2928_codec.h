@@ -23,6 +23,8 @@
 #define CODEC_REG_POWER			0x0c
 	#define m_PD_CODEC			(0x01)
 	#define m_PD_MIC_BIAS		(0x01 << 1)
+	#define m_PD_ADC_R			(0x01 << 2)
+	#define m_PD_ADC_L			(0x01 << 3)
 	#define m_PD_ADC			(0x03 << 2)
 	#define m_PD_DAC			(0x03 << 4)
 	#define v_PD_CODEC(n)		(n)
