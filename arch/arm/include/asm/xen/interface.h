@@ -31,7 +31,9 @@
 /* Explicitly size integers that represent pfns in the interface with
  * Xen so that we can have one ABI that works for 32 and 64 bit guests. */
 typedef uint64_t xen_pfn_t;
+#define PRI_xen_pfn "llx"
 typedef uint64_t xen_ulong_t;
+#define PRI_xen_ulong "llx"
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint,  unsigned int);
