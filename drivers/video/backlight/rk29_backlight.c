@@ -121,7 +121,19 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	}
 	write_pwm_reg(id, PWM_REG_HRC, divh);
 
-	DBG("%s:line=%d,brightness = %d, div_total = %d, divh = %d\n",__FUNCTION__,__LINE__,brightness, div_total, divh);
+	if ((bl->props.state & BL_CORE_DRIVER1) && brightness ==0 ){  //BL_CORE_DRIVER1 is the flag if backlight is closed.
+		bl->props.state &= ~BL_CORE_DRIVER1;
+		clk_disable(pwm_clk);
+		if (rk29_bl_info->pwm_suspend)
+			rk29_bl_info->pwm_suspend();
+	}else if(!(bl->props.state & BL_CORE_DRIVER1) && brightness != 0){
+		bl->props.state |= BL_CORE_DRIVER1;
+		if (rk29_bl_info->pwm_resume)
+			rk29_bl_info->pwm_resume();
+		clk_enable(pwm_clk);
+	}
+
+	DBG("%s:line=%d,brightness = %d, div_total = %d, divh = %d state=%x \n",__FUNCTION__,__LINE__,brightness, div_total, divh,bl->props.state);
 	return 0;
 }
 
@@ -170,12 +182,6 @@ static void rk29_bl_suspend(struct early_suspend *h)
 		rk29_bl->props.brightness = brightness;
 	}
 
-	if (!suspend_flag) {
-		clk_disable(pwm_clk);
-		if (rk29_bl_info->pwm_suspend)
-			rk29_bl_info->pwm_suspend();
-	}
-
 	suspend_flag = 1;
 }
 
@@ -183,12 +189,7 @@ static void rk29_bl_resume(struct early_suspend *h)
 {
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
 	DBG("%s : %s\n", __FILE__, __FUNCTION__);
-
-	if (rk29_bl_info->pwm_resume)
-		rk29_bl_info->pwm_resume();
-
-	clk_enable(pwm_clk);
-
+	
 	suspend_flag = 0;
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 }
@@ -284,6 +285,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
 	rk29_bl->props.brightness = BL_STEP / 2;
+	rk29_bl->props.state = BL_CORE_DRIVER1;		
 
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 	ret = device_create_file(&pdev->dev,&dev_attr_rk29backlight);
