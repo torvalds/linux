@@ -1435,7 +1435,7 @@ void omap_gem_init(struct drm_device *dev)
 	};
 	int i, j;
 
-	if (!dmm_is_initialized()) {
+	if (!dmm_is_available()) {
 		/* DMM only supported on OMAP4 and later, so this isn't fatal */
 		dev_warn(dev->dev, "DMM not available, disable DMM support\n");
 		return;

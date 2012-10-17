@@ -522,7 +522,7 @@ size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h)
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
-bool dmm_is_initialized(void)
+bool dmm_is_available(void)
 {
 	return omap_dmm ? true : false;
 }
