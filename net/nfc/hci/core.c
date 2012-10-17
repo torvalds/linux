@@ -33,7 +33,7 @@
 /* Largest headroom needed for outgoing HCI commands */
 #define HCI_CMDS_HEADROOM 1
 
-static int nfc_hci_result_to_errno(u8 result)
+int nfc_hci_result_to_errno(u8 result)
 {
 	switch (result) {
 	case NFC_HCI_ANY_OK:
@@ -46,6 +46,7 @@ static int nfc_hci_result_to_errno(u8 result)
 		return -1;
 	}
 }
+EXPORT_SYMBOL(nfc_hci_result_to_errno);
 
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
