@@ -1,6 +1,4 @@
 /*
- * include/linux/drv_display_sun4i.h
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  *
