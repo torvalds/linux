@@ -222,6 +222,14 @@ static ssize_t koneplus_sysfs_write_tcu(struct file *fp,
 			sizeof(struct koneplus_tcu), KONEPLUS_COMMAND_TCU);
 }
 
+static ssize_t koneplus_sysfs_read_tcu(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	return koneplus_sysfs_read(fp, kobj, buf, off, count,
+			sizeof(struct koneplus_tcu), KONEPLUS_COMMAND_TCU);
+}
+
 static ssize_t koneplus_sysfs_read_tcu_image(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
@@ -426,8 +434,9 @@ static struct bin_attribute koneplus_bin_attributes[] = {
 		.write = koneplus_sysfs_write_sensor
 	},
 	{
-		.attr = { .name = "tcu", .mode = 0220 },
+		.attr = { .name = "tcu", .mode = 0660 },
 		.size = sizeof(struct koneplus_tcu),
+		.read = koneplus_sysfs_read_tcu,
 		.write = koneplus_sysfs_write_tcu
 	},
 	{
