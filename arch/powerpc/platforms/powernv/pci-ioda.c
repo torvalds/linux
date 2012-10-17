@@ -34,24 +34,12 @@
 #include "powernv.h"
 #include "pci.h"
 
-static int __pe_printk(const char *level, const struct pnv_ioda_pe *pe,
-		       struct va_format *vaf)
-{
-	char pfix[32];
-
-	if (pe->pdev)
-		strlcpy(pfix, dev_name(&pe->pdev->dev), sizeof(pfix));
-	else
-		sprintf(pfix, "%04x:%02x     ",
-			pci_domain_nr(pe->pbus), pe->pbus->number);
-	return printk("pci %s%s: [PE# %.3d] %pV", level, pfix, pe->pe_number, vaf);
-}
-
 #define define_pe_printk_level(func, kern_level)		\
 static int func(const struct pnv_ioda_pe *pe, const char *fmt, ...)	\
 {								\
 	struct va_format vaf;					\
 	va_list args;						\
+	char pfix[32];						\
 	int r;							\
 								\
 	va_start(args, fmt);					\
@@ -59,7 +47,16 @@ static int func(const struct pnv_ioda_pe *pe, const char *fmt, ...)	\
 	vaf.fmt = fmt;						\
 	vaf.va = &args;						\
 								\
-	r = __pe_printk(kern_level, pe, &vaf);			\
+	if (pe->pdev)						\
+		strlcpy(pfix, dev_name(&pe->pdev->dev),		\
+			sizeof(pfix));				\
+	else							\
+		sprintf(pfix, "%04x:%02x     ",			\
+			pci_domain_nr(pe->pbus),		\
+			pe->pbus->number);			\
+	r = printk(kern_level "pci %s: [PE# %.3d] %pV",		\
+		   pfix, pe->pe_number, &vaf);			\
+								\
 	va_end(args);						\
 								\
 	return r;						\
