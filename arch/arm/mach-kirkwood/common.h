@@ -112,6 +112,14 @@ void km_kirkwood_init(void);
 static inline void km_kirkwood_init(void) {};
 #endif
 
+#if defined(CONFIG_MACH_INETSPACE_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_MAX_V2_DT)
+void ns2_init(void);
+#else
+static inline void ns2_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);
