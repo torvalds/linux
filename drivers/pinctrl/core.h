@@ -105,12 +105,14 @@ struct pinctrl_setting_configs {
  * @type: the type of setting
  * @pctldev: pin control device handling to be programmed. Not used for
  *   PIN_MAP_TYPE_DUMMY_STATE.
+ * @dev_name: the name of the device using this state
  * @data: Data specific to the setting type
  */
 struct pinctrl_setting {
 	struct list_head node;
 	enum pinctrl_map_type type;
 	struct pinctrl_dev *pctldev;
+	const char *dev_name;
 	union {
 		struct pinctrl_setting_mux mux;
 		struct pinctrl_setting_configs configs;
