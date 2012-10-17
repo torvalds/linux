@@ -15,7 +15,7 @@
 #define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
 #endif
 
-#define ACT8931_CHGSEL_VALUE GPIO_LOW /* Decline to 20% current */
+#define ACT8931_CHGSEL_VALUE GPIO_HIGH /* Declined to 20% current */
 
 extern int platform_device_register(struct platform_device *pdev);
 
@@ -292,12 +292,12 @@ static struct act8931_platform_data act8931_data={
 #ifdef CONFIG_HAS_EARLYSUSPEND
 void act8931_early_suspend(struct early_suspend *h)
 {
-	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
+	gpio_direction_output(ACT8931_CHGSEL_PIN, !ACT8931_CHGSEL_VALUE);
 }
 
 void act8931_late_resume(struct early_suspend *h)
 {
-	gpio_direction_output(ACT8931_CHGSEL_PIN, !ACT8931_CHGSEL_VALUE);
+	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
 }
 #endif
 

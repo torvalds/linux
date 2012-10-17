@@ -131,16 +131,12 @@ static int rk29_backlight_pwm_suspend(void)
 		return -1;
 	}
 	#if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910)
-	{
-		gpio_direction_output(PWM_GPIO, GPIO_LOW);
-	}
+	 if (pmic_is_tps65910() )
+	   gpio_direction_output(PWM_GPIO, GPIO_LOW);
 	#endif
 	#if defined(CONFIG_REGULATOR_ACT8931)
-	if(g_pmic_type == PMIC_TYPE_ACT8931)
-	{
-		gpio_direction_output(PWM_GPIO, GPIO_HIGH);
-	}
+	 if (pmic_is_act8931() )
+	   gpio_direction_output(PWM_GPIO, GPIO_HIGH);
 	#endif
 #ifdef  LCD_DISP_ON_PIN
 	gpio_direction_output(BL_EN_PIN, 0);
@@ -213,8 +209,7 @@ static int rk_fb_io_disable(void)
 {
 
 	#if 0//defined(CONFIG_REGULATOR_ACT8931)
-	if(g_pmic_type == PMIC_TYPE_ACT8931)
-	{
+	if (pmic_is_act8931() ){
 		struct regulator *ldo;
 		ldo = regulator_get(NULL, "act_ldo4");	 //vcc_lcd
 		regulator_disable(ldo);
@@ -228,8 +223,7 @@ static int rk_fb_io_disable(void)
 static int rk_fb_io_enable(void)
 {
 	#if 0//defined(CONFIG_REGULATOR_ACT8931)
-	if(g_pmic_type == PMIC_TYPE_ACT8931)
-	{
+	if (pmic_is_act8931() ){
 		struct regulator *ldo;
 		ldo = regulator_get(NULL, "act_ldo4");	 //vcc_lcd
 		regulator_enable(ldo);
@@ -455,14 +449,12 @@ static void rkusb_wifi_power(int on) {
 	struct regulator *ldo = NULL;
 	
 #if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910) {
+	if (pmic_is_tps65910() )
 		ldo = regulator_get(NULL, "vmmc");  //vccio_wl
-	}
 #endif
 #if defined(CONFIG_REGULATOR_ACT8931)
-	if(g_pmic_type == PMIC_TYPE_ACT8931) {
+	if(pmic_is_act8931() )
 		ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
-	}
 #endif	
 	
 	if(on) {
@@ -746,15 +738,15 @@ void  rk30_pwm_resume_voltage_set(void)
 void __sramfunc board_pmu_suspend(void)
 {      
 	#if defined (CONFIG_MFD_TPS65910)
-       if(g_pmic_type == PMIC_TYPE_TPS65910)
-       board_pmu_tps65910_suspend(); 
+        if(pmic_is_tps65910() )
+        board_pmu_tps65910_suspend(); 
    	#endif   
 }
 void __sramfunc board_pmu_resume(void)
 {      
 	#if defined (CONFIG_MFD_TPS65910)
-       if(g_pmic_type == PMIC_TYPE_TPS65910)
-       board_pmu_tps65910_resume(); 
+        if(pmic_is_tps65910() )
+        board_pmu_tps65910_resume(); 
 	#endif
 }
 
@@ -835,18 +827,15 @@ static void rk2928_pm_power_off(void)
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
         
         #if defined(CONFIG_REGULATOR_ACT8931)
-        if(g_pmic_type == PMIC_TYPE_ACT8931)
-        {
+         if (pmic_is_act8931() ){
               if(act8931_charge_det)
                    arm_pm_restart(0, NULL);
-        }
+         }
         #endif
 	
 	#if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910)
-	{
+	 if(pmic_is_tps65910() )
 		tps65910_device_shutdown();//tps65910 shutdown
-	}
 	#endif
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	

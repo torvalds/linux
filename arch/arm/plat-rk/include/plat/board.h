@@ -5,6 +5,8 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/rk_screen.h>
+#include <plat/sram.h>
+
 
 enum {
         I2C_IDLE = 0,
@@ -60,7 +62,17 @@ struct rk29_io_t {
     int (*io_init)(void);
 };
 
-
+enum {
+	PMIC_TYPE_NOE =0,
+	PMIC_TYPE_WM8326 =1,
+	PMIC_TYPE_TPS65910 =2,
+	PMIC_TYPE_ACT8931 =3,
+	PMIC_TYPE_MAX,
+};
+extern __sramdata  int g_pmic_type;
+#define pmic_is_wm8326()  (g_pmic_type == PMIC_TYPE_WM8326)
+#define pmic_is_tps65910()  (g_pmic_type == PMIC_TYPE_TPS65910)
+#define pmic_is_act8931()  (g_pmic_type == PMIC_TYPE_ACT8931)
 
 struct rk29_fb_setting_info {
 	u8 data_num;
