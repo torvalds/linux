@@ -4116,6 +4116,8 @@
 #define  FORCEWAKE_ACK_HSW			0x130044
 #define  FORCEWAKE_ACK				0x130090
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
+#define   FORCEWAKE_KERNEL			0x1
+#define   FORCEWAKE_USER			0x2
 #define  FORCEWAKE_MT_ACK			0x130040
 #define  ECOBUS					0xa180
 #define    FORCEWAKE_MT_ENABLE			(1<<5)

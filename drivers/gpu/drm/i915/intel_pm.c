@@ -3978,7 +3978,7 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
-	I915_WRITE_NOTRACE(FORCEWAKE, 1);
+	I915_WRITE_NOTRACE(FORCEWAKE, FORCEWAKE_KERNEL);
 	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
@@ -4001,7 +4001,7 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(1));
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
 	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
@@ -4045,7 +4045,7 @@ static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(1));
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
 	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
 	gen6_gt_check_fifodbg(dev_priv);
 }
@@ -4089,7 +4089,7 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 			    FORCEWAKE_ACK_TIMEOUT_MS))
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
-	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_ENABLE(1));
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
 
 	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
@@ -4100,7 +4100,7 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(1));
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
 	/* The below doubles as a POSTING_READ */
 	gen6_gt_check_fifodbg(dev_priv);
 }
