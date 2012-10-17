@@ -1577,33 +1577,31 @@ static void __init rk30_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 252 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},
-	{.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},
-	{.frequency = 816 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},
-	{.frequency = 1008 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},
-	{.frequency = 1200 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},
-#if 0
-	{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},
-	{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},
-#endif
+	{.frequency = 312 * 1000, 	.cpu_volt = 750 * 1000,		.logic_volt = 900 * 1000},
+	{.frequency = 504 * 1000,	.cpu_volt = 800 * 1000,		.logic_volt = 900 * 1000},
+	{.frequency = 816 * 1000,	.cpu_volt = 850 * 1000,		.logic_volt = 900 * 1000},
+	{.frequency = 1008 * 1000,	.cpu_volt = 925 * 1000,		.logic_volt = 900 * 1000},
+	{.frequency = 1200 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 950 * 1000},
+	{.frequency = 1416 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1050 * 1000},
+	{.frequency = 1608 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 266 * 1000,	.index = 1000 * 1000},
-	{.frequency = 400 * 1000,	.index = 1000 * 1000},
-	{.frequency = 600 * 1000,	.index = 1200 * 1000},
+	{.frequency = 100 * 1000,	.index = 900 * 1000},
+	{.frequency = 200 * 1000,	.index = 900 * 1000},
+	{.frequency = 266 * 1000,	.index = 900 * 1000},
+	{.frequency = 300 * 1000,	.index = 900 * 1000},
+	{.frequency = 400 * 1000,	.index = 950 * 1000},
+	{.frequency = 600 * 1000,	.index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 1000 * 1000},
-	{.frequency = 400 * 1000,	.index = 1000 * 1000},
+	{.frequency = 300 * 1000,	.index = 900 * 1000},
+	{.frequency = 400 * 1000,	.index = 950 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
-
 #define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
 static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
 static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];

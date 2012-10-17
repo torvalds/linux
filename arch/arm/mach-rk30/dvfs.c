@@ -723,8 +723,13 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 }
 #endif
 
+#ifdef CONFIG_ARCH_RK3066B
+#define ARM_HIGHER_LOGIC	(50 * 1000)
+#define LOGIC_HIGHER_ARM	(150 * 1000)
+#else
 #define ARM_HIGHER_LOGIC	(150 * 1000)
 #define LOGIC_HIGHER_ARM	(100 * 1000)
+#endif
 
 int check_volt_correct(int volt_old, int *volt_new, int volt_dep_old, int *volt_dep_new, 
 		int clk_biger_than_dep, int dep_biger_than_clk)
