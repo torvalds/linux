@@ -3313,12 +3313,11 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 			 * This will work until we determine why the hardware
 			 * doesn't seem to like large fragments.
 			 */
-			if ((skb->len - skb->data_len) <= 1514) {
+			if (skb_headlen(skb) <= 1514) {
 				desc[frag].addr_hi = 0;
 				/* Low 16bits are length, high is vlan and
 				   unused currently so zero */
-				desc[frag].len_vlan =
-					skb->len - skb->data_len;
+				desc[frag].len_vlan = skb_headlen(skb);
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * dma_map_single() is implicitly cast as a
@@ -3331,13 +3330,11 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 				desc[frag++].addr_lo =
 				    dma_map_single(&adapter->pdev->dev,
 						   skb->data,
-						   skb->len -
-						   skb->data_len,
+						   skb_headlen(skb),
 						   DMA_TO_DEVICE);
 			} else {
 				desc[frag].addr_hi = 0;
-				desc[frag].len_vlan =
-				    (skb->len - skb->data_len) / 2;
+				desc[frag].len_vlan = skb_headlen(skb) / 2;
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * dma_map_single() is implicitly cast as a
@@ -3350,13 +3347,11 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 				desc[frag++].addr_lo =
 				    dma_map_single(&adapter->pdev->dev,
 						   skb->data,
-						   ((skb->len -
-						     skb->data_len) / 2),
+						   (skb_headlen(skb) / 2),
 						   DMA_TO_DEVICE);
 				desc[frag].addr_hi = 0;
 
-				desc[frag].len_vlan =
-				    (skb->len - skb->data_len) / 2;
+				desc[frag].len_vlan = skb_headlen(skb) / 2;
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * dma_map_single() is implicitly cast as a
@@ -3369,10 +3364,8 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 				desc[frag++].addr_lo =
 				    dma_map_single(&adapter->pdev->dev,
 						   skb->data +
-						   ((skb->len -
-						     skb->data_len) / 2),
-						   ((skb->len -
-						     skb->data_len) / 2),
+							 (skb_headlen(skb) / 2),
+						   (skb_headlen(skb) / 2),
 						   DMA_TO_DEVICE);
 			}
 		} else {
@@ -3521,7 +3514,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 
 	tcb->skb = skb;
 
-	if (skb->data != NULL && skb->len - skb->data_len >= 6) {
+	if (skb->data != NULL && skb_headlen(skb) >= 6) {
 		shbufva = (u16 *) skb->data;
 
 		if ((shbufva[0] == 0xffff) &&
