@@ -4067,22 +4067,21 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 	if (ret < 0)
 		goto out;
 
-	if (!S_ISLNK(sctx->cur_inode_mode)) {
-		if (!sctx->parent_root || sctx->cur_inode_new) {
+	if (!sctx->parent_root || sctx->cur_inode_new) {
+		need_chown = 1;
+		if (!S_ISLNK(sctx->cur_inode_mode))
 			need_chmod = 1;
-			need_chown = 1;
-		} else {
-			ret = get_inode_info(sctx->parent_root, sctx->cur_ino,
-					NULL, NULL, &right_mode, &right_uid,
-					&right_gid, NULL);
-			if (ret < 0)
-				goto out;
+	} else {
+		ret = get_inode_info(sctx->parent_root, sctx->cur_ino,
+				NULL, NULL, &right_mode, &right_uid,
+				&right_gid, NULL);
+		if (ret < 0)
+			goto out;
 
-			if (left_uid != right_uid || left_gid != right_gid)
-				need_chown = 1;
-			if (left_mode != right_mode)
-				need_chmod = 1;
-		}
+		if (left_uid != right_uid || left_gid != right_gid)
+			need_chown = 1;
+		if (!S_ISLNK(sctx->cur_inode_mode) && left_mode != right_mode)
+			need_chmod = 1;
 	}
 
 	if (S_ISREG(sctx->cur_inode_mode)) {
