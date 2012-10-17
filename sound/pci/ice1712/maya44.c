@@ -358,7 +358,7 @@ static void wm8776_select_input(struct snd_maya44 *chip, int idx, int line)
 static int maya_rec_src_info(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Line", "Mic" };
+	static const char * const texts[] = { "Line", "Mic" };
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -407,7 +407,7 @@ static int maya_rec_src_put(struct snd_kcontrol *kcontrol,
 static int maya_pb_route_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {
+	static const char * const texts[] = {
 		"PCM Out", /* 0 */
 		"Input 1", "Input 2", "Input 3", "Input 4"
 	};

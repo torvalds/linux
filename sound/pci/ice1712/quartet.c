@@ -47,7 +47,7 @@ struct qtet_kcontrol_private {
 	unsigned int bit;
 	void (*set_register)(struct snd_ice1712 *ice, unsigned int val);
 	unsigned int (*get_register)(struct snd_ice1712 *ice);
-	unsigned char *texts[2];
+	unsigned char * const texts[2];
 };
 
 enum {
@@ -63,7 +63,7 @@ enum {
 	OUT34_MON12,
 };
 
-static char *ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
+static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 	"Word Clock 256xFS"};
 
 /* chip address on I2C bus */
@@ -551,7 +551,8 @@ static int qtet_mute_put(struct snd_kcontrol *kcontrol,
 static int qtet_ain12_enum_info(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = {"Line In 1/2", "Mic", "Mic + Low-cut"};
+	static const char * const texts[3] =
+		{"Line In 1/2", "Mic", "Mic + Low-cut"};
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = ARRAY_SIZE(texts);
@@ -816,7 +817,7 @@ static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
 }
 
 static void __devinit add_slaves(struct snd_card *card,
-		struct snd_kcontrol *master, char **list)
+		struct snd_kcontrol *master, char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);

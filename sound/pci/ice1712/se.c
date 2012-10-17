@@ -253,7 +253,7 @@ static void se200pci_WM8776_set_input_volume(struct snd_ice1712 *ice,
 	se200pci_WM8776_write(ice, 0x0f, vol2 | 0x100);
 }
 
-static const char *se200pci_sel[] = {
+static const char * const se200pci_sel[] = {
 	"LINE-IN", "CD-IN", "MIC-IN", "ALL-MIX", NULL
 };
 
@@ -278,7 +278,7 @@ static void se200pci_WM8776_set_afl(struct snd_ice1712 *ice, unsigned int afl)
 		se200pci_WM8776_write(ice, 0x16, 0x001);
 }
 
-static const char *se200pci_agc[] = {
+static const char * const se200pci_agc[] = {
 	"Off", "LimiterMode", "ALCMode", NULL
 };
 
@@ -352,7 +352,7 @@ static void se200pci_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate)
 }
 
 struct se200pci_control {
-	char *name;
+	const char *name;
 	enum {
 		WM8766,
 		WM8776in,
@@ -363,7 +363,7 @@ struct se200pci_control {
 	} target;
 	enum { VOLUME1, VOLUME2, BOOLEAN, ENUM } type;
 	int ch;
-	const char **member;
+	const char * const *member;
 	const char *comment;
 };
 
@@ -421,7 +421,7 @@ static const struct se200pci_control se200pci_cont[] = {
 
 static int se200pci_get_enum_count(int n)
 {
-	const char **member;
+	const char * const *member;
 	int c;
 
 	member = se200pci_cont[n].member;

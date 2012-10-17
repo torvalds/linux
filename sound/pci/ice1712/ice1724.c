@@ -107,7 +107,7 @@ static int PRO_RATE_LOCKED;
 static int PRO_RATE_RESET = 1;
 static unsigned int PRO_RATE_DEFAULT = 44100;
 
-static char *ext_clock_names[1] = { "IEC958 In" };
+static const char * const ext_clock_names[1] = { "IEC958 In" };
 
 /*
  *  Basic I/O
@@ -2043,7 +2043,7 @@ static struct snd_kcontrol_new snd_vt1724_pro_rate_reset __devinitdata = {
 static int snd_vt1724_pro_route_info(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {
+	static const char * const texts[] = {
 		"PCM Out", /* 0 */
 		"H/W In 0", "H/W In 1", /* 1-2 */
 		"IEC958 In L", "IEC958 In R", /* 3-4 */
@@ -2233,7 +2233,7 @@ static unsigned char ooaoo_sq210_eeprom[] __devinitdata = {
 };
 
 
-struct snd_ice1712_card_info snd_vt1724_ooaoo_cards[] __devinitdata = {
+static struct snd_ice1712_card_info snd_vt1724_ooaoo_cards[] __devinitdata = {
 	{
 		.name = "ooAoo SQ210a",
 		.model = "sq210a",

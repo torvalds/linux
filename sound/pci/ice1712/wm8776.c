@@ -41,7 +41,8 @@ static void snd_wm8776_write(struct snd_wm8776 *wm, u16 addr, u16 data)
 
 /* register-level functions */
 
-static void snd_wm8776_activate_ctl(struct snd_wm8776 *wm, char *ctl_name,
+static void snd_wm8776_activate_ctl(struct snd_wm8776 *wm,
+				    const char *ctl_name,
 				    bool active)
 {
 	struct snd_card *card = wm->card;

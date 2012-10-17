@@ -283,7 +283,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Line In", "Mic" };
+	static const char * const texts[2] = { "Line In", "Mic" };
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -562,7 +562,7 @@ static unsigned char prodigy192_ak4114_read(void *private_data,
 static int ak4114_input_sw_info(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Toslink", "Coax" };
+	static const char * const texts[2] = { "Toslink", "Coax" };
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;

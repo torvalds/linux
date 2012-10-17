@@ -722,7 +722,7 @@ static int phase28_deemp_put(struct snd_kcontrol *kcontrol,
 static int phase28_oversampling_info(struct snd_kcontrol *k,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "128x", "64x"	};
+	static const char * const texts[2] = { "128x", "64x"	};
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;

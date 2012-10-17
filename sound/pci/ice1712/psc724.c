@@ -254,7 +254,7 @@ static bool psc724_get_jack_detection(struct snd_ice1712 *ice)
 /* mixer controls */
 
 struct psc724_control {
-	char *name;
+	const char *name;
 	void (*set)(struct snd_ice1712 *ice, bool on);
 	bool (*get)(struct snd_ice1712 *ice);
 };
@@ -294,27 +294,27 @@ static int psc724_ctl_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static char *front_volume	= "Front Playback Volume";
-static char *front_switch	= "Front Playback Switch";
-static char *front_zc		= "Front Zero Cross Detect Playback Switch";
-static char *front_izd		= "Front Infinite Zero Detect Playback Switch";
-static char *front_phase	= "Front Phase Invert Playback Switch";
-static char *front_deemph	= "Front Deemphasis Playback Switch";
-static char *ain1_switch	= "Line Capture Switch";
-static char *ain2_switch	= "CD Capture Switch";
-static char *ain3_switch	= "AUX Capture Switch";
-static char *ain4_switch	= "Front Mic Capture Switch";
-static char *ain5_switch	= "Rear Mic Capture Switch";
-static char *rear_volume	= "Surround Playback Volume";
-static char *clfe_volume	= "CLFE Playback Volume";
-static char *rear_switch	= "Surround Playback Switch";
-static char *clfe_switch	= "CLFE Playback Switch";
-static char *rear_phase		= "Surround Phase Invert Playback Switch";
-static char *clfe_phase		= "CLFE Phase Invert Playback Switch";
-static char *rear_deemph	= "Surround Deemphasis Playback Switch";
-static char *clfe_deemph	= "CLFE Deemphasis Playback Switch";
-static char *rear_clfe_izd	= "Rear Infinite Zero Detect Playback Switch";
-static char *rear_clfe_zc	= "Rear Zero Cross Detect Playback Switch";
+static const char *front_volume	= "Front Playback Volume";
+static const char *front_switch	= "Front Playback Switch";
+static const char *front_zc	= "Front Zero Cross Detect Playback Switch";
+static const char *front_izd	= "Front Infinite Zero Detect Playback Switch";
+static const char *front_phase	= "Front Phase Invert Playback Switch";
+static const char *front_deemph	= "Front Deemphasis Playback Switch";
+static const char *ain1_switch	= "Line Capture Switch";
+static const char *ain2_switch	= "CD Capture Switch";
+static const char *ain3_switch	= "AUX Capture Switch";
+static const char *ain4_switch	= "Front Mic Capture Switch";
+static const char *ain5_switch	= "Rear Mic Capture Switch";
+static const char *rear_volume	= "Surround Playback Volume";
+static const char *clfe_volume	= "CLFE Playback Volume";
+static const char *rear_switch	= "Surround Playback Switch";
+static const char *clfe_switch	= "CLFE Playback Switch";
+static const char *rear_phase	= "Surround Phase Invert Playback Switch";
+static const char *clfe_phase	= "CLFE Phase Invert Playback Switch";
+static const char *rear_deemph	= "Surround Deemphasis Playback Switch";
+static const char *clfe_deemph	= "CLFE Deemphasis Playback Switch";
+static const char *rear_clfe_izd = "Rear Infinite Zero Detect Playback Switch";
+static const char *rear_clfe_zc	= "Rear Zero Cross Detect Playback Switch";
 
 static int __devinit psc724_add_controls(struct snd_ice1712 *ice)
 {

@@ -435,7 +435,8 @@ static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
 }
 
 static void __devinit add_slaves(struct snd_card *card,
-				 struct snd_kcontrol *master, char **list)
+				 struct snd_kcontrol *master,
+				 char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);

@@ -131,7 +131,7 @@ enum snd_wm8766_ctl_id {
 
 struct snd_wm8766_ctl {
 	struct snd_kcontrol *kctl;
-	char *name;
+	const char *name;
 	snd_ctl_elem_type_t type;
 	const char *const enum_names[WM8766_ENUM_MAX];
 	const unsigned int *tlv;
