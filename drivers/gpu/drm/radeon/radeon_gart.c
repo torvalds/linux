@@ -577,7 +577,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
  *
  * Global and local mutex must be locked!
  */
-int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
+static int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_vm *vm_evict;
 
