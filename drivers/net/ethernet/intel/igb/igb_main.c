@@ -61,7 +61,7 @@
 
 #define MAJ 4
 #define MIN 0
-#define BUILD 1
+#define BUILD 17
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
