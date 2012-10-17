@@ -77,6 +77,8 @@ static void __iomem *vrfb_base;
 static int num_ctxs;
 static struct vrfb_ctx *ctxs;
 
+static bool vrfb_loaded;
+
 static void omap2_sms_write_rot_control(u32 val, unsigned ctx)
 {
 	__raw_writel(val, vrfb_base + SMS_ROT_CONTROL(ctx));
@@ -336,6 +338,12 @@ out:
 }
 EXPORT_SYMBOL(omap_vrfb_request_ctx);
 
+bool omap_vrfb_supported(void)
+{
+	return vrfb_loaded;
+}
+EXPORT_SYMBOL(omap_vrfb_supported);
+
 static int __init vrfb_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
@@ -375,11 +383,19 @@ static int __init vrfb_probe(struct platform_device *pdev)
 		ctxs[i].base = mem->start;
 	}
 
+	vrfb_loaded = true;
+
 	return 0;
+}
+
+static void __exit vrfb_remove(struct platform_device *pdev)
+{
+	vrfb_loaded = false;
 }
 
 static struct platform_driver vrfb_driver = {
 	.driver.name	= "omapvrfb",
+	.remove		= __exit_p(vrfb_remove),
 };
 
 static int __init vrfb_init(void)
