@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/disp/de_bsp_sun4i/de/disp_de.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>

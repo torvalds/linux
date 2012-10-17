@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/lcd/lcd_bak/cpu_320x240_kgm281i0.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>

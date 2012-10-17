@@ -1,6 +1,4 @@
 /*
- * drivers/video/sunxi/lcd/lcd_bak/hv_800x480.c
- *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Danling <danliang@allwinnertech.com>
