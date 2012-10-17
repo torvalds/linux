@@ -15,23 +15,20 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/machine.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8925.h>
 
-static struct resource backlight_resources[] = {
-	{
-		.name	= "max8925-backlight",
-		.start	= MAX8925_WLED_MODE_CNTL,
-		.end	= MAX8925_WLED_CNTL,
-		.flags	= IORESOURCE_IO,
-	},
+static struct resource bk_resources[] __devinitdata = {
+	{ 0x84, 0x84, "mode control", IORESOURCE_REG, },
+	{ 0x85, 0x85, "control",      IORESOURCE_REG, },
 };
 
-static struct mfd_cell backlight_devs[] = {
+static struct mfd_cell bk_devs[] __devinitdata = {
 	{
 		.name		= "max8925-backlight",
-		.num_resources	= 1,
-		.resources	= &backlight_resources[0],
+		.num_resources	= ARRAY_SIZE(bk_resources),
+		.resources	= &bk_resources[0],
 		.id		= -1,
 	},
 };
@@ -41,7 +38,7 @@ static struct resource touch_resources[] = {
 		.name	= "max8925-tsc",
 		.start	= MAX8925_TSC_IRQ,
 		.end	= MAX8925_ADC_RES_END,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_REG,
 	},
 };
 
@@ -59,7 +56,7 @@ static struct resource power_supply_resources[] = {
 		.name	= "max8925-power",
 		.start	= MAX8925_CHG_IRQ1,
 		.end	= MAX8925_CHG_IRQ1_MASK,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_REG,
 	},
 };
 
@@ -113,71 +110,215 @@ static struct mfd_cell onkey_devs[] = {
 	},
 };
 
-#define MAX8925_REG_RESOURCE(_start, _end)	\
-{						\
-	.start	= MAX8925_##_start,		\
-	.end	= MAX8925_##_end,		\
-	.flags	= IORESOURCE_IO,		\
-}
-
-static struct resource regulator_resources[] = {
-	MAX8925_REG_RESOURCE(SDCTL1, SDCTL1),
-	MAX8925_REG_RESOURCE(SDCTL2, SDCTL2),
-	MAX8925_REG_RESOURCE(SDCTL3, SDCTL3),
-	MAX8925_REG_RESOURCE(LDOCTL1, LDOCTL1),
-	MAX8925_REG_RESOURCE(LDOCTL2, LDOCTL2),
-	MAX8925_REG_RESOURCE(LDOCTL3, LDOCTL3),
-	MAX8925_REG_RESOURCE(LDOCTL4, LDOCTL4),
-	MAX8925_REG_RESOURCE(LDOCTL5, LDOCTL5),
-	MAX8925_REG_RESOURCE(LDOCTL6, LDOCTL6),
-	MAX8925_REG_RESOURCE(LDOCTL7, LDOCTL7),
-	MAX8925_REG_RESOURCE(LDOCTL8, LDOCTL8),
-	MAX8925_REG_RESOURCE(LDOCTL9, LDOCTL9),
-	MAX8925_REG_RESOURCE(LDOCTL10, LDOCTL10),
-	MAX8925_REG_RESOURCE(LDOCTL11, LDOCTL11),
-	MAX8925_REG_RESOURCE(LDOCTL12, LDOCTL12),
-	MAX8925_REG_RESOURCE(LDOCTL13, LDOCTL13),
-	MAX8925_REG_RESOURCE(LDOCTL14, LDOCTL14),
-	MAX8925_REG_RESOURCE(LDOCTL15, LDOCTL15),
-	MAX8925_REG_RESOURCE(LDOCTL16, LDOCTL16),
-	MAX8925_REG_RESOURCE(LDOCTL17, LDOCTL17),
-	MAX8925_REG_RESOURCE(LDOCTL18, LDOCTL18),
-	MAX8925_REG_RESOURCE(LDOCTL19, LDOCTL19),
-	MAX8925_REG_RESOURCE(LDOCTL20, LDOCTL20),
+static struct resource sd1_resources[] __devinitdata = {
+	{0x06, 0x06, "sdv", IORESOURCE_REG, },
 };
 
-#define MAX8925_REG_DEVS(_id)						\
-{									\
-	.name		= "max8925-regulator",				\
-	.num_resources	= 1,						\
-	.resources	= &regulator_resources[MAX8925_ID_##_id],	\
-	.id		= MAX8925_ID_##_id,				\
-}
+static struct resource sd2_resources[] __devinitdata = {
+	{0x09, 0x09, "sdv", IORESOURCE_REG, },
+};
 
-static struct mfd_cell regulator_devs[] = {
-	MAX8925_REG_DEVS(SD1),
-	MAX8925_REG_DEVS(SD2),
-	MAX8925_REG_DEVS(SD3),
-	MAX8925_REG_DEVS(LDO1),
-	MAX8925_REG_DEVS(LDO2),
-	MAX8925_REG_DEVS(LDO3),
-	MAX8925_REG_DEVS(LDO4),
-	MAX8925_REG_DEVS(LDO5),
-	MAX8925_REG_DEVS(LDO6),
-	MAX8925_REG_DEVS(LDO7),
-	MAX8925_REG_DEVS(LDO8),
-	MAX8925_REG_DEVS(LDO9),
-	MAX8925_REG_DEVS(LDO10),
-	MAX8925_REG_DEVS(LDO11),
-	MAX8925_REG_DEVS(LDO12),
-	MAX8925_REG_DEVS(LDO13),
-	MAX8925_REG_DEVS(LDO14),
-	MAX8925_REG_DEVS(LDO15),
-	MAX8925_REG_DEVS(LDO16),
-	MAX8925_REG_DEVS(LDO17),
-	MAX8925_REG_DEVS(LDO18),
-	MAX8925_REG_DEVS(LDO19),
-	MAX8925_REG_DEVS(LDO20),
+static struct resource sd3_resources[] __devinitdata = {
+	{0x0c, 0x0c, "sdv", IORESOURCE_REG, },
+};
+
+static struct resource ldo1_resources[] __devinitdata = {
+	{0x1a, 0x1a, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo2_resources[] __devinitdata = {
+	{0x1e, 0x1e, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo3_resources[] __devinitdata = {
+	{0x22, 0x22, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo4_resources[] __devinitdata = {
+	{0x26, 0x26, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo5_resources[] __devinitdata = {
+	{0x2a, 0x2a, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo6_resources[] __devinitdata = {
+	{0x2e, 0x2e, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo7_resources[] __devinitdata = {
+	{0x32, 0x32, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo8_resources[] __devinitdata = {
+	{0x36, 0x36, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo9_resources[] __devinitdata = {
+	{0x3a, 0x3a, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo10_resources[] __devinitdata = {
+	{0x3e, 0x3e, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo11_resources[] __devinitdata = {
+	{0x42, 0x42, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo12_resources[] __devinitdata = {
+	{0x46, 0x46, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo13_resources[] __devinitdata = {
+	{0x4a, 0x4a, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo14_resources[] __devinitdata = {
+	{0x4e, 0x4e, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo15_resources[] __devinitdata = {
+	{0x52, 0x52, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo16_resources[] __devinitdata = {
+	{0x12, 0x12, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo17_resources[] __devinitdata = {
+	{0x16, 0x16, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo18_resources[] __devinitdata = {
+	{0x74, 0x74, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo19_resources[] __devinitdata = {
+	{0x5e, 0x5e, "ldov", IORESOURCE_REG, },
+};
+
+static struct resource ldo20_resources[] __devinitdata = {
+	{0x9e, 0x9e, "ldov", IORESOURCE_REG, },
+};
+
+static struct mfd_cell reg_devs[] __devinitdata = {
+	{
+		.name = "max8925-regulator",
+		.id = 0,
+		.num_resources = ARRAY_SIZE(sd1_resources),
+		.resources = sd1_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(sd2_resources),
+		.resources = sd2_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(sd3_resources),
+		.resources = sd3_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 3,
+		.num_resources = ARRAY_SIZE(ldo1_resources),
+		.resources = ldo1_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 4,
+		.num_resources = ARRAY_SIZE(ldo2_resources),
+		.resources = ldo2_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 5,
+		.num_resources = ARRAY_SIZE(ldo3_resources),
+		.resources = ldo3_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 6,
+		.num_resources = ARRAY_SIZE(ldo4_resources),
+		.resources = ldo4_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 7,
+		.num_resources = ARRAY_SIZE(ldo5_resources),
+		.resources = ldo5_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 8,
+		.num_resources = ARRAY_SIZE(ldo6_resources),
+		.resources = ldo6_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 9,
+		.num_resources = ARRAY_SIZE(ldo7_resources),
+		.resources = ldo7_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 10,
+		.num_resources = ARRAY_SIZE(ldo8_resources),
+		.resources = ldo8_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 11,
+		.num_resources = ARRAY_SIZE(ldo9_resources),
+		.resources = ldo9_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 12,
+		.num_resources = ARRAY_SIZE(ldo10_resources),
+		.resources = ldo10_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 13,
+		.num_resources = ARRAY_SIZE(ldo11_resources),
+		.resources = ldo11_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 14,
+		.num_resources = ARRAY_SIZE(ldo12_resources),
+		.resources = ldo12_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 15,
+		.num_resources = ARRAY_SIZE(ldo13_resources),
+		.resources = ldo13_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 16,
+		.num_resources = ARRAY_SIZE(ldo14_resources),
+		.resources = ldo14_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 17,
+		.num_resources = ARRAY_SIZE(ldo15_resources),
+		.resources = ldo15_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 18,
+		.num_resources = ARRAY_SIZE(ldo16_resources),
+		.resources = ldo16_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 19,
+		.num_resources = ARRAY_SIZE(ldo17_resources),
+		.resources = ldo17_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 20,
+		.num_resources = ARRAY_SIZE(ldo18_resources),
+		.resources = ldo18_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 21,
+		.num_resources = ARRAY_SIZE(ldo19_resources),
+		.resources = ldo19_resources,
+	}, {
+		.name = "max8925-regulator",
+		.id = 22,
+		.num_resources = ARRAY_SIZE(ldo20_resources),
+		.resources = ldo20_resources,
+	},
 };
 
 enum {
@@ -547,7 +688,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 		goto tsc_irq;
 	}
 
-	ret = request_threaded_irq(irq, NULL, max8925_irq, flags,
+	ret = request_threaded_irq(irq, NULL, max8925_irq, flags | IRQF_ONESHOT,
 				   "max8925", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request core IRQ: %d\n", ret);
@@ -565,12 +706,119 @@ tsc_irq:
 	chip->tsc_irq = pdata->tsc_irq;
 
 	ret = request_threaded_irq(chip->tsc_irq, NULL, max8925_tsc_irq,
-				   flags, "max8925-tsc", chip);
+				   flags | IRQF_ONESHOT, "max8925-tsc", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request TSC IRQ: %d\n", ret);
 		chip->tsc_irq = 0;
 	}
 	return 0;
+}
+
+static void __devinit init_regulator(struct max8925_chip *chip,
+				     struct max8925_platform_data *pdata)
+{
+	int ret;
+
+	if (!pdata)
+		return;
+	if (pdata->sd1) {
+		reg_devs[0].platform_data = pdata->sd1;
+		reg_devs[0].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->sd2) {
+		reg_devs[1].platform_data = pdata->sd2;
+		reg_devs[1].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->sd3) {
+		reg_devs[2].platform_data = pdata->sd3;
+		reg_devs[2].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo1) {
+		reg_devs[3].platform_data = pdata->ldo1;
+		reg_devs[3].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo2) {
+		reg_devs[4].platform_data = pdata->ldo2;
+		reg_devs[4].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo3) {
+		reg_devs[5].platform_data = pdata->ldo3;
+		reg_devs[5].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo4) {
+		reg_devs[6].platform_data = pdata->ldo4;
+		reg_devs[6].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo5) {
+		reg_devs[7].platform_data = pdata->ldo5;
+		reg_devs[7].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo6) {
+		reg_devs[8].platform_data = pdata->ldo6;
+		reg_devs[8].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo7) {
+		reg_devs[9].platform_data = pdata->ldo7;
+		reg_devs[9].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo8) {
+		reg_devs[10].platform_data = pdata->ldo8;
+		reg_devs[10].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo9) {
+		reg_devs[11].platform_data = pdata->ldo9;
+		reg_devs[11].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo10) {
+		reg_devs[12].platform_data = pdata->ldo10;
+		reg_devs[12].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo11) {
+		reg_devs[13].platform_data = pdata->ldo11;
+		reg_devs[13].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo12) {
+		reg_devs[14].platform_data = pdata->ldo12;
+		reg_devs[14].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo13) {
+		reg_devs[15].platform_data = pdata->ldo13;
+		reg_devs[15].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo14) {
+		reg_devs[16].platform_data = pdata->ldo14;
+		reg_devs[16].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo15) {
+		reg_devs[17].platform_data = pdata->ldo15;
+		reg_devs[17].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo16) {
+		reg_devs[18].platform_data = pdata->ldo16;
+		reg_devs[18].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo17) {
+		reg_devs[19].platform_data = pdata->ldo17;
+		reg_devs[19].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo18) {
+		reg_devs[20].platform_data = pdata->ldo18;
+		reg_devs[20].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo19) {
+		reg_devs[21].platform_data = pdata->ldo19;
+		reg_devs[21].pdata_size = sizeof(struct regulator_init_data);
+	}
+	if (pdata->ldo20) {
+		reg_devs[22].platform_data = pdata->ldo20;
+		reg_devs[22].pdata_size = sizeof(struct regulator_init_data);
+	}
+	ret = mfd_add_devices(chip->dev, 0, reg_devs, ARRAY_SIZE(reg_devs),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add regulator subdev\n");
+		return;
+	}
 }
 
 int __devinit max8925_device_init(struct max8925_chip *chip,
@@ -612,24 +860,17 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 		goto out_dev;
 	}
 
-	if (pdata) {
-		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
-				      ARRAY_SIZE(regulator_devs),
-				      &regulator_resources[0], 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add regulator subdev\n");
-			goto out_dev;
-		}
-	}
+	init_regulator(chip, pdata);
 
 	if (pdata && pdata->backlight) {
-		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
-				      ARRAY_SIZE(backlight_devs),
-				      &backlight_resources[0], 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add backlight subdev\n");
-			goto out_dev;
-		}
+		bk_devs[0].platform_data = &pdata->backlight;
+		bk_devs[0].pdata_size = sizeof(struct max8925_backlight_pdata);
+	}
+	ret = mfd_add_devices(chip->dev, 0, bk_devs, ARRAY_SIZE(bk_devs),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add backlight subdev\n");
+		goto out_dev;
 	}
 
 	if (pdata && pdata->power) {

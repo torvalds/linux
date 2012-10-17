@@ -194,6 +194,7 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	APSK_16,
 	APSK_32,
 	DQPSK,
+	QAM_4_NR,
  } fe_modulation_t;
 </programlisting>
 	</section>
@@ -265,6 +266,7 @@ typedef enum fe_code_rate {
 	FEC_AUTO,
 	FEC_3_5,
 	FEC_9_10,
+	FEC_2_5,
 } fe_code_rate_t;
 	</programlisting>
 	<para>which correspond to error correction rates of 1/2, 2/3, etc.,
@@ -351,7 +353,7 @@ typedef enum fe_delivery_system {
 	SYS_ISDBC,
 	SYS_ATSC,
 	SYS_ATSCMH,
-	SYS_DMBTH,
+	SYS_DTMB,
 	SYS_CMMB,
 	SYS_DAB,
 	SYS_DVBT2,
@@ -567,28 +569,33 @@ typedef enum fe_delivery_system {
 			<title><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></title>
 			<para>RS frame mode.</para>
 			<para>Possible values are:</para>
+		  <para id="atscmh-rs-frame-mode">
 <programlisting>
 typedef enum atscmh_rs_frame_mode {
 	ATSCMH_RSFRAME_PRI_ONLY  = 0,
 	ATSCMH_RSFRAME_PRI_SEC   = 1,
 } atscmh_rs_frame_mode_t;
 </programlisting>
+		  </para>
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-ENSEMBLE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></title>
 			<para>RS frame ensemble.</para>
 			<para>Possible values are:</para>
+		  <para id="atscmh-rs-frame-ensemble">
 <programlisting>
 typedef enum atscmh_rs_frame_ensemble {
 	ATSCMH_RSFRAME_ENS_PRI   = 0,
 	ATSCMH_RSFRAME_ENS_SEC   = 1,
 } atscmh_rs_frame_ensemble_t;
 </programlisting>
+		  </para>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-PRI">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></title>
 			<para>RS code mode (primary).</para>
 			<para>Possible values are:</para>
+		  <para id="atscmh-rs-code-mode">
 <programlisting>
 typedef enum atscmh_rs_code_mode {
 	ATSCMH_RSCODE_211_187    = 0,
@@ -596,6 +603,7 @@ typedef enum atscmh_rs_code_mode {
 	ATSCMH_RSCODE_235_187    = 2,
 } atscmh_rs_code_mode_t;
 </programlisting>
+		  </para>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-SEC">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></title>
@@ -613,23 +621,27 @@ typedef enum atscmh_rs_code_mode {
 			<title><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></title>
 			<para>Series Concatenated Convolutional Code Block Mode.</para>
 			<para>Possible values are:</para>
+		  <para id="atscmh-sccc-block-mode">
 <programlisting>
 typedef enum atscmh_sccc_block_mode {
 	ATSCMH_SCCC_BLK_SEP      = 0,
 	ATSCMH_SCCC_BLK_COMB     = 1,
 } atscmh_sccc_block_mode_t;
 </programlisting>
+		  </para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-A">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
 			<para>Possible values are:</para>
+		  <para id="atscmh-sccc-code-mode">
 <programlisting>
 typedef enum atscmh_sccc_code_mode {
 	ATSCMH_SCCC_CODE_HLF     = 0,
 	ATSCMH_SCCC_CODE_QTR     = 1,
 } atscmh_sccc_code_mode_t;
 </programlisting>
+		  </para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-B">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></title>
@@ -725,6 +737,9 @@ typedef enum fe_guard_interval {
 	GUARD_INTERVAL_1_128,
 	GUARD_INTERVAL_19_128,
 	GUARD_INTERVAL_19_256,
+	GUARD_INTERVAL_PN420,
+	GUARD_INTERVAL_PN595,
+	GUARD_INTERVAL_PN945,
 } fe_guard_interval_t;
 </programlisting>
 
@@ -733,6 +748,7 @@ typedef enum fe_guard_interval {
 			try to find the correct guard interval (if capable) and will use TMCC to fill
 			in the missing parameters.</para>
 		<para>2) Intervals 1/128, 19/128 and 19/256 are used only for DVB-T2 at present</para>
+		<para>3) DTMB specifies PN420, PN595 and PN945.</para>
 	</section>
 	<section id="DTV-TRANSMISSION-MODE">
 		<title><constant>DTV_TRANSMISSION_MODE</constant></title>
@@ -749,6 +765,8 @@ typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_1K,
 	TRANSMISSION_MODE_16K,
 	TRANSMISSION_MODE_32K,
+	TRANSMISSION_MODE_C1,
+	TRANSMISSION_MODE_C3780,
 } fe_transmit_mode_t;
 </programlisting>
 		<para>Notes:</para>
@@ -760,6 +778,7 @@ typedef enum fe_transmit_mode {
 			use TMCC to fill in the missing parameters.</para>
 		<para>3) DVB-T specifies 2K and 8K as valid sizes.</para>
 		<para>4) DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.</para>
+		<para>5) DTMB specifies C1 and C3780.</para>
 	</section>
 	<section id="DTV-HIERARCHY">
 	<title><constant>DTV_HIERARCHY</constant></title>
@@ -774,17 +793,28 @@ typedef enum fe_hierarchy {
  } fe_hierarchy_t;
 	</programlisting>
 	</section>
-	<section id="DTV-ISDBS-TS-ID">
-	<title><constant>DTV_ISDBS_TS_ID</constant></title>
-	<para>Currently unused.</para>
+	<section id="DTV-STREAM-ID">
+	<title><constant>DTV_STREAM_ID</constant></title>
+	<para>DVB-S2, DVB-T2 and ISDB-S support the transmission of several
+	      streams on a single transport stream.
+	      This property enables the DVB driver to handle substream filtering,
+	      when supported by the hardware.
+	      By default, substream filtering is disabled.
+	</para><para>
+	      For DVB-S2 and DVB-T2, the valid substream id range is from 0 to 255.
+	</para><para>
+	      For ISDB, the valid substream id range is from 1 to 65535.
+	</para><para>
+	      To disable it, you should use the special macro NO_STREAM_ID_FILTER.
+	</para><para>
+	      Note: any value outside the id range also disables filtering.
+	</para>
 	</section>
-	<section id="DTV-DVBT2-PLP-ID">
-		<title><constant>DTV_DVBT2_PLP_ID</constant></title>
-		<para>DVB-T2 supports Physical Layer Pipes (PLP) to allow transmission of
-			many data types via a single multiplex. The API will soon support this
-			at which point this section will be expanded.</para>
+	<section id="DTV-DVBT2-PLP-ID-LEGACY">
+		<title><constant>DTV_DVBT2_PLP_ID_LEGACY</constant></title>
+		<para>Obsolete, replaced with DTV_STREAM_ID.</para>
 	</section>
-	<section id="DTV_ENUM_DELSYS">
+	<section id="DTV-ENUM-DELSYS">
 		<title><constant>DTV_ENUM_DELSYS</constant></title>
 		<para>A Multi standard frontend needs to advertise the delivery systems provided.
 			Applications need to enumerate the provided delivery systems, before using
@@ -795,6 +825,29 @@ typedef enum fe_hierarchy {
 			the delivery systems associated with it, rather than trying to use
 			FE_GET_INFO. In the case of a legacy frontend, the result is just the same
 			as with FE_GET_INFO, but in a more structured format </para>
+	</section>
+	<section id="DTV-INTERLEAVING">
+	<title><constant>DTV_INTERLEAVING</constant></title>
+	<para id="fe-interleaving">Interleaving mode</para>
+	<programlisting>
+enum fe_interleaving {
+	INTERLEAVING_NONE,
+	INTERLEAVING_AUTO,
+	INTERLEAVING_240,
+	INTERLEAVING_720,
+};
+	</programlisting>
+	</section>
+	<section id="DTV-LNA">
+	<title><constant>DTV_LNA</constant></title>
+	<para>Low-noise amplifier.</para>
+	<para>Hardware might offer controllable LNA which can be set manually
+		using that parameter. Usually LNA could be found only from
+		terrestrial devices if at all.</para>
+	<para>Possible values: 0, 1, LNA_AUTO</para>
+	<para>0, LNA off</para>
+	<para>1, LNA on</para>
+	<para>use the special macro LNA_AUTO to set LNA auto</para>
 	</section>
 </section>
 	<section id="frontend-property-terrestrial-systems">
@@ -816,6 +869,7 @@ typedef enum fe_hierarchy {
 				<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 			</itemizedlist>
 		</section>
 		<section id="dvbt2-params">
@@ -838,7 +892,8 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-DVBT2-PLP-ID"><constant>DTV_DVBT2_PLP_ID</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-STREAM-ID"><constant>DTV_STREAM_ID</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
 		</section>
 		<section id="isdbt">
@@ -925,13 +980,32 @@ typedef enum fe_hierarchy {
 				<listitem><para><link linkend="DTV-ATSCMH-PRC"><constant>DTV_ATSCMH_PRC</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-RS-FRAME-MODE"><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-RS-FRAME-ENSEMBLE"><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-CODE-MODE-PRI"><constant>DTV_ATSCMH_CODE_MODE_PRI</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-CODE-MODE-SEC"><constant>DTV_ATSCMH_CODE_MODE_SEC</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-RS-CODE-MODE-PRI"><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-RS-CODE-MODE-SEC"><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-BLOCK-MODE"><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-A"><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-B"><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-A"><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-B"><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
+			</itemizedlist>
+		</section>
+		<section id="dtmb-params">
+			<title>DTMB delivery system</title>
+			<para>The following parameters are valid for DTMB:</para>
+			<itemizedlist mark='opencircle'>
+				<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-INTERLEAVING"><constant>DTV_INTERLEAVING</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 			</itemizedlist>
 		</section>
 	</section>
@@ -952,6 +1026,7 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-SYMBOL-RATE"><constant>DTV_SYMBOL_RATE</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
 	</section>
 	<section id="dvbc-annex-b-params">
@@ -966,6 +1041,7 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
 	</section>
 	</section>
@@ -999,6 +1075,7 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-PILOT"><constant>DTV_PILOT</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-ROLLOFF"><constant>DTV_ROLLOFF</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-STREAM-ID"><constant>DTV_STREAM_ID</constant></link></para></listitem>
 		</itemizedlist>
 	</section>
 	<section id="turbo-params">
@@ -1021,7 +1098,7 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-SYMBOL-RATE"><constant>DTV_SYMBOL_RATE</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-VOLTAGE"><constant>DTV_VOLTAGE</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-ISDBS-TS-ID"><constant>DTV_ISDBS_TS_ID</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-STREAM-ID"><constant>DTV_STREAM_ID</constant></link></para></listitem>
 		</itemizedlist>
 	</section>
 	</section>

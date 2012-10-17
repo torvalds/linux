@@ -4,9 +4,9 @@
 #include <linux/compiler.h>
 
 #ifdef CONFIG_SUPERH32
-# include "traps_32.h"
+# include <asm/traps_32.h>
 #else
-# include "traps_64.h"
+# include <asm/traps_64.h>
 #endif
 
 BUILD_TRAP_HANDLER(address_error);

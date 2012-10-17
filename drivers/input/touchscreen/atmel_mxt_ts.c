@@ -320,10 +320,8 @@ static bool mxt_object_writable(unsigned int type)
 static void mxt_dump_message(struct device *dev,
 			     struct mxt_message *message)
 {
-	dev_dbg(dev, "reportid: %u\tmessage: %02x %02x %02x %02x %02x %02x %02x\n",
-		message->reportid, message->message[0], message->message[1],
-		message->message[2], message->message[3], message->message[4],
-		message->message[5], message->message[6]);
+	dev_dbg(dev, "reportid: %u\tmessage: %*ph\n",
+		message->reportid, 7, message->message);
 }
 
 static int mxt_check_bootloader(struct i2c_client *client,

@@ -32,12 +32,23 @@ niagara4_patch_copyops:
 	 nop
 	.size	niagara4_patch_copyops,.-niagara4_patch_copyops
 
+	.globl	niagara4_patch_bzero
+	.type	niagara4_patch_bzero,#function
+niagara4_patch_bzero:
+	NG_DO_PATCH(memset, NG4memset)
+	NG_DO_PATCH(__bzero, NG4bzero)
+	NG_DO_PATCH(__clear_user, NGclear_user)
+	NG_DO_PATCH(tsb_init, NGtsb_init)
+	retl
+	 nop
+	.size	niagara4_patch_bzero,.-niagara4_patch_bzero
+
 	.globl	niagara4_patch_pageops
 	.type	niagara4_patch_pageops,#function
 niagara4_patch_pageops:
 	NG_DO_PATCH(copy_user_page, NG4copy_user_page)
-	NG_DO_PATCH(_clear_page, NGclear_page)
-	NG_DO_PATCH(clear_user_page, NGclear_user_page)
+	NG_DO_PATCH(_clear_page, NG4clear_page)
+	NG_DO_PATCH(clear_user_page, NG4clear_user_page)
 	retl
 	 nop
 	.size	niagara4_patch_pageops,.-niagara4_patch_pageops

@@ -1162,7 +1162,11 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 	resource_size_t start, off;
 	unsigned long len, vma_len;
 
-	if (mtd->type == MTD_RAM || mtd->type == MTD_ROM) {
+        /* This is broken because it assumes the MTD device is map-based
+	   and that mtd->priv is a valid struct map_info.  It should be
+	   replaced with something that uses the mtd_get_unmapped_area()
+	   operation properly. */
+	if (0 /*mtd->type == MTD_RAM || mtd->type == MTD_ROM*/) {
 		off = get_vm_offset(vma);
 		start = map->phys;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + map->size);
@@ -1182,7 +1186,7 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 			return -EINVAL;
 		if (set_vm_offset(vma, off) < 0)
 			return -EINVAL;
-		vma->vm_flags |= VM_IO | VM_RESERVED;
+		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 #ifdef pgprot_noncached
 		if (file->f_flags & O_DSYNC || off >= __pa(high_memory))

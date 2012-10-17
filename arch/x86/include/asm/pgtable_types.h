@@ -174,9 +174,9 @@
 #endif
 
 #ifdef CONFIG_X86_32
-# include "pgtable_32_types.h"
+# include <asm/pgtable_32_types.h>
 #else
-# include "pgtable_64_types.h"
+# include <asm/pgtable_64_types.h>
 #endif
 
 #ifndef __ASSEMBLY__

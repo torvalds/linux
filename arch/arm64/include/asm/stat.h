@@ -16,9 +16,9 @@
 #ifndef __ASM_STAT_H
 #define __ASM_STAT_H
 
-#include <asm-generic/stat.h>
+#include <uapi/asm/stat.h>
 
-#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
+#ifdef CONFIG_COMPAT
 
 #include <asm/compat.h>
 
@@ -58,5 +58,4 @@ struct stat64 {
 };
 
 #endif
-
 #endif

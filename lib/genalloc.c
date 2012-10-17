@@ -152,6 +152,8 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 		spin_lock_init(&pool->lock);
 		INIT_LIST_HEAD(&pool->chunks);
 		pool->min_alloc_order = min_alloc_order;
+		pool->algo = gen_pool_first_fit;
+		pool->data = NULL;
 	}
 	return pool;
 }
@@ -255,8 +257,9 @@ EXPORT_SYMBOL(gen_pool_destroy);
  * @size: number of bytes to allocate from the pool
  *
  * Allocate the requested number of bytes from the specified pool.
- * Uses a first-fit algorithm. Can not be used in NMI handler on
- * architectures without NMI-safe cmpxchg implementation.
+ * Uses the pool allocation function (with first-fit algorithm by default).
+ * Can not be used in NMI handler on architectures without
+ * NMI-safe cmpxchg implementation.
  */
 unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 {
@@ -280,8 +283,8 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 
 		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
 retry:
-		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit,
-						       start_bit, nbits, 0);
+		start_bit = pool->algo(chunk->bits, end_bit, start_bit, nbits,
+				pool->data);
 		if (start_bit >= end_bit)
 			continue;
 		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
@@ -400,3 +403,80 @@ size_t gen_pool_size(struct gen_pool *pool)
 	return size;
 }
 EXPORT_SYMBOL_GPL(gen_pool_size);
+
+/**
+ * gen_pool_set_algo - set the allocation algorithm
+ * @pool: pool to change allocation algorithm
+ * @algo: custom algorithm function
+ * @data: additional data used by @algo
+ *
+ * Call @algo for each memory allocation in the pool.
+ * If @algo is NULL use gen_pool_first_fit as default
+ * memory allocation function.
+ */
+void gen_pool_set_algo(struct gen_pool *pool, genpool_algo_t algo, void *data)
+{
+	rcu_read_lock();
+
+	pool->algo = algo;
+	if (!pool->algo)
+		pool->algo = gen_pool_first_fit;
+
+	pool->data = data;
+
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(gen_pool_set_algo);
+
+/**
+ * gen_pool_first_fit - find the first available region
+ * of memory matching the size requirement (no alignment constraint)
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: additional data - unused
+ */
+unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data)
+{
+	return bitmap_find_next_zero_area(map, size, start, nr, 0);
+}
+EXPORT_SYMBOL(gen_pool_first_fit);
+
+/**
+ * gen_pool_best_fit - find the best fitting region of memory
+ * macthing the size requirement (no alignment constraint)
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: additional data - unused
+ *
+ * Iterate over the bitmap to find the smallest free region
+ * which we can allocate the memory.
+ */
+unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data)
+{
+	unsigned long start_bit = size;
+	unsigned long len = size + 1;
+	unsigned long index;
+
+	index = bitmap_find_next_zero_area(map, size, start, nr, 0);
+
+	while (index < size) {
+		int next_bit = find_next_bit(map, size, index + nr);
+		if ((next_bit - index) < len) {
+			len = next_bit - index;
+			start_bit = index;
+			if (len == nr)
+				return start_bit;
+		}
+		index = bitmap_find_next_zero_area(map, size,
+						   next_bit + 1, nr, 0);
+	}
+
+	return start_bit;
+}
+EXPORT_SYMBOL(gen_pool_best_fit);

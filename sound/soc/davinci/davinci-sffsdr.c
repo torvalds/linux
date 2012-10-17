@@ -86,7 +86,7 @@ static struct snd_soc_dai_link sffsdr_dai = {
 	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "pcm3008-hifi",
 	.codec_name = "pcm3008-codec",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcbsp",
 	.ops = &sffsdr_ops,
 };
 

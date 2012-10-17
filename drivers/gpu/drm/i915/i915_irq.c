@@ -30,9 +30,8 @@
 
 #include <linux/sysrq.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
@@ -296,11 +295,21 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
-static void i915_handle_rps_change(struct drm_device *dev)
+/* defined intel_pm.c */
+extern spinlock_t mchdev_lock;
+
+static void ironlake_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
-	u8 new_delay = dev_priv->cur_delay;
+	u8 new_delay;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mchdev_lock, flags);
+
+	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
+
+	new_delay = dev_priv->ips.cur_delay;
 
 	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
 	busy_up = I915_READ(RCPREVBSYTUPAVG);
@@ -310,19 +319,21 @@ static void i915_handle_rps_change(struct drm_device *dev)
 
 	/* Handle RCS change request from hw */
 	if (busy_up > max_avg) {
-		if (dev_priv->cur_delay != dev_priv->max_delay)
-			new_delay = dev_priv->cur_delay - 1;
-		if (new_delay < dev_priv->max_delay)
-			new_delay = dev_priv->max_delay;
+		if (dev_priv->ips.cur_delay != dev_priv->ips.max_delay)
+			new_delay = dev_priv->ips.cur_delay - 1;
+		if (new_delay < dev_priv->ips.max_delay)
+			new_delay = dev_priv->ips.max_delay;
 	} else if (busy_down < min_avg) {
-		if (dev_priv->cur_delay != dev_priv->min_delay)
-			new_delay = dev_priv->cur_delay + 1;
-		if (new_delay > dev_priv->min_delay)
-			new_delay = dev_priv->min_delay;
+		if (dev_priv->ips.cur_delay != dev_priv->ips.min_delay)
+			new_delay = dev_priv->ips.cur_delay + 1;
+		if (new_delay > dev_priv->ips.min_delay)
+			new_delay = dev_priv->ips.min_delay;
 	}
 
 	if (ironlake_set_drps(dev, new_delay))
-		dev_priv->cur_delay = new_delay;
+		dev_priv->ips.cur_delay = new_delay;
+
+	spin_unlock_irqrestore(&mchdev_lock, flags);
 
 	return;
 }
@@ -335,7 +346,7 @@ static void notify_ring(struct drm_device *dev,
 	if (ring->obj == NULL)
 		return;
 
-	trace_i915_gem_request_complete(ring, ring->get_seqno(ring));
+	trace_i915_gem_request_complete(ring, ring->get_seqno(ring, false));
 
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
@@ -349,16 +360,16 @@ static void notify_ring(struct drm_device *dev,
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    rps_work);
+						    rps.work);
 	u32 pm_iir, pm_imr;
 	u8 new_delay;
 
-	spin_lock_irq(&dev_priv->rps_lock);
-	pm_iir = dev_priv->pm_iir;
-	dev_priv->pm_iir = 0;
+	spin_lock_irq(&dev_priv->rps.lock);
+	pm_iir = dev_priv->rps.pm_iir;
+	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock_irq(&dev_priv->rps_lock);
+	spin_unlock_irq(&dev_priv->rps.lock);
 
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
@@ -366,11 +377,17 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
-		new_delay = dev_priv->cur_delay + 1;
+		new_delay = dev_priv->rps.cur_delay + 1;
 	else
-		new_delay = dev_priv->cur_delay - 1;
+		new_delay = dev_priv->rps.cur_delay - 1;
 
-	gen6_set_rps(dev_priv->dev, new_delay);
+	/* sysfs frequency interfaces may have snuck in while servicing the
+	 * interrupt
+	 */
+	if (!(new_delay > dev_priv->rps.max_delay ||
+	      new_delay < dev_priv->rps.min_delay)) {
+		gen6_set_rps(dev_priv->dev, new_delay);
+	}
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
@@ -444,7 +461,7 @@ static void ivybridge_handle_parity_error(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long flags;
 
-	if (!IS_IVYBRIDGE(dev))
+	if (!HAS_L3_GPU_CACHE(dev))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -488,19 +505,19 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	 * IIR bits should never already be set because IMR should
 	 * prevent an interrupt from being shown in IIR. The warning
 	 * displays a case where we've unsafely cleared
-	 * dev_priv->pm_iir. Although missing an interrupt of the same
+	 * dev_priv->rps.pm_iir. Although missing an interrupt of the same
 	 * type is not a problem, it displays a problem in the logic.
 	 *
-	 * The mask bit in IMR is cleared by rps_work.
+	 * The mask bit in IMR is cleared by dev_priv->rps.work.
 	 */
 
-	spin_lock_irqsave(&dev_priv->rps_lock, flags);
-	dev_priv->pm_iir |= pm_iir;
-	I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	dev_priv->rps.pm_iir |= pm_iir;
+	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 	POSTING_READ(GEN6_PMIMR);
-	spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
 
-	queue_work(dev_priv->wq, &dev_priv->rps_work);
+	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
 static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
@@ -680,12 +697,12 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 			intel_opregion_gse_intr(dev);
 
 		for (i = 0; i < 3; i++) {
+			if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
+				drm_handle_vblank(dev, i);
 			if (de_iir & (DE_PLANEA_FLIP_DONE_IVB << (5 * i))) {
 				intel_prepare_page_flip(dev, i);
 				intel_finish_page_flip_plane(dev, i);
 			}
-			if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
-				drm_handle_vblank(dev, i);
 		}
 
 		/* check event from PCH */
@@ -767,6 +784,12 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
 
+	if (de_iir & DE_PIPEA_VBLANK)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK)
+		drm_handle_vblank(dev, 1);
+
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
 		intel_finish_page_flip_plane(dev, 0);
@@ -776,12 +799,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		intel_prepare_page_flip(dev, 1);
 		intel_finish_page_flip_plane(dev, 1);
 	}
-
-	if (de_iir & DE_PIPEA_VBLANK)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK)
-		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
@@ -793,10 +810,8 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 			ibx_irq_handler(dev, pch_iir);
 	}
 
-	if (de_iir & DE_PCU_EVENT) {
-		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
-		i915_handle_rps_change(dev);
-	}
+	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
+		ironlake_handle_rps_change(dev);
 
 	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS)
 		gen6_queue_rps_work(dev_priv, pm_iir);
@@ -843,26 +858,55 @@ static void i915_error_work_func(struct work_struct *work)
 	}
 }
 
+/* NB: please notice the memset */
+static void i915_get_extra_instdone(struct drm_device *dev,
+				    uint32_t *instdone)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
+
+	switch(INTEL_INFO(dev)->gen) {
+	case 2:
+	case 3:
+		instdone[0] = I915_READ(INSTDONE);
+		break;
+	case 4:
+	case 5:
+	case 6:
+		instdone[0] = I915_READ(INSTDONE_I965);
+		instdone[1] = I915_READ(INSTDONE1);
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported platform\n");
+	case 7:
+		instdone[0] = I915_READ(GEN7_INSTDONE_1);
+		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
+		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);
+		break;
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
 	struct drm_i915_error_object *dst;
-	int page, page_count;
+	int i, count;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	page_count = src->base.size / PAGE_SIZE;
+	count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
 	reloc_offset = src->gtt_offset;
-	for (page = 0; page < page_count; page++) {
+	for (i = 0; i < count; i++) {
 		unsigned long flags;
 		void *d;
 
@@ -885,30 +929,33 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
 		} else {
+			struct page *page;
 			void *s;
 
-			drm_clflush_pages(&src->pages[page], 1);
+			page = i915_gem_object_get_page(src, i);
 
-			s = kmap_atomic(src->pages[page]);
+			drm_clflush_pages(&page, 1);
+
+			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
 
-			drm_clflush_pages(&src->pages[page], 1);
+			drm_clflush_pages(&page, 1);
 		}
 		local_irq_restore(flags);
 
-		dst->pages[page] = d;
+		dst->pages[i] = d;
 
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = page_count;
+	dst->page_count = count;
 	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
 unwind:
-	while (page--)
-		kfree(dst->pages[page]);
+	while (i--)
+		kfree(dst->pages[i]);
 	kfree(dst);
 	return NULL;
 }
@@ -949,7 +996,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 {
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	err->seqno = obj->last_rendering_seqno;
+	err->rseqno = obj->last_read_seqno;
+	err->wseqno = obj->last_write_seqno;
 	err->gtt_offset = obj->gtt_offset;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
@@ -1039,12 +1087,12 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	if (!ring->get_seqno)
 		return NULL;
 
-	seqno = ring->get_seqno(ring);
+	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		if (obj->ring != ring)
 			continue;
 
-		if (i915_seqno_passed(seqno, obj->last_rendering_seqno))
+		if (i915_seqno_passed(seqno, obj->last_read_seqno))
 			continue;
 
 		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
@@ -1080,10 +1128,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
 		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		if (ring->id == RCS) {
-			error->instdone1 = I915_READ(INSTDONE1);
+		if (ring->id == RCS)
 			error->bbaddr = I915_READ64(BB_ADDR);
-		}
 	} else {
 		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
 		error->ipeir[ring->id] = I915_READ(IPEIR);
@@ -1093,7 +1139,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 
 	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
-	error->seqno[ring->id] = ring->get_seqno(ring);
+	error->seqno[ring->id] = ring->get_seqno(ring, false);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
 	error->head[ring->id] = I915_READ_HEAD(ring);
 	error->tail[ring->id] = I915_READ_TAIL(ring);
@@ -1199,6 +1245,11 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
+	if (INTEL_INFO(dev)->gen == 7)
+		error->err_int = I915_READ(GEN7_ERR_INT);
+
+	i915_get_extra_instdone(dev, error->extra_instdone);
+
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
 
@@ -1210,7 +1261,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
 		if (obj->pin_count)
 			i++;
 	error->pinned_bo_count = i - error->active_bo_count;
@@ -1235,7 +1286,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->pinned_bo_count =
 			capture_pinned_bo(error->pinned_bo,
 					  error->pinned_bo_count,
-					  &dev_priv->mm.gtt_list);
+					  &dev_priv->mm.bound_list);
 
 	do_gettimeofday(&error->time);
 
@@ -1274,13 +1325,16 @@ void i915_destroy_error_state(struct drm_device *dev)
 static void i915_report_and_clear_eir(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t instdone[I915_NUM_INSTDONE_REG];
 	u32 eir = I915_READ(EIR);
-	int pipe;
+	int pipe, i;
 
 	if (!eir)
 		return;
 
 	pr_err("render error detected, EIR: 0x%08x\n", eir);
+
+	i915_get_extra_instdone(dev, instdone);
 
 	if (IS_G4X(dev)) {
 		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
@@ -1288,10 +1342,9 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			pr_err("  INSTDONE: 0x%08x\n",
-			       I915_READ(INSTDONE_I965));
+			for (i = 0; i < ARRAY_SIZE(instdone); i++)
+				pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
 			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  INSTDONE1: 0x%08x\n", I915_READ(INSTDONE1));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
 			POSTING_READ(IPEIR_I965);
@@ -1325,12 +1378,13 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 	if (eir & I915_ERROR_INSTRUCTION) {
 		pr_err("instruction error\n");
 		pr_err("  INSTPM: 0x%08x\n", I915_READ(INSTPM));
+		for (i = 0; i < ARRAY_SIZE(instdone); i++)
+			pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
 		if (INTEL_INFO(dev)->gen < 4) {
 			u32 ipeir = I915_READ(IPEIR);
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR));
-			pr_err("  INSTDONE: 0x%08x\n", I915_READ(INSTDONE));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD));
 			I915_WRITE(IPEIR, ipeir);
 			POSTING_READ(IPEIR);
@@ -1339,10 +1393,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			pr_err("  INSTDONE: 0x%08x\n",
-			       I915_READ(INSTDONE_I965));
 			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  INSTDONE1: 0x%08x\n", I915_READ(INSTDONE1));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
 			POSTING_READ(IPEIR_I965);
@@ -1590,7 +1641,8 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 {
 	if (list_empty(&ring->request_list) ||
-	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
+	    i915_seqno_passed(ring->get_seqno(ring, false),
+			      ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
 		if (waitqueue_active(&ring->irq_queue)) {
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
@@ -1656,7 +1708,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd[I915_NUM_RINGS], instdone, instdone1;
+	uint32_t acthd[I915_NUM_RINGS], instdone[I915_NUM_INSTDONE_REG];
 	struct intel_ring_buffer *ring;
 	bool err = false, idle;
 	int i;
@@ -1684,25 +1736,16 @@ void i915_hangcheck_elapsed(unsigned long data)
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen < 4) {
-		instdone = I915_READ(INSTDONE);
-		instdone1 = 0;
-	} else {
-		instdone = I915_READ(INSTDONE_I965);
-		instdone1 = I915_READ(INSTDONE1);
-	}
-
+	i915_get_extra_instdone(dev, instdone);
 	if (memcmp(dev_priv->last_acthd, acthd, sizeof(acthd)) == 0 &&
-	    dev_priv->last_instdone == instdone &&
-	    dev_priv->last_instdone1 == instdone1) {
+	    memcmp(dev_priv->prev_instdone, instdone, sizeof(instdone)) == 0) {
 		if (i915_hangcheck_hung(dev))
 			return;
 	} else {
 		dev_priv->hangcheck_count = 0;
 
 		memcpy(dev_priv->last_acthd, acthd, sizeof(acthd));
-		dev_priv->last_instdone = instdone;
-		dev_priv->last_instdone1 = instdone1;
+		memcpy(dev_priv->prev_instdone, instdone, sizeof(instdone));
 	}
 
 repeat:
@@ -2647,7 +2690,7 @@ void intel_irq_init(struct drm_device *dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
-	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
+	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;

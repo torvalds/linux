@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define __SYSCALL_COMPAT
-
 #include <linux/compat.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
@@ -28,7 +26,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unistd.h>
+#include <asm/unistd32.h>
 
 asmlinkage int compat_sys_fork(struct pt_regs *regs)
 {
@@ -56,14 +54,14 @@ asmlinkage int compat_sys_execve(const char __user *filenamei,
 				 struct pt_regs *regs)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname(filenamei);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, compat_ptr(argv), compat_ptr(envp),
-				 regs);
+	error = compat_do_execve(filename->name, compat_ptr(argv),
+					compat_ptr(envp), regs);
 	putname(filename);
 out:
 	return error;
@@ -80,26 +78,6 @@ asmlinkage int compat_sys_sched_rr_get_interval(compat_pid_t pid,
 	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
 	set_fs(old_fs);
 	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
-asmlinkage int compat_sys_sendfile(int out_fd, int in_fd,
-				   compat_off_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
-			   count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
 		return -EFAULT;
 	return ret;
 }

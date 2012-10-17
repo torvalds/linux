@@ -702,7 +702,7 @@ struct atl1c_platform_patch {
 	u32 patch_flag;
 #define ATL1C_LINK_PATCH	0x1
 };
-static const struct atl1c_platform_patch plats[] __devinitdata = {
+static const struct atl1c_platform_patch plats[] __devinitconst = {
 {0x2060, 0xC1, 0x1019, 0x8152, 0x1},
 {0x2060, 0xC1, 0x1019, 0x2060, 0x1},
 {0x2060, 0xC1, 0x1019, 0xE000, 0x1},

@@ -1,7 +1,7 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2011  LSI Corporation.
+ *  Copyright (c) 2003-2012  LSI Corporation.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *  FILE: megaraid_sas_base.c
- *  Version : v00.00.06.15-rc1
+ *  Version : v06.504.01.00-rc1
  *
  *  Authors: LSI Corporation
  *           Sreenivas Bagalkote
@@ -70,6 +70,20 @@ MODULE_PARM_DESC(max_sectors,
 static int msix_disable;
 module_param(msix_disable, int, S_IRUGO);
 MODULE_PARM_DESC(msix_disable, "Disable MSI-X interrupt handling. Default: 0");
+
+static unsigned int msix_vectors;
+module_param(msix_vectors, int, S_IRUGO);
+MODULE_PARM_DESC(msix_vectors, "MSI-X max vector count. Default: Set by FW");
+
+static int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
+module_param(throttlequeuedepth, int, S_IRUGO);
+MODULE_PARM_DESC(throttlequeuedepth,
+	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
+
+int resetwaittime = MEGASAS_RESET_WAIT_TIME;
+module_param(resetwaittime, int, S_IRUGO);
+MODULE_PARM_DESC(resetwaittime, "Wait time in seconds after I/O timeout "
+		 "before resetting adapter. Default: 180");
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
@@ -1595,8 +1609,9 @@ megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 {
 	unsigned long flags;
 	if (instance->flag & MEGASAS_FW_BUSY
-		&& time_after(jiffies, instance->last_time + 5 * HZ)
-		&& atomic_read(&instance->fw_outstanding) < 17) {
+	    && time_after(jiffies, instance->last_time + 5 * HZ)
+	    && atomic_read(&instance->fw_outstanding) <
+	    instance->throttlequeuedepth + 1) {
 
 		spin_lock_irqsave(instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
@@ -1772,7 +1787,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 		return SUCCESS;
 	}
 
-	for (i = 0; i < wait_time; i++) {
+	for (i = 0; i < resetwaittime; i++) {
 
 		int outstanding = atomic_read(&instance->fw_outstanding);
 
@@ -1914,7 +1929,7 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 		/* FW is busy, throttle IO */
 		spin_lock_irqsave(instance->host->host_lock, flags);
 
-		instance->host->can_queue = 16;
+		instance->host->can_queue = instance->throttlequeuedepth;
 		instance->last_time = jiffies;
 		instance->flag |= MEGASAS_FW_BUSY;
 
@@ -3509,6 +3524,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->msix_vectors = (readl(&instance->reg_set->
 							outbound_scratch_pad_2
 							  ) & 0x1F) + 1;
+			if (msix_vectors)
+				instance->msix_vectors =
+					min(msix_vectors,
+					    instance->msix_vectors);
 		} else
 			instance->msix_vectors = 1;
 		/* Don't bother allocating more MSI-X vectors than cpus */
@@ -3576,6 +3595,24 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->max_sectors_per_req = tmp_sectors;
 
 	kfree(ctrl_info);
+
+	/* Check for valid throttlequeuedepth module parameter */
+	if (instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY ||
+	    instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) {
+		if (throttlequeuedepth > (instance->max_fw_cmds -
+					  MEGASAS_SKINNY_INT_CMDS))
+			instance->throttlequeuedepth =
+				MEGASAS_THROTTLE_QUEUE_DEPTH;
+		else
+			instance->throttlequeuedepth = throttlequeuedepth;
+	} else {
+		if (throttlequeuedepth > (instance->max_fw_cmds -
+					  MEGASAS_INT_CMDS))
+			instance->throttlequeuedepth =
+				MEGASAS_THROTTLE_QUEUE_DEPTH;
+		else
+			instance->throttlequeuedepth = throttlequeuedepth;
+	}
 
         /*
 	* Setup tasklet for cmd completion
@@ -5204,7 +5241,6 @@ megasas_aen_polling(struct work_struct *work)
 
 		case MR_EVT_PD_REMOVED:
 			if (megasas_get_pd_list(instance) == 0) {
-			megasas_get_pd_list(instance);
 			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
 				for (j = 0;
 				j < MEGASAS_MAX_DEV_PER_CHANNEL;

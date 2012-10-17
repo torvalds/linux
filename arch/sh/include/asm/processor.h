@@ -175,9 +175,9 @@ extern unsigned int instruction_size(unsigned int insn);
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_SUPERH32
-# include "processor_32.h"
+# include <asm/processor_32.h>
 #else
-# include "processor_64.h"
+# include <asm/processor_64.h>
 #endif
 
 #endif /* __ASM_SH_PROCESSOR_H */

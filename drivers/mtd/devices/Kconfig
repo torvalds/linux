@@ -97,7 +97,7 @@ config MTD_M25P80
 	  doesn't support the JEDEC ID instruction.
 
 config M25PXX_USE_FAST_READ
-	bool "Use FAST_READ OPCode allowing SPI CLK <= 50MHz"
+	bool "Use FAST_READ OPCode allowing SPI CLK >= 50MHz"
 	depends on MTD_M25P80
 	default y
 	help
@@ -119,6 +119,14 @@ config MTD_SST25L
 
 	  Set up your spi devices with the right board-specific platform data,
 	  if you want to specify device partitioning.
+
+config MTD_BCM47XXSFLASH
+	tristate "R/O support for serial flash on BCMA bus"
+	depends on BCMA_SFLASH
+	help
+	  BCMA bus can have various flash memories attached, they are
+	  registered by bcma as platform devices. This enables driver for
+	  serial flash memories (only read-only mode is implemented).
 
 config MTD_SLRAM
 	tristate "Uncached system RAM"

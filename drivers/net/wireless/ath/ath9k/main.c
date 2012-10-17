@@ -639,8 +639,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		ath_err(common,
 			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
 			r, curchan->center_freq);
-		spin_unlock_bh(&sc->sc_pcu_lock);
-		goto mutex_unlock;
+		ah->reset_power_on = false;
 	}
 
 	/* Setup our intr mask. */
@@ -665,11 +664,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	clear_bit(SC_OP_INVALID, &sc->sc_flags);
 	sc->sc_ah->is_monitoring = false;
 
-	if (!ath_complete_reset(sc, false)) {
-		r = -EIO;
-		spin_unlock_bh(&sc->sc_pcu_lock);
-		goto mutex_unlock;
-	}
+	if (!ath_complete_reset(sc, false))
+		ah->reset_power_on = false;
 
 	if (ah->led_pin >= 0) {
 		ath9k_hw_cfg_output(ah, ah->led_pin,
@@ -688,12 +684,11 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
 
-mutex_unlock:
 	mutex_unlock(&sc->mutex);
 
 	ath9k_ps_restore(sc);
 
-	return r;
+	return 0;
 }
 
 static void ath9k_tx(struct ieee80211_hw *hw,
@@ -770,7 +765,7 @@ static void ath9k_tx(struct ieee80211_hw *hw,
 
 	return;
 exit:
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(hw, skb);
 }
 
 static void ath9k_stop(struct ieee80211_hw *hw)

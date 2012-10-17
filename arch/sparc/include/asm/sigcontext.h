@@ -1,8 +1,8 @@
 #ifndef __SPARC_SIGCONTEXT_H
 #define __SPARC_SIGCONTEXT_H
 
-#ifdef __KERNEL__
 #include <asm/ptrace.h>
+#include <uapi/asm/sigcontext.h>
 
 #ifndef __ASSEMBLY__
 
@@ -104,7 +104,5 @@ typedef struct {
 
 
 #endif /* !(__ASSEMBLY__) */
-
-#endif /* (__KERNEL__) */
 
 #endif /* !(__SPARC_SIGCONTEXT_H) */

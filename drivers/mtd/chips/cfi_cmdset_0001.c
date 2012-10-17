@@ -2043,7 +2043,7 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
-	int udelay;
+	int mdelay;
 	int ret;
 
 	adr += chip->start;
@@ -2072,9 +2072,17 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 	 * If Instant Individual Block Locking supported then no need
 	 * to delay.
 	 */
-	udelay = (!extp || !(extp->FeatureSupport & (1 << 5))) ? 1000000/HZ : 0;
+	/*
+	 * Unlocking may take up to 1.4 seconds on some Intel flashes. So
+	 * lets use a max of 1.5 seconds (1500ms) as timeout.
+	 *
+	 * See "Clear Block Lock-Bits Time" on page 40 in
+	 * "3 Volt Intel StrataFlash Memory" 28F128J3,28F640J3,28F320J3 manual
+	 * from February 2003
+	 */
+	mdelay = (!extp || !(extp->FeatureSupport & (1 << 5))) ? 1500 : 0;
 
-	ret = WAIT_TIMEOUT(map, chip, adr, udelay, udelay * 100);
+	ret = WAIT_TIMEOUT(map, chip, adr, mdelay, mdelay * 1000);
 	if (ret) {
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;

@@ -86,12 +86,8 @@ static int shark_write_reg(struct radio_tea5777 *tea, u64 reg)
 	for (i = 0; i < 6; i++)
 		shark->transfer_buffer[i + 1] = (reg >> (40 - i * 8)) & 0xff;
 
-	v4l2_dbg(1, debug, tea->v4l2_dev,
-		 "shark2-write: %02x %02x %02x %02x %02x %02x %02x\n",
-		 shark->transfer_buffer[0], shark->transfer_buffer[1],
-		 shark->transfer_buffer[2], shark->transfer_buffer[3],
-		 shark->transfer_buffer[4], shark->transfer_buffer[5],
-		 shark->transfer_buffer[6]);
+	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-write: %*ph\n",
+		 7, shark->transfer_buffer);
 
 	res = usb_interrupt_msg(shark->usbdev,
 				usb_sndintpipe(shark->usbdev, SHARK_OUT_EP),
@@ -134,9 +130,8 @@ static int shark_read_reg(struct radio_tea5777 *tea, u32 *reg_ret)
 	for (i = 0; i < 3; i++)
 		reg |= shark->transfer_buffer[i] << (16 - i * 8);
 
-	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-read: %02x %02x %02x\n",
-		 shark->transfer_buffer[0], shark->transfer_buffer[1],
-		 shark->transfer_buffer[2]);
+	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-read: %*ph\n",
+		 3, shark->transfer_buffer);
 
 	*reg_ret = reg;
 	return 0;
@@ -214,6 +209,7 @@ static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {
 	int i, retval;
 
+	atomic_set(&shark->brightness[BLUE_LED], 127);
 	INIT_WORK(&shark->led_work, shark_led_work);
 	for (i = 0; i < NO_LEDS; i++) {
 		shark->leds[i] = shark_led_templates[i];
@@ -240,6 +236,16 @@ static void shark_unregister_leds(struct shark_device *shark)
 
 	cancel_work_sync(&shark->led_work);
 }
+
+static void shark_resume_leds(struct shark_device *shark)
+{
+	int i;
+
+	for (i = 0; i < NO_LEDS; i++)
+		set_bit(i, &shark->brightness_new);
+
+	schedule_work(&shark->led_work);
+}
 #else
 static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {
@@ -248,6 +254,7 @@ static int shark_register_leds(struct shark_device *shark, struct device *dev)
 	return 0;
 }
 static inline void shark_unregister_leds(struct shark_device *shark) { }
+static inline void shark_resume_leds(struct shark_device *shark) { }
 #endif
 
 static void usb_shark_disconnect(struct usb_interface *intf)
@@ -332,6 +339,28 @@ err_alloc_buffer:
 	return retval;
 }
 
+#ifdef CONFIG_PM
+static int usb_shark_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	return 0;
+}
+
+static int usb_shark_resume(struct usb_interface *intf)
+{
+	struct v4l2_device *v4l2_dev = usb_get_intfdata(intf);
+	struct shark_device *shark = v4l2_dev_to_shark(v4l2_dev);
+	int ret;
+
+	mutex_lock(&shark->tea.mutex);
+	ret = radio_tea5777_set_freq(&shark->tea);
+	mutex_unlock(&shark->tea.mutex);
+
+	shark_resume_leds(shark);
+
+	return ret;
+}
+#endif
+
 /* Specify the bcdDevice value, as the radioSHARK and radioSHARK2 share ids */
 static struct usb_device_id usb_shark_device_table[] = {
 	{ .match_flags = USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
@@ -351,5 +380,10 @@ static struct usb_driver usb_shark_driver = {
 	.probe			= usb_shark_probe,
 	.disconnect		= usb_shark_disconnect,
 	.id_table		= usb_shark_device_table,
+#ifdef CONFIG_PM
+	.suspend		= usb_shark_suspend,
+	.resume			= usb_shark_resume,
+	.reset_resume		= usb_shark_resume,
+#endif
 };
 module_usb_driver(usb_shark_driver);

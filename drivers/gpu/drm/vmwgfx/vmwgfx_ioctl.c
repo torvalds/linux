@@ -26,7 +26,7 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "vmwgfx_drm.h"
+#include <drm/vmwgfx_drm.h>
 #include "vmwgfx_kms.h"
 
 int vmw_getparam_ioctl(struct drm_device *dev, void *data,

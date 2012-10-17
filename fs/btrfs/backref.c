@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/vmalloc.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "backref.h"
@@ -231,7 +232,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 			}
 			if (!ret) {
 				ret = ulist_add(parents, eb->start,
-						(unsigned long)eie, GFP_NOFS);
+						(uintptr_t)eie, GFP_NOFS);
 				if (ret < 0)
 					break;
 				if (!extent_item_pos) {
@@ -363,8 +364,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&uiter);
 		node = ulist_next(parents, &uiter);
 		ref->parent = node ? node->val : 0;
-		ref->inode_list =
-			node ? (struct extent_inode_elem *)node->aux : 0;
+		ref->inode_list = node ?
+			(struct extent_inode_elem *)(uintptr_t)node->aux : 0;
 
 		/* additional parents require new refs being added here */
 		while ((node = ulist_next(parents, &uiter))) {
@@ -375,8 +376,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			}
 			memcpy(new_ref, ref, sizeof(*ref));
 			new_ref->parent = node->val;
-			new_ref->inode_list =
-					(struct extent_inode_elem *)node->aux;
+			new_ref->inode_list = (struct extent_inode_elem *)
+							(uintptr_t)node->aux;
 			list_add(&new_ref->list, &ref->list);
 		}
 		ulist_reinit(parents);
@@ -914,8 +915,8 @@ again:
 				free_extent_buffer(eb);
 			}
 			ret = ulist_add_merge(refs, ref->parent,
-					      (unsigned long)ref->inode_list,
-					      (unsigned long *)&eie, GFP_NOFS);
+					      (uintptr_t)ref->inode_list,
+					      (u64 *)&eie, GFP_NOFS);
 			if (!ret && extent_item_pos) {
 				/*
 				 * we've recorded that parent, so we must extend
@@ -959,7 +960,7 @@ static void free_leaf_list(struct ulist *blocks)
 	while ((node = ulist_next(blocks, &uiter))) {
 		if (!node->aux)
 			continue;
-		eie = (struct extent_inode_elem *)node->aux;
+		eie = (struct extent_inode_elem *)(uintptr_t)node->aux;
 		for (; eie; eie = eie_next) {
 			eie_next = eie->next;
 			kfree(eie);
@@ -1108,26 +1109,80 @@ static int inode_ref_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
 				found_key);
 }
 
-/*
- * this iterates to turn a btrfs_inode_ref into a full filesystem path. elements
- * of the path are separated by '/' and the path is guaranteed to be
- * 0-terminated. the path is only given within the current file system.
- * Therefore, it never starts with a '/'. the caller is responsible to provide
- * "size" bytes in "dest". the dest buffer will be filled backwards. finally,
- * the start point of the resulting string is returned. this pointer is within
- * dest, normally.
- * in case the path buffer would overflow, the pointer is decremented further
- * as if output was written to the buffer, though no more output is actually
- * generated. that way, the caller can determine how much space would be
- * required for the path to fit into the buffer. in that case, the returned
- * value will be smaller than dest. callers must check this!
- */
-char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
-			 struct btrfs_inode_ref *iref,
+int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
+			  u64 start_off, struct btrfs_path *path,
+			  struct btrfs_inode_extref **ret_extref,
+			  u64 *found_off)
+{
+	int ret, slot;
+	struct btrfs_key key;
+	struct btrfs_key found_key;
+	struct btrfs_inode_extref *extref;
+	struct extent_buffer *leaf;
+	unsigned long ptr;
+
+	key.objectid = inode_objectid;
+	btrfs_set_key_type(&key, BTRFS_INODE_EXTREF_KEY);
+	key.offset = start_off;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	while (1) {
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		if (slot >= btrfs_header_nritems(leaf)) {
+			/*
+			 * If the item at offset is not found,
+			 * btrfs_search_slot will point us to the slot
+			 * where it should be inserted. In our case
+			 * that will be the slot directly before the
+			 * next INODE_REF_KEY_V2 item. In the case
+			 * that we're pointing to the last slot in a
+			 * leaf, we must move one leaf over.
+			 */
+			ret = btrfs_next_leaf(root, path);
+			if (ret) {
+				if (ret >= 1)
+					ret = -ENOENT;
+				break;
+			}
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		/*
+		 * Check that we're still looking at an extended ref key for
+		 * this particular objectid. If we have different
+		 * objectid or type then there are no more to be found
+		 * in the tree and we can exit.
+		 */
+		ret = -ENOENT;
+		if (found_key.objectid != inode_objectid)
+			break;
+		if (btrfs_key_type(&found_key) != BTRFS_INODE_EXTREF_KEY)
+			break;
+
+		ret = 0;
+		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		extref = (struct btrfs_inode_extref *)ptr;
+		*ret_extref = extref;
+		if (found_off)
+			*found_off = found_key.offset;
+		break;
+	}
+
+	return ret;
+}
+
+static char *ref_to_path(struct btrfs_root *fs_root,
+			 struct btrfs_path *path,
+			 u32 name_len, unsigned long name_off,
 			 struct extent_buffer *eb_in, u64 parent,
 			 char *dest, u32 size)
 {
-	u32 len;
 	int slot;
 	u64 next_inum;
 	int ret;
@@ -1135,17 +1190,17 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 	struct extent_buffer *eb = eb_in;
 	struct btrfs_key found_key;
 	int leave_spinning = path->leave_spinning;
+	struct btrfs_inode_ref *iref;
 
 	if (bytes_left >= 0)
 		dest[bytes_left] = '\0';
 
 	path->leave_spinning = 1;
 	while (1) {
-		len = btrfs_inode_ref_name_len(eb, iref);
-		bytes_left -= len;
+		bytes_left -= name_len;
 		if (bytes_left >= 0)
 			read_extent_buffer(eb, dest + bytes_left,
-						(unsigned long)(iref + 1), len);
+					   name_off, name_len);
 		if (eb != eb_in) {
 			btrfs_tree_read_unlock_blocking(eb);
 			free_extent_buffer(eb);
@@ -1155,6 +1210,7 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			ret = -ENOENT;
 		if (ret)
 			break;
+
 		next_inum = found_key.offset;
 
 		/* regular exit ahead */
@@ -1170,8 +1226,11 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		}
 		btrfs_release_path(path);
-
 		iref = btrfs_item_ptr(eb, slot, struct btrfs_inode_ref);
+
+		name_len = btrfs_inode_ref_name_len(eb, iref);
+		name_off = (unsigned long)(iref + 1);
+
 		parent = next_inum;
 		--bytes_left;
 		if (bytes_left >= 0)
@@ -1188,12 +1247,39 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 }
 
 /*
+ * this iterates to turn a btrfs_inode_ref into a full filesystem path. elements
+ * of the path are separated by '/' and the path is guaranteed to be
+ * 0-terminated. the path is only given within the current file system.
+ * Therefore, it never starts with a '/'. the caller is responsible to provide
+ * "size" bytes in "dest". the dest buffer will be filled backwards. finally,
+ * the start point of the resulting string is returned. this pointer is within
+ * dest, normally.
+ * in case the path buffer would overflow, the pointer is decremented further
+ * as if output was written to the buffer, though no more output is actually
+ * generated. that way, the caller can determine how much space would be
+ * required for the path to fit into the buffer. in that case, the returned
+ * value will be smaller than dest. callers must check this!
+ */
+char *btrfs_iref_to_path(struct btrfs_root *fs_root,
+			 struct btrfs_path *path,
+			 struct btrfs_inode_ref *iref,
+			 struct extent_buffer *eb_in, u64 parent,
+			 char *dest, u32 size)
+{
+	return ref_to_path(fs_root, path,
+			   btrfs_inode_ref_name_len(eb_in, iref),
+			   (unsigned long)(iref + 1),
+			   eb_in, parent, dest, size);
+}
+
+/*
  * this makes the path point to (logical EXTENT_ITEM *)
  * returns BTRFS_EXTENT_FLAG_DATA for data, BTRFS_EXTENT_FLAG_TREE_BLOCK for
  * tree blocks and <0 on error.
  */
 int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
-			struct btrfs_path *path, struct btrfs_key *found_key)
+			struct btrfs_path *path, struct btrfs_key *found_key,
+			u64 *flags_ret)
 {
 	int ret;
 	u64 flags;
@@ -1237,10 +1323,17 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 		 (unsigned long long)found_key->objectid,
 		 (unsigned long long)found_key->offset,
 		 (unsigned long long)flags, item_size);
-	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
-		return BTRFS_EXTENT_FLAG_TREE_BLOCK;
-	if (flags & BTRFS_EXTENT_FLAG_DATA)
-		return BTRFS_EXTENT_FLAG_DATA;
+
+	WARN_ON(!flags_ret);
+	if (flags_ret) {
+		if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+			*flags_ret = BTRFS_EXTENT_FLAG_TREE_BLOCK;
+		else if (flags & BTRFS_EXTENT_FLAG_DATA)
+			*flags_ret = BTRFS_EXTENT_FLAG_DATA;
+		else
+			BUG_ON(1);
+		return 0;
+	}
 
 	return -EIO;
 }
@@ -1404,12 +1497,13 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&root_uiter);
 		while (!ret && (root_node = ulist_next(roots, &root_uiter))) {
 			pr_debug("root %llu references leaf %llu, data list "
-				 "%#lx\n", root_node->val, ref_node->val,
-				 ref_node->aux);
-			ret = iterate_leaf_refs(
-				(struct extent_inode_elem *)ref_node->aux,
-				root_node->val, extent_item_objectid,
-				iterate, ctx);
+				 "%#llx\n", root_node->val, ref_node->val,
+				 (long long)ref_node->aux);
+			ret = iterate_leaf_refs((struct extent_inode_elem *)
+						(uintptr_t)ref_node->aux,
+						root_node->val,
+						extent_item_objectid,
+						iterate, ctx);
 		}
 		ulist_free(roots);
 		roots = NULL;
@@ -1432,15 +1526,15 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 {
 	int ret;
 	u64 extent_item_pos;
+	u64 flags = 0;
 	struct btrfs_key found_key;
 	int search_commit_root = path->search_commit_root;
 
-	ret = extent_from_logical(fs_info, logical, path,
-					&found_key);
+	ret = extent_from_logical(fs_info, logical, path, &found_key, &flags);
 	btrfs_release_path(path);
 	if (ret < 0)
 		return ret;
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
 		return -EINVAL;
 
 	extent_item_pos = logical - found_key.objectid;
@@ -1451,9 +1545,12 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
-				struct btrfs_path *path,
-				iterate_irefs_t *iterate, void *ctx)
+typedef int (iterate_irefs_t)(u64 parent, u32 name_len, unsigned long name_off,
+			      struct extent_buffer *eb, void *ctx);
+
+static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
+			      struct btrfs_path *path,
+			      iterate_irefs_t *iterate, void *ctx)
 {
 	int ret = 0;
 	int slot;
@@ -1470,7 +1567,7 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 	while (!ret) {
 		path->leave_spinning = 1;
 		ret = inode_ref_info(inum, parent ? parent+1 : 0, fs_root, path,
-					&found_key);
+				     &found_key);
 		if (ret < 0)
 			break;
 		if (ret) {
@@ -1498,7 +1595,8 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 				 "tree %llu\n", cur,
 				 (unsigned long long)found_key.objectid,
 				 (unsigned long long)fs_root->objectid);
-			ret = iterate(parent, iref, eb, ctx);
+			ret = iterate(parent, name_len,
+				      (unsigned long)(iref + 1), eb, ctx);
 			if (ret)
 				break;
 			len = sizeof(*iref) + name_len;
@@ -1513,12 +1611,98 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 	return ret;
 }
 
+static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
+				 struct btrfs_path *path,
+				 iterate_irefs_t *iterate, void *ctx)
+{
+	int ret;
+	int slot;
+	u64 offset = 0;
+	u64 parent;
+	int found = 0;
+	struct extent_buffer *eb;
+	struct btrfs_inode_extref *extref;
+	struct extent_buffer *leaf;
+	u32 item_size;
+	u32 cur_offset;
+	unsigned long ptr;
+
+	while (1) {
+		ret = btrfs_find_one_extref(fs_root, inum, offset, path, &extref,
+					    &offset);
+		if (ret < 0)
+			break;
+		if (ret) {
+			ret = found ? 0 : -ENOENT;
+			break;
+		}
+		++found;
+
+		slot = path->slots[0];
+		eb = path->nodes[0];
+		/* make sure we can use eb after releasing the path */
+		atomic_inc(&eb->refs);
+
+		btrfs_tree_read_lock(eb);
+		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+		btrfs_release_path(path);
+
+		leaf = path->nodes[0];
+		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		cur_offset = 0;
+
+		while (cur_offset < item_size) {
+			u32 name_len;
+
+			extref = (struct btrfs_inode_extref *)(ptr + cur_offset);
+			parent = btrfs_inode_extref_parent(eb, extref);
+			name_len = btrfs_inode_extref_name_len(eb, extref);
+			ret = iterate(parent, name_len,
+				      (unsigned long)&extref->name, eb, ctx);
+			if (ret)
+				break;
+
+			cur_offset += btrfs_inode_extref_name_len(leaf, extref);
+			cur_offset += sizeof(*extref);
+		}
+		btrfs_tree_read_unlock_blocking(eb);
+		free_extent_buffer(eb);
+
+		offset++;
+	}
+
+	btrfs_release_path(path);
+
+	return ret;
+}
+
+static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
+			 struct btrfs_path *path, iterate_irefs_t *iterate,
+			 void *ctx)
+{
+	int ret;
+	int found_refs = 0;
+
+	ret = iterate_inode_refs(inum, fs_root, path, iterate, ctx);
+	if (!ret)
+		++found_refs;
+	else if (ret != -ENOENT)
+		return ret;
+
+	ret = iterate_inode_extrefs(inum, fs_root, path, iterate, ctx);
+	if (ret == -ENOENT && found_refs)
+		return 0;
+
+	return ret;
+}
+
 /*
  * returns 0 if the path could be dumped (probably truncated)
  * returns <0 in case of an error
  */
-static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
-				struct extent_buffer *eb, void *ctx)
+static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
+			 struct extent_buffer *eb, void *ctx)
 {
 	struct inode_fs_paths *ipath = ctx;
 	char *fspath;
@@ -1531,20 +1715,17 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 					ipath->fspath->bytes_left - s_ptr : 0;
 
 	fspath_min = (char *)ipath->fspath->val + (i + 1) * s_ptr;
-	fspath = btrfs_iref_to_path(ipath->fs_root, ipath->btrfs_path, iref, eb,
-				inum, fspath_min, bytes_left);
+	fspath = ref_to_path(ipath->fs_root, ipath->btrfs_path, name_len,
+			     name_off, eb, inum, fspath_min,
+			     bytes_left);
 	if (IS_ERR(fspath))
 		return PTR_ERR(fspath);
 
 	if (fspath > fspath_min) {
-		pr_debug("path resolved: %s\n", fspath);
 		ipath->fspath->val[i] = (u64)(unsigned long)fspath;
 		++ipath->fspath->elem_cnt;
 		ipath->fspath->bytes_left = fspath - fspath_min;
 	} else {
-		pr_debug("missed path, not enough space. missing bytes: %lu, "
-			 "constructed so far: %s\n",
-			 (unsigned long)(fspath_min - fspath), fspath_min);
 		++ipath->fspath->elem_missed;
 		ipath->fspath->bytes_missing += fspath_min - fspath;
 		ipath->fspath->bytes_left = 0;
@@ -1566,7 +1747,7 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath)
 {
 	return iterate_irefs(inum, ipath->fs_root, ipath->btrfs_path,
-				inode_to_path, ipath);
+			     inode_to_path, ipath);
 }
 
 struct btrfs_data_container *init_data_container(u32 total_bytes)
@@ -1575,7 +1756,7 @@ struct btrfs_data_container *init_data_container(u32 total_bytes)
 	size_t alloc_bytes;
 
 	alloc_bytes = max_t(size_t, total_bytes, sizeof(*data));
-	data = kmalloc(alloc_bytes, GFP_NOFS);
+	data = vmalloc(alloc_bytes);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -1626,6 +1807,6 @@ void free_ipath(struct inode_fs_paths *ipath)
 {
 	if (!ipath)
 		return;
-	kfree(ipath->fspath);
+	vfree(ipath->fspath);
 	kfree(ipath);
 }

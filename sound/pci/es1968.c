@@ -491,7 +491,7 @@ struct esschan {
 	/* linked list */
 	struct list_head list;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u16 wc_map[4];
 #endif
 };
@@ -544,7 +544,7 @@ struct es1968 {
 	struct list_head substream_list;
 	spinlock_t substream_lock;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u16 apu_map[NR_APUS][NR_APU_REGS];
 #endif
 
@@ -706,7 +706,7 @@ static void __apu_set_register(struct es1968 *chip, u16 channel, u8 reg, u16 dat
 {
 	if (snd_BUG_ON(channel >= NR_APUS))
 		return;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->apu_map[channel][reg] = data;
 #endif
 	reg |= (channel << 4);
@@ -993,7 +993,7 @@ static void snd_es1968_program_wavecache(struct es1968 *chip, struct esschan *es
 	/* set the wavecache control reg */
 	wave_set_register(chip, es->apu[channel] << 3, tmpval);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	es->wc_map[channel] = tmpval;
 #endif
 }
@@ -2377,7 +2377,7 @@ static void snd_es1968_start_irq(struct es1968 *chip)
 	outw(w, chip->io_port + ESM_PORT_HOST_IRQ);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * PM support
  */
@@ -2461,7 +2461,7 @@ static SIMPLE_DEV_PM_OPS(es1968_pm, es1968_suspend, es1968_resume);
 #define ES1968_PM_OPS	&es1968_pm
 #else
 #define ES1968_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef SUPPORT_JOYSTICK
 #define JOYSTICK_ADDR	0x200

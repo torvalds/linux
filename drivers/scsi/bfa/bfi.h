@@ -210,7 +210,8 @@ enum bfi_mclass {
 	BFI_MC_PORT		= 21,	/*  Physical port		    */
 	BFI_MC_SFP		= 22,	/*  SFP module	*/
 	BFI_MC_PHY		= 25,   /*  External PHY message class	*/
-	BFI_MC_MAX		= 32
+	BFI_MC_FRU		= 34,
+	BFI_MC_MAX		= 35
 };
 
 #define BFI_IOC_MAX_CQS		4
@@ -288,6 +289,9 @@ struct bfi_ioc_attr_s {
 	char		optrom_version[BFA_VERSION_LEN];
 	struct		bfa_mfg_vpd_s	vpd;
 	u32	card_type;	/*  card type			*/
+	u8	mfg_day;	/* manufacturing day */
+	u8	mfg_month;	/* manufacturing month */
+	u16	mfg_year;	/* manufacturing year */
 };
 
 /*
@@ -687,7 +691,8 @@ struct bfi_ablk_h2i_pf_req_s {
 	u8			pcifn;
 	u8			port;
 	u16			pers;
-	u32			bw;
+	u16			bw_min; /* percent BW @ max speed */
+	u16			bw_max; /* percent BW @ max speed */
 };
 
 /* BFI_ABLK_H2I_OPTROM_ENABLE, BFI_ABLK_H2I_OPTROM_DISABLE */
@@ -957,6 +962,7 @@ enum bfi_diag_h2i {
 	BFI_DIAG_H2I_TEMPSENSOR = 4,
 	BFI_DIAG_H2I_LEDTEST = 5,
 	BFI_DIAG_H2I_QTEST      = 6,
+	BFI_DIAG_H2I_DPORT	= 7,
 };
 
 enum bfi_diag_i2h {
@@ -966,6 +972,7 @@ enum bfi_diag_i2h {
 	BFI_DIAG_I2H_TEMPSENSOR = BFA_I2HM(BFI_DIAG_H2I_TEMPSENSOR),
 	BFI_DIAG_I2H_LEDTEST = BFA_I2HM(BFI_DIAG_H2I_LEDTEST),
 	BFI_DIAG_I2H_QTEST      = BFA_I2HM(BFI_DIAG_H2I_QTEST),
+	BFI_DIAG_I2H_DPORT	= BFA_I2HM(BFI_DIAG_H2I_DPORT),
 };
 
 #define BFI_DIAG_MAX_SGES	2
@@ -1050,6 +1057,23 @@ struct bfi_diag_qtest_req_s {
 	u32	data[BFI_LMSG_PL_WSZ]; /* fill up tcm prefetch area */
 };
 #define bfi_diag_qtest_rsp_t struct bfi_diag_qtest_req_s
+
+/*
+ *	D-port test
+ */
+enum bfi_dport_req {
+	BFI_DPORT_DISABLE	= 0,	/* disable dport request	*/
+	BFI_DPORT_ENABLE	= 1,	/* enable dport request		*/
+};
+
+struct bfi_diag_dport_req_s {
+	struct bfi_mhdr_s	mh;	/* 4 bytes                      */
+	u8			req;    /* request 1: enable 0: disable */
+	u8			status; /* reply status			*/
+	u8			rsvd[2];
+	u32			msgtag; /* msgtag for reply		*/
+};
+#define bfi_diag_dport_rsp_t struct bfi_diag_dport_req_s
 
 /*
  *	PHY module specific
@@ -1147,6 +1171,50 @@ struct bfi_phy_write_rsp_s {
 	u32			length;
 };
 
+enum bfi_fru_h2i_msgs {
+	BFI_FRUVPD_H2I_WRITE_REQ = 1,
+	BFI_FRUVPD_H2I_READ_REQ = 2,
+	BFI_TFRU_H2I_WRITE_REQ = 3,
+	BFI_TFRU_H2I_READ_REQ = 4,
+};
+
+enum bfi_fru_i2h_msgs {
+	BFI_FRUVPD_I2H_WRITE_RSP = BFA_I2HM(1),
+	BFI_FRUVPD_I2H_READ_RSP = BFA_I2HM(2),
+	BFI_TFRU_I2H_WRITE_RSP = BFA_I2HM(3),
+	BFI_TFRU_I2H_READ_RSP = BFA_I2HM(4),
+};
+
+/*
+ * FRU write request
+ */
+struct bfi_fru_write_req_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u8			last;
+	u8			rsv[3];
+	u32			offset;
+	u32			length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * FRU read request
+ */
+struct bfi_fru_read_req_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			offset;
+	u32			length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * FRU response
+ */
+struct bfi_fru_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+	u32			length;
+};
 #pragma pack()
 
 #endif /* __BFI_H__ */

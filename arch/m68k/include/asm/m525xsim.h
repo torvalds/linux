@@ -26,41 +26,41 @@
 /*
  *	Define the 525x SIM register set addresses.
  */
-#define MCFSIM_RSR		0x00		/* Reset Status reg (r/w) */
-#define MCFSIM_SYPCR		0x01		/* System Protection reg (r/w)*/
-#define MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
-#define MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
-#define MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
-#define MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
-#define MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */
-#define MCFSIM_ICR0		0x4c		/* Intr Ctrl reg 0 (r/w) */
-#define MCFSIM_ICR1		0x4d		/* Intr Ctrl reg 1 (r/w) */
-#define MCFSIM_ICR2		0x4e		/* Intr Ctrl reg 2 (r/w) */
-#define MCFSIM_ICR3		0x4f		/* Intr Ctrl reg 3 (r/w) */
-#define MCFSIM_ICR4		0x50		/* Intr Ctrl reg 4 (r/w) */
-#define MCFSIM_ICR5		0x51		/* Intr Ctrl reg 5 (r/w) */
-#define MCFSIM_ICR6		0x52		/* Intr Ctrl reg 6 (r/w) */
-#define MCFSIM_ICR7		0x53		/* Intr Ctrl reg 7 (r/w) */
-#define MCFSIM_ICR8		0x54		/* Intr Ctrl reg 8 (r/w) */
-#define MCFSIM_ICR9		0x55		/* Intr Ctrl reg 9 (r/w) */
-#define MCFSIM_ICR10		0x56		/* Intr Ctrl reg 10 (r/w) */
-#define MCFSIM_ICR11		0x57		/* Intr Ctrl reg 11 (r/w) */
+#define MCFSIM_RSR		(MCF_MBAR + 0x00)	/* Reset Status */
+#define MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
+#define MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
+#define MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog srv */
+#define MCFSIM_MPARK		(MCF_MBAR + 0x0C)	/* BUS Master Ctrl */
+#define MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
+#define MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
+#define MCFSIM_ICR0		(MCF_MBAR + 0x4c)	/* Intr Ctrl reg 0 */
+#define MCFSIM_ICR1		(MCF_MBAR + 0x4d)	/* Intr Ctrl reg 1 */
+#define MCFSIM_ICR2		(MCF_MBAR + 0x4e)	/* Intr Ctrl reg 2 */
+#define MCFSIM_ICR3		(MCF_MBAR + 0x4f)	/* Intr Ctrl reg 3 */
+#define MCFSIM_ICR4		(MCF_MBAR + 0x50)	/* Intr Ctrl reg 4 */
+#define MCFSIM_ICR5		(MCF_MBAR + 0x51)	/* Intr Ctrl reg 5 */
+#define MCFSIM_ICR6		(MCF_MBAR + 0x52)	/* Intr Ctrl reg 6 */
+#define MCFSIM_ICR7		(MCF_MBAR + 0x53)	/* Intr Ctrl reg 7 */
+#define MCFSIM_ICR8		(MCF_MBAR + 0x54)	/* Intr Ctrl reg 8 */
+#define MCFSIM_ICR9		(MCF_MBAR + 0x55)	/* Intr Ctrl reg 9 */
+#define MCFSIM_ICR10		(MCF_MBAR + 0x56)	/* Intr Ctrl reg 10 */
+#define MCFSIM_ICR11		(MCF_MBAR + 0x57)	/* Intr Ctrl reg 11 */
 
-#define MCFSIM_CSAR0		0x80		/* CS 0 Address 0 reg (r/w) */
-#define MCFSIM_CSMR0		0x84		/* CS 0 Mask 0 reg (r/w) */
-#define MCFSIM_CSCR0		0x8a		/* CS 0 Control reg (r/w) */
-#define MCFSIM_CSAR1		0x8c		/* CS 1 Address reg (r/w) */
-#define MCFSIM_CSMR1		0x90		/* CS 1 Mask reg (r/w) */
-#define MCFSIM_CSCR1		0x96		/* CS 1 Control reg (r/w) */
-#define MCFSIM_CSAR2		0x98		/* CS 2 Address reg (r/w) */
-#define MCFSIM_CSMR2		0x9c		/* CS 2 Mask reg (r/w) */
-#define MCFSIM_CSCR2		0xa2		/* CS 2 Control reg (r/w) */
-#define MCFSIM_CSAR3		0xa4		/* CS 3 Address reg (r/w) */
-#define MCFSIM_CSMR3		0xa8		/* CS 3 Mask reg (r/w) */
-#define MCFSIM_CSCR3		0xae		/* CS 3 Control reg (r/w) */
-#define MCFSIM_CSAR4		0xb0		/* CS 4 Address reg (r/w) */
-#define MCFSIM_CSMR4		0xb4		/* CS 4 Mask reg (r/w) */
-#define MCFSIM_CSCR4		0xba		/* CS 4 Control reg (r/w) */
+#define MCFSIM_CSAR0		(MCF_MBAR + 0x80)	/* CS 0 Address reg */
+#define MCFSIM_CSMR0		(MCF_MBAR + 0x84)	/* CS 0 Mask reg */
+#define MCFSIM_CSCR0		(MCF_MBAR + 0x8a)	/* CS 0 Control reg */
+#define MCFSIM_CSAR1		(MCF_MBAR + 0x8c)	/* CS 1 Address reg */
+#define MCFSIM_CSMR1		(MCF_MBAR + 0x90)	/* CS 1 Mask reg */
+#define MCFSIM_CSCR1		(MCF_MBAR + 0x96)	/* CS 1 Control reg */
+#define MCFSIM_CSAR2		(MCF_MBAR + 0x98)	/* CS 2 Address reg */
+#define MCFSIM_CSMR2		(MCF_MBAR + 0x9c)	/* CS 2 Mask reg */
+#define MCFSIM_CSCR2		(MCF_MBAR + 0xa2)	/* CS 2 Control reg */
+#define MCFSIM_CSAR3		(MCF_MBAR + 0xa4)	/* CS 3 Address reg */
+#define MCFSIM_CSMR3		(MCF_MBAR + 0xa8)	/* CS 3 Mask reg */
+#define MCFSIM_CSCR3		(MCF_MBAR + 0xae)	/* CS 3 Control reg */
+#define MCFSIM_CSAR4		(MCF_MBAR + 0xb0)	/* CS 4 Address reg */
+#define MCFSIM_CSMR4		(MCF_MBAR + 0xb4)	/* CS 4 Mask reg */
+#define MCFSIM_CSCR4		(MCF_MBAR + 0xba)	/* CS 4 Control reg */
 
 #define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
 #define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM 0 Addr/Ctrl */

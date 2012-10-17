@@ -1,0 +1,2 @@
+comment "Supported MMC/SDIO adapters"
+source "drivers/media/mmc/siano/Kconfig"

@@ -1,7 +1,7 @@
 #ifndef _ASM_CRIS_SVINTO_H
 #define _ASM_CRIS_SVINTO_H
 
-#include "sv_addr_ag.h"
+#include <arch/sv_addr_ag.h>
 
 extern unsigned int genconfig_shadow; /* defined and set in head.S */
 

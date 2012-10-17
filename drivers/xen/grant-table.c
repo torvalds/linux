@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 #include <linux/hardirq.h>
 
 #include <xen/xen.h>
@@ -47,6 +48,7 @@
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
 #include <asm/xen/hypercall.h>
+#include <asm/xen/interface.h>
 
 #include <asm/pgtable.h>
 #include <asm/sync_bitops.h>
@@ -285,10 +287,9 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 }
 EXPORT_SYMBOL_GPL(gnttab_grant_foreign_access);
 
-void gnttab_update_subpage_entry_v2(grant_ref_t ref, domid_t domid,
-				    unsigned long frame, int flags,
-				    unsigned page_off,
-				    unsigned length)
+static void gnttab_update_subpage_entry_v2(grant_ref_t ref, domid_t domid,
+					   unsigned long frame, int flags,
+					   unsigned page_off, unsigned length)
 {
 	gnttab_shared.v2[ref].sub_page.frame = frame;
 	gnttab_shared.v2[ref].sub_page.page_off = page_off;
@@ -345,9 +346,9 @@ bool gnttab_subpage_grants_available(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_subpage_grants_available);
 
-void gnttab_update_trans_entry_v2(grant_ref_t ref, domid_t domid,
-				  int flags, domid_t trans_domid,
-				  grant_ref_t trans_gref)
+static void gnttab_update_trans_entry_v2(grant_ref_t ref, domid_t domid,
+					 int flags, domid_t trans_domid,
+					 grant_ref_t trans_gref)
 {
 	gnttab_shared.v2[ref].transitive.trans_domid = trans_domid;
 	gnttab_shared.v2[ref].transitive.gref = trans_gref;
@@ -823,6 +824,52 @@ unsigned int gnttab_max_grant_frames(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_max_grant_frames);
 
+/* Handling of paged out grant targets (GNTST_eagain) */
+#define MAX_DELAY 256
+static inline void
+gnttab_retry_eagain_gop(unsigned int cmd, void *gop, int16_t *status,
+						const char *func)
+{
+	unsigned delay = 1;
+
+	do {
+		BUG_ON(HYPERVISOR_grant_table_op(cmd, gop, 1));
+		if (*status == GNTST_eagain)
+			msleep(delay++);
+	} while ((*status == GNTST_eagain) && (delay < MAX_DELAY));
+
+	if (delay >= MAX_DELAY) {
+		printk(KERN_ERR "%s: %s eagain grant\n", func, current->comm);
+		*status = GNTST_bad_page;
+	}
+}
+
+void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count)
+{
+	struct gnttab_map_grant_ref *op;
+
+	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, batch, count))
+		BUG();
+	for (op = batch; op < batch + count; op++)
+		if (op->status == GNTST_eagain)
+			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, op,
+						&op->status, __func__);
+}
+EXPORT_SYMBOL_GPL(gnttab_batch_map);
+
+void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count)
+{
+	struct gnttab_copy *op;
+
+	if (HYPERVISOR_grant_table_op(GNTTABOP_copy, batch, count))
+		BUG();
+	for (op = batch; op < batch + count; op++)
+		if (op->status == GNTST_eagain)
+			gnttab_retry_eagain_gop(GNTTABOP_copy, op,
+						&op->status, __func__);
+}
+EXPORT_SYMBOL_GPL(gnttab_batch_copy);
+
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count)
@@ -835,6 +882,12 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map_ops, count);
 	if (ret)
 		return ret;
+
+	/* Retry eagain maps */
+	for (i = 0; i < count; i++)
+		if (map_ops[i].status == GNTST_eagain)
+			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, map_ops + i,
+						&map_ops[i].status, __func__);
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;

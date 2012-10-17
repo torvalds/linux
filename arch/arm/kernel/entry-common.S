@@ -86,14 +86,26 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	bl	schedule_tail
-	get_thread_info tsk
-	mov	why, #1
+	cmp	r5, #0
+	movne	r0, r4
+	adrne	lr, BSYM(1f)
+	movne	pc, r5
+1:	get_thread_info tsk
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
 
 	.equ NR_syscalls,0
 #define CALL(x) .equ NR_syscalls,NR_syscalls+1
 #include "calls.S"
+
+/*
+ * Ensure that the system call table is equal to __NR_syscalls,
+ * which is the value the rest of the system sees
+ */
+.ifne NR_syscalls - __NR_syscalls
+.error "__NR_syscalls is not equal to the size of the syscall table"
+.endif
+
 #undef CALL
 #define CALL(x) .long x
 
@@ -507,11 +519,6 @@ sys_vfork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_vfork
 ENDPROC(sys_vfork_wrapper)
-
-sys_execve_wrapper:
-		add	r3, sp, #S_OFF
-		b	sys_execve
-ENDPROC(sys_execve_wrapper)
 
 sys_clone_wrapper:
 		add	ip, sp, #S_OFF

@@ -169,6 +169,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
 	struct mtd_part_parser_data ppdata;
+	bool map_indirect;
 
 	match = of_match_device(of_flash_match, &dev->dev);
 	if (!match)
@@ -191,6 +192,8 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 		goto err_flash_remove;
 	}
 	count /= reg_tuple_size;
+
+	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
 
 	err = -ENOMEM;
 	info = kzalloc(sizeof(struct of_flash) +
@@ -246,6 +249,17 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 		}
 
 		simple_map_init(&info->list[i].map);
+
+		/*
+		 * On some platforms (e.g. MPC5200) a direct 1:1 mapping
+		 * may cause problems with JFFS2 usage, as the local bus (LPB)
+		 * doesn't support unaligned accesses as implemented in the
+		 * JFFS2 code via memcpy(). By setting NO_XIP, the
+		 * flash will not be exposed directly to the MTD users
+		 * (e.g. JFFS2) any more.
+		 */
+		if (map_indirect)
+			info->list[i].map.phys = NO_XIP;
 
 		if (probe_type) {
 			info->list[i].mtd = do_map_probe(probe_type,

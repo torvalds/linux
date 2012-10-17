@@ -95,6 +95,9 @@ coccinelle () {
 	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || \
 	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
 	$SPATCH -D org     $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || exit 1
+    elif [ "$MODE" = "rep+ctxt" ] ; then
+	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff && \
+	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     else
 	$SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     fi

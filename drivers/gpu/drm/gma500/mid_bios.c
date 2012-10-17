@@ -25,7 +25,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "mid_bios.h"
 
@@ -118,20 +118,20 @@ static void mid_get_pci_revID(struct drm_psb_private *dev_priv)
 					dev_priv->platform_rev_id);
 }
 
-struct vbt_header {
+struct mid_vbt_header {
 	u32 signature;
 	u8 revision;
 } __packed;
 
 /* The same for r0 and r1 */
 struct vbt_r0 {
-	struct vbt_header vbt_header;
+	struct mid_vbt_header vbt_header;
 	u8 size;
 	u8 checksum;
 } __packed;
 
 struct vbt_r10 {
-	struct vbt_header vbt_header;
+	struct mid_vbt_header vbt_header;
 	u8 checksum;
 	u16 size;
 	u8 panel_count;
@@ -281,7 +281,7 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	u32 addr;
 	u8 __iomem *vbt_virtual;
-	struct vbt_header vbt_header;
+	struct mid_vbt_header vbt_header;
 	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
 	int ret = -1;
 
