@@ -64,6 +64,9 @@ struct nfc_llcp_local {
 	u32 target_idx;
 	u8 rf_mode;
 	u8 comm_mode;
+	u8 lto;
+	u8 rw;
+	__be16 miux;
 	unsigned long local_wks;      /* Well known services */
 	unsigned long local_sdp;      /* Local services  */
 	unsigned long local_sap; /* Local SAPs, not available for discovery */

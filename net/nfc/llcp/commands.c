@@ -316,8 +316,7 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	struct sk_buff *skb;
 	u8 *service_name_tlv = NULL, service_name_tlv_length;
 	u8 *miux_tlv = NULL, miux_tlv_length;
-	u8 *rw_tlv = NULL, rw_tlv_length, rw;
-	__be16 miux;
+	u8 *rw_tlv = NULL, rw_tlv_length;
 	int err;
 	u16 size = 0;
 
@@ -335,13 +334,11 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		size += service_name_tlv_length;
 	}
 
-	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
 				      &miux_tlv_length);
 	size += miux_tlv_length;
 
-	rw = LLCP_MAX_RW;
-	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &local->rw, 0, &rw_tlv_length);
 	size += rw_tlv_length;
 
 	pr_debug("SKB size %d SN length %zu\n", size, sock->service_name_len);
@@ -378,8 +375,7 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	struct nfc_llcp_local *local;
 	struct sk_buff *skb;
 	u8 *miux_tlv = NULL, miux_tlv_length;
-	u8 *rw_tlv = NULL, rw_tlv_length, rw;
-	__be16 miux;
+	u8 *rw_tlv = NULL, rw_tlv_length;
 	int err;
 	u16 size = 0;
 
@@ -389,13 +385,11 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	if (local == NULL)
 		return -ENODEV;
 
-	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
 				      &miux_tlv_length);
 	size += miux_tlv_length;
 
-	rw = LLCP_MAX_RW;
-	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &local->rw, 0, &rw_tlv_length);
 	size += rw_tlv_length;
 
 	skb = llcp_allocate_pdu(sock, LLCP_PDU_CC, size);

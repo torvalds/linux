@@ -467,10 +467,9 @@ static u8 nfc_llcp_reserve_sdp_ssap(struct nfc_llcp_local *local)
 static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 {
 	u8 *gb_cur, *version_tlv, version, version_length;
-	u8 *lto_tlv, lto, lto_length;
+	u8 *lto_tlv, lto_length;
 	u8 *wks_tlv, wks_length;
 	u8 *miux_tlv, miux_length;
-	__be16 miux;
 	u8 gb_len = 0;
 	int ret = 0;
 
@@ -479,9 +478,7 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 					 1, &version_length);
 	gb_len += version_length;
 
-	/* 1500 ms */
-	lto = 150;
-	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &lto, 1, &lto_length);
+	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &local->lto, 1, &lto_length);
 	gb_len += lto_length;
 
 	pr_debug("Local wks 0x%lx\n", local->local_wks);
@@ -489,8 +486,7 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 				     &wks_length);
 	gb_len += wks_length;
 
-	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
 				      &miux_length);
 	gb_len += miux_length;
 
@@ -1382,6 +1378,10 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	rwlock_init(&local->sockets.lock);
 	rwlock_init(&local->connecting_sockets.lock);
 	rwlock_init(&local->raw_sockets.lock);
+
+	local->lto = 150; /* 1500 ms */
+	local->rw = LLCP_MAX_RW;
+	local->miux = cpu_to_be16(LLCP_MAX_MIUX);
 
 	nfc_llcp_build_gb(local);
 
