@@ -27,6 +27,11 @@
 #define SPEAR1310_SATA1_BASE			UL(0xB1800000)
 #define SPEAR1310_SATA2_BASE			UL(0xB4000000)
 
+#define SPEAR1310_RAS_GRP1_BASE			UL(0xD8000000)
+#define VA_SPEAR1310_RAS_GRP1_BASE		UL(0xFA000000)
+#define SPEAR1310_RAS_BASE			UL(0xD8400000)
+#define VA_SPEAR1310_RAS_BASE			IOMEM(UL(0xFA400000))
+
 /* ssp device registration */
 static struct pl022_ssp_controller ssp1_plat_data = {
 	.bus_id = 0,
