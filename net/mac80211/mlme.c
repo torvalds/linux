@@ -3099,22 +3099,32 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				   ht_cfreq, ht_oper->primary_chan,
 				   cbss->channel->band);
 			ht_oper = NULL;
+		} else {
+			channel_type = NL80211_CHAN_HT20;
 		}
 	}
 
-	if (ht_oper) {
-		channel_type = NL80211_CHAN_HT20;
+	if (ht_oper && sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+		/*
+		 * cfg80211 already verified that the channel itself can
+		 * be used, but it didn't check that we can do the right
+		 * HT type, so do that here as well. If HT40 isn't allowed
+		 * on this channel, disable 40 MHz operation.
+		 */
 
-		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
-			switch (ht_oper->ht_param &
-					IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
-			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+		switch (ht_oper->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+			if (cbss->channel->flags & IEEE80211_CHAN_NO_HT40PLUS)
+				ifmgd->flags |= IEEE80211_STA_DISABLE_40MHZ;
+			else
 				channel_type = NL80211_CHAN_HT40PLUS;
-				break;
-			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			break;
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			if (cbss->channel->flags & IEEE80211_CHAN_NO_HT40MINUS)
+				ifmgd->flags |= IEEE80211_STA_DISABLE_40MHZ;
+			else
 				channel_type = NL80211_CHAN_HT40MINUS;
-				break;
-			}
+			break;
 		}
 	}
 
@@ -3549,6 +3559,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+	bool tx = !req->local_state_change;
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -3565,12 +3576,12 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->associated &&
 	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
 		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
-				       req->reason_code, true, frame_buf);
+				       req->reason_code, tx, frame_buf);
 	} else {
 		drv_mgd_prepare_tx(sdata->local, sdata);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
-					       req->reason_code, true,
+					       req->reason_code, tx,
 					       frame_buf);
 	}
 
