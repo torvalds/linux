@@ -5019,6 +5019,20 @@ F:	net/ipv6/
 F:	include/net/ip*
 F:	arch/x86/net/*
 
+NETWORKING [IPSEC]
+M:	Steffen Klassert <steffen.klassert@secunet.com>
+M:	Herbert Xu <herbert@gondor.apana.org.au>
+M:	"David S. Miller" <davem@davemloft.net>
+L:	netdev@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
+S:	Maintained
+F:	net/xfrm/
+F:	net/key/
+F:	net/ipv4/xfrm*
+F:	net/ipv6/xfrm*
+F:	include/uapi/linux/xfrm.h
+F:	include/net/xfrm.h
+
 NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
 M:	Paul Moore <paul@paul-moore.com>
 L:	netdev@vger.kernel.org
