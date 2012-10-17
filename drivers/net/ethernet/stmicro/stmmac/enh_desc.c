@@ -145,7 +145,11 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 		ret = discard_frame;
 	} else if (status == 0x3) {
 		CHIP_DBG(KERN_ERR "RX Des0 status: No IPv4, IPv6 frame.\n");
+#ifdef CONFIG_ARCH_SOCFPGA
+		ret = csum_none;
+#else
 		ret = discard_frame;
+#endif
 	}
 	return ret;
 }

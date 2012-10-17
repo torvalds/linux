@@ -839,12 +839,20 @@ static int stmmac_init_phy(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
+#ifdef CONFIG_ARCH_SOCFPGA
+	if (priv->plat->has_gmac) {
+		phydev->supported |= PHY_GBIT_FEATURES;
+		phydev->advertising |= PHY_GBIT_FEATURES;
+	}
+#endif
+
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
 	    (interface == PHY_INTERFACE_MODE_RMII))
 		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
 					 SUPPORTED_1000baseT_Full);
 
+#ifdef CONFIG_STMMAC_PHY_ID_ZERO_WORKAROUND
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning
@@ -856,6 +864,7 @@ static int stmmac_init_phy(struct net_device *dev)
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
+#endif
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
@@ -1606,6 +1615,7 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
 
+#ifndef CONFIG_STMMAC_SHARED_PHY_IRQ
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
 			  IRQF_SHARED, dev->name, dev);
@@ -1614,6 +1624,7 @@ static int stmmac_open(struct net_device *dev)
 		       __func__, dev->irq, ret);
 		goto open_error;
 	}
+#endif
 
 	/* Request the Wake IRQ in case of another line is used for WoL */
 	if (priv->wol_irq != dev->irq) {
