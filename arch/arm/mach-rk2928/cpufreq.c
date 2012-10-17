@@ -58,6 +58,7 @@ static unsigned int max_freq = -1;
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 static int no_cpufreq_access;
 static unsigned int suspend_freq = 600 * 1000;
+static unsigned int reboot_freq = 816 * 1000;
 
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
@@ -686,7 +687,7 @@ static int rk30_cpufreq_reboot_notifier_event(struct notifier_block *this,
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
 	if (policy) {
-		cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
+		cpufreq_driver_target(policy, reboot_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
 		cpufreq_cpu_put(policy);
 	}
 
