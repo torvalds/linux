@@ -401,10 +401,18 @@ static int rk_fb_set_par(struct fb_info *info)
 	else  //ohterwise  full  screen display
 	{
 		xsize = screen->x_res;
-              	ysize = screen->y_res;
+        ysize = screen->y_res;
 	}
 
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+#if defined(CONFIG_RK_HDMI)
+	if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+	{
+		xsize = screen->x_res;
+		ysize = screen->y_res;
+	}
+#endif
+
 	if(screen->screen_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
 	{			   //save parameter set by android
 		dev_drv->screen0->xsize = xsize;
