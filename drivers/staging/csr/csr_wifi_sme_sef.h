@@ -1,10 +1,10 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2010
-            Confidential information of CSR
+	(c) Cambridge Silicon Radio Limited 2010
+	Confidential information of CSR
 
-            Refer to LICENSE.txt included with this source for details
-            on the license terms.
+	Refer to LICENSE.txt included with this source for details
+	on the license terms.
 
 *****************************************************************************/
 #ifndef CSR_WIFI_ROUTER_SEF_CSR_WIFI_SME_H__
