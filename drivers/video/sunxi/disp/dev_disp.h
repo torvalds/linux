@@ -87,9 +87,9 @@ typedef struct
 
 struct alloc_struct_t
 {
-    __u32 address;                      //申请内存的地址
-    __u32 size;                         //分配的内存大小，用户实际得到的内存大小
-    __u32 o_size;                       //用户申请的内存大小
+    __u32 address;                      // Application memory address
+    __u32 size;                         // The size of the allocated memory, the actual memory size users
+    __u32 o_size;                       // User application memory size
     struct alloc_struct_t *next;
 };
 

@@ -55,9 +55,13 @@ __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name)
     return gpio_request_ex(main_name, sub_name);
 }
 
-//if_release_to_default_status:
-    //如果是0或者1，表示释放后的GPIO处于输入状态，输入状状态不会导致外部电平的错误。
-    //如果是2，表示释放后的GPIO状态不变，即释放的时候不管理当前GPIO的硬件寄存器。
+/*
+ * if_release_to_default_status:
+ * If it is 0 or 1, and represents the input state, after release of the GPIO
+ * input shaped state does not lead to the error of the external level.
+ * If it is 2, said that the the GPIO status quo after the release, the release
+ * does not manage the current GPIO hardware register.
+ */
 __s32 OSAL_GPIO_Release(__hdle p_handler, __s32 if_release_to_default_status)
 {
     //__inf("OSAL_GPIO_Release\n");

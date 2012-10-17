@@ -72,7 +72,7 @@ static __s32 Sprite_Hid_To_Id(__u32 sel, __s32 hid)
 	}
 }
 
-//--hgl--用这个的前提：prev,next必须是存在的，否则崩溃。
+//--hgl-- With this premise: prev, next must be there, otherwise collapse.
 static __inline void ___list_add(list_head_t *node,list_head_t *prev,list_head_t *next)
 {
 	node->next = next;
@@ -81,7 +81,7 @@ static __inline void ___list_add(list_head_t *node,list_head_t *prev,list_head_t
 	next->prev = node;
 }
 
-//将node添加到list的最后面，也既其前面
+// Node is added to the list of the last surface, also both front
 static  __inline void list_add_node_tail(list_head_t *node, list_head_t **head)
 {
 	if(*head == NULL)
@@ -94,7 +94,7 @@ static  __inline void list_add_node_tail(list_head_t *node, list_head_t **head)
 	}
 }
 
-//从list中删除entry
+// Delete the entry from the list in
 static __inline void list_del_node(list_head_t *entry)
 {
 	entry->prev->next = entry->next;
@@ -103,7 +103,7 @@ static __inline void list_del_node(list_head_t *entry)
 	entry->prev = entry;
 }
 
-//内部函数,释放该节点的空间
+// Internal function, the release space of the node
 static __inline void list_free_node(list_head_t * node)
 {
 	if(node != NULL)
@@ -114,7 +114,7 @@ static __inline void list_free_node(list_head_t * node)
 	}
 }
 
-//申请一个新的结点,并初始化
+// To apply for a new node, and initialize
 static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 {
 	list_head_t * node = NULL;
@@ -149,7 +149,7 @@ static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t
 	}
 }
 
-//在链表的尾部增加新结点
+// Add a new node at the end of the list
 static void* List_Add_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 {
 	list_head_t * node = NULL;
@@ -164,7 +164,7 @@ static void* List_Add_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 	return NULL;
 }
 
-//在链表中寻找block id,并返回该结点的指针
+// In the linked list to find the block id, and returns the node pointer
 static list_head_t *  List_Find_Sprite_Block(__u32 sel, __s32 id)
 {
 	list_head_t * guard = NULL;
@@ -188,7 +188,7 @@ static list_head_t *  List_Find_Sprite_Block(__u32 sel, __s32 id)
 
 }
 
-//从链表中删除block id,并返回该block的指针
+// Block id, removed from the list and return to the block pointer
 static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 {
 	__s32 id = 0;
@@ -231,7 +231,7 @@ static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 	}
 }
 
-//从链表中删除block id,并释放其空间,返回该block的id(该id可能不是其原来的id)
+// Block id, and the release of its space removed from the list and return to the block id (the id may not be the original id)
 static __s32 List_Delete_Free_Sprite_Block(__u32 sel, list_head_t * node)
 {
     __s32 ret = -1;
