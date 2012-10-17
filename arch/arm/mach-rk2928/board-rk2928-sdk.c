@@ -619,6 +619,11 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
 	 .charge_ok_pin   = RK2928_PIN1_PA0,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+
+        .charging_sleep   = 0 ,
+        .save_capacity   = 1 ,
+        .adc_channel      =0 ,
+
 };
 
 static struct platform_device rk30_device_adc_battery = {
