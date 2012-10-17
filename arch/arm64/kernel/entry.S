@@ -594,7 +594,7 @@ work_resched:
 /*
  * "slow" syscall return path.
  */
-ENTRY(ret_to_user)
+ret_to_user:
 	disable_irq				// disable interrupts
 	ldr	x1, [tsk, #TI_FLAGS]
 	and	x2, x1, #_TIF_WORK_MASK
@@ -611,7 +611,10 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	bl	schedule_tail
-	get_thread_info tsk
+	cbz	x19, 1f				// not a kernel thread
+	mov	x0, x20
+	blr	x19
+1:	get_thread_info tsk
 	b	ret_to_user
 ENDPROC(ret_from_fork)
 
@@ -673,11 +676,6 @@ __sys_trace_return:
 /*
  * Special system call wrappers.
  */
-ENTRY(sys_execve_wrapper)
-	mov	x3, sp
-	b	sys_execve
-ENDPROC(sys_execve_wrapper)
-
 ENTRY(sys_clone_wrapper)
 	mov	x5, sp
 	b	sys_clone

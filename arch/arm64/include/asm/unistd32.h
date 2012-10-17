@@ -32,7 +32,7 @@ __SYSCALL(7,   sys_ni_syscall)			/* 7 was sys_waitpid */
 __SYSCALL(8,   sys_creat)
 __SYSCALL(9,   sys_link)
 __SYSCALL(10,  sys_unlink)
-__SYSCALL(11,  compat_sys_execve_wrapper)
+__SYSCALL(11,  compat_sys_execve)
 __SYSCALL(12,  sys_chdir)
 __SYSCALL(13,  sys_ni_syscall)			/* 13 was sys_time */
 __SYSCALL(14,  sys_mknod)
