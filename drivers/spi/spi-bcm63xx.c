@@ -36,7 +36,6 @@
 #include <bcm63xx_dev_spi.h>
 
 #define PFX		KBUILD_MODNAME
-#define DRV_VER		"0.1.2"
 
 struct bcm63xx_spi {
 	struct completion	done;
@@ -168,13 +167,6 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 		dev_err(&spi->dev, "%s, unsupported mode bits %x\n",
 			__func__, spi->mode & ~MODEBITS);
 		return -EINVAL;
-	}
-
-	ret = bcm63xx_spi_check_transfer(spi, NULL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return ret;
 	}
 
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
@@ -441,8 +433,8 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d) v%s\n",
-		 r->start, irq, bs->fifo_size, DRV_VER);
+	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d)\n",
+		 r->start, irq, bs->fifo_size);
 
 	return 0;
 
@@ -485,6 +477,8 @@ static int bcm63xx_spi_suspend(struct device *dev)
 			platform_get_drvdata(to_platform_device(dev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
+	spi_master_suspend(master);
+
 	clk_disable(bs->clk);
 
 	return 0;
@@ -497,6 +491,8 @@ static int bcm63xx_spi_resume(struct device *dev)
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	clk_enable(bs->clk);
+
+	spi_master_resume(master);
 
 	return 0;
 }
