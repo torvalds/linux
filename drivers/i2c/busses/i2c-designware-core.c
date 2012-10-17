@@ -444,7 +444,6 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	bool need_restart = false;
 
 	intr_mask = DW_IC_INTR_DEFAULT_MASK;
-
 	for (; dev->msg_write_idx < dev->msgs_num; dev->msg_write_idx++) {
 		/*
 		 * if target address has changed, we need to
@@ -752,8 +751,10 @@ irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	stat = dw_readl(dev, DW_IC_RAW_INTR_STAT);
 	dev_dbg(dev->dev, "%s:  %s enabled= 0x%x stat=0x%x\n", __func__,
 		dev->adapter.name, enabled, stat);
-	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
+	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY)) {
+		i2c_dw_read_clear_intrbits(dev);
 		return IRQ_NONE;
+	}
 
 	stat = i2c_dw_read_clear_intrbits(dev);
 
