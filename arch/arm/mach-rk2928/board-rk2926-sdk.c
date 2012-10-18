@@ -876,34 +876,46 @@ static void __init rk2928_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 408 * 1000,	.cpu_volt =  950 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 600 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 696 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 816 * 1000,	.cpu_volt = 1250 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 912 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1008 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},
-#if 0
-	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+#if 1
+        {.frequency = 216 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 312 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 408 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 504 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 600 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 696 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 816 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 912 * 1000,       .cpu_volt = 1450 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 1008 * 1000,      .cpu_volt = 1500 * 1000,        .logic_volt = 1200 * 1000},
+#else
+        {.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 408 * 1000,	.cpu_volt =  950 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 600 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 696 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 816 * 1000,	.cpu_volt = 1250 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 912 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 1008 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},
 #endif
-	{.frequency = CPUFREQ_TABLE_END},
+#if 0
+        {.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+#endif
+        {.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 266 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1275 * 1000},
-	{.frequency = CPUFREQ_TABLE_END},
+        {.frequency = 266 * 1000,	.index = 1050 * 1000},
+        {.frequency = 400 * 1000,	.index = 1275 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1125 * 1000},
-	{.frequency = CPUFREQ_TABLE_END},
+        {.frequency = 300 * 1000,	.index = 1050 * 1000},
+        {.frequency = 400 * 1000,	.index = 1125 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
 };
 
 #define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
@@ -912,20 +924,20 @@ static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
 
 void __init board_clock_init(void)
 {
-	rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
-	dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);
-	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
-	//dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
-	printk("%s end\n", __func__);
+        rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
+        dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);
+        dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
+        //dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
+        printk("%s end\n", __func__);
 }
 
 
 MACHINE_START(RK2928, "RK2928board")
-	.boot_params	= PLAT_PHYS_OFFSET + 0x800,
-	.fixup		= rk2928_fixup,
-	.reserve	= &rk2928_reserve,
-	.map_io		= rk2928_map_io,
-	.init_irq	= rk2928_init_irq,
-	.timer		= &rk2928_timer,
-	.init_machine	= rk2928_board_init,
-MACHINE_END
+.boot_params	= PLAT_PHYS_OFFSET + 0x800,
+        .fixup		= rk2928_fixup,
+        .reserve	= &rk2928_reserve,
+        .map_io		= rk2928_map_io,
+        .init_irq	= rk2928_init_irq,
+        .timer		= &rk2928_timer,
+        .init_machine	= rk2928_board_init,
+        MACHINE_END
