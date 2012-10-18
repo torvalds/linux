@@ -133,7 +133,7 @@ struct a2mp_physlink_rsp {
 extern struct list_head amp_mgr_list;
 extern struct mutex amp_mgr_list_lock;
 
-void amp_mgr_get(struct amp_mgr *mgr);
+struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
 u8 __next_ident(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,

@@ -123,7 +123,7 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 	hcon->attempt++;
 	hcon->handle = __next_handle(mgr);
 	hcon->remote_id = remote_id;
-	hcon->amp_mgr = mgr;
+	hcon->amp_mgr = amp_mgr_get(mgr);
 	hcon->out = out;
 
 	return hcon;
