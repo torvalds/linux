@@ -137,8 +137,17 @@
 #define _PAGE_HUGE		({BUG(); 1; })  /* Dummy value */
 #endif
 
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+/* huge tlb page */
+#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
+#else
+#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT)
+#define _PAGE_SPLITTING		({BUG(); 1; })  /* Dummy value */
+#endif
+
 /* Page cannot be executed */
-#define _PAGE_NO_EXEC_SHIFT	(cpu_has_rixi ? _PAGE_HUGE_SHIFT + 1 : _PAGE_HUGE_SHIFT)
+#define _PAGE_NO_EXEC_SHIFT	(cpu_has_rixi ? _PAGE_SPLITTING_SHIFT + 1 : _PAGE_SPLITTING_SHIFT)
 #define _PAGE_NO_EXEC		({BUG_ON(!cpu_has_rixi); 1 << _PAGE_NO_EXEC_SHIFT; })
 
 /* Page cannot be read */
