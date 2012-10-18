@@ -63,13 +63,6 @@
 #define MAX_RBUFF_SZ	0x600		/* 1518 rounded up */
 #define MAX_RX_DESCR	9		/* max number of receive buffers */
 
-#define EMAC_DESC_DONE	0x00000001	/* bit for if DMA is done */
-#define EMAC_DESC_WRAP	0x00000002	/* bit for wrap */
-
-#define EMAC_BROADCAST	0x80000000	/* broadcast address */
-#define EMAC_MULTICAST	0x40000000	/* multicast address */
-#define EMAC_UNICAST	0x20000000	/* unicast address */
-
 struct rbf_t
 {
 	unsigned int addr;

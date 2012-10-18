@@ -741,7 +741,7 @@ static void at91ether_start(struct net_device *dev)
 	}
 
 	/* Set the Wrap bit on the last descriptor */
-	dlist->descriptors[i-1].addr |= EMAC_DESC_WRAP;
+	dlist->descriptors[i-1].addr |= MACB_BIT(RX_WRAP);
 
 	/* Reset buffer index */
 	lp->rxBuffIndex = 0;
@@ -901,7 +901,7 @@ static void at91ether_rx(struct net_device *dev)
 	unsigned int pktlen;
 
 	dlist = lp->dlist;
-	while (dlist->descriptors[lp->rxBuffIndex].addr & EMAC_DESC_DONE) {
+	while (dlist->descriptors[lp->rxBuffIndex].addr & MACB_BIT(RX_USED)) {
 		p_recv = dlist->recv_buf[lp->rxBuffIndex];
 		pktlen = dlist->descriptors[lp->rxBuffIndex].size & 0x7ff;	/* Length of frame including FCS */
 		skb = netdev_alloc_skb(dev, pktlen + 2);
@@ -918,10 +918,10 @@ static void at91ether_rx(struct net_device *dev)
 			printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n", dev->name);
 		}
 
-		if (dlist->descriptors[lp->rxBuffIndex].size & EMAC_MULTICAST)
+		if (dlist->descriptors[lp->rxBuffIndex].size & MACB_BIT(RX_MHASH_MATCH))
 			dev->stats.multicast++;
 
-		dlist->descriptors[lp->rxBuffIndex].addr &= ~EMAC_DESC_DONE;	/* reset ownership bit */
+		dlist->descriptors[lp->rxBuffIndex].addr &= ~MACB_BIT(RX_USED);	/* reset ownership bit */
 		if (lp->rxBuffIndex == MAX_RX_DESCR-1)				/* wrap after last buffer */
 			lp->rxBuffIndex = 0;
 		else
