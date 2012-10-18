@@ -4098,7 +4098,6 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 
 static int __init dispc_init_features(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dispc_features *src;
 	struct dispc_features *dst;
 
@@ -4108,7 +4107,7 @@ static int __init dispc_init_features(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	switch (pdata->version) {
+	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dispc_feats;
 		break;

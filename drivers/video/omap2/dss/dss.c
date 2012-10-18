@@ -793,7 +793,6 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 
 static int __init dss_init_features(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dss_features *src;
 	struct dss_features *dst;
 
@@ -803,7 +802,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	switch (pdata->version) {
+	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dss_feats;
 		break;
