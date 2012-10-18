@@ -1375,9 +1375,6 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	char	buf[64];
 	unsigned long cpuflags;
 
-	if (!tty->read_buf)
-		return;
-
 	if (tty->real_raw) {
 		spin_lock_irqsave(&tty->read_lock, cpuflags);
 		i = min(N_TTY_BUF_SIZE - tty->read_cnt,
@@ -1471,7 +1468,6 @@ int is_ignored(int sig)
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	int canon_change = 1;
-	BUG_ON(!tty);
 
 	if (old)
 		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
@@ -1579,9 +1575,6 @@ static void n_tty_close(struct tty_struct *tty)
 
 static int n_tty_open(struct tty_struct *tty)
 {
-	if (!tty)
-		return -EINVAL;
-
 	/* These are ugly. Currently a malloc failure here can panic */
 	tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
@@ -1736,10 +1729,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	int packet;
 
 do_it_again:
-
-	if (WARN_ON(!tty->read_buf))
-		return -EAGAIN;
-
 	c = job_control(tty, file);
 	if (c < 0)
 		return c;
@@ -1825,7 +1814,6 @@ do_it_again:
 			/* FIXME: does n_tty_set_room need locking ? */
 			n_tty_set_room(tty);
 			timeout = schedule_timeout(timeout);
-			BUG_ON(!tty->read_buf);
 			continue;
 		}
 		__set_current_state(TASK_RUNNING);
