@@ -1561,14 +1561,10 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 static void n_tty_close(struct tty_struct *tty)
 {
 	n_tty_flush_buffer(tty);
-	if (tty->read_buf) {
-		kfree(tty->read_buf);
-		tty->read_buf = NULL;
-	}
-	if (tty->echo_buf) {
-		kfree(tty->echo_buf);
-		tty->echo_buf = NULL;
-	}
+	kfree(tty->read_buf);
+	kfree(tty->echo_buf);
+	tty->read_buf = NULL;
+	tty->echo_buf = NULL;
 }
 
 /**
@@ -1587,17 +1583,11 @@ static int n_tty_open(struct tty_struct *tty)
 		return -EINVAL;
 
 	/* These are ugly. Currently a malloc failure here can panic */
-	if (!tty->read_buf) {
-		tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
-		if (!tty->read_buf)
-			return -ENOMEM;
-	}
-	if (!tty->echo_buf) {
-		tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
+	tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
+	tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
+	if (!tty->read_buf || !tty->echo_buf)
+		goto err_free_bufs;
 
-		if (!tty->echo_buf)
-			return -ENOMEM;
-	}
 	reset_buffer_flags(tty);
 	tty_unthrottle(tty);
 	tty->column = 0;
@@ -1605,6 +1595,11 @@ static int n_tty_open(struct tty_struct *tty)
 	tty->minimum_to_wake = 1;
 	tty->closing = 0;
 	return 0;
+err_free_bufs:
+	kfree(tty->read_buf);
+	kfree(tty->echo_buf);
+
+	return -ENOMEM;
 }
 
 static inline int input_available_p(struct tty_struct *tty, int amt)
