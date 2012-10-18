@@ -289,36 +289,6 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 
 /***** general DP utility functions *****/
 
-static u8 dp_link_status(u8 link_status[DP_LINK_STATUS_SIZE], int r)
-{
-	return link_status[r - DP_LANE0_1_STATUS];
-}
-
-static u8 dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
-					int lane)
-
-{
-	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
-	int s = ((lane & 1) ?
-		 DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT :
-		 DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT);
-	u8 l = dp_link_status(link_status, i);
-
-	return ((l >> s) & 0x3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
-}
-
-static u8 dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
-					     int lane)
-{
-	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
-	int s = ((lane & 1) ?
-		 DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT :
-		 DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT);
-	u8 l = dp_link_status(link_status, i);
-
-	return ((l >> s) & 0x3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
-}
-
 #define DP_VOLTAGE_MAX         DP_TRAIN_VOLTAGE_SWING_1200
 #define DP_PRE_EMPHASIS_MAX    DP_TRAIN_PRE_EMPHASIS_9_5
 
@@ -331,8 +301,8 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 	int lane;
 
 	for (lane = 0; lane < lane_count; lane++) {
-		u8 this_v = dp_get_adjust_request_voltage(link_status, lane);
-		u8 this_p = dp_get_adjust_request_pre_emphasis(link_status, lane);
+		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
+		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
 
 		DRM_DEBUG_KMS("requested signal parameters: lane %d voltage %s pre_emph %s\n",
 			  lane,

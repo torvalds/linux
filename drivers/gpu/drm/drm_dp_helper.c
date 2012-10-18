@@ -255,3 +255,30 @@ bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
 	return true;
 }
 EXPORT_SYMBOL(drm_dp_clock_recovery_ok);
+
+u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
+				     int lane)
+{
+	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
+	int s = ((lane & 1) ?
+		 DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT :
+		 DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT);
+	u8 l = dp_link_status(link_status, i);
+
+	return ((l >> s) & 0x3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_voltage);
+
+u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
+					  int lane)
+{
+	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
+	int s = ((lane & 1) ?
+		 DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT :
+		 DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT);
+	u8 l = dp_link_status(link_status, i);
+
+	return ((l >> s) & 0x3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
+

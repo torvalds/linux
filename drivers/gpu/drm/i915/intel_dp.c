@@ -1435,31 +1435,6 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 					      DP_LINK_STATUS_SIZE);
 }
 
-static uint8_t
-intel_get_adjust_request_voltage(uint8_t adjust_request[2],
-				 int lane)
-{
-	int	    s = ((lane & 1) ?
-			 DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT :
-			 DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT);
-	uint8_t l = adjust_request[lane>>1];
-
-	return ((l >> s) & 3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
-}
-
-static uint8_t
-intel_get_adjust_request_pre_emphasis(uint8_t adjust_request[2],
-				      int lane)
-{
-	int	    s = ((lane & 1) ?
-			 DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT :
-			 DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT);
-	uint8_t l = adjust_request[lane>>1];
-
-	return ((l >> s) & 3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
-}
-
-
 #if 0
 static char	*voltage_names[] = {
 	"0.4V", "0.6V", "0.8V", "1.2V"
@@ -1538,13 +1513,12 @@ intel_get_adjust_train(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_ST
 	uint8_t v = 0;
 	uint8_t p = 0;
 	int lane;
-	uint8_t	*adjust_request = link_status + (DP_ADJUST_REQUEST_LANE0_1 - DP_LANE0_1_STATUS);
 	uint8_t voltage_max;
 	uint8_t preemph_max;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		uint8_t this_v = intel_get_adjust_request_voltage(adjust_request, lane);
-		uint8_t this_p = intel_get_adjust_request_pre_emphasis(adjust_request, lane);
+		uint8_t this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
+		uint8_t this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
 
 		if (this_v > v)
 			v = this_v;
