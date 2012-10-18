@@ -1074,6 +1074,9 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	case SO_NOFCS:
 		v.val = sock_flag(sk, SOCK_NOFCS);
 		break;
+	case SO_BINDTODEVICE:
+		v.val = sk->sk_bound_dev_if;
+		break;
 	default:
 		return -ENOPROTOOPT;
 	}
