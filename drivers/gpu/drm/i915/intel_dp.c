@@ -108,10 +108,7 @@ intel_edp_link_config(struct intel_encoder *intel_encoder,
 	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
 
 	*lane_num = intel_dp->lane_count;
-	if (intel_dp->link_bw == DP_LINK_BW_1_62)
-		*link_bw = 162000;
-	else if (intel_dp->link_bw == DP_LINK_BW_2_7)
-		*link_bw = 270000;
+	*link_bw = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 }
 
 int

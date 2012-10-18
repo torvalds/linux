@@ -338,4 +338,12 @@ u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
 void drm_dp_link_train_clock_recovery_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 
+u8 drm_dp_link_rate_to_bw_code(int link_rate);
+int drm_dp_bw_code_to_link_rate(u8 link_bw);
+
+static inline int
+drm_dp_max_link_rate(u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return drm_dp_bw_code_to_link_rate(dpcd[DP_MAX_LINK_RATE]);
+}
 #endif /* _DRM_DP_HELPER_H_ */

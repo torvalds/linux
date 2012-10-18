@@ -347,35 +347,9 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 	return (link_rate * lane_num * 8) / bpp;
 }
 
-static int dp_get_max_link_rate(u8 dpcd[DP_DPCD_SIZE])
-{
-	switch (dpcd[DP_MAX_LINK_RATE]) {
-	case DP_LINK_BW_1_62:
-	default:
-		return 162000;
-	case DP_LINK_BW_2_7:
-		return 270000;
-	case DP_LINK_BW_5_4:
-		return 540000;
-	}
-}
-
 static u8 dp_get_max_lane_number(u8 dpcd[DP_DPCD_SIZE])
 {
 	return dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
-}
-
-static u8 dp_get_dp_link_rate_coded(int link_rate)
-{
-	switch (link_rate) {
-	case 162000:
-	default:
-		return DP_LINK_BW_1_62;
-	case 270000:
-		return DP_LINK_BW_2_7;
-	case 540000:
-		return DP_LINK_BW_5_4;
-	}
 }
 
 /***** radeon specific DP functions *****/
@@ -389,7 +363,7 @@ static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
 					int pix_clock)
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
-	int max_link_rate = dp_get_max_link_rate(dpcd);
+	int max_link_rate = drm_dp_max_link_rate(dpcd);
 	int max_lane_num = dp_get_max_lane_number(dpcd);
 	int lane_num;
 	int max_dp_pix_clock;
@@ -427,7 +401,7 @@ static int radeon_dp_get_dp_link_clock(struct drm_connector *connector,
 			return 540000;
 	}
 
-	return dp_get_max_link_rate(dpcd);
+	return drm_dp_max_link_rate(dpcd);
 }
 
 static u8 radeon_dp_encoder_service(struct radeon_device *rdev,
@@ -692,7 +666,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LANE_COUNT_SET, tmp);
 
 	/* set the link rate on the sink */
-	tmp = dp_get_dp_link_rate_coded(dp_info->dp_clock);
+	tmp = drm_dp_link_rate_to_bw_code(dp_info->dp_clock);
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LINK_BW_SET, tmp);
 
 	/* start training on the source */

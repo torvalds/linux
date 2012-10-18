@@ -297,3 +297,31 @@ void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
 		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
+
+u8 drm_dp_link_rate_to_bw_code(int link_rate)
+{
+	switch (link_rate) {
+	case 162000:
+	default:
+		return DP_LINK_BW_1_62;
+	case 270000:
+		return DP_LINK_BW_2_7;
+	case 540000:
+		return DP_LINK_BW_5_4;
+	}
+}
+EXPORT_SYMBOL(drm_dp_link_rate_to_bw_code);
+
+int drm_dp_bw_code_to_link_rate(u8 link_bw)
+{
+	switch (link_bw) {
+	case DP_LINK_BW_1_62:
+	default:
+		return 162000;
+	case DP_LINK_BW_2_7:
+		return 270000;
+	case DP_LINK_BW_5_4:
+		return 540000;
+	}
+}
+EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
