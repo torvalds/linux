@@ -96,6 +96,11 @@ struct n_tty_data {
 	int canon_data;
 	unsigned long canon_head;
 	unsigned int canon_column;
+
+	struct mutex atomic_read_lock;
+	struct mutex output_lock;
+	struct mutex echo_lock;
+	spinlock_t read_lock;
 };
 
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
@@ -171,14 +176,15 @@ static void put_tty_queue_nolock(unsigned char c, struct tty_struct *tty)
 
 static void put_tty_queue(unsigned char c, struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 	/*
 	 *	The problem of stomping on the buffers ends here.
 	 *	Why didn't anyone see this one coming? --AJK
 	*/
-	spin_lock_irqsave(&tty->read_lock, flags);
+	spin_lock_irqsave(&ldata->read_lock, flags);
 	put_tty_queue_nolock(c, tty);
-	spin_unlock_irqrestore(&tty->read_lock, flags);
+	spin_unlock_irqrestore(&ldata->read_lock, flags);
 }
 
 /**
@@ -212,13 +218,13 @@ static void reset_buffer_flags(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty->read_lock, flags);
+	spin_lock_irqsave(&ldata->read_lock, flags);
 	ldata->read_head = ldata->read_tail = ldata->read_cnt = 0;
-	spin_unlock_irqrestore(&tty->read_lock, flags);
+	spin_unlock_irqrestore(&ldata->read_lock, flags);
 
-	mutex_lock(&tty->echo_lock);
+	mutex_lock(&ldata->echo_lock);
 	ldata->echo_pos = ldata->echo_cnt = ldata->echo_overrun = 0;
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 
 	ldata->canon_head = ldata->canon_data = ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
@@ -270,7 +276,7 @@ static ssize_t n_tty_chars_in_buffer(struct tty_struct *tty)
 	unsigned long flags;
 	ssize_t n = 0;
 
-	spin_lock_irqsave(&tty->read_lock, flags);
+	spin_lock_irqsave(&ldata->read_lock, flags);
 	if (!ldata->icanon) {
 		n = ldata->read_cnt;
 	} else if (ldata->canon_data) {
@@ -278,7 +284,7 @@ static ssize_t n_tty_chars_in_buffer(struct tty_struct *tty)
 			ldata->canon_head - ldata->read_tail :
 			ldata->canon_head + (N_TTY_BUF_SIZE - ldata->read_tail);
 	}
-	spin_unlock_irqrestore(&tty->read_lock, flags);
+	spin_unlock_irqrestore(&ldata->read_lock, flags);
 	return n;
 }
 
@@ -408,14 +414,15 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 
 static int process_output(unsigned char c, struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int	space, retval;
 
-	mutex_lock(&tty->output_lock);
+	mutex_lock(&ldata->output_lock);
 
 	space = tty_write_room(tty);
 	retval = do_output_char(c, tty, space);
 
-	mutex_unlock(&tty->output_lock);
+	mutex_unlock(&ldata->output_lock);
 	if (retval < 0)
 		return -1;
 	else
@@ -449,11 +456,11 @@ static ssize_t process_output_block(struct tty_struct *tty,
 	int	i;
 	const unsigned char *cp;
 
-	mutex_lock(&tty->output_lock);
+	mutex_lock(&ldata->output_lock);
 
 	space = tty_write_room(tty);
 	if (!space) {
-		mutex_unlock(&tty->output_lock);
+		mutex_unlock(&ldata->output_lock);
 		return 0;
 	}
 	if (nr > space)
@@ -496,7 +503,7 @@ static ssize_t process_output_block(struct tty_struct *tty,
 break_out:
 	i = tty->ops->write(tty, buf, i);
 
-	mutex_unlock(&tty->output_lock);
+	mutex_unlock(&ldata->output_lock);
 	return i;
 }
 
@@ -536,8 +543,8 @@ static void process_echoes(struct tty_struct *tty)
 	if (!ldata->echo_cnt)
 		return;
 
-	mutex_lock(&tty->output_lock);
-	mutex_lock(&tty->echo_lock);
+	mutex_lock(&ldata->output_lock);
+	mutex_lock(&ldata->echo_lock);
 
 	space = tty_write_room(tty);
 
@@ -682,8 +689,8 @@ static void process_echoes(struct tty_struct *tty)
 			ldata->echo_overrun = 0;
 	}
 
-	mutex_unlock(&tty->echo_lock);
-	mutex_unlock(&tty->output_lock);
+	mutex_unlock(&ldata->echo_lock);
+	mutex_unlock(&ldata->output_lock);
 
 	if (tty->ops->flush_chars)
 		tty->ops->flush_chars(tty);
@@ -748,12 +755,14 @@ static void add_echo_byte(unsigned char c, struct tty_struct *tty)
 
 static void echo_move_back_col(struct tty_struct *tty)
 {
-	mutex_lock(&tty->echo_lock);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	mutex_lock(&ldata->echo_lock);
 
 	add_echo_byte(ECHO_OP_START, tty);
 	add_echo_byte(ECHO_OP_MOVE_BACK_COL, tty);
 
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 }
 
 /**
@@ -768,12 +777,14 @@ static void echo_move_back_col(struct tty_struct *tty)
 
 static void echo_set_canon_col(struct tty_struct *tty)
 {
-	mutex_lock(&tty->echo_lock);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	mutex_lock(&ldata->echo_lock);
 
 	add_echo_byte(ECHO_OP_START, tty);
 	add_echo_byte(ECHO_OP_SET_CANON_COL, tty);
 
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 }
 
 /**
@@ -796,7 +807,9 @@ static void echo_set_canon_col(struct tty_struct *tty)
 static void echo_erase_tab(unsigned int num_chars, int after_tab,
 			   struct tty_struct *tty)
 {
-	mutex_lock(&tty->echo_lock);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	mutex_lock(&ldata->echo_lock);
 
 	add_echo_byte(ECHO_OP_START, tty);
 	add_echo_byte(ECHO_OP_ERASE_TAB, tty);
@@ -810,7 +823,7 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
 
 	add_echo_byte(num_chars, tty);
 
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 }
 
 /**
@@ -828,7 +841,9 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
 
 static void echo_char_raw(unsigned char c, struct tty_struct *tty)
 {
-	mutex_lock(&tty->echo_lock);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	mutex_lock(&ldata->echo_lock);
 
 	if (c == ECHO_OP_START) {
 		add_echo_byte(ECHO_OP_START, tty);
@@ -837,7 +852,7 @@ static void echo_char_raw(unsigned char c, struct tty_struct *tty)
 		add_echo_byte(c, tty);
 	}
 
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 }
 
 /**
@@ -856,7 +871,9 @@ static void echo_char_raw(unsigned char c, struct tty_struct *tty)
 
 static void echo_char(unsigned char c, struct tty_struct *tty)
 {
-	mutex_lock(&tty->echo_lock);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	mutex_lock(&ldata->echo_lock);
 
 	if (c == ECHO_OP_START) {
 		add_echo_byte(ECHO_OP_START, tty);
@@ -867,7 +884,7 @@ static void echo_char(unsigned char c, struct tty_struct *tty)
 		add_echo_byte(c, tty);
 	}
 
-	mutex_unlock(&tty->echo_lock);
+	mutex_unlock(&ldata->echo_lock);
 }
 
 /**
@@ -914,19 +931,19 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		kill_type = WERASE;
 	else {
 		if (!L_ECHO(tty)) {
-			spin_lock_irqsave(&tty->read_lock, flags);
+			spin_lock_irqsave(&ldata->read_lock, flags);
 			ldata->read_cnt -= ((ldata->read_head - ldata->canon_head) &
 					  (N_TTY_BUF_SIZE - 1));
 			ldata->read_head = ldata->canon_head;
-			spin_unlock_irqrestore(&tty->read_lock, flags);
+			spin_unlock_irqrestore(&ldata->read_lock, flags);
 			return;
 		}
 		if (!L_ECHOK(tty) || !L_ECHOKE(tty) || !L_ECHOE(tty)) {
-			spin_lock_irqsave(&tty->read_lock, flags);
+			spin_lock_irqsave(&ldata->read_lock, flags);
 			ldata->read_cnt -= ((ldata->read_head - ldata->canon_head) &
 					  (N_TTY_BUF_SIZE - 1));
 			ldata->read_head = ldata->canon_head;
-			spin_unlock_irqrestore(&tty->read_lock, flags);
+			spin_unlock_irqrestore(&ldata->read_lock, flags);
 			finish_erasing(tty);
 			echo_char(KILL_CHAR(tty), tty);
 			/* Add a newline if ECHOK is on and ECHOKE is off. */
@@ -960,10 +977,10 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				break;
 		}
 		cnt = (ldata->read_head - head) & (N_TTY_BUF_SIZE-1);
-		spin_lock_irqsave(&tty->read_lock, flags);
+		spin_lock_irqsave(&ldata->read_lock, flags);
 		ldata->read_head = head;
 		ldata->read_cnt -= cnt;
-		spin_unlock_irqrestore(&tty->read_lock, flags);
+		spin_unlock_irqrestore(&ldata->read_lock, flags);
 		if (L_ECHO(tty)) {
 			if (L_ECHOPRT(tty)) {
 				if (!ldata->erasing) {
@@ -1338,12 +1355,12 @@ send_signal:
 				put_tty_queue(c, tty);
 
 handle_newline:
-			spin_lock_irqsave(&tty->read_lock, flags);
+			spin_lock_irqsave(&ldata->read_lock, flags);
 			set_bit(ldata->read_head, ldata->read_flags);
 			put_tty_queue_nolock(c, tty);
 			ldata->canon_head = ldata->read_head;
 			ldata->canon_data++;
-			spin_unlock_irqrestore(&tty->read_lock, flags);
+			spin_unlock_irqrestore(&ldata->read_lock, flags);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 			if (waitqueue_active(&tty->read_wait))
 				wake_up_interruptible(&tty->read_wait);
@@ -1417,7 +1434,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	unsigned long cpuflags;
 
 	if (ldata->real_raw) {
-		spin_lock_irqsave(&tty->read_lock, cpuflags);
+		spin_lock_irqsave(&ldata->read_lock, cpuflags);
 		i = min(N_TTY_BUF_SIZE - ldata->read_cnt,
 			N_TTY_BUF_SIZE - ldata->read_head);
 		i = min(count, i);
@@ -1433,7 +1450,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		memcpy(ldata->read_buf + ldata->read_head, cp, i);
 		ldata->read_head = (ldata->read_head + i) & (N_TTY_BUF_SIZE-1);
 		ldata->read_cnt += i;
-		spin_unlock_irqrestore(&tty->read_lock, cpuflags);
+		spin_unlock_irqrestore(&ldata->read_lock, cpuflags);
 	} else {
 		for (i = count, p = cp, f = fp; i; i--, p++) {
 			if (f)
@@ -1626,6 +1643,10 @@ static int n_tty_open(struct tty_struct *tty)
 		goto err;
 
 	ldata->overrun_time = jiffies;
+	mutex_init(&ldata->atomic_read_lock);
+	mutex_init(&ldata->output_lock);
+	mutex_init(&ldata->echo_lock);
+	spin_lock_init(&ldata->read_lock);
 
 	/* These are ugly. Currently a malloc failure here can panic */
 	ldata->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
@@ -1677,7 +1698,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
  *	buffer, and once to drain the space from the (physical) beginning of
  *	the buffer to head pointer.
  *
- *	Called under the tty->atomic_read_lock sem
+ *	Called under the ldata->atomic_read_lock sem
  *
  */
 
@@ -1693,10 +1714,10 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	bool is_eof;
 
 	retval = 0;
-	spin_lock_irqsave(&tty->read_lock, flags);
+	spin_lock_irqsave(&ldata->read_lock, flags);
 	n = min(ldata->read_cnt, N_TTY_BUF_SIZE - ldata->read_tail);
 	n = min(*nr, n);
-	spin_unlock_irqrestore(&tty->read_lock, flags);
+	spin_unlock_irqrestore(&ldata->read_lock, flags);
 	if (n) {
 		retval = copy_to_user(*b, &ldata->read_buf[ldata->read_tail], n);
 		n -= retval;
@@ -1704,13 +1725,13 @@ static int copy_from_read_buf(struct tty_struct *tty,
 			ldata->read_buf[ldata->read_tail] == EOF_CHAR(tty);
 		tty_audit_add_data(tty, &ldata->read_buf[ldata->read_tail], n,
 				ldata->icanon);
-		spin_lock_irqsave(&tty->read_lock, flags);
+		spin_lock_irqsave(&ldata->read_lock, flags);
 		ldata->read_tail = (ldata->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		ldata->read_cnt -= n;
 		/* Turn single EOF into zero-length read */
 		if (L_EXTPROC(tty) && ldata->icanon && is_eof && !ldata->read_cnt)
 			n = 0;
-		spin_unlock_irqrestore(&tty->read_lock, flags);
+		spin_unlock_irqrestore(&ldata->read_lock, flags);
 		*b += n;
 		*nr -= n;
 	}
@@ -1818,10 +1839,10 @@ do_it_again:
 	 *	Internal serialization of reads.
 	 */
 	if (file->f_flags & O_NONBLOCK) {
-		if (!mutex_trylock(&tty->atomic_read_lock))
+		if (!mutex_trylock(&ldata->atomic_read_lock))
 			return -EAGAIN;
 	} else {
-		if (mutex_lock_interruptible(&tty->atomic_read_lock))
+		if (mutex_lock_interruptible(&ldata->atomic_read_lock))
 			return -ERESTARTSYS;
 	}
 	packet = tty->packet;
@@ -1890,7 +1911,7 @@ do_it_again:
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
 			/* N.B. avoid overrun if nr == 0 */
-			spin_lock_irqsave(&tty->read_lock, flags);
+			spin_lock_irqsave(&ldata->read_lock, flags);
 			while (nr && ldata->read_cnt) {
 				int eol;
 
@@ -1908,25 +1929,25 @@ do_it_again:
 					if (--ldata->canon_data < 0)
 						ldata->canon_data = 0;
 				}
-				spin_unlock_irqrestore(&tty->read_lock, flags);
+				spin_unlock_irqrestore(&ldata->read_lock, flags);
 
 				if (!eol || (c != __DISABLED_CHAR)) {
 					if (tty_put_user(tty, c, b++)) {
 						retval = -EFAULT;
 						b--;
-						spin_lock_irqsave(&tty->read_lock, flags);
+						spin_lock_irqsave(&ldata->read_lock, flags);
 						break;
 					}
 					nr--;
 				}
 				if (eol) {
 					tty_audit_push(tty);
-					spin_lock_irqsave(&tty->read_lock, flags);
+					spin_lock_irqsave(&ldata->read_lock, flags);
 					break;
 				}
-				spin_lock_irqsave(&tty->read_lock, flags);
+				spin_lock_irqsave(&ldata->read_lock, flags);
 			}
-			spin_unlock_irqrestore(&tty->read_lock, flags);
+			spin_unlock_irqrestore(&ldata->read_lock, flags);
 			if (retval)
 				break;
 		} else {
@@ -1958,7 +1979,7 @@ do_it_again:
 		if (time)
 			timeout = time;
 	}
-	mutex_unlock(&tty->atomic_read_lock);
+	mutex_unlock(&ldata->atomic_read_lock);
 	remove_wait_queue(&tty->read_wait, &wait);
 
 	if (!waitqueue_active(&tty->read_wait))

@@ -235,6 +235,7 @@ struct tty_struct {
 	struct mutex ldisc_mutex;
 	struct tty_ldisc *ldisc;
 
+	struct mutex atomic_write_lock;
 	struct mutex legacy_mutex;
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
@@ -265,20 +266,10 @@ struct tty_struct {
 
 #define N_TTY_BUF_SIZE 4096
 
-	/*
-	 * The following is data for the N_TTY line discipline.  For
-	 * historical reasons, this is included in the tty structure.
-	 * Mostly locked by the BKL.
-	 */
 	unsigned char closing:1;
 	unsigned short minimum_to_wake;
-	struct mutex atomic_read_lock;
-	struct mutex atomic_write_lock;
-	struct mutex output_lock;
-	struct mutex echo_lock;
 	unsigned char *write_buf;
 	int write_cnt;
-	spinlock_t read_lock;
 	/* If the tty has a pending do_SAK, queue it here - akpm */
 	struct work_struct SAK_work;
 	struct tty_port *port;
