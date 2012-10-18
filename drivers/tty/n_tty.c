@@ -73,6 +73,10 @@
 #define ECHO_OP_SET_CANON_COL 0x81
 #define ECHO_OP_ERASE_TAB 0x82
 
+struct n_tty_data {
+	char dummy;
+};
+
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 			       unsigned char __user *ptr)
 {
@@ -1556,11 +1560,15 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 static void n_tty_close(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
+
 	n_tty_flush_buffer(tty);
 	kfree(tty->read_buf);
 	kfree(tty->echo_buf);
+	kfree(ldata);
 	tty->read_buf = NULL;
 	tty->echo_buf = NULL;
+	tty->disc_data = NULL;
 }
 
 /**
@@ -1575,23 +1583,32 @@ static void n_tty_close(struct tty_struct *tty)
 
 static int n_tty_open(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata;
+
+	ldata = kzalloc(sizeof(*ldata), GFP_KERNEL);
+	if (!ldata)
+		goto err;
+
 	/* These are ugly. Currently a malloc failure here can panic */
 	tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	if (!tty->read_buf || !tty->echo_buf)
 		goto err_free_bufs;
 
+	tty->disc_data = ldata;
 	reset_buffer_flags(tty);
 	tty_unthrottle(tty);
 	tty->column = 0;
 	n_tty_set_termios(tty, NULL);
 	tty->minimum_to_wake = 1;
 	tty->closing = 0;
+
 	return 0;
 err_free_bufs:
 	kfree(tty->read_buf);
 	kfree(tty->echo_buf);
-
+	kfree(ldata);
+err:
 	return -ENOMEM;
 }
 
