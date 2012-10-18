@@ -29,6 +29,7 @@ enum {
 	TPS6586X_ID_LDO_8,
 	TPS6586X_ID_LDO_9,
 	TPS6586X_ID_LDO_RTC,
+	TPS6586X_ID_MAX_REGULATOR,
 };
 
 enum {
@@ -79,6 +80,8 @@ struct tps6586x_platform_data {
 	int gpio_base;
 	int irq_base;
 	bool pm_off;
+
+	struct regulator_init_data *reg_init_data[TPS6586X_ID_MAX_REGULATOR];
 };
 
 /*
