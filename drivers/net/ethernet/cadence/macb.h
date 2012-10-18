@@ -577,6 +577,11 @@ struct macb {
 	struct recv_desc_bufs *dlist_phys;	/* descriptor list physical address */
 };
 
+extern const struct ethtool_ops macb_ethtool_ops;
+
+int macb_mii_init(struct macb *bp);
+int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+
 static inline bool macb_is_gem(struct macb *bp)
 {
 	return MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2;
