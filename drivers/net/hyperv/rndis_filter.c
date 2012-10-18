@@ -363,11 +363,6 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 
 	rndis_pkt = &msg->msg.pkt;
 
-	/*
-	 * FIXME: Handle multiple rndis pkt msgs that maybe enclosed in this
-	 * netvsc packet (ie TotalDataBufferLength != MessageLength)
-	 */
-
 	/* Remove the rndis header and pass it back up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
