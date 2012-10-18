@@ -7,22 +7,53 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-#define gpio_readl(offset)	readl_relaxed(RK2928_GPIO1_BASE + offset)
-#define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO1_BASE + offset); dsb(); } while (0)
+#ifdef CONFIG_MFD_TPS65910
+
+#if defined(CONFIG_MACH_RK2928_SDK)
+#define PMU_POWER_SLEEP RK2928_PIN0_PD0	
+#elif defined(CONFIG_MACH_RK2928_TB)
+#define PMU_POWER_SLEEP RK2928_PIN3_PD2
+#else
+#define PMU_POWER_SLEEP RK2928_PIN1_PA1
+#endif
 
 #define GPIO_SWPORTA_DR  0x0000
 #define GPIO_SWPORTA_DDR 0x0004
+struct sram_gpio_data {
+       void __iomem *base;
+       uint offset;
+};
 
-#define GPIO1_A1_OUTPUT  (1<<1)
-#define GPIO1_A1_OUTPUT_HIGH  (1<<1)
-#define GPIO1_A1_OUTPUT_LOW  (~(1<<1))
+static __sramdata struct sram_gpio_data pmic_sleep;
+static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928_GPIO2_BASE, RK2928_GPIO3_BASE};
 
-#ifdef CONFIG_MFD_TPS65910
-#if defined(CONFIG_MACH_RK2928_SDK)
-#define PMU_POWER_SLEEP RK2928_PIN0_PD0	
-#else
-#define PMU_POWER_SLEEP RK2928_PIN1_PA1	
-#endif
+static int sram_gpio_init(int gpio, struct sram_gpio_data *data)
+{
+       unsigned index;
+
+       if(gpio == INVALID_GPIO)
+               return -EINVAL;
+       index = gpio - PIN_BASE;
+       if(index/NUM_GROUP >= ARRAY_SIZE(gpio_base))
+               return -EINVAL;
+
+       data->base = gpio_base[index/NUM_GROUP];
+       data->offset = index%NUM_GROUP;
+
+       return 0;
+}
+
+static __sramfunc void sram_gpio_set_value(struct sram_gpio_data data, uint value)
+{
+       writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DDR)| (1<<data.offset),
+                       data.offset + GPIO_SWPORTA_DDR);
+       if(value)
+               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) | (1<<data.offset),
+                               data.base + GPIO_SWPORTA_DR);
+       else
+               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) & ~(1<<data.offset),
+                               data.base + GPIO_SWPORTA_DR);
+}
 extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
@@ -32,6 +63,11 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	int err = -1;
 		
 	printk("%s,line=%d\n", __func__,__LINE__);	
+        if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
+                printk(KERN_ERR "PMU_POWER_SLEEP is invalid gpio\n");
+                return -EINVAL;
+        }
+
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
 
@@ -248,14 +284,14 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	printk("%s set vio vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
-        /*
+#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
 	ldo = regulator_get(NULL, "vpll");	// vcc25
 	regulator_set_voltage(ldo, 2500000, 2500000);
 	regulator_enable(ldo);
 	printk("%s set vpll vcc25=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
-        */
+#endif
 	ldo = regulator_get(NULL, "vdig2");	// vdd12
 	regulator_set_voltage(ldo, 1200000, 1200000);
 	regulator_enable(ldo);
@@ -285,7 +321,11 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	udelay(100);
 	
 	ldo = regulator_get(NULL, "vdig1");	//vcc18_cif
+#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
+	regulator_set_voltage(ldo, 1800000, 1800000);
+#else
 	regulator_set_voltage(ldo, 1500000, 1500000);
+#endif
 	regulator_enable(ldo);
 	printk("%s set vdig1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
@@ -304,19 +344,23 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	printk("%s set vaux2 vcca33=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
-        /*
+#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
 	ldo = regulator_get(NULL, "vdac"); // vccio_wl
 	regulator_set_voltage(ldo,1800000,1800000);
 	regulator_enable(ldo); 
 	printk("%s set vdac vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
-        */
+#endif
 	ldo = regulator_get(NULL, "vmmc");  //vccio_wl
 	regulator_set_voltage(ldo,3300000,3300000);
 	regulator_enable(ldo); 
 	printk("%s set vmmc vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
+#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
+        //do not disable vccio wl
+#else
 	regulator_disable(ldo); 
+#endif
 	regulator_put(ldo);
 	udelay(100);
 
@@ -580,19 +624,12 @@ static struct regulator_init_data tps65910_ldo8 = {
 };
 void __sramfunc board_pmu_tps65910_suspend(void)
 {	
-	int ret;
-	ret = gpio_readl(GPIO_SWPORTA_DDR);
-	gpio_writel(ret | GPIO1_A1_OUTPUT, GPIO_SWPORTA_DDR);
-	ret = gpio_readl(GPIO_SWPORTA_DR);
-	gpio_writel(ret | GPIO1_A1_OUTPUT_HIGH, GPIO_SWPORTA_DR);  //set pmu_sleep output high
+        sram_gpio_set_value(pmic_sleep, GPIO_HIGH);  
 }
 void __sramfunc board_pmu_tps65910_resume(void)
 {
 	int ret;
-	ret = gpio_readl(GPIO_SWPORTA_DDR);
-	gpio_writel(ret | GPIO1_A1_OUTPUT, GPIO_SWPORTA_DDR);
-	ret = gpio_readl(GPIO_SWPORTA_DR);
-	gpio_writel(ret & GPIO1_A1_OUTPUT_LOW, GPIO_SWPORTA_DR);   //set pmu_sleep output low
+        sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
 	sram_udelay(2000);
 }
 static struct tps65910_board tps65910_data = {

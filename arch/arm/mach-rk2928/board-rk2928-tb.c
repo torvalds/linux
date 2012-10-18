@@ -64,6 +64,8 @@
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
 
+int __sramdata g_pmic_type =  0;
+
 #include "board-rk2928-tb-camera.c"
 #include "board-rk2928-tb-key.c"
 
@@ -217,72 +219,6 @@ static struct sensor_platform_data mma8452_info = {
         .init_platform_hw = mma8452_init_platform_hw,
         .orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
-#endif
-#if defined (CONFIG_COMPASS_AK8975)
-static struct sensor_platform_data akm8975_info =
-{
-	.type = SENSOR_TYPE_COMPASS,
-	.irq_enable = 1,
-	.poll_delay_ms = 30,
-	.m_layout = 
-	{
-		{
-			{1, 0, 0},
-			{0, 1, 0},
-			{0, 0, 1},
-		},
-
-		{
-			{1, 0, 0},
-			{0, 1, 0},
-			{0, 0, 1},
-		},
-
-		{
-			{1, 0, 0},
-			{0, 1, 0},
-			{0, 0, 1},
-		},
-
-		{
-			{1, 0, 0},
-			{0, 1, 0},
-			{0, 0, 1},
-		},
-	}
-};
-
-#endif
-
-#if defined(CONFIG_GYRO_L3G4200D)
-
-#include <linux/l3g4200d.h>
-
-static int l3g4200d_init_platform_hw(void)
-{
-	return 0;
-}
-
-static struct sensor_platform_data l3g4200d_info = {
-	.type = SENSOR_TYPE_GYROSCOPE,
-	.irq_enable = 1,
-	.poll_delay_ms = 30,
-	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
-	.init_platform_hw = l3g4200d_init_platform_hw,
-	.x_min = 40,//x_min,y_min,z_min = (0-100) according to hardware
-	.y_min = 40,
-	.z_min = 20,
-};
-
-#endif
-
-#ifdef CONFIG_LS_CM3217
-static struct sensor_platform_data cm3217_info = {
-	.type = SENSOR_TYPE_LIGHT,
-	.irq_enable = 0,
-	.poll_delay_ms = 500,
-};
-
 #endif
 
 #ifdef CONFIG_FB_ROCKCHIP
@@ -465,6 +401,38 @@ struct platform_device pwm_regulator_device[1] = {
 	},
 };
 #endif
+
+/***********************************************************
+*	usb wifi
+************************************************************/
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+
+static void rkusb_wifi_power(int on) {
+	struct regulator *ldo = NULL;
+	
+#if defined(CONFIG_MFD_TPS65910)	
+	if (pmic_is_tps65910() )
+		ldo = regulator_get(NULL, "vmmc");  //vccio_wl
+#endif
+#if defined(CONFIG_REGULATOR_ACT8931)
+	if(pmic_is_act8931() )
+		ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
+#endif	
+	
+	if(on) {
+		regulator_enable(ldo);
+		printk("%s: vccio_wl enable\n", __func__);
+	} else {
+		printk("%s: vccio_wl disable\n", __func__);
+		regulator_disable(ldo);
+	}
+	
+	regulator_put(ldo);
+	udelay(100);
+}
+
+#endif
+
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
@@ -816,30 +784,12 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &mma8452_info,
 	},
 #endif
-#if defined (CONFIG_COMPASS_AK8975)
-	{
-		.type          = "ak8975",
-		.addr          = 0x0d,
-		.flags         = 0,
-		.irq           = RK2928_PIN3_PD2,
-		.platform_data = &akm8975_info,
-	},
-#endif
-#if defined (CONFIG_GYRO_L3G4200D)
-	{
-		.type          = "l3g4200d_gryo",
-		.addr          = 0x69,
-		.flags         = 0,
-		.irq           = RK2928_PIN3_PD3,
-		.platform_data = &l3g4200d_info,
-	},
-#endif
 };
 #endif
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_TPS65910
 #define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
-#include "board-rk2928-tb-tps65910.c"
+#include "board-rk2928-sdk-tps65910.c"
 #endif
 static struct i2c_board_info __initdata i2c1_info[] = {
 
@@ -865,14 +815,6 @@ static struct i2c_board_info __initdata i2c2_info[] = {
                 .irq            = RK2928_PIN3_PC7,
                 .platform_data  = &eeti_egalax_info,
         },
-#endif
-#if defined (CONFIG_LS_CM3217)
-	{
-		.type          = "lightsensor",
-		.addr          = 0x10,
-		.flags         = 0,
-		.platform_data = &cm3217_info,
-	},
 #endif
 };
 #endif
@@ -943,8 +885,6 @@ static void __init rk2928_board_init(void)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-        //RK2928 USB DETECT IRQ: IRQ_OTG_BVALID
-	//board_usb_detect_init(RK30_PIN6_PA3);
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
@@ -959,12 +899,6 @@ static void __init rk2928_reserve(void)
 #ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0", RK30_FB0_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
-#if 0
-	resource_fb[1].start = board_mem_reserve_add("ipp buf", RK30_FB0_MEM_SIZE);
-	resource_fb[1].end = resource_fb[1].start + RK30_FB0_MEM_SIZE - 1;
-	resource_fb[2].start = board_mem_reserve_add("fb2", RK30_FB0_MEM_SIZE);
-	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;
-#endif
 #endif
 #ifdef CONFIG_VIDEO_RK29
 	rk30_camera_request_reserve_mem();
@@ -985,22 +919,21 @@ static void __init rk2928_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 408 * 1000,	.cpu_volt =  950 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 600 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 696 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 816 * 1000,	.cpu_volt = 1250 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 912 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},
+	{.frequency = 1008 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},
 #if 0
-	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 #endif
-	//{.frequency = 1000 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
