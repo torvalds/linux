@@ -272,12 +272,10 @@ struct tty_struct {
 	 */
 	unsigned char closing:1;
 	unsigned short minimum_to_wake;
-	unsigned long process_char_map[256/(8*sizeof(unsigned long))];
 	char *read_buf;
 	int read_head;
 	int read_tail;
 	int read_cnt;
-	unsigned long read_flags[N_TTY_BUF_SIZE/(8*sizeof(unsigned long))];
 	unsigned char *echo_buf;
 	unsigned int echo_pos;
 	unsigned int echo_cnt;

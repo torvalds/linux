@@ -80,6 +80,9 @@ struct n_tty_data {
 
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 	unsigned char echo_overrun:1;
+
+	DECLARE_BITMAP(process_char_map, 256);
+	DECLARE_BITMAP(read_flags, N_TTY_BUF_SIZE);
 };
 
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
@@ -203,7 +206,7 @@ static void reset_buffer_flags(struct tty_struct *tty)
 	mutex_unlock(&tty->echo_lock);
 
 	tty->canon_head = tty->canon_data = ldata->erasing = 0;
-	memset(&tty->read_flags, 0, sizeof tty->read_flags);
+	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 	n_tty_set_room(tty);
 }
 
@@ -1165,7 +1168,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	 * handle specially, do shortcut processing to speed things
 	 * up.
 	 */
-	if (!test_bit(c, tty->process_char_map) || ldata->lnext) {
+	if (!test_bit(c, ldata->process_char_map) || ldata->lnext) {
 		ldata->lnext = 0;
 		parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
 		if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
@@ -1321,7 +1324,7 @@ send_signal:
 
 handle_newline:
 			spin_lock_irqsave(&tty->read_lock, flags);
-			set_bit(tty->read_head, tty->read_flags);
+			set_bit(tty->read_head, ldata->read_flags);
 			put_tty_queue_nolock(c, tty);
 			tty->canon_head = tty->read_head;
 			tty->canon_data++;
@@ -1496,7 +1499,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if (old)
 		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
 	if (canon_change) {
-		memset(&tty->read_flags, 0, sizeof tty->read_flags);
+		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 		tty->canon_head = tty->read_tail;
 		tty->canon_data = 0;
 		ldata->erasing = 0;
@@ -1516,41 +1519,41 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	    I_ICRNL(tty) || I_INLCR(tty) || L_ICANON(tty) ||
 	    I_IXON(tty) || L_ISIG(tty) || L_ECHO(tty) ||
 	    I_PARMRK(tty)) {
-		memset(tty->process_char_map, 0, 256/8);
+		bitmap_zero(ldata->process_char_map, 256);
 
 		if (I_IGNCR(tty) || I_ICRNL(tty))
-			set_bit('\r', tty->process_char_map);
+			set_bit('\r', ldata->process_char_map);
 		if (I_INLCR(tty))
-			set_bit('\n', tty->process_char_map);
+			set_bit('\n', ldata->process_char_map);
 
 		if (L_ICANON(tty)) {
-			set_bit(ERASE_CHAR(tty), tty->process_char_map);
-			set_bit(KILL_CHAR(tty), tty->process_char_map);
-			set_bit(EOF_CHAR(tty), tty->process_char_map);
-			set_bit('\n', tty->process_char_map);
-			set_bit(EOL_CHAR(tty), tty->process_char_map);
+			set_bit(ERASE_CHAR(tty), ldata->process_char_map);
+			set_bit(KILL_CHAR(tty), ldata->process_char_map);
+			set_bit(EOF_CHAR(tty), ldata->process_char_map);
+			set_bit('\n', ldata->process_char_map);
+			set_bit(EOL_CHAR(tty), ldata->process_char_map);
 			if (L_IEXTEN(tty)) {
 				set_bit(WERASE_CHAR(tty),
-					tty->process_char_map);
+					ldata->process_char_map);
 				set_bit(LNEXT_CHAR(tty),
-					tty->process_char_map);
+					ldata->process_char_map);
 				set_bit(EOL2_CHAR(tty),
-					tty->process_char_map);
+					ldata->process_char_map);
 				if (L_ECHO(tty))
 					set_bit(REPRINT_CHAR(tty),
-						tty->process_char_map);
+						ldata->process_char_map);
 			}
 		}
 		if (I_IXON(tty)) {
-			set_bit(START_CHAR(tty), tty->process_char_map);
-			set_bit(STOP_CHAR(tty), tty->process_char_map);
+			set_bit(START_CHAR(tty), ldata->process_char_map);
+			set_bit(STOP_CHAR(tty), ldata->process_char_map);
 		}
 		if (L_ISIG(tty)) {
-			set_bit(INTR_CHAR(tty), tty->process_char_map);
-			set_bit(QUIT_CHAR(tty), tty->process_char_map);
-			set_bit(SUSP_CHAR(tty), tty->process_char_map);
+			set_bit(INTR_CHAR(tty), ldata->process_char_map);
+			set_bit(QUIT_CHAR(tty), ldata->process_char_map);
+			set_bit(SUSP_CHAR(tty), ldata->process_char_map);
 		}
-		clear_bit(__DISABLED_CHAR, tty->process_char_map);
+		clear_bit(__DISABLED_CHAR, ldata->process_char_map);
 		ldata->raw = 0;
 		ldata->real_raw = 0;
 	} else {
@@ -1879,7 +1882,7 @@ do_it_again:
 				int eol;
 
 				eol = test_and_clear_bit(tty->read_tail,
-						tty->read_flags);
+						ldata->read_flags);
 				c = tty->read_buf[tty->read_tail];
 				tty->read_tail = ((tty->read_tail+1) &
 						  (N_TTY_BUF_SIZE-1));
@@ -2105,6 +2108,7 @@ static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 
 static unsigned long inq_canon(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int nr, head, tail;
 
 	if (!tty->canon_data)
@@ -2114,7 +2118,7 @@ static unsigned long inq_canon(struct tty_struct *tty)
 	nr = (head - tail) & (N_TTY_BUF_SIZE-1);
 	/* Skip EOF-chars.. */
 	while (head != tail) {
-		if (test_bit(tail, tty->read_flags) &&
+		if (test_bit(tail, ldata->read_flags) &&
 		    tty->read_buf[tail] == __DISABLED_CHAR)
 			nr--;
 		tail = (tail+1) & (N_TTY_BUF_SIZE-1);
