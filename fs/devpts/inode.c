@@ -545,6 +545,15 @@ void devpts_kill_index(struct inode *ptmx_inode, int idx)
 	mutex_unlock(&allocated_ptys_lock);
 }
 
+/**
+ * devpts_pty_new -- create a new inode in /dev/pts/
+ * @ptmx_inode: inode of the master
+ * @device: major+minor of the node to be created
+ * @index: used as a name of the node
+ * @priv: what's given back by devpts_get_priv
+ *
+ * The created inode is returned. Remove it from /dev/pts/ by devpts_pty_kill.
+ */
 struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
 		void *priv)
 {
@@ -585,6 +594,12 @@ struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
 	return inode;
 }
 
+/**
+ * devpts_get_priv -- get private data for a slave
+ * @pts_inode: inode of the slave
+ *
+ * Returns whatever was passed as priv in devpts_pty_new for a given inode.
+ */
 void *devpts_get_priv(struct inode *pts_inode)
 {
 	struct dentry *dentry;
@@ -605,6 +620,12 @@ void *devpts_get_priv(struct inode *pts_inode)
 	return priv;
 }
 
+/**
+ * devpts_pty_kill -- remove inode form /dev/pts/
+ * @inode: inode of the slave to be removed
+ *
+ * This is an inverse operation of devpts_pty_new.
+ */
 void devpts_pty_kill(struct inode *inode)
 {
 	struct super_block *sb = pts_sb_from_inode(inode);
