@@ -710,3 +710,73 @@ s32 igb_update_nvm_checksum(struct e1000_hw *hw)
 out:
 	return ret_val;
 }
+
+/**
+ *  igb_get_fw_version - Get firmware version information
+ *  @hw: pointer to the HW structure
+ *  @fw_vers: pointer to output structure
+ *
+ *  unsupported MAC types will return all 0 version structure
+ **/
+void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
+{
+	u16 eeprom_verh, eeprom_verl, comb_verh, comb_verl, comb_offset;
+	u16 fw_version;
+
+	memset(fw_vers, 0, sizeof(struct e1000_fw_version));
+
+	switch (hw->mac.type) {
+	case e1000_i211:
+		return;
+	case e1000_82575:
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+		break;
+	default:
+		return;
+	}
+	/* basic eeprom version numbers */
+	hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
+	fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK) >> NVM_MAJOR_SHIFT;
+	fw_vers->eep_minor = (fw_version & NVM_MINOR_MASK);
+
+	/* etrack id */
+	hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verl);
+	hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verh);
+	fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT) | eeprom_verl;
+
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i350:
+		/* find combo image version */
+		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
+		if ((comb_offset != 0x0) && (comb_offset != NVM_VER_INVALID)) {
+
+			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset
+					 + 1), 1, &comb_verh);
+			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset),
+					 1, &comb_verl);
+
+			/* get Option Rom version if it exists and is valid */
+			if ((comb_verh && comb_verl) &&
+			    ((comb_verh != NVM_VER_INVALID) &&
+			     (comb_verl != NVM_VER_INVALID))) {
+
+				fw_vers->or_valid = true;
+				fw_vers->or_major =
+					comb_verl >> NVM_COMB_VER_SHFT;
+				fw_vers->or_build =
+					((comb_verl << NVM_COMB_VER_SHFT)
+					| (comb_verh >> NVM_COMB_VER_SHFT));
+				fw_vers->or_patch =
+					comb_verh & NVM_COMB_VER_MASK;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return;
+}
