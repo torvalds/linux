@@ -8,8 +8,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include <mach/devices.h>
 #include <mach/hardware.h>
