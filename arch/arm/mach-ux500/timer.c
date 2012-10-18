@@ -96,7 +96,7 @@ dt_fail:
 	 *
 	 */
 
-	nmdk_timer_init(mtu_timer_base);
+	nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
 	ux500_twd_init();
 }

@@ -174,7 +174,7 @@ void nmdk_clksrc_reset(void)
 	       mtu_base + MTU_CR(0));
 }
 
-void __init nmdk_timer_init(void __iomem *base)
+void __init nmdk_timer_init(void __iomem *base, int irq)
 {
 	unsigned long rate;
 	struct clk *clk0;
@@ -217,7 +217,7 @@ void __init nmdk_timer_init(void __iomem *base)
 #endif
 
 	/* Timer 1 is used for events, register irq and clockevents */
-	setup_irq(IRQ_MTU0, &nmdk_timer_irq);
+	setup_irq(irq, &nmdk_timer_irq);
 	nmdk_clkevt.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&nmdk_clkevt, rate, 2, 0xffffffffU);
 }
