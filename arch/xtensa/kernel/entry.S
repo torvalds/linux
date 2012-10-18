@@ -1542,7 +1542,7 @@ ENTRY(fast_second_level_miss)
 	 * pteval = ((pmdval - PAGE_OFFSET) & PAGE_MASK) | PAGE_DIRECTORY
 	 */
 
-	movi	a1, -PAGE_OFFSET
+	movi	a1, (-PAGE_OFFSET) & 0xffffffff
 	add	a0, a0, a1		# pmdval - PAGE_OFFSET
 	extui	a1, a0, 0, PAGE_SHIFT	# ... & PAGE_MASK
 	xor	a0, a0, a1

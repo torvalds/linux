@@ -190,9 +190,12 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
                 struct task_struct * p, struct pt_regs * regs)
 {
 	struct pt_regs *childregs;
-	struct thread_info *ti;
 	unsigned long tos;
 	int user_mode = user_mode(regs);
+
+#if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
+	struct thread_info *ti;
+#endif
 
 	/* Set up new TSS. */
 	tos = (unsigned long)task_stack_page(p) + THREAD_SIZE;
