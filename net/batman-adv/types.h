@@ -156,7 +156,7 @@ struct batadv_neigh_node {
 #ifdef CONFIG_BATMAN_ADV_BLA
 struct batadv_bcast_duplist_entry {
 	uint8_t orig[ETH_ALEN];
-	uint16_t crc;
+	__be32 crc;
 	unsigned long entrytime;
 };
 #endif
