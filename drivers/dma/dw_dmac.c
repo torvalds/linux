@@ -1787,7 +1787,7 @@ static void dw_shutdown(struct platform_device *pdev)
 {
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
-	dw_dma_off(platform_get_drvdata(pdev));
+	dw_dma_off(dw);
 	clk_disable_unprepare(dw->clk);
 }
 
@@ -1796,7 +1796,7 @@ static int dw_suspend_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
-	dw_dma_off(platform_get_drvdata(pdev));
+	dw_dma_off(dw);
 	clk_disable_unprepare(dw->clk);
 
 	return 0;
