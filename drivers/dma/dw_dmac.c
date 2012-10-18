@@ -456,9 +456,8 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 static inline void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
 {
-	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
-			"  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
-			lli->sar, lli->dar, lli->llp, lli->ctlhi, lli->ctllo);
+	dev_crit(chan2dev(&dwc->chan), "  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
+		 lli->sar, lli->dar, lli->llp, lli->ctlhi, lli->ctllo);
 }
 
 static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
@@ -492,10 +491,8 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * controller flagged an error instead of scribbling over
 	 * random memory locations.
 	 */
-	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
-			"Bad descriptor submitted for DMA!\n");
-	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
-			"  cookie: %d\n", bad_desc->txd.cookie);
+	dev_crit(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n");
+	dev_crit(chan2dev(&dwc->chan), "  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, &bad_desc->lli);
 	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		dwc_dump_lli(dwc, &child->lli);
@@ -1759,8 +1756,8 @@ static int dw_probe(struct platform_device *pdev)
 
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
-	printk(KERN_INFO "%s: DesignWare DMA Controller, %d channels\n",
-			dev_name(&pdev->dev), nr_channels);
+	dev_info(&pdev->dev, "DesignWare DMA Controller, %d channels\n",
+		 nr_channels);
 
 	dma_async_device_register(&dw->dma);
 
