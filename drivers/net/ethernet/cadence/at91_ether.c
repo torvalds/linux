@@ -765,7 +765,7 @@ static int at91ether_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
-	clk_enable(lp->ether_clk);		/* Re-enable Peripheral clock */
+	clk_enable(lp->pclk);		/* Re-enable Peripheral clock */
 
 	/* Clear internal statistics */
 	ctl = macb_readl(lp, NCR);
@@ -817,7 +817,7 @@ static int at91ether_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	clk_disable(lp->ether_clk);		/* Disable Peripheral clock */
+	clk_disable(lp->pclk);		/* Disable Peripheral clock */
 
 	return 0;
 }
@@ -1070,12 +1070,12 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	}
 
 	/* Clock */
-	lp->ether_clk = clk_get(&pdev->dev, "ether_clk");
-	if (IS_ERR(lp->ether_clk)) {
-		res = PTR_ERR(lp->ether_clk);
+	lp->pclk = clk_get(&pdev->dev, "ether_clk");
+	if (IS_ERR(lp->pclk)) {
+		res = PTR_ERR(lp->pclk);
 		goto err_ioumap;
 	}
-	clk_enable(lp->ether_clk);
+	clk_enable(lp->pclk);
 
 	/* Install the interrupt handler */
 	dev->irq = platform_get_irq(pdev, 0);
@@ -1173,7 +1173,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	else if (lp->phy_type == MII_LAN83C185_ID)
 		printk(KERN_INFO "%s: SMSC LAN83C185 PHY\n", dev->name);
 
-	clk_disable(lp->ether_clk);					/* Disable Peripheral clock */
+	clk_disable(lp->pclk);					/* Disable Peripheral clock */
 
 	return 0;
 
@@ -1184,8 +1184,8 @@ err_free_dmamem:
 err_free_irq:
 	free_irq(dev->irq, dev);
 err_disable_clock:
-	clk_disable(lp->ether_clk);
-	clk_put(lp->ether_clk);
+	clk_disable(lp->pclk);
+	clk_put(lp->pclk);
 err_ioumap:
 	iounmap(lp->regs);
 err_free_dev:
@@ -1204,7 +1204,7 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
-	clk_put(lp->ether_clk);
+	clk_put(lp->pclk);
 
 	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
@@ -1227,7 +1227,7 @@ static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 		netif_stop_queue(net_dev);
 		netif_device_detach(net_dev);
 
-		clk_disable(lp->ether_clk);
+		clk_disable(lp->pclk);
 	}
 	return 0;
 }
@@ -1238,7 +1238,7 @@ static int at91ether_resume(struct platform_device *pdev)
 	struct macb *lp = netdev_priv(net_dev);
 
 	if (netif_running(net_dev)) {
-		clk_enable(lp->ether_clk);
+		clk_enable(lp->pclk);
 
 		netif_device_attach(net_dev);
 		netif_start_queue(net_dev);

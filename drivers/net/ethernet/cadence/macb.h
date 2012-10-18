@@ -559,7 +559,6 @@ struct macb {
 	struct macb_platform_data board_data;	/* board-specific
 						 * configuration (shared with
 						 * macb for common data */
-	struct clk *ether_clk;			/* clock */
 
 	/* PHY */
 	unsigned long phy_type;			/* type of PHY (PHY_ID) */
