@@ -37,20 +37,6 @@ static struct dentry *ixgbe_dbg_root;
 static char ixgbe_dbg_reg_ops_buf[256] = "";
 
 /**
- * ixgbe_dbg_reg_ops_open - prep the debugfs pokee data item when opened
- * @inode: inode that was opened
- * @filp:  file info
- *
- * Stash the adapter pointer hiding in the inode into the file pointer where
- * we can find it later in the read and write calls
- **/
-static int ixgbe_dbg_reg_ops_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
-
-/**
  * ixgbe_dbg_reg_ops_read - read for reg_ops datum
  * @filp: the opened file
  * @buffer: where to write the data for the user to read
@@ -142,26 +128,12 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 
 static const struct file_operations ixgbe_dbg_reg_ops_fops = {
 	.owner = THIS_MODULE,
-	.open =  ixgbe_dbg_reg_ops_open,
+	.open = simple_open,
 	.read =  ixgbe_dbg_reg_ops_read,
 	.write = ixgbe_dbg_reg_ops_write,
 };
 
 static char ixgbe_dbg_netdev_ops_buf[256] = "";
-
-/**
- * ixgbe_dbg_netdev_ops_open - prep the debugfs netdev_ops data item
- * @inode: inode that was opened
- * @filp: file info
- *
- * Stash the adapter pointer hiding in the inode into the file pointer
- * where we can find it later in the read and write calls
- **/
-static int ixgbe_dbg_netdev_ops_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
 
 /**
  * ixgbe_dbg_netdev_ops_read - read for netdev_ops datum
@@ -238,7 +210,7 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 
 static const struct file_operations ixgbe_dbg_netdev_ops_fops = {
 	.owner = THIS_MODULE,
-	.open = ixgbe_dbg_netdev_ops_open,
+	.open = simple_open,
 	.read = ixgbe_dbg_netdev_ops_read,
 	.write = ixgbe_dbg_netdev_ops_write,
 };
