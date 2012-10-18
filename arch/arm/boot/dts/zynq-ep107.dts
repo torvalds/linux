@@ -36,16 +36,18 @@
 		ranges;
 
 		intc: interrupt-controller@f8f01000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <1>;
 			interrupt-controller;
-			compatible = "arm,gic";
-			reg = <0xF8F01000 0x1000>;
-			#interrupt-cells = <2>;
+			reg = <0xF8F01000 0x1000>,
+			      <0xF8F00100 0x100>;
 		};
 
 		uart0: uart@e0000000 {
 			compatible = "xlnx,xuartps";
 			reg = <0xE0000000 0x1000>;
-			interrupts = <59 0>;
+			interrupts = <0 27 4>;
 			clock = <50000000>;
 		};
 	};
