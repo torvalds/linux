@@ -15,6 +15,7 @@
 
 #include "bp_ioctl.h"
 #include "libbp_sd.h"
+#include <linux/version.h>
 
 #define IF_NAME            "eth"
 #define SILICOM_VID        0x1374
