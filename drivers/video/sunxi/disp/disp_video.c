@@ -196,8 +196,8 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     			if(g_video[sel][id].video_cur.maf_valid == TRUE)
     			{
     				g_video[sel][id].dit_mode = DIT_MODE_MAF;
-                	maf_flag_addr = (__u32)OSAL_VAtoPA((void*)g_video[sel][id].video_cur.flag_addr);
-            		maf_linestride =  g_video[sel][id].video_cur.flag_stride;
+				maf_flag_addr = g_video[sel][id].video_cur.flag_addr;
+				maf_linestride = g_video[sel][id].video_cur.flag_stride;
     			}
     			else
     			{
@@ -207,7 +207,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     			if(g_video[sel][id].video_cur.pre_frame_valid == TRUE)
     			{
     				g_video[sel][id].tempdiff_en = TRUE;
-    				pre_frame_addr = (__u32)OSAL_VAtoPA((void*)g_video[sel][id].pre_frame_addr0);
+				pre_frame_addr = g_video[sel][id].pre_frame_addr0;
     			}
     			else
     			{
@@ -248,9 +248,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	in_type.byte_seq = 0;
     	in_type.sample_method = 0;
 
-    	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[0]));
-    	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[1]));
-    	scal_addr.ch2_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[2]));
+	scal_addr.ch0_addr = g_video[sel][id].video_cur.addr[0];
+	scal_addr.ch1_addr = g_video[sel][id].video_cur.addr[1];
+	scal_addr.ch2_addr = g_video[sel][id].video_cur.addr[2];
 
     	in_size.src_width = scaler->in_fb.size.width;
     	in_size.src_height = scaler->in_fb.size.height;
@@ -294,9 +294,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
                 DE_SCAL_Get_3D_Out_Single_Size(outmode, &out_size, &out_size);
             }
 
-        	scal_addr_right.ch0_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr_right[0]));
-        	scal_addr_right.ch1_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr_right[1]));
-        	scal_addr_right.ch2_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr_right[2]));
+	    scal_addr_right.ch0_addr = g_video[sel][id].video_cur.addr_right[0];
+	    scal_addr_right.ch1_addr = g_video[sel][id].video_cur.addr_right[1];
+	    scal_addr_right.ch2_addr = g_video[sel][id].video_cur.addr_right[2];
 
             DE_SCAL_Set_3D_Ctrl(scaler_index, scaler->b_trd_out, inmode, outmode);
             DE_SCAL_Config_3D_Src(scaler_index, &scal_addr, &in_size, &in_type, inmode, &scal_addr_right);
@@ -325,9 +325,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
         layer_man = &gdisp.screen[sel].layer_manage[id];
 
         BSP_disp_layer_get_framebuffer(sel, id, &fb);
-        fb.addr[0] = (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[0]));
-        fb.addr[1] = (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[1]));
-        fb.addr[2] = (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[2]));
+	fb.addr[0] = g_video[sel][id].video_cur.addr[0];
+	fb.addr[1] = g_video[sel][id].video_cur.addr[1];
+	fb.addr[2] = g_video[sel][id].video_cur.addr[2];
 
     	if(get_fb_type(fb.format) == DISP_FB_TYPE_YUV)
     	{
@@ -335,8 +335,8 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     		Yuv_Channel_Set_framebuffer(sel, &fb, layer_man->para.src_win.x, layer_man->para.src_win.y);
     	}
     	else
-    	{        	    
-            layer_fb.fb_addr    = (__u32)OSAL_VAtoPA((void*)fb.addr[0]);
+	{
+		layer_fb.fb_addr = fb.addr[0];
             layer_fb.pixseq     = img_sw_para_to_reg(3,0,fb.seq);
             layer_fb.br_swap    = fb.br_swap;
             layer_fb.fb_width   = fb.size.width;

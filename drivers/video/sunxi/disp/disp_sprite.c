@@ -108,8 +108,8 @@ static __inline void list_free_node(list_head_t * node)
 {
 	if(node != NULL)
 	{
-		OSAL_free((void *)(node->data));
-		OSAL_free((void *)node);
+		vfree((void *)(node->data));
+		vfree((void *)node);
 		node = NULL;
 	}
 }
@@ -125,7 +125,7 @@ static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t
 
 	if(id != DIS_NO_RES)
 	{
-		data = (sprite_block_data_t *)OSAL_malloc(sizeof(sprite_block_data_t));
+		data = vmalloc(sizeof(sprite_block_data_t));
 		data->enable = FALSE;
 		data->id = id;
 		data->src_win.x = para->src_win.x;
@@ -137,7 +137,7 @@ static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t
 		data->address = (__u32)para->fb.addr[0];
 		data->size.width = para->fb.size.width;
 
-		node = (list_head_t *)OSAL_malloc(sizeof(list_head_t));
+		node = vmalloc(sizeof(list_head_t));
 		node->next = node->prev = node;
 		node->data = data;
 
@@ -313,7 +313,7 @@ static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id, __
     bpp = de_format_to_bpp(gsprite[sel].format);
 
 	addr = DE_BE_Offset_To_Addr((__u32)para->fb.addr[0] ,para->fb.size.width, para->src_win.x, para->src_win.y, bpp);
-	DE_BE_Sprite_Block_Set_fb(sel, id, (__u32)OSAL_VAtoPA((void*)addr), para->fb.size.width*(bpp>>3));
+	DE_BE_Sprite_Block_Set_fb(sel, id, addr, para->fb.size.width * (bpp >> 3));
 	DE_BE_Sprite_Block_Set_Pos(sel, id, para->scn_win.x, para->scn_win.y);
 	DE_BE_Sprite_Block_Set_Size(sel, id, para->scn_win.width, para->scn_win.height);
 	DE_BE_Sprite_Block_Set_Next_Id(sel, id, next_id);
@@ -823,8 +823,8 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid, __disp_rect_t * sr
         node = List_Find_Sprite_Block(sel, id);
 
         bpp = de_format_to_bpp(gsprite[sel].format);
-        addr = DE_BE_Offset_To_Addr(node->data->address, node->data->size.width, src_win->x, src_win->y, bpp);
-        DE_BE_Sprite_Block_Set_fb(sel, id,(__u32)OSAL_VAtoPA((void*)addr),node->data->size.width*(bpp>>3));
+	addr = DE_BE_Offset_To_Addr(node->data->address, node->data->size.width, src_win->x, src_win->y, bpp);
+	DE_BE_Sprite_Block_Set_fb(sel, id, addr, node->data->size.width * (bpp >> 3));
 
         OSAL_IrqLock(&cpu_sr);
         node->data->src_win.x = src_win->x;
@@ -879,8 +879,8 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid, __disp_fb_t * 
 		bpp = de_format_to_bpp(gsprite[sel].format);
 		OSAL_CacheRangeFlush((void *)fb->addr[0], (fb->size.width * node->data->src_win.height * bpp + 7)/8,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
 
-    	addr = DE_BE_Offset_To_Addr( fb->addr[0], fb->size.width, node->data->src_win.x, node->data->src_win.y, bpp);
-        DE_BE_Sprite_Block_Set_fb(sel, id,(__u32)OSAL_VAtoPA((void*)addr), fb->size.width*(bpp>>3));
+		addr = DE_BE_Offset_To_Addr(fb->addr[0], fb->size.width, node->data->src_win.x, node->data->src_win.y, bpp);
+		DE_BE_Sprite_Block_Set_fb(sel, id, addr, fb->size.width * (bpp >> 3));
 
 		OSAL_IrqLock(&cpu_sr);
 		node->data->address = fb->addr[0];

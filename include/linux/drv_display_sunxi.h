@@ -303,6 +303,10 @@ typedef enum//only for debug!!!
 
 typedef struct
 {
+   /*
+    * The way these are treated today, these are physical addresses. Are there
+    * any actual userspace applications out there that use this? -- libv.
+    */
     __u32                   addr[3];    // frame buffer的内容地址，对于rgb类型，只有addr[0]有效
     __disp_rectsz_t         size;//单位是pixel
     __disp_pixel_fmt_t      format;

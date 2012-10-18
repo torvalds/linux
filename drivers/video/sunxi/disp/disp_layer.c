@@ -329,9 +329,9 @@ __s32 Yuv_Channel_Set_framebuffer(__u32 sel, __disp_fb_t * pfb, __u32 xoffset, _
     yuv_src.format = img_sw_para_to_reg(0,pfb->mode,pfb->format);
     yuv_src.mode = (__u8)pfb->mode;
     yuv_src.pixseq = img_sw_para_to_reg(1,pfb->mode,pfb->seq);
-    yuv_src.ch0_base = (__u32)OSAL_VAtoPA((void*)pfb->addr[0]);
-    yuv_src.ch1_base = (__u32)OSAL_VAtoPA((void*)pfb->addr[1]);
-    yuv_src.ch2_base = (__u32)OSAL_VAtoPA((void*)pfb->addr[2]);
+    yuv_src.ch0_base = pfb->addr[0];
+    yuv_src.ch1_base = pfb->addr[1];
+    yuv_src.ch2_base = pfb->addr[2];
     yuv_src.line_width= pfb->size.width;
     yuv_src.offset_x = xoffset;
     yuv_src.offset_y = yoffset;
@@ -574,8 +574,8 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t * pfb)//k
         		Yuv_Channel_Set_framebuffer(sel, pfb, layer_man->para.src_win.x, layer_man->para.src_win.y);
         	}
         	else
-        	{        	    
-                layer_fb.fb_addr    = (__u32)OSAL_VAtoPA((void*)pfb->addr[0]);
+		{
+			layer_fb.fb_addr = pfb->addr[0];
                 layer_fb.pixseq     = img_sw_para_to_reg(3,0,pfb->seq);
                 layer_fb.br_swap    = pfb->br_swap;
                 layer_fb.fb_width   = pfb->size.width;
@@ -681,8 +681,8 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)//i
         	else
         	{
         	    layer_src_t layer_fb;
-        	    
-                layer_fb.fb_addr    = (__u32)OSAL_VAtoPA((void*)layer_man->para.fb.addr[0]);
+
+		    layer_fb.fb_addr = layer_man->para.fb.addr[0];
                 layer_fb.format     = layer_man->para.fb.format;
                 layer_fb.pixseq     = img_sw_para_to_reg(3,0,layer_man->para.fb.seq);
                 layer_fb.br_swap    = layer_man->para.fb.br_swap;
@@ -980,8 +980,8 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
             {
         	    layer_src_t layer_fb;
         	    __u32 bpp, size;
-        	    
-                layer_fb.fb_addr    = (__u32)OSAL_VAtoPA((void*)player->fb.addr[0]);
+
+		    layer_fb.fb_addr = player->fb.addr[0];
                 layer_fb.format = player->fb.format;
                 layer_fb.pixseq     = img_sw_para_to_reg(3,0,player->fb.seq);
                 layer_fb.br_swap    = player->fb.br_swap;
