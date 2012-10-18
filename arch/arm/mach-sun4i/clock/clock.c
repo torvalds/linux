@@ -162,20 +162,21 @@ int clk_init(void)
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
     tmpSclk->set_clk(tmpSclk->clk);
 
-    if(MAGIC_VER_C == sw_get_ic_ver()) {
-        /* initiate PLL4 */
-        #if(USE_PLL6M_REPLACE_PLL4)
+	/* initiate PLL4 */
+#if(USE_PLL6M_REPLACE_PLL4)
+	if(MAGIC_VER_C == sw_get_ic_ver()) {
         tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
         tmpSclk->clk->onoff = AW_CCU_CLK_OFF;
         tmpSclk->set_clk(tmpSclk->clk);
-        #else
+	} else
+#endif
+	{
         tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
         tmpSclk->clk->rate  = 960000000;
         tmpSclk->set_clk(tmpSclk->clk);
         tmpSclk->clk->onoff = AW_CCU_CLK_ON;
         tmpSclk->set_clk(tmpSclk->clk);
-        #endif
-    }
+	}
 
 	/* initiate PLL6 */
 	tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
