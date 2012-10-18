@@ -442,10 +442,10 @@ static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	return 0;
 }
 
-/**
+/*
  * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
-static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
+void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];

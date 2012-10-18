@@ -494,6 +494,8 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 	_iwl_write_targ_mem_dwords(trans, stts_addr,
 				   zero_val, ARRAY_SIZE(zero_val));
 
+	iwl_tx_queue_unmap(trans, txq_id);
+
 	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
 
