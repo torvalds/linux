@@ -76,7 +76,7 @@
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 			       unsigned char __user *ptr)
 {
-	tty_audit_add_data(tty, &x, 1);
+	tty_audit_add_data(tty, &x, 1, tty->icanon);
 	return put_user(x, ptr);
 }
 
@@ -1644,7 +1644,8 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		n -= retval;
 		is_eof = n == 1 &&
 			tty->read_buf[tty->read_tail] == EOF_CHAR(tty);
-		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n);
+		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n,
+				tty->icanon);
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt -= n;

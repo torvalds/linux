@@ -535,7 +535,7 @@ extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
 extern void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
-			       size_t size);
+			       size_t size, unsigned icanon);
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
@@ -544,7 +544,7 @@ extern int tty_audit_push_task(struct task_struct *tsk,
 			       kuid_t loginuid, u32 sessionid);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
-				      unsigned char *data, size_t size)
+		unsigned char *data, size_t size, unsigned icanon)
 {
 }
 static inline void tty_audit_tiocsti(struct tty_struct *tty, char ch)
