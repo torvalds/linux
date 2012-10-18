@@ -171,10 +171,7 @@ static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char data[1];
-	unsigned int ep;
 	int err;
-
-	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	data[0] = 1;
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
