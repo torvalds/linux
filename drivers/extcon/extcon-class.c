@@ -441,6 +441,8 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
  *			      extcon device.
  * @obj:	an empty extcon_specific_cable_nb object to be returned.
  * @extcon_name:	the name of extcon device.
+ *			if NULL, extcon_register_interest will register
+ *			every cable with the target cable_name given.
  * @cable_name:		the target cable name.
  * @nb:		the notifier block to get notified.
  *
@@ -460,22 +462,44 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 			     const char *extcon_name, const char *cable_name,
 			     struct notifier_block *nb)
 {
-	if (!obj || !extcon_name || !cable_name || !nb)
+	if (!obj || !cable_name || !nb)
 		return -EINVAL;
 
-	obj->edev = extcon_get_extcon_dev(extcon_name);
-	if (!obj->edev)
+	if (extcon_name) {
+		obj->edev = extcon_get_extcon_dev(extcon_name);
+		if (!obj->edev)
+			return -ENODEV;
+
+		obj->cable_index = extcon_find_cable_index(obj->edev, cable_name);
+		if (obj->cable_index < 0)
+			return -ENODEV;
+
+		obj->user_nb = nb;
+
+		obj->internal_nb.notifier_call = _call_per_cable;
+
+		return raw_notifier_chain_register(&obj->edev->nh, &obj->internal_nb);
+	} else {
+		struct class_dev_iter iter;
+		struct extcon_dev *extd;
+		struct device *dev;
+
+		if (!extcon_class)
+			return -ENODEV;
+		class_dev_iter_init(&iter, extcon_class, NULL, NULL);
+		while ((dev = class_dev_iter_next(&iter))) {
+			extd = (struct extcon_dev *)dev_get_drvdata(dev);
+
+			if (extcon_find_cable_index(extd, cable_name) < 0)
+				continue;
+
+			class_dev_iter_exit(&iter);
+			return extcon_register_interest(obj, extd->name,
+						cable_name, nb);
+		}
+
 		return -ENODEV;
-
-	obj->cable_index = extcon_find_cable_index(obj->edev, cable_name);
-	if (obj->cable_index < 0)
-		return -EINVAL;
-
-	obj->user_nb = nb;
-
-	obj->internal_nb.notifier_call = _call_per_cable;
-
-	return raw_notifier_chain_register(&obj->edev->nh, &obj->internal_nb);
+	}
 }
 
 /**
