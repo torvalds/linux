@@ -997,7 +997,7 @@ static void macb_sethashtable(struct net_device *dev)
 /*
  * Enable/Disable promiscuous and multicast modes.
  */
-static void macb_set_rx_mode(struct net_device *dev)
+void macb_set_rx_mode(struct net_device *dev)
 {
 	unsigned long cfg;
 	struct macb *bp = netdev_priv(dev);
@@ -1029,6 +1029,7 @@ static void macb_set_rx_mode(struct net_device *dev)
 
 	macb_writel(bp, NCFGR, cfg);
 }
+EXPORT_SYMBOL_GPL(macb_set_rx_mode);
 
 static int macb_open(struct net_device *dev)
 {

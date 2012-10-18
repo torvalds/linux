@@ -574,6 +574,7 @@ extern const struct ethtool_ops macb_ethtool_ops;
 
 int macb_mii_init(struct macb *bp);
 int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+void macb_set_rx_mode(struct net_device *dev);
 
 static inline bool macb_is_gem(struct macb *bp)
 {
