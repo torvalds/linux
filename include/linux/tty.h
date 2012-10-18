@@ -270,13 +270,8 @@ struct tty_struct {
 	 * historical reasons, this is included in the tty structure.
 	 * Mostly locked by the BKL.
 	 */
-	unsigned int column;
-	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 	unsigned char closing:1;
-	unsigned char echo_overrun:1;
 	unsigned short minimum_to_wake;
-	unsigned long overrun_time;
-	int num_overrun;
 	unsigned long process_char_map[256/(8*sizeof(unsigned long))];
 	char *read_buf;
 	int read_head;

@@ -74,13 +74,20 @@
 #define ECHO_OP_ERASE_TAB 0x82
 
 struct n_tty_data {
-	char dummy;
+	unsigned int column;
+	unsigned long overrun_time;
+	int num_overrun;
+
+	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
+	unsigned char echo_overrun:1;
 };
 
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 			       unsigned char __user *ptr)
 {
-	tty_audit_add_data(tty, &x, 1, tty->icanon);
+	struct n_tty_data *ldata = tty->disc_data;
+
+	tty_audit_add_data(tty, &x, 1, ldata->icanon);
 	return put_user(x, ptr);
 }
 
@@ -96,6 +103,7 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 
 static void n_tty_set_room(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int left;
 	int old_left;
 
@@ -115,7 +123,7 @@ static void n_tty_set_room(struct tty_struct *tty)
 	 * characters will be beeped.
 	 */
 	if (left <= 0)
-		left = tty->icanon && !tty->canon_data;
+		left = ldata->icanon && !tty->canon_data;
 	old_left = tty->receive_room;
 	tty->receive_room = left;
 
@@ -183,6 +191,7 @@ static void check_unthrottle(struct tty_struct *tty)
 
 static void reset_buffer_flags(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tty->read_lock, flags);
@@ -190,10 +199,10 @@ static void reset_buffer_flags(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->read_lock, flags);
 
 	mutex_lock(&tty->echo_lock);
-	tty->echo_pos = tty->echo_cnt = tty->echo_overrun = 0;
+	tty->echo_pos = tty->echo_cnt = ldata->echo_overrun = 0;
 	mutex_unlock(&tty->echo_lock);
 
-	tty->canon_head = tty->canon_data = tty->erasing = 0;
+	tty->canon_head = tty->canon_data = ldata->erasing = 0;
 	memset(&tty->read_flags, 0, sizeof tty->read_flags);
 	n_tty_set_room(tty);
 }
@@ -239,11 +248,12 @@ static void n_tty_flush_buffer(struct tty_struct *tty)
 
 static ssize_t n_tty_chars_in_buffer(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 	ssize_t n = 0;
 
 	spin_lock_irqsave(&tty->read_lock, flags);
-	if (!tty->icanon) {
+	if (!ldata->icanon) {
 		n = tty->read_cnt;
 	} else if (tty->canon_data) {
 		n = (tty->canon_head > tty->read_tail) ?
@@ -305,6 +315,7 @@ static inline int is_continuation(unsigned char c, struct tty_struct *tty)
 
 static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int	spaces;
 
 	if (!space)
@@ -313,48 +324,48 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 	switch (c) {
 	case '\n':
 		if (O_ONLRET(tty))
-			tty->column = 0;
+			ldata->column = 0;
 		if (O_ONLCR(tty)) {
 			if (space < 2)
 				return -1;
-			tty->canon_column = tty->column = 0;
+			tty->canon_column = ldata->column = 0;
 			tty->ops->write(tty, "\r\n", 2);
 			return 2;
 		}
-		tty->canon_column = tty->column;
+		tty->canon_column = ldata->column;
 		break;
 	case '\r':
-		if (O_ONOCR(tty) && tty->column == 0)
+		if (O_ONOCR(tty) && ldata->column == 0)
 			return 0;
 		if (O_OCRNL(tty)) {
 			c = '\n';
 			if (O_ONLRET(tty))
-				tty->canon_column = tty->column = 0;
+				tty->canon_column = ldata->column = 0;
 			break;
 		}
-		tty->canon_column = tty->column = 0;
+		tty->canon_column = ldata->column = 0;
 		break;
 	case '\t':
-		spaces = 8 - (tty->column & 7);
+		spaces = 8 - (ldata->column & 7);
 		if (O_TABDLY(tty) == XTABS) {
 			if (space < spaces)
 				return -1;
-			tty->column += spaces;
+			ldata->column += spaces;
 			tty->ops->write(tty, "        ", spaces);
 			return spaces;
 		}
-		tty->column += spaces;
+		ldata->column += spaces;
 		break;
 	case '\b':
-		if (tty->column > 0)
-			tty->column--;
+		if (ldata->column > 0)
+			ldata->column--;
 		break;
 	default:
 		if (!iscntrl(c)) {
 			if (O_OLCUC(tty))
 				c = toupper(c);
 			if (!is_continuation(c, tty))
-				tty->column++;
+				ldata->column++;
 		}
 		break;
 	}
@@ -415,6 +426,7 @@ static int process_output(unsigned char c, struct tty_struct *tty)
 static ssize_t process_output_block(struct tty_struct *tty,
 				    const unsigned char *buf, unsigned int nr)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int	space;
 	int	i;
 	const unsigned char *cp;
@@ -435,30 +447,30 @@ static ssize_t process_output_block(struct tty_struct *tty,
 		switch (c) {
 		case '\n':
 			if (O_ONLRET(tty))
-				tty->column = 0;
+				ldata->column = 0;
 			if (O_ONLCR(tty))
 				goto break_out;
-			tty->canon_column = tty->column;
+			tty->canon_column = ldata->column;
 			break;
 		case '\r':
-			if (O_ONOCR(tty) && tty->column == 0)
+			if (O_ONOCR(tty) && ldata->column == 0)
 				goto break_out;
 			if (O_OCRNL(tty))
 				goto break_out;
-			tty->canon_column = tty->column = 0;
+			tty->canon_column = ldata->column = 0;
 			break;
 		case '\t':
 			goto break_out;
 		case '\b':
-			if (tty->column > 0)
-				tty->column--;
+			if (ldata->column > 0)
+				ldata->column--;
 			break;
 		default:
 			if (!iscntrl(c)) {
 				if (O_OLCUC(tty))
 					goto break_out;
 				if (!is_continuation(c, tty))
-					tty->column++;
+					ldata->column++;
 			}
 			break;
 		}
@@ -498,6 +510,7 @@ break_out:
 
 static void process_echoes(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int	space, nr;
 	unsigned char c;
 	unsigned char *cp, *buf_end;
@@ -559,22 +572,22 @@ static void process_echoes(struct tty_struct *tty)
 				space -= num_bs;
 				while (num_bs--) {
 					tty_put_char(tty, '\b');
-					if (tty->column > 0)
-						tty->column--;
+					if (ldata->column > 0)
+						ldata->column--;
 				}
 				cp += 3;
 				nr -= 3;
 				break;
 
 			case ECHO_OP_SET_CANON_COL:
-				tty->canon_column = tty->column;
+				tty->canon_column = ldata->column;
 				cp += 2;
 				nr -= 2;
 				break;
 
 			case ECHO_OP_MOVE_BACK_COL:
-				if (tty->column > 0)
-					tty->column--;
+				if (ldata->column > 0)
+					ldata->column--;
 				cp += 2;
 				nr -= 2;
 				break;
@@ -586,7 +599,7 @@ static void process_echoes(struct tty_struct *tty)
 					break;
 				}
 				tty_put_char(tty, ECHO_OP_START);
-				tty->column++;
+				ldata->column++;
 				space--;
 				cp += 2;
 				nr -= 2;
@@ -608,7 +621,7 @@ static void process_echoes(struct tty_struct *tty)
 				}
 				tty_put_char(tty, '^');
 				tty_put_char(tty, op ^ 0100);
-				tty->column += 2;
+				ldata->column += 2;
 				space -= 2;
 				cp += 2;
 				nr -= 2;
@@ -641,14 +654,14 @@ static void process_echoes(struct tty_struct *tty)
 	if (nr == 0) {
 		tty->echo_pos = 0;
 		tty->echo_cnt = 0;
-		tty->echo_overrun = 0;
+		ldata->echo_overrun = 0;
 	} else {
 		int num_processed = tty->echo_cnt - nr;
 		tty->echo_pos += num_processed;
 		tty->echo_pos &= N_TTY_BUF_SIZE - 1;
 		tty->echo_cnt = nr;
 		if (num_processed > 0)
-			tty->echo_overrun = 0;
+			ldata->echo_overrun = 0;
 	}
 
 	mutex_unlock(&tty->echo_lock);
@@ -670,6 +683,7 @@ static void process_echoes(struct tty_struct *tty)
 
 static void add_echo_byte(unsigned char c, struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int	new_byte_pos;
 
 	if (tty->echo_cnt == N_TTY_BUF_SIZE) {
@@ -695,7 +709,7 @@ static void add_echo_byte(unsigned char c, struct tty_struct *tty)
 		}
 		tty->echo_pos &= N_TTY_BUF_SIZE - 1;
 
-		tty->echo_overrun = 1;
+		ldata->echo_overrun = 1;
 	} else {
 		new_byte_pos = tty->echo_pos + tty->echo_cnt;
 		new_byte_pos &= N_TTY_BUF_SIZE - 1;
@@ -845,9 +859,10 @@ static void echo_char(unsigned char c, struct tty_struct *tty)
 
 static inline void finish_erasing(struct tty_struct *tty)
 {
-	if (tty->erasing) {
+	struct n_tty_data *ldata = tty->disc_data;
+	if (ldata->erasing) {
 		echo_char_raw('/', tty);
-		tty->erasing = 0;
+		ldata->erasing = 0;
 	}
 }
 
@@ -865,6 +880,7 @@ static inline void finish_erasing(struct tty_struct *tty)
 
 static void eraser(unsigned char c, struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	enum { ERASE, WERASE, KILL } kill_type;
 	int head, seen_alnums, cnt;
 	unsigned long flags;
@@ -932,9 +948,9 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		if (L_ECHO(tty)) {
 			if (L_ECHOPRT(tty)) {
-				if (!tty->erasing) {
+				if (!ldata->erasing) {
 					echo_char_raw('\\', tty);
-					tty->erasing = 1;
+					ldata->erasing = 1;
 				}
 				/* if cnt > 1, output a multi-byte character */
 				echo_char(c, tty);
@@ -1056,16 +1072,17 @@ static inline void n_tty_receive_break(struct tty_struct *tty)
 
 static inline void n_tty_receive_overrun(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	char buf[64];
 
-	tty->num_overrun++;
-	if (time_before(tty->overrun_time, jiffies - HZ) ||
-			time_after(tty->overrun_time, jiffies)) {
+	ldata->num_overrun++;
+	if (time_after(jiffies, ldata->overrun_time + HZ) ||
+			time_after(ldata->overrun_time, jiffies)) {
 		printk(KERN_WARNING "%s: %d input overrun(s)\n",
 			tty_name(tty, buf),
-			tty->num_overrun);
-		tty->overrun_time = jiffies;
-		tty->num_overrun = 0;
+			ldata->num_overrun);
+		ldata->overrun_time = jiffies;
+		ldata->num_overrun = 0;
 	}
 }
 
@@ -1105,10 +1122,11 @@ static inline void n_tty_receive_parity_error(struct tty_struct *tty,
 
 static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 	int parmrk;
 
-	if (tty->raw) {
+	if (ldata->raw) {
 		put_tty_queue(c, tty);
 		return;
 	}
@@ -1147,8 +1165,8 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	 * handle specially, do shortcut processing to speed things
 	 * up.
 	 */
-	if (!test_bit(c, tty->process_char_map) || tty->lnext) {
-		tty->lnext = 0;
+	if (!test_bit(c, tty->process_char_map) || ldata->lnext) {
+		ldata->lnext = 0;
 		parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
 		if (tty->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
 			/* beep if no space */
@@ -1222,7 +1240,7 @@ send_signal:
 	} else if (c == '\n' && I_INLCR(tty))
 		c = '\r';
 
-	if (tty->icanon) {
+	if (ldata->icanon) {
 		if (c == ERASE_CHAR(tty) || c == KILL_CHAR(tty) ||
 		    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
 			eraser(c, tty);
@@ -1230,7 +1248,7 @@ send_signal:
 			return;
 		}
 		if (c == LNEXT_CHAR(tty) && L_IEXTEN(tty)) {
-			tty->lnext = 1;
+			ldata->lnext = 1;
 			if (L_ECHO(tty)) {
 				finish_erasing(tty);
 				if (L_ECHOCTL(tty)) {
@@ -1373,13 +1391,14 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
 static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			      char *fp, int count)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	const unsigned char *p;
 	char *f, flags = TTY_NORMAL;
 	int	i;
 	char	buf[64];
 	unsigned long cpuflags;
 
-	if (tty->real_raw) {
+	if (ldata->real_raw) {
 		spin_lock_irqsave(&tty->read_lock, cpuflags);
 		i = min(N_TTY_BUF_SIZE - tty->read_cnt,
 			N_TTY_BUF_SIZE - tty->read_head);
@@ -1427,7 +1446,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	n_tty_set_room(tty);
 
-	if ((!tty->icanon && (tty->read_cnt >= tty->minimum_to_wake)) ||
+	if ((!ldata->icanon && (tty->read_cnt >= tty->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 		if (waitqueue_active(&tty->read_wait))
@@ -1471,6 +1490,7 @@ int is_ignored(int sig)
 
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int canon_change = 1;
 
 	if (old)
@@ -1479,16 +1499,16 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		memset(&tty->read_flags, 0, sizeof tty->read_flags);
 		tty->canon_head = tty->read_tail;
 		tty->canon_data = 0;
-		tty->erasing = 0;
+		ldata->erasing = 0;
 	}
 
 	if (canon_change && !L_ICANON(tty) && tty->read_cnt)
 		wake_up_interruptible(&tty->read_wait);
 
-	tty->icanon = (L_ICANON(tty) != 0);
+	ldata->icanon = (L_ICANON(tty) != 0);
 	if (test_bit(TTY_HW_COOK_IN, &tty->flags)) {
-		tty->raw = 1;
-		tty->real_raw = 1;
+		ldata->raw = 1;
+		ldata->real_raw = 1;
 		n_tty_set_room(tty);
 		return;
 	}
@@ -1531,16 +1551,16 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 			set_bit(SUSP_CHAR(tty), tty->process_char_map);
 		}
 		clear_bit(__DISABLED_CHAR, tty->process_char_map);
-		tty->raw = 0;
-		tty->real_raw = 0;
+		ldata->raw = 0;
+		ldata->real_raw = 0;
 	} else {
-		tty->raw = 1;
+		ldata->raw = 1;
 		if ((I_IGNBRK(tty) || (!I_BRKINT(tty) && !I_PARMRK(tty))) &&
 		    (I_IGNPAR(tty) || !I_INPCK(tty)) &&
 		    (tty->driver->flags & TTY_DRIVER_REAL_RAW))
-			tty->real_raw = 1;
+			ldata->real_raw = 1;
 		else
-			tty->real_raw = 0;
+			ldata->real_raw = 0;
 	}
 	n_tty_set_room(tty);
 	/* The termios change make the tty ready for I/O */
@@ -1589,6 +1609,8 @@ static int n_tty_open(struct tty_struct *tty)
 	if (!ldata)
 		goto err;
 
+	ldata->overrun_time = jiffies;
+
 	/* These are ugly. Currently a malloc failure here can panic */
 	tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
@@ -1598,7 +1620,7 @@ static int n_tty_open(struct tty_struct *tty)
 	tty->disc_data = ldata;
 	reset_buffer_flags(tty);
 	tty_unthrottle(tty);
-	tty->column = 0;
+	ldata->column = 0;
 	n_tty_set_termios(tty, NULL);
 	tty->minimum_to_wake = 1;
 	tty->closing = 0;
@@ -1614,8 +1636,10 @@ err:
 
 static inline int input_available_p(struct tty_struct *tty, int amt)
 {
+	struct n_tty_data *ldata = tty->disc_data;
+
 	tty_flush_to_ldisc(tty);
-	if (tty->icanon && !L_EXTPROC(tty)) {
+	if (ldata->icanon && !L_EXTPROC(tty)) {
 		if (tty->canon_data)
 			return 1;
 	} else if (tty->read_cnt >= (amt ? amt : 1))
@@ -1646,6 +1670,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 				      size_t *nr)
 
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	int retval;
 	size_t n;
 	unsigned long flags;
@@ -1662,12 +1687,12 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		is_eof = n == 1 &&
 			tty->read_buf[tty->read_tail] == EOF_CHAR(tty);
 		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n,
-				tty->icanon);
+				ldata->icanon);
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt -= n;
 		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && tty->icanon && is_eof && !tty->read_cnt)
+		if (L_EXTPROC(tty) && ldata->icanon && is_eof && !tty->read_cnt)
 			n = 0;
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		*b += n;
@@ -1736,6 +1761,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			 unsigned char __user *buf, size_t nr)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	unsigned char __user *b = buf;
 	DECLARE_WAITQUEUE(wait, current);
 	int c;
@@ -1753,7 +1779,7 @@ do_it_again:
 
 	minimum = time = 0;
 	timeout = MAX_SCHEDULE_TIMEOUT;
-	if (!tty->icanon) {
+	if (!ldata->icanon) {
 		time = (HZ / 10) * TIME_CHAR(tty);
 		minimum = MIN_CHAR(tty);
 		if (minimum) {
@@ -1846,7 +1872,7 @@ do_it_again:
 			nr--;
 		}
 
-		if (tty->icanon && !L_EXTPROC(tty)) {
+		if (ldata->icanon && !L_EXTPROC(tty)) {
 			/* N.B. avoid overrun if nr == 0 */
 			spin_lock_irqsave(&tty->read_lock, flags);
 			while (nr && tty->read_cnt) {
