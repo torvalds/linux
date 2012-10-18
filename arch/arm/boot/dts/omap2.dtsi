@@ -26,6 +26,11 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,arm1136-pmu";
+		interrupts = <3>;
+	};
+
 	soc {
 		compatible = "ti,omap-infra";
 		mpu {
