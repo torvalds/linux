@@ -3285,6 +3285,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	struct skb_frag_struct *frags = &skb_shinfo(skb)->frags[0];
 	unsigned long flags;
 	struct phy_device *phydev = adapter->phydev;
+	dma_addr_t dma_addr;
 
 	/* Part of the optimizations of this send routine restrict us to
 	 * sending 24 fragments at a pass.  In practice we should never see
@@ -3314,77 +3315,46 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 			 * doesn't seem to like large fragments.
 			 */
 			if (skb_headlen(skb) <= 1514) {
-				desc[frag].addr_hi = 0;
 				/* Low 16bits are length, high is vlan and
 				   unused currently so zero */
 				desc[frag].len_vlan = skb_headlen(skb);
-
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
-				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data,
-						   skb_headlen(skb),
-						   DMA_TO_DEVICE);
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							  skb->data,
+							  skb_headlen(skb),
+							  DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 			} else {
-				desc[frag].addr_hi = 0;
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
-
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
-				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data,
-						   (skb_headlen(skb) / 2),
-						   DMA_TO_DEVICE);
-				desc[frag].addr_hi = 0;
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							  skb->data,
+							  (skb_headlen(skb) / 2),
+							  DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
-
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
-				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data +
-							 (skb_headlen(skb) / 2),
-						   (skb_headlen(skb) / 2),
-						   DMA_TO_DEVICE);
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							  skb->data +
+							  (skb_headlen(skb) / 2),
+							  (skb_headlen(skb) / 2),
+							  DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 			}
 		} else {
-			desc[frag].addr_hi = 0;
-			desc[frag].len_vlan =
-					frags[i - 1].size;
-
-			/* NOTE: Here, the dma_addr_t returned from
-			 * dma_map_page() is implicitly cast as a u32.
-			 * Although dma_addr_t can be 64-bit, the address
-			 * returned by dma_map_page() is always 32-bit
-			 * addressable (as defined by the pci/dma subsystem)
-			 */
-			desc[frag++].addr_lo = skb_frag_dma_map(
-							&adapter->pdev->dev,
-							&frags[i - 1],
-							0,
-							frags[i - 1].size,
-							DMA_TO_DEVICE);
+			desc[frag].len_vlan = frags[i - 1].size;
+			dma_addr = skb_frag_dma_map(&adapter->pdev->dev,
+						    &frags[i - 1],
+						    0,
+						    frags[i - 1].size,
+						    DMA_TO_DEVICE);
+			desc[frag].addr_lo = lower_32_bits(dma_addr);
+			desc[frag].addr_hi = upper_32_bits(dma_addr);
+			frag++;
 		}
 	}
 
@@ -3611,6 +3581,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	unsigned long flags;
 	struct tx_desc *desc = NULL;
 	struct net_device_stats *stats = &adapter->net_stats;
+	dma_addr_t dma_addr;
 
 	if (tcb->flags & fMP_DEST_BROAD)
 		atomic_inc(&adapter->stats.broadcast_pkts_xmtd);
@@ -3631,8 +3602,13 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 				    (adapter->tx_ring.tx_desc_ring +
 						INDEX10(tcb->index_start));
 
+			dma_addr = desc->addr_lo;
+
+			if (sizeof(dma_addr_t) == sizeof(u64))
+				dma_addr |= ((dma_addr_t)desc->addr_hi) << 32;
+
 			dma_unmap_single(&adapter->pdev->dev,
-					 desc->addr_lo,
+					 dma_addr,
 					 desc->len_vlan, DMA_TO_DEVICE);
 
 			add_10bit(&tcb->index_start, 1);
