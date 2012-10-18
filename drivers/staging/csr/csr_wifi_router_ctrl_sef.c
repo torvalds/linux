@@ -9,8 +9,7 @@
  *****************************************************************************/
 #include "csr_wifi_router_ctrl_sef.h"
 
-const CsrWifiRouterCtrlStateHandlerType CsrWifiRouterCtrlDownstreamStateHandlers[CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT] =
-{
+const CsrWifiRouterCtrlStateHandlerType CsrWifiRouterCtrlDownstreamStateHandlers[CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT] = {
     /* 0x0000 */ CsrWifiRouterCtrlConfigurePowerModeReqHandler,
     /* 0x0001 */ CsrWifiRouterCtrlHipReqHandler,
     /* 0x0002 */ CsrWifiRouterCtrlMediaStatusReqHandler,
