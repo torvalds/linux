@@ -1625,7 +1625,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	struct tty_struct *tty = file_tty(filp);
 	struct tty_struct *o_tty;
 	int	pty_master, tty_closing, o_tty_closing, do_sleep;
-	int	devpts;
 	int	idx;
 	char	buf[64];
 
@@ -1640,7 +1639,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	idx = tty->index;
 	pty_master = (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		      tty->driver->subtype == PTY_TYPE_MASTER);
-	devpts = (tty->driver->flags & TTY_DRIVER_DEVPTS_MEM) != 0;
 	/* Review: parallel close */
 	o_tty = tty->link;
 
@@ -1799,9 +1797,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	release_tty(tty, idx);
 	mutex_unlock(&tty_mutex);
 
-	/* Make this pty number available for reallocation */
-	if (devpts)
-		devpts_kill_index(inode, idx);
 	return 0;
 }
 

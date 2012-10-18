@@ -363,6 +363,12 @@ err:
 	return retval;
 }
 
+/* this is called once with whichever end is closed last */
+static void pty_unix98_shutdown(struct tty_struct *tty)
+{
+	devpts_kill_index(tty->driver_data, tty->index);
+}
+
 static void pty_cleanup(struct tty_struct *tty)
 {
 	kfree(tty->port);
@@ -578,6 +584,7 @@ static const struct tty_operations ptm_unix98_ops = {
 	.set_termios = pty_set_termios,
 	.ioctl = pty_unix98_ioctl,
 	.resize = pty_resize,
+	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup
 };
 
@@ -593,6 +600,7 @@ static const struct tty_operations pty_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
+	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup,
 };
 
@@ -661,6 +669,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		goto err_release;
 
 	tty_unlock(tty);
+	tty->driver_data = inode;
 	tty->link->driver_data = slave_inode;
 	return 0;
 err_release:
