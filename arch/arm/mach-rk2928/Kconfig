@@ -23,6 +23,9 @@ config MACH_RK2928_A720
 
 config MACH_RK2928_TB
 	bool "RK2928 top board"
+        
+config MACH_RK2926_TB
+	bool "RK2926 top board"
 
 config MACH_RK2928_FPGA
 	bool "RK2928 FPGA board"

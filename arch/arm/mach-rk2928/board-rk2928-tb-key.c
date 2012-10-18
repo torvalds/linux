@@ -17,7 +17,11 @@ static struct rk29_keys_button key_button[] = {
 	{
 		.desc	= "play",
 		.code	= KEY_POWER,
+                #if defined(CONFIG_MACH_RK2928_TB)
 		.gpio	= RK2928_PIN3_PC5,
+                #elif defined(CONFIG_MACH_RK2926_TB)
+		.gpio	= RK2928_PIN1_PA4,
+                #endif
 		.active_low = PRESS_LEV_LOW,
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,

@@ -70,8 +70,14 @@ int __sramdata g_pmic_type =  0;
 #include "board-rk2928-tb-key.c"
 
 #if defined (CONFIG_EETI_EGALAX)
+#if defined (CONFIG_MACH_RK2928_TB)
 #define TOUCH_RESET_PIN  RK2928_PIN3_PC3
 #define TOUCH_INT_PIN    RK2928_PIN3_PC7
+#elif defined (CONFIG_MACH_RK2926_TB)
+#define TOUCH_RESET_PIN  RK2928_PIN2_PB0
+#define TOUCH_INT_PIN    RK2928_PIN1_PB0
+#endif
+
 
 static int EETI_EGALAX_init_platform_hw(void)
 {
@@ -124,9 +130,14 @@ static struct spi_board_info board_spi_devices[] = {
 #define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-
+#if defined(CONFIG_MACH_RK2928_TB)
 #define BL_EN_PIN         RK2928_PIN3_PC4
 #define BL_EN_VALUE       GPIO_HIGH
+#elif defined(CONFIG_MACH_RK2926_TB)
+#define BL_EN_PIN         RK2928_PIN2_PC1
+#define BL_EN_VALUE       GPIO_HIGH
+#endif
+
 #endif
 static int rk29_backlight_io_init(void)
 {
@@ -223,17 +234,20 @@ static struct sensor_platform_data mma8452_info = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_CABC_MUX_NAME  GPIO2D1_LCDC0_D23_LCDC1_D23_NAME
-#define LCD_CABC_GPIO_MODE GPIO2D_GPIO2D1
-
+#if defined (CONFIG_MACH_RK2928_TB)
 #define LCD_CABC_EN        RK2928_PIN2_PD1
 #define LCD_CABC_EN_VALUE  GPIO_HIGH
+#elif defined (CONFIG_MACH_RK2926_TB)
+#define LCD_CABC_EN        RK2928_PIN2_PC3
+#define LCD_CABC_EN_VALUE  GPIO_HIGH
+#endif
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
 
-        rk30_mux_api_set(LCD_CABC_MUX_NAME, LCD_CABC_GPIO_MODE);
+#if defined (CONFIG_MACH_RK2926_TB)
+#endif
 
 	ret = gpio_request(LCD_CABC_EN, NULL);
 	if (ret != 0)
@@ -376,11 +390,19 @@ struct regulator_init_data pwm_regulator_init_dcdc[1] =
 
 static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
+#if defined (CONFIG_MACH_RK2928_TB)
 		.pwm_id = 2,
 		.pwm_gpio = RK2928_PIN0_PD4,
 		.pwm_iomux_name = GPIO0D4_PWM_2_NAME,
 		.pwm_iomux_pwm = GPIO0D_PWM_2, 
 		.pwm_iomux_gpio = GPIO0D_GPIO0D4,
+#elif defined (CONFIG_MACH_RK2926_TB)
+                .pwm_id = 1,
+		.pwm_gpio = RK2928_PIN0_PD3,
+		.pwm_iomux_name = GPIO0D3_PWM_1_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM_1, 
+		.pwm_iomux_gpio = GPIO0D_GPIO0D3,
+#endif
 		.pwm_voltage = 1200000,
 		.suspend_voltage = 1050000,
 		.min_uV = 1000000,
@@ -449,6 +471,10 @@ static void rkusb_wifi_power(int on) {
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK2928_PIN0_PB2
 
+#define RK29SDK_SD_CARD_DETECT_N        RK2928_PIN2_PA7  //According to your own project to set the value of card-detect-pin.
+#define RK29SDK_SD_CARD_INSERT_LEVEL    GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
+
+
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
 #ifdef CONFIG_SDMMC0_RK29
@@ -456,7 +482,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 {
 	rk29_sdmmc_set_iomux(0, 0xFFFF);
 
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_GPIO1C1);
+   // gpio_request(RK29SDK_SD_CARD_DETECT_N, "sd-detect");
+   // gpio_direction_output(RK29SDK_SD_CARD_DETECT_N,GPIO_HIGH);//set mmc0-data1 to high.
+#else
 	rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_MMC0_DETN);
+#endif	
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
@@ -486,9 +518,14 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK2928_PIN1_PC1,	// INVALID_GPIO
-	.enable_sd_wakeup = 0,
 
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    .detect_irq = RK29SDK_SD_CARD_DETECT_N,
+    .insert_card_level = RK29SDK_SD_CARD_INSERT_LEVEL,
+#else
+	.detect_irq = RK2928_PIN1_PC1,  //INVALID_GPIO,
+#endif
+	.enable_sd_wakeup = 0,
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	.write_prt = SDMMC0_WRITE_PROTECT_PIN,
 #else
@@ -581,6 +618,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #ifdef CONFIG_RFKILL_RK
 // bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
 static struct rfkill_rk_platform_data rfkill_rk_platdata = {
+#if defined (CONFIG_MACH_RK2928_TB)
     .type               = RFKILL_TYPE_BLUETOOTH,
 
     .poweron_gpio       = { // BT_REG_ON
@@ -626,6 +664,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
             .fmux       = GPIO0C_UART0_CTSN,
         },
     },
+#endif
 };
 
 static struct platform_device device_rfkill_rk = {
@@ -645,8 +684,13 @@ static struct resource resources_acodec[] = {
 		.flags 	= IORESOURCE_MEM,
 	},
 	{
+                #if defined (CONFIG_MACH_RK2928_TB)
 		.start	= RK2928_PIN3_PD4,
 		.end	= RK2928_PIN3_PD4,
+                #elif defined (CONFIG_MACH_RK2926_TB)
+                .start	= RK2928_PIN1_PA0,
+		.end	= RK2928_PIN1_PA0,
+                #endif
 		.flags	= IORESOURCE_IO,
 	},
 };
@@ -780,7 +824,11 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.type	        = "gs_mma8452",
 		.addr	        = 0x1d,
 		.flags	        = 0,
+                #if defined(CONFIG_MACH_RK2928_TB)
 		.irq	        = RK2928_PIN3_PD1,
+                #elif defined(CONFIG_MACH_RK2926_TB)
+		.irq	        = RK2928_PIN1_PB2,
+                #endif
 		.platform_data = &mma8452_info,
 	},
 #endif
@@ -788,7 +836,11 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_TPS65910
+#if defined(CONFIG_MACH_RK2928_TB)
 #define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
+#elif defined(CONFIG_MACH_RK2926_TB)
+#define TPS65910_HOST_IRQ        RK2928_PIN1_PB1
+#endif
 #include "board-rk2928-sdk-tps65910.c"
 #endif
 static struct i2c_board_info __initdata i2c1_info[] = {
@@ -812,7 +864,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
                 .type           = "egalax_i2c",
                 .addr           = 0x04,
                 .flags          = 0,
-                .irq            = RK2928_PIN3_PC7,
+                .irq            = TOUCH_INT_PIN,
                 .platform_data  = &eeti_egalax_info,
         },
 #endif
@@ -861,8 +913,11 @@ static void __init rk30_i2c_register_board_info(void)
 #endif
 }
 //end of i2c
-
+#if defined (CONFIG_MACH_RK2928_TB)
 #define POWER_ON_PIN RK2928_PIN3_PC5   //power_hold
+#elif defined (CONFIG_MACH_RK2926_TB)
+#define POWER_ON_PIN RK2928_PIN1_PA2   //power_hold
+#endif
 static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
@@ -919,15 +974,15 @@ static void __init rk2928_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 216 * 1000,	.cpu_volt =  850 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 312 * 1000,	.cpu_volt =  900 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 408 * 1000,	.cpu_volt =  950 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 504 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 600 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 696 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 816 * 1000,	.cpu_volt = 1250 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 912 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},
-	{.frequency = 1008 * 1000,	.cpu_volt = 1450 * 1000,	.logic_volt = 1200 * 1000},
+        {.frequency = 216 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 312 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 408 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 504 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 600 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 696 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 816 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 912 * 1000,       .cpu_volt = 1450 * 1000,        .logic_volt = 1200 * 1000},
+        {.frequency = 1008 * 1000,      .cpu_volt = 1500 * 1000,        .logic_volt = 1200 * 1000},
 #if 0
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
