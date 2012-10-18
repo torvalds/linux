@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/plat-nomadik/timer.c
- *
  * Copyright (C) 2008 STMicroelectronics
  * Copyright (C) 2010 Alessandro Rubini
  * Copyright (C) 2010 Linus Walleij for ST-Ericsson
@@ -14,9 +12,11 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 

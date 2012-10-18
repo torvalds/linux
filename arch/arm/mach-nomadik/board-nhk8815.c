@@ -25,16 +25,14 @@
 #include <linux/io.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
+#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <asm/hardware/vic.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
-
-#include <plat/mtu.h>
-
-#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <mach/fsmc.h>
 #include <mach/irqs.h>
 
