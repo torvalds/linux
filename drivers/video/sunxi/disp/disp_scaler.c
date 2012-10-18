@@ -468,9 +468,9 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)//keep the source windo
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
-	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
-	scal_addr.ch2_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[2]));
+	scal_addr.ch0_addr = scaler->in_fb.addr[0];
+	scal_addr.ch1_addr = scaler->in_fb.addr[1];
+	scal_addr.ch2_addr = scaler->in_fb.addr[2];
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -514,9 +514,9 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)//keep the source windo
             DE_SCAL_Get_3D_Out_Single_Size(outmode, &out_size, &out_size);
         }
 
-    	scal_addr_right.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[0]));
-    	scal_addr_right.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[1]));
-    	scal_addr_right.ch2_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[2]));
+	scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
+	scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
+	scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
 
         DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
         DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type, inmode, &scal_addr_right);
@@ -660,9 +660,9 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
-	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
-	scal_addr.ch2_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[2]));
+	scal_addr.ch0_addr = scaler->in_fb.addr[0];
+	scal_addr.ch1_addr = scaler->in_fb.addr[1];
+	scal_addr.ch2_addr = scaler->in_fb.addr[2];
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -706,9 +706,9 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
             DE_SCAL_Get_3D_Out_Single_Size(outmode, &out_size, &out_size);
         }
 
-    	scal_addr_right.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[0]));
-    	scal_addr_right.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[1]));
-    	scal_addr_right.ch2_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[2]));
+	scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
+	scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
+	scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
 
         DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
         DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type, inmode, &scal_addr_right);
@@ -780,9 +780,9 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr = (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
-	scal_addr.ch1_addr = (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
-	scal_addr.ch2_addr = (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[2]));
+	scal_addr.ch0_addr = scaler->in_fb.addr[0];
+	scal_addr.ch1_addr = scaler->in_fb.addr[1];
+	scal_addr.ch2_addr = scaler->in_fb.addr[2];
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -826,9 +826,9 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
             DE_SCAL_Get_3D_Out_Single_Size(outmode, &out_size, &out_size);
         }
 
-    	scal_addr_right.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[0]));
-    	scal_addr_right.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[1]));
-    	scal_addr_right.ch2_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.trd_right_addr[2]));
+	scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
+	scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
+	scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
 
         DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
         DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type, inmode, &scal_addr_right);
@@ -1054,9 +1054,9 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
     out_size.width     = para->output_fb.size.width;
     out_size.height = para->output_fb.size.height;
 
-    in_addr.ch0_addr = (__u32)OSAL_VAtoPA((void*)(para->input_fb.addr[0]));
-    in_addr.ch1_addr = (__u32)OSAL_VAtoPA((void*)(para->input_fb.addr[1]));
-    in_addr.ch2_addr = (__u32)OSAL_VAtoPA((void*)(para->input_fb.addr[2]));
+    in_addr.ch0_addr = para->input_fb.addr[0];
+    in_addr.ch1_addr = para->input_fb.addr[1];
+    in_addr.ch2_addr = para->input_fb.addr[2];
 
     in_size.src_width = para->input_fb.size.width;
     in_size.src_height = para->input_fb.size.height;
@@ -1071,9 +1071,9 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
     out_scan.field = FALSE;	//when use scaler as writeback, won't be outinterlaced for any display device
     out_scan.bottom = FALSE;
 
-    out_addr.ch0_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[0]));
-    out_addr.ch1_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[1]));
-    out_addr.ch2_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[2]));
+    out_addr.ch0_addr = para->output_fb.addr[0];
+    out_addr.ch1_addr = para->output_fb.addr[1];
+    out_addr.ch2_addr = para->output_fb.addr[2];
 
     size = (para->input_fb.size.width * para->input_fb.size.height * de_format_to_bpp(para->input_fb.format) + 7)/8;
     OSAL_CacheRangeFlush((void *)para->input_fb.addr[0],size ,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
@@ -1095,9 +1095,9 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
             DE_SCAL_Get_3D_Out_Single_Size(outmode, &out_size, &out_size);
         }
 
-    	scal_addr_right.ch0_addr= (__u32)OSAL_VAtoPA((void*)(para->input_fb.trd_right_addr[0]));
-    	scal_addr_right.ch1_addr= (__u32)OSAL_VAtoPA((void*)(para->input_fb.trd_right_addr[1]));
-    	scal_addr_right.ch2_addr= (__u32)OSAL_VAtoPA((void*)(para->input_fb.trd_right_addr[2]));
+	scal_addr_right.ch0_addr = para->input_fb.trd_right_addr[0];
+	scal_addr_right.ch1_addr = para->input_fb.trd_right_addr[1];
+	scal_addr_right.ch2_addr = para->input_fb.trd_right_addr[2];
 
         DE_SCAL_Set_3D_Ctrl(sel, para->output_fb.b_trd_src, inmode, outmode);
         DE_SCAL_Config_3D_Src(sel, &in_addr, &in_size, &in_type, inmode, &scal_addr_right);
@@ -1308,9 +1308,9 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
     in_addr.ch1_addr = 0;
     in_addr.ch2_addr = 0;
 
-    out_addr.ch0_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[0]));
-    out_addr.ch1_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[1]));
-    out_addr.ch2_addr = (__u32)OSAL_VAtoPA((void*)(para->output_fb.addr[2]));
+    out_addr.ch0_addr = para->output_fb.addr[0];
+    out_addr.ch1_addr = para->output_fb.addr[1];
+    out_addr.ch2_addr = para->output_fb.addr[2];
 
     size = (para->output_fb.size.width * para->output_fb.size.height * de_format_to_bpp(para->output_fb.format) + 7)/8;
     OSAL_CacheRangeFlush((void *)para->output_fb.addr[0],size ,CACHE_FLUSH_D_CACHE_REGION);
