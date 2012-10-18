@@ -384,11 +384,24 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	ehci->rh_state = EHCI_RH_RUNNING;
 
-	/* Some controller/firmware combinations need a delay during which
-	 * they set up the port statuses.  See Bugzilla #8190. */
-	spin_unlock_irq(&ehci->lock);
-	msleep(8);
-	spin_lock_irq(&ehci->lock);
+	/*
+	 * According to Bugzilla #8190, the port status for some controllers
+	 * will be wrong without a delay. At their wrong status, the port
+	 * is enabled, but not suspended neither resumed.
+	 */
+	i = HCS_N_PORTS(ehci->hcs_params);
+	while (i--) {
+		temp = ehci_readl(ehci, &ehci->regs->port_status[i]);
+		if ((temp & PORT_PE) &&
+				!(temp & (PORT_SUSPEND | PORT_RESUME))) {
+			ehci_dbg(ehci, "Port status(0x%x) is wrong\n", temp);
+			spin_unlock_irq(&ehci->lock);
+			msleep(8);
+			spin_lock_irq(&ehci->lock);
+			break;
+		}
+	}
+
 	if (ehci->shutdown)
 		goto shutdown;
 
