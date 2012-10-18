@@ -237,7 +237,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	u8 t;
 
 	__lis3l02dq_write_data_ready_config(indio_dev, state);
-	if (state == false) {
+	if (!state) {
 		/*
 		 * A possible quirk with the handler is currently worked around
 		 * by ensuring outstanding read events are cleared.
