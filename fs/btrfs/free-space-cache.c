@@ -1250,18 +1250,13 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 			 * if previous extent entry covers the offset,
 			 * we should return it instead of the bitmap entry
 			 */
-			n = &entry->offset_index;
-			while (1) {
-				n = rb_prev(n);
-				if (!n)
-					break;
+			n = rb_prev(&entry->offset_index);
+			if (n) {
 				prev = rb_entry(n, struct btrfs_free_space,
 						offset_index);
-				if (!prev->bitmap) {
-					if (prev->offset + prev->bytes > offset)
-						entry = prev;
-					break;
-				}
+				if (!prev->bitmap &&
+				    prev->offset + prev->bytes > offset)
+					entry = prev;
 			}
 		}
 		return entry;
@@ -1287,18 +1282,13 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 	}
 
 	if (entry->bitmap) {
-		n = &entry->offset_index;
-		while (1) {
-			n = rb_prev(n);
-			if (!n)
-				break;
+		n = rb_prev(&entry->offset_index);
+		if (n) {
 			prev = rb_entry(n, struct btrfs_free_space,
 					offset_index);
-			if (!prev->bitmap) {
-				if (prev->offset + prev->bytes > offset)
-					return prev;
-				break;
-			}
+			if (!prev->bitmap &&
+			    prev->offset + prev->bytes > offset)
+				return prev;
 		}
 		if (entry->offset + BITS_PER_BITMAP * ctl->unit > offset)
 			return entry;
