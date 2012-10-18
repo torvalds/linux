@@ -93,7 +93,7 @@ static struct device *chan2parent(struct dma_chan *chan)
 
 static struct dw_desc *dwc_first_active(struct dw_dma_chan *dwc)
 {
-	return list_entry(dwc->active_list.next, struct dw_desc, desc_node);
+	return to_dw_desc(dwc->active_list.next);
 }
 
 static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
@@ -600,9 +600,7 @@ static void dw_dma_tasklet(unsigned long data)
 			if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
 				if (dwc->tx_node_active != dwc->tx_list) {
 					struct dw_desc *desc =
-						list_entry(dwc->tx_node_active,
-							   struct dw_desc,
-							   desc_node);
+						to_dw_desc(dwc->tx_node_active);
 
 					dma_writel(dw, CLEAR.XFER, dwc->mask);
 

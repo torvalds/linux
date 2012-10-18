@@ -299,6 +299,8 @@ struct dw_desc {
 	size_t				len;
 };
 
+#define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)
+
 static inline struct dw_desc *
 txd_to_dw_desc(struct dma_async_tx_descriptor *txd)
 {
