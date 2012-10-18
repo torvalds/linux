@@ -29,7 +29,13 @@
 
 #ifndef __ASSEMBLY__
 /* Explicitly size integers that represent pfns in the interface with
- * Xen so that we can have one ABI that works for 32 and 64 bit guests. */
+ * Xen so that we can have one ABI that works for 32 and 64 bit guests.
+ * Note that this means that the xen_pfn_t type may be capable of
+ * representing pfn's which the guest cannot represent in its own pfn
+ * type. However since pfn space is controlled by the guest this is
+ * fine since it simply wouldn't be able to create any sure pfns in
+ * the first place.
+ */
 typedef uint64_t xen_pfn_t;
 #define PRI_xen_pfn "llx"
 typedef uint64_t xen_ulong_t;
