@@ -3382,6 +3382,10 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(_3D_CHICKEN2,
 		   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
 		   _3D_CHICKEN2_WM_READ_PIPELINED);
+
+	/* WaDisableRenderCachePipelinedFlush */
+	I915_WRITE(CACHE_MODE_0,
+		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 }
 
 static void gen6_init_clock_gating(struct drm_device *dev)
@@ -3716,6 +3720,10 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 	if (IS_GM45(dev))
 		dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, dspclk_gate);
+
+	/* WaDisableRenderCachePipelinedFlush */
+	I915_WRITE(CACHE_MODE_0,
+		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 }
 
 static void crestline_init_clock_gating(struct drm_device *dev)
