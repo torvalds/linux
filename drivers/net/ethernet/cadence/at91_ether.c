@@ -47,24 +47,6 @@
 
 #define LINK_POLL_INTERVAL	(HZ)
 
-/* ..................................................................... */
-
-/*
- * Read from a EMAC register.
- */
-static inline unsigned long at91_emac_read(struct at91_private *lp, unsigned int reg)
-{
-	return __raw_readl(lp->emac_base + reg);
-}
-
-/*
- * Write to a EMAC register.
- */
-static inline void at91_emac_write(struct at91_private *lp, unsigned int reg, unsigned long value)
-{
-	__raw_writel(value, lp->emac_base + reg);
-}
-
 /* ........................... PHY INTERFACE ........................... */
 
 /*
@@ -76,8 +58,8 @@ static void enable_mdi(struct at91_private *lp)
 {
 	unsigned long ctl;
 
-	ctl = at91_emac_read(lp, MACB_NCR);
-	at91_emac_write(lp, MACB_NCR, ctl | MACB_BIT(MPE));	/* enable management port */
+	ctl = macb_readl(lp, NCR);
+	macb_writel(lp, NCR, ctl | MACB_BIT(MPE));	/* enable management port */
 }
 
 /*
@@ -87,8 +69,8 @@ static void disable_mdi(struct at91_private *lp)
 {
 	unsigned long ctl;
 
-	ctl = at91_emac_read(lp, MACB_NCR);
-	at91_emac_write(lp, MACB_NCR, ctl & ~MACB_BIT(MPE));	/* disable management port */
+	ctl = macb_readl(lp, NCR);
+	macb_writel(lp, NCR, ctl & ~MACB_BIT(MPE));	/* disable management port */
 }
 
 /*
@@ -98,7 +80,7 @@ static inline void at91_phy_wait(struct at91_private *lp)
 {
 	unsigned long timeout = jiffies + 2;
 
-	while (!(at91_emac_read(lp, MACB_NSR) & MACB_BIT(IDLE))) {
+	while (!(macb_readl(lp, NSR) & MACB_BIT(IDLE))) {
 		if (time_after(jiffies, timeout)) {
 			printk("at91_ether: MIO timeout\n");
 			break;
@@ -113,7 +95,7 @@ static inline void at91_phy_wait(struct at91_private *lp)
  */
 static void write_phy(struct at91_private *lp, unsigned char phy_addr, unsigned char address, unsigned int value)
 {
-	at91_emac_write(lp, MACB_MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
+	macb_writel(lp, MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
 					| MACB_BF(RW, MACB_MAN_WRITE) | ((phy_addr & 0x1f) << 23)
 					| (address << 18) | (value & ((1<<MACB_DATA_SIZE) - 1)));
 
@@ -127,14 +109,14 @@ static void write_phy(struct at91_private *lp, unsigned char phy_addr, unsigned 
  */
 static void read_phy(struct at91_private *lp, unsigned char phy_addr, unsigned char address, unsigned int *value)
 {
-	at91_emac_write(lp, MACB_MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
+	macb_writel(lp, MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
 					| MACB_BF(RW, MACB_MAN_READ) | ((phy_addr & 0x1f) << 23)
 					| (address << 18));
 
 	/* Wait until IDLE bit in Network Status register is cleared */
 	at91_phy_wait(lp);
 
-	*value = at91_emac_read(lp, MACB_MAN) & ((1<<MACB_DATA_SIZE) - 1);
+	*value = macb_readl(lp, MAN) & ((1<<MACB_DATA_SIZE) - 1);
 }
 
 /* ........................... PHY MANAGEMENT .......................... */
@@ -175,7 +157,7 @@ static void update_linkspeed(struct net_device *dev, int silent)
 	}
 
 	/* Update the MAC */
-	mac_cfg = at91_emac_read(lp, MACB_NCFGR) & ~(MACB_BIT(SPD) | MACB_BIT(FD));
+	mac_cfg = macb_readl(lp, NCFGR) & ~(MACB_BIT(SPD) | MACB_BIT(FD));
 	if (speed == SPEED_100) {
 		if (duplex == DUPLEX_FULL)		/* 100 Full Duplex */
 			mac_cfg |= MACB_BIT(SPD) | MACB_BIT(FD);
@@ -186,7 +168,7 @@ static void update_linkspeed(struct net_device *dev, int silent)
 			mac_cfg |= MACB_BIT(FD);
 		else {}					/* 10 Half Duplex */
 	}
-	at91_emac_write(lp, MACB_NCFGR, mac_cfg);
+	macb_writel(lp, NCFGR, mac_cfg);
 
 	if (!silent)
 		printk(KERN_INFO "%s: Link now %i-%s\n", dev->name, speed, (duplex == DUPLEX_FULL) ? "FullDuplex" : "HalfDuplex");
@@ -481,16 +463,16 @@ static void __init get_mac_address(struct net_device *dev)
 	struct at91_private *lp = netdev_priv(dev);
 
 	/* Check Specific-Address 1 */
-	if (unpack_mac_address(dev, at91_emac_read(lp, MACB_SA1T), at91_emac_read(lp, MACB_SA1B)))
+	if (unpack_mac_address(dev, macb_readl(lp, SA1T), macb_readl(lp, SA1B)))
 		return;
 	/* Check Specific-Address 2 */
-	if (unpack_mac_address(dev, at91_emac_read(lp, MACB_SA2T), at91_emac_read(lp, MACB_SA2B)))
+	if (unpack_mac_address(dev, macb_readl(lp, SA2T), macb_readl(lp, SA2B)))
 		return;
 	/* Check Specific-Address 3 */
-	if (unpack_mac_address(dev, at91_emac_read(lp, MACB_SA3T), at91_emac_read(lp, MACB_SA3B)))
+	if (unpack_mac_address(dev, macb_readl(lp, SA3T), macb_readl(lp, SA3B)))
 		return;
 	/* Check Specific-Address 4 */
-	if (unpack_mac_address(dev, at91_emac_read(lp, MACB_SA4T), at91_emac_read(lp, MACB_SA4B)))
+	if (unpack_mac_address(dev, macb_readl(lp, SA4T), macb_readl(lp, SA4B)))
 		return;
 
 	printk(KERN_ERR "at91_ether: Your bootloader did not configure a MAC address.\n");
@@ -503,12 +485,12 @@ static void update_mac_address(struct net_device *dev)
 {
 	struct at91_private *lp = netdev_priv(dev);
 
-	at91_emac_write(lp, MACB_SA1B, (dev->dev_addr[3] << 24) | (dev->dev_addr[2] << 16)
+	macb_writel(lp, SA1B, (dev->dev_addr[3] << 24) | (dev->dev_addr[2] << 16)
 					| (dev->dev_addr[1] << 8) | (dev->dev_addr[0]));
-	at91_emac_write(lp, MACB_SA1T, (dev->dev_addr[5] << 8) | (dev->dev_addr[4]));
+	macb_writel(lp, SA1T, (dev->dev_addr[5] << 8) | (dev->dev_addr[4]));
 
-	at91_emac_write(lp, MACB_SA2B, 0);
-	at91_emac_write(lp, MACB_SA2T, 0);
+	macb_writel(lp, SA2B, 0);
+	macb_writel(lp, SA2T, 0);
 }
 
 /*
@@ -600,8 +582,8 @@ static void at91ether_sethashtable(struct net_device *dev)
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 
-	at91_emac_write(lp, MACB_HRB, mc_filter[0]);
-	at91_emac_write(lp, MACB_HRT, mc_filter[1]);
+	macb_writel(lp, HRB, mc_filter[0]);
+	macb_writel(lp, HRT, mc_filter[1]);
 }
 
 /*
@@ -612,7 +594,7 @@ static void at91ether_set_multicast_list(struct net_device *dev)
 	struct at91_private *lp = netdev_priv(dev);
 	unsigned long cfg;
 
-	cfg = at91_emac_read(lp, MACB_NCFGR);
+	cfg = macb_readl(lp, NCFGR);
 
 	if (dev->flags & IFF_PROMISC)			/* Enable promiscuous mode */
 		cfg |= MACB_BIT(CAF);
@@ -620,19 +602,19 @@ static void at91ether_set_multicast_list(struct net_device *dev)
 		cfg &= ~MACB_BIT(CAF);
 
 	if (dev->flags & IFF_ALLMULTI) {		/* Enable all multicast mode */
-		at91_emac_write(lp, MACB_HRT, -1);
-		at91_emac_write(lp, MACB_HRB, -1);
+		macb_writel(lp, HRT, -1);
+		macb_writel(lp, HRB, -1);
 		cfg |= MACB_BIT(NCFGR_MTI);
 	} else if (!netdev_mc_empty(dev)) { /* Enable specific multicasts */
 		at91ether_sethashtable(dev);
 		cfg |= MACB_BIT(NCFGR_MTI);
 	} else if (dev->flags & (~IFF_ALLMULTI)) {	/* Disable all multicast mode */
-		at91_emac_write(lp, MACB_HRT, 0);
-		at91_emac_write(lp, MACB_HRB, 0);
+		macb_writel(lp, HRT, 0);
+		macb_writel(lp, HRB, 0);
 		cfg &= ~MACB_BIT(NCFGR_MTI);
 	}
 
-	at91_emac_write(lp, MACB_NCFGR, cfg);
+	macb_writel(lp, NCFGR, cfg);
 }
 
 /* ......................... ETHTOOL SUPPORT ........................... */
@@ -765,11 +747,11 @@ static void at91ether_start(struct net_device *dev)
 	lp->rxBuffIndex = 0;
 
 	/* Program address of descriptor list in Rx Buffer Queue register */
-	at91_emac_write(lp, MACB_RBQP, (unsigned long) dlist_phys);
+	macb_writel(lp, RBQP, (unsigned long) dlist_phys);
 
 	/* Enable Receive and Transmit */
-	ctl = at91_emac_read(lp, MACB_NCR);
-	at91_emac_write(lp, MACB_NCR, ctl | MACB_BIT(RE) | MACB_BIT(TE));
+	ctl = macb_readl(lp, NCR);
+	macb_writel(lp, NCR, ctl | MACB_BIT(RE) | MACB_BIT(TE));
 }
 
 /*
@@ -786,8 +768,8 @@ static int at91ether_open(struct net_device *dev)
 	clk_enable(lp->ether_clk);		/* Re-enable Peripheral clock */
 
 	/* Clear internal statistics */
-	ctl = at91_emac_read(lp, MACB_NCR);
-	at91_emac_write(lp, MACB_NCR, ctl | MACB_BIT(CLRSTAT));
+	ctl = macb_readl(lp, NCR);
+	macb_writel(lp, NCR, ctl | MACB_BIT(CLRSTAT));
 
 	/* Update the MAC address (incase user has changed it) */
 	update_mac_address(dev);
@@ -796,7 +778,7 @@ static int at91ether_open(struct net_device *dev)
 	enable_phyirq(dev);
 
 	/* Enable MAC interrupts */
-	at91_emac_write(lp, MACB_IER, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
+	macb_writel(lp, IER, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
 				| MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE) | MACB_BIT(TCOMP)
 				| MACB_BIT(ISR_ROVR) | MACB_BIT(HRESP));
 
@@ -821,14 +803,14 @@ static int at91ether_close(struct net_device *dev)
 	unsigned long ctl;
 
 	/* Disable Receiver and Transmitter */
-	ctl = at91_emac_read(lp, MACB_NCR);
-	at91_emac_write(lp, MACB_NCR, ctl & ~(MACB_BIT(TE) | MACB_BIT(RE)));
+	ctl = macb_readl(lp, NCR);
+	macb_writel(lp, NCR, ctl & ~(MACB_BIT(TE) | MACB_BIT(RE)));
 
 	/* Disable PHY interrupt */
 	disable_phyirq(dev);
 
 	/* Disable MAC interrupts */
-	at91_emac_write(lp, MACB_IDR, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
+	macb_writel(lp, IDR, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
 				| MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE)
 				| MACB_BIT(TCOMP) | MACB_BIT(ISR_ROVR)
 				| MACB_BIT(HRESP));
@@ -847,7 +829,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct at91_private *lp = netdev_priv(dev);
 
-	if (at91_emac_read(lp, MACB_TSR) & MACB_BIT(RM9200_BNQ)) {
+	if (macb_readl(lp, TSR) & MACB_BIT(RM9200_BNQ)) {
 		netif_stop_queue(dev);
 
 		/* Store packet information (to free when Tx completed) */
@@ -857,9 +839,9 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_bytes += skb->len;
 
 		/* Set address of the data in the Transmit Address register */
-		at91_emac_write(lp, MACB_TAR, lp->skb_physaddr);
+		macb_writel(lp, TAR, lp->skb_physaddr);
 		/* Set length of the packet in the Transmit Control register */
-		at91_emac_write(lp, MACB_TCR, skb->len);
+		macb_writel(lp, TCR, skb->len);
 
 	} else {
 		printk(KERN_ERR "at91_ether.c: at91ether_start_xmit() called, but device is busy!\n");
@@ -880,28 +862,28 @@ static struct net_device_stats *at91ether_stats(struct net_device *dev)
 	int ale, lenerr, seqe, lcol, ecol;
 
 	if (netif_running(dev)) {
-		dev->stats.rx_packets += at91_emac_read(lp, MACB_FRO);	/* Good frames received */
-		ale = at91_emac_read(lp, MACB_ALE);
+		dev->stats.rx_packets += macb_readl(lp, FRO);	/* Good frames received */
+		ale = macb_readl(lp, ALE);
 		dev->stats.rx_frame_errors += ale;				/* Alignment errors */
-		lenerr = at91_emac_read(lp, MACB_ELE) + at91_emac_read(lp, MACB_USF);
+		lenerr = macb_readl(lp, ELE) + macb_readl(lp, USF);
 		dev->stats.rx_length_errors += lenerr;				/* Excessive Length or Undersize Frame error */
-		seqe = at91_emac_read(lp, MACB_FCSE);
+		seqe = macb_readl(lp, FCSE);
 		dev->stats.rx_crc_errors += seqe;				/* CRC error */
-		dev->stats.rx_fifo_errors += at91_emac_read(lp, MACB_RRE);/* Receive buffer not available */
+		dev->stats.rx_fifo_errors += macb_readl(lp, RRE);/* Receive buffer not available */
 		dev->stats.rx_errors += (ale + lenerr + seqe
-			+ at91_emac_read(lp, MACB_RSE) + at91_emac_read(lp, MACB_RJA));
+			+ macb_readl(lp, RSE) + macb_readl(lp, RJA));
 
-		dev->stats.tx_packets += at91_emac_read(lp, MACB_FTO);	/* Frames successfully transmitted */
-		dev->stats.tx_fifo_errors += at91_emac_read(lp, MACB_TUND);	/* Transmit FIFO underruns */
-		dev->stats.tx_carrier_errors += at91_emac_read(lp, MACB_CSE);	/* Carrier Sense errors */
-		dev->stats.tx_heartbeat_errors += at91_emac_read(lp, MACB_STE);/* Heartbeat error */
+		dev->stats.tx_packets += macb_readl(lp, FTO);	/* Frames successfully transmitted */
+		dev->stats.tx_fifo_errors += macb_readl(lp, TUND);	/* Transmit FIFO underruns */
+		dev->stats.tx_carrier_errors += macb_readl(lp, CSE);	/* Carrier Sense errors */
+		dev->stats.tx_heartbeat_errors += macb_readl(lp, STE);/* Heartbeat error */
 
-		lcol = at91_emac_read(lp, MACB_LCOL);
-		ecol = at91_emac_read(lp, MACB_EXCOL);
+		lcol = macb_readl(lp, LCOL);
+		ecol = macb_readl(lp, EXCOL);
 		dev->stats.tx_window_errors += lcol;			/* Late collisions */
 		dev->stats.tx_aborted_errors += ecol;			/* 16 collisions */
 
-		dev->stats.collisions += (at91_emac_read(lp, MACB_SCF) + at91_emac_read(lp, MACB_MCF) + lcol + ecol);
+		dev->stats.collisions += (macb_readl(lp, SCF) + macb_readl(lp, MCF) + lcol + ecol);
 	}
 	return &dev->stats;
 }
@@ -958,7 +940,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 
 	/* MAC Interrupt Status register indicates what interrupts are pending.
 	   It is automatically cleared once read. */
-	intstatus = at91_emac_read(lp, MACB_ISR);
+	intstatus = macb_readl(lp, ISR);
 
 	if (intstatus & MACB_BIT(RCOMP))		/* Receive complete */
 		at91ether_rx(dev);
@@ -978,9 +960,9 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 
 	/* Work-around for Errata #11 */
 	if (intstatus & MACB_BIT(RXUBR)) {
-		ctl = at91_emac_read(lp, MACB_NCR);
-		at91_emac_write(lp, MACB_NCR, ctl & ~MACB_BIT(RE));
-		at91_emac_write(lp, MACB_NCR, ctl | MACB_BIT(RE));
+		ctl = macb_readl(lp, NCR);
+		macb_writel(lp, NCR, ctl & ~MACB_BIT(RE));
+		macb_writel(lp, NCR, ctl | MACB_BIT(RE));
 	}
 
 	if (intstatus & MACB_BIT(ISR_ROVR))
@@ -1081,8 +1063,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	spin_lock_init(&lp->lock);
 
 	dev->base_addr = regs->start;		/* physical base address */
-	lp->emac_base = ioremap(regs->start, regs->end - regs->start + 1);
-	if (!lp->emac_base) {
+	lp->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	if (!lp->regs) {
 		res = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -1118,12 +1100,12 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	get_mac_address(dev);		/* Get ethernet address and store it in dev->dev_addr */
 	update_mac_address(dev);	/* Program ethernet address into MAC */
 
-	at91_emac_write(lp, MACB_NCR, 0);
+	macb_writel(lp, NCR, 0);
 
 	if (board_data->is_rmii)
-		at91_emac_write(lp, MACB_NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG) | MACB_BIT(RM9200_RMII));
+		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG) | MACB_BIT(RM9200_RMII));
 	else
-		at91_emac_write(lp, MACB_NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG));
+		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG));
 
 	/* Detect PHY */
 	if (!at91ether_phy_detect(lp)) {
@@ -1167,8 +1149,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	/* Display ethernet banner */
 	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%pM)\n",
 	       dev->name, (uint) dev->base_addr, dev->irq,
-	       at91_emac_read(lp, MACB_NCFGR) & MACB_BIT(SPD) ? "100-" : "10-",
-	       at91_emac_read(lp, MACB_NCFGR) & MACB_BIT(FD) ? "FullDuplex" : "HalfDuplex",
+	       macb_readl(lp, NCFGR) & MACB_BIT(SPD) ? "100-" : "10-",
+	       macb_readl(lp, NCFGR) & MACB_BIT(FD) ? "FullDuplex" : "HalfDuplex",
 	       dev->dev_addr);
 	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID))
 		printk(KERN_INFO "%s: Davicom 9161 PHY %s\n", dev->name, (lp->phy_media == PORT_FIBRE) ? "(Fiber)" : "(Copper)");
@@ -1205,7 +1187,7 @@ err_disable_clock:
 	clk_disable(lp->ether_clk);
 	clk_put(lp->ether_clk);
 err_ioumap:
-	iounmap(lp->emac_base);
+	iounmap(lp->regs);
 err_free_dev:
 	free_netdev(dev);
 	return res;
