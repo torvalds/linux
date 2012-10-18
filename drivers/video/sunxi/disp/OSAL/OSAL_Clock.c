@@ -21,8 +21,6 @@
 #include "OSAL.h"
 #include "OSAL_Clock.h"
 
-#if 1
-
 static char* _sysClkName[AW_SYS_CLK_CNT] =
 {
     "none",//0
@@ -309,35 +307,6 @@ __s32 OSAL_CCMU_SetMclkSrc( __hdle hMclk, __u32 nSclkNo )
     return retCode;
 }
 
-__s32 OSAL_CCMU_GetMclkSrc( __hdle hMclk )
-{
-    int sysClkNo = 0;
-    struct clk* hModClk = (struct clk*)hMclk;
-    struct clk* hParentClk = clk_get_parent(hModClk);
-    const int TOTAL_SYS_CLK = sizeof(_sysClkName)/sizeof(char*);
-
-    for (; sysClkNo <  TOTAL_SYS_CLK; sysClkNo++)
-    {
-        struct clk* tmpSysClk = clk_get(NULL, _sysClkName[sysClkNo]);
-
-        if(tmpSysClk == NULL)
-        	continue;
-
-        if(hParentClk == tmpSysClk){
-            clk_put(tmpSysClk);
-            break;
-        }
-        clk_put(tmpSysClk);
-    }
-
-    if(sysClkNo >= TOTAL_SYS_CLK){
-        __wrn("Failed to get parent clk.\n");
-        return -1;
-    }
-
-    return sysClkNo;
-}
-
 __s32 OSAL_CCMU_SetMclkDiv( __hdle hMclk, __s32 nDiv )
 {
     struct clk* hModClk     = (struct clk*)hMclk;
@@ -351,19 +320,6 @@ __s32 OSAL_CCMU_SetMclkDiv( __hdle hMclk, __s32 nDiv )
     }
 
     return clk_set_rate(hModClk, srcRate/nDiv);
-}
-
-__u32 OSAL_CCMU_GetMclkDiv( __hdle hMclk )
-{
-    struct clk* hModClk = (struct clk*)hMclk;
-    struct clk* hParentClk = clk_get_parent(hModClk);
-    u32 mod_freq = clk_get_rate(hModClk);
-
-    if(mod_freq == 0){
-    	return 0;
-    }
-
-    return clk_get_rate(hParentClk)/mod_freq;
 }
 
 __s32 OSAL_CCMU_MclkOnOff( __hdle hMclk, __s32 bOnOff )
@@ -398,55 +354,3 @@ __s32 OSAL_CCMU_MclkReset(__hdle hMclk, __s32 bReset)
 
     return clk_reset(hModClk, bReset);
 }
-#else
-__s32 OSAL_CCMU_SetSrcFreq( CSP_CCM_sysClkNo_t nSclkNo, __u32 nFreq )
-{
-    return 0;
-}
-
-__u32 OSAL_CCMU_GetSrcFreq( CSP_CCM_sysClkNo_t nSclkNo )
-{
-    return 0;
-}
-
-__hdle OSAL_CCMU_OpenMclk( __s32 nMclkNo )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_CloseMclk( __hdle hMclk )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_SetMclkSrc( __hdle hMclk, CSP_CCM_sysClkNo_t nSclkNo )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_GetMclkSrc( __hdle hMclk )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_SetMclkDiv( __hdle hMclk, __s32 nDiv )
-{
-    return 0;
-}
-
-__u32 OSAL_CCMU_GetMclkDiv( __hdle hMclk )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_MclkOnOff( __hdle hMclk, __s32 bOnOff )
-{
-    return 0;
-}
-
-__s32 OSAL_CCMU_MclkReset(__hdle hMclk, __s32 bReset)
-{
-    return 0;
-}
-#endif
-
