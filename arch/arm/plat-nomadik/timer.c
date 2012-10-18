@@ -201,7 +201,8 @@ void __init nmdk_timer_init(void __iomem *base, int irq)
 		clk_prescale = MTU_CRn_PRESCALE_1;
 	}
 
-	nmdk_cycle = (rate + HZ/2) / HZ;
+	/* Cycles for periodic mode */
+	nmdk_cycle = DIV_ROUND_CLOSEST(rate, HZ);
 
 
 	/* Timer 0 is the free running clocksource */
