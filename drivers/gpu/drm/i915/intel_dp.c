@@ -356,6 +356,29 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t aux_clock_divider;
 	int try, precharge;
 
+	if (IS_HASWELL(dev)) {
+		switch (intel_dp->port) {
+		case PORT_A:
+			ch_ctl = DPA_AUX_CH_CTL;
+			ch_data = DPA_AUX_CH_DATA1;
+			break;
+		case PORT_B:
+			ch_ctl = PCH_DPB_AUX_CH_CTL;
+			ch_data = PCH_DPB_AUX_CH_DATA1;
+			break;
+		case PORT_C:
+			ch_ctl = PCH_DPC_AUX_CH_CTL;
+			ch_data = PCH_DPC_AUX_CH_DATA1;
+			break;
+		case PORT_D:
+			ch_ctl = PCH_DPD_AUX_CH_CTL;
+			ch_data = PCH_DPD_AUX_CH_DATA1;
+			break;
+		default:
+			BUG();
+		}
+	}
+
 	intel_dp_check_edp(intel_dp);
 	/* The clock divider is based off the hrawclk,
 	 * and would like to run at 2MHz. So, take the
