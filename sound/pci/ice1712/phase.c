@@ -42,7 +42,6 @@
  *   Digital receiver: CS8414-CS (supported in this release)
  */
 
-#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

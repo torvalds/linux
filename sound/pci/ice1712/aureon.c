@@ -46,7 +46,6 @@
  *                    on mixer switch and other coll stuff.
  */
 
-#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
