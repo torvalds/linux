@@ -816,7 +816,12 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_dp_compute_m_n(intel_crtc->bpp, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_HASWELL(dev)) {
+		I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
+		I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
+		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
+		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
+	} else if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
 		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
 		I915_WRITE(TRANSDPLINK_M1(pipe), m_n.link_m);

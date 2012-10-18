@@ -5356,7 +5356,8 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
-	ironlake_set_m_n(crtc, mode, adjusted_mode);
+	if (!is_dp || is_cpu_edp)
+		ironlake_set_m_n(crtc, mode, adjusted_mode);
 
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		if (is_cpu_edp)
