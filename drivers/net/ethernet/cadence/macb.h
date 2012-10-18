@@ -504,16 +504,11 @@ struct gem_stats {
 	u32	rx_udp_checksum_errors;
 };
 
-struct rbf_t {
-	unsigned int addr;
-	unsigned long size;
-};
-
 #define MAX_RBUFF_SZ	0x600		/* 1518 rounded up */
 #define MAX_RX_DESCR	9		/* max number of receive buffers */
 
 struct recv_desc_bufs {
-	struct rbf_t descriptors[MAX_RX_DESCR];		/* must be on sizeof (rbf_t) boundary */
+	struct dma_desc descriptors[MAX_RX_DESCR];	/* must be on sizeof (dma_desc) boundary */
 	char recv_buf[MAX_RX_DESCR][MAX_RBUFF_SZ];	/* must be on long boundary */
 };
 
