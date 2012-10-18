@@ -618,17 +618,7 @@ static struct pci_driver tpci200_pci_drv = {
 	.remove = __devexit_p(tpci200_pci_remove),
 };
 
-static int __init tpci200_drvr_init_module(void)
-{
-	return pci_register_driver(&tpci200_pci_drv);
-}
-
-static void __exit tpci200_drvr_exit_module(void)
-{
-	pci_unregister_driver(&tpci200_pci_drv);
-}
+module_pci_driver(tpci200_pci_drv);
 
 MODULE_DESCRIPTION("TEWS TPCI-200 device driver");
 MODULE_LICENSE("GPL");
-module_init(tpci200_drvr_init_module);
-module_exit(tpci200_drvr_exit_module);
