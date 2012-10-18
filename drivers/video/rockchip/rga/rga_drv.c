@@ -486,9 +486,6 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
         INIT_LIST_HEAD(&reg1->session_link);
     	INIT_LIST_HEAD(&reg1->status_link);
 
-        //memcpy(&reg0->req, req0, sizeof(struct rga_req));
-        //memcpy(&reg1->req, req1, sizeof(struct rga_req));
-
         if(req0->mmu_info.mmu_en)
         {
             ret = rga_set_mmu_info(reg0, req0);
@@ -702,6 +699,9 @@ static void rga_del_running_list_timeout(void)
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga_service.total_running);
 
+        printk("RGA soft reset for timeout process\n");
+        rga_soft_reset();
+        
 
         #if 0
         printk("RGA_INT is %.8x\n", rga_read(RGA_INT));

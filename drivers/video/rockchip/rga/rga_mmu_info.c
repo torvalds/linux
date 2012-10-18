@@ -1049,7 +1049,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
             {
                 for(i=0; i<DstMemSize; i++) 
                 {
-                    MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i)<< PAGE_SHIFT));        
+                    MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));        
                 }    
             }                                    
         }
