@@ -491,14 +491,6 @@ static int edt_ft5x06_debugfs_mode_set(void *data, u64 mode)
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_mode_fops, edt_ft5x06_debugfs_mode_get,
 			edt_ft5x06_debugfs_mode_set, "%llu\n");
 
-static int edt_ft5x06_debugfs_raw_data_open(struct inode *inode,
-					    struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 				char __user *buf, size_t count, loff_t *off)
 {
@@ -576,7 +568,7 @@ out:
 
 
 static const struct file_operations debugfs_raw_data_fops = {
-	.open = edt_ft5x06_debugfs_raw_data_open,
+	.open = simple_open,
 	.read = edt_ft5x06_debugfs_raw_data_read,
 };
 
