@@ -429,9 +429,9 @@ ENTRY(pgm_check_handler)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
 	nill	%r10,0x007f
-	sll	%r10,3
+	sll	%r10,2
 	je	sysc_return
-	lg	%r1,0(%r10,%r1)		# load address of handler routine
+	lgf	%r1,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	basr	%r14,%r1		# branch to interrupt-handler
 	j	sysc_return
