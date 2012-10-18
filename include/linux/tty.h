@@ -197,6 +197,9 @@ struct tty_port {
 	wait_queue_head_t	close_wait;	/* Close waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
+	unsigned long		iflags;		/* TTYP_ internal flags */
+#define TTYP_FLUSHING			1  /* Flushing to ldisc in progress */
+#define TTYP_FLUSHPENDING		2  /* Queued buffer flush pending */
 	unsigned char		console:1;	/* port is a console */
 	struct mutex		mutex;		/* Locking */
 	struct mutex		buf_mutex;	/* Buffer alloc lock */
@@ -309,8 +312,6 @@ struct tty_file_private {
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
-#define TTY_FLUSHING		19	/* Flushing to ldisc in progress */
-#define TTY_FLUSHPENDING	20	/* Queued buffer flush pending */
 #define TTY_HUPPING 		21	/* ->hangup() in progress */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
