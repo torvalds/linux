@@ -246,19 +246,17 @@ release_thread(struct task_struct *dead_task)
 int
 alpha_clone(unsigned long clone_flags, unsigned long usp,
 	    int __user *parent_tid, int __user *child_tid,
-	    unsigned long tls_value, struct pt_regs *regs)
+	    unsigned long tls_value)
 {
-	if (!usp)
-		usp = rdusp();
-
-	return do_fork(clone_flags, usp, regs, 0, parent_tid, child_tid);
+	return do_fork(clone_flags, usp, current_pt_regs(), 0,
+			parent_tid, child_tid);
 }
 
 int
-alpha_vfork(struct pt_regs *regs)
+alpha_vfork(void)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(),
-		       regs, 0, NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
+		       current_pt_regs(), 0, NULL, NULL);
 }
 
 /*
@@ -301,7 +299,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	stack = ((struct switch_stack *) regs) - 1;
 	*childstack = *stack;
 	childstack->r26 = (unsigned long) ret_from_fork;
-	childti->pcb.usp = usp;
+	childti->pcb.usp = usp ?: rdusp();
 	childti->pcb.ksp = (unsigned long) childstack;
 	childti->pcb.flags = 1;	/* set FEN, clear everything else */
 

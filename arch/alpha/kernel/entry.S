@@ -617,7 +617,6 @@ ret_from_kernel_thread:
 	.ent	sys_fork
 sys_fork:
 	.prologue 0
-	mov	$sp, $21
 	bsr	$1, do_switch_stack
 	bis	$31, SIGCHLD, $16
 	mov	$31, $17
@@ -625,7 +624,9 @@ sys_fork:
 	mov	$31, $19
 	mov	$31, $20
 	jsr	$26, alpha_clone
-	bsr	$1, undo_switch_stack
+fork_out:
+	ldq	$26, 56($sp)
+	lda	$sp, SWITCH_STACK_SIZE($sp)
 	ret
 .end sys_fork
 
@@ -634,12 +635,10 @@ sys_fork:
 	.ent	sys_clone
 sys_clone:
 	.prologue 0
-	mov	$sp, $21
 	bsr	$1, do_switch_stack
 	/* $16, $17, $18, $19, $20 come from the user.  */
-	jsr	$26, alpha_clone
-	bsr	$1, undo_switch_stack
-	ret
+	lda	$26, fork_out
+	jsr	$31, alpha_clone
 .end sys_clone
 
 	.align	4
@@ -647,11 +646,9 @@ sys_clone:
 	.ent	sys_vfork
 sys_vfork:
 	.prologue 0
-	mov	$sp, $16
 	bsr	$1, do_switch_stack
-	jsr	$26, alpha_vfork
-	bsr	$1, undo_switch_stack
-	ret
+	lda	$26, fork_out
+	jsr	$31, alpha_vfork
 .end sys_vfork
 
 	.align	4
