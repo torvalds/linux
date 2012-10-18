@@ -188,7 +188,7 @@ static ssize_t ad5686_write_dac_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	if (readin == true)
+	if (readin)
 		st->pwr_down_mask |= (0x3 << (chan->channel * 2));
 	else
 		st->pwr_down_mask &= ~(0x3 << (chan->channel * 2));

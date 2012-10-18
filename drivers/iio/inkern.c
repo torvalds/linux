@@ -78,7 +78,7 @@ int iio_map_array_unregister(struct iio_dev *indio_dev,
 				found_it = true;
 				break;
 			}
-		if (found_it == false) {
+		if (!found_it) {
 			ret = -ENODEV;
 			goto error_ret;
 		}
