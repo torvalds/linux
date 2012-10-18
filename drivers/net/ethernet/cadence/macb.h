@@ -504,14 +504,6 @@ struct gem_stats {
 	u32	rx_udp_checksum_errors;
 };
 
-#define MAX_RBUFF_SZ	0x600		/* 1518 rounded up */
-#define MAX_RX_DESCR	9		/* max number of receive buffers */
-
-struct recv_desc_bufs {
-	struct dma_desc descriptors[MAX_RX_DESCR];	/* must be on sizeof (dma_desc) boundary */
-	char recv_buf[MAX_RX_DESCR][MAX_RBUFF_SZ];	/* must be on long boundary */
-};
-
 struct macb {
 	void __iomem		*regs;
 
@@ -558,11 +550,6 @@ struct macb {
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
 	dma_addr_t skb_physaddr;		/* phys addr from pci_map_single */
 	int skb_length;				/* saved skb length for pci_unmap_single */
-
-	/* Receive */
-	int rxBuffIndex;			/* index into receive descriptor list */
-	struct recv_desc_bufs *dlist;		/* descriptor list address */
-	struct recv_desc_bufs *dlist_phys;	/* descriptor list physical address */
 };
 
 extern const struct ethtool_ops macb_ethtool_ops;

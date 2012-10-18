@@ -40,6 +40,11 @@
 #define DRV_NAME	"at91_ether"
 #define DRV_VERSION	"1.0"
 
+/* 1518 rounded up */
+#define MAX_RBUFF_SZ	0x600
+/* max number of receive buffers */
+#define MAX_RX_DESCR	9
+
 /* ......................... ADDRESS MANAGEMENT ........................ */
 
 /*
@@ -145,33 +150,55 @@ static int set_mac_address(struct net_device *dev, void* addr)
 /*
  * Initialize and start the Receiver and Transmit subsystems
  */
-static void at91ether_start(struct net_device *dev)
+static int at91ether_start(struct net_device *dev)
 {
 	struct macb *lp = netdev_priv(dev);
-	struct recv_desc_bufs *dlist, *dlist_phys;
-	int i;
 	unsigned long ctl;
+	dma_addr_t addr;
+	int i;
 
-	dlist = lp->dlist;
-	dlist_phys = lp->dlist_phys;
+	lp->rx_ring = dma_alloc_coherent(&lp->pdev->dev,
+					MAX_RX_DESCR * sizeof(struct dma_desc),
+					&lp->rx_ring_dma, GFP_KERNEL);
+	if (!lp->rx_ring) {
+		netdev_err(lp->dev, "unable to alloc rx ring DMA buffer\n");
+		return -ENOMEM;
+	}
 
+	lp->rx_buffers = dma_alloc_coherent(&lp->pdev->dev,
+					MAX_RX_DESCR * MAX_RBUFF_SZ,
+					&lp->rx_buffers_dma, GFP_KERNEL);
+	if (!lp->rx_buffers) {
+		netdev_err(lp->dev, "unable to alloc rx data DMA buffer\n");
+
+		dma_free_coherent(&lp->pdev->dev,
+					MAX_RX_DESCR * sizeof(struct dma_desc),
+					lp->rx_ring, lp->rx_ring_dma);
+		lp->rx_ring = NULL;
+		return -ENOMEM;
+	}
+
+	addr = lp->rx_buffers_dma;
 	for (i = 0; i < MAX_RX_DESCR; i++) {
-		dlist->descriptors[i].addr = (unsigned int) &dlist_phys->recv_buf[i][0];
-		dlist->descriptors[i].ctrl = 0;
+		lp->rx_ring[i].addr = addr;
+		lp->rx_ring[i].ctrl = 0;
+		addr += MAX_RBUFF_SZ;
 	}
 
 	/* Set the Wrap bit on the last descriptor */
-	dlist->descriptors[i-1].addr |= MACB_BIT(RX_WRAP);
+	lp->rx_ring[MAX_RX_DESCR - 1].addr |= MACB_BIT(RX_WRAP);
 
 	/* Reset buffer index */
-	lp->rxBuffIndex = 0;
+	lp->rx_tail = 0;
 
 	/* Program address of descriptor list in Rx Buffer Queue register */
-	macb_writel(lp, RBQP, (unsigned long) dlist_phys);
+	macb_writel(lp, RBQP, lp->rx_ring_dma);
 
 	/* Enable Receive and Transmit */
 	ctl = macb_readl(lp, NCR);
 	macb_writel(lp, NCR, ctl | MACB_BIT(RE) | MACB_BIT(TE));
+
+	return 0;
 }
 
 /*
@@ -181,6 +208,7 @@ static int at91ether_open(struct net_device *dev)
 {
 	struct macb *lp = netdev_priv(dev);
 	unsigned long ctl;
+	int ret;
 
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
@@ -192,12 +220,14 @@ static int at91ether_open(struct net_device *dev)
 	/* Update the MAC address (incase user has changed it) */
 	update_mac_address(dev);
 
+	ret = at91ether_start(dev);
+	if (ret)
+		return ret;
+
 	/* Enable MAC interrupts */
 	macb_writel(lp, IER, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
 				| MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE) | MACB_BIT(TCOMP)
 				| MACB_BIT(ISR_ROVR) | MACB_BIT(HRESP));
-
-	at91ether_start(dev);
 
 	/* schedule a link state check */
 	phy_start(lp->phy_dev);
@@ -226,6 +256,16 @@ static int at91ether_close(struct net_device *dev)
 				| MACB_BIT(HRESP));
 
 	netif_stop_queue(dev);
+
+	dma_free_coherent(&lp->pdev->dev,
+				MAX_RX_DESCR * sizeof(struct dma_desc),
+				lp->rx_ring, lp->rx_ring_dma);
+	lp->rx_ring = NULL;
+
+	dma_free_coherent(&lp->pdev->dev,
+				MAX_RX_DESCR * MAX_RBUFF_SZ,
+				lp->rx_buffers, lp->rx_buffers_dma);
+	lp->rx_buffers = NULL;
 
 	return 0;
 }
@@ -303,37 +343,37 @@ static struct net_device_stats *at91ether_stats(struct net_device *dev)
 static void at91ether_rx(struct net_device *dev)
 {
 	struct macb *lp = netdev_priv(dev);
-	struct recv_desc_bufs *dlist;
 	unsigned char *p_recv;
 	struct sk_buff *skb;
 	unsigned int pktlen;
 
-	dlist = lp->dlist;
-	while (dlist->descriptors[lp->rxBuffIndex].addr & MACB_BIT(RX_USED)) {
-		p_recv = dlist->recv_buf[lp->rxBuffIndex];
-		pktlen = dlist->descriptors[lp->rxBuffIndex].ctrl & 0x7ff;	/* Length of frame including FCS */
+	while (lp->rx_ring[lp->rx_tail].addr & MACB_BIT(RX_USED)) {
+		p_recv = lp->rx_buffers + lp->rx_tail * MAX_RBUFF_SZ;
+		pktlen = MACB_BF(RX_FRMLEN, lp->rx_ring[lp->rx_tail].ctrl);
 		skb = netdev_alloc_skb(dev, pktlen + 2);
-		if (skb != NULL) {
+		if (skb) {
 			skb_reserve(skb, 2);
 			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
 
 			skb->protocol = eth_type_trans(skb, dev);
 			dev->stats.rx_bytes += pktlen;
 			netif_rx(skb);
-		}
-		else {
+		} else {
 			dev->stats.rx_dropped += 1;
-			printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n", dev->name);
+			netdev_notice(dev, "Memory squeeze, dropping packet.\n");
 		}
 
-		if (dlist->descriptors[lp->rxBuffIndex].ctrl & MACB_BIT(RX_MHASH_MATCH))
+		if (lp->rx_ring[lp->rx_tail].ctrl & MACB_BIT(RX_MHASH_MATCH))
 			dev->stats.multicast++;
 
-		dlist->descriptors[lp->rxBuffIndex].addr &= ~MACB_BIT(RX_USED);	/* reset ownership bit */
-		if (lp->rxBuffIndex == MAX_RX_DESCR-1)				/* wrap after last buffer */
-			lp->rxBuffIndex = 0;
+		/* reset ownership bit */
+		lp->rx_ring[lp->rx_tail].addr &= ~MACB_BIT(RX_USED);
+
+		/* wrap after last buffer */
+		if (lp->rx_tail == MAX_RX_DESCR - 1)
+			lp->rx_tail = 0;
 		else
-			lp->rxBuffIndex++;
+			lp->rx_tail++;
 	}
 }
 
@@ -453,13 +493,6 @@ static int __init at91ether_probe(struct platform_device *pdev)
 		goto err_disable_clock;
 	}
 
-	/* Allocate memory for DMA Receive descriptors */
-	lp->dlist = (struct recv_desc_bufs *) dma_alloc_coherent(NULL, sizeof(struct recv_desc_bufs), (dma_addr_t *) &lp->dlist_phys, GFP_KERNEL);
-	if (lp->dlist == NULL) {
-		res = -ENOMEM;
-		goto err_free_irq;
-	}
-
 	ether_setup(dev);
 	dev->netdev_ops = &at91ether_netdev_ops;
 	dev->ethtool_ops = &macb_ethtool_ops;
@@ -482,7 +515,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	/* Register the network interface */
 	res = register_netdev(dev);
 	if (res)
-		goto err_free_dmamem;
+		goto err_free_irq;
 
 	if (macb_mii_init(lp) != 0)
 		goto err_out_unregister_netdev;
@@ -504,10 +537,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 err_out_unregister_netdev:
 	unregister_netdev(dev);
-err_free_dmamem:
-	platform_set_drvdata(pdev, NULL);
-	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
 err_free_irq:
+	platform_set_drvdata(pdev, NULL);
 	free_irq(dev->irq, dev);
 err_disable_clock:
 	clk_disable(lp->pclk);
@@ -532,7 +563,6 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
-	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
 	iounmap(lp->regs);
 	clk_disable(lp->pclk);
 	clk_put(lp->pclk);
