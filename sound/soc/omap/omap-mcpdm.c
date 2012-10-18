@@ -40,7 +40,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <plat/omap_hwmod.h>
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
@@ -260,13 +259,9 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&mcpdm->mutex);
 
 	if (!dai->active) {
-		/* Enable watch dog for ES above ES 1.0 to avoid saturation */
-		if (omap_rev() != OMAP4430_REV_ES1_0) {
-			u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
+		u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
 
-			omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL,
-					 ctrl | MCPDM_WD_EN);
-		}
+		omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl | MCPDM_WD_EN);
 		omap_mcpdm_open_streams(mcpdm);
 	}
 	mutex_unlock(&mcpdm->mutex);
