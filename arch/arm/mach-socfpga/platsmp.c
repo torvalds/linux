@@ -2,7 +2,7 @@
  * Copyright 2010-2011 Calxeda, Inc.
  * Copyright 2012 Pavel Machek <pavel@denx.de>
  * Based on platsmp.c, Copyright (C) 2002 ARM Ltd.
- * Copyright (C) 2012 Altera Corporation
+ * Copyright (C) 2012-2013 Altera Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -27,15 +27,9 @@
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 
-volatile int pen_release = -1;
+#include "core.h"
 
-extern void secondary_startup(void);
-extern void __iomem *socfpga_scu_base_addr;
-static void __iomem *sys_manager_base_addr;
-static void __iomem *rst_manager_base_addr;
-
-extern void socfpga_secondary_startup(void);
-extern void socfpga_cpu_die(unsigned int cpu);
+int pen_release = -1;
 
 static DEFINE_SPINLOCK(boot_lock);
 

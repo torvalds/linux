@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Altera Corporation
+ *  Copyright (C) 2012-2013 Altera Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/hardware/cache-l2x0.h>
@@ -27,11 +28,30 @@
 
 #include "core.h"
 
-void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
+#define SOCFPGA_NR_IRQS		512
+
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
 void __iomem *clk_mgr_base_addr;
 unsigned long cpu1start_addr;
+
+#define SOCFPGA_SCU_VIRT_BASE	0xfffec000
+#define SOCFPGA_SDMMC_BASE	0xff704000
+
+void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
+
+static const struct of_dev_auxdata socfpga_auxdata_lookup[] __initconst = {
+#ifdef CONFIG_MMC_DW
+	OF_DEV_AUXDATA("snps,dw-mmc", SOCFPGA_SDMMC_BASE, "snps,dw-mmc",
+		&sdmmc_platform_data),
+#endif
+	{ /* sentinel */ }
+};
+
+const static struct of_device_id irq_match[] = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{}
+};
 
 static struct map_desc scu_io_desc __initdata = {
 	.virtual	= SOCFPGA_SCU_VIRT_BASE,
@@ -56,6 +76,23 @@ static void __init socfpga_scu_map_io(void)
 
 	scu_io_desc.pfn = __phys_to_pfn(base);
 	iotable_init(&scu_io_desc, 1);
+}
+
+static void __init enable_periphs(void)
+{
+	/* Release all peripherals from reset.*/
+	__raw_writel(0, rst_manager_base_addr + SOCFPGA_MODPERRST);
+}
+
+static void __init socfpga_sysmgr_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "altr,sys-mgr");
+	sys_manager_base_addr = of_iomap(np, 0);
+
+	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
+	rst_manager_base_addr = of_iomap(np, 0);
 }
 
 static void __init socfpga_map_io(void)
@@ -110,6 +147,7 @@ static void __init socfpga_cyclone5_init(void)
 		socfpga_auxdata_lookup, NULL);
 
 	socfpga_init_clocks();
+	enable_periphs();
 }
 
 static const char *altera_dt_match[] = {
