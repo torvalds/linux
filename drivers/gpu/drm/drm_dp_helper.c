@@ -37,7 +37,7 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	int ret;
-	
+
 	ret = (*algo_data->aux_ch)(adapter, mode,
 				   write_byte, read_byte);
 	return ret;
@@ -182,7 +182,6 @@ i2c_dp_aux_reset_bus(struct i2c_adapter *adapter)
 {
 	(void) i2c_algo_dp_aux_address(adapter, 0, false);
 	(void) i2c_algo_dp_aux_stop(adapter, false);
-					   
 }
 
 static int
@@ -198,7 +197,7 @@ int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 {
 	int error;
-	
+
 	error = i2c_dp_aux_prepare_bus(adapter);
 	if (error)
 		return error;
