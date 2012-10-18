@@ -30,6 +30,7 @@ struct ptrace_relation {
 	struct task_struct *tracer;
 	struct task_struct *tracee;
 	struct list_head node;
+	struct rcu_head rcu;
 };
 
 static LIST_HEAD(ptracer_relations);
@@ -48,32 +49,31 @@ static DEFINE_SPINLOCK(ptracer_relations_lock);
 static int yama_ptracer_add(struct task_struct *tracer,
 			    struct task_struct *tracee)
 {
-	int rc = 0;
-	struct ptrace_relation *added;
-	struct ptrace_relation *entry, *relation = NULL;
+	struct ptrace_relation *relation, *added;
 
 	added = kmalloc(sizeof(*added), GFP_KERNEL);
 	if (!added)
 		return -ENOMEM;
 
+	added->tracee = tracee;
+	added->tracer = tracer;
+
 	spin_lock_bh(&ptracer_relations_lock);
-	list_for_each_entry(entry, &ptracer_relations, node)
-		if (entry->tracee == tracee) {
-			relation = entry;
-			break;
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->tracee == tracee) {
+			list_replace_rcu(&relation->node, &added->node);
+			kfree_rcu(relation, rcu);
+			goto out;
 		}
-	if (!relation) {
-		relation = added;
-		relation->tracee = tracee;
-		list_add(&relation->node, &ptracer_relations);
 	}
-	relation->tracer = tracer;
 
+	list_add_rcu(&added->node, &ptracer_relations);
+
+out:
+	rcu_read_unlock();
 	spin_unlock_bh(&ptracer_relations_lock);
-	if (added != relation)
-		kfree(added);
-
-	return rc;
+	return 0;
 }
 
 /**
@@ -84,15 +84,18 @@ static int yama_ptracer_add(struct task_struct *tracer,
 static void yama_ptracer_del(struct task_struct *tracer,
 			     struct task_struct *tracee)
 {
-	struct ptrace_relation *relation, *safe;
+	struct ptrace_relation *relation;
 
 	spin_lock_bh(&ptracer_relations_lock);
-	list_for_each_entry_safe(relation, safe, &ptracer_relations, node)
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
 		if (relation->tracee == tracee ||
 		    (tracer && relation->tracer == tracer)) {
-			list_del(&relation->node);
-			kfree(relation);
+			list_del_rcu(&relation->node);
+			kfree_rcu(relation, rcu);
 		}
+	}
+	rcu_read_unlock();
 	spin_unlock_bh(&ptracer_relations_lock);
 }
 
@@ -217,11 +220,10 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	struct task_struct *parent = NULL;
 	bool found = false;
 
-	spin_lock_bh(&ptracer_relations_lock);
 	rcu_read_lock();
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
-	list_for_each_entry(relation, &ptracer_relations, node)
+	list_for_each_entry_rcu(relation, &ptracer_relations, node)
 		if (relation->tracee == tracee) {
 			parent = relation->tracer;
 			found = true;
@@ -231,7 +233,6 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	if (found && (parent == NULL || task_is_descendant(parent, tracer)))
 		rc = 1;
 	rcu_read_unlock();
-	spin_unlock_bh(&ptracer_relations_lock);
 
 	return rc;
 }
