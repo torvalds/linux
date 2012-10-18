@@ -590,7 +590,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t * pfb)//k
             OSAL_IrqUnLock(cpu_sr);
 
             size = (pfb->size.width * layer_man->para.src_win.height * de_format_to_bpp(pfb->format) + 7)/8;
-            OSAL_CacheRangeFlush((void *)pfb->addr[0],size ,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
 
 			if(layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER)
 			{
@@ -991,7 +990,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
 
 	            bpp = DE_BE_Format_To_Bpp(sel, layer_fb.format);
                 size = (player->fb.size.width * player->scn_win.height * bpp + 7)/8;
-                OSAL_CacheRangeFlush((void *)player->fb.addr[0], size,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
+
                 DE_BE_Layer_Set_Framebuffer(sel, hid,&layer_fb);
             }
         }
@@ -1016,7 +1015,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
         OSAL_IrqUnLock(cpu_sr);
 
         size = (player->fb.size.width * player->src_win.height * de_format_to_bpp(player->fb.format) + 7)/8;
-        OSAL_CacheRangeFlush((void *)player->fb.addr[0],size ,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
 
         if(layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER)
         {

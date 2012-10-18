@@ -23,7 +23,6 @@
 
 #include "../bsp_display.h"
 
-#include  "OSAL_Cache.h"
 #include  "OSAL_Clock.h"
 #include  "OSAL_Pin.h"
 #include  "OSAL_Int.h"

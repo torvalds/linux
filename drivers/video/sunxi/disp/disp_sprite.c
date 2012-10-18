@@ -318,8 +318,6 @@ static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id, __
 	DE_BE_Sprite_Block_Set_Size(sel, id, para->scn_win.width, para->scn_win.height);
 	DE_BE_Sprite_Block_Set_Next_Id(sel, id, next_id);
 
-    OSAL_CacheRangeFlush((void*)para->fb.addr[0], (para->fb.size.width * para->scn_win.height * bpp + 7)/8,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
-
     return 0;
 }
 
@@ -877,7 +875,6 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid, __disp_fb_t * 
 		node = List_Find_Sprite_Block(sel, id);
 
 		bpp = de_format_to_bpp(gsprite[sel].format);
-		OSAL_CacheRangeFlush((void *)fb->addr[0], (fb->size.width * node->data->src_win.height * bpp + 7)/8,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
 
 		addr = DE_BE_Offset_To_Addr(fb->addr[0], fb->size.width, node->data->src_win.x, node->data->src_win.y, bpp);
 		DE_BE_Sprite_Block_Set_fb(sel, id, addr, fb->size.width * (bpp >> 3));
