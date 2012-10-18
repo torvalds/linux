@@ -37,7 +37,6 @@
 #include "i915_drv.h"
 
 #define DP_RECEIVER_CAP_SIZE	0xf
-#define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
 /**
@@ -1437,13 +1436,6 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 }
 
 static uint8_t
-intel_dp_link_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
-		     int r)
-{
-	return link_status[r - DP_LANE0_1_STATUS];
-}
-
-static uint8_t
 intel_get_adjust_request_voltage(uint8_t adjust_request[2],
 				 int lane)
 {
@@ -1728,29 +1720,6 @@ intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_count
 	return true;
 }
 
-/* Check to see if channel eq is done on all channels */
-#define CHANNEL_EQ_BITS (DP_LANE_CR_DONE|\
-			 DP_LANE_CHANNEL_EQ_DONE|\
-			 DP_LANE_SYMBOL_LOCKED)
-static bool
-intel_channel_eq_ok(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE])
-{
-	uint8_t lane_align;
-	uint8_t lane_status;
-	int lane;
-
-	lane_align = intel_dp_link_status(link_status,
-					  DP_LANE_ALIGN_STATUS_UPDATED);
-	if ((lane_align & DP_INTERLANE_ALIGN_DONE) == 0)
-		return false;
-	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		lane_status = intel_get_lane_status(link_status, lane);
-		if ((lane_status & CHANNEL_EQ_BITS) != CHANNEL_EQ_BITS)
-			return false;
-	}
-	return true;
-}
-
 static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
@@ -2004,7 +1973,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			continue;
 		}
 
-		if (intel_channel_eq_ok(intel_dp, link_status)) {
+		if (drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
 			channel_eq = true;
 			break;
 		}
@@ -2223,7 +2192,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
 
-	if (!intel_channel_eq_ok(intel_dp, link_status)) {
+	if (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
 			      drm_get_encoder_name(&intel_dp->base.base));
 		intel_dp_start_link_train(intel_dp);

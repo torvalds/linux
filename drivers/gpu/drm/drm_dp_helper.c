@@ -205,3 +205,53 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 	return error;
 }
 EXPORT_SYMBOL(i2c_dp_aux_add_bus);
+
+/* Helpers for DP link training */
+static u8 dp_link_status(u8 link_status[DP_LINK_STATUS_SIZE], int r)
+{
+	return link_status[r - DP_LANE0_1_STATUS];
+}
+
+static u8 dp_get_lane_status(u8 link_status[DP_LINK_STATUS_SIZE],
+			     int lane)
+{
+	int i = DP_LANE0_1_STATUS + (lane >> 1);
+	int s = (lane & 1) * 4;
+	u8 l = dp_link_status(link_status, i);
+	return (l >> s) & 0xf;
+}
+
+bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+			  int lane_count)
+{
+	u8 lane_align;
+	u8 lane_status;
+	int lane;
+
+	lane_align = dp_link_status(link_status,
+				    DP_LANE_ALIGN_STATUS_UPDATED);
+	if ((lane_align & DP_INTERLANE_ALIGN_DONE) == 0)
+		return false;
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if ((lane_status & DP_CHANNEL_EQ_BITS) != DP_CHANNEL_EQ_BITS)
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_channel_eq_ok);
+
+bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+			      int lane_count)
+{
+	int lane;
+	u8 lane_status;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if ((lane_status & DP_LANE_CR_DONE) == 0)
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_clock_recovery_ok);
