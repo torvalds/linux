@@ -923,36 +923,6 @@ static int rt3261_dsp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rt3261_pr3f_sync_event(struct snd_soc_dapm_widget *w, 
-	struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	unsigned int ret, tmp;
-	printk("enter %s\n",__func__);
-	
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		tmp = snd_soc_read(codec,RT3261_DUMMY_PR3F);
-		printk("snd_soc_read(codec,RT3261_DUMMY_PR3F)=0x%x\n",tmp);
-		ret = snd_soc_write(codec, RT3261_PRIV_INDEX, RT3261_MIXER_INT_REG);
-		if (ret < 0) {
-			dev_err(codec->dev, "Failed to set private addr: %d\n", ret);
-			return ret;;
-		}
-		ret = snd_soc_write(codec, RT3261_PRIV_DATA, tmp);
-		if (ret < 0) {
-			dev_err(codec->dev, "Failed to set private value: %d\n", ret);
-			return ret;
-		}
-		
-		break;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
 static const struct snd_soc_dapm_widget rt3261_dsp_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("DSP Downstream", SND_SOC_NOPM,
 		0, 0, NULL, 0, rt3261_dsp_event,
@@ -960,14 +930,12 @@ static const struct snd_soc_dapm_widget rt3261_dsp_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("DSP Upstream", SND_SOC_NOPM,
 		0, 0, NULL, 0, rt3261_dsp_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_MUX_E("RxDP Mux", SND_SOC_NOPM, 0, 0,
-		&rt3261_rxdp_mux, rt3261_pr3f_sync_event,
-		SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_MUX("RxDP Mux", SND_SOC_NOPM, 0, 0,
+		&rt3261_rxdp_mux),
 	SND_SOC_DAPM_MUX("RxDP2 Mux", SND_SOC_NOPM, 0, 0,
 		&rt3261_rxdp2_mux),
-	SND_SOC_DAPM_MUX_E("RxDP1 Mux", SND_SOC_NOPM, 0, 0,
-		&rt3261_rxdp1_mux, rt3261_pr3f_sync_event,
-		SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_MUX("RxDP1 Mux", SND_SOC_NOPM, 0, 0,
+		&rt3261_rxdp1_mux),
 	SND_SOC_DAPM_MUX("RxDC Mux", SND_SOC_NOPM, 0, 0,
 		&rt3261_rxdc_mux),
 	SND_SOC_DAPM_PGA("RxDP", SND_SOC_NOPM, 0, 0, NULL, 0),
