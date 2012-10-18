@@ -17,7 +17,6 @@
 #include "dgrp_common.h"
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
