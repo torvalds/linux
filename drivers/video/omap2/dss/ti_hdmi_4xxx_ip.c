@@ -899,7 +899,7 @@ void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 #define DUMPCOREAV(r) seq_printf(s, "%-35s %08x\n", #r,\
 		hdmi_read_reg(hdmi_av_base(ip_data), r))
 #define DUMPCOREAV2(i, r) seq_printf(s, "%s[%d]%*s %08x\n", #r, i, \
-		(i < 10) ? 32 - strlen(#r) : 31 - strlen(#r), " ", \
+		(i < 10) ? 32 - (int)strlen(#r) : 31 - (int)strlen(#r), " ", \
 		hdmi_read_reg(hdmi_av_base(ip_data), CORE_REG(i, r)))
 
 	DUMPCORE(HDMI_CORE_SYS_VND_IDL);

@@ -36,8 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#include <plat/cpu.h>
+#include <linux/sizes.h>
 
 #include <video/omapdss.h>
 
@@ -3353,7 +3352,7 @@ static void dispc_dump_regs(struct seq_file *s)
 
 #define DISPC_REG(i, name) name(i)
 #define DUMPREG(i, r) seq_printf(s, "%s(%s)%*s %08x\n", #r, p_names[i], \
-	48 - strlen(#r) - strlen(p_names[i]), " ", \
+	(int)(48 - strlen(#r) - strlen(p_names[i])), " ", \
 	dispc_read_reg(DISPC_REG(i, r)))
 
 	p_names = mgr_names;
@@ -3430,7 +3429,7 @@ static void dispc_dump_regs(struct seq_file *s)
 #define DISPC_REG(plane, name, i) name(plane, i)
 #define DUMPREG(plane, name, i) \
 	seq_printf(s, "%s_%d(%s)%*s %08x\n", #name, i, p_names[plane], \
-	46 - strlen(#name) - strlen(p_names[plane]), " ", \
+	(int)(46 - strlen(#name) - strlen(p_names[plane])), " ", \
 	dispc_read_reg(DISPC_REG(plane, name, i)))
 
 	/* Video pipeline coefficient registers */
@@ -4032,29 +4031,44 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.gfx_fifo_workaround	=	true,
 };
 
-static int __init dispc_init_features(struct device *dev)
+static int __init dispc_init_features(struct platform_device *pdev)
 {
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dispc_features *src;
 	struct dispc_features *dst;
 
-	dst = devm_kzalloc(dev, sizeof(*dst), GFP_KERNEL);
+	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
 	if (!dst) {
-		dev_err(dev, "Failed to allocate DISPC Features\n");
+		dev_err(&pdev->dev, "Failed to allocate DISPC Features\n");
 		return -ENOMEM;
 	}
 
-	if (cpu_is_omap24xx()) {
+	switch (pdata->version) {
+	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dispc_feats;
-	} else if (cpu_is_omap34xx()) {
-		if (omap_rev() < OMAP3430_REV_ES3_0)
-			src = &omap34xx_rev1_0_dispc_feats;
-		else
-			src = &omap34xx_rev3_0_dispc_feats;
-	} else if (cpu_is_omap44xx()) {
+		break;
+
+	case OMAPDSS_VER_OMAP34xx_ES1:
+		src = &omap34xx_rev1_0_dispc_feats;
+		break;
+
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_OMAP3630:
+	case OMAPDSS_VER_AM35xx:
+		src = &omap34xx_rev3_0_dispc_feats;
+		break;
+
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
 		src = &omap44xx_dispc_feats;
-	} else if (soc_is_omap54xx()) {
+		break;
+
+	case OMAPDSS_VER_OMAP5:
 		src = &omap44xx_dispc_feats;
-	} else {
+		break;
+
+	default:
 		return -ENODEV;
 	}
 
@@ -4074,7 +4088,7 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 
 	dispc.pdev = pdev;
 
-	r = dispc_init_features(&dispc.pdev->dev);
+	r = dispc_init_features(dispc.pdev);
 	if (r)
 		return r;
 

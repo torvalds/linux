@@ -1,6 +1,5 @@
 menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
-        depends on ARCH_OMAP2PLUS
         help
 	  OMAP2+ Display Subsystem support.
 
@@ -72,7 +71,6 @@ config OMAP2_DSS_VENC
 
 config OMAP4_DSS_HDMI
 	bool "HDMI support"
-	depends on ARCH_OMAP4
         default y
 	help
 	  HDMI Interface. This adds the High Definition Multimedia Interface.
@@ -80,11 +78,9 @@ config OMAP4_DSS_HDMI
 
 config OMAP4_DSS_HDMI_AUDIO
 	bool
-	depends on OMAP4_DSS_HDMI
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
-	depends on ARCH_OMAP3
         default n
 	help
 	  SDI (Serial Display Interface) support.
@@ -94,7 +90,6 @@ config OMAP2_DSS_SDI
 
 config OMAP2_DSS_DSI
 	bool "DSI support"
-	depends on ARCH_OMAP3 || ARCH_OMAP4 || ARCH_OMAP5
         default n
 	help
 	  MIPI DSI (Display Serial Interface) support.
