@@ -194,7 +194,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 
 	if (more_mul_min > more_mul_max) {
 		dev_warn(dev,
-			 "unable to compute more_mul_min and more_mul_max");
+			 "unable to compute more_mul_min and more_mul_max\n");
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 
 	dev_dbg(dev, "final more_mul: %d\n", i);
 	if (i > more_mul_max) {
-		dev_warn(dev, "final more_mul is bad, max %d", more_mul_max);
+		dev_warn(dev, "final more_mul is bad, max %d\n", more_mul_max);
 		return -EINVAL;
 	}
 
