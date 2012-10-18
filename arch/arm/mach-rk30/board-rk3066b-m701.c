@@ -1632,6 +1632,12 @@ static void rk30_pm_power_off(void)
 	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
 	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
 #endif
+#if defined(CONFIG_MFD_TPS65910)
+	if(pmic_is_tps65910())
+	{
+	    tps65910_device_shutdown();//tps65910 shutdown
+	}
+#endif
 	while (1);
 }
 
