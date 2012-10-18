@@ -186,7 +186,6 @@ void free_tty_struct(struct tty_struct *tty)
 	if (tty->dev)
 		put_device(tty->dev);
 	kfree(tty->write_buf);
-	tty_buffer_free_all(tty);
 	tty->magic = 0xDEADDEAD;
 	kfree(tty);
 }
@@ -2935,7 +2934,6 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty_ldisc_init(tty);
 	tty->session = NULL;
 	tty->pgrp = NULL;
-	tty_buffer_init(tty);
 	mutex_init(&tty->legacy_mutex);
 	mutex_init(&tty->termios_mutex);
 	mutex_init(&tty->ldisc_mutex);

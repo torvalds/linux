@@ -93,7 +93,7 @@ static void pty_unthrottle(struct tty_struct *tty)
 
 static int pty_space(struct tty_struct *to)
 {
-	int n = 8192 - to->buf.memory_used;
+	int n = 8192 - to->port->buf.memory_used;
 	if (n < 0)
 		return 0;
 	return n;

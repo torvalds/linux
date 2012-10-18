@@ -149,8 +149,11 @@ static void n_tty_set_room(struct tty_struct *tty)
 	tty->receive_room = left;
 
 	/* Did this open up the receive buffer? We may need to flip */
-	if (left && !old_left)
-		schedule_work(&tty->buf.work);
+	if (left && !old_left) {
+		WARN_RATELIMIT(tty->port->itty == NULL,
+				"scheduling with invalid itty");
+		schedule_work(&tty->port->buf.work);
+	}
 }
 
 static void put_tty_queue_nolock(unsigned char c, struct n_tty_data *ldata)
