@@ -1821,13 +1821,13 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("training pattern 1 signal levels %08x\n",
 			      signal_levels);
 
+		/* Set training pattern 1 */
 		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_1 |
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
-		/* Set training pattern 1 */
 
-		udelay(100);
+		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
 			DRM_ERROR("failed to get link status\n");
 			break;
@@ -1910,7 +1910,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
 
-		udelay(400);
+		drm_dp_link_train_channel_eq_delay(intel_dp->dpcd);
 		if (!intel_dp_get_link_status(intel_dp, link_status))
 			break;
 
