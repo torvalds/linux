@@ -4146,35 +4146,12 @@ void intel_gt_init(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->gt.force_wake_get = vlv_force_wake_get;
 		dev_priv->gt.force_wake_put = vlv_force_wake_put;
-	} else if (INTEL_INFO(dev)->gen >= 6) {
+	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+		dev_priv->gt.force_wake_get = __gen6_gt_force_wake_mt_get;
+		dev_priv->gt.force_wake_put = __gen6_gt_force_wake_mt_put;
+	} else if (IS_GEN6(dev)) {
 		dev_priv->gt.force_wake_get = __gen6_gt_force_wake_get;
 		dev_priv->gt.force_wake_put = __gen6_gt_force_wake_put;
-
-		/* IVB configs may use multi-threaded forcewake */
-		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-			u32 ecobus;
-
-			/* A small trick here - if the bios hasn't configured
-			 * MT forcewake, and if the device is in RC6, then
-			 * force_wake_mt_get will not wake the device and the
-			 * ECOBUS read will return zero. Which will be
-			 * (correctly) interpreted by the test below as MT
-			 * forcewake being disabled.
-			 */
-			mutex_lock(&dev->struct_mutex);
-			__gen6_gt_force_wake_mt_get(dev_priv);
-			ecobus = I915_READ_NOTRACE(ECOBUS);
-			__gen6_gt_force_wake_mt_put(dev_priv);
-			mutex_unlock(&dev->struct_mutex);
-
-			if (ecobus & FORCEWAKE_MT_ENABLE) {
-				DRM_DEBUG_KMS("Using MT version of forcewake\n");
-				dev_priv->gt.force_wake_get =
-					__gen6_gt_force_wake_mt_get;
-				dev_priv->gt.force_wake_put =
-					__gen6_gt_force_wake_mt_put;
-			}
-		}
 	}
 }
 
