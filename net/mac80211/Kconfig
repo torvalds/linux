@@ -248,7 +248,7 @@ config MAC80211_MHWMP_DEBUG
 	  Do not select this option.
 
 config MAC80211_MESH_SYNC_DEBUG
-	bool "Verbose mesh mesh synchronization debugging"
+	bool "Verbose mesh synchronization debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
 	---help---
