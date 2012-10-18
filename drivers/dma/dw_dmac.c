@@ -485,14 +485,14 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		dwc_dostart(dwc, dwc_first_active(dwc));
 
 	/*
-	 * KERN_CRITICAL may seem harsh, but since this only happens
+	 * WARN may seem harsh, but since this only happens
 	 * when someone submits a bad physical address in a
 	 * descriptor, we should consider ourselves lucky that the
 	 * controller flagged an error instead of scribbling over
 	 * random memory locations.
 	 */
-	dev_crit(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n");
-	dev_crit(chan2dev(&dwc->chan), "  cookie: %d\n", bad_desc->txd.cookie);
+	dev_WARN(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n"
+				       "  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, &bad_desc->lli);
 	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		dwc_dump_lli(dwc, &child->lli);
