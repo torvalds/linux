@@ -120,6 +120,10 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 #ifdef CONFIG_LOGO_CRUZ_CLUT224
                 logo = &logo_cruz_clut224;
 #endif
+
+#ifdef CONFIG_LOGO_LINUX_800x480_CLUT224
+                logo = &logo_linux_800x480_clut224;
+#endif
 		if (depth >= 24)
 		{
 			#ifdef  CONFIG_LOGO_LINUX_BMP

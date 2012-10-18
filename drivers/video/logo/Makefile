@@ -16,6 +16,7 @@ obj-$(CONFIG_LOGO_SUPERH_VGA16)		+= logo_superh_vga16.o
 obj-$(CONFIG_LOGO_SUPERH_CLUT224)	+= logo_superh_clut224.o
 obj-$(CONFIG_LOGO_M32R_CLUT224)		+= logo_m32r_clut224.o
 obj-$(CONFIG_LOGO_G3_CLUT224)		+= logo_g3_clut224.o
+obj-$(CONFIG_LOGO_LINUX_800x480_CLUT224)        += logo_linux_800x480_clut224.o
 obj-$(CONFIG_LOGO_LINUX_BMP_SUNSET)	+= logo_sunset_bmp.o
 
 

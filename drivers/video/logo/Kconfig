@@ -89,6 +89,11 @@ config LOGO_CHARGER_CLUT224
 config LOGO_G3_CLUT224
 	bool "Standard 224-color Linux logo for g3 phone"
 	default n
+
+config LOGO_LINUX_800x480_CLUT224
+        bool "Standard 224-color 800x480 Linux logo "
+        default n
+
 menuconfig LOGO_LINUX_BMP
         bool "Bmp logo support"
 	default n
