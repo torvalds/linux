@@ -692,7 +692,7 @@ static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
 
 static struct cfg80211_cached_keys *
 nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
-		       struct nlattr *keys)
+		       struct nlattr *keys, bool *no_ht)
 {
 	struct key_parse parse;
 	struct nlattr *key;
@@ -735,6 +735,12 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 		result->params[parse.idx].key_len = parse.p.key_len;
 		result->params[parse.idx].key = result->data[parse.idx];
 		memcpy(result->data[parse.idx], parse.p.key, parse.p.key_len);
+
+		if (parse.p.cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		    parse.p.cipher == WLAN_CIPHER_SUITE_WEP104) {
+			if (no_ht)
+				*no_ht = true;
+		}
 	}
 
 	return result;
@@ -5406,10 +5412,18 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	if (ibss.privacy && info->attrs[NL80211_ATTR_KEYS]) {
+		bool no_ht = false;
+
 		connkeys = nl80211_parse_connkeys(rdev,
-					info->attrs[NL80211_ATTR_KEYS]);
+					  info->attrs[NL80211_ATTR_KEYS],
+					  &no_ht);
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
+
+		if ((ibss.channel_type != NL80211_CHAN_NO_HT) && no_ht) {
+			kfree(connkeys);
+			return -EINVAL;
+		}
 	}
 
 	ibss.control_port =
@@ -5710,7 +5724,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	if (connect.privacy && info->attrs[NL80211_ATTR_KEYS]) {
 		connkeys = nl80211_parse_connkeys(rdev,
-					info->attrs[NL80211_ATTR_KEYS]);
+					  info->attrs[NL80211_ATTR_KEYS], NULL);
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 	}
