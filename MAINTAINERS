@@ -5060,7 +5060,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
 S:	Odd Fixes
 F:	drivers/net/
 F:	include/linux/if_*
-F:	include/linux/*device.h
+F:	include/linux/netdevice.h
+F:	include/linux/arcdevice.h
+F:	include/linux/etherdevice.h
+F:	include/linux/fcdevice.h
+F:	include/linux/fddidevice.h
+F:	include/linux/hippidevice.h
+F:	include/linux/inetdevice.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Sony Chacko <sony.chacko@qlogic.com>
