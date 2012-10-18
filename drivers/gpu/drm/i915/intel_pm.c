@@ -3965,6 +3965,12 @@ static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 		DRM_ERROR("GT thread status wait timed out\n");
 }
 
+static void __gen6_gt_force_wake_reset(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE, 0);
+	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+}
+
 static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	u32 forcewake_ack;
@@ -3986,6 +3992,12 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	__gen6_gt_wait_for_thread_c0(dev_priv);
+}
+
+static void __gen6_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
+	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
 }
 
 static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
@@ -4083,6 +4095,11 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(0xffff));
+}
+
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	if (wait_for_atomic((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0,
@@ -4105,11 +4122,26 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
+void intel_gt_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_VALLEYVIEW(dev)) {
+		vlv_force_wake_reset(dev_priv);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		__gen6_gt_force_wake_reset(dev_priv);
+		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+			__gen6_gt_force_wake_mt_reset(dev_priv);
+	}
+}
+
 void intel_gt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->gt_lock);
+
+	intel_gt_reset(dev);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->gt.force_wake_get = vlv_force_wake_get;

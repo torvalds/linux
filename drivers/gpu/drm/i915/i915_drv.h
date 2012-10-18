@@ -1264,6 +1264,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
 extern void intel_gt_init(struct drm_device *dev);
+extern void intel_gt_reset(struct drm_device *dev);
 
 void i915_error_state_free(struct kref *error_ref);
 
