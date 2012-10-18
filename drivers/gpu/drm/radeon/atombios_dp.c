@@ -34,7 +34,7 @@
 
 /* move these to drm_dp_helper.c/h */
 #define DP_LINK_CONFIGURATION_SIZE 9
-#define DP_DPCD_SIZE	           8
+#define DP_DPCD_SIZE DP_RECEIVER_CAP_SIZE
 
 static char *voltage_names[] = {
         "0.4V", "0.6V", "0.8V", "1.2V"
@@ -478,14 +478,15 @@ static void radeon_dp_probe_oui(struct radeon_connector *radeon_connector)
 bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
-	u8 msg[25];
+	u8 msg[DP_DPCD_SIZE];
 	int ret, i;
 
-	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCD_REV, msg, 8, 0);
+	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCD_REV, msg,
+					DP_DPCD_SIZE, 0);
 	if (ret > 0) {
-		memcpy(dig_connector->dpcd, msg, 8);
+		memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
 		DRM_DEBUG_KMS("DPCD: ");
-		for (i = 0; i < 8; i++)
+		for (i = 0; i < DP_DPCD_SIZE; i++)
 			DRM_DEBUG_KMS("%02x ", msg[i]);
 		DRM_DEBUG_KMS("\n");
 
@@ -604,9 +605,8 @@ struct radeon_dp_link_train_info {
 	int enc_id;
 	int dp_clock;
 	int dp_lane_count;
-	int rd_interval;
 	bool tp3_supported;
-	u8 dpcd[8];
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 train_set[4];
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	u8 tries;
@@ -748,10 +748,7 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 	dp_info->tries = 0;
 	voltage = 0xff;
 	while (1) {
-		if (dp_info->rd_interval == 0)
-			udelay(100);
-		else
-			mdelay(dp_info->rd_interval * 4);
+		drm_dp_link_train_clock_recovery_delay(dp_info->dpcd);
 
 		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
 			DRM_ERROR("displayport link status failed\n");
@@ -813,10 +810,7 @@ static int radeon_dp_link_train_ce(struct radeon_dp_link_train_info *dp_info)
 	dp_info->tries = 0;
 	channel_eq = false;
 	while (1) {
-		if (dp_info->rd_interval == 0)
-			udelay(400);
-		else
-			mdelay(dp_info->rd_interval * 4);
+		drm_dp_link_train_channel_eq_delay(dp_info->dpcd);
 
 		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
 			DRM_ERROR("displayport link status failed\n");
@@ -901,14 +895,13 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	else
 		dp_info.enc_id |= ATOM_DP_CONFIG_LINK_A;
 
-	dp_info.rd_interval = radeon_read_dpcd_reg(radeon_connector, DP_TRAINING_AUX_RD_INTERVAL);
 	tmp = radeon_read_dpcd_reg(radeon_connector, DP_MAX_LANE_COUNT);
 	if (ASIC_IS_DCE5(rdev) && (tmp & DP_TPS3_SUPPORTED))
 		dp_info.tp3_supported = true;
 	else
 		dp_info.tp3_supported = false;
 
-	memcpy(dp_info.dpcd, dig_connector->dpcd, 8);
+	memcpy(dp_info.dpcd, dig_connector->dpcd, DP_RECEIVER_CAP_SIZE);
 	dp_info.rdev = rdev;
 	dp_info.encoder = encoder;
 	dp_info.connector = connector;

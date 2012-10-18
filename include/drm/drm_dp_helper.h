@@ -25,6 +25,7 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
+#include <linux/delay.h>
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -332,5 +333,9 @@ u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane);
 u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
+
+#define DP_RECEIVER_CAP_SIZE	0xf
+void drm_dp_link_train_clock_recovery_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 
 #endif /* _DRM_DP_HELPER_H_ */
