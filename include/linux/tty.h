@@ -272,16 +272,6 @@ struct tty_struct {
 	 */
 	unsigned char closing:1;
 	unsigned short minimum_to_wake;
-	char *read_buf;
-	int read_head;
-	int read_tail;
-	int read_cnt;
-	unsigned char *echo_buf;
-	unsigned int echo_pos;
-	unsigned int echo_cnt;
-	int canon_data;
-	unsigned long canon_head;
-	unsigned int canon_column;
 	struct mutex atomic_read_lock;
 	struct mutex atomic_write_lock;
 	struct mutex output_lock;
