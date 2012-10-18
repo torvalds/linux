@@ -371,12 +371,12 @@ ssize_t iio_buffer_write_length(struct device *dev,
 				const char *buf,
 				size_t len)
 {
-	int ret;
-	ulong val;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
+	unsigned int val;
+	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
 

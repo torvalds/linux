@@ -239,13 +239,13 @@ static ssize_t iio_ev_value_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned long val;
+	int val;
 	int ret;
 
 	if (!indio_dev->info->write_event_value)
 		return -EINVAL;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		return ret;
 
