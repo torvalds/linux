@@ -676,11 +676,6 @@ __sys_trace_return:
 /*
  * Special system call wrappers.
  */
-ENTRY(sys_clone_wrapper)
-	mov	x5, sp
-	b	sys_clone
-ENDPROC(sys_clone_wrapper)
-
 ENTRY(sys_rt_sigreturn_wrapper)
 	mov	x0, sp
 	b	sys_rt_sigreturn

@@ -246,14 +246,20 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		*childregs = *regs;
 		childregs->regs[0] = 0;
 		if (is_compat_thread(task_thread_info(p))) {
-			childregs->compat_sp = stack_start;
+			if (stack_start)
+				childregs->compat_sp = stack_start;
 		} else {
 			/*
 			 * Read the current TLS pointer from tpidr_el0 as it may be
 			 * out-of-sync with the saved value.
 			 */
 			asm("mrs %0, tpidr_el0" : "=r" (tls));
-			childregs->sp = stack_start;
+			if (stack_start) {
+				/* 16-byte aligned stack mandatory on AArch64 */
+				if (stack_start & 15)
+					return -EINVAL;
+				childregs->sp = stack_start;
+			}
 		}
 		/*
 		 * If a TLS pointer was passed to clone (4th argument), use it

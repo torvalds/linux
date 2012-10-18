@@ -26,20 +26,6 @@
 /*
  * System call wrappers for the AArch32 compatibility layer.
  */
-compat_sys_fork_wrapper:
-	mov	x0, sp
-	b	compat_sys_fork
-ENDPROC(compat_sys_fork_wrapper)
-
-compat_sys_vfork_wrapper:
-	mov	x0, sp
-	b	compat_sys_vfork
-ENDPROC(compat_sys_vfork_wrapper)
-
-compat_sys_clone_wrapper:
-	mov	x5, sp
-	b	compat_sys_clone
-ENDPROC(compat_sys_clone_wrapper)
 
 compat_sys_sigreturn_wrapper:
 	mov	x0, sp
