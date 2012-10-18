@@ -14,6 +14,8 @@
 #define MACB_NCR				0x0000
 #define MACB_NCFGR				0x0004
 #define MACB_NSR				0x0008
+#define MACB_TAR				0x000c /* AT91RM9200 only */
+#define MACB_TCR				0x0010 /* AT91RM9200 only */
 #define MACB_TSR				0x0014
 #define MACB_RBQP				0x0018
 #define MACB_TBQP				0x001c
@@ -133,6 +135,8 @@
 #define MACB_RTY_SIZE				1
 #define MACB_PAE_OFFSET				13
 #define MACB_PAE_SIZE				1
+#define MACB_RM9200_RMII_OFFSET			13 /* AT91RM9200 only */
+#define MACB_RM9200_RMII_SIZE			1  /* AT91RM9200 only */
 #define MACB_RBOF_OFFSET			14
 #define MACB_RBOF_SIZE				2
 #define MACB_RLCE_OFFSET			16
@@ -178,6 +182,8 @@
 #define MACB_TGO_SIZE				1
 #define MACB_BEX_OFFSET				4
 #define MACB_BEX_SIZE				1
+#define MACB_RM9200_BNQ_OFFSET			4 /* AT91RM9200 only */
+#define MACB_RM9200_BNQ_SIZE			1 /* AT91RM9200 only */
 #define MACB_COMP_OFFSET			5
 #define MACB_COMP_SIZE				1
 #define MACB_UND_OFFSET				6
