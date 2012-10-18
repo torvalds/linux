@@ -545,7 +545,7 @@ void devpts_kill_index(struct inode *ptmx_inode, int idx)
 	mutex_unlock(&allocated_ptys_lock);
 }
 
-int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
+struct inode *devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 {
 	/* tty layer puts index from devpts_new_index() in here */
 	int number = tty->index;
@@ -553,19 +553,19 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	dev_t device = MKDEV(driver->major, driver->minor_start+number);
 	struct dentry *dentry;
 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
-	struct inode *inode = new_inode(sb);
+	struct inode *inode;
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
-	int ret = 0;
 	char s[12];
 
 	/* We're supposed to be given the slave end of a pty */
 	BUG_ON(driver->type != TTY_DRIVER_TYPE_PTY);
 	BUG_ON(driver->subtype != PTY_TYPE_SLAVE);
 
+	inode = new_inode(sb);
 	if (!inode)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	inode->i_ino = number + 3;
 	inode->i_uid = opts->setuid ? opts->uid : current_fsuid();
@@ -585,12 +585,12 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 		fsnotify_create(root->d_inode, dentry);
 	} else {
 		iput(inode);
-		ret = -ENOMEM;
+		inode = ERR_PTR(-ENOMEM);
 	}
 
 	mutex_unlock(&root->d_inode->i_mutex);
 
-	return ret;
+	return inode;
 }
 
 void *devpts_get_priv(struct inode *pts_inode)

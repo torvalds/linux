@@ -20,7 +20,7 @@
 int devpts_new_index(struct inode *ptmx_inode);
 void devpts_kill_index(struct inode *ptmx_inode, int idx);
 /* mknod in devpts */
-int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty);
+struct inode *devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty);
 /* get private structure */
 void *devpts_get_priv(struct inode *pts_inode);
 /* unlink */
@@ -31,10 +31,10 @@ void devpts_pty_kill(struct tty_struct *tty);
 /* Dummy stubs in the no-pty case */
 static inline int devpts_new_index(struct inode *ptmx_inode) { return -EINVAL; }
 static inline void devpts_kill_index(struct inode *ptmx_inode, int idx) { }
-static inline int devpts_pty_new(struct inode *ptmx_inode,
-				struct tty_struct *tty)
+static inline struct inode *devpts_pty_new(struct inode *ptmx_inode,
+		struct tty_struct *tty)
 {
-	return -EINVAL;
+	return ERR_PTR(-EINVAL);
 }
 static inline void *devpts_get_priv(struct inode *pts_inode)
 {

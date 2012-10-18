@@ -614,6 +614,7 @@ static const struct tty_operations pty_unix98_ops = {
 static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
+	struct inode *slave_inode;
 	int retval;
 	int index;
 
@@ -650,9 +651,11 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	tty_add_file(tty, filp);
 
-	retval = devpts_pty_new(inode, tty->link);
-	if (retval)
+	slave_inode = devpts_pty_new(inode, tty->link);
+	if (IS_ERR(slave_inode)) {
+		retval = PTR_ERR(slave_inode);
 		goto err_release;
+	}
 
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
