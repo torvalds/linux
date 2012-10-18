@@ -663,6 +663,9 @@ struct vfdi_status;
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @rx_buffer_truesize: Amortised allocation size of an RX buffer,
  *	for use in sk_buff::truesize
+ * @rx_prefix_size: Size of RX prefix before packet data
+ * @rx_packet_hash_offset: Offset of RX flow hash from start of packet data
+ *	(valid only if @rx_prefix_size != 0; always negative)
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
@@ -793,6 +796,8 @@ struct efx_nic {
 	unsigned int rx_page_buf_step;
 	unsigned int rx_bufs_per_page;
 	unsigned int rx_pages_per_batch;
+	unsigned int rx_prefix_size;
+	int rx_packet_hash_offset;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
@@ -1009,7 +1014,8 @@ struct efx_mtd_partition {
  * @evq_ptr_tbl_base: Event queue pointer table base address
  * @evq_rptr_tbl_base: Event queue read-pointer table base address
  * @max_dma_mask: Maximum possible DMA mask
- * @rx_buffer_hash_size: Size of hash at start of RX packet
+ * @rx_prefix_size: Size of RX prefix before packet data
+ * @rx_hash_offset: Offset of RX flow hash within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
  * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
@@ -1126,7 +1132,8 @@ struct efx_nic_type {
 	unsigned int evq_ptr_tbl_base;
 	unsigned int evq_rptr_tbl_base;
 	u64 max_dma_mask;
-	unsigned int rx_buffer_hash_size;
+	unsigned int rx_prefix_size;
+	unsigned int rx_hash_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	unsigned int max_interrupt_mode;

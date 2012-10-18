@@ -573,7 +573,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	 * support the current MTU, including padding for header
 	 * alignment and overruns.
 	 */
-	efx->rx_dma_len = (efx->type->rx_buffer_hash_size +
+	efx->rx_dma_len = (efx->rx_prefix_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
 	rx_buf_len = (sizeof(struct efx_rx_page_state) +
@@ -2456,6 +2456,9 @@ static int efx_init_struct(struct efx_nic *efx,
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
+	efx->rx_prefix_size = efx->type->rx_prefix_size;
+	efx->rx_packet_hash_offset =
+		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;

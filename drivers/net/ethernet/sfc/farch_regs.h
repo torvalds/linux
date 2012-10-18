@@ -2925,4 +2925,8 @@
 #define FSF_AZ_DRV_GEN_EV_MAGIC_LBN 0
 #define FSF_AZ_DRV_GEN_EV_MAGIC_WIDTH 32
 
+/* RX packet prefix */
+#define FS_BZ_RX_PREFIX_HASH_OFST 12
+#define FS_BZ_RX_PREFIX_SIZE 16
+
 #endif /* EFX_FARCH_REGS_H */
