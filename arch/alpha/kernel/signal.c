@@ -160,10 +160,10 @@ extern char compile_time_assert
 #define INSN_CALLSYS		0x00000083
 
 static long
-restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
-		   struct switch_stack *sw)
+restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
 	unsigned long usp;
+	struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	long i, err = __get_user(regs->pc, &sc->sc_pc);
 
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -215,9 +215,9 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
    registers and transfer control from userland.  */
 
 asmlinkage void
-do_sigreturn(struct sigcontext __user *sc, struct pt_regs *regs,
-	     struct switch_stack *sw)
+do_sigreturn(struct sigcontext __user *sc)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
 	/* Verify that it's a good sigcontext before using it */
@@ -228,7 +228,7 @@ do_sigreturn(struct sigcontext __user *sc, struct pt_regs *regs,
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(sc, regs, sw))
+	if (restore_sigcontext(sc, regs))
 		goto give_sigsegv;
 
 	/* Send SIGTRAP if we're single-stepping: */
@@ -249,9 +249,9 @@ give_sigsegv:
 }
 
 asmlinkage void
-do_rt_sigreturn(struct rt_sigframe __user *frame, struct pt_regs *regs,
-		struct switch_stack *sw)
+do_rt_sigreturn(struct rt_sigframe __user *frame)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
 	/* Verify that it's a good ucontext_t before using it */
@@ -262,7 +262,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame, struct pt_regs *regs,
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(&frame->uc.uc_mcontext, regs, sw))
+	if (restore_sigcontext(&frame->uc.uc_mcontext, regs))
 		goto give_sigsegv;
 
 	/* Send SIGTRAP if we're single-stepping: */

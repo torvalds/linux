@@ -658,8 +658,6 @@ sys_sigreturn:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
-	mov	$sp, $17
-	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_sigreturn
 	bne	$9, 1f
@@ -675,8 +673,6 @@ sys_rt_sigreturn:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
-	mov	$sp, $17
-	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_rt_sigreturn
 	bne	$9, 1f
