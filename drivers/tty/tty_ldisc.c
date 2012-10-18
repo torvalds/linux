@@ -897,6 +897,11 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
+	/* There cannot be users from userspace now. But there still might be
+	 * drivers holding a reference via tty_ldisc_ref. Do not steal them the
+	 * ldisc until they are done. */
+	tty_ldisc_wait_idle(tty, MAX_SCHEDULE_TIMEOUT);
+
 	mutex_lock(&tty->ldisc_mutex);
 	/*
 	 * Now kill off the ldisc
