@@ -63,10 +63,10 @@ static unsigned int last_vdd    = 1400;     /* backup last target voltage, defau
 */
 static int sun4i_cpufreq_verify(struct cpufreq_policy *policy)
 {
-	if (policy->cpu != 0)
-		return -EINVAL;
+    if (policy->cpu != 0)
+        return -EINVAL;
 
-	return 0;
+    return 0;
 }
 
 
@@ -87,7 +87,7 @@ static int sun4i_cpufreq_verify(struct cpufreq_policy *policy)
 */
 static void sun4i_cpufreq_show(const char *pfx, struct sun4i_cpu_freq_t *cfg)
 {
-	CPUFREQ_DBG("%s: pll=%u, cpudiv=%u, axidiv=%u, ahbdiv=%u, apb=%u\n",
+    CPUFREQ_DBG("%s: pll=%u, cpudiv=%u, axidiv=%u, ahbdiv=%u, apb=%u\n",
         pfx, cfg->pll, cfg->div.s.cpu_div, cfg->div.s.axi_div, cfg->div.s.ahb_div, cfg->div.s.apb_div);
 }
 
@@ -310,19 +310,19 @@ static int sun4i_cpufreq_settarget(struct cpufreq_policy *policy, struct sun4i_c
     #endif
 
     /* show current cpu frequency configuration, just for debug */
-	sun4i_cpufreq_show("cur", &cpu_cur);
+    sun4i_cpufreq_show("cur", &cpu_cur);
 
     /* get new cpu frequency configuration */
-	cpu_new = *cpu_freq;
-	sun4i_cpufreq_show("new", &cpu_new);
+    cpu_new = *cpu_freq;
+    sun4i_cpufreq_show("new", &cpu_new);
 
     /* notify that cpu clock will be adjust if needed */
-	if (policy) {
-	    freqs.cpu = 0;
-	    freqs.old = cpu_cur.pll / 1000;
-	    freqs.new = cpu_new.pll / 1000;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+    if (policy) {
+        freqs.cpu = 0;
+        freqs.old = cpu_cur.pll / 1000;
+        freqs.new = cpu_new.pll / 1000;
+        cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+    }
 
     #ifdef CONFIG_CPU_FREQ_DVFS
     /* get vdd value for new frequency */
@@ -335,11 +335,11 @@ static int sun4i_cpufreq_settarget(struct cpufreq_policy *policy, struct sun4i_c
 
             /* notify everyone that clock transition finish */
     	    if (policy) {
-	            freqs.cpu = 0;
-	            freqs.old = freqs.new;
-	            freqs.new = cpu_cur.pll / 1000;
-		        cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	        }
+                freqs.cpu = 0;
+                freqs.old = freqs.new;
+                freqs.new = cpu_cur.pll / 1000;
+                cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+            }
             return -EINVAL;
         }
     }
@@ -361,11 +361,11 @@ static int sun4i_cpufreq_settarget(struct cpufreq_policy *policy, struct sun4i_c
 
         /* notify everyone that clock transition finish */
     	if (policy) {
-	        freqs.cpu = 0;
-	        freqs.old = freqs.new;
-	        freqs.new = cpu_cur.pll / 1000;
-		    cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	    }
+            freqs.cpu = 0;
+            freqs.old = freqs.new;
+            freqs.new = cpu_cur.pll / 1000;
+            cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+        }
 
         return -EINVAL;
     }
@@ -381,16 +381,16 @@ static int sun4i_cpufreq_settarget(struct cpufreq_policy *policy, struct sun4i_c
     last_vdd = new_vdd;
     #endif
 
-	/* update our current settings */
-	cpu_cur = cpu_new;
+    /* update our current settings */
+    cpu_cur = cpu_new;
 
-	/* notify everyone we've done this */
-	if (policy) {
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+    /* notify everyone we've done this */
+    if (policy) {
+        cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+    }
 
-	CPUFREQ_DBG("%s: finished\n", __func__);
-	return 0;
+    CPUFREQ_DBG("%s: finished\n", __func__);
+    return 0;
 }
 
 
@@ -421,24 +421,24 @@ static int sun4i_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     if (unlikely(sun4i_freq_tbl == NULL))
         sun4i_freq_tbl = sunxi_cpufreq_table();
 
-	/* avoid repeated calls which cause a needless amout of duplicated
-	 * logging output (and CPU time as the calculation process is
-	 * done) */
-	if (freq == last_target) {
-		return 0;
-	}
+    /* avoid repeated calls which cause a needless amout of duplicated
+     * logging output (and CPU time as the calculation process is
+     * done) */
+    if (freq == last_target) {
+        return 0;
+    }
 
     /* try to look for a valid frequency value from cpu frequency table */
     if (cpufreq_frequency_table_target(policy, sun4i_freq_tbl, freq, relation, &index)) {
         CPUFREQ_ERR("%s: try to look for a valid frequency for %u failed!\n", __func__, freq);
-		return -EINVAL;
-	}
+        return -EINVAL;
+    }
 
-	if (sun4i_freq_tbl[index].frequency == last_target) {
+    if (sun4i_freq_tbl[index].frequency == last_target) {
         /* frequency is same as the value last set, need not adjust */
-		return 0;
-	}
-	freq = sun4i_freq_tbl[index].frequency;
+        return 0;
+    }
+    freq = sun4i_freq_tbl[index].frequency;
 
     /* update the target frequency */
     freq_cfg.pll = sun4i_freq_tbl[index].frequency * 1000;
@@ -471,7 +471,7 @@ static int sun4i_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
 */
 static unsigned int sun4i_cpufreq_get(unsigned int cpu)
 {
-	return clk_get_rate(clk_cpu) / 1000;
+    return clk_get_rate(clk_cpu) / 1000;
 }
 
 
@@ -491,20 +491,20 @@ static unsigned int sun4i_cpufreq_get(unsigned int cpu)
 */
 static int sun4i_cpufreq_init(struct cpufreq_policy *policy)
 {
-	CPUFREQ_DBG(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
+    CPUFREQ_DBG(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
 
-	if (policy->cpu != 0)
-		return -EINVAL;
+    if (policy->cpu != 0)
+        return -EINVAL;
 
-	policy->cur = sun4i_cpufreq_get(0);
-	policy->min = policy->cpuinfo.min_freq = SUN4I_CPUFREQ_MIN / 1000;
-	policy->max = policy->cpuinfo.max_freq = SUN4I_CPUFREQ_MAX / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
+    policy->cur = sun4i_cpufreq_get(0);
+    policy->min = policy->cpuinfo.min_freq = SUN4I_CPUFREQ_MIN / 1000;
+    policy->max = policy->cpuinfo.max_freq = SUN4I_CPUFREQ_MAX / 1000;
+    policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
-	/* feed the latency information from the cpu driver */
-	policy->cpuinfo.transition_latency = SUN4I_FREQTRANS_LATENCY;
+    /* feed the latency information from the cpu driver */
+    policy->cpuinfo.transition_latency = SUN4I_FREQTRANS_LATENCY;
 
-	return 0;
+    return 0;
 }
 
 
@@ -530,7 +530,7 @@ static int sun4i_cpufreq_getcur(struct sun4i_cpu_freq_t *cfg)
         return -EINVAL;
     }
 
-	cfg->pll = clk_get_rate(clk_pll);
+    cfg->pll = clk_get_rate(clk_pll);
     freq = clk_get_rate(clk_cpu);
     cfg->div.s.cpu_div = cfg->pll / freq;
     freq0 = clk_get_rate(clk_axi);
@@ -540,7 +540,7 @@ static int sun4i_cpufreq_getcur(struct sun4i_cpu_freq_t *cfg)
     freq0 = clk_get_rate(clk_apb);
     cfg->div.s.apb_div = freq /freq0;
 
-	return 0;
+    return 0;
 }
 
 
@@ -604,16 +604,16 @@ static int sun4i_cpufreq_resume(struct cpufreq_policy *policy)
     struct sun4i_cpu_freq_t suspend;
 
     /* invalidate last_target setting */
-	last_target = ~0;
+    last_target = ~0;
 
-	CPUFREQ_DBG("%s: resuming with policy %p\n", __func__, policy);
+    CPUFREQ_DBG("%s: resuming with policy %p\n", __func__, policy);
     sun4i_cpufreq_getcur(&suspend);
 
     /* restore cpu frequency configuration */
     __set_cpufreq_target(&suspend, &suspend_freq);
 
-	CPUFREQ_DBG("%s: resuming done\n", __func__);
-	return 0;
+    CPUFREQ_DBG("%s: resuming done\n", __func__);
+    return 0;
 }
 
 
@@ -625,20 +625,20 @@ static int sun4i_cpufreq_resume(struct cpufreq_policy *policy)
 #endif  /* #ifdef CONFIG_PM */
 
 static struct freq_attr *sun4i_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
+    &cpufreq_freq_attr_scaling_available_freqs,
+    NULL,
 };
 
 static struct cpufreq_driver sun4i_cpufreq_driver = {
-	.flags		= CPUFREQ_STICKY,
-	.verify		= sun4i_cpufreq_verify,
-	.target		= sun4i_cpufreq_target,
-	.get		= sun4i_cpufreq_get,
-	.init		= sun4i_cpufreq_init,
-	.suspend	= sun4i_cpufreq_suspend,
-	.resume		= sun4i_cpufreq_resume,
-	.name		= "sun4i",
-	.attr		= sun4i_cpufreq_attr,
+    .flags		= CPUFREQ_STICKY,
+    .verify		= sun4i_cpufreq_verify,
+    .target		= sun4i_cpufreq_target,
+    .get		= sun4i_cpufreq_get,
+    .init		= sun4i_cpufreq_init,
+    .suspend	= sun4i_cpufreq_suspend,
+    .resume		= sun4i_cpufreq_resume,
+    .name		= "sun4i",
+    .attr		= sun4i_cpufreq_attr,
 };
 
 
@@ -664,28 +664,28 @@ static __init int sun4i_cpufreq_initclks(void)
     clk_ahb = clk_get(NULL, "ahb");
     clk_apb = clk_get(NULL, "apb");
 
-	if (IS_ERR(clk_pll) || IS_ERR(clk_cpu) || IS_ERR(clk_axi) ||
-	    IS_ERR(clk_ahb) || IS_ERR(clk_apb)) {
-		CPUFREQ_INF(KERN_ERR "%s: could not get clock(s)\n", __func__);
-		return -ENOENT;
-	}
+    if (IS_ERR(clk_pll) || IS_ERR(clk_cpu) || IS_ERR(clk_axi) ||
+        IS_ERR(clk_ahb) || IS_ERR(clk_apb)) {
+        CPUFREQ_INF(KERN_ERR "%s: could not get clock(s)\n", __func__);
+        return -ENOENT;
+    }
 
-	CPUFREQ_INF("%s: clocks pll=%lu,cpu=%lu,axi=%lu,ahp=%lu,apb=%lu\n", __func__,
-	       clk_get_rate(clk_pll), clk_get_rate(clk_cpu), clk_get_rate(clk_axi),
-	       clk_get_rate(clk_ahb), clk_get_rate(clk_apb));
+    CPUFREQ_INF("%s: clocks pll=%lu,cpu=%lu,axi=%lu,ahp=%lu,apb=%lu\n", __func__,
+           clk_get_rate(clk_pll), clk_get_rate(clk_cpu), clk_get_rate(clk_axi),
+           clk_get_rate(clk_ahb), clk_get_rate(clk_apb));
 
     #ifdef CONFIG_CPU_FREQ_DVFS
     corevdd = regulator_get(NULL, "axp20_core");
-	if (IS_ERR(corevdd)) {
-		CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
-		corevdd = NULL;
-	} else {
+    if (IS_ERR(corevdd)) {
+        CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
+        corevdd = NULL;
+    } else {
         CPUFREQ_INF("try to get regulator(0x%x) successed.\n", (__u32)corevdd);
         last_vdd = regulator_get_voltage(corevdd) / 1000;
     }
     #endif
 
-	return 0;
+    return 0;
 }
 
 
@@ -715,8 +715,8 @@ static int __init sun4i_cpufreq_initcall(void)
     }
 
     /* initialise current frequency configuration */
-	sun4i_cpufreq_getcur(&cpu_cur);
-	sun4i_cpufreq_show("cur", &cpu_cur);
+    sun4i_cpufreq_getcur(&cpu_cur);
+    sun4i_cpufreq_show("cur", &cpu_cur);
 
     /* register cpu frequency driver */
     ret = cpufreq_register_driver(&sun4i_cpufreq_driver);
@@ -725,6 +725,6 @@ static int __init sun4i_cpufreq_initcall(void)
     /* update policy for boot cpu */
     cpufreq_update_policy(0);
 
-	return ret;
+    return ret;
 }
 late_initcall(sun4i_cpufreq_initcall);
