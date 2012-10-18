@@ -1759,6 +1759,7 @@ dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success)
 	void* p;
 	int fifo_id;
 
+	dhd_os_wlfc_block(dhd);
 	if (DHD_PKTTAG_SIGNALONLY(PKTTAG(txp))) {
 #ifdef PROP_TXSTATUS_DEBUG
 		wlfc->stats.signal_only_pkts_freed++;
@@ -1766,6 +1767,7 @@ dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success)
 		if (success)
 			/* is this a signal-only packet? */
 			PKTFREE(wlfc->osh, txp, TRUE);
+		dhd_os_wlfc_unblock(dhd);
 		return;
 	}
 	if (!success) {
@@ -1800,6 +1802,7 @@ dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success)
 
 		PKTFREE(wlfc->osh, txp, TRUE);
 	}
+	dhd_os_wlfc_unblock(dhd);
 	return;
 }
 
@@ -2444,6 +2447,8 @@ dhd_wlfc_cleanup(dhd_pub_t *dhd)
 		if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE) {
 			PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);
 			h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
+			h->items[i].pkt = NULL;
+			h->items[i].identifier = 0;
 		} else if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED) {
 			/* These are freed from the psq so no need to free again */
 			h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
@@ -2459,9 +2464,11 @@ dhd_wlfc_deinit(dhd_pub_t *dhd)
 	athost_wl_status_info_t* wlfc = (athost_wl_status_info_t*)
 		dhd->wlfc_state;
 
-	if (dhd->wlfc_state == NULL)
+	dhd_os_wlfc_block(dhd);
+	if (dhd->wlfc_state == NULL) {
+		dhd_os_wlfc_unblock(dhd);
 		return;
-
+	}
 #ifdef PROP_TXSTATUS_DEBUG
 	{
 		int i;
@@ -2481,6 +2488,7 @@ dhd_wlfc_deinit(dhd_pub_t *dhd)
 	/* free top structure */
 	MFREE(dhd->osh, dhd->wlfc_state, sizeof(athost_wl_status_info_t));
 	dhd->wlfc_state = NULL;
+	dhd_os_wlfc_unblock(dhd);
 	return;
 }
 #endif /* PROP_TXSTATUS */
@@ -2490,8 +2498,10 @@ dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 {
 	bcm_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 #ifdef PROP_TXSTATUS
+	dhd_os_wlfc_block(dhdp);
 	if (dhdp->wlfc_state)
 		dhd_wlfc_dump(dhdp, strbuf);
+	dhd_os_wlfc_unblock(dhdp);
 #endif
 }
 
