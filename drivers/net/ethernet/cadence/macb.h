@@ -555,16 +555,9 @@ struct macb {
 	phy_interface_t		phy_interface;
 
 	/* at91_private */
-	struct mii_if_info mii;			/* ethtool support */
 	struct macb_platform_data board_data;	/* board-specific
 						 * configuration (shared with
 						 * macb for common data */
-
-	/* PHY */
-	unsigned long phy_type;			/* type of PHY (PHY_ID) */
-	short phy_media;			/* media interface type */
-	unsigned short phy_address;		/* 5-bit MDI address of PHY (0..31) */
-	struct timer_list check_timer;		/* Poll link status */
 
 	/* Transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */

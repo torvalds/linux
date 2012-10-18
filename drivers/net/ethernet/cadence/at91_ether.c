@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -36,381 +35,10 @@
 #include <asm/uaccess.h>
 #include <asm/mach-types.h>
 
-#include <asm/gpio.h>
-#include <mach/board.h>
-
-#include "at91_ether.h"
 #include "macb.h"
 
 #define DRV_NAME	"at91_ether"
 #define DRV_VERSION	"1.0"
-
-#define LINK_POLL_INTERVAL	(HZ)
-
-/* ........................... PHY INTERFACE ........................... */
-
-/*
- * Enable the MDIO bit in MAC control register
- * When not called from an interrupt-handler, access to the PHY must be
- *  protected by a spinlock.
- */
-static void enable_mdi(struct macb *lp)
-{
-	unsigned long ctl;
-
-	ctl = macb_readl(lp, NCR);
-	macb_writel(lp, NCR, ctl | MACB_BIT(MPE));	/* enable management port */
-}
-
-/*
- * Disable the MDIO bit in the MAC control register
- */
-static void disable_mdi(struct macb *lp)
-{
-	unsigned long ctl;
-
-	ctl = macb_readl(lp, NCR);
-	macb_writel(lp, NCR, ctl & ~MACB_BIT(MPE));	/* disable management port */
-}
-
-/*
- * Wait until the PHY operation is complete.
- */
-static inline void at91_phy_wait(struct macb *lp)
-{
-	unsigned long timeout = jiffies + 2;
-
-	while (!(macb_readl(lp, NSR) & MACB_BIT(IDLE))) {
-		if (time_after(jiffies, timeout)) {
-			printk("at91_ether: MIO timeout\n");
-			break;
-		}
-		cpu_relax();
-	}
-}
-
-/*
- * Write value to the a PHY register
- * Note: MDI interface is assumed to already have been enabled.
- */
-static void write_phy(struct macb *lp, unsigned char phy_addr, unsigned char address, unsigned int value)
-{
-	macb_writel(lp, MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
-					| MACB_BF(RW, MACB_MAN_WRITE) | ((phy_addr & 0x1f) << 23)
-					| (address << 18) | (value & ((1<<MACB_DATA_SIZE) - 1)));
-
-	/* Wait until IDLE bit in Network Status register is cleared */
-	at91_phy_wait(lp);
-}
-
-/*
- * Read value stored in a PHY register.
- * Note: MDI interface is assumed to already have been enabled.
- */
-static void read_phy(struct macb *lp, unsigned char phy_addr, unsigned char address, unsigned int *value)
-{
-	macb_writel(lp, MAN, MACB_BF(SOF, MACB_MAN_SOF) | MACB_BF(CODE, MACB_MAN_CODE)
-					| MACB_BF(RW, MACB_MAN_READ) | ((phy_addr & 0x1f) << 23)
-					| (address << 18));
-
-	/* Wait until IDLE bit in Network Status register is cleared */
-	at91_phy_wait(lp);
-
-	*value = macb_readl(lp, MAN) & ((1<<MACB_DATA_SIZE) - 1);
-}
-
-/* ........................... PHY MANAGEMENT .......................... */
-
-/*
- * Access the PHY to determine the current link speed and mode, and update the
- * MAC accordingly.
- * If no link or auto-negotiation is busy, then no changes are made.
- */
-static void update_linkspeed(struct net_device *dev, int silent)
-{
-	struct macb *lp = netdev_priv(dev);
-	unsigned int bmsr, bmcr, lpa, mac_cfg;
-	unsigned int speed, duplex;
-
-	if (!mii_link_ok(&lp->mii)) {		/* no link */
-		netif_carrier_off(dev);
-		if (!silent)
-			printk(KERN_INFO "%s: Link down.\n", dev->name);
-		return;
-	}
-
-	/* Link up, or auto-negotiation still in progress */
-	read_phy(lp, lp->phy_address, MII_BMSR, &bmsr);
-	read_phy(lp, lp->phy_address, MII_BMCR, &bmcr);
-	if (bmcr & BMCR_ANENABLE) {				/* AutoNegotiation is enabled */
-		if (!(bmsr & BMSR_ANEGCOMPLETE))
-			return;			/* Do nothing - another interrupt generated when negotiation complete */
-
-		read_phy(lp, lp->phy_address, MII_LPA, &lpa);
-		if ((lpa & LPA_100FULL) || (lpa & LPA_100HALF)) speed = SPEED_100;
-		else speed = SPEED_10;
-		if ((lpa & LPA_100FULL) || (lpa & LPA_10FULL)) duplex = DUPLEX_FULL;
-		else duplex = DUPLEX_HALF;
-	} else {
-		speed = (bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10;
-		duplex = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;
-	}
-
-	/* Update the MAC */
-	mac_cfg = macb_readl(lp, NCFGR) & ~(MACB_BIT(SPD) | MACB_BIT(FD));
-	if (speed == SPEED_100) {
-		if (duplex == DUPLEX_FULL)		/* 100 Full Duplex */
-			mac_cfg |= MACB_BIT(SPD) | MACB_BIT(FD);
-		else					/* 100 Half Duplex */
-			mac_cfg |= MACB_BIT(SPD);
-	} else {
-		if (duplex == DUPLEX_FULL)		/* 10 Full Duplex */
-			mac_cfg |= MACB_BIT(FD);
-		else {}					/* 10 Half Duplex */
-	}
-	macb_writel(lp, NCFGR, mac_cfg);
-
-	if (!silent)
-		printk(KERN_INFO "%s: Link now %i-%s\n", dev->name, speed, (duplex == DUPLEX_FULL) ? "FullDuplex" : "HalfDuplex");
-	netif_carrier_on(dev);
-}
-
-/*
- * Handle interrupts from the PHY
- */
-static irqreturn_t at91ether_phy_interrupt(int irq, void *dev_id)
-{
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct macb *lp = netdev_priv(dev);
-	unsigned int phy;
-
-	/*
-	 * This hander is triggered on both edges, but the PHY chips expect
-	 * level-triggering.  We therefore have to check if the PHY actually has
-	 * an IRQ pending.
-	 */
-	enable_mdi(lp);
-	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID)) {
-		read_phy(lp, lp->phy_address, MII_DSINTR_REG, &phy);	/* ack interrupt in Davicom PHY */
-		if (!(phy & (1 << 0)))
-			goto done;
-	}
-	else if (lp->phy_type == MII_LXT971A_ID) {
-		read_phy(lp, lp->phy_address, MII_ISINTS_REG, &phy);	/* ack interrupt in Intel PHY */
-		if (!(phy & (1 << 2)))
-			goto done;
-	}
-	else if (lp->phy_type == MII_BCM5221_ID) {
-		read_phy(lp, lp->phy_address, MII_BCMINTR_REG, &phy);	/* ack interrupt in Broadcom PHY */
-		if (!(phy & (1 << 0)))
-			goto done;
-	}
-	else if (lp->phy_type == MII_KS8721_ID) {
-		read_phy(lp, lp->phy_address, MII_TPISTATUS, &phy);		/* ack interrupt in Micrel PHY */
-		if (!(phy & ((1 << 2) | 1)))
-			goto done;
-	}
-	else if (lp->phy_type == MII_T78Q21x3_ID) {					/* ack interrupt in Teridian PHY */
-		read_phy(lp, lp->phy_address, MII_T78Q21INT_REG, &phy);
-		if (!(phy & ((1 << 2) | 1)))
-			goto done;
-	}
-	else if (lp->phy_type == MII_DP83848_ID) {
-		read_phy(lp, lp->phy_address, MII_DPPHYSTS_REG, &phy);	/* ack interrupt in DP83848 PHY */
-		if (!(phy & (1 << 7)))
-			goto done;
-	}
-
-	update_linkspeed(dev, 0);
-
-done:
-	disable_mdi(lp);
-
-	return IRQ_HANDLED;
-}
-
-/*
- * Initialize and enable the PHY interrupt for link-state changes
- */
-static void enable_phyirq(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-	unsigned int dsintr, irq_number;
-	int status;
-
-	if (!gpio_is_valid(lp->board_data.phy_irq_pin)) {
-		/*
-		 * PHY doesn't have an IRQ pin (RTL8201, DP83847, AC101L),
-		 * or board does not have it connected.
-		 */
-		mod_timer(&lp->check_timer, jiffies + LINK_POLL_INTERVAL);
-		return;
-	}
-
-	irq_number = gpio_to_irq(lp->board_data.phy_irq_pin);
-	status = request_irq(irq_number, at91ether_phy_interrupt, 0, dev->name, dev);
-	if (status) {
-		printk(KERN_ERR "at91_ether: PHY IRQ %d request failed - status %d!\n", irq_number, status);
-		return;
-	}
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID)) {	/* for Davicom PHY */
-		read_phy(lp, lp->phy_address, MII_DSINTR_REG, &dsintr);
-		dsintr = dsintr & ~0xf00;		/* clear bits 8..11 */
-		write_phy(lp, lp->phy_address, MII_DSINTR_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_LXT971A_ID) {	/* for Intel PHY */
-		read_phy(lp, lp->phy_address, MII_ISINTE_REG, &dsintr);
-		dsintr = dsintr | 0xf2;			/* set bits 1, 4..7 */
-		write_phy(lp, lp->phy_address, MII_ISINTE_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_BCM5221_ID) {	/* for Broadcom PHY */
-		dsintr = (1 << 15) | ( 1 << 14);
-		write_phy(lp, lp->phy_address, MII_BCMINTR_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_KS8721_ID) {	/* for Micrel PHY */
-		dsintr = (1 << 10) | ( 1 << 8);
-		write_phy(lp, lp->phy_address, MII_TPISTATUS, dsintr);
-	}
-	else if (lp->phy_type == MII_T78Q21x3_ID) {	/* for Teridian PHY */
-		read_phy(lp, lp->phy_address, MII_T78Q21INT_REG, &dsintr);
-		dsintr = dsintr | 0x500;		/* set bits 8, 10 */
-		write_phy(lp, lp->phy_address, MII_T78Q21INT_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_DP83848_ID) {	/* National Semiconductor DP83848 PHY */
-		read_phy(lp, lp->phy_address, MII_DPMISR_REG, &dsintr);
-		dsintr = dsintr | 0x3c;			/* set bits 2..5 */
-		write_phy(lp, lp->phy_address, MII_DPMISR_REG, dsintr);
-		read_phy(lp, lp->phy_address, MII_DPMICR_REG, &dsintr);
-		dsintr = dsintr | 0x3;			/* set bits 0,1 */
-		write_phy(lp, lp->phy_address, MII_DPMICR_REG, dsintr);
-	}
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-}
-
-/*
- * Disable the PHY interrupt
- */
-static void disable_phyirq(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-	unsigned int dsintr;
-	unsigned int irq_number;
-
-	if (!gpio_is_valid(lp->board_data.phy_irq_pin)) {
-		del_timer_sync(&lp->check_timer);
-		return;
-	}
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID)) {	/* for Davicom PHY */
-		read_phy(lp, lp->phy_address, MII_DSINTR_REG, &dsintr);
-		dsintr = dsintr | 0xf00;			/* set bits 8..11 */
-		write_phy(lp, lp->phy_address, MII_DSINTR_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_LXT971A_ID) {	/* for Intel PHY */
-		read_phy(lp, lp->phy_address, MII_ISINTE_REG, &dsintr);
-		dsintr = dsintr & ~0xf2;			/* clear bits 1, 4..7 */
-		write_phy(lp, lp->phy_address, MII_ISINTE_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_BCM5221_ID) {	/* for Broadcom PHY */
-		read_phy(lp, lp->phy_address, MII_BCMINTR_REG, &dsintr);
-		dsintr = ~(1 << 14);
-		write_phy(lp, lp->phy_address, MII_BCMINTR_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_KS8721_ID) {	/* for Micrel PHY */
-		read_phy(lp, lp->phy_address, MII_TPISTATUS, &dsintr);
-		dsintr = ~((1 << 10) | (1 << 8));
-		write_phy(lp, lp->phy_address, MII_TPISTATUS, dsintr);
-	}
-	else if (lp->phy_type == MII_T78Q21x3_ID) {	/* for Teridian PHY */
-		read_phy(lp, lp->phy_address, MII_T78Q21INT_REG, &dsintr);
-		dsintr = dsintr & ~0x500;			/* clear bits 8, 10 */
-		write_phy(lp, lp->phy_address, MII_T78Q21INT_REG, dsintr);
-	}
-	else if (lp->phy_type == MII_DP83848_ID) {	/* National Semiconductor DP83848 PHY */
-		read_phy(lp, lp->phy_address, MII_DPMICR_REG, &dsintr);
-		dsintr = dsintr & ~0x3;				/* clear bits 0, 1 */
-		write_phy(lp, lp->phy_address, MII_DPMICR_REG, dsintr);
-		read_phy(lp, lp->phy_address, MII_DPMISR_REG, &dsintr);
-		dsintr = dsintr & ~0x3c;			/* clear bits 2..5 */
-		write_phy(lp, lp->phy_address, MII_DPMISR_REG, dsintr);
-	}
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
-	irq_number = gpio_to_irq(lp->board_data.phy_irq_pin);
-	free_irq(irq_number, dev);			/* Free interrupt handler */
-}
-
-/*
- * Perform a software reset of the PHY.
- */
-#if 0
-static void reset_phy(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-	unsigned int bmcr;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	/* Perform PHY reset */
-	write_phy(lp, lp->phy_address, MII_BMCR, BMCR_RESET);
-
-	/* Wait until PHY reset is complete */
-	do {
-		read_phy(lp, lp->phy_address, MII_BMCR, &bmcr);
-	} while (!(bmcr & BMCR_RESET));
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-}
-#endif
-
-static void at91ether_check_link(unsigned long dev_id)
-{
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct macb *lp = netdev_priv(dev);
-
-	enable_mdi(lp);
-	update_linkspeed(dev, 1);
-	disable_mdi(lp);
-
-	mod_timer(&lp->check_timer, jiffies + LINK_POLL_INTERVAL);
-}
-
-/*
- * Perform any PHY-specific initialization.
- */
-static void __init initialize_phy(struct macb *lp)
-{
-	unsigned int val;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID)) {
-		read_phy(lp, lp->phy_address, MII_DSCR_REG, &val);
-		if ((val & (1 << 10)) == 0)			/* DSCR bit 10 is 0 -- fiber mode */
-			lp->phy_media = PORT_FIBRE;
-	} else if (machine_is_csb337()) {
-		/* mix link activity status into LED2 link state */
-		write_phy(lp, lp->phy_address, MII_LEDCTRL_REG, 0x0d22);
-	} else if (machine_is_ecbat91())
-		write_phy(lp, lp->phy_address, MII_LEDCTRL_REG, 0x156A);
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-}
 
 /* ......................... ADDRESS MANAGEMENT ........................ */
 
@@ -617,109 +245,6 @@ static void at91ether_set_multicast_list(struct net_device *dev)
 	macb_writel(lp, NCFGR, cfg);
 }
 
-/* ......................... ETHTOOL SUPPORT ........................... */
-
-static int mdio_read(struct net_device *dev, int phy_id, int location)
-{
-	struct macb *lp = netdev_priv(dev);
-	unsigned int value;
-
-	read_phy(lp, phy_id, location, &value);
-	return value;
-}
-
-static void mdio_write(struct net_device *dev, int phy_id, int location, int value)
-{
-	struct macb *lp = netdev_priv(dev);
-
-	write_phy(lp, phy_id, location, value);
-}
-
-static int at91ether_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct macb *lp = netdev_priv(dev);
-	int ret;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	ret = mii_ethtool_gset(&lp->mii, cmd);
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
-	if (lp->phy_media == PORT_FIBRE) {		/* override media type since mii.c doesn't know */
-		cmd->supported = SUPPORTED_FIBRE;
-		cmd->port = PORT_FIBRE;
-	}
-
-	return ret;
-}
-
-static int at91ether_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct macb *lp = netdev_priv(dev);
-	int ret;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	ret = mii_ethtool_sset(&lp->mii, cmd);
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
-	return ret;
-}
-
-static int at91ether_nwayreset(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-	int ret;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-
-	ret = mii_nway_restart(&lp->mii);
-
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
-	return ret;
-}
-
-static void at91ether_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
-{
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent), sizeof(info->bus_info));
-}
-
-static const struct ethtool_ops at91ether_ethtool_ops = {
-	.get_settings	= at91ether_get_settings,
-	.set_settings	= at91ether_set_settings,
-	.get_drvinfo	= at91ether_get_drvinfo,
-	.nway_reset	= at91ether_nwayreset,
-	.get_link	= ethtool_op_get_link,
-};
-
-static int at91ether_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct macb *lp = netdev_priv(dev);
-	int res;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-	res = generic_mii_ioctl(&lp->mii, if_mii(rq), cmd, NULL);
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
-	return res;
-}
-
 /* ................................ MAC ................................ */
 
 /*
@@ -765,8 +290,6 @@ static int at91ether_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
-	clk_enable(lp->pclk);		/* Re-enable Peripheral clock */
-
 	/* Clear internal statistics */
 	ctl = macb_readl(lp, NCR);
 	macb_writel(lp, NCR, ctl | MACB_BIT(CLRSTAT));
@@ -774,23 +297,18 @@ static int at91ether_open(struct net_device *dev)
 	/* Update the MAC address (incase user has changed it) */
 	update_mac_address(dev);
 
-	/* Enable PHY interrupt */
-	enable_phyirq(dev);
-
 	/* Enable MAC interrupts */
 	macb_writel(lp, IER, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
 				| MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE) | MACB_BIT(TCOMP)
 				| MACB_BIT(ISR_ROVR) | MACB_BIT(HRESP));
 
-	/* Determine current link speed */
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-	update_linkspeed(dev, 0);
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
-
 	at91ether_start(dev);
+
+	/* schedule a link state check */
+	phy_start(lp->phy_dev);
+
 	netif_start_queue(dev);
+
 	return 0;
 }
 
@@ -806,9 +324,6 @@ static int at91ether_close(struct net_device *dev)
 	ctl = macb_readl(lp, NCR);
 	macb_writel(lp, NCR, ctl & ~(MACB_BIT(TE) | MACB_BIT(RE)));
 
-	/* Disable PHY interrupt */
-	disable_phyirq(dev);
-
 	/* Disable MAC interrupts */
 	macb_writel(lp, IDR, MACB_BIT(RCOMP) | MACB_BIT(RXUBR)
 				| MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE)
@@ -816,8 +331,6 @@ static int at91ether_close(struct net_device *dev)
 				| MACB_BIT(HRESP));
 
 	netif_stop_queue(dev);
-
-	clk_disable(lp->pclk);		/* Disable Peripheral clock */
 
 	return 0;
 }
@@ -989,55 +502,13 @@ static const struct net_device_ops at91ether_netdev_ops = {
 	.ndo_get_stats		= at91ether_stats,
 	.ndo_set_rx_mode	= at91ether_set_multicast_list,
 	.ndo_set_mac_address	= set_mac_address,
-	.ndo_do_ioctl		= at91ether_ioctl,
+	.ndo_do_ioctl		= macb_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= at91ether_poll_controller,
 #endif
 };
-
-/*
- * Detect the PHY type, and its address.
- */
-static int __init at91ether_phy_detect(struct macb *lp)
-{
-	unsigned int phyid1, phyid2;
-	unsigned long phy_id;
-	unsigned short phy_address = 0;
-
-	while (phy_address < PHY_MAX_ADDR) {
-		/* Read the PHY ID registers */
-		enable_mdi(lp);
-		read_phy(lp, phy_address, MII_PHYSID1, &phyid1);
-		read_phy(lp, phy_address, MII_PHYSID2, &phyid2);
-		disable_mdi(lp);
-
-		phy_id = (phyid1 << 16) | (phyid2 & 0xfff0);
-		switch (phy_id) {
-			case MII_DM9161_ID:		/* Davicom 9161: PHY_ID1 = 0x181, PHY_ID2 = B881 */
-			case MII_DM9161A_ID:		/* Davicom 9161A: PHY_ID1 = 0x181, PHY_ID2 = B8A0 */
-			case MII_LXT971A_ID:		/* Intel LXT971A: PHY_ID1 = 0x13, PHY_ID2 = 78E0 */
-			case MII_RTL8201_ID:		/* Realtek RTL8201: PHY_ID1 = 0, PHY_ID2 = 0x8201 */
-			case MII_BCM5221_ID:		/* Broadcom BCM5221: PHY_ID1 = 0x40, PHY_ID2 = 0x61e0 */
-			case MII_DP83847_ID:		/* National Semiconductor DP83847:  */
-			case MII_DP83848_ID:		/* National Semiconductor DP83848:  */
-			case MII_AC101L_ID:		/* Altima AC101L: PHY_ID1 = 0x22, PHY_ID2 = 0x5520 */
-			case MII_KS8721_ID:		/* Micrel KS8721: PHY_ID1 = 0x22, PHY_ID2 = 0x1610 */
-			case MII_T78Q21x3_ID:		/* Teridian 78Q21x3: PHY_ID1 = 0x0E, PHY_ID2 = 7237 */
-			case MII_LAN83C185_ID:		/* SMSC LAN83C185: PHY_ID1 = 0x0007, PHY_ID2 = 0xC0A1 */
-				/* store detected values */
-				lp->phy_type = phy_id;		/* Type of PHY connected */
-				lp->phy_address = phy_address;	/* MDI address of PHY */
-				return 1;
-		}
-
-		phy_address++;
-	}
-
-	return 0;		/* not detected */
-}
-
 
 /*
  * Detect MAC & PHY and perform ethernet interface initialization
@@ -1047,6 +518,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	struct macb_platform_data *board_data = pdev->dev.platform_data;
 	struct resource *regs;
 	struct net_device *dev;
+	struct phy_device *phydev;
 	struct macb *lp;
 	int res;
 
@@ -1059,6 +531,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
+	lp->pdev = pdev;
+	lp->dev = dev;
 	lp->board_data = *board_data;
 	spin_lock_init(&lp->lock);
 
@@ -1093,7 +567,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 	ether_setup(dev);
 	dev->netdev_ops = &at91ether_netdev_ops;
-	dev->ethtool_ops = &at91ether_ethtool_ops;
+	dev->ethtool_ops = &macb_ethtool_ops;
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -1102,49 +576,27 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 	macb_writel(lp, NCR, 0);
 
-	if (board_data->is_rmii)
+	if (board_data->is_rmii) {
 		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG) | MACB_BIT(RM9200_RMII));
-	else
+		lp->phy_interface = PHY_INTERFACE_MODE_RMII;
+	} else {
 		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG));
-
-	/* Detect PHY */
-	if (!at91ether_phy_detect(lp)) {
-		printk(KERN_ERR "at91_ether: Could not detect ethernet PHY\n");
-		res = -ENODEV;
-		goto err_free_dmamem;
+		lp->phy_interface = PHY_INTERFACE_MODE_MII;
 	}
-
-	initialize_phy(lp);
-
-	lp->mii.dev = dev;		/* Support for ethtool */
-	lp->mii.mdio_read = mdio_read;
-	lp->mii.mdio_write = mdio_write;
-	lp->mii.phy_id = lp->phy_address;
-	lp->mii.phy_id_mask = 0x1f;
-	lp->mii.reg_num_mask = 0x1f;
 
 	/* Register the network interface */
 	res = register_netdev(dev);
 	if (res)
 		goto err_free_dmamem;
 
-	/* Determine current link speed */
-	spin_lock_irq(&lp->lock);
-	enable_mdi(lp);
-	update_linkspeed(dev, 0);
-	disable_mdi(lp);
-	spin_unlock_irq(&lp->lock);
+	if (macb_mii_init(lp) != 0)
+		goto err_out_unregister_netdev;
+
 	netif_carrier_off(dev);		/* will be enabled in open() */
 
-	/* If board has no PHY IRQ, use a timer to poll the PHY */
-	if (gpio_is_valid(lp->board_data.phy_irq_pin)) {
-		gpio_request(board_data->phy_irq_pin, "ethernet_phy");
-	} else {
-		/* If board has no PHY IRQ, use a timer to poll the PHY */
-		init_timer(&lp->check_timer);
-		lp->check_timer.data = (unsigned long)dev;
-		lp->check_timer.function = at91ether_check_link;
-	}
+	phydev = lp->phy_dev;
+	netdev_info(dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
+		phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	/* Display ethernet banner */
 	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%pM)\n",
@@ -1152,32 +604,11 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	       macb_readl(lp, NCFGR) & MACB_BIT(SPD) ? "100-" : "10-",
 	       macb_readl(lp, NCFGR) & MACB_BIT(FD) ? "FullDuplex" : "HalfDuplex",
 	       dev->dev_addr);
-	if ((lp->phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID))
-		printk(KERN_INFO "%s: Davicom 9161 PHY %s\n", dev->name, (lp->phy_media == PORT_FIBRE) ? "(Fiber)" : "(Copper)");
-	else if (lp->phy_type == MII_LXT971A_ID)
-		printk(KERN_INFO "%s: Intel LXT971A PHY\n", dev->name);
-	else if (lp->phy_type == MII_RTL8201_ID)
-		printk(KERN_INFO "%s: Realtek RTL8201(B)L PHY\n", dev->name);
-	else if (lp->phy_type == MII_BCM5221_ID)
-		printk(KERN_INFO "%s: Broadcom BCM5221 PHY\n", dev->name);
-	else if (lp->phy_type == MII_DP83847_ID)
-		printk(KERN_INFO "%s: National Semiconductor DP83847 PHY\n", dev->name);
-	else if (lp->phy_type == MII_DP83848_ID)
-		printk(KERN_INFO "%s: National Semiconductor DP83848 PHY\n", dev->name);
-	else if (lp->phy_type == MII_AC101L_ID)
-		printk(KERN_INFO "%s: Altima AC101L PHY\n", dev->name);
-	else if (lp->phy_type == MII_KS8721_ID)
-		printk(KERN_INFO "%s: Micrel KS8721 PHY\n", dev->name);
-	else if (lp->phy_type == MII_T78Q21x3_ID)
-		printk(KERN_INFO "%s: Teridian 78Q21x3 PHY\n", dev->name);
-	else if (lp->phy_type == MII_LAN83C185_ID)
-		printk(KERN_INFO "%s: SMSC LAN83C185 PHY\n", dev->name);
-
-	clk_disable(lp->pclk);					/* Disable Peripheral clock */
 
 	return 0;
 
-
+err_out_unregister_netdev:
+	unregister_netdev(dev);
 err_free_dmamem:
 	platform_set_drvdata(pdev, NULL);
 	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
@@ -1198,16 +629,21 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct macb *lp = netdev_priv(dev);
 
-	if (gpio_is_valid(lp->board_data.phy_irq_pin))
-		gpio_free(lp->board_data.phy_irq_pin);
+	if (lp->phy_dev)
+		phy_disconnect(lp->phy_dev);
 
+	mdiobus_unregister(lp->mii_bus);
+	kfree(lp->mii_bus->irq);
+	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
+	iounmap(lp->regs);
+	clk_disable(lp->pclk);
 	clk_put(lp->pclk);
-
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
@@ -1219,11 +655,6 @@ static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct macb *lp = netdev_priv(net_dev);
 
 	if (netif_running(net_dev)) {
-		if (gpio_is_valid(lp->board_data.phy_irq_pin)) {
-			int phy_irq = gpio_to_irq(lp->board_data.phy_irq_pin);
-			disable_irq(phy_irq);
-		}
-
 		netif_stop_queue(net_dev);
 		netif_device_detach(net_dev);
 
@@ -1242,11 +673,6 @@ static int at91ether_resume(struct platform_device *pdev)
 
 		netif_device_attach(net_dev);
 		netif_start_queue(net_dev);
-
-		if (gpio_is_valid(lp->board_data.phy_irq_pin)) {
-			int phy_irq = gpio_to_irq(lp->board_data.phy_irq_pin);
-			enable_irq(phy_irq);
-		}
 	}
 	return 0;
 }
