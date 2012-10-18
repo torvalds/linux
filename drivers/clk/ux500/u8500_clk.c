@@ -12,7 +12,7 @@
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/platform_data/clk-ux500.h>
-
+#include <mach/db8500-regs.h>
 #include "clk.h"
 
 void u8500_clk_init(void)
