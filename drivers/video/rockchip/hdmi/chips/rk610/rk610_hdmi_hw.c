@@ -94,7 +94,7 @@ int rk610_hdmi_sys_read_edid(int block, unsigned char *buff)
 {
 	char value;
 	int count, rc = HDMI_ERROR_EDID;
-	int trytime = 2;
+	char hdmi_status = 0;
 	
 	// Config DDC bus clock: ddc_clk = reg_clk/4*(reg 0x4c 0x4b)
 	// when reg00 select reg_clk equal to sys_clk which is equal
@@ -112,27 +112,30 @@ int rk610_hdmi_sys_read_edid(int block, unsigned char *buff)
 	value |= m_INT_EDID_READY;
 	HDMIWrReg(INTERRUPT_MASK1, value);
 	
-	
-	while(trytime--) {
-		// Reset FIFO offset
-		HDMIWrReg(EDID_FIFO_OFFSET, 0);
-		// Set EDID read addr.
-		HDMIWrReg(EDID_WORD_ADDR, (block%2) * 0x80);
-		HDMIWrReg(EDID_SEGMENT_POINTER, block/2);
-		
-		count = 0;
-		while(count++ < 10)
-		{	
-			value = atomic_read(&edid_ready);
-			if(value)
-			{
-				for(count = 0; count < 128; count++)
-					rk610_hdmi_i2c_read_reg(EDID_FIFO_ADDR, buff + count);
-				rc = HDMI_ERROR_SUCESS;
-				break;
-			}
-			msleep(100);
-		}
+	// Reset FIFO offset
+	HDMIWrReg(EDID_FIFO_OFFSET, 0);
+	// Set EDID read addr.
+	HDMIWrReg(EDID_WORD_ADDR, (block%2) * 0x80);
+	HDMIWrReg(EDID_SEGMENT_POINTER, block/2);
+
+	count = 0;
+	while(count++ < 10)
+	{	
+#ifdef HDMI_USE_IRQ
+	    value = atomic_read(&edid_ready);
+#else 
+	    msleep(10);
+	    rk610_hdmi_i2c_read_reg(INTERRUPT_STATUS1, &hdmi_status);
+	    value = (hdmi_status & m_INT_EDID_READY);
+#endif
+	    if(value)
+	    {
+		for(value = 0; value < 128; value++)
+		    rk610_hdmi_i2c_read_reg(EDID_FIFO_ADDR, buff + value);
+		rc = HDMI_ERROR_SUCESS;
+		break;
+	    }
+	    msleep(100);
 	}
 	// Disable EDID interrupt.
 	value = 0;
