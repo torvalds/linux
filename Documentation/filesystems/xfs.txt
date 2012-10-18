@@ -72,8 +72,15 @@ When mounting an XFS filesystem, the following options are accepted.
 	Indicates that XFS is allowed to create inodes at any location
 	in the filesystem, including those which will result in inode
 	numbers occupying more than 32 bits of significance.  This is
-	provided for backwards compatibility, but causes problems for
-	backup applications that cannot handle large inode numbers.
+	the default allocation option. Applications which do not handle
+	inode numbers bigger than 32 bits, should use inode32 option.
+
+  inode32
+	Indicates that XFS is limited to create inodes at locations which
+	will not result in inode numbers with more than 32 bits of
+	significance. This is provided for backwards compatibility, since
+	64 bits inode numbers might cause problems for some applications
+	that cannot handle large inode numbers.
 
   largeio/nolargeio
 	If "nolargeio" is specified, the optimal I/O reported in
