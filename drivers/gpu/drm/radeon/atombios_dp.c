@@ -294,29 +294,6 @@ static u8 dp_link_status(u8 link_status[DP_LINK_STATUS_SIZE], int r)
 	return link_status[r - DP_LANE0_1_STATUS];
 }
 
-static u8 dp_get_lane_status(u8 link_status[DP_LINK_STATUS_SIZE],
-			     int lane)
-{
-	int i = DP_LANE0_1_STATUS + (lane >> 1);
-	int s = (lane & 1) * 4;
-	u8 l = dp_link_status(link_status, i);
-	return (l >> s) & 0xf;
-}
-
-static bool dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
-				 int lane_count)
-{
-	int lane;
-	u8 lane_status;
-
-	for (lane = 0; lane < lane_count; lane++) {
-		lane_status = dp_get_lane_status(link_status, lane);
-		if ((lane_status & DP_LANE_CR_DONE) == 0)
-			return false;
-	}
-	return true;
-}
-
 static u8 dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
 					int lane)
 
@@ -811,7 +788,7 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 			break;
 		}
 
-		if (dp_clock_recovery_ok(dp_info->link_status, dp_info->dp_lane_count)) {
+		if (drm_dp_clock_recovery_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			clock_recovery = true;
 			break;
 		}

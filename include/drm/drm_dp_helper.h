@@ -326,5 +326,7 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
+bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+			      int lane_count);
 
 #endif /* _DRM_DP_HELPER_H_ */

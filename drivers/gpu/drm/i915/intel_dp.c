@@ -1695,31 +1695,6 @@ intel_dp_signal_levels_hsw(uint8_t train_set)
 	}
 }
 
-static uint8_t
-intel_get_lane_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
-		      int lane)
-{
-	int s = (lane & 1) * 4;
-	uint8_t l = link_status[lane>>1];
-
-	return (l >> s) & 0xf;
-}
-
-/* Check for clock recovery is done on all channels */
-static bool
-intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_count)
-{
-	int lane;
-	uint8_t lane_status;
-
-	for (lane = 0; lane < lane_count; lane++) {
-		lane_status = intel_get_lane_status(link_status, lane);
-		if ((lane_status & DP_LANE_CR_DONE) == 0)
-			return false;
-	}
-	return true;
-}
-
 static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
@@ -1885,7 +1860,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			break;
 		}
 
-		if (intel_clock_recovery_ok(link_status, intel_dp->lane_count)) {
+		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			DRM_DEBUG_KMS("clock recovery OK\n");
 			clock_recovery = true;
 			break;
@@ -1967,7 +1942,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			break;
 
 		/* Make sure clock is still ok */
-		if (!intel_clock_recovery_ok(link_status, intel_dp->lane_count)) {
+		if (!drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			intel_dp_start_link_train(intel_dp);
 			cr_tries++;
 			continue;
