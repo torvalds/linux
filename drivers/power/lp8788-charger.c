@@ -592,7 +592,8 @@ static void lp8788_irq_unregister(struct platform_device *pdev,
 	}
 }
 
-static void lp8788_setup_adc_channel(struct lp8788_charger *pchg)
+static void lp8788_setup_adc_channel(const char *consumer_name,
+				struct lp8788_charger *pchg)
 {
 	struct lp8788_charger_platform_data *pdata = pchg->pdata;
 	struct device *dev = pchg->lp->dev;
@@ -616,7 +617,7 @@ static void lp8788_setup_adc_channel(struct lp8788_charger *pchg)
 	case LPADC_VBATT_5P5:
 	case LPADC_VBATT_6P0:
 	case LPADC_VBATT_5P0:
-		chan = iio_channel_get(NULL, chan_name[id]);
+		chan = iio_channel_get(consumer_name, chan_name[id]);
 		pchg->chan[LP8788_VBATT] = IS_ERR(chan) ? NULL : chan;
 		break;
 	default:
@@ -631,7 +632,7 @@ static void lp8788_setup_adc_channel(struct lp8788_charger *pchg)
 	case LPADC_ADC2:
 	case LPADC_ADC3:
 	case LPADC_ADC4:
-		chan = iio_channel_get(NULL, chan_name[id]);
+		chan = iio_channel_get(consumer_name, chan_name[id]);
 		pchg->chan[LP8788_BATT_TEMP] = IS_ERR(chan) ? NULL : chan;
 		break;
 	default:
@@ -747,7 +748,7 @@ static __devinit int lp8788_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	lp8788_setup_adc_channel(pchg);
+	lp8788_setup_adc_channel(pdev->name, pchg);
 
 	ret = lp8788_psy_register(pdev, pchg);
 	if (ret)
