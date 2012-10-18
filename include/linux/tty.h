@@ -189,6 +189,7 @@ struct tty_port_operations {
 	
 struct tty_port {
 	struct tty_struct	*tty;		/* Back pointer */
+	struct tty_struct	*itty;		/* internal back ptr */
 	const struct tty_port_operations *ops;	/* Port operations */
 	spinlock_t		lock;		/* Lock protecting tty field */
 	int			blocked_open;	/* Waiting to open */

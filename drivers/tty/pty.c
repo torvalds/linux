@@ -345,6 +345,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	tty_port_init(ports[1]);
 	o_tty->port = ports[0];
 	tty->port = ports[1];
+	o_tty->port->itty = o_tty;
 
 	tty_driver_kref_get(driver);
 	tty->count++;
@@ -371,6 +372,7 @@ static void pty_unix98_shutdown(struct tty_struct *tty)
 
 static void pty_cleanup(struct tty_struct *tty)
 {
+	tty->port->itty = NULL;
 	kfree(tty->port);
 }
 
