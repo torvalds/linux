@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2008-2009 ST-Ericsson
  *

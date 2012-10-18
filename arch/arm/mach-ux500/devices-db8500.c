@@ -16,6 +16,7 @@
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
+#include <mach/irqs.h>
 
 #include "ste-dma40-db8500.h"
 
