@@ -27,7 +27,7 @@
 #include <linux/cpufreq.h>
 #include "cpu-freq.h"
 
-struct cpufreq_frequency_table sun4i_freq_tbl[] = {
+static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
 
     { .frequency = 30000,   .index = SUN4I_CLK_DIV(1, 1, 1, 2), },
     { .frequency = 48000,   .index = SUN4I_CLK_DIV(1, 1, 1, 2), },
@@ -86,3 +86,42 @@ struct cpufreq_frequency_table sun4i_freq_tbl[] = {
     { .frequency = CPUFREQ_TABLE_END,  .index = 0,              },
 };
 
+/* div, pll (Hz) table */
+static struct cpufreq_div_order sun4i_div_order_tbl[] = {
+    { .div = SUN4I_CLK_DIV(1, 1, 1, 2), .pll = 204000000,  },
+    { .div = SUN4I_CLK_DIV(1, 1, 2, 2), .pll = 408000000,  },
+    { .div = SUN4I_CLK_DIV(1, 2, 2, 2), .pll = 816000000,  },
+    { .div = SUN4I_CLK_DIV(1, 3, 2, 2), .pll = 1200000000, },
+    { .div = SUN4I_CLK_DIV(1, 4, 2, 2), .pll = 1248000000, },
+};
+
+#ifdef CONFIG_CPU_FREQ_DVFS
+static struct cpufreq_dvfs sun4i_dvfs_table[] = {
+    {.freq = 1056000000, .volt = 1500}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
+    {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (960Mhz, 1008Mhz]  */
+    {.freq = 960000000,  .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (912Mhz, 960Mhz]   */
+    {.freq = 912000000,  .volt = 1350}, /* core vdd is 1.35v if cpu frequency is (864Mhz, 912Mhz]   */
+    {.freq = 864000000,  .volt = 1300}, /* core vdd is 1.30v if cpu frequency is (624Mhz, 864Mhz]   */
+    {.freq = 624000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (432Mhz, 624Mhz]   */
+    {.freq = 432000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (0, 432Mhz]        */
+    {.freq = 0,          .volt = 1000}, /* end of cpu dvfs table                                    */
+};
+#endif
+
+struct cpufreq_frequency_table * sunxi_cpufreq_table(void) {
+    /* TODO: improve to handle A13 and others */
+    return sun4i_freq_tbl;
+}
+
+struct cpufreq_div_order * sunxi_div_order_table(int *length) {
+    /* TODO: improve to handle A13 and others */
+    *length = ARRAY_SIZE(sun4i_div_order_tbl);
+    return sun4i_div_order_tbl;
+}
+
+#ifdef CONFIG_CPU_FREQ_DVFS
+struct cpufreq_dvfs * sunxi_dvfs_table(void) {
+    /* TODO: improve to handle A13 and others */
+    return sun4i_dvfs_table;
+}
+#endif
