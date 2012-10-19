@@ -278,6 +278,8 @@ struct hci_dev {
 	struct work_struct	le_scan;
 	struct le_scan_params	le_scan_params;
 
+	__s8			adv_tx_power;
+
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);
