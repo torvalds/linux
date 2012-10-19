@@ -326,7 +326,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct hci_dev *d;
 	size_t rp_len;
 	u16 count;
-	int i, err;
+	int err;
 
 	BT_DBG("sock %p", sk);
 
@@ -347,9 +347,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		return -ENOMEM;
 	}
 
-	rp->num_controllers = cpu_to_le16(count);
-
-	i = 0;
+	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_bit(HCI_SETUP, &d->dev_flags))
 			continue;
@@ -357,9 +355,12 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (!mgmt_valid_hdev(d))
 			continue;
 
-		rp->index[i++] = cpu_to_le16(d->id);
+		rp->index[count++] = cpu_to_le16(d->id);
 		BT_DBG("Added hci%u", d->id);
 	}
+
+	rp->num_controllers = cpu_to_le16(count);
+	rp_len = sizeof(*rp) + (2 * count);
 
 	read_unlock(&hci_dev_list_lock);
 
