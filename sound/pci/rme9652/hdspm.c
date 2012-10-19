@@ -3959,6 +3959,7 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		default:
 			val = hdspm_s1_sync_check(hdspm, ucontrol->id.index-1);
 		}
+		break;
 
 	case AIO:
 		switch (kcontrol->private_value) {
@@ -3971,6 +3972,7 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		default:
 			val = hdspm_s1_sync_check(hdspm, ucontrol->id.index-1);
 		}
+		break;
 
 	case MADI:
 		switch (kcontrol->private_value) {
@@ -3983,6 +3985,7 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		case 3: /* SYNC_IN */
 			val = hdspm_sync_in_sync_check(hdspm); break;
 		}
+		break;
 
 	case MADIface:
 		val = hdspm_madi_sync_check(hdspm); /* MADI */
@@ -4000,6 +4003,7 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 			 val = hdspm_aes_sync_check(hdspm,
 					 kcontrol->private_value-1);
 		}
+		break;
 
 	}
 
