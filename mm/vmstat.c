@@ -779,6 +779,9 @@ const char * const vmstat_text[] = {
 	"pgmigrate_fail",
 #endif
 #ifdef CONFIG_COMPACTION
+	"compact_migrate_scanned",
+	"compact_free_scanned",
+	"compact_isolated",
 	"compact_stall",
 	"compact_fail",
 	"compact_success",

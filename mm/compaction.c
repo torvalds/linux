@@ -356,6 +356,10 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	if (blockpfn == end_pfn)
 		update_pageblock_skip(cc, valid_page, total_isolated, false);
 
+	count_vm_events(COMPACTFREE_SCANNED, nr_scanned);
+	if (total_isolated)
+		count_vm_events(COMPACTISOLATED, total_isolated);
+
 	return total_isolated;
 }
 
@@ -645,6 +649,10 @@ next_pageblock:
 		update_pageblock_skip(cc, valid_page, nr_isolated, true);
 
 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+
+	count_vm_events(COMPACTMIGRATE_SCANNED, nr_scanned);
+	if (nr_isolated)
+		count_vm_events(COMPACTISOLATED, nr_isolated);
 
 	return low_pfn;
 }
