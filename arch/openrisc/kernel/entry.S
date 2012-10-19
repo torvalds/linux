@@ -894,6 +894,16 @@ ENTRY(ret_from_fork)
 	l.jal	schedule_tail
 	 l.nop
 
+	/* Check if we are a kernel thread */
+	l.sfeqi	r20,0
+	l.bf	1f
+	 l.nop
+
+	/* ...we are a kernel thread so invoke the requested callback */
+	l.jalr	r20
+	 l.or	r3,r22,r0
+
+1:
 	/* _syscall_returns expect r11 to contain return value */
 	l.lwz	r11,PT_GPR11(r1)
 
@@ -914,26 +924,6 @@ ENTRY(ret_from_fork)
 
 	l.j	_syscall_return
 	 l.nop
-
-/* Since syscalls don't save call-clobbered registers, the args to
- * kernel_thread_helper will need to be passed through callee-saved
- * registers and copied to the parameter registers when the thread
- * begins running.
- *
- * See arch/openrisc/kernel/process.c:
- * The args are passed as follows:
- *   arg1 (r3) : passed in r20
- *   arg2 (r4) : passed in r22
- */
-
-ENTRY(_kernel_thread_helper)
-	l.or	r3,r20,r0
-	l.or	r4,r22,r0
-	l.movhi	r31,hi(kernel_thread_helper)
-	l.ori	r31,r31,lo(kernel_thread_helper)
-	l.jr	r31
-	 l.nop
-
 
 /* ========================================================[ switch ] === */
 
