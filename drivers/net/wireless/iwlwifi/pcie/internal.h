@@ -186,6 +186,8 @@ struct iwl_pcie_tx_queue_entry {
 	struct iwl_device_cmd *cmd;
 	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
+	/* buffer to free after command completes */
+	const void *free_buf;
 	struct iwl_cmd_meta meta;
 };
 

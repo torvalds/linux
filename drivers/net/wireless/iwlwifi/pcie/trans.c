@@ -496,6 +496,7 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 		for (i = 0; i < txq->q.n_window; i++) {
 			kfree(txq->entries[i].cmd);
 			kfree(txq->entries[i].copy_cmd);
+			kfree(txq->entries[i].free_buf);
 		}
 
 	/* De-alloc circular buffer of TFDs */

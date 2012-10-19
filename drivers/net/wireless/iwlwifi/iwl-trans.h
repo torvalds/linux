@@ -221,14 +221,18 @@ struct iwl_device_cmd {
 /**
  * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
  *
- * IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
+ * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
  *	rather copies it to an previously allocated DMA buffer. This flag tells
  *	the transport layer not to copy the command, but to map the existing
  *	buffer. This can save memcpy and is worth with very big comamnds.
+ * @IWL_HCMD_DFL_DUP: Only valid without NOCOPY, duplicate the memory for this
+ *	chunk internally and free it again after the command completes. This
+ *	can (currently) be used only once per command.
  */
 enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
+	IWL_HCMD_DFL_DUP	= BIT(1),
 };
 
 /**

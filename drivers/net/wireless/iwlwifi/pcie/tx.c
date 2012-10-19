@@ -517,8 +517,9 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
+	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
-	u32 idx;
+	int idx;
 	u16 copy_size, cmd_size;
 	bool had_nocopy = false;
 	int i;
@@ -535,10 +536,33 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
 			had_nocopy = true;
+			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
+				idx = -EINVAL;
+				goto free_dup_buf;
+			}
+		} else if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP) {
+			/*
+			 * This is also a chunk that isn't copied
+			 * to the static buffer so set had_nocopy.
+			 */
+			had_nocopy = true;
+
+			/* only allowed once */
+			if (WARN_ON(dup_buf)) {
+				idx = -EINVAL;
+				goto free_dup_buf;
+			}
+
+			dup_buf = kmemdup(cmd->data[i], cmd->len[i],
+					  GFP_ATOMIC);
+			if (!dup_buf)
+				return -ENOMEM;
 		} else {
 			/* NOCOPY must not be followed by normal! */
-			if (WARN_ON(had_nocopy))
-				return -EINVAL;
+			if (WARN_ON(had_nocopy)) {
+				idx = -EINVAL;
+				goto free_dup_buf;
+			}
 			copy_size += cmd->len[i];
 		}
 		cmd_size += cmd->len[i];
@@ -553,8 +577,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (WARN(copy_size > TFD_MAX_PAYLOAD_SIZE,
 		 "Command %s (%#x) is too large (%d bytes)\n",
 		 trans_pcie_get_cmd_string(trans_pcie, cmd->id),
-		 cmd->id, copy_size))
-		return -EINVAL;
+		 cmd->id, copy_size)) {
+		idx = -EINVAL;
+		goto free_dup_buf;
+	}
 
 	spin_lock_bh(&txq->lock);
 
@@ -563,7 +589,8 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 		IWL_ERR(trans, "No space in command queue\n");
 		iwl_op_mode_cmd_queue_full(trans->op_mode);
-		return -ENOSPC;
+		idx = -ENOSPC;
+		goto free_dup_buf;
 	}
 
 	idx = get_cmd_index(q, q->write_ptr);
@@ -587,7 +614,8 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
 		if (!cmd->len[i])
 			continue;
-		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY)
+		if (cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+					 IWL_HCMD_DFL_DUP))
 			break;
 		memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], cmd->len[i]);
 		cmd_pos += cmd->len[i];
@@ -629,11 +657,16 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr, copy_size, 1);
 
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+		const void *data = cmd->data[i];
+
 		if (!cmd->len[i])
 			continue;
-		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+					   IWL_HCMD_DFL_DUP)))
 			continue;
-		phys_addr = dma_map_single(trans->dev, (void *)cmd->data[i],
+		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
+			data = dup_buf;
+		phys_addr = dma_map_single(trans->dev, (void *)data,
 					   cmd->len[i], DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_unmap_tfd(trans, out_meta,
@@ -648,6 +681,9 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	}
 
 	out_meta->flags = cmd->flags;
+	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
+		kfree(txq->entries[idx].free_buf);
+	txq->entries[idx].free_buf = dup_buf;
 
 	txq->need_update = 1;
 
@@ -664,6 +700,9 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
  out:
 	spin_unlock_bh(&txq->lock);
+ free_dup_buf:
+	if (idx < 0)
+		kfree(dup_buf);
 	return idx;
 }
 

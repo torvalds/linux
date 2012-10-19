@@ -452,6 +452,9 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 			/* The original command isn't needed any more */
 			kfree(txq->entries[cmd_index].copy_cmd);
 			txq->entries[cmd_index].copy_cmd = NULL;
+			/* nor is the duplicated part of the command */
+			kfree(txq->entries[cmd_index].free_buf);
+			txq->entries[cmd_index].free_buf = NULL;
 		}
 
 		/*
