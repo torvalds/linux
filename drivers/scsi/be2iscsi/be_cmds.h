@@ -992,8 +992,6 @@ struct be_cmd_get_all_if_id_req {
 #define CONNECTION_UPLOAD_ABORT_WITH_SEQ 4	/* Abortive upload with reset,
 						 * sequence number by driver  */
 
-/* Returns byte size of given field with a structure. */
-
 /* Returns the number of items in the field array. */
 #define BE_NUMBER_OF_FIELD(_type_, _field_)	\
 	(FIELD_SIZEOF(_type_, _field_)/sizeof((((_type_ *)0)->_field_[0])))\

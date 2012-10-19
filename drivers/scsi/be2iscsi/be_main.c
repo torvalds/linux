@@ -158,6 +158,45 @@ struct device_attribute *beiscsi_attrs[] = {
 	NULL,
 };
 
+static char const *cqe_desc[] = {
+	"RESERVED_DESC",
+	"SOL_CMD_COMPLETE",
+	"SOL_CMD_KILLED_DATA_DIGEST_ERR",
+	"CXN_KILLED_PDU_SIZE_EXCEEDS_DSL",
+	"CXN_KILLED_BURST_LEN_MISMATCH",
+	"CXN_KILLED_AHS_RCVD",
+	"CXN_KILLED_HDR_DIGEST_ERR",
+	"CXN_KILLED_UNKNOWN_HDR",
+	"CXN_KILLED_STALE_ITT_TTT_RCVD",
+	"CXN_KILLED_INVALID_ITT_TTT_RCVD",
+	"CXN_KILLED_RST_RCVD",
+	"CXN_KILLED_TIMED_OUT",
+	"CXN_KILLED_RST_SENT",
+	"CXN_KILLED_FIN_RCVD",
+	"CXN_KILLED_BAD_UNSOL_PDU_RCVD",
+	"CXN_KILLED_BAD_WRB_INDEX_ERROR",
+	"CXN_KILLED_OVER_RUN_RESIDUAL",
+	"CXN_KILLED_UNDER_RUN_RESIDUAL",
+	"CMD_KILLED_INVALID_STATSN_RCVD",
+	"CMD_KILLED_INVALID_R2T_RCVD",
+	"CMD_CXN_KILLED_LUN_INVALID",
+	"CMD_CXN_KILLED_ICD_INVALID",
+	"CMD_CXN_KILLED_ITT_INVALID",
+	"CMD_CXN_KILLED_SEQ_OUTOFORDER",
+	"CMD_CXN_KILLED_INVALID_DATASN_RCVD",
+	"CXN_INVALIDATE_NOTIFY",
+	"CXN_INVALIDATE_INDEX_NOTIFY",
+	"CMD_INVALIDATED_NOTIFY",
+	"UNSOL_HDR_NOTIFY",
+	"UNSOL_DATA_NOTIFY",
+	"UNSOL_DATA_DIGEST_ERROR_NOTIFY",
+	"DRIVERMSG_NOTIFY",
+	"CXN_KILLED_CMND_DATA_NOT_ON_SAME_CONN",
+	"SOL_CMD_KILLED_DIF_ERR",
+	"CXN_KILLED_SYN_RCVD",
+	"CXN_KILLED_IMM_DATA_RCVD"
+};
+
 static int beiscsi_slave_configure(struct scsi_device *sdev)
 {
 	blk_queue_max_segment_size(sdev->request_queue, 65536);
@@ -1914,6 +1953,13 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 
 }
 
+/**
+ * beiscsi_process_cq()- Process the Completion Queue
+ * @pbe_eq: Event Q on which the Completion has come
+ *
+ * return
+ *     Number of Completion Entries processed.
+ **/
 static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 {
 	struct be_queue_info *cq;
@@ -1958,7 +2004,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case DRIVERMSG_NOTIFY:
 			beiscsi_log(phba, KERN_INFO,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : Received DRIVERMSG_NOTIFY\n");
+				    "BM_%d : Received %s[%d] on CID : %d\n",
+				    cqe_desc[code], code, cid);
 
 			dmsg = (struct dmsg_cqe *)sol;
 			hwi_complete_drvr_msgs(beiscsi_conn, phba, sol);
@@ -1966,7 +2013,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case UNSOL_HDR_NOTIFY:
 			beiscsi_log(phba, KERN_INFO,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : Received UNSOL_HDR_ NOTIFY\n");
+				    "BM_%d : Received %s[%d] on CID : %d\n",
+				    cqe_desc[code], code, cid);
 
 			hwi_process_default_pdu_ring(beiscsi_conn, phba,
 					     (struct i_t_dpdu_cqe *)sol);
@@ -1974,7 +2022,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case UNSOL_DATA_NOTIFY:
 			beiscsi_log(phba, KERN_INFO,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
-				    "BM_%d : Received UNSOL_DATA_NOTIFY\n");
+				    "BM_%d : Received %s[%d] on CID : %d\n",
+				    cqe_desc[code], code, cid);
 
 			hwi_process_default_pdu_ring(beiscsi_conn, phba,
 					     (struct i_t_dpdu_cqe *)sol);
@@ -1984,8 +2033,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case CXN_INVALIDATE_NOTIFY:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : Ignoring CQ Error notification for"
-				    " cmd/cxn invalidate\n");
+				    "BM_%d : Ignoring %s[%d] on CID : %d\n",
+				    cqe_desc[code], code, cid);
 			break;
 		case SOL_CMD_KILLED_DATA_DIGEST_ERR:
 		case CMD_KILLED_INVALID_STATSN_RCVD:
@@ -1997,14 +2046,14 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case CMD_CXN_KILLED_INVALID_DATASN_RCVD:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
-				    "BM_%d : CQ Error notification for cmd.. "
-				    "code %d cid 0x%x\n", code, cid);
+				    "BM_%d : Cmd Notification %s[%d] on CID : %d\n",
+				    cqe_desc[code], code,  cid);
 			break;
 		case UNSOL_DATA_DIGEST_ERROR_NOTIFY:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : Digest error on def pdu ring,"
-				    " dropping..\n");
+				    "BM_%d :  Dropping %s[%d] on DPDU ring on CID : %d\n",
+				    cqe_desc[code], code, cid);
 			hwi_flush_default_pdu_buffer(phba, beiscsi_conn,
 					     (struct i_t_dpdu_cqe *) sol);
 			break;
@@ -2017,6 +2066,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case CXN_KILLED_INVALID_ITT_TTT_RCVD:
 		case CXN_KILLED_TIMED_OUT:
 		case CXN_KILLED_FIN_RCVD:
+		case CXN_KILLED_RST_SENT:
+		case CXN_KILLED_RST_RCVD:
 		case CXN_KILLED_BAD_UNSOL_PDU_RCVD:
 		case CXN_KILLED_BAD_WRB_INDEX_ERROR:
 		case CXN_KILLED_OVER_RUN_RESIDUAL:
@@ -2024,19 +2075,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		case CXN_KILLED_CMND_DATA_NOT_ON_SAME_CONN:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : CQ Error %d, reset CID 0x%x...\n",
-				    code, cid);
-			if (beiscsi_conn)
-				iscsi_conn_failure(beiscsi_conn->conn,
-						   ISCSI_ERR_CONN_FAILED);
-			break;
-		case CXN_KILLED_RST_SENT:
-		case CXN_KILLED_RST_RCVD:
-			beiscsi_log(phba, KERN_ERR,
-				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : CQ Error %d, reset"
-				    "received/sent on CID 0x%x...\n",
-				    code, cid);
+				    "BM_%d : Event %s[%d] received on CID : %d\n",
+				    cqe_desc[code], code, cid);
 			if (beiscsi_conn)
 				iscsi_conn_failure(beiscsi_conn->conn,
 						   ISCSI_ERR_CONN_FAILED);
@@ -2044,8 +2084,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		default:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-				    "BM_%d : CQ Error Invalid code= %d "
-				    "received on CID 0x%x...\n",
+				    "BM_%d : Invalid CQE Event Received Code : %d"
+				    "CID 0x%x...\n",
 				    code, cid);
 			break;
 		}
