@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/time.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
