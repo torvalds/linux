@@ -965,6 +965,7 @@ struct drbd_conf {
 	unsigned long rs_mark_time[DRBD_SYNC_MARKS];
 	/* current index into rs_mark_{left,time} */
 	int rs_last_mark;
+	unsigned long rs_last_bcast; /* [unit jiffies] */
 
 	/* where does the admin want us to start? (sector) */
 	sector_t ov_start_sector;

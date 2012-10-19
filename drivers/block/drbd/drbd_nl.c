@@ -3295,6 +3295,12 @@ void drbd_bcast_event(struct drbd_conf *mdev, const struct sib_info *sib)
 	unsigned seq;
 	int err = -ENOMEM;
 
+	if (sib->sib_reason == SIB_SYNC_PROGRESS &&
+	    time_after(jiffies, mdev->rs_last_bcast + HZ))
+		mdev->rs_last_bcast = jiffies;
+	else
+		return;
+
 	seq = atomic_inc_return(&drbd_genl_seq);
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_NOIO);
 	if (!msg)

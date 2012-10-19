@@ -52,8 +52,8 @@
 #endif
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.3.11"
-#define API_VERSION 88
+#define REL_VERSION "8.4.2"
+#define API_VERSION 1
 #define PRO_VERSION_MIN 86
 #define PRO_VERSION_MAX 101
 

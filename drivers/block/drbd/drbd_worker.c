@@ -1696,6 +1696,10 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	write_unlock_irq(&global_state_lock);
 
 	if (r == SS_SUCCESS) {
+		/* reset rs_last_bcast when a resync or verify is started,
+		 * to deal with potential jiffies wrap. */
+		mdev->rs_last_bcast = jiffies - HZ;
+
 		dev_info(DEV, "Began resync as %s (will sync %lu KB [%lu bits set]).\n",
 		     drbd_conn_str(ns.conn),
 		     (unsigned long) mdev->rs_total << (BM_BLOCK_SHIFT-10),
