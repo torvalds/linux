@@ -69,7 +69,8 @@
 #define RK29_CAM_SENSOR_SP2518  sp2518
 #define RK29_CAM_SENSOR_GC0329  gc0329
 #define RK29_CAM_SENSOR_S5K5CA  s5k5ca
-
+#define RK29_CAM_ISP_MTK9335	mtk9335isp
+#define RK29_CAM_SENSOR_GC2035	gc2035
 
 #define RK29_CAM_SENSOR_NAME_OV7675 "ov7675"
 #define RK29_CAM_SENSOR_NAME_OV9650 "ov9650"
@@ -101,6 +102,8 @@
 #define RK29_CAM_SENSOR_NAME_SP2518  "sp2518"
 #define RK29_CAM_SENSOR_NAME_GC0329  "gc0329"
 #define RK29_CAM_SENSOR_NAME_S5K5CA  "s5k5ca"
+#define RK29_CAM_ISP_NAME_MTK9335ISP "mtk9335isp"
+#define RK29_CAM_SENSOR_NAME_GC2035  "gc2035"
 
 #define ov7675_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define ov9650_FULL_RESOLUTION     0x130000           // 1.3 megapixel   
@@ -131,6 +134,8 @@
 #define sp2518_FULL_RESOLUTION      0x200000            // 2 megapixel
 #define gc0329_FULL_RESOLUTION      0x30000            // 0.3 megapixel
 #define s5k5ca_FULL_RESOLUTION      0x300000            // 3 megapixel
+#define mtk9335isp_FULL_RESOLUTION  0x500000   		//5 megapixel
+#define gc2035_FULL_RESOLUTION      0x200000            // 2 megapixel
 /*---------------- Camera Sensor Must Define Macro End  ------------------------*/
 
 

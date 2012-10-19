@@ -92,6 +92,8 @@ enum {
 	V4L2_IDENT_S5K66A = 310,							/* ddl@rock-chips.com : s5k66a support */
 	V4L2_IDENT_S5K5CA = 311,							/* ddl@rock-chips.com : s5k5ca support */
 
+	V4L2_IDENT_MTK9335ISP = 320,							/* ddl@rock-chips.com : MTK9335ISP support */
+
 	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
 	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
 	V4L2_IDENT_CX23415 = 415,
@@ -347,7 +349,7 @@ enum {
     V4L2_IDENT_GC0309 = 64113,      /* ddl@rock-chips.com : GC0309 support */
     V4L2_IDENT_GC2015 = 64114,      /* ddl@rock-chips.com : gc2015 support */
     V4L2_IDENT_GC0329 = 64115,      /* ddl@rock-chips.com : GC0329 support */
-
+    V4L2_IDENT_GC2035= 64116,      /* ddl@rock-chips.com : GC0329 support */
     V4L2_IDENT_SP0838 = 64120,      /* ddl@rock-chips.com : SP0838 support */
     V4L2_IDENT_SP2518 = 64121,      /* ddl@rock-chips.com : SP2518 support */
 
