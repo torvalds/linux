@@ -153,8 +153,10 @@ BEISCSI_RW_ATTR(log_enable, 0x00,
 		"\t\t\t\tIO Path Events		: 0x10\n"
 		"\t\t\t\tConfiguration Path	: 0x20\n");
 
+DEVICE_ATTR(beiscsi_drvr_ver, S_IRUGO, beiscsi_drvr_ver_disp, NULL);
 struct device_attribute *beiscsi_attrs[] = {
 	&dev_attr_beiscsi_log_enable,
+	&dev_attr_beiscsi_drvr_ver,
 	NULL,
 };
 

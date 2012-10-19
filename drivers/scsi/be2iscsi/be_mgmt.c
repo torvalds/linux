@@ -1136,3 +1136,19 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 	free_mcc_tag(&phba->ctrl, tag);
 	return 0;
 }
+
+/**
+ * beiscsi_drvr_ver_disp()- Display the driver Name and Version
+ * @dev: ptr to device not used.
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text driver name and version
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_drvr_ver_disp(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, BE_NAME "\n");
+}
