@@ -812,7 +812,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		 * migrate_pages returns # of failed pages.
 		 */
 		ret = migrate_pages(&source, alloc_migrate_target, 0,
-							true, MIGRATE_SYNC);
+							true, MIGRATE_SYNC,
+							MR_MEMORY_HOTPLUG);
 		if (ret)
 			putback_lru_pages(&source);
 	}
