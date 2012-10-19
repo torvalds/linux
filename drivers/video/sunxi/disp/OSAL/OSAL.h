@@ -24,7 +24,6 @@
 #include "../bsp_display.h"
 
 #include  "OSAL_Clock.h"
-#include  "OSAL_IrqLock.h"
 #include  "OSAL_Pin.h"
 
 #endif   //__OSAL_H__

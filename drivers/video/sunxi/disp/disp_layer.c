@@ -374,25 +374,20 @@ __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode)
 {
     __s32   hid;
     __s32   prio = 0;
-    __u32   cpu_sr;
     __layer_man_t * layer_man;
 
-    OSAL_IrqLock(&cpu_sr);
     hid = Layer_Get_Idle_Hid(sel);
     if(hid == DIS_NO_RES)
     {
         DE_WRN("all layer resource used!\n");
-        OSAL_IrqUnLock(cpu_sr);
         return DIS_NULL;
     }
     prio=Layer_Get_Idle_Prio(sel);
 	if(prio < 0)
 	{
         DE_WRN("all layer prio used!\n");
-        OSAL_IrqUnLock(cpu_sr);
 		return DIS_NULL;
 	}
-	OSAL_IrqUnLock(cpu_sr);
 
     BSP_disp_cfg_start(sel);
     
@@ -403,14 +398,12 @@ __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode)
 
     BSP_disp_cfg_finish(sel);
     
-    OSAL_IrqLock(&cpu_sr);
     layer_man = &gdisp.screen[sel].layer_manage[hid];	
     memset(&layer_man->para,0,sizeof(__disp_layer_info_t));
     layer_man->para.mode = DISP_LAYER_WORK_MODE_NORMAL;
     layer_man->para.prio = prio;
     layer_man->byuv_ch = 0;
 	layer_man->status = LAYER_USED;
-	OSAL_IrqUnLock(cpu_sr);
 
     return IDTOHAND(hid);
 }
@@ -418,7 +411,6 @@ __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode)
 
 __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
 {
-    __u32   cpu_sr;
     __layer_man_t * layer_man;
 
     hid = HANDTOID(hid);
@@ -470,10 +462,8 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
 
     BSP_disp_cfg_finish(sel);
     
-    OSAL_IrqLock(&cpu_sr);
     layer_man->para.prio = IDLE_PRIO;
     layer_man->status &= LAYER_USED_MASK&LAYER_OPEN_MASK;
-    OSAL_IrqUnLock(cpu_sr);
 
     return DIS_SUCCESS;
 }
@@ -534,7 +524,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t * pfb)//k
 {
     __s32           ret;
     layer_src_t     layer_fb;
-    __u32           cpu_sr;
     __layer_man_t * layer_man;
     __u32 size;
 
@@ -585,9 +574,7 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t * pfb)//k
                 DE_BE_Layer_Set_Framebuffer(sel, hid,&layer_fb);
             }
 
-            OSAL_IrqLock(&cpu_sr);
             memcpy(&layer_man->para.fb,pfb,sizeof(__disp_fb_t));
-            OSAL_IrqUnLock(cpu_sr);
 
             size = (pfb->size.width * layer_man->para.src_win.height * de_format_to_bpp(pfb->format) + 7)/8;
 
@@ -642,7 +629,6 @@ __s32 BSP_disp_layer_get_framebuffer(__u32 sel, __u32 hid,__disp_fb_t * pfb)
 
 __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)//if not scaler mode, ignore the src window width&height.
 {
-    __u32           cpu_sr;
     __layer_man_t * layer_man;
 
     hid = HANDTOID(hid);
@@ -693,12 +679,10 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)//i
                 DE_BE_Layer_Set_Framebuffer(sel, hid,&layer_fb);
             }
 
-            OSAL_IrqLock(&cpu_sr);
             layer_man->para.src_win.x = regn->x;
             layer_man->para.src_win.y = regn->y;
             layer_man->para.src_win.width = regn->width;
             layer_man->para.src_win.height = regn->height;
-            OSAL_IrqUnLock(cpu_sr);
 
 		    BSP_disp_cfg_finish(sel);
 		    
@@ -752,7 +736,6 @@ __s32 BSP_disp_layer_get_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)
 __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,__disp_rect_t * regn)
 {
     __disp_rectsz_t      outsize;
-    __u32           cpu_sr;
     __layer_man_t * layer_man;
 
     hid = HANDTOID(hid);
@@ -797,12 +780,10 @@ __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,__disp_rect_t * regn
         	Yuv_Channel_adjusting(sel, layer_man->para.fb.mode, layer_man->para.fb.format, &layer_man->para.src_win.x , &regn->width);
         }
         DE_BE_Layer_Set_Screen_Win(sel, hid, regn);
-	    OSAL_IrqLock(&cpu_sr);
 	    layer_man->para.scn_win.x = regn->x;
 	    layer_man->para.scn_win.y = regn->y;
 	    layer_man->para.scn_win.width = regn->width;
 	    layer_man->para.scn_win.height = regn->height;
-	    OSAL_IrqUnLock(cpu_sr);
 
 	    if(layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER)
 	    {
@@ -855,7 +836,6 @@ __s32 BSP_disp_layer_get_screen_window(__u32 sel, __u32 hid,__disp_rect_t *regn)
 __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
 {
     __s32 ret;
-    __u32 cpu_sr;
     __layer_man_t * layer_man;
     __u32 prio_tmp = 0;
     __u32 size;    
@@ -1002,7 +982,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
         DE_BE_Layer_ColorKey_Enable(sel, hid, player->ck_enable);
         DE_BE_Layer_Set_Screen_Win(sel,hid,&player->scn_win);
 
-        OSAL_IrqLock(&cpu_sr);
         prio_tmp = layer_man->para.prio;
         memcpy(&(layer_man->para),player,sizeof(__disp_layer_info_t));
         layer_man->para.prio = prio_tmp;//ignore the prio setting
@@ -1012,7 +991,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
             layer_man->para.src_win.height = player->src_win.height;
             layer_man->para.b_from_screen = player->b_from_screen;
         }
-        OSAL_IrqUnLock(cpu_sr);
 
         size = (player->fb.size.width * player->src_win.height * de_format_to_bpp(player->fb.format) + 7)/8;
 
