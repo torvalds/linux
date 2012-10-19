@@ -826,6 +826,59 @@ struct amap_sol_cqe_ring {
 	u8 valid;		/* dword 3 */
 } __packed;
 
+struct amap_sol_cqe_v2 {
+	u8 hw_sts[8];   /* dword 0 */
+	u8 i_sts[8];    /* dword 0 */
+	u8 wrb_index[16];   /* dword 0 */
+	u8 i_exp_cmd_sn[32];    /* dword 1 */
+	u8 code[6]; /* dword 2 */
+	u8 cmd_cmpl;    /* dword 2 */
+	u8 rsvd0;   /* dword 2 */
+	u8 i_cmd_wnd[8];    /* dword 2 */
+	u8 cid[13]; /* dword 2 */
+	u8 u;   /* dword 2 */
+	u8 o;   /* dword 2 */
+	u8 s;   /* dword 2 */
+	u8 i_res_cnt[31];   /* dword 3 */
+	u8 valid;   /* dword 3 */
+} __packed;
+
+struct common_sol_cqe {
+	u32 exp_cmdsn;
+	u32 res_cnt;
+	u16 wrb_index;
+	u16 cid;
+	u8 hw_sts;
+	u8 cmd_wnd;
+	u8 res_flag; /* the s feild of structure */
+	u8 i_resp; /* for skh if cmd_complete is set then i_sts is response */
+	u8 i_flags; /* for skh or the u and o feilds */
+	u8 i_sts; /* for skh if cmd_complete is not-set then i_sts is status */
+};
+
+/*** iSCSI ack/driver message completions ***/
+struct amap_it_dmsg_cqe {
+	u8 ack_num[32]; /* DWORD 0 */
+	u8 pdu_bytes_rcvd[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 cid[10]; /* DWORD 2 */
+	u8 wrb_idx[8];  /* DWORD 2 */
+	u8 rsvd0[8];    /* DWORD 2*/
+	u8 rsvd1[31];   /* DWORD 3*/
+	u8 valid;   /* DWORD 3 */
+} __packed;
+
+struct amap_it_dmsg_cqe_v2 {
+	u8 ack_num[32]; /* DWORD 0 */
+	u8 pdu_bytes_rcvd[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 rsvd0[10];   /* DWORD 2 */
+	u8 wrb_idx[16]; /* DWORD 2 */
+	u8 rsvd1[16];   /* DWORD 3 */
+	u8 cid[13]; /* DWORD 3 */
+	u8 rsvd2[2];    /* DWORD 3 */
+	u8 valid;   /* DWORD 3 */
+} __packed;
 
 
 /**

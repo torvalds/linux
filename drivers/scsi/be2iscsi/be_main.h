@@ -587,6 +587,20 @@ struct amap_i_t_dpdu_cqe {
 	u8 valid;
 } __packed;
 
+struct amap_i_t_dpdu_cqe_v2 {
+	u8 db_addr_hi[32];  /* DWORD 0 */
+	u8 db_addr_lo[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 num_cons; /* DWORD 2*/
+	u8 rsvd0[8]; /* DWORD 2 */
+	u8 dpl[17]; /* DWORD 2 */
+	u8 index[16]; /* DWORD 3 */
+	u8 cid[13]; /* DWORD 3 */
+	u8 rsvd1; /* DWORD 3 */
+	u8 final; /* DWORD 3 */
+	u8 valid; /* DWORD 3 */
+} __packed;
+
 #define CQE_VALID_MASK	0x80000000
 #define CQE_CODE_MASK	0x0000003F
 #define CQE_CID_MASK	0x0000FFC0
