@@ -575,13 +575,20 @@ unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 	return status;
 }
 
+/*
+ * mgmt_exec_nonemb_cmd()- Execute Non Embedded MBX Cmd
+ * @phba: Driver priv structure
+ * @nonemb_cmd: Address of the MBX command issued
+ * @resp_buf: Buffer to copy the MBX cmd response
+ * @resp_buf_len: respone lenght to be copied
+ *
+ **/
 static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 				struct be_dma_mem *nonemb_cmd, void *resp_buf,
 				int resp_buf_len)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	unsigned short status, extd_status;
 	struct be_sge *sge;
 	unsigned int tag;
 	int rc = 0;
@@ -599,31 +606,25 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
-	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->pa_lo = cpu_to_le32(lower_32_bits(nonemb_cmd->dma));
 	sge->len = cpu_to_le32(nonemb_cmd->size);
 
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 
-	wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-				 phba->ctrl.mcc_numtag[tag]);
-
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
+	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd->va);
+	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BG_%d : mgmt_exec_nonemb_cmd Failed status = %d"
-			    "extd_status = %d\n", status, extd_status);
+			    "BG_%d : mgmt_exec_nonemb_cmd Failed status\n");
+
 		rc = -EIO;
-		goto free_tag;
+		goto free_cmd;
 	}
 
 	if (resp_buf)
 		memcpy(resp_buf, nonemb_cmd->va, resp_buf_len);
 
-free_tag:
-	free_mcc_tag(&phba->ctrl, tag);
 free_cmd:
 	pci_free_consistent(ctrl->pdev, nonemb_cmd->size,
 			    nonemb_cmd->va, nonemb_cmd->dma);
@@ -1009,10 +1010,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 {
 	struct be_cmd_get_boot_target_resp *boot_resp;
 	struct be_mcc_wrb *wrb;
-	unsigned int tag, wrb_num;
+	unsigned int tag;
 	uint8_t boot_retry = 3;
-	unsigned short status, extd_status;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int rc;
 
 	do {
 		/* Get the Boot Target Session Handle and Count*/
@@ -1022,24 +1022,16 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
 				    "BG_%d : Getting Boot Target Info Failed\n");
 			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
+		}
 
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
+		rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-				    "BG_%d : mgmt_get_boot_target Failed"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
+				    "BG_%d : MBX CMD get_boot_target Failed\n");
 			return -EBUSY;
 		}
-		wrb = queue_get_wrb(mccq, wrb_num);
-		free_mcc_tag(&phba->ctrl, tag);
+
 		boot_resp = embedded_payload(wrb);
 
 		/* Check if the there are any Boot targets configured */
@@ -1064,24 +1056,15 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 				    "BG_%d : mgmt_reopen_session Failed\n");
 			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
+		}
 
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
+		rc = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-				    "BG_%d : mgmt_reopen_session Failed"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
-			return -EBUSY;
+				    "BG_%d : mgmt_reopen_session Failed");
+			return rc;
 		}
-		free_mcc_tag(&phba->ctrl, tag);
-
 	} while (--boot_retry);
 
 	/* Couldn't log into the boot target */
@@ -1106,8 +1089,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 int mgmt_set_vlan(struct beiscsi_hba *phba,
 		   uint16_t vlan_tag)
 {
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
+	int rc;
+	unsigned int tag;
+	struct be_mcc_wrb *wrb = NULL;
 
 	tag = be_cmd_set_vlan(phba, vlan_tag);
 	if (!tag) {
@@ -1115,26 +1099,16 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
 			    "BG_%d : VLAN Setting Failed\n");
 		return -EBUSY;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-
-	if (status || extd_status) {
-		beiscsi_log(phba, KERN_ERR,
-			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
-			    "BS_%d : status : %d extd_status : %d\n",
-			    status, extd_status);
-
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EAGAIN;
 	}
 
-	free_mcc_tag(&phba->ctrl, tag);
-	return 0;
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BS_%d : VLAN MBX Cmd Failed\n");
+		return rc;
+	}
+	return rc;
 }
 
 /**

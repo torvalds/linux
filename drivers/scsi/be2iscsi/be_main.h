@@ -279,7 +279,6 @@ struct beiscsi_hba {
 	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
-	unsigned int state;
 	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
@@ -333,6 +332,11 @@ struct beiscsi_hba {
 		unsigned short iscsi_features;
 		spinlock_t cid_lock;
 	} fw_config;
+
+	unsigned int state;
+	bool fw_timeout;
+	bool ue_detected;
+	struct delayed_work beiscsi_hw_check_task;
 
 	u8 mac_address[ETH_ALEN];
 	char wq_name[20];

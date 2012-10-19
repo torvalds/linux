@@ -57,6 +57,13 @@ struct be_mcc_wrb {
 #define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
 #define CQE_STATUS_EXTD_MASK 0xFFFF
 #define CQE_STATUS_EXTD_SHIFT 16		/* bits 0 - 15 */
+#define CQE_STATUS_ADDL_MASK	0xFF00
+#define CQE_STATUS_MASK	0xFF
+#define CQE_STATUS_ADDL_SHIFT	0x08
+#define CQE_STATUS_WRB_MASK	0xFF0000
+#define CQE_STATUS_WRB_SHIFT	16
+#define BEISCSI_HOST_MBX_TIMEOUT (110 * 1000)
+#define BEISCSI_FW_MBX_TIMEOUT	100
 
 /* MBOX Command VER */
 #define MBX_CMD_VER2	0x02
@@ -685,6 +692,9 @@ unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
+
+int beiscsi_mccq_compl(struct beiscsi_hba *phba,
+			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 

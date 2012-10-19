@@ -267,11 +267,9 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 				    nonemb_cmd.va, nonemb_cmd.dma);
 
 		return FAILED;
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-		free_mcc_tag(&phba->ctrl, tag);
 	}
+
+	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_abort(sc);
@@ -342,11 +340,9 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 		return FAILED;
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-		free_mcc_tag(&phba->ctrl, tag);
 	}
+
+	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_device_reset(sc);
@@ -3871,12 +3867,9 @@ static void hwi_disable_intr(struct beiscsi_hba *phba)
 static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 {
 	struct be_cmd_get_session_resp *session_resp;
-	struct be_mcc_wrb *wrb;
 	struct be_dma_mem nonemb_cmd;
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
+	unsigned int tag;
 	unsigned int s_handle;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	int ret = -ENOMEM;
 
 	/* Get the session handle of the boot target */
@@ -3909,25 +3902,16 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 			    " Failed\n");
 
 		goto boot_freemem;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
+	}
 
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
+	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
+	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-			    "BM_%d : beiscsi_get_session_info Failed"
-			    " status = %d extd_status = %d\n",
-			    status, extd_status);
-
-		free_mcc_tag(&phba->ctrl, tag);
+			    "BM_%d : beiscsi_get_session_info Failed");
 		goto boot_freemem;
 	}
-	wrb = queue_get_wrb(mccq, wrb_num);
-	free_mcc_tag(&phba->ctrl, tag);
+
 	session_resp = nonemb_cmd.va ;
 
 	memcpy(&phba->boot_sess, &session_resp->session_info,
@@ -4643,9 +4627,13 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 					    nonemb_cmd.va, nonemb_cmd.dma);
 			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
+		}
+
+		rc = wait_event_interruptible_timeout(
+					phba->ctrl.mcc_wait[tag],
+					phba->ctrl.mcc_numtag[tag],
+					msecs_to_jiffies(
+					BEISCSI_HOST_MBX_TIMEOUT));
 		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
 		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
 		free_mcc_tag(&phba->ctrl, tag);
@@ -4806,6 +4794,9 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	/* Initialize Driver configuration Paramters */
 	beiscsi_hba_attrs_init(phba);
+
+	phba->fw_timeout = false;
+
 
 	switch (pcidev->device) {
 	case BE_DEVICE_ID1:
