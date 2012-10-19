@@ -539,6 +539,10 @@ config RK29_SC8800
 config TDSC8800
 	bool "TDSC8800 modem control driver"
 	default n
+config MODEM_SOUND
+	bool "modem sound control driver"
+	default n
+	
 	
 
 source "drivers/misc/c2port/Kconfig"

@@ -46,9 +46,13 @@
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
+#if defined(CONFIG_MODEM_SOUND)
+#include "../../../drivers/misc/modem_sound.h"
+#endif
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
+#include "../../../drivers/headset_observe/rk_headset.h"
 
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
@@ -500,7 +504,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .batt_low_pin    = INVALID_GPIO,
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK2928_PIN1_PA0,
-        .dc_det_level    = GPIO_LOW,  //
+        .dc_det_level    = GPIO_HIGH,  //
         .charge_ok_level = GPIO_HIGH,
 };
 
@@ -566,6 +570,22 @@ struct platform_device pwm_regulator_device[1] = {
 		}
 	},
 };
+#endif
+
+#if defined(CONFIG_MODEM_SOUND)
+
+struct modem_sound_data modem_sound_info = {
+	.spkctl_io = RK2928_PIN3_PD4,
+	.spkctl_active = GPIO_HIGH,
+};
+
+struct platform_device modem_sound_device = {
+	.name = "modem_sound",
+	.id = -1,
+	.dev		= {
+	.platform_data = &modem_sound_info,
+		}
+	};
 #endif
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
@@ -736,6 +756,53 @@ struct platform_device rk29_device_sc6610 = {
         }
     };
 #endif
+#if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
+{
+	int ret;
+	ret = gpio_request(gpio, "headset_io");
+	if(ret) 
+		return ret;
+
+	rk30_mux_api_set(iomux_name, iomux_mode);
+	gpio_pull_updown(gpio, PullDisable);
+	gpio_direction_input(gpio);
+	mdelay(50);
+	return 0;
+};
+
+static int rk_hook_io_init(int gpio, char *iomux_name, int iomux_mode)
+{
+	int ret;
+	ret = gpio_request(gpio, "hook_io");
+	if(ret) 
+		return ret;
+
+	rk30_mux_api_set(iomux_name, iomux_mode);
+	gpio_pull_updown(gpio, PullDisable);
+	gpio_direction_input(gpio);
+	mdelay(50);
+	return 0;
+};
+
+struct rk_headset_pdata rk_headset_info = {
+		.Headset_gpio		= RK2928_PIN1_PB4,
+		.Hook_gpio  = RK2928_PIN0_PD1,
+		.headset_in_type = HEADSET_IN_HIGH,
+		.hook_key_code = KEY_MEDIA,
+		.headset_gpio_info = {GPIO1B4_SPI_CSN1_NAME, GPIO1B_GPIO1B4},
+		.headset_io_init = rk_headset_io_init,
+		.hook_gpio_info = {GPIO0D1_UART2_CTSN_NAME, GPIO0D_GPIO0D1},
+		.hook_io_init = rk_hook_io_init,
+};
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
+		.id 	= 0,
+		.dev    = {
+			    .platform_data = &rk_headset_info,
+		}
+};
+#endif
 #ifdef CONFIG_SND_SOC_RK2928
 static struct resource resources_acodec[] = {
 	{
@@ -781,6 +848,12 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SC6610)
         &rk29_device_sc6610,
 
+#endif
+#if defined (CONFIG_RK_HEADSET_DET) ||  defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+	&rk_device_headset,
+#endif
+#if defined (CONFIG_MODEM_SOUND)
+ &modem_sound_device,
 #endif
 };
 //i2c

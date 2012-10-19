@@ -43,8 +43,12 @@
 #include <linux/clk.h>
 #include "rk2928_codec.h"
 
+#define HP_OUT 0
+#define HP_IN  1
+
 static struct rk2928_codec_data {
 	struct device	*dev;
+	struct snd_soc_codec *codec;
 	int 			regbase;
 	int				regbase_phy;
 	int				regsize_phy;
@@ -52,6 +56,8 @@ static struct rk2928_codec_data {
 	int				mute;
 	int				hdmi_enable;
 	int				spkctl;
+	int             call_enable;
+	int             headset_status;	
 } rk2928_data;
 
 static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
@@ -135,6 +141,44 @@ void codec_set_spk(bool on)
 			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 	}
 }
+#ifdef CONFIG_MODEM_SOUND
+void call_set_spk(bool on)
+{
+	if(on == 0) {
+		printk("%s speaker is disabled\n", __FUNCTION__);
+		rk2928_data.call_enable = 1;
+		rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
+	}
+	else {
+		printk("%s speaker is enabled\n", __FUNCTION__);
+		rk2928_data.call_enable = 0;
+		rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+	}
+}
+#endif
+#ifdef CONFIG_RK_HEADSET_DET
+//for headset
+void rk2928_codec_set_spk(bool on)
+{
+	struct snd_soc_codec *codec = rk2928_data.codec;
+
+	printk("%s: headset %s %s PA bias_level=%d\n",__FUNCTION__,on?"in":"out",on?"disable":"enable",codec->dapm.bias_level);
+	if(on) {
+		rk2928_data.headset_status = HP_IN;	
+		if(rk2928_data.spkctl != INVALID_GPIO)
+			gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
+	}
+	else {
+		rk2928_data.headset_status = HP_OUT;
+		if(codec->dapm.bias_level == SND_SOC_BIAS_STANDBY 
+		|| codec->dapm.bias_level == SND_SOC_BIAS_OFF){
+			return;
+		}		
+		if(rk2928_data.spkctl != INVALID_GPIO)
+			gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
+	}
+}
+#endif
 
 static int rk2928_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
@@ -158,7 +202,10 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 	int err = 0;
 	int data, pd_adc;
 	DBG("%s cmd 0x%x", __FUNCTION__, cmd);
-	
+#ifdef CONFIG_MODEM_SOUND	
+	if(rk2928_data.call_enable)
+		return err;
+#endif		
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
@@ -212,7 +259,7 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 				}
 				rk2928_data.mute = 0;
-				if(rk2928_data.spkctl != INVALID_GPIO) {
+				if(rk2928_data.spkctl != INVALID_GPIO && rk2928_data.headset_status == HP_OUT) {
 					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
 				}
 			}
@@ -251,7 +298,7 @@ static int rk2928_audio_startup(struct snd_pcm_substream *substream,
 static int rk2928_set_bias_level(struct snd_soc_codec *codec,
 			      enum snd_soc_bias_level level)
 {
-	DBG("%s level %d", __FUNCTION__, level);
+	DBG("%s level %d\n", __FUNCTION__, level);
 	
 	if(codec == NULL)
 		return -1;
@@ -326,7 +373,7 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 	else {
 		rk2928_data.spkctl = res->start;
 	}
-	
+
 	if(rk2928_data.spkctl != INVALID_GPIO) {
 		ret = gpio_request(rk2928_data.spkctl, NULL);
 		if (ret != 0) {
@@ -335,7 +382,7 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 		else
 			gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
 	}
-	
+
 	// Select SDI input from internal audio codec
 	writel(0x04000400, RK2928_GRF_BASE + GRF_SOC_CON0);
 	
@@ -352,6 +399,9 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 	    snd_soc_dapm_add_routes(dapm, rk2926_audio_map, ARRAY_SIZE(rk2926_audio_map));
 	}
 
+	rk2928_data.call_enable = 0;
+	rk2928_data.headset_status = HP_OUT;
+	rk2928_data.codec=codec;
 	return 0;
 	
 err1:
