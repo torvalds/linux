@@ -2153,6 +2153,101 @@ static int be_iopoll(struct blk_iopoll *iop, int budget)
 }
 
 static void
+hwi_write_sgl_v2(struct iscsi_wrb *pwrb, struct scatterlist *sg,
+		  unsigned int num_sg, struct beiscsi_io_task *io_task)
+{
+	struct iscsi_sge *psgl;
+	unsigned int sg_len, index;
+	unsigned int sge_len = 0;
+	unsigned long long addr;
+	struct scatterlist *l_sg;
+	unsigned int offset;
+
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, iscsi_bhs_addr_lo, pwrb,
+		      io_task->bhs_pa.u.a32.address_lo);
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, iscsi_bhs_addr_hi, pwrb,
+		      io_task->bhs_pa.u.a32.address_hi);
+
+	l_sg = sg;
+	for (index = 0; (index < num_sg) && (index < 2); index++,
+			sg = sg_next(sg)) {
+		if (index == 0) {
+			sg_len = sg_dma_len(sg);
+			addr = (u64) sg_dma_address(sg);
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge0_addr_lo, pwrb,
+				      lower_32_bits(addr));
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge0_addr_hi, pwrb,
+				      upper_32_bits(addr));
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge0_len, pwrb,
+				      sg_len);
+			sge_len = sg_len;
+		} else {
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge1_r2t_offset,
+				      pwrb, sge_len);
+			sg_len = sg_dma_len(sg);
+			addr = (u64) sg_dma_address(sg);
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge1_addr_lo, pwrb,
+				      lower_32_bits(addr));
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge1_addr_hi, pwrb,
+				      upper_32_bits(addr));
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+				      sge1_len, pwrb,
+				      sg_len);
+		}
+	}
+	psgl = (struct iscsi_sge *)io_task->psgl_handle->pfrag;
+	memset(psgl, 0, sizeof(*psgl) * BE2_SGE);
+
+	AMAP_SET_BITS(struct amap_iscsi_sge, len, psgl, io_task->bhs_len - 2);
+
+	AMAP_SET_BITS(struct amap_iscsi_sge, addr_hi, psgl,
+		      io_task->bhs_pa.u.a32.address_hi);
+	AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, psgl,
+		      io_task->bhs_pa.u.a32.address_lo);
+
+	if (num_sg == 1) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge0_last, pwrb,
+			      1);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge1_last, pwrb,
+			      0);
+	} else if (num_sg == 2) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge0_last, pwrb,
+			      0);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge1_last, pwrb,
+			      1);
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge0_last, pwrb,
+			      0);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sge1_last, pwrb,
+			      0);
+	}
+
+	sg = l_sg;
+	psgl++;
+	psgl++;
+	offset = 0;
+	for (index = 0; index < num_sg; index++, sg = sg_next(sg), psgl++) {
+		sg_len = sg_dma_len(sg);
+		addr = (u64) sg_dma_address(sg);
+		AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, psgl,
+			      lower_32_bits(addr));
+		AMAP_SET_BITS(struct amap_iscsi_sge, addr_hi, psgl,
+			      upper_32_bits(addr));
+		AMAP_SET_BITS(struct amap_iscsi_sge, len, psgl, sg_len);
+		AMAP_SET_BITS(struct amap_iscsi_sge, sge_offset, psgl, offset);
+		AMAP_SET_BITS(struct amap_iscsi_sge, last_sge, psgl, 0);
+		offset += sg_len;
+	}
+	psgl--;
+	AMAP_SET_BITS(struct amap_iscsi_sge, last_sge, psgl, 1);
+}
+
+static void
 hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 	      unsigned int num_sg, struct beiscsi_io_task *io_task)
 {
@@ -2251,6 +2346,7 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 	struct beiscsi_io_task *io_task = task->dd_data;
 	struct beiscsi_conn *beiscsi_conn = io_task->conn;
 	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	uint8_t dsp_value = 0;
 
 	io_task->bhs_len = sizeof(struct be_nonio_bhs) - 2;
 	AMAP_SET_BITS(struct amap_iscsi_wrb, iscsi_bhs_addr_lo, pwrb,
@@ -2259,18 +2355,27 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 				io_task->bhs_pa.u.a32.address_hi);
 
 	if (task->data) {
-		if (task->data_count) {
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 1);
+
+		/* Check for the data_count */
+		dsp_value = (task->data_count) ? 1 : 0;
+
+		if (chip_skh_r(phba->pcidev))
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2, dsp,
+				      pwrb, dsp_value);
+		else
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dsp,
+				      pwrb, dsp_value);
+
+		/* Map addr only if there is data_count */
+		if (dsp_value) {
 			io_task->mtask_addr = pci_map_single(phba->pcidev,
 							     task->data,
 							     task->data_count,
 							     PCI_DMA_TODEVICE);
-
 			io_task->mtask_data_count = task->data_count;
-		} else {
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 0);
+		} else
 			io_task->mtask_addr = 0;
-		}
+
 		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_lo, pwrb,
 			      lower_32_bits(io_task->mtask_addr));
 		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_hi, pwrb,
@@ -4241,6 +4346,62 @@ free_hndls:
 	io_task->cmd_bhs = NULL;
 	return -ENOMEM;
 }
+int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
+		       unsigned int num_sg, unsigned int xferlen,
+		       unsigned int writedir)
+{
+
+	struct beiscsi_io_task *io_task = task->dd_data;
+	struct iscsi_conn *conn = task->conn;
+	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct iscsi_wrb *pwrb = NULL;
+	unsigned int doorbell = 0;
+
+	pwrb = io_task->pwrb_handle->pwrb;
+	memset(pwrb, 0, sizeof(*pwrb));
+
+	io_task->cmd_bhs->iscsi_hdr.exp_statsn = 0;
+	io_task->bhs_len = sizeof(struct be_cmd_bhs);
+
+	if (writedir) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, type, pwrb,
+			      INI_WR_CMD);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, dsp, pwrb, 1);
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, type, pwrb,
+			      INI_RD_CMD);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, dsp, pwrb, 0);
+	}
+
+	io_task->wrb_type = AMAP_GET_BITS(struct amap_iscsi_wrb_v2,
+					  type, pwrb);
+
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, lun, pwrb,
+		      cpu_to_be16(*(unsigned short *)
+		      &io_task->cmd_bhs->iscsi_hdr.lun));
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, r2t_exp_dtl, pwrb, xferlen);
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, wrb_idx, pwrb,
+		      io_task->pwrb_handle->wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, cmdsn_itt, pwrb,
+		      be32_to_cpu(task->cmdsn));
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sgl_idx, pwrb,
+		      io_task->psgl_handle->sgl_index);
+
+	hwi_write_sgl_v2(pwrb, sg, num_sg, io_task);
+	AMAP_SET_BITS(struct amap_iscsi_wrb_v2, ptr2nextwrb, pwrb,
+		      io_task->pwrb_handle->nxt_wrb_index);
+
+	be_dws_le_to_cpu(pwrb, sizeof(struct iscsi_wrb));
+
+	doorbell |= beiscsi_conn->beiscsi_conn_cid & DB_WRB_POST_CID_MASK;
+	doorbell |= (io_task->pwrb_handle->wrb_index &
+		     DB_DEF_PDU_WRB_INDEX_MASK) <<
+		     DB_DEF_PDU_WRB_INDEX_SHIFT;
+	doorbell |= 1 << DB_DEF_PDU_NUM_POSTED_SHIFT;
+	iowrite32(doorbell, phba->db_va + DB_TXULP0_OFFSET);
+	return 0;
+}
 
 static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 			  unsigned int num_sg, unsigned int xferlen,
@@ -4267,6 +4428,9 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 			      INI_RD_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 0);
 	}
+
+	io_task->wrb_type = AMAP_GET_BITS(struct amap_iscsi_wrb,
+					  type, pwrb);
 
 	AMAP_SET_BITS(struct amap_iscsi_wrb, lun, pwrb,
 		      cpu_to_be16(*(unsigned short *)
@@ -4303,55 +4467,75 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	struct iscsi_wrb *pwrb = NULL;
 	unsigned int doorbell = 0;
 	unsigned int cid;
+	unsigned int pwrb_typeoffset = 0;
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
 	memset(pwrb, 0, sizeof(*pwrb));
-	AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb,
-		      be32_to_cpu(task->cmdsn));
-	AMAP_SET_BITS(struct amap_iscsi_wrb, wrb_idx, pwrb,
-		      io_task->pwrb_handle->wrb_index);
-	AMAP_SET_BITS(struct amap_iscsi_wrb, sgl_icd_idx, pwrb,
-		      io_task->psgl_handle->sgl_index);
+
+	if (chip_skh_r(phba->pcidev)) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, cmdsn_itt, pwrb,
+			      be32_to_cpu(task->cmdsn));
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, wrb_idx, pwrb,
+			      io_task->pwrb_handle->wrb_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sgl_idx, pwrb,
+			      io_task->psgl_handle->sgl_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, r2t_exp_dtl, pwrb,
+			      task->data_count);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, ptr2nextwrb, pwrb,
+			      io_task->pwrb_handle->nxt_wrb_index);
+		pwrb_typeoffset = SKH_WRB_TYPE_OFFSET;
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb,
+			      be32_to_cpu(task->cmdsn));
+		AMAP_SET_BITS(struct amap_iscsi_wrb, wrb_idx, pwrb,
+			      io_task->pwrb_handle->wrb_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sgl_icd_idx, pwrb,
+			      io_task->psgl_handle->sgl_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, r2t_exp_dtl, pwrb,
+			      task->data_count);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, ptr2nextwrb, pwrb,
+			      io_task->pwrb_handle->nxt_wrb_index);
+		pwrb_typeoffset = BE_WRB_TYPE_OFFSET;
+	}
+
 
 	switch (task->hdr->opcode & ISCSI_OPCODE_MASK) {
 	case ISCSI_OP_LOGIN:
-		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-			      TGT_DM_CMD);
-		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb, 1);
+		ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_NOOP_OUT:
 		if (task->hdr->ttt != ISCSI_RESERVED_TAG) {
-			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      TGT_DM_CMD);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt,
-				      pwrb, 0);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
+			ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
+			if (chip_skh_r(phba->pcidev))
+				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+					      dmsg, pwrb, 1);
+			else
+				AMAP_SET_BITS(struct amap_iscsi_wrb,
+					      dmsg, pwrb, 1);
 		} else {
-			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      INI_RD_CMD);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
+			ADAPTER_SET_WRB_TYPE(pwrb, INI_RD_CMD, pwrb_typeoffset);
+			if (chip_skh_r(phba->pcidev))
+				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+					      dmsg, pwrb, 0);
+			else
+				AMAP_SET_BITS(struct amap_iscsi_wrb,
+					      dmsg, pwrb, 0);
 		}
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_TEXT:
-		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-			      TGT_DM_CMD);
-		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
+		ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
-		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-			      INI_TMF_CMD);
-		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
+		ADAPTER_SET_WRB_TYPE(pwrb, INI_TMF_CMD, pwrb_typeoffset);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_LOGOUT:
-		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
-		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-			      HWH_TYPE_LOGOUT);
+		ADAPTER_SET_WRB_TYPE(pwrb, HWH_TYPE_LOGOUT, pwrb_typeoffset);
 		hwi_write_buffer(pwrb, task);
 		break;
 
@@ -4363,11 +4547,10 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		return -EINVAL;
 	}
 
-	AMAP_SET_BITS(struct amap_iscsi_wrb, r2t_exp_dtl, pwrb,
-		      task->data_count);
-	AMAP_SET_BITS(struct amap_iscsi_wrb, ptr2nextwrb, pwrb,
-		      io_task->pwrb_handle->nxt_wrb_index);
-	be_dws_le_to_cpu(pwrb, sizeof(struct iscsi_wrb));
+	/* Set the task type */
+	io_task->wrb_type = (chip_skh_r(phba->pcidev)) ?
+		AMAP_GET_BITS(struct amap_iscsi_wrb_v2, type, pwrb) :
+		AMAP_GET_BITS(struct amap_iscsi_wrb, type, pwrb);
 
 	doorbell |= cid & DB_WRB_POST_CID_MASK;
 	doorbell |= (io_task->pwrb_handle->wrb_index &
@@ -4381,9 +4564,12 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 {
 	struct beiscsi_io_task *io_task = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
+	struct beiscsi_hba *phba = NULL;
 	struct scatterlist *sg;
 	int num_sg;
 	unsigned int  writedir = 0, xferlen = 0;
+
+	phba = ((struct beiscsi_conn *)task->conn->dd_data)->phba;
 
 	if (!sc)
 		return beiscsi_mtask(task);
@@ -4407,7 +4593,7 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	 else
 		writedir = 0;
 
-	return beiscsi_iotask(task, sg, num_sg, xferlen, writedir);
+	 return phba->iotask_fn(task, sg, num_sg, xferlen, writedir);
 }
 
 /**
@@ -4618,13 +4804,16 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	case OC_DEVICE_ID1:
 	case OC_DEVICE_ID2:
 		phba->generation = BE_GEN2;
+		phba->iotask_fn = beiscsi_iotask;
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID3:
 		phba->generation = BE_GEN3;
+		phba->iotask_fn = beiscsi_iotask;
 		break;
 	case OC_SKH_ID1:
 		phba->generation = BE_GEN4;
+		phba->iotask_fn = beiscsi_iotask_v2;
 	default:
 		phba->generation = 0;
 	}

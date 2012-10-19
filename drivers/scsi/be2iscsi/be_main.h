@@ -344,7 +344,10 @@ struct beiscsi_hba {
 	struct invalidate_command_table inv_tbl[128];
 
 	unsigned int attr_log_enable;
-
+	int (*iotask_fn)(struct iscsi_task *,
+			struct scatterlist *sg,
+			uint32_t num_sg, uint32_t xferlen,
+			uint32_t writedir);
 };
 
 struct beiscsi_session {
@@ -418,6 +421,7 @@ struct beiscsi_io_task {
 	unsigned short bhs_len;
 	dma_addr_t mtask_addr;
 	uint32_t mtask_data_count;
+	uint8_t wrb_type;
 };
 
 struct be_nonio_bhs {
@@ -625,6 +629,11 @@ struct iscsi_wrb {
 } __packed;
 
 #define WRB_TYPE_MASK 0xF0000000
+#define SKH_WRB_TYPE_OFFSET 27
+#define BE_WRB_TYPE_OFFSET  28
+
+#define ADAPTER_SET_WRB_TYPE(pwrb, wrb_type, type_offset) \
+		(pwrb->dw[0] |= (wrb_type << type_offset))
 
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -670,6 +679,46 @@ struct amap_iscsi_wrb {
 	u8 sge1_in_ddr;		/* DWORD 15 */
 
 } __packed;
+
+struct amap_iscsi_wrb_v2 {
+	u8 r2t_exp_dtl[25]; /* DWORD 0 */
+	u8 rsvd0[2];    /* DWORD 0*/
+	u8 type[5];     /* DWORD 0 */
+	u8 ptr2nextwrb[8];  /* DWORD 1 */
+	u8 wrb_idx[8];      /* DWORD 1 */
+	u8 lun[16];     /* DWORD 1 */
+	u8 sgl_idx[16]; /* DWORD 2 */
+	u8 ref_sgl_icd_idx[16]; /* DWORD 2 */
+	u8 exp_data_sn[32]; /* DWORD 3 */
+	u8 iscsi_bhs_addr_hi[32];   /* DWORD 4 */
+	u8 iscsi_bhs_addr_lo[32];   /* DWORD 5 */
+	u8 cq_id[16];   /* DWORD 6 */
+	u8 rsvd1[16];   /* DWORD 6 */
+	u8 cmdsn_itt[32];   /* DWORD 7 */
+	u8 sge0_addr_hi[32];    /* DWORD 8 */
+	u8 sge0_addr_lo[32];    /* DWORD 9 */
+	u8 sge0_offset[24]; /* DWORD 10 */
+	u8 rsvd2[7];    /* DWORD 10 */
+	u8 sge0_last;   /* DWORD 10 */
+	u8 sge0_len[17];    /* DWORD 11 */
+	u8 rsvd3[7];    /* DWORD 11 */
+	u8 diff_enbl;   /* DWORD 11 */
+	u8 u_run;       /* DWORD 11 */
+	u8 o_run;       /* DWORD 11 */
+	u8 invalid;     /* DWORD 11 */
+	u8 dsp;         /* DWORD 11 */
+	u8 dmsg;        /* DWORD 11 */
+	u8 rsvd4;       /* DWORD 11 */
+	u8 lt;          /* DWORD 11 */
+	u8 sge1_addr_hi[32];    /* DWORD 12 */
+	u8 sge1_addr_lo[32];    /* DWORD 13 */
+	u8 sge1_r2t_offset[24]; /* DWORD 14 */
+	u8 rsvd5[7];    /* DWORD 14 */
+	u8 sge1_last;   /* DWORD 14 */
+	u8 sge1_len[17];    /* DWORD 15 */
+	u8 rsvd6[15];   /* DWORD 15 */
+} __packed;
+
 
 struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
 void
