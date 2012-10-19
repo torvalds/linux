@@ -46,7 +46,7 @@ static int sram_gpio_init(int gpio, struct sram_gpio_data *data)
 static __sramfunc void sram_gpio_set_value(struct sram_gpio_data data, uint value)
 {
        writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DDR)| (1<<data.offset),
-                       data.offset + GPIO_SWPORTA_DDR);
+                       data.base + GPIO_SWPORTA_DDR);
        if(value)
                writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) | (1<<data.offset),
                                data.base + GPIO_SWPORTA_DR);
