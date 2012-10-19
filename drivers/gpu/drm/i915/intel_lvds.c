@@ -44,7 +44,6 @@ struct intel_lvds_connector {
 	struct intel_connector base;
 
 	struct notifier_block lid_notifier;
-	struct edid *edid;
 	int fitting_mode;
 };
 
@@ -460,8 +459,14 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 
-	if (lvds_connector->edid)
-		return drm_add_edid_modes(connector, lvds_connector->edid);
+	/* use cached edid if we have one */
+	if (lvds_connector->base.edid) {
+		/* invalid edid */
+		if (IS_ERR(lvds_connector->base.edid))
+			return 0;
+
+		return drm_add_edid_modes(connector, lvds_connector->base.edid);
+	}
 
 	mode = drm_mode_duplicate(dev, lvds_connector->base.panel.fixed_mode);
 	if (mode == NULL)
@@ -552,6 +557,9 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 
 	if (lvds_connector->lid_notifier.notifier_call)
 		acpi_lid_notifier_unregister(&lvds_connector->lid_notifier);
+
+	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
+		kfree(lvds_connector->base.edid);
 
 	intel_panel_destroy_backlight(connector->dev);
 	intel_panel_fini(&lvds_connector->base.panel);
@@ -922,6 +930,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_display_mode *fixed_mode = NULL;
+	struct edid *edid;
 	struct drm_crtc *crtc;
 	u32 lvds;
 	int pipe;
@@ -1021,18 +1030,21 @@ bool intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	lvds_connector->edid = drm_get_edid(connector,
-					    intel_gmbus_get_adapter(dev_priv, pin));
-	if (lvds_connector->edid) {
-		if (drm_add_edid_modes(connector, lvds_connector->edid)) {
+	edid = drm_get_edid(connector, intel_gmbus_get_adapter(dev_priv, pin));
+	if (edid) {
+		if (drm_add_edid_modes(connector, edid)) {
 			drm_mode_connector_update_edid_property(connector,
-								lvds_connector->edid);
+								edid);
 		} else {
-			kfree(lvds_connector->edid);
-			lvds_connector->edid = NULL;
+			kfree(edid);
+			edid = ERR_PTR(-EINVAL);
 		}
+	} else {
+		edid = ERR_PTR(-ENOENT);
 	}
-	if (!lvds_connector->edid) {
+	lvds_connector->base.edid = edid;
+
+	if (IS_ERR_OR_NULL(edid)) {
 		/* Didn't get an EDID, so
 		 * Set wide sync ranges so we get all modes
 		 * handed to valid_mode for checking

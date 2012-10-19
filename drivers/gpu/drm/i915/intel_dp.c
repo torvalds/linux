@@ -2317,44 +2317,45 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 static struct edid *
 intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct edid	*edid;
-	int size;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	if (is_edp(intel_dp)) {
-		if (!intel_dp->edid)
+	/* use cached edid if we have one */
+	if (intel_connector->edid) {
+		struct edid *edid;
+		int size;
+
+		/* invalid edid */
+		if (IS_ERR(intel_connector->edid))
 			return NULL;
 
-		size = (intel_dp->edid->extensions + 1) * EDID_LENGTH;
+		size = (intel_connector->edid->extensions + 1) * EDID_LENGTH;
 		edid = kmalloc(size, GFP_KERNEL);
 		if (!edid)
 			return NULL;
 
-		memcpy(edid, intel_dp->edid, size);
+		memcpy(edid, intel_connector->edid, size);
 		return edid;
 	}
 
-	edid = drm_get_edid(connector, adapter);
-	return edid;
+	return drm_get_edid(connector, adapter);
 }
 
 static int
 intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	int	ret;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	if (is_edp(intel_dp)) {
-		drm_mode_connector_update_edid_property(connector,
-							intel_dp->edid);
-		ret = drm_add_edid_modes(connector, intel_dp->edid);
-		drm_edid_to_eld(connector,
-				intel_dp->edid);
-		return intel_dp->edid_mode_count;
+	/* use cached edid if we have one */
+	if (intel_connector->edid) {
+		/* invalid edid */
+		if (IS_ERR(intel_connector->edid))
+			return 0;
+
+		return intel_connector_update_modes(connector,
+						    intel_connector->edid);
 	}
 
-	ret = intel_ddc_get_modes(connector, adapter);
-	return ret;
+	return intel_ddc_get_modes(connector, adapter);
 }
 
 
@@ -2506,6 +2507,9 @@ intel_dp_destroy(struct drm_connector *connector)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
+	if (!IS_ERR_OR_NULL(intel_connector->edid))
+		kfree(intel_connector->edid);
+
 	if (is_edp(intel_dp)) {
 		intel_panel_destroy_backlight(dev);
 		intel_panel_fini(&intel_connector->panel);
@@ -2523,7 +2527,6 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
-		kfree(intel_dp->edid);
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 		ironlake_panel_vdd_off_sync(intel_dp);
 	}
@@ -2810,13 +2813,17 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		ironlake_edp_panel_vdd_on(intel_dp);
 		edid = drm_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
-			drm_mode_connector_update_edid_property(connector,
-								edid);
-			intel_dp->edid_mode_count =
-				drm_add_edid_modes(connector, edid);
-			drm_edid_to_eld(connector, edid);
-			intel_dp->edid = edid;
+			if (drm_add_edid_modes(connector, edid)) {
+				drm_mode_connector_update_edid_property(connector, edid);
+				drm_edid_to_eld(connector, edid);
+			} else {
+				kfree(edid);
+				edid = ERR_PTR(-EINVAL);
+			}
+		} else {
+			edid = ERR_PTR(-ENOENT);
 		}
+		intel_connector->edid = edid;
 
 		/* prefer fixed mode from EDID if available */
 		list_for_each_entry(scan, &connector->probed_modes, head) {

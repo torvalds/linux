@@ -186,6 +186,9 @@ struct intel_connector {
 
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
+
+	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
+	struct edid *edid;
 };
 
 struct intel_crtc {
@@ -367,8 +370,6 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
-	struct edid *edid; /* cached EDID for eDP */
-	int edid_mode_count;
 	struct intel_connector *attached_connector;
 };
 
