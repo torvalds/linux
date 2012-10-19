@@ -3885,6 +3885,11 @@ static int hdspm_sync_in_sync_check(struct hdspm *hdspm)
 		break;
 
 	case MADI:
+		status = hdspm_read(hdspm, HDSPM_statusRegister);
+		lock = (status & HDSPM_syncInLock) ? 1 : 0;
+		sync = (status & HDSPM_syncInSync) ? 1 : 0;
+		break;
+
 	case AES32:
 		status = hdspm_read(hdspm, HDSPM_statusRegister2);
 		lock = (status & HDSPM_syncInLock) ? 1 : 0;
