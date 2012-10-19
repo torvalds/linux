@@ -2755,7 +2755,7 @@ static void dispc_mgr_disable_digit_out(void)
 		DSSERR("failed to unregister %x isr\n", irq_mask);
 }
 
-void dispc_mgr_enable(enum omap_channel channel)
+void dispc_mgr_enable_sync(enum omap_channel channel)
 {
 	if (dss_mgr_is_lcd(channel))
 		dispc_mgr_enable_lcd_out(channel);
@@ -2765,7 +2765,7 @@ void dispc_mgr_enable(enum omap_channel channel)
 		WARN_ON(1);
 }
 
-void dispc_mgr_disable(enum omap_channel channel)
+void dispc_mgr_disable_sync(enum omap_channel channel)
 {
 	if (dss_mgr_is_lcd(channel))
 		dispc_mgr_disable_lcd_out(channel);
