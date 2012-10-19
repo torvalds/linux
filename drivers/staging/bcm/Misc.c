@@ -24,10 +24,10 @@ static void default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 	return;
 }
 
-INT InitAdapter(struct bcm_mini_adapter *psAdapter)
+int InitAdapter(struct bcm_mini_adapter *psAdapter)
 {
 	int i = 0;
-	INT Status = STATUS_SUCCESS;
+	int Status = STATUS_SUCCESS;
 	BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Initialising Adapter = %p", psAdapter);
 
 	if (psAdapter == NULL) {
@@ -216,10 +216,10 @@ exit_download:
  * Logical Adapter
  * Control Packet Buffer
  */
-INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
+int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 {
 	struct bcm_leader *pLeader = NULL;
-	INT Status = 0;
+	int Status = 0;
 	unsigned char *ctrl_buff = NULL;
 	unsigned int pktlen = 0;
 	struct bcm_link_request *pLinkReq = NULL;
@@ -543,7 +543,7 @@ void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuff
 
 void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 {
-	INT status = 0, NVMAccess = 0, lowPwrAbortMsg = 0;
+	int status = 0, NVMAccess = 0, lowPwrAbortMsg = 0;
 	struct timeval tv;
 	struct bcm_link_request stIdleResponse = {{0} };
 	memset(&tv, 0, sizeof(tv));
@@ -583,7 +583,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 
 		/* Wait for the LED to TURN OFF before sending ACK response */
 		if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-			INT iRetVal = 0;
+			int iRetVal = 0;
 
 			/* Wake the LED Thread with IDLEMODE_ENTER State */
 			Adapter->DriverState = LOWPOWER_MODE_ENTER;
@@ -1211,7 +1211,7 @@ int wrmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned in
 
 int rdmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
-	INT uiRetVal = 0;
+	int uiRetVal = 0;
 
 	uiRetVal = rdm(Adapter, uiAddress, (PUCHAR)pucBuff, size);
 	convertEndian(RWM_READ, (unsigned int *)pucBuff, size);
@@ -1221,7 +1221,7 @@ int rdmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned in
 
 int wrmWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, PCHAR pucBuff, size_t sSize)
 {
-	INT status = STATUS_SUCCESS;
+	int status = STATUS_SUCCESS;
 	down(&Adapter->rdmwrmsync);
 
 	if ((Adapter->IdleMode == TRUE) ||
@@ -1260,7 +1260,7 @@ exit:
 
 int rdmaltWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
-	INT uiRetVal = STATUS_SUCCESS;
+	int uiRetVal = STATUS_SUCCESS;
 
 	down(&Adapter->rdmwrmsync);
 	if ((Adapter->IdleMode == TRUE) ||
@@ -1346,7 +1346,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 
 		/* Wait for the LED to TURN OFF before sending ACK response */
 		if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-			INT iRetVal = 0;
+			int iRetVal = 0;
 
 			/* Wake the LED Thread with LOWPOWER_MODE_ENTER State */
 			Adapter->DriverState = LOWPOWER_MODE_ENTER;
@@ -1412,7 +1412,7 @@ static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR p
 		}
 
 		SendShutModeResponse(Adapter);
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "ShutDownModeResponse:Notification received: Sending the response(Ack/Nack)\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "ShutDownModeResponse:Notification received: Sending the response(Ack/Nack)\n");
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
@@ -1498,7 +1498,7 @@ void update_per_cid_rx(struct bcm_mini_adapter *Adapter)
 
 void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 {
-	INT iIndex = 0;
+	int iIndex = 0;
 	u32 uibuff[MAX_TARGET_DSX_BUFFERS];
 	int bytes;
 
