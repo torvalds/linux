@@ -5646,6 +5646,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 		tcp_rearm_rto(sk);
 		return true;
 	}
+	tp->syn_data_acked = tp->syn_data;
 	return false;
 }
 
