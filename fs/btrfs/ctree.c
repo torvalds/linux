@@ -1140,13 +1140,13 @@ __tree_mod_log_rewind(struct extent_buffer *eb, u64 time_seq,
 		switch (tm->op) {
 		case MOD_LOG_KEY_REMOVE_WHILE_FREEING:
 			BUG_ON(tm->slot < n);
-		case MOD_LOG_KEY_REMOVE_WHILE_MOVING:
 		case MOD_LOG_KEY_REMOVE:
+			n++;
+		case MOD_LOG_KEY_REMOVE_WHILE_MOVING:
 			btrfs_set_node_key(eb, &tm->key, tm->slot);
 			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
-			n++;
 			break;
 		case MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
