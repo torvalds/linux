@@ -1,8 +1,7 @@
 obj-$(CONFIG_FB_SUNXI) += disp.o
 
 disp-objs :=  dev_disp.o dev_fb.o
-disp-objs += OSAL/OSAL_Clock.o OSAL/OSAL_Int.o OSAL/OSAL_IrqLock.o\
-	OSAL/OSAL_Pin.o
+disp-objs += OSAL/OSAL_Clock.o OSAL/OSAL_IrqLock.o OSAL/OSAL_Pin.o
 
 disp-objs += de_be.o de_fe.o de_hwc.o\
 	de_layer.o de_lcdc.o de_tvec.o\

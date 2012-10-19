@@ -1288,11 +1288,7 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
 }
 
 
-#ifdef __LINUX_OSAL__
-__s32 Disp_lcdc_event_proc(int irq, void *parg)
-#else
-__s32 Disp_lcdc_event_proc(void *parg)
-#endif
+static irqreturn_t Disp_lcdc_event_proc(int irq, void *parg)
 {
     __u32  lcdc_flags;
     __u32 sel = (__u32)parg;
@@ -1314,6 +1310,8 @@ __s32 Disp_lcdc_event_proc(void *parg)
 
 __s32 Disp_lcdc_init(__u32 sel)
 {
+    irqreturn_t ret;
+
     LCD_get_sys_config(sel, &(gdisp.screen[sel].lcd_cfg));
 
     lcdc_clk_init(sel);
@@ -1324,17 +1322,17 @@ __s32 Disp_lcdc_init(__u32 sel)
 
     if(sel == 0)
     {
-        OSAL_RegISR(INTC_IRQNO_LCDC0,0,Disp_lcdc_event_proc,(void*)sel,0,0);
+	ret = request_irq(INTC_IRQNO_LCDC0, Disp_lcdc_event_proc, IRQF_DISABLED, "sunxi lcd0", (void *) sel);
 #ifndef __LINUX_OSAL__
-        OSAL_InterruptEnable(INTC_IRQNO_LCDC0);
+        enable_irq(INTC_IRQNO_LCDC0);
         LCD_get_panel_funs_0(&lcd_panel_fun[sel]);
 #endif
     }
     else
     {
-        OSAL_RegISR(INTC_IRQNO_LCDC1,0,Disp_lcdc_event_proc,(void*)sel,0,0);
+	ret = request_irq(INTC_IRQNO_LCDC1, Disp_lcdc_event_proc, IRQF_DISABLED, "sunxi lcd1", (void *) sel);
 #ifndef __LINUX_OSAL__
-        OSAL_InterruptEnable(INTC_IRQNO_LCDC1);
+        enable_irq(INTC_IRQNO_LCDC1);
         LCD_get_panel_funs_1(&lcd_panel_fun[sel]);
 #endif
     }
@@ -1379,13 +1377,13 @@ __s32 Disp_lcdc_exit(__u32 sel)
 {
     if(sel == 0)
     {
-        OSAL_InterruptDisable(INTC_IRQNO_LCDC0);
-        OSAL_UnRegISR(INTC_IRQNO_LCDC0,Disp_lcdc_event_proc,(void*)sel);
+        disable_irq(INTC_IRQNO_LCDC0);
+        free_irq(INTC_IRQNO_LCDC0, (void *) sel);
     }
     else if(sel == 1)
     {
-        OSAL_InterruptDisable(INTC_IRQNO_LCDC1);
-        OSAL_UnRegISR(INTC_IRQNO_LCDC1,Disp_lcdc_event_proc,(void*)sel);
+        disable_irq(INTC_IRQNO_LCDC1);
+        free_irq(INTC_IRQNO_LCDC1, (void *) sel);
     }
 
     LCDC_exit(sel);

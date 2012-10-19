@@ -32,11 +32,6 @@ extern __panel_para_t		gpanel_info[2];
 __s32 Disp_lcdc_init(__u32 sel);
 __s32 Disp_lcdc_exit(__u32 sel);
 
-#ifdef __LINUX_OSAL__
-__s32 Disp_lcdc_event_proc(__s32 irq, void *parg);
-#else
-__s32 Disp_lcdc_event_proc(void *parg);
-#endif
 __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon);
 __u32 Disp_get_screen_scan_mode(__disp_tv_mode_t tv_mode);
 
