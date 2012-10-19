@@ -2595,7 +2595,7 @@ static void dispc_mgr_disable_isr(void *data, u32 mask)
 	complete(compl);
 }
 
-static void _enable_mgr_out(enum omap_channel channel, bool enable)
+void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
 	/* flush posted write */
@@ -2609,7 +2609,7 @@ bool dispc_mgr_is_enabled(enum omap_channel channel)
 
 static void dispc_mgr_enable_lcd_out(enum omap_channel channel)
 {
-	_enable_mgr_out(channel, true);
+	dispc_mgr_enable(channel, true);
 }
 
 static void dispc_mgr_disable_lcd_out(enum omap_channel channel)
@@ -2633,7 +2633,7 @@ static void dispc_mgr_disable_lcd_out(enum omap_channel channel)
 	if (r)
 		DSSERR("failed to register FRAMEDONE isr\n");
 
-	_enable_mgr_out(channel, false);
+	dispc_mgr_enable(channel, false);
 
 	/* if we couldn't register for framedone, just sleep and exit */
 	if (r) {
@@ -2685,7 +2685,7 @@ static void dispc_mgr_enable_digit_out(void)
 		return;
 	}
 
-	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, true);
+	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, true);
 
 	/* wait for the first evsync */
 	if (!wait_for_completion_timeout(&vsync_compl, msecs_to_jiffies(100)))
@@ -2735,7 +2735,7 @@ static void dispc_mgr_disable_digit_out(void)
 	if (r)
 		DSSERR("failed to register %x isr\n", irq_mask);
 
-	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, false);
+	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, false);
 
 	/* if we couldn't register the irq, just sleep and exit */
 	if (r) {
