@@ -301,7 +301,7 @@ static bool ath6kl_cfg80211_ready(struct ath6kl_vif *vif)
 
 static bool ath6kl_is_wpa_ie(const u8 *pos)
 {
-	return pos[0] == WLAN_EID_WPA && pos[1] >= 4 &&
+	return pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		pos[2] == 0x00 && pos[3] == 0x50 &&
 		pos[4] == 0xf2 && pos[5] == 0x01;
 }
@@ -3651,7 +3651,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_INACTIVITY_TIMEOUT,
 		     ar->fw_capabilities))
-		ar->wiphy->features = NL80211_FEATURE_INACTIVITY_TIMER;
+		ar->wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 
 	ar->wiphy->probe_resp_offload =
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |

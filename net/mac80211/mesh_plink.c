@@ -50,14 +50,14 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 static inline
 u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_inc(&sdata->u.mesh.mshstats.estab_plinks);
+	atomic_inc(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata);
 }
 
 static inline
 u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_dec(&sdata->u.mesh.mshstats.estab_plinks);
+	atomic_dec(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata);
 }
 
@@ -252,6 +252,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.self_prot.action_code = action;
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
+		enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+
 		/* capability info */
 		pos = skb_put(skb, 2);
 		memset(pos, 0, 2);
@@ -260,10 +262,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			pos = skb_put(skb, 2);
 			memcpy(pos + 2, &plid, 2);
 		}
-		if (ieee80211_add_srates_ie(sdata, skb, true,
-					    local->oper_channel->band) ||
-		    ieee80211_add_ext_srates_ie(sdata, skb, true,
-						local->oper_channel->band) ||
+		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
+		    ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata))
@@ -343,7 +343,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 				       struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = local->oper_channel->band;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u32 rates, basic_rates = 0;
 	struct sta_info *sta;

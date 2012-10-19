@@ -3,6 +3,7 @@
 #include <net/cfg80211.h>
 #include "nl80211.h"
 #include "core.h"
+#include "rdev-ops.h"
 
 /* Default values, timeouts in ms */
 #define MESH_TTL 		31
@@ -160,7 +161,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (err)
 		return err;
 
-	err = rdev->ops->join_mesh(&rdev->wiphy, dev, conf, setup);
+	err = rdev_join_mesh(rdev, dev, conf, setup);
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
 		wdev->mesh_id_len = setup->mesh_id_len;
@@ -220,9 +221,8 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 		if (err)
 			return err;
 
-		err = rdev->ops->libertas_set_mesh_channel(&rdev->wiphy,
-							   wdev->netdev,
-							   channel);
+		err = rdev_libertas_set_mesh_channel(rdev, wdev->netdev,
+						     channel);
 		if (!err)
 			wdev->channel = channel;
 
@@ -242,6 +242,7 @@ void cfg80211_notify_new_peer_candidate(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
+	trace_cfg80211_notify_new_peer_candidate(dev, macaddr);
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_MESH_POINT))
 		return;
 
@@ -267,7 +268,7 @@ static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 	if (!wdev->mesh_id_len)
 		return -ENOTCONN;
 
-	err = rdev->ops->leave_mesh(&rdev->wiphy, dev);
+	err = rdev_leave_mesh(rdev, dev);
 	if (!err) {
 		wdev->mesh_id_len = 0;
 		wdev->channel = NULL;

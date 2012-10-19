@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <net/cfg80211.h>
 #include "core.h"
+#include "rdev-ops.h"
 
 struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
@@ -52,6 +53,8 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 	struct ieee80211_channel *sec_chan;
 	int diff;
 
+	trace_cfg80211_can_beacon_sec_chan(wiphy, chan, channel_type);
+
 	switch (channel_type) {
 	case NL80211_CHAN_HT40PLUS:
 		diff = 20;
@@ -60,20 +63,25 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 		diff = -20;
 		break;
 	default:
+		trace_cfg80211_return_bool(true);
 		return true;
 	}
 
 	sec_chan = ieee80211_get_channel(wiphy, chan->center_freq + diff);
-	if (!sec_chan)
+	if (!sec_chan) {
+		trace_cfg80211_return_bool(false);
 		return false;
+	}
 
 	/* we'll need a DFS capability later */
 	if (sec_chan->flags & (IEEE80211_CHAN_DISABLED |
 			       IEEE80211_CHAN_PASSIVE_SCAN |
 			       IEEE80211_CHAN_NO_IBSS |
-			       IEEE80211_CHAN_RADAR))
+			       IEEE80211_CHAN_RADAR)) {
+		trace_cfg80211_return_bool(false);
 		return false;
-
+	}
+	trace_cfg80211_return_bool(true);
 	return true;
 }
 EXPORT_SYMBOL(cfg80211_can_beacon_sec_chan);
@@ -92,7 +100,7 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 	if (!chan)
 		return -EINVAL;
 
-	return rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
+	return rdev_set_monitor_channel(rdev, chan, chantype);
 }
 
 void

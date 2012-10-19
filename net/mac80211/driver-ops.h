@@ -871,4 +871,69 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
+
+static inline int drv_add_chanctx(struct ieee80211_local *local,
+				  struct ieee80211_chanctx *ctx)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_drv_add_chanctx(local, ctx);
+	if (local->ops->add_chanctx)
+		ret = local->ops->add_chanctx(&local->hw, &ctx->conf);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_remove_chanctx(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx)
+{
+	trace_drv_remove_chanctx(local, ctx);
+	if (local->ops->remove_chanctx)
+		local->ops->remove_chanctx(&local->hw, &ctx->conf);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_change_chanctx(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx,
+				      u32 changed)
+{
+	trace_drv_change_chanctx(local, ctx, changed);
+	if (local->ops->change_chanctx)
+		local->ops->change_chanctx(&local->hw, &ctx->conf, changed);
+	trace_drv_return_void(local);
+}
+
+static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
+					 struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_chanctx *ctx)
+{
+	int ret = 0;
+
+	check_sdata_in_driver(sdata);
+
+	trace_drv_assign_vif_chanctx(local, sdata, ctx);
+	if (local->ops->assign_vif_chanctx)
+		ret = local->ops->assign_vif_chanctx(&local->hw,
+						     &sdata->vif,
+						     &ctx->conf);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
+					    struct ieee80211_sub_if_data *sdata,
+					    struct ieee80211_chanctx *ctx)
+{
+	check_sdata_in_driver(sdata);
+
+	trace_drv_unassign_vif_chanctx(local, sdata, ctx);
+	if (local->ops->unassign_vif_chanctx)
+		local->ops->unassign_vif_chanctx(&local->hw,
+						 &sdata->vif,
+						 &ctx->conf);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */
