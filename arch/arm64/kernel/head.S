@@ -185,6 +185,10 @@ ENTRY(el2_setup)
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* Hypervisor stub */
+	adr	x0, __hyp_stub_vectors
+	msr	vbar_el2, x0
+
 	/* spsr */
 	mov	x0, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)

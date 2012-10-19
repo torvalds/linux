@@ -33,6 +33,9 @@
  */
 extern u32 __boot_cpu_mode[2];
 
+void __hyp_set_vectors(phys_addr_t phys_vector_base);
+phys_addr_t __hyp_get_vectors(void);
+
 /* Reports the availability of HYP mode */
 static inline bool is_hyp_mode_available(void)
 {
