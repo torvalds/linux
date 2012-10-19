@@ -866,7 +866,7 @@ error_ret:
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev)
 {
 	if (test_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags)) {
-		del_timer_sync(&ifx_dev->spi_timer);
+		del_timer(&ifx_dev->spi_timer);
 		clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	}
 
