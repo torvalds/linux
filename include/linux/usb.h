@@ -482,6 +482,7 @@ struct usb3_lpm_parameters {
  * @connect_time: time device was first connected
  * @do_remote_wakeup:  remote wakeup should be enabled
  * @reset_resume: needs reset instead of resume
+ * @port_is_suspended: the upstream port is suspended (L2 or U3)
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
@@ -560,6 +561,7 @@ struct usb_device {
 
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
+	unsigned port_is_suspended:1;
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
