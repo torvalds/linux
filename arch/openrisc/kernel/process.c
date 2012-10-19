@@ -251,30 +251,6 @@ void dump_elf_thread(elf_greg_t *dest, struct pt_regs* regs)
 	dest[35] = 0;
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage long _sys_execve(const char __user *name,
-			    const char __user * const __user *argv,
-			    const char __user * const __user *envp,
-			    struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-
-out:
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	/* TODO */

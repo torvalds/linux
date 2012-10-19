@@ -1083,10 +1083,6 @@ ENTRY(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
 	 l.addi	r3,r1,0
 
-ENTRY(sys_execve)
-	l.j	_sys_execve
-	 l.addi	r6,r1,0
-
 ENTRY(sys_sigaltstack)
 	l.j	_sys_sigaltstack
 	 l.addi	r5,r1,0
