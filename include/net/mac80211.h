@@ -2381,6 +2381,13 @@ enum ieee80211_rate_control_changed {
  *	to vif. Possible use is for hw queue remapping.
  * @unassign_vif_chanctx: Notifies device driver about channel context being
  *	unbound from vif.
+ * @start_ap: Start operation on the AP interface, this is called after all the
+ *	information in bss_conf is set and beacon can be retrieved. A channel
+ *	context is bound before this is called. Note that if the driver uses
+ *	software scan or ROC, this (and @stop_ap) isn't called when the AP is
+ *	just "paused" for scanning/ROC, which is indicated by the beacon being
+ *	disabled/enabled via @bss_info_changed.
+ * @stop_ap: Stop operation on the AP interface.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2405,6 +2412,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+
+	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);

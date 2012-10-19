@@ -1467,8 +1467,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_AP:
 			changed |= BSS_CHANGED_SSID;
 
-			if (sdata->vif.type == NL80211_IFTYPE_AP)
+			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
+
+				if (rcu_access_pointer(sdata->u.ap.beacon))
+					drv_start_ap(local, sdata);
+			}
 
 			/* fall through */
 		case NL80211_IFTYPE_MESH_POINT:

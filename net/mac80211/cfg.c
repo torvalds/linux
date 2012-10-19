@@ -922,6 +922,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	changed |= err;
 
+	err = drv_start_ap(sdata->local, sdata);
+	if (err) {
+		old = rtnl_dereference(sdata->u.ap.beacon);
+		if (old)
+			kfree_rcu(old, rcu_head);
+		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
+		return err;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(dev);
@@ -978,6 +987,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	sta_info_flush(local, sdata);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+
+	drv_stop_ap(sdata->local, sdata);
 
 	/* free all potentially still buffered bcast frames */
 	local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
