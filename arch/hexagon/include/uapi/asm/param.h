@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,11 +16,11 @@
  * 02110-1301, USA.
  */
 
-#ifndef __ASM_HEXAGON_BITSPERLONG_H
-#define __ASM_HEXAGON_BITSPERLONG_H
+#ifndef _ASM_PARAM_H
+#define _ASM_PARAM_H
 
-#define __BITS_PER_LONG 32
+#define EXEC_PAGESIZE	16384
 
-#include <asm-generic/bitsperlong.h>
+#include <asm-generic/param.h>
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,9 +16,18 @@
  * 02110-1301, USA.
  */
 
-#ifndef _ASM_SWAB_H
-#define _ASM_SWAB_H
+#ifndef _ASM_SIGCONTEXT_H
+#define _ASM_SIGCONTEXT_H
 
-#define __SWAB_64_THRU_32__
+#include <asm/user.h>
+
+/*
+ * Signal context structure - contains all info to do with the state
+ * before the signal handler was invoked.  Note: only add new entries
+ * to the end of the structure.
+ */
+struct sigcontext {
+	struct user_regs_struct sc_regs;
+} __aligned(8);
 
 #endif

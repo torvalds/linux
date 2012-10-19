@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,13 +16,11 @@
  * 02110-1301, USA.
  */
 
-#ifndef _ASM_BYTEORDER_H
-#define _ASM_BYTEORDER_H
+#ifndef __ASM_HEXAGON_BITSPERLONG_H
+#define __ASM_HEXAGON_BITSPERLONG_H
 
-#if defined(__GNUC__) && !defined(__STRICT_ANSI__) || defined(__KERNEL__)
-#  define __BYTEORDER_HAS_U64__
+#define __BITS_PER_LONG 32
+
+#include <asm-generic/bitsperlong.h>
+
 #endif
-
-#include <linux/byteorder/little_endian.h>
-
-#endif /* _ASM_BYTEORDER_H */

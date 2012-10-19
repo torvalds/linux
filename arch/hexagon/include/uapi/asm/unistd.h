@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Syscall support for Hexagon
+ *
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,11 +18,14 @@
  * 02110-1301, USA.
  */
 
-#ifndef _ASM_PARAM_H
-#define _ASM_PARAM_H
+/*
+ *  The kernel pulls this unistd.h in three different ways:
+ *  1.  the "normal" way which gets all the __NR defines
+ *  2.  with __SYSCALL defined to produce function declarations
+ *  3.  with __SYSCALL defined to produce syscall table initialization
+ *  See also:  syscalltab.c
+ */
 
-#define EXEC_PAGESIZE	16384
+#define sys_mmap2 sys_mmap_pgoff
 
-#include <asm-generic/param.h>
-
-#endif
+#include <asm-generic/unistd.h>

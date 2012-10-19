@@ -1,7 +1,5 @@
 /*
- * Syscall support for Hexagon
- *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,14 +16,13 @@
  * 02110-1301, USA.
  */
 
-/*
- *  The kernel pulls this unistd.h in three different ways:
- *  1.  the "normal" way which gets all the __NR defines
- *  2.  with __SYSCALL defined to produce function declarations
- *  3.  with __SYSCALL defined to produce syscall table initialization
- *  See also:  syscalltab.c
- */
+#ifndef _ASM_BYTEORDER_H
+#define _ASM_BYTEORDER_H
 
-#define sys_mmap2 sys_mmap_pgoff
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__) || defined(__KERNEL__)
+#  define __BYTEORDER_HAS_U64__
+#endif
 
-#include <asm-generic/unistd.h>
+#include <linux/byteorder/little_endian.h>
+
+#endif /* _ASM_BYTEORDER_H */

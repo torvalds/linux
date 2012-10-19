@@ -1,7 +1,5 @@
 /*
- * Ptrace definitions for the Hexagon architecture
- *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,18 +16,9 @@
  * 02110-1301, USA.
  */
 
-#ifndef _ASM_PTRACE_H
-#define _ASM_PTRACE_H
+#ifndef _ASM_SWAB_H
+#define _ASM_SWAB_H
 
-#include <asm/registers.h>
-
-#define instruction_pointer(regs) pt_elr(regs)
-#define user_stack_pointer(regs) ((regs)->r29)
-
-#define profile_pc(regs) instruction_pointer(regs)
-
-/* kprobe-based event tracer support */
-extern int regs_query_register_offset(const char *name);
-extern const char *regs_query_register_name(unsigned int offset);
+#define __SWAB_64_THRU_32__
 
 #endif
