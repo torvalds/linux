@@ -759,6 +759,41 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&hdmi.lock);
 }
 
+int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev)
+{
+	int r = 0;
+
+	DSSDBG("ENTER omapdss_hdmi_core_enable\n");
+
+	mutex_lock(&hdmi.lock);
+
+	hdmi.ip_data.hpd_gpio = hdmi.hpd_gpio;
+
+	r = hdmi_power_on_core(dssdev);
+	if (r) {
+		DSSERR("failed to power on device\n");
+		goto err0;
+	}
+
+	mutex_unlock(&hdmi.lock);
+	return 0;
+
+err0:
+	mutex_unlock(&hdmi.lock);
+	return r;
+}
+
+void omapdss_hdmi_core_disable(struct omap_dss_device *dssdev)
+{
+	DSSDBG("Enter omapdss_hdmi_core_disable\n");
+
+	mutex_lock(&hdmi.lock);
+
+	hdmi_power_off_core(dssdev);
+
+	mutex_unlock(&hdmi.lock);
+}
+
 static int hdmi_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
