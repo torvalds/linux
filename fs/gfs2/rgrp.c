@@ -251,22 +251,25 @@ static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
 static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 {
 	u64 rblock = block - rbm->rgd->rd_data0;
-	u32 goal = (u32)rblock;
-	int x;
+	u32 x;
 
 	if (WARN_ON_ONCE(rblock > UINT_MAX))
 		return -EINVAL;
 	if (block >= rbm->rgd->rd_data0 + rbm->rgd->rd_data)
 		return -E2BIG;
 
-	for (x = 0; x < rbm->rgd->rd_length; x++) {
-		rbm->bi = rbm->rgd->rd_bits + x;
-		if (goal < (rbm->bi->bi_start + rbm->bi->bi_len) * GFS2_NBBY) {
-			rbm->offset = goal - (rbm->bi->bi_start * GFS2_NBBY);
-			break;
-		}
-	}
+	rbm->bi = rbm->rgd->rd_bits;
+	rbm->offset = (u32)(rblock);
+	/* Check if the block is within the first block */
+	if (rbm->offset < (rbm->bi->bi_start + rbm->bi->bi_len) * GFS2_NBBY)
+		return 0;
 
+	/* Adjust for the size diff between gfs2_meta_header and gfs2_rgrp */
+	rbm->offset += (sizeof(struct gfs2_rgrp) -
+			sizeof(struct gfs2_meta_header)) * GFS2_NBBY;
+	x = rbm->offset / rbm->rgd->rd_sbd->sd_blocks_per_bitmap;
+	rbm->offset -= x * rbm->rgd->rd_sbd->sd_blocks_per_bitmap;
+	rbm->bi += x;
 	return 0;
 }
 
