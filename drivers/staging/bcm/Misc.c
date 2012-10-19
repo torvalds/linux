@@ -1175,7 +1175,7 @@ static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 	}
 }
 
-static void convertEndian(B_UINT8 rwFlag, unsigned int *puiBuffer, UINT uiByteCount)
+static void convertEndian(unsigned char rwFlag, unsigned int *puiBuffer, UINT uiByteCount)
 {
 	UINT uiIndex = 0;
 
