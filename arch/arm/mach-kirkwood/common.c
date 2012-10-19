@@ -633,12 +633,14 @@ char * __init kirkwood_id(void)
 
 void __init kirkwood_l2_init(void)
 {
+#ifdef CONFIG_CACHE_FEROCEON_L2
 #ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
 	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
 	feroceon_l2_init(1);
 #else
 	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
 	feroceon_l2_init(0);
+#endif
 #endif
 }
 
@@ -657,9 +659,7 @@ void __init kirkwood_init(void)
 
 	kirkwood_setup_cpu_mbus();
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
-#endif
 
 	/* Setup root of clk tree */
 	kirkwood_clk_init();
