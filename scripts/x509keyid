@@ -22,7 +22,7 @@ use strict;
 
 my $raw_data;
 
-die "Need three filenames\n" if ($#ARGV != 2);
+die "Need a filename [keyid|signer-name]\n" if ($#ARGV != 1);
 
 my $src = $ARGV[0];
 
@@ -259,10 +259,10 @@ die $src, ": ", "X.509: Couldn't find the Subject Key Identifier extension\n"
 
 my $id_key_id = asn1_retrieve($subject_key_id->[1]);
 
-open(OUTFD, ">$ARGV[1]") || die $ARGV[1];
-print OUTFD $id_name;
-close OUTFD || die $ARGV[1];
-
-open(OUTFD, ">$ARGV[2]") || die $ARGV[2];
-print OUTFD $id_key_id;
-close OUTFD || die $ARGV[2];
+if ($ARGV[1] eq "signer-name") {
+    print $id_name;
+} elsif ($ARGV[1] eq "keyid") {
+    print $id_key_id;
+} else {
+    die "Unknown arg";
+}

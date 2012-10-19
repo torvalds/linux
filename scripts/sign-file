@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Sign a module file using the given key.
 #
-# Format: sign-file <key> <x509> <src-file> <dst-file>
+# Format: sign-file <key> <x509> <keyid-script> <module>
 #
 
 scripts=`dirname $0`
@@ -15,8 +15,8 @@ fi
 
 key="$1"
 x509="$2"
-src="$3"
-dst="$4"
+keyid_script="$3"
+mod="$4"
 
 if [ ! -r "$key" ]
 then
@@ -28,16 +28,6 @@ if [ ! -r "$x509" ]
 then
     echo "Can't read X.509 certificate" >&2
     exit 2
-fi
-if [ ! -r "$x509.signer" ]
-then
-    echo "Can't read Signer name" >&2
-    exit 2;
-fi
-if [ ! -r "$x509.keyid" ]
-then
-    echo "Can't read Key identifier" >&2
-    exit 2;
 fi
 
 #
@@ -83,33 +73,35 @@ fi
 
 (
 perl -e "binmode STDOUT; print pack(\"C*\", $prologue)" || exit $?
-openssl dgst $dgst -binary $src || exit $?
-) >$src.dig || exit $?
+openssl dgst $dgst -binary $mod || exit $?
+) >$mod.dig || exit $?
 
 #
 # Generate the binary signature, which will be just the integer that comprises
 # the signature with no metadata attached.
 #
-openssl rsautl -sign -inkey $key -keyform PEM -in $src.dig -out $src.sig || exit $?
-signerlen=`stat -c %s $x509.signer`
-keyidlen=`stat -c %s $x509.keyid`
-siglen=`stat -c %s $src.sig`
+openssl rsautl -sign -inkey $key -keyform PEM -in $mod.dig -out $mod.sig || exit $?
+
+SIGNER="`perl $keyid_script $x509 signer-name`"
+KEYID="`perl $keyid_script $x509 keyid`"
+keyidlen=${#KEYID}
+siglen=${#SIGNER}
 
 #
 # Build the signed binary
 #
 (
-    cat $src || exit $?
+    cat $mod || exit $?
     echo '~Module signature appended~' || exit $?
-    cat $x509.signer $x509.keyid || exit $?
+    echo -n "$SIGNER" || exit $?
+    echo -n "$KEYID" || exit $?
 
     # Preface each signature integer with a 2-byte BE length
     perl -e "binmode STDOUT; print pack(\"n\", $siglen)" || exit $?
-    cat $src.sig || exit $?
+    cat $mod.sig || exit $?
 
     # Generate the information block
     perl -e "binmode STDOUT; print pack(\"CCCCCxxxN\", $algo, $hash, $id_type, $signerlen, $keyidlen, $siglen + 2)" || exit $?
-) >$dst~ || exit $?
+) >$mod~ || exit $?
 
-# Permit in-place signing
-mv $dst~ $dst || exit $?
+mv $mod~ $mod || exit $?
