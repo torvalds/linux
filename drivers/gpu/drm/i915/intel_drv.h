@@ -164,6 +164,7 @@ struct intel_encoder {
 };
 
 struct intel_panel {
+	struct drm_display_mode *fixed_mode;
 };
 
 struct intel_connector {
@@ -364,11 +365,11 @@ struct intel_dp {
 	int panel_power_cycle_delay;
 	int backlight_on_delay;
 	int backlight_off_delay;
-	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
 	struct edid *edid; /* cached EDID for eDP */
 	int edid_mode_count;
+	struct intel_connector *attached_connector;
 };
 
 static inline struct drm_crtc *
@@ -442,7 +443,8 @@ extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
 
 /* intel_panel.c */
-extern int intel_panel_init(struct intel_panel *panel);
+extern int intel_panel_init(struct intel_panel *panel,
+			    struct drm_display_mode *fixed_mode);
 extern void intel_panel_fini(struct intel_panel *panel);
 
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,

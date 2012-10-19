@@ -44,7 +44,6 @@ struct intel_lvds_connector {
 	struct intel_connector base;
 
 	struct notifier_block lid_notifier;
-	struct drm_display_mode *fixed_mode;
 	struct edid *edid;
 	int fitting_mode;
 };
@@ -177,8 +176,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 static int intel_lvds_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
-	struct drm_display_mode *fixed_mode = lvds_connector->fixed_mode;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 
 	if (mode->hdisplay > fixed_mode->hdisplay)
 		return MODE_PANEL;
@@ -276,7 +275,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	intel_fixed_panel_mode(lvds_connector->fixed_mode, adjusted_mode);
+	intel_fixed_panel_mode(lvds_connector->base.panel.fixed_mode,
+			       adjusted_mode);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_pch_panel_fitting(dev, lvds_connector->fitting_mode,
@@ -463,7 +463,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	if (lvds_connector->edid)
 		return drm_add_edid_modes(connector, lvds_connector->edid);
 
-	mode = drm_mode_duplicate(dev, lvds_connector->fixed_mode);
+	mode = drm_mode_duplicate(dev, lvds_connector->base.panel.fixed_mode);
 	if (mode == NULL)
 		return 0;
 
@@ -921,6 +921,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
+	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_crtc *crtc;
 	u32 lvds;
 	int pipe;
@@ -1044,20 +1045,17 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			lvds_connector->fixed_mode = drm_mode_duplicate(dev, scan);
-			intel_find_lvds_downclock(dev,
-						  lvds_connector->fixed_mode,
-						  connector);
+			fixed_mode = drm_mode_duplicate(dev, scan);
+			intel_find_lvds_downclock(dev, fixed_mode, connector);
 			goto out;
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->lfp_lvds_vbt_mode) {
-		lvds_connector->fixed_mode =
-			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-		if (lvds_connector->fixed_mode) {
-			lvds_connector->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+		fixed_mode = drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+		if (fixed_mode) {
+			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;
 		}
 	}
@@ -1077,15 +1075,15 @@ bool intel_lvds_init(struct drm_device *dev)
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
-		lvds_connector->fixed_mode = intel_crtc_mode_get(dev, crtc);
-		if (lvds_connector->fixed_mode) {
-			lvds_connector->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+		fixed_mode = intel_crtc_mode_get(dev, crtc);
+		if (fixed_mode) {
+			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;
 		}
 	}
 
 	/* If we still don't have a mode after all that, give up. */
-	if (!lvds_connector->fixed_mode)
+	if (!fixed_mode)
 		goto failed;
 
 out:
@@ -1107,7 +1105,7 @@ out:
 	}
 	drm_sysfs_connector_add(connector);
 
-	intel_panel_init(&intel_connector->panel);
+	intel_panel_init(&intel_connector->panel, fixed_mode);
 	intel_panel_setup_backlight(connector);
 
 	return true;
@@ -1116,6 +1114,8 @@ failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
+	if (fixed_mode)
+		drm_mode_destroy(dev, fixed_mode);
 	kfree(lvds_encoder);
 	kfree(lvds_connector);
 	return false;

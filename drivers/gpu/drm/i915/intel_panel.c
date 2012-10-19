@@ -465,11 +465,19 @@ void intel_panel_destroy_backlight(struct drm_device *dev)
 }
 #endif
 
-int intel_panel_init(struct intel_panel *panel)
+int intel_panel_init(struct intel_panel *panel,
+		     struct drm_display_mode *fixed_mode)
 {
+	panel->fixed_mode = fixed_mode;
+
 	return 0;
 }
 
 void intel_panel_fini(struct intel_panel *panel)
 {
+	struct intel_connector *intel_connector =
+		container_of(panel, struct intel_connector, panel);
+
+	if (panel->fixed_mode)
+		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
 }
