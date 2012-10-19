@@ -157,25 +157,25 @@ static void p6_pmu_enable_all(int added)
 static inline void
 p6_pmu_disable_event(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 val = P6_NOP_EVENT;
-
-	if (cpuc->enabled)
-		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
 	(void)wrmsrl_safe(hwc->config_base, val);
 }
 
 static void p6_pmu_enable_event(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 val;
 
 	val = hwc->config;
-	if (cpuc->enabled)
-		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
+
+	/*
+	 * p6 only has a global event enable, set on PerfEvtSel0
+	 * We "disable" events by programming P6_NOP_EVENT
+	 * and we rely on p6_pmu_enable_all() being called
+	 * to actually enable the events.
+	 */
 
 	(void)wrmsrl_safe(hwc->config_base, val);
 }
