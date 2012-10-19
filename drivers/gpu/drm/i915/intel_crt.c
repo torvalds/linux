@@ -418,12 +418,16 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 				struct i2c_adapter *adapter)
 {
 	struct edid *edid;
+	int ret;
 
 	edid = intel_crt_get_edid(connector, adapter);
 	if (!edid)
 		return 0;
 
-	return intel_connector_update_modes(connector, edid);
+	ret = intel_connector_update_modes(connector, edid);
+	kfree(edid);
+
+	return ret;
 }
 
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
