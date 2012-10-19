@@ -416,20 +416,13 @@ static const struct backlight_ops intel_panel_bl_ops = {
 	.get_brightness = intel_panel_get_brightness,
 };
 
-int intel_panel_setup_backlight(struct drm_device *dev)
+int intel_panel_setup_backlight(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct backlight_properties props;
-	struct drm_connector *connector;
 
 	intel_panel_init_backlight(dev);
-
-	if (dev_priv->int_lvds_connector)
-		connector = dev_priv->int_lvds_connector;
-	else if (dev_priv->int_edp_connector)
-		connector = dev_priv->int_edp_connector;
-	else
-		return -ENODEV;
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
@@ -460,9 +453,9 @@ void intel_panel_destroy_backlight(struct drm_device *dev)
 		backlight_device_unregister(dev_priv->backlight);
 }
 #else
-int intel_panel_setup_backlight(struct drm_device *dev)
+int intel_panel_setup_backlight(struct drm_connector *connector)
 {
-	intel_panel_init_backlight(dev);
+	intel_panel_init_backlight(connector->dev);
 	return 0;
 }
 

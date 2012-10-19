@@ -2831,10 +2831,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
-	if (is_edp(intel_dp)) {
-		dev_priv->int_edp_connector = connector;
-		intel_panel_setup_backlight(dev);
-	}
+	if (is_edp(intel_dp))
+		intel_panel_setup_backlight(connector);
 
 	intel_dp_add_properties(intel_dp, connector);
 

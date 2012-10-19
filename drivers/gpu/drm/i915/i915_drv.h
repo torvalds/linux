@@ -826,8 +826,6 @@ typedef struct drm_i915_private {
 	u16 orig_clock;
 	int child_dev_num;
 	struct child_device_config *child_dev;
-	struct drm_connector *int_lvds_connector;
-	struct drm_connector *int_edp_connector;
 
 	bool mchbar_need_disable;
 

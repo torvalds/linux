@@ -1103,11 +1103,9 @@ out:
 		DRM_DEBUG_KMS("lid notifier registration failed\n");
 		lvds_connector->lid_notifier.notifier_call = NULL;
 	}
-	/* keep the LVDS connector */
-	dev_priv->int_lvds_connector = connector;
 	drm_sysfs_connector_add(connector);
 
-	intel_panel_setup_backlight(dev);
+	intel_panel_setup_backlight(connector);
 
 	return true;
 
