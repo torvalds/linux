@@ -220,7 +220,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 {
 	struct bcm_leader *pLeader = NULL;
 	int Status = 0;
-	unsigned char *ctrl_buff = NULL;
+	unsigned char *ctrl_buff;
 	unsigned int pktlen = 0;
 	struct bcm_link_request *pLinkReq = NULL;
 	PUCHAR pucAddIndication = NULL;
@@ -325,64 +325,66 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 	pktlen = pLeader->PLength;
 	ctrl_buff = (char *)Adapter->txctlpacket[atomic_read(&Adapter->index_wr_txcntrlpkt)%MAX_CNTRL_PKTS];
 
+	if (!ctrl_buff) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "mem allocation Failed");
+		return -ENOMEM;
+	}
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Control packet to be taken =%d and address is =%pincoming address is =%p and packet len=%x",
 			atomic_read(&Adapter->index_wr_txcntrlpkt), ctrl_buff, ioBuffer, pktlen);
-	if (ctrl_buff) {
-		if (pLeader) {
-			if ((pLeader->Status == 0x80) ||
-				(pLeader->Status == CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ)) {
-				/*
-				 * Restructure the DSX message to handle Multiple classifier Support
-				 * Write the Service Flow param Structures directly to the target
-				 * and embed the pointers in the DSX messages sent to target.
-				 */
-				/* Lets store the current length of the control packet we are transmitting */
-				pucAddIndication = (PUCHAR)ioBuffer + LEADER_SIZE;
-				pktlen = pLeader->PLength;
-				Status = StoreCmControlResponseMessage(Adapter, pucAddIndication, &pktlen);
-				if (Status != 1) {
-					ClearTargetDSXBuffer(Adapter, ((stLocalSFAddIndicationAlt *)pucAddIndication)->u16TID, FALSE);
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, " Error Restoring The DSX Control Packet. Dsx Buffers on Target may not be Setup Properly ");
-					return STATUS_FAILURE;
-				}
-				/*
-				 * update the leader to use the new length
-				 * The length of the control packet is length of message being sent + Leader length
-				 */
-				pLeader->PLength = pktlen;
+
+	if (pLeader) {
+		if ((pLeader->Status == 0x80) ||
+			(pLeader->Status == CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ)) {
+			/*
+			 * Restructure the DSX message to handle Multiple classifier Support
+			 * Write the Service Flow param Structures directly to the target
+			 * and embed the pointers in the DSX messages sent to target.
+			 */
+			/* Lets store the current length of the control packet we are transmitting */
+			pucAddIndication = (PUCHAR)ioBuffer + LEADER_SIZE;
+			pktlen = pLeader->PLength;
+			Status = StoreCmControlResponseMessage(Adapter, pucAddIndication, &pktlen);
+			if (Status != 1) {
+				ClearTargetDSXBuffer(Adapter, ((stLocalSFAddIndicationAlt *)pucAddIndication)->u16TID, FALSE);
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, " Error Restoring The DSX Control Packet. Dsx Buffers on Target may not be Setup Properly ");
+				return STATUS_FAILURE;
 			}
+			/*
+			 * update the leader to use the new length
+			 * The length of the control packet is length of message being sent + Leader length
+			 */
+			pLeader->PLength = pktlen;
 		}
-
-		if (pktlen + LEADER_SIZE > MAX_CNTL_PKT_SIZE)
-			return -EINVAL;
-
-		memset(ctrl_buff, 0, pktlen+LEADER_SIZE);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Copying the Control Packet Buffer with length=%d\n", pLeader->PLength);
-		*(struct bcm_leader *)ctrl_buff = *pLeader;
-		memcpy(ctrl_buff + LEADER_SIZE, ((PUCHAR)ioBuffer + LEADER_SIZE), pLeader->PLength);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Enqueuing the Control Packet");
-
-		/* Update the statistics counters */
-		spin_lock_bh(&Adapter->PackInfo[HiPriority].SFQueueLock);
-		Adapter->PackInfo[HiPriority].uiCurrentBytesOnHost += pLeader->PLength;
-		Adapter->PackInfo[HiPriority].uiCurrentPacketsOnHost++;
-		atomic_inc(&Adapter->TotalPacketCount);
-		spin_unlock_bh(&Adapter->PackInfo[HiPriority].SFQueueLock);
-		Adapter->PackInfo[HiPriority].bValid = TRUE;
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "CurrBytesOnHost: %x bValid: %x",
-				Adapter->PackInfo[HiPriority].uiCurrentBytesOnHost,
-				Adapter->PackInfo[HiPriority].bValid);
-		Status = STATUS_SUCCESS;
-		/*Queue the packet for transmission */
-		atomic_inc(&Adapter->index_wr_txcntrlpkt);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Calling transmit_packets");
-		atomic_set(&Adapter->TxPktAvail, 1);
-		wake_up(&Adapter->tx_packet_wait_queue);
-	} else {
-		Status = -ENOMEM;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "mem allocation Failed");
 	}
+
+	if (pktlen + LEADER_SIZE > MAX_CNTL_PKT_SIZE)
+		return -EINVAL;
+
+	memset(ctrl_buff, 0, pktlen+LEADER_SIZE);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Copying the Control Packet Buffer with length=%d\n", pLeader->PLength);
+	*(struct bcm_leader *)ctrl_buff = *pLeader;
+	memcpy(ctrl_buff + LEADER_SIZE, ((PUCHAR)ioBuffer + LEADER_SIZE), pLeader->PLength);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Enqueuing the Control Packet");
+
+	/* Update the statistics counters */
+	spin_lock_bh(&Adapter->PackInfo[HiPriority].SFQueueLock);
+	Adapter->PackInfo[HiPriority].uiCurrentBytesOnHost += pLeader->PLength;
+	Adapter->PackInfo[HiPriority].uiCurrentPacketsOnHost++;
+	atomic_inc(&Adapter->TotalPacketCount);
+	spin_unlock_bh(&Adapter->PackInfo[HiPriority].SFQueueLock);
+	Adapter->PackInfo[HiPriority].bValid = TRUE;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "CurrBytesOnHost: %x bValid: %x",
+			Adapter->PackInfo[HiPriority].uiCurrentBytesOnHost,
+			Adapter->PackInfo[HiPriority].bValid);
+	Status = STATUS_SUCCESS;
+	/*Queue the packet for transmission */
+	atomic_inc(&Adapter->index_wr_txcntrlpkt);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Calling transmit_packets");
+	atomic_set(&Adapter->TxPktAvail, 1);
+	wake_up(&Adapter->tx_packet_wait_queue);
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "<====");
 	return Status;
 }
