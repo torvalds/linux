@@ -3969,12 +3969,6 @@ void kfree(const void *objp)
 }
 EXPORT_SYMBOL(kfree);
 
-unsigned int kmem_cache_size(struct kmem_cache *cachep)
-{
-	return cachep->object_size;
-}
-EXPORT_SYMBOL(kmem_cache_size);
-
 /*
  * This initializes kmem_list3 or resizes various caches for all nodes.
  */

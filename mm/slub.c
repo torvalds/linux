@@ -3121,15 +3121,6 @@ error:
 	return -EINVAL;
 }
 
-/*
- * Determine the size of a slab object
- */
-unsigned int kmem_cache_size(struct kmem_cache *s)
-{
-	return s->object_size;
-}
-EXPORT_SYMBOL(kmem_cache_size);
-
 static void list_slab_objects(struct kmem_cache *s, struct page *page,
 							const char *text)
 {
