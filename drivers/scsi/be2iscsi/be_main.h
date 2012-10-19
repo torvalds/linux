@@ -61,6 +61,7 @@
 #define BE2_DEFPDU_DATA_SZ	8192
 
 #define MAX_CPUS		31
+#define BEISCSI_MAX_NUM_CPU	8
 #define BEISCSI_SGLIST_ELEMENTS	30
 
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */

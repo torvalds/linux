@@ -2890,7 +2890,7 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 	}
 	return 0;
 create_eq_error:
-	for (i = 0; i < (phba->num_cpus + 1); i++) {
+	for (i = 0; i < (phba->num_cpus + eq_for_mcc); i++) {
 		eq = &phwi_context->be_eq[i].q;
 		mem = &eq->dma_mem;
 		if (mem->va)
@@ -3315,15 +3315,20 @@ err:
 	return -ENOMEM;
 }
 
-static int find_num_cpus(void)
+/**
+ * find_num_cpus()- Get the CPU online count
+ * @phba: ptr to priv structure
+ *
+ * CPU count is used for creating EQ.
+ **/
+static void find_num_cpus(struct beiscsi_hba *phba)
 {
 	int  num_cpus = 0;
 
 	num_cpus = num_online_cpus();
-	if (num_cpus >= MAX_CPUS)
-		num_cpus = MAX_CPUS - 1;
 
-	return num_cpus;
+	phba->num_cpus = (num_cpus >= BEISCSI_MAX_NUM_CPU) ?
+			 (BEISCSI_MAX_NUM_CPU - 1) : num_cpus;
 }
 
 static int hwi_init_port(struct beiscsi_hba *phba)
@@ -4542,7 +4547,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
-	int ret, num_cpus, i;
+	int ret, i;
 	u8 *real_offset = 0;
 	u32 value = 0;
 
@@ -4578,10 +4583,10 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 
 	if (enable_msix)
-		num_cpus = find_num_cpus();
+		find_num_cpus(phba);
 	else
-		num_cpus = 1;
-	phba->num_cpus = num_cpus;
+		phba->num_cpus = 1;
+
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "BM_%d : num_cpus = %d\n",
 		    phba->num_cpus);
