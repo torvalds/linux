@@ -4217,6 +4217,113 @@ static noinline void schedule_bio(struct btrfs_root *root,
 				   &device->work);
 }
 
+static int bio_size_ok(struct block_device *bdev, struct bio *bio,
+		       sector_t sector)
+{
+	struct bio_vec *prev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	unsigned short max_sectors = queue_max_sectors(q);
+	struct bvec_merge_data bvm = {
+		.bi_bdev = bdev,
+		.bi_sector = sector,
+		.bi_rw = bio->bi_rw,
+	};
+
+	if (bio->bi_vcnt == 0) {
+		WARN_ON(1);
+		return 1;
+	}
+
+	prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+	if ((bio->bi_size >> 9) > max_sectors)
+		return 0;
+
+	if (!q->merge_bvec_fn)
+		return 1;
+
+	bvm.bi_size = bio->bi_size - prev->bv_len;
+	if (q->merge_bvec_fn(q, &bvm, prev) < prev->bv_len)
+		return 0;
+	return 1;
+}
+
+static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
+			      struct bio *bio, u64 physical, int dev_nr,
+			      int rw, int async)
+{
+	struct btrfs_device *dev = bbio->stripes[dev_nr].dev;
+
+	bio->bi_private = bbio;
+	bio->bi_private = merge_stripe_index_into_bio_private(
+			bio->bi_private, (unsigned int)dev_nr);
+	bio->bi_end_io = btrfs_end_bio;
+	bio->bi_sector = physical >> 9;
+#ifdef DEBUG
+	{
+		struct rcu_string *name;
+
+		rcu_read_lock();
+		name = rcu_dereference(dev->name);
+		pr_debug("btrfs_map_bio: rw %d, secor=%llu, dev=%lu "
+			 "(%s id %llu), size=%u\n", rw,
+			 (u64)bio->bi_sector, (u_long)dev->bdev->bd_dev,
+			 name->str, dev->devid, bio->bi_size);
+		rcu_read_unlock();
+	}
+#endif
+	bio->bi_bdev = dev->bdev;
+	if (async)
+		schedule_bio(root, dev, rw, bio);
+	else
+		btrfsic_submit_bio(rw, bio);
+}
+
+static int breakup_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
+			      struct bio *first_bio, struct btrfs_device *dev,
+			      int dev_nr, int rw, int async)
+{
+	struct bio_vec *bvec = first_bio->bi_io_vec;
+	struct bio *bio;
+	int nr_vecs = bio_get_nr_vecs(dev->bdev);
+	u64 physical = bbio->stripes[dev_nr].physical;
+
+again:
+	bio = btrfs_bio_alloc(dev->bdev, physical >> 9, nr_vecs, GFP_NOFS);
+	if (!bio)
+		return -ENOMEM;
+
+	while (bvec <= (first_bio->bi_io_vec + first_bio->bi_vcnt - 1)) {
+		if (bio_add_page(bio, bvec->bv_page, bvec->bv_len,
+				 bvec->bv_offset) < bvec->bv_len) {
+			u64 len = bio->bi_size;
+
+			atomic_inc(&bbio->stripes_pending);
+			submit_stripe_bio(root, bbio, bio, physical, dev_nr,
+					  rw, async);
+			physical += len;
+			goto again;
+		}
+		bvec++;
+	}
+
+	submit_stripe_bio(root, bbio, bio, physical, dev_nr, rw, async);
+	return 0;
+}
+
+static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
+{
+	atomic_inc(&bbio->error);
+	if (atomic_dec_and_test(&bbio->stripes_pending)) {
+		bio->bi_private = bbio->private;
+		bio->bi_end_io = bbio->end_io;
+		bio->bi_bdev = (struct block_device *)
+			(unsigned long)bbio->mirror_num;
+		bio->bi_sector = logical >> 9;
+		kfree(bbio);
+		bio_endio(bio, -EIO);
+	}
+}
+
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		  int mirror_num, int async_submit)
 {
@@ -4255,40 +4362,36 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	atomic_set(&bbio->stripes_pending, bbio->num_stripes);
 
 	while (dev_nr < total_devs) {
+		dev = bbio->stripes[dev_nr].dev;
+		if (!dev || !dev->bdev || (rw & WRITE && !dev->writeable)) {
+			bbio_error(bbio, first_bio, logical);
+			dev_nr++;
+			continue;
+		}
+
+		/*
+		 * Check and see if we're ok with this bio based on it's size
+		 * and offset with the given device.
+		 */
+		if (!bio_size_ok(dev->bdev, first_bio,
+				 bbio->stripes[dev_nr].physical >> 9)) {
+			ret = breakup_stripe_bio(root, bbio, first_bio, dev,
+						 dev_nr, rw, async_submit);
+			BUG_ON(ret);
+			dev_nr++;
+			continue;
+		}
+
 		if (dev_nr < total_devs - 1) {
 			bio = bio_clone(first_bio, GFP_NOFS);
 			BUG_ON(!bio); /* -ENOMEM */
 		} else {
 			bio = first_bio;
 		}
-		bio->bi_private = bbio;
-		bio->bi_private = merge_stripe_index_into_bio_private(
-				bio->bi_private, (unsigned int)dev_nr);
-		bio->bi_end_io = btrfs_end_bio;
-		bio->bi_sector = bbio->stripes[dev_nr].physical >> 9;
-		dev = bbio->stripes[dev_nr].dev;
-		if (dev && dev->bdev && (rw != WRITE || dev->writeable)) {
-#ifdef DEBUG
-			struct rcu_string *name;
 
-			rcu_read_lock();
-			name = rcu_dereference(dev->name);
-			pr_debug("btrfs_map_bio: rw %d, secor=%llu, dev=%lu "
-				 "(%s id %llu), size=%u\n", rw,
-				 (u64)bio->bi_sector, (u_long)dev->bdev->bd_dev,
-				 name->str, dev->devid, bio->bi_size);
-			rcu_read_unlock();
-#endif
-			bio->bi_bdev = dev->bdev;
-			if (async_submit)
-				schedule_bio(root, dev, rw, bio);
-			else
-				btrfsic_submit_bio(rw, bio);
-		} else {
-			bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
-			bio->bi_sector = logical >> 9;
-			bio_endio(bio, -EIO);
-		}
+		submit_stripe_bio(root, bbio, bio,
+				  bbio->stripes[dev_nr].physical, dev_nr, rw,
+				  async_submit);
 		dev_nr++;
 	}
 	return 0;
