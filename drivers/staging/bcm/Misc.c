@@ -8,7 +8,7 @@ static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter);
 
 static void default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 {
-	UINT uiLoopIndex;
+	unsigned int uiLoopIndex;
 
 	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES-1; uiLoopIndex++) {
 		Adapter->PackInfo[uiLoopIndex].uiThreshold = TX_PACKET_THRESHOLD;
@@ -221,7 +221,7 @@ INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 	struct bcm_leader *pLeader = NULL;
 	INT Status = 0;
 	unsigned char *ctrl_buff = NULL;
-	UINT pktlen = 0;
+	unsigned int pktlen = 0;
 	struct bcm_link_request *pLinkReq = NULL;
 	PUCHAR pucAddIndication = NULL;
 
@@ -452,7 +452,7 @@ void StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __func__);
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (UINT)Adapter->StatisticsPointer);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (unsigned int)Adapter->StatisticsPointer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====", __func__);
 	return;
 }
@@ -642,9 +642,9 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 *******************************************************************/
 void DumpPackInfo(struct bcm_mini_adapter *Adapter)
 {
-	UINT uiLoopIndex = 0;
-	UINT uiIndex = 0;
-	UINT uiClsfrIndex = 0;
+	unsigned int uiLoopIndex = 0;
+	unsigned int uiIndex = 0;
+	unsigned int uiClsfrIndex = 0;
 	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 
 	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
@@ -920,7 +920,7 @@ int run_card_proc(struct bcm_mini_adapter *ps_adapter)
 int InitCardAndDownloadFirmware(struct bcm_mini_adapter *ps_adapter)
 {
 	int status;
-	UINT value = 0;
+	unsigned int value = 0;
 	/*
 	 * Create the threads first and then download the
 	 * Firm/DDR Settings..
@@ -1088,7 +1088,7 @@ static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter)
 
 void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 {
-	UINT uiHostDrvrCfg6 = 0, uiEEPROMFlag = 0;
+	unsigned int uiHostDrvrCfg6 = 0, uiEEPROMFlag = 0;
 
 	if (ntohl(Adapter->pstargetparams->m_u32PhyParameter2) & AUTO_SYNC_DISABLE) {
 		pr_info(DRV_NAME ": AutoSyncup is Disabled\n");
@@ -1146,7 +1146,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 
 static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 {
-	UINT reporting_mode;
+	unsigned int reporting_mode;
 
 	reporting_mode = ntohl(psAdapter->pstargetparams->m_u32PowerSavingModeOptions) & 0x02;
 	psAdapter->bIsAutoCorrectEnabled = !((char)(psAdapter->ulPowerSaveMode >> 3) & 0x1);
@@ -1175,26 +1175,26 @@ static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 	}
 }
 
-static void convertEndian(unsigned char rwFlag, unsigned int *puiBuffer, UINT uiByteCount)
+static void convertEndian(unsigned char rwFlag, unsigned int *puiBuffer, unsigned int uiByteCount)
 {
-	UINT uiIndex = 0;
+	unsigned int uiIndex = 0;
 
 	if (RWM_WRITE == rwFlag) {
-		for (uiIndex = 0; uiIndex < (uiByteCount/sizeof(UINT)); uiIndex++)
+		for (uiIndex = 0; uiIndex < (uiByteCount/sizeof(unsigned int)); uiIndex++)
 			puiBuffer[uiIndex] = htonl(puiBuffer[uiIndex]);
 	} else {
-		for (uiIndex = 0; uiIndex < (uiByteCount/sizeof(UINT)); uiIndex++)
+		for (uiIndex = 0; uiIndex < (uiByteCount/sizeof(unsigned int)); uiIndex++)
 			puiBuffer[uiIndex] = ntohl(puiBuffer[uiIndex]);
 	}
 }
 
-int rdm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int rdm(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	return Adapter->interface_rdm(Adapter->pvInterfaceAdapter,
 				uiAddress, pucBuff, sSize);
 }
 
-int wrm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int wrm(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	int iRetVal;
 
@@ -1203,13 +1203,13 @@ int wrm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t 
 	return iRetVal;
 }
 
-int wrmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
+int wrmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
 	convertEndian(RWM_WRITE, pucBuff, size);
 	return wrm(Adapter, uiAddress, (PUCHAR)pucBuff, size);
 }
 
-int rdmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
+int rdmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
 	INT uiRetVal = 0;
 
@@ -1219,7 +1219,7 @@ int rdmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBu
 	return uiRetVal;
 }
 
-int wrmWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
+int wrmWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	INT status = STATUS_SUCCESS;
 	down(&Adapter->rdmwrmsync);
@@ -1238,7 +1238,7 @@ exit:
 	return status;
 }
 
-int wrmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
+int wrmaltWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
 	int iRetVal = STATUS_SUCCESS;
 
@@ -1258,7 +1258,7 @@ exit:
 	return iRetVal;
 }
 
-int rdmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
+int rdmaltWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned int *pucBuff, size_t size)
 {
 	INT uiRetVal = STATUS_SUCCESS;
 
@@ -1309,8 +1309,8 @@ static void HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_link_request stShutdownResponse;
-	UINT NVMAccess = 0, lowPwrAbortMsg = 0;
-	UINT Status = 0;
+	unsigned int NVMAccess = 0, lowPwrAbortMsg = 0;
+	unsigned int Status = 0;
 
 	memset(&stShutdownResponse, 0, sizeof(struct bcm_link_request));
 	stShutdownResponse.Leader.Status  = LINK_UP_CONTROL_REQ;
@@ -1437,7 +1437,7 @@ void ResetCounters(struct bcm_mini_adapter *Adapter)
 
 struct bcm_classifier_rule *GetFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIP)
 {
-	UINT uiIndex = 0;
+	unsigned int uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if ((Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
@@ -1451,7 +1451,7 @@ struct bcm_classifier_rule *GetFragIPClsEntry(struct bcm_mini_adapter *Adapter, 
 
 void AddFragIPClsEntry(struct bcm_mini_adapter *Adapter, struct bcm_fragmented_packet_info *psFragPktInfo)
 {
-	UINT uiIndex = 0;
+	unsigned int uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if (!Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) {
 			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(struct bcm_fragmented_packet_info));
@@ -1462,7 +1462,7 @@ void AddFragIPClsEntry(struct bcm_mini_adapter *Adapter, struct bcm_fragmented_p
 
 void DelFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIp)
 {
-	UINT uiIndex = 0;
+	unsigned int uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if ((Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
@@ -1474,7 +1474,7 @@ void DelFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentificati
 
 void update_per_cid_rx(struct bcm_mini_adapter *Adapter)
 {
-	UINT qindex = 0;
+	unsigned int qindex = 0;
 
 	if ((jiffies - Adapter->liDrainCalculated) < XSECONDS)
 		return;
@@ -1505,7 +1505,7 @@ void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 	if (!atomic_read(&Adapter->uiMBupdate))
 		return;
 
-	bytes = rdmaltWithLock(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (unsigned int *)uibuff, sizeof(UINT) * MAX_TARGET_DSX_BUFFERS);
+	bytes = rdmaltWithLock(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (unsigned int *)uibuff, sizeof(unsigned int) * MAX_TARGET_DSX_BUFFERS);
 	if (bytes < 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "rdm failed\n");
 		return;
@@ -1522,7 +1522,7 @@ void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 	atomic_set(&Adapter->uiMBupdate, FALSE);
 }
 
-void flush_queue(struct bcm_mini_adapter *Adapter, UINT iQIndex)
+void flush_queue(struct bcm_mini_adapter *Adapter, unsigned int iQIndex)
 {
 	struct sk_buff *PacketToDrop = NULL;
 	struct net_device_stats *netstats = &Adapter->dev->stats;
