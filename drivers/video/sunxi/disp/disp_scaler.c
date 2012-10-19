@@ -263,11 +263,7 @@ __s32 Scaler_3d_sw_para_to_reg(__u32 type, __u32 mode, __bool b_out_interlace)
     return DIS_FAIL;
 }
 
-#ifdef __LINUX_OSAL__
-__s32 Scaler_event_proc(__s32 irq, void *parg)
-#else
-__s32 Scaler_event_proc(void *parg)
-#endif
+static irqreturn_t Scaler_event_proc(int irq, void *parg)
 {
     __u8 fe_intflags, be_intflags;
     __u32 sel = (__u32)parg;
@@ -305,21 +301,23 @@ __s32 Scaler_event_proc(void *parg)
 
 __s32 Scaler_Init(__u32 sel)
 {
+    irqreturn_t ret;
+
     scaler_clk_init(sel);
     DE_SCAL_EnableINT(sel,DE_WB_END_IE);
 
     if(sel == 0)
     {
-        OSAL_RegISR(INTC_IRQNO_SCALER0,0,Scaler_event_proc, (void *)sel,0,0);
+	ret = request_irq(INTC_IRQNO_SCALER0, Scaler_event_proc, IRQF_DISABLED, "sunxi scaler0", (void *) sel);
 #ifndef __LINUX_OSAL__
-        OSAL_InterruptEnable(INTC_IRQNO_SCALER0);
+        enable_irq(INTC_IRQNO_SCALER0);
 #endif
     }
     else if(sel == 1)
     {
-        OSAL_RegISR(INTC_IRQNO_SCALER1,0,Scaler_event_proc, (void *)sel,0,0);
+	ret = request_irq(INTC_IRQNO_SCALER1, Scaler_event_proc, IRQF_DISABLED, "sunxi scaler1", (void *) sel);
 #ifndef __LINUX_OSAL__
-        OSAL_InterruptEnable(INTC_IRQNO_SCALER1);
+        enable_irq(INTC_IRQNO_SCALER1);
 #endif
     }
    	return DIS_SUCCESS;
@@ -329,13 +327,13 @@ __s32 Scaler_Exit(__u32 sel)
 {
     if(sel == 0)
     {
-        OSAL_InterruptDisable(INTC_IRQNO_SCALER0);
-        OSAL_UnRegISR(INTC_IRQNO_SCALER0,Scaler_event_proc,(void*)sel);
+        disable_irq(INTC_IRQNO_SCALER0);
+        free_irq(INTC_IRQNO_SCALER0, (void *) sel);
     }
     else if(sel == 1)
     {
-        OSAL_InterruptDisable(INTC_IRQNO_SCALER1);
-        OSAL_UnRegISR(INTC_IRQNO_SCALER1,Scaler_event_proc,(void*)sel);
+        disable_irq(INTC_IRQNO_SCALER1);
+        free_irq(INTC_IRQNO_SCALER1, (void *) sel);
     }
 
     DE_SCAL_DisableINT(sel,DE_WB_END_IE);

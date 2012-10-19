@@ -135,20 +135,20 @@ __s32 BSP_disp_exit(__u32 mode)
     }
     else if(mode == DISP_EXIT_MODE_CLEAN_PARTLY)
     {
-        OSAL_InterruptDisable(INTC_IRQNO_LCDC0);
-        OSAL_UnRegISR(INTC_IRQNO_LCDC0,Disp_lcdc_event_proc,(void*)0);
+        disable_irq(INTC_IRQNO_LCDC0);
+        free_irq(INTC_IRQNO_LCDC0, NULL);
 
 #ifdef CONFIG_ARCH_SUN4I
-        OSAL_InterruptDisable(INTC_IRQNO_LCDC1);
-        OSAL_UnRegISR(INTC_IRQNO_LCDC1,Disp_lcdc_event_proc,(void*)0);
+	disable_irq(INTC_IRQNO_LCDC1);
+        free_irq(INTC_IRQNO_LCDC1, NULL);
 #endif
 
-        OSAL_InterruptDisable(INTC_IRQNO_SCALER0);
-        OSAL_UnRegISR(INTC_IRQNO_SCALER0,Scaler_event_proc,(void*)0);
+        disable_irq(INTC_IRQNO_SCALER0);
+        free_irq(INTC_IRQNO_SCALER0, NULL);
 
 #ifdef CONFIG_ARCH_SUN4I
-        OSAL_InterruptDisable(INTC_IRQNO_SCALER1);
-        OSAL_UnRegISR(INTC_IRQNO_SCALER1,Scaler_event_proc,(void*)0);
+	disable_irq(INTC_IRQNO_SCALER1);
+        free_irq(INTC_IRQNO_SCALER1, NULL);
 #endif
     }
 
