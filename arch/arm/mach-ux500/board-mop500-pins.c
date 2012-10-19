@@ -96,6 +96,10 @@ BIAS(out_wkup_pdis, PIN_SLPM_DIR_OUTPUT|PIN_SLPM_WAKEUP_ENABLE|
 #define DB8500_PIN_SLEEP(pin, conf, dev) \
 	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
 			    pin, conf)
+#define DB8500_MUX_STATE(group, func, dev, state) \
+	PIN_MAP_MUX_GROUP(dev, state, "pinctrl-db8500", group, func)
+#define DB8500_PIN_STATE(pin, conf, dev, state) \
+	PIN_MAP_CONFIGS_PIN(dev, state, "pinctrl-db8500", pin, conf)
 
 /* Pin control settings */
 static struct pinctrl_map __initdata mop500_family_pinmap[] = {
@@ -366,6 +370,187 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_PIN_SLEEP("GPIO166_A22", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O2 */
 	DB8500_PIN_SLEEP("GPIO167_B24", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O1 */
 	DB8500_PIN_SLEEP("GPIO168_C22", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O0 */
+
+	/* STM APE pins states */
+	DB8500_MUX_STATE("stmape_c_1", "stmape",
+		"stm", "ape_mipi34"),
+	DB8500_PIN_STATE("GPIO70_G5", in_nopull,
+		"stm", "ape_mipi34"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", in_nopull,
+		"stm", "ape_mipi34"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", in_nopull,
+		"stm", "ape_mipi34"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", in_nopull,
+		"stm", "ape_mipi34"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", in_nopull,
+		"stm", "ape_mipi34"), /* dat0 */
+
+	DB8500_PIN_STATE("GPIO70_G5", slpm_out_lo_pdis,
+		"stm", "ape_mipi34_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", slpm_out_lo_pdis,
+		"stm", "ape_mipi34_sleep"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", slpm_out_lo_pdis,
+		"stm", "ape_mipi34_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", slpm_out_lo_pdis,
+		"stm", "ape_mipi34_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", slpm_out_lo_pdis,
+		"stm", "ape_mipi34_sleep"), /* dat0 */
+
+	DB8500_MUX_STATE("stmape_oc1_1", "stmape",
+		"stm", "ape_microsd"),
+	DB8500_PIN_STATE("GPIO23_AA4", in_nopull,
+		"stm", "ape_microsd"), /* clk */
+	DB8500_PIN_STATE("GPIO25_Y4", in_nopull,
+		"stm", "ape_microsd"), /* dat0 */
+	DB8500_PIN_STATE("GPIO26_Y2", in_nopull,
+		"stm", "ape_microsd"), /* dat1 */
+	DB8500_PIN_STATE("GPIO27_AA2", in_nopull,
+		"stm", "ape_microsd"), /* dat2 */
+	DB8500_PIN_STATE("GPIO28_AA1", in_nopull,
+		"stm", "ape_microsd"), /* dat3 */
+
+	DB8500_PIN_STATE("GPIO23_AA4", slpm_out_lo_wkup_pdis,
+		"stm", "ape_microsd_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO25_Y4", slpm_in_wkup_pdis,
+		"stm", "ape_microsd_sleep"), /* dat0 */
+	DB8500_PIN_STATE("GPIO26_Y2", slpm_in_wkup_pdis,
+		"stm", "ape_microsd_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO27_AA2", slpm_in_wkup_pdis,
+		"stm", "ape_microsd_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO28_AA1", slpm_in_wkup_pdis,
+		"stm", "ape_microsd_sleep"), /* dat3 */
+
+	/*  STM Modem pins states */
+	DB8500_MUX_STATE("stmmod_oc3_2", "stmmod",
+		"stm", "mod_mipi34"),
+	DB8500_MUX_STATE("uartmodrx_oc3_1", "uartmod",
+		"stm", "mod_mipi34"),
+	DB8500_MUX_STATE("uartmodtx_oc3_1", "uartmod",
+		"stm", "mod_mipi34"),
+	DB8500_PIN_STATE("GPIO70_G5", in_nopull,
+		"stm", "mod_mipi34"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", in_nopull,
+		"stm", "mod_mipi34"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", in_nopull,
+		"stm", "mod_mipi34"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", in_nopull,
+		"stm", "mod_mipi34"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", in_nopull,
+		"stm", "mod_mipi34"), /* dat0 */
+	DB8500_PIN_STATE("GPIO75_H2", in_pu,
+		"stm", "mod_mipi34"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", out_lo,
+		"stm", "mod_mipi34"), /* uartmod tx */
+
+	DB8500_PIN_STATE("GPIO70_G5", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_sleep"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_sleep"), /* dat0 */
+	DB8500_PIN_STATE("GPIO75_H2", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_sleep"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", slpm_out_lo_wkup_pdis,
+		"stm", "mod_mipi34_sleep"), /* uartmod tx */
+
+	DB8500_MUX_STATE("stmmod_b_1", "stmmod",
+		"stm", "mod_microsd"),
+	DB8500_MUX_STATE("uartmodrx_oc3_1", "uartmod",
+		"stm", "mod_microsd"),
+	DB8500_MUX_STATE("uartmodtx_oc3_1", "uartmod",
+		"stm", "mod_microsd"),
+	DB8500_PIN_STATE("GPIO23_AA4", in_nopull,
+		"stm", "mod_microsd"), /* clk */
+	DB8500_PIN_STATE("GPIO25_Y4", in_nopull,
+		"stm", "mod_microsd"), /* dat0 */
+	DB8500_PIN_STATE("GPIO26_Y2", in_nopull,
+		"stm", "mod_microsd"), /* dat1 */
+	DB8500_PIN_STATE("GPIO27_AA2", in_nopull,
+		"stm", "mod_microsd"), /* dat2 */
+	DB8500_PIN_STATE("GPIO28_AA1", in_nopull,
+		"stm", "mod_microsd"), /* dat3 */
+	DB8500_PIN_STATE("GPIO75_H2", in_pu,
+		"stm", "mod_microsd"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", out_lo,
+		"stm", "mod_microsd"), /* uartmod tx */
+
+	DB8500_PIN_STATE("GPIO23_AA4", slpm_out_lo_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO25_Y4", slpm_in_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* dat0 */
+	DB8500_PIN_STATE("GPIO26_Y2", slpm_in_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO27_AA2", slpm_in_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO28_AA1", slpm_in_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* dat3 */
+	DB8500_PIN_STATE("GPIO75_H2", slpm_in_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", slpm_out_lo_wkup_pdis,
+		"stm", "mod_microsd_sleep"), /* uartmod tx */
+
+	/*  STM dual Modem/APE pins state */
+	DB8500_MUX_STATE("stmmod_oc3_2", "stmmod",
+		"stm", "mod_mipi34_ape_mipi60"),
+	DB8500_MUX_STATE("stmape_c_2", "stmape",
+		"stm", "mod_mipi34_ape_mipi60"),
+	DB8500_MUX_STATE("uartmodrx_oc3_1", "uartmod",
+		"stm", "mod_mipi34_ape_mipi60"),
+	DB8500_MUX_STATE("uartmodtx_oc3_1", "uartmod",
+		"stm", "mod_mipi34_ape_mipi60"),
+	DB8500_PIN_STATE("GPIO70_G5", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat0 */
+	DB8500_PIN_STATE("GPIO75_H2", in_pu,
+		"stm", "mod_mipi34_ape_mipi60"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", out_lo,
+		"stm", "mod_mipi34_ape_mipi60"), /* uartmod tx */
+	DB8500_PIN_STATE("GPIO155_C19", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* clk */
+	DB8500_PIN_STATE("GPIO156_C17", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat3 */
+	DB8500_PIN_STATE("GPIO157_A18", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat2 */
+	DB8500_PIN_STATE("GPIO158_C18", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat1 */
+	DB8500_PIN_STATE("GPIO159_B19", in_nopull,
+		"stm", "mod_mipi34_ape_mipi60"), /* dat0 */
+
+	DB8500_PIN_STATE("GPIO70_G5", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO71_G4", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat3 */
+	DB8500_PIN_STATE("GPIO72_H4", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO73_H3", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO74_J3", slpm_out_lo_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat0 */
+	DB8500_PIN_STATE("GPIO75_H2", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* uartmod rx */
+	DB8500_PIN_STATE("GPIO76_J2", slpm_out_lo_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* uartmod tx */
+	DB8500_PIN_STATE("GPIO155_C19", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* clk */
+	DB8500_PIN_STATE("GPIO156_C17", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat3 */
+	DB8500_PIN_STATE("GPIO157_A18", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat2 */
+	DB8500_PIN_STATE("GPIO158_C18", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat1 */
+	DB8500_PIN_STATE("GPIO159_B19", slpm_in_wkup_pdis,
+		"stm", "mod_mipi34_ape_mipi60_sleep"), /* dat0 */
 };
 
 /*
