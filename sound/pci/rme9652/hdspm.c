@@ -2180,6 +2180,7 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 				hdspm_get_s1_sample_rate(hdspm,
 						kcontrol->private_value-1);
 		}
+		break;
 
 	case AIO:
 		switch (kcontrol->private_value) {
@@ -2200,6 +2201,7 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 				hdspm_get_s1_sample_rate(hdspm,
 						ucontrol->id.index-1);
 		}
+		break;
 
 	case AES32:
 
@@ -2221,8 +2223,8 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 				hdspm_get_s1_sample_rate(hdspm,
 						kcontrol->private_value-1);
 			break;
-
 		}
+		break;
 	default:
 		break;
 	}
