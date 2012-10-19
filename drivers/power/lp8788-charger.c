@@ -235,25 +235,14 @@ static int lp8788_get_battery_present(struct lp8788_charger *pchg,
 	return 0;
 }
 
-static int lp8788_get_vbatt_adc(struct lp8788_charger *pchg,
-				unsigned int *result)
+static int lp8788_get_vbatt_adc(struct lp8788_charger *pchg, int *result)
 {
 	struct iio_channel *channel = pchg->chan[LP8788_VBATT];
-	int scaleint;
-	int scalepart;
-	int ret;
 
 	if (!channel)
 		return -EINVAL;
 
-	ret = iio_read_channel_scale(channel, &scaleint, &scalepart);
-	if (ret != IIO_VAL_INT_PLUS_MICRO)
-		return -EINVAL;
-
-	/* unit: mV */
-	*result = (scaleint + scalepart * 1000000) / 1000;
-
-	return 0;
+	return iio_read_channel_processed(channel, result);
 }
 
 static int lp8788_get_battery_voltage(struct lp8788_charger *pchg,
@@ -268,7 +257,7 @@ static int lp8788_get_battery_capacity(struct lp8788_charger *pchg,
 	struct lp8788 *lp = pchg->lp;
 	struct lp8788_charger_platform_data *pdata = pchg->pdata;
 	unsigned int max_vbatt;
-	unsigned int vbatt;
+	int vbatt;
 	enum lp8788_charging_state state;
 	u8 data;
 	int ret;
@@ -304,19 +293,18 @@ static int lp8788_get_battery_temperature(struct lp8788_charger *pchg,
 				union power_supply_propval *val)
 {
 	struct iio_channel *channel = pchg->chan[LP8788_BATT_TEMP];
-	int scaleint;
-	int scalepart;
+	int result;
 	int ret;
 
 	if (!channel)
 		return -EINVAL;
 
-	ret = iio_read_channel_scale(channel, &scaleint, &scalepart);
-	if (ret != IIO_VAL_INT_PLUS_MICRO)
+	ret = iio_read_channel_processed(channel, &result);
+	if (ret < 0)
 		return -EINVAL;
 
 	/* unit: 0.1 'C */
-	val->intval = (scaleint + scalepart * 1000000) / 100;
+	val->intval = result * 10;
 
 	return 0;
 }
