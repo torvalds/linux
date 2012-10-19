@@ -410,6 +410,8 @@ struct beiscsi_io_task {
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
 	unsigned short bhs_len;
+	dma_addr_t mtask_addr;
+	uint32_t mtask_data_count;
 };
 
 struct be_nonio_bhs {
