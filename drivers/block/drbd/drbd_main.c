@@ -3235,8 +3235,12 @@ static int w_go_diskless(struct drbd_work *w, int unused)
 	 * (Do we want a specific meta data flag for this?)
 	 *
 	 * If that does not make it to stable storage either,
-	 * we cannot do anything about that anymore.  */
-	if (mdev->bitmap) {
+	 * we cannot do anything about that anymore.
+	 *
+	 * We still need to check if both bitmap and ldev are present, we may
+	 * end up here after a failed attach, before ldev was even assigned.
+	 */
+	if (mdev->bitmap && mdev->ldev) {
 		if (drbd_bitmap_io_from_worker(mdev, drbd_bm_write,
 					"detach", BM_LOCKED_MASK)) {
 			if (test_bit(WAS_READ_ERROR, &mdev->flags)) {

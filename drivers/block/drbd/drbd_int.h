@@ -2318,6 +2318,11 @@ static inline void drbd_md_flush(struct drbd_conf *mdev)
 {
 	int r;
 
+	if (mdev->ldev == NULL) {
+		dev_warn(DEV, "mdev->ldev == NULL in drbd_md_flush\n");
+		return;
+	}
+
 	if (test_bit(MD_NO_FUA, &mdev->flags))
 		return;
 
