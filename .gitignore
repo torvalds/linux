@@ -14,10 +14,6 @@
 *.o.*
 *.a
 *.s
-*.ko.unsigned
-*.ko.stripped
-*.ko.stripped.dig
-*.ko.stripped.sig
 *.ko
 *.so
 *.so.dbg
@@ -95,6 +91,4 @@ GTAGS
 extra_certificates
 signing_key.priv
 signing_key.x509
-signing_key.x509.keyid
-signing_key.x509.signer
 x509.genkey
