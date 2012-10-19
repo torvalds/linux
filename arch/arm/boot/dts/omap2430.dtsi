@@ -83,5 +83,13 @@
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
 		};
+
+		timer1: timer@49018000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x49018000 0x400>;
+			interrupts = <37>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
+		};
 	};
 };

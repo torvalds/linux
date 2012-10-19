@@ -237,5 +237,59 @@
 			interrupts = <55>;
 			status = "disabled";
 		};
+
+		timer1: timer@44e31000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x44e31000 0x400>;
+			interrupts = <67>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
+		};
+
+		timer2: timer@48040000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48040000 0x400>;
+			interrupts = <68>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48042000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48042000 0x400>;
+			interrupts = <69>;
+			ti,hwmods = "timer3";
+		};
+
+		timer4: timer@48044000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48044000 0x400>;
+			interrupts = <92>;
+			ti,hwmods = "timer4";
+			ti,timer-pwm;
+		};
+
+		timer5: timer@48046000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48046000 0x400>;
+			interrupts = <93>;
+			ti,hwmods = "timer5";
+			ti,timer-pwm;
+		};
+
+		timer6: timer@48048000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48048000 0x400>;
+			interrupts = <94>;
+			ti,hwmods = "timer6";
+			ti,timer-pwm;
+		};
+
+		timer7: timer@4804a000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4804a000 0x400>;
+			interrupts = <95>;
+			ti,hwmods = "timer7";
+			ti,timer-pwm;
+		};
 	};
 };
