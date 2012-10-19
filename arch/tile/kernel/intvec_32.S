@@ -1291,6 +1291,21 @@ STD_ENTRY(ret_from_fork)
 	}
 	STD_ENDPROC(ret_from_fork)
 
+STD_ENTRY(ret_from_kernel_thread)
+	jal     sim_notify_fork
+	jal     schedule_tail
+	FEEDBACK_REENTER(ret_from_fork)
+	{
+	 move   r0, r31
+	 jalr   r30
+	}
+	FEEDBACK_REENTER(ret_from_kernel_thread)
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
+	STD_ENDPROC(ret_from_kernel_thread)
+
 	/*
 	 * Code for ill interrupt.
 	 */
