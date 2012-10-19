@@ -992,10 +992,17 @@ int hci_get_dev_info(void __user *arg)
 	di.type     = (hdev->bus & 0x0f) | (hdev->dev_type << 4);
 	di.flags    = hdev->flags;
 	di.pkt_type = hdev->pkt_type;
-	di.acl_mtu  = hdev->acl_mtu;
-	di.acl_pkts = hdev->acl_pkts;
-	di.sco_mtu  = hdev->sco_mtu;
-	di.sco_pkts = hdev->sco_pkts;
+	if (lmp_bredr_capable(hdev)) {
+		di.acl_mtu  = hdev->acl_mtu;
+		di.acl_pkts = hdev->acl_pkts;
+		di.sco_mtu  = hdev->sco_mtu;
+		di.sco_pkts = hdev->sco_pkts;
+	} else {
+		di.acl_mtu  = hdev->le_mtu;
+		di.acl_pkts = hdev->le_pkts;
+		di.sco_mtu  = 0;
+		di.sco_pkts = 0;
+	}
 	di.link_policy = hdev->link_policy;
 	di.link_mode   = hdev->link_mode;
 
