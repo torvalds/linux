@@ -40,6 +40,10 @@
 #include <linux/acpi.h>
 
 /* Private structure for the integrated LVDS support */
+struct intel_lvds_connector {
+	struct intel_connector base;
+};
+
 struct intel_lvds_encoder {
 	struct intel_encoder base;
 
@@ -56,6 +60,11 @@ struct intel_lvds_encoder {
 static struct intel_lvds_encoder *to_lvds_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_lvds_encoder, base.base);
+}
+
+static struct intel_lvds_connector *to_lvds_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct intel_lvds_connector, base.base);
 }
 
 static struct intel_lvds_encoder *intel_attached_lvds(struct drm_connector *connector)
@@ -906,6 +915,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
+	struct intel_lvds_connector *lvds_connector;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -941,8 +951,8 @@ bool intel_lvds_init(struct drm_device *dev)
 	if (!lvds_encoder)
 		return false;
 
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
-	if (!intel_connector) {
+	lvds_connector = kzalloc(sizeof(struct intel_lvds_connector), GFP_KERNEL);
+	if (!lvds_connector) {
 		kfree(lvds_encoder);
 		return false;
 	}
@@ -953,6 +963,7 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder = &lvds_encoder->base;
 	encoder = &intel_encoder->base;
+	intel_connector = &lvds_connector->base;
 	connector = &intel_connector->base;
 	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
@@ -1103,6 +1114,6 @@ failed:
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
 	kfree(lvds_encoder);
-	kfree(intel_connector);
+	kfree(lvds_connector);
 	return false;
 }
