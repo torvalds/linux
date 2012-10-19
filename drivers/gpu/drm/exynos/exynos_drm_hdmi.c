@@ -346,7 +346,21 @@ static int hdmi_subdrv_probe(struct drm_device *drm_dev,
 	ctx->hdmi_ctx->drm_dev = drm_dev;
 	ctx->mixer_ctx->drm_dev = drm_dev;
 
+	if (mixer_ops->iommu_on)
+		mixer_ops->iommu_on(ctx->mixer_ctx->ctx, true);
+
 	return 0;
+}
+
+static void hdmi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
+{
+	struct drm_hdmi_context *ctx;
+	struct exynos_drm_subdrv *subdrv = to_subdrv(dev);
+
+	ctx = get_ctx_from_subdrv(subdrv);
+
+	if (mixer_ops->iommu_on)
+		mixer_ops->iommu_on(ctx->mixer_ctx->ctx, false);
 }
 
 static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
@@ -368,6 +382,7 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 	subdrv->dev = dev;
 	subdrv->manager = &hdmi_manager;
 	subdrv->probe = hdmi_subdrv_probe;
+	subdrv->remove = hdmi_subdrv_remove;
 
 	platform_set_drvdata(pdev, subdrv);
 

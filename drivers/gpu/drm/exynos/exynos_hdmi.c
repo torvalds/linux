@@ -74,6 +74,7 @@ struct hdmi_context {
 	struct mutex			hdmi_mutex;
 
 	void __iomem			*regs;
+	void				*parent_ctx;
 	int				external_irq;
 	int				internal_irq;
 
@@ -84,7 +85,6 @@ struct hdmi_context {
 	int cur_conf;
 
 	struct hdmi_resources		res;
-	void				*parent_ctx;
 
 	int				hpd_gpio;
 

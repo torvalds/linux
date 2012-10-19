@@ -36,6 +36,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_hdmi.h"
+#include "exynos_drm_iommu.h"
 
 #define get_mixer_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
@@ -80,6 +81,7 @@ enum mixer_version_id {
 
 struct mixer_context {
 	struct device		*dev;
+	struct drm_device	*drm_dev;
 	int			pipe;
 	bool			interlace;
 	bool			powered;
@@ -90,6 +92,7 @@ struct mixer_context {
 	struct mixer_resources	mixer_res;
 	struct hdmi_win_data	win_data[MIXER_WIN_NR];
 	enum mixer_version_id	mxr_ver;
+	void			*parent_ctx;
 };
 
 struct mixer_drv_data {
@@ -665,6 +668,24 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
 
+static int mixer_iommu_on(void *ctx, bool enable)
+{
+	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
+	struct mixer_context *mdata = ctx;
+	struct drm_device *drm_dev;
+
+	drm_hdmi_ctx = mdata->parent_ctx;
+	drm_dev = drm_hdmi_ctx->drm_dev;
+
+	if (is_drm_iommu_supported(drm_dev)) {
+		if (enable)
+			return drm_iommu_attach_device(drm_dev, mdata->dev);
+
+		drm_iommu_detach_device(drm_dev, mdata->dev);
+	}
+	return 0;
+}
+
 static void mixer_poweron(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -866,6 +887,7 @@ static void mixer_win_disable(void *ctx, int win)
 
 static struct exynos_mixer_ops mixer_ops = {
 	/* manager */
+	.iommu_on		= mixer_iommu_on,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
 	.dpms			= mixer_dpms,
@@ -1140,6 +1162,7 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 	}
 
 	ctx->dev = &pdev->dev;
+	ctx->parent_ctx = (void *)drm_hdmi_ctx;
 	drm_hdmi_ctx->ctx = (void *)ctx;
 	ctx->vp_enabled = drv->is_vp_enabled;
 	ctx->mxr_ver = drv->version;
