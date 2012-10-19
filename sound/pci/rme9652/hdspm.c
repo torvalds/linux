@@ -971,6 +971,7 @@ static inline void snd_hdspm_initialize_midi_flush(struct hdspm *hdspm);
 static int hdspm_update_simple_mixer_controls(struct hdspm *hdspm);
 static int hdspm_autosync_ref(struct hdspm *hdspm);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
+static int hdspm_system_clock_mode(struct hdspm *hdspm);
 static void hdspm_set_sgbuf(struct hdspm *hdspm,
 			    struct snd_pcm_substream *substream,
 			     unsigned int reg, int channels);
@@ -1989,10 +1990,14 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 	rate = hdspm_calc_dds_value(hdspm, period);
 
 	if (rate > 207000) {
-		/* Unreasonable high sample rate as seen on PCI MADI cards.
-		 * Use the cached value instead.
-		 */
-		rate = hdspm->system_sample_rate;
+		/* Unreasonable high sample rate as seen on PCI MADI cards. */
+		if (0 == hdspm_system_clock_mode(hdspm)) {
+			/* master mode, return internal sample rate */
+			rate = hdspm->system_sample_rate;
+		} else {
+			/* slave mode, return external sample rate */
+			rate = hdspm_external_sample_rate(hdspm);
+		}
 	}
 
 	return rate;
