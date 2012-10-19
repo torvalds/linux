@@ -41,7 +41,7 @@ extern "C" {
 #endif
 static inline const char *CONFIG_prefix(void)
 {
-	return CONFIG_;
+	return getenv( "CONFIG_" ) ?: CONFIG_;
 }
 #undef CONFIG_
 #define CONFIG_ CONFIG_prefix()

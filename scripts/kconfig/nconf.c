@@ -7,6 +7,7 @@
  */
 #define _GNU_SOURCE
 #include <string.h>
+#include <stdlib.h>
 
 #include "lkc.h"
 #include "nconf.h"
