@@ -588,8 +588,9 @@ extern struct usb_device *usb_hub_find_child(struct usb_device *hdev,
  */
 #define usb_hub_for_each_child(hdev, port1, child) \
 	for (port1 = 1,	child =	usb_hub_find_child(hdev, port1); \
-		port1 <= hdev->maxchild; \
-		child = usb_hub_find_child(hdev, ++port1))
+			port1 <= hdev->maxchild; \
+			child = usb_hub_find_child(hdev, ++port1)) \
+		if (!child) continue; else
 
 /* USB device locking */
 #define usb_lock_device(udev)		device_lock(&(udev)->dev)

@@ -2036,10 +2036,8 @@ static void collect_usb_address_map(struct usb_device *udev, unsigned long *map)
 	    udev->parent->descriptor.bDeviceClass == USB_CLASS_HUB)
 		map[udev->devnum/32] |= (1 << (udev->devnum % 32));
 
-	usb_hub_for_each_child(udev, chix, childdev) {
-		if (childdev)
-			collect_usb_address_map(childdev, map);
-	}
+	usb_hub_for_each_child(udev, chix, childdev)
+		collect_usb_address_map(childdev, map);
 }
 
 /* this function must be called with interrupt disabled */
