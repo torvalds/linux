@@ -2401,42 +2401,20 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
 	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
-	if (ret) {
-		if (is_edp(intel_dp) && !intel_dp->panel_fixed_mode) {
-			struct drm_display_mode *newmode;
-			list_for_each_entry(newmode, &connector->probed_modes,
-					    head) {
-				if ((newmode->type & DRM_MODE_TYPE_PREFERRED)) {
-					intel_dp->panel_fixed_mode =
-						drm_mode_duplicate(dev, newmode);
-					break;
-				}
-			}
-		}
+	if (ret)
 		return ret;
-	}
 
-	/* if eDP has no EDID, try to use fixed panel mode from VBT */
-	if (is_edp(intel_dp)) {
-		/* initialize panel mode from VBT if available for eDP */
-		if (intel_dp->panel_fixed_mode == NULL && dev_priv->lfp_lvds_vbt_mode != NULL) {
-			intel_dp->panel_fixed_mode =
-				drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-			if (intel_dp->panel_fixed_mode) {
-				intel_dp->panel_fixed_mode->type |=
-					DRM_MODE_TYPE_PREFERRED;
-			}
-		}
-		if (intel_dp->panel_fixed_mode) {
-			struct drm_display_mode *mode;
-			mode = drm_mode_duplicate(dev, intel_dp->panel_fixed_mode);
+	/* if eDP has no EDID, fall back to fixed mode */
+	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
+		struct drm_display_mode *mode;
+		mode = drm_mode_duplicate(dev, intel_dp->panel_fixed_mode);
+		if (mode) {
 			drm_mode_probed_add(connector, mode);
 			return 1;
 		}
@@ -2633,6 +2611,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	struct intel_dp *intel_dp;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
+	struct drm_display_mode *fixed_mode = NULL;
 	const char *name = NULL;
 	int type;
 
@@ -2797,6 +2776,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	if (is_edp(intel_dp)) {
 		bool ret;
+		struct drm_display_mode *scan;
 		struct edid *edid;
 
 		ironlake_edp_panel_vdd_on(intel_dp);
@@ -2826,6 +2806,23 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 			drm_edid_to_eld(connector, edid);
 			intel_dp->edid = edid;
 		}
+
+		/* prefer fixed mode from EDID if available */
+		list_for_each_entry(scan, &connector->probed_modes, head) {
+			if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
+				fixed_mode = drm_mode_duplicate(dev, scan);
+				break;
+			}
+		}
+
+		/* fallback to VBT if available for eDP */
+		if (!fixed_mode && dev_priv->lfp_lvds_vbt_mode) {
+			fixed_mode = drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+			if (fixed_mode)
+				fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+		}
+		intel_dp->panel_fixed_mode = fixed_mode;
+
 		ironlake_edp_panel_vdd_off(intel_dp, false);
 	}
 
