@@ -157,6 +157,9 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 	struct be_cmd_req_hdr *ioctl_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
+	if (beiscsi_error(phba))
+		return -EIO;
+
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
 				phba->ctrl.mcc_wait[tag],
@@ -423,7 +426,7 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 {
 	int i, status;
 	for (i = 0; i < mcc_timeout; i++) {
-		if (phba->fw_timeout)
+		if (beiscsi_error(phba))
 			return -EIO;
 
 		status = beiscsi_process_mcc(phba);
@@ -439,6 +442,7 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			    "BC_%d : FW Timed Out\n");
 		phba->fw_timeout = true;
+		beiscsi_ue_detect(phba);
 		return -EBUSY;
 	}
 	return 0;
@@ -479,7 +483,8 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 	u32 ready;
 
 	do {
-		if (phba->fw_timeout)
+
+		if (beiscsi_error(phba))
 			return -EIO;
 
 		ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
@@ -491,6 +496,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 				    "BC_%d : FW Timed Out\n");
 			phba->fw_timeout = true;
+			beiscsi_ue_detect(phba);
 			return -EBUSY;
 		}
 

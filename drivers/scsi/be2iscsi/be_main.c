@@ -4717,6 +4717,8 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba)
 			    phba->ctrl.mbox_mem_alloced.size,
 			    phba->ctrl.mbox_mem_alloced.va,
 			    phba->ctrl.mbox_mem_alloced.dma);
+
+	cancel_delayed_work_sync(&phba->beiscsi_hw_check_task);
 }
 
 static void beiscsi_remove(struct pci_dev *pcidev)
@@ -4767,6 +4769,25 @@ static void beiscsi_msix_enable(struct beiscsi_hba *phba)
 		phba->msix_enabled = true;
 
 	return;
+}
+
+/*
+ * beiscsi_hw_health_check()- Check adapter health
+ * @work: work item to check HW health
+ *
+ * Check if adapter in an unrecoverable state or not.
+ **/
+static void
+beiscsi_hw_health_check(struct work_struct *work)
+{
+	struct beiscsi_hba *phba =
+		container_of(work, struct beiscsi_hba,
+			     beiscsi_hw_check_task.work);
+
+	beiscsi_ue_detect(phba);
+
+	schedule_delayed_work(&phba->beiscsi_hw_check_task,
+			      msecs_to_jiffies(1000));
 }
 
 static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
@@ -4892,6 +4913,8 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto free_twq;
 	}
 
+	INIT_DELAYED_WORK(&phba->beiscsi_hw_check_task,
+			  beiscsi_hw_health_check);
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -4941,6 +4964,9 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			    "iSCSI boot info.\n");
 
 	beiscsi_create_def_ifaces(phba);
+	schedule_delayed_work(&phba->beiscsi_hw_check_task,
+			      msecs_to_jiffies(1000));
+
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "\n\n\n BM_%d : SUCCESS - DRIVER LOADED\n\n\n");
 	return 0;

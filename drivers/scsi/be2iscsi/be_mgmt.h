@@ -30,6 +30,12 @@
 #define IP_V6_LEN	16
 #define IP_V4_LEN	4
 
+/* UE Status and Mask register */
+#define PCICFG_UE_STATUS_LOW            0xA0
+#define PCICFG_UE_STATUS_HIGH           0xA4
+#define PCICFG_UE_STATUS_MASK_LOW       0xA8
+#define PCICFG_UE_STATUS_MASK_HI        0xAC
+
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field
@@ -314,5 +320,6 @@ void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle);
+void beiscsi_ue_detect(struct beiscsi_hba *phba);
 
 #endif

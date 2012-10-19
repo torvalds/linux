@@ -750,6 +750,11 @@ free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
 void beiscsi_process_all_cqs(struct work_struct *work);
 
+static inline bool beiscsi_error(struct beiscsi_hba *phba)
+{
+	return phba->ue_detected || phba->fw_timeout;
+}
+
 struct pdu_nop_out {
 	u32 dw[12];
 };
