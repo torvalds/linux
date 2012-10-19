@@ -313,7 +313,7 @@ do {									\
 
 static bool __cpuinit match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
-	if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+	if (cpu_has_topoext) {
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 		if (c->phys_proc_id == o->phys_proc_id &&

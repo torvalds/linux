@@ -304,7 +304,7 @@ static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
 	int cpu = smp_processor_id();
 
 	/* get information required for multi-node processors */
-	if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+	if (cpu_has_topoext) {
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
