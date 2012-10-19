@@ -3325,8 +3325,19 @@ static void find_num_cpus(struct beiscsi_hba *phba)
 
 	num_cpus = num_online_cpus();
 
-	phba->num_cpus = (num_cpus >= BEISCSI_MAX_NUM_CPU) ?
-			 (BEISCSI_MAX_NUM_CPU - 1) : num_cpus;
+	switch (phba->generation) {
+	case BE_GEN2:
+	case BE_GEN3:
+		phba->num_cpus = (num_cpus > BEISCSI_MAX_NUM_CPUS) ?
+				  BEISCSI_MAX_NUM_CPUS : num_cpus;
+		break;
+	case BE_GEN4:
+		phba->num_cpus = (num_cpus > OC_SKH_MAX_NUM_CPUS) ?
+				  OC_SKH_MAX_NUM_CPUS : num_cpus;
+		break;
+	default:
+		phba->num_cpus = 1;
+	}
 }
 
 static int hwi_init_port(struct beiscsi_hba *phba)

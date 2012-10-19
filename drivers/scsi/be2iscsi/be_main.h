@@ -64,8 +64,11 @@
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
 
-#define MAX_CPUS		31
-#define BEISCSI_MAX_NUM_CPU	8
+#define MAX_CPUS		64
+#define BEISCSI_MAX_NUM_CPUS	7
+#define OC_SKH_MAX_NUM_CPUS	63
+
+
 #define BEISCSI_SGLIST_ELEMENTS	30
 
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
@@ -279,8 +282,8 @@ struct beiscsi_hba {
 	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
-	struct msix_entry msix_entries[MAX_CPUS + 1];
-	char *msi_name[MAX_CPUS + 1];
+	struct msix_entry msix_entries[MAX_CPUS];
+	char *msi_name[MAX_CPUS];
 	bool msix_enabled;
 	struct be_mem_descriptor *init_mem;
 
@@ -841,7 +844,7 @@ struct hwi_context_memory {
 	u16 max_eqd;		/* in usecs */
 	u16 cur_eqd;		/* in usecs */
 	struct be_eq_obj be_eq[MAX_CPUS];
-	struct be_queue_info be_cq[MAX_CPUS];
+	struct be_queue_info be_cq[MAX_CPUS - 1];
 
 	struct be_queue_info be_def_hdrq;
 	struct be_queue_info be_def_dataq;
