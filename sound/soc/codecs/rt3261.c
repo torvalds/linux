@@ -3068,9 +3068,7 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, RT3261_HP_VOL,
 			RT3261_L_MUTE | RT3261_R_MUTE, RT3261_L_MUTE | RT3261_R_MUTE);
 		msleep(30);
-		snd_soc_update_bits(codec, RT3261_DEPOP_M1,
-			RT3261_HP_R_SMT_MASK | RT3261_HP_L_SMT_MASK,
-			RT3261_HP_L_SMT_DIS | RT3261_HP_R_SMT_DIS);
+		snd_soc_write(codec, RT3261_DEPOP_M1, 0x0004);
 
 		snd_soc_update_bits(codec, RT3261_SPK_VOL,
 			RT3261_L_MUTE | RT3261_R_MUTE,
