@@ -1,12 +1,12 @@
 #include "headers.h"
 
 static int BcmFileDownload(struct bcm_mini_adapter *Adapter, const char *path, unsigned int loc);
-static VOID doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter);
+static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter);
 static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer);
 static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter);
 static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter);
 
-static VOID default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
+static void default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiLoopIndex;
 
@@ -93,7 +93,7 @@ INT InitAdapter(struct bcm_mini_adapter *psAdapter)
 	return STATUS_SUCCESS;
 }
 
-VOID AdapterFree(struct bcm_mini_adapter *Adapter)
+void AdapterFree(struct bcm_mini_adapter *Adapter)
 {
 	int count;
 	beceem_protocol_reset(Adapter);
@@ -397,7 +397,7 @@ INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 *
 * Returns     - None.
 *******************************************************************/
-VOID LinkMessage(struct bcm_mini_adapter *Adapter)
+void LinkMessage(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_link_request *pstLinkRequest = NULL;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
@@ -448,7 +448,7 @@ VOID LinkMessage(struct bcm_mini_adapter *Adapter)
 *
 * Returns     - None.
 ************************************************************************/
-VOID StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
+void StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __func__);
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
@@ -467,7 +467,7 @@ VOID StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 *
 * Returns     - None.
 ***********************************************************************/
-VOID LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer)
+void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "=====>");
 
@@ -640,7 +640,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 *
 * Returns     - None.
 *******************************************************************/
-VOID DumpPackInfo(struct bcm_mini_adapter *Adapter)
+void DumpPackInfo(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIndex = 0;
@@ -1144,7 +1144,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 		doPowerAutoCorrection(Adapter);
 }
 
-static VOID doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
+static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 {
 	UINT reporting_mode;
 
@@ -1277,7 +1277,7 @@ exit:
 	return uiRetVal;
 }
 
-static VOID HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
+static void HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 {
 	int clear_abort_pattern = 0, Status = 0;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
@@ -1306,7 +1306,7 @@ static VOID HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
 }
 
-static VOID SendShutModeResponse(struct bcm_mini_adapter *Adapter)
+static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_link_request stShutdownResponse;
 	UINT NVMAccess = 0, lowPwrAbortMsg = 0;
@@ -1419,7 +1419,7 @@ static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR p
 	return;
 }
 
-VOID ResetCounters(struct bcm_mini_adapter *Adapter)
+void ResetCounters(struct bcm_mini_adapter *Adapter)
 {
 	beceem_protocol_reset(Adapter);
 	Adapter->CurrNumRecvDescs = 0;
