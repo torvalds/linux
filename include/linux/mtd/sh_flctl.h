@@ -20,6 +20,7 @@
 #ifndef __SH_FLCTL_H__
 #define __SH_FLCTL_H__
 
+#include <linux/completion.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -107,6 +108,7 @@
 #define ESTERINTE	(0x1 << 24)	/* ECC error interrupt enable */
 #define AC1CLR		(0x1 << 19)	/* ECC FIFO clear */
 #define AC0CLR		(0x1 << 18)	/* Data FIFO clear */
+#define DREQ0EN		(0x1 << 16)	/* FLDTFIFODMA Request Enable */
 #define ECERB		(0x1 << 9)	/* ECC error */
 #define STERB		(0x1 << 8)	/* Status error */
 #define STERINTE	(0x1 << 4)	/* Status error enable */
@@ -138,6 +140,8 @@ enum flctl_ecc_res_t {
 	FL_TIMEOUT
 };
 
+struct dma_chan;
+
 struct sh_flctl {
 	struct mtd_info		mtd;
 	struct nand_chip	chip;
@@ -161,6 +165,11 @@ struct sh_flctl {
 	unsigned hwecc:1;	/* Hardware ECC (0 = disabled, 1 = enabled) */
 	unsigned holden:1;	/* Hardware has FLHOLDCR and HOLDEN is set */
 	unsigned qos_request:1;	/* QoS request to prevent deep power shutdown */
+
+	/* DMA related objects */
+	struct dma_chan		*chan_fifo0_rx;
+	struct dma_chan		*chan_fifo0_tx;
+	struct completion	dma_complete;
 };
 
 struct sh_flctl_platform_data {
@@ -170,6 +179,9 @@ struct sh_flctl_platform_data {
 
 	unsigned has_hwecc:1;
 	unsigned use_holden:1;
+
+	unsigned int            slave_id_fifo0_tx;
+	unsigned int            slave_id_fifo0_rx;
 };
 
 static inline struct sh_flctl *mtd_to_flctl(struct mtd_info *mtdinfo)
