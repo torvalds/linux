@@ -557,19 +557,37 @@ __cpuinit cpuid4_cache_lookup_regs(int index,
 	return 0;
 }
 
-static int __cpuinit find_num_cache_leaves(void)
+static int __cpuinit find_num_cache_leaves(struct cpuinfo_x86 *c)
 {
-	unsigned int		eax, ebx, ecx, edx;
+	unsigned int		eax, ebx, ecx, edx, op;
 	union _cpuid4_leaf_eax	cache_eax;
 	int 			i = -1;
 
+	if (c->x86_vendor == X86_VENDOR_AMD)
+		op = 0x8000001d;
+	else
+		op = 4;
+
 	do {
 		++i;
-		/* Do cpuid(4) loop to find out num_cache_leaves */
-		cpuid_count(4, i, &eax, &ebx, &ecx, &edx);
+		/* Do cpuid(op) loop to find out num_cache_leaves */
+		cpuid_count(op, i, &eax, &ebx, &ecx, &edx);
 		cache_eax.full = eax;
 	} while (cache_eax.split.type != CACHE_TYPE_NULL);
 	return i;
+}
+
+void __cpuinit init_amd_cacheinfo(struct cpuinfo_x86 *c)
+{
+
+	if (cpu_has_topoext) {
+		num_cache_leaves = find_num_cache_leaves(c);
+	} else if (c->extended_cpuid_level >= 0x80000006) {
+		if (cpuid_edx(0x80000006) & 0xf000)
+			num_cache_leaves = 4;
+		else
+			num_cache_leaves = 3;
+	}
 }
 
 unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
@@ -588,7 +606,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 		if (is_initialized == 0) {
 			/* Init num_cache_leaves from boot CPU */
-			num_cache_leaves = find_num_cache_leaves();
+			num_cache_leaves = find_num_cache_leaves(c);
 			is_initialized++;
 		}
 
