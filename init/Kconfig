@@ -486,6 +486,14 @@ config PREEMPT_RCU
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
 
+config RCU_STALL_COMMON
+	def_bool ( TREE_RCU || TREE_PREEMPT_RCU || RCU_TRACE )
+	help
+	  This option enables RCU CPU stall code that is common between
+	  the TINY and TREE variants of RCU.  The purpose is to allow
+	  the tiny variants to disable RCU CPU stall warnings, while
+	  making these warnings mandatory for the tree variants.
+
 config CONTEXT_TRACKING
        bool
 
