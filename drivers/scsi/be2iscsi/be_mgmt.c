@@ -1153,6 +1153,45 @@ beiscsi_drvr_ver_disp(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, BE_NAME "\n");
 }
 
+/**
+ * beiscsi_adap_family_disp()- Display adapter family.
+ * @dev: ptr to device to get priv structure
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text driver name and version
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	uint16_t dev_id = 0;
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+
+	dev_id = phba->pcidev->device;
+	switch (dev_id) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+	case OC_DEVICE_ID2:
+		return snprintf(buf, PAGE_SIZE, "BE2 Adapter Family\n");
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID3:
+		return snprintf(buf, PAGE_SIZE, "BE3-R Adapter Family\n");
+		break;
+	case OC_SKH_ID1:
+		return snprintf(buf, PAGE_SIZE, "Skyhawk-R Adapter Family\n");
+		break;
+	default:
+		return snprintf(buf, PAGE_SIZE,
+				"Unkown Adapter Family: 0x%x\n", dev_id);
+		break;
+	}
+}
+
+
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
 			     struct be_mem_descriptor *mem_descr)
