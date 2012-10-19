@@ -235,6 +235,7 @@ F:	drivers/platform/x86/acer-wmi.c
 
 ACPI
 M:	Len Brown <lenb@kernel.org>
+M:	Rafael J. Wysocki <rjw@sisk.pl>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 Q:	http://patchwork.kernel.org/project/linux-acpi/list/
