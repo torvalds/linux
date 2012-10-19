@@ -7746,6 +7746,13 @@ W:	http://www.ideasonboard.org/uvc/
 S:	Maintained
 F:	drivers/media/usb/uvc/
 
+USB WEBCAM GADGET
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/gadget/*uvc*.c
+F:	drivers/usb/gadget/webcam.c
+
 USB WIRELESS RNDIS DRIVER (rndis_wlan)
 M:	Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
 L:	linux-wireless@vger.kernel.org
