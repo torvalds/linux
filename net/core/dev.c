@@ -6264,7 +6264,6 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		goto out;
 
 	/* Ensure the device has been registrered */
-	err = -EINVAL;
 	if (dev->reg_state != NETREG_REGISTERED)
 		goto out;
 
