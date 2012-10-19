@@ -1175,7 +1175,7 @@ static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 	}
 }
 
-static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
+static void convertEndian(B_UINT8 rwFlag, unsigned int *puiBuffer, UINT uiByteCount)
 {
 	UINT uiIndex = 0;
 
@@ -1203,18 +1203,18 @@ int wrm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t 
 	return iRetVal;
 }
 
-int wrmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int wrmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
 {
 	convertEndian(RWM_WRITE, pucBuff, size);
 	return wrm(Adapter, uiAddress, (PUCHAR)pucBuff, size);
 }
 
-int rdmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int rdmalt(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
 {
 	INT uiRetVal = 0;
 
 	uiRetVal = rdm(Adapter, uiAddress, (PUCHAR)pucBuff, size);
-	convertEndian(RWM_READ, (PUINT)pucBuff, size);
+	convertEndian(RWM_READ, (unsigned int *)pucBuff, size);
 
 	return uiRetVal;
 }
@@ -1238,7 +1238,7 @@ exit:
 	return status;
 }
 
-int wrmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int wrmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
 {
 	int iRetVal = STATUS_SUCCESS;
 
@@ -1258,7 +1258,7 @@ exit:
 	return iRetVal;
 }
 
-int rdmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
+int rdmaltWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t size)
 {
 	INT uiRetVal = STATUS_SUCCESS;
 
@@ -1283,7 +1283,7 @@ static void HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
 	/* target has woken up From Shut Down */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "Clearing Shut Down Software abort pattern\n");
-	Status = wrmalt(Adapter, SW_ABORT_IDLEMODE_LOC, (PUINT)&clear_abort_pattern, sizeof(clear_abort_pattern));
+	Status = wrmalt(Adapter, SW_ABORT_IDLEMODE_LOC, (unsigned int *)&clear_abort_pattern, sizeof(clear_abort_pattern));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "WRM to SW_ABORT_IDLEMODE_LOC failed with err:%d", Status);
 		return;
@@ -1505,7 +1505,7 @@ void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 	if (!atomic_read(&Adapter->uiMBupdate))
 		return;
 
-	bytes = rdmaltWithLock(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (PUINT)uibuff, sizeof(UINT) * MAX_TARGET_DSX_BUFFERS);
+	bytes = rdmaltWithLock(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (unsigned int *)uibuff, sizeof(UINT) * MAX_TARGET_DSX_BUFFERS);
 	if (bytes < 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "rdm failed\n");
 		return;

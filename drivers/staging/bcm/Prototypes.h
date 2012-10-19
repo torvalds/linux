@@ -79,9 +79,9 @@ int rdm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t 
 
 int wrm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t size);
 
-int wrmalt (struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
+int wrmalt (struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t sSize);
 
-int rdmalt (struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
+int rdmalt (struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t sSize);
 
 int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter, UINT uiSFId, void __user * user_buffer);
 
@@ -203,8 +203,8 @@ BOOLEAN IsNonCDLessDevice(struct bcm_mini_adapter *Adapter);
 
 VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter,PUINT puiBuffer);
 
-int wrmaltWithLock (struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
-int rdmaltWithLock (struct bcm_mini_adapter *Adapter, UINT uiAddress, PUINT pucBuff, size_t sSize);
+int wrmaltWithLock (struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t sSize);
+int rdmaltWithLock (struct bcm_mini_adapter *Adapter, UINT uiAddress, unsigned int *pucBuff, size_t sSize);
 
 int wrmWithLock(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t size);
 INT buffDnldVerify(struct bcm_mini_adapter *Adapter, unsigned char *mappedbuffer, unsigned int u32FirmwareLength,
