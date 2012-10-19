@@ -39,6 +39,12 @@ extern "C" {
 #ifndef CONFIG_
 #define CONFIG_ "CONFIG_"
 #endif
+static inline const char *CONFIG_prefix(void)
+{
+	return CONFIG_;
+}
+#undef CONFIG_
+#define CONFIG_ CONFIG_prefix()
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002
