@@ -44,19 +44,19 @@ struct intel_lvds_connector {
 	struct intel_connector base;
 
 	struct notifier_block lid_notifier;
+	struct drm_display_mode *fixed_mode;
+	struct edid *edid;
+	int fitting_mode;
 };
 
 struct intel_lvds_encoder {
 	struct intel_encoder base;
 
-	struct edid *edid;
-
-	int fitting_mode;
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
 	bool pfit_dirty;
 
-	struct drm_display_mode *fixed_mode;
+	struct intel_lvds_connector *attached_connector;
 };
 
 static struct intel_lvds_encoder *to_lvds_encoder(struct drm_encoder *encoder)
@@ -67,12 +67,6 @@ static struct intel_lvds_encoder *to_lvds_encoder(struct drm_encoder *encoder)
 static struct intel_lvds_connector *to_lvds_connector(struct drm_connector *connector)
 {
 	return container_of(connector, struct intel_lvds_connector, base.base);
-}
-
-static struct intel_lvds_encoder *intel_attached_lvds(struct drm_connector *connector)
-{
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_lvds_encoder, base);
 }
 
 static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
@@ -183,8 +177,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 static int intel_lvds_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct intel_lvds_encoder *lvds_encoder = intel_attached_lvds(connector);
-	struct drm_display_mode *fixed_mode = lvds_encoder->fixed_mode;
+	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
+	struct drm_display_mode *fixed_mode = lvds_connector->fixed_mode;
 
 	if (mode->hdisplay > fixed_mode->hdisplay)
 		return MODE_PANEL;
@@ -261,6 +255,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
+	struct intel_lvds_connector *lvds_connector =
+		lvds_encoder->attached_connector;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	int pipe;
@@ -280,10 +276,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	intel_fixed_panel_mode(lvds_encoder->fixed_mode, adjusted_mode);
+	intel_fixed_panel_mode(lvds_connector->fixed_mode, adjusted_mode);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		intel_pch_panel_fitting(dev, lvds_encoder->fitting_mode,
+		intel_pch_panel_fitting(dev, lvds_connector->fitting_mode,
 					mode, adjusted_mode);
 		return true;
 	}
@@ -309,7 +305,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	switch (lvds_encoder->fitting_mode) {
+	switch (lvds_connector->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
@@ -460,14 +456,14 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
  */
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
-	struct intel_lvds_encoder *lvds_encoder = intel_attached_lvds(connector);
+	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 
-	if (lvds_encoder->edid)
-		return drm_add_edid_modes(connector, lvds_encoder->edid);
+	if (lvds_connector->edid)
+		return drm_add_edid_modes(connector, lvds_connector->edid);
 
-	mode = drm_mode_duplicate(dev, lvds_encoder->fixed_mode);
+	mode = drm_mode_duplicate(dev, lvds_connector->fixed_mode);
 	if (mode == NULL)
 		return 0;
 
@@ -568,22 +564,24 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct intel_lvds_encoder *lvds_encoder = intel_attached_lvds(connector);
+	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
 	struct drm_device *dev = connector->dev;
 
 	if (property == dev->mode_config.scaling_mode_property) {
-		struct drm_crtc *crtc = lvds_encoder->base.base.crtc;
+		struct drm_crtc *crtc;
 
 		if (value == DRM_MODE_SCALE_NONE) {
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return -EINVAL;
 		}
 
-		if (lvds_encoder->fitting_mode == value) {
+		if (lvds_connector->fitting_mode == value) {
 			/* the LVDS scaling property is not changed */
 			return 0;
 		}
-		lvds_encoder->fitting_mode = value;
+		lvds_connector->fitting_mode = value;
+
+		crtc = intel_attached_encoder(connector)->base.crtc;
 		if (crtc && crtc->enabled) {
 			/*
 			 * If the CRTC is enabled, the display will be changed
@@ -959,6 +957,8 @@ bool intel_lvds_init(struct drm_device *dev)
 		return false;
 	}
 
+	lvds_encoder->attached_connector = lvds_connector;
+
 	if (!HAS_PCH_SPLIT(dev)) {
 		lvds_encoder->pfit_control = I915_READ(PFIT_CONTROL);
 	}
@@ -1004,7 +1004,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	drm_connector_attach_property(&intel_connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_ASPECT);
-	lvds_encoder->fitting_mode = DRM_MODE_SCALE_ASPECT;
+	lvds_connector->fitting_mode = DRM_MODE_SCALE_ASPECT;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC
@@ -1019,18 +1019,18 @@ bool intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	lvds_encoder->edid = drm_get_edid(connector,
-					  intel_gmbus_get_adapter(dev_priv, pin));
-	if (lvds_encoder->edid) {
-		if (drm_add_edid_modes(connector, lvds_encoder->edid)) {
+	lvds_connector->edid = drm_get_edid(connector,
+					    intel_gmbus_get_adapter(dev_priv, pin));
+	if (lvds_connector->edid) {
+		if (drm_add_edid_modes(connector, lvds_connector->edid)) {
 			drm_mode_connector_update_edid_property(connector,
-								lvds_encoder->edid);
+								lvds_connector->edid);
 		} else {
-			kfree(lvds_encoder->edid);
-			lvds_encoder->edid = NULL;
+			kfree(lvds_connector->edid);
+			lvds_connector->edid = NULL;
 		}
 	}
-	if (!lvds_encoder->edid) {
+	if (!lvds_connector->edid) {
 		/* Didn't get an EDID, so
 		 * Set wide sync ranges so we get all modes
 		 * handed to valid_mode for checking
@@ -1043,8 +1043,9 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			lvds_encoder->fixed_mode = drm_mode_duplicate(dev, scan);
-			intel_find_lvds_downclock(dev, lvds_encoder->fixed_mode,
+			lvds_connector->fixed_mode = drm_mode_duplicate(dev, scan);
+			intel_find_lvds_downclock(dev,
+						  lvds_connector->fixed_mode,
 						  connector);
 			goto out;
 		}
@@ -1052,10 +1053,10 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->lfp_lvds_vbt_mode) {
-		lvds_encoder->fixed_mode =
+		lvds_connector->fixed_mode =
 			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-		if (lvds_encoder->fixed_mode) {
-			lvds_encoder->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+		if (lvds_connector->fixed_mode) {
+			lvds_connector->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;
 		}
 	}
@@ -1075,15 +1076,15 @@ bool intel_lvds_init(struct drm_device *dev)
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
-		lvds_encoder->fixed_mode = intel_crtc_mode_get(dev, crtc);
-		if (lvds_encoder->fixed_mode) {
-			lvds_encoder->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+		lvds_connector->fixed_mode = intel_crtc_mode_get(dev, crtc);
+		if (lvds_connector->fixed_mode) {
+			lvds_connector->fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;
 		}
 	}
 
 	/* If we still don't have a mode after all that, give up. */
-	if (!lvds_encoder->fixed_mode)
+	if (!lvds_connector->fixed_mode)
 		goto failed;
 
 out:
