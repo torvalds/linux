@@ -507,8 +507,6 @@ typedef struct drm_i915_private {
 	} edp;
 	bool no_aux_handshake;
 
-	struct notifier_block lid_notifier;
-
 	int crt_ddc_pin;
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */

@@ -42,6 +42,8 @@
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_connector {
 	struct intel_connector base;
+
+	struct notifier_block lid_notifier;
 };
 
 struct intel_lvds_encoder {
@@ -505,10 +507,11 @@ static const struct dmi_system_id intel_no_modeset_on_lid[] = {
 static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 			    void *unused)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(nb, struct drm_i915_private, lid_notifier);
-	struct drm_device *dev = dev_priv->dev;
-	struct drm_connector *connector = dev_priv->int_lvds_connector;
+	struct intel_lvds_connector *lvds_connector =
+		container_of(nb, struct intel_lvds_connector, lid_notifier);
+	struct drm_connector *connector = &lvds_connector->base.base;
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return NOTIFY_OK;
@@ -517,9 +520,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.
 	 */
-	if (connector)
-		connector->status = connector->funcs->detect(connector,
-							     false);
+	connector->status = connector->funcs->detect(connector, false);
 
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))
@@ -550,13 +551,14 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
  */
 static void intel_lvds_destroy(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_lvds_connector *lvds_connector =
+		to_lvds_connector(connector);
 
-	intel_panel_destroy_backlight(dev);
+	if (lvds_connector->lid_notifier.notifier_call)
+		acpi_lid_notifier_unregister(&lvds_connector->lid_notifier);
 
-	if (dev_priv->lid_notifier.notifier_call)
-		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
+	intel_panel_destroy_backlight(connector->dev);
+
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -1096,10 +1098,10 @@ out:
 		I915_WRITE(PP_CONTROL,
 			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 	}
-	dev_priv->lid_notifier.notifier_call = intel_lid_notify;
-	if (acpi_lid_notifier_register(&dev_priv->lid_notifier)) {
+	lvds_connector->lid_notifier.notifier_call = intel_lid_notify;
+	if (acpi_lid_notifier_register(&lvds_connector->lid_notifier)) {
 		DRM_DEBUG_KMS("lid notifier registration failed\n");
-		dev_priv->lid_notifier.notifier_call = NULL;
+		lvds_connector->lid_notifier.notifier_call = NULL;
 	}
 	/* keep the LVDS connector */
 	dev_priv->int_lvds_connector = connector;
