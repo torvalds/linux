@@ -11,7 +11,11 @@ static struct rk29_keys_button key_button[] = {
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEDOWN,
+                #if defined(CONFIG_MACH_RK2928_TB)
 		.gpio	= RK2928_PIN0_PD1,
+                #elif defined(CONFIG_MACH_RK2926_TB)
+		.gpio	= RK2928_PIN2_PB6,
+                #endif
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
