@@ -430,6 +430,7 @@ struct platform_device pwm_regulator_device[1] = {
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
 
 static void rkusb_wifi_power(int on) {
+#if 0
 	struct regulator *ldo = NULL;
 	
 #if defined(CONFIG_MFD_TPS65910)	
@@ -451,6 +452,7 @@ static void rkusb_wifi_power(int on) {
 	
 	regulator_put(ldo);
 	udelay(100);
+#endif
 }
 
 #endif
@@ -981,8 +983,8 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
         {.frequency = 600 * 1000,       .cpu_volt = 1200 * 1000,        .logic_volt = 1200 * 1000},
         {.frequency = 696 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
         {.frequency = 816 * 1000,       .cpu_volt = 1400 * 1000,        .logic_volt = 1200 * 1000},
-        {.frequency = 912 * 1000,       .cpu_volt = 1450 * 1000,        .logic_volt = 1200 * 1000},
-        {.frequency = 1008 * 1000,      .cpu_volt = 1500 * 1000,        .logic_volt = 1200 * 1000},
+        //{.frequency = 912 * 1000,       .cpu_volt = 1450 * 1000,        .logic_volt = 1200 * 1000},
+        //{.frequency = 1008 * 1000,      .cpu_volt = 1500 * 1000,        .logic_volt = 1200 * 1000},
 #if 0
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},
