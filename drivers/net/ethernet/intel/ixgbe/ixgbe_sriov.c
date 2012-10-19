@@ -447,15 +447,6 @@ static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf), vmolr);
 }
 
-static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
-			    u16 vid, u16 qos, u32 vf)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 vmvir = vid | (qos << VLAN_PRIO_SHIFT) | IXGBE_VMVIR_VLANA_DEFAULT;
-
-	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), vmvir);
-}
-
 static void ixgbe_clear_vmvir(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;

@@ -47,6 +47,14 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			const struct ixgbe_info *ii);
 #endif
 
+static inline void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
+				   u16 vid, u16 qos, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vmvir = vid | (qos << VLAN_PRIO_SHIFT) | IXGBE_VMVIR_VLANA_DEFAULT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), vmvir);
+}
 
 #endif /* _IXGBE_SRIOV_H_ */
 
