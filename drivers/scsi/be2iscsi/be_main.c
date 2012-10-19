@@ -521,6 +521,7 @@ static DEFINE_PCI_DEVICE_TABLE(beiscsi_pci_id_table) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID3) },
+	{ PCI_DEVICE(ELX_VENDOR_ID, OC_SKH_ID1) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, beiscsi_pci_id_table);
@@ -4611,6 +4612,8 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	case OC_DEVICE_ID3:
 		phba->generation = BE_GEN3;
 		break;
+	case OC_SKH_ID1:
+		phba->generation = BE_GEN4;
 	default:
 		phba->generation = 0;
 	}

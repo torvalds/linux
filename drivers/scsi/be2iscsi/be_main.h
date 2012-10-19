@@ -42,6 +42,7 @@
 #define DRV_DESC		BE_NAME " " "Driver"
 
 #define BE_VENDOR_ID		0x19A2
+#define ELX_VENDOR_ID		0x10DF
 /* DEVICE ID's for BE2 */
 #define BE_DEVICE_ID1		0x212
 #define OC_DEVICE_ID1		0x702
@@ -50,6 +51,9 @@
 /* DEVICE ID's for BE3 */
 #define BE_DEVICE_ID2		0x222
 #define OC_DEVICE_ID3		0x712
+
+/* DEVICE ID for SKH */
+#define OC_SKH_ID1		0x722
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256

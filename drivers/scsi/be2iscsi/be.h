@@ -28,7 +28,7 @@
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
 #define BE_GEN3 3
-
+#define BE_GEN4	4
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
