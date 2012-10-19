@@ -1995,7 +1995,7 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
  * This function is used to avoid synclosts in OMAP3, because of some
  * undocumented horizontal position and timing related limitations.
  */
-static int check_horiz_timing_omap3(enum omap_plane plane,
+static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 		const struct omap_video_timings *t, u16 pos_x,
 		u16 width, u16 height, u16 out_width, u16 out_height)
 {
@@ -2003,8 +2003,6 @@ static int check_horiz_timing_omap3(enum omap_plane plane,
 	unsigned long nonactive;
 	static const u8 limits[3] = { 8, 10, 20 };
 	u64 val, blank;
-	unsigned long pclk = dispc_plane_pclk_rate(plane);
-	unsigned long lclk = dispc_plane_lclk_rate(plane);
 	int i;
 
 	nonactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
@@ -2192,6 +2190,7 @@ static int dispc_ovl_calc_scaling_34xx(enum omap_plane plane,
 	const int maxsinglelinewidth =
 			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
+	unsigned long lclk = dispc_plane_lclk_rate(plane);
 
 	do {
 		in_height = DIV_ROUND_UP(height, *decim_y);
@@ -2199,7 +2198,7 @@ static int dispc_ovl_calc_scaling_34xx(enum omap_plane plane,
 		*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
 			in_width, in_height, out_width, out_height, color_mode);
 
-		error = check_horiz_timing_omap3(plane, mgr_timings,
+		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
 				pos_x, in_width, in_height, out_width,
 				out_height);
 
@@ -2227,8 +2226,8 @@ static int dispc_ovl_calc_scaling_34xx(enum omap_plane plane,
 		}
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
-	if (check_horiz_timing_omap3(plane, mgr_timings, pos_x, width, height,
-		out_width, out_height)){
+	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, width,
+				height, out_width, out_height)){
 			DSSERR("horizontal timing too tight\n");
 			return -EINVAL;
 	}
