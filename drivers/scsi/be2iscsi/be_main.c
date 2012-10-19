@@ -4105,13 +4105,25 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 		spin_lock(&phba->io_sgl_lock);
 		io_task->psgl_handle = alloc_io_sgl_handle(phba);
 		spin_unlock(&phba->io_sgl_lock);
-		if (!io_task->psgl_handle)
+		if (!io_task->psgl_handle) {
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
+				    "BM_%d : Alloc of IO_SGL_ICD Failed"
+				    "for the CID : %d\n",
+				    beiscsi_conn->beiscsi_conn_cid);
 			goto free_hndls;
+		}
 		io_task->pwrb_handle = alloc_wrb_handle(phba,
 					beiscsi_conn->beiscsi_conn_cid -
 					phba->fw_config.iscsi_cid_start);
-		if (!io_task->pwrb_handle)
+		if (!io_task->pwrb_handle) {
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
+				    "BM_%d : Alloc of WRB_HANDLE Failed"
+				    "for the CID : %d\n",
+				    beiscsi_conn->beiscsi_conn_cid);
 			goto free_io_hndls;
+		}
 	} else {
 		io_task->scsi_cmnd = NULL;
 		if ((opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN) {
@@ -4120,8 +4132,16 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 				io_task->psgl_handle = (struct sgl_handle *)
 						alloc_mgmt_sgl_handle(phba);
 				spin_unlock(&phba->mgmt_sgl_lock);
-				if (!io_task->psgl_handle)
+				if (!io_task->psgl_handle) {
+					beiscsi_log(phba, KERN_ERR,
+						    BEISCSI_LOG_IO |
+						    BEISCSI_LOG_CONFIG,
+						    "BM_%d : Alloc of MGMT_SGL_ICD Failed"
+						    "for the CID : %d\n",
+						    beiscsi_conn->
+						    beiscsi_conn_cid);
 					goto free_hndls;
+				}
 
 				beiscsi_conn->login_in_progress = 1;
 				beiscsi_conn->plogin_sgl_handle =
@@ -4130,8 +4150,16 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 					alloc_wrb_handle(phba,
 					beiscsi_conn->beiscsi_conn_cid -
 					phba->fw_config.iscsi_cid_start);
-				if (!io_task->pwrb_handle)
-					goto free_io_hndls;
+				if (!io_task->pwrb_handle) {
+					beiscsi_log(phba, KERN_ERR,
+						    BEISCSI_LOG_IO |
+						    BEISCSI_LOG_CONFIG,
+						    "BM_%d : Alloc of WRB_HANDLE Failed"
+						    "for the CID : %d\n",
+						    beiscsi_conn->
+						    beiscsi_conn_cid);
+					goto free_mgmt_hndls;
+				}
 				beiscsi_conn->plogin_wrb_handle =
 							io_task->pwrb_handle;
 
@@ -4146,14 +4174,28 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 			spin_lock(&phba->mgmt_sgl_lock);
 			io_task->psgl_handle = alloc_mgmt_sgl_handle(phba);
 			spin_unlock(&phba->mgmt_sgl_lock);
-			if (!io_task->psgl_handle)
+			if (!io_task->psgl_handle) {
+				beiscsi_log(phba, KERN_ERR,
+					    BEISCSI_LOG_IO |
+					    BEISCSI_LOG_CONFIG,
+					    "BM_%d : Alloc of MGMT_SGL_ICD Failed"
+					    "for the CID : %d\n",
+					    beiscsi_conn->
+					    beiscsi_conn_cid);
 				goto free_hndls;
+			}
 			io_task->pwrb_handle =
 					alloc_wrb_handle(phba,
 					beiscsi_conn->beiscsi_conn_cid -
 					phba->fw_config.iscsi_cid_start);
-			if (!io_task->pwrb_handle)
+			if (!io_task->pwrb_handle) {
+				beiscsi_log(phba, KERN_ERR,
+					    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
+					    "BM_%d : Alloc of WRB_HANDLE Failed"
+					    "for the CID : %d\n",
+					    beiscsi_conn->beiscsi_conn_cid);
 				goto free_mgmt_hndls;
+			}
 
 		}
 	}
@@ -4185,9 +4227,6 @@ free_hndls:
 	pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
 		      io_task->bhs_pa.u.a64.address);
 	io_task->cmd_bhs = NULL;
-	beiscsi_log(phba, KERN_ERR,
-		    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-		    "BM_%d : Alloc of SGL_ICD Failed\n");
 	return -ENOMEM;
 }
 
@@ -4387,13 +4426,13 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BM_%d : Failed to allocate memory for "
 				    "beiscsi_bsg_request\n");
-			return -EIO;
+			return -ENOMEM;
 		}
 		tag = mgmt_vendor_specific_fw_cmd(&phba->ctrl, phba, job,
 						  &nonemb_cmd);
 		if (!tag) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BM_%d : be_cmd_get_mac_addr Failed\n");
+				    "BM_%d : MBX Tag Allocation Failed\n");
 
 			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 					    nonemb_cmd.va, nonemb_cmd.dma);
@@ -4417,11 +4456,13 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 				    nonemb_cmd.va, nonemb_cmd.dma);
 		if (status || extd_status) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BM_%d : be_cmd_get_mac_addr Failed"
+				    "BM_%d : MBX Cmd Failed"
 				    " status = %d extd_status = %d\n",
 				    status, extd_status);
 
 			return -EIO;
+		} else {
+			rc = 0;
 		}
 		break;
 
