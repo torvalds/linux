@@ -3498,10 +3498,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 	uint32_t snpcr;
-
-	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
@@ -3580,9 +3577,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
-
-	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
