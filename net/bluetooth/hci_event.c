@@ -507,11 +507,13 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return;
 
-	events[4] |= 0x01; /* Flow Specification Complete */
-	events[4] |= 0x02; /* Inquiry Result with RSSI */
-	events[4] |= 0x04; /* Read Remote Extended Features Complete */
-	events[5] |= 0x08; /* Synchronous Connection Complete */
-	events[5] |= 0x10; /* Synchronous Connection Changed */
+	if (lmp_bredr_capable(hdev)) {
+		events[4] |= 0x01; /* Flow Specification Complete */
+		events[4] |= 0x02; /* Inquiry Result with RSSI */
+		events[4] |= 0x04; /* Read Remote Extended Features Complete */
+		events[5] |= 0x08; /* Synchronous Connection Complete */
+		events[5] |= 0x10; /* Synchronous Connection Changed */
+	}
 
 	if (hdev->features[3] & LMP_RSSI_INQ)
 		events[4] |= 0x02; /* Inquiry Result with RSSI */
@@ -550,10 +552,56 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	hci_send_cmd(hdev, HCI_OP_SET_EVENT_MASK, sizeof(events), events);
 }
 
+static void bredr_init(struct hci_dev *hdev)
+{
+	struct hci_cp_delete_stored_link_key cp;
+	__le16 param;
+	__u8 flt_type;
+
+	/* Read Buffer Size (ACL mtu, max pkt, etc.) */
+	hci_send_cmd(hdev, HCI_OP_READ_BUFFER_SIZE, 0, NULL);
+
+	/* Read Class of Device */
+	hci_send_cmd(hdev, HCI_OP_READ_CLASS_OF_DEV, 0, NULL);
+
+	/* Read Local Name */
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_NAME, 0, NULL);
+
+	/* Read Voice Setting */
+	hci_send_cmd(hdev, HCI_OP_READ_VOICE_SETTING, 0, NULL);
+
+	/* Clear Event Filters */
+	flt_type = HCI_FLT_CLEAR_ALL;
+	hci_send_cmd(hdev, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
+
+	/* Connection accept timeout ~20 secs */
+	param = __constant_cpu_to_le16(0x7d00);
+	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
+
+	bacpy(&cp.bdaddr, BDADDR_ANY);
+	cp.delete_all = 1;
+	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
+}
+
+static void le_init(struct hci_dev *hdev)
+{
+	/* Read LE Buffer Size */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
+}
+
 static void hci_setup(struct hci_dev *hdev)
 {
 	if (hdev->dev_type != HCI_BREDR)
 		return;
+
+	/* Read BD Address */
+	hci_send_cmd(hdev, HCI_OP_READ_BD_ADDR, 0, NULL);
+
+	if (lmp_bredr_capable(hdev))
+		bredr_init(hdev);
+
+	if (lmp_le_capable(hdev))
+		le_init(hdev);
 
 	hci_setup_event_mask(hdev);
 
