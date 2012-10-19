@@ -26,9 +26,17 @@
 
 #include <linux/serial_reg.h>
 
-#include "../../iomap.h"
-
 #define UART_SHIFT 2
+
+/* Physical addresses */
+#define TEGRA_CLK_RESET_BASE		0x60006000
+#define TEGRA_APB_MISC_BASE		0x70000000
+#define TEGRA_UARTA_BASE		0x70006000
+#define TEGRA_UARTB_BASE		0x70006040
+#define TEGRA_UARTC_BASE		0x70006200
+#define TEGRA_UARTD_BASE		0x70006300
+#define TEGRA_UARTE_BASE		0x70006400
+#define TEGRA_PMC_BASE			0x7000e400
 
 #define TEGRA_CLK_RST_DEVICES_L		(TEGRA_CLK_RESET_BASE + 0x04)
 #define TEGRA_CLK_RST_DEVICES_H		(TEGRA_CLK_RESET_BASE + 0x08)
@@ -38,6 +46,12 @@
 #define TEGRA_CLK_OUT_ENB_U		(TEGRA_CLK_RESET_BASE + 0x18)
 #define TEGRA_PMC_SCRATCH20		(TEGRA_PMC_BASE + 0xa0)
 #define TEGRA_APB_MISC_GP_HIDREV	(TEGRA_APB_MISC_BASE + 0x804)
+
+/*
+ * Must be 1MB-aligned since a 1MB mapping is used early on.
+ * Must not overlap with regions in mach-tegra/io.c:tegra_io_desc[].
+ */
+#define UART_VIRTUAL_BASE		0xfe100000
 
 #define checkuart(rp, rv, lhu, bit, uart) \
 		/* Load address of CLK_RST register */ \
@@ -139,10 +153,10 @@
 91:		str	\rp, [\tmp, #4]		@ Store in tegra_uart_phys
 		cmp	\rp, #0			@ Valid UART address?
 		bne	92f			@ Yes, go process it
-		str	\rp, [\tmp, #8]		@ Store 0 in tegra_uart_phys
+		str	\rp, [\tmp, #8]		@ Store 0 in tegra_uart_virt
 		b	100f			@ Done
-92:		sub	\rv, \rp, #IO_APB_PHYS	@ Calculate virt address
-		add	\rv, \rv, #IO_APB_VIRT
+92:		and	\rv, \rp, #0xffffff	@ offset within 1MB section
+		add	\rv, \rv, #UART_VIRTUAL_BASE
 		str	\rv, [\tmp, #8]		@ Store in tegra_uart_virt
 		movw	\rv, #TEGRA_APB_MISC_GP_HIDREV & 0xffff
 		movt	\rv, #TEGRA_APB_MISC_GP_HIDREV >> 16
