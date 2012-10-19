@@ -1023,7 +1023,7 @@ static int wm2200_dsp_load(struct snd_soc_codec *codec, int base)
 
 	pos = sizeof(*header) + sizeof(*adsp1_sizes) + sizeof(*footer);
 	if (pos >= firmware->size) {
-		dev_err(codec->dev, "%s: file too short, %d bytes\n",
+		dev_err(codec->dev, "%s: file too short, %zu bytes\n",
 			file, firmware->size);
 		return -EINVAL;
 	}
@@ -1135,7 +1135,7 @@ static int wm2200_dsp_load(struct snd_soc_codec *codec, int base)
 	}
 
 	if (pos > firmware->size)
-		dev_warn(codec->dev, "%s.%d: %d bytes at end of file\n",
+		dev_warn(codec->dev, "%s.%d: %zu bytes at end of file\n",
 			 file, regions, pos - firmware->size);
 
 out:
@@ -1178,7 +1178,7 @@ static int wm2200_setup_algs(struct snd_soc_codec *codec, int base)
 	}
 
 	algs = be32_to_cpu(id.algs);
-	dev_info(codec->dev, "Firmware: %x v%d.%d.%d, %d algorithms\n",
+	dev_info(codec->dev, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
 		 be32_to_cpu(id.fw.id),
 		 (be32_to_cpu(id.fw.ver) & 0xff000) >> 16,
 		 (be32_to_cpu(id.fw.ver) & 0xff00) >> 8,
@@ -1196,7 +1196,7 @@ static int wm2200_setup_algs(struct snd_soc_codec *codec, int base)
 	}
 
 	if (be32_to_cpu(val) != 0xbedead)
-		dev_warn(codec->dev, "Algorithm list end %x 0x%x != 0xbeadead\n",
+		dev_warn(codec->dev, "Algorithm list end %zx 0x%x != 0xbeadead\n",
 			 (sizeof(id) + (algs * sizeof(*alg))) / 2,
 			 be32_to_cpu(val));
 
@@ -1260,7 +1260,7 @@ static int wm2200_load_coeff(struct snd_soc_codec *codec, int base)
 	}
 
 	if (sizeof(*hdr) >= firmware->size) {
-		dev_err(codec->dev, "%s: file too short, %d bytes\n",
+		dev_err(codec->dev, "%s: file too short, %zu bytes\n",
 			file, firmware->size);
 		return -EINVAL;
 	}
@@ -1324,7 +1324,7 @@ static int wm2200_load_coeff(struct snd_soc_codec *codec, int base)
 	}
 
 	if (pos > firmware->size)
-		dev_warn(codec->dev, "%s.%d: %d bytes at end of file\n",
+		dev_warn(codec->dev, "%s.%d: %zu bytes at end of file\n",
 			 file, blocks, pos - firmware->size);
 
 	return 0;
