@@ -444,6 +444,10 @@ enum iwl_trans_state {
  * @dev_cmd_headroom: room needed for the transport's private use before the
  *	device_cmd for Tx - for internal use only
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
+ *	starting the firmware, used for tracing
+ * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
+ *	start of the 802.11 header in the @rx_mpdu_cmd
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -456,6 +460,8 @@ struct iwl_trans {
 	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];
+
+	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
 	bool pm_support;
 
@@ -515,6 +521,8 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 				     const struct fw_img *fw)
 {
 	might_sleep();
+
+	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
 	return trans->ops->start_fw(trans, fw);
 }

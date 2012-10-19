@@ -1191,8 +1191,6 @@ static void iwl_option_config(struct iwl_priv *priv)
 
 static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
-	u16 radio_cfg;
-
 	priv->eeprom_data->sku = priv->eeprom_data->sku;
 
 	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE &&
@@ -1207,8 +1205,6 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 	}
 
 	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
-
-	radio_cfg = priv->eeprom_data->radio_cfg;
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->eeprom_data->valid_tx_ant);
@@ -1333,6 +1329,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	/* Configure transport layer */
 	iwl_trans_configure(priv->trans, &trans_cfg);
+
+	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
 
 	/* At this point both hw and priv are allocated. */
 
@@ -2152,8 +2151,6 @@ static int __init iwl_init(void)
 {
 
 	int ret;
-	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {
