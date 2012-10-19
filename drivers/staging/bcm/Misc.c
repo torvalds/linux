@@ -216,7 +216,7 @@ exit_download:
  * Logical Adapter
  * Control Packet Buffer
  */
-INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, PVOID ioBuffer)
+INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 {
 	struct bcm_leader *pLeader = NULL;
 	INT Status = 0;
@@ -448,7 +448,7 @@ VOID LinkMessage(struct bcm_mini_adapter *Adapter)
 *
 * Returns     - None.
 ************************************************************************/
-VOID StatisticsResponse(struct bcm_mini_adapter *Adapter, PVOID pvBuffer)
+VOID StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __func__);
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
