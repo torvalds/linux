@@ -2810,43 +2810,12 @@ void dispc_mgr_disable_sync(enum omap_channel channel)
 
 void dispc_wb_enable(bool enable)
 {
-	enum omap_plane plane = OMAP_DSS_WB;
-	struct completion frame_done_completion;
-	bool is_on;
-	int r;
-	u32 irq;
-
-	is_on = REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
-	irq = DISPC_IRQ_FRAMEDONEWB;
-
-	if (!enable && is_on) {
-		init_completion(&frame_done_completion);
-
-		r = omap_dispc_register_isr(dispc_mgr_disable_isr,
-				&frame_done_completion, irq);
-		if (r)
-			DSSERR("failed to register FRAMEDONEWB isr\n");
-	}
-
-	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 0, 0);
-
-	if (!enable && is_on) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for FRAMEDONEWB\n");
-
-		r = omap_dispc_unregister_isr(dispc_mgr_disable_isr,
-				&frame_done_completion, irq);
-		if (r)
-			DSSERR("failed to unregister FRAMEDONEWB isr\n");
-	}
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(OMAP_DSS_WB), enable ? 1 : 0, 0, 0);
 }
 
 bool dispc_wb_is_enabled(void)
 {
-	enum omap_plane plane = OMAP_DSS_WB;
-
-	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
+	return REG_GET(DISPC_OVL_ATTRIBUTES(OMAP_DSS_WB), 0, 0);
 }
 
 static void dispc_lcd_enable_signal_polarity(bool act_high)
