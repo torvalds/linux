@@ -464,3 +464,12 @@ void intel_panel_destroy_backlight(struct drm_device *dev)
 	return;
 }
 #endif
+
+int intel_panel_init(struct intel_panel *panel)
+{
+	return 0;
+}
+
+void intel_panel_fini(struct intel_panel *panel)
+{
+}

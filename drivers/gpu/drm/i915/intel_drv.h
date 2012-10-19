@@ -163,6 +163,9 @@ struct intel_encoder {
 	int crtc_mask;
 };
 
+struct intel_panel {
+};
+
 struct intel_connector {
 	struct drm_connector base;
 	/*
@@ -179,6 +182,9 @@ struct intel_connector {
 	/* Reads out the current hw, returning true if the connector is enabled
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
+
+	/* Panel info for eDP and LVDS */
+	struct intel_panel panel;
 };
 
 struct intel_crtc {
@@ -436,6 +442,9 @@ extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
 
 /* intel_panel.c */
+extern int intel_panel_init(struct intel_panel *panel);
+extern void intel_panel_fini(struct intel_panel *panel);
+
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
 extern void intel_pch_panel_fitting(struct drm_device *dev,

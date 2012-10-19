@@ -2497,9 +2497,12 @@ intel_dp_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	if (is_edp(intel_dp))
+	if (is_edp(intel_dp)) {
 		intel_panel_destroy_backlight(dev);
+		intel_panel_fini(&intel_connector->panel);
+	}
 
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
@@ -2828,8 +2831,10 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
-	if (is_edp(intel_dp))
+	if (is_edp(intel_dp)) {
+		intel_panel_init(&intel_connector->panel);
 		intel_panel_setup_backlight(connector);
+	}
 
 	intel_dp_add_properties(intel_dp, connector);
 
