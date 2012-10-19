@@ -100,6 +100,8 @@ struct tid_info {
 
 	unsigned int nftids;
 	unsigned int ftid_base;
+	unsigned int aftid_base;
+	unsigned int aftid_end;
 
 	spinlock_t atid_lock ____cacheline_aligned_in_smp;
 	union aopen_entry *afree;

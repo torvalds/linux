@@ -21,8 +21,10 @@
  * SOFTWARE.
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <drm/drmP.h>
+
+#include "nouveau_drm.h"
+#include "nouveau_reg.h"
 #include "nouveau_hw.h"
 
 /****************************************************************************\
@@ -195,12 +197,13 @@ static void
 nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		int *burst, int *lwm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nouveau_dev(dev);
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
 	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);
 	int NVClk = nouveau_hw_get_clock(dev, PLL_CORE);
-	uint32_t cfg1 = nvReadFB(dev, NV04_PFB_CFG1);
+	uint32_t cfg1 = nv_rd32(device, NV04_PFB_CFG1);
 
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
@@ -218,13 +221,13 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		sim_data.mem_latency = 3;
 		sim_data.mem_page_miss = 10;
 	} else {
-		sim_data.memory_type = nvReadFB(dev, NV04_PFB_CFG0) & 0x1;
-		sim_data.memory_width = (nvReadEXTDEV(dev, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
+		sim_data.memory_type = nv_rd32(device, NV04_PFB_CFG0) & 0x1;
+		sim_data.memory_width = (nv_rd32(device, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
 		sim_data.mem_latency = cfg1 & 0xf;
 		sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
 	}
 
-	if (dev_priv->card_type == NV_04)
+	if (nv_device(drm->device)->card_type == NV_04)
 		nv04_calc_arb(&fifo_data, &sim_data);
 	else
 		nv10_calc_arb(&fifo_data, &sim_data);
@@ -249,9 +252,9 @@ nv20_update_arb(int *burst, int *lwm)
 void
 nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (dev_priv->card_type < NV_20)
+	if (nv_device(drm->device)->card_type < NV_20)
 		nv04_update_arb(dev, vclk, bpp, burst, lwm);
 	else if ((dev->pci_device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
 		 (dev->pci_device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
@@ -259,220 +262,4 @@ nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm
 		*lwm = 0x0480;
 	} else
 		nv20_update_arb(burst, lwm);
-}
-
-static int
-getMNP_single(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
-	      struct nouveau_pll_vals *bestpv)
-{
-	/* Find M, N and P for a single stage PLL
-	 *
-	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP
-	 * values, but we're too lazy to use those atm
-	 *
-	 * "clk" parameter in kHz
-	 * returns calculated clock
-	 */
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int cv = dev_priv->vbios.chip_version;
-	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
-	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
-	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
-	int minU = pll_lim->vco1.min_inputfreq;
-	int maxU = pll_lim->vco1.max_inputfreq;
-	int minP = pll_lim->max_p ? pll_lim->min_p : 0;
-	int maxP = pll_lim->max_p ? pll_lim->max_p : pll_lim->max_usable_log2p;
-	int crystal = pll_lim->refclk;
-	int M, N, thisP, P;
-	int clkP, calcclk;
-	int delta, bestdelta = INT_MAX;
-	int bestclk = 0;
-
-	/* this division verified for nv20, nv18, nv28 (Haiku), and nv34 */
-	/* possibly correlated with introduction of 27MHz crystal */
-	if (dev_priv->card_type < NV_50) {
-		if (cv < 0x17 || cv == 0x1a || cv == 0x20) {
-			if (clk > 250000)
-				maxM = 6;
-			if (clk > 340000)
-				maxM = 2;
-		} else if (cv < 0x40) {
-			if (clk > 150000)
-				maxM = 6;
-			if (clk > 200000)
-				maxM = 4;
-			if (clk > 340000)
-				maxM = 2;
-		}
-	}
-
-	P = pll_lim->max_p ? maxP : (1 << maxP);
-	if ((clk * P) < minvco) {
-		minvco = clk * maxP;
-		maxvco = minvco * 2;
-	}
-
-	if (clk + clk/200 > maxvco)	/* +0.5% */
-		maxvco = clk + clk/200;
-
-	/* NV34 goes maxlog2P->0, NV20 goes 0->maxlog2P */
-	for (thisP = minP; thisP <= maxP; thisP++) {
-		P = pll_lim->max_p ? thisP : (1 << thisP);
-		clkP = clk * P;
-
-		if (clkP < minvco)
-			continue;
-		if (clkP > maxvco)
-			return bestclk;
-
-		for (M = minM; M <= maxM; M++) {
-			if (crystal/M < minU)
-				return bestclk;
-			if (crystal/M > maxU)
-				continue;
-
-			/* add crystal/2 to round better */
-			N = (clkP * M + crystal/2) / crystal;
-
-			if (N < minN)
-				continue;
-			if (N > maxN)
-				break;
-
-			/* more rounding additions */
-			calcclk = ((N * crystal + P/2) / P + M/2) / M;
-			delta = abs(calcclk - clk);
-			/* we do an exhaustive search rather than terminating
-			 * on an optimality condition...
-			 */
-			if (delta < bestdelta) {
-				bestdelta = delta;
-				bestclk = calcclk;
-				bestpv->N1 = N;
-				bestpv->M1 = M;
-				bestpv->log2P = thisP;
-				if (delta == 0)	/* except this one */
-					return bestclk;
-			}
-		}
-	}
-
-	return bestclk;
-}
-
-static int
-getMNP_double(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
-	      struct nouveau_pll_vals *bestpv)
-{
-	/* Find M, N and P for a two stage PLL
-	 *
-	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP
-	 * values, but we're too lazy to use those atm
-	 *
-	 * "clk" parameter in kHz
-	 * returns calculated clock
-	 */
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chip_version = dev_priv->vbios.chip_version;
-	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
-	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
-	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
-	int maxU1 = pll_lim->vco1.max_inputfreq, maxU2 = pll_lim->vco2.max_inputfreq;
-	int minM1 = pll_lim->vco1.min_m, maxM1 = pll_lim->vco1.max_m;
-	int minN1 = pll_lim->vco1.min_n, maxN1 = pll_lim->vco1.max_n;
-	int minM2 = pll_lim->vco2.min_m, maxM2 = pll_lim->vco2.max_m;
-	int minN2 = pll_lim->vco2.min_n, maxN2 = pll_lim->vco2.max_n;
-	int maxlog2P = pll_lim->max_usable_log2p;
-	int crystal = pll_lim->refclk;
-	bool fixedgain2 = (minM2 == maxM2 && minN2 == maxN2);
-	int M1, N1, M2, N2, log2P;
-	int clkP, calcclk1, calcclk2, calcclkout;
-	int delta, bestdelta = INT_MAX;
-	int bestclk = 0;
-
-	int vco2 = (maxvco2 - maxvco2/200) / 2;
-	for (log2P = 0; clk && log2P < maxlog2P && clk <= (vco2 >> log2P); log2P++)
-		;
-	clkP = clk << log2P;
-
-	if (maxvco2 < clk + clk/200)	/* +0.5% */
-		maxvco2 = clk + clk/200;
-
-	for (M1 = minM1; M1 <= maxM1; M1++) {
-		if (crystal/M1 < minU1)
-			return bestclk;
-		if (crystal/M1 > maxU1)
-			continue;
-
-		for (N1 = minN1; N1 <= maxN1; N1++) {
-			calcclk1 = crystal * N1 / M1;
-			if (calcclk1 < minvco1)
-				continue;
-			if (calcclk1 > maxvco1)
-				break;
-
-			for (M2 = minM2; M2 <= maxM2; M2++) {
-				if (calcclk1/M2 < minU2)
-					break;
-				if (calcclk1/M2 > maxU2)
-					continue;
-
-				/* add calcclk1/2 to round better */
-				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
-				if (N2 < minN2)
-					continue;
-				if (N2 > maxN2)
-					break;
-
-				if (!fixedgain2) {
-					if (chip_version < 0x60)
-						if (N2/M2 < 4 || N2/M2 > 10)
-							continue;
-
-					calcclk2 = calcclk1 * N2 / M2;
-					if (calcclk2 < minvco2)
-						break;
-					if (calcclk2 > maxvco2)
-						continue;
-				} else
-					calcclk2 = calcclk1;
-
-				calcclkout = calcclk2 >> log2P;
-				delta = abs(calcclkout - clk);
-				/* we do an exhaustive search rather than terminating
-				 * on an optimality condition...
-				 */
-				if (delta < bestdelta) {
-					bestdelta = delta;
-					bestclk = calcclkout;
-					bestpv->N1 = N1;
-					bestpv->M1 = M1;
-					bestpv->N2 = N2;
-					bestpv->M2 = M2;
-					bestpv->log2P = log2P;
-					if (delta == 0)	/* except this one */
-						return bestclk;
-				}
-			}
-		}
-	}
-
-	return bestclk;
-}
-
-int
-nouveau_calc_pll_mnp(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
-		     struct nouveau_pll_vals *pv)
-{
-	int outclk;
-
-	if (!pll_lim->vco2.maxfreq)
-		outclk = getMNP_single(dev, pll_lim, clk, pv);
-	else
-		outclk = getMNP_double(dev, pll_lim, clk, pv);
-
-	if (!outclk)
-		NV_ERROR(dev, "Could not find a compatible set of PLL values\n");
-
-	return outclk;
 }

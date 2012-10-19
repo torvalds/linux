@@ -340,43 +340,57 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 EXPORT_SYMBOL(build_skb);
 
 struct netdev_alloc_cache {
-	struct page *page;
-	unsigned int offset;
-	unsigned int pagecnt_bias;
+	struct page_frag	frag;
+	/* we maintain a pagecount bias, so that we dont dirty cache line
+	 * containing page->_count every time we allocate a fragment.
+	 */
+	unsigned int		pagecnt_bias;
 };
 static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
 
-#define NETDEV_PAGECNT_BIAS (PAGE_SIZE / SMP_CACHE_BYTES)
+#define NETDEV_FRAG_PAGE_MAX_ORDER get_order(32768)
+#define NETDEV_FRAG_PAGE_MAX_SIZE  (PAGE_SIZE << NETDEV_FRAG_PAGE_MAX_ORDER)
+#define NETDEV_PAGECNT_MAX_BIAS	   NETDEV_FRAG_PAGE_MAX_SIZE
 
 static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
 	struct netdev_alloc_cache *nc;
 	void *data = NULL;
+	int order;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	nc = &__get_cpu_var(netdev_alloc_cache);
-	if (unlikely(!nc->page)) {
+	if (unlikely(!nc->frag.page)) {
 refill:
-		nc->page = alloc_page(gfp_mask);
-		if (unlikely(!nc->page))
-			goto end;
+		for (order = NETDEV_FRAG_PAGE_MAX_ORDER; ;) {
+			gfp_t gfp = gfp_mask;
+
+			if (order)
+				gfp |= __GFP_COMP | __GFP_NOWARN;
+			nc->frag.page = alloc_pages(gfp, order);
+			if (likely(nc->frag.page))
+				break;
+			if (--order < 0)
+				goto end;
+		}
+		nc->frag.size = PAGE_SIZE << order;
 recycle:
-		atomic_set(&nc->page->_count, NETDEV_PAGECNT_BIAS);
-		nc->pagecnt_bias = NETDEV_PAGECNT_BIAS;
-		nc->offset = 0;
+		atomic_set(&nc->frag.page->_count, NETDEV_PAGECNT_MAX_BIAS);
+		nc->pagecnt_bias = NETDEV_PAGECNT_MAX_BIAS;
+		nc->frag.offset = 0;
 	}
 
-	if (nc->offset + fragsz > PAGE_SIZE) {
+	if (nc->frag.offset + fragsz > nc->frag.size) {
 		/* avoid unnecessary locked operations if possible */
-		if ((atomic_read(&nc->page->_count) == nc->pagecnt_bias) ||
-		    atomic_sub_and_test(nc->pagecnt_bias, &nc->page->_count))
+		if ((atomic_read(&nc->frag.page->_count) == nc->pagecnt_bias) ||
+		    atomic_sub_and_test(nc->pagecnt_bias, &nc->frag.page->_count))
 			goto recycle;
 		goto refill;
 	}
 
-	data = page_address(nc->page) + nc->offset;
-	nc->offset += fragsz;
+	data = page_address(nc->frag.page) + nc->frag.offset;
+	nc->frag.offset += fragsz;
 	nc->pagecnt_bias--;
 end:
 	local_irq_restore(flags);
@@ -640,53 +654,6 @@ void consume_skb(struct sk_buff *skb)
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(consume_skb);
-
-/**
- * 	skb_recycle - clean up an skb for reuse
- * 	@skb: buffer
- *
- * 	Recycles the skb to be reused as a receive buffer. This
- * 	function does any necessary reference count dropping, and
- * 	cleans up the skbuff as if it just came from __alloc_skb().
- */
-void skb_recycle(struct sk_buff *skb)
-{
-	struct skb_shared_info *shinfo;
-
-	skb_release_head_state(skb);
-
-	shinfo = skb_shinfo(skb);
-	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
-	atomic_set(&shinfo->dataref, 1);
-
-	memset(skb, 0, offsetof(struct sk_buff, tail));
-	skb->data = skb->head + NET_SKB_PAD;
-	skb_reset_tail_pointer(skb);
-}
-EXPORT_SYMBOL(skb_recycle);
-
-/**
- *	skb_recycle_check - check if skb can be reused for receive
- *	@skb: buffer
- *	@skb_size: minimum receive buffer size
- *
- *	Checks that the skb passed in is not shared or cloned, and
- *	that it is linear and its head portion at least as large as
- *	skb_size so that it can be recycled as a receive buffer.
- *	If these conditions are met, this function does any necessary
- *	reference count dropping and cleans up the skbuff as if it
- *	just came from __alloc_skb().
- */
-bool skb_recycle_check(struct sk_buff *skb, int skb_size)
-{
-	if (!skb_is_recycleable(skb, skb_size))
-		return false;
-
-	skb_recycle(skb);
-
-	return true;
-}
-EXPORT_SYMBOL(skb_recycle_check);
 
 static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 {
@@ -1655,38 +1622,19 @@ static struct page *linear_to_page(struct page *page, unsigned int *len,
 				   unsigned int *offset,
 				   struct sk_buff *skb, struct sock *sk)
 {
-	struct page *p = sk->sk_sndmsg_page;
-	unsigned int off;
+	struct page_frag *pfrag = sk_page_frag(sk);
 
-	if (!p) {
-new_page:
-		p = sk->sk_sndmsg_page = alloc_pages(sk->sk_allocation, 0);
-		if (!p)
-			return NULL;
+	if (!sk_page_frag_refill(sk, pfrag))
+		return NULL;
 
-		off = sk->sk_sndmsg_off = 0;
-		/* hold one ref to this page until it's full */
-	} else {
-		unsigned int mlen;
+	*len = min_t(unsigned int, *len, pfrag->size - pfrag->offset);
 
-		/* If we are the only user of the page, we can reset offset */
-		if (page_count(p) == 1)
-			sk->sk_sndmsg_off = 0;
-		off = sk->sk_sndmsg_off;
-		mlen = PAGE_SIZE - off;
-		if (mlen < 64 && mlen < *len) {
-			put_page(p);
-			goto new_page;
-		}
+	memcpy(page_address(pfrag->page) + pfrag->offset,
+	       page_address(page) + *offset, *len);
+	*offset = pfrag->offset;
+	pfrag->offset += *len;
 
-		*len = min_t(unsigned int, *len, mlen);
-	}
-
-	memcpy(page_address(p) + off, page_address(page) + *offset, *len);
-	sk->sk_sndmsg_off += *len;
-	*offset = off;
-
-	return p;
+	return pfrag->page;
 }
 
 static bool spd_can_coalesce(const struct splice_pipe_desc *spd,
@@ -3488,8 +3436,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		    skb_shinfo(from)->nr_frags > MAX_SKB_FRAGS)
 			return false;
 
-		delta = from->truesize -
-			SKB_TRUESIZE(skb_end_pointer(from) - from->head);
+		delta = from->truesize - SKB_TRUESIZE(skb_end_offset(from));
 	}
 
 	WARN_ON_ONCE(delta < len);
@@ -3502,7 +3449,9 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 	if (!skb_cloned(from))
 		skb_shinfo(from)->nr_frags = 0;
 
-	/* if the skb is cloned this does nothing since we set nr_frags to 0 */
+	/* if the skb is not cloned this does nothing
+	 * since we set nr_frags to 0.
+	 */
 	for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
 		skb_frag_ref(from, i);
 

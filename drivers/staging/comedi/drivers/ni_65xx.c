@@ -55,6 +55,7 @@ except maybe the 6514.
 #include <linux/slab.h>
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
 #include "mite.h"
 
 #define NI6514_DIO_SIZE 4096
@@ -109,18 +110,7 @@ static inline unsigned Filter_Enable(unsigned port)
 #define OverflowIntEnable		0x02
 #define EdgeIntEnable			0x01
 
-static int ni_65xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static void ni_65xx_detach(struct comedi_device *dev);
-static struct comedi_driver driver_ni_65xx = {
-	.driver_name = "ni_65xx",
-	.module = THIS_MODULE,
-	.attach = ni_65xx_attach,
-	.detach = ni_65xx_detach,
-};
-
 struct ni_65xx_board {
-
 	int dev_id;
 	const char *name;
 	unsigned num_dio_ports;
@@ -325,8 +315,6 @@ static struct ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 	return subdev_private;
 }
 
-static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot);
-
 static int ni_65xx_config_filter(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -453,11 +441,9 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			writeb(bits,
 			       private(dev)->mite->daq_io_addr +
 			       Port_Data(port));
-/* printk("wrote 0x%x to port %i\n", bits, port); */
 		}
 		port_read_bits =
 		    readb(private(dev)->mite->daq_io_addr + Port_Data(port));
-/* printk("read 0x%x from port %i\n", port_read_bits, port); */
 		if (s->type == COMEDI_SUBD_DO && board(dev)->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
@@ -478,7 +464,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 2;
+	struct comedi_subdevice *s = &dev->subdevices[2];
 	unsigned int status;
 
 	status = readb(private(dev)->mite->daq_io_addr + Change_Status);
@@ -501,40 +487,20 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 				struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_OTHER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_FOLLOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_OTHER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually
-	compatible */
+	/* Step 2a : make sure trigger sources are unique */
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -644,41 +610,55 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-static int ni_65xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static const struct ni_65xx_board *
+ni_65xx_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(ni_65xx_boards); n++) {
+		const struct ni_65xx_board *board = &ni_65xx_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit ni_65xx_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
 	unsigned i;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: ni_65xx:", dev->minor);
-
 	ret = alloc_private(dev, sizeof(struct ni_65xx_private));
 	if (ret < 0)
 		return ret;
 
-	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_65xx_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+
+	private(dev)->mite = mite_alloc(pcidev);
+	if (!private(dev)->mite)
+		return -ENOMEM;
 
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
-		printk(KERN_WARNING "error setting up mite\n");
+		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
 
 	dev->board_name = board(dev)->name;
 	dev->irq = mite_irq(private(dev)->mite);
-	printk(KERN_INFO " %s", dev->board_name);
-
-	printk(KERN_INFO " ID=0x%02x",
+	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
 	       readb(private(dev)->mite->daq_io_addr + ID_Register));
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (board(dev)->num_di_ports) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
@@ -696,7 +676,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board(dev)->num_do_ports) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -713,7 +693,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (board(dev)->num_dio_ports) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -737,7 +717,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
@@ -772,10 +752,8 @@ static int ni_65xx_attach(struct comedi_device *dev,
 			  "ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
-		printk(KERN_WARNING " irq not available");
+		dev_warn(dev->class_dev, "irq not available\n");
 	}
-
-	printk("\n");
 
 	return 0;
 }
@@ -791,79 +769,46 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (private(dev)) {
+		struct comedi_subdevice *s;
 		unsigned i;
+
 		for (i = 0; i < dev->n_subdevices; ++i) {
-			kfree(dev->subdevices[i].private);
-			dev->subdevices[i].private = NULL;
+			s = &dev->subdevices[i];
+			kfree(s->private);
+			s->private = NULL;
 		}
-		if (private(dev)->mite)
+		if (private(dev)->mite) {
 			mite_unsetup(private(dev)->mite);
-	}
-}
-
-static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-		for (i = 0; i < n_ni_65xx_boards; i++) {
-			if (mite_device_id(mite) == ni_65xx_boards[i].dev_id) {
-				dev->board_ptr = ni_65xx_boards + i;
-				private(dev)->mite = mite;
-				return 0;
-			}
+			mite_free(private(dev)->mite);
 		}
 	}
-	printk(KERN_WARNING "no device found\n");
-	mite_list_devices();
-	return -EIO;
 }
 
-static int __devinit driver_ni_65xx_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static struct comedi_driver ni_65xx_driver = {
+	.driver_name = "ni_65xx",
+	.module = THIS_MODULE,
+	.attach_pci = ni_65xx_attach_pci,
+	.detach = ni_65xx_detach,
+};
+
+static int __devinit ni_65xx_pci_probe(struct pci_dev *dev,
+				       const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_ni_65xx);
+	return comedi_pci_auto_config(dev, &ni_65xx_driver);
 }
 
-static void __devexit driver_ni_65xx_pci_remove(struct pci_dev *dev)
+static void __devexit ni_65xx_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_ni_65xx_pci_driver = {
+static struct pci_driver ni_65xx_pci_driver = {
+	.name = "ni_65xx",
 	.id_table = ni_65xx_pci_table,
-	.probe = &driver_ni_65xx_pci_probe,
-	.remove = __devexit_p(&driver_ni_65xx_pci_remove)
+	.probe = ni_65xx_pci_probe,
+	.remove = __devexit_p(ni_65xx_pci_remove)
 };
-
-static int __init driver_ni_65xx_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_ni_65xx);
-	if (retval < 0)
-		return retval;
-
-	driver_ni_65xx_pci_driver.name = (char *)driver_ni_65xx.driver_name;
-	return pci_register_driver(&driver_ni_65xx_pci_driver);
-}
-
-static void __exit driver_ni_65xx_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_ni_65xx_pci_driver);
-	comedi_driver_unregister(&driver_ni_65xx);
-}
-
-module_init(driver_ni_65xx_init_module);
-module_exit(driver_ni_65xx_cleanup_module);
+module_comedi_pci_driver(ni_65xx_driver, ni_65xx_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

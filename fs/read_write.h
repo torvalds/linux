@@ -12,3 +12,5 @@ ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 		unsigned long nr_segs, size_t len, loff_t *ppos, iov_fn_t fn);
 ssize_t do_loop_readv_writev(struct file *filp, struct iovec *iov,
 		unsigned long nr_segs, loff_t *ppos, io_fn_t fn);
+ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
+		    loff_t max);

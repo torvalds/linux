@@ -56,12 +56,9 @@ struct nfc_llcp_local {
 
 	struct timer_list link_timer;
 	struct sk_buff_head tx_queue;
-	struct workqueue_struct	*tx_wq;
 	struct work_struct	 tx_work;
-	struct workqueue_struct	*rx_wq;
 	struct work_struct	 rx_work;
 	struct sk_buff *rx_pending;
-	struct workqueue_struct	*timeout_wq;
 	struct work_struct	 timeout_work;
 
 	u32 target_idx;
@@ -89,6 +86,7 @@ struct nfc_llcp_local {
 	/* sockets array */
 	struct llcp_sock_list sockets;
 	struct llcp_sock_list connecting_sockets;
+	struct llcp_sock_list raw_sockets;
 };
 
 struct nfc_llcp_sock {
@@ -187,6 +185,8 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 u8 nfc_llcp_get_local_ssap(struct nfc_llcp_local *local);
 void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap);
 int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock);
+void nfc_llcp_send_to_raw_sock(struct nfc_llcp_local *local,
+			       struct sk_buff *skb, u8 direction);
 
 /* Sock API */
 struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp);

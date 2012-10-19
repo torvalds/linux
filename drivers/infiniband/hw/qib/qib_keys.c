@@ -186,8 +186,9 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 		goto bail;
 
 	off = sge->addr - mr->user_base;
-	if (unlikely(sge->addr < mr->iova || off + sge->length > mr->length ||
-		     (mr->access_flags & acc) == 0))
+	if (unlikely(sge->addr < mr->user_base ||
+		     off + sge->length > mr->length ||
+		     (mr->access_flags & acc) != acc))
 		goto bail;
 	if (unlikely(!atomic_inc_not_zero(&mr->refcount)))
 		goto bail;

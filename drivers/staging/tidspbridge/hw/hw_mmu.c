@@ -61,7 +61,7 @@ enum hw_mmu_page_size_t {
  *       Type		: hw_status
  *       Description     : 0		 -- No errors occurred
  *			 RET_BAD_NULL_PARAM     -- A Pointer
- *						Paramater was set to NULL
+ *						Parameter was set to NULL
  *
  * PURPOSE:	      : Flush the TLB entry pointed by the
  *			lock counter register
@@ -103,7 +103,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  *
  *       Type	    	: hw_status
  *       Description     : 0		 -- No errors occurred
- *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
+ *			 RET_BAD_NULL_PARAM     -- A Pointer Parameter
  *						   was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter out
  *						   of Range
@@ -148,7 +148,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  *
  *       Type	    	: hw_status
  *       Description     : 0		 -- No errors occurred
- *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
+ *			 RET_BAD_NULL_PARAM     -- A Pointer Parameter
  *							was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter
  *							out of Range

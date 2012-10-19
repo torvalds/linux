@@ -1022,7 +1022,7 @@ static int rpciod_start(void)
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM, 0);
+	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM, 1);
 	rpciod_workqueue = wq;
 	return rpciod_workqueue != NULL;
 }

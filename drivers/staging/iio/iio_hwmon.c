@@ -42,40 +42,17 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	long result;
-	int val, ret, scaleint, scalepart;
+	int result;
+	int ret;
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	struct iio_hwmon_state *state = dev_get_drvdata(dev);
 
-	/*
-	 * No locking between this pair, so theoretically possible
-	 * the scale has changed.
-	 */
-	ret = iio_read_channel_raw(&state->channels[sattr->index],
-				      &val);
+	ret = iio_read_channel_processed(&state->channels[sattr->index],
+					&result);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_read_channel_scale(&state->channels[sattr->index],
-					&scaleint, &scalepart);
-	if (ret < 0)
-		return ret;
-	switch (ret) {
-	case IIO_VAL_INT:
-		result = val * scaleint;
-		break;
-	case IIO_VAL_INT_PLUS_MICRO:
-		result = (s64)val * (s64)scaleint +
-			div_s64((s64)val * (s64)scalepart, 1000000LL);
-		break;
-	case IIO_VAL_INT_PLUS_NANO:
-		result = (s64)val * (s64)scaleint +
-			div_s64((s64)val * (s64)scalepart, 1000000000LL);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return sprintf(buf, "%ld\n", result);
+	return sprintf(buf, "%d\n", result);
 }
 
 static void iio_hwmon_free_attrs(struct iio_hwmon_state *st)
@@ -215,18 +192,8 @@ static struct platform_driver __refdata iio_hwmon_driver = {
 	.remove = __devexit_p(iio_hwmon_remove),
 };
 
-static int iio_inkern_init(void)
-{
-	return platform_driver_register(&iio_hwmon_driver);
-}
-module_init(iio_inkern_init);
+module_platform_driver(iio_hwmon_driver);
 
-static void iio_inkern_exit(void)
-{
-	platform_driver_unregister(&iio_hwmon_driver);
-}
-module_exit(iio_inkern_exit);
-
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("IIO to hwmon driver");
 MODULE_LICENSE("GPL v2");

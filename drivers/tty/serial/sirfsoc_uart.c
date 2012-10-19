@@ -668,7 +668,7 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "Insufficient resources.\n");
 		ret = -EFAULT;
-		goto irq_err;
+		goto err;
 	}
 	port->irq = res->start;
 
@@ -676,7 +676,7 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 		sirfport->p = pinctrl_get_select_default(&pdev->dev);
 		ret = IS_ERR(sirfport->p);
 		if (ret)
-			goto pin_err;
+			goto err;
 	}
 
 	port->ops = &sirfsoc_uart_ops;
@@ -695,9 +695,6 @@ port_err:
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-pin_err:
-irq_err:
-	devm_iounmap(&pdev->dev, port->membase);
 err:
 	return ret;
 }
@@ -709,7 +706,6 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-	devm_iounmap(&pdev->dev, port->membase);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;
 }

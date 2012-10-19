@@ -2614,13 +2614,14 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		create_singlethread_workqueue("ab8500_charger_wq");
 	if (di->charger_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
+		ret = -ENOMEM;
 		goto free_device_info;
 	}
 
 	/* Init work for HW failure check */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_hw_failure_work,
+	INIT_DEFERRABLE_WORK(&di->check_hw_failure_work,
 		ab8500_charger_check_hw_failure_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_usbchgnotok_work,
+	INIT_DEFERRABLE_WORK(&di->check_usbchgnotok_work,
 		ab8500_charger_check_usbchargernotok_work);
 
 	/*
@@ -2632,10 +2633,10 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	 * watchdog have to be kicked by the charger driver
 	 * when the AC charger is disabled
 	 */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->kick_wd_work,
+	INIT_DEFERRABLE_WORK(&di->kick_wd_work,
 		ab8500_charger_kick_watchdog_work);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&di->check_vbat_work,
+	INIT_DEFERRABLE_WORK(&di->check_vbat_work,
 		ab8500_charger_check_vbat_work);
 
 	/* Init work for charger detection */

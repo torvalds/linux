@@ -1063,12 +1063,6 @@ out:
 	return (err < 0 ? NETDEV_TX_BUSY : NETDEV_TX_OK);
 }
 
-static void lowpan_dev_free(struct net_device *dev)
-{
-	dev_put(lowpan_dev_info(dev)->real_dev);
-	free_netdev(dev);
-}
-
 static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
@@ -1118,7 +1112,7 @@ static void lowpan_setup(struct net_device *dev)
 	dev->netdev_ops		= &lowpan_netdev_ops;
 	dev->header_ops		= &lowpan_header_ops;
 	dev->ml_priv		= &lowpan_mlme;
-	dev->destructor		= lowpan_dev_free;
+	dev->destructor		= free_netdev;
 }
 
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -1133,6 +1127,8 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
+	struct sk_buff *local_skb;
+
 	if (!netif_running(dev))
 		goto drop;
 
@@ -1144,7 +1140,12 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
 	case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 	case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
-		lowpan_process_data(skb);
+		local_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!local_skb)
+			goto drop;
+		lowpan_process_data(local_skb);
+
+		kfree_skb(skb);
 		break;
 	default:
 		break;
@@ -1237,6 +1238,34 @@ static inline void __init lowpan_netlink_fini(void)
 	rtnl_link_unregister(&lowpan_link_ops);
 }
 
+static int lowpan_device_event(struct notifier_block *unused,
+				unsigned long event,
+				void *ptr)
+{
+	struct net_device *dev = ptr;
+	LIST_HEAD(del_list);
+	struct lowpan_dev_record *entry, *tmp;
+
+	if (dev->type != ARPHRD_IEEE802154)
+		goto out;
+
+	if (event == NETDEV_UNREGISTER) {
+		list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
+			if (lowpan_dev_info(entry->ldev)->real_dev == dev)
+				lowpan_dellink(entry->ldev, &del_list);
+		}
+
+		unregister_netdevice_many(&del_list);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lowpan_dev_notifier = {
+	.notifier_call = lowpan_device_event,
+};
+
 static struct packet_type lowpan_packet_type = {
 	.type = __constant_htons(ETH_P_IEEE802154),
 	.func = lowpan_rcv,
@@ -1251,6 +1280,12 @@ static int __init lowpan_init_module(void)
 		goto out;
 
 	dev_add_pack(&lowpan_packet_type);
+
+	err = register_netdevice_notifier(&lowpan_dev_notifier);
+	if (err < 0) {
+		dev_remove_pack(&lowpan_packet_type);
+		lowpan_netlink_fini();
+	}
 out:
 	return err;
 }
@@ -1262,6 +1297,8 @@ static void __exit lowpan_cleanup_module(void)
 	lowpan_netlink_fini();
 
 	dev_remove_pack(&lowpan_packet_type);
+
+	unregister_netdevice_notifier(&lowpan_dev_notifier);
 
 	/* Now 6lowpan packet_type is removed, so no new fragments are
 	 * expected on RX, therefore that's the time to clean incomplete

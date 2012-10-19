@@ -38,8 +38,8 @@
 #include <linux/of_device.h>
 
 #include <asm/irq.h>
-#include <mach/sdma.h>
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx-sdma.h>
+#include <linux/platform_data/dma-imx.h>
 #include <mach/hardware.h>
 
 #include "dmaengine.h"
@@ -1012,7 +1012,7 @@ err_out:
 static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		void *context)
+		unsigned long flags, void *context)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;

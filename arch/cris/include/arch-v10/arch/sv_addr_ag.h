@@ -114,7 +114,7 @@
 
 /*------------------------------------------------------------*/
 
-#include "sv_addr.agh"
+#include <arch/sv_addr.agh>
 
 #if __test_sv_addr__
 /* IO_MASK( R_BUS_CONFIG , CE ) */

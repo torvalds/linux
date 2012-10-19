@@ -13,6 +13,7 @@
 #include <linux/mbus.h>
 #include <linux/io.h>
 #include <plat/addr-map.h>
+#include <mach/mv78xx0.h>
 #include "common.h"
 
 /*
@@ -47,13 +48,13 @@ static void __init __iomem *win_cfg_base(const struct orion_addr_map_cfg *cfg, i
 	 * so we don't need to take that into account here.
 	 */
 
-	return (void __iomem *)((win < 8) ? WIN0_OFF(win) : WIN8_OFF(win));
+	return (win < 8) ? WIN0_OFF(win) : WIN8_OFF(win);
 }
 
 /*
  * Description of the windows needed by the platform code
  */
-static struct __initdata orion_addr_map_cfg addr_map_cfg = {
+static struct orion_addr_map_cfg addr_map_cfg __initdata = {
 	.num_wins = 14,
 	.remappable_wins = 8,
 	.win_cfg_base = win_cfg_base,
@@ -71,17 +72,17 @@ void __init mv78xx0_setup_cpu_mbus(void)
 	 */
 	if (mv78xx0_core_index() == 0)
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU0_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU0_BASE);
 	else
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU1_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU1_BASE);
 }
 
 void __init mv78xx0_setup_pcie_io_win(int window, u32 base, u32 size,
 				      int maj, int min)
 {
 	orion_setup_cpu_win(&addr_map_cfg, window, base, size,
-			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), -1);
+			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), 0);
 }
 
 void __init mv78xx0_setup_pcie_mem_win(int window, u32 base, u32 size,

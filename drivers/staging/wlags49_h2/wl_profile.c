@@ -910,7 +910,7 @@ int parse_mac_address(char *value, u_char *byte_array)
 	memset(byte_field, '\0', 3);
 
 	while (value[value_offset] != '\0') {
-		/* Skip over the colon chars seperating the bytes, if they exist */
+		/* Skip over the colon chars separating the bytes, if they exist */
 		if (value[value_offset] == ':') {
 			value_offset++;
 			continue;

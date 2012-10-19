@@ -24,11 +24,20 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-types.h>
 #include <plat/gpmc.h>
 
+#include <plat/cpu.h>
+#include <plat/gpmc.h>
 #include <plat/sdrc.h>
+#include <plat/omap_device.h>
+
+#include "soc.h"
+#include "common.h"
+
+#define	DEVICE_NAME		"omap-gpmc"
 
 /* GPMC register offsets */
 #define GPMC_REVISION		0x00
@@ -78,6 +87,21 @@
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
 
+#define	GPMC_REVISION_MAJOR(l)		((l >> 4) & 0xf)
+#define	GPMC_REVISION_MINOR(l)		(l & 0xf)
+
+#define	GPMC_HAS_WR_ACCESS		0x1
+#define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
+
+/* XXX: Only NAND irq has been considered,currently these are the only ones used
+ */
+#define	GPMC_NR_IRQ		2
+
+struct gpmc_client_irq	{
+	unsigned		irq;
+	u32			bitmask;
+};
+
 /* Structure to save gpmc cs context */
 struct gpmc_cs_config {
 	u32 config1;
@@ -105,12 +129,19 @@ struct omap3_gpmc_regs {
 	struct gpmc_cs_config cs_context[GPMC_CS_NUM];
 };
 
+static struct gpmc_client_irq gpmc_client_irq[GPMC_NR_IRQ];
+static struct irq_chip gpmc_irq_chip;
+static unsigned gpmc_irq_start;
+
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
 static unsigned int gpmc_cs_map;	/* flag for cs which are initialized */
 static int gpmc_ecc_used = -EINVAL;	/* cs using ecc engine */
-
+static struct device *gpmc_dev;
+static int gpmc_irq;
+static resource_size_t phys_base, mem_size;
+static unsigned gpmc_capability;
 static void __iomem *gpmc_base;
 
 static struct clk *gpmc_l3_clk;
@@ -279,7 +310,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 
 	div = gpmc_cs_calc_divider(cs, t->sync_clk);
 	if (div < 0)
-		return -1;
+		return div;
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  0,  3, cs_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  8, 12, cs_rd_off);
@@ -300,10 +331,10 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
 
-	if (cpu_is_omap34xx()) {
+	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
 		GPMC_SET_ONE(GPMC_CS_CONFIG6, 16, 19, wr_data_mux_bus);
+	if (gpmc_capability & GPMC_HAS_WR_ACCESS)
 		GPMC_SET_ONE(GPMC_CS_CONFIG6, 24, 28, wr_access);
-	}
 
 	/* caller is expected to have initialized CONFIG1 to cover
 	 * at least sync vs async
@@ -408,6 +439,20 @@ static int gpmc_cs_insert_mem(int cs, unsigned long base, unsigned long size)
 	res->start = base;
 	res->end = base + size - 1;
 	r = request_resource(&gpmc_mem_root, res);
+	spin_unlock(&gpmc_mem_lock);
+
+	return r;
+}
+
+static int gpmc_cs_delete_mem(int cs)
+{
+	struct resource	*res = &gpmc_cs_mem[cs];
+	int r;
+
+	spin_lock(&gpmc_mem_lock);
+	r = release_resource(&gpmc_cs_mem[cs]);
+	res->start = 0;
+	res->end = 0;
 	spin_unlock(&gpmc_mem_lock);
 
 	return r;
@@ -682,7 +727,148 @@ int gpmc_prefetch_reset(int cs)
 }
 EXPORT_SYMBOL(gpmc_prefetch_reset);
 
-static void __init gpmc_mem_init(void)
+void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
+{
+	reg->gpmc_status = gpmc_base + GPMC_STATUS;
+	reg->gpmc_nand_command = gpmc_base + GPMC_CS0_OFFSET +
+				GPMC_CS_NAND_COMMAND + GPMC_CS_SIZE * cs;
+	reg->gpmc_nand_address = gpmc_base + GPMC_CS0_OFFSET +
+				GPMC_CS_NAND_ADDRESS + GPMC_CS_SIZE * cs;
+	reg->gpmc_nand_data = gpmc_base + GPMC_CS0_OFFSET +
+				GPMC_CS_NAND_DATA + GPMC_CS_SIZE * cs;
+	reg->gpmc_prefetch_config1 = gpmc_base + GPMC_PREFETCH_CONFIG1;
+	reg->gpmc_prefetch_config2 = gpmc_base + GPMC_PREFETCH_CONFIG2;
+	reg->gpmc_prefetch_control = gpmc_base + GPMC_PREFETCH_CONTROL;
+	reg->gpmc_prefetch_status = gpmc_base + GPMC_PREFETCH_STATUS;
+	reg->gpmc_ecc_config = gpmc_base + GPMC_ECC_CONFIG;
+	reg->gpmc_ecc_control = gpmc_base + GPMC_ECC_CONTROL;
+	reg->gpmc_ecc_size_config = gpmc_base + GPMC_ECC_SIZE_CONFIG;
+	reg->gpmc_ecc1_result = gpmc_base + GPMC_ECC1_RESULT;
+	reg->gpmc_bch_result0 = gpmc_base + GPMC_ECC_BCH_RESULT_0;
+}
+
+int gpmc_get_client_irq(unsigned irq_config)
+{
+	int i;
+
+	if (hweight32(irq_config) > 1)
+		return 0;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (gpmc_client_irq[i].bitmask & irq_config)
+			return gpmc_client_irq[i].irq;
+
+	return 0;
+}
+
+static int gpmc_irq_endis(unsigned irq, bool endis)
+{
+	int i;
+	u32 regval;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (irq == gpmc_client_irq[i].irq) {
+			regval = gpmc_read_reg(GPMC_IRQENABLE);
+			if (endis)
+				regval |= gpmc_client_irq[i].bitmask;
+			else
+				regval &= ~gpmc_client_irq[i].bitmask;
+			gpmc_write_reg(GPMC_IRQENABLE, regval);
+			break;
+		}
+
+	return 0;
+}
+
+static void gpmc_irq_disable(struct irq_data *p)
+{
+	gpmc_irq_endis(p->irq, false);
+}
+
+static void gpmc_irq_enable(struct irq_data *p)
+{
+	gpmc_irq_endis(p->irq, true);
+}
+
+static void gpmc_irq_noop(struct irq_data *data) { }
+
+static unsigned int gpmc_irq_noop_ret(struct irq_data *data) { return 0; }
+
+static int gpmc_setup_irq(void)
+{
+	int i;
+	u32 regval;
+
+	if (!gpmc_irq)
+		return -EINVAL;
+
+	gpmc_irq_start = irq_alloc_descs(-1, 0, GPMC_NR_IRQ, 0);
+	if (IS_ERR_VALUE(gpmc_irq_start)) {
+		pr_err("irq_alloc_descs failed\n");
+		return gpmc_irq_start;
+	}
+
+	gpmc_irq_chip.name = "gpmc";
+	gpmc_irq_chip.irq_startup = gpmc_irq_noop_ret;
+	gpmc_irq_chip.irq_enable = gpmc_irq_enable;
+	gpmc_irq_chip.irq_disable = gpmc_irq_disable;
+	gpmc_irq_chip.irq_shutdown = gpmc_irq_noop;
+	gpmc_irq_chip.irq_ack = gpmc_irq_noop;
+	gpmc_irq_chip.irq_mask = gpmc_irq_noop;
+	gpmc_irq_chip.irq_unmask = gpmc_irq_noop;
+
+	gpmc_client_irq[0].bitmask = GPMC_IRQ_FIFOEVENTENABLE;
+	gpmc_client_irq[1].bitmask = GPMC_IRQ_COUNT_EVENT;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++) {
+		gpmc_client_irq[i].irq = gpmc_irq_start + i;
+		irq_set_chip_and_handler(gpmc_client_irq[i].irq,
+					&gpmc_irq_chip, handle_simple_irq);
+		set_irq_flags(gpmc_client_irq[i].irq,
+				IRQF_VALID | IRQF_NOAUTOEN);
+	}
+
+	/* Disable interrupts */
+	gpmc_write_reg(GPMC_IRQENABLE, 0);
+
+	/* clear interrupts */
+	regval = gpmc_read_reg(GPMC_IRQSTATUS);
+	gpmc_write_reg(GPMC_IRQSTATUS, regval);
+
+	return request_irq(gpmc_irq, gpmc_handle_irq, 0, "gpmc", NULL);
+}
+
+static __devexit int gpmc_free_irq(void)
+{
+	int i;
+
+	if (gpmc_irq)
+		free_irq(gpmc_irq, NULL);
+
+	for (i = 0; i < GPMC_NR_IRQ; i++) {
+		irq_set_handler(gpmc_client_irq[i].irq, NULL);
+		irq_set_chip(gpmc_client_irq[i].irq, &no_irq_chip);
+		irq_modify_status(gpmc_client_irq[i].irq, 0, 0);
+	}
+
+	irq_free_descs(gpmc_irq_start, GPMC_NR_IRQ);
+
+	return 0;
+}
+
+static void __devexit gpmc_mem_exit(void)
+{
+	int cs;
+
+	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
+		if (!gpmc_cs_mem_enabled(cs))
+			continue;
+		gpmc_cs_delete_mem(cs);
+	}
+
+}
+
+static void __devinit gpmc_mem_init(void)
 {
 	int cs;
 	unsigned long boot_rom_space = 0;
@@ -709,83 +895,120 @@ static void __init gpmc_mem_init(void)
 	}
 }
 
-static int __init gpmc_init(void)
+static __devinit int gpmc_probe(struct platform_device *pdev)
 {
-	u32 l, irq;
-	int cs, ret = -EINVAL;
-	int gpmc_irq;
-	char *ck = NULL;
+	u32 l;
+	struct resource *res;
 
-	if (cpu_is_omap24xx()) {
-		ck = "core_l3_ck";
-		if (cpu_is_omap2420())
-			l = OMAP2420_GPMC_BASE;
-		else
-			l = OMAP34XX_GPMC_BASE;
-		gpmc_irq = INT_34XX_GPMC_IRQ;
-	} else if (cpu_is_omap34xx()) {
-		ck = "gpmc_fck";
-		l = OMAP34XX_GPMC_BASE;
-		gpmc_irq = INT_34XX_GPMC_IRQ;
-	} else if (cpu_is_omap44xx() || soc_is_omap54xx()) {
-		/* Base address and irq number are same for OMAP4/5 */
-		ck = "gpmc_ck";
-		l = OMAP44XX_GPMC_BASE;
-		gpmc_irq = OMAP44XX_IRQ_GPMC;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -ENOENT;
 
-	if (WARN_ON(!ck))
-		return ret;
+	phys_base = res->start;
+	mem_size = resource_size(res);
 
-	gpmc_l3_clk = clk_get(NULL, ck);
-	if (IS_ERR(gpmc_l3_clk)) {
-		printk(KERN_ERR "Could not get GPMC clock %s\n", ck);
-		BUG();
-	}
-
-	gpmc_base = ioremap(l, SZ_4K);
+	gpmc_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!gpmc_base) {
-		clk_put(gpmc_l3_clk);
-		printk(KERN_ERR "Could not get GPMC register memory\n");
-		BUG();
+		dev_err(&pdev->dev, "error: request memory / ioremap\n");
+		return -EADDRNOTAVAIL;
 	}
 
-	clk_enable(gpmc_l3_clk);
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (res == NULL)
+		dev_warn(&pdev->dev, "Failed to get resource: irq\n");
+	else
+		gpmc_irq = res->start;
+
+	gpmc_l3_clk = clk_get(&pdev->dev, "fck");
+	if (IS_ERR(gpmc_l3_clk)) {
+		dev_err(&pdev->dev, "error: clk_get\n");
+		gpmc_irq = 0;
+		return PTR_ERR(gpmc_l3_clk);
+	}
+
+	clk_prepare_enable(gpmc_l3_clk);
+
+	gpmc_dev = &pdev->dev;
 
 	l = gpmc_read_reg(GPMC_REVISION);
-	printk(KERN_INFO "GPMC revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);
-	/* Set smart idle mode and automatic L3 clock gating */
-	l = gpmc_read_reg(GPMC_SYSCONFIG);
-	l &= 0x03 << 3;
-	l |= (0x02 << 3) | (1 << 0);
-	gpmc_write_reg(GPMC_SYSCONFIG, l);
+	if (GPMC_REVISION_MAJOR(l) > 0x4)
+		gpmc_capability = GPMC_HAS_WR_ACCESS | GPMC_HAS_WR_DATA_MUX_BUS;
+	dev_info(gpmc_dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
+		 GPMC_REVISION_MINOR(l));
+
 	gpmc_mem_init();
 
-	/* initalize the irq_chained */
-	irq = OMAP_GPMC_IRQ_BASE;
-	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
-		irq_set_chip_and_handler(irq, &dummy_irq_chip,
-						handle_simple_irq);
-		set_irq_flags(irq, IRQF_VALID);
-		irq++;
+	if (IS_ERR_VALUE(gpmc_setup_irq()))
+		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
+
+	return 0;
+}
+
+static __devexit int gpmc_remove(struct platform_device *pdev)
+{
+	gpmc_free_irq();
+	gpmc_mem_exit();
+	gpmc_dev = NULL;
+	return 0;
+}
+
+static struct platform_driver gpmc_driver = {
+	.probe		= gpmc_probe,
+	.remove		= __devexit_p(gpmc_remove),
+	.driver		= {
+		.name	= DEVICE_NAME,
+		.owner	= THIS_MODULE,
+	},
+};
+
+static __init int gpmc_init(void)
+{
+	return platform_driver_register(&gpmc_driver);
+}
+
+static __exit void gpmc_exit(void)
+{
+	platform_driver_unregister(&gpmc_driver);
+
+}
+
+postcore_initcall(gpmc_init);
+module_exit(gpmc_exit);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
 	}
 
-	ret = request_irq(gpmc_irq, gpmc_handle_irq, IRQF_SHARED, "gpmc", NULL);
-	if (ret)
-		pr_err("gpmc: irq-%d could not claim: err %d\n",
-						gpmc_irq, ret);
-	return ret;
+	pdev = omap_device_build(DEVICE_NAME, -1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
-postcore_initcall(gpmc_init);
+postcore_initcall(omap_gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
-	u8 cs;
+	int i;
+	u32 regval;
 
-	/* check cs to invoke the irq */
-	cs = ((gpmc_read_reg(GPMC_PREFETCH_CONFIG1)) >> CS_NUM_SHIFT) & 0x7;
-	if (OMAP_GPMC_IRQ_BASE+cs <= OMAP_GPMC_IRQ_END)
-		generic_handle_irq(OMAP_GPMC_IRQ_BASE+cs);
+	regval = gpmc_read_reg(GPMC_IRQSTATUS);
+
+	if (!regval)
+		return IRQ_NONE;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (regval & gpmc_client_irq[i].bitmask)
+			generic_handle_irq(gpmc_client_irq[i].irq);
+
+	gpmc_write_reg(GPMC_IRQSTATUS, regval);
 
 	return IRQ_HANDLED;
 }

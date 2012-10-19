@@ -109,9 +109,8 @@ as the &v4l2-format; <structfield>type</structfield> field. See <xref
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield>[2]</entry>
-	    <entry>A place holder for future extensions and custom
-(driver defined) buffer types <constant>V4L2_BUF_TYPE_PRIVATE</constant> and
-higher. This array should be zeroed by applications.</entry>
+	    <entry>A place holder for future extensions. This array should
+be zeroed by applications.</entry>
 	  </row>
 	</tbody>
       </tgroup>

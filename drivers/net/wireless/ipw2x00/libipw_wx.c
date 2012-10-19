@@ -675,7 +675,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	}
       done:
 	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
+		ieee->set_security(dev, &sec);
 
 	return ret;
 }

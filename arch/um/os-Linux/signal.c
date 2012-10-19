@@ -9,10 +9,10 @@
 #include <errno.h>
 #include <signal.h>
 #include <strings.h>
-#include "as-layout.h"
-#include "kern_util.h"
-#include "os.h"
-#include "sysdep/mcontext.h"
+#include <as-layout.h>
+#include <kern_util.h>
+#include <os.h>
+#include <sysdep/mcontext.h>
 #include "internal.h"
 
 void (*sig_info[NSIG])(int, siginfo_t *, struct uml_pt_regs *) = {

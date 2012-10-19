@@ -29,14 +29,14 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#define INT2SMSKCR0 0xfe7822a0
-#define INT2SMSKCR1 0xfe7822a4
-#define INT2SMSKCR2 0xfe7822a8
-#define INT2SMSKCR3 0xfe7822ac
-#define INT2SMSKCR4 0xfe7822b0
+#define INT2SMSKCR0 IOMEM(0xfe7822a0)
+#define INT2SMSKCR1 IOMEM(0xfe7822a4)
+#define INT2SMSKCR2 IOMEM(0xfe7822a8)
+#define INT2SMSKCR3 IOMEM(0xfe7822ac)
+#define INT2SMSKCR4 IOMEM(0xfe7822b0)
 
-#define INT2NTSR0 0xfe700060
-#define INT2NTSR1 0xfe700064
+#define INT2NTSR0 IOMEM(0xfe700060)
+#define INT2NTSR1 IOMEM(0xfe700064)
 
 static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
 {

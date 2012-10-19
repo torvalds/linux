@@ -64,19 +64,23 @@ static int  keyspan_tiocmset		(struct tty_struct *tty,
 					 unsigned int clear);
 static int  keyspan_fake_startup	(struct usb_serial *serial);
 
-static int  keyspan_usa19_calc_baud	(u32 baud_rate, u32 baudclk, 
+static int  keyspan_usa19_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa19w_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa19w_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa28_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa28_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa19hs_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa19hs_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
@@ -188,8 +192,9 @@ struct keyspan_device_details {
 		/* Endpoint used for global control functions */
 	int	glocont_endpoint;
 
-	int	(*calculate_baud_rate) (u32 baud_rate, u32 baudclk,
-			u8 *rate_hi, u8 *rate_low, u8 *prescaler, int portnum);
+	int	(*calculate_baud_rate) (struct usb_serial_port *port,
+					u32 baud_rate, u32 baudclk,
+					u8 *rate_hi, u8 *rate_low, u8 *prescaler, int portnum);
 	u32	baudclk;
 }; 
 

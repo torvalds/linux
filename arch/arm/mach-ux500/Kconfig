@@ -3,31 +3,33 @@ if ARCH_U8500
 config UX500_SOC_COMMON
 	bool
 	default y
-	select ARM_GIC
-	select HAS_MTU
-	select PL310_ERRATA_753970
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
 	select CACHE_L2X0
+	select COMMON_CLK
+	select HAS_MTU
 	select PINCTRL
 	select PINCTRL_NOMADIK
+	select PL310_ERRATA_753970 if CACHE_PL310
 
 config UX500_SOC_DB8500
 	bool
+	select CPU_FREQ_TABLE if CPU_FREQ
 	select MFD_DB8500_PRCMU
+	select PINCTRL_DB8500
 	select REGULATOR
 	select REGULATOR_DB8500_PRCMU
-	select CPU_FREQ_TABLE if CPU_FREQ
-	select PINCTRL_DB8500
 
 menu "Ux500 target platform (boards)"
 
 config MACH_MOP500
 	bool "U8500 Development platform, MOP500 versions"
-	select UX500_SOC_DB8500
 	select I2C
 	select I2C_NOMADIK
+	select REGULATOR_FIXED_VOLTAGE
 	select SOC_BUS
+	select UX500_SOC_DB8500
 	help
 	  Include support for the MOP500 development platform.
 

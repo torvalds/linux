@@ -31,13 +31,13 @@
  * ---------------------------------------------------------------------------
  */
 #include <linux/proc_fs.h>
+#include <linux/version.h>
 
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifiversion.h"
 #include "csr_wifi_hip_unifi_udi.h"   /* for unifi_print_status() */
 #include "unifiio.h"
 #include "unifi_priv.h"
-
 
 /*
  * Array of pointers to context structs for unifi devices that are present.
@@ -70,11 +70,7 @@ static int In_use[MAX_UNIFI_DEVS];
  * Mutex to prevent UDI clients to open the character device before the priv
  * is created and initialised.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 DEFINE_SEMAPHORE(Unifi_instance_mutex);
-#else
-DECLARE_MUTEX(Unifi_instance_mutex);
-#endif
 /*
  * When the device is removed, unregister waits on Unifi_cleanup_wq
  * until all the UDI clients release the character device.
@@ -176,21 +172,6 @@ uf_register_netdev(unifi_priv_t *priv, int interfaceTag)
 
     /* The device is registed */
     interfacePriv->netdev_registered = 1;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-#ifdef CONFIG_NET_SCHED
-    /*
-     * IMPORTANT:
-     * uf_install_qdisc() holds the network device lock, we can not
-     * install the qdisk before the network device is registered.
-     */
-    r = uf_install_qdisc(priv->netdev[interfaceTag]);
-    if (r) {
-        unifi_error(priv, "Failed to install qdisc\n");
-        return r;
-    }
-#endif /* CONFIG_NET_SCHED */
-#endif /* LINUX_VERSION_CODE */
 
 #ifdef CSR_SUPPORT_SME
     /*
@@ -347,7 +328,7 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     /*
      * We use the slot number as unifi device index.
      */
-    snprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
+    scnprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
     /*
      * The following complex casting is in place in order to eliminate 64-bit compilation warning
      * "cast to/from pointer from/to integer of different size"
@@ -669,7 +650,7 @@ unregister_unifi_sdio(int bus_id)
         if(interfacePriv->netdev_registered)
         {
             netif_carrier_off(priv->netdev[interfaceTag]);
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[interfaceTag]);
+            netif_tx_stop_all_queues(priv->netdev[interfaceTag]);
         }
     }
 
@@ -904,54 +885,54 @@ uf_read_proc(char *page, char **start, off_t offset, int count,
 
     orig_p = p;
 
-    written = CsrSnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
+    written = scnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
             CSR_WIFI_VERSION, __DATE__, __TIME__);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SME_USERSPACE
-    written = CsrSnprintf(p, remain, "SME: CSR userspace ");
+    written = scnprintf(p, remain, "SME: CSR userspace ");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SUPPORT_WEXT
-    written = CsrSnprintf(p, remain, "with WEXT support\n");
+    written = scnprintf(p, remain, "with WEXT support\n");
 #else
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
 #endif /* CSR_SUPPORT_WEXT */
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif /* CSR_SME_USERSPACE */
 #ifdef CSR_NATIVE_LINUX
-    written = CsrSnprintf(p, remain, "SME: native\n");
+    written = scnprintf(p, remain, "SME: native\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
 
 #ifdef CSR_SUPPORT_SME
-    written = CsrSnprintf(p, remain,
-            "Firmware (ROM) build:%lu, Patch:%lu\n",
+    written = scnprintf(p, remain,
+            "Firmware (ROM) build:%u, Patch:%u\n",
             priv->card_info.fw_build,
             priv->sme_versions.firmwarePatch);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
     p += unifi_print_status(priv->card, p, &remain);
 
-    written = CsrSnprintf(p, remain, "Last dbg str: %s\n",
+    written = scnprintf(p, remain, "Last dbg str: %s\n",
             priv->last_debug_string);
     UNIFI_SNPRINTF_RET(p, remain, written);
 
-    written = CsrSnprintf(p, remain, "Last dbg16:");
+    written = scnprintf(p, remain, "Last dbg16:");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (i = 0; i < 8; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
-    written = CsrSnprintf(p, remain, "           ");
+    written = scnprintf(p, remain, "           ");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (; i < 16; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
     *start = page;
 

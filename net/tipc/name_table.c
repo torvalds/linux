@@ -41,7 +41,7 @@
 #include "subscr.h"
 #include "port.h"
 
-static int tipc_nametbl_size = 1024;		/* must be a power of 2 */
+#define TIPC_NAMETBL_SIZE 1024		/* must be a power of 2 */
 
 /**
  * struct name_info - name sequence publication info
@@ -114,7 +114,7 @@ DEFINE_RWLOCK(tipc_nametbl_lock);
 
 static int hash(int x)
 {
-	return x & (tipc_nametbl_size - 1);
+	return x & (TIPC_NAMETBL_SIZE - 1);
 }
 
 /**
@@ -667,9 +667,9 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 {
 	struct publication *publ;
 
-	if (table.local_publ_count >= tipc_max_publications) {
+	if (table.local_publ_count >= TIPC_MAX_PUBLICATIONS) {
 		pr_warn("Publication failed, local publication limit reached (%u)\n",
-			tipc_max_publications);
+			TIPC_MAX_PUBLICATIONS);
 		return NULL;
 	}
 
@@ -783,7 +783,7 @@ static int subseq_list(struct sub_seq *sseq, char *buf, int len, u32 depth,
 		if (!list_is_last(&publ->zone_list, &info->zone_list))
 			ret += tipc_snprintf(buf + ret, len - ret,
 					     "\n%33s", " ");
-	};
+	}
 
 	ret += tipc_snprintf(buf + ret, len - ret, "\n");
 	return ret;
@@ -871,7 +871,7 @@ static int nametbl_list(char *buf, int len, u32 depth_info,
 		ret += nametbl_header(buf, len, depth);
 		lowbound = 0;
 		upbound = ~0;
-		for (i = 0; i < tipc_nametbl_size; i++) {
+		for (i = 0; i < TIPC_NAMETBL_SIZE; i++) {
 			seq_head = &table.types[i];
 			hlist_for_each_entry(seq, seq_node, seq_head, ns_list) {
 				ret += nameseq_list(seq, buf + ret, len - ret,
@@ -935,7 +935,7 @@ struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
 
 int tipc_nametbl_init(void)
 {
-	table.types = kcalloc(tipc_nametbl_size, sizeof(struct hlist_head),
+	table.types = kcalloc(TIPC_NAMETBL_SIZE, sizeof(struct hlist_head),
 			      GFP_ATOMIC);
 	if (!table.types)
 		return -ENOMEM;
@@ -953,7 +953,7 @@ void tipc_nametbl_stop(void)
 
 	/* Verify name table is empty, then release it */
 	write_lock_bh(&tipc_nametbl_lock);
-	for (i = 0; i < tipc_nametbl_size; i++) {
+	for (i = 0; i < TIPC_NAMETBL_SIZE; i++) {
 		if (hlist_empty(&table.types[i]))
 			continue;
 		pr_err("nametbl_stop(): orphaned hash chain detected\n");

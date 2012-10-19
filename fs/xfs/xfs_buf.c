@@ -96,6 +96,7 @@ xfs_buf_lru_add(
 		atomic_inc(&bp->b_hold);
 		list_add_tail(&bp->b_lru, &btp->bt_lru);
 		btp->bt_lru_nr++;
+		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
 	}
 	spin_unlock(&btp->bt_lru_lock);
 }
@@ -154,7 +155,8 @@ xfs_buf_stale(
 		struct xfs_buftarg *btp = bp->b_target;
 
 		spin_lock(&btp->bt_lru_lock);
-		if (!list_empty(&bp->b_lru)) {
+		if (!list_empty(&bp->b_lru) &&
+		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
 			list_del_init(&bp->b_lru);
 			btp->bt_lru_nr--;
 			atomic_dec(&bp->b_hold);
@@ -1501,6 +1503,7 @@ xfs_buftarg_shrink(
 		 */
 		list_move(&bp->b_lru, &dispose);
 		btp->bt_lru_nr--;
+		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
 	}
 	spin_unlock(&btp->bt_lru_lock);
 

@@ -27,6 +27,7 @@
 #include <linux/tick.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
+#include <linux/perf_event.h>
 #include <linux/elfcore.h>
 #include <linux/sysrq.h>
 #include <linux/nmi.h>
@@ -47,6 +48,7 @@
 #include <asm/syscalls.h>
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
+#include <asm/pcr.h>
 
 #include "kstack.h"
 
@@ -204,18 +206,22 @@ void show_regs(struct pt_regs *regs)
 	show_stack(current, (unsigned long *) regs->u_regs[UREG_FP]);
 }
 
-struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
-static DEFINE_SPINLOCK(global_reg_snapshot_lock);
+union global_cpu_snapshot global_cpu_snapshot[NR_CPUS];
+static DEFINE_SPINLOCK(global_cpu_snapshot_lock);
 
 static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 			      int this_cpu)
 {
+	struct global_reg_snapshot *rp;
+
 	flushw_all();
 
-	global_reg_snapshot[this_cpu].tstate = regs->tstate;
-	global_reg_snapshot[this_cpu].tpc = regs->tpc;
-	global_reg_snapshot[this_cpu].tnpc = regs->tnpc;
-	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
+	rp = &global_cpu_snapshot[this_cpu].reg;
+
+	rp->tstate = regs->tstate;
+	rp->tpc = regs->tpc;
+	rp->tnpc = regs->tnpc;
+	rp->o7 = regs->u_regs[UREG_I7];
 
 	if (regs->tstate & TSTATE_PRIV) {
 		struct reg_window *rw;
@@ -223,17 +229,17 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 		rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
 		if (kstack_valid(tp, (unsigned long) rw)) {
-			global_reg_snapshot[this_cpu].i7 = rw->ins[7];
+			rp->i7 = rw->ins[7];
 			rw = (struct reg_window *)
 				(rw->ins[6] + STACK_BIAS);
 			if (kstack_valid(tp, (unsigned long) rw))
-				global_reg_snapshot[this_cpu].rpc = rw->ins[7];
+				rp->rpc = rw->ins[7];
 		}
 	} else {
-		global_reg_snapshot[this_cpu].i7 = 0;
-		global_reg_snapshot[this_cpu].rpc = 0;
+		rp->i7 = 0;
+		rp->rpc = 0;
 	}
-	global_reg_snapshot[this_cpu].thread = tp;
+	rp->thread = tp;
 }
 
 /* In order to avoid hangs we do not try to synchronize with the
@@ -261,9 +267,9 @@ void arch_trigger_all_cpu_backtrace(void)
 	if (!regs)
 		regs = tp->kregs;
 
-	spin_lock_irqsave(&global_reg_snapshot_lock, flags);
+	spin_lock_irqsave(&global_cpu_snapshot_lock, flags);
 
-	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
 
 	this_cpu = raw_smp_processor_id();
 
@@ -272,7 +278,7 @@ void arch_trigger_all_cpu_backtrace(void)
 	smp_fetch_global_regs();
 
 	for_each_online_cpu(cpu) {
-		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
+		struct global_reg_snapshot *gp = &global_cpu_snapshot[cpu].reg;
 
 		__global_reg_poll(gp);
 
@@ -295,9 +301,9 @@ void arch_trigger_all_cpu_backtrace(void)
 		}
 	}
 
-	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
 
-	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+	spin_unlock_irqrestore(&global_cpu_snapshot_lock, flags);
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -309,16 +315,90 @@ static void sysrq_handle_globreg(int key)
 
 static struct sysrq_key_op sparc_globalreg_op = {
 	.handler	= sysrq_handle_globreg,
-	.help_msg	= "Globalregs",
+	.help_msg	= "global-regs(Y)",
 	.action_msg	= "Show Global CPU Regs",
 };
 
-static int __init sparc_globreg_init(void)
+static void __global_pmu_self(int this_cpu)
 {
-	return register_sysrq_key('y', &sparc_globalreg_op);
+	struct global_pmu_snapshot *pp;
+	int i, num;
+
+	pp = &global_cpu_snapshot[this_cpu].pmu;
+
+	num = 1;
+	if (tlb_type == hypervisor &&
+	    sun4v_chip_type >= SUN4V_CHIP_NIAGARA4)
+		num = 4;
+
+	for (i = 0; i < num; i++) {
+		pp->pcr[i] = pcr_ops->read_pcr(i);
+		pp->pic[i] = pcr_ops->read_pic(i);
+	}
 }
 
-core_initcall(sparc_globreg_init);
+static void __global_pmu_poll(struct global_pmu_snapshot *pp)
+{
+	int limit = 0;
+
+	while (!pp->pcr[0] && ++limit < 100) {
+		barrier();
+		udelay(1);
+	}
+}
+
+static void pmu_snapshot_all_cpus(void)
+{
+	unsigned long flags;
+	int this_cpu, cpu;
+
+	spin_lock_irqsave(&global_cpu_snapshot_lock, flags);
+
+	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
+
+	this_cpu = raw_smp_processor_id();
+
+	__global_pmu_self(this_cpu);
+
+	smp_fetch_global_pmu();
+
+	for_each_online_cpu(cpu) {
+		struct global_pmu_snapshot *pp = &global_cpu_snapshot[cpu].pmu;
+
+		__global_pmu_poll(pp);
+
+		printk("%c CPU[%3d]: PCR[%08lx:%08lx:%08lx:%08lx] PIC[%08lx:%08lx:%08lx:%08lx]\n",
+		       (cpu == this_cpu ? '*' : ' '), cpu,
+		       pp->pcr[0], pp->pcr[1], pp->pcr[2], pp->pcr[3],
+		       pp->pic[0], pp->pic[1], pp->pic[2], pp->pic[3]);
+	}
+
+	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
+
+	spin_unlock_irqrestore(&global_cpu_snapshot_lock, flags);
+}
+
+static void sysrq_handle_globpmu(int key)
+{
+	pmu_snapshot_all_cpus();
+}
+
+static struct sysrq_key_op sparc_globalpmu_op = {
+	.handler	= sysrq_handle_globpmu,
+	.help_msg	= "global-pmu(X)",
+	.action_msg	= "Show Global PMU Regs",
+};
+
+static int __init sparc_sysrq_init(void)
+{
+	int ret = register_sysrq_key('y', &sparc_globalreg_op);
+
+	if (!ret)
+		ret = register_sysrq_key('x', &sparc_globalpmu_op);
+	return ret;
+}
+
+core_initcall(sparc_sysrq_init);
 
 #endif
 
@@ -722,7 +802,7 @@ EXPORT_SYMBOL(dump_fpu);
 asmlinkage int sparc_execve(struct pt_regs *regs)
 {
 	int error, base = 0;
-	char *filename;
+	struct filename *filename;
 
 	/* User register window flush is done by entry.S */
 
@@ -734,7 +814,7 @@ asmlinkage int sparc_execve(struct pt_regs *regs)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename,
+	error = do_execve(filename->name,
 			  (const char __user *const __user *)
 			  regs->u_regs[base + UREG_I1],
 			  (const char __user *const __user *)

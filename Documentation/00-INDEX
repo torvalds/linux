@@ -270,8 +270,6 @@ preempt-locking.txt
 	- info on locking under a preemptive kernel.
 printk-formats.txt
 	- how to get printk format specifiers right
-prio_tree.txt
-	- info on radix-priority-search-tree use for indexing vmas.
 ramoops.txt
 	- documentation of the ramoops oops/panic logging module.
 rbtree.txt

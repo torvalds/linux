@@ -20,6 +20,7 @@ if VIRTUALIZATION
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM
+	depends on HIGH_RES_TIMERS
 	# for device assignment:
 	depends on PCI
 	# for TASKSTATS/TASK_DELAY_ACCT:
@@ -37,6 +38,7 @@ config KVM
 	select TASK_DELAY_ACCT
 	select PERF_EVENTS
 	select HAVE_KVM_MSI
+	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent

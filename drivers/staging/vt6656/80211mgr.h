@@ -191,7 +191,7 @@
 
 
 //
-// Cipher Suite Selectors defiened in 802.11i
+// Cipher Suite Selectors defined in 802.11i
 //
 #define WLAN_11i_CSS_USE_GROUP              0
 #define WLAN_11i_CSS_WEP40                  1
@@ -720,7 +720,7 @@ typedef struct tagWLAN_FR_AUTHEN {
 
 } WLAN_FR_AUTHEN, *PWLAN_FR_AUTHEN;
 
-// Deauthenication
+// Deauthentication
 typedef struct tagWLAN_FR_DEAUTHEN {
 
     unsigned int                    uType;

@@ -95,7 +95,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter);
 int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo);
 
 void CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter,
-		CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex);
+		struct bcm_connect_mgr_params *psfLocalSet, UINT uiSearchRuleIndex);
 
 VOID ResetCounters(struct bcm_mini_adapter *Adapter);
 

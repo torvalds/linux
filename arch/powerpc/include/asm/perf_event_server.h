@@ -49,6 +49,7 @@ struct power_pmu {
 #define PPMU_ALT_SIPR		2	/* uses alternate posn for SIPR/HV */
 #define PPMU_NO_SIPR		4	/* no SIPR/HV in MMCRA at all */
 #define PPMU_NO_CONT_SAMPLING	8	/* no continuous sampling */
+#define PPMU_SIAR_VALID		16	/* Processor has SIAR Valid bit */
 
 /*
  * Values for flags to get_alternatives()

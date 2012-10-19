@@ -42,6 +42,9 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
+
 #include "core.h"
 
 /* FIXME define these in <linux/pci_ids.h> */
@@ -51,7 +54,63 @@
 struct dwc3_pci {
 	struct device		*dev;
 	struct platform_device	*dwc3;
+	struct platform_device	*usb2_phy;
+	struct platform_device	*usb3_phy;
 };
+
+static int __devinit dwc3_pci_register_phys(struct dwc3_pci *glue)
+{
+	struct nop_usb_xceiv_platform_data pdata;
+	struct platform_device	*pdev;
+	int			ret;
+
+	memset(&pdata, 0x00, sizeof(pdata));
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 0);
+	if (!pdev)
+		return -ENOMEM;
+
+	glue->usb2_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB2;
+
+	ret = platform_device_add_data(glue->usb2_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err1;
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 1);
+	if (!pdev) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	glue->usb3_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB3;
+
+	ret = platform_device_add_data(glue->usb3_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(glue->usb2_phy);
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(glue->usb3_phy);
+	if (ret)
+		goto err3;
+
+	return 0;
+
+err3:
+	platform_device_del(glue->usb2_phy);
+
+err2:
+	platform_device_put(glue->usb3_phy);
+
+err1:
+	platform_device_put(glue->usb2_phy);
+
+	return ret;
+}
 
 static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
@@ -79,6 +138,12 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_set_master(pci);
+
+	ret = dwc3_pci_register_phys(glue);
+	if (ret) {
+		dev_err(dev, "couldn't register PHYs\n");
+		return ret;
+	}
 
 	devid = dwc3_get_device_id();
 	if (devid < 0) {
@@ -144,6 +209,8 @@ static void __devexit dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 
+	platform_device_unregister(glue->usb2_phy);
+	platform_device_unregister(glue->usb3_phy);
 	dwc3_put_device_id(glue->dwc3->id);
 	platform_device_unregister(glue->dwc3);
 	pci_set_drvdata(pci, NULL);

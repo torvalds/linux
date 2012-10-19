@@ -171,6 +171,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(udf_inode_cachep);
 }
 
@@ -199,8 +204,8 @@ struct udf_options {
 	unsigned int rootdir;
 	unsigned int flags;
 	umode_t umask;
-	gid_t gid;
-	uid_t uid;
+	kgid_t gid;
+	kuid_t uid;
 	umode_t fmode;
 	umode_t dmode;
 	struct nls_table *nls_map;
@@ -335,9 +340,9 @@ static int udf_show_options(struct seq_file *seq, struct dentry *root)
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_IGNORE))
 		seq_puts(seq, ",gid=ignore");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET))
-		seq_printf(seq, ",uid=%u", sbi->s_uid);
+		seq_printf(seq, ",uid=%u", from_kuid(&init_user_ns, sbi->s_uid));
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
-		seq_printf(seq, ",gid=%u", sbi->s_gid);
+		seq_printf(seq, ",gid=%u", from_kgid(&init_user_ns, sbi->s_gid));
 	if (sbi->s_umask != 0)
 		seq_printf(seq, ",umask=%ho", sbi->s_umask);
 	if (sbi->s_fmode != UDF_INVALID_MODE)
@@ -516,13 +521,17 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		case Opt_gid:
 			if (match_int(args, &option))
 				return 0;
-			uopt->gid = option;
+			uopt->gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(uopt->gid))
+				return 0;
 			uopt->flags |= (1 << UDF_FLAG_GID_SET);
 			break;
 		case Opt_uid:
 			if (match_int(args, &option))
 				return 0;
-			uopt->uid = option;
+			uopt->uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(uopt->uid))
+				return 0;
 			uopt->flags |= (1 << UDF_FLAG_UID_SET);
 			break;
 		case Opt_umask:
@@ -1934,8 +1943,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	struct udf_sb_info *sbi;
 
 	uopt.flags = (1 << UDF_FLAG_USE_AD_IN_ICB) | (1 << UDF_FLAG_STRICT);
-	uopt.uid = -1;
-	uopt.gid = -1;
+	uopt.uid = INVALID_UID;
+	uopt.gid = INVALID_GID;
 	uopt.umask = 0;
 	uopt.fmode = UDF_INVALID_MODE;
 	uopt.dmode = UDF_INVALID_MODE;

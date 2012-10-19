@@ -15,8 +15,10 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 #include <mach/msp.h>
@@ -24,6 +26,9 @@
 #include <sound/soc.h>
 
 #include "ux500_msp_i2s.h"
+
+/* MSP1/3 Tx/Rx usage protection */
+static DEFINE_SPINLOCK(msp_rxtx_lock);
 
  /* Protocol desciptors */
 static const struct msp_protdesc prot_descs[] = {
@@ -352,17 +357,23 @@ static int configure_multichannel(struct ux500_msp *msp,
 
 static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 {
-	int status = 0;
+	int status = 0, retval = 0;
 	u32 reg_val_DMACR, reg_val_GCR;
+	unsigned long flags;
 
 	/* Check msp state whether in RUN or CONFIGURED Mode */
-	if ((msp->msp_state == MSP_STATE_IDLE) && (msp->plat_init)) {
-		status = msp->plat_init();
-		if (status) {
-			dev_err(msp->dev, "%s: ERROR: Failed to init MSP (%d)!\n",
-				__func__, status);
-			return status;
+	if (msp->msp_state == MSP_STATE_IDLE) {
+		spin_lock_irqsave(&msp_rxtx_lock, flags);
+		if (msp->pinctrl_rxtx_ref == 0 &&
+			!(IS_ERR(msp->pinctrl_p) || IS_ERR(msp->pinctrl_def))) {
+			retval = pinctrl_select_state(msp->pinctrl_p,
+						msp->pinctrl_def);
+			if (retval)
+				pr_err("could not set MSP defstate\n");
 		}
+		if (!retval)
+			msp->pinctrl_rxtx_ref++;
+		spin_unlock_irqrestore(&msp_rxtx_lock, flags);
 	}
 
 	/* Configure msp with protocol dependent settings */
@@ -620,7 +631,8 @@ int ux500_msp_i2s_trigger(struct ux500_msp *msp, int cmd, int direction)
 
 int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 {
-	int status = 0;
+	int status = 0, retval = 0;
+	unsigned long flags;
 
 	dev_dbg(msp->dev, "%s: Enter (dir = 0x%01x).\n", __func__, dir);
 
@@ -631,12 +643,19 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 		writel((readl(msp->registers + MSP_GCR) &
 			       (~(FRAME_GEN_ENABLE | SRG_ENABLE))),
 			      msp->registers + MSP_GCR);
-		if (msp->plat_exit)
-			status = msp->plat_exit();
-			if (status)
-				dev_warn(msp->dev,
-					"%s: WARN: ux500_msp_i2s_exit failed (%d)!\n",
-					__func__, status);
+
+		spin_lock_irqsave(&msp_rxtx_lock, flags);
+		WARN_ON(!msp->pinctrl_rxtx_ref);
+		msp->pinctrl_rxtx_ref--;
+		if (msp->pinctrl_rxtx_ref == 0 &&
+			!(IS_ERR(msp->pinctrl_p) || IS_ERR(msp->pinctrl_sleep))) {
+			retval = pinctrl_select_state(msp->pinctrl_p,
+						msp->pinctrl_sleep);
+			if (retval)
+				pr_err("could not set MSP sleepstate\n");
+		}
+		spin_unlock_irqrestore(&msp_rxtx_lock, flags);
+
 		writel(0, msp->registers + MSP_GCR);
 		writel(0, msp->registers + MSP_TCF);
 		writel(0, msp->registers + MSP_RCF);
@@ -663,21 +682,35 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p,
 			struct msp_i2s_platform_data *platform_data)
 {
-	int ret = 0;
 	struct resource *res = NULL;
 	struct i2s_controller *i2s_cont;
+	struct device_node *np = pdev->dev.of_node;
 	struct ux500_msp *msp;
+
+	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
+	msp = *msp_p;
+	if (!msp)
+		return -ENOMEM;
+
+	if (np) {
+		if (!platform_data) {
+			platform_data = devm_kzalloc(&pdev->dev,
+				sizeof(struct msp_i2s_platform_data), GFP_KERNEL);
+			if (!platform_data)
+				ret = -ENOMEM;
+		}
+	} else
+		if (!platform_data)
+			ret = -EINVAL;
+
+	if (ret)
+		goto err_res;
 
 	dev_dbg(&pdev->dev, "%s: Enter (name: %s, id: %d).\n", __func__,
 		pdev->name, platform_data->id);
 
-	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
-	msp = *msp_p;
-
 	msp->id = platform_data->id;
 	msp->dev = &pdev->dev;
-	msp->plat_init = platform_data->msp_i2s_init;
-	msp->plat_exit = platform_data->msp_i2s_exit;
 	msp->dma_cfg_rx = platform_data->msp_i2s_dma_rx;
 	msp->dma_cfg_tx = platform_data->msp_i2s_dma_tx;
 
@@ -685,15 +718,14 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	if (res == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: Unable to get resource!\n",
 			__func__);
-		ret = -ENOMEM;
-		goto err_res;
+		return -ENOMEM;
 	}
 
-	msp->registers = ioremap(res->start, (res->end - res->start + 1));
+	msp->registers = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
 	if (msp->registers == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: ioremap failed!\n", __func__);
-		ret = -ENOMEM;
-		goto err_res;
+		return -ENOMEM;
 	}
 
 	msp->msp_state = MSP_STATE_IDLE;
@@ -705,7 +737,7 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 		dev_err(&pdev->dev,
 			"%s: ERROR: Failed to allocate I2S-controller!\n",
 			__func__);
-		goto err_i2s_cont;
+		return -ENOMEM;
 	}
 	i2s_cont->dev.parent = &pdev->dev;
 	i2s_cont->data = (void *)msp;
@@ -715,15 +747,26 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	dev_dbg(&pdev->dev, "I2S device-name: '%s'\n", i2s_cont->name);
 	msp->i2s_cont = i2s_cont;
 
+	msp->pinctrl_p = pinctrl_get(msp->dev);
+	if (IS_ERR(msp->pinctrl_p))
+		dev_err(&pdev->dev, "could not get MSP pinctrl\n");
+	else {
+		msp->pinctrl_def = pinctrl_lookup_state(msp->pinctrl_p,
+						PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(msp->pinctrl_def)) {
+			dev_err(&pdev->dev,
+				"could not get MSP defstate (%li)\n",
+				PTR_ERR(msp->pinctrl_def));
+		}
+		msp->pinctrl_sleep = pinctrl_lookup_state(msp->pinctrl_p,
+						PINCTRL_STATE_SLEEP);
+		if (IS_ERR(msp->pinctrl_sleep))
+			dev_err(&pdev->dev,
+				"could not get MSP idlestate (%li)\n",
+				PTR_ERR(msp->pinctrl_def));
+	}
+
 	return 0;
-
-err_i2s_cont:
-	iounmap(msp->registers);
-
-err_res:
-	devm_kfree(&pdev->dev, msp);
-
-	return ret;
 }
 
 void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
@@ -732,11 +775,6 @@ void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 	dev_dbg(msp->dev, "%s: Enter (id = %d).\n", __func__, msp->id);
 
 	device_unregister(&msp->i2s_cont->dev);
-	devm_kfree(&pdev->dev, msp->i2s_cont);
-
-	iounmap(msp->registers);
-
-	devm_kfree(&pdev->dev, msp);
 }
 
 MODULE_LICENSE("GPL v2");

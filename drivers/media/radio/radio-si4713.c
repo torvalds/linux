@@ -83,7 +83,7 @@ static int radio_si4713_g_audout(struct file *file, void *priv,
 }
 
 static int radio_si4713_s_audout(struct file *file, void *priv,
-					struct v4l2_audioout *vao)
+					const struct v4l2_audioout *vao)
 {
 	return vao->index ? -EINVAL : 0;
 }
@@ -200,7 +200,7 @@ static int radio_si4713_g_modulator(struct file *file, void *p,
 }
 
 static int radio_si4713_s_modulator(struct file *file, void *p,
-						struct v4l2_modulator *vm)
+						const struct v4l2_modulator *vm)
 {
 	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, tuner,
 							s_modulator, vm);
@@ -268,7 +268,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	rsdev = kzalloc(sizeof *rsdev, GFP_KERNEL);
+	rsdev = devm_kzalloc(&pdev->dev, sizeof(*rsdev), GFP_KERNEL);
 	if (!rsdev) {
 		dev_err(&pdev->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;
@@ -278,7 +278,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 	rval = v4l2_device_register(&pdev->dev, &rsdev->v4l2_dev);
 	if (rval) {
 		dev_err(&pdev->dev, "Failed to register v4l2 device.\n");
-		goto free_rsdev;
+		goto exit;
 	}
 
 	adapter = i2c_get_adapter(pdata->i2c_bus);
@@ -322,8 +322,6 @@ put_adapter:
 	i2c_put_adapter(adapter);
 unregister_v4l2_dev:
 	v4l2_device_unregister(&rsdev->v4l2_dev);
-free_rsdev:
-	kfree(rsdev);
 exit:
 	return rval;
 }
@@ -342,7 +340,6 @@ static int __exit radio_si4713_pdriver_remove(struct platform_device *pdev)
 	video_unregister_device(rsdev->radio_dev);
 	i2c_put_adapter(client->adapter);
 	v4l2_device_unregister(&rsdev->v4l2_dev);
-	kfree(rsdev);
 
 	return 0;
 }

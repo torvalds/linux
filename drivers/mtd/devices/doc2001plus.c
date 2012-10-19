@@ -659,23 +659,15 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 #ifdef ECC_DEBUG
 			printk("%s(%d): Millennium Plus ECC error (from=0x%x:\n",
 				__FILE__, __LINE__, (int)from);
-			printk("        syndrome= %02x:%02x:%02x:%02x:%02x:"
-				"%02x\n",
-				syndrome[0], syndrome[1], syndrome[2],
-				syndrome[3], syndrome[4], syndrome[5]);
-			printk("          eccbuf= %02x:%02x:%02x:%02x:%02x:"
-				"%02x\n",
-				eccbuf[0], eccbuf[1], eccbuf[2],
-				eccbuf[3], eccbuf[4], eccbuf[5]);
+			printk("        syndrome= %*phC\n", 6, syndrome);
+			printk("        eccbuf= %*phC\n", 6, eccbuf);
 #endif
 				ret = -EIO;
 		}
 	}
 
 #ifdef PSYCHO_DEBUG
-	printk("ECC DATA at %lx: %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
-	       (long)from, eccbuf[0], eccbuf[1], eccbuf[2], eccbuf[3],
-	       eccbuf[4], eccbuf[5]);
+	printk("ECC DATA at %lx: %*ph\n", (long)from, 6, eccbuf);
 #endif
 	/* disable the ECC engine */
 	WriteDOC(DOC_ECC_DIS, docptr , Mplus_ECCConf);

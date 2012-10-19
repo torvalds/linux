@@ -70,9 +70,7 @@ struct	qos_priv	{
 #include "rtl871x_event.h"
 #include "rtl871x_led.h"
 
-#define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
-#define SPEC_DEV_ID_ENABLE_PS BIT(2)
 
 struct specific_device_id {
 	u32		flags;
@@ -126,13 +124,6 @@ struct registry_priv {
 	u8 low_power;
 	u8 wifi_test;
 };
-
-/* For registry parameters */
-#define RGTRY_OFT(field) ((addr_t)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
-#define BSSID_OFT(field) ((addr_t)FIELD_OFFSET(struct ndis_wlan_bssid_ex, \
-			 field))
-#define BSSID_SZ(field)   sizeof(((struct ndis_wlan_bssid_ex *)0)->field)
 
 struct dvobj_priv {
 	struct _adapter *padapter;

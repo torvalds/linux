@@ -218,6 +218,13 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return -EINVAL;
 	}
+	if (cmd->data_length < 4) {
+		pr_warn("SET TARGET PORT GROUPS parameter list length %u too"
+			" small\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		return -EINVAL;
+	}
+
 	buf = transport_kmap_data_sg(cmd);
 
 	/*
@@ -337,7 +344,7 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 */
 			rtpi = get_unaligned_be16(ptr + 2);
 			/*
-			 * Locate the matching relative target port identifer
+			 * Locate the matching relative target port identifier
 			 * for the struct se_device storage object.
 			 */
 			spin_lock(&dev->se_port_lock);

@@ -3591,7 +3591,7 @@
 
 
   Looking at the source shows that the fault happened during a call to
-  copy_to_user to copy the data into the kernel:
+  copy_from_user to copy the data into the kernel:
 
 
        107             count -= chars;

@@ -30,12 +30,20 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+static unsigned long pfmf(unsigned long function, unsigned long address)
+{
+	asm volatile(
+		"	.insn	rre,0xb9af0000,%[function],%[address]"
+		: [address] "+a" (address)
+		: [function] "d" (function)
+		: "memory");
+	return address;
+}
+
 static inline void clear_page(void *page)
 {
 	if (MACHINE_HAS_PFMF) {
-		asm volatile(
-			"	.insn	rre,0xb9af0000,%0,%1"
-			: : "d" (0x10000), "a" (page) : "memory", "cc");
+		pfmf(0x10000, (unsigned long)page);
 	} else {
 		register unsigned long reg1 asm ("1") = 0;
 		register void *reg2 asm ("2") = page;

@@ -306,7 +306,7 @@ static struct xor_block_template xor_block_sse = {
 
 
 /* Also try the AVX routines */
-#include "xor_avx.h"
+#include <asm/xor_avx.h>
 
 #undef XOR_TRY_TEMPLATES
 #define XOR_TRY_TEMPLATES			\

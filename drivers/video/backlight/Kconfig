@@ -229,13 +229,6 @@ config BACKLIGHT_HP700
 	  If you have an HP Jornada 700 series,
 	  say Y to include backlight control driver.
 
-config BACKLIGHT_PROGEAR
-	tristate "Frontpath ProGear Backlight Driver"
-	depends on PCI && X86
-	help
-	  If you have a Frontpath ProGear say Y to enable the
-	  backlight driver.
-
 config BACKLIGHT_CARILLO_RANCH
 	tristate "Intel Carillo Ranch Backlight Driver"
 	depends on LCD_CLASS_DEVICE && PCI && X86 && FB_LE80578
@@ -352,6 +345,22 @@ config BACKLIGHT_AAT2870
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_LM3630
+	tristate "Backlight Driver for LM3630"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	select REGMAP_I2C
+	help
+	  This supports TI LM3630 Backlight Driver
+
+config BACKLIGHT_LM3639
+	tristate "Backlight Driver for LM3639"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	select REGMAP_I2C
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  This supports TI LM3639 Backlight + 1.5A Flash LED Driver
+
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
 	depends on BACKLIGHT_CLASS_DEVICE && I2C
@@ -371,6 +380,13 @@ config BACKLIGHT_PANDORA
 	depends on TWL4030_CORE
 	help
 	  If you have a Pandora console, say Y to enable the
+	  backlight driver.
+
+config BACKLIGHT_TPS65217
+	tristate "TPS65217 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217
+	help
+	  If you have a Texas Instruments TPS65217 say Y to enable the
 	  backlight driver.
 
 endif # BACKLIGHT_CLASS_DEVICE

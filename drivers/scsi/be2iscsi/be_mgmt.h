@@ -108,6 +108,7 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct bsg_job *job,
 					 struct be_dma_mem *nonemb_cmd);
 
+#define BEISCSI_NO_RST_ISSUE	0
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;
 	unsigned int session_handle;
@@ -274,6 +275,10 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 
 unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba);
 
+unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
+				  unsigned int reopen_type,
+				  unsigned sess_handle);
+
 unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 				   u32 boot_session_handle,
 				   struct be_dma_mem *nonemb_cmd);
@@ -290,4 +295,10 @@ int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
 int mgmt_set_gateway(struct beiscsi_hba *phba,
 		     struct iscsi_iface_param_info *gateway_param);
 
+int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
+			      unsigned int *s_handle);
+
+unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
+
+int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 #endif

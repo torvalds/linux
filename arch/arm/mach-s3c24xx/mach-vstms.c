@@ -39,8 +39,8 @@
 #include <mach/idle.h>
 #include <mach/fb.h>
 
-#include <plat/iic.h>
-#include <plat/nand.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
 #include <plat/s3c2410.h>
 #include <plat/s3c2412.h>

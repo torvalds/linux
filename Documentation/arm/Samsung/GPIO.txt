@@ -5,14 +5,14 @@ Introduction
 ------------
 
 This outlines the Samsung GPIO implementation and the architecture
-specific calls provided alongisde the drivers/gpio core.
+specific calls provided alongside the drivers/gpio core.
 
 
 S3C24XX (Legacy)
 ----------------
 
 See Documentation/arm/Samsung-S3C24XX/GPIO.txt for more information
-about these devices. Their implementation is being brought into line
+about these devices. Their implementation has been brought into line
 with the core samsung implementation described in this document.
 
 
@@ -29,7 +29,7 @@ GPIO numbering is synchronised between the Samsung and gpiolib system.
 PIN configuration
 -----------------
 
-Pin configuration is specific to the Samsung architecutre, with each SoC
+Pin configuration is specific to the Samsung architecture, with each SoC
 registering the necessary information for the core gpio configuration
 implementation to configure pins as necessary.
 
@@ -38,5 +38,3 @@ driver or machine to change gpio configuration.
 
 See arch/arm/plat-samsung/include/plat/gpio-cfg.h for more information
 on these functions.
-
-

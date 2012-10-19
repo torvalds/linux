@@ -324,7 +324,7 @@ static struct ide_dma_ops trm290_dma_ops = {
 	.dma_check		= trm290_dma_check,
 };
 
-static const struct ide_port_info trm290_chipset __devinitdata = {
+static const struct ide_port_info trm290_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_trm290,
 	.tp_ops 	= &trm290_tp_ops,

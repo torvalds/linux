@@ -75,8 +75,8 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct symbol *parent, u64 period);
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
-int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
-			 struct hists *hists);
+int hist_entry__sort_snprintf(struct hist_entry *self, char *bf, size_t size,
+			      struct hists *hists);
 void hist_entry__free(struct hist_entry *);
 
 struct hist_entry *__hists__add_branch_entry(struct hists *self,
@@ -98,9 +98,8 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 void hists__inc_nr_events(struct hists *self, u32 type);
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
 
-size_t hists__fprintf(struct hists *self, struct hists *pair,
-		      bool show_displacement, bool show_header,
-		      int max_rows, int max_cols, FILE *fp);
+size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
+		      int max_cols, FILE *fp);
 
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);
@@ -112,31 +111,49 @@ void hists__filter_by_symbol(struct hists *hists);
 u16 hists__col_len(struct hists *self, enum hist_column col);
 void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);
 bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
+void hists__reset_col_len(struct hists *hists);
+void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
+
+struct perf_hpp {
+	char *buf;
+	size_t size;
+	const char *sep;
+	void *ptr;
+};
+
+struct perf_hpp_fmt {
+	bool cond;
+	int (*header)(struct perf_hpp *hpp);
+	int (*width)(struct perf_hpp *hpp);
+	int (*color)(struct perf_hpp *hpp, struct hist_entry *he);
+	int (*entry)(struct perf_hpp *hpp, struct hist_entry *he);
+};
+
+extern struct perf_hpp_fmt perf_hpp__format[];
+
+enum {
+	PERF_HPP__BASELINE,
+	PERF_HPP__OVERHEAD,
+	PERF_HPP__OVERHEAD_SYS,
+	PERF_HPP__OVERHEAD_US,
+	PERF_HPP__OVERHEAD_GUEST_SYS,
+	PERF_HPP__OVERHEAD_GUEST_US,
+	PERF_HPP__SAMPLES,
+	PERF_HPP__PERIOD,
+	PERF_HPP__DELTA,
+	PERF_HPP__DISPL,
+
+	PERF_HPP__MAX_INDEX
+};
+
+void perf_hpp__init(void);
+void perf_hpp__column_enable(unsigned col, bool enable);
+int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
+				bool color);
 
 struct perf_evlist;
 
-#ifdef NO_NEWT_SUPPORT
-static inline
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
-				  const char *help __used,
-				  void(*timer)(void *arg) __used,
-				  void *arg __used,
-				  int refresh __used)
-{
-	return 0;
-}
-
-static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
-					   int evidx __used,
-					   void(*timer)(void *arg) __used,
-					   void *arg __used,
-					   int delay_secs __used)
-{
-	return 0;
-}
-#define K_LEFT -1
-#define K_RIGHT -2
-#else
+#ifdef NEWT_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
@@ -144,23 +161,45 @@ int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  void(*timer)(void *arg), void *arg,
 				  int refresh);
-#endif
-
-#ifdef NO_GTK2_SUPPORT
+#else
 static inline
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __used,
-				  const char *help __used,
-				  void(*timer)(void *arg) __used,
-				  void *arg __used,
-				  int refresh __used)
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
+				  const char *help __maybe_unused,
+				  void(*timer)(void *arg) __maybe_unused,
+				  void *arg __maybe_unused,
+				  int refresh __maybe_unused)
 {
 	return 0;
 }
 
-#else
+static inline int hist_entry__tui_annotate(struct hist_entry *self
+					   __maybe_unused,
+					   int evidx __maybe_unused,
+					   void(*timer)(void *arg)
+					   __maybe_unused,
+					   void *arg __maybe_unused,
+					   int delay_secs __maybe_unused)
+{
+	return 0;
+}
+#define K_LEFT -1
+#define K_RIGHT -2
+#endif
+
+#ifdef GTK2_SUPPORT
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
 				  void(*timer)(void *arg), void *arg,
 				  int refresh);
+#else
+static inline
+int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
+				  const char *help __maybe_unused,
+				  void(*timer)(void *arg) __maybe_unused,
+				  void *arg __maybe_unused,
+				  int refresh __maybe_unused)
+{
+	return 0;
+}
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);

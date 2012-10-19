@@ -358,6 +358,7 @@ static void imx_keypad_inhibit(struct imx_keypad *keypad)
 	/* Inhibit KDI and KRI interrupts. */
 	reg_val = readw(keypad->mmio_base + KPSR);
 	reg_val &= ~(KBD_STAT_KRIE | KBD_STAT_KDIE);
+	reg_val |= KBD_STAT_KPKR | KBD_STAT_KPKD;
 	writew(reg_val, keypad->mmio_base + KPSR);
 
 	/* Colums as open drain and disable all rows */
@@ -515,7 +516,9 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	input_set_drvdata(input_dev, keypad);
 
 	/* Ensure that the keypad will stay dormant until opened */
+	clk_prepare_enable(keypad->clk);
 	imx_keypad_inhibit(keypad);
+	clk_disable_unprepare(keypad->clk);
 
 	error = request_irq(irq, imx_keypad_irq_handler, 0,
 			    pdev->name, keypad);

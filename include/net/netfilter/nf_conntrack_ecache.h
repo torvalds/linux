@@ -17,7 +17,7 @@ struct nf_conntrack_ecache {
 	unsigned long missed;	/* missed events */
 	u16 ctmask;		/* bitmask of ct events to be delivered */
 	u16 expmask;		/* bitmask of expect events to be delivered */
-	u32 pid;		/* netlink pid of destroyer */
+	u32 portid;		/* netlink portid of destroyer */
 	struct timer_list timeout;
 };
 
@@ -60,7 +60,7 @@ nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 /* This structure is passed to event handler */
 struct nf_ct_event {
 	struct nf_conn *ct;
-	u32 pid;
+	u32 portid;
 	int report;
 };
 
@@ -92,7 +92,7 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 static inline int
 nf_conntrack_eventmask_report(unsigned int eventmask,
 			      struct nf_conn *ct,
-			      u32 pid,
+			      u32 portid,
 			      int report)
 {
 	int ret = 0;
@@ -112,11 +112,11 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct)) {
 		struct nf_ct_event item = {
 			.ct 	= ct,
-			.pid	= e->pid ? e->pid : pid,
+			.portid	= e->portid ? e->portid : portid,
 			.report = report
 		};
 		/* This is a resent of a destroy event? If so, skip missed */
-		unsigned long missed = e->pid ? 0 : e->missed;
+		unsigned long missed = e->portid ? 0 : e->missed;
 
 		if (!((eventmask | missed) & e->ctmask))
 			goto out_unlock;
@@ -126,11 +126,11 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 			spin_lock_bh(&ct->lock);
 			if (ret < 0) {
 				/* This is a destroy event that has been
-				 * triggered by a process, we store the PID
+				 * triggered by a process, we store the PORTID
 				 * to include it in the retransmission. */
 				if (eventmask & (1 << IPCT_DESTROY) &&
-				    e->pid == 0 && pid != 0)
-					e->pid = pid;
+				    e->portid == 0 && portid != 0)
+					e->portid = portid;
 				else
 					e->missed |= eventmask;
 			} else
@@ -145,9 +145,9 @@ out_unlock:
 
 static inline int
 nf_conntrack_event_report(enum ip_conntrack_events event, struct nf_conn *ct,
-			  u32 pid, int report)
+			  u32 portid, int report)
 {
-	return nf_conntrack_eventmask_report(1 << event, ct, pid, report);
+	return nf_conntrack_eventmask_report(1 << event, ct, portid, report);
 }
 
 static inline int
@@ -158,7 +158,7 @@ nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
 
 struct nf_exp_event {
 	struct nf_conntrack_expect *exp;
-	u32 pid;
+	u32 portid;
 	int report;
 };
 
@@ -172,7 +172,7 @@ extern void nf_ct_expect_unregister_notifier(struct net *net, struct nf_exp_even
 static inline void
 nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 			  struct nf_conntrack_expect *exp,
-			  u32 pid,
+			  u32 portid,
 			  int report)
 {
 	struct net *net = nf_ct_exp_net(exp);
@@ -191,7 +191,7 @@ nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 	if (e->expmask & (1 << event)) {
 		struct nf_exp_event item = {
 			.exp	= exp,
-			.pid	= pid,
+			.portid	= portid,
 			.report = report
 		};
 		notify->fcn(1 << event, &item);
@@ -216,20 +216,20 @@ static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,
 					    struct nf_conn *ct) {}
 static inline int nf_conntrack_eventmask_report(unsigned int eventmask,
 						struct nf_conn *ct,
-						u32 pid,
+						u32 portid,
 						int report) { return 0; }
 static inline int nf_conntrack_event(enum ip_conntrack_events event,
 				     struct nf_conn *ct) { return 0; }
 static inline int nf_conntrack_event_report(enum ip_conntrack_events event,
 					    struct nf_conn *ct,
-					    u32 pid,
+					    u32 portid,
 					    int report) { return 0; }
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct) {}
 static inline void nf_ct_expect_event(enum ip_conntrack_expect_events event,
 				      struct nf_conntrack_expect *exp) {}
 static inline void nf_ct_expect_event_report(enum ip_conntrack_expect_events e,
 					     struct nf_conntrack_expect *exp,
- 					     u32 pid,
+ 					     u32 portid,
  					     int report) {}
 
 static inline int nf_conntrack_ecache_init(struct net *net)

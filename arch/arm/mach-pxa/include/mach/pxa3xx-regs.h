@@ -131,6 +131,7 @@
 #define AICSR		__REG(0x41340008)	/* Application Subsystem Interrupt Control/Status Register */
 #define CKENA		__REG(0x4134000C)	/* A Clock Enable Register */
 #define CKENB		__REG(0x41340010)	/* B Clock Enable Register */
+#define CKENC		__REG(0x41340024)	/* C Clock Enable Register */
 #define AC97_DIV	__REG(0x41340014)	/* AC97 clock divisor value register */
 
 #define ACCR_XPDIS		(1 << 31)	/* Core PLL Output Disable */

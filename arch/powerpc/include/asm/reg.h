@@ -208,6 +208,9 @@
 #define SPRN_DABRX	0x3F7	/* Data Address Breakpoint Register Extension */
 #define   DABRX_USER	(1UL << 0)
 #define   DABRX_KERNEL	(1UL << 1)
+#define   DABRX_HYP	(1UL << 2)
+#define   DABRX_BTI	(1UL << 3)
+#define   DABRX_ALL     (DABRX_BTI | DABRX_HYP | DABRX_KERNEL | DABRX_USER)
 #define SPRN_DAR	0x013	/* Data Address Register */
 #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */
 #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
@@ -521,6 +524,7 @@
 
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
+#define   HSRR1_DENORM		0x00100000 /* Denorm exception */
 
 #define SPRN_TBCTL	0x35f	/* PA6T Timebase control register */
 #define   TBCTL_FREEZE		0x0000000000000000ull /* Freeze all tbs */
@@ -602,6 +606,10 @@
 #define   POWER6_MMCRA_SIPR   0x0000020000000000ULL
 #define   POWER6_MMCRA_THRM	0x00000020UL
 #define   POWER6_MMCRA_OTHER	0x0000000EUL
+
+#define   POWER7P_MMCRA_SIAR_VALID 0x10000000	/* P7+ SIAR contents valid */
+#define   POWER7P_MMCRA_SDAR_VALID 0x08000000	/* P7+ SDAR contents valid */
+
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788
 #define SPRN_PMC3	789
@@ -761,7 +769,8 @@
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
  *	- SPRG2 TLB exception stack
- *	- SPRG3 CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG3 critical exception scratch and
+ *        CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
  *	- SPRG7 critical exception scratch
@@ -858,11 +867,12 @@
 
 #ifdef CONFIG_PPC_BOOK3E_64
 #define SPRN_SPRG_MC_SCRATCH	SPRN_SPRG8
-#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG7
+#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG3
 #define SPRN_SPRG_DBG_SCRATCH	SPRN_SPRG9
 #define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
 #define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
 #define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
+#define SPRN_SPRG_GDBELL_SCRATCH SPRN_SPRG_GEN_SCRATCH
 
 #define SET_PACA(rX)	mtspr	SPRN_SPRG_PACA,rX
 #define GET_PACA(rX)	mfspr	rX,SPRN_SPRG_PACA
@@ -937,7 +947,7 @@
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)	/* Version field */
 #define PVR_REV(pvr)	(((pvr) >>   0) & 0xFFFF)	/* Revison field */
 
-#define __is_processor(pv)	(PVR_VER(mfspr(SPRN_PVR)) == (pv))
+#define pvr_version_is(pvr)	(PVR_VER(mfspr(SPRN_PVR)) == (pvr))
 
 /*
  * IBM has further subdivided the standard PowerPC 16-bit version and
@@ -1002,25 +1012,25 @@
 #define PVR_476_ISS	0x00052000
 
 /* 64-bit processors */
-/* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */
-#define PV_NORTHSTAR	0x0033
-#define PV_PULSAR	0x0034
-#define PV_POWER4	0x0035
-#define PV_ICESTAR	0x0036
-#define PV_SSTAR	0x0037
-#define PV_POWER4p	0x0038
-#define PV_970		0x0039
-#define PV_POWER5	0x003A
-#define PV_POWER5p	0x003B
-#define PV_970FX	0x003C
-#define PV_POWER6	0x003E
-#define PV_POWER7	0x003F
-#define PV_630		0x0040
-#define PV_630p	0x0041
-#define PV_970MP	0x0044
-#define PV_970GX	0x0045
-#define PV_BE		0x0070
-#define PV_PA6T		0x0090
+#define PVR_NORTHSTAR	0x0033
+#define PVR_PULSAR	0x0034
+#define PVR_POWER4	0x0035
+#define PVR_ICESTAR	0x0036
+#define PVR_SSTAR	0x0037
+#define PVR_POWER4p	0x0038
+#define PVR_970		0x0039
+#define PVR_POWER5	0x003A
+#define PVR_POWER5p	0x003B
+#define PVR_970FX	0x003C
+#define PVR_POWER6	0x003E
+#define PVR_POWER7	0x003F
+#define PVR_630		0x0040
+#define PVR_630p	0x0041
+#define PVR_970MP	0x0044
+#define PVR_970GX	0x0045
+#define PVR_POWER7p	0x004A
+#define PVR_BE		0x0070
+#define PVR_PA6T	0x0090
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__

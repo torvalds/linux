@@ -170,7 +170,7 @@ static const struct ide_port_ops cs5535_port_ops = {
 	.cable_detect		= cs5535_cable_detect,
 };
 
-static const struct ide_port_info cs5535_chipset __devinitdata = {
+static const struct ide_port_info cs5535_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.port_ops	= &cs5535_port_ops,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE,

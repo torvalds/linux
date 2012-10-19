@@ -28,19 +28,6 @@
 #ifndef _EXYNOS_DRM_FB_H_
 #define _EXYNOS_DRM_FB_H
 
-static inline int exynos_drm_format_num_buffers(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV12MT:
-		return 2;
-	case DRM_FORMAT_YUV420:
-		return 3;
-	default:
-		return 1;
-	}
-}
-
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
@@ -51,5 +38,12 @@ struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
 						 int index);
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
+
+/* set a buffer count to drm framebuffer. */
+void exynos_drm_fb_set_buf_cnt(struct drm_framebuffer *fb,
+						unsigned int cnt);
+
+/* get a buffer count to drm framebuffer. */
+unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb);
 
 #endif

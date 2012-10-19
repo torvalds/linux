@@ -150,13 +150,11 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	if (test_bit(SCAN_SW_SCANNING, &local->scanning) ||
 	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_HW_SCANNING, &local->scanning))
+	    test_bit(SCAN_HW_SCANNING, &local->scanning) ||
+	    !local->ap_power_level)
 		power = chan->max_power;
 	else
-		power = local->power_constr_level ?
-			min(chan->max_power,
-				(chan->max_reg_power  - local->power_constr_level)) :
-			chan->max_power;
+		power = min(chan->max_power, local->ap_power_level);
 
 	if (local->user_power_level >= 0)
 		power = min(power, local->user_power_level);
@@ -207,6 +205,10 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = NULL;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		sdata->vif.bss_conf.bssid = zero;
+	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
+		sdata->vif.bss_conf.bssid = sdata->vif.addr;
+		WARN_ONCE(changed & ~(BSS_CHANGED_IDLE),
+			  "P2P Device BSS changed %#x", changed);
 	} else {
 		WARN_ON(1);
 		return;
@@ -362,9 +364,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, recalc_smps);
 
-	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_smps(local);
-	mutex_unlock(&local->iflist_mtx);
 }
 
 #ifdef CONFIG_INET
@@ -514,6 +514,11 @@ ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 			BIT(IEEE80211_STYPE_AUTH >> 4) |
 			BIT(IEEE80211_STYPE_DEAUTH >> 4),
 	},
+	[NL80211_IFTYPE_P2P_DEVICE] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+			BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+	},
 };
 
 static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
@@ -535,6 +540,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	struct ieee80211_local *local;
 	int priv_size, i;
 	struct wiphy *wiphy;
+
+	if (WARN_ON(!ops->tx || !ops->start || !ops->stop || !ops->config ||
+		    !ops->add_interface || !ops->remove_interface ||
+		    !ops->configure_filter))
+		return NULL;
 
 	if (WARN_ON(ops->sta_state && (ops->sta_add || ops->sta_remove)))
 		return NULL;
@@ -588,13 +598,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
-	BUG_ON(!ops->tx);
-	BUG_ON(!ops->start);
-	BUG_ON(!ops->stop);
-	BUG_ON(!ops->config);
-	BUG_ON(!ops->add_interface);
-	BUG_ON(!ops->remove_interface);
-	BUG_ON(!ops->configure_filter);
 	local->ops = ops;
 
 	/* set up some defaults */

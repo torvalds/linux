@@ -24,10 +24,6 @@ struct ep_device {
 #define to_ep_device(_dev) \
 	container_of(_dev, struct ep_device, dev)
 
-struct device_type usb_ep_device_type = {
-	.name =		"usb_endpoint",
-};
-
 struct ep_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct usb_device *,
@@ -172,6 +168,11 @@ static void ep_device_release(struct device *dev)
 	kfree(ep_dev);
 }
 
+struct device_type usb_ep_device_type = {
+	.name =		"usb_endpoint",
+	.release = ep_device_release,
+};
+
 int usb_create_ep_devs(struct device *parent,
 			struct usb_host_endpoint *endpoint,
 			struct usb_device *udev)
@@ -190,7 +191,6 @@ int usb_create_ep_devs(struct device *parent,
 	ep_dev->dev.groups = ep_dev_groups;
 	ep_dev->dev.type = &usb_ep_device_type;
 	ep_dev->dev.parent = parent;
-	ep_dev->dev.release = ep_device_release;
 	dev_set_name(&ep_dev->dev, "ep_%02x", endpoint->desc.bEndpointAddress);
 
 	retval = device_register(&ep_dev->dev);

@@ -117,6 +117,7 @@ struct tc3589x {
 	struct mutex lock;
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct irq_domain *domain;
 
 	int irq_base;
 	int num_gpio;

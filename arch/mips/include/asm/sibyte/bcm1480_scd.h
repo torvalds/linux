@@ -32,13 +32,13 @@
 #ifndef _BCM1480_SCD_H
 #define _BCM1480_SCD_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*  *********************************************************************
     *  Pull in the BCM1250's SCD since lots of stuff is the same.
     ********************************************************************* */
 
-#include "sb1250_scd.h"
+#include <asm/sibyte/sb1250_scd.h>
 
 /*  *********************************************************************
     *  Some general notes:

@@ -89,9 +89,8 @@ static int validate_inode(struct ubifs_info *c, const struct inode *inode)
 		return 5;
 
 	if (!ubifs_compr_present(ui->compr_type)) {
-		ubifs_warn("inode %lu uses '%s' compression, but it was not "
-			   "compiled in", inode->i_ino,
-			   ubifs_compr_name(ui->compr_type));
+		ubifs_warn("inode %lu uses '%s' compression, but it was not compiled in",
+			   inode->i_ino, ubifs_compr_name(ui->compr_type));
 	}
 
 	err = dbg_check_dir(c, inode);
@@ -130,8 +129,8 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 
 	inode->i_flags |= (S_NOCMTIME | S_NOATIME);
 	set_nlink(inode, le32_to_cpu(ino->nlink));
-	inode->i_uid   = le32_to_cpu(ino->uid);
-	inode->i_gid   = le32_to_cpu(ino->gid);
+	i_uid_write(inode, le32_to_cpu(ino->uid));
+	i_gid_write(inode, le32_to_cpu(ino->gid));
 	inode->i_atime.tv_sec  = (int64_t)le64_to_cpu(ino->atime_sec);
 	inode->i_atime.tv_nsec = le32_to_cpu(ino->atime_nsec);
 	inode->i_mtime.tv_sec  = (int64_t)le64_to_cpu(ino->mtime_sec);
@@ -1061,8 +1060,8 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 
 			flag = parse_standard_option(p);
 			if (!flag) {
-				ubifs_err("unrecognized mount option \"%s\" "
-					  "or missing value", p);
+				ubifs_err("unrecognized mount option \"%s\" or missing value",
+					  p);
 				return -EINVAL;
 			}
 			sb->s_flags |= flag;
@@ -1124,8 +1123,8 @@ again:
 		}
 
 		/* Just disable bulk-read */
-		ubifs_warn("Cannot allocate %d bytes of memory for bulk-read, "
-			   "disabling it", c->max_bu_buf_len);
+		ubifs_warn("cannot allocate %d bytes of memory for bulk-read, disabling it",
+			   c->max_bu_buf_len);
 		c->mount_opts.bulk_read = 1;
 		c->bulk_read = 0;
 		return;
@@ -1161,7 +1160,7 @@ static int check_free_space(struct ubifs_info *c)
 static int mount_ubifs(struct ubifs_info *c)
 {
 	int err;
-	long long x;
+	long long x, y;
 	size_t sz;
 
 	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
@@ -1411,75 +1410,69 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	c->mounting = 0;
 
-	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
-		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
-	if (c->ro_mount)
-		ubifs_msg("mounted read-only");
+	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"%s",
+		  c->vi.ubi_num, c->vi.vol_id, c->vi.name,
+		  c->ro_mount ? ", R/O mode" : NULL);
 	x = (long long)c->main_lebs * c->leb_size;
-	ubifs_msg("file system size:   %lld bytes (%lld KiB, %lld MiB, %d "
-		  "LEBs)", x, x >> 10, x >> 20, c->main_lebs);
-	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
-	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d "
-		  "LEBs)", x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("media format:       w%d/r%d (latest is w%d/r%d)",
+	y = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
+	ubifs_msg("LEB size: %d bytes (%d KiB), min./max. I/O unit sizes: %d bytes/%d bytes",
+		  c->leb_size, c->leb_size >> 10, c->min_io_size,
+		  c->max_write_size);
+	ubifs_msg("FS size: %lld bytes (%lld MiB, %d LEBs), journal size %lld bytes (%lld MiB, %d LEBs)",
+		  x, x >> 20, c->main_lebs,
+		  y, y >> 20, c->log_lebs + c->max_bud_cnt);
+	ubifs_msg("reserved for root: %llu bytes (%llu KiB)",
+		  c->report_rp_size, c->report_rp_size >> 10);
+	ubifs_msg("media format: w%d/r%d (latest is w%d/r%d), UUID %pUB%s",
 		  c->fmt_version, c->ro_compat_version,
-		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
-	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
-	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
-		c->report_rp_size, c->report_rp_size >> 10);
+		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION, c->uuid,
+		  c->big_lpt ? ", big LPT model" : ", small LPT model");
 
-	dbg_msg("compiled on:         " __DATE__ " at " __TIME__);
-	dbg_msg("min. I/O unit size:  %d bytes", c->min_io_size);
-	dbg_msg("max. write size:     %d bytes", c->max_write_size);
-	dbg_msg("LEB size:            %d bytes (%d KiB)",
-		c->leb_size, c->leb_size >> 10);
-	dbg_msg("data journal heads:  %d",
+	dbg_gen("default compressor:  %s", ubifs_compr_name(c->default_compr));
+	dbg_gen("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
-	dbg_msg("UUID:                %pUB", c->uuid);
-	dbg_msg("big_lpt              %d", c->big_lpt);
-	dbg_msg("log LEBs:            %d (%d - %d)",
+	dbg_gen("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
-	dbg_msg("LPT area LEBs:       %d (%d - %d)",
+	dbg_gen("LPT area LEBs:       %d (%d - %d)",
 		c->lpt_lebs, c->lpt_first, c->lpt_last);
-	dbg_msg("orphan area LEBs:    %d (%d - %d)",
+	dbg_gen("orphan area LEBs:    %d (%d - %d)",
 		c->orph_lebs, c->orph_first, c->orph_last);
-	dbg_msg("main area LEBs:      %d (%d - %d)",
+	dbg_gen("main area LEBs:      %d (%d - %d)",
 		c->main_lebs, c->main_first, c->leb_cnt - 1);
-	dbg_msg("index LEBs:          %d", c->lst.idx_lebs);
-	dbg_msg("total index bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("index LEBs:          %d", c->lst.idx_lebs);
+	dbg_gen("total index bytes:   %lld (%lld KiB, %lld MiB)",
 		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
 		c->bi.old_idx_sz >> 20);
-	dbg_msg("key hash type:       %d", c->key_hash_type);
-	dbg_msg("tree fanout:         %d", c->fanout);
-	dbg_msg("reserved GC LEB:     %d", c->gc_lnum);
-	dbg_msg("first main LEB:      %d", c->main_first);
-	dbg_msg("max. znode size      %d", c->max_znode_sz);
-	dbg_msg("max. index node size %d", c->max_idx_node_sz);
-	dbg_msg("node sizes:          data %zu, inode %zu, dentry %zu",
+	dbg_gen("key hash type:       %d", c->key_hash_type);
+	dbg_gen("tree fanout:         %d", c->fanout);
+	dbg_gen("reserved GC LEB:     %d", c->gc_lnum);
+	dbg_gen("max. znode size      %d", c->max_znode_sz);
+	dbg_gen("max. index node size %d", c->max_idx_node_sz);
+	dbg_gen("node sizes:          data %zu, inode %zu, dentry %zu",
 		UBIFS_DATA_NODE_SZ, UBIFS_INO_NODE_SZ, UBIFS_DENT_NODE_SZ);
-	dbg_msg("node sizes:          trun %zu, sb %zu, master %zu",
+	dbg_gen("node sizes:          trun %zu, sb %zu, master %zu",
 		UBIFS_TRUN_NODE_SZ, UBIFS_SB_NODE_SZ, UBIFS_MST_NODE_SZ);
-	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
+	dbg_gen("node sizes:          ref %zu, cmt. start %zu, orph %zu",
 		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
-	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
+	dbg_gen("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
 		UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
 		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
-	dbg_msg("dead watermark:      %d", c->dead_wm);
-	dbg_msg("dark watermark:      %d", c->dark_wm);
-	dbg_msg("LEB overhead:        %d", c->leb_overhead);
+	dbg_gen("dead watermark:      %d", c->dead_wm);
+	dbg_gen("dark watermark:      %d", c->dark_wm);
+	dbg_gen("LEB overhead:        %d", c->leb_overhead);
 	x = (long long)c->main_lebs * c->dark_wm;
-	dbg_msg("max. dark space:     %lld (%lld KiB, %lld MiB)",
+	dbg_gen("max. dark space:     %lld (%lld KiB, %lld MiB)",
 		x, x >> 10, x >> 20);
-	dbg_msg("maximum bud bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("maximum bud bytes:   %lld (%lld KiB, %lld MiB)",
 		c->max_bud_bytes, c->max_bud_bytes >> 10,
 		c->max_bud_bytes >> 20);
-	dbg_msg("BG commit bud bytes: %lld (%lld KiB, %lld MiB)",
+	dbg_gen("BG commit bud bytes: %lld (%lld KiB, %lld MiB)",
 		c->bg_bud_bytes, c->bg_bud_bytes >> 10,
 		c->bg_bud_bytes >> 20);
-	dbg_msg("current bud bytes    %lld (%lld KiB, %lld MiB)",
+	dbg_gen("current bud bytes    %lld (%lld KiB, %lld MiB)",
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
-	dbg_msg("max. seq. number:    %llu", c->max_sqnum);
-	dbg_msg("commit number:       %llu", c->cmt_no);
+	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
+	dbg_gen("commit number:       %llu", c->cmt_no);
 
 	return 0;
 
@@ -1564,10 +1557,9 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	if (c->rw_incompat) {
 		ubifs_err("the file-system is not R/W-compatible");
-		ubifs_msg("on-flash format version is w%d/r%d, but software "
-			  "only supports up to version w%d/r%d", c->fmt_version,
-			  c->ro_compat_version, UBIFS_FORMAT_VERSION,
-			  UBIFS_RO_COMPAT_VERSION);
+		ubifs_msg("on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
+			  c->fmt_version, c->ro_compat_version,
+			  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
 		return -EROFS;
 	}
 
@@ -1828,8 +1820,8 @@ static void ubifs_put_super(struct super_block *sb)
 				 * next mount, so we just print a message and
 				 * continue to unmount normally.
 				 */
-				ubifs_err("failed to write master node, "
-					  "error %d", err);
+				ubifs_err("failed to write master node, error %d",
+					  err);
 		} else {
 			for (i = 0; i < c->jhead_cnt; i++)
 				/* Make sure write-buffer timers are canceled */
@@ -2248,8 +2240,7 @@ static int __init ubifs_init(void)
 	 * UBIFS_BLOCK_SIZE. It is assumed that both are powers of 2.
 	 */
 	if (PAGE_CACHE_SIZE < UBIFS_BLOCK_SIZE) {
-		ubifs_err("VFS page cache size is %u bytes, but UBIFS requires"
-			  " at least 4096 bytes",
+		ubifs_err("VFS page cache size is %u bytes, but UBIFS requires at least 4096 bytes",
 			  (unsigned int)PAGE_CACHE_SIZE);
 		return -EINVAL;
 	}
@@ -2298,6 +2289,12 @@ static void __exit ubifs_exit(void)
 	dbg_debugfs_exit();
 	ubifs_compressors_exit();
 	unregister_shrinker(&ubifs_shrinker_info);
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ubifs_inode_slab);
 	unregister_filesystem(&ubifs_fs_type);
 }

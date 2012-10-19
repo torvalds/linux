@@ -20,7 +20,6 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -129,12 +128,10 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 }
 #endif	/* CONFIG_PCI */
 
-static void __init mpc85xx_ds_pci_init(void)
+static void __init mpc85xx_ds_uli_init(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *node;
-
-	fsl_pci_init();
 
 	/* See if we have a ULI under the primary */
 
@@ -159,7 +156,9 @@ static void __init mpc85xx_ds_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);
 
-	mpc85xx_ds_pci_init();
+	swiotlb_detect_4g();
+	fsl_pci_assign_primary();
+	mpc85xx_ds_uli_init();
 	mpc85xx_smp_init();
 
 	printk("MPC85xx DS board from Freescale Semiconductor\n");
@@ -175,9 +174,9 @@ static int __init mpc8544_ds_probe(void)
 	return !!of_flat_dt_is_compatible(root, "MPC8544DS");
 }
 
-machine_device_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
-machine_device_initcall(mpc8572_ds, mpc85xx_common_publish_devices);
-machine_device_initcall(p2020_ds, mpc85xx_common_publish_devices);
+machine_arch_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
+machine_arch_initcall(mpc8572_ds, mpc85xx_common_publish_devices);
+machine_arch_initcall(p2020_ds, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(mpc8544_ds, swiotlb_setup_bus_notifier);
 machine_arch_initcall(mpc8572_ds, swiotlb_setup_bus_notifier);

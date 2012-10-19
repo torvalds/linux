@@ -9,9 +9,9 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
-#include "exynos_drm.h"
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_fb.h"
@@ -29,9 +29,44 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV12M,
 	DRM_FORMAT_NV12MT,
 };
+
+/*
+ * This function is to get X or Y size shown via screen. This needs length and
+ * start position of CRTC.
+ *
+ *      <--- length --->
+ * CRTC ----------------
+ *      ^ start        ^ end
+ *
+ * There are six cases from a to b.
+ *
+ *             <----- SCREEN ----->
+ *             0                 last
+ *   ----------|------------------|----------
+ * CRTCs
+ * a -------
+ *        b -------
+ *        c --------------------------
+ *                 d --------
+ *                           e -------
+ *                                  f -------
+ */
+static int exynos_plane_get_size(int start, unsigned length, unsigned last)
+{
+	int end = start + length;
+	int size = 0;
+
+	if (start <= 0) {
+		if (end > 0)
+			size = min_t(unsigned, end, last);
+	} else if (start <= last) {
+		size = min_t(unsigned, last - start, length);
+	}
+
+	return size;
+}
 
 int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -48,7 +83,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	nr = exynos_drm_format_num_buffers(fb->pixel_format);
+	nr = exynos_drm_fb_get_buf_cnt(fb);
 	for (i = 0; i < nr; i++) {
 		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
 
@@ -65,8 +100,24 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 				(unsigned long)overlay->dma_addr[i]);
 	}
 
-	actual_w = min((unsigned)(crtc->mode.hdisplay - crtc_x), crtc_w);
-	actual_h = min((unsigned)(crtc->mode.vdisplay - crtc_y), crtc_h);
+	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
+	actual_h = exynos_plane_get_size(crtc_y, crtc_h, crtc->mode.vdisplay);
+
+	if (crtc_x < 0) {
+		if (actual_w)
+			src_x -= crtc_x;
+		else
+			src_x += crtc_w;
+		crtc_x = 0;
+	}
+
+	if (crtc_y < 0) {
+		if (actual_h)
+			src_y -= crtc_y;
+		else
+			src_y += crtc_h;
+		crtc_y = 0;
+	}
 
 	/* set drm framebuffer data. */
 	overlay->fb_x = src_x;
