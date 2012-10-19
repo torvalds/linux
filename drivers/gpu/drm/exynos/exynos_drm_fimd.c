@@ -25,6 +25,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_iommu.h"
 
 /*
  * FIMD is stand for Fully Interactive Mobile Display and
@@ -691,6 +692,10 @@ static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	 */
 	drm_dev->vblank_disable_allowed = 1;
 
+	/* attach this sub driver to iommu mapping if supported. */
+	if (is_drm_iommu_supported(drm_dev))
+		drm_iommu_attach_device(drm_dev, dev);
+
 	return 0;
 }
 
@@ -698,7 +703,9 @@ static void fimd_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/* TODO. */
+	/* detach this sub driver from iommu mapping if supported. */
+	if (is_drm_iommu_supported(drm_dev))
+		drm_iommu_detach_device(drm_dev, dev);
 }
 
 static int fimd_calc_clkdiv(struct fimd_context *ctx,
