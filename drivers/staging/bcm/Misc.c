@@ -1392,7 +1392,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 
 static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR pucBuffer)
 {
-	B_UINT32 uiResetValue = 0;
+	unsigned int uiResetValue = 0;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
 
