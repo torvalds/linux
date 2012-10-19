@@ -769,7 +769,7 @@ static irqreturn_t be_isr_mcc(int irq, void *dev_id)
 		     resource_id) / 32] &
 		     EQE_RESID_MASK) >> 16) == mcc->id) {
 			spin_lock_irqsave(&phba->isr_lock, flags);
-			phba->todo_mcc_cq = 1;
+			pbe_eq->todo_mcc_cq = true;
 			spin_unlock_irqrestore(&phba->isr_lock, flags);
 		}
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
@@ -777,8 +777,8 @@ static irqreturn_t be_isr_mcc(int irq, void *dev_id)
 		eqe = queue_tail_node(eq);
 		num_eq_processed++;
 	}
-	if (phba->todo_mcc_cq)
-		queue_work(phba->wq, &phba->work_cqs);
+	if (pbe_eq->todo_mcc_cq)
+		queue_work(phba->wq, &pbe_eq->work_cqs);
 	if (num_eq_processed)
 		hwi_ring_eq_db(phba, eq->id, 1,	num_eq_processed, 1, 1);
 
@@ -818,29 +818,26 @@ static irqreturn_t be_isr_msix(int irq, void *dev_id)
 			eqe = queue_tail_node(eq);
 			num_eq_processed++;
 		}
-		if (num_eq_processed)
-			hwi_ring_eq_db(phba, eq->id, 1,	num_eq_processed, 0, 1);
-
-		return IRQ_HANDLED;
 	} else {
 		while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
 						& EQE_VALID_MASK) {
 			spin_lock_irqsave(&phba->isr_lock, flags);
-			phba->todo_cq = 1;
+			pbe_eq->todo_cq = true;
 			spin_unlock_irqrestore(&phba->isr_lock, flags);
 			AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 			queue_tail_inc(eq);
 			eqe = queue_tail_node(eq);
 			num_eq_processed++;
 		}
-		if (phba->todo_cq)
-			queue_work(phba->wq, &phba->work_cqs);
 
-		if (num_eq_processed)
-			hwi_ring_eq_db(phba, eq->id, 1, num_eq_processed, 1, 1);
-
-		return IRQ_HANDLED;
+		if (pbe_eq->todo_cq)
+			queue_work(phba->wq, &pbe_eq->work_cqs);
 	}
+
+	if (num_eq_processed)
+		hwi_ring_eq_db(phba, eq->id, 1,	num_eq_processed, 0, 1);
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -888,7 +885,7 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			     resource_id) / 32] &
 			     EQE_RESID_MASK) >> 16) == mcc->id) {
 				spin_lock_irqsave(&phba->isr_lock, flags);
-				phba->todo_mcc_cq = 1;
+				pbe_eq->todo_mcc_cq = true;
 				spin_unlock_irqrestore(&phba->isr_lock, flags);
 				num_mcceq_processed++;
 			} else {
@@ -901,8 +898,8 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			eqe = queue_tail_node(eq);
 		}
 		if (num_ioeq_processed || num_mcceq_processed) {
-			if (phba->todo_mcc_cq)
-				queue_work(phba->wq, &phba->work_cqs);
+			if (pbe_eq->todo_mcc_cq)
+				queue_work(phba->wq, &pbe_eq->work_cqs);
 
 			if ((num_mcceq_processed) && (!num_ioeq_processed))
 				hwi_ring_eq_db(phba, eq->id, 0,
@@ -925,11 +922,11 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			     resource_id) / 32] &
 			     EQE_RESID_MASK) >> 16) != cq->id) {
 				spin_lock_irqsave(&phba->isr_lock, flags);
-				phba->todo_mcc_cq = 1;
+				pbe_eq->todo_mcc_cq = true;
 				spin_unlock_irqrestore(&phba->isr_lock, flags);
 			} else {
 				spin_lock_irqsave(&phba->isr_lock, flags);
-				phba->todo_cq = 1;
+				pbe_eq->todo_cq = true;
 				spin_unlock_irqrestore(&phba->isr_lock, flags);
 			}
 			AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
@@ -937,8 +934,8 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			eqe = queue_tail_node(eq);
 			num_ioeq_processed++;
 		}
-		if (phba->todo_cq || phba->todo_mcc_cq)
-			queue_work(phba->wq, &phba->work_cqs);
+		if (pbe_eq->todo_cq || pbe_eq->todo_mcc_cq)
+			queue_work(phba->wq, &pbe_eq->work_cqs);
 
 		if (num_ioeq_processed) {
 			hwi_ring_eq_db(phba, eq->id, 0,
@@ -2108,30 +2105,30 @@ void beiscsi_process_all_cqs(struct work_struct *work)
 	unsigned long flags;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	struct be_eq_obj *pbe_eq;
-	struct beiscsi_hba *phba =
-	    container_of(work, struct beiscsi_hba, work_cqs);
+	struct beiscsi_hba *phba;
+	struct be_eq_obj *pbe_eq =
+	    container_of(work, struct be_eq_obj, work_cqs);
 
+	phba = pbe_eq->phba;
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	if (phba->msix_enabled)
-		pbe_eq = &phwi_context->be_eq[phba->num_cpus];
-	else
-		pbe_eq = &phwi_context->be_eq[0];
 
-	if (phba->todo_mcc_cq) {
+	if (pbe_eq->todo_mcc_cq) {
 		spin_lock_irqsave(&phba->isr_lock, flags);
-		phba->todo_mcc_cq = 0;
+		pbe_eq->todo_mcc_cq = false;
 		spin_unlock_irqrestore(&phba->isr_lock, flags);
 		beiscsi_process_mcc_isr(phba);
 	}
 
-	if (phba->todo_cq) {
+	if (pbe_eq->todo_cq) {
 		spin_lock_irqsave(&phba->isr_lock, flags);
-		phba->todo_cq = 0;
+		pbe_eq->todo_cq = false;
 		spin_unlock_irqrestore(&phba->isr_lock, flags);
 		beiscsi_process_cq(pbe_eq);
 	}
+
+	/* rearm EQ for further interrupts */
+	hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
 }
 
 static int be_iopoll(struct blk_iopoll *iop, int budget)
@@ -4642,7 +4639,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	phba->ctrl.mcc_alloc_index = phba->ctrl.mcc_free_index = 0;
 
-	snprintf(phba->wq_name, sizeof(phba->wq_name), "beiscsi_q_irq%u",
+	snprintf(phba->wq_name, sizeof(phba->wq_name), "beiscsi_%02x_wq",
 		 phba->shost->host_no);
 	phba->wq = alloc_workqueue(phba->wq_name, WQ_MEM_RECLAIM, 1);
 	if (!phba->wq) {
@@ -4652,10 +4649,10 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto free_twq;
 	}
 
-	INIT_WORK(&phba->work_cqs, beiscsi_process_all_cqs);
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
+
 	if (blk_iopoll_enabled) {
 		for (i = 0; i < phba->num_cpus; i++) {
 			pbe_eq = &phwi_context->be_eq[i];
@@ -4663,7 +4660,25 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 					be_iopoll);
 			blk_iopoll_enable(&pbe_eq->iopoll);
 		}
+
+		i = (phba->msix_enabled) ? i : 0;
+		/* Work item for MCC handling */
+		pbe_eq = &phwi_context->be_eq[i];
+		INIT_WORK(&pbe_eq->work_cqs, beiscsi_process_all_cqs);
+	} else {
+		if (phba->msix_enabled) {
+			for (i = 0; i <= phba->num_cpus; i++) {
+				pbe_eq = &phwi_context->be_eq[i];
+				INIT_WORK(&pbe_eq->work_cqs,
+					  beiscsi_process_all_cqs);
+			}
+		} else {
+				pbe_eq = &phwi_context->be_eq[0];
+				INIT_WORK(&pbe_eq->work_cqs,
+					  beiscsi_process_all_cqs);
+			}
 	}
+
 	ret = beiscsi_init_irqs(phba);
 	if (ret < 0) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,

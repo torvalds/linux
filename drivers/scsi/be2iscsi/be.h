@@ -84,9 +84,12 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 /*ISCSI */
 
 struct be_eq_obj {
+	bool todo_mcc_cq;
+	bool todo_cq;
 	struct be_queue_info q;
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
+	struct work_struct work_cqs; /* Work Item */
 	struct blk_iopoll	iopoll;
 };
 

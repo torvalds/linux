@@ -327,11 +327,8 @@ struct beiscsi_hba {
 	} fw_config;
 
 	u8 mac_address[ETH_ALEN];
-	unsigned short todo_cq;
-	unsigned short todo_mcc_cq;
 	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
-	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
