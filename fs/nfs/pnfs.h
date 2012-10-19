@@ -62,9 +62,6 @@ enum {
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
-	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
-	NFS_LAYOUT_INVALID,		/* layout is being destroyed */
-	NFS_LAYOUT_RETURNED,		/* layout has already been returned */
 };
 
 enum layoutdriver_policy_flags {
@@ -140,6 +137,7 @@ struct pnfs_layout_hdr {
 	atomic_t		plh_outstanding; /* number of RPCs out */
 	unsigned long		plh_block_lgets; /* block LAYOUTGET if >0 */
 	u32			plh_barrier; /* ignore lower seqids */
+	unsigned long		plh_retry_timestamp;
 	unsigned long		plh_flags;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */
@@ -172,12 +170,12 @@ extern int nfs4_proc_getdevicelist(struct nfs_server *server,
 				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev);
-extern void nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
+extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
 /* pnfs.c */
-void get_layout_hdr(struct pnfs_layout_hdr *lo);
-void put_lseg(struct pnfs_layout_segment *lseg);
+void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
+void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
 
 void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
 			   const struct nfs_pgio_completion_ops *);
@@ -188,28 +186,29 @@ void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
 int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
-void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *, struct nfs_page *);
+void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
+			        struct nfs_page *req, u64 wb_size);
 int pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
 bool pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
 void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg);
-int pnfs_layout_process(struct nfs4_layoutget *lgp);
+struct pnfs_layout_segment *pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
 void pnfs_destroy_all_layouts(struct nfs_client *);
-void put_layout_hdr(struct pnfs_layout_hdr *lo);
+void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
 			     bool update_barrier);
 int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
 				  struct pnfs_layout_hdr *lo,
 				  struct nfs4_state *open_state);
-int mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
+int pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
 				struct pnfs_layout_range *recall_range);
 bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
-bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
+bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
@@ -233,6 +232,7 @@ struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 /* nfs4_deviceid_flags */
 enum {
 	NFS_DEVICEID_INVALID = 0,       /* set when MDS clientid recalled */
+	NFS_DEVICEID_UNAVAILABLE,	/* device temporarily unavailable */
 };
 
 /* pnfs_dev.c */
@@ -242,6 +242,7 @@ struct nfs4_deviceid_node {
 	const struct pnfs_layoutdriver_type *ld;
 	const struct nfs_client		*nfs_client;
 	unsigned long 			flags;
+	unsigned long			timestamp_unavailable;
 	struct nfs4_deviceid		deviceid;
 	atomic_t			ref;
 };
@@ -254,34 +255,12 @@ void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
 			     const struct nfs4_deviceid *);
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
+void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
+bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
-static inline void
-pnfs_mark_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	set_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline void
-pnfs_clear_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	clear_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline bool
-pnfs_test_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline int lo_fail_bit(u32 iomode)
-{
-	return iomode == IOMODE_RW ?
-			 NFS_LAYOUT_RW_FAILED : NFS_LAYOUT_RO_FAILED;
-}
-
 static inline struct pnfs_layout_segment *
-get_lseg(struct pnfs_layout_segment *lseg)
+pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
 		atomic_inc(&lseg->pls_refcount);
@@ -406,12 +385,12 @@ static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
 }
 
 static inline struct pnfs_layout_segment *
-get_lseg(struct pnfs_layout_segment *lseg)
+pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	return NULL;
 }
 
-static inline void put_lseg(struct pnfs_layout_segment *lseg)
+static inline void pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 {
 }
 
@@ -443,7 +422,7 @@ pnfs_roc_set_barrier(struct inode *ino, u32 barrier)
 }
 
 static inline bool
-pnfs_roc_drain(struct inode *ino, u32 *barrier)
+pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task)
 {
 	return false;
 }

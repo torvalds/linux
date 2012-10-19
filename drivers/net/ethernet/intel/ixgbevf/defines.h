@@ -272,5 +272,6 @@ struct ixgbe_adv_tx_context_desc {
 /* Error Codes */
 #define IXGBE_ERR_INVALID_MAC_ADDR              -1
 #define IXGBE_ERR_RESET_FAILED                  -2
+#define IXGBE_ERR_INVALID_ARGUMENT              -3
 
 #endif /* _IXGBEVF_DEFINES_H_ */

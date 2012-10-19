@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/jiffies.h>
+#include <linux/err.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
@@ -962,7 +964,6 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 
 	return 1;
 out:
-	kfree(sensor->acpi_name);
 	kfree(sensor);
 	return err;
 }

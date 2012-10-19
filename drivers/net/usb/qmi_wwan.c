@@ -108,7 +108,7 @@ static int qmi_wwan_register_subdriver(struct usbnet *dev)
 	atomic_set(&info->pmcount, 0);
 
 	/* register subdriver */
-	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc, 512, &qmi_wwan_cdc_wdm_manage_power);
+	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc, 4096, &qmi_wwan_cdc_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		dev_err(&info->control->dev, "subdriver registration failed\n");
 		rv = PTR_ERR(subdriver);
@@ -139,10 +139,18 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
 
-	/* require a single interrupt status endpoint for subdriver */
+	/* control and data is shared? */
+	if (intf->cur_altsetting->desc.bNumEndpoints == 3) {
+		info->control = intf;
+		info->data = intf;
+		goto shared;
+	}
+
+	/* else require a single interrupt status endpoint on control intf */
 	if (intf->cur_altsetting->desc.bNumEndpoints != 1)
 		goto err;
 
+	/* and a number of CDC descriptors */
 	while (len > 3) {
 		struct usb_descriptor_header *h = (void *)buf;
 
@@ -231,28 +239,15 @@ next_desc:
 	if (status < 0)
 		goto err;
 
+shared:
 	status = qmi_wwan_register_subdriver(dev);
-	if (status < 0) {
+	if (status < 0 && info->control != info->data) {
 		usb_set_intfdata(info->data, NULL);
 		usb_driver_release_interface(driver, info->data);
 	}
 
 err:
 	return status;
-}
-
-/* Some devices combine the "control" and "data" functions into a
- * single interface with all three endpoints: interrupt + bulk in and
- * out
- */
-static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
-{
-	struct qmi_wwan_state *info = (void *)&dev->data;
-
-	/*  control and data is shared */
-	info->control = intf;
-	info->data = intf;
-	return qmi_wwan_register_subdriver(dev);
 }
 
 static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
@@ -297,7 +292,7 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	if (ret < 0)
 		goto err;
 
-	if (info->subdriver && info->subdriver->suspend)
+	if (intf == info->control && info->subdriver && info->subdriver->suspend)
 		ret = info->subdriver->suspend(intf, message);
 	if (ret < 0)
 		usbnet_resume(intf);
@@ -310,13 +305,14 @@ static int qmi_wwan_resume(struct usb_interface *intf)
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret = 0;
+	bool callsub = (intf == info->control && info->subdriver && info->subdriver->resume);
 
-	if (info->subdriver && info->subdriver->resume)
+	if (callsub)
 		ret = info->subdriver->resume(intf);
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && info->subdriver && info->subdriver->resume && info->subdriver->suspend)
+	if (ret < 0 && callsub && info->subdriver->suspend)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
@@ -330,20 +326,12 @@ static const struct driver_info	qmi_wwan_info = {
 	.manage_power	= qmi_wwan_manage_power,
 };
 
-static const struct driver_info	qmi_wwan_shared = {
-	.description	= "WWAN/QMI device",
-	.flags		= FLAG_WWAN,
-	.bind		= qmi_wwan_bind_shared,
-	.unbind		= qmi_wwan_unbind,
-	.manage_power	= qmi_wwan_manage_power,
-};
-
 #define HUAWEI_VENDOR_ID	0x12D1
 
 /* map QMI/wwan function by a fixed interface number */
 #define QMI_FIXED_INTF(vend, prod, num) \
 	USB_DEVICE_INTERFACE_NUMBER(vend, prod, num), \
-	.driver_info = (unsigned long)&qmi_wwan_shared
+	.driver_info = (unsigned long)&qmi_wwan_info
 
 /* Gobi 1000 QMI/wwan interface number is 3 according to qcserial */
 #define QMI_GOBI1K_DEVICE(vend, prod) \
@@ -365,23 +353,28 @@ static const struct usb_device_id products[] = {
 	},
 
 	/* 2. Combined interface devices matching on class+protocol */
+	{	/* Huawei E367 and possibly others in "Windows mode" */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 7),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 	{	/* Huawei E392, E398 and possibly others in "Windows mode" */
 		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 17),
-		.driver_info        = (unsigned long)&qmi_wwan_shared,
+		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Pantech UML290 */
-		USB_DEVICE_AND_INTERFACE_INFO(0x106c, 0x3718, USB_CLASS_VENDOR_SPEC, 0xf0, 0xff),
-		.driver_info        = (unsigned long)&qmi_wwan_shared,
+	{	/* Pantech UML290, P4200 and more */
+		USB_VENDOR_AND_INTERFACE_INFO(0x106c, USB_CLASS_VENDOR_SPEC, 0xf0, 0xff),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* Pantech UML290 - newer firmware */
-		USB_DEVICE_AND_INTERFACE_INFO(0x106c, 0x3718, USB_CLASS_VENDOR_SPEC, 0xf1, 0xff),
-		.driver_info        = (unsigned long)&qmi_wwan_shared,
+		USB_VENDOR_AND_INTERFACE_INFO(0x106c, USB_CLASS_VENDOR_SPEC, 0xf1, 0xff),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x19d2, 0x0055, 1)},	/* ZTE (Vodafone) K3520-Z */
 	{QMI_FIXED_INTF(0x19d2, 0x0063, 4)},	/* ZTE (Vodafone) K3565-Z */
 	{QMI_FIXED_INTF(0x19d2, 0x0104, 4)},	/* ZTE (Vodafone) K4505-Z */
+	{QMI_FIXED_INTF(0x19d2, 0x0157, 5)},	/* ZTE MF683 */
 	{QMI_FIXED_INTF(0x19d2, 0x0167, 4)},	/* ZTE MF820D */
 	{QMI_FIXED_INTF(0x19d2, 0x0326, 4)},	/* ZTE MF821D */
 	{QMI_FIXED_INTF(0x19d2, 0x1008, 4)},	/* ZTE (Vodafone) K3570-Z */
@@ -398,7 +391,6 @@ static const struct usb_device_id products[] = {
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{QMI_GOBI1K_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
-	{QMI_GOBI1K_DEVICE(0x03f0, 0x371d)},	/* HP un2430 Mobile Broadband Module */
 	{QMI_GOBI1K_DEVICE(0x04da, 0x250d)},	/* Panasonic Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x413c, 0x8172)},	/* Dell Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x1410, 0xa001)},	/* Novatel Gobi Modem device */
@@ -440,6 +432,7 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x16d8, 0x8002)},	/* CMDTech Gobi 2000 Modem device (VU922) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9205)},	/* Gobi 2000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x9013)},	/* Sierra Wireless Gobi 3000 Modem device (MC8355) */
+	{QMI_GOBI_DEVICE(0x03f0, 0x371d)},	/* HP un2430 Mobile Broadband Module */
 	{QMI_GOBI_DEVICE(0x1199, 0x9015)},	/* Sierra Wireless Gobi 3000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x9019)},	/* Sierra Wireless Gobi 3000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x901b)},	/* Sierra Wireless MC7770 */
@@ -461,7 +454,7 @@ static int qmi_wwan_probe(struct usb_interface *intf, const struct usb_device_id
 	 */
 	if (!id->driver_info) {
 		dev_dbg(&intf->dev, "setting defaults for dynamic device id\n");
-		id->driver_info = (unsigned long)&qmi_wwan_shared;
+		id->driver_info = (unsigned long)&qmi_wwan_info;
 	}
 
 	return usbnet_probe(intf, id);

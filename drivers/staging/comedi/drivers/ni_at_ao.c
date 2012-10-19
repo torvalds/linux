@@ -358,7 +358,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -371,7 +371,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = &atao_ao_winsn;
 	s->insn_read = &atao_ao_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -381,7 +381,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = atao_dio_insn_bits;
 	s->insn_config = atao_dio_insn_config;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* caldac subdevice */
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
@@ -390,7 +390,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read = atao_calib_insn_read;
 	s->insn_write = atao_calib_insn_write;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* eeprom subdevice */
 	/* s->type=COMEDI_SUBD_EEPROM; */
 	s->type = COMEDI_SUBD_UNUSED;

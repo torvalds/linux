@@ -1613,7 +1613,7 @@ int node_get_attr(struct node_object *hnode,
 		return -EFAULT;
 
 	hnode_mgr = hnode->node_mgr;
-	/* Enter hnode_mgr critical section (since we're accessing
+	/* Enter hnode_mgr critical section since we're accessing
 	 * data that could be changed by node_change_priority() and
 	 * node_connect(). */
 	mutex_lock(&hnode_mgr->node_mgr_lock);
@@ -2714,8 +2714,7 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 		hnode->ntype = node_type = pndb_props->ntype;
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string((struct dsp_uuid *)node_uuid, sz_uuid,
-				    MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pUL", node_uuid);
 		dev_dbg(bridge, "(node) UUID: %s\n", sz_uuid);
 
 		/* Fill in message args that come from NDB */

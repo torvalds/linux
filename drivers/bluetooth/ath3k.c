@@ -86,6 +86,7 @@ static struct usb_device_id ath3k_table[] = {
 
 	/* Atheros AR5BBU22 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xE03C) },
+	{ USB_DEVICE(0x0489, 0xE036) },
 
 	{ }	/* Terminating entry */
 };
@@ -109,6 +110,7 @@ static struct usb_device_id ath3k_blist_tbl[] = {
 
 	/* Atheros AR5BBU22 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xE03C), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xE036), .driver_info = BTUSB_ATH3012 },
 
 	{ }	/* Terminating entry */
 };

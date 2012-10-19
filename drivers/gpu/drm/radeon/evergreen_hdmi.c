@@ -24,8 +24,8 @@
  * Authors: Christian König
  *          Rafał Miłecki
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "evergreend.h"

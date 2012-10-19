@@ -58,7 +58,9 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	return fsnotify_remove_notify_event(group);
 }
 
-static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
+static int create_fd(struct fsnotify_group *group,
+			struct fsnotify_event *event,
+			struct file **file)
 {
 	int client_fd;
 	struct file *new_file;
@@ -98,7 +100,7 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 		put_unused_fd(client_fd);
 		client_fd = PTR_ERR(new_file);
 	} else {
-		fd_install(client_fd, new_file);
+		*file = new_file;
 	}
 
 	return client_fd;
@@ -106,13 +108,15 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 
 static int fill_event_metadata(struct fsnotify_group *group,
 				   struct fanotify_event_metadata *metadata,
-				   struct fsnotify_event *event)
+				   struct fsnotify_event *event,
+				   struct file **file)
 {
 	int ret = 0;
 
 	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
 		 group, metadata, event);
 
+	*file = NULL;
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
@@ -121,7 +125,7 @@ static int fill_event_metadata(struct fsnotify_group *group,
 	if (unlikely(event->mask & FAN_Q_OVERFLOW))
 		metadata->fd = FAN_NOFD;
 	else {
-		metadata->fd = create_fd(group, event);
+		metadata->fd = create_fd(group, event, file);
 		if (metadata->fd < 0)
 			ret = metadata->fd;
 	}
@@ -220,25 +224,6 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 	return 0;
 }
 
-static void remove_access_response(struct fsnotify_group *group,
-				   struct fsnotify_event *event,
-				   __s32 fd)
-{
-	struct fanotify_response_event *re;
-
-	if (!(event->mask & FAN_ALL_PERM_EVENTS))
-		return;
-
-	re = dequeue_re(group, fd);
-	if (!re)
-		return;
-
-	BUG_ON(re->event != event);
-
-	kmem_cache_free(fanotify_response_event_cache, re);
-
-	return;
-}
 #else
 static int prepare_for_access_response(struct fsnotify_group *group,
 				       struct fsnotify_event *event,
@@ -247,12 +232,6 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 	return 0;
 }
 
-static void remove_access_response(struct fsnotify_group *group,
-				   struct fsnotify_event *event,
-				   __s32 fd)
-{
-	return;
-}
 #endif
 
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
@@ -260,31 +239,33 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 				  char __user *buf)
 {
 	struct fanotify_event_metadata fanotify_event_metadata;
+	struct file *f;
 	int fd, ret;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fill_event_metadata(group, &fanotify_event_metadata, event);
+	ret = fill_event_metadata(group, &fanotify_event_metadata, event, &f);
 	if (ret < 0)
 		goto out;
 
 	fd = fanotify_event_metadata.fd;
+	ret = -EFAULT;
+	if (copy_to_user(buf, &fanotify_event_metadata,
+			 fanotify_event_metadata.event_len))
+		goto out_close_fd;
+
 	ret = prepare_for_access_response(group, event, fd);
 	if (ret)
 		goto out_close_fd;
 
-	ret = -EFAULT;
-	if (copy_to_user(buf, &fanotify_event_metadata,
-			 fanotify_event_metadata.event_len))
-		goto out_kill_access_response;
-
+	fd_install(fd, f);
 	return fanotify_event_metadata.event_len;
 
-out_kill_access_response:
-	remove_access_response(group, event, fd);
 out_close_fd:
-	if (fd != FAN_NOFD)
-		sys_close(fd);
+	if (fd != FAN_NOFD) {
+		put_unused_fd(fd);
+		fput(f);
+	}
 out:
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (event->mask & FAN_ALL_PERM_EVENTS) {
@@ -470,24 +451,22 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 		 dfd, filename, flags);
 
 	if (filename == NULL) {
-		struct file *file;
-		int fput_needed;
+		struct fd f = fdget(dfd);
 
 		ret = -EBADF;
-		file = fget_light(dfd, &fput_needed);
-		if (!file)
+		if (!f.file)
 			goto out;
 
 		ret = -ENOTDIR;
 		if ((flags & FAN_MARK_ONLYDIR) &&
-		    !(S_ISDIR(file->f_path.dentry->d_inode->i_mode))) {
-			fput_light(file, fput_needed);
+		    !(S_ISDIR(f.file->f_path.dentry->d_inode->i_mode))) {
+			fdput(f);
 			goto out;
 		}
 
-		*path = file->f_path;
+		*path = f.file->f_path;
 		path_get(path);
-		fput_light(file, fput_needed);
+		fdput(f);
 	} else {
 		unsigned int lookup_flags = 0;
 
@@ -767,9 +746,9 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	struct inode *inode = NULL;
 	struct vfsmount *mnt = NULL;
 	struct fsnotify_group *group;
-	struct file *filp;
+	struct fd f;
 	struct path path;
-	int ret, fput_needed;
+	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
 		 __func__, fanotify_fd, flags, dfd, pathname, mask);
@@ -803,15 +782,15 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 #endif
 		return -EINVAL;
 
-	filp = fget_light(fanotify_fd, &fput_needed);
-	if (unlikely(!filp))
+	f = fdget(fanotify_fd);
+	if (unlikely(!f.file))
 		return -EBADF;
 
 	/* verify that this is indeed an fanotify instance */
 	ret = -EINVAL;
-	if (unlikely(filp->f_op != &fanotify_fops))
+	if (unlikely(f.file->f_op != &fanotify_fops))
 		goto fput_and_out;
-	group = filp->private_data;
+	group = f.file->private_data;
 
 	/*
 	 * group->priority == FS_PRIO_0 == FAN_CLASS_NOTIF.  These are not
@@ -858,7 +837,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 
 	path_put(&path);
 fput_and_out:
-	fput_light(filp, fput_needed);
+	fdput(f);
 	return ret;
 }
 

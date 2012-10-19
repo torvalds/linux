@@ -872,7 +872,7 @@ end:
 }
 
 /*add xen_pcibk AER handling*/
-static struct pci_error_handlers xen_pcibk_error_handler = {
+static const struct pci_error_handlers xen_pcibk_error_handler = {
 	.error_detected = xen_pcibk_error_detected,
 	.mmio_enabled = xen_pcibk_mmio_enabled,
 	.slot_reset = xen_pcibk_slot_reset,

@@ -169,14 +169,7 @@ static void mtdoops_workfunc_erase(struct work_struct *work)
 			cxt->nextpage = 0;
 	}
 
-	while (1) {
-		ret = mtd_block_isbad(mtd, cxt->nextpage * record_size);
-		if (!ret)
-			break;
-		if (ret < 0) {
-			printk(KERN_ERR "mtdoops: block_isbad failed, aborting\n");
-			return;
-		}
+	while ((ret = mtd_block_isbad(mtd, cxt->nextpage * record_size)) > 0) {
 badblock:
 		printk(KERN_WARNING "mtdoops: bad block at %08lx\n",
 		       cxt->nextpage * record_size);
@@ -188,6 +181,11 @@ badblock:
 			printk(KERN_ERR "mtdoops: all blocks bad!\n");
 			return;
 		}
+	}
+
+	if (ret < 0) {
+		printk(KERN_ERR "mtdoops: mtd_block_isbad failed, aborting\n");
+		return;
 	}
 
 	for (j = 0, ret = -1; (j < 3) && (ret < 0); j++)
@@ -387,8 +385,8 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		printk(KERN_WARNING "mtdoops: could not unregister kmsg_dumper\n");
 
 	cxt->mtd = NULL;
-	flush_work_sync(&cxt->work_erase);
-	flush_work_sync(&cxt->work_write);
+	flush_work(&cxt->work_erase);
+	flush_work(&cxt->work_write);
 }
 
 

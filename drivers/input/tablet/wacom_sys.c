@@ -172,6 +172,76 @@ static void wacom_close(struct input_dev *dev)
 }
 
 /*
+ * Calculate the resolution of the X or Y axis, given appropriate HID data.
+ * This function is little more than hidinput_calc_abs_res stripped down.
+ */
+static int wacom_calc_hid_res(int logical_extents, int physical_extents,
+                              unsigned char unit, unsigned char exponent)
+{
+	int prev, unit_exponent;
+
+	/* Check if the extents are sane */
+	if (logical_extents <= 0 || physical_extents <= 0)
+		return 0;
+
+	/* Get signed value of nybble-sized twos-compliment exponent */
+	unit_exponent = exponent;
+	if (unit_exponent > 7)
+		unit_exponent -= 16;
+
+	/* Convert physical_extents to millimeters */
+	if (unit == 0x11) {		/* If centimeters */
+		unit_exponent += 1;
+	} else if (unit == 0x13) {	/* If inches */
+		prev = physical_extents;
+		physical_extents *= 254;
+		if (physical_extents < prev)
+			return 0;
+		unit_exponent -= 1;
+	} else {
+		return 0;
+	}
+
+	/* Apply negative unit exponent */
+	for (; unit_exponent < 0; unit_exponent++) {
+		prev = logical_extents;
+		logical_extents *= 10;
+		if (logical_extents < prev)
+			return 0;
+	}
+	/* Apply positive unit exponent */
+	for (; unit_exponent > 0; unit_exponent--) {
+		prev = physical_extents;
+		physical_extents *= 10;
+		if (physical_extents < prev)
+			return 0;
+	}
+
+	/* Calculate resolution */
+	return logical_extents / physical_extents;
+}
+
+/*
+ * The physical dimension specified by the HID descriptor is likely not in
+ * the "100th of a mm" units expected by wacom_calculate_touch_res. This
+ * function adjusts the value of [xy]_phy based on the unit and exponent
+ * provided by the HID descriptor. If an error occurs durring conversion
+ * (e.g. from the unit being left unspecified) [xy]_phy is not modified.
+ */
+static void wacom_fix_phy_from_hid(struct wacom_features *features)
+{
+	int xres = wacom_calc_hid_res(features->x_max, features->x_phy,
+					features->unit, features->unitExpo);
+	int yres = wacom_calc_hid_res(features->y_max, features->y_phy,
+					features->unit, features->unitExpo);
+
+	if (xres > 0 && yres > 0) {
+		features->x_phy = (100 * features->x_max) / xres;
+		features->y_phy = (100 * features->y_max) / yres;
+	}
+}
+
+/*
  * Static values for max X/Y and resolution of Pen interface is stored in
  * features. This mean physical size of active area can be computed.
  * This is useful to do when Pen and Touch have same active area of tablet.
@@ -432,56 +502,52 @@ static int wacom_parse_hid(struct usb_interface *intf,
 	return result;
 }
 
-static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_features *features)
+static int wacom_set_device_mode(struct usb_interface *intf, int report_id, int length, int mode)
 {
 	unsigned char *rep_data;
-	int limit = 0, report_id = 2;
-	int error = -ENOMEM;
+	int error = -ENOMEM, limit = 0;
 
-	rep_data = kmalloc(4, GFP_KERNEL);
+	rep_data = kzalloc(length, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
-	/* ask to report Wacom data */
-	if (features->device_type == BTN_TOOL_FINGER) {
-		/* if it is an MT Tablet PC touch */
-		if (features->type > TABLETPC) {
-			do {
-				rep_data[0] = 3;
-				rep_data[1] = 4;
-				rep_data[2] = 0;
-				rep_data[3] = 0;
-				report_id = 3;
-				error = wacom_set_report(intf,
-							 WAC_HID_FEATURE_REPORT,
-							 report_id,
-							 rep_data, 4, 1);
-				if (error >= 0)
-					error = wacom_get_report(intf,
-							WAC_HID_FEATURE_REPORT,
-							report_id,
-							rep_data, 4, 1);
-			} while ((error < 0 || rep_data[1] != 4) &&
-				 limit++ < WAC_MSG_RETRIES);
-		}
-	} else if (features->type <= BAMBOO_PT &&
-		   features->type != WIRELESS &&
-		   features->device_type == BTN_TOOL_PEN) {
-		do {
-			rep_data[0] = 2;
-			rep_data[1] = 2;
-			error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
-						 report_id, rep_data, 2, 1);
-			if (error >= 0)
-				error = wacom_get_report(intf,
-						WAC_HID_FEATURE_REPORT,
-						report_id, rep_data, 2, 1);
-		} while ((error < 0 || rep_data[1] != 2) && limit++ < WAC_MSG_RETRIES);
-	}
+	rep_data[0] = report_id;
+	rep_data[1] = mode;
+
+	do {
+		error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+		                         report_id, rep_data, length, 1);
+		if (error >= 0)
+			error = wacom_get_report(intf, WAC_HID_FEATURE_REPORT,
+			                         report_id, rep_data, length, 1);
+	} while ((error < 0 || rep_data[1] != mode) && limit++ < WAC_MSG_RETRIES);
 
 	kfree(rep_data);
 
 	return error < 0 ? error : 0;
+}
+
+/*
+ * Switch the tablet into its most-capable mode. Wacom tablets are
+ * typically configured to power-up in a mode which sends mouse-like
+ * reports to the OS. To get absolute position, pressure data, etc.
+ * from the tablet, it is necessary to switch the tablet out of this
+ * mode and into one which sends the full range of tablet data.
+ */
+static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_features *features)
+{
+	if (features->device_type == BTN_TOOL_FINGER) {
+		if (features->type > TABLETPC) {
+			/* MT Tablet PC touch */
+			return wacom_set_device_mode(intf, 3, 4, 4);
+		}
+	} else if (features->device_type == BTN_TOOL_PEN) {
+		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
+			return wacom_set_device_mode(intf, 2, 2, 2);
+		}
+	}
+
+	return 0;
 }
 
 static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
@@ -531,6 +597,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	error = wacom_parse_hid(intf, hid_desc, features);
 	if (error)
 		goto out;
+	wacom_fix_phy_from_hid(features);
 
  out:
 	return error;

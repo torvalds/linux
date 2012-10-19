@@ -20,7 +20,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/sh_pfc.h>
 #include <mach/sh73a0.h>
 #include <mach/irqs.h>
 

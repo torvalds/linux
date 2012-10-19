@@ -196,12 +196,13 @@ config LOCKUP_DETECTOR
 	  thresholds can be controlled through the sysctl watchdog_thresh.
 
 config HARDLOCKUP_DETECTOR
-	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI && \
-		 !HAVE_NMI_WATCHDOG
+	def_bool y
+	depends on LOCKUP_DETECTOR && !HAVE_NMI_WATCHDOG
+	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
-	depends on LOCKUP_DETECTOR
+	depends on HARDLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "hard lockups",
 	  which are bugs that cause the kernel to loop in kernel
@@ -212,7 +213,7 @@ config BOOTPARAM_HARDLOCKUP_PANIC
 
 config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
 	int
-	depends on LOCKUP_DETECTOR
+	depends on HARDLOCKUP_DETECTOR
 	range 0 1
 	default 0 if !BOOTPARAM_HARDLOCKUP_PANIC
 	default 1 if BOOTPARAM_HARDLOCKUP_PANIC
@@ -449,11 +450,12 @@ config SLUB_STATS
 	  out which slabs are relevant to a particular load.
 	  Try running: slabinfo -DA
 
+config HAVE_DEBUG_KMEMLEAK
+	bool
+
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
-	depends on DEBUG_KERNEL && EXPERIMENTAL && \
-		(X86 || ARM || PPC || MIPS || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
-
+	depends on DEBUG_KERNEL && EXPERIMENTAL && HAVE_DEBUG_KMEMLEAK
 	select DEBUG_FS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
@@ -629,6 +631,20 @@ config PROVE_RCU_REPEATEDLY
 
 	 Say N if you are unsure.
 
+config PROVE_RCU_DELAY
+	bool "RCU debugging: preemptible RCU race provocation"
+	depends on DEBUG_KERNEL && PREEMPT_RCU
+	default n
+	help
+	 There is a class of races that involve an unlikely preemption
+	 of __rcu_read_unlock() just after ->rcu_read_lock_nesting has
+	 been set to INT_MIN.  This feature inserts a delay at that
+	 point to increase the probability of these races.
+
+	 Say Y to increase probability of preemption of __rcu_read_unlock().
+
+	 Say N if you are unsure.
+
 config SPARSE_RCU_POINTER
 	bool "RCU debugging: sparse-based checks for pointer usage"
 	default n
@@ -735,11 +751,12 @@ config DEBUG_HIGHMEM
 	  This options enables addition error checking for high memory systems.
 	  Disable for production systems.
 
+config HAVE_DEBUG_BUGVERBOSE
+	bool
+
 config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
-	depends on BUG
-	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
-		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300 || TILE
+	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
 	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
@@ -778,6 +795,15 @@ config DEBUG_VM
 	help
 	  Enable this to turn on extended checks in the virtual-memory system
           that may impact performance.
+
+	  If unsure, say N.
+
+config DEBUG_VM_RB
+	bool "Debug VM red-black trees"
+	depends on DEBUG_VM
+	help
+	  Enable this to turn on more extended checks in the virtual-memory
+	  system that may impact performance.
 
 	  If unsure, say N.
 
@@ -1264,6 +1290,19 @@ config LATENCYTOP
 
 source mm/Kconfig.debug
 source kernel/trace/Kconfig
+
+config RBTREE_TEST
+	tristate "Red-Black tree test"
+	depends on m && DEBUG_KERNEL
+	help
+	  A benchmark measuring the performance of the rbtree library.
+	  Also includes rbtree invariant checks.
+
+config INTERVAL_TREE_TEST
+	tristate "Interval tree test"
+	depends on m && DEBUG_KERNEL
+	help
+	  A benchmark measuring the performance of the interval tree library
 
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"

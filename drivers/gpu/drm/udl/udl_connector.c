@@ -10,10 +10,10 @@
  * more details.
  */
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_edid.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
 /* dummy connector to just get EDID,
@@ -57,11 +57,8 @@ static int udl_get_modes(struct drm_connector *connector)
 
 	edid = (struct edid *)udl_get_edid(udl);
 
-	connector->display_info.raw_edid = (char *)edid;
-
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
-	connector->display_info.raw_edid = NULL;
 	kfree(edid);
 	return ret;
 }
@@ -69,6 +66,13 @@ static int udl_get_modes(struct drm_connector *connector)
 static int udl_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
+	struct udl_device *udl = connector->dev->dev_private;
+	if (!udl->sku_pixel_limit)
+		return 0;
+
+	if (mode->vdisplay * mode->hdisplay > udl->sku_pixel_limit)
+		return MODE_VIRTUAL_Y;
+
 	return 0;
 }
 

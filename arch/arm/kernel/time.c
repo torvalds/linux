@@ -25,7 +25,6 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 
-#include <asm/leds.h>
 #include <asm/thread_info.h>
 #include <asm/sched_clock.h>
 #include <asm/stacktrace.h>
@@ -80,21 +79,6 @@ u32 arch_gettimeoffset(void)
 }
 #endif /* CONFIG_ARCH_USES_GETTIMEOFFSET */
 
-#ifdef CONFIG_LEDS_TIMER
-static inline void do_leds(void)
-{
-	static unsigned int count = HZ/2;
-
-	if (--count == 0) {
-		count = HZ/2;
-		leds_event(led_timer);
-	}
-}
-#else
-#define	do_leds()
-#endif
-
-
 #ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
  * Kernel system timer support.
@@ -102,7 +86,6 @@ static inline void do_leds(void)
 void timer_tick(void)
 {
 	profile_tick(CPU_PROFILING);
-	do_leds();
 	xtime_update(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));

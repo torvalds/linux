@@ -35,14 +35,6 @@
 
 /*!< Is Multicast Address? */
 #define RT_ETH_IS_MULTICAST(_pAddr)	((((u8 *)(_pAddr))[0]&0x01) != 0)
-/*!< Is Broadcast Address? */
-#define RT_ETH_IS_BROADCAST(_pAddr)	(				\
-			((u8 *)(_pAddr))[0] == 0xff	&&		\
-			((u8 *)(_pAddr))[1] == 0xff	&&		\
-			((u8 *)(_pAddr))[2] == 0xff	&&		\
-			((u8 *)(_pAddr))[3] == 0xff	&&		\
-			((u8 *)(_pAddr))[4] == 0xff	&&		\
-			((u8 *)(_pAddr))[5] == 0xff)
 
 #endif /* #ifndef __INC_ETHERNET_H */
 

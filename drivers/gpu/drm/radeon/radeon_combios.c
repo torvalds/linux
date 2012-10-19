@@ -24,8 +24,8 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "atom.h"
 
@@ -3317,15 +3317,6 @@ static void combios_write_ram_size(struct drm_device *dev)
 
 	mem_size *= (1024 * 1024);	/* convert to bytes */
 	WREG32(RADEON_CONFIG_MEMSIZE, mem_size);
-}
-
-void radeon_combios_dyn_clk_setup(struct drm_device *dev, int enable)
-{
-	uint16_t dyn_clk_info =
-	    combios_get_table_offset(dev, COMBIOS_DYN_CLK_1_TABLE);
-
-	if (dyn_clk_info)
-		combios_parse_pll_table(dev, dyn_clk_info);
 }
 
 void radeon_combios_asic_init(struct drm_device *dev)

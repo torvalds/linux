@@ -62,6 +62,7 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -81,11 +82,9 @@
 #define CONFIG_USB_SERIAL_SAFE_PADDED 0
 #endif
 
-static bool debug;
 static bool safe = 1;
 static bool padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
-#define DRIVER_VERSION "v0.1"
 #define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB Safe Encapsulated Serial"
 
@@ -99,9 +98,6 @@ module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified USB idVendor (required)");
 module_param(product, ushort, 0);
 MODULE_PARM_DESC(product, "User specified USB idProduct (required)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(safe, bool, 0);
 MODULE_PARM_DESC(safe, "Turn Safe Encapsulation On/Off");
@@ -315,13 +311,9 @@ static int __init safe_init(void)
 {
 	int i;
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
 	/* if we have vendor / product parameters patch them into id list */
 	if (vendor || product) {
-		printk(KERN_INFO KBUILD_MODNAME ": vendor: %x product: %x\n",
-		       vendor, product);
+		pr_info("vendor: %x product: %x\n", vendor, product);
 
 		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {

@@ -23,8 +23,10 @@ int eprintf(int level, const char *fmt, ...)
 
 	if (verbose >= level) {
 		va_start(args, fmt);
-		if (use_browser > 0)
+		if (use_browser == 1)
 			ret = ui_helpline__show_help(fmt, args);
+		else if (use_browser == 2)
+			ret = perf_gtk__show_helpline(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
 		va_end(args);
@@ -47,7 +49,7 @@ int dump_printf(const char *fmt, ...)
 	return ret;
 }
 
-#if defined(NO_NEWT_SUPPORT) && defined(NO_GTK2_SUPPORT)
+#if !defined(NEWT_SUPPORT) && !defined(GTK2_SUPPORT)
 int ui__warning(const char *format, ...)
 {
 	va_list args;

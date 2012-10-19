@@ -394,6 +394,17 @@ try_again:
 	}
 	if (unlikely(err)) {
 		trace_kfree_skb(skb, udpv6_recvmsg);
+		if (!peeked) {
+			atomic_inc(&sk->sk_drops);
+			if (is_udp4)
+				UDP_INC_STATS_USER(sock_net(sk),
+						   UDP_MIB_INERRORS,
+						   is_udplite);
+			else
+				UDP6_INC_STATS_USER(sock_net(sk),
+						    UDP_MIB_INERRORS,
+						    is_udplite);
+		}
 		goto out_free;
 	}
 	if (!peeked) {
@@ -1458,7 +1469,8 @@ static void udp6_sock_seq_show(struct seq_file *seq, struct sock *sp, int bucket
 		   sk_wmem_alloc_get(sp),
 		   sk_rmem_alloc_get(sp),
 		   0, 0L, 0,
-		   sock_i_uid(sp), 0,
+		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
+		   0,
 		   sock_i_ino(sp),
 		   atomic_read(&sp->sk_refcnt), sp,
 		   atomic_read(&sp->sk_drops));

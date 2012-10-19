@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
+#include <linux/projid.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
@@ -295,6 +296,75 @@ gid_t from_kgid_munged(struct user_namespace *targ, kgid_t kgid)
 }
 EXPORT_SYMBOL(from_kgid_munged);
 
+/**
+ *	make_kprojid - Map a user-namespace projid pair into a kprojid.
+ *	@ns:  User namespace that the projid is in
+ *	@projid: Project identifier
+ *
+ *	Maps a user-namespace uid pair into a kernel internal kuid,
+ *	and returns that kuid.
+ *
+ *	When there is no mapping defined for the user-namespace projid
+ *	pair INVALID_PROJID is returned.  Callers are expected to test
+ *	for and handle handle INVALID_PROJID being returned.  INVALID_PROJID
+ *	may be tested for using projid_valid().
+ */
+kprojid_t make_kprojid(struct user_namespace *ns, projid_t projid)
+{
+	/* Map the uid to a global kernel uid */
+	return KPROJIDT_INIT(map_id_down(&ns->projid_map, projid));
+}
+EXPORT_SYMBOL(make_kprojid);
+
+/**
+ *	from_kprojid - Create a projid from a kprojid user-namespace pair.
+ *	@targ: The user namespace we want a projid in.
+ *	@kprojid: The kernel internal project identifier to start with.
+ *
+ *	Map @kprojid into the user-namespace specified by @targ and
+ *	return the resulting projid.
+ *
+ *	There is always a mapping into the initial user_namespace.
+ *
+ *	If @kprojid has no mapping in @targ (projid_t)-1 is returned.
+ */
+projid_t from_kprojid(struct user_namespace *targ, kprojid_t kprojid)
+{
+	/* Map the uid from a global kernel uid */
+	return map_id_up(&targ->projid_map, __kprojid_val(kprojid));
+}
+EXPORT_SYMBOL(from_kprojid);
+
+/**
+ *	from_kprojid_munged - Create a projiid from a kprojid user-namespace pair.
+ *	@targ: The user namespace we want a projid in.
+ *	@kprojid: The kernel internal projid to start with.
+ *
+ *	Map @kprojid into the user-namespace specified by @targ and
+ *	return the resulting projid.
+ *
+ *	There is always a mapping into the initial user_namespace.
+ *
+ *	Unlike from_kprojid from_kprojid_munged never fails and always
+ *	returns a valid projid.  This makes from_kprojid_munged
+ *	appropriate for use in syscalls like stat and where
+ *	failing the system call and failing to provide a valid projid are
+ *	not an options.
+ *
+ *	If @kprojid has no mapping in @targ OVERFLOW_PROJID is returned.
+ */
+projid_t from_kprojid_munged(struct user_namespace *targ, kprojid_t kprojid)
+{
+	projid_t projid;
+	projid = from_kprojid(targ, kprojid);
+
+	if (projid == (projid_t) -1)
+		projid = OVERFLOW_PROJID;
+	return projid;
+}
+EXPORT_SYMBOL(from_kprojid_munged);
+
+
 static int uid_m_show(struct seq_file *seq, void *v)
 {
 	struct user_namespace *ns = seq->private;
@@ -337,6 +407,27 @@ static int gid_m_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int projid_m_show(struct seq_file *seq, void *v)
+{
+	struct user_namespace *ns = seq->private;
+	struct uid_gid_extent *extent = v;
+	struct user_namespace *lower_ns;
+	projid_t lower;
+
+	lower_ns = seq_user_ns(seq);
+	if ((lower_ns == ns) && lower_ns->parent)
+		lower_ns = lower_ns->parent;
+
+	lower = from_kprojid(lower_ns, KPROJIDT_INIT(extent->lower_first));
+
+	seq_printf(seq, "%10u %10u %10u\n",
+		extent->first,
+		lower,
+		extent->count);
+
+	return 0;
+}
+
 static void *m_start(struct seq_file *seq, loff_t *ppos, struct uid_gid_map *map)
 {
 	struct uid_gid_extent *extent = NULL;
@@ -362,6 +453,13 @@ static void *gid_m_start(struct seq_file *seq, loff_t *ppos)
 	return m_start(seq, ppos, &ns->gid_map);
 }
 
+static void *projid_m_start(struct seq_file *seq, loff_t *ppos)
+{
+	struct user_namespace *ns = seq->private;
+
+	return m_start(seq, ppos, &ns->projid_map);
+}
+
 static void *m_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	(*pos)++;
@@ -385,6 +483,13 @@ struct seq_operations proc_gid_seq_operations = {
 	.stop = m_stop,
 	.next = m_next,
 	.show = gid_m_show,
+};
+
+struct seq_operations proc_projid_seq_operations = {
+	.start = projid_m_start,
+	.stop = m_stop,
+	.next = m_next,
+	.show = projid_m_show,
 };
 
 static DEFINE_MUTEX(id_map_mutex);
@@ -434,7 +539,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	/* Require the appropriate privilege CAP_SETUID or CAP_SETGID
 	 * over the user namespace in order to set the id mapping.
 	 */
-	if (!ns_capable(ns, cap_setid))
+	if (cap_valid(cap_setid) && !ns_capable(ns, cap_setid))
 		goto out;
 
 	/* Get a buffer */
@@ -584,9 +689,30 @@ ssize_t proc_gid_map_write(struct file *file, const char __user *buf, size_t siz
 			 &ns->gid_map, &ns->parent->gid_map);
 }
 
+ssize_t proc_projid_map_write(struct file *file, const char __user *buf, size_t size, loff_t *ppos)
+{
+	struct seq_file *seq = file->private_data;
+	struct user_namespace *ns = seq->private;
+	struct user_namespace *seq_ns = seq_user_ns(seq);
+
+	if (!ns->parent)
+		return -EPERM;
+
+	if ((seq_ns != ns) && (seq_ns != ns->parent))
+		return -EPERM;
+
+	/* Anyone can set any valid project id no capability needed */
+	return map_write(file, buf, size, ppos, -1,
+			 &ns->projid_map, &ns->parent->projid_map);
+}
+
 static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *new_map)
 {
+	/* Allow anyone to set a mapping that doesn't require privilege */
+	if (!cap_valid(cap_setid))
+		return true;
+
 	/* Allow the specified ids if we have the appropriate capability
 	 * (CAP_SETUID or CAP_SETGID) over the parent user namespace.
 	 */

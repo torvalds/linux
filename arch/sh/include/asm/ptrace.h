@@ -25,9 +25,9 @@
 #define PT_TEXT_LEN		252
 
 #if defined(__SH5__) || defined(CONFIG_CPU_SH5)
-#include "ptrace_64.h"
+#include <asm/ptrace_64.h>
 #else
-#include "ptrace_32.h"
+#include <asm/ptrace_32.h>
 #endif
 
 #ifdef __KERNEL__

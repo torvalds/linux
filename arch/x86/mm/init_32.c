@@ -709,7 +709,7 @@ static void __init test_wp_bit(void)
   "Checking if this processor honours the WP bit even in supervisor mode...");
 
 	/* Any page-aligned address will do, the test is non-destructive */
-	__set_fixmap(FIX_WP_TEST, __pa(&swapper_pg_dir), PAGE_READONLY);
+	__set_fixmap(FIX_WP_TEST, __pa(&swapper_pg_dir), PAGE_KERNEL_RO);
 	boot_cpu_data.wp_works_ok = do_test_wp_bit();
 	clear_fixmap(FIX_WP_TEST);
 

@@ -490,7 +490,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	switch (cmd) {
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 			return -EPERM;
@@ -510,12 +510,12 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 
 	case HCIBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_sock_blacklist_add(hdev, (void __user *) arg);
 
 	case HCIUNBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_sock_blacklist_del(hdev, (void __user *) arg);
 
 	default:
@@ -546,22 +546,22 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 
 	case HCIDEVUP:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_open(arg);
 
 	case HCIDEVDOWN:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_close(arg);
 
 	case HCIDEVRESET:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_reset(arg);
 
 	case HCIDEVRESTAT:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_reset_stat(arg);
 
 	case HCISETSCAN:
@@ -573,7 +573,7 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 	case HCISETACLMTU:
 	case HCISETSCOMTU:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 		return hci_dev_cmd(cmd, argp);
 
 	case HCIINQUIRY:
@@ -1102,21 +1102,30 @@ int __init hci_sock_init(void)
 		return err;
 
 	err = bt_sock_register(BTPROTO_HCI, &hci_sock_family_ops);
-	if (err < 0)
+	if (err < 0) {
+		BT_ERR("HCI socket registration failed");
 		goto error;
+	}
+
+	err = bt_procfs_init(THIS_MODULE, &init_net, "hci", &hci_sk_list, NULL);
+	if (err < 0) {
+		BT_ERR("Failed to create HCI proc file");
+		bt_sock_unregister(BTPROTO_HCI);
+		goto error;
+	}
 
 	BT_INFO("HCI socket layer initialized");
 
 	return 0;
 
 error:
-	BT_ERR("HCI socket registration failed");
 	proto_unregister(&hci_sk_proto);
 	return err;
 }
 
 void hci_sock_cleanup(void)
 {
+	bt_procfs_cleanup(&init_net, "hci");
 	if (bt_sock_unregister(BTPROTO_HCI) < 0)
 		BT_ERR("HCI socket unregistration failed");
 

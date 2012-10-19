@@ -13,36 +13,6 @@
 
 #include <linux/serial_8250.h>
 
-struct uart_8250_port {
-	struct uart_port	port;
-	struct timer_list	timer;		/* "no irq" timer */
-	struct list_head	list;		/* ports on this IRQ */
-	unsigned short		capabilities;	/* port capabilities */
-	unsigned short		bugs;		/* port bugs */
-	unsigned int		tx_loadsz;	/* transmit fifo load size */
-	unsigned char		acr;
-	unsigned char		ier;
-	unsigned char		lcr;
-	unsigned char		mcr;
-	unsigned char		mcr_mask;	/* mask of user bits */
-	unsigned char		mcr_force;	/* mask of forced bits */
-	unsigned char		cur_iotype;	/* Running I/O type */
-
-	/*
-	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read but the bits will not
-	 * be immediately processed.
-	 */
-#define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
-	unsigned char		lsr_saved_flags;
-#define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
-	unsigned char		msr_saved_flags;
-
-	/* 8250 specific callbacks */
-	int			(*dl_read)(struct uart_8250_port *);
-	void			(*dl_write)(struct uart_8250_port *, int);
-};
-
 struct old_serial_port {
 	unsigned int uart;
 	unsigned int baud_base;
@@ -56,9 +26,6 @@ struct old_serial_port {
 	unsigned long irqflags;
 };
 
-/*
- * This replaces serial_uart_config in include/linux/serial.h
- */
 struct serial8250_config {
 	const char	*name;
 	unsigned short	fifo_size;
@@ -78,6 +45,7 @@ struct serial8250_config {
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
 #define UART_BUG_NOMSR	(1 << 2)	/* UART has buggy MSR status bits (Au1x00) */
 #define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
+#define UART_BUG_PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
 
 #define PROBE_RSA	(1 << 0)
 #define PROBE_ANY	(~0)
@@ -129,3 +97,12 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 #else
 #define ALPHA_KLUDGE_MCR 0
 #endif
+
+#ifdef CONFIG_SERIAL_8250_PNP
+int serial8250_pnp_init(void);
+void serial8250_pnp_exit(void);
+#else
+static inline int serial8250_pnp_init(void) { return 0; }
+static inline void serial8250_pnp_exit(void) { }
+#endif
+

@@ -26,6 +26,7 @@
 #include <linux/i2c/pcf857x.h>
 
 #include <media/tvp514x.h>
+#include <media/adv7343.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -38,11 +39,11 @@
 
 #include <mach/common.h>
 #include <mach/serial.h>
-#include <mach/i2c.h>
-#include <mach/nand.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/clock.h>
 #include <mach/cdce949.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include "davinci.h"
 #include "clock.h"
@@ -496,18 +497,49 @@ static struct vpif_subdev_info dm646x_vpif_subdev[] = {
 	},
 };
 
-static const char *output[] = {
-	"Composite",
-	"Component",
-	"S-Video",
+static const struct vpif_output dm6467_ch0_outputs[] = {
+	{
+		.output = {
+			.index = 0,
+			.name = "Composite",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPOSITE_ID,
+	},
+	{
+		.output = {
+			.index = 1,
+			.name = "Component",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPONENT_ID,
+	},
+	{
+		.output = {
+			.index = 2,
+			.name = "S-Video",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_SVIDEO_ID,
+	},
 };
 
 static struct vpif_display_config dm646x_vpif_display_config = {
 	.set_clock	= set_vpif_clock,
 	.subdevinfo	= dm646x_vpif_subdev,
 	.subdev_count	= ARRAY_SIZE(dm646x_vpif_subdev),
-	.output		= output,
-	.output_count	= ARRAY_SIZE(output),
+	.chan_config[0] = {
+		.outputs = dm6467_ch0_outputs,
+		.output_count = ARRAY_SIZE(dm6467_ch0_outputs),
+	},
 	.card_name	= "DM646x EVM",
 };
 
@@ -601,30 +633,12 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 			I2C_BOARD_INFO("tvp5146", 0x5d),
 			.platform_data = &tvp5146_pdata,
 		},
-		.input = INPUT_CVBS_VI2B,
-		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
-		.can_route = 1,
-		.vpif_if = {
-			.if_type = VPIF_IF_BT656,
-			.hd_pol = 1,
-			.vd_pol = 1,
-			.fid_pol = 0,
-		},
 	},
 	{
 		.name	= TVP5147_CH1,
 		.board_info = {
 			I2C_BOARD_INFO("tvp5146", 0x5c),
 			.platform_data = &tvp5146_pdata,
-		},
-		.input = INPUT_SVIDEO_VI2C_VI1C,
-		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
-		.can_route = 1,
-		.vpif_if = {
-			.if_type = VPIF_IF_BT656,
-			.hd_pol = 1,
-			.vd_pol = 1,
-			.fid_pol = 0,
 		},
 	},
 };
@@ -635,9 +649,12 @@ static const struct vpif_input dm6467_ch0_inputs[] = {
 			.index = 0,
 			.name = "Composite",
 			.type = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
 			.std = TVP514X_STD_ALL,
 		},
 		.subdev_name = TVP5147_CH0,
+		.input_route = INPUT_CVBS_VI2B,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 	},
 };
 
@@ -647,9 +664,12 @@ static const struct vpif_input dm6467_ch1_inputs[] = {
 			.index = 0,
 			.name = "S-Video",
 			.type = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
 			.std = TVP514X_STD_ALL,
 		},
 		.subdev_name = TVP5147_CH1,
+		.input_route = INPUT_SVIDEO_VI2C_VI1C,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 	},
 };
 
@@ -661,10 +681,22 @@ static struct vpif_capture_config dm646x_vpif_capture_cfg = {
 	.chan_config[0] = {
 		.inputs = dm6467_ch0_inputs,
 		.input_count = ARRAY_SIZE(dm6467_ch0_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol = 1,
+			.vd_pol = 1,
+			.fid_pol = 0,
+		},
 	},
 	.chan_config[1] = {
 		.inputs = dm6467_ch1_inputs,
 		.input_count = ARRAY_SIZE(dm6467_ch1_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol = 1,
+			.vd_pol = 1,
+			.fid_pol = 0,
+		},
 	},
 };
 

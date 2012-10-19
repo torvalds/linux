@@ -76,6 +76,14 @@ static void rfc2863_policy(struct net_device *dev)
 }
 
 
+void linkwatch_init_dev(struct net_device *dev)
+{
+	/* Handle pre-registration link state changes */
+	if (!netif_carrier_ok(dev) || netif_dormant(dev))
+		rfc2863_policy(dev);
+}
+
+
 static bool linkwatch_urgent_event(struct net_device *dev)
 {
 	if (!netif_running(dev))
@@ -120,22 +128,13 @@ static void linkwatch_schedule_work(int urgent)
 		delay = 0;
 
 	/*
-	 * This is true if we've scheduled it immeditately or if we don't
-	 * need an immediate execution and it's already pending.
+	 * If urgent, schedule immediate execution; otherwise, don't
+	 * override the existing timer.
 	 */
-	if (schedule_delayed_work(&linkwatch_work, delay) == !delay)
-		return;
-
-	/* Don't bother if there is nothing urgent. */
-	if (!test_bit(LW_URGENT, &linkwatch_flags))
-		return;
-
-	/* It's already running which is good enough. */
-	if (!__cancel_delayed_work(&linkwatch_work))
-		return;
-
-	/* Otherwise we reschedule it again for immediate execution. */
-	schedule_delayed_work(&linkwatch_work, 0);
+	if (test_bit(LW_URGENT, &linkwatch_flags))
+		mod_delayed_work(system_wq, &linkwatch_work, 0);
+	else
+		schedule_delayed_work(&linkwatch_work, delay);
 }
 
 

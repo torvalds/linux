@@ -32,7 +32,7 @@
 
 #include <mach/pxa25x.h>
 #include <mach/gumstix.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 #include "generic.h"
 

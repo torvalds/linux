@@ -46,6 +46,7 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/module.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
@@ -78,6 +79,7 @@ struct nfs_direct_req {
 	atomic_t		io_count;	/* i/os we're waiting for */
 	spinlock_t		lock;		/* protect completion state */
 	ssize_t			count,		/* bytes actually processed */
+				bytes_left,	/* bytes left to be sent */
 				error;		/* any reported error */
 	struct completion	completion;	/* wait for i/o completion */
 
@@ -189,6 +191,12 @@ static void nfs_direct_req_release(struct nfs_direct_req *dreq)
 {
 	kref_put(&dreq->kref, nfs_direct_req_free);
 }
+
+ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq)
+{
+	return dreq->bytes_left;
+}
+EXPORT_SYMBOL_GPL(nfs_dreq_bytes_left);
 
 /*
  * Collects and returns the final error value/byte-count.
@@ -390,6 +398,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 			user_addr += req_len;
 			pos += req_len;
 			count -= req_len;
+			dreq->bytes_left -= req_len;
 		}
 		/* The nfs_page now hold references to these pages */
 		nfs_direct_release_pages(pagevec, npages);
@@ -450,23 +459,28 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t result = -ENOMEM;
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct nfs_direct_req *dreq;
+	struct nfs_lock_context *l_ctx;
 
 	dreq = nfs_direct_req_alloc();
 	if (dreq == NULL)
 		goto out;
 
 	dreq->inode = inode;
+	dreq->bytes_left = iov_length(iov, nr_segs);
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
-	dreq->l_ctx = nfs_get_lock_context(dreq->ctx);
-	if (dreq->l_ctx == NULL)
+	l_ctx = nfs_get_lock_context(dreq->ctx);
+	if (IS_ERR(l_ctx)) {
+		result = PTR_ERR(l_ctx);
 		goto out_release;
+	}
+	dreq->l_ctx = l_ctx;
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
+	NFS_I(inode)->read_io += iov_length(iov, nr_segs);
 	result = nfs_direct_read_schedule_iovec(dreq, iov, nr_segs, pos, uio);
 	if (!result)
 		result = nfs_direct_wait(dreq);
-	NFS_I(inode)->read_io += result;
 out_release:
 	nfs_direct_req_release(dreq);
 out:
@@ -706,6 +720,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 			user_addr += req_len;
 			pos += req_len;
 			count -= req_len;
+			dreq->bytes_left -= req_len;
 		}
 		/* The nfs_page now hold references to these pages */
 		nfs_direct_release_pages(pagevec, npages);
@@ -814,6 +829,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	get_dreq(dreq);
 	atomic_inc(&inode->i_dio_count);
 
+	NFS_I(dreq->inode)->write_io += iov_length(iov, nr_segs);
 	for (seg = 0; seg < nr_segs; seg++) {
 		const struct iovec *vec = &iov[seg];
 		result = nfs_direct_write_schedule_segment(&desc, vec, pos, uio);
@@ -825,7 +841,6 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		pos += vec->iov_len;
 	}
 	nfs_pageio_complete(&desc);
-	NFS_I(dreq->inode)->write_io += desc.pg_bytes_written;
 
 	/*
 	 * If no bytes were started, return the error, and let the
@@ -849,16 +864,21 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t result = -ENOMEM;
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct nfs_direct_req *dreq;
+	struct nfs_lock_context *l_ctx;
 
 	dreq = nfs_direct_req_alloc();
 	if (!dreq)
 		goto out;
 
 	dreq->inode = inode;
+	dreq->bytes_left = count;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
-	dreq->l_ctx = nfs_get_lock_context(dreq->ctx);
-	if (dreq->l_ctx == NULL)
+	l_ctx = nfs_get_lock_context(dreq->ctx);
+	if (IS_ERR(l_ctx)) {
+		result = PTR_ERR(l_ctx);
 		goto out_release;
+	}
+	dreq->l_ctx = l_ctx;
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 

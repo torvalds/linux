@@ -627,7 +627,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	chip->caps = ptp_pch_caps;
-	chip->ptp_clock = ptp_clock_register(&chip->caps);
+	chip->ptp_clock = ptp_clock_register(&chip->caps, &pdev->dev);
 
 	if (IS_ERR(chip->ptp_clock))
 		return PTR_ERR(chip->ptp_clock);

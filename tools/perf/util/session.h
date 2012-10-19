@@ -7,7 +7,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include <linux/rbtree.h>
-#include "../../../include/linux/perf_event.h"
+#include "../../../include/uapi/linux/perf_event.h"
 
 struct sample_queue;
 struct ip_callchain;
@@ -36,9 +36,7 @@ struct perf_session {
 	struct pevent		*pevent;
 	/*
 	 * FIXME: Need to split this up further, we need global
-	 *	  stats + per event stats. 'perf diff' also needs
-	 *	  to properly support multiple events in a single
-	 *	  perf.data file.
+	 *	  stats + per event stats.
 	 */
 	struct hists		hists;
 	int			fd;
@@ -129,9 +127,9 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, int print_sym,
-			  int print_dso, int print_symoffset);
+void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
+			  struct perf_sample *sample, struct machine *machine,
+			  int print_sym, int print_dso, int print_symoffset);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);

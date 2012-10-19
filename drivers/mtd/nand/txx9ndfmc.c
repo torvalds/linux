@@ -131,18 +131,6 @@ static void txx9ndfmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		*buf++ = __raw_readl(ndfdtr);
 }
 
-static int txx9ndfmc_verify_buf(struct mtd_info *mtd, const uint8_t *buf,
-				int len)
-{
-	struct platform_device *dev = mtd_to_platdev(mtd);
-	void __iomem *ndfdtr = ndregaddr(dev, TXX9_NDFDTR);
-
-	while (len--)
-		if (*buf++ != (uint8_t)__raw_readl(ndfdtr))
-			return -EFAULT;
-	return 0;
-}
-
 static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
 			       unsigned int ctrl)
 {
@@ -346,7 +334,6 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->read_byte = txx9ndfmc_read_byte;
 		chip->read_buf = txx9ndfmc_read_buf;
 		chip->write_buf = txx9ndfmc_write_buf;
-		chip->verify_buf = txx9ndfmc_verify_buf;
 		chip->cmd_ctrl = txx9ndfmc_cmd_ctrl;
 		chip->dev_ready = txx9ndfmc_dev_ready;
 		chip->ecc.calculate = txx9ndfmc_calculate_ecc;

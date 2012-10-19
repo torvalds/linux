@@ -838,7 +838,7 @@ static const struct mux_config da830_pins[] = {
 #endif
 };
 
-const short da830_emif25_pins[] __initdata = {
+const short da830_emif25_pins[] __initconst = {
 	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
 	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
 	DA830_EMA_D_8, DA830_EMA_D_9, DA830_EMA_D_10, DA830_EMA_D_11,
@@ -853,19 +853,19 @@ const short da830_emif25_pins[] __initdata = {
 	-1
 };
 
-const short da830_spi0_pins[] __initdata = {
+const short da830_spi0_pins[] __initconst = {
 	DA830_SPI0_SOMI_0, DA830_SPI0_SIMO_0, DA830_SPI0_CLK, DA830_NSPI0_ENA,
 	DA830_NSPI0_SCS_0,
 	-1
 };
 
-const short da830_spi1_pins[] __initdata = {
+const short da830_spi1_pins[] __initconst = {
 	DA830_SPI1_SOMI_0, DA830_SPI1_SIMO_0, DA830_SPI1_CLK, DA830_NSPI1_ENA,
 	DA830_NSPI1_SCS_0,
 	-1
 };
 
-const short da830_mmc_sd_pins[] __initdata = {
+const short da830_mmc_sd_pins[] __initconst = {
 	DA830_MMCSD_DAT_0, DA830_MMCSD_DAT_1, DA830_MMCSD_DAT_2,
 	DA830_MMCSD_DAT_3, DA830_MMCSD_DAT_4, DA830_MMCSD_DAT_5,
 	DA830_MMCSD_DAT_6, DA830_MMCSD_DAT_7, DA830_MMCSD_CLK,
@@ -873,32 +873,32 @@ const short da830_mmc_sd_pins[] __initdata = {
 	-1
 };
 
-const short da830_uart0_pins[] __initdata = {
+const short da830_uart0_pins[] __initconst = {
 	DA830_NUART0_CTS, DA830_NUART0_RTS, DA830_UART0_RXD, DA830_UART0_TXD,
 	-1
 };
 
-const short da830_uart1_pins[] __initdata = {
+const short da830_uart1_pins[] __initconst = {
 	DA830_UART1_RXD, DA830_UART1_TXD,
 	-1
 };
 
-const short da830_uart2_pins[] __initdata = {
+const short da830_uart2_pins[] __initconst = {
 	DA830_UART2_RXD, DA830_UART2_TXD,
 	-1
 };
 
-const short da830_usb20_pins[] __initdata = {
+const short da830_usb20_pins[] __initconst = {
 	DA830_USB0_DRVVBUS, DA830_USB_REFCLKIN,
 	-1
 };
 
-const short da830_usb11_pins[] __initdata = {
+const short da830_usb11_pins[] __initconst = {
 	DA830_USB_REFCLKIN,
 	-1
 };
 
-const short da830_uhpi_pins[] __initdata = {
+const short da830_uhpi_pins[] __initconst = {
 	DA830_UHPI_HD_0, DA830_UHPI_HD_1, DA830_UHPI_HD_2, DA830_UHPI_HD_3,
 	DA830_UHPI_HD_4, DA830_UHPI_HD_5, DA830_UHPI_HD_6, DA830_UHPI_HD_7,
 	DA830_UHPI_HD_8, DA830_UHPI_HD_9, DA830_UHPI_HD_10, DA830_UHPI_HD_11,
@@ -909,14 +909,14 @@ const short da830_uhpi_pins[] __initdata = {
 	-1
 };
 
-const short da830_cpgmac_pins[] __initdata = {
+const short da830_cpgmac_pins[] __initconst = {
 	DA830_RMII_TXD_0, DA830_RMII_TXD_1, DA830_RMII_TXEN, DA830_RMII_CRS_DV,
 	DA830_RMII_RXD_0, DA830_RMII_RXD_1, DA830_RMII_RXER, DA830_MDIO_CLK,
 	DA830_MDIO_D,
 	-1
 };
 
-const short da830_emif3c_pins[] __initdata = {
+const short da830_emif3c_pins[] __initconst = {
 	DA830_EMB_SDCKE, DA830_EMB_CLK_GLUE, DA830_EMB_CLK, DA830_NEMB_CS_0,
 	DA830_NEMB_CAS, DA830_NEMB_RAS, DA830_NEMB_WE, DA830_EMB_BA_1,
 	DA830_EMB_BA_0, DA830_EMB_A_0, DA830_EMB_A_1, DA830_EMB_A_2,
@@ -935,7 +935,7 @@ const short da830_emif3c_pins[] __initdata = {
 	-1
 };
 
-const short da830_mcasp0_pins[] __initdata = {
+const short da830_mcasp0_pins[] __initconst = {
 	DA830_AHCLKX0, DA830_ACLKX0, DA830_AFSX0,
 	DA830_AHCLKR0, DA830_ACLKR0, DA830_AFSR0, DA830_AMUTE0,
 	DA830_AXR0_0, DA830_AXR0_1, DA830_AXR0_2, DA830_AXR0_3,
@@ -945,7 +945,7 @@ const short da830_mcasp0_pins[] __initdata = {
 	-1
 };
 
-const short da830_mcasp1_pins[] __initdata = {
+const short da830_mcasp1_pins[] __initconst = {
 	DA830_AHCLKX1, DA830_ACLKX1, DA830_AFSX1,
 	DA830_AHCLKR1, DA830_ACLKR1, DA830_AFSR1, DA830_AMUTE1,
 	DA830_AXR1_0, DA830_AXR1_1, DA830_AXR1_2, DA830_AXR1_3,
@@ -954,24 +954,24 @@ const short da830_mcasp1_pins[] __initdata = {
 	-1
 };
 
-const short da830_mcasp2_pins[] __initdata = {
+const short da830_mcasp2_pins[] __initconst = {
 	DA830_AHCLKX2, DA830_ACLKX2, DA830_AFSX2,
 	DA830_AHCLKR2, DA830_ACLKR2, DA830_AFSR2, DA830_AMUTE2,
 	DA830_AXR2_0, DA830_AXR2_1, DA830_AXR2_2, DA830_AXR2_3,
 	-1
 };
 
-const short da830_i2c0_pins[] __initdata = {
+const short da830_i2c0_pins[] __initconst = {
 	DA830_I2C0_SDA, DA830_I2C0_SCL,
 	-1
 };
 
-const short da830_i2c1_pins[] __initdata = {
+const short da830_i2c1_pins[] __initconst = {
 	DA830_I2C1_SCL, DA830_I2C1_SDA,
 	-1
 };
 
-const short da830_lcdcntl_pins[] __initdata = {
+const short da830_lcdcntl_pins[] __initconst = {
 	DA830_LCD_D_0, DA830_LCD_D_1, DA830_LCD_D_2, DA830_LCD_D_3,
 	DA830_LCD_D_4, DA830_LCD_D_5, DA830_LCD_D_6, DA830_LCD_D_7,
 	DA830_LCD_D_8, DA830_LCD_D_9, DA830_LCD_D_10, DA830_LCD_D_11,
@@ -981,34 +981,34 @@ const short da830_lcdcntl_pins[] __initdata = {
 	-1
 };
 
-const short da830_pwm_pins[] __initdata = {
+const short da830_pwm_pins[] __initconst = {
 	DA830_ECAP0_APWM0, DA830_ECAP1_APWM1, DA830_EPWM0B, DA830_EPWM0A,
 	DA830_EPWMSYNCI, DA830_EPWMSYNC0, DA830_ECAP2_APWM2, DA830_EHRPWMGLUETZ,
 	DA830_EPWM2B, DA830_EPWM2A, DA830_EPWM1B, DA830_EPWM1A,
 	-1
 };
 
-const short da830_ecap0_pins[] __initdata = {
+const short da830_ecap0_pins[] __initconst = {
 	DA830_ECAP0_APWM0,
 	-1
 };
 
-const short da830_ecap1_pins[] __initdata = {
+const short da830_ecap1_pins[] __initconst = {
 	DA830_ECAP1_APWM1,
 	-1
 };
 
-const short da830_ecap2_pins[] __initdata = {
+const short da830_ecap2_pins[] __initconst = {
 	DA830_ECAP2_APWM2,
 	-1
 };
 
-const short da830_eqep0_pins[] __initdata = {
+const short da830_eqep0_pins[] __initconst = {
 	DA830_EQEP0I, DA830_EQEP0S, DA830_EQEP0A, DA830_EQEP0B,
 	-1
 };
 
-const short da830_eqep1_pins[] __initdata = {
+const short da830_eqep1_pins[] __initconst = {
 	DA830_EQEP1I, DA830_EQEP1S, DA830_EQEP1A, DA830_EQEP1B,
 	-1
 };

@@ -9,8 +9,8 @@
 #ifdef __i386__
 #include <sys/user.h>
 #endif
-#include "longjmp.h"
-#include "sysdep/ptrace_user.h"
+#include <longjmp.h>
+#include <sysdep/ptrace_user.h>
 
 int save_fp_registers(int pid, unsigned long *fp_regs)
 {

@@ -106,29 +106,19 @@ static int ehci_hcd_ls1x_probe(struct platform_device *pdev)
 	hcd->rsrc_start	= res->start;
 	hcd->rsrc_len	= resource_size(res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		ret = -EBUSY;
-		goto err_put_hcd;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (hcd->regs == NULL) {
 		dev_dbg(&pdev->dev, "error mapping memory\n");
 		ret = -EFAULT;
-		goto err_release_region;
+		goto err_put_hcd;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
-		goto err_iounmap;
+		goto err_put_hcd;
 
 	return ret;
 
-err_iounmap:
-	iounmap(hcd->regs);
-err_release_region:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err_put_hcd:
 	usb_put_hcd(hcd);
 	return ret;
@@ -139,8 +129,6 @@ static int ehci_hcd_ls1x_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
 	return 0;

@@ -14,6 +14,7 @@
 /* Regular I/O interrupts. */
 #define IO_SCH_ISC 3			/* regular I/O subchannels */
 #define CONSOLE_ISC 1			/* console I/O subchannel */
+#define EADM_SCH_ISC 4			/* EADM subchannels */
 #define CHSC_SCH_ISC 7			/* CHSC subchannels */
 /* Adapter interrupts. */
 #define QDIO_AIRQ_ISC IO_SCH_ISC	/* I/O subchannel in qdio mode */

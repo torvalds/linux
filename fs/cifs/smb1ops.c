@@ -17,6 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/pagemap.h>
+#include <linux/vfs.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -63,7 +65,7 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 static bool
 cifs_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
 {
-	return ob1->netfid == ob2->netfid;
+	return ob1->fid.netfid == ob2->fid.netfid;
 }
 
 static unsigned int
@@ -410,6 +412,83 @@ cifs_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	return rc;
 }
 
+static unsigned int
+cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int wsize;
+
+	/* start with specified wsize, or default */
+	if (volume_info->wsize)
+		wsize = volume_info->wsize;
+	else if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
+		wsize = CIFS_DEFAULT_IOSIZE;
+	else
+		wsize = CIFS_DEFAULT_NON_POSIX_WSIZE;
+
+	/* can server support 24-bit write sizes? (via UNIX extensions) */
+	if (!tcon->unix_ext || !(unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
+		wsize = min_t(unsigned int, wsize, CIFS_MAX_RFC1002_WSIZE);
+
+	/*
+	 * no CAP_LARGE_WRITE_X or is signing enabled without CAP_UNIX set?
+	 * Limit it to max buffer offered by the server, minus the size of the
+	 * WRITEX header, not including the 4 byte RFC1001 length.
+	 */
+	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
+	    (!(server->capabilities & CAP_UNIX) &&
+	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
+		wsize = min_t(unsigned int, wsize,
+				server->maxBuf - sizeof(WRITE_REQ) + 4);
+
+	/* hard limit of CIFS_MAX_WSIZE */
+	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
+
+	return wsize;
+}
+
+static unsigned int
+cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int rsize, defsize;
+
+	/*
+	 * Set default value...
+	 *
+	 * HACK alert! Ancient servers have very small buffers. Even though
+	 * MS-CIFS indicates that servers are only limited by the client's
+	 * bufsize for reads, testing against win98se shows that it throws
+	 * INVALID_PARAMETER errors if you try to request too large a read.
+	 * OS/2 just sends back short reads.
+	 *
+	 * If the server doesn't advertise CAP_LARGE_READ_X, then assume that
+	 * it can't handle a read request larger than its MaxBufferSize either.
+	 */
+	if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_READ_CAP))
+		defsize = CIFS_DEFAULT_IOSIZE;
+	else if (server->capabilities & CAP_LARGE_READ_X)
+		defsize = CIFS_DEFAULT_NON_POSIX_RSIZE;
+	else
+		defsize = server->maxBuf - sizeof(READ_RSP);
+
+	rsize = volume_info->rsize ? volume_info->rsize : defsize;
+
+	/*
+	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
+	 * the client's MaxBufferSize.
+	 */
+	if (!(server->capabilities & CAP_LARGE_READ_X))
+		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
+
+	/* hard limit of CIFS_MAX_RSIZE */
+	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
+
+	return rsize;
+}
+
 static void
 cifs_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 {
@@ -487,6 +566,13 @@ cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 				     cifs_sb->local_nls,
 				     cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+}
+
+static int
+cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
+		     struct cifs_fid *fid, FILE_ALL_INFO *data)
+{
+	return CIFSSMBQFileInfo(xid, tcon, fid->netfid, data);
 }
 
 static char *
@@ -607,6 +693,219 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 		cifsInode->cifsAttrs = dosattrs;
 }
 
+static int
+cifs_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
+	       int disposition, int desired_access, int create_options,
+	       struct cifs_fid *fid, __u32 *oplock, FILE_ALL_INFO *buf,
+	       struct cifs_sb_info *cifs_sb)
+{
+	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
+		return SMBLegacyOpen(xid, tcon, path, disposition,
+				     desired_access, create_options,
+				     &fid->netfid, oplock, buf,
+				     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+						& CIFS_MOUNT_MAP_SPECIAL_CHR);
+	return CIFSSMBOpen(xid, tcon, path, disposition, desired_access,
+			   create_options, &fid->netfid, oplock, buf,
+			   cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+}
+
+static void
+cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
+{
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	cfile->fid.netfid = fid->netfid;
+	cifs_set_oplock_level(cinode, oplock);
+	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
+}
+
+static void
+cifs_close_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	CIFSSMBClose(xid, tcon, fid->netfid);
+}
+
+static int
+cifs_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	return CIFSSMBFlush(xid, tcon, fid->netfid);
+}
+
+static int
+cifs_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+	       struct cifs_io_parms *parms, unsigned int *bytes_read,
+	       char **buf, int *buf_type)
+{
+	parms->netfid = cfile->fid.netfid;
+	return CIFSSMBRead(xid, parms, bytes_read, buf, buf_type);
+}
+
+static int
+cifs_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
+		struct cifs_io_parms *parms, unsigned int *written,
+		struct kvec *iov, unsigned long nr_segs)
+{
+
+	parms->netfid = cfile->fid.netfid;
+	return CIFSSMBWrite2(xid, parms, written, iov, nr_segs);
+}
+
+static int
+smb_set_file_info(struct inode *inode, const char *full_path,
+		  FILE_BASIC_INFO *buf, const unsigned int xid)
+{
+	int oplock = 0;
+	int rc;
+	__u16 netfid;
+	__u32 netpid;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = NULL;
+	struct cifs_tcon *tcon;
+	FILE_BASIC_INFO info_buf;
+
+	/* if the file is already open for write, just use that fileid */
+	open_file = find_writable_file(cinode, true);
+	if (open_file) {
+		netfid = open_file->fid.netfid;
+		netpid = open_file->pid;
+		tcon = tlink_tcon(open_file->tlink);
+		goto set_via_filehandle;
+	}
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		tlink = NULL;
+		goto out;
+	}
+	tcon = tlink_tcon(tlink);
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't really
+	 * work.
+	 */
+	if (!(tcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc == 0) {
+			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+			goto out;
+		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, "calling SetFileInfo since SetPathInfo for times not supported "
+		"by this server");
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
+			 &netfid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, tcon, &info_buf, netfid, netpid);
+	if (!rc)
+		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+
+	if (open_file == NULL)
+		CIFSSMBClose(xid, tcon, netfid);
+	else
+		cifsFileInfo_put(open_file);
+out:
+	if (tlink != NULL)
+		cifs_put_tlink(tlink);
+	return rc;
+}
+
+static int
+cifs_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
+		     const char *path, struct cifs_sb_info *cifs_sb,
+		     struct cifs_fid *fid, __u16 search_flags,
+		     struct cifs_search_info *srch_inf)
+{
+	return CIFSFindFirst(xid, tcon, path, cifs_sb,
+			     &fid->netfid, search_flags, srch_inf, true);
+}
+
+static int
+cifs_query_dir_next(const unsigned int xid, struct cifs_tcon *tcon,
+		    struct cifs_fid *fid, __u16 search_flags,
+		    struct cifs_search_info *srch_inf)
+{
+	return CIFSFindNext(xid, tcon, fid->netfid, search_flags, srch_inf);
+}
+
+static int
+cifs_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
+	       struct cifs_fid *fid)
+{
+	return CIFSFindClose(xid, tcon, fid->netfid);
+}
+
+static int
+cifs_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
+		     struct cifsInodeInfo *cinode)
+{
+	return CIFSSMBLock(0, tcon, fid->netfid, current->tgid, 0, 0, 0, 0,
+			   LOCKING_ANDX_OPLOCK_RELEASE, false,
+			   cinode->clientCanCacheRead ? 1 : 0);
+}
+
+static int
+cifs_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
+	     struct kstatfs *buf)
+{
+	int rc = -EOPNOTSUPP;
+
+	buf->f_type = CIFS_MAGIC_NUMBER;
+
+	/*
+	 * We could add a second check for a QFS Unix capability bit
+	 */
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	    (CIFS_POSIX_EXTENSIONS & le64_to_cpu(tcon->fsUnixInfo.Capability)))
+		rc = CIFSSMBQFSPosixInfo(xid, tcon, buf);
+
+	/*
+	 * Only need to call the old QFSInfo if failed on newer one,
+	 * e.g. by OS/2.
+	 **/
+	if (rc && (tcon->ses->capabilities & CAP_NT_SMBS))
+		rc = CIFSSMBQFSInfo(xid, tcon, buf);
+
+	/*
+	 * Some old Windows servers also do not support level 103, retry with
+	 * older level one if old server failed the previous call or we
+	 * bypassed it because we detected that this was an older LANMAN sess
+	 */
+	if (rc)
+		rc = SMBOldQFSInfo(xid, tcon, buf);
+	return rc;
+}
+
+static int
+cifs_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
+	       __u64 length, __u32 type, int lock, int unlock, bool wait)
+{
+	return CIFSSMBLock(xid, tlink_tcon(cfile->tlink), cfile->fid.netfid,
+			   current->tgid, length, offset, unlock, lock,
+			   (__u8)type, wait, 0);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -630,6 +929,8 @@ struct smb_version_operations smb1_operations = {
 	.check_trans2 = cifs_check_trans2,
 	.need_neg = cifs_need_neg,
 	.negotiate = cifs_negotiate,
+	.negotiate_wsize = cifs_negotiate_wsize,
+	.negotiate_rsize = cifs_negotiate_rsize,
 	.sess_setup = CIFS_SessSetup,
 	.logoff = CIFSSMBLogoff,
 	.tree_connect = CIFSTCon,
@@ -638,12 +939,37 @@ struct smb_version_operations smb1_operations = {
 	.qfs_tcon = cifs_qfs_tcon,
 	.is_path_accessible = cifs_is_path_accessible,
 	.query_path_info = cifs_query_path_info,
+	.query_file_info = cifs_query_file_info,
 	.get_srv_inum = cifs_get_srv_inum,
+	.set_path_size = CIFSSMBSetEOF,
+	.set_file_size = CIFSSMBSetFileSize,
+	.set_file_info = smb_set_file_info,
 	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,
 	.rmdir = CIFSSMBRmDir,
+	.unlink = CIFSSMBDelFile,
+	.rename_pending_delete = cifs_rename_pending_delete,
+	.rename = CIFSSMBRename,
+	.create_hardlink = CIFSCreateHardLink,
+	.open = cifs_open_file,
+	.set_fid = cifs_set_fid,
+	.close = cifs_close_file,
+	.flush = cifs_flush_file,
+	.async_readv = cifs_async_readv,
+	.async_writev = cifs_async_writev,
+	.sync_read = cifs_sync_read,
+	.sync_write = cifs_sync_write,
+	.query_dir_first = cifs_query_dir_first,
+	.query_dir_next = cifs_query_dir_next,
+	.close_dir = cifs_close_dir,
+	.calc_smb_size = smbCalcSize,
+	.oplock_response = cifs_oplock_response,
+	.queryfs = cifs_queryfs,
+	.mand_lock = cifs_mand_lock,
+	.mand_unlock_range = cifs_unlock_range,
+	.push_mand_locks = cifs_push_mandatory_locks,
 };
 
 struct smb_version_values smb1_values = {

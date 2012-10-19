@@ -63,6 +63,11 @@
 			       reg = <0xd0020300 0x30>;
 			       interrupts = <37>, <38>, <39>, <40>;
 		};
+
+		addr-decoding@d0020000 {
+			compatible = "marvell,armada-addr-decoding-controller";
+			reg = <0xd0020000 0x258>;
+		};
 	};
 };
 

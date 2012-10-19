@@ -49,10 +49,13 @@ config GENERIC_LOCKBREAK
 config PGSTE
 	def_bool y if KVM
 
-config VIRT_CPU_ACCOUNTING
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+config KEXEC
+	def_bool y
+
+config AUDIT_ARCH
 	def_bool y
 
 config S390
@@ -65,6 +68,7 @@ config S390
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_SYSCALL_TRACEPOINTS
+	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_REGS_AND_STACK_ACCESS_API
@@ -77,6 +81,7 @@ config S390
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
@@ -84,11 +89,15 @@ config S390
 	select HAVE_KERNEL_XZ
 	select HAVE_ARCH_MUTEX_CPU_RELAX
 	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
+	select HAVE_BPF_JIT if 64BIT && PACK_STACK
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_CMPXCHG_LOCAL
+	select HAVE_CMPXCHG_DOUBLE
+	select HAVE_VIRT_CPU_ACCOUNTING
+	select VIRT_CPU_ACCOUNTING
 	select ARCH_DISCARD_MEMBLOCK
 	select BUILDTIME_EXTABLE_SORT
 	select ARCH_INLINE_SPIN_TRYLOCK
@@ -119,12 +128,16 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_BH
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+	select HAVE_UID16 if 32BIT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_TIME_VSYSCALL
+	select GENERIC_TIME_VSYSCALL_OLD
 	select GENERIC_CLOCKEVENTS
 	select KTIME_SCALAR if 32BIT
 	select HAVE_ARCH_SECCOMP_FILTER
+	select GENERIC_KERNEL_THREAD
+	select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_RELA
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -133,9 +146,79 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-menu "Base setup"
+menu "Processor type and features"
 
-comment "Processor type and features"
+config HAVE_MARCH_Z900_FEATURES
+	def_bool n
+
+config HAVE_MARCH_Z990_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z900_FEATURES
+
+config HAVE_MARCH_Z9_109_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z990_FEATURES
+
+config HAVE_MARCH_Z10_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z9_109_FEATURES
+
+config HAVE_MARCH_Z196_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z10_FEATURES
+
+choice
+	prompt "Processor type"
+	default MARCH_G5
+
+config MARCH_G5
+	bool "System/390 model G5 and G6"
+	depends on !64BIT
+	help
+	  Select this to build a 31 bit kernel that works
+	  on all ESA/390 and z/Architecture machines.
+
+config MARCH_Z900
+	bool "IBM zSeries model z800 and z900"
+	select HAVE_MARCH_Z900_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for model z800/z900 (2064 and
+	  2066 series). This will enable some optimizations that are not
+	  available on older ESA/390 (31 Bit) only CPUs.
+
+config MARCH_Z990
+	bool "IBM zSeries model z890 and z990"
+	select HAVE_MARCH_Z990_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for model z890/z990 (2084 and
+	  2086 series). The kernel will be slightly faster but will not work
+	  on older machines.
+
+config MARCH_Z9_109
+	bool "IBM System z9"
+	select HAVE_MARCH_Z9_109_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM System z9 (2094 and
+	  2096 series). The kernel will be slightly faster but will not work
+	  on older machines.
+
+config MARCH_Z10
+	bool "IBM System z10"
+	select HAVE_MARCH_Z10_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM System z10 (2097 and
+	  2098 series). The kernel will be slightly faster but will not work
+	  on older machines.
+
+config MARCH_Z196
+	bool "IBM zEnterprise 114 and 196"
+	select HAVE_MARCH_Z196_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM zEnterprise 114 and 196
+	  (2818 and 2817 series). The kernel will be slightly faster but will
+	  not work on older machines.
+
+endchoice
 
 config 64BIT
 	def_bool y
@@ -146,6 +229,24 @@ config 64BIT
 
 config 32BIT
 	def_bool y if !64BIT
+
+config COMPAT
+	def_bool y
+	prompt "Kernel support for 31 bit emulation"
+	depends on 64BIT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
+	select ARCH_WANT_OLD_COMPAT_IPC
+	help
+	  Select this option if you want to enable your system kernel to
+	  handle system-calls from ELF binaries for 31 bit ESA.  This option
+	  (and some other stuff like libraries and such) is needed for
+	  executing 31 bit applications.  It is safe to say "Y".
+
+config SYSVIPC_COMPAT
+	def_bool y if COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	def_bool y if COMPAT && KEYS
 
 config SMP
 	def_bool y
@@ -202,6 +303,8 @@ config SCHED_BOOK
 	  Book scheduler support improves the CPU scheduler's decision making
 	  when dealing with machines that have several books.
 
+source kernel/Kconfig.preempt
+
 config MATHEMU
 	def_bool y
 	prompt "IEEE FPU emulation"
@@ -211,100 +314,35 @@ config MATHEMU
 	  on older ESA/390 machines. Say Y unless you know your machine doesn't
 	  need this.
 
-config COMPAT
+source kernel/Kconfig.hz
+
+endmenu
+
+menu "Memory setup"
+
+config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	prompt "Kernel support for 31 bit emulation"
-	depends on 64BIT
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
-	select ARCH_WANT_OLD_COMPAT_IPC
-	help
-	  Select this option if you want to enable your system kernel to
-	  handle system-calls from ELF binaries for 31 bit ESA.  This option
-	  (and some other stuff like libraries and such) is needed for
-	  executing 31 bit applications.  It is safe to say "Y".
+	select SPARSEMEM_VMEMMAP_ENABLE
+	select SPARSEMEM_VMEMMAP
+	select SPARSEMEM_STATIC if !64BIT
 
-config SYSVIPC_COMPAT
-	def_bool y if COMPAT && SYSVIPC
-
-config KEYS_COMPAT
-	def_bool y if COMPAT && KEYS
-
-config AUDIT_ARCH
+config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
-config HAVE_MARCH_Z900_FEATURES
-	def_bool n
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
 
-config HAVE_MARCH_Z990_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z900_FEATURES
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y if SPARSEMEM
 
-config HAVE_MARCH_Z9_109_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z990_FEATURES
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
 
-config HAVE_MARCH_Z10_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z9_109_FEATURES
+config FORCE_MAX_ZONEORDER
+	int
+	default "9"
 
-config HAVE_MARCH_Z196_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z10_FEATURES
-
-comment "Code generation options"
-
-choice
-	prompt "Processor type"
-	default MARCH_G5
-
-config MARCH_G5
-	bool "System/390 model G5 and G6"
-	depends on !64BIT
-	help
-	  Select this to build a 31 bit kernel that works
-	  on all ESA/390 and z/Architecture machines.
-
-config MARCH_Z900
-	bool "IBM zSeries model z800 and z900"
-	select HAVE_MARCH_Z900_FEATURES if 64BIT
-	help
-	  Select this to enable optimizations for model z800/z900 (2064 and
-	  2066 series). This will enable some optimizations that are not
-	  available on older ESA/390 (31 Bit) only CPUs.
-
-config MARCH_Z990
-	bool "IBM zSeries model z890 and z990"
-	select HAVE_MARCH_Z990_FEATURES if 64BIT
-	help
-	  Select this to enable optimizations for model z890/z990 (2084 and
-	  2086 series). The kernel will be slightly faster but will not work
-	  on older machines.
-
-config MARCH_Z9_109
-	bool "IBM System z9"
-	select HAVE_MARCH_Z9_109_FEATURES if 64BIT
-	help
-	  Select this to enable optimizations for IBM System z9 (2094 and
-	  2096 series). The kernel will be slightly faster but will not work
-	  on older machines.
-
-config MARCH_Z10
-	bool "IBM System z10"
-	select HAVE_MARCH_Z10_FEATURES if 64BIT
-	help
-	  Select this to enable optimizations for IBM System z10 (2097 and
-	  2098 series). The kernel will be slightly faster but will not work
-	  on older machines.
-
-config MARCH_Z196
-	bool "IBM zEnterprise 114 and 196"
-	select HAVE_MARCH_Z196_FEATURES if 64BIT
-	help
-	  Select this to enable optimizations for IBM zEnterprise 114 and 196
-	  (2818 and 2817 series). The kernel will be slightly faster but will
-	  not work on older machines.
-
-endchoice
+source "mm/Kconfig"
 
 config PACK_STACK
 	def_bool y
@@ -368,34 +406,9 @@ config WARN_DYNAMIC_STACK
 
 	  Say N if you are unsure.
 
-comment "Kernel preemption"
+endmenu
 
-source "kernel/Kconfig.preempt"
-
-config ARCH_SPARSEMEM_ENABLE
-	def_bool y
-	select SPARSEMEM_VMEMMAP_ENABLE
-	select SPARSEMEM_VMEMMAP
-	select SPARSEMEM_STATIC if !64BIT
-
-config ARCH_SPARSEMEM_DEFAULT
-	def_bool y
-
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool y
-
-config ARCH_ENABLE_MEMORY_HOTPLUG
-	def_bool y if SPARSEMEM
-
-config ARCH_ENABLE_MEMORY_HOTREMOVE
-	def_bool y
-
-config ARCH_HIBERNATION_POSSIBLE
-	def_bool y if 64BIT
-
-source "mm/Kconfig"
-
-comment "I/O subsystem configuration"
+menu "I/O subsystem"
 
 config QDIO
 	def_tristate y
@@ -426,13 +439,102 @@ config CHSC_SCH
 
 	  If unsure, say N.
 
-comment "Misc"
+config SCM_BUS
+	def_bool y
+	depends on 64BIT
+	prompt "SCM bus driver"
+	help
+	  Bus driver for Storage Class Memory.
+
+config EADM_SCH
+	def_tristate m
+	prompt "Support for EADM subchannels"
+	depends on SCM_BUS
+	help
+	  This driver allows usage of EADM subchannels. EADM subchannels act
+	  as a communication vehicle for SCM increments.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called eadm_sch.
+
+endmenu
+
+menu "Dump support"
+
+config CRASH_DUMP
+	bool "kernel crash dumps"
+	depends on 64BIT && SMP
+	select KEXEC
+	help
+	  Generate crash dump after being started by kexec.
+	  Crash dump kernels are loaded in the main kernel with kexec-tools
+	  into a specially reserved region and then later executed after
+	  a crash by kdump/kexec.
+	  For more details see Documentation/kdump/kdump.txt
+
+config ZFCPDUMP
+	def_bool n
+	prompt "zfcpdump support"
+	select SMP
+	help
+	  Select this option if you want to build an zfcpdump enabled kernel.
+	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+
+endmenu
+
+menu "Executable file formats / Emulations"
 
 source "fs/Kconfig.binfmt"
 
-config FORCE_MAX_ZONEORDER
-	int
-	default "9"
+config SECCOMP
+	def_bool y
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y.
+
+endmenu
+
+menu "Power Management"
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y if 64BIT
+
+source "kernel/power/Kconfig"
+
+endmenu
+
+source "net/Kconfig"
+
+config PCMCIA
+	def_bool n
+
+config CCW
+	def_bool y
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/s390/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
+menu "Virtualization"
 
 config PFAULT
 	def_bool y
@@ -448,8 +550,8 @@ config PFAULT
 	  this option.
 
 config SHARED_KERNEL
-	def_bool y
-	prompt "VM shared kernel support"
+	bool "VM shared kernel support"
+	depends on !JUMP_LABEL
 	help
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory
@@ -544,8 +646,6 @@ config APPLDATA_NET_SUM
 	  This can also be compiled as a module, which will be called
 	  appldata_net_sum.o.
 
-source kernel/Kconfig.hz
-
 config S390_HYPFS_FS
 	def_bool y
 	prompt "s390 hypervisor file system support"
@@ -554,90 +654,20 @@ config S390_HYPFS_FS
 	  This is a virtual file system intended to provide accounting
 	  information in an s390 hypervisor environment.
 
-config KEXEC
-	def_bool n
-	prompt "kexec system call"
-	help
-	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel.  It is like a reboot
-	  but is independent of hardware/microcode support.
-
-config CRASH_DUMP
-	bool "kernel crash dumps"
-	depends on 64BIT && SMP
-	select KEXEC
-	help
-	  Generate crash dump after being started by kexec.
-	  Crash dump kernels are loaded in the main kernel with kexec-tools
-	  into a specially reserved region and then later executed after
-	  a crash by kdump/kexec.
-	  For more details see Documentation/kdump/kdump.txt
-
-config ZFCPDUMP
-	def_bool n
-	prompt "zfcpdump support"
-	select SMP
-	help
-	  Select this option if you want to build an zfcpdump enabled kernel.
-	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+source "arch/s390/kvm/Kconfig"
 
 config S390_GUEST
 	def_bool y
-	prompt "s390 guest support for KVM (EXPERIMENTAL)"
+	prompt "s390 support for virtio devices (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_RING
 	select VIRTIO_CONSOLE
 	help
+	  Enabling this option adds support for virtio based paravirtual device
+	  drivers on s390.
+
 	  Select this option if you want to run the kernel as a guest under
-	  the KVM hypervisor. This will add detection for KVM as well  as a
-	  virtio transport. If KVM is detected, the virtio console will be
-	  the default console.
-
-config SECCOMP
-	def_bool y
-	prompt "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
-	  and the task is only allowed to execute a few safe syscalls
-	  defined by each seccomp mode.
-
-	  If unsure, say Y.
+	  the KVM hypervisor.
 
 endmenu
-
-menu "Power Management"
-
-source "kernel/power/Kconfig"
-
-endmenu
-
-source "net/Kconfig"
-
-config PCMCIA
-	def_bool n
-
-config CCW
-	def_bool y
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/s390/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-source "arch/s390/kvm/Kconfig"

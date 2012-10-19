@@ -738,15 +738,16 @@ static int __devinit ehv_bc_tty_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	bc->dev = tty_register_device(ehv_bc_driver, i, &pdev->dev);
+	tty_port_init(&bc->port);
+	bc->port.ops = &ehv_bc_tty_port_ops;
+
+	bc->dev = tty_port_register_device(&bc->port, ehv_bc_driver, i,
+			&pdev->dev);
 	if (IS_ERR(bc->dev)) {
 		ret = PTR_ERR(bc->dev);
 		dev_err(&pdev->dev, "could not register tty (ret=%i)\n", ret);
 		goto error;
 	}
-
-	tty_port_init(&bc->port);
-	bc->port.ops = &ehv_bc_tty_port_ops;
 
 	dev_set_drvdata(&pdev->dev, bc);
 

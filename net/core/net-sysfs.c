@@ -166,9 +166,21 @@ static ssize_t show_duplex(struct device *dev,
 
 	if (netif_running(netdev)) {
 		struct ethtool_cmd cmd;
-		if (!__ethtool_get_settings(netdev, &cmd))
-			ret = sprintf(buf, "%s\n",
-				      cmd.duplex ? "full" : "half");
+		if (!__ethtool_get_settings(netdev, &cmd)) {
+			const char *duplex;
+			switch (cmd.duplex) {
+			case DUPLEX_HALF:
+				duplex = "half";
+				break;
+			case DUPLEX_FULL:
+				duplex = "full";
+				break;
+			default:
+				duplex = "unknown";
+				break;
+			}
+			ret = sprintf(buf, "%s\n", duplex);
+		}
 	}
 	rtnl_unlock();
 	return ret;

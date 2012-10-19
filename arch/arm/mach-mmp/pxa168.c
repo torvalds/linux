@@ -18,8 +18,8 @@
 
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/addr-map.h>
 #include <mach/cputype.h>
+#include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
 #include <mach/irqs.h>
@@ -50,62 +50,13 @@ void __init pxa168_init_irq(void)
 	icu_init_irq();
 }
 
-/* APB peripheral clocks */
-static APBC_CLK(uart1, PXA168_UART1, 1, 14745600);
-static APBC_CLK(uart2, PXA168_UART2, 1, 14745600);
-static APBC_CLK(uart3, PXA168_UART3, 1, 14745600);
-static APBC_CLK(twsi0, PXA168_TWSI0, 1, 33000000);
-static APBC_CLK(twsi1, PXA168_TWSI1, 1, 33000000);
-static APBC_CLK(pwm1, PXA168_PWM1, 1, 13000000);
-static APBC_CLK(pwm2, PXA168_PWM2, 1, 13000000);
-static APBC_CLK(pwm3, PXA168_PWM3, 1, 13000000);
-static APBC_CLK(pwm4, PXA168_PWM4, 1, 13000000);
-static APBC_CLK(ssp1, PXA168_SSP1, 4, 0);
-static APBC_CLK(ssp2, PXA168_SSP2, 4, 0);
-static APBC_CLK(ssp3, PXA168_SSP3, 4, 0);
-static APBC_CLK(ssp4, PXA168_SSP4, 4, 0);
-static APBC_CLK(ssp5, PXA168_SSP5, 4, 0);
-static APBC_CLK(gpio, PXA168_GPIO, 0, 13000000);
-static APBC_CLK(keypad, PXA168_KPC, 0, 32000);
-static APBC_CLK(rtc, PXA168_RTC, 8, 32768);
-
-static APMU_CLK(nand, NAND, 0x19b, 156000000);
-static APMU_CLK(lcd, LCD, 0x7f, 312000000);
-static APMU_CLK(eth, ETH, 0x09, 0);
-static APMU_CLK(usb, USB, 0x12, 0);
-
-/* device and clock bindings */
-static struct clk_lookup pxa168_clkregs[] = {
-	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
-	INIT_CLKREG(&clk_uart2, "pxa2xx-uart.1", NULL),
-	INIT_CLKREG(&clk_uart3, "pxa2xx-uart.2", NULL),
-	INIT_CLKREG(&clk_twsi0, "pxa2xx-i2c.0", NULL),
-	INIT_CLKREG(&clk_twsi1, "pxa2xx-i2c.1", NULL),
-	INIT_CLKREG(&clk_pwm1, "pxa168-pwm.0", NULL),
-	INIT_CLKREG(&clk_pwm2, "pxa168-pwm.1", NULL),
-	INIT_CLKREG(&clk_pwm3, "pxa168-pwm.2", NULL),
-	INIT_CLKREG(&clk_pwm4, "pxa168-pwm.3", NULL),
-	INIT_CLKREG(&clk_ssp1, "pxa168-ssp.0", NULL),
-	INIT_CLKREG(&clk_ssp2, "pxa168-ssp.1", NULL),
-	INIT_CLKREG(&clk_ssp3, "pxa168-ssp.2", NULL),
-	INIT_CLKREG(&clk_ssp4, "pxa168-ssp.3", NULL),
-	INIT_CLKREG(&clk_ssp5, "pxa168-ssp.4", NULL),
-	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
-	INIT_CLKREG(&clk_lcd, "pxa168-fb", NULL),
-	INIT_CLKREG(&clk_gpio, "pxa-gpio", NULL),
-	INIT_CLKREG(&clk_keypad, "pxa27x-keypad", NULL),
-	INIT_CLKREG(&clk_eth, "pxa168-eth", "MFUCLK"),
-	INIT_CLKREG(&clk_usb, NULL, "PXA168-USBCLK"),
-	INIT_CLKREG(&clk_rtc, "sa1100-rtc", NULL),
-};
-
 static int __init pxa168_init(void)
 {
 	if (cpu_is_pxa168()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa168_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
-		clkdev_add_table(ARRAY_AND_SIZE(pxa168_clkregs));
+		pxa168_clk_init();
 	}
 
 	return 0;
@@ -114,6 +65,7 @@ postcore_initcall(pxa168_init);
 
 /* system timer - clock enabled, 3.25MHz */
 #define TIMER_CLK_RST	(APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(3))
+#define APBC_TIMERS	APBC_REG(0x34)
 
 static void __init pxa168_timer_init(void)
 {
@@ -121,10 +73,10 @@ static void __init pxa168_timer_init(void)
 	 * ourselves instead of using clk_* API. Clock rate is defined
 	 * by APBC_TIMERS_CLK_RST (3.25MHz) and enabled free-running
 	 */
-	__raw_writel(APBC_APBCLK | APBC_RST, APBC_PXA168_TIMERS);
+	__raw_writel(APBC_APBCLK | APBC_RST, APBC_TIMERS);
 
 	/* 3.25MHz, bus/functional clock enabled, release reset */
-	__raw_writel(TIMER_CLK_RST, APBC_PXA168_TIMERS);
+	__raw_writel(TIMER_CLK_RST, APBC_TIMERS);
 
 	timer_init(IRQ_PXA168_TIMER1);
 }

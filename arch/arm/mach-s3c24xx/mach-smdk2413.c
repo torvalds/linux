@@ -38,8 +38,8 @@
 #include <mach/regs-lcd.h>
 
 #include <mach/idle.h>
-#include <plat/udc.h>
-#include <plat/iic.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <mach/fb.h>
 
 #include <plat/s3c2410.h>

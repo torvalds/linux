@@ -22,6 +22,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 
+/* TPS chip id list */
+#define TPS65217			0xF0
+
 /* I2C ID for TPS65217 part */
 #define TPS65217_I2C_ID			0x24
 
@@ -210,6 +213,23 @@ enum tps65217_regulator_id {
 /* Number of total regulators available */
 #define TPS65217_NUM_REGULATOR		(TPS65217_NUM_DCDC + TPS65217_NUM_LDO)
 
+enum tps65217_bl_isel {
+	TPS65217_BL_ISET1 = 1,
+	TPS65217_BL_ISET2,
+};
+
+enum tps65217_bl_fdim {
+	TPS65217_BL_FDIM_100HZ,
+	TPS65217_BL_FDIM_200HZ,
+	TPS65217_BL_FDIM_500HZ,
+	TPS65217_BL_FDIM_1000HZ,
+};
+
+struct tps65217_bl_pdata {
+	enum tps65217_bl_isel isel;
+	enum tps65217_bl_fdim fdim;
+};
+
 /**
  * struct tps65217_board - packages regulator init data
  * @tps65217_regulator_data: regulator initialization values
@@ -219,6 +239,7 @@ enum tps65217_regulator_id {
 struct tps65217_board {
 	struct regulator_init_data *tps65217_init_data[TPS65217_NUM_REGULATOR];
 	struct device_node *of_node[TPS65217_NUM_REGULATOR];
+	struct tps65217_bl_pdata *bl_pdata;
 };
 
 /**
@@ -248,18 +269,21 @@ struct tps_info {
 struct tps65217 {
 	struct device *dev;
 	struct tps65217_board *pdata;
+	unsigned int id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
 	struct regulator_dev *rdev[TPS65217_NUM_REGULATOR];
 	struct tps_info *info[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
-
-	/* Client devices */
-	struct platform_device *regulator_pdev[TPS65217_NUM_REGULATOR];
 };
 
 static inline struct tps65217 *dev_to_tps65217(struct device *dev)
 {
 	return dev_get_drvdata(dev);
+}
+
+static inline int tps65217_chip_id(struct tps65217 *tps65217)
+{
+	return tps65217->id;
 }
 
 int tps65217_reg_read(struct tps65217 *tps, unsigned int reg,

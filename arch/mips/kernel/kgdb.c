@@ -283,6 +283,15 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	struct pt_regs *regs = args->regs;
 	int trap = (regs->cp0_cause & 0x7c) >> 2;
 
+#ifdef CONFIG_KPROBES
+	/*
+	 * Return immediately if the kprobes fault notifier has set
+	 * DIE_PAGE_FAULT.
+	 */
+	if (cmd == DIE_PAGE_FAULT)
+		return NOTIFY_DONE;
+#endif /* CONFIG_KPROBES */
+
 	/* Userspace events, ignore. */
 	if (user_mode(regs))
 		return NOTIFY_DONE;

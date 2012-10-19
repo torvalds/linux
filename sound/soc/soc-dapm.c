@@ -141,6 +141,28 @@ void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 }
 EXPORT_SYMBOL_GPL(dapm_mark_dirty);
 
+void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm)
+{
+	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_dapm_widget *w;
+
+	mutex_lock(&card->dapm_mutex);
+
+	list_for_each_entry(w, &card->widgets, list) {
+		switch (w->id) {
+		case snd_soc_dapm_input:
+		case snd_soc_dapm_output:
+			dapm_mark_dirty(w, "Rechecking inputs and outputs");
+			break;
+		default:
+			break;
+		}
+	}
+
+	mutex_unlock(&card->dapm_mutex);
+}
+EXPORT_SYMBOL_GPL(dapm_mark_io_dirty);
+
 /* create a new dapm widget */
 static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 	const struct snd_soc_dapm_widget *_widget)
@@ -291,8 +313,11 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 		if (dapm->codec->driver->set_bias_level)
 			ret = dapm->codec->driver->set_bias_level(dapm->codec,
 								  level);
-	} else
+		else
+			dapm->bias_level = level;
+	} else if (!card || dapm != &card->dapm) {
 		dapm->bias_level = level;
+	}
 
 	if (ret != 0)
 		goto out;
@@ -333,12 +358,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_mux: {
 		struct soc_enum *e = (struct soc_enum *)
 			w->kcontrol_news[i].private_value;
-		int val, item, bitmask;
+		int val, item;
 
-		for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-			;
 		val = soc_widget_read(w, e->reg);
-		item = (val >> e->shift_l) & (bitmask - 1);
+		item = (val >> e->shift_l) & e->mask;
 
 		p->connect = 0;
 		for (i = 0; i < e->max; i++) {
@@ -994,10 +1017,29 @@ EXPORT_SYMBOL_GPL(dapm_reg_event);
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event))
+	int ret;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+			ret = regulator_allow_bypass(w->regulator, true);
+			if (ret != 0)
+				dev_warn(w->dapm->dev,
+					 "Failed to bypass %s: %d\n",
+					 w->name, ret);
+		}
+
 		return regulator_enable(w->regulator);
-	else
+	} else {
+		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+			ret = regulator_allow_bypass(w->regulator, false);
+			if (ret != 0)
+				dev_warn(w->dapm->dev,
+					 "Failed to unbypass %s: %d\n",
+					 w->name, ret);
+		}
+
 		return regulator_disable_deferred(w->regulator, w->shift);
+	}
 }
 EXPORT_SYMBOL_GPL(dapm_regulator_event);
 
@@ -2655,15 +2697,13 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, bitmask;
+	unsigned int val;
 
-	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-		;
 	val = snd_soc_read(widget->codec, e->reg);
-	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & (bitmask - 1);
+	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & e->mask;
 	if (e->shift_l != e->shift_r)
 		ucontrol->value.enumerated.item[1] =
-			(val >> e->shift_r) & (bitmask - 1);
+			(val >> e->shift_r) & e->mask;
 
 	return 0;
 }
@@ -2687,22 +2727,20 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = codec->card;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val, mux, change;
-	unsigned int mask, bitmask;
+	unsigned int mask;
 	struct snd_soc_dapm_update update;
 	int wi;
 
-	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-		;
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 	mux = ucontrol->value.enumerated.item[0];
 	val = mux << e->shift_l;
-	mask = (bitmask - 1) << e->shift_l;
+	mask = e->mask << e->shift_l;
 	if (e->shift_l != e->shift_r) {
 		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
-		mask |= (bitmask - 1) << e->shift_r;
+		mask |= e->mask << e->shift_r;
 	}
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);

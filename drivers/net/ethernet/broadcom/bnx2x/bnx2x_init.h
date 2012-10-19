@@ -566,7 +566,7 @@ static const struct {
 		u32 e2;		/* 57712 */
 		u32 e3;		/* 578xx */
 	} reg_mask;		/* Register mask (all valid bits) */
-	char name[7];		/* Block's longest name is 6 characters long
+	char name[8];		/* Block's longest name is 7 characters long
 				 * (name + suffix)
 				 */
 } bnx2x_blocks_parity_data[] = {

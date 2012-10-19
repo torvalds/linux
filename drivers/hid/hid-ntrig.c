@@ -882,10 +882,10 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	nd->activate_slack = activate_slack;
 	nd->act_state = activate_slack;
 	nd->deactivate_slack = -deactivate_slack;
-	nd->sensor_logical_width = 0;
-	nd->sensor_logical_height = 0;
-	nd->sensor_physical_width = 0;
-	nd->sensor_physical_height = 0;
+	nd->sensor_logical_width = 1;
+	nd->sensor_logical_height = 1;
+	nd->sensor_physical_width = 1;
+	nd->sensor_physical_height = 1;
 
 	hid_set_drvdata(hdev, nd);
 

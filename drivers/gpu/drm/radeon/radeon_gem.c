@@ -25,9 +25,8 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "drmP.h"
-#include "drm.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 
 int radeon_gem_object_init(struct drm_gem_object *obj)
@@ -124,6 +123,30 @@ void radeon_gem_fini(struct radeon_device *rdev)
  */
 int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
+	struct radeon_bo *rbo = gem_to_radeon_bo(obj);
+	struct radeon_device *rdev = rbo->rdev;
+	struct radeon_fpriv *fpriv = file_priv->driver_priv;
+	struct radeon_vm *vm = &fpriv->vm;
+	struct radeon_bo_va *bo_va;
+	int r;
+
+	if (rdev->family < CHIP_CAYMAN) {
+		return 0;
+	}
+
+	r = radeon_bo_reserve(rbo, false);
+	if (r) {
+		return r;
+	}
+
+	bo_va = radeon_vm_bo_find(vm, rbo);
+	if (!bo_va) {
+		bo_va = radeon_vm_bo_add(rdev, vm, rbo);
+	} else {
+		++bo_va->ref_count;
+	}
+	radeon_bo_unreserve(rbo);
+
 	return 0;
 }
 
@@ -134,16 +157,25 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_device *rdev = rbo->rdev;
 	struct radeon_fpriv *fpriv = file_priv->driver_priv;
 	struct radeon_vm *vm = &fpriv->vm;
+	struct radeon_bo_va *bo_va;
+	int r;
 
 	if (rdev->family < CHIP_CAYMAN) {
 		return;
 	}
 
-	if (radeon_bo_reserve(rbo, false)) {
-		dev_err(rdev->dev, "leaking bo va because we fail to reserve bo\n");
+	r = radeon_bo_reserve(rbo, true);
+	if (r) {
+		dev_err(rdev->dev, "leaking bo va because "
+			"we fail to reserve bo (%d)\n", r);
 		return;
 	}
-	radeon_vm_bo_rmv(rdev, vm, rbo);
+	bo_va = radeon_vm_bo_find(vm, rbo);
+	if (bo_va) {
+		if (--bo_va->ref_count == 0) {
+			radeon_vm_bo_rmv(rdev, bo_va);
+		}
+	}
 	radeon_bo_unreserve(rbo);
 }
 
@@ -459,19 +491,24 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
+	bo_va = radeon_vm_bo_find(&fpriv->vm, rbo);
+	if (!bo_va) {
+		args->operation = RADEON_VA_RESULT_ERROR;
+		drm_gem_object_unreference_unlocked(gobj);
+		return -ENOENT;
+	}
+
 	switch (args->operation) {
 	case RADEON_VA_MAP:
-		bo_va = radeon_bo_va(rbo, &fpriv->vm);
-		if (bo_va) {
+		if (bo_va->soffset) {
 			args->operation = RADEON_VA_RESULT_VA_EXIST;
 			args->offset = bo_va->soffset;
 			goto out;
 		}
-		r = radeon_vm_bo_add(rdev, &fpriv->vm, rbo,
-				     args->offset, args->flags);
+		r = radeon_vm_bo_set_addr(rdev, bo_va, args->offset, args->flags);
 		break;
 	case RADEON_VA_UNMAP:
-		r = radeon_vm_bo_rmv(rdev, &fpriv->vm, rbo);
+		r = radeon_vm_bo_set_addr(rdev, bo_va, 0, 0);
 		break;
 	default:
 		break;

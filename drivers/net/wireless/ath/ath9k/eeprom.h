@@ -96,6 +96,7 @@
 
 #define ATH9K_POW_SM(_r, _s)	(((_r) & 0x3f) << (_s))
 #define FREQ2FBIN(x, y)		((y) ? ((x) - 2300) : (((x) - 4800) / 5))
+#define FBIN2FREQ(x, y)		((y) ? (2300 + x) : (4800 + 5 * x))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
 
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
@@ -108,7 +109,7 @@
 #define EEP_RFSILENT_ENABLED_S      0
 #define EEP_RFSILENT_POLARITY       0x0002
 #define EEP_RFSILENT_POLARITY_S     1
-#define EEP_RFSILENT_GPIO_SEL       (AR_SREV_9462(ah) ? 0x00fc : 0x001c)
+#define EEP_RFSILENT_GPIO_SEL       ((AR_SREV_9462(ah) || AR_SREV_9565(ah)) ? 0x00fc : 0x001c)
 #define EEP_RFSILENT_GPIO_SEL_S     2
 
 #define AR5416_OPFLAGS_11A           0x01

@@ -559,10 +559,10 @@ niagara_tlb_fixup:
 	be,pt	%xcc, niagara2_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_NIAGARA4
-	be,pt	%xcc, niagara2_patch
+	be,pt	%xcc, niagara4_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_NIAGARA5
-	be,pt	%xcc, niagara2_patch
+	be,pt	%xcc, niagara4_patch
 	 nop
 
 	call	generic_patch_copyops
@@ -573,6 +573,16 @@ niagara_tlb_fixup:
 	 nop
 
 	ba,a,pt	%xcc, 80f
+niagara4_patch:
+	call	niagara4_patch_copyops
+	 nop
+	call	niagara4_patch_bzero
+	 nop
+	call	niagara4_patch_pageops
+	 nop
+
+	ba,a,pt	%xcc, 80f
+
 niagara2_patch:
 	call	niagara2_patch_copyops
 	 nop

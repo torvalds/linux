@@ -479,7 +479,7 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 		skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 				  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
-		skb_record_rx_queue(skb, channel->channel);
+		skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 		gro_result = napi_gro_frags(napi);
 	} else {
@@ -571,8 +571,14 @@ static void efx_rx_deliver(struct efx_channel *channel,
 	/* Set the SKB flags */
 	skb_checksum_none_assert(skb);
 
+	/* Record the rx_queue */
+	skb_record_rx_queue(skb, channel->rx_queue.core_index);
+
 	/* Pass the packet up */
-	netif_receive_skb(skb);
+	if (channel->type->receive_skb)
+		channel->type->receive_skb(channel, skb);
+	else
+		netif_receive_skb(skb);
 
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
@@ -608,13 +614,14 @@ void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 		 * at the ethernet header */
 		skb->protocol = eth_type_trans(skb, efx->net_dev);
 
-		skb_record_rx_queue(skb, channel->channel);
+		skb_record_rx_queue(skb, channel->rx_queue.core_index);
 	}
 
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
-	if (likely(rx_buf->flags & (EFX_RX_BUF_PAGE | EFX_RX_PKT_CSUMMED)))
+	if (likely(rx_buf->flags & (EFX_RX_BUF_PAGE | EFX_RX_PKT_CSUMMED)) &&
+	    !channel->type->receive_skb)
 		efx_rx_packet_gro(channel, rx_buf, eh);
 	else
 		efx_rx_deliver(channel, rx_buf);
@@ -623,6 +630,11 @@ void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 void efx_rx_strategy(struct efx_channel *channel)
 {
 	enum efx_rx_alloc_method method = rx_alloc_method;
+
+	if (channel->type->receive_skb) {
+		channel->rx_alloc_push_pages = false;
+		return;
+	}
 
 	/* Only makes sense to use page based allocation if GRO is enabled */
 	if (!(channel->efx->net_dev->features & NETIF_F_GRO)) {

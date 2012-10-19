@@ -239,8 +239,8 @@ _GLOBAL(memcpy_power7)
 	ori	r9,r9,1		/* stream=1 */
 
 	srdi	r7,r5,7		/* length in cachelines, capped at 0x3FF */
-	cmpldi	cr1,r7,0x3FF
-	ble	cr1,1f
+	cmpldi	r7,0x3FF
+	ble	1f
 	li	r7,0x3FF
 1:	lis	r0,0x0E00	/* depth=7 */
 	sldi	r7,r7,7

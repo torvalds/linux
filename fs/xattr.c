@@ -20,6 +20,7 @@
 #include <linux/fsnotify.h>
 #include <linux/audit.h>
 #include <linux/vmalloc.h>
+#include <linux/posix_acl_xattr.h>
 
 #include <asm/uaccess.h>
 
@@ -295,11 +296,13 @@ vfs_removexattr(struct dentry *dentry, const char *name)
 	if (error)
 		return error;
 
-	error = security_inode_removexattr(dentry, name);
-	if (error)
-		return error;
-
 	mutex_lock(&inode->i_mutex);
+	error = security_inode_removexattr(dentry, name);
+	if (error) {
+		mutex_unlock(&inode->i_mutex);
+		return error;
+	}
+
 	error = inode->i_op->removexattr(dentry, name);
 	mutex_unlock(&inode->i_mutex);
 
@@ -347,6 +350,9 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 			error = -EFAULT;
 			goto out;
 		}
+		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
+		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
+			posix_acl_fix_xattr_from_user(kvalue, size);
 	}
 
 	error = vfs_setxattr(d, kname, kvalue, size, flags);
@@ -399,22 +405,20 @@ SYSCALL_DEFINE5(lsetxattr, const char __user *, pathname,
 SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 		const void __user *,value, size_t, size, int, flags)
 {
-	int fput_needed;
-	struct file *f;
+	struct fd f = fdget(fd);
 	struct dentry *dentry;
 	int error = -EBADF;
 
-	f = fget_light(fd, &fput_needed);
-	if (!f)
+	if (!f.file)
 		return error;
-	dentry = f->f_path.dentry;
-	audit_inode(NULL, dentry);
-	error = mnt_want_write_file(f);
+	dentry = f.file->f_path.dentry;
+	audit_inode(NULL, dentry, 0);
+	error = mnt_want_write_file(f.file);
 	if (!error) {
 		error = setxattr(dentry, name, value, size, flags);
-		mnt_drop_write_file(f);
+		mnt_drop_write_file(f.file);
 	}
-	fput_light(f, fput_needed);
+	fdput(f);
 	return error;
 }
 
@@ -450,6 +454,9 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 
 	error = vfs_getxattr(d, kname, kvalue, size);
 	if (error > 0) {
+		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
+		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
+			posix_acl_fix_xattr_to_user(kvalue, size);
 		if (size && copy_to_user(value, kvalue, error))
 			error = -EFAULT;
 	} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
@@ -495,16 +502,14 @@ SYSCALL_DEFINE4(lgetxattr, const char __user *, pathname,
 SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 		void __user *, value, size_t, size)
 {
-	int fput_needed;
-	struct file *f;
+	struct fd f = fdget(fd);
 	ssize_t error = -EBADF;
 
-	f = fget_light(fd, &fput_needed);
-	if (!f)
+	if (!f.file)
 		return error;
-	audit_inode(NULL, f->f_path.dentry);
-	error = getxattr(f->f_path.dentry, name, value, size);
-	fput_light(f, fput_needed);
+	audit_inode(NULL, f.file->f_path.dentry, 0);
+	error = getxattr(f.file->f_path.dentry, name, value, size);
+	fdput(f);
 	return error;
 }
 
@@ -576,16 +581,14 @@ SYSCALL_DEFINE3(llistxattr, const char __user *, pathname, char __user *, list,
 
 SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
 {
-	int fput_needed;
-	struct file *f;
+	struct fd f = fdget(fd);
 	ssize_t error = -EBADF;
 
-	f = fget_light(fd, &fput_needed);
-	if (!f)
+	if (!f.file)
 		return error;
-	audit_inode(NULL, f->f_path.dentry);
-	error = listxattr(f->f_path.dentry, list, size);
-	fput_light(f, fput_needed);
+	audit_inode(NULL, f.file->f_path.dentry, 0);
+	error = listxattr(f.file->f_path.dentry, list, size);
+	fdput(f);
 	return error;
 }
 
@@ -645,22 +648,20 @@ SYSCALL_DEFINE2(lremovexattr, const char __user *, pathname,
 
 SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 {
-	int fput_needed;
-	struct file *f;
+	struct fd f = fdget(fd);
 	struct dentry *dentry;
 	int error = -EBADF;
 
-	f = fget_light(fd, &fput_needed);
-	if (!f)
+	if (!f.file)
 		return error;
-	dentry = f->f_path.dentry;
-	audit_inode(NULL, dentry);
-	error = mnt_want_write_file(f);
+	dentry = f.file->f_path.dentry;
+	audit_inode(NULL, dentry, 0);
+	error = mnt_want_write_file(f.file);
 	if (!error) {
 		error = removexattr(dentry, name);
-		mnt_drop_write_file(f);
+		mnt_drop_write_file(f.file);
 	}
-	fput_light(f, fput_needed);
+	fdput(f);
 	return error;
 }
 
@@ -791,3 +792,183 @@ EXPORT_SYMBOL(generic_getxattr);
 EXPORT_SYMBOL(generic_listxattr);
 EXPORT_SYMBOL(generic_setxattr);
 EXPORT_SYMBOL(generic_removexattr);
+
+/*
+ * Allocate new xattr and copy in the value; but leave the name to callers.
+ */
+struct simple_xattr *simple_xattr_alloc(const void *value, size_t size)
+{
+	struct simple_xattr *new_xattr;
+	size_t len;
+
+	/* wrap around? */
+	len = sizeof(*new_xattr) + size;
+	if (len <= sizeof(*new_xattr))
+		return NULL;
+
+	new_xattr = kmalloc(len, GFP_KERNEL);
+	if (!new_xattr)
+		return NULL;
+
+	new_xattr->size = size;
+	memcpy(new_xattr->value, value, size);
+	return new_xattr;
+}
+
+/*
+ * xattr GET operation for in-memory/pseudo filesystems
+ */
+int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
+		     void *buffer, size_t size)
+{
+	struct simple_xattr *xattr;
+	int ret = -ENODATA;
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		if (strcmp(name, xattr->name))
+			continue;
+
+		ret = xattr->size;
+		if (buffer) {
+			if (size < xattr->size)
+				ret = -ERANGE;
+			else
+				memcpy(buffer, xattr->value, xattr->size);
+		}
+		break;
+	}
+	spin_unlock(&xattrs->lock);
+	return ret;
+}
+
+static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+			      const void *value, size_t size, int flags)
+{
+	struct simple_xattr *xattr;
+	struct simple_xattr *uninitialized_var(new_xattr);
+	int err = 0;
+
+	/* value == NULL means remove */
+	if (value) {
+		new_xattr = simple_xattr_alloc(value, size);
+		if (!new_xattr)
+			return -ENOMEM;
+
+		new_xattr->name = kstrdup(name, GFP_KERNEL);
+		if (!new_xattr->name) {
+			kfree(new_xattr);
+			return -ENOMEM;
+		}
+	}
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		if (!strcmp(name, xattr->name)) {
+			if (flags & XATTR_CREATE) {
+				xattr = new_xattr;
+				err = -EEXIST;
+			} else if (new_xattr) {
+				list_replace(&xattr->list, &new_xattr->list);
+			} else {
+				list_del(&xattr->list);
+			}
+			goto out;
+		}
+	}
+	if (flags & XATTR_REPLACE) {
+		xattr = new_xattr;
+		err = -ENODATA;
+	} else {
+		list_add(&new_xattr->list, &xattrs->head);
+		xattr = NULL;
+	}
+out:
+	spin_unlock(&xattrs->lock);
+	if (xattr) {
+		kfree(xattr->name);
+		kfree(xattr);
+	}
+	return err;
+
+}
+
+/**
+ * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
+ * @xattrs: target simple_xattr list
+ * @name: name of the new extended attribute
+ * @value: value of the new xattr. If %NULL, will remove the attribute
+ * @size: size of the new xattr
+ * @flags: %XATTR_{CREATE|REPLACE}
+ *
+ * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
+ * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
+ * otherwise, fails with -ENODATA.
+ *
+ * Returns 0 on success, -errno on failure.
+ */
+int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+		     const void *value, size_t size, int flags)
+{
+	if (size == 0)
+		value = ""; /* empty EA, do not remove */
+	return __simple_xattr_set(xattrs, name, value, size, flags);
+}
+
+/*
+ * xattr REMOVE operation for in-memory/pseudo filesystems
+ */
+int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name)
+{
+	return __simple_xattr_set(xattrs, name, NULL, 0, XATTR_REPLACE);
+}
+
+static bool xattr_is_trusted(const char *name)
+{
+	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
+}
+
+/*
+ * xattr LIST operation for in-memory/pseudo filesystems
+ */
+ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
+			  size_t size)
+{
+	bool trusted = capable(CAP_SYS_ADMIN);
+	struct simple_xattr *xattr;
+	size_t used = 0;
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		size_t len;
+
+		/* skip "trusted." attributes for unprivileged callers */
+		if (!trusted && xattr_is_trusted(xattr->name))
+			continue;
+
+		len = strlen(xattr->name) + 1;
+		used += len;
+		if (buffer) {
+			if (size < used) {
+				used = -ERANGE;
+				break;
+			}
+			memcpy(buffer, xattr->name, len);
+			buffer += len;
+		}
+	}
+	spin_unlock(&xattrs->lock);
+
+	return used;
+}
+
+/*
+ * Adds an extended attribute to the list
+ */
+void simple_xattr_list_add(struct simple_xattrs *xattrs,
+			   struct simple_xattr *new_xattr)
+{
+	spin_lock(&xattrs->lock);
+	list_add(&new_xattr->list, &xattrs->head);
+	spin_unlock(&xattrs->lock);
+}

@@ -217,7 +217,8 @@ do {					\
 #define ELF_PLATFORM  (NULL)
 
 #ifdef __KERNEL__
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 #endif
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1

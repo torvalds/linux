@@ -118,19 +118,30 @@ static struct resource sc26xx_rsrc[] = {
 	}
 };
 
-static unsigned int sc26xx_data[2] = {
-	/* DTR   |   RTS    |   DSR    |   CTS     |   DCD     |   RI    */
-	(8 << 0) | (4 << 4) | (6 << 8) | (0 << 12) | (6 << 16) | (0 << 20),
-	(3 << 0) | (2 << 4) | (1 << 8) | (2 << 12) | (3 << 16) | (4 << 20)
+#include <linux/platform_data/sccnxp.h>
+
+static struct sccnxp_pdata sccnxp_data = {
+	.reg_shift	= 2,
+	.frequency	= 3686400,
+	.mctrl_cfg[0]	= MCTRL_SIG(DTR_OP, LINE_OP7) |
+			  MCTRL_SIG(RTS_OP, LINE_OP3) |
+			  MCTRL_SIG(DSR_IP, LINE_IP5) |
+			  MCTRL_SIG(DCD_IP, LINE_IP6),
+	.mctrl_cfg[1]	= MCTRL_SIG(DTR_OP, LINE_OP2) |
+			  MCTRL_SIG(RTS_OP, LINE_OP1) |
+			  MCTRL_SIG(DSR_IP, LINE_IP0) |
+			  MCTRL_SIG(CTS_IP, LINE_IP1) |
+			  MCTRL_SIG(DCD_IP, LINE_IP2) |
+			  MCTRL_SIG(RNG_IP, LINE_IP3),
 };
 
 static struct platform_device sc26xx_pdev = {
-	.name           = "SC26xx",
-	.num_resources  = ARRAY_SIZE(sc26xx_rsrc),
-	.resource       = sc26xx_rsrc,
-	.dev			= {
-		.platform_data	= sc26xx_data,
-	}
+	.name		= "sc2681",
+	.resource	= sc26xx_rsrc,
+	.num_resources	= ARRAY_SIZE(sc26xx_rsrc),
+	.dev	= {
+		.platform_data	= &sccnxp_data,
+	},
 };
 
 static u32 a20r_ack_hwint(void)

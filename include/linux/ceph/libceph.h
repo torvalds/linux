@@ -1,7 +1,7 @@
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
@@ -15,12 +15,12 @@
 #include <linux/writeback.h>
 #include <linux/slab.h>
 
-#include "types.h"
-#include "messenger.h"
-#include "msgpool.h"
-#include "mon_client.h"
-#include "osd_client.h"
-#include "ceph_fs.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/msgpool.h>
+#include <linux/ceph/mon_client.h>
+#include <linux/ceph/osd_client.h>
+#include <linux/ceph/ceph_fs.h>
 
 /*
  * mount options

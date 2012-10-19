@@ -122,9 +122,9 @@ struct arch_shared_info {
 #endif	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32
-#include "interface_32.h"
+#include <asm/xen/interface_32.h>
 #else
-#include "interface_64.h"
+#include <asm/xen/interface_64.h>
 #endif
 
 #include <asm/pvclock-abi.h>

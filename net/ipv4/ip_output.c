@@ -193,7 +193,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	}
 
 	rcu_read_lock_bh();
-	nexthop = rt->rt_gateway ? rt->rt_gateway : ip_hdr(skb)->daddr;
+	nexthop = (__force u32) rt_nexthop(rt, ip_hdr(skb)->daddr);
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
@@ -371,7 +371,7 @@ int ip_queue_xmit(struct sk_buff *skb, struct flowi *fl)
 	skb_dst_set_noref(skb, &rt->dst);
 
 packet_routed:
-	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_gateway)
+	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_uses_gateway)
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
@@ -467,7 +467,9 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 	iph = ip_hdr(skb);
 
-	if (unlikely((iph->frag_off & htons(IP_DF)) && !skb->local_df)) {
+	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->local_df) ||
+		     (IPCB(skb)->frag_max_size &&
+		      IPCB(skb)->frag_max_size > dst_mtu(&rt->dst)))) {
 		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(ip_skb_dst_mtu(skb)));
@@ -791,6 +793,7 @@ static int __ip_append_data(struct sock *sk,
 			    struct flowi4 *fl4,
 			    struct sk_buff_head *queue,
 			    struct inet_cork *cork,
+			    struct page_frag *pfrag,
 			    int getfrag(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length, int transhdrlen,
@@ -985,47 +988,30 @@ alloc_new_skb:
 			}
 		} else {
 			int i = skb_shinfo(skb)->nr_frags;
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i-1];
-			struct page *page = cork->page;
-			int off = cork->off;
-			unsigned int left;
 
-			if (page && (left = PAGE_SIZE - off) > 0) {
-				if (copy >= left)
-					copy = left;
-				if (page != skb_frag_page(frag)) {
-					if (i == MAX_SKB_FRAGS) {
-						err = -EMSGSIZE;
-						goto error;
-					}
-					skb_fill_page_desc(skb, i, page, off, 0);
-					skb_frag_ref(skb, i);
-					frag = &skb_shinfo(skb)->frags[i];
-				}
-			} else if (i < MAX_SKB_FRAGS) {
-				if (copy > PAGE_SIZE)
-					copy = PAGE_SIZE;
-				page = alloc_pages(sk->sk_allocation, 0);
-				if (page == NULL)  {
-					err = -ENOMEM;
-					goto error;
-				}
-				cork->page = page;
-				cork->off = 0;
+			err = -ENOMEM;
+			if (!sk_page_frag_refill(sk, pfrag))
+				goto error;
 
-				skb_fill_page_desc(skb, i, page, 0, 0);
-				frag = &skb_shinfo(skb)->frags[i];
-			} else {
+			if (!skb_can_coalesce(skb, i, pfrag->page,
+					      pfrag->offset)) {
 				err = -EMSGSIZE;
-				goto error;
+				if (i == MAX_SKB_FRAGS)
+					goto error;
+
+				__skb_fill_page_desc(skb, i, pfrag->page,
+						     pfrag->offset, 0);
+				skb_shinfo(skb)->nr_frags = ++i;
+				get_page(pfrag->page);
 			}
-			if (getfrag(from, skb_frag_address(frag)+skb_frag_size(frag),
-				    offset, copy, skb->len, skb) < 0) {
-				err = -EFAULT;
-				goto error;
-			}
-			cork->off += copy;
-			skb_frag_size_add(frag, copy);
+			copy = min_t(int, copy, pfrag->size - pfrag->offset);
+			if (getfrag(from,
+				    page_address(pfrag->page) + pfrag->offset,
+				    offset, copy, skb->len, skb) < 0)
+				goto error_efault;
+
+			pfrag->offset += copy;
+			skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
@@ -1037,6 +1023,8 @@ alloc_new_skb:
 
 	return 0;
 
+error_efault:
+	err = -EFAULT;
 error:
 	cork->length -= length;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
@@ -1077,8 +1065,6 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	cork->dst = &rt->dst;
 	cork->length = 0;
 	cork->tx_flags = ipc->tx_flags;
-	cork->page = NULL;
-	cork->off = 0;
 
 	return 0;
 }
@@ -1115,7 +1101,8 @@ int ip_append_data(struct sock *sk, struct flowi4 *fl4,
 		transhdrlen = 0;
 	}
 
-	return __ip_append_data(sk, fl4, &sk->sk_write_queue, &inet->cork.base, getfrag,
+	return __ip_append_data(sk, fl4, &sk->sk_write_queue, &inet->cork.base,
+				sk_page_frag(sk), getfrag,
 				from, length, transhdrlen, flags);
 }
 
@@ -1437,7 +1424,8 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 	if (err)
 		return ERR_PTR(err);
 
-	err = __ip_append_data(sk, fl4, &queue, &cork, getfrag,
+	err = __ip_append_data(sk, fl4, &queue, &cork,
+			       &current->task_frag, getfrag,
 			       from, length, transhdrlen, flags);
 	if (err) {
 		__ip_flush_pending_frames(sk, &queue, &cork);

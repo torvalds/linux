@@ -868,9 +868,6 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 
 	dbg(2, "%s: enter", __func__);
 
-	if (udev == NULL)
-		dev_info(&interface->dev, "udev is NULL.\n");
-
 	/* allocate memory for our device state and initialize it */
 
 	dev = kmalloc (sizeof(struct lego_usb_tower), GFP_KERNEL);

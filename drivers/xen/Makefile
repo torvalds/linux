@@ -9,6 +9,7 @@ nostackp := $(call cc-option, -fno-stack-protector)
 CFLAGS_features.o			:= $(nostackp)
 
 dom0-$(CONFIG_PCI) += pci.o
+dom0-$(CONFIG_USB_SUPPORT) += dbgp.o
 dom0-$(CONFIG_ACPI) += acpi.o
 dom0-$(CONFIG_X86) += pcpu.o
 obj-$(CONFIG_XEN_DOM0)			+= $(dom0-y)

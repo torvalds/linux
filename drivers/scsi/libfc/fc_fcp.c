@@ -851,7 +851,8 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 			fc_rp_info = (struct fcp_resp_rsp_info *)(rp_ex + 1);
 			if (flags & FCP_RSP_LEN_VAL) {
 				respl = ntohl(rp_ex->fr_rsp_len);
-				if (respl != sizeof(*fc_rp_info))
+				if ((respl != FCP_RESP_RSP_INFO_LEN4) &&
+				    (respl != FCP_RESP_RSP_INFO_LEN8))
 					goto len_err;
 				if (fsp->wait_for_comp) {
 					/* Abuse cdb_status for rsp code */

@@ -352,8 +352,6 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 	struct nfcwilink *drv = priv_data;
 	int rc;
 
-	nfc_dev_dbg(&drv->pdev->dev, "receive entry, len %d", skb->len);
-
 	if (!skb)
 		return -EFAULT;
 
@@ -361,6 +359,8 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 		kfree_skb(skb);
 		return -EFAULT;
 	}
+
+	nfc_dev_dbg(&drv->pdev->dev, "receive entry, len %d", skb->len);
 
 	/* strip the ST header
 	(apart for the chnl byte, which is not received in the hdr) */
@@ -604,21 +604,7 @@ static struct platform_driver nfcwilink_driver = {
 	},
 };
 
-/* ------- Module Init/Exit interfaces ------ */
-static int __init nfcwilink_init(void)
-{
-	printk(KERN_INFO "NFC Driver for TI WiLink");
-
-	return platform_driver_register(&nfcwilink_driver);
-}
-
-static void __exit nfcwilink_exit(void)
-{
-	platform_driver_unregister(&nfcwilink_driver);
-}
-
-module_init(nfcwilink_init);
-module_exit(nfcwilink_exit);
+module_platform_driver(nfcwilink_driver);
 
 /* ------ Module Info ------ */
 

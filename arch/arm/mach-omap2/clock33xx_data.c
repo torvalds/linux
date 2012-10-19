@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 #include <plat/clkdev_omap.h>
-#include <plat/am33xx.h>
 
+#include "am33xx.h"
 #include "iomap.h"
 #include "control.h"
 #include "clock.h"
@@ -1013,6 +1013,7 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"dpll_core_m5_ck",	&dpll_core_m5_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_core_m6_ck",	&dpll_core_m6_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_mpu_ck",		&dpll_mpu_ck,	CK_AM33XX),
+	CLK("cpu0",	NULL,			&dpll_mpu_ck,		CK_AM33XX),
 	CLK(NULL,	"dpll_mpu_m2_ck",	&dpll_mpu_m2_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_ddr_ck",		&dpll_ddr_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_ddr_m2_ck",	&dpll_ddr_m2_ck,	CK_AM33XX),
@@ -1027,22 +1028,26 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"cefuse_fck",		&cefuse_fck,	CK_AM33XX),
 	CLK(NULL,	"clkdiv32k_ick",	&clkdiv32k_ick,	CK_AM33XX),
 	CLK(NULL,	"dcan0_fck",		&dcan0_fck,	CK_AM33XX),
+	CLK("481cc000.d_can",	NULL,		&dcan0_fck,	CK_AM33XX),
 	CLK(NULL,	"dcan1_fck",		&dcan1_fck,	CK_AM33XX),
+	CLK("481d0000.d_can",	NULL,		&dcan1_fck,	CK_AM33XX),
 	CLK(NULL,	"debugss_ick",		&debugss_ick,	CK_AM33XX),
 	CLK(NULL,	"pruss_ocp_gclk",	&pruss_ocp_gclk,	CK_AM33XX),
 	CLK("davinci-mcasp.0",  NULL,           &mcasp0_fck,    CK_AM33XX),
 	CLK("davinci-mcasp.1",  NULL,           &mcasp1_fck,    CK_AM33XX),
+	CLK(NULL,	"mcasp0_fck",		&mcasp0_fck,	CK_AM33XX),
+	CLK(NULL,	"mcasp1_fck",		&mcasp1_fck,	CK_AM33XX),
 	CLK("NULL",	"mmc2_fck",		&mmc2_fck,	CK_AM33XX),
 	CLK(NULL,	"mmu_fck",		&mmu_fck,	CK_AM33XX),
 	CLK(NULL,	"smartreflex0_fck",	&smartreflex0_fck,	CK_AM33XX),
 	CLK(NULL,	"smartreflex1_fck",	&smartreflex1_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt1_fck",		&timer1_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt2_fck",		&timer2_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt3_fck",		&timer3_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt4_fck",		&timer4_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt5_fck",		&timer5_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt6_fck",		&timer6_fck,	CK_AM33XX),
-	CLK(NULL,	"gpt7_fck",		&timer7_fck,	CK_AM33XX),
+	CLK(NULL,	"timer1_fck",		&timer1_fck,	CK_AM33XX),
+	CLK(NULL,	"timer2_fck",		&timer2_fck,	CK_AM33XX),
+	CLK(NULL,	"timer3_fck",		&timer3_fck,	CK_AM33XX),
+	CLK(NULL,	"timer4_fck",		&timer4_fck,	CK_AM33XX),
+	CLK(NULL,	"timer5_fck",		&timer5_fck,	CK_AM33XX),
+	CLK(NULL,	"timer6_fck",		&timer6_fck,	CK_AM33XX),
+	CLK(NULL,	"timer7_fck",		&timer7_fck,	CK_AM33XX),
 	CLK(NULL,	"usbotg_fck",		&usbotg_fck,	CK_AM33XX),
 	CLK(NULL,	"ieee5000_fck",		&ieee5000_fck,	CK_AM33XX),
 	CLK(NULL,	"wdt1_fck",		&wdt1_fck,	CK_AM33XX),

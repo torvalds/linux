@@ -44,11 +44,6 @@ extern int sys_cache_sync(unsigned long s, unsigned long e);
 struct pt_regs;
 
 extern asmlinkage long sys_c6x_clone(struct pt_regs *regs);
-extern asmlinkage long sys_c6x_execve(const char __user *name,
-				      const char __user *const __user *argv,
-				      const char __user *const __user *envp,
-				      struct pt_regs *regs);
-
 
 #include <asm-generic/syscalls.h>
 

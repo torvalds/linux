@@ -30,12 +30,7 @@
 #include <linux/freezer.h>
 
 #include "tpm.h"
-
-enum tpm_const {
-	TPM_MINOR = 224,	/* officially assigned */
-	TPM_BUFSIZE = 4096,
-	TPM_NUM_DEVICES = 256,
-};
+#include "tpm_eventlog.h"
 
 enum tpm_duration {
 	TPM_SHORT = 0,
@@ -482,6 +477,7 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 #define TPM_INTERNAL_RESULT_SIZE 200
 #define TPM_TAG_RQU_COMMAND cpu_to_be16(193)
 #define TPM_ORD_GET_CAP cpu_to_be32(101)
+#define TPM_ORD_GET_RANDOM cpu_to_be32(70)
 
 static const struct tpm_input_header tpm_getcap_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
@@ -919,7 +915,7 @@ EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
 #define TPM_ORD_READPUBEK cpu_to_be32(124)
-struct tpm_input_header tpm_readpubek_header = {
+static struct tpm_input_header tpm_readpubek_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
 	.length = cpu_to_be32(30),
 	.ordinal = TPM_ORD_READPUBEK
@@ -1172,10 +1168,10 @@ int tpm_release(struct inode *inode, struct file *file)
 	struct tpm_chip *chip = file->private_data;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
-	kfree(chip->data_buffer);
+	kzfree(chip->data_buffer);
 	clear_bit(0, &chip->is_open);
 	put_device(chip->dev);
 	return 0;
@@ -1186,17 +1182,20 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	size_t in_size = size, out_size;
+	size_t in_size = size;
+	ssize_t out_size;
 
 	/* cannot perform a write until the read has cleared
-	   either via tpm_read or a user_read_timer timeout */
-	while (atomic_read(&chip->data_pending) != 0)
-		msleep(TPM_TIMEOUT);
-
-	mutex_lock(&chip->buffer_mutex);
+	   either via tpm_read or a user_read_timer timeout.
+	   This also prevents splitted buffered writes from blocking here.
+	*/
+	if (atomic_read(&chip->data_pending) != 0)
+		return -EBUSY;
 
 	if (in_size > TPM_BUFSIZE)
-		in_size = TPM_BUFSIZE;
+		return -E2BIG;
+
+	mutex_lock(&chip->buffer_mutex);
 
 	if (copy_from_user
 	    (chip->data_buffer, (void __user *) buf, in_size)) {
@@ -1206,6 +1205,10 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	/* atomic tpm command send and result receive */
 	out_size = tpm_transmit(chip, chip->data_buffer, TPM_BUFSIZE);
+	if (out_size < 0) {
+		mutex_unlock(&chip->buffer_mutex);
+		return out_size;
+	}
 
 	atomic_set(&chip->data_pending, out_size);
 	mutex_unlock(&chip->buffer_mutex);
@@ -1225,9 +1228,8 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	int rc;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
-	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
 		ssize_t orig_ret_size = ret_size;
 		if (size < ret_size)
@@ -1241,6 +1243,8 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 
 		mutex_unlock(&chip->buffer_mutex);
 	}
+
+	atomic_set(&chip->data_pending, 0);
 
 	return ret_size;
 }
@@ -1262,6 +1266,7 @@ void tpm_remove_hardware(struct device *dev)
 
 	misc_deregister(&chip->vendor.miscdev);
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
+	tpm_remove_ppi(&dev->kobj);
 	tpm_bios_log_teardown(chip->bios_dir);
 
 	/* write it this way to be explicit (chip->dev == dev) */
@@ -1326,6 +1331,58 @@ int tpm_pm_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
+#define TPM_GETRANDOM_RESULT_SIZE	18
+static struct tpm_input_header tpm_getrandom_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(14),
+	.ordinal = TPM_ORD_GET_RANDOM
+};
+
+/**
+ * tpm_get_random() - Get random bytes from the tpm's RNG
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @out: destination buffer for the random bytes
+ * @max: the max number of bytes to write to @out
+ *
+ * Returns < 0 on error and the number of bytes read on success
+ */
+int tpm_get_random(u32 chip_num, u8 *out, size_t max)
+{
+	struct tpm_chip *chip;
+	struct tpm_cmd_t tpm_cmd;
+	u32 recd, num_bytes = min_t(u32, max, TPM_MAX_RNG_DATA);
+	int err, total = 0, retries = 5;
+	u8 *dest = out;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
+		return -EINVAL;
+
+	do {
+		tpm_cmd.header.in = tpm_getrandom_header;
+		tpm_cmd.params.getrandom_in.num_bytes = cpu_to_be32(num_bytes);
+
+		err = transmit_cmd(chip, &tpm_cmd,
+				   TPM_GETRANDOM_RESULT_SIZE + num_bytes,
+				   "attempting get random");
+		if (err)
+			break;
+
+		recd = be32_to_cpu(tpm_cmd.params.getrandom_out.rng_data_len);
+		memcpy(dest, tpm_cmd.params.getrandom_out.rng_data, recd);
+
+		dest += recd;
+		total += recd;
+		num_bytes -= recd;
+	} while (retries-- && total < max);
+
+	return total ? total : -EIO;
+}
+EXPORT_SYMBOL_GPL(tpm_get_random);
+
 /* In case vendor provided release function, call it too.*/
 
 void tpm_dev_vendor_release(struct tpm_chip *chip)
@@ -1346,7 +1403,7 @@ EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
  * Once all references to platform device are down to 0,
  * release all allocated structures.
  */
-void tpm_dev_release(struct device *dev)
+static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
@@ -1423,6 +1480,11 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	}
 
 	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
+		misc_deregister(&chip->vendor.miscdev);
+		goto put_device;
+	}
+
+	if (tpm_add_ppi(&dev->kobj)) {
 		misc_deregister(&chip->vendor.miscdev);
 		goto put_device;
 	}
