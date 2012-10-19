@@ -228,7 +228,7 @@ static int macb_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static int macb_mii_init(struct macb *bp)
+int macb_mii_init(struct macb *bp)
 {
 	struct macb_platform_data *pdata;
 	int err = -ENXIO, i;
@@ -284,6 +284,7 @@ err_out_free_mdiobus:
 err_out:
 	return err;
 }
+EXPORT_SYMBOL_GPL(macb_mii_init);
 
 static void macb_update_stats(struct macb *bp)
 {
@@ -996,7 +997,7 @@ static void macb_sethashtable(struct net_device *dev)
 /*
  * Enable/Disable promiscuous and multicast modes.
  */
-static void macb_set_rx_mode(struct net_device *dev)
+void macb_set_rx_mode(struct net_device *dev)
 {
 	unsigned long cfg;
 	struct macb *bp = netdev_priv(dev);
@@ -1028,6 +1029,7 @@ static void macb_set_rx_mode(struct net_device *dev)
 
 	macb_writel(bp, NCFGR, cfg);
 }
+EXPORT_SYMBOL_GPL(macb_set_rx_mode);
 
 static int macb_open(struct net_device *dev)
 {
@@ -1214,15 +1216,16 @@ static void macb_get_drvinfo(struct net_device *dev,
 	strcpy(info->bus_info, dev_name(&bp->pdev->dev));
 }
 
-static const struct ethtool_ops macb_ethtool_ops = {
+const struct ethtool_ops macb_ethtool_ops = {
 	.get_settings		= macb_get_settings,
 	.set_settings		= macb_set_settings,
 	.get_drvinfo		= macb_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
 };
+EXPORT_SYMBOL_GPL(macb_ethtool_ops);
 
-static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
@@ -1235,6 +1238,7 @@ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return phy_mii_ioctl(phydev, rq, cmd);
 }
+EXPORT_SYMBOL_GPL(macb_ioctl);
 
 static const struct net_device_ops macb_netdev_ops = {
 	.ndo_open		= macb_open,
