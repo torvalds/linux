@@ -16,6 +16,11 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/amp.h>
+
+/* Global AMP Manager list */
+LIST_HEAD(amp_mgr_list);
+DEFINE_MUTEX(amp_mgr_list_lock);
 
 /* A2MP build & send command helper functions */
 static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
@@ -37,8 +42,7 @@ static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
 	return cmd;
 }
 
-static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len,
-		      void *data)
+void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 {
 	struct l2cap_chan *chan = mgr->a2mp_chan;
 	struct a2mp_cmd *cmd;
@@ -61,6 +65,14 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len,
 	l2cap_chan_send(chan, &msg, total_len, 0);
 
 	kfree(cmd);
+}
+
+u8 __next_ident(struct amp_mgr *mgr)
+{
+	if (++mgr->ident == 0)
+		mgr->ident = 1;
+
+	return mgr->ident;
 }
 
 static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
@@ -161,6 +173,83 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	return 0;
 }
 
+static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
+			     struct a2mp_cmd *hdr)
+{
+	struct a2mp_discov_rsp *rsp = (void *) skb->data;
+	u16 len = le16_to_cpu(hdr->len);
+	struct a2mp_cl *cl;
+	u16 ext_feat;
+	bool found = false;
+
+	if (len < sizeof(*rsp))
+		return -EINVAL;
+
+	len -= sizeof(*rsp);
+	skb_pull(skb, sizeof(*rsp));
+
+	ext_feat = le16_to_cpu(rsp->ext_feat);
+
+	BT_DBG("mtu %d efm 0x%4.4x", le16_to_cpu(rsp->mtu), ext_feat);
+
+	/* check that packet is not broken for now */
+	while (ext_feat & A2MP_FEAT_EXT) {
+		if (len < sizeof(ext_feat))
+			return -EINVAL;
+
+		ext_feat = get_unaligned_le16(skb->data);
+		BT_DBG("efm 0x%4.4x", ext_feat);
+		len -= sizeof(ext_feat);
+		skb_pull(skb, sizeof(ext_feat));
+	}
+
+	cl = (void *) skb->data;
+	while (len >= sizeof(*cl)) {
+		BT_DBG("Remote AMP id %d type %d status %d", cl->id, cl->type,
+		       cl->status);
+
+		if (cl->id != HCI_BREDR_ID && cl->type == HCI_AMP) {
+			struct a2mp_info_req req;
+
+			found = true;
+			req.id = cl->id;
+			a2mp_send(mgr, A2MP_GETINFO_REQ, __next_ident(mgr),
+				  sizeof(req), &req);
+		}
+
+		len -= sizeof(*cl);
+		cl = (void *) skb_pull(skb, sizeof(*cl));
+	}
+
+	/* Fall back to L2CAP init sequence */
+	if (!found) {
+		struct l2cap_conn *conn = mgr->l2cap_conn;
+		struct l2cap_chan *chan;
+
+		mutex_lock(&conn->chan_lock);
+
+		list_for_each_entry(chan, &conn->chan_l, list) {
+
+			BT_DBG("chan %p state %s", chan,
+			       state_to_string(chan->state));
+
+			if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP)
+				continue;
+
+			l2cap_chan_lock(chan);
+
+			if (chan->state == BT_CONNECT)
+				l2cap_send_conn_req(chan);
+
+			l2cap_chan_unlock(chan);
+		}
+
+		mutex_unlock(&conn->chan_lock);
+	}
+
+	return 0;
+}
+
 static int a2mp_change_notify(struct amp_mgr *mgr, struct sk_buff *skb,
 			      struct a2mp_cmd *hdr)
 {
@@ -181,7 +270,6 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 			    struct a2mp_cmd *hdr)
 {
 	struct a2mp_info_req *req  = (void *) skb->data;
-	struct a2mp_info_rsp rsp;
 	struct hci_dev *hdev;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
@@ -189,25 +277,54 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("id %d", req->id);
 
-	rsp.id = req->id;
-	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
-
 	hdev = hci_dev_get(req->id);
-	if (hdev && hdev->amp_type != HCI_BREDR) {
-		rsp.status = 0;
-		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
-		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);
-		rsp.min_latency = cpu_to_le32(hdev->amp_min_latency);
-		rsp.pal_cap = cpu_to_le16(hdev->amp_pal_cap);
-		rsp.assoc_size = cpu_to_le16(hdev->amp_assoc_size);
+	if (!hdev || hdev->dev_type != HCI_AMP) {
+		struct a2mp_info_rsp rsp;
+
+		rsp.id = req->id;
+		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+		a2mp_send(mgr, A2MP_GETINFO_RSP, hdr->ident, sizeof(rsp),
+			  &rsp);
+
+		goto done;
 	}
 
+	mgr->state = READ_LOC_AMP_INFO;
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
+
+done:
 	if (hdev)
 		hci_dev_put(hdev);
 
-	a2mp_send(mgr, A2MP_GETINFO_RSP, hdr->ident, sizeof(rsp), &rsp);
-
 	skb_pull(skb, sizeof(*req));
+	return 0;
+}
+
+static int a2mp_getinfo_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
+			    struct a2mp_cmd *hdr)
+{
+	struct a2mp_info_rsp *rsp = (struct a2mp_info_rsp *) skb->data;
+	struct a2mp_amp_assoc_req req;
+	struct amp_ctrl *ctrl;
+
+	if (le16_to_cpu(hdr->len) < sizeof(*rsp))
+		return -EINVAL;
+
+	BT_DBG("id %d status 0x%2.2x", rsp->id, rsp->status);
+
+	if (rsp->status)
+		return -EINVAL;
+
+	ctrl = amp_ctrl_add(mgr, rsp->id);
+	if (!ctrl)
+		return -ENOMEM;
+
+	req.id = rsp->id;
+	a2mp_send(mgr, A2MP_GETAMPASSOC_REQ, __next_ident(mgr), sizeof(req),
+		  &req);
+
+	skb_pull(skb, sizeof(*rsp));
 	return 0;
 }
 
@@ -216,30 +333,103 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 {
 	struct a2mp_amp_assoc_req *req = (void *) skb->data;
 	struct hci_dev *hdev;
+	struct amp_mgr *tmp;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
 
 	BT_DBG("id %d", req->id);
 
+	/* Make sure that other request is not processed */
+	tmp = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
+
 	hdev = hci_dev_get(req->id);
-	if (!hdev || hdev->amp_type == HCI_BREDR) {
+	if (!hdev || hdev->amp_type == HCI_BREDR || tmp) {
 		struct a2mp_amp_assoc_rsp rsp;
 		rsp.id = req->id;
-		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+		if (tmp) {
+			rsp.status = A2MP_STATUS_COLLISION_OCCURED;
+			amp_mgr_put(tmp);
+		} else {
+			rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+		}
 
 		a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, hdr->ident, sizeof(rsp),
 			  &rsp);
-		goto clean;
+
+		goto done;
 	}
 
-	/* Placeholder for HCI Read AMP Assoc */
+	amp_read_loc_assoc(hdev, mgr);
 
-clean:
+done:
 	if (hdev)
 		hci_dev_put(hdev);
 
 	skb_pull(skb, sizeof(*req));
+	return 0;
+}
+
+static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
+				struct a2mp_cmd *hdr)
+{
+	struct a2mp_amp_assoc_rsp *rsp = (void *) skb->data;
+	u16 len = le16_to_cpu(hdr->len);
+	struct hci_dev *hdev;
+	struct amp_ctrl *ctrl;
+	struct hci_conn *hcon;
+	size_t assoc_len;
+
+	if (len < sizeof(*rsp))
+		return -EINVAL;
+
+	assoc_len = len - sizeof(*rsp);
+
+	BT_DBG("id %d status 0x%2.2x assoc len %zu", rsp->id, rsp->status,
+	       assoc_len);
+
+	if (rsp->status)
+		return -EINVAL;
+
+	/* Save remote ASSOC data */
+	ctrl = amp_ctrl_lookup(mgr, rsp->id);
+	if (ctrl) {
+		u8 *assoc;
+
+		assoc = kzalloc(assoc_len, GFP_KERNEL);
+		if (!assoc) {
+			amp_ctrl_put(ctrl);
+			return -ENOMEM;
+		}
+
+		memcpy(assoc, rsp->amp_assoc, assoc_len);
+		ctrl->assoc = assoc;
+		ctrl->assoc_len = assoc_len;
+		ctrl->assoc_rem_len = assoc_len;
+		ctrl->assoc_len_so_far = 0;
+
+		amp_ctrl_put(ctrl);
+	}
+
+	/* Create Phys Link */
+	hdev = hci_dev_get(rsp->id);
+	if (!hdev)
+		return -EINVAL;
+
+	hcon = phylink_add(hdev, mgr, rsp->id, true);
+	if (!hcon)
+		goto done;
+
+	BT_DBG("Created hcon %p: loc:%d -> rem:%d", hcon, hdev->id, rsp->id);
+
+	mgr->bredr_chan->ctrl_id = rsp->id;
+
+	amp_create_phylink(hdev, mgr, hcon);
+
+done:
+	hci_dev_put(hdev);
+	skb_pull(skb, len);
 	return 0;
 }
 
@@ -250,6 +440,8 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	struct a2mp_physlink_rsp rsp;
 	struct hci_dev *hdev;
+	struct hci_conn *hcon;
+	struct amp_ctrl *ctrl;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
@@ -265,9 +457,43 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		goto send_rsp;
 	}
 
-	/* TODO process physlink create */
+	ctrl = amp_ctrl_lookup(mgr, rsp.remote_id);
+	if (!ctrl) {
+		ctrl = amp_ctrl_add(mgr, rsp.remote_id);
+		if (ctrl) {
+			amp_ctrl_get(ctrl);
+		} else {
+			rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
+			goto send_rsp;
+		}
+	}
 
-	rsp.status = A2MP_STATUS_SUCCESS;
+	if (ctrl) {
+		size_t assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
+		u8 *assoc;
+
+		assoc = kzalloc(assoc_len, GFP_KERNEL);
+		if (!assoc) {
+			amp_ctrl_put(ctrl);
+			return -ENOMEM;
+		}
+
+		memcpy(assoc, req->amp_assoc, assoc_len);
+		ctrl->assoc = assoc;
+		ctrl->assoc_len = assoc_len;
+		ctrl->assoc_rem_len = assoc_len;
+		ctrl->assoc_len_so_far = 0;
+
+		amp_ctrl_put(ctrl);
+	}
+
+	hcon = phylink_add(hdev, mgr, req->local_id, false);
+	if (hcon) {
+		amp_accept_phylink(hdev, mgr, hcon);
+		rsp.status = A2MP_STATUS_SUCCESS;
+	} else {
+		rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
+	}
 
 send_rsp:
 	if (hdev)
@@ -286,6 +512,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct a2mp_physlink_req *req = (void *) skb->data;
 	struct a2mp_physlink_rsp rsp;
 	struct hci_dev *hdev;
+	struct hci_conn *hcon;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
@@ -296,14 +523,22 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp.remote_id = req->local_id;
 	rsp.status = A2MP_STATUS_SUCCESS;
 
-	hdev = hci_dev_get(req->local_id);
+	hdev = hci_dev_get(req->remote_id);
 	if (!hdev) {
 		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 		goto send_rsp;
 	}
 
+	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, mgr->l2cap_conn->dst);
+	if (!hcon) {
+		BT_ERR("No phys link exist");
+		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
+		goto clean;
+	}
+
 	/* TODO Disconnect Phys Link here */
 
+clean:
 	hci_dev_put(hdev);
 
 send_rsp:
@@ -377,10 +612,19 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 			err = a2mp_discphyslink_req(mgr, skb, hdr);
 			break;
 
-		case A2MP_CHANGE_RSP:
 		case A2MP_DISCOVER_RSP:
+			err = a2mp_discover_rsp(mgr, skb, hdr);
+			break;
+
 		case A2MP_GETINFO_RSP:
+			err = a2mp_getinfo_rsp(mgr, skb, hdr);
+			break;
+
 		case A2MP_GETAMPASSOC_RSP:
+			err = a2mp_getampassoc_rsp(mgr, skb, hdr);
+			break;
+
+		case A2MP_CHANGE_RSP:
 		case A2MP_CREATEPHYSLINK_RSP:
 		case A2MP_DISCONNPHYSLINK_RSP:
 			err = a2mp_cmd_rsp(mgr, skb, hdr);
@@ -455,9 +699,10 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.new_connection = l2cap_chan_no_new_connection,
 	.teardown = l2cap_chan_no_teardown,
 	.ready = l2cap_chan_no_ready,
+	.defer = l2cap_chan_no_defer,
 };
 
-static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
+static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 {
 	struct l2cap_chan *chan;
 	int err;
@@ -492,7 +737,10 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 
 	chan->conf_state = 0;
 
-	l2cap_chan_add(conn, chan);
+	if (locked)
+		__l2cap_chan_add(conn, chan);
+	else
+		l2cap_chan_add(conn, chan);
 
 	chan->remote_mps = chan->omtu;
 	chan->mps = chan->omtu;
@@ -503,11 +751,13 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 }
 
 /* AMP Manager functions */
-void amp_mgr_get(struct amp_mgr *mgr)
+struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr)
 {
 	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
 
 	kref_get(&mgr->kref);
+
+	return mgr;
 }
 
 static void amp_mgr_destroy(struct kref *kref)
@@ -516,6 +766,11 @@ static void amp_mgr_destroy(struct kref *kref)
 
 	BT_DBG("mgr %p", mgr);
 
+	mutex_lock(&amp_mgr_list_lock);
+	list_del(&mgr->list);
+	mutex_unlock(&amp_mgr_list_lock);
+
+	amp_ctrl_list_flush(mgr);
 	kfree(mgr);
 }
 
@@ -526,7 +781,7 @@ int amp_mgr_put(struct amp_mgr *mgr)
 	return kref_put(&mgr->kref, &amp_mgr_destroy);
 }
 
-static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
+static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn, bool locked)
 {
 	struct amp_mgr *mgr;
 	struct l2cap_chan *chan;
@@ -539,7 +794,7 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 
 	mgr->l2cap_conn = conn;
 
-	chan = a2mp_chan_open(conn);
+	chan = a2mp_chan_open(conn, locked);
 	if (!chan) {
 		kfree(mgr);
 		return NULL;
@@ -552,6 +807,14 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 
 	kref_init(&mgr->kref);
 
+	/* Remote AMP ctrl list initialization */
+	INIT_LIST_HEAD(&mgr->amp_ctrls);
+	mutex_init(&mgr->amp_ctrls_lock);
+
+	mutex_lock(&amp_mgr_list_lock);
+	list_add(&mgr->list, &amp_mgr_list);
+	mutex_unlock(&amp_mgr_list_lock);
+
 	return mgr;
 }
 
@@ -560,7 +823,7 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 {
 	struct amp_mgr *mgr;
 
-	mgr = amp_mgr_create(conn);
+	mgr = amp_mgr_create(conn, false);
 	if (!mgr) {
 		BT_ERR("Could not create AMP manager");
 		return NULL;
@@ -569,4 +832,140 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 	BT_DBG("mgr: %p chan %p", mgr, mgr->a2mp_chan);
 
 	return mgr->a2mp_chan;
+}
+
+struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
+{
+	struct amp_mgr *mgr;
+
+	mutex_lock(&amp_mgr_list_lock);
+	list_for_each_entry(mgr, &amp_mgr_list, list) {
+		if (mgr->state == state) {
+			amp_mgr_get(mgr);
+			mutex_unlock(&amp_mgr_list_lock);
+			return mgr;
+		}
+	}
+	mutex_unlock(&amp_mgr_list_lock);
+
+	return NULL;
+}
+
+void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
+{
+	struct amp_mgr *mgr;
+	struct a2mp_info_rsp rsp;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_INFO);
+	if (!mgr)
+		return;
+
+	BT_DBG("%s mgr %p", hdev->name, mgr);
+
+	rsp.id = hdev->id;
+	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+	if (hdev->amp_type != HCI_BREDR) {
+		rsp.status = 0;
+		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
+		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);
+		rsp.min_latency = cpu_to_le32(hdev->amp_min_latency);
+		rsp.pal_cap = cpu_to_le16(hdev->amp_pal_cap);
+		rsp.assoc_size = cpu_to_le16(hdev->amp_assoc_size);
+	}
+
+	a2mp_send(mgr, A2MP_GETINFO_RSP, mgr->ident, sizeof(rsp), &rsp);
+	amp_mgr_put(mgr);
+}
+
+void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status)
+{
+	struct amp_mgr *mgr;
+	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
+	struct a2mp_amp_assoc_rsp *rsp;
+	size_t len;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
+	if (!mgr)
+		return;
+
+	BT_DBG("%s mgr %p", hdev->name, mgr);
+
+	len = sizeof(struct a2mp_amp_assoc_rsp) + loc_assoc->len;
+	rsp = kzalloc(len, GFP_KERNEL);
+	if (!rsp) {
+		amp_mgr_put(mgr);
+		return;
+	}
+
+	rsp->id = hdev->id;
+
+	if (status) {
+		rsp->status = A2MP_STATUS_INVALID_CTRL_ID;
+	} else {
+		rsp->status = A2MP_STATUS_SUCCESS;
+		memcpy(rsp->amp_assoc, loc_assoc->data, loc_assoc->len);
+	}
+
+	a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, mgr->ident, len, rsp);
+	amp_mgr_put(mgr);
+	kfree(rsp);
+}
+
+void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status)
+{
+	struct amp_mgr *mgr;
+	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
+	struct a2mp_physlink_req *req;
+	struct l2cap_chan *bredr_chan;
+	size_t len;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC_FINAL);
+	if (!mgr)
+		return;
+
+	len = sizeof(*req) + loc_assoc->len;
+
+	BT_DBG("%s mgr %p assoc_len %zu", hdev->name, mgr, len);
+
+	req = kzalloc(len, GFP_KERNEL);
+	if (!req) {
+		amp_mgr_put(mgr);
+		return;
+	}
+
+	bredr_chan = mgr->bredr_chan;
+	if (!bredr_chan)
+		goto clean;
+
+	req->local_id = hdev->id;
+	req->remote_id = bredr_chan->ctrl_id;
+	memcpy(req->amp_assoc, loc_assoc->data, loc_assoc->len);
+
+	a2mp_send(mgr, A2MP_CREATEPHYSLINK_REQ, __next_ident(mgr), len, req);
+
+clean:
+	amp_mgr_put(mgr);
+	kfree(req);
+}
+
+void a2mp_discover_amp(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct amp_mgr *mgr = conn->hcon->amp_mgr;
+	struct a2mp_discov_req req;
+
+	BT_DBG("chan %p conn %p mgr %p", chan, conn, mgr);
+
+	if (!mgr) {
+		mgr = amp_mgr_create(conn, true);
+		if (!mgr)
+			return;
+	}
+
+	mgr->bredr_chan = chan;
+
+	req.mtu = cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
+	req.ext_feat = 0;
+	a2mp_send(mgr, A2MP_DISCOVER_REQ, 1, sizeof(req), &req);
 }

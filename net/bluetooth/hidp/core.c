@@ -932,8 +932,12 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->country = req->country;
 
 	strncpy(hid->name, req->name, 128);
-	strncpy(hid->phys, batostr(&bt_sk(session->ctrl_sock->sk)->src), 64);
-	strncpy(hid->uniq, batostr(&bt_sk(session->ctrl_sock->sk)->dst), 64);
+
+	snprintf(hid->phys, sizeof(hid->phys), "%pMR",
+		 &bt_sk(session->ctrl_sock->sk)->src);
+
+	snprintf(hid->uniq, sizeof(hid->uniq), "%pMR",
+		 &bt_sk(session->ctrl_sock->sk)->dst);
 
 	hid->dev.parent = &session->conn->dev;
 	hid->ll_driver = &hidp_hid_driver;
