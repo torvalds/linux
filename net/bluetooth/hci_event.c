@@ -550,6 +550,13 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 		events[7] |= 0x20;	/* LE Meta-Event */
 
 	hci_send_cmd(hdev, HCI_OP_SET_EVENT_MASK, sizeof(events), events);
+
+	if (lmp_le_capable(hdev)) {
+		memset(events, 0, sizeof(events));
+		events[0] = 0x1f;
+		hci_send_cmd(hdev, HCI_OP_LE_SET_EVENT_MASK,
+			     sizeof(events), events);
+	}
 }
 
 static void bredr_init(struct hci_dev *hdev)
@@ -1064,6 +1071,15 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	BT_DBG("%s le mtu %d:%d", hdev->name, hdev->le_mtu, hdev->le_pkts);
 
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
+}
+
+static void hci_cc_le_set_event_mask(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_LE_SET_EVENT_MASK, status);
 }
 
 static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
@@ -2487,6 +2503,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:
 		hci_cc_le_read_buffer_size(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_EVENT_MASK:
+		hci_cc_le_set_event_mask(hdev, skb);
 		break;
 
 	case HCI_OP_USER_CONFIRM_REPLY:
