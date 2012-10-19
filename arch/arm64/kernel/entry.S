@@ -148,10 +148,6 @@ tsk	.req	x28		// current thread_info
 /*
  * Exception vectors.
  */
-	.macro	ventry	label
-	.align	7
-	b	\label
-	.endm
 
 	.align	11
 ENTRY(vectors)
