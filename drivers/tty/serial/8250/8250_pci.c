@@ -1068,7 +1068,7 @@ ce4100_serial_setup(struct serial_private *priv,
 {
 	int ret;
 
-	ret = setup_port(priv, port, 0, 0, board->reg_shift);
+	ret = setup_port(priv, port, idx, 0, board->reg_shift);
 	port->port.iotype = UPIO_MEM32;
 	port->port.type = PORT_XSCALE;
 	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
@@ -2658,8 +2658,8 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.first_offset	= 0x1000,
 	},
 	[pbn_ce4100_1_115200] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 1,
+		.flags		= FL_BASE_BARS,
+		.num_ports	= 2,
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
