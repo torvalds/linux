@@ -2225,6 +2225,21 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 			break;
 		}
 		break;
+
+	case MADI:
+	case MADIface:
+		{
+			int rate = hdspm_external_sample_rate(hdspm);
+			int i, selected_rate = 0;
+			for (i = 1; i < 10; i++)
+				if (HDSPM_bit2freq(i) == rate) {
+					selected_rate = i;
+					break;
+				}
+			ucontrol->value.enumerated.item[0] = selected_rate;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -4450,6 +4465,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 	HDSPM_PREF_SYNC_REF("Preferred Sync Reference", 0),
 	HDSPM_AUTOSYNC_REF("AutoSync Reference", 0),
 	HDSPM_SYSTEM_SAMPLE_RATE("System Sample Rate", 0),
+	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 0),
 	HDSPM_SYNC_CHECK("WC SyncCheck", 0),
 	HDSPM_SYNC_CHECK("MADI SyncCheck", 1),
 	HDSPM_SYNC_CHECK("TCO SyncCHeck", 2),
