@@ -2003,8 +2003,10 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
-  .access = SNDRV_CTL_ELEM_ACCESS_READ, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |\
+	SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
   .info = snd_hdspm_info_system_sample_rate, \
+  .put = snd_hdspm_put_system_sample_rate, \
   .get = snd_hdspm_get_system_sample_rate \
 }
 
@@ -2027,6 +2029,16 @@ static int snd_hdspm_get_system_sample_rate(struct snd_kcontrol *kcontrol,
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.integer.value[0] = hdspm_get_system_sample_rate(hdspm);
+	return 0;
+}
+
+static int snd_hdspm_put_system_sample_rate(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *
+					    ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+
+	hdspm_set_dds_value(hdspm, ucontrol->value.enumerated.item[0]);
 	return 0;
 }
 
