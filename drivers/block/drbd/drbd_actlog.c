@@ -695,11 +695,15 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 				(unsigned long long)sector, size);
 		return;
 	}
+
+	if (!get_ldev(mdev))
+		return; /* no disk, no metadata, no bitmap to clear bits in */
+
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
 
 	if (!expect(sector < nr_sectors))
-		return;
+		goto out;
 	if (!expect(esector < nr_sectors))
 		esector = nr_sectors - 1;
 
@@ -709,7 +713,7 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	 * round up start sector, round down end sector.  we make sure we only
 	 * clear full, aligned, BM_BLOCK_SIZE (4K) blocks */
 	if (unlikely(esector < BM_SECT_PER_BIT-1))
-		return;
+		goto out;
 	if (unlikely(esector == (nr_sectors-1)))
 		ebnr = lbnr;
 	else
@@ -717,14 +721,14 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
 
 	if (sbnr > ebnr)
-		return;
+		goto out;
 
 	/*
 	 * ok, (capacity & 7) != 0 sometimes, but who cares...
 	 * we count rs_{total,left} in bits, not sectors.
 	 */
 	count = drbd_bm_clear_bits(mdev, sbnr, ebnr);
-	if (count && get_ldev(mdev)) {
+	if (count) {
 		drbd_advance_rs_marks(mdev, drbd_bm_total_weight(mdev));
 		spin_lock_irqsave(&mdev->al_lock, flags);
 		drbd_try_clear_on_disk_bm(mdev, sector, count, true);
@@ -733,8 +737,9 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 		/* just wake_up unconditional now, various lc_chaged(),
 		 * lc_put() in drbd_try_clear_on_disk_bm(). */
 		wake_up = 1;
-		put_ldev(mdev);
 	}
+out:
+	put_ldev(mdev);
 	if (wake_up)
 		wake_up(&mdev->al_wait);
 }
