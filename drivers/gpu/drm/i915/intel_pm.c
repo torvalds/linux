@@ -3295,14 +3295,14 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
 	/* Required for FBC */
-	dspclk_gate |= DPFCUNIT_CLOCK_GATE_DISABLE |
-		DPFCRUNIT_CLOCK_GATE_DISABLE |
-		DPFDUNIT_CLOCK_GATE_DISABLE;
+	dspclk_gate |= ILK_DPFCUNIT_CLOCK_GATE_DISABLE |
+		ILK_DPFCRUNIT_CLOCK_GATE_DISABLE |
+		ILK_DPFDUNIT_CLOCK_GATE_ENABLE;
 	/* Required for CxSR */
-	dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
+	dspclk_gate |= ILK_DPARBUNIT_CLOCK_GATE_ENABLE;
 
 	I915_WRITE(PCH_3DCGDIS0,
 		   MARIUNIT_CLOCK_GATE_DISABLE |
@@ -3310,7 +3310,7 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(PCH_3DCGDIS1,
 		   VFMUNIT_CLOCK_GATE_DISABLE);
 
-	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	/*
 	 * According to the spec the following bits should be set in
@@ -3322,9 +3322,9 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(ILK_DISPLAY_CHICKEN2,
 		   (I915_READ(ILK_DISPLAY_CHICKEN2) |
 		    ILK_DPARB_GATE | ILK_VSDPFD_FULL));
-	I915_WRITE(ILK_DSPCLK_GATE,
-		   (I915_READ(ILK_DSPCLK_GATE) |
-		    ILK_DPARB_CLK_GATE));
+	I915_WRITE(ILK_DSPCLK_GATE_D,
+		   (I915_READ(ILK_DSPCLK_GATE_D) |
+		    ILK_DPARBUNIT_CLOCK_GATE_ENABLE));
 	I915_WRITE(DISP_ARB_CTL,
 		   (I915_READ(DISP_ARB_CTL) |
 		    DISP_FBC_WM_DIS));
@@ -3346,11 +3346,11 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(ILK_DISPLAY_CHICKEN2,
 			   I915_READ(ILK_DISPLAY_CHICKEN2) |
 			   ILK_DPARB_GATE);
-		I915_WRITE(ILK_DSPCLK_GATE,
-			   I915_READ(ILK_DSPCLK_GATE) |
-			   ILK_DPFC_DIS1 |
-			   ILK_DPFC_DIS2 |
-			   ILK_CLK_FBC);
+		I915_WRITE(ILK_DSPCLK_GATE_D,
+			   I915_READ(ILK_DSPCLK_GATE_D) |
+			   ILK_DPFCRUNIT_CLOCK_GATE_DISABLE |
+			   ILK_DPFCUNIT_CLOCK_GATE_DISABLE |
+			   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 	}
 
 	I915_WRITE(ILK_DISPLAY_CHICKEN2,
@@ -3365,9 +3365,9 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
-	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(ILK_DISPLAY_CHICKEN2,
 		   I915_READ(ILK_DISPLAY_CHICKEN2) |
@@ -3422,10 +3422,10 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(ILK_DISPLAY_CHICKEN2,
 		   I915_READ(ILK_DISPLAY_CHICKEN2) |
 		   ILK_DPARB_GATE | ILK_VSDPFD_FULL);
-	I915_WRITE(ILK_DSPCLK_GATE,
-		   I915_READ(ILK_DSPCLK_GATE) |
-		   ILK_DPARB_CLK_GATE  |
-		   ILK_DPFD_CLK_GATE);
+	I915_WRITE(ILK_DSPCLK_GATE_D,
+		   I915_READ(ILK_DSPCLK_GATE_D) |
+		   ILK_DPARBUNIT_CLOCK_GATE_ENABLE  |
+		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
@@ -3507,16 +3507,16 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 	uint32_t snpcr;
 
-	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
+	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableEarlyCull */
 	I915_WRITE(_3D_CHICKEN3,
@@ -3589,15 +3589,15 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
-	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
+	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableEarlyCull */
 	I915_WRITE(_3D_CHICKEN3,

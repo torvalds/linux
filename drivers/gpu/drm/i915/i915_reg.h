@@ -3248,12 +3248,6 @@
 #define DISPLAY_PORT_PLL_BIOS_1         0x46010
 #define DISPLAY_PORT_PLL_BIOS_2         0x46014
 
-#define PCH_DSPCLK_GATE_D	0x42020
-# define DPFCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
-# define DPFCRUNIT_CLOCK_GATE_DISABLE		(1 << 8)
-# define DPFDUNIT_CLOCK_GATE_DISABLE		(1 << 7)
-# define DPARBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
-
 #define PCH_3DCGDIS0		0x46020
 # define MARIUNIT_CLOCK_GATE_DISABLE		(1 << 18)
 # define SVSMUNIT_CLOCK_GATE_DISABLE		(1 << 1)
@@ -3425,15 +3419,13 @@
 #define  ILK_HDCP_DISABLE		(1<<25)
 #define  ILK_eDP_A_DISABLE		(1<<24)
 #define  ILK_DESKTOP			(1<<23)
-#define ILK_DSPCLK_GATE		0x42020
-#define  IVB_VRHUNIT_CLK_GATE	(1<<28)
-#define  ILK_DPARB_CLK_GATE	(1<<5)
-#define  ILK_DPFD_CLK_GATE	(1<<7)
 
-/* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
-#define   ILK_CLK_FBC		(1<<7)
-#define   ILK_DPFC_DIS1		(1<<8)
-#define   ILK_DPFC_DIS2		(1<<9)
+#define ILK_DSPCLK_GATE_D			0x42020
+#define   ILK_VRHUNIT_CLOCK_GATE_DISABLE	(1 << 28)
+#define   ILK_DPFCUNIT_CLOCK_GATE_DISABLE	(1 << 9)
+#define   ILK_DPFCRUNIT_CLOCK_GATE_DISABLE	(1 << 8)
+#define   ILK_DPFDUNIT_CLOCK_GATE_ENABLE	(1 << 7)
+#define   ILK_DPARBUNIT_CLOCK_GATE_ENABLE	(1 << 5)
 
 #define IVB_CHICKEN3	0x4200c
 # define CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE	(1 << 5)
