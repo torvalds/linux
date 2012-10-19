@@ -1030,7 +1030,7 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 	opp = opp_find_freq_floor(dev, &exynos4_devfreq_profile.initial_freq);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "Invalid initial frequency %lu kHz.\n",
-		       exynos4_devfreq_profile.initial_freq);
+			exynos4_devfreq_profile.initial_freq);
 		return PTR_ERR(opp);
 	}
 	data->curr_opp = opp;
