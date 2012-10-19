@@ -56,7 +56,7 @@ int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
 	writel(pconline0, (void *)pci_online0_offset);
 	writel(pconline1, (void *)pci_online1_offset);
 
-	sreset = BE2_SET_RESET;
+	sreset |= BE2_SET_RESET;
 	writel(sreset, (void *)pci_reset_offset);
 
 	i = 0;
