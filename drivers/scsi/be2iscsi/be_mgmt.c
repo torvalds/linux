@@ -1152,3 +1152,142 @@ beiscsi_drvr_ver_disp(struct device *dev, struct device_attribute *attr,
 {
 	return snprintf(buf, PAGE_SIZE, BE_NAME "\n");
 }
+
+void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle,
+			     struct be_mem_descriptor *mem_descr)
+{
+	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
+
+	memset(pwrb, 0, sizeof(*pwrb));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_send_data_segment_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_send_data_segment_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, type, pwrb,
+		      BE_TGT_CTX_UPDT_CMD);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      first_burst_length,
+		      pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      first_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, erl, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      erl) / 32] & OFFLD_PARAMS_ERL));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, dde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		       dde) / 32] & OFFLD_PARAMS_DDE) >> 2);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, hde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      hde) / 32] & OFFLD_PARAMS_HDE) >> 3);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, ir2t, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      ir2t) / 32] & OFFLD_PARAMS_IR2T) >> 4);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, imd, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      imd) / 32] & OFFLD_PARAMS_IMD) >> 5);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, stat_sn,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      exp_statsn) / 32] + 1));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, wrb_idx,
+		      pwrb, pwrb_handle->wrb_index);
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, ptr2nextwrb,
+		      pwrb, pwrb_handle->nxt_wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      session_state, pwrb, 0);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, compltonack,
+		      pwrb, 1);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, notpredblq,
+		      pwrb, 0);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, mode, pwrb,
+		      0);
+
+	mem_descr += ISCSI_MEM_GLOBAL_HEADER;
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      pad_buffer_addr_hi, pwrb,
+		      mem_descr->mem_array[0].bus_address.u.a32.address_hi);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      pad_buffer_addr_lo, pwrb,
+		      mem_descr->mem_array[0].bus_address.u.a32.address_lo);
+}
+
+void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle)
+{
+	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
+
+	memset(pwrb, 0, sizeof(*pwrb));
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      type, pwrb,
+		      BE_TGT_CTX_UPDT_CMD);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      ptr2nextwrb,
+		      pwrb, pwrb_handle->nxt_wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, wrb_idx,
+		      pwrb, pwrb_handle->wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_send_data_segment_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_send_data_segment_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      first_burst_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      first_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_recv_dataseg_len, pwrb, BEISCSI_MAX_RECV_DATASEG_LEN);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_cxns, pwrb, BEISCSI_MAX_CXNS);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, erl, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      erl) / 32] & OFFLD_PARAMS_ERL));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, dde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      dde) / 32] & OFFLD_PARAMS_DDE) >> 2);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, hde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      hde) / 32] & OFFLD_PARAMS_HDE) >> 3);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      ir2t, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      ir2t) / 32] & OFFLD_PARAMS_IR2T) >> 4);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, imd, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      imd) / 32] & OFFLD_PARAMS_IMD) >> 5);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      data_seq_inorder,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      data_seq_inorder) / 32] &
+		      OFFLD_PARAMS_DATA_SEQ_INORDER) >> 6);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      pdu_seq_inorder,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      pdu_seq_inorder) / 32] &
+		      OFFLD_PARAMS_PDU_SEQ_INORDER) >> 7);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, max_r2t,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_r2t) / 32] &
+		      OFFLD_PARAMS_MAX_R2T) >> 8);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, stat_sn,
+		      pwrb,
+		     (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      exp_statsn) / 32] + 1));
+}

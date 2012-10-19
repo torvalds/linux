@@ -469,6 +469,9 @@ struct beiscsi_offload_params {
 #define OFFLD_PARAMS_HDE	0x00000008
 #define OFFLD_PARAMS_IR2T	0x00000010
 #define OFFLD_PARAMS_IMD	0x00000020
+#define OFFLD_PARAMS_DATA_SEQ_INORDER   0x00000040
+#define OFFLD_PARAMS_PDU_SEQ_INORDER    0x00000080
+#define OFFLD_PARAMS_MAX_R2T 0x00FFFF00
 
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -483,7 +486,10 @@ struct amap_beiscsi_offload_params {
 	u8 hde[1];
 	u8 ir2t[1];
 	u8 imd[1];
-	u8 pad[26];
+	u8 data_seq_inorder[1];
+	u8 pdu_seq_inorder[1];
+	u8 max_r2t[16];
+	u8 pad[8];
 	u8 exp_statsn[32];
 };
 
@@ -785,6 +791,7 @@ struct iscsi_target_context_update_wrb {
  * Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field
  */
+#define BE_TGT_CTX_UPDT_CMD 0x07
 struct amap_iscsi_target_context_update_wrb {
 	u8 lun[14];		/* DWORD 0 */
 	u8 lt;			/* DWORD 0 */
@@ -829,6 +836,47 @@ struct amap_iscsi_target_context_update_wrb {
 	u8 rsvd10[32];		/* DWORD 15 */
 
 } __packed;
+
+#define BEISCSI_MAX_RECV_DATASEG_LEN    (64 * 1024)
+#define BEISCSI_MAX_CXNS    1
+struct amap_iscsi_target_context_update_wrb_v2 {
+	u8 max_burst_length[24];    /* DWORD 0 */
+	u8 rsvd0[3];    /* DWORD 0 */
+	u8 type[5];     /* DWORD 0 */
+	u8 ptr2nextwrb[8];  /* DWORD 1 */
+	u8 wrb_idx[8];      /* DWORD 1 */
+	u8 rsvd1[16];       /* DWORD 1 */
+	u8 max_send_data_segment_length[24];    /* DWORD 2 */
+	u8 rsvd2[8];    /* DWORD 2 */
+	u8 first_burst_length[24]; /* DWORD 3 */
+	u8 rsvd3[8]; /* DOWRD 3 */
+	u8 max_r2t[16]; /* DWORD 4 */
+	u8 rsvd4[10];   /* DWORD 4 */
+	u8 hde;         /* DWORD 4 */
+	u8 dde;         /* DWORD 4 */
+	u8 erl[2];      /* DWORD 4 */
+	u8 imd;         /* DWORD 4 */
+	u8 ir2t;        /* DWORD 4 */
+	u8 stat_sn[32];     /* DWORD 5 */
+	u8 rsvd5[32];   /* DWORD 6 */
+	u8 rsvd6[32];   /* DWORD 7 */
+	u8 max_recv_dataseg_len[24];    /* DWORD 8 */
+	u8 rsvd7[8]; /* DWORD 8 */
+	u8 rsvd8[32];   /* DWORD 9 */
+	u8 rsvd9[32];   /* DWORD 10 */
+	u8 max_cxns[16]; /* DWORD 11 */
+	u8 rsvd10[11]; /* DWORD  11*/
+	u8 invld; /* DWORD 11 */
+	u8 rsvd11;/* DWORD 11*/
+	u8 dmsg; /* DWORD 11 */
+	u8 data_seq_inorder; /* DWORD 11 */
+	u8 pdu_seq_inorder; /* DWORD 11 */
+	u8 rsvd12[32]; /*DWORD 12 */
+	u8 rsvd13[32]; /* DWORD 13 */
+	u8 rsvd14[32]; /* DWORD 14 */
+	u8 rsvd15[32]; /* DWORD 15 */
+} __packed;
+
 
 struct be_ring {
 	u32 pages;		/* queue size in pages */

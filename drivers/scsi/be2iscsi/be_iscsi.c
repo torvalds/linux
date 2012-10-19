@@ -936,6 +936,14 @@ static void  beiscsi_set_params_for_offld(struct beiscsi_conn *beiscsi_conn,
 		      session->initial_r2t_en);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, imd, params,
 		      session->imm_data_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
+		      data_seq_inorder, params,
+		      session->dataseq_inorder_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
+		      pdu_seq_inorder, params,
+		      session->pdu_inorder_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params, max_r2t, params,
+		      session->max_r2t);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, exp_statsn, params,
 		      (conn->exp_statsn - 1));
 }
