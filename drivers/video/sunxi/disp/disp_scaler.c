@@ -451,14 +451,11 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)//keep the source windo
 	__scal_scan_mod_t out_scan;
     __disp_scaler_t * scaler;
     __u32 screen_index;
-    __u32 cpu_sr;
 
     scaler = &(gdisp.scaler[sel]);
     screen_index = gdisp.scaler[sel].screen_index;
 
-	OSAL_IrqLock(&cpu_sr);
 	memcpy(&scaler->in_fb, pfb, sizeof(__disp_fb_t));
-	OSAL_IrqUnLock(cpu_sr);
 
 	in_type.fmt= Scaler_sw_para_to_reg(0,scaler->in_fb.format);
 	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
