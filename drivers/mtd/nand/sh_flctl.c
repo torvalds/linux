@@ -225,7 +225,7 @@ static enum flctl_ecc_res_t wait_recfifo_ready
 
 		for (i = 0; i < 3; i++) {
 			uint8_t org;
-			int index;
+			unsigned int index;
 
 			data = readl(ecc_reg[i]);
 
@@ -305,28 +305,29 @@ static enum flctl_ecc_res_t read_ecfiforeg
 	return res;
 }
 
-static void write_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
+static void write_fiforeg(struct sh_flctl *flctl, int rlen,
+						unsigned int offset)
 {
 	int i, len_4align;
-	unsigned long *data = (unsigned long *)&flctl->done_buff[offset];
-	void *fifo_addr = (void *)FLDTFIFO(flctl);
+	unsigned long *buf = (unsigned long *)&flctl->done_buff[offset];
 
 	len_4align = (rlen + 3) / 4;
 	for (i = 0; i < len_4align; i++) {
 		wait_wfifo_ready(flctl);
-		writel(cpu_to_be32(data[i]), fifo_addr);
+		writel(cpu_to_be32(buf[i]), FLDTFIFO(flctl));
 	}
 }
 
-static void write_ec_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
+static void write_ec_fiforeg(struct sh_flctl *flctl, int rlen,
+						unsigned int offset)
 {
 	int i, len_4align;
-	unsigned long *data = (unsigned long *)&flctl->done_buff[offset];
+	unsigned long *buf = (unsigned long *)&flctl->done_buff[offset];
 
 	len_4align = (rlen + 3) / 4;
 	for (i = 0; i < len_4align; i++) {
 		wait_wecfifo_ready(flctl);
-		writel(cpu_to_be32(data[i]), FLECFIFO(flctl));
+		writel(cpu_to_be32(buf[i]), FLECFIFO(flctl));
 	}
 }
 
@@ -748,41 +749,35 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int index = flctl->index;
 
-	memcpy(&flctl->done_buff[index], buf, len);
+	memcpy(&flctl->done_buff[flctl->index], buf, len);
 	flctl->index += len;
 }
 
 static uint8_t flctl_read_byte(struct mtd_info *mtd)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int index = flctl->index;
 	uint8_t data;
 
-	data = flctl->done_buff[index];
+	data = flctl->done_buff[flctl->index];
 	flctl->index++;
 	return data;
 }
 
 static uint16_t flctl_read_word(struct mtd_info *mtd)
 {
-       struct sh_flctl *flctl = mtd_to_flctl(mtd);
-       int index = flctl->index;
-       uint16_t data;
-       uint16_t *buf = (uint16_t *)&flctl->done_buff[index];
+	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	uint16_t *buf = (uint16_t *)&flctl->done_buff[flctl->index];
 
-       data = *buf;
-       flctl->index += 2;
-       return data;
+	flctl->index += 2;
+	return *buf;
 }
 
 static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int index = flctl->index;
 
-	memcpy(buf, &flctl->done_buff[index], len);
+	memcpy(buf, &flctl->done_buff[flctl->index], len);
 	flctl->index += len;
 }
 

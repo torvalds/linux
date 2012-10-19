@@ -147,7 +147,7 @@ struct sh_flctl {
 
 	uint8_t	done_buff[2048 + 64];	/* max size 2048 + 64 */
 	int	read_bytes;
-	int	index;
+	unsigned int index;
 	int	seqin_column;		/* column in SEQIN cmd */
 	int	seqin_page_addr;	/* page_addr in SEQIN cmd */
 	uint32_t seqin_read_cmd;		/* read cmd in SEQIN cmd */
