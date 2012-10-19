@@ -81,11 +81,12 @@ openssl dgst $dgst -binary $mod || exit $?
 # the signature with no metadata attached.
 #
 openssl rsautl -sign -inkey $key -keyform PEM -in $mod.dig -out $mod.sig || exit $?
+siglen=`stat -c %s $mod.sig`
 
 SIGNER="`perl $keyid_script $x509 signer-name`"
 KEYID="`perl $keyid_script $x509 keyid`"
-keyidlen=${#KEYID}
-siglen=${#SIGNER}
+keyidlen=$(echo -n "$KEYID" | wc -c)
+signerlen=$(echo -n "$SIGNER" | wc -c)
 
 #
 # Build the signed binary
