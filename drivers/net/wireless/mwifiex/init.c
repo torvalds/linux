@@ -84,10 +84,16 @@ static void scan_delay_timer_fn(unsigned long data)
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 
 		if (priv->user_scan_cfg) {
-			dev_dbg(priv->adapter->dev,
-				"info: %s: scan aborted\n", __func__);
-			cfg80211_scan_done(priv->scan_request, 1);
-			priv->scan_request = NULL;
+			if (priv->scan_request) {
+				dev_dbg(priv->adapter->dev,
+					"info: aborting scan\n");
+				cfg80211_scan_done(priv->scan_request, 1);
+				priv->scan_request = NULL;
+			} else {
+				dev_dbg(priv->adapter->dev,
+					"info: scan already aborted\n");
+			}
+
 			kfree(priv->user_scan_cfg);
 			priv->user_scan_cfg = NULL;
 		}
