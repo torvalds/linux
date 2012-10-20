@@ -271,15 +271,14 @@ over a rather long period of time, but improvements are always welcome!
 	The same cautions apply to call_rcu_bh() and call_rcu_sched().
 
 9.	All RCU list-traversal primitives, which include
-	rcu_dereference(), list_for_each_entry_rcu(),
-	list_for_each_continue_rcu(), and list_for_each_safe_rcu(),
-	must be either within an RCU read-side critical section or
-	must be protected by appropriate update-side locks.  RCU
-	read-side critical sections are delimited by rcu_read_lock()
-	and rcu_read_unlock(), or by similar primitives such as
-	rcu_read_lock_bh() and rcu_read_unlock_bh(), in which case
-	the matching rcu_dereference() primitive must be used in order
-	to keep lockdep happy, in this case, rcu_dereference_bh().
+	rcu_dereference(), list_for_each_entry_rcu(), and
+	list_for_each_safe_rcu(), must be either within an RCU read-side
+	critical section or must be protected by appropriate update-side
+	locks.	RCU read-side critical sections are delimited by
+	rcu_read_lock() and rcu_read_unlock(), or by similar primitives
+	such as rcu_read_lock_bh() and rcu_read_unlock_bh(), in which
+	case the matching rcu_dereference() primitive must be used in
+	order to keep lockdep happy, in this case, rcu_dereference_bh().
 
 	The reason that it is permissible to use RCU list-traversal
 	primitives when the update-side lock is held is that doing so
