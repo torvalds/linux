@@ -244,7 +244,7 @@ extern struct snd_soc_dai_driver rk29_i2s_dai[];
 extern struct snd_soc_dai rk29_i2s_dai[];
 #endif
 
-#if (CONFIG_SND_SOC_RT5631)
+#ifdef CONFIG_SND_SOC_RT5631
 extern struct delayed_work rt5631_delay_cap; //bard 7-16
 #endif
 
