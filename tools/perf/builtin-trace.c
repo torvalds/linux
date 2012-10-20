@@ -56,6 +56,10 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
 	struct syscall *sc;
+	const char *name = audit_syscall_to_name(id, trace->audit_machine);
+
+	if (name == NULL)
+		return -1;
 
 	if (id > trace->syscalls.max) {
 		struct syscall *nsyscalls = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
@@ -75,11 +79,8 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	}
 
 	sc = trace->syscalls.table + id;
-	sc->name = audit_syscall_to_name(id, trace->audit_machine);
-	if (sc->name == NULL)
-		return -1;
-
-	sc->fmt = syscall_fmt__find(sc->name);
+	sc->name = name;
+	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = event_format__new("syscalls", tp_name);
