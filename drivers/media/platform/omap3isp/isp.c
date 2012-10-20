@@ -1767,6 +1767,7 @@ static int isp_register_entities(struct isp_device *isp)
 		struct media_entity *input;
 		unsigned int flags;
 		unsigned int pad;
+		unsigned int i;
 
 		sensor = isp_register_subdev_group(isp, subdevs->subdevs);
 		if (sensor == NULL)
@@ -1814,7 +1815,19 @@ static int isp_register_entities(struct isp_device *isp)
 			goto done;
 		}
 
-		ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+		for (i = 0; i < sensor->entity.num_pads; i++) {
+			if (sensor->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE)
+				break;
+		}
+		if (i == sensor->entity.num_pads) {
+			dev_err(isp->dev,
+				"%s: no source pad in external entity\n",
+				__func__);
+			ret = -EINVAL;
+			goto done;
+		}
+
+		ret = media_entity_create_link(&sensor->entity, i, input, pad,
 					       flags);
 		if (ret < 0)
 			goto done;
