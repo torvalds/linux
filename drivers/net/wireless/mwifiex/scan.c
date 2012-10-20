@@ -1762,10 +1762,6 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		}
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
-		if (priv->scan_pending_on_block) {
-			priv->scan_pending_on_block = false;
-			up(&priv->async_sem);
-		}
 
 		if (priv->user_scan_cfg) {
 			if (priv->scan_request) {
@@ -1914,7 +1910,6 @@ int mwifiex_request_scan(struct mwifiex_private *priv,
 			__func__);
 		return -1;
 	}
-	priv->scan_pending_on_block = true;
 
 	priv->adapter->scan_wait_q_woken = false;
 
@@ -1928,10 +1923,7 @@ int mwifiex_request_scan(struct mwifiex_private *priv,
 	if (!ret)
 		ret = mwifiex_wait_queue_complete(priv->adapter);
 
-	if (ret == -1) {
-		priv->scan_pending_on_block = false;
-		up(&priv->async_sem);
-	}
+	up(&priv->async_sem);
 
 	return ret;
 }
