@@ -26,7 +26,7 @@ static void kirkwood_enable_pcie_clk(const char *port)
 
 	clk = clk_get_sys("pcie", port);
 	if (IS_ERR(clk)) {
-		printk(KERN_ERR "PCIE clock %s missing\n", port);
+		pr_err("PCIE clock %s missing\n", port);
 		return;
 	}
 	clk_prepare_enable(clk);
@@ -168,7 +168,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 
 	index = pcie_port_map[nr];
-	printk(KERN_INFO "PCI: bus%d uses PCIe port %d\n", sys->busnr, index);
+	pr_info("PCI: bus%d uses PCIe port %d\n", sys->busnr, index);
 
 	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
@@ -186,7 +186,8 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	case 1:
 		kirkwood_enable_pcie_clk("1");
 		pcie1_ioresources_init(pp);
-		pci_ioremap_io(SZ_64K * sys->busnr, KIRKWOOD_PCIE1_IO_PHYS_BASE);
+		pci_ioremap_io(SZ_64K * sys->busnr,
+			       KIRKWOOD_PCIE1_IO_PHYS_BASE);
 		break;
 	default:
 		panic("PCIe setup: invalid controller %d", index);
@@ -257,13 +258,13 @@ static struct hw_pci kirkwood_pci __initdata = {
 
 static void __init add_pcie_port(int index, void __iomem *base)
 {
-	printk(KERN_INFO "Kirkwood PCIe port %d: ", index);
+	pr_info("Kirkwood PCIe port %d: ", index);
 
 	if (orion_pcie_link_up(base)) {
-		printk(KERN_INFO "link up\n");
+		pr_info("link up\n");
 		pcie_port_map[num_pcie_ports++] = index;
 	} else
-		printk(KERN_INFO "link down, ignoring\n");
+		pr_info("link down, ignoring\n");
 }
 
 void __init kirkwood_pcie_init(unsigned int portmask)

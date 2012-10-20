@@ -98,7 +98,7 @@ static void __init kirkwood_dt_init(void)
 			     kirkwood_auxdata_lookup, NULL);
 }
 
-static const char *kirkwood_dt_board_compat[] = {
+static const char * const kirkwood_dt_board_compat[] = {
 	"globalscale,dreamplug",
 	"dlink,dns-320",
 	"dlink,dns-325",

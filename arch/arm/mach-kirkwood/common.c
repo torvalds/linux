@@ -18,10 +18,10 @@
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
 #include <linux/mv643xx_i2c.h>
+#include <linux/timex.h>
+#include <linux/kexec.h>
 #include <net/dsa.h>
 #include <asm/page.h>
-#include <asm/timex.h>
-#include <asm/kexec.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
@@ -646,8 +646,7 @@ void __init kirkwood_l2_init(void)
 
 void __init kirkwood_init(void)
 {
-	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
-		kirkwood_id(), kirkwood_tclk);
+	pr_info("Kirkwood: %s, TCLK=%d.\n", kirkwood_id(), kirkwood_tclk);
 
 	/*
 	 * Disable propagation of mbus errors to the CPU local bus,
@@ -671,7 +670,7 @@ void __init kirkwood_init(void)
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
 
-#ifdef CONFIG_KEXEC 
+#ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
 }
