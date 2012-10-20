@@ -877,9 +877,9 @@ error0:
  * This function is designed to be called twice if it has to do an allocation
  * to make more free inodes.  On the first call, *IO_agbp should be set to NULL.
  * If an inode is available without having to performn an allocation, an inode
- * number is returned.  In this case, *IO_agbp would be NULL.  If an allocation
- * needes to be done, xfs_dialloc would return the current AGI buffer in
- * *IO_agbp.  The caller should then commit the current transaction, allocate a
+ * number is returned.  In this case, *IO_agbp is set to NULL.  If an allocation
+ * needs to be done, xfs_dialloc returns the current AGI buffer in *IO_agbp.
+ * The caller should then commit the current transaction, allocate a
  * new transaction, and call xfs_dialloc() again, passing in the previous value
  * of *IO_agbp.  IO_agbp should be held across the transactions. Since the AGI
  * buffer is locked across the two calls, the second call is guaranteed to have

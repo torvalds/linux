@@ -1104,16 +1104,16 @@ xfs_iread_extents(
  * set according to the contents of the given cred structure.
  *
  * Use xfs_dialloc() to allocate the on-disk inode. If xfs_dialloc()
- * has a free inode available, call xfs_iget()
- * to obtain the in-core version of the allocated inode.  Finally,
- * fill in the inode and log its initial contents.  In this case,
- * ialloc_context would be set to NULL and call_again set to false.
+ * has a free inode available, call xfs_iget() to obtain the in-core
+ * version of the allocated inode.  Finally, fill in the inode and
+ * log its initial contents.  In this case, ialloc_context would be
+ * set to NULL.
  *
- * If xfs_dialloc() does not have an available inode,
- * it will replenish its supply by doing an allocation. Since we can
- * only do one allocation within a transaction without deadlocks, we
- * must commit the current transaction before returning the inode itself.
- * In this case, therefore, we will set call_again to true and return.
+ * If xfs_dialloc() does not have an available inode, it will replenish
+ * its supply by doing an allocation. Since we can only do one
+ * allocation within a transaction without deadlocks, we must commit
+ * the current transaction before returning the inode itself.
+ * In this case, therefore, we will set ialloc_context and return.
  * The caller should then commit the current transaction, start a new
  * transaction, and call xfs_ialloc() again to actually get the inode.
  *
