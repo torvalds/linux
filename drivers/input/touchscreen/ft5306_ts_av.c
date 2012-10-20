@@ -851,23 +851,33 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 		return -ENOMEM;
 	}
 
-	while(retry < 5)
-	{
-		ret=ft5306_set_regs(client,FT5X0X_REG_PMODE, buf_test,1);
-		if(ret > 0)break;
-		retry++;
-	}
-	if(ret <= 0)
-	{
-		FTprintk("FT5306 I2C TEST ERROR!\n");
-		err = -ENODEV;
-		goto exit_i2c_test_fail;
-	}
+    while(retry < 5) 
+    {    
+        ret = ft5306_set_regs(client,FT5X0X_REG_PMODE, buf_test, 1);
+        if(ret > 0) 
+            break;
+        retry++;
+
+        printk("FT5306 I2C TEST FAILED, retry = %d, ret = %d, will again...\n", retry, ret);
+
+        if (pdata->exit_platform_hw)     
+            pdata->exit_platform_hw();
+        if (pdata->init_platform_hw)     
+            pdata->init_platform_hw();
+    }    
+    printk("FT5306 I2C TEST OK, retry = %d, ret = %d\n", retry, ret);
+
+    if(ret <= 0)
+    {    
+        printk("FT5306 I2C TEST ERROR! retry = %d, ret = %d\n", retry, ret);
+        err = -ENODEV;
+        goto exit_i2c_test_fail;
+    }
 	
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		err = -ENOMEM;
-		FTprintk("failed to allocate input device\n");
+		printk("failed to allocate input device\n");
 		goto exit_input_dev_alloc_failed;
 	}
 	ft5x0x_ts->client = this_client = client;
@@ -903,7 +913,7 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 	input_dev->name		= "ft5x0x_ts-touchscreen";		//dev_name(&client->dev)
 	err = input_register_device(input_dev);
 	if (err) {
-		FTprintk("ft5306_ts_probe: failed to register input device: \n");
+		printk("ft5306_ts_probe: failed to register input device: \n");
 		goto exit_input_register_device_failed;
 	}
 

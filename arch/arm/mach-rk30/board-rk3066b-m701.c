@@ -158,7 +158,9 @@ static int ft5306_init_platform_hw(void)
 	  return -EIO;
 	}
 
-	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_direction_output(TOUCH_RESET_PIN, 1);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	mdelay(50);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	mdelay(50);
 	gpio_direction_input(TOUCH_INT_PIN);
