@@ -188,8 +188,10 @@ nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 	int ret, cnt, i;
 	u8  data[3];
 
-	if (!nouveau_acpi_rom_supported(pdev))
+	if (!nouveau_acpi_rom_supported(pdev)) {
+		bios->data = NULL;
 		return;
+	}
 
 	bios->size = 0;
 	if (nouveau_acpi_get_bios_chunk(data, 0, 3) == 3)
