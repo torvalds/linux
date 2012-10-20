@@ -68,9 +68,10 @@ long _sys_sigaltstack(const stack_t __user *, stack_t __user *);
 long _sys_rt_sigreturn(void);
 long _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		void __user *parent_tid, void __user *child_tid);
-long _sys_execve(const char __user *filename,
+long sys_execve(const char __user *filename,
 		 const char __user *const __user *argv,
 		 const char __user *const __user *envp);
+#define sys_execve sys_execve
 
 #include <asm-generic/syscalls.h>
 

@@ -16,4 +16,5 @@
 #define __ARCH_WANT_SYS_LLSEEK
 #endif
 #define __ARCH_WANT_SYS_NEWFSTATAT
+#define __ARCH_WANT_SYS_EXECVE
 #include <uapi/asm/unistd.h>

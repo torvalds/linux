@@ -594,51 +594,6 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 		       parent_tidptr, child_tidptr);
 }
 
-/*
- * sys_execve() executes a new program.
- */
-SYSCALL_DEFINE4(execve, const char __user *, path,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-
-#ifdef CONFIG_COMPAT
-long compat_sys_execve(const char __user *path,
-		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename->name, argv, envp,
-				 current_pt_regs());
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-#endif
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct KBacktraceIterator kbt;

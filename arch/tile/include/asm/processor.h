@@ -211,6 +211,7 @@ static inline void start_thread(struct pt_regs *regs,
 {
 	regs->pc = pc;
 	regs->sp = usp;
+	single_step_execve();
 }
 
 /* Free all resources held by a thread. */

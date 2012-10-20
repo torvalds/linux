@@ -107,7 +107,6 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 #endif
 
 /* Call the trampolines to manage pt_regs where necessary. */
-#define sys_execve _sys_execve
 #define sys_sigaltstack _sys_sigaltstack
 #define sys_rt_sigreturn _sys_rt_sigreturn
 #define sys_clone _sys_clone
