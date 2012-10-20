@@ -220,7 +220,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	obj = drm_gem_cma_create(dev, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		return -ENOMEM;
 
 	fbi = framebuffer_alloc(0, dev->dev);
