@@ -390,6 +390,7 @@ struct be_adapter {
 
 	struct delayed_work func_recovery_work;
 	u32 flags;
+	u32 cmd_privileges;
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
 	int if_handle;		/* Used to configure filtering */

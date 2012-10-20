@@ -19,6 +19,55 @@
 #include "be.h"
 #include "be_cmds.h"
 
+static struct be_cmd_priv_map cmd_priv_map[] = {
+	{
+		OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG,
+		CMD_SUBSYSTEM_ETH,
+		BE_PRIV_LNKMGMT | BE_PRIV_VHADM |
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_COMMON_GET_FLOW_CONTROL,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_LNKQUERY | BE_PRIV_VHADM |
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_COMMON_SET_FLOW_CONTROL,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_LNKMGMT | BE_PRIV_VHADM |
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_ETH_GET_PPORT_STATS,
+		CMD_SUBSYSTEM_ETH,
+		BE_PRIV_LNKMGMT | BE_PRIV_VHADM |
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_COMMON_GET_PHY_DETAILS,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_LNKMGMT | BE_PRIV_VHADM |
+		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	}
+};
+
+static bool be_cmd_allowed(struct be_adapter *adapter, u8 opcode,
+			   u8 subsystem)
+{
+	int i;
+	int num_entries = sizeof(cmd_priv_map)/sizeof(struct be_cmd_priv_map);
+	u32 cmd_privileges = adapter->cmd_privileges;
+
+	for (i = 0; i < num_entries; i++)
+		if (opcode == cmd_priv_map[i].opcode &&
+		    subsystem == cmd_priv_map[i].subsystem)
+			if (!(cmd_privileges & cmd_priv_map[i].priv_mask))
+				return false;
+
+	return true;
+}
+
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
 {
 	return wrb->payload.embedded_payload;
@@ -1332,6 +1381,10 @@ int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 	struct lancer_cmd_req_pport_stats *req;
 	int status = 0;
 
+	if (!be_cmd_allowed(adapter, OPCODE_ETH_GET_PPORT_STATS,
+			    CMD_SUBSYSTEM_ETH))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -1711,6 +1764,10 @@ int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 	struct be_cmd_req_set_flow_control *req;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_SET_FLOW_CONTROL,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -1739,6 +1796,10 @@ int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_flow_control *req;
 	int status;
+
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_GET_FLOW_CONTROL,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -2306,6 +2367,10 @@ int be_cmd_get_phy_info(struct be_adapter *adapter)
 	struct be_dma_mem cmd;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_GET_PHY_DETAILS,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -2462,6 +2527,42 @@ int be_cmd_req_native_mode(struct be_adapter *adapter)
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+/* Get privilege(s) for a function */
+int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
+			     u32 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_fn_privileges *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_FN_PRIVILEGES, sizeof(*req),
+			       wrb, NULL);
+
+	req->hdr.domain = domain;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_fn_privileges *resp =
+						embedded_payload(wrb);
+		*privilege = le32_to_cpu(resp->privilege_mask);
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
@@ -2681,6 +2782,10 @@ int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter)
 	int status;
 	int payload_len = sizeof(*req);
 	struct be_dma_mem cmd;
+
+	if (!be_cmd_allowed(adapter, OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG,
+			    CMD_SUBSYSTEM_ETH))
+		return -EPERM;
 
 	memset(&cmd, 0, sizeof(struct be_dma_mem));
 	cmd.size = sizeof(struct be_cmd_resp_acpi_wol_magic_config_v1);

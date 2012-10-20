@@ -2745,6 +2745,11 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
+
+	if (be_physfn(adapter))
+		adapter->cmd_privileges = MAX_PRIVILEGES;
+	else
+		adapter->cmd_privileges = MIN_PRIVILEGES;
 }
 
 static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
@@ -2917,6 +2922,13 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
+	be_cmd_get_fn_privileges(adapter, &adapter->cmd_privileges, 0);
+	/* In UMC mode FW does not return right privileges.
+	 * Override with correct privilege equivalent to PF.
+	 */
+	if (be_is_mc(adapter))
+		adapter->cmd_privileges = MAX_PRIVILEGES;
+
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
 
@@ -2973,8 +2985,8 @@ static int be_setup(struct be_adapter *adapter)
 			dev_warn(dev, "device doesn't support SRIOV\n");
 	}
 
-	be_cmd_get_phy_info(adapter);
-	if (be_pause_supported(adapter))
+	status = be_cmd_get_phy_info(adapter);
+	if (!status && be_pause_supported(adapter))
 		adapter->phy.fc_autoneg = 1;
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
@@ -3710,6 +3722,9 @@ u32 be_get_fw_log_level(struct be_adapter *adapter)
 	int status;
 	u32 level = 0;
 	int j;
+
+	if (lancer_chip(adapter))
+		return 0;
 
 	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
 	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);

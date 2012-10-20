@@ -200,6 +200,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PROFILE_CONFIG		164
 #define OPCODE_COMMON_SET_PROFILE_CONFIG		165
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
+#define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
@@ -1432,6 +1433,41 @@ struct be_cmd_resp_set_func_cap {
 	u8 rsvd[212];
 };
 
+/*********************** Function Privileges ***********************/
+enum {
+	BE_PRIV_DEFAULT = 0x1,
+	BE_PRIV_LNKQUERY = 0x2,
+	BE_PRIV_LNKSTATS = 0x4,
+	BE_PRIV_LNKMGMT = 0x8,
+	BE_PRIV_LNKDIAG = 0x10,
+	BE_PRIV_UTILQUERY = 0x20,
+	BE_PRIV_FILTMGMT = 0x40,
+	BE_PRIV_IFACEMGMT = 0x80,
+	BE_PRIV_VHADM = 0x100,
+	BE_PRIV_DEVCFG = 0x200,
+	BE_PRIV_DEVSEC = 0x400
+};
+#define MAX_PRIVILEGES		(BE_PRIV_VHADM | BE_PRIV_DEVCFG | \
+				 BE_PRIV_DEVSEC)
+#define MIN_PRIVILEGES		BE_PRIV_DEFAULT
+
+struct be_cmd_priv_map {
+	u8 opcode;
+	u8 subsystem;
+	u32 priv_mask;
+};
+
+struct be_cmd_req_get_fn_privileges {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+};
+
+struct be_cmd_resp_get_fn_privileges {
+	struct be_cmd_resp_hdr hdr;
+	u32 privilege_mask;
+};
+
+
 /******************** GET/SET_MACLIST  **************************/
 #define BE_MAX_MAC			64
 struct be_cmd_req_get_mac_list {
@@ -1766,6 +1802,11 @@ struct be_cmd_resp_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 };
 
+static inline bool check_privilege(struct be_adapter *adapter, u32 flags)
+{
+	return flags & adapter->cmd_privileges ? true : false;
+}
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_fw_wait_ready(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -1862,6 +1903,8 @@ extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
+extern int be_cmd_get_fn_privileges(struct be_adapter *adapter,
+				    u32 *privilege, u32 domain);
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 				    bool *pmac_id_active, u32 *pmac_id,
 				    u8 domain);

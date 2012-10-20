@@ -261,6 +261,9 @@ be_get_reg_len(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 log_size = 0;
 
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (be_physfn(adapter)) {
 		if (lancer_chip(adapter))
 			log_size = lancer_cmd_get_file_len(adapter,
@@ -787,6 +790,10 @@ static int
 be_get_eeprom_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (lancer_chip(adapter)) {
 		if (be_physfn(adapter))
 			return lancer_cmd_get_file_len(adapter,
