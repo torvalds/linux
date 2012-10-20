@@ -135,6 +135,7 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	unsigned int vf_api;
 };
 
 struct vf_macvlans {

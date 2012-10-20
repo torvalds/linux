@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/highmem.h>
 
 #include "igb.h"
 
@@ -1685,16 +1686,24 @@ static void igb_create_lbtest_frame(struct sk_buff *skb,
 	memset(&skb->data[frame_size + 12], 0xAF, 1);
 }
 
-static int igb_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
+static int igb_check_lbtest_frame(struct igb_rx_buffer *rx_buffer,
+				  unsigned int frame_size)
 {
-	frame_size /= 2;
-	if (*(skb->data + 3) == 0xFF) {
-		if ((*(skb->data + frame_size + 10) == 0xBE) &&
-		   (*(skb->data + frame_size + 12) == 0xAF)) {
-			return 0;
-		}
-	}
-	return 13;
+	unsigned char *data;
+	bool match = true;
+
+	frame_size >>= 1;
+
+	data = kmap(rx_buffer->page);
+
+	if (data[3] != 0xFF ||
+	    data[frame_size + 10] != 0xBE ||
+	    data[frame_size + 12] != 0xAF)
+		match = false;
+
+	kunmap(rx_buffer->page);
+
+	return match;
 }
 
 static int igb_clean_test_rings(struct igb_ring *rx_ring,
@@ -1704,9 +1713,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
-	struct netdev_queue *txq;
 	u16 rx_ntc, tx_ntc, count = 0;
-	unsigned int total_bytes = 0, total_packets = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
@@ -1717,21 +1724,24 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* check rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
-		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(rx_ring->dev,
-				 rx_buffer_info->dma,
-				 IGB_RX_HDR_LEN,
-				 DMA_FROM_DEVICE);
-		rx_buffer_info->dma = 0;
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer_info->dma,
+					IGB_RX_BUFSZ,
+					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
-		if (!igb_check_lbtest_frame(rx_buffer_info->skb, size))
+		if (igb_check_lbtest_frame(rx_buffer_info, size))
 			count++;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer_info->dma,
+					   IGB_RX_BUFSZ,
+					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
-		total_bytes += tx_buffer_info->bytecount;
-		total_packets += tx_buffer_info->gso_segs;
 		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
 		/* increment rx/tx next to clean counters */
@@ -1746,8 +1756,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 	}
 
-	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
-	netdev_tx_completed_queue(txq, total_packets, total_bytes);
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	/* re-map buffers to ring, store next to clean values */
 	igb_alloc_rx_buffers(rx_ring, count);

@@ -132,9 +132,10 @@ struct vf_data_storage {
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
-#define IGB_RXBUFFER_256   256
-#define IGB_RXBUFFER_16384 16384
-#define IGB_RX_HDR_LEN     IGB_RXBUFFER_256
+#define IGB_RXBUFFER_256	256
+#define IGB_RXBUFFER_2048	2048
+#define IGB_RX_HDR_LEN		IGB_RXBUFFER_256
+#define IGB_RX_BUFSZ		IGB_RXBUFFER_2048
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define IGB_TX_QUEUE_WAKE	16
@@ -174,11 +175,9 @@ struct igb_tx_buffer {
 };
 
 struct igb_rx_buffer {
-	struct sk_buff *skb;
 	dma_addr_t dma;
 	struct page *page;
-	dma_addr_t page_dma;
-	u32 page_offset;
+	unsigned int page_offset;
 };
 
 struct igb_tx_queue_stats {
@@ -205,22 +204,6 @@ struct igb_ring_container {
 	u8 itr;				/* current ITR setting for ring */
 };
 
-struct igb_q_vector {
-	struct igb_adapter *adapter;	/* backlink */
-	int cpu;			/* CPU for DCA */
-	u32 eims_value;			/* EIMS mask value */
-
-	struct igb_ring_container rx, tx;
-
-	struct napi_struct napi;
-
-	u16 itr_val;
-	u8 set_itr;
-	void __iomem *itr_register;
-
-	char name[IFNAMSIZ + 9];
-};
-
 struct igb_ring {
 	struct igb_q_vector *q_vector;	/* backlink to q_vector */
 	struct net_device *netdev;	/* back pointer to net_device */
@@ -232,15 +215,17 @@ struct igb_ring {
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
+	dma_addr_t dma;			/* phys address of the ring */
+	unsigned int  size;		/* length of desc. ring in bytes */
 
 	u16 count;			/* number of desc. in the ring */
 	u8 queue_index;			/* logical index of the ring*/
 	u8 reg_idx;			/* physical index of the ring */
-	u32 size;			/* length of desc. ring in bytes */
 
 	/* everything past this point are written often */
-	u16 next_to_clean ____cacheline_aligned_in_smp;
+	u16 next_to_clean;
 	u16 next_to_use;
+	u16 next_to_alloc;
 
 	union {
 		/* TX */
@@ -251,12 +236,30 @@ struct igb_ring {
 		};
 		/* RX */
 		struct {
+			struct sk_buff *skb;
 			struct igb_rx_queue_stats rx_stats;
 			struct u64_stats_sync rx_syncp;
 		};
 	};
-	/* Items past this point are only used during ring alloc / free */
-	dma_addr_t dma;                /* phys address of the ring */
+} ____cacheline_internodealigned_in_smp;
+
+struct igb_q_vector {
+	struct igb_adapter *adapter;	/* backlink */
+	int cpu;			/* CPU for DCA */
+	u32 eims_value;			/* EIMS mask value */
+
+	u16 itr_val;
+	u8 set_itr;
+	void __iomem *itr_register;
+
+	struct igb_ring_container rx, tx;
+
+	struct napi_struct napi;
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
+	char name[IFNAMSIZ + 9];
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct igb_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
 
 enum e1000_ring_flags_t {
@@ -442,9 +445,20 @@ extern void igb_ptp_stop(struct igb_adapter *adapter);
 extern void igb_ptp_reset(struct igb_adapter *adapter);
 extern void igb_ptp_tx_work(struct work_struct *work);
 extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
-extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
-				union e1000_adv_rx_desc *rx_desc,
+extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 				struct sk_buff *skb);
+extern void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
+				unsigned char *va,
+				struct sk_buff *skb);
+static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
+				       union e1000_adv_rx_desc *rx_desc,
+				       struct sk_buff *skb)
+{
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
+	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
+		igb_ptp_rx_rgtstamp(q_vector, skb);
+}
+
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
 #endif /* CONFIG_IGB_PTP */

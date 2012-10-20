@@ -802,10 +802,13 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* setup affinity mask and node */
 	if (cpu != -1)
 		cpumask_set_cpu(cpu, &q_vector->affinity_mask);
-	else
-		cpumask_copy(&q_vector->affinity_mask, cpu_online_mask);
 	q_vector->numa_node = node;
 
+#ifdef CONFIG_IXGBE_DCA
+	/* initialize CPU for DCA */
+	q_vector->cpu = -1;
+
+#endif
 	/* initialize NAPI */
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
