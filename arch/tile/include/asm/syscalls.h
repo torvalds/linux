@@ -65,13 +65,9 @@ long sys_ftruncate64(unsigned int fd, loff_t length);
 /* Provide versions of standard syscalls that use current_pt_regs(). */
 long sys_clone(unsigned long clone_flags, unsigned long newsp,
 		void __user *parent_tid, void __user *child_tid);
-long sys_execve(const char __user *filename,
-		 const char __user *const __user *argv,
-		 const char __user *const __user *envp);
 long sys_rt_sigreturn(void);
 long sys_sigaltstack(const stack_t __user *, stack_t __user *);
 #define sys_clone sys_clone
-#define sys_execve sys_execve
 #define sys_rt_sigreturn sys_rt_sigreturn
 #define sys_sigaltstack sys_sigaltstack
 

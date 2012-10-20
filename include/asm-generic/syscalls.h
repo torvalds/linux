@@ -21,13 +21,6 @@ asmlinkage long sys_fork(void);
 asmlinkage long sys_vfork(void);
 #endif
 
-#ifndef sys_execve
-asmlinkage long sys_execve(const char __user *filename,
-			   const char __user *const __user *argv,
-			   const char __user *const __user *envp,
-			   struct pt_regs *regs);
-#endif
-
 #ifndef sys_mmap2
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
