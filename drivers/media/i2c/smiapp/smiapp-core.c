@@ -276,11 +276,6 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 	struct smiapp_pll *pll = &sensor->pll;
 	int rval;
 
-	memset(&sensor->pll, 0, sizeof(sensor->pll));
-
-	pll->lanes = sensor->platform_data->lanes;
-	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
-
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0) {
 		/*
 		 * Fill in operational clock divisors limits from the
@@ -296,20 +291,13 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 		lim.max_op_sys_clk_freq_hz = lim.max_vt_sys_clk_freq_hz;
 		lim.min_op_pix_clk_freq_hz = lim.min_vt_pix_clk_freq_hz;
 		lim.max_op_pix_clk_freq_hz = lim.max_vt_pix_clk_freq_hz;
-		/* Profile 0 sensors have no separate OP clock branch. */
-		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 	}
-
-	if (smiapp_needs_quirk(sensor,
-			       SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE))
-		pll->flags |= SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE;
 
 	pll->binning_horizontal = sensor->binning_horizontal;
 	pll->binning_vertical = sensor->binning_vertical;
 	pll->link_freq =
 		sensor->link_freq->qmenu_int[sensor->link_freq->val];
 	pll->scale_m = sensor->scale_m;
-	pll->scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
 	pll->bits_per_pixel = sensor->csi_format->compressed;
 
 	rval = smiapp_pll_calculate(&client->dev, &lim, pll);
@@ -2369,6 +2357,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 {
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct smiapp_pll *pll = &sensor->pll;
 	struct smiapp_subdev *last = NULL;
 	u32 tmp;
 	unsigned int i;
@@ -2634,6 +2623,17 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
 		goto out_nvm_release;
+
+	/* prepare PLL configuration input values */
+	pll->lanes = sensor->platform_data->lanes;
+	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
+	/* Profile 0 sensors have no separate OP clock branch. */
+	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
+		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
+	if (smiapp_needs_quirk(sensor,
+			       SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE))
+		pll->flags |= SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE;
+	pll->scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
 
 	rval = smiapp_update_mode(sensor);
 	if (rval) {
