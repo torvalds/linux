@@ -19,6 +19,7 @@
 #include <mach/irqs.h>
 #include <plat/time.h>
 #include "common.h"
+#include "lacie_v2-common.h"
 
 /*****************************************************************************
  * 512KB SPI Flash on Boot Device (MACRONIX MX25L4005)

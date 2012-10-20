@@ -26,7 +26,7 @@ static struct of_device_id kirkwood_dt_match_table[] __initdata = {
 	{ }
 };
 
-struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
 	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
 		       NULL),

@@ -425,7 +425,7 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-void __init kirkwood_spi_init()
+void __init kirkwood_spi_init(void)
 {
 	orion_spi_init(SPI_PHYS_BASE);
 }
