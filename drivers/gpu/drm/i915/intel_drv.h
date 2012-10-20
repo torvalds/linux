@@ -405,6 +405,8 @@ struct intel_fbc_work {
 	int interval;
 };
 
+int intel_pch_rawclk(struct drm_device *dev);
+
 int intel_connector_update_modes(struct drm_connector *connector,
 				struct edid *edid);
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);

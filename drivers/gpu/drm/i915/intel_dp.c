@@ -2711,8 +2711,12 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 			(final.t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
 		pp_off = (final.t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
 			 (final.t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
-		pp_div = (pp_div & PP_REFERENCE_DIVIDER_MASK) |
-			 (DIV_ROUND_UP(final.t11_t12, 1000) << PANEL_POWER_CYCLE_DELAY_SHIFT);
+		/* Compute the divisor for the pp clock, simply match the Bspec
+		 * formula. */
+		pp_div = ((100 * intel_pch_rawclk(dev))/2 - 1)
+				<< PP_REFERENCE_DIVIDER_SHIFT;
+		pp_div |= (DIV_ROUND_UP(final.t11_t12, 1000)
+				<< PANEL_POWER_CYCLE_DELAY_SHIFT);
 
 		/* Haswell doesn't have any port selection bits for the panel
 		 * power sequence any more. */

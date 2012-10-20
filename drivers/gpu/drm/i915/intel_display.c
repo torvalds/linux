@@ -80,6 +80,16 @@ struct intel_limit {
 /* FDI */
 #define IRONLAKE_FDI_FREQ		2700000 /* in kHz for mode->clock */
 
+int
+intel_pch_rawclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN_ON(!HAS_PCH_SPLIT(dev));
+
+	return I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK;
+}
+
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *match_clock,
