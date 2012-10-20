@@ -58,7 +58,11 @@ static int act8931_set_init(struct act8931 *act8931)
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_enable(ldo);
 	printk("%s set ldo4 vcc_lcd=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_disable(ldo);
+#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
+        //do not disable vccio wl
+#else	
+        regulator_disable(ldo);
+#endif
 	regulator_put(ldo);
 	udelay(100);
 	
