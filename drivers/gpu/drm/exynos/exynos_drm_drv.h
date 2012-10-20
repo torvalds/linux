@@ -241,6 +241,13 @@ struct drm_exynos_file_private {
 
 /*
  * Exynos drm private structure.
+ *
+ * @da_start: start address to device address space.
+ *	with iommu, device address space starts from this address
+ *	otherwise default one.
+ * @da_space_size: size of device address space.
+ *	if 0 then default value is used for it.
+ * @da_space_order: order to device address space.
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
@@ -255,6 +262,10 @@ struct exynos_drm_private {
 	struct drm_crtc *crtc[MAX_CRTC];
 	struct drm_property *plane_zpos_property;
 	struct drm_property *crtc_mode_property;
+
+	unsigned long da_start;
+	unsigned long da_space_size;
+	unsigned long da_space_order;
 };
 
 /*

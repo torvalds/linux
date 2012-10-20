@@ -46,6 +46,7 @@
 struct exynos_drm_gem_buf {
 	void __iomem		*kvaddr;
 	dma_addr_t		dma_addr;
+	struct dma_attrs	dma_attrs;
 	struct sg_table		*sgt;
 	struct page		**pages;
 	unsigned long		page_size;
