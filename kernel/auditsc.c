@@ -200,7 +200,6 @@ struct audit_context {
 	struct list_head    names_list;	/* anchor for struct audit_names->list */
 	char *		    filterkey;	/* key for rule that triggered record */
 	struct path	    pwd;
-	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 	struct audit_aux_data *aux_pids;
 	struct sockaddr_storage *sockaddr;
@@ -1091,29 +1090,13 @@ int audit_alloc(struct task_struct *tsk)
 
 static inline void audit_free_context(struct audit_context *context)
 {
-	struct audit_context *previous;
-	int		     count = 0;
-
-	do {
-		previous = context->previous;
-		if (previous || (count &&  count < 10)) {
-			++count;
-			printk(KERN_ERR "audit(:%d): major=%d name_count=%d:"
-			       " freeing multiple contexts (%d)\n",
-			       context->serial, context->major,
-			       context->name_count, count);
-		}
-		audit_free_names(context);
-		unroll_tree_refs(context, NULL, 0);
-		free_tree_refs(context);
-		audit_free_aux(context);
-		kfree(context->filterkey);
-		kfree(context->sockaddr);
-		kfree(context);
-		context  = previous;
-	} while (context);
-	if (count >= 10)
-		printk(KERN_ERR "audit: freed %d contexts\n", count);
+	audit_free_names(context);
+	unroll_tree_refs(context, NULL, 0);
+	free_tree_refs(context);
+	audit_free_aux(context);
+	kfree(context->filterkey);
+	kfree(context->sockaddr);
+	kfree(context);
 }
 
 void audit_log_task_context(struct audit_buffer *ab)
@@ -1783,42 +1766,6 @@ void __audit_syscall_entry(int arch, int major,
 	if (!context)
 		return;
 
-	/*
-	 * This happens only on certain architectures that make system
-	 * calls in kernel_thread via the entry.S interface, instead of
-	 * with direct calls.  (If you are porting to a new
-	 * architecture, hitting this condition can indicate that you
-	 * got the _exit/_leave calls backward in entry.S.)
-	 *
-	 * i386     no
-	 * x86_64   no
-	 * ppc64    yes (see arch/powerpc/platforms/iseries/misc.S)
-	 *
-	 * This also happens with vm86 emulation in a non-nested manner
-	 * (entries without exits), so this case must be caught.
-	 */
-	if (context->in_syscall) {
-		struct audit_context *newctx;
-
-#if AUDIT_DEBUG
-		printk(KERN_ERR
-		       "audit(:%d) pid=%d in syscall=%d;"
-		       " entering syscall=%d\n",
-		       context->serial, tsk->pid, context->major, major);
-#endif
-		newctx = audit_alloc_context(context->state);
-		if (newctx) {
-			newctx->previous   = context;
-			context		   = newctx;
-			tsk->audit_context = newctx;
-		} else	{
-			/* If we can't alloc a new context, the best we
-			 * can do is to leak memory (any pending putname
-			 * will be lost).  The only other alternative is
-			 * to abandon auditing. */
-			audit_zero_context(context, context->state);
-		}
-	}
 	BUG_ON(context->in_syscall || context->name_count);
 
 	if (!audit_enabled)
@@ -1881,28 +1828,21 @@ void __audit_syscall_exit(int success, long return_code)
 	if (!list_empty(&context->killed_trees))
 		audit_kill_trees(&context->killed_trees);
 
-	if (context->previous) {
-		struct audit_context *new_context = context->previous;
-		context->previous  = NULL;
-		audit_free_context(context);
-		tsk->audit_context = new_context;
-	} else {
-		audit_free_names(context);
-		unroll_tree_refs(context, NULL, 0);
-		audit_free_aux(context);
-		context->aux = NULL;
-		context->aux_pids = NULL;
-		context->target_pid = 0;
-		context->target_sid = 0;
-		context->sockaddr_len = 0;
-		context->type = 0;
-		context->fds[0] = -1;
-		if (context->state != AUDIT_RECORD_CONTEXT) {
-			kfree(context->filterkey);
-			context->filterkey = NULL;
-		}
-		tsk->audit_context = context;
+	audit_free_names(context);
+	unroll_tree_refs(context, NULL, 0);
+	audit_free_aux(context);
+	context->aux = NULL;
+	context->aux_pids = NULL;
+	context->target_pid = 0;
+	context->target_sid = 0;
+	context->sockaddr_len = 0;
+	context->type = 0;
+	context->fds[0] = -1;
+	if (context->state != AUDIT_RECORD_CONTEXT) {
+		kfree(context->filterkey);
+		context->filterkey = NULL;
 	}
+	tsk->audit_context = context;
 }
 
 static inline void handle_one(const struct inode *inode)
