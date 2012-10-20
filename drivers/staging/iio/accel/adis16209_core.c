@@ -343,28 +343,29 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			*val = 0;
 			if (chan->channel == 0)
-				*val2 = 305180;
+				*val2 = 305180; /* 0.30518 mV */
 			else
-				*val2 = 610500;
+				*val2 = 610500; /* 0.6105 mV */
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = 0;
-			*val2 = -470000;
+			*val = -470; /* -0.47 C */
+			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
-			*val2 = 2394;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val2 = IIO_G_TO_M_S_2(244140); /* 0.244140 mg */
+			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_INCLI:
+		case IIO_ROT:
 			*val = 0;
-			*val2 = 436;
+			*val2 = 25000; /* 0.025 degree */
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25;
+		*val = 25000 / -470 - 0x4FE; /* 25 C = 0x4FE */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
@@ -491,6 +492,7 @@ static const struct iio_chan_spec adis16209_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		.address = rot,
 		.scan_index = ADIS16209_SCAN_ROT,
 		.scan_type = {
