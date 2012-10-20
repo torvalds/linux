@@ -31,6 +31,7 @@ perf = Extension('perf',
 		  sources = ext_sources,
 		  include_dirs = ['util/include'],
 		  extra_compile_args = cflags,
+		  extra_objects = [build_tmp + '/../../libtraceevent.a'],
                  )
 
 setup(name='perf',
