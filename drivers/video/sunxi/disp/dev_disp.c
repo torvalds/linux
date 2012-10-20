@@ -1681,7 +1681,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		case DISP_CMD_SUSPEND:
 		{
-		    pm_message_t state;
+		  pm_message_t state = {};
 
 			ret = disp_suspend(0, state);
 			break;
