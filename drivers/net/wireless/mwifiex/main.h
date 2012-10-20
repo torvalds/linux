@@ -747,9 +747,9 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
-int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
+int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb);
 
-int mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 				struct sk_buff *skb);
 
 int mwifiex_process_event(struct mwifiex_adapter *adapter);
@@ -806,7 +806,7 @@ void mwifiex_hs_activated_event(struct mwifiex_private *priv,
 					u8 activated);
 int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
-int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 			      struct sk_buff *skb);
 int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_no,
 			    u16 cmd_action, u32 cmd_oid,
@@ -816,9 +816,9 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 			    void *data_buf, void *cmd_buf);
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
-int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
+int mwifiex_process_sta_rx_packet(struct mwifiex_private *,
 				  struct sk_buff *skb);
-int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 				  struct sk_buff *skb);
 int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 				  struct sk_buff *skb);
