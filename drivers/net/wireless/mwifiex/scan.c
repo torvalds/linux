@@ -1776,12 +1776,16 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			priv->user_scan_cfg = NULL;
 		}
 	} else {
-		if (!mwifiex_wmm_lists_empty(adapter)) {
+		if (!mwifiex_wmm_lists_empty(adapter) &&
+		    (priv->scan_request && (priv->scan_request->flags &
+					    NL80211_SCAN_FLAG_LOW_PRIORITY))) {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 			adapter->scan_delay_cnt = 1;
 			mod_timer(&priv->scan_delay_timer, jiffies +
 				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
+			dev_dbg(priv->adapter->dev,
+				"info: %s: deferring scan\n", __func__);
 		} else {
 			/* Get scan command from scan_pending_q and put to
 			   cmd_pending_q */
