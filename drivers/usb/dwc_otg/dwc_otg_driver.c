@@ -1163,8 +1163,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     if(pldata->hw_init)
         pldata->hw_init();
         
-    if(pldata->soft_reset)
-        pldata->soft_reset();
     
     if(pldata->clock_init){
         pldata->clock_init(pldata);
@@ -1173,6 +1171,9 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 
     if(pldata->phy_suspend)
         pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        
+    if(pldata->soft_reset)
+        pldata->soft_reset();
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
@@ -1414,11 +1415,18 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev )
     dctl_data_t dctl = {.d32=0};
 
     DWC_PRINT("%s:: disconnect USB\n" , __func__ );
-    /* soft disconnect */
-    dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-    dctl.b.sftdiscon = 1;
-    dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-
+    if(core_if->op_state == A_HOST)
+    {
+        if (core_if->hcd_cb && core_if->hcd_cb->stop) {
+        	core_if->hcd_cb->stop( core_if->hcd_cb->p );
+        }
+    }
+    else{
+        /* soft disconnect */
+        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+        dctl.b.sftdiscon = 1;
+        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+    }
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
 
@@ -1530,17 +1538,17 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     if(pldata->hw_init)
         pldata->hw_init();
         
-    if(pldata->phy_suspend)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
-        
     if(pldata->clock_init){
         pldata->clock_init(pldata);
         pldata->clock_enable(pldata, 1);
         }
+
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
         
     if(pldata->soft_reset)
         pldata->soft_reset();
-    
+            
 	/*
 	 *Enable usb phy
 	 */
