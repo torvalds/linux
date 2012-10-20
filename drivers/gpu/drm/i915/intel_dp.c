@@ -2074,7 +2074,7 @@ static void
 intel_dp_handle_test_request(struct intel_dp *intel_dp)
 {
 	/* NAK by default */
-	intel_dp_aux_native_write_1(intel_dp, DP_TEST_RESPONSE, DP_TEST_ACK);
+	intel_dp_aux_native_write_1(intel_dp, DP_TEST_RESPONSE, DP_TEST_NAK);
 }
 
 /*
