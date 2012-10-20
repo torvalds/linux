@@ -117,9 +117,10 @@ struct collect_ops collect_arg;
 DEFINE_SEMAPHORE(nand_mutex);
 static unsigned char volatile IS_IDLE = 1;
 u32 nand_handle=0;
+#ifdef USE_SYS_CLK
 static struct clk *ahb_nand_clk = NULL;
 static struct clk *mod_nand_clk = NULL;
-
+#endif
 static int nand_flush(struct nand_blk_dev *dev);
 
 spinlock_t     nand_rb_lock;
@@ -1330,10 +1331,7 @@ static int __init init_blklayer(void)
 	unsigned long irqflags;
 
 	#ifndef USE_SYS_CLK
-		__u32 cmu_clk;
 		__u32 nand_clk;
-		//set nand clk
-		//cmu_clk = get_cmu_clk();
 		set_nand_clock(20);
 	#else
 		ret = nand_request_clk();
