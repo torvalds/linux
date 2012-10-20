@@ -71,4 +71,12 @@ config ARCH_VEXPRESS_TC2_PM
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
 
+config ARCH_VEXPRESS_TC2
+	bool "TC2 cluster management"
+	depends on MCPM
+	select ARM_SPC
+	select ARM_CCI
+	help
+	  Support for CPU and cluster power management on TC2.
+
 endmenu
