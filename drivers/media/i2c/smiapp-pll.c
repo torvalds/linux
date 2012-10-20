@@ -162,7 +162,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		more_mul_max);
 	/* Don't go above max pll op frequency. */
 	more_mul_max =
-		min_t(int,
+		min_t(uint32_t,
 		      more_mul_max,
 		      limits->max_pll_op_freq_hz
 		      / (pll->ext_clk_freq_hz / pll->pre_pll_clk_div * mul));
@@ -322,7 +322,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		for (sys_div = min_sys_div;
 		     sys_div <= max_sys_div;
 		     sys_div += 2 - (sys_div & 1)) {
-			int pix_div = DIV_ROUND_UP(vt_div, sys_div);
+			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
 
 			if (pix_div < limits->min_vt_pix_clk_div
 			    || pix_div > limits->max_vt_pix_clk_div) {
