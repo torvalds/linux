@@ -378,7 +378,6 @@ struct be_adapter {
 	struct be_drv_stats drv_stats;
 
 	u16 vlans_added;
-	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_N_VID];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
@@ -434,10 +433,17 @@ struct be_adapter {
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol;
-	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u32 msg_enable;
 	int be_get_temp_freq;
+	u16 max_mcast_mac;
+	u16 max_tx_queues;
+	u16 max_rss_queues;
+	u16 max_rx_queues;
+	u16 max_pmac_cnt;
+	u16 max_vlans;
+	u16 max_event_queues;
+	u32 if_cap_flags;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

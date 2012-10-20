@@ -196,6 +196,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
 #define OPCODE_COMMON_GET_HSW_CONFIG			152
+#define OPCODE_COMMON_GET_FUNC_CONFIG			160
+#define OPCODE_COMMON_GET_PROFILE_CONFIG		164
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
@@ -1684,6 +1686,66 @@ struct be_cmd_req_set_ext_fat_caps {
 	struct be_fat_conf_params set_params;
 };
 
+#define RESOURCE_DESC_SIZE			72
+#define NIC_RESOURCE_DESC_TYPE_ID		0x41
+#define MAX_RESOURCE_DESC			4
+struct be_nic_resource_desc {
+	u8 desc_type;
+	u8 desc_len;
+	u8 rsvd1;
+	u8 flags;
+	u8 vf_num;
+	u8 rsvd2;
+	u8 pf_num;
+	u8 rsvd3;
+	u16 unicast_mac_count;
+	u8 rsvd4[6];
+	u16 mcc_count;
+	u16 vlan_count;
+	u16 mcast_mac_count;
+	u16 txq_count;
+	u16 rq_count;
+	u16 rssq_count;
+	u16 lro_count;
+	u16 cq_count;
+	u16 toe_conn_count;
+	u16 eq_count;
+	u32 rsvd5;
+	u32 cap_flags;
+	u8 link_param;
+	u8 rsvd6[3];
+	u32 bw_min;
+	u32 bw_max;
+	u8 acpi_params;
+	u8 wol_param;
+	u16 rsvd7;
+	u32 rsvd8[3];
+};
+
+struct be_cmd_req_get_func_config {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_resp_get_func_config {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
+#define ACTIVE_PROFILE_TYPE			0x2
+struct be_cmd_req_get_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd;
+	u8 type;
+	u16 rsvd1;
+};
+
+struct be_cmd_resp_get_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_fw_wait_ready(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -1798,4 +1860,6 @@ extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 extern int lancer_wait_ready(struct be_adapter *adapter);
 extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
-
+extern int be_cmd_get_func_config(struct be_adapter *adapter);
+extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
+				     u8 domain);

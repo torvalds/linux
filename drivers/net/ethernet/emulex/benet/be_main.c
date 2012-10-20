@@ -917,7 +917,7 @@ static void be_set_rx_mode(struct net_device *netdev)
 
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
-			netdev_mc_count(netdev) > BE_MAX_MC) {
+	    netdev_mc_count(netdev) > adapter->max_mcast_mac) {
 		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
 		goto done;
 	}
@@ -1837,12 +1837,13 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 
 static int be_num_txqs_want(struct be_adapter *adapter)
 {
-	if (sriov_want(adapter) || be_is_mc(adapter) ||
-	    lancer_chip(adapter) || !be_physfn(adapter) ||
+	if ((!lancer_chip(adapter) && sriov_want(adapter)) ||
+	    be_is_mc(adapter) ||
+	    (!lancer_chip(adapter) && !be_physfn(adapter)) ||
 	    adapter->generation == BE_GEN2)
 		return 1;
 	else
-		return MAX_TX_QS;
+		return adapter->max_tx_queues;
 }
 
 static int be_tx_cqs_create(struct be_adapter *adapter)
@@ -2177,9 +2178,11 @@ static void be_msix_disable(struct be_adapter *adapter)
 static uint be_num_rss_want(struct be_adapter *adapter)
 {
 	u32 num = 0;
+
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	     !sriov_want(adapter) && be_physfn(adapter)) {
-		num = (adapter->be3_native) ? BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
+	    (lancer_chip(adapter) ||
+	     (!sriov_want(adapter) && be_physfn(adapter)))) {
+		num = adapter->max_rss_queues;
 		num = min_t(u32, num, (u32)netif_get_num_default_rss_queues());
 	}
 	return num;
@@ -2579,8 +2582,28 @@ static int be_clear(struct be_adapter *adapter)
 	be_tx_queues_destroy(adapter);
 	be_evt_queues_destroy(adapter);
 
+	kfree(adapter->pmac_id);
+	adapter->pmac_id = NULL;
+
 	be_msix_disable(adapter);
 	return 0;
+}
+
+static void be_get_vf_if_cap_flags(struct be_adapter *adapter,
+				   u32 *cap_flags, u8 domain)
+{
+	bool profile_present = false;
+	int status;
+
+	if (lancer_chip(adapter)) {
+		status = be_cmd_get_profile_config(adapter, cap_flags, domain);
+		if (!status)
+			profile_present = true;
+	}
+
+	if (!profile_present)
+		*cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			     BE_IF_FLAGS_MULTICAST;
 }
 
 static int be_vf_setup_init(struct be_adapter *adapter)
@@ -2634,9 +2657,13 @@ static int be_vf_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
-				BE_IF_FLAGS_MULTICAST;
 	for_all_vfs(adapter, vf_cfg, vf) {
+		be_get_vf_if_cap_flags(adapter, &cap_flags, vf + 1);
+
+		en_flags = cap_flags & (BE_IF_FLAGS_UNTAGGED |
+					BE_IF_FLAGS_BROADCAST |
+					BE_IF_FLAGS_MULTICAST);
+
 		status = be_cmd_if_create(adapter, cap_flags, en_flags,
 					  &vf_cfg->if_handle, vf + 1);
 		if (status)
@@ -2712,11 +2739,92 @@ static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
 	return status;
 }
 
+static void be_get_resources(struct be_adapter *adapter)
+{
+	int status;
+	bool profile_present = false;
+
+	if (lancer_chip(adapter)) {
+		status = be_cmd_get_func_config(adapter);
+
+		if (!status)
+			profile_present = true;
+	}
+
+	if (profile_present) {
+		/* Sanity fixes for Lancer */
+		adapter->max_pmac_cnt = min_t(u16, adapter->max_pmac_cnt,
+					      BE_UC_PMAC_COUNT);
+		adapter->max_vlans = min_t(u16, adapter->max_vlans,
+					   BE_NUM_VLANS_SUPPORTED);
+		adapter->max_mcast_mac = min_t(u16, adapter->max_mcast_mac,
+					       BE_MAX_MC);
+		adapter->max_tx_queues = min_t(u16, adapter->max_tx_queues,
+					       MAX_TX_QS);
+		adapter->max_rss_queues = min_t(u16, adapter->max_rss_queues,
+						BE3_MAX_RSS_QS);
+		adapter->max_event_queues = min_t(u16,
+						  adapter->max_event_queues,
+						  BE3_MAX_RSS_QS);
+
+		if (adapter->max_rss_queues &&
+		    adapter->max_rss_queues == adapter->max_rx_queues)
+			adapter->max_rss_queues -= 1;
+
+		if (adapter->max_event_queues < adapter->max_rss_queues)
+			adapter->max_rss_queues = adapter->max_event_queues;
+
+	} else {
+		if (be_physfn(adapter))
+			adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
+		else
+			adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
+
+		if (adapter->function_mode & FLEX10_MODE)
+			adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
+		else
+			adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
+
+		adapter->max_mcast_mac = BE_MAX_MC;
+		adapter->max_tx_queues = MAX_TX_QS;
+		adapter->max_rss_queues = (adapter->be3_native) ?
+					   BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
+		adapter->max_event_queues = BE3_MAX_RSS_QS;
+
+		adapter->if_cap_flags = BE_IF_FLAGS_UNTAGGED |
+					BE_IF_FLAGS_BROADCAST |
+					BE_IF_FLAGS_MULTICAST |
+					BE_IF_FLAGS_PASS_L3L4_ERRORS |
+					BE_IF_FLAGS_MCAST_PROMISCUOUS |
+					BE_IF_FLAGS_VLAN_PROMISCUOUS |
+					BE_IF_FLAGS_PROMISCUOUS;
+
+		if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
+			adapter->if_cap_flags |= BE_IF_FLAGS_RSS;
+	}
+}
+
 /* Routine to query per function resource limits */
 static int be_get_config(struct be_adapter *adapter)
 {
-	int pos;
+	int pos, status;
 	u16 dev_num_vfs;
+
+	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
+				     &adapter->function_mode,
+				     &adapter->function_caps);
+	if (status)
+		goto err;
+
+	be_get_resources(adapter);
+
+	/* primary mac needs 1 pmac entry */
+	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
+				   sizeof(u32), GFP_KERNEL);
+	if (!adapter->pmac_id) {
+		status = -ENOMEM;
+		goto err;
+	}
 
 	pos = pci_find_ext_capability(adapter->pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos) {
@@ -2726,13 +2834,14 @@ static int be_get_config(struct be_adapter *adapter)
 			dev_num_vfs = min_t(u16, dev_num_vfs, MAX_VFS);
 		adapter->dev_num_vfs = dev_num_vfs;
 	}
-	return 0;
+err:
+	return status;
 }
 
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 cap_flags, en_flags;
+	u32 en_flags;
 	u32 tx_fc, rx_fc;
 	int status;
 	u8 mac[ETH_ALEN];
@@ -2740,9 +2849,12 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_setup_init(adapter);
 
-	be_get_config(adapter);
+	if (!lancer_chip(adapter))
+		be_cmd_req_native_mode(adapter);
 
-	be_cmd_req_native_mode(adapter);
+	status = be_get_config(adapter);
+	if (status)
+		goto err;
 
 	be_msix_enable(adapter);
 
@@ -2764,22 +2876,13 @@ static int be_setup(struct be_adapter *adapter)
 
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	cap_flags = en_flags | BE_IF_FLAGS_MCAST_PROMISCUOUS |
-			BE_IF_FLAGS_VLAN_PROMISCUOUS | BE_IF_FLAGS_PROMISCUOUS;
 
-	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS) {
-		cap_flags |= BE_IF_FLAGS_RSS;
+	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
 		en_flags |= BE_IF_FLAGS_RSS;
-	}
 
-	if (lancer_chip(adapter) && !be_physfn(adapter)) {
-		en_flags = BE_IF_FLAGS_UNTAGGED |
-			    BE_IF_FLAGS_BROADCAST |
-			    BE_IF_FLAGS_MULTICAST;
-		cap_flags = en_flags;
-	}
+	en_flags = en_flags & adapter->if_cap_flags;
 
-	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+	status = be_cmd_if_create(adapter, adapter->if_cap_flags, en_flags,
 				  &adapter->if_handle, 0);
 	if (status != 0)
 		goto err;
@@ -3437,7 +3540,6 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
-	kfree(adapter->pmac_id);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
@@ -3473,13 +3575,6 @@ static int be_ctrl_init(struct be_adapter *adapter)
 		goto free_mbox;
 	}
 	memset(rx_filter->va, 0, rx_filter->size);
-
-	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
-				   sizeof(*adapter->pmac_id), GFP_KERNEL);
-	if (!adapter->pmac_id)
-		return -ENOMEM;
-
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
@@ -3598,25 +3693,11 @@ u32 be_get_fw_log_level(struct be_adapter *adapter)
 err:
 	return level;
 }
+
 static int be_get_initial_config(struct be_adapter *adapter)
 {
 	int status;
 	u32 level;
-
-	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
-			&adapter->function_mode, &adapter->function_caps);
-	if (status)
-		return status;
-
-	if (adapter->function_mode & FLEX10_MODE)
-		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
-	else
-		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
-
-	if (be_physfn(adapter))
-		adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
-	else
-		adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
 
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)

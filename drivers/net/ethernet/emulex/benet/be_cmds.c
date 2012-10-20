@@ -1658,9 +1658,9 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 		/* Reset mcast promisc mode if already set by setting mask
 		 * and not setting flags field
 		 */
-		if (!lancer_chip(adapter) || be_physfn(adapter))
-			req->if_flags_mask |=
-				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+		req->if_flags_mask |=
+			cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS &
+				    adapter->if_cap_flags);
 
 		req->mcast_num = cpu_to_le32(netdev_mc_count(adapter->netdev));
 		netdev_for_each_mc_addr(ha, adapter->netdev)
@@ -2789,6 +2789,150 @@ int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name)
 	}
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
+						    u32 max_buf_size)
+{
+	struct be_nic_resource_desc *desc = (struct be_nic_resource_desc *)buf;
+	int i;
+
+	for (i = 0; i < desc_count; i++) {
+		desc->desc_len = RESOURCE_DESC_SIZE;
+		if (((void *)desc + desc->desc_len) >
+		    (void *)(buf + max_buf_size)) {
+			desc = NULL;
+			break;
+		}
+
+		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_ID)
+			break;
+
+		desc = (void *)desc + desc->desc_len;
+	}
+
+	if (!desc || i == MAX_RESOURCE_DESC)
+		return NULL;
+
+	return desc;
+}
+
+/* Uses Mbox */
+int be_cmd_get_func_config(struct be_adapter *adapter)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_func_config *req;
+	int status;
+	struct be_dma_mem cmd;
+
+	memset(&cmd, 0, sizeof(struct be_dma_mem));
+	cmd.size = sizeof(struct be_cmd_resp_get_func_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
+				      &cmd.dma);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+		return -ENOMEM;
+	}
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd.va;
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_FUNC_CONFIG,
+			       cmd.size, wrb, &cmd);
+
+	status = be_mbox_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_func_config *resp = cmd.va;
+		u32 desc_count = le32_to_cpu(resp->desc_count);
+		struct be_nic_resource_desc *desc;
+
+		desc = be_get_nic_desc(resp->func_param, desc_count,
+				       sizeof(resp->func_param));
+		if (!desc) {
+			status = -EINVAL;
+			goto err;
+		}
+
+		adapter->max_pmac_cnt = le16_to_cpu(desc->unicast_mac_count);
+		adapter->max_vlans = le16_to_cpu(desc->vlan_count);
+		adapter->max_mcast_mac = le16_to_cpu(desc->mcast_mac_count);
+		adapter->max_tx_queues = le16_to_cpu(desc->txq_count);
+		adapter->max_rss_queues = le16_to_cpu(desc->rssq_count);
+		adapter->max_rx_queues = le16_to_cpu(desc->rq_count);
+
+		adapter->max_event_queues = le16_to_cpu(desc->eq_count);
+		adapter->if_cap_flags = le32_to_cpu(desc->cap_flags);
+	}
+err:
+	mutex_unlock(&adapter->mbox_lock);
+	pci_free_consistent(adapter->pdev, cmd.size,
+			    cmd.va, cmd.dma);
+	return status;
+}
+
+ /* Uses sync mcc */
+int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
+			      u8 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_profile_config *req;
+	int status;
+	struct be_dma_mem cmd;
+
+	memset(&cmd, 0, sizeof(struct be_dma_mem));
+	cmd.size = sizeof(struct be_cmd_resp_get_profile_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
+				      &cmd.dma);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd.va;
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PROFILE_CONFIG,
+			       cmd.size, wrb, &cmd);
+
+	req->type = ACTIVE_PROFILE_TYPE;
+	req->hdr.domain = domain;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_profile_config *resp = cmd.va;
+		u32 desc_count = le32_to_cpu(resp->desc_count);
+		struct be_nic_resource_desc *desc;
+
+		desc = be_get_nic_desc(resp->func_param, desc_count,
+				       sizeof(resp->func_param));
+
+		if (!desc) {
+			status = -EINVAL;
+			goto err;
+		}
+		*cap_flags = le32_to_cpu(desc->cap_flags);
+	}
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	pci_free_consistent(adapter->pdev, cmd.size,
+			    cmd.va, cmd.dma);
 	return status;
 }
 
