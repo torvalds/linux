@@ -44,6 +44,7 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID3)},
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID4)},
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID5)},
+	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID6)},
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -3910,6 +3911,7 @@ static int be_dev_type_check(struct be_adapter *adapter)
 		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID5:
+	case OC_DEVICE_ID6:
 		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
 		if ((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) {
 			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");

@@ -53,6 +53,7 @@
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
 #define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
 #define OC_DEVICE_ID5		0x720	/* Device Id for Skyhawk cards */
+#define OC_DEVICE_ID6		0x728   /* Device id for VF in SkyHawk */
 #define OC_SUBSYS_DEVICE_ID1	0xE602
 #define OC_SUBSYS_DEVICE_ID2	0xE642
 #define OC_SUBSYS_DEVICE_ID3	0xE612
@@ -71,6 +72,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
 	case OC_DEVICE_ID5:
+	case OC_DEVICE_ID6:
 		return OC_NAME_SH;
 	default:
 		return BE_NAME;
@@ -466,7 +468,8 @@ struct be_adapter {
 #define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
 				 (adapter->pdev->device == OC_DEVICE_ID4))
 
-#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5)
+#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5 || \
+				 adapter->pdev->device == OC_DEVICE_ID6)
 
 
 #define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
