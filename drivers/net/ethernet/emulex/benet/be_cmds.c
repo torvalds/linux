@@ -3131,6 +3131,38 @@ err:
 	return status;
 }
 
+/* Uses sync mcc */
+int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_enable_disable_vf *req;
+	int status;
+
+	if (!lancer_chip(adapter))
+		return 0;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_ENABLE_DISABLE_VF, sizeof(*req),
+			       wrb, NULL);
+
+	req->hdr.domain = domain;
+	req->enable = 1;
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 			int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {

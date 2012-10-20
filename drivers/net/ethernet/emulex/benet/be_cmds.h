@@ -203,6 +203,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
+#define OPCODE_COMMON_ENABLE_DISABLE_VF			196
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -1802,6 +1803,12 @@ struct be_cmd_resp_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 };
 
+struct be_cmd_enable_disable_vf {
+	struct be_cmd_req_hdr hdr;
+	u8 enable;
+	u8 rsvd[3];
+};
+
 static inline bool check_privilege(struct be_adapter *adapter, u32 flags)
 {
 	return flags & adapter->cmd_privileges ? true : false;
@@ -1929,3 +1936,4 @@ extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
 
 extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 				     u8 domain);
+extern int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);
