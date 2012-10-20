@@ -90,7 +90,7 @@ static void twofish_dec_blk_cbc_xway(void *ctx, u128 *dst, const u128 *src)
 }
 
 static void twofish_enc_blk_ctr_xway(void *ctx, u128 *dst, const u128 *src,
-				     u128 *iv)
+				     le128 *iv)
 {
 	be128 ctrblks[TWOFISH_PARALLEL_BLOCKS];
 	unsigned int i;
@@ -99,8 +99,8 @@ static void twofish_enc_blk_ctr_xway(void *ctx, u128 *dst, const u128 *src,
 		if (dst != src)
 			dst[i] = src[i];
 
-		u128_to_be128(&ctrblks[i], iv);
-		u128_inc(iv);
+		le128_to_be128(&ctrblks[i], iv);
+		le128_inc(iv);
 	}
 
 	twofish_enc_blk_xway_xor(ctx, (u8 *)dst, (u8 *)ctrblks);

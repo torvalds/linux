@@ -1317,21 +1317,21 @@ static void camellia_decrypt_cbc_2way(void *ctx, u128 *dst, const u128 *src)
 	u128_xor(&dst[1], &dst[1], &iv);
 }
 
-static void camellia_crypt_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
+static void camellia_crypt_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	be128 ctrblk;
 
 	if (dst != src)
 		*dst = *src;
 
-	u128_to_be128(&ctrblk, iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblk, iv);
+	le128_inc(iv);
 
 	camellia_enc_blk_xor(ctx, (u8 *)dst, (u8 *)&ctrblk);
 }
 
 static void camellia_crypt_ctr_2way(void *ctx, u128 *dst, const u128 *src,
-				    u128 *iv)
+				    le128 *iv)
 {
 	be128 ctrblks[2];
 
@@ -1340,10 +1340,10 @@ static void camellia_crypt_ctr_2way(void *ctx, u128 *dst, const u128 *src,
 		dst[1] = src[1];
 	}
 
-	u128_to_be128(&ctrblks[0], iv);
-	u128_inc(iv);
-	u128_to_be128(&ctrblks[1], iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblks[0], iv);
+	le128_inc(iv);
+	le128_to_be128(&ctrblks[1], iv);
+	le128_inc(iv);
 
 	camellia_enc_blk_xor_2way(ctx, (u8 *)dst, (u8 *)ctrblks);
 }
