@@ -941,6 +941,11 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				 chan_idx)->chan_scan_mode_bitmap
 					&= ~MWIFIEX_PASSIVE_SCAN;
 
+			if (*filtered_scan)
+				(scan_chan_list +
+				 chan_idx)->chan_scan_mode_bitmap
+					|= MWIFIEX_DISABLE_CHAN_FILT;
+
 			if (user_scan_in->chan_list[chan_idx].scan_time) {
 				scan_dur = (u16) user_scan_in->
 					chan_list[chan_idx].scan_time;
