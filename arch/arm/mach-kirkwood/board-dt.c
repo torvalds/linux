@@ -51,9 +51,7 @@ static void __init kirkwood_dt_init(void)
 
 	kirkwood_setup_cpu_mbus();
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
-#endif
 
 	/* Setup root of clk tree */
 	kirkwood_clk_init();

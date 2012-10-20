@@ -245,7 +245,7 @@ static void __init tegra_init_timer(void)
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
 
-struct sys_timer tegra_timer = {
+struct sys_timer tegra_sys_timer = {
 	.init = tegra_init_timer,
 };
 
