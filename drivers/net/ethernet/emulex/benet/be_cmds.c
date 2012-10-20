@@ -681,6 +681,9 @@ static struct be_mcc_wrb *wrb_from_mccq(struct be_adapter *adapter)
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	struct be_mcc_wrb *wrb;
 
+	if (!mccq->created)
+		return NULL;
+
 	if (atomic_read(&mccq->used) >= mccq->len) {
 		dev_err(&adapter->pdev->dev, "Out of MCCQ wrbs\n");
 		return NULL;
@@ -1235,8 +1238,7 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 	req->id = cpu_to_le16(q->id);
 
 	status = be_mbox_notify_wait(adapter);
-	if (!status)
-		q->created = false;
+	q->created = false;
 
 	mutex_unlock(&adapter->mbox_lock);
 	return status;
@@ -1263,8 +1265,7 @@ int be_cmd_rxq_destroy(struct be_adapter *adapter, struct be_queue_info *q)
 	req->id = cpu_to_le16(q->id);
 
 	status = be_mcc_notify_wait(adapter);
-	if (!status)
-		q->created = false;
+	q->created = false;
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
