@@ -614,8 +614,7 @@ out:
 #ifdef CONFIG_COMPAT
 long compat_sys_execve(const char __user *path,
 		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp,
-		       struct pt_regs *regs)
+		       compat_uptr_t __user *envp)
 {
 	long error;
 	struct filename *filename;
@@ -624,7 +623,8 @@ long compat_sys_execve(const char __user *path,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename->name, argv, envp, regs);
+	error = compat_do_execve(filename->name, argv, envp,
+				 current_pt_regs());
 	putname(filename);
 	if (error == 0)
 		single_step_execve();

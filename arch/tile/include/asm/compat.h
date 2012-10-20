@@ -275,9 +275,6 @@ extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
 struct compat_sigaction;
 struct compat_siginfo;
 struct compat_sigaltstack;
-long compat_sys_execve(const char __user *path,
-		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp, struct pt_regs *);
 long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 			     struct compat_sigaction __user *oact,
 			     size_t sigsetsize);
@@ -304,9 +301,6 @@ long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 				      struct compat_timespec __user *interval);
 
 /* These are the intvec_64.S trampolines. */
-long _compat_sys_execve(const char __user *path,
-			const compat_uptr_t __user *argv,
-			const compat_uptr_t __user *envp);
 long _compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 			    struct compat_sigaltstack __user *uoss_ptr);
 long _compat_sys_rt_sigreturn(void);

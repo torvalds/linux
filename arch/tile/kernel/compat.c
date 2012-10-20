@@ -103,7 +103,6 @@ long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 #define compat_sys_readahead sys32_readahead
 
 /* Call the trampolines to manage pt_regs where necessary. */
-#define compat_sys_execve _compat_sys_execve
 #define compat_sys_sigaltstack _compat_sys_sigaltstack
 #define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
 #define sys_clone _sys_clone
