@@ -2633,19 +2633,17 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
-		struct edp_power_seq	cur, vbt;
-		u32 pp_on, pp_off, pp_div;
+		struct edp_power_seq	cur, vbt, spec, final;
+		u32 pp_on, pp_off, pp_div, pp;
+
+		/* Workaround: Need to write PP_CONTROL with the unlock key as
+		 * the very first thing. */
+		pp = ironlake_get_pp_control(dev_priv);
+		I915_WRITE(PCH_PP_CONTROL, pp);
 
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
 		pp_div = I915_READ(PCH_PP_DIVISOR);
-
-		if (!pp_on || !pp_off || !pp_div) {
-			DRM_INFO("bad panel power sequencing delays, disabling panel\n");
-			intel_dp_encoder_destroy(&intel_dp->base.base);
-			intel_dp_destroy(&intel_connector->base);
-			return;
-		}
 
 		/* Pull timing values out of registers */
 		cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
@@ -2668,16 +2666,62 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 		vbt = dev_priv->edp.pps;
 
+		/* Upper limits from eDP 1.3 spec. Note that we use the clunky
+		 * units of our hw here, which are all in 100usec. */
+		spec.t1_t3 = 210 * 10;
+		spec.t8 = 50 * 10; /* no limit for t8, use t7 instead */
+		spec.t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
+		spec.t10 = 500 * 10;
+		/* This one is special and actually in units of 100ms, but zero
+		 * based in the hw (so we need to add 100 ms). But the sw vbt
+		 * table multiplies it with 1000 to make it in units of 100usec,
+		 * too. */
+		spec.t11_t12 = (510 + 100) * 10;
+
 		DRM_DEBUG_KMS("vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 			      vbt.t1_t3, vbt.t8, vbt.t9, vbt.t10, vbt.t11_t12);
 
-#define get_delay(field)	((max(cur.field, vbt.field) + 9) / 10)
+		/* Use the max of the register settings and vbt. If both are
+		 * unset, fall back to the spec limits. */
+#define assign_final(field)	final.field = (max(cur.field, vbt.field) == 0 ? \
+					       spec.field : \
+					       max(cur.field, vbt.field))
+		assign_final(t1_t3);
+		assign_final(t8);
+		assign_final(t9);
+		assign_final(t10);
+		assign_final(t11_t12);
+#undef assign_final
 
+#define get_delay(field)	(DIV_ROUND_UP(final.field, 10))
 		intel_dp->panel_power_up_delay = get_delay(t1_t3);
 		intel_dp->backlight_on_delay = get_delay(t8);
 		intel_dp->backlight_off_delay = get_delay(t9);
 		intel_dp->panel_power_down_delay = get_delay(t10);
 		intel_dp->panel_power_cycle_delay = get_delay(t11_t12);
+#undef get_delay
+
+		/* And finally store the new values in the power sequencer. */
+		pp_on = (final.t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
+			(final.t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
+		pp_off = (final.t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
+			 (final.t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
+		pp_div = (pp_div & PP_REFERENCE_DIVIDER_MASK) |
+			 (DIV_ROUND_UP(final.t11_t12, 1000) << PANEL_POWER_CYCLE_DELAY_SHIFT);
+
+		/* Haswell doesn't have any port selection bits for the panel
+		 * power sequence any more. */
+		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+			if (is_cpu_edp(intel_dp))
+				pp_on |= PANEL_POWER_PORT_DP_A;
+			else
+				pp_on |= PANEL_POWER_PORT_DP_D;
+		}
+
+		I915_WRITE(PCH_PP_ON_DELAYS, pp_on);
+		I915_WRITE(PCH_PP_OFF_DELAYS, pp_off);
+		I915_WRITE(PCH_PP_DIVISOR, pp_div);
+
 
 		DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
 			      intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
@@ -2685,6 +2729,11 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 		DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
 			      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
+
+		DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
+			      I915_READ(PCH_PP_ON_DELAYS),
+			      I915_READ(PCH_PP_OFF_DELAYS),
+			      I915_READ(PCH_PP_DIVISOR));
 	}
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
