@@ -52,6 +52,5 @@ void __init km_kirkwood_init(void)
 	if (!IS_ERR(sata_clk))
 		sata_clk->flags |= CLK_IGNORE_UNUSED;
 
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&km_kirkwood_ge00_data);
 }

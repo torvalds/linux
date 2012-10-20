@@ -45,7 +45,6 @@ void __init iconnect_init(void)
 {
 	kirkwood_mpp_conf(iconnect_mpp_config);
 
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&iconnect_ge00_data);
 }
 

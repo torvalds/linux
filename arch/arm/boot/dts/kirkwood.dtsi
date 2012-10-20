@@ -77,6 +77,13 @@
 			status = "okay";
 		};
 
+		ehci@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <19>;
+			status = "okay";
+		};
+
 		sata@80000 {
 			compatible = "marvell,orion-sata";
 			reg = <0x80000 0x5000>;

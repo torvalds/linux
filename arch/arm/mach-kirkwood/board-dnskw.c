@@ -78,7 +78,6 @@ void __init dnskw_init(void)
 {
 	kirkwood_mpp_conf(dnskw_mpp_config);
 
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
 
 	/* Register power-off GPIO. */

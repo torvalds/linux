@@ -66,7 +66,6 @@ void __init qnap_dt_ts219_init(void)
 		qnap_ts219_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
 
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
-	kirkwood_ehci_init();
 
 	pm_power_off = qnap_tsx1x_power_off;
 }
