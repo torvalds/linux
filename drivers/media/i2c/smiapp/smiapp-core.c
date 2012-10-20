@@ -2625,7 +2625,8 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		goto out_nvm_release;
 
 	/* prepare PLL configuration input values */
-	pll->lanes = sensor->platform_data->lanes;
+	pll->bus_type = SMIAPP_PLL_BUS_TYPE_CSI2;
+	pll->csi2.lanes = sensor->platform_data->lanes;
 	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
 	/* Profile 0 sensors have no separate OP clock branch. */
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)

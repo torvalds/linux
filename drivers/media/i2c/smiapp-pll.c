@@ -371,7 +371,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	int rval = -EINVAL;
 
 	if (pll->flags & SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
-		lane_op_clock_ratio = pll->lanes;
+		lane_op_clock_ratio = pll->csi2.lanes;
 	else
 		lane_op_clock_ratio = 1;
 	dev_dbg(dev, "lane_op_clock_ratio: %d\n", lane_op_clock_ratio);
@@ -379,9 +379,20 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	dev_dbg(dev, "binning: %dx%d\n", pll->binning_horizontal,
 		pll->binning_vertical);
 
-	/* CSI transfers 2 bits per clock per lane; thus times 2 */
-	pll->pll_op_clk_freq_hz = pll->link_freq * 2
-		* (pll->lanes / lane_op_clock_ratio);
+	switch (pll->bus_type) {
+	case SMIAPP_PLL_BUS_TYPE_CSI2:
+		/* CSI transfers 2 bits per clock per lane; thus times 2 */
+		pll->pll_op_clk_freq_hz = pll->link_freq * 2
+			* (pll->csi2.lanes / lane_op_clock_ratio);
+		break;
+	case SMIAPP_PLL_BUS_TYPE_PARALLEL:
+		pll->pll_op_clk_freq_hz = pll->link_freq * pll->bits_per_pixel
+			/ DIV_ROUND_UP(pll->bits_per_pixel,
+				       pll->parallel.bus_width);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Figure out limits for pre-pll divider based on extclk */
 	dev_dbg(dev, "min / max pre_pll_clk_div: %d / %d\n",

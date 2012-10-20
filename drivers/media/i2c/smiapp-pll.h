@@ -27,16 +27,34 @@
 
 #include <linux/device.h>
 
+/* CSI-2 or CCP-2 */
+#define SMIAPP_PLL_BUS_TYPE_CSI2				0x00
+#define SMIAPP_PLL_BUS_TYPE_PARALLEL				0x01
+
+/* op pix clock is for all lanes in total normally */
+#define SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
+#define SMIAPP_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
+
 struct smiapp_pll {
-	uint8_t lanes;
+	/* input values */
+	uint8_t bus_type;
+	union {
+		struct {
+			uint8_t lanes;
+		} csi2;
+		struct {
+			uint8_t bus_width;
+		} parallel;
+	};
+	uint8_t flags;
 	uint8_t binning_horizontal;
 	uint8_t binning_vertical;
 	uint8_t scale_m;
 	uint8_t scale_n;
 	uint8_t bits_per_pixel;
-	uint16_t flags;
 	uint32_t link_freq;
 
+	/* output values */
 	uint16_t pre_pll_clk_div;
 	uint16_t pll_multiplier;
 	uint16_t op_sys_clk_div;
@@ -90,10 +108,6 @@ struct smiapp_pll_limits {
 	uint32_t min_line_length_pck_bin;
 	uint32_t min_line_length_pck;
 };
-
-/* op pix clock is for all lanes in total normally */
-#define SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
-#define SMIAPP_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
 
 struct device;
 
