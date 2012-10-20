@@ -4165,9 +4165,6 @@ static void be_shutdown(struct pci_dev *pdev)
 
 	netif_device_detach(adapter->netdev);
 
-	if (adapter->wol)
-		be_setup_wol(adapter, true);
-
 	be_cmd_reset_function(adapter);
 
 	pci_disable_device(pdev);
