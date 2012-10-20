@@ -59,6 +59,8 @@ struct act8931;
 #define VOL_MIN_IDX 0x00
 #define VOL_MAX_IDX 0x3f
 
+int act8931_device_shutdown(void);
+
 struct act8931_regulator_subdev {
 	int id;
 	struct regulator_init_data *initdata;

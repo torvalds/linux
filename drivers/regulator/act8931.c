@@ -38,6 +38,8 @@
 #endif
 #define PM_CONTROL
 
+struct act8931 *g_act8931;
+
 struct act8931 {
 	unsigned int irq;
 	struct device *dev;
@@ -568,6 +570,25 @@ error:
 	return err;
 }
 
+int act8931_device_shutdown(void)
+{
+	int ret;
+	int err = -1;
+	struct act8931 *act8931 = g_act8931;
+	
+	printk("%s\n",__func__);
+
+	ret = act8931_reg_read(act8931,0x01);
+	ret = act8931_set_bits(act8931, 0x01,(0x1<<5) |(0x3<<0),(0x1<<5) | (0x3<<0));
+	if (ret < 0) {
+		printk("act8931 set 0x00 error!\n");
+		return err;
+	}
+	return 0;	
+}
+EXPORT_SYMBOL_GPL(act8931_device_shutdown);
+
+
 static irqreturn_t act8931_irq_thread(unsigned int irq, void *dev_id)
 {
 	struct act8931 *act8931 = (struct act8931 *)dev_id;
@@ -624,6 +645,17 @@ static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_
 			goto err;
 	} else
 		dev_warn(act8931->dev, "No platform init data supplied\n");
+
+	ret = act8931_reg_read(act8931,0x01);
+	if (ret < 0)		
+			goto err;
+	ret = act8931_set_bits(act8931, 0x01,(0x1<<0),(0x1<<0));
+	if (ret < 0) {
+		printk("act8931 set 0x01 error!\n");
+		goto err;
+	}
+	
+	g_act8931 = act8931;
 	
 	pdata->set_init(act8931);
 

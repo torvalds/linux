@@ -830,6 +830,7 @@ static void rk2928_pm_power_off(void)
          if (pmic_is_act8931() ){
               if(act8931_charge_det)
                    arm_pm_restart(0, NULL);
+		act8931_device_shutdown();
          }
         #endif
 	

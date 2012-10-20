@@ -855,8 +855,9 @@ static void rk2928_pm_power_off(void)
         {
                  #ifdef CONFIG_BATTERY_RK30_ADC_FAC
               if (gpio_get_value (rk30_adc_battery_platdata.dc_det_pin) == rk30_adc_battery_platdata.dc_det_level)//if(act8931_charge_det)
-                 #endif
-                   arm_pm_restart(0, NULL);
+		arm_pm_restart(0, NULL);
+				 #endif
+               act8931_device_shutdown();
         }
         #endif
 	
