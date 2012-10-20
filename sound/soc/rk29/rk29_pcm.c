@@ -467,12 +467,19 @@ static int rockchip_pcm_mmap(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+   DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
+#ifdef CONFIG_RK_SRAM_DMA
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+        return remap_pfn_range(vma, vma->vm_start,
+		       substream->dma_buffer.addr >> PAGE_SHIFT,
+		       vma->vm_end - vma->vm_start, vma->vm_page_prot);
+#else
 	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
 				     runtime->dma_area,
 				     runtime->dma_addr,
 				     runtime->dma_bytes);
+#endif
 }
 
 static struct snd_pcm_ops rockchip_pcm_ops = {
