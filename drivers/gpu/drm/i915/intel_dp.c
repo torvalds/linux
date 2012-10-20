@@ -377,7 +377,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		else
 			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
 	} else if (HAS_PCH_SPLIT(dev))
-		aux_clock_divider = 63; /* IRL input clock fixed at 125Mhz */
+		aux_clock_divider = DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
 
