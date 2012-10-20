@@ -4201,9 +4201,13 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	/* The error could cause the FW to trigger a flash debug dump.
 	 * Resetting the card while flash dump is in progress
-	 * can cause it not to recover; wait for it to finish
+	 * can cause it not to recover; wait for it to finish.
+	 * Wait only for first function as it is needed only once per
+	 * adapter.
 	 */
-	ssleep(30);
+	if (pdev->devfn == 0)
+		ssleep(30);
+
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
