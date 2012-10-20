@@ -198,6 +198,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_HSW_CONFIG			152
 #define OPCODE_COMMON_GET_FUNC_CONFIG			160
 #define OPCODE_COMMON_GET_PROFILE_CONFIG		164
+#define OPCODE_COMMON_SET_PROFILE_CONFIG		165
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
@@ -1689,6 +1690,14 @@ struct be_cmd_req_set_ext_fat_caps {
 #define RESOURCE_DESC_SIZE			72
 #define NIC_RESOURCE_DESC_TYPE_ID		0x41
 #define MAX_RESOURCE_DESC			4
+
+/* QOS unit number */
+#define QUN					4
+/* Immediate */
+#define IMM					6
+/* No save */
+#define NOSV					7
+
 struct be_nic_resource_desc {
 	u8 desc_type;
 	u8 desc_len;
@@ -1744,6 +1753,17 @@ struct be_cmd_resp_get_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 desc_count;
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
+struct be_cmd_req_set_profile_config {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+	u32 desc_count;
+	struct be_nic_resource_desc nic_desc;
+};
+
+struct be_cmd_resp_set_profile_config {
+	struct be_cmd_req_hdr hdr;
 };
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
@@ -1862,4 +1882,7 @@ extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 extern int be_cmd_get_func_config(struct be_adapter *adapter);
 extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
+				     u8 domain);
+
+extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 				     u8 domain);

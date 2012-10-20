@@ -1062,7 +1062,10 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
+	if (lancer_chip(adapter))
+		status = be_cmd_set_profile_config(adapter, rate / 10, vf + 1);
+	else
+		status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
 
 	if (status)
 		dev_err(&adapter->pdev->dev,

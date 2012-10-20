@@ -2862,6 +2862,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter)
 			goto err;
 		}
 
+		adapter->pf_number = desc->pf_num;
 		adapter->max_pmac_cnt = le16_to_cpu(desc->unicast_mac_count);
 		adapter->max_vlans = le16_to_cpu(desc->vlan_count);
 		adapter->max_mcast_mac = le16_to_cpu(desc->mcast_mac_count);
@@ -2933,6 +2934,63 @@ err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	pci_free_consistent(adapter->pdev, cmd.size,
 			    cmd.va, cmd.dma);
+	return status;
+}
+
+/* Uses sync mcc */
+int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
+			      u8 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_profile_config *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_PROFILE_CONFIG, sizeof(*req),
+			       wrb, NULL);
+
+	req->hdr.domain = domain;
+	req->desc_count = cpu_to_le32(1);
+
+	req->nic_desc.desc_type = NIC_RESOURCE_DESC_TYPE_ID;
+	req->nic_desc.desc_len = RESOURCE_DESC_SIZE;
+	req->nic_desc.flags = (1 << QUN) | (1 << IMM) | (1 << NOSV);
+	req->nic_desc.pf_num = adapter->pf_number;
+	req->nic_desc.vf_num = domain;
+
+	/* Mark fields invalid */
+	req->nic_desc.unicast_mac_count = 0xFFFF;
+	req->nic_desc.mcc_count = 0xFFFF;
+	req->nic_desc.vlan_count = 0xFFFF;
+	req->nic_desc.mcast_mac_count = 0xFFFF;
+	req->nic_desc.txq_count = 0xFFFF;
+	req->nic_desc.rq_count = 0xFFFF;
+	req->nic_desc.rssq_count = 0xFFFF;
+	req->nic_desc.lro_count = 0xFFFF;
+	req->nic_desc.cq_count = 0xFFFF;
+	req->nic_desc.toe_conn_count = 0xFFFF;
+	req->nic_desc.eq_count = 0xFFFF;
+	req->nic_desc.link_param = 0xFF;
+	req->nic_desc.bw_min = 0xFFFFFFFF;
+	req->nic_desc.acpi_params = 0xFF;
+	req->nic_desc.wol_param = 0x0F;
+
+	/* Change BW */
+	req->nic_desc.bw_min = cpu_to_le32(bps);
+	req->nic_desc.bw_max = cpu_to_le32(bps);
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
