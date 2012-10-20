@@ -2351,6 +2351,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "ctr(des3_ede)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = des3_ede_ctr_enc_tv_template,
+					.count = DES3_EDE_CTR_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = des3_ede_ctr_dec_tv_template,
+					.count = DES3_EDE_CTR_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "ctr(serpent)",
 		.test = alg_test_skcipher,
 		.suite = {

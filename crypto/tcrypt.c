@@ -977,6 +977,7 @@ static int do_test(int m)
 	case 4:
 		ret += tcrypt_test("ecb(des3_ede)");
 		ret += tcrypt_test("cbc(des3_ede)");
+		ret += tcrypt_test("ctr(des3_ede)");
 		break;
 
 	case 5:
