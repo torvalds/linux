@@ -459,6 +459,7 @@ struct be_adapter {
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
 #define BE_GEN3 3
+#define SH_HW	4
 
 #define ON				1
 #define OFF				0

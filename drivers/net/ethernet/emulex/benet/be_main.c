@@ -3088,6 +3088,47 @@ struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
 	return NULL;
 }
 
+static int be_flash(struct be_adapter *adapter, const u8 *img,
+		struct be_dma_mem *flash_cmd, int optype, int img_size)
+{
+	u32 total_bytes = 0, flash_op, num_bytes = 0;
+	int status = 0;
+	struct be_cmd_write_flashrom *req = flash_cmd->va;
+
+	total_bytes = img_size;
+	while (total_bytes) {
+		num_bytes = min_t(u32, 32*1024, total_bytes);
+
+		total_bytes -= num_bytes;
+
+		if (!total_bytes) {
+			if (optype == OPTYPE_PHY_FW)
+				flash_op = FLASHROM_OPER_PHY_FLASH;
+			else
+				flash_op = FLASHROM_OPER_FLASH;
+		} else {
+			if (optype == OPTYPE_PHY_FW)
+				flash_op = FLASHROM_OPER_PHY_SAVE;
+			else
+				flash_op = FLASHROM_OPER_SAVE;
+		}
+
+		memcpy(req->params.data_buf, img, num_bytes);
+		img += num_bytes;
+		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
+						flash_op, num_bytes);
+		if (status) {
+			if (status == ILLEGAL_IOCTL_REQ &&
+			    optype == OPTYPE_PHY_FW)
+				break;
+			dev_err(&adapter->pdev->dev,
+				"cmd to write to flash rom failed.\n");
+			return status;
+		}
+	}
+	return 0;
+}
+
 static int be_flash_data(struct be_adapter *adapter,
 			 const struct firmware *fw,
 			 struct be_dma_mem *flash_cmd,
@@ -3096,12 +3137,9 @@ static int be_flash_data(struct be_adapter *adapter,
 {
 	int status = 0, i, filehdr_size = 0;
 	int img_hdrs_size = (num_of_images * sizeof(struct image_hdr));
-	u32 total_bytes = 0, flash_op;
-	int num_bytes;
 	const u8 *p = fw->data;
-	struct be_cmd_write_flashrom *req = flash_cmd->va;
 	const struct flash_comp *pflashcomp;
-	int num_comp, hdr_size;
+	int num_comp, redboot;
 	struct flash_section_info *fsec = NULL;
 
 	struct flash_comp gen3_flash_types[] = {
@@ -3170,70 +3208,105 @@ static int be_flash_data(struct be_adapter *adapter,
 		    memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
 			continue;
 
-		if (pflashcomp[i].optype == OPTYPE_PHY_FW) {
-			if (!phy_flashing_required(adapter))
+		if (pflashcomp[i].optype == OPTYPE_PHY_FW  &&
+		    !phy_flashing_required(adapter))
+				continue;
+
+		if (pflashcomp[i].optype == OPTYPE_REDBOOT) {
+			redboot = be_flash_redboot(adapter, fw->data,
+				pflashcomp[i].offset, pflashcomp[i].size,
+				filehdr_size + img_hdrs_size);
+			if (!redboot)
 				continue;
 		}
 
-		hdr_size = filehdr_size +
-			   (num_of_images * sizeof(struct image_hdr));
-
-		if ((pflashcomp[i].optype == OPTYPE_REDBOOT) &&
-		    (!be_flash_redboot(adapter, fw->data, pflashcomp[i].offset,
-				       pflashcomp[i].size, hdr_size)))
-			continue;
-
-		/* Flash the component */
 		p = fw->data;
 		p += filehdr_size + pflashcomp[i].offset + img_hdrs_size;
 		if (p + pflashcomp[i].size > fw->data + fw->size)
 			return -1;
-		total_bytes = pflashcomp[i].size;
-		while (total_bytes) {
-			if (total_bytes > 32*1024)
-				num_bytes = 32*1024;
-			else
-				num_bytes = total_bytes;
-			total_bytes -= num_bytes;
-			if (!total_bytes) {
-				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
-					flash_op = FLASHROM_OPER_PHY_FLASH;
-				else
-					flash_op = FLASHROM_OPER_FLASH;
-			} else {
-				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
-					flash_op = FLASHROM_OPER_PHY_SAVE;
-				else
-					flash_op = FLASHROM_OPER_SAVE;
-			}
-			memcpy(req->params.data_buf, p, num_bytes);
-			p += num_bytes;
-			status = be_cmd_write_flashrom(adapter, flash_cmd,
-				pflashcomp[i].optype, flash_op, num_bytes);
-			if (status) {
-				if ((status == ILLEGAL_IOCTL_REQ) &&
-					(pflashcomp[i].optype ==
-						OPTYPE_PHY_FW))
-					break;
-				dev_err(&adapter->pdev->dev,
-					"cmd to write to flash rom failed.\n");
-				return -1;
-			}
+
+		status = be_flash(adapter, p, flash_cmd, pflashcomp[i].optype,
+					pflashcomp[i].size);
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+				"Flashing section type %d failed.\n",
+				pflashcomp[i].img_type);
+			return status;
 		}
 	}
 	return 0;
 }
 
-static int get_ufigen_type(struct flash_file_hdr_g2 *fhdr)
+static int be_flash_skyhawk(struct be_adapter *adapter,
+		const struct firmware *fw,
+		struct be_dma_mem *flash_cmd, int num_of_images)
 {
-	if (fhdr == NULL)
-		return 0;
-	if (fhdr->build[0] == '3')
-		return BE_GEN3;
-	else if (fhdr->build[0] == '2')
-		return BE_GEN2;
-	else
-		return 0;
+	int status = 0, i, filehdr_size = 0;
+	int img_offset, img_size, img_optype, redboot;
+	int img_hdrs_size = num_of_images * sizeof(struct image_hdr);
+	const u8 *p = fw->data;
+	struct flash_section_info *fsec = NULL;
+
+	filehdr_size = sizeof(struct flash_file_hdr_g3);
+	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
+	if (!fsec) {
+		dev_err(&adapter->pdev->dev,
+			"Invalid Cookie. UFI corrupted ?\n");
+		return -1;
+	}
+
+	for (i = 0; i < le32_to_cpu(fsec->fsec_hdr.num_images); i++) {
+		img_offset = le32_to_cpu(fsec->fsec_entry[i].offset);
+		img_size   = le32_to_cpu(fsec->fsec_entry[i].pad_size);
+
+		switch (le32_to_cpu(fsec->fsec_entry[i].type)) {
+		case IMAGE_FIRMWARE_iSCSI:
+			img_optype = OPTYPE_ISCSI_ACTIVE;
+			break;
+		case IMAGE_BOOT_CODE:
+			img_optype = OPTYPE_REDBOOT;
+			break;
+		case IMAGE_OPTION_ROM_ISCSI:
+			img_optype = OPTYPE_BIOS;
+			break;
+		case IMAGE_OPTION_ROM_PXE:
+			img_optype = OPTYPE_PXE_BIOS;
+			break;
+		case IMAGE_OPTION_ROM_FCoE:
+			img_optype = OPTYPE_FCOE_BIOS;
+			break;
+		case IMAGE_FIRMWARE_BACKUP_iSCSI:
+			img_optype = OPTYPE_ISCSI_BACKUP;
+			break;
+		case IMAGE_NCSI:
+			img_optype = OPTYPE_NCSI_FW;
+			break;
+		default:
+			continue;
+		}
+
+		if (img_optype == OPTYPE_REDBOOT) {
+			redboot = be_flash_redboot(adapter, fw->data,
+					img_offset, img_size,
+					filehdr_size + img_hdrs_size);
+			if (!redboot)
+				continue;
+		}
+
+		p = fw->data;
+		p += filehdr_size + img_offset + img_hdrs_size;
+		if (p + img_size > fw->data + fw->size)
+			return -1;
+
+		status = be_flash(adapter, p, flash_cmd, img_optype, img_size);
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+				"Flashing section type %d failed.\n",
+				fsec->fsec_entry[i].type);
+			return status;
+		}
+	}
+	return 0;
 }
 
 static int lancer_wait_idle(struct be_adapter *adapter)
@@ -3367,6 +3440,27 @@ lancer_fw_exit:
 	return status;
 }
 
+static int be_get_ufi_gen(struct be_adapter *adapter,
+			struct flash_file_hdr_g2 *fhdr)
+{
+	if (fhdr == NULL)
+		goto be_get_ufi_exit;
+
+	if (adapter->generation == BE_GEN3) {
+		if (skyhawk_chip(adapter) && fhdr->build[0] == '4')
+			return SH_HW;
+		else if (!skyhawk_chip(adapter) && fhdr->build[0] == '3')
+			return BE_GEN3;
+	} else if (adapter->generation == BE_GEN2 && fhdr->build[0] == '2') {
+			return BE_GEN2;
+	}
+
+be_get_ufi_exit:
+	dev_err(&adapter->pdev->dev,
+		"UFI and Interface are not compatible for flashing\n");
+	return -1;
+}
+
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 {
 	struct flash_file_hdr_g2 *fhdr;
@@ -3374,10 +3468,7 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
 	const u8 *p;
-	int status = 0, i = 0, num_imgs = 0;
-
-	p = fw->data;
-	fhdr = (struct flash_file_hdr_g2 *) p;
+	int status = 0, i = 0, num_imgs = 0, ufi_type = 0;
 
 	flash_cmd.size = sizeof(struct be_cmd_write_flashrom) + 32*1024;
 	flash_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, flash_cmd.size,
@@ -3389,26 +3480,31 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 		goto be_fw_exit;
 	}
 
-	if ((adapter->generation == BE_GEN3) &&
-			(get_ufigen_type(fhdr) == BE_GEN3)) {
-		fhdr3 = (struct flash_file_hdr_g3 *) fw->data;
-		num_imgs = le32_to_cpu(fhdr3->num_imgs);
-		for (i = 0; i < num_imgs; i++) {
-			img_hdr_ptr = (struct image_hdr *) (fw->data +
-					(sizeof(struct flash_file_hdr_g3) +
-					 i * sizeof(struct image_hdr)));
-			if (le32_to_cpu(img_hdr_ptr->imageid) == 1)
-				status = be_flash_data(adapter, fw, &flash_cmd,
-							num_imgs);
+	p = fw->data;
+	fhdr = (struct flash_file_hdr_g2 *)p;
+
+	ufi_type = be_get_ufi_gen(adapter, fhdr);
+
+	fhdr3 = (struct flash_file_hdr_g3 *)fw->data;
+	num_imgs = le32_to_cpu(fhdr3->num_imgs);
+	for (i = 0; i < num_imgs; i++) {
+		img_hdr_ptr = (struct image_hdr *)(fw->data +
+				(sizeof(struct flash_file_hdr_g3) +
+				 i * sizeof(struct image_hdr)));
+		if (le32_to_cpu(img_hdr_ptr->imageid) == 1) {
+			if (ufi_type == SH_HW)
+				status = be_flash_skyhawk(adapter, fw,
+							&flash_cmd, num_imgs);
+			else if (ufi_type == BE_GEN3)
+				status = be_flash_data(adapter, fw,
+							&flash_cmd, num_imgs);
 		}
-	} else if ((adapter->generation == BE_GEN2) &&
-			(get_ufigen_type(fhdr) == BE_GEN2)) {
-		status = be_flash_data(adapter, fw, &flash_cmd, 0);
-	} else {
-		dev_err(&adapter->pdev->dev,
-			"UFI and Interface are not compatible for flashing\n");
-		status = -1;
 	}
+
+	if (ufi_type == BE_GEN2)
+		status = be_flash_data(adapter, fw, &flash_cmd, 0);
+	else if (ufi_type == -1)
+		status = -1;
 
 	dma_free_coherent(&adapter->pdev->dev, flash_cmd.size, flash_cmd.va,
 			  flash_cmd.dma);
