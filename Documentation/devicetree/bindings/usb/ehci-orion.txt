@@ -1,0 +1,15 @@
+* EHCI controller, Orion Marvell variants
+
+Required properties:
+- compatible: must be "marvell,orion-ehci"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: The EHCI interrupt
+
+Example:
+
+	ehci@50000 {
+		compatible = "marvell,orion-ehci";
+		reg = <0x50000 0x1000>;
+		interrupts = <19>;
+	};
