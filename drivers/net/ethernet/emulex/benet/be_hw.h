@@ -59,6 +59,9 @@
 #define PHYSDEV_CONTROL_FW_RESET_MASK	0x00000002
 #define PHYSDEV_CONTROL_INP_MASK	0x40000000
 
+#define SLIPORT_ERROR_NO_RESOURCE1	0x2
+#define SLIPORT_ERROR_NO_RESOURCE2	0x9
+
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
 /* Host Interrupt Enable, if set interrupts are enabled although "PCI Interrupt

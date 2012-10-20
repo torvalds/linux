@@ -452,10 +452,33 @@ int lancer_wait_ready(struct be_adapter *adapter)
 	return status;
 }
 
+static bool lancer_provisioning_error(struct be_adapter *adapter)
+{
+	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
+	sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
+		sliport_err1 = ioread32(adapter->db +
+					SLIPORT_ERROR1_OFFSET);
+		sliport_err2 = ioread32(adapter->db +
+					SLIPORT_ERROR2_OFFSET);
+
+		if (sliport_err1 == SLIPORT_ERROR_NO_RESOURCE1 &&
+		    sliport_err2 == SLIPORT_ERROR_NO_RESOURCE2)
+			return true;
+	}
+	return false;
+}
+
 int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 {
 	int status;
 	u32 sliport_status, err, reset_needed;
+	bool resource_error;
+
+	resource_error = lancer_provisioning_error(adapter);
+	if (resource_error)
+		return -1;
+
 	status = lancer_wait_ready(adapter);
 	if (!status) {
 		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
@@ -477,6 +500,14 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 			status = -1;
 		}
 	}
+	/* Stop error recovery if error is not recoverable.
+	 * No resource error is temporary errors and will go away
+	 * when PF provisions resources.
+	 */
+	resource_error = lancer_provisioning_error(adapter);
+	if (status == -1 && !resource_error)
+		adapter->eeh_error = true;
+
 	return status;
 }
 

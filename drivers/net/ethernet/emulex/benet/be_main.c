@@ -3837,8 +3837,9 @@ static int lancer_recover_func(struct be_adapter *adapter)
 		"Adapter SLIPORT recovery succeeded\n");
 	return 0;
 err:
-	dev_err(&adapter->pdev->dev,
-		"Adapter SLIPORT recovery failed\n");
+	if (adapter->eeh_error)
+		dev_err(&adapter->pdev->dev,
+			"Adapter SLIPORT recovery failed\n");
 
 	return status;
 }
