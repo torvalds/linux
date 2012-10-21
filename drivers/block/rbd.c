@@ -533,6 +533,16 @@ static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
 	if (memcmp(&ondisk->text, RBD_HEADER_TEXT, sizeof (RBD_HEADER_TEXT)))
 		return false;
 
+	/* The bio layer requires at least sector-sized I/O */
+
+	if (ondisk->options.order < SECTOR_SHIFT)
+		return false;
+
+	/* If we use u64 in a few spots we may be able to loosen this */
+
+	if (ondisk->options.order > 8 * sizeof (int) - 1)
+		return false;
+
 	/*
 	 * The size of a snapshot header has to fit in a size_t, and
 	 * that limits the number of snapshots.
