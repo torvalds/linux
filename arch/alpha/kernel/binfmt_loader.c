@@ -5,7 +5,7 @@
 #include <linux/binfmts.h>
 #include <linux/a.out.h>
 
-static int load_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_binary(struct linux_binprm *bprm)
 {
 	struct exec *eh = (struct exec *)bprm->buf;
 	unsigned long loader;
