@@ -17,7 +17,8 @@
 #include "prm.h"
 #include "prm2xxx_3xxx.h"
 #include "cm.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-24xx.h"
@@ -176,15 +177,15 @@ static int omap3_clkdm_wakeup(struct clockdomain *clkdm)
 	return 0;
 }
 
-static int omap2_clkdm_clk_enable(struct clockdomain *clkdm)
+static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 {
 	bool hwsup = false;
 
 	if (!clkdm->clktrctrl_mask)
 		return 0;
 
-	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-				clkdm->clktrctrl_mask);
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
 
 	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
@@ -199,15 +200,15 @@ static int omap2_clkdm_clk_enable(struct clockdomain *clkdm)
 	return 0;
 }
 
-static int omap2_clkdm_clk_disable(struct clockdomain *clkdm)
+static int omap2xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 {
 	bool hwsup = false;
 
 	if (!clkdm->clktrctrl_mask)
 		return 0;
 
-	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-				clkdm->clktrctrl_mask);
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
 
 	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
@@ -258,8 +259,8 @@ static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 		return 0;
 	}
 
-	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-				clkdm->clktrctrl_mask);
+	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
 
 	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
@@ -292,8 +293,8 @@ static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 		return 0;
 	}
 
-	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-				clkdm->clktrctrl_mask);
+	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
 
 	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
@@ -317,8 +318,8 @@ struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_wakeup		= omap2_clkdm_wakeup,
 	.clkdm_allow_idle	= omap2_clkdm_allow_idle,
 	.clkdm_deny_idle	= omap2_clkdm_deny_idle,
-	.clkdm_clk_enable	= omap2_clkdm_clk_enable,
-	.clkdm_clk_disable	= omap2_clkdm_clk_disable,
+	.clkdm_clk_enable	= omap2xxx_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
 };
 
 struct clkdm_ops omap3_clkdm_operations = {

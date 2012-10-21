@@ -2,6 +2,7 @@
  * OMAP2/3 CM module functions
  *
  * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
@@ -12,8 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -22,54 +21,12 @@
 #include "iomap.h"
 #include "common.h"
 #include "cm.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-24xx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
-/* CM_AUTOIDLE_PLL.AUTO_* bit values for DPLLs */
-#define DPLL_AUTOIDLE_DISABLE				0x0
-#define OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP		0x3
-
-/* CM_AUTOIDLE_PLL.AUTO_* bit values for APLLs (OMAP2xxx only) */
-#define OMAP2XXX_APLL_AUTOIDLE_DISABLE			0x0
-#define OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP		0x3
-
-static const u8 cm_idlest_offs[] = {
-	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3, OMAP24XX_CM_IDLEST4
+static const u8 omap3xxx_cm_idlest_offs[] = {
+	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
 };
-
-u32 omap2_cm_read_mod_reg(s16 module, u16 idx)
-{
-	return __raw_readl(cm_base + module + idx);
-}
-
-void omap2_cm_write_mod_reg(u32 val, s16 module, u16 idx)
-{
-	__raw_writel(val, cm_base + module + idx);
-}
-
-/* Read-modify-write a register in a CM module. Caller must lock */
-u32 omap2_cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(module, idx);
-	v &= ~mask;
-	v |= bits;
-	omap2_cm_write_mod_reg(v, module, idx);
-
-	return v;
-}
-
-u32 omap2_cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_cm_rmw_mod_reg_bits(bits, bits, module, idx);
-}
-
-u32 omap2_cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_cm_rmw_mod_reg_bits(bits, 0x0, module, idx);
-}
 
 /*
  *
@@ -85,33 +42,15 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-bool omap2_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 {
 	u32 v;
-	bool ret = 0;
-
-	BUG_ON(!cpu_is_omap24xx() && !cpu_is_omap34xx());
 
 	v = omap2_cm_read_mod_reg(module, OMAP2_CM_CLKSTCTRL);
 	v &= mask;
 	v >>= __ffs(mask);
 
-	if (cpu_is_omap24xx())
-		ret = (v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
-	else
-		ret = (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
-
-	return ret;
-}
-
-void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
-{
-	_write_clktrctrl(OMAP24XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
-}
-
-void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
-{
-	_write_clktrctrl(OMAP24XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
+	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
 }
 
 void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
@@ -135,101 +74,35 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 }
 
 /*
- * DPLL autoidle control
- */
-
-static void _omap2xxx_set_dpll_autoidle(u8 m)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
-	v &= ~OMAP24XX_AUTO_DPLL_MASK;
-	v |= m << OMAP24XX_AUTO_DPLL_SHIFT;
-	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
-}
-
-void omap2xxx_cm_set_dpll_disable_autoidle(void)
-{
-	_omap2xxx_set_dpll_autoidle(OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP);
-}
-
-void omap2xxx_cm_set_dpll_auto_low_power_stop(void)
-{
-	_omap2xxx_set_dpll_autoidle(DPLL_AUTOIDLE_DISABLE);
-}
-
-/*
- * APLL autoidle control
- */
-
-static void _omap2xxx_set_apll_autoidle(u8 m, u32 mask)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
-	v &= ~mask;
-	v |= m << __ffs(mask);
-	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
-}
-
-void omap2xxx_cm_set_apll54_disable_autoidle(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
-				    OMAP24XX_AUTO_54M_MASK);
-}
-
-void omap2xxx_cm_set_apll54_auto_low_power_stop(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
-				    OMAP24XX_AUTO_54M_MASK);
-}
-
-void omap2xxx_cm_set_apll96_disable_autoidle(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
-				    OMAP24XX_AUTO_96M_MASK);
-}
-
-void omap2xxx_cm_set_apll96_auto_low_power_stop(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
-				    OMAP24XX_AUTO_96M_MASK);
-}
-
-/*
  *
  */
 
 /**
- * omap2_cm_wait_idlest_ready - wait for a module to leave idle or standby
+ * omap3xxx_cm_wait_module_ready - wait for a module to leave idle or standby
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
  *
- * XXX document
+ * Wait for the PRCM to indicate that the module identified by
+ * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
+ * success or -EBUSY if the module doesn't enable in time.
  */
-int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;
 	u32 mask;
 
-	if (!idlest_id || (idlest_id > ARRAY_SIZE(cm_idlest_offs)))
+	if (!idlest_id || (idlest_id > ARRAY_SIZE(omap3xxx_cm_idlest_offs)))
 		return -EINVAL;
 
-	cm_idlest_reg = cm_idlest_offs[idlest_id - 1];
+	cm_idlest_reg = omap3xxx_cm_idlest_offs[idlest_id - 1];
 
 	mask = 1 << idlest_shift;
+	ena = 0;
 
-	if (cpu_is_omap24xx())
-		ena = mask;
-	else if (cpu_is_omap34xx())
-		ena = 0;
-	else
-		BUG();
-
-	omap_test_timeout(((omap2_cm_read_mod_reg(prcm_mod, cm_idlest_reg) & mask) == ena),
-			  MAX_MODULE_READY_TIME, i);
+	omap_test_timeout(((omap2_cm_read_mod_reg(prcm_mod, cm_idlest_reg) &
+			    mask) == ena), MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
@@ -237,7 +110,6 @@ int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 /*
  * Context save/restore code - OMAP3 only
  */
-#ifdef CONFIG_ARCH_OMAP3
 struct omap3_cm_regs {
 	u32 iva2_cm_clksel1;
 	u32 iva2_cm_clksel2;
@@ -555,4 +427,3 @@ void omap3_cm_restore_context(void)
 	omap2_cm_write_mod_reg(cm_context.cm_clkout_ctrl, OMAP3430_CCR_MOD,
 			       OMAP3_CM_CLKOUT_CTRL_OFFSET);
 }
-#endif

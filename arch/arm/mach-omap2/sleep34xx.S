@@ -30,7 +30,7 @@
 
 #include "omap34xx.h"
 #include "iomap.h"
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "prm3xxx.h"
 #include "sdrc.h"
 #include "control.h"
