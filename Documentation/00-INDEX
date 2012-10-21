@@ -210,6 +210,8 @@ local_ops.txt
 	- semantics and behavior of local atomic operations.
 lockdep-design.txt
 	- documentation on the runtime locking correctness validator.
+lockup-watchdogs.txt
+	- info on soft and hard lockup detectors (aka nmi_watchdog).
 logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
@@ -240,8 +242,6 @@ netlabel/
 	- directory with information on the NetLabel subsystem.
 networking/
 	- directory with info on various aspects of networking with Linux.
-nmi_watchdog.txt
-	- info on NMI watchdog for SMP systems.
 nommu-mmap.txt
 	- documentation about no-mmu memory mapping support.
 numastat.txt
