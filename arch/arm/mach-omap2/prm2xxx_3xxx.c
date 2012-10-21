@@ -17,7 +17,7 @@
 #include <linux/io.h>
 
 #include "common.h"
-
+#include "powerdomain.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 
@@ -96,5 +96,115 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift)
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;
+}
+
+
+/* Powerdomain low-level functions */
+
+/* Common functions across OMAP2 and OMAP3 */
+int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+				   (pwrst << OMAP_POWERSTATE_SHIFT),
+				   pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+	return 0;
+}
+
+int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL,
+					     OMAP_POWERSTATE_MASK);
+}
+
+int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTST,
+					     OMAP_POWERSTATEST_MASK);
+}
+
+int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
+								u8 pwrst)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_onstate_mask(bank);
+
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
+}
+
+int omap2_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
+								u8 pwrst)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
+}
+
+int omap2_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_stst_mask(bank);
+
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST,
+					     m);
+}
+
+int omap2_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL, m);
+}
+
+int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	u32 v;
+
+	v = pwrst << __ffs(OMAP_LOGICRETSTATE_MASK);
+	omap2_prm_rmw_mod_reg_bits(OMAP_LOGICRETSTATE_MASK, v, pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
+}
+
+int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm)
+{
+	u32 c = 0;
+
+	/*
+	 * REVISIT: pwrdm_wait_transition() may be better implemented
+	 * via a callback and a periodic timer check -- how long do we expect
+	 * powerdomain transitions to take?
+	 */
+
+	/* XXX Is this udelay() value meaningful? */
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, OMAP2_PM_PWSTST) &
+		OMAP_INTRANSITION_MASK) &&
+		(c++ < PWRDM_TRANSITION_BAILOUT))
+			udelay(1);
+
+	if (c > PWRDM_TRANSITION_BAILOUT) {
+		pr_err("powerdomain: %s: waited too long to complete transition\n",
+		       pwrdm->name);
+		return -EAGAIN;
+	}
+
+	pr_debug("powerdomain: completed transition in %d loops\n", c);
+
+	return 0;
 }
 

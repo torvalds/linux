@@ -50,6 +50,7 @@
 #ifndef __ASSEMBLER__
 
 #include <linux/io.h>
+#include "powerdomain.h"
 
 /* Power/reset management domain register get/set */
 static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
@@ -102,6 +103,18 @@ static inline u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 extern int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);
 extern int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift);
 extern int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift);
+
+extern int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst);
+extern int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm);
+extern int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm);
+extern int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
+				    u8 pwrst);
+extern int omap2_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
+				     u8 pwrst);
+extern int omap2_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
+extern int omap2_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank);
+extern int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst);
+extern int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm);
 
 #endif /* __ASSEMBLER */
 

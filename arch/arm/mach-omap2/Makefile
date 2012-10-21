@@ -95,6 +95,7 @@ endif
 # PRCM
 obj-y					+= prcm.o prm_common.o
 obj-$(CONFIG_ARCH_OMAP2)		+= cm2xxx_3xxx.o prm2xxx_3xxx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= prm2xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= cm2xxx_3xxx.o prm2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= prm3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= vc3xxx_data.o vp3xxx_data.o

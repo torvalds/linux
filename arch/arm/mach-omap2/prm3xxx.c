@@ -5,6 +5,7 @@
  * Copyright (C) 2010 Nokia Corporation
  * Benoît Cousson
  * Paul Walmsley
+ * Rajendra Nayak <rnayak@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,8 +23,9 @@
 #include <plat/prcm.h>
 
 #include "vp.h"
-
+#include "powerdomain.h"
 #include "prm3xxx.h"
+#include "prm2xxx_3xxx.h"
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 
@@ -214,6 +216,109 @@ static void __init omap3xxx_prm_enable_io_wakeup(void)
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 					   PM_WKEN);
 }
+
+/* Powerdomain low-level functions */
+
+/* Applicable only for OMAP3. Not supported on OMAP2 */
+static int omap3_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP3430_PM_PREPWSTST,
+					     OMAP3430_LASTPOWERSTATEENTERED_MASK);
+}
+
+static int omap3_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTST,
+					     OMAP3430_LOGICSTATEST_MASK);
+}
+
+static int omap3_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL,
+					     OMAP3430_LOGICSTATEST_MASK);
+}
+
+static int omap3_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
+{
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP3430_PM_PREPWSTST,
+					     OMAP3430_LASTLOGICSTATEENTERED_MASK);
+}
+
+static int omap3_get_mem_bank_lastmemst_mask(u8 bank)
+{
+	switch (bank) {
+	case 0:
+		return OMAP3430_LASTMEM1STATEENTERED_MASK;
+	case 1:
+		return OMAP3430_LASTMEM2STATEENTERED_MASK;
+	case 2:
+		return OMAP3430_LASTSHAREDL2CACHEFLATSTATEENTERED_MASK;
+	case 3:
+		return OMAP3430_LASTL2FLATMEMSTATEENTERED_MASK;
+	default:
+		WARN_ON(1); /* should never happen */
+		return -EEXIST;
+	}
+	return 0;
+}
+
+static int omap3_pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
+{
+	u32 m;
+
+	m = omap3_get_mem_bank_lastmemst_mask(bank);
+
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+				OMAP3430_PM_PREPWSTST, m);
+}
+
+static int omap3_pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
+{
+	omap2_prm_write_mod_reg(0, pwrdm->prcm_offs, OMAP3430_PM_PREPWSTST);
+	return 0;
+}
+
+static int omap3_pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
+{
+	return omap2_prm_rmw_mod_reg_bits(0,
+					  1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT,
+					  pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+}
+
+static int omap3_pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
+{
+	return omap2_prm_rmw_mod_reg_bits(1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT,
+					  0, pwrdm->prcm_offs,
+					  OMAP2_PM_PWSTCTRL);
+}
+
+struct pwrdm_ops omap3_pwrdm_operations = {
+	.pwrdm_set_next_pwrst	= omap2_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= omap2_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= omap2_pwrdm_read_pwrst,
+	.pwrdm_read_prev_pwrst	= omap3_pwrdm_read_prev_pwrst,
+	.pwrdm_set_logic_retst	= omap2_pwrdm_set_logic_retst,
+	.pwrdm_read_logic_pwrst	= omap3_pwrdm_read_logic_pwrst,
+	.pwrdm_read_logic_retst	= omap3_pwrdm_read_logic_retst,
+	.pwrdm_read_prev_logic_pwrst	= omap3_pwrdm_read_prev_logic_pwrst,
+	.pwrdm_set_mem_onst	= omap2_pwrdm_set_mem_onst,
+	.pwrdm_set_mem_retst	= omap2_pwrdm_set_mem_retst,
+	.pwrdm_read_mem_pwrst	= omap2_pwrdm_read_mem_pwrst,
+	.pwrdm_read_mem_retst	= omap2_pwrdm_read_mem_retst,
+	.pwrdm_read_prev_mem_pwrst	= omap3_pwrdm_read_prev_mem_pwrst,
+	.pwrdm_clear_all_prev_pwrst	= omap3_pwrdm_clear_all_prev_pwrst,
+	.pwrdm_enable_hdwr_sar	= omap3_pwrdm_enable_hdwr_sar,
+	.pwrdm_disable_hdwr_sar	= omap3_pwrdm_disable_hdwr_sar,
+	.pwrdm_wait_transition	= omap2_pwrdm_wait_transition,
+};
+
+/*
+ *
+ */
 
 static int __init omap3xxx_prm_init(void)
 {
