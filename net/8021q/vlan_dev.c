@@ -531,6 +531,10 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
+static struct device_type vlan_type = {
+	.name	= "vlan",
+};
+
 static const struct net_device_ops vlan_netdev_ops;
 
 static int vlan_dev_init(struct net_device *dev)
@@ -578,6 +582,8 @@ static int vlan_dev_init(struct net_device *dev)
 	}
 
 	dev->netdev_ops = &vlan_netdev_ops;
+
+	SET_NETDEV_DEVTYPE(dev, &vlan_type);
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
