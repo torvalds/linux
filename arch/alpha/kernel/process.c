@@ -266,18 +266,22 @@ alpha_vfork(void)
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long arg,
-	    struct task_struct * p, struct pt_regs * regs)
+	    struct task_struct *p, struct pt_regs *wontuse)
 {
 	extern void ret_from_fork(void);
 	extern void ret_from_kernel_thread(void);
 
 	struct thread_info *childti = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
+	struct pt_regs *regs = current_pt_regs();
 	struct switch_stack *childstack, *stack;
 	unsigned long settls;
 
 	childstack = ((struct switch_stack *) childregs) - 1;
-	if (unlikely(!regs)) {
+	childti->pcb.ksp = (unsigned long) childstack;
+	childti->pcb.flags = 1;	/* set FEN, clear everything else */
+
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(childstack, 0,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
@@ -286,12 +290,17 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		childstack->r10 = arg;
 		childregs->hae = alpha_mv.hae_cache,
 		childti->pcb.usp = 0;
-		childti->pcb.ksp = (unsigned long) childstack;
-		childti->pcb.flags = 1;	/* set FEN, clear everything else */
 		return 0;
 	}
+	/* Note: if CLONE_SETTLS is not set, then we must inherit the
+	   value from the parent, which will have been set by the block
+	   copy in dup_task_struct.  This is non-intuitive, but is
+	   required for proper operation in the case of a threaded
+	   application calling fork.  */
+	if (clone_flags & CLONE_SETTLS)
+		childti->pcb.unique = regs->r20;
+	childti->pcb.usp = usp ?: rdusp();
 	*childregs = *regs;
-	settls = regs->r20;
 	childregs->r0 = 0;
 	childregs->r19 = 0;
 	childregs->r20 = 1;	/* OSF/1 has some strange fork() semantics.  */
@@ -299,22 +308,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	stack = ((struct switch_stack *) regs) - 1;
 	*childstack = *stack;
 	childstack->r26 = (unsigned long) ret_from_fork;
-	childti->pcb.usp = usp ?: rdusp();
-	childti->pcb.ksp = (unsigned long) childstack;
-	childti->pcb.flags = 1;	/* set FEN, clear everything else */
-
-	/* Set a new TLS for the child thread?  Peek back into the
-	   syscall arguments that we saved on syscall entry.  Oops,
-	   except we'd have clobbered it with the parent/child set
-	   of r20.  Read the saved copy.  */
-	/* Note: if CLONE_SETTLS is not set, then we must inherit the
-	   value from the parent, which will have been set by the block
-	   copy in dup_task_struct.  This is non-intuitive, but is
-	   required for proper operation in the case of a threaded
-	   application calling fork.  */
-	if (clone_flags & CLONE_SETTLS)
-		childti->pcb.unique = settls;
-
 	return 0;
 }
 
