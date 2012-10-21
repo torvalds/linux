@@ -703,6 +703,7 @@ _INIT_STATIC(start_here_multiplatform)
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_OPAL
 	/* Setup OPAL entry */
+	LOAD_REG_ADDR(r11, opal)
 	std	r28,0(r11);
 	std	r29,8(r11);
 #endif
