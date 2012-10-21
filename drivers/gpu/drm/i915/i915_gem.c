@@ -1407,8 +1407,10 @@ out:
 		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
 		return VM_FAULT_OOM;
+	case -ENOSPC:
+		return VM_FAULT_SIGBUS;
 	default:
-		WARN_ON_ONCE(ret);
+		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
 		return VM_FAULT_SIGBUS;
 	}
 }
@@ -1822,10 +1824,11 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, page, PAGE_SIZE, 0);
 	}
 
+	obj->pages = st;
+
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
-	obj->pages = st;
 	return 0;
 
 err_pages:
