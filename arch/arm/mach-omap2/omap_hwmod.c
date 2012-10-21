@@ -150,7 +150,7 @@
 #include "cm2xxx_3xxx.h"
 #include "cminst44xx.h"
 #include "cm33xx.h"
-#include "prm2xxx_3xxx.h"
+#include "prm3xxx.h"
 #include "prm44xx.h"
 #include "prm33xx.h"
 #include "prminst44xx.h"

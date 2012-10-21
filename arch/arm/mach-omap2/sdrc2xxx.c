@@ -31,7 +31,7 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
-#include "prm2xxx_3xxx.h"
+#include "prm2xxx.h"
 #include "clock.h"
 #include "sdrc.h"
 

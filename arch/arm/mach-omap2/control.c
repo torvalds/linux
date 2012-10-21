@@ -22,7 +22,7 @@
 #include "common.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
-#include "prm2xxx_3xxx.h"
+#include "prm3xxx.h"
 #include "cm2xxx_3xxx.h"
 #include "sdrc.h"
 #include "pm.h"

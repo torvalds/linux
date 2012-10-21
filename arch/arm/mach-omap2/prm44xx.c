@@ -291,12 +291,13 @@ static void __init omap44xx_prm_enable_io_wakeup(void)
 				    OMAP4_PRM_IO_PMCTRL_OFFSET);
 }
 
-static int __init omap4xxx_prcm_init(void)
+static int __init omap4xxx_prm_init(void)
 {
-	if (cpu_is_omap44xx()) {
-		omap44xx_prm_enable_io_wakeup();
-		return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
-	}
-	return 0;
+	if (!cpu_is_omap44xx())
+		return 0;
+
+	omap44xx_prm_enable_io_wakeup();
+
+	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap4xxx_prcm_init);
+subsys_initcall(omap4xxx_prm_init);
