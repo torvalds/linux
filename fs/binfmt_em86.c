@@ -90,7 +90,7 @@ static int load_em86(struct linux_binprm *bprm,struct pt_regs *regs)
 	if (retval < 0)
 		return retval;
 
-	return search_binary_handler(bprm, regs);
+	return search_binary_handler(bprm);
 }
 
 static struct linux_binfmt em86_format = {
