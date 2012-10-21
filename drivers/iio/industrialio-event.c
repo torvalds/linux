@@ -350,15 +350,10 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 		ret = iio_device_add_event_sysfs(indio_dev,
 						 &indio_dev->channels[j]);
 		if (ret < 0)
-			goto error_clear_attrs;
+			return ret;
 		attrcount += ret;
 	}
 	return attrcount;
-
-error_clear_attrs:
-	__iio_remove_event_config_attrs(indio_dev);
-
-	return ret;
 }
 
 static bool iio_check_for_dynamic_events(struct iio_dev *indio_dev)
