@@ -118,7 +118,7 @@ void release_thread(struct task_struct *dead_task)
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p, struct pt_regs *unused)
 {
 	struct thread_info *ti;
 	struct fake_frame
@@ -150,7 +150,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	frame->sf.gprs[9] = (unsigned long) frame;
 
 	/* Store access registers to kernel stack of new process. */
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = psw_kernel_bits | PSW_MASK_DAT |
@@ -164,9 +164,10 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 		return 0;
 	}
-	frame->childregs = *regs;
+	frame->childregs = *current_pt_regs();
 	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
-	frame->childregs.gprs[15] = new_stackp;
+	if (new_stackp)
+		frame->childregs.gprs[15] = new_stackp;
 
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
@@ -183,55 +184,22 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	       sizeof(s390_fp_regs));
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS)
-		p->thread.acrs[0] = regs->gprs[6];
+		p->thread.acrs[0] = frame->childregs.gprs[6];
 #else /* CONFIG_64BIT */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_regs(&p->thread.fp_regs);
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
+		unsigned long tls = frame->childregs.gprs[6];
 		if (is_compat_task()) {
-			p->thread.acrs[0] = (unsigned int) regs->gprs[6];
+			p->thread.acrs[0] = (unsigned int)tls;
 		} else {
-			p->thread.acrs[0] = (unsigned int)(regs->gprs[6] >> 32);
-			p->thread.acrs[1] = (unsigned int) regs->gprs[6];
+			p->thread.acrs[0] = (unsigned int)(tls >> 32);
+			p->thread.acrs[1] = (unsigned int)tls;
 		}
 	}
 #endif /* CONFIG_64BIT */
 	return 0;
-}
-
-SYSCALL_DEFINE0(fork)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	return do_fork(SIGCHLD, regs->gprs[15], regs, 0, NULL, NULL);
-}
-
-SYSCALL_DEFINE4(clone, unsigned long, newsp, unsigned long, clone_flags,
-		int __user *, parent_tidptr, int __user *, child_tidptr)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-
-	if (!newsp)
-		newsp = regs->gprs[15];
-	return do_fork(clone_flags, newsp, regs, 0,
-		       parent_tidptr, child_tidptr);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-SYSCALL_DEFINE0(vfork)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
-		       regs->gprs[15], regs, 0, NULL, NULL);
 }
 
 asmlinkage void execve_tail(void)
