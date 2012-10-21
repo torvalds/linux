@@ -1439,8 +1439,7 @@ EXPORT_SYMBOL(search_binary_handler);
  */
 static int do_execve_common(const char *filename,
 				struct user_arg_ptr argv,
-				struct user_arg_ptr envp,
-				struct pt_regs *regs)
+				struct user_arg_ptr envp)
 {
 	struct linux_binprm *bprm;
 	struct file *file;
@@ -1448,6 +1447,7 @@ static int do_execve_common(const char *filename,
 	bool clear_in_exec;
 	int retval;
 	const struct cred *cred = current_cred();
+	struct pt_regs *regs = current_pt_regs();
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
@@ -1570,7 +1570,7 @@ int do_execve(const char *filename,
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
-	return do_execve_common(filename, argv, envp, current_pt_regs());
+	return do_execve_common(filename, argv, envp);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1586,7 +1586,7 @@ static int compat_do_execve(const char *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
-	return do_execve_common(filename, argv, envp, current_pt_regs());
+	return do_execve_common(filename, argv, envp);
 }
 #endif
 
