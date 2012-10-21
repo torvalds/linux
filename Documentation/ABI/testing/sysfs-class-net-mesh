@@ -6,6 +6,14 @@ Description:
                 Indicates whether the batman protocol messages of the
                 mesh <mesh_iface> shall be aggregated or not.
 
+What:           /sys/class/net/<mesh_iface>/mesh/ap_isolation
+Date:           May 2011
+Contact:        Antonio Quartulli <ordex@autistici.org>
+Description:
+                Indicates whether the data traffic going from a
+                wireless client to another wireless client will be
+                silently dropped.
+
 What:           /sys/class/net/<mesh_iface>/mesh/bonding
 Date:           June 2010
 Contact:        Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
@@ -31,14 +39,6 @@ Description:
                 mesh will be fragmented or silently discarded if the
                 packet size exceeds the outgoing interface MTU.
 
-What:		/sys/class/net/<mesh_iface>/mesh/ap_isolation
-Date:		May 2011
-Contact:	Antonio Quartulli <ordex@autistici.org>
-Description:
-		Indicates whether the data traffic going from a
-		wireless client to another wireless client will be
-		silently dropped.
-
 What:           /sys/class/net/<mesh_iface>/mesh/gw_bandwidth
 Date:           October 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>
@@ -60,6 +60,13 @@ Description:
                 Defines the selection criteria this node will use
                 to choose a gateway if gw_mode was set to 'client'.
 
+What:           /sys/class/net/<mesh_iface>/mesh/hop_penalty
+Date:           Oct 2010
+Contact:        Linus Lüssing <linus.luessing@web.de>
+Description:
+                Defines the penalty which will be applied to an
+                originator message's tq-field on every hop.
+
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>
@@ -67,19 +74,12 @@ Description:
                 Defines the interval in milliseconds in which batman
                 sends its protocol messages.
 
-What:           /sys/class/net/<mesh_iface>/mesh/hop_penalty
-Date:           Oct 2010
-Contact:        Linus Lüssing <linus.luessing@web.de>
+What:           /sys/class/net/<mesh_iface>/mesh/routing_algo
+Date:           Dec 2011
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
 Description:
-		Defines the penalty which will be applied to an
-		originator message's tq-field on every hop.
-
-What:		/sys/class/net/<mesh_iface>/mesh/routing_algo
-Date:		Dec 2011
-Contact:	Marek Lindner <lindner_marek@yahoo.de>
-Description:
-		Defines the routing procotol this mesh instance
-		uses to find the optimal paths through the mesh.
+                Defines the routing procotol this mesh instance
+                uses to find the optimal paths through the mesh.
 
 What:           /sys/class/net/<mesh_iface>/mesh/vis_mode
 Date:           May 2010
