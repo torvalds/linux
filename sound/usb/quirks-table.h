@@ -1457,6 +1457,40 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* Advanced mode of the Roland VG-99, with MIDI and 24-bit PCM at 44.1
+	 * kHz. In standard mode, the device has ID 0582:00b3, and offers
+	 * 16-bit PCM at 44.1 kHz with no MIDI.
+	 */
+	USB_DEVICE(0x0582, 0x00b2),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "VG-99",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0003,
+					.in_cables  = 0x0003
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* Roland SonicCell */
 	USB_DEVICE(0x0582, 0x00c2),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
