@@ -93,7 +93,7 @@ obj-$(CONFIG_ARCH_OMAP4)                += cpuidle44xx.o
 endif
 
 # PRCM
-obj-y					+= prcm.o prm_common.o
+obj-y					+= prcm.o prm_common.o cm_common.o
 obj-$(CONFIG_ARCH_OMAP2)		+= prm2xxx_3xxx.o prm2xxx.o cm2xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= prm2xxx_3xxx.o prm3xxx.o cm3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= vc3xxx_data.o vp3xxx_data.o
