@@ -52,5 +52,16 @@
 #define OMAP_POWERSTATE_SHIFT				0
 #define OMAP_POWERSTATE_MASK				(0x3 << 0)
 
+#ifndef __ASSEMBLER__
+
+/**
+ * struct prm_ll_data - fn ptrs to per-SoC PRM function implementations
+ */
+struct prm_ll_data {};
+
+extern int prm_register(struct prm_ll_data *pld);
+extern int prm_unregister(struct prm_ll_data *pld);
+
+#endif
 
 #endif

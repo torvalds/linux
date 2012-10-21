@@ -53,6 +53,13 @@ static struct irq_chip_generic **prcm_irq_chips;
  */
 static struct omap_prcm_irq_setup *prcm_irq_setup;
 
+/*
+ * prm_ll_data: function pointers to SoC-specific implementations of
+ * common PRM functions
+ */
+static struct prm_ll_data null_prm_ll_data;
+static struct prm_ll_data *prm_ll_data = &null_prm_ll_data;
+
 /* Private functions */
 
 /*
@@ -317,4 +324,49 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 err:
 	omap_prcm_irq_cleanup();
 	return -ENOMEM;
+}
+
+/**
+ * prm_register - register per-SoC low-level data with the PRM
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to register
+ *
+ * Register per-SoC low-level OMAP PRM data and function pointers with
+ * the OMAP PRM common interface.  The caller must keep the data
+ * pointed to by @pld valid until it calls prm_unregister() and
+ * it returns successfully.  Returns 0 upon success, -EINVAL if @pld
+ * is NULL, or -EEXIST if prm_register() has already been called
+ * without an intervening prm_unregister().
+ */
+int prm_register(struct prm_ll_data *pld)
+{
+	if (!pld)
+		return -EINVAL;
+
+	if (prm_ll_data != &null_prm_ll_data)
+		return -EEXIST;
+
+	prm_ll_data = pld;
+
+	return 0;
+}
+
+/**
+ * prm_unregister - unregister per-SoC low-level data & function pointers
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to unregister
+ *
+ * Unregister per-SoC low-level OMAP PRM data and function pointers
+ * that were previously registered with prm_register().  The
+ * caller may not destroy any of the data pointed to by @pld until
+ * this function returns successfully.  Returns 0 upon success, or
+ * -EINVAL if @pld is NULL or if @pld does not match the struct
+ * prm_ll_data * previously registered by prm_register().
+ */
+int prm_unregister(struct prm_ll_data *pld)
+{
+	if (!pld || prm_ll_data != pld)
+		return -EINVAL;
+
+	prm_ll_data = &null_prm_ll_data;
+
+	return 0;
 }
