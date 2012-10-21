@@ -487,11 +487,6 @@ illegal_syscall:
 	sw	r9, [r0, PT_R7]
 	j	syscall_return
 
-ENTRY(sys_clone)
-	mv	r4, r0
-	la	r8, score_clone
-	br	r8
-
 ENTRY(sys_rt_sigreturn)
 	mv	r4, r0
 	la	r8, score_rt_sigreturn
@@ -501,16 +496,3 @@ ENTRY(sys_sigaltstack)
 	mv	r4, r0
 	la	r8, score_sigaltstack
 	br	r8
-
-#ifdef __ARCH_WANT_SYSCALL_DEPRECATED
-ENTRY(sys_fork)
-	mv	r4, r0
-	la	r8, score_fork
-	br	r8
-
-ENTRY(sys_vfork)
-	mv	r4, r0
-	la	r8, score_vfork
-	br	r8
-#endif /* __ARCH_WANT_SYSCALL_DEPRECATED */
-

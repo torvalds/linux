@@ -48,38 +48,3 @@ sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
 		return -EINVAL;
 	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
-
-asmlinkage long
-score_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->regs[0], regs, 0, NULL, NULL);
-}
-
-/*
- * Clone a task - this clones the calling program thread.
- * This is called indirectly via a small wrapper
- */
-asmlinkage long
-score_clone(struct pt_regs *regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs->regs[4];
-	newsp = regs->regs[5];
-	if (!newsp)
-		newsp = regs->regs[0];
-	parent_tidptr = (int __user *)regs->regs[6];
-	child_tidptr = (int __user *)regs->regs[8];
-
-	return do_fork(clone_flags, newsp, regs, 0,
-			parent_tidptr, child_tidptr);
-}
-
-asmlinkage long
-score_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
-			regs->regs[0], regs, 0, NULL, NULL);
-}

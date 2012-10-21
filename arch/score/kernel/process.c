@@ -94,17 +94,17 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	struct pt_regs *childregs = task_pt_regs(p);
 
 	p->thread.reg0 = (unsigned long) childregs;
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		p->thread->reg12 = usp;
 		p->thread->reg13 = arg;
 		p->thread.reg3 = (unsigned long) ret_from_kernel_thread;
 	} else {
-		*childregs = *regs;
+		*childregs = *current_pt_regs();
 		childregs->regs[7] = 0;		/* Clear error flag */
 		childregs->regs[4] = 0;		/* Child gets zero as return value */
-		childregs->regs[0] = usp;	/* user fork */
-		regs->regs[4] = p->pid;		/* WTF? */
+		if (usp)
+			childregs->regs[0] = usp;	/* user fork */
 		p->thread.reg3 = (unsigned long) ret_from_fork;
 	}
 
