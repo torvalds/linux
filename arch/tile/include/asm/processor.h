@@ -220,8 +220,6 @@ static inline void release_thread(struct task_struct *dead_task)
 	/* Nothing for now */
 }
 
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 extern int do_work_pending(struct pt_regs *regs, u32 flags);
 
 
