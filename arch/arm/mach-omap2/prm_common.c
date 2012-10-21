@@ -28,6 +28,8 @@
 #include <plat/prcm.h>
 
 #include "prm2xxx_3xxx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
 #include "prm44xx.h"
 
 /*
@@ -324,6 +326,30 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 err:
 	omap_prcm_irq_cleanup();
 	return -ENOMEM;
+}
+
+/**
+ * prm_read_reset_sources - return the sources of the SoC's last reset
+ *
+ * Return a u32 bitmask representing the reset sources that caused the
+ * SoC to reset.  The low-level per-SoC functions called by this
+ * function remap the SoC-specific reset source bits into an
+ * OMAP-common set of reset source bits, defined in
+ * arch/arm/mach-omap2/prm.h.  Returns the standardized reset source
+ * u32 bitmask from the hardware upon success, or returns (1 <<
+ * OMAP_UNKNOWN_RST_SRC_ID_SHIFT) if no low-level read_reset_sources()
+ * function was registered.
+ */
+u32 prm_read_reset_sources(void)
+{
+	u32 ret = 1 << OMAP_UNKNOWN_RST_SRC_ID_SHIFT;
+
+	if (prm_ll_data->read_reset_sources)
+		ret = prm_ll_data->read_reset_sources();
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined for reset sources\n", __func__);
+
+	return ret;
 }
 
 /**

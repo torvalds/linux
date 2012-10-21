@@ -1,7 +1,7 @@
 /*
  * OMAP4 PRM module functions
  *
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2011-2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
  * Benoît Cousson
  * Paul Walmsley
@@ -30,6 +30,8 @@
 #include "prminst44xx.h"
 #include "powerdomain.h"
 
+/* Static data */
+
 static const struct omap_prcm_irq omap4_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",   0,      0),
 	OMAP_PRCM_IRQ("io",     9,      1),
@@ -46,6 +48,33 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap44xx_prm_restore_irqen,
+};
+
+/*
+ * omap44xx_prm_reset_src_map - map from bits in the PRM_RSTST
+ *   hardware register (which are specific to OMAP44xx SoCs) to reset
+ *   source ID bit shifts (which is an OMAP SoC-independent
+ *   enumeration)
+ */
+static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
+	{ OMAP4430_RST_GLOBAL_WARM_SW_SHIFT,
+	  OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_RST_GLOBAL_COLD_SW_SHIFT,
+	  OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_MPU_SECURITY_VIOL_RST_SHIFT,
+	  OMAP_SECU_VIOL_RST_SRC_ID_SHIFT },
+	{ OMAP4430_MPU_WDT_RST_SHIFT, OMAP_MPU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_SECURE_WDT_RST_SHIFT, OMAP_SECU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_EXTERNAL_WARM_RST_SHIFT, OMAP_EXTWARM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_MPU_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_IVA_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_IVA_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_CORE_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_ICEPICK_RST_SHIFT, OMAP_ICEPICK_RST_SRC_ID_SHIFT },
+	{ OMAP4430_C2C_RST_SHIFT, OMAP_C2C_RST_SRC_ID_SHIFT },
+	{ -1, -1 },
 };
 
 /* PRM low-level functions */
@@ -291,6 +320,31 @@ static void __init omap44xx_prm_enable_io_wakeup(void)
 				    OMAP4430_GLOBAL_WUEN_MASK,
 				    OMAP4430_PRM_DEVICE_INST,
 				    OMAP4_PRM_IO_PMCTRL_OFFSET);
+}
+
+/**
+ * omap44xx_prm_read_reset_sources - return the last SoC reset source
+ *
+ * Return a u32 representing the last reset sources of the SoC.  The
+ * returned reset source bits are standardized across OMAP SoCs.
+ */
+static u32 omap44xx_prm_read_reset_sources(void)
+{
+	struct prm_reset_src_map *p;
+	u32 r = 0;
+	u32 v;
+
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
+				    OMAP4_RM_RSTST);
+
+	p = omap44xx_prm_reset_src_map;
+	while (p->reg_shift >= 0 && p->std_shift >= 0) {
+		if (v & (1 << p->reg_shift))
+			r |= 1 << p->std_shift;
+		p++;
+	}
+
+	return r;
 }
 
 /* Powerdomain low-level functions */
@@ -555,14 +609,37 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,
 };
 
+/*
+ * XXX document
+ */
+static struct prm_ll_data omap44xx_prm_ll_data = {
+	.read_reset_sources = &omap44xx_prm_read_reset_sources,
+};
 
-static int __init omap4xxx_prm_init(void)
+static int __init omap44xx_prm_init(void)
 {
+	int ret;
+
 	if (!cpu_is_omap44xx())
 		return 0;
+
+	ret = prm_register(&omap44xx_prm_ll_data);
+	if (ret)
+		return ret;
 
 	omap44xx_prm_enable_io_wakeup();
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap4xxx_prm_init);
+subsys_initcall(omap44xx_prm_init);
+
+static void __exit omap44xx_prm_exit(void)
+{
+	if (!cpu_is_omap44xx())
+		return;
+
+	/* Should never happen */
+	WARN(prm_unregister(&omap44xx_prm_ll_data),
+	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap44xx_prm_exit);

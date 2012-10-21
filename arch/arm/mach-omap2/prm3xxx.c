@@ -47,6 +47,27 @@ static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
 	.restore_irqen		= &omap3xxx_prm_restore_irqen,
 };
 
+/*
+ * omap3_prm_reset_src_map - map from bits in the PRM_RSTST hardware
+ *   register (which are specific to OMAP3xxx SoCs) to reset source ID
+ *   bit shifts (which is an OMAP SoC-independent enumeration)
+ */
+static struct prm_reset_src_map omap3xxx_prm_reset_src_map[] = {
+	{ OMAP3430_GLOBAL_COLD_RST_SHIFT, OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT },
+	{ OMAP3430_GLOBAL_SW_RST_SHIFT, OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT },
+	{ OMAP3430_SECURITY_VIOL_RST_SHIFT, OMAP_SECU_VIOL_RST_SRC_ID_SHIFT },
+	{ OMAP3430_MPU_WD_RST_SHIFT, OMAP_MPU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP3430_SECURE_WD_RST_SHIFT, OMAP_MPU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP3430_EXTERNAL_WARM_RST_SHIFT, OMAP_EXTWARM_RST_SRC_ID_SHIFT },
+	{ OMAP3430_VDD1_VOLTAGE_MANAGER_RST_SHIFT,
+	  OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT },
+	{ OMAP3430_VDD2_VOLTAGE_MANAGER_RST_SHIFT,
+	  OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT },
+	{ OMAP3430_ICEPICK_RST_SHIFT, OMAP_ICEPICK_RST_SRC_ID_SHIFT },
+	{ OMAP3430_ICECRUSHER_RST_SHIFT, OMAP_ICECRUSHER_RST_SRC_ID_SHIFT },
+	{ -1, -1 },
+};
+
 /* PRM VP */
 
 /*
@@ -217,6 +238,30 @@ static void __init omap3xxx_prm_enable_io_wakeup(void)
 					   PM_WKEN);
 }
 
+/**
+ * omap3xxx_prm_read_reset_sources - return the last SoC reset source
+ *
+ * Return a u32 representing the last reset sources of the SoC.  The
+ * returned reset source bits are standardized across OMAP SoCs.
+ */
+static u32 omap3xxx_prm_read_reset_sources(void)
+{
+	struct prm_reset_src_map *p;
+	u32 r = 0;
+	u32 v;
+
+	v = omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST);
+
+	p = omap3xxx_prm_reset_src_map;
+	while (p->reg_shift >= 0 && p->std_shift >= 0) {
+		if (v & (1 << p->reg_shift))
+			r |= 1 << p->std_shift;
+		p++;
+	}
+
+	return r;
+}
+
 /* Powerdomain low-level functions */
 
 /* Applicable only for OMAP3. Not supported on OMAP2 */
@@ -320,6 +365,10 @@ struct pwrdm_ops omap3_pwrdm_operations = {
  *
  */
 
+static struct prm_ll_data omap3xxx_prm_ll_data = {
+	.read_reset_sources = &omap3xxx_prm_read_reset_sources,
+};
+
 static int __init omap3xxx_prm_init(void)
 {
 	int ret;
@@ -327,12 +376,28 @@ static int __init omap3xxx_prm_init(void)
 	if (!cpu_is_omap34xx())
 		return 0;
 
+	ret = prm_register(&omap3xxx_prm_ll_data);
+	if (ret)
+		return ret;
+
 	omap3xxx_prm_enable_io_wakeup();
 	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
 	if (!ret)
 		irq_set_status_flags(omap_prcm_event_to_irq("io"),
 				     IRQ_NOAUTOEN);
 
+
 	return ret;
 }
 subsys_initcall(omap3xxx_prm_init);
+
+static void __exit omap3xxx_prm_exit(void)
+{
+	if (!cpu_is_omap34xx())
+		return;
+
+	/* Should never happen */
+	WARN(prm_unregister(&omap3xxx_prm_ll_data),
+	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap3xxx_prm_exit);

@@ -29,6 +29,46 @@
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 
+/*
+ * omap2xxx_prm_reset_src_map - map from bits in the PRM_RSTST_WKUP
+ *   hardware register (which are specific to the OMAP2xxx SoCs) to
+ *   reset source ID bit shifts (which is an OMAP SoC-independent
+ *   enumeration)
+ */
+static struct prm_reset_src_map omap2xxx_prm_reset_src_map[] = {
+	{ OMAP_GLOBALCOLD_RST_SHIFT, OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT },
+	{ OMAP_GLOBALWARM_RST_SHIFT, OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT },
+	{ OMAP24XX_SECU_VIOL_RST_SHIFT, OMAP_SECU_VIOL_RST_SRC_ID_SHIFT },
+	{ OMAP24XX_MPU_WD_RST_SHIFT, OMAP_MPU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP24XX_SECU_WD_RST_SHIFT, OMAP_SECU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP24XX_EXTWMPU_RST_SHIFT, OMAP_EXTWARM_RST_SRC_ID_SHIFT },
+	{ -1, -1 },
+};
+
+/**
+ * omap2xxx_prm_read_reset_sources - return the last SoC reset source
+ *
+ * Return a u32 representing the last reset sources of the SoC.  The
+ * returned reset source bits are standardized across OMAP SoCs.
+ */
+static u32 omap2xxx_prm_read_reset_sources(void)
+{
+	struct prm_reset_src_map *p;
+	u32 r = 0;
+	u32 v;
+
+	v = omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST);
+
+	p = omap2xxx_prm_reset_src_map;
+	while (p->reg_shift >= 0 && p->std_shift >= 0) {
+		if (v & (1 << p->reg_shift))
+			r |= 1 << p->std_shift;
+		p++;
+	}
+
+	return r;
+}
+
 int omap2xxx_clkdm_sleep(struct clockdomain *clkdm)
 {
 	omap2_prm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
@@ -56,3 +96,31 @@ struct pwrdm_ops omap2_pwrdm_operations = {
 	.pwrdm_read_mem_retst	= omap2_pwrdm_read_mem_retst,
 	.pwrdm_wait_transition	= omap2_pwrdm_wait_transition,
 };
+
+/*
+ *
+ */
+
+static struct prm_ll_data omap2xxx_prm_ll_data = {
+	.read_reset_sources = &omap2xxx_prm_read_reset_sources,
+};
+
+static int __init omap2xxx_prm_init(void)
+{
+	if (!cpu_is_omap24xx())
+		return 0;
+
+	return prm_register(&omap2xxx_prm_ll_data);
+}
+subsys_initcall(omap2xxx_prm_init);
+
+static void __exit omap2xxx_prm_exit(void)
+{
+	if (!cpu_is_omap24xx())
+		return;
+
+	/* Should never happen */
+	WARN(prm_unregister(&omap2xxx_prm_ll_data),
+	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap2xxx_prm_exit);

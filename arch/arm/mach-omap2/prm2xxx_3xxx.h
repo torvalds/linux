@@ -211,7 +211,9 @@ extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
  *
  * 3430: RM_RSTST_CORE, RM_RSTST_EMU
  */
+#define OMAP_GLOBALWARM_RST_SHIFT			1
 #define OMAP_GLOBALWARM_RST_MASK			(1 << 1)
+#define OMAP_GLOBALCOLD_RST_SHIFT			0
 #define OMAP_GLOBALCOLD_RST_MASK			(1 << 0)
 
 /*
