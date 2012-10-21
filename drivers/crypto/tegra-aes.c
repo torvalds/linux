@@ -674,8 +674,10 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	mutex_lock(&aes_lock);
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	ctx->dd = dd;
 	dd->ctx = ctx;
@@ -759,8 +761,10 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	aes_set_key(dd);
 
