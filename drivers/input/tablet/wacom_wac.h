@@ -109,6 +109,8 @@ struct wacom_features {
 	int distance_fuzz;
 	unsigned quirks;
 	unsigned touch_max;
+	int oVid;
+	int oPid;
 };
 
 struct wacom_shared {

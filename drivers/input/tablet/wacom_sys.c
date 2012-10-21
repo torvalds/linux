@@ -613,6 +613,30 @@ struct wacom_usbdev_data {
 static LIST_HEAD(wacom_udev_list);
 static DEFINE_MUTEX(wacom_udev_list_lock);
 
+static struct usb_device *wacom_get_sibling(struct usb_device *dev, int vendor, int product)
+{
+	int port1;
+	struct usb_device *sibling;
+
+	if (vendor == 0 && product == 0)
+		return dev;
+
+	if (dev->parent == NULL)
+		return NULL;
+
+	usb_hub_for_each_child(dev->parent, port1, sibling) {
+		struct usb_device_descriptor *d;
+		if (sibling == NULL)
+			continue;
+
+		d = &sibling->descriptor;
+		if (d->idVendor == vendor && d->idProduct == product)
+			return sibling;
+	}
+
+	return NULL;
+}
+
 static struct wacom_usbdev_data *wacom_get_usbdev_data(struct usb_device *dev)
 {
 	struct wacom_usbdev_data *data;
@@ -1257,13 +1281,19 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
 	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
+		struct usb_device *other_dev;
+
 		/* Append the device type to the name */
 		strlcat(wacom_wac->name,
 			features->device_type == BTN_TOOL_PEN ?
 				" Pen" : " Finger",
 			sizeof(wacom_wac->name));
 
-		error = wacom_add_shared_data(wacom_wac, dev);
+
+		other_dev = wacom_get_sibling(dev, features->oVid, features->oPid);
+		if (other_dev == NULL || wacom_get_usbdev_data(other_dev) == NULL)
+			other_dev = dev;
+		error = wacom_add_shared_data(wacom_wac, other_dev);
 		if (error)
 			goto fail3;
 	}
