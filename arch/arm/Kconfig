@@ -55,6 +55,7 @@ config ARM
 	select SYS_SUPPORTS_APM_EMULATION
 	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
 	select MODULES_USE_ELF_REL
+	select CLONE_BACKWARDS
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and

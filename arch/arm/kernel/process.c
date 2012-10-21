@@ -376,17 +376,18 @@ asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
 int
 copy_thread(unsigned long clone_flags, unsigned long stack_start,
-	    unsigned long stk_sz, struct task_struct *p, struct pt_regs *regs)
+	    unsigned long stk_sz, struct task_struct *p, struct pt_regs *unused)
 {
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 
-	if (likely(regs)) {
-		*childregs = *regs;
+	if (likely(!(p->flags & PF_KTHREAD))) {
+		*childregs = *current_pt_regs();
 		childregs->ARM_r0 = 0;
-		childregs->ARM_sp = stack_start;
+		if (stack_start)
+			childregs->ARM_sp = stack_start;
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		thread->cpu_context.r4 = stk_sz;
@@ -399,7 +400,7 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	clear_ptrace_hw_breakpoint(p);
 
 	if (clone_flags & CLONE_SETTLS)
-		thread->tp_value = regs->ARM_r3;
+		thread->tp_value = childregs->ARM_r3;
 
 	thread_notify(THREAD_NOTIFY_COPY, thread);
 

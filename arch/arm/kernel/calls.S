@@ -11,7 +11,7 @@
  */
 /* 0 */		CALL(sys_restart_syscall)
 		CALL(sys_exit)
-		CALL(sys_fork_wrapper)
+		CALL(sys_fork)
 		CALL(sys_read)
 		CALL(sys_write)
 /* 5 */		CALL(sys_open)
@@ -129,7 +129,7 @@
 		CALL(OBSOLETE(ABI(sys_ipc, sys_oabi_ipc)))
 		CALL(sys_fsync)
 		CALL(sys_sigreturn_wrapper)
-/* 120 */	CALL(sys_clone_wrapper)
+/* 120 */	CALL(sys_clone)
 		CALL(sys_setdomainname)
 		CALL(sys_newuname)
 		CALL(sys_ni_syscall)		/* modify_ldt */
@@ -199,7 +199,7 @@
 		CALL(sys_sendfile)
 		CALL(sys_ni_syscall)		/* getpmsg */
 		CALL(sys_ni_syscall)		/* putpmsg */
-/* 190 */	CALL(sys_vfork_wrapper)
+/* 190 */	CALL(sys_vfork)
 		CALL(sys_getrlimit)
 		CALL(sys_mmap2)
 		CALL(ABI(sys_truncate64, sys_oabi_truncate64))
