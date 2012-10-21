@@ -1566,22 +1566,41 @@ static int rbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd,
 			  struct bio_vec *bvec)
 {
 	struct rbd_device *rbd_dev = q->queuedata;
-	unsigned int chunk_sectors;
-	sector_t sector;
-	unsigned int bio_sectors;
-	int max;
+	sector_t sector_offset;
+	sector_t sectors_per_obj;
+	sector_t obj_sector_offset;
+	int ret;
 
-	chunk_sectors = 1 << (rbd_dev->header.obj_order - SECTOR_SHIFT);
-	sector = bmd->bi_sector + get_start_sect(bmd->bi_bdev);
-	bio_sectors = bmd->bi_size >> SECTOR_SHIFT;
+	/*
+	 * Find how far into its rbd object the partition-relative
+	 * bio start sector is to offset relative to the enclosing
+	 * device.
+	 */
+	sector_offset = get_start_sect(bmd->bi_bdev) + bmd->bi_sector;
+	sectors_per_obj = 1 << (rbd_dev->header.obj_order - SECTOR_SHIFT);
+	obj_sector_offset = sector_offset & (sectors_per_obj - 1);
 
-	max =  (chunk_sectors - ((sector & (chunk_sectors - 1))
-				 + bio_sectors)) << SECTOR_SHIFT;
-	if (max < 0)
-		max = 0; /* bio_add cannot handle a negative return */
-	if (max <= bvec->bv_len && bio_sectors == 0)
-		return bvec->bv_len;
-	return max;
+	/*
+	 * Compute the number of bytes from that offset to the end
+	 * of the object.  Account for what's already used by the bio.
+	 */
+	ret = (int) (sectors_per_obj - obj_sector_offset) << SECTOR_SHIFT;
+	if (ret > bmd->bi_size)
+		ret -= bmd->bi_size;
+	else
+		ret = 0;
+
+	/*
+	 * Don't send back more than was asked for.  And if the bio
+	 * was empty, let the whole thing through because:  "Note
+	 * that a block device *must* allow a single page to be
+	 * added to an empty bio."
+	 */
+	rbd_assert(bvec->bv_len <= PAGE_SIZE);
+	if (ret > (int) bvec->bv_len || !bmd->bi_size)
+		ret = (int) bvec->bv_len;
+
+	return ret;
 }
 
 static void rbd_free_disk(struct rbd_device *rbd_dev)
