@@ -192,7 +192,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long spu,
-	unsigned long arg, struct task_struct *tsk, struct pt_regs *regs)
+	unsigned long arg, struct task_struct *tsk, struct pt_regs *unused)
 {
 	struct pt_regs *childregs = task_pt_regs(tsk);
 	extern void ret_from_fork(void);
@@ -206,53 +206,15 @@ int copy_thread(unsigned long clone_flags, unsigned long spu,
 		tsk->thread.lr = (unsigned long)ret_from_kernel_thread;
 	} else {
 		/* Copy registers */
-		*childregs = *regs;
-		childregs->spu = spu;
+		*childregs = *current_pt_regs();
+		if (spu)
+			childregs->spu = spu;
 		childregs->r0 = 0;	/* Child gets zero as return value */
 		tsk->thread.lr = (unsigned long)ret_from_fork;
 	}
 	tsk->thread.sp = (unsigned long)childregs;
 
 	return 0;
-}
-
-asmlinkage int sys_fork(void)
-{
-#ifdef CONFIG_MMU
-	struct pt_regs *regs = current_pt_regs();
-	return do_fork(SIGCHLD, regs->spu, regs, 0, NULL, NULL);
-#else
-	return -EINVAL;
-#endif /* CONFIG_MMU */
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr)
-{
-	struct pt_regs *regs = current_pt_regs();
-	if (!newsp)
-		newsp = regs->spu;
-
-	return do_fork(clone_flags, newsp, regs, 0,
-		       (int __user *)parent_tidptr, (int __user *)child_tidptr);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(void)
-{
-	struct pt_regs *regs = current_pt_regs();
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->spu, regs, 0,
-			NULL, NULL);
 }
 
 /*
