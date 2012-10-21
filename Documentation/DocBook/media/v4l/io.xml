@@ -923,7 +923,7 @@ application. Drivers set or clear this flag when the
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_INVALIDATE</constant></entry>
-	    <entry>0x0400</entry>
+	    <entry>0x0800</entry>
 	    <entry>Caches do not have to be invalidated for this buffer.
 Typically applications shall use this flag if the data captured in the buffer
 is not going to be touched by the CPU, instead the buffer will, probably, be
@@ -932,7 +932,7 @@ passed on to a DMA-capable hardware unit for further processing or output.
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_CLEAN</constant></entry>
-	    <entry>0x0800</entry>
+	    <entry>0x1000</entry>
 	    <entry>Caches do not have to be cleaned for this buffer.
 Typically applications shall use this flag for output buffers if the data
 in this buffer has not been created by the CPU but by some DMA-capable unit,
