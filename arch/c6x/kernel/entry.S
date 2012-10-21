@@ -613,18 +613,6 @@ ENDPROC(sys_sigaltstack)
 	;; Special system calls
 	;; return address is in B3
 	;;
-ENTRY(sys_clone)
-	ADD	.D1X	SP,8,A4
-#ifdef CONFIG_C6X_BIG_KERNEL
- ||	MVKL	.S1	sys_c6x_clone,A0
-	MVKH	.S1	sys_c6x_clone,A0
-	BNOP	.S2X	A0,5
-#else
- ||	B	.S2	sys_c6x_clone
-	NOP	5
-#endif
-ENDPROC(sys_clone)
-
 ENTRY(sys_rt_sigreturn)
 	ADD	.D1X	SP,8,A4
 #ifdef CONFIG_C6X_BIG_KERNEL
