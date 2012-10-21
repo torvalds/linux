@@ -224,23 +224,23 @@ static int setup_compute(const struct option *opt, const char *str,
 	return -EINVAL;
 }
 
-double perf_diff__period_percent(struct hist_entry *he, u64 period)
+static double period_percent(struct hist_entry *he, u64 period)
 {
 	u64 total = he->hists->stats.total_period;
 	return (period * 100.0) / total;
 }
 
-double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair)
+static double compute_delta(struct hist_entry *he, struct hist_entry *pair)
 {
-	double old_percent = perf_diff__period_percent(he, he->stat.period);
-	double new_percent = perf_diff__period_percent(pair, pair->stat.period);
+	double old_percent = period_percent(he, he->stat.period);
+	double new_percent = period_percent(pair, pair->stat.period);
 
 	pair->diff.period_ratio_delta = new_percent - old_percent;
 	pair->diff.computed = true;
 	return pair->diff.period_ratio_delta;
 }
 
-double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair)
+static double compute_ratio(struct hist_entry *he, struct hist_entry *pair)
 {
 	double old_period = he->stat.period ?: 1;
 	double new_period = pair->stat.period;
@@ -250,7 +250,7 @@ double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair)
 	return pair->diff.period_ratio;
 }
 
-s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
+static s64 compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
 {
 	u64 old_period = he->stat.period;
 	u64 new_period = pair->stat.period;
@@ -292,8 +292,8 @@ static int formula_wdiff(struct hist_entry *he, struct hist_entry *pair,
 		  new_period, compute_wdiff_w2, old_period, compute_wdiff_w1);
 }
 
-int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
-		       char *buf, size_t size)
+static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
+			   char *buf, size_t size)
 {
 	switch (compute) {
 	case COMPUTE_DELTA:
@@ -421,13 +421,13 @@ static void hists__precompute(struct hists *hists)
 
 		switch (compute) {
 		case COMPUTE_DELTA:
-			perf_diff__compute_delta(he, pair);
+			compute_delta(he, pair);
 			break;
 		case COMPUTE_RATIO:
-			perf_diff__compute_ratio(he, pair);
+			compute_ratio(he, pair);
 			break;
 		case COMPUTE_WEIGHTED_DIFF:
-			perf_diff__compute_wdiff(he, pair);
+			compute_wdiff(he, pair);
 			break;
 		default:
 			BUG_ON(1);
@@ -744,7 +744,7 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 		if (pair->diff.computed)
 			diff = pair->diff.period_ratio_delta;
 		else
-			diff = perf_diff__compute_delta(he, pair);
+			diff = compute_delta(he, pair);
 
 		if (fabs(diff) >= 0.01)
 			scnprintf(buf, size, "%+4.2F%%", diff);
@@ -758,7 +758,7 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 		if (pair->diff.computed)
 			ratio = pair->diff.period_ratio;
 		else
-			ratio = perf_diff__compute_ratio(he, pair);
+			ratio = compute_ratio(he, pair);
 
 		if (ratio > 0.0)
 			scnprintf(buf, size, "%14.6F", ratio);
@@ -772,14 +772,14 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 		if (pair->diff.computed)
 			wdiff = pair->diff.wdiff;
 		else
-			wdiff = perf_diff__compute_wdiff(he, pair);
+			wdiff = compute_wdiff(he, pair);
 
 		if (wdiff != 0)
 			scnprintf(buf, size, "%14ld", wdiff);
 		break;
 
 	case PERF_HPP_DIFF__FORMULA:
-		perf_diff__formula(he, pair, buf, size);
+		formula_fprintf(he, pair, buf, size);
 		break;
 
 	case PERF_HPP_DIFF__PERIOD:

@@ -242,11 +242,4 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);
-
-double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair);
-double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair);
-s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair);
-int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
-		       char *buf, size_t size);
-double perf_diff__period_percent(struct hist_entry *he, u64 period);
 #endif	/* __PERF_HIST_H */
