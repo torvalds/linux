@@ -833,8 +833,7 @@ int kernel_execve(const char *filename, const char *const argv[], const char *co
 #define kernel_execve(filename, argv, envp) \
 	do_execve(filename, \
 		(const char __user *const __user *)argv, \
-		(const char __user *const __user *)envp, \
-		current_pt_regs())
+		(const char __user *const __user *)envp)
 #endif
 
 asmlinkage long sys_execve(const char __user *filename,

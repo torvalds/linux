@@ -1566,12 +1566,11 @@ out_ret:
 
 int do_execve(const char *filename,
 	const char __user *const __user *__argv,
-	const char __user *const __user *__envp,
-	struct pt_regs *regs)
+	const char __user *const __user *__envp)
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp, current_pt_regs());
 }
 
 #ifdef CONFIG_COMPAT
@@ -1668,7 +1667,7 @@ SYSCALL_DEFINE3(execve,
 	struct filename *path = getname(filename);
 	int error = PTR_ERR(path);
 	if (!IS_ERR(path)) {
-		error = do_execve(path->name, argv, envp, current_pt_regs());
+		error = do_execve(path->name, argv, envp);
 		putname(path);
 	}
 	return error;
@@ -1694,12 +1693,9 @@ int kernel_execve(const char *filename,
 		  const char *const argv[],
 		  const char *const envp[])
 {
-	struct pt_regs *p = current_pt_regs();
-	int ret;
-
-	ret = do_execve(filename,
+	int ret = do_execve(filename,
 			(const char __user *const __user *)argv,
-			(const char __user *const __user *)envp, p);
+			(const char __user *const __user *)envp);
 	if (ret < 0)
 		return ret;
 
@@ -1707,6 +1703,6 @@ int kernel_execve(const char *filename,
 	 * We were successful.  We won't be returning to our caller, but
 	 * instead to user space by manipulating the kernel stack.
 	 */
-	ret_from_kernel_execve(p);
+	ret_from_kernel_execve(current_pt_regs());
 }
 #endif
