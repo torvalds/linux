@@ -136,57 +136,36 @@ void flush_thread(void)
 }
 
 /*
- * "m68k_fork()".. By the time we get here, the
- * non-volatile registers have also been saved on the
- * stack. We do some ugly pointer stuff here.. (see
- * also copy_thread)
+ * Why not generic sys_clone, you ask?  m68k passes all arguments on stack.
+ * And we need all registers saved, which means a bunch of stuff pushed
+ * on top of pt_regs, which means that sys_clone() arguments would be
+ * buried.  We could, of course, copy them, but it's too costly for no
+ * good reason - generic clone() would have to copy them *again* for
+ * do_fork() anyway.  So in this case it's actually better to pass pt_regs *
+ * and extract arguments for do_fork() from there.  Eventually we might
+ * go for calling do_fork() directly from the wrapper, but only after we
+ * are finished with do_fork() prototype conversion.
  */
-
-asmlinkage int m68k_fork(struct pt_regs *regs)
-{
-#ifdef CONFIG_MMU
-	return do_fork(SIGCHLD, rdusp(), regs, 0, NULL, NULL);
-#else
-	return -EINVAL;
-#endif
-}
-
-asmlinkage int m68k_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), regs, 0,
-		       NULL, NULL);
-}
-
 asmlinkage int m68k_clone(struct pt_regs *regs)
 {
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	/* syscall2 puts clone_flags in d1 and usp in d2 */
-	clone_flags = regs->d1;
-	newsp = regs->d2;
-	parent_tidptr = (int __user *)regs->d3;
-	child_tidptr = (int __user *)regs->d4;
-	if (!newsp)
-		newsp = rdusp();
-	return do_fork(clone_flags, newsp, regs, 0,
-		       parent_tidptr, child_tidptr);
+	/* regs will be equal to current_pt_regs() */
+	return do_fork(regs->d1, regs->d2, regs, 0,
+		       (int __user *)regs->d3, (int __user *)regs->d4);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		 unsigned long arg,
-		 struct task_struct * p, struct pt_regs * regs)
+		 struct task_struct * p, struct pt_regs * unused)
 {
-	struct pt_regs * childregs;
-	struct switch_stack *childstack;
+	struct fork_frame {
+		struct switch_stack sw;
+		struct pt_regs regs;
+	} *frame;
 
-	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
-	childstack = ((struct switch_stack *) childregs) - 1;
+	frame = (struct fork_frame *) (task_stack_page(p) + THREAD_SIZE) - 1;
 
-	p->thread.usp = usp;
-	p->thread.ksp = (unsigned long)childstack;
-	p->thread.esp0 = (unsigned long)childregs;
+	p->thread.ksp = (unsigned long)frame;
+	p->thread.esp0 = (unsigned long)&frame->regs;
 
 	/*
 	 * Must save the current SFC/DFC value, NOT the value when
@@ -194,25 +173,24 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 */
 	p->thread.fs = get_fs().seg;
 
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
-		memset(childstack, 0,
-			sizeof(struct switch_stack) + sizeof(struct pt_regs));
-		childregs->sr = PS_S;
-		childstack->a3 = usp; /* function */
-		childstack->d7 = arg;
-		childstack->retpc = (unsigned long)ret_from_kernel_thread;
+		memset(frame, 0, sizeof(struct fork_frame));
+		frame->regs.sr = PS_S;
+		frame->sw.a3 = usp; /* function */
+		frame->sw.d7 = arg;
+		frame->sw.retpc = (unsigned long)ret_from_kernel_thread;
 		p->thread.usp = 0;
 		return 0;
 	}
-	*childregs = *regs;
-	childregs->d0 = 0;
-
-	*childstack = ((struct switch_stack *) regs)[-1];
-	childstack->retpc = (unsigned long)ret_from_fork;
+	memcpy(frame, container_of(current_pt_regs(), struct fork_frame, regs),
+		sizeof(struct fork_frame));
+	frame->regs.d0 = 0;
+	frame->sw.retpc = (unsigned long)ret_from_fork;
+	p->thread.usp = usp ?: rdusp();
 
 	if (clone_flags & CLONE_SETTLS)
-		task_thread_info(p)->tp_value = regs->d5;
+		task_thread_info(p)->tp_value = frame->regs.d5;
 
 #ifdef CONFIG_FPU
 	if (!FPU_IS_EMU) {
