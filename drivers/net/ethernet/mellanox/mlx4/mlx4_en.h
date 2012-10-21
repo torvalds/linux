@@ -487,6 +487,7 @@ struct mlx4_en_priv {
 	int mac_index;
 	unsigned max_mtu;
 	int base_qpn;
+	int cqe_factor;
 
 	struct mlx4_en_rss_map rss_map;
 	__be32 ctrl_flags;

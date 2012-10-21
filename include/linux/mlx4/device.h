@@ -142,6 +142,8 @@ enum {
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
 	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
+	MLX4_DEV_CAP_FLAG_64B_EQE	= 1LL << 61,
+	MLX4_DEV_CAP_FLAG_64B_CQE	= 1LL << 62
 };
 
 enum {
@@ -150,6 +152,20 @@ enum {
 	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
 	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3
 };
+
+enum {
+	MLX4_DEV_CAP_64B_EQE_ENABLED	= 1LL << 0,
+	MLX4_DEV_CAP_64B_CQE_ENABLED	= 1LL << 1
+};
+
+enum {
+	MLX4_USER_DEV_CAP_64B_CQE	= 1L << 0
+};
+
+enum {
+	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0
+};
+
 
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
@@ -419,6 +435,11 @@ struct mlx4_caps {
 	u32			max_counters;
 	u8			port_ib_mtu[MLX4_MAX_PORTS + 1];
 	u16			sqp_demux;
+	u32			eqe_size;
+	u32			cqe_size;
+	u8			eqe_factor;
+	u32			userspace_caps; /* userspace must be aware of these */
+	u32			function_caps;  /* VFs must be aware of these */
 };
 
 struct mlx4_buf_list {
