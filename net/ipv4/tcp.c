@@ -536,13 +536,14 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int answ;
+	bool slow;
 
 	switch (cmd) {
 	case SIOCINQ:
 		if (sk->sk_state == TCP_LISTEN)
 			return -EINVAL;
 
-		lock_sock(sk);
+		slow = lock_sock_fast(sk);
 		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
 			answ = 0;
 		else if (sock_flag(sk, SOCK_URGINLINE) ||
@@ -557,7 +558,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 				answ--;
 		} else
 			answ = tp->urg_seq - tp->copied_seq;
-		release_sock(sk);
+		unlock_sock_fast(sk, slow);
 		break;
 	case SIOCATMARK:
 		answ = tp->urg_data && tp->urg_seq == tp->copied_seq;
