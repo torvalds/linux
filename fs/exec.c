@@ -1575,10 +1575,9 @@ int do_execve(const char *filename,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_do_execve(const char *filename,
+static int compat_do_execve(const char *filename,
 	const compat_uptr_t __user *__argv,
-	const compat_uptr_t __user *__envp,
-	struct pt_regs *regs)
+	const compat_uptr_t __user *__envp)
 {
 	struct user_arg_ptr argv = {
 		.is_compat = true,
@@ -1588,7 +1587,7 @@ int compat_do_execve(const char *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp, current_pt_regs());
 }
 #endif
 
@@ -1682,8 +1681,7 @@ asmlinkage long compat_sys_execve(const char __user * filename,
 	struct filename *path = getname(filename);
 	int error = PTR_ERR(path);
 	if (!IS_ERR(path)) {
-		error = compat_do_execve(path->name, argv, envp,
-							current_pt_regs());
+		error = compat_do_execve(path->name, argv, envp);
 		putname(path);
 	}
 	return error;
