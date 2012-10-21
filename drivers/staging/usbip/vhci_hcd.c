@@ -911,7 +911,6 @@ static int vhci_start(struct usb_hcd *hcd)
 	spin_lock_init(&vhci->lock);
 
 	hcd->power_budget = 0; /* no limit */
-	hcd->state  = HC_STATE_RUNNING;
 	hcd->uses_new_polling = 1;
 
 	/* vhci_hcd is now ready to be controlled through sysfs */
