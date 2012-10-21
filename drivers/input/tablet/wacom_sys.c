@@ -391,7 +391,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
 						}
 
-						if (features->type == MTSCREEN)
+						if (features->type == MTSCREEN || WACOM_24HDT)
 							features->pktlen = WACOM_PKGLEN_MTOUCH;
 
 						if (features->type == BAMBOO_PT) {
@@ -402,6 +402,14 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							features->x_max =
 								get_unaligned_le16(&report[i + 8]);
 							i += 15;
+						} else if (features->type == WACOM_24HDT) {
+							features->x_max =
+								get_unaligned_le16(&report[i + 3]);
+							features->x_phy =
+								get_unaligned_le16(&report[i + 8]);
+							features->unit = report[i - 1];
+							features->unitExpo = report[i - 3];
+							i += 12;
 						} else {
 							features->x_max =
 								get_unaligned_le16(&report[i + 3]);
@@ -433,6 +441,12 @@ static int wacom_parse_hid(struct usb_interface *intf,
 								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
 								get_unaligned_le16(&report[i + 6]);
+							i += 7;
+						} else if (type == WACOM_24HDT) {
+							features->y_max =
+								get_unaligned_le16(&report[i + 3]);
+							features->y_phy =
+								get_unaligned_le16(&report[i - 2]);
 							i += 7;
 						} else if (type == BAMBOO_PT) {
 							features->y_phy =
@@ -540,6 +554,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 		if (features->type > TABLETPC) {
 			/* MT Tablet PC touch */
 			return wacom_set_device_mode(intf, 3, 4, 4);
+		}
+		else if (features->type == WACOM_24HDT) {
+			return wacom_set_device_mode(intf, 18, 3, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
