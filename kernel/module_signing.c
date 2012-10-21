@@ -192,7 +192,7 @@ int mod_verify_sig(const void *mod, unsigned long *_modlen)
 	size_t modlen = *_modlen, sig_len;
 	int ret;
 
-	pr_devel("==>%s(,%lu)\n", __func__, modlen);
+	pr_devel("==>%s(,%zu)\n", __func__, modlen);
 
 	if (modlen <= sizeof(ms))
 		return -EBADMSG;
