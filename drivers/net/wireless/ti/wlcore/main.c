@@ -5116,7 +5116,7 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 
 	ret = wl12xx_set_power_on(wl);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &wl->chip.id);
 	if (ret < 0)
