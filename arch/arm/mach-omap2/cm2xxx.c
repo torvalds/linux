@@ -2,8 +2,9 @@
  * OMAP2xxx CM module functions
  *
  * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2012 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010, 2012 Texas Instruments, Inc.
  * Paul Walmsley
+ * Rajendra Nayak <rnayak@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,9 +21,11 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "prm2xxx.h"
 #include "cm.h"
 #include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
+#include "clockdomain.h"
 
 /* CM_AUTOIDLE_PLL.AUTO_* bit values for DPLLs */
 #define DPLL_AUTOIDLE_DISABLE				0x0
@@ -166,3 +169,87 @@ int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
+
+/* Clockdomain low-level functions */
+
+static void omap2xxx_clkdm_allow_idle(struct clockdomain *clkdm)
+{
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_add_autodeps(clkdm);
+
+	omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+				       clkdm->clktrctrl_mask);
+}
+
+static void omap2xxx_clkdm_deny_idle(struct clockdomain *clkdm)
+{
+	omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					clkdm->clktrctrl_mask);
+
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_del_autodeps(clkdm);
+}
+
+static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_add_autodeps(clkdm);
+		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+			omap2xxx_clkdm_wakeup(clkdm);
+	}
+
+	return 0;
+}
+
+static int omap2xxx_clkdm_clk_disable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_del_autodeps(clkdm);
+		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+			omap2xxx_clkdm_sleep(clkdm);
+	}
+
+	return 0;
+}
+
+struct clkdm_ops omap2_clkdm_operations = {
+	.clkdm_add_wkdep	= omap2_clkdm_add_wkdep,
+	.clkdm_del_wkdep	= omap2_clkdm_del_wkdep,
+	.clkdm_read_wkdep	= omap2_clkdm_read_wkdep,
+	.clkdm_clear_all_wkdeps	= omap2_clkdm_clear_all_wkdeps,
+	.clkdm_sleep		= omap2xxx_clkdm_sleep,
+	.clkdm_wakeup		= omap2xxx_clkdm_wakeup,
+	.clkdm_allow_idle	= omap2xxx_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap2xxx_clkdm_deny_idle,
+	.clkdm_clk_enable	= omap2xxx_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
+};
+

@@ -119,4 +119,10 @@
 #define OMAP24XX_PRCM_IRQSTATUS_IVA			0x00f8
 #define OMAP24XX_PRCM_IRQENABLE_IVA			0x00fc
 
+#ifndef __ASSEMBLER__
+/* Function prototypes */
+extern int omap2xxx_clkdm_sleep(struct clockdomain *clkdm);
+extern int omap2xxx_clkdm_wakeup(struct clockdomain *clkdm);
+#endif
+
 #endif

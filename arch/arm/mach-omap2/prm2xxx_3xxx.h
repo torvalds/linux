@@ -116,6 +116,14 @@ extern int omap2_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank);
 extern int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst);
 extern int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm);
 
+extern int omap2_clkdm_add_wkdep(struct clockdomain *clkdm1,
+				 struct clockdomain *clkdm2);
+extern int omap2_clkdm_del_wkdep(struct clockdomain *clkdm1,
+				 struct clockdomain *clkdm2);
+extern int omap2_clkdm_read_wkdep(struct clockdomain *clkdm1,
+				  struct clockdomain *clkdm2);
+extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
+
 #endif /* __ASSEMBLER */
 
 /*

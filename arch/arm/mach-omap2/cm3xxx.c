@@ -1,9 +1,10 @@
 /*
- * OMAP2/3 CM module functions
+ * OMAP3xxx CM module functions
  *
  * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2012 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010, 2012 Texas Instruments, Inc.
  * Paul Walmsley
+ * Rajendra Nayak <rnayak@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,9 +21,11 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "prm2xxx_3xxx.h"
 #include "cm.h"
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
+#include "clockdomain.h"
 
 static const u8 omap3xxx_cm_idlest_offs[] = {
 	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
@@ -106,6 +109,173 @@ int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
+
+/* Clockdomain low-level operations */
+
+static int omap3xxx_clkdm_add_sleepdep(struct clockdomain *clkdm1,
+				       struct clockdomain *clkdm2)
+{
+	omap2_cm_set_mod_reg_bits((1 << clkdm2->dep_bit),
+				  clkdm1->pwrdm.ptr->prcm_offs,
+				  OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_del_sleepdep(struct clockdomain *clkdm1,
+				       struct clockdomain *clkdm2)
+{
+	omap2_cm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
+				    clkdm1->pwrdm.ptr->prcm_offs,
+				    OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_read_sleepdep(struct clockdomain *clkdm1,
+					struct clockdomain *clkdm2)
+{
+	return omap2_cm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
+					    OMAP3430_CM_SLEEPDEP,
+					    (1 << clkdm2->dep_bit));
+}
+
+static int omap3xxx_clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
+{
+	struct clkdm_dep *cd;
+	u32 mask = 0;
+
+	for (cd = clkdm->sleepdep_srcs; cd && cd->clkdm_name; cd++) {
+		if (!cd->clkdm)
+			continue; /* only happens if data is erroneous */
+
+		mask |= 1 << cd->clkdm->dep_bit;
+		atomic_set(&cd->sleepdep_usecount, 0);
+	}
+	omap2_cm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
+				    OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_sleep(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
+				      clkdm->clktrctrl_mask);
+	return 0;
+}
+
+static int omap3xxx_clkdm_wakeup(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
+				       clkdm->clktrctrl_mask);
+	return 0;
+}
+
+static void omap3xxx_clkdm_allow_idle(struct clockdomain *clkdm)
+{
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_add_autodeps(clkdm);
+
+	omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+				       clkdm->clktrctrl_mask);
+}
+
+static void omap3xxx_clkdm_deny_idle(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					clkdm->clktrctrl_mask);
+
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_del_autodeps(clkdm);
+}
+
+static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if ((clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) &&
+	    (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)) {
+		omap3xxx_clkdm_wakeup(clkdm);
+		return 0;
+	}
+
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_add_autodeps(clkdm);
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+			omap3xxx_clkdm_wakeup(clkdm);
+	}
+
+	return 0;
+}
+
+static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING &&
+	    !(clkdm->flags & CLKDM_CAN_FORCE_SLEEP)) {
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+		return 0;
+	}
+
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_del_autodeps(clkdm);
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+			omap3xxx_clkdm_sleep(clkdm);
+	}
+
+	return 0;
+}
+
+struct clkdm_ops omap3_clkdm_operations = {
+	.clkdm_add_wkdep	= omap2_clkdm_add_wkdep,
+	.clkdm_del_wkdep	= omap2_clkdm_del_wkdep,
+	.clkdm_read_wkdep	= omap2_clkdm_read_wkdep,
+	.clkdm_clear_all_wkdeps	= omap2_clkdm_clear_all_wkdeps,
+	.clkdm_add_sleepdep	= omap3xxx_clkdm_add_sleepdep,
+	.clkdm_del_sleepdep	= omap3xxx_clkdm_del_sleepdep,
+	.clkdm_read_sleepdep	= omap3xxx_clkdm_read_sleepdep,
+	.clkdm_clear_all_sleepdeps	= omap3xxx_clkdm_clear_all_sleepdeps,
+	.clkdm_sleep		= omap3xxx_clkdm_sleep,
+	.clkdm_wakeup		= omap3xxx_clkdm_wakeup,
+	.clkdm_allow_idle	= omap3xxx_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap3xxx_clkdm_deny_idle,
+	.clkdm_clk_enable	= omap3xxx_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap3xxx_clkdm_clk_disable,
+};
 
 /*
  * Context save/restore code - OMAP3 only

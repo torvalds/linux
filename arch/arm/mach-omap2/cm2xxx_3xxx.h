@@ -74,6 +74,18 @@ static inline u32 omap2_cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module,
 	return v;
 }
 
+/* Read a CM register, AND it, and shift the result down to bit 0 */
+static inline u32 omap2_cm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(domain, idx);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
 static inline u32 omap2_cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
 	return omap2_cm_rmw_mod_reg_bits(bits, bits, module, idx);
