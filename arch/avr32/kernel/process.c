@@ -299,11 +299,11 @@ asmlinkage void syscall_return(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p, struct pt_regs *unused)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		p->thread.cpu_context.r0 = arg;
 		p->thread.cpu_context.r1 = usp; /* fn */
@@ -311,8 +311,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.cpu_context.pc = (unsigned long)ret_from_kernel_thread;
 		childregs->sr = MODE_SUPERVISOR;
 	} else {
-		*childregs = *regs;
-		childregs->sp = usp;
+		*childregs = *current_pt_regs();
+		if (usp)
+			childregs->sp = usp;
 		childregs->r12 = 0; /* Set return value for child */
 		p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	}
@@ -325,28 +326,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		ocd_enable(p);
 
 	return 0;
-}
-
-/* r12-r8 are dummy parameters to force the compiler to use the stack */
-asmlinkage int sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-		void __user *parent_tidptr, void __user *child_tidptr,
-		struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
-			child_tidptr);
-}
-
-asmlinkage int sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs,
-		       0, NULL, NULL);
 }
 
 /*

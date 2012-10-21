@@ -15,7 +15,7 @@
 sys_call_table:
 	.long	sys_restart_syscall
 	.long	sys_exit
-	.long	__sys_fork
+	.long	sys_fork
 	.long	sys_read
 	.long	sys_write
 	.long	sys_open		/* 5 */
@@ -57,7 +57,7 @@ sys_call_table:
 	.long	sys_dup
 	.long	sys_pipe
 	.long	sys_times
-	.long	__sys_clone
+	.long	sys_clone
 	.long	sys_brk			/* 45 */
 	.long	sys_setgid
 	.long	sys_getgid
@@ -127,7 +127,7 @@ sys_call_table:
 	.long	sys_newuname
 	.long	sys_adjtimex
 	.long	sys_mprotect
-	.long	__sys_vfork
+	.long	sys_vfork
 	.long	sys_init_module		/* 115 */
 	.long	sys_delete_module
 	.long	sys_quotactl
