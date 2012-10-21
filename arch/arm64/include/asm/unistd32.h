@@ -23,7 +23,7 @@
 
 __SYSCALL(0,   sys_restart_syscall)
 __SYSCALL(1,   sys_exit)
-__SYSCALL(2,   compat_sys_fork)
+__SYSCALL(2,   sys_fork)
 __SYSCALL(3,   sys_read)
 __SYSCALL(4,   sys_write)
 __SYSCALL(5,   compat_sys_open)
@@ -211,7 +211,7 @@ __SYSCALL(186, compat_sys_sigaltstack_wrapper)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */
-__SYSCALL(190, compat_sys_vfork)
+__SYSCALL(190, sys_vfork)
 __SYSCALL(191, compat_sys_getrlimit)		/* SuS compliant getrlimit */
 __SYSCALL(192, sys_mmap_pgoff)
 __SYSCALL(193, compat_sys_truncate64_wrapper)

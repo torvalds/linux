@@ -26,17 +26,6 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 
-/*
- * Clone a task - this clones the calling program thread.
- */
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
-			  int __user *parent_tidptr, unsigned long tls_val,
-			  int __user *child_tidptr)
-{
-	return do_fork(clone_flags, newsp, current_pt_regs(), 0,
-			parent_tidptr, child_tidptr);
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			 unsigned long prot, unsigned long flags,
 			 unsigned long fd, off_t off)

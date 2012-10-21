@@ -28,17 +28,6 @@
 #include <asm/cacheflush.h>
 #include <asm/unistd32.h>
 
-asmlinkage int compat_sys_fork(void)
-{
-	return do_fork(SIGCHLD, 0, current_pt_regs(), 0, NULL, NULL);
-}
-
-asmlinkage int compat_sys_vfork(void)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
-		       current_pt_regs(), 0, NULL, NULL);
-}
-
 asmlinkage int compat_sys_sched_rr_get_interval(compat_pid_t pid,
 						struct compat_timespec __user *interval)
 {
