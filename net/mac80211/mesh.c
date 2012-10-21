@@ -703,8 +703,10 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 			       &elems);
 
-	/* ignore beacons from secure mesh peers if our security is off */
-	if (elems.rsn_len && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE)
+	/* ignore non-mesh or secure / unsecure mismatch */
+	if ((!elems.mesh_id || !elems.mesh_config) ||
+	    (elems.rsn && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) ||
+	    (!elems.rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))
 		return;
 
 	if (elems.ds_params && elems.ds_params_len == 1)
@@ -717,8 +719,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(sdata, &elems))
+	if (mesh_matches_local(sdata, &elems))
 		mesh_neighbour_update(sdata, mgmt->sa, &elems);
 
 	if (ifmsh->sync_ops)
