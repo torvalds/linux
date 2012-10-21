@@ -18,6 +18,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 
@@ -203,7 +204,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * not touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
-		sock_release(ud->tcp_socket);
+		fput(ud->tcp_socket->file);
 		ud->tcp_socket = NULL;
 	}
 

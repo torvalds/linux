@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/file.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -804,8 +805,8 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	pr_info("stop threads\n");
 
 	/* active connection is closed */
-	if (vdev->ud.tcp_socket != NULL) {
-		sock_release(vdev->ud.tcp_socket);
+	if (vdev->ud.tcp_socket) {
+		fput(vdev->ud.tcp_socket->file);
 		vdev->ud.tcp_socket = NULL;
 	}
 	pr_info("release socket\n");
@@ -851,7 +852,10 @@ static void vhci_device_reset(struct usbip_device *ud)
 		usb_put_dev(vdev->udev);
 	vdev->udev = NULL;
 
-	ud->tcp_socket = NULL;
+	if (ud->tcp_socket) {
+		fput(ud->tcp_socket->file);
+		ud->tcp_socket = NULL;
+	}
 	ud->status = VDEV_ST_NULL;
 
 	spin_unlock(&ud->lock);
