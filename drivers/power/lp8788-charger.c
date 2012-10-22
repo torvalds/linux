@@ -584,50 +584,18 @@ static void lp8788_setup_adc_channel(const char *consumer_name,
 				struct lp8788_charger *pchg)
 {
 	struct lp8788_charger_platform_data *pdata = pchg->pdata;
-	struct device *dev = pchg->lp->dev;
 	struct iio_channel *chan;
-	enum lp8788_adc_id id;
-	const char *chan_name[LPADC_MAX] = {
-		[LPADC_VBATT_5P5] = "vbatt-5p5",
-		[LPADC_VBATT_6P0] = "vbatt-6p0",
-		[LPADC_VBATT_5P0] = "vbatt-5p0",
-		[LPADC_ADC1]      = "adc1",
-		[LPADC_ADC2]      = "adc2",
-		[LPADC_ADC3]      = "adc3",
-		[LPADC_ADC4]      = "adc4",
-	};
 
 	if (!pdata)
 		return;
 
-	id = pdata->vbatt_adc;
-	switch (id) {
-	case LPADC_VBATT_5P5:
-	case LPADC_VBATT_6P0:
-	case LPADC_VBATT_5P0:
-		chan = iio_channel_get(consumer_name, chan_name[id]);
-		pchg->chan[LP8788_VBATT] = IS_ERR(chan) ? NULL : chan;
-		break;
-	default:
-		dev_err(dev, "invalid ADC id for VBATT: %d\n", id);
-		pchg->chan[LP8788_VBATT] = NULL;
-		break;
-	}
+	/* ADC channel for battery voltage */
+	chan = iio_channel_get(consumer_name, pdata->adc_vbatt);
+	pchg->chan[LP8788_VBATT] = IS_ERR(chan) ? NULL : chan;
 
-	id = pdata->batt_temp_adc;
-	switch (id) {
-	case LPADC_ADC1:
-	case LPADC_ADC2:
-	case LPADC_ADC3:
-	case LPADC_ADC4:
-		chan = iio_channel_get(consumer_name, chan_name[id]);
-		pchg->chan[LP8788_BATT_TEMP] = IS_ERR(chan) ? NULL : chan;
-		break;
-	default:
-		dev_err(dev, "invalid ADC id for BATT_TEMP : %d\n", id);
-		pchg->chan[LP8788_BATT_TEMP] = NULL;
-		break;
-	}
+	/* ADC channel for battery temperature */
+	chan = iio_channel_get(consumer_name, pdata->adc_batt_temp);
+	pchg->chan[LP8788_BATT_TEMP] = IS_ERR(chan) ? NULL : chan;
 }
 
 static void lp8788_release_adc_channel(struct lp8788_charger *pchg)
