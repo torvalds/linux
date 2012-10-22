@@ -91,7 +91,7 @@ static inline unsigned ecm_bitrate(struct usb_gadget *g)
  * encapsulated commands (vendor-specific, using control-OUT).
  */
 
-#define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
+#define ECM_STATUS_INTERVAL_MS		32
 #define ECM_STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
 
@@ -192,7 +192,7 @@ static struct usb_endpoint_descriptor fs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
+	.bInterval =		ECM_STATUS_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor fs_ecm_in_desc = {
@@ -239,7 +239,7 @@ static struct usb_endpoint_descriptor hs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_endpoint_descriptor hs_ecm_in_desc = {
@@ -288,7 +288,7 @@ static struct usb_endpoint_descriptor ss_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_ss_ep_comp_descriptor ss_ecm_intr_comp_desc = {

@@ -87,7 +87,7 @@ static inline struct f_acm *port_to_acm(struct gserial *p)
 
 /* notification endpoint uses smallish and infrequent fixed-size messages */
 
-#define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
+#define GS_NOTIFY_INTERVAL_MS		32
 #define GS_NOTIFY_MAXPACKET		10	/* notification + 2 bytes */
 
 /* interface and class descriptors: */
@@ -167,7 +167,7 @@ static struct usb_endpoint_descriptor acm_fs_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(GS_NOTIFY_MAXPACKET),
-	.bInterval =		1 << GS_LOG2_NOTIFY_INTERVAL,
+	.bInterval =		GS_NOTIFY_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor acm_fs_in_desc = {
@@ -199,14 +199,13 @@ static struct usb_descriptor_header *acm_fs_function[] = {
 };
 
 /* high speed support: */
-
 static struct usb_endpoint_descriptor acm_hs_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(GS_NOTIFY_MAXPACKET),
-	.bInterval =		GS_LOG2_NOTIFY_INTERVAL+4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(GS_NOTIFY_INTERVAL_MS),
 };
 
 static struct usb_endpoint_descriptor acm_hs_in_desc = {

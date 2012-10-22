@@ -101,7 +101,7 @@ static unsigned int bitrate(struct usb_gadget *g)
 /*
  */
 
-#define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
+#define RNDIS_STATUS_INTERVAL_MS	32
 #define STATUS_BYTECOUNT		8	/* 8 bytes data */
 
 
@@ -190,7 +190,7 @@ static struct usb_endpoint_descriptor fs_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(STATUS_BYTECOUNT),
-	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
+	.bInterval =		RNDIS_STATUS_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor fs_in_desc = {
@@ -236,7 +236,7 @@ static struct usb_endpoint_descriptor hs_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(RNDIS_STATUS_INTERVAL_MS)
 };
 
 static struct usb_endpoint_descriptor hs_in_desc = {
@@ -284,7 +284,7 @@ static struct usb_endpoint_descriptor ss_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(RNDIS_STATUS_INTERVAL_MS)
 };
 
 static struct usb_ss_ep_comp_descriptor ss_intr_comp_desc = {

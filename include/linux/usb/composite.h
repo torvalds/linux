@@ -38,6 +38,7 @@
 #include <linux/version.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/log2.h>
 
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
@@ -51,6 +52,7 @@
 /* big enough to hold our biggest descriptor */
 #define USB_COMP_EP0_BUFSIZ	1024
 
+#define USB_MS_TO_HS_INTERVAL(x)	(ilog2((x * 1000 / 125)) + 1)
 struct usb_configuration;
 
 /**

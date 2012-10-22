@@ -121,7 +121,7 @@ static struct usb_cdc_ncm_ntb_parameters ntb_parameters = {
  * waste less bandwidth.
  */
 
-#define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
+#define NCM_STATUS_INTERVAL_MS		32
 #define NCM_STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
 static struct usb_interface_assoc_descriptor ncm_iad_desc __initdata = {
@@ -230,7 +230,7 @@ static struct usb_endpoint_descriptor fs_ncm_notify_desc __initdata = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(NCM_STATUS_BYTECOUNT),
-	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
+	.bInterval =		NCM_STATUS_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor fs_ncm_in_desc __initdata = {
@@ -275,7 +275,7 @@ static struct usb_endpoint_descriptor hs_ncm_notify_desc __initdata = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(NCM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(NCM_STATUS_INTERVAL_MS),
 };
 static struct usb_endpoint_descriptor hs_ncm_in_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
