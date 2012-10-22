@@ -243,7 +243,6 @@ static int joydev_release(struct inode *inode, struct file *file)
 	kfree(client);
 
 	joydev_close_device(joydev);
-	put_device(&joydev->dev);
 
 	return 0;
 }
@@ -270,7 +269,6 @@ static int joydev_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 	nonseekable_open(inode, file);
 
-	get_device(&joydev->dev);
 	return 0;
 
  err_free_client:
@@ -858,6 +856,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		goto err_free_joydev;
 
 	cdev_init(&joydev->cdev, &joydev_fops);
+	joydev->cdev.kobj.parent = &joydev->dev.kobj;
 	error = cdev_add(&joydev->cdev, joydev->dev.devt, 1);
 	if (error)
 		goto err_unregister_handle;
