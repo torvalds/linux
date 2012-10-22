@@ -972,6 +972,16 @@
 					 (((t) & 0x1) << 23) |		\
 					 (((s) & 0x1) << 22) |		\
 					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_IB_PACKET(cmd, vmid, n)	((((cmd) & 0xF) << 28) |	\
+					 (((vmid) & 0xF) << 20) |	\
+					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_PTE_PDE_PACKET(n)		((2 << 28) |			\
+					 (1 << 26) |			\
+					 (1 << 21) |			\
+					 (((n) & 0xFFFFF) << 0))
+
 /* async DMA Packet types */
 #define	DMA_PACKET_WRITE				  0x2
 #define	DMA_PACKET_COPY					  0x3

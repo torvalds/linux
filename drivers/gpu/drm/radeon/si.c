@@ -2825,30 +2825,86 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 {
 	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
+	uint64_t value;
+	unsigned ndw;
 
-	while (count) {
-		unsigned ndw = 2 + count * 2;
-		if (ndw > 0x3FFE)
-			ndw = 0x3FFE;
+	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
+		while (count) {
+			ndw = 2 + count * 2;
+			if (ndw > 0x3FFE)
+				ndw = 0x3FFE;
 
-		radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, ndw));
-		radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-					 WRITE_DATA_DST_SEL(1)));
-		radeon_ring_write(ring, pe);
-		radeon_ring_write(ring, upper_32_bits(pe));
-		for (; ndw > 2; ndw -= 2, --count, pe += 8) {
-			uint64_t value;
-			if (flags & RADEON_VM_PAGE_SYSTEM) {
-				value = radeon_vm_map_gart(rdev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
-			} else if (flags & RADEON_VM_PAGE_VALID)
-				value = addr;
-			else
-				value = 0;
-			addr += incr;
-			value |= r600_flags;
-			radeon_ring_write(ring, value);
-			radeon_ring_write(ring, upper_32_bits(value));
+			radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, ndw));
+			radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+						 WRITE_DATA_DST_SEL(1)));
+			radeon_ring_write(ring, pe);
+			radeon_ring_write(ring, upper_32_bits(pe));
+			for (; ndw > 2; ndw -= 2, --count, pe += 8) {
+				if (flags & RADEON_VM_PAGE_SYSTEM) {
+					value = radeon_vm_map_gart(rdev, addr);
+					value &= 0xFFFFFFFFFFFFF000ULL;
+				} else if (flags & RADEON_VM_PAGE_VALID) {
+					value = addr;
+				} else {
+					value = 0;
+				}
+				addr += incr;
+				value |= r600_flags;
+				radeon_ring_write(ring, value);
+				radeon_ring_write(ring, upper_32_bits(value));
+			}
+		}
+	} else {
+		/* DMA */
+		if (flags & RADEON_VM_PAGE_SYSTEM) {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
+
+				/* for non-physically contiguous pages (system) */
+				radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw));
+				radeon_ring_write(ring, pe);
+				radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+					if (flags & RADEON_VM_PAGE_SYSTEM) {
+						value = radeon_vm_map_gart(rdev, addr);
+						value &= 0xFFFFFFFFFFFFF000ULL;
+					} else if (flags & RADEON_VM_PAGE_VALID) {
+						value = addr;
+					} else {
+						value = 0;
+					}
+					addr += incr;
+					value |= r600_flags;
+					radeon_ring_write(ring, value);
+					radeon_ring_write(ring, upper_32_bits(value));
+				}
+			}
+		} else {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
+
+				if (flags & RADEON_VM_PAGE_VALID)
+					value = addr;
+				else
+					value = 0;
+				/* for physically contiguous pages (vram) */
+				radeon_ring_write(ring, DMA_PTE_PDE_PACKET(ndw));
+				radeon_ring_write(ring, pe); /* dst addr */
+				radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+				radeon_ring_write(ring, r600_flags); /* mask */
+				radeon_ring_write(ring, 0);
+				radeon_ring_write(ring, value); /* value */
+				radeon_ring_write(ring, upper_32_bits(value));
+				radeon_ring_write(ring, incr); /* increment size */
+				radeon_ring_write(ring, 0);
+				pe += ndw * 4;
+				addr += (ndw / 2) * incr;
+				count -= ndw / 2;
+			}
 		}
 	}
 }
