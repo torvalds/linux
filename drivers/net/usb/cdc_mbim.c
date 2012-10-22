@@ -149,12 +149,27 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 		/* mapping VLANs to MBIM sessions:
 		 *   no tag     => IPS session <0>
 		 *   1 - 255    => IPS session <vlanid>
-		 *   256 - 4095 => unsupported, drop
+		 *   256 - 511  => DSS session <vlanid - 256>
+		 *   512 - 4095 => unsupported, drop
 		 */
 		vlan_get_tag(skb, &tci);
 
 		switch (tci & 0x0f00) {
 		case 0x0000: /* VLAN ID 0 - 255 */
+			/* verify that datagram is IPv4 or IPv6 */
+			skb_reset_mac_header(skb);
+			switch (eth_hdr(skb)->h_proto) {
+			case htons(ETH_P_IP):
+			case htons(ETH_P_IPV6):
+				break;
+			default:
+				goto error;
+			}
+			c = (u8 *)&sign;
+			c[3] = tci;
+			break;
+		case 0x0100: /* VLAN ID 256 - 511 */
+			sign = cpu_to_le32(USB_CDC_MBIM_NDP16_DSS_SIGN);
 			c = (u8 *)&sign;
 			c[3] = tci;
 			break;
@@ -163,16 +178,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 				  "unsupported tci=0x%04x\n", tci);
 			goto error;
 		}
-
-		skb_reset_mac_header(skb);
-		switch (eth_hdr(skb)->h_proto) {
-		case htons(ETH_P_IP):
-		case htons(ETH_P_IPV6):
-			skb_pull(skb, ETH_HLEN);
-			break;
-		default:
-			goto error;
-		}
+		skb_pull(skb, ETH_HLEN);
 	}
 
 	spin_lock_bh(&ctx->mtx);
@@ -189,21 +195,23 @@ error:
 
 static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len, u16 tci)
 {
-	__be16 proto;
+	__be16 proto = htons(ETH_P_802_3);
 	struct sk_buff *skb = NULL;
 
-	if (len < sizeof(struct iphdr))
-		goto err;
+	if (tci < 256) { /* IPS session? */
+		if (len < sizeof(struct iphdr))
+			goto err;
 
-	switch (*buf & 0xf0) {
-	case 0x40:
-		proto = htons(ETH_P_IP);
-		break;
-	case 0x60:
-		proto = htons(ETH_P_IPV6);
-		break;
-	default:
-		goto err;
+		switch (*buf & 0xf0) {
+		case 0x40:
+			proto = htons(ETH_P_IP);
+			break;
+		case 0x60:
+			proto = htons(ETH_P_IPV6);
+			break;
+		default:
+			goto err;
+		}
 	}
 
 	skb = netdev_alloc_skb_ip_align(dev->net,  len + ETH_HLEN);
@@ -258,6 +266,10 @@ next_ndp:
 	case cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN):
 		c = (u8 *)&ndp16->dwSignature;
 		tci = c[3];
+		break;
+	case cpu_to_le32(USB_CDC_MBIM_NDP16_DSS_SIGN):
+		c = (u8 *)&ndp16->dwSignature;
+		tci = c[3] + 256;
 		break;
 	default:
 		netif_dbg(dev, rx_err, dev->net,
