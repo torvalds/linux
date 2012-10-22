@@ -47,6 +47,8 @@ struct fib6_config {
 	unsigned long	fc_expires;
 	struct nlattr	*fc_mx;
 	int		fc_mx_len;
+	int		fc_mp_len;
+	struct nlattr	*fc_mp;
 
 	struct nl_info	fc_nlinfo;
 };
@@ -98,6 +100,14 @@ struct rt6_info {
 	struct fib6_node		*rt6i_node;
 
 	struct in6_addr			rt6i_gateway;
+
+	/* Multipath routes:
+	 * siblings is a list of rt6_info that have the the same metric/weight,
+	 * destination, but not the same gateway. nsiblings is just a cache
+	 * to speed up lookup.
+	 */
+	struct list_head		rt6i_siblings;
+	unsigned int			rt6i_nsiblings;
 
 	atomic_t			rt6i_ref;
 
