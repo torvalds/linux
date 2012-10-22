@@ -237,18 +237,18 @@ strncpy_from_user(char *dst, const char __user *src, long count)
  * On exception, returns 0.
  * If the string is too long, returns a value greater than n.
  */
-static inline long __must_check strnlen_user(const char *src, long n)
+static inline long __must_check strnlen_user(const char __user *src, long n)
 {
 	if (!access_ok(VERIFY_READ, src, 1))
 		return 0;
-	return strnlen(src, n) + 1;
+	return strnlen((const char __force *)src, n) + 1;
 }
 
-static inline long __must_check strlen_user(const char *src)
+static inline long __must_check strlen_user(const char __user *src)
 {
 	if (!access_ok(VERIFY_READ, src, 1))
 		return 0;
-	return strlen(src) + 1;
+	return strlen((const char __force *)src) + 1;
 }
 
 /*
