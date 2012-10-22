@@ -232,6 +232,21 @@ enum brcmf_vif_status {
 };
 
 /**
+ * struct vif_saved_ie - holds saved IEs for a virtual interface.
+ *
+ * @probe_res_ie: IE info for probe response.
+ * @beacon_ie: IE info for beacon frame.
+ * @probe_res_ie_len: IE info length for probe response.
+ * @beacon_ie_len: IE info length for beacon frame.
+ */
+struct vif_saved_ie {
+	u8  probe_res_ie[IE_MAX_LEN];
+	u8  beacon_ie[IE_MAX_LEN];
+	u32 probe_res_ie_len;
+	u32 beacon_ie_len;
+};
+
+/**
  * struct brcmf_cfg80211_vif - virtual interface specific information.
  *
  * @ifp: lower layer interface pointer
@@ -251,6 +266,7 @@ struct brcmf_cfg80211_vif {
 	s32 roam_off;
 	unsigned long sme_state;
 	bool pm_block;
+	struct vif_saved_ie saved_ie;
 	struct list_head list;
 };
 

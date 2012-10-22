@@ -3774,6 +3774,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 			u8 *vndr_ie_buf, u32 vndr_ie_len)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct vif_saved_ie *saved_ie = &ifp->vif->saved_ie;
 	s32 err = 0;
 	u8  *iovar_ie_buf;
 	u8  *curr_ie_buf;
@@ -3796,18 +3797,17 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	if (!iovar_ie_buf)
 		return -ENOMEM;
 	curr_ie_buf = iovar_ie_buf;
-	if (test_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state) ||
-	    test_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state)) {
+	if (ifp->vif->mode == WL_MODE_AP) {
 		switch (pktflag) {
 		case VNDR_IE_PRBRSP_FLAG:
-			mgmt_ie_buf = cfg->ap_info->probe_res_ie;
-			mgmt_ie_len = &cfg->ap_info->probe_res_ie_len;
-			mgmt_ie_buf_len = sizeof(cfg->ap_info->probe_res_ie);
+			mgmt_ie_buf = saved_ie->probe_res_ie;
+			mgmt_ie_len = &saved_ie->probe_res_ie_len;
+			mgmt_ie_buf_len = sizeof(saved_ie->probe_res_ie);
 			break;
 		case VNDR_IE_BEACON_FLAG:
-			mgmt_ie_buf = cfg->ap_info->beacon_ie;
-			mgmt_ie_len = &cfg->ap_info->beacon_ie_len;
-			mgmt_ie_buf_len = sizeof(cfg->ap_info->beacon_ie);
+			mgmt_ie_buf = saved_ie->beacon_ie;
+			mgmt_ie_len = &saved_ie->beacon_ie_len;
+			mgmt_ie_buf_len = sizeof(saved_ie->beacon_ie);
 			break;
 		default:
 			err = -EPERM;
