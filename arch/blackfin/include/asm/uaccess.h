@@ -256,11 +256,11 @@ static inline long __must_check strlen_user(const char *src)
  */
 
 static inline unsigned long __must_check
-__clear_user(void *to, unsigned long n)
+__clear_user(void __user *to, unsigned long n)
 {
 	if (!access_ok(VERIFY_WRITE, to, n))
 		return n;
-	memset(to, 0, n);
+	memset((void __force *)to, 0, n);
 	return 0;
 }
 
