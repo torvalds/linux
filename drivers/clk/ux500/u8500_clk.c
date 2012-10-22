@@ -235,8 +235,13 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p1_pclk3", "per1clk", U8500_CLKRST1_BASE,
 				BIT(3), 0);
+	clk_register_clkdev(clk, "apb_pclk", "msp0");
+	clk_register_clkdev(clk, "apb_pclk", "ux500-msp-i2s.0");
+
 	clk = clk_reg_prcc_pclk("p1_pclk4", "per1clk", U8500_CLKRST1_BASE,
 				BIT(4), 0);
+	clk_register_clkdev(clk, "apb_pclk", "msp1");
+	clk_register_clkdev(clk, "apb_pclk", "ux500-msp-i2s.1");
 
 	clk = clk_reg_prcc_pclk("p1_pclk5", "per1clk", U8500_CLKRST1_BASE,
 				BIT(5), 0);
@@ -265,6 +270,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p1_pclk11", "per1clk", U8500_CLKRST1_BASE,
 				BIT(11), 0);
+	clk_register_clkdev(clk, "apb_pclk", "msp3");
+	clk_register_clkdev(clk, "apb_pclk", "ux500-msp-i2s.3");
 
 	clk = clk_reg_prcc_pclk("p2_pclk0", "per2clk", U8500_CLKRST2_BASE,
 				BIT(0), 0);
@@ -288,6 +295,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p2_pclk5", "per2clk", U8500_CLKRST2_BASE,
 				BIT(5), 0);
+	clk_register_clkdev(clk, "apb_pclk", "msp2");
+	clk_register_clkdev(clk, "apb_pclk", "ux500-msp-i2s.2");
 
 	clk = clk_reg_prcc_pclk("p2_pclk6", "per2clk", U8500_CLKRST2_BASE,
 				BIT(6), 0);
@@ -418,8 +427,13 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_kclk("p1_msp0_kclk", "msp02clk",
 			U8500_CLKRST1_BASE, BIT(3), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "msp0");
+	clk_register_clkdev(clk, NULL, "ux500-msp-i2s.0");
+
 	clk = clk_reg_prcc_kclk("p1_msp1_kclk", "msp1clk",
 			U8500_CLKRST1_BASE, BIT(4), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "msp1");
+	clk_register_clkdev(clk, NULL, "ux500-msp-i2s.1");
 
 	clk = clk_reg_prcc_kclk("p1_sdi0_kclk", "sdmmcclk",
 			U8500_CLKRST1_BASE, BIT(5), CLK_SET_RATE_GATE);
@@ -439,6 +453,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_kclk("p1_msp3_kclk", "msp1clk",
 			U8500_CLKRST1_BASE, BIT(10), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "msp3");
+	clk_register_clkdev(clk, NULL, "ux500-msp-i2s.3");
 
 	/* Periph2 */
 	clk = clk_reg_prcc_kclk("p2_i2c3_kclk", "i2cclk",
@@ -451,6 +467,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_kclk("p2_msp2_kclk", "msp02clk",
 			U8500_CLKRST2_BASE, BIT(3), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "msp2");
+	clk_register_clkdev(clk, NULL, "ux500-msp-i2s.2");
 
 	clk = clk_reg_prcc_kclk("p2_sdi1_kclk", "sdmmcclk",
 			U8500_CLKRST2_BASE, BIT(4), CLK_SET_RATE_GATE);
