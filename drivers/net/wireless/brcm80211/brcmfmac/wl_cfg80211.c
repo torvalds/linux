@@ -3008,46 +3008,49 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_vif *vif;
 
 	WL_TRACE("Enter\n");
 
 	/*
-	 * Check for BRCMF_VIF_STATUS_READY before any function call which
-	 * could result is bus access. Don't block the suspend for
-	 * any driver error conditions
+	 * if the primary net_device is not READY there is nothing
+	 * we can do but pray resume goes smoothly.
 	 */
+	vif = ((struct brcmf_if *)netdev_priv(ndev))->vif;
+	if (!check_vif_up(vif))
+		goto exit;
 
-	/*
-	 * While going to suspend if associated with AP disassociate
-	 * from AP to save power while system is in suspended state
-	 */
-	if ((test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state) ||
-	     test_bit(BRCMF_VIF_STATUS_CONNECTING, &ifp->vif->sme_state)) &&
-	     check_vif_up(ifp->vif)) {
-		WL_INFO("Disassociating from AP"
-			" while entering suspend state\n");
-		brcmf_link_down(cfg);
-
+	list_for_each_entry(vif, &cfg->vif_list, list) {
+		if (!test_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state))
+			continue;
 		/*
-		 * Make sure WPA_Supplicant receives all the event
-		 * generated due to DISASSOC call to the fw to keep
-		 * the state fw and WPA_Supplicant state consistent
+		 * While going to suspend if associated with AP disassociate
+		 * from AP to save power while system is in suspended state
 		 */
-		brcmf_delay(500);
+		if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state) ||
+		    test_bit(BRCMF_VIF_STATUS_CONNECTING, &vif->sme_state)) {
+			WL_INFO("Disassociating from AP before suspend\n");
+			brcmf_link_down(cfg);
+
+			/* Make sure WPA_Supplicant receives all the event
+			 * generated due to DISASSOC call to the fw to keep
+			 * the state fw and WPA_Supplicant state consistent
+			 */
+			brcmf_delay(500);
+		}
 	}
 
-	if (test_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state))
+	/* end any scanning */
+	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
 		brcmf_abort_scanning(cfg);
-	else
-		clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 
 	/* Turn off watchdog timer */
-	if (test_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state))
-		brcmf_set_mpc(ndev, 1);
+	brcmf_set_mpc(ndev, 1);
 
+exit:
 	WL_TRACE("Exit\n");
-
+	/* clear any scanning activity */
+	cfg->scan_status = 0;
 	return 0;
 }
 
