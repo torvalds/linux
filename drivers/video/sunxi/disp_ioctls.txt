@@ -1,0 +1,1872 @@
+This document is a google translated, asciified version of
+A10_linux_display_driver_interface.xls and
+A13_linux_display_driver_interface.xls.
+
+It documents all the ioctls available for the sunxi disp driver,
+although most are very self-explanatory.
+
+-- Libv.
+
+A) FB engine.
+
+
+1) FBIOGET_VSCREENINFO
+
+1) FBIOGET_VSCREENINFO
+
+Args:
+	* var screen information（struct fb_var_screeninfo*）
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer var screen information.
+
+2) FBIOPUT_VSCREENINFO
+
+Args:
+	* var screen information(struct fb_var_screeninfo*）
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set framebuffer var screen information.
+
+3) FBIOGET_FSCREENINFO
+
+Args:
+	* fix screen information(struct fb_fix_screeninfo *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer fix screen information.
+
+4) FBIOPUTCMAP
+
+Args:
+	* Palette(struct fb_cmap_user*)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set framebuffer Palette.
+
+5) FBIOGETCMAP
+
+Args:
+	* Palette(struct fb_cmap_user*)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer Palette.
+
+6) FBIOPAN_DISPLAY
+
+Args:
+	* var screen information(struct fb_var_screeninfo*）
+Returns:
+	Success: 0;
+	Failed: errno.
+
+pan display, adjustment var.xoffset, var.yoffset, var.xres, var.yres.
+
+7) FBIOBLANK
+
+Args:
+	* blank mode
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Currently defined for the framebuffer the corresponding layers switch??? (todo)
+
+8) FBIOGET_LAYER_HDL_0
+
+Args:
+	* Back the Layers handle （unsigned int*）
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer handle corresponding layers on the screen 0.
+
+
+9) FBIOGET_LAYER_HDL_1
+
+Args:
+	* Back the Layers handle （unsigned int*）
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer handle corresponding layers on the screen 1.
+
+B) Disp engine.
+
+1) framebuffer:
+---------------
+
+1.1) DISP_CMD_FB_REQUEST
+
+Args:
+	* framebuffer id(0~7)
+	* the framebuffer to apply parameters （__disp_fb_create_para_t *）
+
+Returns:
+	Success: framebuffer handle.
+	Failed: errno.
+
+Application framebuffer, the framebuffer operation must apply.
+
+1.2) DISP_CMD_FB_RELEASE
+
+Args:
+	framebuffer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Release framebuffer
+
+2) global:
+----------
+
+2.1) DISP_CMD_START_CMD_CACHE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Start cache. Behind the IO command will not be executed immediately, but wait
+until call DISP_CMD_EXECUTE_CMD_AND_STOP_CACHE after execution in conjunction.
+
+2.2) DISP_CMD_EXECUTE_CMD_AND_STOP_CACHE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Execute commands and stop the cache.
+
+2.3) DISP_CMD_SET_BKCOLOR
+
+Args:
+	* screen [0, 1]
+	* background colour (__disp_color_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the background colour.
+
+2.4) DISP_CMD_GET_BKCOLOR
+
+Args:
+	* screen [0, 1]
+	* Background colour (__disp_color_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get the background colour.
+
+5) DISP_CMD_SET_COLORKEY
+
+Args:
+	* screen [0, 1]
+	* color key parameter (__disp_colorkey_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set color key.
+
+6) DISP_CMD_GET_COLORKEY
+
+Args:
+	* screen [0, 1]
+	* color key parameter (__disp_colorkey_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get color key.
+
+7) DISP_CMD_SET_PALETTE_TBL
+
+Args:
+	* screen id (0/1)
+	* Address (__u32 *)
+	* offset (__u32, 4bytes alignment)
+	* size (4bytes alignment, unit byte)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the palette, the total size of the system palette is 256 * 4 byte, and can
+be set to any period of continuous regional palette.
+
+8) DISP_CMD_GET_PALETTE_TBL
+
+Args:
+	* screen [0, 1]
+	* Address (__u32 *)
+	* offset (__u32, 4bytes alignment)
+	* size (4bytes alignment, unit byte)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get palette
+
+9) DISP_CMD_SCN_GET_WIDTH
+
+Args:
+	screen [0, 1]
+
+Returns:
+	The width of the screen.
+
+Get the current width of the screen.
+
+10) DISP_CMD_SCN_GET_HEIGHT
+
+Args:
+	screen [0, 1]
+
+Returns:
+	The height of the screen.
+
+Get the current height of the screen.
+
+11) DISP_CMD_GET_OUTPUT_TYPE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Output type (__disp_output_type_t)
+
+Get the current output type (LCD,TV,HDMI,VGA,NONE)
+
+12) DISP_CMD_SET_GAMMA_TABLE
+
+Args:
+	* screen [0, 1]
+	* Address(__u32 *)
+	* N/A
+	* size (4bytes alignment, unit byte)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the gamma correction coefficient table.
+
+13) DISP_CMD_GAMMA_CORRECTION_ON
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enabel gamma correction.
+
+14) DISP_CMD_GAMMA_CORRECTION_OFF
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable gamma correction.
+
+15) DISP_CMD_SET_BRIGHT
+
+Args:
+	* screen [0, 1]
+	* brightness value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the brightness of the screen.
+
+16) DISP_CMD_GET_BRIGHT
+
+Args:
+	screen [0, 1]
+
+Returns:
+	The brightness of the screen.
+
+Get the brightness of the screen.
+
+17) DISP_CMD_SET_CONTRAST
+
+Args:
+	* screen [0, 1]
+	* contrast values ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the contrast of the screen.
+
+18) DISP_CMD_GET_CONTRAST
+
+Args:
+	screen [0, 1]
+
+Returns
+	The contrast of the screen.
+
+Get the contrast of the screen.
+
+19) DISP_CMD_SET_SATURATION
+
+Args:
+	* screen [0, 1]
+	* saturation value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set screen saturation.
+
+20) DISP_CMD_GET_SATURATION
+
+Args:
+	screen [0, 1]
+
+Returns
+	screen saturation
+
+Get screen saturation.
+
+21) DISP_CMD_SET_HUE (sun4i only)
+
+Args:
+	* screen [0, 1]
+	* saturation value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set screen hue.
+
+22) DISP_CMD_GET_HUE (sun4i only)
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	* screen hue
+
+Get screen hue.
+
+23) DISP_CMD_ENHANCE_ON
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable screen enhance function.
+
+24) DISP_CMD_ENHANCE_OFF
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable screen enhance function.
+
+25) DISP_CMD_GET_ENHANCE_EN
+
+Args:
+	screen [0, 1]
+
+Returns:
+	0: disabled
+	1: enabled
+
+Query whether screen enhance function is enabled.
+
+26) DISP_CMD_DE_FLICKER_ON
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable deflicker function （in the output interlace where used）.
+
+27) DISP_CMD_DE_FLICKER_OFF
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable deflicker function.
+
+3) layer:
+---------
+
+3.1) DISP_CMD_LAYER_REQUEST
+
+Args:
+	* screen [0, 1]
+	* layers work mode (__disp_layer_work_mode_t)
+
+Returns:
+	Success :layer_handle
+	Failed :NULL
+
+The application layer, the drive will only be allocated to a layer out, did not
+make any of the layers set, it is recommended to set this parameter layers call
+DISP_CMD_LAYER_SET_PARA command immediately after the application layer.
+
+3.2) DISP_CMD_LAYER_RELEASE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+The release layer, after the release of the layers, all the layers registers
+are cleared to the default of value, so if you want to re-think using the layer
+must re-apply.
+
+3.3) DISP_CMD_LAYER_OPEN
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Open the Layer, that can see the layers.
+
+3.4) DISP_CMD_LAYER_CLOSE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Close layer.
+
+3.5) DISP_CMD_LAYER_SET_FB
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* framebuffer information (__disp_fb_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set layer framebuffer, the original source window remains set.
+
+3.6) DISP_CMD_LAYER_GET_FB
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* framebuffer information (__disp_fb_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get the layers framebuffer.
+
+3.7) DISP_CMD_LAYER_SET_SRC_WINDOW
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* source window (__disp_rect *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the layers source window
+
+3.8) DISP_CMD_LAYER_GET_SRC_WINDOW
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* source window(__disp_rect *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get the layers source window.
+
+3.9) DISP_CMD_LAYER_SET_SCN_WINDOW
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* screen window (__disp_rect *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the layers screen window.
+
+3.10) DISP_CMD_LAYER_GET_SCN_WINDOW
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* screen window (__disp_rect *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get the layers screen window.
+
+3.11) DISP_CMD_LAYER_SET_PARA
+
+Args:
+      * screen [0, 1]
+      * layer_handle
+      * layers parameter (__disp_layer_info_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set layer parameters, all the parameters of the layer are set by the command,
+in addition to the priority (priority adjustment can only be implemented
+through DISP_CMD_LAYER_TOP / DISP_CMD_LAYER_BOTTOM).
+
+3.12) DISP_CMD_LAYER_GET_PARA
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* layers parameter(__disp_layer_info_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get layer parameter.
+
+3.13) DISP_CMD_LAYER_ALPHA_ON
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Open layers of global alpha function, that use surface alpha.
+
+3.14) DISP_CMD_LAYER_ALPHA_OFF
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Open layers of global alpha function, that use surface alpha.
+
+3.15) DISP_CMD_LAYER_GET_ALPHA_EN
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	0: disabled
+	1: enabled
+
+Query whether layer has global alpha enabled.
+
+3.16) DISP_CMD_LAYER_SET_ALPHA_VALUE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* global alpha value (__u32)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get a layers global alpha value.
+
+3.17) DISP_CMD_LAYER_GET_ALPHA_VALUE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	* global alpha value
+
+Get a layers global alpha value.
+
+3.18) DISP_CMD_LAYER_CK_ON
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable colour key on a layer.
+
+3.19) DISP_CMD_LAYER_CK_OFF
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable a layers colour key.
+
+3.20) DISP_CMD_LAYER_GET_CK_EN
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	0: colour key disabled.
+	1: colour key enabled.
+
+Enable a layers colour key.
+
+3.21) DISP_CMD_LAYER_SET_PIPE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* pipe (__u32)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the layer pipe, a pipe layer can only be high priority coverage low
+priority, rather than do alpha blending.
+
+3.22) DISP_CMD_LAYER_GET_PIPE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	pipe
+
+Get the pipe associated with the layer.
+
+3.23) DISP_CMD_LAYER_TOP
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Layer top, the relative relationship between the other layers priority remains
+unchanged.
+
+3.24) DISP_CMD_LAYER_BOTTOM
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set bottom layer, the relative relationship between the other layers of the
+priority remains the same.
+
+3.25) DISP_CMD_LAYER_GET_PRIO
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	priority.
+
+Get priority layers (layers from the bottom to the top priority from low to high).
+
+3.26) DISP_CMD_LAYER_SET_SMOOTH
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* smooth (__disp_video_smooth_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the layer of smooth (the layer must scaler layers).
+
+3.27) DISP_CMD_LAYER_GET_SMOOTH
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns
+	smooth (__disp_video_smooth_t)
+
+Get the layers smooth (the layer must scaler layer).
+
+3.28) DISP_CMD_LAYER_SET_BRIGHT
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* brightness value([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the brightness of the scaler layer.
+
+3.29) DISP_CMD_LAYER_GET_BRIGHT
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	brightness level.
+
+Get scaler layers brightness.
+
+3.30) DISP_CMD_LAYER_SET_CONTRAST
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* contrast value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set scaler layers contrast.
+
+3.31) DISP_CMD_LAYER_GET_CONTRAST
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	* contrast value.
+
+Get scaler layers contrast.
+
+3.32) DISP_CMD_LAYER_SET_SATURATION
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* saturation value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set scaler layers saturation
+
+3.33) DISP_CMD_LAYER_GET_SATURATION
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	saturation value.
+
+Get scaler layers saturation.
+
+3.34) DISP_CMD_LAYER_SET_HUE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* tone/hue value ([0-100], default: 50)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set scaler layers tone/hue.
+
+3.35) DISP_CMD_LAYER_GET_HUE
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns
+	tone/hue value.
+
+Get scaler layers tone/hue.
+
+3.36) DISP_CMD_LAYER_ENHANCE_ON
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable scaler layers enhance function.
+
+3.37) DISP_CMD_LAYER_ENHANCE_OFF
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable scaler layers enhance function.
+
+3.38) DISP_CMD_LAYER_GET_ENHANCE_EN
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	0: disabled
+	1: enabled.
+
+Query whether a scaler layers enhance function is enabled.
+
+3.39) DISP_CMD_LAYER_VPP_ON
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable video post-processing functions (only for scaler layers).
+
+40) DISP_CMD_LAYER_VPP_OFF
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable video post-processing functions.
+
+3.41) DISP_CMD_LAYER_GET_VPP_EN
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	0: disabled
+	1: enabled
+
+Query whether a layers vpp function is enabled.
+
+3.42) DISP_CMD_LAYER_SET_LUMA_SHARP_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* Luminance sharpening level [0-4]
+		* 0: disabled.
+		* 1-4: higher level, sharper.
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set luminance sharpening level.
+
+3.43) DISP_CMD_LAYER_GET_LUMA_SHARP_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Luminance sharpening level.
+
+Get luminance sharpening level.
+
+3.44) DISP_CMD_LAYER_SET_CHROMA_SHARP_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* hue sharpening level [0-4]
+		* 0: disabled.
+		* 1-4: higher level, sharper.
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set hue sharpening level.
+
+3.45) DISP_CMD_LAYER_GET_CHROMA_SHARP_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	hue sharpening level.
+
+Get hue sharpening level.
+
+3.46) DISP_CMD_LAYER_SET_WHITE_EXTEN_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* White level expansion value [0-4]
+		* 0: disabled.
+		* 1-4: higher level, sharper.
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set white level expansion value.
+
+3.47) DISP_CMD_LAYER_GET_WHITE_EXTEN_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	white level expansion value.
+
+Get white level expansion value.
+
+3.48) DISP_CMD_LAYER_SET_BLACK_EXTEN_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* Black level expansion value [0-4]
+		* 0: disabled.
+		* 1-4: higher level, sharper.
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set black level expansion value.
+
+3.49) DISP_CMD_LAYER_GET_BLACK_EXTEN_LEVEL
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	black level expansion value.
+
+Get black level expansion value.
+
+4) scaler:
+----------
+
+4.1) DISP_CMD_SCALER_REQUEST
+
+Args:
+	screen [0, 1]
+
+Returns:
+	scaler handle
+
+Application scaler is used to write-back.
+
+4.2) DISP_CMD_SCALER_RELEASE
+
+Args:
+	* screen [0, 1]
+	* scaler handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Release scaler.
+
+4.3) DISP_CMD_SCALER_EXECUTE
+
+Args:
+	* screen [0, 1]
+	* scaler handle
+	* scaler parameter (__disp_scaler_para_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Perform scaler.
+
+5) hwc:
+-------
+
+5.1) DISP_CMD_HWC_OPEN
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Open hw cursor.
+
+5.2) DISP_CMD_HWC_CLOSE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Close hw cursor.
+
+5.3) DISP_CMD_HWC_SET_POS
+
+Args:
+	* screen [0, 1]
+	* Starting coordinate on screen (__disp_pos_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set starting coordinates of the hw cursor on the screen.
+
+5.4) DISP_CMD_HWC_GET_POS
+
+Args:
+	* screen [0, 1]
+	* Starting coordinate on screen (__disp_pos_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get starting coordinates of the hw cursor on the screen.
+
+5.5) DISP_CMD_HWC_SET_FB
+
+Args:
+	* screen [0, 1]
+	* (__disp_hwc_pattern_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set hw cursor framebuffer information.
+
+5.6) DISP_CMD_HWC_SET_PALETTE_TABLE
+
+Args:
+	* screen [0, 1]
+	* Address (__u32 *)
+	* N/A
+	* size (4 bytes alignment, unit byte)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set palette table for hw cursor.
+
+6) video:
+---------
+
+6.1) DISP_CMD_VIDEO_START
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Start video playback.
+
+6.2) DISP_CMD_VIDEO_STOP
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Stop video playback.
+
+6.3) DISP_CMD_VIDEO_SET_FB
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+	* framebuffer information (__disp_video_fb_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set video framebuffer information.
+
+6.4) DISP_CMD_VIDEO_GET_DIT_INFO
+
+Args:
+     * screen [0, 1]
+     * layer_handle
+     * deinterlace information (__disp_dit_info_t *)
+
+Returns:
+	deinterlace information
+
+The deinterlace information for video display.
+
+6.5) DISP_CMD_VIDEO_GET_FRAME_ID
+
+Args:
+	* screen [0, 1]
+	* layer_handle
+
+Returns:
+	Success: framebuffer id
+	Failed: errno.
+
+Get currently being displayed framebuffer id.
+
+7) lcd:
+-------
+
+7.1) DISP_CMD_LCD_ON
+
+Args:
+	screen [0, 1]
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable LCD
+
+7.2) DISP_CMD_LCD_OFF
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable LCD.
+
+7.3) DISP_CMD_LCD_SET_BRIGHTNESS
+
+Args:
+	* screen [0, 1]
+	* brightness (__disp_lcd_bright_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set LCD brightness.
+
+7.4) DISP_CMD_LCD_GET_BRIGHTNESS
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	LCD brightness (__disp_lcd_bright_t)
+
+Get LCD brightness.
+
+7.5) DISP_CMD_LCD_SET_SRC
+
+Args:
+	* screen [0, 1]
+	* lcd source (__disp_lcdc_src_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set source for LCD.
+
+8) tv:
+------
+
+8.1) DISP_CMD_TV_ON
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable TV display.
+
+8.2) DISP_CMD_TV_OFF
+
+Args:
+	* screen [0, 1]
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable TV display.
+
+8.3) DISP_CMD_TV_SET_MODE
+
+Args:
+	* screen [0, 1]
+	* mode (__disp_tv_mode_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the mode on the TV display.
+
+8.4) DISP_CMD_TV_GET_MODE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	mode (__disp_tv_mode_t)
+
+Get current TV mode.
+
+8.4) DISP_CMD_TV_GET_INTERFACE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	interface (disp_tv_output_t)
+
+Get TV interface.
+
+8.5) DISP_CMD_TV_SET_SRC
+
+Args:
+	* screen [0, 1]
+	* source (__disp_lcdc_src_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set TV source.
+
+9) hdmi:
+--------
+
+9.1) DISP_CMD_HDMI_ON
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable HDMI display.
+
+9.2) DISP_CMD_HDMI_OFF
+
+Args:
+	screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable HDMI display.
+
+9.3) DISP_CMD_HDMI_SET_MODE
+
+Args:
+	* screen [0, 1]
+	* mode (__disp_tv_mode_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set HDMI mode.
+
+9.4) DISP_CMD_HDMI_GET_MODE
+
+Args:
+	screen [0, 1]
+
+Returns:
+	mode (__disp_tv_mode_t)
+
+Get current HDMI mode.
+
+9.5) DISP_CMD_HDMI_SUPPORT_MODE
+
+Args:
+     * screen [0, 1]
+     * mode(__disp_tv_mode_t)
+
+
+Returns:
+	0: invalid
+	1: supported.
+
+Query whether a mode is supported on hdmi.
+
+9.6) DISP_CMD_HDMI_GET_HPD_STATUS
+
+Args
+	screen [0, 1]
+
+Returns:
+	0: nothing attached
+	1: hpd attached.
+
+Query the current hdmi hpd status.
+
+9.7) DISP_CMD_HDMI_SET_SRC
+
+Args:
+	* screen [0, 1]
+	* source (__disp_lcdc_src_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set hdmi source.
+
+10) vga:
+--------
+
+10.1) DISP_CMD_VGA_ON
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable VGA display.
+
+10.2) DISP_CMD_VGA_OFF
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable VGA display.
+
+10.3) DISP_CMD_VGA_SET_MODE
+
+Args:
+	* screen [0, 1]
+	* mode (__disp_vga_mode_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set VGA mode.
+
+10.4) DISP_CMD_VGA_GET_MODE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	* mode (__disp_vga_mode_t)
+
+Get current VGA mode.
+
+10.4) DISP_CMD_VGA_SET_SRC
+
+Args:
+	* screen [0, 1]
+	* source (__disp_lcdc_src_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set source of vga display.
+
+11) sprite:
+-----------
+
+11.1) DISP_CMD_SPRITE_OPEN
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Global switch to open the sprite, sprite, each the sprite block of switch can be set.
+
+11.2) DISP_CMD_SPRITE_CLOSE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Close sprite.
+
+11.3) DISP_CMD_SPRITE_SET_FORMAT
+
+Args:
+	* screen [0, 1]
+	* format (__disp_pixel_fmt_t)
+	* pixel sequence (__disp_pixel_seq_t)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the format of the sprite Note only sprite block format is the same, so the
+format is valid for all block, each block can no longer separate set its
+format.
+
+11.4) DISP_CMD_SPRITE_GLOBAL_ALPHA_ENABLE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Enable global alpha on sprite.
+
+11.5) DISP_CMD_SPRITE_GLOBAL_ALPHA_DISABLE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Disable global alpha on sprite.
+
+11.6) DISP_CMD_SPRITE_GET_GLOBAL_ALPHA_ENABLE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	0: disabled
+	1: enabled
+
+Query the current state of global alpha on the sprite.
+
+11.7) DISP_CMD_SPRITE_SET_GLOBAL_ALPHA_VALUE
+
+Args:
+	* screen [0, 1]
+	* global alpha value
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the value of global alpha on the sprite.
+
+11.8) DISP_CMD_SPRITE_GET_GLOBAL_ALPHA_VALUE
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	global alpha value
+
+Get the value of global alpha on the sprite.
+
+11.9) DISP_CMD_SPRITE_SET_ORDER
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* target block handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+A block to the front of the target block.
+
+11.10) DISP_CMD_SPRITE_GET_TOP_BLOCK
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	* block handle
+
+Get the handle of the top block.
+
+11.11) DISP_CMD_SPRITE_GET_BOTTOM_BLOCK
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	* block handle
+
+Get the handle of the bottom block.
+
+11.12) DISP_CMD_SPRITE_SET_PALETTE_TBL
+
+Args:
+	* screen [0, 1]
+	* Address (__u32 *)
+	* offset (__u32, 4 bytes alignment)
+	* size (4 bytes alignment, unit byte)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set sprite palette table.
+
+11.13) DISP_CMD_SPRITE_GET_BLOCK_NUM
+
+Args:
+	* screen [0, 1]
+
+Returns:
+	Number of blocks used.
+
+Get the number of blocks in use.
+
+11.14) DISP_CMD_SPRITE_BLOCK_REQUEST
+
+Args:
+	* screen [0, 1]
+	* block parameter (__disp_sprite_block_para_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Request a sprite block.
+
+11.15) DISP_CMD_SPRITE_BLOCK_RELEASE
+
+Args:
+	* screen [0, 1]
+	* block handle
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Release a sprite block.
+
+11.16) DISP_CMD_SPRITE_BLOCK_OPEN
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Open a sprite block.
+
+11.17) DISP_CMD_SPRITE_BLOCK_CLOSE
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Close a sprite block.
+
+11.18) DISP_CMD_SPRITE_BLOCK_SET_SOURCE_WINDOW
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block source window (__disp_rect_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the sprite block the source window, because the sprite block without
+scaling function, driven only concerned with x and y, while the width and
+height of the width and height of the screen window.
+
+11.19) DISP_CMD_SPRITE_BLOCK_GET_SOURCE_WINDOW
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block source window (__disp_rect_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get the source window of a sprite block.
+
+11.20) DISP_CMD_SPRITE_BLOCK_SET_SCREEN_WINDOW
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block screen window (__disp_rect_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set screen window of a sprite block.
+
+11.21) DISP_CMD_SPRITE_BLOCK_GET_SCREEN_WINDOW
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block screen window (__disp_rect_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get screen window of a sprite block.
+
+11.22) DISP_CMD_SPRITE_BLOCK_SET_FB
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block framebuffer (__disp_fb_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set the framebuffer information for the sprite block, only cares about the
+address and line width.
+
+11.23) DISP_CMD_SPRITE_BLOCK_GET_FB
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block framebuffer(__disp_fb_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get framebuffer information of a sprite block.
+
+11.24) DISP_CMD_SPRITE_BLOCK_SET_PARA
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block parameters (__disp_sprite_block_para_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Set sprite block parameters.
+
+11.25) DISP_CMD_SPRITE_BLOCK_GET_PARA
+
+Args:
+	* screen [0, 1]
+	* block handle
+	* block parameters (__disp_sprite_block_para_t *)
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Get sprite block parameters
+
+11.26) DISP_CMD_SPRITE_BLOCK_SET_TOP
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Move the sprite block to the top.
+
+11.27) DISP_CMD_SPRITE_BLOCK_SET_BOTTOM
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	Success: 0;
+	Failed: errno.
+
+Move the sprite block to the bottom.
+
+11.28) DISP_CMD_SPRITE_BLOCK_GET_PREV_BLOCK
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	block handle
+
+Get the previous sprite block handle.
+
+11.29) DISP_CMD_SPRITE_BLOCK_GET_NEXT_BLOCK
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	* block handle
+
+Get the next block handle.
+
+11.30) DISP_CMD_SPRITE_BLOCK_GET_PRIO
+
+Args:
+	* screen [0, 1]
+	* block handle
+
+Returns:
+	block priority.
+
+Get the ordering of the sprite block (from bottom to top).
