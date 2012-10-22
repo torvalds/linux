@@ -237,6 +237,7 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			return ret;
 
 		priv->base.ram.stolen = (u64)nv_rd32(priv, 0x100e10) << 12;
+		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
 		break;
 	default:
 		ret = nouveau_mm_init(&priv->base.vram, rsvd_head, size,
