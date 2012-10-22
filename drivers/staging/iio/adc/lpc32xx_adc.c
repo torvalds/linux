@@ -150,7 +150,7 @@ static int __devinit lpc32xx_adc_probe(struct platform_device *pdev)
 
 	info = iio_priv(iodev);
 
-	info->adc_base = ioremap(res->start, res->end - res->start + 1);
+	info->adc_base = ioremap(res->start, resource_size(res));
 	if (!info->adc_base) {
 		dev_err(&pdev->dev, "failed mapping memory\n");
 		retval = -EBUSY;

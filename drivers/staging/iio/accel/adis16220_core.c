@@ -20,8 +20,6 @@
 
 #include "adis16220.h"
 
-#define DRIVER_NAME		"adis16220"
-
 /**
  * adis16220_spi_write_reg_8() - write single byte to a register
  * @indio_dev: iio device associated with child of actual device

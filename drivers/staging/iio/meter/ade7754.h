@@ -73,8 +73,6 @@
 #define ADE7754_SPI_BURST	(u32)(1000 * 1000)
 #define ADE7754_SPI_FAST	(u32)(2000 * 1000)
 
-#define DRIVER_NAME		"ade7754"
-
 /**
  * struct ade7754_state - device instance specific data
  * @us:			actual spi_device

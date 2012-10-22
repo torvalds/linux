@@ -156,7 +156,7 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev, u64 event_code)
 			return !adaptive && (threshtype == 0x1);
 		else
 			return !adaptive && (threshtype == 0x0);
-	};
+	}
 	return -EINVAL;
 }
 
@@ -194,7 +194,7 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev, u64 event_code)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 	ret = i2c_smbus_write_byte_data(chip->client,
 					ad7150_addresses[chan][4],
 					sens);
@@ -257,7 +257,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 		goto error_ret;
-	};
+	}
 
 	cfg |= (!adaptive << 7) | (thresh_type << 5);
 
@@ -327,7 +327,7 @@ static int ad7150_write_event_value(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 		goto error_ret;
-	};
+	}
 
 	/* write back if active */
 	ret = ad7150_write_event_params(indio_dev, event_code);
@@ -360,7 +360,7 @@ static ssize_t ad7150_show_timeout(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return sprintf(buf, "%d\n", value);
 }
@@ -394,7 +394,7 @@ static ssize_t ad7150_store_timeout(struct device *dev,
 	default:
 		ret = -EINVAL;
 		goto error_ret;
-	};
+	}
 
 	ret = ad7150_write_event_params(indio_dev, this_attr->address);
 error_ret:

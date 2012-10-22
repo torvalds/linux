@@ -78,7 +78,7 @@ int iio_map_array_unregister(struct iio_dev *indio_dev,
 				found_it = true;
 				break;
 			}
-		if (found_it == false) {
+		if (!found_it) {
 			ret = -ENODEV;
 			goto error_ret;
 		}
@@ -313,6 +313,9 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	case IIO_VAL_FRACTIONAL:
 		*processed = div_s64(raw64 * (s64)scale_val * scale,
 				     scale_val2);
+		break;
+	case IIO_VAL_FRACTIONAL_LOG2:
+		*processed = (raw64 * (s64)scale_val * scale) >> scale_val2;
 		break;
 	default:
 		return -EINVAL;

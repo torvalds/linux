@@ -8,7 +8,7 @@ config HID_SENSOR_ACCEL_3D
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
-	tristate "HID Acelerometers 3D"
+	tristate "HID Accelerometers 3D"
 	help
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.

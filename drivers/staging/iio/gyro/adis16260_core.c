@@ -24,8 +24,6 @@
 
 #include "adis16260.h"
 
-#define DRIVER_NAME		"adis16260"
-
 static int adis16260_check_status(struct iio_dev *indio_dev);
 
 /**
@@ -528,7 +526,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16260_addresses[chan->address][1];
 		ret = adis16260_spi_read_reg_16(indio_dev, addr, &val16);
@@ -548,7 +546,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16260_addresses[chan->address][2];
 		ret = adis16260_spi_read_reg_16(indio_dev, addr, &val16);

@@ -555,7 +555,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		*val = 0;
 		*val2 = data->variant->regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
-	};
+	}
 	return -EINVAL;
 }
 

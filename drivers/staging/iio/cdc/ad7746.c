@@ -677,7 +677,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		break;
 	default:
 		ret = -EINVAL;
-	};
+	}
 out:
 	mutex_unlock(&indio_dev->mlock);
 	return ret;
