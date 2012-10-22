@@ -612,7 +612,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 			ret =  PTR_ERR(vpbe_dev->dac_clk);
 			goto fail_mutex_unlock;
 		}
-		if (clk_enable(vpbe_dev->dac_clk)) {
+		if (clk_prepare_enable(vpbe_dev->dac_clk)) {
 			ret =  -ENODEV;
 			goto fail_mutex_unlock;
 		}
@@ -759,8 +759,10 @@ fail_kfree_encoders:
 fail_dev_unregister:
 	v4l2_device_unregister(&vpbe_dev->v4l2_dev);
 fail_clk_put:
-	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
+	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0) {
+		clk_disable_unprepare(vpbe_dev->dac_clk);
 		clk_put(vpbe_dev->dac_clk);
+	}
 fail_mutex_unlock:
 	mutex_unlock(&vpbe_dev->lock);
 	return ret;
@@ -777,8 +779,10 @@ fail_mutex_unlock:
 static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 {
 	v4l2_device_unregister(&vpbe_dev->v4l2_dev);
-	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
+	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0) {
+		clk_disable_unprepare(vpbe_dev->dac_clk);
 		clk_put(vpbe_dev->dac_clk);
+	}
 
 	kfree(vpbe_dev->amp);
 	kfree(vpbe_dev->encoders);

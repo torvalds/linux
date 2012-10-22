@@ -444,7 +444,7 @@ static int __devinit vpif_probe(struct platform_device *pdev)
 		status = PTR_ERR(vpif_clk);
 		goto clk_fail;
 	}
-	clk_enable(vpif_clk);
+	clk_prepare_enable(vpif_clk);
 
 	spin_lock_init(&vpif_lock);
 	dev_info(&pdev->dev, "vpif probe success\n");
@@ -460,7 +460,7 @@ fail:
 static int __devexit vpif_remove(struct platform_device *pdev)
 {
 	if (vpif_clk) {
-		clk_disable(vpif_clk);
+		clk_disable_unprepare(vpif_clk);
 		clk_put(vpif_clk);
 	}
 
@@ -472,13 +472,13 @@ static int __devexit vpif_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int vpif_suspend(struct device *dev)
 {
-	clk_disable(vpif_clk);
+	clk_disable_unprepare(vpif_clk);
 	return 0;
 }
 
 static int vpif_resume(struct device *dev)
 {
-	clk_enable(vpif_clk);
+	clk_prepare_enable(vpif_clk);
 	return 0;
 }
 
