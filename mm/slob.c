@@ -500,7 +500,7 @@ void kfree(const void *block)
 		unsigned int *m = (unsigned int *)(block - align);
 		slob_free(m, *m + align);
 	} else
-		put_page(sp);
+		__free_pages(sp, compound_order(sp));
 }
 EXPORT_SYMBOL(kfree);
 
