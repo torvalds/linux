@@ -146,7 +146,7 @@ static int max77686_ldo_set_suspend_mode(struct regulator_dev *rdev,
 				  val);
 }
 
-int max77686_enable(struct regulator_dev *rdev)
+static int max77686_enable(struct regulator_dev *rdev)
 {
 	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
 
