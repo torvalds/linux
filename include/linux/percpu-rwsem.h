@@ -17,16 +17,16 @@ struct percpu_rw_semaphore {
 
 static inline void percpu_down_read(struct percpu_rw_semaphore *p)
 {
-	rcu_read_lock();
+	rcu_read_lock_sched();
 	if (unlikely(p->locked)) {
-		rcu_read_unlock();
+		rcu_read_unlock_sched();
 		mutex_lock(&p->mtx);
 		this_cpu_inc(*p->counters);
 		mutex_unlock(&p->mtx);
 		return;
 	}
 	this_cpu_inc(*p->counters);
-	rcu_read_unlock();
+	rcu_read_unlock_sched();
 	light_mb(); /* A, between read of p->locked and read of data, paired with D */
 }
 
@@ -51,7 +51,7 @@ static inline void percpu_down_write(struct percpu_rw_semaphore *p)
 {
 	mutex_lock(&p->mtx);
 	p->locked = true;
-	synchronize_rcu();
+	synchronize_sched(); /* make sure that all readers exit the rcu_read_lock_sched region */
 	while (__percpu_count(p->counters))
 		msleep(1);
 	heavy_mb(); /* C, between read of p->counter and write to data, paired with B */
