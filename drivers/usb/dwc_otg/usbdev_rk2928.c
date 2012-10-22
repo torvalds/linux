@@ -16,7 +16,9 @@
 #define GRF_REG_BASE RK2928_GRF_BASE
 #define USBOTG_SIZE    RK2928_USBOTG20_SIZE
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x14c)
+#define USBGRF_UOC0_CON0	(GRF_REG_BASE+0x16c)
 #define USBGRF_UOC0_CON5	(GRF_REG_BASE+0x17c)
+#define USBGRF_UOC1_CON0	(GRF_REG_BASE+0x180)
 #define USBGRF_UOC1_CON4    (GRF_REG_BASE+0X190)
 #define USBGRF_UOC1_CON5	(GRF_REG_BASE+0x194)
 
@@ -93,6 +95,7 @@ void usb20otg_hw_init(void)
     *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.
 #endif
     // usb phy config init
+    *(unsigned int *)(USBGRF_UOC0_CON0) = 0x07e70350;
 
     // other hardware init
     rk30_mux_api_set(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
@@ -239,7 +242,7 @@ static struct resource usb20_host_resource[] = {
 void usb20host_hw_init(void)
 {
     // usb phy config init
-    *(unsigned int *)(USBGRF_UOC0_CON5+4) = 0x07e70350;
+    *(unsigned int *)(USBGRF_UOC1_CON0) = 0x07e70350;
     // other haredware init
     
 }
