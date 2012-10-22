@@ -145,19 +145,6 @@ enum wl_mode {
 	WL_MODE_AP
 };
 
-/* dongle profile list */
-enum wl_prof_list {
-	WL_PROF_MODE,
-	WL_PROF_SSID,
-	WL_PROF_SEC,
-	WL_PROF_IBSS,
-	WL_PROF_BAND,
-	WL_PROF_BSSID,
-	WL_PROF_ACT,
-	WL_PROF_BEACONINT,
-	WL_PROF_DTIMPERIOD
-};
-
 /* dongle iscan state */
 enum wl_iscan_state {
 	WL_ISCAN_STATE_IDLE,
