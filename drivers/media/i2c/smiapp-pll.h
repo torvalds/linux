@@ -73,6 +73,17 @@ struct smiapp_pll {
 	uint32_t pixel_rate_csi;
 };
 
+struct smiapp_pll_branch_limits {
+	uint16_t min_sys_clk_div;
+	uint16_t max_sys_clk_div;
+	uint32_t min_sys_clk_freq_hz;
+	uint32_t max_sys_clk_freq_hz;
+	uint16_t min_pix_clk_div;
+	uint16_t max_pix_clk_div;
+	uint32_t min_pix_clk_freq_hz;
+	uint32_t max_pix_clk_freq_hz;
+};
+
 struct smiapp_pll_limits {
 	/* Strict PLL limits */
 	uint32_t min_ext_clk_freq_hz;
@@ -86,23 +97,8 @@ struct smiapp_pll_limits {
 	uint32_t min_pll_op_freq_hz;
 	uint32_t max_pll_op_freq_hz;
 
-	uint16_t min_vt_sys_clk_div;
-	uint16_t max_vt_sys_clk_div;
-	uint32_t min_vt_sys_clk_freq_hz;
-	uint32_t max_vt_sys_clk_freq_hz;
-	uint16_t min_vt_pix_clk_div;
-	uint16_t max_vt_pix_clk_div;
-	uint32_t min_vt_pix_clk_freq_hz;
-	uint32_t max_vt_pix_clk_freq_hz;
-
-	uint16_t min_op_sys_clk_div;
-	uint16_t max_op_sys_clk_div;
-	uint32_t min_op_sys_clk_freq_hz;
-	uint32_t max_op_sys_clk_freq_hz;
-	uint16_t min_op_pix_clk_div;
-	uint16_t max_op_pix_clk_div;
-	uint32_t min_op_pix_clk_freq_hz;
-	uint32_t max_op_pix_clk_freq_hz;
+	struct smiapp_pll_branch_limits vt;
+	struct smiapp_pll_branch_limits op;
 
 	/* Other relevant limits */
 	uint32_t min_line_length_pck_bin;
