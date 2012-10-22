@@ -36,4 +36,8 @@ config PCI_LANTIQ
 	bool "PCI Support"
 	depends on SOC_XWAY && PCI
 
+config XRX200_PHY_FW
+	bool "XRX200 PHY firmware loader"
+	depends on SOC_XWAY
+
 endif
