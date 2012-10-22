@@ -88,14 +88,11 @@
 	(sizeof(struct usb_cdc_ncm_nth16) + sizeof(struct usb_cdc_ncm_ndp16) + \
 	(CDC_NCM_DPT_DATAGRAMS_MAX + 1) * sizeof(struct usb_cdc_ncm_dpe16))
 
-struct cdc_ncm_data {
-	struct usb_cdc_ncm_nth16 nth16;
-	struct usb_cdc_ncm_ndp16 ndp16;
-	struct usb_cdc_ncm_dpe16 dpe16[CDC_NCM_DPT_DATAGRAMS_MAX + 1];
-};
+#define CDC_NCM_NDP_SIZE \
+	(sizeof(struct usb_cdc_ncm_ndp16) +				\
+	      (CDC_NCM_DPT_DATAGRAMS_MAX + 1) * sizeof(struct usb_cdc_ncm_dpe16))
 
 struct cdc_ncm_ctx {
-	struct cdc_ncm_data tx_ncm;
 	struct usb_cdc_ncm_ntb_parameters ncm_parm;
 	struct hrtimer tx_timer;
 	struct tasklet_struct bh;
@@ -117,13 +114,12 @@ struct cdc_ncm_ctx {
 
 	struct sk_buff *tx_curr_skb;
 	struct sk_buff *tx_rem_skb;
+	__le32 tx_rem_sign;
 
 	spinlock_t mtx;
 	atomic_t stop;
 
 	u32 tx_timer_pending;
-	u32 tx_curr_offset;
-	u32 tx_curr_last_offset;
 	u32 tx_curr_frame_num;
 	u32 rx_speed;
 	u32 tx_speed;
@@ -658,51 +654,75 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	return ret;
 }
 
-static void cdc_ncm_zero_fill(u8 *ptr, u32 first, u32 end, u32 max)
+static void cdc_ncm_align_tail(struct sk_buff *skb, size_t modulus, size_t remainder, size_t max)
 {
-	if (first >= max)
-		return;
-	if (first >= end)
-		return;
-	if (end > max)
-		end = max;
-	memset(ptr + first, 0, end - first);
+	size_t align = ALIGN(skb->len, modulus) - skb->len + remainder;
+
+	if (skb->len + align > max)
+		align = max - skb->len;
+	if (align && skb_tailroom(skb) >= align)
+		memset(skb_put(skb, align), 0, align);
+}
+
+/* return a pointer to a valid struct usb_cdc_ncm_ndp16 of type sign, possibly
+ * allocating a new one within skb
+ */
+static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign, size_t reserve)
+{
+	struct usb_cdc_ncm_ndp16 *ndp16 = NULL;
+	struct usb_cdc_ncm_nth16 *nth16 = (void *)skb->data;
+	size_t ndpoffset = le16_to_cpu(nth16->wNdpIndex);
+
+	/* follow the chain of NDPs, looking for a match */
+	while (ndpoffset) {
+		ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb->data + ndpoffset);
+		if  (ndp16->dwSignature == sign)
+			return ndp16;
+		ndpoffset = le16_to_cpu(ndp16->wNextNdpIndex);
+	}
+
+	/* align new NDP */
+	cdc_ncm_align_tail(skb, ctx->tx_ndp_modulus, 0, ctx->tx_max);
+
+	/* verify that there is room for the NDP and the datagram (reserve) */
+	if ((ctx->tx_max - skb->len - reserve) < CDC_NCM_NDP_SIZE)
+		return NULL;
+
+	/* link to it */
+	if (ndp16)
+		ndp16->wNextNdpIndex = cpu_to_le16(skb->len);
+	else
+		nth16->wNdpIndex = cpu_to_le16(skb->len);
+
+	/* push a new empty NDP */
+	ndp16 = (struct usb_cdc_ncm_ndp16 *)memset(skb_put(skb, CDC_NCM_NDP_SIZE), 0, CDC_NCM_NDP_SIZE);
+	ndp16->dwSignature = sign;
+	ndp16->wLength = cpu_to_le16(sizeof(struct usb_cdc_ncm_ndp16) + sizeof(struct usb_cdc_ncm_dpe16));
+	return ndp16;
 }
 
 static struct sk_buff *
-cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
+cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
 {
+	struct usb_cdc_ncm_nth16 *nth16;
+	struct usb_cdc_ncm_ndp16 *ndp16;
 	struct sk_buff *skb_out;
-	u32 rem;
-	u32 offset;
-	u32 last_offset;
-	u16 n = 0, index;
+	u16 n = 0, index, ndplen;
 	u8 ready2send = 0;
 
 	/* if there is a remaining skb, it gets priority */
-	if (skb != NULL)
+	if (skb != NULL) {
 		swap(skb, ctx->tx_rem_skb);
-	else
+		swap(sign, ctx->tx_rem_sign);
+	} else {
 		ready2send = 1;
-
-	/*
-	 * +----------------+
-	 * | skb_out        |
-	 * +----------------+
-	 *           ^ offset
-	 *        ^ last_offset
-	 */
+	}
 
 	/* check if we are resuming an OUT skb */
-	if (ctx->tx_curr_skb != NULL) {
-		/* pop variables */
-		skb_out = ctx->tx_curr_skb;
-		offset = ctx->tx_curr_offset;
-		last_offset = ctx->tx_curr_last_offset;
-		n = ctx->tx_curr_frame_num;
+	skb_out = ctx->tx_curr_skb;
 
-	} else {
-		/* reset variables */
+	/* allocate a new OUT skb */
+	if (!skb_out) {
 		skb_out = alloc_skb((ctx->tx_max + 1), GFP_ATOMIC);
 		if (skb_out == NULL) {
 			if (skb != NULL) {
@@ -711,35 +731,21 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 			}
 			goto exit_no_skb;
 		}
+		/* fill out the initial 16-bit NTB header */
+		nth16 = (struct usb_cdc_ncm_nth16 *)memset(skb_put(skb_out, sizeof(struct usb_cdc_ncm_nth16)), 0, sizeof(struct usb_cdc_ncm_nth16));
+		nth16->dwSignature = cpu_to_le32(USB_CDC_NCM_NTH16_SIGN);
+		nth16->wHeaderLength = cpu_to_le16(sizeof(struct usb_cdc_ncm_nth16));
+		nth16->wSequence = cpu_to_le16(ctx->tx_seq++);
 
-		/* make room for NTH and NDP */
-		offset = ALIGN(sizeof(struct usb_cdc_ncm_nth16),
-					ctx->tx_ndp_modulus) +
-					sizeof(struct usb_cdc_ncm_ndp16) +
-					(ctx->tx_max_datagrams + 1) *
-					sizeof(struct usb_cdc_ncm_dpe16);
-
-		/* store last valid offset before alignment */
-		last_offset = offset;
-		/* align first Datagram offset correctly */
-		offset = ALIGN(offset, ctx->tx_modulus) + ctx->tx_remainder;
-		/* zero buffer till the first IP datagram */
-		cdc_ncm_zero_fill(skb_out->data, 0, offset, offset);
-		n = 0;
+		/* count total number of frames in this NTB */
 		ctx->tx_curr_frame_num = 0;
 	}
 
-	for (; n < ctx->tx_max_datagrams; n++) {
-		/* check if end of transmit buffer is reached */
-		if (offset >= ctx->tx_max) {
-			ready2send = 1;
-			break;
-		}
-		/* compute maximum buffer size */
-		rem = ctx->tx_max - offset;
-
+	for (n = ctx->tx_curr_frame_num; n < ctx->tx_max_datagrams; n++) {
+		/* send any remaining skb first */
 		if (skb == NULL) {
 			skb = ctx->tx_rem_skb;
+			sign = ctx->tx_rem_sign;
 			ctx->tx_rem_skb = NULL;
 
 			/* check for end of skb */
@@ -747,7 +753,14 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 				break;
 		}
 
-		if (skb->len > rem) {
+		/* get the appropriate NDP for this skb */
+		ndp16 = cdc_ncm_ndp(ctx, skb_out, sign, skb->len + ctx->tx_modulus + ctx->tx_remainder);
+
+		/* align beginning of next frame */
+		cdc_ncm_align_tail(skb_out,  ctx->tx_modulus, ctx->tx_remainder, ctx->tx_max);
+
+		/* check if we had enough room left for both NDP and frame */
+		if (!ndp16 || skb_out->len + skb->len > ctx->tx_max) {
 			if (n == 0) {
 				/* won't fit, MTU problem? */
 				dev_kfree_skb_any(skb);
@@ -760,31 +773,30 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 					ctx->netdev->stats.tx_dropped++;
 				}
 				ctx->tx_rem_skb = skb;
+				ctx->tx_rem_sign = sign;
 				skb = NULL;
 				ready2send = 1;
 			}
 			break;
 		}
 
-		memcpy(((u8 *)skb_out->data) + offset, skb->data, skb->len);
+		/* calculate frame number withing this NDP */
+		ndplen = le16_to_cpu(ndp16->wLength);
+		index = (ndplen - sizeof(struct usb_cdc_ncm_ndp16)) / sizeof(struct usb_cdc_ncm_dpe16) - 1;
 
-		ctx->tx_ncm.dpe16[n].wDatagramLength = cpu_to_le16(skb->len);
-		ctx->tx_ncm.dpe16[n].wDatagramIndex = cpu_to_le16(offset);
-
-		/* update offset */
-		offset += skb->len;
-
-		/* store last valid offset before alignment */
-		last_offset = offset;
-
-		/* align offset correctly */
-		offset = ALIGN(offset, ctx->tx_modulus) + ctx->tx_remainder;
-
-		/* zero padding */
-		cdc_ncm_zero_fill(skb_out->data, last_offset, offset,
-								ctx->tx_max);
+		/* OK, add this skb */
+		ndp16->dpe16[index].wDatagramLength = cpu_to_le16(skb->len);
+		ndp16->dpe16[index].wDatagramIndex = cpu_to_le16(skb_out->len);
+		ndp16->wLength = cpu_to_le16(ndplen + sizeof(struct usb_cdc_ncm_dpe16));
+		memcpy(skb_put(skb_out, skb->len), skb->data, skb->len);
 		dev_kfree_skb_any(skb);
 		skb = NULL;
+
+		/* send now if this NDP is full */
+		if (index >= CDC_NCM_DPT_DATAGRAMS_MAX) {
+			ready2send = 1;
+			break;
+		}
 	}
 
 	/* free up any dangling skb */
@@ -800,16 +812,12 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 		/* wait for more frames */
 		/* push variables */
 		ctx->tx_curr_skb = skb_out;
-		ctx->tx_curr_offset = offset;
-		ctx->tx_curr_last_offset = last_offset;
 		goto exit_no_skb;
 
 	} else if ((n < ctx->tx_max_datagrams) && (ready2send == 0)) {
 		/* wait for more frames */
 		/* push variables */
 		ctx->tx_curr_skb = skb_out;
-		ctx->tx_curr_offset = offset;
-		ctx->tx_curr_last_offset = last_offset;
 		/* set the pending count */
 		if (n < CDC_NCM_RESTART_TIMER_DATAGRAM_CNT)
 			ctx->tx_timer_pending = CDC_NCM_TIMER_PENDING_CNT;
@@ -820,75 +828,24 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 		/* variables will be reset at next call */
 	}
 
-	/* check for overflow */
-	if (last_offset > ctx->tx_max)
-		last_offset = ctx->tx_max;
-
-	/* revert offset */
-	offset = last_offset;
-
 	/*
 	 * If collected data size is less or equal CDC_NCM_MIN_TX_PKT bytes,
 	 * we send buffers as it is. If we get more data, it would be more
 	 * efficient for USB HS mobile device with DMA engine to receive a full
 	 * size NTB, than canceling DMA transfer and receiving a short packet.
 	 */
-	if (offset > CDC_NCM_MIN_TX_PKT)
-		offset = ctx->tx_max;
+	if (skb_out->len > CDC_NCM_MIN_TX_PKT)
+		/* final zero padding */
+		memset(skb_put(skb_out, ctx->tx_max - skb_out->len), 0, ctx->tx_max - skb_out->len);
 
-	/* final zero padding */
-	cdc_ncm_zero_fill(skb_out->data, last_offset, offset, ctx->tx_max);
+	/* do we need to prevent a ZLP? */
+	if (((skb_out->len % le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0) &&
+	    (skb_out->len < le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize)) && skb_tailroom(skb_out))
+		*skb_put(skb_out, 1) = 0;	/* force short packet */
 
-	/* store last offset */
-	last_offset = offset;
-
-	if (((last_offset < ctx->tx_max) && ((last_offset %
-			le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0)) ||
-	    (((last_offset == ctx->tx_max) && ((ctx->tx_max %
-		le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0)) &&
-		(ctx->tx_max < le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize)))) {
-		/* force short packet */
-		*(((u8 *)skb_out->data) + last_offset) = 0;
-		last_offset++;
-	}
-
-	/* zero the rest of the DPEs plus the last NULL entry */
-	for (; n <= CDC_NCM_DPT_DATAGRAMS_MAX; n++) {
-		ctx->tx_ncm.dpe16[n].wDatagramLength = 0;
-		ctx->tx_ncm.dpe16[n].wDatagramIndex = 0;
-	}
-
-	/* fill out 16-bit NTB header */
-	ctx->tx_ncm.nth16.dwSignature = cpu_to_le32(USB_CDC_NCM_NTH16_SIGN);
-	ctx->tx_ncm.nth16.wHeaderLength =
-					cpu_to_le16(sizeof(ctx->tx_ncm.nth16));
-	ctx->tx_ncm.nth16.wSequence = cpu_to_le16(ctx->tx_seq);
-	ctx->tx_ncm.nth16.wBlockLength = cpu_to_le16(last_offset);
-	index = ALIGN(sizeof(struct usb_cdc_ncm_nth16), ctx->tx_ndp_modulus);
-	ctx->tx_ncm.nth16.wNdpIndex = cpu_to_le16(index);
-
-	memcpy(skb_out->data, &(ctx->tx_ncm.nth16), sizeof(ctx->tx_ncm.nth16));
-	ctx->tx_seq++;
-
-	/* fill out 16-bit NDP table */
-	ctx->tx_ncm.ndp16.dwSignature =
-				cpu_to_le32(USB_CDC_NCM_NDP16_NOCRC_SIGN);
-	rem = sizeof(ctx->tx_ncm.ndp16) + ((ctx->tx_curr_frame_num + 1) *
-					sizeof(struct usb_cdc_ncm_dpe16));
-	ctx->tx_ncm.ndp16.wLength = cpu_to_le16(rem);
-	ctx->tx_ncm.ndp16.wNextNdpIndex = 0; /* reserved */
-
-	memcpy(((u8 *)skb_out->data) + index,
-						&(ctx->tx_ncm.ndp16),
-						sizeof(ctx->tx_ncm.ndp16));
-
-	memcpy(((u8 *)skb_out->data) + index + sizeof(ctx->tx_ncm.ndp16),
-					&(ctx->tx_ncm.dpe16),
-					(ctx->tx_curr_frame_num + 1) *
-					sizeof(struct usb_cdc_ncm_dpe16));
-
-	/* set frame length */
-	skb_put(skb_out, last_offset);
+	/* set final frame length */
+	nth16 = (struct usb_cdc_ncm_nth16 *)skb_out->data;
+	nth16->wBlockLength = cpu_to_le16(skb_out->len);
 
 	/* return skb */
 	ctx->tx_curr_skb = NULL;
@@ -955,7 +912,7 @@ cdc_ncm_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		goto error;
 
 	spin_lock_bh(&ctx->mtx);
-	skb_out = cdc_ncm_fill_tx_frame(ctx, skb);
+	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, cpu_to_le32(USB_CDC_NCM_NDP16_NOCRC_SIGN));
 	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 
