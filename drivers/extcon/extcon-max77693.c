@@ -783,6 +783,7 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	extcon_dev_unregister(info->edev);
+	kfree(info->edev);
 	kfree(info);
 
 	return 0;
