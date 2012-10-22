@@ -451,7 +451,7 @@ static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.nway_reset = usbnet_nway_reset,
 };
 
-static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
+static int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting)
 {
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *driver;
@@ -525,6 +525,13 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 			ctx->func_desc = (const struct usb_cdc_ncm_desc *)buf;
 			break;
 
+		case USB_CDC_MBIM_TYPE:
+			if (buf[0] < sizeof(*(ctx->mbim_desc)))
+				break;
+
+			ctx->mbim_desc = (const struct usb_cdc_mbim_desc *)buf;
+			break;
+
 		default:
 			break;
 		}
@@ -537,7 +544,7 @@ advance:
 
 	/* check if we got everything */
 	if ((ctx->control == NULL) || (ctx->data == NULL) ||
-	    (ctx->ether_desc == NULL) || (ctx->control != intf))
+	    ((!ctx->mbim_desc) && ((ctx->ether_desc == NULL) || (ctx->control != intf))))
 		goto error;
 
 	/* claim interfaces, if any */
@@ -557,7 +564,7 @@ advance:
 		goto error2;
 
 	/* configure data interface */
-	temp = usb_set_interface(dev->udev, iface_no, 1);
+	temp = usb_set_interface(dev->udev, iface_no, data_altsetting);
 	if (temp)
 		goto error2;
 
@@ -574,11 +581,13 @@ advance:
 	usb_set_intfdata(ctx->control, dev);
 	usb_set_intfdata(ctx->intf, dev);
 
-	temp = usbnet_get_ethernet_addr(dev, ctx->ether_desc->iMACAddress);
-	if (temp)
-		goto error2;
+	if (ctx->ether_desc) {
+		temp = usbnet_get_ethernet_addr(dev, ctx->ether_desc->iMACAddress);
+		if (temp)
+			goto error2;
+		dev_info(&dev->udev->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
+	}
 
-	dev_info(&dev->udev->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
 
 	dev->in = usb_rcvbulkpipe(dev->udev,
 		ctx->in_ep->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
@@ -587,13 +596,6 @@ advance:
 	dev->status = ctx->status_ep;
 	dev->rx_urb_size = ctx->rx_max;
 
-	/*
-	 * We should get an event when network connection is "connected" or
-	 * "disconnected". Set network connection in "disconnected" state
-	 * (carrier is OFF) during attach, so the IP network stack does not
-	 * start IPv6 negotiation and more.
-	 */
-	netif_carrier_off(dev->net);
 	ctx->tx_speed = ctx->rx_speed = 0;
 	return 0;
 
@@ -637,6 +639,23 @@ static void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	usb_set_intfdata(ctx->intf, NULL);
 	cdc_ncm_free(ctx);
+}
+
+static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int ret;
+
+	/* NCM data altsetting is always 1 */
+	ret = cdc_ncm_bind_common(dev, intf, 1);
+
+	/*
+	 * We should get an event when network connection is "connected" or
+	 * "disconnected". Set network connection in "disconnected" state
+	 * (carrier is OFF) during attach, so the IP network stack does not
+	 * start IPv6 negotiation and more.
+	 */
+	netif_carrier_off(dev->net);
+	return ret;
 }
 
 static void cdc_ncm_zero_fill(u8 *ptr, u32 first, u32 end, u32 max)
