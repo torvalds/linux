@@ -2211,13 +2211,11 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
 	u32 wallclk;
 	unsigned int pos;
-	int stream;
 
 	wallclk = azx_readl(chip, WALLCLK) - azx_dev->start_wallclk;
 	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
 
-	stream = azx_dev->substream->stream;
 	pos = azx_get_position(chip, azx_dev, true);
 
 	if (WARN_ONCE(!azx_dev->period_bytes,
