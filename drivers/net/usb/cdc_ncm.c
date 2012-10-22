@@ -563,6 +563,33 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
 
+	/* The MBIM spec defines a NCM compatible default altsetting,
+	 * which we may have matched:
+	 *
+	 *  "Functions that implement both NCM 1.0 and MBIM (an
+	 *   “NCM/MBIM function”) according to this recommendation
+	 *   shall provide two alternate settings for the
+	 *   Communication Interface.  Alternate setting 0, and the
+	 *   associated class and endpoint descriptors, shall be
+	 *   constructed according to the rules given for the
+	 *   Communication Interface in section 5 of [USBNCM10].
+	 *   Alternate setting 1, and the associated class and
+	 *   endpoint descriptors, shall be constructed according to
+	 *   the rules given in section 6 (USB Device Model) of this
+	 *   specification."
+	 *
+	 * Do not bind to such interfaces, allowing cdc_mbim to handle
+	 * them
+	 */
+#if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
+	if ((intf->num_altsetting == 2) &&
+	    !usb_set_interface(dev->udev,
+			       intf->cur_altsetting->desc.bInterfaceNumber,
+			       CDC_NCM_COMM_ALTSETTING_MBIM) &&
+	    cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
+		return -ENODEV;
+#endif
+
 	/* NCM data altsetting is always 1 */
 	ret = cdc_ncm_bind_common(dev, intf, 1);
 
