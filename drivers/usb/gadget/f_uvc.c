@@ -335,7 +335,6 @@ uvc_register_video(struct uvc_device *uvc)
 		return -ENOMEM;
 
 	video->parent = &cdev->gadget->dev;
-	video->minor = -1;
 	video->fops = &uvc_v4l2_fops;
 	video->release = video_device_release;
 	strncpy(video->name, cdev->gadget->name, sizeof(video->name));
@@ -462,23 +461,12 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	INFO(cdev, "uvc_function_unbind\n");
 
-	if (uvc->vdev) {
-		if (uvc->vdev->minor == -1)
-			video_device_release(uvc->vdev);
-		else
-			video_unregister_device(uvc->vdev);
-		uvc->vdev = NULL;
-	}
+	video_unregister_device(uvc->vdev);
+	uvc->control_ep->driver_data = NULL;
+	uvc->video.ep->driver_data = NULL;
 
-	if (uvc->control_ep)
-		uvc->control_ep->driver_data = NULL;
-	if (uvc->video.ep)
-		uvc->video.ep->driver_data = NULL;
-
-	if (uvc->control_req) {
-		usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
-		kfree(uvc->control_buf);
-	}
+	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
+	kfree(uvc->control_buf);
 
 	kfree(f->descriptors);
 	kfree(f->hs_descriptors);
@@ -563,7 +551,22 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 error:
-	uvc_function_unbind(c, f);
+	if (uvc->vdev)
+		video_device_release(uvc->vdev);
+
+	if (uvc->control_ep)
+		uvc->control_ep->driver_data = NULL;
+	if (uvc->video.ep)
+		uvc->video.ep->driver_data = NULL;
+
+	if (uvc->control_req) {
+		usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
+		kfree(uvc->control_buf);
+	}
+
+	kfree(f->descriptors);
+	kfree(f->hs_descriptors);
+	kfree(f->ss_descriptors);
 	return ret;
 }
 
