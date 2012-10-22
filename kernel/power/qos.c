@@ -500,7 +500,7 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		} else {
 			ascii_value[count] = '\0';
 		}
-		ret = strict_strtoul(ascii_value, 16, &ulval);
+		ret = kstrtoul(ascii_value, 16, &ulval);
 		if (ret) {
 			pr_debug("%s, 0x%lx, 0x%x\n", ascii_value, ulval, ret);
 			return -EINVAL;
