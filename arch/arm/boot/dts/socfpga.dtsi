@@ -158,6 +158,16 @@
 			sdr25-timing = <7 3>;
 			};
 
+		nand: nand@ff900000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "denali,denali-nand-dt";
+			reg = <0xff900000 0x100000>, <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0 144 4>;
+			dma-mask = <0xffffffff>;
+			};
+
 		rstmgr@ffd05000 {
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x1000>;

@@ -179,4 +179,9 @@ void __init socfpga_init_clocks(void)
 	clk = clk_register_gate(NULL, "gpio2_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_GPIO_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff70a000.gpio");
+
+	clk = clk_register_gate(NULL, "nand_clk", "main_nand_sdmmc_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN, CLKMGR_NAND_CLK_EN, 0,
+			 &_lock);
+	clk_register_clkdev(clk, NULL, "ff900000.nand");
 }
