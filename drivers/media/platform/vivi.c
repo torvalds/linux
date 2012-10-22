@@ -39,7 +39,6 @@
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
 #define WAKE_DENOMINATOR 1001
-#define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
 
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1200
