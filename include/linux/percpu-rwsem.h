@@ -12,6 +12,9 @@ struct percpu_rw_semaphore {
 	struct mutex mtx;
 };
 
+#define light_mb()	barrier()
+#define heavy_mb()	synchronize_sched()
+
 static inline void percpu_down_read(struct percpu_rw_semaphore *p)
 {
 	rcu_read_lock();
@@ -24,22 +27,12 @@ static inline void percpu_down_read(struct percpu_rw_semaphore *p)
 	}
 	this_cpu_inc(*p->counters);
 	rcu_read_unlock();
+	light_mb(); /* A, between read of p->locked and read of data, paired with D */
 }
 
 static inline void percpu_up_read(struct percpu_rw_semaphore *p)
 {
-	/*
-	 * On X86, write operation in this_cpu_dec serves as a memory unlock
-	 * barrier (i.e. memory accesses may be moved before the write, but
-	 * no memory accesses are moved past the write).
-	 * On other architectures this may not be the case, so we need smp_mb()
-	 * there.
-	 */
-#if defined(CONFIG_X86) && (!defined(CONFIG_X86_PPRO_FENCE) && !defined(CONFIG_X86_OOSTORE))
-	barrier();
-#else
-	smp_mb();
-#endif
+	light_mb(); /* B, between read of the data and write to p->counter, paired with C */
 	this_cpu_dec(*p->counters);
 }
 
@@ -61,11 +54,12 @@ static inline void percpu_down_write(struct percpu_rw_semaphore *p)
 	synchronize_rcu();
 	while (__percpu_count(p->counters))
 		msleep(1);
-	smp_rmb(); /* paired with smp_mb() in percpu_sem_up_read() */
+	heavy_mb(); /* C, between read of p->counter and write to data, paired with B */
 }
 
 static inline void percpu_up_write(struct percpu_rw_semaphore *p)
 {
+	heavy_mb(); /* D, between write to data and write to p->locked, paired with A */
 	p->locked = false;
 	mutex_unlock(&p->mtx);
 }
