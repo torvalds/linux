@@ -257,6 +257,7 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p1_pclk8", "per1clk", U8500_CLKRST1_BASE,
 				BIT(8), 0);
+	clk_register_clkdev(clk, "apb_pclk", "slimbus0");
 
 	clk = clk_reg_prcc_pclk("p1_pclk9", "per1clk", U8500_CLKRST1_BASE,
 				BIT(9), 0);
@@ -444,8 +445,8 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, NULL, "nmk-i2c.2");
 
 	clk = clk_reg_prcc_kclk("p1_slimbus0_kclk", "slimclk",
-			U8500_CLKRST1_BASE, BIT(3), CLK_SET_RATE_GATE);
-	/* FIXME: Redefinition of BIT(3). */
+			U8500_CLKRST1_BASE, BIT(8), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "slimbus0");
 
 	clk = clk_reg_prcc_kclk("p1_i2c4_kclk", "i2cclk",
 			U8500_CLKRST1_BASE, BIT(9), CLK_SET_RATE_GATE);
