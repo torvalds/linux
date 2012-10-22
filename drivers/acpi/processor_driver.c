@@ -852,8 +852,22 @@ static int acpi_processor_handle_eject(struct acpi_processor *pr)
 	if (cpu_online(pr->id))
 		cpu_down(pr->id);
 
+	get_online_cpus();
+	/*
+	 * The cpu might become online again at this point. So we check whether
+	 * the cpu has been onlined or not. If the cpu became online, it means
+	 * that someone wants to use the cpu. So acpi_processor_handle_eject()
+	 * returns -EAGAIN.
+	 */
+	if (unlikely(cpu_online(pr->id))) {
+		put_online_cpus();
+		pr_warn("Failed to remove CPU %d, because other task "
+			"brought the CPU back online\n", pr->id);
+		return -EAGAIN;
+	}
 	arch_unregister_cpu(pr->id);
 	acpi_unmap_lsapic(pr->id);
+	put_online_cpus();
 	return (0);
 }
 #else
