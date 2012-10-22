@@ -1795,30 +1795,57 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 {
 	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
+	uint64_t value;
+	unsigned ndw;
 
-	while (count) {
-		unsigned ndw = 1 + count * 2;
-		if (ndw > 0x3FFF)
-			ndw = 0x3FFF;
+	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
+		while (count) {
+			ndw = 1 + count * 2;
+			if (ndw > 0x3FFF)
+				ndw = 0x3FFF;
 
-		radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, ndw));
-		radeon_ring_write(ring, pe);
-		radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
-		for (; ndw > 1; ndw -= 2, --count, pe += 8) {
-			uint64_t value = 0;
-			if (flags & RADEON_VM_PAGE_SYSTEM) {
-				value = radeon_vm_map_gart(rdev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
+			radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, ndw));
+			radeon_ring_write(ring, pe);
+			radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+			for (; ndw > 1; ndw -= 2, --count, pe += 8) {
+				if (flags & RADEON_VM_PAGE_SYSTEM) {
+					value = radeon_vm_map_gart(rdev, addr);
+					value &= 0xFFFFFFFFFFFFF000ULL;
+				} else if (flags & RADEON_VM_PAGE_VALID) {
+					value = addr;
+				} else {
+					value = 0;
+				}
 				addr += incr;
-
-			} else if (flags & RADEON_VM_PAGE_VALID) {
-				value = addr;
-				addr += incr;
+				value |= r600_flags;
+				radeon_ring_write(ring, value);
+				radeon_ring_write(ring, upper_32_bits(value));
 			}
+		}
+	} else {
+		while (count) {
+			ndw = count * 2;
+			if (ndw > 0xFFFFE)
+				ndw = 0xFFFFE;
 
-			value |= r600_flags;
-			radeon_ring_write(ring, value);
-			radeon_ring_write(ring, upper_32_bits(value));
+			/* for non-physically contiguous pages (system) */
+			radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw));
+			radeon_ring_write(ring, pe);
+			radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+				if (flags & RADEON_VM_PAGE_SYSTEM) {
+					value = radeon_vm_map_gart(rdev, addr);
+					value &= 0xFFFFFFFFFFFFF000ULL;
+				} else if (flags & RADEON_VM_PAGE_VALID) {
+					value = addr;
+				} else {
+					value = 0;
+				}
+				addr += incr;
+				value |= r600_flags;
+				radeon_ring_write(ring, value);
+				radeon_ring_write(ring, upper_32_bits(value));
+			}
 		}
 	}
 }
