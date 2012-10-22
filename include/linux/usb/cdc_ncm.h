@@ -36,6 +36,12 @@
  * SUCH DAMAGE.
  */
 
+#define CDC_NCM_COMM_ALTSETTING_NCM		0
+#define CDC_NCM_COMM_ALTSETTING_MBIM		1
+
+#define CDC_NCM_DATA_ALTSETTING_NCM		1
+#define CDC_NCM_DATA_ALTSETTING_MBIM		2
+
 /* CDC NCM subclass 3.2.1 */
 #define USB_CDC_NCM_NDP16_LENGTH_MIN		0x10
 
@@ -73,6 +79,10 @@
 #define CDC_NCM_NDP_SIZE \
 	(sizeof(struct usb_cdc_ncm_ndp16) +				\
 	      (CDC_NCM_DPT_DATAGRAMS_MAX + 1) * sizeof(struct usb_cdc_ncm_dpe16))
+
+#define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
+				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)
+#define cdc_ncm_data_intf_is_mbim(x)  ((x)->desc.bInterfaceProtocol == USB_CDC_MBIM_PROTO_NTB)
 
 struct cdc_ncm_ctx {
 	struct usb_cdc_ncm_ntb_parameters ncm_parm;
