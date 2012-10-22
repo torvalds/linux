@@ -330,6 +330,7 @@ static struct usb_ss_ep_comp_descriptor ss_ecm_bulk_comp_desc = {
 
 static struct usb_descriptor_header *ecm_ss_function[] = {
 	/* CDC ECM control descriptors */
+	(struct usb_descriptor_header *) &ecm_iad_descriptor,
 	(struct usb_descriptor_header *) &ecm_control_intf,
 	(struct usb_descriptor_header *) &ecm_header_desc,
 	(struct usb_descriptor_header *) &ecm_union_desc,
