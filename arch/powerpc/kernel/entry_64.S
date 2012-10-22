@@ -374,6 +374,8 @@ _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
 	REST_GPR(2,r1)
+	li	r3,0
+	std	r3,0(r1)
 	mtlr	r14
 	mr	r3,r15
 	blrl
