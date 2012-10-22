@@ -136,7 +136,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		I915_WRITE(SPRLINOFF(pipe), offset);
 	}
 	I915_WRITE(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
-	I915_WRITE(SPRSCALE(pipe), sprscale);
+	if (intel_plane->can_scale)
+		I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset);
 	POSTING_READ(SPRSURF(pipe));
@@ -152,7 +153,8 @@ ivb_disable_plane(struct drm_plane *plane)
 
 	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
 	/* Can't leave the scaler enabled... */
-	I915_WRITE(SPRSCALE(pipe), 0);
+	if (intel_plane->can_scale)
+		I915_WRITE(SPRSCALE(pipe), 0);
 	/* Activate double buffered register update */
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
@@ -473,6 +475,12 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		goto out;
 
 	/*
+	 * We may not have a scaler, eg. HSW does not have it any more
+	 */
+	if (!intel_plane->can_scale && (crtc_w != src_w || crtc_h != src_h))
+		return -EINVAL;
+
+	/*
 	 * We can take a larger source and scale it down, but
 	 * only so much...  16x is the max on SNB.
 	 */
@@ -665,6 +673,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	switch (INTEL_INFO(dev)->gen) {
 	case 5:
 	case 6:
+		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
 		intel_plane->update_plane = ilk_update_plane;
 		intel_plane->disable_plane = ilk_disable_plane;
@@ -681,6 +690,10 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	case 7:
+		if (IS_HASWELL(dev))
+			intel_plane->can_scale = false;
+		else
+			intel_plane->can_scale = true;
 		intel_plane->max_downscale = 2;
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
