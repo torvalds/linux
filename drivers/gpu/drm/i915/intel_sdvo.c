@@ -2042,17 +2042,17 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	else
 		mapping = &dev_priv->sdvo_mappings[1];
 
-	pin = GMBUS_PORT_DPB;
-	if (mapping->initialized)
+	if (mapping->initialized && intel_gmbus_is_port_valid(mapping->i2c_pin))
 		pin = mapping->i2c_pin;
+	else
+		pin = GMBUS_PORT_DPB;
 
-	if (intel_gmbus_is_port_valid(pin)) {
-		sdvo->i2c = intel_gmbus_get_adapter(dev_priv, pin);
-		intel_gmbus_set_speed(sdvo->i2c, GMBUS_RATE_1MHZ);
-		intel_gmbus_force_bit(sdvo->i2c, true);
-	} else {
-		sdvo->i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
-	}
+	sdvo->i2c = intel_gmbus_get_adapter(dev_priv, pin);
+
+	/* With gmbus we should be able to drive sdvo i2c at 2MHz, but somehow
+	 * our code totally fails once we start using gmbus. Hence fall back to
+	 * bit banging for now. */
+	intel_gmbus_force_bit(sdvo->i2c, true);
 }
 
 static bool
