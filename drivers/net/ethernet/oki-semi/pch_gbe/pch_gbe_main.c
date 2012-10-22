@@ -2419,7 +2419,6 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	bool poll_end_flag = false;
 	bool cleaned = false;
-	u32 int_en;
 
 	pr_debug("budget : %d\n", budget);
 
@@ -2436,19 +2435,13 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 
 	if (poll_end_flag) {
 		napi_complete(napi);
-		if (adapter->rx_stop_flag) {
-			adapter->rx_stop_flag = false;
-			pch_gbe_start_receive(&adapter->hw);
-		}
 		pch_gbe_irq_enable(adapter);
-	} else
-		if (adapter->rx_stop_flag) {
-			adapter->rx_stop_flag = false;
-			pch_gbe_start_receive(&adapter->hw);
-			int_en = ioread32(&adapter->hw.reg->INT_EN);
-			iowrite32((int_en | PCH_GBE_INT_RX_FIFO_ERR),
-				&adapter->hw.reg->INT_EN);
-		}
+	}
+
+	if (adapter->rx_stop_flag) {
+		adapter->rx_stop_flag = false;
+		pch_gbe_start_receive(&adapter->hw);
+	}
 
 	pr_debug("poll_end_flag : %d  work_done : %d  budget : %d\n",
 		 poll_end_flag, work_done, budget);
