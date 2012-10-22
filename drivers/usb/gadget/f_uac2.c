@@ -520,32 +520,22 @@ enum {
 	STR_AS_IN_ALT1,
 };
 
-static const char ifassoc[] = "Source/Sink";
-static const char ifctrl[] = "Topology Control";
 static char clksrc_in[8];
 static char clksrc_out[8];
-static const char usb_it[] = "USBH Out";
-static const char io_it[] = "USBD Out";
-static const char usb_ot[] = "USBH In";
-static const char io_ot[] = "USBD In";
-static const char out_alt0[] = "Playback Inactive";
-static const char out_alt1[] = "Playback Active";
-static const char in_alt0[] = "Capture Inactive";
-static const char in_alt1[] = "Capture Active";
 
 static struct usb_string strings_fn[] = {
-	[STR_ASSOC].s = ifassoc,
-	[STR_IF_CTRL].s = ifctrl,
+	[STR_ASSOC].s = "Source/Sink",
+	[STR_IF_CTRL].s = "Topology Control",
 	[STR_CLKSRC_IN].s = clksrc_in,
 	[STR_CLKSRC_OUT].s = clksrc_out,
-	[STR_USB_IT].s = usb_it,
-	[STR_IO_IT].s = io_it,
-	[STR_USB_OT].s = usb_ot,
-	[STR_IO_OT].s = io_ot,
-	[STR_AS_OUT_ALT0].s = out_alt0,
-	[STR_AS_OUT_ALT1].s = out_alt1,
-	[STR_AS_IN_ALT0].s = in_alt0,
-	[STR_AS_IN_ALT1].s = in_alt1,
+	[STR_USB_IT].s = "USBH Out",
+	[STR_IO_IT].s = "USBD Out",
+	[STR_USB_OT].s = "USBH In",
+	[STR_IO_OT].s = "USBD In",
+	[STR_AS_OUT_ALT0].s = "Playback Inactive",
+	[STR_AS_OUT_ALT1].s = "Playback Active",
+	[STR_AS_IN_ALT0].s = "Capture Inactive",
+	[STR_AS_IN_ALT1].s = "Capture Active",
 	{ },
 };
 
