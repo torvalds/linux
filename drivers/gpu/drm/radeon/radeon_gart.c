@@ -1147,17 +1147,17 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 
 	if (RADEON_VM_BLOCK_SIZE > 11)
 		/* reserve space for one header for every 2k dwords */
-		ndw += (nptes >> 11) * 3;
+		ndw += (nptes >> 11) * 4;
 	else
 		/* reserve space for one header for
 		    every (1 << BLOCK_SIZE) entries */
-		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 3;
+		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 4;
 
 	/* reserve space for pte addresses */
 	ndw += nptes * 2;
 
 	/* reserve space for one header for every 2k dwords */
-	ndw += (npdes >> 11) * 3;
+	ndw += (npdes >> 11) * 4;
 
 	/* reserve space for pde addresses */
 	ndw += npdes * 2;
