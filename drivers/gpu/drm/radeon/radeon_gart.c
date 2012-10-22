@@ -1036,8 +1036,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		pte = radeon_sa_bo_gpu_addr(vm->page_tables[pt_idx]);
 		pte += (addr & mask) * 8;
 
-		if (((last_pte + 8 * count) != pte) ||
-		    ((count + nptes) > 1 << 11)) {
+		if ((last_pte + 8 * count) != pte) {
 
 			if (count) {
 				radeon_asic_vm_set_page(rdev, last_pte,
