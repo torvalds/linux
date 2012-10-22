@@ -198,9 +198,13 @@ static void advance_transaction(struct acpi_ec *ec, u8 status)
 		t->done = true;
 	goto unlock;
 err:
-	/* false interrupt, state didn't change */
-	if (in_interrupt())
+	/*
+	 * If SCI bit is set, then don't think it's a false IRQ
+	 * otherwise will take a not handled IRQ as a false one.
+	 */
+	if (in_interrupt() && !(status & ACPI_EC_FLAG_SCI))
 		++t->irq_count;
+
 unlock:
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
