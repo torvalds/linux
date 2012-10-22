@@ -437,6 +437,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	if (buf[0] == '-') {
 		negative = true;
 		buf++;
+	} else if (buf[0] == '+') {
+		buf++;
 	}
 
 	while (*buf) {
