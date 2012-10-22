@@ -248,17 +248,9 @@ static struct clk *twd_get_clock(void)
 		return clk;
 	}
 
-	err = clk_prepare(clk);
+	err = clk_prepare_enable(clk);
 	if (err) {
-		pr_err("smp_twd: clock failed to prepare: %d\n", err);
-		clk_put(clk);
-		return ERR_PTR(err);
-	}
-
-	err = clk_enable(clk);
-	if (err) {
-		pr_err("smp_twd: clock failed to enable: %d\n", err);
-		clk_unprepare(clk);
+		pr_err("smp_twd: clock failed to prepare+enable: %d\n", err);
 		clk_put(clk);
 		return ERR_PTR(err);
 	}
