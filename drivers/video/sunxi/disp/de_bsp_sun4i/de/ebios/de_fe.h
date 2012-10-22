@@ -1006,7 +1006,13 @@ typedef union
                                                    // the bit is written to zero, the whole state machine and data paths of scaler module
                                                    // will be reset., When the bit is written to 1, Scaler will start a new frame process.
                                                    //
+#ifdef CONFIG_ARCH_SUN4I
 		u32 res3                         : 15 ;    // Default: ; /
+#else
+        u32 res3                         : 6 ;     //
+        u32 coef_access_ctrl             : 1 ;     //fir coef ram access control
+		u32 res4                         : 8 ;    // Default: ; /
+#endif
 	} bits;
 } SCAL_FRM_CTRL_REG;
 
@@ -1194,7 +1200,13 @@ typedef union
 		u32 byte_seq                     :  1 ;    // Default: 0x0; BYTE_SEQ , Output data byte sequence selection, 0: P3P2P1P0(word),
                                                    // 1: P0P1P2P3(word), For ARGB, when this bit is 0, the byte sequence is BGRA, and
                                                    // when this bit is 1, the byte sequence is ARGB;
+#ifdef CONFIG_ARCH_SUN4I
 		u32 res2                         : 23 ;    // Default: ; /
+#else
+		u32 res2                         : 7 ;    // Default: ; /
+		u32 wb_chsel                     : 2 ;     //write back channel select
+		u32 res3                         : 14 ;
+#endif
 	} bits;
 } SCAL_OUTPUT_FMT_REG;
 
@@ -1218,7 +1230,12 @@ typedef union
 		u32 dram_status                  :  1 ;    // Default: 0x0; DRAM_STATUS , Access dram status, 0: idle, 1: busy, This flag indicates
                                                    // whether scaler is accessing dram
 		u32 lcd_field                    :  1 ;    // Default: 0x0; LCD_FIELD , LCD field status, 0: top field, 1: bottom field
+#ifdef CONFIG_ARCH_SUN4I
 		u32 res1                         :  6 ;    // Default: ; /
+#else
+		u32 res1                         :  5 ;    // Default: ; /
+		u32 coef_access_status           :  1 ;    //fir coef access status
+#endif
 		u32 wb_err_status                :  1 ;    // Default: 0x0; WB_ERR_STATUS , write-back error status, 0: valid write back, 1:
                                                    // un-valid write back, This bit is cleared through write 0 to reset/start bit in frame
                                                    // control register
