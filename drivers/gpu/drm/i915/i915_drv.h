@@ -129,14 +129,6 @@ struct drm_i915_gem_phys_object {
 	struct drm_i915_gem_object *cur_obj;
 };
 
-struct mem_block {
-	struct mem_block *next;
-	struct mem_block *prev;
-	int start;
-	int size;
-	struct drm_file *file_priv; /* NULL: free, -1: heap, other: real files */
-};
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
