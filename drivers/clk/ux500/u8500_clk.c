@@ -40,7 +40,7 @@ void u8500_clk_init(void)
 				CLK_IS_ROOT|CLK_IGNORE_UNUSED,
 				32768);
 	clk_register_clkdev(clk, "clk32k", NULL);
-	clk_register_clkdev(clk, NULL, "rtc-pl031");
+	clk_register_clkdev(clk, "apb_pclk", "rtc-pl031");
 
 	/* PRCMU clocks */
 	fw_version = prcmu_get_fw_version();
