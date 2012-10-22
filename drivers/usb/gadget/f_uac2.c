@@ -50,8 +50,6 @@ static int c_ssize = 2;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 
-#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
-
 #define ALT_SET(x, a)	do {(x) &= ~0xff; (x) |= (a); } while (0)
 #define ALT_GET(x)	((x) & 0xff)
 #define INTF_SET(x, i)	do {(x) &= 0xff; (x) |= ((i) << 8); } while (0)
@@ -1130,7 +1128,6 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 		prm->ureq[i].pp = prm;
 
 		req->zero = 0;
-		req->dma = DMA_ADDR_INVALID;
 		req->context = &prm->ureq[i];
 		req->length = prm->max_psize;
 		req->complete =	agdev_iso_complete;
