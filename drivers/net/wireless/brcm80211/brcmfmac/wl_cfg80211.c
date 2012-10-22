@@ -514,16 +514,6 @@ done:
 	return err;
 }
 
-/*
- * For now brcmf_find_bssidx will return 0. Once p2p gets implemented this
- * should return the ndev matching bssidx.
- */
-static s32
-brcmf_find_bssidx(struct brcmf_cfg80211_info *cfg, struct net_device *ndev)
-{
-	return 0;
-}
-
 static void brcmf_set_mpc(struct net_device *ndev, int mpc)
 {
 	s32 err = 0;
