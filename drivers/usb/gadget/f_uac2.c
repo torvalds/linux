@@ -978,15 +978,19 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	INTF_SET(agdev->as_in_alt, ret);
 
 	agdev->out_ep = usb_ep_autoconfig(gadget, &fs_epout_desc);
-	if (!agdev->out_ep)
+	if (!agdev->out_ep) {
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
+		goto err;
+	}
 	agdev->out_ep->driver_data = agdev;
 
 	agdev->in_ep = usb_ep_autoconfig(gadget, &fs_epin_desc);
-	if (!agdev->in_ep)
+	if (!agdev->in_ep) {
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
+		goto err;
+	}
 	agdev->in_ep->driver_data = agdev;
 
 	hs_epout_desc.bEndpointAddress = fs_epout_desc.bEndpointAddress;
@@ -1005,6 +1009,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		prm->max_psize = 0;
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
+		goto err;
 	}
 
 	prm = &agdev->uac2.p_prm;
@@ -1014,9 +1019,23 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		prm->max_psize = 0;
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
+		goto err;
 	}
 
-	return alsa_uac2_init(agdev);
+	ret = alsa_uac2_init(agdev);
+	if (ret)
+		goto err;
+	return 0;
+err:
+	kfree(agdev->uac2.p_prm.rbuf);
+	kfree(agdev->uac2.c_prm.rbuf);
+	usb_free_descriptors(fn->hs_descriptors);
+	usb_free_descriptors(fn->descriptors);
+	if (agdev->in_ep)
+		agdev->in_ep->driver_data = NULL;
+	if (agdev->out_ep)
+		agdev->out_ep->driver_data = NULL;
+	return -EINVAL;
 }
 
 static void
