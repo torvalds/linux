@@ -107,7 +107,8 @@ struct smiapp_pll_limits {
 
 struct device;
 
-int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
+int smiapp_pll_calculate(struct device *dev,
+			 const struct smiapp_pll_limits *limits,
 			 struct smiapp_pll *pll);
 
 #endif /* SMIAPP_PLL_H */
