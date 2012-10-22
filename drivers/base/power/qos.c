@@ -90,7 +90,7 @@ static int apply_constraint(struct dev_pm_qos_request *req,
 	int ret, curr_value;
 
 	ret = pm_qos_update_target(&req->dev->power.qos->latency,
-				   &req->node, action, value);
+				   &req->data.pnode, action, value);
 
 	if (ret) {
 		/* Call the global callbacks if needed */
@@ -183,7 +183,7 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 
 	c = &qos->latency;
 	/* Flush the constraints list for the device */
-	plist_for_each_entry_safe(req, tmp, &c->list, node) {
+	plist_for_each_entry_safe(req, tmp, &c->list, data.pnode) {
 		/*
 		 * Update constraints list and call the notification
 		 * callbacks if needed
@@ -293,7 +293,7 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 	mutex_lock(&dev_pm_qos_mtx);
 
 	if (req->dev->power.qos) {
-		if (new_value != req->node.prio)
+		if (new_value != req->data.pnode.prio)
 			ret = apply_constraint(req, PM_QOS_UPDATE_REQ,
 					       new_value);
 	} else {

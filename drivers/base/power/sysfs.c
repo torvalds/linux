@@ -221,7 +221,7 @@ static DEVICE_ATTR(autosuspend_delay_ms, 0644, autosuspend_delay_ms_show,
 static ssize_t pm_qos_latency_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev->power.pq_req->node.prio);
+	return sprintf(buf, "%d\n", dev->power.pq_req->data.pnode.prio);
 }
 
 static ssize_t pm_qos_latency_store(struct device *dev,
