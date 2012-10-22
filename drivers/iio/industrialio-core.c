@@ -454,7 +454,7 @@ static ssize_t iio_write_channel_info(struct device *dev,
 				break;
 			else
 				return -EINVAL;
-		} else if (*buf == '.') {
+		} else if (*buf == '.' && integer_part) {
 			integer_part = false;
 		} else {
 			return -EINVAL;
