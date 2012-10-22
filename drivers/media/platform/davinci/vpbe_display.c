@@ -702,9 +702,12 @@ static int vpbe_display_querycap(struct file *file, void  *priv,
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 
 	cap->version = VPBE_DISPLAY_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
-	strlcpy(cap->driver, VPBE_DISPLAY_DRIVER, sizeof(cap->driver));
-	strlcpy(cap->bus_info, "platform", sizeof(cap->bus_info));
+	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+	snprintf(cap->driver, sizeof(cap->driver), "%s",
+		dev_name(vpbe_dev->pdev));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+		 dev_name(vpbe_dev->pdev));
 	strlcpy(cap->card, vpbe_dev->cfg->module_name, sizeof(cap->card));
 
 	return 0;
