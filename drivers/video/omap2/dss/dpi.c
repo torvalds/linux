@@ -137,7 +137,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	unsigned long pck;
 	int r = 0;
 
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		r = dpi_set_dsi_clk(dssdev, t->pixel_clock * 1000, &fck,
 				&lck_div, &pck_div);
 	else
@@ -216,7 +216,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_src_sel;
 
-	if (dpi_use_dsi_pll(dssdev)) {
+	if (dpi.dsidev) {
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
 			goto err_get_dsi;
@@ -244,10 +244,10 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 err_mgr_enable:
 err_set_mode:
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		dsi_pll_uninit(dpi.dsidev, true);
 err_dsi_pll_init:
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		dsi_runtime_put(dpi.dsidev);
 err_get_dsi:
 err_src_sel:
@@ -273,7 +273,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_mgr_disable(mgr);
 
-	if (dpi_use_dsi_pll(dssdev)) {
+	if (dpi.dsidev) {
 		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
 		dsi_pll_uninit(dpi.dsidev, true);
 		dsi_runtime_put(dpi.dsidev);
@@ -319,7 +319,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (timings->pixel_clock == 0)
 		return -EINVAL;
 
-	if (dpi_use_dsi_pll(dssdev)) {
+	if (dpi.dsidev) {
 		struct dsi_clock_info dsi_cinfo;
 		r = dsi_pll_calc_clock_div_pck(dpi.dsidev,
 				timings->pixel_clock * 1000,
