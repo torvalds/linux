@@ -32,8 +32,6 @@
 #include <linux/phy.h>
 #include <linux/io.h>
 
-#include <asm/mach-types.h>
-
 #include "macb.h"
 
 #define DRV_NAME	"at91_ether"
@@ -61,9 +59,10 @@
 
 static short __init unpack_mac_address(struct net_device *dev, unsigned int hi, unsigned int lo)
 {
+	struct macb *lp = netdev_priv(dev);
 	char addr[6];
 
-	if (machine_is_csb337()) {
+	if (lp->board_data.rev_eth_addr) {
 		addr[5] = (lo & 0xff);			/* The CSB337 bootloader stores the MAC the wrong-way around */
 		addr[4] = (lo & 0xff00) >> 8;
 		addr[3] = (lo & 0xff0000) >> 16;
