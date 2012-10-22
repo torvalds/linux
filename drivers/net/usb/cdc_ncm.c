@@ -977,6 +977,8 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	struct usb_cdc_ncm_nth16 *nth16;
 	struct usb_cdc_ncm_ndp16 *ndp16;
 	struct usb_cdc_ncm_dpe16 *dpe16;
+	int ndpoffset;
+	int loopcount = 50; /* arbitrary max preventing infinite loop */
 
 	if (ctx == NULL)
 		goto error;
@@ -1010,25 +1012,24 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	}
 	ctx->rx_seq = le16_to_cpu(nth16->wSequence);
 
-	len = le16_to_cpu(nth16->wNdpIndex);
-	if ((len + sizeof(struct usb_cdc_ncm_ndp16)) > skb_in->len) {
-		pr_debug("invalid DPT16 index <%u>\n",
-					le16_to_cpu(nth16->wNdpIndex));
+	ndpoffset = le16_to_cpu(nth16->wNdpIndex);
+next_ndp:
+	if ((ndpoffset + sizeof(struct usb_cdc_ncm_ndp16)) > skb_in->len) {
+		pr_debug("invalid NDP offset  <%u>\n", ndpoffset);
 		goto error;
 	}
-
-	ndp16 = (struct usb_cdc_ncm_ndp16 *)(((u8 *)skb_in->data) + len);
+	ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb_in->data + ndpoffset);
 
 	if (le32_to_cpu(ndp16->dwSignature) != USB_CDC_NCM_NDP16_NOCRC_SIGN) {
 		pr_debug("invalid DPT16 signature <%u>\n",
 					le32_to_cpu(ndp16->dwSignature));
-		goto error;
+		goto err_ndp;
 	}
 
 	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {
 		pr_debug("invalid DPT16 length <%u>\n",
 					le32_to_cpu(ndp16->dwSignature));
-		goto error;
+		goto err_ndp;
 	}
 
 	nframes = ((le16_to_cpu(ndp16->wLength) -
@@ -1036,15 +1037,15 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 					sizeof(struct usb_cdc_ncm_dpe16));
 	nframes--; /* we process NDP entries except for the last one */
 
-	len += sizeof(struct usb_cdc_ncm_ndp16);
+	ndpoffset += sizeof(struct usb_cdc_ncm_ndp16);
 
-	if ((len + nframes * (sizeof(struct usb_cdc_ncm_dpe16))) >
+	if ((ndpoffset + nframes * (sizeof(struct usb_cdc_ncm_dpe16))) >
 								skb_in->len) {
 		pr_debug("Invalid nframes = %d\n", nframes);
-		goto error;
+		goto err_ndp;
 	}
 
-	dpe16 = (struct usb_cdc_ncm_dpe16 *)(((u8 *)skb_in->data) + len);
+	dpe16 = (struct usb_cdc_ncm_dpe16 *)(skb_in->data + ndpoffset);
 
 	for (x = 0; x < nframes; x++, dpe16++) {
 		offset = le16_to_cpu(dpe16->wDatagramIndex);
@@ -1056,7 +1057,7 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 		 */
 		if ((offset == 0) || (len == 0)) {
 			if (!x)
-				goto error; /* empty NTB */
+				goto err_ndp; /* empty NTB */
 			break;
 		}
 
@@ -1067,7 +1068,7 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 					"offset[%u]=%u, length=%u, skb=%p\n",
 					x, offset, len, skb_in);
 			if (!x)
-				goto error;
+				goto err_ndp;
 			break;
 
 		} else {
@@ -1080,6 +1081,12 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 			usbnet_skb_return(dev, skb);
 		}
 	}
+err_ndp:
+	/* are there more NDPs to process? */
+	ndpoffset = le16_to_cpu(ndp16->wNextNdpIndex);
+	if (ndpoffset && loopcount--)
+		goto next_ndp;
+
 	return 1;
 error:
 	return 0;
