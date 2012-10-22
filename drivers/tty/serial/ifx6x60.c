@@ -231,9 +231,7 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
 	if (!val) {
 		if (!test_and_set_bit(IFX_SPI_STATE_TIMER_PENDING,
 				      &ifx_dev->flags)) {
-			ifx_dev->spi_timer.expires =
-				jiffies + IFX_SPI_TIMEOUT_SEC*HZ;
-			add_timer(&ifx_dev->spi_timer);
+			mod_timer(&ifx_dev->spi_timer,jiffies + IFX_SPI_TIMEOUT_SEC*HZ);
 
 		}
 	}
