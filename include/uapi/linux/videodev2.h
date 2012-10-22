@@ -737,7 +737,7 @@ struct v4l2_window {
 struct v4l2_captureparm {
 	__u32		   capability;	  /*  Supported modes */
 	__u32		   capturemode;	  /*  Current mode */
-	struct v4l2_fract  timeperframe;  /*  Time per frame in .1us units */
+	struct v4l2_fract  timeperframe;  /*  Time per frame in seconds */
 	__u32		   extendedmode;  /*  Driver-specific extensions */
 	__u32              readbuffers;   /*  # of buffers for read */
 	__u32		   reserved[4];
