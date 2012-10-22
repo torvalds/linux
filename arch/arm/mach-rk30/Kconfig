@@ -1,14 +1,36 @@
 if ARCH_RK30
 
-config ARCH_RK3066B
-	bool "Rockchip RK3066B"
-	help
-	  Support for Rockchip's RK3066B SoCs.
-
 config ARCH_RK30XX
 	bool
-	default y
-	depends on !ARCH_RK3066B
+
+config ARCH_RK3066B
+	bool
+
+choice
+	prompt "Rockchip SoC Type"
+	default SOC_RK3066
+
+config SOC_RK3000
+	bool "RK3000"
+	select ARCH_RK30XX
+
+config SOC_RK3066
+	bool "RK3066"
+	select ARCH_RK30XX
+
+config SOC_RK3068
+	bool "RK3068"
+	select ARCH_RK30XX
+
+config SOC_RK3066B
+	bool "RK3066B"
+	select ARCH_RK3066B
+
+config SOC_RK3108
+	bool "RK3108"
+	select ARCH_RK3066B
+
+endchoice
 
 if ARCH_RK30XX
 
@@ -55,8 +77,7 @@ endif
 
 endif
 
-if ARCH_RK3066B
-
+if SOC_RK3066B
 choice
 	prompt "RK3066B Board Type"
 
@@ -66,11 +87,21 @@ config MACH_RK3066B_FPGA
 
 config MACH_RK3066B_SDK
 	bool "RK3066B SDK board"
+
 config MACH_RK3066B_M701
 	bool "RK3066B M701 board"
 
 endchoice
+endif
 
+if SOC_RK3108
+choice
+	prompt "RK3108 Board Type"
+
+config MACH_RK3108_TB
+	bool "RK3108 Top Board"
+
+endchoice
 endif
 
 endif
