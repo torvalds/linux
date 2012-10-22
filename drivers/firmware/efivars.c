@@ -801,7 +801,7 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return efi_status_to_err(status);
 
-	data = kmalloc(datasize + 4, GFP_KERNEL);
+	data = kmalloc(datasize + sizeof(attributes), GFP_KERNEL);
 
 	if (!data)
 		return -ENOMEM;
@@ -810,7 +810,7 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	status = efivars->ops->get_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
 					    &attributes, &datasize,
-					    (data + 4));
+					    (data + sizeof(attributes)));
 	spin_unlock(&efivars->lock);
 
 	if (status != EFI_SUCCESS) {
@@ -818,9 +818,9 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 		goto out_free;
 	}
 
-	memcpy(data, &attributes, 4);
+	memcpy(data, &attributes, sizeof(attributes));
 	size = simple_read_from_buffer(userbuf, count, ppos,
-					data, datasize + 4);
+				       data, datasize + sizeof(attributes));
 out_free:
 	kfree(data);
 
