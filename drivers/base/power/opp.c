@@ -65,6 +65,7 @@ struct opp {
 	unsigned long u_volt;
 
 	struct device_opp *dev_opp;
+	struct rcu_head head;
 };
 
 /**
@@ -442,6 +443,17 @@ int opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 }
 
 /**
+ * opp_free_rcu() - helper to clear the struct opp when grace period has
+ * elapsed without blocking the the caller of opp_set_availability
+ */
+static void opp_free_rcu(struct rcu_head *head)
+{
+	struct opp *opp = container_of(head, struct opp, head);
+
+	kfree(opp);
+}
+
+/**
  * opp_set_availability() - helper to set the availability of an opp
  * @dev:		device for which we do this operation
  * @freq:		OPP frequency to modify availability
@@ -512,7 +524,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 
 	list_replace_rcu(&opp->node, &new_opp->node);
 	mutex_unlock(&dev_opp_list_lock);
-	synchronize_rcu();
+	call_rcu(&opp->head, opp_free_rcu);
 
 	/* Notify the change of the OPP availability */
 	if (availability_req)
@@ -522,13 +534,10 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 		srcu_notifier_call_chain(&dev_opp->head, OPP_EVENT_DISABLE,
 					 new_opp);
 
-	/* clean up old opp */
-	new_opp = opp;
-	goto out;
+	return 0;
 
 unlock:
 	mutex_unlock(&dev_opp_list_lock);
-out:
 	kfree(new_opp);
 	return r;
 }
