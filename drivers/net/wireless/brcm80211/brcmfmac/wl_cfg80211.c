@@ -2997,7 +2997,7 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 	WL_TRACE("Enter\n");
 
 	if (check_vif_up(ifp->vif))
-		brcmf_invoke_iscan(wiphy_to_cfg(wiphy));
+		brcmf_invoke_iscan(cfg);
 
 	WL_TRACE("Exit\n");
 	return 0;
