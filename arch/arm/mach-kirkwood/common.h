@@ -122,6 +122,12 @@ void ns2_init(void);
 static inline void ns2_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_TOPKICK_DT
+void usi_topkick_init(void);
+#else
+static inline void usi_topkick_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);

@@ -103,6 +103,9 @@ static void __init kirkwood_dt_init(void)
 	    of_machine_is_compatible("lacie,netspace_mini_v2"))
 		ns2_init();
 
+	if (of_machine_is_compatible("usi,topkick"))
+		usi_topkick_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
 }
@@ -124,6 +127,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"lacie,netspace_v2",
 	"lacie,netspace_lite_v2",
 	"lacie,netspace_mini_v2",
+	"usi,topkick",
 	NULL
 };
 
