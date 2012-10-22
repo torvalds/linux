@@ -1882,10 +1882,10 @@ int ext4_inode_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 				  struct buffer_head *bh, int sz);
 void ext4_block_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
 				struct ext4_group_desc *gdp,
-				struct buffer_head *bh, int sz);
+				struct buffer_head *bh);
 int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 				  struct ext4_group_desc *gdp,
-				  struct buffer_head *bh, int sz);
+				  struct buffer_head *bh);
 
 /* balloc.c */
 extern void ext4_validate_block_bitmap(struct super_block *sb,
