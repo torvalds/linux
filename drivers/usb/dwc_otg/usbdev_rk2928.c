@@ -239,7 +239,7 @@ static struct resource usb20_host_resource[] = {
 void usb20host_hw_init(void)
 {
     // usb phy config init
-    *(unsigned int *)(USBGRF_UOC0_CON5+4) = 0x07e00350;
+    *(unsigned int *)(USBGRF_UOC0_CON5+4) = 0x07e70350;
     // other haredware init
     
 }
