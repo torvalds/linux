@@ -184,7 +184,6 @@ struct rbd_device {
 	struct gendisk		*disk;		/* blkdev's gendisk and rq */
 
 	u32			image_format;	/* Either 1 or 2 */
-	struct rbd_options	rbd_opts;
 	struct rbd_client	*rbd_client;
 
 	char			name[DEV_NAME_LEN]; /* blkdev name, e.g. rbd3 */
@@ -456,17 +455,23 @@ static int parse_rbd_opts_token(char *c, void *private)
 static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 				size_t mon_addr_len, char *options)
 {
-	struct rbd_options *rbd_opts = &rbd_dev->rbd_opts;
+	struct rbd_options rbd_opts;
 	struct ceph_options *ceph_opts;
 	struct rbd_client *rbdc;
 
-	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
+	/* Initialize all rbd options to the defaults */
+
+	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
 
 	ceph_opts = ceph_parse_options(options, mon_addr,
 					mon_addr + mon_addr_len,
-					parse_rbd_opts_token, rbd_opts);
+					parse_rbd_opts_token, &rbd_opts);
 	if (IS_ERR(ceph_opts))
 		return PTR_ERR(ceph_opts);
+
+	/* Record the parsed rbd options */
+
+	rbd_dev->mapping.read_only = rbd_opts.read_only;
 
 	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc) {
@@ -685,7 +690,6 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev, char *snap_name)
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.features = rbd_dev->header.features;
 		rbd_dev->mapping.snap_exists = false;
-		rbd_dev->mapping.read_only = rbd_dev->rbd_opts.read_only;
 		ret = 0;
 	} else {
 		ret = snap_by_name(rbd_dev, snap_name);
