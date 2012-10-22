@@ -127,15 +127,15 @@ do {								\
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
 #define IE_MAX_LEN			512
 
-/* dongle status */
-enum wl_status {
-	WL_STATUS_READY,
-	WL_STATUS_SCANNING,
-	WL_STATUS_SCAN_ABORTING,
-	WL_STATUS_CONNECTING,
-	WL_STATUS_CONNECTED,
-	WL_STATUS_AP_CREATING,
-	WL_STATUS_AP_CREATED
+/**
+ * enum brcmf_scan_status - dongle scan status
+ *
+ * @BRCMF_SCAN_STATUS_BUSY: scanning in progress on dongle.
+ * @BRCMF_SCAN_STATUS_ABORT: scan being aborted on dongle.
+ */
+enum brcmf_scan_status {
+	BRCMF_SCAN_STATUS_BUSY,
+	BRCMF_SCAN_STATUS_ABORT,
 };
 
 /* wi-fi mode */
@@ -236,6 +236,23 @@ struct brcmf_cfg80211_profile {
 };
 
 /**
+ * enum brcmf_vif_status - bit indices for vif status.
+ *
+ * @BRCMF_VIF_STATUS_READY: ready for operation.
+ * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
+ * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
+ * @BRCMF_VIF_STATUS_AP_CREATING: interface configured for AP operation.
+ * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
+ */
+enum brcmf_vif_status {
+	BRCMF_VIF_STATUS_READY,
+	BRCMF_VIF_STATUS_CONNECTING,
+	BRCMF_VIF_STATUS_CONNECTED,
+	BRCMF_VIF_STATUS_AP_CREATING,
+	BRCMF_VIF_STATUS_AP_CREATED
+};
+
+/**
  * struct brcmf_cfg80211_vif - virtual interface specific information.
  *
  * @ifp: lower layer interface pointer
@@ -243,6 +260,7 @@ struct brcmf_cfg80211_profile {
  * @profile: profile information.
  * @mode: operating mode.
  * @roam_off: roaming state.
+ * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
  * @list: linked list.
  */
@@ -252,6 +270,7 @@ struct brcmf_cfg80211_vif {
 	struct brcmf_cfg80211_profile profile;
 	s32 mode;
 	s32 roam_off;
+	unsigned long sme_state;
 	bool pm_block;
 	struct list_head list;
 };
@@ -420,7 +439,7 @@ struct brcmf_pno_scanresults_le {
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
  * @event_work: event handler work struct.
- * @status: current dongle status.
+ * @scan_status: scan activity on the dongle.
  * @pub: common driver information.
  * @channel: current channel.
  * @iscan_on: iscan on/off switch.
@@ -462,7 +481,7 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
 	struct work_struct event_work;
-	unsigned long status;
+	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
 	bool iscan_on;
