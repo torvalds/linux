@@ -409,7 +409,7 @@ static struct sensor_platform_data mma7660_info = {
 
 #if CONFIG_RK30_PWM_REGULATOR
 static int pwm_voltage_map[] = {
-	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+	950000,975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 
 static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
@@ -450,7 +450,7 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 #endif
 		.pwm_voltage = 1200000,
 		.suspend_voltage = 1050000,
-		.min_uV = 1000000,
+		.min_uV = 950000,
 		.max_uV	= 1400000,
 		.coefficient = 455,	//45.5%
 		.pwm_voltage_map = pwm_voltage_map,
