@@ -761,7 +761,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	} else {
 		CHECK_FULL_REGS(regs);
 		*childregs = *regs;
-		childregs->gpr[1] = usp;
+		if (usp)
+			childregs->gpr[1] = usp;
 		p->thread.regs = childregs;
 		childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
@@ -1030,8 +1031,6 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	      int __user *child_tidp, int p6,
 	      struct pt_regs *regs)
 {
-	if (usp == 0)
-		usp = regs->gpr[1];	/* stack pointer for child */
  	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
 }
 
@@ -1039,14 +1038,14 @@ int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
 	     unsigned long p4, unsigned long p5, unsigned long p6,
 	     struct pt_regs *regs)
 {
-	return do_fork(SIGCHLD, regs->gpr[1], regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, 0, regs, 0, NULL, NULL);
 }
 
 int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
 	      unsigned long p4, unsigned long p5, unsigned long p6,
 	      struct pt_regs *regs)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gpr[1],
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
 			regs, 0, NULL, NULL);
 }
 
