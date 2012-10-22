@@ -77,6 +77,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	struct dsi_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	int r;
@@ -90,7 +91,8 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
+	dss_select_lcd_clk_source(mgr->id,
+			dssdev->clocks.dispc.channel.lcd_clk_src);
 
 	dpi.mgr_config.clock_info = dispc_cinfo;
 
@@ -272,7 +274,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 	dss_mgr_disable(mgr);
 
 	if (dpi_use_dsi_pll(dssdev)) {
-		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
 		dsi_pll_uninit(dpi.dsidev, true);
 		dsi_runtime_put(dpi.dsidev);
 	}

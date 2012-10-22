@@ -283,7 +283,6 @@ void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
-void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src);
 void dss_select_dsi_clk_source(int dsi_module,
 		enum omap_dss_clk_source clk_src);
 void dss_select_lcd_clk_source(enum omap_channel channel,

@@ -304,7 +304,7 @@ static void dss_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
+static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 {
 	struct platform_device *dsidev;
 	int b;
@@ -375,8 +375,10 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	struct platform_device *dsidev;
 	int b, ix, pos;
 
-	if (!dss_has_feature(FEAT_LCD_CLK_SRC))
+	if (!dss_has_feature(FEAT_LCD_CLK_SRC)) {
+		dss_select_dispc_clk_source(clk_src);
 		return;
+	}
 
 	switch (clk_src) {
 	case OMAP_DSS_CLK_SRC_FCK:
@@ -934,6 +936,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	/* Select DPLL */
 	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
+
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 
 #ifdef CONFIG_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
