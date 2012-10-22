@@ -28,13 +28,15 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+typedef uint32_t gtt_pte_t;
+
 /* PPGTT support for Sandybdrige/Gen6 and later */
 static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
-	uint32_t *pt_vaddr;
-	uint32_t scratch_pte;
+	gtt_pte_t *pt_vaddr;
+	gtt_pte_t scratch_pte;
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
@@ -119,7 +121,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	i915_ppgtt_clear_range(ppgtt, 0,
 			       ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
-	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(uint32_t);
+	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
 
 	dev_priv->mm.aliasing_ppgtt = ppgtt;
 
@@ -169,9 +171,9 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
 					 const struct sg_table *pages,
 					 unsigned first_entry,
-					 uint32_t pte_flags)
+					 gtt_pte_t pte_flags)
 {
-	uint32_t *pt_vaddr, pte;
+	gtt_pte_t *pt_vaddr, pte;
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned i, j, m, segment_len;
@@ -214,7 +216,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-	uint32_t pte_flags = GEN6_PTE_VALID;
+	gtt_pte_t pte_flags = GEN6_PTE_VALID;
 
 	switch (cache_level) {
 	case I915_CACHE_LLC_MLC:
