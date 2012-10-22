@@ -11,7 +11,6 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
 	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
-	select PINCTRL
 	select PM_RUNTIME
 	select REGULATOR
 	select SERIAL_OMAP
