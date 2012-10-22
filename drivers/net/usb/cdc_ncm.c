@@ -64,6 +64,9 @@
 /* Minimum value for MaxDatagramSize, ch. 6.2.9 */
 #define	CDC_NCM_MIN_DATAGRAM_SIZE		1514	/* bytes */
 
+/* Minimum value for MaxDatagramSize, ch. 8.1.3 */
+#define CDC_MBIM_MIN_DATAGRAM_SIZE              2048    /* bytes */
+
 #define	CDC_NCM_MIN_TX_PKT			512	/* bytes */
 
 /* Default value for MaxDatagramSize */
@@ -98,6 +101,7 @@ struct cdc_ncm_ctx {
 	struct tasklet_struct bh;
 
 	const struct usb_cdc_ncm_desc *func_desc;
+	const struct usb_cdc_mbim_desc *mbim_desc;
 	const struct usb_cdc_header_desc *header_desc;
 	const struct usb_cdc_union_desc *union_desc;
 	const struct usb_cdc_ether_desc *ether_desc;
@@ -158,7 +162,10 @@ static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
 	u8 flags;
 	u8 iface_no;
 	int err;
+	int eth_hlen;
 	u16 ntb_fmt_supported;
+	u32 min_dgram_size;
+	u32 min_hdr_size;
 
 	iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
 
@@ -184,10 +191,19 @@ static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
 	ctx->tx_max_datagrams = le16_to_cpu(ctx->ncm_parm.wNtbOutMaxDatagrams);
 	ntb_fmt_supported = le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported);
 
-	if (ctx->func_desc != NULL)
+	eth_hlen = ETH_HLEN;
+	min_dgram_size = CDC_NCM_MIN_DATAGRAM_SIZE;
+	min_hdr_size = CDC_NCM_MIN_HDR_SIZE;
+	if (ctx->mbim_desc != NULL) {
+		flags = ctx->mbim_desc->bmNetworkCapabilities;
+		eth_hlen = 0;
+		min_dgram_size = CDC_MBIM_MIN_DATAGRAM_SIZE;
+		min_hdr_size = 0;
+	} else if (ctx->func_desc != NULL) {
 		flags = ctx->func_desc->bmNetworkCapabilities;
-	else
+	} else {
 		flags = 0;
+	}
 
 	pr_debug("dwNtbInMaxSize=%u dwNtbOutMaxSize=%u "
 		 "wNdpOutPayloadRemainder=%u wNdpOutDivisor=%u "
@@ -237,7 +253,7 @@ size_err:
 
 	/* verify maximum size of transmitted NTB in bytes */
 	if ((ctx->tx_max <
-	    (CDC_NCM_MIN_HDR_SIZE + CDC_NCM_MIN_DATAGRAM_SIZE)) ||
+	    (min_hdr_size + min_dgram_size)) ||
 	    (ctx->tx_max > CDC_NCM_NTB_MAX_SIZE_TX)) {
 		pr_debug("Using default maximum transmit length=%d\n",
 						CDC_NCM_NTB_MAX_SIZE_TX);
@@ -279,8 +295,8 @@ size_err:
 	}
 
 	/* adjust TX-remainder according to NCM specification. */
-	ctx->tx_remainder = ((ctx->tx_remainder - ETH_HLEN) &
-						(ctx->tx_modulus - 1));
+	ctx->tx_remainder = ((ctx->tx_remainder - eth_hlen) &
+			     (ctx->tx_modulus - 1));
 
 	/* additional configuration */
 
@@ -307,12 +323,18 @@ size_err:
 			pr_debug("Setting NTB format to 16-bit failed\n");
 	}
 
-	ctx->max_datagram_size = CDC_NCM_MIN_DATAGRAM_SIZE;
+	ctx->max_datagram_size = min_dgram_size;
 
 	/* set Max Datagram Size (MTU) */
 	if (flags & USB_CDC_NCM_NCAP_MAX_DATAGRAM_SIZE) {
 		__le16 *max_datagram_size;
-		u16 eth_max_sz = le16_to_cpu(ctx->ether_desc->wMaxSegmentSize);
+		u16 eth_max_sz;
+		if (ctx->ether_desc != NULL)
+			eth_max_sz = le16_to_cpu(ctx->ether_desc->wMaxSegmentSize);
+		else if (ctx->mbim_desc != NULL)
+			eth_max_sz = le16_to_cpu(ctx->mbim_desc->wMaxSegmentSize);
+		else
+			goto max_dgram_err;
 
 		max_datagram_size = kzalloc(sizeof(*max_datagram_size),
 				GFP_KERNEL);
@@ -329,7 +351,7 @@ size_err:
 				2, 1000);
 		if (err < 0) {
 			pr_debug("GET_MAX_DATAGRAM_SIZE failed, use size=%u\n",
-						CDC_NCM_MIN_DATAGRAM_SIZE);
+				 min_dgram_size);
 		} else {
 			ctx->max_datagram_size =
 				le16_to_cpu(*max_datagram_size);
@@ -338,12 +360,10 @@ size_err:
 					ctx->max_datagram_size = eth_max_sz;
 
 			if (ctx->max_datagram_size > CDC_NCM_MAX_DATAGRAM_SIZE)
-				ctx->max_datagram_size =
-						CDC_NCM_MAX_DATAGRAM_SIZE;
+				ctx->max_datagram_size = CDC_NCM_MAX_DATAGRAM_SIZE;
 
-			if (ctx->max_datagram_size < CDC_NCM_MIN_DATAGRAM_SIZE)
-				ctx->max_datagram_size =
-					CDC_NCM_MIN_DATAGRAM_SIZE;
+			if (ctx->max_datagram_size < min_dgram_size)
+				ctx->max_datagram_size = min_dgram_size;
 
 			/* if value changed, update device */
 			if (ctx->max_datagram_size !=
@@ -364,8 +384,8 @@ size_err:
 	}
 
 max_dgram_err:
-	if (ctx->netdev->mtu != (ctx->max_datagram_size - ETH_HLEN))
-		ctx->netdev->mtu = ctx->max_datagram_size - ETH_HLEN;
+	if (ctx->netdev->mtu != (ctx->max_datagram_size - eth_hlen))
+		ctx->netdev->mtu = ctx->max_datagram_size - eth_hlen;
 
 	return 0;
 }
