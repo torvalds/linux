@@ -647,8 +647,6 @@ tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 	if (tree_mod_dont_log(fs_info, NULL))
 		return 0;
 
-	__tree_mod_log_free_eb(fs_info, old_root);
-
 	ret = tree_mod_alloc(fs_info, flags, &tm);
 	if (ret < 0)
 		goto out;
@@ -926,12 +924,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			ret = btrfs_dec_ref(trans, root, buf, 1, 1);
 			BUG_ON(ret); /* -ENOMEM */
 		}
-		/*
-		 * don't log freeing in case we're freeing the root node, this
-		 * is done by tree_mod_log_set_root_pointer later
-		 */
-		if (buf != root->node && btrfs_header_level(buf) != 0)
-			tree_mod_log_free_eb(root->fs_info, buf);
+		tree_mod_log_free_eb(root->fs_info, buf);
 		clean_tree_block(trans, root, buf);
 		*last_ref = 1;
 	}
@@ -1728,6 +1721,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
+		tree_mod_log_free_eb(root->fs_info, root->node);
 		tree_mod_log_set_root_pointer(root, child);
 		rcu_assign_pointer(root->node, child);
 
