@@ -3407,6 +3407,76 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, 0x0);
 }
 
+/**
+ * cik_dma_vm_flush - cik vm flush using sDMA
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Update the page table base and flush the VM TLB
+ * using sDMA (CIK).
+ */
+void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
+{
+	struct radeon_ring *ring = &rdev->ring[ridx];
+	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(1) |
+			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
+	u32 ref_and_mask;
+
+	if (vm == NULL)
+		return;
+
+	if (ridx == R600_RING_TYPE_DMA_INDEX)
+		ref_and_mask = SDMA0;
+	else
+		ref_and_mask = SDMA1;
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	if (vm->id < 8) {
+		radeon_ring_write(ring, (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2)) >> 2);
+	} else {
+		radeon_ring_write(ring, (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((vm->id - 8) << 2)) >> 2);
+	}
+	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
+
+	/* update SH_MEM_* regs */
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
+	radeon_ring_write(ring, VMID(vm->id));
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SH_MEM_BASES >> 2);
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SH_MEM_CONFIG >> 2);
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SH_MEM_APE1_BASE >> 2);
+	radeon_ring_write(ring, 1);
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SH_MEM_APE1_LIMIT >> 2);
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
+	radeon_ring_write(ring, VMID(0));
+
+	/* flush HDP */
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
+	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE);
+	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ);
+	radeon_ring_write(ring, ref_and_mask); /* REFERENCE */
+	radeon_ring_write(ring, ref_and_mask); /* MASK */
+	radeon_ring_write(ring, (4 << 16) | 10); /* RETRY_COUNT, POLL_INTERVAL */
+
+	/* flush TLB */
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
+	radeon_ring_write(ring, 1 << vm->id);
+}
+
 /*
  * RLC
  * The RLC is a multi-purpose microengine that handles a
