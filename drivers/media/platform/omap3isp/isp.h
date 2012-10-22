@@ -29,6 +29,7 @@
 
 #include <media/omap3isp.h>
 #include <media/v4l2-device.h>
+#include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
@@ -125,8 +126,20 @@ struct isp_reg {
 	u32 val;
 };
 
-struct isp_platform_callback {
-	u32 (*set_xclk)(struct isp_device *isp, u32 xclk, u8 xclksel);
+enum isp_xclk_id {
+	ISP_XCLK_A,
+	ISP_XCLK_B,
+};
+
+struct isp_xclk {
+	struct isp_device *isp;
+	struct clk_hw hw;
+	struct clk_lookup *lookup;
+	enum isp_xclk_id id;
+
+	spinlock_t lock;	/* Protects enabled and divider */
+	bool enabled;
+	unsigned int divider;
 };
 
 /*
@@ -149,6 +162,7 @@ struct isp_platform_callback {
  * @cam_mclk: Pointer to camera functional clock structure.
  * @csi2_fck: Pointer to camera CSI2 complexIO clock structure.
  * @l3_ick: Pointer to OMAP3 L3 bus interface clock.
+ * @xclks: External clocks provided by the ISP
  * @irq: Currently attached ISP ISR callbacks information structure.
  * @isp_af: Pointer to current settings for ISP AutoFocus SCM.
  * @isp_hist: Pointer to current settings for ISP Histogram SCM.
@@ -185,12 +199,12 @@ struct isp_device {
 	int has_context;
 	int ref_count;
 	unsigned int autoidle;
-	u32 xclk_divisor[2];	/* Two clocks, a and b. */
 #define ISP_CLK_CAM_ICK		0
 #define ISP_CLK_CAM_MCLK	1
 #define ISP_CLK_CSI2_FCK	2
 #define ISP_CLK_L3_ICK		3
 	struct clk *clock[4];
+	struct isp_xclk xclks[2];
 
 	/* ISP modules */
 	struct ispstat isp_af;
@@ -209,8 +223,6 @@ struct isp_device {
 	unsigned int subclk_resources;
 
 	struct iommu_domain *domain;
-
-	struct isp_platform_callback platform_cb;
 };
 
 #define v4l2_dev_to_isp_device(dev) \
