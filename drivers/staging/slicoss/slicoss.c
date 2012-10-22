@@ -593,8 +593,7 @@ static int slic_card_download(struct adapter *adapter)
 		file = "slicoss/gbdownload.sys";
 		break;
 	default:
-		ASSERT(0);
-		break;
+		return -ENOENT;
 	}
 	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
 	if (ret) {
