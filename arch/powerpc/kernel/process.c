@@ -1025,8 +1025,6 @@ int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
 }
 
-#define TRUNC_PTR(x)	((typeof(x))(((unsigned long)(x)) & 0xffffffff))
-
 int sys_clone(unsigned long clone_flags, unsigned long usp,
 	      int __user *parent_tidp, void __user *child_threadptr,
 	      int __user *child_tidp, int p6,
@@ -1035,12 +1033,6 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	CHECK_FULL_REGS(regs);
 	if (usp == 0)
 		usp = regs->gpr[1];	/* stack pointer for child */
-#ifdef CONFIG_PPC64
-	if (is_32bit_task()) {
-		parent_tidp = TRUNC_PTR(parent_tidp);
-		child_tidp = TRUNC_PTR(child_tidp);
-	}
-#endif
  	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
 }
 
