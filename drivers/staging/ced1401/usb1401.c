@@ -1537,7 +1537,7 @@ error:
 static void ced_disconnect(struct usb_interface *interface)
 {
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(interface);
-	int minor = interface->minor;	// save for message at the end
+	int minor = interface->minor;
 	int i;
 
 	usb_set_intfdata(interface, NULL);	// remove the pdx from the interface
