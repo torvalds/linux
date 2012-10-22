@@ -240,6 +240,7 @@ struct brcmf_cfg80211_profile {
  *
  * @ifp: lower layer interface pointer
  * @wdev: wireless device.
+ * @profile: profile information.
  * @mode: operating mode.
  * @roam_off: roaming state.
  * @pm_block: power-management blocked.
@@ -248,6 +249,7 @@ struct brcmf_cfg80211_profile {
 struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
 	struct wireless_dev wdev;
+	struct brcmf_cfg80211_profile profile;
 	s32 mode;
 	s32 roam_off;
 	bool pm_block;
@@ -414,7 +416,6 @@ struct brcmf_pno_scanresults_le {
  * @scan_req_int: internal scan request object.
  * @bss_info: bss information for cfg80211 layer.
  * @ie: information element object for internal purpose.
- * @profile: holding dongle profile.
  * @iscan: iscan controller information.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
@@ -457,7 +458,6 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_scan_req *scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_ie ie;
-	struct brcmf_cfg80211_profile *profile;
 	struct brcmf_cfg80211_iscan_ctrl *iscan;
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
@@ -514,6 +514,12 @@ struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
 static inline struct brcmf_cfg80211_info *ndev_to_cfg(struct net_device *ndev)
 {
 	return wdev_to_cfg(ndev->ieee80211_ptr);
+}
+
+static inline struct brcmf_cfg80211_profile *ndev_to_prof(struct net_device *nd)
+{
+	struct brcmf_if *ifp = netdev_priv(nd);
+	return &ifp->vif->profile;
 }
 
 #define iscan_to_cfg(i) ((struct brcmf_cfg80211_info *)(i->data))
