@@ -41,9 +41,65 @@
 #include <linux/irq.h>
 #include <linux/async.h>
 #include <mach/board.h>
+#include <mach/config.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
+
+#define TP_MODULE_NAME  "egalax_i2c"
+#ifdef CONFIG_RK_CONFIG
+
+enum {
+#ifdef RK2926_TB_DEFAULT_CONFIG
+        DEF_EN = 1,
+#else
+        DEF_EN = 0,
+#endif
+        DEF_IRQ = 0x008001b0,
+        DEF_RST = 0X000002b0,
+        DEF_I2C = 2, 
+        DEF_ADDR = 0x04,
+        DEF_X_MAX = 1087,
+        DEF_Y_MAX = 800,
+};
+static int en = DEF_EN;
+module_param(en, int, 0644);
+
+static int irq = DEF_IRQ;
+module_param(irq, int, 0644);
+static int rst =DEF_RST;
+module_param(rst, int, 0644);
+
+static int i2c = DEF_I2C;            // i2c channel
+module_param(i2c, int, 0644);
+static int addr = DEF_ADDR;           // i2c addr
+module_param(addr, int, 0644);
+static int x_max = DEF_X_MAX;
+module_param(x_max, int, 0644);
+static int y_max = DEF_Y_MAX;
+module_param(y_max, int, 0644);
+
+static int tp_hw_init(void)
+{
+        int ret = 0;
+
+        ret = gpio_request(get_port_config(irq).gpio, "tp_irq");
+        if(ret < 0){
+                printk("%s: gpio_request(irq gpio) failed\n", __func__);
+                return ret;
+        }
+
+        ret = port_output_init(rst, 0, "tp_rst");
+        if(ret < 0){
+                printk("%s: port(rst) output init faild\n", __func__);
+                return ret;
+        }
+        port_output_on(rst);
+
+         return 0;
+}
+#include "rk_tp.c"
 #endif
 
 //#define DEBUG
@@ -54,6 +110,7 @@
 	#define TS_DEBUG(fmt,args...)
 	#define DBG()
 #endif
+
 
 //#define _NON_INPUT_DEV // define this to disable register input device	
 
@@ -416,8 +473,13 @@ static struct input_dev * allocate_Input_Dev(void)
 	__set_bit(EV_ABS, pInputDev->evbit);
 
 	input_mt_init_slots(pInputDev, MAX_SUPPORT_POINT);
+#ifdef CONFIG_RK_CONFIG
+	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, x_max, 0, 0);
+	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, y_max, 0, 0);
+#else
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, CONFIG_EETI_EGALAX_MAX_X, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, CONFIG_EETI_EGALAX_MAX_Y, 0, 0);
+#endif
 	input_set_abs_params(pInputDev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 
 	ret = input_register_device(pInputDev);
@@ -538,13 +600,13 @@ static irqreturn_t egalax_i2c_interrupt(int irq, void *dev_id)
 
 void egalax_i2c_set_standby(struct i2c_client *client, int enable)
 {
+#ifndef CONFIG_RK_CONFIG
         struct eeti_egalax_platform_data *mach_info = client->dev.platform_data;
 	unsigned display_on = mach_info->disp_on_pin;
 	unsigned lcd_standby = mach_info->standby_pin;
 
 	int display_on_pol = mach_info->disp_on_value;
 	int lcd_standby_pol = mach_info->standby_value;
-#ifndef CONFIG_ARCH_RK2928
         printk("%s : %s, enable = %d", __FILE__, __FUNCTION__,enable);
     if(display_on != INVALID_GPIO)
     {
@@ -652,10 +714,19 @@ static struct suspend_info suspend_info = {
 static int __devinit egalax_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
-	int gpio = client->irq;
-	struct eeti_egalax_platform_data *pdata = pdata = client->dev.platform_data;
+	int gpio;
+#ifdef CONFIG_RK_CONFIG
+        struct port_config irq_cfg = get_port_config(irq);
 
+        client->irq = irq_cfg.gpio;
+        tp_hw_init();
+#else
+	struct eeti_egalax_platform_data *pdata = pdata = client->dev.platform_data;
+        if (pdata->init_platform_hw)
+		pdata->init_platform_hw();
+#endif
 	printk(KERN_DEBUG "[egalax_i2c]: start probe\n");
+        gpio = client->irq;
 
 	p_egalax_i2c_dev = (struct _egalax_i2c *)kzalloc(sizeof(struct _egalax_i2c), GFP_KERNEL);
 	if (!p_egalax_i2c_dev) 
@@ -677,8 +748,6 @@ static int __devinit egalax_i2c_probe(struct i2c_client *client, const struct i2
 	memset(PointBuf, 0, sizeof(struct point_data)*MAX_SUPPORT_POINT);
 #endif //#ifndef _NON_INPUT_DEV
 
-if (pdata->init_platform_hw)
-		pdata->init_platform_hw();
 
 	p_egalax_i2c_dev->client = client;
 	mutex_init(&p_egalax_i2c_dev->mutex_wq);
@@ -696,9 +765,13 @@ if (pdata->init_platform_hw)
 	p_egalax_i2c_dev->work_state = 1;
 	
 	p_egalax_i2c_dev->irq = gpio_to_irq(client->irq);
-	
+#ifdef CONFIG_RK_CONFIG
+	ret = request_irq(p_egalax_i2c_dev->irq, egalax_i2c_interrupt, irq_cfg.irq.irq_flags,
+		 client->name, p_egalax_i2c_dev);
+#else
 	ret = request_irq(p_egalax_i2c_dev->irq, egalax_i2c_interrupt, IRQF_TRIGGER_LOW,
 		 client->name, p_egalax_i2c_dev);
+#endif
 	if( ret ) 
 	{
 		printk(KERN_ERR "[egalax_i2c]: request irq(%d) failed\n", p_egalax_i2c_dev->irq);
@@ -772,7 +845,7 @@ static int __devexit egalax_i2c_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id egalax_i2c_idtable[] = { 
-	{ "egalax_i2c", 0 }, 
+	{ TP_MODULE_NAME, 0 }, 
 	{ } 
 }; 
 
@@ -780,7 +853,7 @@ MODULE_DEVICE_TABLE(i2c, egalax_i2c_idtable);
 
 static struct i2c_driver egalax_i2c_driver = {
 	.driver = {
-		.name 	= "egalax_i2c",
+		.name 	= TP_MODULE_NAME,
 	},
 	.id_table	= egalax_i2c_idtable,
 	.probe		= egalax_i2c_probe,
@@ -939,6 +1012,12 @@ fail:
 
 static int __init egalax_i2c_ts_init(void)
 {
+#ifdef CONFIG_RK_CONFIG
+        int ret = tp_board_init();
+
+        if(ret < 0)
+                return ret;
+#endif
 	async_schedule(egalax_i2c_ts_init_async, NULL);
 	return 0;
 }

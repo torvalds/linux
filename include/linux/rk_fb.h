@@ -56,15 +56,15 @@
 ********************************************************************/
 /* */
 #define OUT_P888            0
-#define OUT_P666            1    //
-#define OUT_P565            2    //
+#define OUT_P666            1
+#define OUT_P565            2 
 #define OUT_S888x           4
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
-#define OUT_P16BPP4         24  //
-#define OUT_D888_P666       0x21  //
-#define OUT_D888_P565       0x22  //
+#define OUT_P16BPP4         24
+#define OUT_D888_P666       0x21
+#define OUT_D888_P565       0x22
 
 
 /**

@@ -7,6 +7,11 @@
  * gpio = RKXX_PIN(bank)_P(goff)(off)
  * e.g.  bank=2, goff=A, off=3 ==>gpio is RKXX_PIN2_PA3
  */
+enum {
+        PULL_MODE_NONE = 0,
+        PULL_MODE_DISABLE,
+        PULL_MODE_ENABLE,
+};
 struct irq_config{
         unsigned int off:4,  //bit[3:0]
                      goff:4,

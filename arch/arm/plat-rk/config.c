@@ -10,7 +10,10 @@ int port_output_init(unsigned int value, int on, char *name)
         ret = gpio_request(port.gpio, name);
         if(ret < 0)
                 return ret;
-        gpio_pull_updown(port.gpio, port.io.pull_mode);
+        if(port.io.pull_mode == PULL_MODE_DISABLE)
+                gpio_pull_updown(port.gpio, 0);
+        if(port.io.pull_mode == PULL_MODE_ENABLE)
+                gpio_pull_updown(port.gpio, 1);
         gpio_direction_output(port.gpio, (on)? !port.io.active_low: !!port.io.active_low);
 
         return 0;
@@ -49,7 +52,10 @@ int port_input_init(unsigned int value, char *name)
         ret = gpio_request(port.gpio, name);
         if(ret < 0)
                 return ret;
-        gpio_pull_updown(port.gpio, port.io.pull_mode);
+        if(port.io.pull_mode == PULL_MODE_DISABLE)
+                gpio_pull_updown(port.gpio, 0);
+        if(port.io.pull_mode == PULL_MODE_ENABLE)
+                gpio_pull_updown(port.gpio, 1);
         gpio_direction_input(port.gpio);
 
         return 0;

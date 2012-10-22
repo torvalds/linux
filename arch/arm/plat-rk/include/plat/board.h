@@ -63,7 +63,7 @@ struct rk29_io_t {
 };
 
 enum {
-	PMIC_TYPE_NOE =0,
+	PMIC_TYPE_NONE =0,
 	PMIC_TYPE_WM8326 =1,
 	PMIC_TYPE_TPS65910 =2,
 	PMIC_TYPE_ACT8931 =3,

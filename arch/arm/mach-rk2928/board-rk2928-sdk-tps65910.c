@@ -63,7 +63,11 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	int err = -1;
 		
 	printk("%s,line=%d\n", __func__,__LINE__);	
+#ifdef CONFIG_RK_CONFIG
+        if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
+#else
         if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
+#endif
                 printk(KERN_ERR "PMU_POWER_SLEEP is invalid gpio\n");
                 return -EINVAL;
         }
