@@ -89,7 +89,7 @@ struct exception_table_entry {
 	({							\
 		int _err = 0;					\
 		typeof(*(p)) _x = (x);				\
-		typeof(*(p)) *_p = (p);				\
+		typeof(*(p)) __user *_p = (p);				\
 		if (!access_ok(VERIFY_WRITE, _p, sizeof(*(_p)))) {\
 			_err = -EFAULT;				\
 		}						\
@@ -108,8 +108,8 @@ struct exception_table_entry {
 			long _xl, _xh;				\
 			_xl = ((long *)&_x)[0];			\
 			_xh = ((long *)&_x)[1];			\
-			__put_user_asm(_xl, ((long *)_p)+0, );	\
-			__put_user_asm(_xh, ((long *)_p)+1, );	\
+			__put_user_asm(_xl, ((long __user *)_p)+0, );	\
+			__put_user_asm(_xh, ((long __user *)_p)+1, );	\
 		} break;					\
 		default:					\
 			_err = __put_user_bad();		\
@@ -136,7 +136,7 @@ static inline int bad_user_access_length(void)
  * aliasing issues.
  */
 
-#define __ptr(x) ((unsigned long *)(x))
+#define __ptr(x) ((unsigned long __force *)(x))
 
 #define __put_user_asm(x,p,bhw)				\
 	__asm__ (#bhw"[%1] = %0;\n\t"			\
