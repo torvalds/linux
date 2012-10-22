@@ -1208,30 +1208,18 @@ ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	ncm->notify_req->context = ncm;
 	ncm->notify_req->complete = ncm_notify_complete;
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(ncm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/*
 	 * support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_ncm_in_desc.bEndpointAddress =
-				fs_ncm_in_desc.bEndpointAddress;
-		hs_ncm_out_desc.bEndpointAddress =
-				fs_ncm_out_desc.bEndpointAddress;
-		hs_ncm_notify_desc.bEndpointAddress =
-				fs_ncm_notify_desc.bEndpointAddress;
+	hs_ncm_in_desc.bEndpointAddress = fs_ncm_in_desc.bEndpointAddress;
+	hs_ncm_out_desc.bEndpointAddress = fs_ncm_out_desc.bEndpointAddress;
+	hs_ncm_notify_desc.bEndpointAddress =
+		fs_ncm_notify_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(ncm_hs_function);
-		if (!f->hs_descriptors)
-			goto fail;
-	}
-
+	status = usb_assign_descriptors(f, ncm_fs_function, ncm_hs_function,
+			NULL);
 	/*
 	 * NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -1248,9 +1236,7 @@ ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (f->descriptors)
-		usb_free_descriptors(f->descriptors);
-
+	usb_free_all_descriptors(f);
 	if (ncm->notify_req) {
 		kfree(ncm->notify_req->buf);
 		usb_ep_free_request(ncm->notify, ncm->notify_req);
@@ -1276,9 +1262,7 @@ ncm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ncm unbind\n");
 
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 
 	kfree(ncm->notify_req->buf);
 	usb_ep_free_request(ncm->notify, ncm->notify_req);

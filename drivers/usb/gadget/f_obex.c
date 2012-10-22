@@ -331,23 +331,19 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 	obex->port.out = ep;
 	ep->driver_data = cdev;	/* claim */
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(fs_function);
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
 
-		obex_hs_ep_in_desc.bEndpointAddress =
-				obex_fs_ep_in_desc.bEndpointAddress;
-		obex_hs_ep_out_desc.bEndpointAddress =
-				obex_fs_ep_out_desc.bEndpointAddress;
+	obex_hs_ep_in_desc.bEndpointAddress =
+		obex_fs_ep_in_desc.bEndpointAddress;
+	obex_hs_ep_out_desc.bEndpointAddress =
+		obex_fs_ep_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(hs_function);
-	}
+	status = usb_assign_descriptors(f, fs_function, hs_function, NULL);
+	if (status)
+		goto fail;
 
 	/* Avoid letting this gadget enumerate until the userspace
 	 * OBEX server is active.
@@ -368,6 +364,7 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
+	usb_free_all_descriptors(f);
 	/* we might as well release our claims on endpoints */
 	if (obex->port.out)
 		obex->port.out->driver_data = NULL;
@@ -382,9 +379,7 @@ fail:
 static void
 obex_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 	kfree(func_to_obex(f));
 }
 

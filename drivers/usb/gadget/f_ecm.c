@@ -743,42 +743,24 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->notify_req->context = ecm;
 	ecm->notify_req->complete = ecm_notify_complete;
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(ecm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		hs_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		hs_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
+	hs_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	hs_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	hs_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(ecm_hs_function);
-		if (!f->hs_descriptors)
-			goto fail;
-	}
+	ss_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	ss_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	ss_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		ss_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		ss_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		ss_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
-
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(ecm_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
+			ecm_ss_function);
+	if (status)
+		goto fail;
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -796,11 +778,6 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (f->descriptors)
-		usb_free_descriptors(f->descriptors);
-	if (f->hs_descriptors)
-		usb_free_descriptors(f->hs_descriptors);
-
 	if (ecm->notify_req) {
 		kfree(ecm->notify_req->buf);
 		usb_ep_free_request(ecm->notify, ecm->notify_req);
@@ -826,11 +803,7 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ecm unbind\n");
 
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
 	usb_ep_free_request(ecm->notify, ecm->notify_req);

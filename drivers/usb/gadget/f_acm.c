@@ -658,37 +658,22 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	acm->notify_req->complete = acm_cdc_notify_complete;
 	acm->notify_req->context = acm;
 
-	/* copy descriptors */
-	f->descriptors = usb_copy_descriptors(acm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		acm_hs_in_desc.bEndpointAddress =
-				acm_fs_in_desc.bEndpointAddress;
-		acm_hs_out_desc.bEndpointAddress =
-				acm_fs_out_desc.bEndpointAddress;
-		acm_hs_notify_desc.bEndpointAddress =
-				acm_fs_notify_desc.bEndpointAddress;
+	acm_hs_in_desc.bEndpointAddress = acm_fs_in_desc.bEndpointAddress;
+	acm_hs_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
+	acm_hs_notify_desc.bEndpointAddress =
+		acm_fs_notify_desc.bEndpointAddress;
 
-		/* copy descriptors */
-		f->hs_descriptors = usb_copy_descriptors(acm_hs_function);
-	}
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		acm_ss_in_desc.bEndpointAddress =
-			acm_fs_in_desc.bEndpointAddress;
-		acm_ss_out_desc.bEndpointAddress =
-			acm_fs_out_desc.bEndpointAddress;
+	acm_ss_in_desc.bEndpointAddress = acm_fs_in_desc.bEndpointAddress;
+	acm_ss_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(acm_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, acm_fs_function, acm_hs_function,
+			acm_ss_function);
+	if (status)
+		goto fail;
 
 	DBG(cdev, "acm ttyGS%d: %s speed IN/%s OUT/%s NOTIFY/%s\n",
 			acm->port_num,
@@ -720,11 +705,7 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_acm		*acm = func_to_acm(f);
 
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 	gs_free_req(acm->notify, acm->notify_req);
 	kfree(acm);
 }

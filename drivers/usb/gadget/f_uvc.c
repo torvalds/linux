@@ -583,9 +583,7 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_ep_free_request(cdev->gadget->ep0, uvc->control_req);
 	kfree(uvc->control_buf);
 
-	kfree(f->descriptors);
-	kfree(f->hs_descriptors);
-	kfree(f->ss_descriptors);
+	usb_free_all_descriptors(f);
 
 	kfree(uvc);
 }
@@ -651,49 +649,40 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	/* sanity check the streaming endpoint module parameters */
 	if (streaming_maxpacket > 1024)
 		streaming_maxpacket = 1024;
+	/*
+	 * Fill in the HS descriptors from the module parameters for the Video
+	 * Streaming endpoint.
+	 * NOTE: We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	uvc_hs_streaming_ep.wMaxPacketSize = streaming_maxpacket;
+	uvc_hs_streaming_ep.wMaxPacketSize |= streaming_mult << 11;
+	uvc_hs_streaming_ep.bInterval = streaming_interval;
+	uvc_hs_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
 
-	/* Copy descriptors for FS. */
-	f->descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
+	/*
+	 * Fill in the SS descriptors from the module parameters for the Video
+	 * Streaming endpoint.
+	 * NOTE: We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	uvc_ss_streaming_ep.wMaxPacketSize = streaming_maxpacket;
+	uvc_ss_streaming_ep.bInterval = streaming_interval;
+	uvc_ss_streaming_comp.bmAttributes = streaming_mult;
+	uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
+	uvc_ss_streaming_comp.wBytesPerInterval =
+		streaming_maxpacket * (streaming_mult + 1) *
+		(streaming_maxburst + 1);
+	uvc_ss_streaming_ep.bEndpointAddress =
+		uvc_fs_streaming_ep.bEndpointAddress;
 
-	/* support high speed hardware */
-	if (gadget_is_dualspeed(cdev->gadget)) {
-		/*
-		 * Fill in the HS descriptors from the module parameters for the
-		 * Video Streaming endpoint.
-		 * NOTE: We assume that the user knows what they are doing and
-		 * won't give parameters that their UDC doesn't support.
-		 */
-		uvc_hs_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-		uvc_hs_streaming_ep.wMaxPacketSize |= streaming_mult << 11;
-		uvc_hs_streaming_ep.bInterval = streaming_interval;
-		uvc_hs_streaming_ep.bEndpointAddress =
-				uvc_fs_streaming_ep.bEndpointAddress;
-
-		/* Copy descriptors. */
+	/* Copy descriptors */
+	f->fs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
+	if (gadget_is_dualspeed(cdev->gadget))
 		f->hs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_HIGH);
-	}
-
-	/* support super speed hardware */
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		/*
-		 * Fill in the SS descriptors from the module parameters for the
-		 * Video Streaming endpoint.
-		 * NOTE: We assume that the user knows what they are doing and
-		 * won't give parameters that their UDC doesn't support.
-		 */
-		uvc_ss_streaming_ep.wMaxPacketSize = streaming_maxpacket;
-		uvc_ss_streaming_ep.bInterval = streaming_interval;
-		uvc_ss_streaming_comp.bmAttributes = streaming_mult;
-		uvc_ss_streaming_comp.bMaxBurst = streaming_maxburst;
-		uvc_ss_streaming_comp.wBytesPerInterval =
-			streaming_maxpacket * (streaming_mult + 1) *
-			(streaming_maxburst + 1);
-		uvc_ss_streaming_ep.bEndpointAddress =
-				uvc_fs_streaming_ep.bEndpointAddress;
-
-		/* Copy descriptors. */
+	if (gadget_is_superspeed(c->cdev->gadget))
 		f->ss_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER);
-	}
 
 	/* Preallocate control endpoint request. */
 	uvc->control_req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
@@ -741,9 +730,7 @@ error:
 		kfree(uvc->control_buf);
 	}
 
-	kfree(f->descriptors);
-	kfree(f->hs_descriptors);
-	kfree(f->ss_descriptors);
+	usb_free_all_descriptors(f);
 	return ret;
 }
 

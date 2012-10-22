@@ -2097,7 +2097,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	if (isHS)
 		func->function.hs_descriptors[(long)valuep] = desc;
 	else
-		func->function.descriptors[(long)valuep]    = desc;
+		func->function.fs_descriptors[(long)valuep]    = desc;
 
 	if (!desc || desc->bDescriptorType != USB_DT_ENDPOINT)
 		return 0;
@@ -2249,7 +2249,7 @@ static int ffs_func_bind(struct usb_configuration *c,
 	 * numbers without worrying that it may be described later on.
 	 */
 	if (likely(full)) {
-		func->function.descriptors = data->fs_descs;
+		func->function.fs_descriptors = data->fs_descs;
 		ret = ffs_do_descs(ffs->fs_descs_count,
 				   data->raw_descs,
 				   sizeof data->raw_descs,
