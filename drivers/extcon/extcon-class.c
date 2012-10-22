@@ -545,47 +545,9 @@ static int create_extcon_class(void)
 	return 0;
 }
 
-static void extcon_cleanup(struct extcon_dev *edev, bool skip)
-{
-	mutex_lock(&extcon_dev_list_lock);
-	list_del(&edev->entry);
-	mutex_unlock(&extcon_dev_list_lock);
-
-	if (!skip && get_device(edev->dev)) {
-		int index;
-
-		if (edev->mutually_exclusive && edev->max_supported) {
-			for (index = 0; edev->mutually_exclusive[index];
-			     index++)
-				kfree(edev->d_attrs_muex[index].attr.name);
-			kfree(edev->d_attrs_muex);
-			kfree(edev->attrs_muex);
-		}
-
-		for (index = 0; index < edev->max_supported; index++)
-			kfree(edev->cables[index].attr_g.name);
-
-		if (edev->max_supported) {
-			kfree(edev->extcon_dev_type.groups);
-			kfree(edev->cables);
-		}
-
-#if defined(CONFIG_ANDROID)
-		if (switch_class)
-			class_compat_remove_link(switch_class, edev->dev, NULL);
-#endif
-		device_unregister(edev->dev);
-		put_device(edev->dev);
-	}
-
-	kfree(edev->dev);
-}
-
 static void extcon_dev_release(struct device *dev)
 {
-	struct extcon_dev *edev = (struct extcon_dev *) dev_get_drvdata(dev);
-
-	extcon_cleanup(edev, true);
+	kfree(dev);
 }
 
 static const char *muex_name = "mutually_exclusive";
@@ -811,7 +773,40 @@ EXPORT_SYMBOL_GPL(extcon_dev_register);
  */
 void extcon_dev_unregister(struct extcon_dev *edev)
 {
-	extcon_cleanup(edev, false);
+	int index;
+
+	mutex_lock(&extcon_dev_list_lock);
+	list_del(&edev->entry);
+	mutex_unlock(&extcon_dev_list_lock);
+
+	if (IS_ERR_OR_NULL(get_device(edev->dev))) {
+		dev_err(edev->dev, "Failed to unregister extcon_dev (%s)\n",
+				dev_name(edev->dev));
+		return;
+	}
+
+	if (edev->mutually_exclusive && edev->max_supported) {
+		for (index = 0; edev->mutually_exclusive[index];
+				index++)
+			kfree(edev->d_attrs_muex[index].attr.name);
+		kfree(edev->d_attrs_muex);
+		kfree(edev->attrs_muex);
+	}
+
+	for (index = 0; index < edev->max_supported; index++)
+		kfree(edev->cables[index].attr_g.name);
+
+	if (edev->max_supported) {
+		kfree(edev->extcon_dev_type.groups);
+		kfree(edev->cables);
+	}
+
+#if defined(CONFIG_ANDROID)
+	if (switch_class)
+		class_compat_remove_link(switch_class, edev->dev, NULL);
+#endif
+	device_unregister(edev->dev);
+	put_device(edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
 
