@@ -26,6 +26,7 @@
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
+#include "fwil.h"
 
 
 static s32
@@ -263,7 +264,7 @@ brcmf_create_bsscfg(s32 bssidx, char *name, char *data, u32 datalen, char *buf,
 }
 
 s32
-brcmf_fil_bsscfg_data_set(struct net_device *ndev, s32 bssidx, char *name,
+brcmf_fil_bsscfg_data_set(struct net_device *ndev, char *name,
 			  void *data, u32 len)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -273,11 +274,11 @@ brcmf_fil_bsscfg_data_set(struct net_device *ndev, s32 bssidx, char *name,
 
 	mutex_lock(&drvr->proto_block);
 
-	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", bssidx, name, len);
+	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", ifp->bssidx, name, len);
 	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
 
-	buflen = brcmf_create_bsscfg(bssidx, name, data, len, drvr->proto_buf,
-				     sizeof(drvr->proto_buf));
+	buflen = brcmf_create_bsscfg(ifp->bssidx, name, data, len,
+				     drvr->proto_buf, sizeof(drvr->proto_buf));
 	if (buflen) {
 		err = brcmf_fil_cmd_data(ifp, BRCMF_C_SET_VAR, drvr->proto_buf,
 					 buflen, true);
@@ -291,7 +292,7 @@ brcmf_fil_bsscfg_data_set(struct net_device *ndev, s32 bssidx, char *name,
 }
 
 s32
-brcmf_fil_bsscfg_data_get(struct net_device *ndev, s32 bssidx, char *name,
+brcmf_fil_bsscfg_data_get(struct net_device *ndev, char *name,
 			  void *data, u32 len)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -301,8 +302,8 @@ brcmf_fil_bsscfg_data_get(struct net_device *ndev, s32 bssidx, char *name,
 
 	mutex_lock(&drvr->proto_block);
 
-	buflen = brcmf_create_bsscfg(bssidx, name, NULL, len, drvr->proto_buf,
-				     sizeof(drvr->proto_buf));
+	buflen = brcmf_create_bsscfg(ifp->bssidx, name, NULL, len,
+				     drvr->proto_buf, sizeof(drvr->proto_buf));
 	if (buflen) {
 		err = brcmf_fil_cmd_data(ifp, BRCMF_C_GET_VAR, drvr->proto_buf,
 					 buflen, false);
@@ -312,7 +313,7 @@ brcmf_fil_bsscfg_data_get(struct net_device *ndev, s32 bssidx, char *name,
 		err = -EPERM;
 		brcmf_dbg(ERROR, "Creating bsscfg failed\n");
 	}
-	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", bssidx, name, len);
+	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", ifp->bssidx, name, len);
 	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
 
 	mutex_unlock(&drvr->proto_block);
@@ -321,23 +322,21 @@ brcmf_fil_bsscfg_data_get(struct net_device *ndev, s32 bssidx, char *name,
 }
 
 s32
-brcmf_fil_bsscfg_int_set(struct net_device *ndev, s32 bssidx, char *name,
-			 u32 data)
+brcmf_fil_bsscfg_int_set(struct net_device *ndev, char *name, u32 data)
 {
 	__le32 data_le = cpu_to_le32(data);
 
-	return brcmf_fil_bsscfg_data_set(ndev, bssidx, name, &data_le,
+	return brcmf_fil_bsscfg_data_set(ndev, name, &data_le,
 					 sizeof(data_le));
 }
 
 s32
-brcmf_fil_bsscfg_int_get(struct net_device *ndev, s32 bssidx, char *name,
-			 u32 *data)
+brcmf_fil_bsscfg_int_get(struct net_device *ndev, char *name, u32 *data)
 {
 	__le32 data_le = cpu_to_le32(*data);
 	s32 err;
 
-	err = brcmf_fil_bsscfg_data_get(ndev, bssidx, name, &data_le,
+	err = brcmf_fil_bsscfg_data_get(ndev, name, &data_le,
 					sizeof(data_le));
 	if (err == 0)
 		*data = le32_to_cpu(data_le);

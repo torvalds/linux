@@ -417,7 +417,7 @@ send_key_to_dongle(struct brcmf_cfg80211_info *cfg, s32 bssidx,
 
 	brcmf_netdev_wait_pend8021x(ndev);
 
-	err = brcmf_fil_bsscfg_data_set(ndev, bssidx, "wsec_key", &key_le,
+	err = brcmf_fil_bsscfg_data_set(ndev, "wsec_key", &key_le,
 					sizeof(key_le));
 
 	if (err)
@@ -1596,7 +1596,7 @@ brcmf_set_sharedkey(struct net_device *ndev,
 	if (sec->auth_type == NL80211_AUTHTYPE_SHARED_KEY) {
 		WL_CONN("set auth_type to shared key\n");
 		val = WL_AUTH_SHARED_KEY;	/* shared key */
-		err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "auth", val);
+		err = brcmf_fil_bsscfg_int_set(ndev, "auth", val);
 		if (err)
 			WL_ERR("set auth failed (%d)\n", err);
 	}
@@ -1815,7 +1815,7 @@ brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -EIO;
 
 	bssidx = brcmf_find_bssidx(cfg, ndev);
-	err = brcmf_fil_bsscfg_int_get(ndev, bssidx, "wsec", &wsec);
+	err = brcmf_fil_bsscfg_int_get(ndev, "wsec", &wsec);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		goto done;
@@ -1994,13 +1994,13 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (err)
 		goto done;
 
-	err = brcmf_fil_bsscfg_int_get(ndev, bssidx, "wsec", &wsec);
+	err = brcmf_fil_bsscfg_int_get(ndev, "wsec", &wsec);
 	if (err) {
 		WL_ERR("get wsec error (%d)\n", err);
 		goto done;
 	}
 	wsec |= val;
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wsec", wsec);
+	err = brcmf_fil_bsscfg_int_set(ndev, "wsec", wsec);
 	if (err) {
 		WL_ERR("set wsec error (%d)\n", err);
 		goto done;
@@ -2070,7 +2070,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 	memset(&params, 0, sizeof(params));
 
 	bssidx = brcmf_find_bssidx(cfg, ndev);
-	err = brcmf_fil_bsscfg_int_get(ndev, bssidx, "wsec", &wsec);
+	err = brcmf_fil_bsscfg_int_get(ndev, "wsec", &wsec);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -3481,19 +3481,19 @@ static s32 brcmf_configure_opensecurity(struct net_device *ndev, s32 bssidx)
 	s32 err;
 
 	/* set auth */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "auth", 0);
+	err = brcmf_fil_bsscfg_int_set(ndev, "auth", 0);
 	if (err < 0) {
 		WL_ERR("auth error %d\n", err);
 		return err;
 	}
 	/* set wsec */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wsec", 0);
+	err = brcmf_fil_bsscfg_int_set(ndev, "wsec", 0);
 	if (err < 0) {
 		WL_ERR("wsec error %d\n", err);
 		return err;
 	}
 	/* set upper-layer auth */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wpa_auth", WPA_AUTH_NONE);
+	err = brcmf_fil_bsscfg_int_set(ndev, "wpa_auth", WPA_AUTH_NONE);
 	if (err < 0) {
 		WL_ERR("wpa_auth error %d\n", err);
 		return err;
@@ -3654,7 +3654,7 @@ brcmf_configure_wpaie(struct net_device *ndev, struct brcmf_vs_tlv *wpa_ie,
 				wme_bss_disable = 0;
 		}
 		/* set wme_bss_disable to sync RSN Capabilities */
-		err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wme_bss_disable",
+		err = brcmf_fil_bsscfg_int_set(ndev, "wme_bss_disable",
 					       wme_bss_disable);
 		if (err < 0) {
 			WL_ERR("wme_bss_disable error %d\n", err);
@@ -3665,19 +3665,19 @@ brcmf_configure_wpaie(struct net_device *ndev, struct brcmf_vs_tlv *wpa_ie,
 	wsec = (pval | gval | SES_OW_ENABLED);
 
 	/* set auth */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "auth", auth);
+	err = brcmf_fil_bsscfg_int_set(ndev, "auth", auth);
 	if (err < 0) {
 		WL_ERR("auth error %d\n", err);
 		goto exit;
 	}
 	/* set wsec */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wsec", wsec);
+	err = brcmf_fil_bsscfg_int_set(ndev, "wsec", wsec);
 	if (err < 0) {
 		WL_ERR("wsec error %d\n", err);
 		goto exit;
 	}
 	/* set upper-layer auth */
-	err = brcmf_fil_bsscfg_int_set(ndev, bssidx, "wpa_auth", wpa_auth);
+	err = brcmf_fil_bsscfg_int_set(ndev, "wpa_auth", wpa_auth);
 	if (err < 0) {
 		WL_ERR("wpa_auth error %d\n", err);
 		goto exit;
@@ -3907,7 +3907,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 		}
 	}
 	if (total_ie_buf_len) {
-		err  = brcmf_fil_bsscfg_data_set(ndev, bssidx, "vndr_ie",
+		err  = brcmf_fil_bsscfg_data_set(ndev, "vndr_ie",
 						 iovar_ie_buf,
 						 total_ie_buf_len);
 		if (err)
