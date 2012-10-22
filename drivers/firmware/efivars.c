@@ -991,7 +991,7 @@ int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes          = MAX_LFS_FILESIZE;
 	sb->s_blocksize         = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits    = PAGE_CACHE_SHIFT;
-	sb->s_magic             = PSTOREFS_MAGIC;
+	sb->s_magic             = EFIVARFS_MAGIC;
 	sb->s_op                = &efivarfs_ops;
 	sb->s_time_gran         = 1;
 
