@@ -40,6 +40,9 @@
 int nfc_devlist_generation;
 DEFINE_MUTEX(nfc_devlist_mutex);
 
+/* NFC device ID bitmap */
+static DEFINE_IDA(nfc_index_ida);
+
 /**
  * nfc_dev_up - turn on the NFC device
  *
@@ -760,7 +763,6 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
 				    int tx_headroom, int tx_tailroom)
 {
-	static atomic_t dev_no = ATOMIC_INIT(0);
 	struct nfc_dev *dev;
 
 	if (!ops->start_poll || !ops->stop_poll || !ops->activate_target ||
@@ -773,11 +775,6 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	dev = kzalloc(sizeof(struct nfc_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-
-	dev->dev.class = &nfc_class;
-	dev->idx = atomic_inc_return(&dev_no) - 1;
-	dev_set_name(&dev->dev, "nfc%d", dev->idx);
-	device_initialize(&dev->dev);
 
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
@@ -814,6 +811,14 @@ int nfc_register_device(struct nfc_dev *dev)
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
+	dev->idx = ida_simple_get(&nfc_index_ida, 0, 0, GFP_KERNEL);
+	if (dev->idx < 0)
+		return dev->idx;
+
+	dev->dev.class = &nfc_class;
+	dev_set_name(&dev->dev, "nfc%d", dev->idx);
+	device_initialize(&dev->dev);
+
 	mutex_lock(&nfc_devlist_mutex);
 	nfc_devlist_generation++;
 	rc = device_add(&dev->dev);
@@ -842,9 +847,11 @@ EXPORT_SYMBOL(nfc_register_device);
  */
 void nfc_unregister_device(struct nfc_dev *dev)
 {
-	int rc;
+	int rc, id;
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
+
+	id = dev->idx;
 
 	mutex_lock(&nfc_devlist_mutex);
 	nfc_devlist_generation++;
@@ -863,6 +870,8 @@ void nfc_unregister_device(struct nfc_dev *dev)
 	if (rc)
 		pr_debug("The userspace won't be notified that the device %s was removed\n",
 			 dev_name(&dev->dev));
+
+	ida_simple_remove(&nfc_index_ida, id);
 
 }
 EXPORT_SYMBOL(nfc_unregister_device);
