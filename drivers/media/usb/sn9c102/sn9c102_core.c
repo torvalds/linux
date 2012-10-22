@@ -173,7 +173,7 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 		cam->frame[i].buf.sequence = 0;
 		cam->frame[i].buf.field = V4L2_FIELD_NONE;
 		cam->frame[i].buf.memory = V4L2_MEMORY_MMAP;
-		cam->frame[i].buf.flags = 0;
+		cam->frame[i].buf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	}
 
 	return cam->nbuffers;

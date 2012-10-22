@@ -3410,6 +3410,9 @@ static void vino_v4l2_get_buffer_status(struct vino_channel_settings *vcs,
 	if (fb->map_count > 0)
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
+	b->flags &= ~V4L2_BUF_FLAG_TIMESTAMP_MASK;
+	b->flags |= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+
 	b->index = fb->id;
 	b->memory = (vcs->fb_queue.type == VINO_MEMORY_MMAP) ?
 		V4L2_MEMORY_MMAP : V4L2_MEMORY_USERPTR;

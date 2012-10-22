@@ -466,6 +466,7 @@ static int stk_setup_siobuf(struct stk_camera *dev, int index)
 	buf->dev = dev;
 	buf->v4lbuf.index = index;
 	buf->v4lbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf->v4lbuf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	buf->v4lbuf.field = V4L2_FIELD_NONE;
 	buf->v4lbuf.memory = V4L2_MEMORY_MMAP;
 	buf->v4lbuf.m.offset = 2*index*buf->v4lbuf.length;

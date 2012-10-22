@@ -1426,7 +1426,7 @@ static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		return -EINVAL;
 
 	buf->bytesused = meye.grab_buffer[index].size;
-	buf->flags = V4L2_BUF_FLAG_MAPPED;
+	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	if (meye.grab_buffer[index].state == MEYE_BUF_USING)
 		buf->flags |= V4L2_BUF_FLAG_QUEUED;
@@ -1499,7 +1499,7 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	buf->index = reqnr;
 	buf->bytesused = meye.grab_buffer[reqnr].size;
-	buf->flags = V4L2_BUF_FLAG_MAPPED;
+	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	buf->field = V4L2_FIELD_NONE;
 	buf->timestamp = meye.grab_buffer[reqnr].timestamp;
 	buf->sequence = meye.grab_buffer[reqnr].sequence;

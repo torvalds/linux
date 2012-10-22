@@ -674,6 +674,7 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 		buf->vbuf.index = i;
 		buf->vbuf.length = size;
 		buf->vbuf.type = queue->type;
+		buf->vbuf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		buf->vbuf.field = V4L2_FIELD_NONE;
 		buf->vbuf.memory = memory;
 
