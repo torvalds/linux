@@ -3458,7 +3458,15 @@ static int brcmf_cfg80211_testmode(struct wiphy *wiphy, void *data, int len)
 	struct sk_buff *reply;
 	int ret;
 
-	ret = brcmf_netlink_dcmd(ndev, dcmd);
+	WL_TRACE("cmd %x set %d buf %p len %d\n", dcmd->cmd, dcmd->set,
+		 dcmd->buf, dcmd->len);
+
+	if (dcmd->set)
+		ret = brcmf_fil_cmd_data_set(ndev, dcmd->cmd, dcmd->buf,
+					     dcmd->len);
+	else
+		ret = brcmf_fil_cmd_data_get(ndev, dcmd->cmd, dcmd->buf,
+					     dcmd->len);
 	if (ret == 0) {
 		reply = cfg80211_testmode_alloc_reply_skb(wiphy, sizeof(*dcmd));
 		nla_put(reply, NL80211_ATTR_TESTDATA, sizeof(*dcmd), dcmd);

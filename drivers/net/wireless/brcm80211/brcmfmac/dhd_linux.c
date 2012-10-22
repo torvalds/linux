@@ -706,60 +706,6 @@ static int brcmf_netdev_ioctl_entry(struct net_device *ndev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-/* called only from within this driver. Sends a command to the dongle. */
-s32 brcmf_exec_dcmd(struct net_device *ndev, u32 cmd, void *arg, u32 len)
-{
-	struct brcmf_dcmd dcmd;
-	s32 err = 0;
-	int buflen = 0;
-	bool is_set_key_cmd;
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_pub *drvr = ifp->drvr;
-
-	memset(&dcmd, 0, sizeof(dcmd));
-	dcmd.cmd = cmd;
-	dcmd.buf = arg;
-	dcmd.len = len;
-
-	if (dcmd.buf != NULL)
-		buflen = min_t(uint, dcmd.len, BRCMF_DCMD_MAXLEN);
-
-	/* send to dongle (must be up, and wl) */
-	if ((drvr->bus_if->state != BRCMF_BUS_DATA)) {
-		brcmf_dbg(ERROR, "DONGLE_DOWN\n");
-		err = -EIO;
-		goto done;
-	}
-
-	/*
-	 * Intercept BRCMF_C_SET_KEY CMD - serialize M4 send and
-	 * set key CMD to prevent M4 encryption.
-	 */
-	is_set_key_cmd = ((dcmd.cmd == BRCMF_C_SET_KEY) ||
-			  ((dcmd.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("wsec_key", dcmd.buf, 9))) ||
-			  ((dcmd.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("bsscfg:wsec_key", dcmd.buf, 15))));
-	if (is_set_key_cmd)
-		brcmf_netdev_wait_pend8021x(ndev);
-
-	err = brcmf_proto_dcmd(drvr, ifp->idx, &dcmd, buflen);
-
-done:
-	if (err > 0)
-		err = 0;
-
-	return err;
-}
-
-int brcmf_netlink_dcmd(struct net_device *ndev, struct brcmf_dcmd *dcmd)
-{
-	brcmf_dbg(TRACE, "enter: cmd %x buf %p len %d\n",
-		  dcmd->cmd, dcmd->buf, dcmd->len);
-
-	return brcmf_exec_dcmd(ndev, dcmd->cmd, dcmd->buf, dcmd->len);
-}
-
 static int brcmf_netdev_stop(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
