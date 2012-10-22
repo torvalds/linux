@@ -192,7 +192,6 @@ nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
 	int ret, cnt, i;
-	u8  data[3];
 
 	if (!nouveau_acpi_rom_supported(pdev)) {
 		bios->data = NULL;
@@ -200,8 +199,13 @@ nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 	}
 
 	bios->size = 0;
-	if (nouveau_acpi_get_bios_chunk(data, 0, 3) == 3)
-		bios->size = data[2] * 512;
+	bios->data = kmalloc(4096, GFP_KERNEL);
+	if (bios->data) {
+		if (nouveau_acpi_get_bios_chunk(bios->data, 0, 4096) == 4096)
+			bios->size = bios->data[2] * 512;
+		kfree(bios->data);
+	}
+
 	if (!bios->size)
 		return;
 
