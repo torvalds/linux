@@ -324,8 +324,11 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p3_pclk1", "per3clk", U8500_CLKRST3_BASE,
 				BIT(1), 0);
+	clk_register_clkdev(clk, "apb_pclk", "ssp0");
+
 	clk = clk_reg_prcc_pclk("p3_pclk2", "per3clk", U8500_CLKRST3_BASE,
 				BIT(2), 0);
+	clk_register_clkdev(clk, "apb_pclk", "ssp1");
 
 	clk = clk_reg_prcc_pclk("p3_pclk3", "per3clk", U8500_CLKRST3_BASE,
 				BIT(3), 0);
@@ -468,8 +471,11 @@ void u8500_clk_init(void)
 	/* Periph3 */
 	clk = clk_reg_prcc_kclk("p3_ssp0_kclk", "sspclk",
 			U8500_CLKRST3_BASE, BIT(1), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "ssp0");
+
 	clk = clk_reg_prcc_kclk("p3_ssp1_kclk", "sspclk",
 			U8500_CLKRST3_BASE, BIT(2), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "ssp1");
 
 	clk = clk_reg_prcc_kclk("p3_i2c0_kclk", "i2cclk",
 			U8500_CLKRST3_BASE, BIT(3), CLK_SET_RATE_GATE);
