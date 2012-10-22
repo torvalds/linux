@@ -52,16 +52,6 @@ MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
 
-/* Interface control information */
-struct brcmf_if {
-	struct brcmf_pub *drvr;	/* back pointer to brcmf_pub */
-	/* OS/stack specifics */
-	struct net_device *ndev;
-	struct net_device_stats stats;
-	int idx;		/* iface idx in dongle */
-	u8 mac_addr[ETH_ALEN];	/* assigned MAC address */
-};
-
 /* Error bits */
 int brcmf_msg_level = BRCMF_ERROR_VAL;
 module_param(brcmf_msg_level, int, 0);

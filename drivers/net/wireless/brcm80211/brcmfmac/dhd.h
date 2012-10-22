@@ -318,6 +318,12 @@ struct brcmf_event {
 #define BRCMF_E_LINK_ASSOC_REC			3
 #define BRCMF_E_LINK_BSSCFG_DIS			4
 
+/* Small, medium and maximum buffer size for dcmd
+ */
+#define BRCMF_DCMD_SMLEN	256
+#define BRCMF_DCMD_MEDLEN	1536
+#define BRCMF_DCMD_MAXLEN	8192
+
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
  * that indicates which bits within the pattern should be matched.
@@ -661,6 +667,7 @@ struct brcmf_pub {
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
+	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
@@ -669,6 +676,22 @@ struct brcmf_pub {
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
+};
+
+/* struct brcmf_if - Interface control information
+ *
+ * @drvr: back pointer to brcmf_pub
+ * @ndev: interface net device pointer
+ * @stats: net device statistics
+ * @idx: iface idx in dongle
+ * @mac_addr: assigned MAC address
+ */
+struct brcmf_if {
+	struct brcmf_pub *drvr;
+	struct net_device *ndev;
+	struct net_device_stats stats;
+	int idx;
+	u8 mac_addr[ETH_ALEN];
 };
 
 struct brcmf_if_event {
@@ -701,6 +724,8 @@ extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 /* Query dongle */
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
+extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+				    void *buf, uint len);
 
 extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
 extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
@@ -712,9 +737,5 @@ extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
-
-#define	BRCMF_DCMD_SMLEN	256	/* "small" cmd buffer required */
-#define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
-#define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
 #endif				/* _BRCMF_H_ */
