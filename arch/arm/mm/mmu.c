@@ -876,6 +876,22 @@ static void __init pci_reserve_io(void)
 #define pci_reserve_io() do { } while (0)
 #endif
 
+#ifdef CONFIG_DEBUG_LL
+void __init debug_ll_io_init(void)
+{
+	struct map_desc map;
+
+	debug_ll_addr(&map.pfn, &map.virtual);
+	if (!map.pfn || !map.virtual)
+		return;
+	map.pfn = __phys_to_pfn(map.pfn);
+	map.virtual &= PAGE_MASK;
+	map.length = PAGE_SIZE;
+	map.type = MT_DEVICE;
+	create_mapping(&map);
+}
+#endif
+
 static void * __initdata vmalloc_min =
 	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
 
