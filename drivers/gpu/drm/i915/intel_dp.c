@@ -125,19 +125,6 @@ intel_edp_target_clock(struct intel_encoder *intel_encoder,
 }
 
 static int
-intel_dp_max_lane_count(struct intel_dp *intel_dp)
-{
-	int max_lane_count = intel_dp->dpcd[DP_MAX_LANE_COUNT] & 0x1f;
-	switch (max_lane_count) {
-	case 1: case 2: case 4:
-		break;
-	default:
-		max_lane_count = 4;
-	}
-	return max_lane_count;
-}
-
-static int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
@@ -197,7 +184,7 @@ intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 			  bool adjust_mode)
 {
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
-	int max_lanes = intel_dp_max_lane_count(intel_dp);
+	int max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
 	int max_rate, mode_rate;
 
 	mode_rate = intel_dp_link_required(mode->clock, 24);
@@ -699,7 +686,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
-	int max_lane_count = intel_dp_max_lane_count(intel_dp);
+	int max_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
 	int bpp, mode_rate;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };

@@ -347,11 +347,6 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 	return (link_rate * lane_num * 8) / bpp;
 }
 
-static u8 dp_get_max_lane_number(u8 dpcd[DP_DPCD_SIZE])
-{
-	return dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
-}
-
 /***** radeon specific DP functions *****/
 
 /* First get the min lane# when low rate is used according to pixel clock
@@ -364,7 +359,7 @@ static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
 	int max_link_rate = drm_dp_max_link_rate(dpcd);
-	int max_lane_num = dp_get_max_lane_number(dpcd);
+	int max_lane_num = drm_dp_max_lane_count(dpcd);
 	int lane_num;
 	int max_dp_pix_clock;
 

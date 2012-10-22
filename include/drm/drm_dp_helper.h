@@ -346,4 +346,11 @@ drm_dp_max_link_rate(u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return drm_dp_bw_code_to_link_rate(dpcd[DP_MAX_LINK_RATE]);
 }
+
+static inline u8
+drm_dp_max_lane_count(u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
+}
+
 #endif /* _DRM_DP_HELPER_H_ */
