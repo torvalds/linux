@@ -94,8 +94,6 @@
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params_le) - sizeof(u16))
 
-static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
-
 static u32 brcmf_dbg_level = WL_DBG_ERR;
 
 static bool check_vif_up(struct brcmf_cfg80211_vif *vif)
@@ -534,7 +532,7 @@ static void brcmf_set_mpc(struct net_device *ndev, int mpc)
 static void brcmf_iscan_prep(struct brcmf_scan_params_le *params_le,
 			     struct brcmf_ssid *ssid)
 {
-	memcpy(params_le->bssid, ether_bcast, ETH_ALEN);
+	memset(params_le->bssid, 0xFF, ETH_ALEN);
 	params_le->bss_type = DOT11_BSSTYPE_ANY;
 	params_le->scan_type = 0;
 	params_le->channel_num = 0;
@@ -721,7 +719,7 @@ static void brcmf_escan_prep(struct brcmf_scan_params_le *params_le,
 	char *ptr;
 	struct brcmf_ssid_le ssid_le;
 
-	memcpy(params_le->bssid, ether_bcast, ETH_ALEN);
+	memset(params_le->bssid, 0xFF, ETH_ALEN);
 	params_le->bss_type = DOT11_BSSTYPE_ANY;
 	params_le->scan_type = 0;
 	params_le->channel_num = 0;
@@ -810,7 +808,7 @@ brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		/* Do a scan abort to stop the driver's scan engine */
 		WL_SCAN("ABORT scan in firmware\n");
 		memset(&params_le, 0, sizeof(params_le));
-		memcpy(params_le.bssid, ether_bcast, ETH_ALEN);
+		memset(params_le.bssid, 0xFF, ETH_ALEN);
 		params_le.bss_type = DOT11_BSSTYPE_ANY;
 		params_le.scan_type = 0;
 		params_le.channel_num = cpu_to_le32(1);
@@ -1283,7 +1281,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 				   BRCMF_ASSOC_PARAMS_FIXED_SIZE;
 		memcpy(profile->bssid, params->bssid, ETH_ALEN);
 	} else {
-		memcpy(join_params.params_le.bssid, ether_bcast, ETH_ALEN);
+		memset(join_params.params_le.bssid, 0xFF, ETH_ALEN);
 		memset(profile->bssid, 0, ETH_ALEN);
 	}
 
@@ -1673,7 +1671,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	memcpy(&profile->ssid.SSID, sme->ssid, profile->ssid.SSID_len);
 	join_params.ssid_le.SSID_len = cpu_to_le32(profile->ssid.SSID_len);
 
-	memcpy(join_params.params_le.bssid, ether_bcast, ETH_ALEN);
+	memset(join_params.params_le.bssid, 0xFF, ETH_ALEN);
 
 	if (ssid.SSID_len < IEEE80211_MAX_SSID_LEN)
 		WL_CONN("ssid \"%s\", len (%d)\n",
