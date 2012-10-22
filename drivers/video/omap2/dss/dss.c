@@ -485,6 +485,36 @@ unsigned long dss_get_dpll4_rate(void)
 		return 0;
 }
 
+static int dss_setup_default_clock(void)
+{
+	unsigned long max_dss_fck, prate;
+	unsigned fck_div;
+	struct dss_clock_info dss_cinfo = { 0 };
+	int r;
+
+	if (dss.dpll4_m4_ck == NULL)
+		return 0;
+
+	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	prate = dss_get_dpll4_rate();
+
+	fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
+			max_dss_fck);
+
+	dss_cinfo.fck_div = fck_div;
+
+	r = dss_calc_clock_rates(&dss_cinfo);
+	if (r)
+		return r;
+
+	r = dss_set_clock_div(&dss_cinfo);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
@@ -892,6 +922,10 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
+	r = dss_setup_default_clock();
+	if (r)
+		goto err_setup_clocks;
+
 	pm_runtime_enable(&pdev->dev);
 
 	r = dss_runtime_get();
@@ -924,6 +958,7 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
+err_setup_clocks:
 	dss_put_clocks();
 	return r;
 }
