@@ -235,6 +235,25 @@ struct brcmf_cfg80211_profile {
 	s32 band;
 };
 
+/**
+ * struct brcmf_cfg80211_vif - virtual interface specific information.
+ *
+ * @ifp: lower layer interface pointer
+ * @wdev: wireless device.
+ * @mode: operating mode.
+ * @roam_off: roaming state.
+ * @pm_block: power-management blocked.
+ * @list: linked list.
+ */
+struct brcmf_cfg80211_vif {
+	struct brcmf_if *ifp;
+	struct wireless_dev wdev;
+	s32 mode;
+	s32 roam_off;
+	bool pm_block;
+	struct list_head list;
+};
+
 /* dongle iscan event loop */
 struct brcmf_cfg80211_iscan_eloop {
 	s32 (*handler[WL_SCAN_ERSULTS_LAST])
@@ -383,7 +402,7 @@ struct brcmf_pno_scanresults_le {
 /**
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
- * @wdev: representing wl cfg80211 device.
+ * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
  * @scan_request: cfg80211 scan request object.
  * @el: main event loop.
@@ -422,10 +441,11 @@ struct brcmf_pno_scanresults_le {
  * @escan_timeout_work: scan timeout worker.
  * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @ap_info: host ap information.
- * @ci: used to link this structure to netdev private data.
+ * @vif_list: linked list of vif instances.
+ * @vif_cnt: number of vif instances.
  */
 struct brcmf_cfg80211_info {
-	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
 	struct cfg80211_scan_request *scan_request;
 	struct brcmf_cfg80211_event_loop el;
@@ -464,11 +484,13 @@ struct brcmf_cfg80211_info {
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
 	struct ap_info *ap_info;
+	struct list_head vif_list;
+	u8 vif_cnt;
 };
 
-static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *w)
+static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *cfg)
 {
-	return w->wdev->wiphy;
+	return cfg->wiphy;
 }
 
 static inline struct brcmf_cfg80211_info *wiphy_to_cfg(struct wiphy *w)
@@ -481,9 +503,12 @@ static inline struct brcmf_cfg80211_info *wdev_to_cfg(struct wireless_dev *wd)
 	return (struct brcmf_cfg80211_info *)(wdev_priv(wd));
 }
 
-static inline struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
+static inline
+struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
 {
-	return cfg->wdev->netdev;
+	struct brcmf_cfg80211_vif *vif;
+	vif = list_first_entry(&cfg->vif_list, struct brcmf_cfg80211_vif, list);
+	return vif->wdev.netdev;
 }
 
 static inline struct brcmf_cfg80211_info *ndev_to_cfg(struct net_device *ndev)

@@ -682,10 +682,14 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
+/* forward declaration */
+struct brcmf_cfg80211_vif;
+
 /**
  * struct brcmf_if - interface control information.
  *
  * @drvr: points to device related information.
+ * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
  * @idx: interface index in device firmware.
@@ -694,6 +698,7 @@ struct brcmf_if_event {
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
+	struct brcmf_cfg80211_vif *vif;
 	struct net_device *ndev;
 	struct net_device_stats stats;
 	int idx;
