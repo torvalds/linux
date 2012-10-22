@@ -1508,7 +1508,7 @@ int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 		iReturn = U14ERR_BADAREA;
 
 	if (copy_to_user(pCB, &cb, sizeof(cb)))
-		return -EFAULT;
+		iReturn = -EFAULT;
 
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
