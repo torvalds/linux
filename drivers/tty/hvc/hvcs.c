@@ -1496,8 +1496,10 @@ static int __devinit hvcs_initialize(void)
 		num_ttys_to_alloc = hvcs_parm_num_devs;
 
 	hvcs_tty_driver = alloc_tty_driver(num_ttys_to_alloc);
-	if (!hvcs_tty_driver)
+	if (!hvcs_tty_driver) {
+		mutex_unlock(&hvcs_init_mutex);
 		return -ENOMEM;
+	}
 
 	if (hvcs_alloc_index_list(num_ttys_to_alloc)) {
 		rc = -ENOMEM;
