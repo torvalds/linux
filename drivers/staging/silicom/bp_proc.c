@@ -70,7 +70,7 @@
 #define DISC_CHANGE_ENTRY_SD      "disc_change"
 #define DIS_DISC_ENTRY_SD         "dis_disc"
 #define DISC_PWUP_ENTRY_SD        "disc_pwup"
-#endif	/* bypass_support */
+
 static struct proc_dir_entry *bp_procfs_dir;
 
 static struct proc_dir_entry *proc_getdir(char *name,
@@ -91,8 +91,6 @@ static struct proc_dir_entry *proc_getdir(char *name,
 	}
 	return pde;
 }
-
-#ifdef BYPASS_SUPPORT
 
 int
 bypass_proc_create_entry_sd(struct pfs_unit *pfs_unit_curr,
