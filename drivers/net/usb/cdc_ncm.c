@@ -215,41 +215,21 @@ static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
 
 	/* inform device about NTB input size changes */
 	if (ctx->rx_max != le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize)) {
+		__le32 *dwNtbInMaxSize;
 
-		if (flags & USB_CDC_NCM_NCAP_NTB_INPUT_SIZE) {
-			struct usb_cdc_ncm_ndp_input_size *ndp_in_sz;
-
-			ndp_in_sz = kzalloc(sizeof(*ndp_in_sz), GFP_KERNEL);
-			if (!ndp_in_sz) {
-				err = -ENOMEM;
-				goto size_err;
-			}
-
-			err = usb_control_msg(ctx->udev,
-					usb_sndctrlpipe(ctx->udev, 0),
-					USB_CDC_SET_NTB_INPUT_SIZE,
-					USB_TYPE_CLASS | USB_DIR_OUT
-					 | USB_RECIP_INTERFACE,
-					0, iface_no, ndp_in_sz, 8, 1000);
-			kfree(ndp_in_sz);
-		} else {
-			__le32 *dwNtbInMaxSize;
-			dwNtbInMaxSize = kzalloc(sizeof(*dwNtbInMaxSize),
-					GFP_KERNEL);
-			if (!dwNtbInMaxSize) {
-				err = -ENOMEM;
-				goto size_err;
-			}
-			*dwNtbInMaxSize = cpu_to_le32(ctx->rx_max);
-
-			err = usb_control_msg(ctx->udev,
-					usb_sndctrlpipe(ctx->udev, 0),
-					USB_CDC_SET_NTB_INPUT_SIZE,
-					USB_TYPE_CLASS | USB_DIR_OUT
-					 | USB_RECIP_INTERFACE,
-					0, iface_no, dwNtbInMaxSize, 4, 1000);
-			kfree(dwNtbInMaxSize);
+		dwNtbInMaxSize = kzalloc(sizeof(*dwNtbInMaxSize), GFP_KERNEL);
+		if (!dwNtbInMaxSize) {
+			err = -ENOMEM;
+			goto size_err;
 		}
+		*dwNtbInMaxSize = cpu_to_le32(ctx->rx_max);
+		err = usb_control_msg(ctx->udev,
+				      usb_sndctrlpipe(ctx->udev, 0),
+				      USB_CDC_SET_NTB_INPUT_SIZE,
+				      USB_TYPE_CLASS | USB_DIR_OUT
+				      | USB_RECIP_INTERFACE,
+				      0, iface_no, dwNtbInMaxSize, 4, 1000);
+		kfree(dwNtbInMaxSize);
 size_err:
 		if (err < 0)
 			pr_debug("Setting NTB Input Size failed\n");
