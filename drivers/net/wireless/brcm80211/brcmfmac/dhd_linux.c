@@ -950,8 +950,6 @@ fail:
 int brcmf_bus_start(struct device *dev)
 {
 	int ret = -1;
-	/* Room for "event_msgs" + '\0' + bitvec */
-	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_if *ifp;
@@ -965,43 +963,16 @@ int brcmf_bus_start(struct device *dev)
 		return ret;
 	}
 
-	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
-		      iovbuf, sizeof(iovbuf));
-	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
-				    sizeof(iovbuf));
-	memcpy(drvr->eventmask, iovbuf, BRCMF_EVENTING_MASK_LEN);
-
-	setbit(drvr->eventmask, BRCMF_E_SET_SSID);
-	setbit(drvr->eventmask, BRCMF_E_PRUNE);
-	setbit(drvr->eventmask, BRCMF_E_AUTH);
-	setbit(drvr->eventmask, BRCMF_E_REASSOC);
-	setbit(drvr->eventmask, BRCMF_E_REASSOC_IND);
-	setbit(drvr->eventmask, BRCMF_E_DEAUTH_IND);
-	setbit(drvr->eventmask, BRCMF_E_DISASSOC_IND);
-	setbit(drvr->eventmask, BRCMF_E_DISASSOC);
-	setbit(drvr->eventmask, BRCMF_E_JOIN);
-	setbit(drvr->eventmask, BRCMF_E_ASSOC_IND);
-	setbit(drvr->eventmask, BRCMF_E_PSK_SUP);
-	setbit(drvr->eventmask, BRCMF_E_LINK);
-	setbit(drvr->eventmask, BRCMF_E_NDIS_LINK);
-	setbit(drvr->eventmask, BRCMF_E_MIC_ERROR);
-	setbit(drvr->eventmask, BRCMF_E_PMKID_CACHE);
-	setbit(drvr->eventmask, BRCMF_E_TXFAIL);
-	setbit(drvr->eventmask, BRCMF_E_JOIN_START);
-	setbit(drvr->eventmask, BRCMF_E_SCAN_COMPLETE);
-	setbit(drvr->eventmask, BRCMF_E_IF);
-
-	/* Setup filter to allow only unicast */
-	drvr->pktfilter_count = 1;
-	drvr->pktfilter[0] = "100 0 0 0 0x01 0x00";
-
 	/* add primary networking interface */
-	ifp = brcmf_add_if(dev, 0, 0, "wlan%d", drvr->mac);
+	ifp = brcmf_add_if(dev, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
 
-	/* Bus is ready, do any protocol initialization */
-	ret = brcmf_proto_init(drvr);
+	/* signal bus ready */
+	bus_if->state = BRCMF_BUS_DATA;
+
+	/* Bus is ready, do any initialization */
+	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		return ret;
 
@@ -1016,9 +987,6 @@ int brcmf_bus_start(struct device *dev)
 		return ret;
 	}
 
-
-	/* signal bus ready */
-	bus_if->state = BRCMF_BUS_DATA;
 	return 0;
 }
 

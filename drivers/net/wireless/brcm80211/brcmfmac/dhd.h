@@ -656,13 +656,6 @@ struct brcmf_pub {
 	int in_suspend;		/* flag set to 1 when early suspend called */
 	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
-	/* Pkt filter defination */
-	char *pktfilter[100];
-	int pktfilter_count;
-
-	u8 country_code[BRCM_CNTRY_BUF_SZ];
-	char eventmask[BRCMF_EVENTING_MASK_LEN];
-
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
@@ -739,9 +732,5 @@ extern int brcmf_net_attach(struct brcmf_if *ifp);
 extern struct brcmf_if *brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
 				     char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
-
-extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
-extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
-					     int enable, int master_mode);
 
 #endif				/* _BRCMF_H_ */
