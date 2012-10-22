@@ -913,18 +913,24 @@ int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
 		iReturn = U14ERR_BADAREA;
 	else {
 		// Return the best information we have - we don't have physical addresses
-		TGET_TX_BLOCK tx;
-		memset(&tx, 0, sizeof(tx));	// clean out local work structure
-		tx.size = pdx->rTransDef[dwIdent].dwLength;
-		tx.linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
-		tx.avail = GET_TX_MAXENTRIES;	// how many blocks we could return
-		tx.used = 1;	// number we actually return
-		tx.entries[0].physical =
-		    (long long)(tx.linear + pdx->StagedOffset);
-		tx.entries[0].size = tx.size;
+		TGET_TX_BLOCK *tx;
 
-		if (copy_to_user(pTX, &tx, sizeof(tx)))
+		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
+		if (!tx) {
+			mutex_unlock(&pdx->io_mutex);
+			return -ENOMEM;
+		}
+		tx->size = pdx->rTransDef[dwIdent].dwLength;
+		tx->linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
+		tx->avail = GET_TX_MAXENTRIES;	// how many blocks we could return
+		tx->used = 1;	// number we actually return
+		tx->entries[0].physical =
+		    (long long)(tx->linear + pdx->StagedOffset);
+		tx->entries[0].size = tx->size;
+
+		if (copy_to_user(pTX, tx, sizeof(*tx)))
 			iReturn = -EFAULT;
+		kfree(tx);
 	}
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
