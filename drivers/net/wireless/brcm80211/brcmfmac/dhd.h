@@ -677,20 +677,9 @@ struct brcmf_pub {
 #endif
 };
 
-/* struct brcmf_if - Interface control information
- *
- * @drvr: back pointer to brcmf_pub
- * @ndev: interface net device pointer
- * @stats: net device statistics
- * @idx: iface idx in dongle
- * @mac_addr: assigned MAC address
- */
-struct brcmf_if {
-	struct brcmf_pub *drvr;
-	struct net_device *ndev;
-	struct net_device_stats stats;
-	int idx;
-	u8 mac_addr[ETH_ALEN];
+struct bcmevent_name {
+	uint event;
+	const char *name;
 };
 
 struct brcmf_if_event {
@@ -700,10 +689,30 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
-struct bcmevent_name {
-	uint event;
-	const char *name;
+/**
+ * struct brcmf_if - interface control information.
+ *
+ * @drvr: points to device related information.
+ * @ndev: associated network device.
+ * @stats: interface specific network statistics.
+ * @idx: interface index in device firmware.
+ * @bssidx: index of bss associated with this interface.
+ * @mac_addr: assigned mac address.
+ */
+struct brcmf_if {
+	struct brcmf_pub *drvr;
+	struct net_device *ndev;
+	struct net_device_stats stats;
+	int idx;
+	s32 bssidx;
+	u8 mac_addr[ETH_ALEN];
 };
+
+static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	return ifp->bssidx;
+}
 
 extern const struct bcmevent_name bcmevent_names[];
 

@@ -3769,7 +3769,7 @@ brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
 
 static s32
 brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
-			struct net_device *ndev, s32 bssidx, s32 pktflag,
+			struct net_device *ndev, s32 pktflag,
 			u8 *vndr_ie_buf, u32 vndr_ie_len)
 {
 	s32 err = 0;
@@ -3785,6 +3785,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	struct parsed_vndr_ies new_vndr_ies;
 	struct parsed_vndr_ie_info *vndrie_info;
 	s32 i;
+	s32 bssidx = brcmf_ndev_bssidx(ndev);
 	u8 *ptr;
 	int remained_buf_len;
 
@@ -3811,7 +3812,6 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 			WL_ERR("not suitable type\n");
 			goto exit;
 		}
-		bssidx = 0;
 	} else {
 		err = -EPERM;
 		WL_ERR("not suitable type\n");
@@ -4023,7 +4023,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		cfg->ap_info->security_mode = false;
 	}
 	/* Set Beacon IEs to FW */
-	err = brcmf_set_management_ie(cfg, ndev, bssidx,
+	err = brcmf_set_management_ie(cfg, ndev,
 				      VNDR_IE_BEACON_FLAG,
 				      (u8 *)settings->beacon.tail,
 				      settings->beacon.tail_len);
@@ -4033,7 +4033,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		WL_TRACE("Applied Vndr IEs for Beacon\n");
 
 	/* Set Probe Response IEs to FW */
-	err = brcmf_set_management_ie(cfg, ndev, bssidx,
+	err = brcmf_set_management_ie(cfg, ndev,
 				      VNDR_IE_PRBRSP_FLAG,
 				      (u8 *)settings->beacon.proberesp_ies,
 				      settings->beacon.proberesp_ies_len);

@@ -837,7 +837,8 @@ fail:
 }
 
 int
-brcmf_add_if(struct device *dev, int ifidx, char *name, u8 *mac_addr)
+brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
+	     char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
@@ -872,6 +873,7 @@ brcmf_add_if(struct device *dev, int ifidx, char *name, u8 *mac_addr)
 	ifp->drvr = drvr;
 	drvr->iflist[ifidx] = ifp;
 	ifp->idx = ifidx;
+	ifp->bssidx = bssidx;
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
@@ -1002,6 +1004,7 @@ int brcmf_bus_start(struct device *dev)
 	setbit(drvr->eventmask, BRCMF_E_TXFAIL);
 	setbit(drvr->eventmask, BRCMF_E_JOIN_START);
 	setbit(drvr->eventmask, BRCMF_E_SCAN_COMPLETE);
+	setbit(drvr->eventmask, BRCMF_E_IF);
 
 /* enable dongle roaming event */
 
@@ -1015,7 +1018,7 @@ int brcmf_bus_start(struct device *dev)
 		return ret;
 
 	/* add primary networking interface */
-	ret = brcmf_add_if(dev, 0, "wlan%d", drvr->mac);
+	ret = brcmf_add_if(dev, 0, 0, "wlan%d", drvr->mac);
 	if (ret < 0)
 		return ret;
 
