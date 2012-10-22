@@ -339,26 +339,6 @@ static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 }
 
 /**
- * pch_gbe_wait_clr_bit_irq - Wait to clear a bit for interrupt context
- * @reg:	Pointer of register
- * @busy:	Busy bit
- */
-static int pch_gbe_wait_clr_bit_irq(void *reg, u32 bit)
-{
-	u32 tmp;
-	int ret = -1;
-	/* wait busy */
-	tmp = 20;
-	while ((ioread32(reg) & bit) && --tmp)
-		udelay(5);
-	if (!tmp)
-		pr_err("Error: busy bit is not cleared\n");
-	else
-		ret = 0;
-	return ret;
-}
-
-/**
  * pch_gbe_mac_mar_set - Set MAC address register
  * @hw:	    Pointer to the HW structure
  * @addr:   Pointer to the MAC address
@@ -405,17 +385,6 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 #endif
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
-	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
-	return;
-}
-
-static void pch_gbe_mac_reset_rx(struct pch_gbe_hw *hw)
-{
-	/* Read the MAC addresses. and store to the private data */
-	pch_gbe_mac_read_mac_addr(hw);
-	iowrite32(PCH_GBE_RX_RST, &hw->reg->RESET);
-	pch_gbe_wait_clr_bit_irq(&hw->reg->RESET, PCH_GBE_RX_RST);
-	/* Setup the MAC addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
 	return;
 }
@@ -1330,38 +1299,17 @@ void pch_gbe_update_stats(struct pch_gbe_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 }
 
-static void pch_gbe_stop_receive(struct pch_gbe_adapter *adapter)
+static void pch_gbe_disable_dma_rx(struct pch_gbe_hw *hw)
 {
-	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 rxdma;
-	u16 value;
-	int ret;
 
 	/* Disable Receive DMA */
 	rxdma = ioread32(&hw->reg->DMA_CTRL);
 	rxdma &= ~PCH_GBE_RX_DMA_EN;
 	iowrite32(rxdma, &hw->reg->DMA_CTRL);
-	/* Wait Rx DMA BUS is IDLE */
-	ret = pch_gbe_wait_clr_bit_irq(&hw->reg->RX_DMA_ST, PCH_GBE_IDLE_CHECK);
-	if (ret) {
-		/* Disable Bus master */
-		pci_read_config_word(adapter->pdev, PCI_COMMAND, &value);
-		value &= ~PCI_COMMAND_MASTER;
-		pci_write_config_word(adapter->pdev, PCI_COMMAND, value);
-		/* Stop Receive */
-		pch_gbe_mac_reset_rx(hw);
-		/* Enable Bus master */
-		value |= PCI_COMMAND_MASTER;
-		pci_write_config_word(adapter->pdev, PCI_COMMAND, value);
-	} else {
-		/* Stop Receive */
-		pch_gbe_mac_reset_rx(hw);
-	}
-	/* reprogram multicast address register after reset */
-	pch_gbe_set_multi(adapter->netdev);
 }
 
-static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
+static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
 {
 	u32 rxdma;
 
@@ -1369,9 +1317,6 @@ static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
 	rxdma = ioread32(&hw->reg->DMA_CTRL);
 	rxdma |= PCH_GBE_RX_DMA_EN;
 	iowrite32(rxdma, &hw->reg->DMA_CTRL);
-
-	pch_gbe_enable_mac_rx(hw);
-	return;
 }
 
 /**
@@ -1407,7 +1352,7 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 			int_en = ioread32(&hw->reg->INT_EN);
 			iowrite32((int_en & ~PCH_GBE_INT_RX_FIFO_ERR),
 				  &hw->reg->INT_EN);
-			pch_gbe_stop_receive(adapter);
+			pch_gbe_disable_dma_rx(&adapter->hw);
 			int_st |= ioread32(&hw->reg->INT_ST);
 			int_st = int_st & ioread32(&hw->reg->INT_EN);
 		}
@@ -2014,7 +1959,8 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
 	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
 	adapter->tx_queue_len = netdev->tx_queue_len;
-	pch_gbe_start_receive(&adapter->hw);
+	pch_gbe_enable_dma_rx(&adapter->hw);
+	pch_gbe_enable_mac_rx(&adapter->hw);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
@@ -2440,7 +2386,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 
 	if (adapter->rx_stop_flag) {
 		adapter->rx_stop_flag = false;
-		pch_gbe_start_receive(&adapter->hw);
+		pch_gbe_enable_dma_rx(&adapter->hw);
 	}
 
 	pr_debug("poll_end_flag : %d  work_done : %d  budget : %d\n",
