@@ -50,11 +50,6 @@ static int c_ssize = 2;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 
-#define ALT_SET(x, a)	do {(x) &= ~0xff; (x) |= (a); } while (0)
-#define ALT_GET(x)	((x) & 0xff)
-#define INTF_SET(x, i)	do {(x) &= 0xff; (x) |= ((i) << 8); } while (0)
-#define INTF_GET(x)	((x >> 8) & 0xff)
-
 /* Keep everyone on toes */
 #define USB_XFERS	2
 
@@ -142,8 +137,9 @@ static struct snd_pcm_hardware uac2_pcm_hardware = {
 };
 
 struct audio_dev {
-	/* Currently active {Interface[15:8] | AltSettings[7:0]} */
-	__u16 ac_alt, as_out_alt, as_in_alt;
+	u8 ac_intf, ac_alt;
+	u8 as_out_intf, as_out_alt;
+	u8 as_in_intf, as_in_alt;
 
 	struct usb_ep *in_ep, *out_ep;
 	struct usb_function func;
@@ -950,8 +946,8 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		return ret;
 	}
 	std_ac_if_desc.bInterfaceNumber = ret;
-	ALT_SET(agdev->ac_alt, 0);
-	INTF_SET(agdev->ac_alt, ret);
+	agdev->ac_intf = ret;
+	agdev->ac_alt = 0;
 
 	ret = usb_interface_id(cfg, fn);
 	if (ret < 0) {
@@ -961,8 +957,8 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	}
 	std_as_out_if0_desc.bInterfaceNumber = ret;
 	std_as_out_if1_desc.bInterfaceNumber = ret;
-	ALT_SET(agdev->as_out_alt, 0);
-	INTF_SET(agdev->as_out_alt, ret);
+	agdev->as_out_intf = ret;
+	agdev->as_out_alt = 0;
 
 	ret = usb_interface_id(cfg, fn);
 	if (ret < 0) {
@@ -972,8 +968,8 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	}
 	std_as_in_if0_desc.bInterfaceNumber = ret;
 	std_as_in_if1_desc.bInterfaceNumber = ret;
-	ALT_SET(agdev->as_in_alt, 0);
-	INTF_SET(agdev->as_in_alt, ret);
+	agdev->as_in_intf = ret;
+	agdev->as_in_alt = 0;
 
 	agdev->out_ep = usb_ep_autoconfig(gadget, &fs_epout_desc);
 	if (!agdev->out_ep) {
@@ -1075,7 +1071,7 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 		return -EINVAL;
 	}
 
-	if (intf == INTF_GET(agdev->ac_alt)) {
+	if (intf == agdev->ac_intf) {
 		/* Control I/f has only 1 AltSetting - 0 */
 		if (alt) {
 			dev_err(&uac2->pdev.dev,
@@ -1085,16 +1081,16 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 		return 0;
 	}
 
-	if (intf == INTF_GET(agdev->as_out_alt)) {
+	if (intf == agdev->as_out_intf) {
 		ep = agdev->out_ep;
 		prm = &uac2->c_prm;
 		config_ep_by_speed(gadget, fn, ep);
-		ALT_SET(agdev->as_out_alt, alt);
-	} else if (intf == INTF_GET(agdev->as_in_alt)) {
+		agdev->as_out_alt = alt;
+	} else if (intf == agdev->as_in_intf) {
 		ep = agdev->in_ep;
 		prm = &uac2->p_prm;
 		config_ep_by_speed(gadget, fn, ep);
-		ALT_SET(agdev->as_in_alt, alt);
+		agdev->as_in_alt = alt;
 	} else {
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
@@ -1146,12 +1142,12 @@ afunc_get_alt(struct usb_function *fn, unsigned intf)
 	struct audio_dev *agdev = func_to_agdev(fn);
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
 
-	if (intf == INTF_GET(agdev->ac_alt))
-		return ALT_GET(agdev->ac_alt);
-	else if (intf == INTF_GET(agdev->as_out_alt))
-		return ALT_GET(agdev->as_out_alt);
-	else if (intf == INTF_GET(agdev->as_in_alt))
-		return ALT_GET(agdev->as_in_alt);
+	if (intf == agdev->ac_intf)
+		return agdev->ac_alt;
+	else if (intf == agdev->as_out_intf)
+		return agdev->as_out_alt;
+	else if (intf == agdev->as_in_intf)
+		return agdev->as_in_alt;
 	else
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Invalid Interface %d!\n",
@@ -1167,10 +1163,10 @@ afunc_disable(struct usb_function *fn)
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
 
 	free_ep(&uac2->p_prm, agdev->in_ep);
-	ALT_SET(agdev->as_in_alt, 0);
+	agdev->as_in_alt = 0;
 
 	free_ep(&uac2->c_prm, agdev->out_ep);
-	ALT_SET(agdev->as_out_alt, 0);
+	agdev->as_out_alt = 0;
 }
 
 static int
@@ -1277,7 +1273,7 @@ setup_rq_inf(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_index = le16_to_cpu(cr->wIndex);
 	u8 intf = w_index & 0xff;
 
-	if (intf != INTF_GET(agdev->ac_alt)) {
+	if (intf != agdev->ac_intf) {
 		dev_err(&uac2->pdev.dev,
 			"%s:%d Error!\n", __func__, __LINE__);
 		return -EOPNOTSUPP;
