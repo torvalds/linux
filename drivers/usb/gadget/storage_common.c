@@ -441,7 +441,7 @@ fsg_hs_intr_in_desc = {
 	/* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(2),
-	.bInterval =		9,	/* 2**(9-1) = 256 uframes -> 32 ms */
+	.bInterval =		USB_MS_TO_HS_INTERVAL(32),	/* 32 ms */
 };
 
 #ifndef FSG_NO_OTG
@@ -509,7 +509,7 @@ fsg_ss_intr_in_desc = {
 	/* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(2),
-	.bInterval =		9,	/* 2**(9-1) = 256 uframes -> 32 ms */
+	.bInterval =		USB_MS_TO_HS_INTERVAL(32),	/* 32 ms */
 };
 
 static struct usb_ss_ep_comp_descriptor fsg_ss_intr_in_comp_desc = {
