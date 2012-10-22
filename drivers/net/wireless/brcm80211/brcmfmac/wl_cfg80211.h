@@ -500,9 +500,7 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)
 	return &cfg->conn_info;
 }
 
-struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct net_device *ndev,
-						  struct device *busdev,
-						  struct brcmf_pub *drvr);
+struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr);
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 
 /* event handler from dongle */

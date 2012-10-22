@@ -779,7 +779,7 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
 
-static int brcmf_net_attach(struct brcmf_if *ifp)
+int brcmf_net_attach(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct net_device *ndev;
@@ -813,15 +813,6 @@ static int brcmf_net_attach(struct brcmf_if *ifp)
 
 	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
 
-	/* attach to cfg80211 for primary interface */
-	if (!ifp->idx) {
-		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
-		if (drvr->config == NULL) {
-			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
-			goto fail;
-		}
-	}
-
 	if (register_netdev(ndev) != 0) {
 		brcmf_dbg(ERROR, "couldn't register the net device\n");
 		goto fail;
@@ -833,12 +824,12 @@ static int brcmf_net_attach(struct brcmf_if *ifp)
 
 fail:
 	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
-int
-brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
-	     char *name, u8 *mac_addr)
+struct brcmf_if *brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
+			      char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
@@ -865,7 +856,7 @@ brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
 	ndev = alloc_netdev(sizeof(struct brcmf_if), name, ether_setup);
 	if (!ndev) {
 		brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	ifp = netdev_priv(ndev);
@@ -877,17 +868,10 @@ brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
-	if (brcmf_net_attach(ifp)) {
-		brcmf_dbg(ERROR, "brcmf_net_attach failed");
-		free_netdev(ifp->ndev);
-		drvr->iflist[ifidx] = NULL;
-		return -EOPNOTSUPP;
-	}
-
 	brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
 		  current->pid, ifp->ndev->name);
 
-	return 0;
+	return ifp;
 }
 
 void brcmf_del_if(struct brcmf_pub *drvr, int ifidx)
@@ -970,6 +954,7 @@ int brcmf_bus_start(struct device *dev)
 	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_if *ifp;
 
 	brcmf_dbg(TRACE, "\n");
 
@@ -1006,21 +991,31 @@ int brcmf_bus_start(struct device *dev)
 	setbit(drvr->eventmask, BRCMF_E_SCAN_COMPLETE);
 	setbit(drvr->eventmask, BRCMF_E_IF);
 
-/* enable dongle roaming event */
-
-	drvr->pktfilter_count = 1;
 	/* Setup filter to allow only unicast */
+	drvr->pktfilter_count = 1;
 	drvr->pktfilter[0] = "100 0 0 0 0x01 0x00";
+
+	/* add primary networking interface */
+	ifp = brcmf_add_if(dev, 0, 0, "wlan%d", drvr->mac);
+	if (IS_ERR(ifp))
+		return PTR_ERR(ifp);
 
 	/* Bus is ready, do any protocol initialization */
 	ret = brcmf_proto_init(drvr);
 	if (ret < 0)
 		return ret;
 
-	/* add primary networking interface */
-	ret = brcmf_add_if(dev, 0, 0, "wlan%d", drvr->mac);
-	if (ret < 0)
+	drvr->config = brcmf_cfg80211_attach(drvr);
+	if (drvr->config == NULL)
+		return -ENOMEM;
+
+	ret = brcmf_net_attach(ifp);
+	if (ret < 0) {
+		brcmf_dbg(ERROR, "brcmf_net_attach failed");
+		drvr->iflist[0] = NULL;
 		return ret;
+	}
+
 
 	/* signal bus ready */
 	bus_if->state = BRCMF_BUS_DATA;

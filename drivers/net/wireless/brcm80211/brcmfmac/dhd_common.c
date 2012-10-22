@@ -444,6 +444,7 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 	/* check whether packet is a BRCM event pkt */
 	struct brcmf_event *pvt_data = (struct brcmf_event *) pktdata;
 	struct brcmf_if_event *ifevent;
+	struct brcmf_if *ifp;
 	char *event_data;
 	u32 type, status;
 	u16 flags;
@@ -479,13 +480,17 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 		brcmf_dbg(TRACE, "if event\n");
 
 		if (ifevent->ifidx > 0 && ifevent->ifidx < BRCMF_MAX_IFS) {
-			if (ifevent->action == BRCMF_E_IF_ADD)
-				brcmf_add_if(drvr->dev,
-					     ifevent->ifidx, ifevent->bssidx,
-					     event->ifname,
-					     pvt_data->eth.h_dest);
-			else
+			if (ifevent->action == BRCMF_E_IF_ADD) {
+				ifp = brcmf_add_if(drvr->dev, ifevent->ifidx,
+						   ifevent->bssidx,
+						   event->ifname,
+						   pvt_data->eth.h_dest);
+				if (IS_ERR(ifp))
+					return PTR_ERR(ifp);
+				brcmf_net_attach(ifp);
+			} else {
 				brcmf_del_if(drvr, ifevent->ifidx);
+			}
 		} else {
 			brcmf_dbg(ERROR, "Invalid ifidx %d for %s\n",
 				  ifevent->ifidx, event->ifname);

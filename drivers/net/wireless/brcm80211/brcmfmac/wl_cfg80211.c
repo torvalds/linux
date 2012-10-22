@@ -4939,10 +4939,10 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 	brcmf_deinit_priv_mem(cfg);
 }
 
-struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct net_device *ndev,
-						  struct device *busdev,
-						  struct brcmf_pub *drvr)
+struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr)
 {
+	struct net_device *ndev = drvr->iflist[0]->ndev;
+	struct device *busdev = drvr->dev;
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_info *cfg;
 	s32 err = 0;
