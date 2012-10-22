@@ -57,9 +57,8 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 }
 
 s32
-brcmf_fil_cmd_data_set(struct net_device *ndev, u32 cmd, void *data, u32 len)
+brcmf_fil_cmd_data_set(struct brcmf_if *ifp, u32 cmd, void *data, u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 
 	mutex_lock(&ifp->drvr->proto_block);
@@ -74,9 +73,8 @@ brcmf_fil_cmd_data_set(struct net_device *ndev, u32 cmd, void *data, u32 len)
 }
 
 s32
-brcmf_fil_cmd_data_get(struct net_device *ndev, u32 cmd, void *data, u32 len)
+brcmf_fil_cmd_data_get(struct brcmf_if *ifp, u32 cmd, void *data, u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 
 	mutex_lock(&ifp->drvr->proto_block);
@@ -92,9 +90,8 @@ brcmf_fil_cmd_data_get(struct net_device *ndev, u32 cmd, void *data, u32 len)
 
 
 s32
-brcmf_fil_cmd_int_set(struct net_device *ndev, u32 cmd, u32 data)
+brcmf_fil_cmd_int_set(struct brcmf_if *ifp, u32 cmd, u32 data)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 	__le32 data_le = cpu_to_le32(data);
 
@@ -106,9 +103,8 @@ brcmf_fil_cmd_int_set(struct net_device *ndev, u32 cmd, u32 data)
 }
 
 s32
-brcmf_fil_cmd_int_get(struct net_device *ndev, u32 cmd, u32 *data)
+brcmf_fil_cmd_int_get(struct brcmf_if *ifp, u32 cmd, u32 *data)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 	__le32 data_le = cpu_to_le32(*data);
 
@@ -141,10 +137,9 @@ brcmf_create_iovar(char *name, char *data, u32 datalen, char *buf, u32 buflen)
 
 
 s32
-brcmf_fil_iovar_data_set(struct net_device *ndev, char *name, void *data,
+brcmf_fil_iovar_data_set(struct brcmf_if *ifp, char *name, void *data,
 			 u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err;
 	u32 buflen;
@@ -169,10 +164,9 @@ brcmf_fil_iovar_data_set(struct net_device *ndev, char *name, void *data,
 }
 
 s32
-brcmf_fil_iovar_data_get(struct net_device *ndev, char *name, void *data,
+brcmf_fil_iovar_data_get(struct brcmf_if *ifp, char *name, void *data,
 			 u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err;
 	u32 buflen;
@@ -199,20 +193,20 @@ brcmf_fil_iovar_data_get(struct net_device *ndev, char *name, void *data,
 }
 
 s32
-brcmf_fil_iovar_int_set(struct net_device *ndev, char *name, u32 data)
+brcmf_fil_iovar_int_set(struct brcmf_if *ifp, char *name, u32 data)
 {
 	__le32 data_le = cpu_to_le32(data);
 
-	return brcmf_fil_iovar_data_set(ndev, name, &data_le, sizeof(data_le));
+	return brcmf_fil_iovar_data_set(ifp, name, &data_le, sizeof(data_le));
 }
 
 s32
-brcmf_fil_iovar_int_get(struct net_device *ndev, char *name, u32 *data)
+brcmf_fil_iovar_int_get(struct brcmf_if *ifp, char *name, u32 *data)
 {
 	__le32 data_le = cpu_to_le32(*data);
 	s32 err;
 
-	err = brcmf_fil_iovar_data_get(ndev, name, &data_le, sizeof(data_le));
+	err = brcmf_fil_iovar_data_get(ifp, name, &data_le, sizeof(data_le));
 	if (err == 0)
 		*data = le32_to_cpu(data_le);
 	return err;
@@ -264,10 +258,9 @@ brcmf_create_bsscfg(s32 bssidx, char *name, char *data, u32 datalen, char *buf,
 }
 
 s32
-brcmf_fil_bsscfg_data_set(struct net_device *ndev, char *name,
+brcmf_fil_bsscfg_data_set(struct brcmf_if *ifp, char *name,
 			  void *data, u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err;
 	u32 buflen;
@@ -292,10 +285,9 @@ brcmf_fil_bsscfg_data_set(struct net_device *ndev, char *name,
 }
 
 s32
-brcmf_fil_bsscfg_data_get(struct net_device *ndev, char *name,
+brcmf_fil_bsscfg_data_get(struct brcmf_if *ifp, char *name,
 			  void *data, u32 len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err;
 	u32 buflen;
@@ -322,21 +314,21 @@ brcmf_fil_bsscfg_data_get(struct net_device *ndev, char *name,
 }
 
 s32
-brcmf_fil_bsscfg_int_set(struct net_device *ndev, char *name, u32 data)
+brcmf_fil_bsscfg_int_set(struct brcmf_if *ifp, char *name, u32 data)
 {
 	__le32 data_le = cpu_to_le32(data);
 
-	return brcmf_fil_bsscfg_data_set(ndev, name, &data_le,
+	return brcmf_fil_bsscfg_data_set(ifp, name, &data_le,
 					 sizeof(data_le));
 }
 
 s32
-brcmf_fil_bsscfg_int_get(struct net_device *ndev, char *name, u32 *data)
+brcmf_fil_bsscfg_int_get(struct brcmf_if *ifp, char *name, u32 *data)
 {
 	__le32 data_le = cpu_to_le32(*data);
 	s32 err;
 
-	err = brcmf_fil_bsscfg_data_get(ndev, name, &data_le,
+	err = brcmf_fil_bsscfg_data_get(ifp, name, &data_le,
 					sizeof(data_le));
 	if (err == 0)
 		*data = le32_to_cpu(data_le);
