@@ -1572,8 +1572,7 @@ void ced_draw_down(DEVICE_EXTENSION * pdx)
 
 	pdx->bInDrawDown = true;
 	time = usb_wait_anchor_empty_timeout(&pdx->submitted, 3000);
-	if (!time)		// if we timed out we kill the urbs
-	{
+	if (!time) {		// if we timed out we kill the urbs
 		usb_kill_anchored_urbs(&pdx->submitted);
 		dev_err(&pdx->interface->dev, "%s timed out", __func__);
 	}
