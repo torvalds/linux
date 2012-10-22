@@ -286,7 +286,7 @@ static ssize_t acpi_pad_rrtime_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
-	if (strict_strtoul(buf, 0, &num))
+	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	if (num < 1 || num >= 100)
 		return -EINVAL;
@@ -309,7 +309,7 @@ static ssize_t acpi_pad_idlepct_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
-	if (strict_strtoul(buf, 0, &num))
+	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	if (num < 1 || num >= 100)
 		return -EINVAL;
@@ -332,7 +332,7 @@ static ssize_t acpi_pad_idlecpus_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
-	if (strict_strtoul(buf, 0, &num))
+	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	mutex_lock(&isolated_cpus_lock);
 	acpi_pad_idle_cpus(num);
@@ -457,7 +457,7 @@ static void acpi_pad_notify(acpi_handle handle, u32 event,
 			dev_name(&device->dev), event, 0);
 		break;
 	default:
-		printk(KERN_WARNING "Unsupported event [0x%x]\n", event);
+		pr_warn("Unsupported event [0x%x]\n", event);
 		break;
 	}
 }
