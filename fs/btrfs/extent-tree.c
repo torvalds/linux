@@ -4949,9 +4949,13 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_group_cache *cache = NULL;
+	struct btrfs_space_info *space_info;
+	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	u64 len;
+	bool readonly;
 
 	while (start <= end) {
+		readonly = false;
 		if (!cache ||
 		    start >= cache->key.objectid + cache->key.offset) {
 			if (cache)
@@ -4969,15 +4973,30 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 		}
 
 		start += len;
+		space_info = cache->space_info;
 
-		spin_lock(&cache->space_info->lock);
+		spin_lock(&space_info->lock);
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
-		cache->space_info->bytes_pinned -= len;
-		if (cache->ro)
-			cache->space_info->bytes_readonly += len;
+		space_info->bytes_pinned -= len;
+		if (cache->ro) {
+			space_info->bytes_readonly += len;
+			readonly = true;
+		}
 		spin_unlock(&cache->lock);
-		spin_unlock(&cache->space_info->lock);
+		if (!readonly && global_rsv->space_info == space_info) {
+			spin_lock(&global_rsv->lock);
+			if (!global_rsv->full) {
+				len = min(len, global_rsv->size -
+					  global_rsv->reserved);
+				global_rsv->reserved += len;
+				space_info->bytes_may_use += len;
+				if (global_rsv->reserved >= global_rsv->size)
+					global_rsv->full = 1;
+			}
+			spin_unlock(&global_rsv->lock);
+		}
+		spin_unlock(&space_info->lock);
 	}
 
 	if (cache)
