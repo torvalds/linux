@@ -354,7 +354,7 @@ static struct usb_descriptor_header *ecm_ss_function[] = {
 
 static struct usb_string ecm_string_defs[] = {
 	[0].s = "CDC Ethernet Control Model (ECM)",
-	[1].s = NULL /* DYNAMIC */,
+	[1].s = "",
 	[2].s = "CDC Ethernet Data",
 	[3].s = "CDC ECM",
 	{  } /* end of list */
@@ -803,12 +803,11 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ecm unbind\n");
 
+	ecm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
 	usb_ep_free_request(ecm->notify, ecm->notify_req);
-
-	ecm_string_defs[1].s = NULL;
 	kfree(ecm);
 }
 
@@ -833,36 +832,15 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
 		return -EINVAL;
 
-	/* maybe allocate device-global string IDs */
 	if (ecm_string_defs[0].id == 0) {
-
-		/* control interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
+		status = usb_string_ids_tab(c->cdev, ecm_string_defs);
+		if (status)
 			return status;
-		ecm_string_defs[0].id = status;
-		ecm_control_intf.iInterface = status;
 
-		/* data interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[2].id = status;
-		ecm_data_intf.iInterface = status;
-
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[1].id = status;
-		ecm_desc.iMACAddress = status;
-
-		/* IAD label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[3].id = status;
-		ecm_iad_descriptor.iFunction = status;
+		ecm_control_intf.iInterface = ecm_string_defs[0].id;
+		ecm_data_intf.iInterface = ecm_string_defs[2].id;
+		ecm_desc.iMACAddress = ecm_string_defs[1].id;
+		ecm_iad_descriptor.iFunction = ecm_string_defs[3].id;
 	}
 
 	/* allocate and initialize one new instance */
@@ -887,9 +865,7 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	ecm->port.func.disable = ecm_disable;
 
 	status = usb_add_function(c, &ecm->port.func);
-	if (status) {
-		ecm_string_defs[1].s = NULL;
+	if (status)
 		kfree(ecm);
-	}
 	return status;
 }

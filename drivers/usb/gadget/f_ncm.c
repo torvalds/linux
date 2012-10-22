@@ -321,7 +321,7 @@ static struct usb_descriptor_header *ncm_hs_function[] __initdata = {
 
 static struct usb_string ncm_string_defs[] = {
 	[STRING_CTRL_IDX].s = "CDC Network Control Model (NCM)",
-	[STRING_MAC_IDX].s = NULL /* DYNAMIC */,
+	[STRING_MAC_IDX].s = "",
 	[STRING_DATA_IDX].s = "CDC Network Data",
 	[STRING_IAD_IDX].s = "CDC NCM",
 	{  } /* end of list */
@@ -1262,12 +1262,12 @@ ncm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ncm unbind\n");
 
+	ncm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(ncm->notify_req->buf);
 	usb_ep_free_request(ncm->notify, ncm->notify_req);
 
-	ncm_string_defs[1].s = NULL;
 	kfree(ncm);
 }
 
@@ -1291,37 +1291,19 @@ int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
 		return -EINVAL;
 
-	/* maybe allocate device-global string IDs */
 	if (ncm_string_defs[0].id == 0) {
-
-		/* control interface label */
-		status = usb_string_id(c->cdev);
+		status = usb_string_ids_tab(c->cdev, ncm_string_defs);
 		if (status < 0)
 			return status;
-		ncm_string_defs[STRING_CTRL_IDX].id = status;
-		ncm_control_intf.iInterface = status;
+		ncm_control_intf.iInterface =
+			ncm_string_defs[STRING_CTRL_IDX].id;
 
-		/* data interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ncm_string_defs[STRING_DATA_IDX].id = status;
+		status = ncm_string_defs[STRING_DATA_IDX].id;
 		ncm_data_nop_intf.iInterface = status;
 		ncm_data_intf.iInterface = status;
 
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ncm_string_defs[STRING_MAC_IDX].id = status;
-		ecm_desc.iMACAddress = status;
-
-		/* IAD */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ncm_string_defs[STRING_IAD_IDX].id = status;
-		ncm_iad_desc.iFunction = status;
+		ecm_desc.iMACAddress = ncm_string_defs[STRING_MAC_IDX].id;
+		ncm_iad_desc.iFunction = ncm_string_defs[STRING_IAD_IDX].id;
 	}
 
 	/* allocate and initialize one new instance */
@@ -1331,7 +1313,7 @@ int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 
 	/* export host's Ethernet address in CDC format */
 	snprintf(ncm->ethaddr, sizeof ncm->ethaddr, "%pm", ethaddr);
-	ncm_string_defs[1].s = ncm->ethaddr;
+	ncm_string_defs[STRING_MAC_IDX].s = ncm->ethaddr;
 
 	spin_lock_init(&ncm->lock);
 	ncm_reset_values(ncm);
@@ -1351,9 +1333,7 @@ int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	ncm->port.unwrap = ncm_unwrap_ntb;
 
 	status = usb_add_function(c, &ncm->port.func);
-	if (status) {
-		ncm_string_defs[1].s = NULL;
+	if (status)
 		kfree(ncm);
-	}
 	return status;
 }

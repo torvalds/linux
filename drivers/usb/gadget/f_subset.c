@@ -236,7 +236,7 @@ static struct usb_descriptor_header *ss_eth_function[] = {
 
 static struct usb_string geth_string_defs[] = {
 	[0].s = "CDC Ethernet Subset/SAFE",
-	[1].s = NULL /* DYNAMIC */,
+	[1].s = "",
 	{  } /* end of list */
 };
 
@@ -363,8 +363,8 @@ fail:
 static void
 geth_unbind(struct usb_configuration *c, struct usb_function *f)
 {
+	geth_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
-	geth_string_defs[1].s = NULL;
 	kfree(func_to_geth(f));
 }
 
@@ -390,20 +390,11 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 
 	/* maybe allocate device-global string IDs */
 	if (geth_string_defs[0].id == 0) {
-
-		/* interface label */
-		status = usb_string_id(c->cdev);
+		status = usb_string_ids_tab(c->cdev, geth_string_defs);
 		if (status < 0)
 			return status;
-		geth_string_defs[0].id = status;
-		subset_data_intf.iInterface = status;
-
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		geth_string_defs[1].id = status;
-		ether_desc.iMACAddress = status;
+		subset_data_intf.iInterface = geth_string_defs[0].id;
+		ether_desc.iMACAddress = geth_string_defs[1].id;
 	}
 
 	/* allocate and initialize one new instance */
@@ -425,9 +416,7 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	geth->port.func.disable = geth_disable;
 
 	status = usb_add_function(c, &geth->port.func);
-	if (status) {
-		geth_string_defs[1].s = NULL;
+	if (status)
 		kfree(geth);
-	}
 	return status;
 }

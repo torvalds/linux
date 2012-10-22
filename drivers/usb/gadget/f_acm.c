@@ -705,6 +705,7 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_acm		*acm = func_to_acm(f);
 
+	acm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 	gs_free_req(acm->notify, acm->notify_req);
 	kfree(acm);
@@ -742,27 +743,15 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 	 */
 
 	/* maybe allocate device-global string IDs, and patch descriptors */
-	if (acm_string_defs[ACM_CTRL_IDX].id == 0) {
-		status = usb_string_id(c->cdev);
+	if (acm_string_defs[0].id == 0) {
+		status = usb_string_ids_tab(c->cdev, acm_string_defs);
 		if (status < 0)
 			return status;
-		acm_string_defs[ACM_CTRL_IDX].id = status;
-
-		acm_control_interface_desc.iInterface = status;
-
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		acm_string_defs[ACM_DATA_IDX].id = status;
-
-		acm_data_interface_desc.iInterface = status;
-
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		acm_string_defs[ACM_IAD_IDX].id = status;
-
-		acm_iad_descriptor.iFunction = status;
+		acm_control_interface_desc.iInterface =
+			acm_string_defs[ACM_CTRL_IDX].id;
+		acm_data_interface_desc.iInterface =
+			acm_string_defs[ACM_DATA_IDX].id;
+		acm_iad_descriptor.iFunction = acm_string_defs[ACM_IAD_IDX].id;
 	}
 
 	/* allocate and initialize one new instance */

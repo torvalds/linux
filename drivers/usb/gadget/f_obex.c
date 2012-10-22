@@ -379,6 +379,7 @@ fail:
 static void
 obex_unbind(struct usb_configuration *c, struct usb_function *f)
 {
+	obex_string_defs[OBEX_CTRL_IDX].id = 0;
 	usb_free_all_descriptors(f);
 	kfree(func_to_obex(f));
 }
@@ -418,22 +419,16 @@ int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
 	if (!can_support_obex(c))
 		return -EINVAL;
 
-	/* maybe allocate device-global string IDs, and patch descriptors */
 	if (obex_string_defs[OBEX_CTRL_IDX].id == 0) {
-		status = usb_string_id(c->cdev);
+		status = usb_string_ids_tab(c->cdev, obex_string_defs);
 		if (status < 0)
 			return status;
-		obex_string_defs[OBEX_CTRL_IDX].id = status;
+		obex_control_intf.iInterface =
+			obex_string_defs[OBEX_CTRL_IDX].id;
 
-		obex_control_intf.iInterface = status;
-
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		obex_string_defs[OBEX_DATA_IDX].id = status;
-
-		obex_data_nop_intf.iInterface =
-			obex_data_intf.iInterface = status;
+		status = obex_string_defs[OBEX_DATA_IDX].id;
+		obex_data_nop_intf.iInterface = status;
+		obex_data_intf.iInterface = status;
 	}
 
 	/* allocate and initialize one new instance */

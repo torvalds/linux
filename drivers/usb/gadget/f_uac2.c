@@ -1312,7 +1312,7 @@ afunc_setup(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 
 static int audio_bind_config(struct usb_configuration *cfg)
 {
-	int id, res;
+	int res;
 
 	agdev_g = kzalloc(sizeof *agdev_g, GFP_KERNEL);
 	if (agdev_g == NULL) {
@@ -1320,89 +1320,21 @@ static int audio_bind_config(struct usb_configuration *cfg)
 		return -ENOMEM;
 	}
 
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_ASSOC].id = id;
-	iad_desc.iFunction = id,
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_IF_CTRL].id = id;
-	std_ac_if_desc.iInterface = id,
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_CLKSRC_IN].id = id;
-	in_clk_src_desc.iClockSource = id,
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_CLKSRC_OUT].id = id;
-	out_clk_src_desc.iClockSource = id,
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_USB_IT].id = id;
-	usb_out_it_desc.iTerminal = id,
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_IO_IT].id = id;
-	io_in_it_desc.iTerminal = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_USB_OT].id = id;
-	usb_in_ot_desc.iTerminal = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_IO_OT].id = id;
-	io_out_ot_desc.iTerminal = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_AS_OUT_ALT0].id = id;
-	std_as_out_if0_desc.iInterface = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_AS_OUT_ALT1].id = id;
-	std_as_out_if1_desc.iInterface = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_AS_IN_ALT0].id = id;
-	std_as_in_if0_desc.iInterface = id;
-
-	id = usb_string_id(cfg->cdev);
-	if (id < 0)
-		return id;
-
-	strings_fn[STR_AS_IN_ALT1].id = id;
-	std_as_in_if1_desc.iInterface = id;
+	res = usb_string_ids_tab(cfg->cdev, strings_fn);
+	if (res)
+		return res;
+	iad_desc.iFunction = strings_fn[STR_ASSOC].id;
+	std_ac_if_desc.iInterface = strings_fn[STR_IF_CTRL].id;
+	in_clk_src_desc.iClockSource = strings_fn[STR_CLKSRC_IN].id;
+	out_clk_src_desc.iClockSource = strings_fn[STR_CLKSRC_OUT].id;
+	usb_out_it_desc.iTerminal = strings_fn[STR_USB_IT].id;
+	io_in_it_desc.iTerminal = strings_fn[STR_IO_IT].id;
+	usb_in_ot_desc.iTerminal = strings_fn[STR_USB_OT].id;
+	io_out_ot_desc.iTerminal = strings_fn[STR_IO_OT].id;
+	std_as_out_if0_desc.iInterface = strings_fn[STR_AS_OUT_ALT0].id;
+	std_as_out_if1_desc.iInterface = strings_fn[STR_AS_OUT_ALT1].id;
+	std_as_in_if0_desc.iInterface = strings_fn[STR_AS_IN_ALT0].id;
+	std_as_in_if1_desc.iInterface = strings_fn[STR_AS_IN_ALT1].id;
 
 	agdev_g->func.name = "uac2_func";
 	agdev_g->func.strings = fn_strings;
