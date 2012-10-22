@@ -481,9 +481,6 @@ int brcmf_proto_init(struct brcmf_pub *drvr)
 
 	ret = brcmf_c_preinit_dcmds(drvr);
 
-	/* Always assumes wl for now */
-	drvr->iswl = true;
-
 	return ret;
 }
 

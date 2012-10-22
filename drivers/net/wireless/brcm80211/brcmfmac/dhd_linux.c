@@ -619,12 +619,9 @@ static int brcmf_ethtool(struct brcmf_pub *drvr, void __user *uaddr)
 			brcmf_dbg(ERROR, "dongle is not up\n");
 			return -ENODEV;
 		}
-
 		/* finally, report dongle driver type */
-		else if (drvr->iswl)
-			sprintf(info.driver, "wl");
 		else
-			sprintf(info.driver, "xx");
+			sprintf(info.driver, "wl");
 
 		sprintf(info.version, "%lu", drvr->drv_version);
 		if (copy_to_user(uaddr, &info, sizeof(info)))
@@ -730,11 +727,6 @@ s32 brcmf_exec_dcmd(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 	/* send to dongle (must be up, and wl) */
 	if ((drvr->bus_if->state != BRCMF_BUS_DATA)) {
 		brcmf_dbg(ERROR, "DONGLE_DOWN\n");
-		err = -EIO;
-		goto done;
-	}
-
-	if (!drvr->iswl) {
 		err = -EIO;
 		goto done;
 	}

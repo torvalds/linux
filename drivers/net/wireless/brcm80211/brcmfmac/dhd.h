@@ -629,7 +629,6 @@ struct brcmf_pub {
 	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
-	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 

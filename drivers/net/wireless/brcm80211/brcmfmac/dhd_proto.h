@@ -28,7 +28,7 @@ extern int brcmf_proto_attach(struct brcmf_pub *drvr);
 extern void brcmf_proto_detach(struct brcmf_pub *drvr);
 
 /* Initialize protocol: sync w/dongle state.
- * Sets dongle media info (iswl, drv_version, mac address).
+ * Sets dongle media info (drv_version, mac address).
  */
 extern int brcmf_proto_init(struct brcmf_pub *drvr);
 
