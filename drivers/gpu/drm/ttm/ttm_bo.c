@@ -817,11 +817,11 @@ retry:
 		goto retry;
 	}
 
-	ret = ttm_bo_reserve_locked(bo, false, no_wait_reserve, false, 0);
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
 
 	if (unlikely(ret == -EBUSY)) {
 		spin_unlock(&glob->lru_lock);
-		if (likely(!no_wait_gpu))
+		if (likely(!no_wait_reserve))
 			ret = ttm_bo_wait_unreserved(bo, interruptible);
 
 		kref_put(&bo->list_kref, ttm_bo_release_list);
