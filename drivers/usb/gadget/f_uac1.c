@@ -667,7 +667,6 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	 * both speeds
 	 */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		c->highspeed = true;
 		f->hs_descriptors = usb_copy_descriptors(f_audio_desc);
 	}
 

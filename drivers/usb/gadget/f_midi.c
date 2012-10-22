@@ -882,7 +882,6 @@ f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 	/* copy descriptors, and track endpoint copies */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		c->highspeed = true;
 		bulk_in_desc.wMaxPacketSize = cpu_to_le16(512);
 		bulk_out_desc.wMaxPacketSize = cpu_to_le16(512);
 		f->hs_descriptors = usb_copy_descriptors(midi_function);
