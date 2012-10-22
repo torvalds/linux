@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
@@ -107,6 +108,9 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* MBIM cannot do ARP */
 	dev->net->flags |= IFF_NOARP;
+
+	/* no need to put the VLAN tci in the packet headers */
+	dev->net->features |= NETIF_F_HW_VLAN_TX;
 err:
 	return ret;
 }
@@ -131,6 +135,9 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 	struct sk_buff *skb_out;
 	struct cdc_mbim_state *info = (void *)&dev->data;
 	struct cdc_ncm_ctx *ctx = info->ctx;
+	__le32 sign = cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN);
+	u16 tci = 0;
+	u8 *c;
 
 	if (!ctx)
 		goto error;
@@ -138,6 +145,24 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 	if (skb) {
 		if (skb->len <= sizeof(ETH_HLEN))
 			goto error;
+
+		/* mapping VLANs to MBIM sessions:
+		 *   no tag     => IPS session <0>
+		 *   1 - 255    => IPS session <vlanid>
+		 *   256 - 4095 => unsupported, drop
+		 */
+		vlan_get_tag(skb, &tci);
+
+		switch (tci & 0x0f00) {
+		case 0x0000: /* VLAN ID 0 - 255 */
+			c = (u8 *)&sign;
+			c[3] = tci;
+			break;
+		default:
+			netif_err(dev, tx_err, dev->net,
+				  "unsupported tci=0x%04x\n", tci);
+			goto error;
+		}
 
 		skb_reset_mac_header(skb);
 		switch (eth_hdr(skb)->h_proto) {
@@ -151,7 +176,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 	}
 
 	spin_lock_bh(&ctx->mtx);
-	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN));
+	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, sign);
 	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 
@@ -162,10 +187,13 @@ error:
 	return NULL;
 }
 
-static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len)
+static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len, u16 tci)
 {
 	__be16 proto;
 	struct sk_buff *skb = NULL;
+
+	if (len < sizeof(struct iphdr))
+		goto err;
 
 	switch (*buf & 0xf0) {
 	case 0x40:
@@ -191,6 +219,10 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 
 	/* add datagram */
 	memcpy(skb_put(skb, len), buf, len);
+
+	/* map MBIM session to VLAN */
+	if (tci)
+		vlan_put_tag(skb, tci);
 err:
 	return skb;
 }
@@ -198,7 +230,8 @@ err:
 static int cdc_mbim_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 {
 	struct sk_buff *skb;
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	struct cdc_mbim_state *info = (void *)&dev->data;
+	struct cdc_ncm_ctx *ctx = info->ctx;
 	int len;
 	int nframes;
 	int x;
@@ -207,6 +240,8 @@ static int cdc_mbim_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	struct usb_cdc_ncm_dpe16 *dpe16;
 	int ndpoffset;
 	int loopcount = 50; /* arbitrary max preventing infinite loop */
+	u8 *c;
+	u16 tci;
 
 	ndpoffset = cdc_ncm_rx_verify_nth16(ctx, skb_in);
 	if (ndpoffset < 0)
@@ -219,9 +254,10 @@ next_ndp:
 
 	ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb_in->data + ndpoffset);
 
-	/* only supporting IPS Session #0 for now */
-	switch (ndp16->dwSignature) {
+	switch (ndp16->dwSignature & cpu_to_le32(0x00ffffff)) {
 	case cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN):
+		c = (u8 *)&ndp16->dwSignature;
+		tci = c[3];
 		break;
 	default:
 		netif_dbg(dev, rx_err, dev->net,
@@ -247,8 +283,7 @@ next_ndp:
 		}
 
 		/* sanity checking */
-		if (((offset + len) > skb_in->len) || (len > ctx->rx_max) ||
-		    (len < sizeof(struct iphdr))) {
+		if (((offset + len) > skb_in->len) || (len > ctx->rx_max)) {
 			netif_dbg(dev, rx_err, dev->net,
 				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%p\n",
 				  x, offset, len, skb_in);
@@ -256,7 +291,7 @@ next_ndp:
 				goto err_ndp;
 			break;
 		} else {
-			skb = cdc_mbim_process_dgram(dev, skb_in->data + offset, len);
+			skb = cdc_mbim_process_dgram(dev, skb_in->data + offset, len, tci);
 			if (!skb)
 				goto error;
 			usbnet_skb_return(dev, skb);
