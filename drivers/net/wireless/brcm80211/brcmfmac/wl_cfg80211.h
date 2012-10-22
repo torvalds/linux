@@ -228,8 +228,6 @@ struct brcmf_cfg80211_profile {
 	u32 mode;
 	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
-	u16 beacon_interval;
-	u8 dtim_period;
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_cfg80211_ibss ibss;
 	s32 band;

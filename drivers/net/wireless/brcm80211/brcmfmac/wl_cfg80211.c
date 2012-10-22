@@ -2577,9 +2577,6 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg)
 		dtim_period = (u8)var;
 	}
 
-	profile->beacon_interval = beacon_interval;
-	profile->dtim_period = dtim_period;
-
 update_bss_info_out:
 	WL_TRACE("Exit");
 	return err;
@@ -5264,50 +5261,12 @@ default_conf_out:
 
 }
 
-static int brcmf_debugfs_add_netdev_params(struct brcmf_cfg80211_info *cfg)
-{
-	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_cfg80211_profile *profile = ndev_to_prof(ndev);
-	char buf[10+IFNAMSIZ];
-	struct dentry *fd;
-	s32 err = 0;
-
-	sprintf(buf, "netdev:%s", ndev->name);
-	cfg->debugfsdir = debugfs_create_dir(buf,
-					cfg_to_wiphy(cfg)->debugfsdir);
-
-	fd = debugfs_create_u16("beacon_int", S_IRUGO, cfg->debugfsdir,
-		(u16 *)&profile->beacon_interval);
-	if (!fd) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	fd = debugfs_create_u8("dtim_period", S_IRUGO, cfg->debugfsdir,
-		(u8 *)&profile->dtim_period);
-	if (!fd) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-err_out:
-	return err;
-}
-
-static void brcmf_debugfs_remove_netdev(struct brcmf_cfg80211_info *cfg)
-{
-	debugfs_remove_recursive(cfg->debugfsdir);
-	cfg->debugfsdir = NULL;
-}
-
 static s32 __brcmf_cfg80211_up(struct brcmf_cfg80211_info *cfg)
 {
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	s32 err = 0;
 
 	set_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
-
-	brcmf_debugfs_add_netdev_params(cfg);
 
 	err = brcmf_config_dongle(cfg);
 	if (err)
@@ -5342,8 +5301,6 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg)
 
 	brcmf_abort_scanning(cfg);
 	clear_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
-
-	brcmf_debugfs_remove_netdev(cfg);
 
 	return 0;
 }
