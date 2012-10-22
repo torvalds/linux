@@ -60,6 +60,7 @@
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
 #include <linux/fips.h>
+#include <uapi/linux/module.h>
 #include "module-internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -2553,7 +2554,7 @@ static void free_copy(struct load_info *info)
 	vfree(info->hdr);
 }
 
-static int rewrite_section_headers(struct load_info *info)
+static int rewrite_section_headers(struct load_info *info, int flags)
 {
 	unsigned int i;
 
@@ -2581,7 +2582,10 @@ static int rewrite_section_headers(struct load_info *info)
 	}
 
 	/* Track but don't keep modinfo and version sections. */
-	info->index.vers = find_sec(info, "__versions");
+	if (flags & MODULE_INIT_IGNORE_MODVERSIONS)
+		info->index.vers = 0; /* Pretend no __versions section! */
+	else
+		info->index.vers = find_sec(info, "__versions");
 	info->index.info = find_sec(info, ".modinfo");
 	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
@@ -2596,7 +2600,7 @@ static int rewrite_section_headers(struct load_info *info)
  * Return the temporary module pointer (we'll replace it with the final
  * one when we move the module sections around).
  */
-static struct module *setup_load_info(struct load_info *info)
+static struct module *setup_load_info(struct load_info *info, int flags)
 {
 	unsigned int i;
 	int err;
@@ -2607,7 +2611,7 @@ static struct module *setup_load_info(struct load_info *info)
 	info->secstrings = (void *)info->hdr
 		+ info->sechdrs[info->hdr->e_shstrndx].sh_offset;
 
-	err = rewrite_section_headers(info);
+	err = rewrite_section_headers(info, flags);
 	if (err)
 		return ERR_PTR(err);
 
@@ -2645,10 +2649,13 @@ static struct module *setup_load_info(struct load_info *info)
 	return mod;
 }
 
-static int check_modinfo(struct module *mod, struct load_info *info)
+static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 {
 	const char *modmagic = get_modinfo(info, "vermagic");
 	int err;
+
+	if (flags & MODULE_INIT_IGNORE_VERMAGIC)
+		modmagic = NULL;
 
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
@@ -2885,18 +2892,18 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
 	return 0;
 }
 
-static struct module *layout_and_allocate(struct load_info *info)
+static struct module *layout_and_allocate(struct load_info *info, int flags)
 {
 	/* Module within temporary copy. */
 	struct module *mod;
 	Elf_Shdr *pcpusec;
 	int err;
 
-	mod = setup_load_info(info);
+	mod = setup_load_info(info, flags);
 	if (IS_ERR(mod))
 		return mod;
 
-	err = check_modinfo(mod, info);
+	err = check_modinfo(mod, info, flags);
 	if (err)
 		return ERR_PTR(err);
 
@@ -3078,7 +3085,8 @@ static int may_init_module(void)
 
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
-static int load_module(struct load_info *info, const char __user *uargs)
+static int load_module(struct load_info *info, const char __user *uargs,
+		       int flags)
 {
 	struct module *mod, *old;
 	long err;
@@ -3092,7 +3100,7 @@ static int load_module(struct load_info *info, const char __user *uargs)
 		goto free_copy;
 
 	/* Figure out module layout, and allocate all the memory. */
-	mod = layout_and_allocate(info);
+	mod = layout_and_allocate(info, flags);
 	if (IS_ERR(mod)) {
 		err = PTR_ERR(mod);
 		goto free_copy;
@@ -3241,10 +3249,10 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	if (err)
 		return err;
 
-	return load_module(&info, uargs);
+	return load_module(&info, uargs, 0);
 }
 
-SYSCALL_DEFINE2(finit_module, int, fd, const char __user *, uargs)
+SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 {
 	int err;
 	struct load_info info = { };
@@ -3253,13 +3261,17 @@ SYSCALL_DEFINE2(finit_module, int, fd, const char __user *, uargs)
 	if (err)
 		return err;
 
-	pr_debug("finit_module: fd=%d, uargs=%p\n", fd, uargs);
+	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
+
+	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
+		      |MODULE_INIT_IGNORE_VERMAGIC))
+		return -EINVAL;
 
 	err = copy_module_from_fd(fd, &info);
 	if (err)
 		return err;
 
-	return load_module(&info, uargs);
+	return load_module(&info, uargs, flags);
 }
 
 static inline int within(unsigned long addr, void *start, unsigned long size)
