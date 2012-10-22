@@ -2160,7 +2160,7 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			 int offset)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_write_flashrom *req;
+	struct be_cmd_read_flash_crc *req;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -2173,7 +2173,8 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 	req = embedded_payload(wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_READ_FLASHROM, sizeof(*req)+4, wrb, NULL);
+			       OPCODE_COMMON_READ_FLASHROM, sizeof(*req),
+			       wrb, NULL);
 
 	req->params.op_type = cpu_to_le32(OPTYPE_REDBOOT);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
@@ -2182,7 +2183,7 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status)
-		memcpy(flashed_crc, req->params.data_buf, 4);
+		memcpy(flashed_crc, req->crc, 4);
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);

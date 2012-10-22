@@ -1156,14 +1156,22 @@ struct flashrom_params {
 	u32 op_type;
 	u32 data_buf_size;
 	u32 offset;
-	u8 data_buf[4];
 };
 
 struct be_cmd_write_flashrom {
 	struct be_cmd_req_hdr hdr;
 	struct flashrom_params params;
-};
+	u8 data_buf[32768];
+	u8 rsvd[4];
+} __packed;
 
+/* cmd to read flash crc */
+struct be_cmd_read_flash_crc {
+	struct be_cmd_req_hdr hdr;
+	struct flashrom_params params;
+	u8 crc[4];
+	u8 rsvd[4];
+};
 /**************** Lancer Firmware Flash ************/
 struct amap_lancer_write_obj_context {
 	u8 write_length[24];

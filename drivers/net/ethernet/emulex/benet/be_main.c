@@ -3114,7 +3114,7 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 				flash_op = FLASHROM_OPER_SAVE;
 		}
 
-		memcpy(req->params.data_buf, img, num_bytes);
+		memcpy(req->data_buf, img, num_bytes);
 		img += num_bytes;
 		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
 						flash_op, num_bytes);
@@ -3471,7 +3471,7 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	const u8 *p;
 	int status = 0, i = 0, num_imgs = 0, ufi_type = 0;
 
-	flash_cmd.size = sizeof(struct be_cmd_write_flashrom) + 32*1024;
+	flash_cmd.size = sizeof(struct be_cmd_write_flashrom);
 	flash_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, flash_cmd.size,
 					  &flash_cmd.dma, GFP_KERNEL);
 	if (!flash_cmd.va) {
