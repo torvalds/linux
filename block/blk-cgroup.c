@@ -333,6 +333,9 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 	 */
 	if (rl == &q->root_rl) {
 		ent = &q->blkg_list;
+		/* There are no more block groups, hence no request lists */
+		if (list_empty(ent))
+			return NULL;
 	} else {
 		blkg = container_of(rl, struct blkcg_gq, rl);
 		ent = &blkg->q_node;
