@@ -398,11 +398,13 @@ static int ux500_msp_dai_startup(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* Enable clock */
+	/* Prepare and enable clock */
 	dev_dbg(dai->dev, "%s: Enabling MSP-clock.\n", __func__);
-	clk_enable(drvdata->clk);
+	ret = clk_prepare_enable(drvdata->clk);
+	if (ret)
+		regulator_disable(drvdata->reg_vape);
 
-	return 0;
+	return ret;
 }
 
 static void ux500_msp_dai_shutdown(struct snd_pcm_substream *substream,
@@ -428,8 +430,8 @@ static void ux500_msp_dai_shutdown(struct snd_pcm_substream *substream,
 			__func__, dai->id, snd_pcm_stream_str(substream));
 	}
 
-	/* Disable clock */
-	clk_disable(drvdata->clk);
+	/* Disable and unprepare clock */
+	clk_disable_unprepare(drvdata->clk);
 
 	/* Disable regulator */
 	ret = regulator_disable(drvdata->reg_vape);
