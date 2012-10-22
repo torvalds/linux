@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -37,7 +37,7 @@ void qla4xxx_dump_registers(struct scsi_qla_host *ha)
 	if (is_qla8022(ha)) {
 		for (i = 1; i < MBOX_REG_COUNT; i++)
 			printk(KERN_INFO "mailbox[%d]     = 0x%08X\n",
-			    i, readl(&ha->qla4_8xxx_reg->mailbox_in[i]));
+			    i, readl(&ha->qla4_82xx_reg->mailbox_in[i]));
 		return;
 	}
 
@@ -129,5 +129,33 @@ void qla4xxx_dump_registers(struct scsi_qla_host *ha)
 		    readw(&ha->reg->u2.isp4022.p1.req_q_out));
 		writel(PORT_CTRL_STAT_PAGE & set_rmask(CSR_SCSI_PAGE_SELECT),
 		    &ha->reg->ctrl_status);
+	}
+}
+
+void qla4_8xxx_dump_peg_reg(struct scsi_qla_host *ha)
+{
+	uint32_t halt_status1, halt_status2;
+
+	halt_status1 = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_HALT_STATUS1);
+	halt_status2 = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_HALT_STATUS2);
+
+	if (is_qla8022(ha)) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi(%ld): %s, ISP8022 Dumping hw/fw registers:\n"
+			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n"
+			   " PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n"
+			   " PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n"
+			   " PEG_NET_4_PC: 0x%x\n", ha->host_no,
+			   __func__, halt_status1, halt_status2,
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c));
+	} else if (is_qla8032(ha)) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi(%ld): %s, ISP8324 Dumping hw/fw registers:\n"
+			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n",
+			   ha->host_no, __func__, halt_status1, halt_status2);
 	}
 }

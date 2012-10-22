@@ -23,8 +23,8 @@
 #include <linux/kref.h>
 
 #include <drm/drmP.h>
-#include "drm_global.h"
-#include "gma_drm.h"
+#include <drm/drm_global.h>
+#include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
 #include "intel_bios.h"

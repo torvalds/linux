@@ -275,7 +275,7 @@ static int rtl8150_set_mac_address(struct net_device *netdev, void *p)
 		return -EBUSY;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	dbg("%s: Setting MAC address to %pM\n", netdev->name, netdev->dev_addr);
+	netdev_dbg(netdev, "Setting MAC address to %pM\n", netdev->dev_addr);
 	/* Set the IDR registers. */
 	set_registers(dev, IDR, netdev->addr_len, netdev->dev_addr);
 #ifdef EEPROM_WRITE
@@ -503,12 +503,12 @@ static void intr_callback(struct urb *urb)
 	if ((d[INT_MSR] & MSR_LINK) == 0) {
 		if (netif_carrier_ok(dev->netdev)) {
 			netif_carrier_off(dev->netdev);
-			dbg("%s: LINK LOST\n", __func__);
+			netdev_dbg(dev->netdev, "%s: LINK LOST\n", __func__);
 		}
 	} else {
 		if (!netif_carrier_ok(dev->netdev)) {
 			netif_carrier_on(dev->netdev);
-			dbg("%s: LINK CAME BACK\n", __func__);
+			netdev_dbg(dev->netdev, "%s: LINK CAME BACK\n", __func__);
 		}
 	}
 

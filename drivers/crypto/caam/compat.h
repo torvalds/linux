@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/circ_buf.h>
+#include <linux/string.h>
 #include <net/xfrm.h>
 
 #include <crypto/algapi.h>

@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <media/soc_camera.h>
 
@@ -34,10 +35,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board-ams-delta.h>
-#include <plat/keypad.h>
-#include <plat/mux.h>
-#include <plat/board.h>
+#include <mach/board-ams-delta.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <mach/mux.h>
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>
@@ -444,16 +444,28 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
 };
 
+static struct platform_device ams_delta_audio_device = {
+	.name   = "ams-delta-audio",
+	.id     = -1,
+};
+
+static struct platform_device cx20442_codec_device = {
+	.name   = "cx20442-codec",
+	.id     = -1,
+};
+
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
+	&ams_delta_audio_device,
 };
 
 static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
+	&cx20442_codec_device,
 };
 
 static void __init ams_delta_init(void)

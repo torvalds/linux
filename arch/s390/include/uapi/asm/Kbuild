@@ -1,0 +1,50 @@
+# UAPI Header export list
+include include/uapi/asm-generic/Kbuild.asm
+
+generic-y += kvm_para.h
+
+header-y += auxvec.h
+header-y += bitsperlong.h
+header-y += byteorder.h
+header-y += chpid.h
+header-y += chsc.h
+header-y += cmb.h
+header-y += dasd.h
+header-y += debug.h
+header-y += errno.h
+header-y += fcntl.h
+header-y += ioctl.h
+header-y += ioctls.h
+header-y += ipcbuf.h
+header-y += kvm.h
+header-y += kvm_para.h
+header-y += kvm_virtio.h
+header-y += mman.h
+header-y += monwriter.h
+header-y += msgbuf.h
+header-y += param.h
+header-y += poll.h
+header-y += posix_types.h
+header-y += ptrace.h
+header-y += qeth.h
+header-y += resource.h
+header-y += schid.h
+header-y += sembuf.h
+header-y += setup.h
+header-y += shmbuf.h
+header-y += sigcontext.h
+header-y += siginfo.h
+header-y += signal.h
+header-y += socket.h
+header-y += sockios.h
+header-y += stat.h
+header-y += statfs.h
+header-y += swab.h
+header-y += tape390.h
+header-y += termbits.h
+header-y += termios.h
+header-y += types.h
+header-y += ucontext.h
+header-y += unistd.h
+header-y += vtoc.h
+header-y += zcrypt.h

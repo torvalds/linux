@@ -140,7 +140,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * this if the definitions of the supdevices, 2 have been defined
 	 */
 	/* Analog indput */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* define subdevice as Analog In */
 	s->type = COMEDI_SUBD_AI;
 	/* you can read it from userspace */
@@ -156,7 +156,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi: fl512: subdevice 0 initialized\n");
 
 	/* Analog output */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* define subdevice as Analog OUT */
 	s->type = COMEDI_SUBD_AO;
 	/* you can write it from userspace */

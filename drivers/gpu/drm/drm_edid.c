@@ -31,8 +31,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include "drmP.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
 #include "drm_edid_modes.h"
 
 #define version_greater(edid, maj, min) \

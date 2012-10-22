@@ -33,7 +33,7 @@
  */
 
 #include <linux/export.h>
-#include "drm_buffer.h"
+#include <drm/drm_buffer.h>
 
 /**
  * Allocate the drm buffer object.

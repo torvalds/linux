@@ -14,12 +14,14 @@
 
 #include "util/parse-options.h"
 
-static char		const *input_name = "-";
-static bool		inject_build_ids;
+struct perf_inject {
+	struct perf_tool tool;
+	bool		 build_ids;
+};
 
-static int perf_event__repipe_synth(struct perf_tool *tool __used,
+static int perf_event__repipe_synth(struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
-				    struct machine *machine __used)
+				    struct machine *machine __maybe_unused)
 {
 	uint32_t size;
 	void *buf = event;
@@ -40,7 +42,8 @@ static int perf_event__repipe_synth(struct perf_tool *tool __used,
 
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					union perf_event *event,
-					struct perf_session *session __used)
+					struct perf_session *session
+					__maybe_unused)
 {
 	return perf_event__repipe_synth(tool, event, NULL);
 }
@@ -52,13 +55,14 @@ static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
 }
 
 static int perf_event__repipe_tracing_data_synth(union perf_event *event,
-						 struct perf_session *session __used)
+						 struct perf_session *session
+						 __maybe_unused)
 {
 	return perf_event__repipe_synth(NULL, event, NULL);
 }
 
 static int perf_event__repipe_attr(union perf_event *event,
-				   struct perf_evlist **pevlist __used)
+				   struct perf_evlist **pevlist __maybe_unused)
 {
 	int ret;
 	ret = perf_event__process_attr(event, pevlist);
@@ -70,7 +74,7 @@ static int perf_event__repipe_attr(union perf_event *event,
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
+			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine)
 {
 	return perf_event__repipe_synth(tool, event, machine);
@@ -78,8 +82,8 @@ static int perf_event__repipe(struct perf_tool *tool,
 
 static int perf_event__repipe_sample(struct perf_tool *tool,
 				     union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct perf_evsel *evsel __used,
+			      struct perf_sample *sample __maybe_unused,
+			      struct perf_evsel *evsel __maybe_unused,
 			      struct machine *machine)
 {
 	return perf_event__repipe_synth(tool, event, machine);
@@ -163,7 +167,7 @@ static int dso__inject_build_id(struct dso *self, struct perf_tool *tool,
 static int perf_event__inject_buildid(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel __used,
+				      struct perf_evsel *evsel __maybe_unused,
 				      struct machine *machine)
 {
 	struct addr_location al;
@@ -191,10 +195,13 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 				 * If this fails, too bad, let the other side
 				 * account this as unresolved.
 				 */
-			} else
+			} else {
+#ifdef LIBELF_SUPPORT
 				pr_warning("no symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
+#endif
+			}
 		}
 	}
 
@@ -203,79 +210,79 @@ repipe:
 	return 0;
 }
 
-struct perf_tool perf_inject = {
-	.sample		= perf_event__repipe_sample,
-	.mmap		= perf_event__repipe,
-	.comm		= perf_event__repipe,
-	.fork		= perf_event__repipe,
-	.exit		= perf_event__repipe,
-	.lost		= perf_event__repipe,
-	.read		= perf_event__repipe_sample,
-	.throttle	= perf_event__repipe,
-	.unthrottle	= perf_event__repipe,
-	.attr		= perf_event__repipe_attr,
-	.event_type	= perf_event__repipe_event_type_synth,
-	.tracing_data	= perf_event__repipe_tracing_data_synth,
-	.build_id	= perf_event__repipe_op2_synth,
-};
-
 extern volatile int session_done;
 
-static void sig_handler(int sig __attribute__((__unused__)))
+static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
 }
 
-static int __cmd_inject(void)
+static int __cmd_inject(struct perf_inject *inject)
 {
 	struct perf_session *session;
 	int ret = -EINVAL;
 
 	signal(SIGINT, sig_handler);
 
-	if (inject_build_ids) {
-		perf_inject.sample	 = perf_event__inject_buildid;
-		perf_inject.mmap	 = perf_event__repipe_mmap;
-		perf_inject.fork	 = perf_event__repipe_task;
-		perf_inject.tracing_data = perf_event__repipe_tracing_data;
+	if (inject->build_ids) {
+		inject->tool.sample	  = perf_event__inject_buildid;
+		inject->tool.mmap	  = perf_event__repipe_mmap;
+		inject->tool.fork	  = perf_event__repipe_task;
+		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(input_name, O_RDONLY, false, true, &perf_inject);
+	session = perf_session__new("-", O_RDONLY, false, true, &inject->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
-	ret = perf_session__process_events(session, &perf_inject);
+	ret = perf_session__process_events(session, &inject->tool);
 
 	perf_session__delete(session);
 
 	return ret;
 }
 
-static const char * const report_usage[] = {
-	"perf inject [<options>]",
-	NULL
-};
-
-static const struct option options[] = {
-	OPT_BOOLEAN('b', "build-ids", &inject_build_ids,
-		    "Inject build-ids into the output stream"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show build ids, etc)"),
-	OPT_END()
-};
-
-int cmd_inject(int argc, const char **argv, const char *prefix __used)
+int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	argc = parse_options(argc, argv, options, report_usage, 0);
+	struct perf_inject inject = {
+		.tool = {
+			.sample		= perf_event__repipe_sample,
+			.mmap		= perf_event__repipe,
+			.comm		= perf_event__repipe,
+			.fork		= perf_event__repipe,
+			.exit		= perf_event__repipe,
+			.lost		= perf_event__repipe,
+			.read		= perf_event__repipe_sample,
+			.throttle	= perf_event__repipe,
+			.unthrottle	= perf_event__repipe,
+			.attr		= perf_event__repipe_attr,
+			.event_type	= perf_event__repipe_event_type_synth,
+			.tracing_data	= perf_event__repipe_tracing_data_synth,
+			.build_id	= perf_event__repipe_op2_synth,
+		},
+	};
+	const struct option options[] = {
+		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
+			    "Inject build-ids into the output stream"),
+		OPT_INCR('v', "verbose", &verbose,
+			 "be more verbose (show build ids, etc)"),
+		OPT_END()
+	};
+	const char * const inject_usage[] = {
+		"perf inject [<options>]",
+		NULL
+	};
+
+	argc = parse_options(argc, argv, options, inject_usage, 0);
 
 	/*
 	 * Any (unrecognized) arguments left?
 	 */
 	if (argc)
-		usage_with_options(report_usage, options);
+		usage_with_options(inject_usage, options);
 
 	if (symbol__init() < 0)
 		return -1;
 
-	return __cmd_inject();
+	return __cmd_inject(&inject);
 }

@@ -25,6 +25,7 @@
 #include <linux/reboot.h>
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
+#include <linux/rcupdate.h>
 
 #include <asm/uaccess.h>
 #include <asm/traps.h>
@@ -34,6 +35,7 @@
 
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 
 /*
@@ -75,8 +77,10 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
+		rcu_idle_enter();
 		while (!need_resched())
 			idle();
+		rcu_idle_exit();
 		schedule_preempt_disabled();
 	}
 }
@@ -119,51 +123,6 @@ void show_regs(struct pt_regs * regs)
 	if (!(regs->sr & PS_S))
 		printk("USP: %08lx\n", rdusp());
 }
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	int pid;
-	mm_segment_t fs;
-
-	fs = get_fs();
-	set_fs (KERNEL_DS);
-
-	{
-	register long retval __asm__ ("d0");
-	register long clone_arg __asm__ ("d1") = flags | CLONE_VM | CLONE_UNTRACED;
-
-	retval = __NR_clone;
-	__asm__ __volatile__
-	  ("clrl %%d2\n\t"
-	   "trap #0\n\t"		/* Linux/m68k system call */
-	   "tstl %0\n\t"		/* child or parent */
-	   "jne 1f\n\t"			/* parent - jump */
-#ifdef CONFIG_MMU
-	   "lea %%sp@(%c7),%6\n\t"	/* reload current */
-	   "movel %6@,%6\n\t"
-#endif
-	   "movel %3,%%sp@-\n\t"	/* push argument */
-	   "jsr %4@\n\t"		/* call fn */
-	   "movel %0,%%d1\n\t"		/* pass exit value */
-	   "movel %2,%%d0\n\t"		/* exit */
-	   "trap #0\n"
-	   "1:"
-	   : "+d" (retval)
-	   : "i" (__NR_clone), "i" (__NR_exit),
-	     "r" (arg), "a" (fn), "d" (clone_arg), "r" (current),
-	     "i" (-THREAD_SIZE)
-	   : "d2");
-
-	pid = retval;
-	}
-
-	set_fs (fs);
-	return pid;
-}
-EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
@@ -216,36 +175,44 @@ asmlinkage int m68k_clone(struct pt_regs *regs)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		 unsigned long unused,
+		 unsigned long arg,
 		 struct task_struct * p, struct pt_regs * regs)
 {
 	struct pt_regs * childregs;
-	struct switch_stack * childstack, *stack;
-	unsigned long *retp;
+	struct switch_stack *childstack;
 
 	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
-
-	*childregs = *regs;
-	childregs->d0 = 0;
-
-	retp = ((unsigned long *) regs);
-	stack = ((struct switch_stack *) retp) - 1;
-
 	childstack = ((struct switch_stack *) childregs) - 1;
-	*childstack = *stack;
-	childstack->retpc = (unsigned long)ret_from_fork;
 
 	p->thread.usp = usp;
 	p->thread.ksp = (unsigned long)childstack;
-
-	if (clone_flags & CLONE_SETTLS)
-		task_thread_info(p)->tp_value = regs->d5;
+	p->thread.esp0 = (unsigned long)childregs;
 
 	/*
 	 * Must save the current SFC/DFC value, NOT the value when
 	 * the parent was last descheduled - RGH  10-08-96
 	 */
 	p->thread.fs = get_fs().seg;
+
+	if (unlikely(!regs)) {
+		/* kernel thread */
+		memset(childstack, 0,
+			sizeof(struct switch_stack) + sizeof(struct pt_regs));
+		childregs->sr = PS_S;
+		childstack->a3 = usp; /* function */
+		childstack->d7 = arg;
+		childstack->retpc = (unsigned long)ret_from_kernel_thread;
+		p->thread.usp = 0;
+		return 0;
+	}
+	*childregs = *regs;
+	childregs->d0 = 0;
+
+	*childstack = ((struct switch_stack *) regs)[-1];
+	childstack->retpc = (unsigned long)ret_from_fork;
+
+	if (clone_flags & CLONE_SETTLS)
+		task_thread_info(p)->tp_value = regs->d5;
 
 #ifdef CONFIG_FPU
 	if (!FPU_IS_EMU) {
@@ -333,26 +300,6 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 }
 EXPORT_SYMBOL(dump_fpu);
 #endif /* CONFIG_FPU */
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *name,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp)
-{
-	int error;
-	char * filename;
-	struct pt_regs *regs = (struct pt_regs *) &name;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-	return error;
-}
 
 unsigned long get_wchan(struct task_struct *p)
 {

@@ -148,8 +148,8 @@ enum label_id {
 	label_leave,
 	label_vmalloc,
 	label_vmalloc_done,
-	label_tlbw_hazard,
-	label_split,
+	label_tlbw_hazard_0,
+	label_split = label_tlbw_hazard_0 + 8,
 	label_tlbl_goaround1,
 	label_tlbl_goaround2,
 	label_nopage_tlbl,
@@ -167,7 +167,7 @@ UASM_L_LA(_second_part)
 UASM_L_LA(_leave)
 UASM_L_LA(_vmalloc)
 UASM_L_LA(_vmalloc_done)
-UASM_L_LA(_tlbw_hazard)
+/* _tlbw_hazard_x is handled differently.  */
 UASM_L_LA(_split)
 UASM_L_LA(_tlbl_goaround1)
 UASM_L_LA(_tlbl_goaround2)
@@ -180,6 +180,30 @@ UASM_L_LA(_large_segbits_fault)
 #ifdef CONFIG_HUGETLB_PAGE
 UASM_L_LA(_tlb_huge_update)
 #endif
+
+static int __cpuinitdata hazard_instance;
+
+static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
+{
+	switch (instance) {
+	case 0 ... 7:
+		uasm_il_bgezl(p, r, 0, label_tlbw_hazard_0 + instance);
+		return;
+	default:
+		BUG();
+	}
+}
+
+static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
+{
+	switch (instance) {
+	case 0 ... 7:
+		uasm_build_label(l, *p, label_tlbw_hazard_0 + instance);
+		break;
+	default:
+		BUG();
+	}
+}
 
 /*
  * For debug purposes.
@@ -449,8 +473,20 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	}
 
 	if (cpu_has_mips_r2) {
-		if (cpu_has_mips_r2_exec_hazard)
+		/*
+		 * The architecture spec says an ehb is required here,
+		 * but a number of cores do not have the hazard and
+		 * using an ehb causes an expensive pipeline stall.
+		 */
+		switch (current_cpu_type()) {
+		case CPU_M14KC:
+		case CPU_74K:
+			break;
+
+		default:
 			uasm_i_ehb(p);
+			break;
+		}
 		tlbw(p);
 		return;
 	}
@@ -466,19 +502,26 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		 * This branch uses up a mtc0 hazard nop slot and saves
 		 * two nops after the tlbw instruction.
 		 */
-		uasm_il_bgezl(p, r, 0, label_tlbw_hazard);
+		uasm_bgezl_hazard(p, r, hazard_instance);
 		tlbw(p);
-		uasm_l_tlbw_hazard(l, *p);
+		uasm_bgezl_label(l, p, hazard_instance);
+		hazard_instance++;
 		uasm_i_nop(p);
 		break;
 
 	case CPU_R4600:
 	case CPU_R4700:
-	case CPU_R5000:
-	case CPU_R5000A:
 		uasm_i_nop(p);
 		tlbw(p);
 		uasm_i_nop(p);
+		break;
+
+	case CPU_R5000:
+	case CPU_R5000A:
+	case CPU_NEVADA:
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		tlbw(p);
 		break;
 
 	case CPU_R4300:
@@ -512,17 +555,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 			uasm_i_nop(p);
 	case CPU_ALCHEMY:
 		tlbw(p);
-		break;
-
-	case CPU_NEVADA:
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
-		/*
-		 * This branch uses up a mtc0 hazard nop slot and saves
-		 * a nop after the tlbw instruction.
-		 */
-		uasm_il_bgezl(p, r, 0, label_tlbw_hazard);
-		tlbw(p);
-		uasm_l_tlbw_hazard(l, *p);
 		break;
 
 	case CPU_RM7000:
@@ -586,9 +618,8 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 static __cpuinit __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 								  unsigned int reg)
 {
-	if (kernel_uses_smartmips_rixi) {
-		UASM_i_SRL(p, reg, reg, ilog2(_PAGE_NO_EXEC));
-		UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+	if (cpu_has_rixi) {
+		UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
 	} else {
 #ifdef CONFIG_64BIT_PHYS_ADDR
 		uasm_i_dsrl_safe(p, reg, reg, ilog2(_PAGE_GLOBAL));
@@ -921,6 +952,13 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 #endif
 	uasm_i_mfc0(p, tmp, C0_BADVADDR); /* get faulting address */
 	uasm_i_lw(p, ptr, uasm_rel_lo(pgdc), ptr);
+
+	if (cpu_has_mips_r2) {
+		uasm_i_ext(p, tmp, tmp, PGDIR_SHIFT, (32 - PGDIR_SHIFT));
+		uasm_i_ins(p, ptr, tmp, PGD_T_LOG2, (32 - PGDIR_SHIFT));
+		return;
+	}
+
 	uasm_i_srl(p, tmp, tmp, PGDIR_SHIFT); /* get pgd only bits */
 	uasm_i_sll(p, tmp, tmp, PGD_T_LOG2);
 	uasm_i_addu(p, ptr, ptr, tmp); /* add in pgd offset */
@@ -956,6 +994,15 @@ static void __cpuinit build_adjust_context(u32 **p, unsigned int ctx)
 
 static void __cpuinit build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 {
+	if (cpu_has_mips_r2) {
+		/* PTE ptr offset is obtained from BadVAddr */
+		UASM_i_MFC0(p, tmp, C0_BADVADDR);
+		UASM_i_LW(p, ptr, 0, ptr);
+		uasm_i_ext(p, tmp, tmp, PAGE_SHIFT+1, PGDIR_SHIFT-PAGE_SHIFT-1);
+		uasm_i_ins(p, ptr, tmp, PTE_T_LOG2+1, PGDIR_SHIFT-PAGE_SHIFT-1);
+		return;
+	}
+
 	/*
 	 * Bug workaround for the Nevada. It seems as if under certain
 	 * circumstances the move from cp0_context might produce a
@@ -990,12 +1037,10 @@ static void __cpuinit build_update_entries(u32 **p, unsigned int tmp,
 	if (cpu_has_64bits) {
 		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
 		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
-		if (kernel_uses_smartmips_rixi) {
-			UASM_i_SRL(p, tmp, tmp, ilog2(_PAGE_NO_EXEC));
-			UASM_i_SRL(p, ptep, ptep, ilog2(_PAGE_NO_EXEC));
-			UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+		if (cpu_has_rixi) {
+			UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+			UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
 		} else {
 			uasm_i_dsrl_safe(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
 			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
@@ -1017,14 +1062,12 @@ static void __cpuinit build_update_entries(u32 **p, unsigned int tmp,
 	UASM_i_LW(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 	if (r45k_bvahwbug())
 		build_tlb_probe_entry(p);
-	if (kernel_uses_smartmips_rixi) {
-		UASM_i_SRL(p, tmp, tmp, ilog2(_PAGE_NO_EXEC));
-		UASM_i_SRL(p, ptep, ptep, ilog2(_PAGE_NO_EXEC));
-		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+	if (cpu_has_rixi) {
+		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 		if (r4k_250MHZhwbug())
 			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
 	} else {
 		UASM_i_SRL(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
 		if (r4k_250MHZhwbug())
@@ -1183,14 +1226,10 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 		UASM_i_LW(p, even, 0, ptr); /* get even pte */
 		UASM_i_LW(p, odd, sizeof(pte_t), ptr); /* get odd pte */
 	}
-	if (kernel_uses_smartmips_rixi) {
-		uasm_i_dsrl_safe(p, even, even, ilog2(_PAGE_NO_EXEC));
-		uasm_i_dsrl_safe(p, odd, odd, ilog2(_PAGE_NO_EXEC));
-		uasm_i_drotr(p, even, even,
-			     ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+	if (cpu_has_rixi) {
+		uasm_i_drotr(p, even, even, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, even, C0_ENTRYLO0); /* load it */
-		uasm_i_drotr(p, odd, odd,
-			     ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+		uasm_i_drotr(p, odd, odd, ilog2(_PAGE_GLOBAL));
 	} else {
 		uasm_i_dsrl_safe(p, even, even, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, even, C0_ENTRYLO0); /* load it */
@@ -1545,7 +1584,7 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 {
 	int t = scratch >= 0 ? scratch : pte;
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		if (use_bbit_insns()) {
 			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
 			uasm_i_nop(p);
@@ -1875,7 +1914,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		/*
 		 * If the page is not _PAGE_VALID, RI or XI could not
 		 * have triggered it.  Skip the expensive test..
@@ -1929,7 +1968,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	build_pte_present(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbl);
 	build_tlb_probe_entry(&p);
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		/*
 		 * If the page is not _PAGE_VALID, RI or XI could not
 		 * have triggered it.  Skip the expensive test..

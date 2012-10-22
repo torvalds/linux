@@ -1830,12 +1830,14 @@ static inline void mwl8k_tx_count_packet(struct ieee80211_sta *sta, u8 tid)
 }
 
 static void
-mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
+mwl8k_txq_xmit(struct ieee80211_hw *hw,
+	       int index,
+	       struct ieee80211_sta *sta,
+	       struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct ieee80211_tx_info *tx_info;
 	struct mwl8k_vif *mwl8k_vif;
-	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *wh;
 	struct mwl8k_tx_queue *txq;
 	struct mwl8k_tx_desc *tx;
@@ -1867,7 +1869,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 	tx_info = IEEE80211_SKB_CB(skb);
-	sta = tx_info->control.sta;
 	mwl8k_vif = MWL8K_VIF(tx_info->control.vif);
 
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -2019,8 +2020,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	tx->pkt_phys_addr = cpu_to_le32(dma);
 	tx->pkt_len = cpu_to_le16(skb->len);
 	tx->rate_info = 0;
-	if (!priv->ap_fw && tx_info->control.sta != NULL)
-		tx->peer_id = MWL8K_STA(tx_info->control.sta)->peer_id;
+	if (!priv->ap_fw && sta != NULL)
+		tx->peer_id = MWL8K_STA(sta)->peer_id;
 	else
 		tx->peer_id = 0;
 
@@ -4364,7 +4365,9 @@ static void mwl8k_rx_poll(unsigned long data)
 /*
  * Core driver operations.
  */
-static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void mwl8k_tx(struct ieee80211_hw *hw,
+		     struct ieee80211_tx_control *control,
+		     struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int index = skb_get_queue_mapping(skb);
@@ -4376,7 +4379,7 @@ static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 	}
 
-	mwl8k_txq_xmit(hw, index, skb);
+	mwl8k_txq_xmit(hw, index, control->sta, skb);
 }
 
 static int mwl8k_start(struct ieee80211_hw *hw)

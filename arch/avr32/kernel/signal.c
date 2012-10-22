@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
-#include <linux/freezer.h>
 #include <linux/tracehook.h>
 
 #include <asm/uaccess.h>

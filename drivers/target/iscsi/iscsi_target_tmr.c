@@ -50,21 +50,20 @@ u8 iscsit_tmr_abort_task(
 	if (!ref_cmd) {
 		pr_err("Unable to locate RefTaskTag: 0x%08x on CID:"
 			" %hu.\n", hdr->rtt, conn->cid);
-		return ((hdr->refcmdsn >= conn->sess->exp_cmd_sn) &&
-			(hdr->refcmdsn <= conn->sess->max_cmd_sn)) ?
+		return (be32_to_cpu(hdr->refcmdsn) >= conn->sess->exp_cmd_sn &&
+			be32_to_cpu(hdr->refcmdsn) <= conn->sess->max_cmd_sn) ?
 			ISCSI_TMF_RSP_COMPLETE : ISCSI_TMF_RSP_NO_TASK;
 	}
-	if (ref_cmd->cmd_sn != hdr->refcmdsn) {
+	if (ref_cmd->cmd_sn != be32_to_cpu(hdr->refcmdsn)) {
 		pr_err("RefCmdSN 0x%08x does not equal"
 			" task's CmdSN 0x%08x. Rejecting ABORT_TASK.\n",
 			hdr->refcmdsn, ref_cmd->cmd_sn);
 		return ISCSI_TMF_RSP_REJECTED;
 	}
 
-	se_tmr->ref_task_tag		= hdr->rtt;
+	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
-	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
-	tmr_req->exp_data_sn		= hdr->exp_datasn;
+	tmr_req->exp_data_sn		= be32_to_cpu(hdr->exp_datasn);
 
 	return ISCSI_TMF_RSP_COMPLETE;
 }
@@ -146,12 +145,19 @@ u8 iscsit_tmr_task_reassign(
 	}
 	/*
 	 * Temporary check to prevent connection recovery for
-	 * connections with a differing MaxRecvDataSegmentLength.
+	 * connections with a differing Max*DataSegmentLength.
 	 */
 	if (cr->maxrecvdatasegmentlength !=
 	    conn->conn_ops->MaxRecvDataSegmentLength) {
 		pr_err("Unable to perform connection recovery for"
 			" differing MaxRecvDataSegmentLength, rejecting"
+			" TMR TASK_REASSIGN.\n");
+		return ISCSI_TMF_RSP_REJECTED;
+	}
+	if (cr->maxxmitdatasegmentlength !=
+	    conn->conn_ops->MaxXmitDataSegmentLength) {
+		pr_err("Unable to perform connection recovery for"
+			" differing MaxXmitDataSegmentLength, rejecting"
 			" TMR TASK_REASSIGN.\n");
 		return ISCSI_TMF_RSP_REJECTED;
 	}
@@ -164,10 +170,9 @@ u8 iscsit_tmr_task_reassign(
 		return ISCSI_TMF_RSP_REJECTED;
 	}
 
-	se_tmr->ref_task_tag		= hdr->rtt;
+	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
-	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
-	tmr_req->exp_data_sn		= hdr->exp_datasn;
+	tmr_req->exp_data_sn		= be32_to_cpu(hdr->exp_datasn);
 	tmr_req->conn_recovery		= cr;
 	tmr_req->task_reassign		= 1;
 	/*
@@ -455,7 +460,7 @@ static int iscsit_task_reassign_complete(
  *	Right now the only one that its really needed for is
  *	connection recovery releated TASK_REASSIGN.
  */
-extern int iscsit_tmr_post_handler(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
+int iscsit_tmr_post_handler(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
 	struct iscsi_tmr_req *tmr_req = cmd->tmr_req;
 	struct se_tmr_req *se_tmr = cmd->se_cmd.se_tmr_req;
@@ -470,7 +475,7 @@ extern int iscsit_tmr_post_handler(struct iscsi_cmd *cmd, struct iscsi_conn *con
 /*
  *	Nothing to do here, but leave it for good measure. :-)
  */
-int iscsit_task_reassign_prepare_read(
+static int iscsit_task_reassign_prepare_read(
 	struct iscsi_tmr_req *tmr_req,
 	struct iscsi_conn *conn)
 {
@@ -545,7 +550,7 @@ static void iscsit_task_reassign_prepare_unsolicited_dataout(
 	}
 }
 
-int iscsit_task_reassign_prepare_write(
+static int iscsit_task_reassign_prepare_write(
 	struct iscsi_tmr_req *tmr_req,
 	struct iscsi_conn *conn)
 {

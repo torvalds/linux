@@ -912,7 +912,7 @@ u8 HTFilterMCSRate( struct ieee80211_device* ieee, u8* pSupportMCS, u8* pOperate
 
 	u8 i=0;
 
-	// filter out operational rate set not supported by AP, the lenth of it is 16
+	// filter out operational rate set not supported by AP, the length of it is 16
 	for(i=0;i<=15;i++){
 		pOperateMCS[i] = ieee->Regdot11HTOperationalRateSet[i]&pSupportMCS[i];
 	}

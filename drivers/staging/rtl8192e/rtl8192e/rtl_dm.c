@@ -202,7 +202,7 @@ static void dm_check_ac_dc_power(struct net_device *dev)
 
 	if (priv->ResetProgress == RESET_TYPE_SILENT) {
 		RT_TRACE((COMP_INIT | COMP_POWER | COMP_RF),
-			 "GPIOChangeRFWorkItemCallBack(): Silent Reseting!!!!!!!\n");
+			 "GPIOChangeRFWorkItemCallBack(): Silent Reset!!!!!!!\n");
 		return;
 	}
 

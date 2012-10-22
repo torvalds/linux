@@ -20,9 +20,8 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 
-#include <plat/board.h>
 #include <plat/gpmc.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct resource gpmc_smsc911x_resources[] = {
 	[0] = {

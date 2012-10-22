@@ -1588,10 +1588,27 @@ int usbnet_resume (struct usb_interface *intf)
 			tasklet_schedule (&dev->bh);
 		}
 	}
+
+	if (test_and_clear_bit(EVENT_DEVICE_REPORT_IDLE, &dev->flags))
+		usb_autopm_get_interface_no_resume(intf);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_resume);
 
+/*
+ * Either a subdriver implements manage_power, then it is assumed to always
+ * be ready to be suspended or it reports the readiness to be suspended
+ * explicitly
+ */
+void usbnet_device_suggests_idle(struct usbnet *dev)
+{
+	if (!test_and_set_bit(EVENT_DEVICE_REPORT_IDLE, &dev->flags)) {
+		dev->intf->needs_remote_wakeup = 1;
+		usb_autopm_put_interface_async(dev->intf);
+	}
+}
+EXPORT_SYMBOL(usbnet_device_suggests_idle);
 
 /*-------------------------------------------------------------------------*/
 

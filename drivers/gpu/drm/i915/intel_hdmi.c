@@ -29,12 +29,11 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 static void
@@ -151,6 +150,9 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(VIDEO_DIP_DATA, *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(VIDEO_DIP_DATA, 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -186,6 +188,9 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -224,6 +229,9 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -259,6 +267,9 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -292,6 +303,9 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(data_reg + i, *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(data_reg + i, 0);
 	mmiowb();
 
 	val |= hsw_infoframe_enable(frame);

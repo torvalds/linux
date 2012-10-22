@@ -2,9 +2,16 @@
 #define __KVM_X86_LAPIC_H
 
 #include "iodev.h"
-#include "kvm_timer.h"
 
 #include <linux/kvm_host.h>
+
+struct kvm_timer {
+	struct hrtimer timer;
+	s64 period; 				/* unit: ns */
+	u32 timer_mode_mask;
+	u64 tscdeadline;
+	atomic_t pending;			/* accumulated triggered timers */
+};
 
 struct kvm_lapic {
 	unsigned long base_address;
@@ -45,11 +52,13 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
 
+bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq, int *r);
+
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
-void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu);
-int kvm_lapic_enabled(struct kvm_vcpu *vcpu);
-bool kvm_apic_present(struct kvm_vcpu *vcpu);
+void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
+		struct kvm_lapic_state *s);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu);
@@ -71,4 +80,48 @@ static inline bool kvm_hv_vapic_assist_page_enabled(struct kvm_vcpu *vcpu)
 }
 
 int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
+void kvm_lapic_init(void);
+
+static inline u32 kvm_apic_get_reg(struct kvm_lapic *apic, int reg_off)
+{
+	        return *((u32 *) (apic->regs + reg_off));
+}
+
+extern struct static_key kvm_no_apic_vcpu;
+
+static inline bool kvm_vcpu_has_lapic(struct kvm_vcpu *vcpu)
+{
+	if (static_key_false(&kvm_no_apic_vcpu))
+		return vcpu->arch.apic;
+	return true;
+}
+
+extern struct static_key_deferred apic_hw_disabled;
+
+static inline int kvm_apic_hw_enabled(struct kvm_lapic *apic)
+{
+	if (static_key_false(&apic_hw_disabled.key))
+		return apic->vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE;
+	return MSR_IA32_APICBASE_ENABLE;
+}
+
+extern struct static_key_deferred apic_sw_disabled;
+
+static inline int kvm_apic_sw_enabled(struct kvm_lapic *apic)
+{
+	if (static_key_false(&apic_sw_disabled.key))
+		return kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED;
+	return APIC_SPIV_APIC_ENABLED;
+}
+
+static inline bool kvm_apic_present(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_has_lapic(vcpu) && kvm_apic_hw_enabled(vcpu->arch.apic);
+}
+
+static inline int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
+{
+	return kvm_apic_present(vcpu) && kvm_apic_sw_enabled(vcpu->arch.apic);
+}
+
 #endif

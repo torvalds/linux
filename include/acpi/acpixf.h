@@ -47,11 +47,12 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120711
+#define ACPI_CA_VERSION                 0x20120913
 
-#include "acconfig.h"
-#include "actypes.h"
-#include "actbl.h"
+#include <acpi/acconfig.h>
+#include <acpi/actypes.h>
+#include <acpi/actbl.h>
+#include <acpi/acbuffer.h>
 
 extern u8 acpi_gbl_permanent_mmap;
 
@@ -143,6 +144,10 @@ u32
 acpi_check_address_range(acpi_adr_space_type space_id,
 			 acpi_physical_address address,
 			 acpi_size length, u8 warn);
+
+acpi_status
+acpi_decode_pld_buffer(u8 *in_buffer,
+		       acpi_size length, struct acpi_pld_info **return_buffer);
 
 /*
  * ACPI Memory management

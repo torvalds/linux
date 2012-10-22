@@ -11,9 +11,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include "net_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <net_user.h>
+#include <os.h>
+#include <um_malloc.h>
 
 int tap_open_common(void *dev, char *gate_addr)
 {

@@ -73,7 +73,7 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 	}
 
 	ret = usb_control_msg(ft1000dev->dev, pipe, request, requesttype,
-			      value, index, data, size, LARGE_TIMEOUT);
+			      value, index, data, size, timeout);
 
 	if (ret > 0)
 		ret = 0;
@@ -110,7 +110,7 @@ int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data,
 			     nRegIndx,
 			     Data,
 			     2,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_GET_TIMEOUT);
 
 	return ret;
 }
@@ -143,7 +143,7 @@ int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
 			     nRegIndx,
 			     NULL,
 			     0,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_SET_TIMEOUT);
 
 	return ret;
 }
@@ -178,7 +178,7 @@ int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 			     indx,
 			     buffer,
 			     cnt,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_GET_TIMEOUT);
 
 	return ret;
 }
@@ -215,7 +215,7 @@ int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 			     indx,
 			     buffer,
 			     cnt,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_SET_TIMEOUT);
 
 	return ret;
 }
@@ -255,7 +255,7 @@ int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 			     indx,
 			     buffer,
 			     2,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_GET_TIMEOUT);
 
 	return ret;
 }
@@ -294,7 +294,7 @@ int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u
 			     indx,
 			     NULL,
 			     0,
-			     LARGE_TIMEOUT);
+			     USB_CTRL_SET_TIMEOUT);
 
 	return ret;
 }

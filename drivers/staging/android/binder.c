@@ -47,7 +47,7 @@ static HLIST_HEAD(binder_dead_nodes);
 static struct dentry *binder_debugfs_dir_entry_root;
 static struct dentry *binder_debugfs_dir_entry_proc;
 static struct binder_node *binder_context_mgr_node;
-static uid_t binder_context_mgr_uid = -1;
+static kuid_t binder_context_mgr_uid = INVALID_UID;
 static int binder_last_id;
 static struct workqueue_struct *binder_deferred_workqueue;
 
@@ -356,77 +356,28 @@ struct binder_transaction {
 	unsigned int	flags;
 	long	priority;
 	long	saved_priority;
-	uid_t	sender_euid;
+	kuid_t	sender_euid;
 };
 
 static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 
-/*
- * copied from get_unused_fd_flags
- */
-int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
+static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
 	struct files_struct *files = proc->files;
-	int fd, error;
-	struct fdtable *fdt;
 	unsigned long rlim_cur;
 	unsigned long irqs;
 
 	if (files == NULL)
 		return -ESRCH;
 
-	error = -EMFILE;
-	spin_lock(&files->file_lock);
+	if (!lock_task_sighand(proc->tsk, &irqs))
+		return -EMFILE;
 
-repeat:
-	fdt = files_fdtable(files);
-	fd = find_next_zero_bit(fdt->open_fds, fdt->max_fds, files->next_fd);
+	rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
+	unlock_task_sighand(proc->tsk, &irqs);
 
-	/*
-	 * N.B. For clone tasks sharing a files structure, this test
-	 * will limit the total number of files that can be opened.
-	 */
-	rlim_cur = 0;
-	if (lock_task_sighand(proc->tsk, &irqs)) {
-		rlim_cur = proc->tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-		unlock_task_sighand(proc->tsk, &irqs);
-	}
-	if (fd >= rlim_cur)
-		goto out;
-
-	/* Do we need to expand the fd array or fd set?  */
-	error = expand_files(files, fd);
-	if (error < 0)
-		goto out;
-
-	if (error) {
-		/*
-		 * If we needed to expand the fs array we
-		 * might have blocked - try again.
-		 */
-		error = -EMFILE;
-		goto repeat;
-	}
-
-	__set_open_fd(fd, fdt);
-	if (flags & O_CLOEXEC)
-		__set_close_on_exec(fd, fdt);
-	else
-		__clear_close_on_exec(fd, fdt);
-	files->next_fd = fd + 1;
-#if 1
-	/* Sanity check */
-	if (fdt->fd[fd] != NULL) {
-		pr_warn("get_unused_fd: slot %d not NULL!\n", fd);
-		fdt->fd[fd] = NULL;
-	}
-#endif
-	error = fd;
-
-out:
-	spin_unlock(&files->file_lock);
-	return error;
+	return __alloc_fd(files, 0, rlim_cur, flags);
 }
 
 /*
@@ -435,28 +386,8 @@ out:
 static void task_fd_install(
 	struct binder_proc *proc, unsigned int fd, struct file *file)
 {
-	struct files_struct *files = proc->files;
-	struct fdtable *fdt;
-
-	if (files == NULL)
-		return;
-
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	BUG_ON(fdt->fd[fd] != NULL);
-	rcu_assign_pointer(fdt->fd[fd], file);
-	spin_unlock(&files->file_lock);
-}
-
-/*
- * copied from __put_unused_fd in open.c
- */
-static void __put_unused_fd(struct files_struct *files, unsigned int fd)
-{
-	struct fdtable *fdt = files_fdtable(files);
-	__clear_open_fd(fd, fdt);
-	if (fd < files->next_fd)
-		files->next_fd = fd;
+	if (proc->files)
+		__fd_install(proc->files, fd, file);
 }
 
 /*
@@ -464,27 +395,12 @@ static void __put_unused_fd(struct files_struct *files, unsigned int fd)
  */
 static long task_close_fd(struct binder_proc *proc, unsigned int fd)
 {
-	struct file *filp;
-	struct files_struct *files = proc->files;
-	struct fdtable *fdt;
 	int retval;
 
-	if (files == NULL)
+	if (proc->files == NULL)
 		return -ESRCH;
 
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (fd >= fdt->max_fds)
-		goto out_unlock;
-	filp = fdt->fd[fd];
-	if (!filp)
-		goto out_unlock;
-	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__clear_close_on_exec(fd, fdt);
-	__put_unused_fd(files, fd);
-	spin_unlock(&files->file_lock);
-	retval = filp_close(filp, files);
-
+	retval = __close_fd(proc->files, fd);
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
 		     retval == -ERESTARTNOINTR ||
@@ -493,10 +409,6 @@ static long task_close_fd(struct binder_proc *proc, unsigned int fd)
 		retval = -EINTR;
 
 	return retval;
-
-out_unlock:
-	spin_unlock(&files->file_lock);
-	return -EBADF;
 }
 
 static void binder_set_nice(long nice)
@@ -2427,7 +2339,7 @@ retry:
 		}
 		tr.code = t->code;
 		tr.flags = t->flags;
-		tr.sender_euid = t->sender_euid;
+		tr.sender_euid = from_kuid(current_user_ns(), t->sender_euid);
 
 		if (t->from) {
 			struct task_struct *sender = t->from->proc->tsk;
@@ -2705,12 +2617,12 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EBUSY;
 			goto err;
 		}
-		if (binder_context_mgr_uid != -1) {
-			if (binder_context_mgr_uid != current->cred->euid) {
+		if (uid_valid(binder_context_mgr_uid)) {
+			if (!uid_eq(binder_context_mgr_uid, current->cred->euid)) {
 				pr_err("binder: BINDER_SET_"
 				       "CONTEXT_MGR bad uid %d != %d\n",
-				       current->cred->euid,
-				       binder_context_mgr_uid);
+				       from_kuid(&init_user_ns, current->cred->euid),
+				       from_kuid(&init_user_ns, binder_context_mgr_uid));
 				ret = -EPERM;
 				goto err;
 			}
@@ -2793,6 +2705,9 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	const char *failure_string;
 	struct binder_buffer *buffer;
 
+	if (proc->tsk != current)
+		return -EINVAL;
+
 	if ((vma->vm_end - vma->vm_start) > SZ_4M)
 		vma->vm_end = vma->vm_start + SZ_4M;
 
@@ -2857,7 +2772,7 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	binder_insert_free_buffer(proc, buffer);
 	proc->free_async_space = proc->buffer_size / 2;
 	barrier();
-	proc->files = get_files_struct(proc->tsk);
+	proc->files = get_files_struct(current);
 	proc->vma = vma;
 	proc->vma_vm_mm = vma->vm_mm;
 

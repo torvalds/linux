@@ -27,14 +27,13 @@
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "drm_dp_helper.h"
+#include <drm/drm_dp_helper.h>
 
 #define _wait_for(COND, MS, W) ({ \
         unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \

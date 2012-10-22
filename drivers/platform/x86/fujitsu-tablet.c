@@ -52,7 +52,7 @@ struct fujitsu_config {
 	unsigned int quirks;
 };
 
-static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -71,7 +71,7 @@ static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -90,7 +90,7 @@ static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -109,7 +109,7 @@ static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -299,7 +299,7 @@ static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct dmi_system_id dmi_ids[] __initconst = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Siemens P/T Series",

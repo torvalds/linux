@@ -289,7 +289,6 @@ static struct crypto_alg geode_alg = {
 	.cra_blocksize		=	AES_MIN_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct geode_aes_op),
 	.cra_module			=	THIS_MODULE,
-	.cra_list			=	LIST_HEAD_INIT(geode_alg.cra_list),
 	.cra_u				=	{
 		.cipher	=	{
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
@@ -402,7 +401,6 @@ static struct crypto_alg geode_cbc_alg = {
 	.cra_alignmask		=	15,
 	.cra_type			=	&crypto_blkcipher_type,
 	.cra_module			=	THIS_MODULE,
-	.cra_list			=	LIST_HEAD_INIT(geode_cbc_alg.cra_list),
 	.cra_u				=	{
 		.blkcipher	=	{
 			.min_keysize	=	AES_MIN_KEY_SIZE,
@@ -489,7 +487,6 @@ static struct crypto_alg geode_ecb_alg = {
 	.cra_alignmask		=	15,
 	.cra_type			=	&crypto_blkcipher_type,
 	.cra_module			=	THIS_MODULE,
-	.cra_list			=	LIST_HEAD_INIT(geode_ecb_alg.cra_list),
 	.cra_u				=	{
 		.blkcipher	=	{
 			.min_keysize	=	AES_MIN_KEY_SIZE,
@@ -588,21 +585,8 @@ static struct pci_driver geode_aes_driver = {
 	.remove = __devexit_p(geode_aes_remove)
 };
 
-static int __init
-geode_aes_init(void)
-{
-	return pci_register_driver(&geode_aes_driver);
-}
-
-static void __exit
-geode_aes_exit(void)
-{
-	pci_unregister_driver(&geode_aes_driver);
-}
+module_pci_driver(geode_aes_driver);
 
 MODULE_AUTHOR("Advanced Micro Devices, Inc.");
 MODULE_DESCRIPTION("Geode LX Hardware AES driver");
 MODULE_LICENSE("GPL");
-
-module_init(geode_aes_init);
-module_exit(geode_aes_exit);

@@ -69,12 +69,12 @@ static struct at91_udc_data __initdata kb9202_udc_data = {
 	.pullup_pin	= AT91_PIN_PB22,
 };
 
-static struct at91_mmc_data __initdata kb9202_mmc_data = {
-	.det_pin	= AT91_PIN_PB2,
-	.slot_b		= 0,
-	.wire4		= 1,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata kb9202_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB2,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static struct mtd_partition __initdata kb9202_nand_partition[] = {
@@ -96,11 +96,26 @@ static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.num_parts	= ARRAY_SIZE(kb9202_nand_partition),
 };
 
+/*
+ * LEDs
+ */
+static struct gpio_led kb9202_leds[] = {
+	{	/* D1 */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PC19,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* D2 */
+		.name			= "led2",
+		.gpio			= AT91_PIN_PC18,
+		.active_low		= 1,
+		.default_trigger	= "timer",
+	}
+};
+
 static void __init kb9202_board_init(void)
 {
-	/* Set up the LEDs */
-	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -121,13 +136,15 @@ static void __init kb9202_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&kb9202_udc_data);
 	/* MMC */
-	at91_add_device_mmc(0, &kb9202_mmc_data);
+	at91_add_device_mci(0, &kb9202_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 	/* NAND */
 	at91_add_device_nand(&kb9202_nand_data);
+	/* LEDs */
+	at91_gpio_leds(kb9202_leds, ARRAY_SIZE(kb9202_leds));
 }
 
 MACHINE_START(KB9200, "KB920x")

@@ -676,7 +676,6 @@ int mc13xxx_common_init(struct mc13xxx *mc13xxx,
 err_mask:
 err_revision:
 		mc13xxx_unlock(mc13xxx);
-		kfree(mc13xxx);
 		return ret;
 	}
 

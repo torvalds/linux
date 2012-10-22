@@ -116,10 +116,8 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 	gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
 
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
+	if (is_error_pfn(pfn))
 		return;
-	}
 
 	hpa =  pfn << PAGE_SHIFT;
 	if ((*sptep & PT64_BASE_ADDR_MASK) != hpa)
@@ -190,7 +188,6 @@ static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -198,8 +195,7 @@ static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (sp->role.direct || sp->unsync || sp->role.invalid)
 		return;
 
-	slot = gfn_to_memslot(kvm, sp->gfn);
-	rmapp = &slot->rmap[sp->gfn - slot->base_gfn];
+	rmapp = gfn_to_rmap(kvm, sp->gfn, PT_PAGE_TABLE_LEVEL);
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
 	     sptep = rmap_get_next(&iter)) {

@@ -591,7 +591,7 @@ int snd_soc_suspend(struct device *dev)
 
 	/* close any waiting streams and save state */
 	for (i = 0; i < card->num_rtd; i++) {
-		flush_delayed_work_sync(&card->rtd[i].delayed_work);
+		flush_delayed_work(&card->rtd[i].delayed_work);
 		card->rtd[i].codec->dapm.suspend_bias_level = card->rtd[i].codec->dapm.bias_level;
 	}
 
@@ -608,6 +608,10 @@ int snd_soc_suspend(struct device *dev)
 					  SNDRV_PCM_STREAM_CAPTURE,
 					  SND_SOC_DAPM_STREAM_SUSPEND);
 	}
+
+	/* Recheck all analogue paths too */
+	dapm_mark_io_dirty(&card->dapm);
+	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all CODECs */
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
@@ -631,6 +635,8 @@ int snd_soc_suspend(struct device *dev)
 				codec->driver->suspend(codec);
 				codec->suspended = 1;
 				codec->cache_sync = 1;
+				if (codec->using_regmap)
+					regcache_mark_dirty(codec->control_data);
 				break;
 			default:
 				dev_dbg(codec->dev, "CODEC is on over suspend\n");
@@ -756,6 +762,10 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	/* userspace can access us now we are back as we were before */
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D0);
+
+	/* Recheck all analogue paths too */
+	dapm_mark_io_dirty(&card->dapm);
+	snd_soc_dapm_sync(&card->dapm);
 }
 
 /* powers up audio subsystem after a suspend */
@@ -1388,37 +1398,48 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	if (ret < 0)
 		pr_warn("asoc: failed to add pmdown_time sysfs:%d\n", ret);
 
-	if (!dai_link->params) {
-		/* create the pcm */
-		ret = soc_new_pcm(rtd, num);
+	if (cpu_dai->driver->compress_dai) {
+		/*create compress_device"*/
+		ret = soc_new_compress(rtd, num);
 		if (ret < 0) {
-			pr_err("asoc: can't create pcm %s :%d\n",
-			       dai_link->stream_name, ret);
+			pr_err("asoc: can't create compress %s\n",
+					 dai_link->stream_name);
 			return ret;
 		}
 	} else {
-		/* link the DAI widgets */
-		play_w = codec_dai->playback_widget;
-		capture_w = cpu_dai->capture_widget;
-		if (play_w && capture_w) {
-			ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-						   capture_w, play_w);
-			if (ret != 0) {
-				dev_err(card->dev, "Can't link %s to %s: %d\n",
-					play_w->name, capture_w->name, ret);
+
+		if (!dai_link->params) {
+			/* create the pcm */
+			ret = soc_new_pcm(rtd, num);
+			if (ret < 0) {
+				pr_err("asoc: can't create pcm %s :%d\n",
+				       dai_link->stream_name, ret);
 				return ret;
 			}
-		}
-
-		play_w = cpu_dai->playback_widget;
-		capture_w = codec_dai->capture_widget;
-		if (play_w && capture_w) {
-			ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+		} else {
+			/* link the DAI widgets */
+			play_w = codec_dai->playback_widget;
+			capture_w = cpu_dai->capture_widget;
+			if (play_w && capture_w) {
+				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
 						   capture_w, play_w);
-			if (ret != 0) {
-				dev_err(card->dev, "Can't link %s to %s: %d\n",
-					play_w->name, capture_w->name, ret);
-				return ret;
+				if (ret != 0) {
+					dev_err(card->dev, "Can't link %s to %s: %d\n",
+						play_w->name, capture_w->name, ret);
+					return ret;
+				}
+			}
+
+			play_w = cpu_dai->playback_widget;
+			capture_w = codec_dai->capture_widget;
+			if (play_w && capture_w) {
+				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+						   capture_w, play_w);
+				if (ret != 0) {
+					dev_err(card->dev, "Can't link %s to %s: %d\n",
+						play_w->name, capture_w->name, ret);
+					return ret;
+				}
 			}
 		}
 	}
@@ -1816,7 +1837,6 @@ base_error:
 static int soc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	int ret = 0;
 
 	/*
 	 * no card, so machine driver should be registering card
@@ -1832,13 +1852,7 @@ static int soc_probe(struct platform_device *pdev)
 	/* Bodge while we unpick instantiation */
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to register card\n");
-		return ret;
-	}
-
-	return 0;
+	return snd_soc_register_card(card);
 }
 
 static int soc_cleanup_card_resources(struct snd_soc_card *card)
@@ -1848,7 +1862,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* make sure any delayed work runs */
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-		flush_delayed_work_sync(&rtd->delayed_work);
+		flush_delayed_work(&rtd->delayed_work);
 	}
 
 	/* remove auxiliary devices */
@@ -1892,7 +1906,7 @@ int snd_soc_poweroff(struct device *dev)
 	 * now, we're shutting down so no imminent restart. */
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-		flush_delayed_work_sync(&rtd->delayed_work);
+		flush_delayed_work(&rtd->delayed_work);
 	}
 
 	snd_soc_dapm_shutdown(card);
@@ -2399,16 +2413,14 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, bitmask;
+	unsigned int val;
 
-	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-		;
 	val = snd_soc_read(codec, e->reg);
 	ucontrol->value.enumerated.item[0]
-		= (val >> e->shift_l) & (bitmask - 1);
+		= (val >> e->shift_l) & e->mask;
 	if (e->shift_l != e->shift_r)
 		ucontrol->value.enumerated.item[1] =
-			(val >> e->shift_r) & (bitmask - 1);
+			(val >> e->shift_r) & e->mask;
 
 	return 0;
 }
@@ -2429,19 +2441,17 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val;
-	unsigned int mask, bitmask;
+	unsigned int mask;
 
-	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-		;
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
-	mask = (bitmask - 1) << e->shift_l;
+	mask = e->mask << e->shift_l;
 	if (e->shift_l != e->shift_r) {
 		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
-		mask |= (bitmask - 1) << e->shift_r;
+		mask |= e->mask << e->shift_r;
 	}
 
 	return snd_soc_update_bits_locked(codec, e->reg, mask, val);
@@ -3717,6 +3727,9 @@ int snd_soc_register_dai(struct device *dev,
 		}
 	}
 
+	if (!dai->codec)
+		dai->dapm.idle_bias_off = 1;
+
 	list_add(&dai->list, &dai_list);
 
 	mutex_unlock(&client_mutex);
@@ -3804,6 +3817,9 @@ int snd_soc_register_dais(struct device *dev,
 				break;
 			}
 		}
+
+		if (!dai->codec)
+			dai->dapm.idle_bias_off = 1;
 
 		list_add(&dai->list, &dai_list);
 
@@ -4034,8 +4050,6 @@ int snd_soc_register_codec(struct device *dev,
 	return 0;
 
 fail:
-	kfree(codec->reg_def_copy);
-	codec->reg_def_copy = NULL;
 	kfree(codec->name);
 	kfree(codec);
 	return ret;

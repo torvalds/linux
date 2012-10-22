@@ -23,6 +23,9 @@
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/clk-integrator.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -49,17 +52,10 @@
 #include "common.h"
 
 #define INTCP_PA_FLASH_BASE		0x24000000
-#define INTCP_FLASH_SIZE		SZ_32M
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		__io_address(INTEGRATOR_HDR_BASE + 0x40)
-#define INTCP_VA_PIC_BASE		__io_address(INTEGRATOR_IC_BASE)
-#define INTCP_VA_SIC_BASE		__io_address(INTEGRATOR_CP_SIC_BASE)
-
-#define INTCP_ETH_SIZE			0x10
-
-#define INTCP_VA_CTRL_BASE		IO_ADDRESS(INTEGRATOR_CP_CTL_BASE)
+#define INTCP_VA_CTRL_BASE		__io_address(INTEGRATOR_CP_CTL_BASE)
 #define INTCP_FLASHPROG			0x04
 #define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
 #define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
@@ -143,37 +139,6 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-static void __init intcp_init_irq(void)
-{
-	u32 pic_mask, cic_mask, sic_mask;
-
-	/* These masks are for the HW IRQ registers */
-	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
-	pic_mask |= (~((~0u) << (29 - 22))) << 22;
-	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
-	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
-
-	/*
-	 * Disable all interrupt sources
-	 */
-	writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
-	writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
-	writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
-	writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
-	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
-	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
-
-	fpga_irq_init(INTCP_VA_PIC_BASE, "PIC", IRQ_PIC_START,
-		      -1, pic_mask, NULL);
-
-	fpga_irq_init(INTCP_VA_CIC_BASE, "CIC", IRQ_CIC_START,
-		      -1, cic_mask, NULL);
-
-	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
-		      IRQ_CP_CPPLDINT, sic_mask, NULL);
-	integrator_clk_init(true);
-}
-
 /*
  * Flash handling.
  */
@@ -216,47 +181,6 @@ static struct physmap_flash_data intcp_flash_data = {
 	.set_vpp	= intcp_flash_set_vpp,
 };
 
-static struct resource intcp_flash_resource = {
-	.start		= INTCP_PA_FLASH_BASE,
-	.end		= INTCP_PA_FLASH_BASE + INTCP_FLASH_SIZE - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device intcp_flash_device = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &intcp_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &intcp_flash_resource,
-};
-
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.start	= INTEGRATOR_CP_ETH_BASE,
-		.end	= INTEGRATOR_CP_ETH_BASE + INTCP_ETH_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_CP_ETHINT,
-		.end	= IRQ_CP_ETHINT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
-
-static struct platform_device *intcp_devs[] __initdata = {
-	&intcp_flash_device,
-	&smc91x_device,
-};
-
 /*
  * It seems that the card insertion interrupt remains active after
  * we've acknowledged it.  We therefore ignore the interrupt, and
@@ -265,8 +189,8 @@ static struct platform_device *intcp_devs[] __initdata = {
  */
 static unsigned int mmc_status(struct device *dev)
 {
-	unsigned int status = readl(IO_ADDRESS(0xca000000 + 4));
-	writel(8, IO_ADDRESS(INTEGRATOR_CP_CTL_BASE + 8));
+	unsigned int status = readl(__io_address(0xca000000 + 4));
+	writel(8, __io_address(INTEGRATOR_CP_CTL_BASE + 8));
 
 	return status & 8;
 }
@@ -277,16 +201,6 @@ static struct mmci_platform_data mmc_data = {
 	.gpio_wp	= -1,
 	.gpio_cd	= -1,
 };
-
-#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
-#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
-
-static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
-	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
-
-static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
-	INTEGRATOR_CP_AACI_IRQS, NULL);
-
 
 /*
  * CLCD support
@@ -338,15 +252,6 @@ static struct clcd_board clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
-	{ IRQ_CP_CLCDCINT }, &clcd_data);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&mmc_device,
-	&aaci_device,
-	&clcd_device,
-};
-
 #define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
 
 static void __init intcp_init_early(void)
@@ -356,16 +261,193 @@ static void __init intcp_init_early(void)
 #endif
 }
 
-static void __init intcp_init(void)
+#ifdef CONFIG_OF
+
+static void __init intcp_timer_init_of(void)
 {
-	int i;
+	struct device_node *node;
+	const char *path;
+	void __iomem *base;
+	int err;
+	int irq;
 
-	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
+	err = of_property_read_string(of_aliases,
+				"arm,timer-primary", &path);
+	if (WARN_ON(err))
+		return;
+	node = of_find_node_by_path(path);
+	base = of_iomap(node, 0);
+	if (WARN_ON(!base))
+		return;
+	writel(0, base + TIMER_CTRL);
+	sp804_clocksource_init(base, node->name);
 
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		struct amba_device *d = amba_devs[i];
-		amba_device_register(d, &iomem_resource);
-	}
+	err = of_property_read_string(of_aliases,
+				"arm,timer-secondary", &path);
+	if (WARN_ON(err))
+		return;
+	node = of_find_node_by_path(path);
+	base = of_iomap(node, 0);
+	if (WARN_ON(!base))
+		return;
+	irq = irq_of_parse_and_map(node, 0);
+	writel(0, base + TIMER_CTRL);
+	sp804_clockevents_init(base, irq, node->name);
+}
+
+static struct sys_timer cp_of_timer = {
+	.init		= intcp_timer_init_of,
+};
+
+static const struct of_device_id fpga_irq_of_match[] __initconst = {
+	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
+	{ /* Sentinel */ }
+};
+
+static void __init intcp_init_irq_of(void)
+{
+	of_irq_init(fpga_irq_of_match);
+	integrator_clk_init(true);
+}
+
+/*
+ * For the Device Tree, add in the UART, MMC and CLCD specifics as AUXDATA
+ * and enforce the bus names since these are used for clock lookups.
+ */
+static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
+		"rtc", NULL),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
+		"uart0", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
+		"uart1", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
+		"kmi0", NULL),
+	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
+		"kmi1", NULL),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_MMC_BASE,
+		"mmci", &mmc_data),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_AACI_BASE,
+		"aaci", &mmc_data),
+	OF_DEV_AUXDATA("arm,primecell", INTCP_PA_CLCD_BASE,
+		"clcd", &clcd_data),
+	OF_DEV_AUXDATA("cfi-flash", INTCP_PA_FLASH_BASE,
+		"physmap-flash", &intcp_flash_data),
+	{ /* sentinel */ },
+};
+
+static void __init intcp_init_of(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table,
+			intcp_auxdata_lookup, NULL);
+}
+
+static const char * intcp_dt_board_compat[] = {
+	"arm,integrator-cp",
+	NULL,
+};
+
+DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
+	.reserve	= integrator_reserve,
+	.map_io		= intcp_map_io,
+	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
+	.init_early	= intcp_init_early,
+	.init_irq	= intcp_init_irq_of,
+	.handle_irq	= fpga_handle_irq,
+	.timer		= &cp_of_timer,
+	.init_machine	= intcp_init_of,
+	.restart	= integrator_restart,
+	.dt_compat      = intcp_dt_board_compat,
+MACHINE_END
+
+#endif
+
+#ifdef CONFIG_ATAGS
+
+/*
+ * This is where non-devicetree initialization code is collected and stashed
+ * for eventual deletion.
+ */
+
+#define INTCP_FLASH_SIZE		SZ_32M
+
+static struct resource intcp_flash_resource = {
+	.start		= INTCP_PA_FLASH_BASE,
+	.end		= INTCP_PA_FLASH_BASE + INTCP_FLASH_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device intcp_flash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &intcp_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &intcp_flash_resource,
+};
+
+#define INTCP_ETH_SIZE			0x10
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.start	= INTEGRATOR_CP_ETH_BASE,
+		.end	= INTEGRATOR_CP_ETH_BASE + INTCP_ETH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_CP_ETHINT,
+		.end	= IRQ_CP_ETHINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
+};
+
+static struct platform_device *intcp_devs[] __initdata = {
+	&intcp_flash_device,
+	&smc91x_device,
+};
+
+#define INTCP_VA_CIC_BASE		__io_address(INTEGRATOR_HDR_BASE + 0x40)
+#define INTCP_VA_PIC_BASE		__io_address(INTEGRATOR_IC_BASE)
+#define INTCP_VA_SIC_BASE		__io_address(INTEGRATOR_CP_SIC_BASE)
+
+static void __init intcp_init_irq(void)
+{
+	u32 pic_mask, cic_mask, sic_mask;
+
+	/* These masks are for the HW IRQ registers */
+	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
+	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
+	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
+
+	/*
+	 * Disable all interrupt sources
+	 */
+	writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
+
+	fpga_irq_init(INTCP_VA_PIC_BASE, "PIC", IRQ_PIC_START,
+		      -1, pic_mask, NULL);
+
+	fpga_irq_init(INTCP_VA_CIC_BASE, "CIC", IRQ_CIC_START,
+		      -1, cic_mask, NULL);
+
+	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
+		      IRQ_CP_CPPLDINT, sic_mask, NULL);
+
+	integrator_clk_init(true);
 }
 
 #define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
@@ -386,6 +468,37 @@ static struct sys_timer cp_timer = {
 	.init		= intcp_timer_init,
 };
 
+#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
+#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
+
+static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
+	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
+
+static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
+	INTEGRATOR_CP_AACI_IRQS, NULL);
+
+static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
+	{ IRQ_CP_CLCDCINT }, &clcd_data);
+
+static struct amba_device *amba_devs[] __initdata = {
+	&mmc_device,
+	&aaci_device,
+	&clcd_device,
+};
+
+static void __init intcp_init(void)
+{
+	int i;
+
+	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
+
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
+		struct amba_device *d = amba_devs[i];
+		amba_device_register(d, &iomem_resource);
+	}
+	integrator_init(true);
+}
+
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
@@ -399,3 +512,5 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.init_machine	= intcp_init,
 	.restart	= integrator_restart,
 MACHINE_END
+
+#endif

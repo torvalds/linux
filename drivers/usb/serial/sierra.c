@@ -46,7 +46,6 @@
    allocations > PAGE_SIZE and the number of packets in a page
    is an integer 512 is the largest possible packet on EHCI */
 
-static bool debug;
 static bool nmea;
 
 /* Used in interface blacklisting */
@@ -382,7 +381,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 static void sierra_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	sierra_send_setup(port);
 }
 
@@ -518,7 +517,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	memcpy(buffer, buf, writesize);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, writesize, buffer);
+	usb_serial_debug_data(&port->dev, __func__, writesize, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev,
@@ -595,8 +594,8 @@ static void sierra_indat_callback(struct urb *urb)
 				tty_flip_buffer_push(tty);
 
 				tty_kref_put(tty);
-				usb_serial_debug_data(debug, &port->dev,
-					__func__, urb->actual_length, data);
+				usb_serial_debug_data(&port->dev, __func__,
+						      urb->actual_length, data);
 			}
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
@@ -765,7 +764,6 @@ static struct urb *sierra_setup_urb(struct usb_serial *serial, int endpoint,
 			usb_sndbulkpipe(serial->dev, endpoint) | dir,
 			buf, len, callback, ctx);
 
-		/* debug */
 		dev_dbg(&serial->dev->dev, "%s %c u : %p d:%p\n", __func__,
 				dir == USB_DIR_IN ? 'i' : 'o', urb, buf);
 	} else {
@@ -1082,6 +1080,3 @@ MODULE_LICENSE("GPL");
 
 module_param(nmea, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nmea, "NMEA streaming");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug messages");

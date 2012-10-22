@@ -56,6 +56,8 @@ static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
 		switch (boot_cpu_data.x86) {
 		case 6:
 			return msr - MSR_P6_PERFCTR0;
+		case 11:
+			return msr - MSR_KNC_PERFCTR0;
 		case 15:
 			return msr - MSR_P4_BPU_PERFCTR0;
 		}
@@ -82,6 +84,8 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 		switch (boot_cpu_data.x86) {
 		case 6:
 			return msr - MSR_P6_EVNTSEL0;
+		case 11:
+			return msr - MSR_KNC_EVNTSEL0;
 		case 15:
 			return msr - MSR_P4_BSU_ESCR0;
 		}

@@ -33,26 +33,13 @@
 #endif
 
 #define SERIAL_MAX_NUM_LINES 1
-#define SERIAL_TIMER_VALUE (20 * HZ)
+#define SERIAL_TIMER_VALUE (HZ / 10)
 
 static struct tty_driver *serial_driver;
 static struct tty_port serial_port;
 static struct timer_list serial_timer;
 
 static DEFINE_SPINLOCK(timer_lock);
-
-int errno;
-
-static int __simc (int a, int b, int c, int d, int e, int f) __attribute__((__noinline__));
-static int __simc (int a, int b, int c, int d, int e, int f)
-{
-	int ret;
-	__asm__ __volatile__ ("simcall\n"
-			"mov %0, a2\n"
-			"mov %1, a3\n" : "=a" (ret), "=a" (errno)
-			: : "a2", "a3");
-	return ret;
-}
 
 static char *serial_version = "0.1";
 static char *serial_name = "ISS serial driver";
@@ -104,7 +91,7 @@ static int rs_write(struct tty_struct * tty,
 {
 	/* see drivers/char/serialX.c to reference original version */
 
-	__simc (SYS_write, 1, (unsigned long)buf, count, 0, 0);
+	simc_write(1, buf, count);
 	return count;
 }
 
@@ -135,12 +122,7 @@ static void rs_poll(unsigned long priv)
 
 static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	char buf[2];
-
-	buf[0] = ch;
-	buf[1] = '\0';		/* Is this NULL necessary? */
-	__simc (SYS_write, 1, (unsigned long) buf, 1, 0, 0);
-	return 1;
+	return rs_write(tty, &ch, 1);
 }
 
 static void rs_flush_chars(struct tty_struct *tty)
@@ -223,6 +205,7 @@ int __init rs_init(void)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(serial_driver, &serial_ops);
+	tty_port_link_device(&serial_port, serial_driver, 0);
 
 	if (tty_register_driver(serial_driver))
 		panic("Couldn't register serial driver\n");

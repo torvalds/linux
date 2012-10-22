@@ -15,12 +15,12 @@
 
 #include <video/vga.h>
 
-#include "drm/drm_fb_helper.h"
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
+#include <drm/drm_fb_helper.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_module.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>

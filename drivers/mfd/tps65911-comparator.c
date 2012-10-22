@@ -136,7 +136,7 @@ static __devinit int tps65911_comparator_probe(struct platform_device *pdev)
 
 	ret = comp_threshold_set(tps65910, COMP2, pdata->vmbch2_threshold);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot set COMP2 theshold\n");
+		dev_err(&pdev->dev, "cannot set COMP2 threshold\n");
 		return ret;
 	}
 

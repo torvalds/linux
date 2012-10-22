@@ -666,7 +666,7 @@ static int data_submit_dma(struct fpga_device *priv, struct data_buf *buf)
 	src = SYS_FPGA_BLOCK;
 	tx = chan->device->device_prep_dma_memcpy(chan, dst, src,
 						  REG_BLOCK_SIZE,
-						  DMA_PREP_INTERRUPT);
+						  0);
 	if (!tx) {
 		dev_err(priv->dev, "unable to prep SYS-FPGA DMA\n");
 		return -ENOMEM;
@@ -1243,8 +1243,6 @@ static int data_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	/* IO memory (stop cacheing) */
-	vma->vm_flags |= VM_IO | VM_RESERVED;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	return io_remap_pfn_range(vma, vma->vm_start, addr, vsize,

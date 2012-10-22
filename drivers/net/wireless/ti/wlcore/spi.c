@@ -66,7 +66,13 @@
 /* HW limitation: maximum possible chunk size is 4095 bytes */
 #define WSPI_MAX_CHUNK_SIZE    4092
 
-#define WSPI_MAX_NUM_OF_CHUNKS (WL1271_AGGR_BUFFER_SIZE / WSPI_MAX_CHUNK_SIZE)
+/*
+ * only support SPI for 12xx - this code should be reworked when 18xx
+ * support is introduced
+ */
+#define SPI_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
+
+#define WSPI_MAX_NUM_OF_CHUNKS (SPI_AGGR_BUFFER_SIZE / WSPI_MAX_CHUNK_SIZE)
 
 struct wl12xx_spi_glue {
 	struct device *dev;
@@ -271,7 +277,7 @@ static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
 	u32 chunk_len;
 	int i;
 
-	WARN_ON(len > WL1271_AGGR_BUFFER_SIZE);
+	WARN_ON(len > SPI_AGGR_BUFFER_SIZE);
 
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));

@@ -34,7 +34,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <plat/usb-control.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/devs.h>
 
 #include "simtec.h"
@@ -104,7 +104,7 @@ static struct s3c2410_hcd_info usb_simtec_info __initdata = {
 };
 
 
-int usb_simtec_init(void)
+int __init usb_simtec_init(void)
 {
 	int ret;
 

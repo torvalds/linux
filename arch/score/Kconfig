@@ -5,11 +5,14 @@ config SCORE
        select HAVE_GENERIC_HARDIRQS
        select GENERIC_IRQ_SHOW
        select GENERIC_IOMAP
+       select GENERIC_ATOMIC64
        select HAVE_MEMBLOCK
        select HAVE_MEMBLOCK_NODE_MAP
        select ARCH_DISCARD_MEMBLOCK
        select GENERIC_CPU_DEVICES
        select GENERIC_CLOCKEVENTS
+       select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_REL
 
 choice
 	prompt "System type"

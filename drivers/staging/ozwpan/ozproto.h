@@ -14,7 +14,7 @@
 
 /* Converts millisecs to jiffies.
  */
-#define oz_ms_to_jiffies(__x)	(((__x)*1000)/HZ)
+#define oz_ms_to_jiffies(__x)	msecs_to_jiffies(__x)
 
 /* Quantum milliseconds.
  */
@@ -29,6 +29,12 @@
 
 /* Maximun sizes of tx frames. */
 #define OZ_MAX_TX_SIZE		1514
+
+/* Maximum number of uncompleted isoc frames that can be pending in network. */
+#define OZ_MAX_SUBMITTED_ISOC	16
+
+/* Maximum number of uncompleted isoc frames that can be pending in Tx Queue. */
+#define OZ_MAX_TX_QUEUE_ISOC	32
 
 /* Application handler functions.
  */

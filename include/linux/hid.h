@@ -1,12 +1,8 @@
-#ifndef __HID_H
-#define __HID_H
-
 /*
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2007 Jiri Kosina
  */
-
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,43 +22,9 @@
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
+#ifndef __HID_H
+#define __HID_H
 
-/*
- * USB HID (Human Interface Device) interface class code
- */
-
-#define USB_INTERFACE_CLASS_HID		3
-
-/*
- * USB HID interface subclass and protocol codes
- */
-
-#define USB_INTERFACE_SUBCLASS_BOOT	1
-#define USB_INTERFACE_PROTOCOL_KEYBOARD	1
-#define USB_INTERFACE_PROTOCOL_MOUSE	2
-
-/*
- * HID class requests
- */
-
-#define HID_REQ_GET_REPORT		0x01
-#define HID_REQ_GET_IDLE		0x02
-#define HID_REQ_GET_PROTOCOL		0x03
-#define HID_REQ_SET_REPORT		0x09
-#define HID_REQ_SET_IDLE		0x0A
-#define HID_REQ_SET_PROTOCOL		0x0B
-
-/*
- * HID class descriptor types
- */
-
-#define HID_DT_HID			(USB_TYPE_CLASS | 0x01)
-#define HID_DT_REPORT			(USB_TYPE_CLASS | 0x02)
-#define HID_DT_PHYSICAL			(USB_TYPE_CLASS | 0x03)
-
-#define HID_MAX_DESCRIPTOR_SIZE		4096
-
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -73,6 +35,7 @@
 #include <linux/input.h>
 #include <linux/semaphore.h>
 #include <linux/power_supply.h>
+#include <uapi/linux/hid.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -414,7 +377,7 @@ struct hid_field {
 	__u16 dpad;			/* dpad input code */
 };
 
-#define HID_MAX_FIELDS 128
+#define HID_MAX_FIELDS 256
 
 struct hid_report {
 	struct list_head list;
@@ -626,6 +589,7 @@ struct hid_usage_id {
  * @report_fixup: called before report descriptor parsing (NULL means nop)
  * @input_mapping: invoked on input registering before mapping an usage
  * @input_mapped: invoked on input registering after mapping an usage
+ * @input_configured: invoked just before the device is registered
  * @feature_mapping: invoked on feature registering
  * @suspend: invoked on suspend (NULL means nop)
  * @resume: invoked on resume if device was not reset (NULL means nop)
@@ -670,6 +634,8 @@ struct hid_driver {
 	int (*input_mapped)(struct hid_device *hdev,
 			struct hid_input *hidinput, struct hid_field *field,
 			struct hid_usage *usage, unsigned long **bit, int *max);
+	void (*input_configured)(struct hid_device *hdev,
+				 struct hid_input *hidinput);
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
@@ -940,7 +906,4 @@ do {									\
 #define hid_dbg(hid, fmt, arg...)			\
 	dev_dbg(&(hid)->dev, fmt, ##arg)
 
-#endif /* __KERNEL__ */
-
 #endif
-

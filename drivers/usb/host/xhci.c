@@ -52,7 +52,7 @@ MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
  * handshake done).  There are two failure modes:  "usec" have passed (major
  * hardware flakeout), or the register reads as all-ones (hardware removed).
  */
-static int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
+int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
 		      u32 mask, u32 done, int usec)
 {
 	u32	result;
@@ -105,9 +105,10 @@ int xhci_halt(struct xhci_hcd *xhci)
 
 	ret = handshake(xhci, &xhci->op_regs->status,
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
-	if (!ret)
+	if (!ret) {
 		xhci->xhc_state |= XHCI_STATE_HALTED;
-	else
+		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
+	} else
 		xhci_warn(xhci, "Host not halted after %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
 	return ret;
@@ -470,13 +471,16 @@ static bool compliance_mode_recovery_timer_quirk_check(void)
 
 	dmi_product_name = dmi_get_system_info(DMI_PRODUCT_NAME);
 	dmi_sys_vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	if (!dmi_product_name || !dmi_sys_vendor)
+		return false;
 
 	if (!(strstr(dmi_sys_vendor, "Hewlett-Packard")))
 		return false;
 
 	if (strstr(dmi_product_name, "Z420") ||
 			strstr(dmi_product_name, "Z620") ||
-			strstr(dmi_product_name, "Z820"))
+			strstr(dmi_product_name, "Z820") ||
+			strstr(dmi_product_name, "Z1"))
 		return true;
 
 	return false;
@@ -581,6 +585,7 @@ static int xhci_run_finished(struct xhci_hcd *xhci)
 		return -ENODEV;
 	}
 	xhci->shared_hcd->state = HC_STATE_RUNNING;
+	xhci->cmd_ring_state = CMD_RING_STATE_RUNNING;
 
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_ring_cmd_db(xhci);
@@ -886,7 +891,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	command &= ~CMD_RUN;
 	xhci_writel(xhci, command, &xhci->op_regs->command);
 	if (handshake(xhci, &xhci->op_regs->status,
-		      STS_HALT, STS_HALT, 100*100)) {
+		      STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC)) {
 		xhci_warn(xhci, "WARN: xHC CMD_RUN timeout\n");
 		spin_unlock_irq(&xhci->lock);
 		return -ETIMEDOUT;
@@ -1948,7 +1953,7 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 				xhci->num_active_eps);
 }
 
-unsigned int xhci_get_block_size(struct usb_device *udev)
+static unsigned int xhci_get_block_size(struct usb_device *udev)
 {
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -1966,7 +1971,8 @@ unsigned int xhci_get_block_size(struct usb_device *udev)
 	}
 }
 
-unsigned int xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
+static unsigned int
+xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
 {
 	if (interval_bw->overhead[LS_OVERHEAD_TYPE])
 		return LS_OVERHEAD;
@@ -2521,6 +2527,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	struct completion *cmd_completion;
 	u32 *cmd_status;
 	struct xhci_virt_device *virt_dev;
+	union xhci_trb *cmd_trb;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	virt_dev = xhci->devs[udev->slot_id];
@@ -2566,6 +2573,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	}
 	init_completion(cmd_completion);
 
+	cmd_trb = xhci->cmd_ring->dequeue;
 	if (!ctx_change)
 		ret = xhci_queue_configure_endpoint(xhci, in_ctx->dma,
 				udev->slot_id, must_succeed);
@@ -2587,14 +2595,17 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	/* Wait for the configure endpoint command to complete */
 	timeleft = wait_for_completion_interruptible_timeout(
 			cmd_completion,
-			USB_CTRL_SET_TIMEOUT);
+			XHCI_CMD_DEFAULT_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for %s command\n",
 				timeleft == 0 ? "Timeout" : "Signal",
 				ctx_change == 0 ?
 					"configure endpoint" :
 					"evaluate context");
-		/* FIXME cancel the configure endpoint command */
+		/* cancel the configure endpoint command */
+		ret = xhci_cancel_cmd(xhci, command, cmd_trb);
+		if (ret < 0)
+			return ret;
 		return -ETIME;
 	}
 
@@ -3543,8 +3554,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	unsigned long flags;
 	int timeleft;
 	int ret;
+	union xhci_trb *cmd_trb;
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	cmd_trb = xhci->cmd_ring->dequeue;
 	ret = xhci_queue_slot_control(xhci, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
@@ -3556,12 +3569,12 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* XXX: how much time for xHC slot assignment? */
 	timeleft = wait_for_completion_interruptible_timeout(&xhci->addr_dev,
-			USB_CTRL_SET_TIMEOUT);
+			XHCI_CMD_DEFAULT_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for a slot\n",
 				timeleft == 0 ? "Timeout" : "Signal");
-		/* FIXME cancel the enable slot request */
-		return 0;
+		/* cancel the enable slot request */
+		return xhci_cancel_cmd(xhci, NULL, cmd_trb);
 	}
 
 	if (!xhci->slot_id) {
@@ -3622,6 +3635,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_slot_ctx *slot_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u64 temp_64;
+	union xhci_trb *cmd_trb;
 
 	if (!udev->slot_id) {
 		xhci_dbg(xhci, "Bad Slot ID %d\n", udev->slot_id);
@@ -3660,6 +3674,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	cmd_trb = xhci->cmd_ring->dequeue;
 	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx->dma,
 					udev->slot_id);
 	if (ret) {
@@ -3672,7 +3687,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* ctrl tx can take up to 5 sec; XXX: need more time for xHC? */
 	timeleft = wait_for_completion_interruptible_timeout(&xhci->addr_dev,
-			USB_CTRL_SET_TIMEOUT);
+			XHCI_CMD_DEFAULT_TIMEOUT);
 	/* FIXME: From section 4.3.4: "Software shall be responsible for timing
 	 * the SetAddress() "recovery interval" required by USB and aborting the
 	 * command on a timeout.
@@ -3680,7 +3695,10 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for address device command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
-		/* FIXME cancel the address device command */
+		/* cancel the address device command */
+		ret = xhci_cancel_cmd(xhci, NULL, cmd_trb);
+		if (ret < 0)
+			return ret;
 		return -ETIME;
 	}
 

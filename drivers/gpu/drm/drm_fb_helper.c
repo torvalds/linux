@@ -32,10 +32,10 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/module.h>
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");

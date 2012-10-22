@@ -747,18 +747,7 @@ static void stmmac_tx(struct stmmac_priv *priv)
 		priv->hw->ring->clean_desc3(p);
 
 		if (likely(skb != NULL)) {
-			/*
-			 * If there's room in the queue (limit it to size)
-			 * we add this skb back into the pool,
-			 * if it's the right size.
-			 */
-			if ((skb_queue_len(&priv->rx_recycle) <
-				priv->dma_rx_size) &&
-				skb_recycle_check(skb, priv->dma_buf_sz))
-				__skb_queue_head(&priv->rx_recycle, skb);
-			else
-				dev_kfree_skb(skb);
-
+			dev_kfree_skb(skb);
 			priv->tx_skbuff[entry] = NULL;
 		}
 
@@ -1169,7 +1158,6 @@ static int stmmac_open(struct net_device *dev)
 	priv->eee_enabled = stmmac_eee_init(priv);
 
 	napi_enable(&priv->napi);
-	skb_queue_head_init(&priv->rx_recycle);
 	netif_start_queue(dev);
 
 	return 0;
@@ -1222,7 +1210,6 @@ static int stmmac_release(struct net_device *dev)
 		kfree(priv->tm);
 #endif
 	napi_disable(&priv->napi);
-	skb_queue_purge(&priv->rx_recycle);
 
 	/* Free the IRQ lines */
 	free_irq(dev->irq, dev);
@@ -1388,10 +1375,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 		if (likely(priv->rx_skbuff[entry] == NULL)) {
 			struct sk_buff *skb;
 
-			skb = __skb_dequeue(&priv->rx_recycle);
-			if (skb == NULL)
-				skb = netdev_alloc_skb_ip_align(priv->dev,
-								bfsize);
+			skb = netdev_alloc_skb_ip_align(priv->dev, bfsize);
 
 			if (unlikely(skb == NULL))
 				break;

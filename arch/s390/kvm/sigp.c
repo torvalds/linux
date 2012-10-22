@@ -18,6 +18,7 @@
 #include <asm/sigp.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
+#include "trace.h"
 
 static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 			u64 *reg)
@@ -344,6 +345,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	else
 		parameter = vcpu->run->s.regs.gprs[r1 + 1];
 
+	trace_kvm_s390_handle_sigp(vcpu, order_code, cpu_addr, parameter);
 	switch (order_code) {
 	case SIGP_SENSE:
 		vcpu->stat.instruction_sigp_sense++;

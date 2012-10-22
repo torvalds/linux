@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -966,16 +966,16 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 		QLA82XX_IDC_PARAM_ADDR , 8);
 
 	if (*wptr == __constant_cpu_to_le32(0xffffffff)) {
-		ha->nx_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
-		ha->nx_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
+		ha->fcoe_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
+		ha->fcoe_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
 	} else {
-		ha->nx_dev_init_timeout = le32_to_cpu(*wptr++);
-		ha->nx_reset_timeout = le32_to_cpu(*wptr);
+		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr++);
+		ha->fcoe_reset_timeout = le32_to_cpu(*wptr);
 	}
 	ql_dbg(ql_dbg_init, vha, 0x004e,
-	    "nx_dev_init_timeout=%d "
-	    "nx_reset_timeout=%d.\n", ha->nx_dev_init_timeout,
-	    ha->nx_reset_timeout);
+	    "fcoe_dev_init_timeout=%d "
+	    "fcoe_reset_timeout=%d.\n", ha->fcoe_dev_init_timeout,
+	    ha->fcoe_reset_timeout);
 	return;
 }
 
@@ -1017,7 +1017,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		return;
 
-	if (ha->flags.isp82xx_reset_hdlr_active)
+	if (ha->flags.nic_core_reset_hdlr_active)
 		return;
 
 	ha->isp_ops->read_optrom(vha, (uint8_t *)&hdr,
@@ -1662,6 +1662,23 @@ qla24xx_beacon_blink(struct scsi_qla_host *vha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+static uint32_t
+qla83xx_select_led_port(struct qla_hw_data *ha)
+{
+	uint32_t led_select_value = 0;
+
+	if (!IS_QLA83XX(ha))
+		goto out;
+
+	if (ha->flags.port0)
+		led_select_value = QLA83XX_LED_PORT0;
+	else
+		led_select_value = QLA83XX_LED_PORT1;
+
+out:
+	return led_select_value;
+}
+
 void
 qla83xx_beacon_blink(struct scsi_qla_host *vha)
 {
@@ -1669,22 +1686,34 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t led_cfg[6];
 	uint16_t orig_led_cfg[6];
+	uint32_t led_10_value, led_43_value;
 
 	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha))
 		return;
 
-	if (IS_QLA2031(ha) && ha->beacon_blink_led) {
-		if (ha->flags.port0)
-			led_select_value = 0x00201320;
-		else
-			led_select_value = 0x00201328;
+	if (!ha->beacon_blink_led)
+		return;
 
-		qla83xx_write_remote_reg(vha, led_select_value, 0x40002000);
-		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40002000);
+	if (IS_QLA2031(ha)) {
+		led_select_value = qla83xx_select_led_port(ha);
+
+		qla83xx_wr_reg(vha, led_select_value, 0x40002000);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40002000);
 		msleep(1000);
-		qla83xx_write_remote_reg(vha, led_select_value, 0x40004000);
-		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40004000);
-	} else if ((IS_QLA8031(ha) || IS_QLA81XX(ha)) && ha->beacon_blink_led) {
+		qla83xx_wr_reg(vha, led_select_value, 0x40004000);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40004000);
+	} else if (IS_QLA8031(ha)) {
+		led_select_value = qla83xx_select_led_port(ha);
+
+		qla83xx_rd_reg(vha, led_select_value, &led_10_value);
+		qla83xx_rd_reg(vha, led_select_value + 0x10, &led_43_value);
+		qla83xx_wr_reg(vha, led_select_value, 0x01f44000);
+		msleep(500);
+		qla83xx_wr_reg(vha, led_select_value, 0x400001f4);
+		msleep(1000);
+		qla83xx_wr_reg(vha, led_select_value, led_10_value);
+		qla83xx_wr_reg(vha, led_select_value + 0x10, led_43_value);
+	} else if (IS_QLA81XX(ha)) {
 		int rval;
 
 		/* Save Current */

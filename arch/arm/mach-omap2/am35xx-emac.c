@@ -19,7 +19,7 @@
 #include <linux/davinci_emac.h>
 #include <asm/system.h>
 #include <plat/omap_device.h>
-#include <mach/am35xx.h>
+#include "am35xx.h"
 #include "control.h"
 #include "am35xx-emac.h"
 

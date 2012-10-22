@@ -265,6 +265,11 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 #define __copy_to_user_inatomic ___copy_to_user
 #define __copy_from_user_inatomic ___copy_from_user
 
+struct pt_regs;
+extern unsigned long compute_effective_address(struct pt_regs *,
+					       unsigned int insn,
+					       unsigned int rd);
+
 #endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_UACCESS_H */

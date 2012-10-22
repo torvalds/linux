@@ -35,6 +35,14 @@ struct nphy_rf_control_override_rev3 {
 	u8 val_addr1;
 };
 
+struct nphy_rf_control_override_rev7 {
+	u16 field;
+	u16 val_addr_core0;
+	u16 val_addr_core1;
+	u16 val_mask;
+	u8 val_shift;
+};
+
 struct nphy_gain_ctl_workaround_entry {
 	s8 lna1_gain[4];
 	s8 lna2_gain[4];
@@ -202,5 +210,7 @@ extern const struct nphy_rf_control_override_rev2
 	tbl_rf_control_override_rev2[];
 extern const struct nphy_rf_control_override_rev3
 	tbl_rf_control_override_rev3[];
+const struct nphy_rf_control_override_rev7 *b43_nphy_get_rf_ctl_over_rev7(
+	struct b43_wldev *dev, u16 field, u8 override);
 
 #endif /* B43_TABLES_NPHY_H_ */

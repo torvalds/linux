@@ -78,6 +78,13 @@ static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
 }
 
+static inline void ath9k_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
+							bool enable)
+{
+	if (ath9k_hw_ops(ah)->antctrl_shared_chain_lnadiv)
+		ath9k_hw_ops(ah)->antctrl_shared_chain_lnadiv(ah, enable);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */

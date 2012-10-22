@@ -58,7 +58,7 @@ struct arc4context {
 	u8 state[256];
 };
 
-static void arcfour_init(struct arc4context *parc4ctx, u8 * key, u32 key_len)
+static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32 key_len)
 {
 	u32	t, u;
 	u32	keyindex;
@@ -288,7 +288,7 @@ static void secmicclear(struct mic_data *pmicdata)
 	pmicdata->M = 0;
 }
 
-void r8712_secmicsetkey(struct mic_data *pmicdata, u8 * key)
+void r8712_secmicsetkey(struct mic_data *pmicdata, u8 *key)
 {
 	/* Set the key */
 	pmicdata->K0 = secmicgetuint32(key);
@@ -320,7 +320,7 @@ static void secmicappendbyte(struct mic_data *pmicdata, u8 b)
 	}
 }
 
-void r8712_secmicappend(struct mic_data *pmicdata, u8 * src, u32 nbytes)
+void r8712_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nbytes)
 {
 	/* This is simple */
 	while (nbytes > 0) {
@@ -1368,7 +1368,7 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 					   precvframe)->u.hdr.attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
 
-	pframe = (unsigned char *)((union recv_frame*)precvframe)->
+	pframe = (unsigned char *)((union recv_frame *)precvframe)->
 		 u.hdr.rx_data;
 	/* 4 start to encrypt each fragment */
 	if ((prxattrib->encrypt == _AES_)) {

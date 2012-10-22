@@ -102,7 +102,7 @@ int __devinit smp_generic_kick_cpu(int nr)
 	 * Ok it's not there, so it might be soft-unplugged, let's
 	 * try to bring it back
 	 */
-	per_cpu(cpu_state, nr) = CPU_UP_PREPARE;
+	generic_set_cpu_up(nr);
 	smp_wmb();
 	smp_send_reschedule(nr);
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -171,7 +171,7 @@ int smp_request_message_ipi(int virq, int msg)
 	}
 #endif
 	err = request_irq(virq, smp_ipi_action[msg],
-			  IRQF_PERCPU | IRQF_NO_THREAD,
+			  IRQF_PERCPU | IRQF_NO_THREAD | IRQF_NO_SUSPEND,
 			  smp_ipi_name[msg], 0);
 	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
 		virq, smp_ipi_name[msg], err);
@@ -411,6 +411,16 @@ void generic_mach_cpu_die(void)
 void generic_set_cpu_dead(unsigned int cpu)
 {
 	per_cpu(cpu_state, cpu) = CPU_DEAD;
+}
+
+/*
+ * The cpu_state should be set to CPU_UP_PREPARE in kick_cpu(), otherwise
+ * the cpu_state is always CPU_DEAD after calling generic_set_cpu_dead(),
+ * which makes the delay in generic_cpu_die() not happen.
+ */
+void generic_set_cpu_up(unsigned int cpu)
+{
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 }
 
 int generic_check_cpu_restart(unsigned int cpu)

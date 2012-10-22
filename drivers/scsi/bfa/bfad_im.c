@@ -1216,6 +1216,15 @@ bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd 
 		return 0;
 	}
 
+	if (bfad->bfad_flags & BFAD_EEH_BUSY) {
+		if (bfad->bfad_flags & BFAD_EEH_PCI_CHANNEL_IO_PERM_FAILURE)
+			cmnd->result = DID_NO_CONNECT << 16;
+		else
+			cmnd->result = DID_REQUEUE << 16;
+		done(cmnd);
+		return 0;
+	}
+
 	sg_cnt = scsi_dma_map(cmnd);
 	if (sg_cnt < 0)
 		return SCSI_MLQUEUE_HOST_BUSY;

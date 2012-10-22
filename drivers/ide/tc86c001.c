@@ -192,7 +192,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info tc86c001_chipset __devinitdata = {
+static const struct ide_port_info tc86c001_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_tc86c001,
 	.port_ops	= &tc86c001_port_ops,

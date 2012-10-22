@@ -20,7 +20,8 @@
 #include "rate.h"
 #include "mesh.h"
 
-static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy, char *name,
+static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
+						const char *name,
 						enum nl80211_iftype type,
 						u32 *flags,
 						struct vif_params *params)
@@ -102,6 +103,18 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	return 0;
 }
 
+static int ieee80211_start_p2p_device(struct wiphy *wiphy,
+				      struct wireless_dev *wdev)
+{
+	return ieee80211_do_open(wdev, true);
+}
+
+static void ieee80211_stop_p2p_device(struct wiphy *wiphy,
+				      struct wireless_dev *wdev)
+{
+	ieee80211_sdata_stop(IEEE80211_WDEV_TO_SUB_IF(wdev));
+}
+
 static int ieee80211_set_noack_map(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  u16 noack_map)
@@ -156,6 +169,38 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			err = -ENOENT;
 			goto out_unlock;
 		}
+	}
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		/* Keys without a station are used for TX only */
+		if (key->sta && test_sta_flag(key->sta, WLAN_STA_MFP))
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* no MFP (yet) */
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+#ifdef CONFIG_MAC80211_MESH
+		if (sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE)
+			key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+		break;
+#endif
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+		/* shouldn't happen */
+		WARN_ON_ONCE(1);
+		break;
 	}
 
 	err = ieee80211_key_link(key, sdata, sta);
@@ -330,7 +375,7 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 	if (!(rate->flags & RATE_INFO_FLAGS_MCS)) {
 		struct ieee80211_supported_band *sband;
 		sband = sta->local->hw.wiphy->bands[
-				sta->local->hw.conf.channel->band];
+				sta->local->oper_channel->band];
 		rate->legacy = sband->bitrates[idx].bitrate;
 	} else
 		rate->mcs = idx;
@@ -725,25 +770,23 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 				    const u8 *resp, size_t resp_len)
 {
-	struct sk_buff *new, *old;
+	struct probe_resp *new, *old;
 
 	if (!resp || !resp_len)
 		return 1;
 
 	old = rtnl_dereference(sdata->u.ap.probe_resp);
 
-	new = dev_alloc_skb(resp_len);
+	new = kzalloc(sizeof(struct probe_resp) + resp_len, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
-	memcpy(skb_put(new, resp_len), resp, resp_len);
+	new->len = resp_len;
+	memcpy(new->data, resp, resp_len);
 
 	rcu_assign_pointer(sdata->u.ap.probe_resp, new);
-	if (old) {
-		/* TODO: use call_rcu() */
-		synchronize_rcu();
-		dev_kfree_skb(old);
-	}
+	if (old)
+		kfree_rcu(old, rcu_head);
 
 	return 0;
 }
@@ -950,7 +993,7 @@ static void ieee80211_send_layer2_update(struct sta_info *sta)
 	/* 802.2 Type 1 Logical Link Control (LLC) Exchange Identifier (XID)
 	 * Update response frame; IEEE Std 802.2-1998, 5.4.1.2.1 */
 
-	memset(msg->da, 0xff, ETH_ALEN);
+	eth_broadcast_addr(msg->da);
 	memcpy(msg->sa, sta->sta.addr, ETH_ALEN);
 	msg->len = htons(6);
 	msg->dsap = 0;
@@ -1285,9 +1328,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	mutex_unlock(&local->sta_mtx);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))
+	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		ieee80211_recalc_ps(local, -1);
-
+		ieee80211_recalc_ps_vif(sdata);
+	}
 	return 0;
 }
 
@@ -1660,7 +1704,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    sdata->local->hw.conf.channel->band == IEEE80211_BAND_5GHZ) {
+	    sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
@@ -1774,6 +1818,7 @@ static int ieee80211_scan(struct wiphy *wiphy,
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		if (sdata->local->ops->hw_scan)
@@ -1926,7 +1971,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_channel *chan = local->hw.conf.channel;
+	struct ieee80211_channel *chan = local->oper_channel;
 	u32 changes = 0;
 
 	switch (type) {
@@ -2026,9 +2071,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (!sdata->u.mgd.associated ||
 	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
-		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_smps(sdata->local);
-		mutex_unlock(&sdata->local->iflist_mtx);
 		return 0;
 	}
 
@@ -2078,6 +2121,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps_vif(sdata);
 
 	return 0;
 }
@@ -2460,6 +2504,9 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->u.mgd.associated)
 			need_offchan = true;
 		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		need_offchan = true;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2652,6 +2699,7 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 			       u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tdls_data *tf;
 
 	tf = (void *)skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
@@ -2671,8 +2719,10 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_req.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
@@ -2685,8 +2735,10 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
@@ -2724,6 +2776,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 			   u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 
 	mgmt = (void *)skb_put(skb, 24);
@@ -2746,8 +2799,10 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	default:
@@ -3004,6 +3059,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
 	.change_virtual_intf = ieee80211_change_iface,
+	.start_p2p_device = ieee80211_start_p2p_device,
+	.stop_p2p_device = ieee80211_stop_p2p_device,
 	.add_key = ieee80211_add_key,
 	.del_key = ieee80211_del_key,
 	.get_key = ieee80211_get_key,

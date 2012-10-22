@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 
-#include <mach/ssi.h>
+#include <linux/platform_data/asoc-imx-ssi.h>
 
 EXPORT_SYMBOL(imx_ssi_fiq_tx_buffer);
 EXPORT_SYMBOL(imx_ssi_fiq_rx_buffer);

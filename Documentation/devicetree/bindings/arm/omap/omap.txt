@@ -36,6 +36,9 @@ Boards:
 - OMAP3 BeagleBoard : Low cost community board
   compatible = "ti,omap3-beagle", "ti,omap3"
 
+- OMAP3 Tobi with Overo : Commercial expansion board with daughter board
+  compatible = "ti,omap3-tobi", "ti,omap3-overo", "ti,omap3"
+
 - OMAP4 SDP : Software Developement Board
   compatible = "ti,omap4-sdp", "ti,omap4430"
 

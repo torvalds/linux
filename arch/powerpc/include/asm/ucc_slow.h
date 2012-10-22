@@ -20,7 +20,7 @@
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
 
-#include "ucc.h"
+#include <asm/ucc.h>
 
 /* transmit BD's status */
 #define T_R	0x80000000	/* ready bit */
