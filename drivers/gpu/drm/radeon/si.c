@@ -2868,6 +2868,10 @@ void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 1 << vm->id);
+
+	/* sync PFP to ME, otherwise we might get invalid PFP reads */
+	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+	radeon_ring_write(ring, 0x0);
 }
 
 /*

@@ -1586,4 +1586,8 @@ void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	/* bits 0-7 are the VM contexts0-7 */
 	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
 	radeon_ring_write(ring, 1 << vm->id);
+
+	/* sync PFP to ME, otherwise we might get invalid PFP reads */
+	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+	radeon_ring_write(ring, 0x0);
 }
