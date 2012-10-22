@@ -1468,9 +1468,12 @@ static void i9xx_update_wm(struct drm_device *dev)
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (crtc->enabled && crtc->fb) {
+		int cpp = crtc->fb->bits_per_pixel / 8;
+		if (IS_GEN2(dev))
+			cpp = 4;
+
 		planea_wm = intel_calculate_wm(crtc->mode.clock,
-					       wm_info, fifo_size,
-					       crtc->fb->bits_per_pixel / 8,
+					       wm_info, fifo_size, cpp,
 					       latency_ns);
 		enabled = crtc;
 	} else
@@ -1479,9 +1482,12 @@ static void i9xx_update_wm(struct drm_device *dev)
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (crtc->enabled && crtc->fb) {
+		int cpp = crtc->fb->bits_per_pixel / 8;
+		if (IS_GEN2(dev))
+			cpp = 4;
+
 		planeb_wm = intel_calculate_wm(crtc->mode.clock,
-					       wm_info, fifo_size,
-					       crtc->fb->bits_per_pixel / 8,
+					       wm_info, fifo_size, cpp,
 					       latency_ns);
 		if (enabled == NULL)
 			enabled = crtc;
@@ -1571,8 +1577,7 @@ static void i830_update_wm(struct drm_device *dev)
 
 	planea_wm = intel_calculate_wm(crtc->mode.clock, &i830_wm_info,
 				       dev_priv->display.get_fifo_size(dev, 0),
-				       crtc->fb->bits_per_pixel / 8,
-				       latency_ns);
+				       4, latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
 
