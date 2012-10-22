@@ -214,23 +214,17 @@ struct brcmf_cfg80211_security {
 	u32 wpa_auth;
 };
 
-/* ibss information for currently joined ibss network */
-struct brcmf_cfg80211_ibss {
-	u8 beacon_interval;	/* in millisecond */
-	u8 atim;		/* in millisecond */
-	s8 join_only;
-	u8 band;
-	u8 channel;
-};
-
-/* dongle profile */
+/**
+ * struct brcmf_cfg80211_profile - profile information.
+ *
+ * @ssid: ssid of associated/associating ap.
+ * @bssid: bssid of joined/joining ibss.
+ * @sec: security information.
+ */
 struct brcmf_cfg80211_profile {
-	u32 mode;
 	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	struct brcmf_cfg80211_security sec;
-	struct brcmf_cfg80211_ibss ibss;
-	s32 band;
 };
 
 /**
