@@ -1016,29 +1016,20 @@ static int dock_remove(struct dock_station *ds)
 }
 
 /**
- * find_dock - look for a dock station
+ * find_dock_and_bay - look for dock stations and bays
  * @handle: acpi handle of a device
  * @lvl: unused
- * @context: counter of dock stations found
+ * @context: unused
  * @rv: unused
  *
- * This is called by acpi_walk_namespace to look for dock stations.
+ * This is called by acpi_walk_namespace to look for dock stations and bays.
  */
 static __init acpi_status
-find_dock(acpi_handle handle, u32 lvl, void *context, void **rv)
+find_dock_and_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	if (is_dock(handle))
+	if (is_dock(handle) || is_ejectable_bay(handle))
 		dock_add(handle);
 
-	return AE_OK;
-}
-
-static __init acpi_status
-find_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	/* If bay is a dock, it's already handled */
-	if (is_ejectable_bay(handle) && !is_dock(handle))
-		dock_add(handle);
 	return AE_OK;
 }
 
@@ -1047,13 +1038,10 @@ static int __init dock_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	/* look for a dock station */
+	/* look for dock stations and bays */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			    ACPI_UINT32_MAX, find_dock, NULL, NULL, NULL);
+		ACPI_UINT32_MAX, find_dock_and_bay, NULL, NULL, NULL);
 
-	/* look for bay */
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, find_bay, NULL, NULL, NULL);
 	if (!dock_station_count) {
 		printk(KERN_INFO PREFIX "No dock devices found.\n");
 		return 0;
