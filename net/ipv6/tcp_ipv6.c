@@ -1741,11 +1741,11 @@ static void tcp_v6_early_demux(struct sk_buff *skb)
 		skb->destructor = sock_edemux;
 		if (sk->sk_state != TCP_TIME_WAIT) {
 			struct dst_entry *dst = sk->sk_rx_dst;
-			struct inet_sock *icsk = inet_sk(sk);
+
 			if (dst)
 				dst = dst_check(dst, inet6_sk(sk)->rx_dst_cookie);
 			if (dst &&
-			    icsk->rx_dst_ifindex == skb->skb_iif)
+			    inet_sk(sk)->rx_dst_ifindex == skb->skb_iif)
 				skb_dst_set_noref(skb, dst);
 		}
 	}
