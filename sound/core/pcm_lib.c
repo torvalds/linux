@@ -316,6 +316,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	unsigned long jdelta;
 	unsigned long curr_jiffies;
 	struct timespec curr_tstamp;
+	struct timespec audio_tstamp;
 	int crossed_boundary = 0;
 
 	old_hw_ptr = runtime->status->hw_ptr;
@@ -328,8 +329,13 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	 */
 	pos = substream->ops->pointer(substream);
 	curr_jiffies = jiffies;
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+
+		if ((runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK) &&
+			(substream->ops->wall_clock))
+			substream->ops->wall_clock(substream, &audio_tstamp);
+	}
 
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
@@ -520,8 +526,30 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		snd_BUG_ON(crossed_boundary != 1);
 		runtime->hw_ptr_wrap += runtime->boundary;
 	}
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		runtime->status->tstamp = curr_tstamp;
+
+		if (!(runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK)) {
+			/*
+			 * no wall clock available, provide audio timestamp
+			 * derived from pointer position+delay
+			 */
+			u64 audio_frames, audio_nsecs;
+
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					- runtime->delay;
+			else
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					+ runtime->delay;
+			audio_nsecs = div_u64(audio_frames * 1000000000LL,
+					runtime->rate);
+			audio_tstamp = ns_to_timespec(audio_nsecs);
+		}
+		runtime->status->audio_tstamp = audio_tstamp;
+	}
 
 	return snd_pcm_update_state(substream, runtime);
 }
