@@ -553,7 +553,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	while (status) {
 		/* close possible race with dev_close */
 		if (unlikely(!netif_running(dev))) {
-			macb_writel(bp, IDR, ~0UL);
+			macb_writel(bp, IDR, -1);
 			break;
 		}
 
@@ -789,11 +789,11 @@ static void macb_reset_hw(struct macb *bp)
 	macb_writel(bp, NCR, MACB_BIT(CLRSTAT));
 
 	/* Clear all status flags */
-	macb_writel(bp, TSR, ~0UL);
-	macb_writel(bp, RSR, ~0UL);
+	macb_writel(bp, TSR, -1);
+	macb_writel(bp, RSR, -1);
 
 	/* Disable all interrupts */
-	macb_writel(bp, IDR, ~0UL);
+	macb_writel(bp, IDR, -1);
 	macb_readl(bp, ISR);
 }
 
