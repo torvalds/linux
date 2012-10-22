@@ -99,7 +99,7 @@ static void __pm_clk_remove(struct pm_clock_entry *ce)
 
 	if (ce->status < PCE_STATUS_ERROR) {
 		if (ce->status == PCE_STATUS_ENABLED)
-			clk_disable(ce->clk);
+			clk_disable_unprepare(ce->clk);
 
 		if (ce->status >= PCE_STATUS_ACQUIRED)
 			clk_put(ce->clk);
@@ -396,7 +396,7 @@ static void enable_clock(struct device *dev, const char *con_id)
 
 	clk = clk_get(dev, con_id);
 	if (!IS_ERR(clk)) {
-		clk_enable(clk);
+		clk_prepare_enable(clk);
 		clk_put(clk);
 		dev_info(dev, "Runtime PM disabled, clock forced on.\n");
 	}
@@ -413,7 +413,7 @@ static void disable_clock(struct device *dev, const char *con_id)
 
 	clk = clk_get(dev, con_id);
 	if (!IS_ERR(clk)) {
-		clk_disable(clk);
+		clk_disable_unprepare(clk);
 		clk_put(clk);
 		dev_info(dev, "Runtime PM disabled, clock forced off.\n");
 	}
