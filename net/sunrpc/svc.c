@@ -324,7 +324,9 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	 * The caller checks for sv_nrpools > 1, which
 	 * implies that we've been initialized.
 	 */
-	BUG_ON(m->count == 0);
+	WARN_ON_ONCE(m->count == 0);
+	if (m->count == 0)
+		return;
 
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
