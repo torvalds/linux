@@ -27,17 +27,17 @@ Start			End			Size		Use
 -----------------------------------------------------------------------
 0000000000000000	0000007fffffffff	 512GB		user
 
-ffffff8000000000	ffffffbbfffcffff	~240GB		vmalloc
+ffffff8000000000	ffffffbbfffeffff	~240GB		vmalloc
 
-ffffffbbfffd0000	ffffffbcfffdffff	  64KB		[guard page]
-
-ffffffbbfffe0000	ffffffbcfffeffff	  64KB		PCI I/O space
-
-ffffffbbffff0000	ffffffbcffffffff	  64KB		[guard page]
+ffffffbbffff0000	ffffffbbffffffff	  64KB		[guard page]
 
 ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
 
-ffffffbe00000000	ffffffbffbffffff	  ~8GB		[guard, future vmmemap]
+ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[guard, future vmmemap]
+
+ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O space
+
+ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[guard]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		modules
 
