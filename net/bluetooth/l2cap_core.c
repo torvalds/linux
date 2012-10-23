@@ -3400,8 +3400,9 @@ static inline int l2cap_command_rej(struct l2cap_conn *conn,
 	return 0;
 }
 
-static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
-			  u8 *data, u8 rsp_code, u8 amp_id)
+static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
+					struct l2cap_cmd_hdr *cmd,
+					u8 *data, u8 rsp_code, u8 amp_id)
 {
 	struct l2cap_conn_req *req = (struct l2cap_conn_req *) data;
 	struct l2cap_conn_rsp rsp;
@@ -3452,6 +3453,7 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 	bacpy(&bt_sk(sk)->dst, conn->dst);
 	chan->psm  = psm;
 	chan->dcid = scid;
+	chan->local_amp_id = amp_id;
 
 	__l2cap_chan_add(conn, chan);
 
@@ -3469,8 +3471,17 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 				status = L2CAP_CS_AUTHOR_PEND;
 				chan->ops->defer(chan);
 			} else {
-				__l2cap_state_change(chan, BT_CONFIG);
-				result = L2CAP_CR_SUCCESS;
+				/* Force pending result for AMP controllers.
+				 * The connection will succeed after the
+				 * physical link is up.
+				 */
+				if (amp_id) {
+					__l2cap_state_change(chan, BT_CONNECT2);
+					result = L2CAP_CR_PEND;
+				} else {
+					__l2cap_state_change(chan, BT_CONFIG);
+					result = L2CAP_CR_SUCCESS;
+				}
 				status = L2CAP_CS_NO_INFO;
 			}
 		} else {
@@ -3516,6 +3527,8 @@ sendresp:
 			       l2cap_build_conf_req(chan, buf), buf);
 		chan->num_conf_req++;
 	}
+
+	return chan;
 }
 
 static int l2cap_connect_req(struct l2cap_conn *conn,
@@ -4028,12 +4041,12 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn,
 	return 0;
 }
 
-static inline int l2cap_create_channel_req(struct l2cap_conn *conn,
-					   struct l2cap_cmd_hdr *cmd,
-					   u16 cmd_len, void *data)
+static int l2cap_create_channel_req(struct l2cap_conn *conn,
+				    struct l2cap_cmd_hdr *cmd,
+				    u16 cmd_len, void *data)
 {
 	struct l2cap_create_chan_req *req = data;
-	struct l2cap_create_chan_rsp rsp;
+	struct l2cap_chan *chan;
 	u16 psm, scid;
 
 	if (cmd_len != sizeof(*req))
@@ -4047,14 +4060,34 @@ static inline int l2cap_create_channel_req(struct l2cap_conn *conn,
 
 	BT_DBG("psm 0x%2.2x, scid 0x%4.4x, amp_id %d", psm, scid, req->amp_id);
 
-	/* Placeholder: Always reject */
-	rsp.dcid = 0;
-	rsp.scid = cpu_to_le16(scid);
-	rsp.result = __constant_cpu_to_le16(L2CAP_CR_NO_MEM);
-	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+	if (req->amp_id) {
+		struct hci_dev *hdev;
 
-	l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
-		       sizeof(rsp), &rsp);
+		/* Validate AMP controller id */
+		hdev = hci_dev_get(req->amp_id);
+		if (!hdev || hdev->dev_type != HCI_AMP ||
+		    !test_bit(HCI_UP, &hdev->flags)) {
+			struct l2cap_create_chan_rsp rsp;
+
+			rsp.dcid = 0;
+			rsp.scid = cpu_to_le16(scid);
+			rsp.result = __constant_cpu_to_le16(L2CAP_CR_BAD_AMP);
+			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+
+			l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
+				       sizeof(rsp), &rsp);
+
+			if (hdev)
+				hci_dev_put(hdev);
+
+			return 0;
+		}
+
+		hci_dev_put(hdev);
+	}
+
+	chan = l2cap_connect(conn, cmd, data, L2CAP_CREATE_CHAN_RSP,
+			     req->amp_id);
 
 	return 0;
 }
