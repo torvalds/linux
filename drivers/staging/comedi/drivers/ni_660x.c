@@ -1114,22 +1114,13 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 	return 0;
 }
 
-static void ni660x_config_filter(struct comedi_device *dev,
-				 unsigned pfi_channel,
-				 enum ni_gpct_filter_select filter)
-{
-	unsigned bits = ni_660x_read_register(dev, 0, IOConfigReg(pfi_channel));
-	bits &= ~pfi_input_select_mask(pfi_channel);
-	bits |= pfi_input_select_bits(pfi_channel, filter);
-	ni_660x_write_register(dev, 0, bits, IOConfigReg(pfi_channel));
-}
-
 static int ni_660x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
@@ -1158,7 +1149,10 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		data[1] = devpriv->pfi_output_selects[chan];
 		break;
 	case INSN_CONFIG_FILTER:
-		ni660x_config_filter(dev, chan, data[1]);
+		val = ni_660x_read_register(dev, 0, IOConfigReg(chan));
+		val &= ~pfi_input_select_mask(chan);
+		val |= pfi_input_select_bits(chan, data[1]);
+		ni_660x_write_register(dev, 0, val, IOConfigReg(chan));
 		break;
 	default:
 		return -EINVAL;
