@@ -53,13 +53,18 @@
 #ifdef CONFIG_RK_CONFIG
 
 enum {
-#ifdef RK2926_TB_DEFAULT_CONFIG
+#if defined(RK2926_TB_DEFAULT_CONFIG) || defined(RK2928_TB_DEFAULT_CONFIG)
         DEF_EN = 1,
 #else
         DEF_EN = 0,
 #endif
+#if defined(RK2926_TB_DEFAULT_CONFIG)
         DEF_IRQ = 0x008001b0,
         DEF_RST = 0X000002b0,
+#elif defined(RK2928_TB_DEFAULT_CONFIG)
+        DEF_IRQ = 0x008003c7,
+        DEF_RST = 0X000003c3,
+#endif
         DEF_I2C = 2, 
         DEF_ADDR = 0x04,
         DEF_X_MAX = 1087,

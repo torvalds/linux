@@ -604,7 +604,6 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         
         .charging_sleep   = 0 ,
         .save_capacity   = 1 ,
-        .adc_channel      = 0 ,
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -614,6 +613,19 @@ static struct platform_device rk30_device_adc_battery = {
                 .platform_data = &rk30_adc_battery_platdata,
         },
 };
+static int __init chg_board_init(void)
+{
+        int ret = check_chg_param();
+        if(ret < 0)
+                return ret;
+        rk30_adc_battery_platdata.adc_channel = chg_adc;
+        return 0;
+}
+#else
+static int __init chg_board_init(void)
+{
+        return 0;
+}
 #endif
 
 static struct platform_device *devices[] __initdata = {
@@ -937,6 +949,9 @@ static int __init rk2928_config_init(void)
         if(ret < 0)
                 return ret;
         ret = sdmmc_board_init();
+        if(ret < 0)
+                return ret;
+        ret = chg_board_init();
         if(ret < 0)
                 return ret;
         return 0;

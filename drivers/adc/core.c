@@ -45,6 +45,8 @@ struct adc_client *adc_register(int chn,
         struct adc_client *client = NULL;
         struct adc_host *adc = NULL;
 
+        if(chn < 0)
+                return NULL;
         list_for_each_entry(adc, &adc_host_head, entry) {
                 if((chn == 0 && adc->mask == SARADC_CHN_MASK) ||
                 (chn & adc->mask)){

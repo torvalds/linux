@@ -259,14 +259,15 @@ static int chg_set = -1;
 module_param(chg_set, int, 0644);
 static int chg_sel = -1;
 module_param(chg_sel, int, 0644);
-static inline int check_charge_param(void)
+static inline int check_chg_param(void)
 {
         return 0;
 }
 
 /* dvfs */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-#if defined(RK2926_TB_DEFAULT_CONFIG)
+//#if defined(RK2926_TB_DEFAULT_CONFIG)
+#if 1
         {.frequency = 216 * 1000, .cpu_volt = 1200 * 1000, .logic_volt = 1200 * 1000},
         {.frequency = 312 * 1000, .cpu_volt = 1200 * 1000, .logic_volt = 1200 * 1000},
         {.frequency = 408 * 1000, .cpu_volt = 1200 * 1000, .logic_volt = 1200 * 1000},
