@@ -1114,14 +1114,6 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 	return 0;
 }
 
-static unsigned ni_660x_get_pfi_routing(struct comedi_device *dev,
-					unsigned chan)
-{
-	struct ni_660x_private *devpriv = dev->private;
-
-	return devpriv->pfi_output_selects[chan];
-}
-
 static void ni660x_config_filter(struct comedi_device *dev,
 				 unsigned pfi_channel,
 				 enum ni_gpct_filter_select filter)
@@ -1163,7 +1155,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		return ni_660x_set_pfi_routing(dev, chan, data[1]);
 		break;
 	case INSN_CONFIG_GET_ROUTING:
-		data[1] = ni_660x_get_pfi_routing(dev, chan);
+		data[1] = devpriv->pfi_output_selects[chan];
 		break;
 	case INSN_CONFIG_FILTER:
 		ni660x_config_filter(dev, chan, data[1]);
