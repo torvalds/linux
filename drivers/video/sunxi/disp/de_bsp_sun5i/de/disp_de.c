@@ -36,16 +36,19 @@ __s32 Image_init(__u32 sel)
 	DE_BE_Reg_Init(sel);
 	
     BSP_disp_sprite_init(sel);
-    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
-    
+    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD,gdisp.screen[sel].iep_status&DRC_USED);
+
     Image_open(sel);
-	
+
+    DE_BE_EnableINT(sel, DE_IMG_REG_LOAD_FINISH);
+    DE_BE_reg_auto_load_en(sel, 0);
+
     return DIS_SUCCESS;
 }
       
 __s32 Image_exit(__u32 sel)
-{    
-    DE_BE_DisableINT(sel, DE_IMG_IRDY_IE);
+{
+    DE_BE_DisableINT(sel, DE_IMG_REG_LOAD_FINISH);
     BSP_disp_sprite_exit(sel);
     image_clk_exit(sel);
         
@@ -73,7 +76,7 @@ __s32 Image_close(__u32 sel)
 __s32 BSP_disp_set_bright(__u32 sel, __u32 bright)
 {
     gdisp.screen[sel].bright = bright;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation);
+    BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_type, gdisp.screen[sel].iep_status&DRC_USED);
 
     return DIS_SUCCESS;
 }
@@ -86,7 +89,7 @@ __s32 BSP_disp_get_bright(__u32 sel)
 __s32 BSP_disp_set_contrast(__u32 sel, __u32 contrast)
 {
     gdisp.screen[sel].contrast = contrast;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation);
+    BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_type, gdisp.screen[sel].iep_status&DRC_USED);
 
     return DIS_SUCCESS;
 }
@@ -99,7 +102,7 @@ __s32 BSP_disp_get_contrast(__u32 sel)
 __s32 BSP_disp_set_saturation(__u32 sel, __u32 saturation)
 {
     gdisp.screen[sel].saturation = saturation;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation);
+    BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_type, gdisp.screen[sel].iep_status&DRC_USED);
 
     return DIS_SUCCESS;
 }
@@ -109,17 +112,17 @@ __s32 BSP_disp_get_saturation(__u32 sel)
     return gdisp.screen[sel].saturation;
 }
 
-__s32 BSP_disp_enhance_enable(__u32 sel, __bool enable)
+__s32 BSP_disp_set_hue(__u32 sel, __u32 hue)
 {
-    DE_BE_enhance_enable(sel, enable);
-    gdisp.screen[sel].enhance_en = enable;
+    gdisp.screen[sel].hue = hue;
+    BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_type, gdisp.screen[sel].iep_status&DRC_USED);
 
     return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_get_enhance_enable(__u32 sel)
+__s32 BSP_disp_get_hue(__u32 sel)
 {
-    return gdisp.screen[sel].enhance_en;
+    return gdisp.screen[sel].hue;
 }
 
 
@@ -133,12 +136,12 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
     return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
+__s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
 {
     __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
-    __bool bout_yuv = FALSE;
+    __u32 out_csc = 0;//out_csc: 0:rgb  1:yuv  2:igb
 
-    if(type == DISP_OUTPUT_TYPE_HDMI)
+    if(out_type == DISP_OUTPUT_TYPE_HDMI)
     {
         __s32 ret = 0;
         __s32 value = 0;
@@ -155,103 +158,23 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
             out_color_range = value;
             DE_INF("screen0_out_color_range = %d\n", value);
         }
+        out_csc = 0;
     }
-    else if(type == DISP_OUTPUT_TYPE_TV)
+    else if(out_type == DISP_OUTPUT_TYPE_LCD)
     {
-        bout_yuv = TRUE;
+        out_csc = 0;
     }
-   
-    DE_BE_Output_Cfg_Csc_Coeff(sel, bout_yuv, out_color_range);
+    else if(out_type == DISP_OUTPUT_TYPE_TV)
+    {
+        out_csc = 1;
+    }
 
-    gdisp.screen[sel].bout_yuv = bout_yuv;
+    if(drc_en)
+    {
+        out_csc = 2;
+    }
+
+    DE_BE_Set_Enhance(sel, out_csc, out_color_range, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
-}
-
-__s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en)
-{   
-	if(b_en)
-	{
-		gdisp.screen[sel].de_flicker_status |= DE_FLICKER_REQUIRED;
-	}
-	else
-	{
-		gdisp.screen[sel].de_flicker_status &= DE_FLICKER_REQUIRED_MASK;
-	}
-	Disp_de_flicker_enable(sel, b_en);
-	return DIS_SUCCESS;
-}
-
-__s32 Disp_de_flicker_enable(__u32 sel, __u32 enable )
-{
-	__disp_tv_mode_t tv_mode;
-	__u32 scan_mode;
-	__u32 i;
-	__u32 scaler_index;
-	
-	tv_mode = gdisp.screen[sel].tv_mode;
-	scan_mode = Disp_get_screen_scan_mode(tv_mode);
-			
-	if(enable)
-	{
-		if((gdisp.screen[sel].de_flicker_status & DE_FLICKER_REQUIRED) && (scan_mode == 1))	//when output device is ntsc/pal/480i/576i
-		{
-			for(i = 0; i < gdisp.screen[sel].max_layers; i++)
-			{
-				if((gdisp.screen[sel].layer_manage[i].para.mode == DISP_LAYER_WORK_MODE_SCALER) && 	//when a layer using scaler layer
-					(gdisp.screen[sel].layer_manage[i].scaler_index == sel) && 						//when this scaler is the same channel with be
-					(g_video[sel][i].dit_enable == TRUE))	//when this scaler is using de-interlaced
-				{
-					DE_INF("de: CANNOT OPEN de-flicker due to scaler de-interlaced using!\n");
-					DE_INF("de: Will OPEN de-flicker when scaler de-interlaced disable automatic!\n");
-					break;
-				}
-			}
-			if(i == gdisp.screen[sel].max_layers)//no scaler using de-interlaced
-			{
-				BSP_disp_cfg_start(sel);
-				
-				DE_BE_deflicker_enable(sel, TRUE);
-
-				//config scaler to fit de-flicker
-				for(i = 0; i < gdisp.screen[sel].max_layers; i++)
-				{
-					if((gdisp.screen[sel].layer_manage[i].para.mode == DISP_LAYER_WORK_MODE_SCALER) && 
-						 ((scaler_index = gdisp.screen[sel].layer_manage[i].scaler_index) == sel))
-					{
-						Scaler_Set_Outitl(scaler_index, FALSE);
-    					gdisp.scaler[scaler_index].b_reg_change = TRUE;
-					}
-				}
-				gdisp.screen[sel].de_flicker_status |= DE_FLICKER_USED;
-
-				BSP_disp_cfg_finish(sel);
-			}
-		}
-		else
-		{
-			DE_INF("de: Will OPEN de-flicker when output to interlaced device !\n");
-		}
-		
-	}
-	else
-	{
-		BSP_disp_cfg_start(sel);
-
-		for(i = 0; i < gdisp.screen[sel].max_layers; i++)
-		{
-			if((gdisp.screen[sel].layer_manage[i].para.mode == DISP_LAYER_WORK_MODE_SCALER) && 
-					((scaler_index = gdisp.screen[sel].layer_manage[i].scaler_index) == sel))
-			{
-				Scaler_Set_Outitl(scaler_index, TRUE);
-				gdisp.scaler[scaler_index].b_reg_change = TRUE;
-			}
-		}
-		DE_BE_deflicker_enable(sel, FALSE);
-		gdisp.screen[sel].de_flicker_status &= DE_FLICKER_USED_MASK;
-
-		BSP_disp_cfg_finish(sel);
-	}
-	
-	return DIS_SUCCESS;
 }

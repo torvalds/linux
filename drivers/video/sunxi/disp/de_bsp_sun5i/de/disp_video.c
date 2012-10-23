@@ -69,9 +69,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 
     	if(g_video[sel][id].video_cur.interlace == TRUE)
     	{
-    		g_video[sel][id].dit_enable = TRUE;
+    		g_video[sel][id].dit_enable = FALSE;
 
-            g_video[sel][id].fetch_field = FALSE;
+            g_video[sel][id].fetch_field = TRUE;
         	if(g_video[sel][id].display_cnt == 0)
         	{
         	    g_video[sel][id].fetch_bot = (g_video[sel][id].video_cur.top_field_first)?0:1;
@@ -113,6 +113,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     		}
     		else
     		{
+    		    g_video[sel][id].fetch_bot = FALSE;
         	    g_video[sel][id].dit_mode = DIT_MODE_WEAVE;
         	    g_video[sel][id].tempdiff_en = FALSE;
         	    g_video[sel][id].diagintp_en = FALSE;
@@ -154,7 +155,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	in_scan.field = g_video[sel][id].fetch_field;
     	in_scan.bottom = g_video[sel][id].fetch_bot;
 
-    	out_scan.field = (gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
+    	out_scan.field = (gdisp.screen[sel].iep_status == DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
         
     	if(scaler->out_fb.cs_mode > DISP_VXYCC)
     	{
@@ -188,10 +189,6 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	    DE_SCAL_Config_Src(scaler_index,&scal_addr,&in_size,&in_type,FALSE,FALSE);
     	}
 
-        if(g_video[sel][id].dit_enable == TRUE && gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)
-        {   
-            Disp_de_flicker_enable(sel, FALSE);
-        }
     	DE_SCAL_Set_Init_Phase(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, g_video[sel][id].dit_enable);
     	DE_SCAL_Set_Scaling_Factor(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
     	DE_SCAL_Set_Scaling_Coef(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type,  scaler->smooth_mode);

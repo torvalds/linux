@@ -84,8 +84,6 @@ __s32 hdmi_core_close(void);
 __s32 hdmi_main_task_loop(void);
 __s32 Hpd_Check(void);
 __s32 ParseEDID(void);
-__s32 get_video_info(__s32 vic);
-__s32 get_audio_info(__s32 sample_rate);
 __s32 video_config(__s32 vic);
 __s32 audio_config(void);
 

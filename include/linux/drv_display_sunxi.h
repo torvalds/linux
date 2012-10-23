@@ -1,5 +1,5 @@
 /*
- * include/linux/drv_display_sun5i.h
+ * include/linux/drv_display_sun4i.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -621,6 +621,14 @@ typedef enum tag_DISP_CMD
     DISP_CMD_CAPTURE_SCREEN = 0x20,//caputre screen and scaler to dram
     DISP_CMD_DE_FLICKER_ON = 0x21,
     DISP_CMD_DE_FLICKER_OFF = 0x22,
+    DISP_CMD_SET_HUE=0x23,
+    DISP_CMD_GET_HUE=0x24,
+    DISP_CMD_DRC_OFF = 0x25,
+    DISP_CMD_GET_DRC_EN = 0x26,
+    DISP_CMD_DE_FLICKER_SET_WINDOW = 0x27,
+    DISP_CMD_DRC_SET_WINDOW = 0x28,
+    DISP_CMD_DRC_ON = 0x29,
+    DISP_CMD_GET_DE_FLICKER_EN = 0x2a,
 
 //----layer----
     DISP_CMD_LAYER_REQUEST = 0x40,
@@ -785,7 +793,8 @@ typedef enum tag_DISP_CMD
 //---pwm --------
     DISP_CMD_PWM_SET_PARA = 0x300,
     DISP_CMD_PWM_GET_PARA = 0x301,
-}__disp_cmd_t;
+}__disP_cmd_t;
+
 
 #define GET_UMP_SECURE_ID_BUF1 _IOWR('m', 310, unsigned int)
 #define GET_UMP_SECURE_ID_BUF2 _IOWR('m', 311, unsigned int)

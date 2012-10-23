@@ -1215,26 +1215,15 @@ __s32 Disp_lcdc_event_proc(void *parg)
     __u32 sel = (__u32)parg;
 
     lcdc_flags=LCDC_query_int(sel);
+    LCDC_clear_int(sel,lcdc_flags);
 
     if(lcdc_flags & LCDC_VBI_LCD)
     {
-        LCDC_clear_int(sel,LCDC_VBI_LCD);
         LCD_vbi_event_proc(sel, 0);
     }
     if(lcdc_flags & LCDC_VBI_HD)
     {
-        LCDC_clear_int(sel,LCDC_VBI_HD);
         LCD_vbi_event_proc(sel, 1);
-    }
-    if(lcdc_flags & LCDC_LTI_LCD_FLAG)
-    {
-        LCDC_clear_int(sel,LCDC_LTI_LCD_FLAG);
-        LCD_line_event_proc(sel, 0);
-    }
-    if(lcdc_flags & LCDC_LTI_HD_FLAG)
-    {
-        LCDC_clear_int(sel,LCDC_LTI_HD_FLAG);
-        LCD_line_event_proc(sel, 1);
     }
 
     return OSAL_IRQ_RETURN;
@@ -1689,7 +1678,7 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         TCON1_cfg_ex(sel,(__panel_para_t*)&gpanel_info[sel]);
     }
-    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
+    BSP_disp_set_output_csc(sel,DISP_OUTPUT_TYPE_LCD,gdisp.screen[sel].iep_status&DRC_USED);
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -1706,6 +1695,7 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
     gdisp.screen[sel].status |= LCD_ON;
     gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_LCD;
     Lcd_Panel_Parameter_Check(sel);
+    Disp_drc_enable(sel, TRUE);
 #ifdef __LINUX_OSAL__
     Display_set_fb_timming(sel);
 #endif
@@ -1721,6 +1711,7 @@ __s32 BSP_disp_lcd_close_befor(__u32 sel)
 {
 	close_flow[sel].func_num = 0;
 	lcd_panel_fun[sel].cfg_close_flow(sel);
+	Disp_drc_enable(sel, 2);	//must close immediately, cause vbi may not come
 
 	gdisp.screen[sel].status &= LCD_OFF;
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
@@ -1761,7 +1752,7 @@ __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode)
 //setting:  0,       1,      2,....  255,   256
 //pol==0:  0,       1,      2,....  255,   256
 //pol==1: 256,    255,    254, ...   1,   0
-__s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright)
+__s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright, __u32 from_iep)
 {
     __u32 duty_ns;
 
@@ -1769,16 +1760,18 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright)
     {
         if(gpanel_info[sel].lcd_pwm_pol == 0)
         {
-            duty_ns = (bright * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
+            duty_ns = (bright * gdisp.screen[sel].lcd_bright_dimming * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns / 256 + 128) / 256;
         }
         else
         {
-            duty_ns = ((256- bright) * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
+            duty_ns = ((256- bright * gdisp.screen[sel].lcd_bright_dimming/256 ) * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
         }
         pwm_set_duty_ns(gpanel_info[sel].lcd_pwm_ch, duty_ns);
     }
+    if(!from_iep)
+    {
     gdisp.screen[sel].lcd_bright = bright;
-
+	}
     return DIS_SUCCESS;
 }
 
@@ -1913,6 +1906,55 @@ __u32 BSP_disp_get_cur_line(__u32 sel)
     return line;
 }
 
+__s32 BSP_disp_close_lcd_backlight(__u32 sel)
+{
+    user_gpio_set_t  gpio_info[1];
+    __hdle hdl;
+    int value,ret;
+    char primary_key[20];
+    sprintf(primary_key, "lcd%d_para", sel);
+    value = 1;
+    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_bl_en_used", &value, 1);
+    if(value == 0)
+    {
+        DE_INF("%s.lcd_bl_en is not used\n", primary_key);
+    }
+    else
+    {
+        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        if(ret < 0)
+        {
+            DE_INF("%s.lcd_bl_en not exist\n", primary_key);
+        }
+        else
+        {
+            gpio_info->data = (gpio_info->data==0)?1:0;
+            hdl = OSAL_GPIO_Request(gpio_info, 1);
+            OSAL_GPIO_Release(hdl, 2);
+        }
+    }
+    value = 1;
+    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_used", &value, 1);
+    if(value == 0)
+    {
+        DE_INF("%s.lcd_pwm is not used\n", primary_key);
+    }
+    else
+    {
+        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        if(ret < 0)
+        {
+            DE_INF("%s.lcd_pwm not exist\n", primary_key);
+        }
+        else
+        {
+            gpio_info->mul_sel = 0;
+            hdl = OSAL_GPIO_Request(gpio_info, 1);
+            OSAL_GPIO_Release(hdl, 2);
+        }
+    }
+    return 0;
+}
 #ifdef __LINUX_OSAL__
 EXPORT_SYMBOL(LCD_OPEN_FUNC);
 EXPORT_SYMBOL(LCD_CLOSE_FUNC);

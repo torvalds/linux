@@ -179,7 +179,7 @@ __s32 Hpd_Check(void)
     }
 }
 
-__s32 get_video_info(__s32 vic)
+static __s32 get_video_info(__s32 vic)
 {
 	__s32 i,count;
 	count = sizeof(video_timing);
@@ -193,7 +193,7 @@ __s32 get_video_info(__s32 vic)
 	return -1;
 }
 
-__s32 get_audio_info(__s32 sample_rate)
+static __s32 get_audio_info(__s32 sample_rate)
 {
    //ACR_N 32000 44100 48000 88200 96000 176400 192000
    //		4096  6272  6144  12544 12288  25088  24576

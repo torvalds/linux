@@ -17,7 +17,8 @@ disp-objs += de_bsp_sun5i/de/ebios/de_be.o de_bsp_sun5i/de/ebios/de_fe.o de_bsp_
 	de_bsp_sun5i/de/disp_clk.o de_bsp_sun5i/de/disp_combined.o de_bsp_sun5i/de/disp_de.o de_bsp_sun5i/de/disp_display.o\
 	de_bsp_sun5i/de/disp_event.o de_bsp_sun5i/de/disp_hdmi.o de_bsp_sun5i/de/disp_hwc.o de_bsp_sun5i/de/disp_layer.o\
 	de_bsp_sun5i/de/disp_lcd.o de_bsp_sun5i/de/disp_scaler.o de_bsp_sun5i/de/disp_sprite.o de_bsp_sun5i/de/disp_tv.o\
-	de_bsp_sun5i/de/disp_vga.o de_bsp_sun5i/de/disp_video.o
+	de_bsp_sun5i/de/disp_vga.o de_bsp_sun5i/de/disp_video.o \
+	de_bsp_sun5i/iep/de_iep.o de_bsp_sun5i/iep/disp_iep.o
 endif
 
 ifeq ($(CONFIG_FB_SUNXI_UMP),y)

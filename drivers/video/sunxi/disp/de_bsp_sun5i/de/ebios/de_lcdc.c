@@ -1248,30 +1248,7 @@ void LCD_CPU_Burst_Write(__u32 sel, int addr,int data1,int data2)
 
 __u32 LCD_CPU_Busy(__u32 sel)
 {
-	volatile __u32 i;
-	__u32 counter=0;
-	__u32 reg_val;
-	
-	LCDC_SET_BIT(sel, LCDC_CPUIF_OFF,LCDC_BIT0);	
-	for(i=0;i<80;i++);
-	
-	while(1)
-	{
-		reg_val = LCDC_RUINT32(sel, LCDC_CPUIF_OFF);
-		if(reg_val & 0x00c00000)
-		{
-			if(counter>200)
-				return 0;
-		    else
-		    	counter++;
-		}
-		else
-		{
-			return 0;
-		}
-	}	
-	
-//	return (LCDC_RUINT32(sel, LCDC_CPUIF_OFF) & (LCDC_BIT23 | LCDC_BIT22));
+	return (LCDC_RUINT32(sel, LCDC_CPUIF_OFF) & (LCDC_BIT23 | LCDC_BIT22));
 }
 
 void LCD_CPU_WR_INDEX_24b(__u32 sel, __u32 index)

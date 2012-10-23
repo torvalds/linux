@@ -30,7 +30,7 @@
 
 
 void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index);
-void LCD_line_event_proc(__u32 sel, __u32 tcon_index);
+void LCD_line_event_proc(__u32 sel);
 __s32 BSP_disp_cfg_start(__u32 sel);
 __s32 BSP_disp_cfg_finish(__u32 sel);
 

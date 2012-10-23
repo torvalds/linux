@@ -50,17 +50,20 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
             gdisp.screen[screen_id].layer_manage[i].para.prio = IDLE_PRIO;
         }
         gdisp.screen[screen_id].image_output_type = IMAGE_OUTPUT_LCDC;
-        
+
         gdisp.screen[screen_id].bright = 50;
         gdisp.screen[screen_id].contrast = 50;
         gdisp.screen[screen_id].saturation = 50;
-        
-        gdisp.scaler[screen_id].bright = 32;
-        gdisp.scaler[screen_id].contrast = 32;
-        gdisp.scaler[screen_id].saturation = 32;
-        gdisp.scaler[screen_id].hue = 32;
+        gdisp.screen[screen_id].hue = 50;
 
-        gdisp.screen[screen_id].lcd_bright = DISP_LCD_BRIGHT_LEVEL12;
+        gdisp.scaler[screen_id].bright = 50;
+        gdisp.scaler[screen_id].contrast = 50;
+        gdisp.scaler[screen_id].saturation = 50;
+        gdisp.scaler[screen_id].hue = 50;
+
+        gdisp.screen[screen_id].lcd_bright = 192;
+
+        gdisp.screen[screen_id].lcd_bright_dimming = 256;
     }
     memcpy(&gdisp.init_para,para,sizeof(__disp_bsp_init_para));
     memset(g_video,0,sizeof(g_video));
@@ -73,6 +76,9 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     //LCDC_set_reg_base(1,para->base_lcdc1);
     TVE_set_reg_base(0, para->base_tvec0);
     //TVE_set_reg_base(1, para->base_tvec1);
+    DE_IEP_Set_Reg_Base(0, para->base_iep);
+
+    BSP_disp_close_lcd_backlight(0);
 
 	disp_pll_init();
 
@@ -86,6 +92,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     //Disp_TVEC_Init(1);
     Display_Hdmi_Init();
 
+	Disp_iep_init(0);
     return DIS_SUCCESS;
 }
 
@@ -104,6 +111,7 @@ __s32 BSP_disp_exit(__u32 mode)
         Disp_TVEC_Exit(0);
         //Disp_TVEC_Exit(1);
         Display_Hdmi_Exit();
+        Disp_iep_exit(0);
     }
     else if(mode == DISP_EXIT_MODE_CLEAN_PARTLY)
     {
@@ -219,7 +227,7 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
             
         case DISP_REG_CCMU:
             base = gdisp.init_para.base_ccmu;
-            size = 0x158;
+            size = 0x164;
             sprintf(str, "ccmu:\n");
             break;
             

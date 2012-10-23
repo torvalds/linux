@@ -304,12 +304,19 @@ __s32 DE_BE_Set_ColorKey(__u32 sel, __disp_color_t ck_max,__disp_color_t  ck_min
     return 0;
 }
 
+__s32 DE_BE_reg_auto_load_en(__u32 sel, __u32 en)
+{
+    __u32 tmp;
+    tmp = DE_BE_RUINT32(sel, DE_BE_FRMBUF_CTL_OFF);
+    DE_BE_WUINT32(sel, DE_BE_FRMBUF_CTL_OFF, tmp | ((1-en)<<1));//bit1:enable, bit0:ready
+    return 0;
+}
 __s32 DE_BE_Cfg_Ready(__u32 sel)
 {
     __u32 tmp;
     
     tmp = DE_BE_RUINT32(sel, DE_BE_FRMBUF_CTL_OFF);
-    DE_BE_WUINT32(sel, DE_BE_FRMBUF_CTL_OFF, tmp | (0x1<<1) | 0x1);//bit1:enable, bit0:ready
+    DE_BE_WUINT32(sel, DE_BE_FRMBUF_CTL_OFF, tmp | 0x1);//bit1:enable, bit0:ready
     
     return 0;
 }
@@ -352,11 +359,9 @@ __s32 DE_BE_Sprite_Set_Global_Alpha(__u32 sel, __u8 alpha_val)
 
 __s32 DE_BE_Sprite_Block_Set_Pos(__u32 sel, __u8 blk_idx,__s16 x,__s16 y)
 {
-	__u32 reg = 0;
 
-	reg = DE_BE_RUINT32IDX(sel, DE_BE_SPRITE_POS_CTRL_OFF,blk_idx);
 	
-  	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_POS_CTRL_OFF,blk_idx,reg | ((y&0xffff)<<16) | (x&0xffff));
+  	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_POS_CTRL_OFF,blk_idx,((y&0xffff)<<16) | (x&0xffff));
    	return 0;
 }
 
@@ -366,7 +371,7 @@ __s32 DE_BE_Sprite_Block_Set_Size(__u32 sel, __u8 blk_idx,__u32 xsize,__u32 ysiz
 
 	tmp = DE_BE_RUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx) & 0x0000003f;
 	
-	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx,tmp | (ysize<<20) | (xsize<<8));
+	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx,tmp | ((ysize-1)<<20) | ((xsize-1)<<8));
 	return 0;
 }
 
@@ -379,7 +384,9 @@ __s32 DE_BE_Sprite_Block_Set_fb(__u32 sel, __u8 blk_idx,__u32 addr, __u32 line_w
 
 __s32 DE_BE_Sprite_Block_Set_Next_Id(__u32 sel, __u8 blk_idx,__u8 next_blk_id)
 {
-	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx,next_blk_id);
+    __u32 tmp = 0;
+    tmp = DE_BE_RUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx) & 0xffffffc0;
+	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx,tmp | next_blk_id);
 	return 0;
 }
 
@@ -409,69 +416,182 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
 //brightness -100~100
 //contrast -100~100
 //saturaion -100~100
-__s32 DE_BE_Set_Enhance(__u8 sel,__u32 brightness, __u32 contrast, __u32 saturaion)
+__s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 brightness, __s32 contrast, __s32 saturaion, __s32 hue)
 {
-	__s32 Rr,Rg,Rb,Rc;
-	__s32 Gr,Gg,Gb,Gc;
-	__s32 Br,Bg,Bb,Bc;
-	__s32 max_rgb = (1<<14) - 1;
-	__s32 min_rgb = 0 - ((2<<14) - 1);
-	__s32 max_c = (1<<15) - 1;
-	__s32 min_c = 0 - ((1<<15) - 1);
+	__s32 i_bright;
+	__s32 i_contrast;
+	__s32 i_saturaion;
+	__s32 i_hue;
+	__scal_matrix4x4 matrixEn;
+	__scal_matrix4x4 *ptmatrix;
+	__scal_matrix4x4 matrixresult;
+	__s32 *pt;
+	__u32 i;
+	__s32 sinv, cosv;	//sin_tab: 7 bit fractional
 
 	brightness = brightness>100?100:(brightness<0?0:brightness);
 	contrast = contrast>100?100:(contrast<0?0:contrast);
 	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
+	hue = hue>100?100:(hue<0?0:saturaion);
 	
-	brightness = (brightness-50) * 10;
-	saturaion = saturaion * 10 / 50;
-	contrast = contrast * 10 / 50;
+	i_bright = (__s32)(brightness*64/100);
+	i_saturaion = (__s32)(saturaion*64/100);
+	i_contrast = (__s32)(contrast*64/100);
+	i_hue = (__s32)(hue*64/100);
 
-	Rr=(1164*183*contrast+1793*439*saturaion) / (1000*1000*10/1024);
-	Rg=(1164*614*contrast-1793*399*saturaion) / (1000*1000*10/1024);
-	Rb=(1164*62*contrast-1793*40*saturaion) / (1000*1000*10/1024);
-	Rc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
+	sinv = image_enhance_tab[8*12 + (i_hue&0x3f)];
+	cosv = image_enhance_tab[8*12 + 8*8 + (i_hue&0x3f)];
 
-	Gr=(1164*183*contrast-534*439*saturaion+213*101*saturaion) / (1000*1000*10/1024);
-	Gg=(1164*614*contrast+534*399*saturaion+213*338*saturaion) / (1000*1000*10/1024);
-	Gb=(1164*62*contrast+534*40*saturaion-213*439*saturaion) / (1000*1000*10/1024);
-	Gc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
+	matrixEn.x00 = i_contrast << 5;
+	matrixEn.x01 = 0;
+	matrixEn.x02 = 0;
+	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
+	matrixEn.x10 = 0;
+	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
+	matrixEn.x20 = 0;
+	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
+	matrixEn.x30 = 0;
+	matrixEn.x31 = 0;
+	matrixEn.x32 = 0;
+	matrixEn.x33 = 1024;
 
-	Br=(1164*183*contrast-2115*101*saturaion) / (1000*1000*10/1024);
-	Bg=(1164*614*contrast-2115*338*saturaion) / (1000*1000*10/1024);
-	Bb=(1164*62*contrast+2115*439*saturaion) / (1000*1000*10/1024);
-	Bc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
+	if(out_csc == 1) //rgb to yuv
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+	}
+	else if(out_csc == 0)  //rgb to rgb
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixEn, &matrixresult);
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixresult, &matrixresult);
+	}
+	else if(out_csc == 2)
+	{
+	    __scal_matrix4x4 matrix_16_255;
 
-	Rr = (Rr > max_rgb)?max_rgb:((Rr < min_rgb)?min_rgb:Rr);
-	Rg = (Rg > max_rgb)?max_rgb:((Rg < min_rgb)?min_rgb:Rg);
-	Rb = (Rb > max_rgb)?max_rgb:((Rb < min_rgb)?min_rgb:Rb);
-	Rc = (Rc > max_c)?max_c:((Rc < min_c)?min_c:Rc);
-	
-	Gr = (Gr > max_rgb)?max_rgb:((Gr < min_rgb)?min_rgb:Gr);
-	Gg = (Gg > max_rgb)?max_rgb:((Gg < min_rgb)?min_rgb:Gg);
-	Gb = (Gb > max_rgb)?max_rgb:((Gb < min_rgb)?min_rgb:Gb);
-	Gc = (Gc > max_c)?max_c:((Gc < min_c)?min_c:Gc);
-	
-	Br = (Br > max_rgb)?max_rgb:((Br < min_rgb)?min_rgb:Br);
-	Bg = (Bg > max_rgb)?max_rgb:((Bg < min_rgb)?min_rgb:Bg);
-	Bb = (Bb > max_rgb)?max_rgb:((Bb < min_rgb)?min_rgb:Bb);
-	Bc = (Bc > max_c)?max_c:((Bc < min_c)?min_c:Bc);
+#if 0
+	    //rgb to rgb
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixresult, &matrixresult);
+
+        //rgb to igb
+        matrix_16_255.x00 = 0x0155;
+        matrix_16_255.x01 = 0x0155;
+        matrix_16_255.x02 = 0x0155;
+        matrix_16_255.x03 = 0;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x0400;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x0400;
+        matrix_16_255.x23 = 0;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+#else
+		matrix_16_255.x00 = 0x00C3;
+		matrix_16_255.x01 = 0x029A;
+		matrix_16_255.x02 = 0x00A4;
+		matrix_16_255.x03 = 0x0000;
+		matrix_16_255.x10 = 0xFFFFFF8C;
+		matrix_16_255.x11 = 0xFFFFFE74;
+		matrix_16_255.x12 = 0x0200;
+		matrix_16_255.x13 = 0x20000; //0x0800;
+		matrix_16_255.x20 = 0x0200;
+		matrix_16_255.x21 = 0xFFFFFE65;
+		matrix_16_255.x22 = 0xFFFFFF9B;
+		matrix_16_255.x23 = 0x20000; //0x0800;
+		matrix_16_255.x30 = 0x0000;
+		matrix_16_255.x31 = 0x0000;
+		matrix_16_255.x32 = 0x0000;
+		matrix_16_255.x33 = 0x0000;
+		ptmatrix = &matrix_16_255;
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+#endif
+	}
+
+	if(out_color_range == 0)//[16,255]
+    {
+        __scal_matrix4x4 matrix_16_255;
+        matrix_16_255.x00 = 0x03c4;
+        matrix_16_255.x01 = 0;
+        matrix_16_255.x02 = 0;
+        matrix_16_255.x03 = 0x0100;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x03c4;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0x0100;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x03c4;
+        matrix_16_255.x23 = 0x0100;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+    }
+	else if(out_color_range == 2)//[16,235]
+    {
+        __scal_matrix4x4 matrix_16_255;
+        matrix_16_255.x00 = 0x0370;
+        matrix_16_255.x01 = 0;
+        matrix_16_255.x02 = 0;
+        matrix_16_255.x03 = 0x0100;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x0370;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0x0100;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x0370;
+        matrix_16_255.x23 = 0x0100;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+    }
     
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 0, (__s32)Rr);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 4, (__s32)Rg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 8, (__s32)Rb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_CONSTANT_OFF, (__s32)Rc);
+	//data bit convert, 1 bit  sign, 2 bit integer, 10 bits fractrional for coefficient; 1 bit sign,9 bit integer, 4 bit fractional for constant
+	//range limited
+	iDE_SCAL_Csc_Lmt(&matrixresult.x00, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x01, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x02, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x03, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x10, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x11, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x12, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x13, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x20, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x21, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x22, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -16383, 16383, 6, 32767);
 
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 0, (__s32)Gr);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 4, (__s32)Gg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 8, (__s32)Gb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_CONSTANT_OFF, (__s32)Gc);
+    //write csc register
+    pt = &(matrixresult.x00);
 
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 0, (__s32)Br);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 4, (__s32)Bg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 8, (__s32)Bb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_CONSTANT_OFF, (__s32)Bc);
+	for(i=0;i<4;i++)
+	{
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF+ 4*i, *(pt + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF+ 4*i, *(pt + 4 + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF+ 4*i, *(pt + 8 + i));
+		//OSAL_PRINTF("R:%x,\tG:%x,\tB:%x\n",*(pt + i),*(pt + 4 + i),*(pt + 8 + i));
+	}
     
+	DE_BE_enhance_enable(sel, 1);
     return 0;
 }
 
@@ -501,66 +621,7 @@ __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable)
 {
 	DE_BE_WUINT32(sel, DE_BE_MODE_CTL_OFF,(DE_BE_RUINT32(sel, DE_BE_MODE_CTL_OFF)&(~(1<<28))) | (enable<<28));
 	
-    return 0;
-}
 
-__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __bool bout_yuv, __u32 out_color_range)
-{
-	if(bout_yuv)
-	{
-		DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 0) & 0x0000ffff) | (0x0274<<16));
-		DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 4) & 0x0000ffff) | (0x00bb<<16));
-		DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 8) & 0x0000ffff) | (0x003f<<16));
-		DE_BE_WUINT32(sel, DE_BE_YG_CONSTANT_OFF , (DE_BE_RUINT32(sel, DE_BE_YG_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-		DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 0) & 0x0000ffff) | (0x1ea5<<16));
-		DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 4) & 0x0000ffff) | (0x1f98<<16));
-		DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 8) & 0x0000ffff) | (0x01c1<<16));
-		DE_BE_WUINT32(sel, DE_BE_UR_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_UR_CONSTANT_OFF) & 0x0000ffff) | (0x0800<<16));
-		DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 0) & 0x0000ffff) | (0x1e67<<16));
-		DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 4) & 0x0000ffff) | (0x01c1<<16));
-		DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 8) & 0x0000ffff) | (0x1fd7<<16));
-		DE_BE_WUINT32(sel, DE_BE_VB_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_VB_CONSTANT_OFF) & 0x0000ffff) | (0x0800<<16));
-		DE_BE_output_csc_enable(sel, 1);
-	}
-	else 
-	{
-    	if(out_color_range == DISP_COLOR_RANGE_16_255)
-        {
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 0) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 4) & 0x0000ffff) | (0x03c4<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 8) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_CONSTANT_OFF , (DE_BE_RUINT32(sel, DE_BE_YG_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 0) & 0x0000ffff) | (0x03c4<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 4) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 8) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_UR_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 0) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 4) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 8) & 0x0000ffff) | (0x03c4<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_VB_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_output_csc_enable(sel, 1);
-        }
-    	else if(out_color_range == DISP_COLOR_RANGE_16_235)
-        {
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 0) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 4) & 0x0000ffff) | (0x0370<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_YG_COEFF_OFF + 8) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_YG_CONSTANT_OFF , (DE_BE_RUINT32(sel, DE_BE_YG_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 0) & 0x0000ffff) | (0x0370<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 4) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_UR_COEFF_OFF + 8) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_UR_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_UR_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 0, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 0) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 4, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 4) & 0x0000ffff) | (0x0000<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_COEFF_OFF + 8, (DE_BE_RUINT32(sel, DE_BE_VB_COEFF_OFF + 8) & 0x0000ffff) | (0x0370<<16));
-            DE_BE_WUINT32(sel, DE_BE_VB_CONSTANT_OFF, (DE_BE_RUINT32(sel, DE_BE_VB_CONSTANT_OFF) & 0x0000ffff) | (0x0100<<16));
-            DE_BE_output_csc_enable(sel, 1);
-        }
-    	else
-        {
-            DE_BE_output_csc_enable(sel, 0);
-        }
-    }
 
     return 0;
 }
