@@ -1231,12 +1231,23 @@ void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		 * enabling the port.
 		 */
 		I915_WRITE(DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE);
+	} else if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		ironlake_edp_backlight_on(intel_dp);
 	}
 }
 
-void intel_disable_ddi(struct intel_encoder *encoder)
+void intel_disable_ddi(struct intel_encoder *intel_encoder)
 {
-	/* This will be needed in the future, so leave it here for now */
+	struct drm_encoder *encoder = &intel_encoder->base;
+	int type = intel_encoder->type;
+
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		ironlake_edp_backlight_off(intel_dp);
+	}
 }
 
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)

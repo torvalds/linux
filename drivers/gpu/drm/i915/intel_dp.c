@@ -1164,7 +1164,7 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	ironlake_wait_panel_off(intel_dp);
 }
 
-static void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
+void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1190,7 +1190,7 @@ static void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	intel_panel_enable_backlight(dev, pipe);
 }
 
-static void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
+void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;

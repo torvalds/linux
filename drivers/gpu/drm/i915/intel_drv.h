@@ -438,6 +438,8 @@ extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
+extern void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
+extern void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern int intel_edp_target_clock(struct intel_encoder *,
 				  struct drm_display_mode *mode);
@@ -601,8 +603,8 @@ extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
 
-extern void intel_enable_ddi(struct intel_encoder *encoder);
-extern void intel_disable_ddi(struct intel_encoder *encoder);
+extern void intel_enable_ddi(struct intel_encoder *intel_encoder);
+extern void intel_disable_ddi(struct intel_encoder *intel_encoder);
 extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe);
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,
