@@ -9,9 +9,6 @@
 
 #include <platform.h>
 
-#include <linux/serial_8250.h>
-#include <loongson1.h>
-
 static struct platform_device *ls1b_platform_devices[] __initdata = {
 	&ls1x_uart_device,
 	&ls1x_eth0_device,
@@ -23,7 +20,7 @@ static int __init ls1b_platform_init(void)
 {
 	int err;
 
-	ls1x_serial_setup();
+	ls1x_serial_setup(&ls1x_uart_device);
 
 	err = platform_add_devices(ls1b_platform_devices,
 				   ARRAY_SIZE(ls1b_platform_devices));
