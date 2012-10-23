@@ -433,15 +433,11 @@ struct ni_660x_private {
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
 };
 
-/* initialized in ni_660x_attach_pci() */
-static inline const struct ni_660x_board *board(struct comedi_device *dev)
-{
-	return dev->board_ptr;
-}
-
 static inline unsigned ni_660x_num_counters(struct comedi_device *dev)
 {
-	return board(dev)->n_chips * counters_per_chip;
+	const struct ni_660x_board *board = comedi_board(dev);
+
+	return board->n_chips * counters_per_chip;
 }
 
 static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
@@ -946,11 +942,12 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 
 static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 {
+	const struct ni_660x_board *board = comedi_board(dev);
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
 
-	for (i = 0; i < board(dev)->n_chips; ++i) {
+	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < counters_per_chip; ++j) {
 			devpriv->mite_rings[i][j] =
 			    mite_alloc_ring(devpriv->mite);
@@ -963,11 +960,12 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 
 static void ni_660x_free_mite_rings(struct comedi_device *dev)
 {
+	const struct ni_660x_board *board = comedi_board(dev);
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
 
-	for (i = 0; i < board(dev)->n_chips; ++i) {
+	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < counters_per_chip; ++j)
 			mite_free_ring(devpriv->mite_rings[i][j]);
 	}
@@ -1051,6 +1049,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
 				      unsigned output_select)
 {
+	const struct ni_660x_board *board = comedi_board(dev);
 	static const unsigned counter_4_7_first_pfi = 8;
 	static const unsigned counter_4_7_last_pfi = 23;
 	unsigned active_chipset = 0;
@@ -1058,7 +1057,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	unsigned active_bits;
 	unsigned idle_bits;
 
-	if (board(dev)->n_chips > 1) {
+	if (board->n_chips > 1) {
 		if (output_select == pfi_output_select_counter &&
 		    pfi_channel >= counter_4_7_first_pfi &&
 		    pfi_channel <= counter_4_7_last_pfi) {
@@ -1181,6 +1180,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 					struct pci_dev *pcidev)
 {
+	const struct ni_660x_board *board;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -1195,11 +1195,13 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
+	board = comedi_board(dev);
+
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
 
-	dev->board_name = board(dev)->name;
+	dev->board_name = board->name;
 
 	ret = mite_setup2(devpriv->mite, 1);
 	if (ret < 0) {
@@ -1270,7 +1272,7 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 	}
-	for (i = 0; i < board(dev)->n_chips; ++i)
+	for (i = 0; i < board->n_chips; ++i)
 		init_tio_chip(dev, i);
 
 	for (i = 0; i < ni_660x_num_counters(dev); ++i)
@@ -1286,7 +1288,7 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 	}
 	/* to be safe, set counterswap bits on tio chips after all the counter
 	   outputs have been set to high impedance mode */
-	for (i = 0; i < board(dev)->n_chips; ++i)
+	for (i = 0; i < board->n_chips; ++i)
 		set_tio_counterswap(dev, i);
 
 	ret = request_irq(mite_irq(devpriv->mite), ni_660x_interrupt,
@@ -1297,7 +1299,7 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 	}
 	dev->irq = mite_irq(devpriv->mite);
 	global_interrupt_config_bits = Global_Int_Enable_Bit;
-	if (board(dev)->n_chips > 1)
+	if (board->n_chips > 1)
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       GlobalInterruptConfigRegister);
