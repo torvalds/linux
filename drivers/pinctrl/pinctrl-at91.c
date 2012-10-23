@@ -58,7 +58,7 @@ static struct at91_gpio_chip *gpio_chips[MAX_GPIO_BANKS];
 
 static int gpio_banks;
 
-#define PULL_UP		(0 << 1)
+#define PULL_UP		(1 << 0)
 #define MULTI_DRIVE	(1 << 1)
 
 /**
