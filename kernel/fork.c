@@ -1514,12 +1514,6 @@ fork_out:
 	return ERR_PTR(retval);
 }
 
-noinline struct pt_regs * __cpuinit __attribute__((weak)) idle_regs(struct pt_regs *regs)
-{
-	memset(regs, 0, sizeof(struct pt_regs));
-	return regs;
-}
-
 static inline void init_idle_pids(struct pid_link *links)
 {
 	enum pid_type type;

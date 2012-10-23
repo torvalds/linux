@@ -1173,15 +1173,6 @@ DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
 
-/* Make sure %fs and %gs are initialized properly in idle threads */
-struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
-{
-	memset(regs, 0, sizeof(struct pt_regs));
-	regs->fs = __KERNEL_PERCPU;
-	regs->gs = __KERNEL_STACK_CANARY;
-
-	return regs;
-}
 #endif	/* CONFIG_X86_64 */
 
 /*

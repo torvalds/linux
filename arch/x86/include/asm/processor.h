@@ -178,8 +178,6 @@ static inline int hlt_works(int cpu)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
 
-extern struct pt_regs *idle_regs(struct pt_regs *);
-
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
