@@ -129,6 +129,20 @@ static struct l2cap_chan *__l2cap_get_chan_by_ident(struct l2cap_conn *conn,
 	return NULL;
 }
 
+static struct l2cap_chan *l2cap_get_chan_by_ident(struct l2cap_conn *conn,
+						  u8 ident)
+{
+	struct l2cap_chan *c;
+
+	mutex_lock(&conn->chan_lock);
+	c = __l2cap_get_chan_by_ident(conn, ident);
+	if (c)
+		l2cap_chan_lock(c);
+	mutex_unlock(&conn->chan_lock);
+
+	return c;
+}
+
 static struct l2cap_chan *__l2cap_global_chan_by_addr(__le16 psm, bdaddr_t *src)
 {
 	struct l2cap_chan *c;
@@ -4185,23 +4199,34 @@ static void l2cap_send_move_chan_rsp(struct l2cap_conn *conn, u8 ident,
 	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_RSP, sizeof(rsp), &rsp);
 }
 
-static void l2cap_send_move_chan_cfm(struct l2cap_conn *conn,
-				     struct l2cap_chan *chan,
-				     u16 icid, u16 result)
+static void l2cap_send_move_chan_cfm(struct l2cap_chan *chan, u16 result)
 {
 	struct l2cap_move_chan_cfm cfm;
-	u8 ident;
 
-	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
+	BT_DBG("chan %p, result 0x%4.4x", chan, result);
 
-	ident = l2cap_get_ident(conn);
-	if (chan)
-		chan->ident = ident;
+	chan->ident = l2cap_get_ident(chan->conn);
 
-	cfm.icid = cpu_to_le16(icid);
+	cfm.icid = cpu_to_le16(chan->scid);
 	cfm.result = cpu_to_le16(result);
 
-	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_CFM, sizeof(cfm), &cfm);
+	l2cap_send_cmd(chan->conn, chan->ident, L2CAP_MOVE_CHAN_CFM,
+		       sizeof(cfm), &cfm);
+
+	__set_chan_timer(chan, L2CAP_MOVE_TIMEOUT);
+}
+
+static void l2cap_send_move_chan_cfm_icid(struct l2cap_conn *conn, u16 icid)
+{
+	struct l2cap_move_chan_cfm cfm;
+
+	BT_DBG("conn %p, icid 0x%4.4x", conn, icid);
+
+	cfm.icid = cpu_to_le16(icid);
+	cfm.result = __constant_cpu_to_le16(L2CAP_MC_UNCONFIRMED);
+
+	l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_MOVE_CHAN_CFM,
+		       sizeof(cfm), &cfm);
 }
 
 static void l2cap_send_move_chan_cfm_rsp(struct l2cap_conn *conn, u8 ident,
@@ -4221,6 +4246,13 @@ static void __release_logical_link(struct l2cap_chan *chan)
 	chan->hs_hcon = NULL;
 
 	/* Placeholder - release the logical link */
+}
+
+static void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
+			      u8 status)
+{
+	/* Placeholder */
+	return;
 }
 
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
@@ -4317,9 +4349,128 @@ send_move_response:
 	return 0;
 }
 
-static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
-					 struct l2cap_cmd_hdr *cmd,
-					 u16 cmd_len, void *data)
+static void l2cap_move_continue(struct l2cap_conn *conn, u16 icid, u16 result)
+{
+	struct l2cap_chan *chan;
+	struct hci_chan *hchan = NULL;
+
+	chan = l2cap_get_chan_by_scid(conn, icid);
+	if (!chan) {
+		l2cap_send_move_chan_cfm_icid(conn, icid);
+		return;
+	}
+
+	__clear_chan_timer(chan);
+	if (result == L2CAP_MR_PEND)
+		__set_chan_timer(chan, L2CAP_MOVE_ERTX_TIMEOUT);
+
+	switch (chan->move_state) {
+	case L2CAP_MOVE_WAIT_LOGICAL_COMP:
+		/* Move confirm will be sent when logical link
+		 * is complete.
+		 */
+		chan->move_state = L2CAP_MOVE_WAIT_LOGICAL_CFM;
+		break;
+	case L2CAP_MOVE_WAIT_RSP_SUCCESS:
+		if (result == L2CAP_MR_PEND) {
+			break;
+		} else if (test_bit(CONN_LOCAL_BUSY,
+				    &chan->conn_state)) {
+			chan->move_state = L2CAP_MOVE_WAIT_LOCAL_BUSY;
+		} else {
+			/* Logical link is up or moving to BR/EDR,
+			 * proceed with move
+			 */
+			chan->move_state = L2CAP_MOVE_WAIT_CONFIRM_RSP;
+			l2cap_send_move_chan_cfm(chan, L2CAP_MC_CONFIRMED);
+		}
+		break;
+	case L2CAP_MOVE_WAIT_RSP:
+		/* Moving to AMP */
+		if (result == L2CAP_MR_SUCCESS) {
+			/* Remote is ready, send confirm immediately
+			 * after logical link is ready
+			 */
+			chan->move_state = L2CAP_MOVE_WAIT_LOGICAL_CFM;
+		} else {
+			/* Both logical link and move success
+			 * are required to confirm
+			 */
+			chan->move_state = L2CAP_MOVE_WAIT_LOGICAL_COMP;
+		}
+
+		/* Placeholder - get hci_chan for logical link */
+		if (!hchan) {
+			/* Logical link not available */
+			l2cap_send_move_chan_cfm(chan, L2CAP_MC_UNCONFIRMED);
+			break;
+		}
+
+		/* If the logical link is not yet connected, do not
+		 * send confirmation.
+		 */
+		if (hchan->state != BT_CONNECTED)
+			break;
+
+		/* Logical link is already ready to go */
+
+		chan->hs_hcon = hchan->conn;
+		chan->hs_hcon->l2cap_data = chan->conn;
+
+		if (result == L2CAP_MR_SUCCESS) {
+			/* Can confirm now */
+			l2cap_send_move_chan_cfm(chan, L2CAP_MC_CONFIRMED);
+		} else {
+			/* Now only need move success
+			 * to confirm
+			 */
+			chan->move_state = L2CAP_MOVE_WAIT_RSP_SUCCESS;
+		}
+
+		l2cap_logical_cfm(chan, hchan, L2CAP_MR_SUCCESS);
+		break;
+	default:
+		/* Any other amp move state means the move failed. */
+		chan->move_id = chan->local_amp_id;
+		l2cap_move_done(chan);
+		l2cap_send_move_chan_cfm(chan, L2CAP_MC_UNCONFIRMED);
+	}
+
+	l2cap_chan_unlock(chan);
+}
+
+static void l2cap_move_fail(struct l2cap_conn *conn, u8 ident, u16 icid,
+			    u16 result)
+{
+	struct l2cap_chan *chan;
+
+	chan = l2cap_get_chan_by_ident(conn, ident);
+	if (!chan) {
+		/* Could not locate channel, icid is best guess */
+		l2cap_send_move_chan_cfm_icid(conn, icid);
+		return;
+	}
+
+	__clear_chan_timer(chan);
+
+	if (chan->move_role == L2CAP_MOVE_ROLE_INITIATOR) {
+		if (result == L2CAP_MR_COLLISION) {
+			chan->move_role = L2CAP_MOVE_ROLE_RESPONDER;
+		} else {
+			/* Cleanup - cancel move */
+			chan->move_id = chan->local_amp_id;
+			l2cap_move_done(chan);
+		}
+	}
+
+	l2cap_send_move_chan_cfm(chan, L2CAP_MC_UNCONFIRMED);
+
+	l2cap_chan_unlock(chan);
+}
+
+static int l2cap_move_channel_rsp(struct l2cap_conn *conn,
+				  struct l2cap_cmd_hdr *cmd,
+				  u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_rsp *rsp = data;
 	u16 icid, result;
@@ -4332,8 +4483,10 @@ static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
 
 	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
-	/* Placeholder: Always unconfirmed */
-	l2cap_send_move_chan_cfm(conn, NULL, icid, L2CAP_MC_UNCONFIRMED);
+	if (result == L2CAP_MR_SUCCESS || result == L2CAP_MR_PEND)
+		l2cap_move_continue(conn, icid, result);
+	else
+		l2cap_move_fail(conn, cmd->ident, icid, result);
 
 	return 0;
 }
