@@ -4650,6 +4650,7 @@ static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
 						 u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_cfm_rsp *rsp = data;
+	struct l2cap_chan *chan;
 	u16 icid;
 
 	if (cmd_len != sizeof(*rsp))
@@ -4658,6 +4659,23 @@ static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
 	icid = le16_to_cpu(rsp->icid);
 
 	BT_DBG("icid 0x%4.4x", icid);
+
+	chan = l2cap_get_chan_by_scid(conn, icid);
+	if (!chan)
+		return 0;
+
+	__clear_chan_timer(chan);
+
+	if (chan->move_state == L2CAP_MOVE_WAIT_CONFIRM_RSP) {
+		chan->local_amp_id = chan->move_id;
+
+		if (!chan->local_amp_id && chan->hs_hchan)
+			__release_logical_link(chan);
+
+		l2cap_move_done(chan);
+	}
+
+	l2cap_chan_unlock(chan);
 
 	return 0;
 }
