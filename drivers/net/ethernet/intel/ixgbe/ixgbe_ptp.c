@@ -704,14 +704,14 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	/* Store filter value for later use */
 	adapter->rx_hwtstamp_filter = config.rx_filter;
 
-	/* define ethertype filter for timestamped packets */
+	/* define ethertype filter for timestamping L2 packets */
 	if (is_l2)
-		IXGBE_WRITE_REG(hw, IXGBE_ETQF(3),
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_1588),
 				(IXGBE_ETQF_FILTER_EN | /* enable filter */
 				 IXGBE_ETQF_1588 | /* enable timestamping */
 				 ETH_P_1588));     /* 1588 eth protocol type */
 	else
-		IXGBE_WRITE_REG(hw, IXGBE_ETQF(3), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_1588), 0);
 
 #define PTP_PORT 319
 	/* L4 Queue Filter[3]: filter by destination port and protocol */
