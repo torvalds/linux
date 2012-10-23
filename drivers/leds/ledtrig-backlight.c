@@ -76,7 +76,7 @@ static ssize_t bl_trig_invert_store(struct device *dev,
 	unsigned long invert;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &invert);
+	ret = kstrtoul(buf, 10, &invert);
 	if (ret < 0)
 		return ret;
 
