@@ -45,12 +45,10 @@ static struct of_device_id zynq_of_bus_ids[] __initdata = {
  */
 static void __init xilinx_init_machine(void)
 {
-#ifdef CONFIG_CACHE_L2X0
 	/*
 	 * 64KB way size, 8-way associativity, parity disabled
 	 */
-	l2x0_init(PL310_L2CC_BASE, 0x02060000, 0xF0F0FFFF);
-#endif
+	l2x0_of_init(0x02060000, 0xF0F0FFFF);
 
 	of_platform_bus_probe(NULL, zynq_of_bus_ids, NULL);
 }
@@ -82,11 +80,6 @@ static struct map_desc io_desc[] __initdata = {
 		.virtual	= SCU_PERIPH_VIRT,
 		.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
 		.length		= SZ_8K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= PL310_L2CC_VIRT,
-		.pfn		= __phys_to_pfn(PL310_L2CC_PHYS),
-		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
 
