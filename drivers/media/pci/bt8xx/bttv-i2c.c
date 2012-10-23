@@ -366,8 +366,7 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 
 		strlcpy(btv->c.i2c_adap.name, "bttv",
 			sizeof(btv->c.i2c_adap.name));
-		memcpy(&btv->i2c_algo, &bttv_i2c_algo_bit_template,
-		       sizeof(bttv_i2c_algo_bit_template));
+		btv->i2c_algo = bttv_i2c_algo_bit_template;
 		btv->i2c_algo.udelay = i2c_udelay;
 		btv->i2c_algo.data = btv;
 		btv->c.i2c_adap.algo_data = &btv->i2c_algo;
