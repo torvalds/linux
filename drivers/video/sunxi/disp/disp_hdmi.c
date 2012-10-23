@@ -54,7 +54,12 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 		hdmi_clk_on();
 		lcdc_clk_on(sel);
 		image_clk_on(sel);
-		Image_open(sel);	//set image normal channel start bit , because every de_clk_off( )will reset this bit
+
+		/*
+		 * set image normal channel start bit, because every
+		 * de_clk_off( ) will reset this bit
+		 */
+		Image_open(sel);
 		disp_clk_cfg(sel, DISP_OUTPUT_TYPE_HDMI, tv_mod);
 
 #ifdef CONFIG_ARCH_SUN4I
@@ -74,10 +79,10 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 			int scaler_index;
 
 			for (scaler_index = 0; scaler_index < 2; scaler_index++)
-				if ((gdisp.scaler[scaler_index].
-				     status & SCALER_USED)
-				    && (gdisp.scaler[scaler_index].
-					screen_index == sel)) {
+				if ((gdisp.scaler[scaler_index].status &
+				     SCALER_USED) &&
+				    (gdisp.scaler[scaler_index].screen_index ==
+				     sel)) {
 					/* interlace output */
 					if (Disp_get_screen_scan_mode(tv_mod) ==
 					    1)
@@ -102,7 +107,7 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 		Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_HDMI, tv_mod);
 
 		gdisp.screen[sel].b_out_interlace =
-		    Disp_get_screen_scan_mode(tv_mod);
+			Disp_get_screen_scan_mode(tv_mod);
 		gdisp.screen[sel].status |= HDMI_ON;
 		gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_HDMI;
@@ -135,10 +140,10 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
 			int scaler_index;
 
 			for (scaler_index = 0; scaler_index < 2; scaler_index++)
-				if ((gdisp.scaler[scaler_index].
-				     status & SCALER_USED)
-				    && (gdisp.scaler[scaler_index].
-					screen_index == sel))
+				if ((gdisp.scaler[scaler_index].status &
+				     SCALER_USED) &&
+				    (gdisp.scaler[scaler_index].screen_index ==
+				     sel))
 					Scaler_Set_Outitl(scaler_index, FALSE);
 		}
 #endif /* CONFIG_ARCH_SUN5I */
@@ -148,9 +153,8 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
 		gdisp.screen[sel].status &= HDMI_OFF;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &=
-		    ((gdisp.screen[sel].pll_use_status ==
-		      VIDEO_PLL0_USED) ? VIDEO_PLL0_USED_MASK :
-		     VIDEO_PLL1_USED_MASK);
+			(gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
+			VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK;
 	}
 
 	return DIS_SUCCESS;

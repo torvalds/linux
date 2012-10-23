@@ -82,9 +82,8 @@ __s32 DE_IEP_Set_Reg_Refresh_Edge(__u32 sel, __u32 falling)
 __s32 DE_IEP_Set_Csc_Coeff(__u32 sel, __u32 mod)
 {
 	if (sel == 0) {
-		if (mod == 2)	//yuv2rgb for drc mode
-		{
-			//bt709 full range(to fit output CSC in DEBE )
+		if (mod == 2) { /* yuv2rgb for drc mode */
+			/* bt709 full range(to fit output CSC in DEBE ) */
 			iep_dev->cscygcoff[0].bits.csc_yg_coff = 0x4a7;
 			iep_dev->cscygcoff[1].bits.csc_yg_coff = 0x000;
 			iep_dev->cscygcoff[2].bits.csc_yg_coff = 0x72c;
@@ -99,7 +98,7 @@ __s32 DE_IEP_Set_Csc_Coeff(__u32 sel, __u32 mod)
 			iep_dev->cscvbcon.bits.csc_vb_con = 0x2dea;
 		} else if (mod == 3) {
 #if 0
-			//IGB to RGB
+			/* IGB to RGB */
 			iep_dev->cscygcoff[0].bits.csc_yg_coff = 0x0c00;
 			iep_dev->cscygcoff[1].bits.csc_yg_coff = 0x1c00;
 			iep_dev->cscygcoff[2].bits.csc_yg_coff = 0x1c00;
@@ -113,7 +112,7 @@ __s32 DE_IEP_Set_Csc_Coeff(__u32 sel, __u32 mod)
 			iep_dev->cscvbcoff[2].bits.csc_vb_coff = 0x0400;
 			iep_dev->cscvbcon.bits.csc_vb_con = 0x0000;
 #else
-			//YUV2RGB when Er = 19%, Eg = 65%, Eb = 16%.
+			/* YUV2RGB when Er = 19%, Eg = 65%, Eb = 16%. */
 			iep_dev->cscygcoff[0].bits.csc_yg_coff = 0x0400;
 			iep_dev->cscygcoff[1].bits.csc_yg_coff = 0x0000;
 			iep_dev->cscygcoff[2].bits.csc_yg_coff = 0x067B;
@@ -128,8 +127,7 @@ __s32 DE_IEP_Set_Csc_Coeff(__u32 sel, __u32 mod)
 			iep_dev->cscvbcon.bits.csc_vb_con = 0x328F;
 
 #endif
-		} else		//yuv2yuv       for de-flicker mode
-		{
+		} else { /* yuv2yuv       for de-flicker mode */
 			iep_dev->cscygcoff[0].bits.csc_yg_coff = 0x400;
 			iep_dev->cscygcoff[1].bits.csc_yg_coff = 0x000;
 			iep_dev->cscygcoff[2].bits.csc_yg_coff = 0x000;
@@ -278,26 +276,25 @@ __u32 DE_IEP_Drc_Set_Int_Coeff(__u32 sel, __u8 inttab[IEP_DRC_INT_TAB_LEN])
 	}
 }
 
-/*__u32 DE_IEP_Drc_Set_Lgc_Coeff(__u32 sel,  __u16 lgctab[IEP_DRC_INT_TAB_LEN])
+#if 0
+__u32 DE_IEP_Drc_Set_Lgc_Coeff(__u32 sel, __u16 lgctab[IEP_DRC_INT_TAB_LEN])
 {
 	__u32 i;
 
 	if(sel == 0)
-	{
 		return 0;
-	}
 	else
-	{
 		return -1;
-	}
-}*/
+}
+#endif
 
 #define ____SEPARATOR_LH____
 
 __u32 DE_IEP_Lh_Set_Mode(__u32 sel, __u32 mod)
 {
 	if (sel == 0) {
-		iep_dev->lhctl.bits.lh_mod = mod;	//0:current frame case; 1:average case
+		/* 0:current frame case; 1:average case */
+		iep_dev->lhctl.bits.lh_mod = mod;
 		return 0;
 	} else {
 		return -1;

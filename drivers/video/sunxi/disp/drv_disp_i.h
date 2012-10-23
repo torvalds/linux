@@ -43,25 +43,29 @@ typedef enum {
 #define IDTOHAND(ID)  ((ID) + 100)
 
 #ifdef CONFIG_ARCH_SUN5I
-#define DISP_IO_NUM     9
+#define DISP_IO_NUM	9
 #else
-#define DISP_IO_NUM     8
+#define DISP_IO_NUM	8
 #endif
-#define DISP_IO_SCALER0 0
-#define DISP_IO_SCALER1 1
-#define DISP_IO_IMAGE0  2
-#define DISP_IO_IMAGE1  3
-#define DISP_IO_LCDC0   4
-#define DISP_IO_LCDC1   5
-#define DISP_IO_TVEC0    6
-#define DISP_IO_TVEC1    7
+#define DISP_IO_SCALER0	0
+#define DISP_IO_SCALER1	1
+#define DISP_IO_IMAGE0	2
+#define DISP_IO_IMAGE1	3
+#define DISP_IO_LCDC0	4
+#define DISP_IO_LCDC1	5
+#define DISP_IO_TVEC0	6
+#define DISP_IO_TVEC1	7
 #ifdef CONFIG_ARCH_SUN5I
-#define DISP_IO_IEP      8
+#define DISP_IO_IEP	8
 #endif
 
-#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))	/* half word input */
-#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))	/* half word output */
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
+/* half word input */
+#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))
+/* half word output */
+#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))
+/* word input */
+#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))
+/* word output */
+#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))
 
 #endif

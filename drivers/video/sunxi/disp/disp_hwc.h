@@ -24,6 +24,6 @@
 
 #include "disp_display_i.h"
 
-/*basic data information definition*/
+/* basic data information definition */
 
 #endif

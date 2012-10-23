@@ -30,52 +30,54 @@
 #define RST_VALID   1
 
 #define CLK_DEBE0_AHB_ON	0x00000001
-#define CLK_DEBE0_MOD_ON 	0x00000002
+#define CLK_DEBE0_MOD_ON	0x00000002
 #define CLK_DEBE0_DRAM_ON	0x00000004
 #define CLK_DEBE1_AHB_ON	0x00000010
-#define CLK_DEBE1_MOD_ON 	0x00000020
+#define CLK_DEBE1_MOD_ON	0x00000020
 #define CLK_DEBE1_DRAM_ON	0x00000040
 #define CLK_DEFE0_AHB_ON	0x00000100
-#define CLK_DEFE0_MOD_ON 	0x00000200
+#define CLK_DEFE0_MOD_ON	0x00000200
 #define CLK_DEFE0_DRAM_ON	0x00000400
 #define CLK_DEFE1_AHB_ON	0x00001000
-#define CLK_DEFE1_MOD_ON 	0x00002000
+#define CLK_DEFE1_MOD_ON	0x00002000
 #define CLK_DEFE1_DRAM_ON	0x00004000
 #define CLK_LCDC0_AHB_ON	0x00010000
-#define CLK_LCDC0_MOD0_ON  	0x00020000
-#define CLK_LCDC0_MOD1_ON  	0x00040000	//represent lcd0-ch1-clk1 and lcd0-ch1-clk2
-#define CLK_LCDC1_AHB_ON    0x00100000
-#define CLK_LCDC1_MOD0_ON  	0x00200000
-#define CLK_LCDC1_MOD1_ON  	0x00400000	//represent lcd1-ch1-clk1 and lcd1-ch1-clk2
+#define CLK_LCDC0_MOD0_ON	0x00020000
+/* represent lcd0-ch1-clk1 and lcd0-ch1-clk2 */
+#define CLK_LCDC0_MOD1_ON	0x00040000
+#define CLK_LCDC1_AHB_ON	0x00100000
+#define CLK_LCDC1_MOD0_ON	0x00200000
+/* represent lcd1-ch1-clk1 and lcd1-ch1-clk2 */
+#define CLK_LCDC1_MOD1_ON	0x00400000
 #define CLK_TVENC0_AHB_ON	0x01000000
 #define CLK_TVENC1_AHB_ON	0x02000000
-#define CLK_HDMI_AHB_ON     0x10000000
-#define CLK_HDMI_MOD_ON 	0x20000000
+#define CLK_HDMI_AHB_ON		0x10000000
+#define CLK_HDMI_MOD_ON		0x20000000
 //#define CLK_LVDS_MOD_ON
 
-#define CLK_DEBE0_AHB_OFF	(~(CLK_DEBE0_AHB_ON	    ))
-#define CLK_DEBE0_MOD_OFF 	(~(CLK_DEBE0_MOD_ON 	))
-#define CLK_DEBE0_DRAM_OFF	(~(CLK_DEBE0_DRAM_ON	))
-#define CLK_DEBE1_AHB_OFF	(~(CLK_DEBE1_AHB_ON	    ))
-#define CLK_DEBE1_MOD_OFF 	(~(CLK_DEBE1_MOD_ON 	))
-#define CLK_DEBE1_DRAM_OFF	(~(CLK_DEBE1_DRAM_ON	))
-#define CLK_DEFE0_AHB_OFF	(~(CLK_DEFE0_AHB_ON	    ))
-#define CLK_DEFE0_MOD_OFF 	(~(CLK_DEFE0_MOD_ON 	))
-#define CLK_DEFE0_DRAM_OFF	(~(CLK_DEFE0_DRAM_ON	))
-#define CLK_DEFE1_AHB_OFF	(~(CLK_DEFE1_AHB_ON	    ))
-#define CLK_DEFE1_MOD_OFF 	(~(CLK_DEFE1_MOD_ON 	))
-#define CLK_DEFE1_DRAM_OFF	(~(CLK_DEFE1_DRAM_ON	))
-#define CLK_LCDC0_AHB_OFF	(~(CLK_LCDC0_AHB_ON	    ))
-#define CLK_LCDC0_MOD0_OFF  (~(CLK_LCDC0_MOD0_ON  	))
-#define CLK_LCDC0_MOD1_OFF  (~(CLK_LCDC0_MOD1_ON  	))
-#define CLK_LCDC1_AHB_OFF   (~(CLK_LCDC1_AHB_ON     ))
-#define CLK_LCDC1_MOD0_OFF  (~(CLK_LCDC1_MOD0_ON  	))
-#define CLK_LCDC1_MOD1_OFF  (~(CLK_LCDC1_MOD1_ON  	))
-#define CLK_TVENC0_AHB_OFF	(~(CLK_TVENC0_AHB_ON	))
-#define CLK_TVENC1_AHB_OFF 	(~(CLK_TVENC1_AHB_ON 	))
-#define CLK_HDMI_AHB_OFF    (~(CLK_HDMI_AHB_ON		))
-#define CLK_HDMI_MOD_OFF 	(~(CLK_HDMI_MOD_ON 	    ))
-//#define CLK_LVDS_MOD_OFF      (~(CLK_LVDS_MOD_ON              ))
+#define CLK_DEBE0_AHB_OFF	(~(CLK_DEBE0_AHB_ON))
+#define CLK_DEBE0_MOD_OFF	(~(CLK_DEBE0_MOD_ON))
+#define CLK_DEBE0_DRAM_OFF	(~(CLK_DEBE0_DRAM_ON))
+#define CLK_DEBE1_AHB_OFF	(~(CLK_DEBE1_AHB_ON))
+#define CLK_DEBE1_MOD_OFF	(~(CLK_DEBE1_MOD_ON))
+#define CLK_DEBE1_DRAM_OFF	(~(CLK_DEBE1_DRAM_ON))
+#define CLK_DEFE0_AHB_OFF	(~(CLK_DEFE0_AHB_ON))
+#define CLK_DEFE0_MOD_OFF	(~(CLK_DEFE0_MOD_ON))
+#define CLK_DEFE0_DRAM_OFF	(~(CLK_DEFE0_DRAM_ON))
+#define CLK_DEFE1_AHB_OFF	(~(CLK_DEFE1_AHB_ON))
+#define CLK_DEFE1_MOD_OFF	(~(CLK_DEFE1_MOD_ON))
+#define CLK_DEFE1_DRAM_OFF	(~(CLK_DEFE1_DRAM_ON))
+#define CLK_LCDC0_AHB_OFF	(~(CLK_LCDC0_AHB_ON))
+#define CLK_LCDC0_MOD0_OFF	(~(CLK_LCDC0_MOD0_ON))
+#define CLK_LCDC0_MOD1_OFF	(~(CLK_LCDC0_MOD1_ON))
+#define CLK_LCDC1_AHB_OFF	(~(CLK_LCDC1_AHB_ON))
+#define CLK_LCDC1_MOD0_OFF	(~(CLK_LCDC1_MOD0_ON))
+#define CLK_LCDC1_MOD1_OFF	(~(CLK_LCDC1_MOD1_ON))
+#define CLK_TVENC0_AHB_OFF	(~(CLK_TVENC0_AHB_ON))
+#define CLK_TVENC1_AHB_OFF	(~(CLK_TVENC1_AHB_ON))
+#define CLK_HDMI_AHB_OFF	(~(CLK_HDMI_AHB_ON))
+#define CLK_HDMI_MOD_OFF	(~(CLK_HDMI_MOD_ON))
+//#define CLK_LVDS_MOD_OFF	(~(CLK_LVDS_MOD_ON))
 
 __hdle h_debe0ahbclk, h_debe0mclk, h_debe0dramclk;
 __hdle h_debe1ahbclk, h_debe1mclk, h_debe1dramclk;
@@ -85,7 +87,7 @@ __hdle h_tvenc0ahbclk;
 __hdle h_tvenc1ahbclk;
 __hdle h_lcd0ahbclk, h_lcd0ch0mclk0, h_lcd0ch1mclk1, h_lcd0ch1mclk2;
 __hdle h_lcd1ahbclk, h_lcd1ch0mclk0, h_lcd1ch1mclk1, h_lcd1ch1mclk2;
-__hdle h_lvdsmclk;		//only for reset
+__hdle h_lvdsmclk;		/* only for reset */
 __hdle h_hdmiahbclk, h_hdmimclk;
 
 __u32 g_clk_status = 0x0;
@@ -95,53 +97,54 @@ __u32 g_clk_status = 0x0;
 extern __disp_dev_t gdisp;
 extern __panel_para_t gpanel_info[2];
 
-__disp_clk_tab clk_tab =	//record tv/vga/hdmi mode clock requirement
-{
-//LCDx_CH1_CLK2, CLK2/CLK1,    HDMI_CLK,           PLL_CLK       ,     PLLX2 req          //    TV_VGA_MODE             //INDEX, FOLLOW enum order
-	//TV mode and HDMI mode 
-	{{27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_480I                                 //0x0      
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_576I                                 //0x1   
-	 {54000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_480P                                 //0x2   
-	 {54000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_576P                                 //0x3   
-	 {74250000, 1, 74250000, 297000000, 0},	//    DISP_TV_MOD_720P_50HZ                    //0x4   
-	 {74250000, 1, 74250000, 297000000, 0},	//    DISP_TV_MOD_720P_60HZ                    //0x5   
-	 {74250000, 1, 74250000, 297000000, 0},	//    DISP_TV_MOD_1080I_50HZ           //0x6   
-	 {74250000, 1, 74250000, 297000000, 0},	//    DISP_TV_MOD_1080I_60HZ           //0x7   
-	 {74250000, 1, 74250000, 297000000, 0},	//    DISP_TV_MOD_1080P_24HZ           //0x8   
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_TV_MOD_1080P_50HZ           //0x9   
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_TV_MOD_1080P_60HZ           //0xa 
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL                          //0xb 
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL_SVIDEO           //0xc 
-	 {0, 1, 0, 0, 0},	//    reserved  //0xd 
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_NTSC                                 //0xe 
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_NTSC_SVIDEO          //0xf
-	 {0, 1, 0, 0, 0},	//    reserved    //0x10
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL_M                                //0x11
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL_M_SVIDEO                 //0x12
-	 {0, 1, 0, 0, 0},	//    reserved   //0x13
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL_NC                       //0x14
-	 {27000000, 2, 27000000, 270000000, 0},	//    DISP_TV_MOD_PAL_NC_SVIDEO                //0x15
-	 {0, 1, 0, 0, 0},	//    reserved  //0x16         
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_TV_MOD_1080P_24HZ_3D_FP    //0x17
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_TV_MOD_720P_50HZ_3D_FP       //0x18
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_TV_MOD_720P_60HZ_3D_FP       //0x19
-	 {0, 1, 0, 0, 0},	//    reserved                                                 //0x1a
-	 {0, 1, 0, 0, 0},	//    reserved                                                 //0x1b
-	 {0, 1, 0, 0, 0},	//    reserved                                                 //0x1c
-	 {0, 1, 0, 0, 0}},	//    reserved                                             //0x1d
-	//VGA mode                                                      
-	{{147000000, 1, 147000000, 294000000, 0},	//    DISP_VGA_H1680_V1050                // 0X0
-	 {106800000, 1, 106800000, 267000000, 1},	//    DISP_VGA_H1440_V900                  // 0X1
-	 {86000000, 1, 86000000, 258000000, 0},	//    DISP_VGA_H1360_V768                  // 0X2
-	 {108000000, 1, 108000000, 270000000, 1},	//    DISP_VGA_H1280_V1024                // 0X3
-	 {65250000, 1, 65250000, 261000000, 0},	//    DISP_VGA_H1024_V768                  // 0X4
-	 {39857143, 1, 39857143, 279000000, 0},	//    DISP_VGA_H800_V600                   // 0X5
-	 {25090909, 1, 25090909, 276000000, 0},	//    DISP_VGA_H640_V480                   // 0X6
-	 {0, 1, 0, 0, 0},	//    DISP_VGA_H1440_V900_RB           // 0X7
-	 {0, 1, 0, 0, 0},	//    DISP_VGA_H1680_V1050_RB         // 0X8
-	 {138000000, 1, 138000000, 276000000, 0},	//    DISP_VGA_H1920_V1080_RB         // 0X9
-	 {148500000, 1, 148500000, 297000000, 0},	//    DISP_VGA_H1920_V1080              // 0xa   
-	 {74250000, 1, 74250000, 297000000, 0}}	//    DISP_VGA_H1280_V720                // 0xb        
+/* record tv/vga/hdmi mode clock requirement */
+__disp_clk_tab clk_tab = {
+	/* { LCDx_CH1_CLK2, CLK2/CLK1, HDMI_CLK, PLL_CLK, PLLX2 req}, MODE, INDEX (FOLLOW enum order) */
+	{ /* TV mode and HDMI mode */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_480I, 0x0 */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_576I, 0x1 */
+		{ 54000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_480P, 0x2 */
+		{ 54000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_576P, 0x3 */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_TV_MOD_720P_50HZ, 0x4 */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_TV_MOD_720P_60HZ , 0x5 */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_TV_MOD_1080I_50HZ, 0x6 */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_TV_MOD_1080I_60HZ, 0x7 */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_TV_MOD_1080P_24HZ, 0x8 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_TV_MOD_1080P_50HZ, 0x9 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_TV_MOD_1080P_60HZ, 0xa */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL//0xb */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL_SVIDEO, 0xc */
+		{0, 1, 0, 0, 0}, /* reserved//0xd */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_NTSC, 0xe */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_NTSC_SVIDEO//0xf */
+		{0, 1, 0, 0, 0}, /* reserved , 0x10 */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL_M, 0x11 */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL_M_SVIDEO, 0x12 */
+		{0, 1, 0, 0, 0}, /* reserved, 0x13 */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL_NC, 0x14 */
+		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_PAL_NC_SVIDEO, 0x15 */
+		{0, 1, 0, 0, 0}, /* reserved//0x16 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_TV_MOD_1080P_24HZ_3D_FP, 0x17 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_TV_MOD_720P_50HZ_3D_FP, 0x18 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_TV_MOD_720P_60HZ_3D_FP, 0x19 */
+		{0, 1, 0, 0, 0}, /* reserved, 0x1a */
+		{0, 1, 0, 0, 0}, /* reserved, 0x1b */
+		{0, 1, 0, 0, 0}, /* reserved, 0x1c */
+		{0, 1, 0, 0, 0}, /* reserved, 0x1d */
+	}, { /* VGA mode */
+		{147000000, 1, 147000000, 294000000, 0}, /* DISP_VGA_H1680_V1050, 0X0 */
+		{106800000, 1, 106800000, 267000000, 1}, /* DISP_VGA_H1440_V900, 0X1 */
+		{ 86000000, 1,  86000000, 258000000, 0}, /* DISP_VGA_H1360_V768, 0X2 */
+		{108000000, 1, 108000000, 270000000, 1}, /* DISP_VGA_H1280_V1024, 0X3 */
+		{ 65250000, 1,  65250000, 261000000, 0}, /* DISP_VGA_H1024_V768, 0X4 */
+		{ 39857143, 1,  39857143, 279000000, 0}, /* DISP_VGA_H800_V600, 0X5 */
+		{ 25090909, 1,  25090909, 276000000, 0}, /* DISP_VGA_H640_V480  0X6 */
+		{0, 1, 0, 0, 0}, /* DISP_VGA_H1440_V900_RB, 0X7 */
+		{0, 1, 0, 0, 0}, /* DISP_VGA_H1680_V1050_RB, 0X8 */
+		{138000000, 1, 138000000, 276000000, 0}, /* DISP_VGA_H1920_V1080_RB, 0X9 */
+		{148500000, 1, 148500000, 297000000, 0}, /* DISP_VGA_H1920_V1080, 0xa */
+		{ 74250000, 1,  74250000, 297000000, 0}, /* DISP_VGA_H1280_V720, 0xb */
+	}
 };
 
 __s32 image_clk_init(__u32 sel)
@@ -153,11 +156,12 @@ __s32 image_clk_init(__u32 sel)
 		h_debe0mclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_DEBE0);
 		h_debe0dramclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_SDRAM_DEBE0);
 
-		//NEW OSAL_clk reset
+		/* NEW OSAL_clk reset */
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_debe0mclk, RST_INVALID);
 #endif
-		OSAL_CCMU_SetMclkSrc(h_debe0mclk, AW_SYS_CLK_PLL5P);	//FIX CONNECT TO DRAM PLL
+		/* FIX CONNECT TO DRAM PLL */
+		OSAL_CCMU_SetMclkSrc(h_debe0mclk, AW_SYS_CLK_PLL5P);
 
 		dram_pll = OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL5P);
 		if (dram_pll < 300000000) {
@@ -181,7 +185,8 @@ __s32 image_clk_init(__u32 sel)
 
 		OSAL_CCMU_MclkReset(h_debe1mclk, RST_INVALID);
 #endif
-		OSAL_CCMU_SetMclkSrc(h_debe1mclk, AW_SYS_CLK_PLL5P);	//FIX CONNECT TO DRAM PLL
+		/* FIX CONNECT TO DRAM PLL */
+		OSAL_CCMU_SetMclkSrc(h_debe1mclk, AW_SYS_CLK_PLL5P);
 
 		dram_pll = OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL5P);
 		if (dram_pll < 300000000) {
@@ -200,7 +205,6 @@ __s32 image_clk_init(__u32 sel)
 		g_clk_status |= (CLK_DEBE1_AHB_ON | CLK_DEBE1_MOD_ON);
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 image_clk_exit(__u32 sel)
@@ -216,9 +220,9 @@ __s32 image_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_debe0dramclk);
 		OSAL_CCMU_CloseMclk(h_debe0mclk);
 
-		g_clk_status &=
-		    (CLK_DEBE0_AHB_OFF & CLK_DEBE0_MOD_OFF &
-		     CLK_DEBE0_DRAM_OFF);
+		/* broken mask */
+		g_clk_status &= CLK_DEBE0_AHB_OFF & CLK_DEBE0_MOD_OFF &
+			CLK_DEBE0_DRAM_OFF;
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_debe1mclk, RST_VALID);
@@ -230,9 +234,9 @@ __s32 image_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_debe1dramclk);
 		OSAL_CCMU_CloseMclk(h_debe1mclk);
 
-		g_clk_status &=
-		    (CLK_DEBE1_AHB_OFF & CLK_DEBE1_MOD_OFF &
-		     CLK_DEBE1_DRAM_OFF);
+		/* broken mask */
+		g_clk_status &= CLK_DEBE1_AHB_OFF & CLK_DEBE1_MOD_OFF &
+			CLK_DEBE1_DRAM_OFF;
 	}
 
 	return DIS_SUCCESS;
@@ -241,7 +245,10 @@ __s32 image_clk_exit(__u32 sel)
 __s32 image_clk_on(__u32 sel)
 {
 	if (sel == 0) {
-		//need to comfirm : REGisters can be accessed if  be_mclk was close.   
+		/*
+		 * need to comfirm:
+		 * REGisters can be accessed if  be_mclk was close.
+		 */
 		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
 		g_clk_status |= CLK_DEBE0_DRAM_ON;
 	} else if (sel == 1) {
@@ -274,7 +281,8 @@ __s32 scaler_clk_init(__u32 sel)
 		OSAL_CCMU_MclkReset(h_defe0mclk, RST_INVALID);
 #endif
 
-		OSAL_CCMU_SetMclkSrc(h_defe0mclk, AW_SYS_CLK_PLL7);	//FIX CONNECT TO VIDEO PLL1
+		/* FIX CONNECT TO VIDEO PLL1 */
+		OSAL_CCMU_SetMclkSrc(h_defe0mclk, AW_SYS_CLK_PLL7);
 		OSAL_CCMU_SetMclkDiv(h_defe0mclk, 1);
 
 		OSAL_CCMU_MclkOnOff(h_defe0ahbclk, CLK_ON);
@@ -291,7 +299,8 @@ __s32 scaler_clk_init(__u32 sel)
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_defe1mclk, RST_INVALID);
 #endif
-		OSAL_CCMU_SetMclkSrc(h_defe1mclk, AW_SYS_CLK_PLL7);	//FIX CONNECT TO VIDEO PLL1
+		/* FIX CONNECT TO VIDEO PLL1 */
+		OSAL_CCMU_SetMclkSrc(h_defe1mclk, AW_SYS_CLK_PLL7);
 		OSAL_CCMU_SetMclkDiv(h_defe1mclk, 1);
 
 		OSAL_CCMU_MclkOnOff(h_defe1ahbclk, CLK_ON);
@@ -318,9 +327,8 @@ __s32 scaler_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_defe0dramclk);
 		OSAL_CCMU_CloseMclk(h_defe0mclk);
 
-		g_clk_status &=
-		    (CLK_DEFE0_AHB_OFF & CLK_DEFE0_MOD_OFF &
-		     CLK_DEFE0_DRAM_OFF);
+		g_clk_status &= CLK_DEFE0_AHB_OFF & CLK_DEFE0_MOD_OFF &
+			CLK_DEFE0_DRAM_OFF;
 
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
@@ -333,9 +341,8 @@ __s32 scaler_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_defe1dramclk);
 		OSAL_CCMU_CloseMclk(h_defe1mclk);
 
-		g_clk_status &=
-		    (CLK_DEFE1_AHB_OFF & CLK_DEFE1_MOD_OFF &
-		     CLK_DEFE1_DRAM_OFF);
+		g_clk_status &= CLK_DEFE1_AHB_OFF & CLK_DEFE1_MOD_OFF &
+			CLK_DEFE1_DRAM_OFF;
 	}
 
 	return DIS_SUCCESS;
@@ -355,7 +362,6 @@ __s32 scaler_clk_on(__u32 sel)
 		g_clk_status |= (CLK_DEFE1_MOD_ON | CLK_DEFE1_DRAM_ON);
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 scaler_clk_off(__u32 sel)
@@ -372,7 +378,6 @@ __s32 scaler_clk_off(__u32 sel)
 		g_clk_status &= (CLK_DEFE1_MOD_OFF & CLK_DEFE1_DRAM_OFF);
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 lcdc_clk_init(__u32 sel)
@@ -384,12 +389,17 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd0ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD0CH1_S2);
 
 #ifdef CONFIG_ARCH_SUN4I
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL7);	//Default to Video Pll0
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL7);	//Default to Video Pll0
-		//OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk2, AW_SYS_CLK_PLL7);        //Default to Video Pll0
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL7);
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL7);
+		/* Default to Video Pll0 */
+		//OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk2, AW_SYS_CLK_PLL7);
 #else
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL3);	//Default to Video Pll0
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL3);
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL3);
 #endif
 
 		OSAL_CCMU_SetMclkDiv(h_lcd0ch1mclk2, 10);
@@ -413,12 +423,17 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd1ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD1CH1_S2);
 
 #ifdef CONFIG_ARCH_SUN4I
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL7);	//Default to Video Pll0
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL7);	//Default to Video Pll0
-		//OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk2, AW_SYS_CLK_PLL7);        //Default to Video Pll0
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL7);
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL7);
+		/* Default to Video Pll0 */
+		//OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk2, AW_SYS_CLK_PLL7);
 #else
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL3);	//Default to Video Pll0
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL3);
+		/* Default to Video Pll0 */
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL3);
 #endif
 
 		OSAL_CCMU_SetMclkDiv(h_lcd1ch1mclk2, 10);
@@ -437,7 +452,6 @@ __s32 lcdc_clk_init(__u32 sel)
 		g_clk_status |= CLK_LCDC1_AHB_ON;
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 lcdc_clk_exit(__u32 sel)
@@ -455,9 +469,8 @@ __s32 lcdc_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_lcd0ch1mclk1);
 		OSAL_CCMU_CloseMclk(h_lcd0ch1mclk2);
 
-		g_clk_status &=
-		    (CLK_LCDC0_AHB_OFF & CLK_LCDC0_MOD0_OFF &
-		     CLK_LCDC0_MOD1_OFF);
+		g_clk_status &= CLK_LCDC0_AHB_OFF & CLK_LCDC0_MOD0_OFF &
+		     CLK_LCDC0_MOD1_OFF;
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_lcd1ch0mclk0, RST_VALID);
@@ -471,9 +484,8 @@ __s32 lcdc_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_lcd1ch1mclk1);
 		OSAL_CCMU_CloseMclk(h_lcd1ch1mclk2);
 
-		g_clk_status &=
-		    (CLK_LCDC1_AHB_OFF & CLK_LCDC1_MOD0_OFF &
-		     CLK_LCDC1_MOD1_OFF);
+		g_clk_status &= CLK_LCDC1_AHB_OFF & CLK_LCDC1_MOD0_OFF &
+			CLK_LCDC1_MOD1_OFF;
 	}
 	return DIS_SUCCESS;
 }
@@ -494,7 +506,6 @@ __s32 lcdc_clk_on(__u32 sel)
 		g_clk_status |= (CLK_LCDC1_MOD0_ON | CLK_LCDC1_MOD1_ON);
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 lcdc_clk_off(__u32 sel)
@@ -504,16 +515,15 @@ __s32 lcdc_clk_off(__u32 sel)
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk1, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk2, CLK_OFF);
 
-		g_clk_status &= (CLK_LCDC0_MOD0_OFF & CLK_LCDC0_MOD1_OFF);
+		g_clk_status &= CLK_LCDC0_MOD0_OFF & CLK_LCDC0_MOD1_OFF;
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_lcd1ch0mclk0, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_OFF);
 
-		g_clk_status &= (CLK_LCDC1_MOD0_OFF & CLK_LCDC1_MOD1_OFF);
+		g_clk_status &= CLK_LCDC1_MOD0_OFF & CLK_LCDC1_MOD1_OFF;
 	}
 	return DIS_SUCCESS;
-
 }
 
 __s32 tve_clk_init(__u32 sel)
@@ -602,7 +612,7 @@ __s32 hdmi_clk_exit(void)
 	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
 #endif
 
-	g_clk_status &= (CLK_HDMI_AHB_OFF & CLK_HDMI_MOD_OFF);
+	g_clk_status &= CLK_HDMI_AHB_OFF & CLK_HDMI_MOD_OFF;
 
 	return DIS_SUCCESS;
 }
@@ -665,54 +675,47 @@ __s32 disp_pll_init(void)
 }
 
 /*
-*********************************************************************************************************
-*							LCD_PLL_Calc
-*
-* Description  :  Calculate PLL frequence and divider depend on all kinds of lcd panel  
-*
-* Arguments   :  sel	<display channel>
-*                            info   <panel information>
-*                            divider   <divider pointer>
-*
-* Returns         : success	<frequence of pll >
-*                            fail               <-1>
-*
-* Note               : 1.support hv/cpu/ttl panels which pixel frequence between 2MHz~297MHz
-*                            2.support all lvds panels, when pll can't reach  (pixel clk x7), 
-*			    set pll to 381MHz(pllx1), which will depress the frame rate.
-*********************************************************************************************************
-*/
+ * Calculate PLL frequence and divider depend on all kinds of lcd panel
+ *
+ * 1. support hv/cpu/ttl panels which pixel frequence between 2MHz~297MHz
+ * 2. support all lvds panels, when pll can't reach  (pixel clk x7),
+ *    set pll to 381MHz(pllx1), which will depress the frame rate.
+ */
 static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 * divider)
 {
-	__u32 lcd_dclk_freq;	//Hz
+	__u32 lcd_dclk_freq; /* Hz */
 	__s32 pll_freq = -1;
 
 	lcd_dclk_freq = info->lcd_dclk_freq * 1000000;
-	if (info->lcd_if == 0 || info->lcd_if == 1 || info->lcd_if == 2)	// hv panel , CPU panel and      ttl panel
-	{
-		if (lcd_dclk_freq > 2000000 && lcd_dclk_freq <= 297000000)	//MHz 
-		{
-			*divider = 297000000 / (lcd_dclk_freq);	//divider for dclk in tcon0
+
+	/* hv panel, CPU panel and ttl panel */
+	if (info->lcd_if == 0 || info->lcd_if == 1 || info->lcd_if == 2) {
+		/* MHz */
+		if (lcd_dclk_freq > 2000000 && lcd_dclk_freq <= 297000000) {
+			/* divider for dclk in tcon0 */
+			*divider = 297000000 / (lcd_dclk_freq);
 			pll_freq = lcd_dclk_freq * (*divider);
 		} else {
 			return -1;
 		}
 
-	} else if (info->lcd_if == 3)	// lvds panel
-	{
+	} else if (info->lcd_if == 3) {	/* lvds panel */
 		__u32 clk_max;
 
 		if (!sunxi_is_version_A()) {
 			clk_max = 150000000;
 		} else {
-			clk_max = 108000000;	//pixel clock can't be larger than 108MHz, limited by Video pll frequency
+			/*
+			 * pixel clock can't be larger than 108MHz,
+			 * limited by Video pll frequency
+			 */
+			clk_max = 108000000;
 		}
 		if (lcd_dclk_freq > clk_max) {
 			lcd_dclk_freq = clk_max;
 		}
 
-		if (lcd_dclk_freq > 4000000)	//pixel clk
-		{
+		if (lcd_dclk_freq > 4000000) { /* pixel clk */
 			pll_freq = lcd_dclk_freq * 7;
 			*divider = 7;
 		} else {
@@ -723,26 +726,27 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 * divider)
 }
 
 /*
-*********************************************************************************************************
-*							disp_pll_assign
-*
-* Description  :  Select a video pll for the display device under configuration by specific rules
-*
-* Arguments   :  sel	<display channel>
-*                            pll_clk   <required pll frequency of this display device >
-*                              
-* Returns         : success	<0:video pll0; 1:video pll1; 2:sata pll>
-*                            fail               <-1>
-*
-* Note               : ASSIGNMENT RULES
-*                            RULE1. video pll1(1x) work between [250,300]MHz, when no lcdc using video pll1 and required freq is in [250,300]MHz, choose video pll1;
-*                            RULE2. when video pll1 used by another lcdc, but running frequency is equal to required frequency, choose video pll1;
-*                            RULE3. when video pll1 used by another lcdc, and running frequency isNOT equal to required frequency, choose video pll0;
-*                           	CONDICTION CAN'T BE HANDLE
-*                            1.two lvds panel are both require a pll freq outside [250,300], and pll freq are different, the second panel will fail to assign.
-*
-*********************************************************************************************************
-*/
+ * Select a video pll for the display device under configuration by specific
+ * rules
+ *
+ * returns:
+ *   0:video pll0;
+ *   1:video pll1;
+ *   2:sata pll
+ *   -1: fail
+ *
+ * ASSIGNMENT RULES
+ * RULE1: video pll1(1x) work between [250,300]MHz, when no lcdc using video
+ *        pll1 and required freq is in [250,300]MHz, choose video pll1;
+ * RULE2: when video pll1 used by another lcdc, but running frequency is equal
+ *        to required frequency, choose video pll1;
+ * RULE3. when video pll1 used by another lcdc, and running frequency is NOT
+ * equal to required frequency, choose video pll0;
+ *
+ * CONDICTION CAN'T BE HANDLE
+ * 1.two lvds panel are both require a pll freq outside [250,300], and pll
+ * freq are different, the second panel will fail to assign.
+ */
 #ifdef CONFIG_ARCH_SUN4I
 static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 {
@@ -753,26 +757,24 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 	another_pll_use_status = gdisp.screen[another_lcdc].pll_use_status;
 
 	if (pll_clk >= 250000000 && pll_clk <= 300000000) {
-		if ((!(another_pll_use_status & VIDEO_PLL1_USED))
-		    || (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk)) {
+		if ((!(another_pll_use_status & VIDEO_PLL1_USED)) ||
+		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk)) {
 			ret = 1;
-		} else if ((!(another_pll_use_status & VIDEO_PLL0_USED))
-			   || (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) ==
-			       pll_clk)) {
+		} else if ((!(another_pll_use_status & VIDEO_PLL0_USED)) ||
+			   (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk)) {
 			ret = 0;
 		}
 	} else if (pll_clk <= (381000000 * 2)) {
-		if ((!(another_pll_use_status & VIDEO_PLL0_USED))
-		    || (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk)) {
+		if ((!(another_pll_use_status & VIDEO_PLL0_USED)) ||
+		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk)) {
 			ret = 0;
-		} else if ((!(another_pll_use_status & VIDEO_PLL1_USED))
-			   || (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) ==
-			       pll_clk)) {
+		} else if ((!(another_pll_use_status & VIDEO_PLL1_USED)) ||
+			   (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk)) {
 			ret = 1;
 		}
 	} else if (pll_clk <= 1200000000) {
 		if (!sunxi_is_version_A()) {
-			ret = 2;	//sata pll
+			ret = 2; /* sata pll */
 		}
 	}
 
@@ -803,30 +805,19 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 #endif /* CONFIG_ARCH_SUN4I */
 
 /*
-*********************************************************************************************************
-*							disp_pll_set
-*
-* Description  :  Set clock control module 
-*
-* Arguments   :  sel	<display channel>
-*                            videopll_sel   	<sel pll>
-*			pll_freq		<sel pll freq>
-*			tve_freq		<lcdx_ch1_clk2 freq>
-*			pre_scale		<lcdx_ch1_clk2/lcdx_ch1_ch1>
-*			lcd_clk_div	<lcd panel clk div>	
-*			hdmi_freq		<hdmi module clk freq>
-*			pll_2x		<pll 2x required>
-*			type          	   	<display device type: tv/vga/hdmi/lcd>         	       
-*
-* Returns         : success	<DIS_SUCCESS>
-*                            fail               <>
-*
-* Note               :  none
-
-*
-*********************************************************************************************************
-*/
-
+ * Set clock control module
+ *
+ * Arguments:
+ *  sel: display channel
+ *  videopll_sel: sel pll
+ *  pll_freq: sel pll freq
+ *  tve_freq: lcdx_ch1_clk2 freq
+ *  pre_scale: lcdx_ch1_clk2/lcdx_ch1_ch1
+ *  lcd_clk_div: lcd panel clk div
+ *  hdmi_freq: hdmi module clk freq
+ *  pll_2x: pll 2x required
+ *  type: display device type: tv/vga/hdmi/lcd
+ */
 static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 			  __u32 tve_freq, __s32 pre_scale, __u32 lcd_clk_div,
 			  __u32 hdmi_freq, __u32 pll_2x, __u32 type)
@@ -836,60 +827,60 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 	__s32 pll_2x_req;
 	__u32 lcdmclk1_div, lcdmclk2_div, hdmiclk_div;
 
-	if (type == DISP_OUTPUT_TYPE_LCD)	//lcd panel
-	{
-		if (videopll_sel == 2)	//sata pll, fix to 960M
-		{
+	if (type == DISP_OUTPUT_TYPE_LCD) { /* lcd panel */
+		if (videopll_sel == 2) { /* sata pll, fix to 960M */
 			videopll = AW_SYS_CLK_PLL7X2;
-			//pll_freq = ((pll_freq + 12000000)/ 24000000) * 24000000;
-			//OSAL_CCMU_SetSrcFreq(AW_SYS_CLK_PLL6, pll_freq);
-		} else		//video pll0 or video pll1
-		{
+#if 0
+			pll_freq = ((pll_freq + 12000000) / 24000000) *
+				24000000;
+			OSAL_CCMU_SetSrcFreq(AW_SYS_CLK_PLL6, pll_freq);
+#endif
+		} else { /* video pll0 or video pll1 */
 			pll_2x_req = (pll_freq > 381000000) ? 1 : 0;
 			if (pll_2x_req) {
 				pll_freq /= 2;
 			}
-			//in 3M unit
+
+			/* in 3M unit */
 			pll_freq = (pll_freq + 1500000) / 3000000;
 			pll_freq = pll_freq * 3000000;
 
-			videopll =
-			    (videopll_sel ==
-			     0) ? AW_SYS_CLK_PLL3 : AW_SYS_CLK_PLL7;
+			videopll = (videopll_sel == 0) ?
+				AW_SYS_CLK_PLL3 : AW_SYS_CLK_PLL7;
 			OSAL_CCMU_SetSrcFreq(videopll, pll_freq);
 			if (pll_2x_req) {
-				videopll =
-				    (videopll ==
-				     AW_SYS_CLK_PLL3) ? AW_SYS_CLK_PLL3X2 :
-				    AW_SYS_CLK_PLL7X2;
+				videopll = (videopll == AW_SYS_CLK_PLL3) ?
+					AW_SYS_CLK_PLL3X2 : AW_SYS_CLK_PLL7X2;
 			}
 		}
 
-		if (gpanel_info[sel].tcon_index == 0)	//tcon0 drive lcd panel
-		{
-			h_lcdmclk0 =
-			    (sel == 0) ? h_lcd0ch0mclk0 : h_lcd1ch0mclk0;
+		if (gpanel_info[sel].tcon_index == 0) {
+			/* tcon0 drive lcd panel */
+
+			h_lcdmclk0 = (sel == 0) ?
+				h_lcd0ch0mclk0 : h_lcd1ch0mclk0;
 			OSAL_CCMU_SetMclkSrc(h_lcdmclk0, videopll);
 			TCON0_set_dclk_div(sel, lcd_clk_div);
-		} else		//tcon1 drive lcd panel
-		{
-			h_lcdmclk1 =
-			    (sel == 0) ? h_lcd0ch1mclk1 : h_lcd1ch1mclk1;
-			h_lcdmclk2 =
-			    (sel == 0) ? h_lcd0ch1mclk2 : h_lcd1ch1mclk2;
+		} else {
+			/* tcon1 drive lcd panel */
+			h_lcdmclk1 = (sel == 0) ?
+				h_lcd0ch1mclk1 : h_lcd1ch1mclk1;
+			h_lcdmclk2 = (sel == 0) ?
+				h_lcd0ch1mclk2 : h_lcd1ch1mclk2;
 			OSAL_CCMU_SetMclkSrc(h_lcdmclk2, videopll);
 			OSAL_CCMU_SetMclkSrc(h_lcdmclk1, videopll);
 			OSAL_CCMU_SetMclkDiv(h_lcdmclk2, lcd_clk_div);
 			OSAL_CCMU_SetMclkDiv(h_lcdmclk1, lcd_clk_div);
 		}
-	} else			//tv/vga/hdmi
-	{
+	} else { /* tv/vga/hdmi */
 		__u32 pll_freq_used;
 
 		pll_2x_req = pll_2x;
-		videopll =
-		    (videopll_sel == 0) ? AW_SYS_CLK_PLL3 : AW_SYS_CLK_PLL7;
-		OSAL_CCMU_SetSrcFreq(videopll, pll_freq);	//Set related Video Pll Frequency
+		videopll = (videopll_sel == 0) ?
+			AW_SYS_CLK_PLL3 : AW_SYS_CLK_PLL7;
+
+		/* Set related Video Pll Frequency */
+		OSAL_CCMU_SetSrcFreq(videopll, pll_freq);
 
 		videopll = (videopll_sel == 0) ?
 		    ((pll_2x_req) ? AW_SYS_CLK_PLL3X2 : AW_SYS_CLK_PLL3) :
@@ -908,14 +899,15 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 		OSAL_CCMU_SetMclkDiv(h_lcdmclk2, lcdmclk2_div);
 		OSAL_CCMU_SetMclkDiv(h_lcdmclk1, lcdmclk1_div);
 
-		if (type == DISP_OUTPUT_TYPE_HDMI && gdisp.screen[sel].hdmi_index == 0)	//hdmi internal mode
-		{
+		/* hdmi internal mode */
+		if (type == DISP_OUTPUT_TYPE_HDMI &&
+		    gdisp.screen[sel].hdmi_index == 0) {
 			OSAL_CCMU_SetMclkSrc(h_hdmimclk, videopll);
 			OSAL_CCMU_SetMclkDiv(h_hdmimclk, hdmiclk_div);
 
 			if (gdisp.init_para.hdmi_set_pll != NULL) {
-				if ((videopll == AW_SYS_CLK_PLL3X2)
-				    || (videopll == AW_SYS_CLK_PLL3)) {
+				if ((videopll == AW_SYS_CLK_PLL3X2) ||
+				    (videopll == AW_SYS_CLK_PLL3)) {
 					gdisp.init_para.hdmi_set_pll(0,
 								     pll_freq);
 				} else {
@@ -923,8 +915,8 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 								     pll_freq);
 				}
 			} else {
-				DE_WRN
-				    ("gdisp.init_para.hdmi_set_pll is NULL\n");
+				DE_WRN("gdisp.init_para.hdmi_set_pll is "
+				       "NULL\n");
 			}
 		}
 	}
@@ -933,22 +925,8 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 }
 
 /*
-*********************************************************************************************************
-*							disp_clk_cfg
-*
-* Description  :  Config PLL and mclk depend on all kinds of display devices
-*
-* Arguments   :  sel	<display channel>
-*                            type   <display device type: tv/vga/hdmi/lcd>
-*                            mode   <display mode of tv/vga/hdmi: 480i, ntsc...>
-*
-* Returns         : success	<DIS_SUCCESS>
-*                            fail               <DIS_FAIL>
-*
-* Note               : None.
-*                           	
-*********************************************************************************************************
-*/
+ * Config PLL and mclk depend on all kinds of display devices
+ */
 __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 {
 	__u32 pll_freq = 297000000, tve_freq = 27000000;
@@ -992,13 +970,15 @@ __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 	return DIS_SUCCESS;
 }
 
-//type==1: open ahb clk and image mclk
-//type==2: open all clk except ahb clk and image mclk
-//type==3: open all clk
+/*
+ * type==1: open ahb clk and image mclk
+ * type==2: open all clk except ahb clk and image mclk
+ * type==3: open all clk
+ */
 __s32 BSP_disp_clk_on(__u32 type)
 {
 	if (type & 1) {
-//AHB CLK
+		/* AHB CLK */
 		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0ahbclk, CLK_ON);
 		}
@@ -1011,12 +991,14 @@ __s32 BSP_disp_clk_on(__u32 type)
 		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_ON);
 		}
-		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON)	//OK?? REG wont clear?
-		{
+
+		// OK?? REG wont clear?
+		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd0ahbclk, CLK_ON);
 		}
-		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON)	//OK?? REG wont clear?
-		{
+
+		// OK?? REG wont clear?
+		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd1ahbclk, CLK_ON);
 		}
 		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON) {
@@ -1024,7 +1006,7 @@ __s32 BSP_disp_clk_on(__u32 type)
 		}
 		//OSAL_CCMU_MclkOnOff(h_tveahbclk, CLK_ON);
 
-//MODULE CLK
+		/* MODULE CLK */
 		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_ON);
 		}
@@ -1034,7 +1016,7 @@ __s32 BSP_disp_clk_on(__u32 type)
 	}
 
 	if (type & 2) {
-//DRAM CLK
+		/* DRAM CLK */
 		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0dramclk, CLK_ON);
 		}
@@ -1047,7 +1029,7 @@ __s32 BSP_disp_clk_on(__u32 type)
 		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_ON);
 		}
-//MODULE CLK
+		/* MODULE CLK */
 		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0mclk, CLK_ON);
 		}
@@ -1085,13 +1067,15 @@ __s32 BSP_disp_clk_on(__u32 type)
 	return DIS_SUCCESS;
 }
 
-//type==1: close ahb clk and image mclk
-//type==2: close all clk except ahb clk and image mclk
-//type==3: close all clk
+/*
+ * type==1: close ahb clk and image mclk
+ * type==2: close all clk except ahb clk and image mclk
+ * type==3: close all clk
+ */
 __s32 BSP_disp_clk_off(__u32 type)
 {
 	if (type & 1) {
-//AHB CLK
+		/* AHB CLK */
 		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0ahbclk, CLK_OFF);
 		}
@@ -1104,12 +1088,14 @@ __s32 BSP_disp_clk_off(__u32 type)
 		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_OFF);
 		}
-		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON)	//OK?? REG wont clear?
-		{
+
+		//OK?? REG wont clear?
+		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd0ahbclk, CLK_OFF);
 		}
-		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON)	//OK?? REG wont clear?
-		{
+
+		//OK?? REG wont clear?
+		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd1ahbclk, CLK_OFF);
 		}
 		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON) {
@@ -1117,7 +1103,7 @@ __s32 BSP_disp_clk_off(__u32 type)
 		}
 		//OSAL_CCMU_MclkOnOff(h_tveahbclk, CLK_OFF);
 
-//MODULE CLK
+		/* MODULE CLK */
 		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_OFF);
 		}
@@ -1127,7 +1113,7 @@ __s32 BSP_disp_clk_off(__u32 type)
 	}
 
 	if (type & 2) {
-//DRAM CLK
+		/* DRAM CLK */
 		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0dramclk, CLK_OFF);
 		}
@@ -1140,7 +1126,8 @@ __s32 BSP_disp_clk_off(__u32 type)
 		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON) {
 			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
 		}
-//MODULE CLK
+
+		/* MODULE CLK */
 		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON) {
 			OSAL_CCMU_MclkOnOff(h_defe0mclk, CLK_OFF);
 		}

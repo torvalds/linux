@@ -53,9 +53,8 @@ __s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t * color)
 
 __s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t * ck_mode)
 {
-	if ((ck_mode == NULL) || (ck_mode->red_match_rule > 3)
-	    || (ck_mode->green_match_rule > 3)
-	    || (ck_mode->blue_match_rule > 3)) {
+	if ((ck_mode == NULL) || (ck_mode->red_match_rule > 3) ||
+	    (ck_mode->green_match_rule > 3) || (ck_mode->blue_match_rule > 3)) {
 		DE_WRN("para invalid in BSP_disp_set_color_key\n");
 		return DIS_PARA_FAILED;
 	}
@@ -80,9 +79,8 @@ __s32 BSP_disp_set_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,
 				 __u32 size)
 {
 	if ((pbuffer == NULL) || ((offset + size) > 1024)) {
-		DE_WRN
-		    ("para invalid in BSP_disp_set_palette_table,offset:0x%x,size:0x%x\n",
-		     offset, size);
+		DE_WRN("para invalid in BSP_disp_set_palette_table,"
+		       "offset:0x%x,size:0x%x\n", offset, size);
 		return DIS_FAIL;
 	}
 	DE_BE_Set_SystemPalette(sel, pbuffer, offset, size);
@@ -94,9 +92,8 @@ __s32 BSP_disp_get_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,
 				 __u32 size)
 {
 	if ((pbuffer == NULL) || ((offset + size) > 1024)) {
-		DE_WRN
-		    ("para invalid in BSP_disp_get_palette_table,offset:0x%x,size:0x%x\n",
-		     offset, size);
+		DE_WRN("para invalid in BSP_disp_get_palette_table,"
+		       "offset:0x%x,size:0x%x\n", offset, size);
 		return DIS_FAIL;
 	}
 
@@ -122,25 +119,24 @@ __s32 BSP_disp_layer_set_top(__u32 sel, __u32 hid)
 		}
 
 		layer_prio[hid] = prio--;
-		for (j = gdisp.screen[sel].max_layers - 1; j >= 0; j--)	//for every prio from high to low
-		{
-			for (i = 0; i < gdisp.screen[sel].max_layers; i++)	//for every layer_prio that prio is j
-			{
-				if ((gdisp.screen[sel].layer_manage[i].
-				     status & LAYER_USED) && (i != hid)
-				    && (gdisp.screen[sel].layer_manage[i].para.
-					prio == j)) {
+
+		for (j = gdisp.screen[sel].max_layers - 1; j >= 0; j--)	{
+			for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
+				if ((gdisp.screen[sel].layer_manage[i].status &
+				     LAYER_USED) && (i != hid) &&
+				    (gdisp.screen[sel].layer_manage[i].para.prio
+				     == j)) {
 					layer_prio[i] = prio--;
 				}
 			}
 		}
 
 		for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
-			if (gdisp.screen[sel].layer_manage[i].
-			    status & LAYER_USED) {
+			if (gdisp.screen[sel].layer_manage[i].status &
+			    LAYER_USED) {
 				DE_BE_Layer_Set_Prio(sel, i, layer_prio[i]);
 				gdisp.screen[sel].layer_manage[i].para.prio =
-				    layer_prio[i];
+					layer_prio[i];
 			}
 		}
 
@@ -164,18 +160,16 @@ __s32 BSP_disp_layer_set_bottom(__u32 sel, __u32 hid)
 
 		for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
 			layer_prio[i] =
-			    gdisp.screen[sel].layer_manage[i].para.prio;
+				gdisp.screen[sel].layer_manage[i].para.prio;
 		}
 
 		layer_prio[hid] = prio++;
-		for (j = 0; j < gdisp.screen[sel].max_layers; j++)	//for every prio from low to high
-		{
-			for (i = 0; i < gdisp.screen[sel].max_layers; i++)	//for every layer that prio is j
-			{
-				if ((gdisp.screen[sel].layer_manage[i].
-				     status & LAYER_USED) && (i != hid)
-				    && (gdisp.screen[sel].layer_manage[i].para.
-					prio == j)) {
+		for (j = 0; j < gdisp.screen[sel].max_layers; j++) {
+			for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
+				if ((gdisp.screen[sel].layer_manage[i].status &
+				     LAYER_USED) && (i != hid) &&
+				    (gdisp.screen[sel].layer_manage[i].para.prio
+				     == j)) {
 					layer_prio[i] = prio++;
 				}
 			}
@@ -186,7 +180,7 @@ __s32 BSP_disp_layer_set_bottom(__u32 sel, __u32 hid)
 			    status & LAYER_USED) {
 				DE_BE_Layer_Set_Prio(sel, i, layer_prio[i]);
 				gdisp.screen[sel].layer_manage[i].para.prio =
-				    layer_prio[i];
+					layer_prio[i];
 			}
 		}
 

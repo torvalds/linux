@@ -53,11 +53,11 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 
 	info = &(gpanel_info[sel]);
 
-	if (info->lcd_if == 0 && info->lcd_hv_if == 1
-	    && info->lcd_hv_smode == 0)
+	if (info->lcd_if == 0 && info->lcd_hv_if == 1 &&
+	    info->lcd_hv_smode == 0)
 		cycle_num = 3;
-	else if (info->lcd_if == 0 && info->lcd_hv_if == 1
-		 && info->lcd_hv_smode == 1)
+	else if (info->lcd_if == 0 && info->lcd_hv_if == 1 &&
+		 info->lcd_hv_smode == 1)
 		cycle_num = 2;
 	else if (info->lcd_if == 1 && info->lcd_cpu_if == 1)
 		cycle_num = 3;
@@ -101,18 +101,18 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 	lcd_clk_div = TCON0_get_dclk_div(sel);
 	if (lcd_clk_div >= 6) {
 		;
-	} else if ((lcd_clk_div == 5) || (lcd_clk_div == 4)
-		   || (lcd_clk_div == 2)) {
-		if ((info->lcd_io_cfg0 != 0x00000000)
-		    && (info->lcd_io_cfg0 != 0x04000000)) {
+	} else if ((lcd_clk_div == 5) || (lcd_clk_div == 4) ||
+		   (lcd_clk_div == 2)) {
+		if ((info->lcd_io_cfg0 != 0x00000000) &&
+		    (info->lcd_io_cfg0 != 0x04000000)) {
 			Lcd_Panel_Err_Flag |= BIT10;
 		}
 	} else {
 		Disp_Driver_Bug_Flag |= 1;
 	}
 
-	if ((info->lcd_if == 1 && info->lcd_cpu_if == 0)
-	    || (info->lcd_if == 3 && info->lcd_lvds_bitwidth == 1)) {
+	if ((info->lcd_if == 1 && info->lcd_cpu_if == 0) ||
+	    (info->lcd_if == 3 && info->lcd_lvds_bitwidth == 1)) {
 		if (info->lcd_frm != 1)
 			Lcd_Panel_Wrn_Flag |= BIT0;
 	} else if (info->lcd_if == 1 && info->lcd_cpu_if == 4) {
@@ -120,9 +120,8 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 			Lcd_Panel_Wrn_Flag |= BIT1;
 	}
 
-	lcd_fclk_frq =
-	    (info->lcd_dclk_freq * 1000 * 1000) / ((info->lcd_vt / 2) *
-						   info->lcd_ht);
+	lcd_fclk_frq = (info->lcd_dclk_freq * 1000 * 1000) /
+		((info->lcd_vt / 2) * info->lcd_ht);
 	if (lcd_fclk_frq < 50 || lcd_fclk_frq > 70) {
 		Lcd_Panel_Wrn_Flag |= BIT2;
 	}
@@ -135,17 +134,17 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 			}
 		}
 
-		OSAL_PRINTF
-		    ("*****************************************************************\n");
+		OSAL_PRINTF("*************************************************"
+			    "****************\n");
 		OSAL_PRINTF("***\n");
 		OSAL_PRINTF("*** LCD Panel Parameter Check\n");
 		OSAL_PRINTF("***\n");
 		OSAL_PRINTF("***             by dulianping\n");
 		OSAL_PRINTF("***\n");
-		OSAL_PRINTF
-		    ("*****************************************************************\n");
+		OSAL_PRINTF("*************************************************"
+			    "****************\n");
 
-		OSAL_PRINTF("*** \n");
+		OSAL_PRINTF("***\n");
 		OSAL_PRINTF("*** Interface:");
 		if (info->lcd_if == 0 && info->lcd_hv_if == 0) {
 			OSAL_PRINTF("*** Parallel HV Panel\n");
@@ -176,7 +175,7 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 			OSAL_PRINTF("*** Lcd Frm to RGB565\n");
 		}
 
-		OSAL_PRINTF("*** \n");
+		OSAL_PRINTF("***\n");
 		OSAL_PRINTF("*** Timing:\n");
 		OSAL_PRINTF("*** lcd_x:      %d\n", info->lcd_x);
 		OSAL_PRINTF("*** lcd_y:      %d\n", info->lcd_y);
@@ -188,28 +187,27 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 		OSAL_PRINTF("*** lcd_vspw:   %d\n", info->lcd_hv_vspw);
 		OSAL_PRINTF("*** lcd_frame_frq:  %dHz\n", lcd_fclk_frq);
 
-		// Print Error
-		OSAL_PRINTF("*** \n");
+		/* Print Error */
+		OSAL_PRINTF("***\n");
 		if (Lcd_Panel_Err_Flag & BIT0) {
-			OSAL_PRINTF
-			    ("*** Err01: Violate \"lcd_hbp > lcd_hspw\"\n");
+			OSAL_PRINTF("*** Err01: Violate \"lcd_hbp > "
+				    "lcd_hspw\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT1) {
-			OSAL_PRINTF
-			    ("*** Err02: Violate \"lcd_vbp > lcd_vspw\"\n");
+			OSAL_PRINTF("*** Err02: Violate \"lcd_vbp > "
+				    "lcd_vspw\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT2) {
-			OSAL_PRINTF
-			    ("*** Err03: Violate \"lcd_ht >= (lcd_hbp+lcd_x*%d+4)\"\n",
-			     cycle_num);
+			OSAL_PRINTF("*** Err03: Violate \"lcd_ht >= "
+				    "(lcd_hbp+lcd_x*%d+4)\"\n", cycle_num);
 		}
 		if (Lcd_Panel_Err_Flag & BIT3) {
-			OSAL_PRINTF
-			    ("*** Err04: Violate \"(lcd_vt/2) >= (lcd_vbp+lcd_y+2)\"\n");
+			OSAL_PRINTF("*** Err04: Violate \"(lcd_vt/2) >= "
+				    "(lcd_vbp+lcd_y+2)\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT10) {
-			OSAL_PRINTF
-			    ("*** Err10: Violate \"lcd_io_cfg0\",use \"0x00000000\" or \"0x04000000\"");
+			OSAL_PRINTF("*** Err10: Violate \"lcd_io_cfg0\", "
+				    "use \"0x00000000\" or \"0x04000000\"");
 		}
 		if (Lcd_Panel_Wrn_Flag & BIT0) {
 			OSAL_PRINTF("*** WRN01: Recommend \"lcd_frm = 1\"\n");
@@ -218,12 +216,12 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 			OSAL_PRINTF("*** WRN02: Recommend \"lcd_frm = 2\"\n");
 		}
 		if (Lcd_Panel_Wrn_Flag & BIT2) {
-			OSAL_PRINTF
-			    ("*** WRN03: Recommend \"lcd_dclk_frq = %d\"\n",
-			     ((info->lcd_vt / 2) * info->lcd_ht) * 60 / (1000 *
-									 1000));
+			OSAL_PRINTF("*** WRN03: Recommend \"lcd_dclk_frq = "
+				    "%d\"\n",
+				    ((info->lcd_vt / 2) * info->lcd_ht) *
+				    60 / (1000 * 1000));
 		}
-		OSAL_PRINTF("*** \n");
+		OSAL_PRINTF("***\n");
 
 		if (Lcd_Panel_Err_Flag != 0) {
 			__u32 image_base_addr;
@@ -231,21 +229,26 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 
 			image_base_addr = DE_Get_Reg_Base(sel);
 
-			sys_put_wvalue(image_base_addr + 0x804, 0xffff00ff);	//set background color
+			/* set background color */
+			sys_put_wvalue(image_base_addr + 0x804, 0xffff00ff);
 
 			reg_value = sys_get_wvalue(image_base_addr + 0x800);
-			sys_put_wvalue(image_base_addr + 0x800, reg_value & 0xfffff0ff);	//close all layer
+			/* close all layer */
+			sys_put_wvalue(image_base_addr + 0x800,
+				       reg_value & 0xfffff0ff);
 
 			LCD_delay_ms(2000);
-			sys_put_wvalue(image_base_addr + 0x804, 0x00000000);	//set background color
-			sys_put_wvalue(image_base_addr + 0x800, reg_value);	//open layer
+			/* set background color */
+			sys_put_wvalue(image_base_addr + 0x804, 0x00000000);
+			/* open layer */
+			sys_put_wvalue(image_base_addr + 0x800, reg_value);
 
-			OSAL_PRINTF
-			    ("*** Try new parameters,you can make it pass!\n");
+			OSAL_PRINTF("*** Try new parameters,you can make it "
+				    "pass!\n");
 		}
 		OSAL_PRINTF("*** LCD Panel Parameter Check End\n");
-		OSAL_PRINTF
-		    ("*****************************************************************\n");
+		OSAL_PRINTF("*************************************************"
+			    "****************\n");
 	}
 }
 
@@ -467,9 +470,8 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
 		DE_INF("lcd_io_cfg0 = 0x%08x\n", value);
 	}
 
-	ret =
-	    script_parser_fetch(primary_key, "lcd_gamma_correction_en", &value,
-				1);
+	ret = script_parser_fetch(primary_key, "lcd_gamma_correction_en",
+				  &value, 1);
 	if (ret < 0) {
 		DE_INF("fetch script data %s.lcd_gamma_correction_en fail\n",
 		       primary_key);
@@ -501,13 +503,12 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
 
 void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 {
-	char io_name[28][20] =
-	    { "lcdd0", "lcdd1", "lcdd2", "lcdd3", "lcdd4", "lcdd5", "lcdd6",
- "lcdd7", "lcdd8", "lcdd9", "lcdd10", "lcdd11",
+	char io_name[28][20] = {
+		"lcdd0", "lcdd1", "lcdd2", "lcdd3", "lcdd4", "lcdd5",
+		"lcdd6", "lcdd7", "lcdd8", "lcdd9", "lcdd10", "lcdd11",
 		"lcdd12", "lcdd13", "lcdd14", "lcdd15", "lcdd16", "lcdd17",
-		    "lcdd18", "lcdd19", "lcdd20", "lcdd21", "lcdd22",
-		"lcdd23", "lcdclk", "lcdde", "lcdhsync", "lcdvsync"
-	};
+		"lcdd18", "lcdd19", "lcdd20", "lcdd21", "lcdd22", "lcdd23",
+		"lcdclk", "lcdde", "lcdhsync", "lcdvsync"};
 	user_gpio_set_t *gpio_info;
 	int value = 1;
 	char primary_key[20], sub_name[20];
@@ -516,7 +517,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 
 	sprintf(primary_key, "lcd%d_para", sel);
 
-//lcd_used
+	/* lcd_used */
 	ret = script_parser_fetch(primary_key, "lcd_used", &value, 1);
 	if (ret < 0) {
 		DE_WRN("%s.lcd_used not exit\n", primary_key);
@@ -526,7 +527,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 		lcd_cfg->lcd_used = value;
 	}
 
-//lcd_bl_en
+	/* lcd_bl_en */
 	lcd_cfg->lcd_bl_en_used = 0;
 	value = 1;
 	ret = script_parser_fetch(primary_key, "lcd_bl_en_used", &value, 1);
@@ -534,22 +535,21 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 		DE_INF("%s.lcd_bl_en is not used\n", primary_key);
 	} else {
 		gpio_info = &(lcd_cfg->lcd_bl_en);
-		ret =
-		    script_parser_fetch(primary_key, "lcd_bl_en",
-					(int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, "lcd_bl_en",
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.lcd_bl_en not exist\n", primary_key);
 		} else {
-			DE_INF
-			    ("%s.lcd_bl_en gpio_port=%d,gpio_port_num:%d, data:%d\n",
-			     primary_key, gpio_info->port, gpio_info->port_num,
-			     gpio_info->data);
+			DE_INF("%s.lcd_bl_en gpio_port=%d,gpio_port_num:%d, "
+			       "data:%d\n", primary_key, gpio_info->port,
+			       gpio_info->port_num, gpio_info->data);
 			lcd_cfg->lcd_bl_en_used = 1;
 		}
 	}
 
-//lcd_power
+	/* lcd_power */
 	lcd_cfg->lcd_power_used = 0;
 	value = 1;
 	ret = script_parser_fetch(primary_key, "lcd_power_used", &value, 1);
@@ -557,22 +557,21 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 		DE_INF("%s.lcd_power is not used\n", primary_key);
 	} else {
 		gpio_info = &(lcd_cfg->lcd_power);
-		ret =
-		    script_parser_fetch(primary_key, "lcd_power",
-					(int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, "lcd_power",
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.lcd_power not exist\n", primary_key);
 		} else {
-			DE_INF
-			    ("%s.lcd_power gpio_port=%d,gpio_port_num:%d, data:%d\n",
-			     primary_key, gpio_info->port, gpio_info->port_num,
-			     gpio_info->data);
+			DE_INF("%s.lcd_power gpio_port=%d,gpio_port_num:%d, "
+			       "data:%d\n", primary_key, gpio_info->port,
+			       gpio_info->port_num, gpio_info->data);
 			lcd_cfg->lcd_power_used = 1;
 		}
 	}
 
-//lcd_pwm
+	/* lcd_pwm */
 	lcd_cfg->lcd_pwm_used = 0;
 	value = 1;
 	ret = script_parser_fetch(primary_key, "lcd_pwm_used", &value, 1);
@@ -580,61 +579,61 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 		DE_INF("%s.lcd_pwm is not used\n", primary_key);
 	} else {
 		gpio_info = &(lcd_cfg->lcd_pwm);
-		ret =
-		    script_parser_fetch(primary_key, "lcd_pwm",
-					(int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, "lcd_pwm",
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.lcd_pwm not exist\n", primary_key);
 		} else {
-			DE_INF
-			    ("%s.lcd_pwm gpio_port=%d,gpio_port_num:%d, data:%d\n",
-			     primary_key, gpio_info->port, gpio_info->port_num,
-			     gpio_info->data);
+			DE_INF("%s.lcd_pwm gpio_port=%d,gpio_port_num:%d, "
+			       "data:%d\n", primary_key, gpio_info->port,
+			       gpio_info->port_num, gpio_info->data);
 			lcd_cfg->lcd_pwm_used = 1;
 		}
 	}
 
-//lcd_gpio
+	/* lcd_gpio */
 	for (i = 0; i < 4; i++) {
 		sprintf(sub_name, "lcd_gpio_%d", i);
 
 		gpio_info = &(lcd_cfg->lcd_gpio[i]);
-		ret =
-		    script_parser_fetch(primary_key, sub_name, (int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, sub_name,
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.%s not exist\n", primary_key, sub_name);
 			lcd_cfg->lcd_gpio_used[i] = 0;
 		} else {
-			DE_INF
-			    ("%s.%s gpio_port=%d,gpio_port_num:%d, mul_sel:%d\n",
-			     primary_key, sub_name, gpio_info->port,
-			     gpio_info->port_num, gpio_info->mul_sel);
+			DE_INF("%s.%s gpio_port=%d,gpio_port_num:%d, "
+			       "mul_sel:%d\n", primary_key, sub_name,
+			       gpio_info->port, gpio_info->port_num,
+			       gpio_info->mul_sel);
 			lcd_cfg->lcd_gpio_used[i] = 1;
 		}
 	}
 
-//lcd io
+	/* lcd io */
 	for (i = 0; i < 28; i++) {
 		gpio_info = &(lcd_cfg->lcd_io[i]);
-		ret =
-		    script_parser_fetch(primary_key, io_name[i],
-					(int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, io_name[i],
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.%s not exist\n", primary_key, io_name[i]);
 			lcd_cfg->lcd_io_used[i] = 0;
 		} else {
-			DE_INF
-			    ("%s.%s gpio_port=%d,gpio_port_num:%d, mul_sel:%d\n",
-			     primary_key, io_name[i], gpio_info->port,
-			     gpio_info->port_num, gpio_info->mul_sel);
+			DE_INF("%s.%s gpio_port=%d,gpio_port_num:%d, "
+			       "mul_sel:%d\n", primary_key, io_name[i],
+			       gpio_info->port, gpio_info->port_num,
+			       gpio_info->mul_sel);
 			lcd_cfg->lcd_io_used[i] = 1;
 		}
 	}
 
-/* init_brightness */
+	/* init_brightness */
 	sprintf(primary_key, "disp_init");
 	sprintf(sub_name, "lcd%d_bright", sel);
 
@@ -649,7 +648,6 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
 		}
 		lcd_cfg->init_bright = value;
 	}
-
 }
 
 void LCD_delay_ms(__u32 ms)
@@ -778,8 +776,8 @@ __s32 pwm_enable(__u32 channel, __bool b_en)
 //pwm_info->active_state: 0:low level; 1:high level
 __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 {
-	__u32 pre_scal[10] =
-	    { 120, 180, 240, 360, 480, 12000, 24000, 36000, 48000, 72000 };
+	__u32 pre_scal[10] = { 120, 180, 240, 360, 480,
+			       12000, 24000, 36000, 48000, 72000 };
 	__u32 pre_scal_id = 0, entire_cycle = 256, active_cycle = 192;
 	__u32 i = 0, tmp = 0;
 	__u32 freq;
@@ -807,16 +805,15 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 				tmp = pwm_freq;
 				pre_scal_id = i;
 				entire_cycle = 256;
-				DE_INF
-				    ("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n",
-				     pre_scal[i], 256, pwm_freq);
+				DE_INF("pre_scal:%d, entire_cycle:%d, "
+				       "pwm_freq:%d\n", pre_scal[i], 256,
+				       pwm_freq);
 				DE_INF("----%d\n", tmp);
 			}
 		}
 	}
-	active_cycle =
-	    (pwm_info->duty_ns * entire_cycle +
-	     (pwm_info->period_ns / 2)) / pwm_info->period_ns;
+	active_cycle = (pwm_info->duty_ns * entire_cycle +
+			(pwm_info->period_ns / 2)) / pwm_info->period_ns;
 
 	gdisp.pwm[channel].enable = pwm_info->enable;
 	gdisp.pwm[channel].freq = freq;
@@ -835,13 +832,22 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 		pwm_write_reg(0x204, ((entire_cycle - 1) << 16) | active_cycle);
 
 		tmp = pwm_read_reg(0x200) & 0xffffff00;
-		tmp |= ((1 << 6) | (pwm_info->active_state << 5) | pre_scal_id);	//bit6:gatting the special clock for pwm0; bit5:pwm0  active state is high level
+		/*
+		 * bit6: gating the special clock for pwm0
+		 * bit5: pwm0: active state is high level
+		 */
+		tmp |= (1 << 6) | (pwm_info->active_state << 5) | pre_scal_id;
 		pwm_write_reg(0x200, tmp);
 	} else {
 		pwm_write_reg(0x208, ((entire_cycle - 1) << 16) | active_cycle);
 
 		tmp = pwm_read_reg(0x200) & 0xff807fff;
-		tmp |= ((1 << 21) | (pwm_info->active_state << 20) | (pre_scal_id << 15));	//bit21:gatting the special clock for pwm1; bit20:pwm1  active state is high level
+		/*
+		 * bit21: gating the special clock for pwm1
+		 * bit20: pwm1:  active state is high level
+		 */
+		tmp |= (1 << 21) | (pwm_info->active_state << 20) |
+			(pre_scal_id << 15);
 		pwm_write_reg(0x200, tmp);
 	}
 
@@ -855,17 +861,11 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 //pwm_info->active_state: 0:low level; 1:high level
 __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 {
-	__u32 pre_scal[11][2] = { {1, 0xf}
-	, {120, 0}
-	, {180, 1}
-	, {240, 2}
-	, {360, 3}
-	, {480, 4}
-	, {12000, 8}
-	, {24000, 9}
-	, {36000, 0xa}
-	, {48000, 0xb}
-	, {72000, 0xc}
+	__u32 pre_scal[11][2] = {
+		{1, 0xf},
+		{120, 0}, {180, 1}, {240, 2}, {360, 3}, {480, 4},
+		{12000, 8}, {24000, 9}, {36000, 0xa},
+		{48000, 0xb}, {72000, 0xc}
 	};
 	__u32 pre_scal_id = 0, entire_cycle = 16, active_cycle = 12;
 	__u32 i = 0, j = 0, tmp = 0;
@@ -886,9 +886,9 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 					tmp = pwm_freq;
 					pre_scal_id = i;
 					entire_cycle = j;
-					DE_INF
-					    ("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n",
-					     pre_scal[i][0], j, pwm_freq);
+					DE_INF("pre_scal:%d, entire_cycle:%d, "
+					       "pwm_freq:%d\n",
+					       pre_scal[i][0], j, pwm_freq);
 					DE_INF("----%d\n", tmp);
 				} else if ((tmp < freq) && (pwm_freq < tmp)) {
 					break;
@@ -897,9 +897,8 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 		}
 	}
 
-	active_cycle =
-	    (pwm_info->duty_ns * entire_cycle +
-	     (pwm_info->period_ns / 2)) / pwm_info->period_ns;
+	active_cycle = (pwm_info->duty_ns * entire_cycle +
+			(pwm_info->period_ns / 2)) / pwm_info->period_ns;
 
 	gdisp.pwm[channel].enable = pwm_info->enable;
 	gdisp.pwm[channel].freq = freq;
@@ -914,13 +913,23 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 		pwm_write_reg(0x204, ((entire_cycle - 1) << 16) | active_cycle);
 
 		tmp = pwm_read_reg(0x200) & 0xffffff00;
-		tmp |= ((1 << 6) | (pwm_info->active_state << 5) | pre_scal[pre_scal_id][1]);	//bit6:gatting the special clock for pwm0; bit5:pwm0  active state is high level
+		/*
+		 * bit6: gating the special clock for pwm0
+		 * bit5: pwm0: active state is high level
+		 */
+		tmp |= ((1 << 6) | (pwm_info->active_state << 5) |
+			pre_scal[pre_scal_id][1]);
 		pwm_write_reg(0x200, tmp);
 	} else {
 		pwm_write_reg(0x208, ((entire_cycle - 1) << 16) | active_cycle);
 
 		tmp = pwm_read_reg(0x200) & 0xff807fff;
-		tmp |= ((1 << 21) | (pwm_info->active_state << 20) | (pre_scal[pre_scal_id][1] << 15));	//bit21:gatting the special clock for pwm1; bit20:pwm1  active state is high level
+		/*
+		 * bit21: gating the special clock for pwm1
+		 * bit20: pwm1: active state is high level
+		 */
+		tmp |= ((1 << 21) | (pwm_info->active_state << 20) |
+			(pre_scal[pre_scal_id][1] << 15));
 		pwm_write_reg(0x200, tmp);
 	}
 
@@ -945,9 +954,9 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 	__u32 active_cycle = 0;
 	__u32 tmp;
 
-	active_cycle =
-	    (duty_ns * gdisp.pwm[channel].entire_cycle +
-	     (gdisp.pwm[channel].period_ns / 2)) / gdisp.pwm[channel].period_ns;
+	active_cycle = (duty_ns * gdisp.pwm[channel].entire_cycle +
+			(gdisp.pwm[channel].period_ns / 2)) /
+		gdisp.pwm[channel].period_ns;
 
 	if (channel == 0) {
 		tmp = pwm_read_reg(0x204);
@@ -959,7 +968,9 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 
 	gdisp.pwm[channel].duty_ns = duty_ns;
 
-	//DE_INF("%d,%d,%d,%d\n", duty_ns, gdisp.pwm[channel].period_ns, active_cycle, gdisp.pwm[channel].entire_cycle);
+	/* DE_INF("%d,%d,%d,%d\n", duty_ns, gdisp.pwm[channel].period_ns, "
+	   "active_cycle, gdisp.pwm[channel].entire_cycle); */
+
 	return 0;
 }
 
@@ -972,8 +983,8 @@ __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
 		memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_pwm),
 		       sizeof(user_gpio_set_t));
 
-		if (!sunxi_is_version_A()
-		    && (gpanel_info[sel].lcd_pwm_not_used == 0)) {
+		if (!sunxi_is_version_A() &&
+		    (gpanel_info[sel].lcd_pwm_not_used == 0)) {
 			if (b_en) {
 				pwm_enable(gpanel_info[sel].lcd_pwm_ch, b_en);
 			} else {
@@ -1092,7 +1103,7 @@ __s32 LCD_GPIO_init(__u32 sel)
 			       &(gdisp.screen[sel].lcd_cfg.lcd_gpio[i]),
 			       sizeof(user_gpio_set_t));
 			gdisp.screen[sel].gpio_hdl[i] =
-			    OSAL_GPIO_Request(gpio_info, 1);
+				OSAL_GPIO_Request(gpio_info, 1);
 		}
 	}
 
@@ -1133,8 +1144,8 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
 				if (!bon) {
 					gpio_info->mul_sel = 0;
 				} else {
-					if ((gpanel_info[sel].lcd_if == 3)
-					    && (gpio_info->mul_sel == 2)) {
+					if ((gpanel_info[sel].lcd_if == 3) &&
+					    (gpio_info->mul_sel == 2)) {
 						gpio_info->mul_sel = 3;
 					}
 				}
@@ -1190,18 +1201,16 @@ __s32 Disp_lcdc_init(__u32 sel)
 
 	lcdc_clk_init(sel);
 	lvds_clk_init();
-	lcdc_clk_on(sel);	//??need to be open
+	lcdc_clk_on(sel); /* ??need to be open */
 	LCDC_init(sel);
 	lcdc_clk_off(sel);
 
 	if (sel == 0) {
-		ret =
-		    request_irq(INTC_IRQNO_LCDC0, Disp_lcdc_event_proc,
-				IRQF_DISABLED, "sunxi lcd0", (void *)sel);
+		ret = request_irq(INTC_IRQNO_LCDC0, Disp_lcdc_event_proc,
+				  IRQF_DISABLED, "sunxi lcd0", (void *)sel);
 	} else {
-		ret =
-		    request_irq(INTC_IRQNO_LCDC1, Disp_lcdc_event_proc,
-				IRQF_DISABLED, "sunxi lcd1", (void *)sel);
+		ret = request_irq(INTC_IRQNO_LCDC1, Disp_lcdc_event_proc,
+				  IRQF_DISABLED, "sunxi lcd1", (void *)sel);
 	}
 
 	if (gdisp.screen[sel].lcd_cfg.lcd_used) {
@@ -1212,8 +1221,8 @@ __s32 Disp_lcdc_init(__u32 sel)
 		}
 		gpanel_info[sel].tcon_index = 0;
 
-		if (!sunxi_is_version_A()
-		    && (gpanel_info[sel].lcd_pwm_not_used == 0)) {
+		if (!sunxi_is_version_A() &&
+		    (gpanel_info[sel].lcd_pwm_not_used == 0)) {
 			__pwm_info_t pwm_info;
 
 			pwm_info.enable = 0;
@@ -1439,7 +1448,9 @@ __u32 vga_mode_to_height(__disp_vga_mode_t mode)
 	return height;
 }
 
-// return 0: progressive scan mode; return 1: interlace scan mode
+/*
+ * return 0: progressive scan mode; return 1: interlace scan mode
+ */
 __u32 Disp_get_screen_scan_mode(__disp_tv_mode_t tv_mode)
 {
 	__u32 ret = 0;
@@ -1469,10 +1480,10 @@ __s32 BSP_disp_get_screen_width(__u32 sel)
 {
 	__u32 width = 0;
 
-	if ((gdisp.screen[sel].status & LCD_ON)
-	    || (gdisp.screen[sel].status & TV_ON)
-	    || (gdisp.screen[sel].status & HDMI_ON)
-	    || (gdisp.screen[sel].status & VGA_ON)) {
+	if ((gdisp.screen[sel].status & LCD_ON) ||
+	    (gdisp.screen[sel].status & TV_ON) ||
+	    (gdisp.screen[sel].status & HDMI_ON) ||
+	    (gdisp.screen[sel].status & VGA_ON)) {
 		width = DE_BE_get_display_width(sel);
 	} else {
 		width = gpanel_info[sel].lcd_x;
@@ -1485,10 +1496,10 @@ __s32 BSP_disp_get_screen_height(__u32 sel)
 {
 	__u32 height = 0;
 
-	if ((gdisp.screen[sel].status & LCD_ON)
-	    || (gdisp.screen[sel].status & TV_ON)
-	    || (gdisp.screen[sel].status & HDMI_ON)
-	    || (gdisp.screen[sel].status & VGA_ON)) {
+	if ((gdisp.screen[sel].status & LCD_ON) ||
+	    (gdisp.screen[sel].status & TV_ON) ||
+	    (gdisp.screen[sel].status & HDMI_ON) ||
+	    (gdisp.screen[sel].status & VGA_ON)) {
 		height = DE_BE_get_display_height(sel);
 	} else {
 		height = gpanel_info[sel].lcd_y;
@@ -1523,9 +1534,9 @@ __s32 BSP_disp_get_frame_rate(__u32 sel)
 	__s32 frame_rate = 60;
 
 	if (gdisp.screen[sel].output_type & DISP_OUTPUT_TYPE_LCD) {
-		frame_rate =
-		    (gpanel_info[sel].lcd_dclk_freq * 1000000) /
-		    (gpanel_info[sel].lcd_ht * (gpanel_info[sel].lcd_vt / 2));
+		frame_rate = (gpanel_info[sel].lcd_dclk_freq * 1000000) /
+			(gpanel_info[sel].lcd_ht *
+			 (gpanel_info[sel].lcd_vt / 2));
 	} else if (gdisp.screen[sel].output_type & DISP_OUTPUT_TYPE_TV) {
 		switch (gdisp.screen[sel].tv_mode) {
 		case DISP_TV_MOD_480I:
@@ -1590,7 +1601,12 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
 	disp_clk_cfg(sel, DISP_OUTPUT_TYPE_LCD, DIS_NULL);
 	lcdc_clk_on(sel);
 	image_clk_on(sel);
-	Image_open(sel);	//set image normal channel start bit , because every de_clk_off( )will reset this bit
+
+	/*
+	 * set image normal channel start bit, because every de_clk_off( )
+	 * will reset this bit
+	 */
+	Image_open(sel);
 	Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
 
 	if (gpanel_info[sel].tcon_index == 0) {
@@ -1640,7 +1656,8 @@ __s32 BSP_disp_lcd_close_befor(__u32 sel)
 	close_flow[sel].func_num = 0;
 	lcd_panel_fun[sel].cfg_close_flow(sel);
 #ifdef CONFIG_ARCH_SUN5I
-	Disp_drc_enable(sel, 2);	//must close immediately, cause vbi may not come
+	/* must close immediately, cause vbi may not come */
+	Disp_drc_enable(sel, 2);
 #endif
 
 	gdisp.screen[sel].status &= LCD_OFF;
@@ -1657,8 +1674,8 @@ __s32 BSP_disp_lcd_close_after(__u32 sel)
 	lcdc_clk_off(sel);
 
 	gdisp.screen[sel].pll_use_status &=
-	    ((gdisp.screen[sel].pll_use_status ==
-	      VIDEO_PLL0_USED) ? VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
+		(gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
+		VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK;
 
 	return DIS_SUCCESS;
 }
@@ -1673,7 +1690,7 @@ __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode)
 	if (gdisp.screen[sel].LCD_CPUIF_XY_Swap != NULL) {
 		LCD_CPU_AUTO_FLUSH(sel, 0);
 		LCD_XY_SWAP(sel);
-		(*gdisp.screen[sel].LCD_CPUIF_XY_Swap) (mode);
+		(*gdisp.screen[sel].LCD_CPUIF_XY_Swap)(mode);
 		LCD_CPU_AUTO_FLUSH(sel, 1);
 	}
 
@@ -1816,12 +1833,12 @@ void LCD_set_panel_funs(__lcd_panel_fun_t * lcd0_cfg,
 	lcd_panel_fun[0].cfg_open_flow = lcd0_cfg->cfg_open_flow;
 	lcd_panel_fun[0].cfg_close_flow = lcd0_cfg->cfg_close_flow;
 	lcd_panel_fun[0].lcd_user_defined_func =
-	    lcd0_cfg->lcd_user_defined_func;
+		lcd0_cfg->lcd_user_defined_func;
 	lcd_panel_fun[1].cfg_panel_info = lcd1_cfg->cfg_panel_info;
 	lcd_panel_fun[1].cfg_open_flow = lcd1_cfg->cfg_open_flow;
 	lcd_panel_fun[1].cfg_close_flow = lcd1_cfg->cfg_close_flow;
 	lcd_panel_fun[1].lcd_user_defined_func =
-	    lcd1_cfg->lcd_user_defined_func;
+		lcd1_cfg->lcd_user_defined_func;
 }
 
 __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t * tt)
@@ -1831,21 +1848,21 @@ __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t * tt)
 	if (gdisp.screen[sel].status & LCD_ON) {
 		LCDC_get_timing(sel, 0, tt);
 		tt->pixel_clk = gpanel_info[sel].lcd_dclk_freq * 1000;
-	} else if ((gdisp.screen[sel].status & TV_ON)
-		   || (gdisp.screen[sel].status & HDMI_ON)) {
+	} else if ((gdisp.screen[sel].status & TV_ON) ||
+		   (gdisp.screen[sel].status & HDMI_ON)) {
 		__disp_tv_mode_t mode = gdisp.screen[sel].tv_mode;;
 
 		LCDC_get_timing(sel, 1, tt);
 		tt->pixel_clk =
-		    (clk_tab.tv_clk_tab[mode].tve_clk /
-		     clk_tab.tv_clk_tab[mode].pre_scale) / 1000;
+			(clk_tab.tv_clk_tab[mode].tve_clk /
+			 clk_tab.tv_clk_tab[mode].pre_scale) / 1000;
 	} else if (gdisp.screen[sel].status & VGA_ON) {
 		__disp_tv_mode_t mode = gdisp.screen[sel].vga_mode;;
 
 		LCDC_get_timing(sel, 1, tt);
 		tt->pixel_clk =
-		    (clk_tab.tv_clk_tab[mode].tve_clk /
-		     clk_tab.vga_clk_tab[mode].pre_scale) / 1000;
+			(clk_tab.tv_clk_tab[mode].tve_clk /
+			 clk_tab.vga_clk_tab[mode].pre_scale) / 1000;
 	} else {
 		DE_INF("get timing fail because device is not output !\n");
 		return -1;
@@ -1860,9 +1877,9 @@ __u32 BSP_disp_get_cur_line(__u32 sel)
 
 	if (gdisp.screen[sel].status & LCD_ON) {
 		line = LCDC_get_cur_line(sel, 0);
-	} else if ((gdisp.screen[sel].status & TV_ON)
-		   || (gdisp.screen[sel].status & HDMI_ON)
-		   || (gdisp.screen[sel].status & VGA_ON)) {
+	} else if ((gdisp.screen[sel].status & TV_ON) ||
+		   (gdisp.screen[sel].status & HDMI_ON) ||
+		   (gdisp.screen[sel].status & VGA_ON)) {
 		line = LCDC_get_cur_line(sel, 1);
 	}
 
@@ -1899,10 +1916,10 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
 	if (value == 0) {
 		DE_INF("%s.lcd_pwm is not used\n", primary_key);
 	} else {
-		ret =
-		    script_parser_fetch(primary_key, "lcd_pwm",
-					(int *)gpio_info,
-					sizeof(user_gpio_set_t) / sizeof(int));
+		ret = script_parser_fetch(primary_key, "lcd_pwm",
+					  (int *)gpio_info,
+					  sizeof(user_gpio_set_t) /
+					  sizeof(int));
 		if (ret < 0) {
 			DE_INF("%s.lcd_pwm not exist\n", primary_key);
 		} else {

@@ -35,9 +35,9 @@ __s32 TVE_set_reg_base(__u32 sel, __u32 address)
 	return 0;
 }
 
-//tve
-// init module
-////////////////////////////////////////////////////////////////////////////////
+/*
+ * init module
+ */
 __s32 TVE_init(__u32 sel)
 {
 	TVE_close(sel);
@@ -82,8 +82,9 @@ __s32 TVE_exit(__u32 sel)
 	return 0;
 }
 
-// open module
-////////////////////////////////////////////////////////////////////////////////
+/*
+ * open module
+ */
 __s32 TVE_open(__u32 sel)
 {
 	TVE_SET_BIT(sel, TVE_000, 0x1 << 0);
@@ -98,15 +99,14 @@ __s32 TVE_close(__u32 sel)
 	return 0;
 }
 
-// set mode
-////////////////////////////////////////////////////////////////////////////////
-//15~13     12~10       9~7         6~4
-//DAC3      DAC2        DAC1        DAC0
-
-//CVBS(0)
-//             CR(4)         CB(5)        Y(6)
-//                            Chroma(1)    Luma(2)
-
+/*
+ * 15~13     12~10       9~7         6~4
+ * DAC3      DAC2        DAC1        DAC0
+ *
+ * CVBS(0)
+ *           CR(4)       CB(5)       Y(6)
+ *                       Chroma(1)   Luma(2)
+ */
 __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 {
 	switch (mode) {
@@ -122,14 +122,14 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_00C, 0x00000120);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_10C, 0x00002828);
-		TVE_WUINT32(sel, TVE_128, 0x00000002);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000002);
 		TVE_WUINT32(sel, TVE_118, 0x0000e0e0);
-		TVE_WUINT32(sel, TVE_12C, 0x00000101);	//
+		TVE_WUINT32(sel, TVE_12C, 0x00000101);
 		break;
 
 	case DISP_TV_MOD_PAL_M:
 	case DISP_TV_MOD_PAL_M_SVIDEO:
-		TVE_WUINT32(sel, TVE_004, 0x07030000);	//ntsc
+		TVE_WUINT32(sel, TVE_004, 0x07030000); /* ntsc */
 		TVE_WUINT32(sel, TVE_014, 0x00760020);
 		TVE_WUINT32(sel, TVE_01C, 0x0016020d);
 		TVE_WUINT32(sel, TVE_114, 0x0016447e);
@@ -142,15 +142,15 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_110, 0x00000000);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel, TVE_11C, 0x001000f0);
-		TVE_WUINT32(sel, TVE_010, 0x21e6efe3);	//add for pal-m
-		TVE_WUINT32(sel, TVE_100, 0x00000000);	//add for pal-m
-		TVE_WUINT32(sel, TVE_128, 0x00000002);	//
-		TVE_WUINT32(sel, TVE_12C, 0x00000101);	//
+		TVE_WUINT32(sel, TVE_010, 0x21e6efe3); /* add for pal-m */
+		TVE_WUINT32(sel, TVE_100, 0x00000000); /* add for pal-m */
+		TVE_WUINT32(sel, TVE_128, 0x00000002);
+		TVE_WUINT32(sel, TVE_12C, 0x00000101);
 		break;
 
 	case DISP_TV_MOD_PAL_NC:
 	case DISP_TV_MOD_PAL_NC_SVIDEO:
-		TVE_WUINT32(sel, TVE_004, 0x07030001);	//PAL
+		TVE_WUINT32(sel, TVE_004, 0x07030001); /* PAL */
 		TVE_WUINT32(sel, TVE_014, 0x008a0018);
 		TVE_WUINT32(sel, TVE_01C, 0x00160271);
 		TVE_WUINT32(sel, TVE_114, 0x0016447e);
@@ -160,10 +160,10 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_00C, 0x00000120);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_10C, 0x00002828);
-		TVE_WUINT32(sel, TVE_010, 0x21F69446);	//add for PAL-NC
-		TVE_WUINT32(sel, TVE_128, 0x00000002);	//
+		TVE_WUINT32(sel, TVE_010, 0x21F69446); /* add for PAL-NC */
+		TVE_WUINT32(sel, TVE_128, 0x00000002);
 		TVE_WUINT32(sel, TVE_118, 0x0000e0e0);
-		TVE_WUINT32(sel, TVE_12C, 0x00000101);	//
+		TVE_WUINT32(sel, TVE_12C, 0x00000101);
 		break;
 
 	case DISP_TV_MOD_NTSC:
@@ -181,8 +181,8 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_110, 0x00000000);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel, TVE_11C, 0x001000f0);
-		TVE_WUINT32(sel, TVE_128, 0x00000002);	//
-		TVE_WUINT32(sel, TVE_12C, 0x00000101);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000002);
+		TVE_WUINT32(sel, TVE_12C, 0x00000101);
 		break;
 
 	case DISP_TV_MOD_480I:
@@ -248,7 +248,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_130, 0x000e000c);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		break;
@@ -263,7 +263,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_130, 0x000c0008);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		break;
@@ -278,7 +278,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_130, 0x000e0008);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel, TVE_104, 0x00000000);
@@ -294,39 +294,39 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel, TVE_130, 0x000e0008);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
 		TVE_WUINT32(sel, TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel, TVE_104, 0x00000000);
 		break;
 
 	case DISP_TV_MOD_1080P_50HZ:
-		TVE_WUINT32(sel, TVE_004, 0x0004000e);	//
-		TVE_WUINT32(sel, TVE_014, 0x00c001e4);	//50hz
-		TVE_WUINT32(sel, TVE_018, 0x07bc01e4);	//50hz
-		TVE_WUINT32(sel, TVE_01C, 0x00290465);	//
-		TVE_WUINT32(sel, TVE_114, 0x582c022c);	//
-		TVE_WUINT32(sel, TVE_124, 0x00000780);	//
-		TVE_WUINT32(sel, TVE_130, 0x000e000c);	//
+		TVE_WUINT32(sel, TVE_004, 0x0004000e);
+		TVE_WUINT32(sel, TVE_014, 0x00c001e4); /* 50hz */
+		TVE_WUINT32(sel, TVE_018, 0x07bc01e4); /* 50hz */
+		TVE_WUINT32(sel, TVE_01C, 0x00290465);
+		TVE_WUINT32(sel, TVE_114, 0x582c022c);
+		TVE_WUINT32(sel, TVE_124, 0x00000780);
+		TVE_WUINT32(sel, TVE_130, 0x000e000c);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
-		TVE_WUINT32(sel, TVE_020, 0x00fc00c0);	//0x00fc00fc ghost?
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
+		TVE_WUINT32(sel, TVE_020, 0x00fc00c0); /* ghost? */
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
 		break;
 
 	case DISP_TV_MOD_1080P_60HZ:
-		TVE_WUINT32(sel, TVE_004, 0x0004000e);	//
+		TVE_WUINT32(sel, TVE_004, 0x0004000e);
 		TVE_WUINT32(sel, TVE_00C, 0x01be0124);
-		TVE_WUINT32(sel, TVE_014, 0x00c0002c);	//60hz
-		TVE_WUINT32(sel, TVE_018, 0x07bc002c);	//60hz
-		TVE_WUINT32(sel, TVE_01C, 0x00290465);	//
-		TVE_WUINT32(sel, TVE_020, 0x00fc00c0);	//0x00fc00fc ghost?
-		TVE_WUINT32(sel, TVE_114, 0x582c022c);	//
+		TVE_WUINT32(sel, TVE_014, 0x00c0002c); /* 60hz */
+		TVE_WUINT32(sel, TVE_018, 0x07bc002c); /* 60hz */
+		TVE_WUINT32(sel, TVE_01C, 0x00290465);
+		TVE_WUINT32(sel, TVE_020, 0x00fc00c0); /* ghost? */
+		TVE_WUINT32(sel, TVE_114, 0x582c022c);
 		TVE_WUINT32(sel, TVE_118, 0x0000a0a0);
-		TVE_WUINT32(sel, TVE_124, 0x00000780);	//
-		TVE_WUINT32(sel, TVE_128, 0x00000000);	//
-		TVE_WUINT32(sel, TVE_130, 0x000e000c);	//
+		TVE_WUINT32(sel, TVE_124, 0x00000780);
+		TVE_WUINT32(sel, TVE_128, 0x00000000);
+		TVE_WUINT32(sel, TVE_130, 0x000e000c);
 		TVE_WUINT32(sel, TVE_13C, 0x07000000);
 		break;
 
@@ -378,7 +378,11 @@ __u8 TVE_clear_int(__u32 sel)
 	return 0;
 }
 
-//0:unconnected; 1:connected; 3:short to ground
+/*
+ * 0:unconnected
+ * 1:connected
+ * 3:short to ground
+ */
 __s32 TVE_get_dac_status(__u32 index)
 {
 	__u32 reg_000, map, sel, dac;
@@ -553,8 +557,10 @@ __u8 TVE_dac_get_de_bounce(__u32 sel, __u8 index)
 	return sts;
 }
 
-//dac: 0~3
-//index: 0~3
+/*
+ * dac: 0~3
+ * index: 0~3
+ */
 __s32 TVE_dac_sel(__u32 sel, __u32 dac, __u32 index)
 {
 	__u32 readval;

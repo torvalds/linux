@@ -59,13 +59,12 @@ __s32 Disp_TVEC_Init(__u32 sel)
 			for (i = 0; i < 4; i++) {
 				sprintf(sub_key, "dac%d_src", i);
 
-				ret =
-				    script_parser_fetch("tv_out_dac_para",
-							sub_key, &value, 1);
+				ret = script_parser_fetch("tv_out_dac_para",
+							  sub_key, &value, 1);
 				if (ret < 0) {
-					DE_INF
-					    ("fetch script data tv_out_dac_para.%s fail\n",
-					     sub_key);
+					DE_INF("fetch script data "
+					       "tv_out_dac_para.%s fail\n",
+					       sub_key);
 				} else {
 					gdisp.screen[sel].dac_source[i] = value;
 					DE_INF("tv_out_dac_para.%s = %d\n",
@@ -119,15 +118,13 @@ static void Disp_TVEC_DacCfg(__u32 sel, __u8 mode)
 	case DISP_TV_MOD_PAL:
 	case DISP_TV_MOD_PAL_M:
 	case DISP_TV_MOD_PAL_NC:
-		{
-			for (i = 0; i < 4; i++) {
-				if (gdisp.screen[sel].dac_source[i] ==
-				    DISP_TV_DAC_SRC_COMPOSITE) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_COMPOSITE);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				}
+		for (i = 0; i < 4; i++) {
+			if (gdisp.screen[sel].dac_source[i] ==
+			    DISP_TV_DAC_SRC_COMPOSITE) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_COMPOSITE);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
 			}
 		}
 		break;
@@ -136,21 +133,19 @@ static void Disp_TVEC_DacCfg(__u32 sel, __u8 mode)
 	case DISP_TV_MOD_PAL_SVIDEO:
 	case DISP_TV_MOD_PAL_M_SVIDEO:
 	case DISP_TV_MOD_PAL_NC_SVIDEO:
-		{
-			for (i = 0; i < 4; i++) {
-				if (gdisp.screen[sel].dac_source[i] ==
-				    DISP_TV_DAC_SRC_LUMA) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_LUMA);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				} else if (gdisp.screen[sel].dac_source[i] ==
-					   DISP_TV_DAC_SRC_CHROMA) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_CHROMA);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				}
+		for (i = 0; i < 4; i++) {
+			if (gdisp.screen[sel].dac_source[i] ==
+			    DISP_TV_DAC_SRC_LUMA) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_LUMA);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
+			} else if (gdisp.screen[sel].dac_source[i] ==
+				   DISP_TV_DAC_SRC_CHROMA) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_CHROMA);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
 			}
 		}
 		break;
@@ -165,32 +160,30 @@ static void Disp_TVEC_DacCfg(__u32 sel, __u8 mode)
 	case DISP_TV_MOD_1080I_60HZ:
 	case DISP_TV_MOD_1080P_50HZ:
 	case DISP_TV_MOD_1080P_60HZ:
-		{
-			for (i = 0; i < 4; i++) {
-				if (gdisp.screen[sel].dac_source[i] ==
-				    DISP_TV_DAC_SRC_Y) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_Y);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				} else if (gdisp.screen[sel].dac_source[i] ==
-					   DISP_TV_DAC_SRC_PB) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_PB);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				} else if (gdisp.screen[sel].dac_source[i] ==
-					   DISP_TV_DAC_SRC_PR) {
-					TVE_dac_set_source(sel, i,
-							   DISP_TV_DAC_SRC_PR);
-					TVE_dac_enable(sel, i);
-					TVE_dac_sel(sel, i, i);
-				} else if (gdisp.screen[sel].dac_source[i] ==
-					   DISP_TV_DAC_SRC_COMPOSITE) {
-					TVE_dac_set_source(1 - sel, i,
-							   DISP_TV_DAC_SRC_COMPOSITE);
-					TVE_dac_sel(1 - sel, i, i);
-				}
+		for (i = 0; i < 4; i++) {
+			if (gdisp.screen[sel].dac_source[i] ==
+			    DISP_TV_DAC_SRC_Y) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_Y);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
+			} else if (gdisp.screen[sel].dac_source[i] ==
+				   DISP_TV_DAC_SRC_PB) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_PB);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
+			} else if (gdisp.screen[sel].dac_source[i] ==
+				   DISP_TV_DAC_SRC_PR) {
+				TVE_dac_set_source(sel, i,
+						   DISP_TV_DAC_SRC_PR);
+				TVE_dac_enable(sel, i);
+				TVE_dac_sel(sel, i, i);
+			} else if (gdisp.screen[sel].dac_source[i] ==
+				   DISP_TV_DAC_SRC_COMPOSITE) {
+				TVE_dac_set_source(1 - sel, i,
+						   DISP_TV_DAC_SRC_COMPOSITE);
+				TVE_dac_sel(1 - sel, i, i);
 			}
 		}
 		break;
@@ -208,7 +201,11 @@ __s32 BSP_disp_tv_open(__u32 sel)
 		tv_mod = gdisp.screen[sel].tv_mode;
 
 		image_clk_on(sel);
-		Image_open(sel);	//set image normal channel start bit , because every de_clk_off( )will reset this bit
+		/*
+		 * set image normal channel start bit , because every
+		 * de_clk_off( )will reset this bit
+		 */
+		Image_open(sel);
 
 		disp_clk_cfg(sel, DISP_OUTPUT_TYPE_TV, tv_mod);
 		tve_clk_on(sel);
@@ -270,23 +267,23 @@ __s32 BSP_disp_tv_open(__u32 sel)
 						sizeof(user_gpio_set_t) /
 						sizeof(int));
 			if (ret < 0) {
-				DE_WRN
-				    ("fetch script data audio_para.audio_pa_ctrl fail\n");
+				DE_WRN("fetch script data "
+				       "audio_para.audio_pa_ctrl fail\n");
 			} else {
 				gpio_pa_shutdown =
-				    OSAL_GPIO_Request(gpio_info, 1);
+					OSAL_GPIO_Request(gpio_info, 1);
 				if (!gpio_pa_shutdown) {
-					DE_WRN
-					    ("audio codec_wakeup request gpio fail!\n");
+					DE_WRN("audio codec_wakeup request "
+					       "gpio fail!\n");
 				} else {
 					OSAL_GPIO_DevWRITE_ONEPIN_DATA
-					    (gpio_pa_shutdown, 0,
-					     "audio_pa_ctrl");
+						(gpio_pa_shutdown, 0,
+						 "audio_pa_ctrl");
 				}
 			}
 		}
 		gdisp.screen[sel].b_out_interlace =
-		    Disp_get_screen_scan_mode(tv_mod);
+			Disp_get_screen_scan_mode(tv_mod);
 		gdisp.screen[sel].status |= TV_ON;
 		gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_TV;
@@ -318,10 +315,10 @@ __s32 BSP_disp_tv_close(__u32 sel)
 			int scaler_index;
 
 			for (scaler_index = 0; scaler_index < 2; scaler_index++)
-				if ((gdisp.scaler[scaler_index].
-				     status & SCALER_USED)
-				    && (gdisp.scaler[scaler_index].
-					screen_index == sel))
+				if ((gdisp.scaler[scaler_index].status &
+				     SCALER_USED) &&
+				    (gdisp.scaler[scaler_index].screen_index ==
+				     sel))
 					Scaler_Set_Outitl(scaler_index, FALSE);
 		}
 #endif /* CONFIG_ARCH_SUN5I */
@@ -338,18 +335,18 @@ __s32 BSP_disp_tv_close(__u32 sel)
 						sizeof(user_gpio_set_t) /
 						sizeof(int));
 			if (ret < 0) {
-				DE_WRN
-				    ("fetch script data audio_para.audio_pa_ctrl fail\n");
+				DE_WRN("fetch script data "
+				       "audio_para.audio_pa_ctrl fail\n");
 			} else {
 				gpio_pa_shutdown =
-				    OSAL_GPIO_Request(gpio_info, 1);
+					OSAL_GPIO_Request(gpio_info, 1);
 				if (!gpio_pa_shutdown) {
-					DE_WRN
-					    ("audio codec_wakeup request gpio fail!\n");
+					DE_WRN("audio codec_wakeup request "
+					       "gpio fail!\n");
 				} else {
 					OSAL_GPIO_DevWRITE_ONEPIN_DATA
-					    (gpio_pa_shutdown, 1,
-					     "audio_pa_ctrl");
+						(gpio_pa_shutdown, 1,
+						 "audio_pa_ctrl");
 				}
 			}
 		}
@@ -359,9 +356,8 @@ __s32 BSP_disp_tv_close(__u32 sel)
 		gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &=
-		    ((gdisp.screen[sel].pll_use_status ==
-		      VIDEO_PLL0_USED) ? VIDEO_PLL0_USED_MASK :
-		     VIDEO_PLL1_USED_MASK);
+		    ((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
+		     VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
 
 #ifdef CONFIG_ARCH_SUN4I
 		Disp_set_out_interlace(sel);
@@ -401,14 +397,14 @@ __s32 BSP_disp_tv_get_interface(__u32 sel)
 			dac[i] = 0;
 		}
 
-		if (gdisp.screen[sel].dac_source[i] == DISP_TV_DAC_SRC_COMPOSITE
-		    && dac[i] == 1) {
+		if ((gdisp.screen[sel].dac_source[i] ==
+		     DISP_TV_DAC_SRC_COMPOSITE) && dac[i] == 1) {
 			ret |= DISP_TV_CVBS;
-		} else if (gdisp.screen[sel].dac_source[i] == DISP_TV_DAC_SRC_Y
-			   && dac[i] == 1) {
+		} else if ((gdisp.screen[sel].dac_source[i] ==
+			    DISP_TV_DAC_SRC_Y) && dac[i] == 1) {
 			ret |= DISP_TV_YPBPR;
-		} else if (gdisp.screen[sel].dac_source[i] ==
-			   DISP_TV_DAC_SRC_LUMA && dac[i] == 1) {
+		} else if ((gdisp.screen[sel].dac_source[i] ==
+			    DISP_TV_DAC_SRC_LUMA) && dac[i] == 1) {
 			ret |= DISP_TV_SVIDEO;
 		}
 	}

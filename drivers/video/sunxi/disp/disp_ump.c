@@ -21,7 +21,7 @@
 #include "dev_disp.h"
 #include <ump/ump_kernel_interface_ref_drv.h>
 
-static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t * g_fbi,
+static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 				   unsigned long arg, int buf)
 {
 	u32 __user *psecureid = (u32 __user *) arg;
@@ -35,21 +35,23 @@ static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t * g_fbi,
 
 	if (!g_fbi->ump_wrapped_buffer[info->node][buf]) {
 		ump_dd_physical_block ump_memory_description;
+
 		ump_memory_description.addr =
-		    info->fix.smem_start + (buf_len * buf);
+			info->fix.smem_start + (buf_len * buf);
 		ump_memory_description.size = buf_len;
 		g_fbi->ump_wrapped_buffer[info->node][buf] =
-		    ump_dd_handle_create_from_phys_blocks
-		    (&ump_memory_description, 1);
+			ump_dd_handle_create_from_phys_blocks
+			(&ump_memory_description, 1);
 	}
-	secure_id =
-	    ump_dd_secure_id_get(g_fbi->ump_wrapped_buffer[info->node][buf]);
+	secure_id = ump_dd_secure_id_get(g_fbi->
+					 ump_wrapped_buffer[info->node][buf]);
 	return put_user((unsigned int)secure_id, psecureid);
 }
 
 int __init disp_ump_module_init(void)
 {
 	int ret = 0;
+
 	disp_get_ump_secure_id = _disp_get_ump_secure_id;
 
 	return ret;

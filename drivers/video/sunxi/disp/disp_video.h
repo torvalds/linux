@@ -43,8 +43,8 @@ typedef struct frame_para {
 	__u32 pre_frame_addr0;
 
 	__bool have_got_frame;
-	__bool fetch_field;	//for scaler
-	__bool fetch_bot;	//for dit if dit enable,else for scaler
+	__bool fetch_field; /* for scaler */
+	__bool fetch_bot; /* for dit if dit enable,else for scaler */
 	__u32 display_cnt;
 	__bool out_field;
 	__bool out_bot;

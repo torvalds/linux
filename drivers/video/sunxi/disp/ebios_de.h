@@ -24,16 +24,20 @@
 
 #include "bsp_display.h"
 
-#define DE_WB_END_IE    			(1<<7)	/*write back end interrupt */
-#define DE_FE_INTEN_ALL             0x1ff	/*front-end all interrupt enable */
+#define DE_WB_END_IE		(1<<7)	/* write back end interrupt */
+#define DE_FE_INTEN_ALL         0x1ff	/* front-end all interrupt enable */
 #define DE_IMG_REG_LOAD_FINISH  (1<<1)
 
-#define SCAL_WB_ERR_SYNC (1<<15)	//sync reach flag when capture in process
-#define SCAL_WB_ERR_LOSEDATA (1<<14)	//lose data flag when capture in process
-#define SCAL_WB_ERR_STATUS (1<<12)	//unvalid write back
+/* sync reach flag when capture in process */
+#define SCAL_WB_ERR_SYNC (1<<15)
+/* lose data flag when capture in process */
+#define SCAL_WB_ERR_LOSEDATA (1<<14)
+/* unvalid write back */
+#define SCAL_WB_ERR_STATUS (1<<12)
 
-typedef enum {			/*layer framebuffer format enum definition */
-	    DE_MONO_1BPP = 0,
+/* layer framebuffer format enum definition */
+typedef enum {
+	DE_MONO_1BPP = 0,
 	DE_MONO_2BPP,
 	DE_MONO_4BPP,
 	DE_MONO_8BPP,
@@ -49,8 +53,9 @@ typedef enum {			/*layer framebuffer format enum definition */
 
 } de_fbfmt_e;
 
-typedef enum {			/*internal layer framebuffer format enum definition */
-	    DE_IF1BPP = 0,
+/* internal layer framebuffer format enum definition */
+typedef enum {
+	DE_IF1BPP = 0,
 	DE_IF2BPP,
 	DE_IF4BPP,
 	DE_IF8BPP
@@ -77,11 +82,11 @@ typedef enum {
 #endif
 
 typedef enum __SCAL_PS {
-	DE_SCAL_BGRA = 0,	//rgb
+	DE_SCAL_BGRA = 0,	/* rgb */
 	DE_SCAL_ARGB = 1,
 	DE_SCAL_AYUV = 0,
 	DE_SCAL_VUYA = 1,
-	DE_SCAL_UVUV = 0,	//for uv combined
+	DE_SCAL_UVUV = 0,	/* for uv combined */
 	DE_SCAL_VUVU = 1,
 	DE_SCAL_UYVY = 0,
 	DE_SCAL_YUYV = 1,
@@ -115,8 +120,11 @@ typedef enum __SCAL_OUTFMT {
 	DE_SCAL_OUTPYUV422,
 	DE_SCAL_OUTPYUV411
 } __scal_outfmt_t;
-//for 3D inmod,  source mod must  be DE_SCAL_PLANNAR or DE_SCAL_UVCOMBINEDMB
-//DE_SCAL_INTER_LEAVED and DE_SCAL_UVCOMBINED maybe supported in future====
+
+/*
+ * for 3D inmod,  source mod must  be DE_SCAL_PLANNAR or DE_SCAL_UVCOMBINEDMB
+ * DE_SCAL_INTER_LEAVED and DE_SCAL_UVCOMBINED maybe supported in future.
+ */
 typedef enum __SCAL_3D_INMODE {
 	DE_SCAL_3DIN_TB = 0,
 	DE_SCAL_3DIN_FP = 1,
@@ -126,12 +134,12 @@ typedef enum __SCAL_3D_INMODE {
 } __scal_3d_inmode_t;
 
 typedef enum __SCAL_3D_OUTMODE {
-	DE_SCAL_3DOUT_CI_1 = 0,	//for lcd
+	DE_SCAL_3DOUT_CI_1 = 0,	/* for lcd */
 	DE_SCAL_3DOUT_CI_2,
 	DE_SCAL_3DOUT_CI_3,
 	DE_SCAL_3DOUT_CI_4,
 	DE_SCAL_3DOUT_LIRGB,
-	DE_SCAL_3DOUT_HDMI_FPP,	//for hdmi
+	DE_SCAL_3DOUT_HDMI_FPP,	/* for hdmi */
 	DE_SCAL_3DOUT_HDMI_FPI,
 	DE_SCAL_3DOUT_HDMI_TB,
 	DE_SCAL_3DOUT_HDMI_FA,
@@ -152,7 +160,8 @@ typedef struct layer_input_src {
 	__bool yuv_ch;
 } layer_src_t;
 
-typedef struct dlcdp_src {	/*direct lcd pipe input source definition */
+/* direct lcd pipe input source definition */
+typedef struct dlcdp_src {
 	__u8 format;
 	__u8 pixseq;
 	__u32 fb_width;
@@ -170,18 +179,25 @@ typedef struct yuv_ch_src {
 	__u8 format;
 	__u8 mode;
 	__u8 pixseq;
-	__u32 ch0_base;		//in bits
-	__u32 ch1_base;		//in bits
-	__u32 ch2_base;		//in bits
-	__u32 line_width;	//in bits
+	__u32 ch0_base;		/* in bits */
+	__u32 ch1_base;		/* in bits */
+	__u32 ch2_base;		/* in bits */
+	__u32 line_width;	/* in bits */
 	__u32 offset_x;
 	__u32 offset_y;
-	__u8 cs_mode;		//0:DISP_BT601; 1:DISP_BT709; 2:DISP_YCC; 3:DISP_VXYCC
+
+	/*
+	 * 0: DISP_BT601
+	 * 1: DISP_BT709
+	 * 2: DISP_YCC
+	 * 3: DISP_VXYCC
+	 */
+	__u8 cs_mode;
 } de_yuv_ch_src_t;
 
 typedef struct sprite_src {
-	__u8 pixel_seq;		//0,1
-	__u8 format;		//0:32bpp; 1:8bpp
+	__u8 pixel_seq;	/* 0,1 */
+	__u8 format;	/* 0: 32bpp; 1: 8bpp */
 	__u32 offset_x;
 	__u32 offset_y;
 	__u32 fb_addr;
@@ -189,16 +205,52 @@ typedef struct sprite_src {
 } de_sprite_src_t;
 
 typedef struct __SCAL_SRC_TYPE {
-	__u8 sample_method;	//for yuv420, 0: uv_hphase=-0.25, uv_vphase=-0.25; other : uv_hphase = 0, uv_vphase = -0.25
-	__u8 byte_seq;		//0:byte0,byte1, byte2, byte3; 1: byte3, byte2, byte1, byte0
-	__u8 mod;		//0:plannar; 1: interleaved; 2: plannar uv combined; 4: plannar mb; 6: uv combined mb
-	__u8 fmt;		//0:yuv444; 1: yuv422; 2: yuv420; 3:yuv411; 4: csi rgb; 5:rgb888
-	__u8 ps;		//
+	/*
+	 * for yuv420, 0: uv_hphase=-0.25, uv_vphase=-0.25;
+	 * other : uv_hphase = 0, uv_vphase = -0.25
+	 */
+	__u8 sample_method;
+
+	/*
+	 * 0: byte0, byte1, byte2, byte3;
+	 * 1: byte3, byte2, byte1, byte0
+	 */
+	__u8 byte_seq;
+
+	/*
+	 * 0: planar
+	 * 1: interleaved
+	 * 2: planar uv combined
+	 * 4: planar mb
+	 * 6: uv combined mb
+	 */
+	__u8 mod;
+
+	/*
+	 * 0: yuv444
+	 * 1: yuv422
+	 * 2: yuv420
+	 * 3: yuv411
+	 * 4: csi rgb
+	 * 5: rgb888
+	 */
+	__u8 fmt;
+	__u8 ps;
 } __scal_src_type_t;
 
 typedef struct __SCAL_OUT_TYPE {
-	__u8 byte_seq;		//0:byte0,byte1, byte2, byte3; 1: byte3, byte2, byte1, byte0
-	__u8 fmt;		//0:plannar rgb; 1: argb(byte0,byte1, byte2, byte3); 2:bgra; 4:yuv444; 5:yuv420; 6:yuv422; 7:yuv411
+	/*
+	 * 0: byte0, byte1, byte2, byte3;
+	 * 1: byte3, byte2, byte1, byte0
+	 */
+	__u8 byte_seq;
+
+	/*
+	 * 0:plannar rgb;
+	 * 1: argb(byte0,byte1, byte2, byte3);
+	 * 2:bgra; 4:yuv444; 5:yuv420; 6:yuv422; 7:yuv411
+	 */
+	__u8 fmt;
 } __scal_out_type_t;
 
 typedef struct __SCAL_SRC_SIZE {
@@ -212,18 +264,22 @@ typedef struct __SCAL_SRC_SIZE {
 
 typedef struct __SCAL_OUT_SIZE {
 	__u32 width;
-	__u32 height;		//when ouput interlace enable,  the height is the 2x height of scale, for example, ouput is 480i, this value is 480
+	/*
+	 * when ouput interlace enable,  the height is the 2x height of scale,
+	 * for example, ouput is 480i, this value is 480
+	 */
+	__u32 height;
 } __scal_out_size_t;
 
 typedef struct _SCAL_BUF_ADDR {
-	__u32 ch0_addr;		//
+	__u32 ch0_addr;
 	__u32 ch1_addr;
 	__u32 ch2_addr;
 } __scal_buf_addr_t;
 
 typedef struct _SCAL_SCAN_MOD {
-	__u8 field;		//0:frame scan; 1:field scan
-	__u8 bottom;		//0:top field; 1:bottom field
+	__u8 field; /* 0:frame scan; 1:field scan */
+	__u8 bottom; /* 0:top field; 1:bottom field */
 } __scal_scan_mod_t;
 
 __s32 DE_SCAL_Set_Reg_Base(__u8 sel, __u32 base);

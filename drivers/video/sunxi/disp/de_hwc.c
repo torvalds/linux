@@ -37,10 +37,8 @@ __s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t * pos)
 	__u32 tmp;
 
 	tmp = DE_BE_RUINT32(sel, DE_BE_HWC_CRD_CTL_OFF);
-	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF,
-		      (tmp & 0xf800f800) | (pos->y & 0x7ff) << 16 | (pos->
-								     x &
-								     0x7ff));
+	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF, (tmp & 0xf800f800) |
+		      (pos->y & 0x7ff) << 16 | (pos->x & 0x7ff));
 
 	return 0;
 }
@@ -114,8 +112,7 @@ __s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t * hwc_pat)
 		break;
 	}
 
-	if (hwc_pat->paddr & 0x3)	// Address not 32bit aligned
-	{
+	if (hwc_pat->paddr & 0x3) { /* Address not 32bit aligned */
 		for (i = 0; i < size; i += 4) {
 			__u32 value = 0;
 
@@ -138,12 +135,15 @@ __s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t * hwc_pat)
 	}
 
 	tmp = DE_BE_RUINT32(sel, DE_BE_HWC_FRMBUF_OFF);
-	DE_BE_WUINT32(sel, DE_BE_HWC_FRMBUF_OFF, (tmp & 0xffffffc3) | (x_size << 2) | (y_size << 4));	//xsize and ysize
+	DE_BE_WUINT32(sel, DE_BE_HWC_FRMBUF_OFF, (tmp & 0xffffffc3) |
+		      (x_size << 2) | (y_size << 4)); /* xsize and ysize */
 
 	tmp = DE_BE_RUINT32(sel, DE_BE_HWC_FRMBUF_OFF);
-	DE_BE_WUINT32(sel, DE_BE_HWC_FRMBUF_OFF, (tmp & 0xfffffffc) | pixel_fmt);	//format
+	DE_BE_WUINT32(sel, DE_BE_HWC_FRMBUF_OFF,
+		      (tmp & 0xfffffffc) | pixel_fmt); /* format */
 
 	tmp = DE_BE_RUINT32(sel, DE_BE_HWC_CRD_CTL_OFF);
-	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF, (tmp & 0x07ff07ff) | 0 << 27 | 0 << 11);	//offset
+	DE_BE_WUINT32(sel, DE_BE_HWC_CRD_CTL_OFF,
+		      (tmp & 0x07ff07ff) | 0 << 27 | 0 << 11); /* offset */
 	return 0;
 }

@@ -28,13 +28,19 @@
 fb_info_t g_fbi;
 __disp_drv_t g_disp_drv;
 
-#define MY_BYTE_ALIGN(x) ( ( (x + (4*1024-1)) >> 12) << 12)	/* alloc based on 4K byte */
+/* alloc based on 4K byte */
+#define MY_BYTE_ALIGN(x) (((x + (4*1024-1)) >> 12) << 12)
 static struct alloc_struct_t boot_heap_head, boot_heap_tail;
 
 static unsigned int gbuffer[4096];
 static __u32 suspend_output_type[2] = { 0, 0 };
 
-static __u32 suspend_status = 0;	//0:normal; suspend_status&1 != 0:in early_suspend; suspend_status&2 != 0:in suspend;
+/*
+ * 0:normal;
+ * suspend_status&1 != 0:in early_suspend;
+ * suspend_status&2 != 0:in suspend;
+ */
+static __u32 suspend_status = 0;
 
 static struct info_mm g_disp_mm[10];
 static int g_disp_mm_sel = 0;
@@ -115,29 +121,32 @@ void *disp_malloc(__u32 num_bytes)
 		return 0;
 	}
 
-	actual_bytes = MY_BYTE_ALIGN(num_bytes);	/* translate the byte count to size of long type       */
+	/* translate the byte count to size of long type  */
+	actual_bytes = MY_BYTE_ALIGN(num_bytes);
 
-	ptr = &boot_heap_head;	/* scan from the boot_heap_head of the heap            */
+	/* scan from the boot_heap_head of the heap */
+	ptr = &boot_heap_head;
 
-	while (ptr && ptr->next) {	/* look for enough memory for alloc                    */
+	/* look for enough memory for alloc */
+	while (ptr && ptr->next) {
 		if (ptr->next->address >=
 		    (ptr->address + ptr->size + (8 * 1024) + actual_bytes)) {
 			break;
 		}
-		/* find enough memory to alloc                         */
+		/* find enough memory to alloc */
 		ptr = ptr->next;
 	}
 
 	if (!ptr->next) {
 		__wrn(" it has reached the boot_heap_tail of the heap now\n");
-		return 0;	/* it has reached the boot_heap_tail of the heap now              */
+		return 0;
 	}
 
 	newptr = (struct alloc_struct_t *)(ptr->address + ptr->size);
 	/* create a new node for the memory block             */
 	if (!newptr) {
 		__wrn(" create the node failed, can't manage the block\n");
-		return 0;	/* create the node failed, can't manage the block     */
+		return 0;
 	}
 
 	/* set the memory block chain, insert the node to the chain */
@@ -157,10 +166,11 @@ void disp_free(void *p)
 	if (p == NULL)
 		return;
 
-	ptr = &boot_heap_head;	/* look for the node which po__s32 this memory block                     */
+	/* look for the node which po__s32 this memory block */
+	ptr = &boot_heap_head;
 	while (ptr && ptr->next) {
 		if (ptr->next->address == (__u32) p)
-			break;	/* find the node which need to be release                              */
+			break;	/* find the node which need to be release */
 		ptr = ptr->next;
 	}
 
@@ -168,9 +178,12 @@ void disp_free(void *p)
 	ptr = ptr->next;
 
 	if (!ptr)
-		return;		/* the node is heap boot_heap_tail                                               */
+		return; /* the node is heap boot_heap_tail */
 
-	prev->next = ptr->next;	/* delete the node which need be released from the memory block chain  */
+	/*
+	 * delete the node which need be released from the memory block chain
+	 */
+	prev->next = ptr->next;
 
 	return;
 }
@@ -367,12 +380,13 @@ int disp_mem_release(int sel)
 
 int disp_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	unsigned long physics = g_disp_mm[g_disp_mm_sel].mem_start;	// - PAGE_OFFSET;
+	// - PAGE_OFFSET;
+	unsigned long physics = g_disp_mm[g_disp_mm_sel].mem_start;
 	unsigned long mypfn = physics >> PAGE_SHIFT;
 	unsigned long vmsize = vma->vm_end - vma->vm_start;
 
-	if (remap_pfn_range
-	    (vma, vma->vm_start, mypfn, vmsize, vma->vm_page_prot))
+	if (remap_pfn_range(vma, vma->vm_start, mypfn, vmsize,
+			    vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;
@@ -400,7 +414,9 @@ ssize_t disp_write(struct file * file, const char __user * buf, size_t count,
 	return 0;
 }
 
-/* called when platform_driver_register*/
+/*
+ * called when platform_driver_register
+ */
 static int __devinit disp_probe(struct platform_device *pdev)
 {
 	fb_info_t *info = NULL;
@@ -601,9 +617,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (cmd < DISP_CMD_FB_REQUEST) {
 		if ((ubuffer[0] != 0) && (ubuffer[0] != 1)) {
-			__wrn
-			    ("para err in disp_ioctl, cmd = 0x%x,screen id = %d\n",
-			     cmd, (int)ubuffer[0]);
+			__wrn("para err in disp_ioctl, cmd = 0x%x,"
+			      "screen id = %d\n", cmd, (int)ubuffer[0]);
 			return -1;
 		}
 	}
@@ -612,24 +627,23 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -1;
 	}
 #if 0
-	if (cmd != DISP_CMD_TV_GET_INTERFACE
-	    && cmd != DISP_CMD_HDMI_GET_HPD_STATUS
-	    && cmd != DISP_CMD_GET_OUTPUT_TYPE && cmd != DISP_CMD_SCN_GET_WIDTH
-	    && cmd != DISP_CMD_SCN_GET_HEIGHT && cmd != DISP_CMD_VIDEO_SET_FB
-	    && cmd != DISP_CMD_VIDEO_GET_FRAME_ID) {
+	if (cmd != DISP_CMD_TV_GET_INTERFACE &&
+	    cmd != DISP_CMD_HDMI_GET_HPD_STATUS &&
+	    cmd != DISP_CMD_GET_OUTPUT_TYPE && cmd != DISP_CMD_SCN_GET_WIDTH &&
+	    cmd != DISP_CMD_SCN_GET_HEIGHT && cmd != DISP_CMD_VIDEO_SET_FB &&
+	    cmd != DISP_CMD_VIDEO_GET_FRAME_ID) {
 		OSAL_PRINTF("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
 	}
 #endif
 
 	switch (cmd) {
-		//----disp global----
+	/* ----disp global---- */
 	case DISP_CMD_SET_BKCOLOR:
 		{
 			__disp_color_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_color_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_color_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -641,9 +655,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_colorkey_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_colorkey_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_colorkey_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -653,35 +666,34 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case DISP_CMD_SET_PALETTE_TBL:
 		if ((ubuffer[1] == 0) || ((int)ubuffer[3] <= 0)) {
-			__wrn
-			    ("para invalid in disp ioctrl DISP_CMD_SET_PALETTE_TBL,buffer:0x%x, size:0x%x\n",
-			     (unsigned int)ubuffer[1],
-			     (unsigned int)ubuffer[3]);
+			__wrn("para invalid in disp ioctrl "
+			      "DISP_CMD_SET_PALETTE_TBL,buffer:0x%x, "
+			      "size:0x%x\n", (unsigned int) ubuffer[1],
+			     (unsigned int) ubuffer[3]);
 			return -1;
 		}
-		if (copy_from_user
-		    (gbuffer, (void __user *)ubuffer[1], ubuffer[3])) {
+		if (copy_from_user(gbuffer, (void __user *) ubuffer[1],
+				   ubuffer[3])) {
 			__wrn("copy_from_user fail\n");
 			return -EFAULT;
 		}
-		ret =
-		    BSP_disp_set_palette_table(ubuffer[0], (__u32 *) gbuffer,
-					       ubuffer[2], ubuffer[3]);
+		ret = BSP_disp_set_palette_table(ubuffer[0], (__u32 *) gbuffer,
+						 ubuffer[2], ubuffer[3]);
 		break;
 
 	case DISP_CMD_GET_PALETTE_TBL:
 		if ((ubuffer[1] == 0) || ((int)ubuffer[3] <= 0)) {
-			__wrn
-			    ("para invalid in disp ioctrl DISP_CMD_GET_PALETTE_TBL,buffer:0x%x, size:0x%x\n",
-			     (unsigned int)ubuffer[1],
-			     (unsigned int)ubuffer[3]);
+			__wrn("para invalid in disp ioctrl "
+			      "DISP_CMD_GET_PALETTE_TBL,buffer:0x%x, "
+			      "size:0x%x\n", (unsigned int) ubuffer[1],
+			     (unsigned int) ubuffer[3]);
 			return -1;
 		}
 		ret =
 		    BSP_disp_get_palette_table(ubuffer[0], (__u32 *) gbuffer,
 					       ubuffer[2], ubuffer[3]);
-		if (copy_to_user
-		    ((void __user *)ubuffer[1], gbuffer, ubuffer[3])) {
+		if (copy_to_user((void __user *) ubuffer[1], gbuffer,
+				 ubuffer[3])) {
 			__wrn("copy_to_user fail\n");
 			return -EFAULT;
 		}
@@ -709,19 +721,18 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case DISP_CMD_SET_GAMMA_TABLE:
 		if ((ubuffer[1] == 0) || ((int)ubuffer[2] <= 0)) {
-			__wrn
-			    ("para invalid in disp ioctrl DISP_CMD_SET_GAMMA_TABLE,buffer:0x%x, size:0x%x\n",
-			     (unsigned int)ubuffer[1],
-			     (unsigned int)ubuffer[2]);
+			__wrn("para invalid in disp ioctrl "
+			      "DISP_CMD_SET_GAMMA_TABLE,buffer:0x%x, "
+			      "size:0x%x\n", (unsigned int) ubuffer[1],
+			     (unsigned int) ubuffer[2]);
 			return -1;
 		}
-		if (copy_from_user
-		    (gbuffer, (void __user *)ubuffer[1], ubuffer[2])) {
+		if (copy_from_user(gbuffer, (void __user *) ubuffer[1],
+				   ubuffer[2])) {
 			__wrn("copy_from_user fail\n");
 			return -EFAULT;
 		}
-		ret =
-		    BSP_disp_set_gamma_table(ubuffer[0], (__u32 *) gbuffer,
+		ret = BSP_disp_set_gamma_table(ubuffer[0], (__u32 *) gbuffer,
 					     ubuffer[2]);
 		break;
 
@@ -779,19 +790,17 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 
 	case DISP_CMD_CAPTURE_SCREEN:
-		ret =
-		    BSP_disp_capture_screen(ubuffer[0],
-					    (__disp_capture_screen_para_t *)
-					    ubuffer[1]);
+		ret = BSP_disp_capture_screen(ubuffer[0],
+					      (__disp_capture_screen_para_t *)
+					      ubuffer[1]);
 		break;
 
 	case DISP_CMD_SET_SCREEN_SIZE:
-		ret =
-		    BSP_disp_set_screen_size(ubuffer[0],
-					     (__disp_rectsz_t *) ubuffer[1]);
+		ret = BSP_disp_set_screen_size(ubuffer[0],
+					       (__disp_rectsz_t *) ubuffer[1]);
 		break;
 
-		//----iep----
+	/* ----iep---- */
 	case DISP_CMD_DE_FLICKER_ON:
 #ifdef CONFIG_ARCH_SUN4I
 		ret = BSP_disp_de_flicker_enable(ubuffer[0], 1);
@@ -829,9 +838,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -844,9 +852,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -855,13 +862,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 #endif
-
-		//----layer----
+	/* ----layer---- */
 	case DISP_CMD_LAYER_REQUEST:
-		ret =
-		    BSP_disp_layer_request(ubuffer[0],
-					   (__disp_layer_work_mode_t)
-					   ubuffer[1]);
+		ret = BSP_disp_layer_request(ubuffer[0],
+					     (__disp_layer_work_mode_t)
+					     ubuffer[1]);
 		break;
 
 	case DISP_CMD_LAYER_RELEASE:
@@ -880,15 +885,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_fb_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_fb_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_fb_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_layer_set_framebuffer(ubuffer[0],
-							   ubuffer[1], &para);
+			ret = BSP_disp_layer_set_framebuffer(ubuffer[0],
+							     ubuffer[1], &para);
 			//DRV_disp_wait_cmd_finish(ubuffer[0]);
 			break;
 		}
@@ -897,12 +900,10 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_fb_t para;
 
-			ret =
-			    BSP_disp_layer_get_framebuffer(ubuffer[0],
-							   ubuffer[1], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_fb_t))) {
+			ret = BSP_disp_layer_get_framebuffer(ubuffer[0],
+							     ubuffer[1], &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_fb_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -913,15 +914,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_layer_set_src_window(ubuffer[0],
-							  ubuffer[1], &para);
+			ret = BSP_disp_layer_set_src_window(ubuffer[0],
+							    ubuffer[1], &para);
 			//DRV_disp_wait_cmd_finish(ubuffer[0]);
 			break;
 		}
@@ -930,12 +929,10 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			ret =
-			    BSP_disp_layer_get_src_window(ubuffer[0],
-							  ubuffer[1], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_rect_t))) {
+			ret = BSP_disp_layer_get_src_window(ubuffer[0],
+							    ubuffer[1], &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_rect_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -946,15 +943,14 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_layer_set_screen_window(ubuffer[0],
-							     ubuffer[1], &para);
+			ret = BSP_disp_layer_set_screen_window(ubuffer[0],
+							       ubuffer[1],
+							       &para);
 			//DRV_disp_wait_cmd_finish(ubuffer[0]);
 			break;
 		}
@@ -963,12 +959,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			ret =
-			    BSP_disp_layer_get_screen_window(ubuffer[0],
-							     ubuffer[1], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_rect_t))) {
+			ret = BSP_disp_layer_get_screen_window(ubuffer[0],
+							       ubuffer[1],
+							       &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_rect_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -979,15 +974,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_layer_info_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_layer_info_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_layer_info_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_layer_set_para(ubuffer[0], ubuffer[1],
-						    &para);
+			ret = BSP_disp_layer_set_para(ubuffer[0], ubuffer[1],
+						      &para);
 			//DRV_disp_wait_cmd_finish(ubuffer[0]);
 			break;
 		}
@@ -996,12 +989,10 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_layer_info_t para;
 
-			ret =
-			    BSP_disp_layer_get_para(ubuffer[0], ubuffer[1],
-						    &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_layer_info_t))) {
+			ret = BSP_disp_layer_get_para(ubuffer[0], ubuffer[1],
+						      &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_layer_info_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1053,8 +1044,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LAYER_GET_CK_EN:
-		ret =
-		    BSP_disp_layer_get_colorkey_enable(ubuffer[0], ubuffer[1]);
+		ret = BSP_disp_layer_get_colorkey_enable(ubuffer[0],
+							 ubuffer[1]);
 		break;
 
 	case DISP_CMD_LAYER_GET_PRIO:
@@ -1066,10 +1057,9 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LAYER_SET_SMOOTH:
-		ret =
-		    BSP_disp_layer_set_smooth(ubuffer[0], ubuffer[1],
-					      (__disp_video_smooth_t)
-					      ubuffer[2]);
+		ret = BSP_disp_layer_set_smooth(ubuffer[0], ubuffer[1],
+						(__disp_video_smooth_t)
+						ubuffer[2]);
 		break;
 
 	case DISP_CMD_LAYER_GET_SMOOTH:
@@ -1140,9 +1130,9 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LAYER_SET_LUMA_SHARP_LEVEL:
-		ret =
-		    BSP_disp_layer_set_luma_sharp_level(ubuffer[0], ubuffer[1],
-							ubuffer[2]);
+		ret = BSP_disp_layer_set_luma_sharp_level(ubuffer[0],
+							  ubuffer[1],
+							  ubuffer[2]);
 		break;
 
 	case DISP_CMD_LAYER_GET_LUMA_SHARP_LEVEL:
@@ -1151,43 +1141,39 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LAYER_SET_CHROMA_SHARP_LEVEL:
-		ret =
-		    BSP_disp_layer_set_chroma_sharp_level(ubuffer[0],
-							  ubuffer[1],
-							  ubuffer[2]);
+		ret = BSP_disp_layer_set_chroma_sharp_level(ubuffer[0],
+							    ubuffer[1],
+							    ubuffer[2]);
 		break;
 
 	case DISP_CMD_LAYER_GET_CHROMA_SHARP_LEVEL:
-		ret =
-		    BSP_disp_layer_get_chroma_sharp_level(ubuffer[0],
-							  ubuffer[1]);
+		ret = BSP_disp_layer_get_chroma_sharp_level(ubuffer[0],
+							    ubuffer[1]);
 		break;
 
 	case DISP_CMD_LAYER_SET_WHITE_EXTEN_LEVEL:
-		ret =
-		    BSP_disp_layer_set_white_exten_level(ubuffer[0], ubuffer[1],
-							 ubuffer[2]);
+		ret = BSP_disp_layer_set_white_exten_level(ubuffer[0],
+							   ubuffer[1],
+							   ubuffer[2]);
 		break;
 
 	case DISP_CMD_LAYER_GET_WHITE_EXTEN_LEVEL:
-		ret =
-		    BSP_disp_layer_get_white_exten_level(ubuffer[0],
-							 ubuffer[1]);
+		ret = BSP_disp_layer_get_white_exten_level(ubuffer[0],
+							   ubuffer[1]);
 		break;
 
 	case DISP_CMD_LAYER_SET_BLACK_EXTEN_LEVEL:
-		ret =
-		    BSP_disp_layer_set_black_exten_level(ubuffer[0], ubuffer[1],
-							 ubuffer[2]);
+		ret = BSP_disp_layer_set_black_exten_level(ubuffer[0],
+							   ubuffer[1],
+							   ubuffer[2]);
 		break;
 
 	case DISP_CMD_LAYER_GET_BLACK_EXTEN_LEVEL:
-		ret =
-		    BSP_disp_layer_get_black_exten_level(ubuffer[0],
-							 ubuffer[1]);
+		ret = BSP_disp_layer_get_black_exten_level(ubuffer[0],
+							   ubuffer[1]);
 		break;
 
-		//----scaler----
+	/* ----scaler---- */
 	case DISP_CMD_SCALER_REQUEST:
 		ret = BSP_disp_scaler_request();
 		break;
@@ -1200,9 +1186,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_scaler_para_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_scaler_para_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_scaler_para_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -1210,7 +1195,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		//----hwc----
+	/* ----hwc---- */
 	case DISP_CMD_HWC_OPEN:
 		ret = BSP_disp_hwc_enable(ubuffer[0], 1);
 		break;
@@ -1223,9 +1208,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_pos_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_pos_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_pos_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -1238,9 +1222,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			__disp_pos_t para;
 
 			ret = BSP_disp_hwc_get_pos(ubuffer[0], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[1], &para,
-			     sizeof(__disp_pos_t))) {
+			if (copy_to_user((void __user *)ubuffer[1], &para,
+					 sizeof(__disp_pos_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1251,9 +1234,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_hwc_pattern_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_hwc_pattern_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_hwc_pattern_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -1263,23 +1245,22 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case DISP_CMD_HWC_SET_PALETTE_TABLE:
 		if ((ubuffer[1] == 0) || ((int)ubuffer[3] <= 0)) {
-			__wrn
-			    ("para invalid in display ioctrl DISP_CMD_HWC_SET_PALETTE_TABLE,buffer:0x%x, size:0x%x\n",
-			     (unsigned int)ubuffer[1],
+			__wrn("para invalid in display ioctrl "
+			      "DISP_CMD_HWC_SET_PALETTE_TABLE,buffer:0x%x, "
+			      "size:0x%x\n", (unsigned int)ubuffer[1],
 			     (unsigned int)ubuffer[3]);
 			return -1;
 		}
-		if (copy_from_user
-		    (gbuffer, (void __user *)ubuffer[1], ubuffer[3])) {
+		if (copy_from_user(gbuffer, (void __user *)ubuffer[1],
+				   ubuffer[3])) {
 			__wrn("copy_from_user fail\n");
 			return -EFAULT;
 		}
-		ret =
-		    BSP_disp_hwc_set_palette(ubuffer[0], (void *)gbuffer,
-					     ubuffer[2], ubuffer[3]);
+		ret = BSP_disp_hwc_set_palette(ubuffer[0], (void *)gbuffer,
+					       ubuffer[2], ubuffer[3]);
 		break;
 
-		//----video----
+	/* ----video---- */
 	case DISP_CMD_VIDEO_START:
 		ret = BSP_disp_video_start(ubuffer[0], ubuffer[1]);
 		break;
@@ -1292,15 +1273,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_video_fb_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_video_fb_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_video_fb_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_video_set_fb(ubuffer[0], ubuffer[1],
-						  &para);
+			ret = BSP_disp_video_set_fb(ubuffer[0], ubuffer[1],
+						    &para);
 			break;
 		}
 
@@ -1312,19 +1291,18 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_dit_info_t para;
 
-			ret =
-			    BSP_disp_video_get_dit_info(ubuffer[0], ubuffer[1],
-							&para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_dit_info_t))) {
+			ret = BSP_disp_video_get_dit_info(ubuffer[0],
+							  ubuffer[1],
+							  &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_dit_info_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
 			break;
 		}
 
-		//----lcd----
+	/* ----lcd---- */
 	case DISP_CMD_LCD_ON:
 		ret = DRV_lcd_open(ubuffer[0]);
 		if (suspend_status != 0) {
@@ -1356,18 +1334,16 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LCD_SET_SRC:
-		ret =
-		    BSP_disp_lcd_set_src(ubuffer[0],
-					 (__disp_lcdc_src_t) ubuffer[1]);
+		ret = BSP_disp_lcd_set_src(ubuffer[0],
+					   (__disp_lcdc_src_t) ubuffer[1]);
 		break;
 
 	case DISP_CMD_LCD_USER_DEFINED_FUNC:
-		ret =
-		    BSP_disp_lcd_user_defined_func(ubuffer[0], ubuffer[1],
-						   ubuffer[2], ubuffer[3]);
+		ret =  BSP_disp_lcd_user_defined_func(ubuffer[0], ubuffer[1],
+						      ubuffer[2], ubuffer[3]);
 		break;
 
-		//----pwm----
+	/* ----pwm---- */
 	case DISP_CMD_PWM_SET_PARA:
 		ret = pwm_set_para(ubuffer[0], (__pwm_info_t *) ubuffer[1]);
 		break;
@@ -1376,7 +1352,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = pwm_get_para(ubuffer[0], (__pwm_info_t *) ubuffer[1]);
 		break;
 
-		//----tv----
+	/* ----tv---- */
 	case DISP_CMD_TV_ON:
 		ret = BSP_disp_tv_open(ubuffer[0]);
 		if (suspend_status != 0) {
@@ -1392,9 +1368,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_TV_SET_MODE:
-		ret =
-		    BSP_disp_tv_set_mode(ubuffer[0],
-					 (__disp_tv_mode_t) ubuffer[1]);
+		ret = BSP_disp_tv_set_mode(ubuffer[0],
+					   (__disp_tv_mode_t) ubuffer[1]);
 		break;
 
 	case DISP_CMD_TV_GET_MODE:
@@ -1418,32 +1393,30 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_TV_SET_SRC:
-		ret =
-		    BSP_disp_tv_set_src(ubuffer[0],
-					(__disp_lcdc_src_t) ubuffer[1]);
+		ret = BSP_disp_tv_set_src(ubuffer[0],
+					  (__disp_lcdc_src_t) ubuffer[1]);
 		break;
 
 	case DISP_CMD_TV_GET_DAC_STATUS:
 		if (suspend_status != 0) {
 			ret = 0;
 		} else {
-			ret =
-			    BSP_disp_tv_get_dac_status(ubuffer[0], ubuffer[1]);
+			ret = BSP_disp_tv_get_dac_status(ubuffer[0],
+							 ubuffer[1]);
 		}
 		break;
 
 	case DISP_CMD_TV_SET_DAC_SOURCE:
-		ret =
-		    BSP_disp_tv_set_dac_source(ubuffer[0], ubuffer[1],
-					       (__disp_tv_dac_source)
-					       ubuffer[2]);
+		ret = BSP_disp_tv_set_dac_source(ubuffer[0], ubuffer[1],
+						 (__disp_tv_dac_source)
+						 ubuffer[2]);
 		break;
 
 	case DISP_CMD_TV_GET_DAC_SOURCE:
 		ret = BSP_disp_tv_get_dac_source(ubuffer[0], ubuffer[1]);
 		break;
 
-		//----hdmi----
+	/* ----hdmi---- */
 	case DISP_CMD_HDMI_ON:
 		ret = BSP_disp_hdmi_open(ubuffer[0]);
 		if (suspend_status != 0) {
@@ -1479,12 +1452,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_HDMI_SET_SRC:
-		ret =
-		    BSP_disp_hdmi_set_src(ubuffer[0],
-					  (__disp_lcdc_src_t) ubuffer[1]);
+		ret = BSP_disp_hdmi_set_src(ubuffer[0],
+					    (__disp_lcdc_src_t) ubuffer[1]);
 		break;
 
-		//----vga----
+	/* ----vga---- */
 	case DISP_CMD_VGA_ON:
 		ret = BSP_disp_vga_open(ubuffer[0]);
 		if (suspend_status != 0) {
@@ -1500,9 +1472,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_VGA_SET_MODE:
-		ret =
-		    BSP_disp_vga_set_mode(ubuffer[0],
-					  (__disp_vga_mode_t) ubuffer[1]);
+		ret = BSP_disp_vga_set_mode(ubuffer[0],
+					    (__disp_vga_mode_t) ubuffer[1]);
 		break;
 
 	case DISP_CMD_VGA_GET_MODE:
@@ -1510,12 +1481,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_VGA_SET_SRC:
-		ret =
-		    BSP_disp_vga_set_src(ubuffer[0],
-					 (__disp_lcdc_src_t) ubuffer[1]);
+		ret = BSP_disp_vga_set_src(ubuffer[0],
+					   (__disp_lcdc_src_t) ubuffer[1]);
 		break;
 
-		//----sprite----
+	/* ----sprite---- */
 	case DISP_CMD_SPRITE_OPEN:
 		ret = BSP_disp_sprite_open(ubuffer[0]);
 		break;
@@ -1552,9 +1522,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_SPRITE_SET_ORDER:
-		ret =
-		    BSP_disp_sprite_set_order(ubuffer[0], ubuffer[1],
-					      ubuffer[2]);
+		ret = BSP_disp_sprite_set_order(ubuffer[0], ubuffer[1],
+						ubuffer[2]);
 		break;
 
 	case DISP_CMD_SPRITE_GET_TOP_BLOCK:
@@ -1566,22 +1535,21 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_SPRITE_SET_PALETTE_TBL:
-		if ((ubuffer[1] == 0) || ((int)ubuffer[3] <= 0)) {
-			__wrn
-			    ("para invalid in display ioctrl DISP_CMD_SPRITE_SET_PALETTE_TBL,buffer:0x%x, size:0x%x\n",
-			     (unsigned int)ubuffer[1],
-			     (unsigned int)ubuffer[3]);
+		if ((ubuffer[1] == 0) || ((int) ubuffer[3] <= 0)) {
+			__wrn("para invalid in display ioctrl "
+			      "DISP_CMD_SPRITE_SET_PALETTE_TBL,buffer:0x%x,"
+			      " size:0x%x\n", (unsigned int) ubuffer[1],
+			     (unsigned int) ubuffer[3]);
 			return -1;
 		}
-		if (copy_from_user
-		    (gbuffer, (void __user *)ubuffer[1], ubuffer[3])) {
+		if (copy_from_user(gbuffer, (void __user *)ubuffer[1],
+				   ubuffer[3])) {
 			__wrn("copy_from_user fail\n");
 			return -EFAULT;
 		}
-		ret =
-		    BSP_disp_sprite_set_palette_table(ubuffer[0],
-						      (__u32 *) gbuffer,
-						      ubuffer[2], ubuffer[3]);
+		ret = BSP_disp_sprite_set_palette_table(ubuffer[0],
+							(__u32 *) gbuffer,
+							ubuffer[2], ubuffer[3]);
 		break;
 
 	case DISP_CMD_SPRITE_GET_BLOCK_NUM:
@@ -1592,9 +1560,9 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_sprite_block_para_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_sprite_block_para_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_sprite_block_para_t)))
+				{
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -1610,16 +1578,14 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_sprite_block_set_screen_win(ubuffer[0],
-								 ubuffer[1],
-								 &para);
+			ret = BSP_disp_sprite_block_set_screen_win(ubuffer[0],
+								   ubuffer[1],
+								   &para);
 			break;
 		}
 
@@ -1627,13 +1593,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			ret =
-			    BSP_disp_sprite_block_get_srceen_win(ubuffer[0],
-								 ubuffer[1],
-								 &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_rect_t))) {
+			ret = BSP_disp_sprite_block_get_srceen_win(ubuffer[0],
+								   ubuffer[1],
+								   &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_rect_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1644,16 +1608,14 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_rect_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_rect_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_sprite_block_set_src_win(ubuffer[0],
-							      ubuffer[1],
-							      &para);
+			ret = BSP_disp_sprite_block_set_src_win(ubuffer[0],
+								ubuffer[1],
+								&para);
 			break;
 		}
 
@@ -1661,13 +1623,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_rect_t para;
 
-			ret =
-			    BSP_disp_sprite_block_get_src_win(ubuffer[0],
-							      ubuffer[1],
-							      &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_rect_t))) {
+			ret = BSP_disp_sprite_block_get_src_win(ubuffer[0],
+								ubuffer[1],
+								&para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_rect_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1678,16 +1638,14 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_fb_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_fb_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_fb_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_sprite_block_set_framebuffer(ubuffer[0],
-								  ubuffer[1],
-								  &para);
+			ret = BSP_disp_sprite_block_set_framebuffer(ubuffer[0],
+								    ubuffer[1],
+								    &para);
 			break;
 		}
 
@@ -1695,13 +1653,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_fb_t para;
 
-			ret =
-			    BSP_disp_sprite_block_get_framebufer(ubuffer[0],
-								 ubuffer[1],
-								 &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_fb_t))) {
+			ret = BSP_disp_sprite_block_get_framebufer(ubuffer[0],
+								   ubuffer[1],
+								   &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_fb_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1717,14 +1673,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_SPRITE_BLOCK_GET_PREV_BLOCK:
-		ret =
-		    BSP_disp_sprite_block_get_pre_block(ubuffer[0], ubuffer[1]);
+		ret = BSP_disp_sprite_block_get_pre_block(ubuffer[0],
+							  ubuffer[1]);
 		break;
 
 	case DISP_CMD_SPRITE_BLOCK_GET_NEXT_BLOCK:
-		ret =
-		    BSP_disp_sprite_block_get_next_block(ubuffer[0],
-							 ubuffer[1]);
+		ret = BSP_disp_sprite_block_get_next_block(ubuffer[0],
+							   ubuffer[1]);
 		break;
 
 	case DISP_CMD_SPRITE_BLOCK_GET_PRIO:
@@ -1743,15 +1698,14 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_sprite_block_para_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[2],
-			     sizeof(__disp_sprite_block_para_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[2],
+					   sizeof(__disp_sprite_block_para_t)))
+				{
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
-			ret =
-			    BSP_disp_sprite_block_set_para(ubuffer[0],
-							   ubuffer[1], &para);
+			ret = BSP_disp_sprite_block_set_para(ubuffer[0],
+							     ubuffer[1], &para);
 			break;
 		}
 
@@ -1759,26 +1713,23 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			__disp_sprite_block_para_t para;
 
-			ret =
-			    BSP_disp_sprite_block_get_para(ubuffer[0],
-							   ubuffer[1], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[2], &para,
-			     sizeof(__disp_sprite_block_para_t))) {
+			ret = BSP_disp_sprite_block_get_para(ubuffer[0],
+							     ubuffer[1], &para);
+			if (copy_to_user((void __user *)ubuffer[2], &para,
+					 sizeof(__disp_sprite_block_para_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
 			break;
 		}
 
-		//----framebuffer----
+	/* ----framebuffer---- */
 	case DISP_CMD_FB_REQUEST:
 		{
 			__disp_fb_create_para_t para;
 
-			if (copy_from_user
-			    (&para, (void __user *)ubuffer[1],
-			     sizeof(__disp_fb_create_para_t))) {
+			if (copy_from_user(&para, (void __user *)ubuffer[1],
+					   sizeof(__disp_fb_create_para_t))) {
 				__wrn("copy_from_user fail\n");
 				return -EFAULT;
 			}
@@ -1795,9 +1746,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			__disp_fb_create_para_t para;
 
 			ret = Display_Fb_get_para(ubuffer[0], &para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[1], &para,
-			     sizeof(__disp_fb_create_para_t))) {
+			if (copy_to_user((void __user *)ubuffer[1], &para,
+					 sizeof(__disp_fb_create_para_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1809,9 +1759,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			__disp_init_t para;
 
 			ret = Display_get_disp_init_para(&para);
-			if (copy_to_user
-			    ((void __user *)ubuffer[0], &para,
-			     sizeof(__disp_init_t))) {
+			if (copy_to_user((void __user *)ubuffer[0], &para,
+					 sizeof(__disp_init_t))) {
 				__wrn("copy_to_user fail\n");
 				return -EFAULT;
 			}
@@ -1822,7 +1771,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = disp_mem_request(ubuffer[0], ubuffer[1]);
 		break;
 
-		//----for test----
+	/* ----for test---- */
 	case DISP_CMD_MEM_RELASE:
 		ret = disp_mem_release(ubuffer[0]);
 		break;

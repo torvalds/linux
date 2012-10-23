@@ -24,9 +24,11 @@
 
 #include "disp_display_i.h"
 
-#define HLID_ASSERT(no,max)   do{if((__s32)(no)<DIS_SUCCESS ||(no) >= (max))   \
-                                   return DIS_PARA_FAILED; \
-                             }while(0);
+#define HLID_ASSERT(no,max) \
+do{ \
+if((__s32)(no) < DIS_SUCCESS || (no) >= (max))\
+	return DIS_PARA_FAILED;\
+}while(0);
 
 #define IDLE_HID    0xff
 #define IDLE_PRIO   0xff
@@ -39,7 +41,11 @@
 typedef struct layer_man_t {
 	__u32 status;
 	__bool byuv_ch;
-	__u32 scaler_index;	//used if scaler mode,  0:scaler0, 1:scaler1
+
+	/*
+	 * used if scaler mode: 0/1
+	 */
+	__u32 scaler_index;
 #ifdef CONFIG_ARCH_SUN4I
 	__bool video_enhancement_en;
 #endif
