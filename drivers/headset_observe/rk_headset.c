@@ -597,6 +597,6 @@ static int __init rockchip_headsetobserve_init(void)
 	platform_driver_register(&rockchip_headsetobserve_driver);
 	return 0;
 }
-module_init(rockchip_headsetobserve_init);
+late_initcall(rockchip_headsetobserve_init);
 MODULE_DESCRIPTION("Rockchip Headset Driver");
 MODULE_LICENSE("GPL");

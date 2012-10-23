@@ -149,6 +149,8 @@ void codec_set_spk(bool on)
 void call_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rk2928_data.codec;
+	if(codec == NULL)
+		return;	
 	if(on == 0) {
 		printk("%s speaker is disabled\n", __FUNCTION__);
 	//	rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
@@ -170,7 +172,8 @@ void call_set_spk(bool on)
 void rk2928_codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rk2928_data.codec;
-
+	if(codec == NULL)
+		return;
 	printk("%s: headset %s %s PA bias_level=%d\n",__FUNCTION__,on?"in":"out",on?"disable":"enable",codec->dapm.bias_level);
 	if(on) {
 		rk2928_data.headset_status = HP_IN;	
