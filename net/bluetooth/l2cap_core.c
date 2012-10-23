@@ -2967,6 +2967,44 @@ static inline bool __l2cap_efs_supported(struct l2cap_chan *chan)
 	return enable_hs && chan->conn->feat_mask & L2CAP_FEAT_EXT_FLOW;
 }
 
+static void __l2cap_set_ertm_timeouts(struct l2cap_chan *chan,
+				      struct l2cap_conf_rfc *rfc)
+{
+	if (chan->local_amp_id && chan->hs_hcon) {
+		u64 ertm_to = chan->hs_hcon->hdev->amp_be_flush_to;
+
+		/* Class 1 devices have must have ERTM timeouts
+		 * exceeding the Link Supervision Timeout.  The
+		 * default Link Supervision Timeout for AMP
+		 * controllers is 10 seconds.
+		 *
+		 * Class 1 devices use 0xffffffff for their
+		 * best-effort flush timeout, so the clamping logic
+		 * will result in a timeout that meets the above
+		 * requirement.  ERTM timeouts are 16-bit values, so
+		 * the maximum timeout is 65.535 seconds.
+		 */
+
+		/* Convert timeout to milliseconds and round */
+		ertm_to = DIV_ROUND_UP_ULL(ertm_to, 1000);
+
+		/* This is the recommended formula for class 2 devices
+		 * that start ERTM timers when packets are sent to the
+		 * controller.
+		 */
+		ertm_to = 3 * ertm_to + 500;
+
+		if (ertm_to > 0xffff)
+			ertm_to = 0xffff;
+
+		rfc->retrans_timeout = cpu_to_le16((u16) ertm_to);
+		rfc->monitor_timeout = rfc->retrans_timeout;
+	} else {
+		rfc->retrans_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
+		rfc->monitor_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
+	}
+}
+
 static inline void l2cap_txwin_setup(struct l2cap_chan *chan)
 {
 	if (chan->tx_win > L2CAP_DEFAULT_TX_WINDOW &&
@@ -3033,8 +3071,8 @@ done:
 	case L2CAP_MODE_ERTM:
 		rfc.mode            = L2CAP_MODE_ERTM;
 		rfc.max_transmit    = chan->max_tx;
-		rfc.retrans_timeout = 0;
-		rfc.monitor_timeout = 0;
+
+		__l2cap_set_ertm_timeouts(chan, &rfc);
 
 		size = min_t(u16, L2CAP_DEFAULT_MAX_PDU_SIZE, chan->conn->mtu -
 			     L2CAP_EXT_HDR_SIZE - L2CAP_SDULEN_SIZE -
@@ -3262,10 +3300,7 @@ done:
 			rfc.max_pdu_size = cpu_to_le16(size);
 			chan->remote_mps = size;
 
-			rfc.retrans_timeout =
-				__constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
-			rfc.monitor_timeout =
-				__constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
+			__l2cap_set_ertm_timeouts(chan, &rfc);
 
 			set_bit(CONF_MODE_DONE, &chan->conf_state);
 
