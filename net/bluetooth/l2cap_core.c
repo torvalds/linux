@@ -1037,6 +1037,28 @@ static void l2cap_move_setup(struct l2cap_chan *chan)
 	set_bit(CONN_REMOTE_BUSY, &chan->conn_state);
 }
 
+static void l2cap_move_done(struct l2cap_chan *chan)
+{
+	u8 move_role = chan->move_role;
+	BT_DBG("chan %p", chan);
+
+	chan->move_state = L2CAP_MOVE_STABLE;
+	chan->move_role = L2CAP_MOVE_ROLE_NONE;
+
+	if (chan->mode != L2CAP_MODE_ERTM)
+		return;
+
+	switch (move_role) {
+	case L2CAP_MOVE_ROLE_INITIATOR:
+		l2cap_tx(chan, NULL, NULL, L2CAP_EV_EXPLICIT_POLL);
+		chan->rx_state = L2CAP_RX_STATE_WAIT_F;
+		break;
+	case L2CAP_MOVE_ROLE_RESPONDER:
+		chan->rx_state = L2CAP_RX_STATE_WAIT_P;
+		break;
+	}
+}
+
 static void l2cap_chan_ready(struct l2cap_chan *chan)
 {
 	/* This clears all conf flags, including CONF_NOT_COMPLETE */
@@ -4193,6 +4215,14 @@ static void l2cap_send_move_chan_cfm_rsp(struct l2cap_conn *conn, u8 ident,
 	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_CFM_RSP, sizeof(rsp), &rsp);
 }
 
+static void __release_logical_link(struct l2cap_chan *chan)
+{
+	chan->hs_hchan = NULL;
+	chan->hs_hcon = NULL;
+
+	/* Placeholder - release the logical link */
+}
+
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 					 struct l2cap_cmd_hdr *cmd,
 					 u16 cmd_len, void *data)
@@ -4308,11 +4338,12 @@ static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
 	return 0;
 }
 
-static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
-					     struct l2cap_cmd_hdr *cmd,
-					     u16 cmd_len, void *data)
+static int l2cap_move_channel_confirm(struct l2cap_conn *conn,
+				      struct l2cap_cmd_hdr *cmd,
+				      u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_cfm *cfm = data;
+	struct l2cap_chan *chan;
 	u16 icid, result;
 
 	if (cmd_len != sizeof(*cfm))
@@ -4323,7 +4354,28 @@ static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
 
 	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
+	chan = l2cap_get_chan_by_dcid(conn, icid);
+	if (!chan) {
+		/* Spec requires a response even if the icid was not found */
+		l2cap_send_move_chan_cfm_rsp(conn, cmd->ident, icid);
+		return 0;
+	}
+
+	if (chan->move_state == L2CAP_MOVE_WAIT_CONFIRM) {
+		if (result == L2CAP_MC_CONFIRMED) {
+			chan->local_amp_id = chan->move_id;
+			if (!chan->local_amp_id)
+				__release_logical_link(chan);
+		} else {
+			chan->move_id = chan->local_amp_id;
+		}
+
+		l2cap_move_done(chan);
+	}
+
 	l2cap_send_move_chan_cfm_rsp(conn, cmd->ident, icid);
+
+	l2cap_chan_unlock(chan);
 
 	return 0;
 }
