@@ -181,55 +181,6 @@ void CsrGlobalMutexUnlock(void);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrThreadCreate
- *
- *  DESCRIPTION
- *      Create thread function and return a handle to the created thread.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS           in case of success
- *          CSR_FE_RESULT_NO_MORE_THREADS   in case of out of thread resources
- *          CSR_FE_RESULT_INVALID_POINTER   in case one of the supplied pointers is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrThreadCreate(void (*threadFunction)(void *pointer), void *pointer,
-    u32 stackSize, u16 priority,
-    const char *threadName, CsrThreadHandle *threadHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrThreadGetHandle
- *
- *  DESCRIPTION
- *      Return thread handle of calling thread.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS             in case of success
- *          CSR_FE_RESULT_INVALID_POINTER  in case the threadHandle pointer is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrThreadGetHandle(CsrThreadHandle *threadHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrThreadEqual
- *
- *  DESCRIPTION
- *      Compare thread handles
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS             in case thread handles are identical
- *          CSR_FE_RESULT_INVALID_POINTER  in case either threadHandle pointer is invalid
- *          CSR_RESULT_FAILURE             otherwise
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrThreadEqual(CsrThreadHandle *threadHandle1, CsrThreadHandle *threadHandle2);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrThreadSleep
  *
  *  DESCRIPTION

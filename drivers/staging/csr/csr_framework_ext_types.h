@@ -32,7 +32,6 @@ struct CsrEvent {
 
 typedef struct CsrEvent CsrEventHandle;
 typedef struct semaphore CsrMutexHandle;
-typedef struct CsrThread CsrThreadHandle;
 
 #else /* __KERNEL __ */
 
@@ -44,7 +43,6 @@ struct CsrEvent {
 
 typedef struct CsrEvent CsrEventHandle;
 typedef pthread_mutex_t CsrMutexHandle;
-typedef pthread_t CsrThreadHandle;
 
 #endif /* __KERNEL__ */
 
