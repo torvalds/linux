@@ -995,7 +995,7 @@ static void rpc_release_task(struct rpc_task *task)
 {
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
-	BUG_ON (RPC_IS_QUEUED(task));
+	WARN_ON_ONCE(RPC_IS_QUEUED(task));
 
 	rpc_release_resources_task(task);
 
