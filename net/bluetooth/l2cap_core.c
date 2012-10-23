@@ -2788,6 +2788,11 @@ int l2cap_ertm_init(struct l2cap_chan *chan)
 
 	skb_queue_head_init(&chan->tx_q);
 
+	chan->local_amp_id = 0;
+	chan->move_id = 0;
+	chan->move_state = L2CAP_MOVE_STABLE;
+	chan->move_role = L2CAP_MOVE_ROLE_NONE;
+
 	if (chan->mode != L2CAP_MODE_ERTM)
 		return 0;
 

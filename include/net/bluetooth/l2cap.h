@@ -434,6 +434,8 @@ struct l2cap_chan {
 	struct sock *sk;
 
 	struct l2cap_conn	*conn;
+	struct hci_conn		*hs_hcon;
+	struct hci_chan		*hs_hchan;
 	struct kref	kref;
 
 	__u8		state;
@@ -476,6 +478,11 @@ struct l2cap_chan {
 	unsigned long	conf_state;
 	unsigned long	conn_state;
 	unsigned long	flags;
+
+	__u8		local_amp_id;
+	__u8		move_id;
+	__u8		move_state;
+	__u8		move_role;
 
 	__u16		next_tx_seq;
 	__u16		expected_ack_seq;
@@ -644,6 +651,9 @@ enum {
 enum {
 	L2CAP_RX_STATE_RECV,
 	L2CAP_RX_STATE_SREJ_SENT,
+	L2CAP_RX_STATE_MOVE,
+	L2CAP_RX_STATE_WAIT_P,
+	L2CAP_RX_STATE_WAIT_F,
 };
 
 enum {
@@ -672,6 +682,25 @@ enum {
 	L2CAP_EV_RECV_RNR,
 	L2CAP_EV_RECV_SREJ,
 	L2CAP_EV_RECV_FRAME,
+};
+
+enum {
+	L2CAP_MOVE_ROLE_NONE,
+	L2CAP_MOVE_ROLE_INITIATOR,
+	L2CAP_MOVE_ROLE_RESPONDER,
+};
+
+enum {
+	L2CAP_MOVE_STABLE,
+	L2CAP_MOVE_WAIT_REQ,
+	L2CAP_MOVE_WAIT_RSP,
+	L2CAP_MOVE_WAIT_RSP_SUCCESS,
+	L2CAP_MOVE_WAIT_CONFIRM,
+	L2CAP_MOVE_WAIT_CONFIRM_RSP,
+	L2CAP_MOVE_WAIT_LOGICAL_COMP,
+	L2CAP_MOVE_WAIT_LOGICAL_CFM,
+	L2CAP_MOVE_WAIT_LOCAL_BUSY,
+	L2CAP_MOVE_WAIT_PREPARE,
 };
 
 void l2cap_chan_hold(struct l2cap_chan *c);
