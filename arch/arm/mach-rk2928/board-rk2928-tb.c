@@ -916,7 +916,7 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 #if defined (CONFIG_MACH_RK2928_TB)
-#define POWER_ON_PIN RK2928_PIN3_PC5   //power_hold
+#define POWER_ON_PIN RK2928_PIN1_PB4   //power_hold
 #elif defined (CONFIG_MACH_RK2926_TB)
 #define POWER_ON_PIN RK2928_PIN1_PA2   //power_hold
 #endif

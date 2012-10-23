@@ -3,8 +3,8 @@
 #include <mach/board.h>
 
 //#define RK2926_TB_DEFAULT_CONFIG
-//#define RK2928_TB_DEFAULT_CONFIG
-#define RK2926_SDK_DEFAULT_CONFIG
+#define RK2928_TB_DEFAULT_CONFIG
+//#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
 
 enum { 
@@ -216,7 +216,7 @@ enum {
 
 /* global */
 enum {
-        DEF_PWR_ON = 0x000003c5,
+        DEF_PWR_ON = 0x000001b4,
 };
 
 /****************************  rk2926 sdk(m713) ******************************/

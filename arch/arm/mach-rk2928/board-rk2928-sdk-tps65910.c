@@ -72,7 +72,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
                 printk(KERN_ERR "sram_gpio_init failed\n");
                 return -EINVAL;
         }
-        if(port_output_init(pmic_slp, 1, "pmic_slp") < 0){
+        if(port_output_init(pmic_slp, 0, "pmic_slp") < 0){
                 printk(KERN_ERR "port_output_init failed\n");
                 return -EINVAL;
         }
