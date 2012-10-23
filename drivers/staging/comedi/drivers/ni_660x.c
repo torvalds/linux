@@ -1116,49 +1116,54 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 
 static int ni_660x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	uint64_t bit = 1ULL << chan;
 	unsigned int val;
-
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	int ret;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->pfi_direction_bits |= ((uint64_t) 1) << chan;
+		devpriv->pfi_direction_bits |= bit;
 		ni_660x_select_pfi_output(dev, chan,
 					  devpriv->pfi_output_selects[chan]);
 		break;
+
 	case INSN_CONFIG_DIO_INPUT:
-		devpriv->pfi_direction_bits &= ~(((uint64_t) 1) << chan);
+		devpriv->pfi_direction_bits &= ~bit;
 		ni_660x_select_pfi_output(dev, chan, pfi_output_select_high_Z);
 		break;
+
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (devpriv->pfi_direction_bits &
-		     (((uint64_t) 1) << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return 0;
-	case INSN_CONFIG_SET_ROUTING:
-		return ni_660x_set_pfi_routing(dev, chan, data[1]);
+		data[1] = (devpriv->pfi_direction_bits & bit) ? COMEDI_OUTPUT
+							      : COMEDI_INPUT;
 		break;
+
+	case INSN_CONFIG_SET_ROUTING:
+		ret = ni_660x_set_pfi_routing(dev, chan, data[1]);
+		if (ret)
+			return ret;
+		break;
+
 	case INSN_CONFIG_GET_ROUTING:
 		data[1] = devpriv->pfi_output_selects[chan];
 		break;
+
 	case INSN_CONFIG_FILTER:
 		val = ni_660x_read_register(dev, 0, IOConfigReg(chan));
 		val &= ~pfi_input_select_mask(chan);
 		val |= pfi_input_select_bits(chan, data[1]);
 		ni_660x_write_register(dev, 0, val, IOConfigReg(chan));
 		break;
+
 	default:
 		return -EINVAL;
-		break;
 	}
-	return 0;
+
+	return insn->n;
 }
 
 static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
