@@ -936,6 +936,15 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 
+void drm_kms_helper_hotplug_event(struct drm_device *dev)
+{
+	/* send a uevent + call fbdev */
+	drm_sysfs_hotplug_event(dev);
+	if (dev->mode_config.funcs->output_poll_changed)
+		dev->mode_config.funcs->output_poll_changed(dev);
+}
+EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
+
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
 static void output_poll_execute(struct work_struct *work)
 {
@@ -978,12 +987,8 @@ static void output_poll_execute(struct work_struct *work)
 
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (changed) {
-		/* send a uevent + call fbdev */
-		drm_sysfs_hotplug_event(dev);
-		if (dev->mode_config.funcs->output_poll_changed)
-			dev->mode_config.funcs->output_poll_changed(dev);
-	}
+	if (changed)
+		drm_kms_helper_hotplug_event(dev);
 
 	if (repoll)
 		schedule_delayed_work(delayed_work, DRM_OUTPUT_POLL_PERIOD);
