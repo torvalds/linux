@@ -70,11 +70,17 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 		return -ENOMEM;
 	}
 
+retry:
 	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, NULL, &robj);
 	if (r) {
-		if (r != -ERESTARTSYS)
+		if (r != -ERESTARTSYS) {
+			if (initial_domain == RADEON_GEM_DOMAIN_VRAM) {
+				initial_domain |= RADEON_GEM_DOMAIN_GTT;
+				goto retry;
+			}
 			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
+		}
 		return r;
 	}
 	*obj = &robj->gem_base;

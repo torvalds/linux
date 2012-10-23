@@ -123,7 +123,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 	acc_size = ttm_bo_dma_acc_size(&rdev->mman.bdev, size,
 				       sizeof(struct radeon_bo));
 
-retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
@@ -145,15 +144,6 @@ retry:
 			acc_size, sg, &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS) {
-			if (domain == RADEON_GEM_DOMAIN_VRAM) {
-				domain |= RADEON_GEM_DOMAIN_GTT;
-				goto retry;
-			}
-			dev_err(rdev->dev,
-				"object_init failed for (%lu, 0x%08X)\n",
-				size, domain);
-		}
 		return r;
 	}
 	*bo_ptr = bo;
