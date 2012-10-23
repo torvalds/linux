@@ -1106,7 +1106,6 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 		if (source == pfi_output_select_do)
 			return -EINVAL;
 	}
-	BUG_ON(chan >= NUM_PFI_CHANNELS);
 
 	devpriv->pfi_output_selects[chan] = source;
 	if (devpriv->pfi_direction_bits & (((uint64_t) 1) << chan))
@@ -1120,7 +1119,6 @@ static unsigned ni_660x_get_pfi_routing(struct comedi_device *dev,
 {
 	struct ni_660x_private *devpriv = dev->private;
 
-	BUG_ON(chan >= NUM_PFI_CHANNELS);
 	return devpriv->pfi_output_selects[chan];
 }
 
