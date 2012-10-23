@@ -149,7 +149,7 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 	unsigned long enable;
 	enum ns2_led_modes mode;
 
-	ret = strict_strtoul(buff, 10, &enable);
+	ret = kstrtoul(buff, 10, &enable);
 	if (ret < 0)
 		return ret;
 
