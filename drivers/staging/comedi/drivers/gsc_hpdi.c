@@ -481,10 +481,10 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk(KERN_WARNING "comedi%d: gsc_hpdi\n", dev->minor);
 
-	retval = alloc_private(dev, sizeof(*devpriv));
-	if (retval)
-		return retval;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pcidev = NULL;
 	for (i = 0; i < ARRAY_SIZE(hpdi_boards) &&

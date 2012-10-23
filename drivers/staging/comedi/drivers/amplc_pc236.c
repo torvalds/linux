@@ -510,10 +510,10 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach\n");
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* Process options according to bus type. */
 	if (is_isa_board(thisboard)) {
@@ -546,7 +546,6 @@ static int __devinit pc236_attach_pci(struct comedi_device *dev,
 				      struct pci_dev *pci_dev)
 {
 	struct pc236_private *devpriv;
-	int ret;
 
 	if (!DO_PCI)
 		return -EINVAL;
@@ -554,10 +553,10 @@ static int __devinit pc236_attach_pci(struct comedi_device *dev,
 	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_ptr = pc236_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {

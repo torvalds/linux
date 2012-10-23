@@ -452,10 +452,10 @@ static int das16cs_attach(struct comedi_device *dev,
 		return ret;
 	dev->irq = link->irq;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

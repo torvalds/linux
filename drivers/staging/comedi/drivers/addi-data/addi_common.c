@@ -1482,10 +1482,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	if (!pci_list_builded) {
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */

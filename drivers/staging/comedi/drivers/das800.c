@@ -472,10 +472,10 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (irq)
 		dev_dbg(dev->class_dev, "irq %u\n", irq);
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	if (iobase == 0) {
 		dev_err(dev->class_dev,

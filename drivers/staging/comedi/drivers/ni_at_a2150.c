@@ -758,10 +758,10 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	printk("\n");
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	if (iobase == 0) {
 		printk(" io base address required\n");

@@ -1625,10 +1625,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* claim our I/O space */
 	iobase = it->options[0];

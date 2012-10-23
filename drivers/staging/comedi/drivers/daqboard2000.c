@@ -706,10 +706,10 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	result = alloc_private(dev, sizeof(*devpriv));
-	if (result)
-		return result;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	result = comedi_pci_enable(pcidev, dev->driver->driver_name);
 	if (result < 0)

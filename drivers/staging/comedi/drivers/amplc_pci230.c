@@ -2660,12 +2660,11 @@ static struct pci_dev *pci230_find_pci_dev(struct comedi_device *dev,
 static int pci230_alloc_private(struct comedi_device *dev)
 {
 	struct pci230_private *devpriv;
-	int err;
 
-	err = alloc_private(dev, sizeof(*devpriv));
-	if (err)
-		return err;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);

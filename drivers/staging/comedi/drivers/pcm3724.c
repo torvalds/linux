@@ -235,10 +235,10 @@ static int pcm3724_attach(struct comedi_device *dev,
 	iobase = it->options[0];
 	iorange = PCM3724_SIZE;
 
-	ret = alloc_private(dev, sizeof(*priv));
-	if (ret)
-		return ret;
-	priv = dev->private;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+	dev->private = priv;
 
 	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
 	       dev->board_name, iobase);

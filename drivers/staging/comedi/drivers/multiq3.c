@@ -258,10 +258,10 @@ static int multiq3_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	result = alloc_private(dev, sizeof(*devpriv));
-	if (result)
-		return result;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */

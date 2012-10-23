@@ -996,13 +996,12 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 static int ni_660x_allocate_private(struct comedi_device *dev)
 {
 	struct ni_660x_private *devpriv;
-	int retval;
 	unsigned i;
 
-	retval = alloc_private(dev, sizeof(*devpriv));
-	if (retval)
-		return retval;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 	spin_lock_init(&devpriv->interrupt_lock);

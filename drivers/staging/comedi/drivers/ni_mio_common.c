@@ -4424,12 +4424,11 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 static int ni_alloc_private(struct comedi_device *dev)
 {
 	struct ni_private *devpriv;
-	int ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->window_lock);
 	spin_lock_init(&devpriv->soft_reg_copy_lock);

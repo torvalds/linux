@@ -707,10 +707,10 @@ static int __devinit labpc_attach_pci(struct comedi_device *dev,
 	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
 		return -ENODEV;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
@@ -732,12 +732,11 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
-	int ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {

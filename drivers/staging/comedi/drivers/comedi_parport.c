@@ -305,10 +305,10 @@ static int parport_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;

@@ -1167,12 +1167,12 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret) {
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv) {
 		free_resources(dev);
-		return ret;
+		return -ENOMEM;
 	}
-	devpriv = dev->private;
+	dev->private = devpriv;
 
 	dev->board_name = board->name;
 

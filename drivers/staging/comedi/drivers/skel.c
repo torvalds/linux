@@ -225,10 +225,10 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	/* Allocate the private data */
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

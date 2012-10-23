@@ -786,10 +786,10 @@ static int serial2002_attach(struct comedi_device *dev,
 	dev_dbg(dev->class_dev, "serial2002: attach\n");
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->open = serial_2002_open;
 	dev->close = serial_2002_close;

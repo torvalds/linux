@@ -210,10 +210,10 @@ static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)

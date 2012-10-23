@@ -1607,10 +1607,10 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		comedi_debug = 1;
 #endif
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pcidev = rtd_find_pci(dev, it);
 	if (!pcidev)

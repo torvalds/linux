@@ -1586,10 +1586,10 @@ static int me4000_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	result = alloc_private(dev, sizeof(*info));
-	if (result)
-		return result;
-	info = dev->private;
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	dev->private = info;
 
 	result = comedi_pci_enable(pcidev, dev->board_name);
 	if (result)

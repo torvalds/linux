@@ -1688,10 +1688,10 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	uint32_t local_range, local_decode;
 	int retval;
 
-	retval = alloc_private(dev, sizeof(*devpriv));
-	if (retval)
-		return retval;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pcidev = cb_pcidas64_find_pci_dev(dev, it);
 	if (!pcidev)

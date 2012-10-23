@@ -1127,10 +1127,10 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	if (board->size < 0x400) {
 		printk(" 0x%04lx-0x%04lx\n", iobase, iobase + board->size);

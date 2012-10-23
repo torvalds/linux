@@ -1031,10 +1031,10 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = "dt9812";
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*
 	 * Special open routine, since USB unit may be unattached at

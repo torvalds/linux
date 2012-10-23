@@ -127,10 +127,10 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name = "fl512";
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 #if DEBUG
 	printk(KERN_DEBUG "malloc ok\n");

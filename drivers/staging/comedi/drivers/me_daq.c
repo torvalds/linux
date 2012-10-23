@@ -656,10 +656,10 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	error = alloc_private(dev, sizeof(*dev_private));
-	if (error)
-		return error;
-	dev_private = dev->private;
+	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	if (!dev_private)
+		return -ENOMEM;
+	dev->private = dev_private;
 
 	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pcidev, dev->board_name) < 0) {

@@ -762,10 +762,10 @@ static int jr3_pci_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	result = alloc_private(dev, sizeof(*devpriv));
-	if (result)
-		return result;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	card = NULL;
 	init_timer(&devpriv->timer);

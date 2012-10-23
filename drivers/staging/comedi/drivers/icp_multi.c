@@ -505,10 +505,10 @@ static int icp_multi_attach_pci(struct comedi_device *dev,
 	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)

@@ -1445,14 +1445,13 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci224_private *devpriv;
 	struct pci_dev *pci_dev;
-	int ret;
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pci_dev = pci224_find_pci_dev(dev, it);
 	if (!pci_dev)
@@ -1465,15 +1464,14 @@ static int __devinit
 pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 {
 	struct pci224_private *devpriv;
-	int ret;
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach_pci %s\n",
 		 pci_name(pci_dev));
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {

@@ -1542,10 +1542,10 @@ static int das1800_attach(struct comedi_device *dev,
 	int board;
 	int retval;
 
-	retval = alloc_private(dev, sizeof(*devpriv));
-	if (retval)
-		return retval;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	printk(KERN_DEBUG "comedi%d: %s: io 0x%lx", dev->minor,
 	       dev->driver->driver_name, iobase);

@@ -117,10 +117,10 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmcia_device *link;
 	int ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {

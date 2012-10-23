@@ -131,12 +131,11 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	struct pcmcia_device *link;
-	int ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {

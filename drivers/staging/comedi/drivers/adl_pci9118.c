@@ -1923,10 +1923,10 @@ static int pci9118_attach(struct comedi_device *dev,
 	else
 		master = 1;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pcidev = pci9118_find_pci(dev, it);
 	if (!pcidev)

@@ -206,10 +206,10 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 	dev->board_name = "pci20kc";

@@ -889,10 +889,10 @@ static int pci9111_attach_pci(struct comedi_device *dev,
 	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*dev_private));
-	if (ret)
-		return ret;
-	dev_private = dev->private;
+	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	if (!dev_private)
+		return -ENOMEM;
+	dev->private = dev_private;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)

@@ -806,10 +806,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_dbg(dev->class_dev, "dt3000:\n");
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pcidev = dt3000_find_pci_dev(dev, it);
 	if (!pcidev)

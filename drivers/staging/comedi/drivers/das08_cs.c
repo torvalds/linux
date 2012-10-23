@@ -91,14 +91,13 @@ static int das08_cs_attach(struct comedi_device *dev,
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
 	struct das08_private_struct *devpriv;
-	int ret;
 	unsigned long iobase;
 	struct pcmcia_device *link = cur_dev;	/*  XXX hack */
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev_info(dev->class_dev, "das08_cs: attach\n");
 	/*  deal with a pci board */

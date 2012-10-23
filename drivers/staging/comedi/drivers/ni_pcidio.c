@@ -1128,10 +1128,10 @@ static int __devinit nidio_attach_pci(struct comedi_device *dev,
 	int ret;
 	unsigned int irq;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 

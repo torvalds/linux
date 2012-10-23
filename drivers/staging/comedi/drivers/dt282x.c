@@ -1239,10 +1239,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	}
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
 			      it->options[opt_dma2]);
