@@ -221,7 +221,7 @@ config PUV3_GPIO
 	bool
 	depends on !ARCH_FPGA
 	select GENERIC_GPIO
-	select GPIO_SYSFS if EXPERIMENTAL
+	select GPIO_SYSFS
 	default y
 
 if PUV3_NB0916
