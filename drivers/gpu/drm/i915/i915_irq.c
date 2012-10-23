@@ -122,7 +122,10 @@ static int
 i915_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
+
+	return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE;
 }
 
 /* Called from drm generic code, passed a 'crtc', which

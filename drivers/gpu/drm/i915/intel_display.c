@@ -1018,9 +1018,11 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		int reg = PIPECONF(pipe);
+		int reg = PIPECONF(cpu_transcoder);
 
 		/* Wait for the Pipe State to go off */
 		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0,
@@ -1233,12 +1235,14 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 	bool cur_state;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 
 	/* if we need the pipe A quirk it must be always on */
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	reg = PIPECONF(pipe);
+	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	cur_state = !!(val & PIPECONF_ENABLE);
 	WARN(cur_state != state,
@@ -1756,6 +1760,8 @@ static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
 static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 			      bool pch_port)
 {
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 	int reg;
 	u32 val;
 
@@ -1775,7 +1781,7 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
-	reg = PIPECONF(pipe);
+	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if (val & PIPECONF_ENABLE)
 		return;
@@ -1799,6 +1805,8 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 			       enum pipe pipe)
 {
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 	int reg;
 	u32 val;
 
@@ -1812,7 +1820,7 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
 		return;
 
-	reg = PIPECONF(pipe);
+	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if ((val & PIPECONF_ENABLE) == 0)
 		return;
@@ -4898,10 +4906,10 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	uint32_t val;
 
-	val = I915_READ(PIPECONF(pipe));
+	val = I915_READ(PIPECONF(cpu_transcoder));
 
 	val &= ~(PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
 	if (dither)
@@ -4913,8 +4921,8 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc,
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
-	I915_WRITE(PIPECONF(pipe), val);
-	POSTING_READ(PIPECONF(pipe));
+	I915_WRITE(PIPECONF(cpu_transcoder), val);
+	POSTING_READ(PIPECONF(cpu_transcoder));
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
@@ -5388,7 +5396,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
 
-	WARN_ON(I915_READ(PIPECONF(pipe)) &
+	WARN_ON(I915_READ(PIPECONF(intel_crtc->cpu_transcoder)) &
 		(PIPECONF_ENABLE | I965_PIPECONF_ACTIVE));
 
 	WARN_ON(I915_READ(DSPCNTR(plane)) & DISPLAY_PLANE_ENABLE);
@@ -8562,7 +8570,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	u32 reg;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	reg = PIPECONF(crtc->pipe);
+	reg = PIPECONF(crtc->cpu_transcoder);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -8718,7 +8726,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-		tmp = I915_READ(PIPECONF(pipe));
+		tmp = I915_READ(PIPECONF(crtc->cpu_transcoder));
 		if (tmp & PIPECONF_ENABLE)
 			crtc->active = true;
 		else
@@ -8912,6 +8920,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_display_error_state *error;
+	enum transcoder cpu_transcoder;
 	int i;
 
 	error = kmalloc(sizeof(*error), GFP_ATOMIC);
@@ -8919,6 +8928,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 		return NULL;
 
 	for_each_pipe(i) {
+		cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv, i);
+
 		error->cursor[i].control = I915_READ(CURCNTR(i));
 		error->cursor[i].position = I915_READ(CURPOS(i));
 		error->cursor[i].base = I915_READ(CURBASE(i));
@@ -8933,7 +8944,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 			error->plane[i].tile_offset = I915_READ(DSPTILEOFF(i));
 		}
 
-		error->pipe[i].conf = I915_READ(PIPECONF(i));
+		error->pipe[i].conf = I915_READ(PIPECONF(cpu_transcoder));
 		error->pipe[i].source = I915_READ(PIPESRC(i));
 		error->pipe[i].htotal = I915_READ(HTOTAL(i));
 		error->pipe[i].hblank = I915_READ(HBLANK(i));

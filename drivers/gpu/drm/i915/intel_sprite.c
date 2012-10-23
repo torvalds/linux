@@ -424,6 +424,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj, *old_obj;
 	int pipe = intel_plane->pipe;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 	int ret = 0;
 	int x = src_x >> 16, y = src_y >> 16;
 	int primary_w = crtc->mode.hdisplay, primary_h = crtc->mode.vdisplay;
@@ -438,7 +440,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	src_h = src_h >> 16;
 
 	/* Pipe must be running... */
-	if (!(I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE))
+	if (!(I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE))
 		return -EINVAL;
 
 	if (crtc_x >= primary_w || crtc_y >= primary_h)
