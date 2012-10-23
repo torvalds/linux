@@ -1019,12 +1019,9 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
-static void hpd_irq_event_execute(struct work_struct *work);
-
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
 	INIT_DELAYED_WORK(&dev->mode_config.output_poll_work, output_poll_execute);
-	INIT_DELAYED_WORK(&dev->mode_config.hpd_irq_work, hpd_irq_event_execute);
 	dev->mode_config.poll_enabled = true;
 
 	drm_kms_helper_poll_enable(dev);
@@ -1037,10 +1034,8 @@ void drm_kms_helper_poll_fini(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
-static void hpd_irq_event_execute(struct work_struct *work)
+void drm_helper_hpd_irq_event(struct drm_device *dev)
 {
-	struct delayed_work *delayed_work = to_delayed_work(work);
-	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.hpd_irq_work);
 	struct drm_connector *connector;
 	enum drm_connector_status old_status;
 	bool changed = false;
@@ -1070,12 +1065,5 @@ static void hpd_irq_event_execute(struct work_struct *work)
 
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);
-}
-
-void drm_helper_hpd_irq_event(struct drm_device *dev)
-{
-	cancel_delayed_work(&dev->mode_config.hpd_irq_work);
-	if (drm_kms_helper_poll)
-		schedule_delayed_work(&dev->mode_config.hpd_irq_work, 0);
 }
 EXPORT_SYMBOL(drm_helper_hpd_irq_event);
