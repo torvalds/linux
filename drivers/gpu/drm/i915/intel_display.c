@@ -3283,7 +3283,186 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
+static void haswell_crtc_enable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	u32 temp;
+	bool is_pch_port;
+
+	WARN_ON(!crtc->enabled);
+
+	if (intel_crtc->active)
+		return;
+
+	intel_crtc->active = true;
+	intel_update_watermarks(dev);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		temp = I915_READ(PCH_LVDS);
+		if ((temp & LVDS_PORT_EN) == 0)
+			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
+	}
+
+	is_pch_port = intel_crtc_driving_pch(crtc);
+
+	if (is_pch_port) {
+		ironlake_fdi_pll_enable(intel_crtc);
+	} else {
+		assert_fdi_tx_disabled(dev_priv, pipe);
+		assert_fdi_rx_disabled(dev_priv, pipe);
+	}
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->pre_enable)
+			encoder->pre_enable(encoder);
+
+	if (IS_HASWELL(dev))
+		intel_ddi_enable_pipe_clock(intel_crtc);
+
+	/* Enable panel fitting for LVDS */
+	if (dev_priv->pch_pf_size &&
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
+		/* Force use of hard-coded filter coefficients
+		 * as some pre-programmed values are broken,
+		 * e.g. x201.
+		 */
+		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
+		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
+	}
+
+	/*
+	 * On ILK+ LUT must be loaded before the pipe is running but with
+	 * clocks enabled
+	 */
+	intel_crtc_load_lut(crtc);
+
+	if (IS_HASWELL(dev)) {
+		intel_ddi_set_pipe_settings(crtc);
+		intel_ddi_enable_pipe_func(crtc);
+	}
+
+	intel_enable_pipe(dev_priv, pipe, is_pch_port);
+	intel_enable_plane(dev_priv, plane, pipe);
+
+	if (is_pch_port)
+		ironlake_pch_enable(crtc);
+
+	mutex_lock(&dev->struct_mutex);
+	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	intel_crtc_update_cursor(crtc, true);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
+
+	if (HAS_PCH_CPT(dev))
+		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
+
+	/*
+	 * There seems to be a race in PCH platform hw (at least on some
+	 * outputs) where an enabled pipe still completes any pageflip right
+	 * away (as if the pipe is off) instead of waiting for vblank. As soon
+	 * as the first vblank happend, everything works as expected. Hence just
+	 * wait for one vblank before returning to avoid strange things
+	 * happening.
+	 */
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+}
+
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	u32 reg, temp;
+
+
+	if (!intel_crtc->active)
+		return;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->disable(encoder);
+
+	intel_crtc_wait_for_pending_flips(crtc);
+	drm_vblank_off(dev, pipe);
+	intel_crtc_update_cursor(crtc, false);
+
+	intel_disable_plane(dev_priv, plane, pipe);
+
+	if (dev_priv->cfb_plane == plane)
+		intel_disable_fbc(dev);
+
+	intel_disable_pipe(dev_priv, pipe);
+
+	if (IS_HASWELL(dev))
+		intel_ddi_disable_pipe_func(dev_priv, pipe);
+
+	/* Disable PF */
+	I915_WRITE(PF_CTL(pipe), 0);
+	I915_WRITE(PF_WIN_SZ(pipe), 0);
+
+	if (IS_HASWELL(dev))
+		intel_ddi_disable_pipe_clock(intel_crtc);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->post_disable)
+			encoder->post_disable(encoder);
+
+	ironlake_fdi_disable(crtc);
+
+	intel_disable_transcoder(dev_priv, pipe);
+
+	if (HAS_PCH_CPT(dev)) {
+		/* disable TRANS_DP_CTL */
+		reg = TRANS_DP_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
+		temp |= TRANS_DP_PORT_SEL_NONE;
+		I915_WRITE(reg, temp);
+
+		/* disable DPLL_SEL */
+		temp = I915_READ(PCH_DPLL_SEL);
+		switch (pipe) {
+		case 0:
+			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
+			break;
+		case 1:
+			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+			break;
+		case 2:
+			/* C shares PLL A or B */
+			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
+			break;
+		default:
+			BUG(); /* wtf */
+		}
+		I915_WRITE(PCH_DPLL_SEL, temp);
+	}
+
+	/* disable PCH DPLL */
+	intel_disable_pch_pll(intel_crtc);
+
+	ironlake_fdi_pll_disable(intel_crtc);
+
+	intel_crtc->active = false;
+	intel_update_watermarks(dev);
+
+	mutex_lock(&dev->struct_mutex);
+	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
+}
+
+static void haswell_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8109,8 +8288,8 @@ static void intel_init_display(struct drm_device *dev)
 	/* We always want a DPMS function */
 	if (IS_HASWELL(dev)) {
 		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
-		dev_priv->display.crtc_enable = ironlake_crtc_enable;
-		dev_priv->display.crtc_disable = ironlake_crtc_disable;
+		dev_priv->display.crtc_enable = haswell_crtc_enable;
+		dev_priv->display.crtc_disable = haswell_crtc_disable;
 		dev_priv->display.off = haswell_crtc_off;
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
