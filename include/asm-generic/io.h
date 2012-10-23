@@ -12,7 +12,6 @@
 #define __ASM_GENERIC_IO_H
 
 #include <asm/page.h> /* I/O is all done through memory accesses */
-#include <asm/cacheflush.h>
 #include <linux/types.h>
 
 #ifdef CONFIG_GENERIC_IOMAP
