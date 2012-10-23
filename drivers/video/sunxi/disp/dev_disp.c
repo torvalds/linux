@@ -178,7 +178,7 @@ void disp_free(void *p)
 	/* look for the node which po__s32 this memory block */
 	ptr = &boot_heap_head;
 	while (ptr && ptr->next) {
-		if (ptr->next->address == (__u32) p)
+		if (((void *) ptr->next->address) == p)
 			break;	/* find the node which need to be release */
 		ptr = ptr->next;
 	}
@@ -318,7 +318,7 @@ disp_mem_request(int sel, __u32 size)
 	unsigned map_size = 0;
 	struct page *page;
 
-	if (g_disp_mm[sel].info_base != 0)
+	if (g_disp_mm[sel].info_base != NULL)
 		return -EINVAL;
 
 	g_disp_mm[sel].mem_len = size;
@@ -327,7 +327,7 @@ disp_mem_request(int sel, __u32 size)
 	page = alloc_pages(GFP_KERNEL, get_order(map_size));
 	if (page != NULL) {
 		g_disp_mm[sel].info_base = page_address(page);
-		if (g_disp_mm[sel].info_base == 0) {
+		if (g_disp_mm[sel].info_base == NULL) {
 			free_pages((unsigned long)(page), get_order(map_size));
 			__wrn("page_address fail!\n");
 			return -ENOMEM;
@@ -344,13 +344,13 @@ disp_mem_request(int sel, __u32 size)
 		return -ENOMEM;
 	}
 #else
-	__u32 ret = 0;
+	void *ret;
 
-	ret = (__u32) disp_malloc(size);
-	if (ret != 0) {
-		g_disp_mm[sel].info_base = (void *)ret;
+	ret = disp_malloc(size);
+	if (ret) {
+		g_disp_mm[sel].info_base = ret;
 		g_disp_mm[sel].mem_start =
-		    virt_to_phys(g_disp_mm[sel].info_base);
+			virt_to_phys(g_disp_mm[sel].info_base);
 		memset(g_disp_mm[sel].info_base, 0, size);
 		__inf("pa=0x%08lx va=0x%p size:0x%x\n",
 		      g_disp_mm[sel].mem_start, g_disp_mm[sel].info_base, size);
