@@ -175,9 +175,13 @@ __s32 BSP_disp_close(void)
 		}
 	}
 
-	gdisp.screen[sel].status &=
-		~(IMAGE_USED | LCD_ON | TV_ON | VGA_ON | HDMI_ON);
-	gdisp.screen[sel].lcdc_status &= ~(LCDC_TCON0_USED & LCDC_TCON1_USED);
+	for (sel = 0; sel < 2; sel++) {
+		gdisp.screen[sel].status &=
+			~(IMAGE_USED | LCD_ON | TV_ON | VGA_ON | HDMI_ON);
+		gdisp.screen[sel].lcdc_status &=
+			~(LCDC_TCON0_USED & LCDC_TCON1_USED);
+	}
+
 	return DIS_SUCCESS;
 }
 
