@@ -204,10 +204,10 @@ static void r_tpu_set_pin(struct r_tpu_priv *p, enum r_tpu_pin new_state,
 	if (p->pin_state == R_TPU_PIN_GPIO_FN)
 		gpio_free(cfg->pin_gpio_fn);
 
-	if (new_state == R_TPU_PIN_GPIO) {
-		gpio_request(cfg->pin_gpio, cfg->name);
-		gpio_direction_output(cfg->pin_gpio, !!brightness);
-	}
+	if (new_state == R_TPU_PIN_GPIO)
+		gpio_request_one(cfg->pin_gpio, GPIOF_DIR_OUT | !!brightness,
+				cfg->name);
+
 	if (new_state == R_TPU_PIN_GPIO_FN)
 		gpio_request(cfg->pin_gpio_fn, cfg->name);
 
