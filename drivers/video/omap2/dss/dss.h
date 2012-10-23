@@ -178,7 +178,6 @@ void dss_copy_device_pdata(struct omap_dss_device *dst,
 		const struct omap_dss_device *src);
 
 /* apply */
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
 void dss_mgr_start_update(struct omap_overlay_manager *mgr);
 int dss_mgr_enable(struct omap_overlay_manager *mgr);
 void dss_mgr_disable(struct omap_overlay_manager *mgr);
@@ -186,17 +185,6 @@ void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings);
 void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config);
-
-bool dss_ovl_is_enabled(struct omap_overlay *ovl);
-int dss_ovl_enable(struct omap_overlay *ovl);
-int dss_ovl_disable(struct omap_overlay *ovl);
-int dss_ovl_set_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info);
-void dss_ovl_get_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info);
-int dss_ovl_set_manager(struct omap_overlay *ovl,
-		struct omap_overlay_manager *mgr);
-int dss_ovl_unset_manager(struct omap_overlay *ovl);
 
 /* output */
 void dss_register_output(struct omap_dss_output *out);
