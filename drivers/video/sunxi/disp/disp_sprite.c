@@ -349,7 +349,7 @@ __s32 BSP_disp_sprite_exit(__u32 sel)
 
 __s32 BSP_disp_sprite_open(__u32 sel)
 {
-	if (!gsprite[sel].status & SPRITE_OPENED) {
+	if (!(gsprite[sel].status & SPRITE_OPENED)) {
 		DE_BE_Sprite_Enable(sel, TRUE);
 
 		gsprite[sel].enable = TRUE;
