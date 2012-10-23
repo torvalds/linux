@@ -75,6 +75,7 @@ typedef struct
     wait_queue_head_t       scaler_queue;
     __bool                  b_scaler_finished;
 #endif
+    __bool                      coef_change;
 }__disp_scaler_t;
 
 extern __disp_scaler_t    gscl;

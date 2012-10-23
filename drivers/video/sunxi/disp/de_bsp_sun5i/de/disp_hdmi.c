@@ -62,7 +62,7 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 		Image_open(sel);//set image normal channel start bit , because every de_clk_off( )will reset this bit
     	disp_clk_cfg(sel,DISP_OUTPUT_TYPE_HDMI, tv_mod);
 
-        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_HDMI);
+        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_HDMI, gdisp.screen[sel].iep_status&DRC_USED);
     	DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
     	DE_BE_Output_Select(sel, sel);
     	DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));

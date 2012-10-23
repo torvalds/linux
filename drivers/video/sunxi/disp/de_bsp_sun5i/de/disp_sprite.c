@@ -435,7 +435,7 @@ __s32 BSP_disp_sprite_set_format(__u32 sel, __disp_pixel_fmt_t format, __disp_pi
 {
 	gsprite[sel].format = format;
 	gsprite[sel].pixel_seq = pixel_seq;
-	DE_BE_Sprite_Set_Format(sel, pixel_seq,(format==DISP_FORMAT_ARGB8888)?0:1);
+	DE_BE_Sprite_Set_Format(sel, (pixel_seq==DISP_SEQ_ARGB)?0:1,(format==DISP_FORMAT_ARGB8888)?0:1);
 
 	return DIS_SUCCESS;
 }

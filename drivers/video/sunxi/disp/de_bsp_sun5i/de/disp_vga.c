@@ -59,7 +59,7 @@ __s32 BSP_disp_vga_open(__u32 sel)
     	disp_clk_cfg(sel,DISP_OUTPUT_TYPE_VGA, vga_mode);
     	Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_VGA, 1);
 
-        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_VGA);
+        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_VGA, gdisp.screen[sel].iep_status&DRC_USED);
         DE_BE_set_display_size(sel, vga_mode_to_width(vga_mode), vga_mode_to_height(vga_mode));
         DE_BE_Output_Select(sel, sel);
     	TCON1_set_vga_mode(sel,vga_mode);

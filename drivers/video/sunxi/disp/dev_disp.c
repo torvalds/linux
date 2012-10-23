@@ -87,6 +87,13 @@ static struct resource disp_resource[DISP_IO_NUM] =
 		.end   = 0x01c1bfff,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_ARCH_SUN5I
+	[DISP_IO_IEP] = {
+		.start = 0x01e70000,
+		.end   = 0x01e703ff,
+		.flags = IORESOURCE_MEM,
+	},
+#endif
 };
 
 
@@ -257,6 +264,9 @@ __s32 DRV_DISP_Init(void)
     para.base_lcdc1     = (__u32)g_fbi.base_lcdc1;
     para.base_tvec0      = (__u32)g_fbi.base_tvec0;
     para.base_tvec1      = (__u32)g_fbi.base_tvec1;
+#ifdef CONFIG_ARCH_SUN5I
+    para.base_iep       = (__u32)g_fbi.base_iep;
+#endif
     para.base_ccmu      = (__u32)g_fbi.base_ccmu;
     para.base_sdram     = (__u32)g_fbi.base_sdram;
     para.base_pioc      = (__u32)g_fbi.base_pioc;
@@ -265,12 +275,10 @@ __s32 DRV_DISP_Init(void)
 
 	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
 
-#ifdef CONFIG_ARCH_SUN5I
-    sys_put_wvalue(0xf1c20118, 1<<19);
-#endif
-    
+
     BSP_disp_init(&para);
     BSP_disp_open();
+
 
     return 0;
 }
@@ -417,7 +425,9 @@ static int __devinit disp_probe(struct platform_device *pdev)
 	info->base_sdram = 0xf1c01000;
 	info->base_pioc = 0xf1c20800;
 	info->base_pwm = 0xf1c20c00;
-
+#ifdef CONFIG_ARCH_SUN5I
+	info->base_iep = 0xf1e70000;
+#endif
 	__inf("SCALER0 base 0x%08x\n", info->base_scaler0);
 	__inf("SCALER1 base 0x%08x\n", info->base_scaler1);
 	__inf("IMAGE0 base 0x%08x\n", info->base_image0+ 0x800);
@@ -426,6 +436,9 @@ static int __devinit disp_probe(struct platform_device *pdev)
 	__inf("LCDC1 base 0x%08x\n", info->base_lcdc1);
 	__inf("TVEC0 base 0x%08x\n", info->base_tvec0);
 	__inf("TVEC1 base 0x%08x\n", info->base_tvec1);
+#ifdef CONFIG_ARCH_SUN5I
+	__inf("IEP base 0x%08x\n", info->base_iep);
+#endif
 	__inf("CCMU base 0x%08x\n", info->base_ccmu);
 	__inf("SDRAM base 0x%08x\n", info->base_sdram);
 	__inf("PIO base 0x%08x\n", info->base_pioc);
@@ -769,7 +782,6 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             ret = BSP_disp_get_saturation(ubuffer[0]);
     		break;
 
-#ifdef CONFIG_ARCH_SUN4I
         case DISP_CMD_SET_HUE:
             ret = BSP_disp_set_hue(ubuffer[0], ubuffer[1]);
     		break;
@@ -777,7 +789,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case DISP_CMD_GET_HUE:
             ret = BSP_disp_get_hue(ubuffer[0]);
     		break;
-#endif
+#ifdef CONFIG_ARCH_SUN4I
         case DISP_CMD_ENHANCE_ON:
             ret = BSP_disp_enhance_enable(ubuffer[0], 1);
     		break;
@@ -789,6 +801,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case DISP_CMD_GET_ENHANCE_EN:
             ret = BSP_disp_get_enhance_enable(ubuffer[0]);
     		break;
+#endif
 
     	case DISP_CMD_CAPTURE_SCREEN:
     	    ret = BSP_disp_capture_screen(ubuffer[0], (__disp_capture_screen_para_t *)ubuffer[1]);
@@ -798,13 +811,68 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             ret = BSP_disp_set_screen_size(ubuffer[0], (__disp_rectsz_t*)ubuffer[1]);
             break;
 
+	//----iep----
         case DISP_CMD_DE_FLICKER_ON:
+#ifdef CONFIG_ARCH_SUN4I
             ret = BSP_disp_de_flicker_enable(ubuffer[0], 1);
+#else
+            ret = BSP_disp_iep_deflicker_enable(ubuffer[0], 1);
+#endif
             break;
 
         case DISP_CMD_DE_FLICKER_OFF:
+#ifdef CONFIG_ARCH_SUN4I
             ret = BSP_disp_de_flicker_enable(ubuffer[0], 0);
+#else
+            ret = BSP_disp_iep_deflicker_enable(ubuffer[0], 0);
+#endif
             break;
+
+#ifdef CONFIG_ARCH_SUN5I
+        case DISP_CMD_GET_DE_FLICKER_EN:
+        	ret = BSP_disp_iep_get_deflicker_enable(ubuffer[0]);
+        	break;
+
+        case DISP_CMD_DRC_ON:
+        	ret = BSP_disp_iep_drc_enable(ubuffer[0], 1);
+        	break;
+
+        case DISP_CMD_DRC_OFF:
+			ret = BSP_disp_iep_drc_enable(ubuffer[0], 0);
+        	break;
+
+		case DISP_CMD_GET_DRC_EN:
+			ret = BSP_disp_iep_get_drc_enable(ubuffer[0]);
+			break;
+
+        case DISP_CMD_DE_FLICKER_SET_WINDOW:
+        {
+          	__disp_rect_t para;
+
+    		if(copy_from_user(&para, (void __user *)ubuffer[1],sizeof(__disp_rect_t)))
+    		{
+    		    __wrn("copy_from_user fail\n");
+    			return  -EFAULT;
+    		}
+
+			ret = BSP_disp_iep_set_demo_win(ubuffer[0], 1, &para);
+			break;
+		}
+
+        case DISP_CMD_DRC_SET_WINDOW:
+		{
+			__disp_rect_t para;
+
+			if(copy_from_user(&para, (void __user *)ubuffer[1],sizeof(__disp_rect_t)))
+			{
+				__wrn("copy_from_user fail\n");
+				return	-EFAULT;
+			}
+
+			ret = BSP_disp_iep_set_demo_win(ubuffer[0], 2, &para);
+			break;
+		}
+#endif
 
     //----layer----
     	case DISP_CMD_LAYER_REQUEST:
@@ -1207,26 +1275,26 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     //----lcd----
     	case DISP_CMD_LCD_ON:
     		ret = DRV_lcd_open(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_LCD;
             }
-#endif
     		break;
 
     	case DISP_CMD_LCD_OFF:
     		ret = DRV_lcd_close(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
             }
-#endif
     		break;
 
     	case DISP_CMD_LCD_SET_BRIGHTNESS:
+#ifdef CONFIG_ARCH_SUN4I
     		ret = BSP_disp_lcd_set_bright(ubuffer[0], ubuffer[1]);
+#else
+    		ret = BSP_disp_lcd_set_bright(ubuffer[0], ubuffer[1],0);
+#endif
     		break;
 
     	case DISP_CMD_LCD_GET_BRIGHTNESS:
@@ -1258,22 +1326,18 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     //----tv----
     	case DISP_CMD_TV_ON:
     		ret = BSP_disp_tv_open(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_TV;
             }
-#endif
     		break;
 
     	case DISP_CMD_TV_OFF:
     		ret = BSP_disp_tv_close(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
             }
-#endif
     		break;
 
     	case DISP_CMD_TV_SET_MODE:
@@ -1329,22 +1393,18 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     //----hdmi----
     	case DISP_CMD_HDMI_ON:
     		ret = BSP_disp_hdmi_open(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_HDMI;
             }
-#endif
     		break;
 
     	case DISP_CMD_HDMI_OFF:
     		ret = BSP_disp_hdmi_close(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
             }
-#endif
     		break;
 
     	case DISP_CMD_HDMI_SET_MODE:
@@ -1377,22 +1437,18 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     //----vga----
     	case DISP_CMD_VGA_ON:
     		ret = BSP_disp_vga_open(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_VGA;
             }
-#endif
     		break;
 
     	case DISP_CMD_VGA_OFF:
     		ret = BSP_disp_vga_close(ubuffer[0]);
-#ifdef CONFIG_ARCH_SUN4I
             if(suspend_status != 0)
             {
                 suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
             }
-#endif
     		break;
 
     	case DISP_CMD_VGA_SET_MODE:

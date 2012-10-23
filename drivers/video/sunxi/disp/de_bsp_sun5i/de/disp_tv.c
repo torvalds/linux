@@ -222,7 +222,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
         tve_clk_on(sel);
         lcdc_clk_on(sel);
 
-        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV);
+        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV,gdisp.screen[sel].iep_status&DRC_USED);
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
         DE_BE_Output_Select(sel, sel);
 		DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
@@ -250,6 +250,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
         Disp_TVEC_Open(sel);
 
         Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_TV, tv_mod);
+        Disp_de_flicker_enable(sel, TRUE);
 #ifdef __LINUX_OSAL__
         {
             user_gpio_set_t  gpio_info[1];
@@ -301,6 +302,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
         tve_clk_off(sel);
         image_clk_off(sel);
         lcdc_clk_off(sel);
+        Disp_de_flicker_enable(sel, 2);	//must close immediately, because vbi may not come
 		DE_BE_Set_Outitl_enable(sel, FALSE);
         for(scaler_index=0; scaler_index<2; scaler_index++)
         {
@@ -366,23 +368,20 @@ __s32 BSP_disp_tv_get_mode(__u32 sel)
 
 __s32 BSP_disp_tv_get_interface(__u32 sel)
 {
-    __u8 dac[4];
+    __u8 dac[4] = {0};
     __s32 i = 0;
 	__u32  ret = DISP_TV_NONE;
 
     for(i=0; i<4; i++)
     {
         dac[i] = TVE_get_dac_status(i);
+        if(dac[i]>1)
+
+    {
+            DE_WRN("dac %d short to ground\n", i);
+            dac[i] = 0;
     }
 
-    if(dac[0]>1 || dac[1]>1 || dac[2]>1 || dac[3]>1)
-    {
-        DE_WRN("shor to ground\n");
-    }
-    else
-    {
-        for(i=0; i<4; i++)
-        {
             if(gdisp.screen[sel].dac_source[i] == DISP_TV_DAC_SRC_COMPOSITE && dac[i] == 1)
             {
                 ret |= DISP_TV_CVBS;
@@ -396,7 +395,6 @@ __s32 BSP_disp_tv_get_interface(__u32 sel)
                 ret |= DISP_TV_SVIDEO;
             }
         }
-    }
 
     return  ret;
 }
@@ -405,7 +403,7 @@ __s32 BSP_disp_tv_get_interface(__u32 sel)
 
 __s32 BSP_disp_tv_get_dac_status(__u32 sel, __u32 index)
 {
-	return gdisp.screen[sel].dac_source[index];
+	return TVE_get_dac_status(index);
 }
 
 __s32 BSP_disp_tv_set_dac_source(__u32 sel, __u32 index, __disp_tv_dac_source source)

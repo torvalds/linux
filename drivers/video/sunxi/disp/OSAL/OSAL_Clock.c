@@ -207,6 +207,12 @@ static char* _modClkName[AW_MOD_CLK_CNT] =
     "sdram_de_image1",
     "sdram_de_mix",
     "sdram_ace",
+    "ahb_ehci1",
+    "ahb_ohci1",
+
+    "iep",
+    "ahb_iep",
+    "sdram_iep",
 };
 
 __s32 OSAL_CCMU_SetSrcFreq( __u32 nSclkNo, __u32 nFreq )

@@ -39,14 +39,6 @@ static __s32 lcd_spi_mosi = 0;
 static __s32 lcd_spi_used = 0;
 static __s32 lcd_spi_module = -1;
 
-#ifdef CONFIG_ARCH_SUN5I
-#include "../../../power/axp_power/axp-gpio.h"
-extern int axp_gpio_set_io(int gpio, int io_state);
-extern int axp_gpio_get_io(int gpio, int *io_state);
-extern int axp_gpio_set_value(int gpio, int value);
-extern int axp_gpio_get_value(int gpio, int *value);
-#endif
-
 static void check_spi_used_value()
 {
 	if (SCRIPT_PARSER_OK
@@ -203,43 +195,23 @@ void LCD_SPI_Dinit(__u32 sel)
 
 void LCD_power_on_generic(__u32 sel)
 {
-#ifdef CONFIG_ARCH_SUN5I
-	axp_gpio_set_io(0, 1);
-	axp_gpio_set_value(0, 1);
-#else
 	LCD_POWER_EN(sel, 1); /* config lcd_power pin to open lcd power */
-#endif
 }
 
 void LCD_power_off_generic(__u32 sel)
 {
-#ifdef CONFIG_ARCH_SUN5I
-	axp_gpio_set_io(0, 1);
-	axp_gpio_set_value(0, 0);
-#else
 	LCD_POWER_EN(sel, 0); /* config lcd_power pin to close lcd power */
-#endif
 }
 
 void LCD_bl_open_generic(__u32 sel)
 {
 	LCD_PWM_EN(sel, 1); /* open pwm module */
-#ifdef CONFIG_ARCH_SUN5I
-	axp_gpio_set_io(1, 1);
-	axp_gpio_set_value(1, 1);
-#else
 	LCD_BL_EN(sel, 1); /* config lcd_bl_en pin to open lcd backlight */
-#endif
 }
 
 void LCD_bl_close_generic(__u32 sel)
 {
-#ifdef CONFIG_ARCH_SUN5I
-	axp_gpio_set_io(1, 1);
-	axp_gpio_set_value(1, 0);
-#else
 	LCD_BL_EN(sel, 0); /* config lcd_bl_en pin to close lcd backlight */
-#endif
 	LCD_PWM_EN(sel, 0); /* close pwm module */
 }
 
