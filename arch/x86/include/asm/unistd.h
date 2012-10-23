@@ -51,6 +51,9 @@
 # define __ARCH_WANT_SYS_UTIME
 # define __ARCH_WANT_SYS_WAITPID
 # define __ARCH_WANT_SYS_EXECVE
+# define __ARCH_WANT_SYS_FORK
+# define __ARCH_WANT_SYS_VFORK
+# define __ARCH_WANT_SYS_CLONE
 
 /*
  * "Conditional" syscalls
