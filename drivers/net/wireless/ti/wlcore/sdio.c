@@ -326,8 +326,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	/* Undo decrement done above in wl1271_probe */
 	pm_runtime_get_noresume(&func->dev);
 
-	platform_device_del(glue->core);
-	platform_device_put(glue->core);
+	platform_device_unregister(glue->core);
 	kfree(glue);
 }
 
