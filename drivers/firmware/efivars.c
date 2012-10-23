@@ -911,7 +911,7 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 
 	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	var = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
 	if (!var) {
