@@ -307,12 +307,10 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 	}
 	rdata->read_done_cb = filelayout_read_done_cb;
 
-	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
-				&rdata->args.seq_args, &rdata->res.seq_res,
-				task))
-		return;
-
-	rpc_call_start(task);
+	nfs41_setup_sequence(rdata->ds_clp->cl_session,
+			&rdata->args.seq_args,
+			&rdata->res.seq_res,
+			task);
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
@@ -409,12 +407,10 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 		rpc_exit(task, 0);
 		return;
 	}
-	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
-				&wdata->args.seq_args, &wdata->res.seq_res,
-				task))
-		return;
-
-	rpc_call_start(task);
+	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+			&wdata->args.seq_args,
+			&wdata->res.seq_res,
+			task);
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
@@ -450,12 +446,10 @@ static void filelayout_commit_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_commit_data *wdata = data;
 
-	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
-				&wdata->args.seq_args, &wdata->res.seq_res,
-				task))
-		return;
-
-	rpc_call_start(task);
+	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+			&wdata->args.seq_args,
+			&wdata->res.seq_res,
+			task);
 }
 
 static void filelayout_write_commit_done(struct rpc_task *task, void *data)

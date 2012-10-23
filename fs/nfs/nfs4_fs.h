@@ -273,6 +273,7 @@ static inline int nfs4_setup_sequence(const struct nfs_server *server,
 		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
 		struct rpc_task *task)
 {
+	rpc_call_start(task);
 	return 0;
 }
 
