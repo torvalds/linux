@@ -522,12 +522,12 @@ __s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t * in_scan,
  *   out_type:  output data format
  *   smth_mode: scaler filter effect select
  */
-__s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t * in_scan,
-			       __scal_src_size_t * in_size,
-			       __scal_src_type_t * in_type,
-			       __scal_scan_mod_t * out_scan,
-			       __scal_out_size_t * out_size,
-			       __scal_out_type_t * out_type, __u8 smth_mode)
+__s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan,
+			       __scal_src_size_t *in_size,
+			       __scal_src_type_t *in_type,
+			       __scal_scan_mod_t *out_scan,
+			       __scal_out_size_t *out_size,
+			       __scal_out_type_t *out_type, __u32 smth_mode)
 {
 	__s32 in_w0, in_h0, in_w1, in_h1, out_w0, out_h0, out_w1, out_h1;
 	__s32 ch0h_smth_level, ch0v_smth_level, ch1h_smth_level,
