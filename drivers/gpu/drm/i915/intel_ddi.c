@@ -1095,15 +1095,21 @@ void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc)
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
-	I915_WRITE(PIPE_CLK_SEL(intel_crtc->pipe), PIPE_CLK_SEL_PORT(port));
+	if (cpu_transcoder != TRANSCODER_EDP)
+		I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+			   TRANS_CLK_SEL_PORT(port));
 }
 
 void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 {
 	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
-	I915_WRITE(PIPE_CLK_SEL(intel_crtc->pipe), PIPE_CLK_SEL_DISABLED);
+	if (cpu_transcoder != TRANSCODER_EDP)
+		I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+			   TRANS_CLK_SEL_DISABLED);
 }
 
 void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)

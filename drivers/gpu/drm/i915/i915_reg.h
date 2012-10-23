@@ -4543,13 +4543,13 @@
 #define  PORT_CLK_SEL_WRPLL2		(5<<29)
 #define  PORT_CLK_SEL_NONE		(7<<29)
 
-/* Pipe clock selection */
-#define PIPE_CLK_SEL_A			0x46140
-#define PIPE_CLK_SEL_B			0x46144
-#define PIPE_CLK_SEL(pipe) _PIPE(pipe, PIPE_CLK_SEL_A, PIPE_CLK_SEL_B)
-/* For each pipe, we need to select the corresponding port clock */
-#define  PIPE_CLK_SEL_DISABLED		(0x0<<29)
-#define  PIPE_CLK_SEL_PORT(x)		((x+1)<<29)
+/* Transcoder clock selection */
+#define TRANS_CLK_SEL_A			0x46140
+#define TRANS_CLK_SEL_B			0x46144
+#define TRANS_CLK_SEL(tran) _TRANSCODER(tran, TRANS_CLK_SEL_A, TRANS_CLK_SEL_B)
+/* For each transcoder, we need to select the corresponding port clock */
+#define  TRANS_CLK_SEL_DISABLED		(0x0<<29)
+#define  TRANS_CLK_SEL_PORT(x)		((x+1)<<29)
 
 #define _PIPEA_MSA_MISC			0x60410
 #define _PIPEB_MSA_MISC			0x61410
