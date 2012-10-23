@@ -1746,7 +1746,6 @@ static inline void xs_reclassify_socketu(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	BUG_ON(sock_owned_by_user(sk));
 	sock_lock_init_class_and_name(sk, "slock-AF_LOCAL-RPC",
 		&xs_slock_key[1], "sk_lock-AF_LOCAL-RPC", &xs_key[1]);
 }
@@ -1755,7 +1754,6 @@ static inline void xs_reclassify_socket4(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	BUG_ON(sock_owned_by_user(sk));
 	sock_lock_init_class_and_name(sk, "slock-AF_INET-RPC",
 		&xs_slock_key[0], "sk_lock-AF_INET-RPC", &xs_key[0]);
 }
@@ -1764,13 +1762,16 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	BUG_ON(sock_owned_by_user(sk));
 	sock_lock_init_class_and_name(sk, "slock-AF_INET6-RPC",
 		&xs_slock_key[1], "sk_lock-AF_INET6-RPC", &xs_key[1]);
 }
 
 static inline void xs_reclassify_socket(int family, struct socket *sock)
 {
+	WARN_ON_ONCE(sock_owned_by_user(sock->sk));
+	if (sock_owned_by_user(sock->sk))
+		return;
+
 	switch (family) {
 	case AF_LOCAL:
 		xs_reclassify_socketu(sock);
