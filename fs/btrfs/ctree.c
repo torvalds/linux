@@ -1239,6 +1239,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	struct tree_mod_root *old_root = NULL;
 	u64 old_generation = 0;
 	u64 logical;
+	u32 blocksize;
 
 	eb = btrfs_read_lock_root_node(root);
 	tm = __tree_mod_log_oldest_root(root->fs_info, root, time_seq);
@@ -1254,12 +1255,28 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	}
 
 	tm = tree_mod_log_search(root->fs_info, logical, time_seq);
-	if (old_root)
+	if (old_root && tm && tm->op != MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
+		blocksize = btrfs_level_size(root, old_root->level);
+		eb = read_tree_block(root, logical, blocksize, 0);
+		if (!eb) {
+			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
+				logical);
+			WARN_ON(1);
+		} else {
+			eb = btrfs_clone_extent_buffer(eb);
+		}
+	} else if (old_root) {
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
 		eb = alloc_dummy_extent_buffer(logical, root->nodesize);
-	else
+	} else {
 		eb = btrfs_clone_extent_buffer(root->node);
-	btrfs_tree_read_unlock(root->node);
-	free_extent_buffer(root->node);
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
+	}
+
 	if (!eb)
 		return NULL;
 	btrfs_tree_read_lock(eb);
