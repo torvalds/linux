@@ -126,7 +126,7 @@ config SND_SOC_IMX_AUDMUX
 
 config SND_MXC_SOC_WM1133_EV1
 	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
-	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
+	depends on MACH_MX31ADS_WM1133_EV1
 	select SND_SOC_WM8350
 	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
