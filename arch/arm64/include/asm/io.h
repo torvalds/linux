@@ -225,9 +225,9 @@ extern void __iounmap(volatile void __iomem *addr);
 #define PROT_DEVICE_nGnRE	(PROT_DEFAULT | PTE_XN | PTE_ATTRINDX(MT_DEVICE_nGnRE))
 #define PROT_NORMAL_NC		(PROT_DEFAULT | PTE_ATTRINDX(MT_NORMAL_NC))
 
-#define ioremap(addr, size)		__ioremap((addr), (size), PROT_DEVICE_nGnRE)
-#define ioremap_nocache(addr, size)	__ioremap((addr), (size), PROT_DEVICE_nGnRE)
-#define ioremap_wc(addr, size)		__ioremap((addr), (size), PROT_NORMAL_NC)
+#define ioremap(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
+#define ioremap_nocache(addr, size)	__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
+#define ioremap_wc(addr, size)		__ioremap((addr), (size), __pgprot(PROT_NORMAL_NC))
 #define iounmap				__iounmap
 
 #define ARCH_HAS_IOREMAP_WC
