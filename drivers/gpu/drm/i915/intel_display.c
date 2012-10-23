@@ -3283,12 +3283,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	is_pch_port = haswell_crtc_driving_pch(crtc);
 
-	if (is_pch_port) {
+	if (is_pch_port)
 		ironlake_fdi_pll_enable(intel_crtc);
-	} else {
-		assert_fdi_tx_disabled(dev_priv, pipe);
-		assert_fdi_rx_disabled(dev_priv, pipe);
-	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -3430,9 +3426,12 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
+	bool is_pch_port;
 
 	if (!intel_crtc->active)
 		return;
+
+	is_pch_port = haswell_crtc_driving_pch(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
@@ -3460,14 +3459,12 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	ironlake_fdi_disable(crtc);
-
-	intel_disable_transcoder(dev_priv, pipe);
-
-	/* disable PCH DPLL */
-	intel_disable_pch_pll(intel_crtc);
-
-	ironlake_fdi_pll_disable(intel_crtc);
+	if (is_pch_port) {
+		ironlake_fdi_disable(crtc);
+		intel_disable_transcoder(dev_priv, pipe);
+		intel_disable_pch_pll(intel_crtc);
+		ironlake_fdi_pll_disable(intel_crtc);
+	}
 
 	intel_crtc->active = false;
 	intel_update_watermarks(dev);
