@@ -240,15 +240,13 @@ int init_cx18_i2c(struct cx18 *cx)
 
 	for (i = 0; i < 2; i++) {
 		/* Setup algorithm for adapter */
-		memcpy(&cx->i2c_algo[i], &cx18_i2c_algo_template,
-			sizeof(struct i2c_algo_bit_data));
+		cx->i2c_algo[i] = cx18_i2c_algo_template;
 		cx->i2c_algo_cb_data[i].cx = cx;
 		cx->i2c_algo_cb_data[i].bus_index = i;
 		cx->i2c_algo[i].data = &cx->i2c_algo_cb_data[i];
 
 		/* Setup adapter */
-		memcpy(&cx->i2c_adap[i], &cx18_i2c_adap_template,
-			sizeof(struct i2c_adapter));
+		cx->i2c_adap[i] = cx18_i2c_adap_template;
 		cx->i2c_adap[i].algo_data = &cx->i2c_algo[i];
 		sprintf(cx->i2c_adap[i].name + strlen(cx->i2c_adap[i].name),
 				" #%d-%d", cx->instance, i);
