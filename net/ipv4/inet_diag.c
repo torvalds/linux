@@ -105,6 +105,9 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	r->id.idiag_src[0] = inet->inet_rcv_saddr;
 	r->id.idiag_dst[0] = inet->inet_daddr;
 
+	if (nla_put_u8(skb, INET_DIAG_SHUTDOWN, sk->sk_shutdown))
+		goto errout;
+
 	/* IPv6 dual-stack sockets use inet->tos for IPv4 connections,
 	 * hence this needs to be included regardless of socket family.
 	 */
