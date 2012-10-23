@@ -43,7 +43,7 @@ static int __devinit cobalt_qube_led_probe(struct platform_device *pdev)
 	if (!res)
 		return -EBUSY;
 
-	led_port = ioremap(res->start, resource_size(res));
+	led_port = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!led_port)
 		return -ENOMEM;
 
@@ -52,12 +52,11 @@ static int __devinit cobalt_qube_led_probe(struct platform_device *pdev)
 
 	retval = led_classdev_register(&pdev->dev, &qube_front_led);
 	if (retval)
-		goto err_iounmap;
+		goto err_null;
 
 	return 0;
 
-err_iounmap:
-	iounmap(led_port);
+err_null:
 	led_port = NULL;
 
 	return retval;
@@ -67,10 +66,8 @@ static int __devexit cobalt_qube_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&qube_front_led);
 
-	if (led_port) {
-		iounmap(led_port);
+	if (led_port)
 		led_port = NULL;
-	}
 
 	return 0;
 }
