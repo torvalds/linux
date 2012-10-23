@@ -2827,7 +2827,7 @@ sn9c102_vidioc_querybuf(struct sn9c102_device* cam, void __user * arg)
 	    b.index >= cam->nbuffers || cam->io != IO_MMAP)
 		return -EINVAL;
 
-	memcpy(&b, &cam->frame[b.index].buf, sizeof(b));
+	b = cam->frame[b.index].buf;
 
 	if (cam->frame[b.index].vma_use_count)
 		b.flags |= V4L2_BUF_FLAG_MAPPED;
@@ -2930,7 +2930,7 @@ sn9c102_vidioc_dqbuf(struct sn9c102_device* cam, struct file* filp,
 
 	f->state = F_UNUSED;
 
-	memcpy(&b, &f->buf, sizeof(b));
+	b = f->buf;
 	if (f->vma_use_count)
 		b.flags |= V4L2_BUF_FLAG_MAPPED;
 
