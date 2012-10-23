@@ -27,7 +27,7 @@
 #define SCALER_HANDTOID(handle)  ((handle) - 100)
 #define SCALER_IDTOHAND(ID)  ((ID) + 100)
 
-#define SCALER_WB_FINISHED          0x00000002
+#define SCALER_WB_FINISHED 0x00000002
 
 typedef enum {
 	SCALER_IN_SRC_DRAM = 0,

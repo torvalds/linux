@@ -62,7 +62,10 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 	cur_line = LCDC_get_cur_line(sel, tcon_index);
 	start_delay = LCDC_get_start_delay(sel, tcon_index);
 	if (cur_line > start_delay - 3) {
-		//DE_INF("cur_line(%d) >= start_delay(%d)-3 in LCD_vbi_event_proc\n", cur_line, start_delay);
+#if 0
+		DE_INF("cur_line(%d) >= start_delay(%d)-3 in "
+		       "LCD_vbi_event_proc\n", cur_line, start_delay);
+#endif
 		return;
 	}
 #ifdef CONFIG_ARCH_SUN5I
@@ -73,14 +76,16 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 		(*gdisp.screen[sel].LCD_CPUIF_ISR) ();
 	}
 
-	if (gdisp.screen[sel].cache_flag == FALSE
-	    && gdisp.screen[sel].cfg_cnt == 0) {
+	if (gdisp.screen[sel].cache_flag == FALSE &&
+	    gdisp.screen[sel].cfg_cnt == 0) {
 		for (i = 0; i < 2; i++) {
-			if ((gdisp.scaler[i].status & SCALER_USED)
-			    && (gdisp.scaler[i].screen_index == sel)) {
+			if ((gdisp.scaler[i].status & SCALER_USED) &&
+			    (gdisp.scaler[i].screen_index == sel)) {
 				DE_SCAL_Set_Reg_Rdy(i);
-				//DE_SCAL_Reset(i);
-				//DE_SCAL_Start(i);
+#if 0
+				DE_SCAL_Reset(i);
+				DE_SCAL_Start(i);
+#endif
 				gdisp.scaler[i].b_reg_change = FALSE;
 			}
 			if (gdisp.scaler[i].b_close == TRUE) {
@@ -122,10 +127,10 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 				in_size.scal_width = scaler->src_win.width;
 				in_size.scal_height = scaler->src_win.height;
 
-				out_scan.field =
-				    (gdisp.screen[sel].
-				     iep_status & DE_FLICKER_USED) ? FALSE :
-				    gdisp.screen[sel].b_out_interlace;
+				out_scan.field = (gdisp.screen[sel].iep_status &
+						  DE_FLICKER_USED) ?
+					FALSE :
+					gdisp.screen[sel].b_out_interlace;
 
 				out_type.byte_seq = scaler->out_fb.seq;
 				out_type.fmt = scaler->out_fb.format;

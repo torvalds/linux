@@ -28,9 +28,11 @@
 #define FBHANDTOID(handle)  ((handle) - 100)
 #define FBIDTOHAND(ID)  ((ID) + 100)
 
-//              0:ARGB    1:BRGA    2:ABGR    3:RGBA
-//seq           ARGB        BRGA       ARGB       BRGA
-//br_swqp    0              0            1              1
+/*
+ *          0:ARGB  1:BRGA  2:ABGR  3:RGBA
+ *     seq:  ARGB    BRGA    ARGB    BRGA
+ * br_swqp:   0       0       1       1
+ */
 __s32 parser_disp_init_para(__disp_init_t * init_para)
 {
 	int value;
@@ -38,7 +40,8 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 
 	memset(init_para, 0, sizeof(__disp_init_t));
 
-	if (script_parser_fetch("disp_init", "disp_init_enable", &value, 1) < 0) {
+	if (script_parser_fetch("disp_init", "disp_init_enable",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.disp_init_enable fail\n");
 		return -1;
 	}
@@ -50,12 +53,13 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 	}
 	init_para->disp_mode = value;
 
-//screen0
-	if (script_parser_fetch("disp_init", "screen0_output_type", &value, 1) <
-	    0) {
+	/* screen0 */
+	if (script_parser_fetch("disp_init", "screen0_output_type",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen0_output_type fail\n");
 		return -1;
 	}
+
 	if (value == 0) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_NONE;
 	} else if (value == 1) {
@@ -72,23 +76,25 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 		return -1;
 	}
 
-	if (script_parser_fetch("disp_init", "screen0_output_mode", &value, 1) <
-	    0) {
+	if (script_parser_fetch("disp_init", "screen0_output_mode",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen0_output_mode fail\n");
 		return -1;
 	}
-	if (init_para->output_type[0] == DISP_OUTPUT_TYPE_TV
-	    || init_para->output_type[0] == DISP_OUTPUT_TYPE_HDMI) {
+	if (init_para->output_type[0] == DISP_OUTPUT_TYPE_TV ||
+	    init_para->output_type[0] == DISP_OUTPUT_TYPE_HDMI) {
 		init_para->tv_mode[0] = (__disp_tv_mode_t) value;
 	} else if (init_para->output_type[0] == DISP_OUTPUT_TYPE_VGA) {
 		init_para->vga_mode[0] = (__disp_vga_mode_t) value;
 	}
-//screen1
-	if (script_parser_fetch("disp_init", "screen1_output_type", &value, 1) <
-	    0) {
+
+	/* screen1 */
+	if (script_parser_fetch("disp_init", "screen1_output_type",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen1_output_type fail\n");
 		return -1;
 	}
+
 	if (value == 0) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_NONE;
 	} else if (value == 1) {
@@ -105,20 +111,22 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 		return -1;
 	}
 
-	if (script_parser_fetch("disp_init", "screen1_output_mode", &value, 1) <
-	    0) {
+	if (script_parser_fetch("disp_init", "screen1_output_mode",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen1_output_mode fail\n");
 		return -1;
 	}
-	if (init_para->output_type[1] == DISP_OUTPUT_TYPE_TV
-	    || init_para->output_type[1] == DISP_OUTPUT_TYPE_HDMI) {
+
+	if (init_para->output_type[1] == DISP_OUTPUT_TYPE_TV ||
+	    init_para->output_type[1] == DISP_OUTPUT_TYPE_HDMI) {
 		init_para->tv_mode[1] = (__disp_tv_mode_t) value;
 	} else if (init_para->output_type[1] == DISP_OUTPUT_TYPE_VGA) {
 		init_para->vga_mode[1] = (__disp_vga_mode_t) value;
 	}
-//fb0
-	if (script_parser_fetch("disp_init", "fb0_framebuffer_num", &value, 1) <
-	    0) {
+
+	/* fb0 */
+	if (script_parser_fetch("disp_init", "fb0_framebuffer_num",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb0_framebuffer_num fail\n");
 		return -1;
 	}
@@ -130,8 +138,8 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 	}
 	init_para->format[0] = value;
 
-	if (script_parser_fetch("disp_init", "fb0_pixel_sequence", &value, 1) <
-	    0) {
+	if (script_parser_fetch("disp_init", "fb0_pixel_sequence",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb0_pixel_sequence fail\n");
 		return -1;
 	}
@@ -139,15 +147,15 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 
 	if (script_parser_fetch
 	    ("disp_init", "fb0_scaler_mode_enable", &value, 1) < 0) {
-		__wrn
-		    ("fetch script data disp_init.fb0_scaler_mode_enable fail\n");
+		__wrn("fetch script data disp_init.fb0_scaler_mode_enable "
+		      "fail\n");
 		return -1;
 	}
 	init_para->scaler_mode[0] = value;
 
-//fb1
-	if (script_parser_fetch("disp_init", "fb1_framebuffer_num", &value, 1) <
-	    0) {
+	/* fb1 */
+	if (script_parser_fetch("disp_init", "fb1_framebuffer_num",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb1_framebuffer_num fail\n");
 		return -1;
 	}
@@ -159,8 +167,8 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 	}
 	init_para->format[1] = value;
 
-	if (script_parser_fetch("disp_init", "fb1_pixel_sequence", &value, 1) <
-	    0) {
+	if (script_parser_fetch("disp_init", "fb1_pixel_sequence",
+				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.fb1_pixel_sequence fail\n");
 		return -1;
 	}
@@ -168,8 +176,8 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 
 	if (script_parser_fetch
 	    ("disp_init", "fb1_scaler_mode_enable", &value, 1) < 0) {
-		__wrn
-		    ("fetch script data disp_init.fb1_scaler_mode_enable fail\n");
+		__wrn("fetch script data disp_init.fb1_scaler_mode_enable "
+		      "fail\n");
 		return -1;
 	}
 	init_para->scaler_mode[1] = value;
@@ -207,67 +215,58 @@ __s32 fb_draw_colorbar(__u32 base, __u32 width, __u32 height,
 				offset = width * i + j;
 				sys_put_wvalue(base + offset * 4,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
 						 1) << var->red.offset));
 
 				offset = width * i + j + width / 4;
 				sys_put_wvalue(base + offset * 4,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->green.length) -
 						 1) << var->green.offset));
 
 				offset = width * i + j + width / 4 * 2;
 				sys_put_wvalue(base + offset * 4,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->blue.length) -
 						 1) << var->blue.offset));
 
 				offset = width * i + j + width / 4 * 3;
 				sys_put_wvalue(base + offset * 4,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
-						 1) << var->red.
-						offset) |
+						 1) << var->red.offset) |
 					       (((1 << var->green.length) -
 						 1) << var->green.offset));
 			} else if (var->bits_per_pixel == 16) {
 				offset = width * i + j;
 				sys_put_hvalue(base + offset * 2,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
 						 1) << var->red.offset));
 
 				offset = width * i + j + width / 4;
 				sys_put_hvalue(base + offset * 2,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->green.length) -
 						 1) << var->green.offset));
 
 				offset = width * i + j + width / 4 * 2;
 				sys_put_hvalue(base + offset * 2,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->blue.length) -
 						 1) << var->blue.offset));
 
 				offset = width * i + j + width / 4 * 3;
 				sys_put_hvalue(base + offset * 2,
 					       (((1 << var->transp.length) -
-						 1) << var->transp.
-						offset) |
+						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
 						 1) << var->red.
 						offset) |
@@ -291,9 +290,9 @@ __s32 fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 		for (i = 0; i < height; i++) {
 			for (j = 0; j < width; j++) {
 				__u32 addr = base + (i * width + j) * 4;
-				__u32 value =
-				    (0xff << 24) | ((time * 15) << 16) |
-				    ((time * 15) << 8) | (time * 15);
+				__u32 value = (0xff << 24) |
+					((time * 15) << 16) |
+					((time * 15) << 8) | (time * 15);
 
 				sys_put_wvalue(addr, value);
 			}
@@ -345,7 +344,11 @@ static inline void Fb_unmap_video_memory(struct fb_info *info)
 #endif
 }
 
-__s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool br_swap, struct fb_var_screeninfo *var)	//todo
+/*
+ * todo.
+ */
+__s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq,
+		     __bool br_swap, struct fb_var_screeninfo *var)
 {
 	if (format == DISP_FORMAT_ARGB8888) {
 		var->bits_per_pixel = 32;
@@ -353,33 +356,29 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 8;
 		var->green.length = 8;
 		var->blue.length = 8;
-		if (seq == DISP_SEQ_ARGB && br_swap == 0)	//argb
-		{
+		if (seq == DISP_SEQ_ARGB && br_swap == 0) { /* argb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
 			var->transp.offset = var->red.offset + var->red.length;
-		} else if (seq == DISP_SEQ_BGRA && br_swap == 0)	//bgra
-		{
+		} else if (seq == DISP_SEQ_BGRA && br_swap == 0) { /* bgra */
 			var->transp.offset = 0;
 			var->red.offset =
-			    var->transp.offset + var->transp.length;
+				var->transp.offset + var->transp.length;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
-		} else if (seq == DISP_SEQ_ARGB && br_swap == 1)	//abgr
-		{
+				var->green.offset + var->green.length;
+		} else if (seq == DISP_SEQ_ARGB && br_swap == 1) { /* abgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 			var->transp.offset =
-			    var->blue.offset + var->blue.length;
-		} else if (seq == DISP_SEQ_BGRA && br_swap == 1)	//rgba
-		{
+				var->blue.offset + var->blue.length;
+		} else if (seq == DISP_SEQ_BGRA && br_swap == 1) { /* rgba */
 			var->transp.offset = 0;
 			var->blue.offset =
-			    var->transp.offset + var->transp.length;
+				var->transp.offset + var->transp.length;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
 		}
@@ -389,17 +388,15 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 8;
 		var->green.length = 8;
 		var->blue.length = 8;
-		if (br_swap == 0)	//rgb
-		{
+		if (br_swap == 0) { /* rgb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
-		} else		//bgr
-		{
+		} else { /* bgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 		}
 	} else if (format == DISP_FORMAT_RGB655) {
 		var->bits_per_pixel = 16;
@@ -407,17 +404,15 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 6;
 		var->green.length = 5;
 		var->blue.length = 5;
-		if (br_swap == 0)	//rgb
-		{
+		if (br_swap == 0) { /* rgb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
-		} else		//bgr
-		{
+		} else { /* bgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 		}
 	} else if (format == DISP_FORMAT_RGB565) {
 		var->bits_per_pixel = 16;
@@ -425,17 +420,15 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 5;
 		var->green.length = 6;
 		var->blue.length = 5;
-		if (br_swap == 0)	//rgb
-		{
+		if (br_swap == 0) { /* rgb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
-		} else		//bgr
-		{
+		} else { /* bgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 		}
 	} else if (format == DISP_FORMAT_RGB556) {
 		var->bits_per_pixel = 16;
@@ -443,13 +436,11 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 5;
 		var->green.length = 5;
 		var->blue.length = 6;
-		if (br_swap == 0)	//rgb
-		{
+		if (br_swap == 0) { /* rgb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
-		} else		//bgr
-		{
+		} else { /* bgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset = var->blue.offset + var->blue.length;
@@ -460,20 +451,18 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 5;
 		var->green.length = 5;
 		var->blue.length = 5;
-		if (br_swap == 0)	//rgb
-		{
+		if (br_swap == 0) { /* rgb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
 			var->transp.offset = var->red.offset + var->red.length;
-		} else		//bgr
-		{
+		} else { /* bgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 			var->transp.offset =
-			    var->blue.offset + var->blue.length;
+				var->blue.offset + var->blue.length;
 		}
 	} else if (format == DISP_FORMAT_RGBA5551) {
 		var->bits_per_pixel = 16;
@@ -481,21 +470,19 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->green.length = 5;
 		var->blue.length = 5;
 		var->transp.length = 1;
-		if (br_swap == 0)	//rgba
-		{
+		if (br_swap == 0) { /* rgba */
 			var->transp.offset = 0;
 			var->blue.offset =
-			    var->transp.offset + var->transp.length;
+				var->transp.offset + var->transp.length;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
-		} else		//bgra
-		{
+		} else { /* bgra */
 			var->transp.offset = 0;
 			var->red.offset =
-			    var->transp.offset + var->transp.length;
+				var->transp.offset + var->transp.length;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 		}
 	} else if (format == DISP_FORMAT_ARGB4444) {
 		var->bits_per_pixel = 16;
@@ -503,30 +490,31 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq, __bool b
 		var->red.length = 4;
 		var->green.length = 4;
 		var->blue.length = 4;
-		if (br_swap == 0)	//argb
-		{
+		if (br_swap == 0) { /* argb */
 			var->blue.offset = 0;
 			var->green.offset = var->blue.offset + var->blue.length;
 			var->red.offset = var->green.offset + var->green.length;
 			var->transp.offset = var->red.offset + var->red.length;
-		} else		//abgr
-		{
+		} else { /* abgr */
 			var->red.offset = 0;
 			var->green.offset = var->red.offset + var->red.length;
 			var->blue.offset =
-			    var->green.offset + var->green.length;
+				var->green.offset + var->green.length;
 			var->transp.offset =
-			    var->blue.offset + var->blue.length;
+				var->blue.offset + var->blue.length;
 		}
 	}
 
 	return 0;
 }
 
-__s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var, struct fb_fix_screeninfo * fix)	//todo
+/*
+ * todo
+ */
+__s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var,
+		     struct fb_fix_screeninfo * fix)
 {
-	if (var->nonstd == 0)	//argb
-	{
+	if (var->nonstd == 0) { /* argb */
 		var->reserved[0] = DISP_MOD_INTERLEAVED;
 		var->reserved[1] = DISP_FORMAT_ARGB8888;
 		var->reserved[2] = DISP_SEQ_ARGB;
@@ -566,105 +554,129 @@ __s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var, struct fb
 			break;
 
 		case 16:
-			if (var->red.length == 6 && var->green.length == 5
-			    && var->blue.length == 5) {
+			if (var->red.length == 6 && var->green.length == 5 &&
+			    var->blue.length == 5) {
 				var->reserved[1] = DISP_FORMAT_RGB655;
-				if (var->red.offset == 10 && var->green.offset == 5 && var->blue.offset == 0)	//rgb
-				{
+				if (var->red.offset == 10 &&
+				    var->green.offset == 5 &&
+				    var->blue.offset == 0) { /* rgb */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
-				} else if (var->blue.offset == 11 && var->green.offset == 6 && var->red.offset == 0)	//bgr
-				{
+				} else if (var->blue.offset == 11 &&
+					   var->green.offset == 6 &&
+					   var->red.offset == 0) { /* bgr */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 1;
 				} else {
-					__wrn
-					    ("invalid RGB655 format<red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-					     var->red.offset, var->green.offset,
-					     var->blue.offset);
+					__wrn("invalid RGB655 format"
+					      "<red.offset:%d,green.offset:%d,"
+					      "blue.offset:%d>\n",
+					      var->red.offset,
+					      var->green.offset,
+					      var->blue.offset);
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
 				}
 
-			} else if (var->red.length == 5
-				   && var->green.length == 6
-				   && var->blue.length == 5) {
+			} else if (var->red.length == 5 &&
+				   var->green.length == 6 &&
+				   var->blue.length == 5) {
 				var->reserved[1] = DISP_FORMAT_RGB565;
-				if (var->red.offset == 11 && var->green.offset == 5 && var->blue.offset == 0)	//rgb
-				{
+				if (var->red.offset == 11 &&
+				    var->green.offset == 5 &&
+				    var->blue.offset == 0) { /* rgb */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
-				} else if (var->blue.offset == 11 && var->green.offset == 5 && var->red.offset == 0)	//bgr
-				{
+				} else if (var->blue.offset == 11 &&
+					   var->green.offset == 5 &&
+					   var->red.offset == 0) { /* bgr */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 1;
 				} else {
-					__wrn
-					    ("invalid RGB565 format<red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-					     var->red.offset, var->green.offset,
-					     var->blue.offset);
+					__wrn("invalid RGB565 format"
+					      "<red.offset:%d,green.offset:%d,"
+					      "blue.offset:%d>\n",
+					      var->red.offset,
+					      var->green.offset,
+					      var->blue.offset);
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
 				}
-			} else if (var->red.length == 5
-				   && var->green.length == 5
-				   && var->blue.length == 6) {
+			} else if (var->red.length == 5 &&
+				   var->green.length == 5 &&
+				   var->blue.length == 6) {
 				var->reserved[1] = DISP_FORMAT_RGB556;
-				if (var->red.offset == 11 && var->green.offset == 6 && var->blue.offset == 0)	//rgb
-				{
+				if (var->red.offset == 11 &&
+				    var->green.offset == 6 &&
+				    var->blue.offset == 0) { /* rgb */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
-				} else if (var->blue.offset == 10 && var->green.offset == 5 && var->red.offset == 0)	//bgr
-				{
+				} else if (var->blue.offset == 10 &&
+					   var->green.offset == 5 &&
+					   var->red.offset == 0) { /* bgr */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 1;
 				} else {
-					__wrn
-					    ("invalid RGB556 format<red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-					     var->red.offset, var->green.offset,
-					     var->blue.offset);
+					__wrn("invalid RGB556 format"
+					      "<red.offset:%d,green.offset:%d,"
+					      "blue.offset:%d>\n",
+					      var->red.offset,
+					      var->green.offset,
+					      var->blue.offset);
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
 				}
-			} else if (var->transp.length == 1
-				   && var->red.length == 5
-				   && var->green.length == 5
-				   && var->blue.length == 5) {
+			} else if (var->transp.length == 1 &&
+				   var->red.length == 5 &&
+				   var->green.length == 5 &&
+				   var->blue.length == 5) {
 				var->reserved[1] = DISP_FORMAT_ARGB1555;
-				if (var->transp.offset == 15 && var->red.offset == 10 && var->green.offset == 5 && var->blue.offset == 0)	//argb
-				{
+				if (var->transp.offset == 15 &&
+				    var->red.offset == 10 &&
+				    var->green.offset == 5 &&
+				    var->blue.offset == 0) { /* argb */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
-				} else if (var->transp.offset == 15 && var->blue.offset == 10 && var->green.offset == 5 && var->red.offset == 0)	//abgr
-				{
+				} else if (var->transp.offset == 15 &&
+					   var->blue.offset == 10 &&
+					   var->green.offset == 5 &&
+					   var->red.offset == 0) { /* abgr */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 1;
 				} else {
-					__wrn
-					    ("invalid ARGB1555 format<transp.offset:%d,red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-					     var->transp.offset,
-					     var->red.offset, var->green.offset,
-					     var->blue.offset);
+					__wrn("invalid ARGB1555 format"
+					      "<transp.offset:%d,red.offset:%d,"
+					      "green.offset:%d,"
+					      "blue.offset:%d>\n",
+					      var->transp.offset,
+					      var->red.offset,
+					      var->green.offset,
+					      var->blue.offset);
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
 				}
-			} else if (var->transp.length == 4
-				   && var->red.length == 4
-				   && var->green.length == 4
-				   && var->blue.length == 4) {
+			} else if (var->transp.length == 4 &&
+				   var->red.length == 4 &&
+				   var->green.length == 4 &&
+				   var->blue.length == 4) {
 				var->reserved[1] = DISP_FORMAT_ARGB4444;
-				if (var->transp.offset == 12 && var->red.offset == 8 && var->green.offset == 4 && var->blue.offset == 0)	//argb
-				{
+				if (var->transp.offset == 12 &&
+				    var->red.offset == 8 &&
+				    var->green.offset == 4 &&
+				    var->blue.offset == 0) { /* argb */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 0;
-				} else if (var->transp.offset == 12 && var->blue.offset == 8 && var->green.offset == 4 && var->red.offset == 0)	//abgr
-				{
+				} else if (var->transp.offset == 12 &&
+					   var->blue.offset == 8 &&
+					   var->green.offset == 4 &&
+					   var->red.offset == 0) { /* abgr */
 					var->reserved[2] = DISP_SEQ_ARGB;
 					var->reserved[3] = 1;
 				} else {
-					__wrn
-					    ("invalid ARGB4444 format<transp.offset:%d,red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-					     var->transp.offset,
+					__wrn("invalid ARGB4444 format"
+					      "<transp.offset:%d,red.offset:%d,"
+					      "green.offset:%d,blue.offset:%d>"
+					      "\n", var->transp.offset,
 					     var->red.offset, var->green.offset,
 					     var->blue.offset);
 					var->reserved[2] = DISP_SEQ_ARGB;
@@ -682,19 +694,22 @@ __s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var, struct fb
 			var->green.length = 8;
 			var->blue.length = 8;
 			var->reserved[1] = DISP_FORMAT_RGB888;
-			if (var->red.offset == 16 && var->green.offset == 8 && var->blue.offset == 0)	//rgb
-			{
+			if (var->red.offset == 16 &&
+			    var->green.offset == 8 &&
+			    var->blue.offset == 0) { /* rgb */
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 0;
-			} else if (var->blue.offset == 16 && var->green.offset == 8 && var->red.offset == 0)	//bgr
-			{
+			} else if (var->blue.offset == 16 &&
+				   var->green.offset == 8 &&
+				   var->red.offset == 0) { /* bgr */
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 1;
 			} else {
-				__wrn
-				    ("invalid RGB888 format<red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-				     var->red.offset, var->green.offset,
-				     var->blue.offset);
+				__wrn("invalid RGB888 format"
+				      "<red.offset:%d,green.offset:%d,"
+				      "blue.offset:%d>\n",
+				      var->red.offset, var->green.offset,
+				      var->blue.offset);
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 0;
 			}
@@ -714,27 +729,32 @@ __s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var, struct fb
 				__inf("Mode:     ARGB8888");
 			}
 
-			if (var->red.offset == 16 && var->green.offset == 8 && var->blue.offset == 0)	//argb
-			{
+			if (var->red.offset == 16 &&
+			    var->green.offset == 8 &&
+			    var->blue.offset == 0) { /* argb */
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 0;
-			} else if (var->blue.offset == 24 && var->green.offset == 16 && var->red.offset == 8)	//bgra
-			{
+			} else if (var->blue.offset == 24 &&
+				   var->green.offset == 16 &&
+				   var->red.offset == 8) { /* bgra */
 				var->reserved[2] = DISP_SEQ_BGRA;
 				var->reserved[3] = 0;
-			} else if (var->blue.offset == 16 && var->green.offset == 8 && var->red.offset == 0)	//abgr
-			{
+			} else if (var->blue.offset == 16 &&
+				   var->green.offset == 8 &&
+				   var->red.offset == 0) { /* abgr */
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 1;
-			} else if (var->red.offset == 24 && var->green.offset == 16 && var->blue.offset == 8)	//rgba
-			{
+			} else if (var->red.offset == 24 &&
+				   var->green.offset == 16 &&
+				   var->blue.offset == 8) { /* rgba */
 				var->reserved[2] = DISP_SEQ_BGRA;
 				var->reserved[3] = 1;
 			} else {
-				__wrn
-				    ("invalid argb format<transp.offset:%d,red.offset:%d,green.offset:%d,blue.offset:%d>\n",
-				     var->transp.offset, var->red.offset,
-				     var->green.offset, var->blue.offset);
+				__wrn("invalid argb format"
+				      "<transp.offset:%d,red.offset:%d,"
+				      "green.offset:%d,blue.offset:%d>\n",
+				      var->transp.offset, var->red.offset,
+				      var->green.offset, var->blue.offset);
 				var->reserved[2] = DISP_SEQ_ARGB;
 				var->reserved[3] = 0;
 			}
@@ -775,10 +795,10 @@ static int Fb_wait_for_vsync(struct fb_info *info)
 	int ret;
 
 	for (sel = 0; sel < 2; sel++) {
-		if (((sel == 0)
-		     && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1))
-		    || ((sel == 1)
-			&& (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
+		if (((sel == 0) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)) ||
+		    ((sel == 1) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
 
 			if (BSP_disp_get_output_type(sel) ==
 			    DISP_OUTPUT_TYPE_NONE) {
@@ -809,10 +829,10 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	//__inf("Fb_pan_display\n");
 
 	for (sel = 0; sel < 2; sel++) {
-		if (((sel == 0)
-		     && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1))
-		    || ((sel == 1)
-			&& (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
+		if (((sel == 0) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)) ||
+		    ((sel == 1) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
 			__s32 layer_hdl = g_fbi.layer_hdl[info->node][sel];
 			__disp_layer_info_t layer_para;
 			__u32 buffer_num = 1;
@@ -829,8 +849,8 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			    FB_MODE_DUAL_SAME_SCREEN_TB) {
 				buffer_num = 2;
 			}
-			if ((sel == 0)
-			    && (g_fbi.fb_mode[info->node] ==
+			if ((sel == 0) &&
+			    (g_fbi.fb_mode[info->node] ==
 				FB_MODE_DUAL_SAME_SCREEN_TB)) {
 				y_offset = var->yres / 2;
 			}
@@ -842,7 +862,7 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 				layer_para.src_win.y = var->yoffset + y_offset;
 				layer_para.src_win.width = var->xres;
 				layer_para.src_win.height =
-				    var->yres / buffer_num;
+					var->yres / buffer_num;
 
 				BSP_disp_layer_set_src_window(sel, layer_hdl,
 							      &(layer_para.
@@ -856,7 +876,7 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 				layer_para.scn_win.width = var->xres;
 				layer_para.scn_win.height =
-				    var->yres / buffer_num;
+					var->yres / buffer_num;
 
 				BSP_disp_layer_set_src_window(sel, layer_hdl,
 							      &(layer_para.
@@ -868,12 +888,15 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		}
 	}
 
-	/*Fb_wait_for_vsync(info); */
+	// Fb_wait_for_vsync(info);
 
 	return 0;
 }
 
-static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)	//todo
+/*
+ * todo
+ */
+static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	__inf("Fb_check_var: %dx%d %dbits\n", var->xres, var->yres,
 	      var->bits_per_pixel);
@@ -895,7 +918,10 @@ static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)	//t
 	return 0;
 }
 
-static int Fb_set_par(struct fb_info *info)	//todo
+/*
+ * todo
+ */
+static int Fb_set_par(struct fb_info *info)
 {
 	__u32 sel = 0;
 
@@ -903,10 +929,10 @@ static int Fb_set_par(struct fb_info *info)	//todo
 	      info->var.bits_per_pixel);
 
 	for (sel = 0; sel < 2; sel++) {
-		if (((sel == 0)
-		     && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1))
-		    || ((sel == 1)
-			&& (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
+		if (((sel == 0) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)) ||
+		    ((sel == 1) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
 			struct fb_var_screeninfo *var = &info->var;
 			struct fb_fix_screeninfo *fix = &info->fix;
 			__s32 layer_hdl = g_fbi.layer_hdl[info->node][sel];
@@ -918,9 +944,8 @@ static int Fb_set_par(struct fb_info *info)	//todo
 			    FB_MODE_DUAL_SAME_SCREEN_TB) {
 				buffer_num = 2;
 			}
-			if ((sel == 0)
-			    && (g_fbi.fb_mode[info->node] ==
-				FB_MODE_DUAL_SAME_SCREEN_TB)) {
+			if ((sel == 0) && (g_fbi.fb_mode[info->node] ==
+			     FB_MODE_DUAL_SAME_SCREEN_TB)) {
 				y_offset = var->yres / 2;
 			}
 			BSP_disp_layer_get_para(sel, layer_hdl, &layer_para);
@@ -932,9 +957,9 @@ static int Fb_set_par(struct fb_info *info)	//todo
 			layer_para.src_win.height = var->yres / buffer_num;
 			if (layer_para.mode != DISP_LAYER_WORK_MODE_SCALER) {
 				layer_para.scn_win.width =
-				    layer_para.src_win.width;
+					layer_para.src_win.width;
 				layer_para.scn_win.height =
-				    layer_para.src_win.height;
+					layer_para.src_win.height;
 			}
 			BSP_disp_layer_set_para(sel, layer_hdl, &layer_para);
 		}
@@ -959,18 +984,12 @@ static int Fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	case FB_VISUAL_PSEUDOCOLOR:
 		if (regno < 256) {
 			for (sel = 0; sel < 2; sel++) {
-				if (((sel == 0)
-				     && (g_fbi.fb_mode[info->node] !=
-					 FB_MODE_SCREEN1)) || ((sel == 1)
-							       && (g_fbi.
-								   fb_mode
-								   [info->
-								    node] !=
-								   FB_MODE_SCREEN0)))
-				{
-					val =
-					    (transp << 24) | (red << 16) |
-					    (green << 8) | blue;
+				if (((sel == 0) && (g_fbi.fb_mode[info->node] !=
+						    FB_MODE_SCREEN1)) ||
+				    ((sel == 1) && (g_fbi.fb_mode[info->node] !=
+						    FB_MODE_SCREEN0))) {
+					val = (transp << 24) | (red << 16) |
+						(green << 8) | blue;
 					BSP_disp_set_palette_table(sel, &val,
 								   regno * 4,
 								   4);
@@ -986,9 +1005,9 @@ static int Fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			    convert_bitfield(red, &info->var.red) |
 			    convert_bitfield(green, &info->var.green) |
 			    convert_bitfield(blue, &info->var.blue);
-			__inf
-			    ("Fb_setcolreg,regno=%2d,a=%2X,r=%2X,g=%2X,b=%2X, result=%08X\n",
-			     regno, transp, red, green, blue, val);
+			__inf("Fb_setcolreg,regno=%2d,a=%2X,r=%2X,g=%2X,b=%2X, "
+			      "result=%08X\n", regno, transp, red, green, blue,
+			      val);
 			((__u32 *) info->pseudo_palette)[regno] = val;
 		} else {
 			ret = -EINVAL;
@@ -1041,10 +1060,10 @@ int Fb_blank(int blank_mode, struct fb_info *info)
 	__inf("Fb_blank,mode:%d\n", blank_mode);
 
 	for (sel = 0; sel < 2; sel++) {
-		if (((sel == 0)
-		     && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1))
-		    || ((sel == 1)
-			&& (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
+		if (((sel == 0) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)) ||
+		    ((sel == 1) &&
+		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
 			__s32 layer_hdl = g_fbi.layer_hdl[info->node][sel];
 
 			if (blank_mode == FB_BLANK_POWERDOWN) {
@@ -1060,7 +1079,7 @@ int Fb_blank(int blank_mode, struct fb_info *info)
 
 static int Fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
-	/* __inf("Fb_cursor\n"); */
+	// __inf("Fb_cursor\n");
 
 	return -EINVAL;
 }
@@ -1089,9 +1108,8 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOGET_LAYER_HDL_0:
 		if (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1) {
 			layer_hdl = g_fbi.layer_hdl[info->node][0];
-			ret =
-			    copy_to_user((void __user *)arg, &layer_hdl,
-					 sizeof(unsigned long));
+			ret = copy_to_user((void __user *)arg, &layer_hdl,
+					   sizeof(unsigned long));
 		} else {
 			ret = -1;
 		}
@@ -1100,9 +1118,8 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOGET_LAYER_HDL_1:
 		if (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0) {
 			layer_hdl = g_fbi.layer_hdl[info->node][1];
-			ret =
-			    copy_to_user((void __user *)arg, &layer_hdl,
-					 sizeof(unsigned long));
+			ret = copy_to_user((void __user *)arg, &layer_hdl,
+					   sizeof(unsigned long));
 		} else {
 			ret = -1;
 		}
@@ -1116,9 +1133,8 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			__u32 line = 0;
 			__u32 sel;
 
-			sel =
-			    (g_fbi.fb_mode[info->node] ==
-			     FB_MODE_SCREEN1) ? 1 : 0;
+			sel = (g_fbi.fb_mode[info->node] == FB_MODE_SCREEN1) ?
+				1 : 0;
 			line = BSP_disp_get_cur_line(sel);
 			BSP_disp_get_timing(sel, &tt);
 
@@ -1128,15 +1144,13 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			if (line <= (tt.ver_total_time - tt.ver_pixels)) {
 				vblank.flags |= FB_VBLANK_VBLANKING;
 			}
-			if ((line > tt.ver_front_porch)
-			    && (line <
-				(tt.ver_front_porch + tt.ver_sync_time))) {
+			if ((line > tt.ver_front_porch) &&
+			    (line < (tt.ver_front_porch + tt.ver_sync_time))) {
 				vblank.flags |= FB_VBLANK_VSYNCING;
 			}
 
-			if (copy_to_user
-			    ((void __user *)arg, &vblank,
-			     sizeof(struct fb_vblank)))
+			if (copy_to_user((void __user *)arg, &vblank,
+					 sizeof(struct fb_vblank)))
 				ret = -EFAULT;
 
 			break;
@@ -1210,25 +1224,25 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 	info->var.xres_virtual = xres;
 	info->var.yres_virtual = yres * fb_para->buffer_num;
 	info->fix.line_length =
-	    (fb_para->width * info->var.bits_per_pixel) >> 3;
+		(fb_para->width * info->var.bits_per_pixel) >> 3;
 	info->fix.smem_len =
-	    info->fix.line_length * fb_para->height * fb_para->buffer_num;
+		info->fix.line_length * fb_para->height * fb_para->buffer_num;
 	Fb_map_video_memory(info);
 
 	for (sel = 0; sel < 2; sel++) {
-		if (((sel == 0) && (fb_para->fb_mode != FB_MODE_SCREEN1))
-		    || ((sel == 1) && (fb_para->fb_mode != FB_MODE_SCREEN0))) {
+		if (((sel == 0) && (fb_para->fb_mode != FB_MODE_SCREEN1)) ||
+		    ((sel == 1) && (fb_para->fb_mode != FB_MODE_SCREEN0))) {
 			__u32 y_offset = 0, src_width = xres, src_height = yres;
 
-			if (((sel == 0)
-			     && (fb_para->fb_mode == FB_MODE_SCREEN0
-				 || fb_para->fb_mode ==
-				 FB_MODE_DUAL_SAME_SCREEN_TB))
-			    || ((sel == 1)
-				&& (fb_para->fb_mode == FB_MODE_SCREEN1))
-			    || ((sel == fb_para->primary_screen_id)
-				&& (fb_para->fb_mode ==
-				    FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
+			if (((sel == 0) &&
+			     (fb_para->fb_mode == FB_MODE_SCREEN0 ||
+			      fb_para->fb_mode ==
+			      FB_MODE_DUAL_SAME_SCREEN_TB)) ||
+			    ((sel == 1) &&
+			     (fb_para->fb_mode == FB_MODE_SCREEN1)) ||
+			    ((sel == fb_para->primary_screen_id) &&
+			     (fb_para->fb_mode ==
+			      FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
 				__disp_tcon_timing_t tt;
 
 				if (BSP_disp_get_timing(sel, &tt) >= 0) {
@@ -1274,7 +1288,8 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 					layer_para.scn_win.height =
 					    fb_para->output_height;
 				}
-			} else if (fb_para->mode == DISP_LAYER_WORK_MODE_SCALER) {
+			} else if (fb_para->mode ==
+				   DISP_LAYER_WORK_MODE_SCALER) {
 				layer_para.scn_win.width =
 				    fb_para->output_width;
 				layer_para.scn_win.height =
@@ -1326,10 +1341,10 @@ __s32 Display_Fb_Release(__u32 fb_id)
 		struct fb_info *info = g_fbi.fbinfo[fb_id];
 
 		for (sel = 0; sel < 2; sel++) {
-			if (((sel == 0)
-			     && (g_fbi.fb_mode[fb_id] != FB_MODE_SCREEN1))
-			    || ((sel == 1)
-				&& (g_fbi.fb_mode[fb_id] != FB_MODE_SCREEN0))) {
+			if (((sel == 0) &&
+			     (g_fbi.fb_mode[fb_id] != FB_MODE_SCREEN1)) ||
+			    ((sel == 1) &&
+			     (g_fbi.fb_mode[fb_id] != FB_MODE_SCREEN0))) {
 				__s32 layer_hdl = g_fbi.layer_hdl[fb_id][sel];
 
 				BSP_disp_layer_release(sel, layer_hdl);
@@ -1380,15 +1395,15 @@ __s32 Display_set_fb_timing(__u32 sel)
 
 	for (fb_id = 0; fb_id < SUNXI_MAX_FB; fb_id++) {
 		if (g_fbi.fb_enable[fb_id]) {
-			if (((sel == 0)
-			     && (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN0
-				 || g_fbi.fb_mode[fb_id] ==
-				 FB_MODE_DUAL_SAME_SCREEN_TB))
-			    || ((sel == 1)
-				&& (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN1))
-			    || ((sel == g_fbi.fb_para[fb_id].primary_screen_id)
-				&& (g_fbi.fb_mode[fb_id] ==
-				    FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
+			if (((sel == 0) &&
+			     (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN0 ||
+			      g_fbi.fb_mode[fb_id] ==
+			      FB_MODE_DUAL_SAME_SCREEN_TB)) ||
+			    ((sel == 1) &&
+			     (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN1)) ||
+			    ((sel == g_fbi.fb_para[fb_id].primary_screen_id) &&
+			     (g_fbi.fb_mode[fb_id] ==
+			      FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
 				__disp_tcon_timing_t tt;
 
 				if (BSP_disp_get_timing(sel, &tt) >= 0) {
@@ -1427,8 +1442,7 @@ __s32 Fb_Init(__u32 from)
 
 	__inf("Fb_Init:%d\n", from);
 
-	if (from == 0)		//call from lcd driver
-	{
+	if (from == 0) { /* call from lcd driver */
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 		__inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
 		disp_create_heap((unsigned long)(__va(fb_start)), fb_size);
@@ -1466,13 +1480,13 @@ __s32 Fb_Init(__u32 from)
 			g_fbi.fbinfo[i]->fix.ywrapstep = 0;
 			g_fbi.fbinfo[i]->fix.accel = FB_ACCEL_NONE;
 			g_fbi.fbinfo[i]->fix.line_length =
-			    g_fbi.fbinfo[i]->var.xres_virtual * 4;
+				g_fbi.fbinfo[i]->var.xres_virtual * 4;
 			g_fbi.fbinfo[i]->fix.smem_len =
-			    g_fbi.fbinfo[i]->fix.line_length *
-			    g_fbi.fbinfo[i]->var.yres_virtual * 2;
+				g_fbi.fbinfo[i]->fix.line_length *
+				g_fbi.fbinfo[i]->var.yres_virtual * 2;
 			g_fbi.fbinfo[i]->screen_base = 0x0;
 			g_fbi.fbinfo[i]->pseudo_palette =
-			    g_fbi.pseudo_palette[i];
+				g_fbi.pseudo_palette[i];
 			g_fbi.fbinfo[i]->fix.smem_start = 0x0;
 			g_fbi.fbinfo[i]->fix.mmio_start = 0;
 			g_fbi.fbinfo[i]->fix.mmio_len = 0;
@@ -1488,14 +1502,10 @@ __s32 Fb_Init(__u32 from)
 		__u32 sel = 0;
 
 		for (sel = 0; sel < 2; sel++) {
-			if (((sel == 0)
-			     && (g_fbi.disp_init.disp_mode !=
-				 DISP_INIT_MODE_SCREEN1)) || ((sel == 1)
-							      && (g_fbi.
-								  disp_init.
-								  disp_mode !=
-								  DISP_INIT_MODE_SCREEN0)))
-			{
+			if (((sel == 0) && (g_fbi.disp_init.disp_mode !=
+					    DISP_INIT_MODE_SCREEN1)) ||
+			    ((sel == 1) && (g_fbi.disp_init.disp_mode !=
+					    DISP_INIT_MODE_SCREEN0))) {
 				if (g_fbi.disp_init.output_type[sel] ==
 				    DISP_OUTPUT_TYPE_HDMI) {
 					need_open_hdmi = 1;
@@ -1504,11 +1514,11 @@ __s32 Fb_Init(__u32 from)
 		}
 	}
 
-	if (need_open_hdmi == 1 && from == 0)	//it is called from lcd driver, but hdmi need to be opened
-	{
+	if (need_open_hdmi == 1 && from == 0) {
+		/* it is called from lcd driver, but hdmi need to be opened */
 		return 0;
-	} else if (need_open_hdmi == 0 && from == 1)	//it is called from hdmi driver, but hdmi need not be opened
-	{
+	} else if (need_open_hdmi == 0 && from == 1) {
+		/* it is called from hdmi driver, but hdmi need not be opened */
 		return 0;
 	}
 
@@ -1516,14 +1526,10 @@ __s32 Fb_Init(__u32 from)
 		__u32 fb_num = 0, sel = 0;
 
 		for (sel = 0; sel < 2; sel++) {
-			if (((sel == 0)
-			     && (g_fbi.disp_init.disp_mode !=
-				 DISP_INIT_MODE_SCREEN1)) || ((sel == 1)
-							      && (g_fbi.
-								  disp_init.
-								  disp_mode !=
-								  DISP_INIT_MODE_SCREEN0)))
-			{
+			if (((sel == 0) && (g_fbi.disp_init.disp_mode !=
+					    DISP_INIT_MODE_SCREEN1)) ||
+			    ((sel == 1) && (g_fbi.disp_init.disp_mode !=
+					    DISP_INIT_MODE_SCREEN0))) {
 				if (g_fbi.disp_init.output_type[sel] ==
 				    DISP_OUTPUT_TYPE_LCD) {
 					DRV_lcd_open(sel);
@@ -1549,9 +1555,8 @@ __s32 Fb_Init(__u32 from)
 			}
 		}
 
-		fb_num =
-		    (g_fbi.disp_init.disp_mode ==
-		     DISP_INIT_MODE_TWO_DIFF_SCREEN) ? 2 : 1;
+		fb_num = (g_fbi.disp_init.disp_mode ==
+			  DISP_INIT_MODE_TWO_DIFF_SCREEN) ? 2 : 1;
 		for (i = 0; i < fb_num; i++) {
 			__u32 screen_id = i;
 
@@ -1560,21 +1565,22 @@ __s32 Fb_Init(__u32 from)
 				       g_fbi.disp_init.br_swap[i],
 				       &(g_fbi.fbinfo[i]->var));
 
-			if (g_fbi.disp_init.disp_mode == DISP_INIT_MODE_SCREEN1) {
+			if (g_fbi.disp_init.disp_mode ==
+			    DISP_INIT_MODE_SCREEN1) {
 				screen_id = 1;
 			}
 			fb_para.buffer_num = g_fbi.disp_init.buffer_num[i];
 			fb_para.width = BSP_disp_get_screen_width(screen_id);
 			fb_para.height = BSP_disp_get_screen_height(screen_id);
 			fb_para.output_width =
-			    BSP_disp_get_screen_width(screen_id);
+				BSP_disp_get_screen_width(screen_id);
 			fb_para.output_height =
-			    BSP_disp_get_screen_height(screen_id);
-			fb_para.mode =
-			    (g_fbi.disp_init.scaler_mode[i] ==
-			     0) ? DISP_LAYER_WORK_MODE_NORMAL :
-			    DISP_LAYER_WORK_MODE_SCALER;
-			if (g_fbi.disp_init.disp_mode == DISP_INIT_MODE_SCREEN0) {
+				BSP_disp_get_screen_height(screen_id);
+			fb_para.mode = (g_fbi.disp_init.scaler_mode[i] == 0) ?
+				DISP_LAYER_WORK_MODE_NORMAL :
+				DISP_LAYER_WORK_MODE_SCALER;
+			if (g_fbi.disp_init.disp_mode ==
+			    DISP_INIT_MODE_SCREEN0) {
 				fb_para.fb_mode = FB_MODE_SCREEN0;
 			} else if (g_fbi.disp_init.disp_mode ==
 				   DISP_INIT_MODE_SCREEN1) {
@@ -1613,7 +1619,12 @@ __s32 Fb_Init(__u32 from)
 			}
 			Display_Fb_Request(i, &fb_para);
 
-			//fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
+#if 0
+			fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base,
+					 fb_para.width, fb_para.height *
+					 fb_para.buffer_num,
+					 &(g_fbi.fbinfo[i]->var));
+#endif
 		}
 		for (i = 0; i < SUNXI_MAX_FB; i++) {
 			/* Register framebuffers after they are initialized */
@@ -1630,9 +1641,9 @@ __s32 Fb_Init(__u32 from)
 			BSP_disp_print_reg(0, DISP_REG_IMAGE0);
 			BSP_disp_print_reg(0, DISP_REG_LCDC0);
 			if ((g_fbi.disp_init.output_type[0] ==
-			     DISP_OUTPUT_TYPE_TV)
-			    || (g_fbi.disp_init.output_type[0] ==
-				DISP_OUTPUT_TYPE_VGA)) {
+			     DISP_OUTPUT_TYPE_TV) ||
+			    (g_fbi.disp_init.output_type[0] ==
+			     DISP_OUTPUT_TYPE_VGA)) {
 				BSP_disp_print_reg(0, DISP_REG_TVEC0);
 			}
 		}
@@ -1640,9 +1651,9 @@ __s32 Fb_Init(__u32 from)
 			BSP_disp_print_reg(0, DISP_REG_IMAGE1);
 			BSP_disp_print_reg(0, DISP_REG_LCDC1);
 			if ((g_fbi.disp_init.output_type[1] ==
-			     DISP_OUTPUT_TYPE_TV)
-			    || (g_fbi.disp_init.output_type[1] ==
-				DISP_OUTPUT_TYPE_VGA)) {
+			     DISP_OUTPUT_TYPE_TV) ||
+			    (g_fbi.disp_init.output_type[1] ==
+			     DISP_OUTPUT_TYPE_VGA)) {
 				BSP_disp_print_reg(0, DISP_REG_TVEC1);
 			}
 		}

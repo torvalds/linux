@@ -22,30 +22,30 @@
 #include "OSAL_Clock.h"
 
 static char *_sysClkName[AW_SYS_CLK_CNT] = {
-	"none",			//0
+	"none",		/*  0 */
 
-	"losc",			// 1
-	"hosc",			// 2
+	"losc",		/*  1 */
+	"hosc",		/*  2 */
 
-	"core_pll",		// 3
-	"audio_pll",		// 4
-	"audio_pllx8",		// 5
-	"video_pll0",		// 6
-	"video_pll0x2",		// 7
-	"ve_pll",		// 8
-	"sdram_pll",		// 9
-	"sdram_pll_m",		// 10
-	"sdram_pll_p",		// 11
-	"sata_pll",		// 12
-	"video_pll1",		// 13
-	"video_pll1x2",		// 14
-	"200m_pll",		// 15
+	"core_pll",	/*  3 */
+	"audio_pll",	/*  4 */
+	"audio_pllx8",	/*  5 */
+	"video_pll0",	/*  6 */
+	"video_pll0x2",	/*  7 */
+	"ve_pll",	/*  8 */
+	"sdram_pll",	/*  9 */
+	"sdram_pll_m",	/* 10 */
+	"sdram_pll_p",	/* 11 */
+	"sata_pll",	/* 12 */
+	"video_pll1",	/* 13 */
+	"video_pll1x2",	/* 14 */
+	"200m_pll",	/* 15 */
 
-	"cpu",			// 16
-	"axi",			// 17
-	"ahb",			// 18
-	"apb",			// 19
-	"apb1",			// 20
+	"cpu",		/* 16 */
+	"axi",		/* 17 */
+	"ahb",		/* 18 */
+	"apb",		/* 19 */
+	"apb1",		/* 20 */
 
 	"sata_pll_m",
 	"sata_pll_2",
@@ -223,12 +223,16 @@ __s32 OSAL_CCMU_SetSrcFreq(__u32 nSclkNo, __u32 nFreq)
 		return -1;
 	}
 	if (nFreq == clk_get_rate(hSysClk)) {
-		// __inf("Sys clk[%d] freq is alreay %d, not need to set.\n", nSclkNo, nFreq);
+#if 0
+		__inf("Sys clk[%d] freq is alreay %d, not need to set.\n",
+		      nSclkNo, nFreq);
+#endif
+
 		clk_put(hSysClk);
 		return 0;
 	}
 	retCode = clk_set_rate(hSysClk, nFreq);
-	if (-1 == retCode) {
+	if (retCode == -1) {
 		__wrn("Fail to set nFreq[%d] for sys clk[%d].\n", nFreq,
 		      nSclkNo);
 		clk_put(hSysClk);

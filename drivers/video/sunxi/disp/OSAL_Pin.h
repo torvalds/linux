@@ -54,4 +54,4 @@ __s32 OSAL_GPIO_DevREAD_ONEPIN_DATA(u32 p_handler, const char *gpio_name);
 __s32 OSAL_GPIO_DevWRITE_ONEPIN_DATA(u32 p_handler, __u32 value_to_gpio,
 				     const char *gpio_name);
 
-#endif //__OSAL_PIN_H__
+#endif /* __OSAL_PIN_H__ */

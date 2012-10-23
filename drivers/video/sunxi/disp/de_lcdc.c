@@ -93,11 +93,13 @@ __s32 LCDC_set_start_delay(__u32 sel, __u32 tcon_index, __u8 delay)
 	__u32 tmp;
 
 	if (tcon_index == 0) {
-		tmp = LCDC_RUINT32(sel, LCDC_CTL_OFF) & 0xfffffe0f;	//clear bit8:4
+		/* clears bits 8:4 */
+		tmp = LCDC_RUINT32(sel, LCDC_CTL_OFF) & 0xfffffe0f;
 		tmp |= ((delay & 0x1f) << 4);
 		LCDC_WUINT32(sel, LCDC_CTL_OFF, tmp);
 	} else if (tcon_index == 1) {
-		tmp = LCDC_RUINT32(sel, LCDC_HDTVIF_OFF) & 0xfffffe0f;	//clear bit8:4
+		/* clear bit8:4 */
+		tmp = LCDC_RUINT32(sel, LCDC_HDTVIF_OFF) & 0xfffffe0f;
 		tmp |= ((delay & 0x1f) << 4);
 		LCDC_WUINT32(sel, LCDC_HDTVIF_OFF, tmp);
 	}
@@ -206,12 +208,18 @@ __s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t * tt)
 	hspw = (reg3 >> 16) & 0x3ff;
 	vspw = (reg3 >> 0) & 0x3ff;
 
-	tt->hor_back_porch = (hbp + 1) - (hspw + 1);	//left_margin
-	tt->hor_front_porch = (ht + 1) - (x + 1) - (hbp + 1);	//right_margin
-	tt->ver_back_porch = (vbp + 1) - (vspw + 1);	//upper_margin
-	tt->ver_front_porch = (vt / 2) - (y + 1) - (vbp + 1);	//lower_margin
-	tt->hor_sync_time = (hspw + 1);	//hsync_len
-	tt->ver_sync_time = (vspw + 1);	//vsync_len
+	/* left margin */
+	tt->hor_back_porch = (hbp + 1) - (hspw + 1);
+	/* right margin */
+	tt->hor_front_porch = (ht + 1) - (x + 1) - (hbp + 1);
+	/* upper margin */
+	tt->ver_back_porch = (vbp + 1) - (vspw + 1);
+	/* lower margin */
+	tt->ver_front_porch = (vt / 2) - (y + 1) - (vbp + 1);
+	/* hsync_len */
+	tt->hor_sync_time = (hspw + 1);
+	/* vsync_len */
+	tt->ver_sync_time = (vspw + 1);
 
 	return 0;
 }
@@ -227,7 +235,7 @@ __s32 TCON0_open(__u32 sel)
 __s32 TCON0_close(__u32 sel)
 {
 	LCDC_CLR_BIT(sel, LCDC_CTL_OFF, LCDC_BIT31);
-	LCDC_WUINT32(sel, LCDC_IOCTL1_OFF, 0xffffffff);	//?
+	LCDC_WUINT32(sel, LCDC_IOCTL1_OFF, 0xffffffff);	/* ? */
 	return 0;
 }
 
@@ -299,53 +307,49 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 
 		LCDC_WUINT32(sel, LCDC_HVIF_OFF,
 			     (lcd_hv_if_tmp << 31) | (lcd_hv_smode_tmp << 30) |
-			     (info->lcd_hv_srgb_seq0 << 26) | (info->
-							       lcd_hv_srgb_seq1
-							       << 24) | (info->
-									 lcd_hv_syuv_seq
-									 << 22)
-			     | (info->lcd_hv_syuv_fdly << 20));
+			     (info->lcd_hv_srgb_seq0 << 26) |
+			     (info->lcd_hv_srgb_seq1 << 24) |
+			     (info->lcd_hv_syuv_seq << 22) |
+			     (info->lcd_hv_syuv_fdly << 20));
 	} else if (info->lcd_if == LCDC_LCDIF_TTL) {
 		LCDC_WUINT32(sel, LCDC_TTL0_OFF,
-			     (info->lcd_ttl_stvh << 20) | (info->
-							   lcd_ttl_stvdl << 10)
-			     | (info->lcd_ttl_stvdp));
+			     (info->lcd_ttl_stvh << 20) |
+			     (info->lcd_ttl_stvdl << 10) |
+			     (info->lcd_ttl_stvdp));
 
 		LCDC_WUINT32(sel, LCDC_TTL1_OFF,
-			     (info->lcd_ttl_ckvt << 30) | (info->
-							   lcd_ttl_ckvh << 10) |
+			     (info->lcd_ttl_ckvt << 30) |
+			     (info->lcd_ttl_ckvh << 10) |
 			     (info->lcd_ttl_ckvd << 0));
 
 		LCDC_WUINT32(sel, LCDC_TTL2_OFF,
-			     (info->lcd_ttl_oevt << 30) | (info->
-							   lcd_ttl_oevh << 10) |
+			     (info->lcd_ttl_oevt << 30) |
+			     (info->lcd_ttl_oevh << 10) |
 			     (info->lcd_ttl_oevd << 0));
 
 		LCDC_WUINT32(sel, LCDC_TTL3_OFF,
-			     (info->lcd_ttl_sthh << 26) | (info->
-							   lcd_ttl_sthd << 16) |
-			     (info->lcd_ttl_oehh << 10) | (info->
-							   lcd_ttl_oehd << 0));
+			     (info->lcd_ttl_sthh << 26) |
+			     (info->lcd_ttl_sthd << 16) |
+			     (info->lcd_ttl_oehh << 10) |
+			     (info->lcd_ttl_oehd << 0));
 
 		LCDC_WUINT32(sel, LCDC_TTL4_OFF,
-			     (info->lcd_ttl_datarate << 23) | (info->
-							       lcd_ttl_revsel <<
-							       22) | (info->
-								      lcd_ttl_datainv_en
-								      << 21) |
-			     (info->lcd_ttl_datainv_sel << 20) | info->
-			     lcd_ttl_revd);
+			     (info->lcd_ttl_datarate << 23) |
+			     (info->lcd_ttl_revsel << 22) |
+			     (info->lcd_ttl_datainv_en << 21) |
+			     (info->lcd_ttl_datainv_sel << 20) |
+			     info->lcd_ttl_revd);
 
 	} else if (info->lcd_if == LCDC_LCDIF_CPU) {
 		LCDC_WUINT32(sel, LCDC_CPUIF_OFF,
-			     (info->lcd_cpu_if << 29) | (1 << 26));
+			     (info->lcd_cpu_if << 29) |
+			     (1 << 26));
 	} else if (info->lcd_if == LCDC_LCDIF_LVDS) {
 		LCDC_WUINT32(sel, LCDC_LVDS_OFF,
-			     (info->
-			      lcd_lvds_ch << 30) | (0 << 29) | (0 << 28) |
-			     (info->lcd_lvds_mode << 27) | (info->
-							    lcd_lvds_bitwidth <<
-							    26) | (0 << 23));
+			     (info->lcd_lvds_ch << 30) |
+			     (0 << 29) | (0 << 28) |
+			     (info->lcd_lvds_mode << 27) |
+			     (info->lcd_lvds_bitwidth << 26) | (0 << 23));
 
 		if (info->lcd_lvds_io_cross != 0)
 			LCDC_SET_BIT(sel, LCDC_LVDS_ANA1,
@@ -362,8 +366,8 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 		LCDC_CLR_BIT(sel, LCDC_FRM0_OFF, LCDC_BIT31);
 	}
 
-	if (info->lcd_frm == LCDC_FRM_RGB666
-	    || info->lcd_frm == LCDC_FRM_RGB656) {
+	if (info->lcd_frm == LCDC_FRM_RGB666 ||
+	    info->lcd_frm == LCDC_FRM_RGB656) {
 		LCDC_WUINT32(sel, LCDC_FRM1_OFF + 0x00, 0x11111111);
 		LCDC_WUINT32(sel, LCDC_FRM1_OFF + 0x04, 0x11111111);
 		LCDC_WUINT32(sel, LCDC_FRM1_OFF + 0x08, 0x11111111);
@@ -462,11 +466,11 @@ __u32 TCON1_close(__u32 sel)
 
 	LCDC_CLR_BIT(sel, LCDC_HDTVIF_OFF, LCDC_BIT31);
 
-	tmp = LCDC_RUINT32(sel, LCDC_GCTL_OFF);	//?
-	tmp &= (~(1 << 0));	//disable hdif
+	tmp = LCDC_RUINT32(sel, LCDC_GCTL_OFF);	/* ? */
+	tmp &= (~(1 << 0));	/* disable hdif */
 	LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp);
 
-	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, 0xffffffff);	//?
+	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, 0xffffffff);	/* ? */
 
 #ifdef CONFIG_ARCH_SUN5I
 	LCDC_CLR_BIT(sel, LCDC_MUX_CTRL, 1 << 0);
@@ -484,7 +488,7 @@ __u32 TCON1_cfg(__u32 sel, __tcon1_cfg_t * cfg)
 	if (vblank_len >= 32) {
 		cfg->start_delay = 30;
 	} else {
-		cfg->start_delay = vblank_len - 2;	//23 modify//old:cfg->start_delay      = vblank_len - 1
+		cfg->start_delay = vblank_len - 2; /* was vblank_len - 1 */
 	}
 
 	if (cfg->b_remap_if) {
@@ -503,25 +507,20 @@ __u32 TCON1_cfg(__u32 sel, __tcon1_cfg_t * cfg)
 
 	LCDC_WUINT32(sel, LCDC_HDTVIF_OFF, reg_val);
 
-	LCDC_WUINT32(sel, LCDC_HDTV0_OFF,
-		     (((cfg->src_x - 1) & 0xfff) << 16) | ((cfg->src_y -
-							    1) & 0xfff));
-	LCDC_WUINT32(sel, LCDC_HDTV1_OFF,
-		     (((cfg->scl_x - 1) & 0xfff) << 16) | ((cfg->scl_y -
-							    1) & 0xfff));
-	LCDC_WUINT32(sel, LCDC_HDTV2_OFF,
-		     (((cfg->out_x - 1) & 0xfff) << 16) | ((cfg->out_y -
-							    1) & 0xfff));
-	LCDC_WUINT32(sel, LCDC_HDTV3_OFF,
-		     (((cfg->ht - 1) & 0xffff) << 16) | ((cfg->hbp -
-							  1) & 0xfff));
-	LCDC_WUINT32(sel, LCDC_HDTV4_OFF,
-		     (((cfg->vt) & 0xffff) << 16) | ((cfg->vbp - 1) & 0xfff));
-	LCDC_WUINT32(sel, LCDC_HDTV5_OFF,
-		     (((cfg->hspw - 1) & 0x3ff) << 16) | ((cfg->vspw -
-							   1) & 0x3ff));
-	LCDC_WUINT32(sel, LCDC_IOCTL2_OFF, cfg->io_pol);	//add
-	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, cfg->io_out);	//add
+	LCDC_WUINT32(sel, LCDC_HDTV0_OFF, (((cfg->src_x - 1) & 0xfff) << 16) |
+		     ((cfg->src_y - 1) & 0xfff));
+	LCDC_WUINT32(sel, LCDC_HDTV1_OFF, (((cfg->scl_x - 1) & 0xfff) << 16) |
+		     ((cfg->scl_y - 1) & 0xfff));
+	LCDC_WUINT32(sel, LCDC_HDTV2_OFF, (((cfg->out_x - 1) & 0xfff) << 16) |
+		     ((cfg->out_y - 1) & 0xfff));
+	LCDC_WUINT32(sel, LCDC_HDTV3_OFF, (((cfg->ht - 1) & 0xffff) << 16) |
+		     ((cfg->hbp - 1) & 0xfff));
+	LCDC_WUINT32(sel, LCDC_HDTV4_OFF, (((cfg->vt) & 0xffff) << 16) |
+		     ((cfg->vbp - 1) & 0xfff));
+	LCDC_WUINT32(sel, LCDC_HDTV5_OFF, (((cfg->hspw - 1) & 0x3ff) << 16) |
+		     ((cfg->vspw - 1) & 0x3ff));
+	LCDC_WUINT32(sel, LCDC_IOCTL2_OFF, cfg->io_pol); /* add */
+	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, cfg->io_out); /* add */
 
 	LCDC_set_int_line(sel, 1, cfg->start_delay + 2);
 
@@ -534,8 +533,8 @@ __u32 TCON1_cfg_ex(__u32 sel, __panel_para_t * info)
 
 	tcon1_cfg.b_interlace = 0;
 	tcon1_cfg.b_rgb_internal_hd = 0;
-	tcon1_cfg.b_rgb_remap_io = 1;	//rgb
-	tcon1_cfg.b_remap_if = 1;	//remap tcon1 to io
+	tcon1_cfg.b_rgb_remap_io = 1; /* rgb */
+	tcon1_cfg.b_remap_if = 1; /* remap tcon1 to io */
 	tcon1_cfg.src_x = info->lcd_x;
 	tcon1_cfg.src_y = info->lcd_y;
 	tcon1_cfg.scl_x = info->lcd_x;
@@ -803,7 +802,7 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
 	}
 	cfg.io_out = 0x00000000;
 	cfg.b_rgb_internal_hd = 0;
-	cfg.b_rgb_remap_io = 1;	//rgb
+	cfg.b_rgb_remap_io = 1;	/* rgb */
 	cfg.b_remap_if = 1;
 	TCON1_cfg(sel, &cfg);
 #ifdef CONFIG_ARCH_SUN4I
@@ -991,7 +990,7 @@ __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode)
 	}
 	cfg.io_pol = 0x00000000;
 	cfg.io_out = 0x0fffffff;
-	cfg.b_rgb_internal_hd = 0;	//yuv
+	cfg.b_rgb_internal_hd = 0; /* yuv */
 	cfg.b_rgb_remap_io = 0;
 	cfg.b_remap_if = 0;
 	TCON1_cfg(sel, &cfg);
@@ -1005,113 +1004,114 @@ __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode)
 	return 0;
 }
 
-// set mode
-////////////////////////////////////////////////////////////////////////////////
+/*
+ * set mode
+ */
 __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode)
 {
 	__tcon1_cfg_t cfg;
 
 	switch (mode) {
 	case DISP_VGA_H640_V480:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 640;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 480;	//VA
-		cfg.ht = 0x320;	//HT-1=-1
-		cfg.hbp = 0x90;	//HS+HBP-1=+-1
-		cfg.vt = 0x41a;	//VT*2=*2
-		cfg.vbp = 0x22;	//VS+VBP-1=+-1
-		cfg.vspw = 0x2;	//VS-1=-1
-		cfg.hspw = 0x60;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 640; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 480; /* VA */
+		cfg.ht = 0x320; /* HT - 1 = -1 */
+		cfg.hbp = 0x90; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 0x41a; /* VT * 2 = * 2 */
+		cfg.vbp = 0x22; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 0x2; /* VS - 1 = -1 */
+		cfg.hspw = 0x60; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H800_V600:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 800;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 600;	//VA
-		cfg.ht = 0x420;	//HT-1=-1
-		cfg.hbp = 0xd8;	//HS+HBP-1=+-1
-		cfg.vt = 0x4e8;	//VT*2=*2
-		cfg.vbp = 0x1a;	//VS+VBP-1=+-1
-		cfg.vspw = 0x4;	//VS-1=-1
-		cfg.hspw = 0x80;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 800; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 600; /* VA */
+		cfg.ht = 0x420; /* HT - 1 = -1 */
+		cfg.hbp = 0xd8; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 0x4e8; /* VT * 2 = * 2 */
+		cfg.vbp = 0x1a; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 0x4; /* VS - 1 = -1 */
+		cfg.hspw = 0x80; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H1024_V768:
 		cfg.src_x = cfg.scl_x = cfg.out_x = 1024;
 		cfg.src_y = cfg.scl_y = cfg.out_y = 768;
-		cfg.ht = 1344;	//HT-1=1344-1
-		cfg.hbp = 296;	//HS+HBP-1=136+160-1
-		cfg.vt = 1612;	//VT*2=806*2
-		cfg.vbp = 34;	//VS+VBP-1=6+29-1
-		cfg.vspw = 6;	//VS-1=6-1
-		cfg.hspw = 136;	//HS-1=136-1
+		cfg.ht = 1344; /* HT - 1 = 1344 - 1 */
+		cfg.hbp = 296; /* HS + HBP - 1 = 136 + 160 - 1 */
+		cfg.vt = 1612; /* VT * 2 = 806 * 2 */
+		cfg.vbp = 34; /* VS + VBP - 1 = 6 + 29 - 1 */
+		cfg.vspw = 6; /* VS - 1 = 6 - 1 */
+		cfg.hspw = 136;	/* HS - 1 = 136 - 1 */
 		break;
 	case DISP_VGA_H1280_V1024:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1280;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 1024;	//VA
-		cfg.ht = 0x698;	//HT-1=-1
-		cfg.hbp = 0x168;	//HS+HBP-1=+-1
-		cfg.vt = 0x854;	//VT*2=*2
-		cfg.vbp = 0x28;	//VS+VBP-1=+-1
-		cfg.vspw = 0x3;	//VS-1=-1
-		cfg.hspw = 0x70;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1280; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 1024; /* VA */
+		cfg.ht = 0x698; /* HT - 1 = -1 */
+		cfg.hbp = 0x168; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 0x854; /* VT * 2 = * 2 */
+		cfg.vbp = 0x28; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 0x3; /* VS - 1 = -1 */
+		cfg.hspw = 0x70; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H1360_V768:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1360;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 768;	//VA
-		cfg.ht = 0x700;	//HT-1=-1
-		cfg.hbp = 0x170;	//HS+HBP-1=+-1
-		cfg.vt = 0x636;	//VT*2=*2
-		cfg.vbp = 0x17;	//VS+VBP-1=+-1
-		cfg.vspw = 0x6;	//VS-1=-1
-		cfg.hspw = 0x70;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1360; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 768; /* VA */
+		cfg.ht = 0x700; /* HT - 1 = -1 */
+		cfg.hbp = 0x170; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 0x636; /* VT * 2 = * 2 */
+		cfg.vbp = 0x17; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 0x6; /* VS - 1 = -1 */
+		cfg.hspw = 0x70; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H1440_V900:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1440;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 900;	//VA
-		cfg.ht = 0x770;	//HT-1=-1
-		cfg.hbp = 0x180;	//HS+HBP-1=+-1
-		cfg.vt = 0x74c;	//VT*2=*2
-		cfg.vbp = 0x1e;	//VS+VBP-1=+-1
-		cfg.vspw = 0x6;	//VS-1=-1
-		cfg.hspw = 0x98;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1440; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 900; /* VA */
+		cfg.ht = 0x770; /* HT - 1 = -1 */
+		cfg.hbp = 0x180; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 0x74c; /* VT * 2 = * 2 */
+		cfg.vbp = 0x1e; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 0x6; /* VS - 1 = -1 */
+		cfg.hspw = 0x98; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H1680_V1050:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1680;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 1050;	//VA
-		cfg.ht = 2240;	//HT-1=-1
-		cfg.hbp = 464;	//HS+HBP-1=+-1
-		cfg.vt = 2178;	//VT*2=*2
-		cfg.vbp = 35;	//VS+VBP-1=+-1
-		cfg.vspw = 6;	//VS-1=-1
-		cfg.hspw = 176;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1680; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 1050; /* VA */
+		cfg.ht = 2240; /* HT - 1 = -1 */
+		cfg.hbp = 464; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 2178; /* VT * 2 = * 2 */
+		cfg.vbp = 35; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 6; /* VS - 1 = -1 */
+		cfg.hspw = 176; /* HS - 1 = -1 */
 		break;
 	case DISP_VGA_H1920_V1080_RB:
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1920;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 1080;	//VA
-		cfg.ht = 2017;	//HT-1=-1
-		cfg.hbp = 63;	//HS+HBP-1=+-1
-		cfg.vt = 2222;	//VT*2=*2
-		cfg.vbp = 27;	//VS+VBP-1=+-1
-		cfg.vspw = 5;	//VS-1=-1
-		cfg.hspw = 32;	//HS-1=-1
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1920; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 1080; /* VA */
+		cfg.ht = 2017; /* HT - 1 = -1 */
+		cfg.hbp = 63; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 2222; /* VT * 2 = * 2 */
+		cfg.vbp = 27; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 5; /* VS - 1 = -1 */
+		cfg.hspw = 32; /* HS - 1 = -1 */
 		break;
-	case DISP_VGA_H1920_V1080:	//TBD
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1920;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 1080;	//VA
-		cfg.ht = 2200;	//HT-1=-1
-		cfg.hbp = 148 + 44;	//HS+HBP-1=+-1
-		cfg.vt = 1125 * 2;	//VT*2=*2
-		cfg.vbp = 36 + 5;	//VS+VBP-1=+-1
-		cfg.vspw = 5;	//VS-1=-1
-		cfg.hspw = 44;	//HS-1=-1
+	case DISP_VGA_H1920_V1080: /* TBD */
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1920; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 1080; /* VA */
+		cfg.ht = 2200; /* HT - 1 = -1 */
+		cfg.hbp = 148 + 44; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 1125 * 2; /* VT * 2 = * 2 */
+		cfg.vbp = 36 + 5; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 5; /* VS - 1 = -1 */
+		cfg.hspw = 44; /* HS - 1 = -1 */
 		cfg.io_pol = 0x03000000;
 		break;
-	case DISP_VGA_H1280_V720:	//TBD
-		cfg.src_x = cfg.scl_x = cfg.out_x = 1280;	//HA
-		cfg.src_y = cfg.scl_y = cfg.out_y = 720;	//VA
-		cfg.ht = 1650;	//HT-1=-1
-		cfg.hbp = 220 + 40;	//HS+HBP-1=+-1
-		cfg.vt = 750 * 2;	//VT*2=*2
-		cfg.vbp = 5 + 20;	//VS+VBP-1=+-1
-		cfg.vspw = 5;	//VS-1=-1
-		cfg.hspw = 40;	//HS-1=-1
+	case DISP_VGA_H1280_V720: /* TBD */
+		cfg.src_x = cfg.scl_x = cfg.out_x = 1280; /* HA */
+		cfg.src_y = cfg.scl_y = cfg.out_y = 720; /* VA */
+		cfg.ht = 1650; /* HT - 1 = -1 */
+		cfg.hbp = 220 + 40; /* HS + HBP - 1 = +- 1 */
+		cfg.vt = 750 * 2; /* VT * 2 = * 2 */
+		cfg.vbp = 5 + 20; /* VS + VBP - 1 = +- 1 */
+		cfg.vspw = 5; /* VS - 1 = -1 */
+		cfg.hspw = 40; /* HS - 1 = -1 */
 		cfg.io_pol = 0x03000000;
 		break;
 	default:
@@ -1119,8 +1119,8 @@ __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode)
 	}
 	cfg.b_interlace = 0;
 	cfg.io_pol = 0x00000000;
-	cfg.io_out = 0x0cffffff;	//hs vs is use
-	cfg.b_rgb_internal_hd = 1;	//rgb
+	cfg.io_out = 0x0cffffff; /* hs vs is use */
+	cfg.b_rgb_internal_hd = 1; /* rgb */
 	cfg.b_rgb_remap_io = 0;
 	cfg.b_remap_if = 1;
 	TCON1_cfg(sel, &cfg);
@@ -1152,7 +1152,10 @@ __s32 TCON1_select_src(__u32 sel, __u8 src)
 	return 0;
 }
 
-__bool TCON1_in_valid_regn(__u32 sel, __u32 juststd)	//???
+/*
+ * ???
+ */
+__bool TCON1_in_valid_regn(__u32 sel, __u32 juststd)
 {
 	__u32 readval;
 	__u32 SY2;
@@ -1181,7 +1184,10 @@ __s32 TCON1_get_height(__u32 sel)
 	return -1;
 }
 
-__s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size)	//add next time
+/*
+ * add nex time
+ */
+__s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size)
 {
 	__u32 tmp;
 
@@ -1190,10 +1196,11 @@ __s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size)	//add next tim
 	__s32 *pmem_dest_cur;
 
 	tmp = LCDC_RUINT32(sel, LCDC_GCTL_OFF);
-	LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp & (~(1 << 30)));	//disable gamma correction sel
+	/* disable gamma correction sel */
+	LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp & (~(1 << 30)));
 
-	pmem_dest_cur =
-	    (__s32 *) (LCDC_get_reg_base(sel) + LCDC_GAMMA_TABLE_OFF);
+	pmem_dest_cur = (__s32 *)
+		(LCDC_get_reg_base(sel) + LCDC_GAMMA_TABLE_OFF);
 	pmem_align_src = (__s32 *) address;
 	pmem_align_dest = pmem_dest_cur + (size >> 2);
 
@@ -1221,11 +1228,13 @@ __s32 TCON1_set_gamma_Enable(__u32 sel, __bool enable)
 
 #define ____SEPARATOR_CPU____
 
-//__asm void my_stmia(int addr,int data1,int data2)
-//{
-//    stmia r0!, {r1,r2}
-//    BX    lr
-//}
+#if 0
+__asm void my_stmia(int addr,int data1,int data2)
+{
+	stmia r0!, {r1,r2}
+	BX    lr
+}
+#endif
 
 void LCD_CPU_Burst_Write(__u32 sel, int addr, int data1, int data2)
 {
@@ -1260,20 +1269,33 @@ __u32 LCD_CPU_Busy(__u32 sel)
 
 void LCD_CPU_WR_INDEX_24b(__u32 sel, __u32 index)
 {
-	while (LCD_CPU_Busy(sel)) ;	//check wr finish
-	LCDC_CLR_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT25);	//ca =0
-	while (LCD_CPU_Busy(sel)) ;	//check wr finish
-	LCDC_WUINT32(sel, LCDC_CPUWR_OFF, index);	// write data on 8080 bus
-//      while(LCD_CPU_Busy(sel));                               //check wr finish
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
+	LCDC_CLR_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT25); /* ca = 0 */
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
+	/* write data on 8080 bus */
+	LCDC_WUINT32(sel, LCDC_CPUWR_OFF, index);
+
+#if 0
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
+#endif
 }
 
 void LCD_CPU_WR_DATA_24b(__u32 sel, __u32 data)
 {
-	while (LCD_CPU_Busy(sel)) ;	//check wr finish
-	LCDC_SET_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT25);	//ca =1
-	while (LCD_CPU_Busy(sel)) ;	//check wr finish
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
+	LCDC_SET_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT25); /* ca = 1 */
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
 	LCDC_WUINT32(sel, LCDC_CPUWR_OFF, data);
-//      while(LCD_CPU_Busy(sel));                               //check wr finish
+
+#if 0
+	while (LCD_CPU_Busy(sel)) /* check wr finish */
+		;
+#endif
 }
 
 void LCD_CPU_WR_24b(__u32 sel, __u32 index, __u32 data)
@@ -1286,23 +1308,23 @@ void LCD_CPU_RD_24b(__u32 sel, __u32 index, __u32 * data)
 {
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////
-//16bit
-
+/*
+ * 16bit
+ */
 __u32 LCD_CPU_IO_extend_16b(__u32 value)
 {
-	return ((value & 0xfc00) << 8)
-	    | ((value & 0x0300) << 6)
-	    | ((value & 0x00e0) << 5)
-	    | ((value & 0x001f) << 3);
+	return ((value & 0xfc00) << 8) |
+		((value & 0x0300) << 6) |
+		((value & 0x00e0) << 5) |
+		((value & 0x001f) << 3);
 }
 
 __u32 LCD_CPU_IO_shrink_16b(__u32 value)
 {
-	return ((value & 0xfc0000) >> 8)
-	    | ((value & 0x00c000) >> 6)
-	    | ((value & 0x001c00) >> 5)
-	    | ((value & 0x0000f8) >> 3);
+	return ((value & 0xfc0000) >> 8) |
+		((value & 0x00c000) >> 6) |
+		((value & 0x001c00) >> 5) |
+		((value & 0x0000f8) >> 3);
 }
 
 void LCD_CPU_WR(__u32 sel, __u32 index, __u32 data)
@@ -1344,6 +1366,7 @@ void LCD_CPU_DMA_FLUSH(__u32 sel, __u8 en)
 void LCD_XY_SWAP(__u32 sel)
 {
 	__u32 reg, x, y;
+
 	reg = LCDC_RUINT32(sel, LCDC_BASIC0_OFF);
 	y = reg & 0x7ff;
 	x = (reg >> 16) & 0x7ff;
@@ -1353,14 +1376,18 @@ void LCD_XY_SWAP(__u32 sel)
 __s32 LCD_LVDS_open(__u32 sel)
 {
 	__u32 i;
+
 	LCDC_SET_BIT(sel, LCDC_LVDS_OFF, (__u32) 1 << 31);
 	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0, 0x3F310000);
 	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0, 1 << 22);
-	for (i = 0; i < 1200; i++) ;	//1200ns
+	for (i = 0; i < 1200; i++) /* 1200ns */
+		;
 	LCDC_SET_BIT(sel, LCDC_LVDS_ANA1, 0x1f << 26 | 0x1f << 10);
-	for (i = 0; i < 120; i++) ;	//120ns
+	for (i = 0; i < 120; i++) /* 120ns */
+		;
 	LCDC_SET_BIT(sel, LCDC_LVDS_ANA1, 0x1f << 16 | 0x1f << 00);
 	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0, 1 << 22);
+
 	return 0;
 }
 
@@ -1425,8 +1452,8 @@ static void rect_multi(__s32 * dest, __s32 * src1, __s32 * src2)
 		for (y = 0; y < 4; y++) {
 			val_int64 = 0;
 			for (z = 0; z < 4; z++)
-				val_int64 +=
-				    (__s64) src1[x * 4 + z] * src2[z * 4 + y];
+				val_int64 += (__s64)
+					src1[x * 4 + z] * src2[z * 4 + y];
 			val_int64 = (val_int64 + 512) >> 10;
 			dest[x * 4 + y] = val_int64;
 		}
@@ -1574,51 +1601,50 @@ static void lcd_ceu(__u32 r2y_type, __u32 cen_type, __u32 y2r_type, __s32 b,
 		rect_multi(rect_tmp1, p_y2r, p_rect);
 		p_rect = rect_tmp1;
 	}
-/*
-	const __s32 rect_srgb_warm[16]=
-	{
-		 1280,	   0,	   0,	   0,
-			0,	1024,	   0,	   0,
-			0,	   0,	 819,	   0,
-			0,	   0,      0,	1024
+
+#if 0
+	const __s32 rect_srgb_warm[16] = {
+		1280,	   0,	   0,	   0,
+		0,	1024,	   0,	   0,
+		0,	   0,	 819,	   0,
+		0,	   0,      0,	1024
 	};
 
-	const __s32 rect_srgb_cool[16]=
-	{
-		 819,	   0,	   0,	   0,
-			0,	1024,	   0,	   0,
-			0,	   0,	1280,	   0,
-			0,	   0,      0,	1024
+	const __s32 rect_srgb_cool[16] = {
+		819,	   0,	   0,	   0,
+		0,	1024,	   0,	   0,
+		0,	   0,	1280,	   0,
+		0,	   0,      0,	1024
 	};
 
-	if(srgb_type)
-	{
-		if(srgb_type==1)
-			p_srgb == (__s32*)rect_srgb_warm;
-		else if(srgb_type==2)
-			p_srgb == (__s32*)rect_srgb_cool;
-		rect_multi(rect_tmp0,p_srgb,p_rect);
+	if (srgb_type) {
+		if (srgb_type == 1)
+			p_srgb == (__s32 *)rect_srgb_warm;
+		else if (srgb_type == 2)
+			p_srgb == (__s32 *)rect_srgb_cool;
+		rect_multi(rect_tmp0, p_srgb, p_rect);
 		p_rect = rect_tmp0;
 	}
-*/
+#endif
+
 	for (i = 0; i < 12; i++)
 		*(p_coff + i) = *(p_rect + i);
 }
 
-//*********************************************************************************************
-// function         : LCDC_ceu(__u32 sel,__u32 func,__s32 b,__s32 c,__s32 s,__s32 h)
-// description      : lcdc color enhance
-// parameters       :
-//                      sel:    sel tcon
-//                                      func:   0:disable
-//                                                      1:rgb->rgb
-//                                                      2:yuv->yuv
-//                      b:              brightness              (-600 - 600)    default
-//                                      c:              contastness             (0 - 300)
-//                                      s:              saturture               (0 - 300)
-//                                      h:              hue                             (0 - 360)
-//***********************************************************************************************
 
+/*
+ * lcdc color enhance
+ *
+ * parameters:
+ * sel:  sel tcon
+ * func: 0:disable
+ *       1:rgb->rgb
+ *       2:yuv->yuv
+ * b:    brightness [-600:600]
+ * c:    contrast [0:300]
+ * s:    saturation [0:300]
+ * h:    hue [0:360]
+ */
 void LCDC_ceu(__u32 sel, __u32 func, __s32 b, __s32 c, __s32 s, __s32 h)
 {
 	__s32 ceu_coff[12];

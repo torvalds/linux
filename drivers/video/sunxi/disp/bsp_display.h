@@ -32,9 +32,9 @@
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/fb.h>
-#include <linux/sched.h>	//wake_up_process()
-#include <linux/kthread.h>	//kthread_create(),kthread_run()
-#include <linux/err.h>		//IS_ERR(),PTR_ERR()
+#include <linux/sched.h> /* wake_up_process() */
+#include <linux/kthread.h> /* kthread_create(), kthread_run() */
+#include <linux/err.h> /* IS_ERR(), PTR_ERR() */
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include "asm-generic/int-ll64.h"

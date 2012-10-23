@@ -24,14 +24,14 @@
 
 #include "bsp_display.h"
 
-#define LCDC_VBI_LCD_EN 0x80000000
-#define LCDC_VBI_HD_EN 0x40000000
-#define LCDC_LTI_LCD_EN 0x20000000
-#define LCDC_LTI_HD_EN 0x10000000
-#define LCDC_VBI_LCD 0x00008000
-#define LCDC_VBI_HD 0x00004000
-#define LCDC_LTI_LCD_FLAG 0x00002000
-#define LCDC_LTI_HD_FLAG 0x00001000
+#define LCDC_VBI_LCD_EN		0x80000000
+#define LCDC_VBI_HD_EN		0x40000000
+#define LCDC_LTI_LCD_EN		0x20000000
+#define LCDC_LTI_HD_EN		0x10000000
+#define LCDC_VBI_LCD		0x00008000
+#define LCDC_VBI_HD		0x00004000
+#define LCDC_LTI_LCD_FLAG	0x00002000
+#define LCDC_LTI_HD_FLAG	0x00001000
 
 typedef enum {
 	LCDC_SRC_DE1 = 0,
@@ -56,24 +56,33 @@ typedef enum {
 } __lcdc_frm_t;
 
 typedef struct {
-	__bool b_interlace;	//1=b_interlace, 0=progressive
-	__bool b_rgb_internal_hd;	//used when TV and VGA output, 0:YUV, 1:RGB
-	__bool b_rgb_remap_io;	//used when LCD and HDMI output, 0:YUV, 1:RGB
-	__bool b_remap_if;	//used when LCD and HDMI output, 0:LCD, 1:HDMI
-	__u16 src_x;		//tcon1 source width in pixels
-	__u16 src_y;		//tcon1 source height in pixels
-	__u16 scl_x;		//tcon1 scale output width size
-	__u16 scl_y;		//tcon1 scale output height size
-	__u16 out_x;		//tcon1 output width in pixels
-	__u16 out_y;		//tcon1 output height in pixels
-	__u16 ht;		//tcon1 horizontal total time
-	__u16 hbp;		//tcon1 back porch
-	__u16 vt;		//tcon1 vertical total time
-	__u16 vbp;		//tcon1 vertical back porch
-	__u16 vspw;		//tcon1 vertical sync pulse width in pixels
-	__u16 hspw;		//tcon1 horizontal sync pulse width
-	__u32 io_pol;		//tcon1 io polarity, 0=normal, 1=inverse
-	__u32 io_out;		//tcon1 io output enable, 0=enable output, 1=disable output, be careful!
+	__bool b_interlace;	/* 1=b_interlace, 0=progressive */
+	/* used when TV and VGA output, 0:YUV, 1:RGB */
+	__bool b_rgb_internal_hd;
+	/* used when LCD and HDMI output, 0:YUV, 1:RGB */
+	__bool b_rgb_remap_io;
+	/* used when LCD and HDMI output, 0:LCD, 1:HDMI */
+	__bool b_remap_if;
+	__u16 src_x;		/* tcon1 source width in pixels */
+	__u16 src_y;		/* tcon1 source height in pixels */
+	__u16 scl_x;		/* tcon1 scale output width size */
+	__u16 scl_y;		/* tcon1 scale output height size */
+	__u16 out_x;		/* tcon1 output width in pixels */
+	__u16 out_y;		/* tcon1 output height in pixels */
+	__u16 ht;		/* tcon1 horizontal total time */
+	__u16 hbp;		/* tcon1 back porch */
+	__u16 vt;		/* tcon1 vertical total time */
+	__u16 vbp;		/* tcon1 vertical back porch */
+	__u16 vspw;		/* tcon1 vertical sync pulse width in pixels */
+	__u16 hspw;		/* tcon1 horizontal sync pulse width */
+	__u32 io_pol;		/* tcon1 io polarity, 0=normal, 1=inverse */
+	/*
+	 * tcon1 io output enable.
+	 * 0=enable output
+	 * 1=disable output
+	 * be careful!
+	 */
+	__u32 io_out;
 	__u8 start_delay;
 } __tcon1_cfg_t;
 
@@ -99,9 +108,9 @@ typedef enum {
 } __tve_mode_t;
 
 typedef enum tag_TVE_DAC {
-	DAC1 = 1,		//bit0
-	DAC2 = 2,		//bit1
-	DAC3 = 4		//bit2
+	DAC1 = 1,	/* bit0 */
+	DAC2 = 2,	/* bit1 */
+	DAC3 = 4	/* bit2 */
 } __tve_dac_t;
 
 typedef enum tag_TVE_SRC {

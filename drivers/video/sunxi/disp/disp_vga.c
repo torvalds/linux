@@ -50,7 +50,11 @@ __s32 BSP_disp_vga_open(__u32 sel)
 
 		lcdc_clk_on(sel);
 		image_clk_on(sel);
-		Image_open(sel);	//set image normal channel start bit , because every de_clk_off( )will reset this bit
+		/*
+		 * set image normal channel start bit , because every
+		 * de_clk_off( ) will reset this bit
+		 */
+		Image_open(sel);
 		tve_clk_on(sel);
 		disp_clk_cfg(sel, DISP_OUTPUT_TYPE_VGA, vga_mode);
 		Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_VGA, 1);
@@ -109,23 +113,22 @@ __s32 BSP_disp_vga_close(__u32 sel)
 		gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &=
-		    ((gdisp.screen[sel].pll_use_status ==
-		      VIDEO_PLL0_USED) ? VIDEO_PLL0_USED_MASK :
-		     VIDEO_PLL1_USED_MASK);
+			((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
+			 VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
 	}
 	return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_vga_set_mode(__u32 sel, __disp_vga_mode_t mode)
 {
-	if ((mode >= DISP_VGA_MODE_NUM) || (mode == DISP_VGA_H1440_V900_RB)
-	    || (mode == DISP_VGA_H1680_V1050_RB)) {
+	if ((mode >= DISP_VGA_MODE_NUM) || (mode == DISP_VGA_H1440_V900_RB) ||
+	    (mode == DISP_VGA_H1680_V1050_RB)) {
 		DE_WRN("unsupported vga mode:%d in BSP_disp_vga_set_mode\n",
 		       mode);
 		return DIS_FAIL;
 	}
 
-	gdisp.screen[sel].vga_mode = mode;	//save current mode
+	gdisp.screen[sel].vga_mode = mode; /* save current mode */
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_VGA;
 
 	return DIS_SUCCESS;

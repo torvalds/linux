@@ -60,7 +60,11 @@ typedef struct {
 
 	__bool fb_enable[SUNXI_MAX_FB];
 	__fb_mode_t fb_mode[SUNXI_MAX_FB];
-	__u32 layer_hdl[SUNXI_MAX_FB][2];	/*[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle */
+	/*
+	 * [fb_id][0]: screen0 layer handle;
+	 * [fb_id][1]: screen1 layer handle
+	 */
+	__u32 layer_hdl[SUNXI_MAX_FB][2];
 	struct fb_info *fbinfo[SUNXI_MAX_FB];
 	__disp_fb_create_para_t fb_para[SUNXI_MAX_FB];
 	wait_queue_head_t wait[SUNXI_MAX_FB];
@@ -75,15 +79,15 @@ typedef struct {
 	__u32 mid;
 	__u32 used;
 	__u32 status;
-	__u32 exit_mode;	//0:clean all  1:disable interrupt
+	__u32 exit_mode;	/* 0:clean all  1:disable interrupt */
 	__bool b_cache[2];
 	__bool b_lcd_open[2];
 } __disp_drv_t;
 
 struct alloc_struct_t {
-	__u32 address;		// Application memory address
-	__u32 size;		// The size of the allocated memory, the actual memory size users
-	__u32 o_size;		// User application memory size
+	__u32 address; /* Application memory address */
+	__u32 size; /* The size of the allocated memory */
+	__u32 o_size; /* User application memory size */
 	struct alloc_struct_t *next;
 };
 

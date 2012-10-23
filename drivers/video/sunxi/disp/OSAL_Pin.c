@@ -27,10 +27,10 @@
 
 __hdle OSAL_GPIO_Request(user_gpio_set_t * gpio_list, __u32 group_count_max)
 {
-	__inf
-	    ("OSAL_GPIO_Request, port:%d, port_num:%d, mul_sel:%d, pull:%d, drv_level:%d, data:%d\n",
-	     gpio_list->port, gpio_list->port_num, gpio_list->mul_sel,
-	     gpio_list->pull, gpio_list->drv_level, gpio_list->data);
+	__inf("OSAL_GPIO_Request, port:%d, port_num:%d, mul_sel:%d, "
+	      "pull:%d, drv_level:%d, data:%d\n", gpio_list->port,
+	      gpio_list->port_num, gpio_list->mul_sel, gpio_list->pull,
+	      gpio_list->drv_level, gpio_list->data);
 
 #ifdef CONFIG_ARCH_SUN5I
 	if (gpio_list->port == 0xffff) {
@@ -40,14 +40,11 @@ __hdle OSAL_GPIO_Request(user_gpio_set_t * gpio_list, __u32 group_count_max)
 			axp_gpio_set_value(gpio_list->port_num,
 					   gpio_list->data);
 			return 100 + gpio_list->port_num;
-		} else {
+		} else
 			return 0;
-		}
 	} else
 #endif
-	{
 		return gpio_request(gpio_list, group_count_max);
-	}
 }
 
 __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name)
@@ -66,13 +63,11 @@ __s32 OSAL_GPIO_Release(__hdle p_handler, __s32 if_release_to_default_status)
 {
 	//__inf("OSAL_GPIO_Release\n");
 #ifdef CONFIG_ARCH_SUN5I
-	if (p_handler < 200 && p_handler >= 100) {
+	if (p_handler < 200 && p_handler >= 100)
 		return 0;
-	} else
+	else
 #endif
-	{
 		return gpio_release(p_handler, if_release_to_default_status);
-	}
 }
 
 __s32 OSAL_GPIO_DevGetAllPins_Status(unsigned p_handler,
@@ -107,16 +102,14 @@ __s32 OSAL_GPIO_DevSetONEPIN_IO_STATUS(u32 p_handler,
 				       const char *gpio_name)
 {
 #ifdef CONFIG_ARCH_SUN5I
-	if (p_handler < 200 && p_handler >= 100) {
+	if (p_handler < 200 && p_handler >= 100)
 		return axp_gpio_set_io(p_handler - 100,
 				       if_set_to_output_status);
-	} else
+	else
 #endif
-	{
 		return gpio_set_one_pin_io_status(p_handler,
 						  if_set_to_output_status,
 						  gpio_name);
-	}
 }
 
 __s32 OSAL_GPIO_DevSetONEPIN_PULL_STATUS(u32 p_handler, __u32 set_pull_status,
@@ -135,21 +128,17 @@ __s32 OSAL_GPIO_DevREAD_ONEPIN_DATA(u32 p_handler, const char *gpio_name)
 		return value;
 	} else
 #endif
-	{
 		return gpio_read_one_pin_value(p_handler, gpio_name);
-	}
 }
 
 __s32 OSAL_GPIO_DevWRITE_ONEPIN_DATA(u32 p_handler, __u32 value_to_gpio,
 				     const char *gpio_name)
 {
 #ifdef CONFIG_ARCH_SUN5I
-	if ((p_handler < 200) && (p_handler >= 100)) {
+	if ((p_handler < 200) && (p_handler >= 100))
 		return axp_gpio_set_value(p_handler - 100, value_to_gpio);
-	} else
+	else
 #endif
-	{
 		return gpio_write_one_pin_value(p_handler, value_to_gpio,
 						gpio_name);
-	}
 }
