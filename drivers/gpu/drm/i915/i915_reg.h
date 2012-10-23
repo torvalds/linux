@@ -1568,14 +1568,14 @@
 #define _VSYNCSHIFT_B	0x61028
 
 
-#define HTOTAL(pipe) _PIPE(pipe, _HTOTAL_A, _HTOTAL_B)
-#define HBLANK(pipe) _PIPE(pipe, _HBLANK_A, _HBLANK_B)
-#define HSYNC(pipe) _PIPE(pipe, _HSYNC_A, _HSYNC_B)
-#define VTOTAL(pipe) _PIPE(pipe, _VTOTAL_A, _VTOTAL_B)
-#define VBLANK(pipe) _PIPE(pipe, _VBLANK_A, _VBLANK_B)
-#define VSYNC(pipe) _PIPE(pipe, _VSYNC_A, _VSYNC_B)
+#define HTOTAL(trans) _TRANSCODER(trans, _HTOTAL_A, _HTOTAL_B)
+#define HBLANK(trans) _TRANSCODER(trans, _HBLANK_A, _HBLANK_B)
+#define HSYNC(trans) _TRANSCODER(trans, _HSYNC_A, _HSYNC_B)
+#define VTOTAL(trans) _TRANSCODER(trans, _VTOTAL_A, _VTOTAL_B)
+#define VBLANK(trans) _TRANSCODER(trans, _VBLANK_A, _VBLANK_B)
+#define VSYNC(trans) _TRANSCODER(trans, _VSYNC_A, _VSYNC_B)
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
-#define VSYNCSHIFT(pipe) _PIPE(pipe, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
+#define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
 /* VGA port control */
 #define ADPA			0x61100

@@ -4488,6 +4488,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	uint32_t vsyncshift;
 
 	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
@@ -4501,25 +4502,25 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 	}
 
 	if (INTEL_INFO(dev)->gen > 3)
-		I915_WRITE(VSYNCSHIFT(pipe), vsyncshift);
+		I915_WRITE(VSYNCSHIFT(cpu_transcoder), vsyncshift);
 
-	I915_WRITE(HTOTAL(pipe),
+	I915_WRITE(HTOTAL(cpu_transcoder),
 		   (adjusted_mode->crtc_hdisplay - 1) |
 		   ((adjusted_mode->crtc_htotal - 1) << 16));
-	I915_WRITE(HBLANK(pipe),
+	I915_WRITE(HBLANK(cpu_transcoder),
 		   (adjusted_mode->crtc_hblank_start - 1) |
 		   ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	I915_WRITE(HSYNC(pipe),
+	I915_WRITE(HSYNC(cpu_transcoder),
 		   (adjusted_mode->crtc_hsync_start - 1) |
 		   ((adjusted_mode->crtc_hsync_end - 1) << 16));
 
-	I915_WRITE(VTOTAL(pipe),
+	I915_WRITE(VTOTAL(cpu_transcoder),
 		   (adjusted_mode->crtc_vdisplay - 1) |
 		   ((adjusted_mode->crtc_vtotal - 1) << 16));
-	I915_WRITE(VBLANK(pipe),
+	I915_WRITE(VBLANK(cpu_transcoder),
 		   (adjusted_mode->crtc_vblank_start - 1) |
 		   ((adjusted_mode->crtc_vblank_end - 1) << 16));
-	I915_WRITE(VSYNC(pipe),
+	I915_WRITE(VSYNC(cpu_transcoder),
 		   (adjusted_mode->crtc_vsync_start - 1) |
 		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
 
@@ -6481,12 +6482,12 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	struct drm_display_mode *mode;
-	int htot = I915_READ(HTOTAL(pipe));
-	int hsync = I915_READ(HSYNC(pipe));
-	int vtot = I915_READ(VTOTAL(pipe));
-	int vsync = I915_READ(VSYNC(pipe));
+	int htot = I915_READ(HTOTAL(cpu_transcoder));
+	int hsync = I915_READ(HSYNC(cpu_transcoder));
+	int vtot = I915_READ(VTOTAL(cpu_transcoder));
+	int vsync = I915_READ(VSYNC(cpu_transcoder));
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
@@ -8946,12 +8947,12 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 		error->pipe[i].conf = I915_READ(PIPECONF(cpu_transcoder));
 		error->pipe[i].source = I915_READ(PIPESRC(i));
-		error->pipe[i].htotal = I915_READ(HTOTAL(i));
-		error->pipe[i].hblank = I915_READ(HBLANK(i));
-		error->pipe[i].hsync = I915_READ(HSYNC(i));
-		error->pipe[i].vtotal = I915_READ(VTOTAL(i));
-		error->pipe[i].vblank = I915_READ(VBLANK(i));
-		error->pipe[i].vsync = I915_READ(VSYNC(i));
+		error->pipe[i].htotal = I915_READ(HTOTAL(cpu_transcoder));
+		error->pipe[i].hblank = I915_READ(HBLANK(cpu_transcoder));
+		error->pipe[i].hsync = I915_READ(HSYNC(cpu_transcoder));
+		error->pipe[i].vtotal = I915_READ(VTOTAL(cpu_transcoder));
+		error->pipe[i].vblank = I915_READ(VBLANK(cpu_transcoder));
+		error->pipe[i].vsync = I915_READ(VSYNC(cpu_transcoder));
 	}
 
 	return error;

@@ -185,6 +185,8 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	int vbl_start, vbl_end, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
@@ -193,7 +195,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	}
 
 	/* Get vtotal. */
-	vtotal = 1 + ((I915_READ(VTOTAL(pipe)) >> 16) & 0x1fff);
+	vtotal = 1 + ((I915_READ(VTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		/* No obvious pixelcount register. Only query vertical
@@ -213,13 +215,13 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 */
 		position = (I915_READ(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
-		htotal = 1 + ((I915_READ(HTOTAL(pipe)) >> 16) & 0x1fff);
+		htotal = 1 + ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
 		*vpos = position / htotal;
 		*hpos = position - (*vpos * htotal);
 	}
 
 	/* Query vblank area. */
-	vbl = I915_READ(VBLANK(pipe));
+	vbl = I915_READ(VBLANK(cpu_transcoder));
 
 	/* Test position against vblank region. */
 	vbl_start = vbl & 0x1fff;
