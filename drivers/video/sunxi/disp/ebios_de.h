@@ -287,25 +287,25 @@ __u32 DE_SCAL_Get_Reg_Base(__u8 sel);
 __s32 DE_SCAL_Config_Src(__u8 sel, __scal_buf_addr_t * addr,
 			 __scal_src_size_t * size, __scal_src_type_t * type,
 			 __u8 field, __u8 dien);
-__s32 DE_SCAL_Set_Fb_Addr(__u8 sel, __scal_buf_addr_t * addr);
-__s32 DE_SCAL_Set_Init_Phase(__u8 sel, __scal_scan_mod_t * in_scan,
-			     __scal_src_size_t * in_size,
-			     __scal_src_type_t * in_type,
-			     __scal_scan_mod_t * out_scan,
-			     __scal_out_size_t * out_size,
-			     __scal_out_type_t * out_type, __u8 dien);
-__s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t * in_scan,
-				 __scal_src_size_t * in_size,
-				 __scal_src_type_t * in_type,
-				 __scal_scan_mod_t * out_scan,
-				 __scal_out_size_t * out_size,
-				 __scal_out_type_t * out_type);
-__s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t * in_scan,
-			       __scal_src_size_t * in_size,
-			       __scal_src_type_t * in_type,
-			       __scal_scan_mod_t * out_scan,
-			       __scal_out_size_t * out_size,
-			       __scal_out_type_t * out_type, __u8 smth_mode);
+__s32 DE_SCAL_Set_Fb_Addr(__u8 sel, __scal_buf_addr_t *addr);
+__s32 DE_SCAL_Set_Init_Phase(__u8 sel, __scal_scan_mod_t *in_scan,
+			     __scal_src_size_t *in_size,
+			     __scal_src_type_t *in_type,
+			     __scal_scan_mod_t *out_scan,
+			     __scal_out_size_t *out_size,
+			     __scal_out_type_t *out_type, __u8 dien);
+__s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t *in_scan,
+				 __scal_src_size_t *in_size,
+				 __scal_src_type_t *in_type,
+				 __scal_scan_mod_t *out_scan,
+				 __scal_out_size_t *out_size,
+				 __scal_out_type_t *out_type);
+__s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan,
+			       __scal_src_size_t *in_size,
+			       __scal_src_type_t *in_type,
+			       __scal_scan_mod_t *out_scan,
+			       __scal_out_size_t *out_size,
+			       __scal_out_type_t *out_type, __u32 smth_mode);
 __s32 DE_SCAL_Set_CSC_Coef(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode,
 			   __u8 incs, __u8 outcs, __u32 in_br_swap,
 			   __u32 out_br_swap);

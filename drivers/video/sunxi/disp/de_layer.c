@@ -108,17 +108,18 @@ __s32 DE_BE_Layer_Set_Work_Mode(__u32 sel, __u8 layidx, __u8 mode)
 	return 0;
 }
 
-static __s32 DE_BE_Layer_Set_Addr(__u32 sel, __u8 layidx, __u32 addr)	//bit
+/*
+ * bit
+ */
+static __s32 DE_BE_Layer_Set_Addr(__u32 sel, __u8 layidx, __u32 addr)
 {
 	__u32 tmp_l, tmp_h, tmp;
 	tmp_l = addr << 3;
-	tmp_h = (__u8) (addr & 0xe0000000) >> 29;
+	tmp_h = (__u8) ((addr & 0xe0000000) >> 29);
 	DE_BE_WUINT32IDX(sel, DE_BE_FRMBUF_LOW32ADDR_OFF, layidx, tmp_l);
 
-	tmp =
-	    DE_BE_RUINT32(sel,
-			  DE_BE_FRMBUF_HIGH4ADDR_OFF) & (~(0xff <<
-							   (layidx * 8)));
+	tmp = DE_BE_RUINT32(sel, DE_BE_FRMBUF_HIGH4ADDR_OFF) &
+		(~(0xff << (layidx * 8)));
 	DE_BE_WUINT32(sel, DE_BE_FRMBUF_HIGH4ADDR_OFF,
 		      tmp | (tmp_h << (layidx * 8)));
 
