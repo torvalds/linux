@@ -736,7 +736,7 @@ static void cx231xx_sleep_s5h1432(struct cx231xx *dev)
 
 static inline void cx231xx_set_model(struct cx231xx *dev)
 {
-	memcpy(&dev->board, &cx231xx_boards[dev->model], sizeof(dev->board));
+	dev->board = cx231xx_boards[dev->model];
 }
 
 /* Since cx231xx_pre_card_setup() requires a proper dev->model,

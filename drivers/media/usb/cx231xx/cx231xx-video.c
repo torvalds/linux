@@ -2627,8 +2627,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		     dev->name, video_device_node_name(dev->vdev));
 
 	/* Initialize VBI template */
-	memcpy(&cx231xx_vbi_template, &cx231xx_video_template,
-	       sizeof(cx231xx_vbi_template));
+	cx231xx_vbi_template = cx231xx_video_template;
 	strcpy(cx231xx_vbi_template.name, "cx231xx-vbi");
 
 	/* Allocate and fill vbi video_device struct */
