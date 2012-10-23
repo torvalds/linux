@@ -455,7 +455,7 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
 			 unsigned char *va,
 			 struct sk_buff *skb)
 {
-	u64 *regval = (u64 *)va;
+	__le64 *regval = (__le64 *)va;
 
 	/*
 	 * The timestamp is recorded in little endian format.
