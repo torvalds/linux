@@ -114,10 +114,10 @@ void flush_thread(void)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-	unsigned long arg, struct task_struct *p, struct pt_regs *regs)
+	unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
-	struct pt_regs *childregs;
+	struct pt_regs *childregs, *regs = current_pt_regs();
 	unsigned long childksp;
 	p->set_child_tid = p->clear_child_tid = NULL;
 

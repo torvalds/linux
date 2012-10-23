@@ -146,8 +146,7 @@ static inline u32 read_32bit_tls(struct task_struct *t, int tls)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg,
-	struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	int err;
 	struct pt_regs *childregs;

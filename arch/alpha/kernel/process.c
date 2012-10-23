@@ -241,7 +241,7 @@ release_thread(struct task_struct *dead_task)
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long arg,
-	    struct task_struct *p, struct pt_regs *wontuse)
+	    struct task_struct *p)
 {
 	extern void ret_from_fork(void);
 	extern void ret_from_kernel_thread(void);

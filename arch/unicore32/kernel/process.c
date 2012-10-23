@@ -262,7 +262,7 @@ asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
 int
 copy_thread(unsigned long clone_flags, unsigned long stack_start,
-	    unsigned long stk_sz, struct task_struct *p, struct pt_regs *unused)
+	    unsigned long stk_sz, struct task_struct *p)
 {
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);

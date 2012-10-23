@@ -1320,7 +1320,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	retval = copy_io(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_namespaces;
-	retval = copy_thread(clone_flags, stack_start, stack_size, p, regs);
+	retval = copy_thread(clone_flags, stack_start, stack_size, p);
 	if (retval)
 		goto bad_fork_cleanup_io;
 

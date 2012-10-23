@@ -733,8 +733,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p,
-		struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
@@ -759,6 +758,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		ti->flags |= _TIF_RESTOREALL;
 		f = ret_from_kernel_thread;
 	} else {
+		struct pt_regs *regs = current_pt_regs();
 		CHECK_FULL_REGS(regs);
 		*childregs = *regs;
 		if (usp)

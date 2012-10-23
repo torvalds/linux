@@ -87,8 +87,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  * Copy architecture-specific thread state
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p,
-		struct pt_regs *unused)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct hexagon_switch_stack *ss;

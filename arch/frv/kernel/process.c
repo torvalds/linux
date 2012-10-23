@@ -144,7 +144,7 @@ inline unsigned long user_stack(const struct pt_regs *regs)
  */
 int copy_thread(unsigned long clone_flags,
 		unsigned long usp, unsigned long arg,
-		struct task_struct *p, struct pt_regs *unused)
+		struct task_struct *p)
 {
 	struct pt_regs *childregs;
 

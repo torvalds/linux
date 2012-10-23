@@ -622,10 +622,10 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
  * Child  -->  %o0 == parents pid, %o1 == 1
  */
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *t = task_thread_info(p);
+	struct pt_regs *regs = current_pt_regs();
 	struct sparc_stackf *parent_sf;
 	unsigned long child_stack_sz;
 	char *child_trap_frame;

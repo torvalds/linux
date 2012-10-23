@@ -109,8 +109,7 @@ extern asmlinkage void ret_from_kernel_thread(void);
 
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	unsigned long arg,
-	struct task_struct *p, struct pt_regs *unused)
+	unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct switch_stack *swstack = ((struct switch_stack *) childregs) - 1;

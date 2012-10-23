@@ -117,8 +117,7 @@ void release_thread(struct task_struct *dead_task)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *unused)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti;
 	struct fake_frame

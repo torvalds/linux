@@ -141,14 +141,14 @@ asmlinkage int bfin_clone(unsigned long clone_flags, unsigned long newsp)
 int
 copy_thread(unsigned long clone_flags,
 	    unsigned long usp, unsigned long topstk,
-	    struct task_struct *p, struct pt_regs *regs)
+	    struct task_struct *p)
 {
 	struct pt_regs *childregs;
 	unsigned long *v;
 
 	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
 	v = ((unsigned long *)childregs) - 2;
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		v[0] = usp;
 		v[1] = topstk;
@@ -157,7 +157,7 @@ copy_thread(unsigned long clone_flags,
 		__asm__ __volatile__("%0 = syscfg;":"=da"(childregs->syscfg):);
 		p->thread.usp = 0;
 	} else {
-		*childregs = *regs;
+		*childregs = *current_pt_regs();
 		childregs->r0 = 0;
 		p->thread.usp = usp ? : rdusp();
 		v[0] = v[1] = 0;

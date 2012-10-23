@@ -371,10 +371,9 @@ asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs, *regs = current_pt_regs();
 
 #ifdef CONFIG_SH_FPU
 	/* can't happen for a kernel thread */

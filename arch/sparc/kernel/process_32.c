@@ -319,11 +319,10 @@ extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
-	struct pt_regs *childregs;
+	struct pt_regs *childregs, *regs = current_pt_regs();
 	char *new_stack;
 
 #ifndef CONFIG_SMP

@@ -192,7 +192,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long spu,
-	unsigned long arg, struct task_struct *tsk, struct pt_regs *unused)
+	unsigned long arg, struct task_struct *tsk)
 {
 	struct pt_regs *childregs = task_pt_regs(tsk);
 	extern void ret_from_fork(void);

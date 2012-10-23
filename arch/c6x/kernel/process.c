@@ -139,7 +139,7 @@ void start_thread(struct pt_regs *regs, unsigned int pc, unsigned long usp)
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long ustk_size,
-		struct task_struct *p, struct pt_regs *unused)
+		struct task_struct *p)
 {
 	struct pt_regs *childregs;
 

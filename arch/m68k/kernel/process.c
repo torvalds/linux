@@ -154,8 +154,7 @@ asmlinkage int m68k_clone(struct pt_regs *regs)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		 unsigned long arg,
-		 struct task_struct * p, struct pt_regs * unused)
+		 unsigned long arg, struct task_struct *p)
 {
 	struct fork_frame {
 		struct switch_stack sw;

@@ -204,10 +204,9 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
 
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long arg,
-	    struct task_struct *p, struct pt_regs *unused)
+	    unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs * cregs = &(p->thread.regs);
+	struct pt_regs *cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
 	
 	/* We have to use void * instead of a function pointer, because

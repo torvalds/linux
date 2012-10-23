@@ -120,8 +120,7 @@ void flush_thread(void)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *unused)
+		unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct thread_info *ti = task_thread_info(p);

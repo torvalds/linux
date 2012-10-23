@@ -128,8 +128,7 @@ void release_thread(struct task_struct *dead_task)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-	unsigned long arg,
-	struct task_struct *p, struct pt_regs *unused)
+	unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct task_struct *tsk;

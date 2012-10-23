@@ -206,7 +206,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  */
 int copy_thread(unsigned long clone_flags,
 		unsigned long c_usp, unsigned long ustk_size,
-		struct task_struct *p, struct pt_regs *unused)
+		struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *c_regs;

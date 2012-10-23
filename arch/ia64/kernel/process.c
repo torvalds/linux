@@ -393,12 +393,13 @@ ia64_load_extra (struct task_struct *task)
 int
 copy_thread(unsigned long clone_flags,
 	     unsigned long user_stack_base, unsigned long user_stack_size,
-	     struct task_struct *p, struct pt_regs *regs)
+	     struct task_struct *p)
 {
 	extern char ia64_ret_from_clone;
 	struct switch_stack *child_stack, *stack;
 	unsigned long rbs, child_rbs, rbs_size;
 	struct pt_regs *child_ptregs;
+	struct pt_regs *regs = current_pt_regs();
 	int retval = 0;
 
 	child_ptregs = (struct pt_regs *) ((unsigned long) p + IA64_STK_OFFSET) - 1;

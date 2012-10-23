@@ -157,10 +157,9 @@ void arch_release_thread_info(struct thread_info *info)
 static void save_arch_state(struct thread_struct *t);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg,
-		struct task_struct *p, struct pt_regs *unused)
+		unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs = task_pt_regs(p);
+	struct pt_regs *childregs = task_pt_regs(p), *regs = current_pt_regs();
 	unsigned long ksp;
 	unsigned long *callee_regs;
 
