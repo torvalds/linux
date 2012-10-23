@@ -1505,6 +1505,7 @@ extern unsigned int drm_debug;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
+extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;

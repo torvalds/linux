@@ -633,7 +633,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 
 		/* Get system timestamp after query. */
 		etime = ktime_get();
-		mono_time_offset = ktime_get_monotonic_offset();
+		if (!drm_timestamp_monotonic)
+			mono_time_offset = ktime_get_monotonic_offset();
 
 		preempt_enable();
 
@@ -691,7 +692,9 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		vbl_status |= 0x8;
 	}
 
-	etime = ktime_sub(etime, mono_time_offset);
+	if (!drm_timestamp_monotonic)
+		etime = ktime_sub(etime, mono_time_offset);
+
 	/* save this only for debugging purposes */
 	tv_etime = ktime_to_timeval(etime);
 	/* Subtract time delta from raw timestamp to get final
@@ -713,6 +716,17 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	return vbl_status;
 }
 EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
+
+static struct timeval get_drm_timestamp(void)
+{
+	ktime_t now;
+
+	now = ktime_get();
+	if (!drm_timestamp_monotonic)
+		now = ktime_sub(now, ktime_get_monotonic_offset());
+
+	return ktime_to_timeval(now);
+}
 
 /**
  * drm_get_last_vbltimestamp - retrieve raw timestamp for the most recent
@@ -751,9 +765,9 @@ u32 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
 	}
 
 	/* GPU high precision timestamp query unsupported or failed.
-	 * Return gettimeofday timestamp as best estimate.
+	 * Return current monotonic/gettimeofday timestamp as best estimate.
 	 */
-	do_gettimeofday(tvblank);
+	*tvblank = get_drm_timestamp();
 
 	return 0;
 }
@@ -842,7 +856,8 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 		seq = drm_vblank_count_and_time(dev, crtc, &now);
 	} else {
 		seq = 0;
-		do_gettimeofday(&now);
+
+		now = get_drm_timestamp();
 	}
 	send_vblank_event(dev, e, seq, &now);
 }
