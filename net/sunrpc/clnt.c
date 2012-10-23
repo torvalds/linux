@@ -132,8 +132,10 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 	int error;
 
 	dir = rpc_d_lookup_sb(sb, dir_name);
-	if (dir == NULL)
+	if (dir == NULL) {
+		pr_info("RPC: pipefs directory doesn't exist: %s\n", dir_name);
 		return dir;
+	}
 	for (;;) {
 		q.len = snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
 		name[sizeof(name) - 1] = '\0';
@@ -192,7 +194,8 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 	case RPC_PIPEFS_MOUNT:
 		dentry = rpc_setup_pipedir_sb(sb, clnt,
 					      clnt->cl_program->pipe_dir_name);
-		BUG_ON(dentry == NULL);
+		if (!dentry)
+			return -ENOENT;
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
 		clnt->cl_dentry = dentry;
