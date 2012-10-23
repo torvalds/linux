@@ -328,7 +328,7 @@ static ssize_t bd2802_store_reg##reg_addr(struct device *dev,		\
 	int ret;							\
 	if (!count)							\
 		return -EINVAL;						\
-	ret = strict_strtoul(buf, 16, &val);				\
+	ret = kstrtoul(buf, 16, &val);					\
 	if (ret)							\
 		return ret;						\
 	down_write(&led->rwsem);					\
@@ -492,7 +492,7 @@ static ssize_t bd2802_store_##attr_name(struct device *dev,		\
 	int ret;							\
 	if (!count)							\
 		return -EINVAL;						\
-	ret = strict_strtoul(buf, 16, &val);				\
+	ret = kstrtoul(buf, 16, &val);					\
 	if (ret)							\
 		return ret;						\
 	down_write(&led->rwsem);					\
