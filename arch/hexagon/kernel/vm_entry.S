@@ -374,11 +374,20 @@ _K_enter_debug:
 	.globl ret_from_fork
 ret_from_fork:
 	{
-		call schedule_tail;
+		call schedule_tail
 		R16.H = #HI(do_work_pending);
 	}
 	{
+		P0 = cmp.eq(R24, #0);
 		R16.L = #LO(do_work_pending);
 		R0 = #VM_INT_DISABLE;
-		jump check_work_pending;
+	}
+	if P0 jump check_work_pending
+	{
+		R0 = R25;
+		callr R24
+	}
+	{
+		jump check_work_pending
+		R0 = #VM_INT_DISABLE;
 	}
