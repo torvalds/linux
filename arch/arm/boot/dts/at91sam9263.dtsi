@@ -163,6 +163,34 @@
 					};
 				};
 
+				macb {
+					pinctrl_macb_rmii: macb_rmii-0 {
+						atmel,pins =
+							<2 25 0x2 0x0	/* PC25 periph B */
+							 4 21 0x1 0x0	/* PE21 periph A */
+							 4 23 0x1 0x0	/* PE23 periph A */
+							 4 24 0x1 0x0	/* PE24 periph A */
+							 4 25 0x1 0x0	/* PE25 periph A */
+							 4 26 0x1 0x0	/* PE26 periph A */
+							 4 27 0x1 0x0	/* PE27 periph A */
+							 4 28 0x1 0x0	/* PE28 periph A */
+							 4 29 0x1 0x0	/* PE29 periph A */
+							 4 30 0x1 0x0>;	/* PE30 periph A */
+					};
+
+					pinctrl_macb_rmii_mii: macb_rmii_mii-0 {
+						atmel,pins =
+							<2 20 0x2 0x0	/* PC20 periph B */
+							 2 21 0x2 0x0	/* PC21 periph B */
+							 2 22 0x2 0x0	/* PC22 periph B */
+							 2 23 0x2 0x0	/* PC23 periph B */
+							 2 24 0x2 0x0	/* PC24 periph B */
+							 2 25 0x2 0x0	/* PC25 periph B */
+							 2 27 0x2 0x0	/* PC27 periph B */
+							 4 22 0x2 0x0>;	/* PE22 periph B */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -260,6 +288,8 @@
 				compatible = "cdns,at32ap7000-macb", "cdns,macb";
 				reg = <0xfffbc000 0x100>;
 				interrupts = <21 4 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb_rmii>;
 				status = "disabled";
 			};
 

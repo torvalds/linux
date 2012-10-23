@@ -216,6 +216,46 @@
 					};
 				};
 
+				macb {
+					pinctrl_macb_rmii: macb_rmii-0 {
+						atmel,pins =
+							<0 12 0x1 0x0	/* PA12 periph A */
+							 0 13 0x1 0x0	/* PA13 periph A */
+							 0 14 0x1 0x0	/* PA14 periph A */
+							 0 15 0x1 0x0	/* PA15 periph A */
+							 0 16 0x1 0x0	/* PA16 periph A */
+							 0 17 0x1 0x0	/* PA17 periph A */
+							 0 18 0x1 0x0	/* PA18 periph A */
+							 0 19 0x1 0x0	/* PA19 periph A */
+							 0 20 0x1 0x0	/* PA20 periph A */
+							 0 21 0x1 0x0>;	/* PA21 periph A */
+					};
+
+					pinctrl_macb_rmii_mii: macb_rmii_mii-0 {
+						atmel,pins =
+							<0 22 0x2 0x0	/* PA22 periph B */
+							 0 23 0x2 0x0	/* PA23 periph B */
+							 0 24 0x2 0x0	/* PA24 periph B */
+							 0 25 0x2 0x0	/* PA25 periph B */
+							 0 26 0x2 0x0	/* PA26 periph B */
+							 0 27 0x2 0x0	/* PA27 periph B */
+							 0 28 0x2 0x0	/* PA28 periph B */
+							 0 29 0x2 0x0>;	/* PA29 periph B */
+					};
+
+					pinctrl_macb_rmii_mii_alt: macb_rmii_mii-1 {
+						atmel,pins =
+							<0 10 0x2 0x0	/* PA10 periph B */
+							 0 11 0x2 0x0	/* PA11 periph B */
+							 0 24 0x2 0x0	/* PA24 periph B */
+							 0 25 0x2 0x0	/* PA25 periph B */
+							 0 26 0x2 0x0	/* PA26 periph B */
+							 0 27 0x2 0x0	/* PA27 periph B */
+							 0 28 0x2 0x0	/* PA28 periph B */
+							 0 29 0x2 0x0>;	/* PA29 periph B */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -326,6 +366,8 @@
 				compatible = "cdns,at32ap7000-macb", "cdns,macb";
 				reg = <0xfffc4000 0x100>;
 				interrupts = <21 4 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb_rmii>;
 				status = "disabled";
 			};
 

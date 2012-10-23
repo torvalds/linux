@@ -22,6 +22,27 @@
 				       0x80000000 0xfffd0000 0xb83fffff  /* pioC */
 				       0x003fffff 0x003f8000 0x00000000  /* pioD */
 				      >;
+
+				macb1 {
+					pinctrl_macb1_rmii: macb1_rmii-0 {
+						atmel,pins =
+							<2 16 0x2 0x0	/* PC16 periph B */
+							 2 18 0x2 0x0	/* PC18 periph B */
+							 2 19 0x2 0x0	/* PC19 periph B */
+							 2 20 0x2 0x0	/* PC20 periph B */
+							 2 21 0x2 0x0	/* PC21 periph B */
+							 2 27 0x2 0x0	/* PC27 periph B */
+							 2 28 0x2 0x0	/* PC28 periph B */
+							 2 29 0x2 0x0	/* PC29 periph B */
+							 2 30 0x2 0x0	/* PC30 periph B */
+							 2 31 0x2 0x0>;	/* PC31 periph B */
+					};
+				};
+			};
+
+			macb1: ethernet@f8030000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb1_rmii>;
 			};
 		};
 	};
