@@ -373,11 +373,11 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
 }
 
 /**
- * radeon_atpx_pci_probe_handle - look up the ATRM and ATPX handles
+ * radeon_atpx_pci_probe_handle - look up the ATPX handle
  *
  * @pdev: pci device
  *
- * Look up the ATPX and ATRM handles (all asics).
+ * Look up the ATPX handles (all asics).
  * Returns true if the handles are found, false if not.
  */
 static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
