@@ -94,10 +94,6 @@ static int __devinit create_lt3593_led(const struct gpio_led *template,
 		return 0;
 	}
 
-	ret = gpio_request(template->gpio, template->name);
-	if (ret < 0)
-		return ret;
-
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->gpio = template->gpio;
@@ -110,9 +106,10 @@ static int __devinit create_lt3593_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_direction_output(led_dat->gpio, state);
+	ret = gpio_request_one(template->gpio, GPIOF_DIR_OUT | state,
+				template->name);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	INIT_WORK(&led_dat->work, lt3593_led_work);
 
