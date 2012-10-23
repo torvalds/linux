@@ -329,9 +329,6 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 	ctx = &priv->mfunc.master.slave_state[slave];
 	spin_lock_irqsave(&ctx->lock, flags);
 
-	mlx4_dbg(dev, "%s: slave: %d, current state: %d new event :%d\n",
-		 __func__, slave, cur_state, event);
-
 	switch (cur_state) {
 	case SLAVE_PORT_DOWN:
 		if (MLX4_PORT_STATE_DEV_EVENT_PORT_UP == event)
@@ -366,9 +363,6 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 			goto out;
 	}
 	ret = mlx4_get_slave_port_state(dev, slave, port);
-	mlx4_dbg(dev, "%s: slave: %d, current state: %d new event"
-		 " :%d gen_event: %d\n",
-		 __func__, slave, cur_state, event, *gen_event);
 
 out:
 	spin_unlock_irqrestore(&ctx->lock, flags);
