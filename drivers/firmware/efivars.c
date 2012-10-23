@@ -692,7 +692,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	void *data;
 	u32 attributes;
 	struct inode *inode = file->f_mapping->host;
-	int datasize = count - sizeof(attributes);
+	unsigned long datasize = count - sizeof(attributes);
 	unsigned long newdatasize;
 
 	if (count < sizeof(attributes))
