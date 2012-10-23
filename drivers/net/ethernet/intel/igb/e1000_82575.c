@@ -1028,6 +1028,15 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 		 * continue to check for link.
 		 */
 		hw->mac.get_link_status = !hw->mac.serdes_has_link;
+
+		/* Configure Flow Control now that Auto-Neg has completed.
+		 * First, we need to restore the desired flow control
+		 * settings because we may have had to re-autoneg with a
+		 * different link partner.
+		 */
+		ret_val = igb_config_fc_after_link_up(hw);
+		if (ret_val)
+			hw_dbg("Error configuring flow control\n");
 	} else {
 		ret_val = igb_check_for_copper_link(hw);
 	}
@@ -1345,7 +1354,7 @@ out:
  **/
 static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl_ext, ctrl_reg, reg;
+	u32 ctrl_ext, ctrl_reg, reg, anadv_reg;
 	bool pcs_autoneg;
 	s32 ret_val = E1000_SUCCESS;
 	u16 data;
@@ -1433,27 +1442,45 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	reg &= ~(E1000_PCS_LCTL_AN_ENABLE | E1000_PCS_LCTL_FLV_LINK_UP |
 		E1000_PCS_LCTL_FSD | E1000_PCS_LCTL_FORCE_LINK);
 
-	/*
-	 * We force flow control to prevent the CTRL register values from being
-	 * overwritten by the autonegotiated flow control values
-	 */
-	reg |= E1000_PCS_LCTL_FORCE_FCTRL;
-
 	if (pcs_autoneg) {
 		/* Set PCS register for autoneg */
 		reg |= E1000_PCS_LCTL_AN_ENABLE | /* Enable Autoneg */
 		       E1000_PCS_LCTL_AN_RESTART; /* Restart autoneg */
+
+		/* Disable force flow control for autoneg */
+		reg &= ~E1000_PCS_LCTL_FORCE_FCTRL;
+
+		/* Configure flow control advertisement for autoneg */
+		anadv_reg = rd32(E1000_PCS_ANADV);
+		anadv_reg &= ~(E1000_TXCW_ASM_DIR | E1000_TXCW_PAUSE);
+		switch (hw->fc.requested_mode) {
+		case e1000_fc_full:
+		case e1000_fc_rx_pause:
+			anadv_reg |= E1000_TXCW_ASM_DIR;
+			anadv_reg |= E1000_TXCW_PAUSE;
+			break;
+		case e1000_fc_tx_pause:
+			anadv_reg |= E1000_TXCW_ASM_DIR;
+			break;
+		default:
+			break;
+		}
+		wr32(E1000_PCS_ANADV, anadv_reg);
+
 		hw_dbg("Configuring Autoneg:PCS_LCTL=0x%08X\n", reg);
 	} else {
 		/* Set PCS register for forced link */
 		reg |= E1000_PCS_LCTL_FSD;        /* Force Speed */
+
+		/* Force flow control for forced link */
+		reg |= E1000_PCS_LCTL_FORCE_FCTRL;
 
 		hw_dbg("Configuring Forced Link:PCS_LCTL=0x%08X\n", reg);
 	}
 
 	wr32(E1000_PCS_LCTL, reg);
 
-	if (!igb_sgmii_active_82575(hw))
+	if (!pcs_autoneg && !igb_sgmii_active_82575(hw))
 		igb_force_mac_fc(hw);
 
 	return ret_val;
