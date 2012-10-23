@@ -879,6 +879,7 @@ config ARCH_RK2928
 	select RK_PL330_DMA
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	help
 	  Support for Rockchip's RK2928 SoCs.
 
