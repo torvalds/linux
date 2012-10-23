@@ -51,7 +51,7 @@ config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
-	depends on ARM_AMBA && EXPERIMENTAL
+	depends on ARM_AMBA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
