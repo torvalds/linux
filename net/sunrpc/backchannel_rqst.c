@@ -191,7 +191,9 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 
 	dprintk("RPC:        destroy backchannel transport\n");
 
-	BUG_ON(max_reqs == 0);
+	if (max_reqs == 0)
+		goto out;
+
 	spin_lock_bh(&xprt->bc_pa_lock);
 	xprt_dec_alloc_count(xprt, max_reqs);
 	list_for_each_entry_safe(req, tmp, &xprt->bc_pa_list, rq_bc_pa_list) {
@@ -202,6 +204,7 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 	}
 	spin_unlock_bh(&xprt->bc_pa_lock);
 
+out:
 	dprintk("RPC:        backchannel list empty= %s\n",
 		list_empty(&xprt->bc_pa_list) ? "true" : "false");
 }
