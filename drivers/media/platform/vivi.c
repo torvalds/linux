@@ -351,11 +351,6 @@ static void precalculate_bars(struct vivi_dev *dev)
 	}
 }
 
-#define TSTAMP_MIN_Y	24
-#define TSTAMP_MAX_Y	(TSTAMP_MIN_Y + 15)
-#define TSTAMP_INPUT_X	10
-#define TSTAMP_MIN_X	(54 + TSTAMP_INPUT_X)
-
 /* 'odd' is true for pixels 1, 3, 5, etc. and false for pixels 0, 2, 4, etc. */
 static void gen_twopix(struct vivi_dev *dev, u8 *buf, int colorpos, bool odd)
 {
