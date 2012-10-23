@@ -87,7 +87,7 @@ static union acpi_object *radeon_atpx_call(acpi_handle handle, int function,
 		atpx_arg_elements[1].integer.value = 0;
 	}
 
-	status = acpi_evaluate_object(handle, "ATPX", &atpx_arg, &buffer);
+	status = acpi_evaluate_object(handle, NULL, &atpx_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATPX is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
