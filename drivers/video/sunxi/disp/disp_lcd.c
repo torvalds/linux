@@ -1871,18 +1871,18 @@ __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t * tt)
 		tt->pixel_clk = gpanel_info[sel].lcd_dclk_freq * 1000;
 	} else if ((gdisp.screen[sel].status & TV_ON) ||
 		   (gdisp.screen[sel].status & HDMI_ON)) {
-		__disp_tv_mode_t mode = gdisp.screen[sel].tv_mode;;
+		__disp_tv_mode_t mode = gdisp.screen[sel].tv_mode;
 
 		LCDC_get_timing(sel, 1, tt);
 		tt->pixel_clk =
 			(clk_tab.tv_clk_tab[mode].tve_clk /
 			 clk_tab.tv_clk_tab[mode].pre_scale) / 1000;
 	} else if (gdisp.screen[sel].status & VGA_ON) {
-		__disp_tv_mode_t mode = gdisp.screen[sel].vga_mode;;
+		__disp_vga_mode_t mode = gdisp.screen[sel].vga_mode;
 
 		LCDC_get_timing(sel, 1, tt);
 		tt->pixel_clk =
-			(clk_tab.tv_clk_tab[mode].tve_clk /
+			(clk_tab.vga_clk_tab[mode].tve_clk /
 			 clk_tab.vga_clk_tab[mode].pre_scale) / 1000;
 	} else {
 		DE_INF("get timing fail because device is not output !\n");
