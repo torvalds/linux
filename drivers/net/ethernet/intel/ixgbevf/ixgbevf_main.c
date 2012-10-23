@@ -58,7 +58,7 @@ const char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "2.6.0-k"
+#define DRV_VERSION "2.7.12-k"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2012 Intel Corporation.";
@@ -359,6 +359,12 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 			bi->dma = dma_map_single(&pdev->dev, skb->data,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, bi->dma)) {
+				dev_kfree_skb(skb);
+				bi->skb = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				break;
+			}
 		}
 		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
 
@@ -1132,12 +1138,12 @@ static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	if (!hw->mac.ops.set_vfta)
 		return -EOPNOTSUPP;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	/* add VID to filter table */
 	err = hw->mac.ops.set_vfta(hw, vid, 0, true);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	/* translate error return types so error makes sense */
 	if (err == IXGBE_ERR_MBX)
@@ -1157,13 +1163,13 @@ static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err = -EOPNOTSUPP;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	/* remove VID from filter table */
 	if (hw->mac.ops.set_vfta)
 		err = hw->mac.ops.set_vfta(hw, vid, 0, false);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	clear_bit(vid, adapter->active_vlans);
 
@@ -1219,7 +1225,7 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	/* reprogram multicast list */
 	if (hw->mac.ops.update_mc_addr_list)
@@ -1227,7 +1233,7 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 
 	ixgbevf_write_uc_addr_list(netdev);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 }
 
 static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
@@ -1341,7 +1347,7 @@ static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 		      ixgbe_mbox_api_unknown };
 	int err = 0, idx = 0;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	while (api[idx] != ixgbe_mbox_api_unknown) {
 		err = ixgbevf_negotiate_api_version(hw, api[idx]);
@@ -1350,7 +1356,7 @@ static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 		idx++;
 	}
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 }
 
 static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
@@ -1391,7 +1397,7 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 
 	ixgbevf_configure_msix(adapter);
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	if (hw->mac.ops.set_rar) {
 		if (is_valid_ether_addr(hw->mac.addr))
@@ -1400,7 +1406,7 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 			hw->mac.ops.set_rar(hw, 0, hw->mac.perm_addr, 0);
 	}
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	clear_bit(__IXGBEVF_DOWN, &adapter->state);
 	ixgbevf_napi_enable_all(adapter);
@@ -1424,12 +1430,12 @@ static int ixgbevf_reset_queues(struct ixgbevf_adapter *adapter)
 	unsigned int num_rx_queues = 1;
 	int err, i;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	/* fetch queue configuration from the PF */
 	err = ixgbevf_get_queues(hw, &num_tcs, &def_q);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	if (err)
 		return err;
@@ -1688,14 +1694,14 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	if (hw->mac.ops.reset_hw(hw))
 		hw_dbg(hw, "PF still resetting\n");
 	else
 		hw->mac.ops.init_hw(hw);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1912,18 +1918,13 @@ err_out:
  **/
 static void ixgbevf_free_q_vectors(struct ixgbevf_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
-	int napi_vectors;
-
-	num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-	napi_vectors = adapter->num_rx_queues;
+	int q_idx, num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		struct ixgbevf_q_vector *q_vector = adapter->q_vector[q_idx];
 
 		adapter->q_vector[q_idx] = NULL;
-		if (q_idx < napi_vectors)
-			netif_napi_del(&q_vector->napi);
+		netif_napi_del(&q_vector->napi);
 		kfree(q_vector);
 	}
 }
@@ -2194,12 +2195,12 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 	if (hw->mac.ops.check_link) {
 		s32 need_reset;
 
-		spin_lock(&adapter->mbx_lock);
+		spin_lock_bh(&adapter->mbx_lock);
 
 		need_reset = hw->mac.ops.check_link(hw, &link_speed,
 						    &link_up, false);
 
-		spin_unlock(&adapter->mbx_lock);
+		spin_unlock_bh(&adapter->mbx_lock);
 
 		if (need_reset) {
 			adapter->link_up = link_up;
@@ -2467,12 +2468,12 @@ static int ixgbevf_setup_queues(struct ixgbevf_adapter *adapter)
 	unsigned int num_rx_queues = 1;
 	int err, i;
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	/* fetch queue configuration from the PF */
 	err = ixgbevf_get_queues(hw, &num_tcs, &def_q);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	if (err)
 		return err;
@@ -2822,10 +2823,10 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 			tx_buffer_info->dma =
 				skb_frag_dma_map(tx_ring->dev, frag,
 						 offset, size, DMA_TO_DEVICE);
-			tx_buffer_info->mapped_as_page = true;
 			if (dma_mapping_error(tx_ring->dev,
 					      tx_buffer_info->dma))
 				goto dma_error;
+			tx_buffer_info->mapped_as_page = true;
 			tx_buffer_info->next_to_watch = i;
 
 			len -= size;
@@ -3046,12 +3047,12 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
-	spin_lock(&adapter->mbx_lock);
+	spin_lock_bh(&adapter->mbx_lock);
 
 	if (hw->mac.ops.set_rar)
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
 
-	spin_unlock(&adapter->mbx_lock);
+	spin_unlock_bh(&adapter->mbx_lock);
 
 	return 0;
 }

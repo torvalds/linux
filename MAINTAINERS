@@ -3869,7 +3869,9 @@ M:	Greg Rose <gregory.v.rose@intel.com>
 M:	Peter P Waskiewicz Jr <peter.p.waskiewicz.jr@intel.com>
 M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
+M:	Tushar Dave <tushar.n.dave@intel.com>
 L:	e1000-devel@lists.sourceforge.net
+W:	http://www.intel.com/support/feedback.htm
 W:	http://e1000.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-next.git

@@ -5067,6 +5067,17 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
+	/*
+	 * The minimum packet size with TCTL.PSP set is 17 bytes so
+	 * pad skb in order to meet this minimum size requirement
+	 */
+	if (unlikely(skb->len < 17)) {
+		if (skb_pad(skb, 17 - skb->len))
+			return NETDEV_TX_OK;
+		skb->len = 17;
+		skb_set_tail_pointer(skb, 17);
+	}
+
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
 		u8 hdr_len;
