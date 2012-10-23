@@ -60,8 +60,8 @@ endmenu
 menu "Character devices"
 
 config ATARI_DSP56K
-	tristate "Atari DSP56k support (EXPERIMENTAL)"
-	depends on ATARI && EXPERIMENTAL
+	tristate "Atari DSP56k support"
+	depends on ATARI
 	help
 	  If you want to be able to use the DSP56001 in Falcons, say Y. This
 	  driver is still experimental, and if you don't know what it is, or
@@ -87,7 +87,7 @@ config HPDCA
 
 config HPAPCI
 	tristate "HP APCI serial support"
-	depends on HP300 && SERIAL_8250 && EXPERIMENTAL
+	depends on HP300 && SERIAL_8250
 	help
 	  If you want to use the internal "APCI" serial ports on an HP400
 	  machine, say Y here.
