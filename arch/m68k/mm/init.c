@@ -103,31 +103,25 @@ void __init paging_init(void)
 	free_area_init(zones_size);
 }
 
+#endif /* CONFIG_MMU */
+
 void free_initmem(void)
 {
-#ifdef CONFIG_RAMKERNEL
+#ifndef CONFIG_MMU_SUN3
 	unsigned long addr;
 
-	/*
-	 * The following code should be cool even if these sections
-	 * are not page aligned.
-	 */
-	addr = PAGE_ALIGN((unsigned long) __init_begin);
-	/* next to check that the page we free is not a partial page */
-	for (; addr + PAGE_SIZE < ((unsigned long) __init_end); addr += PAGE_SIZE) {
+	addr = (unsigned long) __init_begin;
+	for (; addr < ((unsigned long) __init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		totalram_pages++;
 	}
 	pr_notice("Freeing unused kernel memory: %luk freed (0x%x - 0x%x)\n",
-		(addr - PAGE_ALIGN((unsigned long) __init_begin)) >> 10,
-		(int)(PAGE_ALIGN((unsigned long) __init_begin)),
-		(int)(addr - PAGE_SIZE));
-#endif
+		(addr - (unsigned long) __init_begin) >> 10,
+		(unsigned int) __init_begin, (unsigned int) __init_end);
+#endif /* CONFIG_MMU_SUN3 */
 }
-
-#endif /* CONFIG_MMU */
 
 #if defined(CONFIG_MMU) && !defined(CONFIG_COLDFIRE)
 #define VECTORS	&vectors[0]
