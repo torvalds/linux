@@ -579,7 +579,10 @@ int svc_alloc_arg(struct svc_rqst *rqstp)
 
 	/* now allocate needed pages.  If we get a failure, sleep briefly */
 	pages = (serv->sv_max_mesg + PAGE_SIZE) / PAGE_SIZE;
-	BUG_ON(pages >= RPCSVC_MAXPAGES);
+	WARN_ON_ONCE(pages >= RPCSVC_MAXPAGES);
+	if (pages >= RPCSVC_MAXPAGES)
+		/* use as many pages as possible */
+		pages = RPCSVC_MAXPAGES - 1;
 	for (i = 0; i < pages ; i++)
 		while (rqstp->rq_pages[i] == NULL) {
 			struct page *p = alloc_page(GFP_KERNEL);

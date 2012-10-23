@@ -587,7 +587,9 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 				       * We assume one is at most one page
 				       */
 	arghi = 0;
-	BUG_ON(pages > RPCSVC_MAXPAGES);
+	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
+	if (pages > RPCSVC_MAXPAGES)
+		pages = RPCSVC_MAXPAGES;
 	while (pages) {
 		struct page *p = alloc_pages_node(node, GFP_KERNEL, 0);
 		if (!p)
