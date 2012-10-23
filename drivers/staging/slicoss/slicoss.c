@@ -2774,9 +2774,6 @@ static irqreturn_t slic_interrupt(int irq, void *dev_id)
 				slic_upr_request_complete(adapter, isr);
 			}
 			break;
-
-		default:
-			break;
 		}
 
 		adapter->isrcopy = 0;
