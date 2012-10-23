@@ -1297,6 +1297,23 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	return eb;
 }
 
+int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
+{
+	struct tree_mod_elem *tm;
+	int level;
+
+	tm = __tree_mod_log_oldest_root(root->fs_info, root, time_seq);
+	if (tm && tm->op == MOD_LOG_ROOT_REPLACE) {
+		level = tm->old_root.level;
+	} else {
+		rcu_read_lock();
+		level = btrfs_header_level(root->node);
+		rcu_read_unlock();
+	}
+
+	return level;
+}
+
 static inline int should_cow_block(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct extent_buffer *buf)

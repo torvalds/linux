@@ -3120,6 +3120,7 @@ static inline u64 btrfs_inc_tree_mod_seq(struct btrfs_fs_info *fs_info)
 {
 	return atomic_inc_return(&fs_info->tree_mod_seq);
 }
+int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq);
 
 /* root-item.c */
 int btrfs_find_root_ref(struct btrfs_root *tree_root,

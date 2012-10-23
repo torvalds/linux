@@ -283,9 +283,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	rcu_read_lock();
-	root_level = btrfs_header_level(root->node);
-	rcu_read_unlock();
+	root_level = btrfs_old_root_level(root, time_seq);
 
 	if (root_level + 1 == level)
 		goto out;
