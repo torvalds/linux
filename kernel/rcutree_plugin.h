@@ -670,6 +670,9 @@ EXPORT_SYMBOL_GPL(kfree_call_rcu);
  * concurrently with new RCU read-side critical sections that began while
  * synchronize_rcu() was waiting.  RCU read-side critical sections are
  * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
+ *
+ * See the description of synchronize_sched() for more detailed information
+ * on memory ordering guarantees.
  */
 void synchronize_rcu(void)
 {
@@ -875,6 +878,11 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
 /**
  * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
+ *
+ * Note that this primitive does not necessarily wait for an RCU grace period
+ * to complete.  For example, if there are no RCU callbacks queued anywhere
+ * in the system, then rcu_barrier() is within its rights to return
+ * immediately, without waiting for anything, much less an RCU grace period.
  */
 void rcu_barrier(void)
 {
