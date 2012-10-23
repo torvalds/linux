@@ -459,7 +459,7 @@ static ssize_t nas_led_blink_store(struct device *dev,
 	struct led_classdev *led = dev_get_drvdata(dev);
 	unsigned long blink_state;
 
-	ret = strict_strtoul(buf, 10, &blink_state);
+	ret = kstrtoul(buf, 10, &blink_state);
 	if (ret)
 		return ret;
 
