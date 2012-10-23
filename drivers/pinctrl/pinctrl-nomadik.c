@@ -1281,7 +1281,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
-	int irq_start = -1;
+	int irq_start = 0;
 	int irq;
 	int ret;
 
