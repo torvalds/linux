@@ -184,8 +184,7 @@ static void __init tegra_init_timer(void)
 
 	clk = clk_get_sys("timer", NULL);
 	if (IS_ERR(clk)) {
-		pr_warn("Unable to get timer clock."
-			" Assuming 12Mhz input clock.\n");
+		pr_warn("Unable to get timer clock. Assuming 12Mhz input clock.\n");
 		rate = 12000000;
 	} else {
 		clk_prepare_enable(clk);
@@ -223,13 +222,13 @@ static void __init tegra_init_timer(void)
 
 	if (clocksource_mmio_init(timer_reg_base + TIMERUS_CNTR_1US,
 		"timer_us", 1000000, 300, 32, clocksource_mmio_readl_up)) {
-		printk(KERN_ERR "Failed to register clocksource\n");
+		pr_err("Failed to register clocksource\n");
 		BUG();
 	}
 
 	ret = setup_irq(tegra_timer_irq.irq, &tegra_timer_irq);
 	if (ret) {
-		printk(KERN_ERR "Failed to register timer IRQ: %d\n", ret);
+		pr_err("Failed to register timer IRQ: %d\n", ret);
 		BUG();
 	}
 
