@@ -106,6 +106,10 @@ static unsigned int rk2928_read(struct snd_soc_codec *codec, unsigned int reg)
 
 static int rk2928_write(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
 {
+#ifdef CONFIG_MODEM_SOUND
+	if(rk2928_data.call_enable)
+		return 0;
+#endif		
 	DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, reg, value);
 	writel(value, rk2928_data.regbase + reg*4);
 	if( (reg == CODEC_REG_POWER) && ( (value & m_PD_DAC) == 0)) {
@@ -144,15 +148,20 @@ void codec_set_spk(bool on)
 #ifdef CONFIG_MODEM_SOUND
 void call_set_spk(bool on)
 {
+	struct snd_soc_codec *codec = rk2928_data.codec;
 	if(on == 0) {
 		printk("%s speaker is disabled\n", __FUNCTION__);
+	//	rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
+		rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+		rk2928_write(codec, CODEC_REG_POWER, 0x0c);
+		rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
 		rk2928_data.call_enable = 1;
-		rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 	}
 	else {
 		printk("%s speaker is enabled\n", __FUNCTION__);
 		rk2928_data.call_enable = 0;
-		rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+	//	rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+		rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
 	}
 }
 #endif
@@ -202,10 +211,7 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 	int err = 0;
 	int data, pd_adc;
 	DBG("%s cmd 0x%x", __FUNCTION__, cmd);
-#ifdef CONFIG_MODEM_SOUND	
-	if(rk2928_data.call_enable)
-		return err;
-#endif		
+
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
@@ -272,6 +278,10 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+#ifdef CONFIG_MODEM_SOUND	
+	if(rk2928_data.call_enable)
+		return err;
+#endif		
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 				if(rk2928_data.spkctl != INVALID_GPIO) {
 					gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
@@ -312,6 +322,10 @@ static int rk2928_set_bias_level(struct snd_soc_codec *codec,
 			break;
 		case SND_SOC_BIAS_STANDBY:
 		case SND_SOC_BIAS_OFF:
+#ifdef CONFIG_MODEM_SOUND	
+	if(rk2928_data.call_enable)
+		break;
+#endif				
 			rk2928_write(codec, CODEC_REG_POWER, v_PWR_OFF);
 			break;
 		default:
