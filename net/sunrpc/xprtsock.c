@@ -2330,9 +2330,11 @@ static void *bc_malloc(struct rpc_task *task, size_t size)
 	struct page *page;
 	struct rpc_buffer *buf;
 
-	BUG_ON(size > PAGE_SIZE - sizeof(struct rpc_buffer));
-	page = alloc_page(GFP_KERNEL);
+	WARN_ON_ONCE(size > PAGE_SIZE - sizeof(struct rpc_buffer));
+	if (size > PAGE_SIZE - sizeof(struct rpc_buffer))
+		return NULL;
 
+	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return NULL;
 
