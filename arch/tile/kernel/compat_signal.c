@@ -197,8 +197,7 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 }
 
 long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr,
-			    struct pt_regs *regs)
+			    struct compat_sigaltstack __user *uoss_ptr)
 {
 	stack_t uss, uoss;
 	int ret;
@@ -219,7 +218,7 @@ long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 	set_fs(KERNEL_DS);
 	ret = do_sigaltstack(uss_ptr ? (stack_t __user __force *)&uss : NULL,
 			     (stack_t __user __force *)&uoss,
-			     (unsigned long)compat_ptr(regs->sp));
+			     (unsigned long)compat_ptr(current_pt_regs()->sp));
 	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
 		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(*uoss_ptr)) ||
@@ -232,8 +231,9 @@ long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 }
 
 /* The assembly shim for this function arranges to ignore the return value. */
-long compat_sys_rt_sigreturn(struct pt_regs *regs)
+long compat_sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct compat_rt_sigframe __user *frame =
 		(struct compat_rt_sigframe __user *) compat_ptr(regs->sp);
 	sigset_t set;
@@ -248,7 +248,7 @@ long compat_sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL, regs) != 0)
+	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL) != 0)
 		goto badframe;
 
 	return 0;

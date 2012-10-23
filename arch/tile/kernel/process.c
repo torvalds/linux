@@ -584,10 +584,10 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 }
 
 /* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
-SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
-		void __user *, parent_tidptr, void __user *, child_tidptr,
-		struct pt_regs *, regs)
+SYSCALL_DEFINE4(clone, unsigned long, clone_flags, unsigned long, newsp,
+		void __user *, parent_tidptr, void __user *, child_tidptr)
 {
+	struct pt_regs *regs = current_pt_regs();
 	if (!newsp)
 		newsp = regs->sp;
 	return do_fork(clone_flags, newsp, regs, 0,
