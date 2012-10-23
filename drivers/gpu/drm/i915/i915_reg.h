@@ -3305,14 +3305,14 @@
 #define _PIPEB_LINK_M2           0x61048
 #define _PIPEB_LINK_N2           0x6104c
 
-#define PIPE_DATA_M1(pipe) _PIPE(pipe, _PIPEA_DATA_M1, _PIPEB_DATA_M1)
-#define PIPE_DATA_N1(pipe) _PIPE(pipe, _PIPEA_DATA_N1, _PIPEB_DATA_N1)
-#define PIPE_DATA_M2(pipe) _PIPE(pipe, _PIPEA_DATA_M2, _PIPEB_DATA_M2)
-#define PIPE_DATA_N2(pipe) _PIPE(pipe, _PIPEA_DATA_N2, _PIPEB_DATA_N2)
-#define PIPE_LINK_M1(pipe) _PIPE(pipe, _PIPEA_LINK_M1, _PIPEB_LINK_M1)
-#define PIPE_LINK_N1(pipe) _PIPE(pipe, _PIPEA_LINK_N1, _PIPEB_LINK_N1)
-#define PIPE_LINK_M2(pipe) _PIPE(pipe, _PIPEA_LINK_M2, _PIPEB_LINK_M2)
-#define PIPE_LINK_N2(pipe) _PIPE(pipe, _PIPEA_LINK_N2, _PIPEB_LINK_N2)
+#define PIPE_DATA_M1(tran) _TRANSCODER(tran, _PIPEA_DATA_M1, _PIPEB_DATA_M1)
+#define PIPE_DATA_N1(tran) _TRANSCODER(tran, _PIPEA_DATA_N1, _PIPEB_DATA_N1)
+#define PIPE_DATA_M2(tran) _TRANSCODER(tran, _PIPEA_DATA_M2, _PIPEB_DATA_M2)
+#define PIPE_DATA_N2(tran) _TRANSCODER(tran, _PIPEA_DATA_N2, _PIPEB_DATA_N2)
+#define PIPE_LINK_M1(tran) _TRANSCODER(tran, _PIPEA_LINK_M1, _PIPEB_LINK_M1)
+#define PIPE_LINK_N1(tran) _TRANSCODER(tran, _PIPEA_LINK_N1, _PIPEB_LINK_N1)
+#define PIPE_LINK_M2(tran) _TRANSCODER(tran, _PIPEA_LINK_M2, _PIPEB_LINK_M2)
+#define PIPE_LINK_N2(tran) _TRANSCODER(tran, _PIPEA_LINK_N2, _PIPEB_LINK_N2)
 
 /* CPU panel fitter */
 /* IVB+ has 3 fitters, 0 is 7x5 capable, the other two only 3x3 */

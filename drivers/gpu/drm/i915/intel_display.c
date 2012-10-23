@@ -4995,7 +4995,7 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
 	struct fdi_m_n m_n = {0};
 	int target_clock, pixel_multiplier, lane, link_bw;
@@ -5058,10 +5058,10 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	ironlake_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw,
 			     &m_n);
 
-	I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-	I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
-	I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
-	I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
+	I915_WRITE(PIPE_DATA_M1(cpu_transcoder), TU_SIZE(m_n.tu) | m_n.gmch_m);
+	I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
+	I915_WRITE(PIPE_LINK_M1(cpu_transcoder), m_n.link_m);
+	I915_WRITE(PIPE_LINK_N1(cpu_transcoder), m_n.link_n);
 }
 
 static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,

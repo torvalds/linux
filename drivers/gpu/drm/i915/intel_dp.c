@@ -777,6 +777,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	int lane_count = 4;
 	struct intel_dp_m_n m_n;
 	int pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
 	/*
 	 * Find the lane count in the intel_encoder private
@@ -801,10 +802,11 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
 	if (IS_HASWELL(dev)) {
-		I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
-		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
-		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
+		I915_WRITE(PIPE_DATA_M1(cpu_transcoder),
+			   TU_SIZE(m_n.tu) | m_n.gmch_m);
+		I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
+		I915_WRITE(PIPE_LINK_M1(cpu_transcoder), m_n.link_m);
+		I915_WRITE(PIPE_LINK_N1(cpu_transcoder), m_n.link_n);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
 		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
