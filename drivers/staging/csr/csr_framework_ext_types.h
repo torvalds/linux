@@ -24,11 +24,6 @@ extern "C" {
 
 #ifdef __KERNEL__
 
-struct CsrThread {
-	struct task_struct *thread_task;
-	char                name[16];
-};
-
 struct CsrEvent {
 	/* wait_queue for waking the kernel thread */
 	wait_queue_head_t wakeup_q;
