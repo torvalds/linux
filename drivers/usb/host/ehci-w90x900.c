@@ -13,7 +13,7 @@
 
 #include <linux/platform_device.h>
 
-/*ebable phy0 and phy1 for w90p910*/
+/* enable phy0 and phy1 for w90p910 */
 #define	ENPHY		(0x01<<8)
 #define PHY0_CTR	(0xA4)
 #define PHY1_CTR	(0xA8)
