@@ -5591,8 +5591,8 @@ static int l2cap_rx_state_recv(struct l2cap_chan *chan,
 		if (control->final) {
 			clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
 
-			if (!test_and_clear_bit(CONN_REJ_ACT,
-						&chan->conn_state)) {
+			if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state) &&
+			    !__chan_is_moving(chan)) {
 				control->final = 0;
 				l2cap_retransmit_all(chan, control);
 			}
