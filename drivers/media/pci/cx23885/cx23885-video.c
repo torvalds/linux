@@ -1819,8 +1819,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	spin_lock_init(&dev->slock);
 
 	/* Initialize VBI template */
-	memcpy(&cx23885_vbi_template, &cx23885_video_template,
-		sizeof(cx23885_vbi_template));
+	cx23885_vbi_template = cx23885_video_template;
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
 
 	dev->tvnorm = cx23885_video_template.current_norm;
