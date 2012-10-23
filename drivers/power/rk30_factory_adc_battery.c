@@ -1547,12 +1547,12 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	memset(data->adc_samples, 0, sizeof(int)*(NUM_VOLTAGE_SAMPLE + 2));
 
 	 //register adc for battery sample
-	 if(0 == pdata->adc_channel)
-	client = adc_register(0, rk30_adc_battery_callback, NULL);  //pdata->adc_channel = ani0
-	else
-		client = adc_register(pdata->adc_channel, rk30_adc_battery_callback, NULL);  
-	if(!client)
+	client = adc_register(pdata->adc_channel, rk30_adc_battery_callback, NULL);  
+	if(!client){
+                printk(KERN_INFO "fail to register adc channel(%d)\n", pdata->adc_channel);
+                ret = -EINVAL;
 		goto err_adc_register_failed;
+        }
 	    
 	 //variable init
 	data->client  = client;
