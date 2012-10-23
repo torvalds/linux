@@ -1279,6 +1279,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 
 	if (!eb)
 		return NULL;
+	extent_buffer_get(eb);
 	btrfs_tree_read_lock(eb);
 	if (old_root) {
 		btrfs_set_header_bytenr(eb, eb->start);
@@ -1291,7 +1292,6 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		__tree_mod_log_rewind(eb, time_seq, tm);
 	else
 		WARN_ON(btrfs_header_level(eb) != 0);
-	extent_buffer_get(eb);
 	WARN_ON(btrfs_header_nritems(eb) > BTRFS_NODEPTRS_PER_BLOCK(root));
 
 	return eb;
