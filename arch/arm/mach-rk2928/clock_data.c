@@ -1887,7 +1887,7 @@ GATE_CLK(aclk_gps,	aclk_periph_pre, ACLK_GPS);
 /*************************hclk_periph***********************/
 GATE_CLK(hclk_peri_axi_matrix,	hclk_periph_pre, HCLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_ahb_arbi,	hclk_periph_pre, HCLK_PERI_ARBI);
-GATE_CLK(hclk_nandc, hclk_periph_pre, HCLK_NANDC);
+GATE_CLK(nandc, hclk_periph_pre, HCLK_NANDC);
 GATE_CLK(hclk_usb_peri, hclk_periph_pre, HCLK_USB_PERI);
 GATE_CLK(hclk_otg0, clk_hclk_usb_peri, HCLK_OTG0);	// is not parent in clk tree, but when hclk_otg0/1 open,
 GATE_CLK(hclk_otg1, clk_hclk_usb_peri, HCLK_OTG1);	// must open hclk_usb_peri
@@ -2155,7 +2155,7 @@ static struct clk_lookup clks[] = {
 
 	CLK_GATE_NODEV(hclk_peri_axi_matrix),
 	CLK_GATE_NODEV(hclk_peri_ahb_arbi),
-	CLK_GATE_NODEV(hclk_nandc),
+	CLK_GATE_NODEV(nandc),
 	CLK_GATE_NODEV(hclk_usb_peri),
 	CLK_GATE_NODEV(hclk_otg0),
 	CLK_GATE_NODEV(hclk_otg1),
@@ -2273,7 +2273,7 @@ static void __init rk30_init_enable_clocks(void)
 	/*************************hclk_periph***********************/
 	clk_enable_nolock(&clk_hclk_peri_axi_matrix);
 	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
-	clk_enable_nolock(&clk_hclk_nandc);
+	clk_enable_nolock(&clk_nandc);
 
 	/*************************pclk_periph***********************/
 	clk_enable_nolock(&clk_pclk_peri_axi_matrix);
