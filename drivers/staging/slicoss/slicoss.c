@@ -1424,13 +1424,6 @@ static struct slic_rspbuf *slic_rspqueue_getnext(struct adapter *adapter)
 	return buf;
 }
 
-static void slic_cmdqmem_init(struct adapter *adapter)
-{
-	struct slic_cmdqmem *cmdqmem = &adapter->cmdqmem;
-
-	memset(cmdqmem, 0, sizeof(struct slic_cmdqmem));
-}
-
 static void slic_cmdqmem_free(struct adapter *adapter)
 {
 	struct slic_cmdqmem *cmdqmem = &adapter->cmdqmem;
@@ -1559,7 +1552,7 @@ static int slic_cmdq_init(struct adapter *adapter)
 	spin_lock_init(&adapter->cmdq_all.lock.lock);
 	spin_lock_init(&adapter->cmdq_free.lock.lock);
 	spin_lock_init(&adapter->cmdq_done.lock.lock);
-	slic_cmdqmem_init(adapter);
+	memset(&adapter->cmdqmem, 0, sizeof(struct slic_cmdqmem));
 	adapter->slic_handle_ix = 1;
 	for (i = 0; i < SLIC_CMDQ_INITPAGES; i++) {
 		pageaddr = slic_cmdqmem_addpage(adapter);
