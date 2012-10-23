@@ -1741,6 +1741,16 @@ TRACE_EVENT(rdev_return_channel,
 		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->type)
 );
 
+DEFINE_EVENT(wiphy_wdev_evt, rdev_start_p2p_device,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev)
+);
+
+DEFINE_EVENT(wiphy_wdev_evt, rdev_stop_p2p_device,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
