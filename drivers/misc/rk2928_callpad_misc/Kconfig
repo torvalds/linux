@@ -10,6 +10,3 @@ menuconfig RK2928_CALLPAD_MISC
 config AUDIO_SWITCH
 	bool "RK2928 callpad audio switch"
 	default n
-config GPIOEXP_AW9523B
-  bool "RK2928 callpad gpio exp"
-  default n

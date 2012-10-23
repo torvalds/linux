@@ -145,14 +145,6 @@ struct byd_platform_data {
 };
 #endif
 
-
-#if defined (CONFIG_GPIOEXP_AW9523B)
-struct gpio_exp_platform_data {
-    int     (*init_platform_hw)(void);
-    void    (*exit_platform_hw)(void);
-};
-#endif
-
 #ifdef CONFIG_INPUT_AP321XX
 struct ap321xx_platform_data {
 	int (*init_platform_hw)(void);
