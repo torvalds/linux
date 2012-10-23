@@ -596,7 +596,10 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 	unsigned long con;
 
 	con = __raw_readl(base + GPIOCON_OFF);
-	con &= ~(0xf << con_4bit_shift(offset));
+	if (ourchip->bitmap_gpio_int & BIT(offset))
+		con |= 0xf << con_4bit_shift(offset);
+	else
+		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
 	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
@@ -1080,6 +1083,8 @@ static void __init samsung_gpiolib_add_4bit_chips(struct samsung_gpio_chip *chip
 			chip->pm = __gpio_pm(&samsung_gpio_pm_4bit);
 		if ((base != NULL) && (chip->base == NULL))
 			chip->base = base + ((i) * 0x20);
+
+		chip->bitmap_gpio_int = 0;
 
 		samsung_gpiolib_add(chip);
 	}
