@@ -960,9 +960,9 @@ static void output_poll_execute(struct work_struct *work)
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 
-		/* if this is HPD or polled don't check it -
-		   TV out for instance */
-		if (!connector->polled)
+		/* Ignore HPD capable connectors and connectors where we don't
+		 * want any hotplug detection at all for polling. */
+		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
 			continue;
 
 		else if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT))
@@ -972,8 +972,7 @@ static void output_poll_execute(struct work_struct *work)
 		/* if we are connected and don't want to poll for disconnect
 		   skip it */
 		if (old_status == connector_status_connected &&
-		    !(connector->polled & DRM_CONNECTOR_POLL_DISCONNECT) &&
-		    !(connector->polled & DRM_CONNECTOR_POLL_HPD))
+		    !(connector->polled & DRM_CONNECTOR_POLL_DISCONNECT))
 			continue;
 
 		connector->status = connector->funcs->detect(connector, false);
@@ -1020,9 +1019,12 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
+static void hpd_irq_event_execute(struct work_struct *work);
+
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
 	INIT_DELAYED_WORK(&dev->mode_config.output_poll_work, output_poll_execute);
+	INIT_DELAYED_WORK(&dev->mode_config.hpd_irq_work, hpd_irq_event_execute);
 	dev->mode_config.poll_enabled = true;
 
 	drm_kms_helper_poll_enable(dev);
@@ -1035,14 +1037,45 @@ void drm_kms_helper_poll_fini(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
-void drm_helper_hpd_irq_event(struct drm_device *dev)
+static void hpd_irq_event_execute(struct work_struct *work)
 {
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.hpd_irq_work);
+	struct drm_connector *connector;
+	enum drm_connector_status old_status;
+	bool changed = false;
+
 	if (!dev->mode_config.poll_enabled)
 		return;
 
-	/* kill timer and schedule immediate execution, this doesn't block */
-	cancel_delayed_work(&dev->mode_config.output_poll_work);
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+		/* Only handle HPD capable connectors. */
+		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))
+			continue;
+
+		old_status = connector->status;
+
+		connector->status = connector->funcs->detect(connector, false);
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+			      connector->base.id,
+			      drm_get_connector_name(connector),
+			      old_status, connector->status);
+		if (old_status != connector->status)
+			changed = true;
+	}
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	if (changed)
+		drm_kms_helper_hotplug_event(dev);
+}
+
+void drm_helper_hpd_irq_event(struct drm_device *dev)
+{
+	cancel_delayed_work(&dev->mode_config.hpd_irq_work);
 	if (drm_kms_helper_poll)
-		schedule_delayed_work(&dev->mode_config.output_poll_work, 0);
+		schedule_delayed_work(&dev->mode_config.hpd_irq_work, 0);
 }
 EXPORT_SYMBOL(drm_helper_hpd_irq_event);

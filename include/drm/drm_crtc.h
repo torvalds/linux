@@ -793,6 +793,7 @@ struct drm_mode_config {
 	/* output poll support */
 	bool poll_enabled;
 	struct delayed_work output_poll_work;
+	struct delayed_work hpd_irq_work;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
