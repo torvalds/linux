@@ -510,11 +510,9 @@ struct v4l2_m2m_dev *v4l2_m2m_init(struct v4l2_m2m_ops *m2m_ops)
 {
 	struct v4l2_m2m_dev *m2m_dev;
 
-	if (!m2m_ops)
+	if (!m2m_ops || WARN_ON(!m2m_ops->device_run) ||
+			WARN_ON(!m2m_ops->job_abort))
 		return ERR_PTR(-EINVAL);
-
-	BUG_ON(!m2m_ops->device_run);
-	BUG_ON(!m2m_ops->job_abort);
 
 	m2m_dev = kzalloc(sizeof *m2m_dev, GFP_KERNEL);
 	if (!m2m_dev)
