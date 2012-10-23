@@ -4713,6 +4713,12 @@ static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb,
 	return err;
 }
 
+static int l2cap_resegment(struct l2cap_chan *chan)
+{
+	/* Placeholder */
+	return 0;
+}
+
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy)
 {
 	u8 event;
@@ -5218,6 +5224,96 @@ static int l2cap_rx_state_srej_sent(struct l2cap_chan *chan,
 	return err;
 }
 
+static int l2cap_finish_move(struct l2cap_chan *chan)
+{
+	BT_DBG("chan %p", chan);
+
+	chan->rx_state = L2CAP_RX_STATE_RECV;
+
+	if (chan->hs_hcon)
+		chan->conn->mtu = chan->hs_hcon->hdev->block_mtu;
+	else
+		chan->conn->mtu = chan->conn->hcon->hdev->acl_mtu;
+
+	return l2cap_resegment(chan);
+}
+
+static int l2cap_rx_state_wait_p(struct l2cap_chan *chan,
+				 struct l2cap_ctrl *control,
+				 struct sk_buff *skb, u8 event)
+{
+	int err;
+
+	BT_DBG("chan %p, control %p, skb %p, event %d", chan, control, skb,
+	       event);
+
+	if (!control->poll)
+		return -EPROTO;
+
+	l2cap_process_reqseq(chan, control->reqseq);
+
+	if (!skb_queue_empty(&chan->tx_q))
+		chan->tx_send_head = skb_peek(&chan->tx_q);
+	else
+		chan->tx_send_head = NULL;
+
+	/* Rewind next_tx_seq to the point expected
+	 * by the receiver.
+	 */
+	chan->next_tx_seq = control->reqseq;
+	chan->unacked_frames = 0;
+
+	err = l2cap_finish_move(chan);
+	if (err)
+		return err;
+
+	set_bit(CONN_SEND_FBIT, &chan->conn_state);
+	l2cap_send_i_or_rr_or_rnr(chan);
+
+	if (event == L2CAP_EV_RECV_IFRAME)
+		return -EPROTO;
+
+	return l2cap_rx_state_recv(chan, control, NULL, event);
+}
+
+static int l2cap_rx_state_wait_f(struct l2cap_chan *chan,
+				 struct l2cap_ctrl *control,
+				 struct sk_buff *skb, u8 event)
+{
+	int err;
+
+	if (!control->final)
+		return -EPROTO;
+
+	clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
+
+	chan->rx_state = L2CAP_RX_STATE_RECV;
+	l2cap_process_reqseq(chan, control->reqseq);
+
+	if (!skb_queue_empty(&chan->tx_q))
+		chan->tx_send_head = skb_peek(&chan->tx_q);
+	else
+		chan->tx_send_head = NULL;
+
+	/* Rewind next_tx_seq to the point expected
+	 * by the receiver.
+	 */
+	chan->next_tx_seq = control->reqseq;
+	chan->unacked_frames = 0;
+
+	if (chan->hs_hcon)
+		chan->conn->mtu = chan->hs_hcon->hdev->block_mtu;
+	else
+		chan->conn->mtu = chan->conn->hcon->hdev->acl_mtu;
+
+	err = l2cap_resegment(chan);
+
+	if (!err)
+		err = l2cap_rx_state_recv(chan, control, skb, event);
+
+	return err;
+}
+
 static bool __valid_reqseq(struct l2cap_chan *chan, u16 reqseq)
 {
 	/* Make sure reqseq is for a packet that has been sent but not acked */
@@ -5243,6 +5339,12 @@ static int l2cap_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 		case L2CAP_RX_STATE_SREJ_SENT:
 			err = l2cap_rx_state_srej_sent(chan, control, skb,
 						       event);
+			break;
+		case L2CAP_RX_STATE_WAIT_P:
+			err = l2cap_rx_state_wait_p(chan, control, skb, event);
+			break;
+		case L2CAP_RX_STATE_WAIT_F:
+			err = l2cap_rx_state_wait_f(chan, control, skb, event);
 			break;
 		default:
 			/* shut it down */
