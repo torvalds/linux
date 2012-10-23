@@ -263,18 +263,18 @@ static int __devinit r_tpu_probe(struct platform_device *pdev)
 	}
 
 	/* map memory, let mapbase point to our channel */
-	p->mapbase = ioremap_nocache(res->start, resource_size(res));
+	p->mapbase = devm_ioremap_nocache(&pdev->dev, res->start,
+					resource_size(res));
 	if (p->mapbase == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		return -ENXIO;
 	}
 
 	/* get hold of clock */
-	p->clk = clk_get(&pdev->dev, NULL);
+	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(p->clk);
-		goto err0;
+		return PTR_ERR(p->clk);
 	}
 
 	p->pdev = pdev;
@@ -293,7 +293,7 @@ static int __devinit r_tpu_probe(struct platform_device *pdev)
 	p->ldev.flags |= LED_CORE_SUSPENDRESUME;
 	ret = led_classdev_register(&pdev->dev, &p->ldev);
 	if (ret < 0)
-		goto err1;
+		goto err0;
 
 	/* max_brightness may be updated by the LED core code */
 	p->min_rate = p->ldev.max_brightness * p->refresh_rate;
@@ -301,11 +301,8 @@ static int __devinit r_tpu_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	return 0;
 
- err1:
-	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
-	clk_put(p->clk);
  err0:
-	iounmap(p->mapbase);
+	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
 	return ret;
 }
 
@@ -320,9 +317,7 @@ static int __devexit r_tpu_remove(struct platform_device *pdev)
 	r_tpu_set_pin(p, R_TPU_PIN_UNUSED, LED_OFF);
 
 	pm_runtime_disable(&pdev->dev);
-	clk_put(p->clk);
 
-	iounmap(p->mapbase);
 	return 0;
 }
 
