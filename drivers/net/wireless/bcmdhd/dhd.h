@@ -301,6 +301,8 @@ extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_rx_timeout_enable(dhd_pub_t *pub, int val);
 extern int dhd_os_wake_lock_ctrl_timeout_enable(dhd_pub_t *pub, int val);
+extern int dhd_os_wd_wake_lock(dhd_pub_t *pub);
+extern int dhd_os_wd_wake_unlock(dhd_pub_t *pub);
 
 inline static void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t * dhdp)
 {
@@ -323,8 +325,10 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 }
 
-#define DHD_OS_WAKE_LOCK(pub) 			dhd_os_wake_lock(pub)
-#define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
+#define DHD_OS_WAKE_LOCK(pub)			dhd_os_wake_lock(pub)
+#define DHD_OS_WAKE_UNLOCK(pub)			dhd_os_wake_unlock(pub)
+#define DHD_OS_WD_WAKE_LOCK(pub)		dhd_os_wd_wake_lock(pub)
+#define DHD_OS_WD_WAKE_UNLOCK(pub)		dhd_os_wd_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_RX_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_rx_timeout_enable(pub, val)
 #define DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_ctrl_timeout_enable(pub, val)
