@@ -513,6 +513,64 @@ int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 	return err;
 }
 
+int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
+		       unsigned int *default_tc)
+{
+	int err;
+	u32 msg[5];
+
+	/* do nothing if API doesn't support ixgbevf_get_queues */
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_11:
+		break;
+	default:
+		return 0;
+	}
+
+	/* Fetch queue configuration from the PF */
+	msg[0] = IXGBE_VF_GET_QUEUE;
+	msg[1] = msg[2] = msg[3] = msg[4] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 5);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 5);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/*
+		 * if we we didn't get an ACK there must have been
+		 * some sort of mailbox error so we should treat it
+		 * as such
+		 */
+		if (msg[0] != (IXGBE_VF_GET_QUEUE | IXGBE_VT_MSGTYPE_ACK))
+			return IXGBE_ERR_MBX;
+
+		/* record and validate values from message */
+		hw->mac.max_tx_queues = msg[IXGBE_VF_TX_QUEUES];
+		if (hw->mac.max_tx_queues == 0 ||
+		    hw->mac.max_tx_queues > IXGBE_VF_MAX_TX_QUEUES)
+			hw->mac.max_tx_queues = IXGBE_VF_MAX_TX_QUEUES;
+
+		hw->mac.max_rx_queues = msg[IXGBE_VF_RX_QUEUES];
+		if (hw->mac.max_rx_queues == 0 ||
+		    hw->mac.max_rx_queues > IXGBE_VF_MAX_RX_QUEUES)
+			hw->mac.max_rx_queues = IXGBE_VF_MAX_RX_QUEUES;
+
+		*num_tcs = msg[IXGBE_VF_TRANS_VLAN];
+		/* in case of unknown state assume we cannot tag frames */
+		if (*num_tcs > hw->mac.max_rx_queues)
+			*num_tcs = 1;
+
+		*default_tc = msg[IXGBE_VF_DEF_QUEUE];
+		/* default to queue 0 on out-of-bounds queue number */
+		if (*default_tc >= hw->mac.max_tx_queues)
+			*default_tc = 0;
+	}
+
+	return err;
+}
+
 static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.init_hw             = ixgbevf_init_hw_vf,
 	.reset_hw            = ixgbevf_reset_hw_vf,

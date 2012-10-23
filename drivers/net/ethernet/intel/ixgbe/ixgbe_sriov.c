@@ -371,14 +371,26 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
 
 #endif /* CONFIG_FCOE */
-		/*
-		 * If the PF or VF are running w/ jumbo frames enabled we
-		 * need to shut down the VF Rx path as we cannot support
-		 * jumbo frames on legacy VFs
-		 */
-		if ((pf_max_frame > ETH_FRAME_LEN) ||
-		    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
-			err = -EINVAL;
+		switch (adapter->vfinfo[vf].vf_api) {
+		case ixgbe_mbox_api_11:
+			/*
+			 * Version 1.1 supports jumbo frames on VFs if PF has
+			 * jumbo frames enabled which means legacy VFs are
+			 * disabled
+			 */
+			if (pf_max_frame > ETH_FRAME_LEN)
+				break;
+		default:
+			/*
+			 * If the PF or VF are running w/ jumbo frames enabled
+			 * we need to shut down the VF Rx path as we cannot
+			 * support jumbo frames on legacy VFs
+			 */
+			if ((pf_max_frame > ETH_FRAME_LEN) ||
+			    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
+				err = -EINVAL;
+			break;
+		}
 
 		/* determine VF receive enable location */
 		vf_shift = vf % 32;
@@ -431,35 +443,47 @@ static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf), vmolr);
 }
 
-static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter, u32 vid, u32 vf)
+static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
+			    u16 vid, u16 qos, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vmvir = vid | (qos << VLAN_PRIO_SHIFT) | IXGBE_VMVIR_VLANA_DEFAULT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), vmvir);
+}
+
+static void ixgbe_clear_vmvir(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (vid)
-		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf),
-				(vid | IXGBE_VMVIR_VLANA_DEFAULT));
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
 }
-
 static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
+	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
+
+	/* add PF assigned VLAN or VLAN 0 */
+	ixgbe_set_vf_vlan(adapter, true, vfinfo->pf_vlan, vf);
 
 	/* reset offloads to defaults */
-	if (adapter->vfinfo[vf].pf_vlan) {
-		ixgbe_set_vf_vlan(adapter, true,
-				  adapter->vfinfo[vf].pf_vlan, vf);
-		ixgbe_set_vmvir(adapter,
-				(adapter->vfinfo[vf].pf_vlan |
-				 (adapter->vfinfo[vf].pf_qos <<
-				  VLAN_PRIO_SHIFT)), vf);
-		ixgbe_set_vmolr(hw, vf, false);
+	ixgbe_set_vmolr(hw, vf, !vfinfo->pf_vlan);
+
+	/* set outgoing tags for VFs */
+	if (!vfinfo->pf_vlan && !vfinfo->pf_qos && !num_tcs) {
+		ixgbe_clear_vmvir(adapter, vf);
 	} else {
-		ixgbe_set_vf_vlan(adapter, true, 0, vf);
-		ixgbe_set_vmvir(adapter, 0, vf);
-		ixgbe_set_vmolr(hw, vf, true);
+		if (vfinfo->pf_qos || !num_tcs)
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					vfinfo->pf_qos, vf);
+		else
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					adapter->default_up, vf);
+
+		if (vfinfo->spoofchk_enabled)
+			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 	}
 
 	/* reset multicast table array for vf */
@@ -661,8 +685,9 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	int add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	int vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	int err;
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
 
-	if (adapter->vfinfo[vf].pf_vlan) {
+	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
 		       "VF %d attempted to override administratively set VLAN configuration\n"
 		       "Reload the VF driver to resume operations\n",
@@ -727,6 +752,7 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 
 	switch (api) {
 	case ixgbe_mbox_api_10:
+	case ixgbe_mbox_api_11:
 		adapter->vfinfo[vf].vf_api = api;
 		return 0;
 	default:
@@ -736,6 +762,45 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 	e_info(drv, "VF %d requested invalid api version %u\n", vf, api);
 
 	return -1;
+}
+
+static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
+			       u32 *msgbuf, u32 vf)
+{
+	struct net_device *dev = adapter->netdev;
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
+	unsigned int default_tc = 0;
+	u8 num_tcs = netdev_get_num_tc(dev);
+
+	/* verify the PF is supporting the correct APIs */
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_20:
+	case ixgbe_mbox_api_11:
+		break;
+	default:
+		return -1;
+	}
+
+	/* only allow 1 Tx queue for bandwidth limiting */
+	msgbuf[IXGBE_VF_TX_QUEUES] = __ALIGN_MASK(1, ~vmdq->mask);
+	msgbuf[IXGBE_VF_RX_QUEUES] = __ALIGN_MASK(1, ~vmdq->mask);
+
+	/* if TCs > 1 determine which TC belongs to default user priority */
+	if (num_tcs > 1)
+		default_tc = netdev_get_prio_tc_map(dev, adapter->default_up);
+
+	/* notify VF of need for VLAN tag stripping, and correct queue */
+	if (num_tcs)
+		msgbuf[IXGBE_VF_TRANS_VLAN] = num_tcs;
+	else if (adapter->vfinfo[vf].pf_vlan || adapter->vfinfo[vf].pf_qos)
+		msgbuf[IXGBE_VF_TRANS_VLAN] = 1;
+	else
+		msgbuf[IXGBE_VF_TRANS_VLAN] = 0;
+
+	/* notify VF of default queue */
+	msgbuf[IXGBE_VF_DEF_QUEUE] = default_tc;
+
+	return 0;
 }
 
 static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
@@ -790,6 +855,9 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		break;
 	case IXGBE_VF_API_NEGOTIATE:
 		retval = ixgbe_negotiate_vf_api(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_GET_QUEUES:
+		retval = ixgbe_get_vf_queues(adapter, msgbuf, vf);
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
@@ -896,7 +964,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		err = ixgbe_set_vf_vlan(adapter, true, vlan, vf);
 		if (err)
 			goto out;
-		ixgbe_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
+		ixgbe_set_vmvir(adapter, vlan, qos, vf);
 		ixgbe_set_vmolr(hw, vf, false);
 		if (adapter->vfinfo[vf].spoofchk_enabled)
 			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
@@ -916,7 +984,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 	} else {
 		err = ixgbe_set_vf_vlan(adapter, false,
 					adapter->vfinfo[vf].pf_vlan, vf);
-		ixgbe_set_vmvir(adapter, vlan, vf);
+		ixgbe_clear_vmvir(adapter, vf);
 		ixgbe_set_vmolr(hw, vf, true);
 		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
 		if (adapter->vfinfo[vf].vlan_count)

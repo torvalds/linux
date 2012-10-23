@@ -887,24 +887,23 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
                                struct ethtool_ringparam *ring)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_ring *temp_tx_ring, *temp_rx_ring;
+	struct ixgbe_ring *temp_ring;
 	int i, err = 0;
 	u32 new_rx_count, new_tx_count;
-	bool need_update = false;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
-	new_rx_count = max_t(u32, ring->rx_pending, IXGBE_MIN_RXD);
-	new_rx_count = min_t(u32, new_rx_count, IXGBE_MAX_RXD);
-	new_rx_count = ALIGN(new_rx_count, IXGBE_REQ_RX_DESCRIPTOR_MULTIPLE);
-
-	new_tx_count = max_t(u32, ring->tx_pending, IXGBE_MIN_TXD);
-	new_tx_count = min_t(u32, new_tx_count, IXGBE_MAX_TXD);
+	new_tx_count = clamp_t(u32, ring->tx_pending,
+			       IXGBE_MIN_TXD, IXGBE_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE);
 
-	if ((new_tx_count == adapter->tx_ring[0]->count) &&
-	    (new_rx_count == adapter->rx_ring[0]->count)) {
+	new_rx_count = clamp_t(u32, ring->rx_pending,
+			       IXGBE_MIN_RXD, IXGBE_MAX_RXD);
+	new_rx_count = ALIGN(new_rx_count, IXGBE_REQ_RX_DESCRIPTOR_MULTIPLE);
+
+	if ((new_tx_count == adapter->tx_ring_count) &&
+	    (new_rx_count == adapter->rx_ring_count)) {
 		/* nothing to do */
 		return 0;
 	}
@@ -922,81 +921,80 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		goto clear_reset;
 	}
 
-	temp_tx_ring = vmalloc(adapter->num_tx_queues * sizeof(struct ixgbe_ring));
-	if (!temp_tx_ring) {
+	/* allocate temporary buffer to store rings in */
+	i = max_t(int, adapter->num_tx_queues, adapter->num_rx_queues);
+	temp_ring = vmalloc(i * sizeof(struct ixgbe_ring));
+
+	if (!temp_ring) {
 		err = -ENOMEM;
 		goto clear_reset;
 	}
 
+	ixgbe_down(adapter);
+
+	/*
+	 * Setup new Tx resources and free the old Tx resources in that order.
+	 * We can then assign the new resources to the rings via a memcpy.
+	 * The advantage to this approach is that we are guaranteed to still
+	 * have resources even in the case of an allocation failure.
+	 */
 	if (new_tx_count != adapter->tx_ring_count) {
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			memcpy(&temp_tx_ring[i], adapter->tx_ring[i],
+			memcpy(&temp_ring[i], adapter->tx_ring[i],
 			       sizeof(struct ixgbe_ring));
-			temp_tx_ring[i].count = new_tx_count;
-			err = ixgbe_setup_tx_resources(&temp_tx_ring[i]);
+
+			temp_ring[i].count = new_tx_count;
+			err = ixgbe_setup_tx_resources(&temp_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
-					ixgbe_free_tx_resources(&temp_tx_ring[i]);
-				}
-				goto clear_reset;
-			}
-		}
-		need_update = true;
-	}
-
-	temp_rx_ring = vmalloc(adapter->num_rx_queues * sizeof(struct ixgbe_ring));
-	if (!temp_rx_ring) {
-		err = -ENOMEM;
-		goto err_setup;
-	}
-
-	if (new_rx_count != adapter->rx_ring_count) {
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			memcpy(&temp_rx_ring[i], adapter->rx_ring[i],
-			       sizeof(struct ixgbe_ring));
-			temp_rx_ring[i].count = new_rx_count;
-			err = ixgbe_setup_rx_resources(&temp_rx_ring[i]);
-			if (err) {
-				while (i) {
-					i--;
-					ixgbe_free_rx_resources(&temp_rx_ring[i]);
+					ixgbe_free_tx_resources(&temp_ring[i]);
 				}
 				goto err_setup;
 			}
 		}
-		need_update = true;
-	}
 
-	/* if rings need to be updated, here's the place to do it in one shot */
-	if (need_update) {
-		ixgbe_down(adapter);
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			ixgbe_free_tx_resources(adapter->tx_ring[i]);
 
-		/* tx */
-		if (new_tx_count != adapter->tx_ring_count) {
-			for (i = 0; i < adapter->num_tx_queues; i++) {
-				ixgbe_free_tx_resources(adapter->tx_ring[i]);
-				memcpy(adapter->tx_ring[i], &temp_tx_ring[i],
-				       sizeof(struct ixgbe_ring));
-			}
-			adapter->tx_ring_count = new_tx_count;
+			memcpy(adapter->tx_ring[i], &temp_ring[i],
+			       sizeof(struct ixgbe_ring));
 		}
 
-		/* rx */
-		if (new_rx_count != adapter->rx_ring_count) {
-			for (i = 0; i < adapter->num_rx_queues; i++) {
-				ixgbe_free_rx_resources(adapter->rx_ring[i]);
-				memcpy(adapter->rx_ring[i], &temp_rx_ring[i],
-				       sizeof(struct ixgbe_ring));
-			}
-			adapter->rx_ring_count = new_rx_count;
-		}
-		ixgbe_up(adapter);
+		adapter->tx_ring_count = new_tx_count;
 	}
 
-	vfree(temp_rx_ring);
+	/* Repeat the process for the Rx rings if needed */
+	if (new_rx_count != adapter->rx_ring_count) {
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			memcpy(&temp_ring[i], adapter->rx_ring[i],
+			       sizeof(struct ixgbe_ring));
+
+			temp_ring[i].count = new_rx_count;
+			err = ixgbe_setup_rx_resources(&temp_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbe_free_rx_resources(&temp_ring[i]);
+				}
+				goto err_setup;
+			}
+
+		}
+
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			ixgbe_free_rx_resources(adapter->rx_ring[i]);
+
+			memcpy(adapter->rx_ring[i], &temp_ring[i],
+			       sizeof(struct ixgbe_ring));
+		}
+
+		adapter->rx_ring_count = new_rx_count;
+	}
+
 err_setup:
-	vfree(temp_tx_ring);
+	ixgbe_up(adapter);
+	vfree(temp_ring);
 clear_reset:
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;

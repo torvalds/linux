@@ -99,6 +99,7 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* forward decls */
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector);
+static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter);
 
 static inline void ixgbevf_release_rx_desc(struct ixgbe_hw *hw,
 					   struct ixgbevf_ring *rx_ring,
@@ -1335,7 +1336,8 @@ static void ixgbevf_init_last_counter_stats(struct ixgbevf_adapter *adapter)
 static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int api[] = { ixgbe_mbox_api_10,
+	int api[] = { ixgbe_mbox_api_11,
+		      ixgbe_mbox_api_10,
 		      ixgbe_mbox_api_unknown };
 	int err = 0, idx = 0;
 
@@ -1413,11 +1415,86 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	mod_timer(&adapter->watchdog_timer, jiffies);
 }
 
+static int ixgbevf_reset_queues(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbevf_ring *rx_ring;
+	unsigned int def_q = 0;
+	unsigned int num_tcs = 0;
+	unsigned int num_rx_queues = 1;
+	int err, i;
+
+	spin_lock(&adapter->mbx_lock);
+
+	/* fetch queue configuration from the PF */
+	err = ixgbevf_get_queues(hw, &num_tcs, &def_q);
+
+	spin_unlock(&adapter->mbx_lock);
+
+	if (err)
+		return err;
+
+	if (num_tcs > 1) {
+		/* update default Tx ring register index */
+		adapter->tx_ring[0].reg_idx = def_q;
+
+		/* we need as many queues as traffic classes */
+		num_rx_queues = num_tcs;
+	}
+
+	/* nothing to do if we have the correct number of queues */
+	if (adapter->num_rx_queues == num_rx_queues)
+		return 0;
+
+	/* allocate new rings */
+	rx_ring = kcalloc(num_rx_queues,
+			  sizeof(struct ixgbevf_ring), GFP_KERNEL);
+	if (!rx_ring)
+		return -ENOMEM;
+
+	/* setup ring fields */
+	for (i = 0; i < num_rx_queues; i++) {
+		rx_ring[i].count = adapter->rx_ring_count;
+		rx_ring[i].queue_index = i;
+		rx_ring[i].reg_idx = i;
+		rx_ring[i].dev = &adapter->pdev->dev;
+		rx_ring[i].netdev = adapter->netdev;
+
+		/* allocate resources on the ring */
+		err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
+		if (err) {
+			while (i) {
+				i--;
+				ixgbevf_free_rx_resources(adapter, &rx_ring[i]);
+			}
+			kfree(rx_ring);
+			return err;
+		}
+	}
+
+	/* free the existing rings and queues */
+	ixgbevf_free_all_rx_resources(adapter);
+	adapter->num_rx_queues = 0;
+	kfree(adapter->rx_ring);
+
+	/* move new rings into position on the adapter struct */
+	adapter->rx_ring = rx_ring;
+	adapter->num_rx_queues = num_rx_queues;
+
+	/* reset ring to vector mapping */
+	ixgbevf_reset_q_vectors(adapter);
+	ixgbevf_map_rings_to_vectors(adapter);
+
+	return 0;
+}
+
 void ixgbevf_up(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	ixgbevf_negotiate_api(adapter);
+
+	ixgbevf_reset_queues(adapter);
 
 	ixgbevf_configure(adapter);
 
@@ -1717,6 +1794,7 @@ static int ixgbevf_alloc_queues(struct ixgbevf_adapter *adapter)
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		adapter->tx_ring[i].count = adapter->tx_ring_count;
 		adapter->tx_ring[i].queue_index = i;
+		/* reg_idx may be remapped later by DCB config */
 		adapter->tx_ring[i].reg_idx = i;
 		adapter->tx_ring[i].dev = &adapter->pdev->dev;
 		adapter->tx_ring[i].netdev = adapter->netdev;
@@ -1950,8 +2028,11 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	hw->subsystem_device_id = pdev->subsystem_device;
 
 	hw->mbx.ops.init_params(hw);
-	hw->mac.max_tx_queues = MAX_TX_QUEUES;
-	hw->mac.max_rx_queues = MAX_RX_QUEUES;
+
+	/* assume legacy case in which PF would only give VF 2 queues */
+	hw->mac.max_tx_queues = 2;
+	hw->mac.max_rx_queues = 2;
+
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
@@ -2377,6 +2458,63 @@ static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter)
 						  &adapter->rx_ring[i]);
 }
 
+static int ixgbevf_setup_queues(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbevf_ring *rx_ring;
+	unsigned int def_q = 0;
+	unsigned int num_tcs = 0;
+	unsigned int num_rx_queues = 1;
+	int err, i;
+
+	spin_lock(&adapter->mbx_lock);
+
+	/* fetch queue configuration from the PF */
+	err = ixgbevf_get_queues(hw, &num_tcs, &def_q);
+
+	spin_unlock(&adapter->mbx_lock);
+
+	if (err)
+		return err;
+
+	if (num_tcs > 1) {
+		/* update default Tx ring register index */
+		adapter->tx_ring[0].reg_idx = def_q;
+
+		/* we need as many queues as traffic classes */
+		num_rx_queues = num_tcs;
+	}
+
+	/* nothing to do if we have the correct number of queues */
+	if (adapter->num_rx_queues == num_rx_queues)
+		return 0;
+
+	/* allocate new rings */
+	rx_ring = kcalloc(num_rx_queues,
+			  sizeof(struct ixgbevf_ring), GFP_KERNEL);
+	if (!rx_ring)
+		return -ENOMEM;
+
+	/* setup ring fields */
+	for (i = 0; i < num_rx_queues; i++) {
+		rx_ring[i].count = adapter->rx_ring_count;
+		rx_ring[i].queue_index = i;
+		rx_ring[i].reg_idx = i;
+		rx_ring[i].dev = &adapter->pdev->dev;
+		rx_ring[i].netdev = adapter->netdev;
+	}
+
+	/* free the existing ring and queues */
+	adapter->num_rx_queues = 0;
+	kfree(adapter->rx_ring);
+
+	/* move new rings into position on the adapter struct */
+	adapter->rx_ring = rx_ring;
+	adapter->num_rx_queues = num_rx_queues;
+
+	return 0;
+}
+
 /**
  * ixgbevf_open - Called when a network interface is made active
  * @netdev: network interface device structure
@@ -2412,6 +2550,11 @@ static int ixgbevf_open(struct net_device *netdev)
 	}
 
 	ixgbevf_negotiate_api(adapter);
+
+	/* setup queue reg_idx and Rx queue count */
+	err = ixgbevf_setup_queues(adapter);
+	if (err)
+		goto err_setup_queues;
 
 	/* allocate transmit descriptors */
 	err = ixgbevf_setup_all_tx_resources(adapter);
@@ -2451,6 +2594,7 @@ err_setup_rx:
 	ixgbevf_free_all_rx_resources(adapter);
 err_setup_tx:
 	ixgbevf_free_all_tx_resources(adapter);
+err_setup_queues:
 	ixgbevf_reset(adapter);
 
 err_setup_reset:
@@ -2925,8 +3069,15 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	int max_possible_frame = MAXIMUM_ETHERNET_VLAN_SIZE;
 
-	if (adapter->hw.mac.type == ixgbe_mac_X540_vf)
+	switch (adapter->hw.api_version) {
+	case ixgbe_mbox_api_11:
 		max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
+		break;
+	default:
+		if (adapter->hw.mac.type == ixgbe_mac_X540_vf)
+			max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
+		break;
+	}
 
 	/* MTU < 68 is an error and causes problems on some kernels */
 	if ((new_mtu < 68) || (max_frame > max_possible_frame))
