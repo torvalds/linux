@@ -170,7 +170,7 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 	kfree_skb(skb);
 }
 
-static u32 nfc_hci_sak_to_protocol(u8 sak)
+u32 nfc_hci_sak_to_protocol(u8 sak)
 {
 	switch (NFC_HCI_TYPE_A_SEL_PROT(sak)) {
 	case NFC_HCI_TYPE_A_SEL_PROT_MIFARE:
@@ -185,6 +185,7 @@ static u32 nfc_hci_sak_to_protocol(u8 sak)
 		return 0xffffffff;
 	}
 }
+EXPORT_SYMBOL(nfc_hci_sak_to_protocol);
 
 int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 {

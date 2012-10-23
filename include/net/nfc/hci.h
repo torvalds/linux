@@ -237,5 +237,6 @@ int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
 int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);
+u32 nfc_hci_sak_to_protocol(u8 sak);
 
 #endif /* __NET_HCI_H */
