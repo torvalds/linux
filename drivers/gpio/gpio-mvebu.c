@@ -244,6 +244,8 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
 	if (ret)
 		return ret;
 
+	mvebu_gpio_set(chip, pin, value);
+
 	spin_lock_irqsave(&mvchip->lock, flags);
 	u = readl_relaxed(mvebu_gpioreg_io_conf(mvchip));
 	u &= ~(1 << pin);
