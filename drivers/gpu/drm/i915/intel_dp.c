@@ -370,7 +370,9 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 * clock divider.
 	 */
 	if (is_cpu_edp(intel_dp)) {
-		if (IS_VALLEYVIEW(dev))
+		if (IS_HASWELL(dev))
+			aux_clock_divider = intel_ddi_get_cdclk_freq(dev_priv) >> 1;
+		else if (IS_VALLEYVIEW(dev))
 			aux_clock_divider = 100;
 		else if (IS_GEN6(dev) || IS_GEN7(dev))
 			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */

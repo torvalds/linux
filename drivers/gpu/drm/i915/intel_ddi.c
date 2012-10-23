@@ -1239,7 +1239,7 @@ void intel_disable_ddi(struct intel_encoder *encoder)
 	/* This will be needed in the future, so leave it here for now */
 }
 
-static int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
+int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 {
 	if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
 		return 450;
