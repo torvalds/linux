@@ -36,9 +36,17 @@
 
 #define VIVI_MODULE_NAME "vivi"
 
-/* Wake up at about 30 fps */
-#define WAKE_NUMERATOR 30
-#define WAKE_DENOMINATOR 1001
+/* Maximum allowed frame rate
+ *
+ * Vivi will allow setting timeperframe in [1/FPS_MAX - FPS_MAX/1] range.
+ *
+ * Ideally FPS_MAX should be infinity, i.e. practically UINT_MAX, but that
+ * might hit application errors when they manipulate these values.
+ *
+ * Besides, for tpf < 1ms image-generation logic should be changed, to avoid
+ * producing frames with equal content.
+ */
+#define FPS_MAX 1000
 
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1200
@@ -68,6 +76,12 @@ MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 /* Global font descriptor */
 static const u8 *font8x16;
+
+/* timeperframe: min/max and default */
+static const struct v4l2_fract
+	tpf_min     = {.numerator = 1,		.denominator = FPS_MAX},
+	tpf_max     = {.numerator = FPS_MAX,	.denominator = 1},
+	tpf_default = {.numerator = 1001,	.denominator = 30000};	/* NTSC */
 
 #define dprintk(dev, level, fmt, arg...) \
 	v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ## arg)
@@ -150,14 +164,14 @@ static struct vivi_fmt formats[] = {
 	},
 };
 
-static struct vivi_fmt *get_format(struct v4l2_format *f)
+static struct vivi_fmt *__get_format(u32 pixelformat)
 {
 	struct vivi_fmt *fmt;
 	unsigned int k;
 
 	for (k = 0; k < ARRAY_SIZE(formats); k++) {
 		fmt = &formats[k];
-		if (fmt->fourcc == f->fmt.pix.pixelformat)
+		if (fmt->fourcc == pixelformat)
 			break;
 	}
 
@@ -165,6 +179,11 @@ static struct vivi_fmt *get_format(struct v4l2_format *f)
 		return NULL;
 
 	return &formats[k];
+}
+
+static struct vivi_fmt *get_format(struct v4l2_format *f)
+{
+	return __get_format(f->fmt.pix.pixelformat);
 }
 
 /* buffer for one video frame */
@@ -232,6 +251,7 @@ struct vivi_dev {
 
 	/* video capture */
 	struct vivi_fmt            *fmt;
+	struct v4l2_fract          timeperframe;
 	unsigned int               width, height;
 	struct vb2_queue	   vb_vidq;
 	unsigned int		   field_count;
@@ -689,8 +709,8 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 	dprintk(dev, 2, "[%p/%d] done\n", buf, buf->vb.v4l2_buf.index);
 }
 
-#define frames_to_ms(frames)					\
-	((frames * WAKE_NUMERATOR * 1000) / WAKE_DENOMINATOR)
+#define frames_to_ms(dev, frames)				\
+	((frames * dev->timeperframe.numerator * 1000) / dev->timeperframe.denominator)
 
 static void vivi_sleep(struct vivi_dev *dev)
 {
@@ -706,7 +726,7 @@ static void vivi_sleep(struct vivi_dev *dev)
 		goto stop_task;
 
 	/* Calculate time to wake up */
-	timeout = msecs_to_jiffies(frames_to_ms(1));
+	timeout = msecs_to_jiffies(frames_to_ms(dev, 1));
 
 	vivi_thread_tick(dev);
 
@@ -1078,6 +1098,70 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
+/* timeperframe is arbitrary and continous */
+static int vidioc_enum_frameintervals(struct file *file, void *priv,
+					     struct v4l2_frmivalenum *fival)
+{
+	struct vivi_fmt *fmt;
+
+	if (fival->index)
+		return -EINVAL;
+
+	fmt = __get_format(fival->pixel_format);
+	if (!fmt)
+		return -EINVAL;
+
+	/* regarding width & height - we support any */
+
+	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+
+	/* fill in stepwise (step=1.0 is requred by V4L2 spec) */
+	fival->stepwise.min  = tpf_min;
+	fival->stepwise.max  = tpf_max;
+	fival->stepwise.step = (struct v4l2_fract) {1, 1};
+
+	return 0;
+}
+
+static int vidioc_g_parm(struct file *file, void *priv,
+			  struct v4l2_streamparm *parm)
+{
+	struct vivi_dev *dev = video_drvdata(file);
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	parm->parm.capture.capability   = V4L2_CAP_TIMEPERFRAME;
+	parm->parm.capture.timeperframe = dev->timeperframe;
+	parm->parm.capture.readbuffers  = 1;
+	return 0;
+}
+
+#define FRACT_CMP(a, OP, b)	\
+	((u64)(a).numerator * (b).denominator  OP  (u64)(b).numerator * (a).denominator)
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			  struct v4l2_streamparm *parm)
+{
+	struct vivi_dev *dev = video_drvdata(file);
+	struct v4l2_fract tpf;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	tpf = parm->parm.capture.timeperframe;
+
+	/* tpf: {*, 0} resets timing; clip to [min, max]*/
+	tpf = tpf.denominator ? tpf : tpf_default;
+	tpf = FRACT_CMP(tpf, <, tpf_min) ? tpf_min : tpf;
+	tpf = FRACT_CMP(tpf, >, tpf_max) ? tpf_max : tpf;
+
+	dev->timeperframe = tpf;
+	parm->parm.capture.timeperframe = tpf;
+	parm->parm.capture.readbuffers  = 1;
+	return 0;
+}
+
 /* --- controls ---------------------------------------------- */
 
 static int vivi_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
@@ -1236,6 +1320,9 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
+	.vidioc_g_parm        = vidioc_g_parm,
+	.vidioc_s_parm        = vidioc_s_parm,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
 	.vidioc_log_status    = v4l2_ctrl_log_status,
@@ -1294,6 +1381,7 @@ static int __init vivi_create_instance(int inst)
 		goto free_dev;
 
 	dev->fmt = &formats[0];
+	dev->timeperframe = tpf_default;
 	dev->width = 640;
 	dev->height = 480;
 	dev->pixelsize = dev->fmt->depth / 8;
