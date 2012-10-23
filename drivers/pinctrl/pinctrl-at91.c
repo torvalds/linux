@@ -1255,9 +1255,33 @@ static int at91_gpio_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
+int at91_gpio_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+			const u32 *intspec, unsigned int intsize,
+			irq_hw_number_t *out_hwirq, unsigned int *out_type)
+{
+	struct at91_gpio_chip *at91_gpio = d->host_data;
+	int ret;
+	int pin = at91_gpio->chip.base + intspec[0];
+
+	if (WARN_ON(intsize < 2))
+		return -EINVAL;
+	*out_hwirq = intspec[0];
+	*out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
+
+	ret = gpio_request(pin, ctrlr->full_name);
+	if (ret)
+		return ret;
+
+	ret = gpio_direction_input(pin);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static struct irq_domain_ops at91_gpio_ops = {
 	.map	= at91_gpio_irq_map,
-	.xlate	= irq_domain_xlate_twocell,
+	.xlate	= at91_gpio_irq_domain_xlate,
 };
 
 static int at91_gpio_of_irq_setup(struct device_node *node,
