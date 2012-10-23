@@ -22,7 +22,7 @@ void __init plat_time_init(void)
 	/* setup mips r4k timer */
 	clk = clk_get(NULL, "cpu");
 	if (IS_ERR(clk))
-		panic("unable to get dc clock, err=%ld", PTR_ERR(clk));
+		panic("unable to get cpu clock, err=%ld", PTR_ERR(clk));
 
 	mips_hpt_frequency = clk_get_rate(clk) / 2;
 }
