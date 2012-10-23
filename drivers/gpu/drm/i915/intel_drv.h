@@ -440,6 +440,10 @@ extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
+extern void ironlake_edp_panel_on(struct intel_dp *intel_dp);
+extern void ironlake_edp_panel_off(struct intel_dp *intel_dp);
+extern void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
+extern void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern int intel_edp_target_clock(struct intel_encoder *,
 				  struct drm_display_mode *mode);

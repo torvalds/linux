@@ -651,9 +651,6 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	return -EREMOTEIO;
 }
 
-static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
-static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
-
 static int
 intel_dp_i2c_init(struct intel_dp *intel_dp,
 		  struct intel_connector *intel_connector, const char *name)
@@ -1004,7 +1001,7 @@ static  u32 ironlake_get_pp_control(struct drm_i915_private *dev_priv)
 	return control;
 }
 
-static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
+void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1074,7 +1071,7 @@ static void ironlake_panel_vdd_work(struct work_struct *__work)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
-static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
+void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
 	if (!is_edp(intel_dp))
 		return;
@@ -1097,7 +1094,7 @@ static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	}
 }
 
-static void ironlake_edp_panel_on(struct intel_dp *intel_dp)
+void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1139,7 +1136,7 @@ static void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 	}
 }
 
-static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
+void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;

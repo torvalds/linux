@@ -1163,12 +1163,19 @@ void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	int type = intel_encoder->type;
+
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		ironlake_edp_panel_vdd_on(intel_dp);
+		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_vdd_off(intel_dp, true);
+	}
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
-
 	I915_WRITE(PORT_CLK_SEL(port), intel_crtc->ddi_pll_sel);
 
-	if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -1196,6 +1203,7 @@ void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	int type = intel_encoder->type;
 	uint32_t val;
 	bool wait = false;
 
@@ -1213,6 +1221,12 @@ void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
+
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		ironlake_edp_panel_vdd_on(intel_dp);
+		ironlake_edp_panel_off(intel_dp);
+	}
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
