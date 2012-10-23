@@ -382,7 +382,7 @@ static void psc724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate)
 
 /* power management */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int psc724_resume(struct snd_ice1712 *ice)
 {
 	struct psc724_spec *spec = ice->spec;
@@ -413,7 +413,7 @@ static int __devinit psc724_init(struct snd_ice1712 *ice)
 	snd_wm8776_init(&spec->wm8776);
 	spec->wm8766.ops.write = psc724_wm8766_write;
 	spec->wm8766.card = ice->card;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	ice->pm_resume = psc724_resume;
 	ice->pm_suspend_enabled = 1;
 #endif
