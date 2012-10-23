@@ -4453,6 +4453,25 @@ static void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 	}
 }
 
+void l2cap_move_start(struct l2cap_chan *chan)
+{
+	BT_DBG("chan %p", chan);
+
+	if (chan->local_amp_id == HCI_BREDR_ID) {
+		if (chan->chan_policy != BT_CHANNEL_POLICY_AMP_PREFERRED)
+			return;
+		chan->move_role = L2CAP_MOVE_ROLE_INITIATOR;
+		chan->move_state = L2CAP_MOVE_WAIT_PREPARE;
+		/* Placeholder - start physical link setup */
+	} else {
+		chan->move_role = L2CAP_MOVE_ROLE_INITIATOR;
+		chan->move_state = L2CAP_MOVE_WAIT_RSP_SUCCESS;
+		chan->move_id = 0;
+		l2cap_move_setup(chan);
+		l2cap_send_move_chan_req(chan, 0);
+	}
+}
+
 static void l2cap_do_create(struct l2cap_chan *chan, int result,
 			    u8 local_amp_id, u8 remote_amp_id)
 {

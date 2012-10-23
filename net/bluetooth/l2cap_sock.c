@@ -736,6 +736,11 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		}
 
 		chan->chan_policy = (u8) opt;
+
+		if (sk->sk_state == BT_CONNECTED &&
+		    chan->move_role == L2CAP_MOVE_ROLE_NONE)
+			l2cap_move_start(chan);
+
 		break;
 
 	default:
