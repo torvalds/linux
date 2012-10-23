@@ -565,8 +565,7 @@ err0:
 static void dsps_delete_musb_pdev(struct dsps_glue *glue, u8 id)
 {
 	musb_put_id(glue->dev, glue->musb[id]->id);
-	platform_device_del(glue->musb[id]);
-	platform_device_put(glue->musb[id]);
+	platform_device_unregister(glue->musb[id]);
 }
 
 static int __devinit dsps_probe(struct platform_device *pdev)
