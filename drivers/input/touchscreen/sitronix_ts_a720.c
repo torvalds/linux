@@ -43,7 +43,7 @@
 #ifdef CONFIG_RK_CONFIG
 
 enum {
-#ifdef RK2926_SDK_DEFAULT_CONFIG
+#if defined(RK2926_SDK_DEFAULT_CONFIG)
         DEF_EN = 1,
 #else
         DEF_EN = 0,
@@ -170,6 +170,7 @@ struct sitronix_ts_data {
 	uint8_t touch_protocol_type;
 	uint8_t pixel_length;
 	int suspend_state;
+        int irq;
 };
 
 static unsigned char initkey_code[] =
@@ -303,7 +304,7 @@ long	 sitronix_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			UpgradeMsg("IOCTL_SMT_ENABLE_IRQ\n");
 			if(!sitronix_ts_irq_on){
 				sitronix_ts_irq_on = 1;
-				enable_irq(sitronix_ts_gpts->client->irq);
+				enable_irq(sitronix_ts_gpts->irq);
 #ifdef SITRONIX_MONITOR_THREAD
 				atomic_set(&iMonitorThreadPostpone,1);
 				SitronixMonitorThread = kthread_run(sitronix_ts_monitor_thread,"Sitronix","Monitorthread");
@@ -316,7 +317,7 @@ long	 sitronix_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			UpgradeMsg("IOCTL_SMT_DISABLE_IRQ\n");
 			if(sitronix_ts_irq_on){
 				sitronix_ts_irq_on = 0;
-				disable_irq_nosync(sitronix_ts_gpts->client->irq);
+				disable_irq_nosync(sitronix_ts_gpts->irq);
 #ifdef SITRONIX_MONITOR_THREAD
 				if(SitronixMonitorThread){
 					kthread_stop(SitronixMonitorThread);
@@ -862,7 +863,7 @@ static void sitronix_ts_work_func(struct work_struct *work)
 #ifdef SITRONIX_INT_POLLING_MODE
 		if (ts->use_irq){
 			sitronix_ts_irq_on = 1;
-			enable_irq(ts->client->irq);
+			enable_irq(ts->irq);
 		}
 #endif // SITRONIX_INT_POLLING_MODE
 	}
@@ -872,7 +873,7 @@ exit_invalid_data:
 #if defined(SITRONIX_LEVEL_TRIGGERED)
 	if (ts->use_irq){
 		sitronix_ts_irq_on = 1;
-		enable_irq(ts->client->irq);
+		enable_irq(ts->irq);
 	}
 #endif // defined(SITRONIX_LEVEL_TRIGGERED)
 	if ((2 <= i2cErrorCount)){
@@ -895,7 +896,7 @@ static irqreturn_t sitronix_ts_irq_handler(int irq, void *dev_id)
 //	printk("lr:%s\n", __FUNCTION__);
 #if defined(SITRONIX_LEVEL_TRIGGERED) || defined(SITRONIX_INT_POLLING_MODE)
 	sitronix_ts_irq_on = 0;
-	disable_irq_nosync(ts->client->irq);
+	disable_irq_nosync(ts->irq);
 #endif // defined(SITRONIX_LEVEL_TRIGGERED) || defined(SITRONIX_INT_POLLING_MODE)
 #ifdef SITRONIX_MONITOR_THREAD
 	atomic_set(&iMonitorThreadPostpone,1);
@@ -945,6 +946,8 @@ static int sitronix_ts_probe(struct i2c_client *client, const struct i2c_device_
 	INIT_DELAYED_WORK(&ts->work, sitronix_ts_work_func);
 #endif // SITRONIX_INT_POLLING_MODE
 	ts->client = client;
+        if(client->irq != INVALID_GPIO)
+                ts->irq = gpio_to_irq(client->irq);
 	i2c_set_clientdata(client, ts);
 	pdata = client->dev.platform_data;
 #if 0
@@ -1066,14 +1069,14 @@ static int sitronix_ts_probe(struct i2c_client *client, const struct i2c_device_
 	}
 
 	ts->suspend_state = 0;
-	if (client->irq){
+	if (ts->irq){
         #ifdef CONFIG_RK_CONFIG
-		ret = request_irq(client->irq, sitronix_ts_irq_handler,  irq_cfg.irq.irq_flags | IRQF_DISABLED, client->name, ts);
+		ret = request_irq(ts->irq, sitronix_ts_irq_handler,  irq_cfg.irq.irq_flags | IRQF_DISABLED, client->name, ts);
         #else
                 #ifdef SITRONIX_LEVEL_TRIGGERED
-		ret = request_irq(client->irq, sitronix_ts_irq_handler, IRQF_TRIGGER_LOW | IRQF_DISABLED, client->name, ts);
+		ret = request_irq(ts->irq, sitronix_ts_irq_handler, IRQF_TRIGGER_LOW | IRQF_DISABLED, client->name, ts);
                 #else
-		ret = request_irq(client->irq, sitronix_ts_irq_handler, IRQF_TRIGGER_FALLING | IRQF_DISABLED, client->name, ts);
+		ret = request_irq(ts->irq, sitronix_ts_irq_handler, IRQF_TRIGGER_FALLING | IRQF_DISABLED, client->name, ts);
                 #endif // SITRONIX_LEVEL_TRIGGERED
         #endif // CONFIG_RK_CONFIG
 		if (ret == 0){
@@ -1128,7 +1131,7 @@ static int sitronix_ts_remove(struct i2c_client *client)
       	}
 #endif // SITRONIX_MONITOR_THREAD
 	if (ts->use_irq)
-		free_irq(client->irq, ts);
+		free_irq(ts->irq, ts);
 	else
 		hrtimer_cancel(&ts->timer);
 	input_unregister_device(ts->input_dev);
@@ -1154,13 +1157,13 @@ static int sitronix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 #endif // SITRONIX_MONITOR_THREAD
 	if(ts->use_irq){
 		sitronix_ts_irq_on = 0;
-		disable_irq_nosync(ts->client->irq);
+		disable_irq_nosync(ts->irq);
 	}
 	ts->suspend_state = 1;
 
 	ret = sitronix_ts_set_powerdown_bit(ts, 1);
 #ifdef SITRONIX_WAKE_UP_TOUCH_BY_INT
-	gpio_direction_output(irq_to_gpio(client->irq), 1);
+	gpio_direction_output(client->irq, 1);
 #endif // SITRONIX_WAKE_UP_TOUCH_BY_INT
 	DbgMsg("%s return\n", __FUNCTION__);
 
@@ -1186,7 +1189,7 @@ static int sitronix_ts_resume(struct i2c_client *client)
 	DbgMsg("%s\n", __FUNCTION__);
 
 #ifdef SITRONIX_WAKE_UP_TOUCH_BY_INT
-	gpio = irq_to_gpio(client->irq);
+	gpio = client->irq;
 	gpio_set_value(gpio, 0);
 	gpio_direction_input(gpio);
 #else
@@ -1196,7 +1199,7 @@ static int sitronix_ts_resume(struct i2c_client *client)
 	ts->suspend_state = 0;
 	if(ts->use_irq){
 		sitronix_ts_irq_on = 1;
-		enable_irq(ts->client->irq);
+		enable_irq(ts->irq);
 	}
 #ifdef SITRONIX_MONITOR_THREAD
 	atomic_set(&iMonitorThreadPostpone,1);

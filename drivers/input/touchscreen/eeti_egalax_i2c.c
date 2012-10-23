@@ -64,6 +64,9 @@ enum {
 #elif defined(RK2928_TB_DEFAULT_CONFIG)
         DEF_IRQ = 0x008003c7,
         DEF_RST = 0X000003c3,
+#else
+        DEF_IRQ = -1,
+        DEF_RST = -1,
 #endif
         DEF_I2C = 2, 
         DEF_ADDR = 0x04,

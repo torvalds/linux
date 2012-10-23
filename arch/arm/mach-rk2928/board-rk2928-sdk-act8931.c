@@ -9,10 +9,14 @@
 
 #ifdef CONFIG_REGULATOR_ACT8931
 
+#ifndef CONFIG_RK_CONFIG
+
 #if defined(CONFIG_MACH_RK2928_SDK)
 #define ACT8931_CHGSEL_PIN RK2928_PIN0_PD0
 #else
 #define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
+#endif
+
 #endif
 
 #define ACT8931_CHGSEL_VALUE GPIO_HIGH /* Declined to 20% current */
@@ -86,11 +90,14 @@ static int act8931_set_init(struct act8931 *act8931)
 	printk("%s set dcdc3 vdd_arm=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
-	
+#ifdef CONFIG_RK_CONFIG
+        ret = port_output_init(chg_sel, 1, "chg_sel");
+#else
 	ret = gpio_request(ACT8931_CHGSEL_PIN, "ACT8931_CHGSEL");
 	if (ret != 0)
 		gpio_free(ACT8931_CHGSEL_PIN);
 	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
+#endif
 
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	
@@ -296,12 +303,20 @@ static struct act8931_platform_data act8931_data={
 #ifdef CONFIG_HAS_EARLYSUSPEND
 void act8931_early_suspend(struct early_suspend *h)
 {
+#if CONFIG_RK_CONFIG
+        port_output_off(chg_sel);
+#else
 	gpio_direction_output(ACT8931_CHGSEL_PIN, !ACT8931_CHGSEL_VALUE);
+#endif
 }
 
 void act8931_late_resume(struct early_suspend *h)
 {
+#if CONFIG_RK_CONFIG
+        port_output_on(chg_sel);
+#else
 	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
+#endif
 }
 #endif
 

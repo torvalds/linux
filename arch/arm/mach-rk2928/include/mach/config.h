@@ -2,11 +2,18 @@
 #define __MACH_CONFIG_H
 #include <mach/board.h>
 
-#define RK2926_TB_DEFAULT_CONFIG
+//#define RK2926_TB_DEFAULT_CONFIG
 //#define RK2928_TB_DEFAULT_CONFIG
-//#define RK2926_SDK_DEFAULT_CONFIG
+#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
 
+enum { 
+        GS_TYPE_NONE = 0,
+        GS_TYPE_MMA8452,
+        GS_TYPE_MMA7660,
+        GS_TYPE_KXTIK,
+        GS_TYPE_MAX,
+};
 enum {
         WIFI_NONE = 0,
         WIFI_USB_NONE = 1<<4,
@@ -58,12 +65,6 @@ enum {
                         202, 102, \
                         1, 0 }
 /* gsensor */
-enum { 
-        GS_TYPE_NONE = 0,
-        GS_TYPE_MMA8452,
-        GS_TYPE_MMA7660,
-        GS_TYPE_MAX,
-};
 
 enum {
         DEF_GS_TYPE = GS_TYPE_MMA8452,
@@ -158,13 +159,6 @@ enum {
                         202, 102, \
                         1, 0 }
 /* gsensor */
-enum { 
-        GS_TYPE_NONE = 0,
-        GS_TYPE_MMA8452,
-        GS_TYPE_MMA7660,
-        GS_TYPE_MAX,
-};
-
 enum {
         DEF_GS_TYPE = GS_TYPE_MMA8452,
         DEF_GS_I2C = 0,
@@ -243,7 +237,7 @@ enum{
         DEF_BL_PWM = 0,
         DEF_BL_REF = 0,
         DEF_BL_MIN = 80,
-        DEF_BL_EN = 0x000001b0,
+        DEF_BL_EN = -1,
 };
 /* lcd */
 enum {
@@ -259,13 +253,6 @@ enum {
                         154, 85, \
                         1, 0 }
 /* gsensor */
-enum { 
-        GS_TYPE_NONE = 0,
-        GS_TYPE_MMA8452,
-        GS_TYPE_MMA7660,
-        GS_TYPE_MAX,
-};
-
 enum {
         DEF_GS_TYPE = GS_TYPE_MMA7660,
         DEF_GS_I2C = 1,
@@ -318,13 +305,107 @@ enum {
         DEF_BAT_LOW = -1,
         DEF_CHG_OK = -1,
         DEF_CHG_SET = -1,
-        DEF_CHG_SEL = -1,
+        DEF_CHG_SEL = 0x000001a1,
 };
 
 /* global */
 enum {
         DEF_PWR_ON = 0x000001a2,
 };
+/****************************  rk2928 sdk ******************************/
+#elif defined(RK2928_SDK_DEFAULT_CONFIG)
+/* keyboard */
+enum{
+        DEF_KEY_ADC = 1,
+        DEF_PLAY_KEY = 0x000100d1,
+        DEF_VOLDN_KEY = 512 | (1<<31),
+        DEF_VOLUP_KEY = 1  | (1<<31),
+        DEF_MENU_KEY = 0 | (1<<31),
+        DEF_ESC_KEY = 0  | (1<<31),
+        DEF_HOME_KEY = 0 | (1<<31),
+        DEF_CAM_KEY = 0  | (1<<31),
+};
+/* backlight */
+enum{
+        DEF_BL_PWM = 0,
+        DEF_BL_REF = 0,
+        DEF_BL_MIN = 80,
+        DEF_BL_EN = 0x000003c5,
+};
+/* lcd */
+enum {
+        DEF_LCD_CABC = -1,
+        DEF_LCD_EN = 0x000103b3,
+        DEF_LCD_STD = -1,
+};
+
+#define DEF_LCD_PARAM {SCREEN_RGB, OUT_P666, \
+                        33000000, 15000000, \
+                        30, 10, 800, 210, \
+                        13, 10, 480, 22, \
+                        154, 85, \
+                        1, 0 }
+/* gsensor */
+enum {
+        DEF_GS_TYPE = GS_TYPE_MMA7660,
+        DEF_GS_I2C = 1,
+        DEF_GS_ADDR = 0x4c,
+        DEF_GS_IRQ = 0x008003d1,
+        DEF_GS_PWR = -1,
+};
+#define DEF_GS_ORIG {-1, 0, 0, 0, 0, 1, 0, -1, 0}
+/* pwm regulator */
+enum {
+        DEF_REG_PWM = 2,
+};
+/* pmic */
+enum {
+        DEF_PMIC_TYPE = PMIC_TYPE_ACT8931,
+        DEF_PMIC_SLP = 0x000000d0,
+        DEF_PMIC_IRQ = 0x000003c6,
+        DEF_PMIC_I2C = 0,
+        DEF_PMIC_ADDR = 0x5b, 
+};
+/* ion */
+enum {
+        DEF_ION_SIZE = 80 * 1024 * 1024,
+};
+/* codec */
+enum {
+        DEF_SPK_CTL = 0x000003d4,
+        DEF_HP_DET = -1,
+};
+/* sdmmc */
+enum {
+        DEF_SD_DET = 0x000101c1,
+};
+/* wifi */
+enum {
+        DEF_WIFI_RST = -1,
+        DEF_WIFI_PWR = -1,
+        DEF_WIFI_TYPE = WIFI_NONE, 
+};
+/* rtc */
+enum {
+        DEF_RTC_I2C = 0,
+        DEF_RTC_ADDR = 0x51,
+        DEF_RTC_IRQ = 0x008001a5,
+};
+/* charge */
+enum {
+        DEF_CHG_ADC = 0,
+        DEF_DC_DET = 0x000101b4,
+        DEF_BAT_LOW = -1,
+        DEF_CHG_OK = 0x000001a0,
+        DEF_CHG_SET = -1,
+        DEF_CHG_SEL = 0x000000d0,
+};
+
+/* global */
+enum {
+        DEF_PWR_ON = 0x000001a1,
+};
+
 /****************************  other ******************************/
 #else
 /* keyboard */
@@ -359,13 +440,6 @@ enum {
                         0, 0, \
                         0, 0 }
 /* gsensor */
-enum { 
-        GS_TYPE_NONE = 0,
-        GS_TYPE_MMA8452,
-        GS_TYPE_MMA7660,
-        GS_TYPE_MAX,
-};
-
 enum {
         DEF_GS_TYPE = GS_TYPE_NONE,
         DEF_GS_I2C = -1,

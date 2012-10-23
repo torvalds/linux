@@ -9,12 +9,16 @@
 
 #ifdef CONFIG_MFD_TPS65910
 
+#ifndef CONFIG_RK_CONFIG
+
 #if defined(CONFIG_MACH_RK2928_SDK)
 #define PMU_POWER_SLEEP RK2928_PIN0_PD0	
 #elif defined(CONFIG_MACH_RK2928_TB)
 #define PMU_POWER_SLEEP RK2928_PIN3_PD2
 #else
 #define PMU_POWER_SLEEP RK2928_PIN1_PA1
+#endif
+
 #endif
 
 #define GPIO_SWPORTA_DR  0x0000
@@ -65,15 +69,22 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	printk("%s,line=%d\n", __func__,__LINE__);	
 #ifdef CONFIG_RK_CONFIG
         if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
+                printk(KERN_ERR "sram_gpio_init failed\n");
+                return -EINVAL;
+        }
+        if(port_output_init(pmic_slp, 1, "pmic_slp") < 0){
+                printk(KERN_ERR "port_output_init failed\n");
+                return -EINVAL;
+        }
 #else
         if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
-#endif
-                printk(KERN_ERR "PMU_POWER_SLEEP is invalid gpio\n");
+                printk(KERN_ERR "sram_gpio_init failed\n");
                 return -EINVAL;
         }
 
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+#endif
 
 	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL2);
 	if (val<0) {

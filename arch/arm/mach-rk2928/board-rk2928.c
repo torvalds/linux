@@ -582,11 +582,13 @@ int rk30_battery_adc_io_init(void){
 	return 0;
 }
 
-int rk30_battery_adc_is_dc_charging( ){
-        return  act8931_charge_det  ;  
+int rk30_battery_adc_is_dc_charging(void)
+{
+        return  act8931_charge_det;  
 }
-int rk30_battery_adc_charging_ok( ){
-       return act8931_charge_ok ;
+int rk30_battery_adc_charging_ok(void)
+{
+       return act8931_charge_ok;
 }
 #endif
 
@@ -797,6 +799,7 @@ static void __init rk30_i2c_register_board_info(void)
 
 /**************** gsensor ****************/
 // kxtik
+#if defined (CONFIG_GS_KXTIK)
 static int kxtik_init_platform_hw(void)
 {
 	return 0;
@@ -813,6 +816,7 @@ struct i2c_board_info __initdata kxtik_info = {
         .flags = 0,
         .platform_data = &kxtik_data,
 };
+#endif
 #if defined (CONFIG_GS_MMA8452)
 static int mma8452_init_platform_hw(void)
 {
@@ -859,11 +863,15 @@ static int __init gs_board_init(void)
                 return ret;
         port = get_port_config(gs_irq);
         //kxtik
-        kxtik_info.irq = port.gpio;
-        kxtik_info.addr = gs_addr;
-        for(i = 0; i < 9; i++)
-                kxtik_data.orientation[i] = gs_orig[i];
-	i2c_register_board_info(gs_i2c, &kxtik_info, 1);
+#if defined (CONFIG_GS_KXTIK)
+        if(gs_type == GS_TYPE_KXTIK){
+                kxtik_info.irq = port.gpio;
+                kxtik_info.addr = gs_addr;
+                for(i = 0; i < 9; i++)
+                        kxtik_data.orientation[i] = gs_orig[i];
+	        i2c_register_board_info(gs_i2c, &kxtik_info, 1);
+        }
+#endif
         //mma7660
 #if defined (CONFIG_GS_MMA7660)
         if(gs_type == GS_TYPE_MMA7660){
