@@ -355,14 +355,13 @@ int radeon_gart_init(struct radeon_device *rdev)
 	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
 		 rdev->gart.num_cpu_pages, rdev->gart.num_gpu_pages);
 	/* Allocate pages table */
-	rdev->gart.pages = kzalloc(sizeof(void *) * rdev->gart.num_cpu_pages,
-				   GFP_KERNEL);
+	rdev->gart.pages = vzalloc(sizeof(void *) * rdev->gart.num_cpu_pages);
 	if (rdev->gart.pages == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
 	}
-	rdev->gart.pages_addr = kzalloc(sizeof(dma_addr_t) *
-					rdev->gart.num_cpu_pages, GFP_KERNEL);
+	rdev->gart.pages_addr = vzalloc(sizeof(dma_addr_t) *
+					rdev->gart.num_cpu_pages);
 	if (rdev->gart.pages_addr == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
@@ -388,8 +387,8 @@ void radeon_gart_fini(struct radeon_device *rdev)
 		radeon_gart_unbind(rdev, 0, rdev->gart.num_cpu_pages);
 	}
 	rdev->gart.ready = false;
-	kfree(rdev->gart.pages);
-	kfree(rdev->gart.pages_addr);
+	vfree(rdev->gart.pages);
+	vfree(rdev->gart.pages_addr);
 	rdev->gart.pages = NULL;
 	rdev->gart.pages_addr = NULL;
 
