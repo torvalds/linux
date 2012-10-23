@@ -596,6 +596,11 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	if (tree_mod_dont_log(fs_info, eb))
 		return 0;
 
+	/*
+	 * When we override something during the move, we log these removals.
+	 * This can only happen when we move towards the beginning of the
+	 * buffer, i.e. dst_slot < src_slot.
+	 */
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		ret = tree_mod_log_insert_key_locked(fs_info, eb, i + dst_slot,
 					      MOD_LOG_KEY_REMOVE_WHILE_MOVING);
