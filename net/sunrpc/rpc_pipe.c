@@ -1093,7 +1093,7 @@ void rpc_put_sb_net(const struct net *net)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
-	BUG_ON(sn->pipefs_sb == NULL);
+	WARN_ON(sn->pipefs_sb == NULL);
 	mutex_unlock(&sn->pipefs_sb_lock);
 }
 EXPORT_SYMBOL_GPL(rpc_put_sb_net);
