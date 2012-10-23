@@ -139,6 +139,11 @@ struct intel_sdvo {
 
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
+
+	/*
+	 * the sdvo flag gets lost in round trip: dtd->adjusted_mode->dtd
+	 */
+	uint8_t dtd_sdvo_flags;
 };
 
 struct intel_sdvo_connector {
@@ -984,6 +989,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 		return false;
 
 	intel_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
+	intel_sdvo->dtd_sdvo_flags = input_dtd.part2.sdvo_flags;
 
 	return true;
 }
@@ -1092,6 +1098,8 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	 * adjusted_mode.
 	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
+		input_dtd.part2.sdvo_flags = intel_sdvo->dtd_sdvo_flags;
 	if (!intel_sdvo_set_input_timing(intel_sdvo, &input_dtd))
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
@@ -2277,10 +2285,8 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
 	}
 
-	/* SDVO LVDS is cloneable because the SDVO encoder does the upscaling,
-	 * as opposed to native LVDS, where we upscale with the panel-fitter
-	 * (and hence only the native LVDS resolution could be cloned). */
-	intel_sdvo->base.cloneable = true;
+	/* SDVO LVDS is not cloneable because the input mode gets adjusted by the encoder */
+	intel_sdvo->base.cloneable = false;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
