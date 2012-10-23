@@ -35,7 +35,6 @@ config SND_PCSP
 	tristate "PC-Speaker support (READ HELP!)"
 	depends on PCSPKR_PLATFORM && X86 && HIGH_RES_TIMERS
 	depends on INPUT
-	depends on EXPERIMENTAL
 	select SND_PCM
 	help
 	  If you don't have a sound card in your computer, you can include a
