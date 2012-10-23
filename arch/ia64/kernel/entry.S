@@ -116,13 +116,12 @@ GLOBAL_ENTRY(sys_clone2)
 	mov loc1=r16				// save ar.pfs across do_fork
 	.body
 	mov out1=in1
-	mov out3=in2
+	mov out2=in2
 	tbit.nz p6,p0=in0,CLONE_SETTLS_BIT
-	mov out4=in3	// parent_tidptr: valid only w/CLONE_PARENT_SETTID
+	mov out3=in3	// parent_tidptr: valid only w/CLONE_PARENT_SETTID
 	;;
 (p6)	st8 [r2]=in5				// store TLS in r16 for copy_thread()
-	mov out5=in4	// child_tidptr:  valid only w/CLONE_CHILD_SETTID or CLONE_CHILD_CLEARTID
-	adds out2=IA64_SWITCH_STACK_SIZE+16,sp	// out2 = &regs
+	mov out4=in4	// child_tidptr:  valid only w/CLONE_CHILD_SETTID or CLONE_CHILD_CLEARTID
 	mov out0=in0				// out0 = clone_flags
 	br.call.sptk.many rp=do_fork
 .ret1:	.restore sp
@@ -148,13 +147,12 @@ GLOBAL_ENTRY(sys_clone)
 	mov loc1=r16				// save ar.pfs across do_fork
 	.body
 	mov out1=in1
-	mov out3=16				// stacksize (compensates for 16-byte scratch area)
+	mov out2=16				// stacksize (compensates for 16-byte scratch area)
 	tbit.nz p6,p0=in0,CLONE_SETTLS_BIT
-	mov out4=in2	// parent_tidptr: valid only w/CLONE_PARENT_SETTID
+	mov out3=in2	// parent_tidptr: valid only w/CLONE_PARENT_SETTID
 	;;
 (p6)	st8 [r2]=in4				// store TLS in r13 (tp)
-	mov out5=in3	// child_tidptr:  valid only w/CLONE_CHILD_SETTID or CLONE_CHILD_CLEARTID
-	adds out2=IA64_SWITCH_STACK_SIZE+16,sp	// out2 = &regs
+	mov out4=in3	// child_tidptr:  valid only w/CLONE_CHILD_SETTID or CLONE_CHILD_CLEARTID
 	mov out0=in0				// out0 = clone_flags
 	br.call.sptk.many rp=do_fork
 .ret2:	.restore sp

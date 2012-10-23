@@ -601,8 +601,7 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
 		child_tid_ptr = (int __user *) regs->u_regs[UREG_I4];
 	}
 
-	ret = do_fork(clone_flags, stack_start,
-		      regs, stack_size,
+	ret = do_fork(clone_flags, stack_start, stack_size,
 		      parent_tid_ptr, child_tid_ptr);
 
 	/* If we get an error and potentially restart the system

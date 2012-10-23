@@ -2289,7 +2289,7 @@ extern int disallow_signal(int);
 extern int do_execve(const char *,
 		     const char __user * const __user *,
 		     const char __user * const __user *);
-extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned long, int __user *, int __user *);
+extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 #ifdef CONFIG_GENERIC_KERNEL_THREAD
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);

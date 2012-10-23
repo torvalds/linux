@@ -149,7 +149,7 @@ void flush_thread(void)
 asmlinkage int m68k_clone(struct pt_regs *regs)
 {
 	/* regs will be equal to current_pt_regs() */
-	return do_fork(regs->d1, regs->d2, regs, 0,
+	return do_fork(regs->d1, regs->d2, 0,
 		       (int __user *)regs->d3, (int __user *)regs->d4);
 }
 

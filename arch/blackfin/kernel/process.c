@@ -135,7 +135,7 @@ asmlinkage int bfin_clone(unsigned long clone_flags, unsigned long newsp)
 #endif
 	if (newsp)
 		newsp -= 12;
-	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
+	return do_fork(clone_flags, newsp, 0, NULL, NULL);
 }
 
 int
