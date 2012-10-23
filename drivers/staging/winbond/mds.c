@@ -315,7 +315,7 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 
 	pT00->T00_tx_packet_id = pDes->Descriptor_ID; /* Set packet ID */
 	pT00->T00_header_length = 24; /* Set header length */
-	pT01->T01_retry_abort_ebable = 1; /* 921013 931130.5.h */
+	pT01->T01_retry_abort_enable = 1; /* 921013 931130.5.h */
 
 	/* Key ID setup */
 	pT01->T01_wep_id = 0;
