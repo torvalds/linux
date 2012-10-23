@@ -954,6 +954,23 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= TRANS_DDI_PHSYNC;
 
+	if (cpu_transcoder == TRANSCODER_EDP) {
+		switch (pipe) {
+		case PIPE_A:
+			temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+			break;
+		case PIPE_B:
+			temp |= TRANS_DDI_EDP_INPUT_B_ONOFF;
+			break;
+		case PIPE_C:
+			temp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
+			break;
+		default:
+			BUG();
+			break;
+		}
+	}
+
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
