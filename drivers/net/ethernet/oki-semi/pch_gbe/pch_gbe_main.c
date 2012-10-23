@@ -1930,12 +1930,12 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
-	int err;
+	int err = -EINVAL;
 
 	/* Ensure we have a valid MAC */
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		pr_err("Error: Invalid MAC address\n");
-		return -EINVAL;
+		goto out;
 	}
 
 	/* hardware has been reset, we need to reload some things */
@@ -1948,13 +1948,13 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 
 	err = pch_gbe_request_irq(adapter);
 	if (err) {
-		pr_err("Error: can't bring device up\n");
-		return err;
+		pr_err("Error: can't bring device up - irq request failed\n");
+		goto out;
 	}
 	err = pch_gbe_alloc_rx_buffers_pool(adapter, rx_ring, rx_ring->count);
 	if (err) {
-		pr_err("Error: can't bring device up\n");
-		return err;
+		pr_err("Error: can't bring device up - alloc rx buffers pool failed\n");
+		goto freeirq;
 	}
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
 	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
@@ -1969,6 +1969,11 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	netif_start_queue(adapter->netdev);
 
 	return 0;
+
+freeirq:
+	pch_gbe_free_irq(adapter);
+out:
+	return err;
 }
 
 /**
