@@ -71,7 +71,6 @@ static struct resource ls1x_eth0_resources[] = {
 };
 
 static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
-	.bus_id		= 0,
 	.phy_mask	= 0,
 };
 
