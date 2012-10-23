@@ -113,7 +113,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* r24 <- fn, r25 <- arg */
-		ss->r2524 = usp | ((u64)arg << 32);
+		ss->r24 = usp;
+		ss->r25 = arg;
 		pt_set_kmode(childregs);
 		return 0;
 	}
