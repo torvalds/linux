@@ -215,8 +215,6 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	unsigned long iobase_8255;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);

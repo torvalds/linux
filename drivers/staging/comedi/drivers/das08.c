@@ -795,7 +795,7 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	comedi_set_hw_dev(dev, &pdev->dev);
+
 	/*  enable PCI device and reserve I/O spaces */
 	if (comedi_pci_enable(pdev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,

@@ -1265,8 +1265,6 @@ static int pci1710_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	this_board = pci1710_find_boardinfo(dev, pcidev);
 	if (!this_board)
 		return -ENODEV;

@@ -1100,8 +1100,6 @@ static int pci_dio_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret, subdev, i, j;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	this_board = pci_dio_find_boardinfo(dev, pcidev);
 	if (!this_board)
 		return -ENODEV;

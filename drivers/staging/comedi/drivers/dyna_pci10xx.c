@@ -186,8 +186,6 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);

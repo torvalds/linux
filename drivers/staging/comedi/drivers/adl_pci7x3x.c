@@ -177,8 +177,6 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 	int nchan;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	board = adl_pci7x3x_find_boardinfo(dev, pcidev);
 	if (!board)
 		return -ENODEV;

@@ -698,8 +698,6 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int result;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	board = daqboard2000_find_boardinfo(dev, pcidev);
 	if (!board)
 		return -ENODEV;

@@ -1083,7 +1083,7 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
 		return ret;

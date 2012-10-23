@@ -1661,7 +1661,7 @@ static int __devinit pcimio_attach_pci(struct comedi_device *dev,
 		pr_warn("error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->ai_mite_ring == NULL)
 		return -ENOMEM;

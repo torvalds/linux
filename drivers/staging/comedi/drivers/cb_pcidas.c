@@ -1478,8 +1478,6 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	int i;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	thisboard = cb_pcidas_find_boardinfo(dev, pcidev);
 	if (!thisboard)
 		return -ENODEV;

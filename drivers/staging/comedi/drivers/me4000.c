@@ -1578,8 +1578,6 @@ static int me4000_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int result;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	thisboard = me4000_find_boardinfo(dev, pcidev);
 	if (!thisboard)
 		return -ENODEV;

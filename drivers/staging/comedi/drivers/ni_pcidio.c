@@ -1147,7 +1147,7 @@ static int __devinit nidio_attach_pci(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->di_mite_ring == NULL)
 		return -ENOMEM;

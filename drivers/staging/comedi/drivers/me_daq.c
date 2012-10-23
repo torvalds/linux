@@ -648,8 +648,6 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	resource_size_t regbase_tmp;
 	int result, error;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	board = me_find_boardinfo(dev, pcidev);
 	if (!board)
 		return -ENODEV;

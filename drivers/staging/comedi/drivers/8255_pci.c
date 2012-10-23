@@ -227,8 +227,6 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	board = pci_8255_find_boardinfo(dev, pcidev);
 	if (!board)
 		return -ENODEV;

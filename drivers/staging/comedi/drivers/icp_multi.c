@@ -502,7 +502,6 @@ static int icp_multi_attach_pci(struct comedi_device *dev,
 	resource_size_t iobase;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
