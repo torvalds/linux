@@ -792,6 +792,7 @@ struct drm_mode_config {
 
 	/* output poll support */
 	bool poll_enabled;
+	bool poll_running;
 	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
