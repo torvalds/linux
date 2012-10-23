@@ -18,6 +18,7 @@ extern struct platform_device ls1x_eth0_device;
 extern struct platform_device ls1x_ehci_device;
 extern struct platform_device ls1x_rtc_device;
 
+extern void __init ls1x_clk_init(void);
 void ls1x_serial_setup(void);
 
 #endif /* __ASM_MACH_LOONGSON1_PLATFORM_H */

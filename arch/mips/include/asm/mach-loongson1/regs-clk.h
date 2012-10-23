@@ -20,14 +20,15 @@
 
 /* Clock PLL Divisor Register Bits */
 #define DIV_DC_EN			(0x1 << 31)
-#define DIV_DC				(0x1f << 26)
 #define DIV_CPU_EN			(0x1 << 25)
-#define DIV_CPU				(0x1f << 20)
 #define DIV_DDR_EN			(0x1 << 19)
-#define DIV_DDR				(0x1f << 14)
 
 #define DIV_DC_SHIFT			26
 #define DIV_CPU_SHIFT			20
 #define DIV_DDR_SHIFT			14
+
+#define DIV_DC_WIDTH			5
+#define DIV_CPU_WIDTH			5
+#define DIV_DDR_WIDTH			5
 
 #endif /* __ASM_MACH_LOONGSON1_REGS_CLK_H */
