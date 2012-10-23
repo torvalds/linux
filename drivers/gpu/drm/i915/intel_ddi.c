@@ -242,8 +242,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 
 	switch(port){
 	case PORT_A:
-		/* We don't handle eDP and DP yet */
 		DRM_DEBUG_DRIVER("Found digital output on DDI port A\n");
+		intel_dp_init(dev, DDI_BUF_CTL_A, PORT_A);
 		break;
 	/* Assume that the  ports B, C and D are working in HDMI mode for now */
 	case PORT_B:
