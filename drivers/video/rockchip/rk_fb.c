@@ -401,18 +401,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	else  //ohterwise  full  screen display
 	{
 		xsize = screen->x_res;
-        ysize = screen->y_res;
+		ysize = screen->y_res;
 	}
 
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
-#if defined(CONFIG_RK_HDMI)
-	if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-	{
-		xsize = screen->x_res;
-		ysize = screen->y_res;
-	}
-#endif
-
 	if(screen->screen_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
 	{			   //save parameter set by android
 		dev_drv->screen0->xsize = xsize;
@@ -422,10 +414,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	}
 	else
 	{
-		dev_drv->screen1->xsize = xsize;
-		dev_drv->screen1->ysize = ysize;
-		dev_drv->screen1->xpos  = xpos;
-		dev_drv->screen1->ypos = ypos;
+		xsize = dev_drv->screen1->xsize; 
+		ysize = dev_drv->screen1->ysize;
+		xpos = dev_drv->screen1->xpos;
+		ypos = dev_drv->screen1->ypos;
 	}
 #endif
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
@@ -636,6 +628,10 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int ret;
 	int i;
 	int layer_id;
+
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	rk29_backlight_set(0);
+#endif
 	
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)  //find the driver the display device connected to
@@ -738,10 +734,14 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 
 	if(dev_drv->screen1)  //device like rk2928,whic have one lcdc but two outputs
 	{
-		info->var.nonstd &= 0xff;
-		info->var.nonstd |= (dev_drv->cur_screen->xpos<<8) + (dev_drv->cur_screen->ypos<<20);
-		info->var.grayscale &= 0xff;
-		info->var.grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
+	//	info->var.nonstd &= 0xff;
+	//	info->var.nonstd |= (dev_drv->cur_screen->xpos<<8) + (dev_drv->cur_screen->ypos<<20);
+	//	info->var.grayscale &= 0xff;
+	//	info->var.grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
+		dev_drv->screen1->xsize = dev_drv->cur_screen->x_res;
+		dev_drv->screen1->ysize = dev_drv->cur_screen->y_res;
+		dev_drv->screen1->xpos = 0;
+		dev_drv->screen1->ypos = 0;
 	}
 	ret = info->fbops->fb_open(info,1);
 	ret = dev_drv->load_screen(dev_drv,1);
@@ -760,6 +760,8 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	rk29_backlight_set(!enable);
+#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
+	rk29_backlight_set(1);
 #endif
 	return 0;
 
@@ -806,14 +808,25 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	var = &info->var;
 	screen_x = dev_drv->cur_screen->x_res;
 	screen_y = dev_drv->cur_screen->y_res;
-	xpos = (screen_x-screen_x*scale_x/100)>>1;
-	ypos = (screen_y-screen_y*scale_y/100)>>1;
-	xsize = screen_x*scale_x/100;
-	ysize = screen_y*scale_y/100;
-	var->nonstd &= 0xff;
-	var->nonstd |= (xpos<<8) + (ypos<<20);
-	var->grayscale &= 0xff;
-	var->grayscale |= (xsize<<8) + (ysize<<20);
+	
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	if(dev_drv->cur_screen->screen_id == 1){
+		dev_drv->cur_screen->xpos = (screen_x-screen_x*scale_x/100)>>1;
+		dev_drv->cur_screen->ypos = (screen_y-screen_y*scale_y/100)>>1;
+		dev_drv->cur_screen->xsize = screen_x*scale_x/100;
+		dev_drv->cur_screen->ysize = screen_y*scale_y/100;
+	}else
+#endif
+	{
+		xpos = (screen_x-screen_x*scale_x/100)>>1;
+		ypos = (screen_y-screen_y*scale_y/100)>>1;
+		xsize = screen_x*scale_x/100;
+		ysize = screen_y*scale_y/100;
+		var->nonstd &= 0xff;
+		var->nonstd |= (xpos<<8) + (ypos<<20);
+		var->grayscale &= 0xff;
+		var->grayscale |= (xsize<<8) + (ysize<<20);	
+	}
 
 	info->fbops->fb_set_par(info);
 	return 0;
