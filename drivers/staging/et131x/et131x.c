@@ -292,10 +292,10 @@ struct fbr_lookup {
 	dma_addr_t	 ring_physaddr;
 	void		*mem_virtaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
 	dma_addr_t	 mem_physaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	u64		 offset;
+	dma_addr_t	 offset;
 	u32		 local_full;
 	u32		 num_entries;
-	u32		 buffsize;
+	dma_addr_t	 buffsize;
 };
 
 /*
@@ -2258,7 +2258,7 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
  * @mask: correct mask
  */
 static void et131x_align_allocated_memory(struct et131x_adapter *adapter,
-					  u64 *phys_addr, u64 *offset,
+					  dma_addr_t *phys_addr, dma_addr_t *offset,
 					  u64 mask)
 {
 	u64 new_addr = *phys_addr & ~mask;
@@ -2382,8 +2382,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			rx_ring->fbr[1]->offset);
 
 	for (i = 0; i < (rx_ring->fbr[0]->num_entries / FBR_CHUNKS); i++) {
-		u64 fbr1_tmp_physaddr;
-		u64 fbr1_offset;
+		dma_addr_t fbr1_tmp_physaddr;
+		dma_addr_t fbr1_offset;
 		u32 fbr1_align;
 
 		/* This code allocates an area of memory big enough for N
@@ -2447,8 +2447,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Same for FBR0 (if in use) */
 	for (i = 0; i < (rx_ring->fbr[1]->num_entries / FBR_CHUNKS); i++) {
-		u64 fbr0_tmp_physaddr;
-		u64 fbr0_offset;
+		dma_addr_t fbr0_tmp_physaddr;
+		dma_addr_t fbr0_offset;
 
 		fbr_chunksize =
 		    ((FBR_CHUNKS + 1) * rx_ring->fbr[1]->buffsize) - 1;
@@ -3513,7 +3513,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	unsigned long flags;
 	struct tx_desc *desc = NULL;
 	struct net_device_stats *stats = &adapter->net_stats;
-	dma_addr_t dma_addr;
+	u64  dma_addr;
 
 	if (tcb->flags & fMP_DEST_BROAD)
 		atomic_inc(&adapter->stats.broadcast_pkts_xmtd);
@@ -3535,9 +3535,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 						INDEX10(tcb->index_start));
 
 			dma_addr = desc->addr_lo;
-
-			if (sizeof(dma_addr_t) == sizeof(u64))
-				dma_addr |= ((dma_addr_t)desc->addr_hi) << 32;
+			dma_addr |= (u64)desc->addr_hi << 32;
 
 			dma_unmap_single(&adapter->pdev->dev,
 					 dma_addr,
