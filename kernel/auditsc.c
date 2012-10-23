@@ -1205,12 +1205,14 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid,
 			 from_kuid(&init_user_ns, auid),
 			 from_kuid(&init_user_ns, uid), sessionid);
-	if (security_secid_to_secctx(sid, &ctx, &len)) {
-		audit_log_format(ab, " obj=(none)");
-		rc = 1;
-	} else {
-		audit_log_format(ab, " obj=%s", ctx);
-		security_release_secctx(ctx, len);
+	if (sid) {
+		if (security_secid_to_secctx(sid, &ctx, &len)) {
+			audit_log_format(ab, " obj=(none)");
+			rc = 1;
+		} else {
+			audit_log_format(ab, " obj=%s", ctx);
+			security_release_secctx(ctx, len);
+		}
 	}
 	audit_log_format(ab, " ocomm=");
 	audit_log_untrustedstring(ab, comm);
