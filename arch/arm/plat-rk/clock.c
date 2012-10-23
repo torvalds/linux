@@ -51,6 +51,11 @@ static void clk_notify(struct clk *clk, unsigned long msg,
 #define LOCK() do { WARN_ON(in_irq()); if (!irqs_disabled()) spin_lock_bh(&clockfw_lock); } while (0)
 #define UNLOCK() do { if (!irqs_disabled()) spin_unlock_bh(&clockfw_lock); } while (0)
 /**********************************************for clock data****************************************************/
+struct list_head *get_rk_clocks_head(void)
+{
+	return &clocks;
+}
+
 static struct clk *def_ops_clk=NULL;
 
 void clk_register_default_ops_clk(struct clk *clk)

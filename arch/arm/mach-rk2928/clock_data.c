@@ -2281,8 +2281,81 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_vio_bus);
 }
 
-#ifdef CONFIG_PROC_FS
 
+static void rk_dump_clock(struct clk *clk, int deep, const struct list_head *root_clocks)
+{
+	struct clk *ck;
+	int i;
+	unsigned long rate = clk->rate;
+	for (i = 0; i < deep; i++)
+		printk("    ");
+
+	printk("%-11s ", clk->name);
+	if ((clk->mode == gate_mode) && (clk->gate_idx < CLK_GATE_MAX)) {
+		int idx = clk->gate_idx;
+		u32 v;
+		v = cru_readl(CLK_GATE_CLKID_CONS(idx)) & ((0x1) << (idx % 16));
+		printk("%s ", v ? "off" : "on ");
+	}
+
+	if (clk->pll) {
+		u32 pll_mode;
+		u32 pll_id = clk->pll->id;
+		pll_mode = cru_readl(CRU_MODE_CON)&PLL_MODE_MSK(pll_id);
+		if (pll_mode == (PLL_MODE_SLOW(pll_id) & PLL_MODE_MSK(pll_id)))
+			printk("slow   ");
+		else if (pll_mode == (PLL_MODE_NORM(pll_id) & PLL_MODE_MSK(pll_id)))
+			printk("normal ");
+		//else if (pll_mode == (PLL_MODE_DEEP(pll_id) & PLL_MODE_MSK(pll_id)))
+		//	printk("deep   ");
+
+		if(cru_readl(PLL_CONS(pll_id, 3)) & PLL_BYPASS)
+			printk("bypass ");
+	} else if(clk == &clk_ddrc) {
+		rate = clk->recalc(clk);
+	}
+
+	if (rate >= MHZ) {
+		if (rate % MHZ)
+			printk("%ld.%06ld MHz", rate / MHZ, rate % MHZ);
+		else
+			printk("%ld MHz", rate / MHZ);
+	} else if (rate >= KHZ) {
+		if (rate % KHZ)
+			printk("%ld.%03ld KHz", rate / KHZ, rate % KHZ);
+		else
+			printk("%ld KHz", rate / KHZ);
+	} else {
+		printk("%ld Hz", rate);
+	}
+
+	printk(" usecount = %d", clk->usecount);
+
+	if (clk->parent)
+		printk(" parent = %s", clk->parent->name);
+
+	printk("\n");
+
+	list_for_each_entry(ck, root_clocks, node) {
+		if (ck->parent == clk)
+			rk_dump_clock(ck, deep + 1, root_clocks);
+	}
+}
+
+#if 1
+extern struct list_head *get_rk_clocks_head(void);
+
+void rk_dump_clock_info(void)
+{
+	struct clk* clk;
+	list_for_each_entry(clk, get_rk_clocks_head(), node) {
+		if (!clk->parent)
+			rk_dump_clock(clk, 0,get_rk_clocks_head());
+	}
+}
+#endif
+
+#ifdef CONFIG_PROC_FS
 static void dump_clock(struct seq_file *s, struct clk *clk, int deep,const struct list_head *root_clocks)
 {
 	struct clk* ck;
@@ -2630,7 +2703,11 @@ void __init _rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,int fl
 
 	CLKDATA_DBG("clk_recalculate_root_clocks_nolock\n");
 	clk_recalculate_root_clocks_nolock();
-
+#if 0
+	// print loader config
+	rk_dump_clock_info();
+	while(1);
+#endif
 	loops_per_jiffy = CLK_LOOPS_RECALC(arm_pll_clk.rate);
 
 	/*
