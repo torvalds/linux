@@ -193,7 +193,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 
 	dprintk(1, "%s()\n", __func__);
 
-	memcpy(&dev->board, &au0828_boards[dev->boardnr], sizeof(dev->board));
+	dev->board = au0828_boards[dev->boardnr];
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;

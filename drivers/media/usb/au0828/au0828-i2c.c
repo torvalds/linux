@@ -364,12 +364,9 @@ int au0828_i2c_register(struct au0828_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
 
-	memcpy(&dev->i2c_adap, &au0828_i2c_adap_template,
-	       sizeof(dev->i2c_adap));
-	memcpy(&dev->i2c_algo, &au0828_i2c_algo_template,
-	       sizeof(dev->i2c_algo));
-	memcpy(&dev->i2c_client, &au0828_i2c_client_template,
-	       sizeof(dev->i2c_client));
+	dev->i2c_adap = au0828_i2c_adap_template;
+	dev->i2c_algo = au0828_i2c_algo_template;
+	dev->i2c_client = au0828_i2c_client_template;
 
 	dev->i2c_adap.dev.parent = &dev->usbdev->dev;
 
