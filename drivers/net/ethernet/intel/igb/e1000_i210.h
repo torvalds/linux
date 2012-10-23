@@ -43,6 +43,8 @@ extern void igb_release_nvm_i210(struct e1000_hw *hw);
 extern s32 igb_valid_led_default_i210(struct e1000_hw *hw, u16 *data);
 extern s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
 			       u16 *data);
+extern s32 igb_read_invm_version(struct e1000_hw *hw,
+				 struct e1000_fw_version *invm_ver);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -65,6 +67,15 @@ enum E1000_INVM_STRUCTURE_TYPE {
 
 #define E1000_INVM_RSA_KEY_SHA256_DATA_SIZE_IN_DWORDS	8
 #define E1000_INVM_CSR_AUTOLOAD_DATA_SIZE_IN_DWORDS	1
+#define E1000_INVM_ULT_BYTES_SIZE			8
+#define E1000_INVM_RECORD_SIZE_IN_BYTES			4
+#define E1000_INVM_VER_FIELD_ONE			0x1FF8
+#define E1000_INVM_VER_FIELD_TWO			0x7FE000
+#define E1000_INVM_IMGTYPE_FIELD			0x1F800000
+
+#define E1000_INVM_MAJOR_MASK		0x3F0
+#define E1000_INVM_MINOR_MASK		0xF
+#define E1000_INVM_MAJOR_SHIFT		4
 
 #define ID_LED_DEFAULT_I210		((ID_LED_OFF1_ON2  << 8) | \
 					 (ID_LED_OFF1_OFF2 <<  4) | \
