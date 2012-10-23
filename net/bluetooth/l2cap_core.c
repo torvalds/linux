@@ -3787,6 +3787,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 		goto unlock;
 	}
 
+	chan->ident = cmd->ident;
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP, len, rsp);
 	chan->num_conf_rsp++;
 
@@ -4186,17 +4187,17 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 	return 0;
 }
 
-static void l2cap_send_move_chan_rsp(struct l2cap_conn *conn, u8 ident,
-				     u16 icid, u16 result)
+static void l2cap_send_move_chan_rsp(struct l2cap_chan *chan, u16 result)
 {
 	struct l2cap_move_chan_rsp rsp;
 
-	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
+	BT_DBG("chan %p, result 0x%4.4x", chan, result);
 
-	rsp.icid = cpu_to_le16(icid);
+	rsp.icid = cpu_to_le16(chan->dcid);
 	rsp.result = cpu_to_le16(result);
 
-	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_RSP, sizeof(rsp), &rsp);
+	l2cap_send_cmd(chan->conn, chan->ident, L2CAP_MOVE_CHAN_RSP,
+		       sizeof(rsp), &rsp);
 }
 
 static void l2cap_send_move_chan_cfm(struct l2cap_chan *chan, u16 result)
@@ -4248,11 +4249,118 @@ static void __release_logical_link(struct l2cap_chan *chan)
 	/* Placeholder - release the logical link */
 }
 
+static void l2cap_logical_fail(struct l2cap_chan *chan)
+{
+	/* Logical link setup failed */
+	if (chan->state != BT_CONNECTED) {
+		/* Create channel failure, disconnect */
+		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		return;
+	}
+
+	switch (chan->move_role) {
+	case L2CAP_MOVE_ROLE_RESPONDER:
+		l2cap_move_done(chan);
+		l2cap_send_move_chan_rsp(chan, L2CAP_MR_NOT_SUPP);
+		break;
+	case L2CAP_MOVE_ROLE_INITIATOR:
+		if (chan->move_state == L2CAP_MOVE_WAIT_LOGICAL_COMP ||
+		    chan->move_state == L2CAP_MOVE_WAIT_LOGICAL_CFM) {
+			/* Remote has only sent pending or
+			 * success responses, clean up
+			 */
+			l2cap_move_done(chan);
+		}
+
+		/* Other amp move states imply that the move
+		 * has already aborted
+		 */
+		l2cap_send_move_chan_cfm(chan, L2CAP_MC_UNCONFIRMED);
+		break;
+	}
+}
+
+static void l2cap_logical_finish_create(struct l2cap_chan *chan,
+					struct hci_chan *hchan)
+{
+	struct l2cap_conf_rsp rsp;
+	u8 code;
+
+	chan->hs_hcon = hchan->conn;
+	chan->hs_hcon->l2cap_data = chan->conn;
+
+	code = l2cap_build_conf_rsp(chan, &rsp,
+				    L2CAP_CONF_SUCCESS, 0);
+	l2cap_send_cmd(chan->conn, chan->ident, L2CAP_CONF_RSP, code,
+		       &rsp);
+	set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
+
+	if (test_bit(CONF_INPUT_DONE, &chan->conf_state)) {
+		int err = 0;
+
+		set_default_fcs(chan);
+
+		err = l2cap_ertm_init(chan);
+		if (err < 0)
+			l2cap_send_disconn_req(chan->conn, chan, -err);
+		else
+			l2cap_chan_ready(chan);
+	}
+}
+
+static void l2cap_logical_finish_move(struct l2cap_chan *chan,
+				      struct hci_chan *hchan)
+{
+	chan->hs_hcon = hchan->conn;
+	chan->hs_hcon->l2cap_data = chan->conn;
+
+	BT_DBG("move_state %d", chan->move_state);
+
+	switch (chan->move_state) {
+	case L2CAP_MOVE_WAIT_LOGICAL_COMP:
+		/* Move confirm will be sent after a success
+		 * response is received
+		 */
+		chan->move_state = L2CAP_MOVE_WAIT_RSP_SUCCESS;
+		break;
+	case L2CAP_MOVE_WAIT_LOGICAL_CFM:
+		if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
+			chan->move_state = L2CAP_MOVE_WAIT_LOCAL_BUSY;
+		} else if (chan->move_role == L2CAP_MOVE_ROLE_INITIATOR) {
+			chan->move_state = L2CAP_MOVE_WAIT_CONFIRM_RSP;
+			l2cap_send_move_chan_cfm(chan, L2CAP_MC_CONFIRMED);
+		} else if (chan->move_role == L2CAP_MOVE_ROLE_RESPONDER) {
+			chan->move_state = L2CAP_MOVE_WAIT_CONFIRM;
+			l2cap_send_move_chan_rsp(chan, L2CAP_MR_SUCCESS);
+		}
+		break;
+	default:
+		/* Move was not in expected state, free the channel */
+		__release_logical_link(chan);
+
+		chan->move_state = L2CAP_MOVE_STABLE;
+	}
+}
+
+/* Call with chan locked */
 static void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 			      u8 status)
 {
-	/* Placeholder */
-	return;
+	BT_DBG("chan %p, hchan %p, status %d", chan, hchan, status);
+
+	if (status) {
+		l2cap_logical_fail(chan);
+		__release_logical_link(chan);
+		return;
+	}
+
+	if (chan->state != BT_CONNECTED) {
+		/* Ignore logical link if channel is on BR/EDR */
+		if (chan->local_amp_id)
+			l2cap_logical_finish_create(chan, hchan);
+	} else {
+		l2cap_logical_finish_move(chan, hchan);
+	}
 }
 
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
@@ -4260,6 +4368,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 					 u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_req *req = data;
+	struct l2cap_move_chan_rsp rsp;
 	struct l2cap_chan *chan;
 	u16 icid = 0;
 	u16 result = L2CAP_MR_NOT_ALLOWED;
@@ -4276,10 +4385,14 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 
 	chan = l2cap_get_chan_by_dcid(conn, icid);
 	if (!chan) {
-		l2cap_send_move_chan_rsp(conn, cmd->ident, icid,
-					 L2CAP_MR_NOT_ALLOWED);
+		rsp.icid = cpu_to_le16(icid);
+		rsp.result = __constant_cpu_to_le16(L2CAP_MR_NOT_ALLOWED);
+		l2cap_send_cmd(conn, cmd->ident, L2CAP_MOVE_CHAN_RSP,
+			       sizeof(rsp), &rsp);
 		return 0;
 	}
+
+	chan->ident = cmd->ident;
 
 	if (chan->scid < L2CAP_CID_DYN_START ||
 	    chan->chan_policy == BT_CHANNEL_POLICY_BREDR_ONLY ||
@@ -4319,7 +4432,6 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 		goto send_move_response;
 	}
 
-	chan->ident = cmd->ident;
 	chan->move_role = L2CAP_MOVE_ROLE_RESPONDER;
 	l2cap_move_setup(chan);
 	chan->move_id = req->dest_amp_id;
@@ -4342,7 +4454,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	}
 
 send_move_response:
-	l2cap_send_move_chan_rsp(conn, cmd->ident, icid, result);
+	l2cap_send_move_chan_rsp(chan, result);
 
 	l2cap_chan_unlock(chan);
 
