@@ -341,4 +341,18 @@ config MODULES_USE_ELF_REL
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
 
+#
+# ABI hall of shame
+#
+config CLONE_BACKWARDS
+	bool
+	help
+	  Architecture has tls passed as the 4th argument of clone(2),
+	  not the 5th one.
+
+config CLONE_BACKWARDS2
+	bool
+	help
+	  Architecture has the first two arguments of clone(2) swapped.
+
 source "kernel/gcov/Kconfig"

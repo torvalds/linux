@@ -10,16 +10,15 @@
  */
 #ifndef sys_clone
 asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
-			void __user *parent_tid, void __user *child_tid,
-			struct pt_regs *regs);
+			void __user *parent_tid, void __user *child_tid);
 #endif
 
 #ifndef sys_fork
-asmlinkage long sys_fork(struct pt_regs *regs);
+asmlinkage long sys_fork(void);
 #endif
 
 #ifndef sys_vfork
-asmlinkage long sys_vfork(struct pt_regs *regs);
+asmlinkage long sys_vfork(void);
 #endif
 
 #ifndef sys_execve
