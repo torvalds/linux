@@ -53,7 +53,7 @@ int bc_send(struct rpc_rqst *req)
 	if (IS_ERR(task))
 		ret = PTR_ERR(task);
 	else {
-		BUG_ON(atomic_read(&task->tk_count) != 1);
+		WARN_ON_ONCE(atomic_read(&task->tk_count) != 1);
 		ret = task->tk_status;
 		rpc_put_task(task);
 	}
