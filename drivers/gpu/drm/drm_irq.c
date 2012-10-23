@@ -576,7 +576,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 					  unsigned flags,
 					  struct drm_crtc *refcrtc)
 {
-	struct timeval stime, raw_time;
+	ktime_t stime, etime, mono_time_offset;
+	struct timeval tv_etime;
 	struct drm_display_mode *mode;
 	int vbl_status, vtotal, vdisplay;
 	int vpos, hpos, i;
@@ -625,13 +626,14 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		preempt_disable();
 
 		/* Get system timestamp before query. */
-		do_gettimeofday(&stime);
+		stime = ktime_get();
 
 		/* Get vertical and horizontal scanout pos. vpos, hpos. */
 		vbl_status = dev->driver->get_scanout_position(dev, crtc, &vpos, &hpos);
 
 		/* Get system timestamp after query. */
-		do_gettimeofday(&raw_time);
+		etime = ktime_get();
+		mono_time_offset = ktime_get_monotonic_offset();
 
 		preempt_enable();
 
@@ -642,7 +644,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 			return -EIO;
 		}
 
-		duration_ns = timeval_to_ns(&raw_time) - timeval_to_ns(&stime);
+		duration_ns = ktime_to_ns(etime) - ktime_to_ns(stime);
 
 		/* Accept result with <  max_error nsecs timing uncertainty. */
 		if (duration_ns <= (s64) *max_error)
@@ -689,14 +691,18 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		vbl_status |= 0x8;
 	}
 
+	etime = ktime_sub(etime, mono_time_offset);
+	/* save this only for debugging purposes */
+	tv_etime = ktime_to_timeval(etime);
 	/* Subtract time delta from raw timestamp to get final
 	 * vblank_time timestamp for end of vblank.
 	 */
-	*vblank_time = ns_to_timeval(timeval_to_ns(&raw_time) - delta_ns);
+	etime = ktime_sub_ns(etime, delta_ns);
+	*vblank_time = ktime_to_timeval(etime);
 
 	DRM_DEBUG("crtc %d : v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
 		  crtc, (int)vbl_status, hpos, vpos,
-		  (long)raw_time.tv_sec, (long)raw_time.tv_usec,
+		  (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
 		  (int)duration_ns/1000, i);
 
