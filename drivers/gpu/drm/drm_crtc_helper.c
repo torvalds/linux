@@ -965,6 +965,10 @@ static void output_poll_execute(struct work_struct *work)
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 
+		/* Ignore forced connectors. */
+		if (connector->force)
+			continue;
+
 		/* Ignore HPD capable connectors and connectors where we don't
 		 * want any hotplug detection at all for polling. */
 		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
