@@ -26,6 +26,7 @@
 #include <linux/clocksource.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
@@ -33,8 +34,6 @@
 #include <asm/sched_clock.h>
 
 #include "board.h"
-#include "clock.h"
-#include "iomap.h"
 
 #define RTC_SECONDS            0x08
 #define RTC_SHADOW_SECONDS     0x0c
@@ -52,8 +51,8 @@
 #define TIMER_PTV 0x0
 #define TIMER_PCR 0x4
 
-static void __iomem *timer_reg_base = IO_ADDRESS(TEGRA_TMR1_BASE);
-static void __iomem *rtc_base = IO_ADDRESS(TEGRA_RTC_BASE);
+static void __iomem *timer_reg_base;
+static void __iomem *rtc_base;
 
 static struct timespec persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
@@ -164,6 +163,11 @@ static const struct of_device_id timer_match[] __initconst = {
 	{}
 };
 
+static const struct of_device_id rtc_match[] __initconst = {
+	{ .compatible = "nvidia,tegra20-rtc" },
+	{}
+};
+
 static void __init tegra_init_timer(void)
 {
 	struct device_node *np;
@@ -174,6 +178,12 @@ static void __init tegra_init_timer(void)
 	np = of_find_matching_node(NULL, timer_match);
 	if (!np) {
 		pr_err("Failed to find timer DT node\n");
+		BUG();
+	}
+
+	timer_reg_base = of_iomap(np, 0);
+	if (!timer_reg_base) {
+		pr_err("Can't map timer registers");
 		BUG();
 	}
 
@@ -190,6 +200,20 @@ static void __init tegra_init_timer(void)
 	} else {
 		clk_prepare_enable(clk);
 		rate = clk_get_rate(clk);
+	}
+
+	of_node_put(np);
+
+	np = of_find_matching_node(NULL, rtc_match);
+	if (!np) {
+		pr_err("Failed to find RTC DT node\n");
+		BUG();
+	}
+
+	rtc_base = of_iomap(np, 0);
+	if (!rtc_base) {
+		pr_err("Can't map RTC registers");
+		BUG();
 	}
 
 	/*
