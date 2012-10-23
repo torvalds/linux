@@ -234,4 +234,13 @@ config SERIO_PS2MULT
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps2mult.
 
+config SERIO_ARC_PS2
+	tristate "ARC PS/2 support"
+	help
+	  Say Y here if you have an ARC FPGA platform with a PS/2
+	  controller in it.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called arc_ps2.
+
 endif
