@@ -16,7 +16,7 @@ static int check_tp_param(void)
         }
 }
 
-struct i2c_board_info __initdata tp_info = {
+static struct i2c_board_info __initdata tp_info = {
         .type = TP_MODULE_NAME,
         .flags = 0,
 };

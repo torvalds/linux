@@ -38,6 +38,16 @@ static struct pwm_io_config pwm_cfg[] = {
 };
 
 /*************************************** parameter ******************************************/
+/* Android Parameter */
+static int ap_mdm = DEF_AP_MDM;
+module_param(ap_mdm, int, 0644);
+static int ap_has_alsa = DEF_AP_HAS_ALSA;
+module_param(ap_has_alsa, int, 0644);
+static int ap_multi_card = DEF_AP_MULTI_CARD;
+module_param(ap_multi_card, int, 0644);
+static int ap_data_only = DEF_AP_DATA_ONLY;
+module_param(ap_data_only, int, 0644);
+
 /* keyboard */
 uint key_adc = DEF_KEY_ADC;
 uint key_val_size = 7;

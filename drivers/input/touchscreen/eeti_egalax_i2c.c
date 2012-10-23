@@ -41,7 +41,9 @@
 #include <linux/irq.h>
 #include <linux/async.h>
 #include <mach/board.h>
+#ifdef CONFIG_RK_CONFIG
 #include <mach/config.h>
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
