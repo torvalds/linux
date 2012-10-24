@@ -204,8 +204,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 };
 
 struct cb_pcidda_private {
-	unsigned long digitalio;
-
 	/* bits last written to da calibration register 1 */
 	unsigned int dac_cal1_bits;
 	/* current range settings for output channels */
@@ -482,6 +480,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	const struct cb_pcidda_board *thisboard;
 	struct cb_pcidda_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned long iobase_8255;
 	int index;
 	int ret;
 
@@ -500,8 +499,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 3);
-
-	devpriv->digitalio = pci_resource_start(pcidev, 2);
+	iobase_8255 = pci_resource_start(pcidev, 2);
 
 	if (thisboard->status == 2)
 		printk
@@ -524,9 +522,9 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 
 	/*  two 8255 digital io subdevices */
 	s = &dev->subdevices[1];
-	subdev_8255_init(dev, s, NULL, devpriv->digitalio);
+	subdev_8255_init(dev, s, NULL, iobase_8255);
 	s = &dev->subdevices[2];
-	subdev_8255_init(dev, s, NULL, devpriv->digitalio + PORT2A);
+	subdev_8255_init(dev, s, NULL, iobase_8255 + PORT2A);
 
 	dev_dbg(dev->class_dev, "eeprom:\n");
 	for (index = 0; index < EEPROM_SIZE; index++) {
