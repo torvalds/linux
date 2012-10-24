@@ -662,6 +662,8 @@ static enum drm_connector_status radeon_legacy_primary_dac_detect(struct drm_enc
 
 	if (ASIC_IS_R300(rdev))
 		tmp |= (0x1b6 << RADEON_DAC_FORCE_DATA_SHIFT);
+	else if (ASIC_IS_RV100(rdev))
+		tmp |= (0x1ac << RADEON_DAC_FORCE_DATA_SHIFT);
 	else
 		tmp |= (0x180 << RADEON_DAC_FORCE_DATA_SHIFT);
 
