@@ -1427,8 +1427,8 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 	dev_info(dev->class_dev, "%s %sattached\n", dev->board_name, tmpbuf);
 }
 
-static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
-				unsigned int irq, unsigned long req_irq_flags)
+static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
+				unsigned long req_irq_flags)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
@@ -1439,7 +1439,6 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 	int ret;
 
 	devpriv->intr_sd = -1;
-	dev->iobase = iobase;
 	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
@@ -1527,7 +1526,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = dio200_request_region(dev, iobase, DIO200_IO_SIZE);
 		if (ret < 0)
 			return ret;
-		return dio200_common_attach(dev, iobase, irq, 0);
+		dev->iobase = iobase;
+		return dio200_common_attach(dev, irq, 0);
 	} else if (is_pci_board(thisboard)) {
 		dev_err(dev->class_dev,
 			"Manual configuration of PCI board '%s' is not supported\n",
@@ -1549,7 +1549,6 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pci_dev)
 {
 	struct dio200_private *devpriv;
-	unsigned long iobase;
 	int ret;
 
 	if (!DO_PCI)
@@ -1574,8 +1573,8 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 			"error! cannot enable PCI device and request regions!\n");
 		return ret;
 	}
-	iobase = pci_resource_start(pci_dev, 2);
-	return dio200_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
+	dev->iobase = pci_resource_start(pci_dev, 2);
+	return dio200_common_attach(dev, pci_dev->irq, IRQF_SHARED);
 }
 
 static void dio200_detach(struct comedi_device *dev)
