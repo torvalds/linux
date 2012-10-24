@@ -6,6 +6,7 @@
 #include "builtin.h"
 
 #include "util/cache.h"
+#include "util/color.h"
 #include "util/debug.h"
 #include "util/debugfs.h"
 #include "util/evlist.h"
@@ -1485,18 +1486,31 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 static int __cmd_test(int argc, const char *argv[])
 {
 	int i = 0;
+	int width = 0;
 
+	while (tests[i].func) {
+		int len = strlen(tests[i].desc);
+
+		if (width < len)
+			width = len;
+		++i;
+	}
+		
+	i = 0;
 	while (tests[i].func) {
 		int curr = i++, err;
 
 		if (!perf_test__matches(curr, argc, argv))
 			continue;
 
-		pr_info("%2d: %s:", i, tests[curr].desc);
+		pr_info("%2d: %-*s:", i, width, tests[curr].desc);
 		pr_debug("\n--- start ---\n");
 		err = tests[curr].func();
 		pr_debug("---- end ----\n%s:", tests[curr].desc);
-		pr_info(" %s\n", err ? "FAILED!\n" : "Ok");
+		if (err)
+			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
+		else
+			pr_info(" Ok\n");
 	}
 
 	return 0;
