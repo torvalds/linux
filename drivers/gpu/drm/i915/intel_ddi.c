@@ -924,68 +924,69 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	int type = intel_encoder->type;
 	uint32_t temp;
 
-	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
-	temp = PIPE_DDI_FUNC_ENABLE;
+	/* Enable TRANS_DDI_FUNC_CTL for the pipe to work in HDMI mode */
+	temp = TRANS_DDI_FUNC_ENABLE;
 
 	switch (intel_crtc->bpp) {
 	case 18:
-		temp |= PIPE_DDI_BPC_6;
+		temp |= TRANS_DDI_BPC_6;
 		break;
 	case 24:
-		temp |= PIPE_DDI_BPC_8;
+		temp |= TRANS_DDI_BPC_8;
 		break;
 	case 30:
-		temp |= PIPE_DDI_BPC_10;
+		temp |= TRANS_DDI_BPC_10;
 		break;
 	case 36:
-		temp |= PIPE_DDI_BPC_12;
+		temp |= TRANS_DDI_BPC_12;
 		break;
 	default:
-		WARN(1, "%d bpp unsupported by pipe DDI function\n",
+		WARN(1, "%d bpp unsupported by transcoder DDI function\n",
 		     intel_crtc->bpp);
 	}
 
 	if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
-		temp |= PIPE_DDI_PVSYNC;
+		temp |= TRANS_DDI_PVSYNC;
 	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
-		temp |= PIPE_DDI_PHSYNC;
+		temp |= TRANS_DDI_PHSYNC;
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
 		if (intel_hdmi->has_hdmi_sink)
-			temp |= PIPE_DDI_MODE_SELECT_HDMI;
+			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
-			temp |= PIPE_DDI_MODE_SELECT_DVI;
+			temp |= TRANS_DDI_MODE_SELECT_DVI;
 
-		temp |= PIPE_DDI_SELECT_PORT(intel_hdmi->ddi_port);
+		temp |= TRANS_DDI_SELECT_PORT(intel_hdmi->ddi_port);
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
-		temp |= PIPE_DDI_MODE_SELECT_FDI;
-		temp |= PIPE_DDI_SELECT_PORT(PORT_E);
+		temp |= TRANS_DDI_MODE_SELECT_FDI;
+		temp |= TRANS_DDI_SELECT_PORT(PORT_E);
 
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
 		   type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		temp |= PIPE_DDI_MODE_SELECT_DP_SST;
-		temp |= PIPE_DDI_SELECT_PORT(intel_dp->port);
+		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
+		temp |= TRANS_DDI_SELECT_PORT(intel_dp->port);
 
 		switch (intel_dp->lane_count) {
 		case 1:
-			temp |= PIPE_DDI_PORT_WIDTH_X1;
+			temp |= TRANS_DDI_PORT_WIDTH_X1;
 			break;
 		case 2:
-			temp |= PIPE_DDI_PORT_WIDTH_X2;
+			temp |= TRANS_DDI_PORT_WIDTH_X2;
 			break;
 		case 4:
-			temp |= PIPE_DDI_PORT_WIDTH_X4;
+			temp |= TRANS_DDI_PORT_WIDTH_X4;
 			break;
 		default:
-			temp |= PIPE_DDI_PORT_WIDTH_X4;
+			temp |= TRANS_DDI_PORT_WIDTH_X4;
 			WARN(1, "Unsupported lane count %d\n",
 			     intel_dp->lane_count);
 		}
@@ -995,17 +996,17 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 		     intel_encoder->type, pipe);
 	}
 
-	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
+	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
 }
 
-void intel_ddi_disable_pipe_func(struct drm_i915_private *dev_priv,
-				 enum pipe pipe)
+void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
+				       enum transcoder cpu_transcoder)
 {
-	uint32_t reg = DDI_FUNC_CTL(pipe);
+	uint32_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	uint32_t val = I915_READ(reg);
 
-	val &= ~(PIPE_DDI_FUNC_ENABLE | PIPE_DDI_PORT_MASK);
-	val |= PIPE_DDI_PORT_NONE;
+	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK);
+	val |= TRANS_DDI_PORT_NONE;
 	I915_WRITE(reg, val);
 }
 
@@ -1023,13 +1024,32 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DDI_BUF_CTL_ENABLE))
 		return false;
 
-	for_each_pipe(i) {
-		tmp = I915_READ(DDI_FUNC_CTL(i));
+	if (port == PORT_A) {
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
 
-		if ((tmp & PIPE_DDI_PORT_MASK)
-		    == PIPE_DDI_SELECT_PORT(port)) {
-			*pipe = i;
-			return true;
+		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+		case TRANS_DDI_EDP_INPUT_A_ON:
+		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+			*pipe = PIPE_A;
+			break;
+		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+			*pipe = PIPE_B;
+			break;
+		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+			*pipe = PIPE_C;
+			break;
+		}
+
+		return true;
+	} else {
+		for (i = TRANSCODER_A; i <= TRANSCODER_C; i++) {
+			tmp = I915_READ(TRANS_DDI_FUNC_CTL(i));
+
+			if ((tmp & TRANS_DDI_PORT_MASK)
+			    == TRANS_DDI_SELECT_PORT(port)) {
+				*pipe = i;
+				return true;
+			}
 		}
 	}
 
@@ -1043,13 +1063,20 @@ static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
 {
 	uint32_t temp, ret;
 	enum port port;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 	int i;
 
-	temp = I915_READ(DDI_FUNC_CTL(pipe));
-	temp &= PIPE_DDI_PORT_MASK;
-	for (i = PORT_A; i <= PORT_E; i++)
-		if (temp == PIPE_DDI_SELECT_PORT(i))
-			port = i;
+	if (cpu_transcoder == TRANSCODER_EDP) {
+		port = PORT_A;
+	} else {
+		temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		temp &= TRANS_DDI_PORT_MASK;
+
+		for (i = PORT_B; i <= PORT_E; i++)
+			if (temp == TRANS_DDI_SELECT_PORT(i))
+				port = i;
+	}
 
 	ret = I915_READ(PORT_CLK_SEL(port));
 

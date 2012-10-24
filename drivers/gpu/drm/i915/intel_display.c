@@ -1122,12 +1122,14 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 	bool cur_state;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 
 	if (IS_HASWELL(dev_priv->dev)) {
 		/* On Haswell, DDI is used instead of FDI_TX_CTL */
-		reg = DDI_FUNC_CTL(pipe);
+		reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 		val = I915_READ(reg);
-		cur_state = !!(val & PIPE_DDI_FUNC_ENABLE);
+		cur_state = !!(val & TRANS_DDI_FUNC_ENABLE);
 	} else {
 		reg = FDI_TX_CTL(pipe);
 		val = I915_READ(reg);
@@ -3435,6 +3437,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	bool is_pch_port;
 
 	if (!intel_crtc->active)
@@ -3456,7 +3459,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_disable_pipe(dev_priv, pipe);
 
-	intel_ddi_disable_pipe_func(dev_priv, pipe);
+	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
 	/* Disable PF */
 	I915_WRITE(PF_CTL(pipe), 0);
