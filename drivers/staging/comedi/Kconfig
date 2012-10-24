@@ -1263,7 +1263,6 @@ config COMEDI_FC
 
 config COMEDI_AMPLC_DIO200
 	tristate
-	select COMEDI_8255
 
 config COMEDI_AMPLC_PC236
 	tristate
