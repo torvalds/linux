@@ -404,7 +404,8 @@ static bool hdmi_timings_compare(struct omap_video_timings *timing1,
 {
 	int timing1_vsync, timing1_hsync, timing2_vsync, timing2_hsync;
 
-	if ((timing2->pixel_clock == timing1->pixel_clock) &&
+	if ((DIV_ROUND_CLOSEST(timing2->pixel_clock, 1000) ==
+			DIV_ROUND_CLOSEST(timing1->pixel_clock, 1000)) &&
 		(timing2->x_res == timing1->x_res) &&
 		(timing2->y_res == timing1->y_res)) {
 
