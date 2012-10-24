@@ -177,9 +177,15 @@ void nmdk_clksrc_reset(void)
 void __init nmdk_timer_init(void __iomem *base, int irq)
 {
 	unsigned long rate;
-	struct clk *clk0;
+	struct clk *clk0, *pclk0;
 
 	mtu_base = base;
+
+	pclk0 = clk_get_sys("mtu0", "apb_pclk");
+	BUG_ON(IS_ERR(pclk0));
+	BUG_ON(clk_prepare(pclk0) < 0);
+	BUG_ON(clk_enable(pclk0) < 0);
+
 	clk0 = clk_get_sys("mtu0", NULL);
 	BUG_ON(IS_ERR(clk0));
 	BUG_ON(clk_prepare(clk0) < 0);
