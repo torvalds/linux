@@ -74,6 +74,13 @@ extern __sramdata  int g_pmic_type;
 #define pmic_is_tps65910()  (g_pmic_type == PMIC_TYPE_TPS65910)
 #define pmic_is_act8931()  (g_pmic_type == PMIC_TYPE_ACT8931)
 
+struct  pmu_info {
+	char		*name;
+	int		min_uv;
+	int		max_uv;   
+	int          suspend_vol;
+};
+
 struct rk29_fb_setting_info {
 	u8 data_num;
 	u8 vsync_en;
