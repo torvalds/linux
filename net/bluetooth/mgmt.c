@@ -3516,7 +3516,12 @@ send_event:
 		err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev,
 				 sizeof(ev), cmd ? cmd->sk : NULL);
 
-	update_eir(hdev);
+	/* EIR is taken care of separately when powering on the
+	 * adapter so only update them here if this is a name change
+	 * unrelated to power on.
+	 */
+	if (!test_bit(HCI_INIT, &hdev->flags))
+		update_eir(hdev);
 
 failed:
 	if (cmd)
