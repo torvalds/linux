@@ -442,6 +442,18 @@ struct dio200_subdev_intr {
 	int continuous;
 };
 
+static inline const struct dio200_layout *
+dio200_board_layout(const struct dio200_board *board)
+{
+	return &dio200_layouts[board->layout];
+}
+
+static inline const struct dio200_layout *
+dio200_dev_layout(struct comedi_device *dev)
+{
+	return dio200_board_layout(comedi_board(dev));
+}
+
 static inline bool is_pci_board(const struct dio200_board *board)
 {
 	return DO_PCI && board->bustype == pci_bustype;
@@ -1195,7 +1207,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
-	const struct dio200_layout *layout = &dio200_layouts[thisboard->layout];
+	const struct dio200_layout *layout = dio200_board_layout(thisboard);
 	struct comedi_subdevice *s;
 	int sdx;
 	unsigned int n;
@@ -1353,7 +1365,7 @@ static void dio200_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
-		layout = &dio200_layouts[thisboard->layout];
+		layout = dio200_board_layout(thisboard);
 		for (n = 0; n < dev->n_subdevices; n++) {
 			struct comedi_subdevice *s = &dev->subdevices[n];
 			switch (layout->sdtype[n]) {
