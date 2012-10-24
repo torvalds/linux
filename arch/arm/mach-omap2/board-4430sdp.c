@@ -34,7 +34,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include <plat/mmc.h>
 #include "omap4-keypad.h"
 #include <video/omapdss.h>

@@ -39,7 +39,6 @@
 #include <video/omapdss.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include <plat/mmc.h>
 #include <video/omap-panel-tfp410.h>
 

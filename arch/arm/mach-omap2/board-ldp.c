@@ -37,7 +37,6 @@
 #include "common.h"
 #include <plat/gpmc.h>
 #include <mach/board-zoom.h>
-#include <plat/usb.h>
 #include "gpmc-smsc911x.h"
 
 #include <video/omapdss.h>

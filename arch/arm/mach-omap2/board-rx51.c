@@ -26,7 +26,6 @@
 #include "common.h"
 #include <plat/dma.h>
 #include <plat/gpmc.h>
-#include <plat/usb.h>
 
 #include "mux.h"
 #include "pm.h"

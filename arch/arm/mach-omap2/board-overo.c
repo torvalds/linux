@@ -50,7 +50,6 @@
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
-#include <plat/usb.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

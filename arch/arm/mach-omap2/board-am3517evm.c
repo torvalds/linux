@@ -33,7 +33,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>

@@ -22,7 +22,6 @@
 #include <asm/mach-types.h>
 
 #include <plat/cpu.h>
-#include <plat/usb.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/clkdev_omap.h>

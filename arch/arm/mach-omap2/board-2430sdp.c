@@ -35,7 +35,6 @@
 
 #include "common.h"
 #include <plat/gpmc.h>
-#include <plat/usb.h>
 #include "gpmc-smc91x.h"
 
 #include <video/omapdss.h>

@@ -20,7 +20,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 
 static struct omap_musb_board_data musb_board_data = {
 	.set_phy_power	= ti81xx_musb_phy_power,

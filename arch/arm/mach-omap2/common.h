@@ -36,6 +36,8 @@
 #include <plat/serial.h>
 #include <plat/common.h>
 
+#include "usb.h"
+
 #define OMAP_INTC_START		NR_IRQS
 
 #ifdef CONFIG_SOC_OMAP2420
