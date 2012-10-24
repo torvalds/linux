@@ -39,6 +39,9 @@
 #endif
 #endif
 
+#define USB_VENDOR_GENESYS_LOGIC		0x05e3
+#define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
+
 struct usb_port {
 	struct usb_device *child;
 	struct device dev;
@@ -85,6 +88,8 @@ struct usb_hub {
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		disconnected:1;
+
+	unsigned		quirk_check_port_auto_suspend:1;
 
 	unsigned		has_indicators:1;
 	u8			indicator[USB_MAXCHILDREN];
@@ -1667,6 +1672,9 @@ descriptor_error:
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs++;
 
+	if (id->driver_info & HUB_QUIRK_CHECK_PORT_AUTOSUSPEND)
+		hub->quirk_check_port_auto_suspend = 1;
+
 	if (hub_configure(hub, endpoint) >= 0)
 		return 0;
 
@@ -3125,6 +3133,21 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 #endif
 
+static int check_ports_changed(struct usb_hub *hub)
+{
+	int port1;
+
+	for (port1 = 1; port1 <= hub->hdev->maxchild; ++port1) {
+		u16 portstatus, portchange;
+		int status;
+
+		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		if (!status && portchange)
+			return 1;
+	}
+	return 0;
+}
+
 static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_hub		*hub = usb_get_intfdata (intf);
@@ -3143,6 +3166,16 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 				return -EBUSY;
 		}
 	}
+
+	if (hdev->do_remote_wakeup && hub->quirk_check_port_auto_suspend) {
+		/* check if there are changes pending on hub ports */
+		if (check_ports_changed(hub)) {
+			if (PMSG_IS_AUTO(msg))
+				return -EBUSY;
+			pm_wakeup_event(&hdev->dev, 2000);
+		}
+	}
+
 	if (hub_is_superspeed(hdev) && hdev->do_remote_wakeup) {
 		/* Enable hub to send remote wakeup for all ports. */
 		for (port1 = 1; port1 <= hdev->maxchild; port1++) {
@@ -4647,6 +4680,11 @@ static int hub_thread(void *__unused)
 }
 
 static const struct usb_device_id hub_id_table[] = {
+    { .match_flags = USB_DEVICE_ID_MATCH_VENDOR
+	           | USB_DEVICE_ID_MATCH_INT_CLASS,
+      .idVendor = USB_VENDOR_GENESYS_LOGIC,
+      .bInterfaceClass = USB_CLASS_HUB,
+      .driver_info = HUB_QUIRK_CHECK_PORT_AUTOSUSPEND},
     { .match_flags = USB_DEVICE_ID_MATCH_DEV_CLASS,
       .bDeviceClass = USB_CLASS_HUB},
     { .match_flags = USB_DEVICE_ID_MATCH_INT_CLASS,
