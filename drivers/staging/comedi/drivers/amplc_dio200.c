@@ -308,6 +308,7 @@ struct dio200_board {
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout_idx layout;
+	unsigned char mainbar;
 };
 
 static const struct dio200_board dio200_boards[] = {
@@ -350,6 +351,7 @@ static const struct dio200_board dio200_boards[] = {
 	 .bustype = pci_bustype,
 	 .model = pci215_model,
 	 .layout = pc215_layout,
+	 .mainbar = 2,
 	 },
 	{
 	 .name = "pci272",
@@ -357,6 +359,7 @@ static const struct dio200_board dio200_boards[] = {
 	 .bustype = pci_bustype,
 	 .model = pci272_model,
 	 .layout = pc272_layout,
+	 .mainbar = 2,
 	 },
 #endif
 };
@@ -1573,8 +1576,10 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int __devinit dio200_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pci_dev)
 {
+	const struct dio200_board *thisboard;
 	struct dio200_private *devpriv;
 	resource_size_t base;
+	unsigned int bar;
 	int ret;
 
 	if (!DO_PCI)
@@ -1593,15 +1598,17 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	thisboard = comedi_board(dev);
 	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
 			"error! cannot enable PCI device and request regions!\n");
 		return ret;
 	}
-	base = pci_resource_start(pci_dev, 2);
-	if ((pci_resource_flags(pci_dev, 2) & IORESOURCE_MEM) != 0) {
-		resource_size_t len = pci_resource_len(pci_dev, 2);
+	bar = thisboard->mainbar;
+	base = pci_resource_start(pci_dev, bar);
+	if ((pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) != 0) {
+		resource_size_t len = pci_resource_len(pci_dev, bar);
 		devpriv->io.u.membase = ioremap_nocache(base, len);
 		if (!devpriv->io.u.membase) {
 			dev_err(dev->class_dev,
