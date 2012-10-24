@@ -1577,6 +1577,9 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 
 	BT_DBG("%s", hdev->name);
 
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+		return -ENOTSUPP;
+
 	if (work_busy(&hdev->le_scan))
 		return -EINPROGRESS;
 

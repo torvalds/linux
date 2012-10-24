@@ -502,6 +502,9 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 {
 	struct hci_conn *le;
 
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->flags))
+		return ERR_PTR(-ENOTSUPP);
+
 	le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
 	if (!le) {
 		le = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
