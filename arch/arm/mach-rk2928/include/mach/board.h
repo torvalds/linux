@@ -145,13 +145,6 @@ struct byd_platform_data {
 };
 #endif
 
-#ifdef CONFIG_INPUT_AP321XX
-struct ap321xx_platform_data {
-	int (*init_platform_hw)(void);
-	void (*exit_platform_hw)(void);
-};
-#endif
-
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,
 	periph_pll_297mhz = 297000000,

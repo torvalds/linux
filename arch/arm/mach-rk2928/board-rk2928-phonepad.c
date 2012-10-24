@@ -418,84 +418,33 @@ static struct sensor_platform_data mma7660_info = {
 
 #if defined (CONFIG_GS_KXTIK)
 #define KXTIK_INT_PIN         RK2928_PIN3_PD1
-#if 0
-
-static int kxtik_init_hw(void)
-{
-	int ret = 0;
-	
-	ret = gpio_request(KXTIK_INT_PIN,"kxtik_irq");
-	if(ret){
-		printk("kxtik gpio request fail!\n");
-		return ret;
-	}
-	else{
-		gpio_direction_input(KXTIK_INT_PIN);
-	}
-	return ret;
-}
-static void kxtik_exit_hw(void)
-{
-	gpio_free(KXTIK_INT_PIN);
-}
-
-static struct gsensor_platform_data kxtik_pdata = {
-	.swap_xy = 0,
-	.swap_xyz = 1,
-	.init_platform_hw = kxtik_init_hw,
-	.exit_platform_hw = kxtik_exit_hw,
-	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
-};
-
-#endif
-static int kxtik_init_platform_hw(void)
-{
-	printk("%s: >>>>>>>>>>>>>>>>\n\n\n", __func__);
-	return 0;
-}
 
 static struct sensor_platform_data kxtik_pdata = {
 	.type = SENSOR_TYPE_ACCEL,
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
-	.init_platform_hw = kxtik_init_platform_hw,
 	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
-	//.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
 };
 
 #endif /* CONFIG_GS_KXTIK*/
 
-#ifdef CONFIG_INPUT_AP321XX
-#define AP321XX_INT_PIN         RK2928_PIN0_PC6
+#ifdef CONFIG_LS_AP321XX
+#define LS_AP321XX_INT_PIN         RK2928_PIN0_PC6
 
-static int AP321XX_init_hw(void)
-{
-	int ret = 0;
-	ret = gpio_request(AP321XX_INT_PIN, NULL);
-	if (ret != 0)
-	{
-		gpio_free(AP321XX_INT_PIN);
-		printk(KERN_ERR "request AP321XX_INT_PIN fail!\n");
-		return -1;
-	}
-	else
-	{
-		gpio_direction_input(AP321XX_INT_PIN);
-	}
-	return 0;
-}
-
-static void AP321XX_exit_hw(void)
-{
-	gpio_free(AP321XX_INT_PIN);
-	return;
-}
-
-static struct ap321xx_platform_data ap321xx_info = {
-	.init_platform_hw = AP321XX_init_hw,
-	.exit_platform_hw = AP321XX_exit_hw,
+static struct sensor_platform_data ls_ap321xx_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 500,
 };
+#endif
+#ifdef CONFIG_PS_AP321XX
+#define PS_AP321XX_INT_PIN         RK2928_PIN0_PC6
 
+static struct sensor_platform_data ps_ap321xx_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 500,
+};
 #endif
 
 #if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
@@ -909,15 +858,26 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		},
 #endif
 
-#ifdef CONFIG_INPUT_AP321XX
+#ifdef CONFIG_LS_AP321XX
         {
-                .type                   = "ap321xx",
+                .type                   = "ls_ap321xx",
                 .addr                   = 0x1E,
                 .flags                  = 0,
-                .irq                     = AP321XX_INT_PIN,
-                .platform_data = &ap321xx_info
+                .irq                     = LS_AP321XX_INT_PIN,
+                .platform_data = &ls_ap321xx_info
         },
 #endif
+
+#ifdef CONFIG_PS_AP321XX
+        {
+                .type                   = "ps_ap321xx",
+                .addr                   = 0x1E,
+                .flags                  = 0,
+                .irq                     = PS_AP321XX_INT_PIN,
+                .platform_data = &ps_ap321xx_info
+        },
+#endif
+
 #ifdef CONFIG_RDA5990
 #define RDA_WIFI_CORE_ADDR (0x13)
 #define RDA_WIFI_RF_ADDR (0x14) //correct add is 0x14

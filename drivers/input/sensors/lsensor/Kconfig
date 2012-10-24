@@ -22,5 +22,9 @@ config LS_STK3171
 config LS_ISL29023
   bool "light sensor isl29023"
 	default n	  
+	
+config LS_AP321XX
+  bool "light sensor ap321xx"
+	default n	  
 endif
 

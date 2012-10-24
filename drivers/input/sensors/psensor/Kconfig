@@ -16,5 +16,9 @@ config PS_STK3171
   bool "psensor stk3171"
 	default n
 
+config PS_AP321XX
+  bool "psensor ap321xx"
+	default n
+
 endif
 
