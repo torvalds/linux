@@ -95,6 +95,10 @@
 #include <linux/ts-auto.h>
 #endif
 
+#if defined (CONFIG_BP_AUTO)
+#include <linux/bp-auto.h>
+#endif
+#include <linux/rk_board_id.h>
 
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
@@ -1378,6 +1382,52 @@ struct platform_device rk29_device_mi700 = {
         }
     };
 #endif
+
+#if defined(CONFIG_BP_AUTO)
+static int bp_io_init(void)
+{
+	 rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
+	 rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
+	 rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
+	 rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
+	 rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
+	 rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
+
+	 return 0;
+}
+
+static int bp_io_deinit(void)
+{
+	
+	return 0;
+}
+ 
+
+struct bp_platform_data bp_auto_info = {	
+	.board_id = BOARD_ID_C8003,
+	.bp_id = BP_ID_MT6229,
+	.init_platform_hw = bp_io_init,	
+	.exit_platform_hw = bp_io_deinit,	
+	.bp_power = RK30_PIN6_PB2, 	// 3g_power
+	.bp_en = RK30_PIN2_PB6, 	// 3g_en
+	.bp_usb_en = RK30_PIN2_PC0, 	//W_disable
+	.bp_uart_en = RK30_PIN2_PC1, 	//EINT9
+	.bp_wakeup_ap = RK30_PIN6_PA1,	//
+	.ap_ready = RK30_PIN2_PB7,	//
+	.gpio_valid = 0,		//don't use this gpios
+};
+
+struct platform_device device_bp_auto = {	
+        .name = "bp-auto",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &bp_auto_info,
+	}    	
+    };
+#endif
+
+
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK30_PIN4_PC0
@@ -2086,6 +2136,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .charge_ok_pin   = RK30_PIN6_PA6,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+        .save_capacity	 = 1,
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -2337,6 +2388,10 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_MI700)
         &rk29_device_mi700,
 #endif
+#if defined(CONFIG_BP_AUTO)
+	&device_bp_auto,
+#endif
+
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
 #endif
@@ -2896,14 +2951,14 @@ static void __init rk30_reserve(void)
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	{.frequency = 252 * 1000,	.cpu_volt = 1075 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
-	{.frequency = 504 * 1000,	.cpu_volt = 1075 * 1000,	.logic_volt = 1125* 1000},//0.975V/1.000V
-	{.frequency = 816 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1150 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
+	{.frequency = 816 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.000V/1.025V
 	{.frequency = 1008 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.025V/1.050V
 	{.frequency = 1200 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 	{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
 	{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},//1.225V/1.100V
 	//{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
-	//{.frequency = 1608 * 1000,	.cpu_volt = 1375 * 1000,	.logic_volt = 1275 * 1000},//1.325V/1.175V
+	//{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},//1.325V/1.175V
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
