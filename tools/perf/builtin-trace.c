@@ -278,7 +278,10 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	return &trace->syscalls.table[id];
 
 out_cant_read:
-	printf("Problems reading syscall %d information\n", id);
+	printf("Problems reading syscall %d", id);
+	if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
+		printf("(%s)", trace->syscalls.table[id].name);
+	puts(" information");
 	return NULL;
 }
 
