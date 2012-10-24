@@ -1996,33 +1996,46 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_channel *chan = local->_oper_channel;
-	u32 changes = 0;
+	struct ieee80211_sub_if_data *sdata;
 
-	/* FIXME */
-	if (local->use_chanctx)
-		return -EOPNOTSUPP;
+	if (wdev) {
+		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+		switch (type) {
+		case NL80211_TX_POWER_AUTOMATIC:
+			sdata->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
+			break;
+		case NL80211_TX_POWER_LIMITED:
+		case NL80211_TX_POWER_FIXED:
+			if (mbm < 0 || (mbm % 100))
+				return -EOPNOTSUPP;
+			sdata->user_power_level = MBM_TO_DBM(mbm);
+			break;
+		}
+
+		ieee80211_recalc_txpower(sdata);
+
+		return 0;
+	}
 
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
-		local->user_power_level = -1;
+		local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 		break;
 	case NL80211_TX_POWER_LIMITED:
-		if (mbm < 0 || (mbm % 100))
-			return -EOPNOTSUPP;
-		local->user_power_level = MBM_TO_DBM(mbm);
-		break;
 	case NL80211_TX_POWER_FIXED:
 		if (mbm < 0 || (mbm % 100))
 			return -EOPNOTSUPP;
-		/* TODO: move to cfg80211 when it knows the channel */
-		if (MBM_TO_DBM(mbm) > chan->max_power)
-			return -EINVAL;
 		local->user_power_level = MBM_TO_DBM(mbm);
 		break;
 	}
 
-	ieee80211_hw_config(local, changes);
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list)
+		sdata->user_power_level = local->user_power_level;
+	list_for_each_entry(sdata, &local->interfaces, list)
+		ieee80211_recalc_txpower(sdata);
+	mutex_unlock(&local->iflist_mtx);
 
 	return 0;
 }
@@ -2032,8 +2045,12 @@ static int ieee80211_get_tx_power(struct wiphy *wiphy,
 				  int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
-	*dbm = local->hw.conf.power_level;
+	if (!local->use_chanctx)
+		*dbm = local->hw.conf.power_level;
+	else
+		*dbm = sdata->vif.bss_conf.txpower;
 
 	return 0;
 }

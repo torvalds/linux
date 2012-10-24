@@ -42,6 +42,41 @@
  * by either the RTNL, the iflist_mtx or RCU.
  */
 
+bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	int power;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	power = chanctx_conf->channel->max_power;
+	rcu_read_unlock();
+
+	if (sdata->user_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->user_power_level);
+
+	if (sdata->ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->ap_power_level);
+
+	if (power != sdata->vif.bss_conf.txpower) {
+		sdata->vif.bss_conf.txpower = power;
+		ieee80211_hw_config(sdata->local, 0);
+		return true;
+	}
+
+	return false;
+}
+
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+{
+	if (__ieee80211_recalc_txpower(sdata))
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
+}
 
 static u32 ieee80211_idle_off(struct ieee80211_local *local,
 			      const char *reason)
@@ -1509,6 +1544,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	}
 
 	ieee80211_set_default_queues(sdata);
+
+	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
+	sdata->user_power_level = local->user_power_level;
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);

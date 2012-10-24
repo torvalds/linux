@@ -56,6 +56,9 @@ struct ieee80211_local;
 #define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
 #define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
 
+/* power level hasn't been configured (or set to automatic) */
+#define IEEE80211_UNSET_POWER_LEVEL	INT_MIN
+
 /*
  * Some APs experience problems when working with U-APSD. Decrease the
  * probability of that happening by using legacy mode for all ACs but VO.
@@ -743,6 +746,9 @@ struct ieee80211_sub_if_data {
 	u8 needed_rx_chains;
 	enum ieee80211_smps_mode smps_mode;
 
+	int user_power_level; /* in dBm */
+	int ap_power_level; /* in dBm */
+
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for
@@ -1117,8 +1123,7 @@ struct ieee80211_local {
 	int dynamic_ps_user_timeout;
 	bool disable_dynamic_ps;
 
-	int user_power_level; /* in dBm */
-	int ap_power_level; /* in dBm */
+	int user_power_level; /* in dBm, for all interfaces */
 
 	enum ieee80211_smps_mode smps_mode;
 
@@ -1364,6 +1369,9 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
 int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
 void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
+
+bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {

@@ -168,6 +168,9 @@ IEEE80211_IF_FILE(rc_rateidx_mcs_mask_5ghz,
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
 IEEE80211_IF_FILE(channel_type, vif.bss_conf.channel_type, DEC);
+IEEE80211_IF_FILE(txpower, vif.bss_conf.txpower, DEC);
+IEEE80211_IF_FILE(ap_power_level, ap_power_level, DEC);
+IEEE80211_IF_FILE(user_power_level, user_power_level, DEC);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -632,6 +635,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
 	DEBUGFS_ADD(channel_type);
+	DEBUGFS_ADD(txpower);
+	DEBUGFS_ADD(user_power_level);
+	DEBUGFS_ADD(ap_power_level);
 
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
 		add_common_files(sdata);
