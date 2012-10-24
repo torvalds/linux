@@ -65,7 +65,7 @@ static void gpio_clps711x_set(struct gpio_chip *chip, unsigned offset,
 	spin_unlock_irqrestore(&gpio->lock, flags);
 }
 
-static int gpio_clps711x_direction_in(struct gpio_chip *chip, unsigned offset)
+static int gpio_clps711x_dir_in(struct gpio_chip *chip, unsigned offset)
 {
 	int tmp;
 	unsigned long flags;
@@ -79,8 +79,8 @@ static int gpio_clps711x_direction_in(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int gpio_clps711x_direction_out(struct gpio_chip *chip, unsigned offset,
-				       int value)
+static int gpio_clps711x_dir_out(struct gpio_chip *chip, unsigned offset,
+				 int value)
 {
 	int tmp;
 	unsigned long flags;
@@ -98,17 +98,49 @@ static int gpio_clps711x_direction_out(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-struct clps711x_gpio_port {
+static int gpio_clps711x_dir_in_inv(struct gpio_chip *chip, unsigned offset)
+{
+	int tmp;
+	unsigned long flags;
+	struct clps711x_gpio *gpio = dev_get_drvdata(chip->dev);
+
+	spin_lock_irqsave(&gpio->lock, flags);
+	tmp = readb(clps711x_pdir(chip)) | (1 << offset);
+	writeb(tmp, clps711x_pdir(chip));
+	spin_unlock_irqrestore(&gpio->lock, flags);
+
+	return 0;
+}
+
+static int gpio_clps711x_dir_out_inv(struct gpio_chip *chip, unsigned offset,
+				     int value)
+{
+	int tmp;
+	unsigned long flags;
+	struct clps711x_gpio *gpio = dev_get_drvdata(chip->dev);
+
+	spin_lock_irqsave(&gpio->lock, flags);
+	tmp = readb(clps711x_pdir(chip)) & ~(1 << offset);
+	writeb(tmp, clps711x_pdir(chip));
+	tmp = readb(clps711x_port(chip)) & ~(1 << offset);
+	if (value)
+		tmp |= 1 << offset;
+	writeb(tmp, clps711x_port(chip));
+	spin_unlock_irqrestore(&gpio->lock, flags);
+
+	return 0;
+}
+
+static struct {
 	char	*name;
 	int	nr;
-};
-
-static const struct clps711x_gpio_port clps711x_gpio_ports[] __initconst = {
-	{ "PORTA", 8, },
-	{ "PORTB", 8, },
-	{ "PORTC", 8, },
-	{ "PORTD", 8, },
-	{ "PORTE", 3, },
+	int	inv_dir;
+} clps711x_gpio_ports[] __initconst = {
+	{ "PORTA", 8, 0, },
+	{ "PORTB", 8, 0, },
+	{ "PORTC", 8, 0, },
+	{ "PORTD", 8, 1, },
+	{ "PORTE", 3, 0, },
 };
 
 static int __init gpio_clps711x_init(void)
@@ -145,10 +177,15 @@ static int __init gpio_clps711x_init(void)
 		gpio->chip[i].label		= clps711x_gpio_ports[i].name;
 		gpio->chip[i].base		= i * 8;
 		gpio->chip[i].ngpio		= clps711x_gpio_ports[i].nr;
-		gpio->chip[i].direction_input	= gpio_clps711x_direction_in;
 		gpio->chip[i].get		= gpio_clps711x_get;
-		gpio->chip[i].direction_output	= gpio_clps711x_direction_out;
 		gpio->chip[i].set		= gpio_clps711x_set;
+		if (!clps711x_gpio_ports[i].inv_dir) {
+			gpio->chip[i].direction_input = gpio_clps711x_dir_in;
+			gpio->chip[i].direction_output = gpio_clps711x_dir_out;
+		} else {
+			gpio->chip[i].direction_input = gpio_clps711x_dir_in_inv;
+			gpio->chip[i].direction_output = gpio_clps711x_dir_out_inv;
+		}
 		WARN_ON(gpiochip_add(&gpio->chip[i]));
 	}
 
