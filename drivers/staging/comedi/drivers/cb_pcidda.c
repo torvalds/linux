@@ -51,8 +51,17 @@ Please report success/failure with other different cards to
 #include "comedi_fc.h"
 #include "8255.h"
 
-/* PCI vendor number of ComputerBoards */
-#define PCI_VENDOR_ID_CB        0x1307
+/*
+ * ComputerBoards PCI Device ID's supported by this driver
+ */
+#define PCI_VENDOR_ID_CB		0x1307
+#define PCI_DEVICE_ID_DDA02_12		0x0020
+#define PCI_DEVICE_ID_DDA04_12		0x0021
+#define PCI_DEVICE_ID_DDA08_12		0x0022
+#define PCI_DEVICE_ID_DDA02_16		0x0023
+#define PCI_DEVICE_ID_DDA04_16		0x0024
+#define PCI_DEVICE_ID_DDA08_16		0x0025
+
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
 /* maximum number of ao channels for supported boards */
 #define MAX_AO_CHANNELS 8
@@ -148,7 +157,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda02/12",
 	 .status = 1,
-	 .device_id = 0x20,
+	 .device_id = PCI_DEVICE_ID_DDA02_12,
 	 .ao_chans = 2,
 	 .ao_bits = 12,
 	 .ranges = &cb_pcidda_ranges,
@@ -156,7 +165,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda04/12",
 	 .status = 1,
-	 .device_id = 0x21,
+	 .device_id = PCI_DEVICE_ID_DDA04_12,
 	 .ao_chans = 4,
 	 .ao_bits = 12,
 	 .ranges = &cb_pcidda_ranges,
@@ -164,7 +173,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda08/12",
 	 .status = 0,
-	 .device_id = 0x22,
+	 .device_id = PCI_DEVICE_ID_DDA08_12,
 	 .ao_chans = 8,
 	 .ao_bits = 12,
 	 .ranges = &cb_pcidda_ranges,
@@ -172,7 +181,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda02/16",
 	 .status = 2,
-	 .device_id = 0x23,
+	 .device_id = PCI_DEVICE_ID_DDA02_16,
 	 .ao_chans = 2,
 	 .ao_bits = 16,
 	 .ranges = &cb_pcidda_ranges,
@@ -180,7 +189,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda04/16",
 	 .status = 2,
-	 .device_id = 0x24,
+	 .device_id = PCI_DEVICE_ID_DDA04_16,
 	 .ao_chans = 4,
 	 .ao_bits = 16,
 	 .ranges = &cb_pcidda_ranges,
@@ -188,7 +197,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda08/16",
 	 .status = 0,
-	 .device_id = 0x25,
+	 .device_id = PCI_DEVICE_ID_DDA08_16,
 	 .ao_chans = 8,
 	 .ao_bits = 16,
 	 .ranges = &cb_pcidda_ranges,
@@ -585,12 +594,12 @@ static void __devexit cb_pcidda_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0020) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0021) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0022) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0023) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0024) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0025) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA02_12) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA04_12) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA08_12) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA02_16) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA04_16) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA08_16) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
