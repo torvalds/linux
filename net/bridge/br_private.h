@@ -553,6 +553,9 @@ extern struct rtnl_link_ops br_link_ops;
 extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
+extern int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
+extern int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+		      struct net_device *dev);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */

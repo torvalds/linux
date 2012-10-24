@@ -2252,6 +2252,83 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
+static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+	int idx = 0;
+	u32 portid = NETLINK_CB(cb->skb).portid;
+	u32 seq = cb->nlh->nlmsg_seq;
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		const struct net_device_ops *ops = dev->netdev_ops;
+		struct net_device *master = dev->master;
+
+		if (idx < cb->args[0])
+			continue;
+
+		if (master && master->netdev_ops->ndo_bridge_getlink) {
+			const struct net_device_ops *bops = master->netdev_ops;
+			int err = bops->ndo_bridge_getlink(skb, portid,
+							   seq, dev);
+
+			if (err < 0)
+				break;
+			else
+				idx++;
+		}
+
+		if (ops->ndo_bridge_getlink) {
+			int err = ops->ndo_bridge_getlink(skb, portid,
+							  seq, dev);
+
+			if (err < 0)
+				break;
+			else
+				idx++;
+		}
+	}
+	rcu_read_unlock();
+	cb->args[0] = idx;
+
+	return skb->len;
+}
+
+static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			       void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct ifinfomsg *ifm;
+	struct net_device *dev;
+	int err = -EINVAL;
+
+	if (nlmsg_len(nlh) < sizeof(*ifm))
+		return -EINVAL;
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->ifi_family != AF_BRIDGE)
+		return -EPFNOSUPPORT;
+
+	dev = __dev_get_by_index(net, ifm->ifi_index);
+	if (!dev) {
+		pr_info("PF_BRIDGE: RTM_SETLINK with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	if (dev->master && dev->master->netdev_ops->ndo_bridge_setlink) {
+		err = dev->master->netdev_ops->ndo_bridge_setlink(dev, nlh);
+		if (err)
+			goto out;
+	}
+
+	if (dev->netdev_ops->ndo_bridge_setlink)
+		err = dev->netdev_ops->ndo_bridge_setlink(dev, nlh);
+
+out:
+	return err;
+}
+
 /* Protected by RTNL sempahore.  */
 static struct rtattr **rta_buf;
 static int rtattr_max;
@@ -2433,5 +2510,8 @@ void __init rtnetlink_init(void)
 	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, NULL);
 	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL, NULL);
 	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, rtnl_fdb_dump, NULL);
+
+	rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, rtnl_bridge_getlink, NULL);
+	rtnl_register(PF_BRIDGE, RTM_SETLINK, rtnl_bridge_setlink, NULL, NULL);
 }
 

@@ -111,54 +111,33 @@ errout:
 /*
  * Dump information about all ports, in response to GETLINK
  */
-static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
+int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+	       struct net_device *dev)
 {
-	struct net *net = sock_net(skb->sk);
-	struct net_device *dev;
-	int idx;
+	int err = 0;
+	struct net_bridge_port *port = br_port_get_rcu(dev);
 
-	idx = 0;
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		struct net_bridge_port *port = br_port_get_rcu(dev);
+	/* not a bridge port */
+	if (!port)
+		goto out;
 
-		/* not a bridge port */
-		if (!port || idx < cb->args[0])
-			goto skip;
-
-		if (br_fill_ifinfo(skb, port,
-				   NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, RTM_NEWLINK,
-				   NLM_F_MULTI) < 0)
-			break;
-skip:
-		++idx;
-	}
-	rcu_read_unlock();
-	cb->args[0] = idx;
-
-	return skb->len;
+	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI);
+out:
+	return err;
 }
 
 /*
  * Change state of port (ie from forwarding to blocking etc)
  * Used by spanning tree in user space.
  */
-static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 {
-	struct net *net = sock_net(skb->sk);
 	struct ifinfomsg *ifm;
 	struct nlattr *protinfo;
-	struct net_device *dev;
 	struct net_bridge_port *p;
 	u8 new_state;
 
-	if (nlmsg_len(nlh) < sizeof(*ifm))
-		return -EINVAL;
-
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifi_family != AF_BRIDGE)
-		return -EPFNOSUPPORT;
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_PROTINFO);
 	if (!protinfo || nla_len(protinfo) < sizeof(u8))
@@ -167,10 +146,6 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	new_state = nla_get_u8(protinfo);
 	if (new_state > BR_STATE_BLOCKING)
 		return -EINVAL;
-
-	dev = __dev_get_by_index(net, ifm->ifi_index);
-	if (!dev)
-		return -ENODEV;
 
 	p = br_port_get_rtnl(dev);
 	if (!p)
@@ -218,29 +193,7 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 
 int __init br_netlink_init(void)
 {
-	int err;
-
-	err = rtnl_link_register(&br_link_ops);
-	if (err < 0)
-		goto err1;
-
-	err = __rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL,
-			      br_dump_ifinfo, NULL);
-	if (err)
-		goto err2;
-	err = __rtnl_register(PF_BRIDGE, RTM_SETLINK,
-			      br_rtm_setlink, NULL, NULL);
-	if (err)
-		goto err3;
-
-	return 0;
-
-err3:
-	rtnl_unregister_all(PF_BRIDGE);
-err2:
-	rtnl_link_unregister(&br_link_ops);
-err1:
-	return err;
+	return rtnl_link_register(&br_link_ops);
 }
 
 void __exit br_netlink_fini(void)
