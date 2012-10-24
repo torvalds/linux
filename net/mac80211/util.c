@@ -821,7 +821,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		if (elem_parse_failed)
 			elems->parse_error = true;
 		else
-			set_bit(id, seen_elems);
+			__set_bit(id, seen_elems);
 
 		left -= elen;
 		pos += elen;
