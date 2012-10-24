@@ -99,6 +99,12 @@
 
 #define CB_DDA_DA_DATA_REG(x)		(0x08 + ((x) * 2))
 
+/* Offsets for the caldac channels */
+#define CB_DDA_CALDAC_FINE_GAIN		0
+#define CB_DDA_CALDAC_COURSE_GAIN	1
+#define CB_DDA_CALDAC_COURSE_OFFSET	2
+#define CB_DDA_CALDAC_FINE_OFFSET	3
+
 static const struct comedi_lrange cb_pcidda_ranges = {
 	6, {
 		BIP_RANGE(10),
@@ -260,101 +266,33 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 	outw_p(cal2_bits, dev->iobase + DACALIBRATION2);
 }
 
-/* returns caldac that calibrates given analog out channel */
-static unsigned int caldac_number(unsigned int channel)
-{
-	return channel / 2;
-}
-
-/* returns caldac channel that provides fine gain for given ao channel */
-static unsigned int fine_gain_channel(unsigned int ao_channel)
-{
-	return 4 * (ao_channel % 2);
-}
-
-/* returns caldac channel that provides coarse gain for given ao channel */
-static unsigned int coarse_gain_channel(unsigned int ao_channel)
-{
-	return 1 + 4 * (ao_channel % 2);
-}
-
-/* returns caldac channel that provides coarse offset for given ao channel */
-static unsigned int coarse_offset_channel(unsigned int ao_channel)
-{
-	return 2 + 4 * (ao_channel % 2);
-}
-
-/* returns caldac channel that provides fine offset for given ao channel */
-static unsigned int fine_offset_channel(unsigned int ao_channel)
-{
-	return 3 + 4 * (ao_channel % 2);
-}
-
-/* returns eeprom address that provides offset for given ao channel and range */
-static unsigned int offset_eeprom_address(unsigned int ao_channel,
-					  unsigned int range)
-{
-	return 0x7 + 2 * range + 12 * ao_channel;
-}
-
-/*
- * returns eeprom address that provides gain calibration for given ao
- * channel and range
- */
-static unsigned int gain_eeprom_address(unsigned int ao_channel,
-					unsigned int range)
-{
-	return 0x8 + 2 * range + 12 * ao_channel;
-}
-
-/*
- * returns upper byte of eeprom entry, which gives the coarse adjustment
- * values
- */
-static unsigned int eeprom_coarse_byte(unsigned int word)
-{
-	return (word >> 8) & 0xff;
-}
-
-/* returns lower byte of eeprom entry, which gives the fine adjustment values */
-static unsigned int eeprom_fine_byte(unsigned int word)
-{
-	return word & 0xff;
-}
-
 /* set caldacs to eeprom values for given channel and range */
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 				unsigned int range)
 {
 	struct cb_pcidda_private *devpriv = dev->private;
-	unsigned int coarse_offset, fine_offset, coarse_gain, fine_gain;
+	unsigned int caldac = channel / 2;	/* two caldacs per channel */
+	unsigned int chan = 4 * (channel % 2);	/* caldac channel base */
+	unsigned int index = 2 * range + 12 * channel;
+	unsigned int offset;
+	unsigned int gain;
 
-	/* remember range so we can tell when we need to readjust calibration */
+	/* save range so we can tell when we need to readjust calibration */
 	devpriv->ao_range[channel] = range;
 
-	/*  get values from eeprom data */
-	coarse_offset =
-	    eeprom_coarse_byte(devpriv->eeprom_data
-			       [offset_eeprom_address(channel, range)]);
-	fine_offset =
-	    eeprom_fine_byte(devpriv->eeprom_data
-			     [offset_eeprom_address(channel, range)]);
-	coarse_gain =
-	    eeprom_coarse_byte(devpriv->eeprom_data
-			       [gain_eeprom_address(channel, range)]);
-	fine_gain =
-	    eeprom_fine_byte(devpriv->eeprom_data
-			     [gain_eeprom_address(channel, range)]);
+	/* get values from eeprom data */
+	offset = devpriv->eeprom_data[0x7 + index];
+	gain = devpriv->eeprom_data[0x8 + index];
 
-	/*  set caldacs */
-	cb_pcidda_write_caldac(dev, caldac_number(channel),
-			       coarse_offset_channel(channel), coarse_offset);
-	cb_pcidda_write_caldac(dev, caldac_number(channel),
-			       fine_offset_channel(channel), fine_offset);
-	cb_pcidda_write_caldac(dev, caldac_number(channel),
-			       coarse_gain_channel(channel), coarse_gain);
-	cb_pcidda_write_caldac(dev, caldac_number(channel),
-			       fine_gain_channel(channel), fine_gain);
+	/* set caldacs */
+	cb_pcidda_write_caldac(dev, caldac, chan + CB_DDA_CALDAC_COURSE_OFFSET,
+			       (offset >> 8) & 0xff);
+	cb_pcidda_write_caldac(dev, caldac, chan + CB_DDA_CALDAC_FINE_OFFSET,
+			       offset & 0xff);
+	cb_pcidda_write_caldac(dev, caldac, chan + CB_DDA_CALDAC_COURSE_GAIN,
+			       (gain >> 8) & 0xff);
+	cb_pcidda_write_caldac(dev, caldac, chan + CB_DDA_CALDAC_FINE_GAIN,
+			       gain & 0xff);
 }
 
 static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
