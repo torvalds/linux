@@ -770,6 +770,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_ext_feat_capable(dev)  ((dev)->features[7] & LMP_EXTFEATURES)
 
 /* ----- Extended LMP capabilities ----- */
+#define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
 #define lmp_host_le_capable(dev)   ((dev)->host_features[0] & LMP_HOST_LE)
 #define lmp_host_le_br_capable(dev) ((dev)->host_features[0] & LMP_HOST_LE_BREDR)
 
