@@ -1516,10 +1516,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		result = 0;
 
 		mutex_lock(&rdev->mtx);
-	} else if (nl80211_can_set_dev_channel(netdev->ieee80211_ptr))
+	} else
 		wdev = netdev->ieee80211_ptr;
-	else
-		wdev = NULL;
 
 	/*
 	 * end workaround code, by now the rdev is available
@@ -1579,7 +1577,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		result = __nl80211_set_channel(rdev, wdev, info);
+		result = __nl80211_set_channel(rdev,
+				nl80211_can_set_dev_channel(wdev) ? wdev : NULL,
+				info);
 		if (result)
 			goto bad_res;
 	}
