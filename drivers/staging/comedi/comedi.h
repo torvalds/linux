@@ -896,6 +896,14 @@ enum amplc_dio_clock_source {
 	AMPLC_DIO_CLK_20MHZ	/* 20 MHz internal clock */
 };
 
+/* Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * timer subdevice on some Amplicon DIO PCIe boards (amplc_dio200 driver). */
+enum amplc_dio_ts_clock_src {
+	AMPLC_DIO_TS_CLK_1GHZ,	/* 1 ns period with 20 ns granularity */
+	AMPLC_DIO_TS_CLK_1MHZ,	/* 1 us period */
+	AMPLC_DIO_TS_CLK_1KHZ	/* 1 ms period */
+};
+
 /* Values for setting a gate source with INSN_CONFIG_SET_GATE_SRC for
  * 8254 counter subdevices on Amplicon DIO boards (amplc_dio200 driver). */
 enum amplc_dio_gate_source {
