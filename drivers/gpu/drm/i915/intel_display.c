@@ -8690,6 +8690,31 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 
+	if (IS_HASWELL(dev)) {
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
+
+		if (tmp & TRANS_DDI_FUNC_ENABLE) {
+			switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+			case TRANS_DDI_EDP_INPUT_A_ON:
+			case TRANS_DDI_EDP_INPUT_A_ONOFF:
+				pipe = PIPE_A;
+				break;
+			case TRANS_DDI_EDP_INPUT_B_ONOFF:
+				pipe = PIPE_B;
+				break;
+			case TRANS_DDI_EDP_INPUT_C_ONOFF:
+				pipe = PIPE_C;
+				break;
+			}
+
+			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+			crtc->cpu_transcoder = TRANSCODER_EDP;
+
+			DRM_DEBUG_KMS("Pipe %c using transcoder EDP\n",
+				      pipe_name(pipe));
+		}
+	}
+
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
