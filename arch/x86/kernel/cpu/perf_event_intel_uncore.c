@@ -2926,6 +2926,9 @@ static int __init intel_uncore_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return -ENODEV;
 
+	if (cpu_has_hypervisor)
+		return -ENODEV;
+
 	ret = uncore_pci_init();
 	if (ret)
 		goto fail;
