@@ -25,6 +25,7 @@
 #include <linux/can/platform/ti_hecc.h>
 #include <linux/davinci_emac.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include "am35xx.h"

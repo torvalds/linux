@@ -1,11 +1,23 @@
-// include/asm-arm/mach-omap/usb.h
-
-#ifndef	__ASM_ARCH_OMAP_USB_H
-#define	__ASM_ARCH_OMAP_USB_H
-
-#include <linux/io.h>
-#include <linux/platform_device.h>
-#include <linux/usb/musb.h>
+/*
+ * usb-omap.h - Platform data for the various OMAP USB IPs
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
+ *
+ * This software is distributed under the terms of the GNU General Public
+ * License ("GPL") version 2, as published by the Free Software Foundation.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #define OMAP3_HS_USB_PORTS	3
 
@@ -26,7 +38,9 @@ enum usbhs_omap_port_mode {
 	OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM
 };
 
-#ifdef CONFIG_ARCH_OMAP2PLUS
+struct usbtll_omap_platform_data {
+	enum usbhs_omap_port_mode		port_mode[OMAP3_HS_USB_PORTS];
+};
 
 struct ehci_hcd_omap_platform_data {
 	enum usbhs_omap_port_mode	port_mode[OMAP3_HS_USB_PORTS];
@@ -47,9 +61,6 @@ struct usbhs_omap_platform_data {
 	struct ohci_hcd_omap_platform_data	*ohci_data;
 };
 
-struct usbtll_omap_platform_data {
-	enum usbhs_omap_port_mode		port_mode[OMAP3_HS_USB_PORTS];
-};
 /*-------------------------------------------------------------------------*/
 
 struct omap_musb_board_data {
@@ -63,11 +74,7 @@ struct omap_musb_board_data {
 	void	(*reset)(void);
 };
 
-enum musb_interface    {MUSB_INTERFACE_ULPI, MUSB_INTERFACE_UTMI};
-
-extern int omap_tll_enable(void);
-extern int omap_tll_disable(void);
-
-#endif
-
-#endif	/* __ASM_ARCH_OMAP_USB_H */
+enum musb_interface {
+	MUSB_INTERFACE_ULPI,
+	MUSB_INTERFACE_UTMI
+};

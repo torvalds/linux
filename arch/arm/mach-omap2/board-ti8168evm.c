@@ -14,6 +14,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/usb/musb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

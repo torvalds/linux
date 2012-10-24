@@ -1,4 +1,4 @@
-#include <plat/usb.h>
+#include <linux/platform_data/usb-omap.h>
 
 /* AM35x */
 /* USB 2.0 PHY Control */
