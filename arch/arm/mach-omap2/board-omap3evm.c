@@ -52,10 +52,14 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "board-flash.h"
+
+#define	NAND_CS			0
 
 #define OMAP3_EVM_TS_GPIO	175
 #define OMAP3_EVM_EHCI_VBUS	22
@@ -731,8 +735,9 @@ static void __init omap3_evm_init(void)
 	}
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3evm_nand_partitions,
-			     ARRAY_SIZE(omap3evm_nand_partitions));
+	board_nand_init(omap3evm_nand_partitions,
+			ARRAY_SIZE(omap3evm_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 
 	omap_ads7846_init(1, OMAP3_EVM_TS_GPIO, 310, NULL);
 	omap3evm_init_smsc911x();

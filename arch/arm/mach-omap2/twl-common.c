@@ -26,7 +26,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
-#include <plat/i2c.h>
 #include <plat/usb.h>
 
 #include "soc.h"

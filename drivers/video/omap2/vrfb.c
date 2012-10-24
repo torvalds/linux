@@ -26,9 +26,9 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 
-#include <plat/vrfb.h>
-#include <plat/sdrc.h>
+#include <video/omapvrfb.h>
 
 #ifdef DEBUG
 #define DBG(format, ...) pr_debug("VRFB: " format, ## __VA_ARGS__)
@@ -36,10 +36,10 @@
 #define DBG(format, ...)
 #endif
 
-#define SMS_ROT_VIRT_BASE(context, rot) \
-	(((context >= 4) ? 0xD0000000 : 0x70000000) \
-	 + (0x4000000 * (context)) \
-	 + (0x1000000 * (rot)))
+#define SMS_ROT_CONTROL(context)	(0x0 + 0x10 * context)
+#define SMS_ROT_SIZE(context)		(0x4 + 0x10 * context)
+#define SMS_ROT_PHYSICAL_BA(context)	(0x8 + 0x10 * context)
+#define SMS_ROT_VIRT_BASE(rot)		(0x1000000 * (rot))
 
 #define OMAP_VRFB_SIZE			(2048 * 2048 * 4)
 
@@ -53,9 +53,15 @@
 #define SMS_PW_OFFSET		4
 #define SMS_PS_OFFSET		0
 
-#define VRFB_NUM_CTXS 12
 /* bitmap of reserved contexts */
 static unsigned long ctx_map;
+
+struct vrfb_ctx {
+	u32 base;
+	u32 physical_ba;
+	u32 control;
+	u32 size;
+};
 
 static DEFINE_MUTEX(ctx_lock);
 
@@ -65,17 +71,34 @@ static DEFINE_MUTEX(ctx_lock);
  * we don't need locking, since no drivers will run until after the wake-up
  * has finished.
  */
-static struct {
-	u32 physical_ba;
-	u32 control;
-	u32 size;
-} vrfb_hw_context[VRFB_NUM_CTXS];
+
+static void __iomem *vrfb_base;
+
+static int num_ctxs;
+static struct vrfb_ctx *ctxs;
+
+static bool vrfb_loaded;
+
+static void omap2_sms_write_rot_control(u32 val, unsigned ctx)
+{
+	__raw_writel(val, vrfb_base + SMS_ROT_CONTROL(ctx));
+}
+
+static void omap2_sms_write_rot_size(u32 val, unsigned ctx)
+{
+	__raw_writel(val, vrfb_base + SMS_ROT_SIZE(ctx));
+}
+
+static void omap2_sms_write_rot_physical_ba(u32 val, unsigned ctx)
+{
+	__raw_writel(val, vrfb_base + SMS_ROT_PHYSICAL_BA(ctx));
+}
 
 static inline void restore_hw_context(int ctx)
 {
-	omap2_sms_write_rot_control(vrfb_hw_context[ctx].control, ctx);
-	omap2_sms_write_rot_size(vrfb_hw_context[ctx].size, ctx);
-	omap2_sms_write_rot_physical_ba(vrfb_hw_context[ctx].physical_ba, ctx);
+	omap2_sms_write_rot_control(ctxs[ctx].control, ctx);
+	omap2_sms_write_rot_size(ctxs[ctx].size, ctx);
+	omap2_sms_write_rot_physical_ba(ctxs[ctx].physical_ba, ctx);
 }
 
 static u32 get_image_width_roundup(u16 width, u8 bytespp)
@@ -196,9 +219,9 @@ void omap_vrfb_setup(struct vrfb *vrfb, unsigned long paddr,
 	control |= VRFB_PAGE_WIDTH_EXP  << SMS_PW_OFFSET;
 	control |= VRFB_PAGE_HEIGHT_EXP << SMS_PH_OFFSET;
 
-	vrfb_hw_context[ctx].physical_ba = paddr;
-	vrfb_hw_context[ctx].size = size;
-	vrfb_hw_context[ctx].control = control;
+	ctxs[ctx].physical_ba = paddr;
+	ctxs[ctx].size = size;
+	ctxs[ctx].control = control;
 
 	omap2_sms_write_rot_physical_ba(paddr, ctx);
 	omap2_sms_write_rot_size(size, ctx);
@@ -274,11 +297,11 @@ int omap_vrfb_request_ctx(struct vrfb *vrfb)
 
 	mutex_lock(&ctx_lock);
 
-	for (ctx = 0; ctx < VRFB_NUM_CTXS; ++ctx)
+	for (ctx = 0; ctx < num_ctxs; ++ctx)
 		if ((ctx_map & (1 << ctx)) == 0)
 			break;
 
-	if (ctx == VRFB_NUM_CTXS) {
+	if (ctx == num_ctxs) {
 		pr_err("vrfb: no free contexts\n");
 		r = -EBUSY;
 		goto out;
@@ -293,7 +316,7 @@ int omap_vrfb_request_ctx(struct vrfb *vrfb)
 	vrfb->context = ctx;
 
 	for (rot = 0; rot < 4; ++rot) {
-		paddr = SMS_ROT_VIRT_BASE(ctx, rot);
+		paddr = ctxs[ctx].base + SMS_ROT_VIRT_BASE(rot);
 		if (!request_mem_region(paddr, OMAP_VRFB_SIZE, "vrfb")) {
 			pr_err("vrfb: failed to reserve VRFB "
 					"area for ctx %d, rotation %d\n",
@@ -314,3 +337,80 @@ out:
 	return r;
 }
 EXPORT_SYMBOL(omap_vrfb_request_ctx);
+
+bool omap_vrfb_supported(void)
+{
+	return vrfb_loaded;
+}
+EXPORT_SYMBOL(omap_vrfb_supported);
+
+static int __init vrfb_probe(struct platform_device *pdev)
+{
+	struct resource *mem;
+	int i;
+
+	/* first resource is the register res, the rest are vrfb contexts */
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		dev_err(&pdev->dev, "can't get vrfb base address\n");
+		return -EINVAL;
+	}
+
+	vrfb_base = devm_request_and_ioremap(&pdev->dev, mem);
+	if (!vrfb_base) {
+		dev_err(&pdev->dev, "can't ioremap vrfb memory\n");
+		return -ENOMEM;
+	}
+
+	num_ctxs = pdev->num_resources - 1;
+
+	ctxs = devm_kzalloc(&pdev->dev,
+			sizeof(struct vrfb_ctx) * num_ctxs,
+			GFP_KERNEL);
+
+	if (!ctxs)
+		return -ENOMEM;
+
+	for (i = 0; i < num_ctxs; ++i) {
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 1 + i);
+		if (!mem) {
+			dev_err(&pdev->dev, "can't get vrfb ctx %d address\n",
+					i);
+			return -EINVAL;
+		}
+
+		ctxs[i].base = mem->start;
+	}
+
+	vrfb_loaded = true;
+
+	return 0;
+}
+
+static void __exit vrfb_remove(struct platform_device *pdev)
+{
+	vrfb_loaded = false;
+}
+
+static struct platform_driver vrfb_driver = {
+	.driver.name	= "omapvrfb",
+	.remove		= __exit_p(vrfb_remove),
+};
+
+static int __init vrfb_init(void)
+{
+	return platform_driver_probe(&vrfb_driver, &vrfb_probe);
+}
+
+static void __exit vrfb_exit(void)
+{
+	platform_driver_unregister(&vrfb_driver);
+}
+
+module_init(vrfb_init);
+module_exit(vrfb_exit);
+
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
+MODULE_DESCRIPTION("OMAP VRFB");
+MODULE_LICENSE("GPL v2");

@@ -35,8 +35,8 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
-#include <mach/board-zoom.h>
+#include "gpmc.h"
+#include "board-zoom.h"
 #include <plat/usb.h>
 #include "gpmc-smsc911x.h"
 
@@ -420,8 +420,8 @@ static void __init omap_ldp_init(void)
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	usb_musb_init(NULL);
-	board_nand_init(ldp_nand_partitions,
-		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
+	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
+			ZOOM_NAND_CS, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();

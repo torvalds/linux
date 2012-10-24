@@ -123,8 +123,9 @@ bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
-void dss_features_init(void);
+void dss_features_init(enum omapdss_version version);
 #if defined(CONFIG_OMAP4_DSS_HDMI)
-void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data);
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data,
+		enum omapdss_version version);
 #endif
 #endif

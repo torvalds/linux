@@ -23,12 +23,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
+#include <plat-omap/dma-omap.h>
 #include <plat/usb.h>
 
+#include "common.h"
 #include "mux.h"
+#include "gpmc.h"
 #include "pm.h"
 #include "sdram-nokia.h"
 

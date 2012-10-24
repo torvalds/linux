@@ -25,14 +25,12 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat/sram.h>
-#include <plat/sdrc.h>
 #include <plat/serial.h>
-#include <plat/omap-pm.h>
-#include <plat/omap_hwmod.h>
-#include <plat/multi.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
+#include "../plat-omap/sram.h"
+
+#include "omap_hwmod.h"
 #include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
@@ -43,6 +41,8 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "omap-pm.h"
+#include "sdrc.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
