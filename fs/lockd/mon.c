@@ -124,18 +124,16 @@ out:
 static void nsm_client_put(struct net *net)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
-	struct rpc_clnt	*clnt = ln->nsm_clnt;
-	int shutdown = 0;
+	struct rpc_clnt	*clnt = NULL;
 
 	spin_lock(&ln->nsm_clnt_lock);
-	if (ln->nsm_users) {
-		if (--ln->nsm_users)
-			ln->nsm_clnt = NULL;
-		shutdown = !ln->nsm_users;
+	ln->nsm_users--;
+	if (ln->nsm_users == 0) {
+		clnt = ln->nsm_clnt;
+		ln->nsm_clnt = NULL;
 	}
 	spin_unlock(&ln->nsm_clnt_lock);
-
-	if (shutdown)
+	if (clnt != NULL)
 		rpc_shutdown_client(clnt);
 }
 
