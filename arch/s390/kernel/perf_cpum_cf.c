@@ -94,7 +94,7 @@ static int get_counter_set(u64 event)
 		set = CPUMF_CTR_SET_USER;
 	else if (event < 128)
 		set = CPUMF_CTR_SET_CRYPTO;
-	else if (event < 160)
+	else if (event < 256)
 		set = CPUMF_CTR_SET_EXT;
 
 	return set;
@@ -137,6 +137,10 @@ static int validate_ctr_version(const struct hw_perf_event *hwc)
 	case CPUMF_CTR_SET_CRYPTO:
 	case CPUMF_CTR_SET_EXT:
 		if (cpuhw->info.csvn < 1)
+			err = -EOPNOTSUPP;
+		if ((cpuhw->info.csvn == 1 && hwc->config > 159) ||
+		    (cpuhw->info.csvn == 2 && hwc->config > 175) ||
+		    (cpuhw->info.csvn  > 2 && hwc->config > 255))
 			err = -EOPNOTSUPP;
 		break;
 	}
