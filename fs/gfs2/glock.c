@@ -535,8 +535,8 @@ __acquires(&gl->gl_spin)
 	    (lck_flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB)))
 		clear_bit(GLF_BLOCKING, &gl->gl_flags);
 	spin_unlock(&gl->gl_spin);
-	if (glops->go_xmote_th)
-		glops->go_xmote_th(gl);
+	if (glops->go_sync)
+		glops->go_sync(gl);
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
 	clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);

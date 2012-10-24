@@ -205,7 +205,7 @@ struct lm_lockname {
 
 
 struct gfs2_glock_operations {
-	void (*go_xmote_th) (struct gfs2_glock *gl);
+	void (*go_sync) (struct gfs2_glock *gl);
 	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (const struct gfs2_glock *gl);

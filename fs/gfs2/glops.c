@@ -536,7 +536,7 @@ const struct gfs2_glock_operations gfs2_meta_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_inode_glops = {
-	.go_xmote_th = inode_go_sync,
+	.go_sync = inode_go_sync,
 	.go_inval = inode_go_inval,
 	.go_demote_ok = inode_go_demote_ok,
 	.go_lock = inode_go_lock,
@@ -546,7 +546,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
-	.go_xmote_th = rgrp_go_sync,
+	.go_sync = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
 	.go_lock = gfs2_rgrp_go_lock,
 	.go_unlock = gfs2_rgrp_go_unlock,
@@ -556,7 +556,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {
-	.go_xmote_th = trans_go_sync,
+	.go_sync = trans_go_sync,
 	.go_xmote_bh = trans_go_xmote_bh,
 	.go_demote_ok = trans_go_demote_ok,
 	.go_type = LM_TYPE_NONDISK,
