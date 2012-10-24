@@ -494,11 +494,11 @@ config RCU_USER_QS
 	  puts RCU in extended quiescent state when the CPU runs in
 	  userspace. It means that when a CPU runs in userspace, it is
 	  excluded from the global RCU state machine and thus doesn't
-	  to keep the timer tick on for RCU.
+	  try to keep the timer tick on for RCU.
 
 	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option. It adds
-	  unnecessary overhead.
+	  tickless feature, you shouldn't enable this option.  It also
+	  adds unnecessary overhead.
 
 	  If unsure say N
 
