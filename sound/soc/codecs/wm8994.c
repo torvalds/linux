@@ -2258,6 +2258,18 @@ out:
 
 	configure_clock(codec);
 
+	/*
+	 * If SYSCLK will be less than 50kHz adjust AIFnCLK dividers
+	 * for detection.
+	 */
+	if (max(wm8994->aifclk[0], wm8994->aifclk[1]) < 50000) {
+		dev_dbg(codec->dev, "Configuring AIFs for 128fs\n");
+		snd_soc_update_bits(codec, WM8994_AIF1_RATE,
+				    WM8994_AIF1CLK_RATE_MASK, 0x1);
+		snd_soc_update_bits(codec, WM8994_AIF2_RATE,
+				    WM8994_AIF2CLK_RATE_MASK, 0x1);
+	}
+
 	return 0;
 }
 
