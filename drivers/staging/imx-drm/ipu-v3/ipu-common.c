@@ -1006,7 +1006,7 @@ static int __devinit ipu_probe(struct platform_device *pdev)
 	irq_err = platform_get_irq(pdev, 1);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev_info(&pdev->dev, "irq_sync: %d irq_err: %d\n",
+	dev_dbg(&pdev->dev, "irq_sync: %d irq_err: %d\n",
 			irq_sync, irq_err);
 
 	if (!res || irq_sync < 0 || irq_err < 0)
@@ -1026,27 +1026,27 @@ static int __devinit ipu_probe(struct platform_device *pdev)
 	spin_lock_init(&ipu->lock);
 	mutex_init(&ipu->channel_lock);
 
-	dev_info(&pdev->dev, "cm_reg:   0x%08lx\n",
+	dev_dbg(&pdev->dev, "cm_reg:   0x%08lx\n",
 			ipu_base + devtype->cm_ofs);
-	dev_info(&pdev->dev, "idmac:    0x%08lx\n",
+	dev_dbg(&pdev->dev, "idmac:    0x%08lx\n",
 			ipu_base + devtype->cm_ofs + IPU_CM_IDMAC_REG_OFS);
-	dev_info(&pdev->dev, "cpmem:    0x%08lx\n",
+	dev_dbg(&pdev->dev, "cpmem:    0x%08lx\n",
 			ipu_base + devtype->cpmem_ofs);
-	dev_info(&pdev->dev, "disp0:    0x%08lx\n",
+	dev_dbg(&pdev->dev, "disp0:    0x%08lx\n",
 			ipu_base + devtype->disp0_ofs);
-	dev_info(&pdev->dev, "disp1:    0x%08lx\n",
+	dev_dbg(&pdev->dev, "disp1:    0x%08lx\n",
 			ipu_base + devtype->disp1_ofs);
-	dev_info(&pdev->dev, "srm:      0x%08lx\n",
+	dev_dbg(&pdev->dev, "srm:      0x%08lx\n",
 			ipu_base + devtype->srm_ofs);
-	dev_info(&pdev->dev, "tpm:      0x%08lx\n",
+	dev_dbg(&pdev->dev, "tpm:      0x%08lx\n",
 			ipu_base + devtype->tpm_ofs);
-	dev_info(&pdev->dev, "dc:       0x%08lx\n",
+	dev_dbg(&pdev->dev, "dc:       0x%08lx\n",
 			ipu_base + devtype->cm_ofs + IPU_CM_DC_REG_OFS);
-	dev_info(&pdev->dev, "ic:       0x%08lx\n",
+	dev_dbg(&pdev->dev, "ic:       0x%08lx\n",
 			ipu_base + devtype->cm_ofs + IPU_CM_IC_REG_OFS);
-	dev_info(&pdev->dev, "dmfc:     0x%08lx\n",
+	dev_dbg(&pdev->dev, "dmfc:     0x%08lx\n",
 			ipu_base + devtype->cm_ofs + IPU_CM_DMFC_REG_OFS);
-	dev_info(&pdev->dev, "vdi:      0x%08lx\n",
+	dev_dbg(&pdev->dev, "vdi:      0x%08lx\n",
 			ipu_base + devtype->vdi_ofs);
 
 	ipu->cm_reg = devm_ioremap(&pdev->dev,
