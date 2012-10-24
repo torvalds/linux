@@ -57,58 +57,6 @@ typedef void (*CsrSchedBgintHandler)(void *);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrSchedBgintReg
- *
- *  DESCRIPTION
- *      Register a background interrupt handler function with the scheduler.
- *        When CsrSchedBgint() is called from the foreground (e.g. an interrupt
- *        routine) the registered function is called.
- *
- *        If "cb" is null then the interrupt is effectively disabled. If a
- *        no bgints are available, CSR_SCHED_BGINT_INVALID is returned, otherwise
- *        a CsrSchedBgint value is returned to be used in subsequent calls to
- *        CsrSchedBgint().  id is a possibly NULL identifier used for logging
- *        purposes only.
- *
- *  RETURNS
- *      CsrSchedBgint -- CSR_SCHED_BGINT_INVALID denotes failure to obtain a CsrSchedBgintSet.
- *
- *----------------------------------------------------------------------------*/
-CsrSchedBgint CsrSchedBgintReg(CsrSchedBgintHandler cb,
-    void *context,
-    const char *id);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedBgintUnreg
- *
- *  DESCRIPTION
- *      Unregister a background interrupt handler function.
- *
- *      ``irq'' is a background interrupt handle previously obtained
- *      from a call to CsrSchedBgintReg().
- *
- *  RETURNS
- *      void.
- *
- *----------------------------------------------------------------------------*/
-void CsrSchedBgintUnreg(CsrSchedBgint bgint);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedBgintSet
- *
- *  DESCRIPTION
- *      Set background interrupt.
- *
- *  RETURNS
- *      void.
- *
- *----------------------------------------------------------------------------*/
-void CsrSchedBgintSet(CsrSchedBgint bgint);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrSchedMessagePut
  *
  *  DESCRIPTION
@@ -175,25 +123,6 @@ void CsrSchedMessageBroadcast(u16 mi,
     void *(*msg_build_func)(void *),
     void *msg_build_ptr);
 #endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedMessageGet
- *
- *  DESCRIPTION
- *      Obtains a message from the message queue belonging to the calling task.
- *      The message consists of one or both of a u16 and a void *.
- *
- *  RETURNS
- *      u8 - TRUE if a message has been obtained from the queue, else FALSE.
- *      If a message is taken from the queue, then "*pmi" and "*pmv" are set to
- *      the "mi" and "mv" passed to CsrSchedMessagePut() respectively.
- *
- *      "pmi" and "pmv" can be null, in which case the corresponding value from
- *      them message is discarded.
- *
- *----------------------------------------------------------------------------*/
-u8 CsrSchedMessageGet(u16 *pmi, void **pmv);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -269,20 +198,6 @@ u8 CsrSchedTimerCancel(CsrSchedTid eventid,
  *
  *----------------------------------------------------------------------------*/
 CsrSchedQid CsrSchedTaskQueueGet(void);
-
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedTaskQueueGet
- *
- *  DESCRIPTION
- *      Return the queue identifier for the currently running queue
- *
- *  RETURNS
- *      char - The current task queue identifier, or 0xFFFF if not available.
- *
- *----------------------------------------------------------------------------*/
-char* CsrSchedTaskNameGet(CsrSchedQid );
 
 
 #ifdef __cplusplus
