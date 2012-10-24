@@ -1538,6 +1538,42 @@ static void dio200_subdev_8255_cleanup(struct comedi_device *dev,
 	kfree(subpriv);
 }
 
+/*
+ * This function does some special set-up for the PCIe boards
+ * PCIe215, PCIe236, PCIe296.
+ */
+static int dio200_pcie_board_setup(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	void __iomem *brbase;
+	resource_size_t brlen;
+
+	/*
+	 * The board uses Altera Cyclone IV with PCI-Express hard IP.
+	 * The FPGA configuration has the PCI-Express Avalon-MM Bridge
+	 * Control registers in PCI BAR 0, offset 0, and the length of
+	 * these registers is 0x4000.
+	 *
+	 * We need to write 0x80 to the "Avalon-MM to PCI-Express Interrupt
+	 * Enable" register at offset 0x50 to allow generation of PCIe
+	 * interrupts when RXmlrq_i is asserted in the SOPC Builder system.
+	 */
+	brlen = pci_resource_len(pcidev, 0);
+	if (brlen < 0x4000 ||
+			!(pci_resource_flags(pcidev, 0) & IORESOURCE_MEM)) {
+		dev_err(dev->class_dev, "error! bad PCI region!\n");
+		return -EINVAL;
+	}
+	brbase = ioremap_nocache(pci_resource_start(pcidev, 0), brlen);
+	if (!brbase) {
+		dev_err(dev->class_dev, "error! failed to map registers!\n");
+		return -ENOMEM;
+	}
+	writel(0x80, brbase + 0x50);
+	iounmap(brbase);
+	return 0;
+}
+
 static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
@@ -1735,6 +1771,18 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 	} else {
 		devpriv->io.u.iobase = (unsigned long)base;
 		devpriv->io.regtype = io_regtype;
+	}
+	switch (thisboard->model)
+	{
+	case pcie215_model:
+	case pcie236_model:
+	case pcie296_model:
+		ret = dio200_pcie_board_setup(dev);
+		if (ret < 0)
+			return ret;
+		break;
+	default:
+		break;
 	}
 	return dio200_common_attach(dev, pci_dev->irq, IRQF_SHARED);
 }
