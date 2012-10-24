@@ -76,9 +76,6 @@ extern hw_status hw_mmu_twl_enable(void __iomem *base_address);
 
 extern hw_status hw_mmu_twl_disable(void __iomem *base_address);
 
-extern hw_status hw_mmu_tlb_flush(const void __iomem *base_address,
-				  u32 virtual_addr, u32 page_sz);
-
 extern hw_status hw_mmu_tlb_add(void __iomem *base_address,
 				u32 physical_addr,
 				u32 virtual_addr,
