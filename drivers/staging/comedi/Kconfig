@@ -761,10 +761,11 @@ config COMEDI_ADV_PCI_DIO
 	  called adv_pci_dio.
 
 config COMEDI_AMPLC_DIO200_PCI
-	tristate "Amplicon PCI215 and PCI272 DIO board support"
+	tristate "Amplicon PCI215/PCI272/PCIe215/PCIe236/PCIe296 DIO support"
 	select COMEDI_AMPLC_DIO200
 	---help---
-	  Enable support for Amplicon PCI215 and PCI272 DIO boards.
+	  Enable support for Amplicon PCI215, PCI272, PCIe215, PCIe236
+	  and PCIe296 DIO boards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_dio200.
