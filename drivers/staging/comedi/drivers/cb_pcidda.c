@@ -132,14 +132,6 @@ static const struct comedi_lrange cb_pcidda_ranges = {
  */
 struct cb_pcidda_board {
 	const char *name;
-	char status;		/*  Driver status: */
-
-	/*
-	 * 0 - tested
-	 * 1 - manual read, not tested
-	 * 2 - manual not read
-	 */
-
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
@@ -148,42 +140,36 @@ struct cb_pcidda_board {
 static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
 	 .name = "pci-dda02/12",
-	 .status = 1,
 	 .device_id = PCI_DEVICE_ID_DDA02_12,
 	 .ao_chans = 2,
 	 .ao_bits = 12,
 	 },
 	{
 	 .name = "pci-dda04/12",
-	 .status = 1,
 	 .device_id = PCI_DEVICE_ID_DDA04_12,
 	 .ao_chans = 4,
 	 .ao_bits = 12,
 	 },
 	{
 	 .name = "pci-dda08/12",
-	 .status = 0,
 	 .device_id = PCI_DEVICE_ID_DDA08_12,
 	 .ao_chans = 8,
 	 .ao_bits = 12,
 	 },
 	{
 	 .name = "pci-dda02/16",
-	 .status = 2,
 	 .device_id = PCI_DEVICE_ID_DDA02_16,
 	 .ao_chans = 2,
 	 .ao_bits = 16,
 	 },
 	{
 	 .name = "pci-dda04/16",
-	 .status = 2,
 	 .device_id = PCI_DEVICE_ID_DDA04_16,
 	 .ao_chans = 4,
 	 .ao_bits = 16,
 	 },
 	{
 	 .name = "pci-dda08/16",
-	 .status = 0,
 	 .device_id = PCI_DEVICE_ID_DDA08_16,
 	 .ao_chans = 8,
 	 .ao_bits = 16,
@@ -487,12 +473,6 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 3);
 	iobase_8255 = pci_resource_start(pcidev, 2);
-
-	if (thisboard->status == 2)
-		printk
-		    ("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. "
-		     "WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DDA08/12. "
-		     "PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
