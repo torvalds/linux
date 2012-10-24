@@ -583,33 +583,38 @@
 			interrupts = <0 60 0x4>;
 			status = "disabled";
 		};
+
 		sdi@80118000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80118000 0x1000>;
 			interrupts = <0 50 0x4>;
 			status = "disabled";
 		};
+
 		sdi@80005000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80005000 0x1000>;
 			interrupts = <0 41 0x4>;
 			status = "disabled";
 		};
+
 		sdi@80119000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80119000 0x1000>;
 			interrupts = <0 59 0x4>;
 			status = "disabled";
 		};
+
 		sdi@80114000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80114000 0x1000>;
 			interrupts = <0 99 0x4>;
 			status = "disabled";
 		};
+
 		sdi@80008000 {
 			compatible = "arm,pl18x", "arm,primecell";
-			reg = <0x80114000 0x1000>;
+			reg = <0x80008000 0x1000>;
 			interrupts = <0 100 0x4>;
 			status = "disabled";
 		};
