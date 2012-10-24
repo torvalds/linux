@@ -27,6 +27,7 @@
 #include <linux/leds.h>
 #include <linux/leds_pwm.h>
 #include <linux/platform_data/omap4-keypad.h>
+#include <linux/usb/musb.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -34,7 +35,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include "omap4-keypad.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-nokia-dsi.h>

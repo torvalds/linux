@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
@@ -24,7 +25,6 @@
 #include <asm/mach/map.h>
 
 #include <plat-omap/dma-omap.h>
-#include <plat/usb.h>
 
 #include "common.h"
 #include "mux.h"

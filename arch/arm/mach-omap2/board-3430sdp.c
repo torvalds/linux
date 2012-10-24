@@ -30,7 +30,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/usb.h>
 #include "common.h"
 #include <plat-omap/dma-omap.h>
 #include <video/omapdss.h>

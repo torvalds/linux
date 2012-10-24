@@ -46,7 +46,6 @@
 #include "common.h"
 #include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
 
 #include "mux.h"
 #include "hsmmc.h"

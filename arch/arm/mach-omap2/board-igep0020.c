@@ -29,14 +29,12 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include "common.h"
-#include "gpmc.h"
-#include <plat/usb.h>
-
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
+#include "common.h"
+#include "gpmc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-numonyx-m65kxxxxam.h"

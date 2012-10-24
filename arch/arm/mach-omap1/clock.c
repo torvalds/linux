@@ -22,13 +22,11 @@
 
 #include <asm/mach-types.h>
 
-#include "soc.h"
-#include <plat/usb.h>
-
 #include <mach/hardware.h>
 
 #include "../plat-omap/sram.h"
 
+#include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "opp.h"
