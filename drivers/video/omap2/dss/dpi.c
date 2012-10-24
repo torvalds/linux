@@ -315,7 +315,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	unsigned long pck;
 	struct dispc_clock_info dispc_cinfo;
 
-	if (dss_mgr_check_timings(mgr, timings))
+	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
 		return -EINVAL;
 
 	if (timings->pixel_clock == 0)
