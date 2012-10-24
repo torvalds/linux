@@ -220,8 +220,32 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	if (user_mode(regs)) {
 
 		childregs->areg[1] = usp;
+
+		/* When sharing memory with the parent thread, the child
+		   usually starts on a pristine stack, so we have to reset
+		   windowbase, windowstart and wmask.
+		   (Note that such a new thread is required to always create
+		   an initial call4 frame)
+		   The exception is vfork, where the new thread continues to
+		   run on the parent's stack until it calls execve. This could
+		   be a call8 or call12, which requires a legal stack frame
+		   of the previous caller for the overflow handlers to work.
+		   (Note that it's always legal to overflow live registers).
+		   In this case, ensure to spill at least the stack pointer
+		   of that frame. */
+
 		if (clone_flags & CLONE_VM) {
-			childregs->wmask = 1;	/* can't share live windows */
+			/* check that caller window is live and same stack */
+			int len = childregs->wmask & ~0xf;
+			if (regs->areg[1] == usp && len != 0) {
+				int callinc = (regs->areg[0] >> 30) & 3;
+				int caller_ars = XCHAL_NUM_AREGS - callinc * 4;
+				put_user(regs->areg[caller_ars+1],
+					 (unsigned __user*)(usp - 12));
+			}
+			childregs->wmask = 1;
+			childregs->windowstart = 1;
+			childregs->windowbase = 0;
 		} else {
 			int len = childregs->wmask & ~0xf;
 			memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
