@@ -295,6 +295,12 @@ static const struct hdmi_config vesa_timings[] = {
 			false, },
 		{ 0x55, HDMI_DVI },
 	},
+	{
+		{ 1920, 1200, 154000, 32, 48, 80, 6, 3, 26,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x44, HDMI_DVI },
+	},
 };
 
 static int hdmi_runtime_get(void)
