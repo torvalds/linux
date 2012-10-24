@@ -187,18 +187,15 @@ static void iic_set_clr(struct sh_mobile_i2c_data *pd, int offs,
 	iic_wr(pd, offs, (iic_rd(pd, offs) | set) & ~clr);
 }
 
-static void activate_ch(struct sh_mobile_i2c_data *pd)
+static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 {
 	unsigned long i2c_clk;
 	u_int32_t num;
 	u_int32_t denom;
 	u_int32_t tmp;
 
-	/* Wake up device and enable clock */
-	pm_runtime_get_sync(pd->dev);
-	clk_enable(pd->clk);
-
 	/* Get clock rate after clock is enabled */
+	clk_enable(pd->clk);
 	i2c_clk = clk_get_rate(pd->clk);
 
 	/* Calculate the value for iccl. From the data sheet:
@@ -238,6 +235,15 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 		else
 			pd->icic &= ~ICIC_ICCHB8;
 	}
+
+	clk_disable(pd->clk);
+}
+
+static void activate_ch(struct sh_mobile_i2c_data *pd)
+{
+	/* Wake up device and enable clock */
+	pm_runtime_get_sync(pd->dev);
+	clk_enable(pd->clk);
 
 	/* Enable channel and configure rx ack */
 	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
@@ -631,6 +637,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	 */
 	if (size > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
+
+	sh_mobile_i2c_init(pd);
 
 	/* Enable Runtime PM for this device.
 	 *
