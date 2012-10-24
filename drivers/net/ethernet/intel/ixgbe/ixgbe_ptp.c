@@ -633,8 +633,7 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	struct hwtstamp_config config;
 	u32 tsync_tx_ctl = IXGBE_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = IXGBE_TSYNCRXCTL_ENABLED;
-	u32 tsync_rx_mtrl = 0;
-	bool is_l4 = false;
+	u32 tsync_rx_mtrl = PTP_EV_PORT << 16;
 	bool is_l2 = false;
 	u32 regval;
 
@@ -657,16 +656,15 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
+		tsync_rx_mtrl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
 		tsync_rx_mtrl = IXGBE_RXMTRL_V1_SYNC_MSG;
-		is_l4 = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
 		tsync_rx_mtrl = IXGBE_RXMTRL_V1_DELAY_REQ_MSG;
-		is_l4 = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -679,7 +677,6 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_EVENT_V2;
 		is_l2 = true;
-		is_l4 = true;
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -713,33 +710,6 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	else
 		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_1588), 0);
 
-#define PTP_PORT 319
-	/* L4 Queue Filter[3]: filter by destination port and protocol */
-	if (is_l4) {
-		u32 ftqf = (IXGBE_FTQF_PROTOCOL_UDP /* UDP */
-			    | IXGBE_FTQF_POOL_MASK_EN /* Pool not compared */
-			    | IXGBE_FTQF_QUEUE_ENABLE);
-
-		ftqf |= ((IXGBE_FTQF_PROTOCOL_COMP_MASK /* protocol check */
-			  & IXGBE_FTQF_DEST_PORT_MASK /* dest check */
-			  & IXGBE_FTQF_SOURCE_PORT_MASK) /* source check */
-			 << IXGBE_FTQF_5TUPLE_MASK_SHIFT);
-
-		IXGBE_WRITE_REG(hw, IXGBE_L34T_IMIR(3),
-				(3 << IXGBE_IMIR_RX_QUEUE_SHIFT_82599 |
-				 IXGBE_IMIR_SIZE_BP_82599));
-
-		/* enable port check */
-		IXGBE_WRITE_REG(hw, IXGBE_SDPQF(3),
-				(htons(PTP_PORT) |
-				 htons(PTP_PORT) << 16));
-
-		IXGBE_WRITE_REG(hw, IXGBE_FTQF(3), ftqf);
-
-		tsync_rx_mtrl |= PTP_PORT << 16;
-	} else {
-		IXGBE_WRITE_REG(hw, IXGBE_FTQF(3), 0);
-	}
 
 	/* enable/disable TX */
 	regval = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
