@@ -301,6 +301,8 @@
 /* Extra registers for new PCIe boards */
 #define DIO200_ENHANCE		0x20	/* 1 to enable enhanced features */
 #define DIO200_VERSION		0x24	/* Hardware version register */
+#define DIO200_TS_CONFIG	0x600	/* Timestamp timer config register */
+#define DIO200_TS_COUNT		0x602	/* Timestamp timer count register */
 
 /*
  * Functions for constructing value for DIO_200_?CLK_SCE and
@@ -340,6 +342,22 @@ static const unsigned int clock_period[32] = {
 	[5] = 1000000,		/* 1 kHz */
 	[11] = 50,		/* 20 MHz (enhanced boards) */
 	/* clock sources 12 and later reserved for enhanced boards */
+};
+
+/*
+ * Timestamp timer configuration register (for new PCIe boards).
+ */
+#define TS_CONFIG_RESET		0x100	/* Reset counter to zero. */
+#define TS_CONFIG_CLK_SRC_MASK	0x0FF	/* Clock source. */
+#define TS_CONFIG_MAX_CLK_SRC	2	/* Maximum clock source value. */
+
+/*
+ * Periods of the timestamp timer clock sources in nanoseconds.
+ */
+static const unsigned int ts_clock_period[TS_CONFIG_MAX_CLK_SRC + 1] = {
+	1,			/* 1 nanosecond (but with 20 ns granularity). */
+	1000,			/* 1 microsecond. */
+	1000000,		/* 1 millisecond. */
 };
 
 /*
@@ -1622,6 +1640,118 @@ static void dio200_subdev_8255_cleanup(struct comedi_device *dev,
 }
 
 /*
+ * Handle 'insn_read' for a timer subdevice.
+ */
+static int dio200_subdev_timer_read(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	unsigned int n;
+
+	for (n = 0; n < insn->n; n++)
+		data[n] = dio200_read32(dev, DIO200_TS_COUNT);
+	return n;
+}
+
+/*
+ * Reset timer subdevice.
+ */
+static void dio200_subdev_timer_reset(struct comedi_device *dev,
+				      struct comedi_subdevice *s)
+{
+	unsigned int clock;
+
+	clock = dio200_read32(dev, DIO200_TS_CONFIG) & TS_CONFIG_CLK_SRC_MASK;
+	dio200_write32(dev, DIO200_TS_CONFIG, clock | TS_CONFIG_RESET);
+	dio200_write32(dev, DIO200_TS_CONFIG, clock);
+}
+
+/*
+ * Get timer subdevice clock source and period.
+ */
+static void dio200_subdev_timer_get_clock_src(struct comedi_device *dev,
+					      struct comedi_subdevice *s,
+					      unsigned int *src,
+					      unsigned int *period)
+{
+	unsigned int clk;
+
+	clk = dio200_read32(dev, DIO200_TS_CONFIG) & TS_CONFIG_CLK_SRC_MASK;
+	*src = clk;
+	*period = (clk < ARRAY_SIZE(ts_clock_period)) ?
+		  ts_clock_period[clk] : 0;
+}
+
+/*
+ * Set timer subdevice clock source.
+ */
+static int dio200_subdev_timer_set_clock_src(struct comedi_device *dev,
+					     struct comedi_subdevice *s,
+					     unsigned int src)
+{
+	if (src > TS_CONFIG_MAX_CLK_SRC)
+		return -EINVAL;
+	dio200_write32(dev, DIO200_TS_CONFIG, src);
+	return 0;
+}
+
+/*
+ * Handle 'insn_config' for a timer subdevice.
+ */
+static int dio200_subdev_timer_config(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
+{
+	int ret = 0;
+
+	switch (data[0]) {
+	case INSN_CONFIG_RESET:
+		dio200_subdev_timer_reset(dev, s);
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		ret = dio200_subdev_timer_set_clock_src(dev, s, data[1]);
+		if (ret < 0)
+			ret = -EINVAL;
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		dio200_subdev_timer_get_clock_src(dev, s, &data[1], &data[2]);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret < 0 ? ret : insn->n;
+}
+
+/*
+ * This function initializes a timer subdevice.
+ *
+ * Uses the timestamp timer registers.  There is only one timestamp timer.
+ */
+static int dio200_subdev_timer_init(struct comedi_device *dev,
+				    struct comedi_subdevice *s)
+{
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
+	s->n_chan = 1;
+	s->maxdata = 0xFFFFFFFF;
+	s->insn_read = dio200_subdev_timer_read;
+	s->insn_config = dio200_subdev_timer_config;
+	return 0;
+}
+
+/*
+ * This function cleans up a timer subdevice.
+ */
+static void dio200_subdev_timer_cleanup(struct comedi_device *dev,
+					struct comedi_subdevice *s)
+{
+	/* Nothing to do. */
+}
+
+/*
  * This function does some special set-up for the PCIe boards
  * PCIe215, PCIe236, PCIe296.
  */
@@ -1735,7 +1865,15 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			}
 			break;
 		case sd_timer:
-			/* TODO.  Fall-thru to default for now. */
+			/* Only on PCIe boards. */
+			if (DO_PCI) {
+				ret = dio200_subdev_timer_init(dev, s);
+				if (ret < 0)
+					return ret;
+			} else {
+				s->type = COMEDI_SUBD_UNUSED;
+			}
+			break;
 		default:
 			s->type = COMEDI_SUBD_UNUSED;
 			break;
@@ -1896,6 +2034,11 @@ static void dio200_detach(struct comedi_device *dev)
 				break;
 			case sd_intr:
 				dio200_subdev_intr_cleanup(dev, s);
+				break;
+			case sd_timer:
+				/* Only on PCIe boards. */
+				if (DO_PCI)
+					dio200_subdev_timer_cleanup(dev, s);
 				break;
 			default:
 				break;
