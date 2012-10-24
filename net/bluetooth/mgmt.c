@@ -565,7 +565,7 @@ static int update_eir(struct hci_dev *hdev)
 	if (!hdev_is_powered(hdev))
 		return 0;
 
-	if (!(hdev->features[6] & LMP_EXT_INQ))
+	if (!lmp_ext_inq_capable(hdev))
 		return 0;
 
 	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
@@ -1225,7 +1225,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	val = !!cp->val;
-	enabled = !!(hdev->host_features[0] & LMP_HOST_LE);
+	enabled = !!lmp_host_le_capable(hdev);
 
 	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
@@ -1261,7 +1261,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (val) {
 		hci_cp.le = val;
-		hci_cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
+		hci_cp.simul = !!lmp_le_br_capable(hdev);
 	}
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
@@ -2923,7 +2923,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 			struct hci_cp_write_le_host_supported cp;
 
 			cp.le = 1;
-			cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
+			cp.simul = !!lmp_le_br_capable(hdev);
 
 			hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
 				     sizeof(cp), &cp);
@@ -3383,7 +3383,7 @@ static int clear_eir(struct hci_dev *hdev)
 {
 	struct hci_cp_write_eir cp;
 
-	if (!(hdev->features[6] & LMP_EXT_INQ))
+	if (!lmp_ext_inq_capable(hdev))
 		return 0;
 
 	memset(hdev->eir, 0, sizeof(hdev->eir));
