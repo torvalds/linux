@@ -1,0 +1,13 @@
+#
+# all auto modem control drivers configuration
+#
+
+menuconfig BP_AUTO
+	bool "auto modem control driver support"
+	default n	
+
+if BP_AUTO
+
+	source "drivers/misc/bp/chips/Kconfig"
+
+endif

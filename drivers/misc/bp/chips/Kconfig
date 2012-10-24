@@ -1,0 +1,7 @@
+config BP_AUTO_MT6229
+bool "modem mt6229"
+	default n
+ 
+config BP_AUTO_MU509
+bool "modem mu509"
+	default n
