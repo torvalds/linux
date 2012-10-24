@@ -469,6 +469,9 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 		wake_up(&pd->wait);
 	}
 
+	/* defeat write posting to avoid spurious WAIT interrupts */
+	iic_rd(pd, ICSR);
+
 	return IRQ_HANDLED;
 }
 
