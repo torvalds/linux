@@ -319,6 +319,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		nvm->ops.acquire = igb_acquire_nvm_i210;
 		nvm->ops.release = igb_release_nvm_i210;
 		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
 		nvm->ops.valid_led_default = igb_valid_led_default_i210;
 		break;
 	case e1000_i211:
