@@ -178,7 +178,7 @@ static int __devinit hvc_opal_probe(struct platform_device *dev)
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvc_opal_hvsi_ops;
 	} else {
-		pr_err("hvc_opal: Unkown protocol for %s\n",
+		pr_err("hvc_opal: Unknown protocol for %s\n",
 		       dev->dev.of_node->full_name);
 		return -ENXIO;
 	}
