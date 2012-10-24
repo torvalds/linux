@@ -481,7 +481,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	struct cb_pcidda_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase_8255;
-	int index;
+	int i;
 	int ret;
 
 	thisboard = cb_pcidda_find_boardinfo(dev, pcidev);
@@ -527,12 +527,12 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	subdev_8255_init(dev, s, NULL, iobase_8255 + PORT2A);
 
 	/* Read the caldac eeprom data */
-	for (index = 0; index < EEPROM_SIZE; index++)
-		devpriv->eeprom_data[index] = cb_pcidda_read_eeprom(dev, index);
+	for (i = 0; i < EEPROM_SIZE; i++)
+		devpriv->eeprom_data[i] = cb_pcidda_read_eeprom(dev, i);
 
 	/*  set calibrations dacs */
-	for (index = 0; index < thisboard->ao_chans; index++)
-		cb_pcidda_calibrate(dev, index, devpriv->ao_range[index]);
+	for (i = 0; i < thisboard->ao_chans; i++)
+		cb_pcidda_calibrate(dev, i, devpriv->ao_range[i]);
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
