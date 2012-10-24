@@ -296,7 +296,7 @@ __s32 Hdmi_exit(void)
 
 	if (HDMI_task) {
 		kthread_stop(HDMI_task);
-		HDMI_task = 0;
+		HDMI_task = NULL;
 	}
 
 	return 0;
