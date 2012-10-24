@@ -51,7 +51,7 @@
 
 extern void hdmi_delay_ms(__u32 t);
 
-extern void Hdmi_set_reg_base(__u32 base);
+extern void Hdmi_set_reg_base(void __iomem *base);
 extern __s32 Hdmi_hal_init(void);
 extern __s32 Hdmi_hal_exit(void);
 extern __s32 Hdmi_hal_video_enable(__bool enable);

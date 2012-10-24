@@ -269,7 +269,7 @@ __s32 Hdmi_init(void)
 	}
 	wake_up_process(HDMI_task);
 
-	Hdmi_set_reg_base((__u32) ghdmi.base_hdmi);
+	Hdmi_set_reg_base((void __iomem *) ghdmi.base_hdmi);
 	Hdmi_hal_init();
 
 	audio_func.hdmi_audio_enable = Hdmi_Audio_Enable;
