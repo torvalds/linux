@@ -4524,6 +4524,14 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 		   (adjusted_mode->crtc_vsync_start - 1) |
 		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
 
+	/* Workaround: when the EDP input selection is B, the VTOTAL_B must be
+	 * programmed with the VTOTAL_EDP value. Same for VTOTAL_C. This is
+	 * documented on the DDI_FUNC_CTL register description, EDP Input Select
+	 * bits. */
+	if (IS_HASWELL(dev) && cpu_transcoder == TRANSCODER_EDP &&
+	    (pipe == PIPE_B || pipe == PIPE_C))
+		I915_WRITE(VTOTAL(pipe), I915_READ(VTOTAL(cpu_transcoder)));
+
 	/* pipesrc controls the size that is scaled from, which should
 	 * always be the user's requested size.
 	 */
