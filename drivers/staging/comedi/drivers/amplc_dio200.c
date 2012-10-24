@@ -680,6 +680,38 @@ static void dio200_write8(struct comedi_device *dev, unsigned int offset,
 }
 
 /*
+ * Read 32-bit register.
+ */
+static unsigned int dio200_read32(struct comedi_device *dev,
+				  unsigned int offset)
+{
+	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
+
+	offset <<= thisboard->mainshift;
+	if (devpriv->io.regtype == io_regtype)
+		return inl(devpriv->io.u.iobase + offset);
+	else
+		return readl(devpriv->io.u.membase + offset);
+}
+
+/*
+ * Write 32-bit register.
+ */
+static void dio200_write32(struct comedi_device *dev, unsigned int offset,
+			   unsigned int val)
+{
+	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
+
+	offset <<= thisboard->mainshift;
+	if (devpriv->io.regtype == io_regtype)
+		outl(val, devpriv->io.u.iobase + offset);
+	else
+		writel(val, devpriv->io.u.membase + offset);
+}
+
+/*
  * This function looks for a board matching the supplied PCI device.
  */
 static const struct dio200_board *
