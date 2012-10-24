@@ -895,7 +895,7 @@ static int cfg80211_wext_siwtxpower(struct net_device *dev,
 		return 0;
 	}
 
-	return rdev_set_tx_power(rdev, type, DBM_TO_MBM(dbm));
+	return rdev_set_tx_power(rdev, wdev, type, DBM_TO_MBM(dbm));
 }
 
 static int cfg80211_wext_giwtxpower(struct net_device *dev,
@@ -914,7 +914,7 @@ static int cfg80211_wext_giwtxpower(struct net_device *dev,
 	if (!rdev->ops->get_tx_power)
 		return -EOPNOTSUPP;
 
-	err = rdev_get_tx_power(rdev, &val);
+	err = rdev_get_tx_power(rdev, wdev, &val);
 	if (err)
 		return err;
 

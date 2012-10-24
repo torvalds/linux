@@ -1992,6 +1992,7 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 static int ieee80211_set_tx_power(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
@@ -2026,7 +2027,9 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	return 0;
 }
 
-static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
+static int ieee80211_get_tx_power(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
+				  int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 

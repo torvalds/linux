@@ -324,6 +324,7 @@ mwifiex_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
  */
 static int
 mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
 			      enum nl80211_tx_power_setting type,
 			      int mbm)
 {

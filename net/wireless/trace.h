@@ -26,7 +26,7 @@
 #define WIPHY_PR_ARG MAC_PR_ARG(wiphy_mac)
 
 #define WDEV_ENTRY __field(u32, id)
-#define WDEV_ASSIGN (__entry->id) = (wdev->identifier)
+#define WDEV_ASSIGN (__entry->id) = (wdev ? wdev->identifier : 0)
 #define WDEV_PR_FMT ", wdev id: %u"
 #define WDEV_PR_ARG (__entry->id)
 
@@ -256,11 +256,6 @@ DEFINE_EVENT(wiphy_only_evt, rdev_get_ringparam,
 );
 
 DEFINE_EVENT(wiphy_only_evt, rdev_get_antenna,
-	TP_PROTO(struct wiphy *wiphy),
-	TP_ARGS(wiphy)
-);
-
-DEFINE_EVENT(wiphy_only_evt, rdev_get_tx_power,
 	TP_PROTO(struct wiphy *wiphy),
 	TP_ARGS(wiphy)
 );
@@ -1230,22 +1225,29 @@ TRACE_EVENT(rdev_set_wiphy_params,
 		  WIPHY_PR_ARG, __entry->changed)
 );
 
+DEFINE_EVENT(wiphy_wdev_evt, rdev_get_tx_power,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev)
+);
+
 TRACE_EVENT(rdev_set_tx_power,
-	TP_PROTO(struct wiphy *wiphy, enum nl80211_tx_power_setting type,
-		 int mbm),
-	TP_ARGS(wiphy, type, mbm),
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 enum nl80211_tx_power_setting type, int mbm),
+	TP_ARGS(wiphy, wdev, type, mbm),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
+		WDEV_ENTRY
 		__field(enum nl80211_tx_power_setting, type)
 		__field(int, mbm)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
 		__entry->type = type;
 		__entry->mbm = mbm;
 	),
-	TP_printk(WIPHY_PR_FMT ", type: %d, mbm: %d",
-		  WIPHY_PR_ARG, __entry->type, __entry->mbm)
+	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT ", type: %d, mbm: %d",
+		  WIPHY_PR_ARG, WDEV_PR_ARG,__entry->type, __entry->mbm)
 );
 
 TRACE_EVENT(rdev_return_int_int,
