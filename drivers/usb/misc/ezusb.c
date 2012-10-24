@@ -158,3 +158,4 @@ int ezusb_fx2_ihex_firmware_download(struct usb_device *dev,
 }
 EXPORT_SYMBOL_GPL(ezusb_fx2_ihex_firmware_download);
 
+MODULE_LICENSE("GPL");
