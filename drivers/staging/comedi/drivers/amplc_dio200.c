@@ -1270,13 +1270,15 @@ dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned int n;
 	unsigned long flags;
 
-	spin_lock_irqsave(&subpriv->spinlock, flags);
-	data[0] = dio200_subdev_8254_read_chan(dev, s, chan);
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
-
-	return 1;
+	for (n = 0; n < insn->n; n++) {
+		spin_lock_irqsave(&subpriv->spinlock, flags);
+		data[n] = dio200_subdev_8254_read_chan(dev, s, chan);
+		spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	}
+	return insn->n;
 }
 
 /*
@@ -1288,13 +1290,15 @@ dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned int n;
 	unsigned long flags;
 
-	spin_lock_irqsave(&subpriv->spinlock, flags);
-	dio200_subdev_8254_write_chan(dev, s, chan, data[0]);
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
-
-	return 1;
+	for (n = 0; n < insn->n; n++) {
+		spin_lock_irqsave(&subpriv->spinlock, flags);
+		dio200_subdev_8254_write_chan(dev, s, chan, data[n]);
+		spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	}
+	return insn->n;
 }
 
 /*
