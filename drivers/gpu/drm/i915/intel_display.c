@@ -3283,7 +3283,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 temp;
 	bool is_pch_port;
 
 	WARN_ON(!crtc->enabled);
@@ -3293,12 +3292,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		temp = I915_READ(PCH_LVDS);
-		if ((temp & LVDS_PORT_EN) == 0)
-			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
-	}
 
 	is_pch_port = intel_crtc_driving_pch(crtc);
 
@@ -3313,12 +3306,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
-	if (IS_HASWELL(dev))
-		intel_ddi_enable_pipe_clock(intel_crtc);
+	intel_ddi_enable_pipe_clock(intel_crtc);
 
-	/* Enable panel fitting for LVDS */
-	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
+	/* Enable panel fitting for eDP */
+	if (dev_priv->pch_pf_size && HAS_eDP) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -3334,10 +3325,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 */
 	intel_crtc_load_lut(crtc);
 
-	if (IS_HASWELL(dev)) {
-		intel_ddi_set_pipe_settings(crtc);
-		intel_ddi_enable_pipe_func(crtc);
-	}
+	intel_ddi_set_pipe_settings(crtc);
+	intel_ddi_enable_pipe_func(crtc);
 
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
@@ -3353,9 +3342,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
-
-	if (HAS_PCH_CPT(dev))
-		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
 
 	/*
 	 * There seems to be a race in PCH platform hw (at least on some
@@ -3456,8 +3442,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 reg, temp;
-
 
 	if (!intel_crtc->active)
 		return;
@@ -3476,15 +3460,13 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_disable_pipe(dev_priv, pipe);
 
-	if (IS_HASWELL(dev))
-		intel_ddi_disable_pipe_func(dev_priv, pipe);
+	intel_ddi_disable_pipe_func(dev_priv, pipe);
 
 	/* Disable PF */
 	I915_WRITE(PF_CTL(pipe), 0);
 	I915_WRITE(PF_WIN_SZ(pipe), 0);
 
-	if (IS_HASWELL(dev))
-		intel_ddi_disable_pipe_clock(intel_crtc);
+	intel_ddi_disable_pipe_clock(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
@@ -3493,33 +3475,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	ironlake_fdi_disable(crtc);
 
 	intel_disable_transcoder(dev_priv, pipe);
-
-	if (HAS_PCH_CPT(dev)) {
-		/* disable TRANS_DP_CTL */
-		reg = TRANS_DP_CTL(pipe);
-		temp = I915_READ(reg);
-		temp &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
-		temp |= TRANS_DP_PORT_SEL_NONE;
-		I915_WRITE(reg, temp);
-
-		/* disable DPLL_SEL */
-		temp = I915_READ(PCH_DPLL_SEL);
-		switch (pipe) {
-		case 0:
-			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
-			break;
-		case 1:
-			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-			break;
-		case 2:
-			/* C shares PLL A or B */
-			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
-			break;
-		default:
-			BUG(); /* wtf */
-		}
-		I915_WRITE(PCH_DPLL_SEL, temp);
-	}
 
 	/* disable PCH DPLL */
 	intel_disable_pch_pll(intel_crtc);
