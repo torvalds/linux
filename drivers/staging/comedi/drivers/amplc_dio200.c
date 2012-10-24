@@ -1259,8 +1259,6 @@ static int dio200_pci_common_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pci_dev->dev);
-
 	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
