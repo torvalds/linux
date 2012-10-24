@@ -199,7 +199,6 @@ machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
 plat-$(CONFIG_ARCH_MXC)		+= mxc
 plat-$(CONFIG_ARCH_OMAP)	+= omap
 plat-$(CONFIG_ARCH_S3C64XX)	+= samsung
-plat-$(CONFIG_ARCH_ZYNQ)	+= versatile
 plat-$(CONFIG_PLAT_IOP)		+= iop
 plat-$(CONFIG_PLAT_NOMADIK)	+= nomadik
 plat-$(CONFIG_PLAT_ORION)	+= orion
