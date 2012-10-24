@@ -425,7 +425,6 @@ struct dio200_subdev_8254 {
 	unsigned long clk_sce_iobase;	/* CLK_SCE base address */
 	unsigned long gat_sce_iobase;	/* GAT_SCE base address */
 	int which;		/* Bit 5 of CLK_SCE or GAT_SCE */
-	int has_clk_gat_sce;
 	unsigned clock_src[3];	/* Current clock sources */
 	unsigned gate_src[3];	/* Current gate sources */
 	spinlock_t spinlock;
@@ -970,10 +969,11 @@ dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 				unsigned int counter_number,
 				unsigned int gate_src)
 {
+	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
-	if (!subpriv->has_clk_gat_sce)
+	if (!layout->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -995,9 +995,10 @@ dio200_subdev_8254_get_gate_src(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int counter_number)
 {
+	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
 
-	if (!subpriv->has_clk_gat_sce)
+	if (!layout->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -1014,10 +1015,11 @@ dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 				 unsigned int counter_number,
 				 unsigned int clock_src)
 {
+	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
-	if (!subpriv->has_clk_gat_sce)
+	if (!layout->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -1040,10 +1042,11 @@ dio200_subdev_8254_get_clock_src(struct comedi_device *dev,
 				 unsigned int counter_number,
 				 unsigned int *period_ns)
 {
+	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_8254 *subpriv = s->private;
 	unsigned clock_src;
 
-	if (!subpriv->has_clk_gat_sce)
+	if (!layout->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
 		return -1;
@@ -1117,9 +1120,9 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int
 dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned long iobase, unsigned offset,
-			int has_clk_gat_sce)
+			unsigned long iobase, unsigned offset)
 {
+	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
@@ -1140,8 +1143,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	spin_lock_init(&subpriv->spinlock);
 	subpriv->iobase = offset + iobase;
-	subpriv->has_clk_gat_sce = has_clk_gat_sce;
-	if (has_clk_gat_sce) {
+	if (layout->has_clk_gat_sce) {
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
 		subpriv->clk_sce_iobase =
@@ -1155,7 +1157,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (chan = 0; chan < 3; chan++) {
 		i8254_set_mode(subpriv->iobase, 0, chan,
 			       I8254_MODE0 | I8254_BINARY);
-		if (subpriv->has_clk_gat_sce) {
+		if (layout->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */
 			dio200_subdev_8254_set_gate_src(dev, s, chan, 0);
 			/* Clock source 0 is the dedicated clock input. */
@@ -1227,8 +1229,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 		case sd_8254:
 			/* counter subdevice (8254) */
 			ret = dio200_subdev_8254_init(dev, s, iobase,
-						      layout->sdinfo[n],
-						      layout->has_clk_gat_sce);
+						      layout->sdinfo[n]);
 			if (ret < 0)
 				return ret;
 			break;
