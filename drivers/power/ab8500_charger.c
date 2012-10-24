@@ -3184,14 +3184,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		goto out;
 	}
 
-	/* Set charger watchdog timeout */
-	ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
-		AB8500_CH_WD_TIMER_REG, WD_TIMER);
-	if (ret) {
-		dev_err(di->dev, "failed to set charger watchdog timeout\n");
-		goto out;
-	}
-
 	ret = ab8500_charger_led_en(di, false);
 	if (ret < 0) {
 		dev_err(di->dev, "failed to disable LED\n");
