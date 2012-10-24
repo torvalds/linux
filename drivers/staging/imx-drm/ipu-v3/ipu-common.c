@@ -1000,8 +1000,6 @@ static int __devinit ipu_probe(struct platform_device *pdev)
 
 	devtype = of_id->data;
 
-	dev_info(&pdev->dev, "Initializing %s\n", devtype->name);
-
 	irq_sync = platform_get_irq(pdev, 0);
 	irq_err = platform_get_irq(pdev, 1);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1097,6 +1095,8 @@ static int __devinit ipu_probe(struct platform_device *pdev)
 				ret);
 		goto failed_add_clients;
 	}
+
+	dev_info(&pdev->dev, "%s probed\n", devtype->name);
 
 	return 0;
 
