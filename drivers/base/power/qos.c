@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/export.h>
+#include <linux/pm_runtime.h>
 
 #include "power.h"
 
@@ -322,6 +323,37 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_request);
 
 /**
+ * __dev_pm_qos_update_request - Modify an existing device PM QoS request.
+ * @req : PM QoS request to modify.
+ * @new_value: New value to request.
+ */
+static int __dev_pm_qos_update_request(struct dev_pm_qos_request *req,
+				       s32 new_value)
+{
+	s32 curr_value;
+	int ret = 0;
+
+	if (!req->dev->power.qos)
+		return -ENODEV;
+
+	switch(req->type) {
+	case DEV_PM_QOS_LATENCY:
+		curr_value = req->data.pnode.prio;
+		break;
+	case DEV_PM_QOS_FLAGS:
+		curr_value = req->data.flr.flags;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (curr_value != new_value)
+		ret = apply_constraint(req, PM_QOS_UPDATE_REQ, new_value);
+
+	return ret;
+}
+
+/**
  * dev_pm_qos_update_request - modifies an existing qos request
  * @req : handle to list element holding a dev_pm_qos request to use
  * @new_value: defines the qos request
@@ -336,11 +368,9 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_add_request);
  * -EINVAL in case of wrong parameters, -ENODEV if the device has been
  * removed from the system
  */
-int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
-			      s32 new_value)
+int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value)
 {
-	s32 curr_value;
-	int ret = 0;
+	int ret;
 
 	if (!req) /*guard against callers passing in null */
 		return -EINVAL;
@@ -350,29 +380,9 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 		return -EINVAL;
 
 	mutex_lock(&dev_pm_qos_mtx);
-
-	if (!req->dev->power.qos) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	switch(req->type) {
-	case DEV_PM_QOS_LATENCY:
-		curr_value = req->data.pnode.prio;
-		break;
-	case DEV_PM_QOS_FLAGS:
-		curr_value = req->data.flr.flags;
-		break;
-	default:
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (curr_value != new_value)
-		ret = apply_constraint(req, PM_QOS_UPDATE_REQ, new_value);
-
- out:
+	__dev_pm_qos_update_request(req, new_value);
 	mutex_unlock(&dev_pm_qos_mtx);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_update_request);
@@ -533,10 +543,19 @@ int dev_pm_qos_add_ancestor_request(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
 
 #ifdef CONFIG_PM_RUNTIME
-static void __dev_pm_qos_drop_user_request(struct device *dev)
+static void __dev_pm_qos_drop_user_request(struct device *dev,
+					   enum dev_pm_qos_req_type type)
 {
-	dev_pm_qos_remove_request(dev->power.pq_req);
-	dev->power.pq_req = NULL;
+	switch(type) {
+	case DEV_PM_QOS_LATENCY:
+		dev_pm_qos_remove_request(dev->power.qos->latency_req);
+		dev->power.qos->latency_req = NULL;
+		break;
+	case DEV_PM_QOS_FLAGS:
+		dev_pm_qos_remove_request(dev->power.qos->flags_req);
+		dev->power.qos->flags_req = NULL;
+		break;
+	}
 }
 
 /**
@@ -552,7 +571,7 @@ int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value)
 	if (!device_is_registered(dev) || value < 0)
 		return -EINVAL;
 
-	if (dev->power.pq_req)
+	if (dev->power.qos && dev->power.qos->latency_req)
 		return -EEXIST;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -563,10 +582,10 @@ int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value)
 	if (ret < 0)
 		return ret;
 
-	dev->power.pq_req = req;
-	ret = pm_qos_sysfs_add(dev);
+	dev->power.qos->latency_req = req;
+	ret = pm_qos_sysfs_add_latency(dev);
 	if (ret)
-		__dev_pm_qos_drop_user_request(dev);
+		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_LATENCY);
 
 	return ret;
 }
@@ -578,10 +597,87 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_expose_latency_limit);
  */
 void dev_pm_qos_hide_latency_limit(struct device *dev)
 {
-	if (dev->power.pq_req) {
-		pm_qos_sysfs_remove(dev);
-		__dev_pm_qos_drop_user_request(dev);
+	if (dev->power.qos && dev->power.qos->latency_req) {
+		pm_qos_sysfs_remove_latency(dev);
+		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_LATENCY);
 	}
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_hide_latency_limit);
+
+/**
+ * dev_pm_qos_expose_flags - Expose PM QoS flags of a device to user space.
+ * @dev: Device whose PM QoS flags are to be exposed to user space.
+ * @val: Initial values of the flags.
+ */
+int dev_pm_qos_expose_flags(struct device *dev, s32 val)
+{
+	struct dev_pm_qos_request *req;
+	int ret;
+
+	if (!device_is_registered(dev))
+		return -EINVAL;
+
+	if (dev->power.qos && dev->power.qos->flags_req)
+		return -EEXIST;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	ret = dev_pm_qos_add_request(dev, req, DEV_PM_QOS_FLAGS, val);
+	if (ret < 0)
+		return ret;
+
+	dev->power.qos->flags_req = req;
+	ret = pm_qos_sysfs_add_flags(dev);
+	if (ret)
+		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_FLAGS);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_expose_flags);
+
+/**
+ * dev_pm_qos_hide_flags - Hide PM QoS flags of a device from user space.
+ * @dev: Device whose PM QoS flags are to be hidden from user space.
+ */
+void dev_pm_qos_hide_flags(struct device *dev)
+{
+	if (dev->power.qos && dev->power.qos->flags_req) {
+		pm_qos_sysfs_remove_flags(dev);
+		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_FLAGS);
+	}
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_hide_flags);
+
+/**
+ * dev_pm_qos_update_flags - Update PM QoS flags request owned by user space.
+ * @dev: Device to update the PM QoS flags request for.
+ * @mask: Flags to set/clear.
+ * @set: Whether to set or clear the flags (true means set).
+ */
+int dev_pm_qos_update_flags(struct device *dev, s32 mask, bool set)
+{
+	s32 value;
+	int ret;
+
+	if (!dev->power.qos || !dev->power.qos->flags_req)
+		return -EINVAL;
+
+	pm_runtime_get_sync(dev);
+	mutex_lock(&dev_pm_qos_mtx);
+
+	value = dev_pm_qos_requested_flags(dev);
+	if (set)
+		value |= mask;
+	else
+		value &= ~mask;
+
+	ret = __dev_pm_qos_update_request(dev->power.qos->flags_req, value);
+
+	mutex_unlock(&dev_pm_qos_mtx);
+	pm_runtime_put(dev);
+
+	return ret;
+}
 #endif /* CONFIG_PM_RUNTIME */
