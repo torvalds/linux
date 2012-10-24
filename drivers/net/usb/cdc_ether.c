@@ -592,6 +592,32 @@ static const struct usb_device_id	products [] = {
 	.driver_info		= 0,
 },
 
+/* Novatel USB551L and MC551 - handled by qmi_wwan */
+{
+	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
+		 | USB_DEVICE_ID_MATCH_PRODUCT
+		 | USB_DEVICE_ID_MATCH_INT_INFO,
+	.idVendor               = NOVATEL_VENDOR_ID,
+	.idProduct		= 0xB001,
+	.bInterfaceClass	= USB_CLASS_COMM,
+	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
+	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	.driver_info = 0,
+},
+
+/* Novatel E362 - handled by qmi_wwan */
+{
+	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
+		 | USB_DEVICE_ID_MATCH_PRODUCT
+		 | USB_DEVICE_ID_MATCH_INT_INFO,
+	.idVendor               = NOVATEL_VENDOR_ID,
+	.idProduct		= 0x9010,
+	.bInterfaceClass	= USB_CLASS_COMM,
+	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
+	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	.driver_info = 0,
+},
+
 /*
  * WHITELIST!!!
  *
@@ -604,21 +630,6 @@ static const struct usb_device_id	products [] = {
  * because of bugs/quirks in a given product (like Zaurus, above).
  */
 {
-	/* Novatel USB551L */
-	/* This match must come *before* the generic CDC-ETHER match so that
-	 * we get FLAG_WWAN set on the device, since it's descriptors are
-	 * generic CDC-ETHER.
-	 */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = NOVATEL_VENDOR_ID,
-	.idProduct		= 0xB001,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
-	.driver_info = (unsigned long)&wwan_info,
-}, {
 	/* ZTE (Vodafone) K3805-Z */
 	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
 		 | USB_DEVICE_ID_MATCH_PRODUCT
