@@ -478,6 +478,16 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		}
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
+		/* Workaround hardware that can't do proper VEPA multicast
+		 * source pruning.
+		 */
+		if ((skb->pkt_type & (PACKET_BROADCAST | PACKET_MULTICAST)) &&
+		    !(compare_ether_addr(adapter->netdev->dev_addr,
+					eth_hdr(skb)->h_source))) {
+			dev_kfree_skb_irq(skb);
+			goto next_desc;
+		}
+
 		ixgbevf_receive_skb(q_vector, skb, staterr, rx_desc);
 
 next_desc:
