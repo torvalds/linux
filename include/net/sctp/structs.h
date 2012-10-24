@@ -177,6 +177,7 @@ struct sctp_sock {
 
 	/* Access to HMAC transform. */
 	struct crypto_hash *hmac;
+	char *sctp_hmac_alg;
 
 	/* What is our base endpointer? */
 	struct sctp_endpoint *ep;
