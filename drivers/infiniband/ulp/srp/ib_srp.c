@@ -1661,10 +1661,6 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -1;
-
 	init_completion(&target->tsk_mgmt_done);
 
 	spin_lock_irq(&target->lock);
