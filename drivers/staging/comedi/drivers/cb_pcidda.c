@@ -1,50 +1,45 @@
 /*
-    comedi/drivers/cb_pcidda.c
-    This intends to be a driver for the ComputerBoards / MeasurementComputing
-    PCI-DDA series.
+ * comedi/drivers/cb_pcidda.c
+ * Driver for the ComputerBoards / MeasurementComputing PCI-DDA series.
+ *
+ * Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
+ * Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-	 Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
-    Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-*/
 /*
-Driver: cb_pcidda
-Description: MeasurementComputing PCI-DDA series
-Author: Ivan Martinez <ivanmr@altavista.com>, Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: Supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12
-Devices: [Measurement Computing] PCI-DDA08/12 (cb_pcidda), PCI-DDA04/12,
-  PCI-DDA02/12, PCI-DDA08/16, PCI-DDA04/16, PCI-DDA02/16
-
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first available PCI
-  device will be used.
-
-Only simple analog output writing is supported.
-
-So far it has only been tested with:
-  - PCI-DDA08/12
-Please report success/failure with other different cards to
-<comedi@comedi.org>.
-*/
+ * Driver: cb_pcidda
+ * Description: MeasurementComputing PCI-DDA series
+ * Devices: (Measurement Computing) PCI-DDA08/12 [pci-dda08/12]
+ *	    (Measurement Computing) PCI-DDA04/12 [pci-dda04/12]
+ *	    (Measurement Computing) PCI-DDA02/12 [pci-dda02/12]
+ *	    (Measurement Computing) PCI-DDA08/16 [pci-dda08/16]
+ *	    (Measurement Computing) PCI-DDA04/16 [pci-dda04/16]
+ *	    (Measurement Computing) PCI-DDA02/16 [pci-dda02/16]
+ * Author: Ivan Martinez <ivanmr@altavista.com>
+ *	   Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Status: works
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * Only simple analog output writing is supported.
+ */
 
 #include "../comedidev.h"
 
