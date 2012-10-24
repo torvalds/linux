@@ -125,11 +125,6 @@ static const struct comedi_lrange cb_pcidda_ranges = {
 	}
 };
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct cb_pcidda_board {
 	const char *name;
 	unsigned short device_id;
@@ -139,41 +134,36 @@ struct cb_pcidda_board {
 
 static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
-	 .name = "pci-dda02/12",
-	 .device_id = PCI_DEVICE_ID_DDA02_12,
-	 .ao_chans = 2,
-	 .ao_bits = 12,
-	 },
-	{
-	 .name = "pci-dda04/12",
-	 .device_id = PCI_DEVICE_ID_DDA04_12,
-	 .ao_chans = 4,
-	 .ao_bits = 12,
-	 },
-	{
-	 .name = "pci-dda08/12",
-	 .device_id = PCI_DEVICE_ID_DDA08_12,
-	 .ao_chans = 8,
-	 .ao_bits = 12,
-	 },
-	{
-	 .name = "pci-dda02/16",
-	 .device_id = PCI_DEVICE_ID_DDA02_16,
-	 .ao_chans = 2,
-	 .ao_bits = 16,
-	 },
-	{
-	 .name = "pci-dda04/16",
-	 .device_id = PCI_DEVICE_ID_DDA04_16,
-	 .ao_chans = 4,
-	 .ao_bits = 16,
-	 },
-	{
-	 .name = "pci-dda08/16",
-	 .device_id = PCI_DEVICE_ID_DDA08_16,
-	 .ao_chans = 8,
-	 .ao_bits = 16,
-	 },
+		.name		= "pci-dda02/12",
+		.device_id	= PCI_DEVICE_ID_DDA02_12,
+		.ao_chans	= 2,
+		.ao_bits	= 12,
+	}, {
+		.name		= "pci-dda04/12",
+		.device_id	= PCI_DEVICE_ID_DDA04_12,
+		.ao_chans	= 4,
+		.ao_bits	= 12,
+	}, {
+		.name		= "pci-dda08/12",
+		.device_id	= PCI_DEVICE_ID_DDA08_12,
+		.ao_chans	= 8,
+		.ao_bits	= 12,
+	}, {
+		.name		= "pci-dda02/16",
+		.device_id	= PCI_DEVICE_ID_DDA02_16,
+		.ao_chans	= 2,
+		.ao_bits	= 16,
+	}, {
+		.name		= "pci-dda04/16",
+		.device_id	= PCI_DEVICE_ID_DDA04_16,
+		.ao_chans	= 4,
+		.ao_bits	= 16,
+	}, {
+		.name		= "pci-dda08/16",
+		.device_id	= PCI_DEVICE_ID_DDA08_16,
+		.ao_chans	= 8,
+		.ao_bits	= 16,
+	},
 };
 
 struct cb_pcidda_private {
