@@ -351,7 +351,7 @@ enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254 };
 #define DIO200_MAX_SUBDEVS	7
 #define DIO200_MAX_ISNS		6
 
-struct dio200_layout_struct {
+struct dio200_layout {
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
@@ -359,7 +359,7 @@ struct dio200_layout_struct {
 	char has_clk_gat_sce;	/* has clock/gate selection registers */
 };
 
-static const struct dio200_layout_struct dio200_layouts[] = {
+static const struct dio200_layout dio200_layouts[] = {
 #if DO_ISA
 	[pc212_layout] = {
 			  .n_subdevs = 6,
@@ -1195,8 +1195,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
-	const struct dio200_layout_struct *layout =
-		&dio200_layouts[thisboard->layout];
+	const struct dio200_layout *layout = &dio200_layouts[thisboard->layout];
 	struct comedi_subdevice *s;
 	int sdx;
 	unsigned int n;
@@ -1348,7 +1347,7 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 static void dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	const struct dio200_layout_struct *layout;
+	const struct dio200_layout *layout;
 	unsigned n;
 
 	if (dev->irq)
