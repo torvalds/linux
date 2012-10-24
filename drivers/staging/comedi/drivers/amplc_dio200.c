@@ -309,6 +309,7 @@ struct dio200_board {
 	enum dio200_model model;
 	enum dio200_layout_idx layout;
 	unsigned char mainbar;
+	unsigned int mainsize;
 };
 
 static const struct dio200_board dio200_boards[] = {
@@ -318,30 +319,35 @@ static const struct dio200_board dio200_boards[] = {
 	 .bustype = isa_bustype,
 	 .model = pc212e_model,
 	 .layout = pc212_layout,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 	{
 	 .name = "pc214e",
 	 .bustype = isa_bustype,
 	 .model = pc214e_model,
 	 .layout = pc214_layout,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 	{
 	 .name = "pc215e",
 	 .bustype = isa_bustype,
 	 .model = pc215e_model,
 	 .layout = pc215_layout,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 	{
 	 .name = "pc218e",
 	 .bustype = isa_bustype,
 	 .model = pc218e_model,
 	 .layout = pc218_layout,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 	{
 	 .name = "pc272e",
 	 .bustype = isa_bustype,
 	 .model = pc272e_model,
 	 .layout = pc272_layout,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 #endif
 #if DO_PCI
@@ -352,6 +358,7 @@ static const struct dio200_board dio200_boards[] = {
 	 .model = pci215_model,
 	 .layout = pc215_layout,
 	 .mainbar = 2,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 	{
 	 .name = "pci272",
@@ -360,6 +367,7 @@ static const struct dio200_board dio200_boards[] = {
 	 .model = pci272_model,
 	 .layout = pc272_layout,
 	 .mainbar = 2,
+	 .mainsize = DIO200_IO_SIZE,
 	 },
 #endif
 };
@@ -1550,7 +1558,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		iobase = it->options[0];
 		irq = it->options[1];
-		ret = dio200_request_region(dev, iobase, DIO200_IO_SIZE);
+		ret = dio200_request_region(dev, iobase, thisboard->mainsize);
 		if (ret < 0)
 			return ret;
 		devpriv->io.u.iobase = iobase;
@@ -1578,7 +1586,7 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 {
 	const struct dio200_board *thisboard;
 	struct dio200_private *devpriv;
-	resource_size_t base;
+	resource_size_t base, len;
 	unsigned int bar;
 	int ret;
 
@@ -1607,8 +1615,12 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 	}
 	bar = thisboard->mainbar;
 	base = pci_resource_start(pci_dev, bar);
+	len = pci_resource_len(pci_dev, bar);
+	if (len < thisboard->mainsize) {
+		dev_err(dev->class_dev, "error! PCI region size too small!\n");
+		return -EINVAL;
+	}
 	if ((pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) != 0) {
-		resource_size_t len = pci_resource_len(pci_dev, bar);
 		devpriv->io.u.membase = ioremap_nocache(base, len);
 		if (!devpriv->io.u.membase) {
 			dev_err(dev->class_dev,
@@ -1655,7 +1667,8 @@ static void dio200_detach(struct comedi_device *dev)
 	}
 	if (is_isa_board(thisboard)) {
 		if (devpriv->io.regtype == io_regtype)
-			release_region(devpriv->io.u.iobase, DIO200_IO_SIZE);
+			release_region(devpriv->io.u.iobase,
+				       thisboard->mainsize);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 		if (pcidev) {
