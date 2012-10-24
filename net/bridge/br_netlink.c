@@ -166,8 +166,6 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	br_port_state_selection(p->br);
 	spin_unlock_bh(&p->br->lock);
 
-	br_ifinfo_notify(RTM_NEWLINK, p);
-
 	return 0;
 }
 

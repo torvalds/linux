@@ -97,5 +97,23 @@ struct __fdb_entry {
 	__u16 unused;
 };
 
+/* Bridge Flags */
+#define BRIDGE_FLAGS_MASTER	1	/* Bridge command to/from master */
+#define BRIDGE_FLAGS_SELF	2	/* Bridge command to/from lowerdev */
 
+#define BRIDGE_MODE_VEB		0	/* Default loopback mode */
+#define BRIDGE_MODE_VEPA	1	/* 802.1Qbg defined VEPA mode */
+
+/* Bridge management nested attributes
+ * [IFLA_AF_SPEC] = {
+ *     [IFLA_BRIDGE_FLAGS]
+ *     [IFLA_BRIDGE_MODE]
+ * }
+ */
+enum {
+	IFLA_BRIDGE_FLAGS,
+	IFLA_BRIDGE_MODE,
+	__IFLA_BRIDGE_MAX,
+};
+#define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */
