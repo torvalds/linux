@@ -1339,13 +1339,6 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	/*
-	 * Need to 'get' the PCI device to match the 'put' in dio200_detach().
-	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
-	 * support for manual attachment of PCI devices via dio200_attach()
-	 * has been removed.
-	 */
-	pci_dev_get(pci_dev);
 	return dio200_pci_common_attach(dev, pci_dev);
 }
 
@@ -1384,7 +1377,6 @@ static void dio200_detach(struct comedi_device *dev)
 		if (pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(pcidev);
-			pci_dev_put(pcidev);
 		}
 	}
 }
