@@ -25,7 +25,7 @@
 #include "hdmi_hal.h"
 #include "hdmi_interface.h"
 
-extern volatile __u32 HDMI_BASE;
+extern void __iomem *HDMI_BASE;
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)
 #define HDMI_RUINT32(offset)		readl(HDMI_BASE + offset)

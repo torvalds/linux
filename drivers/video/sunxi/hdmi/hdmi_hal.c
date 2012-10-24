@@ -23,9 +23,9 @@
 #include "hdmi_interface.h"
 #include "hdmi_core.h"
 
-volatile __u32 HDMI_BASE;
+void __iomem *HDMI_BASE;
 
-void Hdmi_set_reg_base(__u32 base)
+void Hdmi_set_reg_base(void __iomem *base)
 {
 	HDMI_BASE = base;
 }
