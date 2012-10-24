@@ -657,7 +657,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	int ret;
 
 	thisboard = cb_pcidda_find_boardinfo(dev, pcidev);
-	if (!pcidev)
+	if (!thisboard)
 		return -ENODEV;
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
