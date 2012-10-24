@@ -269,6 +269,9 @@
 #define DIO200_YGAT_SCE		0x1c	/* Group Y gate selection register */
 #define DIO200_ZGAT_SCE		0x1d	/* Group Z gate selection register */
 #define DIO200_INT_SCE		0x1e	/* Interrupt enable/status register */
+/* Extra registers for new PCIe boards */
+#define DIO200_ENHANCE		0x20	/* 1 to enable enhanced features */
+#define DIO200_VERSION		0x24	/* Hardware version register */
 
 /*
  * Macros for constructing value for DIO_200_?CLK_SCE and
@@ -457,6 +460,7 @@ struct dio200_layout {
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
 	char has_int_sce;	/* has interrupt enable/status register */
 	char has_clk_gat_sce;	/* has clock/gate selection registers */
+	char has_enhancements;	/* has enhanced features */
 };
 
 static const struct dio200_layout dio200_layouts[] = {
@@ -519,6 +523,7 @@ static const struct dio200_layout dio200_layouts[] = {
 				     0x10, 0x14, 0x00, 0x3F},
 			  .has_int_sce = 1,
 			  .has_clk_gat_sce = 1,
+			  .has_enhancements = 1,
 			  },
 	[pcie236_layout] = {
 			  .n_subdevs = 8,
@@ -528,6 +533,7 @@ static const struct dio200_layout dio200_layouts[] = {
 				     0x10, 0x14, 0x00, 0x3F},
 			  .has_int_sce = 1,
 			  .has_clk_gat_sce = 1,
+			  .has_enhancements = 1,
 			  },
 	[pcie296_layout] = {
 			  .n_subdevs = 8,
@@ -537,6 +543,7 @@ static const struct dio200_layout dio200_layouts[] = {
 				     0x10, 0x14, 0x00, 0x3F},
 			  .has_int_sce = 1,
 			  .has_clk_gat_sce = 1,
+			  .has_enhancements = 1,
 			  },
 #endif
 };
@@ -1571,6 +1578,8 @@ static int dio200_pcie_board_setup(struct comedi_device *dev)
 	}
 	writel(0x80, brbase + 0x50);
 	iounmap(brbase);
+	/* Enable "enhanced" features of board. */
+	dio200_write8(dev, DIO200_ENHANCE, 1);
 	return 0;
 }
 
