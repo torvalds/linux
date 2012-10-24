@@ -32,7 +32,6 @@
 				     <60>, /* RX interrupt */
 				     <61>; /* RX overflow interrupt */
 			interrupt-names = "common", "tx", "rx", "rx_overflow";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
 		};
@@ -45,7 +44,6 @@
 				     <62>, /* TX interrupt */
 				     <63>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp2";
 		};
@@ -58,7 +56,6 @@
 				     <89>, /* TX interrupt */
 				     <90>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3";
 		};
@@ -71,7 +68,6 @@
 				     <54>, /* TX interrupt */
 				     <55>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
 		};
@@ -84,7 +80,6 @@
 				     <81>, /* TX interrupt */
 				     <82>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
 		};

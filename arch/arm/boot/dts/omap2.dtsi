@@ -12,6 +12,7 @@
 
 / {
 	compatible = "ti,omap2430", "ti,omap2420", "ti,omap2";
+	interrupt-parent = <&intc>;
 
 	aliases {
 		serial0 = &uart1;

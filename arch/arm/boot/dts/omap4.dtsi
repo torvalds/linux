@@ -340,7 +340,6 @@
 			      <0x49032000 0x7f>; /* L3 Interconnect */
 			reg-names = "mpu", "dma";
 			interrupts = <0 112 0x4>;
-			interrupt-parent = <&gic>;
 			ti,hwmods = "mcpdm";
 		};
 
@@ -350,7 +349,6 @@
 			      <0x4902e000 0x7f>; /* L3 Interconnect */
 			reg-names = "mpu", "dma";
 			interrupts = <0 114 0x4>;
-			interrupt-parent = <&gic>;
 			ti,hwmods = "dmic";
 		};
 
@@ -361,7 +359,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 17 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
 		};
@@ -373,7 +370,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 22 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp2";
 		};
@@ -385,7 +381,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 23 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3";
 		};
@@ -396,7 +391,6 @@
 			reg-names = "mpu";
 			interrupts = <0 16 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
 		};

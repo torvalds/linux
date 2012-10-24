@@ -12,6 +12,7 @@
 
 / {
 	compatible = "ti,am33xx";
+	interrupt-parent = <&intc>;
 
 	aliases {
 		serial0 = &uart1;
@@ -94,7 +95,6 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x44e07000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <96>;
 		};
 
@@ -106,7 +106,6 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x4804c000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <98>;
 		};
 
@@ -118,7 +117,6 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x481ac000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <32>;
 		};
 
@@ -130,7 +128,6 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x481ae000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <62>;
 		};
 
@@ -139,7 +136,6 @@
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 			reg = <0x44e09000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <72>;
 			status = "disabled";
 		};
@@ -149,7 +145,6 @@
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 			reg = <0x48022000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <73>;
 			status = "disabled";
 		};
@@ -159,7 +154,6 @@
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 			reg = <0x48024000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <74>;
 			status = "disabled";
 		};
@@ -169,7 +163,6 @@
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
 			reg = <0x481a6000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <44>;
 			status = "disabled";
 		};
@@ -179,7 +172,6 @@
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
 			reg = <0x481a8000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <45>;
 			status = "disabled";
 		};
@@ -189,7 +181,6 @@
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
 			reg = <0x481aa000 0x2000>;
-			interrupt-parent = <&intc>;
 			interrupts = <46>;
 			status = "disabled";
 		};
@@ -200,7 +191,6 @@
 			#size-cells = <0>;
 			ti,hwmods = "i2c1";
 			reg = <0x44e0b000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <70>;
 			status = "disabled";
 		};
@@ -211,7 +201,6 @@
 			#size-cells = <0>;
 			ti,hwmods = "i2c2";
 			reg = <0x4802a000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <71>;
 			status = "disabled";
 		};
@@ -222,7 +211,6 @@
 			#size-cells = <0>;
 			ti,hwmods = "i2c3";
 			reg = <0x4819c000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <30>;
 			status = "disabled";
 		};
@@ -231,7 +219,6 @@
 			compatible = "ti,omap3-wdt";
 			ti,hwmods = "wd_timer2";
 			reg = <0x44e35000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <91>;
 		};
 
@@ -240,7 +227,6 @@
 			ti,hwmods = "d_can0";
 			reg = <0x481cc000 0x2000>;
 			interrupts = <52>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 
@@ -249,7 +235,6 @@
 			ti,hwmods = "d_can1";
 			reg = <0x481d0000 0x2000>;
 			interrupts = <55>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 	};

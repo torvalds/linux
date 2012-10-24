@@ -12,6 +12,7 @@
 
 / {
 	compatible = "ti,omap3430", "ti,omap3";
+	interrupt-parent = <&intc>;
 
 	aliases {
 		serial0 = &uart1;
@@ -240,7 +241,6 @@
 				     <59>, /* TX interrupt */
 				     <60>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
 		};
@@ -255,7 +255,6 @@
 				     <63>, /* RX interrupt */
 				     <4>;  /* Sidetone */
 			interrupt-names = "common", "tx", "rx", "sidetone";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <1280>;
 			ti,hwmods = "mcbsp2", "mcbsp2_sidetone";
 		};
@@ -270,7 +269,6 @@
 				     <90>, /* RX interrupt */
 				     <5>;  /* Sidetone */
 			interrupt-names = "common", "tx", "rx", "sidetone";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3", "mcbsp3_sidetone";
 		};
@@ -283,7 +281,6 @@
 				     <54>, /* TX interrupt */
 				     <55>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
 		};
@@ -296,7 +293,6 @@
 				     <81>, /* TX interrupt */
 				     <82>; /* RX interrupt */
 			interrupt-names = "common", "tx", "rx";
-			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
 		};
