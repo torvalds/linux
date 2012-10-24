@@ -2926,8 +2926,14 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 			cp.le = 1;
 			cp.simul = !!lmp_le_br_capable(hdev);
 
-			hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
-				     sizeof(cp), &cp);
+			/* Check first if we already have the right
+			 * host state (host features set)
+			 */
+			if (cp.le != !!lmp_host_le_capable(hdev) ||
+			    cp.simul != !!lmp_host_le_br_capable(hdev))
+				hci_send_cmd(hdev,
+					     HCI_OP_WRITE_LE_HOST_SUPPORTED,
+					     sizeof(cp), &cp);
 		}
 
 		if (lmp_bredr_capable(hdev)) {
