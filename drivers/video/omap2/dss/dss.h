@@ -179,19 +179,6 @@ void dss_put_device(struct omap_dss_device *dssdev);
 void dss_copy_device_pdata(struct omap_dss_device *dst,
 		const struct omap_dss_device *src);
 
-/* apply */
-void dss_mgr_start_update(struct omap_overlay_manager *mgr);
-int dss_mgr_enable(struct omap_overlay_manager *mgr);
-void dss_mgr_disable(struct omap_overlay_manager *mgr);
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
-		const struct omap_video_timings *timings);
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
-		const struct dss_lcd_mgr_config *config);
-int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
-		void (*handler)(void *), void *data);
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
-		void (*handler)(void *), void *data);
-
 /* output */
 void dss_register_output(struct omap_dss_output *out);
 void dss_unregister_output(struct omap_dss_output *out);
@@ -528,22 +515,5 @@ static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
 	}
 }
 #endif
-
-struct dss_mgr_ops {
-	void (*start_update)(struct omap_overlay_manager *mgr);
-	int (*enable)(struct omap_overlay_manager *mgr);
-	void (*disable)(struct omap_overlay_manager *mgr);
-	void (*set_timings)(struct omap_overlay_manager *mgr,
-			const struct omap_video_timings *timings);
-	void (*set_lcd_config)(struct omap_overlay_manager *mgr,
-			const struct dss_lcd_mgr_config *config);
-	int (*register_framedone_handler)(struct omap_overlay_manager *mgr,
-			void (*handler)(void *), void *data);
-	void (*unregister_framedone_handler)(struct omap_overlay_manager *mgr,
-			void (*handler)(void *), void *data);
-};
-
-int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
-void dss_uninstall_mgr_ops(void);
 
 #endif
