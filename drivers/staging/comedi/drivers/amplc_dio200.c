@@ -265,6 +265,18 @@ static const unsigned clock_period[8] = {
 };
 
 /*
+ * Register region.
+ */
+enum dio200_regtype { no_regtype = 0, io_regtype, mmio_regtype };
+struct dio200_region {
+	union {
+		unsigned long iobase;		/* I/O base address */
+		unsigned char __iomem *membase;	/* mapped MMIO base address */
+	} u;
+	enum dio200_regtype regtype;
+};
+
+/*
  * Board descriptions.
  */
 
@@ -425,6 +437,7 @@ static const struct dio200_layout dio200_layouts[] = {
    feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct dio200_private {
+	struct dio200_region io;	/* Register region */
 	int intr_sd;
 };
 
@@ -480,7 +493,12 @@ static inline bool is_isa_board(const struct dio200_board *board)
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
-	return inb(dev->iobase + offset);
+	struct dio200_private *devpriv = dev->private;
+
+	if (devpriv->io.regtype == io_regtype)
+		return inb(devpriv->io.u.iobase + offset);
+	else
+		return readb(devpriv->io.u.membase + offset);
 }
 
 /*
@@ -489,7 +507,12 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 static void dio200_write8(struct comedi_device *dev, unsigned int offset,
 			  unsigned char val)
 {
-	outb(val, dev->iobase + offset);
+	struct dio200_private *devpriv = dev->private;
+
+	if (devpriv->io.regtype == io_regtype)
+		outb(val, devpriv->io.u.iobase + offset);
+	else
+		writeb(val, devpriv->io.u.membase + offset);
 }
 
 /*
@@ -1405,13 +1428,14 @@ static void dio200_subdev_8255_cleanup(struct comedi_device *dev,
 static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[60];
 	int tmplen;
 
 	if (is_isa_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(base %#lx) ", dev->iobase);
+				   "(base %#lx) ", devpriv->io.u.iobase);
 	else if (is_pci_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(pci %s) ", pci_name(pcidev));
@@ -1526,7 +1550,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = dio200_request_region(dev, iobase, DIO200_IO_SIZE);
 		if (ret < 0)
 			return ret;
-		dev->iobase = iobase;
+		devpriv->io.u.iobase = iobase;
+		devpriv->io.regtype = io_regtype;
 		return dio200_common_attach(dev, irq, 0);
 	} else if (is_pci_board(thisboard)) {
 		dev_err(dev->class_dev,
@@ -1549,6 +1574,7 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pci_dev)
 {
 	struct dio200_private *devpriv;
+	resource_size_t base;
 	int ret;
 
 	if (!DO_PCI)
@@ -1573,16 +1599,32 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 			"error! cannot enable PCI device and request regions!\n");
 		return ret;
 	}
-	dev->iobase = pci_resource_start(pci_dev, 2);
+	base = pci_resource_start(pci_dev, 2);
+	if ((pci_resource_flags(pci_dev, 2) & IORESOURCE_MEM) != 0) {
+		resource_size_t len = pci_resource_len(pci_dev, 2);
+		devpriv->io.u.membase = ioremap_nocache(base, len);
+		if (!devpriv->io.u.membase) {
+			dev_err(dev->class_dev,
+				"error! cannot remap registers\n");
+			return -ENOMEM;
+		}
+		devpriv->io.regtype = mmio_regtype;
+	} else {
+		devpriv->io.u.iobase = (unsigned long)base;
+		devpriv->io.regtype = io_regtype;
+	}
 	return dio200_common_attach(dev, pci_dev->irq, IRQF_SHARED);
 }
 
 static void dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
 	const struct dio200_layout *layout;
 	unsigned n;
 
+	if (!thisboard || !devpriv)
+		return;
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
@@ -1605,13 +1647,16 @@ static void dio200_detach(struct comedi_device *dev)
 		}
 	}
 	if (is_isa_board(thisboard)) {
-		if (dev->iobase)
-			release_region(dev->iobase, DIO200_IO_SIZE);
+		if (devpriv->io.regtype == io_regtype)
+			release_region(devpriv->io.u.iobase, DIO200_IO_SIZE);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 		if (pcidev) {
-			if (dev->iobase)
+			if (devpriv->io.regtype != no_regtype) {
+				if (devpriv->io.regtype == mmio_regtype)
+					iounmap(devpriv->io.u.membase);
 				comedi_pci_disable(pcidev);
+			}
 		}
 	}
 }
