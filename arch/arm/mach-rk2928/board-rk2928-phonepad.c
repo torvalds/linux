@@ -448,13 +448,51 @@ static struct sensor_platform_data ps_ap321xx_info = {
 #endif
 
 #if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
+#define   CHARGE_OK_PIN  RK2928_PIN1_PA0
+#define   DC_DET_PIN     RK2928_PIN1_PA5
+int rk30_battery_adc_io_init(void){
+	int ret = 0;
+		
+	//dc charge detect pin
+	ret = gpio_request(DC_DET_PIN, NULL);
+	if (ret) {
+		printk("failed to request dc_det gpio\n");
+		return ret ;
+	}
+
+	gpio_pull_updown(DC_DET_PIN, 0);//important
+	ret = gpio_direction_input(DC_DET_PIN);
+	if (ret) {
+		printk("failed to set gpio dc_det input\n");
+		return ret ;
+	}
+	
+	//charge ok pin
+	ret = gpio_request(CHARGE_OK_PIN, NULL);
+	if (ret) {
+		printk("failed to request charge_ok gpio\n");
+		return ret ;
+	}
+
+	gpio_pull_updown(CHARGE_OK_PIN, 1);//important
+	ret = gpio_direction_input(CHARGE_OK_PIN);
+	if (ret) {
+		printk("failed to set gpio charge_ok input\n");
+		return ret ;
+	}
+	
+	return 0;
+
+}
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK2928_PIN1_PA5,
         .batt_low_pin    = INVALID_GPIO,
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK2928_PIN1_PA0,
-        .dc_det_level    = GPIO_HIGH,  //
+        .dc_det_level    = GPIO_LOW,  //
         .charge_ok_level = GPIO_HIGH,
+
+        .io_init = rk30_battery_adc_io_init,
 };
 
 static struct platform_device rk30_device_adc_battery = {
