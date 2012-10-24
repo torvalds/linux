@@ -120,15 +120,14 @@ Please report success/failure with other different cards to
 #define DADATA	8		/*  FIRST D/A DATA REGISTER (0) */
 
 static const struct comedi_lrange cb_pcidda_ranges = {
-	6,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 }
+	6, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5)
+	}
 };
 
 /*
@@ -149,7 +148,6 @@ struct cb_pcidda_board {
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
-	const struct comedi_lrange *ranges;
 };
 
 static const struct cb_pcidda_board cb_pcidda_boards[] = {
@@ -159,7 +157,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA02_12,
 	 .ao_chans = 2,
 	 .ao_bits = 12,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 	{
 	 .name = "pci-dda04/12",
@@ -167,7 +164,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA04_12,
 	 .ao_chans = 4,
 	 .ao_bits = 12,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 	{
 	 .name = "pci-dda08/12",
@@ -175,7 +171,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA08_12,
 	 .ao_chans = 8,
 	 .ao_bits = 12,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 	{
 	 .name = "pci-dda02/16",
@@ -183,7 +178,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA02_16,
 	 .ao_chans = 2,
 	 .ao_bits = 16,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 	{
 	 .name = "pci-dda04/16",
@@ -191,7 +185,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA04_16,
 	 .ao_chans = 4,
 	 .ao_bits = 16,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 	{
 	 .name = "pci-dda08/16",
@@ -199,7 +192,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 .device_id = PCI_DEVICE_ID_DDA08_16,
 	 .ao_chans = 8,
 	 .ao_bits = 16,
-	 .ranges = &cb_pcidda_ranges,
 	 },
 };
 
@@ -517,7 +509,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
-	s->range_table = thisboard->ranges;
+	s->range_table = &cb_pcidda_ranges;
 	s->insn_write = cb_pcidda_ao_winsn;
 
 	/* two 8255 digital io subdevices */
