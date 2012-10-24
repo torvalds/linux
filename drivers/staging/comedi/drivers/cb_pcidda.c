@@ -61,21 +61,8 @@
 #define MAX_AO_CHANNELS 8
 
 /* Digital I/O registers */
-#define PORT1A 0		/*  PORT 1A DATA */
-
-#define PORT1B 1		/*  PORT 1B DATA */
-
-#define PORT1C 2		/*  PORT 1C DATA */
-
-#define CONTROL1 3		/*  CONTROL REGISTER 1 */
-
-#define PORT2A 4		/*  PORT 2A DATA */
-
-#define PORT2B 5		/*  PORT 2B DATA */
-
-#define PORT2C 6		/*  PORT 2C DATA */
-
-#define CONTROL2 7		/*  CONTROL REGISTER 2 */
+#define CB_DDA_DIO0_8255_BASE		0x00
+#define CB_DDA_DIO1_8255_BASE		0x04
 
 /* DAC registers */
 #define DACONTROL	0	/*  D/A CONTROL REGISTER */
