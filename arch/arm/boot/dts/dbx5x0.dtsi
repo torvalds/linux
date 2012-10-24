@@ -629,5 +629,19 @@
 			ranges = <0 0x50000000 0x4000000>;
 			status = "disabled";
 		};
+
+		vmmci: regulator-gpio {
+			compatible = "regulator-gpio";
+
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2600000>;
+			regulator-name = "mmci-reg";
+			regulator-type = "voltage";
+
+			gpios = <&tc3589x_gpio 18 0x4>;
+			gpio-enable = <&tc3589x_gpio 17 0x4>;
+			states = <1800000 0x1
+				  2900000 0x0>;
+		};
 	};
 };
