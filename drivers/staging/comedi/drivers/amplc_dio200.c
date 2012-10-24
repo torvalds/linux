@@ -29,8 +29,7 @@
  * Description: Amplicon 200 Series Digital I/O
  * Author: Ian Abbott <abbotti@mev.co.uk>
  * Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
- *   PCI215 (pci215 or amplc_dio200), PC218E (pc218e), PC272E (pc272e),
- *   PCI272 (pci272 or amplc_dio200)
+ *   PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
  * Updated: Wed, 22 Oct 2008 13:36:02 +0100
  * Status: works
  *
@@ -38,11 +37,8 @@
  *   [0] - I/O port base address
  *   [1] - IRQ (optional, but commands won't work without it)
  *
- * Configuration options - PCI215, PCI272:
- *   [0] - PCI bus of device (optional)
- *   [1] - PCI slot of device (optional)
- *   If bus/slot is not specified, the first available PCI device will
- *   be used.
+ * Manual configuration of PCI cards is not supported; they are configured
+ * automatically.
  *
  * Passing a zero for an option is the same as leaving it unspecified.
  *
@@ -272,7 +268,6 @@ enum dio200_model {
 	pc215e_model, pci215_model,
 	pc218e_model,
 	pc272e_model, pci272_model,
-	anypci_model
 };
 
 enum dio200_layout {
@@ -342,12 +337,6 @@ static const struct dio200_board dio200_boards[] = {
 	 .bustype = pci_bustype,
 	 .model = pci272_model,
 	 .layout = pc272_layout,
-	 },
-	{
-	 .name = DIO200_DRIVER_NAME,
-	 .devid = PCI_DEVICE_ID_INVALID,
-	 .bustype = pci_bustype,
-	 .model = anypci_model,	/* wildcard */
 	 },
 #endif
 };
@@ -475,49 +464,6 @@ dio200_find_pci_board(struct pci_dev *pci_dev)
 		if (is_pci_board(&dio200_boards[i]) &&
 		    pci_dev->device == dio200_boards[i].devid)
 			return &dio200_boards[i];
-	return NULL;
-}
-
-/*
- * This function looks for a PCI device matching the requested board name,
- * bus and slot.
- */
-static struct pci_dev *dio200_find_pci_dev(struct comedi_device *dev,
-					   struct comedi_devconfig *it)
-{
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct pci_dev *pci_dev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	for_each_pci_dev(pci_dev) {
-		if (bus || slot) {
-			if (bus != pci_dev->bus->number ||
-			    slot != PCI_SLOT(pci_dev->devfn))
-				continue;
-		}
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-
-		if (thisboard->model == anypci_model) {
-			/* Wildcard board matches any supported PCI board. */
-			const struct dio200_board *foundboard;
-
-			foundboard = dio200_find_pci_board(pci_dev);
-			if (foundboard == NULL)
-				continue;
-			/* Replace wildcard board_ptr. */
-			dev->board_ptr = foundboard;
-		} else {
-			/* Match specific model name. */
-			if (pci_dev->device != thisboard->devid)
-				continue;
-		}
-		return pci_dev;
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
@@ -1356,12 +1302,10 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return ret;
 		return dio200_common_attach(dev, iobase, irq, 0);
 	} else if (is_pci_board(thisboard)) {
-		struct pci_dev *pci_dev;
-
-		pci_dev = dio200_find_pci_dev(dev, it);
-		if (!pci_dev)
-			return -EIO;
-		return dio200_pci_common_attach(dev, pci_dev);
+		dev_err(dev->class_dev,
+			"Manual configuration of PCI board '%s' is not supported\n",
+			thisboard->name);
+		return -EIO;
 	} else {
 		dev_err(dev->class_dev, DIO200_DRIVER_NAME
 			": BUG! cannot determine board type!\n");
