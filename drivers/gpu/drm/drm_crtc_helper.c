@@ -974,8 +974,7 @@ static void output_poll_execute(struct work_struct *work)
 		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
 			continue;
 
-		else if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT))
-			repoll = true;
+		repoll = true;
 
 		old_status = connector->status;
 		/* if we are connected and don't want to poll for disconnect
@@ -1019,7 +1018,8 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 		return;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->polled)
+		if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT |
+					 DRM_CONNECTOR_POLL_DISCONNECT))
 			poll = true;
 	}
 
