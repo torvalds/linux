@@ -140,10 +140,8 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->sl = (struct sl *)((char *)q->slib + PAGE_SIZE / 2);
 
 	/* fill in sbal */
-	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++) {
+	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
 		q->sbal[j] = *sbals_array++;
-		BUG_ON((unsigned long)q->sbal[j] & 0xff);
-	}
 
 	/* fill in slib */
 	if (i > 0) {
