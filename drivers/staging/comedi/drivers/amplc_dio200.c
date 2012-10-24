@@ -475,6 +475,24 @@ static inline bool is_isa_board(const struct dio200_board *board)
 }
 
 /*
+ * Read 8-bit register.
+ */
+static unsigned char dio200_read8(struct comedi_device *dev,
+				  unsigned int offset)
+{
+	return inb(dev->iobase + offset);
+}
+
+/*
+ * Write 8-bit register.
+ */
+static void dio200_write8(struct comedi_device *dev, unsigned int offset,
+			  unsigned char val)
+{
+	outb(val, dev->iobase + offset);
+}
+
+/*
  * This function looks for a board matching the supplied PCI device.
  */
 static const struct dio200_board *
@@ -518,7 +536,7 @@ dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 
 	if (layout->has_int_sce) {
 		/* Just read the interrupt status register.  */
-		data[1] = inb(dev->iobase + subpriv->ofs) & subpriv->valid_isns;
+		data[1] = dio200_read8(dev, subpriv->ofs) & subpriv->valid_isns;
 	} else {
 		/* No interrupt status register. */
 		data[0] = 0;
@@ -539,7 +557,7 @@ static void dio200_stop_intr(struct comedi_device *dev,
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
 	if (layout->has_int_sce)
-		outb(0, dev->iobase + subpriv->ofs);
+		dio200_write8(dev, subpriv->ofs, 0);
 }
 
 /*
@@ -571,7 +589,7 @@ static int dio200_start_intr(struct comedi_device *dev,
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
 		if (layout->has_int_sce)
-			outb(isn_bits, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, subpriv->ofs, isn_bits);
 	}
 
 	return retval;
@@ -637,11 +655,11 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		 * loop in case of misconfiguration.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		while ((intstat = (inb(dev->iobase + subpriv->ofs) &
+		while ((intstat = (dio200_read8(dev, subpriv->ofs) &
 				   subpriv->valid_isns & ~triggered)) != 0) {
 			triggered |= intstat;
 			cur_enabled &= ~triggered;
-			outb(cur_enabled, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, subpriv->ofs, cur_enabled);
 		}
 	} else {
 		/*
@@ -660,7 +678,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		 */
 		cur_enabled = subpriv->enabled_isns;
 		if (layout->has_int_sce)
-			outb(cur_enabled, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, subpriv->ofs, cur_enabled);
 
 		if (subpriv->active) {
 			/*
@@ -882,7 +900,7 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (layout->has_int_sce)
 		/* Disable interrupt sources. */
-		outb(0, dev->iobase + subpriv->ofs);
+		dio200_write8(dev, subpriv->ofs, 0);
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
@@ -951,10 +969,10 @@ dio200_subdev_8254_read_chan(struct comedi_device *dev,
 
 	/* latch counter */
 	val = chan << 6;
-	outb(val, dev->iobase + subpriv->ofs + i8254_control_reg);
+	dio200_write8(dev, subpriv->ofs + i8254_control_reg, val);
 	/* read lsb, msb */
-	val = inb(dev->iobase + subpriv->ofs + chan);
-	val += inb(dev->iobase + subpriv->ofs + chan) << 8;
+	val = dio200_read8(dev, subpriv->ofs + chan);
+	val += dio200_read8(dev, subpriv->ofs + chan) << 8;
 	return val;
 }
 
@@ -969,8 +987,8 @@ dio200_subdev_8254_write_chan(struct comedi_device *dev,
 	struct dio200_subdev_8254 *subpriv = s->private;
 
 	/* write lsb, msb */
-	outb(count & 0xff, dev->iobase + subpriv->ofs + chan);
-	outb((count >> 8) & 0xff, dev->iobase + subpriv->ofs + chan);
+	dio200_write8(dev, subpriv->ofs + chan, count & 0xff);
+	dio200_write8(dev, subpriv->ofs + chan, (count >> 8) & 0xff);
 }
 
 /*
@@ -987,7 +1005,7 @@ dio200_subdev_8254_set_mode(struct comedi_device *dev,
 	byte = chan << 6;
 	byte |= 0x30;		/* access order: lsb, msb */
 	byte |= (mode & 0xf);	/* counter mode and BCD|binary */
-	outb(byte, dev->iobase + subpriv->ofs + i8254_control_reg);
+	dio200_write8(dev, subpriv->ofs + i8254_control_reg, byte);
 }
 
 /*
@@ -1000,10 +1018,10 @@ dio200_subdev_8254_status(struct comedi_device *dev,
 	struct dio200_subdev_8254 *subpriv = s->private;
 
 	/* latch status */
-	outb(0xe0 | (2 << chan),
-	     dev->iobase + subpriv->ofs + i8254_control_reg);
+	dio200_write8(dev, subpriv->ofs + i8254_control_reg,
+		      0xe0 | (2 << chan));
 	/* read status */
-	return inb(dev->iobase + subpriv->ofs + chan);
+	return dio200_read8(dev, subpriv->ofs + chan);
 }
 
 /*
@@ -1064,7 +1082,7 @@ dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 
 	subpriv->gate_src[counter_number] = gate_src;
 	byte = GAT_SCE(subpriv->which, counter_number, gate_src);
-	outb(byte, dev->iobase + subpriv->gat_sce_ofs);
+	dio200_write8(dev, subpriv->gat_sce_ofs, byte);
 
 	return 0;
 }
@@ -1110,7 +1128,7 @@ dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 
 	subpriv->clock_src[counter_number] = clock_src;
 	byte = CLK_SCE(subpriv->which, counter_number, clock_src);
-	outb(byte, dev->iobase + subpriv->clk_sce_ofs);
+	dio200_write8(dev, subpriv->clk_sce_ofs, byte);
 
 	return 0;
 }
@@ -1276,7 +1294,7 @@ static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 		config |= CR_C_LO_IO;
 	if (!(s->io_bits & 0xf00000))
 		config |= CR_C_HI_IO;
-	outb(config, dev->iobase + subpriv->ofs + 3);
+	dio200_write8(dev, subpriv->ofs + 3, config);
 }
 
 /*
@@ -1292,17 +1310,17 @@ static int dio200_subdev_8255_bits(struct comedi_device *dev,
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 		if (data[0] & 0xff)
-			outb(s->state & 0xff, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, subpriv->ofs, s->state & 0xff);
 		if (data[0] & 0xff00)
-			outb((s->state >> 8) & 0xff,
-			     dev->iobase + subpriv->ofs + 1);
+			dio200_write8(dev, subpriv->ofs + 1,
+				      (s->state >> 8) & 0xff);
 		if (data[0] & 0xff0000)
-			outb((s->state >> 16) & 0xff,
-			     dev->iobase + subpriv->ofs + 2);
+			dio200_write8(dev, subpriv->ofs + 2,
+				      (s->state >> 16) & 0xff);
 	}
-	data[1] = inb(dev->iobase + subpriv->ofs);
-	data[1] |= inb(dev->iobase + subpriv->ofs + 1) << 8;
-	data[1] |= inb(dev->iobase + subpriv->ofs + 2) << 16;
+	data[1] = dio200_read8(dev, subpriv->ofs);
+	data[1] |= dio200_read8(dev, subpriv->ofs + 1) << 8;
+	data[1] |= dio200_read8(dev, subpriv->ofs + 2) << 16;
 	return 2;
 }
 
