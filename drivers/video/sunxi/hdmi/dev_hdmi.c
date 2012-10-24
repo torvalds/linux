@@ -36,7 +36,7 @@ static struct resource hdmi_resource[1] = {
 	       },
 };
 
-struct platform_device hdmi_device = {
+static struct platform_device hdmi_device = {
 	.name = "hdmi",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(hdmi_resource),
@@ -67,12 +67,14 @@ static int hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-int hdmi_suspend(struct platform_device *pdev, pm_message_t state)
+static int
+hdmi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	return 0;
 }
 
-int hdmi_resume(struct platform_device *pdev)
+static int
+hdmi_resume(struct platform_device *pdev)
 {
 	return 0;
 }
@@ -130,7 +132,8 @@ static const struct file_operations hdmi_fops = {
 	.mmap = hdmi_mmap,
 };
 
-int __init hdmi_module_init(void)
+static int __init
+hdmi_module_init(void)
 {
 	int ret = 0, err;
 

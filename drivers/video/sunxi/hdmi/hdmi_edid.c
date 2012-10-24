@@ -122,7 +122,8 @@ __s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf)
 	return 0;
 }
 
-void GetEDIDData(__u8 block, __u8 *buf)
+static void
+GetEDIDData(__u8 block, __u8 *buf)
 {
 	__u8 i;
 	__u8 *pbuf = buf + 128 * block;
@@ -159,7 +160,8 @@ void GetEDIDData(__u8 block, __u8 *buf)
  * ParseEDID()
  * Check EDID check sum and EDID 1.3 extended segment.
  */
-__s32 EDID_CheckSum(__u8 block, __u8 *buf)
+static __s32
+EDID_CheckSum(__u8 block, __u8 *buf)
 {
 	__s32 i = 0, CheckSum = 0;
 	__u8 *pbuf = buf + 128 * block;
@@ -176,7 +178,8 @@ __s32 EDID_CheckSum(__u8 block, __u8 *buf)
 	return 0;
 }
 
-__s32 EDID_Header_Check(__u8 *pbuf)
+static __s32
+EDID_Header_Check(__u8 *pbuf)
 {
 	if (pbuf[0] != 0x00 || pbuf[1] != 0xFF || pbuf[2] != 0xFF ||
 	    pbuf[3] != 0xFF || pbuf[4] != 0xFF || pbuf[5] != 0xFF ||
@@ -187,7 +190,8 @@ __s32 EDID_Header_Check(__u8 *pbuf)
 	return 0;
 }
 
-__s32 EDID_Version_Check(__u8 *pbuf)
+static __s32
+EDID_Version_Check(__u8 *pbuf)
 {
 	__inf("EDID version: %d.%d ", pbuf[0x12], pbuf[0x13]);
 	if ((pbuf[0x12] != 0x01) || (pbuf[0x13] != 0x03)) {
@@ -197,7 +201,8 @@ __s32 EDID_Version_Check(__u8 *pbuf)
 	return 0;
 }
 
-__s32 Parse_DTD_Block(__u8 *pbuf)
+static __s32
+Parse_DTD_Block(__u8 *pbuf)
 {
 	__u32 pclk, sizex, Hblanking, sizey, Vblanking, Hsync_offset,
 	    Hsync_plus, Vsync_offset, Vsync_plus, H_image_size, V_image_size,
@@ -269,7 +274,8 @@ __s32 Parse_DTD_Block(__u8 *pbuf)
 	return 0;
 }
 
-__s32 Parse_VideoData_Block(__u8 *pbuf, __u8 size)
+static __s32
+Parse_VideoData_Block(__u8 *pbuf, __u8 size)
 {
 	int i = 0;
 	while (i < size) {
@@ -285,7 +291,8 @@ __s32 Parse_VideoData_Block(__u8 *pbuf, __u8 size)
 	return 0;
 }
 
-__s32 Parse_AudioData_Block(__u8 *pbuf, __u8 size)
+static __s32
+Parse_AudioData_Block(__u8 *pbuf, __u8 size)
 {
 	__u8 sum = 0;
 
@@ -303,7 +310,8 @@ __s32 Parse_AudioData_Block(__u8 *pbuf, __u8 size)
 	return 0;
 }
 
-__s32 Parse_HDMI_VSDB(__u8 *pbuf, __u8 size)
+static __s32
+Parse_HDMI_VSDB(__u8 *pbuf, __u8 size)
 {
 	__u8 index = 8;
 

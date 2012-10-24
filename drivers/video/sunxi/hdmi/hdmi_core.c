@@ -27,12 +27,12 @@ __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
 __u8 EDID_Buf[1024];
 __u8 Device_Support_VIC[512];
-__s32 HPD;
+static __s32 HPD;
 
 __u32 hdmi_pll;	/* 0:video pll 0; 1:video pll 1 */
 __u32 hdmi_clk = 297000000;
 
-HDMI_VIDE_INFO video_timing[] = {
+static HDMI_VIDE_INFO video_timing[] = {
 	/* VIC                 PCLK   AVI_PR INPUTX INPUTY HT  HBP  HFP HPSW  VT  VBP VFP VPSW */
 	{HDMI1440_480I,       13500000,  1,   720,  240,  858, 119,  19, 62,  525, 18,  4,  3},
 	{HDMI1440_576I,       13500000,  1,   720,  288,  864, 132,  12, 63,  625, 22,  2,  3},
@@ -62,7 +62,8 @@ __s32 hdmi_core_initial(void)
 	return 0;
 }
 
-__s32 main_Hpd_Check(void)
+static __s32
+main_Hpd_Check(void)
 {
 	__s32 i, times;
 	times = 0;
