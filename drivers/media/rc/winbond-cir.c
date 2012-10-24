@@ -358,7 +358,7 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 		if (data->rxstate == WBCIR_RXSTATE_ERROR)
 			continue;
 		rawir.pulse = irdata & 0x80 ? false : true;
-		rawir.duration = US_TO_NS(((irdata & 0x7F) + 1) * 10);
+		rawir.duration = US_TO_NS(((irdata & 0x7F) + 1) * 2);
 		ir_raw_event_store_with_filter(data->dev, &rawir);
 	}
 
@@ -862,8 +862,8 @@ wbcir_init_hw(struct wbcir_data *data)
 	/* prescaler 1.0, tx/rx fifo lvl 16 */
 	outb(0x30, data->sbase + WBCIR_REG_SP3_EXCR2);
 
-	/* Set baud divisor to sample every 10 us */
-	outb(0x0F, data->sbase + WBCIR_REG_SP3_BGDL);
+	/* Set baud divisor to sample every 2 ns */
+	outb(0x03, data->sbase + WBCIR_REG_SP3_BGDL);
 	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
 
 	/* Set CEIR mode */
@@ -872,9 +872,12 @@ wbcir_init_hw(struct wbcir_data *data)
 	inb(data->sbase + WBCIR_REG_SP3_LSR); /* Clear LSR */
 	inb(data->sbase + WBCIR_REG_SP3_MSR); /* Clear MSR */
 
-	/* Disable RX demod, enable run-length enc/dec, set freq span */
+	/*
+	 * Disable RX demod, enable run-length enc/dec, set freq span and
+	 * enable over-sampling
+	 */
 	wbcir_select_bank(data, WBCIR_BANK_7);
-	outb(0x90, data->sbase + WBCIR_REG_SP3_RCCFG);
+	outb(0xd0, data->sbase + WBCIR_REG_SP3_RCCFG);
 
 	/* Disable timer */
 	wbcir_select_bank(data, WBCIR_BANK_4);
@@ -1017,6 +1020,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->priv = data;
 	data->dev->dev.parent = &device->dev;
 	data->dev->timeout = MS_TO_NS(100);
+	data->dev->rx_resolution = US_TO_NS(2);
 	data->dev->allowed_protos = RC_BIT_ALL;
 
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
