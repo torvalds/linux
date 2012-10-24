@@ -383,6 +383,11 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	    (adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		return -EINVAL;
 
+	/* some devices do not support autoneg of link flow control */
+	if ((pause->autoneg == AUTONEG_ENABLE) &&
+	    (ixgbe_device_supports_autoneg_fc(hw) != 0))
+		return -EINVAL;
+
 	fc.disable_fc_autoneg = (pause->autoneg != AUTONEG_ENABLE);
 
 	if ((pause->rx_pause && pause->tx_pause) || pause->autoneg)

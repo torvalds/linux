@@ -78,6 +78,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
 s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
+s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);

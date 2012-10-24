@@ -65,13 +65,12 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
-static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_X540T:
 	case IXGBE_DEV_ID_X540T1:
-		return 0;
 	case IXGBE_DEV_ID_82599_T3_LOM:
 		return 0;
 	default:

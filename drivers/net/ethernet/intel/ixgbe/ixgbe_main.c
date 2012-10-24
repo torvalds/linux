@@ -4567,7 +4567,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	ixgbe_pbthresh_setup(adapter);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
-	hw->fc.disable_fc_autoneg = false;
+	hw->fc.disable_fc_autoneg =
+		(ixgbe_device_supports_autoneg_fc(hw) == 0) ? false : true;
 
 #ifdef CONFIG_PCI_IOV
 	/* assign number of SR-IOV VFs */
