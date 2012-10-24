@@ -888,7 +888,12 @@ enum amplc_dio_clock_source {
 				   subdevice, preceding counter
 				   subdevice is the last counter
 				   subdevice) */
-	AMPLC_DIO_CLK_EXT	/* per chip external input pin */
+	AMPLC_DIO_CLK_EXT,	/* per chip external input pin */
+	/* the following are "enhanced" clock sources for PCIe models */
+	AMPLC_DIO_CLK_VCC,	/* clock input HIGH */
+	AMPLC_DIO_CLK_GND,	/* clock input LOW */
+	AMPLC_DIO_CLK_PAT_PRESENT, /* "pattern present" signal */
+	AMPLC_DIO_CLK_20MHZ	/* 20 MHz internal clock */
 };
 
 /* Values for setting a gate source with INSN_CONFIG_SET_GATE_SRC for
@@ -907,7 +912,17 @@ enum amplc_dio_gate_source {
 	AMPLC_DIO_GAT_RESERVED4,
 	AMPLC_DIO_GAT_RESERVED5,
 	AMPLC_DIO_GAT_RESERVED6,
-	AMPLC_DIO_GAT_RESERVED7
+	AMPLC_DIO_GAT_RESERVED7,
+	/* the following are "enhanced" gate sources for PCIe models */
+	AMPLC_DIO_GAT_NGATN = 6, /* negated per channel gate input */
+	AMPLC_DIO_GAT_OUTNM2,	/* non-negated output of counter
+				   channel minus 2 */
+	AMPLC_DIO_GAT_PAT_PRESENT, /* "pattern present" signal */
+	AMPLC_DIO_GAT_PAT_OCCURRED, /* "pattern occurred" latched */
+	AMPLC_DIO_GAT_PAT_GONE,	/* "pattern gone away" latched */
+	AMPLC_DIO_GAT_NPAT_PRESENT, /* negated "pattern present" */
+	AMPLC_DIO_GAT_NPAT_OCCURRED, /* negated "pattern occurred" */
+	AMPLC_DIO_GAT_NPAT_GONE	/* negated "pattern gone away" */
 };
 
 #endif /* _COMEDI_H */
