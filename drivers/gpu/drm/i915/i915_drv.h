@@ -58,6 +58,14 @@ enum pipe {
 };
 #define pipe_name(p) ((p) + 'A')
 
+enum transcoder {
+	TRANSCODER_A = 0,
+	TRANSCODER_B,
+	TRANSCODER_C,
+	TRANSCODER_EDP = 0xF,
+};
+#define transcoder_name(t) ((t) + 'A')
+
 enum plane {
 	PLANE_A = 0,
 	PLANE_B,

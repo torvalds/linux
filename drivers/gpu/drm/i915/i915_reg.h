@@ -26,6 +26,7 @@
 #define _I915_REG_H_
 
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+#define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 

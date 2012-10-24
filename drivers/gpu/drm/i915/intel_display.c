@@ -937,6 +937,15 @@ intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return true;
 }
 
+enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
+					     enum pipe pipe)
+{
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	return intel_crtc->cpu_transcoder;
+}
+
 static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3482,6 +3491,12 @@ static void ironlake_crtc_off(struct drm_crtc *crtc)
 
 static void haswell_crtc_off(struct drm_crtc *crtc)
 {
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	/* Stop saying we're using TRANSCODER_EDP because some other CRTC might
+	 * start using it. */
+	intel_crtc->cpu_transcoder = intel_crtc->pipe;
+
 	intel_ddi_put_crtc_pll(crtc);
 }
 
@@ -5357,6 +5372,11 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 		num_connectors++;
 	}
+
+	if (is_cpu_edp)
+		intel_crtc->cpu_transcoder = TRANSCODER_EDP;
+	else
+		intel_crtc->cpu_transcoder = pipe;
 
 	/* We are not sure yet this won't happen. */
 	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
@@ -7894,6 +7914,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	/* Swap pipes & planes for FBC on pre-965 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
+	intel_crtc->cpu_transcoder = pipe;
 	if (IS_MOBILE(dev) && IS_GEN3(dev)) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
