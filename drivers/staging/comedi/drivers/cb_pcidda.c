@@ -520,11 +520,13 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	s->range_table = thisboard->ranges;
 	s->insn_write = cb_pcidda_ao_winsn;
 
-	/*  two 8255 digital io subdevices */
-	s = &dev->subdevices[1];
-	subdev_8255_init(dev, s, NULL, iobase_8255);
-	s = &dev->subdevices[2];
-	subdev_8255_init(dev, s, NULL, iobase_8255 + PORT2A);
+	/* two 8255 digital io subdevices */
+	for (i = 0; i < 2; i++) {
+		s = &dev->subdevices[1 + i];
+		ret = subdev_8255_init(dev, s, NULL, iobase_8255 + (i * 4));
+		if (ret)
+			return ret;
+	}
 
 	/* Read the caldac eeprom data */
 	for (i = 0; i < EEPROM_SIZE; i++)
