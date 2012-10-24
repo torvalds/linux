@@ -559,7 +559,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	}
 }
 
-static void bredr_init(struct hci_dev *hdev)
+static void bredr_setup(struct hci_dev *hdev)
 {
 	struct hci_cp_delete_stored_link_key cp;
 	__le16 param;
@@ -590,7 +590,7 @@ static void bredr_init(struct hci_dev *hdev)
 	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
 }
 
-static void le_init(struct hci_dev *hdev)
+static void le_setup(struct hci_dev *hdev)
 {
 	/* Read LE Buffer Size */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
@@ -608,10 +608,10 @@ static void hci_setup(struct hci_dev *hdev)
 	hci_send_cmd(hdev, HCI_OP_READ_BD_ADDR, 0, NULL);
 
 	if (lmp_bredr_capable(hdev))
-		bredr_init(hdev);
+		bredr_setup(hdev);
 
 	if (lmp_le_capable(hdev))
-		le_init(hdev);
+		le_setup(hdev);
 
 	hci_setup_event_mask(hdev);
 
