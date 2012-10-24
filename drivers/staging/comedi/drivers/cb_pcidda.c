@@ -203,19 +203,8 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 },
 };
 
-/*
- * this structure is for data unique to this hardware driver.  If
- * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the struct comedi_device
- * struct.
- */
 struct cb_pcidda_private {
-	int data;
-
 	unsigned long digitalio;
-
-	/* unsigned long control_status; */
-	/* unsigned long adc_fifo; */
 
 	/* bits last written to da calibration register 1 */
 	unsigned int dac_cal1_bits;
