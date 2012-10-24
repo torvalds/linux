@@ -1083,6 +1083,9 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 		wiphy_debug(hw->wiphy, "  BASIC_RATES: 0x%llx\n",
 			    (unsigned long long) info->basic_rates);
 	}
+
+	if (changed & BSS_CHANGED_TXPOWER)
+		wiphy_debug(hw->wiphy, "  TX Power: %d dBm\n", info->txpower);
 }
 
 static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
