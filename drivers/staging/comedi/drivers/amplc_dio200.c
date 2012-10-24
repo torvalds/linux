@@ -309,6 +309,7 @@ struct dio200_board {
 	enum dio200_model model;
 	enum dio200_layout_idx layout;
 	unsigned char mainbar;
+	unsigned char mainshift;
 	unsigned int mainsize;
 };
 
@@ -504,8 +505,10 @@ static inline bool is_isa_board(const struct dio200_board *board)
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
 
+	offset <<= thisboard->mainshift;
 	if (devpriv->io.regtype == io_regtype)
 		return inb(devpriv->io.u.iobase + offset);
 	else
@@ -518,8 +521,10 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 static void dio200_write8(struct comedi_device *dev, unsigned int offset,
 			  unsigned char val)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
 
+	offset <<= thisboard->mainshift;
 	if (devpriv->io.regtype == io_regtype)
 		outb(val, devpriv->io.u.iobase + offset);
 	else
