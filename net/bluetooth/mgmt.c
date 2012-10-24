@@ -2871,6 +2871,21 @@ static void settings_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_free(cmd);
 }
 
+static int set_bredr_scan(struct hci_dev *hdev)
+{
+	u8 scan = 0;
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+		scan |= SCAN_PAGE;
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	if (!scan)
+		return 0;
+
+	return hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+}
+
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -2882,16 +2897,6 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
 	if (powered) {
-		u8 scan = 0;
-
-		if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-			scan |= SCAN_PAGE;
-		if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-			scan |= SCAN_INQUIRY;
-
-		if (scan)
-			hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 			u8 ssp = 1;
 
@@ -2908,9 +2913,12 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 				     sizeof(cp), &cp);
 		}
 
-		update_class(hdev);
-		update_name(hdev, hdev->dev_name);
-		update_eir(hdev);
+		if (lmp_bredr_capable(hdev)) {
+			set_bredr_scan(hdev);
+			update_class(hdev);
+			update_name(hdev, hdev->dev_name);
+			update_eir(hdev);
+		}
 	} else {
 		u8 status = MGMT_STATUS_NOT_POWERED;
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
