@@ -761,7 +761,8 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	rk29_backlight_set(!enable);
 #elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
-	rk29_backlight_set(1);
+	if(enable)
+		rk29_backlight_set(1);
 #endif
 	return 0;
 

@@ -357,9 +357,6 @@ static void rk29_backlight_shutdown(struct platform_device *pdev)
 	rk29_bl->props.brightness = 0;
 	rk29_bl_update_status(rk29_bl);
 
-	if (rk29_bl_info && rk29_bl_info->pwm_suspend)
-		rk29_bl_info->pwm_suspend();
-
 	if (rk29_bl_info && rk29_bl_info->io_deinit)
 		rk29_bl_info->io_deinit();
 }
