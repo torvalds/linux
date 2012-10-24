@@ -207,7 +207,6 @@ struct wbcir_data {
 	/* RX state */
 	enum wbcir_rxstate rxstate;
 	struct led_trigger *rxtrigger;
-	struct ir_raw_event rxev;
 
 	/* TX state */
 	enum wbcir_txstate txstate;
@@ -339,9 +338,12 @@ wbcir_idle_rx(struct rc_dev *dev, bool idle)
 		led_trigger_event(data->rxtrigger, LED_FULL);
 	}
 
-	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE)
+	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE) {
+		data->rxstate = WBCIR_RXSTATE_INACTIVE;
+		led_trigger_event(data->rxtrigger, LED_OFF);
 		/* Tell hardware to go idle by setting RXINACTIVE */
 		outb(WBCIR_RX_DISABLE, data->sbase + WBCIR_REG_SP3_ASCR);
+	}
 }
 
 static void
@@ -358,12 +360,6 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 		rawir.pulse = irdata & 0x80 ? false : true;
 		rawir.duration = US_TO_NS(((irdata & 0x7F) + 1) * 10);
 		ir_raw_event_store_with_filter(data->dev, &rawir);
-	}
-
-	/* Check if we should go idle */
-	if (data->dev->idle) {
-		led_trigger_event(data->rxtrigger, LED_OFF);
-		data->rxstate = WBCIR_RXSTATE_INACTIVE;
 	}
 
 	ir_raw_event_handle(data->dev);
@@ -915,9 +911,8 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/* Clear RX state */
 	data->rxstate = WBCIR_RXSTATE_INACTIVE;
-	data->rxev.duration = 0;
 	ir_raw_event_reset(data->dev);
-	ir_raw_event_handle(data->dev);
+	ir_raw_event_set_idle(data->dev, true);
 
 	/* Clear TX state */
 	if (data->txstate == WBCIR_TXSTATE_ACTIVE) {
