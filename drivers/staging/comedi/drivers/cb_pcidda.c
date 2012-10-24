@@ -97,7 +97,7 @@
 /* manual says to set this bit with no explanation */
 #define DUMMY_BIT       0x40
 
-#define DADATA	8		/*  FIRST D/A DATA REGISTER (0) */
+#define CB_DDA_DA_DATA_REG(x)		(0x08 + ((x) * 2))
 
 static const struct comedi_lrange cb_pcidda_ranges = {
 	6, {
@@ -393,7 +393,7 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 	outw(ctrl, dev->iobase + CB_DDA_DA_CTRL_REG);
 
 	/* write data */
-	outw(data[0], dev->iobase + DADATA + channel * 2);
+	outw(data[0], dev->iobase + CB_DDA_DA_DATA_REG(channel));
 
 	/* return the number of samples read/written */
 	return 1;
