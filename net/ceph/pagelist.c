@@ -1,4 +1,3 @@
-
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/pagemap.h>
@@ -134,8 +133,8 @@ int ceph_pagelist_truncate(struct ceph_pagelist *pl,
 	ceph_pagelist_unmap_tail(pl);
 	while (pl->head.prev != c->page_lru) {
 		page = list_entry(pl->head.prev, struct page, lru);
-		list_del(&page->lru);                /* remove from pagelist */
-		list_add_tail(&page->lru, &pl->free_list); /* add to reserve */
+		/* move from pagelist to reserve */
+		list_move_tail(&page->lru, &pl->free_list);
 		++pl->num_pages_free;
 	}
 	pl->room = c->room;

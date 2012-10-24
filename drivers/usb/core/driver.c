@@ -125,10 +125,9 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct usb_dynid *dynid, *n;
 	struct usb_driver *usb_driver = to_usb_driver(driver);
-	u32 idVendor = 0;
-	u32 idProduct = 0;
-	int fields = 0;
-	int retval = 0;
+	u32 idVendor;
+	u32 idProduct;
+	int fields;
 
 	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
 	if (fields < 2)
@@ -141,14 +140,10 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 		    (id->idProduct == idProduct)) {
 			list_del(&dynid->node);
 			kfree(dynid);
-			retval = 0;
 			break;
 		}
 	}
 	spin_unlock(&usb_driver->dynids.lock);
-
-	if (retval)
-		return retval;
 	return count;
 }
 static DRIVER_ATTR(remove_id, S_IRUGO | S_IWUSR, show_dynids, store_remove_id);
@@ -371,6 +366,10 @@ static int usb_probe_interface(struct device *dev)
 	intf->needs_remote_wakeup = 0;
 	intf->condition = USB_INTERFACE_UNBOUND;
 	usb_cancel_queued_reset(intf);
+
+	/* If the LPM disable succeeded, balance the ref counts. */
+	if (!lpm_disable_error)
+		usb_unlocked_enable_lpm(udev);
 
 	/* Unbound interfaces are always runtime-PM-disabled and -suspended */
 	if (driver->supports_autosuspend)

@@ -1788,7 +1788,7 @@ struct snd_emu10k1 {
 	unsigned int efx_voices_mask[2];
 	unsigned int next_free_voice;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	unsigned int *saved_ptr;
 	unsigned int *saved_gpr;
 	unsigned int *tram_val_saved;
@@ -1856,7 +1856,7 @@ unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
 unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
 void snd_emu10k1_resume_init(struct snd_emu10k1 *emu);
 void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu);

@@ -208,12 +208,14 @@ static bool check_hw_exists(void)
 	}
 
 	/*
-	 * Now write a value and read it back to see if it matches,
-	 * this is needed to detect certain hardware emulators (qemu/kvm)
-	 * that don't trap on the MSR access and always return 0s.
+	 * Read the current value, change it and read it back to see if it
+	 * matches, this is needed to detect certain hardware emulators
+	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
-	val = 0xabcdUL;
 	reg = x86_pmu_event_addr(0);
+	if (rdmsrl_safe(reg, &val))
+		goto msr_fail;
+	val ^= 0xffffUL;
 	ret = wrmsrl_safe(reg, val);
 	ret |= rdmsrl_safe(reg, &val_new);
 	if (ret || val != val_new)
@@ -338,6 +340,9 @@ int x86_setup_perfctr(struct perf_event *event)
 		/* BTS is currently only allowed for user-mode. */
 		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
+
+		if (!attr->exclude_guest)
+			return -EOPNOTSUPP;
 	}
 
 	hwc->config |= config;
@@ -379,6 +384,9 @@ int x86_pmu_hw_config(struct perf_event *event)
 {
 	if (event->attr.precise_ip) {
 		int precise = 0;
+
+		if (!event->attr.exclude_guest)
+			return -EOPNOTSUPP;
 
 		/* Support for constant skid */
 		if (x86_pmu.pebs_active && !x86_pmu.pebs_broken) {

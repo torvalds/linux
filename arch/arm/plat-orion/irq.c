@@ -16,7 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <plat/irq.h>
-#include <plat/gpio.h>
+#include <plat/orion-gpio.h>
 
 void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 {

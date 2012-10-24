@@ -244,3 +244,8 @@ config USB_YUREX
 	  To compile this driver as a module, choose M here: the
 	  module will be called yurex.
 
+config USB_EZUSB_FX2
+	tristate "Functions for loading firmware on EZUSB chips"
+	help
+	  Say Y here if you need EZUSB device support.
+	  (Cypress FX/FX2/FX2LP microcontrollers)

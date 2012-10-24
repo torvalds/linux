@@ -106,6 +106,8 @@ Configuration options:
 
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
+
 #define DRV_NAME "rtd520"
 
 /*======================================================================
@@ -783,7 +785,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 				 void *d)
 {				/* our data *//* cpu context (ignored) */
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog in subdevice */
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct rtdPrivate *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
@@ -964,7 +966,7 @@ static int rtd_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 /*
   cmdtest tests a particular command to see if it is valid.
   Using the cmdtest ioctl, a user can create a valid cmd
-  and then have it executed by the cmd ioctl (asyncronously).
+  and then have it executed by the cmd ioctl (asynchronously).
 
   cmdtest returns 1,2,3,4 or 0, depending on which tests
   the command passes.
@@ -976,52 +978,25 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
-
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique
-	   and mutually compatible */
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT) {
-		err++;
-	}
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1706,7 +1681,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -1726,7 +1701,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->cancel = rtd_ai_cancel;
 	/* s->poll = rtd_ai_poll; *//* not ready yet */
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -1736,7 +1711,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = rtd_ao_winsn;
 	s->insn_read = rtd_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -1748,7 +1723,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config = rtd_dio_insn_config;
 
 	/* timer/counter subdevices (not currently supported) */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 3;

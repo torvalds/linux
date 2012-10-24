@@ -6,7 +6,7 @@
 #ifndef __UM_TUNTAP_H
 #define __UM_TUNTAP_H
 
-#include "net_user.h"
+#include <net_user.h>
 
 struct tuntap_data {
 	char *dev_name;

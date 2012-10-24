@@ -84,8 +84,9 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 #define I82577_PHY_STATUS2_SPEED_1000MBPS 0x0200
 
 /* I82577 PHY Control 2 */
-#define I82577_PHY_CTRL2_AUTO_MDIX        0x0400
-#define I82577_PHY_CTRL2_FORCE_MDI_MDIX   0x0200
+#define I82577_PHY_CTRL2_MANUAL_MDIX      0x0200
+#define I82577_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
+#define I82577_PHY_CTRL2_MDIX_CFG_MASK    0x0600
 
 /* I82577 PHY Diagnostics Status */
 #define I82577_DSTATUS_CABLE_LENGTH       0x03FC
@@ -699,6 +700,32 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = e1e_wphy(hw, I82577_CFG_REG, phy_data);
+	if (ret_val)
+		return ret_val;
+
+	/* Set MDI/MDIX mode */
+	ret_val = e1e_rphy(hw, I82577_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		return ret_val;
+	phy_data &= ~I82577_PHY_CTRL2_MDIX_CFG_MASK;
+	/*
+	 * Options:
+	 *   0 - Auto (default)
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 */
+	switch (hw->phy.mdix) {
+	case 1:
+		break;
+	case 2:
+		phy_data |= I82577_PHY_CTRL2_MANUAL_MDIX;
+		break;
+	case 0:
+	default:
+		phy_data |= I82577_PHY_CTRL2_AUTO_MDI_MDIX;
+		break;
+	}
+	ret_val = e1e_wphy(hw, I82577_PHY_CTRL_2, phy_data);
 	if (ret_val)
 		return ret_val;
 

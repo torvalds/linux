@@ -411,7 +411,8 @@ static int max1668_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct max1668_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct max1668_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -422,7 +423,7 @@ static int max1668_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &max1668_group_common);
 	if (err)
-		goto error_free;
+		return err;
 
 	if (data->type == max1668 || data->type == max1989) {
 		err = sysfs_create_group(&client->dev.kobj,
@@ -444,8 +445,6 @@ error_sysrem1:
 		sysfs_remove_group(&client->dev.kobj, &max1668_group_unique);
 error_sysrem0:
 	sysfs_remove_group(&client->dev.kobj, &max1668_group_common);
-error_free:
-	kfree(data);
 	return err;
 }
 
@@ -459,7 +458,6 @@ static int max1668_remove(struct i2c_client *client)
 
 	sysfs_remove_group(&client->dev.kobj, &max1668_group_common);
 
-	kfree(data);
 	return 0;
 }
 

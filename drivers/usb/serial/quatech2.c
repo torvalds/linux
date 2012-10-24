@@ -27,8 +27,6 @@
 #include <linux/serial_reg.h>
 #include <linux/uaccess.h>
 
-static bool debug;
-
 /* default urb timeout for usb operations */
 #define QT2_USB_TIMEOUT USB_CTRL_SET_TIMEOUT
 
@@ -275,7 +273,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 {
 	struct usb_device *dev = port->serial->dev;
 	struct qt2_port_private *port_priv;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	u16 baud;
 	unsigned int cflag = termios->c_cflag;
 	u16 new_lcr = 0;
@@ -406,7 +404,7 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	port_priv->device_port = (u8) device_port;
 
 	if (tty)
-		qt2_set_termios(tty, port, tty->termios);
+		qt2_set_termios(tty, port, &tty->termios);
 
 	return 0;
 
@@ -1089,7 +1087,7 @@ static int qt2_write(struct tty_struct *tty,
 	data = write_urb->transfer_buffer;
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
 	if (port_priv->urb_in_use == true) {
-		printk(KERN_INFO "qt2_write - urb is in use\n");
+		dev_err(&port->dev, "qt2_write - urb is in use\n");
 		goto write_out;
 	}
 
@@ -1146,6 +1144,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

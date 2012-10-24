@@ -49,6 +49,7 @@
  *	document number TBD : DH89xxCC
  *	document number TBD : Panther Point
  *	document number TBD : Lynx Point
+ *	document number TBD : Lynx Point-LP
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -192,6 +193,7 @@ enum lpc_chipsets {
 	LPC_DH89XXCC,	/* DH89xxCC */
 	LPC_PPT,	/* Panther Point */
 	LPC_LPT,	/* Lynx Point */
+	LPC_LPT_LP,	/* Lynx Point-LP */
 };
 
 struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
@@ -468,6 +470,10 @@ struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
 		.name = "Lynx Point",
 		.iTCO_version = 2,
 	},
+	[LPC_LPT_LP] = {
+		.name = "Lynx Point_LP",
+		.iTCO_version = 2,
+	},
 };
 
 /*
@@ -641,6 +647,14 @@ static DEFINE_PCI_DEVICE_TABLE(lpc_ich_ids) = {
 	{ PCI_VDEVICE(INTEL, 0x8c5d), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5e), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5f), LPC_LPT},
+	{ PCI_VDEVICE(INTEL, 0x9c40), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c41), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c42), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c43), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c44), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c45), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c46), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c47), LPC_LPT_LP},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
@@ -681,6 +695,30 @@ static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
 {
 	cell->platform_data = &lpc_chipset_info[id->driver_data];
 	cell->pdata_size = sizeof(struct lpc_ich_info);
+}
+
+/*
+ * We don't check for resource conflict globally. There are 2 or 3 independent
+ * GPIO groups and it's enough to have access to one of these to instantiate
+ * the device.
+ */
+static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
+{
+	int ret;
+	u8 use_gpio = 0;
+
+	if (resource_size(res) >= 0x50 &&
+	    !acpi_check_region(res->start + 0x40, 0x10, "LPC ICH GPIO3"))
+		use_gpio |= 1 << 2;
+
+	if (!acpi_check_region(res->start + 0x30, 0x10, "LPC ICH GPIO2"))
+		use_gpio |= 1 << 1;
+
+	ret = acpi_check_region(res->start + 0x00, 0x30, "LPC ICH GPIO1");
+	if (!ret)
+		use_gpio |= 1 << 0;
+
+	return use_gpio ? use_gpio : ret;
 }
 
 static int __devinit lpc_ich_init_gpio(struct pci_dev *dev,
@@ -740,17 +778,18 @@ gpe0_done:
 		break;
 	}
 
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
+	ret = lpc_ich_check_conflict_gpio(res);
+	if (ret < 0) {
 		/* this isn't necessarily fatal for the GPIO */
 		acpi_conflict = true;
 		goto gpio_done;
 	}
+	lpc_chipset_info[id->driver_data].use_gpio = ret;
 	lpc_ich_enable_gpio_space(dev);
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_GPIO], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_GPIO],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 gpio_done:
 	if (acpi_conflict)
@@ -765,7 +804,6 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	u32 base_addr_cfg;
 	u32 base_addr;
 	int ret;
-	bool acpi_conflict = false;
 	struct resource *res;
 
 	/* Setup power management base register */
@@ -780,20 +818,11 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	res = wdt_io_res(ICH_RES_IO_TCO);
 	res->start = base_addr + ACPIBASE_TCO_OFF;
 	res->end = base_addr + ACPIBASE_TCO_END;
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		acpi_conflict = true;
-		goto wdt_done;
-	}
 
 	res = wdt_io_res(ICH_RES_IO_SMI);
 	res->start = base_addr + ACPIBASE_SMI_OFF;
 	res->end = base_addr + ACPIBASE_SMI_END;
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		acpi_conflict = true;
-		goto wdt_done;
-	}
+
 	lpc_ich_enable_acpi_space(dev);
 
 	/*
@@ -813,21 +842,13 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 		res = wdt_mem_res(ICH_RES_MEM_GCS);
 		res->start = base_addr + ACPIBASE_GCS_OFF;
 		res->end = base_addr + ACPIBASE_GCS_END;
-		ret = acpi_check_resource_conflict(res);
-		if (ret) {
-			acpi_conflict = true;
-			goto wdt_done;
-		}
 	}
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_WDT], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_WDT],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 wdt_done:
-	if (acpi_conflict)
-		pr_warn("Resource conflict(s) found affecting %s\n",
-				lpc_ich_cells[LPC_WDT].name);
 	return ret;
 }
 

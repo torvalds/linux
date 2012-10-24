@@ -22,9 +22,10 @@
 #include <asm/mach/map.h>
 
 #include <mach/pxa25x.h>
+#undef GPIO24_SSP1_SFRM
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/smemc.h>
 
 #include <asm/hardware/it8152.h>

@@ -444,14 +444,4 @@ static struct spi_driver aic26_spi = {
 	.remove = aic26_spi_remove,
 };
 
-static int __init aic26_init(void)
-{
-	return spi_register_driver(&aic26_spi);
-}
-module_init(aic26_init);
-
-static void __exit aic26_exit(void)
-{
-	spi_unregister_driver(&aic26_spi);
-}
-module_exit(aic26_exit);
+module_spi_driver(aic26_spi);

@@ -36,8 +36,6 @@ struct app_info_block {
 
 #define FT1000_STATUS_CLOSING  0x01
 
-#define LARGE_TIMEOUT   5000
-
 #define DSPBCMSGID              0x10
 
 /* Electrabuzz specific DPRAM mapping */

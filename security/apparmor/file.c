@@ -65,7 +65,7 @@ static void audit_file_mask(struct audit_buffer *ab, u32 mask)
 static void file_audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
-	uid_t fsuid = current_fsuid();
+	kuid_t fsuid = current_fsuid();
 
 	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " requested_mask=");
@@ -76,8 +76,10 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 		audit_file_mask(ab, sa->aad->fs.denied);
 	}
 	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
-		audit_log_format(ab, " fsuid=%d", fsuid);
-		audit_log_format(ab, " ouid=%d", sa->aad->fs.ouid);
+		audit_log_format(ab, " fsuid=%d",
+				 from_kuid(&init_user_ns, fsuid));
+		audit_log_format(ab, " ouid=%d",
+				 from_kuid(&init_user_ns, sa->aad->fs.ouid));
 	}
 
 	if (sa->aad->fs.target) {
@@ -103,7 +105,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  */
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
 		  gfp_t gfp, int op, u32 request, const char *name,
-		  const char *target, uid_t ouid, const char *info, int error)
+		  const char *target, kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
 	struct common_audit_data sa;
@@ -201,7 +203,7 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 	 */
 	perms.kill = 0;
 
-	if (current_fsuid() == cond->uid) {
+	if (uid_eq(current_fsuid(), cond->uid)) {
 		perms.allow = map_old_perms(dfa_user_allow(dfa, state));
 		perms.audit = map_old_perms(dfa_user_audit(dfa, state));
 		perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));

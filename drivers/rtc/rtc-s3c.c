@@ -476,13 +476,13 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 	s3c_rtc_tickno = platform_get_irq(pdev, 1);
 	if (s3c_rtc_tickno < 0) {
 		dev_err(&pdev->dev, "no irq for rtc tick\n");
-		return -ENOENT;
+		return s3c_rtc_tickno;
 	}
 
 	s3c_rtc_alarmno = platform_get_irq(pdev, 0);
 	if (s3c_rtc_alarmno < 0) {
 		dev_err(&pdev->dev, "no irq for alarm\n");
-		return -ENOENT;
+		return s3c_rtc_alarmno;
 	}
 
 	pr_debug("s3c2410_rtc: tick irq %d, alarm irq %d\n",

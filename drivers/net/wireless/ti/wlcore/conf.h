@@ -412,8 +412,7 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 /* basic rates for p2p operations (probe req/resp, etc.) */
-#define CONF_TX_RATE_MASK_BASIC_P2P    (CONF_HW_BIT_RATE_6MBPS | \
-	CONF_HW_BIT_RATE_12MBPS | CONF_HW_BIT_RATE_24MBPS)
+#define CONF_TX_RATE_MASK_BASIC_P2P    CONF_HW_BIT_RATE_6MBPS
 
 /*
  * Rates supported for data packets when operating as AP. Note the absence

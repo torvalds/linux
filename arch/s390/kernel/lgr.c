@@ -51,16 +51,6 @@ static struct lgr_info lgr_info_cur;
 static struct debug_info *lgr_dbf;
 
 /*
- * Return number of valid stsi levels
- */
-static inline int stsi_0(void)
-{
-	int rc = stsi(NULL, 0, 0, 0);
-
-	return rc == -ENOSYS ? rc : (((unsigned int) rc) >> 28);
-}
-
-/*
  * Copy buffer and then convert it to ASCII
  */
 static void cpascii(char *dst, char *src, int size)
@@ -76,7 +66,7 @@ static void lgr_stsi_1_1_1(struct lgr_info *lgr_info)
 {
 	struct sysinfo_1_1_1 *si = (void *) lgr_page;
 
-	if (stsi(si, 1, 1, 1) == -ENOSYS)
+	if (stsi(si, 1, 1, 1))
 		return;
 	cpascii(lgr_info->manufacturer, si->manufacturer,
 		sizeof(si->manufacturer));
@@ -93,7 +83,7 @@ static void lgr_stsi_2_2_2(struct lgr_info *lgr_info)
 {
 	struct sysinfo_2_2_2 *si = (void *) lgr_page;
 
-	if (stsi(si, 2, 2, 2) == -ENOSYS)
+	if (stsi(si, 2, 2, 2))
 		return;
 	cpascii(lgr_info->name, si->name, sizeof(si->name));
 	memcpy(&lgr_info->lpar_number, &si->lpar_number,
@@ -108,7 +98,7 @@ static void lgr_stsi_3_2_2(struct lgr_info *lgr_info)
 	struct sysinfo_3_2_2 *si = (void *) lgr_page;
 	int i;
 
-	if (stsi(si, 3, 2, 2) == -ENOSYS)
+	if (stsi(si, 3, 2, 2))
 		return;
 	for (i = 0; i < min_t(u8, si->count, VM_LEVEL_MAX); i++) {
 		cpascii(lgr_info->vm[i].name, si->vm[i].name,
@@ -124,16 +114,17 @@ static void lgr_stsi_3_2_2(struct lgr_info *lgr_info)
  */
 static void lgr_info_get(struct lgr_info *lgr_info)
 {
+	int level;
+
 	memset(lgr_info, 0, sizeof(*lgr_info));
 	stfle(lgr_info->stfle_fac_list, ARRAY_SIZE(lgr_info->stfle_fac_list));
-	lgr_info->level = stsi_0();
-	if (lgr_info->level == -ENOSYS)
-		return;
-	if (lgr_info->level >= 1)
+	level = stsi(NULL, 0, 0, 0);
+	lgr_info->level = level;
+	if (level >= 1)
 		lgr_stsi_1_1_1(lgr_info);
-	if (lgr_info->level >= 2)
+	if (level >= 2)
 		lgr_stsi_2_2_2(lgr_info);
-	if (lgr_info->level >= 3)
+	if (level >= 3)
 		lgr_stsi_3_2_2(lgr_info);
 }
 

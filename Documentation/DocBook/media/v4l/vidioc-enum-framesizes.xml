@@ -50,13 +50,6 @@ and pixel format and receives a frame width and height.</para>
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-
-      <para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-    </note>
-
     <para>This ioctl allows applications to enumerate all frame sizes
 (&ie; width and height in pixels) that the device supports for the
 given pixel format.</para>

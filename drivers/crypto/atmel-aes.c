@@ -24,15 +24,10 @@
 #include <linux/platform_device.h>
 
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/irq.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1017,7 +1012,6 @@ static int atmel_aes_register_algs(struct atmel_aes_dev *dd)
 	int err, i, j;
 
 	for (i = 0; i < ARRAY_SIZE(aes_algs); i++) {
-		INIT_LIST_HEAD(&aes_algs[i].cra_list);
 		err = crypto_register_alg(&aes_algs[i]);
 		if (err)
 			goto err_aes_algs;
@@ -1026,7 +1020,6 @@ static int atmel_aes_register_algs(struct atmel_aes_dev *dd)
 	atmel_aes_hw_version_init(dd);
 
 	if (dd->hw_version >= 0x130) {
-		INIT_LIST_HEAD(&aes_cfb64_alg[0].cra_list);
 		err = crypto_register_alg(&aes_cfb64_alg[0]);
 		if (err)
 			goto err_aes_cfb64_alg;

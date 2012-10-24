@@ -5,7 +5,7 @@
 #include <linux/kref.h>
 #include <linux/rbtree.h>
 
-#include "messenger.h"
+#include <linux/ceph/messenger.h>
 
 struct ceph_client;
 struct ceph_mount_args;
@@ -71,7 +71,6 @@ struct ceph_mon_client {
 	int cur_mon;                       /* last monitor i contacted */
 	unsigned long sub_sent, sub_renew_after;
 	struct ceph_connection con;
-	bool have_fsid;
 
 	/* pending generic requests */
 	struct rb_root generic_request_tree;

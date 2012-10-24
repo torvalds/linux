@@ -21,8 +21,8 @@
  * resources.
  */
 
-#include "common.h"
-#include "dma_queue.h"
+#include <gxio/common.h>
+#include <gxio/dma_queue.h>
 
 #include <linux/time.h>
 

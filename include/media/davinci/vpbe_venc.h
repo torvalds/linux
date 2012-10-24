@@ -32,7 +32,7 @@ struct venc_platform_data {
 	int (*setup_pinmux)(enum v4l2_mbus_pixelcode if_type,
 			    int field);
 	int (*setup_clock)(enum vpbe_enc_timings_type type,
-			   unsigned int mode);
+			   unsigned int pixclock);
 	int (*setup_if_config)(enum v4l2_mbus_pixelcode pixcode);
 	/* Number of LCD outputs supported */
 	int num_lcd_outputs;

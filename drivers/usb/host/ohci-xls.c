@@ -56,7 +56,7 @@ static int ohci_xls_probe_internal(const struct hc_driver *driver,
 		goto err3;
 	}
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
 	return retval;

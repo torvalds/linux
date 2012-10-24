@@ -18,6 +18,9 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -27,6 +30,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mtd.h>
 #include "gpmi-nand.h"
 
 /* add our owner bbt descriptor */
@@ -113,7 +117,7 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 	/* We use the same ECC strength for all chunks. */
 	geo->ecc_strength = get_ecc_strength(this);
 	if (!geo->ecc_strength) {
-		pr_err("We get a wrong ECC strength.\n");
+		pr_err("wrong ECC strength.\n");
 		return -EINVAL;
 	}
 
@@ -316,7 +320,7 @@ acquire_register_block(struct gpmi_nand_data *this, const char *res_name)
 	struct platform_device *pdev = this->pdev;
 	struct resources *res = &this->resources;
 	struct resource *r;
-	void *p;
+	void __iomem *p;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!r) {
@@ -423,8 +427,8 @@ static int __devinit acquire_dma_channels(struct gpmi_nand_data *this)
 	struct platform_device *pdev = this->pdev;
 	struct resource *r_dma;
 	struct device_node *dn;
-	int dma_channel;
-	unsigned int ret;
+	u32 dma_channel;
+	int ret;
 	struct dma_chan *dma_chan;
 	dma_cap_mask_t mask;
 
@@ -464,9 +468,73 @@ acquire_err:
 	return -EINVAL;
 }
 
+static void gpmi_put_clks(struct gpmi_nand_data *this)
+{
+	struct resources *r = &this->resources;
+	struct clk *clk;
+	int i;
+
+	for (i = 0; i < GPMI_CLK_MAX; i++) {
+		clk = r->clock[i];
+		if (clk) {
+			clk_put(clk);
+			r->clock[i] = NULL;
+		}
+	}
+}
+
+static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
+	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
+};
+
+static int __devinit gpmi_get_clks(struct gpmi_nand_data *this)
+{
+	struct resources *r = &this->resources;
+	char **extra_clks = NULL;
+	struct clk *clk;
+	int i;
+
+	/* The main clock is stored in the first. */
+	r->clock[0] = clk_get(this->dev, "gpmi_io");
+	if (IS_ERR(r->clock[0]))
+		goto err_clock;
+
+	/* Get extra clocks */
+	if (GPMI_IS_MX6Q(this))
+		extra_clks = extra_clks_for_mx6q;
+	if (!extra_clks)
+		return 0;
+
+	for (i = 1; i < GPMI_CLK_MAX; i++) {
+		if (extra_clks[i - 1] == NULL)
+			break;
+
+		clk = clk_get(this->dev, extra_clks[i - 1]);
+		if (IS_ERR(clk))
+			goto err_clock;
+
+		r->clock[i] = clk;
+	}
+
+	if (GPMI_IS_MX6Q(this))
+		/*
+		 * Set the default value for the gpmi clock in mx6q:
+		 *
+		 * If you want to use the ONFI nand which is in the
+		 * Synchronous Mode, you should change the clock as you need.
+		 */
+		clk_set_rate(r->clock[0], 22000000);
+
+	return 0;
+
+err_clock:
+	dev_dbg(this->dev, "failed in finding the clocks.\n");
+	gpmi_put_clks(this);
+	return -ENOMEM;
+}
+
 static int __devinit acquire_resources(struct gpmi_nand_data *this)
 {
-	struct resources *res = &this->resources;
 	struct pinctrl *pinctrl;
 	int ret;
 
@@ -492,12 +560,9 @@ static int __devinit acquire_resources(struct gpmi_nand_data *this)
 		goto exit_pin;
 	}
 
-	res->clock = clk_get(&this->pdev->dev, NULL);
-	if (IS_ERR(res->clock)) {
-		pr_err("can not get the clock\n");
-		ret = -ENOENT;
+	ret = gpmi_get_clks(this);
+	if (ret)
 		goto exit_clock;
-	}
 	return 0;
 
 exit_clock:
@@ -512,9 +577,7 @@ exit_regs:
 
 static void release_resources(struct gpmi_nand_data *this)
 {
-	struct resources *r = &this->resources;
-
-	clk_put(r->clock);
+	gpmi_put_clks(this);
 	release_register_block(this);
 	release_bch_irq(this);
 	release_dma_channels(this);
@@ -667,12 +730,12 @@ static int gpmi_alloc_dma_buffer(struct gpmi_nand_data *this)
 	struct device *dev = this->dev;
 
 	/* [1] Allocate a command buffer. PAGE_SIZE is enough. */
-	this->cmd_buffer = kzalloc(PAGE_SIZE, GFP_DMA);
+	this->cmd_buffer = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
 	if (this->cmd_buffer == NULL)
 		goto error_alloc;
 
 	/* [2] Allocate a read/write data buffer. PAGE_SIZE is enough. */
-	this->data_buffer_dma = kzalloc(PAGE_SIZE, GFP_DMA);
+	this->data_buffer_dma = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
 	if (this->data_buffer_dma == NULL)
 		goto error_alloc;
 
@@ -930,7 +993,7 @@ exit_nfc:
 	return ret;
 }
 
-static void gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				const uint8_t *buf, int oob_required)
 {
 	struct gpmi_nand_data *this = chip->priv;
@@ -972,7 +1035,7 @@ static void gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				&payload_virt, &payload_phys);
 		if (ret) {
 			pr_err("Inadequate payload DMA buffer\n");
-			return;
+			return 0;
 		}
 
 		ret = send_page_prepare(this,
@@ -1002,6 +1065,8 @@ exit_auxiliary:
 				nfc_geo->payload_size,
 				payload_virt, payload_phys);
 	}
+
+	return 0;
 }
 
 /*
@@ -1063,6 +1128,9 @@ exit_auxiliary:
  * ecc.read_page or ecc.read_page_raw function. Thus, the fact that MTD wants an
  * ECC-based or raw view of the page is implicit in which function it calls
  * (there is a similar pair of ECC-based/raw functions for writing).
+ *
+ * FIXME: The following paragraph is incorrect, now that there exist
+ * ecc.read_oob_raw and ecc.write_oob_raw functions.
  *
  * Since MTD assumes the OOB is not covered by ECC, there is no pair of
  * ECC-based/raw functions for reading or or writing the OOB. The fact that the
@@ -1190,7 +1258,6 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
-	loff_t byte;
 	uint8_t *buffer = chip->buffers->databuf;
 	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
@@ -1207,9 +1274,8 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	dev_dbg(dev, "Scanning for an NCB fingerprint...\n");
 
 	for (stride = 0; stride < search_area_size_in_strides; stride++) {
-		/* Compute the page and byte addresses. */
+		/* Compute the page addresses. */
 		page = stride * rom_geo->stride_size_in_pages;
-		byte = page   * mtd->writesize;
 
 		dev_dbg(dev, "Looking for a fingerprint in page 0x%x\n", page);
 
@@ -1251,7 +1317,6 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int block;
 	unsigned int stride;
 	unsigned int page;
-	loff_t       byte;
 	uint8_t      *buffer = chip->buffers->databuf;
 	int saved_chip_number;
 	int status;
@@ -1300,9 +1365,8 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	/* Loop through the first search area, writing NCB fingerprints. */
 	dev_dbg(dev, "Writing NCB fingerprints...\n");
 	for (stride = 0; stride < search_area_size_in_strides; stride++) {
-		/* Compute the page and byte addresses. */
+		/* Compute the page addresses. */
 		page = stride * rom_geo->stride_size_in_pages;
-		byte = page   * mtd->writesize;
 
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
@@ -1436,6 +1500,7 @@ static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 	/* Adjust the ECC strength according to the chip. */
 	this->nand.ecc.strength = this->bch_geometry.ecc_strength;
 	this->mtd.ecc_strength = this->bch_geometry.ecc_strength;
+	this->mtd.bitflip_threshold = this->bch_geometry.ecc_strength;
 
 	/* NAND boot init, depends on the gpmi_set_geometry(). */
 	return nand_boot_init(this);
@@ -1452,11 +1517,19 @@ static int gpmi_scan_bbt(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
+	/*
+	 * Can we enable the extra features? such as EDO or Sync mode.
+	 *
+	 * We do not check the return value now. That's means if we fail in
+	 * enable the extra features, we still can run in the normal way.
+	 */
+	gpmi_extra_init(this);
+
 	/* use the default BBT implementation */
 	return nand_default_bbt(mtd);
 }
 
-void gpmi_nfc_exit(struct gpmi_nand_data *this)
+static void gpmi_nfc_exit(struct gpmi_nand_data *this)
 {
 	nand_release(&this->mtd);
 	gpmi_free_dma_buffer(this);
@@ -1497,6 +1570,8 @@ static int __devinit gpmi_nfc_init(struct gpmi_nand_data *this)
 	chip->ecc.size		= 1;
 	chip->ecc.strength	= 8;
 	chip->ecc.layout	= &gpmi_hw_ecclayout;
+	if (of_get_nand_on_flash_bbt(this->dev->of_node))
+		chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
 
 	/* Allocate a temporary DMA buffer for reading ID in the nand_scan() */
 	this->bch_geometry.payload_size = 1024;
@@ -1579,6 +1654,8 @@ static int __devinit gpmi_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto exit_nfc_init;
 
+	dev_info(this->dev, "driver registered.\n");
+
 	return 0;
 
 exit_nfc_init:
@@ -1586,10 +1663,12 @@ exit_nfc_init:
 exit_acquire_resources:
 	platform_set_drvdata(pdev, NULL);
 	kfree(this);
+	dev_err(this->dev, "driver registration failed: %d\n", ret);
+
 	return ret;
 }
 
-static int __exit gpmi_nand_remove(struct platform_device *pdev)
+static int __devexit gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
 
@@ -1606,29 +1685,10 @@ static struct platform_driver gpmi_nand_driver = {
 		.of_match_table = gpmi_nand_id_table,
 	},
 	.probe   = gpmi_nand_probe,
-	.remove  = __exit_p(gpmi_nand_remove),
+	.remove  = __devexit_p(gpmi_nand_remove),
 	.id_table = gpmi_ids,
 };
-
-static int __init gpmi_nand_init(void)
-{
-	int err;
-
-	err = platform_driver_register(&gpmi_nand_driver);
-	if (err == 0)
-		printk(KERN_INFO "GPMI NAND driver registered. (IMX)\n");
-	else
-		pr_err("i.MX GPMI NAND driver registration failed\n");
-	return err;
-}
-
-static void __exit gpmi_nand_exit(void)
-{
-	platform_driver_unregister(&gpmi_nand_driver);
-}
-
-module_init(gpmi_nand_init);
-module_exit(gpmi_nand_exit);
+module_platform_driver(gpmi_nand_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("i.MX GPMI NAND Flash Controller Driver");

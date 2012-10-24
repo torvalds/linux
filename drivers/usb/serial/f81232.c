@@ -25,8 +25,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1934, 0x0706) },
 	{ }					/* Terminating entry */
@@ -85,7 +83,7 @@ static void f81232_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
+	usb_serial_debug_data(&port->dev, __func__,
 			      urb->actual_length, urb->transfer_buffer);
 
 	f81232_update_line_status(port, data, actual_length);
@@ -173,10 +171,11 @@ static void f81232_set_termios(struct tty_struct *tty,
 	/* FIXME - Stubbed out for now */
 
 	/* Don't change anything if nothing has changed */
-	if (!tty_termios_hw_change(tty->termios, old_termios))
+	if (!tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* Do the real work here... */
+	tty_termios_copy_hw(&tty->termios, old_termios);
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
@@ -319,39 +318,30 @@ static int f81232_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
-static int f81232_startup(struct usb_serial *serial)
+static int f81232_port_probe(struct usb_serial_port *port)
 {
 	struct f81232_private *priv;
-	int i;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct f81232_private), GFP_KERNEL);
-		if (!priv)
-			goto cleanup;
-		spin_lock_init(&priv->lock);
-		init_waitqueue_head(&priv->delta_msr_wait);
-		usb_set_serial_port_data(serial->port[i], priv);
-	}
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->lock);
+	init_waitqueue_head(&priv->delta_msr_wait);
+
+	usb_set_serial_port_data(port, priv);
+
 	return 0;
-
-cleanup:
-	for (--i; i >= 0; --i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	return -ENOMEM;
 }
 
-static void f81232_release(struct usb_serial *serial)
+static int f81232_port_remove(struct usb_serial_port *port)
 {
-	int i;
 	struct f81232_private *priv;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-	}
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 static struct usb_serial_driver f81232_device = {
@@ -374,8 +364,8 @@ static struct usb_serial_driver f81232_device = {
 	.tiocmset =		f81232_tiocmset,
 	.process_read_urb =	f81232_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
-	.attach =		f81232_startup,
-	.release =		f81232_release,
+	.port_probe =		f81232_port_probe,
+	.port_remove =		f81232_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -388,7 +378,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_DESCRIPTION("Fintek F81232 USB to serial adaptor driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org");
 MODULE_LICENSE("GPL v2");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
-

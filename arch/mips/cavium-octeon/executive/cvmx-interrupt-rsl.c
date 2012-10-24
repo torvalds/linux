@@ -130,7 +130,7 @@ void __cvmx_interrupt_gmxx_enable(int interface)
 	if (num_ports) {
 		if (OCTEON_IS_MODEL(OCTEON_CN38XX)
 		    || OCTEON_IS_MODEL(OCTEON_CN58XX))
-			gmx_tx_int_en.s.ncb_nxa = 1;
+			gmx_tx_int_en.cn38xx.ncb_nxa = 1;
 		gmx_tx_int_en.s.pko_nxa = 1;
 	}
 	gmx_tx_int_en.s.undflw = (1 << num_ports) - 1;

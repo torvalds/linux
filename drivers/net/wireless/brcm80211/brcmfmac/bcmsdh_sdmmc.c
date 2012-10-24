@@ -42,6 +42,7 @@
 
 #define DMA_ALIGN_MASK	0x03
 
+#define SDIO_DEVICE_ID_BROADCOM_43241	0x4324
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
 #define SDIO_DEVICE_ID_BROADCOM_4330	0x4330
 #define SDIO_DEVICE_ID_BROADCOM_4334	0x4334
@@ -51,6 +52,7 @@
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
+	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43241)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334)},
@@ -101,7 +103,6 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 	if (regaddr == SDIO_CCCR_IOEx) {
 		sdfunc = sdiodev->func[2];
 		if (sdfunc) {
-			sdio_claim_host(sdfunc);
 			if (*byte & SDIO_FUNC_ENABLE_2) {
 				/* Enable Function 2 */
 				err_ret = sdio_enable_func(sdfunc);
@@ -117,7 +118,6 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 						  "Disable F2 failed:%d\n",
 						  err_ret);
 			}
-			sdio_release_host(sdfunc);
 		}
 	} else if ((regaddr == SDIO_CCCR_ABORT) ||
 		   (regaddr == SDIO_CCCR_IENx)) {
@@ -126,17 +126,13 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 		if (!sdfunc)
 			return -ENOMEM;
 		sdfunc->num = 0;
-		sdio_claim_host(sdfunc);
 		sdio_writeb(sdfunc, *byte, regaddr, &err_ret);
-		sdio_release_host(sdfunc);
 		kfree(sdfunc);
 	} else if (regaddr < 0xF0) {
 		brcmf_dbg(ERROR, "F0 Wr:0x%02x: write disallowed\n", regaddr);
 		err_ret = -EPERM;
 	} else {
-		sdio_claim_host(sdfunc);
 		sdio_f0_writeb(sdfunc, *byte, regaddr, &err_ret);
-		sdio_release_host(sdfunc);
 	}
 
 	return err_ret;
@@ -157,7 +153,6 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 		/* handle F0 separately */
 		err_ret = brcmf_sdioh_f0_write_byte(sdiodev, regaddr, byte);
 	} else {
-		sdio_claim_host(sdiodev->func[func]);
 		if (rw) /* CMD52 Write */
 			sdio_writeb(sdiodev->func[func], *byte, regaddr,
 				    &err_ret);
@@ -168,7 +163,6 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 			*byte = sdio_readb(sdiodev->func[func], regaddr,
 					   &err_ret);
 		}
-		sdio_release_host(sdiodev->func[func]);
 	}
 
 	if (err_ret)
@@ -195,8 +189,6 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
-	/* Claim host controller */
-	sdio_claim_host(sdiodev->func[func]);
 
 	if (rw) {		/* CMD52 Write */
 		if (nbytes == 4)
@@ -216,9 +208,6 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 		else
 			brcmf_dbg(ERROR, "Invalid nbytes: %d\n", nbytes);
 	}
-
-	/* Release host controller */
-	sdio_release_host(sdiodev->func[func]);
 
 	if (err_ret)
 		brcmf_dbg(ERROR, "Failed to %s word, Err: 0x%08x\n",
@@ -273,9 +262,6 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 
-	/* Claim host controller */
-	sdio_claim_host(sdiodev->func[func]);
-
 	skb_queue_walk(pktq, pkt) {
 		uint pkt_len = pkt->len;
 		pkt_len += 3;
@@ -297,9 +283,6 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 		SGCount++;
 	}
-
-	/* Release host controller */
-	sdio_release_host(sdiodev->func[func]);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return err_ret;
@@ -326,9 +309,6 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 
-	/* Claim host controller */
-	sdio_claim_host(sdiodev->func[func]);
-
 	pkt_len += 3;
 	pkt_len &= (uint)~3;
 
@@ -341,9 +321,6 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 		brcmf_dbg(TRACE, "%s xfr'd %p, addr=0x%05x, len=%d\n",
 			  write ? "TX" : "RX", pkt, addr, pkt_len);
 	}
-
-	/* Release host controller */
-	sdio_release_host(sdiodev->func[func]);
 
 	return status;
 }
@@ -638,6 +615,8 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 
 		oobirq_entry = kzalloc(sizeof(struct brcmf_sdio_oobirq),
 				       GFP_KERNEL);
+		if (!oobirq_entry)
+			return -ENOMEM;
 		oobirq_entry->irq = res->start;
 		oobirq_entry->flags = res->flags & IRQF_TRIGGER_MASK;
 		list_add_tail(&oobirq_entry->list, &oobirq_lh);

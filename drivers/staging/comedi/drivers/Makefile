@@ -55,6 +55,7 @@ obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
 obj-$(CONFIG_COMEDI_POC)		+= poc.o
 
 # Comedi PCI drivers
+obj-$(CONFIG_COMEDI_8255_PCI)		+= 8255_pci.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_035)	+= addi_apci_035.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1032)	+= addi_apci_1032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1500)	+= addi_apci_1500.o
@@ -69,9 +70,7 @@ obj-$(CONFIG_COMEDI_ADDI_APCI_3120)	+= addi_apci_3120.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3501)	+= addi_apci_3501.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3XXX)	+= addi_apci_3xxx.o
 obj-$(CONFIG_COMEDI_ADL_PCI6208)	+= adl_pci6208.o
-obj-$(CONFIG_COMEDI_ADL_PCI7230)	+= adl_pci7230.o
-obj-$(CONFIG_COMEDI_ADL_PCI7296)	+= adl_pci7296.o
-obj-$(CONFIG_COMEDI_ADL_PCI7432)	+= adl_pci7432.o
+obj-$(CONFIG_COMEDI_ADL_PCI7X3X)	+= adl_pci7x3x.o
 obj-$(CONFIG_COMEDI_ADL_PCI8164)	+= adl_pci8164.o
 obj-$(CONFIG_COMEDI_ADL_PCI9111)	+= adl_pci9111.o
 obj-$(CONFIG_COMEDI_ADL_PCI9118)	+= adl_pci9118.o
@@ -96,7 +95,6 @@ obj-$(CONFIG_COMEDI_KE_COUNTER)		+= ke_counter.o
 obj-$(CONFIG_COMEDI_CB_PCIDAS64)	+= cb_pcidas64.o
 obj-$(CONFIG_COMEDI_CB_PCIDAS)		+= cb_pcidas.o
 obj-$(CONFIG_COMEDI_CB_PCIDDA)		+= cb_pcidda.o
-obj-$(CONFIG_COMEDI_CB_PCIDIO)		+= cb_pcidio.o
 obj-$(CONFIG_COMEDI_CB_PCIMDAS)		+= cb_pcimdas.o
 obj-$(CONFIG_COMEDI_CB_PCIMDDA)		+= cb_pcimdda.o
 obj-$(CONFIG_COMEDI_ME4000)		+= me4000.o

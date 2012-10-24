@@ -25,8 +25,8 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_reg.h"
 
@@ -423,6 +423,30 @@ void radeon_gart_fini(struct radeon_device *rdev)
  */
 
 /**
+ * radeon_vm_num_pde - return the number of page directory entries
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Calculate the number of page directory entries (cayman+).
+ */
+static unsigned radeon_vm_num_pdes(struct radeon_device *rdev)
+{
+	return rdev->vm_manager.max_pfn >> RADEON_VM_BLOCK_SIZE;
+}
+
+/**
+ * radeon_vm_directory_size - returns the size of the page directory in bytes
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Calculate the size of the page directory in bytes (cayman+).
+ */
+static unsigned radeon_vm_directory_size(struct radeon_device *rdev)
+{
+	return RADEON_GPU_PAGE_ALIGN(radeon_vm_num_pdes(rdev) * 8);
+}
+
+/**
  * radeon_vm_manager_init - init the vm manager
  *
  * @rdev: radeon_device pointer
@@ -435,12 +459,15 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 	struct radeon_vm *vm;
 	struct radeon_bo_va *bo_va;
 	int r;
+	unsigned size;
 
 	if (!rdev->vm_manager.enabled) {
-		/* mark first vm as always in use, it's the system one */
 		/* allocate enough for 2 full VM pts */
+		size = radeon_vm_directory_size(rdev);
+		size += rdev->vm_manager.max_pfn * 8;
+		size *= 2;
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
-					      rdev->vm_manager.max_pfn * 8 * 2,
+					      RADEON_GPU_PAGE_ALIGN(size),
 					      RADEON_GEM_DOMAIN_VRAM);
 		if (r) {
 			dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
@@ -448,10 +475,10 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 			return r;
 		}
 
-		r = rdev->vm_manager.funcs->init(rdev);
+		r = radeon_asic_vm_init(rdev);
 		if (r)
 			return r;
-	
+
 		rdev->vm_manager.enabled = true;
 
 		r = radeon_sa_bo_manager_start(rdev, &rdev->vm_manager.sa_manager);
@@ -461,77 +488,49 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 
 	/* restore page table */
 	list_for_each_entry(vm, &rdev->vm_manager.lru_vm, list) {
-		if (vm->id == -1)
+		if (vm->page_directory == NULL)
 			continue;
 
 		list_for_each_entry(bo_va, &vm->va, vm_list) {
-			struct ttm_mem_reg *mem = NULL;
-			if (bo_va->valid)
-				mem = &bo_va->bo->tbo.mem;
-
 			bo_va->valid = false;
-			r = radeon_vm_bo_update_pte(rdev, vm, bo_va->bo, mem);
-			if (r) {
-				DRM_ERROR("Failed to update pte for vm %d!\n", vm->id);
-			}
-		}
-
-		r = rdev->vm_manager.funcs->bind(rdev, vm, vm->id);
-		if (r) {
-			DRM_ERROR("Failed to bind vm %d!\n", vm->id);
 		}
 	}
 	return 0;
 }
 
-/* global mutex must be lock */
 /**
- * radeon_vm_unbind_locked - unbind a specific vm
+ * radeon_vm_free_pt - free the page table for a specific vm
  *
  * @rdev: radeon_device pointer
  * @vm: vm to unbind
  *
- * Unbind the requested vm (cayman+).
- * Wait for use of the VM to finish, then unbind the page table,
- * and free the page table memory.
+ * Free the page table of a specific vm (cayman+).
+ *
+ * Global and local mutex must be lock!
  */
-static void radeon_vm_unbind_locked(struct radeon_device *rdev,
+static void radeon_vm_free_pt(struct radeon_device *rdev,
 				    struct radeon_vm *vm)
 {
 	struct radeon_bo_va *bo_va;
+	int i;
 
-	if (vm->id == -1) {
+	if (!vm->page_directory)
 		return;
-	}
 
-	/* wait for vm use to end */
-	while (vm->fence) {
-		int r;
-		r = radeon_fence_wait(vm->fence, false);
-		if (r)
-			DRM_ERROR("error while waiting for fence: %d\n", r);
-		if (r == -EDEADLK) {
-			mutex_unlock(&rdev->vm_manager.lock);
-			r = radeon_gpu_reset(rdev);
-			mutex_lock(&rdev->vm_manager.lock);
-			if (!r)
-				continue;
-		}
-		break;
-	}
-	radeon_fence_unref(&vm->fence);
-
-	/* hw unbind */
-	rdev->vm_manager.funcs->unbind(rdev, vm);
-	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
 	list_del_init(&vm->list);
-	vm->id = -1;
-	radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
-	vm->pt = NULL;
+	radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
 
 	list_for_each_entry(bo_va, &vm->va, vm_list) {
 		bo_va->valid = false;
 	}
+
+	if (vm->page_tables == NULL)
+		return;
+
+	for (i = 0; i < radeon_vm_num_pdes(rdev); i++)
+		radeon_sa_bo_free(rdev, &vm->page_tables[i], vm->fence);
+
+	kfree(vm->page_tables);
 }
 
 /**
@@ -544,16 +543,22 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 void radeon_vm_manager_fini(struct radeon_device *rdev)
 {
 	struct radeon_vm *vm, *tmp;
+	int i;
 
 	if (!rdev->vm_manager.enabled)
 		return;
 
 	mutex_lock(&rdev->vm_manager.lock);
-	/* unbind all active vm */
+	/* free all allocated page tables */
 	list_for_each_entry_safe(vm, tmp, &rdev->vm_manager.lru_vm, list) {
-		radeon_vm_unbind_locked(rdev, vm);
+		mutex_lock(&vm->mutex);
+		radeon_vm_free_pt(rdev, vm);
+		mutex_unlock(&vm->mutex);
 	}
-	rdev->vm_manager.funcs->fini(rdev);
+	for (i = 0; i < RADEON_NUM_VM; ++i) {
+		radeon_fence_unref(&rdev->vm_manager.active[i]);
+	}
+	radeon_asic_vm_fini(rdev);
 	mutex_unlock(&rdev->vm_manager.lock);
 
 	radeon_sa_bo_manager_suspend(rdev, &rdev->vm_manager.sa_manager);
@@ -561,228 +566,503 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 	rdev->vm_manager.enabled = false;
 }
 
-/* global mutex must be locked */
 /**
- * radeon_vm_unbind - locked version of unbind
+ * radeon_vm_evict - evict page table to make room for new one
  *
  * @rdev: radeon_device pointer
- * @vm: vm to unbind
+ * @vm: VM we want to allocate something for
  *
- * Locked version that wraps radeon_vm_unbind_locked (cayman+).
+ * Evict a VM from the lru, making sure that it isn't @vm. (cayman+).
+ * Returns 0 for success, -ENOMEM for failure.
+ *
+ * Global and local mutex must be locked!
  */
-void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
+int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	mutex_lock(&vm->mutex);
-	radeon_vm_unbind_locked(rdev, vm);
-	mutex_unlock(&vm->mutex);
+	struct radeon_vm *vm_evict;
+
+	if (list_empty(&rdev->vm_manager.lru_vm))
+		return -ENOMEM;
+
+	vm_evict = list_first_entry(&rdev->vm_manager.lru_vm,
+				    struct radeon_vm, list);
+	if (vm_evict == vm)
+		return -ENOMEM;
+
+	mutex_lock(&vm_evict->mutex);
+	radeon_vm_free_pt(rdev, vm_evict);
+	mutex_unlock(&vm_evict->mutex);
+	return 0;
 }
 
-/* global and local mutex must be locked */
 /**
- * radeon_vm_bind - bind a page table to a VMID
+ * radeon_vm_alloc_pt - allocates a page table for a VM
  *
  * @rdev: radeon_device pointer
  * @vm: vm to bind
  *
- * Bind the requested vm (cayman+).
- * Suballocate memory for the page table, allocate a VMID
- * and bind the page table to it, and finally start to populate
- * the page table.
+ * Allocate a page table for the requested vm (cayman+).
  * Returns 0 for success, error for failure.
+ *
+ * Global and local mutex must be locked!
  */
-int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm)
+int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	struct radeon_vm *vm_evict;
-	unsigned i;
-	int id = -1, r;
+	unsigned pd_size, pts_size;
+	u64 *pd_addr;
+	int r;
 
 	if (vm == NULL) {
 		return -EINVAL;
 	}
 
-	if (vm->id != -1) {
-		/* update lru */
-		list_del_init(&vm->list);
-		list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
+	if (vm->page_directory != NULL) {
 		return 0;
 	}
 
 retry:
-	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager, &vm->sa_bo,
-			     RADEON_GPU_PAGE_ALIGN(vm->last_pfn * 8),
+	pd_size = RADEON_GPU_PAGE_ALIGN(radeon_vm_directory_size(rdev));
+	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
+			     &vm->page_directory, pd_size,
 			     RADEON_GPU_PAGE_SIZE, false);
-	if (r) {
-		if (list_empty(&rdev->vm_manager.lru_vm)) {
+	if (r == -ENOMEM) {
+		r = radeon_vm_evict(rdev, vm);
+		if (r)
 			return r;
-		}
-		vm_evict = list_first_entry(&rdev->vm_manager.lru_vm, struct radeon_vm, list);
-		radeon_vm_unbind(rdev, vm_evict);
 		goto retry;
-	}
-	vm->pt = radeon_sa_bo_cpu_addr(vm->sa_bo);
-	vm->pt_gpu_addr = radeon_sa_bo_gpu_addr(vm->sa_bo);
-	memset(vm->pt, 0, RADEON_GPU_PAGE_ALIGN(vm->last_pfn * 8));
 
-retry_id:
-	/* search for free vm */
-	for (i = 0; i < rdev->vm_manager.nvm; i++) {
-		if (!(rdev->vm_manager.use_bitmap & (1 << i))) {
-			id = i;
-			break;
-		}
-	}
-	/* evict vm if necessary */
-	if (id == -1) {
-		vm_evict = list_first_entry(&rdev->vm_manager.lru_vm, struct radeon_vm, list);
-		radeon_vm_unbind(rdev, vm_evict);
-		goto retry_id;
-	}
-
-	/* do hw bind */
-	r = rdev->vm_manager.funcs->bind(rdev, vm, id);
-	if (r) {
-		radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
+	} else if (r) {
 		return r;
 	}
-	rdev->vm_manager.use_bitmap |= 1 << id;
-	vm->id = id;
-	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
-	return radeon_vm_bo_update_pte(rdev, vm, rdev->ring_tmp_bo.bo,
-				       &rdev->ring_tmp_bo.bo->tbo.mem);
+
+	vm->pd_gpu_addr = radeon_sa_bo_gpu_addr(vm->page_directory);
+
+	/* Initially clear the page directory */
+	pd_addr = radeon_sa_bo_cpu_addr(vm->page_directory);
+	memset(pd_addr, 0, pd_size);
+
+	pts_size = radeon_vm_num_pdes(rdev) * sizeof(struct radeon_sa_bo *);
+	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
+
+	if (vm->page_tables == NULL) {
+		DRM_ERROR("Cannot allocate memory for page table array\n");
+		radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
-/* object have to be reserved */
+/**
+ * radeon_vm_add_to_lru - add VMs page table to LRU list
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to add to LRU
+ *
+ * Add the allocated page table to the LRU list (cayman+).
+ *
+ * Global mutex must be locked!
+ */
+void radeon_vm_add_to_lru(struct radeon_device *rdev, struct radeon_vm *vm)
+{
+	list_del_init(&vm->list);
+	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
+}
+
+/**
+ * radeon_vm_grab_id - allocate the next free VMID
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to allocate id for
+ * @ring: ring we want to submit job to
+ *
+ * Allocate an id for the vm (cayman+).
+ * Returns the fence we need to sync to (if any).
+ *
+ * Global and local mutex must be locked!
+ */
+struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
+				       struct radeon_vm *vm, int ring)
+{
+	struct radeon_fence *best[RADEON_NUM_RINGS] = {};
+	unsigned choices[2] = {};
+	unsigned i;
+
+	/* check if the id is still valid */
+	if (vm->fence && vm->fence == rdev->vm_manager.active[vm->id])
+		return NULL;
+
+	/* we definately need to flush */
+	radeon_fence_unref(&vm->last_flush);
+
+	/* skip over VMID 0, since it is the system VM */
+	for (i = 1; i < rdev->vm_manager.nvm; ++i) {
+		struct radeon_fence *fence = rdev->vm_manager.active[i];
+
+		if (fence == NULL) {
+			/* found a free one */
+			vm->id = i;
+			return NULL;
+		}
+
+		if (radeon_fence_is_earlier(fence, best[fence->ring])) {
+			best[fence->ring] = fence;
+			choices[fence->ring == ring ? 0 : 1] = i;
+		}
+	}
+
+	for (i = 0; i < 2; ++i) {
+		if (choices[i]) {
+			vm->id = choices[i];
+			return rdev->vm_manager.active[choices[i]];
+		}
+	}
+
+	/* should never happen */
+	BUG();
+	return NULL;
+}
+
+/**
+ * radeon_vm_fence - remember fence for vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm we want to fence
+ * @fence: fence to remember
+ *
+ * Fence the vm (cayman+).
+ * Set the fence used to protect page table and id.
+ *
+ * Global and local mutex must be locked!
+ */
+void radeon_vm_fence(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     struct radeon_fence *fence)
+{
+	radeon_fence_unref(&rdev->vm_manager.active[vm->id]);
+	rdev->vm_manager.active[vm->id] = radeon_fence_ref(fence);
+
+	radeon_fence_unref(&vm->fence);
+	vm->fence = radeon_fence_ref(fence);
+}
+
+/**
+ * radeon_vm_bo_find - find the bo_va for a specific vm & bo
+ *
+ * @vm: requested vm
+ * @bo: requested buffer object
+ *
+ * Find @bo inside the requested vm (cayman+).
+ * Search inside the @bos vm list for the requested vm
+ * Returns the found bo_va or NULL if none is found
+ *
+ * Object has to be reserved!
+ */
+struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,
+				       struct radeon_bo *bo)
+{
+	struct radeon_bo_va *bo_va;
+
+	list_for_each_entry(bo_va, &bo->va, bo_list) {
+		if (bo_va->vm == vm) {
+			return bo_va;
+		}
+	}
+	return NULL;
+}
+
 /**
  * radeon_vm_bo_add - add a bo to a specific vm
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
  * @bo: radeon buffer object
- * @offset: requested offset of the buffer in the VM address space
- * @flags: attributes of pages (read/write/valid/etc.)
  *
  * Add @bo into the requested vm (cayman+).
- * Add @bo to the list of bos associated with the vm and validate
- * the offset requested within the vm address space.
- * Returns 0 for success, error for failure.
+ * Add @bo to the list of bos associated with the vm
+ * Returns newly added bo_va or NULL for failure
+ *
+ * Object has to be reserved!
  */
-int radeon_vm_bo_add(struct radeon_device *rdev,
-		     struct radeon_vm *vm,
-		     struct radeon_bo *bo,
-		     uint64_t offset,
-		     uint32_t flags)
+struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
+				      struct radeon_vm *vm,
+				      struct radeon_bo *bo)
 {
-	struct radeon_bo_va *bo_va, *tmp;
-	struct list_head *head;
-	uint64_t size = radeon_bo_size(bo), last_offset = 0;
-	unsigned last_pfn;
+	struct radeon_bo_va *bo_va;
 
 	bo_va = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
 	if (bo_va == NULL) {
-		return -ENOMEM;
+		return NULL;
 	}
 	bo_va->vm = vm;
 	bo_va->bo = bo;
-	bo_va->soffset = offset;
-	bo_va->eoffset = offset + size;
-	bo_va->flags = flags;
+	bo_va->soffset = 0;
+	bo_va->eoffset = 0;
+	bo_va->flags = 0;
 	bo_va->valid = false;
+	bo_va->ref_count = 1;
 	INIT_LIST_HEAD(&bo_va->bo_list);
 	INIT_LIST_HEAD(&bo_va->vm_list);
-	/* make sure object fit at this offset */
-	if (bo_va->soffset >= bo_va->eoffset) {
-		kfree(bo_va);
-		return -EINVAL;
-	}
 
-	last_pfn = bo_va->eoffset / RADEON_GPU_PAGE_SIZE;
-	if (last_pfn > rdev->vm_manager.max_pfn) {
-		kfree(bo_va);
-		dev_err(rdev->dev, "va above limit (0x%08X > 0x%08X)\n",
-			last_pfn, rdev->vm_manager.max_pfn);
-		return -EINVAL;
+	mutex_lock(&vm->mutex);
+	list_add(&bo_va->vm_list, &vm->va);
+	list_add_tail(&bo_va->bo_list, &bo->va);
+	mutex_unlock(&vm->mutex);
+
+	return bo_va;
+}
+
+/**
+ * radeon_vm_bo_set_addr - set bos virtual address inside a vm
+ *
+ * @rdev: radeon_device pointer
+ * @bo_va: bo_va to store the address
+ * @soffset: requested offset of the buffer in the VM address space
+ * @flags: attributes of pages (read/write/valid/etc.)
+ *
+ * Set offset of @bo_va (cayman+).
+ * Validate and set the offset requested within the vm address space.
+ * Returns 0 for success, error for failure.
+ *
+ * Object has to be reserved!
+ */
+int radeon_vm_bo_set_addr(struct radeon_device *rdev,
+			  struct radeon_bo_va *bo_va,
+			  uint64_t soffset,
+			  uint32_t flags)
+{
+	uint64_t size = radeon_bo_size(bo_va->bo);
+	uint64_t eoffset, last_offset = 0;
+	struct radeon_vm *vm = bo_va->vm;
+	struct radeon_bo_va *tmp;
+	struct list_head *head;
+	unsigned last_pfn;
+
+	if (soffset) {
+		/* make sure object fit at this offset */
+		eoffset = soffset + size;
+		if (soffset >= eoffset) {
+			return -EINVAL;
+		}
+
+		last_pfn = eoffset / RADEON_GPU_PAGE_SIZE;
+		if (last_pfn > rdev->vm_manager.max_pfn) {
+			dev_err(rdev->dev, "va above limit (0x%08X > 0x%08X)\n",
+				last_pfn, rdev->vm_manager.max_pfn);
+			return -EINVAL;
+		}
+
+	} else {
+		eoffset = last_pfn = 0;
 	}
 
 	mutex_lock(&vm->mutex);
-	if (last_pfn > vm->last_pfn) {
-		/* release mutex and lock in right order */
-		mutex_unlock(&vm->mutex);
-		mutex_lock(&rdev->vm_manager.lock);
-		mutex_lock(&vm->mutex);
-		/* and check again */
-		if (last_pfn > vm->last_pfn) {
-			/* grow va space 32M by 32M */
-			unsigned align = ((32 << 20) >> 12) - 1;
-			radeon_vm_unbind_locked(rdev, vm);
-			vm->last_pfn = (last_pfn + align) & ~align;
-		}
-		mutex_unlock(&rdev->vm_manager.lock);
-	}
 	head = &vm->va;
 	last_offset = 0;
 	list_for_each_entry(tmp, &vm->va, vm_list) {
-		if (bo_va->soffset >= last_offset && bo_va->eoffset < tmp->soffset) {
+		if (bo_va == tmp) {
+			/* skip over currently modified bo */
+			continue;
+		}
+
+		if (soffset >= last_offset && eoffset <= tmp->soffset) {
 			/* bo can be added before this one */
 			break;
 		}
-		if (bo_va->soffset >= tmp->soffset && bo_va->soffset < tmp->eoffset) {
+		if (eoffset > tmp->soffset && soffset < tmp->eoffset) {
 			/* bo and tmp overlap, invalid offset */
 			dev_err(rdev->dev, "bo %p va 0x%08X conflict with (bo %p 0x%08X 0x%08X)\n",
-				bo, (unsigned)bo_va->soffset, tmp->bo,
+				bo_va->bo, (unsigned)bo_va->soffset, tmp->bo,
 				(unsigned)tmp->soffset, (unsigned)tmp->eoffset);
-			kfree(bo_va);
 			mutex_unlock(&vm->mutex);
 			return -EINVAL;
 		}
 		last_offset = tmp->eoffset;
 		head = &tmp->vm_list;
 	}
-	list_add(&bo_va->vm_list, head);
-	list_add_tail(&bo_va->bo_list, &bo->va);
+
+	bo_va->soffset = soffset;
+	bo_va->eoffset = eoffset;
+	bo_va->flags = flags;
+	bo_va->valid = false;
+	list_move(&bo_va->vm_list, head);
+
 	mutex_unlock(&vm->mutex);
 	return 0;
 }
 
 /**
- * radeon_vm_get_addr - get the physical address of the page
+ * radeon_vm_map_gart - get the physical address of a gart page
  *
  * @rdev: radeon_device pointer
- * @mem: ttm mem
- * @pfn: pfn
+ * @addr: the unmapped addr
  *
  * Look up the physical address of the page that the pte resolves
  * to (cayman+).
  * Returns the physical address of the page.
  */
-static u64 radeon_vm_get_addr(struct radeon_device *rdev,
-			      struct ttm_mem_reg *mem,
-			      unsigned pfn)
+uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 {
-	u64 addr = 0;
+	uint64_t result;
 
-	switch (mem->mem_type) {
-	case TTM_PL_VRAM:
-		addr = (mem->start << PAGE_SHIFT);
-		addr += pfn * RADEON_GPU_PAGE_SIZE;
-		addr += rdev->vm_manager.vram_base_offset;
-		break;
-	case TTM_PL_TT:
-		/* offset inside page table */
-		addr = mem->start << PAGE_SHIFT;
-		addr += pfn * RADEON_GPU_PAGE_SIZE;
-		addr = addr >> PAGE_SHIFT;
-		/* page table offset */
-		addr = rdev->gart.pages_addr[addr];
-		/* in case cpu page size != gpu page size*/
-		addr += (pfn * RADEON_GPU_PAGE_SIZE) & (~PAGE_MASK);
-		break;
-	default:
-		break;
-	}
-	return addr;
+	/* page table offset */
+	result = rdev->gart.pages_addr[addr >> PAGE_SHIFT];
+
+	/* in case cpu page size != gpu page size*/
+	result |= addr & (~PAGE_MASK);
+
+	return result;
 }
 
-/* object have to be reserved & global and local mutex must be locked */
+/**
+ * radeon_vm_update_pdes - make sure that page directory is valid
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ *
+ * Allocates new page tables if necessary
+ * and updates the page directory (cayman+).
+ * Returns 0 for success, error for failure.
+ *
+ * Global and local mutex must be locked!
+ */
+static int radeon_vm_update_pdes(struct radeon_device *rdev,
+				 struct radeon_vm *vm,
+				 uint64_t start, uint64_t end)
+{
+	static const uint32_t incr = RADEON_VM_PTE_COUNT * 8;
+
+	uint64_t last_pde = ~0, last_pt = ~0;
+	unsigned count = 0;
+	uint64_t pt_idx;
+	int r;
+
+	start = (start / RADEON_GPU_PAGE_SIZE) >> RADEON_VM_BLOCK_SIZE;
+	end = (end / RADEON_GPU_PAGE_SIZE) >> RADEON_VM_BLOCK_SIZE;
+
+	/* walk over the address space and update the page directory */
+	for (pt_idx = start; pt_idx <= end; ++pt_idx) {
+		uint64_t pde, pt;
+
+		if (vm->page_tables[pt_idx])
+			continue;
+
+retry:
+		r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
+				     &vm->page_tables[pt_idx],
+				     RADEON_VM_PTE_COUNT * 8,
+				     RADEON_GPU_PAGE_SIZE, false);
+
+		if (r == -ENOMEM) {
+			r = radeon_vm_evict(rdev, vm);
+			if (r)
+				return r;
+			goto retry;
+		} else if (r) {
+			return r;
+		}
+
+		pde = vm->pd_gpu_addr + pt_idx * 8;
+
+		pt = radeon_sa_bo_gpu_addr(vm->page_tables[pt_idx]);
+
+		if (((last_pde + 8 * count) != pde) ||
+		    ((last_pt + incr * count) != pt)) {
+
+			if (count) {
+				radeon_asic_vm_set_page(rdev, last_pde,
+							last_pt, count, incr,
+							RADEON_VM_PAGE_VALID);
+			}
+
+			count = 1;
+			last_pde = pde;
+			last_pt = pt;
+		} else {
+			++count;
+		}
+	}
+
+	if (count) {
+		radeon_asic_vm_set_page(rdev, last_pde, last_pt, count,
+					incr, RADEON_VM_PAGE_VALID);
+
+	}
+
+	return 0;
+}
+
+/**
+ * radeon_vm_update_ptes - make sure that page tables are valid
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ * @dst: destination address to map to
+ * @flags: mapping flags
+ *
+ * Update the page tables in the range @start - @end (cayman+).
+ *
+ * Global and local mutex must be locked!
+ */
+static void radeon_vm_update_ptes(struct radeon_device *rdev,
+				  struct radeon_vm *vm,
+				  uint64_t start, uint64_t end,
+				  uint64_t dst, uint32_t flags)
+{
+	static const uint64_t mask = RADEON_VM_PTE_COUNT - 1;
+
+	uint64_t last_pte = ~0, last_dst = ~0;
+	unsigned count = 0;
+	uint64_t addr;
+
+	start = start / RADEON_GPU_PAGE_SIZE;
+	end = end / RADEON_GPU_PAGE_SIZE;
+
+	/* walk over the address space and update the page tables */
+	for (addr = start; addr < end; ) {
+		uint64_t pt_idx = addr >> RADEON_VM_BLOCK_SIZE;
+		unsigned nptes;
+		uint64_t pte;
+
+		if ((addr & ~mask) == (end & ~mask))
+			nptes = end - addr;
+		else
+			nptes = RADEON_VM_PTE_COUNT - (addr & mask);
+
+		pte = radeon_sa_bo_gpu_addr(vm->page_tables[pt_idx]);
+		pte += (addr & mask) * 8;
+
+		if (((last_pte + 8 * count) != pte) ||
+		    ((count + nptes) > 1 << 11)) {
+
+			if (count) {
+				radeon_asic_vm_set_page(rdev, last_pte,
+							last_dst, count,
+							RADEON_GPU_PAGE_SIZE,
+							flags);
+			}
+
+			count = nptes;
+			last_pte = pte;
+			last_dst = dst;
+		} else {
+			count += nptes;
+		}
+
+		addr += nptes;
+		dst += nptes * RADEON_GPU_PAGE_SIZE;
+	}
+
+	if (count) {
+		radeon_asic_vm_set_page(rdev, last_pte,	last_dst, count,
+					RADEON_GPU_PAGE_SIZE, flags);
+	}
+}
+
 /**
  * radeon_vm_bo_update_pte - map a bo into the vm page table
  *
@@ -793,103 +1073,156 @@ static u64 radeon_vm_get_addr(struct radeon_device *rdev,
  *
  * Fill in the page table entries for @bo (cayman+).
  * Returns 0 for success, -EINVAL for failure.
+ *
+ * Object have to be reserved & global and local mutex must be locked!
  */
 int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_vm *vm,
 			    struct radeon_bo *bo,
 			    struct ttm_mem_reg *mem)
 {
+	unsigned ridx = rdev->asic->vm.pt_ring_index;
+	struct radeon_ring *ring = &rdev->ring[ridx];
+	struct radeon_semaphore *sem = NULL;
 	struct radeon_bo_va *bo_va;
-	unsigned ngpu_pages, i;
-	uint64_t addr = 0, pfn;
-	uint32_t flags;
+	unsigned nptes, npdes, ndw;
+	uint64_t addr;
+	int r;
 
 	/* nothing to do if vm isn't bound */
-	if (vm->id == -1)
+	if (vm->page_directory == NULL)
 		return 0;
 
-	bo_va = radeon_bo_va(bo, vm);
+	bo_va = radeon_vm_bo_find(vm, bo);
 	if (bo_va == NULL) {
 		dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
 		return -EINVAL;
 	}
 
-	if (bo_va->valid && mem)
+	if (!bo_va->soffset) {
+		dev_err(rdev->dev, "bo %p don't has a mapping in vm %p\n",
+			bo, vm);
+		return -EINVAL;
+	}
+
+	if ((bo_va->valid && mem) || (!bo_va->valid && mem == NULL))
 		return 0;
 
-	ngpu_pages = radeon_bo_ngpu_pages(bo);
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
 	if (mem) {
+		addr = mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
 			bo_va->valid = true;
 		}
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
+		} else {
+			addr += rdev->vm_manager.vram_base_offset;
+		}
+	} else {
+		addr = 0;
+		bo_va->valid = false;
+	}
+
+	if (vm->fence && radeon_fence_signaled(vm->fence)) {
+		radeon_fence_unref(&vm->fence);
+	}
+
+	if (vm->fence && vm->fence->ring != ridx) {
+		r = radeon_semaphore_create(rdev, &sem);
+		if (r) {
+			return r;
 		}
 	}
-	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
-	flags = rdev->vm_manager.funcs->page_flags(rdev, bo_va->vm, bo_va->flags);
-	for (i = 0, addr = 0; i < ngpu_pages; i++) {
-		if (mem && bo_va->valid) {
-			addr = radeon_vm_get_addr(rdev, mem, i);
-		}
-		rdev->vm_manager.funcs->set_page(rdev, bo_va->vm, i + pfn, addr, flags);
+
+	nptes = radeon_bo_ngpu_pages(bo);
+
+	/* assume two extra pdes in case the mapping overlaps the borders */
+	npdes = (nptes >> RADEON_VM_BLOCK_SIZE) + 2;
+
+	/* estimate number of dw needed */
+	/* semaphore, fence and padding */
+	ndw = 32;
+
+	if (RADEON_VM_BLOCK_SIZE > 11)
+		/* reserve space for one header for every 2k dwords */
+		ndw += (nptes >> 11) * 3;
+	else
+		/* reserve space for one header for
+		    every (1 << BLOCK_SIZE) entries */
+		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 3;
+
+	/* reserve space for pte addresses */
+	ndw += nptes * 2;
+
+	/* reserve space for one header for every 2k dwords */
+	ndw += (npdes >> 11) * 3;
+
+	/* reserve space for pde addresses */
+	ndw += npdes * 2;
+
+	r = radeon_ring_lock(rdev, ring, ndw);
+	if (r) {
+		return r;
 	}
-	rdev->vm_manager.funcs->tlb_flush(rdev, bo_va->vm);
+
+	if (sem && radeon_fence_need_sync(vm->fence, ridx)) {
+		radeon_semaphore_sync_rings(rdev, sem, vm->fence->ring, ridx);
+		radeon_fence_note_sync(vm->fence, ridx);
+	}
+
+	r = radeon_vm_update_pdes(rdev, vm, bo_va->soffset, bo_va->eoffset);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+
+	radeon_vm_update_ptes(rdev, vm, bo_va->soffset, bo_va->eoffset,
+			      addr, bo_va->flags);
+
+	radeon_fence_unref(&vm->fence);
+	r = radeon_fence_emit(rdev, &vm->fence, ridx);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+	radeon_ring_unlock_commit(rdev, ring);
+	radeon_semaphore_free(rdev, &sem, vm->fence);
+	radeon_fence_unref(&vm->last_flush);
+
 	return 0;
 }
 
-/* object have to be reserved */
 /**
  * radeon_vm_bo_rmv - remove a bo to a specific vm
  *
  * @rdev: radeon_device pointer
- * @vm: requested vm
- * @bo: radeon buffer object
+ * @bo_va: requested bo_va
  *
- * Remove @bo from the requested vm (cayman+).
- * Remove @bo from the list of bos associated with the vm and
- * remove the ptes for @bo in the page table.
+ * Remove @bo_va->bo from the requested vm (cayman+).
+ * Remove @bo_va->bo from the list of bos associated with the bo_va->vm and
+ * remove the ptes for @bo_va in the page table.
  * Returns 0 for success.
+ *
+ * Object have to be reserved!
  */
 int radeon_vm_bo_rmv(struct radeon_device *rdev,
-		     struct radeon_vm *vm,
-		     struct radeon_bo *bo)
+		     struct radeon_bo_va *bo_va)
 {
-	struct radeon_bo_va *bo_va;
 	int r;
 
-	bo_va = radeon_bo_va(bo, vm);
-	if (bo_va == NULL)
-		return 0;
-
-	/* wait for va use to end */
-	while (bo_va->fence) {
-		r = radeon_fence_wait(bo_va->fence, false);
-		if (r) {
-			DRM_ERROR("error while waiting for fence: %d\n", r);
-		}
-		if (r == -EDEADLK) {
-			r = radeon_gpu_reset(rdev);
-			if (!r)
-				continue;
-		}
-		break;
-	}
-	radeon_fence_unref(&bo_va->fence);
-
 	mutex_lock(&rdev->vm_manager.lock);
-	mutex_lock(&vm->mutex);
-	radeon_vm_bo_update_pte(rdev, vm, bo, NULL);
+	mutex_lock(&bo_va->vm->mutex);
+	r = radeon_vm_bo_update_pte(rdev, bo_va->vm, bo_va->bo, NULL);
 	mutex_unlock(&rdev->vm_manager.lock);
 	list_del(&bo_va->vm_list);
-	mutex_unlock(&vm->mutex);
+	mutex_unlock(&bo_va->vm->mutex);
 	list_del(&bo_va->bo_list);
 
 	kfree(bo_va);
-	return 0;
+	return r;
 }
 
 /**
@@ -918,35 +1251,15 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
  * @rdev: radeon_device pointer
  * @vm: requested vm
  *
- * Init @vm (cayman+).
- * Map the IB pool and any other shared objects into the VM
- * by default as it's used by all VMs.
- * Returns 0 for success, error for failure.
+ * Init @vm fields (cayman+).
  */
-int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
+void radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	int r;
-
-	vm->id = -1;
+	vm->id = 0;
 	vm->fence = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);
 	INIT_LIST_HEAD(&vm->va);
-	/* SI requires equal sized PTs for all VMs, so always set
-	 * last_pfn to max_pfn.  cayman allows variable sized
-	 * pts so we can grow then as needed.  Once we switch
-	 * to two level pts we can unify this again.
-	 */
-	if (rdev->family >= CHIP_TAHITI)
-		vm->last_pfn = rdev->vm_manager.max_pfn;
-	else
-		vm->last_pfn = 0;
-	/* map the ib pool buffer at 0 in virtual address space, set
-	 * read only
-	 */
-	r = radeon_vm_bo_add(rdev, vm, rdev->ring_tmp_bo.bo, 0,
-			     RADEON_VM_PAGE_READABLE | RADEON_VM_PAGE_SNOOPED);
-	return r;
 }
 
 /**
@@ -965,21 +1278,9 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
-	radeon_vm_unbind_locked(rdev, vm);
+	radeon_vm_free_pt(rdev, vm);
 	mutex_unlock(&rdev->vm_manager.lock);
 
-	/* remove all bo at this point non are busy any more because unbind
-	 * waited for the last vm fence to signal
-	 */
-	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-	if (!r) {
-		bo_va = radeon_bo_va(rdev->ring_tmp_bo.bo, vm);
-		list_del_init(&bo_va->bo_list);
-		list_del_init(&bo_va->vm_list);
-		radeon_fence_unref(&bo_va->fence);
-		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
-		kfree(bo_va);
-	}
 	if (!list_empty(&vm->va)) {
 		dev_err(rdev->dev, "still active bo inside vm\n");
 	}
@@ -988,10 +1289,11 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		r = radeon_bo_reserve(bo_va->bo, false);
 		if (!r) {
 			list_del_init(&bo_va->bo_list);
-			radeon_fence_unref(&bo_va->fence);
 			radeon_bo_unreserve(bo_va->bo);
 			kfree(bo_va);
 		}
 	}
+	radeon_fence_unref(&vm->fence);
+	radeon_fence_unref(&vm->last_flush);
 	mutex_unlock(&vm->mutex);
 }

@@ -33,7 +33,7 @@
  * head debug code as the initial MMU setup only deals in L1 sections.
  */
 #define KS8695_IO_PA		0x03F00000
-#define KS8695_IO_VA		0xF0000000
+#define KS8695_IO_VA		IOMEM(0xF0000000)
 #define KS8695_IO_SIZE		SZ_1M
 
 #define KS8695_PCIMEM_PA	0x60000000

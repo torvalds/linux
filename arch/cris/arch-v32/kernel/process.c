@@ -224,7 +224,7 @@ sys_execve(const char *fname,
 	   struct pt_regs *regs)
 {
 	int error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(fname);
 	error = PTR_ERR(filename);
@@ -232,7 +232,7 @@ sys_execve(const char *fname,
 	if (IS_ERR(filename))
 	        goto out;
 
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
  out:
 	return error;

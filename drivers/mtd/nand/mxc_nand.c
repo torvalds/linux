@@ -36,15 +36,15 @@
 #include <linux/of_mtd.h>
 
 #include <asm/mach/flash.h>
-#include <mach/mxc_nand.h>
+#include <linux/platform_data/mtd-mxc_nand.h>
 #include <mach/hardware.h>
 
 #define DRIVER_NAME "mxc_nand"
 
 #define nfc_is_v21()		(cpu_is_mx25() || cpu_is_mx35())
 #define nfc_is_v1()		(cpu_is_mx31() || cpu_is_mx27() || cpu_is_mx21())
-#define nfc_is_v3_2()		(cpu_is_mx51() || cpu_is_mx53())
-#define nfc_is_v3()		nfc_is_v3_2()
+#define nfc_is_v3_2a()		cpu_is_mx51()
+#define nfc_is_v3_2b()		cpu_is_mx53()
 
 /* Addresses for NFC registers */
 #define NFC_V1_V2_BUF_SIZE		(host->regs + 0x00)
@@ -122,7 +122,7 @@
 #define NFC_V3_CONFIG2_2CMD_PHASES		(1 << 4)
 #define NFC_V3_CONFIG2_NUM_ADDR_PHASE0		(1 << 5)
 #define NFC_V3_CONFIG2_ECC_MODE_8		(1 << 6)
-#define NFC_V3_CONFIG2_PPB(x)			(((x) & 0x3) << 7)
+#define NFC_V3_CONFIG2_PPB(x, shift)		(((x) & 0x3) << shift)
 #define NFC_V3_CONFIG2_NUM_ADDR_PHASE1(x)	(((x) & 0x3) << 12)
 #define NFC_V3_CONFIG2_INT_MSK			(1 << 15)
 #define NFC_V3_CONFIG2_ST_CMD(x)		(((x) & 0xff) << 24)
@@ -174,6 +174,7 @@ struct mxc_nand_devtype_data {
 	int spare_len;
 	int eccbytes;
 	int eccsize;
+	int ppb_shift;
 };
 
 struct mxc_nand_host {
@@ -745,14 +746,6 @@ static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	host->buf_start += n;
 }
 
-/* Used by the upper layer to verify the data in NAND Flash
- * with the data in the buf. */
-static int mxc_nand_verify_buf(struct mtd_info *mtd,
-				const u_char *buf, int len)
-{
-	return -EFAULT;
-}
-
 /* This function is used by upper layer for select and
  * deselect of the NAND chip */
 static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
@@ -784,7 +777,7 @@ static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 	if (chip == -1) {
 		/* Disable the NFC clock */
 		if (host->clk_act) {
-			clk_disable(host->clk);
+			clk_disable_unprepare(host->clk);
 			host->clk_act = 0;
 		}
 		return;
@@ -792,7 +785,7 @@ static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 
 	if (!host->clk_act) {
 		/* Enable the NFC clock */
-		clk_enable(host->clk);
+		clk_prepare_enable(host->clk);
 		host->clk_act = 1;
 	}
 
@@ -1021,7 +1014,9 @@ static void preset_v3(struct mtd_info *mtd)
 	}
 
 	if (mtd->writesize) {
-		config2 |= NFC_V3_CONFIG2_PPB(ffs(mtd->erasesize / mtd->writesize) - 6);
+		config2 |= NFC_V3_CONFIG2_PPB(
+				ffs(mtd->erasesize / mtd->writesize) - 6,
+				host->devtype_data->ppb_shift);
 		host->eccsize = get_eccsize(mtd);
 		if (host->eccsize == 8)
 			config2 |= NFC_V3_CONFIG2_ECC_MODE_8;
@@ -1234,7 +1229,7 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.eccsize = 0,
 };
 
-/* v3: i.MX51, i.MX53 */
+/* v3.2a: i.MX51 */
 static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.preset = preset_v3,
 	.send_cmd = send_cmd_v3,
@@ -1258,6 +1253,34 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.spare_len = 64,
 	.eccbytes = 0,
 	.eccsize = 0,
+	.ppb_shift = 7,
+};
+
+/* v3.2b: i.MX53 */
+static const struct mxc_nand_devtype_data imx53_nand_devtype_data = {
+	.preset = preset_v3,
+	.send_cmd = send_cmd_v3,
+	.send_addr = send_addr_v3,
+	.send_page = send_page_v3,
+	.send_read_id = send_read_id_v3,
+	.get_dev_status = get_dev_status_v3,
+	.check_int = check_int_v3,
+	.irq_control = irq_control_v3,
+	.get_ecc_status = get_ecc_status_v3,
+	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
+	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
+	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
+	.select_chip = mxc_nand_select_chip_v1_v3,
+	.correct_data = mxc_nand_correct_data_v2_v3,
+	.irqpending_quirk = 0,
+	.needs_ip = 1,
+	.regs_offset = 0,
+	.spare0_offset = 0x1000,
+	.axi_offset = 0x1e00,
+	.spare_len = 64,
+	.eccbytes = 0,
+	.eccsize = 0,
+	.ppb_shift = 8,
 };
 
 #ifdef CONFIG_OF_MTD
@@ -1274,6 +1297,9 @@ static const struct of_device_id mxcnd_dt_ids[] = {
 	}, {
 		.compatible = "fsl,imx51-nand",
 		.data = &imx51_nand_devtype_data,
+	}, {
+		.compatible = "fsl,imx53-nand",
+		.data = &imx53_nand_devtype_data,
 	},
 	{ /* sentinel */ }
 };
@@ -1327,15 +1353,17 @@ static int __init mxcnd_probe_pdata(struct mxc_nand_host *host)
 			host->devtype_data = &imx27_nand_devtype_data;
 	} else if (nfc_is_v21()) {
 		host->devtype_data = &imx25_nand_devtype_data;
-	} else if (nfc_is_v3_2()) {
+	} else if (nfc_is_v3_2a()) {
 		host->devtype_data = &imx51_nand_devtype_data;
+	} else if (nfc_is_v3_2b()) {
+		host->devtype_data = &imx53_nand_devtype_data;
 	} else
 		BUG();
 
 	return 0;
 }
 
-static int __init mxcnd_probe(struct platform_device *pdev)
+static int __devinit mxcnd_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct mtd_info *mtd;
@@ -1344,8 +1372,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	host = kzalloc(sizeof(struct mxc_nand_host) + NAND_MAX_PAGESIZE +
-			NAND_MAX_OOBSIZE, GFP_KERNEL);
+	host = devm_kzalloc(&pdev->dev, sizeof(struct mxc_nand_host) +
+			NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE, GFP_KERNEL);
 	if (!host)
 		return -ENOMEM;
 
@@ -1370,36 +1398,38 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->read_word = mxc_nand_read_word;
 	this->write_buf = mxc_nand_write_buf;
 	this->read_buf = mxc_nand_read_buf;
-	this->verify_buf = mxc_nand_verify_buf;
 
-	host->clk = clk_get(&pdev->dev, "nfc");
-	if (IS_ERR(host->clk)) {
-		err = PTR_ERR(host->clk);
-		goto eclk;
-	}
-
-	clk_prepare_enable(host->clk);
-	host->clk_act = 1;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -ENODEV;
-		goto eres;
-	}
-
-	host->base = ioremap(res->start, resource_size(res));
-	if (!host->base) {
-		err = -ENOMEM;
-		goto eres;
-	}
-
-	host->main_area0 = host->base;
+	host->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(host->clk))
+		return PTR_ERR(host->clk);
 
 	err = mxcnd_probe_dt(host);
 	if (err > 0)
 		err = mxcnd_probe_pdata(host);
 	if (err < 0)
-		goto eirq;
+		return err;
+
+	if (host->devtype_data->needs_ip) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -ENODEV;
+		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
+		if (!host->regs_ip)
+			return -ENOMEM;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	}
+
+	if (!res)
+		return -ENODEV;
+
+	host->base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!host->base)
+		return -ENOMEM;
+
+	host->main_area0 = host->base;
 
 	if (host->devtype_data->regs_offset)
 		host->regs = host->base + host->devtype_data->regs_offset;
@@ -1413,19 +1443,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->select_chip = host->devtype_data->select_chip;
 	this->ecc.size = 512;
 	this->ecc.layout = host->devtype_data->ecclayout_512;
-
-	if (host->devtype_data->needs_ip) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res) {
-			err = -ENODEV;
-			goto eirq;
-		}
-		host->regs_ip = ioremap(res->start, resource_size(res));
-		if (!host->regs_ip) {
-			err = -ENOMEM;
-			goto eirq;
-		}
-	}
 
 	if (host->pdata.hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
@@ -1458,9 +1475,13 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	 */
 	host->devtype_data->irq_control(host, 0);
 
-	err = request_irq(host->irq, mxc_nfc_irq, IRQF_DISABLED, DRIVER_NAME, host);
+	err = devm_request_irq(&pdev->dev, host->irq, mxc_nfc_irq,
+			IRQF_DISABLED, DRIVER_NAME, host);
 	if (err)
-		goto eirq;
+		return err;
+
+	clk_prepare_enable(host->clk);
+	host->clk_act = 1;
 
 	/*
 	 * Now that we "own" the interrupt make sure the interrupt mask bit is
@@ -1512,15 +1533,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	return 0;
 
 escan:
-	free_irq(host->irq, host);
-eirq:
-	if (host->regs_ip)
-		iounmap(host->regs_ip);
-	iounmap(host->base);
-eres:
-	clk_put(host->clk);
-eclk:
-	kfree(host);
+	clk_disable_unprepare(host->clk);
 
 	return err;
 }
@@ -1529,16 +1542,9 @@ static int __devexit mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
-	clk_put(host->clk);
-
 	platform_set_drvdata(pdev, NULL);
 
 	nand_release(&host->mtd);
-	free_irq(host->irq, host);
-	if (host->regs_ip)
-		iounmap(host->regs_ip);
-	iounmap(host->base);
-	kfree(host);
 
 	return 0;
 }
@@ -1549,22 +1555,10 @@ static struct platform_driver mxcnd_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
+	.probe = mxcnd_probe,
 	.remove = __devexit_p(mxcnd_remove),
 };
-
-static int __init mxc_nd_init(void)
-{
-	return platform_driver_probe(&mxcnd_driver, mxcnd_probe);
-}
-
-static void __exit mxc_nd_cleanup(void)
-{
-	/* Unregister the device structure */
-	platform_driver_unregister(&mxcnd_driver);
-}
-
-module_init(mxc_nd_init);
-module_exit(mxc_nd_cleanup);
+module_platform_driver(mxcnd_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXC NAND MTD driver");

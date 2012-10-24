@@ -17,6 +17,34 @@ config DRM_NOUVEAU
 	help
 	  Choose this option for open-source nVidia support.
 
+config NOUVEAU_DEBUG
+	int "Maximum debug level"
+	depends on DRM_NOUVEAU
+	range 0 7
+	default 5
+	help
+	  Selects the maximum debug level to compile support for.
+
+	  0 - fatal
+	  1 - error
+	  2 - warning
+	  3 - info
+	  4 - debug
+	  5 - trace (recommended)
+	  6 - paranoia
+	  7 - spam
+
+	  The paranoia and spam levels will add a lot of extra checks which
+	  may potentially slow down driver operation.
+
+config NOUVEAU_DEBUG_DEFAULT
+	int "Default debug level"
+	depends on DRM_NOUVEAU
+	range 0 7
+	default 3
+	help
+	  Selects the default debug level
+
 config DRM_NOUVEAU_BACKLIGHT
 	bool "Support for backlight control"
 	depends on DRM_NOUVEAU
@@ -24,14 +52,6 @@ config DRM_NOUVEAU_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display
 	  (e.g. a laptop panel).
-
-config DRM_NOUVEAU_DEBUG
-	bool "Build in Nouveau's debugfs support"
-	depends on DRM_NOUVEAU && DEBUG_FS
-	default y
-	help
-	  Say Y here if you want Nouveau to output debugging information
-	  via debugfs.
 
 menu "I2C encoder or helper chips"
      depends on DRM && DRM_KMS_HELPER && I2C

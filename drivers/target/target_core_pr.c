@@ -197,10 +197,10 @@ int target_scsi2_reservation_release(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
-	struct se_portal_group *tpg = sess->se_tpg;
+	struct se_portal_group *tpg;
 	int ret = 0, rc;
 
-	if (!sess || !tpg)
+	if (!sess || !sess->se_tpg)
 		goto out;
 	rc = target_check_scsi2_reservation_conflict(cmd);
 	if (rc == 1)
@@ -228,6 +228,7 @@ int target_scsi2_reservation_release(struct se_cmd *cmd)
 		dev->dev_res_bin_isid = 0;
 		dev->dev_flags &= ~DF_SPC2_RESERVATIONS_WITH_ISID;
 	}
+	tpg = sess->se_tpg;
 	pr_debug("SCSI-2 Released reservation for %s LUN: %u ->"
 		" MAPPED LUN: %u for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
@@ -245,7 +246,7 @@ int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
-	struct se_portal_group *tpg = sess->se_tpg;
+	struct se_portal_group *tpg;
 	int ret = 0, rc;
 
 	if ((cmd->t_task_cdb[1] & 0x01) &&
@@ -260,7 +261,7 @@ int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 	 * This is currently the case for target_core_mod passthrough struct se_cmd
 	 * ops
 	 */
-	if (!sess || !tpg)
+	if (!sess || !sess->se_tpg)
 		goto out;
 	rc = target_check_scsi2_reservation_conflict(cmd);
 	if (rc == 1)
@@ -272,6 +273,7 @@ int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 	}
 
 	ret = 0;
+	tpg = sess->se_tpg;
 	spin_lock(&dev->dev_reservation_lock);
 	if (dev->dev_reserved_node_acl &&
 	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
@@ -1540,6 +1542,14 @@ static int core_scsi3_decode_spec_i_port(
 	tidh_new->dest_local_nexus = 1;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
 
+	if (cmd->data_length < 28) {
+		pr_warn("SPC-PR: Received PR OUT parameter list"
+			" length too small: %u\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		ret = -EINVAL;
+		goto out;
+	}
+
 	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * For a PERSISTENT RESERVE OUT specify initiator ports payload,
@@ -1612,7 +1622,7 @@ static int core_scsi3_decode_spec_i_port(
 				goto out;
 			}
 			/*
-			 * Locate the desination initiator ACL to be registered
+			 * Locate the destination initiator ACL to be registered
 			 * from the decoded fabric module specific TransportID
 			 * at *i_str.
 			 */
@@ -4249,7 +4259,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 			buf[off++] = ((port->sep_rtpi >> 8) & 0xff);
 			buf[off++] = (port->sep_rtpi & 0xff);
 		} else
-			off += 2; /* Skip over RELATIVE TARGET PORT IDENTIFER */
+			off += 2; /* Skip over RELATIVE TARGET PORT IDENTIFIER */
 
 		/*
 		 * Now, have the $FABRIC_MOD fill in the protocol identifier

@@ -51,14 +51,14 @@ extern unsigned long asid_cache;
 
 static inline void set_rasid_register (unsigned long val)
 {
-	__asm__ __volatile__ (" wsr %0, "__stringify(RASID)"\n\t"
+	__asm__ __volatile__ (" wsr %0, rasid\n\t"
 			      " isync\n" : : "a" (val));
 }
 
 static inline unsigned long get_rasid_register (void)
 {
 	unsigned long tmp;
-	__asm__ __volatile__ (" rsr %0,"__stringify(RASID)"\n\t" : "=a" (tmp));
+	__asm__ __volatile__ (" rsr %0, rasid\n\t" : "=a" (tmp));
 	return tmp;
 }
 

@@ -124,8 +124,8 @@ static int irtty_change_speed(struct sir_dev *dev, unsigned speed)
 	tty = priv->tty;
 
 	mutex_lock(&tty->termios_mutex);
-	old_termios = *(tty->termios);
-	cflag = tty->termios->c_cflag;
+	old_termios = tty->termios;
+	cflag = tty->termios.c_cflag;
 	tty_encode_baud_rate(tty, speed, speed);
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
@@ -281,15 +281,15 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 	int cflag;
 
 	mutex_lock(&tty->termios_mutex);
-	old_termios = *(tty->termios);
-	cflag = tty->termios->c_cflag;
+	old_termios = tty->termios;
+	cflag = tty->termios.c_cflag;
 	
 	if (stop)
 		cflag &= ~CREAD;
 	else
 		cflag |= CREAD;
 
-	tty->termios->c_cflag = cflag;
+	tty->termios.c_cflag = cflag;
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
 	mutex_unlock(&tty->termios_mutex);
@@ -459,8 +459,10 @@ static int irtty_open(struct tty_struct *tty)
 
 	/* allocate private device info block */
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	if (!priv) {
+		ret = -ENOMEM;
 		goto out_put;
+	}
 
 	priv->magic = IRTTY_MAGIC;
 	priv->tty = tty;

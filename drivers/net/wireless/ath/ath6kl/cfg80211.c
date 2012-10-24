@@ -1488,7 +1488,7 @@ static int ath6kl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 }
 
 static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
-						      char *name,
+						      const char *name,
 						      enum nl80211_iftype type,
 						      u32 *flags,
 						      struct vif_params *params)
@@ -3477,7 +3477,7 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 	ar->num_vif--;
 }
 
-struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, char *name,
+struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 					  enum nl80211_iftype type,
 					  u8 fw_vif_idx, u8 nw_type)
 {

@@ -154,7 +154,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 {
 	chip->init = 1;
 	mb();
-	flush_delayed_work_sync(&chip->work);
+	flush_delayed_work(&chip->work);
 	ak4114_init_regs(chip);
 	/* bring up statistics / event queing */
 	chip->init = 0;

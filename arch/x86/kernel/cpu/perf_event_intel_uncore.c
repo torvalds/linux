@@ -661,6 +661,11 @@ static void snb_uncore_msr_init_box(struct intel_uncore_box *box)
 	}
 }
 
+static struct uncore_event_desc snb_uncore_events[] = {
+	INTEL_UNCORE_EVENT_DESC(clockticks, "event=0xff,umask=0x00"),
+	{ /* end: all zeroes */ },
+};
+
 static struct attribute *snb_uncore_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_umask.attr,
@@ -704,6 +709,7 @@ static struct intel_uncore_type snb_uncore_cbox = {
 	.constraints	= snb_uncore_cbox_constraints,
 	.ops		= &snb_uncore_msr_ops,
 	.format_group	= &snb_uncore_format_group,
+	.event_descs	= snb_uncore_events,
 };
 
 static struct intel_uncore_type *snb_msr_uncores[] = {
@@ -1944,7 +1950,7 @@ struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type, int cp
 static struct intel_uncore_box *
 uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu)
 {
-	static struct intel_uncore_box *box;
+	struct intel_uncore_box *box;
 
 	box = *per_cpu_ptr(pmu->box, cpu);
 	if (box)
@@ -2918,6 +2924,9 @@ static int __init intel_uncore_init(void)
 	int ret;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return -ENODEV;
+
+	if (cpu_has_hypervisor)
 		return -ENODEV;
 
 	ret = uncore_pci_init();

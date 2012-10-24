@@ -168,9 +168,14 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       stamp.day, stamp.hour, stamp.min, stamp.sec, r->profile,
 		       tomoyo_mode[r->mode], tomoyo_yesno(r->granted), gpid,
 		       tomoyo_sys_getpid(), tomoyo_sys_getppid(),
-		       current_uid(), current_gid(), current_euid(),
-		       current_egid(), current_suid(), current_sgid(),
-		       current_fsuid(), current_fsgid());
+		       from_kuid(&init_user_ns, current_uid()),
+		       from_kgid(&init_user_ns, current_gid()),
+		       from_kuid(&init_user_ns, current_euid()),
+		       from_kgid(&init_user_ns, current_egid()),
+		       from_kuid(&init_user_ns, current_suid()),
+		       from_kgid(&init_user_ns, current_sgid()),
+		       from_kuid(&init_user_ns, current_fsuid()),
+		       from_kgid(&init_user_ns, current_fsgid()));
 	if (!obj)
 		goto no_obj_info;
 	if (!obj->validate_done) {
@@ -191,15 +196,19 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 					tomoyo_buffer_len - 1 - pos,
 					" path%u.parent={ uid=%u gid=%u "
 					"ino=%lu perm=0%o }", (i >> 1) + 1,
-					stat->uid, stat->gid, (unsigned long)
-					stat->ino, stat->mode & S_IALLUGO);
+					from_kuid(&init_user_ns, stat->uid),
+					from_kgid(&init_user_ns, stat->gid),
+					(unsigned long)stat->ino,
+					stat->mode & S_IALLUGO);
 			continue;
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
 				" path%u={ uid=%u gid=%u ino=%lu major=%u"
 				" minor=%u perm=0%o type=%s", (i >> 1) + 1,
-				stat->uid, stat->gid, (unsigned long)
-				stat->ino, MAJOR(dev), MINOR(dev),
+				from_kuid(&init_user_ns, stat->uid),
+				from_kgid(&init_user_ns, stat->gid),
+				(unsigned long)stat->ino,
+				MAJOR(dev), MINOR(dev),
 				mode & S_IALLUGO, tomoyo_filetype(mode));
 		if (S_ISCHR(mode) || S_ISBLK(mode)) {
 			dev = stat->rdev;

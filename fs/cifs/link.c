@@ -391,72 +391,86 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 {
 	int rc = -EACCES;
 	unsigned int xid;
-	char *fromName = NULL;
-	char *toName = NULL;
+	char *from_name = NULL;
+	char *to_name = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	struct cifsInodeInfo *cifsInode;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
 
 	xid = get_xid();
 
-	fromName = build_path_from_dentry(old_file);
-	toName = build_path_from_dentry(direntry);
-	if ((fromName == NULL) || (toName == NULL)) {
+	from_name = build_path_from_dentry(old_file);
+	to_name = build_path_from_dentry(direntry);
+	if ((from_name == NULL) || (to_name == NULL)) {
 		rc = -ENOMEM;
 		goto cifs_hl_exit;
 	}
 
-	if (pTcon->unix_ext)
-		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
+	if (tcon->unix_ext)
+		rc = CIFSUnixCreateHardLink(xid, tcon, from_name, to_name,
 					    cifs_sb->local_nls,
 					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else {
-		rc = CIFSCreateHardLink(xid, pTcon, fromName, toName,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		server = tcon->ses->server;
+		if (!server->ops->create_hardlink)
+			return -ENOSYS;
+		rc = server->ops->create_hardlink(xid, tcon, from_name, to_name,
+						  cifs_sb);
 		if ((rc == -EIO) || (rc == -EINVAL))
 			rc = -EOPNOTSUPP;
 	}
 
 	d_drop(direntry);	/* force new lookup from server of target */
 
-	/* if source file is cached (oplocked) revalidate will not go to server
-	   until the file is closed or oplock broken so update nlinks locally */
+	/*
+	 * if source file is cached (oplocked) revalidate will not go to server
+	 * until the file is closed or oplock broken so update nlinks locally
+	 */
 	if (old_file->d_inode) {
 		cifsInode = CIFS_I(old_file->d_inode);
 		if (rc == 0) {
 			spin_lock(&old_file->d_inode->i_lock);
 			inc_nlink(old_file->d_inode);
 			spin_unlock(&old_file->d_inode->i_lock);
-/* BB should we make this contingent on superblock flag NOATIME? */
-/*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
-			/* parent dir timestamps will update from srv
-			within a second, would it really be worth it
-			to set the parent dir cifs inode time to zero
-			to force revalidate (faster) for it too? */
+			/*
+			 * BB should we make this contingent on superblock flag
+			 * NOATIME?
+			 */
+			/* old_file->d_inode->i_ctime = CURRENT_TIME; */
+			/*
+			 * parent dir timestamps will update from srv within a
+			 * second, would it really be worth it to set the parent
+			 * dir cifs inode time to zero to force revalidate
+			 * (faster) for it too?
+			 */
 		}
-		/* if not oplocked will force revalidate to get info
-		   on source file from srv */
+		/*
+		 * if not oplocked will force revalidate to get info on source
+		 * file from srv
+		 */
 		cifsInode->time = 0;
 
-		/* Will update parent dir timestamps from srv within a second.
-		   Would it really be worth it to set the parent dir (cifs
-		   inode) time field to zero to force revalidate on parent
-		   directory faster ie
-			CIFS_I(inode)->time = 0;  */
+		/*
+		 * Will update parent dir timestamps from srv within a second.
+		 * Would it really be worth it to set the parent dir (cifs
+		 * inode) time field to zero to force revalidate on parent
+		 * directory faster ie
+		 *
+		 * CIFS_I(inode)->time = 0;
+		 */
 	}
 
 cifs_hl_exit:
-	kfree(fromName);
-	kfree(toName);
+	kfree(from_name);
+	kfree(to_name);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;

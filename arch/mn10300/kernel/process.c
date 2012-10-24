@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -107,6 +108,7 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	for (;;) {
+		rcu_idle_enter();
 		while (!need_resched()) {
 			void (*idle)(void);
 
@@ -121,6 +123,7 @@ void cpu_idle(void)
 			}
 			idle();
 		}
+		rcu_idle_exit();
 
 		schedule_preempt_disabled();
 	}
@@ -160,27 +163,6 @@ void machine_power_off(void)
 void show_regs(struct pt_regs *regs)
 {
 }
-
-/*
- * create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.a2 = (unsigned long) fn;
-	regs.d2 = (unsigned long) arg;
-	regs.pc = (unsigned long) kernel_thread_helper;
-	local_save_flags(regs.epsw);
-	regs.epsw |= EPSW_IE | EPSW_IM_7;
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0,
-		       NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 /*
  * free current thread data structures etc..
@@ -227,50 +209,42 @@ int copy_thread(unsigned long clone_flags,
 		struct task_struct *p, struct pt_regs *kregs)
 {
 	struct thread_info *ti = task_thread_info(p);
-	struct pt_regs *c_uregs, *c_kregs, *uregs;
+	struct pt_regs *c_regs;
 	unsigned long c_ksp;
-
-	uregs = current->thread.uregs;
 
 	c_ksp = (unsigned long) task_stack_page(p) + THREAD_SIZE;
 
 	/* allocate the userspace exception frame and set it up */
 	c_ksp -= sizeof(struct pt_regs);
-	c_uregs = (struct pt_regs *) c_ksp;
-
-	p->thread.uregs = c_uregs;
-	*c_uregs = *uregs;
-	c_uregs->sp = c_usp;
-	c_uregs->epsw &= ~EPSW_FE; /* my FPU */
-
+	c_regs = (struct pt_regs *) c_ksp;
 	c_ksp -= 12; /* allocate function call ABI slack */
+
+	/* set up things up so the scheduler can start the new task */
+	p->thread.uregs = c_regs;
+	ti->frame	= c_regs;
+	p->thread.a3	= (unsigned long) c_regs;
+	p->thread.sp	= c_ksp;
+	p->thread.wchan	= p->thread.pc;
+	p->thread.usp	= c_usp;
+
+	if (unlikely(!kregs)) {
+		memset(c_regs, 0, sizeof(struct pt_regs));
+		c_regs->a0 = c_usp; /* function */
+		c_regs->d0 = ustk_size; /* argument */
+		local_save_flags(c_regs->epsw);
+		c_regs->epsw |= EPSW_IE | EPSW_IM_7;
+		p->thread.pc	= (unsigned long) ret_from_kernel_thread;
+		return 0;
+	}
+	*c_regs = *kregs;
+	c_regs->sp = c_usp;
+	c_regs->epsw &= ~EPSW_FE; /* my FPU */
 
 	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
 	if (clone_flags & CLONE_SETTLS)
-		c_uregs->e2 = current_frame()->d3;
+		c_regs->e2 = current_frame()->d3;
 
-	/* set up the return kernel frame if called from kernel_thread() */
-	c_kregs = c_uregs;
-	if (kregs != uregs) {
-		c_ksp -= sizeof(struct pt_regs);
-		c_kregs = (struct pt_regs *) c_ksp;
-		*c_kregs = *kregs;
-		c_kregs->sp = c_usp;
-		c_kregs->next = c_uregs;
-#ifdef CONFIG_MN10300_CURRENT_IN_E2
-		c_kregs->e2 = (unsigned long) p; /* current */
-#endif
-
-		c_ksp -= 12; /* allocate function call ABI slack */
-	}
-
-	/* set up things up so the scheduler can start the new task */
-	ti->frame	= c_kregs;
-	p->thread.a3	= (unsigned long) c_kregs;
-	p->thread.sp	= c_ksp;
 	p->thread.pc	= (unsigned long) ret_from_fork;
-	p->thread.wchan	= (unsigned long) ret_from_fork;
-	p->thread.usp	= c_usp;
 
 	return 0;
 }
@@ -297,22 +271,6 @@ asmlinkage long sys_vfork(void)
 {
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, current_frame()->sp,
 		       current_frame(), 0, NULL, NULL);
-}
-
-asmlinkage long sys_execve(const char __user *name,
-			   const char __user *const __user *argv,
-			   const char __user *const __user *envp)
-{
-	char *filename;
-	int error;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename, argv, envp, current_frame());
-	putname(filename);
-	return error;
 }
 
 unsigned long get_wchan(struct task_struct *p)

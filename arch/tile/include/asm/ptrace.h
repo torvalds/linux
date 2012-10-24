@@ -11,87 +11,21 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  */
-
 #ifndef _ASM_TILE_PTRACE_H
 #define _ASM_TILE_PTRACE_H
 
-#include <arch/chip.h>
-#include <arch/abi.h>
-
-/* These must match struct pt_regs, below. */
-#if CHIP_WORD_SIZE() == 32
-#define PTREGS_OFFSET_REG(n)    ((n)*4)
-#else
-#define PTREGS_OFFSET_REG(n)    ((n)*8)
-#endif
-#define PTREGS_OFFSET_BASE      0
-#define PTREGS_OFFSET_TP        PTREGS_OFFSET_REG(53)
-#define PTREGS_OFFSET_SP        PTREGS_OFFSET_REG(54)
-#define PTREGS_OFFSET_LR        PTREGS_OFFSET_REG(55)
-#define PTREGS_NR_GPRS          56
-#define PTREGS_OFFSET_PC        PTREGS_OFFSET_REG(56)
-#define PTREGS_OFFSET_EX1       PTREGS_OFFSET_REG(57)
-#define PTREGS_OFFSET_FAULTNUM  PTREGS_OFFSET_REG(58)
-#define PTREGS_OFFSET_ORIG_R0   PTREGS_OFFSET_REG(59)
-#define PTREGS_OFFSET_FLAGS     PTREGS_OFFSET_REG(60)
-#if CHIP_HAS_CMPEXCH()
-#define PTREGS_OFFSET_CMPEXCH   PTREGS_OFFSET_REG(61)
-#endif
-#define PTREGS_SIZE             PTREGS_OFFSET_REG(64)
+#include <linux/compiler.h>
 
 #ifndef __ASSEMBLY__
-
-#ifdef __KERNEL__
 /* Benefit from consistent use of "long" on all chips. */
 typedef unsigned long pt_reg_t;
-#else
-/* Provide appropriate length type to userspace regardless of -m32/-m64. */
-typedef uint_reg_t pt_reg_t;
 #endif
 
-/*
- * This struct defines the way the registers are stored on the stack during a
- * system call or exception.  "struct sigcontext" has the same shape.
- */
-struct pt_regs {
-	/* Saved main processor registers; 56..63 are special. */
-	/* tp, sp, and lr must immediately follow regs[] for aliasing. */
-	pt_reg_t regs[53];
-	pt_reg_t tp;		/* aliases regs[TREG_TP] */
-	pt_reg_t sp;		/* aliases regs[TREG_SP] */
-	pt_reg_t lr;		/* aliases regs[TREG_LR] */
+#include <uapi/asm/ptrace.h>
 
-	/* Saved special registers. */
-	pt_reg_t pc;		/* stored in EX_CONTEXT_K_0 */
-	pt_reg_t ex1;		/* stored in EX_CONTEXT_K_1 (PL and ICS bit) */
-	pt_reg_t faultnum;	/* fault number (INT_SWINT_1 for syscall) */
-	pt_reg_t orig_r0;	/* r0 at syscall entry, else zero */
-	pt_reg_t flags;		/* flags (see below) */
-#if !CHIP_HAS_CMPEXCH()
-	pt_reg_t pad[3];
-#else
-	pt_reg_t cmpexch;	/* value of CMPEXCH_VALUE SPR at interrupt */
-	pt_reg_t pad[2];
-#endif
-};
-
-#endif /* __ASSEMBLY__ */
-
-#define PTRACE_GETREGS		12
-#define PTRACE_SETREGS		13
-#define PTRACE_GETFPREGS	14
-#define PTRACE_SETFPREGS	15
-
-/* Support TILE-specific ptrace options, with events starting at 16. */
-#define PTRACE_O_TRACEMIGRATE	0x00010000
-#define PTRACE_EVENT_MIGRATE	16
-#ifdef __KERNEL__
 #define PTRACE_O_MASK_TILE	(PTRACE_O_TRACEMIGRATE)
 #define PT_TRACE_MIGRATE	0x00080000
 #define PT_TRACE_MASK_TILE	(PT_TRACE_MIGRATE)
-#endif
-
-#ifdef __KERNEL__
 
 /* Flag bits in pt_regs.flags */
 #define PT_FLAGS_DISABLE_IRQ    1  /* on return to kernel, disable irqs */
@@ -158,7 +92,5 @@ extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 #define SINGLESTEP_STATE_MASK_UPDATE          0x2
 #define SINGLESTEP_STATE_TARGET_LB              2
 #define SINGLESTEP_STATE_TARGET_UB              7
-
-#endif /* !__KERNEL__ */
 
 #endif /* _ASM_TILE_PTRACE_H */

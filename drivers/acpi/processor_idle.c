@@ -79,6 +79,8 @@ module_param(bm_check_disable, uint, 0000);
 static unsigned int latency_factor __read_mostly = 2;
 module_param(latency_factor, uint, 0644);
 
+static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
+
 static int disabled_by_idle_boot_param(void)
 {
 	return boot_option_idle_override == IDLE_POLL ||
@@ -482,8 +484,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		obj = &(element->package.elements[3]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
-
-		cx.power = obj->integer.value;
 
 		current_count++;
 		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
@@ -1000,7 +1000,7 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 	int i, count = CPUIDLE_DRIVER_STATE_START;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state_usage *state_usage;
-	struct cpuidle_device *dev = &pr->power.dev;
+	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
 
 	if (!pr->flags.power_setup_done)
 		return -EINVAL;
@@ -1132,6 +1132,7 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 int acpi_processor_hotplug(struct acpi_processor *pr)
 {
 	int ret = 0;
+	struct cpuidle_device *dev;
 
 	if (disabled_by_idle_boot_param())
 		return 0;
@@ -1146,12 +1147,13 @@ int acpi_processor_hotplug(struct acpi_processor *pr)
 	if (!pr->flags.power_setup_done)
 		return -ENODEV;
 
+	dev = per_cpu(acpi_cpuidle_device, pr->id);
 	cpuidle_pause_and_lock();
-	cpuidle_disable_device(&pr->power.dev);
+	cpuidle_disable_device(dev);
 	acpi_processor_get_power_info(pr);
 	if (pr->flags.power) {
 		acpi_processor_setup_cpuidle_cx(pr);
-		ret = cpuidle_enable_device(&pr->power.dev);
+		ret = cpuidle_enable_device(dev);
 	}
 	cpuidle_resume_and_unlock();
 
@@ -1162,6 +1164,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int cpu;
 	struct acpi_processor *_pr;
+	struct cpuidle_device *dev;
 
 	if (disabled_by_idle_boot_param())
 		return 0;
@@ -1192,7 +1195,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 			_pr = per_cpu(processors, cpu);
 			if (!_pr || !_pr->flags.power_setup_done)
 				continue;
-			cpuidle_disable_device(&_pr->power.dev);
+			dev = per_cpu(acpi_cpuidle_device, cpu);
+			cpuidle_disable_device(dev);
 		}
 
 		/* Populate Updated C-state information */
@@ -1206,7 +1210,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 			acpi_processor_get_power_info(_pr);
 			if (_pr->flags.power) {
 				acpi_processor_setup_cpuidle_cx(_pr);
-				cpuidle_enable_device(&_pr->power.dev);
+				dev = per_cpu(acpi_cpuidle_device, cpu);
+				cpuidle_enable_device(dev);
 			}
 		}
 		put_online_cpus();
@@ -1218,11 +1223,11 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_registered;
 
-int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
-			      struct acpi_device *device)
+int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
 	int retval;
+	struct cpuidle_device *dev;
 	static int first_run;
 
 	if (disabled_by_idle_boot_param())
@@ -1268,11 +1273,18 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
 					acpi_idle_driver.name);
 		}
+
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (!dev)
+			return -ENOMEM;
+		per_cpu(acpi_cpuidle_device, pr->id) = dev;
+
+		acpi_processor_setup_cpuidle_cx(pr);
+
 		/* Register per-cpu cpuidle_device. Cpuidle driver
 		 * must already be registered before registering device
 		 */
-		acpi_processor_setup_cpuidle_cx(pr);
-		retval = cpuidle_register_device(&pr->power.dev);
+		retval = cpuidle_register_device(dev);
 		if (retval) {
 			if (acpi_processor_registered == 0)
 				cpuidle_unregister_driver(&acpi_idle_driver);
@@ -1283,14 +1295,15 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	return 0;
 }
 
-int acpi_processor_power_exit(struct acpi_processor *pr,
-			      struct acpi_device *device)
+int acpi_processor_power_exit(struct acpi_processor *pr)
 {
+	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
+
 	if (disabled_by_idle_boot_param())
 		return 0;
 
 	if (pr->flags.power) {
-		cpuidle_unregister_device(&pr->power.dev);
+		cpuidle_unregister_device(dev);
 		acpi_processor_registered--;
 		if (acpi_processor_registered == 0)
 			cpuidle_unregister_driver(&acpi_idle_driver);

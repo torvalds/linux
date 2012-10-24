@@ -90,4 +90,8 @@ static inline void arch_release_hugepage(struct page *page)
 {
 }
 
+static inline void arch_clear_hugepage_flags(struct page *page)
+{
+}
+
 #endif /* _ASM_X86_HUGETLB_H */

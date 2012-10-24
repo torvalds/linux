@@ -1,4 +1,3 @@
-
 /*
  * omap_device implementation
  *
@@ -153,21 +152,19 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		act_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: activate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, act_lat);
+			"omap_device: pm_lat %d: activate: elapsed time %llu nsec\n",
+			od->pm_lat_level, act_lat);
 
 		if (act_lat > odpl->activate_lat) {
 			odpl->activate_lat_worst = act_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->activate_lat = act_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case activate latency "
-					"%d: %llu\n",
+					"new worst case activate latency %d: %llu\n",
 					od->pm_lat_level, act_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "activate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "activate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, act_lat,
 					 odpl->activate_lat);
 		}
@@ -220,21 +217,19 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 		deact_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: deactivate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, deact_lat);
+			"omap_device: pm_lat %d: deactivate: elapsed time %llu nsec\n",
+			od->pm_lat_level, deact_lat);
 
 		if (deact_lat > odpl->deactivate_lat) {
 			odpl->deactivate_lat_worst = deact_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->deactivate_lat = deact_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case deactivate latency "
-					"%d: %llu\n",
+					"new worst case deactivate latency %d: %llu\n",
 					od->pm_lat_level, deact_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "deactivate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "deactivate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, deact_lat,
 					 odpl->deactivate_lat);
 		}
@@ -266,10 +261,10 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 		return;
 	}
 
-	r = omap_clk_get_by_name(clk_name);
+	r = clk_get(NULL, clk_name);
 	if (IS_ERR(r)) {
 		dev_err(&od->pdev->dev,
-			"omap_clk_get_by_name for %s failed\n", clk_name);
+			"clk_get for %s failed\n", clk_name);
 		return;
 	}
 
@@ -370,6 +365,14 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 		goto odbfd_exit1;
 	}
 
+	/* Fix up missing resource names */
+	for (i = 0; i < pdev->num_resources; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		if (r->name == NULL)
+			r->name = dev_name(&pdev->dev);
+	}
+
 	if (of_get_property(node, "ti,no_idle_on_suspend", NULL))
 		omap_device_disable_idle_on_suspend(pdev);
 
@@ -385,17 +388,21 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 				      unsigned long event, void *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_device *od;
 
 	switch (event) {
-	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdev->dev.of_node)
-			omap_device_build_from_dt(pdev);
-		break;
-
 	case BUS_NOTIFY_DEL_DEVICE:
 		if (pdev->archdata.od)
 			omap_device_delete(pdev->archdata.od);
 		break;
+	case BUS_NOTIFY_ADD_DEVICE:
+		if (pdev->dev.of_node)
+			omap_device_build_from_dt(pdev);
+		/* fall through */
+	default:
+		od = to_omap_device(pdev);
+		if (od)
+			od->_driver_status = event;
 	}
 
 	return NOTIFY_DONE;
@@ -449,8 +456,8 @@ static int omap_device_count_resources(struct omap_device *od)
 	for (i = 0; i < od->hwmods_cnt; i++)
 		c += omap_hwmod_count_resources(od->hwmods[i]);
 
-	pr_debug("omap_device: %s: counted %d total resources across %d "
-		 "hwmods\n", od->pdev->name, c, od->hwmods_cnt);
+	pr_debug("omap_device: %s: counted %d total resources across %d hwmods\n",
+		 od->pdev->name, c, od->hwmods_cnt);
 
 	return c;
 }
@@ -479,6 +486,33 @@ static int omap_device_fill_resources(struct omap_device *od,
 
 	for (i = 0; i < od->hwmods_cnt; i++) {
 		r = omap_hwmod_fill_resources(od->hwmods[i], res);
+		res += r;
+	}
+
+	return 0;
+}
+
+/**
+ * _od_fill_dma_resources - fill in array of struct resource with dma resources
+ * @od: struct omap_device *
+ * @res: pointer to an array of struct resource to be filled in
+ *
+ * Populate one or more empty struct resource pointed to by @res with
+ * the dma resource data for this omap_device @od.  Used by
+ * omap_device_alloc() after calling omap_device_count_resources().
+ *
+ * Ideally this function would not be needed at all.  If we have
+ * mechanism to get dma resources from DT.
+ *
+ * Returns 0.
+ */
+static int _od_fill_dma_resources(struct omap_device *od,
+				      struct resource *res)
+{
+	int i, r;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		r = omap_hwmod_fill_dma_resources(od->hwmods[i], res);
 		res += r;
 	}
 
@@ -524,24 +558,44 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	od->hwmods = hwmods;
 	od->pdev = pdev;
 
-	/*
-	 * HACK: Ideally the resources from DT should match, and hwmod
-	 * should just add the missing ones. Since the name is not
-	 * properly populated by DT, stick to hwmod resources only.
-	 */
-	if (pdev->num_resources && pdev->resource)
-		dev_warn(&pdev->dev, "%s(): resources already allocated %d\n",
-			__func__, pdev->num_resources);
-
 	res_count = omap_device_count_resources(od);
-	if (res_count > 0) {
-		dev_dbg(&pdev->dev, "%s(): resources allocated from hwmod %d\n",
-			__func__, res_count);
+	/*
+	 * DT Boot:
+	 *   OF framework will construct the resource structure (currently
+	 *   does for MEM & IRQ resource) and we should respect/use these
+	 *   resources, killing hwmod dependency.
+	 *   If pdev->num_resources > 0, we assume that MEM & IRQ resources
+	 *   have been allocated by OF layer already (through DTB).
+	 *
+	 * Non-DT Boot:
+	 *   Here, pdev->num_resources = 0, and we should get all the
+	 *   resources from hwmod.
+	 *
+	 * TODO: Once DMA resource is available from OF layer, we should
+	 *   kill filling any resources from hwmod.
+	 */
+	if (res_count > pdev->num_resources) {
+		/* Allocate resources memory to account for new resources */
 		res = kzalloc(sizeof(struct resource) * res_count, GFP_KERNEL);
 		if (!res)
 			goto oda_exit3;
 
-		omap_device_fill_resources(od, res);
+		/*
+		 * If pdev->num_resources > 0, then assume that,
+		 * MEM and IRQ resources will only come from DT and only
+		 * fill DMA resource from hwmod layer.
+		 */
+		if (pdev->num_resources && pdev->resource) {
+			dev_dbg(&pdev->dev, "%s(): resources already allocated %d\n",
+				__func__, res_count);
+			memcpy(res, pdev->resource,
+			       sizeof(struct resource) * pdev->num_resources);
+			_od_fill_dma_resources(od, &res[pdev->num_resources]);
+		} else {
+			dev_dbg(&pdev->dev, "%s(): using resources from hwmod %d\n",
+				__func__, res_count);
+			omap_device_fill_resources(od, res);
+		}
 
 		ret = platform_device_add_resources(pdev, res, res_count);
 		kfree(res);
@@ -671,7 +725,7 @@ struct platform_device __init *omap_device_build_ss(const char *pdev_name, int p
 		dev_set_name(&pdev->dev, "%s", pdev->name);
 
 	od = omap_device_alloc(pdev, ohs, oh_cnt, pm_lats, pm_lats_cnt);
-	if (!od)
+	if (IS_ERR(od))
 		goto odbs_exit1;
 
 	ret = platform_device_add_data(pdev, pdata, pdata_len);
@@ -751,6 +805,10 @@ static int _od_suspend_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
+
+	/* Don't attempt late suspend on a driver that is not bound */
+	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER)
+		return 0;
 
 	ret = pm_generic_suspend_noirq(dev);
 
@@ -920,6 +978,61 @@ int omap_device_shutdown(struct platform_device *pdev)
 		omap_hwmod_shutdown(od->hwmods[i]);
 
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
+
+	return ret;
+}
+
+/**
+ * omap_device_assert_hardreset - set a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Set the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return value
+ * of omap_hwmod_assert_hardreset() in the event of any failure, or
+ * returns 0 upon success.
+ */
+int omap_device_assert_hardreset(struct platform_device *pdev, const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_assert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/**
+ * omap_device_deassert_hardreset - release a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Release the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return
+ * value of omap_hwmod_deassert_hardreset() in the event of any
+ * failure, or returns 0 upon success.
+ */
+int omap_device_deassert_hardreset(struct platform_device *pdev,
+				   const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_deassert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }
@@ -1125,3 +1238,41 @@ static int __init omap_device_init(void)
 	return 0;
 }
 core_initcall(omap_device_init);
+
+/**
+ * omap_device_late_idle - idle devices without drivers
+ * @dev: struct device * associated with omap_device
+ * @data: unused
+ *
+ * Check the driver bound status of this device, and idle it
+ * if there is no driver attached.
+ */
+static int __init omap_device_late_idle(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_device *od = to_omap_device(pdev);
+
+	if (!od)
+		return 0;
+
+	/*
+	 * If omap_device state is enabled, but has no driver bound,
+	 * idle it.
+	 */
+	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER) {
+		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
+			dev_warn(dev, "%s: enabled but no driver.  Idling\n",
+				 __func__);
+			omap_device_idle(pdev);
+		}
+	}
+
+	return 0;
+}
+
+static int __init omap_device_late_init(void)
+{
+	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
+	return 0;
+}
+late_initcall(omap_device_late_init);

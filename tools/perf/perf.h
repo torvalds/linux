@@ -57,7 +57,7 @@ void get_term_dimensions(struct winsize *ws);
 #endif
 
 #ifdef __sparc__
-#include "../../arch/sparc/include/asm/unistd.h"
+#include "../../arch/sparc/include/uapi/asm/unistd.h"
 #define rmb()		asm volatile("":::"memory")
 #define cpu_relax()	asm volatile("":::"memory")
 #define CPUINFO_PROC	"cpu"
@@ -88,6 +88,12 @@ void get_term_dimensions(struct winsize *ws);
 #define CPUINFO_PROC	"Processor"
 #endif
 
+#ifdef __aarch64__
+#include "../../arch/arm64/include/asm/unistd.h"
+#define rmb()		asm volatile("dmb ld" ::: "memory")
+#define cpu_relax()	asm volatile("yield" ::: "memory")
+#endif
+
 #ifdef __mips__
 #include "../../arch/mips/include/asm/unistd.h"
 #define rmb()		asm volatile(					\
@@ -106,7 +112,7 @@ void get_term_dimensions(struct winsize *ws);
 #include <sys/types.h>
 #include <sys/syscall.h>
 
-#include "../../include/linux/perf_event.h"
+#include "../../include/uapi/linux/perf_event.h"
 #include "util/types.h"
 #include <stdbool.h>
 

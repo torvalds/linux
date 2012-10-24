@@ -693,7 +693,7 @@ u32 w89rf242_rf_data[] = {
 	(0x0E << 24) | 0x5557DC, /* 1555F ; IBSC  (0x0E) -- IRLNA & IRLNB (PTAT & Const current)=01/01; FA5976B_1.3F */
 	(0x10 << 24) | 0x000C20, /* 00030 ; TMODA (0x10) -- LNA_gain_step=0011 ; LNA=15/16dB */
 	(0x11 << 24) | 0x0C0022, /* 03000 ; TMODB (0x11) -- Turn ON RX-Q path Test Switch; To improve IQ path group delay (FA5976A_1.3C) */
-	(0x12 << 24) | 0x000024  /* TMODC (0x12) -- Turn OFF Tempearure sensor */
+	(0x12 << 24) | 0x000024  /* TMODC (0x12) -- Turn OFF Temperature sensor */
 };
 
 u32 w89rf242_channel_data_24[][2] = {

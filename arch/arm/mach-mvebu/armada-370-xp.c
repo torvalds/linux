@@ -20,12 +20,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/armada-370-xp.h>
+#include "armada-370-xp.h"
 #include "common.h"
 
 static struct map_desc armada_370_xp_io_desc[] __initdata = {
 	{
-		.virtual	= ARMADA_370_XP_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) ARMADA_370_XP_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ARMADA_370_XP_REGS_PHYS_BASE),
 		.length		= ARMADA_370_XP_REGS_SIZE,
 		.type		= MT_DEVICE,

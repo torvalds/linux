@@ -31,6 +31,7 @@
 #include <linux/mqueue.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -110,8 +111,10 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
+		rcu_idle_enter();
 		while (!need_resched())
 			platform_idle();
+		rcu_idle_exit();
 		schedule_preempt_disabled();
 	}
 }
@@ -170,6 +173,16 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  *
  * Note: This is a pristine frame, so we don't need any spill region on top of
  *       childregs.
+ *
+ * The fun part:  if we're keeping the same VM (i.e. cloning a thread,
+ * not an entire process), we're normally given a new usp, and we CANNOT share
+ * any live address register windows.  If we just copy those live frames over,
+ * the two threads (parent and child) will overflow the same frames onto the
+ * parent stack at different times, likely corrupting the parent stack (esp.
+ * if the parent returns from functions that called clone() and calls new
+ * ones, before the child overflows its now old copies of its parent windows).
+ * One solution is to spill windows to the parent stack, but that's fairly
+ * involved.  Much simpler to just not copy those live frames across.
  */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
@@ -177,9 +190,12 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
                 struct task_struct * p, struct pt_regs * regs)
 {
 	struct pt_regs *childregs;
-	struct thread_info *ti;
 	unsigned long tos;
 	int user_mode = user_mode(regs);
+
+#if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
+	struct thread_info *ti;
+#endif
 
 	/* Set up new TSS. */
 	tos = (unsigned long)task_stack_page(p) + THREAD_SIZE;
@@ -188,13 +204,14 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	else
 		childregs = (struct pt_regs*)tos - 1;
 
+	/* This does not copy all the regs.  In a bout of brilliance or madness,
+	   ARs beyond a0-a15 exist past the end of the struct. */
 	*childregs = *regs;
 
 	/* Create a call4 dummy-frame: a0 = 0, a1 = childregs. */
 	*((int*)childregs - 3) = (unsigned long)childregs;
 	*((int*)childregs - 4) = 0;
 
-	childregs->areg[1] = tos;
 	childregs->areg[2] = 0;
 	p->set_child_tid = p->clear_child_tid = NULL;
 	p->thread.ra = MAKE_RA_FOR_CALL((unsigned long)ret_from_fork, 0x1);
@@ -202,10 +219,14 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	if (user_mode(regs)) {
 
-		int len = childregs->wmask & ~0xf;
 		childregs->areg[1] = usp;
-		memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
-		       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
+		if (clone_flags & CLONE_VM) {
+			childregs->wmask = 1;	/* can't share live windows */
+		} else {
+			int len = childregs->wmask & ~0xf;
+			memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
+			       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
+		}
 // FIXME: we need to set THREADPTR in thread_info...
 		if (clone_flags & CLONE_SETTLS)
 			childregs->areg[2] = childregs->areg[6];
@@ -213,6 +234,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	} else {
 		/* In kernel space, we start a new thread with a new stack. */
 		childregs->wmask = 1;
+		childregs->areg[1] = tos;
 	}
 
 #if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
@@ -325,13 +347,13 @@ long xtensa_execve(const char __user *name,
                    struct pt_regs *regs)
 {
 	long error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 out:
 	return error;

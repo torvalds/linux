@@ -27,7 +27,6 @@
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 
-#include <plat/dma.h>
 #include "omapfb.h"
 
 #define HWA742_REV_CODE_REG       0x0

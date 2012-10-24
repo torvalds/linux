@@ -38,7 +38,7 @@ static int __init ux500_l2x0_init(void)
 {
 	u32 aux_val = 0x3e000000;
 
-	if (cpu_is_u8500_family())
+	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		l2x0_base = __io_address(U8500_L2CC_BASE);
 	else
 		ux500_unknown_soc();

@@ -412,7 +412,7 @@ static int __devinit ti_ssp_probe(struct platform_device *pdev)
 		cells[id].data_size	= data->pdata_size;
 	}
 
-	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0);
+	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0, NULL);
 	if (error < 0) {
 		dev_err(dev, "cannot add mfd cells\n");
 		goto error_enable;

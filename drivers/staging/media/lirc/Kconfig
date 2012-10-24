@@ -63,12 +63,6 @@ config LIRC_SIR
 	help
 	  Driver for the SIR IrDA port
 
-config LIRC_TTUSBIR
-	tristate "Technotrend USB IR Receiver"
-	depends on LIRC && USB
-	help
-	  Driver for the Technotrend USB IR Receiver
-
 config LIRC_ZILOG
 	tristate "Zilog/Hauppauge IR Transmitter"
 	depends on LIRC && I2C

@@ -17,6 +17,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #define OMAP1610_GPIO1_BASE		0xfffbe400
 #define OMAP1610_GPIO2_BASE		0xfffbec00

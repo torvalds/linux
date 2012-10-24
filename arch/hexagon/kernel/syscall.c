@@ -1,7 +1,7 @@
 /*
  * Hexagon system calls
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -40,7 +40,7 @@ asmlinkage int sys_execve(char __user *ufilename,
 			  const char __user *const __user *envp)
 {
 	struct pt_regs *pregs = current_thread_info()->regs;
-	char *filename;
+	struct filename *filename;
 	int retval;
 
 	filename = getname(ufilename);
@@ -48,7 +48,7 @@ asmlinkage int sys_execve(char __user *ufilename,
 	if (IS_ERR(filename))
 		return retval;
 
-	retval = do_execve(filename, argv, envp, pregs);
+	retval = do_execve(filename->name, argv, envp, pregs);
 	putname(filename);
 
 	return retval;
@@ -87,4 +87,3 @@ int kernel_execve(const char *filename,
 
 	return retval;
 }
-EXPORT_SYMBOL(kernel_execve);
