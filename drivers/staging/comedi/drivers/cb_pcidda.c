@@ -357,16 +357,16 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 			       fine_gain_channel(channel), fine_gain);
 }
 
-static int cb_pcidda_ao_winsn(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int ctrl;
 
-	/*  adjust calibration dacs if range has changed */
 	if (range != devpriv->ao_range[channel])
 		cb_pcidda_calibrate(dev, channel, range);
 
@@ -392,11 +392,9 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 
 	outw(ctrl, dev->iobase + CB_DDA_DA_CTRL_REG);
 
-	/* write data */
 	outw(data[0], dev->iobase + CB_DDA_DA_DATA_REG(channel));
 
-	/* return the number of samples read/written */
-	return 1;
+	return insn->n;
 }
 
 static const void *cb_pcidda_find_boardinfo(struct comedi_device *dev,
@@ -451,7 +449,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = &cb_pcidda_ranges;
-	s->insn_write = cb_pcidda_ao_winsn;
+	s->insn_write = cb_pcidda_ao_insn_write;
 
 	/* two 8255 digital io subdevices */
 	for (i = 0; i < 2; i++) {
