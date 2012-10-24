@@ -158,7 +158,7 @@ static void save_arch_state(struct thread_struct *t);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
 		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p, struct pt_regs *unused)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	unsigned long ksp;
@@ -184,7 +184,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	/* Record the pid of the task that created this one. */
 	p->thread.creator_pid = current->pid;
 
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
 		memset(&callee_regs[2], 0,
@@ -208,25 +208,26 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	 */
 	task_thread_info(p)->step_state = NULL;
 
-	/* Save user stack top pointer so we can ID the stack vm area later. */
-	p->thread.usp0 = sp;
-
 	/*
 	 * Copy the registers onto the kernel stack so the
 	 * return-from-interrupt code will reload it into registers.
 	 */
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 	childregs->regs[0] = 0;         /* return value is zero */
-	childregs->sp = sp;  /* override with new user stack pointer */
-	memcpy(callee_regs, &regs->regs[CALLEE_SAVED_FIRST_REG],
+	if (sp)
+		childregs->sp = sp;  /* override with new user stack pointer */
+	memcpy(callee_regs, &childregs->regs[CALLEE_SAVED_FIRST_REG],
 	       CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long));
+
+	/* Save user stack top pointer so we can ID the stack vm area later. */
+	p->thread.usp0 = childregs->sp;
 
 	/*
 	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
 	 * which is passed in as arg #5 to sys_clone().
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->tp = regs->regs[4];
+		childregs->tp = childregs->regs[4];
 
 
 #if CHIP_HAS_TILE_DMA()
@@ -587,10 +588,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 SYSCALL_DEFINE4(clone, unsigned long, clone_flags, unsigned long, newsp,
 		void __user *, parent_tidptr, void __user *, child_tidptr)
 {
-	struct pt_regs *regs = current_pt_regs();
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0,
+	return do_fork(clone_flags, newsp, current_pt_regs(), 0,
 		       parent_tidptr, child_tidptr);
 }
 
