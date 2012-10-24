@@ -19,12 +19,6 @@
 #else
 #define DBG(x...)
 #endif
-#define MODEM_EARPHOEN     0      //听筒电话
-#define MODEM_HANDFREE     1	//免提
-#define MODEM_HPPHONE      2	//耳机电话
-#define MODEM_BTPHONE      3      //蓝牙电话
-#define MODEM_STOP_PHONE   4      //停止通话
-
 #define ENABLE             1
 #define DISABLE            0
 
@@ -82,28 +76,28 @@ static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	}
 
 	switch (cmd){
-		case MODEM_EARPHOEN:
+		case IOCTL_MODEM_EAR_PHOEN:
 			DBG("modem_sound_ioctl: MODEM_EAR_PHONE\n");
 			call_set_spk(0);
 			modem_sound_spkctl(DISABLE);
 			break;
-		case MODEM_HANDFREE:
+		case IOCTL_MODEM_SPK_PHONE:
 			DBG("modem_sound_ioctl: MODEM_SPK_PHONE\n");
 			call_set_spk(0);
 			modem_sound_spkctl(ENABLE);
 			break;
-	  	case MODEM_HPPHONE:
+	  	case IOCTL_MODEM_HP_PHONE:
 	  		DBG("modem_sound_ioctl: MODEM_HP_PHONE\n");
 	  		call_set_spk(0);
 			modem_sound_spkctl(DISABLE);
 			break;
 			
-		case MODEM_BTPHONE:
+		case IOCTL_MODEM_BT_PHONE:
 			call_set_spk(0);
 			modem_sound_spkctl(DISABLE);
 			DBG("modem_sound_ioctl: MODEM_BT_PHONE\n");
 			break;
-		case MODEM_STOP_PHONE:
+		case IOCTL_MODEM_STOP_PHONE:
 		  	DBG("modem_sound_ioctl: MODEM_STOP_PHONE\n");
 			call_set_spk(1);
 			break;
