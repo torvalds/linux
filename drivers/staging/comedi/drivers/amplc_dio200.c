@@ -270,7 +270,7 @@ enum dio200_model {
 	pc272e_model, pci272_model,
 };
 
-enum dio200_layout {
+enum dio200_layout_idx {
 #if DO_ISA
 	pc212_layout,
 	pc214_layout,
@@ -287,7 +287,7 @@ struct dio200_board {
 	unsigned short devid;
 	enum dio200_bustype bustype;
 	enum dio200_model model;
-	enum dio200_layout layout;
+	enum dio200_layout_idx layout;
 };
 
 static const struct dio200_board dio200_boards[] = {
