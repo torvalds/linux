@@ -46,6 +46,20 @@ struct syscall {
 	struct syscall_fmt  *fmt;
 };
 
+static size_t fprintf_duration(unsigned long t, FILE *fp)
+{
+	double duration = (double)t / NSEC_PER_MSEC;
+	size_t printed = fprintf(fp, "(");
+
+	if (duration >= 1.0)
+		printed += color_fprintf(fp, PERF_COLOR_RED, "%6.3f ms", duration);
+	else if (duration >= 0.01)
+		printed += color_fprintf(fp, PERF_COLOR_YELLOW, "%6.3f ms", duration);
+	else
+		printed += color_fprintf(fp, PERF_COLOR_NORMAL, "%6.3f ms", duration);
+	return printed + fprintf(stdout, "): ");
+}
+
 struct thread_trace {
 	u64		  entry_time;
 	u64		  exit_time;
@@ -92,7 +106,7 @@ static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 {
 	double ts = (double)(tstamp - trace->base_time) / NSEC_PER_MSEC;
 
-	return fprintf(fp, "%10.3f: ", ts);
+	return fprintf(fp, "%10.3f ", ts);
 }
 
 static bool done = false;
@@ -103,9 +117,10 @@ static void sig_handler(int sig __maybe_unused)
 }
 
 static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
-					u64 tstamp, FILE *fp)
+					u64 duration, u64 tstamp, FILE *fp)
 {
 	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
+	printed += fprintf_duration(duration, fp);
 
 	if (trace->multiple_threads)
 		printed += fprintf(fp, "%d ", thread->pid);
@@ -292,7 +307,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,  args);
 
 	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
-		trace__fprintf_entry_head(trace, thread, sample->time, stdout);
+		trace__fprintf_entry_head(trace, thread, 1, sample->time, stdout);
 		printf("%-70s\n", ttrace->entry_str);
 	} else
 		ttrace->entry_pending = true;
@@ -304,6 +319,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			   struct perf_sample *sample)
 {
 	int ret;
+	u64 duration = 0;
 	struct thread *thread = machine__findnew_thread(&trace->host, sample->tid);
 	struct thread_trace *ttrace = thread__trace(thread);
 	struct syscall *sc = trace__syscall_info(trace, evsel, sample);
@@ -317,7 +333,10 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ttrace->exit_time = sample->time;
 
-	trace__fprintf_entry_head(trace, thread, sample->time, stdout);
+	if (ttrace->entry_time)
+		duration = sample->time - ttrace->entry_time;
+
+	trace__fprintf_entry_head(trace, thread, duration, sample->time, stdout);
 
 	if (ttrace->entry_pending) {
 		printf("%-70s", ttrace->entry_str);
