@@ -47,7 +47,7 @@ static void __iomem *clps711x_pdirs[] = {
 
 static int gpio_clps711x_get(struct gpio_chip *chip, unsigned offset)
 {
-	return !!readb(clps711x_port(chip)) & (1 << offset);
+	return !!(readb(clps711x_port(chip)) & (1 << offset));
 }
 
 static void gpio_clps711x_set(struct gpio_chip *chip, unsigned offset,
