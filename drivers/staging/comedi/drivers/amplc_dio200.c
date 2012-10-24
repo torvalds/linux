@@ -1253,22 +1253,6 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 	return 1;
 }
 
-static int dio200_pci_common_attach(struct comedi_device *dev,
-				    struct pci_dev *pci_dev)
-{
-	unsigned long iobase;
-	int ret;
-
-	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n");
-		return ret;
-	}
-	iobase = pci_resource_start(pci_dev, 2);
-	return dio200_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
-}
-
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -1320,6 +1304,8 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 				       struct pci_dev *pci_dev)
 {
 	struct dio200_private *devpriv;
+	unsigned long iobase;
+	int ret;
 
 	if (!DO_PCI)
 		return -EINVAL;
@@ -1337,7 +1323,14 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	return dio200_pci_common_attach(dev, pci_dev);
+	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
+	if (ret < 0) {
+		dev_err(dev->class_dev,
+			"error! cannot enable PCI device and request regions!\n");
+		return ret;
+	}
+	iobase = pci_resource_start(pci_dev, 2);
+	return dio200_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
 }
 
 static void dio200_detach(struct comedi_device *dev)
