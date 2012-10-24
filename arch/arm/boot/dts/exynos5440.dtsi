@@ -90,6 +90,23 @@
 		reg = <0xE0000 0x1000>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+
+		fan: fan {
+			samsung,exynos5440-pin-function = <1>;
+		};
+
+		hdd_led0: hdd_led0 {
+			samsung,exynos5440-pin-function = <2>;
+		};
+
+		hdd_led1: hdd_led1 {
+			samsung,exynos5440-pin-function = <3>;
+		};
+
+		uart1: uart1 {
+			samsung,exynos5440-pin-function = <4>;
+		};
 	};
 
 	i2c@F0000 {
