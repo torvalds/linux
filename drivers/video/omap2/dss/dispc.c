@@ -3901,6 +3901,7 @@ static void dispc_error_worker(struct work_struct *work)
 		bit = mgr_desc[i].sync_lost_irq;
 
 		if (bit & errors) {
+			int j;
 			struct omap_dss_device *dssdev = mgr->get_device(mgr);
 			bool enable;
 
@@ -3911,9 +3912,9 @@ static void dispc_error_worker(struct work_struct *work)
 			enable = dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
 			dssdev->driver->disable(dssdev);
 
-			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+			for (j = 0; j < omap_dss_get_num_overlays(); ++j) {
 				struct omap_overlay *ovl;
-				ovl = omap_dss_get_overlay(i);
+				ovl = omap_dss_get_overlay(j);
 
 				if (ovl->id != OMAP_DSS_GFX &&
 						ovl->manager == mgr)
