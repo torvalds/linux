@@ -232,13 +232,15 @@ __s32 Hdmi_get_HPD_status(void)
 	return Hdmi_hal_get_HPD();
 }
 
-__s32 Hdmi_set_pll(__u32 pll, __u32 clk)
+static __s32
+Hdmi_set_pll(__u32 pll, __u32 clk)
 {
 	Hdmi_hal_set_pll(pll, clk);
 	return 0;
 }
 
-int Hdmi_run_thread(void *parg)
+static int
+Hdmi_run_thread(void *parg)
 {
 	while (1) {
 		Hdmi_hal_main_task();
