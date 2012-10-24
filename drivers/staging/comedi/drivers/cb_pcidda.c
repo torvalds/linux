@@ -65,16 +65,14 @@
 #define CB_DDA_DIO1_8255_BASE		0x04
 
 /* DAC registers */
-#define DACONTROL	0	/*  D/A CONTROL REGISTER */
-#define	SU	0000001		/*  Simultaneous update enabled */
-#define NOSU	0000000		/*  Simultaneous update disabled */
-#define	ENABLEDAC	0000002	/*  Enable specified DAC */
-#define	DISABLEDAC	0000000	/*  Disable specified DAC */
-#define RANGE2V5	0000000	/*  2.5V */
-#define RANGE5V	0000200		/*  5V */
-#define RANGE10V	0000300	/*  10V */
-#define UNIP	0000400		/*  Unipolar outputs */
-#define BIP	0000000		/*  Bipolar outputs */
+#define CB_DDA_DA_CTRL_REG		0x00	   /* D/A Control Register  */
+#define CB_DDA_DA_CTRL_SU		(1 << 0)   /*  Simultaneous update  */
+#define CB_DDA_DA_CTRL_EN		(1 << 1)   /*  Enable specified DAC */
+#define CB_DDA_DA_CTRL_DAC(x)		((x) << 2) /*  Specify DAC channel  */
+#define CB_DDA_DA_CTRL_RANGE2V5		(0 << 6)   /*  2.5V range           */
+#define CB_DDA_DA_CTRL_RANGE5V		(2 << 6)   /*  5V range             */
+#define CB_DDA_DA_CTRL_RANGE10V		(3 << 6)   /*  10V range            */
+#define CB_DDA_DA_CTRL_UNIP		(1 << 8)   /*  Unipolar range       */
 
 #define DACALIBRATION1	4	/*  D/A CALIBRATION REGISTER 1 */
 /* write bits */
@@ -364,44 +362,35 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	struct cb_pcidda_private *devpriv = dev->private;
-	unsigned int command;
-	unsigned int channel, range;
-
-	channel = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
+	unsigned int channel = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int ctrl;
 
 	/*  adjust calibration dacs if range has changed */
 	if (range != devpriv->ao_range[channel])
 		cb_pcidda_calibrate(dev, channel, range);
 
-	/* output channel configuration */
-	command = NOSU | ENABLEDAC;
+	ctrl = CB_DDA_DA_CTRL_EN | CB_DDA_DA_CTRL_DAC(channel);
 
-	/* output channel range */
 	switch (range) {
 	case 0:
-		command |= BIP | RANGE10V;
+	case 3:
+		ctrl |= CB_DDA_DA_CTRL_RANGE10V;
 		break;
 	case 1:
-		command |= BIP | RANGE5V;
+	case 4:
+		ctrl |= CB_DDA_DA_CTRL_RANGE5V;
 		break;
 	case 2:
-		command |= BIP | RANGE2V5;
-		break;
-	case 3:
-		command |= UNIP | RANGE10V;
-		break;
-	case 4:
-		command |= UNIP | RANGE5V;
-		break;
 	case 5:
-		command |= UNIP | RANGE2V5;
+		ctrl |= CB_DDA_DA_CTRL_RANGE2V5;
 		break;
 	}
 
-	/* output channel specification */
-	command |= channel << 2;
-	outw(command, dev->iobase + DACONTROL);
+	if (range > 2)
+		ctrl |= CB_DDA_DA_CTRL_UNIP;
+
+	outw(ctrl, dev->iobase + CB_DDA_DA_CTRL_REG);
 
 	/* write data */
 	outw(data[0], dev->iobase + DADATA + channel * 2);
