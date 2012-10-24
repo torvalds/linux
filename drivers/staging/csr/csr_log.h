@@ -201,7 +201,7 @@ void CsrLogTimedEventIn(u32 line,
     const char *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
-    CsrTime requested_delay,
+    u32 requested_delay,
     u16 fniarg,
     const void *fnvarg);
 

@@ -19,19 +19,6 @@ extern "C" {
 /*******************************************************************************
 
 NAME
-	CsrTime
-
-DESCRIPTION
-	Type to hold a value describing the current system time, which is a
-	measure of time elapsed since some arbitrarily defined fixed time
-	reference, usually associated with system startup.
-
-*******************************************************************************/
-typedef u32 CsrTime;
-
-/*******************************************************************************
-
-NAME
 	CsrTimeGet
 
 DESCRIPTION
@@ -55,7 +42,7 @@ RETURNS
 	Low part of current system time in microseconds.
 
 *******************************************************************************/
-CsrTime CsrTimeGet(CsrTime *high);
+u32 CsrTimeGet(u32 *high);
 
 
 /*------------------------------------------------------------------*/

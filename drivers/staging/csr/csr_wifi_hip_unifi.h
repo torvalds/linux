@@ -228,7 +228,7 @@ typedef struct unifi_coredump_req
     u32 chip_ver;                 /* Chip version */
     u32 fw_ver;                   /* Firmware version */
     s32  requestor;                /* Requestor: 0=auto dump, 1=manual */
-    CsrTime   timestamp;                /* time of capture by driver */
+    u32 timestamp;                /* time of capture by driver */
     u32 serial;                   /* capture serial number */
     s32  value;                    /* register value */
 } unifi_coredump_req_t;                 /* mini-coredumped reg value request */

@@ -40,7 +40,7 @@
 typedef struct coredump_buf
 {
     u16  count;                       /* serial number of dump */
-    CsrTime    timestamp;                   /* host's system time at capture */
+    u32  timestamp;                   /* host's system time at capture */
     s16   requestor;                   /* request: 0=auto dump, 1=manual */
     u16  chip_ver;
     u32  fw_ver;
@@ -192,7 +192,7 @@ CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
     static u16 dump_seq_no = 1;
-    CsrTime time_of_capture;
+    u32 time_of_capture;
 
     func_enter();
 

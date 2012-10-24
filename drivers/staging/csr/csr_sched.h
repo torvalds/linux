@@ -37,10 +37,10 @@ typedef CsrSchedIdentifier CsrSchedTid;
 typedef void (*schedEntryFunction_t)(void **inst);
 
 /* Time constants. */
-#define CSR_SCHED_TIME_MAX                ((CsrTime) 0xFFFFFFFF)
-#define CSR_SCHED_MILLISECOND             ((CsrTime) (1000))
-#define CSR_SCHED_SECOND                  ((CsrTime) (1000 * CSR_SCHED_MILLISECOND))
-#define CSR_SCHED_MINUTE                  ((CsrTime) (60 * CSR_SCHED_SECOND))
+#define CSR_SCHED_TIME_MAX                (0xFFFFFFFF)
+#define CSR_SCHED_MILLISECOND             (1000)
+#define CSR_SCHED_SECOND                  (1000 * CSR_SCHED_MILLISECOND)
+#define CSR_SCHED_MINUTE                  (60 * CSR_SCHED_SECOND)
 
 /* Queue and primitive that identifies the environment */
 #define CSR_SCHED_TASK_ID        0xFFFF
@@ -218,7 +218,7 @@ u8 CsrSchedMessageGet(u16 *pmi, void **pmv);
  *
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-CsrSchedTid CsrSchedTimerSetStringLog(CsrTime delay,
+CsrSchedTid CsrSchedTimerSetStringLog(u32 delay,
     void (*fn)(u16 mi, void *mv),
     u16 fniarg,
     void *fnvarg,
@@ -226,7 +226,7 @@ CsrSchedTid CsrSchedTimerSetStringLog(CsrTime delay,
     const char *file);
 #define CsrSchedTimerSet(d, fn, fni, fnv) CsrSchedTimerSetStringLog((d), (fn), (fni), (fnv), __LINE__, __FILE__)
 #else
-CsrSchedTid CsrSchedTimerSet(CsrTime delay,
+CsrSchedTid CsrSchedTimerSet(u32 delay,
     void (*fn)(u16 mi, void *mv),
     u16 fniarg,
     void *fnvarg);

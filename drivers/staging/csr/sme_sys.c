@@ -2101,7 +2101,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
     u8 freeSlotFound = FALSE;
     CsrWifiRouterCtrlStaInfo_t *newRecord = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
-    CsrTime currentTime, currentTimeHi;
+    u32 currentTime, currentTimeHi;
     unsigned long lock_flags;
 
     if (req->interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
@@ -2295,8 +2295,8 @@ static void check_inactivity_timer_expire_func(unsigned long data)
     struct unifi_priv *priv;
     CsrWifiRouterCtrlStaInfo_t *sta_record = NULL;
     u8 i = 0;
-    CsrTime now;
-    CsrTime inactive_time;
+    u32 now;
+    u32 inactive_time;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *) data;
 
     if (!interfacePriv)
@@ -2328,11 +2328,11 @@ static void check_inactivity_timer_expire_func(unsigned long data)
             if (sta_record->lastActivity > now)
             {
                 /* simple timer wrap (for 1 wrap) */
-                inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
+                inactive_time = CsrTimeAdd((u32)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
             }
             else
             {
-                inactive_time = (CsrTime)CsrTimeSub(now, sta_record->lastActivity);
+                inactive_time = (u32)CsrTimeSub(now, sta_record->lastActivity);
             }
 
             if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)

@@ -1116,8 +1116,8 @@ void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,u16 interfaceTag, const CSR
             staRecord->nullDataHostTag = INVALID_HOST_TAG;
 
             if(pkt_cfm->TransmissionStatus == CSR_TX_RETRY_LIMIT){
-                CsrTime now;
-                CsrTime inactive_time;
+                u32 now;
+                u32 inactive_time;
 
                 unifi_trace(priv, UDBG1, "Nulldata to probe STA ALIVE Failed with retry limit\n");
                 /* Recheck if there is some activity after null data is sent.
@@ -1133,12 +1133,12 @@ void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,u16 interfaceTag, const CSR
                 if (staRecord->lastActivity > now)
                 {
                     /* simple timer wrap (for 1 wrap) */
-                    inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, staRecord->lastActivity),
+                    inactive_time = CsrTimeAdd((u32)CsrTimeSub(CSR_SCHED_TIME_MAX, staRecord->lastActivity),
                                                now);
                 }
                 else
                 {
-                    inactive_time = (CsrTime)CsrTimeSub(now, staRecord->lastActivity);
+                    inactive_time = (u32)CsrTimeSub(now, staRecord->lastActivity);
                 }
 
                 if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
@@ -3491,11 +3491,11 @@ CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_p
 }
 
 /* Function to do inactivity */
-void uf_check_inactivity(unifi_priv_t *priv, u16 interfaceTag, CsrTime currentTime)
+void uf_check_inactivity(unifi_priv_t *priv, u16 interfaceTag, u32 currentTime)
 {
     u32 i;
     CsrWifiRouterCtrlStaInfo_t *staInfo;
-    CsrTime elapsedTime;    /* Time in microseconds */
+    u32 elapsedTime;    /* Time in microseconds */
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     CsrWifiMacAddress peerMacAddress;
     unsigned long lock_flags;
@@ -3542,8 +3542,8 @@ void uf_check_inactivity(unifi_priv_t *priv, u16 interfaceTag, CsrTime currentTi
 /* Function to update activity of a station */
 void uf_update_sta_activity(unifi_priv_t *priv, u16 interfaceTag, const u8 *peerMacAddress)
 {
-    CsrTime elapsedTime, currentTime;    /* Time in microseconds */
-    CsrTime timeHi;         /* Not used - Time in microseconds */
+    u32 elapsedTime, currentTime;    /* Time in microseconds */
+    u32 timeHi;         /* Not used - Time in microseconds */
     CsrWifiRouterCtrlStaInfo_t *staInfo;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     unsigned long lock_flags;
