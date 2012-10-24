@@ -84,7 +84,6 @@ Configuration Options: not applicable, uses PCI auto config
 #include "8255.h"
 
 /* device ids of the cards we support -- currently only 1 card supported */
-#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
 #define PCI_ID_PCIM_DDA06_16		0x0053
 
 /*
@@ -228,7 +227,7 @@ static void __devexit cb_pcimdda_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdda_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_ID_PCIM_DDA06_16) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcimdda_pci_table);

@@ -54,7 +54,6 @@ Please report success/failure with other different cards to
 /*
  * ComputerBoards PCI Device ID's supported by this driver
  */
-#define PCI_VENDOR_ID_CB		0x1307
 #define PCI_DEVICE_ID_DDA02_12		0x0020
 #define PCI_DEVICE_ID_DDA04_12		0x0021
 #define PCI_DEVICE_ID_DDA08_12		0x0022

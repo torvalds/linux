@@ -54,9 +54,13 @@
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
-#define PCI_VENDOR_ID_ADLINK		0x144a
+/*
+ * PCI Vendor IDs not in <linux/pci_ids.h>
+ */
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_CONTEC		0x1221
+#define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
+#define PCI_VENDOR_ID_ADLINK		0x144a
 
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_BOARD_MINORS 0x30

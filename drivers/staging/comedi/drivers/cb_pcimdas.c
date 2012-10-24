@@ -51,8 +51,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 /* #define CBPCIMDAS_DEBUG */
 #undef CBPCIMDAS_DEBUG
 
-#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
-
 /* Registers for the PCIM-DAS1602/16 */
 
 /* sizes of io regions (bytes) */
@@ -306,7 +304,7 @@ static void __devexit cb_pcimdas_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0056) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
