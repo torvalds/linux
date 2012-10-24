@@ -1287,6 +1287,11 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 			hdev->host_features[0] |= LMP_HOST_LE;
 		else
 			hdev->host_features[0] &= ~LMP_HOST_LE;
+
+		if (sent->simul)
+			hdev->host_features[0] |= LMP_HOST_LE_BREDR;
+		else
+			hdev->host_features[0] &= ~LMP_HOST_LE_BREDR;
 	}
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
