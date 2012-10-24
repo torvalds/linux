@@ -365,6 +365,7 @@ void tty_schedule_flip(struct tty_struct *tty)
 {
 	struct tty_bufhead *buf = &tty->port->buf;
 	unsigned long flags;
+	WARN_ON(tty->low_latency);
 
 	spin_lock_irqsave(&buf->lock, flags);
 	if (buf->tail != NULL)
