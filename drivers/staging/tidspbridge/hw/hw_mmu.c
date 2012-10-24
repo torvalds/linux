@@ -78,7 +78,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  * INPUTS:
  *
  *       Identifier      : base_address
- *       TypE		: const u32
+ *       Type		 : void __iomem *
  *       Description     : Base Address of instance of MMU module
  *
  *       Identifier      : page_sz
@@ -112,7 +112,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  *
  * METHOD:	       	: Check the Input parameters and set the CAM entry.
  */
-static hw_status mmu_set_cam_entry(const void __iomem *base_address,
+static hw_status mmu_set_cam_entry(void __iomem *base_address,
 				   const u32 page_sz,
 				   const u32 preserved_bit,
 				   const u32 valid_bit,
@@ -124,7 +124,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  * INPUTS:
  *
  *       Identifier      : base_address
- *       Type	    	: const u32
+ *       Type		 : void __iomem *
  *       Description     : Base Address of instance of MMU module
  *
  *       Identifier      : physical_addr
@@ -157,7 +157,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  *
  * METHOD:	       : Check the Input parameters and set the RAM entry.
  */
-static hw_status mmu_set_ram_entry(const void __iomem *base_address,
+static hw_status mmu_set_ram_entry(void __iomem *base_address,
 				   const u32 physical_addr,
 				   enum hw_endianism_t endianism,
 				   enum hw_element_size_t element_size,
@@ -165,7 +165,7 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 
 /* HW FUNCTIONS */
 
-hw_status hw_mmu_enable(const void __iomem *base_address)
+hw_status hw_mmu_enable(void __iomem *base_address)
 {
 	hw_status status = 0;
 
@@ -174,7 +174,7 @@ hw_status hw_mmu_enable(const void __iomem *base_address)
 	return status;
 }
 
-hw_status hw_mmu_disable(const void __iomem *base_address)
+hw_status hw_mmu_disable(void __iomem *base_address)
 {
 	hw_status status = 0;
 
@@ -183,7 +183,7 @@ hw_status hw_mmu_disable(const void __iomem *base_address)
 	return status;
 }
 
-hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
+hw_status hw_mmu_num_locked_set(void __iomem *base_address,
 				u32 num_locked_entries)
 {
 	hw_status status = 0;
@@ -193,7 +193,7 @@ hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 	return status;
 }
 
-hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
+hw_status hw_mmu_victim_num_set(void __iomem *base_address,
 				u32 victim_entry_num)
 {
 	hw_status status = 0;
@@ -203,7 +203,7 @@ hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
 	return status;
 }
 
-hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irq_mask)
+hw_status hw_mmu_event_ack(void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = 0;
 
@@ -212,7 +212,7 @@ hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irq_mask)
 	return status;
 }
 
-hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irq_mask)
+hw_status hw_mmu_event_disable(void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = 0;
 	u32 irq_reg;
@@ -224,7 +224,7 @@ hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irq_mask)
 	return status;
 }
 
-hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irq_mask)
+hw_status hw_mmu_event_enable(void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = 0;
 	u32 irq_reg;
@@ -236,7 +236,7 @@ hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irq_mask)
 	return status;
 }
 
-hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irq_mask)
+hw_status hw_mmu_event_status(void __iomem *base_address, u32 *irq_mask)
 {
 	hw_status status = 0;
 
@@ -245,7 +245,7 @@ hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irq_mask)
 	return status;
 }
 
-hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
+hw_status hw_mmu_fault_addr_read(void __iomem *base_address, u32 *addr)
 {
 	hw_status status = 0;
 
@@ -255,7 +255,7 @@ hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
 	return status;
 }
 
-hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
+hw_status hw_mmu_ttb_set(void __iomem *base_address, u32 ttb_phys_addr)
 {
 	hw_status status = 0;
 	u32 load_ttb;
@@ -267,7 +267,7 @@ hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
 	return status;
 }
 
-hw_status hw_mmu_twl_enable(const void __iomem *base_address)
+hw_status hw_mmu_twl_enable(void __iomem *base_address)
 {
 	hw_status status = 0;
 
@@ -276,7 +276,7 @@ hw_status hw_mmu_twl_enable(const void __iomem *base_address)
 	return status;
 }
 
-hw_status hw_mmu_twl_disable(const void __iomem *base_address)
+hw_status hw_mmu_twl_disable(void __iomem *base_address)
 {
 	hw_status status = 0;
 
@@ -323,7 +323,7 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtual_addr,
 	return status;
 }
 
-hw_status hw_mmu_tlb_add(const void __iomem *base_address,
+hw_status hw_mmu_tlb_add(void __iomem *base_address,
 			 u32 physical_addr,
 			 u32 virtual_addr,
 			 u32 page_sz,
@@ -516,7 +516,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address)
 }
 
 /* mmu_set_cam_entry */
-static hw_status mmu_set_cam_entry(const void __iomem *base_address,
+static hw_status mmu_set_cam_entry(void __iomem *base_address,
 				   const u32 page_sz,
 				   const u32 preserved_bit,
 				   const u32 valid_bit,
@@ -536,7 +536,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 }
 
 /* mmu_set_ram_entry */
-static hw_status mmu_set_ram_entry(const void __iomem *base_address,
+static hw_status mmu_set_ram_entry(void __iomem *base_address,
 				   const u32 physical_addr,
 				   enum hw_endianism_t endianism,
 				   enum hw_element_size_t element_size,
@@ -556,7 +556,7 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 
 }
 
-void hw_mmu_tlb_flush_all(const void __iomem *base)
+void hw_mmu_tlb_flush_all(void __iomem *base)
 {
 	__raw_writel(1, base + MMU_GFLUSH);
 }
