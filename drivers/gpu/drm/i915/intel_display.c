@@ -3228,9 +3228,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
-	if (IS_HASWELL(dev))
-		intel_ddi_enable_pipe_clock(intel_crtc);
-
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
 	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
@@ -3248,11 +3245,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 * clocks enabled
 	 */
 	intel_crtc_load_lut(crtc);
-
-	if (IS_HASWELL(dev)) {
-		intel_ddi_set_pipe_settings(crtc);
-		intel_ddi_enable_pipe_func(crtc);
-	}
 
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
@@ -3404,15 +3396,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_disable_pipe(dev_priv, pipe);
 
-	if (IS_HASWELL(dev))
-		intel_ddi_disable_pipe_func(dev_priv, pipe);
-
 	/* Disable PF */
 	I915_WRITE(PF_CTL(pipe), 0);
 	I915_WRITE(PF_WIN_SZ(pipe), 0);
-
-	if (IS_HASWELL(dev))
-		intel_ddi_disable_pipe_clock(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
