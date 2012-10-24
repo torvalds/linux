@@ -191,6 +191,32 @@ err:
 	return ret;
 }
 
+/* caller ensures gpio is valid and requested, chip->get_direction may sleep  */
+static int gpio_get_direction(unsigned gpio)
+{
+	struct gpio_chip	*chip;
+	struct gpio_desc	*desc = &gpio_desc[gpio];
+	int			status = -EINVAL;
+
+	chip = gpio_to_chip(gpio);
+	gpio -= chip->base;
+
+	if (!chip->get_direction)
+		return status;
+
+	status = chip->get_direction(chip, gpio);
+	if (status > 0) {
+		/* GPIOF_DIR_IN, or other positive */
+		status = 1;
+		clear_bit(FLAG_IS_OUT, &desc->flags);
+	}
+	if (status == 0) {
+		/* GPIOF_DIR_OUT */
+		set_bit(FLAG_IS_OUT, &desc->flags);
+	}
+	return status;
+}
+
 #ifdef CONFIG_GPIO_SYSFS
 
 /* lock protects against unexport_gpio() being called while
@@ -223,6 +249,7 @@ static ssize_t gpio_direction_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
+	unsigned		gpio = desc - gpio_desc;
 	ssize_t			status;
 
 	mutex_lock(&sysfs_lock);
@@ -230,6 +257,7 @@ static ssize_t gpio_direction_show(struct device *dev,
 	if (!test_bit(FLAG_EXPORT, &desc->flags))
 		status = -EIO;
 	else
+		gpio_get_direction(gpio);
 		status = sprintf(buf, "%s\n",
 			test_bit(FLAG_IS_OUT, &desc->flags)
 				? "out" : "in");
@@ -1080,6 +1108,7 @@ int gpiochip_add(struct gpio_chip *chip)
 			 * inputs (often with pullups enabled) so power
 			 * usage is minimized.  Linux code should set the
 			 * gpio direction first thing; but until it does,
+			 * and in case chip->get_direction is not set,
 			 * we may expose the wrong direction in sysfs.
 			 */
 			gpio_desc[id].flags = !chip->direction_input
@@ -1231,9 +1260,15 @@ int gpio_request(unsigned gpio, const char *label)
 			desc_set_label(desc, NULL);
 			module_put(chip->owner);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
+			goto done;
 		}
 	}
-
+	if (chip->get_direction) {
+		/* chip->get_direction may sleep */
+		spin_unlock_irqrestore(&gpio_lock, flags);
+		gpio_get_direction(gpio);
+		spin_lock_irqsave(&gpio_lock, flags);
+	}
 done:
 	if (status)
 		pr_debug("gpio_request: gpio-%d (%s) status %d\n",
@@ -1769,6 +1804,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!test_bit(FLAG_REQUESTED, &gdesc->flags))
 			continue;
 
+		gpio_get_direction(gpio);
 		is_out = test_bit(FLAG_IS_OUT, &gdesc->flags);
 		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s",
 			gpio, gdesc->label,
