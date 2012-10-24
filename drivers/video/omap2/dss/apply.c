@@ -27,6 +27,7 @@
 
 #include "dss.h"
 #include "dss_features.h"
+#include "dispc-compat.h"
 
 /*
  * We have 4 levels of cache for the dispc settings. First two are in SW and
