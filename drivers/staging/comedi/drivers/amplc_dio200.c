@@ -120,6 +120,14 @@
  *         the SK1 connector.  This pin is shared by all three counter
  *         channels on the chip.
  *
+ *     For the PCIe boards, clock sources in the range 0 to 31 are allowed
+ *     and the following additional clock sources are defined:
+ *
+ *       8.  HIGH logic level.
+ *       9.  LOW logic level.
+ *      10.  "Pattern present" signal.
+ *      11.  Internal 20 MHz clock.
+ *
  *   INSN_CONFIG_GET_CLOCK_SRC.  Returns the counter channel's current
  *     clock source in data[1].  For internal clock sources, data[2] is set
  *     to the period in ns.
@@ -140,6 +148,27 @@
  *       5.  Reserved.
  *       6.  Reserved.
  *       7.  Reserved.
+ *
+ *     For the PCIe boards, gate sources in the range 0 to 31 are allowed;
+ *     the following additional clock sources and clock sources 6 and 7 are
+ *     (re)defined:
+ *
+ *       6.  /GAT n, negated version of the counter channel's dedicated
+ *         GAT input (negated version of gate source 2).
+ *       7.  OUT n-2, the non-inverted output of counter channel n-2
+ *         (negated version of gate source 3).
+ *       8.  "Pattern present" signal, HIGH while pattern present.
+ *       9.  "Pattern occurred" latched signal, latches HIGH when pattern
+ *         occurs.
+ *      10.  "Pattern gone away" latched signal, latches LOW when pattern
+ *         goes away after it occurred.
+ *      11.  Negated "pattern present" signal, LOW while pattern present
+ *         (negated version of gate source 8).
+ *      12.  Negated "pattern occurred" latched signal, latches LOW when
+ *         pattern occurs (negated version of gate source 9).
+ *      13.  Negated "pattern gone away" latched signal, latches LOW when
+ *         pattern goes away after it occurred (negated version of gate
+ *         source 10).
  *
  *   INSN_CONFIG_GET_GATE_SRC.  Returns the counter channel's current gate
  *     source in data[2].
@@ -274,28 +303,43 @@
 #define DIO200_VERSION		0x24	/* Hardware version register */
 
 /*
- * Macros for constructing value for DIO_200_?CLK_SCE and
+ * Functions for constructing value for DIO_200_?CLK_SCE and
  * DIO_200_?GAT_SCE registers:
  *
  * 'which' is: 0 for CTR-X1, CTR-Y1, CTR-Z1; 1 for CTR-X2, CTR-Y2 or CTR-Z2.
  * 'chan' is the channel: 0, 1 or 2.
- * 'source' is the signal source: 0 to 7.
+ * 'source' is the signal source: 0 to 7, or 0 to 31 for "enhanced" boards.
  */
-#define CLK_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
-#define GAT_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
+static unsigned char clk_gat_sce(unsigned int which, unsigned int chan,
+				 unsigned int source)
+{
+	return (which << 5) | (chan << 3) |
+	       ((source & 030) << 3) | (source & 007);
+}
+
+static unsigned char clk_sce(unsigned int which, unsigned int chan,
+			     unsigned int source)
+{
+	return clk_gat_sce(which, chan, source);
+}
+
+static unsigned char gat_sce(unsigned int which, unsigned int chan,
+			     unsigned int source)
+{
+	return clk_gat_sce(which, chan, source);
+}
 
 /*
  * Periods of the internal clock sources in nanoseconds.
  */
-static const unsigned clock_period[8] = {
-	0,			/* dedicated clock input/output pin */
-	100,			/* 10 MHz */
-	1000,			/* 1 MHz */
-	10000,			/* 100 kHz */
-	100000,			/* 10 kHz */
-	1000000,		/* 1 kHz */
-	0,			/* OUT N-1 */
-	0			/* group clock input pin */
+static const unsigned int clock_period[32] = {
+	[1] = 100,		/* 10 MHz */
+	[2] = 1000,		/* 1 MHz */
+	[3] = 10000,		/* 100 kHz */
+	[4] = 100000,		/* 10 kHz */
+	[5] = 1000000,		/* 1 kHz */
+	[11] = 50,		/* 20 MHz (enhanced boards) */
+	/* clock sources 12 and later reserved for enhanced boards */
 };
 
 /*
@@ -1220,11 +1264,11 @@ dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (gate_src > 7)
+	if (gate_src > (layout->has_enhancements ? 31 : 7))
 		return -1;
 
 	subpriv->gate_src[counter_number] = gate_src;
-	byte = GAT_SCE(subpriv->which, counter_number, gate_src);
+	byte = gat_sce(subpriv->which, counter_number, gate_src);
 	dio200_write8(dev, subpriv->gat_sce_ofs, byte);
 
 	return 0;
@@ -1266,11 +1310,11 @@ dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (clock_src > 7)
+	if (clock_src > (layout->has_enhancements ? 31 : 7))
 		return -1;
 
 	subpriv->clock_src[counter_number] = clock_src;
-	byte = CLK_SCE(subpriv->which, counter_number, clock_src);
+	byte = clk_sce(subpriv->which, counter_number, clock_src);
 	dio200_write8(dev, subpriv->clk_sce_ofs, byte);
 
 	return 0;
