@@ -448,6 +448,11 @@ static void option_instat_callback(struct urb *urb);
 #define CELLIENT_VENDOR_ID			0x2692
 #define CELLIENT_PRODUCT_MEN200			0x9005
 
+/*usi mt6229 modem*/
+#define MT6229_VENDOR_ID			0x0e8d 
+#define MT6229_PRODUCT_ID			0x00a0
+
+
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
 		OPTION_BLACKLIST_NONE = 0,
@@ -1437,6 +1442,14 @@ static int option_probe(struct usb_serial *serial,
 		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
+
+	/* Don't bind network interface on mt6229, it is handled by a separate module */
+	if (serial->dev->descriptor.idVendor == MT6229_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == MT6229_PRODUCT_ID)
+	{
+		printk("%s:mt6229 exit\n",__func__);
+		return -ENODEV;
+	}
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
