@@ -37,7 +37,7 @@ L2: cache-controller {
         reg = <0xfff12000 0x1000>;
         arm,data-latency = <1 1 1>;
         arm,tag-latency = <2 2 2>;
-        arm,filter-latency = <0x80000000 0x8000000>;
+        arm,filter-ranges = <0x80000000 0x8000000>;
         cache-unified;
         cache-level = <2>;
 	interrupts = <45>;
