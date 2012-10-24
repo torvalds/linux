@@ -1311,7 +1311,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	vcpu->arch.apic_base = value;
 	if (apic_x2apic_mode(apic)) {
 		u32 id = kvm_apic_id(apic);
-		u32 ldr = ((id & ~0xf) << 16) | (1 << (id & 0xf));
+		u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
 		kvm_apic_set_ldr(apic, ldr);
 	}
 	apic->base_address = apic->vcpu->arch.apic_base &
