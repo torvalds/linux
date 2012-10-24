@@ -656,14 +656,14 @@ struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
 		opp = opp_find_freq_floor(dev, freq);
 
 		/* If not available, use the closest opp */
-		if (opp == ERR_PTR(-ENODEV))
+		if (opp == ERR_PTR(-ERANGE))
 			opp = opp_find_freq_ceil(dev, freq);
 	} else {
 		/* The freq is an lower bound. opp should be higher */
 		opp = opp_find_freq_ceil(dev, freq);
 
 		/* If not available, use the closest opp */
-		if (opp == ERR_PTR(-ENODEV))
+		if (opp == ERR_PTR(-ERANGE))
 			opp = opp_find_freq_floor(dev, freq);
 	}
 
