@@ -16,7 +16,7 @@
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
-	asm volatile("rsr %0,"__stringify(PS) : "=a" (flags));
+	asm volatile("rsr %0, ps" : "=a" (flags));
 	return flags;
 }
 
@@ -41,7 +41,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-	asm volatile("wsr %0, "__stringify(PS)" ; rsync"
+	asm volatile("wsr %0, ps; rsync"
 		     :: "a" (flags) : "memory");
 }
 
