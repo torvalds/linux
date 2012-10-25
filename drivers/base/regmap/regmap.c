@@ -858,7 +858,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 
 		/* If the write goes beyond the end of the window split it */
 		while (val_num > win_residue) {
-			dev_dbg(map->dev, "Writing window %d/%d\n",
+			dev_dbg(map->dev, "Writing window %d/%zu\n",
 				win_residue, val_len / map->format.val_bytes);
 			ret = _regmap_raw_write(map, reg, val, win_residue *
 						map->format.val_bytes);
