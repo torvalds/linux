@@ -88,6 +88,7 @@ static char *os_major = "";
 static char *os_minor = "";
 static char *processor_arch;
 static char *os_build;
+static char *os_version;
 static char *lic_version = "Unknown version";
 static struct utsname uts_buf;
 
@@ -453,7 +454,9 @@ void kvp_get_os_info(void)
 	char	*p, buf[512];
 
 	uname(&uts_buf);
-	os_build = uts_buf.release;
+	os_version = uts_buf.release;
+	os_build = strdup(uts_buf.release);
+
 	os_name = uts_buf.sysname;
 	processor_arch = uts_buf.machine;
 
@@ -462,7 +465,7 @@ void kvp_get_os_info(void)
 	 * string to be of the form: x.y.z
 	 * Strip additional information we may have.
 	 */
-	p = strchr(os_build, '-');
+	p = strchr(os_version, '-');
 	if (p)
 		*p = '\0';
 
@@ -1649,7 +1652,7 @@ int main(void)
 			strcpy(key_name, "OSMinorVersion");
 			break;
 		case OSVersion:
-			strcpy(key_value, os_build);
+			strcpy(key_value, os_version);
 			strcpy(key_name, "OSVersion");
 			break;
 		case ProcessorArchitecture:
