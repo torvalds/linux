@@ -147,8 +147,6 @@ Configuration options:
   Board specific stuff
 ======================================================================*/
 
-/* registers  */
-#define PCI_VENDOR_ID_RTD	0x1435
 /*
   The board has three memory windows: las0, las1, and lcfg (the PCI chip)
   Las1 has the data and can be burst DMAed 32bits at a time.
