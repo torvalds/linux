@@ -671,10 +671,6 @@ void __init plat_mem_setup(void)
 						__pa_symbol(&__init_end), -1,
 						0x100000,
 						CVMX_BOOTMEM_FLAG_NO_LOCKING);
-#elif defined(CONFIG_HIGHMEM)
-		memory = cvmx_bootmem_phy_alloc(mem_alloc_size, 0, 1ull << 31,
-						0x100000,
-						CVMX_BOOTMEM_FLAG_NO_LOCKING);
 #else
 		memory = cvmx_bootmem_phy_alloc(mem_alloc_size, 0, 512 << 20,
 						0x100000,
