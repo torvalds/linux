@@ -2849,7 +2849,7 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
+static bool ironlake_crtc_driving_pch(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *intel_encoder;
@@ -2859,23 +2859,6 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 	 * must be driven by its own crtc; no sharing is possible.
 	 */
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-
-		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
-		 * CPU handles all others */
-		if (IS_HASWELL(dev)) {
-			/* It is still unclear how this will work on PPT, so throw up a warning */
-			WARN_ON(!HAS_PCH_LPT(dev));
-
-			if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
-				DRM_DEBUG_KMS("Haswell detected DAC encoder, assuming is PCH\n");
-				return true;
-			} else {
-				DRM_DEBUG_KMS("Haswell detected encoder %d, assuming is CPU\n",
-					      intel_encoder->type);
-				return false;
-			}
-		}
-
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_EDP:
 			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
@@ -2885,6 +2868,11 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 	}
 
 	return true;
+}
+
+static bool haswell_crtc_driving_pch(struct drm_crtc *crtc)
+{
+	return intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG);
 }
 
 /* Program iCLKIP clock to the desired frequency */
@@ -3215,7 +3203,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
 	}
 
-	is_pch_port = intel_crtc_driving_pch(crtc);
+	is_pch_port = ironlake_crtc_driving_pch(crtc);
 
 	if (is_pch_port) {
 		ironlake_fdi_pll_enable(intel_crtc);
@@ -3293,7 +3281,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	is_pch_port = intel_crtc_driving_pch(crtc);
+	is_pch_port = haswell_crtc_driving_pch(crtc);
 
 	if (is_pch_port) {
 		ironlake_fdi_pll_enable(intel_crtc);
