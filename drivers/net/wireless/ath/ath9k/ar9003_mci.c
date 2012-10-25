@@ -881,8 +881,11 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL3,
 		      AR_BTCOEX_CTRL3_CONT_INFO_TIMEOUT, 20);
 
-	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2, AR_BTCOEX_CTRL2_RX_DEWEIGHT, 1);
+	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2, AR_BTCOEX_CTRL2_RX_DEWEIGHT, 0);
 	REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);
+
+	/* Set the time out to 3.125ms (5 BT slots) */
+	REG_RMW_FIELD(ah, AR_BTCOEX_WL_LNA, AR_BTCOEX_WL_LNA_TIMEOUT, 0x3D090);
 
 	/* concurrent tx priority */
 	if (mci->config & ATH_MCI_CONFIG_CONCUR_TX) {
