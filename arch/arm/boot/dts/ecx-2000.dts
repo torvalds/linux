@@ -20,10 +20,10 @@
 /memreserve/ 0x00000000 0x0001000;
 
 / {
-	model = "Calxeda Highbank";
-	compatible = "calxeda,highbank";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	model = "Calxeda ECX-2000";
+	compatible = "calxeda,ecx-2000";
+	#address-cells = <2>;
+	#size-cells = <2>;
 	clock-ranges;
 
 	cpus {
@@ -31,91 +31,73 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a15";
 			reg = <0>;
-			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
 		cpu@1 {
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a15";
 			reg = <1>;
-			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
 		cpu@2 {
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a15";
 			reg = <2>;
-			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
 		cpu@3 {
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a15";
 			reg = <3>;
-			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 	};
 
-	memory {
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
-		reg = <0x00000000 0xff900000>;
+		reg = <0x00000000 0x00000000 0x00000000 0xff800000>;
+	};
+
+	memory@200000000 {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x00000002 0x00000000 0x00000003 0x00000000>;
 	};
 
 	soc {
-		ranges = <0x00000000 0x00000000 0xffffffff>;
+		ranges = <0x00000000 0x00000000 0x00000000 0xffffffff>;
 
-		timer@fff10600 {
-			compatible = "arm,cortex-a9-twd-timer";
-			reg = <0xfff10600 0x20>;
-			interrupts = <1 13 0xf01>;
-			clocks = <&a9periphclk>;
-		};
-
-		watchdog@fff10620 {
-			compatible = "arm,cortex-a9-twd-wdt";
-			reg = <0xfff10620 0x20>;
-			interrupts = <1 14 0xf01>;
-			clocks = <&a9periphclk>;
+		timer {
+			compatible = "arm,cortex-a15-timer", "arm,armv7-timer"; 			interrupts = <1 13 0xf08>,
+				<1 14 0xf08>,
+				<1 11 0xf08>,
+				<1 10 0xf08>;
 		};
 
 		intc: interrupt-controller@fff11000 {
-			compatible = "arm,cortex-a9-gic";
+			compatible = "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
 			#size-cells = <0>;
 			#address-cells = <1>;
 			interrupt-controller;
+			interrupts = <1 9 0xf04>;
 			reg = <0xfff11000 0x1000>,
-			      <0xfff10100 0x100>;
-		};
-
-		L2: l2-cache {
-			compatible = "arm,pl310-cache";
-			reg = <0xfff12000 0x1000>;
-			interrupts = <0 70 4>;
-			cache-unified;
-			cache-level = <2>;
+			      <0xfff12000 0x1000>,
+			      <0xfff14000 0x2000>,
+			      <0xfff16000 0x2000>;
 		};
 
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <0 76 4  0 75 4  0 74 4  0 73 4>;
 		};
-
-
-		sregs@fff3c200 {
-			compatible = "calxeda,hb-sregs-l2-ecc";
-			reg = <0xfff3c200 0x100>;
-			interrupts = <0 71 4  0 72 4>;
-		};
-
 	};
 };
 
