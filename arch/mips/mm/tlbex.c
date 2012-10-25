@@ -148,8 +148,8 @@ enum label_id {
 	label_leave,
 	label_vmalloc,
 	label_vmalloc_done,
-	label_tlbw_hazard,
-	label_split,
+	label_tlbw_hazard_0,
+	label_split = label_tlbw_hazard_0 + 8,
 	label_tlbl_goaround1,
 	label_tlbl_goaround2,
 	label_nopage_tlbl,
@@ -167,7 +167,7 @@ UASM_L_LA(_second_part)
 UASM_L_LA(_leave)
 UASM_L_LA(_vmalloc)
 UASM_L_LA(_vmalloc_done)
-UASM_L_LA(_tlbw_hazard)
+/* _tlbw_hazard_x is handled differently.  */
 UASM_L_LA(_split)
 UASM_L_LA(_tlbl_goaround1)
 UASM_L_LA(_tlbl_goaround2)
@@ -180,6 +180,30 @@ UASM_L_LA(_large_segbits_fault)
 #ifdef CONFIG_HUGETLB_PAGE
 UASM_L_LA(_tlb_huge_update)
 #endif
+
+static int __cpuinitdata hazard_instance;
+
+static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
+{
+	switch (instance) {
+	case 0 ... 7:
+		uasm_il_bgezl(p, r, 0, label_tlbw_hazard_0 + instance);
+		return;
+	default:
+		BUG();
+	}
+}
+
+static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
+{
+	switch (instance) {
+	case 0 ... 7:
+		uasm_build_label(l, *p, label_tlbw_hazard_0 + instance);
+		break;
+	default:
+		BUG();
+	}
+}
 
 /*
  * For debug purposes.
@@ -478,19 +502,26 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		 * This branch uses up a mtc0 hazard nop slot and saves
 		 * two nops after the tlbw instruction.
 		 */
-		uasm_il_bgezl(p, r, 0, label_tlbw_hazard);
+		uasm_bgezl_hazard(p, r, hazard_instance);
 		tlbw(p);
-		uasm_l_tlbw_hazard(l, *p);
+		uasm_bgezl_label(l, p, hazard_instance);
+		hazard_instance++;
 		uasm_i_nop(p);
 		break;
 
 	case CPU_R4600:
 	case CPU_R4700:
-	case CPU_R5000:
-	case CPU_R5000A:
 		uasm_i_nop(p);
 		tlbw(p);
 		uasm_i_nop(p);
+		break;
+
+	case CPU_R5000:
+	case CPU_R5000A:
+	case CPU_NEVADA:
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		tlbw(p);
 		break;
 
 	case CPU_R4300:
@@ -524,17 +555,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 			uasm_i_nop(p);
 	case CPU_ALCHEMY:
 		tlbw(p);
-		break;
-
-	case CPU_NEVADA:
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
-		/*
-		 * This branch uses up a mtc0 hazard nop slot and saves
-		 * a nop after the tlbw instruction.
-		 */
-		uasm_il_bgezl(p, r, 0, label_tlbw_hazard);
-		tlbw(p);
-		uasm_l_tlbw_hazard(l, *p);
 		break;
 
 	case CPU_RM7000:

@@ -456,6 +456,7 @@ static struct ttm_tt *
 nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 		      uint32_t page_flags, struct page *dummy_read)
 {
+#if __OS_HAS_AGP
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct drm_device *dev = drm->dev;
 
@@ -463,6 +464,7 @@ nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 		return ttm_agp_tt_create(bdev, dev->agp->bridge, size,
 					 page_flags, dummy_read);
 	}
+#endif
 
 	return nouveau_sgdma_create_ttm(bdev, size, page_flags, dummy_read);
 }

@@ -29,7 +29,6 @@
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/irqdomain.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
@@ -960,7 +959,7 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->base = devm_request_and_ioremap(&pdev->dev, &iomem);
+	pc->base = devm_request_and_ioremap(dev, &iomem);
 	if (!pc->base)
 		return -EADDRNOTAVAIL;
 
@@ -1032,7 +1031,7 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 	pc->pctl_dev = pinctrl_register(&bcm2835_pinctrl_desc, dev, pc);
 	if (!pc->pctl_dev) {
 		gpiochip_remove(&pc->gpio_chip);
-		return PTR_ERR(pc->pctl_dev);
+		return -EINVAL;
 	}
 
 	pc->gpio_range = bcm2835_pinctrl_gpio_range;

@@ -1341,9 +1341,14 @@ int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
 	struct scatterlist *sg = obj->pages->sgl;
-	while (n >= SG_MAX_SINGLE_ALLOC) {
+	int nents = obj->pages->nents;
+	while (nents > SG_MAX_SINGLE_ALLOC) {
+		if (n < SG_MAX_SINGLE_ALLOC - 1)
+			break;
+
 		sg = sg_chain_ptr(sg + SG_MAX_SINGLE_ALLOC - 1);
 		n -= SG_MAX_SINGLE_ALLOC - 1;
+		nents -= SG_MAX_SINGLE_ALLOC - 1;
 	}
 	return sg_page(sg+n);
 }
@@ -1427,7 +1432,7 @@ int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);
 int i915_add_request(struct intel_ring_buffer *ring,
 		     struct drm_file *file,
-		     struct drm_i915_gem_request *request);
+		     u32 *seqno);
 int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);

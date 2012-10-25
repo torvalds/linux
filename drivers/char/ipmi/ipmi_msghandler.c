@@ -1880,7 +1880,7 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 			     struct ipmi_recv_msg *supplied_recv,
 			     int                  priority)
 {
-	unsigned char saddr, lun;
+	unsigned char saddr = 0, lun = 0;
 	int           rv;
 
 	if (!user)

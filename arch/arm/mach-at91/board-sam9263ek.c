@@ -132,7 +132,7 @@ static struct spi_board_info ek_spi_devices[] = {
 		.max_speed_hz	= 125000 * 26,	/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
-		.irq		= AT91SAM9263_ID_IRQ1,
+		.irq		= NR_IRQS_LEGACY + AT91SAM9263_ID_IRQ1,
 	},
 #endif
 };
