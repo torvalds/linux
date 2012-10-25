@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <net/if.h>
 
 /*
  * KVP protocol: The user mode component first registers with the
@@ -882,7 +883,7 @@ static int kvp_process_ip_address(void *addrp,
 		addr_length = INET6_ADDRSTRLEN;
 	}
 
-	if ((length - *offset) < addr_length + 1)
+	if ((length - *offset) < addr_length + 2)
 		return HV_E_FAIL;
 	if (str == NULL) {
 		strcpy(buffer, "inet_ntop failed\n");
@@ -890,11 +891,13 @@ static int kvp_process_ip_address(void *addrp,
 	}
 	if (*offset == 0)
 		strcpy(buffer, tmp);
-	else
+	else {
+		strcat(buffer, ";");
 		strcat(buffer, tmp);
-	strcat(buffer, ";");
+	}
 
 	*offset += strlen(str) + 1;
+
 	return 0;
 }
 
@@ -956,7 +959,9 @@ kvp_get_ip_info(int family, char *if_name, int op,
 		 * supported address families; if not we gather info on
 		 * the specified address family.
 		 */
-		if ((family != 0) && (curp->ifa_addr->sa_family != family)) {
+		if ((((family != 0) &&
+			 (curp->ifa_addr->sa_family != family))) ||
+			 (curp->ifa_flags & IFF_LOOPBACK)) {
 			curp = curp->ifa_next;
 			continue;
 		}
