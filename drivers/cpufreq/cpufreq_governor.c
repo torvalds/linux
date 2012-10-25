@@ -50,7 +50,7 @@ static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
 	return jiffies_to_usecs(idle_time);
 }
 
-cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
+u64 get_cpu_idle_time(unsigned int cpu, u64 *wall)
 {
 	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
 
@@ -83,7 +83,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 	/* Get Absolute Load (in terms of freq for ondemand gov) */
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_common_info *j_cdbs;
-		cputime64_t cur_wall_time, cur_idle_time, cur_iowait_time;
+		u64 cur_wall_time, cur_idle_time, cur_iowait_time;
 		unsigned int idle_time, wall_time, iowait_time;
 		unsigned int load;
 
