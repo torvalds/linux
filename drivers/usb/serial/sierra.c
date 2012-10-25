@@ -936,7 +936,7 @@ static int sierra_startup(struct usb_serial *serial)
 			dev_dbg(&port->dev, "%s: kmalloc for "
 				"sierra_port_private (%d) failed!\n",
 				__func__, i);
-			return -ENOMEM;
+			goto err;
 		}
 		spin_lock_init(&portdata->lock);
 		init_usb_anchor(&portdata->active);
@@ -973,6 +973,13 @@ static int sierra_startup(struct usb_serial *serial)
 	}
 
 	return 0;
+err:
+	for (--i; i >= 0; --i) {
+		portdata = usb_get_serial_port_data(serial->port[i]);
+		kfree(portdata);
+	}
+
+	return -ENOMEM;
 }
 
 static void sierra_release(struct usb_serial *serial)
