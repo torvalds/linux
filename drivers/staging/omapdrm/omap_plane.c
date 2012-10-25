@@ -416,23 +416,25 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_property *prop;
 
-	prop = priv->rotation_prop;
-	if (!prop) {
-		const struct drm_prop_enum_list props[] = {
-				{ DRM_ROTATE_0,   "rotate-0" },
-				{ DRM_ROTATE_90,  "rotate-90" },
-				{ DRM_ROTATE_180, "rotate-180" },
-				{ DRM_ROTATE_270, "rotate-270" },
-				{ DRM_REFLECT_X,  "reflect-x" },
-				{ DRM_REFLECT_Y,  "reflect-y" },
-		};
-		prop = drm_property_create_bitmask(dev, 0, "rotation",
-				props, ARRAY_SIZE(props));
-		if (prop == NULL)
-			return;
-		priv->rotation_prop = prop;
+	if (priv->has_dmm) {
+		prop = priv->rotation_prop;
+		if (!prop) {
+			const struct drm_prop_enum_list props[] = {
+					{ DRM_ROTATE_0,   "rotate-0" },
+					{ DRM_ROTATE_90,  "rotate-90" },
+					{ DRM_ROTATE_180, "rotate-180" },
+					{ DRM_ROTATE_270, "rotate-270" },
+					{ DRM_REFLECT_X,  "reflect-x" },
+					{ DRM_REFLECT_Y,  "reflect-y" },
+			};
+			prop = drm_property_create_bitmask(dev, 0, "rotation",
+					props, ARRAY_SIZE(props));
+			if (prop == NULL)
+				return;
+			priv->rotation_prop = prop;
+		}
+		drm_object_attach_property(obj, prop, 0);
 	}
-	drm_object_attach_property(obj, prop, 0);
 
         prop = priv->zorder_prop;
         if (!prop) {
