@@ -248,7 +248,7 @@ static int update_netprio(const void *v, struct file *file, unsigned n)
 	return 0;
 }
 
-void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+static void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
 	struct task_struct *p;
 	void *v;
