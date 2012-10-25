@@ -40,8 +40,8 @@
  */
 static struct map_desc cdb89712_io_desc[] __initdata = {
 	{
-		.virtual	= ETHER_BASE,
-		.pfn		=__phys_to_pfn(ETHER_START),
+		.virtual	= IO_ADDRESS(ETHER_PHYS_BASE),
+		.pfn		= __phys_to_pfn(ETHER_PHYS_BASE),
 		.length		= ETHER_SIZE,
 		.type		= MT_DEVICE
 	}
