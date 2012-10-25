@@ -1412,15 +1412,21 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	DEFINE_WAIT(wait);
-	int ret = -EIO;
+	int ret;
 	int should_grow = 0;
 	unsigned long now = get_seconds();
 	int flush_on_commit = btrfs_test_opt(root, FLUSHONCOMMIT);
 
-	btrfs_run_ordered_operations(root, 0);
-
-	if (cur_trans->aborted)
+	ret = btrfs_run_ordered_operations(root, 0);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
 		goto cleanup_transaction;
+	}
+
+	if (cur_trans->aborted) {
+		ret = cur_trans->aborted;
+		goto cleanup_transaction;
+	}
 
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
@@ -1523,7 +1529,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 * it here and no for sure that nothing new will be added
 		 * to the list
 		 */
-		btrfs_run_ordered_operations(root, 1);
+		ret = btrfs_run_ordered_operations(root, 1);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto cleanup_transaction;
+		}
 
 		prepare_to_wait(&cur_trans->writer_wait, &wait,
 				TASK_UNINTERRUPTIBLE);

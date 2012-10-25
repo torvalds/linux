@@ -519,13 +519,17 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
  * extra check to make sure the ordered operation list really is empty
  * before we return
  */
-void btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
+int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
 {
 	struct btrfs_inode *btrfs_inode;
 	struct inode *inode;
 	struct list_head splice;
+	struct list_head works;
+	struct btrfs_delalloc_work *work, *next;
+	int ret = 0;
 
 	INIT_LIST_HEAD(&splice);
+	INIT_LIST_HEAD(&works);
 
 	mutex_lock(&root->fs_info->ordered_operations_mutex);
 	spin_lock(&root->fs_info->ordered_extent_lock);
@@ -533,6 +537,7 @@ again:
 	list_splice_init(&root->fs_info->ordered_operations, &splice);
 
 	while (!list_empty(&splice)) {
+
 		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
 				   ordered_operations);
 
@@ -549,15 +554,26 @@ again:
 			list_add_tail(&BTRFS_I(inode)->ordered_operations,
 			      &root->fs_info->ordered_operations);
 		}
+
+		if (!inode)
+			continue;
 		spin_unlock(&root->fs_info->ordered_extent_lock);
 
-		if (inode) {
-			if (wait)
-				btrfs_wait_ordered_range(inode, 0, (u64)-1);
-			else
-				filemap_flush(inode->i_mapping);
-			btrfs_add_delayed_iput(inode);
+		work = btrfs_alloc_delalloc_work(inode, wait, 1);
+		if (!work) {
+			if (list_empty(&BTRFS_I(inode)->ordered_operations))
+				list_add_tail(&btrfs_inode->ordered_operations,
+					      &splice);
+			spin_lock(&root->fs_info->ordered_extent_lock);
+			list_splice_tail(&splice,
+					 &root->fs_info->ordered_operations);
+			spin_unlock(&root->fs_info->ordered_extent_lock);
+			ret = -ENOMEM;
+			goto out;
 		}
+		list_add_tail(&work->list, &works);
+		btrfs_queue_worker(&root->fs_info->flush_workers,
+				   &work->work);
 
 		cond_resched();
 		spin_lock(&root->fs_info->ordered_extent_lock);
@@ -566,7 +582,13 @@ again:
 		goto again;
 
 	spin_unlock(&root->fs_info->ordered_extent_lock);
+out:
+	list_for_each_entry_safe(work, next, &works, list) {
+		list_del_init(&work->list);
+		btrfs_wait_and_free_delalloc_work(work);
+	}
 	mutex_unlock(&root->fs_info->ordered_operations_mutex);
+	return ret;
 }
 
 /*
@@ -934,15 +956,6 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 	if (last_mod < root->fs_info->last_trans_committed)
 		return;
 
-	/*
-	 * the transaction is already committing.  Just start the IO and
-	 * don't bother with all of this list nonsense
-	 */
-	if (trans && root->fs_info->running_transaction->blocked) {
-		btrfs_wait_ordered_range(inode, 0, (u64)-1);
-		return;
-	}
-
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	if (list_empty(&BTRFS_I(inode)->ordered_operations)) {
 		list_add_tail(&BTRFS_I(inode)->ordered_operations,
@@ -959,6 +972,7 @@ int __init ordered_data_init(void)
 				     NULL);
 	if (!btrfs_ordered_extent_cache)
 		return -ENOMEM;
+
 	return 0;
 }
 
