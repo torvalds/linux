@@ -343,7 +343,6 @@ struct intel_hdmi {
 			       struct drm_display_mode *adjusted_mode);
 };
 
-#define DP_RECEIVER_CAP_SIZE		0xf
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
 #define DP_LINK_CONFIGURATION_SIZE	9
 
