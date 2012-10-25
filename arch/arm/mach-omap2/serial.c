@@ -329,6 +329,11 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
 
+	if (console_uart_id == bdata->id) {
+		omap_device_enable(pdev);
+		pm_runtime_set_active(&pdev->dev);
+	}
+
 	oh->dev_attr = uart;
 
 	if (((cpu_is_omap34xx() || cpu_is_omap44xx()) && bdata->pads)
