@@ -27,7 +27,7 @@
 #include <linux/hrtimer.h>
 #include "governor.h"
 
-struct class *devfreq_class;
+static struct class *devfreq_class;
 
 /*
  * devfreq core provides delayed work based load monitoring helper
