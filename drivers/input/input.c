@@ -534,8 +534,11 @@ EXPORT_SYMBOL(input_grab_device);
 static void __input_release_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
+	struct input_handle *grabber;
 
-	if (dev->grab == handle) {
+	grabber = rcu_dereference_protected(dev->grab,
+					    lockdep_is_held(&dev->mutex));
+	if (grabber == handle) {
 		rcu_assign_pointer(dev->grab, NULL);
 		/* Make sure input_pass_event() notices that grab is gone */
 		synchronize_rcu();
