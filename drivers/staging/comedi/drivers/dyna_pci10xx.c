@@ -40,8 +40,6 @@
 #include "../comedidev.h"
 #include <linux/mutex.h>
 
-#define PCI_VENDOR_ID_DYNALOG		0x10b5
-
 #define READ_TIMEOUT 50
 
 static const struct comedi_lrange range_pci1050_ai = { 3, {
@@ -283,7 +281,7 @@ static void __devexit dyna_pci10xx_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_DYNALOG, 0x1050) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, 0x1050) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, dyna_pci10xx_pci_table);
