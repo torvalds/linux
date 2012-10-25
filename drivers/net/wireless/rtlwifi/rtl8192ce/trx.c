@@ -140,8 +140,8 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 	pstats->is_cck = is_cck_rate;
 	pstats->packet_beacon = packet_beacon;
 	pstats->is_cck = is_cck_rate;
-	pstats->rx_mimo_signalquality[0] = -1;
-	pstats->rx_mimo_signalquality[1] = -1;
+	pstats->rx_mimo_sig_qual[0] = -1;
+	pstats->rx_mimo_sig_qual[1] = -1;
 
 	if (is_cck_rate) {
 		u8 report, cck_highpwr;
@@ -211,8 +211,8 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 			}
 
 			pstats->signalquality = sq;
-			pstats->rx_mimo_signalquality[0] = sq;
-			pstats->rx_mimo_signalquality[1] = -1;
+			pstats->rx_mimo_sig_qual[0] = sq;
+			pstats->rx_mimo_sig_qual[1] = -1;
 		}
 	} else {
 		rtlpriv->dm.rfpath_rxenable[0] =
@@ -251,8 +251,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 				if (i == 0)
 					pstats->signalquality =
 					    (u8) (evm & 0xff);
-				pstats->rx_mimo_signalquality[i] =
-				    (u8) (evm & 0xff);
+				pstats->rx_mimo_sig_qual[i] = (u8) (evm & 0xff);
 			}
 		}
 	}
@@ -362,36 +361,31 @@ static void _rtl92ce_process_pwdb(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	long undecorated_smoothed_pwdb;
+	long undec_sm_pwdb;
 
 	if (mac->opmode == NL80211_IFTYPE_ADHOC) {
 		return;
 	} else {
-		undecorated_smoothed_pwdb =
-		    rtlpriv->dm.undecorated_smoothed_pwdb;
+		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
 	}
 
 	if (pstats->packet_toself || pstats->packet_beacon) {
-		if (undecorated_smoothed_pwdb < 0)
-			undecorated_smoothed_pwdb = pstats->rx_pwdb_all;
+		if (undec_sm_pwdb < 0)
+			undec_sm_pwdb = pstats->rx_pwdb_all;
 
-		if (pstats->rx_pwdb_all > (u32) undecorated_smoothed_pwdb) {
-			undecorated_smoothed_pwdb =
-			    (((undecorated_smoothed_pwdb) *
+		if (pstats->rx_pwdb_all > (u32) undec_sm_pwdb) {
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			     (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 
-			undecorated_smoothed_pwdb = undecorated_smoothed_pwdb
-			    + 1;
+			undec_sm_pwdb += 1;
 		} else {
-			undecorated_smoothed_pwdb =
-			    (((undecorated_smoothed_pwdb) *
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			     (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 		}
 
-		rtlpriv->dm.undecorated_smoothed_pwdb =
-		    undecorated_smoothed_pwdb;
+		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
 		_rtl92ce_update_rxsignalstatistics(hw, pstats);
 	}
 }
@@ -438,15 +432,14 @@ static void _rtl92ce_process_ui_link_quality(struct ieee80211_hw *hw,
 			for (n_spatialstream = 0; n_spatialstream < 2;
 			     n_spatialstream++) {
 				if (pstats->
-				    rx_mimo_signalquality[n_spatialstream] !=
-				    -1) {
+				    rx_mimo_sig_qual[n_spatialstream] != -1) {
 					if (rtlpriv->stats.
 					    rx_evm_percentage[n_spatialstream]
 					    == 0) {
 						rtlpriv->stats.
 						   rx_evm_percentage
 						   [n_spatialstream] =
-						   pstats->rx_mimo_signalquality
+						   pstats->rx_mimo_sig_qual
 						   [n_spatialstream];
 					}
 
@@ -456,8 +449,7 @@ static void _rtl92ce_process_ui_link_quality(struct ieee80211_hw *hw,
 					      stats.rx_evm_percentage
 					      [n_spatialstream] *
 					      (RX_SMOOTH_FACTOR - 1)) +
-					     (pstats->
-					      rx_mimo_signalquality
+					     (pstats->rx_mimo_sig_qual
 					      [n_spatialstream] * 1)) /
 					    (RX_SMOOTH_FACTOR);
 				}

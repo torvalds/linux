@@ -129,8 +129,8 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 	pstats->packet_matchbssid = packet_match_bssid;
 	pstats->packet_toself = packet_toself;
 	pstats->packet_beacon = packet_beacon;
-	pstats->rx_mimo_signalquality[0] = -1;
-	pstats->rx_mimo_signalquality[1] = -1;
+	pstats->rx_mimo_sig_qual[0] = -1;
+	pstats->rx_mimo_sig_qual[1] = -1;
 
 	if (is_cck) {
 		u8 report, cck_highpwr;
@@ -216,8 +216,8 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 			}
 
 			pstats->signalquality = sq;
-			pstats->rx_mimo_signalquality[0] = sq;
-			pstats->rx_mimo_signalquality[1] = -1;
+			pstats->rx_mimo_sig_qual[0] = sq;
+			pstats->rx_mimo_sig_qual[1] = -1;
 		}
 	} else {
 		rtlpriv->dm.rfpath_rxenable[0] =
@@ -256,8 +256,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 				if (i == 0)
 					pstats->signalquality = (u8)(evm &
 								 0xff);
-				pstats->rx_mimo_signalquality[i] =
-							 (u8) (evm & 0xff);
+				pstats->rx_mimo_sig_qual[i] = (u8) (evm & 0xff);
 			}
 		}
 	}
@@ -366,7 +365,7 @@ static void _rtl92se_process_pwdb(struct ieee80211_hw *hw,
 		return;
 	} else {
 		undec_sm_pwdb =
-		    rtlpriv->dm.undecorated_smoothed_pwdb;
+		    rtlpriv->dm.undec_sm_pwdb;
 	}
 
 	if (pstats->packet_toself || pstats->packet_beacon) {
@@ -386,7 +385,7 @@ static void _rtl92se_process_pwdb(struct ieee80211_hw *hw,
 			      (RX_SMOOTH_FACTOR);
 		}
 
-		rtlpriv->dm.undecorated_smoothed_pwdb = undec_sm_pwdb;
+		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
 		_rtl92se_update_rxsignalstatistics(hw, pstats);
 	}
 }
@@ -398,16 +397,16 @@ static void rtl_92s_process_streams(struct ieee80211_hw *hw,
 	u32 stream;
 
 	for (stream = 0; stream < 2; stream++) {
-		if (pstats->rx_mimo_signalquality[stream] != -1) {
+		if (pstats->rx_mimo_sig_qual[stream] != -1) {
 			if (rtlpriv->stats.rx_evm_percentage[stream] == 0) {
 				rtlpriv->stats.rx_evm_percentage[stream] =
-				    pstats->rx_mimo_signalquality[stream];
+				    pstats->rx_mimo_sig_qual[stream];
 			}
 
 			rtlpriv->stats.rx_evm_percentage[stream] =
 			    ((rtlpriv->stats.rx_evm_percentage[stream] *
 					(RX_SMOOTH_FACTOR - 1)) +
-			     (pstats->rx_mimo_signalquality[stream] *
+			     (pstats->rx_mimo_sig_qual[stream] *
 					1)) / (RX_SMOOTH_FACTOR);
 		}
 	}

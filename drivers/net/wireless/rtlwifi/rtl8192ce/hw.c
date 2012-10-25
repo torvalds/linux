@@ -1403,9 +1403,9 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 			tempval = hwinfo[EEPROM_TXPOWERHT40_2SDIFF + i];
 		else
 			tempval = EEPROM_DEFAULT_HT40_2SDIFF;
-		rtlefuse->eeprom_chnlarea_txpwr_ht40_2sdiif[RF90_PATH_A][i] =
+		rtlefuse->eprom_chnl_txpwr_ht40_2sdf[RF90_PATH_A][i] =
 		    (tempval & 0xf);
-		rtlefuse->eeprom_chnlarea_txpwr_ht40_2sdiif[RF90_PATH_B][i] =
+		rtlefuse->eprom_chnl_txpwr_ht40_2sdf[RF90_PATH_B][i] =
 		    ((tempval & 0xf0) >> 4);
 	}
 
@@ -1429,7 +1429,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 				"RF(%d) EEPROM HT40 2S Diff Area(%d) = 0x%x\n",
 				rf_path, i,
 				rtlefuse->
-				eeprom_chnlarea_txpwr_ht40_2sdiif[rf_path][i]);
+				eprom_chnl_txpwr_ht40_2sdf[rf_path][i]);
 
 	for (rf_path = 0; rf_path < 2; rf_path++) {
 		for (i = 0; i < 14; i++) {
@@ -1444,14 +1444,14 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 			if ((rtlefuse->
 			     eeprom_chnlarea_txpwr_ht40_1s[rf_path][index] -
 			     rtlefuse->
-			     eeprom_chnlarea_txpwr_ht40_2sdiif[rf_path][index])
+			     eprom_chnl_txpwr_ht40_2sdf[rf_path][index])
 			    > 0) {
 				rtlefuse->txpwrlevel_ht40_2s[rf_path][i] =
 				    rtlefuse->
 				    eeprom_chnlarea_txpwr_ht40_1s[rf_path]
 				    [index] -
 				    rtlefuse->
-				    eeprom_chnlarea_txpwr_ht40_2sdiif[rf_path]
+				    eprom_chnl_txpwr_ht40_2sdf[rf_path]
 				    [index];
 			} else {
 				rtlefuse->txpwrlevel_ht40_2s[rf_path][i] = 0;
@@ -2224,7 +2224,7 @@ static void rtl8192ce_bt_var_init(struct ieee80211_hw *hw)
 
 	if (rtlpcipriv->bt_coexist.reg_bt_iso == 2)
 		rtlpcipriv->bt_coexist.bt_ant_isolation =
-			rtlpcipriv->bt_coexist.eeprom_bt_ant_isolation;
+			rtlpcipriv->bt_coexist.eeprom_bt_ant_isol;
 	else
 		rtlpcipriv->bt_coexist.bt_ant_isolation =
 			rtlpcipriv->bt_coexist.reg_bt_iso;
@@ -2255,23 +2255,22 @@ void rtl8192ce_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 					      bool auto_load_fail, u8 *hwinfo)
 {
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
-	u8 value;
+	u8 val;
 
 	if (!auto_load_fail) {
 		rtlpcipriv->bt_coexist.eeprom_bt_coexist =
 					((hwinfo[RF_OPTION1] & 0xe0) >> 5);
-		value = hwinfo[RF_OPTION4];
-		rtlpcipriv->bt_coexist.eeprom_bt_type = ((value & 0xe) >> 1);
-		rtlpcipriv->bt_coexist.eeprom_bt_ant_num = (value & 0x1);
-		rtlpcipriv->bt_coexist.eeprom_bt_ant_isolation =
-							 ((value & 0x10) >> 4);
+		val = hwinfo[RF_OPTION4];
+		rtlpcipriv->bt_coexist.eeprom_bt_type = ((val & 0xe) >> 1);
+		rtlpcipriv->bt_coexist.eeprom_bt_ant_num = (val & 0x1);
+		rtlpcipriv->bt_coexist.eeprom_bt_ant_isol = ((val & 0x10) >> 4);
 		rtlpcipriv->bt_coexist.eeprom_bt_radio_shared =
-							 ((value & 0x20) >> 5);
+							 ((val & 0x20) >> 5);
 	} else {
 		rtlpcipriv->bt_coexist.eeprom_bt_coexist = 0;
 		rtlpcipriv->bt_coexist.eeprom_bt_type = BT_2WIRE;
 		rtlpcipriv->bt_coexist.eeprom_bt_ant_num = ANT_X2;
-		rtlpcipriv->bt_coexist.eeprom_bt_ant_isolation = 0;
+		rtlpcipriv->bt_coexist.eeprom_bt_ant_isol = 0;
 		rtlpcipriv->bt_coexist.eeprom_bt_radio_shared = BT_RADIO_SHARED;
 	}
 
