@@ -188,48 +188,45 @@ static inline void sleep(unsigned sec)
 	schedule_timeout(sec * HZ);
 }
 
-/*
- * ------------------------------------------------------------------
- *
- * DIGITAL INPUT/OUTPUT SECTION
- *
- * ------------------------------------------------------------------
- */
 static int me_dio_insn_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct me_private_data *dev_private = dev->private;
-	int bits;
-	int mask = 1 << CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << CR_CHAN(insn->chanspec);
+	unsigned int bits;
+	unsigned int port;
 
-	/* calculate port */
-	if (mask & 0x0000ffff) {	/* Port A in use */
+	if (mask & 0x0000ffff) {
 		bits = 0x0000ffff;
-
-		/* Enable Port A */
-		dev_private->control_2 |= ENABLE_PORT_A;
-		writew(dev_private->control_2,
-		       dev_private->me_regbase + ME_CONTROL_2);
-	} else {		/* Port B in use */
-
-		bits = 0xffff0000;
-
-		/* Enable Port B */
-		dev_private->control_2 |= ENABLE_PORT_B;
-		writew(dev_private->control_2,
-		       dev_private->me_regbase + ME_CONTROL_2);
-	}
-
-	if (data[0]) {
-		/* Config port as output */
-		s->io_bits |= bits;
+		port = ENABLE_PORT_A;
 	} else {
-		/* Config port as input */
-		s->io_bits &= ~bits;
+		bits = 0xffff0000;
+		port = ENABLE_PORT_B;
 	}
 
-	return 1;
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		dev_private->control_2 &= ~port;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		dev_private->control_2 |= port;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Update the port configuration */
+	writew(dev_private->control_2, dev_private->me_regbase + ME_CONTROL_2);
+
+	return insn->n;
 }
 
 /* Digital instant input/outputs */
