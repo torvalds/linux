@@ -823,6 +823,7 @@ static int qt2_setup_urbs(struct usb_serial *serial)
 	if (status != 0) {
 		dev_err(&serial->dev->dev,
 			"%s - submit read urb failed %i\n", __func__, status);
+		usb_free_urb(serial_priv->read_urb);
 		return status;
 	}
 
