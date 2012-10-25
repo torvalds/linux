@@ -427,6 +427,12 @@ static void qt2_close(struct usb_serial_port *port)
 	port_priv->urb_in_use = false;
 	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
+	mutex_lock(&port->serial->disc_mutex);
+	if (port->serial->disconnected) {
+		mutex_unlock(&port->serial->disc_mutex);
+		return;
+	}
+
 	/* flush the port transmit buffer */
 	i = usb_control_msg(serial->dev,
 			    usb_rcvctrlpipe(serial->dev, 0),
@@ -458,6 +464,7 @@ static void qt2_close(struct usb_serial_port *port)
 		dev_err(&port->dev, "%s - close port failed %i\n",
 			__func__, i);
 
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 static void qt2_disconnect(struct usb_serial *serial)
