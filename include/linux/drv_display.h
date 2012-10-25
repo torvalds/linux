@@ -23,9 +23,7 @@
 
 #if defined(CONFIG_ARCH_SUN3I)
 #include <linux/drv_display_sun3i.h>
-#elif defined(CONFIG_ARCH_SUN4I)
-#include <linux/drv_display_sunxi.h>
-#elif defined(CONFIG_ARCH_SUN5I)
+#elif defined(CONFIG_ARCH_SUN4I) || defined(CONFIG_ARCH_SUN5I)
 #include <linux/drv_display_sunxi.h>
 #else
 #error "no chip id defined"
