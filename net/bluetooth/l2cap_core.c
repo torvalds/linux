@@ -4374,16 +4374,11 @@ static void l2cap_logical_finish_create(struct l2cap_chan *chan,
 					struct hci_chan *hchan)
 {
 	struct l2cap_conf_rsp rsp;
-	u8 code;
 
 	chan->hs_hcon = hchan->conn;
 	chan->hs_hcon->l2cap_data = chan->conn;
 
-	code = l2cap_build_conf_rsp(chan, &rsp,
-				    L2CAP_CONF_SUCCESS, 0);
-	l2cap_send_cmd(chan->conn, chan->ident, L2CAP_CONF_RSP, code,
-		       &rsp);
-	set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
+	l2cap_send_efs_conf_rsp(chan, &rsp, chan->ident, 0);
 
 	if (test_bit(CONF_INPUT_DONE, &chan->conf_state)) {
 		int err;
