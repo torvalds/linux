@@ -1333,6 +1333,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers generic_worker;
 	struct btrfs_workers workers;
 	struct btrfs_workers delalloc_workers;
+	struct btrfs_workers flush_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_meta_workers;
 	struct btrfs_workers endio_meta_write_workers;
@@ -3277,6 +3278,19 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit);
 /* inode.c */
+struct btrfs_delalloc_work {
+	struct inode *inode;
+	int wait;
+	int delay_iput;
+	struct completion completion;
+	struct list_head list;
+	struct btrfs_work work;
+};
+
+struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
+						    int wait, int delay_iput);
+void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work);
+
 struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *page,
 					   size_t pg_offset, u64 start, u64 len,
 					   int create);

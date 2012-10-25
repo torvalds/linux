@@ -1497,7 +1497,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		WARN_ON(cur_trans != trans->transaction);
 
 		if (flush_on_commit || snap_pending) {
-			btrfs_start_delalloc_inodes(root, 1);
+			ret = btrfs_start_delalloc_inodes(root, 1);
+			if (ret) {
+				btrfs_abort_transaction(trans, root, ret);
+				goto cleanup_transaction;
+			}
 			btrfs_wait_ordered_extents(root, 1);
 		}
 

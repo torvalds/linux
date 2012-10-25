@@ -71,6 +71,7 @@ static const struct file_operations btrfs_dir_file_operations;
 static struct extent_io_ops btrfs_extent_io_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
+static struct kmem_cache *btrfs_delalloc_work_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
 struct kmem_cache *btrfs_path_cachep;
@@ -7204,6 +7205,8 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 	if (btrfs_free_space_cachep)
 		kmem_cache_destroy(btrfs_free_space_cachep);
+	if (btrfs_delalloc_work_cachep)
+		kmem_cache_destroy(btrfs_delalloc_work_cachep);
 }
 
 int btrfs_init_cachep(void)
@@ -7236,6 +7239,13 @@ int btrfs_init_cachep(void)
 			sizeof(struct btrfs_free_space), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_free_space_cachep)
+		goto fail;
+
+	btrfs_delalloc_work_cachep = kmem_cache_create("btrfs_delalloc_work",
+			sizeof(struct btrfs_delalloc_work), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+			NULL);
+	if (!btrfs_delalloc_work_cachep)
 		goto fail;
 
 	return 0;
@@ -7448,6 +7458,49 @@ out_notrans:
 	return ret;
 }
 
+static void btrfs_run_delalloc_work(struct btrfs_work *work)
+{
+	struct btrfs_delalloc_work *delalloc_work;
+
+	delalloc_work = container_of(work, struct btrfs_delalloc_work,
+				     work);
+	if (delalloc_work->wait)
+		btrfs_wait_ordered_range(delalloc_work->inode, 0, (u64)-1);
+	else
+		filemap_flush(delalloc_work->inode->i_mapping);
+
+	if (delalloc_work->delay_iput)
+		btrfs_add_delayed_iput(delalloc_work->inode);
+	else
+		iput(delalloc_work->inode);
+	complete(&delalloc_work->completion);
+}
+
+struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
+						    int wait, int delay_iput)
+{
+	struct btrfs_delalloc_work *work;
+
+	work = kmem_cache_zalloc(btrfs_delalloc_work_cachep, GFP_NOFS);
+	if (!work)
+		return NULL;
+
+	init_completion(&work->completion);
+	INIT_LIST_HEAD(&work->list);
+	work->inode = inode;
+	work->wait = wait;
+	work->delay_iput = delay_iput;
+	work->work.func = btrfs_run_delalloc_work;
+
+	return work;
+}
+
+void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
+{
+	wait_for_completion(&work->completion);
+	kmem_cache_free(btrfs_delalloc_work_cachep, work);
+}
+
 /*
  * some fairly slow code that needs optimization. This walks the list
  * of all the inodes with pending delalloc and forces them to disk.
@@ -7457,9 +7510,14 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	struct list_head *head = &root->fs_info->delalloc_inodes;
 	struct btrfs_inode *binode;
 	struct inode *inode;
+	struct btrfs_delalloc_work *work, *next;
+	struct list_head works;
+	int ret = 0;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
+
+	INIT_LIST_HEAD(&works);
 
 	spin_lock(&root->fs_info->delalloc_lock);
 	while (!list_empty(head)) {
@@ -7470,11 +7528,14 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 			list_del_init(&binode->delalloc_inodes);
 		spin_unlock(&root->fs_info->delalloc_lock);
 		if (inode) {
-			filemap_flush(inode->i_mapping);
-			if (delay_iput)
-				btrfs_add_delayed_iput(inode);
-			else
-				iput(inode);
+			work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
+			if (!work) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			list_add_tail(&work->list, &works);
+			btrfs_queue_worker(&root->fs_info->flush_workers,
+					   &work->work);
 		}
 		cond_resched();
 		spin_lock(&root->fs_info->delalloc_lock);
@@ -7493,7 +7554,12 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 		    atomic_read(&root->fs_info->async_delalloc_pages) == 0));
 	}
 	atomic_dec(&root->fs_info->async_submit_draining);
-	return 0;
+out:
+	list_for_each_entry_safe(work, next, &works, list) {
+		list_del_init(&work->list);
+		btrfs_wait_and_free_delalloc_work(work);
+	}
+	return ret;
 }
 
 static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
