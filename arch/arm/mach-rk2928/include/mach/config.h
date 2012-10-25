@@ -2,10 +2,11 @@
 #define __MACH_CONFIG_H
 #include <mach/board.h>
 
-//#define RK2926_TB_DEFAULT_CONFIG
-#define RK2928_TB_DEFAULT_CONFIG
+#define RK2926_TB_DEFAULT_CONFIG
+//#define RK2928_TB_DEFAULT_CONFIG
 //#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
+//#define RK2928_PHONEPAD_DEFAULT_CONFIG
 
 enum { 
         GS_TYPE_NONE = 0,
@@ -15,6 +16,16 @@ enum {
         GS_TYPE_MAX,
 };
 enum {
+        LS_TYPE_NONE = 0,
+        LS_TYPE_AP321XX,
+        LS_TYPE_MAX,
+};
+enum {
+        PS_TYPE_NONE = 0,
+        PS_TYPE_AP321XX,
+        PS_TYPE_MAX,
+};
+enum {
         WIFI_NONE = 0,
         WIFI_USB_NONE = 1<<4,
         //here: add usb wifi type
@@ -22,13 +33,6 @@ enum {
         WIFI_SDIO_NONE = 1<<8,
         //here: add sdio wifi type
         WIFI_SDIO_MAX,
-};
-/* android paramter */
-enum {
-        DEF_AP_MDM = -1,
-        DEF_AP_HAS_ALSA = -1,
-        DEF_AP_MULTI_CARD = -1,
-        DEF_AP_DATA_ONLY = -1,
 };
 
 /****************************  rk2926 top board ******************************/
@@ -65,7 +69,6 @@ enum {
                         202, 102, \
                         1, 0 }
 /* gsensor */
-
 enum {
         DEF_GS_TYPE = GS_TYPE_MMA8452,
         DEF_GS_I2C = 0,
@@ -74,6 +77,23 @@ enum {
         DEF_GS_PWR = -1,
 };
 #define DEF_GS_ORIG {-1, 0, 0, 0, 0, 1, 0,-1, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_NONE,
+        DEF_LS_I2C = -1,
+        DEF_LS_ADDR = -1,
+        DEF_LS_IRQ = -1,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_I2C = -1,
+        DEF_PS_ADDR = -1,
+        DEF_PS_IRQ = -1,
+        DEF_PS_PWR = -1,
+};
+
 /* pwm regulator */
 enum {
         DEF_REG_PWM = 1,
@@ -167,6 +187,24 @@ enum {
         DEF_GS_PWR = -1,
 };
 #define DEF_GS_ORIG {-1, 0, 0, 0, 0, 1, 0,-1, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_NONE,
+        DEF_LS_I2C = -1,
+        DEF_LS_ADDR = -1,
+        DEF_LS_IRQ = -1,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_I2C = -1,
+        DEF_PS_ADDR = -1,
+        DEF_PS_IRQ = -1,
+        DEF_PS_PWR = -1,
+};
+
+
 /* pwm regulator */
 enum {
         DEF_REG_PWM = 1,
@@ -261,6 +299,24 @@ enum {
         DEF_GS_PWR = -1,
 };
 #define DEF_GS_ORIG {-1, 0, 0, 0, 0, -1, 0, 1, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_NONE,
+        DEF_LS_I2C = -1,
+        DEF_LS_ADDR = -1,
+        DEF_LS_IRQ = -1,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_I2C = -1,
+        DEF_PS_ADDR = -1,
+        DEF_PS_IRQ = -1,
+        DEF_PS_PWR = -1,
+};
+
+
 /* pwm regulator */
 enum {
         DEF_REG_PWM = 1,
@@ -354,13 +410,31 @@ enum {
         DEF_GS_PWR = -1,
 };
 #define DEF_GS_ORIG {-1, 0, 0, 0, 0, 1, 0, -1, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_NONE,
+        DEF_LS_I2C = -1,
+        DEF_LS_ADDR = -1,
+        DEF_LS_IRQ = -1,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_I2C = -1,
+        DEF_PS_ADDR = -1,
+        DEF_PS_IRQ = -1,
+        DEF_PS_PWR = -1,
+};
+
+
 /* pwm regulator */
 enum {
         DEF_REG_PWM = 2,
 };
 /* pmic */
 enum {
-        DEF_PMIC_TYPE = PMIC_TYPE_ACT8931,
+        DEF_PMIC_TYPE = PMIC_TYPE_TPS65910,
         DEF_PMIC_SLP = 0x000000d0,
         DEF_PMIC_IRQ = 0x000003c6,
         DEF_PMIC_I2C = 0,
@@ -405,6 +479,118 @@ enum {
 enum {
         DEF_PWR_ON = 0x000001a1,
 };
+/****************************  rk2928 phonepad ******************************/
+#elif defined(RK2928_PHONEPAD_DEFAULT_CONFIG)
+/* keyboard */
+enum{
+        DEF_KEY_ADC = 1,
+        DEF_PLAY_KEY = 0x000101a4,
+        DEF_VOLDN_KEY = 512 | (1<<31),
+        DEF_VOLUP_KEY = 1  | (1<<31),
+        DEF_MENU_KEY = 0 | (1<<31),
+        DEF_ESC_KEY = 0  | (1<<31),
+        DEF_HOME_KEY = 0 | (1<<31),
+        DEF_CAM_KEY = 0  | (1<<31),
+};
+/* backlight */
+enum{
+        DEF_BL_PWM = 0,
+        DEF_BL_REF = 0,
+        DEF_BL_MIN = 80,
+        DEF_BL_EN = 0x000001b0,
+};
+/* lcd */
+enum {
+        DEF_LCD_CABC = -1,
+        DEF_LCD_EN = 0x000100c3,
+        DEF_LCD_STD = -1,
+};
+
+#define DEF_LCD_PARAM {SCREEN_RGB, OUT_P666, \
+                        30000000, 15000000, \
+                        48, 88, 800, 40, \
+                        3, 32, 480, 13, \
+                        154, 85, \
+                        1, 0 }
+/* gsensor */
+enum {
+        DEF_GS_TYPE = GS_TYPE_KXTIK,
+        DEF_GS_I2C = 1,
+        DEF_GS_ADDR = 0x0f,
+        DEF_GS_IRQ = 0x008003d1,
+        DEF_GS_PWR = -1,
+};
+#define DEF_GS_ORIG {-1, 0, 0, 0, 0, -1, 0, 1, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_AP321XX,
+        DEF_LS_I2C = 1,
+        DEF_LS_ADDR = 0x1e,
+        DEF_LS_IRQ = 0x008000c6,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = PS_TYPE_AP321XX,
+        DEF_PS_I2C = 1,
+        DEF_PS_ADDR = 0x1e,
+        DEF_PS_IRQ = 0x008000c6,
+        DEF_PS_PWR = -1,
+};
+
+
+/* pwm regulator */
+enum {
+        DEF_REG_PWM = 2,
+};
+/* pmic */
+enum {
+        DEF_PMIC_TYPE = PMIC_TYPE_TPS65910,
+        DEF_PMIC_SLP = 0x000001a1,
+        DEF_PMIC_IRQ = 0x000003c6,
+        DEF_PMIC_I2C = 0,
+        DEF_PMIC_ADDR = 0x5b, 
+};
+/* ion */
+enum {
+        DEF_ION_SIZE = 80 * 1024 * 1024,
+};
+/* codec */
+enum {
+        DEF_SPK_CTL = 0x000003d4,
+        DEF_HP_DET = -1,
+};
+/* sdmmc */
+enum {
+        DEF_SD_DET = 0x000101c1,
+};
+/* wifi */
+enum {
+        DEF_WIFI_RST = -1,
+        DEF_WIFI_PWR = -1,
+        DEF_WIFI_TYPE = WIFI_NONE, 
+};
+/* rtc */
+enum {
+        DEF_RTC_I2C = 0,
+        DEF_RTC_ADDR = 0x51,
+        DEF_RTC_IRQ = 0x008001a5,
+};
+/* charge */
+enum {
+        DEF_CHG_ADC = 0,
+        DEF_DC_DET = 0x001101a5,
+        DEF_BAT_LOW = -1,
+        DEF_CHG_OK = 0x002001a0,
+        DEF_CHG_SET = -1,
+        DEF_CHG_SEL = -1,
+};
+
+/* global */
+enum {
+        DEF_PWR_ON = 0x000001a2,
+};
+
 
 /****************************  other ******************************/
 #else
@@ -448,6 +634,24 @@ enum {
         DEF_GS_PWR = -1,
 };
 #define DEF_GS_ORIG {0, 0, 0, 0, 0, 0, 0, 0, 0}
+/* lsensor */
+enum {
+        DEF_LS_TYPE = LS_TYPE_NONE,
+        DEF_LS_I2C = -1,
+        DEF_LS_ADDR = -1,
+        DEF_LS_IRQ = -1,
+        DEF_LS_PWR = -1,
+};
+/* psensor */
+enum {
+        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_I2C = -1,
+        DEF_PS_ADDR = -1,
+        DEF_PS_IRQ = -1,
+        DEF_PS_PWR = -1,
+};
+
+
 /* pwm regulator */
 enum {
         DEF_REG_PWM = -1,

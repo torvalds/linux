@@ -61,6 +61,10 @@
 //#include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <linux/earlysuspend.h>
+#ifdef CONFIG_RK_CONFIG
+#include <mach/config.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
+#endif
 static struct early_suspend ft5306_power;
 
 
@@ -85,6 +89,81 @@ static struct early_suspend ft5306_power;
 #define PMODE_MONITOR             0x01
 #define PMODE_STANDBY             0x02
 #define PMODE_HIBERNATE           0x03
+
+#define TP_MODULE_NAME  FT5X0X_NAME
+#ifdef CONFIG_RK_CONFIG
+
+enum {
+#if defined(RK2928_PHONEPAD_DEFAULT_CONFIG)
+        DEF_EN = 1,
+#else
+        DEF_EN = 0,
+#endif
+        DEF_IRQ = 0x002003c7,
+        DEF_RST = 0X000003d5,
+        DEF_I2C = 2, 
+        DEF_ADDR = 0x38,
+        DEF_X_MAX = 800,
+        DEF_Y_MAX = 480,
+};
+static int en = DEF_EN;
+module_param(en, int, 0644);
+
+static int irq = DEF_IRQ;
+module_param(irq, int, 0644);
+static int rst =DEF_RST;
+module_param(rst, int, 0644);
+
+static int i2c = DEF_I2C;            // i2c channel
+module_param(i2c, int, 0644);
+static int addr = DEF_ADDR;           // i2c addr
+module_param(addr, int, 0644);
+static int x_max = DEF_X_MAX;
+module_param(x_max, int, 0644);
+static int y_max = DEF_Y_MAX;
+module_param(y_max, int, 0644);
+
+static int tp_hw_init(void)
+{
+        int ret = 0;
+        struct regulator *ldo = regulator_get(NULL, "vaux33");
+
+	regulator_disable(ldo);
+        ret = gpio_request(get_port_config(irq).gpio, "tp_irq");
+        if(ret < 0){
+                printk("%s: gpio_request(irq gpio) failed\n", __func__);
+                return ret;
+        }
+
+        ret = port_output_init(rst, 1, "tp_rst");
+        if(ret < 0){
+                printk("%s: port(rst) output init faild\n", __func__);
+                return ret;
+        }
+        msleep(50);
+        regulator_enable(ldo);
+	regulator_put(ldo);
+        msleep(300);
+
+         return 0;
+}
+static int tp_hw_exit(void)
+{
+        return 0;
+}
+static int tp_hw_suspend(void)
+{
+        port_output_off(rst);
+        return 0;
+}
+static int tp_hw_resume(void)
+{
+        port_output_on(rst);
+        return 0;
+}
+#include "rk_tp.c"
+#endif
+
 
 
 struct ts_event {
@@ -656,8 +735,12 @@ static int ft5306_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct ft5x0x_ts_data *ft5x0x_ts = i2c_get_clientdata(client);
 	struct ft5306_platform_data *pdata = client->dev.platform_data;
 	
+#ifdef CONFIG_RK_CONFIG
+        tp_hw_suspend();
+#else
 	if (pdata->platform_sleep)                              
 		pdata->platform_sleep();
+#endif
 	disable_irq(ft5x0x_ts->irq);
 	return 0;
 }
@@ -669,8 +752,12 @@ static int ft5306_resume(struct i2c_client *client)
 	struct ft5306_platform_data *pdata = client->dev.platform_data;
 	
 	enable_irq(ft5x0x_ts->irq);
+#ifdef CONFIG_RK_CONFIG
+        tp_hw_resume();
+#else
 	if (pdata->platform_wakeup)                              
 		pdata->platform_wakeup();
+#endif
 	return 0;
 }
 
@@ -712,15 +799,18 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
     unsigned char reg_value;
     unsigned char reg_version;
 
+#ifdef CONFIG_RK_CONFIG
+         struct port_config irq_cfg = get_port_config(irq);
+        tp_hw_init();
+#else
 	dev_info(&client->dev, "ft5x0x_ts_probe!\n");
 	if (!pdata) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
 	}
-
 	if (pdata->init_platform_hw)                              
 		pdata->init_platform_hw();
-
+#endif
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)){
 		dev_err(&client->dev, "Must have I2C_FUNC_I2C.\n");
 		return -ENODEV;
@@ -755,7 +845,11 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 		goto exit_input_dev_alloc_failed;
 	}
 	ft5x0x_ts->client = this_client = client;
+#ifdef CONFIG_RK_CONFIG
+        ft5x0x_ts->irq = get_port_config(irq).gpio;
+#else
 	ft5x0x_ts->irq = pdata->irq_pin;
+#endif
 	ft5x0x_ts->input_dev = input_dev;
 
 	set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
@@ -765,15 +859,25 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 	ft5306_init_touchid(ft5x0x_ts->event.cur_touch_id,MAX_POINT,-1);
 	ft5306_init_touchid(ft5x0x_ts->event.last_touch_id,MAX_POINT,-1);
 	input_mt_init_slots(input_dev, MAX_POINT);
+#ifdef CONFIG_RK_CONFIG
+	input_set_abs_params(input_dev,ABS_MT_POSITION_X, 0, x_max, 0, 0);
+	input_set_abs_params(input_dev,ABS_MT_POSITION_Y, 0, y_max, 0, 0);
+#else
 	input_set_abs_params(input_dev,ABS_MT_POSITION_X, 0, SCREEN_MAX_X, 0, 0);
 	input_set_abs_params(input_dev,ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y, 0, 0);
+#endif
 #else
 	set_bit(ABS_X, input_dev->absbit);
 	set_bit(ABS_Y, input_dev->absbit);
 	set_bit(ABS_PRESSURE, input_dev->absbit);
 	set_bit(BTN_TOUCH, input_dev->keybit);
+#ifdef CONFIG_RK_CONFIG
+	input_set_abs_params(input_dev, ABS_X, 0, x_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, y_max, 0, 0);
+#else
 	input_set_abs_params(input_dev, ABS_X, 0, SCREEN_MAX_X, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, SCREEN_MAX_Y, 0, 0);
+#endif
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, PRESS_MAX, 0 , 0);
 #endif
 	
@@ -836,7 +940,11 @@ static int  ft5306_probe(struct i2c_client *client ,const struct i2c_device_id *
 #endif
 
 	//printk("client->dev.driver->name %s  ,%d \n",client->dev.driver->name,ft5x0x_ts->irq);
+#ifdef CONFIG_RK_CONFIG
+	ret = request_irq(ft5x0x_ts->irq, ft5306_interrupt, irq_cfg.irq.irq_flags, client->dev.driver->name, ft5x0x_ts);
+#else
 	ret = request_irq(ft5x0x_ts->irq, ft5306_interrupt, IRQF_TRIGGER_FALLING, client->dev.driver->name, ft5x0x_ts);
+#endif
 	if (ret < 0) {
 		dev_err(&client->dev, "irq %d busy?\n", ft5x0x_ts->irq);
 		goto exit_irq_request_fail;
@@ -867,8 +975,12 @@ exit_input_register_device_failed:
 	input_free_device(input_dev);
 exit_input_dev_alloc_failed:
 exit_i2c_test_fail:
+#ifdef CONFIG_RK_CONFIG
+        tp_hw_exit();
+#else
 	if (pdata->exit_platform_hw)                              
 		pdata->exit_platform_hw();
+#endif
 	kfree(ft5x0x_ts);
 	return err;
 }
@@ -894,6 +1006,13 @@ static struct i2c_driver ft5306_driver  = {
 
 static int __init ft5306_ts_init(void)
 {
+        
+#ifdef CONFIG_RK_CONFIG
+        int ret = tp_board_init();
+
+        if(ret < 0)
+                return ret;
+#endif
 	return i2c_add_driver(&ft5306_driver);
 }
 

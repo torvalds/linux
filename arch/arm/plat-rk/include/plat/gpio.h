@@ -43,7 +43,10 @@ static inline struct port_config get_port_config(unsigned int value)
         struct port_config port;
 
         port.v = value;
-        port.gpio = PIN_BASE + port.io.bank * 32 + (port.io.goff - 0x0A) * 8 + port.io.off;
+        if(value == 0xffffffff)
+                port.gpio = INVALID_GPIO;
+        else
+                port.gpio = PIN_BASE + port.io.bank * 32 + (port.io.goff - 0x0A) * 8 + port.io.off;
 
         return port;
 }

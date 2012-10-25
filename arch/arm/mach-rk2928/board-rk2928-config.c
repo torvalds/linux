@@ -38,16 +38,6 @@ static struct pwm_io_config pwm_cfg[] = {
 };
 
 /*************************************** parameter ******************************************/
-/* Android Parameter */
-static int ap_mdm = DEF_AP_MDM;
-module_param(ap_mdm, int, 0644);
-static int ap_has_alsa = DEF_AP_HAS_ALSA;
-module_param(ap_has_alsa, int, 0644);
-static int ap_multi_card = DEF_AP_MULTI_CARD;
-module_param(ap_multi_card, int, 0644);
-static int ap_data_only = DEF_AP_DATA_ONLY;
-module_param(ap_data_only, int, 0644);
-
 /* keyboard */
 uint key_adc = DEF_KEY_ADC;
 uint key_val_size = 7;
@@ -117,7 +107,9 @@ static inline int check_gs_param(void)
 {
         int i;
 
-        if(gs_type <= GS_TYPE_NONE || gs_type > GS_TYPE_MAX){
+        if(gs_type == GS_TYPE_NONE)
+                return 0;
+        if(gs_type < GS_TYPE_NONE || gs_type > GS_TYPE_MAX){
                 CONFIG_ERR(gs_type, "gs_type");
                 return -EINVAL;
         }
@@ -134,6 +126,68 @@ static inline int check_gs_param(void)
                         CONFIG_ERR(gs_orig[i], "gs_orig[x]");
                         return -EINVAL;
                 }
+        }
+        return 0;
+}
+/* lsensor */
+static int ls_type = DEF_LS_TYPE;
+
+static int ls_i2c = DEF_LS_I2C;
+module_param(ls_i2c, int, 0644);
+static int ls_addr = DEF_LS_ADDR;
+module_param(ls_addr, int, 0644);
+static int ls_irq = DEF_LS_IRQ;
+module_param(ls_irq, int, 0644);
+static int ls_pwr = DEF_LS_PWR;
+module_param(ls_pwr, int, 0644);
+
+static inline int check_ls_param(void)
+{
+        if(ls_type == LS_TYPE_NONE)
+                return 0;
+        if(ls_type < LS_TYPE_NONE || ls_type > LS_TYPE_MAX){
+                CONFIG_ERR(ls_type, "ls_type");
+                return -EINVAL;
+        }
+        if(ls_i2c < 0 || ls_i2c > 3){
+                CONFIG_ERR(ls_i2c, "ls_i2c");
+                return -EINVAL;
+        }
+        if(ls_addr < 0 || ls_addr > 0x7f){
+                CONFIG_ERR(ls_i2c, "ls_addr");
+                return -EINVAL;
+        }
+        return 0;
+}
+
+
+/* psensor */
+static int ps_type = DEF_PS_TYPE;
+
+static int ps_i2c = DEF_PS_I2C;
+module_param(ps_i2c, int, 0644);
+static int ps_addr = DEF_PS_ADDR;
+module_param(ps_addr, int, 0644);
+static int ps_irq = DEF_PS_IRQ;
+module_param(ps_irq, int, 0644);
+static int ps_pwr = DEF_PS_PWR;
+module_param(ps_pwr, int, 0644);
+
+static inline int check_ps_param(void)
+{
+        if(ps_type == PS_TYPE_NONE)
+                return 0;
+        if(ps_type < PS_TYPE_NONE || ps_type > PS_TYPE_MAX){
+                CONFIG_ERR(ps_type, "ps_type");
+                return -EINVAL;
+        }
+        if(ps_i2c < 0 || ps_i2c > 3){
+                CONFIG_ERR(ps_i2c, "ps_i2c");
+                return -EINVAL;
+        }
+        if(ps_addr < 0 || ps_addr > 0x7f){
+                CONFIG_ERR(ps_i2c, "ps_addr");
+                return -EINVAL;
         }
         return 0;
 }

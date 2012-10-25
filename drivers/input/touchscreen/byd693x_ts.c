@@ -20,7 +20,9 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/gpio.h>
-
+#ifdef CONFIG_RK_CONFIG
+#include <mach/config.h>
+#endif
 #include <mach/irqs.h>
 //#include <mach/system.h>
 //#include <mach/hardware.h>
@@ -31,7 +33,6 @@
     #include <linux/pm.h>
     #include <linux/earlysuspend.h>
 #endif
-
 
 //#define	CONFIG_TS_FUNCTION_CALLED_DEBUG			//Display the debug information whitch function is called
 //#define CONFIG_TS_PROBE_DEBUG		//Display the debug information in byd693x_ts_probe function
@@ -57,6 +58,44 @@ struct ChipSetting {
 
 #define VERSION 	"byd693x_20120731_16:52_V1.2_Charles@Raysens@Zed"
 #define CTP_NAME	"byd693x-ts"
+
+#define TP_MODULE_NAME  CTP_NAME
+#ifdef CONFIG_RK_CONFIG
+
+enum {
+#if defined(RK2928_PHONEPAD_DEFAULT_CONFIG)
+        DEF_EN = 1,
+#else
+        DEF_EN = 0,
+#endif
+        DEF_IRQ = 0x002003c7,
+        DEF_RST = 0X000003d5,
+        DEF_I2C = 2, 
+        DEF_ADDR = 0x52,
+        DEF_X_MAX = 800,
+        DEF_Y_MAX = 480,
+};
+static int en = DEF_EN;
+module_param(en, int, 0644);
+
+static int irq = DEF_IRQ;
+module_param(irq, int, 0644);
+static int rst =DEF_RST;
+module_param(rst, int, 0644);
+
+static int i2c = DEF_I2C;            // i2c channel
+module_param(i2c, int, 0644);
+static int addr = DEF_ADDR;           // i2c addr
+module_param(addr, int, 0644);
+static int x_max = DEF_X_MAX;
+module_param(x_max, int, 0644);
+static int y_max = DEF_Y_MAX;
+module_param(y_max, int, 0644);
+
+#include "rk_tp.c"
+#endif
+
+
 
 struct byd_platform_data *byd6932_pdata; 
 
@@ -352,9 +391,25 @@ static int byd693x_ts_probe(struct i2c_client *client,const struct i2c_device_id
 	struct byd_platform_data *pdata = client->dev.platform_data;
 	unsigned char tp_buf[1];
 	int error = -1;
+#ifdef CONFIG_RK_CONFIG
+        struct port_config rst_cfg = get_port_config(rst);
+        struct port_config irq_cfg = get_port_config(irq);
+
+        if(!pdata){
+                pdata = kzalloc(sizeof(struct byd_platform_data), GFP_KERNEL);
+                if(!pdata){
+			printk("byd693x_ts_probe: kzalloc Error!\n");
+                        return -ENOMEM;
+                };
+        }
+        pdata->rst_pin = rst_cfg.gpio;
+        pdata->int_pin = irq_cfg.gpio;
+        pdata->screen_max_x = x_max;
+        pdata->screen_max_y = y_max;
+#endif
 
 
-	byd6932_pdata = client->dev.platform_data;
+	byd6932_pdata = pdata;
 	#ifdef CONFIG_TS_FUNCTION_CALLED_DEBUG
 		printk("+-----------------------------------------+\n");
 		printk("|	byd693x_ts_probe!                 |\n");
@@ -671,6 +726,13 @@ static char banner[] __initdata = KERN_INFO "BYD Touchscreen driver, (c) 2012 BY
 static int __init byd693x_ts_init(void)
 {
 	int ret;
+
+#ifdef CONFIG_RK_CONFIG
+        ret = tp_board_init();
+
+        if(ret < 0)
+                return ret;
+#endif
 	#ifdef CONFIG_TS_FUNCTION_CALLED_DEBUG
 	printk("+-----------------------------------------+\n");
 	printk("|	byd_ts_init!                      |\n");

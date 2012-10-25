@@ -50,6 +50,7 @@
 #include <linux/regulator/rk29-pwm-regulator.h>
 
 #include "board-rk2928-config.c" 
+#include "board-phonepad.c" 
 
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
@@ -570,14 +571,20 @@ extern  int act8931_charge_ok;
 int rk30_battery_adc_io_init(void){
 	int ret = 0;
 		
-        if(dc_det == -1)
-                return 0;
-
+        if(dc_det != -1){
         ret = port_input_init(dc_det, "dc_det");
-    	if (ret) {
-                printk("%s: port(%d) input init faild\n", __func__, dc_det);
-    		return ret ;
-    	}
+    	        if (ret) {
+                        printk("%s: port(%d) input init faild\n", __func__, dc_det);
+    		        return ret ;
+    	        }
+        }
+        if(chg_ok != -1){
+        ret = port_input_init(chg_ok, "chg_ok");
+    	        if (ret) {
+                        printk("%s: port(%d) input init faild\n", __func__, chg_ok);
+    		        return ret ;
+    	        }
+        }
 
 	return 0;
 }
@@ -653,6 +660,116 @@ static struct platform_device *devices[] __initdata = {
 
 #if defined (CONFIG_MFD_TPS65910) && defined (CONFIG_REGULATOR_ACT8931)
 #define TPS65910_HOST_IRQ INVALID_GPIO
+
+static struct pmu_info  tps65910_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vdd2",    //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vio",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	
+};
+static  struct pmu_info  tps65910_ldo_info[] = {
+#if defined(RK2928_TB_DEFAULT_CONFIG) || defined(RK2926_TB_DEFAULT_CONFIG)
+	{
+		.name          = "vpll",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "vdac",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+#else
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1500000,
+		.max_uv         = 1500000,
+	},
+
+	{
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "vaux2",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vaux33",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vmmc",   //
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+#endif
+ };
+static struct pmu_info  act8931_dcdc_info[] = {
+	{
+		.name          = "act_dcdc1",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_dcdc2",    //ddr
+		.min_uv          = 1500000,
+		.max_uv         = 1500000,
+	},
+	{
+		.name          = "vdd_cpu",   //vdd_arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	
+};
+static  struct pmu_info  act8931_ldo_info[] = {
+	{
+		.name          = "act_ldo1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "act_ldo2",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo3",    //vcca30
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+	},
+	{
+		.name          = "act_ldo4",    //vcc_wl
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+};
 
 #include "board-rk2928-sdk-tps65910.c"
 #include "board-rk2928-sdk-act8931.c"
@@ -894,6 +1011,69 @@ static int __init gs_board_init(void)
         
         return 0;
 }
+#ifdef CONFIG_LS_AP321XX
+static struct sensor_platform_data ls_ap321xx_data = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 500,
+};
+struct i2c_board_info __initdata ls_ap321xx_info = {
+        .type = "ls_ap321xx",
+        .flags = 0,
+        .platform_data = &ls_ap321xx_data,
+};
+#endif
+static int __init ls_board_init(void)
+{
+        struct port_config port;
+        int ret = check_ls_param();
+
+        if(ret < 0)
+                return ret;
+        port = get_port_config(ls_irq);
+        //ap321xx
+#if defined(CONFIG_LS_AP321XX)
+        if(ls_type == LS_TYPE_AP321XX){
+                ls_ap321xx_info.irq = port.gpio;
+                ls_ap321xx_info.addr = ls_addr;
+	        i2c_register_board_info(ls_i2c, &ls_ap321xx_info, 1);
+        }
+#endif
+        return 0;
+}
+
+
+#ifdef CONFIG_PS_AP321XX
+static struct sensor_platform_data ps_ap321xx_data = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 500,
+};
+struct i2c_board_info __initdata ps_ap321xx_info = {
+        .type = "ps_ap321xx",
+        .flags = 0,
+        .platform_data = &ps_ap321xx_data,
+};
+#endif
+static int __init ps_board_init(void)
+{
+        struct port_config port;
+        int ret = check_ps_param();
+
+        if(ret < 0)
+                return ret;
+        port = get_port_config(ps_irq);
+        //ap321xx
+#if defined(CONFIG_PS_AP321XX)
+        if(ps_type == PS_TYPE_AP321XX){
+                ps_ap321xx_info.irq = port.gpio;
+                ps_ap321xx_info.addr = ps_addr;
+	        i2c_register_board_info(ps_i2c, &ps_ap321xx_info, 1);
+        }
+#endif
+        return 0;
+}
+
 
 #if defined (CONFIG_RTC_HYM8563)
 struct i2c_board_info __initdata rtc_info = {
@@ -945,6 +1125,12 @@ static int __init rk2928_config_init(void)
         if(ret < 0)
                 return ret;
         ret = gs_board_init();
+        if(ret < 0)
+                return ret;
+        ret = ls_board_init();
+        if(ret < 0)
+                return ret;
+        ret = ps_board_init();
         if(ret < 0)
                 return ret;
         ret = rtc_board_init();
@@ -1046,6 +1232,9 @@ static void __init rk2928_board_init(void)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+#if defined(RK2928_PHONEPAD_DEFAULT_CONFIG)
+        phonepad_board_init();
+#endif
 
 }
 static void __init rk2928_reserve(void)
