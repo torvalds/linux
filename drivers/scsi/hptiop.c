@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("HighPoint RocketRAID 3xxx/4xxx Controller Driver");
 
 static char driver_name[] = "hptiop";
 static const char driver_name_long[] = "RocketRAID 3xxx/4xxx Controller driver";
-static const char driver_ver[] = "v1.6 (091225)";
+static const char driver_ver[] = "v1.8";
 
 static int iop_send_sync_msg(struct hptiop_hba *hba, u32 msg, u32 millisec);
 static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
@@ -73,6 +73,11 @@ static int iop_wait_ready_itl(struct hptiop_hba *hba, u32 millisec)
 }
 
 static int iop_wait_ready_mv(struct hptiop_hba *hba, u32 millisec)
+{
+	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_NOP, millisec);
+}
+
+static int iop_wait_ready_mvfrey(struct hptiop_hba *hba, u32 millisec)
 {
 	return iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_NOP, millisec);
 }
@@ -230,6 +235,74 @@ static int iop_intr_mv(struct hptiop_hba *hba)
 	return ret;
 }
 
+static void hptiop_request_callback_mvfrey(struct hptiop_hba *hba, u32 _tag)
+{
+	u32 req_type = _tag & 0xf;
+	struct hpt_iop_request_scsi_command *req;
+
+	switch (req_type) {
+	case IOP_REQUEST_TYPE_GET_CONFIG:
+	case IOP_REQUEST_TYPE_SET_CONFIG:
+		hba->msg_done = 1;
+		break;
+
+	case IOP_REQUEST_TYPE_SCSI_COMMAND:
+		req = hba->reqs[(_tag >> 4) & 0xff].req_virt;
+		if (likely(_tag & IOPMU_QUEUE_REQUEST_RESULT_BIT))
+			req->header.result = IOP_RESULT_SUCCESS;
+		hptiop_finish_scsi_req(hba, (_tag >> 4) & 0xff, req);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static int iop_intr_mvfrey(struct hptiop_hba *hba)
+{
+	u32 _tag, status, cptr, cur_rptr;
+	int ret = 0;
+
+	if (hba->initialized)
+		writel(0, &(hba->u.mvfrey.mu->pcie_f0_int_enable));
+
+	status = readl(&(hba->u.mvfrey.mu->f0_doorbell));
+	if (status) {
+		writel(status, &(hba->u.mvfrey.mu->f0_doorbell));
+		if (status & CPU_TO_F0_DRBL_MSG_BIT) {
+			u32 msg = readl(&(hba->u.mvfrey.mu->cpu_to_f0_msg_a));
+			dprintk("received outbound msg %x\n", msg);
+			hptiop_message_callback(hba, msg);
+		}
+		ret = 1;
+	}
+
+	status = readl(&(hba->u.mvfrey.mu->isr_cause));
+	if (status) {
+		writel(status, &(hba->u.mvfrey.mu->isr_cause));
+		do {
+			cptr = *hba->u.mvfrey.outlist_cptr & 0xff;
+			cur_rptr = hba->u.mvfrey.outlist_rptr;
+			while (cur_rptr != cptr) {
+				cur_rptr++;
+				if (cur_rptr ==	hba->u.mvfrey.list_count)
+					cur_rptr = 0;
+
+				_tag = hba->u.mvfrey.outlist[cur_rptr].val;
+				BUG_ON(!(_tag & IOPMU_QUEUE_MASK_HOST_BITS));
+				hptiop_request_callback_mvfrey(hba, _tag);
+				ret = 1;
+			}
+			hba->u.mvfrey.outlist_rptr = cur_rptr;
+		} while (cptr != (*hba->u.mvfrey.outlist_cptr & 0xff));
+	}
+
+	if (hba->initialized)
+		writel(0x1010, &(hba->u.mvfrey.mu->pcie_f0_int_enable));
+
+	return ret;
+}
+
 static int iop_send_sync_request_itl(struct hptiop_hba *hba,
 					void __iomem *_req, u32 millisec)
 {
@@ -272,6 +345,26 @@ static int iop_send_sync_request_mv(struct hptiop_hba *hba,
 	return -1;
 }
 
+static int iop_send_sync_request_mvfrey(struct hptiop_hba *hba,
+					u32 size_bits, u32 millisec)
+{
+	struct hpt_iop_request_header *reqhdr =
+		hba->u.mvfrey.internal_req.req_virt;
+	u32 i;
+
+	hba->msg_done = 0;
+	reqhdr->flags |= cpu_to_le32(IOP_REQUEST_FLAG_SYNC_REQUEST);
+	hba->ops->post_req(hba, &(hba->u.mvfrey.internal_req));
+
+	for (i = 0; i < millisec; i++) {
+		iop_intr_mvfrey(hba);
+		if (hba->msg_done)
+			break;
+		msleep(1);
+	}
+	return hba->msg_done ? 0 : -1;
+}
+
 static void hptiop_post_msg_itl(struct hptiop_hba *hba, u32 msg)
 {
 	writel(msg, &hba->u.itl.iop->inbound_msgaddr0);
@@ -285,11 +378,18 @@ static void hptiop_post_msg_mv(struct hptiop_hba *hba, u32 msg)
 	readl(&hba->u.mv.regs->inbound_doorbell);
 }
 
+static void hptiop_post_msg_mvfrey(struct hptiop_hba *hba, u32 msg)
+{
+	writel(msg, &(hba->u.mvfrey.mu->f0_to_cpu_msg_a));
+	readl(&(hba->u.mvfrey.mu->f0_to_cpu_msg_a));
+}
+
 static int iop_send_sync_msg(struct hptiop_hba *hba, u32 msg, u32 millisec)
 {
 	u32 i;
 
 	hba->msg_done = 0;
+	hba->ops->disable_intr(hba);
 	hba->ops->post_msg(hba, msg);
 
 	for (i = 0; i < millisec; i++) {
@@ -301,6 +401,7 @@ static int iop_send_sync_msg(struct hptiop_hba *hba, u32 msg, u32 millisec)
 		msleep(1);
 	}
 
+	hba->ops->enable_intr(hba);
 	return hba->msg_done? 0 : -1;
 }
 
@@ -351,6 +452,28 @@ static int iop_get_config_mv(struct hptiop_hba *hba,
 	}
 
 	memcpy(config, req, sizeof(struct hpt_iop_request_get_config));
+	return 0;
+}
+
+static int iop_get_config_mvfrey(struct hptiop_hba *hba,
+				struct hpt_iop_request_get_config *config)
+{
+	struct hpt_iop_request_get_config *info = hba->u.mvfrey.config;
+
+	if (info->header.size != sizeof(struct hpt_iop_request_get_config) ||
+			info->header.type != IOP_REQUEST_TYPE_GET_CONFIG)
+		return -1;
+
+	config->interface_version = info->interface_version;
+	config->firmware_version = info->firmware_version;
+	config->max_requests = info->max_requests;
+	config->request_size = info->request_size;
+	config->max_sg_count = info->max_sg_count;
+	config->data_transfer_length = info->data_transfer_length;
+	config->alignment_mask = info->alignment_mask;
+	config->max_devices = info->max_devices;
+	config->sdram_size = info->sdram_size;
+
 	return 0;
 }
 
@@ -408,6 +531,29 @@ static int iop_set_config_mv(struct hptiop_hba *hba,
 	return 0;
 }
 
+static int iop_set_config_mvfrey(struct hptiop_hba *hba,
+				struct hpt_iop_request_set_config *config)
+{
+	struct hpt_iop_request_set_config *req =
+		hba->u.mvfrey.internal_req.req_virt;
+
+	memcpy(req, config, sizeof(struct hpt_iop_request_set_config));
+	req->header.flags = cpu_to_le32(IOP_REQUEST_FLAG_OUTPUT_CONTEXT);
+	req->header.type = cpu_to_le32(IOP_REQUEST_TYPE_SET_CONFIG);
+	req->header.size =
+		cpu_to_le32(sizeof(struct hpt_iop_request_set_config));
+	req->header.result = cpu_to_le32(IOP_RESULT_PENDING);
+	req->header.context = cpu_to_le32(IOP_REQUEST_TYPE_SET_CONFIG<<5);
+	req->header.context_hi32 = 0;
+
+	if (iop_send_sync_request_mvfrey(hba, 0, 20000)) {
+		dprintk("Set config send cmd failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static void hptiop_enable_intr_itl(struct hptiop_hba *hba)
 {
 	writel(~(IOPMU_OUTBOUND_INT_POSTQUEUE | IOPMU_OUTBOUND_INT_MSG0),
@@ -418,6 +564,13 @@ static void hptiop_enable_intr_mv(struct hptiop_hba *hba)
 {
 	writel(MVIOP_MU_OUTBOUND_INT_POSTQUEUE | MVIOP_MU_OUTBOUND_INT_MSG,
 		&hba->u.mv.regs->outbound_intmask);
+}
+
+static void hptiop_enable_intr_mvfrey(struct hptiop_hba *hba)
+{
+	writel(CPU_TO_F0_DRBL_MSG_BIT, &(hba->u.mvfrey.mu->f0_doorbell_enable));
+	writel(0x1, &(hba->u.mvfrey.mu->isr_enable));
+	writel(0x1010, &(hba->u.mvfrey.mu->pcie_f0_int_enable));
 }
 
 static int hptiop_initialize_iop(struct hptiop_hba *hba)
@@ -502,17 +655,39 @@ static int hptiop_map_pci_bar_mv(struct hptiop_hba *hba)
 	return 0;
 }
 
+static int hptiop_map_pci_bar_mvfrey(struct hptiop_hba *hba)
+{
+	hba->u.mvfrey.config = hptiop_map_pci_bar(hba, 0);
+	if (hba->u.mvfrey.config == NULL)
+		return -1;
+
+	hba->u.mvfrey.mu = hptiop_map_pci_bar(hba, 2);
+	if (hba->u.mvfrey.mu == NULL) {
+		iounmap(hba->u.mvfrey.config);
+		return -1;
+	}
+
+	return 0;
+}
+
 static void hptiop_unmap_pci_bar_mv(struct hptiop_hba *hba)
 {
 	iounmap(hba->u.mv.regs);
 	iounmap(hba->u.mv.mu);
 }
 
+static void hptiop_unmap_pci_bar_mvfrey(struct hptiop_hba *hba)
+{
+	iounmap(hba->u.mvfrey.config);
+	iounmap(hba->u.mvfrey.mu);
+}
+
 static void hptiop_message_callback(struct hptiop_hba *hba, u32 msg)
 {
 	dprintk("iop message 0x%x\n", msg);
 
-	if (msg == IOPMU_INBOUND_MSG0_NOP)
+	if (msg == IOPMU_INBOUND_MSG0_NOP ||
+		msg == IOPMU_INBOUND_MSG0_RESET_COMM)
 		hba->msg_done = 1;
 
 	if (!hba->initialized)
@@ -592,6 +767,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		memcpy(scp->sense_buffer, &req->sg_list,
 				min_t(size_t, SCSI_SENSE_BUFFERSIZE,
 					le32_to_cpu(req->dataxfer_length)));
+		goto skip_resid;
 		break;
 
 	default:
@@ -599,6 +775,10 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		break;
 	}
 
+	scsi_set_resid(scp,
+		scsi_bufflen(scp) - le32_to_cpu(req->dataxfer_length));
+
+skip_resid:
 	dprintk("scsi_done(%p)\n", scp);
 	scp->scsi_done(scp);
 	free_req(hba, &hba->reqs[tag]);
@@ -692,7 +872,8 @@ static int hptiop_buildsgl(struct scsi_cmnd *scp, struct hpt_iopsg *psg)
 	BUG_ON(HPT_SCP(scp)->sgcnt > hba->max_sg_descriptors);
 
 	scsi_for_each_sg(scp, sg, HPT_SCP(scp)->sgcnt, idx) {
-		psg[idx].pci_address = cpu_to_le64(sg_dma_address(sg));
+		psg[idx].pci_address = cpu_to_le64(sg_dma_address(sg)) |
+			hba->ops->host_phy_flag;
 		psg[idx].size = cpu_to_le32(sg_dma_len(sg));
 		psg[idx].eot = (idx == HPT_SCP(scp)->sgcnt - 1) ?
 			cpu_to_le32(1) : 0;
@@ -751,6 +932,78 @@ static void hptiop_post_req_mv(struct hptiop_hba *hba,
 		MVIOP_MU_QUEUE_ADDR_HOST_BIT | size_bit, hba);
 }
 
+static void hptiop_post_req_mvfrey(struct hptiop_hba *hba,
+					struct hptiop_request *_req)
+{
+	struct hpt_iop_request_header *reqhdr = _req->req_virt;
+	u32 index;
+
+	reqhdr->flags |= cpu_to_le32(IOP_REQUEST_FLAG_OUTPUT_CONTEXT |
+			IOP_REQUEST_FLAG_ADDR_BITS |
+			((_req->req_shifted_phy >> 11) & 0xffff0000));
+	reqhdr->context = cpu_to_le32(IOPMU_QUEUE_ADDR_HOST_BIT |
+			(_req->index << 4) | reqhdr->type);
+	reqhdr->context_hi32 = cpu_to_le32((_req->req_shifted_phy << 5) &
+			0xffffffff);
+
+	hba->u.mvfrey.inlist_wptr++;
+	index = hba->u.mvfrey.inlist_wptr & 0x3fff;
+
+	if (index == hba->u.mvfrey.list_count) {
+		index = 0;
+		hba->u.mvfrey.inlist_wptr &= ~0x3fff;
+		hba->u.mvfrey.inlist_wptr ^= CL_POINTER_TOGGLE;
+	}
+
+	hba->u.mvfrey.inlist[index].addr =
+			(dma_addr_t)_req->req_shifted_phy << 5;
+	hba->u.mvfrey.inlist[index].intrfc_len = (reqhdr->size + 3) / 4;
+	writel(hba->u.mvfrey.inlist_wptr,
+		&(hba->u.mvfrey.mu->inbound_write_ptr));
+	readl(&(hba->u.mvfrey.mu->inbound_write_ptr));
+}
+
+static int hptiop_reset_comm_itl(struct hptiop_hba *hba)
+{
+	return 0;
+}
+
+static int hptiop_reset_comm_mv(struct hptiop_hba *hba)
+{
+	return 0;
+}
+
+static int hptiop_reset_comm_mvfrey(struct hptiop_hba *hba)
+{
+	u32 list_count = hba->u.mvfrey.list_count;
+
+	if (iop_send_sync_msg(hba, IOPMU_INBOUND_MSG0_RESET_COMM, 3000))
+		return -1;
+
+	/* wait 100ms for MCU ready */
+	msleep(100);
+
+	writel(cpu_to_le32(hba->u.mvfrey.inlist_phy & 0xffffffff),
+			&(hba->u.mvfrey.mu->inbound_base));
+	writel(cpu_to_le32((hba->u.mvfrey.inlist_phy >> 16) >> 16),
+			&(hba->u.mvfrey.mu->inbound_base_high));
+
+	writel(cpu_to_le32(hba->u.mvfrey.outlist_phy & 0xffffffff),
+			&(hba->u.mvfrey.mu->outbound_base));
+	writel(cpu_to_le32((hba->u.mvfrey.outlist_phy >> 16) >> 16),
+			&(hba->u.mvfrey.mu->outbound_base_high));
+
+	writel(cpu_to_le32(hba->u.mvfrey.outlist_cptr_phy & 0xffffffff),
+			&(hba->u.mvfrey.mu->outbound_shadow_base));
+	writel(cpu_to_le32((hba->u.mvfrey.outlist_cptr_phy >> 16) >> 16),
+			&(hba->u.mvfrey.mu->outbound_shadow_base_high));
+
+	hba->u.mvfrey.inlist_wptr = (list_count - 1) | CL_POINTER_TOGGLE;
+	*hba->u.mvfrey.outlist_cptr = (list_count - 1) | CL_POINTER_TOGGLE;
+	hba->u.mvfrey.outlist_rptr = list_count - 1;
+	return 0;
+}
+
 static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 				void (*done)(struct scsi_cmnd *))
 {
@@ -771,14 +1024,15 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 
 	_req->scp = scp;
 
-	dprintk("hptiop_queuecmd(scp=%p) %d/%d/%d/%d cdb=(%x-%x-%x) "
+	dprintk("hptiop_queuecmd(scp=%p) %d/%d/%d/%d cdb=(%08x-%08x-%08x-%08x) "
 			"req_index=%d, req=%p\n",
 			scp,
 			host->host_no, scp->device->channel,
 			scp->device->id, scp->device->lun,
-			((u32 *)scp->cmnd)[0],
-			((u32 *)scp->cmnd)[1],
-			((u32 *)scp->cmnd)[2],
+			cpu_to_be32(((u32 *)scp->cmnd)[0]),
+			cpu_to_be32(((u32 *)scp->cmnd)[1]),
+			cpu_to_be32(((u32 *)scp->cmnd)[2]),
+			cpu_to_be32(((u32 *)scp->cmnd)[3]),
 			_req->index, _req->req_virt);
 
 	scp->result = 0;
@@ -933,6 +1187,11 @@ static struct scsi_host_template driver_template = {
 	.change_queue_depth         = hptiop_adjust_disk_queue_depth,
 };
 
+static int hptiop_internal_memalloc_itl(struct hptiop_hba *hba)
+{
+	return 0;
+}
+
 static int hptiop_internal_memalloc_mv(struct hptiop_hba *hba)
 {
 	hba->u.mv.internal_req = dma_alloc_coherent(&hba->pcidev->dev,
@@ -943,11 +1202,81 @@ static int hptiop_internal_memalloc_mv(struct hptiop_hba *hba)
 		return -1;
 }
 
+static int hptiop_internal_memalloc_mvfrey(struct hptiop_hba *hba)
+{
+	u32 list_count = readl(&hba->u.mvfrey.mu->inbound_conf_ctl);
+	char *p;
+	dma_addr_t phy;
+
+	BUG_ON(hba->max_request_size == 0);
+
+	if (list_count == 0) {
+		BUG_ON(1);
+		return -1;
+	}
+
+	list_count >>= 16;
+
+	hba->u.mvfrey.list_count = list_count;
+	hba->u.mvfrey.internal_mem_size = 0x800 +
+			list_count * sizeof(struct mvfrey_inlist_entry) +
+			list_count * sizeof(struct mvfrey_outlist_entry) +
+			sizeof(int);
+
+	p = dma_alloc_coherent(&hba->pcidev->dev,
+			hba->u.mvfrey.internal_mem_size, &phy, GFP_KERNEL);
+	if (!p)
+		return -1;
+
+	hba->u.mvfrey.internal_req.req_virt = p;
+	hba->u.mvfrey.internal_req.req_shifted_phy = phy >> 5;
+	hba->u.mvfrey.internal_req.scp = NULL;
+	hba->u.mvfrey.internal_req.next = NULL;
+
+	p += 0x800;
+	phy += 0x800;
+
+	hba->u.mvfrey.inlist = (struct mvfrey_inlist_entry *)p;
+	hba->u.mvfrey.inlist_phy = phy;
+
+	p += list_count * sizeof(struct mvfrey_inlist_entry);
+	phy += list_count * sizeof(struct mvfrey_inlist_entry);
+
+	hba->u.mvfrey.outlist = (struct mvfrey_outlist_entry *)p;
+	hba->u.mvfrey.outlist_phy = phy;
+
+	p += list_count * sizeof(struct mvfrey_outlist_entry);
+	phy += list_count * sizeof(struct mvfrey_outlist_entry);
+
+	hba->u.mvfrey.outlist_cptr = (__le32 *)p;
+	hba->u.mvfrey.outlist_cptr_phy = phy;
+
+	return 0;
+}
+
+static int hptiop_internal_memfree_itl(struct hptiop_hba *hba)
+{
+	return 0;
+}
+
 static int hptiop_internal_memfree_mv(struct hptiop_hba *hba)
 {
 	if (hba->u.mv.internal_req) {
 		dma_free_coherent(&hba->pcidev->dev, 0x800,
 			hba->u.mv.internal_req, hba->u.mv.internal_req_phy);
+		return 0;
+	} else
+		return -1;
+}
+
+static int hptiop_internal_memfree_mvfrey(struct hptiop_hba *hba)
+{
+	if (hba->u.mvfrey.internal_req.req_virt) {
+		dma_free_coherent(&hba->pcidev->dev,
+			hba->u.mvfrey.internal_mem_size,
+			hba->u.mvfrey.internal_req.req_virt,
+			(dma_addr_t)
+			hba->u.mvfrey.internal_req.req_shifted_phy << 5);
 		return 0;
 	} else
 		return -1;
@@ -1027,7 +1356,7 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 		goto unmap_pci_bar;
 	}
 
-	if (hba->ops->internal_memalloc) {
+	if (hba->ops->family == MV_BASED_IOP) {
 		if (hba->ops->internal_memalloc(hba)) {
 			printk(KERN_ERR "scsi%d: internal_memalloc failed\n",
 				hba->host->host_no);
@@ -1049,6 +1378,19 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	hba->firmware_version = le32_to_cpu(iop_config.firmware_version);
 	hba->interface_version = le32_to_cpu(iop_config.interface_version);
 	hba->sdram_size = le32_to_cpu(iop_config.sdram_size);
+
+	if (hba->ops->family == MVFREY_BASED_IOP) {
+		if (hba->ops->internal_memalloc(hba)) {
+			printk(KERN_ERR "scsi%d: internal_memalloc failed\n",
+				hba->host->host_no);
+			goto unmap_pci_bar;
+		}
+		if (hba->ops->reset_comm(hba)) {
+			printk(KERN_ERR "scsi%d: reset comm failed\n",
+					hba->host->host_no);
+			goto unmap_pci_bar;
+		}
+	}
 
 	if (hba->firmware_version > 0x01020000 ||
 			hba->interface_version > 0x01020000)
@@ -1104,14 +1446,13 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	hba->dma_coherent = start_virt;
 	hba->dma_coherent_handle = start_phy;
 
-	if ((start_phy & 0x1f) != 0)
-	{
+	if ((start_phy & 0x1f) != 0) {
 		offset = ((start_phy + 0x1f) & ~0x1f) - start_phy;
 		start_phy += offset;
 		start_virt += offset;
 	}
 
-	hba->req_list = start_virt;
+	hba->req_list = NULL;
 	for (i = 0; i < hba->max_requests; i++) {
 		hba->reqs[i].next = NULL;
 		hba->reqs[i].req_virt = start_virt;
@@ -1132,7 +1473,6 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 		goto free_request_mem;
 	}
 
-
 	scsi_scan_host(host);
 
 	dprintk("scsi%d: hptiop_probe successfully\n", hba->host->host_no);
@@ -1147,8 +1487,7 @@ free_request_irq:
 	free_irq(hba->pcidev->irq, hba);
 
 unmap_pci_bar:
-	if (hba->ops->internal_memfree)
-		hba->ops->internal_memfree(hba);
+	hba->ops->internal_memfree(hba);
 
 	hba->ops->unmap_pci_bar(hba);
 
@@ -1198,6 +1537,16 @@ static void hptiop_disable_intr_mv(struct hptiop_hba *hba)
 	readl(&hba->u.mv.regs->outbound_intmask);
 }
 
+static void hptiop_disable_intr_mvfrey(struct hptiop_hba *hba)
+{
+	writel(0, &(hba->u.mvfrey.mu->f0_doorbell_enable));
+	readl(&(hba->u.mvfrey.mu->f0_doorbell_enable));
+	writel(0, &(hba->u.mvfrey.mu->isr_enable));
+	readl(&(hba->u.mvfrey.mu->isr_enable));
+	writel(0, &(hba->u.mvfrey.mu->pcie_f0_int_enable));
+	readl(&(hba->u.mvfrey.mu->pcie_f0_int_enable));
+}
+
 static void hptiop_remove(struct pci_dev *pcidev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pcidev);
@@ -1216,8 +1565,7 @@ static void hptiop_remove(struct pci_dev *pcidev)
 			hba->dma_coherent,
 			hba->dma_coherent_handle);
 
-	if (hba->ops->internal_memfree)
-		hba->ops->internal_memfree(hba);
+	hba->ops->internal_memfree(hba);
 
 	hba->ops->unmap_pci_bar(hba);
 
@@ -1229,9 +1577,10 @@ static void hptiop_remove(struct pci_dev *pcidev)
 }
 
 static struct hptiop_adapter_ops hptiop_itl_ops = {
+	.family            = INTEL_BASED_IOP,
 	.iop_wait_ready    = iop_wait_ready_itl,
-	.internal_memalloc = NULL,
-	.internal_memfree  = NULL,
+	.internal_memalloc = hptiop_internal_memalloc_itl,
+	.internal_memfree  = hptiop_internal_memfree_itl,
 	.map_pci_bar       = hptiop_map_pci_bar_itl,
 	.unmap_pci_bar     = hptiop_unmap_pci_bar_itl,
 	.enable_intr       = hptiop_enable_intr_itl,
@@ -1242,9 +1591,12 @@ static struct hptiop_adapter_ops hptiop_itl_ops = {
 	.post_msg          = hptiop_post_msg_itl,
 	.post_req          = hptiop_post_req_itl,
 	.hw_dma_bit_mask   = 64,
+	.reset_comm        = hptiop_reset_comm_itl,
+	.host_phy_flag     = cpu_to_le64(0),
 };
 
 static struct hptiop_adapter_ops hptiop_mv_ops = {
+	.family            = MV_BASED_IOP,
 	.iop_wait_ready    = iop_wait_ready_mv,
 	.internal_memalloc = hptiop_internal_memalloc_mv,
 	.internal_memfree  = hptiop_internal_memfree_mv,
@@ -1258,6 +1610,27 @@ static struct hptiop_adapter_ops hptiop_mv_ops = {
 	.post_msg          = hptiop_post_msg_mv,
 	.post_req          = hptiop_post_req_mv,
 	.hw_dma_bit_mask   = 33,
+	.reset_comm        = hptiop_reset_comm_mv,
+	.host_phy_flag     = cpu_to_le64(0),
+};
+
+static struct hptiop_adapter_ops hptiop_mvfrey_ops = {
+	.family            = MVFREY_BASED_IOP,
+	.iop_wait_ready    = iop_wait_ready_mvfrey,
+	.internal_memalloc = hptiop_internal_memalloc_mvfrey,
+	.internal_memfree  = hptiop_internal_memfree_mvfrey,
+	.map_pci_bar       = hptiop_map_pci_bar_mvfrey,
+	.unmap_pci_bar     = hptiop_unmap_pci_bar_mvfrey,
+	.enable_intr       = hptiop_enable_intr_mvfrey,
+	.disable_intr      = hptiop_disable_intr_mvfrey,
+	.get_config        = iop_get_config_mvfrey,
+	.set_config        = iop_set_config_mvfrey,
+	.iop_intr          = iop_intr_mvfrey,
+	.post_msg          = hptiop_post_msg_mvfrey,
+	.post_req          = hptiop_post_req_mvfrey,
+	.hw_dma_bit_mask   = 64,
+	.reset_comm        = hptiop_reset_comm_mvfrey,
+	.host_phy_flag     = cpu_to_le64(1),
 };
 
 static struct pci_device_id hptiop_id_table[] = {
@@ -1283,6 +1656,8 @@ static struct pci_device_id hptiop_id_table[] = {
 	{ PCI_VDEVICE(TTI, 0x3120), (kernel_ulong_t)&hptiop_mv_ops },
 	{ PCI_VDEVICE(TTI, 0x3122), (kernel_ulong_t)&hptiop_mv_ops },
 	{ PCI_VDEVICE(TTI, 0x3020), (kernel_ulong_t)&hptiop_mv_ops },
+	{ PCI_VDEVICE(TTI, 0x4520), (kernel_ulong_t)&hptiop_mvfrey_ops },
+	{ PCI_VDEVICE(TTI, 0x4522), (kernel_ulong_t)&hptiop_mvfrey_ops },
 	{},
 };
 
