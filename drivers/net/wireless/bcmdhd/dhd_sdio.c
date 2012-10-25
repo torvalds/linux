@@ -620,6 +620,7 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
 			DHD_ERROR(("%s: HT Avail timeout (%d): clkctl 0x%02x\n",
 			           __FUNCTION__, PMU_MAX_TRANSITION_DLY, clkctl));
+			dhd_os_send_hang_message(bus->dhd);
 			return BCME_ERROR;
 		}
 
