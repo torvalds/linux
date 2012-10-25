@@ -184,6 +184,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	struct radeon_backlight_privdata *pdata;
 	struct radeon_encoder_atom_dig *dig;
 	u8 backlight_level;
+	char bl_name[16];
 
 	if (!radeon_encoder->enc_priv)
 		return;
@@ -203,7 +204,9 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	memset(&props, 0, sizeof(props));
 	props.max_brightness = RADEON_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
-	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,
+	snprintf(bl_name, sizeof(bl_name),
+		 "radeon_bl%d", dev->primary->index);
+	bd = backlight_device_register(bl_name, &drm_connector->kdev,
 				       pdata, &radeon_atom_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		DRM_ERROR("Backlight registration failed\n");

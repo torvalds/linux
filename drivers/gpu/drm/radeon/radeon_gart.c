@@ -355,14 +355,13 @@ int radeon_gart_init(struct radeon_device *rdev)
 	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
 		 rdev->gart.num_cpu_pages, rdev->gart.num_gpu_pages);
 	/* Allocate pages table */
-	rdev->gart.pages = kzalloc(sizeof(void *) * rdev->gart.num_cpu_pages,
-				   GFP_KERNEL);
+	rdev->gart.pages = vzalloc(sizeof(void *) * rdev->gart.num_cpu_pages);
 	if (rdev->gart.pages == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
 	}
-	rdev->gart.pages_addr = kzalloc(sizeof(dma_addr_t) *
-					rdev->gart.num_cpu_pages, GFP_KERNEL);
+	rdev->gart.pages_addr = vzalloc(sizeof(dma_addr_t) *
+					rdev->gart.num_cpu_pages);
 	if (rdev->gart.pages_addr == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
@@ -388,8 +387,8 @@ void radeon_gart_fini(struct radeon_device *rdev)
 		radeon_gart_unbind(rdev, 0, rdev->gart.num_cpu_pages);
 	}
 	rdev->gart.ready = false;
-	kfree(rdev->gart.pages);
-	kfree(rdev->gart.pages_addr);
+	vfree(rdev->gart.pages);
+	vfree(rdev->gart.pages_addr);
 	rdev->gart.pages = NULL;
 	rdev->gart.pages_addr = NULL;
 
@@ -577,7 +576,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
  *
  * Global and local mutex must be locked!
  */
-int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
+static int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_vm *vm_evict;
 
@@ -1036,8 +1035,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		pte = radeon_sa_bo_gpu_addr(vm->page_tables[pt_idx]);
 		pte += (addr & mask) * 8;
 
-		if (((last_pte + 8 * count) != pte) ||
-		    ((count + nptes) > 1 << 11)) {
+		if ((last_pte + 8 * count) != pte) {
 
 			if (count) {
 				radeon_asic_vm_set_page(rdev, last_pte,
@@ -1148,17 +1146,17 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 
 	if (RADEON_VM_BLOCK_SIZE > 11)
 		/* reserve space for one header for every 2k dwords */
-		ndw += (nptes >> 11) * 3;
+		ndw += (nptes >> 11) * 4;
 	else
 		/* reserve space for one header for
 		    every (1 << BLOCK_SIZE) entries */
-		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 3;
+		ndw += (nptes >> RADEON_VM_BLOCK_SIZE) * 4;
 
 	/* reserve space for pte addresses */
 	ndw += nptes * 2;
 
 	/* reserve space for one header for every 2k dwords */
-	ndw += (npdes >> 11) * 3;
+	ndw += (npdes >> 11) * 4;
 
 	/* reserve space for pde addresses */
 	ndw += npdes * 2;
