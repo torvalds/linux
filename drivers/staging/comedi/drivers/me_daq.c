@@ -267,24 +267,16 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * ------------------------------------------------------------------
- *
- * ANALOG INPUT SECTION
- *
- * ------------------------------------------------------------------
- */
-
-/* Analog instant input */
 static int me_ai_insn_read(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+			   struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	struct me_private_data *dev_private = dev->private;
-	unsigned short value;
-	int chan = CR_CHAN((&insn->chanspec)[0]);
-	int rang = CR_RANGE((&insn->chanspec)[0]);
-	int aref = CR_AREF((&insn->chanspec)[0]);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
+	unsigned short val;
 	int i;
 
 	/* stop any running conversion */
@@ -303,15 +295,11 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	writew(dev_private->control_2, dev_private->me_regbase + ME_CONTROL_2);
 
 	/* write to channel list fifo */
-	/* b3:b0 are the channel number */
-	value = chan & 0x0f;
-	/* b5:b4 are the channel gain */
-	value |= (rang & 0x03) << 4;
-	/* b6 channel polarity */
-	value |= (rang & 0x04) << 4;
-	/* b7 single or differential */
-	value |= ((aref & AREF_DIFF) ? 0x80 : 0);
-	writew(value & 0xff, dev_private->me_regbase + ME_CHANNEL_LIST);
+	val = chan & 0x0f;			/* b3:b0 channel */
+	val |= (rang & 0x03) << 4;		/* b5:b4 gain */
+	val |= (rang & 0x04) << 4;		/* b6 polarity */
+	val |= ((aref & AREF_DIFF) ? 0x80 : 0);	/* b7 differential */
+	writew(val & 0xff, dev_private->me_regbase + ME_CHANNEL_LIST);
 
 	/* set ADC mode to software trigger */
 	dev_private->control_1 |= SOFTWARE_TRIGGERED_ADC;
@@ -327,9 +315,9 @@ static int me_ai_insn_read(struct comedi_device *dev,
 
 	/* get value from ADC fifo */
 	if (i) {
-		data[0] =
-		    (readw(dev_private->me_regbase +
-			   ME_READ_AD_FIFO) ^ 0x800) & 0x0FFF;
+		val = readw(dev_private->me_regbase + ME_READ_AD_FIFO);
+		val = (val ^ 0x800) & 0x0fff;
+		data[0] = val;
 	} else {
 		dev_err(dev->class_dev, "Cannot get single value\n");
 		return -EIO;
