@@ -160,7 +160,11 @@ static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 {
 	struct usb_serial *serial = port->serial;
 	int retval;
-	u8 buffer[2];
+	u8 *buffer;
+
+	buffer = kzalloc(1, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
 	buffer[0] = val;
 	/* Send the message to the vendor control endpoint
@@ -169,6 +173,7 @@ static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 				requesttype,
 				USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
 				0, 0, buffer, 1, 0);
+	kfree(buffer);
 
 	return retval;
 }
