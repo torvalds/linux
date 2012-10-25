@@ -777,6 +777,7 @@ static int rk_hook_io_init(int gpio, char *iomux_name, int iomux_mode)
 struct rk_headset_pdata rk_headset_info = {
 		.Headset_gpio		= RK2928_PIN1_PB4,
 		.Hook_gpio  = RK2928_PIN0_PD1,
+		.Hook_down_type = HOOK_DOWN_HIGH,
 		.headset_in_type = HEADSET_IN_HIGH,
 		.hook_key_code = KEY_MEDIA,
 		.headset_gpio_info = {GPIO1B4_SPI_CSN1_NAME, GPIO1B_GPIO1B4},
