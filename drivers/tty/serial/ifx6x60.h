@@ -124,6 +124,7 @@ struct ifx_spi_device {
 #define MR_INPROGRESS	1
 #define MR_COMPLETE	2
 	wait_queue_head_t mdm_reset_wait;
+	void (*swap_buf)(unsigned char *buf, int len, void *end);
 };
 
 #endif /* _IFX6X60_H */

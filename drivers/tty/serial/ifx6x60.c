@@ -152,26 +152,67 @@ ifx_spi_power_state_clear(struct ifx_spi_device *ifx_dev, unsigned char val)
 }
 
 /**
- *	swap_buf
+ *	swap_buf_8
  *	@buf: our buffer
  *	@len : number of bytes (not words) in the buffer
  *	@end: end of buffer
  *
  *	Swap the contents of a buffer into big endian format
  */
-static inline void swap_buf(u16 *buf, int len, void *end)
+static inline void swap_buf_8(unsigned char *buf, int len, void *end)
+{
+	/* don't swap buffer if SPI word width is 8 bits */
+	return;
+}
+
+/**
+ *	swap_buf_16
+ *	@buf: our buffer
+ *	@len : number of bytes (not words) in the buffer
+ *	@end: end of buffer
+ *
+ *	Swap the contents of a buffer into big endian format
+ */
+static inline void swap_buf_16(unsigned char *buf, int len, void *end)
 {
 	int n;
 
+	u16 *buf_16 = (u16 *)buf;
 	len = ((len + 1) >> 1);
-	if ((void *)&buf[len] > end) {
-		pr_err("swap_buf: swap exceeds boundary (%p > %p)!",
-		       &buf[len], end);
+	if ((void *)&buf_16[len] > end) {
+		pr_err("swap_buf_16: swap exceeds boundary (%p > %p)!",
+		       &buf_16[len], end);
 		return;
 	}
 	for (n = 0; n < len; n++) {
-		*buf = cpu_to_be16(*buf);
-		buf++;
+		*buf_16 = cpu_to_be16(*buf_16);
+		buf_16++;
+	}
+}
+
+/**
+ *	swap_buf_32
+ *	@buf: our buffer
+ *	@len : number of bytes (not words) in the buffer
+ *	@end: end of buffer
+ *
+ *	Swap the contents of a buffer into big endian format
+ */
+static inline void swap_buf_32(unsigned char *buf, int len, void *end)
+{
+	int n;
+
+	u32 *buf_32 = (u32 *)buf;
+	len = (len + 3) >> 2;
+
+	if ((void *)&buf_32[len] > end) {
+		pr_err("swap_buf_32: swap exceeds boundary (%p > %p)!\n",
+		       &buf_32[len], end);
+		return;
+	}
+	for (n = 0; n < len; n++) {
+		*buf_32 = cpu_to_be32(*buf_32);
+		buf_32++;
 	}
 }
 
@@ -449,7 +490,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 					tx_count-IFX_SPI_HEADER_OVERHEAD,
 					ifx_dev->spi_more);
 	/* swap actual data in the buffer */
-	swap_buf((u16 *)(ifx_dev->tx_buffer), tx_count,
+	ifx_dev->swap_buf((ifx_dev->tx_buffer), tx_count,
 		&ifx_dev->tx_buffer[IFX_SPI_TRANSFER_SIZE]);
 	return tx_count;
 }
@@ -617,7 +658,7 @@ static void ifx_spi_complete(void *ctx)
 
 	if (!ifx_dev->spi_msg.status) {
 		/* check header validity, get comm flags */
-		swap_buf((u16 *)ifx_dev->rx_buffer, IFX_SPI_HEADER_OVERHEAD,
+		ifx_dev->swap_buf(ifx_dev->rx_buffer, IFX_SPI_HEADER_OVERHEAD,
 			&ifx_dev->rx_buffer[IFX_SPI_HEADER_OVERHEAD]);
 		decode_result = ifx_spi_decode_spi_header(ifx_dev->rx_buffer,
 				&length, &more, &cts);
@@ -636,7 +677,8 @@ static void ifx_spi_complete(void *ctx)
 
 		actual_length = min((unsigned int)length,
 					ifx_dev->spi_msg.actual_length);
-		swap_buf((u16 *)(ifx_dev->rx_buffer + IFX_SPI_HEADER_OVERHEAD),
+		ifx_dev->swap_buf(
+			(ifx_dev->rx_buffer + IFX_SPI_HEADER_OVERHEAD),
 			 actual_length,
 			 &ifx_dev->rx_buffer[IFX_SPI_TRANSFER_SIZE]);
 		ifx_spi_insert_flip_string(
@@ -1000,6 +1042,14 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
 		return -ENODEV;
 	}
+
+	/* init swap_buf function according to word width configuration */
+	if (spi->bits_per_word == 32)
+		ifx_dev->swap_buf = swap_buf_32;
+	else if (spi->bits_per_word == 16)
+		ifx_dev->swap_buf = swap_buf_16;
+	else
+		ifx_dev->swap_buf = swap_buf_8;
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
