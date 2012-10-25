@@ -735,14 +735,18 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->do_cmd = me_ai_do_cmd;
 
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
-	s->n_chan = board->ao_channel_nbr;
-	s->maxdata = board->ao_resolution_mask;
-	s->len_chanlist = board->ao_channel_nbr;
-	s->range_table = board->ao_range_list;
-	s->insn_read = me_ao_insn_read;
-	s->insn_write = me_ao_insn_write;
+	if (board->ao_channel_nbr) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
+		s->n_chan = board->ao_channel_nbr;
+		s->maxdata = board->ao_resolution_mask;
+		s->len_chanlist = board->ao_channel_nbr;
+		s->range_table = board->ao_range_list;
+		s->insn_read = me_ao_insn_read;
+		s->insn_write = me_ao_insn_write;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DIO;
