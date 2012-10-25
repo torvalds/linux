@@ -229,33 +229,40 @@ static int me_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* Digital instant input/outputs */
 static int me_dio_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	struct me_private_data *dev_private = dev->private;
+	void __iomem *mmio_porta = dev_private->me_regbase + ME_DIO_PORT_A;
+	void __iomem *mmio_portb = dev_private->me_regbase + ME_DIO_PORT_B;
 	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	unsigned int val;
 
-	s->state &= ~mask;
-	s->state |= (mask & data[1]);
+	mask &= s->io_bits;	/* only update the COMEDI_OUTPUT channels */
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	mask &= s->io_bits;
-	if (mask & 0x0000ffff) {	/* Port A */
-		writew((s->state & 0xffff),
-		       dev_private->me_regbase + ME_DIO_PORT_A);
-	} else {
-		data[1] &= ~0x0000ffff;
-		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_A);
+		if (mask & 0x0000ffff)
+			writew((s->state & 0xffff), mmio_porta);
+		if (mask & 0xffff0000)
+			writew(((s->state >> 16) & 0xffff), mmio_portb);
 	}
 
-	if (mask & 0xffff0000) {	/* Port B */
-		writew(((s->state >> 16) & 0xffff),
-		       dev_private->me_regbase + ME_DIO_PORT_B);
-	} else {
-		data[1] &= ~0xffff0000;
-		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_B) << 16;
-	}
+	if (s->io_bits & 0x0000ffff)
+		val = s->state & 0xffff;
+	else
+		val = readw(mmio_porta);
+
+	if (s->io_bits & 0xffff0000)
+		val |= (s->state & 0xffff0000);
+	else
+		val |= (readw(mmio_portb) << 16);
+
+	data[1] = val;
 
 	return insn->n;
 }
