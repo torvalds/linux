@@ -91,25 +91,18 @@ struct devfreq_dev_profile {
  *			status of the device (load = busy_time / total_time).
  *			If no_central_polling is set, this callback is called
  *			only with update_devfreq() notified by OPP.
- * @init		Called when the devfreq is being attached to a device
- * @exit		Called when the devfreq is being removed from a
- *			device. Governor should stop any internal routines
- *			before return because related data may be
- *			freed after exit().
- * @no_central_polling	Do not use devfreq's central polling mechanism.
- *			When this is set, devfreq will not call
- *			get_target_freq with devfreq_monitor(). However,
- *			devfreq will call get_target_freq with
- *			devfreq_update() notified by OPP framework.
+ * @event_handler       Callback for devfreq core framework to notify events
+ *                      to governors. Events include per device governor
+ *                      init and exit, opp changes out of devfreq, suspend
+ *                      and resume of per device devfreq during device idle.
  *
  * Note that the callbacks are called with devfreq->lock locked by devfreq.
  */
 struct devfreq_governor {
 	const char name[DEVFREQ_NAME_LEN];
 	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
-	int (*init)(struct devfreq *this);
-	void (*exit)(struct devfreq *this);
-	const bool no_central_polling;
+	int (*event_handler)(struct devfreq *devfreq,
+				unsigned int event, void *data);
 };
 
 /**
@@ -124,18 +117,13 @@ struct devfreq_governor {
  * @nb		notifier block used to notify devfreq object that it should
  *		reevaluate operable frequencies. Devfreq users may use
  *		devfreq.nb to the corresponding register notifier call chain.
- * @polling_jiffies	interval in jiffies.
+ * @work	delayed work for load monitoring.
  * @previous_freq	previously configured frequency value.
- * @next_polling	the number of remaining jiffies to poll with
- *			"devfreq_monitor" executions to reevaluate
- *			frequency/voltage of the device. Set by
- *			profile's polling_ms interval.
  * @data	Private data of the governor. The devfreq framework does not
  *		touch this.
- * @being_removed	a flag to mark that this object is being removed in
- *			order to prevent trying to remove the object multiple times.
  * @min_freq	Limit minimum frequency requested by user (0: none)
  * @max_freq	Limit maximum frequency requested by user (0: none)
+ * @stop_polling	 devfreq polling status of a device.
  *
  * This structure stores the devfreq information for a give device.
  *
@@ -153,17 +141,15 @@ struct devfreq {
 	struct devfreq_dev_profile *profile;
 	const struct devfreq_governor *governor;
 	struct notifier_block nb;
+	struct delayed_work work;
 
-	unsigned long polling_jiffies;
 	unsigned long previous_freq;
-	unsigned int next_polling;
 
 	void *data; /* private data for governors */
 
-	bool being_removed;
-
 	unsigned long min_freq;
 	unsigned long max_freq;
+	bool stop_polling;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)

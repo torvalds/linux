@@ -26,14 +26,22 @@ static int devfreq_performance_func(struct devfreq *df,
 	return 0;
 }
 
-static int performance_init(struct devfreq *devfreq)
+static int devfreq_performance_handler(struct devfreq *devfreq,
+				unsigned int event, void *data)
 {
-	return update_devfreq(devfreq);
+	int ret = 0;
+
+	if (event == DEVFREQ_GOV_START) {
+		mutex_lock(&devfreq->lock);
+		ret = update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+
+	return ret;
 }
 
 const struct devfreq_governor devfreq_performance = {
 	.name = "performance",
-	.init = performance_init,
 	.get_target_freq = devfreq_performance_func,
-	.no_central_polling = true,
+	.event_handler = devfreq_performance_handler,
 };

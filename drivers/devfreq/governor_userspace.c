@@ -116,10 +116,27 @@ static void userspace_exit(struct devfreq *devfreq)
 	devfreq->data = NULL;
 }
 
+static int devfreq_userspace_handler(struct devfreq *devfreq,
+			unsigned int event, void *data)
+{
+	int ret = 0;
+
+	switch (event) {
+	case DEVFREQ_GOV_START:
+		ret = userspace_init(devfreq);
+		break;
+	case DEVFREQ_GOV_STOP:
+		userspace_exit(devfreq);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 const struct devfreq_governor devfreq_userspace = {
 	.name = "userspace",
 	.get_target_freq = devfreq_userspace_func,
-	.init = userspace_init,
-	.exit = userspace_exit,
-	.no_central_polling = true,
+	.event_handler = devfreq_userspace_handler,
 };

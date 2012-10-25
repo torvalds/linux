@@ -21,14 +21,6 @@ Description:
 		The /sys/class/devfreq/.../cur_freq shows the current
 		frequency of the corresponding devfreq object.
 
-What:		/sys/class/devfreq/.../central_polling
-Date:		September 2011
-Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
-Description:
-		The /sys/class/devfreq/.../central_polling shows whether
-		the devfreq ojbect is using devfreq-provided central
-		polling mechanism or not.
-
 What:		/sys/class/devfreq/.../polling_interval
 Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>

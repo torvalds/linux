@@ -30,17 +30,11 @@
 struct class *devfreq_class;
 
 /*
- * devfreq_work periodically monitors every registered device.
- * The minimum polling interval is one jiffy. The polling interval is
- * determined by the minimum polling period among all polling devfreq
- * devices. The resolution of polling interval is one jiffy.
+ * devfreq core provides delayed work based load monitoring helper
+ * functions. Governors can use these or can implement their own
+ * monitoring mechanism.
  */
-static bool polling;
 static struct workqueue_struct *devfreq_wq;
-static struct delayed_work devfreq_work;
-
-/* wait removing if this is to be removed */
-static struct devfreq *wait_remove_device;
 
 /* The list of all device-devfreq */
 static LIST_HEAD(devfreq_list);
@@ -71,6 +65,8 @@ static struct devfreq *find_device_devfreq(struct device *dev)
 
 	return ERR_PTR(-ENODEV);
 }
+
+/* Load monitoring helper functions for governors use */
 
 /**
  * update_devfreq() - Reevaluate the device and configure frequency.
@@ -121,6 +117,152 @@ int update_devfreq(struct devfreq *devfreq)
 }
 
 /**
+ * devfreq_monitor() - Periodically poll devfreq objects.
+ * @work:	the work struct used to run devfreq_monitor periodically.
+ *
+ */
+static void devfreq_monitor(struct work_struct *work)
+{
+	int err;
+	struct devfreq *devfreq = container_of(work,
+					struct devfreq, work.work);
+
+	mutex_lock(&devfreq->lock);
+	err = update_devfreq(devfreq);
+	if (err)
+		dev_err(&devfreq->dev, "dvfs failed with (%d) error\n", err);
+
+	queue_delayed_work(devfreq_wq, &devfreq->work,
+				msecs_to_jiffies(devfreq->profile->polling_ms));
+	mutex_unlock(&devfreq->lock);
+}
+
+/**
+ * devfreq_monitor_start() - Start load monitoring of devfreq instance
+ * @devfreq:	the devfreq instance.
+ *
+ * Helper function for starting devfreq device load monitoing. By
+ * default delayed work based monitoring is supported. Function
+ * to be called from governor in response to DEVFREQ_GOV_START
+ * event when device is added to devfreq framework.
+ */
+void devfreq_monitor_start(struct devfreq *devfreq)
+{
+	INIT_DEFERRABLE_WORK(&devfreq->work, devfreq_monitor);
+	if (devfreq->profile->polling_ms)
+		queue_delayed_work(devfreq_wq, &devfreq->work,
+			msecs_to_jiffies(devfreq->profile->polling_ms));
+}
+
+/**
+ * devfreq_monitor_stop() - Stop load monitoring of a devfreq instance
+ * @devfreq:	the devfreq instance.
+ *
+ * Helper function to stop devfreq device load monitoing. Function
+ * to be called from governor in response to DEVFREQ_GOV_STOP
+ * event when device is removed from devfreq framework.
+ */
+void devfreq_monitor_stop(struct devfreq *devfreq)
+{
+	cancel_delayed_work_sync(&devfreq->work);
+}
+
+/**
+ * devfreq_monitor_suspend() - Suspend load monitoring of a devfreq instance
+ * @devfreq:	the devfreq instance.
+ *
+ * Helper function to suspend devfreq device load monitoing. Function
+ * to be called from governor in response to DEVFREQ_GOV_SUSPEND
+ * event or when polling interval is set to zero.
+ *
+ * Note: Though this function is same as devfreq_monitor_stop(),
+ * intentionally kept separate to provide hooks for collecting
+ * transition statistics.
+ */
+void devfreq_monitor_suspend(struct devfreq *devfreq)
+{
+	mutex_lock(&devfreq->lock);
+	if (devfreq->stop_polling) {
+		mutex_unlock(&devfreq->lock);
+		return;
+	}
+
+	devfreq->stop_polling = true;
+	mutex_unlock(&devfreq->lock);
+	cancel_delayed_work_sync(&devfreq->work);
+}
+
+/**
+ * devfreq_monitor_resume() - Resume load monitoring of a devfreq instance
+ * @devfreq:    the devfreq instance.
+ *
+ * Helper function to resume devfreq device load monitoing. Function
+ * to be called from governor in response to DEVFREQ_GOV_RESUME
+ * event or when polling interval is set to non-zero.
+ */
+void devfreq_monitor_resume(struct devfreq *devfreq)
+{
+	mutex_lock(&devfreq->lock);
+	if (!devfreq->stop_polling)
+		goto out;
+
+	if (!delayed_work_pending(&devfreq->work) &&
+			devfreq->profile->polling_ms)
+		queue_delayed_work(devfreq_wq, &devfreq->work,
+			msecs_to_jiffies(devfreq->profile->polling_ms));
+	devfreq->stop_polling = false;
+
+out:
+	mutex_unlock(&devfreq->lock);
+}
+
+/**
+ * devfreq_interval_update() - Update device devfreq monitoring interval
+ * @devfreq:    the devfreq instance.
+ * @delay:      new polling interval to be set.
+ *
+ * Helper function to set new load monitoring polling interval. Function
+ * to be called from governor in response to DEVFREQ_GOV_INTERVAL event.
+ */
+void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
+{
+	unsigned int cur_delay = devfreq->profile->polling_ms;
+	unsigned int new_delay = *delay;
+
+	mutex_lock(&devfreq->lock);
+	devfreq->profile->polling_ms = new_delay;
+
+	if (devfreq->stop_polling)
+		goto out;
+
+	/* if new delay is zero, stop polling */
+	if (!new_delay) {
+		mutex_unlock(&devfreq->lock);
+		cancel_delayed_work_sync(&devfreq->work);
+		return;
+	}
+
+	/* if current delay is zero, start polling with new delay */
+	if (!cur_delay) {
+		queue_delayed_work(devfreq_wq, &devfreq->work,
+			msecs_to_jiffies(devfreq->profile->polling_ms));
+		goto out;
+	}
+
+	/* if current delay is greater than new delay, restart polling */
+	if (cur_delay > new_delay) {
+		mutex_unlock(&devfreq->lock);
+		cancel_delayed_work_sync(&devfreq->work);
+		mutex_lock(&devfreq->lock);
+		if (!devfreq->stop_polling)
+			queue_delayed_work(devfreq_wq, &devfreq->work,
+			      msecs_to_jiffies(devfreq->profile->polling_ms));
+	}
+out:
+	mutex_unlock(&devfreq->lock);
+}
+
+/**
  * devfreq_notifier_call() - Notify that the device frequency requirements
  *			   has been changed out of devfreq framework.
  * @nb		the notifier_block (supposed to be devfreq->nb)
@@ -143,59 +285,32 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
 }
 
 /**
- * _remove_devfreq() - Remove devfreq from the device.
+ * _remove_devfreq() - Remove devfreq from the list and release its resources.
  * @devfreq:	the devfreq struct
  * @skip:	skip calling device_unregister().
- *
- * Note that the caller should lock devfreq->lock before calling
- * this. _remove_devfreq() will unlock it and free devfreq
- * internally. devfreq_list_lock should be locked by the caller
- * as well (not relased at return)
- *
- * Lock usage:
- * devfreq->lock: locked before call.
- *		  unlocked at return (and freed)
- * devfreq_list_lock: locked before call.
- *		      kept locked at return.
- *		      if devfreq is centrally polled.
- *
- * Freed memory:
- * devfreq
  */
 static void _remove_devfreq(struct devfreq *devfreq, bool skip)
 {
-	if (!mutex_is_locked(&devfreq->lock)) {
-		WARN(true, "devfreq->lock must be locked by the caller.\n");
+	mutex_lock(&devfreq_list_lock);
+	if (IS_ERR(find_device_devfreq(devfreq->dev.parent))) {
+		mutex_unlock(&devfreq_list_lock);
+		dev_warn(&devfreq->dev, "releasing devfreq which doesn't exist\n");
 		return;
 	}
-	if (!devfreq->governor->no_central_polling &&
-	    !mutex_is_locked(&devfreq_list_lock)) {
-		WARN(true, "devfreq_list_lock must be locked by the caller.\n");
-		return;
-	}
+	list_del(&devfreq->node);
+	mutex_unlock(&devfreq_list_lock);
 
-	if (devfreq->being_removed)
-		return;
-
-	devfreq->being_removed = true;
+	devfreq->governor->event_handler(devfreq, DEVFREQ_GOV_STOP, NULL);
 
 	if (devfreq->profile->exit)
 		devfreq->profile->exit(devfreq->dev.parent);
-
-	if (devfreq->governor->exit)
-		devfreq->governor->exit(devfreq);
 
 	if (!skip && get_device(&devfreq->dev)) {
 		device_unregister(&devfreq->dev);
 		put_device(&devfreq->dev);
 	}
 
-	if (!devfreq->governor->no_central_polling)
-		list_del(&devfreq->node);
-
-	mutex_unlock(&devfreq->lock);
 	mutex_destroy(&devfreq->lock);
-
 	kfree(devfreq);
 }
 
@@ -210,130 +325,8 @@ static void _remove_devfreq(struct devfreq *devfreq, bool skip)
 static void devfreq_dev_release(struct device *dev)
 {
 	struct devfreq *devfreq = to_devfreq(dev);
-	bool central_polling = !devfreq->governor->no_central_polling;
 
-	/*
-	 * If devfreq_dev_release() was called by device_unregister() of
-	 * _remove_devfreq(), we cannot mutex_lock(&devfreq->lock) and
-	 * being_removed is already set. This also partially checks the case
-	 * where devfreq_dev_release() is called from a thread other than
-	 * the one called _remove_devfreq(); however, this case is
-	 * dealt completely with another following being_removed check.
-	 *
-	 * Because being_removed is never being
-	 * unset, we do not need to worry about race conditions on
-	 * being_removed.
-	 */
-	if (devfreq->being_removed)
-		return;
-
-	if (central_polling)
-		mutex_lock(&devfreq_list_lock);
-
-	mutex_lock(&devfreq->lock);
-
-	/*
-	 * Check being_removed flag again for the case where
-	 * devfreq_dev_release() was called in a thread other than the one
-	 * possibly called _remove_devfreq().
-	 */
-	if (devfreq->being_removed) {
-		mutex_unlock(&devfreq->lock);
-		goto out;
-	}
-
-	/* devfreq->lock is unlocked and removed in _removed_devfreq() */
 	_remove_devfreq(devfreq, true);
-
-out:
-	if (central_polling)
-		mutex_unlock(&devfreq_list_lock);
-}
-
-/**
- * devfreq_monitor() - Periodically poll devfreq objects.
- * @work: the work struct used to run devfreq_monitor periodically.
- *
- */
-static void devfreq_monitor(struct work_struct *work)
-{
-	static unsigned long last_polled_at;
-	struct devfreq *devfreq, *tmp;
-	int error;
-	unsigned long jiffies_passed;
-	unsigned long next_jiffies = ULONG_MAX, now = jiffies;
-	struct device *dev;
-
-	/* Initially last_polled_at = 0, polling every device at bootup */
-	jiffies_passed = now - last_polled_at;
-	last_polled_at = now;
-	if (jiffies_passed == 0)
-		jiffies_passed = 1;
-
-	mutex_lock(&devfreq_list_lock);
-	list_for_each_entry_safe(devfreq, tmp, &devfreq_list, node) {
-		mutex_lock(&devfreq->lock);
-		dev = devfreq->dev.parent;
-
-		/* Do not remove tmp for a while */
-		wait_remove_device = tmp;
-
-		if (devfreq->governor->no_central_polling ||
-		    devfreq->next_polling == 0) {
-			mutex_unlock(&devfreq->lock);
-			continue;
-		}
-		mutex_unlock(&devfreq_list_lock);
-
-		/*
-		 * Reduce more next_polling if devfreq_wq took an extra
-		 * delay. (i.e., CPU has been idled.)
-		 */
-		if (devfreq->next_polling <= jiffies_passed) {
-			error = update_devfreq(devfreq);
-
-			/* Remove a devfreq with an error. */
-			if (error && error != -EAGAIN) {
-
-				dev_err(dev, "Due to update_devfreq error(%d), devfreq(%s) is removed from the device\n",
-					error, devfreq->governor->name);
-
-				/*
-				 * Unlock devfreq before locking the list
-				 * in order to avoid deadlock with
-				 * find_device_devfreq or others
-				 */
-				mutex_unlock(&devfreq->lock);
-				mutex_lock(&devfreq_list_lock);
-				/* Check if devfreq is already removed */
-				if (IS_ERR(find_device_devfreq(dev)))
-					continue;
-				mutex_lock(&devfreq->lock);
-				/* This unlocks devfreq->lock and free it */
-				_remove_devfreq(devfreq, false);
-				continue;
-			}
-			devfreq->next_polling = devfreq->polling_jiffies;
-		} else {
-			devfreq->next_polling -= jiffies_passed;
-		}
-
-		if (devfreq->next_polling)
-			next_jiffies = (next_jiffies > devfreq->next_polling) ?
-					devfreq->next_polling : next_jiffies;
-
-		mutex_unlock(&devfreq->lock);
-		mutex_lock(&devfreq_list_lock);
-	}
-	wait_remove_device = NULL;
-	mutex_unlock(&devfreq_list_lock);
-
-	if (next_jiffies > 0 && next_jiffies < ULONG_MAX) {
-		polling = true;
-		queue_delayed_work(devfreq_wq, &devfreq_work, next_jiffies);
-	} else {
-		polling = false;
-	}
 }
 
 /**
@@ -357,16 +350,13 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-
-	if (!governor->no_central_polling) {
-		mutex_lock(&devfreq_list_lock);
-		devfreq = find_device_devfreq(dev);
-		mutex_unlock(&devfreq_list_lock);
-		if (!IS_ERR(devfreq)) {
-			dev_err(dev, "%s: Unable to create devfreq for the device. It already has one.\n", __func__);
-			err = -EINVAL;
-			goto err_out;
-		}
+	mutex_lock(&devfreq_list_lock);
+	devfreq = find_device_devfreq(dev);
+	mutex_unlock(&devfreq_list_lock);
+	if (!IS_ERR(devfreq)) {
+		dev_err(dev, "%s: Unable to create devfreq for the device. It already has one.\n", __func__);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	devfreq = kzalloc(sizeof(struct devfreq), GFP_KERNEL);
@@ -386,48 +376,41 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->governor = governor;
 	devfreq->previous_freq = profile->initial_freq;
 	devfreq->data = data;
-	devfreq->next_polling = devfreq->polling_jiffies
-			      = msecs_to_jiffies(devfreq->profile->polling_ms);
 	devfreq->nb.notifier_call = devfreq_notifier_call;
 
 	dev_set_name(&devfreq->dev, dev_name(dev));
 	err = device_register(&devfreq->dev);
 	if (err) {
 		put_device(&devfreq->dev);
+		mutex_unlock(&devfreq->lock);
 		goto err_dev;
 	}
 
-	if (governor->init)
-		err = governor->init(devfreq);
-	if (err)
-		goto err_init;
-
 	mutex_unlock(&devfreq->lock);
 
-	if (governor->no_central_polling)
-		goto out;
-
 	mutex_lock(&devfreq_list_lock);
-
 	list_add(&devfreq->node, &devfreq_list);
-
-	if (devfreq_wq && devfreq->next_polling && !polling) {
-		polling = true;
-		queue_delayed_work(devfreq_wq, &devfreq_work,
-				   devfreq->next_polling);
-	}
 	mutex_unlock(&devfreq_list_lock);
-out:
+
+	err = devfreq->governor->event_handler(devfreq,
+				DEVFREQ_GOV_START, NULL);
+	if (err) {
+		dev_err(dev, "%s: Unable to start governor for the device\n",
+			__func__);
+		goto err_init;
+	}
+
 	return devfreq;
 
 err_init:
+	list_del(&devfreq->node);
 	device_unregister(&devfreq->dev);
 err_dev:
-	mutex_unlock(&devfreq->lock);
 	kfree(devfreq);
 err_out:
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL(devfreq_add_device);
 
 /**
  * devfreq_remove_device() - Remove devfreq feature from a device.
@@ -435,30 +418,14 @@ err_out:
  */
 int devfreq_remove_device(struct devfreq *devfreq)
 {
-	bool central_polling;
-
 	if (!devfreq)
 		return -EINVAL;
 
-	central_polling = !devfreq->governor->no_central_polling;
-
-	if (central_polling) {
-		mutex_lock(&devfreq_list_lock);
-		while (wait_remove_device == devfreq) {
-			mutex_unlock(&devfreq_list_lock);
-			schedule();
-			mutex_lock(&devfreq_list_lock);
-		}
-	}
-
-	mutex_lock(&devfreq->lock);
-	_remove_devfreq(devfreq, false); /* it unlocks devfreq->lock */
-
-	if (central_polling)
-		mutex_unlock(&devfreq_list_lock);
+	_remove_devfreq(devfreq, false);
 
 	return 0;
 }
+EXPORT_SYMBOL(devfreq_remove_device);
 
 static ssize_t show_governor(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -490,33 +457,11 @@ static ssize_t store_polling_interval(struct device *dev,
 	if (ret != 1)
 		goto out;
 
-	mutex_lock(&df->lock);
-	df->profile->polling_ms = value;
-	df->next_polling = df->polling_jiffies
-			 = msecs_to_jiffies(value);
-	mutex_unlock(&df->lock);
-
+	df->governor->event_handler(df, DEVFREQ_GOV_INTERVAL, &value);
 	ret = count;
 
-	if (df->governor->no_central_polling)
-		goto out;
-
-	mutex_lock(&devfreq_list_lock);
-	if (df->next_polling > 0 && !polling) {
-		polling = true;
-		queue_delayed_work(devfreq_wq, &devfreq_work,
-				   df->next_polling);
-	}
-	mutex_unlock(&devfreq_list_lock);
 out:
 	return ret;
-}
-
-static ssize_t show_central_polling(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n",
-		       !to_devfreq(dev)->governor->no_central_polling);
 }
 
 static ssize_t store_min_freq(struct device *dev, struct device_attribute *attr,
@@ -590,30 +535,12 @@ static ssize_t show_max_freq(struct device *dev, struct device_attribute *attr,
 static struct device_attribute devfreq_attrs[] = {
 	__ATTR(governor, S_IRUGO, show_governor, NULL),
 	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
-	__ATTR(central_polling, S_IRUGO, show_central_polling, NULL),
 	__ATTR(polling_interval, S_IRUGO | S_IWUSR, show_polling_interval,
 	       store_polling_interval),
 	__ATTR(min_freq, S_IRUGO | S_IWUSR, show_min_freq, store_min_freq),
 	__ATTR(max_freq, S_IRUGO | S_IWUSR, show_max_freq, store_max_freq),
 	{ },
 };
-
-/**
- * devfreq_start_polling() - Initialize data structure for devfreq framework and
- *			   start polling registered devfreq devices.
- */
-static int __init devfreq_start_polling(void)
-{
-	mutex_lock(&devfreq_list_lock);
-	polling = false;
-	devfreq_wq = create_freezable_workqueue("devfreq_wq");
-	INIT_DEFERRABLE_WORK(&devfreq_work, devfreq_monitor);
-	mutex_unlock(&devfreq_list_lock);
-
-	devfreq_monitor(&devfreq_work.work);
-	return 0;
-}
-late_initcall(devfreq_start_polling);
 
 static int __init devfreq_init(void)
 {
@@ -622,7 +549,15 @@ static int __init devfreq_init(void)
 		pr_err("%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(devfreq_class);
 	}
+
+	devfreq_wq = create_freezable_workqueue("devfreq_wq");
+	if (IS_ERR(devfreq_wq)) {
+		class_destroy(devfreq_class);
+		pr_err("%s: couldn't create workqueue\n", __FILE__);
+		return PTR_ERR(devfreq_wq);
+	}
 	devfreq_class->dev_attrs = devfreq_attrs;
+
 	return 0;
 }
 subsys_initcall(devfreq_init);
@@ -630,6 +565,7 @@ subsys_initcall(devfreq_init);
 static void __exit devfreq_exit(void)
 {
 	class_destroy(devfreq_class);
+	destroy_workqueue(devfreq_wq);
 }
 module_exit(devfreq_exit);
 

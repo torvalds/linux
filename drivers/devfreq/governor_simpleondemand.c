@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/devfreq.h>
 #include <linux/math64.h>
+#include "governor.h"
 
 /* Default constants for DevFreq-Simple-Ondemand (DFSO) */
 #define DFSO_UPTHRESHOLD	(90)
@@ -88,7 +89,30 @@ static int devfreq_simple_ondemand_func(struct devfreq *df,
 	return 0;
 }
 
+static int devfreq_simple_ondemand_handler(struct devfreq *devfreq,
+				unsigned int event, void *data)
+{
+	switch (event) {
+	case DEVFREQ_GOV_START:
+		devfreq_monitor_start(devfreq);
+		break;
+
+	case DEVFREQ_GOV_STOP:
+		devfreq_monitor_stop(devfreq);
+		break;
+
+	case DEVFREQ_GOV_INTERVAL:
+		devfreq_interval_update(devfreq, (unsigned int *)data);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 const struct devfreq_governor devfreq_simple_ondemand = {
 	.name = "simple_ondemand",
 	.get_target_freq = devfreq_simple_ondemand_func,
+	.event_handler = devfreq_simple_ondemand_handler,
 };

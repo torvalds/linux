@@ -23,14 +23,22 @@ static int devfreq_powersave_func(struct devfreq *df,
 	return 0;
 }
 
-static int powersave_init(struct devfreq *devfreq)
+static int devfreq_powersave_handler(struct devfreq *devfreq,
+				unsigned int event, void *data)
 {
-	return update_devfreq(devfreq);
+	int ret = 0;
+
+	if (event == DEVFREQ_GOV_START) {
+		mutex_lock(&devfreq->lock);
+		ret = update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+
+	return ret;
 }
 
 const struct devfreq_governor devfreq_powersave = {
 	.name = "powersave",
-	.init = powersave_init,
 	.get_target_freq = devfreq_powersave_func,
-	.no_central_polling = true,
+	.event_handler = devfreq_powersave_handler,
 };
