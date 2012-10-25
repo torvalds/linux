@@ -128,8 +128,11 @@ struct btrfs_ordered_extent {
 	struct list_head root_extent_list;
 
 	struct btrfs_work work;
-};
 
+	struct completion completion;
+	struct btrfs_work flush_work;
+	struct list_head work_list;
+};
 
 /*
  * calculates the total size you need to allocate for an ordered sum
