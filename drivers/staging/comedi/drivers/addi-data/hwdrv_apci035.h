@@ -16,7 +16,6 @@
  */
 
 /* Card Specific information */
-#define APCI035_BOARD_VENDOR_ID		0x15B8
 #define APCI035_ADDRESS_RANGE		255
 
 /* ANALOG INPUT RANGE */

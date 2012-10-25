@@ -16,7 +16,6 @@
  */
 
 /* Card Specific information */
-#define APCI3200_BOARD_VENDOR_ID                 0x15B8
 /* #define APCI3200_ADDRESS_RANGE                   264 */
 
 int MODULE_NO;

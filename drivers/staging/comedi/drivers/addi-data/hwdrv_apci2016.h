@@ -16,7 +16,6 @@
  */
 /*********      Definitions for APCI-2016 card  *****/
 
-#define APCI2016_BOARD_VENDOR_ID 0x15B8
 #define APCI2016_ADDRESS_RANGE   8
 
 /* DIGITAL INPUT-OUTPUT DEFINE */

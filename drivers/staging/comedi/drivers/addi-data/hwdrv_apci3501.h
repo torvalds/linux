@@ -16,7 +16,6 @@
  */
 
 /* Card Specific information */
-#define APCI3501_BOARD_VENDOR_ID                 0x15B8
 #define APCI3501_ADDRESS_RANGE                   255
 
 #define APCI3501_DIGITAL_IP                       0x50

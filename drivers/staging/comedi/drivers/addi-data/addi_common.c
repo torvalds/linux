@@ -147,22 +147,22 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 	{PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x818D)},
 #endif
 #ifdef CONFIG_APCI_1032
-	{PCI_DEVICE(APCI1032_BOARD_VENDOR_ID, 0x1003)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1003)},
 #endif
 #ifdef CONFIG_APCI_1516
-	{PCI_DEVICE(APCI1516_BOARD_VENDOR_ID, 0x1001)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1001)},
 #endif
 #ifdef CONFIG_APCI_2016
-	{PCI_DEVICE(APCI2016_BOARD_VENDOR_ID, 0x1002)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1002)},
 #endif
 #ifdef CONFIG_APCI_2032
-	{PCI_DEVICE(APCI2032_BOARD_VENDOR_ID, 0x1004)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1004)},
 #endif
 #ifdef CONFIG_APCI_2200
-	{PCI_DEVICE(APCI2200_BOARD_VENDOR_ID, 0x1005)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1005)},
 #endif
 #ifdef CONFIG_APCI_1564
-	{PCI_DEVICE(APCI1564_BOARD_VENDOR_ID, 0x1006)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1006)},
 #endif
 #ifdef CONFIG_APCI_1500
 	{PCI_DEVICE(APCI1500_BOARD_VENDOR_ID, 0x80fc)},
@@ -171,16 +171,16 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 	{PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x828D)},
 #endif
 #ifdef CONFIG_APCI_3501
-	{PCI_DEVICE(APCI3501_BOARD_VENDOR_ID, 0x3001)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001)},
 #endif
 #ifdef CONFIG_APCI_035
-	{PCI_DEVICE(APCI035_BOARD_VENDOR_ID,  0x0300)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA,  0x0300)},
 #endif
 #ifdef CONFIG_APCI_3200
-	{PCI_DEVICE(APCI3200_BOARD_VENDOR_ID, 0x3000)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3000)},
 #endif
 #ifdef CONFIG_APCI_3300
-	{PCI_DEVICE(APCI3200_BOARD_VENDOR_ID, 0x3007)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3007)},
 #endif
 #ifdef CONFIG_APCI_1710
 	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, APCI1710_BOARD_DEVICE_ID)},
@@ -268,7 +268,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_1032
 	{
 		.pc_DriverName		= "apci1032",
-		.i_VendorId		= APCI1032_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1003,
 		.i_IorangeBase0		= 4,
 		.i_IorangeBase1		= APCI1032_ADDRESS_RANGE,
@@ -285,7 +285,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_1516
 	{
 		.pc_DriverName		= "apci1516",
-		.i_VendorId		= APCI1516_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1001,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1516_ADDRESS_RANGE,
@@ -309,7 +309,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_2016
 	{
 		.pc_DriverName		= "apci2016",
-		.i_VendorId		= APCI2016_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1002,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI2016_ADDRESS_RANGE,
@@ -330,7 +330,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_2032
 	{
 		.pc_DriverName		= "apci2032",
-		.i_VendorId		= APCI2032_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1004,
 		.i_IorangeBase0		= 4,
 		.i_IorangeBase1		= APCI2032_ADDRESS_RANGE,
@@ -353,7 +353,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_2200
 	{
 		.pc_DriverName		= "apci2200",
-		.i_VendorId		= APCI2200_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1005,
 		.i_IorangeBase0		= 4,
 		.i_IorangeBase1		= APCI2200_ADDRESS_RANGE,
@@ -376,7 +376,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_1564
 	{
 		.pc_DriverName		= "apci1564",
-		.i_VendorId		= APCI1564_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1006,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1564_ADDRESS_RANGE,
@@ -470,7 +470,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3501
 	{
 		.pc_DriverName		= "apci3501",
-		.i_VendorId		= APCI3501_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x3001,
 		.i_IorangeBase0		= 64,
 		.i_IorangeBase1		= APCI3501_ADDRESS_RANGE,
@@ -498,7 +498,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_035
 	{
 		.pc_DriverName		= "apci035",
-		.i_VendorId		= APCI035_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x0300,
 		.i_IorangeBase0		= 127,
 		.i_IorangeBase1		= APCI035_ADDRESS_RANGE,
@@ -524,7 +524,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3200
 	{
 		.pc_DriverName		= "apci3200",
-		.i_VendorId		= APCI3200_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x3000,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
@@ -560,7 +560,7 @@ static const struct addi_board boardtypes[] = {
 	/* Begin JK	.20.10.2004 = APCI-3300 integration */
 	{
 		.pc_DriverName		= "apci3300",
-		.i_VendorId		= APCI3200_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x3007,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,

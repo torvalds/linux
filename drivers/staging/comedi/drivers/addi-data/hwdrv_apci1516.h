@@ -18,7 +18,6 @@
 /*********      Definitions for APCI-1516 card  *****/
 
 /* Card Specific information */
-#define APCI1516_BOARD_VENDOR_ID                 0x15B8
 #define APCI1516_ADDRESS_RANGE                   8
 
 /* DIGITAL INPUT-OUTPUT DEFINE */

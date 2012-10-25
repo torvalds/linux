@@ -18,7 +18,6 @@
 /*********      Definitions for APCI-2032 card  *****/
 
 /* Card Specific information */
-#define APCI2032_BOARD_VENDOR_ID                 0x15B8
 #define APCI2032_ADDRESS_RANGE                   63
 
 /* DIGITAL INPUT-OUTPUT DEFINE */

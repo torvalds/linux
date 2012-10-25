@@ -17,7 +17,6 @@
 
 /*********      Definitions for APCI-1032 card  *****/
 
-#define APCI1032_BOARD_VENDOR_ID 0x15B8
 #define APCI1032_ADDRESS_RANGE  20
 /* DIGITAL INPUT DEFINE */
 

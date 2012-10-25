@@ -18,7 +18,6 @@
 /*********      Definitions for APCI-2200 card  *****/
 
 /* Card Specific information */
-#define APCI2200_BOARD_VENDOR_ID                 0x15b8
 #define APCI2200_ADDRESS_RANGE                   64
 
 /* DIGITAL INPUT-OUTPUT DEFINE */

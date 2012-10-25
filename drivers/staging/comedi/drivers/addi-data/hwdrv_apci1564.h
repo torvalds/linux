@@ -17,7 +17,6 @@
 
 /*********      Definitions for APCI-1564 card  *****/
 
-#define APCI1564_BOARD_VENDOR_ID                0x15B8
 #define APCI1564_ADDRESS_RANGE                  128
 
 /* DIGITAL INPUT-OUTPUT DEFINE */
