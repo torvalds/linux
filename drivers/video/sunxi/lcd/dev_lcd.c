@@ -28,34 +28,38 @@ static struct cdev *my_cdev;
 static dev_t devid;
 static struct class *lcd_class;
 
-int lcd_open(struct inode *inode, struct file *file)
+static int
+lcd_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-int lcd_release(struct inode *inode, struct file *file)
+static int
+lcd_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-ssize_t lcd_read(struct file *file, char __user *buf, size_t count,
-		 loff_t *ppos)
+static ssize_t
+lcd_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-ssize_t lcd_write(struct file *file, const char __user *buf, size_t count,
-		  loff_t *ppos)
+static ssize_t
+lcd_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-int lcd_mmap(struct file *file, struct vm_area_struct *vma)
+static int
+lcd_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	return 0;
 }
 
-long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long
+lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return 0;
 }
@@ -70,7 +74,8 @@ static const struct file_operations lcd_fops = {
 	.mmap = lcd_mmap,
 };
 
-int lcd_init(void)
+static int
+lcd_init(void)
 {
 	static __lcd_panel_fun_t lcd0_cfg;
 	static __lcd_panel_fun_t lcd1_cfg;
@@ -89,7 +94,8 @@ int lcd_init(void)
 	return 0;
 }
 
-int __init lcd_module_init(void)
+static int
+__init lcd_module_init(void)
 {
 	int ret = 0, err;
 

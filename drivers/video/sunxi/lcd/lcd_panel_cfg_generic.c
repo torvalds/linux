@@ -49,7 +49,8 @@ static void check_spi_used_value()
 		__inf("LCD SPI doesn't use.\n");
 }
 
-void LCD_SPI_Init(__u32 sel)
+static void
+LCD_SPI_Init(__u32 sel)
 {
 	if (SCRIPT_PARSER_OK !=
 	    OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_module",
@@ -87,7 +88,8 @@ ERR1:
 	return;
 }
 
-void LCD_SPI_Write(__u32 sel)
+static void
+LCD_SPI_Write(__u32 sel)
 {
 	int i = 0, j = 0, offset = 0, bit_val = 0, ret = 0;
 	u16 data[9] = {		/* module 0 data */
@@ -177,7 +179,8 @@ void LCD_SPI_Write(__u32 sel)
 	}
 }
 
-void LCD_SPI_Dinit(__u32 sel)
+static void
+LCD_SPI_Dinit(__u32 sel)
 {
 	lcd_spi_dbg("release GPIO src : lcd_spi_mosi\n");
 	if (lcd_spi_mosi)
