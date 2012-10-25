@@ -537,8 +537,6 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 	seq_puts(s, "Pin config settings per pin group\n");
 	seq_puts(s, "Format: group (name): configs\n");
 
-	mutex_lock(&pinctrl_mutex);
-
 	while (selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev, selector);
 
@@ -548,8 +546,6 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 
 		selector++;
 	}
-
-	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }

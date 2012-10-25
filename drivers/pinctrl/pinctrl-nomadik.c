@@ -1056,7 +1056,7 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	return irq_find_mapping(nmk_chip->domain, offset);
+	return irq_create_mapping(nmk_chip->domain, offset);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1281,7 +1281,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
-	int irq_start = -1;
+	int irq_start = 0;
 	int irq;
 	int ret;
 
@@ -1387,7 +1387,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	if (!np)
 		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
-	nmk_chip->domain = irq_domain_add_simple(NULL,
+	nmk_chip->domain = irq_domain_add_simple(np,
 				NMK_GPIO_PER_CHIP, irq_start,
 				&nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
