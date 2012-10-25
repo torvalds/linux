@@ -843,6 +843,18 @@ static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	return priv->eq_table.uar_map[index] + 0x800 + 8 * (eq->eqn % 4);
 }
 
+static void mlx4_unmap_uar(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i;
+
+	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
+		if (priv->eq_table.uar_map[i]) {
+			iounmap(priv->eq_table.uar_map[i]);
+			priv->eq_table.uar_map[i] = NULL;
+		}
+}
+
 static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 			  u8 intr, struct mlx4_eq *eq)
 {
@@ -1207,6 +1219,7 @@ err_out_unmap:
 	mlx4_free_irqs(dev);
 
 err_out_bitmap:
+	mlx4_unmap_uar(dev);
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
 
 err_out_free:
@@ -1231,10 +1244,7 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 	if (!mlx4_is_slave(dev))
 		mlx4_unmap_clr_int(dev);
 
-	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
-		if (priv->eq_table.uar_map[i])
-			iounmap(priv->eq_table.uar_map[i]);
-
+	mlx4_unmap_uar(dev);
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
 
 	kfree(priv->eq_table.uar_map);
