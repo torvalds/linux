@@ -3755,6 +3755,13 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   PIPEA_HLINE_INT_EN | PIPEA_VBLANK_INT_EN |
 		   SPRITEB_FLIPDONE_INT_EN | SPRITEA_FLIPDONE_INT_EN |
 		   PLANEA_FLIPDONE_INT_EN);
+
+	/*
+	 * WaDisableVLVClockGating_VBIIssue
+	 * Disable clock gating on th GCFG unit to prevent a delay
+	 * in the reporting of vblank events.
+	 */
+	I915_WRITE(VLV_GUNIT_CLOCK_GATE, GCFG_DIS);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
