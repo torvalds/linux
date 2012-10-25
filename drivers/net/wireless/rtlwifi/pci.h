@@ -152,6 +152,7 @@ struct rtl8192_rx_ring {
 
 struct rtl_pci {
 	struct pci_dev *pdev;
+	bool irq_enabled;
 
 	bool driver_is_goingto_unload;
 	bool up_first_time;
