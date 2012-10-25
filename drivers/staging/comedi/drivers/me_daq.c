@@ -178,11 +178,9 @@ struct me_board {
 	int device_id;
 	int ao_channel_nbr;	/* DA config */
 	int ao_resolution;
-	int ao_resolution_mask;
 	const struct comedi_lrange *ao_range_list;
 	int ai_channel_nbr;	/* AD config */
 	int ai_resolution;
-	int ai_resolution_mask;
 	const struct comedi_lrange *ai_range_list;
 	int dio_channel_nbr;	/* DIO config */
 };
@@ -194,12 +192,10 @@ static const struct me_board me_boards[] = {
 	 /* Analog Output */
 	 .ao_channel_nbr = 4,
 	 .ao_resolution = 12,
-	 .ao_resolution_mask = 0x0fff,
 	 .ao_range_list = &me2600_ao_range,
 	 .ai_channel_nbr = 16,
 	 /* Analog Input */
 	 .ai_resolution = 12,
-	 .ai_resolution_mask = 0x0fff,
 	 .ai_range_list = &me2600_ai_range,
 	 .dio_channel_nbr = 32,
 	 },
@@ -209,7 +205,6 @@ static const struct me_board me_boards[] = {
 	 .ai_channel_nbr = 16,
 	 /* Analog Input */
 	 .ai_resolution = 12,
-	 .ai_resolution_mask = 0x0fff,
 	 .ai_range_list = &me2000_ai_range,
 	 .dio_channel_nbr = 32,
 	 }
@@ -721,7 +716,7 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
 	s->n_chan = board->ai_channel_nbr;
-	s->maxdata = board->ai_resolution_mask;
+	s->maxdata = (1 << board->ai_resolution) - 1;
 	s->len_chanlist = board->ai_channel_nbr;
 	s->range_table = board->ai_range_list;
 	s->cancel = me_ai_cancel;
@@ -734,7 +729,7 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
 		s->n_chan = board->ao_channel_nbr;
-		s->maxdata = board->ao_resolution_mask;
+		s->maxdata = (1 << board->ao_resolution) - 1;
 		s->len_chanlist = board->ao_channel_nbr;
 		s->range_table = board->ao_range_list;
 		s->insn_read = me_ao_insn_read;
