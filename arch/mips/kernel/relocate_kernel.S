@@ -78,7 +78,19 @@ done:
 	LONG_S		zero,(t0)
 #endif
 
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+	/* We need to flush I-cache before jumping to new kernel.
+	 * Unfortunatelly, this code is cpu-specific.
+	 */
+	.set push
+	.set noreorder
+	syncw
+	syncw
+	synci		0($0)
+	.set pop
+#else
 	sync
+#endif
 	/* jump to kexec_start_address */
 	j		s1
 	END(relocate_new_kernel)
@@ -110,7 +122,14 @@ LEAF(kexec_smp_wait)
 1:	LONG_L		s0, (t0)
 	bne		s0, zero,1b
 
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+	.set push
+	.set noreorder
+	synci		0($0)
+	.set pop
+#else
 	sync
+#endif
 	j		s1
 	END(kexec_smp_wait)
 #endif

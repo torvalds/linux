@@ -3,8 +3,6 @@
 #include <linux/crash_dump.h>
 #include <asm/uaccess.h>
 
-unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
-
 static int __init parse_savemaxmem(char *p)
 {
 	if (p)
