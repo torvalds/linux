@@ -1500,8 +1500,10 @@ static int __init ip_auto_config(void)
 	 * Clue in the operator.
 	 */
 	pr_info("IP-Config: Complete:\n");
-	pr_info("     device=%s, addr=%pI4, mask=%pI4, gw=%pI4\n",
-		ic_dev->name, &ic_myaddr, &ic_netmask, &ic_gateway);
+
+	pr_info("     device=%s, hwaddr=%*phC, ipaddr=%pI4, mask=%pI4, gw=%pI4\n",
+		ic_dev->name, ic_dev->addr_len, ic_dev->dev_addr,
+		&ic_myaddr, &ic_netmask, &ic_gateway);
 	pr_info("     host=%s, domain=%s, nis-domain=%s\n",
 		utsname()->nodename, ic_domain, utsname()->domainname);
 	pr_info("     bootserver=%pI4, rootserver=%pI4, rootpath=%s",
