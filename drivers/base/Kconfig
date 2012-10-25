@@ -236,7 +236,7 @@ config CMA_SIZE_PERCENTAGE
 
 choice
 	prompt "Selected region size"
-	default CMA_SIZE_SEL_ABSOLUTE
+	default CMA_SIZE_SEL_MBYTES
 
 config CMA_SIZE_SEL_MBYTES
 	bool "Use mega bytes value only"
