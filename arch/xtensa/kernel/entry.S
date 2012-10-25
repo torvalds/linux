@@ -1833,22 +1833,6 @@ ENTRY(system_call)
 
 
 /*
- * Do a system call from kernel instead of calling sys_execve, so we end up
- * with proper pt_regs.
- *
- * int kernel_execve(const char *fname, char *const argv[], charg *const envp[])
- * a2                        a2               a3                  a4
- */
-
-ENTRY(kernel_execve)
-	entry	a1, 16
-	mov	a6, a2			# arg0 is in a6
-	movi	a2, __NR_execve
-	syscall
-
-	retw
-
-/*
  * Task switch.
  *
  * struct task*  _switch_to (struct task* prev, struct task* next)
@@ -1940,6 +1924,6 @@ ENTRY(ret_from_kernel_thread)
 	call4	schedule_tail
 	mov	a6, a3
 	callx4	a2
-	call4	do_exit
+	j	common_exception_return
 
 ENDPROC(ret_from_kernel_thread)
