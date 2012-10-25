@@ -151,7 +151,7 @@ static void n_tty_set_room(struct tty_struct *tty)
 	/* Did this open up the receive buffer? We may need to flip */
 	if (left && !old_left) {
 		WARN_RATELIMIT(tty->port->itty == NULL,
-				"scheduling with invalid itty");
+				"scheduling with invalid itty\n");
 		schedule_work(&tty->port->buf.work);
 	}
 }

@@ -473,7 +473,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	struct tty_ldisc *disc;
 
 	tty = port->itty;
-	if (WARN_RATELIMIT(tty == NULL, "tty is NULL"))
+	if (WARN_RATELIMIT(tty == NULL, "tty is NULL\n"))
 		return;
 
 	disc = tty_ldisc_ref(tty);
