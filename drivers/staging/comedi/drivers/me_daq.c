@@ -224,7 +224,6 @@ static const struct me_board me_boards[] = {
 struct me_private_data {
 	void __iomem *plx_regbase;	/* PLX configuration base address */
 	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
-	unsigned long plx_regbase_size;	/* Size of PLX configuration space */
 	unsigned long me_regbase_size;	/* Size of Meilhaus space */
 
 	unsigned short control_1;	/* Mirror of CONTROL_1 register */
@@ -639,7 +638,6 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	struct me_private_data *dev_private;
 	struct comedi_subdevice *s;
 	resource_size_t plx_regbase_tmp;
-	unsigned long plx_regbase_size_tmp;
 	resource_size_t me_regbase_tmp;
 	unsigned long me_regbase_size_tmp;
 	resource_size_t swap_regbase_tmp;
@@ -664,13 +662,12 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
+	dev->iobase = 1;	/* detach needs this */
 
 	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
 	plx_regbase_tmp = pci_resource_start(pcidev, 0);
-	plx_regbase_size_tmp = pci_resource_len(pcidev, 0);
-	dev_private->plx_regbase =
-	    ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
-	dev_private->plx_regbase_size = plx_regbase_size_tmp;
+	dev_private->plx_regbase = ioremap(plx_regbase_tmp,
+					   pci_resource_len(pcidev, 0));
 	if (!dev_private->plx_regbase) {
 		dev_err(dev->class_dev, "Failed to remap I/O memory\n");
 		return -ENOMEM;
@@ -791,7 +788,7 @@ static void me_detach(struct comedi_device *dev)
 			iounmap(dev_private->plx_regbase);
 	}
 	if (pcidev) {
-		if (dev_private->plx_regbase_size)
+		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 		pci_dev_put(pcidev);
 	}
