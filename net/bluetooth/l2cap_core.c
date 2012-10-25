@@ -4386,7 +4386,7 @@ static void l2cap_logical_finish_create(struct l2cap_chan *chan,
 	set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
 
 	if (test_bit(CONF_INPUT_DONE, &chan->conf_state)) {
-		int err = 0;
+		int err;
 
 		set_default_fcs(chan);
 
