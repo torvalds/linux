@@ -38,7 +38,8 @@ static __s32 lcd_spi_mosi;
 static __s32 lcd_spi_used;
 static __s32 lcd_spi_module = -1;
 
-static void check_spi_used_value()
+static void
+check_spi_used_value(void)
 {
 	if (SCRIPT_PARSER_OK !=
 	    OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_used",
@@ -264,7 +265,8 @@ __s32 LCD_user_defined_func_generic(__u32 sel, __u32 para1, __u32 para2,
 
 void LCD_get_panel_funs_generic(__lcd_panel_fun_t *fun)
 {
-	fun->cfg_panel_info = 0; /* lcd panel info defined in sys_config1.fex */
+	/* lcd panel info defined in sys_config1.fex */
+	fun->cfg_panel_info = NULL;
 	fun->cfg_open_flow = LCD_open_flow_generic;
 	fun->cfg_close_flow = LCD_close_flow_generic;
 	fun->lcd_user_defined_func = LCD_user_defined_func_generic;
