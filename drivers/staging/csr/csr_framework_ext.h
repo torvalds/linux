@@ -113,21 +113,6 @@ CsrResult CsrMutexCreate(CsrMutexHandle *mutexHandle);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMutexLock
- *
- *  DESCRIPTION
- *      Lock the mutex refered to by the provided handle.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS           in case of success
- *          CSR_FE_RESULT_INVALID_HANDLE    in case the mutexHandle is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrMutexLock(CsrMutexHandle *mutexHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMutexUnlock
  *
  *  DESCRIPTION

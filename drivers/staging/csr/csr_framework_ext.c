@@ -62,34 +62,6 @@ void CsrMutexDestroy(CsrMutexHandle *mutexHandle)
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMutexLock
- *
- *  DESCRIPTION
- *      Lock the mutex refered to by the provided handle.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS           in case of success
- *          CSR_FE_RESULT_INVALID_HANDLE    in case the mutexHandle is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrMutexLock(CsrMutexHandle *mutexHandle)
-{
-    if (mutexHandle == NULL)
-    {
-        return CSR_FE_RESULT_INVALID_POINTER;
-    }
-
-    if (down_interruptible(mutexHandle))
-    {
-        return CSR_FE_RESULT_INVALID_POINTER;
-    }
-
-    return CSR_RESULT_SUCCESS;
-}
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMutexUnlock
  *
  *  DESCRIPTION
