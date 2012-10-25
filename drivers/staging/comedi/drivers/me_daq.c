@@ -206,11 +206,6 @@ static const struct me_board me_boards[] = {
 	{
 	 .name = "me-2000i",
 	 .device_id = ME2000_DEVICE_ID,
-	 /* Analog Output */
-	 .ao_channel_nbr = 0,
-	 .ao_resolution = 0,
-	 .ao_resolution_mask = 0,
-	 .ao_range_list = NULL,
 	 .ai_channel_nbr = 16,
 	 /* Analog Input */
 	 .ai_resolution = 12,
