@@ -172,39 +172,34 @@ static const struct comedi_lrange me2600_ao_range = {
 	 }
 };
 
-/* Board specification structure */
 struct me_board {
-	const char *name;	/* driver name */
+	const char *name;
 	int device_id;
-	int ao_channel_nbr;	/* DA config */
-	int ao_resolution;
-	const struct comedi_lrange *ao_range_list;
-	int ai_channel_nbr;	/* AD config */
-	int ai_resolution;
-	const struct comedi_lrange *ai_range_list;
+	int ao_chans;
+	int ao_bits;
+	const struct comedi_lrange *ao_range;
+	int ai_chans;
+	int ai_bits;
+	const struct comedi_lrange *ai_range;
 };
 
 static const struct me_board me_boards[] = {
 	{
-	 .name = "me-2600i",
-	 .device_id = ME2600_DEVICE_ID,
-	 /* Analog Output */
-	 .ao_channel_nbr = 4,
-	 .ao_resolution = 12,
-	 .ao_range_list = &me2600_ao_range,
-	 .ai_channel_nbr = 16,
-	 /* Analog Input */
-	 .ai_resolution = 12,
-	 .ai_range_list = &me2600_ai_range,
-	 },
-	{
-	 .name = "me-2000i",
-	 .device_id = ME2000_DEVICE_ID,
-	 .ai_channel_nbr = 16,
-	 /* Analog Input */
-	 .ai_resolution = 12,
-	 .ai_range_list = &me2000_ai_range,
-	 }
+		.name		= "me-2600i",
+		.device_id	= ME2600_DEVICE_ID,
+		.ao_chans	= 4,
+		.ao_bits	= 12,
+		.ao_range	= &me2600_ao_range,
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.ai_range	= &me2600_ai_range,
+	}, {
+		.name		= "me-2000i",
+		.device_id	= ME2000_DEVICE_ID,
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.ai_range	= &me2000_ai_range,
+	}
 };
 
 /* Private data structure */
@@ -712,23 +707,23 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
-	s->n_chan = board->ai_channel_nbr;
-	s->maxdata = (1 << board->ai_resolution) - 1;
-	s->len_chanlist = board->ai_channel_nbr;
-	s->range_table = board->ai_range_list;
+	s->n_chan = board->ai_chans;
+	s->maxdata = (1 << board->ai_bits) - 1;
+	s->len_chanlist = board->ai_chans;
+	s->range_table = board->ai_range;
 	s->cancel = me_ai_cancel;
 	s->insn_read = me_ai_insn_read;
 	s->do_cmdtest = me_ai_do_cmd_test;
 	s->do_cmd = me_ai_do_cmd;
 
 	s = &dev->subdevices[1];
-	if (board->ao_channel_nbr) {
+	if (board->ao_chans) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
-		s->n_chan = board->ao_channel_nbr;
-		s->maxdata = (1 << board->ao_resolution) - 1;
-		s->len_chanlist = board->ao_channel_nbr;
-		s->range_table = board->ao_range_list;
+		s->n_chan = board->ao_chans;
+		s->maxdata = (1 << board->ao_bits) - 1;
+		s->len_chanlist = board->ao_chans;
+		s->range_table = board->ao_range;
 		s->insn_read = me_ao_insn_read;
 		s->insn_write = me_ao_insn_write;
 	} else {
