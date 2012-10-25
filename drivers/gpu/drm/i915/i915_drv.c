@@ -1132,6 +1132,13 @@ static bool IS_DISPLAYREG(u32 reg)
 	if (reg == GEN6_GDRST)
 		return false;
 
+	switch (reg) {
+	case GEN7_ROW_CHICKEN2:
+		return false;
+	default:
+		break;
+	}
+
 	return true;
 }
 
