@@ -60,6 +60,7 @@
 #define PCI_VENDOR_ID_KOLTER		0x1001
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_DT		0x1116
+#define PCI_VENDOR_ID_IOTECH		0x1616
 #define PCI_VENDOR_ID_CONTEC		0x1221
 #define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe
