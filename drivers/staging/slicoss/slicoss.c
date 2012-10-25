@@ -3657,8 +3657,11 @@ static u32 slic_card_locate(struct adapter *adapter)
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
 		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
-		if (!physcard)
+		if (!physcard) {
+			if (card_hostid == SLIC_HOSTID_DEFAULT)
+				kfree(card);
 			return -ENOMEM;
+		}
 
 		physcard->next = slic_global.phys_card;
 		slic_global.phys_card = physcard;
