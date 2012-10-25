@@ -3454,7 +3454,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct page *page = NULL;
 	spinlock_t *ptl;
-	int current_nid, target_nid;
+	int current_nid = -1;
+	int target_nid;
 
 	/*
 	* The "pte" at this point cannot be used safely without
@@ -3501,6 +3502,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		current_nid = target_nid;
 
 out:
+	task_numa_fault(current_nid, 1);
 	return 0;
 }
 
@@ -3537,6 +3539,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
 		pte_t pteval = *pte;
 		struct page *page;
+		int curr_nid;
 		if (!pte_present(pteval))
 			continue;
 		if (!pte_numa(pteval))
@@ -3554,6 +3557,15 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		page = vm_normal_page(vma, addr, pteval);
 		if (unlikely(!page))
 			continue;
+		/* only check non-shared pages */
+		if (unlikely(page_mapcount(page) != 1))
+			continue;
+		pte_unmap_unlock(pte, ptl);
+
+		curr_nid = page_to_nid(page);
+		task_numa_fault(curr_nid, 1);
+
+		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	}
 	pte_unmap_unlock(orig_pte, ptl);
 
