@@ -494,4 +494,52 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 	return 0;
 }
 
+int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 len, u32 size)
+{
+#define ATH_DUMP_BTCOEX(_s, _val)                                \
+	do {                                                     \
+		len += snprintf(buf + len, size - len,           \
+				"%20s : %10d\n", _s, (_val));    \
+	} while (0)
+
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_mci_profile *mci = &btcoex->mci;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	int i;
+
+	ATH_DUMP_BTCOEX("Total BT profiles", NUM_PROF(mci));
+	ATH_DUMP_BTCOEX("Number of MGMT", mci->num_mgmt);
+	ATH_DUMP_BTCOEX("Number of SCO", mci->num_sco);
+	ATH_DUMP_BTCOEX("Number of A2DP", mci->num_a2dp);
+	ATH_DUMP_BTCOEX("Number of HID", mci->num_hid);
+	ATH_DUMP_BTCOEX("Number of PAN", mci->num_pan);
+	ATH_DUMP_BTCOEX("Number of ACL", mci->num_other_acl);
+	ATH_DUMP_BTCOEX("Number of BDR", mci->num_bdr);
+	ATH_DUMP_BTCOEX("Aggr. Limit", mci->aggr_limit);
+	ATH_DUMP_BTCOEX("Stomp Type", btcoex->bt_stomp_type);
+	ATH_DUMP_BTCOEX("BTCoex Period (msec)", btcoex->btcoex_period);
+	ATH_DUMP_BTCOEX("Duty Cycle", btcoex->duty_cycle);
+	ATH_DUMP_BTCOEX("BT Wait time", btcoex->bt_wait_time);
+	ATH_DUMP_BTCOEX("Concurrent Tx", btcoex_hw->mci.concur_tx);
+	ATH_DUMP_BTCOEX("Concur RSSI count", btcoex->rssi_count);
+	len += snprintf(buf + len, size - len, "BT Weights: ");
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->bt_weight[i]);
+	len += snprintf(buf + len, size - len, "\n");
+	len += snprintf(buf + len, size - len, "WLAN Weights: ");
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->wlan_weight[i]);
+	len += snprintf(buf + len, size - len, "\n");
+	len += snprintf(buf + len, size - len, "Tx Priorities: ");
+	for (i = 0; i < ATH_BTCOEX_STOMP_MAX; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->tx_prio[i]);
+	len += snprintf(buf + len, size - len, "\n");
+#undef ATH_DUMP_BTCOEX
+
+	return len;
+}
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */

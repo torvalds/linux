@@ -1586,6 +1586,35 @@ static const struct file_operations fops_samps = {
 
 #endif
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	u32 len = 0, size = 1500;
+	char *buf;
+	size_t retval;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	len = ath9k_dump_btcoex(sc, buf, len, size);
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_btcoex = {
+	.read = read_file_btcoex,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+#endif
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1658,6 +1687,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
 	debugfs_create_file("diversity", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_ant_diversity);
-
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
+			    &fops_btcoex);
+#endif
 	return 0;
 }

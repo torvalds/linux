@@ -494,6 +494,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen);
 void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc);
+int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 len, u32 size);
 #else
 static inline int ath9k_init_btcoex(struct ath_softc *sc)
 {
@@ -519,6 +520,11 @@ static inline u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc,
 }
 static inline void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
+}
+static inline int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf,
+				    u32 len, u32 size)
+{
+	return 0;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
