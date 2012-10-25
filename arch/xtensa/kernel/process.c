@@ -45,6 +45,7 @@
 #include <asm/regs.h>
 
 extern void ret_from_fork(void);
+extern void ret_from_kernel_thread(void);
 
 struct task_struct *current_set[NR_CPUS] = {&init_task, };
 
@@ -158,18 +159,30 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 /*
  * Copy thread.
  *
+ * There are two modes in which this function is called:
+ * 1) Userspace thread creation,
+ *    regs != NULL, usp_thread_fn is userspace stack pointer.
+ *    It is expected to copy parent regs (in case CLONE_VM is not set
+ *    in the clone_flags) and set up passed usp in the childregs.
+ * 2) Kernel thread creation,
+ *    regs == NULL, usp_thread_fn is the function to run in the new thread
+ *    and thread_fn_arg is its parameter.
+ *    childregs are not used for the kernel threads.
+ *
  * The stack layout for the new thread looks like this:
  *
- *	+------------------------+ <- sp in childregs (= tos)
+ *	+------------------------+
  *	|       childregs        |
  *	+------------------------+ <- thread.sp = sp in dummy-frame
  *	|      dummy-frame       |    (saved in dummy-frame spill-area)
  *	+------------------------+
  *
- * We create a dummy frame to return to ret_from_fork:
- *   a0 points to ret_from_fork (simulating a call4)
+ * We create a dummy frame to return to either ret_from_fork or
+ *   ret_from_kernel_thread:
+ *   a0 points to ret_from_fork/ret_from_kernel_thread (simulating a call4)
  *   sp points to itself (thread.sp)
- *   a2, a3 are unused.
+ *   a2, a3 are unused for userspace threads,
+ *   a2 points to thread_fn, a3 holds thread_fn arg for kernel threads.
  *
  * Note: This is a pristine frame, so we don't need any spill region on top of
  *       childregs.
@@ -185,41 +198,37 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  * involved.  Much simpler to just not copy those live frames across.
  */
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused,
-                struct task_struct * p, struct pt_regs * regs)
+int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
+		unsigned long thread_fn_arg,
+		struct task_struct *p, struct pt_regs *unused)
 {
-	struct pt_regs *childregs;
-	unsigned long tos;
-	int user_mode = user_mode(regs);
+	struct pt_regs *childregs = task_pt_regs(p);
 
 #if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
 	struct thread_info *ti;
 #endif
 
-	/* Set up new TSS. */
-	tos = (unsigned long)task_stack_page(p) + THREAD_SIZE;
-	if (user_mode)
-		childregs = (struct pt_regs*)(tos - PT_USER_SIZE);
-	else
-		childregs = (struct pt_regs*)tos - 1;
-
-	/* This does not copy all the regs.  In a bout of brilliance or madness,
-	   ARs beyond a0-a15 exist past the end of the struct. */
-	*childregs = *regs;
-
 	/* Create a call4 dummy-frame: a0 = 0, a1 = childregs. */
 	*((int*)childregs - 3) = (unsigned long)childregs;
 	*((int*)childregs - 4) = 0;
 
-	childregs->areg[2] = 0;
-	p->set_child_tid = p->clear_child_tid = NULL;
-	p->thread.ra = MAKE_RA_FOR_CALL((unsigned long)ret_from_fork, 0x1);
 	p->thread.sp = (unsigned long)childregs;
 
-	if (user_mode(regs)) {
+	if (!(p->flags & PF_KTHREAD)) {
+		struct pt_regs *regs = current_pt_regs();
+		unsigned long usp = usp_thread_fn ?
+			usp_thread_fn : regs->areg[1];
 
+		p->thread.ra = MAKE_RA_FOR_CALL(
+				(unsigned long)ret_from_fork, 0x1);
+
+		/* This does not copy all the regs.
+		 * In a bout of brilliance or madness,
+		 * ARs beyond a0-a15 exist past the end of the struct.
+		 */
+		*childregs = *regs;
 		childregs->areg[1] = usp;
+		childregs->areg[2] = 0;
 
 		/* When sharing memory with the parent thread, the child
 		   usually starts on a pristine stack, so we have to reset
@@ -254,11 +263,19 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 // FIXME: we need to set THREADPTR in thread_info...
 		if (clone_flags & CLONE_SETTLS)
 			childregs->areg[2] = childregs->areg[6];
-
 	} else {
-		/* In kernel space, we start a new thread with a new stack. */
-		childregs->wmask = 1;
-		childregs->areg[1] = tos;
+		p->thread.ra = MAKE_RA_FOR_CALL(
+				(unsigned long)ret_from_kernel_thread, 1);
+
+		/* pass parameters to ret_from_kernel_thread:
+		 * a2 = thread_fn, a3 = thread_fn arg
+		 */
+		*((int *)childregs - 1) = thread_fn_arg;
+		*((int *)childregs - 2) = usp_thread_fn;
+
+		/* Childregs are only used when we're going to userspace
+		 * in which case start_thread will set them up.
+		 */
 	}
 
 #if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
@@ -354,8 +371,6 @@ long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
                   void __user *child_tid, long a5,
                   struct pt_regs *regs)
 {
-        if (!newsp)
-                newsp = regs->areg[1];
         return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }
 

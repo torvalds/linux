@@ -152,6 +152,7 @@ struct thread_struct {
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
+	memset(regs, 0, sizeof(*regs)); \
 	regs->pc = new_pc; \
 	regs->ps = USER_PS_VALUE; \
 	regs->areg[1] = new_sp; \
@@ -167,9 +168,6 @@ struct mm_struct;
 
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
-
-/* Create a kernel thread without removing it from tasklists */
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)	do { } while(0)
