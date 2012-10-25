@@ -66,6 +66,8 @@ struct devfreq_dev_status {
  *			explained above with "DEVFREQ_FLAG_*" macros.
  * @get_dev_status	The device should provide the current performance
  *			status to devfreq, which is used by governors.
+ * @get_cur_freq	The device should provide the current frequency
+ *			at which it is operating.
  * @exit		An optional callback that is called when devfreq
  *			is removing the devfreq object due to error or
  *			from devfreq_remove_device() call. If the user
@@ -79,6 +81,7 @@ struct devfreq_dev_profile {
 	int (*target)(struct device *dev, unsigned long *freq, u32 flags);
 	int (*get_dev_status)(struct device *dev,
 			      struct devfreq_dev_status *stat);
+	int (*get_cur_freq)(struct device *dev, unsigned long *freq);
 	void (*exit)(struct device *dev);
 };
 

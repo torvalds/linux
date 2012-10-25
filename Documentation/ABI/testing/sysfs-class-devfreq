@@ -19,7 +19,16 @@ Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
 		The /sys/class/devfreq/.../cur_freq shows the current
-		frequency of the corresponding devfreq object.
+		frequency of the corresponding devfreq object. Same as
+		target_freq when get_cur_freq() is not implemented by
+		devfreq driver.
+
+What:		/sys/class/devfreq/.../target_freq
+Date:		September 2012
+Contact:	Rajagopal Venkat <rajagopal.venkat@linaro.org>
+Description:
+		The /sys/class/devfreq/.../target_freq shows the next governor
+		predicted target frequency of the corresponding devfreq object.
 
 What:		/sys/class/devfreq/.../polling_interval
 Date:		September 2011
