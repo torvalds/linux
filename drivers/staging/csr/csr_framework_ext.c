@@ -82,7 +82,6 @@ CsrResult CsrMutexLock(CsrMutexHandle *mutexHandle)
 
     if (down_interruptible(mutexHandle))
     {
-        CsrPanic(CSR_TECH_FW, CSR_PANIC_FW_UNEXPECTED_VALUE, "CsrMutexLock Failed");
         return CSR_FE_RESULT_INVALID_POINTER;
     }
 
