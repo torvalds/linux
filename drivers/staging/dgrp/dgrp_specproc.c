@@ -629,8 +629,6 @@ static int info_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "version: %s\n", DIGI_VERSION);
 	seq_puts(m, "register_with_sysfs: 1\n");
-	seq_printf(m, "rawreadok: 0x%08x\t(%d)\n",
-		   dgrp_rawreadok, dgrp_rawreadok);
 	seq_printf(m, "pollrate: 0x%08x\t(%d)\n",
 		   dgrp_poll_tick, dgrp_poll_tick);
 
