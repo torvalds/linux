@@ -666,7 +666,7 @@ void __init plat_mem_setup(void)
 	cvmx_bootmem_lock();
 	while ((boot_mem_map.nr_map < BOOT_MEM_MAP_MAX)
 		&& (total < MAX_MEMORY)) {
-#if defined(CONFIG_64BIT) || defined(CONFIG_64BIT_PHYS_ADDR)
+#ifdef CONFIG_64BIT
 		memory = cvmx_bootmem_phy_alloc(mem_alloc_size,
 						__pa_symbol(&__init_end), -1,
 						0x100000,
