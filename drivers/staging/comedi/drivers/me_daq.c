@@ -126,20 +126,7 @@
 #define ME_COUNTER_STARTDATA_B		0x0022	/* - | W */
 #define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
-static const struct comedi_lrange me2000_ai_range = {
-	8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2.5),
-		UNI_RANGE(1.25)
-	}
-};
-
-static const struct comedi_lrange me2600_ai_range = {
+static const struct comedi_lrange me_ai_range = {
 	8, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -166,9 +153,6 @@ struct me_board {
 	int ao_chans;
 	int ao_bits;
 	const struct comedi_lrange *ao_range;
-	int ai_chans;
-	int ai_bits;
-	const struct comedi_lrange *ai_range;
 };
 
 static const struct me_board me_boards[] = {
@@ -178,15 +162,9 @@ static const struct me_board me_boards[] = {
 		.ao_chans	= 4,
 		.ao_bits	= 12,
 		.ao_range	= &me2600_ao_range,
-		.ai_chans	= 16,
-		.ai_bits	= 12,
-		.ai_range	= &me2600_ai_range,
 	}, {
 		.name		= "me-2000i",
 		.device_id	= ME2000_DEVICE_ID,
-		.ai_chans	= 16,
-		.ai_bits	= 12,
-		.ai_range	= &me2000_ai_range,
 	}
 };
 
@@ -646,10 +624,10 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON;
-	s->n_chan	= board->ai_chans;
-	s->maxdata	= (1 << board->ai_bits) - 1;
-	s->len_chanlist	= board->ai_chans;
-	s->range_table	= board->ai_range;
+	s->n_chan	= 16;
+	s->maxdata	= 0x0fff;
+	s->len_chanlist	= 16;
+	s->range_table	= &me_ai_range;
 	s->insn_read	= me_ai_insn_read;
 
 	s = &dev->subdevices[1];
