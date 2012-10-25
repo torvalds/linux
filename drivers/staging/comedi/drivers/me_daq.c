@@ -469,20 +469,19 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-/* Analog output readback */
 static int me_ao_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	struct me_private_data *dev_private = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
-	for (i = 0; i < insn->n; i++) {
-		data[i] =
-		    dev_private->ao_readback[CR_CHAN((&insn->chanspec)[i])];
-	}
+	for (i = 0; i < insn->n; i++)
+		data[i] = dev_private->ao_readback[chan];
 
-	return 1;
+	return insn->n;
 }
 
 /*
