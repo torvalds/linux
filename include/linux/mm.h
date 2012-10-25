@@ -1551,6 +1551,11 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
 }
 #endif
 
+#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
+void change_prot_numa(struct vm_area_struct *vma,
+			unsigned long start, unsigned long end);
+#endif
+
 struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
 int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			unsigned long pfn, unsigned long size, pgprot_t);
