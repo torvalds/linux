@@ -724,6 +724,26 @@ u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_phy_sw_chnl);
 
+static void _rtl92c_phy_sw_rf_setting(struct ieee80211_hw *hw, u8 channel)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
+	if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version)) {
+		if (channel == 6 && rtlphy->current_chan_bw ==
+		    HT_CHANNEL_WIDTH_20)
+			rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1, MASKDWORD,
+				      0x00255);
+		else{
+			u32 backupRF0x1A = (u32)rtl_get_rfreg(hw, RF90_PATH_A,
+					    RF_RX_G1, RFREG_OFFSET_MASK);
+			rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1, MASKDWORD,
+				      backupRF0x1A);
+		}
+	}
+}
+
 static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 					     u32 cmdtableidx, u32 cmdtablesz,
 					     enum swchnlcmd_id cmdid,
@@ -837,6 +857,7 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 					      currentcmd->para1,
 					      RFREG_OFFSET_MASK,
 					      rtlphy->rfreg_chnlval[rfpath]);
+			_rtl92c_phy_sw_rf_setting(hw, channel);
 			}
 			break;
 		default:
