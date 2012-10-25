@@ -1134,6 +1134,7 @@ static bool IS_DISPLAYREG(u32 reg)
 
 	switch (reg) {
 	case GEN7_ROW_CHICKEN2:
+	case GEN7_HALF_SLICE_CHICKEN1:
 		return false;
 	default:
 		break;
