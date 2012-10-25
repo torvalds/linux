@@ -182,7 +182,6 @@ struct me_board {
 	int ai_channel_nbr;	/* AD config */
 	int ai_resolution;
 	const struct comedi_lrange *ai_range_list;
-	int dio_channel_nbr;	/* DIO config */
 };
 
 static const struct me_board me_boards[] = {
@@ -197,7 +196,6 @@ static const struct me_board me_boards[] = {
 	 /* Analog Input */
 	 .ai_resolution = 12,
 	 .ai_range_list = &me2600_ai_range,
-	 .dio_channel_nbr = 32,
 	 },
 	{
 	 .name = "me-2000i",
@@ -206,7 +204,6 @@ static const struct me_board me_boards[] = {
 	 /* Analog Input */
 	 .ai_resolution = 12,
 	 .ai_range_list = &me2000_ai_range,
-	 .dio_channel_nbr = 32,
 	 }
 };
 
@@ -741,9 +738,9 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-	s->n_chan = board->dio_channel_nbr;
+	s->n_chan = 32;
 	s->maxdata = 1;
-	s->len_chanlist = board->dio_channel_nbr;
+	s->len_chanlist = 32;
 	s->range_table = &range_digital;
 	s->insn_bits = me_dio_insn_bits;
 	s->insn_config = me_dio_insn_config;
