@@ -1,3 +1,7 @@
+#ifndef CONFIG_ARCH_SUN5I
+#error IEP should only be used on sun5i
+#endif
+
 __u16 pwrsv_lgc_tab[128][256] =
 {
 //tab index : 128

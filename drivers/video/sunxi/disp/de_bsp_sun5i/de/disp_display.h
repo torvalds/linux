@@ -27,7 +27,7 @@
 #include "disp_layer.h"
 #include "disp_scaler.h"
 #include "disp_video.h"
-#include "../iep/disp_iep.h"
+#include "../../disp_iep.h"
 
 
 #define IMAGE_USED              0x00000004
