@@ -277,7 +277,6 @@ nv50_fb_dtor(struct nouveau_object *object)
 		__free_page(priv->r100c08_page);
 	}
 
-	nouveau_mm_fini(&priv->base.vram);
 	nouveau_fb_destroy(&priv->base);
 }
 
