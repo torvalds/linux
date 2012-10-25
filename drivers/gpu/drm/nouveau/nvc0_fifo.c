@@ -373,7 +373,8 @@ nvc0_fifo_isr_subfifo_intr(struct drm_device *dev, int unit)
 static void
 nvc0_fifo_isr(struct drm_device *dev)
 {
-	u32 stat = nv_rd32(dev, 0x002100);
+	u32 mask = nv_rd32(dev, 0x002140);
+	u32 stat = nv_rd32(dev, 0x002100) & mask;
 
 	if (stat & 0x00000100) {
 		NV_INFO(dev, "PFIFO: unknown status 0x00000100\n");

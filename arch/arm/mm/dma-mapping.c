@@ -346,6 +346,8 @@ static int __init atomic_pool_init(void)
 		       (unsigned)pool->size / 1024);
 		return 0;
 	}
+
+	kfree(pages);
 no_pages:
 	kfree(bitmap);
 no_bitmap:

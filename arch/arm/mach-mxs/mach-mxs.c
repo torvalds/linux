@@ -261,7 +261,7 @@ static void __init apx4devkit_init(void)
 	enable_clk_enet_out();
 
 	if (IS_BUILTIN(CONFIG_PHYLIB))
-		phy_register_fixup_for_uid(PHY_ID_KS8051, MICREL_PHY_ID_MASK,
+		phy_register_fixup_for_uid(PHY_ID_KSZ8051, MICREL_PHY_ID_MASK,
 					   apx4devkit_phy_fixup);
 
 	mxsfb_pdata.mode_list = apx4devkit_video_modes;
