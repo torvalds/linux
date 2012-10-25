@@ -47,6 +47,69 @@
 #include <linux/input/mt.h>
 #include <plat/board.h>
 #include <mach/iomux.h>
+#ifdef CONFIG_RK_CONFIG
+#include <mach/config.h>
+#endif
+#define TP_MODULE_NAME  GOODIX_I2C_NAME
+#ifdef CONFIG_RK_CONFIG
+
+enum {
+#if defined(RK2928_SDK_DEFAULT_CONFIG)
+        DEF_EN = 1,
+#else
+        DEF_EN = 0,
+#endif
+        DEF_IRQ = 0x008003c7,
+        DEF_RST = 0X000003c3,
+        DEF_I2C = 2, 
+        DEF_ADDR = 0x5d,
+        DEF_X_MAX = 800,
+        DEF_Y_MAX = 480,
+};
+static int en = DEF_EN;
+module_param(en, int, 0644);
+
+static int irq = DEF_IRQ;
+module_param(irq, int, 0644);
+static int rst =DEF_RST;
+module_param(rst, int, 0644);
+
+static int i2c = DEF_I2C;            // i2c channel
+module_param(i2c, int, 0644);
+static int addr = DEF_ADDR;           // i2c addr
+module_param(addr, int, 0644);
+static int x_max = DEF_X_MAX;
+module_param(x_max, int, 0644);
+static int y_max = DEF_Y_MAX;
+module_param(y_max, int, 0644);
+
+static int tp_hw_init(void)
+{
+        int ret = 0;
+
+        ret = gpio_request(get_port_config(irq).gpio, "tp_irq");
+        if(ret < 0){
+                printk("%s: gpio_request(irq gpio) failed\n", __func__);
+                return ret;
+        }
+
+        ret = port_output_init(rst, 1, "tp_rst");
+        if(ret < 0){
+                printk("%s: port(rst) output init faild\n", __func__);
+                return ret;
+        }
+        mdelay(10);
+        port_output_off(rst);
+        mdelay(10);
+        port_output_on(rst);
+        msleep(300);
+
+         return 0;
+}
+#include "rk_tp.c"
+#endif
+
+
 
 static struct workqueue_struct *goodix_wq;
 static const char *s3c_ts_name = "gt811_ts";
@@ -685,6 +748,7 @@ return:
 static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret = 0;
+	int val_ret = 1;
 	int retry=0;
         char test_data = 1;
 		char buf[2]={0};   //w++
@@ -721,7 +785,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
 	pdata = client->dev.platform_data;
-
+#ifdef CONFIG_RK_CONFIG
+        tp_hw_init();
+        reset_pin = get_port_config(rst).gpio;
+        client->irq = get_port_config(irq).gpio;
+#else
 	if (pdata != NULL)
 	{
 		reset_pin = pdata->rest_pin;
@@ -732,7 +800,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		}
 
 	}
-
+#endif
 /*	
 	gpio_free(SHUTDOWN_PORT);
 	ret = gpio_request(SHUTDOWN_PORT, "RESET_INT");
@@ -757,7 +825,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	msleep(100);
 	gpio_set_value(reset_pin,1);
 	msleep(100);
-	int val_ret = 1;
 	val_ret = gpio_get_value(reset_pin);
     ret = i2c_write_bytes(client, &test_data, 1);
 	//ret =i2c_master_reg8_recv(client, 0x00, buf, 2, 200*1000);//i2c_write_bytes(client, &test_data, 1);	//Test I2C connection.
@@ -855,8 +922,13 @@ err_gpio_request_failed:
 	
 	input_mt_init_slots(ts->input_dev, ts->max_touch_num);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+#ifdef CONFIG_RK_CONFIG
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, x_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, y_max, 0, 0);	
+#else
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);	
+#endif
 	
 	
 #endif	
@@ -1022,6 +1094,7 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ts->power) 
 	{	
 	}
+        return 0;
 }
 static int goodix_ts_resume(struct i2c_client *client)
 {
@@ -1744,7 +1817,7 @@ static u8  gt811_update_proc( u8 *nvram, u16 start_addr , u16 length, struct gt8
     u8 ret;
     u8 error = 0;
     //struct tpd_info_t tpd_info;
-    GT811_SET_INT_PIN( 0 );
+    GT811_SET_INT_PIN( ts->client->irq, 0 );
     msleep( 20 );
     ret = gt811_reset(ts);
     if ( ret < 0 )
@@ -1771,9 +1844,9 @@ static u8  gt811_update_proc( u8 *nvram, u16 start_addr , u16 length, struct gt8
     }
 
 end:
-    GT811_SET_INT_PIN( 1 );
+    GT811_SET_INT_PIN( ts->client->irq, 1 );
 //    gpio_free(INT_PORT);
-    gpio_pull_updown(&ts->client->irq, NULL);
+    gpio_pull_updown(ts->client->irq, 0);
     
     msleep( 500 );
     ret = gt811_reset2(ts);
@@ -1965,8 +2038,8 @@ exit_downloader:
    // mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ONE);
        // gpio_direction_output(INT_PORT,1);
        // msleep(1);
-    gpio_free(&ts->client->irq);
-    gpio_pull_updown(&ts->client->irq, NULL);
+    gpio_free(ts->client->irq);
+    gpio_pull_updown(ts->client->irq, 0);
     return err;
 
 }
@@ -2003,6 +2076,12 @@ static int __devinit goodix_ts_init(void)
 {
 	int ret;
 	
+#ifdef CONFIG_RK_CONFIG
+        ret = tp_board_init();
+
+        if(ret < 0)
+                return ret;
+#endif
 	goodix_wq = create_workqueue("goodix_wq");		//create a work queue and worker thread
 	if (!goodix_wq) {
 		printk(KERN_ALERT "creat workqueue faiked\n");

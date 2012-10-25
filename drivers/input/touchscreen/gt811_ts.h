@@ -236,7 +236,7 @@ struct tpd_firmware_info_t
 #define BIT_NVRAM_LOCK 2
 #define  REG_NVRCS_H 0X12
 #define  REG_NVRCS_L 0X01
-#define GT811_SET_INT_PIN( level ) gpio_direction_output(INT_PORT, level) //null macro now
+#define GT811_SET_INT_PIN( gpio, level ) gpio_direction_output(gpio, level) //null macro now
 #endif
 //*****************************End of Part III********************************
 /////////////////////////////// UPDATE STEP 7 END /////////////////////////////////////////////////////////////////

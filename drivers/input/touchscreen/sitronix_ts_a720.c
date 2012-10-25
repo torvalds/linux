@@ -1049,7 +1049,7 @@ static int sitronix_ts_probe(struct i2c_client *client, const struct i2c_device_
 	ts->max_touches = 5;
 
 	input_mt_init_slots(ts->input_dev, ts->max_touches);
-#ifdef CONFIG_RK_COFNIG
+#ifdef CONFIG_RK_CONFIG
 	input_set_abs_params(ts->input_dev,ABS_MT_POSITION_X, 0, x_max, 0, 0);
 	input_set_abs_params(ts->input_dev,ABS_MT_POSITION_Y, 0, y_max, 0, 0);
 #else
