@@ -4562,7 +4562,7 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 		break;
 	}
 
-	link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	if ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) ==
 	    (mask << RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT))
@@ -4577,7 +4577,7 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 			     R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE);
 	link_width_cntl |= mask;
 
-	WREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	WREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 
         /* some northbridges can renegotiate the link rather than requiring                                  
          * a complete re-config.                                                                             
@@ -4588,7 +4588,7 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
         else
 		link_width_cntl |= R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE;
 
-	WREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL, (link_width_cntl |
+	WREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL, (link_width_cntl |
 						       RADEON_PCIE_LC_RECONFIG_NOW));
 
         if (rdev->family >= CHIP_RV770)
@@ -4619,7 +4619,7 @@ int r600_get_pcie_lanes(struct radeon_device *rdev)
 
 	/* FIXME wait for idle */
 
-	link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
 	case RADEON_PCIE_LC_LINK_WIDTH_X0:
@@ -4669,7 +4669,7 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 	if (!(mask & DRM_PCIE_SPEED_50))
 		return;
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if (speed_cntl & LC_CURRENT_DATA_RATE) {
 		DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 		return;
@@ -4682,23 +4682,23 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 	    (rdev->family == CHIP_RV620) ||
 	    (rdev->family == CHIP_RV635)) {
 		/* advertise upconfig capability */
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		if (link_width_cntl & LC_RENEGOTIATION_SUPPORT) {
 			lanes = (link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT;
 			link_width_cntl &= ~(LC_LINK_WIDTH_MASK |
 					     LC_RECONFIG_ARC_MISSING_ESCAPE);
 			link_width_cntl |= lanes | LC_RECONFIG_NOW | LC_RENEGOTIATE_EN;
-			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 		} else {
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
-			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 		}
 	}
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) &&
 	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
 
@@ -4719,7 +4719,7 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 		speed_cntl &= ~LC_VOLTAGE_TIMER_SEL_MASK;
 		speed_cntl &= ~LC_FORCE_DIS_HW_SPEED_CHANGE;
 		speed_cntl |= LC_FORCE_EN_HW_SPEED_CHANGE;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 		tmp = RREG32(0x541c);
 		WREG32(0x541c, tmp | 0x8);
@@ -4733,27 +4733,27 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 		if ((rdev->family == CHIP_RV670) ||
 		    (rdev->family == CHIP_RV620) ||
 		    (rdev->family == CHIP_RV635)) {
-			training_cntl = RREG32_PCIE_P(PCIE_LC_TRAINING_CNTL);
+			training_cntl = RREG32_PCIE_PORT(PCIE_LC_TRAINING_CNTL);
 			training_cntl &= ~LC_POINT_7_PLUS_EN;
-			WREG32_PCIE_P(PCIE_LC_TRAINING_CNTL, training_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_TRAINING_CNTL, training_cntl);
 		} else {
-			speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+			speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 			speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
-			WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 		}
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_GEN2_EN_STRAP;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	} else {
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
 		if (1)
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
 		else
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 }
 
