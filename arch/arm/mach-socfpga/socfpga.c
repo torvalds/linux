@@ -30,15 +30,11 @@
 
 #define SOCFPGA_NR_IRQS		512
 
+void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
 void __iomem *clk_mgr_base_addr;
 unsigned long cpu1start_addr;
-
-#define SOCFPGA_SCU_VIRT_BASE	0xfffec000
-#define SOCFPGA_SDMMC_BASE	0xff704000
-
-void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 
 static const struct of_dev_auxdata socfpga_auxdata_lookup[] __initconst = {
 #ifdef CONFIG_MMC_DW

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 
 	__INIT
+	.arch   armv7-a
 
 ENTRY(secondary_trampoline)
 	movw	r2, #:lower16:cpu1start_addr

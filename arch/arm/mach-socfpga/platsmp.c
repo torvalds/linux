@@ -29,10 +29,6 @@
 
 #include "core.h"
 
-int pen_release = -1;
-
-static DEFINE_SPINLOCK(boot_lock);
-
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/*
@@ -79,8 +75,8 @@ static void __init socfpga_smp_init_cpus(void)
 
 	/* sanity check */
 	if (ncores > num_possible_cpus()) {
-		pr_warn("socfpga: no. of cores (%d) greater than configured"
-			"maximum of %d - clipping\n", ncores, num_possible_cpus());
+		pr_warn("# of cores (%d) greater maximum of %d\n",
+			ncores, num_possible_cpus());
 		ncores = num_possible_cpus();
 	}
 
