@@ -45,12 +45,14 @@
 #include <linux/completion.h>
 #include <asm/uaccess.h>
 #include <linux/input/mt.h>
+#include <plat/board.h>
 #include <mach/iomux.h>
 
 static struct workqueue_struct *goodix_wq;
 static const char *s3c_ts_name = "gt811_ts";
 //static struct point_queue finger_list;
 struct i2c_client * i2c_connect_client = NULL;
+int reset_pin = 0;
 //EXPORT_SYMBOL(i2c_connect_client);
 static struct proc_dir_entry *goodix_proc_entry;
 static short  goodix_read_version(struct gt811_ts_data *ts);	
@@ -470,12 +472,12 @@ COORDINATE_POLL:
 	{
 		if(point_data[3]==0xF0)
 		{
-			gpio_direction_output(SHUTDOWN_PORT, 0);
+			gpio_direction_output(reset_pin, 0);
 			msleep(1);
-		//	gpio_direction_input(SHUTDOWN_PORT);
-            gpio_set_value(SHUTDOWN_PORT,0);
+		//	gpio_direction_input(reset_pin);
+            gpio_set_value(reset_pin,0);
             msleep(100);
-            gpio_set_value(SHUTDOWN_PORT,1);
+            gpio_set_value(reset_pin,1);
             msleep(100);
 
 			goodix_init_panel(ts);
@@ -654,11 +656,11 @@ static int goodix_ts_power(struct gt811_ts_data * ts, int on)
 			return ret;
 			
 		case 1:
-			gpio_direction_output(SHUTDOWN_PORT,0);
+			gpio_direction_output(reset_pin,0);
 			msleep(1);
-	    gpio_set_value(SHUTDOWN_PORT,0);
+	    gpio_set_value(reset_pin,0);
 	    msleep(100);
-	    gpio_set_value(SHUTDOWN_PORT,1);
+	    gpio_set_value(reset_pin,1);
 	    msleep(100);
 			ret = 0;
 			return ret;
@@ -690,7 +692,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	const char irq_table[2] = {IRQF_TRIGGER_FALLING,IRQF_TRIGGER_RISING};
 	struct gt811_ts_data *ts;
  //   struct gt811_platform_data *811data = client->dev.platform_data;
-	struct gt811_platform_data *pdata;
+	struct goodix_platform_data *pdata;
 	dev_info(&client->dev,"Install gt811 driver.\n");
 	dev_info(&client->dev,"Driver Release Date:2012-02-08\n");	
 
@@ -716,7 +718,22 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 
 	i2c_connect_client = client;
-	
+	ts->client = client;
+	i2c_set_clientdata(client, ts);
+	pdata = client->dev.platform_data;
+
+	if (pdata != NULL)
+	{
+		reset_pin = pdata->rest_pin;
+		
+		if (pdata->init_platform_hw)
+		{
+			pdata->init_platform_hw();
+		}
+
+	}
+
+/*	
 	gpio_free(SHUTDOWN_PORT);
 	ret = gpio_request(SHUTDOWN_PORT, "RESET_INT");
 	if (ret < 0)
@@ -727,21 +744,21 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	
 	rk29_mux_api_set(GPIO0D3_PWM_1_NAME,GPIO0D_GPIO0D3);
 	 gpio_pull_updown(SHUTDOWN_PORT, 1);		//set GPIO pull-up
-	
+*/	
 	for(retry=0;retry <= 10; retry++)
 	{
-	gpio_direction_output(SHUTDOWN_PORT,0);
+	gpio_direction_output(reset_pin,0);
 	msleep(1);
-	//		gpio_direction_input(SHUTDOWN_PORT);//setinput means not ack so set the reset high
+	//		gpio_direction_input(reset_pin);//setinput means not ack so set the reset high
 	//		msleep(100);
-	gpio_set_value(SHUTDOWN_PORT,1);
+	gpio_set_value(reset_pin,1);
 	msleep(100);
-	gpio_set_value(SHUTDOWN_PORT,0);
+	gpio_set_value(reset_pin,0);
 	msleep(100);
-	gpio_set_value(SHUTDOWN_PORT,1);
+	gpio_set_value(reset_pin,1);
 	msleep(100);
 	int val_ret = 1;
-	val_ret = gpio_get_value(SHUTDOWN_PORT);
+	val_ret = gpio_get_value(reset_pin);
     ret = i2c_write_bytes(client, &test_data, 1);
 	//ret =i2c_master_reg8_recv(client, 0x00, buf, 2, 200*1000);//i2c_write_bytes(client, &test_data, 1);	//Test I2C connection.
 	if (ret == 1)
@@ -756,9 +773,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	}	
 
 	INIT_WORK(&ts->work, goodix_ts_work_func);		//init work_struct
-	ts->client = client;
-	i2c_set_clientdata(client, ts);
-	pdata = client->dev.platform_data;
+
 /////////////////////////////// UPDATE STEP 1 START/////////////////////////////////////////////////////////////////
 #ifdef AUTO_UPDATE_GT811		//modify by andrew
 	msleep(20);
@@ -772,6 +787,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
   }
 #endif
 ///////////////////////////////UPDATE STEP 1 END////////////////////////////////////////////////////////////////      
+/*
 #ifdef INT_PORT	
 	client->irq=TS_INT;		//If not defined in client
 	if (client->irq)
@@ -793,7 +809,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	#endif	
 	}
 #endif	
-
+*/
 err_gpio_request_failed:
 	for(retry=0; retry<3; retry++)
 	{
@@ -860,14 +876,14 @@ err_gpio_request_failed:
 	}
 	ts->bad_data = 0;
 
-#ifdef INT_PORT		
-	ret  = request_irq(TS_INT, goodix_ts_irq_handler ,irq_table[ts->int_trigger_type],
+#ifdef INT_PORT	
+	ret  = request_irq(gpio_to_irq(client->irq), goodix_ts_irq_handler ,irq_table[ts->int_trigger_type],
 			client->name, ts);
 	if (ret != 0)
 	{
 		dev_err(&client->dev,"Cannot allocate ts INT!ERRNO:%d\n", ret);
-		gpio_direction_input(INT_PORT);
-		gpio_free(INT_PORT);
+		gpio_direction_input(client->irq);
+		gpio_free(client->irq);
 		goto err_init_godix_ts;
 	}
 	else 
@@ -878,7 +894,7 @@ err_gpio_request_failed:
 	//	disable_irq(client->irq);
 	#endif
 		ts->use_irq = 1;
-		dev_dbg(&client->dev,"Reques EIRQ %d succesd on GPIO:%d\n",TS_INT,INT_PORT);
+		dev_dbg(&client->dev,"Reques EIRQ %d succesd on GPIO:%d\n",client->irq,client->irq);
 	}	
 #endif	
 
@@ -934,10 +950,10 @@ err_init_godix_ts:
 	if(ts->use_irq)
 	{
 		ts->use_irq = 0;
-		free_irq(client->irq,ts);
+		free_irq(gpio_to_irq(client->irq),ts);
 	#ifdef INT_PORT	
-		gpio_direction_input(INT_PORT);
-		gpio_free(INT_PORT);
+		gpio_direction_input(client->irq);
+		gpio_free(client->irq);
 	#endif	
 	}
 	else 
@@ -949,7 +965,7 @@ err_input_register_device_failed:
 err_input_dev_alloc_failed:
 	i2c_set_clientdata(client, NULL);
 err_gpio_request:
-	gpio_free(SHUTDOWN_PORT);
+	gpio_free(reset_pin);
 err_i2c_failed:	
 	kfree(ts);	
 err_alloc_data_failed:
@@ -982,10 +998,10 @@ static int goodix_ts_remove(struct i2c_client *client)
 	if (ts && ts->use_irq) 
 	{
 	#ifdef INT_PORT
-		gpio_direction_input(INT_PORT);
-		gpio_free(INT_PORT);
+		gpio_direction_input(client->irq);
+		gpio_free(client->irq);
 	#endif	
-		free_irq(client->irq, ts);
+		free_irq(gpio_to_irq(client->irq), ts);
 	}	
 	else if(ts)
 		hrtimer_cancel(&ts->timer);
@@ -1002,7 +1018,7 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
 	struct gt811_ts_data *ts = i2c_get_clientdata(client);
-	disable_irq(client->irq);
+	disable_irq(gpio_to_irq(client->irq));
 	if (ts->power) 
 	{	
 	}
@@ -1018,7 +1034,7 @@ static int goodix_ts_resume(struct i2c_client *client)
 		if (ret < 0)
 		printk(KERN_ERR "goodix_ts_resume power on failed\n");
 	}
- 	enable_irq(client->irq);
+ 	enable_irq(gpio_to_irq(client->irq));
 	return 0;
 }
 
@@ -1159,9 +1175,9 @@ static int goodix_update_write(struct file *filp, const char __user *buff, unsig
              
  //       i2c_pre_cmd(ts);
 	
-	gpio_direction_output(SHUTDOWN_PORT, 0);
+	gpio_direction_output(reset_pin, 0);
         msleep(5);
-        gpio_direction_input(SHUTDOWN_PORT);
+        gpio_direction_input(reset_pin);
 	msleep(20);
 	for(retry=0; retry<3; retry++)
 	{
@@ -1469,9 +1485,9 @@ static  int gt811_reset( struct gt811_ts_data *ts )
     unsigned char inbuf[3] = {0,0xff,0};
     //outbuf[1] = 1;
 
-    gpio_direction_output(SHUTDOWN_PORT,0);
+    gpio_direction_output(reset_pin,0);
     msleep(20);
-    gpio_direction_input(SHUTDOWN_PORT);
+    gpio_direction_input(reset_pin);
     msleep(100);
     for(retry=0;retry < 80; retry++)
     {
@@ -1492,9 +1508,9 @@ static  int gt811_reset( struct gt811_ts_data *ts )
 	}
 	else
 	{
-		gpio_direction_output(SHUTDOWN_PORT,0);
+		gpio_direction_output(reset_pin,0);
 		msleep(20);
-		gpio_direction_input(SHUTDOWN_PORT);
+		gpio_direction_input(reset_pin);
 		msleep(20);
 		dev_info(&ts->client->dev, "i2c address failed\n");
 	}	
@@ -1514,9 +1530,9 @@ static  int gt811_reset2( struct gt811_ts_data *ts )
     unsigned char inbuf[3] = {0,0xff,0};
     //outbuf[1] = 1;
 
-    gpio_direction_output(SHUTDOWN_PORT,0);
+    gpio_direction_output(reset_pin,0);
     msleep(20);
-    gpio_direction_input(SHUTDOWN_PORT);
+    gpio_direction_input(reset_pin);
     msleep(100);
     for(retry=0;retry < 80; retry++)
     {
@@ -1757,7 +1773,7 @@ static u8  gt811_update_proc( u8 *nvram, u16 start_addr , u16 length, struct gt8
 end:
     GT811_SET_INT_PIN( 1 );
 //    gpio_free(INT_PORT);
-    gpio_pull_updown(INT_PORT, NULL);
+    gpio_pull_updown(&ts->client->irq, NULL);
     
     msleep( 500 );
     ret = gt811_reset2(ts);
@@ -1949,8 +1965,8 @@ exit_downloader:
    // mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ONE);
        // gpio_direction_output(INT_PORT,1);
        // msleep(1);
-    gpio_free(INT_PORT);
-    gpio_pull_updown(INT_PORT, NULL);
+    gpio_free(&ts->client->irq);
+    gpio_pull_updown(&ts->client->irq, NULL);
     return err;
 
 }

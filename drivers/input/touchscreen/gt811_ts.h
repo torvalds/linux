@@ -36,16 +36,20 @@
 //#define STOP_IRQ_TYPE                     // if define then   no stop irq in irq_handle   kuuga add 1202S
 #define REFRESH 0     //0~0x64   Scan rate = 10000/(100+REFRESH)//define resolution of the LCD
 
+#if 0
 #define SHUTDOWN_PORT 	     RK2928_PIN3_PC3 
-#define INT_PORT 	         RK2928_PIN3_PC7  
+#endif
 
+#define INT_PORT 	           
 
+#if 0
 #ifdef INT_PORT
 	#define TS_INT 		        gpio_to_irq(INT_PORT)			//Interrupt Number,EINT18(119)
 //	#define INT_CFG    	      S3C_GPIO_SFN(3) 					//IO configer as EINT
 #else
 	#define TS_INT	0
 #endif	
+#endif
 
 /////////////////////////////// UPDATE STEP 5 START /////////////////////////////////////////////////////////////////
 #define TPD_CHIP_VERSION_C_FIRMWARE_BASE 0x5A

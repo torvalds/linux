@@ -344,7 +344,7 @@ int gt811_init_platform_hw(void)
       printk("gt811_init_platform_hw gpio_request error\n");
       return -EIO;
     }
-    //gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
     msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
@@ -358,6 +358,7 @@ int gt811_init_platform_hw(void)
 
 static struct goodix_platform_data gt811_info = {
   .model= 811,
+  .rest_pin = TOUCH_RESET_PIN, 
   .init_platform_hw= gt811_init_platform_hw,
 
 };
