@@ -819,6 +819,8 @@ static void cdc_ncm_txpath_bh(unsigned long param)
 		netif_tx_lock_bh(ctx->netdev);
 		usbnet_start_xmit(NULL, ctx->netdev);
 		netif_tx_unlock_bh(ctx->netdev);
+	} else {
+		spin_unlock_bh(&ctx->mtx);
 	}
 }
 
