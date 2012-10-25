@@ -3212,6 +3212,9 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
+	} else if (property->flags & DRM_MODE_PROP_BLOB) {
+		/* Only the driver knows */
+		return true;
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
