@@ -344,6 +344,17 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 	return may_access(parent, ex);
 }
 
+/**
+ * may_allow_all - checks if it's possible to change the behavior to
+ *		   allow based on parent's rules.
+ * @parent: device cgroup's parent
+ * returns: != 0 in case it's allowed, 0 otherwise
+ */
+static inline int may_allow_all(struct dev_cgroup *parent)
+{
+	return parent->behavior == DEVCG_DEFAULT_ALLOW;
+}
+
 /*
  * Modify the exception list using allow/deny rules.
  * CAP_SYS_ADMIN is needed for this.  It's at least separate from CAP_MKNOD
@@ -364,6 +375,8 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
 	int count, rc;
 	struct dev_exception_item ex;
+	struct cgroup *p = devcgroup->css.cgroup;
+	struct dev_cgroup *parent = cgroup_to_devcgroup(p->parent);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -375,9 +388,13 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	case 'a':
 		switch (filetype) {
 		case DEVCG_ALLOW:
-			if (!parent_has_perm(devcgroup, &ex))
+			if (!may_allow_all(parent))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
+			rc = dev_exceptions_copy(&devcgroup->exceptions,
+						 &parent->exceptions);
+			if (rc)
+				return rc;
 			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
 			break;
 		case DEVCG_DENY:
