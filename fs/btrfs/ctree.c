@@ -1241,6 +1241,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 {
 	struct tree_mod_elem *tm;
 	struct extent_buffer *eb;
+	struct extent_buffer *old;
 	struct tree_mod_root *old_root = NULL;
 	u64 old_generation = 0;
 	u64 logical;
@@ -1264,13 +1265,14 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		btrfs_tree_read_unlock(root->node);
 		free_extent_buffer(root->node);
 		blocksize = btrfs_level_size(root, old_root->level);
-		eb = read_tree_block(root, logical, blocksize, 0);
-		if (!eb) {
+		old = read_tree_block(root, logical, blocksize, 0);
+		if (!old) {
 			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
 				logical);
 			WARN_ON(1);
 		} else {
-			eb = btrfs_clone_extent_buffer(eb);
+			eb = btrfs_clone_extent_buffer(old);
+			free_extent_buffer(old);
 		}
 	} else if (old_root) {
 		btrfs_tree_read_unlock(root->node);
