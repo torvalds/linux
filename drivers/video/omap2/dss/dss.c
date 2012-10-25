@@ -805,10 +805,10 @@ static int __init dss_init_features(struct device *dev)
 
 	if (cpu_is_omap24xx())
 		src = &omap24xx_dss_feats;
-	else if (cpu_is_omap34xx())
-		src = &omap34xx_dss_feats;
 	else if (cpu_is_omap3630())
 		src = &omap3630_dss_feats;
+	else if (cpu_is_omap34xx())
+		src = &omap34xx_dss_feats;
 	else if (cpu_is_omap44xx())
 		src = &omap44xx_dss_feats;
 	else if (soc_is_omap54xx())
