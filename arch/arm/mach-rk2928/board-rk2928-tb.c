@@ -843,8 +843,81 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #elif defined(CONFIG_MACH_RK2926_TB)
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB1
 #endif
+#define PMU_POWER_SLEEP RK2928_PIN3_PD2
+
+static struct pmu_info  tps65910_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vdd2",    //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vio",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	
+};
+static  struct pmu_info  tps65910_ldo_info[] = {
+	#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
+	{
+		.name          = "vpll",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "vdac",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	#else
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1500000,
+		.max_uv         = 1500000,
+	},
+
+	{
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "vaux2",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vaux33",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vmmc",   //
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	#endif
+ };
+
 #include "board-rk2928-sdk-tps65910.c"
 #endif
+
 static struct i2c_board_info __initdata i2c1_info[] = {
 
 #if defined (CONFIG_MFD_TPS65910)

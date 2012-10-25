@@ -9,18 +9,6 @@
 
 #ifdef CONFIG_MFD_TPS65910
 
-#ifndef CONFIG_RK_CONFIG
-
-#if defined(CONFIG_MACH_RK2928_SDK)
-#define PMU_POWER_SLEEP RK2928_PIN0_PD0	
-#elif defined(CONFIG_MACH_RK2928_TB)
-#define PMU_POWER_SLEEP RK2928_PIN3_PD2
-#else
-#define PMU_POWER_SLEEP RK2928_PIN1_PA1
-#endif
-
-#endif
-
 #define GPIO_SWPORTA_DR  0x0000
 #define GPIO_SWPORTA_DDR 0x0004
 struct sram_gpio_data {
@@ -284,6 +272,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
+	int i = 0;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
 	g_pmic_type = PMIC_TYPE_TPS65910;
@@ -292,92 +281,25 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	#ifdef CONFIG_RK30_PWM_REGULATOR
 	platform_device_register(&pwm_regulator_device[0]);
 	#endif
-	
-	dcdc = regulator_get(NULL, "vio");	//vcc_io
-	regulator_set_voltage(dcdc, 3300000, 3300000);
-	regulator_enable(dcdc);
-	printk("%s set vio vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
-	ldo = regulator_get(NULL, "vpll");	// vcc25
-	regulator_set_voltage(ldo, 2500000, 2500000);
-	regulator_enable(ldo);
-	printk("%s set vpll vcc25=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-#endif
-	ldo = regulator_get(NULL, "vdig2");	// vdd12
-	regulator_set_voltage(ldo, 1200000, 1200000);
-	regulator_enable(ldo);
-	printk("%s set vdig2 vdd12=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
 
-	ldo = regulator_get(NULL, "vaux33");	 //vcc_tp
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_enable(ldo);
-	printk("%s set vaux33 vcc_tp=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-	
-	dcdc = regulator_get(NULL, "vdd_cpu");	//vdd_cpu
-	regulator_set_voltage(dcdc, 1200000, 1200000);
+	for(i = 0; i < ARRAY_SIZE(tps65910_dcdc_info); i++)
+	{
+	dcdc =regulator_get(NULL, tps65910_dcdc_info[i].name);
+	regulator_set_voltage(dcdc, tps65910_dcdc_info[i].min_uv, tps65910_dcdc_info[i].max_uv);
 	regulator_enable(dcdc);
-	printk("%s set vdd1 vdd_cpu=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
+	}
 	
-	dcdc = regulator_get(NULL, "vdd2");	//vcc_ddr 
-	regulator_set_voltage(dcdc, 1200000, 1200000);	// 1.5*4/5 = 1.2 and Vout=1.5v
-	regulator_enable(dcdc);
-	printk("%s set vdd2 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-	
-	ldo = regulator_get(NULL, "vdig1");	//vcc18_cif
-#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
-	regulator_set_voltage(ldo, 1800000, 1800000);
-#else
-	regulator_set_voltage(ldo, 1500000, 1500000);
-#endif
+	for(i = 0; i < ARRAY_SIZE(tps65910_ldo_info); i++)
+	{
+	ldo =regulator_get(NULL, tps65910_ldo_info[i].name);
+	regulator_set_voltage(ldo, tps65910_ldo_info[i].min_uv, tps65910_ldo_info[i].max_uv);
 	regulator_enable(ldo);
-	printk("%s set vdig1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	//printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(ldo));
 	regulator_put(ldo);
-	udelay(100);
-	
-	dcdc = regulator_get(NULL, "vaux1"); //vcc28_cif
-	regulator_set_voltage(dcdc,2800000,2800000);
-	regulator_enable(dcdc); 
-	printk("%s set vaux1 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "vaux2");	//vcca33
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_enable(ldo);
-	printk("%s set vaux2 vcca33=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
-	ldo = regulator_get(NULL, "vdac"); // vccio_wl
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_enable(ldo); 
-	printk("%s set vdac vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-#endif
-	ldo = regulator_get(NULL, "vmmc");  //vccio_wl
-	regulator_set_voltage(ldo,3300000,3300000);
-	regulator_enable(ldo); 
-	printk("%s set vmmc vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
-#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
-        //do not disable vccio wl
-#else
-	regulator_disable(ldo); 
-#endif
-	regulator_put(ldo);
-	udelay(100);
+	}
 
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	

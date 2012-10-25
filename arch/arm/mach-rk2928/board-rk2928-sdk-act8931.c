@@ -9,16 +9,6 @@
 
 #ifdef CONFIG_REGULATOR_ACT8931
 
-#ifndef CONFIG_RK_CONFIG
-
-#if defined(CONFIG_MACH_RK2928_SDK)
-#define ACT8931_CHGSEL_PIN RK2928_PIN0_PD0
-#else
-#define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
-#endif
-
-#endif
-
 #define ACT8931_CHGSEL_VALUE GPIO_HIGH /* Declined to 20% current */
 
 extern int platform_device_register(struct platform_device *pdev);
@@ -27,7 +17,7 @@ static int act8931_set_init(struct act8931 *act8931)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
-	int ret;
+	int i = 0;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
 	g_pmic_type = PMIC_TYPE_ACT8931;
@@ -37,67 +27,24 @@ static int act8931_set_init(struct act8931 *act8931)
 	platform_device_register(&pwm_regulator_device[0]);
 	#endif
 	
-	ldo = regulator_get(NULL, "act_ldo1");	//vcc28_cif
-	regulator_set_voltage(ldo, 2800000, 2800000);
-	regulator_enable(ldo);
-	printk("%s set ldo1 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "act_ldo2");	// vcc18_cif
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_enable(ldo);
-	printk("%s set ldo2 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "act_ldo3");	// vcca_30
-	regulator_set_voltage(ldo, 3000000, 3000000);
-	regulator_enable(ldo);
-	printk("%s set ldo3 vcca_30=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "act_ldo4");	 //vcc_wl
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_enable(ldo);
-	printk("%s set ldo4 vcc_lcd=%dmV end\n", __func__, regulator_get_voltage(ldo));
-#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
-        //do not disable vccio wl
-#else	
-        regulator_disable(ldo);
-#endif
-	regulator_put(ldo);
-	udelay(100);
-	
-	dcdc = regulator_get(NULL, "act_dcdc1");	//vcc_io
-	regulator_set_voltage(dcdc, 3200000, 3200000);
+	for(i = 0; i < ARRAY_SIZE(act8931_dcdc_info); i++)
+	{
+	dcdc =regulator_get(NULL, act8931_dcdc_info[i].name);
+	regulator_set_voltage(dcdc, act8931_dcdc_info[i].min_uv, act8931_dcdc_info[i].max_uv);
 	regulator_enable(dcdc);
-	printk("%s set dcdc1 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	printk("%s  %s =%dmV end\n", __func__,act8931_dcdc_info[i].name, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
+	}
 	
-	dcdc = regulator_get(NULL, "act_dcdc2");	//vcc_ddr 
-	regulator_set_voltage(dcdc, 1500000, 1500000);	// 1.5*4/5 = 1.2 and Vout=1.5v
-	regulator_enable(dcdc);
-	printk("%s set dcdc2 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-	
-	dcdc = regulator_get(NULL, "vdd_cpu");	//vdd_arm
-	regulator_set_voltage(dcdc, 1200000, 1200000);
-	regulator_enable(dcdc);
-	printk("%s set dcdc3 vdd_arm=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-#ifdef CONFIG_RK_CONFIG
-        ret = port_output_init(chg_sel, 1, "chg_sel");
-#else
-	ret = gpio_request(ACT8931_CHGSEL_PIN, "ACT8931_CHGSEL");
-	if (ret != 0)
-		gpio_free(ACT8931_CHGSEL_PIN);
-	gpio_direction_output(ACT8931_CHGSEL_PIN, ACT8931_CHGSEL_VALUE);
-#endif
+	for(i = 0; i < ARRAY_SIZE(act8931_ldo_info); i++)
+	{
+	ldo =regulator_get(NULL, act8931_ldo_info[i].name);
+	regulator_set_voltage(ldo, act8931_ldo_info[i].min_uv, act8931_ldo_info[i].max_uv);
+	regulator_enable(ldo);
+	//printk("%s  %s =%dmV end\n", __func__,act8931_ldo_info[i].name, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+	}
 
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	

@@ -653,10 +653,129 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_I2C0_RK30
 #ifdef CONFIG_MFD_TPS65910
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB2
+#define PMU_POWER_SLEEP RK2928_PIN1_PA1
+
+static struct pmu_info  tps65910_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vdd2",    //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vio",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	
+};
+static  struct pmu_info  tps65910_ldo_info[] = {
+	#if defined(CONFIG_MACH_RK2928_TB) || defined(CONFIG_MACH_RK2926_TB)
+	{
+		.name          = "vpll",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "vdac",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	#else
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1500000,
+		.max_uv         = 1500000,
+	},
+
+	{
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "vaux2",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vaux33",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vmmc",   //
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	#endif
+ };
+
 #include "board-rk2928-sdk-tps65910.c"
 #endif
+
 #ifdef CONFIG_REGULATOR_ACT8931
 #define ACT8931_HOST_IRQ		RK2928_PIN1_PB1
+#if defined(CONFIG_MACH_RK2928_SDK)
+#define ACT8931_CHGSEL_PIN RK2928_PIN0_PD0
+#else
+#define ACT8931_CHGSEL_PIN RK2928_PIN1_PA1
+#endif
+
+static struct pmu_info  act8931_dcdc_info[] = {
+	{
+		.name          = "act_dcdc1",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_dcdc2",    //ddr
+		.min_uv          = 1500000,
+		.max_uv         = 1500000,
+	},
+	{
+		.name          = "vdd_cpu",   //vdd_arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	
+};
+static  struct pmu_info  act8931_ldo_info[] = {
+	{
+		.name          = "act_ldo1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "act_ldo2",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo3",    //vcca30
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+	},
+	{
+		.name          = "act_ldo4",    //vcc_wl
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+};
 #include "board-rk2928-sdk-act8931.c"
 #endif
 
