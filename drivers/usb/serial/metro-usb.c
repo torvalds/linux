@@ -179,16 +179,13 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dev_dbg(&port->dev, "%s\n", __func__);
 
-	if (port->serial->dev) {
-		/* Shutdown any interrupt in urbs. */
-		if (port->interrupt_in_urb) {
-			usb_unlink_urb(port->interrupt_in_urb);
-			usb_kill_urb(port->interrupt_in_urb);
-		}
+	usb_unlink_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
-		/* Send deactivate cmd to device */
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected)
 		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
-	}
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
