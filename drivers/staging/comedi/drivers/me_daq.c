@@ -1,47 +1,38 @@
 /*
-
-   comedi/drivers/me_daq.c
-
-   Hardware driver for Meilhaus data acquisition cards:
-
-     ME-2000i, ME-2600i, ME-3000vm1
-
-   Copyright (C) 2002 Michael Hillmann <hillmann@syscongroup.de>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * comedi/drivers/me_daq.c
+ * Hardware driver for Meilhaus data acquisition cards:
+ *   ME-2000i, ME-2600i, ME-3000vm1
+ *
+ * Copyright (C) 2002 Michael Hillmann <hillmann@syscongroup.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 /*
-Driver: me_daq
-Description: Meilhaus PCI data acquisition cards
-Author: Michael Hillmann <hillmann@syscongroup.de>
-Devices: [Meilhaus] ME-2600i (me_daq), ME-2000i
-Status: experimental
-
-Supports:
-
-    Analog Output
-
-Configuration options:
-
-    [0] - PCI bus number (optional)
-    [1] - PCI slot number (optional)
-
-    If bus/slot is not specified, the first available PCI
-    device will be used.
-*/
+ * Driver: me_daq
+ * Description: Meilhaus PCI data acquisition cards
+ * Devices: (Meilhaus) ME-2600i [me-2600i]
+ *          (Meilhaus) ME-2000i [me-2000i]
+ * Author: Michael Hillmann <hillmann@syscongroup.de>
+ * Status: experimental
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * Supports:
+ *    Analog Input, Analog Output, Digital I/O
+ */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
