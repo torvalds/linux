@@ -1126,10 +1126,15 @@ int __init edac_mc_sysfs_init(void)
 	edac_subsys = edac_get_sysfs_subsys();
 	if (edac_subsys == NULL) {
 		edac_dbg(1, "no edac_subsys\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
+	if (!mci_pdev) {
+		err = -ENOMEM;
+		goto out_put_sysfs;
+	}
 
 	mci_pdev->bus = edac_subsys;
 	mci_pdev->type = &mc_attr_type;
@@ -1138,11 +1143,18 @@ int __init edac_mc_sysfs_init(void)
 
 	err = device_add(mci_pdev);
 	if (err < 0)
-		return err;
+		goto out_dev_free;
 
 	edac_dbg(0, "device %s created\n", dev_name(mci_pdev));
 
 	return 0;
+
+ out_dev_free:
+	kfree(mci_pdev);
+ out_put_sysfs:
+	edac_put_sysfs_subsys();
+ out:
+	return err;
 }
 
 void __exit edac_mc_sysfs_exit(void)
@@ -1150,4 +1162,5 @@ void __exit edac_mc_sysfs_exit(void)
 	put_device(mci_pdev);
 	device_del(mci_pdev);
 	edac_put_sysfs_subsys();
+	kfree(mci_pdev);
 }
