@@ -1018,6 +1018,28 @@ out:
 	return page;
 }
 
+/* NUMA hinting page fault entry point for trans huge pmds */
+int do_huge_pmd_numa_page(struct mm_struct *mm, unsigned long addr,
+				pmd_t pmd, pmd_t *pmdp)
+{
+	struct page *page;
+	unsigned long haddr = addr & HPAGE_PMD_MASK;
+
+	spin_lock(&mm->page_table_lock);
+	if (unlikely(!pmd_same(pmd, *pmdp)))
+		goto out_unlock;
+
+	page = pmd_page(pmd);
+	pmd = pmd_mknonnuma(pmd);
+	set_pmd_at(mm, haddr, pmdp, pmd);
+	VM_BUG_ON(pmd_numa(*pmdp));
+	update_mmu_cache_pmd(vma, addr, pmdp);
+
+out_unlock:
+	spin_unlock(&mm->page_table_lock);
+	return 0;
+}
+
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
