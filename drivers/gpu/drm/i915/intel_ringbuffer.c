@@ -245,7 +245,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 		/*
 		 * TLB invalidate requires a post-sync write.
 		 */
-		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_CS_STALL;
 	}
 
 	ret = intel_ring_begin(ring, 4);
