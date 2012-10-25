@@ -71,6 +71,8 @@
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
 
+int __sramdata g_pmic_type =  0;
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -971,8 +973,6 @@ static  struct pmu_info  act8931_ldo_info[] = {
 	},
 };
 #include "board-rk2928-sdk-act8931.c"
-#endif
-
 #endif
 
 static struct i2c_board_info __initdata i2c0_info[] = {
