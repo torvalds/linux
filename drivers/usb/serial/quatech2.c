@@ -423,8 +423,7 @@ static void qt2_close(struct usb_serial_port *port)
 	port_priv->is_open = false;
 
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
-	if (port_priv->write_urb->status == -EINPROGRESS)
-		usb_kill_urb(port_priv->write_urb);
+	usb_kill_urb(port_priv->write_urb);
 	port_priv->urb_in_use = false;
 	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
@@ -465,8 +464,7 @@ static void qt2_disconnect(struct usb_serial *serial)
 {
 	struct qt2_serial_private *serial_priv = usb_get_serial_data(serial);
 
-	if (serial_priv->read_urb->status == -EINPROGRESS)
-		usb_kill_urb(serial_priv->read_urb);
+	usb_kill_urb(serial_priv->read_urb);
 }
 
 static int get_serial_info(struct usb_serial_port *port,
