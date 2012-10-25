@@ -810,5 +810,7 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
 void l2cap_move_start(struct l2cap_chan *chan);
+void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
+		       u8 status);
 
 #endif /* __L2CAP_H */

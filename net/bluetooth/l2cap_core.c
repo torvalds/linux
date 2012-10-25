@@ -4428,8 +4428,8 @@ static void l2cap_logical_finish_move(struct l2cap_chan *chan,
 }
 
 /* Call with chan locked */
-static void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
-			      u8 status)
+void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
+		       u8 status)
 {
 	BT_DBG("chan %p, hchan %p, status %d", chan, hchan, status);
 
