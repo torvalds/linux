@@ -73,8 +73,6 @@ Configuration options:
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define PCI_VENDOR_ID_AMCC	0x10e8
-
 /* paranoid checks are broken */
 #undef PCI9118_PARANOIDCHECK	/*
 				 * if defined, then is used code which control
