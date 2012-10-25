@@ -26,6 +26,7 @@
 #include <linux/smp.h>
 #include <linux/amba/bus.h>
 
+#include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
@@ -70,6 +71,7 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 }
 
 const static struct of_device_id irq_match[] = {
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
 	{}
 };
@@ -126,6 +128,9 @@ static void __init highbank_timer_init(void)
 	sp804_clockevents_init(timer_base, irq, "timer0");
 
 	twd_local_timer_of_register();
+
+	arch_timer_of_register();
+	arch_timer_sched_clock_init();
 }
 
 static struct sys_timer highbank_timer = {
@@ -200,6 +205,7 @@ static void __init highbank_init(void)
 
 static const char *highbank_match[] __initconst = {
 	"calxeda,highbank",
+	"calxeda,ecx-2000",
 	NULL,
 };
 
