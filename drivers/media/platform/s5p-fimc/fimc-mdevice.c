@@ -343,13 +343,14 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 static int fimc_register_callback(struct device *dev, void *p)
 {
 	struct fimc_dev *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+	struct v4l2_subdev *sd;
 	struct fimc_md *fmd = p;
 	int ret;
 
 	if (fimc == NULL || fimc->id >= FIMC_MAX_DEVS)
 		return 0;
 
+	sd = &fimc->vid_cap.subdev;
 	sd->grp_id = FIMC_GROUP_ID;
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
@@ -367,16 +368,15 @@ static int fimc_register_callback(struct device *dev, void *p)
 static int fimc_lite_register_callback(struct device *dev, void *p)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->subdev;
 	struct fimc_md *fmd = p;
 	int ret;
 
 	if (fimc == NULL || fimc->index >= FIMC_LITE_MAX_DEVS)
 		return 0;
 
-	sd->grp_id = FLITE_GROUP_ID;
+	fimc->subdev.grp_id = FLITE_GROUP_ID;
 
-	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
+	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, &fimc->subdev);
 	if (ret) {
 		v4l2_err(&fmd->v4l2_dev,
 			 "Failed to register FIMC-LITE.%d (%d)\n",
