@@ -533,10 +533,10 @@ struct cgroup_subsys devices_subsys = {
  *
  * returns 0 on success, -EPERM case the operation is not permitted
  */
-static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
-					short type, u32 major, u32 minor,
+static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 				        short access)
 {
+	struct dev_cgroup *dev_cgroup;
 	struct dev_exception_item ex;
 	int rc;
 
@@ -547,6 +547,7 @@ static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
 	ex.access = access;
 
 	rcu_read_lock();
+	dev_cgroup = task_devcgroup(current);
 	rc = may_access(dev_cgroup, &ex);
 	rcu_read_unlock();
 
@@ -558,7 +559,6 @@ static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
 
 int __devcgroup_inode_permission(struct inode *inode, int mask)
 {
-	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
 	short type, access = 0;
 
 	if (S_ISBLK(inode->i_mode))
@@ -570,13 +570,12 @@ int __devcgroup_inode_permission(struct inode *inode, int mask)
 	if (mask & MAY_READ)
 		access |= ACC_READ;
 
-	return __devcgroup_check_permission(dev_cgroup, type, imajor(inode),
-					    iminor(inode), access);
+	return __devcgroup_check_permission(type, imajor(inode), iminor(inode),
+			access);
 }
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
-	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
 	short type;
 
 	if (!S_ISBLK(mode) && !S_ISCHR(mode))
@@ -587,7 +586,7 @@ int devcgroup_inode_mknod(int mode, dev_t dev)
 	else
 		type = DEV_CHAR;
 
-	return __devcgroup_check_permission(dev_cgroup, type, MAJOR(dev),
-					    MINOR(dev), ACC_MKNOD);
+	return __devcgroup_check_permission(type, MAJOR(dev), MINOR(dev),
+			ACC_MKNOD);
 
 }
