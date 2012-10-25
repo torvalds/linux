@@ -702,41 +702,41 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		return ret;
 
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
-	s->n_chan = board->ai_chans;
-	s->maxdata = (1 << board->ai_bits) - 1;
-	s->len_chanlist = board->ai_chans;
-	s->range_table = board->ai_range;
-	s->cancel = me_ai_cancel;
-	s->insn_read = me_ai_insn_read;
-	s->do_cmdtest = me_ai_do_cmd_test;
-	s->do_cmd = me_ai_do_cmd;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->n_chan	= board->ai_chans;
+	s->maxdata	= (1 << board->ai_bits) - 1;
+	s->len_chanlist	= board->ai_chans;
+	s->range_table	= board->ai_range;
+	s->cancel	= me_ai_cancel;
+	s->insn_read	= me_ai_insn_read;
+	s->do_cmdtest	= me_ai_do_cmd_test;
+	s->do_cmd	= me_ai_do_cmd;
 
 	s = &dev->subdevices[1];
 	if (board->ao_chans) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
-		s->n_chan = board->ao_chans;
-		s->maxdata = (1 << board->ao_bits) - 1;
-		s->len_chanlist = board->ao_chans;
-		s->range_table = board->ao_range;
-		s->insn_read = me_ao_insn_read;
-		s->insn_write = me_ao_insn_write;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_COMMON;
+		s->n_chan	= board->ao_chans;
+		s->maxdata	= (1 << board->ao_bits) - 1;
+		s->len_chanlist	= board->ao_chans;
+		s->range_table	= board->ao_range;
+		s->insn_read	= me_ao_insn_read;
+		s->insn_write	= me_ao_insn_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-	s->n_chan = 32;
-	s->maxdata = 1;
-	s->len_chanlist = 32;
-	s->range_table = &range_digital;
-	s->insn_bits = me_dio_insn_bits;
-	s->insn_config = me_dio_insn_config;
-	s->io_bits = 0;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->len_chanlist	= 32;
+	s->range_table	= &range_digital;
+	s->insn_bits	= me_dio_insn_bits;
+	s->insn_config	= me_dio_insn_config;
+	s->io_bits	= 0;
 
 	dev_info(dev->class_dev, "%s: %s attached\n",
 		dev->driver->driver_name, dev->board_name);
