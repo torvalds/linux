@@ -61,6 +61,12 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		counter32k: counter@48320000 {
+			compatible = "ti,omap-counter32k";
+			reg = <0x48320000 0x20>;
+			ti,hwmods = "counter_32k";
+		};
+
 		intc: interrupt-controller@48200000 {
 			compatible = "ti,omap2-intc";
 			interrupt-controller;
