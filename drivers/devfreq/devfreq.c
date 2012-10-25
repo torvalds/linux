@@ -265,9 +265,9 @@ out:
 /**
  * devfreq_notifier_call() - Notify that the device frequency requirements
  *			   has been changed out of devfreq framework.
- * @nb		the notifier_block (supposed to be devfreq->nb)
- * @type	not used
- * @devp	not used
+ * @nb:		the notifier_block (supposed to be devfreq->nb)
+ * @type:	not used
+ * @devp:	not used
  *
  * Called by a notifier that uses devfreq->nb.
  */
@@ -414,7 +414,7 @@ EXPORT_SYMBOL(devfreq_add_device);
 
 /**
  * devfreq_remove_device() - Remove devfreq feature from a device.
- * @devfreq	the devfreq instance to be removed
+ * @devfreq:	the devfreq instance to be removed
  */
 int devfreq_remove_device(struct devfreq *devfreq)
 {
@@ -619,9 +619,9 @@ module_exit(devfreq_exit);
 /**
  * devfreq_recommended_opp() - Helper function to get proper OPP for the
  *			     freq value given to target callback.
- * @dev		The devfreq user device. (parent of devfreq)
- * @freq	The frequency given to target function
- * @flags	Flags handed from devfreq framework.
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @freq:	The frequency given to target function
+ * @flags:	Flags handed from devfreq framework.
  *
  */
 struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
@@ -652,8 +652,8 @@ struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
  * devfreq_register_opp_notifier() - Helper function to get devfreq notified
  *				   for any changes in the OPP availability
  *				   changes
- * @dev		The devfreq user device. (parent of devfreq)
- * @devfreq	The devfreq object.
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
  */
 int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
 {
@@ -668,8 +668,8 @@ int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
  * devfreq_unregister_opp_notifier() - Helper function to stop getting devfreq
  *				     notified for any changes in the OPP
  *				     availability changes anymore.
- * @dev		The devfreq user device. (parent of devfreq)
- * @devfreq	The devfreq object.
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
  *
  * At exit() callback of devfreq_dev_profile, this must be included if
  * devfreq_recommended_opp is used.
