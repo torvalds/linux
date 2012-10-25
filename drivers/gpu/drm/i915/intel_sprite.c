@@ -692,7 +692,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	case 7:
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev) || IS_VALLEYVIEW(dev))
 			intel_plane->can_scale = false;
 		else
 			intel_plane->can_scale = true;
