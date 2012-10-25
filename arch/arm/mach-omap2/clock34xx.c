@@ -23,7 +23,7 @@
 
 #include "clock.h"
 #include "clock34xx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /**

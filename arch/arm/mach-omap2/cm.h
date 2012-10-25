@@ -33,4 +33,16 @@
  */
 #define MAX_MODULE_DISABLE_TIME		5000
 
+# ifndef __ASSEMBLER__
+
+/**
+ * struct cm_ll_data - fn ptrs to per-SoC CM function implementations
+ */
+struct cm_ll_data {};
+
+extern int cm_register(struct cm_ll_data *cld);
+extern int cm_unregister(struct cm_ll_data *cld);
+
+# endif
+
 #endif
