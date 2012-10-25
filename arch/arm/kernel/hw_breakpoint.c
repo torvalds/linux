@@ -261,10 +261,11 @@ static int enable_monitor_mode(void)
 
 	/* Check that the write made it through. */
 	ARM_DBG_READ(c0, c1, 0, dscr);
-	if (WARN_ONCE(!(dscr & ARM_DSCR_MDBGEN),
-		"Failed to enable monitor mode on CPU %d.\n",
-		smp_processor_id()))
+	if (!(dscr & ARM_DSCR_MDBGEN)) {
+		pr_warn_once("Failed to enable monitor mode on CPU %d.\n",
+				smp_processor_id());
 		return -EPERM;
+	}
 
 out:
 	return 0;
@@ -357,8 +358,10 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n"))
+	if (i == max_slots) {
+		pr_warning("Can't find any breakpoint slot\n");
 		return -EBUSY;
+	}
 
 	/* Override the breakpoint data with the step data. */
 	if (info->step_ctrl.enabled) {
@@ -407,8 +410,10 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n"))
+	if (i == max_slots) {
+		pr_warning("Can't find any breakpoint slot\n");
 		return;
+	}
 
 	/* Ensure that we disable the mismatch breakpoint. */
 	if (info->ctrl.type != ARM_BREAKPOINT_EXECUTE &&
