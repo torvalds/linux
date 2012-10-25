@@ -198,7 +198,6 @@ for (or detection of) various hardware problems added by Ian Abbott.
 #include "8255.h"
 
 /* PCI230 PCI configuration register information */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_PCI230 0x0000
 #define PCI_DEVICE_ID_PCI260 0x0006
 #define PCI_DEVICE_ID_INVALID 0xffff

@@ -52,7 +52,6 @@ The state of the outputs can be read.
 #define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
 
 /* PCI263 PCI configuration register information */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
 #define PCI_DEVICE_ID_INVALID 0xffff
 

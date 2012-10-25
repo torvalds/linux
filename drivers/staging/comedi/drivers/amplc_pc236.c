@@ -66,7 +66,6 @@ unused.
 #define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
 
 /* PCI236 PCI configuration register information */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI236 0x0009
 #define PCI_DEVICE_ID_INVALID 0xffff
 
