@@ -158,6 +158,8 @@ extern struct devfreq *devfreq_add_device(struct device *dev,
 				  const struct devfreq_governor *governor,
 				  void *data);
 extern int devfreq_remove_device(struct devfreq *devfreq);
+extern int devfreq_suspend_device(struct devfreq *devfreq);
+extern int devfreq_resume_device(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */
 extern struct opp *devfreq_recommended_opp(struct device *dev,
@@ -207,6 +209,16 @@ static struct devfreq *devfreq_add_device(struct device *dev,
 }
 
 static int devfreq_remove_device(struct devfreq *devfreq)
+{
+	return 0;
+}
+
+static int devfreq_suspend_device(struct devfreq *devfreq)
+{
+	return 0;
+}
+
+static int devfreq_resume_device(struct devfreq *devfreq)
 {
 	return 0;
 }
