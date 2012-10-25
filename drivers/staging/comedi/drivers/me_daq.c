@@ -224,7 +224,6 @@ static const struct me_board me_boards[] = {
 struct me_private_data {
 	void __iomem *plx_regbase;	/* PLX configuration base address */
 	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
-	unsigned long me_regbase_size;	/* Size of Meilhaus space */
 
 	unsigned short control_1;	/* Mirror of CONTROL_1 register */
 	unsigned short control_2;	/* Mirror of CONTROL_2 register */
@@ -638,8 +637,6 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	struct me_private_data *dev_private;
 	struct comedi_subdevice *s;
 	resource_size_t plx_regbase_tmp;
-	resource_size_t me_regbase_tmp;
-	unsigned long me_regbase_size_tmp;
 	resource_size_t swap_regbase_tmp;
 	unsigned long swap_regbase_size_tmp;
 	resource_size_t regbase_tmp;
@@ -712,16 +709,10 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	}
 	/*--------------------------------------------- Workaround end -----*/
 
-	/* Read Meilhaus register base address [PCI_BASE_ADDRESS #2]. */
-
-	me_regbase_tmp = pci_resource_start(pcidev, 2);
-	me_regbase_size_tmp = pci_resource_len(pcidev, 2);
-	dev_private->me_regbase_size = me_regbase_size_tmp;
-	dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
-	if (!dev_private->me_regbase) {
-		dev_err(dev->class_dev, "Failed to remap I/O memory\n");
+	dev_private->me_regbase = ioremap(pci_resource_start(pcidev, 2),
+					  pci_resource_len(pcidev, 2));
+	if (!dev_private->me_regbase)
 		return -ENOMEM;
-	}
 
 	/* Download firmware and reset card */
 	if (board->device_id == ME2600_DEVICE_ID) {
