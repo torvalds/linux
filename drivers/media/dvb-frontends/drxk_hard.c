@@ -65,12 +65,12 @@ static bool IsQAM(struct drxk_state *state)
 	    state->m_OperationMode == OM_QAM_ITU_C;
 }
 
-bool IsA1WithPatchCode(struct drxk_state *state)
+static bool IsA1WithPatchCode(struct drxk_state *state)
 {
 	return state->m_DRXK_A1_PATCH_CODE;
 }
 
-bool IsA1WithRomCode(struct drxk_state *state)
+static bool IsA1WithRomCode(struct drxk_state *state)
 {
 	return state->m_DRXK_A1_ROM_CODE;
 }
@@ -189,7 +189,7 @@ static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 	return (u32) tmp64;
 }
 
-inline u32 Frac28a(u32 a, u32 c)
+static inline u32 Frac28a(u32 a, u32 c)
 {
 	int i = 0;
 	u32 Q1 = 0;
@@ -587,7 +587,7 @@ static int write_block(struct drxk_state *state, u32 Address,
 #define DRXK_MAX_RETRIES_POWERUP 20
 #endif
 
-int PowerUpDevice(struct drxk_state *state)
+static int PowerUpDevice(struct drxk_state *state)
 {
 	int status;
 	u8 data = 0;
