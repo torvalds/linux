@@ -25,11 +25,7 @@
 
 #include <linux/drv_display_sun3i.h>
 
-#elif CONFIG_CHIP_ID == 1123
-
-#include <linux/drv_display_sunxi.h>
-
-#elif CONFIG_CHIP_ID == 1125
+#elif (CONFIG_CHIP_ID == 1123) || (CONFIG_CHIP_ID == 1125)
 
 #include <linux/drv_display_sunxi.h>
 

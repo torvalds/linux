@@ -47,7 +47,7 @@
 #include <time.h>
 #include <linux/fb.h>
 //#include "../../../../../../linux-v2.6.36.4/include/linux/drv_display.h"//modify this
-#include "./../../../../../include/linux/drv_display_sun4i.h"//modify this
+#include "./../../../../../include/linux/drv_display_sunxi.h"//modify this
 
 //#define READ_NUM 5000
 #define DISPLAY
