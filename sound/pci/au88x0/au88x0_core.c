@@ -2461,7 +2461,12 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 #ifndef CHIP_AU8810
 		for (i = 0; i < NR_WT; i++) {
 			if (vortex->dma_wt[i].fifo_status == FIFO_START) {
-				if (vortex_wtdma_bufshift(vortex, i)) ;
+				/* FIXME: we ignore the return value from
+				 * vortex_wtdma_bufshift() below as the delta
+				 * calculation seems not working for wavetable
+				 * by some reason
+				 */
+				vortex_wtdma_bufshift(vortex, i);
 				spin_unlock(&vortex->lock);
 				snd_pcm_period_elapsed(vortex->dma_wt[i].
 						       substream);
