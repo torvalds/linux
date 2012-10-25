@@ -161,7 +161,6 @@ static int sierra_probe(struct usb_serial *serial,
 {
 	int result = 0;
 	struct usb_device *udev;
-	struct sierra_intf_private *data;
 	u8 ifnum;
 
 	udev = serial->dev;
@@ -187,11 +186,6 @@ static int sierra_probe(struct usb_serial *serial,
 			"Ignoring blacklisted interface #%d\n", ifnum);
 		return -ENODEV;
 	}
-
-	data = serial->private = kzalloc(sizeof(struct sierra_intf_private), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-	spin_lock_init(&data->susp_lock);
 
 	return result;
 }
@@ -885,10 +879,19 @@ static void sierra_dtr_rts(struct usb_serial_port *port, int on)
 static int sierra_startup(struct usb_serial *serial)
 {
 	struct usb_serial_port *port;
+	struct sierra_intf_private *intfdata;
 	struct sierra_port_private *portdata;
 	struct sierra_iface_info *himemoryp = NULL;
 	int i;
 	u8 ifnum;
+
+	intfdata = kzalloc(sizeof(*intfdata), GFP_KERNEL);
+	if (!intfdata)
+		return -ENOMEM;
+
+	spin_lock_init(&intfdata->susp_lock);
+
+	usb_set_serial_data(serial, intfdata);
 
 	/* Set Device mode to D0 */
 	sierra_set_power_state(serial->dev, 0x0000);
@@ -947,6 +950,7 @@ err:
 		portdata = usb_get_serial_port_data(serial->port[i]);
 		kfree(portdata);
 	}
+	kfree(intfdata);
 
 	return -ENOMEM;
 }
