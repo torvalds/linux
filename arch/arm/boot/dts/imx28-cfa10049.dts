@@ -70,6 +70,30 @@
 				status = "okay";
 			};
 
+			i2cmux {
+				compatible = "i2c-mux-gpio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				mux-gpios = <&gpio1 22 0 &gpio1 23 0>;
+				i2c-parent = <&i2c1>;
+
+				i2c@0 {
+					reg = <0>;
+				};
+
+				i2c@1 {
+					reg = <1>;
+				};
+
+				i2c@2 {
+					reg = <2>;
+				};
+
+				i2c@3 {
+					reg = <3>;
+				};
+			};
+
 			usbphy1: usbphy@8007e000 {
 				status = "okay";
 			};
