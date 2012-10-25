@@ -57,6 +57,7 @@
 /*
  * PCI Vendor IDs not in <linux/pci_ids.h>
  */
+#define PCI_VENDOR_ID_KOLTER		0x1001
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_DT		0x1116
 #define PCI_VENDOR_ID_CONTEC		0x1221

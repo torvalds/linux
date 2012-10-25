@@ -36,7 +36,6 @@ Kolter Electronic PCI Counter Card.
 
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_KOLTER    0x1001
 #define CNT_CARD_DEVICE_ID      0x0014
 
 /*-- counter write ----------------------------------------------------------*/
