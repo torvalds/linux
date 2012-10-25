@@ -1590,7 +1590,7 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 	} else if (rpath || rino) {
 		*ino = rino;
 		*ppath = rpath;
-		*pathlen = strlen(rpath);
+		*pathlen = rpath ? strlen(rpath) : 0;
 		dout(" path %.*s\n", *pathlen, rpath);
 	}
 
