@@ -183,7 +183,7 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 	{PCI_DEVICE(APCI3200_BOARD_VENDOR_ID, 0x3007)},
 #endif
 #ifdef CONFIG_APCI_1710
-	{PCI_DEVICE(APCI1710_BOARD_VENDOR_ID, APCI1710_BOARD_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, APCI1710_BOARD_DEVICE_ID)},
 #endif
 #ifdef CONFIG_APCI_16XX
 	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1009)},
@@ -594,7 +594,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_1710
 	{
 		.pc_DriverName		= "apci1710",
-		.i_VendorId		= APCI1710_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= APCI1710_BOARD_DEVICE_ID,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 8,
