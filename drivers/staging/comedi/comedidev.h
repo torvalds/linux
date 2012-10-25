@@ -60,6 +60,7 @@
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_CONTEC		0x1221
 #define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
 #define PCI_VENDOR_ID_ADLINK		0x144a
 
 #define COMEDI_NUM_MINORS 0x100

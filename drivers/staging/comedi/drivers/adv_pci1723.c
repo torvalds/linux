@@ -50,8 +50,6 @@ TODO:
 
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
-
 /* all the registers for the pci1723 board */
 #define PCI1723_DA(N)   ((N)<<1)	/* W: D/A register N (0 to 7) */
 
