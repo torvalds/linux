@@ -215,8 +215,7 @@ struct pt_regs {
 #define pt_clr_singlestep(regs) ((regs)->hvmer.vmest &= ~(1<<HVM_VMEST_SS_SFT))
 
 #define pt_set_rte_sp(regs, sp) do {\
-	pt_psp(regs) = (sp);\
-	(regs)->SP = (unsigned long) &((regs)->hvmer);\
+	pt_psp(regs) = (regs)->SP = (sp);\
 	} while (0)
 
 #define pt_set_kmode(regs) \
