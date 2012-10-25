@@ -653,12 +653,9 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		return -ENOMEM;
 	dev->private = dev_private;
 
-	/* Enable PCI device and request PCI regions */
-	if (comedi_pci_enable(pcidev, dev->board_name) < 0) {
-		dev_err(dev->class_dev,
-			"Failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
 	dev->iobase = 1;	/* detach needs this */
 
 	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
