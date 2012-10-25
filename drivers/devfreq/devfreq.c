@@ -496,12 +496,11 @@ static ssize_t store_polling_interval(struct device *dev,
 
 	ret = sscanf(buf, "%u", &value);
 	if (ret != 1)
-		goto out;
+		return -EINVAL;
 
 	df->governor->event_handler(df, DEVFREQ_GOV_INTERVAL, &value);
 	ret = count;
 
-out:
 	return ret;
 }
 
@@ -515,7 +514,7 @@ static ssize_t store_min_freq(struct device *dev, struct device_attribute *attr,
 
 	ret = sscanf(buf, "%lu", &value);
 	if (ret != 1)
-		goto out;
+		return -EINVAL;
 
 	mutex_lock(&df->lock);
 	max = df->max_freq;
@@ -529,7 +528,6 @@ static ssize_t store_min_freq(struct device *dev, struct device_attribute *attr,
 	ret = count;
 unlock:
 	mutex_unlock(&df->lock);
-out:
 	return ret;
 }
 
@@ -549,7 +547,7 @@ static ssize_t store_max_freq(struct device *dev, struct device_attribute *attr,
 
 	ret = sscanf(buf, "%lu", &value);
 	if (ret != 1)
-		goto out;
+		return -EINVAL;
 
 	mutex_lock(&df->lock);
 	min = df->min_freq;
@@ -563,7 +561,6 @@ static ssize_t store_max_freq(struct device *dev, struct device_attribute *attr,
 	ret = count;
 unlock:
 	mutex_unlock(&df->lock);
-out:
 	return ret;
 }
 
