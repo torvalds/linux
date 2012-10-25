@@ -175,7 +175,7 @@ static void rtl_process_pwdb(struct ieee80211_hw *hw, struct rtl_stats *pstatus)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_sta_info *drv_priv = NULL;
 	struct ieee80211_sta *sta = NULL;
-	long undecorated_smoothed_pwdb;
+	long undec_sm_pwdb;
 
 	rcu_read_lock();
 	if (rtlpriv->mac80211.opmode != NL80211_IFTYPE_STATION)
@@ -184,32 +184,27 @@ static void rtl_process_pwdb(struct ieee80211_hw *hw, struct rtl_stats *pstatus)
 	/* adhoc or ap mode */
 	if (sta) {
 		drv_priv = (struct rtl_sta_info *) sta->drv_priv;
-		undecorated_smoothed_pwdb =
-			drv_priv->rssi_stat.undecorated_smoothed_pwdb;
+		undec_sm_pwdb = drv_priv->rssi_stat.undec_sm_pwdb;
 	} else {
-		undecorated_smoothed_pwdb =
-			rtlpriv->dm.undecorated_smoothed_pwdb;
+		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
 	}
 
-	if (undecorated_smoothed_pwdb < 0)
-		undecorated_smoothed_pwdb = pstatus->rx_pwdb_all;
-	if (pstatus->rx_pwdb_all > (u32) undecorated_smoothed_pwdb) {
-		undecorated_smoothed_pwdb = (((undecorated_smoothed_pwdb) *
+	if (undec_sm_pwdb < 0)
+		undec_sm_pwdb = pstatus->rx_pwdb_all;
+	if (pstatus->rx_pwdb_all > (u32) undec_sm_pwdb) {
+		undec_sm_pwdb = (((undec_sm_pwdb) *
 		      (RX_SMOOTH_FACTOR - 1)) +
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-		undecorated_smoothed_pwdb = undecorated_smoothed_pwdb + 1;
+		undec_sm_pwdb = undec_sm_pwdb + 1;
 	} else {
-		undecorated_smoothed_pwdb = (((undecorated_smoothed_pwdb) *
-		      (RX_SMOOTH_FACTOR - 1)) +
+		undec_sm_pwdb = (((undec_sm_pwdb) * (RX_SMOOTH_FACTOR - 1)) +
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 	}
 
 	if (sta) {
-		drv_priv->rssi_stat.undecorated_smoothed_pwdb =
-			undecorated_smoothed_pwdb;
+		drv_priv->rssi_stat.undec_sm_pwdb = undec_sm_pwdb;
 	} else {
-		rtlpriv->dm.undecorated_smoothed_pwdb =
-					 undecorated_smoothed_pwdb;
+		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
 	}
 	rcu_read_unlock();
 
