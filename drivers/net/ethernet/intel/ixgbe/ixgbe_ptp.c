@@ -554,12 +554,14 @@ void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
 	adapter = q_vector->adapter;
 	hw = &adapter->hw;
 
+	if (likely(!ixgbe_ptp_match(skb, adapter->rx_hwtstamp_filter)))
+		return;
+
 	tsyncrxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCRXCTL);
 
 	/* Check if we have a valid timestamp and make sure the skb should
 	 * have been timestamped */
-	if (likely(!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID) ||
-		   !ixgbe_ptp_match(skb, adapter->rx_hwtstamp_filter)))
+	if (!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID))
 		return;
 
 	/*
