@@ -373,42 +373,6 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-/*
- * ------------------------------------------------------------------
- *
- * HARDWARE TRIGGERED ANALOG INPUT SECTION
- *
- * ------------------------------------------------------------------
- */
-
-/* Cancel analog input autoscan */
-static int me_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct me_private_data *dev_private = dev->private;
-
-	/* disable interrupts */
-
-	/* stop any running conversion */
-	dev_private->control_1 &= 0xFFFC;
-	writew(dev_private->control_1, dev_private->me_regbase + ME_CONTROL_1);
-
-	return 0;
-}
-
-/* Test analog input command */
-static int me_ai_do_cmd_test(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	return 0;
-}
-
-/* Analog input command */
-static int me_ai_do_cmd(struct comedi_device *dev,
-			struct comedi_subdevice *s)
-{
-	return 0;
-}
-
 static int me_ao_insn_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn,
@@ -690,15 +654,12 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON;
 	s->n_chan	= board->ai_chans;
 	s->maxdata	= (1 << board->ai_bits) - 1;
 	s->len_chanlist	= board->ai_chans;
 	s->range_table	= board->ai_range;
-	s->cancel	= me_ai_cancel;
 	s->insn_read	= me_ai_insn_read;
-	s->do_cmdtest	= me_ai_do_cmd_test;
-	s->do_cmd	= me_ai_do_cmd;
 
 	s = &dev->subdevices[1];
 	if (board->ao_chans) {
