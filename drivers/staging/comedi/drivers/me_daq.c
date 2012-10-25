@@ -640,7 +640,7 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	resource_size_t swap_regbase_tmp;
 	unsigned long swap_regbase_size_tmp;
 	resource_size_t regbase_tmp;
-	int result, error;
+	int ret;
 
 	board = me_find_boardinfo(dev, pcidev);
 	if (!board)
@@ -687,23 +687,23 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 			plx_regbase_tmp = swap_regbase_tmp;
 			swap_regbase_tmp = regbase_tmp;
 
-			result = pci_write_config_dword(pcidev,
+			ret = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
-			if (result != PCIBIOS_SUCCESSFUL)
+			if (ret != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 
-			result = pci_write_config_dword(pcidev,
+			ret = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_5,
 							swap_regbase_tmp);
-			if (result != PCIBIOS_SUCCESSFUL)
+			if (ret != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		} else {
 			plx_regbase_tmp -= 0x80;
-			result = pci_write_config_dword(pcidev,
+			ret = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
-			if (result != PCIBIOS_SUCCESSFUL)
+			if (ret != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		}
 	}
@@ -716,15 +716,15 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	/* Download firmware and reset card */
 	if (board->device_id == ME2600_DEVICE_ID) {
-		result = me2600_upload_firmware(dev);
-		if (result < 0)
-			return result;
+		ret = me2600_upload_firmware(dev);
+		if (ret < 0)
+			return ret;
 	}
 	me_reset(dev);
 
-	error = comedi_alloc_subdevices(dev, 3);
-	if (error)
-		return error;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
