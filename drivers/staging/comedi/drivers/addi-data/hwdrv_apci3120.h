@@ -42,7 +42,6 @@ static const struct comedi_lrange range_apci3120_ao = { 2, {
 
 #define APCI3120_BIPOLAR_RANGES	4	/*  used for test on mixture of BIP/UNI ranges */
 
-#define APCI3120_BOARD_VENDOR_ID                 0x10E8
 #define APCI3120_ADDRESS_RANGE            			16
 
 #define APCI3120_DISABLE                         0

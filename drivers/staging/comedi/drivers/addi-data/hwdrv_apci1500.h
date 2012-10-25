@@ -18,7 +18,6 @@
 /*********      Definitions for APCI-1500 card  *****/
 
 /* Card Specific information */
-#define APCI1500_BOARD_VENDOR_ID           0x10e8
 #define APCI1500_ADDRESS_RANGE              4
 
 /* DIGITAL INPUT-OUTPUT DEFINE */

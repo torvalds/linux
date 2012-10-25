@@ -144,7 +144,7 @@ void fpu_end(void)
 
 static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 #ifdef CONFIG_APCI_3120
-	{PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x818D)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x818D)},
 #endif
 #ifdef CONFIG_APCI_1032
 	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1003)},
@@ -165,10 +165,10 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1006)},
 #endif
 #ifdef CONFIG_APCI_1500
-	{PCI_DEVICE(APCI1500_BOARD_VENDOR_ID, 0x80fc)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x80fc)},
 #endif
 #ifdef CONFIG_APCI_3001
-	{PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x828D)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x828D)},
 #endif
 #ifdef CONFIG_APCI_3501
 	{PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001)},
@@ -225,7 +225,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3120
 	{
 		.pc_DriverName		= "apci3120",
-		.i_VendorId		= APCI3120_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= 0x818D,
 		.i_IorangeBase0		= AMCC_OP_REG_SIZE,
 		.i_IorangeBase1		= APCI3120_ADDRESS_RANGE,
@@ -403,7 +403,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_1500
 	{
 		.pc_DriverName		= "apci1500",
-		.i_VendorId		= APCI1500_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= 0x80fc,
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1500_ADDRESS_RANGE,
@@ -431,7 +431,7 @@ static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3001
 	{
 		.pc_DriverName		= "apci3001",
-		.i_VendorId		= APCI3120_BOARD_VENDOR_ID,
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= 0x828D,
 		.i_IorangeBase0		= AMCC_OP_REG_SIZE,
 		.i_IorangeBase1		= APCI3120_ADDRESS_RANGE,
