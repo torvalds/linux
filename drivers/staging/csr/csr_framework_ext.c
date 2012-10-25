@@ -47,21 +47,6 @@ CsrResult CsrMutexCreate(CsrMutexHandle *mutexHandle)
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMutexDestroy
- *
- *  DESCRIPTION
- *      Destroy the previously created mutex.
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-void CsrMutexDestroy(CsrMutexHandle *mutexHandle)
-{
-}
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrThreadSleep
  *
  *  DESCRIPTION
