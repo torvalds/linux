@@ -164,7 +164,6 @@ static const struct me_board me_boards[] = {
 	}
 };
 
-/* Private data structure */
 struct me_private_data {
 	void __iomem *plx_regbase;	/* PLX configuration base address */
 	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
@@ -175,13 +174,6 @@ struct me_private_data {
 	int ao_readback[4];	/* Mirror of analog output data */
 };
 
-/*
- * ------------------------------------------------------------------
- *
- * Helpful functions
- *
- * ------------------------------------------------------------------
- */
 static inline void sleep(unsigned sec)
 {
 	current->state = TASK_INTERRUPTIBLE;
@@ -393,15 +385,6 @@ static int me_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * ------------------------------------------------------------------
- *
- * INITIALISATION SECTION
- *
- * ------------------------------------------------------------------
- */
-
-/* Xilinx firmware download for card: ME-2600i */
 static int me2600_xilinx_download(struct comedi_device *dev,
 				  const u8 *data, size_t size)
 {
@@ -485,7 +468,6 @@ static int me2600_upload_firmware(struct comedi_device *dev)
 	return ret;
 }
 
-/* Reset device */
 static int me_reset(struct comedi_device *dev)
 {
 	struct me_private_data *dev_private = dev->private;
