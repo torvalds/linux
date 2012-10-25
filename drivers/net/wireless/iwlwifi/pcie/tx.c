@@ -827,7 +827,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       trans_pcie_get_cmd_string(trans_pcie,
 							 cmd->hdr.cmd));
-		wake_up(&trans->wait_command_queue);
+		wake_up(&trans_pcie->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -886,7 +886,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return ret;
 	}
 
-	ret = wait_event_timeout(trans->wait_command_queue,
+	ret = wait_event_timeout(trans_pcie->wait_command_queue,
 				 !test_bit(STATUS_HCMD_ACTIVE,
 					   &trans_pcie->status),
 				 HOST_COMPLETE_TIMEOUT);
@@ -913,6 +913,12 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			ret = -ETIMEDOUT;
 			goto cancel;
 		}
+	}
+
+	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		ret = -ERFKILL;
+		goto cancel;
 	}
 
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
@@ -946,9 +952,15 @@ cancel:
 
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (test_bit(STATUS_RFKILL, &trans_pcie->status))
+		return -ERFKILL;
+
 	if (cmd->flags & CMD_ASYNC)
 		return iwl_send_cmd_async(trans, cmd);
 
+	/* We still can fail on RFKILL that can be asserted while we wait */
 	return iwl_send_cmd_sync(trans, cmd);
 }
 

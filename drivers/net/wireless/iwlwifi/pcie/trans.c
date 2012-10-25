@@ -1246,6 +1246,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
+	clear_bit(STATUS_RFKILL, &trans_pcie->status);
 }
 
 static void iwl_trans_pcie_wowlan_suspend(struct iwl_trans *trans)
@@ -2206,7 +2207,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	/* Initialize the wait queue for commands */
-	init_waitqueue_head(&trans->wait_command_queue);
+	init_waitqueue_head(&trans_pcie->wait_command_queue);
 	spin_lock_init(&trans->reg_lock);
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),

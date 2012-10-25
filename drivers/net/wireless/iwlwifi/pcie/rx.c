@@ -568,23 +568,25 @@ static void iwl_rx_handle(struct iwl_trans *trans)
  */
 static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
 			     APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
 			    APMG_PS_CTRL_VAL_RESET_REQ))) {
-		struct iwl_trans_pcie *trans_pcie =
-			IWL_TRANS_GET_PCIE_TRANS(trans);
-
 		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		iwl_op_mode_wimax_active(trans->op_mode);
-		wake_up(&trans->wait_command_queue);
+		wake_up(&trans_pcie->wait_command_queue);
 		return;
 	}
 
 	iwl_dump_csr(trans);
 	iwl_dump_fh(trans, NULL);
+
+	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+	wake_up(&trans_pcie->wait_command_queue);
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
@@ -679,6 +681,16 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		isr_stats->rfkill++;
 
 		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+		if (hw_rfkill) {
+			set_bit(STATUS_RFKILL, &trans_pcie->status);
+			if (test_and_clear_bit(STATUS_HCMD_ACTIVE,
+					       &trans_pcie->status))
+				IWL_DEBUG_RF_KILL(trans,
+						  "Rfkill while SYNC HCMD in flight\n");
+			wake_up(&trans_pcie->wait_command_queue);
+		} else {
+			clear_bit(STATUS_RFKILL, &trans_pcie->status);
+		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}

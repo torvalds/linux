@@ -362,7 +362,9 @@ struct iwl_trans;
  * @wowlan_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
- * @send_cmd:send a host command
+ * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
+ *	If RFkill is asserted in the middle of a SYNC host command, it must
+ *	return -ERFKILL straight away.
  *	May sleep only if CMD_SYNC is set
  * @tx: send an skb
  *	Must be atomic
@@ -445,7 +447,6 @@ enum iwl_trans_state {
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
- * @wait_command_queue: the wait_queue for SYNC host commands
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_headroom: room needed for the transport's private use before the
@@ -471,8 +472,6 @@ struct iwl_trans {
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
 	bool pm_support;
-
-	wait_queue_head_t wait_command_queue;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;

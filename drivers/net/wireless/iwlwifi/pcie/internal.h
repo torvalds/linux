@@ -270,6 +270,8 @@ struct iwl_trans_pcie {
 
 	bool ucode_write_complete;
 	wait_queue_head_t ucode_write_waitq;
+	wait_queue_head_t wait_command_queue;
+
 	unsigned long status;
 	u8 cmd_queue;
 	u8 cmd_fifo;
@@ -288,10 +290,13 @@ struct iwl_trans_pcie {
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
 ******************************************************/
-#define STATUS_HCMD_ACTIVE	0
-#define STATUS_DEVICE_ENABLED	1
-#define STATUS_TPOWER_PMI	2
-#define STATUS_INT_ENABLED	3
+enum {
+	STATUS_HCMD_ACTIVE,
+	STATUS_DEVICE_ENABLED,
+	STATUS_TPOWER_PMI,
+	STATUS_INT_ENABLED,
+	STATUS_RFKILL,
+};
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
 	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))

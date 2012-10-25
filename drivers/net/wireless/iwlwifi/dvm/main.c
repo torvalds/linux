@@ -1926,8 +1926,6 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->status);
 
-	wake_up(&priv->trans->wait_command_queue);
-
 	if (!ondemand) {
 		/*
 		 * If firmware keep reloading, then it indicate something
