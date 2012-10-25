@@ -42,7 +42,10 @@ struct dev_exception_item {
 struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
-	bool deny_all;
+	enum {
+		DEVCG_DEFAULT_ALLOW,
+		DEVCG_DEFAULT_DENY,
+	} behavior;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -182,13 +185,13 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
 	parent_cgroup = cgroup->parent;
 
 	if (parent_cgroup == NULL)
-		dev_cgroup->deny_all = false;
+		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
 	else {
 		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
 		mutex_lock(&devcgroup_mutex);
 		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
 					  &parent_dev_cgroup->exceptions);
-		dev_cgroup->deny_all = parent_dev_cgroup->deny_all;
+		dev_cgroup->behavior = parent_dev_cgroup->behavior;
 		mutex_unlock(&devcgroup_mutex);
 		if (ret) {
 			kfree(dev_cgroup);
@@ -260,7 +263,7 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
 	 * - List the exceptions in case the default policy is to deny
 	 * This way, the file remains as a "whitelist of devices"
 	 */
-	if (devcgroup->deny_all == false) {
+	if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 		set_access(acc, ACC_MASK);
 		set_majmin(maj, ~0);
 		set_majmin(min, ~0);
@@ -314,12 +317,12 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 	 * In two cases we'll consider this new exception valid:
 	 * - the dev cgroup has its default policy to allow + exception list:
 	 *   the new exception should *not* match any of the exceptions
-	 *   (!deny_all, !match)
+	 *   (behavior == DEVCG_DEFAULT_ALLOW, !match)
 	 * - the dev cgroup has its default policy to deny + exception list:
 	 *   the new exception *should* match the exceptions
-	 *   (deny_all, match)
+	 *   (behavior == DEVCG_DEFAULT_DENY, match)
 	 */
-	if (dev_cgroup->deny_all == match)
+	if ((dev_cgroup->behavior == DEVCG_DEFAULT_DENY) == match)
 		return 1;
 	return 0;
 }
@@ -375,11 +378,11 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 			if (!parent_has_perm(devcgroup, &ex))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
-			devcgroup->deny_all = false;
+			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
 			break;
 		case DEVCG_DENY:
 			dev_exception_clean(devcgroup);
-			devcgroup->deny_all = true;
+			devcgroup->behavior = DEVCG_DEFAULT_DENY;
 			break;
 		default:
 			return -EINVAL;
@@ -452,7 +455,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->deny_all == false) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
@@ -463,7 +466,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->deny_all == true) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_DENY) {
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
