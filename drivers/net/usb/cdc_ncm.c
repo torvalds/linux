@@ -1064,7 +1064,7 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		 * USB_CDC_NOTIFY_NETWORK_CONNECTION notification shall be
 		 * sent by device after USB_CDC_NOTIFY_SPEED_CHANGE.
 		 */
-		ctx->connected = event->wValue;
+		ctx->connected = le16_to_cpu(event->wValue);
 
 		printk(KERN_INFO KBUILD_MODNAME ": %s: network connection:"
 			" %sconnected\n",
