@@ -65,8 +65,6 @@ AO commands are not supported.
 
 #include "comedi_fc.h"
 
-#define PCI_VENDOR_ID_DT	0x1116
-
 static const struct comedi_lrange range_dt3000_ai = { 4, {
 							  RANGE(-10, 10),
 							  RANGE(-5, 5),
