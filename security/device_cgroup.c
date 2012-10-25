@@ -361,8 +361,8 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 				   int filetype, const char *buffer)
 {
 	const char *b;
-	char *endp;
-	int count;
+	char temp[12];		/* 11 + 1 characters needed for a u32 */
+	int count, rc;
 	struct dev_exception_item ex;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -405,8 +405,16 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		ex.major = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		ex.major = simple_strtoul(b, &endp, 10);
-		b = endp;
+		memset(temp, 0, sizeof(temp));
+		for (count = 0; count < sizeof(temp) - 1; count++) {
+			temp[count] = *b;
+			b++;
+			if (!isdigit(*b))
+				break;
+		}
+		rc = kstrtou32(temp, 10, &ex.major);
+		if (rc)
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
@@ -419,8 +427,16 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		ex.minor = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		ex.minor = simple_strtoul(b, &endp, 10);
-		b = endp;
+		memset(temp, 0, sizeof(temp));
+		for (count = 0; count < sizeof(temp) - 1; count++) {
+			temp[count] = *b;
+			b++;
+			if (!isdigit(*b))
+				break;
+		}
+		rc = kstrtou32(temp, 10, &ex.minor);
+		if (rc)
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
