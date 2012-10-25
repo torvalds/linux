@@ -2645,6 +2645,7 @@ static void mos7840_release(struct usb_serial *serial)
 				del_timer_sync(&mos7840_port->led_timer1);
 				del_timer_sync(&mos7840_port->led_timer2);
 			}
+			usb_free_urb(mos7840_port->control_urb);
 			kfree(mos7840_port->ctrl_buf);
 			kfree(mos7840_port->dr);
 			kfree(mos7840_port);
