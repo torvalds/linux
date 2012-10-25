@@ -977,6 +977,10 @@ try_again:
 				ui__error("Too many events are opened.\n"
 					    "Try again after reducing the number of events\n");
 				goto out_err;
+			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
+				ui__error("\'precise\' request may not be supported. "
+					  "Try removing 'p' modifier\n");
+				goto out_err;
 			}
 
 			ui__error("The sys_perf_event_open() syscall "

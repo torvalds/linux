@@ -28,6 +28,7 @@
 #include "util/hist.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "arch/common.h"
 
 #include <linux/bitmap.h>
 
@@ -182,6 +183,12 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
+		if (ret)
+			goto out_delete;
+	}
+
+	if (!objdump_path) {
+		ret = perf_session_env__lookup_objdump(&session->header.env);
 		if (ret)
 			goto out_delete;
 	}

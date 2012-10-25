@@ -154,6 +154,5 @@ static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 #endif
 
 extern const char	*disassembler_style;
-extern const char	*objdump_path;
 
 #endif	/* __PERF_ANNOTATE_H */
