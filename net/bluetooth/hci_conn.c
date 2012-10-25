@@ -980,6 +980,8 @@ void hci_chan_del(struct hci_chan *chan)
 
 	synchronize_rcu();
 
+	hci_conn_put(conn);
+
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);
 }
