@@ -471,8 +471,8 @@ struct nand_buffers {
  *			non 0 if ONFI supported.
  * @onfi_params:	[INTERN] holds the ONFI page parameter when ONFI is
  *			supported, 0 otherwise.
- * @onfi_set_features	[REPLACEABLE] set the features for ONFI nand
- * @onfi_get_features	[REPLACEABLE] get the features for ONFI nand
+ * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
+ * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
  * @ecclayout:		[REPLACEABLE] the default ECC placement scheme
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
