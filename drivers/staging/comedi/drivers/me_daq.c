@@ -409,22 +409,14 @@ static int me_ai_do_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * ------------------------------------------------------------------
- *
- * ANALOG OUTPUT SECTION
- *
- * ------------------------------------------------------------------
- */
-
-/* Analog instant output */
 static int me_ao_insn_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	struct me_private_data *dev_private = dev->private;
-	int chan;
-	int rang;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int rang = CR_RANGE(insn->chanspec);
 	int i;
 
 	/* Enable all DAC */
@@ -437,9 +429,6 @@ static int me_ao_insn_write(struct comedi_device *dev,
 
 	/* Set dac-control register */
 	for (i = 0; i < insn->n; i++) {
-		chan = CR_CHAN((&insn->chanspec)[i]);
-		rang = CR_RANGE((&insn->chanspec)[i]);
-
 		/* clear bits for this channel */
 		dev_private->dac_control &= ~(0x0880 >> chan);
 		if (rang == 0)
@@ -457,7 +446,6 @@ static int me_ao_insn_write(struct comedi_device *dev,
 
 	/* Set data register */
 	for (i = 0; i < insn->n; i++) {
-		chan = CR_CHAN((&insn->chanspec)[i]);
 		writew((data[0] & s->maxdata),
 		       dev_private->me_regbase + ME_DAC_DATA_A + (chan << 1));
 		dev_private->ao_readback[chan] = (data[0] & s->maxdata);
@@ -466,7 +454,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	/* Update dac with data registers */
 	readw(dev_private->me_regbase + ME_DAC_UPDATE);
 
-	return i;
+	return insn->n;
 }
 
 static int me_ao_insn_read(struct comedi_device *dev,
