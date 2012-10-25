@@ -127,8 +127,8 @@ int __init mx25_clocks_init(void)
 	clk[esdhc2_ipg_per] = imx_clk_gate("esdhc2_ipg_per", "per4", ccm(CCM_CGCR0),  4);
 	clk[gpt_ipg_per] = imx_clk_gate("gpt_ipg_per", "per5", ccm(CCM_CGCR0),  5);
 	clk[i2c_ipg_per] = imx_clk_gate("i2c_ipg_per", "per6", ccm(CCM_CGCR0),  6);
-	clk[lcdc_ipg_per] = imx_clk_gate("lcdc_ipg_per", "per8", ccm(CCM_CGCR0),  7);
-	clk[nfc_ipg_per] = imx_clk_gate("nfc_ipg_per", "ipg_per", ccm(CCM_CGCR0),  8);
+	clk[lcdc_ipg_per] = imx_clk_gate("lcdc_ipg_per", "per7", ccm(CCM_CGCR0),  7);
+	clk[nfc_ipg_per] = imx_clk_gate("nfc_ipg_per", "per8", ccm(CCM_CGCR0),  8);
 	clk[ssi1_ipg_per] = imx_clk_gate("ssi1_ipg_per", "per13", ccm(CCM_CGCR0), 13);
 	clk[ssi2_ipg_per] = imx_clk_gate("ssi2_ipg_per", "per14", ccm(CCM_CGCR0), 14);
 	clk[uart_ipg_per] = imx_clk_gate("uart_ipg_per", "per15", ccm(CCM_CGCR0), 15);
@@ -203,13 +203,13 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[cspi2_ipg], NULL, "imx35-cspi.1");
 	clk_register_clkdev(clk[cspi3_ipg], NULL, "imx35-cspi.2");
 	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.0");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.0");
+	clk_register_clkdev(clk[pwm_ipg_per], "per", "mxc_pwm.0");
 	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.1");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.1");
+	clk_register_clkdev(clk[pwm_ipg_per], "per", "mxc_pwm.1");
 	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.2");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.2");
+	clk_register_clkdev(clk[pwm_ipg_per], "per", "mxc_pwm.2");
 	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.3");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.3");
+	clk_register_clkdev(clk[pwm_ipg_per], "per", "mxc_pwm.3");
 	clk_register_clkdev(clk[kpp_ipg], NULL, "imx-keypad");
 	clk_register_clkdev(clk[tsc_ipg], NULL, "mx25-adc");
 	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.0");
