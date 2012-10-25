@@ -355,7 +355,8 @@ struct iwl_trans;
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
  *	May sleep
- * @fw_alive: called when the fw sends alive notification
+ * @fw_alive: called when the fw sends alive notification. If the fw provides
+ *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
  * @stop_device:stops the whole device (embedded CPU put to reset)
  *	May sleep
@@ -394,7 +395,7 @@ struct iwl_trans_ops {
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
-	void (*fw_alive)(struct iwl_trans *trans);
+	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
 	void (*wowlan_suspend)(struct iwl_trans *trans);
@@ -514,13 +515,13 @@ static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
+static inline void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 {
 	might_sleep();
 
 	trans->state = IWL_TRANS_FW_ALIVE;
 
-	trans->ops->fw_alive(trans);
+	trans->ops->fw_alive(trans, scd_addr);
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans,
