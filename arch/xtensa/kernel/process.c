@@ -373,28 +373,3 @@ long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
 {
         return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }
-
-/*
- * xtensa_execve() executes a new program.
- */
-
-asmlinkage
-long xtensa_execve(const char __user *name,
-		   const char __user *const __user *argv,
-                   const char __user *const __user *envp,
-                   long a3, long a4, long a5,
-                   struct pt_regs *regs)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-

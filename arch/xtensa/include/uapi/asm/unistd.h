@@ -262,7 +262,7 @@ __SYSCALL(115, sys_sendmmsg, 4)
 #define __NR_clone 				116
 __SYSCALL(116, xtensa_clone, 5)
 #define __NR_execve 				117
-__SYSCALL(117, xtensa_execve, 3)
+__SYSCALL(117, sys_execve, 3)
 #define __NR_exit 				118
 __SYSCALL(118, sys_exit, 1)
 #define __NR_exit_group 			119
