@@ -29,7 +29,7 @@ extern void sock_update_classid(struct sock *sk);
 #if IS_BUILTIN(CONFIG_NET_CLS_CGROUP)
 static inline u32 task_cls_classid(struct task_struct *p)
 {
-	int classid;
+	u32 classid;
 
 	if (in_interrupt())
 		return 0;
