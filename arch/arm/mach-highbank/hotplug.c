@@ -14,13 +14,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/smp.h>
 
-#include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 
 #include "core.h"
+#include "sysregs.h"
 
 extern void secondary_startup(void);
 
@@ -33,7 +31,7 @@ void __ref highbank_cpu_die(unsigned int cpu)
 	flush_cache_all();
 
 	highbank_set_cpu_jump(cpu, secondary_startup);
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
+	highbank_set_core_pwr();
 
 	cpu_do_idle();
 
