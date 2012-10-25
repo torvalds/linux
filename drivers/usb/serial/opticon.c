@@ -297,7 +297,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (!dr) {
 		dev_err(&port->dev, "out of memory\n");
 		count = -ENOMEM;
-		goto error;
+		goto error_no_dr;
 	}
 
 	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
@@ -327,6 +327,8 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	return count;
 error:
+	kfree(dr);
+error_no_dr:
 	usb_free_urb(urb);
 error_no_urb:
 	kfree(buffer);
