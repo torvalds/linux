@@ -617,6 +617,48 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
+static int me_plx_bug_check(struct comedi_device *dev,
+			    struct pci_dev *pcidev)
+{
+	resource_size_t plx_regbase_tmp = pci_resource_start(pcidev, 0);
+	resource_size_t swap_regbase_tmp = pci_resource_start(pcidev, 5);
+	resource_size_t regbase_tmp;
+	int ret;
+
+	if (!swap_regbase_tmp)
+		dev_err(dev->class_dev, "Swap not present\n");
+
+	if (plx_regbase_tmp & 0x0080) {
+		dev_err(dev->class_dev, "PLX-Bug detected\n");
+
+		if (swap_regbase_tmp) {
+			regbase_tmp = plx_regbase_tmp;
+			plx_regbase_tmp = swap_regbase_tmp;
+			swap_regbase_tmp = regbase_tmp;
+
+			ret = pci_write_config_dword(pcidev,
+						     PCI_BASE_ADDRESS_0,
+						     plx_regbase_tmp);
+			if (ret != PCIBIOS_SUCCESSFUL)
+				return -EIO;
+
+			ret = pci_write_config_dword(pcidev,
+						     PCI_BASE_ADDRESS_5,
+						     swap_regbase_tmp);
+			if (ret != PCIBIOS_SUCCESSFUL)
+				return -EIO;
+		} else {
+			plx_regbase_tmp -= 0x80;
+			ret = pci_write_config_dword(pcidev,
+						     PCI_BASE_ADDRESS_0,
+						     plx_regbase_tmp);
+			if (ret != PCIBIOS_SUCCESSFUL)
+				return -EIO;
+		}
+	}
+	return 0;
+}
+
 static const void *me_find_boardinfo(struct comedi_device *dev,
 				     struct pci_dev *pcidev)
 {
@@ -636,10 +678,6 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	const struct me_board *board;
 	struct me_private_data *dev_private;
 	struct comedi_subdevice *s;
-	resource_size_t plx_regbase_tmp;
-	resource_size_t swap_regbase_tmp;
-	unsigned long swap_regbase_size_tmp;
-	resource_size_t regbase_tmp;
 	int ret;
 
 	board = me_find_boardinfo(dev, pcidev);
@@ -658,53 +696,14 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		return ret;
 	dev->iobase = 1;	/* detach needs this */
 
-	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
-	plx_regbase_tmp = pci_resource_start(pcidev, 0);
-	dev_private->plx_regbase = ioremap(plx_regbase_tmp,
+	dev_private->plx_regbase = ioremap(pci_resource_start(pcidev, 0),
 					   pci_resource_len(pcidev, 0));
-	if (!dev_private->plx_regbase) {
-		dev_err(dev->class_dev, "Failed to remap I/O memory\n");
+	if (!dev_private->plx_regbase)
 		return -ENOMEM;
-	}
 
-	/* Read Swap base address [PCI_BASE_ADDRESS #5]. */
-
-	swap_regbase_tmp = pci_resource_start(pcidev, 5);
-	swap_regbase_size_tmp = pci_resource_len(pcidev, 5);
-
-	if (!swap_regbase_tmp)
-		dev_err(dev->class_dev, "Swap not present\n");
-
-	/*---------------------------------------------- Workaround start ---*/
-	if (plx_regbase_tmp & 0x0080) {
-		dev_err(dev->class_dev, "PLX-Bug detected\n");
-
-		if (swap_regbase_tmp) {
-			regbase_tmp = plx_regbase_tmp;
-			plx_regbase_tmp = swap_regbase_tmp;
-			swap_regbase_tmp = regbase_tmp;
-
-			ret = pci_write_config_dword(pcidev,
-							PCI_BASE_ADDRESS_0,
-							plx_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-
-			ret = pci_write_config_dword(pcidev,
-							PCI_BASE_ADDRESS_5,
-							swap_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-		} else {
-			plx_regbase_tmp -= 0x80;
-			ret = pci_write_config_dword(pcidev,
-							PCI_BASE_ADDRESS_0,
-							plx_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-		}
-	}
-	/*--------------------------------------------- Workaround end -----*/
+	ret = me_plx_bug_check(dev, pcidev);
+	if (ret)
+		return ret;
 
 	dev_private->me_regbase = ioremap(pci_resource_start(pcidev, 2),
 					  pci_resource_len(pcidev, 2));
