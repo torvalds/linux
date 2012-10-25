@@ -1,5 +1,5 @@
 config ARCH_MXC
-	def_bool y if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
+	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR if !ZBOOT_ROM
@@ -72,7 +72,7 @@ config HAVE_IMX_MMDC
 	bool
 
 config HAVE_IMX_SRC
-	bool
+	def_bool y if SMP
 
 config IMX_HAVE_IOMUX_V1
 	bool
@@ -837,7 +837,6 @@ config SOC_IMX6Q
 	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
-	select HAVE_IMX_SRC
 	select HAVE_SMP
 	select MFD_SYSCON
 	select PINCTRL
