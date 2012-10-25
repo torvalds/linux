@@ -139,7 +139,7 @@ static const struct comedi_lrange me_ai_range = {
 	}
 };
 
-static const struct comedi_lrange me2600_ao_range = {
+static const struct comedi_lrange me_ao_range = {
 	3, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -150,18 +150,14 @@ static const struct comedi_lrange me2600_ao_range = {
 struct me_board {
 	const char *name;
 	int device_id;
-	int ao_chans;
-	int ao_bits;
-	const struct comedi_lrange *ao_range;
+	int has_ao;
 };
 
 static const struct me_board me_boards[] = {
 	{
 		.name		= "me-2600i",
 		.device_id	= ME2600_DEVICE_ID,
-		.ao_chans	= 4,
-		.ao_bits	= 12,
-		.ao_range	= &me2600_ao_range,
+		.has_ao		= 1,
 	}, {
 		.name		= "me-2000i",
 		.device_id	= ME2000_DEVICE_ID,
@@ -631,13 +627,13 @@ static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->insn_read	= me_ai_insn_read;
 
 	s = &dev->subdevices[1];
-	if (board->ao_chans) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITEABLE | SDF_COMMON;
-		s->n_chan	= board->ao_chans;
-		s->maxdata	= (1 << board->ao_bits) - 1;
-		s->len_chanlist	= board->ao_chans;
-		s->range_table	= board->ao_range;
+		s->n_chan	= 4;
+		s->maxdata	= 0x0fff;
+		s->len_chanlist	= 4;
+		s->range_table	= &me_ao_range;
 		s->insn_read	= me_ao_insn_read;
 		s->insn_write	= me_ao_insn_write;
 	} else {
