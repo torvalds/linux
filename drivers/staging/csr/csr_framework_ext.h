@@ -113,21 +113,6 @@ CsrResult CsrMutexCreate(CsrMutexHandle *mutexHandle);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMutexUnlock
- *
- *  DESCRIPTION
- *      Unlock the mutex refered to by the provided handle.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS           in case of success
- *          CSR_FE_RESULT_INVALID_HANDLE    in case the mutexHandle is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrMutexUnlock(CsrMutexHandle *mutexHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMutexDestroy
  *
  *  DESCRIPTION
@@ -138,21 +123,6 @@ CsrResult CsrMutexUnlock(CsrMutexHandle *mutexHandle);
  *
  *----------------------------------------------------------------------------*/
 void CsrMutexDestroy(CsrMutexHandle *mutexHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrGlobalMutexLock
- *
- *  DESCRIPTION
- *      Lock the global mutex. The global mutex is a single pre-initialised
- *      shared mutex, spinlock or similar that does not need to be created prior
- *      to use. The limitation is that there is only one single lock shared
- *      between all code. Consequently, it must only be used very briefly to
- *      either protect simple one-time initialisation or to protect the creation
- *      of a dedicated mutex by calling CsrMutexCreate.
- *
- *----------------------------------------------------------------------------*/
-void CsrGlobalMutexLock(void);
 
 /*----------------------------------------------------------------------------*
  *  NAME
