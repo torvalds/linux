@@ -30,20 +30,6 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
-/*
- * For the U8500 archs, use the PRCMU register interface, for the older
- * Nomadik, provide some stubs. The functions using these will only be
- * called on the U8500 series.
- */
-#ifdef CONFIG_ARCH_U8500
-#include <linux/mfd/dbx500-prcmu.h>
-#else
-static inline u32 prcmu_read(unsigned int reg) {
-	return 0;
-}
-static inline void prcmu_write(unsigned int reg, u32 value) {}
-static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
-#endif
 #include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/mach/irq.h>
@@ -82,10 +68,18 @@ struct nmk_gpio_chip {
 	u32 lowemi;
 };
 
+/**
+ * struct nmk_pinctrl - state container for the Nomadik pin controller
+ * @dev: containing device pointer
+ * @pctl: corresponding pin controller device
+ * @soc: SoC data for this specific chip
+ * @prcm_base: PRCM register range virtual base
+ */
 struct nmk_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
 	const struct nmk_pinctrl_soc_data *soc;
+	void __iomem *prcm_base;
 };
 
 static struct nmk_gpio_chip *
@@ -247,6 +241,15 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
 }
 
+static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
+{
+	u32 val;
+
+	val = readl(reg);
+	val = ((val & ~mask) | (value & mask));
+	writel(val, reg);
+}
+
 static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	unsigned offset, unsigned alt_num)
 {
@@ -285,8 +288,8 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 			if (pin_desc->altcx[i].used == true) {
 				reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 				bit = pin_desc->altcx[i].control_bit;
-				if (prcmu_read(reg) & BIT(bit)) {
-					prcmu_write_masked(reg, BIT(bit), 0);
+				if (readl(npct->prcm_base + reg) & BIT(bit)) {
+					nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 					dev_dbg(npct->dev,
 						"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
 						offset, i+1);
@@ -314,8 +317,8 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 		if (pin_desc->altcx[i].used == true) {
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
-			if (prcmu_read(reg) & BIT(bit)) {
-				prcmu_write_masked(reg, BIT(bit), 0);
+			if (readl(npct->prcm_base + reg) & BIT(bit)) {
+				nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 				dev_dbg(npct->dev,
 					"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
 					offset, i+1);
@@ -327,7 +330,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	bit = pin_desc->altcx[alt_index].control_bit;
 	dev_dbg(npct->dev, "PRCM GPIOCR: pin %i: alternate-C%i has been selected\n",
 		offset, alt_index+1);
-	prcmu_write_masked(reg, BIT(bit), BIT(bit));
+	nmk_write_masked(npct->prcm_base + reg, BIT(bit), BIT(bit));
 }
 
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
@@ -693,7 +696,7 @@ static int nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpio)
 		if (pin_desc->altcx[i].used == true) {
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
-			if (prcmu_read(reg) & BIT(bit))
+			if (readl(npct->prcm_base + reg) & BIT(bit))
 				return NMK_GPIO_ALT_C+i+1;
 		}
 	}
@@ -1851,6 +1854,7 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct device_node *np = pdev->dev.of_node;
 	struct nmk_pinctrl *npct;
+	struct resource *res;
 	unsigned int version = 0;
 	int i;
 
@@ -1872,6 +1876,20 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	if (version == PINCTRL_NMK_DB8540)
 		nmk_pinctrl_db8540_init(&npct->soc);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		npct->prcm_base = devm_ioremap(&pdev->dev, res->start,
+					       resource_size(res));
+		if (!npct->prcm_base) {
+			dev_err(&pdev->dev,
+				"failed to ioremap PRCM registers\n");
+			return -ENOMEM;
+		}
+	} else {
+		dev_info(&pdev->dev,
+			 "No PRCM base, assume no ALT-Cx control is available\n");
+	}
+
 	/*
 	 * We need all the GPIO drivers to probe FIRST, or we will not be able
 	 * to obtain references to the struct gpio_chip * for them, and we
@@ -1888,6 +1906,7 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	nmk_pinctrl_desc.pins = npct->soc->pins;
 	nmk_pinctrl_desc.npins = npct->soc->npins;
 	npct->dev = &pdev->dev;
+
 	npct->pctl = pinctrl_register(&nmk_pinctrl_desc, &pdev->dev, npct);
 	if (!npct->pctl) {
 		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
