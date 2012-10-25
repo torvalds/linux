@@ -1133,8 +1133,17 @@ static bool IS_DISPLAYREG(u32 reg)
 		return false;
 
 	switch (reg) {
+	case _3D_CHICKEN3:
+	case IVB_CHICKEN3:
+	case GEN7_COMMON_SLICE_CHICKEN1:
+	case GEN7_L3CNTLREG1:
+	case GEN7_L3_CHICKEN_MODE_REGISTER:
 	case GEN7_ROW_CHICKEN2:
+	case GEN7_L3SQCREG4:
+	case GEN7_SQ_CHICKEN_MBCUNIT_CONFIG:
 	case GEN7_HALF_SLICE_CHICKEN1:
+	case GEN6_MBCTL:
+	case GEN6_UCGCTL2:
 		return false;
 	default:
 		break;
