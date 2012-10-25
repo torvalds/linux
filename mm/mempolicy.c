@@ -568,134 +568,23 @@ static inline int check_pgd_range(struct vm_area_struct *vma,
 
 #ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
 /*
- * Here we search for not shared page mappings (mapcount == 1) and we
- * set up the pmd/pte_numa on those mappings so the very next access
- * will fire a NUMA hinting page fault.
+ * This is used to mark a range of virtual addresses to be inaccessible.
+ * These are later cleared by a NUMA hinting fault. Depending on these
+ * faults, pages may be migrated for better NUMA placement.
+ *
+ * This is assuming that NUMA faults are handled using PROT_NONE. If
+ * an architecture makes a different choice, it will need further
+ * changes to the core.
  */
-static int
-change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address)
+unsigned long change_prot_numa(struct vm_area_struct *vma,
+			unsigned long addr, unsigned long end)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte, *_pte;
-	struct page *page;
-	unsigned long _address, end;
-	spinlock_t *ptl;
-	int ret = 0;
+	int nr_updated;
+	BUILD_BUG_ON(_PAGE_NUMA != _PAGE_PROTNONE);
 
-	VM_BUG_ON(address & ~PAGE_MASK);
+	nr_updated = change_protection(vma, addr, end, vma->vm_page_prot, 0, 1);
 
-	pgd = pgd_offset(mm, address);
-	if (!pgd_present(*pgd))
-		goto out;
-
-	pud = pud_offset(pgd, address);
-	if (!pud_present(*pud))
-		goto out;
-
-	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd))
-		goto out;
-
-	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-		int page_nid;
-		ret = HPAGE_PMD_NR;
-
-		VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-
-		if (pmd_numa(*pmd)) {
-			spin_unlock(&mm->page_table_lock);
-			goto out;
-		}
-
-		page = pmd_page(*pmd);
-
-		/* only check non-shared pages */
-		if (page_mapcount(page) != 1) {
-			spin_unlock(&mm->page_table_lock);
-			goto out;
-		}
-
-		page_nid = page_to_nid(page);
-
-		if (pmd_numa(*pmd)) {
-			spin_unlock(&mm->page_table_lock);
-			goto out;
-		}
-
-		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
-		ret += HPAGE_PMD_NR;
-		/* defer TLB flush to lower the overhead */
-		spin_unlock(&mm->page_table_lock);
-		goto out;
-	}
-
-	if (pmd_trans_unstable(pmd))
-		goto out;
-	VM_BUG_ON(!pmd_present(*pmd));
-
-	end = min(vma->vm_end, (address + PMD_SIZE) & PMD_MASK);
-	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
-	for (_address = address, _pte = pte; _address < end;
-	     _pte++, _address += PAGE_SIZE) {
-		pte_t pteval = *_pte;
-		if (!pte_present(pteval))
-			continue;
-		if (pte_numa(pteval))
-			continue;
-		page = vm_normal_page(vma, _address, pteval);
-		if (unlikely(!page))
-			continue;
-		/* only check non-shared pages */
-		if (page_mapcount(page) != 1)
-			continue;
-
-		set_pte_at(mm, _address, _pte, pte_mknuma(pteval));
-
-		/* defer TLB flush to lower the overhead */
-		ret++;
-	}
-	pte_unmap_unlock(pte, ptl);
-
-	if (ret && !pmd_numa(*pmd)) {
-		spin_lock(&mm->page_table_lock);
-		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
-		spin_unlock(&mm->page_table_lock);
-		/* defer TLB flush to lower the overhead */
-	}
-
-out:
-	return ret;
-}
-
-/* Assumes mmap_sem is held */
-void
-change_prot_numa(struct vm_area_struct *vma,
-			unsigned long address, unsigned long end)
-{
-	struct mm_struct *mm = vma->vm_mm;
-	int progress = 0;
-
-	while (address < end) {
-		VM_BUG_ON(address < vma->vm_start ||
-			  address + PAGE_SIZE > vma->vm_end);
-
-		progress += change_prot_numa_range(mm, vma, address);
-		address = (address + PMD_SIZE) & PMD_MASK;
-	}
-
-	/*
-	 * Flush the TLB for the mm to start the NUMA hinting
-	 * page faults after we finish scanning this vma part
-	 * if there were any PTE updates
-	 */
-	if (progress) {
-		mmu_notifier_invalidate_range_start(vma->vm_mm, address, end);
-		flush_tlb_range(vma, address, end);
-		mmu_notifier_invalidate_range_end(vma->vm_mm, address, end);
-	}
+	return nr_updated;
 }
 #else
 static unsigned long change_prot_numa(struct vm_area_struct *vma,
