@@ -154,7 +154,7 @@ static double get_period_percent(struct hist_entry *he, u64 period)
 
 double perf_diff__compute_delta(struct hist_entry *he)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_percent = get_period_percent(he, he->stat.period);
 	double old_percent = pair ? get_period_percent(pair, pair->stat.period) : 0.0;
 
@@ -165,7 +165,7 @@ double perf_diff__compute_delta(struct hist_entry *he)
 
 double perf_diff__compute_ratio(struct hist_entry *he)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_period = he->stat.period;
 	double old_period = pair ? pair->stat.period : 0;
 
@@ -176,7 +176,7 @@ double perf_diff__compute_ratio(struct hist_entry *he)
 
 s64 perf_diff__compute_wdiff(struct hist_entry *he)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	u64 new_period = he->stat.period;
 	u64 old_period = pair ? pair->stat.period : 0;
 
@@ -193,7 +193,7 @@ s64 perf_diff__compute_wdiff(struct hist_entry *he)
 
 static int formula_delta(struct hist_entry *he, char *buf, size_t size)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 
 	if (!pair)
 		return -1;
@@ -207,7 +207,7 @@ static int formula_delta(struct hist_entry *he, char *buf, size_t size)
 
 static int formula_ratio(struct hist_entry *he, char *buf, size_t size)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_period = he->stat.period;
 	double old_period = pair ? pair->stat.period : 0;
 
@@ -219,7 +219,7 @@ static int formula_ratio(struct hist_entry *he, char *buf, size_t size)
 
 static int formula_wdiff(struct hist_entry *he, char *buf, size_t size)
 {
-	struct hist_entry *pair = he->pair;
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	u64 new_period = he->stat.period;
 	u64 old_period = pair ? pair->stat.period : 0;
 
@@ -359,8 +359,11 @@ static void hists__match(struct hists *older, struct hists *newer)
 	struct rb_node *nd;
 
 	for (nd = rb_first(&newer->entries); nd; nd = rb_next(nd)) {
-		struct hist_entry *pos = rb_entry(nd, struct hist_entry, rb_node);
-		pos->pair = hists__find_entry(older, pos);
+		struct hist_entry *pos = rb_entry(nd, struct hist_entry, rb_node),
+				  *pair = hists__find_entry(older, pos);
+
+		if (pair)
+			hist__entry_add_pair(pos, pair);
 	}
 }
 
@@ -402,7 +405,7 @@ static void hists__baseline_only(struct hists *hists)
 		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
 
 		next = rb_next(&he->rb_node);
-		if (!he->pair) {
+		if (!hist_entry__next_pair(he)) {
 			rb_erase(&he->rb_node, &hists->entries);
 			hist_entry__free(he);
 		}

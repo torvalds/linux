@@ -244,6 +244,8 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 			he->ms.map->referenced = true;
 		if (symbol_conf.use_callchain)
 			callchain_init(he->callchain);
+
+		INIT_LIST_HEAD(&he->pairs.node);
 	}
 
 	return he;
