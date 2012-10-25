@@ -698,13 +698,14 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	cmd = list_first_entry(&dev->cmd_queue, struct pn533_cmd, queue);
 
+	list_del(&cmd->queue);
+
 	mutex_unlock(&dev->cmd_lock);
 
 	__pn533_send_cmd_frame_async(dev, cmd->out_frame, cmd->in_frame,
 				     cmd->in_frame_len, cmd->cmd_complete,
 				     cmd->arg, cmd->flags);
 
-	list_del(&cmd->queue);
 	kfree(cmd);
 }
 
