@@ -97,22 +97,6 @@ void CsrEventDestroy(CsrEventHandle *eventHandle);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMutexCreate
- *
- *  DESCRIPTION
- *      Create a mutex and return a handle to the created mutex.
- *
- *  RETURNS
- *      Possible values:
- *          CSR_RESULT_SUCCESS           in case of success
- *          CSR_FE_RESULT_NO_MORE_MUTEXES   in case of out of mutex resources
- *          CSR_FE_RESULT_INVALID_POINTER   in case the mutexHandle pointer is invalid
- *
- *----------------------------------------------------------------------------*/
-CsrResult CsrMutexCreate(CsrMutexHandle *mutexHandle);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrGlobalMutexUnlock
  *
  *  DESCRIPTION
