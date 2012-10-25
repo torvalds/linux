@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/cgroup.h>
 #include <linux/rcupdate.h>
+#include <linux/fdtable.h>
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
@@ -53,6 +54,28 @@ static void cgrp_destroy(struct cgroup *cgrp)
 	kfree(cgrp_cls_state(cgrp));
 }
 
+static int update_classid(const void *v, struct file *file, unsigned n)
+{
+	int err;
+	struct socket *sock = sock_from_file(file, &err);
+	if (sock)
+		sock->sk->sk_classid = (u32)(unsigned long)v;
+	return 0;
+}
+
+static void cgrp_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct task_struct *p;
+	void *v;
+
+	cgroup_taskset_for_each(p, cgrp, tset) {
+		task_lock(p);
+		v = (void *)(unsigned long)task_cls_classid(p);
+		iterate_fd(p->files, 0, update_classid, v);
+		task_unlock(p);
+	}
+}
+
 static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
 {
 	return cgrp_cls_state(cgrp)->classid;
@@ -77,6 +100,7 @@ struct cgroup_subsys net_cls_subsys = {
 	.name		= "net_cls",
 	.create		= cgrp_create,
 	.destroy	= cgrp_destroy,
+	.attach		= cgrp_attach,
 	.subsys_id	= net_cls_subsys_id,
 	.base_cftypes	= ss_files,
 	.module		= THIS_MODULE,

@@ -68,7 +68,6 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
-#include <net/cls_cgroup.h>
 
 #include <asm/uaccess.h>
 
@@ -586,8 +585,6 @@ static struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 	struct sock *sk = tun->socket.sk;
 	struct sk_buff *skb;
 	int err;
-
-	sock_update_classid(sk, current);
 
 	/* Under a page?  Don't bother with paged skb. */
 	if (prepad + len < PAGE_SIZE || !linear)
