@@ -24,4 +24,4 @@ struct rk29_mu509_data {
 	unsigned int modem_assert;
 };
 
-#define MODEM_NAME "SC6610"
+#define MODEM_NAME "mu509"

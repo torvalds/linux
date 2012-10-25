@@ -59,7 +59,7 @@
 #endif
 
 #if defined(CONFIG_SC6610)
-#include <linux/mu509.h>
+#include <linux/sc6610.h>
 #endif
 
 #include "board-rk2928-phonepad-camera.c" 
@@ -728,7 +728,7 @@ static int sc6610_io_deinit(void)
         return 0;
 }
 
-struct rk29_mu509_data rk29_sc6610_info = {
+struct rk29_sc6610_data rk29_sc6610_info = {
         .io_init = sc6610_io_init,
         .io_deinit = sc6610_io_deinit,
         .bp_power = RK2928_PIN3_PC2,//RK29_PIN0_PB4,
