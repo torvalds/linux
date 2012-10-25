@@ -11,7 +11,11 @@
 #ifndef __DE_IEP_H__
 #define __DE_IEP_H__
 
-#include "../bsp_display.h"
+#include "de_bsp_sun5i/bsp_display.h"
+
+#ifndef CONFIG_ARCH_SUN5I
+#error IEP should only be used on sun5i
+#endif
 
 #define IEP_DRC_SPA_TAB_LEN	9
 #define IEP_DRC_INT_TAB_LEN 256

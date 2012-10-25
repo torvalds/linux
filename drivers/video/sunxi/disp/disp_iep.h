@@ -1,9 +1,13 @@
 #ifndef __DISP_IEP_H__
 #define __DISP_IEP_H__
 
-#include "../de/disp_display.h"
+#include "de_bsp_sun5i/de/disp_display.h"
 #include "de_iep.h"
-#include "../de/disp_event.h"
+#include "de_bsp_sun5i/de/disp_event.h"
+
+#ifndef CONFIG_ARCH_SUN5I
+#error IEP should only be used on sun5i
+#endif
 
 #define CLK_IEP_AHB_ON      0x00000008
 #define CLK_IEP_MOD_ON 		0x00000080
