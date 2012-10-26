@@ -488,9 +488,8 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			cmd->scan_begin_arg = 100 * 16 * 65535;
 			err++;
 		}
-	} else {
-		/* not supported */
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (cmd->convert_arg < this_board->ai_speed) {
 			cmd->convert_arg = this_board->ai_speed;
@@ -500,8 +499,6 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			cmd->convert_arg = 50 * 16 * 65535;
 			err++;
 		}
-	} else {
-		/* not supported */
 	}
 
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
@@ -532,9 +529,8 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 				 cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
-	} else {
-		/* not supported */
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		dt3k_ns_to_timer(50, &cmd->convert_arg,
@@ -548,8 +544,6 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			    cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
-	} else {
-		/* not supported */
 	}
 
 	if (err)
@@ -585,8 +579,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					   cmd->flags & TRIG_ROUND_MASK);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
-	} else {
-		/* not supported */
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -594,8 +586,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					    cmd->flags & TRIG_ROUND_MASK);
 		writew((tscandiv >> 16), devpriv->io_addr + DPR_Params(3));
 		writew((tscandiv & 0xffff), devpriv->io_addr + DPR_Params(4));
-	} else {
-		/* not supported */
 	}
 
 	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
