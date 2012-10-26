@@ -814,6 +814,10 @@ static __s32 pwm_write_reg(__u32 offset, __u32 value)
 {
     sys_put_wvalue(gdisp.init_para.base_pwm+offset, value);
 
+#ifdef CONFIG_ARCH_SUN4I
+    LCD_delay_ms(20);
+#endif
+
     return 0;
 }
 
@@ -872,6 +876,86 @@ __s32 pwm_enable(__u32 channel, __bool b_en)
     return 0;
 }
 
+#ifdef CONFIG_ARCH_SUN4I
+//channel: pwm channel,0/1
+//pwm_info->freq:  pwm freq, in hz
+//pwm_info->active_state: 0:low level; 1:high level
+__s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
+{
+    __u32 pre_scal[10] = {120, 180, 240, 360, 480, 12000, 24000, 36000, 48000, 72000};
+    __u32 pre_scal_id = 0, entire_cycle = 256, active_cycle = 192;
+    __u32 i=0, tmp=0;
+    __u32 freq;
+
+    freq = 1000000 / pwm_info->period_ns;
+
+    if(freq > 200000)
+    {
+        DE_WRN("pwm preq is large then 200khz, fix to 200khz\n");
+        freq = 200000;
+    }
+
+    if(freq > 781)
+    {
+        pre_scal_id = 0;
+        entire_cycle = (24000000 / pre_scal[pre_scal_id] + (freq/2)) / freq;
+        DE_INF("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n", pre_scal[i], entire_cycle, 24000000 / pre_scal[pre_scal_id] / entire_cycle );
+    }
+    else
+    {
+    	for(i=0; i<10; i++)
+    	{
+	        __u32 pwm_freq = 0;
+
+	        pwm_freq = 24000000 / (pre_scal[i] * 256);
+	        if(abs(pwm_freq - freq) < abs(tmp - freq))
+	        {
+	            tmp = pwm_freq;
+	            pre_scal_id = i;
+	            entire_cycle = 256;
+	            DE_INF("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n", pre_scal[i], 256, pwm_freq);
+	            DE_INF("----%d\n", tmp);
+	        }
+    	}
+	}
+    active_cycle = (pwm_info->duty_ns * entire_cycle + (pwm_info->period_ns/2)) / pwm_info->period_ns;
+
+    gdisp.pwm[channel].enable = pwm_info->enable;
+    gdisp.pwm[channel].freq = freq;
+	gdisp.pwm[channel].pre_scal = pre_scal[pre_scal_id];
+    gdisp.pwm[channel].active_state = pwm_info->active_state;
+    gdisp.pwm[channel].duty_ns = pwm_info->duty_ns;
+    gdisp.pwm[channel].period_ns = pwm_info->period_ns;
+    gdisp.pwm[channel].entire_cycle = entire_cycle;
+    gdisp.pwm[channel].active_cycle = active_cycle;
+
+    if(pre_scal_id >= 5)
+    {
+        pre_scal_id += 3;
+    }
+
+    if(channel == 0)
+    {
+        pwm_write_reg(0x204, ((entire_cycle - 1)<< 16) | active_cycle);
+
+        tmp = pwm_read_reg(0x200) & 0xffffff00;
+        tmp |= ((1<<6) | (pwm_info->active_state<<5) | pre_scal_id);//bit6:gatting the special clock for pwm0; bit5:pwm0  active state is high level
+        pwm_write_reg(0x200,tmp);
+    }
+    else
+    {
+        pwm_write_reg(0x208, ((entire_cycle - 1)<< 16) | active_cycle);
+
+        tmp = pwm_read_reg(0x200) & 0xff807fff;
+        tmp |= ((1<<21) | (pwm_info->active_state<<20) | (pre_scal_id<<15));//bit21:gatting the special clock for pwm1; bit20:pwm1  active state is high level
+        pwm_write_reg(0x200,tmp);
+    }
+
+    pwm_enable(channel, pwm_info->enable);
+
+    return 0;
+}
+#else
 //channel: pwm channel,0/1
 //pwm_info->freq:  pwm freq, in hz
 //pwm_info->active_state: 0:low level; 1:high level
@@ -947,6 +1031,7 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 
     return 0;
 }
+#endif /* CONFIG_ARCH_SUN4I */
 
 __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info)
 {
