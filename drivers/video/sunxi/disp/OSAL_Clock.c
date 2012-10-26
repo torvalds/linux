@@ -18,7 +18,7 @@
  * MA 02111-1307 USA
  */
 
-#include "OSAL.h"
+#include "bsp_display.h"
 #include "OSAL_Clock.h"
 
 static char* _sysClkName[AW_SYS_CLK_CNT] =

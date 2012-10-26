@@ -21,8 +21,6 @@
 #ifndef  __OSAL_PIN_H__
 #define  __OSAL_PIN_H__
 
-#include "OSAL.h"
-
 __hdle OSAL_GPIO_Request(user_gpio_set_t *gpio_list, __u32 group_count_max);
 
 __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name);

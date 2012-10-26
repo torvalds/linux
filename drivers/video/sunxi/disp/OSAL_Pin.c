@@ -18,7 +18,9 @@
  * MA 02111-1307 USA
  */
 
+#include "bsp_display.h"
 #include "OSAL_Pin.h"
+
 #ifdef CONFIG_ARCH_SUN5I
 #include "../../../../power/axp_power/axp-gpio.h"
 #endif

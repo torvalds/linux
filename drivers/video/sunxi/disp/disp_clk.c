@@ -22,7 +22,7 @@
 #include "disp_display_i.h"
 #include "disp_display.h"
 #include "disp_clk.h"
-	
+#include "OSAL_Clock.h"	
 	
 #define CLK_ON 1
 #define CLK_OFF 0
