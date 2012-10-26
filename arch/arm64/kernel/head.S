@@ -31,6 +31,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/virt.h>
 
 /*
  * swapper_pg_dir is the virtual address of the initial page table. We place
@@ -115,13 +116,13 @@
 
 ENTRY(stext)
 	mov	x21, x0				// x21=FDT
+	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	el2_setup			// Drop to EL1
 	mrs	x22, midr_el1			// x22=cpuid
 	mov	x0, x22
 	bl	lookup_processor_type
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
-	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
@@ -147,11 +148,16 @@ ENTRY(el2_setup)
 	mrs	x0, CurrentEL
 	cmp	x0, #PSR_MODE_EL2t
 	ccmp	x0, #PSR_MODE_EL2h, #0x4, ne
+	ldr	x0, =__boot_cpu_mode		// Compute __boot_cpu_mode
+	add	x0, x0, x28
 	b.eq	1f
+	str	wzr, [x0]			// Remember we don't have EL2...
 	ret
 
 	/* Hyp configuration. */
-1:	mov	x0, #(1 << 31)			// 64-bit EL1
+1:	ldr	w1, =BOOT_CPU_MODE_EL2
+	str	w1, [x0, #4]			// This CPU has EL2
+	mov	x0, #(1 << 31)			// 64-bit EL1
 	msr	hcr_el2, x0
 
 	/* Generic timers. */
@@ -187,6 +193,19 @@ ENTRY(el2_setup)
 	eret
 ENDPROC(el2_setup)
 
+/*
+ * We need to find out the CPU boot mode long after boot, so we need to
+ * store it in a writable variable.
+ *
+ * This is not in .bss, because we set it sufficiently early that the boot-time
+ * zeroing of .bss would clobber it.
+ */
+	.pushsection	.data
+ENTRY(__boot_cpu_mode)
+	.long	BOOT_CPU_MODE_EL2
+	.long	0
+	.popsection
+
 	.align	3
 2:	.quad	.
 	.quad	PAGE_OFFSET
@@ -202,6 +221,7 @@ ENDPROC(el2_setup)
 	 * cores are held until we're ready for them to initialise.
 	 */
 ENTRY(secondary_holding_pen)
+	bl	__calc_phys_offset		// x24=phys offset
 	bl	el2_setup			// Drop to EL1
 	mrs	x0, mpidr_el1
 	and	x0, x0, #15			// CPU number
@@ -227,7 +247,6 @@ ENTRY(secondary_startup)
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
 
-	bl	__calc_phys_offset		// x24=phys offset
 	pgtbl	x25, x26, x24			// x25=TTBR0, x26=TTBR1
 	ldr	x12, [x23, #CPU_INFO_SETUP]
 	add	x12, x12, x28			// __virt_to_phys
