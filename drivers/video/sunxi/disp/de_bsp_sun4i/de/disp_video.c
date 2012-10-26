@@ -28,6 +28,7 @@
 
 frame_para_t g_video[2][4];
 
+#ifdef CONFIG_ARCH_SUN4I
 static __s32 video_enhancement_start(__u32 sel, __u32 id)
 {
     __u32 scaleuprate;
@@ -127,6 +128,7 @@ static __s32 video_enhancement_stop(__u32 sel, __u32 id)
 
 	return 0;
 }
+#endif /* CONFIG_ARCH_SUN4I */
 
 static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 {	
@@ -440,7 +442,9 @@ __s32 BSP_disp_video_start(__u32 sel, __u32 hid)
         g_video[sel][hid].video_cur.id = -1;
         g_video[sel][hid].enable = TRUE;
 
+#ifdef CONFIG_ARCH_SUN4I
         video_enhancement_start(sel,hid);
+#endif
     	return DIS_SUCCESS;
     }
     else
@@ -457,8 +461,10 @@ __s32 BSP_disp_video_stop(__u32 sel, __u32 hid)
     if(g_video[sel][hid].enable)
     {
         memset(&g_video[sel][hid], 0, sizeof(frame_para_t));
-        
+
+#ifdef CONFIG_ARCH_SUN4I
         video_enhancement_stop(sel,hid);
+#endif
     	return DIS_SUCCESS;
     }
     else
