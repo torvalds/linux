@@ -67,7 +67,13 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 
     	if(g_video[sel][id].video_cur.interlace == TRUE)
     	{
+#ifdef CONFIG_ARCH_SUN4I
+    	    if((!(gdisp.screen[sel].de_flicker_status & DE_FLICKER_USED)) && 
+    	        (scaler->in_fb.format == DISP_FORMAT_YUV420 && scaler->in_fb.mode == DISP_MOD_MB_UV_COMBINED))
+    		    g_video[sel][id].dit_enable = TRUE;
+#else
     		g_video[sel][id].dit_enable = FALSE;
+#endif
 
             g_video[sel][id].fetch_field = TRUE;
         	if(g_video[sel][id].display_cnt == 0)
@@ -153,7 +159,11 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	in_scan.field = g_video[sel][id].fetch_field;
     	in_scan.bottom = g_video[sel][id].fetch_bot;
 
+#ifdef CONFIG_ARCH_SUN4I
+	out_scan.field = (gdisp.screen[sel].de_flicker_status & DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
+#else
     	out_scan.field = (gdisp.screen[sel].iep_status == DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
+#endif
         
     	if(scaler->out_fb.cs_mode > DISP_VXYCC)
     	{

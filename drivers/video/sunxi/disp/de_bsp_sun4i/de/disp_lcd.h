@@ -25,6 +25,9 @@
 
 #include "disp_display_i.h"
 
+#ifdef CONFIG_ARCH_SUN5I
+extern __panel_para_t		gpanel_info[2];
+#endif
 
 __s32 Disp_lcdc_init(__u32 sel);
 __s32 Disp_lcdc_exit(__u32 sel);

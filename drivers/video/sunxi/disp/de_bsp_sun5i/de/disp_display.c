@@ -61,7 +61,9 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
 
         gdisp.screen[screen_id].lcd_bright = 192;
 
+#ifdef CONFIG_ARCH_SUN5I
         gdisp.screen[screen_id].lcd_bright_dimming = 256;
+#endif
     }
     memcpy(&gdisp.init_para,para,sizeof(__disp_bsp_init_para));
     memset(g_video,0,sizeof(g_video));
@@ -74,7 +76,9 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     //LCDC_set_reg_base(1,para->base_lcdc1);
     TVE_set_reg_base(0, para->base_tvec0);
     //TVE_set_reg_base(1, para->base_tvec1);
+#ifdef CONFIG_ARCH_SUN5I
     DE_IEP_Set_Reg_Base(0, para->base_iep);
+#endif
 
     BSP_disp_close_lcd_backlight(0);
 
@@ -90,7 +94,10 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     //Disp_TVEC_Init(1);
     Display_Hdmi_Init();
 
+#ifdef CONFIG_ARCH_SUN5I
 	Disp_iep_init(0);
+#endif
+
     return DIS_SUCCESS;
 }
 
@@ -109,7 +116,9 @@ __s32 BSP_disp_exit(__u32 mode)
         Disp_TVEC_Exit(0);
         //Disp_TVEC_Exit(1);
         Display_Hdmi_Exit();
+#ifdef CONFIG_ARCH_SUN5I
         Disp_iep_exit(0);
+#endif
     }
     else if(mode == DISP_EXIT_MODE_CLEAN_PARTLY)
     {

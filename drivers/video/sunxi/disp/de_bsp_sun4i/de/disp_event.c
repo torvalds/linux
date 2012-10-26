@@ -67,6 +67,10 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 		return ;
 	}
 
+#ifdef CONFIG_ARCH_SUN5I
+	IEP_Operation_In_Vblanking(sel, tcon_index);
+#endif
+
     if(gdisp.screen[sel].LCD_CPUIF_ISR)
     {
     	(*gdisp.screen[sel].LCD_CPUIF_ISR)();
@@ -88,7 +92,51 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
                 Scaler_close(i);
                 gdisp.scaler[i].b_close = FALSE;
             }
-        }
+
+#ifdef CONFIG_ARCH_SUN5I
+            if(gdisp.scaler[i].coef_change == TRUE)
+            {
+            	__scal_src_size_t in_size;
+            	__scal_out_size_t out_size;
+            	__scal_src_type_t in_type;
+            	__scal_out_type_t out_type;
+            	__scal_scan_mod_t in_scan;
+            	__scal_scan_mod_t out_scan;
+                __disp_scaler_t * scaler;
+
+                scaler = &(gdisp.scaler[sel]);
+
+            	in_scan.field = FALSE;
+            	in_scan.bottom = FALSE;
+
+            	in_type.fmt= Scaler_sw_para_to_reg(0,scaler->in_fb.format);
+            	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
+            	in_type.ps= Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
+            	in_type.byte_seq = 0;
+            	in_type.sample_method = 0;
+
+            	in_size.src_width = scaler->in_fb.size.width;
+            	in_size.src_height = scaler->in_fb.size.height;
+            	in_size.x_off = scaler->src_win.x;
+            	in_size.y_off = scaler->src_win.y;
+            	in_size.scal_width = scaler->src_win.width;
+            	in_size.scal_height = scaler->src_win.height;
+
+            	out_scan.field = (gdisp.screen[sel].iep_status & DE_FLICKER_USED)?FALSE: gdisp.screen[sel].b_out_interlace;
+
+            	out_type.byte_seq = scaler->out_fb.seq;
+            	out_type.fmt = scaler->out_fb.format;
+
+            	out_size.width = scaler->out_size.width;
+            	out_size.height = scaler->out_size.height;
+
+                DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+
+                gdisp.scaler[i].coef_change = FALSE;
+            }
+#endif
+
+	}
         DE_BE_Cfg_Ready(sel);
 		gdisp.screen[sel].have_cfg_reg = TRUE;
     }

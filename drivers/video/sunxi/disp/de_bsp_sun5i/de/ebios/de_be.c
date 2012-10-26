@@ -607,13 +607,14 @@ __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable)
     return 0;
 }
 
-
+#ifdef CONFIG_ARCH_SUN5I
 __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable)
 {
 	DE_BE_WUINT32(sel, DE_BE_MODE_CTL_OFF,(DE_BE_RUINT32(sel, DE_BE_MODE_CTL_OFF)&(~(1<<5))) | (enable<<5));
 	
     return 0;
 }
+#endif
 
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable)
 {
