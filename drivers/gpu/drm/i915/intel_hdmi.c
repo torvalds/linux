@@ -792,6 +792,9 @@ static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_digital_port *intel_dig_port =
+		hdmi_to_dig_port(intel_hdmi);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
@@ -820,6 +823,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		if (intel_hdmi->force_audio != HDMI_AUDIO_AUTO)
 			intel_hdmi->has_audio =
 				(intel_hdmi->force_audio == HDMI_AUDIO_ON);
+		intel_encoder->type = INTEL_OUTPUT_HDMI;
 	}
 
 	return status;
