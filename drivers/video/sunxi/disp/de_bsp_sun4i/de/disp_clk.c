@@ -170,8 +170,10 @@ __s32 image_clk_init(__u32 sel)
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
 		}
 		OSAL_CCMU_MclkOnOff(h_debe0ahbclk, CLK_ON);
+#ifdef CONFIG_ARCH_SUN4I
 		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_OFF);
+#endif
 		OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_ON);
 
 		g_clk_status |= (CLK_DEBE0_AHB_ON | CLK_DEBE0_MOD_ON);
@@ -198,8 +200,10 @@ __s32 image_clk_init(__u32 sel)
 		}
 
 		OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_ON);
+#ifdef CONFIG_ARCH_SUN4I
 		OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
+#endif
 		OSAL_CCMU_MclkOnOff(h_debe1mclk, CLK_ON);
 
 		g_clk_status |= (CLK_DEBE1_AHB_ON | CLK_DEBE1_MOD_ON);
@@ -403,9 +407,15 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd0ch1mclk1 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD0CH1_S1);
 		h_lcd0ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD0CH1_S2);
 
+#ifdef CONFIG_ARCH_SUN4I
 		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL7);	//Default to Video Pll0
 		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL7);	//Default to Video Pll0
 		//OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk2, AW_SYS_CLK_PLL7);	//Default to Video Pll0
+#else
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+#endif
+
 		OSAL_CCMU_SetMclkDiv(h_lcd0ch1mclk2, 10);
 		OSAL_CCMU_SetMclkDiv(h_lcd0ch1mclk1, 10);
 #ifdef RESET_OSAL
@@ -428,9 +438,15 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd1ch1mclk1 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD1CH1_S1);
 		h_lcd1ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD1CH1_S2);
 
+#ifdef CONFIG_ARCH_SUN4I
 		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL7);	//Default to Video Pll0
 		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL7);	//Default to Video Pll0
 		//OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk2, AW_SYS_CLK_PLL7);	//Default to Video Pll0
+#else
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL3);	//Default to Video Pll0
+#endif
+
 		OSAL_CCMU_SetMclkDiv(h_lcd1ch1mclk2, 10);
 		OSAL_CCMU_SetMclkDiv(h_lcd1ch1mclk1, 10);
 #ifdef RESET_OSAL
@@ -535,6 +551,9 @@ __s32 tve_clk_init(__u32 sel)
 {
 	if(sel == 0)
 	{
+#ifdef CONFIG_ARCH_SUN5I
+		OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_INVAILD);
+#endif
 		h_tvenc0ahbclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_AHB_TVE0);
 		OSAL_CCMU_MclkOnOff(h_tvenc0ahbclk, CLK_ON);
 
@@ -557,6 +576,9 @@ __s32 tve_clk_exit(__u32 sel)
 	{
 		OSAL_CCMU_MclkOnOff(h_tvenc0ahbclk, CLK_OFF);
 		OSAL_CCMU_CloseMclk(h_tvenc0ahbclk);
+#ifdef CONFIG_ARCH_SUN5I
+		OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_VAILD);
+#endif
 
 		g_clk_status &= CLK_TVENC0_AHB_OFF;
 	}
@@ -587,11 +609,20 @@ __s32 hdmi_clk_init(void)
 #ifdef RESET_OSAL
 	OSAL_CCMU_MclkReset(h_hdmimclk, RST_INVAILD);
 #endif
+#ifdef CONFIG_ARCH_SUN4I
 	OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL7);
+#else
+	OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL3);
+#endif
 	OSAL_CCMU_SetMclkDiv(h_hdmimclk, 1);
 
 	OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_ON);
 	g_clk_status |= CLK_HDMI_AHB_ON;
+
+#ifdef CONFIG_ARCH_SUN5I
+	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
+	g_clk_status |= CLK_HDMI_MOD_ON;
+#endif
 
 	return DIS_SUCCESS;
 }
@@ -605,6 +636,9 @@ __s32 hdmi_clk_exit(void)
 	OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_OFF);
 	OSAL_CCMU_CloseMclk(h_hdmiahbclk);
 	OSAL_CCMU_CloseMclk(h_hdmimclk);
+#ifdef CONFIG_ARCH_SUN5I
+	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
+#endif
 
 	g_clk_status &= (CLK_HDMI_AHB_OFF & CLK_HDMI_MOD_OFF);
 
@@ -613,18 +647,20 @@ __s32 hdmi_clk_exit(void)
 
 __s32 hdmi_clk_on(void)
 {
+#ifdef CONFIG_ARCH_SUN4I
 	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
-
 	g_clk_status |= CLK_HDMI_MOD_ON;
+#endif
 
 	return DIS_SUCCESS;
 }
 
 __s32 hdmi_clk_off(void)
 {
+#ifdef CONFIG_ARCH_SUN4I
 	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
-
 	g_clk_status &= CLK_HDMI_MOD_OFF;
+#endif
 
 	return DIS_SUCCESS;
 }
@@ -754,6 +790,7 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 *divider)
 *
 *********************************************************************************************************
 */
+#ifdef CONFIG_ARCH_SUN4I
 static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 {
 	__u32 another_lcdc, another_pll_use_status;
@@ -801,7 +838,23 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 
     return ret;
 }
+#else
+static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
+{
+	__s32 ret = -1;
 
+    if(pll_clk <= (381000000 * 2))
+	{
+		ret = 0;
+    }
+    else
+    {
+        DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n",sel, pll_clk);
+    }
+
+    return ret;
+}
+#endif /* CONFIG_ARCH_SUN4I */
 
 /*
 *********************************************************************************************************
