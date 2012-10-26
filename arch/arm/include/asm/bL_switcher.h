@@ -12,6 +12,6 @@
 #ifndef ASM_BL_SWITCHER_H
 #define ASM_BL_SWITCHER_H
 
-void bL_switch_request(unsigned int cpu, unsigned int new_cluster_id);
+int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id);
 
 #endif

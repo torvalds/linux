@@ -15,8 +15,10 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/cpu_pm.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
+#include <linux/wait.h>
 #include <linux/clockchips.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
@@ -226,15 +228,48 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	return ret;
 }
 
-struct switch_args {
-	unsigned int cluster;
-	struct work_struct work;
+struct bL_thread {
+	struct task_struct *task;
+	wait_queue_head_t wq;
+	int wanted_cluster;
 };
 
-static void __bL_switch_to(struct work_struct *work)
+static struct bL_thread bL_threads[MAX_CPUS_PER_CLUSTER];
+
+static int bL_switcher_thread(void *arg)
 {
-	struct switch_args *args = container_of(work, struct switch_args, work);
-	bL_switch_to(args->cluster);
+	struct bL_thread *t = arg;
+	struct sched_param param = { .sched_priority = 1 };
+	int cluster;
+
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
+
+	do {
+		if (signal_pending(current))
+			flush_signals(current);
+		wait_event_interruptible(t->wq,
+				t->wanted_cluster != -1 ||
+				kthread_should_stop());
+		cluster = xchg(&t->wanted_cluster, -1);
+		if (cluster != -1)
+			bL_switch_to(cluster);
+	} while (!kthread_should_stop());
+
+	return 0;
+}
+
+static struct task_struct * __init bL_switcher_thread_create(int cpu, void *arg)
+{
+	struct task_struct *task;
+
+	task = kthread_create_on_node(bL_switcher_thread, arg,
+				      cpu_to_node(cpu), "kswitcher_%d", cpu);
+	if (!IS_ERR(task)) {
+		kthread_bind(task, cpu);
+		wake_up_process(task);
+	} else
+		pr_err("%s failed for CPU %d\n", __func__, cpu);
+	return task;
 }
 
 /*
@@ -243,27 +278,47 @@ static void __bL_switch_to(struct work_struct *work)
  * @cpu: the CPU to switch
  * @new_cluster_id: the ID of the cluster to switch to.
  *
- * This function causes a cluster switch on the given CPU.  If the given
- * CPU is the same as the calling CPU then the switch happens right away.
- * Otherwise the request is put on a work queue to be scheduled on the
- * remote CPU.
+ * This function causes a cluster switch on the given CPU by waking up
+ * the appropriate switcher thread.  This function may or may not return
+ * before the switch has occurred.
  */
-void bL_switch_request(unsigned int cpu, unsigned int new_cluster_id)
+int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id)
 {
-	unsigned int this_cpu = get_cpu();
-	struct switch_args args;
+	struct bL_thread *t;
 
-	if (cpu == this_cpu) {
-		bL_switch_to(new_cluster_id);
-		put_cpu();
-		return;
+	if (cpu >= MAX_CPUS_PER_CLUSTER) {
+		pr_err("%s: cpu %d out of bounds\n", __func__, cpu);
+		return -EINVAL;
 	}
-	put_cpu();
 
-	args.cluster = new_cluster_id;
-	INIT_WORK_ONSTACK(&args.work, __bL_switch_to);
-	schedule_work_on(cpu, &args.work);
-	flush_work(&args.work);
+	t = &bL_threads[cpu];
+	if (IS_ERR(t->task))
+		return PTR_ERR(t->task);
+	if (!t->task)
+		return -ESRCH;
+
+	t->wanted_cluster = new_cluster_id;
+	wake_up(&t->wq);
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(bL_switch_request);
+
+static int __init bL_switcher_init(void)
+{
+	int cpu;
+
+	pr_info("big.LITTLE switcher initializing\n");
+
+	for_each_online_cpu(cpu) {
+		struct bL_thread *t = &bL_threads[cpu];
+		init_waitqueue_head(&t->wq);
+		t->wanted_cluster = -1;
+		t->task = bL_switcher_thread_create(cpu, t);
+	}
+
+	pr_info("big.LITTLE switcher initialized\n");
+	return 0;
+}
+
+late_initcall(bL_switcher_init);
