@@ -1,6 +1,7 @@
 /*
  *  Support for Versatile FPGA-based IRQ controllers
  */
+#include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/irqdomain.h>
@@ -117,13 +118,12 @@ static int fpga_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	struct fpga_irq_data *f = d->host_data;
 
 	/* Skip invalid IRQs, only register handlers for the real ones */
-	if (!(f->valid & (1 << hwirq)))
+	if (!(f->valid & BIT(hwirq)))
 		return -ENOTSUPP;
 	irq_set_chip_data(irq, f);
 	irq_set_chip_and_handler(irq, &f->chip,
 				handle_level_irq);
 	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-	f->used_irqs++;
 	return 0;
 }
 
@@ -132,13 +132,15 @@ static struct irq_domain_ops fpga_irqdomain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-static __init struct fpga_irq_data *
-fpga_irq_prep_struct(void __iomem *base, const char *name, u32 valid) {
+void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
+			  int parent_irq, u32 valid, struct device_node *node)
+{
 	struct fpga_irq_data *f;
+	int i;
 
 	if (fpga_irq_id >= ARRAY_SIZE(fpga_irq_devices)) {
-		printk(KERN_ERR "%s: too few FPGA IRQ controllers, increase CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR\n", __func__);
-		return NULL;
+		pr_err("%s: too few FPGA IRQ controllers, increase CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR\n", __func__);
+		return;
 	}
 	f = &fpga_irq_devices[fpga_irq_id];
 	f->base = base;
@@ -147,29 +149,28 @@ fpga_irq_prep_struct(void __iomem *base, const char *name, u32 valid) {
 	f->chip.irq_mask = fpga_irq_mask;
 	f->chip.irq_unmask = fpga_irq_unmask;
 	f->valid = valid;
-	fpga_irq_id++;
-
-	return f;
-}
-
-void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
-			  int parent_irq, u32 valid, struct device_node *node)
-{
-	struct fpga_irq_data *f;
-
-	f = fpga_irq_prep_struct(base, name, valid);
-	if (!f)
-		return;
 
 	if (parent_irq != -1) {
 		irq_set_handler_data(parent_irq, f);
 		irq_set_chained_handler(parent_irq, fpga_irq_handle);
 	}
 
-	f->domain = irq_domain_add_legacy(node, fls(valid), irq_start, 0,
+	/* This will also allocate irq descriptors */
+	f->domain = irq_domain_add_simple(node, fls(valid), irq_start,
 					  &fpga_irqdomain_ops, f);
+
+	/* This will allocate all valid descriptors in the linear case */
+	for (i = 0; i < fls(valid); i++)
+		if (valid & BIT(i)) {
+			if (!irq_start)
+				irq_create_mapping(f->domain, i);
+			f->used_irqs++;
+		}
+
 	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs\n",
 		fpga_irq_id, name, base, f->used_irqs);
+
+	fpga_irq_id++;
 }
 
 #ifdef CONFIG_OF
@@ -193,18 +194,11 @@ int __init fpga_irq_of_init(struct device_node *node,
 	if (of_property_read_u32(node, "valid-mask", &valid_mask))
 		valid_mask = 0;
 
-	f = fpga_irq_prep_struct(base, node->name, valid_mask);
-	if (!f)
-		return -ENOMEM;
+	fpga_irq_init(base, node->name, 0, -1, valid_mask, node);
 
 	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
 	writel(clear_mask, base + FIQ_ENABLE_CLEAR);
 
-	f->domain = irq_domain_add_linear(node, fls(valid_mask), &fpga_irqdomain_ops, f);
-	f->used_irqs = hweight32(valid_mask);
-
-	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs\n",
-		fpga_irq_id, node->name, base, f->used_irqs);
 	return 0;
 }
 #endif
