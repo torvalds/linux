@@ -198,8 +198,7 @@ static void update_if_frozen(struct cgroup *cgroup, struct freezer *freezer)
 			 * completion.  Consider it frozen in addition to
 			 * the usual frozen condition.
 			 */
-			if (!frozen(task) && !task_is_stopped_or_traced(task) &&
-			    !freezer_should_skip(task))
+			if (!frozen(task) && !freezer_should_skip(task))
 				goto notyet;
 		}
 	}
