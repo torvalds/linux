@@ -22,7 +22,7 @@
 #define EFX_FARCH_FILTER_CTL_SRCH_FUDGE_WILD 3
 #define EFX_FARCH_FILTER_CTL_SRCH_FUDGE_FULL 1
 
-/* Hard maximum hop limit.  Hardware will time-out beyond 200-something.
+/* Hard maximum search limit.  Hardware will time-out beyond 200-something.
  * We also need to avoid infinite loops in efx_farch_filter_search() when the
  * table is full.
  */
@@ -74,7 +74,7 @@ struct efx_farch_filter_table {
 	unsigned	used;		/* number currently used */
 	unsigned long	*used_bitmap;
 	struct efx_farch_filter_spec *spec;
-	unsigned	search_depth[EFX_FARCH_FILTER_TYPE_COUNT];
+	unsigned	search_limit[EFX_FARCH_FILTER_TYPE_COUNT];
 };
 
 struct efx_farch_filter_state {
@@ -129,12 +129,6 @@ efx_farch_filter_spec_table_id(const struct efx_farch_filter_spec *spec)
 	return (spec->type >> 2) + ((spec->flags & EFX_FILTER_FLAG_TX) ? 2 : 0);
 }
 
-static void
-efx_farch_filter_table_reset_search_depth(struct efx_farch_filter_table *table)
-{
-	memset(table->search_depth, 0, sizeof(table->search_depth));
-}
-
 static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 {
 	struct efx_farch_filter_state *state = efx->filter_state;
@@ -145,27 +139,27 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 
 	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	EFX_SET_OWORD_FIELD(filter_ctl, FRF_BZ_TCP_FULL_SRCH_LIMIT,
-			    table->search_depth[EFX_FARCH_FILTER_TCP_FULL] +
+			    table->search_limit[EFX_FARCH_FILTER_TCP_FULL] +
 			    EFX_FARCH_FILTER_CTL_SRCH_FUDGE_FULL);
 	EFX_SET_OWORD_FIELD(filter_ctl, FRF_BZ_TCP_WILD_SRCH_LIMIT,
-			    table->search_depth[EFX_FARCH_FILTER_TCP_WILD] +
+			    table->search_limit[EFX_FARCH_FILTER_TCP_WILD] +
 			    EFX_FARCH_FILTER_CTL_SRCH_FUDGE_WILD);
 	EFX_SET_OWORD_FIELD(filter_ctl, FRF_BZ_UDP_FULL_SRCH_LIMIT,
-			    table->search_depth[EFX_FARCH_FILTER_UDP_FULL] +
+			    table->search_limit[EFX_FARCH_FILTER_UDP_FULL] +
 			    EFX_FARCH_FILTER_CTL_SRCH_FUDGE_FULL);
 	EFX_SET_OWORD_FIELD(filter_ctl, FRF_BZ_UDP_WILD_SRCH_LIMIT,
-			    table->search_depth[EFX_FARCH_FILTER_UDP_WILD] +
+			    table->search_limit[EFX_FARCH_FILTER_UDP_WILD] +
 			    EFX_FARCH_FILTER_CTL_SRCH_FUDGE_WILD);
 
 	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_MAC];
 	if (table->size) {
 		EFX_SET_OWORD_FIELD(
 			filter_ctl, FRF_CZ_ETHERNET_FULL_SEARCH_LIMIT,
-			table->search_depth[EFX_FARCH_FILTER_MAC_FULL] +
+			table->search_limit[EFX_FARCH_FILTER_MAC_FULL] +
 			EFX_FARCH_FILTER_CTL_SRCH_FUDGE_FULL);
 		EFX_SET_OWORD_FIELD(
 			filter_ctl, FRF_CZ_ETHERNET_WILDCARD_SEARCH_LIMIT,
-			table->search_depth[EFX_FARCH_FILTER_MAC_WILD] +
+			table->search_limit[EFX_FARCH_FILTER_MAC_WILD] +
 			EFX_FARCH_FILTER_CTL_SRCH_FUDGE_WILD);
 	}
 
@@ -221,11 +215,11 @@ static void efx_farch_filter_push_tx_limits(struct efx_nic *efx)
 	if (table->size) {
 		EFX_SET_OWORD_FIELD(
 			tx_cfg, FRF_CZ_TX_ETH_FILTER_FULL_SEARCH_RANGE,
-			table->search_depth[EFX_FARCH_FILTER_MAC_FULL] +
+			table->search_limit[EFX_FARCH_FILTER_MAC_FULL] +
 			EFX_FARCH_FILTER_CTL_SRCH_FUDGE_FULL);
 		EFX_SET_OWORD_FIELD(
 			tx_cfg, FRF_CZ_TX_ETH_FILTER_WILD_SEARCH_RANGE,
-			table->search_depth[EFX_FARCH_FILTER_MAC_WILD] +
+			table->search_limit[EFX_FARCH_FILTER_MAC_WILD] +
 			EFX_FARCH_FILTER_CTL_SRCH_FUDGE_WILD);
 	}
 
@@ -633,8 +627,8 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 		return -EINVAL;
 
 	netif_vdbg(efx, hw, efx->net_dev,
-		   "%s: type %d search_depth=%d", __func__, spec.type,
-		   table->search_depth[spec.type]);
+		   "%s: type %d search_limit=%d", __func__, spec.type,
+		   table->search_limit[spec.type]);
 
 	if (table->id == EFX_FARCH_FILTER_TABLE_RX_DEF) {
 		/* One filter spec per type */
@@ -664,7 +658,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 		u32 key = efx_farch_filter_build(&filter, &spec);
 		unsigned int hash = efx_farch_filter_hash(key);
 		unsigned int incr = efx_farch_filter_increment(key);
-		unsigned int max_rep_depth = table->search_depth[spec.type];
+		unsigned int max_rep_depth = table->search_limit[spec.type];
 		unsigned int max_ins_depth =
 			spec.priority <= EFX_FILTER_PRI_HINT ?
 			EFX_FARCH_FILTER_CTL_SRCH_HINT_MAX :
@@ -732,8 +726,8 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 	if (table->id == EFX_FARCH_FILTER_TABLE_RX_DEF) {
 		efx_farch_filter_push_rx_config(efx);
 	} else {
-		if (table->search_depth[spec.type] < depth) {
-			table->search_depth[spec.type] = depth;
+		if (table->search_limit[spec.type] < depth) {
+			table->search_limit[spec.type] = depth;
 			if (spec.flags & EFX_FILTER_FLAG_TX)
 				efx_farch_filter_push_tx_limits(efx);
 			else
@@ -779,6 +773,21 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 
 		efx_writeo(efx, &filter,
 			   table->offset + table->step * filter_idx);
+
+		/* If this filter required a greater search depth than
+		 * any other, the search limit for its type can now be
+		 * decreased.  However, it is hard to determine that
+		 * unless the table has become completely empty - in
+		 * which case, all its search limits can be set to 0.
+		 */
+		if (unlikely(table->used == 0)) {
+			memset(table->search_limit, 0,
+			       sizeof(table->search_limit));
+			if (table->id == EFX_FARCH_FILTER_TABLE_TX_MAC)
+				efx_farch_filter_push_tx_limits(efx);
+			else
+				efx_farch_filter_push_rx_config(efx);
+		}
 	}
 }
 
@@ -817,8 +826,6 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 	if (test_bit(filter_idx, table->used_bitmap) &&
 	    spec->priority == priority) {
 		efx_farch_filter_table_clear_entry(efx, table, filter_idx);
-		if (table->used == 0)
-			efx_farch_filter_table_reset_search_depth(table);
 		rc = 0;
 	} else {
 		rc = -ENOENT;
@@ -885,14 +892,10 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	unsigned int filter_idx;
 
 	spin_lock_bh(&efx->filter_lock);
-
 	for (filter_idx = 0; filter_idx < table->size; ++filter_idx)
 		if (table->spec[filter_idx].priority <= priority)
 			efx_farch_filter_table_clear_entry(efx, table,
 							   filter_idx);
-	if (table->used == 0)
-		efx_farch_filter_table_reset_search_depth(table);
-
 	spin_unlock_bh(&efx->filter_lock);
 }
 
@@ -1233,8 +1236,6 @@ bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota)
 	}
 
 	efx->rps_expire_index = stop;
-	if (table->used == 0)
-		efx_farch_filter_table_reset_search_depth(table);
 
 	spin_unlock_bh(&efx->filter_lock);
 	return true;
