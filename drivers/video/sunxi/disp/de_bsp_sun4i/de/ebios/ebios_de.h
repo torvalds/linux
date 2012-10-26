@@ -73,11 +73,13 @@ typedef enum
    DE_N64PIXELS
 }de_pixels_num_t;
 
+#ifdef CONFIG_ARCH_SUN4I
 typedef enum {
 	DE_RGB,
 	DE_YUV_TV,
 	DE_YUV_HDMI
 }__csc_t;
+#endif
 
 typedef enum __SCAL_PS
 {
@@ -363,6 +365,9 @@ __s32 DE_BE_set_display_size(__u32 sel, __u32 width, __u32 height);
 __s32 DE_BE_get_display_width(__u32 sel);
 __s32 DE_BE_get_display_height(__u32 sel);
 __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
+#ifdef CONFIG_ARCH_SUN5I
+__s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
+#endif
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
 __s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr,__u32 width,__u32 x,__u32 y,__u32 bpp);

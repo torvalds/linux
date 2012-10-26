@@ -67,7 +67,9 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 		return ;
 	}
 
+#ifdef CONFIG_ARCH_SUN5I
 	IEP_Operation_In_Vblanking(sel, tcon_index);
+#endif
 
     if(gdisp.screen[sel].LCD_CPUIF_ISR)
     {
@@ -90,6 +92,8 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
                 Scaler_close(i);
                 gdisp.scaler[i].b_close = FALSE;
             }
+
+#ifdef CONFIG_ARCH_SUN5I
             if(gdisp.scaler[i].coef_change == TRUE)
             {
             	__scal_src_size_t in_size;
@@ -130,6 +134,8 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 
                 gdisp.scaler[i].coef_change = FALSE;
             }
+#endif
+
         }
         DE_BE_Cfg_Ready(sel);
 		gdisp.screen[sel].have_cfg_reg = TRUE;

@@ -1677,7 +1677,11 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         TCON1_cfg_ex(sel,(__panel_para_t*)&gpanel_info[sel]);
     }
+#ifdef CONFIG_ARCH_SUN4I
+    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
+#else
     BSP_disp_set_output_csc(sel,DISP_OUTPUT_TYPE_LCD,gdisp.screen[sel].iep_status&DRC_USED);
+#endif
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -1694,7 +1698,9 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
     gdisp.screen[sel].status |= LCD_ON;
     gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_LCD;
     Lcd_Panel_Parameter_Check(sel);
+#ifdef CONFIG_ARCH_SUN5I
     Disp_drc_enable(sel, TRUE);
+#endif
 #ifdef __LINUX_OSAL__
     Display_set_fb_timming(sel);
 #endif
@@ -1710,7 +1716,9 @@ __s32 BSP_disp_lcd_close_befor(__u32 sel)
 {
 	close_flow[sel].func_num = 0;
 	lcd_panel_fun[sel].cfg_close_flow(sel);
+#ifdef CONFIG_ARCH_SUN5I
 	Disp_drc_enable(sel, 2);	//must close immediately, cause vbi may not come
+#endif
 
 	gdisp.screen[sel].status &= LCD_OFF;
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
@@ -1748,29 +1756,47 @@ __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode)
     return DIS_SUCCESS;
 }
 
-//setting:  0,       1,      2,....  255,   256
-//pol==0:  0,       1,      2,....  255,   256
-//pol==1: 256,    255,    254, ...   1,   0
-__s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright, __u32 from_iep)
+/*
+ * sun4i: 0-16
+ * sun5i: 0-256
+ */
+__s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright
+#ifdef CONFIG_ARCH_SUN5I
+			      , __u32 from_iep
+#endif
+)
 {
     __u32 duty_ns;
 
     if((OSAL_sw_get_ic_ver() != 0xA) && (gpanel_info[sel].lcd_pwm_not_used == 0))
     {
+#ifdef CONFIG_ARCH_SUN4I
+        if(bright != 0)
+        {
+            bright += 1;
+        }
+#endif
+
+#ifdef CONFIG_ARCH_SUN4I
         if(gpanel_info[sel].lcd_pwm_pol == 0)
-        {
-            duty_ns = (bright * gdisp.screen[sel].lcd_bright_dimming * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns / 256 + 128) / 256;
-        }
+            duty_ns = (bright * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
         else
-        {
+            duty_ns = ((256 - bright) * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
+#else
+        if(gpanel_info[sel].lcd_pwm_pol == 0)
+            duty_ns = (bright * gdisp.screen[sel].lcd_bright_dimming * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns / 256 + 128) / 256;
+        else
             duty_ns = ((256- bright * gdisp.screen[sel].lcd_bright_dimming/256 ) * gdisp.pwm[gpanel_info[sel].lcd_pwm_ch].period_ns + 128) / 256;
-        }
+#endif
+
         pwm_set_duty_ns(gpanel_info[sel].lcd_pwm_ch, duty_ns);
     }
+
+#ifdef CONFIG_ARCH_SUN5I
     if(!from_iep)
-    {
-    gdisp.screen[sel].lcd_bright = bright;
-	}
+#endif
+	    gdisp.screen[sel].lcd_bright = bright;
+
     return DIS_SUCCESS;
 }
 

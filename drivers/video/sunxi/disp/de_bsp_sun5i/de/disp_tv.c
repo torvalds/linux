@@ -220,7 +220,11 @@ __s32 BSP_disp_tv_open(__u32 sel)
         tve_clk_on(sel);
         lcdc_clk_on(sel);
 
+#ifdef CONFIG_ARCH_SUN4I
+	BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV);
+#else
         BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV,gdisp.screen[sel].iep_status&DRC_USED);
+#endif
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
         DE_BE_Output_Select(sel, sel);
 		DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
@@ -248,7 +252,9 @@ __s32 BSP_disp_tv_open(__u32 sel)
         Disp_TVEC_Open(sel);
 
         Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_TV, tv_mod);
+#ifdef CONFIG_ARCH_SUN5I
         Disp_de_flicker_enable(sel, TRUE);
+#endif
 #ifdef __LINUX_OSAL__
         {
             user_gpio_set_t  gpio_info[1];
@@ -279,6 +285,11 @@ __s32 BSP_disp_tv_open(__u32 sel)
         gdisp.screen[sel].status |= TV_ON;
         gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
         gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_TV;
+
+#ifdef CONFIG_ARCH_SUN4I
+	Disp_set_out_interlace(sel);
+#endif
+
 #ifdef __LINUX_OSAL__
         Display_set_fb_timming(sel);
 #endif
@@ -300,7 +311,9 @@ __s32 BSP_disp_tv_close(__u32 sel)
         tve_clk_off(sel);
         image_clk_off(sel);
         lcdc_clk_off(sel);
+#ifdef CONFIG_ARCH_SUN5I
         Disp_de_flicker_enable(sel, 2);	//must close immediately, because vbi may not come
+#endif
 		DE_BE_Set_Outitl_enable(sel, FALSE);
         for(scaler_index=0; scaler_index<2; scaler_index++)
         {
@@ -340,6 +353,10 @@ __s32 BSP_disp_tv_close(__u32 sel)
         gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
         gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &= ((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED)? VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
+
+#ifdef CONFIG_ARCH_SUN4I
+		Disp_set_out_interlace(sel);
+#endif
     }
     return DIS_SUCCESS;
 }
@@ -374,7 +391,6 @@ __s32 BSP_disp_tv_get_interface(__u32 sel)
     {
         dac[i] = TVE_get_dac_status(i);
         if(dac[i]>1)
-
     {
             DE_WRN("dac %d short to ground\n", i);
             dac[i] = 0;
