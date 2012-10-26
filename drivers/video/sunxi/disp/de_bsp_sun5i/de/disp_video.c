@@ -177,7 +177,11 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     		g_video[sel][id].dit_enable = FALSE;
 #endif
 
+#ifdef CONFIG_ARCH_SUN4I
+		g_video[sel][id].fetch_field = FALSE;
+#else
             g_video[sel][id].fetch_field = TRUE;
+#endif
         	if(g_video[sel][id].display_cnt == 0)
         	{
         	    g_video[sel][id].fetch_bot = (g_video[sel][id].video_cur.top_field_first)?0:1;
@@ -210,16 +214,19 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     				g_video[sel][id].tempdiff_en = FALSE;
     			}
     			g_video[sel][id].diagintp_en = TRUE;
-
+#ifdef CONFIG_ARCH_SUN5I
                 g_video[sel][id].fetch_field = FALSE;//todo
                 g_video[sel][id].fetch_bot = 0;//todo
                 g_video[sel][id].dit_mode = DIT_MODE_MAF_BOB;//todo
+		g_video[sel][id].diagintp_en = FALSE;//todo
+#endif
                 g_video[sel][id].tempdiff_en = FALSE;//todo
-                g_video[sel][id].diagintp_en = FALSE;//todo
     		}
     		else
     		{
+#ifdef CONFIG_ARCH_SUN5I
     		    g_video[sel][id].fetch_bot = FALSE;
+#endif
         	    g_video[sel][id].dit_mode = DIT_MODE_WEAVE;
         	    g_video[sel][id].tempdiff_en = FALSE;
         	    g_video[sel][id].diagintp_en = FALSE;
