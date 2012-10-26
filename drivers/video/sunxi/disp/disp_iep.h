@@ -33,37 +33,35 @@
 //for power saving mode alg0
 #define IEP_LH_PWRSV_NUM 24
 
-typedef struct
-{
-	__u32 			mod;
+typedef struct {
+	__u32 mod;
 
 	//drc
 	//__u32           drc_en;
-	__u32  			drc_win_en;
-	__disp_rect_t   drc_win;
-	__u32           adjust_en;
-	__u32           lgc_autoload_dis;
-	__u32           waitframe;
-	__u32           runframe;
-	__u32           valid_width;
-	__u32           valid_height;
+	__u32 drc_win_en;
+	__disp_rect_t drc_win;
+	__u32 adjust_en;
+	__u32 lgc_autoload_dis;
+	__u32 waitframe;
+	__u32 runframe;
+	__u32 valid_width;
+	__u32 valid_height;
 
 	//lh
-	__u32           lgc_base_add;
-	__u8            lh_thres_val[IEP_LH_THRES_NUM];
+	__u32 lgc_base_add;
+	__u8 lh_thres_val[IEP_LH_THRES_NUM];
 
 	//de-flicker
 	//__u32           deflicker_en;
-	__u32           deflicker_win_en;
-	__disp_rect_t   deflicker_win;
+	__u32 deflicker_win_en;
+	__disp_rect_t deflicker_win;
 
-}__disp_iep_t;
+} __disp_iep_t;
 
-typedef struct
-{
-	__u8 			min_adj_index_hist[IEP_LH_PWRSV_NUM];
-	__u32           user_bl;
-}__disp_pwrsv_t;
+typedef struct {
+	__u8 min_adj_index_hist[IEP_LH_PWRSV_NUM];
+	__u32 user_bl;
+} __disp_pwrsv_t;
 
 extern __s32 Disp_iep_init(__u32 sel);
 extern __s32 Disp_iep_exit(__u32 sel);
@@ -84,4 +82,3 @@ extern __s32 Disp_de_flicker_close_proc(__u32 sel, __u32 tcon_index);
 extern __s32 DE_IEP_Set_Reg_Base(__u32 sel, __u32 base);
 
 #endif
-

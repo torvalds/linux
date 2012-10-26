@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef _DISP_HWC_H_
 #define _DISP_HWC_H_
 
@@ -27,6 +26,4 @@
 
 /*basic data information definition*/
 
-
 #endif
-

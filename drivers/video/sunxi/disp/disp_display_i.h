@@ -25,9 +25,6 @@
 #include "ebios_de.h"
 #include "ebios_lcdc_tve.h"
 
-
-
-
 #define DE_INF __inf
 #define DE_MSG __msg
 #define DE_WRN __wrn
@@ -43,31 +40,27 @@
 
 #define MAX_SPRITE_BLOCKS	32
 
-
-
 /*basic data information definition*/
-enum
-{
-    FALSE=0,
-    TRUE
+enum {
+	FALSE = 0,
+	TRUE
 };
 
 #define DIS_NULL 0
 
-enum
-{
-   DIS_SUCCESS=0,
-   DIS_FAIL=-1,
-   DIS_PARA_FAILED=-2,
-   DIS_PRIO_ERROR=-3,
-   DIS_OBJ_NOT_INITED=-4,
-   DIS_NOT_SUPPORT=-5,
-   DIS_NO_RES=-6,
-   DIS_OBJ_COLLISION=-7,
-   DIS_DEV_NOT_INITED=-8,
-   DIS_DEV_SRAM_COLLISION=-9,
-   DIS_TASK_ERROR = -10,
-   DIS_PRIO_COLLSION = -11
+enum {
+	DIS_SUCCESS = 0,
+	DIS_FAIL = -1,
+	DIS_PARA_FAILED = -2,
+	DIS_PRIO_ERROR = -3,
+	DIS_OBJ_NOT_INITED = -4,
+	DIS_NOT_SUPPORT = -5,
+	DIS_NO_RES = -6,
+	DIS_OBJ_COLLISION = -7,
+	DIS_DEV_NOT_INITED = -8,
+	DIS_DEV_SRAM_COLLISION = -9,
+	DIS_TASK_ERROR = -10,
+	DIS_PRIO_COLLSION = -11
 };
 
 #define BIT0      0x00000001
@@ -103,17 +96,17 @@ enum
 #define BIT30		  0x40000000
 #define BIT31		  0x80000000
 
-#define sys_get_value(n)    (*((volatile __u8 *)(n)))          /* byte input */
-#define sys_put_value(n,c)  (*((volatile __u8 *)(n))  = (c))   /* byte output */
-#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))         /* half word input */
-#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))   /* half word output */
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))          /* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
-#define sys_set_bit(n,c)    (*((volatile __u8 *)(n)) |= (c))   /* byte bit set */
-#define sys_clr_bit(n,c)    (*((volatile __u8 *)(n)) &=~(c))   /* byte bit clear */
-#define sys_set_hbit(n,c)   (*((volatile __u16 *)(n))|= (c))   /* half word bit set */
-#define sys_clr_hbit(n,c)   (*((volatile __u16 *)(n))&=~(c))   /* half word bit clear */
-#define sys_set_wbit(n,c)   (*((volatile __u32 *)(n))|= (c))    /* word bit set */
+#define sys_get_value(n)    (*((volatile __u8 *)(n)))	/* byte input */
+#define sys_put_value(n,c)  (*((volatile __u8 *)(n))  = (c))	/* byte output */
+#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))	/* half word input */
+#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))	/* half word output */
+#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
+#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
+#define sys_set_bit(n,c)    (*((volatile __u8 *)(n)) |= (c))	/* byte bit set */
+#define sys_clr_bit(n,c)    (*((volatile __u8 *)(n)) &=~(c))	/* byte bit clear */
+#define sys_set_hbit(n,c)   (*((volatile __u16 *)(n))|= (c))	/* half word bit set */
+#define sys_clr_hbit(n,c)   (*((volatile __u16 *)(n))&=~(c))	/* half word bit clear */
+#define sys_set_wbit(n,c)   (*((volatile __u32 *)(n))|= (c))	/* word bit set */
 #define sys_cmp_wvalue(n,c) (c == (*((volatile __u32 *) (n))))
 #define sys_clr_wbit(n,c)   (*((volatile __u32 *)(n))&=~(c))
 

@@ -19,15 +19,14 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef __DISP_DE_H_
 #define __DISP_DE_H_
 
 #include "disp_display_i.h"
 
-extern __hdle   h_tvahbclk;
-extern __hdle   h_tv1clk;
-extern __hdle   h_tv2clk;
+extern __hdle h_tvahbclk;
+extern __hdle h_tv1clk;
+extern __hdle h_tv2clk;
 
 __s32 Image_init(__u32 sel);
 __s32 Image_exit(__u32 sel);

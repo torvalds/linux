@@ -19,10 +19,8 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef __DE_TVE_I_H__
 #define __DE_TVE_I_H__
-
 
 /*tv encoder registers offset*/
 #define TVE_000    (0x000)
