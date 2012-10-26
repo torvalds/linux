@@ -61,7 +61,7 @@ static inline u32 task_cls_classid(struct task_struct *p)
 }
 #endif
 #else /* !CGROUP_NET_CLS_CGROUP */
-static inline void sock_update_classid(struct sock *sk)
+static inline void sock_update_classid(struct sock *sk, struct task_struct *task)
 {
 }
 
