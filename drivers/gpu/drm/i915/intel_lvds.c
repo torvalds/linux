@@ -44,7 +44,6 @@ struct intel_lvds_connector {
 	struct intel_connector base;
 
 	struct notifier_block lid_notifier;
-	int fitting_mode;
 };
 
 struct intel_lvds_encoder {
@@ -253,8 +252,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
-	struct intel_lvds_connector *lvds_connector =
-		lvds_encoder->attached_connector;
+	struct intel_connector *intel_connector =
+		&lvds_encoder->attached_connector->base;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	int pipe;
@@ -274,11 +273,12 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	intel_fixed_panel_mode(lvds_connector->base.panel.fixed_mode,
+	intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 			       adjusted_mode);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		intel_pch_panel_fitting(dev, lvds_connector->fitting_mode,
+		intel_pch_panel_fitting(dev,
+					intel_connector->panel.fitting_mode,
 					mode, adjusted_mode);
 		return true;
 	}
@@ -304,7 +304,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	switch (lvds_connector->fitting_mode) {
+	switch (intel_connector->panel.fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
@@ -573,7 +573,7 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 
 	if (property == dev->mode_config.scaling_mode_property) {
@@ -584,11 +584,11 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 			return -EINVAL;
 		}
 
-		if (lvds_connector->fitting_mode == value) {
+		if (intel_connector->panel.fitting_mode == value) {
 			/* the LVDS scaling property is not changed */
 			return 0;
 		}
-		lvds_connector->fitting_mode = value;
+		intel_connector->panel.fitting_mode = value;
 
 		crtc = intel_attached_encoder(connector)->base.crtc;
 		if (crtc && crtc->enabled) {
@@ -1008,14 +1008,10 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
-	/*
-	 * the initial panel fitting mode will be FULL_SCREEN.
-	 */
-
 	drm_connector_attach_property(&intel_connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_ASPECT);
-	lvds_connector->fitting_mode = DRM_MODE_SCALE_ASPECT;
+	intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC

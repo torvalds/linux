@@ -165,6 +165,7 @@ struct intel_encoder {
 
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
+	int fitting_mode;
 };
 
 struct intel_connector {
