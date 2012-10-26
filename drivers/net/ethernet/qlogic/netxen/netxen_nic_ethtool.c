@@ -488,6 +488,8 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 	__u32 val;
 	int port = adapter->physical_port;
 
+	pause->autoneg = 0;
+
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port >= NETXEN_NIU_MAX_GBE_PORTS))
 			return;
@@ -532,6 +534,11 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 val;
 	int port = adapter->physical_port;
+
+	/* not supported */
+	if (pause->autoneg)
+		return -EINVAL;
+
 	/* read mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port >= NETXEN_NIU_MAX_GBE_PORTS))
