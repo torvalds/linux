@@ -69,6 +69,16 @@
 			compatible = "marvell,armada-addr-decoding-controller";
 			reg = <0xd0020000 0x258>;
 		};
+
+		sata@d00a0000 {
+			compatible = "marvell,orion-sata";
+			reg = <0xd00a0000 0x2400>;
+			interrupts = <55>;
+			clocks = <&gateclk 15>, <&gateclk 30>;
+			clock-names = "0", "1";
+			status = "disabled";
+		};
+
 	};
 };
 
