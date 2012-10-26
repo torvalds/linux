@@ -94,6 +94,7 @@
 #define INTEL_OUTPUT_HDMI 6
 #define INTEL_OUTPUT_DISPLAYPORT 7
 #define INTEL_OUTPUT_EDP 8
+#define INTEL_OUTPUT_UNKNOWN 9
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -421,7 +422,12 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev,
 			    int sdvox_reg, enum port port);
+extern void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
+				      struct intel_connector *intel_connector);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
+extern bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
+				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode);
 extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
@@ -434,6 +440,8 @@ extern void intel_mark_fb_idle(struct drm_i915_gem_object *obj);
 extern bool intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
+extern void intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
+				    struct intel_connector *intel_connector);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
@@ -441,6 +449,11 @@ extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
 extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
+extern void intel_dp_encoder_destroy(struct drm_encoder *encoder);
+extern void intel_dp_check_link_status(struct intel_dp *intel_dp);
+extern bool intel_dp_mode_fixup(struct drm_encoder *encoder,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
@@ -635,13 +648,8 @@ extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
 
-extern void intel_enable_ddi(struct intel_encoder *intel_encoder);
-extern void intel_disable_ddi(struct intel_encoder *intel_encoder);
 extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe);
-extern void intel_ddi_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
 extern int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv);
 extern void intel_ddi_pll_init(struct drm_device *dev);
 extern void intel_ddi_enable_pipe_func(struct drm_crtc *crtc);
@@ -651,8 +659,6 @@ extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
 extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
-extern void intel_ddi_pre_enable(struct intel_encoder *intel_encoder);
-extern void intel_ddi_post_disable(struct intel_encoder *intel_encoder);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);

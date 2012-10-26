@@ -760,9 +760,9 @@ static int intel_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }
@@ -926,12 +926,6 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs_hsw = {
-	.mode_fixup = intel_hdmi_mode_fixup,
-	.mode_set = intel_ddi_mode_set,
-	.disable = intel_encoder_noop,
-};
-
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_hdmi_mode_set,
@@ -963,8 +957,8 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_broadcast_rgb_property(connector);
 }
 
-static void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
-				      struct intel_connector *intel_connector)
+void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
+			       struct intel_connector *intel_connector)
 {
 	struct drm_connector *connector = &intel_connector->base;
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
@@ -1059,21 +1053,11 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	if (IS_HASWELL(dev)) {
-		intel_encoder->pre_enable = intel_ddi_pre_enable;
-		intel_encoder->enable = intel_enable_ddi;
-		intel_encoder->disable = intel_disable_ddi;
-		intel_encoder->post_disable = intel_ddi_post_disable;
-		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
-		drm_encoder_helper_add(&intel_encoder->base,
-				       &intel_hdmi_helper_funcs_hsw);
-	} else {
-		intel_encoder->enable = intel_enable_hdmi;
-		intel_encoder->disable = intel_disable_hdmi;
-		intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
-		drm_encoder_helper_add(&intel_encoder->base,
-				       &intel_hdmi_helper_funcs);
-	}
+	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
+
+	intel_encoder->enable = intel_enable_hdmi;
+	intel_encoder->disable = intel_disable_hdmi;
+	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
