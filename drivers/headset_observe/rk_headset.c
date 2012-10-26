@@ -56,8 +56,8 @@
 
 #define HEADSET_IN 1
 #define HEADSET_OUT 0
-#define HOOK_DOWN 0
-#define HOOK_UP 1
+#define HOOK_DOWN 1
+#define HOOK_UP 0
 #define enable 1
 #define disable 0
 
@@ -244,7 +244,7 @@ static void Hook_work(struct work_struct *work)
 		DBG("old_status == headset_info->hook_status\n");
 		goto RE_ERROR;
 	}	
-	DBG("Hook_work -- level = %d  hook status is %s\n",level,headset_info->hook_status?"key up":"key down");	
+	DBG("Hook_work -- level = %d  hook status is %s\n",level,headset_info->hook_status?"key down":"key dup");	
 	if(headset_info->hook_status == HOOK_DOWN)
 	{
 		if(pdata->Hook_down_type == HOOK_DOWN_HIGH)
