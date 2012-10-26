@@ -220,7 +220,6 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct device_node *parent;
 	int map_num = 1;
 	int i;
-	struct at91_pmx_pin *pin;
 
 	/*
 	 * first find the group of this node and check if we need create
@@ -255,8 +254,6 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	/* create config map */
 	new_map++;
 	for (i = 0; i < grp->npins; i++) {
-		pin = &grp->pins_conf[i];
-
 		new_map[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
 		new_map[i].data.configs.group_or_pin =
 				pin_get_name(pctldev, grp->pins[i]);
