@@ -837,6 +837,7 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
     return 0;	
 }
 
+#ifdef CONFIG_ARCH_SUN4I
 //out_csc: 0:rgb, 1:yuv for tv, 2:yuv for hdmi
 //out_color_range:  0:16~255, 1:0~255, 2:16~235
 __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
@@ -1045,6 +1046,189 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u
 
 	return 0;
 }
+#else
+//brightness -100~100
+//contrast -100~100
+//saturaion -100~100
+__s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 brightness, __s32 contrast, __s32 saturaion, __s32 hue)
+{
+	__s32 i_bright;
+	__s32 i_contrast;
+	__s32 i_saturaion;
+	__s32 i_hue;
+	__scal_matrix4x4 matrixEn;
+	__scal_matrix4x4 *ptmatrix;
+	__scal_matrix4x4 matrixresult;
+	__s32 *pt;
+	__u32 i;
+	__s32 sinv, cosv;	//sin_tab: 7 bit fractional
+
+	brightness = brightness>100?100:(brightness<0?0:brightness);
+	contrast = contrast>100?100:(contrast<0?0:contrast);
+	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
+	hue = hue>100?100:(hue<0?0:saturaion);
+	
+	i_bright = (__s32)(brightness*64/100);
+	i_saturaion = (__s32)(saturaion*64/100);
+	i_contrast = (__s32)(contrast*64/100);
+	i_hue = (__s32)(hue*64/100);
+
+	sinv = image_enhance_tab[8*12 + (i_hue&0x3f)];
+	cosv = image_enhance_tab[8*12 + 8*8 + (i_hue&0x3f)];
+
+	matrixEn.x00 = i_contrast << 5;
+	matrixEn.x01 = 0;
+	matrixEn.x02 = 0;
+	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
+	matrixEn.x10 = 0;
+	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
+	matrixEn.x20 = 0;
+	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
+	matrixEn.x30 = 0;
+	matrixEn.x31 = 0;
+	matrixEn.x32 = 0;
+	matrixEn.x33 = 1024;
+
+	if(out_csc == 1) //rgb to yuv
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+	}
+	else if(out_csc == 0)  //rgb to rgb
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixEn, &matrixresult);
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixresult, &matrixresult);
+	}
+	else if(out_csc == 2)
+	{
+	    __scal_matrix4x4 matrix_16_255;
+
+#if 0
+	    //rgb to rgb
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7));
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (2<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixresult, &matrixresult);
+
+        //rgb to igb
+        matrix_16_255.x00 = 0x0155;
+        matrix_16_255.x01 = 0x0155;
+        matrix_16_255.x02 = 0x0155;
+        matrix_16_255.x03 = 0;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x0400;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x0400;
+        matrix_16_255.x23 = 0;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+#else
+		matrix_16_255.x00 = 0x00C3;
+		matrix_16_255.x01 = 0x029A;
+		matrix_16_255.x02 = 0x00A4;
+		matrix_16_255.x03 = 0x0000;
+		matrix_16_255.x10 = 0xFFFFFF8C;
+		matrix_16_255.x11 = 0xFFFFFE74;
+		matrix_16_255.x12 = 0x0200;
+		matrix_16_255.x13 = 0x20000; //0x0800;
+		matrix_16_255.x20 = 0x0200;
+		matrix_16_255.x21 = 0xFFFFFE65;
+		matrix_16_255.x22 = 0xFFFFFF9B;
+		matrix_16_255.x23 = 0x20000; //0x0800;
+		matrix_16_255.x30 = 0x0000;
+		matrix_16_255.x31 = 0x0000;
+		matrix_16_255.x32 = 0x0000;
+		matrix_16_255.x33 = 0x0000;
+		ptmatrix = &matrix_16_255;
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixresult);
+#endif
+	}
+
+	if(out_color_range == 0)//[16,255]
+    {
+        __scal_matrix4x4 matrix_16_255;
+        matrix_16_255.x00 = 0x03c4;
+        matrix_16_255.x01 = 0;
+        matrix_16_255.x02 = 0;
+        matrix_16_255.x03 = 0x0100;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x03c4;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0x0100;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x03c4;
+        matrix_16_255.x23 = 0x0100;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+    }
+	else if(out_color_range == 2)//[16,235]
+    {
+        __scal_matrix4x4 matrix_16_255;
+        matrix_16_255.x00 = 0x0370;
+        matrix_16_255.x01 = 0;
+        matrix_16_255.x02 = 0;
+        matrix_16_255.x03 = 0x0100;
+        matrix_16_255.x10 = 0;
+        matrix_16_255.x11 = 0x0370;
+        matrix_16_255.x12 = 0;
+        matrix_16_255.x13 = 0x0100;
+        matrix_16_255.x20 = 0;
+        matrix_16_255.x21 = 0;
+        matrix_16_255.x22 = 0x0370;
+        matrix_16_255.x23 = 0x0100;
+        matrix_16_255.x30 = 0;
+        matrix_16_255.x31 = 0;
+        matrix_16_255.x32 = 0;
+        matrix_16_255.x33 = 0;
+        iDE_SCAL_Matrix_Mul(matrix_16_255, matrixresult, &matrixresult);
+    }
+    
+	//data bit convert, 1 bit  sign, 2 bit integer, 10 bits fractrional for coefficient; 1 bit sign,9 bit integer, 4 bit fractional for constant
+	//range limited
+	iDE_SCAL_Csc_Lmt(&matrixresult.x00, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x01, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x02, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x03, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x10, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x11, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x12, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x13, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x20, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x21, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x22, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -16383, 16383, 6, 32767);
+
+    //write csc register
+    pt = &(matrixresult.x00);
+
+	for(i=0;i<4;i++)
+	{
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF+ 4*i, *(pt + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF+ 4*i, *(pt + 4 + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF+ 4*i, *(pt + 8 + i));
+		//OSAL_PRINTF("R:%x,\tG:%x,\tB:%x\n",*(pt + i),*(pt + 4 + i),*(pt + 8 + i));
+	}
+    
+	DE_BE_enhance_enable(sel, 1);
+    return 0;
+}
+#endif /* CONFIG_ARCH_SUN4I */
 
 __s32 DE_BE_enhance_enable(__u32 sel, __bool enable)
 {

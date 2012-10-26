@@ -1415,7 +1415,6 @@ __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2, __scal_mat
 
 
 //*********************************************************************************************
-// function         : iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
 // description      : csc coefficient and constant limited
 // parameters       :
 //                value<coefficient or constant>
@@ -1423,6 +1422,7 @@ __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2, __scal_mat
 // return           : 
 //               success
 //*********************************************************************************************** 
+#ifdef CONFIG_ARCH_SUN4I
 __s32 iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
 {
     __s64 tmp;
@@ -1436,11 +1436,23 @@ __s32 iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift, __s32 va
 
    return 0;
 }
+#else
+__s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
+{
+    __s32 tmp;
+    tmp = (*value)>>shift;
+   if(tmp < min)
+    *value = min & validbit;
+   else if(tmp > max)
+     *value = max & validbit;
+   else
+     *value = tmp & validbit;
+
+   return 0;
+}
+#endif /* CONFIG_ARCH_SUN4I */
 
 //*********************************************************************************************
-// function         : DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode, __u8 incs, __u8 outcs,
-//                                                   __s32  bright, __s32 contrast, __s32 saturaion, __s32 hue,
-//                                                   __u32  in_br_swap, __u32 out_br_swap)
 // description      : set scaler input/output color space convert coefficients
 // parameters       :
 //                 sel <scaler select>
@@ -1471,8 +1483,10 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 {
 	__scal_matrix4x4 matrixEn;
 	__scal_matrix4x4 matrixconv, *ptmatrix;
-	__scal_matrix4x4 matrixresult, tmpcoeff;
-    __s64 *pt;
+	__scal_matrix4x4 matrixresult;
+#ifdef CONFIG_ARCH_SUN4I
+	__scal_matrix4x4 tmpcoeff;
+#endif
 	__u32 i;
 	__s32 sinv, cosv;   //sin_tab: 7 bit fractional
 
@@ -1501,6 +1515,7 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 	matrixEn.x32 = 0;
 	matrixEn.x33 = 1024;
 
+#ifdef CONFIG_ARCH_SUN4I
 	if((incs == 0) && (outcs == 0))  //rgb to rgb
 	{
 		for(i=0; i<16; i++)
@@ -1592,16 +1607,87 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
     iDE_SCAL_Csc_Lmt(&matrixresult.x21, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x22, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x23, -8191, 8191, 0, 16383);
+#else
+	if((incs == 0) && (outcs == 0))  //rgb to rgb
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7));
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixconv, &matrixconv);
+        matrixresult.x00 = matrixconv.x11;  matrixresult.x01 = matrixconv.x10;
+        matrixresult.x02 = matrixconv.x12;  matrixresult.x03 = matrixconv.x13;
+        matrixresult.x10 = matrixconv.x01;  matrixresult.x11 = matrixconv.x00;
+        matrixresult.x12 = matrixconv.x02;  matrixresult.x13 = matrixconv.x03;
+        matrixresult.x20 = matrixconv.x21;  matrixresult.x21 = matrixconv.x20;
+        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
+        matrixresult.x30 = matrixconv.x31;  matrixresult.x31 = matrixconv.x30;
+        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
+        
+	}
+	else if((incs == 1) && (outcs == 0)) //yuv to rgb
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7) + 0x40);
+		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixEn, &matrixconv);
+        matrixresult.x00 = matrixconv.x10;  matrixresult.x01 = matrixconv.x11;
+        matrixresult.x02 = matrixconv.x12;  matrixresult.x03 = matrixconv.x13;
+        matrixresult.x10 = matrixconv.x00;  matrixresult.x11 = matrixconv.x01;
+        matrixresult.x12 = matrixconv.x02;  matrixresult.x13 = matrixconv.x03;
+        matrixresult.x20 = matrixconv.x20;  matrixresult.x21 = matrixconv.x21;
+        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
+        matrixresult.x30 = matrixconv.x30;  matrixresult.x31 = matrixconv.x31;
+        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
+        
+	}
+	else if((incs == 0) && (outcs == 1)) //rgb to yuv
+	{
+		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7));
+		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+        matrixresult.x00 = matrixconv.x01;  matrixresult.x01 = matrixconv.x00;
+        matrixresult.x02 = matrixconv.x02;  matrixresult.x03 = matrixconv.x03;
+        matrixresult.x10 = matrixconv.x11;  matrixresult.x11 = matrixconv.x10;
+        matrixresult.x12 = matrixconv.x12;  matrixresult.x13 = matrixconv.x13;
+        matrixresult.x20 = matrixconv.x21;  matrixresult.x21 = matrixconv.x20;
+        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
+        matrixresult.x30 = matrixconv.x31;  matrixresult.x31 = matrixconv.x30;
+        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
+	}
+	else  //yuv to yuv
+	{
+		matrixresult = matrixEn;
+	}
+
+    //data bit convert, 1 bit  sign, 2 bit integer, 10 bits fractrional for coefficient; 1 bit sign,9 bit integer, 4 bit fractional for constant
+    //range limited
+    iDE_SCAL_Csc_Lmt(&matrixresult.x00, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x01, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x02, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x03, -8191, 8191, 6, 16383);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x10, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x11, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x12, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x13, -8191, 8191, 6, 16383);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x20, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x21, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x22, -4095, 4095, 0, 8191);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x23, -8191, 8191, 6, 16383);
+#endif /* CONFIG_ARCH_SUN4I */
 
     //write csc register
-    pt = (__s64 *)&(matrixresult.x00);
-    for(i=0; i<4; i++)
     {
-        scal_dev[sel]->csc_coef[i].dwval = *(pt + i);
-		scal_dev[sel]->csc_coef[i+4 + out_br_swap * 4].dwval =  *(pt + i + 4 + in_br_swap * 4);
-		scal_dev[sel]->csc_coef[i+8 - out_br_swap * 4].dwval =  *(pt + i + 8 - in_br_swap * 4);
-	}
-    
+#ifdef CONFIG_ARCH_SUN4I
+	    __s64 *pt = &(matrixresult.x00);
+#else
+	    __s32 *pt = &(matrixresult.x00);
+#endif
+
+	    for(i=0; i<4; i++) {
+		    scal_dev[sel]->csc_coef[i].dwval = *(pt + i);
+		    scal_dev[sel]->csc_coef[i+4 + out_br_swap * 4].dwval =
+			    *(pt + i + 4 + in_br_swap * 4);
+		    scal_dev[sel]->csc_coef[i+8 - out_br_swap * 4].dwval =
+			    *(pt + i + 8 - in_br_swap * 4);
+	    }
+    }
     scal_dev[sel]->bypass.bits.csc_bypass_en = 0;
     
 	return 0;
