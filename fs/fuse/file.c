@@ -1894,7 +1894,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		num_pages++;
 	}
 
-	req = fuse_get_req(fc, FUSE_MAX_PAGES_PER_REQ);
+	req = fuse_get_req(fc, num_pages);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		req = NULL;
