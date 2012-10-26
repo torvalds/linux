@@ -4332,18 +4332,7 @@ static struct pci_driver serial_pci_driver = {
 	.err_handler	= &serial8250_err_handler,
 };
 
-static int __init serial8250_pci_init(void)
-{
-	return pci_register_driver(&serial_pci_driver);
-}
-
-static void __exit serial8250_pci_exit(void)
-{
-	pci_unregister_driver(&serial_pci_driver);
-}
-
-module_init(serial8250_pci_init);
-module_exit(serial8250_pci_exit);
+module_pci_driver(serial_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic 8250/16x50 PCI serial probe module");
