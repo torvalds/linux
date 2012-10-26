@@ -684,28 +684,21 @@ int acpi_suspend(u32 acpi_state)
 
 #ifdef CONFIG_PM
 /**
- *	acpi_pm_device_sleep_state - return preferred power state of ACPI device
- *		in the system sleep state given by %acpi_target_sleep_state
- *	@dev: device to examine; its driver model wakeup flags control
- *		whether it should be able to wake up the system
- *	@d_min_p: used to store the upper limit of allowed states range
- *	@d_max_in: specify the lowest allowed states
- *	Return value: preferred power state of the device on success, -ENODEV
- *	(ie. if there's no 'struct acpi_device' for @dev) or -EINVAL on failure
+ * acpi_pm_device_sleep_state - Get preferred power state of ACPI device.
+ * @dev: Device whose preferred target power state to return.
+ * @d_min_p: Location to store the upper limit of the allowed states range.
+ * @d_max_in: Deepest low-power state to take into consideration.
+ * Return value: Preferred power state of the device on success, -ENODEV
+ * (if there's no 'struct acpi_device' for @dev) or -EINVAL on failure
  *
- *	Find the lowest power (highest number) ACPI device power state that
- *	device @dev can be in while the system is in the sleep state represented
- *	by %acpi_target_sleep_state.  If @wake is nonzero, the device should be
- *	able to wake up the system from this sleep state.  If @d_min_p is set,
- *	the highest power (lowest number) device power state of @dev allowed
- *	in this system sleep state is stored at the location pointed to by it.
+ * Find the lowest power (highest number) ACPI device power state that the
+ * device can be in while the system is in the sleep state represented
+ * by %acpi_target_sleep_state.  If @d_min_p is set, the highest power (lowest
+ * number) device power state that @dev can be in for the given system sleep
+ * state is stored at the location pointed to by it.
  *
- *	The caller must ensure that @dev is valid before using this function.
- *	The caller is also responsible for figuring out if the device is
- *	supposed to be able to wake up the system and passing this information
- *	via @wake.
+ * The caller must ensure that @dev is valid before using this function.
  */
-
 int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
@@ -797,14 +790,15 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 #endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_RUNTIME
 /**
- * acpi_pm_device_run_wake - Enable/disable wake-up for given device.
- * @phys_dev: Device to enable/disable the platform to wake-up the system for.
- * @enable: Whether enable or disable the wake-up functionality.
+ * acpi_pm_device_run_wake - Enable/disable remote wakeup for given device.
+ * @phys_dev: Device to enable/disable the platform to wake up.
+ * @enable: Whether to enable or disable the wakeup functionality.
  *
- * Find the ACPI device object corresponding to @pci_dev and try to
- * enable/disable the GPE associated with it.
+ * Find the ACPI device object corresponding to @phys_dev and try to
+ * enable/disable the GPE associated with it, so that it can generate
+ * wakeup signals for the device in response to external (remote) events.
  */
 int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 {
@@ -832,12 +826,13 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 	return 0;
 }
 EXPORT_SYMBOL(acpi_pm_device_run_wake);
+#endif /* CONFIG_PM_RUNTIME */
 
+#ifdef CONFIG_PM_SLEEP
 /**
- *	acpi_pm_device_sleep_wake - enable or disable the system wake-up
- *                                  capability of given device
- *	@dev: device to handle
- *	@enable: 'true' - enable, 'false' - disable the wake-up capability
+ * acpi_pm_device_sleep_wake - Enable or disable device to wake up the system.
+ * @dev: Device to enable/desible to wake up the system from sleep states.
+ * @enable: Whether to enable or disable @dev to wake up the system.
  */
 int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
