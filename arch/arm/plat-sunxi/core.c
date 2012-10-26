@@ -21,10 +21,11 @@
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/mach/arch.h>
+#include <asm/mach-types.h>
 
 #include <plat/core.h>
-#include <plat/system.h>
 #include <plat/platform.h>
+#include <plat/system.h>
 
 struct brom_header {
 	u32 jump_instruction;	/* one intruction jumping to real code */
@@ -76,15 +77,23 @@ u32 sunxi_chip_id(void)
 int sunxi_pr_chip_id()
 {
 	u32 chip_id = sunxi_chip_id();
-#ifdef CONFIG_ARCH_SUN4I
-	pr_info("chip-id: %s (AW%u revision %c)\n",
-		chip_id == SUNXI_CHIP_ID_A10 ? "A10" : "Unknown",
-		chip_id, 'A'+sw_get_ic_ver());
-#else
-	pr_info("chip-id: %s (AW%u)\n",
-		chip_id == SUNXI_CHIP_ID_A13 ? "A13" : "Unknown",
-		chip_id);
-#endif
+	const char *name;
+
+	switch (chip_id) {
+	case SUNXI_CHIP_ID_A10:
+		name = "A10"; break;
+	case SUNXI_CHIP_ID_A13:
+		name = "A13"; break;
+	default:
+		name = "Unknown";
+	}
+
+	if (machine_is_sun4i())
+		pr_info("chip-id: %s (AW%u revision %c)\n", name,
+			chip_id, 'A' + sw_get_ic_ver());
+	else
+		pr_info("chip-id: %s (AW%u)\n", name, chip_id);
+
 	return (chip_id != 0);
 }
 
