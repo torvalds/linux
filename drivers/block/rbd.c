@@ -228,7 +228,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev);
 static int rbd_dev_snaps_register(struct rbd_device *rbd_dev);
 
 static void rbd_dev_release(struct device *dev);
-static void __rbd_remove_snap_dev(struct rbd_snap *snap);
+static void rbd_remove_snap_dev(struct rbd_snap *snap);
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
@@ -1787,13 +1787,13 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 	return ret;
 }
 
-static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
+static void rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 {
 	struct rbd_snap *snap;
 	struct rbd_snap *next;
 
 	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node)
-		__rbd_remove_snap_dev(snap);
+		rbd_remove_snap_dev(snap);
 }
 
 static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
@@ -2146,7 +2146,7 @@ static bool rbd_snap_registered(struct rbd_snap *snap)
 	return ret;
 }
 
-static void __rbd_remove_snap_dev(struct rbd_snap *snap)
+static void rbd_remove_snap_dev(struct rbd_snap *snap)
 {
 	list_del(&snap->node);
 	if (device_is_registered(&snap->dev))
@@ -2569,7 +2569,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 
 			if (rbd_dev->mapping.snap_id == snap->id)
 				rbd_dev->mapping.snap_exists = false;
-			__rbd_remove_snap_dev(snap);
+			rbd_remove_snap_dev(snap);
 			dout("%ssnap id %llu has been removed\n",
 				rbd_dev->mapping.snap_id == snap->id ?
 								"mapped " : "",
@@ -3179,11 +3179,11 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/* no need to lock here, as rbd_dev is not registered yet */
 	rc = rbd_dev_snaps_update(rbd_dev);
 	if (rc)
-		goto err_out_header;
+		goto err_out_probe;
 
 	rc = rbd_dev_set_mapping(rbd_dev, snap_name);
 	if (rc)
-		goto err_out_header;
+		goto err_out_snaps;
 
 	/* generate unique id: find highest unique id, add one */
 	rbd_dev_id_get(rbd_dev);
@@ -3247,7 +3247,9 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
-err_out_header:
+err_out_snaps:
+	rbd_remove_all_snaps(rbd_dev);
+err_out_probe:
 	rbd_header_free(&rbd_dev->header);
 err_out_client:
 	kfree(rbd_dev->header_name);
@@ -3345,7 +3347,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		goto done;
 	}
 
-	__rbd_remove_all_snaps(rbd_dev);
+	rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
 
 done:
