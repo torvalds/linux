@@ -268,10 +268,10 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 	case 8:
 		if (sfb->variant.palette[win->index] != 0) {
 			/* non palletised, A:1,R:2,G:3,B:2 mode */
-			var->red.offset		= 4;
+			var->red.offset		= 5;
 			var->green.offset	= 2;
 			var->blue.offset	= 0;
-			var->red.length		= 5;
+			var->red.length		= 2;
 			var->green.length	= 3;
 			var->blue.length	= 2;
 			var->transp.offset	= 7;
