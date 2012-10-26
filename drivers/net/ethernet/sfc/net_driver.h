@@ -676,7 +676,6 @@ union efx_multicast_hash {
 	efx_oword_t oword[EFX_MCAST_HASH_ENTRIES / sizeof(efx_oword_t) / 8];
 };
 
-struct efx_filter_state;
 struct efx_vf;
 struct vfdi_status;
 
@@ -763,6 +762,11 @@ struct vfdi_status;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @filter_lock: Filter table lock
+ * @filter_state: Architecture-dependent filter table state
+ * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
+ *	indexed by filter ID
+ * @rps_expire_index: Next index to check for expiry in @rps_flow_id
  * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
@@ -898,7 +902,12 @@ struct efx_nic {
 
 	void *loopback_selftest;
 
-	struct efx_filter_state *filter_state;
+	spinlock_t filter_lock;
+	void *filter_state;
+#ifdef CONFIG_RFS_ACCEL
+	u32 *rps_flow_id;
+	unsigned int rps_expire_index;
+#endif
 
 	atomic_t drain_pending;
 	atomic_t rxq_flush_pending;

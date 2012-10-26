@@ -77,13 +77,8 @@ struct efx_farch_filter_table {
 	unsigned	search_depth[EFX_FARCH_FILTER_TYPE_COUNT];
 };
 
-struct efx_filter_state {
-	spinlock_t	lock;
+struct efx_farch_filter_state {
 	struct efx_farch_filter_table table[EFX_FARCH_FILTER_TABLE_COUNT];
-#ifdef CONFIG_RFS_ACCEL
-	u32		*rps_flow_id;
-	unsigned	rps_expire_index;
-#endif
 };
 
 static void
@@ -142,7 +137,7 @@ efx_farch_filter_table_reset_search_depth(struct efx_farch_filter_table *table)
 
 static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table;
 	efx_oword_t filter_ctl;
 
@@ -216,7 +211,7 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 
 static void efx_farch_filter_push_tx_limits(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table;
 	efx_oword_t tx_cfg;
 
@@ -427,7 +422,7 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 static void
 efx_farch_filter_reset_rx_def(struct efx_nic *efx, unsigned filter_idx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table =
 		&state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
 	struct efx_farch_filter_spec *spec = &table->spec[filter_idx];
@@ -585,7 +580,7 @@ static inline unsigned int efx_farch_filter_id_index(u32 id)
 
 u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	unsigned int range = EFX_FARCH_FILTER_MATCH_PRI_COUNT - 1;
 	enum efx_farch_filter_table_id table_id;
 
@@ -621,7 +616,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 			     struct efx_filter_spec *gen_spec,
 			     bool replace_equal)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table;
 	struct efx_farch_filter_spec spec;
 	efx_oword_t filter;
@@ -649,7 +644,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 		rep_index = spec.type - EFX_FARCH_FILTER_UC_DEF;
 		ins_index = rep_index;
 
-		spin_lock_bh(&state->lock);
+		spin_lock_bh(&efx->filter_lock);
 	} else {
 		/* Search concurrently for
 		 * (1) a filter to be replaced (rep_index): any filter
@@ -679,7 +674,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 		ins_index = -1;
 		depth = 1;
 
-		spin_lock_bh(&state->lock);
+		spin_lock_bh(&efx->filter_lock);
 
 		for (;;) {
 			if (!test_bit(i, table->used_bitmap)) {
@@ -762,7 +757,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx,
 	rc = efx_farch_filter_make_id(&spec, ins_index);
 
 out:
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 	return rc;
 }
 
@@ -800,7 +795,7 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 			      enum efx_filter_priority priority,
 			      u32 filter_id)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	unsigned int filter_idx;
@@ -817,7 +812,7 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 		return -ENOENT;
 	spec = &table->spec[filter_idx];
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	if (test_bit(filter_idx, table->used_bitmap) &&
 	    spec->priority == priority) {
@@ -829,7 +824,7 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 		rc = -ENOENT;
 	}
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 
 	return rc;
 }
@@ -848,7 +843,7 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 			       enum efx_filter_priority priority,
 			       u32 filter_id, struct efx_filter_spec *spec_buf)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	struct efx_farch_filter_spec *spec;
@@ -865,7 +860,7 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 		return -ENOENT;
 	spec = &table->spec[filter_idx];
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	if (test_bit(filter_idx, table->used_bitmap) &&
 	    spec->priority == priority) {
@@ -875,7 +870,7 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 		rc = -ENOENT;
 	}
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 
 	return rc;
 }
@@ -885,11 +880,11 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 			     enum efx_farch_filter_table_id table_id,
 			     enum efx_filter_priority priority)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table = &state->table[table_id];
 	unsigned int filter_idx;
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	for (filter_idx = 0; filter_idx < table->size; ++filter_idx)
 		if (table->spec[filter_idx].priority <= priority)
@@ -898,7 +893,7 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	if (table->used == 0)
 		efx_farch_filter_table_reset_search_depth(table);
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 }
 
 /**
@@ -917,13 +912,13 @@ void efx_filter_clear_rx(struct efx_nic *efx, enum efx_filter_priority priority)
 u32 efx_filter_count_rx_used(struct efx_nic *efx,
 			     enum efx_filter_priority priority)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	unsigned int filter_idx;
 	u32 count = 0;
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -936,7 +931,7 @@ u32 efx_filter_count_rx_used(struct efx_nic *efx,
 		}
 	}
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 
 	return count;
 }
@@ -945,13 +940,13 @@ s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 			  enum efx_filter_priority priority,
 			  u32 *buf, u32 size)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	unsigned int filter_idx;
 	s32 count = 0;
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -970,7 +965,7 @@ s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 		}
 	}
 out:
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 
 	return count;
 }
@@ -978,13 +973,13 @@ out:
 /* Restore filter stater after reset */
 void efx_restore_filters(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	efx_oword_t filter;
 	unsigned int filter_idx;
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	for (table_id = 0; table_id < EFX_FARCH_FILTER_TABLE_COUNT; table_id++) {
 		table = &state->table[table_id];
@@ -1005,28 +1000,28 @@ void efx_restore_filters(struct efx_nic *efx)
 	efx_farch_filter_push_rx_config(efx);
 	efx_farch_filter_push_tx_limits(efx);
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 }
 
 int efx_probe_filters(struct efx_nic *efx)
 {
-	struct efx_filter_state *state;
+	struct efx_farch_filter_state *state;
 	struct efx_farch_filter_table *table;
 	unsigned table_id;
 
-	state = kzalloc(sizeof(*efx->filter_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct efx_farch_filter_state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 	efx->filter_state = state;
 
-	spin_lock_init(&state->lock);
+	spin_lock_init(&efx->filter_lock);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
 #ifdef CONFIG_RFS_ACCEL
-		state->rps_flow_id = kcalloc(FR_BZ_RX_FILTER_TBL0_ROWS,
-					     sizeof(*state->rps_flow_id),
-					     GFP_KERNEL);
-		if (!state->rps_flow_id)
+		efx->rps_flow_id = kcalloc(FR_BZ_RX_FILTER_TBL0_ROWS,
+					   sizeof(*efx->rps_flow_id),
+					   GFP_KERNEL);
+		if (!efx->rps_flow_id)
 			goto fail;
 #endif
 		table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
@@ -1086,7 +1081,7 @@ fail:
 
 void efx_remove_filters(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 
 	for (table_id = 0; table_id < EFX_FARCH_FILTER_TABLE_COUNT; table_id++) {
@@ -1094,7 +1089,7 @@ void efx_remove_filters(struct efx_nic *efx)
 		vfree(state->table[table_id].spec);
 	}
 #ifdef CONFIG_RFS_ACCEL
-	kfree(state->rps_flow_id);
+	kfree(efx->rps_flow_id);
 #endif
 	kfree(state);
 }
@@ -1102,13 +1097,13 @@ void efx_remove_filters(struct efx_nic *efx)
 /* Update scatter enable flags for filters pointing to our own RX queues */
 void efx_filter_update_rx_scatter(struct efx_nic *efx)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	enum efx_farch_filter_table_id table_id;
 	struct efx_farch_filter_table *table;
 	efx_oword_t filter;
 	unsigned int filter_idx;
 
-	spin_lock_bh(&state->lock);
+	spin_lock_bh(&efx->filter_lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -1140,7 +1135,7 @@ void efx_filter_update_rx_scatter(struct efx_nic *efx)
 
 	efx_farch_filter_push_rx_config(efx);
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -1150,7 +1145,6 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
-	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_spec spec;
 	const struct iphdr *ip;
 	const __be16 *ports;
@@ -1196,7 +1190,7 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		return rc;
 
 	/* Remember this so we can check whether to expire the filter later */
-	state->rps_flow_id[rc] = flow_id;
+	efx->rps_flow_id[rc] = flow_id;
 	channel = efx_get_channel(efx, skb_get_rx_queue(skb));
 	++channel->rfs_filters_added;
 
@@ -1211,17 +1205,17 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota)
 {
-	struct efx_filter_state *state = efx->filter_state;
+	struct efx_farch_filter_state *state = efx->filter_state;
 	struct efx_farch_filter_table *table =
 		&state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	unsigned mask = table->size - 1;
 	unsigned index;
 	unsigned stop;
 
-	if (!spin_trylock_bh(&state->lock))
+	if (!spin_trylock_bh(&efx->filter_lock))
 		return false;
 
-	index = state->rps_expire_index;
+	index = efx->rps_expire_index;
 	stop = (index + quota) & mask;
 
 	while (index != stop) {
@@ -1229,20 +1223,20 @@ bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota)
 		    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
 		    rps_may_expire_flow(efx->net_dev,
 					table->spec[index].dmaq_id,
-					state->rps_flow_id[index], index)) {
+					efx->rps_flow_id[index], index)) {
 			netif_info(efx, rx_status, efx->net_dev,
 				   "expiring filter %d [flow %u]\n",
-				   index, state->rps_flow_id[index]);
+				   index, efx->rps_flow_id[index]);
 			efx_farch_filter_table_clear_entry(efx, table, index);
 		}
 		index = (index + 1) & mask;
 	}
 
-	state->rps_expire_index = stop;
+	efx->rps_expire_index = stop;
 	if (table->used == 0)
 		efx_farch_filter_table_reset_search_depth(table);
 
-	spin_unlock_bh(&state->lock);
+	spin_unlock_bh(&efx->filter_lock);
 	return true;
 }
 
