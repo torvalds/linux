@@ -280,7 +280,7 @@ static void debug_intr_flags(unsigned int flags)
 
 #define TIMEOUT 100
 
-static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
+static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 {
 	struct dt3k_private *devpriv = dev->private;
 	int i;
@@ -294,13 +294,10 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 			break;
 		udelay(1);
 	}
-	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR)
-		return 0;
 
-	dev_dbg(dev->class_dev, "dt3k_send_cmd() timeout/error status=0x%04x\n",
-		status);
-
-	return -ETIME;
+	if ((status & DT3000_COMPLETION_MASK) != DT3000_NOERROR)
+		dev_dbg(dev->class_dev, "%s: timeout/error status=0x%04x\n",
+			__func__, status);
 }
 
 static unsigned int dt3k_readsingle(struct comedi_device *dev,
@@ -365,10 +362,9 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 static int dt3k_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dt3k_private *devpriv = dev->private;
-	int ret;
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
-	ret = dt3k_send_cmd(dev, CMD_STOP);
+	dt3k_send_cmd(dev, CMD_STOP);
 
 	writew(0, devpriv->io_addr + DPR_Int_Mask);
 
@@ -560,7 +556,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int chan, range, aref;
 	unsigned int divider;
 	unsigned int tscandiv;
-	int ret;
 	unsigned int mode;
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
@@ -595,7 +590,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(AI_FIFO_DEPTH / 2, devpriv->io_addr + DPR_Params(7));
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
-	ret = dt3k_send_cmd(dev, CMD_CONFIG);
+	dt3k_send_cmd(dev, CMD_CONFIG);
 
 	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
 	       devpriv->io_addr + DPR_Int_Mask);
@@ -603,7 +598,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	debug_n_ints = 0;
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
-	ret = dt3k_send_cmd(dev, CMD_START);
+	dt3k_send_cmd(dev, CMD_START);
 
 	return 0;
 }
