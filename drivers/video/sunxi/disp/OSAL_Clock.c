@@ -18,7 +18,7 @@
  * MA 02111-1307 USA
  */
 
-#include "OSAL.h"
+#include "bsp_display.h"
 #include "OSAL_Clock.h"
 
 static char* _sysClkName[AW_SYS_CLK_CNT] =
@@ -316,7 +316,7 @@ __s32 OSAL_CCMU_SetMclkDiv( __hdle hMclk, __s32 nDiv )
     __inf("OSAL_CCMU_SetMclkDiv<p:%s,m:%s,%d>\n", hParentClk->clk->name, hModClk->clk->name, nDiv);
 
     if(nDiv == 0){
-    	return -1;
+	return -1;
     }
 
     return clk_set_rate(hModClk, srcRate/nDiv);

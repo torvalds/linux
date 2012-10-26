@@ -3,6 +3,7 @@
 #include "de_iep_tab.h"
 #include "disp_clk.h"
 #include "disp_lcd.h"
+#include "OSAL_Clock.h"
 
 #ifndef CONFIG_ARCH_SUN5I
 #error IEP should only be used on sun5i

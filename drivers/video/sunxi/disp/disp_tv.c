@@ -25,6 +25,7 @@
 #include "disp_de.h"
 #include "disp_lcd.h"
 #include "disp_clk.h"
+#include "OSAL_Pin.h"
 
 __s32 Disp_Switch_Dram_Mode(__u32 type, __u8 tv_mod)
 {

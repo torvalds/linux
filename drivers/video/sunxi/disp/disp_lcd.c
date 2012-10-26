@@ -25,6 +25,7 @@
 #include "disp_event.h"
 #include "disp_de.h"
 #include "disp_clk.h"
+#include "OSAL_Pin.h"
 
 static __lcd_flow_t         open_flow[2];
 static __lcd_flow_t         close_flow[2];

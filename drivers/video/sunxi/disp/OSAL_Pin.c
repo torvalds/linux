@@ -18,7 +18,9 @@
  * MA 02111-1307 USA
  */
 
+#include "bsp_display.h"
 #include "OSAL_Pin.h"
+
 #ifdef CONFIG_ARCH_SUN5I
 #include "../../../../power/axp_power/axp-gpio.h"
 #endif
@@ -135,5 +137,3 @@ __s32 OSAL_GPIO_DevWRITE_ONEPIN_DATA(u32 p_handler, __u32 value_to_gpio, const c
         return gpio_write_one_pin_value(p_handler, value_to_gpio, gpio_name);
     }
 }
-
-
