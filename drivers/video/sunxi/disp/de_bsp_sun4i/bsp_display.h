@@ -253,6 +253,9 @@ extern __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info);
 extern __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
 extern __s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
+#ifdef CONFIG_ARCH_SUN5I
+extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
+#endif
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);
