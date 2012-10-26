@@ -3096,9 +3096,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			temp |= TRANS_DP_PORT_SEL_D;
 			break;
 		default:
-			DRM_DEBUG_KMS("Wrong PCH DP port return. Guess port B\n");
-			temp |= TRANS_DP_PORT_SEL_B;
-			break;
+			BUG();
 		}
 
 		I915_WRITE(reg, temp);
