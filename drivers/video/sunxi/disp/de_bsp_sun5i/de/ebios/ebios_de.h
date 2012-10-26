@@ -376,8 +376,6 @@ __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
 __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
 #endif
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
-
-//__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __u8 cs_mode);
 __s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr,__u32 width,__u32 x,__u32 y,__u32 bpp);
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr,__u32 off_addr,__u32 width,__u32 bpp,__disp_pos_t *pos);

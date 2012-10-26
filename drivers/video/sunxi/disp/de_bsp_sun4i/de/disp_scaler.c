@@ -380,6 +380,10 @@ __s32 Scaler_Request(__u32 sel)
 
     DE_INF("Scaler_Request,%d\n", sel);
 
+#ifdef CONFIG_ARCH_SUN5I
+    sel = 0;//only one scaler
+#endif
+
     if(sel == 0)//request scaler0
     {
         if(!(gdisp.scaler[0].status & SCALER_USED))

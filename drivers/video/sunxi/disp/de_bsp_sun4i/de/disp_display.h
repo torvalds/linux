@@ -111,7 +111,6 @@ typedef struct
 #endif
     __u32                   max_layers;
     __layer_man_t           layer_manage[4];
-    __bool                  bout_yuv;
 #ifdef CONFIG_ARCH_SUN4I
     __u32                   de_flicker_status;
 #else

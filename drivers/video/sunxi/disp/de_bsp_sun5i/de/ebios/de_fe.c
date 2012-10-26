@@ -1009,7 +1009,9 @@ __s32 DE_SCAL_Start(__u8 sel)
 //***********************************************************************************
 __s32 DE_SCAL_Set_Filtercoef_Ready(__u8 sel)
 {
-    //scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
+#ifdef CONFIG_ARCH_SUN4I
+    scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
+#endif
     
     return 0;
 }
