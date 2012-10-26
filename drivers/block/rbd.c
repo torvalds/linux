@@ -467,23 +467,17 @@ static int parse_rbd_opts_token(char *c, void *private)
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.
  */
-static int rbd_get_client(struct rbd_device *rbd_dev,
-				struct ceph_options *ceph_opts)
+static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 {
 	struct rbd_client *rbdc;
 
 	rbdc = rbd_client_find(ceph_opts);
-	if (rbdc) {
-		/* using an existing client */
+	if (rbdc)	/* using an existing client */
 		ceph_destroy_options(ceph_opts);
-	} else {
+	else
 		rbdc = rbd_client_create(ceph_opts);
-		if (IS_ERR(rbdc))
-			return PTR_ERR(rbdc);
-	}
-	rbd_dev->rbd_client = rbdc;
 
-	return 0;
+	return rbdc;
 }
 
 /*
@@ -508,10 +502,9 @@ static void rbd_client_release(struct kref *kref)
  * Drop reference to ceph client node. If it's not referenced anymore, release
  * it.
  */
-static void rbd_put_client(struct rbd_device *rbd_dev)
+static void rbd_put_client(struct rbd_client *rbdc)
 {
-	kref_put(&rbd_dev->rbd_client->kref, rbd_client_release);
-	rbd_dev->rbd_client = NULL;
+	kref_put(&rbdc->kref, rbd_client_release);
 }
 
 /*
@@ -3232,6 +3225,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	struct ceph_options *ceph_opts = NULL;
 	struct rbd_options *rbd_opts = NULL;
 	struct rbd_spec *spec = NULL;
+	struct rbd_client *rbdc;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
 
@@ -3255,13 +3249,16 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	rbd_dev->mapping.read_only = rbd_opts->read_only;
 
-	rc = rbd_get_client(rbd_dev, ceph_opts);
-	if (rc < 0)
+	rbdc = rbd_get_client(ceph_opts);
+	if (IS_ERR(rbdc)) {
+		rc = PTR_ERR(rbdc);
 		goto err_out_args;
+	}
+	rbd_dev->rbd_client = rbdc;
 	ceph_opts = NULL;	/* ceph_opts now owned by rbd_dev client */
 
 	/* pick the pool */
-	osdc = &rbd_dev->rbd_client->client->osdc;
+	osdc = &rbdc->client->osdc;
 	rc = ceph_pg_poolid_by_name(osdc->osdmap, spec->pool_name);
 	if (rc < 0)
 		goto err_out_client;
@@ -3353,7 +3350,7 @@ err_out_probe:
 	rbd_header_free(&rbd_dev->header);
 err_out_client:
 	kfree(rbd_dev->header_name);
-	rbd_put_client(rbd_dev);
+	rbd_put_client(rbdc);
 err_out_args:
 	if (ceph_opts)
 		ceph_destroy_options(ceph_opts);
@@ -3398,7 +3395,7 @@ static void rbd_dev_release(struct device *dev)
 	if (rbd_dev->watch_event)
 		rbd_req_sync_unwatch(rbd_dev);
 
-	rbd_put_client(rbd_dev);
+	rbd_put_client(rbd_dev->rbd_client);
 
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
