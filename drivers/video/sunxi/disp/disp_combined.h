@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef __DISP_COMBINED_H__
 #define __DISP_COMBINED_H__
 

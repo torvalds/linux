@@ -24,21 +24,20 @@
 
 #include "bsp_display.h"
 
-typedef enum
-{
-   DIS_SUCCESS=0,
-   DIS_FAIL=-1,
-   DIS_PARA_FAILED=-2,
-   DIS_PRIO_ERROR=-3,
-   DIS_OBJ_NOT_INITED=-4,
-   DIS_NOT_SUPPORT=-5,
-   DIS_NO_RES=-6,
-   DIS_OBJ_COLLISION=-7,
-   DIS_DEV_NOT_INITED=-8,
-   DIS_DEV_SRAM_COLLISION=-9,
-   DIS_TASK_ERROR = -10,
-   DIS_PRIO_COLLSION = -11
-}__disp_return_value;
+typedef enum {
+	DIS_SUCCESS = 0,
+	DIS_FAIL = -1,
+	DIS_PARA_FAILED = -2,
+	DIS_PRIO_ERROR = -3,
+	DIS_OBJ_NOT_INITED = -4,
+	DIS_NOT_SUPPORT = -5,
+	DIS_NO_RES = -6,
+	DIS_OBJ_COLLISION = -7,
+	DIS_DEV_NOT_INITED = -8,
+	DIS_DEV_SRAM_COLLISION = -9,
+	DIS_TASK_ERROR = -10,
+	DIS_PRIO_COLLSION = -11
+} __disp_return_value;
 
 #define HANDTOID(handle)  ((handle) - 100)
 #define IDTOHAND(ID)  ((ID) + 100)
@@ -60,9 +59,9 @@ typedef enum
 #define DISP_IO_IEP      8
 #endif
 
-#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))         /* half word input */
-#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))   /* half word output */
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))          /* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
+#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))	/* half word input */
+#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))	/* half word output */
+#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
+#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
 
 #endif

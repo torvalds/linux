@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef __DE_LCDC_I_H__
 #define __DE_LCDC_I_H__
 
@@ -56,43 +55,42 @@
 #define LCDC_BIT30		  (0x40000000)
 #define LCDC_BIT31		  (0x80000000)
 
+#define LCDC_GCTL_OFF   		(0x000)	/*LCD Controller global control registers offset */
+#define LCDC_GINT0_OFF   		(0x004)	/*LCD Controller interrupt registers offset */
+#define LCDC_GINT1_OFF   		(0x008)	/*LCD Controller interrupt registers offset */
+#define LCDC_FRM0_OFF   		(0x010)	/*LCD Controller frm registers offset */
+#define LCDC_FRM1_OFF   		(0x014)	/*LCD Controller frm registers offset */
+#define LCDC_FRM2_OFF   		(0x02c)	/*LCD Controller frm registers offset */
+#define LCDC_CTL_OFF   			(0x040)	/*LCD Controller control registers offset */
+#define LCDC_DCLK_OFF			(0x044)	/*LCD Controller dot clock registers offset */
+#define LCDC_BASIC0_OFF  		(0x048)	/*LCD Controller base0 registers offset */
+#define LCDC_BASIC1_OFF  		(0x04c)	/*LCD Controller base1 registers offset */
+#define LCDC_BASIC2_OFF  		(0x050)	/*LCD Controller base2 registers offset */
+#define LCDC_BASIC3_OFF  		(0x054)	/*LCD Controller base3 registers offset */
+#define LCDC_HVIF_OFF  			(0x058)	/*LCD Controller hv interface registers offset */
+#define LCDC_CPUIF_OFF  		(0x060)	/*LCD Controller cpu interface registers offset */
+#define LCDC_CPUWR_OFF		    (0x064)	/*LCD Controller cpu wr registers offset */
+#define LCDC_CPURD_OFF		    (0x068)	/*LCD Controller cpu rd registers offset */
+#define LCDC_CPURDNX_OFF        (0x06c)	/*LCD Controller cpu rdnx registers offset */
+#define LCDC_TTL0_OFF			(0x070)	/*LCD Controller TTL0 registers offset */
+#define LCDC_TTL1_OFF			(0x074)	/*LCD Controller TTL1 registers offset */
+#define LCDC_TTL2_OFF			(0x078)	/*LCD Controller TTL2 registers offset */
+#define LCDC_TTL3_OFF			(0x07c)	/*LCD Controller TTL3 registers offset */
+#define LCDC_TTL4_OFF			(0x080)	/*LCD Controller TTL4 registers offset */
+#define LCDC_LVDS_OFF			(0x084)	/*LCD Controller LVDS registers offset */
+#define LCDC_IOCTL0_OFF		    (0x088)	/*LCD Controller io control0 registers offset */
+#define LCDC_IOCTL1_OFF			(0x08c)	/*LCD Controller io control1 registers offset */
 
-#define LCDC_GCTL_OFF   		(0x000)				/*LCD Controller global control registers offset*/
-#define LCDC_GINT0_OFF   		(0x004)				/*LCD Controller interrupt registers offset*/
-#define LCDC_GINT1_OFF   		(0x008)				/*LCD Controller interrupt registers offset*/
-#define LCDC_FRM0_OFF   		(0x010)				/*LCD Controller frm registers offset*/
-#define LCDC_FRM1_OFF   		(0x014)				/*LCD Controller frm registers offset*/
-#define LCDC_FRM2_OFF   		(0x02c)				/*LCD Controller frm registers offset*/
-#define LCDC_CTL_OFF   			(0x040)				/*LCD Controller control registers offset*/
-#define LCDC_DCLK_OFF			(0x044)				/*LCD Controller dot clock registers offset*/
-#define LCDC_BASIC0_OFF  		(0x048)				/*LCD Controller base0 registers offset*/
-#define LCDC_BASIC1_OFF  		(0x04c)				/*LCD Controller base1 registers offset*/
-#define LCDC_BASIC2_OFF  		(0x050)				/*LCD Controller base2 registers offset*/
-#define LCDC_BASIC3_OFF  		(0x054)				/*LCD Controller base3 registers offset*/
-#define LCDC_HVIF_OFF  			(0x058)				/*LCD Controller hv interface registers offset*/
-#define LCDC_CPUIF_OFF  		(0x060)				/*LCD Controller cpu interface registers offset*/
-#define LCDC_CPUWR_OFF		    (0x064)				/*LCD Controller cpu wr registers offset*/
-#define LCDC_CPURD_OFF		    (0x068)				/*LCD Controller cpu rd registers offset*/
-#define LCDC_CPURDNX_OFF        (0x06c)				/*LCD Controller cpu rdnx registers offset*/
-#define LCDC_TTL0_OFF			(0x070)				/*LCD Controller TTL0 registers offset*/
-#define LCDC_TTL1_OFF			(0x074)				/*LCD Controller TTL1 registers offset*/
-#define LCDC_TTL2_OFF			(0x078)				/*LCD Controller TTL2 registers offset*/
-#define LCDC_TTL3_OFF			(0x07c)				/*LCD Controller TTL3 registers offset*/
-#define LCDC_TTL4_OFF			(0x080)				/*LCD Controller TTL4 registers offset*/
-#define LCDC_LVDS_OFF			(0x084)				/*LCD Controller LVDS registers offset*/
-#define LCDC_IOCTL0_OFF		    (0x088)				/*LCD Controller io control0 registers offset*/
-#define LCDC_IOCTL1_OFF			(0x08c)				/*LCD Controller io control1 registers offset*/
-
-#define LCDC_HDTVIF_OFF			(0x090)				/*LCD Controller tv interface  registers offset*/
-#define LCDC_HDTV0_OFF			(0x094)				/*LCD Controller HDTV0 registers offset*/
-#define LCDC_HDTV1_OFF			(0x098)				/*LCD Controller HDTV1 registers offset*/
-#define LCDC_HDTV2_OFF			(0x09c)				/*LCD Controller HDTV2 registers offset*/
-#define LCDC_HDTV3_OFF			(0x0a0)				/*LCD Controller HDTV3 registers offset*/
-#define LCDC_HDTV4_OFF			(0x0a4)				/*LCD Controller HDTV4 registers offset*/
-#define LCDC_HDTV5_OFF			(0x0a8)				/*LCD Controller HDTV5 registers offset*/
-#define LCDC_IOCTL2_OFF		    (0x0f0)				/*LCD Controller io control2 registers offset*/
-#define LCDC_IOCTL3_OFF			(0x0f4)				/*LCD Controller io control3 registers offset*/
-#define LCDC_DUBUG_OFF          (0x0fc)             /*LCD Controller debug register*/
+#define LCDC_HDTVIF_OFF			(0x090)	/*LCD Controller tv interface  registers offset */
+#define LCDC_HDTV0_OFF			(0x094)	/*LCD Controller HDTV0 registers offset */
+#define LCDC_HDTV1_OFF			(0x098)	/*LCD Controller HDTV1 registers offset */
+#define LCDC_HDTV2_OFF			(0x09c)	/*LCD Controller HDTV2 registers offset */
+#define LCDC_HDTV3_OFF			(0x0a0)	/*LCD Controller HDTV3 registers offset */
+#define LCDC_HDTV4_OFF			(0x0a4)	/*LCD Controller HDTV4 registers offset */
+#define LCDC_HDTV5_OFF			(0x0a8)	/*LCD Controller HDTV5 registers offset */
+#define LCDC_IOCTL2_OFF		    (0x0f0)	/*LCD Controller io control2 registers offset */
+#define LCDC_IOCTL3_OFF			(0x0f4)	/*LCD Controller io control3 registers offset */
+#define LCDC_DUBUG_OFF          (0x0fc)	/*LCD Controller debug register */
 
 #define LCDC_CEU_OFF          	(0x100)
 #define	LCDC_MUX_CTRL			(0x200)
