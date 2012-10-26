@@ -2845,24 +2845,27 @@ static inline char *dup_token(const char **buf, size_t *lenp)
  *
  * Note: rbd_dev is assumed to have been initially zero-filled.
  */
-static char *rbd_add_parse_args(struct rbd_device *rbd_dev,
-				const char *buf,
-				const char **mon_addrs,
-				size_t *mon_addrs_size,
-				char *options,
-				size_t options_size)
+static struct ceph_options *rbd_add_parse_args(struct rbd_device *rbd_dev,
+						const char *buf,
+						char *options,
+						size_t options_size,
+						char **snap_name,
+						size_t *snap_name_len)
 {
 	size_t len;
-	char *err_ptr = ERR_PTR(-EINVAL);
-	char *snap_name;
+	const char *mon_addrs;
+	size_t mon_addrs_size;
+	struct rbd_options rbd_opts;
+	struct ceph_options *ceph_opts;
+	struct ceph_options *err_ptr = ERR_PTR(-EINVAL);
 
 	/* The first four tokens are required */
 
 	len = next_token(&buf);
 	if (!len)
 		return err_ptr;
-	*mon_addrs_size = len + 1;
-	*mon_addrs = buf;
+	mon_addrs_size = len + 1;
+	mon_addrs = buf;
 
 	buf += len;
 
@@ -2890,14 +2893,27 @@ static char *rbd_add_parse_args(struct rbd_device *rbd_dev,
 		buf = RBD_SNAP_HEAD_NAME; /* No snapshot supplied */
 		len = sizeof (RBD_SNAP_HEAD_NAME) - 1;
 	}
-	snap_name = kmalloc(len + 1, GFP_KERNEL);
-	if (!snap_name)
+	*snap_name = kmalloc(len + 1, GFP_KERNEL);
+	if (!*snap_name)
 		goto out_err;
-	memcpy(snap_name, buf, len);
-	*(snap_name + len) = '\0';
+	memcpy(*snap_name, buf, len);
+	*(*snap_name + len) = '\0';
+	*snap_name_len = len;
+	/* Initialize all rbd options to the defaults */
 
-	return snap_name;
+	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
 
+	ceph_opts = ceph_parse_options(options, mon_addrs,
+					mon_addrs + mon_addrs_size - 1,
+					parse_rbd_opts_token, &rbd_opts);
+
+	/* Record the parsed rbd options */
+
+	if (!IS_ERR(ceph_opts)) {
+		rbd_dev->mapping.read_only = rbd_opts.read_only;
+	}
+
+	return ceph_opts;
 out_err:
 	kfree(rbd_dev->image_name);
 	rbd_dev->image_name = NULL;
@@ -3114,10 +3130,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 {
 	char *options;
 	struct rbd_device *rbd_dev = NULL;
-	const char *mon_addrs = NULL;
-	size_t mon_addrs_size = 0;
 	char *snap_name;
-	struct rbd_options rbd_opts;
+	size_t snap_name_len = 0;
 	struct ceph_options *ceph_opts;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
@@ -3139,32 +3153,16 @@ static ssize_t rbd_add(struct bus_type *bus,
 	init_rwsem(&rbd_dev->header_rwsem);
 
 	/* parse add command */
-	snap_name = rbd_add_parse_args(rbd_dev, buf,
-				&mon_addrs, &mon_addrs_size, options, count);
-	if (IS_ERR(snap_name)) {
-		rc = PTR_ERR(snap_name);
+	ceph_opts = rbd_add_parse_args(rbd_dev, buf, options, count,
+				&snap_name, &snap_name_len);
+	if (IS_ERR(ceph_opts)) {
+		rc = PTR_ERR(ceph_opts);
 		goto err_out_mem;
 	}
 
-	/* Initialize all rbd options to the defaults */
-
-	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
-
-	ceph_opts = ceph_parse_options(options, mon_addrs,
-					mon_addrs + mon_addrs_size - 1,
-					parse_rbd_opts_token, &rbd_opts);
-	if (IS_ERR(ceph_opts)) {
-		rc = PTR_ERR(ceph_opts);
-		goto err_out_args;
-	}
-
-	/* Record the parsed rbd options */
-
-	rbd_dev->mapping.read_only = rbd_opts.read_only;
-
 	rc = rbd_get_client(rbd_dev, ceph_opts);
 	if (rc < 0)
-		goto err_out_opts;
+		goto err_out_args;
 	ceph_opts = NULL;	/* ceph_opts now owned by rbd_dev client */
 
 	/* pick the pool */
@@ -3257,10 +3255,9 @@ err_out_client:
 	kfree(rbd_dev->header_name);
 	rbd_put_client(rbd_dev);
 	kfree(rbd_dev->image_id);
-err_out_opts:
+err_out_args:
 	if (ceph_opts)
 		ceph_destroy_options(ceph_opts);
-err_out_args:
 	kfree(rbd_dev->snap_name);
 	kfree(rbd_dev->image_name);
 	kfree(rbd_dev->pool_name);
