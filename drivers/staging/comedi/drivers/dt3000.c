@@ -61,6 +61,17 @@ AO commands are not supported.
 
 #include "comedi_fc.h"
 
+/*
+ * PCI device id's supported by this driver
+ */
+#define PCI_DEVICE_ID_DT3001		0x0022
+#define PCI_DEVICE_ID_DT3002		0x0023
+#define PCI_DEVICE_ID_DT3003		0x0024
+#define PCI_DEVICE_ID_DT3004		0x0025
+#define PCI_DEVICE_ID_DT3005		0x0026
+#define PCI_DEVICE_ID_DT3001_PGL	0x0027
+#define PCI_DEVICE_ID_DT3003_PGL	0x0028
+
 static const struct comedi_lrange range_dt3000_ai = {
 	4, {
 		BIP_RANGE(10),
@@ -93,7 +104,7 @@ struct dt3k_boardtype {
 
 static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	{.name = "dt3001",
-	 .device_id = 0x22,
+	 .device_id = PCI_DEVICE_ID_DT3001,
 	 .adchan = 16,
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai,
@@ -102,7 +113,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 12,
 	 },
 	{.name = "dt3001-pgl",
-	 .device_id = 0x27,
+	 .device_id = PCI_DEVICE_ID_DT3001_PGL,
 	 .adchan = 16,
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai_pgl,
@@ -111,7 +122,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 12,
 	 },
 	{.name = "dt3002",
-	 .device_id = 0x23,
+	 .device_id = PCI_DEVICE_ID_DT3002,
 	 .adchan = 32,
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai,
@@ -120,7 +131,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 0,
 	 },
 	{.name = "dt3003",
-	 .device_id = 0x24,
+	 .device_id = PCI_DEVICE_ID_DT3003,
 	 .adchan = 64,
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai,
@@ -129,7 +140,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 12,
 	 },
 	{.name = "dt3003-pgl",
-	 .device_id = 0x28,
+	 .device_id = PCI_DEVICE_ID_DT3003_PGL,
 	 .adchan = 64,
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai_pgl,
@@ -138,7 +149,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 12,
 	 },
 	{.name = "dt3004",
-	 .device_id = 0x25,
+	 .device_id = PCI_DEVICE_ID_DT3004,
 	 .adchan = 16,
 	 .adbits = 16,
 	 .adrange = &range_dt3000_ai,
@@ -147,7 +158,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .dabits = 12,
 	 },
 	{.name = "dt3005",	/* a.k.a. 3004-200 */
-	 .device_id = 0x26,
+	 .device_id = PCI_DEVICE_ID_DT3005,
 	 .adchan = 16,
 	 .adbits = 16,
 	 .adrange = &range_dt3000_ai,
@@ -908,13 +919,13 @@ static void __devexit dt3000_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0022) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0027) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0023) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0024) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0028) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0025) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0026) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3001_PGL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3002) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3003) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3003_PGL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3004) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, PCI_DEVICE_ID_DT3005) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, dt3000_pci_table);
