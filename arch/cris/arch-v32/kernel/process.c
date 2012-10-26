@@ -16,7 +16,7 @@
 #include <hwregs/reg_map.h>
 #include <hwregs/timer_defs.h>
 #include <hwregs/intr_vect_defs.h>
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
 
 extern void stop_watchdog(void);
 
@@ -110,7 +110,7 @@ extern asmlinkage void ret_from_kernel_thread(void);
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
 	unsigned long arg,
-	struct task_struct *p, struct pt_regs *regs)
+	struct task_struct *p, struct pt_regs *unused)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct switch_stack *swstack = ((struct switch_stack *) childregs) - 1;
@@ -131,14 +131,14 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.usp = 0;
 		return 0;
 	}
-	*childregs = *regs;	/* Struct copy of pt_regs. */
+	*childregs = *current_pt_regs();	/* Struct copy of pt_regs. */
         childregs->r10 = 0;	/* Child returns 0 after a fork/clone. */
 
 	/* Set a new TLS ?
 	 * The TLS is in $mof because it is the 5th argument to sys_clone.
 	 */
 	if (p->mm && (clone_flags & CLONE_SETTLS)) {
-		task_thread_info(p)->tls = regs->mof;
+		task_thread_info(p)->tls = childregs->mof;
 	}
 
 	/* Put the switch stack right below the pt_regs. */
@@ -153,37 +153,10 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	swstack->return_ip = (unsigned long) ret_from_fork;
 
 	/* Fix the user-mode and kernel-mode stackpointer. */
-	p->thread.usp = usp;
+	p->thread.usp = usp ?: rdusp();
 	p->thread.ksp = (unsigned long) swstack;
 
 	return 0;
-}
-
-asmlinkage int
-sys_fork(void)
-{
-	return do_fork(SIGCHLD, rdusp(), current_pt_regs(), 0, NULL, NULL);
-}
-
-/* FIXME: Is parent_tid/child_tid really third/fourth argument? Update lib? */
-asmlinkage int
-sys_clone(unsigned long newusp, unsigned long flags, int *parent_tid, int *child_tid,
-	unsigned long tls)
-{
-	if (!newusp)
-		newusp = rdusp();
-
-	return do_fork(flags, newusp, current_pt_regs(), 0, parent_tid, child_tid);
-}
-
-/*
- * vfork is a system call in i386 because of register-pressure - maybe
- * we can remove it and handle it in libc but we put it here until then.
- */
-asmlinkage int
-sys_vfork(void)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), current_pt_regs(), 0, NULL, NULL);
 }
 
 unsigned long

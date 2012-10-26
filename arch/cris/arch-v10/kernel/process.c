@@ -17,7 +17,7 @@
 #include <arch/svinto.h>
 #include <linux/init.h>
 #include <arch/system.h>
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
 
 #ifdef CONFIG_ETRAX_GPIO
 void etrax_gpio_wake_up_check(void); /* drivers/gpio.c */
@@ -95,7 +95,7 @@ asmlinkage void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p, struct pt_regs *unused)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct switch_stack *swstack = ((struct switch_stack *)childregs) - 1;
@@ -115,7 +115,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.usp = 0;
 		return 0;
 	}
-	*childregs = *regs;  /* struct copy of pt_regs */
+	*childregs = *current_pt_regs();  /* struct copy of pt_regs */
 
         childregs->r10 = 0;  /* child returns 0 after a fork/clone */
 
@@ -129,7 +129,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	
 	/* fix the user-mode stackpointer */
 
-	p->thread.usp = usp;
+	p->thread.usp = usp ?: rdusp();
 
 	/* and the kernel-mode one */
 
@@ -141,30 +141,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 
 	return 0;
-}
-
-asmlinkage int sys_fork(void)
-{
-	return do_fork(SIGCHLD, rdusp(), current_pt_regs(), 0, NULL, NULL);
-}
-
-/* if newusp is 0, we just grab the old usp */
-/* FIXME: Is parent_tid/child_tid really third/fourth argument? Update lib? */
-asmlinkage int sys_clone(unsigned long newusp, unsigned long flags,
-			 int* parent_tid, int* child_tid)
-{
-	if (!newusp)
-		newusp = rdusp();
-	return do_fork(flags, newusp, current_pt_regs(), 0, parent_tid, child_tid);
-}
-
-/* vfork is a system call in i386 because of register-pressure - maybe
- * we can remove it and handle it in libc but we put it here until then.
- */
-
-asmlinkage int sys_vfork(void)
-{
-        return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), current_pt_regs(), 0, NULL, NULL);
 }
 
 unsigned long get_wchan(struct task_struct *p)
