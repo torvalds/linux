@@ -20,7 +20,6 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/irqdomain.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
