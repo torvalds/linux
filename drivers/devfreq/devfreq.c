@@ -570,9 +570,41 @@ static ssize_t show_max_freq(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%lu\n", to_devfreq(dev)->max_freq);
 }
 
+static ssize_t show_available_freqs(struct device *d,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct devfreq *df = to_devfreq(d);
+	struct device *dev = df->dev.parent;
+	struct opp *opp;
+	ssize_t count = 0;
+	unsigned long freq = 0;
+
+	rcu_read_lock();
+	do {
+		opp = opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			break;
+
+		count += scnprintf(&buf[count], (PAGE_SIZE - count - 2),
+				   "%lu ", freq);
+		freq++;
+	} while (1);
+	rcu_read_unlock();
+
+	/* Truncate the trailing space */
+	if (count)
+		count--;
+
+	count += sprintf(&buf[count], "\n");
+
+	return count;
+}
+
 static struct device_attribute devfreq_attrs[] = {
 	__ATTR(governor, S_IRUGO, show_governor, NULL),
 	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
+	__ATTR(available_frequencies, S_IRUGO, show_available_freqs, NULL),
 	__ATTR(target_freq, S_IRUGO, show_target_freq, NULL),
 	__ATTR(polling_interval, S_IRUGO | S_IWUSR, show_polling_interval,
 	       store_polling_interval),
