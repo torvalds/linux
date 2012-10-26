@@ -288,6 +288,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 		/* 666 with one bit alpha/transparency */
 		var->transp.offset	= 18;
 		var->transp.length	= 1;
+		/* drop through */
 	case 18:
 		var->bits_per_pixel	= 32;
 
