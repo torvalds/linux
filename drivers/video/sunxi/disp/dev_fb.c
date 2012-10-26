@@ -1085,7 +1085,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 
         sel = (g_fbi.fb_mode[info->node] == FB_MODE_SCREEN1)?1:0;
         line = BSP_disp_get_cur_line(sel);
-        BSP_disp_get_timming(sel, &tt);
+        BSP_disp_get_timing(sel, &tt);
 
         memset(&vblank, 0, sizeof(struct fb_vblank));
         vblank.flags |= FB_VBLANK_HAVE_VBLANK;
@@ -1189,7 +1189,7 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
             {
                 __disp_tcon_timing_t tt;
 
-                if(BSP_disp_get_timming(sel, &tt) >= 0)
+                if(BSP_disp_get_timing(sel, &tt) >= 0)
                 {
                     info->var.pixclock = 1000000000 / tt.pixel_clk;
                     info->var.left_margin = tt.hor_back_porch;
@@ -1330,7 +1330,7 @@ __s32 Display_get_disp_init_para(__disp_init_t * init_para)
     return 0;
 }
 
-__s32 Display_set_fb_timming(__u32 sel)
+__s32 Display_set_fb_timing(__u32 sel)
 {
 	__u8 fb_id=0;
 
@@ -1343,7 +1343,7 @@ __s32 Display_set_fb_timming(__u32 sel)
             {
                 __disp_tcon_timing_t tt;
 
-                if(BSP_disp_get_timming(sel, &tt)>=0)
+                if(BSP_disp_get_timing(sel, &tt)>=0)
                 {
                     g_fbi.fbinfo[fb_id]->var.pixclock = 1000000000 / tt.pixel_clk;
                     g_fbi.fbinfo[fb_id]->var.left_margin = tt.hor_back_porch;

@@ -23,8 +23,8 @@ static __u32 printf_cnt=0; //for test
 
 #define CLK_ON 1
 #define CLK_OFF 0
-#define RST_INVAILD 0
-#define RST_VAILD   1
+#define RST_INVALID 0
+#define RST_VALID   1
 
 //#define DRC_DEFAULT_ENABLE	//Enable drc default
 //#define DRC_DEMO //when defined DRC_DEFAULT_ENABLE, run DRC in DEMO mode
@@ -299,7 +299,7 @@ __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *regn)
 		(regn->y < 0) || ((regn->y + regn->height)>scn_height))
 	{
 		DE_WRN("BSP_disp_iep_set_demo_win: win_x: %d, win_y: %d, win_width: %d, win_height: %d.\n", regn->x, regn->y, regn->width, regn->height);
-		DE_WRN("IEP Windows Size Invaild!\n");
+		DE_WRN("IEP Windows Size Invalid!\n");
 		return DIS_PARA_FAILED;
 	}
 
@@ -594,7 +594,7 @@ __s32 iep_clk_init(__u32 sel)
     h_iepdramclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_SDRAM_IEP);
     h_iepmclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_IEP);
 
-	OSAL_CCMU_MclkReset(h_iepmclk, RST_INVAILD);
+	OSAL_CCMU_MclkReset(h_iepmclk, RST_INVALID);
 	OSAL_CCMU_MclkOnOff(h_iepahbclk, CLK_ON);
 
 	g_clk_status  |= CLK_IEP_AHB_ON;
@@ -603,7 +603,7 @@ __s32 iep_clk_init(__u32 sel)
 
 __s32 iep_clk_exit(__u32 sel)
 {
-	OSAL_CCMU_MclkReset(h_iepmclk, RST_VAILD);
+	OSAL_CCMU_MclkReset(h_iepmclk, RST_VALID);
 
 	if(g_clk_status & CLK_IEP_DRAM_ON)
 	{
