@@ -235,31 +235,6 @@ release_thread(struct task_struct *dead_task)
 }
 
 /*
- * "alpha_clone()".. By the time we get here, the
- * non-volatile registers have also been saved on the
- * stack. We do some ugly pointer stuff here.. (see
- * also copy_thread)
- *
- * Notice that "fork()" is implemented in terms of clone,
- * with parameters (SIGCHLD, 0).
- */
-int
-alpha_clone(unsigned long clone_flags, unsigned long usp,
-	    int __user *parent_tid, int __user *child_tid,
-	    unsigned long tls_value)
-{
-	return do_fork(clone_flags, usp, current_pt_regs(), 0,
-			parent_tid, child_tid);
-}
-
-int
-alpha_vfork(void)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
-		       current_pt_regs(), 0, NULL, NULL);
-}
-
-/*
  * Copy an alpha thread..
  */
 

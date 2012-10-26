@@ -612,44 +612,24 @@ ret_from_kernel_thread:
  * Special system calls.  Most of these are special in that they either
  * have to play switch_stack games or in some way use the pt_regs struct.
  */
+
+.macro	fork_like name
 	.align	4
-	.globl	sys_fork
-	.ent	sys_fork
-sys_fork:
+	.globl	alpha_\name
+	.ent	alpha_\name
+alpha_\name:
 	.prologue 0
 	bsr	$1, do_switch_stack
-	bis	$31, SIGCHLD, $16
-	mov	$31, $17
-	mov	$31, $18
-	mov	$31, $19
-	mov	$31, $20
-	jsr	$26, alpha_clone
-fork_out:
+	jsr	$26, sys_\name
 	ldq	$26, 56($sp)
 	lda	$sp, SWITCH_STACK_SIZE($sp)
 	ret
-.end sys_fork
+.end	alpha_\name
+.endm
 
-	.align	4
-	.globl	sys_clone
-	.ent	sys_clone
-sys_clone:
-	.prologue 0
-	bsr	$1, do_switch_stack
-	/* $16, $17, $18, $19, $20 come from the user.  */
-	lda	$26, fork_out
-	jsr	$31, alpha_clone
-.end sys_clone
-
-	.align	4
-	.globl	sys_vfork
-	.ent	sys_vfork
-sys_vfork:
-	.prologue 0
-	bsr	$1, do_switch_stack
-	lda	$26, fork_out
-	jsr	$31, alpha_vfork
-.end sys_vfork
+fork_like fork
+fork_like vfork
+fork_like clone
 
 	.align	4
 	.globl	sys_sigreturn
