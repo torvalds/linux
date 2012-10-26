@@ -2479,6 +2479,9 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
 
+	I915_WRITE(FDI_RX_MISC(pipe),
+		   FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
 	if (HAS_PCH_CPT(dev)) {
@@ -2610,6 +2613,9 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
 	temp |= FDI_COMPOSITE_SYNC;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
+
+	I915_WRITE(FDI_RX_MISC(pipe),
+		   FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
 
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
