@@ -693,7 +693,8 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 				       adjusted_mode);
-		intel_pch_panel_fitting(dev, DRM_MODE_SCALE_FULLSCREEN,
+		intel_pch_panel_fitting(dev,
+					intel_connector->panel.fitting_mode,
 					mode, adjusted_mode);
 	}
 
@@ -2359,6 +2360,7 @@ intel_dp_set_property(struct drm_connector *connector,
 		      uint64_t val)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	int ret;
 
@@ -2392,6 +2394,22 @@ intel_dp_set_property(struct drm_connector *connector,
 			return 0;
 
 		intel_dp->color_range = val ? DP_COLOR_RANGE_16_235 : 0;
+		goto done;
+	}
+
+	if (is_edp(intel_dp) &&
+	    property == connector->dev->mode_config.scaling_mode_property) {
+		if (val == DRM_MODE_SCALE_NONE) {
+			DRM_DEBUG_KMS("no scaling not supported\n");
+			return -EINVAL;
+		}
+
+		if (intel_connector->panel.fitting_mode == val) {
+			/* the eDP scaling property is not changed */
+			return 0;
+		}
+		intel_connector->panel.fitting_mode = val;
+
 		goto done;
 	}
 
@@ -2519,8 +2537,19 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
+
+	if (is_edp(intel_dp)) {
+		drm_mode_create_scaling_mode_property(connector->dev);
+		drm_connector_attach_property(
+			connector,
+			connector->dev->mode_config.scaling_mode_property,
+			DRM_MODE_SCALE_FULLSCREEN);
+		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
+	}
 }
 
 static void
