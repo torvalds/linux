@@ -959,45 +959,24 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_broadcast_rgb_property(connector);
 }
 
-void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
+static void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
+				      struct intel_connector *intel_connector)
 {
+	struct drm_connector *connector = &intel_connector->base;
+	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_connector *connector;
-	struct intel_encoder *intel_encoder;
-	struct intel_connector *intel_connector;
-	struct intel_digital_port *intel_dig_port;
-	struct intel_hdmi *intel_hdmi;
+	enum port port = intel_hdmi->ddi_port;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
-	if (!intel_dig_port)
-		return;
-
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
-	if (!intel_connector) {
-		kfree(intel_dig_port);
-		return;
-	}
-
-	intel_hdmi = &intel_dig_port->hdmi;
-	intel_encoder = &intel_dig_port->base;
-	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
-
-	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
 
-	intel_encoder->type = INTEL_OUTPUT_HDMI;
-
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
-	intel_encoder->cloneable = false;
-
-	intel_hdmi->ddi_port = port;
 	switch (port) {
 	case PORT_B:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
@@ -1017,8 +996,6 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 		BUG();
 	}
 
-	intel_hdmi->sdvox_reg = sdvox_reg;
-
 	if (!HAS_PCH_SPLIT(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
@@ -1036,6 +1013,45 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 		intel_hdmi->set_infoframes = cpt_set_infoframes;
 	}
 
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
+
+	intel_hdmi_add_properties(intel_hdmi, connector);
+
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
+	drm_sysfs_connector_add(connector);
+
+	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
+	 * 0xd.  Failure to do so will result in spurious interrupts being
+	 * generated on the port when a cable is not attached.
+	 */
+	if (IS_G4X(dev) && !IS_GM45(dev)) {
+		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
+		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
+	}
+}
+
+void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
+{
+	struct intel_digital_port *intel_dig_port;
+	struct intel_encoder *intel_encoder;
+	struct drm_encoder *encoder;
+	struct intel_connector *intel_connector;
+
+	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	if (!intel_dig_port)
+		return;
+
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_dig_port);
+		return;
+	}
+
+	intel_encoder = &intel_dig_port->base;
+	encoder = &intel_encoder->base;
+
+	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
+			 DRM_MODE_ENCODER_TMDS);
 	if (IS_HASWELL(dev)) {
 		intel_encoder->pre_enable = intel_ddi_pre_enable;
 		intel_encoder->enable = intel_enable_ddi;
@@ -1051,20 +1067,14 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_hdmi_helper_funcs);
 	}
-	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
+	intel_encoder->type = INTEL_OUTPUT_HDMI;
+	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	intel_encoder->cloneable = false;
 
-	intel_hdmi_add_properties(intel_hdmi, connector);
+	intel_dig_port->hdmi.ddi_port = port;
+	intel_dig_port->hdmi.sdvox_reg = sdvox_reg;
+	intel_dig_port->dp.output_reg = 0;
 
-	intel_connector_attach_encoder(intel_connector, intel_encoder);
-	drm_sysfs_connector_add(connector);
-
-	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
-	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
-	 */
-	if (IS_G4X(dev) && !IS_GM45(dev)) {
-		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
-		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
-	}
+	intel_hdmi_init_connector(intel_dig_port, intel_connector);
 }
