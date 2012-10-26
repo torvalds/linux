@@ -3953,15 +3953,4 @@ static struct pci_driver ql3xxx_driver = {
 	.remove = __devexit_p(ql3xxx_remove),
 };
 
-static int __init ql3xxx_init_module(void)
-{
-	return pci_register_driver(&ql3xxx_driver);
-}
-
-static void __exit ql3xxx_exit(void)
-{
-	pci_unregister_driver(&ql3xxx_driver);
-}
-
-module_init(ql3xxx_init_module);
-module_exit(ql3xxx_exit);
+module_pci_driver(ql3xxx_driver);
