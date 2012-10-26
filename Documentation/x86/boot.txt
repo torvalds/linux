@@ -1013,7 +1013,7 @@ boot_params as that of 16-bit boot protocol, the boot loader should
 also fill the additional fields of the struct boot_params as that
 described in zero-page.txt.
 
-After setupping the struct boot_params, the boot loader can load the
+After setting up the struct boot_params, the boot loader can load the
 32/64-bit kernel in the same way as that of 16-bit boot protocol.
 
 In 32-bit boot protocol, the kernel is started by jumping to the
@@ -1023,7 +1023,7 @@ In 32-bit boot protocol, the kernel is started by jumping to the
 At entry, the CPU must be in 32-bit protected mode with paging
 disabled; a GDT must be loaded with the descriptors for selectors
 __BOOT_CS(0x10) and __BOOT_DS(0x18); both descriptors must be 4G flat
-segment; __BOOS_CS must have execute/read permission, and __BOOT_DS
+segment; __BOOT_CS must have execute/read permission, and __BOOT_DS
 must have read/write permission; CS must be __BOOT_CS and DS, ES, SS
 must be __BOOT_DS; interrupt must be disabled; %esi must hold the base
 address of the struct boot_params; %ebp, %edi and %ebx must be zero.
