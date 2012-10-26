@@ -14,10 +14,6 @@
 
 #include <linux/types.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* The age of the BlueCore chip.  This is probably not useful, if
    you know the age then you can probably work out the version directly. */
 enum chip_helper_bluecore_age
@@ -407,65 +403,5 @@ s32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_type type,
                                  u32 offset,
                                  u16 *page, u16 *addr, u32 *len);
-
-#ifdef __cplusplus
-/* Close the extern "C" */
-}
-
-/*
- * This is the C++ API.
- */
-
-class ChipHelper
-{
-public:
-    /* If this constructor is used then a GetVersionXXX function
-       should be called next. */
-    ChipHelper();
-
-    /* copy constructor */
-    ChipHelper(ChipDescript * desc);
-
-    /* The default constructor assume a BC7 / UF105x series chip
-       and that the number given is the value of UNIFI_GBL_CHIP_VERSION
-       (0xFE81) */
-    ChipHelper(u16 version);
-
-    /* This returns the C interface magic token from a C++ instance. */
-    ChipDescript* GetDescript() const
-    {
-        return m_desc;
-    }
-
-
-    /* Clear out theis class (set it to the null token). */
-    void ClearVersion();
-
-    /* Load this class with data for a specific chip. */
-    void GetVersionAny(u16 from_FF9A, u16 from_FE81);
-    void GetVersionUniFi(u16 version);
-    void GetVersionBlueCore(chip_helper_bluecore_age age, u16 version);
-    void GetVersionSdio(u8 sdio_version);
-
-    /* Helpers to build the definitions of the member functions. */
-#define CHIP_HELPER_DEF0_CPP_DEC(ret_type, name, info)    \
-    ret_type name() const;
-#define CHIP_HELPER_DEF1_CPP_DEC(ret_type, name, type1, name1)   \
-    ret_type name(type1 name1) const;
-
-    CHIP_HELPER_LIST(CPP_DEC)
-
-
-    /* The DecodeWindow function, see the description of the C version. */
-    s32 DecodeWindow(chip_helper_window_index window,
-                          chip_helper_window_type type,
-                          u32 offset,
-                          u16 &page, u16 &addr, u32 &len) const;
-
-private:
-    ChipDescript *m_desc;
-};
-
-#endif /* __cplusplus */
 
 #endif

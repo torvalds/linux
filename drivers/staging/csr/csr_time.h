@@ -12,10 +12,6 @@ on the license terms.
 
 #include <linux/types.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*******************************************************************************
 
 NAME
@@ -76,9 +72,5 @@ u32 CsrTimeGet(u32 *high);
  *
  *----------------------------------------------------------------------------*/
 #define CsrTimeSub(t1, t2)    ((s32) (t1) - (s32) (t2))
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

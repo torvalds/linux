@@ -15,19 +15,11 @@
 
 #include "csr_sched.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define CSR_WIFI_ROUTER_LOG_ID 0x1201FFFF
 extern CsrSchedQid CSR_WIFI_ROUTER_IFACEQUEUE;
 void CsrWifiRouterInit(void **gash);
 void CsrWifiRouterDeinit(void **gash);
 void CsrWifiRouterHandler(void **gash);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_ROUTER_TASK_H__ */
 

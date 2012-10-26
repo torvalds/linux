@@ -16,10 +16,6 @@
 #include "csr_wifi_msgconv.h"
 #include "csr_wifi_nme_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_serialize.h
 #endif
@@ -166,9 +162,5 @@ extern size_t CsrWifiNmeSimUmtsAuthIndSizeof(void *msg);
 #define CsrWifiNmeEventMaskSetCfmSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiNmeEventMaskSetCfmSerFree CsrWifiNmePfree
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* CSR_WIFI_NME_SERIALIZE_H__ */
 

@@ -20,10 +20,6 @@
 #ifndef __CARD_SDIO_H__
 #define __CARD_SDIO_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifi_udi.h"
 #include "csr_wifi_hip_unifihw.h"
@@ -694,9 +690,5 @@ CsrResult prealloc_netdata_alloc(card_t *card);
 /* For diagnostic use */
 void dump(void *mem, u16 len);
 void dump16(void *mem, u16 len);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __CARD_SDIO_H__ */

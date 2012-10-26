@@ -23,10 +23,6 @@
 #include "csr_wifi_nme_task.h"
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_lib.h
 #endif
@@ -1045,10 +1041,5 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 #define CsrWifiNmeWpsReqSend(src__, interfaceTag__, pin__, ssid__, bssid__) \
     CsrWifiNmeWpsReqSendTo(CSR_WIFI_NME_IFACEQUEUE, src__, interfaceTag__, pin__, ssid__, bssid__)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_NME_LIB_H__ */

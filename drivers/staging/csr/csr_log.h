@@ -14,10 +14,6 @@
 #include "csr_prim_defs.h"
 #include "csr_msgconv.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * Log filtering
  */
@@ -223,9 +219,5 @@ void CsrLogExceptionWarning(u16 prim_type,
 	const char *text,
 	u32 line,
 	const char *file);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

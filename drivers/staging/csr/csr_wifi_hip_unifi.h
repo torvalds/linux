@@ -20,10 +20,6 @@
 #ifndef __CSR_WIFI_HIP_UNIFI_H__
 #define __CSR_WIFI_HIP_UNIFI_H__ 1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_HIP_TA_DISABLE
 #include "csr_wifi_router_ctrl_prim.h"
 #include "csr_wifi_router_prim.h"
@@ -871,9 +867,5 @@ CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req);
 CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable);
 CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers);
 void unifi_coredump_free(card_t *card);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __CSR_WIFI_HIP_UNIFI_H__ */

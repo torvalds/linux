@@ -13,10 +13,6 @@
 #include "csr_result.h"
 #include "csr_framework_ext_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Result codes */
 #define CSR_FE_RESULT_NO_MORE_EVENTS    ((CsrResult) 0x0001)
 #define CSR_FE_RESULT_INVALID_POINTER   ((CsrResult) 0x0002)
@@ -35,9 +31,5 @@ extern "C" {
 #define CSR_EVENT_WAIT_INFINITE         ((u16) 0xFFFF)
 
 void CsrThreadSleep(u16 sleepTimeInMs);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

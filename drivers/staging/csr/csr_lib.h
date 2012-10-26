@@ -12,10 +12,6 @@
 
 #include "csr_prim_defs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
     CsrPrim type;
@@ -180,9 +176,5 @@ typedef struct
  *
  *----------------------------------------------------------------------------*/
 CsrEventCsrUint32CsrCharString *CsrEventCsrUint32CsrCharString_struct(u16 primtype, u16 msgtype, u32 value1, char *value2);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_LIB_H__ */

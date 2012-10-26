@@ -12,10 +12,6 @@
 #include <linux/types.h>
 #include "csr_time.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* An identifier issued by the scheduler. */
 typedef u32 CsrSchedIdentifier;
 
@@ -84,10 +80,6 @@ void CsrSchedMessagePutStringLog(CsrSchedQid q,
 void CsrSchedMessagePut(CsrSchedQid q,
     u16 mi,
     void *mv);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

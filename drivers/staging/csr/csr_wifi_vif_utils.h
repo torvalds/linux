@@ -11,10 +11,6 @@
 #ifndef CSR_WIFI_VIF_UTILS_H
 #define CSR_WIFI_VIF_UTILS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* STANDARD INCLUDES ********************************************************/
 
 /* PROJECT INCLUDES *********************************************************/
@@ -26,10 +22,6 @@ extern "C" {
 /* Common macros for NME and SME to be used temporarily until SoftMAC changes are made */
 #define CSR_WIFI_NUM_INTERFACES        (u8)0x1
 #define CSR_WIFI_INTERFACE_IN_USE      (u16)0x0
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_VIF_UTILS_H */
 

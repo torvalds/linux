@@ -12,10 +12,6 @@
 
 #include "csr_log.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*---------------------------------*/
 /* Log init/deinit                 */
 /*---------------------------------*/
@@ -126,9 +122,5 @@ sub origin(s).
 void CsrLogLevelTextSet(const char *originName,
 		const char *subOriginName,
 		CsrLogLevelText warningLevelMask);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -12,11 +12,6 @@
 
 #include "csr_wifi_sme_prim.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void (*CsrWifiSmeStateHandlerType)(void *drvpriv, CsrWifiFsmEvent *msg);
 
 extern const CsrWifiSmeStateHandlerType
@@ -143,9 +138,5 @@ extern void CsrWifiSmeInfoIndHandler(void *drvpriv, CsrWifiFsmEvent *msg);
 extern void CsrWifiSmeCoreDumpIndHandler(void *drvpriv, CsrWifiFsmEvent *msg);
 extern void CsrWifiSmeAmpStatusChangeIndHandler(void *drvpriv,
 	CsrWifiFsmEvent *msg);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_ROUTER_SEF_CSR_WIFI_SME_H__ */

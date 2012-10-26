@@ -17,11 +17,6 @@
 #include <pthread.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 #ifdef __KERNEL__
 
 struct CsrEvent {
@@ -45,9 +40,5 @@ typedef struct CsrEvent CsrEventHandle;
 typedef pthread_mutex_t CsrMutexHandle;
 
 #endif /* __KERNEL__ */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

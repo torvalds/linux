@@ -11,10 +11,6 @@
 #ifndef CSR_WIFI_FSM_H
 #define CSR_WIFI_FSM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_prim_defs.h"
 #include "csr_log_text.h"
 #include "csr_wifi_fsm_event.h"
@@ -239,10 +235,6 @@ extern u8 CsrWifiFsmHasEvents(CsrWifiFsmContext *context);
  *   void
  */
 extern void CsrWifiFsmInstallWakeupCallback(CsrWifiFsmContext *context, CsrWifiFsmExternalWakupCallbackPtr callback);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_FSM_H */
 

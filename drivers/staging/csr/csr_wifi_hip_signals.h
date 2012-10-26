@@ -101,10 +101,6 @@
 /* FUNCTION DECLARATIONS */
 /******************************************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 /******************************************************************************
  * SigGetNumDataRefs - Retrieve pointers to data-refs from a signal.
  *
@@ -128,10 +124,5 @@ s32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef);
  *   The size (in bytes) of the given signal.
  */
 s32 SigGetSize(const CSR_SIGNAL *aSignal);
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
 
 #endif /* __CSR_WIFI_HIP_SIGNALS_H__ */

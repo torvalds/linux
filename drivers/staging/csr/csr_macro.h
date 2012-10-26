@@ -12,10 +12,6 @@
 
 #include <linux/types.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define FALSE	(0)
 #define TRUE	(1)
 
@@ -106,9 +102,5 @@ extern "C" {
 #define CSR_TOUPPER(character)  (((character) >= 'a') && ((character) <= 'z') ? ((character) - 0x20) : (character))
 #define CSR_TOLOWER(character)  (((character) >= 'A') && ((character) <= 'Z') ? ((character) + 0x20) : (character))
 #define CSR_ARRAY_SIZE(x)       (sizeof(x) / sizeof(*(x)))
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

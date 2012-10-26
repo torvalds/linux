@@ -14,10 +14,6 @@
 
 #include "csr_wifi_hip_chiphelper.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 /* This GP stuff should be somewhere else? */
 
 /* Memory spaces encoded in top byte of Generic Pointer type */
@@ -200,9 +196,5 @@ struct chip_device_desc_t
     /* Information on the different windows */
     const struct window_info_t *windows[CHIP_HELPER_WINDOW_COUNT];
 };
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 #endif /* CSR_WIFI_HIP_CHIPHELPER_PRIVATE_H__ */

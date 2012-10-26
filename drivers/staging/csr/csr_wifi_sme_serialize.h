@@ -16,10 +16,6 @@
 #include "csr_wifi_msgconv.h"
 #include "csr_wifi_sme_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void CsrWifiSmePfree(void *ptr);
 
 #define CsrWifiSmeActivateReqSer CsrWifiEventSer
@@ -666,9 +662,5 @@ extern void CsrWifiSmeCoreDumpIndSerFree(void *msg);
 #define CsrWifiSmeWpsConfigurationCfmSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiSmeWpsConfigurationCfmSerFree CsrWifiSmePfree
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* CSR_WIFI_SME_SERIALIZE_H__ */
 
