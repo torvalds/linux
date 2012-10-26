@@ -868,6 +868,8 @@ static int dt3000_attach_pci(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_PROC;
 #endif
 
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+
 	return 0;
 }
 
