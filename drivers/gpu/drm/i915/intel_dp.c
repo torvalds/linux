@@ -2547,8 +2547,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		drm_connector_attach_property(
 			connector,
 			connector->dev->mode_config.scaling_mode_property,
-			DRM_MODE_SCALE_FULLSCREEN);
-		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
+			DRM_MODE_SCALE_ASPECT);
+		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
 	}
 }
 
