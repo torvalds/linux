@@ -350,6 +350,141 @@ out:
 	return ret;
 }
 
+static int wm_adsp_setup_algs(struct wm_adsp *dsp)
+{
+	struct regmap *regmap = dsp->regmap;
+	struct wmfw_adsp1_id_hdr adsp1_id;
+	struct wmfw_adsp2_id_hdr adsp2_id;
+	struct wmfw_adsp1_alg_hdr *adsp1_alg;
+	struct wmfw_adsp2_alg_hdr *adsp2_alg;
+	void *alg;
+	const struct wm_adsp_region *mem;
+	unsigned int pos, term;
+	size_t algs;
+	__be32 val;
+	int i, ret;
+
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+		mem = wm_adsp_find_region(dsp, WMFW_ADSP1_DM);
+		break;
+	case WMFW_ADSP2:
+		mem = wm_adsp_find_region(dsp, WMFW_ADSP2_XM);
+		break;
+	default:
+		mem = NULL;
+		break;
+	}
+
+	if (mem == NULL) {
+		BUG_ON(mem != NULL);
+		return -EINVAL;
+	}
+
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+		ret = regmap_raw_read(regmap, mem->base, &adsp1_id,
+				      sizeof(adsp1_id));
+		if (ret != 0) {
+			adsp_err(dsp, "Failed to read algorithm info: %d\n",
+				 ret);
+			return ret;
+		}
+
+		algs = be32_to_cpu(adsp1_id.algs);
+		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
+			  be32_to_cpu(adsp1_id.fw.id),
+			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff0000) >> 16,
+			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff00) >> 8,
+			  be32_to_cpu(adsp1_id.fw.ver) & 0xff,
+			  algs);
+
+		pos = sizeof(adsp1_id) / 2;
+		term = pos + ((sizeof(*adsp1_alg) * algs) / 2);
+		break;
+
+	case WMFW_ADSP2:
+		ret = regmap_raw_read(regmap, mem->base, &adsp2_id,
+				      sizeof(adsp2_id));
+		if (ret != 0) {
+			adsp_err(dsp, "Failed to read algorithm info: %d\n",
+				 ret);
+			return ret;
+		}
+
+		algs = be32_to_cpu(adsp2_id.algs);
+		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
+			  be32_to_cpu(adsp2_id.fw.id),
+			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff0000) >> 16,
+			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff00) >> 8,
+			  be32_to_cpu(adsp2_id.fw.ver) & 0xff,
+			  algs);
+
+		pos = sizeof(adsp2_id) / 2;
+		term = pos + ((sizeof(*adsp2_alg) * algs) / 2);
+		break;
+
+	default:
+		BUG_ON(NULL == "Unknown DSP type");
+		return -EINVAL;
+	}
+
+	if (algs == 0) {
+		adsp_err(dsp, "No algorithms\n");
+		return -EINVAL;
+	}
+
+	/* Read the terminator first to validate the length */
+	ret = regmap_raw_read(regmap, mem->base + term, &val, sizeof(val));
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to read algorithm list end: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (be32_to_cpu(val) != 0xbedead)
+		adsp_warn(dsp, "Algorithm list end %x 0x%x != 0xbeadead\n",
+			  term, be32_to_cpu(val));
+
+	alg = kzalloc((term - pos) * 2, GFP_KERNEL);
+	if (!alg)
+		return -ENOMEM;
+
+	ret = regmap_raw_read(regmap, mem->base + pos, alg, (term - pos) * 2);
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to read algorithm list: %d\n",
+			ret);
+		goto out;
+	}
+
+	adsp1_alg = alg;
+	adsp2_alg = alg;
+
+	for (i = 0; i < algs; i++) {
+		switch (dsp->type) {
+		case WMFW_ADSP1:
+			adsp_info(dsp, "%d: ID %x v%d.%d.%d\n",
+				  i, be32_to_cpu(adsp1_alg[i].alg.id),
+				  (be32_to_cpu(adsp1_alg[i].alg.ver) & 0xff0000) >> 16,
+				  (be32_to_cpu(adsp1_alg[i].alg.ver) & 0xff00) >> 8,
+				  be32_to_cpu(adsp1_alg[i].alg.ver) & 0xff);
+			break;
+
+		case WMFW_ADSP2:
+			adsp_info(dsp, "%d: ID %x v%d.%d.%d\n",
+				  i, be32_to_cpu(adsp2_alg[i].alg.id),
+				  (be32_to_cpu(adsp2_alg[i].alg.ver) & 0xff0000) >> 16,
+				  (be32_to_cpu(adsp2_alg[i].alg.ver) & 0xff00) >> 8,
+				  be32_to_cpu(adsp2_alg[i].alg.ver) & 0xff);
+			break;
+		}
+	}
+
+out:
+	kfree(alg);
+	return ret;
+}
+
 static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
@@ -465,6 +600,10 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 				   ADSP1_SYS_ENA, ADSP1_SYS_ENA);
 
 		ret = wm_adsp_load(dsp);
+		if (ret != 0)
+			goto err;
+
+		ret = wm_adsp_setup_algs(dsp);
 		if (ret != 0)
 			goto err;
 
@@ -601,6 +740,10 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			return ret;
 
 		ret = wm_adsp_load(dsp);
+		if (ret != 0)
+			goto err;
+
+		ret = wm_adsp_setup_algs(dsp);
 		if (ret != 0)
 			goto err;
 
