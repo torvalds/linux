@@ -22,7 +22,10 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#if IS_ENABLED(CONFIG_IP_VS_IPV6)
+#include <linux/netfilter_ipv6/ip6_tables.h>
+#endif
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
 #endif
 #include <net/net_namespace.h>		/* Netw namespace */
@@ -103,30 +106,117 @@ static inline struct net *seq_file_single_net(struct seq_file *seq)
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
 
-
 struct ip_vs_iphdr {
-	int len;
-	__u8 protocol;
+	__u32 len;	/* IPv4 simply where L4 starts
+			   IPv6 where L4 Transport Header starts */
+	__u32 thoff_reasm; /* Transport Header Offset in nfct_reasm skb */
+	__u16 fragoffs; /* IPv6 fragment offset, 0 if first frag (or not frag)*/
+	__s16 protocol;
+	__s32 flags;
 	union nf_inet_addr saddr;
 	union nf_inet_addr daddr;
 };
 
+/* Dependency to module: nf_defrag_ipv6 */
+#if defined(CONFIG_NF_DEFRAG_IPV6) || defined(CONFIG_NF_DEFRAG_IPV6_MODULE)
+static inline struct sk_buff *skb_nfct_reasm(const struct sk_buff *skb)
+{
+	return skb->nfct_reasm;
+}
+static inline void *frag_safe_skb_hp(const struct sk_buff *skb, int offset,
+				      int len, void *buffer,
+				      const struct ip_vs_iphdr *ipvsh)
+{
+	if (unlikely(ipvsh->fragoffs && skb_nfct_reasm(skb)))
+		return skb_header_pointer(skb_nfct_reasm(skb),
+					  ipvsh->thoff_reasm, len, buffer);
+
+	return skb_header_pointer(skb, offset, len, buffer);
+}
+#else
+static inline struct sk_buff *skb_nfct_reasm(const struct sk_buff *skb)
+{
+	return NULL;
+}
+static inline void *frag_safe_skb_hp(const struct sk_buff *skb, int offset,
+				      int len, void *buffer,
+				      const struct ip_vs_iphdr *ipvsh)
+{
+	return skb_header_pointer(skb, offset, len, buffer);
+}
+#endif
+
 static inline void
-ip_vs_fill_iphdr(int af, const void *nh, struct ip_vs_iphdr *iphdr)
+ip_vs_fill_ip4hdr(const void *nh, struct ip_vs_iphdr *iphdr)
+{
+	const struct iphdr *iph = nh;
+
+	iphdr->len	= iph->ihl * 4;
+	iphdr->fragoffs	= 0;
+	iphdr->protocol	= iph->protocol;
+	iphdr->saddr.ip	= iph->saddr;
+	iphdr->daddr.ip	= iph->daddr;
+}
+
+/* This function handles filling *ip_vs_iphdr, both for IPv4 and IPv6.
+ * IPv6 requires some extra work, as finding proper header position,
+ * depend on the IPv6 extension headers.
+ */
+static inline void
+ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, struct ip_vs_iphdr *iphdr)
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
-		const struct ipv6hdr *iph = nh;
-		iphdr->len = sizeof(struct ipv6hdr);
-		iphdr->protocol = iph->nexthdr;
+		const struct ipv6hdr *iph =
+			(struct ipv6hdr *)skb_network_header(skb);
+		iphdr->saddr.in6 = iph->saddr;
+		iphdr->daddr.in6 = iph->daddr;
+		/* ipv6_find_hdr() updates len, flags, thoff_reasm */
+		iphdr->thoff_reasm = 0;
+		iphdr->len	 = 0;
+		iphdr->flags	 = 0;
+		iphdr->protocol  = ipv6_find_hdr(skb, &iphdr->len, -1,
+						 &iphdr->fragoffs,
+						 &iphdr->flags);
+		/* get proto from re-assembled packet and it's offset */
+		if (skb_nfct_reasm(skb))
+			iphdr->protocol = ipv6_find_hdr(skb_nfct_reasm(skb),
+							&iphdr->thoff_reasm,
+							-1, NULL, NULL);
+
+	} else
+#endif
+	{
+		const struct iphdr *iph =
+			(struct iphdr *)skb_network_header(skb);
+		iphdr->len	= iph->ihl * 4;
+		iphdr->fragoffs	= 0;
+		iphdr->protocol	= iph->protocol;
+		iphdr->saddr.ip	= iph->saddr;
+		iphdr->daddr.ip	= iph->daddr;
+	}
+}
+
+/* This function is a faster version of ip_vs_fill_iph_skb().
+ * Where we only populate {s,d}addr (and avoid calling ipv6_find_hdr()).
+ * This is used by the some of the ip_vs_*_schedule() functions.
+ * (Mostly done to avoid ABI breakage of external schedulers)
+ */
+static inline void
+ip_vs_fill_iph_addr_only(int af, const struct sk_buff *skb,
+			 struct ip_vs_iphdr *iphdr)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		const struct ipv6hdr *iph =
+			(struct ipv6hdr *)skb_network_header(skb);
 		iphdr->saddr.in6 = iph->saddr;
 		iphdr->daddr.in6 = iph->daddr;
 	} else
 #endif
 	{
-		const struct iphdr *iph = nh;
-		iphdr->len = iph->ihl * 4;
-		iphdr->protocol = iph->protocol;
+		const struct iphdr *iph =
+			(struct iphdr *)skb_network_header(skb);
 		iphdr->saddr.ip = iph->saddr;
 		iphdr->daddr.ip = iph->daddr;
 	}
@@ -165,7 +255,7 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 	int len;
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		len = snprintf(&buf[*idx], buf_len - *idx, "[%pI6]",
+		len = snprintf(&buf[*idx], buf_len - *idx, "[%pI6c]",
 			       &addr->in6) + 1;
 	else
 #endif
@@ -398,27 +488,26 @@ struct ip_vs_protocol {
 
 	int (*conn_schedule)(int af, struct sk_buff *skb,
 			     struct ip_vs_proto_data *pd,
-			     int *verdict, struct ip_vs_conn **cpp);
+			     int *verdict, struct ip_vs_conn **cpp,
+			     struct ip_vs_iphdr *iph);
 
 	struct ip_vs_conn *
 	(*conn_in_get)(int af,
 		       const struct sk_buff *skb,
 		       const struct ip_vs_iphdr *iph,
-		       unsigned int proto_off,
 		       int inverse);
 
 	struct ip_vs_conn *
 	(*conn_out_get)(int af,
 			const struct sk_buff *skb,
 			const struct ip_vs_iphdr *iph,
-			unsigned int proto_off,
 			int inverse);
 
-	int (*snat_handler)(struct sk_buff *skb,
-			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
+	int (*snat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
 
-	int (*dnat_handler)(struct sk_buff *skb,
-			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
+	int (*dnat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
 
 	int (*csum_check)(int af, struct sk_buff *skb,
 			  struct ip_vs_protocol *pp);
@@ -518,7 +607,7 @@ struct ip_vs_conn {
 	   NF_ACCEPT can be returned when destination is local.
 	 */
 	int (*packet_xmit)(struct sk_buff *skb, struct ip_vs_conn *cp,
-			   struct ip_vs_protocol *pp);
+			   struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
 
 	/* Note: we can group the following members into a structure,
 	   in order to save more space, and the following members are
@@ -769,13 +858,11 @@ struct ip_vs_app {
 
 	struct ip_vs_conn *
 	(*conn_in_get)(const struct sk_buff *skb, struct ip_vs_app *app,
-		       const struct iphdr *iph, unsigned int proto_off,
-		       int inverse);
+		       const struct iphdr *iph, int inverse);
 
 	struct ip_vs_conn *
 	(*conn_out_get)(const struct sk_buff *skb, struct ip_vs_app *app,
-			const struct iphdr *iph, unsigned int proto_off,
-			int inverse);
+			const struct iphdr *iph, int inverse);
 
 	int (*state_transition)(struct ip_vs_conn *cp, int direction,
 				const struct sk_buff *skb,
@@ -1074,14 +1161,12 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 					    const struct ip_vs_iphdr *iph,
-					    unsigned int proto_off,
 					    int inverse);
 
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
 					     const struct ip_vs_iphdr *iph,
-					     unsigned int proto_off,
 					     int inverse);
 
 /* put back the conn without restarting its timer */
@@ -1254,9 +1339,10 @@ extern struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 extern void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 extern struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
-	       struct ip_vs_proto_data *pd, int *ignored);
+	       struct ip_vs_proto_data *pd, int *ignored,
+	       struct ip_vs_iphdr *iph);
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
-			struct ip_vs_proto_data *pd);
+			struct ip_vs_proto_data *pd, struct ip_vs_iphdr *iph);
 
 extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
 
@@ -1315,33 +1401,38 @@ extern void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
 /*
  *	Various IPVS packet transmitters (from ip_vs_xmit.c)
  */
-extern int ip_vs_null_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_bypass_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_nat_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_tunnel_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_dr_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_icmp_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
- int offset, unsigned int hooknum);
+extern int ip_vs_null_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			   struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
+extern int ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			     struct ip_vs_protocol *pp,
+			     struct ip_vs_iphdr *iph);
+extern int ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			  struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
+extern int ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			     struct ip_vs_protocol *pp,
+			     struct ip_vs_iphdr *iph);
+extern int ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			 struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
+extern int ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
+			   struct ip_vs_protocol *pp, int offset,
+			   unsigned int hooknum, struct ip_vs_iphdr *iph);
 extern void ip_vs_dst_reset(struct ip_vs_dest *dest);
 
 #ifdef CONFIG_IP_VS_IPV6
-extern int ip_vs_bypass_xmit_v6
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_nat_xmit_v6
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_tunnel_xmit_v6
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_dr_xmit_v6
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
-extern int ip_vs_icmp_xmit_v6
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
- int offset, unsigned int hooknum);
+extern int ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
+				struct ip_vs_protocol *pp,
+				struct ip_vs_iphdr *iph);
+extern int ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
+			     struct ip_vs_protocol *pp,
+			     struct ip_vs_iphdr *iph);
+extern int ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
+				struct ip_vs_protocol *pp,
+				struct ip_vs_iphdr *iph);
+extern int ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
+			    struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
+extern int ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
+			      struct ip_vs_protocol *pp, int offset,
+			      unsigned int hooknum, struct ip_vs_iphdr *iph);
 #endif
 
 #ifdef CONFIG_SYSCTL
