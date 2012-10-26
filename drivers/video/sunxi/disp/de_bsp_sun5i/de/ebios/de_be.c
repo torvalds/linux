@@ -729,10 +729,13 @@ __s32 DE_BE_Set_ColorKey(__u32 sel, __disp_color_t ck_max,__disp_color_t  ck_min
 __s32 DE_BE_reg_auto_load_en(__u32 sel, __u32 en)
 {
     __u32 tmp;
+
     tmp = DE_BE_RUINT32(sel, DE_BE_FRMBUF_CTL_OFF);
     DE_BE_WUINT32(sel, DE_BE_FRMBUF_CTL_OFF, tmp | ((1-en)<<1));//bit1:enable, bit0:ready
+
     return 0;
 }
+
 __s32 DE_BE_Cfg_Ready(__u32 sel)
 {
     __u32 tmp;
@@ -781,8 +784,6 @@ __s32 DE_BE_Sprite_Set_Global_Alpha(__u32 sel, __u8 alpha_val)
 
 __s32 DE_BE_Sprite_Block_Set_Pos(__u32 sel, __u8 blk_idx,__s16 x,__s16 y)
 {
-
-
   	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_POS_CTRL_OFF,blk_idx,((y&0xffff)<<16) | (x&0xffff));
    	return 0;
 }
@@ -807,6 +808,7 @@ __s32 DE_BE_Sprite_Block_Set_fb(__u32 sel, __u8 blk_idx,__u32 addr, __u32 line_w
 __s32 DE_BE_Sprite_Block_Set_Next_Id(__u32 sel, __u8 blk_idx,__u8 next_blk_id)
 {
     __u32 tmp = 0;
+
     tmp = DE_BE_RUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx) & 0xffffffc0;
 	DE_BE_WUINT32IDX(sel, DE_BE_SPRITE_ATTR_CTRL_OFF,blk_idx,tmp | next_blk_id);
 	return 0;
@@ -835,6 +837,216 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
     return 0;
 }
 
+#ifdef CONFIG_ARCH_SUN4I
+//out_csc: 0:rgb, 1:yuv for tv, 2:yuv for hdmi
+//out_color_range:  0:16~255, 1:0~255, 2:16~235
+__s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
+{
+	__s32 i_bright;
+	__s32 i_contrast;
+	__s32 i_saturaion;
+	__s32 i_hue;	//fix
+	__scal_matrix4x4 matrixEn;
+	__scal_matrix4x4 matrixconv, *ptmatrix;
+	__scal_matrix4x4 matrixresult;
+	__s64 *pt;
+	__s32 sinv, cosv;	//sin_tab: 7 bit fractional
+	__s32 i;
+	__scal_matrix4x4 tmpcoeff;
+
+	brightness = brightness>100?100:(brightness<0?0:brightness);
+	contrast = contrast>100?100:(contrast<0?0:contrast);
+	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
+
+	i_bright = (__s32)(brightness*64/100);
+	i_saturaion = (__s32)(saturaion*64/100);
+	i_contrast = (__s32)(contrast*64/100);
+	i_hue = (__s32)(hue*64/100);
+
+	sinv = image_enhance_tab[8*12 + (i_hue&0x3f)];
+	cosv = image_enhance_tab[8*12 + 8*8 + (i_hue&0x3f)];
+
+	//calculate enhance matrix
+	matrixEn.x00 = i_contrast << 5;
+	matrixEn.x01 = 0;
+	matrixEn.x02 = 0;
+	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
+	matrixEn.x10 = 0;
+	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
+	matrixEn.x20 = 0;
+	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
+	matrixEn.x30 = 0;
+	matrixEn.x31 = 0;
+	matrixEn.x32 = 0;
+	matrixEn.x33 = 1024;
+
+	if (out_csc == DE_RGB) { /* RGB output */
+		if(enhance_en == 1) {
+			for (i=0; i<16; i++) {
+				*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x20 + i) <<32 ) >>32;	//bt709 rgb2yuv coeff
+				// *((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + i) <<32 ) >>32;	//bt601 rgb2yuv coeff
+				// *((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x40 + i) <<32 ) >>32;	//YCC rgb2yuv coeff
+			}
+
+			ptmatrix = &tmpcoeff;
+
+			//convolution of enhance matrix and rgb2yuv matrix
+			iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+
+			for(i=0; i<16; i++) {
+				*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x30 + i) <<32)>>32;	//bt709 yuv2rgb coeff
+				// *((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x10 + i) <<32)>>32;	//bt601 yuv2rgb coeff
+				// *((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + 0x50 + i) <<32)>>32;	//YCC yuv2rgb coeff
+			}
+
+			ptmatrix = &tmpcoeff;
+
+			//convert to RGB
+			iDE_SCAL_Matrix_Mul(*ptmatrix, matrixconv, &matrixconv);
+
+			//rearrange CSC coeff
+			matrixresult.x00 = (matrixconv.x00+8)/16;	matrixresult.x01 = (matrixconv.x01+8)/16;
+			matrixresult.x02 = (matrixconv.x02+8)/16;	matrixresult.x03 = (matrixconv.x03+512)/1024;
+			matrixresult.x10 = (matrixconv.x10+8)/16;	matrixresult.x11 = (matrixconv.x11+8)/16;
+			matrixresult.x12 = (matrixconv.x12+8)/16;	matrixresult.x13 = (matrixconv.x13+512)/1024;
+			matrixresult.x20 = (matrixconv.x20+8)/16;	matrixresult.x21 = (matrixconv.x21+8)/16;
+			matrixresult.x22 = (matrixconv.x22+8)/16;	matrixresult.x23 = (matrixconv.x23+512)/1024;
+			matrixresult.x30 = (matrixconv.x30+8)/16;	matrixresult.x31 = (matrixconv.x31+8)/16;
+			matrixresult.x32 = (matrixconv.x32+8)/16;	matrixresult.x33 = (matrixconv.x33+512)/1024;
+		} else {
+			matrixresult.x00 = 0x400;	matrixresult.x01 = 0;
+			matrixresult.x02 = 0;		matrixresult.x03 = 0;
+			matrixresult.x10 = 0;		matrixresult.x11 = 0x400;
+			matrixresult.x12 = 0;		matrixresult.x13 = 0;
+			matrixresult.x20 = 0;		matrixresult.x21 = 0;
+			matrixresult.x22 = 0x400;	matrixresult.x23 = 0;
+			matrixresult.x30 = 0;		matrixresult.x31 = 0;
+			matrixresult.x32 = 0;		matrixresult.x33 = 0x400;
+		}
+
+		//OUTPUT RANGE MODIFY
+		ptmatrix = &matrixresult;
+
+		if (out_color_range == DISP_COLOR_RANGE_16_255) {
+			matrixconv.x00 = 0x03c4;	matrixconv.x01 = 0x0000;
+			matrixconv.x02 = 0x0000;	matrixconv.x03 = 0x0100;
+			matrixconv.x10 = 0x0000;	matrixconv.x11 = 0x03c4;
+			matrixconv.x12 = 0x0000;	matrixconv.x13 = 0x0100;
+			matrixconv.x20 = 0x0000;	matrixconv.x21 = 0x0000;
+			matrixconv.x22 = 0x03c4;	matrixconv.x23 = 0x0100;
+			matrixconv.x30 = 0x0000;	matrixconv.x31 = 0x0000;
+			matrixconv.x32 = 0x0000;	matrixconv.x33 = 0x0100;
+		} else if (out_color_range == DISP_COLOR_RANGE_16_235) {
+			matrixconv.x00 = 0x0370;	matrixconv.x01 = 0x0000;
+			matrixconv.x02 = 0x0000;	matrixconv.x03 = 0x0100;
+			matrixconv.x10 = 0x0000;	matrixconv.x11 = 0x0370;
+			matrixconv.x12 = 0x0000;	matrixconv.x13 = 0x0100;
+			matrixconv.x20 = 0x0000;	matrixconv.x21 = 0x0000;
+			matrixconv.x22 = 0x0370;	matrixconv.x23 = 0x0100;
+		} else {	//DISP_COLOR_RANGE_0_255
+			matrixconv.x00 = 0x0400;	matrixconv.x01 = 0x0000;
+			matrixconv.x02 = 0x0000;	matrixconv.x03 = 0x0000;
+			matrixconv.x10 = 0x0000;	matrixconv.x11 = 0x0400;
+			matrixconv.x12 = 0x0000;	matrixconv.x13 = 0x0000;
+			matrixconv.x20 = 0x0000;	matrixconv.x21 = 0x0000;
+			matrixconv.x22 = 0x0400;	matrixconv.x23 = 0x0000;
+		}
+
+		iDE_SCAL_Matrix_Mul(matrixconv, *ptmatrix, &matrixresult);
+
+		matrixresult.x00 = matrixresult.x00;	matrixresult.x01 = matrixresult.x01;
+		matrixresult.x02 = matrixresult.x02;	matrixresult.x03 = matrixresult.x03 + 8;
+		matrixresult.x10 = matrixresult.x10;	matrixresult.x11 = matrixresult.x11;
+		matrixresult.x12 = matrixresult.x12;	matrixresult.x13 = matrixresult.x13 + 8;
+		matrixresult.x20 = matrixresult.x20;	matrixresult.x21 = matrixresult.x21;
+		matrixresult.x22 = matrixresult.x22;	matrixresult.x23 = matrixresult.x23 + 8;
+	} else if (out_csc == DE_YUV_TV) { /* YUV for tv(range 16-235) */
+		for (i=0; i<16; i++) {
+			*((__s64 *)(&tmpcoeff.x00) + i)  = ((__s64)*(image_enhance_tab + i) <<32)>>32;  //bt601 rgb2yuv coeff
+		}
+
+		if (enhance_en == 1) {
+			//convolution of enhance matrix and rgb2yuv matrix
+
+			ptmatrix = &tmpcoeff;
+
+			iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+
+			matrixresult.x00 = matrixconv.x00/4;    matrixresult.x01 = matrixconv.x01/4;
+			matrixresult.x02 = matrixconv.x02/4;    matrixresult.x03 = matrixconv.x03/256 + 8;
+			matrixresult.x10 = matrixconv.x10/4;    matrixresult.x11 = matrixconv.x11/4;
+			matrixresult.x12 = matrixconv.x12/4;    matrixresult.x13 = matrixconv.x13/256 + 8;
+			matrixresult.x20 = matrixconv.x20/4;    matrixresult.x21 = matrixconv.x21/4;
+			matrixresult.x22 = matrixconv.x22/4;    matrixresult.x23 = matrixconv.x23/256 + 8;
+		} else {
+			matrixresult.x00 = tmpcoeff.x00/4;  matrixresult.x01 = tmpcoeff.x01/4;
+			matrixresult.x02 = tmpcoeff.x02/4;  matrixresult.x03 = tmpcoeff.x03/256 + 8;
+			matrixresult.x10 = tmpcoeff.x10/4;  matrixresult.x11 = tmpcoeff.x11/4;
+			matrixresult.x12 = tmpcoeff.x12/4;  matrixresult.x13 = tmpcoeff.x13/256 + 8;
+			matrixresult.x20 = tmpcoeff.x20/4;  matrixresult.x21 = tmpcoeff.x21/4;
+			matrixresult.x22 = tmpcoeff.x22/4;  matrixresult.x23 = tmpcoeff.x23/256 + 8;
+		}
+	} else { /* if(out_csc == DE_YUV_HDMI) */ /* YUV for HDMI(range 16-235) */
+		for(i=0; i<16; i++) {
+			*((__s64 *)(&tmpcoeff.x00) + i)  = ((__s64)*(image_enhance_tab + i) <<32)>>32;	//bt601 rgb2yuv coeff
+		}
+
+		if(enhance_en == 1) {
+			//convolution of enhance matrix and rgb2yuv matrix
+
+			ptmatrix = &tmpcoeff;
+
+			iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+
+			matrixresult.x00 = matrixconv.x20/4;	matrixresult.x01 = matrixconv.x21/4;
+			matrixresult.x02 = matrixconv.x22/4;	matrixresult.x03 = matrixconv.x23/256 + 8;
+			matrixresult.x10 = matrixconv.x00/4;	matrixresult.x11 = matrixconv.x01/4;
+			matrixresult.x12 = matrixconv.x02/4;	matrixresult.x13 = matrixconv.x03/256 + 8;
+			matrixresult.x20 = matrixconv.x10/4;	matrixresult.x21 = matrixconv.x11/4;
+			matrixresult.x22 = matrixconv.x12/4;	matrixresult.x23 = matrixconv.x13/256 + 8;
+		} else {
+			matrixresult.x00 = tmpcoeff.x20/4;	matrixresult.x01 = tmpcoeff.x21/4;
+			matrixresult.x02 = tmpcoeff.x22/4;	matrixresult.x03 = tmpcoeff.x23/256 + 8;
+			matrixresult.x10 = tmpcoeff.x00/4;	matrixresult.x11 = tmpcoeff.x01/4;
+			matrixresult.x12 = tmpcoeff.x02/4;	matrixresult.x13 = tmpcoeff.x03/256 + 8;
+			matrixresult.x20 = tmpcoeff.x10/4;	matrixresult.x21 = tmpcoeff.x11/4;
+			matrixresult.x22 = tmpcoeff.x12/4;	matrixresult.x23 = tmpcoeff.x13/256 + 8;
+		}
+	}
+
+	//range limited
+	iDE_SCAL_Csc_Lmt(&matrixresult.x00, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x01, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x02, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x03, -16383, 16383, 0, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x10, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x11, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x12, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x13, -16383, 16383, 0, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x20, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x21, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x22, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -16383, 16383, 0, 32767);
+
+	//write csc register
+	pt = (__s64*)&(matrixresult.x00);
+
+	for(i=0;i<4;i++)
+	{
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF+ 4*i, (__u32 )(*(pt + i)));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF+ 4*i, (__u32 )(*(pt + 4 + i)));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF+ 4*i, (__u32 )(*(pt + 8 + i)));
+	}
+
+	DE_BE_enhance_enable(sel, 1);
+
+	return 0;
+}
+#else
 //brightness -100~100
 //contrast -100~100
 //saturaion -100~100
@@ -1016,6 +1228,7 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 br
 	DE_BE_enhance_enable(sel, 1);
     return 0;
 }
+#endif /* CONFIG_ARCH_SUN4I */
 
 __s32 DE_BE_enhance_enable(__u32 sel, __bool enable)
 {
@@ -1043,8 +1256,6 @@ __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable)
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable)
 {
 	DE_BE_WUINT32(sel, DE_BE_MODE_CTL_OFF,(DE_BE_RUINT32(sel, DE_BE_MODE_CTL_OFF)&(~(1<<28))) | (enable<<28));
-
-
 
     return 0;
 }
