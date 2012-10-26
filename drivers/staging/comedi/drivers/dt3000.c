@@ -262,14 +262,22 @@ struct dt3k_private {
 	unsigned int ai_rear;
 };
 
-static void dt3k_ai_empty_fifo(struct comedi_device *dev,
-			       struct comedi_subdevice *s);
-static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *arg,
-			    unsigned int round_mode);
-static int dt3k_ai_cancel(struct comedi_device *dev,
-			  struct comedi_subdevice *s);
 #ifdef DEBUG
-static void debug_intr_flags(unsigned int flags);
+static char *intr_flags[] = {
+	"AdFull", "AdSwError", "AdHwError", "DaEmpty",
+	"DaSwError", "DaHwError", "CtDone", "CmDone",
+};
+
+static void debug_intr_flags(unsigned int flags)
+{
+	int i;
+	printk(KERN_DEBUG "dt3k: intr_flags:");
+	for (i = 0; i < 8; i++) {
+		if (flags & (1 << i))
+			printk(KERN_CONT " %s", intr_flags[i]);
+	}
+	printk(KERN_CONT "\n");
+}
 #endif
 
 #define TIMEOUT 100
@@ -327,6 +335,50 @@ static void dt3k_writesingle(struct comedi_device *dev, unsigned int subsys,
 	dt3k_send_cmd(dev, CMD_WRITESINGLE);
 }
 
+static void dt3k_ai_empty_fifo(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	struct dt3k_private *devpriv = dev->private;
+	int front;
+	int rear;
+	int count;
+	int i;
+	short data;
+
+	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
+	count = front - devpriv->ai_front;
+	if (count < 0)
+		count += AI_FIFO_DEPTH;
+
+	dev_dbg(dev->class_dev, "reading %d samples\n", count);
+
+	rear = devpriv->ai_rear;
+
+	for (i = 0; i < count; i++) {
+		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
+		comedi_buf_put(s->async, data);
+		rear++;
+		if (rear >= AI_FIFO_DEPTH)
+			rear = 0;
+	}
+
+	devpriv->ai_rear = rear;
+	writew(rear, devpriv->io_addr + DPR_AD_Buf_Rear);
+}
+
+static int dt3k_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct dt3k_private *devpriv = dev->private;
+	int ret;
+
+	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
+	ret = dt3k_send_cmd(dev, CMD_STOP);
+
+	writew(0, devpriv->io_addr + DPR_Int_Mask);
+
+	return 0;
+}
+
 static int debug_n_ints;
 
 /* FIXME! Assumes shared interrupt is for this card. */
@@ -365,53 +417,39 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-#ifdef DEBUG
-static char *intr_flags[] = {
-	"AdFull", "AdSwError", "AdHwError", "DaEmpty",
-	"DaSwError", "DaHwError", "CtDone", "CmDone",
-};
-
-static void debug_intr_flags(unsigned int flags)
+static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
+			    unsigned int round_mode)
 {
-	int i;
-	printk(KERN_DEBUG "dt3k: intr_flags:");
-	for (i = 0; i < 8; i++) {
-		if (flags & (1 << i))
-			printk(KERN_CONT " %s", intr_flags[i]);
-	}
-	printk(KERN_CONT "\n");
-}
-#endif
+	int divider, base, prescale;
 
-static void dt3k_ai_empty_fifo(struct comedi_device *dev,
-			       struct comedi_subdevice *s)
-{
-	struct dt3k_private *devpriv = dev->private;
-	int front;
-	int rear;
-	int count;
-	int i;
-	short data;
+	/* This function needs improvment */
+	/* Don't know if divider==0 works. */
 
-	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
-	count = front - devpriv->ai_front;
-	if (count < 0)
-		count += AI_FIFO_DEPTH;
-
-	dev_dbg(dev->class_dev, "reading %d samples\n", count);
-
-	rear = devpriv->ai_rear;
-
-	for (i = 0; i < count; i++) {
-		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
-		comedi_buf_put(s->async, data);
-		rear++;
-		if (rear >= AI_FIFO_DEPTH)
-			rear = 0;
+	for (prescale = 0; prescale < 16; prescale++) {
+		base = timer_base * (prescale + 1);
+		switch (round_mode) {
+		case TRIG_ROUND_NEAREST:
+		default:
+			divider = (*nanosec + base / 2) / base;
+			break;
+		case TRIG_ROUND_DOWN:
+			divider = (*nanosec) / base;
+			break;
+		case TRIG_ROUND_UP:
+			divider = (*nanosec) / base;
+			break;
+		}
+		if (divider < 65536) {
+			*nanosec = divider * base;
+			return (prescale << 16) | (divider);
+		}
 	}
 
-	devpriv->ai_rear = rear;
-	writew(rear, devpriv->io_addr + DPR_AD_Buf_Rear);
+	prescale = 15;
+	base = timer_base * (1 << prescale);
+	divider = 65535;
+	*nanosec = divider * base;
+	return (prescale << 16) | (divider);
 }
 
 static int dt3k_ai_cmdtest(struct comedi_device *dev,
@@ -524,41 +562,6 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
-			    unsigned int round_mode)
-{
-	int divider, base, prescale;
-
-	/* This function needs improvment */
-	/* Don't know if divider==0 works. */
-
-	for (prescale = 0; prescale < 16; prescale++) {
-		base = timer_base * (prescale + 1);
-		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
-		default:
-			divider = (*nanosec + base / 2) / base;
-			break;
-		case TRIG_ROUND_DOWN:
-			divider = (*nanosec) / base;
-			break;
-		case TRIG_ROUND_UP:
-			divider = (*nanosec) / base;
-			break;
-		}
-		if (divider < 65536) {
-			*nanosec = divider * base;
-			return (prescale << 16) | (divider);
-		}
-	}
-
-	prescale = 15;
-	base = timer_base * (1 << prescale);
-	divider = 65535;
-	*nanosec = divider * base;
-	return (prescale << 16) | (divider);
-}
-
 static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dt3k_private *devpriv = dev->private;
@@ -624,19 +627,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
 	ret = dt3k_send_cmd(dev, CMD_START);
-
-	return 0;
-}
-
-static int dt3k_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct dt3k_private *devpriv = dev->private;
-	int ret;
-
-	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
-	ret = dt3k_send_cmd(dev, CMD_STOP);
-
-	writew(0, devpriv->io_addr + DPR_Int_Mask);
 
 	return 0;
 }
