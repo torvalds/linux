@@ -849,20 +849,6 @@ static inline bool async_tx_test_ack(struct dma_async_tx_descriptor *tx)
 	return (tx->flags & DMA_CTRL_ACK) == DMA_CTRL_ACK;
 }
 
-#define first_dma_cap(mask) __first_dma_cap(&(mask))
-static inline int __first_dma_cap(const dma_cap_mask_t *srcp)
-{
-	return min_t(int, DMA_TX_TYPE_END,
-		find_first_bit(srcp->bits, DMA_TX_TYPE_END));
-}
-
-#define next_dma_cap(n, mask) __next_dma_cap((n), &(mask))
-static inline int __next_dma_cap(int n, const dma_cap_mask_t *srcp)
-{
-	return min_t(int, DMA_TX_TYPE_END,
-		find_next_bit(srcp->bits, DMA_TX_TYPE_END, n+1));
-}
-
 #define dma_cap_set(tx, mask) __dma_cap_set((tx), &(mask))
 static inline void
 __dma_cap_set(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
@@ -891,9 +877,7 @@ __dma_has_cap(enum dma_transaction_type tx_type, dma_cap_mask_t *srcp)
 }
 
 #define for_each_dma_cap_mask(cap, mask) \
-	for ((cap) = first_dma_cap(mask);	\
-		(cap) < DMA_TX_TYPE_END;	\
-		(cap) = next_dma_cap((cap), (mask)))
+	for_each_set_bit(cap, mask.bits, DMA_TX_TYPE_END)
 
 /**
  * dma_async_issue_pending - flush pending transactions to HW
