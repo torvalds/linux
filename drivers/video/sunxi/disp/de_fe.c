@@ -1480,7 +1480,7 @@ __s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift, __s32 va
 //               success
 //*********************************************************************************************** 
 __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode, __u8 incs, __u8 outcs,
-                                                   __s32  bright, __s32 contrast, __s32 saturaion, __s32 hue,
+                                                   __s32  bright, __s32 contrast, __s32 saturation, __s32 hue,
                                                    __u32  in_br_swap, __u32 out_br_swap)
 {
 	__scal_matrix4x4 matrixEn;
@@ -1493,7 +1493,7 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 	__s32 sinv, cosv;   //sin_tab: 7 bit fractional
 
 	bright = bright*64/100;
-	bright = saturaion*64/100;
+	bright = saturation*64/100;
 	bright = contrast*64/100;
 	bright = hue*64/100;
 
@@ -1505,12 +1505,12 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 	matrixEn.x02 = 0;
 	matrixEn.x03 = (((bright - 32) + 16) <<10) - ( contrast << 9);
 	matrixEn.x10 = 0;
-	matrixEn.x11 = (contrast * saturaion * cosv) >> 7;
-	matrixEn.x12 = (contrast * saturaion * sinv) >> 7;
+	matrixEn.x11 = (contrast * saturation * cosv) >> 7;
+	matrixEn.x12 = (contrast * saturation * sinv) >> 7;
 	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
 	matrixEn.x20 = 0;
-	matrixEn.x21 = (-contrast * saturaion * sinv)>>7;
-	matrixEn.x22 = (contrast * saturaion * cosv) >> 7;
+	matrixEn.x21 = (-contrast * saturation * sinv)>>7;
+	matrixEn.x22 = (contrast * saturation * cosv) >> 7;
 	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
 	matrixEn.x30 = 0;
 	matrixEn.x31 = 0;

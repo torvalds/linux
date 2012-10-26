@@ -103,7 +103,7 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
         gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
         gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_HDMI;
 
-        Display_set_fb_timming(sel);
+        Display_set_fb_timing(sel);
     }
     
     return DIS_SUCCESS;

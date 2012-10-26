@@ -840,11 +840,11 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
 #ifdef CONFIG_ARCH_SUN4I
 //out_csc: 0:rgb, 1:yuv for tv, 2:yuv for hdmi
 //out_color_range:  0:16~255, 1:0~255, 2:16~235
-__s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
+__s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturation, __u32 hue)
 {
 	__s32 i_bright;
 	__s32 i_contrast;
-	__s32 i_saturaion;
+	__s32 i_saturation;
 	__s32 i_hue;	//fix
 	__scal_matrix4x4 matrixEn;
 	__scal_matrix4x4 matrixconv, *ptmatrix;
@@ -856,10 +856,10 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u
 
 	brightness = brightness>100?100:(brightness<0?0:brightness);
 	contrast = contrast>100?100:(contrast<0?0:contrast);
-	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
+	saturation = saturation>100?100:(saturation<0?0:saturation);
 
 	i_bright = (__s32)(brightness*64/100);
-	i_saturaion = (__s32)(saturaion*64/100);
+	i_saturation = (__s32)(saturation*64/100);
 	i_contrast = (__s32)(contrast*64/100);
 	i_hue = (__s32)(hue*64/100);
 
@@ -872,12 +872,12 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u
 	matrixEn.x02 = 0;
 	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
 	matrixEn.x10 = 0;
-	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
-	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x11 = (i_contrast * i_saturation * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturation * sinv) >> 7;
 	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
 	matrixEn.x20 = 0;
-	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
-	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x21 = (-i_contrast * i_saturation * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturation * cosv) >> 7;
 	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
 	matrixEn.x30 = 0;
 	matrixEn.x31 = 0;
@@ -1049,12 +1049,12 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range, __u
 #else
 //brightness -100~100
 //contrast -100~100
-//saturaion -100~100
-__s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 brightness, __s32 contrast, __s32 saturaion, __s32 hue)
+//saturation -100~100
+__s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 brightness, __s32 contrast, __s32 saturation, __s32 hue)
 {
 	__s32 i_bright;
 	__s32 i_contrast;
-	__s32 i_saturaion;
+	__s32 i_saturation;
 	__s32 i_hue;
 	__scal_matrix4x4 matrixEn;
 	__scal_matrix4x4 *ptmatrix;
@@ -1065,11 +1065,11 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 br
 
 	brightness = brightness>100?100:(brightness<0?0:brightness);
 	contrast = contrast>100?100:(contrast<0?0:contrast);
-	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
-	hue = hue>100?100:(hue<0?0:saturaion);
+	saturation = saturation>100?100:(saturation<0?0:saturation);
+	hue = hue>100?100:(hue<0?0:saturation);
 	
 	i_bright = (__s32)(brightness*64/100);
-	i_saturaion = (__s32)(saturaion*64/100);
+	i_saturation = (__s32)(saturation*64/100);
 	i_contrast = (__s32)(contrast*64/100);
 	i_hue = (__s32)(hue*64/100);
 
@@ -1081,12 +1081,12 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range, __s32 br
 	matrixEn.x02 = 0;
 	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
 	matrixEn.x10 = 0;
-	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
-	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x11 = (i_contrast * i_saturation * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturation * sinv) >> 7;
 	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
 	matrixEn.x20 = 0;
-	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
-	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x21 = (-i_contrast * i_saturation * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturation * cosv) >> 7;
 	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
 	matrixEn.x30 = 0;
 	matrixEn.x31 = 0;

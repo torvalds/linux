@@ -289,7 +289,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
         Disp_set_out_interlace(sel);
 #endif
 
-        Display_set_fb_timming(sel);
+        Display_set_fb_timing(sel);
     }
     return DIS_SUCCESS;
 }

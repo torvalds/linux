@@ -1764,7 +1764,7 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
     Disp_drc_enable(sel, TRUE);
 #endif
 
-    Display_set_fb_timming(sel);
+    Display_set_fb_timing(sel);
 
     return DIS_SUCCESS;
 }
@@ -1945,7 +1945,7 @@ void LCD_set_panel_funs(__lcd_panel_fun_t * lcd0_cfg, __lcd_panel_fun_t * lcd1_c
     lcd_panel_fun[1].lcd_user_defined_func = lcd1_cfg->lcd_user_defined_func;
 }
 
-__s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt)
+__s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t * tt)
 {
     memset(tt, 0, sizeof(__disp_tcon_timing_t));
 
@@ -1970,7 +1970,7 @@ __s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt)
     }
     else
     {
-        DE_INF("get timming fail because device is not output !\n");
+        DE_INF("get timing fail because device is not output !\n");
         return -1;
     }
 
