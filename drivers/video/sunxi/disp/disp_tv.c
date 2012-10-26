@@ -45,7 +45,7 @@ __s32 Disp_TVEC_Init(__u32 sel)
     gdisp.screen[sel].dac_source[2] = DISP_TV_DAC_SRC_PR;
     gdisp.screen[sel].dac_source[3] = DISP_TV_DAC_SRC_COMPOSITE;
 
-    ret = OSAL_Script_FetchParser_Data("tv_out_dac_para", "dac_used", &value, 1);
+    ret = script_parser_fetch("tv_out_dac_para", "dac_used", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data tv_out_dac_para.dac_used fail\n");
@@ -63,7 +63,7 @@ __s32 Disp_TVEC_Init(__u32 sel)
 	        {
 	            sprintf(sub_key, "dac%d_src", i);
 
-	            ret = OSAL_Script_FetchParser_Data("tv_out_dac_para", sub_key, &value, 1);
+	            ret = script_parser_fetch("tv_out_dac_para", sub_key, &value, 1);
 	            if(ret < 0)
 	            {
 	                DE_INF("fetch script data tv_out_dac_para.%s fail\n", sub_key);
@@ -262,7 +262,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
             __s32 ret;
 
             memset(gpio_info, 0, sizeof(user_gpio_set_t));
-            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+            ret = script_parser_fetch("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
             if(ret < 0)
             {
                 DE_WRN("fetch script data audio_para.audio_pa_ctrl fail\n");
@@ -330,7 +330,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
             __s32 ret;
 
             memset(gpio_info, 0, sizeof(user_gpio_set_t));
-            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+            ret = script_parser_fetch("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
             if(ret < 0)
             {
                 DE_WRN("fetch script data audio_para.audio_pa_ctrl fail\n");

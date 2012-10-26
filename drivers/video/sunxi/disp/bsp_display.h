@@ -329,4 +329,7 @@ extern __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *reg
 __s32 Display_set_fb_timming(__u32 sel);
 #endif
 
+/* symbol exists in dev_disp.c */
+int sunxi_is_version_A(void);
+
 #endif

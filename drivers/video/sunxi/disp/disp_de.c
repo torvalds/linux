@@ -197,7 +197,7 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
         out_color_range = DISP_COLOR_RANGE_16_255;
 		out_csc = DE_YUV_HDMI;
 
-        ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
+        ret = script_parser_fetch("disp_init", "screen0_out_color_range", &value, 1);
         if(ret < 0)
         {
             DE_INF("fetch script data disp_init.screen0_out_color_range fail\n");
@@ -246,7 +246,7 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
 
         out_color_range = DISP_COLOR_RANGE_16_255;
 
-        ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
+        ret = script_parser_fetch("disp_init", "screen0_out_color_range", &value, 1);
         if(ret < 0)
         {
             DE_INF("fetch script data disp_init.screen0_out_color_range fail\n");
