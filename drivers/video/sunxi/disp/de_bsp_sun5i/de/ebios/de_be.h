@@ -131,6 +131,12 @@ extern __u32 image_reg_base[2];
 
 extern __u32  csc_tab[192];
 extern __u32  image_enhance_tab[224];
-extern __u32  fir_tab[672];
+
+#ifdef CONFIG_ARCH_SUN4I
+#define FIR_TAB_SIZE 1792
+#else
+#define FIR_TAB_SIZE 672
+#endif
+extern __u32  fir_tab[FIR_TAB_SIZE];
 
 #endif

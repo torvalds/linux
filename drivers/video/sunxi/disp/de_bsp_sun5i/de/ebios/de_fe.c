@@ -686,28 +686,45 @@ __s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan, __scal_src_
     ch1v_fir_coef_ofst = (ch1v_fir_coef_ofst > (al1_size - 1)) ? (al1_size - 1) : ch1v_fir_coef_ofst;
     ch0h_fir_coef_ofst = (ch0h_fir_coef_ofst > (al1_size - 1)) ? (al1_size - 1) : ch0h_fir_coef_ofst; 
     ch1h_fir_coef_ofst = (ch1h_fir_coef_ofst > (al1_size - 1)) ? (al1_size - 1) : ch1h_fir_coef_ofst;                                           
-    
+
     //compute the fir coeficient address for each channel in horizontal and vertical direction
+#ifdef CONFIG_ARCH_SUN4I
+    ch0v_fir_coef_addr = (ch0v_fir_coef_ofst<<7);
+    ch0h_fir_coef_addr = ((al1_size)<<7) + (ch0h_fir_coef_ofst<<8);
+    ch1v_fir_coef_addr = (ch1v_fir_coef_ofst<<7);
+    ch1h_fir_coef_addr = ((al1_size)<<7) + (ch1h_fir_coef_ofst<<8);
+
+    for(i=0; i<32; i++) {
+	    scal_dev[sel]->ch0_horzcoef0[i].dwval = fir_tab[(ch0h_fir_coef_addr>>2) + 2*i];
+	    scal_dev[sel]->ch0_horzcoef1[i].dwval = fir_tab[(ch0h_fir_coef_addr>>2) + 2*i + 1];
+	    scal_dev[sel]->ch0_vertcoef[i].dwval  = fir_tab[(ch0v_fir_coef_addr>>2) + i];
+	    scal_dev[sel]->ch1_horzcoef0[i].dwval = fir_tab[(ch1h_fir_coef_addr>>2) + 2*i];
+	    scal_dev[sel]->ch1_horzcoef1[i].dwval = fir_tab[(ch1h_fir_coef_addr>>2) + 2*i + 1];
+	    scal_dev[sel]->ch1_vertcoef[i].dwval  = fir_tab[(ch1v_fir_coef_addr>>2) + i];
+    }
+
+    scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
+#else
     ch0v_fir_coef_addr =  (ch0v_fir_coef_ofst<<7);
     ch0h_fir_coef_addr =  (ch0h_fir_coef_ofst<<7);
     ch1v_fir_coef_addr =  (ch1v_fir_coef_ofst<<7);
     ch1h_fir_coef_addr =  (ch1h_fir_coef_ofst<<7);
 
-	//added for aw1625, wait ceof access
-	scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl= 1; 
-	while(scal_dev[sel]->status.bits.coef_access_status == 0)
-	{
-	}
-    for(i=0; i<32; i++)
-    {
+    //added for aw1625, wait ceof access
+    scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl= 1;
+    while(scal_dev[sel]->status.bits.coef_access_status == 0)
+	    ;
+
+    for(i=0; i<32; i++) {
 	    scal_dev[sel]->ch0_horzcoef0[i].dwval = fir_tab[(ch0h_fir_coef_addr>>2) + i];
-        scal_dev[sel]->ch0_vertcoef[i].dwval  = fir_tab[(ch0v_fir_coef_addr>>2) + i];
-		scal_dev[sel]->ch1_horzcoef0[i].dwval = fir_tab[(ch1h_fir_coef_addr>>2) + i];
-        scal_dev[sel]->ch1_vertcoef[i].dwval  = fir_tab[(ch1v_fir_coef_addr>>2) + i];
+	    scal_dev[sel]->ch0_vertcoef[i].dwval  = fir_tab[(ch0v_fir_coef_addr>>2) + i];
+	    scal_dev[sel]->ch1_horzcoef0[i].dwval = fir_tab[(ch1h_fir_coef_addr>>2) + i];
+	    scal_dev[sel]->ch1_vertcoef[i].dwval  = fir_tab[(ch1v_fir_coef_addr>>2) + i];
     }
 
-	scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 0x0;
-      
+    scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 0;
+#endif /* CONFIG_ARCH_SUN4I */
+
     return 0;
 }
 
