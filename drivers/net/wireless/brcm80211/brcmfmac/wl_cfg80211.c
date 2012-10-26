@@ -3569,7 +3569,7 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (!request || !request->n_ssids || !request->n_match_sets) {
 		WL_ERR("Invalid sched scan req!! n_ssids:%d\n",
-		       request->n_ssids);
+		       request ? request->n_ssids : 0);
 		return -EINVAL;
 	}
 
@@ -3972,7 +3972,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	u8  *iovar_ie_buf;
 	u8  *curr_ie_buf;
 	u8  *mgmt_ie_buf = NULL;
-	u32 mgmt_ie_buf_len = 0;
+	int mgmt_ie_buf_len;
 	u32 *mgmt_ie_len = 0;
 	u32 del_add_ie_buf_len = 0;
 	u32 total_ie_buf_len = 0;
@@ -3982,7 +3982,7 @@ brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	struct parsed_vndr_ie_info *vndrie_info;
 	s32 i;
 	u8 *ptr;
-	u32 remained_buf_len;
+	int remained_buf_len;
 
 	WL_TRACE("bssidx %d, pktflag : 0x%02X\n", bssidx, pktflag);
 	iovar_ie_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
@@ -4606,12 +4606,13 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	struct brcmf_cfg80211_profile *profile = cfg->profile;
 	struct brcmf_cfg80211_connect_info *conn_info = cfg_to_conn(cfg);
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
-	struct brcmf_channel_info_le channel_le;
-	struct ieee80211_channel *notify_channel;
+	struct ieee80211_channel *notify_channel = NULL;
 	struct ieee80211_supported_band *band;
+	struct brcmf_bss_info_le *bi;
 	u32 freq;
 	s32 err = 0;
 	u32 target_channel;
+	u8 *buf;
 
 	WL_TRACE("Enter\n");
 
@@ -4619,11 +4620,22 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	memcpy(profile->bssid, e->addr, ETH_ALEN);
 	brcmf_update_bss_info(cfg);
 
-	brcmf_exec_dcmd(ndev, BRCMF_C_GET_CHANNEL, &channel_le,
-			sizeof(channel_le));
+	buf = kzalloc(WL_BSS_INFO_MAX, GFP_KERNEL);
+	if (buf == NULL) {
+		err = -ENOMEM;
+		goto done;
+	}
 
-	target_channel = le32_to_cpu(channel_le.target_channel);
-	WL_CONN("Roamed to channel %d\n", target_channel);
+	/* data sent to dongle has to be little endian */
+	*(__le32 *)buf = cpu_to_le32(WL_BSS_INFO_MAX);
+	err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
+
+	if (err)
+		goto done;
+
+	bi = (struct brcmf_bss_info_le *)(buf + 4);
+	target_channel = bi->ctl_ch ? bi->ctl_ch :
+				      CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
 
 	if (target_channel <= CH_MAX_2G_CHANNEL)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
@@ -4633,6 +4645,8 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	freq = ieee80211_channel_to_frequency(target_channel, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
+done:
+	kfree(buf);
 	cfg80211_roamed(ndev, notify_channel, (u8 *)profile->bssid,
 			conn_info->req_ie, conn_info->req_ie_len,
 			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
@@ -5186,41 +5200,6 @@ brcmf_cfg80211_event(struct net_device *ndev,
 		schedule_work(&cfg->event_work);
 }
 
-static s32 brcmf_dongle_mode(struct net_device *ndev, s32 iftype)
-{
-	s32 infra = 0;
-	s32 err = 0;
-
-	switch (iftype) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_WDS:
-		WL_ERR("type (%d) : currently we do not support this mode\n",
-		       iftype);
-		err = -EINVAL;
-		return err;
-	case NL80211_IFTYPE_ADHOC:
-		infra = 0;
-		break;
-	case NL80211_IFTYPE_STATION:
-		infra = 1;
-		break;
-	case NL80211_IFTYPE_AP:
-		infra = 1;
-		break;
-	default:
-		err = -EINVAL;
-		WL_ERR("invalid type (%d)\n", iftype);
-		return err;
-	}
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_SET_INFRA, &infra);
-	if (err) {
-		WL_ERR("WLC_SET_INFRA error (%d)\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
 static s32 brcmf_dongle_eventmsg(struct net_device *ndev)
 {
 	/* Room for "event_msgs" + '\0' + bitvec */
@@ -5439,7 +5418,8 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 				WL_BEACON_TIMEOUT);
 	if (err)
 		goto default_conf_out;
-	err = brcmf_dongle_mode(ndev, wdev->iftype);
+	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
+					  NULL, NULL);
 	if (err && err != -EINPROGRESS)
 		goto default_conf_out;
 	err = brcmf_dongle_probecap(cfg);

@@ -347,8 +347,8 @@ void tcp_retransmit_timer(struct sock *sk)
 		return;
 	}
 	if (tp->fastopen_rsk) {
-		BUG_ON(sk->sk_state != TCP_SYN_RECV &&
-		    sk->sk_state != TCP_FIN_WAIT1);
+		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
+			     sk->sk_state != TCP_FIN_WAIT1);
 		tcp_fastopen_synack_timer(sk);
 		/* Before we receive ACK to our SYN-ACK don't retransmit
 		 * anything else (e.g., data or FIN segments).

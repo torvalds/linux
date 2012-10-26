@@ -1339,7 +1339,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 	}
 
 	ret = brcmf_bus_start(dev);
-	if (ret == -ENOLINK) {
+	if (ret) {
 		brcmf_dbg(ERROR, "dongle is not responding\n");
 		brcmf_detach(dev);
 		goto fail;
