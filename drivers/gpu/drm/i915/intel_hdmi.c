@@ -36,10 +36,15 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
+{
+	return intel_hdmi->base.base.dev;
+}
+
 static void
 assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 {
-	struct drm_device *dev = intel_hdmi->base.base.dev;
+	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t enabled_bits;
 
@@ -763,7 +768,7 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 
 static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 {
-	struct drm_device *dev = intel_hdmi->base.base.dev;
+	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t bit;
 
