@@ -13,4 +13,14 @@ config SUNXI_MALI_RESERVED_MEM
 	depends on MALI
 	default y
 
+config MACH_SUN4I
+	bool
+	depends on ARCH_SUN4I
+	default y
+
+config MACH_SUN5I
+	bool
+	depends on ARCH_SUN5I
+	default y
+
 endmenu
