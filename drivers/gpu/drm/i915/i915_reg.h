@@ -3190,6 +3190,7 @@
 #define _SPRA_SURF		0x7029c
 #define _SPRA_KEYMAX		0x702a0
 #define _SPRA_TILEOFF		0x702a4
+#define _SPRA_OFFSET		0x702a4
 #define _SPRA_SCALE		0x70304
 #define   SPRITE_SCALE_ENABLE	(1<<31)
 #define   SPRITE_FILTER_MASK	(3<<29)
@@ -3210,6 +3211,7 @@
 #define _SPRB_SURF		0x7129c
 #define _SPRB_KEYMAX		0x712a0
 #define _SPRB_TILEOFF		0x712a4
+#define _SPRB_OFFSET		0x712a4
 #define _SPRB_SCALE		0x71304
 #define _SPRB_GAMC		0x71400
 
@@ -3223,6 +3225,7 @@
 #define SPRSURF(pipe) _PIPE(pipe, _SPRA_SURF, _SPRB_SURF)
 #define SPRKEYMAX(pipe) _PIPE(pipe, _SPRA_KEYMAX, _SPRB_KEYMAX)
 #define SPRTILEOFF(pipe) _PIPE(pipe, _SPRA_TILEOFF, _SPRB_TILEOFF)
+#define SPROFFSET(pipe) _PIPE(pipe, _SPRA_OFFSET, _SPRB_OFFSET)
 #define SPRSCALE(pipe) _PIPE(pipe, _SPRA_SCALE, _SPRB_SCALE)
 #define SPRGAMC(pipe) _PIPE(pipe, _SPRA_GAMC, _SPRB_GAMC)
 

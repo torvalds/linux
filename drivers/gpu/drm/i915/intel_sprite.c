@@ -127,7 +127,12 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
-	if (obj->tiling_mode != I915_TILING_NONE) {
+
+	if (IS_HASWELL(dev)) {
+		/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single
+		 * SPROFFSET register */
+		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
+	} else if (obj->tiling_mode != I915_TILING_NONE) {
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
 	} else {
 		unsigned long offset;
@@ -135,6 +140,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 		I915_WRITE(SPRLINOFF(pipe), offset);
 	}
+
 	I915_WRITE(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), sprscale);
