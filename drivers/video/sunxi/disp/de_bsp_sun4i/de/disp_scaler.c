@@ -530,7 +530,13 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)//keep the source windo
     {
 	    DE_SCAL_Set_CSC_Coef(sel, scaler->in_fb.cs_mode, DISP_BT601, get_fb_type(scaler->in_fb.format), DISP_FB_TYPE_RGB, scaler->in_fb.br_swap, 0);
 	}
+
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
+
 	return DIS_SUCCESS;
 }
 
@@ -612,7 +618,13 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
     {
 	    DE_SCAL_Set_CSC_Coef(sel, scaler->in_fb.cs_mode, DISP_BT601, get_fb_type(scaler->in_fb.format), DISP_FB_TYPE_RGB, scaler->in_fb.br_swap, 0);
 	}	
+
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
+
 	DE_SCAL_Set_Out_Size(sel, &out_scan, &out_type, &out_size);
 
 	return DIS_SUCCESS;
@@ -702,7 +714,12 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	    DE_SCAL_Config_Src(sel,&scal_addr,&in_size,&in_type,FALSE,FALSE);
 	}
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
+
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
     
 	return DIS_SUCCESS;
 }
@@ -826,7 +843,13 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
     {
 	    DE_SCAL_Set_CSC_Coef(sel, scaler->in_fb.cs_mode, DISP_BT601, get_fb_type(scaler->in_fb.format), DISP_FB_TYPE_RGB, scaler->in_fb.br_swap, 0);
 	}	
+
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
+
 	DE_SCAL_Set_Out_Format(sel, &out_type);
 	DE_SCAL_Set_Out_Size(sel, &out_scan,&out_type, &out_size);
     
@@ -871,7 +894,13 @@ __s32 Scaler_Set_Outitl(__u32 sel,  __bool enable)
 
 	DE_SCAL_Set_Init_Phase(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, FALSE);
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
+
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type,  scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
+
 	DE_SCAL_Set_Out_Size(sel, &out_scan,&out_type, &out_size);
 
 	return DIS_SUCCESS;
@@ -920,7 +949,12 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t  mode)
 	out_scan.field = (gdisp.screen[screen_index].iep_status == DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
 #endif
 
+#ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
+#else
+	gdisp.scaler[sel].coef_change = 1;
+#endif
+
     scaler->b_reg_change = TRUE;
     
 	return DIS_SUCCESS;

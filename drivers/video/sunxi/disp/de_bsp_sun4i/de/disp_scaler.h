@@ -73,6 +73,9 @@ typedef struct
     wait_queue_head_t       scaler_queue;
     __bool                  b_scaler_finished;
 #endif
+#ifdef CONFIG_ARCH_SUN5I
+	__bool                      coef_change;
+#endif
 }__disp_scaler_t;
 
 extern __disp_scaler_t    gscl;
