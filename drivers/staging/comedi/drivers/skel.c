@@ -628,18 +628,7 @@ static void __exit driver_skel_cleanup_module(void)
 module_init(driver_skel_init_module);
 module_exit(driver_skel_cleanup_module);
 #else
-static int __init driver_skel_init_module(void)
-{
-	return comedi_driver_register(&driver_skel);
-}
-
-static void __exit driver_skel_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_skel);
-}
-
-module_init(driver_skel_init_module);
-module_exit(driver_skel_cleanup_module);
+module_comedi_driver(driver_skel);
 #endif
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
