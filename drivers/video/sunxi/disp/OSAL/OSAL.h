@@ -21,11 +21,7 @@
 #ifndef  __OSAL_H__
 #define  __OSAL_H__
 
-#ifdef CONFIG_ARCH_SUN4I
-#include "../de_bsp_sun4i/bsp_display.h"
-#else
-#include "../de_bsp_sun5i/bsp_display.h"
-#endif
+#include "../bsp_display.h"
 
 #include  "OSAL_Cache.h"
 #include  "OSAL_Clock.h"

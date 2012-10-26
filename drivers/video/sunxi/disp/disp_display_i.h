@@ -22,8 +22,8 @@
 #ifndef __DISP_DISPLAY_I_H__
 #define __DISP_DISPLAY_I_H__
 
-#include "ebios/ebios_de.h"
-#include "ebios/ebios_lcdc_tve.h"
+#include "ebios_de.h"
+#include "ebios_lcdc_tve.h"
 
 
 

@@ -1,8 +1,8 @@
 #include "disp_iep.h"
 #include "de_iep.h"
 #include "de_iep_tab.h"
-#include "de_bsp_sun5i/de/disp_clk.h"
-#include "de_bsp_sun5i/de/disp_lcd.h"
+#include "disp_clk.h"
+#include "disp_lcd.h"
 
 #ifndef CONFIG_ARCH_SUN5I
 #error IEP should only be used on sun5i

@@ -29,7 +29,7 @@
 #include "disp_video.h"
 
 #ifdef CONFIG_ARCH_SUN5I
-#include "../../disp_iep.h"
+#include "disp_iep.h"
 #endif
 
 #define IMAGE_USED              0x00000004
