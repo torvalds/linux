@@ -197,7 +197,7 @@ struct rbd_device {
 	size_t			image_name_len;
 	char			*header_name;
 	char			*pool_name;
-	int			pool_id;
+	u64			pool_id;
 
 	struct ceph_osd_event   *watch_event;
 	struct ceph_osd_request *watch_request;
@@ -1113,7 +1113,7 @@ static int rbd_do_request(struct request *rq,
 	layout->fl_stripe_unit = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	layout->fl_stripe_count = cpu_to_le32(1);
 	layout->fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
-	layout->fl_pg_pool = cpu_to_le32(rbd_dev->pool_id);
+	layout->fl_pg_pool = cpu_to_le32((int) rbd_dev->pool_id);
 	ret = ceph_calc_raw_layout(osdc, layout, snapid, ofs, &len, &bno,
 				   req, ops);
 	rbd_assert(ret == 0);
@@ -1982,7 +1982,7 @@ static ssize_t rbd_pool_id_show(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	return sprintf(buf, "%d\n", rbd_dev->pool_id);
+	return sprintf(buf, "%llu\n", (unsigned long long) rbd_dev->pool_id);
 }
 
 static ssize_t rbd_name_show(struct device *dev,
@@ -3170,7 +3170,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rc = ceph_pg_poolid_by_name(osdc->osdmap, rbd_dev->pool_name);
 	if (rc < 0)
 		goto err_out_client;
-	rbd_dev->pool_id = rc;
+	rbd_dev->pool_id = (u64) rc;
 
 	rc = rbd_dev_probe(rbd_dev);
 	if (rc < 0)
