@@ -24,7 +24,6 @@ typedef u16 CsrSchedTaskId;
 
 /* A queue identifier */
 typedef u16 CsrSchedQid;
-#define CSR_SCHED_QID_INVALID     ((CsrSchedQid) 0xFFFF)
 
 /* A message identifier */
 typedef CsrSchedIdentifier CsrSchedMsgId;
@@ -32,9 +31,6 @@ typedef CsrSchedIdentifier CsrSchedMsgId;
 /* A timer event identifier */
 typedef CsrSchedIdentifier CsrSchedTid;
 #define CSR_SCHED_TID_INVALID     ((CsrSchedTid) 0)
-
-/* Scheduler entry functions share this structure */
-typedef void (*schedEntryFunction_t)(void **inst);
 
 /* Time constants. */
 #define CSR_SCHED_TIME_MAX                (0xFFFFFFFF)
@@ -52,8 +48,6 @@ typedef void (*schedEntryFunction_t)(void **inst);
  */
 typedef u16 CsrSchedBgint;
 #define CSR_SCHED_BGINT_INVALID ((CsrSchedBgint) 0xFFFF)
-
-typedef void (*CsrSchedBgintHandler)(void *);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -91,114 +85,6 @@ void CsrSchedMessagePut(CsrSchedQid q,
     u16 mi,
     void *mv);
 #endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedMessageBroadcast
- *
- *  DESCRIPTION
- *      Sends a message to all tasks.
- *
- *      The user must supply a "factory function" that is called once
- *      for every task that exists. The "factory function", msg_build_func,
- *      must allocate and initialise the message and set the msg_build_ptr
- *      to point to the message when done.
- *
- *  NOTE
- *      N/A
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-#if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-void CsrSchedMessageBroadcastStringLog(u16 mi,
-    void *(*msg_build_func)(void *),
-    void *msg_build_ptr,
-    u32 line,
-    const char *file);
-#define CsrSchedMessageBroadcast(mi, fn, ptr) CsrSchedMessageBroadcastStringLog((mi), (fn), (ptr), __LINE__, __FILE__)
-#else
-void CsrSchedMessageBroadcast(u16 mi,
-    void *(*msg_build_func)(void *),
-    void *msg_build_ptr);
-#endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedTimerSet
- *
- *  DESCRIPTION
- *      Causes the void function "fn" to be called with the arguments
- *      "fniarg" and "fnvarg" after "delay" has elapsed.
- *
- *      "delay" must be less than half the range of a CsrTime.
- *
- *      CsrSchedTimerSet() does nothing with "fniarg" and "fnvarg" except
- *      deliver them via a call to "fn()".   (Unless CsrSchedTimerCancel()
- *      is used to prevent delivery.)
- *
- *  NOTE
- *      The function will be called at or after "delay"; the actual delay will
- *      depend on the timing behaviour of the scheduler's tasks.
- *
- *  RETURNS
- *      CsrSchedTid - A timed event identifier, can be used in CsrSchedTimerCancel().
- *
- *----------------------------------------------------------------------------*/
-#if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-CsrSchedTid CsrSchedTimerSetStringLog(u32 delay,
-    void (*fn)(u16 mi, void *mv),
-    u16 fniarg,
-    void *fnvarg,
-    u32 line,
-    const char *file);
-#define CsrSchedTimerSet(d, fn, fni, fnv) CsrSchedTimerSetStringLog((d), (fn), (fni), (fnv), __LINE__, __FILE__)
-#else
-CsrSchedTid CsrSchedTimerSet(u32 delay,
-    void (*fn)(u16 mi, void *mv),
-    u16 fniarg,
-    void *fnvarg);
-#endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedTimerCancel
- *
- *  DESCRIPTION
- *      Attempts to prevent the timed event with identifier "eventid" from
- *      occurring.
- *
- *  RETURNS
- *      u8 - TRUE if cancelled, FALSE if the event has already occurred.
- *
- *----------------------------------------------------------------------------*/
-#if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-u8 CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
-    u16 *pmi,
-    void **pmv,
-    u32 line,
-    const char *file);
-#define CsrSchedTimerCancel(e, pmi, pmv) CsrSchedTimerCancelStringLog((e), (pmi), (pmv), __LINE__, __FILE__)
-#else
-u8 CsrSchedTimerCancel(CsrSchedTid eventid,
-    u16 *pmi,
-    void **pmv);
-#endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrSchedTaskQueueGet
- *
- *  DESCRIPTION
- *      Return the queue identifier for the currently running queue
- *
- *  RETURNS
- *      CsrSchedQid - The current task queue identifier, or 0xFFFF if not available.
- *
- *----------------------------------------------------------------------------*/
-CsrSchedQid CsrSchedTaskQueueGet(void);
-
 
 #ifdef __cplusplus
 }
