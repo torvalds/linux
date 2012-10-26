@@ -92,6 +92,19 @@ static int is_device_present(acpi_handle handle)
 	return ((sta & ACPI_STA_DEVICE_PRESENT) == ACPI_STA_DEVICE_PRESENT);
 }
 
+static bool is_container_device(const char *hid)
+{
+	const struct acpi_device_id *container_id;
+
+	for (container_id = container_device_ids;
+	     container_id->id[0]; container_id++) {
+		if (!strcmp((char *)container_id->id, hid))
+			return true;
+	}
+
+	return false;
+}
+
 /*******************************************************************/
 static int acpi_container_add(struct acpi_device *device)
 {
@@ -232,10 +245,8 @@ container_walk_namespace_cb(acpi_handle handle,
 		goto end;
 	}
 
-	if (strcmp(hid, "ACPI0004") && strcmp(hid, "PNP0A05") &&
-	    strcmp(hid, "PNP0A06")) {
+	if (!is_container_device(hid))
 		goto end;
-	}
 
 	switch (*action) {
 	case INSTALL_NOTIFY_HANDLER:
