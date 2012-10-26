@@ -1317,6 +1317,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	req->out.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
+	req->page_descs[0].length = PAGE_SIZE;
 	if (fc->do_readdirplus) {
 		attr_version = fuse_get_attr_version(fc);
 		fuse_read_fill(req, file, file->f_pos, PAGE_SIZE,

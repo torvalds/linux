@@ -449,6 +449,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	req->out.argvar = 1;
 	req->out.argpages = 1;
 	req->pages[0] = page;
+	req->page_descs[0].length = req->out.args[1].size;
 	req->num_pages = 1;
 	req->end = cuse_process_init_reply;
 	fuse_request_send_background(fc, req);

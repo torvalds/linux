@@ -903,11 +903,11 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 {
 	unsigned i;
 	struct fuse_req *req = cs->req;
-	unsigned offset = req->page_descs[0].offset;
-	unsigned count = min(nbytes, (unsigned) PAGE_SIZE - offset);
 
 	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
 		int err;
+		unsigned offset = req->page_descs[i].offset;
+		unsigned count = min(nbytes, req->page_descs[i].length);
 
 		err = fuse_copy_page(cs, &req->pages[i], offset, count,
 				     zeroing);
@@ -915,8 +915,6 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 			return err;
 
 		nbytes -= count;
-		count = min(nbytes, (unsigned) PAGE_SIZE);
-		offset = 0;
 	}
 	return 0;
 }
@@ -1626,6 +1624,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 
 		this_num = min_t(unsigned, num, PAGE_CACHE_SIZE - offset);
 		req->pages[req->num_pages] = page;
+		req->page_descs[req->num_pages].length = this_num;
 		req->num_pages++;
 
 		offset = 0;
