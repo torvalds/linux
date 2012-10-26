@@ -1577,12 +1577,23 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	unsigned int num;
 	unsigned int offset;
 	size_t total_len = 0;
-
-	req = fuse_get_req(fc, FUSE_MAX_PAGES_PER_REQ);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	int num_pages;
 
 	offset = outarg->offset & ~PAGE_CACHE_MASK;
+	file_size = i_size_read(inode);
+
+	num = outarg->size;
+	if (outarg->offset > file_size)
+		num = 0;
+	else if (outarg->offset + num > file_size)
+		num = file_size - outarg->offset;
+
+	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	num_pages = min(num_pages, FUSE_MAX_PAGES_PER_REQ);
+
+	req = fuse_get_req(fc, num_pages);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	req->in.h.opcode = FUSE_NOTIFY_REPLY;
 	req->in.h.nodeid = outarg->nodeid;
@@ -1592,14 +1603,8 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	req->end = fuse_retrieve_end;
 
 	index = outarg->offset >> PAGE_CACHE_SHIFT;
-	file_size = i_size_read(inode);
-	num = outarg->size;
-	if (outarg->offset > file_size)
-		num = 0;
-	else if (outarg->offset + num > file_size)
-		num = file_size - outarg->offset;
 
-	while (num && req->num_pages < FUSE_MAX_PAGES_PER_REQ) {
+	while (num && req->num_pages < num_pages) {
 		struct page *page;
 		unsigned int this_num;
 
