@@ -63,13 +63,11 @@ static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		return intel_dp->port;
-
-	} else if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-		return intel_hdmi->ddi_port;
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP ||
+	    type == INTEL_OUTPUT_HDMI) {
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
+		return intel_dig_port->port;
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		return PORT_E;
@@ -925,11 +923,13 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 	uint32_t temp;
 
 	/* Enable TRANS_DDI_FUNC_CTL for the pipe to work in HDMI mode */
 	temp = TRANS_DDI_FUNC_ENABLE;
+	temp |= TRANS_DDI_SELECT_PORT(port);
 
 	switch (intel_crtc->bpp) {
 	case 18:
@@ -979,18 +979,14 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 		else
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
 
-		temp |= TRANS_DDI_SELECT_PORT(intel_hdmi->ddi_port);
-
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
-		temp |= TRANS_DDI_SELECT_PORT(PORT_E);
 
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
 		   type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
-		temp |= TRANS_DDI_SELECT_PORT(intel_dp->port);
 
 		switch (intel_dp->lane_count) {
 		case 1:
@@ -1297,9 +1293,10 @@ void intel_ddi_pll_init(struct drm_device *dev)
 
 void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
-	enum port port = intel_dp->port;
+	enum port port = intel_dig_port->port;
 	bool wait;
 	uint32_t val;
 

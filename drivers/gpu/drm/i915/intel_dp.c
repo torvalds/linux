@@ -336,7 +336,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *recv, int recv_size)
 {
 	uint32_t output_reg = intel_dp->output_reg;
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = output_reg + 0x10;
 	uint32_t ch_data = ch_ctl + 4;
@@ -347,7 +348,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	int try, precharge;
 
 	if (IS_HASWELL(dev)) {
-		switch (intel_dp->port) {
+		switch (intel_dig_port->port) {
 		case PORT_A:
 			ch_ctl = DPA_AUX_CH_CTL;
 			ch_data = DPA_AUX_CH_DATA1;
@@ -1677,13 +1678,15 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port = intel_dig_port->port;
 	int ret;
 	uint32_t temp;
 
 	if (IS_HASWELL(dev)) {
-		temp = I915_READ(DP_TP_CTL(intel_dp->port));
+		temp = I915_READ(DP_TP_CTL(port));
 
 		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
 			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
@@ -1694,9 +1697,9 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
 			temp |= DP_TP_CTL_LINK_TRAIN_IDLE;
-			I915_WRITE(DP_TP_CTL(intel_dp->port), temp);
+			I915_WRITE(DP_TP_CTL(port), temp);
 
-			if (wait_for((I915_READ(DP_TP_STATUS(intel_dp->port)) &
+			if (wait_for((I915_READ(DP_TP_STATUS(port)) &
 				      DP_TP_STATUS_IDLE_DONE), 1))
 				DRM_ERROR("Timed out waiting for DP idle patterns\n");
 
@@ -1714,7 +1717,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
 			break;
 		}
-		I915_WRITE(DP_TP_CTL(intel_dp->port), temp);
+		I915_WRITE(DP_TP_CTL(port), temp);
 
 	} else if (HAS_PCH_CPT(dev) &&
 		   (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
@@ -2697,7 +2700,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *fixed_mode = NULL;
-	enum port port = intel_dp->port;
+	enum port port = intel_dig_port->port;
 	const char *name = NULL;
 	int type;
 
@@ -2883,7 +2886,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	}
 
-	intel_dig_port->dp.port = port;
+	intel_dig_port->port = port;
 	intel_dig_port->dp.output_reg = output_reg;
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

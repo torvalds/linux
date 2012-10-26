@@ -971,7 +971,7 @@ static void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum port port = intel_hdmi->ddi_port;
+	enum port port = intel_dig_port->port;
 
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
@@ -1076,7 +1076,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = false;
 
-	intel_dig_port->hdmi.ddi_port = port;
+	intel_dig_port->port = port;
 	intel_dig_port->hdmi.sdvox_reg = sdvox_reg;
 	intel_dig_port->dp.output_reg = 0;
 

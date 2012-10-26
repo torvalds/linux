@@ -333,7 +333,6 @@ struct dip_infoframe {
 struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
-	int ddi_port;
 	uint32_t color_range;
 	bool has_hdmi_sink;
 	bool has_audio;
@@ -353,7 +352,6 @@ struct intel_dp {
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
-	enum port port;
 	uint32_t color_range;
 	uint8_t link_bw;
 	uint8_t lane_count;
@@ -375,6 +373,7 @@ struct intel_dp {
 
 struct intel_digital_port {
 	struct intel_encoder base;
+	enum port port;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 };
