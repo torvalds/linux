@@ -1219,10 +1219,8 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			continue;
 		}
 
-		n = find_first_bit(&isr, BITS_PER_LONG);
-		while (n < BITS_PER_LONG) {
+		for_each_set_bit(n, &isr, BITS_PER_LONG) {
 			generic_handle_irq(irq_find_mapping(at91_gpio->domain, n));
-			n = find_next_bit(&isr, BITS_PER_LONG, n + 1);
 		}
 	}
 	chained_irq_exit(chip, desc);
