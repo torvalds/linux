@@ -22,4 +22,8 @@ config SUNXI_MALI_RESERVED_MEM
 	depends on MALI
 	default y
 
+config MACH_SUN4I
+	bool
+	default y
+
 endif
