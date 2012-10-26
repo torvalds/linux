@@ -80,7 +80,7 @@
 
 /* Features supported by this (client software) implementation. */
 
-#define RBD_FEATURES_SUPPORTED	(0)
+#define RBD_FEATURES_SUPPORTED	(RBD_FEATURES_ALL)
 
 /*
  * An RBD device name will be "rbd#", where the "rbd" comes from
@@ -4724,6 +4724,8 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
 			goto out_err;
+		rbd_warn(rbd_dev, "WARNING: kernel support for "
+					"layered rbd images is EXPERIMENTAL!");
 	}
 
 	/* If the image supports fancy striping, get its parameters */
