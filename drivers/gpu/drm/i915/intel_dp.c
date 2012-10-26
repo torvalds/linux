@@ -1327,9 +1327,10 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				return true;
 			}
 		}
-	}
 
-	DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n", intel_dp->output_reg);
+		DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n",
+			      intel_dp->output_reg);
+	}
 
 	return true;
 }
