@@ -202,46 +202,10 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
 	return 1;
 }
 
-/* Note that "fork()" is implemented in terms of clone, with
-   parameters (SIGCHLD, regs->gr[30], regs). */
-int
-sys_clone(unsigned long clone_flags, unsigned long usp,
-	  struct pt_regs *regs)
-{
-  	/* Arugments from userspace are:
-	   r26 = Clone flags.
-	   r25 = Child stack.
-	   r24 = parent_tidptr.
-	   r23 = Is the TLS storage descriptor 
-	   r22 = child_tidptr 
-	   
-	   However, these last 3 args are only examined
-	   if the proper flags are set. */
-	int __user *parent_tidptr = (int __user *)regs->gr[24];
-	int __user *child_tidptr  = (int __user *)regs->gr[22];
-
-	/* usp must be word aligned.  This also prevents users from
-	 * passing in the value 1 (which is the signal for a special
-	 * return for a kernel thread) */
-	usp = ALIGN(usp, 4);
-
-	/* A zero value for usp means use the current stack */
-	if (usp == 0)
-	  usp = regs->gr[30];
-
-	return do_fork(clone_flags, usp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-int
-sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gr[30], regs, 0, NULL, NULL);
-}
-
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long arg,
-	    struct task_struct *p, struct pt_regs *pregs)
+	    struct task_struct *p, struct pt_regs *unused)
 {
 	struct pt_regs * cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
@@ -278,7 +242,14 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		cregs->gr[25] = arg;
 	} else {
 		/* user thread */
-		cregs->gr[30] = usp;
+		/* usp must be word aligned.  This also prevents users from
+		 * passing in the value 1 (which is the signal for a special
+		 * return for a kernel thread) */
+		if (usp) {
+			usp = ALIGN(usp, 4);
+			if (likely(usp))
+				cregs->gr[30] = usp;
+		}
 		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		if (personality(p->personality) == PER_HPUX) {
 #ifdef CONFIG_HPUX
@@ -291,7 +262,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		}
 		/* Setup thread TLS area from the 4th parameter in clone */
 		if (clone_flags & CLONE_SETTLS)
-			cregs->cr27 = pregs->gr[23];
+			cregs->cr27 = cregs->gr[23];
 	}
 
 	return 0;

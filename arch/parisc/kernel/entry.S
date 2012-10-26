@@ -1688,18 +1688,20 @@ dtlb_fault:
 	LDREG   PT_GR18(\regs),%r18
 	.endm
 
-ENTRY(sys_fork_wrapper)
+	.macro	fork_like name
+ENTRY(sys_\name\()_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
 	mfctl	%cr27, %r28
+	b	sys_\name
 	STREG	%r28, PT_CR27(%r1)
+ENDPROC(sys_\name\()_wrapper)
+	.endm
 
-	LDREG	PT_GR30(%r1),%r25
-	copy	%r1,%r24
-	b	sys_clone
-	ldi	SIGCHLD,%r26
-ENDPROC(sys_fork_wrapper)
+fork_like clone
+fork_like fork
+fork_like vfork
 
 	/* Set the return value for the child */
 ENTRY(child_return)
@@ -1716,30 +1718,6 @@ finish_child_return:
 	copy	%r0,%r28
 ENDPROC(child_return)
 
-
-ENTRY(sys_clone_wrapper)
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
-	reg_save %r1
-	mfctl	%cr27, %r28
-	STREG	%r28, PT_CR27(%r1)
-	b	sys_clone
-	copy	%r1,%r24
-ENDPROC(sys_clone_wrapper)
-
-
-ENTRY(sys_vfork_wrapper)
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
-	reg_save %r1
-	mfctl	%cr27, %r28
-	STREG	%r28, PT_CR27(%r1)
-
-	b	sys_vfork
-	copy	%r1,%r26
-ENDPROC(sys_vfork_wrapper)
-
-	
 ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
