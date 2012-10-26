@@ -1165,13 +1165,15 @@ __s32 DE_SCAL_Disable(__u8 sel)
 __s32 DE_SCAL_Set_Writeback_Addr(__u8 sel, __scal_buf_addr_t *addr)
 {
     scal_dev[sel]->wb_addr0.dwval = addr->ch0_addr;
-    //scal_dev[sel]->wb_addr1.dwval = addr->ch1_addr;
-    //scal_dev[sel]->wb_addr2.dwval = addr->ch2_addr;
-
+#ifdef CONFIG_ARCH_SUN4I
+    scal_dev[sel]->wb_addr1.dwval = addr->ch1_addr;
+    scal_dev[sel]->wb_addr2.dwval = addr->ch2_addr;
+#endif
 
     return 0;
 }
 
+#ifdef CONFIG_ARCH_SUN5I
 //**********************************************************************************
 // function         : DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
 // description      : scaler write back channel selection
@@ -1200,7 +1202,7 @@ __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
 
     return 0;
 }
-
+#endif /* CONFIG_ARCH_SUN5I */
 
 //*********************************************************************************
 // function         : DE_SCAL_Get_Input_Format(__u8 sel)

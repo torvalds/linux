@@ -209,7 +209,6 @@ __s32 BSP_disp_tv_open(__u32 sel)
     if(!(gdisp.screen[sel].status & TV_ON))
     {
         __disp_tv_mode_t     tv_mod;
-        __u32 scaler_index = 0;
 
         tv_mod = gdisp.screen[sel].tv_mode;
 
@@ -227,22 +226,23 @@ __s32 BSP_disp_tv_open(__u32 sel)
 #endif
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
         DE_BE_Output_Select(sel, sel);
-		DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
 
-        for(scaler_index=0; scaler_index<2; scaler_index++)
-        {
-            if((gdisp.scaler[scaler_index].status & SCALER_USED) && (gdisp.scaler[scaler_index].screen_index == sel))
-            {
-                if(Disp_get_screen_scan_mode(tv_mod) == 1)//interlace output
-                {
-                    Scaler_Set_Outitl(scaler_index, TRUE);
-                }
-                else
-                {
-                    Scaler_Set_Outitl(scaler_index, FALSE);
-                }
-            }
+#ifdef CONFIG_ARCH_SUN5I
+	DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
+	{
+		int scaler_index;
+
+		for (scaler_index = 0; scaler_index < 2; scaler_index++)
+			if ((gdisp.scaler[scaler_index].status & SCALER_USED) &&
+			    (gdisp.scaler[scaler_index].screen_index == sel)) {
+				/* interlace output */
+				if (Disp_get_screen_scan_mode(tv_mod) == 1)
+					Scaler_Set_Outitl(scaler_index, TRUE);
+				else
+					Scaler_Set_Outitl(scaler_index, FALSE);
+			}
         }
+#endif /* CONFIG_ARCH_SUN5I */
 
         TCON1_set_tv_mode(sel,tv_mod);
         TVE_set_tv_mode(sel, tv_mod);
@@ -302,8 +302,6 @@ __s32 BSP_disp_tv_close(__u32 sel)
 {
     if(gdisp.screen[sel].status & TV_ON)
     {
-        __u32 scaler_index = 0;
-
         Image_close(sel);
         TCON1_close(sel);
         Disp_TVEC_Close(sel);
@@ -311,17 +309,20 @@ __s32 BSP_disp_tv_close(__u32 sel)
         tve_clk_off(sel);
         image_clk_off(sel);
         lcdc_clk_off(sel);
+
 #ifdef CONFIG_ARCH_SUN5I
         Disp_de_flicker_enable(sel, 2);	//must close immediately, because vbi may not come
-#endif
-		DE_BE_Set_Outitl_enable(sel, FALSE);
-        for(scaler_index=0; scaler_index<2; scaler_index++)
-        {
-            if((gdisp.scaler[scaler_index].status & SCALER_USED) && (gdisp.scaler[scaler_index].screen_index == sel))
-            {
-                Scaler_Set_Outitl(scaler_index, FALSE);
-            }
+	DE_BE_Set_Outitl_enable(sel, FALSE);
+	{
+		int scaler_index;
+
+		for(scaler_index=0; scaler_index<2; scaler_index++)
+			if ((gdisp.scaler[scaler_index].status & SCALER_USED) &&
+			    (gdisp.scaler[scaler_index].screen_index == sel))
+				Scaler_Set_Outitl(scaler_index, FALSE);
         }
+#endif /* CONFIG_ARCH_SUN5I */
+
 #ifdef __LINUX_OSAL__
         {
             user_gpio_set_t  gpio_info[1];
