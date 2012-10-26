@@ -26,6 +26,8 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
+#include <linux/bitrev.h>
+#include <linux/crc16.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
@@ -46,7 +48,8 @@
 #define SMSC95XX_INTERNAL_PHY_ID	(1)
 #define SMSC95XX_TX_OVERHEAD		(8)
 #define SMSC95XX_TX_OVERHEAD_CSUM	(12)
-#define SUPPORTED_WAKE			(WAKE_MAGIC)
+#define SUPPORTED_WAKE			(WAKE_UCAST | WAKE_BCAST | \
+					 WAKE_MCAST | WAKE_ARP | WAKE_MAGIC)
 
 #define check_warn(ret, fmt, args...) \
 	({ if (ret < 0) netdev_warn(dev->net, fmt, ##args); })
@@ -63,6 +66,7 @@ struct smsc95xx_priv {
 	u32 hash_lo;
 	u32 wolopts;
 	spinlock_t mac_cr_lock;
+	int wuff_filter_count;
 };
 
 static bool turbo_mode = true;
@@ -956,6 +960,7 @@ static const struct net_device_ops smsc95xx_netdev_ops = {
 static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata = NULL;
+	u32 val;
 	int ret;
 
 	printk(KERN_INFO SMSC_CHIPNAME " v" SMSC_DRIVER_VERSION "\n");
@@ -986,6 +991,15 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Init all registers */
 	ret = smsc95xx_reset(dev);
 
+	/* detect device revision as different features may be available */
+	ret = smsc95xx_read_reg(dev, ID_REV, &val);
+	check_warn_return(ret, "Failed to read ID_REV: %d\n", ret);
+	val >>= 16;
+	if ((val == ID_REV_CHIP_ID_9500A_) || (val == ID_REV_CHIP_ID_9512_))
+		pdata->wuff_filter_count = LAN9500A_WUFF_NUM;
+	else
+		pdata->wuff_filter_count = LAN9500_WUFF_NUM;
+
 	dev->net->netdev_ops = &smsc95xx_netdev_ops;
 	dev->net->ethtool_ops = &smsc95xx_ethtool_ops;
 	dev->net->flags |= IFF_MULTICAST;
@@ -1003,6 +1017,11 @@ static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 		pdata = NULL;
 		dev->data[0] = 0;
 	}
+}
+
+static u16 smsc_crc(const u8 *buffer, size_t len, int filter)
+{
+	return bitrev16(crc16(0xFFFF, buffer, len)) << ((filter % 2) * 16);
 }
 
 static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
@@ -1049,6 +1068,94 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	}
 
+	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
+		u32 *filter_mask = kzalloc(32, GFP_KERNEL);
+		u32 *command = kzalloc(2, GFP_KERNEL);
+		u32 *offset = kzalloc(2, GFP_KERNEL);
+		u32 *crc = kzalloc(4, GFP_KERNEL);
+		int i, filter = 0;
+
+		if (pdata->wolopts & WAKE_BCAST) {
+			const u8 bcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+			netdev_info(dev->net, "enabling broadcast detection");
+			filter_mask[filter * 4] = 0x003F;
+			filter_mask[filter * 4 + 1] = 0x00;
+			filter_mask[filter * 4 + 2] = 0x00;
+			filter_mask[filter * 4 + 3] = 0x00;
+			command[filter/4] |= 0x05UL << ((filter % 4) * 8);
+			offset[filter/4] |= 0x00 << ((filter % 4) * 8);
+			crc[filter/2] |= smsc_crc(bcast, 6, filter);
+			filter++;
+		}
+
+		if (pdata->wolopts & WAKE_MCAST) {
+			const u8 mcast[] = {0x01, 0x00, 0x5E};
+			netdev_info(dev->net, "enabling multicast detection");
+			filter_mask[filter * 4] = 0x0007;
+			filter_mask[filter * 4 + 1] = 0x00;
+			filter_mask[filter * 4 + 2] = 0x00;
+			filter_mask[filter * 4 + 3] = 0x00;
+			command[filter/4] |= 0x09UL << ((filter % 4) * 8);
+			offset[filter/4] |= 0x00  << ((filter % 4) * 8);
+			crc[filter/2] |= smsc_crc(mcast, 3, filter);
+			filter++;
+		}
+
+		if (pdata->wolopts & WAKE_ARP) {
+			const u8 arp[] = {0x08, 0x06};
+			netdev_info(dev->net, "enabling ARP detection");
+			filter_mask[filter * 4] = 0x0003;
+			filter_mask[filter * 4 + 1] = 0x00;
+			filter_mask[filter * 4 + 2] = 0x00;
+			filter_mask[filter * 4 + 3] = 0x00;
+			command[filter/4] |= 0x05UL << ((filter % 4) * 8);
+			offset[filter/4] |= 0x0C << ((filter % 4) * 8);
+			crc[filter/2] |= smsc_crc(arp, 2, filter);
+			filter++;
+		}
+
+		if (pdata->wolopts & WAKE_UCAST) {
+			netdev_info(dev->net, "enabling unicast detection");
+			filter_mask[filter * 4] = 0x003F;
+			filter_mask[filter * 4 + 1] = 0x00;
+			filter_mask[filter * 4 + 2] = 0x00;
+			filter_mask[filter * 4 + 3] = 0x00;
+			command[filter/4] |= 0x01UL << ((filter % 4) * 8);
+			offset[filter/4] |= 0x00 << ((filter % 4) * 8);
+			crc[filter/2] |= smsc_crc(dev->net->dev_addr, ETH_ALEN, filter);
+			filter++;
+		}
+
+		for (i = 0; i < (pdata->wuff_filter_count * 4); i++) {
+			ret = smsc95xx_write_reg(dev, WUFF, filter_mask[i]);
+			check_warn_return(ret, "Error writing WUFF");
+		}
+
+		for (i = 0; i < (pdata->wuff_filter_count / 4); i++) {
+			ret = smsc95xx_write_reg(dev, WUFF, command[i]);
+			check_warn_return(ret, "Error writing WUFF");
+		}
+
+		for (i = 0; i < (pdata->wuff_filter_count / 4); i++) {
+			ret = smsc95xx_write_reg(dev, WUFF, offset[i]);
+			check_warn_return(ret, "Error writing WUFF");
+		}
+
+		for (i = 0; i < (pdata->wuff_filter_count / 2); i++) {
+			ret = smsc95xx_write_reg(dev, WUFF, crc[i]);
+			check_warn_return(ret, "Error writing WUFF");
+		}
+
+		/* clear any pending pattern match packet status */
+		ret = smsc95xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
+
+		val |= WUCSR_WUFR_;
+
+		ret = smsc95xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+	}
+
 	if (pdata->wolopts & WAKE_MAGIC) {
 		/* clear any pending magic packet status */
 		ret = smsc95xx_read_reg(dev, WUCSR, &val);
@@ -1060,9 +1167,17 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 		check_warn_return(ret, "Error writing WUCSR");
 	}
 
-	/* enable/disable magic packup wake */
+	/* enable/disable wakeup sources */
 	ret = smsc95xx_read_reg(dev, WUCSR, &val);
 	check_warn_return(ret, "Error reading WUCSR");
+
+	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
+		netdev_info(dev->net, "enabling pattern match wakeup");
+		val |= WUCSR_WAKE_EN_;
+	} else {
+		netdev_info(dev->net, "disabling pattern match wakeup");
+		val &= ~WUCSR_WAKE_EN_;
+	}
 
 	if (pdata->wolopts & WAKE_MAGIC) {
 		netdev_info(dev->net, "enabling magic packet wakeup");
@@ -1084,7 +1199,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	ret = smsc95xx_write_reg(dev, PM_CTRL, val);
 	check_warn_return(ret, "Error writing PM_CTRL");
 
-	/* enable receiver */
+	/* enable receiver to enable frame reception */
 	smsc95xx_start_rx_path(dev);
 
 	/* some wol options are enabled, so enter SUSPEND0 */
@@ -1123,14 +1238,14 @@ static int smsc95xx_resume(struct usb_interface *intf)
 
 	BUG_ON(!dev);
 
-	if (pdata->wolopts & WAKE_MAGIC) {
+	if (pdata->wolopts) {
 		smsc95xx_clear_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
-		/* Disable magic packup wake */
+		/* clear wake-up sources */
 		ret = smsc95xx_read_reg(dev, WUCSR, &val);
 		check_warn_return(ret, "Error reading WUCSR");
 
-		val &= ~WUCSR_MPEN_;
+		val &= ~(WUCSR_WAKE_EN_ | WUCSR_MPEN_);
 
 		ret = smsc95xx_write_reg(dev, WUCSR, val);
 		check_warn_return(ret, "Error writing WUCSR");
