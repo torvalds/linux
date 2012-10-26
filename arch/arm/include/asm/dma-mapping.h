@@ -91,7 +91,6 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
  */
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	debug_dma_mapping_error(dev, dma_addr);
 	return dma_addr == DMA_ERROR_CODE;
 }
 
