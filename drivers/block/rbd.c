@@ -2408,7 +2408,6 @@ static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 	int ret;
 	void *p;
 	void *end;
-	size_t snap_name_len;
 	char *snap_name;
 
 	size = sizeof (__le32) + RBD_MAX_SNAP_NAME_LEN;
@@ -2428,9 +2427,7 @@ static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 
 	p = reply_buf;
 	end = (char *) reply_buf + size;
-	snap_name_len = 0;
-	snap_name = ceph_extract_encoded_string(&p, end, &snap_name_len,
-				GFP_KERNEL);
+	snap_name = ceph_extract_encoded_string(&p, end, NULL, GFP_KERNEL);
 	if (IS_ERR(snap_name)) {
 		ret = PTR_ERR(snap_name);
 		goto out;
@@ -2849,8 +2846,7 @@ static struct ceph_options *rbd_add_parse_args(struct rbd_device *rbd_dev,
 						const char *buf,
 						char *options,
 						size_t options_size,
-						char **snap_name,
-						size_t *snap_name_len)
+						char **snap_name)
 {
 	size_t len;
 	const char *mon_addrs;
@@ -2898,7 +2894,7 @@ static struct ceph_options *rbd_add_parse_args(struct rbd_device *rbd_dev,
 		goto out_err;
 	memcpy(*snap_name, buf, len);
 	*(*snap_name + len) = '\0';
-	*snap_name_len = len;
+
 	/* Initialize all rbd options to the defaults */
 
 	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
@@ -3131,7 +3127,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 	char *options;
 	struct rbd_device *rbd_dev = NULL;
 	char *snap_name;
-	size_t snap_name_len = 0;
 	struct ceph_options *ceph_opts;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
@@ -3154,7 +3149,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	/* parse add command */
 	ceph_opts = rbd_add_parse_args(rbd_dev, buf, options, count,
-				&snap_name, &snap_name_len);
+				&snap_name);
 	if (IS_ERR(ceph_opts)) {
 		rc = PTR_ERR(ceph_opts);
 		goto err_out_mem;
