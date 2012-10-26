@@ -277,7 +277,7 @@ __s32 Scaler_event_proc(void *parg)
     DE_SCAL_ClearINT(sel,fe_intflags);
     DE_BE_ClearINT(sel,be_intflags);
     
-	/*DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel, fe_intflags);*/
+    DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel, fe_intflags);
 
     if(be_intflags & DE_IMG_REG_LOAD_FINISH)
     {
@@ -964,6 +964,10 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
 	__u32 size = 0;
 	__u32 sel = 0;
 	__s32 ret = 0;
+#ifdef CONFIG_ARCH_SUN5I
+	__u32 i = 0;
+	__u32 ch_num = 0;
+#endif
 
 	if(para==NULL)
 	{
@@ -1070,39 +1074,99 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
     DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, DISP_VIDEO_NATUAL);
     DE_SCAL_Set_Out_Format(sel, &out_type);
     DE_SCAL_Set_Out_Size(sel, &out_scan,&out_type, &out_size);
+
+#ifdef CONFIG_ARCH_SUN4I
     DE_SCAL_Set_Writeback_Addr(sel,&out_addr);
+
     DE_SCAL_Output_Select(sel, 3);
     DE_SCAL_EnableINT(sel,DE_WB_END_IE);
-    DE_SCAL_Start(sel);   
+    DE_SCAL_Start(sel);
     DE_SCAL_Set_Reg_Rdy(sel);
 
 #ifndef __LINUX_OSAL__
     DE_SCAL_Writeback_Enable(sel);
-    while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE) )
-    {
-    }
+    while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE))
+	    ;
 #else
     {
-        long timeout = (100 * HZ)/1000;//100ms
+	    long timeout = (100 * HZ)/1000;//100ms
 
-        init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
-        gdisp.scaler[sel].b_scaler_finished = 1;
-        DE_SCAL_Writeback_Enable(sel);
-        
-        timeout = wait_event_interruptible_timeout(gdisp.scaler[sel].scaler_queue, gdisp.scaler[sel].b_scaler_finished == 2, timeout);
-        gdisp.scaler[sel].b_scaler_finished = 0;
-        if(timeout == 0)
-        {
-            __wrn("wait scaler %d finished timeout\n", sel);
-            return -1;
-        }
+	    init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
+	    gdisp.scaler[sel].b_scaler_finished = 1;
+	    DE_SCAL_Writeback_Enable(sel);
+
+	    timeout = wait_event_interruptible_timeout(gdisp.scaler[sel].scaler_queue,
+						       gdisp.scaler[sel].b_scaler_finished == 2, timeout);
+	    gdisp.scaler[sel].b_scaler_finished = 0;
+	    if(timeout == 0) {
+		    __wrn("wait scaler %d finished timeout\n", sel);
+		    return -1;
+	    }
     }
-#endif
+#endif /* __LINUX_OSAL__ */
     DE_SCAL_Reset(sel);
     DE_SCAL_Writeback_Disable(sel);
+#else
+        if (para->output_fb.mode == DISP_MOD_INTERLEAVED)
+        ch_num = 1;
+    else if (para->output_fb.mode == DISP_MOD_MB_UV_COMBINED ||
+	     para->output_fb.mode == DISP_MOD_NON_MB_UV_COMBINED)
+        ch_num = 2;
+    else if (para->output_fb.mode == DISP_MOD_MB_PLANAR ||
+	     para->output_fb.mode == DISP_MOD_NON_MB_PLANAR)
+        ch_num = 3;
+
+	for (i = 0; i < ch_num; i++) {
+		__scal_buf_addr_t addr;
+		ret = 0;
+
+		addr.ch0_addr = out_addr.ch0_addr;
+		if (i == 1)
+			addr.ch0_addr = out_addr.ch1_addr;
+		else if(i == 2)
+			addr.ch0_addr = out_addr.ch2_addr;
+		DE_SCAL_Enable(sel);
+
+		DE_SCAL_Set_Writeback_Addr(sel,&addr);
+		DE_SCAL_Set_Writeback_Chnl(sel, i);
+
+		DE_SCAL_Output_Select(sel, 3);
+		DE_SCAL_EnableINT(sel,DE_WB_END_IE);
+		DE_SCAL_Start(sel);
+		DE_SCAL_Set_Reg_Rdy(sel);
+
+#ifndef __LINUX_OSAL__
+		DE_SCAL_Writeback_Enable(sel);
+		while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE))
+			;
+#else
+		{
+			long timeout = (100 * HZ)/1000;//100ms
+
+			init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
+			gdisp.scaler[sel].b_scaler_finished = 1;
+			DE_SCAL_Writeback_Enable(sel);
+
+			timeout = wait_event_interruptible_timeout(gdisp.scaler[sel].scaler_queue,
+								   gdisp.scaler[sel].b_scaler_finished == 2, timeout);
+			gdisp.scaler[sel].b_scaler_finished = 0;
+
+			if (timeout == 0) {
+				__wrn("wait scaler %d finished timeout\n", sel);
+				DE_SCAL_Writeback_Disable(sel);
+				DE_SCAL_Reset(sel);
+				DE_SCAL_Disable(sel);
+				return -1;
+			}
+		}
+#endif /* __LINUX_OSAL__ */
+		DE_SCAL_Writeback_Disable(sel);
+		DE_SCAL_Reset(sel);
+		DE_SCAL_Disable(sel);
+	}
+#endif /* CONFIG_ARCH_SUN4I */
 
     return ret;
-
 }
 
 

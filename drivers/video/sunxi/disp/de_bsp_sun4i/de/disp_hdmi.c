@@ -67,6 +67,23 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
     	DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
     	DE_BE_Output_Select(sel, sel);
 
+#ifdef CONFIG_ARCH_SUN5I
+    	DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
+	{
+		int scaler_index;
+
+		for (scaler_index = 0; scaler_index < 2; scaler_index++)
+			if ((gdisp.scaler[scaler_index].status & SCALER_USED) &&
+			    (gdisp.scaler[scaler_index].screen_index == sel)) {
+				/* interlace output */
+				if (Disp_get_screen_scan_mode(tv_mod) == 1)
+					Scaler_Set_Outitl(scaler_index, TRUE);
+				else
+					Scaler_Set_Outitl(scaler_index, FALSE);
+			}
+        }
+#endif /* CONFIG_ARCH_SUN5I */
+
     	TCON1_set_hdmi_mode(sel,tv_mod);		 	 
     	TCON1_open(sel);
     	if(gdisp.init_para.Hdmi_open)
@@ -113,6 +130,18 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
     	image_clk_off(sel);
     	lcdc_clk_off(sel);
     	hdmi_clk_off();
+
+#ifdef CONFIG_ARCH_SUN5I
+    	DE_BE_Set_Outitl_enable(sel, FALSE);
+	{
+		int scaler_index;
+
+		for (scaler_index=0; scaler_index<2; scaler_index++)
+			if ((gdisp.scaler[scaler_index].status & SCALER_USED) &&
+			    (gdisp.scaler[scaler_index].screen_index == sel))
+				Scaler_Set_Outitl(scaler_index, FALSE);
+        }
+#endif /* CONFIG_ARCH_SUN5I */
 
         gdisp.screen[sel].b_out_interlace = 0;
         gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
