@@ -88,7 +88,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long arg, struct task_struct *p,
-		struct pt_regs *regs)
+		struct pt_regs *unused)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct hexagon_switch_stack *ss;
@@ -117,10 +117,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		pt_set_kmode(childregs);
 		return 0;
 	}
-	memcpy(childregs, regs, sizeof(*childregs));
+	memcpy(childregs, current_pt_regs(), sizeof(*childregs));
 	ss->r2524 = 0;
 
-	pt_set_rte_sp(childregs, usp);
+	if (usp)
+		pt_set_rte_sp(childregs, usp);
 
 	/* Child sees zero return value */
 	childregs->r00 = 0;
