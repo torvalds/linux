@@ -183,6 +183,8 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_GEM_HWS_SCRATCH_INDEX	0x30
+#define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 

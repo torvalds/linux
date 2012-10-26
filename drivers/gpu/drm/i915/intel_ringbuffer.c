@@ -1395,10 +1395,17 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	/*
+	 * Bspec vol 1c.5 - video engine command streamer:
+	 * "If ENABLED, all TLBs will be invalidated once the flush
+	 * operation is complete. This bit is only valid when the
+	 * Post-Sync Operation field is a value of 1h or 3h."
+	 */
 	if (invalidate & I915_GEM_GPU_DOMAINS)
-		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD;
+		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD |
+			MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1460,10 +1467,17 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	/*
+	 * Bspec vol 1c.3 - blitter engine command streamer:
+	 * "If ENABLED, all TLBs will be invalidated once the flush
+	 * operation is complete. This bit is only valid when the
+	 * Post-Sync Operation field is a value of 1h or 3h."
+	 */
 	if (invalidate & I915_GEM_DOMAIN_RENDER)
-		cmd |= MI_INVALIDATE_TLB;
+		cmd |= MI_INVALIDATE_TLB | MI_FLUSH_DW_STORE_INDEX |
+			MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
