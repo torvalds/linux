@@ -162,8 +162,7 @@ static int __init gpio_clps711x_init(void)
 			    GFP_KERNEL);
 	if (!gpio) {
 		dev_err(&pdev->dev, "GPIO allocating memory error\n");
-		platform_device_del(pdev);
-		platform_device_put(pdev);
+		platform_device_unregister(pdev);
 		return -ENOMEM;
 	}
 
