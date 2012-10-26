@@ -61,20 +61,22 @@ AO commands are not supported.
 
 #include "comedi_fc.h"
 
-static const struct comedi_lrange range_dt3000_ai = { 4, {
-							  RANGE(-10, 10),
-							  RANGE(-5, 5),
-							  RANGE(-2.5, 2.5),
-							  RANGE(-1.25, 1.25)
-							  }
+static const struct comedi_lrange range_dt3000_ai = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_dt3000_ai_pgl = { 4, {
-							      RANGE(-10, 10),
-							      RANGE(-1, 1),
-							      RANGE(-0.1, 0.1),
-							      RANGE(-0.02, 0.02)
-							      }
+static const struct comedi_lrange range_dt3000_ai_pgl = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02)
+	}
 };
 
 struct dt3k_boardtype {
