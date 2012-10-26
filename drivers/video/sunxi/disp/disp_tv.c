@@ -256,7 +256,6 @@ __s32 BSP_disp_tv_open(__u32 sel)
 #ifdef CONFIG_ARCH_SUN5I
 	Disp_de_flicker_enable(sel, TRUE);
 #endif
-#ifdef __LINUX_OSAL__
         {
             user_gpio_set_t  gpio_info[1];
             __hdle gpio_pa_shutdown;
@@ -281,7 +280,6 @@ __s32 BSP_disp_tv_open(__u32 sel)
                 }
             }
         }
-#endif
         gdisp.screen[sel].b_out_interlace = Disp_get_screen_scan_mode(tv_mod);
         gdisp.screen[sel].status |= TV_ON;
         gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
@@ -291,9 +289,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
         Disp_set_out_interlace(sel);
 #endif
 
-#ifdef __LINUX_OSAL__
         Display_set_fb_timming(sel);
-#endif
     }
     return DIS_SUCCESS;
 }
@@ -324,7 +320,6 @@ __s32 BSP_disp_tv_close(__u32 sel)
         }
 #endif /* CONFIG_ARCH_SUN5I */
         
-#ifdef __LINUX_OSAL__
         {
             user_gpio_set_t  gpio_info[1];
             __hdle gpio_pa_shutdown;
@@ -349,7 +344,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
                 }
             }
         }
-#endif
+
 		gdisp.screen[sel].b_out_interlace = 0;
         gdisp.screen[sel].status &= TV_OFF;
         gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;

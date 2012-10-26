@@ -85,9 +85,7 @@ __s32 BSP_disp_vga_open(__u32 sel)
     	gdisp.screen[sel].status |= VGA_ON;
     	gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
     	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_VGA;
-#ifdef __LINUX_OSAL__
         Display_set_fb_timming(sel);
-#endif
 	}
 	
 	return DIS_SUCCESS;
