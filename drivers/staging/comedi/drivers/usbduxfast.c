@@ -370,9 +370,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		return;
 
 	default:
-		printk("comedi%d: usbduxfast: non-zero urb status received in "
-		       "ai intr context: %d\n",
-		       udfs->comedidev->minor, urb->status);
+		pr_err("non-zero urb status received in ai intr context: %d\n",
+		       urb->status);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(udfs->comedidev, s);
@@ -454,7 +453,8 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0) {
-		printk("comedi_: usbduxfast_: control msg failed (start)\n");
+		dev_err(&udfs->interface->dev,
+			"control msg failed (start)\n");
 		return ret;
 	}
 
