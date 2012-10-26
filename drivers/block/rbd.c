@@ -168,7 +168,6 @@ struct rbd_snap {
 struct rbd_mapping {
 	u64                     size;
 	u64                     features;
-	bool                    snap_exists;
 	bool			read_only;
 };
 
@@ -189,6 +188,7 @@ struct rbd_device {
 	spinlock_t		lock;		/* queue lock */
 
 	struct rbd_image_header	header;
+	bool                    exists;
 	char			*image_id;
 	size_t			image_id_len;
 	char			*image_name;
@@ -690,16 +690,15 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev, char *snap_name)
 		rbd_dev->snap_id = CEPH_NOSNAP;
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.features = rbd_dev->header.features;
-		rbd_dev->mapping.snap_exists = false;
 		ret = 0;
 	} else {
 		ret = snap_by_name(rbd_dev, snap_name);
 		if (ret < 0)
 			goto done;
-		rbd_dev->mapping.snap_exists = true;
 		rbd_dev->mapping.read_only = true;
 	}
 	rbd_dev->snap_name = snap_name;
+	rbd_dev->exists = true;
 done:
 	return ret;
 }
@@ -1562,8 +1561,8 @@ static void rbd_rq_fn(struct request_queue *q)
 
 		down_read(&rbd_dev->header_rwsem);
 
-		if (rbd_dev->snap_id != CEPH_NOSNAP &&
-				!rbd_dev->mapping.snap_exists) {
+		if (!rbd_dev->exists) {
+			rbd_assert(rbd_dev->snap_id != CEPH_NOSNAP);
 			up_read(&rbd_dev->header_rwsem);
 			dout("request for non-existent snapshot");
 			spin_lock_irq(q->queue_lock);
@@ -2569,7 +2568,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			/* Existing snapshot not in the new snap context */
 
 			if (rbd_dev->snap_id == snap->id)
-				rbd_dev->mapping.snap_exists = false;
+				rbd_dev->exists = false;
 			rbd_remove_snap_dev(snap);
 			dout("%ssnap id %llu has been removed\n",
 				rbd_dev->snap_id == snap->id ?  "mapped " : "",
