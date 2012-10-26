@@ -11,7 +11,7 @@
 #ifndef __DE_IEP_H__
 #define __DE_IEP_H__
 
-#include "de_bsp_sun5i/bsp_display.h"
+#include "bsp_display.h"
 
 #ifndef CONFIG_ARCH_SUN5I
 #error IEP should only be used on sun5i

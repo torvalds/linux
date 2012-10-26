@@ -22,7 +22,7 @@
 #ifndef _LCDC_TVE_H_
 #define _LCDC_TVE_H_
 
-#include "../../bsp_display.h"
+#include "bsp_display.h"
 
 #define LCDC_VBI_LCD_EN 0x80000000
 #define LCDC_VBI_HD_EN 0x40000000

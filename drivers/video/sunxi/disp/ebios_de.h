@@ -22,7 +22,7 @@
 #ifndef __EBIOS_DE_H__
 #define __EBIOS_DE_H__
 
-#include "../../bsp_display.h"
+#include "bsp_display.h"
 
 #define DE_WB_END_IE    			(1<<7)      /*write back end interrupt */
 #define DE_FE_INTEN_ALL             0x1ff     /*front-end all interrupt enable*/

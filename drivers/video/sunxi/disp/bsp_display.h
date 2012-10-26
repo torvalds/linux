@@ -63,7 +63,7 @@
 typedef unsigned int __hdle;
 
 #include <linux/drv_display.h>
-#include "../OSAL/OSAL.h"
+#include "OSAL/OSAL.h"
 
 #if 1
 #define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[DISP] ");printk(msg);}
