@@ -16,11 +16,11 @@
 #include "session.h"
 #include "tool.h"
 
-static int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
-				  union perf_event *event,
-				  struct perf_sample *sample __maybe_unused,
-				  struct perf_evsel *evsel __maybe_unused,
-				  struct machine *machine)
+int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
+			   union perf_event *event,
+			   struct perf_sample *sample __maybe_unused,
+			   struct perf_evsel *evsel __maybe_unused,
+			   struct machine *machine)
 {
 	struct addr_location al;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;

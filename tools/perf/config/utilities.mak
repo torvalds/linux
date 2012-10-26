@@ -183,9 +183,8 @@ _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 # Usage: option = $(call try-cc, source-to-build, cc-options, msg)
 ifndef V
 TRY_CC_OUTPUT= > /dev/null 2>&1
-else
-TRY_CC_MSG=echo "CHK $(3)" 1>&2;
 endif
+TRY_CC_MSG=echo "    CHK $(3)" 1>&2;
 
 try-cc = $(shell sh -c						  \
 	'TMP="$(OUTPUT)$(TMPOUT).$$$$";				  \

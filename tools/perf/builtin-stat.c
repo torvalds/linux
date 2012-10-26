@@ -57,6 +57,7 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 
+#include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
 
@@ -83,6 +84,9 @@ static const char		*csv_sep			= NULL;
 static bool			csv_output			= false;
 static bool			group				= false;
 static FILE			*output				= NULL;
+static const char		*pre_cmd			= NULL;
+static const char		*post_cmd			= NULL;
+static bool			sync_run			= false;
 
 static volatile int done = 0;
 
@@ -265,7 +269,7 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
-static int run_perf_stat(int argc __maybe_unused, const char **argv)
+static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 {
 	unsigned long long t0, t1;
 	struct perf_evsel *counter, *first;
@@ -403,6 +407,32 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 	}
 
 	return WEXITSTATUS(status);
+}
+
+static int run_perf_stat(int argc __maybe_unused, const char **argv)
+{
+	int ret;
+
+	if (pre_cmd) {
+		ret = system(pre_cmd);
+		if (ret)
+			return ret;
+	}
+
+	if (sync_run)
+		sync();
+
+	ret = __run_perf_stat(argc, argv);
+	if (ret)
+		return ret;
+
+	if (post_cmd) {
+		ret = system(post_cmd);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 static void print_noise_pct(double total, double avg)
@@ -1069,8 +1099,7 @@ static int add_default_attributes(void)
 
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	bool append_file = false,
-	     sync_run = false;
+	bool append_file = false;
 	int output_fd = 0;
 	const char *output_name	= NULL;
 	const struct option options[] = {
@@ -1114,6 +1143,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
 	OPT_INTEGER(0, "log-fd", &output_fd,
 		    "log output to fd, instead of stderr"),
+	OPT_STRING(0, "pre", &pre_cmd, "command",
+			"command to run prior to the measured command"),
+	OPT_STRING(0, "post", &post_cmd, "command",
+			"command to run after to the measured command"),
 	OPT_END()
 	};
 	const char * const stat_usage[] = {
@@ -1237,9 +1270,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (run_count != 1 && verbose)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
-
-		if (sync_run)
-			sync();
 
 		status = run_perf_stat(argc, argv);
 	}
