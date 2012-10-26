@@ -127,8 +127,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 .adbits = 12,
 	 .adrange = &range_dt3000_ai,
 	 .ai_speed = 3000,
-	 .dachan = 0,
-	 .dabits = 0,
 	 },
 	{.name = "dt3003",
 	 .device_id = PCI_DEVICE_ID_DT3003,
