@@ -1758,21 +1758,7 @@ static struct pci_driver rio_driver = {
 	.remove		= __devexit_p(rio_remove1),
 };
 
-static int __init
-rio_init (void)
-{
-	return pci_register_driver(&rio_driver);
-}
-
-static void __exit
-rio_exit (void)
-{
-	pci_unregister_driver (&rio_driver);
-}
-
-module_init (rio_init);
-module_exit (rio_exit);
-
+module_pci_driver(rio_driver);
 /*
 
 Compile command:
