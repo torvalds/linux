@@ -11,7 +11,6 @@
 *****************************************************************************/
 
 #include "csr_sched.h"
-#include "csr_panic.h"
 #include "csr_prim_defs.h"
 #include "csr_msgconv.h"
 
@@ -79,18 +78,6 @@ u8 CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
  */
 #define CSR_LOG_STRINGIFY_REAL(a) (#a)
 #define CSR_LOG_STRINGIFY(a) CSR_LOG_STRINGIFY_REAL(a)
-
-#ifdef CSR_LOG_ASSERT_ENABLE
-#define CSR_LOG_ASSERT(cond) \
-	do { \
-		if (!(cond)) { \
-			char *panic_arg = "[" __FILE__ ":" CSR_LOG_STRINGIFY(__LINE__) "] - " CSR_LOG_STRINGIFY(cond); \
-			CsrPanic(CSR_TECH_FW, CSR_PANIC_FW_ASSERTION_FAIL, panic_arg); \
-		} \
-	} while (0)
-#else
-#define CSR_LOG_ASSERT(cond)
-#endif
 
 typedef struct {
 	u16            primitiveType;

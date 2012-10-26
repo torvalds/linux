@@ -17,7 +17,6 @@ extern "C" {
 
 #include <linux/types.h>
 #include "csr_macro.h"
-#include "csr_panic.h"
 #include "csr_sched.h"
 
 #ifdef CSR_WIFI_FSM_MUTEX_ENABLE
