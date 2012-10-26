@@ -1070,7 +1070,7 @@ int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family)
 }
 EXPORT_SYMBOL(tcp_md5_do_del);
 
-void tcp_clear_md5_list(struct sock *sk)
+static void tcp_clear_md5_list(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
