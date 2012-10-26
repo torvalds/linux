@@ -453,26 +453,10 @@ static int parse_rbd_opts_token(char *c, void *private)
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.
  */
-static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
-				size_t mon_addr_len, char *options)
+static int rbd_get_client(struct rbd_device *rbd_dev,
+				struct ceph_options *ceph_opts)
 {
-	struct rbd_options rbd_opts;
-	struct ceph_options *ceph_opts;
 	struct rbd_client *rbdc;
-
-	/* Initialize all rbd options to the defaults */
-
-	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
-
-	ceph_opts = ceph_parse_options(options, mon_addr,
-					mon_addr + mon_addr_len,
-					parse_rbd_opts_token, &rbd_opts);
-	if (IS_ERR(ceph_opts))
-		return PTR_ERR(ceph_opts);
-
-	/* Record the parsed rbd options */
-
-	rbd_dev->mapping.read_only = rbd_opts.read_only;
 
 	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc) {
@@ -3132,9 +3116,11 @@ static ssize_t rbd_add(struct bus_type *bus,
 	struct rbd_device *rbd_dev = NULL;
 	const char *mon_addrs = NULL;
 	size_t mon_addrs_size = 0;
+	char *snap_name;
+	struct rbd_options rbd_opts;
+	struct ceph_options *ceph_opts;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
-	char *snap_name;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
@@ -3160,9 +3146,26 @@ static ssize_t rbd_add(struct bus_type *bus,
 		goto err_out_mem;
 	}
 
-	rc = rbd_get_client(rbd_dev, mon_addrs, mon_addrs_size - 1, options);
-	if (rc < 0)
+	/* Initialize all rbd options to the defaults */
+
+	rbd_opts.read_only = RBD_READ_ONLY_DEFAULT;
+
+	ceph_opts = ceph_parse_options(options, mon_addrs,
+					mon_addrs + mon_addrs_size - 1,
+					parse_rbd_opts_token, &rbd_opts);
+	if (IS_ERR(ceph_opts)) {
+		rc = PTR_ERR(ceph_opts);
 		goto err_out_args;
+	}
+
+	/* Record the parsed rbd options */
+
+	rbd_dev->mapping.read_only = rbd_opts.read_only;
+
+	rc = rbd_get_client(rbd_dev, ceph_opts);
+	if (rc < 0)
+		goto err_out_opts;
+	ceph_opts = NULL;	/* ceph_opts now owned by rbd_dev client */
 
 	/* pick the pool */
 	osdc = &rbd_dev->rbd_client->client->osdc;
@@ -3254,6 +3257,9 @@ err_out_client:
 	kfree(rbd_dev->header_name);
 	rbd_put_client(rbd_dev);
 	kfree(rbd_dev->image_id);
+err_out_opts:
+	if (ceph_opts)
+		ceph_destroy_options(ceph_opts);
 err_out_args:
 	kfree(rbd_dev->snap_name);
 	kfree(rbd_dev->image_name);
