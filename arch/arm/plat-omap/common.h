@@ -1,7 +1,5 @@
 /*
- * arch/arm/plat-omap/include/mach/common.h
- *
- * Header for code common to all OMAP machines.
+ * Header for shared OMAP code in plat-omap.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,16 +25,12 @@
 #ifndef __ARCH_ARM_MACH_OMAP_COMMON_H
 #define __ARCH_ARM_MACH_OMAP_COMMON_H
 
-#include <plat/i2c.h>
-#include <plat/omap_hwmod.h>
-
 extern int __init omap_init_clocksource_32k(void __iomem *vbase);
 
 extern void __init omap_check_revision(void);
 
 extern void omap_reserve(void);
+struct omap_hwmod;
 extern int omap_dss_reset(struct omap_hwmod *);
-
-void omap_sram_init(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

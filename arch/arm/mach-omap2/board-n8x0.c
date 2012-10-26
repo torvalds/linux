@@ -29,9 +29,10 @@
 
 #include "common.h"
 #include <plat/menelaus.h>
-#include <plat/mmc.h>
+#include "mmc.h"
 
 #include "mux.h"
+#include "gpmc-onenand.h"
 
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4

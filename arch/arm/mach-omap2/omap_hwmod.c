@@ -139,8 +139,8 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 
-#include <plat/clock.h>
-#include <plat/omap_hwmod.h>
+#include "clock.h"
+#include "omap_hwmod.h"
 #include <plat/prcm.h>
 
 #include "soc.h"

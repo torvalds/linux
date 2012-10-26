@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "../plat-omap/common.h"
 
 #include "cm.h"
 #include "cm33xx.h"

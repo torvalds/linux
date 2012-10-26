@@ -11,6 +11,8 @@
 #ifndef __OMAP2_GPMC_H
 #define __OMAP2_GPMC_H
 
+#include <linux/platform_data/mtd-nand-omap2.h>
+
 /* Maximum Number of Chip Selects */
 #define GPMC_CS_NUM		8
 
@@ -31,15 +33,6 @@
 #define GPMC_CONFIG_DEV_TYPE	0x00000003
 #define GPMC_SET_IRQ_STATUS	0x00000004
 #define GPMC_CONFIG_WP		0x00000005
-
-#define GPMC_GET_IRQ_STATUS	0x00000006
-#define GPMC_PREFETCH_FIFO_CNT	0x00000007 /* bytes available in FIFO for r/w */
-#define GPMC_PREFETCH_COUNT	0x00000008 /* remaining bytes to be read/write*/
-#define GPMC_STATUS_BUFFER	0x00000009 /* 1: buffer is available to write */
-
-#define GPMC_NAND_COMMAND	0x0000000a
-#define GPMC_NAND_ADDRESS	0x0000000b
-#define GPMC_NAND_DATA		0x0000000c
 
 #define GPMC_ENABLE_IRQ		0x0000000d
 
@@ -76,25 +69,10 @@
 #define GPMC_DEVICETYPE_NOR		0
 #define GPMC_DEVICETYPE_NAND		2
 #define GPMC_CONFIG_WRITEPROTECT	0x00000010
-#define GPMC_STATUS_BUFF_EMPTY		0x00000001
 #define WR_RD_PIN_MONITORING		0x00600000
-#define GPMC_PREFETCH_STATUS_FIFO_CNT(val)	((val >> 24) & 0x7F)
-#define GPMC_PREFETCH_STATUS_COUNT(val)	(val & 0x00003fff)
 #define GPMC_IRQ_FIFOEVENTENABLE	0x01
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
-#define PREFETCH_FIFOTHRESHOLD_MAX	0x40
-#define PREFETCH_FIFOTHRESHOLD(val)	((val) << 8)
-
-enum omap_ecc {
-		/* 1-bit ecc: stored at end of spare area */
-	OMAP_ECC_HAMMING_CODE_DEFAULT = 0, /* Default, s/w method */
-	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
-		/* 1-bit ecc: stored at beginning of spare area as romcode */
-	OMAP_ECC_HAMMING_CODE_HW_ROMCODE, /* gpmc method & romcode layout */
-	OMAP_ECC_BCH4_CODE_HW, /* 4-bit BCH ecc code */
-	OMAP_ECC_BCH8_CODE_HW, /* 8-bit BCH ecc code */
-};
 
 /*
  * Note that all values in this struct are in nanoseconds except sync_clk
@@ -133,22 +111,6 @@ struct gpmc_timings {
 	u16 wr_data_mux_bus;	/* WRDATAONADMUXBUS */
 };
 
-struct gpmc_nand_regs {
-	void __iomem	*gpmc_status;
-	void __iomem	*gpmc_nand_command;
-	void __iomem	*gpmc_nand_address;
-	void __iomem	*gpmc_nand_data;
-	void __iomem	*gpmc_prefetch_config1;
-	void __iomem	*gpmc_prefetch_config2;
-	void __iomem	*gpmc_prefetch_control;
-	void __iomem	*gpmc_prefetch_status;
-	void __iomem	*gpmc_ecc_config;
-	void __iomem	*gpmc_ecc_control;
-	void __iomem	*gpmc_ecc_size_config;
-	void __iomem	*gpmc_ecc1_result;
-	void __iomem	*gpmc_bch_result0;
-};
-
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
 extern int gpmc_get_client_irq(unsigned irq_config);
 
@@ -160,31 +122,14 @@ extern unsigned long gpmc_get_fclk_period(void);
 
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
 extern u32 gpmc_cs_read_reg(int cs, int idx);
-extern int gpmc_cs_calc_divider(int cs, unsigned int sync_clk);
+extern int gpmc_calc_divider(unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern int gpmc_cs_set_reserved(int cs, int reserved);
 extern int gpmc_cs_reserved(int cs);
-extern int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
-					unsigned int u32_count, int is_write);
-extern int gpmc_prefetch_reset(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
-extern int gpmc_read_status(int cmd);
 extern int gpmc_cs_configure(int cs, int cmd, int wval);
-extern int gpmc_nand_read(int cs, int cmd);
-extern int gpmc_nand_write(int cs, int cmd, int wval);
-
-int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size);
-int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code);
-
-#ifdef CONFIG_ARCH_OMAP3
-int gpmc_init_hwecc_bch(int cs, int nsectors, int nerrors);
-int gpmc_enable_hwecc_bch(int cs, int mode, int dev_width, int nsectors,
-			  int nerrors);
-int gpmc_calculate_ecc_bch4(int cs, const u_char *dat, u_char *ecc);
-int gpmc_calculate_ecc_bch8(int cs, const u_char *dat, u_char *ecc);
-#endif /* CONFIG_ARCH_OMAP3 */
 
 #endif

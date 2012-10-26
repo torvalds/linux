@@ -19,17 +19,19 @@
 
 #include <asm/mach/map.h>
 
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <mach/mux.h>
-#include <plat/dma.h>
-#include <plat/mmc.h>
 
 #include <mach/omap7xx.h>
 #include <mach/camera.h>
 #include <mach/hardware.h>
 
+#include "../plat-omap/sram.h"
+
 #include "common.h"
 #include "clock.h"
+#include "dma.h"
+#include "mmc.h"
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 
@@ -174,6 +176,13 @@ static int __init omap_mmc_add(const char *name, int id, unsigned long base,
 	res[3].start = tx_req;
 	res[3].name = "tx";
 	res[3].flags = IORESOURCE_DMA;
+
+	if (cpu_is_omap7xx())
+		data->slots[0].features = MMC_OMAP7XX;
+	if (cpu_is_omap15xx())
+		data->slots[0].features = MMC_OMAP15XX;
+	if (cpu_is_omap16xx())
+		data->slots[0].features = MMC_OMAP16XX;
 
 	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
 	if (ret == 0)

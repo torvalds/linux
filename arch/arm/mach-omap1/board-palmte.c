@@ -36,8 +36,8 @@
 
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/tc.h>
-#include <plat/dma.h>
+#include <mach/tc.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 
@@ -45,6 +45,7 @@
 #include <mach/usb.h>
 
 #include "common.h"
+#include "dma.h"
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1
@@ -264,7 +265,6 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmte_init,
 	.init_late	= omap1_init_late,

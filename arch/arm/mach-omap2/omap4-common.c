@@ -25,16 +25,15 @@
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
 
-#include <plat/sram.h>
-#include <plat/omap-secure.h>
-#include <plat/mmc.h>
+#include "../plat-omap/sram.h"
 
 #include "omap-wakeupgen.h"
-
 #include "soc.h"
 #include "common.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "omap4-sar-layout.h"
+#include "omap-secure.h"
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;

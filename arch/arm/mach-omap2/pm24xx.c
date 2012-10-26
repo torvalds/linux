@@ -36,11 +36,13 @@
 #include <asm/mach-types.h>
 #include <asm/system_misc.h>
 
-#include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
+#include "../plat-omap/sram.h"
+
+#include "soc.h"
 #include "common.h"
+#include "clock.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 #include "cm2xxx_3xxx.h"

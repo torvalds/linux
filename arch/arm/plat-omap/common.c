@@ -16,33 +16,12 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
-#include <plat/common.h>
-#include <plat/vram.h>
-#include <linux/platform_data/dsp-omap.h>
-#include <plat/dma.h>
-
-#include <plat/omap-secure.h>
-
-void __init omap_reserve(void)
-{
-	omap_vram_reserve_sdram_memblock();
-	omap_dsp_reserve_sdram_memblock();
-	omap_secure_ram_reserve_memblock();
-	omap_barrier_reserve_memblock();
-}
+#include "common.h"
+#include <plat-omap/dma-omap.h>
 
 void __init omap_init_consistent_dma_size(void)
 {
 #ifdef CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE
 	init_consistent_dma_size(CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE << 20);
 #endif
-}
-
-/*
- * Stub function for OMAP2 so that common files
- * continue to build when custom builds are used
- */
-int __weak omap_secure_ram_reserve_memblock(void)
-{
-	return 0;
 }

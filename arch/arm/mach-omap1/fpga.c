@@ -27,7 +27,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
-#include <plat/fpga.h>
+#include <../plat-omap/fpga.h>
 
 #include <mach/hardware.h>
 
