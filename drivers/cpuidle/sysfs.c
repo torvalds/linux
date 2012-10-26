@@ -374,8 +374,8 @@ int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 		kobj->state_usage = &device->states_usage[i];
 		init_completion(&kobj->kobj_unregister);
 
-		ret = kobject_init_and_add(&kobj->kobj, &ktype_state_cpuidle, &device->kobj,
-					   "state%d", i);
+		ret = kobject_init_and_add(&kobj->kobj, &ktype_state_cpuidle,
+					   &device->kobj, "state%d", i);
 		if (ret) {
 			kfree(kobj);
 			goto error_state;
@@ -413,6 +413,8 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 	struct device *cpu_dev = get_cpu_device((unsigned long)dev->cpu);
 	int error;
 
+	init_completion(&dev->kobj_unregister);
+
 	error = kobject_init_and_add(&dev->kobj, &ktype_cpuidle, &cpu_dev->kobj,
 				     "cpuidle");
 	if (!error)
@@ -427,4 +429,5 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 void cpuidle_remove_sysfs(struct cpuidle_device *dev)
 {
 	kobject_put(&dev->kobj);
+	wait_for_completion(&dev->kobj_unregister);
 }
