@@ -694,6 +694,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	struct inode *inode = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
 	unsigned long newdatasize;
+	ssize_t bytes = 0;
 
 	if (count < sizeof(attributes))
 		return -EINVAL;
@@ -706,22 +707,22 @@ static ssize_t efivarfs_file_write(struct file *file,
 	efivars = var->efivars;
 
 	if (copy_from_user(&attributes, userbuf, sizeof(attributes))) {
-		count = -EFAULT;
+		bytes = -EFAULT;
 		goto out;
 	}
 
 	if (attributes & ~(EFI_VARIABLE_MASK)) {
-		count = -EINVAL;
+		bytes = -EINVAL;
 		goto out;
 	}
 
 	if (copy_from_user(data, userbuf + sizeof(attributes), datasize)) {
-		count = -EFAULT;
+		bytes = -EFAULT;
 		goto out;
 	}
 
 	if (validate_var(&var->var, data, datasize) == false) {
-		count = -EINVAL;
+		bytes = -EINVAL;
 		goto out;
 	}
 
@@ -743,6 +744,8 @@ static ssize_t efivarfs_file_write(struct file *file,
 
 		return efi_status_to_err(status);
 	}
+
+	bytes = count;
 
 	/*
 	 * Writing to the variable may have caused a change in size (which
@@ -778,7 +781,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 out:
 	kfree(data);
 
-	return count;
+	return bytes;
 }
 
 static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
