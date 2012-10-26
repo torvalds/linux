@@ -1037,12 +1037,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	/* only now - we want root dentry with NULL ->d_op */
 	sb->s_d_op = &fuse_dentry_operations;
 
-	init_req = fuse_request_alloc();
+	init_req = fuse_request_alloc(0);
 	if (!init_req)
 		goto err_put_root;
 
 	if (is_bdev) {
-		fc->destroy_req = fuse_request_alloc();
+		fc->destroy_req = fuse_request_alloc(0);
 		if (!fc->destroy_req)
 			goto err_free_init_req;
 	}

@@ -34,34 +34,55 @@ static struct fuse_conn *fuse_get_conn(struct file *file)
 	return file->private_data;
 }
 
-static void fuse_request_init(struct fuse_req *req)
+static void fuse_request_init(struct fuse_req *req, struct page **pages,
+			      unsigned npages)
 {
 	memset(req, 0, sizeof(*req));
+	memset(pages, 0, sizeof(*pages) * npages);
 	INIT_LIST_HEAD(&req->list);
 	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
 	atomic_set(&req->count, 1);
+	req->pages = pages;
+	req->max_pages = npages;
 }
 
-struct fuse_req *fuse_request_alloc(void)
+static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 {
-	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_KERNEL);
-	if (req)
-		fuse_request_init(req);
+	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, flags);
+	if (req) {
+		struct page **pages;
+
+		if (npages <= FUSE_REQ_INLINE_PAGES)
+			pages = req->inline_pages;
+		else
+			pages = kmalloc(sizeof(struct page *) * npages, flags);
+
+		if (!pages) {
+			kmem_cache_free(fuse_req_cachep, req);
+			return NULL;
+		}
+
+		fuse_request_init(req, pages, npages);
+	}
 	return req;
+}
+
+struct fuse_req *fuse_request_alloc(unsigned npages)
+{
+	return __fuse_request_alloc(npages, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(fuse_request_alloc);
 
-struct fuse_req *fuse_request_alloc_nofs(void)
+struct fuse_req *fuse_request_alloc_nofs(unsigned npages)
 {
-	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_NOFS);
-	if (req)
-		fuse_request_init(req);
-	return req;
+	return __fuse_request_alloc(npages, GFP_NOFS);
 }
 
 void fuse_request_free(struct fuse_req *req)
 {
+	if (req->pages != req->inline_pages)
+		kfree(req->pages);
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
@@ -116,7 +137,7 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	if (!fc->connected)
 		goto out;
 
-	req = fuse_request_alloc();
+	req = fuse_request_alloc(FUSE_MAX_PAGES_PER_REQ);
 	err = -ENOMEM;
 	if (!req)
 		goto out;
@@ -165,7 +186,7 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
 	struct fuse_file *ff = file->private_data;
 
 	spin_lock(&fc->lock);
-	fuse_request_init(req);
+	fuse_request_init(req, req->pages, req->max_pages);
 	BUG_ON(ff->reserved_req);
 	ff->reserved_req = req;
 	wake_up_all(&fc->reserved_req_waitq);
@@ -192,7 +213,7 @@ struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file)
 
 	atomic_inc(&fc->num_waiting);
 	wait_event(fc->blocked_waitq, !fc->blocked);
-	req = fuse_request_alloc();
+	req = fuse_request_alloc(FUSE_MAX_PAGES_PER_REQ);
 	if (!req)
 		req = get_reserved_req(fc, file);
 
