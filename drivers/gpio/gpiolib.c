@@ -756,7 +756,8 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 				__func__, gpio,
 				test_bit(FLAG_REQUESTED, &desc->flags),
 				test_bit(FLAG_EXPORT, &desc->flags));
-		return -EPERM;
+		status = -EPERM;
+		goto fail_unlock;
 	}
 
 	if (!desc->chip->direction_input || !desc->chip->direction_output)
