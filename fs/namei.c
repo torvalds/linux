@@ -705,8 +705,8 @@ static inline void put_link(struct nameidata *nd, struct path *link, void *cooki
 	path_put(link);
 }
 
-int sysctl_protected_symlinks __read_mostly = 1;
-int sysctl_protected_hardlinks __read_mostly = 1;
+int sysctl_protected_symlinks __read_mostly = 0;
+int sysctl_protected_hardlinks __read_mostly = 0;
 
 /**
  * may_follow_link - Check symlink following for unsafe situations
