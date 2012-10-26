@@ -3739,27 +3739,21 @@ static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
 }
 
 /*
- * make mem_cgroup's charge to be 0 if there is no task.
+ * make mem_cgroup's charge to be 0 if there is no task by moving
+ * all the charges and pages to the parent.
  * This enables deleting this mem_cgroup.
+ *
+ * Caller is responsible for holding css reference on the memcg.
  */
-static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
+static int mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
 {
-	int ret;
-	int node, zid, shrink;
-	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct cgroup *cgrp = memcg->css.cgroup;
+	int node, zid;
+	int ret;
 
-	css_get(&memcg->css);
-
-	shrink = 0;
-	/* should free all ? */
-	if (free_all)
-		goto try_to_free;
-move_account:
 	do {
-		ret = -EBUSY;
 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
-			goto out;
+			return -EBUSY;
 		/* This is for making all *used* pages to be on LRU. */
 		lru_add_drain_all();
 		drain_all_stock_sync(memcg);
@@ -3783,27 +3777,34 @@ move_account:
 		cond_resched();
 	/* "ret" should also be checked to ensure all lists are empty. */
 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
-out:
-	css_put(&memcg->css);
-	return ret;
 
-try_to_free:
+	return ret;
+}
+
+/*
+ * Reclaims as many pages from the given memcg as possible and moves
+ * the rest to the parent.
+ *
+ * Caller is responsible for holding css reference for memcg.
+ */
+static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+{
+	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+	struct cgroup *cgrp = memcg->css.cgroup;
+
 	/* returns EBUSY if there is a task or if we come here twice. */
-	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children) || shrink) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+		return -EBUSY;
+
 	/* we call try-to-free pages for make this cgroup empty */
 	lru_add_drain_all();
 	/* try to free all pages in this cgroup */
-	shrink = 1;
 	while (nr_retries && res_counter_read_u64(&memcg->res, RES_USAGE) > 0) {
 		int progress;
 
-		if (signal_pending(current)) {
-			ret = -EINTR;
-			goto out;
-		}
+		if (signal_pending(current))
+			return -EINTR;
+
 		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
 						false);
 		if (!progress) {
@@ -3814,13 +3815,19 @@ try_to_free:
 
 	}
 	lru_add_drain();
-	/* try move_account...there may be some *locked* pages. */
-	goto move_account;
+	return mem_cgroup_reparent_charges(memcg);
 }
 
 static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
 {
-	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	int ret;
+
+	css_get(&memcg->css);
+	ret = mem_cgroup_force_empty(memcg);
+	css_put(&memcg->css);
+
+	return ret;
 }
 
 
@@ -5003,8 +5010,13 @@ free_out:
 static int mem_cgroup_pre_destroy(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	int ret;
 
-	return mem_cgroup_force_empty(memcg, false);
+	css_get(&memcg->css);
+	ret = mem_cgroup_reparent_charges(memcg);
+	css_put(&memcg->css);
+
+	return ret;
 }
 
 static void mem_cgroup_destroy(struct cgroup *cont)
