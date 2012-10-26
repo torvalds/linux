@@ -49,6 +49,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	int pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
 	int pixel_size;
+	unsigned long sprsurf_offset, linear_offset;
 
 	sprctl = I915_READ(SPRCTL(pipe));
 
@@ -128,24 +129,27 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
 
-	if (IS_HASWELL(dev)) {
-		/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single
-		 * SPROFFSET register */
-		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
-	} else if (obj->tiling_mode != I915_TILING_NONE) {
-		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
-	} else {
-		unsigned long offset;
+	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
+	sprsurf_offset =
+		intel_gen4_compute_offset_xtiled(&x, &y,
+						 fb->bits_per_pixel / 8,
+						 fb->pitches[0]);
+	linear_offset -= sprsurf_offset;
 
-		offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
-		I915_WRITE(SPRLINOFF(pipe), offset);
-	}
+	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
+	 * register */
+	if (IS_HASWELL(dev))
+		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
+	else if (obj->tiling_mode != I915_TILING_NONE)
+		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
+	else
+		I915_WRITE(SPRLINOFF(pipe), linear_offset);
 
 	I915_WRITE(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
-	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset);
+	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
 }
 
@@ -234,6 +238,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe, pixel_size;
+	unsigned long dvssurf_offset, linear_offset;
 	u32 dvscntr, dvsscale;
 
 	dvscntr = I915_READ(DVSCNTR(pipe));
@@ -297,18 +302,23 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
-	if (obj->tiling_mode != I915_TILING_NONE) {
-		I915_WRITE(DVSTILEOFF(pipe), (y << 16) | x);
-	} else {
-		unsigned long offset;
 
-		offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
-		I915_WRITE(DVSLINOFF(pipe), offset);
-	}
+	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
+	dvssurf_offset =
+		intel_gen4_compute_offset_xtiled(&x, &y,
+						 fb->bits_per_pixel / 8,
+						 fb->pitches[0]);
+	linear_offset -= dvssurf_offset;
+
+	if (obj->tiling_mode != I915_TILING_NONE)
+		I915_WRITE(DVSTILEOFF(pipe), (y << 16) | x);
+	else
+		I915_WRITE(DVSLINOFF(pipe), linear_offset);
+
 	I915_WRITE(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE(DVSSCALE(pipe), dvsscale);
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
-	I915_MODIFY_DISPBASE(DVSSURF(pipe), obj->gtt_offset);
+	I915_MODIFY_DISPBASE(DVSSURF(pipe), obj->gtt_offset + dvssurf_offset);
 	POSTING_READ(DVSSURF(pipe));
 }
 

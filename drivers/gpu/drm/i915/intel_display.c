@@ -1955,9 +1955,9 @@ void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
  * is assumed to be a power-of-two. */
-static unsigned long gen4_compute_dspaddr_offset_xtiled(int *x, int *y,
-							unsigned int bpp,
-							unsigned int pitch)
+unsigned long intel_gen4_compute_offset_xtiled(int *x, int *y,
+					       unsigned int bpp,
+					       unsigned int pitch)
 {
 	int tile_rows, tiles;
 
@@ -2029,9 +2029,9 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		intel_crtc->dspaddr_offset =
-			gen4_compute_dspaddr_offset_xtiled(&x, &y,
-							   fb->bits_per_pixel / 8,
-							   fb->pitches[0]);
+			intel_gen4_compute_offset_xtiled(&x, &y,
+							 fb->bits_per_pixel / 8,
+							 fb->pitches[0]);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
@@ -2118,9 +2118,9 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 	intel_crtc->dspaddr_offset =
-		gen4_compute_dspaddr_offset_xtiled(&x, &y,
-						   fb->bits_per_pixel / 8,
-						   fb->pitches[0]);
+		intel_gen4_compute_offset_xtiled(&x, &y,
+						 fb->bits_per_pixel / 8,
+						 fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
 
 	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
