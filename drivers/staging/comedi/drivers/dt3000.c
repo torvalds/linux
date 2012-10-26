@@ -159,8 +159,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 },
 };
 
-#define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
-
 #define DT3000_SIZE		(4*0x1000)
 
 /* dual-ported RAM location definitions */
@@ -410,6 +408,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct dt3k_boardtype *this_board = comedi_board(dev);
 	int err = 0;
 	int tmp;
 
@@ -796,6 +795,7 @@ static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
 
 static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dt3k_boardtype *this_board;
 	struct dt3k_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
@@ -813,6 +813,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	this_board = comedi_board(dev);
 
 	ret = comedi_pci_enable(pcidev, "dt3000");
 	if (ret < 0)
