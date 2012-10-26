@@ -23,12 +23,6 @@
 #ifndef __EBSP_DISPLAY_H__
 #define __EBSP_DISPLAY_H__
 
-#define __LINUX_OSAL__
-//#define __MELIS_OSAL__
-//#define __WINCE_OSAL__
-//#define __BOOT_OSAL__
-
-#ifdef __LINUX_OSAL__
 #include "linux/kernel.h"
 #include "linux/mm.h"
 #include <asm/uaccess.h>
@@ -77,23 +71,6 @@ typedef unsigned int __hdle;
 #define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __here__            {printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}
 #endif
-
-
-#endif//end of define __LINUX_OSAL__
-
-#ifdef __MELIS_OSAL__
-#include "string.h"
-#include "D:/winners/eBase/eBSP/BSP/sun_20/common_inc.h"
-#endif
-
-#ifdef __BOOT_OSAL__
-#define OSAL_PRINTF wlibc_uprintf
-
-#include "egon2.h"
-#include "string.h"
-#include "../OSAL/OSAL_De.h"
-#endif
-
 
 typedef struct
 {
@@ -324,9 +301,7 @@ extern __s32 BSP_disp_iep_get_drc_enable(__u32 sel);
 extern __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *regn)	;
 #endif
 
-#ifdef __LINUX_OSAL__
 __s32 Display_set_fb_timming(__u32 sel);
-#endif
 
 /* symbol exists in dev_disp.c */
 int sunxi_is_version_A(void);

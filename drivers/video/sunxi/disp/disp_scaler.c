@@ -283,7 +283,7 @@ static irqreturn_t Scaler_event_proc(int irq, void *parg)
     if(fe_intflags & DE_WB_END_IE)
     {
         DE_SCAL_DisableINT(sel,DE_FE_INTEN_ALL);
-#ifdef __LINUX_OSAL__
+
         if(gdisp.scaler[sel].b_scaler_finished == 1 && (&gdisp.scaler[sel].scaler_queue != NULL))
         {
             gdisp.scaler[sel].b_scaler_finished = 2;
@@ -293,7 +293,6 @@ static irqreturn_t Scaler_event_proc(int irq, void *parg)
         {
             __wrn("not scaler %d begin in DRV_scaler_finish\n", sel);
         }
-#endif
     }
 
     return OSAL_IRQ_RETURN;
@@ -309,16 +308,10 @@ __s32 Scaler_Init(__u32 sel)
     if(sel == 0)
     {
 	ret = request_irq(INTC_IRQNO_SCALER0, Scaler_event_proc, IRQF_DISABLED, "sunxi scaler0", (void *) sel);
-#ifndef __LINUX_OSAL__
-        enable_irq(INTC_IRQNO_SCALER0);
-#endif
     }
     else if(sel == 1)
     {
 	ret = request_irq(INTC_IRQNO_SCALER1, Scaler_event_proc, IRQF_DISABLED, "sunxi scaler1", (void *) sel);
-#ifndef __LINUX_OSAL__
-        enable_irq(INTC_IRQNO_SCALER1);
-#endif
     }
    	return DIS_SUCCESS;
 }
@@ -1115,11 +1108,6 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
     DE_SCAL_Start(sel);
     DE_SCAL_Set_Reg_Rdy(sel);
 
-#ifndef __LINUX_OSAL__
-    DE_SCAL_Writeback_Enable(sel);
-    while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE))
-	    ;
-#else
     {
 	    long timeout = (100 * HZ)/1000;//100ms
 
@@ -1135,7 +1123,7 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
 		    return -1;
 	    }
     }
-#endif /* __LINUX_OSAL__ */
+
     DE_SCAL_Reset(sel);
     DE_SCAL_Writeback_Disable(sel);
 #else
@@ -1167,11 +1155,6 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
 		DE_SCAL_Start(sel);
 		DE_SCAL_Set_Reg_Rdy(sel);
 
-#ifndef __LINUX_OSAL__
-		DE_SCAL_Writeback_Enable(sel);
-		while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE))
-			;
-#else
 		{
 			long timeout = (100 * HZ)/1000;//100ms
 
@@ -1191,7 +1174,7 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
 				return -1;
 			}
 		}
-#endif /* __LINUX_OSAL__ */
+
 		DE_SCAL_Writeback_Disable(sel);
 		DE_SCAL_Reset(sel);
 		DE_SCAL_Disable(sel);
@@ -1338,11 +1321,6 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
     DE_SCAL_Start(scaler_idx);
 
     DE_INF("capture begin\n");
-#ifndef __LINUX_OSAL__
-    while(!(DE_SCAL_QueryINT(scaler_idx) & DE_WB_END_IE) )
-    {
-    }
-#else
     {
         long timeout = (100 * HZ)/1000;//100ms
 
@@ -1358,7 +1336,7 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
             return -1;
         }
     }
-#endif
+
     DE_SCAL_Reset(scaler_idx);
     Scaler_Release(scaler_idx, FALSE);
     if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_NONE)

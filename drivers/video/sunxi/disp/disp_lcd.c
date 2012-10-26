@@ -239,11 +239,10 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
             reg_value = sys_get_wvalue(image_base_addr+0x800);
             sys_put_wvalue(image_base_addr+0x800,reg_value & 0xfffff0ff);//close all layer
 
-#ifdef __LINUX_OSAL__
             LCD_delay_ms(2000);
             sys_put_wvalue(image_base_addr+0x804,0x00000000);//set background color
             sys_put_wvalue(image_base_addr+0x800,reg_value);//open layer
-#endif
+
             OSAL_PRINTF("*** Try new parameters,you can make it pass!\n");
     	}
         OSAL_PRINTF("*** LCD Panel Parameter Check End\n");
@@ -725,28 +724,16 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 
 void LCD_delay_ms(__u32 ms)
 {
-#ifdef __LINUX_OSAL__
     __u32 timeout = ms*HZ/1000;
 
     set_current_state(TASK_INTERRUPTIBLE);
     schedule_timeout(timeout);
-#endif
-#ifdef __BOOT_OSAL__
-    wBoot_timer_delay(ms);//assume cpu runs at 1000Mhz,10 clock one cycle
-#endif
 }
 
 
 void LCD_delay_us(__u32 us)
 {
-#ifdef __LINUX_OSAL__
     udelay(us);
-#endif
-#ifdef __BOOT_OSAL__
-    volatile __u32 time;
-
-    for(time = 0; time < (us*700/10);time++);//assume cpu runs at 700Mhz,10 clock one cycle
-#endif
 }
 
 void LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
@@ -1325,18 +1312,10 @@ __s32 Disp_lcdc_init(__u32 sel)
     if(sel == 0)
     {
 	ret = request_irq(INTC_IRQNO_LCDC0, Disp_lcdc_event_proc, IRQF_DISABLED, "sunxi lcd0", (void *) sel);
-#ifndef __LINUX_OSAL__
-        enable_irq(INTC_IRQNO_LCDC0);
-        LCD_get_panel_funs_0(&lcd_panel_fun[sel]);
-#endif
     }
     else
     {
 	ret = request_irq(INTC_IRQNO_LCDC1, Disp_lcdc_event_proc, IRQF_DISABLED, "sunxi lcd1", (void *) sel);
-#ifndef __LINUX_OSAL__
-        enable_irq(INTC_IRQNO_LCDC1);
-        LCD_get_panel_funs_1(&lcd_panel_fun[sel]);
-#endif
     }
 
     if(gdisp.screen[sel].lcd_cfg.lcd_used)
@@ -1785,9 +1764,9 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
 #ifdef CONFIG_ARCH_SUN5I
     Disp_drc_enable(sel, TRUE);
 #endif
-#ifdef __LINUX_OSAL__
+
     Display_set_fb_timming(sel);
-#endif
+
     return DIS_SUCCESS;
 }
 
@@ -2067,7 +2046,6 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
 }
 #endif /* CONFIG_ARCH_SUN5I */
 
-#ifdef __LINUX_OSAL__
 EXPORT_SYMBOL(LCD_OPEN_FUNC);
 EXPORT_SYMBOL(LCD_CLOSE_FUNC);
 EXPORT_SYMBOL(LCD_get_reg_bases);
@@ -2093,6 +2071,4 @@ EXPORT_SYMBOL(pwm_set_para);
 EXPORT_SYMBOL(pwm_get_para);
 EXPORT_SYMBOL(pwm_set_duty_ns);
 EXPORT_SYMBOL(pwm_enable);
-
-#endif
 

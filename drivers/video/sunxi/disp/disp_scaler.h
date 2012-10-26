@@ -69,10 +69,8 @@ typedef struct
 
     __bool                  b_trd_out;
     __disp_3d_out_mode_t    out_trd_mode;
-#ifdef __LINUX_OSAL__
     wait_queue_head_t       scaler_queue;
     __bool                  b_scaler_finished;
-#endif
 #ifdef CONFIG_ARCH_SUN5I
 	__bool                      coef_change;
 #endif
