@@ -34,7 +34,7 @@
 static DEFINE_PER_CPU(struct hrtimer, menu_hrtimer);
 static DEFINE_PER_CPU(int, hrtimer_status);
 /* menu hrtimer mode */
-enum {MENU_HRTIMER_STOP, MENU_HRTIMER_REPEAT};
+enum {MENU_HRTIMER_STOP, MENU_HRTIMER_REPEAT, MENU_HRTIMER_GENERAL};
 
 /*
  * Concepts and ideas behind the menu governor
@@ -115,6 +115,13 @@ enum {MENU_HRTIMER_STOP, MENU_HRTIMER_REPEAT};
  * represented in the system load average.
  *
  */
+
+/*
+ * The C-state residency is so long that is is worthwhile to exit
+ * from the shallow C-state and re-enter into a deeper C-state.
+ */
+static unsigned int perfect_cstate_ms __read_mostly = 30;
+module_param(perfect_cstate_ms, uint, 0000);
 
 struct menu_device {
 	int		last_state_idx;
@@ -216,6 +223,16 @@ EXPORT_SYMBOL_GPL(menu_hrtimer_cancel);
 static enum hrtimer_restart menu_hrtimer_notify(struct hrtimer *hrtimer)
 {
 	int cpu = smp_processor_id();
+	struct menu_device *data = &per_cpu(menu_devices, cpu);
+
+	/* In general case, the expected residency is much larger than
+	 *  deepest C-state target residency, but prediction logic still
+	 *  predicts a small predicted residency, so the prediction
+	 *  history is totally broken if the timer is triggered.
+	 *  So reset the correction factor.
+	 */
+	if (per_cpu(hrtimer_status, cpu) == MENU_HRTIMER_GENERAL)
+		data->correction_factor[data->bucket] = RESOLUTION * DECAY;
 
 	per_cpu(hrtimer_status, cpu) = MENU_HRTIMER_STOP;
 
@@ -353,6 +370,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	/* not deepest C-state chosen for low predicted residency */
 	if (low_predicted) {
 		unsigned int timer_us = 0;
+		unsigned int perfect_us = 0;
 
 		/*
 		 * Set a timer to detect whether this sleep is much
@@ -363,12 +381,26 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		 */
 		timer_us = 2 * (data->predicted_us + MAX_DEVIATION);
 
+		perfect_us = perfect_cstate_ms * 1000;
+
 		if (repeat && (4 * timer_us < data->expected_us)) {
 			hrtimer_start(hrtmr, ns_to_ktime(1000 * timer_us),
 				HRTIMER_MODE_REL_PINNED);
 			/* In repeat case, menu hrtimer is started */
 			per_cpu(hrtimer_status, cpu) = MENU_HRTIMER_REPEAT;
+		} else if (perfect_us < data->expected_us) {
+			/*
+			 * The next timer is long. This could be because
+			 * we did not make a useful prediction.
+			 * In that case, it makes sense to re-enter
+			 * into a deeper C-state after some time.
+			 */
+			hrtimer_start(hrtmr, ns_to_ktime(1000 * timer_us),
+				HRTIMER_MODE_REL_PINNED);
+			/* In general case, menu hrtimer is started */
+			per_cpu(hrtimer_status, cpu) = MENU_HRTIMER_GENERAL;
 		}
+
 	}
 
 	return data->last_state_idx;
