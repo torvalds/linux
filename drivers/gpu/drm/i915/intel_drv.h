@@ -656,5 +656,6 @@ extern void intel_ddi_post_disable(struct intel_encoder *intel_encoder);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
+bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 
 #endif /* __INTEL_DRV_H__ */

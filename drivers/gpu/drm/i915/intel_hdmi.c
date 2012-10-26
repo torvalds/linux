@@ -1017,7 +1017,10 @@ static void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->set_infoframes = cpt_set_infoframes;
 	}
 
-	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	if (IS_HASWELL(dev))
+		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
+	else
+		intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
 
