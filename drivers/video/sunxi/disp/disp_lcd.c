@@ -260,7 +260,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
 
     memset(info, 0, sizeof(__panel_para_t));
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_x", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_x", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_x fail\n", primary_key);
@@ -271,7 +271,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_x = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_y", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_y", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_y fail\n", primary_key);
@@ -282,7 +282,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_y = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_dclk_freq", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_dclk_freq", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_dclk_freq fail\n", primary_key);
@@ -293,7 +293,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_dclk_freq = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_not_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_not_used", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_pwm_not_used fail\n", primary_key);
@@ -304,7 +304,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_pwm_not_used = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_ch", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_ch", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_pwm_ch fail\n", primary_key);
@@ -315,7 +315,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_pwm_ch = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_freq", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_freq", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_pwm_freq fail\n", primary_key);
@@ -326,7 +326,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_pwm_freq = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_pol", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_pol", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_pwm_pol fail\n", primary_key);
@@ -337,7 +337,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_pwm_pol = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_if", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_if", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_if fail\n", primary_key);
@@ -348,7 +348,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_if = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hbp", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hbp", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_hbp fail\n", primary_key);
@@ -359,7 +359,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hbp = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_ht", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_ht", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_ht fail\n", primary_key);
@@ -370,7 +370,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_ht = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_vbp", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_vbp", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_vbp fail\n", primary_key);
@@ -381,7 +381,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_vbp = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_vt", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_vt", &value, 1);
     if(ret < 0)
     {
         DE_WRN("fetch script data %s.lcd_vt fail\n", primary_key);
@@ -392,7 +392,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_vt = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_if", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_if", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_if fail\n", primary_key);
@@ -403,7 +403,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_if = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_smode", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_smode", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_smode fail\n", primary_key);
@@ -414,7 +414,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_smode = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_s888_if", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_s888_if", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_s888_if fail\n", primary_key);
@@ -425,7 +425,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_s888_if = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_syuv_if", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_syuv_if", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_syuv_if fail\n", primary_key);
@@ -436,7 +436,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_syuv_if = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_vspw", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_vspw", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_vspw fail\n", primary_key);
@@ -447,7 +447,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_vspw = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_hspw", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_hv_hspw", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_hv_hspw fail\n", primary_key);
@@ -458,7 +458,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_hv_hspw = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_lvds_ch", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_lvds_ch", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_lvds_ch fail\n", primary_key);
@@ -469,7 +469,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_lvds_ch = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_lvds_mode", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_lvds_mode", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_lvds_mode fail\n", primary_key);
@@ -480,7 +480,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_lvds_mode = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_lvds_bitwidth", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_lvds_bitwidth", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_lvds_bitwidth fail\n", primary_key);
@@ -491,7 +491,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_lvds_bitwidth = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_lvds_io_cross", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_lvds_io_cross", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_lvds_io_cross fail\n", primary_key);
@@ -502,7 +502,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_lvds_io_cross = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_cpu_if", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_cpu_if", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_cpu_if fail\n", primary_key);
@@ -513,7 +513,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_cpu_if = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_frm", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_frm", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_frm fail\n", primary_key);
@@ -524,7 +524,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_frm = %d\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_io_cfg0", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_io_cfg0", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_io_cfg0 fail\n", primary_key);
@@ -535,7 +535,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
         DE_INF("lcd_io_cfg0 = 0x%08x\n", value);
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_gamma_correction_en", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_gamma_correction_en", &value, 1);
     if(ret < 0)
     {
         DE_INF("fetch script data %s.lcd_gamma_correction_en fail\n", primary_key);
@@ -554,7 +554,7 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
 
             sprintf(name, "lcd_gamma_tbl_%d", i);
 
-            ret = OSAL_Script_FetchParser_Data(primary_key, name, &value, 1);
+            ret = script_parser_fetch(primary_key, name, &value, 1);
             if(ret < 0)
             {
                 info->lcd_gamma_tbl[i] = (i<<16) | (i<<8) | i;
@@ -584,7 +584,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     sprintf(primary_key, "lcd%d_para", sel);
 
 //lcd_used
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_used", &value, 1);
     if(ret < 0)
     {
         DE_WRN("%s.lcd_used not exit\n", primary_key);
@@ -600,7 +600,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 //lcd_bl_en
     lcd_cfg->lcd_bl_en_used = 0;
     value = 1;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_bl_en_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_bl_en_used", &value, 1);
     if(value == 0)
     {
         DE_INF("%s.lcd_bl_en is not used\n", primary_key);
@@ -608,7 +608,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     else
     {
         gpio_info = &(lcd_cfg->lcd_bl_en);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.lcd_bl_en not exist\n", primary_key);
@@ -623,7 +623,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 //lcd_power
     lcd_cfg->lcd_power_used= 0;
     value = 1;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_power_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_power_used", &value, 1);
     if(value == 0)
     {
         DE_INF("%s.lcd_power is not used\n", primary_key);
@@ -631,7 +631,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     else
     {
         gpio_info = &(lcd_cfg->lcd_power);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_power", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,"lcd_power", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.lcd_power not exist\n", primary_key);
@@ -646,7 +646,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 //lcd_pwm
     lcd_cfg->lcd_pwm_used= 0;
     value = 1;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_used", &value, 1);
     if(value == 0)
     {
         DE_INF("%s.lcd_pwm is not used\n", primary_key);
@@ -654,7 +654,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     else
     {
         gpio_info = &(lcd_cfg->lcd_pwm);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.lcd_pwm not exist\n", primary_key);
@@ -672,7 +672,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
         sprintf(sub_name, "lcd_gpio_%d", i);
 
         gpio_info = &(lcd_cfg->lcd_gpio[i]);
-        ret = OSAL_Script_FetchParser_Data(primary_key,sub_name, (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,sub_name, (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.%s not exist\n",primary_key, sub_name);
@@ -690,7 +690,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     for(i=0; i<28; i++)
     {
         gpio_info = &(lcd_cfg->lcd_io[i]);
-        ret = OSAL_Script_FetchParser_Data(primary_key,io_name[i], (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,io_name[i], (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.%s not exist\n",primary_key, io_name[i]);
@@ -707,7 +707,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 	sprintf(primary_key, "disp_init");
 	sprintf(sub_name, "lcd%d_bright", sel);
 
-	ret = OSAL_Script_FetchParser_Data(primary_key, sub_name, &value, 1);
+	ret = script_parser_fetch(primary_key, sub_name, &value, 1);
 	if (ret < 0) {
 		DE_INF("%s.%s not exit\n", primary_key,sub_name);
 		lcd_cfg->init_bright = 192;
@@ -1076,7 +1076,7 @@ __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
 
         memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_pwm), sizeof(user_gpio_set_t));
 
-        if((OSAL_sw_get_ic_ver() != 0xA) && (gpanel_info[sel].lcd_pwm_not_used == 0))
+        if(!sunxi_is_version_A() && (gpanel_info[sel].lcd_pwm_not_used == 0))
         {
             if(b_en)
             {
@@ -1351,7 +1351,7 @@ __s32 Disp_lcdc_init(__u32 sel)
         }
         gpanel_info[sel].tcon_index = 0;
 
-        if((OSAL_sw_get_ic_ver() != 0xA) && (gpanel_info[sel].lcd_pwm_not_used == 0))
+        if(!sunxi_is_version_A() && (gpanel_info[sel].lcd_pwm_not_used == 0))
         {
             __pwm_info_t pwm_info;
 
@@ -1852,7 +1852,7 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright
 {
     __u32 duty_ns;
 
-    if((OSAL_sw_get_ic_ver() != 0xA) && (gpanel_info[sel].lcd_pwm_not_used == 0))
+    if(!sunxi_is_version_A() && (gpanel_info[sel].lcd_pwm_not_used == 0))
     {
 #ifdef CONFIG_ARCH_SUN4I
         if(bright != 0)
@@ -2024,14 +2024,14 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
     char primary_key[20];
     sprintf(primary_key, "lcd%d_para", sel);
     value = 1;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_bl_en_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_bl_en_used", &value, 1);
     if(value == 0)
     {
         DE_INF("%s.lcd_bl_en is not used\n", primary_key);
     }
     else
     {
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.lcd_bl_en not exist\n", primary_key);
@@ -2044,14 +2044,14 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
         }
     }
     value = 1;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_used", &value, 1);
+    ret = script_parser_fetch(primary_key, "lcd_pwm_used", &value, 1);
     if(value == 0)
     {
         DE_INF("%s.lcd_pwm is not used\n", primary_key);
     }
     else
     {
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+        ret = script_parser_fetch(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
         if(ret < 0)
         {
             DE_INF("%s.lcd_pwm not exist\n", primary_key);

@@ -179,6 +179,17 @@ void  disp_free(void *p)
     return ;
 }
 
+int
+sunxi_is_version_A(void)
+{
+#ifdef CONFIG_ARCH_SUN4I
+	if (sw_get_ic_ver() == MAGIC_VER_A)
+		return 1;
+#endif
+
+	return 0;
+}
+
 __s32 DRV_lcd_open(__u32 sel)
 {
     __u32 i = 0;

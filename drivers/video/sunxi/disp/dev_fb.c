@@ -38,14 +38,14 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 
     memset(init_para, 0, sizeof(__disp_init_t));
     
-    if(OSAL_Script_FetchParser_Data("disp_init", "disp_init_enable", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "disp_init_enable", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.disp_init_enable fail\n");
         return -1;
     }
     init_para->b_init = value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "disp_mode", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "disp_mode", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.disp_mode fail\n");
         return -1;
@@ -53,7 +53,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     init_para->disp_mode= value;
 
 //screen0
-    if(OSAL_Script_FetchParser_Data("disp_init", "screen0_output_type", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "screen0_output_type", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.screen0_output_type fail\n");
         return -1;
@@ -84,7 +84,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
         return -1;
     }
     
-    if(OSAL_Script_FetchParser_Data("disp_init", "screen0_output_mode", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "screen0_output_mode", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.screen0_output_mode fail\n");
         return -1;
@@ -99,7 +99,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     }
 
 //screen1
-    if(OSAL_Script_FetchParser_Data("disp_init", "screen1_output_type", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "screen1_output_type", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.screen1_output_type fail\n");
         return -1;
@@ -130,7 +130,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
         return -1;
     }
     
-    if(OSAL_Script_FetchParser_Data("disp_init", "screen1_output_mode", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "screen1_output_mode", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.screen1_output_mode fail\n");
         return -1;
@@ -145,28 +145,28 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     }
 
 //fb0
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb0_framebuffer_num", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb0_framebuffer_num", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb0_framebuffer_num fail\n");
         return -1;
     }
     init_para->buffer_num[0]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb0_format", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb0_format", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb0_format fail\n");
         return -1;
     }
     init_para->format[0]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb0_pixel_sequence", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb0_pixel_sequence", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb0_pixel_sequence fail\n");
         return -1;
     }
     init_para->seq[0]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb0_scaler_mode_enable", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb0_scaler_mode_enable", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb0_scaler_mode_enable fail\n");
         return -1;
@@ -174,28 +174,28 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     init_para->scaler_mode[0]= value;
 
 //fb1
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb1_framebuffer_num", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb1_framebuffer_num", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb1_framebuffer_num fail\n");
         return -1;
     }
     init_para->buffer_num[1]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb1_format", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb1_format", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb1_format fail\n");
         return -1;
     }
     init_para->format[1]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb1_pixel_sequence", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb1_pixel_sequence", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb1_pixel_sequence fail\n");
         return -1;
     }
     init_para->seq[1]= value;
 
-    if(OSAL_Script_FetchParser_Data("disp_init", "fb1_scaler_mode_enable", &value, 1) < 0)
+    if(script_parser_fetch("disp_init", "fb1_scaler_mode_enable", &value, 1) < 0)
     {
         __wrn("fetch script data disp_init.fb1_scaler_mode_enable fail\n");
         return -1;

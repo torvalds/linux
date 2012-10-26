@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-    
 #include "disp_display_i.h"
 #include "disp_display.h"
 #include "disp_clk.h"
@@ -744,7 +743,7 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 *divider)
 	{
 	    __u32 clk_max;
 
-	    if(OSAL_sw_get_ic_ver() > 0xA)
+	    if(!sunxi_is_version_A())
 	    {
 	        clk_max = 150000000;
 	    }
@@ -824,7 +823,7 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
     }
 	else if(pll_clk <= 1200000000)
 	{
-	    if(OSAL_sw_get_ic_ver() > 0xA)
+	    if(!sunxi_is_version_A())
 	    {
 	        ret = 2;//sata pll
 	    }
