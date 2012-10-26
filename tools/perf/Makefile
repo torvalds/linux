@@ -977,20 +977,15 @@ help:
 	@echo 'Perf maintainer targets:'
 	@echo '  clean			- clean all binary objects and build output'
 
-doc:
-	$(MAKE) -C Documentation all
 
-man:
-	$(MAKE) -C Documentation man
+DOC_TARGETS := doc man html info pdf
 
-html:
-	$(MAKE) -C Documentation html
+INSTALL_DOC_TARGETS := $(patsubst %,install-%,$(DOC_TARGETS)) try-install-man
+INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 
-info:
-	$(MAKE) -C Documentation info
-
-pdf:
-	$(MAKE) -C Documentation pdf
+# 'make doc' should call 'make -C Documentation all'
+$(DOC_TARGETS):
+	$(MAKE) -C Documentation $(@:doc=all)
 
 TAGS:
 	$(RM) TAGS
@@ -1061,32 +1056,9 @@ install: all try-install-man
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'
 
-install-doc:
-	$(MAKE) -C Documentation install
-
-install-man:
-	$(MAKE) -C Documentation install-man
-
-try-install-man:
-	$(MAKE) -C Documentation try-install-man
-
-install-html:
-	$(MAKE) -C Documentation install-html
-
-install-info:
-	$(MAKE) -C Documentation install-info
-
-install-pdf:
-	$(MAKE) -C Documentation install-pdf
-
-quick-install-doc:
-	$(MAKE) -C Documentation quick-install
-
-quick-install-man:
-	$(MAKE) -C Documentation quick-install-man
-
-quick-install-html:
-	$(MAKE) -C Documentation quick-install-html
+# 'make install-doc' should call 'make -C Documentation install'
+$(INSTALL_DOC_TARGETS):
+	$(MAKE) -C Documentation $(@:-doc=)
 
 ### Cleaning rules
 
