@@ -251,7 +251,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 	/* Read all mbox registers? */
 	mboxes = (1 << ha->mbx_count) - 1;
 	if (!ha->mcp)
-		ql_dbg(ql_dbg_async, vha, 0x5001, "MBX pointer ERRROR.\n");
+		ql_dbg(ql_dbg_async, vha, 0x5001, "MBX pointer ERROR.\n");
 	else
 		mboxes = ha->mcp->in_mb;
 
@@ -2318,7 +2318,7 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 	/* Read all mbox registers? */
 	mboxes = (1 << ha->mbx_count) - 1;
 	if (!ha->mcp)
-		ql_dbg(ql_dbg_async, vha, 0x504e, "MBX pointer ERRROR.\n");
+		ql_dbg(ql_dbg_async, vha, 0x504e, "MBX pointer ERROR.\n");
 	else
 		mboxes = ha->mcp->in_mb;
 
