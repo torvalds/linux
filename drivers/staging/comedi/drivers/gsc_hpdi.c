@@ -479,7 +479,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	int retval;
 
-	printk(KERN_WARNING "comedi%d: gsc_hpdi\n", dev->minor);
+	dev_dbg(dev->class_dev, "gsc_hpdi\n");
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -510,17 +510,17 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		} while (pcidev != NULL);
 	}
 	if (dev->board_ptr == NULL) {
-		printk(KERN_WARNING "gsc_hpdi: no hpdi card found\n");
+		dev_warn(dev->class_dev, "no hpdi card found\n");
 		return -EIO;
 	}
 
-	printk(KERN_WARNING
-	       "gsc_hpdi: found %s on bus %i, slot %i\n", board(dev)->name,
-	       pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	dev_warn(dev->class_dev,
+		 "found %s on bus %i, slot %i\n", board(dev)->name,
+		 pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		printk(KERN_WARNING
-		       " failed enable PCI device and request regions\n");
+		dev_warn(dev->class_dev,
+			 "failed enable PCI device and request regions\n");
 		return -EIO;
 	}
 	pci_set_master(pcidev);
@@ -541,7 +541,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    ioremap(devpriv->hpdi_phys_iobase,
 		    pci_resource_len(pcidev, HPDI_BADDRINDEX));
 	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
-		printk(KERN_WARNING " failed to remap io memory\n");
+		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
 
@@ -553,13 +553,13 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/*  get irq */
 	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			dev->driver->driver_name, dev)) {
-		printk(KERN_WARNING
-		       " unable to allocate irq %u\n", pcidev->irq);
+		dev_warn(dev->class_dev,
+			 "unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
 
-	printk(KERN_WARNING " irq %u\n", dev->irq);
+	dev_dbg(dev->class_dev, " irq %u\n", dev->irq);
 
 	/*  allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
@@ -577,8 +577,8 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 						   &devpriv->
 						   dma_desc_phys_addr);
 	if (devpriv->dma_desc_phys_addr & 0xf) {
-		printk(KERN_WARNING
-		       " dma descriptors not quad-word aligned (bug)\n");
+		dev_warn(dev->class_dev,
+			 " dma descriptors not quad-word aligned (bug)\n");
 		return -EIO;
 	}
 
