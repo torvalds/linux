@@ -926,6 +926,7 @@ static int sitronix_ts_probe(struct i2c_client *client, const struct i2c_device_
         client->irq = irq_cfg.gpio;
         tp_hw_init();
 #else
+	pdata = client->dev.platform_data;
 	if(pdata->init_platform_hw)
 		pdata->init_platform_hw();
 #endif
@@ -949,7 +950,6 @@ static int sitronix_ts_probe(struct i2c_client *client, const struct i2c_device_
         if(client->irq != INVALID_GPIO)
                 ts->irq = gpio_to_irq(client->irq);
 	i2c_set_clientdata(client, ts);
-	pdata = client->dev.platform_data;
 #if 0
 	if(pdata->reset_ic){
 		ts->reset_ic = pdata->reset_ic;
