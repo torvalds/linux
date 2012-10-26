@@ -178,7 +178,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			return -ECHILD;
 
 		fc = get_fuse_conn(inode);
-		req = fuse_get_req(fc);
+		req = fuse_get_req_nopages(fc);
 		if (IS_ERR(req))
 			return 0;
 
@@ -271,7 +271,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 	if (name->len > FUSE_NAME_MAX)
 		goto out;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	err = PTR_ERR(req);
 	if (IS_ERR(req))
 		goto out;
@@ -391,7 +391,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	if (!forget)
 		goto out_err;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	err = PTR_ERR(req);
 	if (IS_ERR(req))
 		goto out_put_forget_req;
@@ -592,7 +592,7 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 {
 	struct fuse_mknod_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -623,7 +623,7 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 {
 	struct fuse_mkdir_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -647,7 +647,7 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	unsigned len = strlen(link) + 1;
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -664,7 +664,7 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -696,7 +696,7 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -723,7 +723,7 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	int err;
 	struct fuse_rename_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(olddir);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -776,7 +776,7 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 	struct fuse_link_in inarg;
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -848,7 +848,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	struct fuse_req *req;
 	u64 attr_version;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1029,7 +1029,7 @@ static int fuse_access(struct inode *inode, int mask)
 	if (fc->no_access)
 		return 0;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1305,7 +1305,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req(fc, 1);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1349,7 +1349,7 @@ static char *read_link(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_req(fc);
+	struct fuse_req *req = fuse_get_req_nopages(fc);
 	char *link;
 
 	if (IS_ERR(req))
@@ -1562,7 +1562,7 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1670,7 +1670,7 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 	if (fc->no_setxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1709,7 +1709,7 @@ static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
 	if (fc->no_getxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1761,7 +1761,7 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	if (fc->no_listxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -1806,7 +1806,7 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 	if (fc->no_removexattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 

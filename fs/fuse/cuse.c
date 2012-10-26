@@ -419,7 +419,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req(fc, 1);
 	if (IS_ERR(req)) {
 		rc = PTR_ERR(req);
 		goto err;

@@ -683,14 +683,25 @@ struct fuse_req *fuse_request_alloc_nofs(unsigned npages);
 void fuse_request_free(struct fuse_req *req);
 
 /**
- * Get a request, may fail with -ENOMEM
+ * Get a request, may fail with -ENOMEM,
+ * caller should specify # elements in req->pages[] explicitly
  */
-struct fuse_req *fuse_get_req(struct fuse_conn *fc);
+struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages);
+
+/**
+ * Get a request, may fail with -ENOMEM,
+ * useful for callers who doesn't use req->pages[]
+ */
+static inline struct fuse_req *fuse_get_req_nopages(struct fuse_conn *fc)
+{
+	return fuse_get_req(fc, 0);
+}
 
 /**
  * Gets a requests for a file operation, always succeeds
  */
-struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file);
+struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
+					     struct file *file);
 
 /**
  * Decrement reference count of a request.  If count goes to zero free

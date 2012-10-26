@@ -118,7 +118,7 @@ static void fuse_req_init_context(struct fuse_req *req)
 	req->in.h.pid = current->pid;
 }
 
-struct fuse_req *fuse_get_req(struct fuse_conn *fc)
+struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
 {
 	struct fuse_req *req;
 	sigset_t oldset;
@@ -137,7 +137,7 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	if (!fc->connected)
 		goto out;
 
-	req = fuse_request_alloc(FUSE_MAX_PAGES_PER_REQ);
+	req = fuse_request_alloc(npages);
 	err = -ENOMEM;
 	if (!req)
 		goto out;
@@ -207,13 +207,14 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
  * filesystem should not have it's own file open.  If deadlock is
  * intentional, it can still be broken by "aborting" the filesystem.
  */
-struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file)
+struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
+					     struct file *file)
 {
 	struct fuse_req *req;
 
 	atomic_inc(&fc->num_waiting);
 	wait_event(fc->blocked_waitq, !fc->blocked);
-	req = fuse_request_alloc(FUSE_MAX_PAGES_PER_REQ);
+	req = fuse_request_alloc(0);
 	if (!req)
 		req = get_reserved_req(fc, file);
 
@@ -521,7 +522,7 @@ void fuse_force_forget(struct file *file, u64 nodeid)
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.nlookup = 1;
-	req = fuse_get_req_nofail(fc, file);
+	req = fuse_get_req_nofail_nopages(fc, file);
 	req->in.h.opcode = FUSE_FORGET;
 	req->in.h.nodeid = nodeid;
 	req->in.numargs = 1;
@@ -1577,7 +1578,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	unsigned int offset;
 	size_t total_len = 0;
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req(fc, FUSE_MAX_PAGES_PER_REQ);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
