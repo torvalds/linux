@@ -203,6 +203,12 @@ struct fuse_out {
 	struct fuse_arg args[3];
 };
 
+/** FUSE page descriptor */
+struct fuse_page_desc {
+	unsigned int length;
+	unsigned int offset;
+};
+
 /** The request state */
 enum fuse_req_state {
 	FUSE_REQ_INIT = 0,
@@ -296,17 +302,20 @@ struct fuse_req {
 	/** page vector */
 	struct page **pages;
 
+	/** page-descriptor vector */
+	struct fuse_page_desc *page_descs;
+
 	/** size of the 'pages' array */
 	unsigned max_pages;
 
 	/** inline page vector */
 	struct page *inline_pages[FUSE_REQ_INLINE_PAGES];
 
+	/** inline page-descriptor vector */
+	struct fuse_page_desc inline_page_descs[FUSE_REQ_INLINE_PAGES];
+
 	/** number of pages in vector */
 	unsigned num_pages;
-
-	/** offset of data on first page */
-	unsigned page_offset;
 
 	/** File used in the request (or NULL) */
 	struct fuse_file *ff;

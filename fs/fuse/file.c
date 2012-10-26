@@ -798,7 +798,7 @@ static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
 
 	res = fuse_send_write(req, file, pos, count, NULL);
 
-	offset = req->page_offset;
+	offset = req->page_descs[0].offset;
 	count = res;
 	for (i = 0; i < req->num_pages; i++) {
 		struct page *page = req->pages[i];
@@ -829,7 +829,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 	int err;
 
 	req->in.argpages = 1;
-	req->page_offset = offset;
+	req->page_descs[0].offset = offset;
 
 	do {
 		size_t tmp;
@@ -1070,14 +1070,14 @@ static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
 		return npages;
 
 	req->num_pages = npages;
-	req->page_offset = offset;
+	req->page_descs[0].offset = offset;
 
 	if (write)
 		req->in.argpages = 1;
 	else
 		req->out.argpages = 1;
 
-	nbytes = (req->num_pages << PAGE_SHIFT) - req->page_offset;
+	nbytes = (req->num_pages << PAGE_SHIFT) - req->page_descs[0].offset;
 	*nbytesp = min(*nbytesp, nbytes);
 
 	return 0;
@@ -1314,7 +1314,7 @@ static int fuse_writepage_locked(struct page *page)
 	req->in.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = tmp_page;
-	req->page_offset = 0;
+	req->page_descs[0].offset = 0;
 	req->end = fuse_writepage_end;
 	req->inode = inode;
 

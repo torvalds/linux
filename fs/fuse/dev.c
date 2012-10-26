@@ -35,15 +35,18 @@ static struct fuse_conn *fuse_get_conn(struct file *file)
 }
 
 static void fuse_request_init(struct fuse_req *req, struct page **pages,
+			      struct fuse_page_desc *page_descs,
 			      unsigned npages)
 {
 	memset(req, 0, sizeof(*req));
 	memset(pages, 0, sizeof(*pages) * npages);
+	memset(page_descs, 0, sizeof(*page_descs) * npages);
 	INIT_LIST_HEAD(&req->list);
 	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
 	atomic_set(&req->count, 1);
 	req->pages = pages;
+	req->page_descs = page_descs;
 	req->max_pages = npages;
 }
 
@@ -52,18 +55,25 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, flags);
 	if (req) {
 		struct page **pages;
+		struct fuse_page_desc *page_descs;
 
-		if (npages <= FUSE_REQ_INLINE_PAGES)
+		if (npages <= FUSE_REQ_INLINE_PAGES) {
 			pages = req->inline_pages;
-		else
+			page_descs = req->inline_page_descs;
+		} else {
 			pages = kmalloc(sizeof(struct page *) * npages, flags);
+			page_descs = kmalloc(sizeof(struct fuse_page_desc) *
+					     npages, flags);
+		}
 
-		if (!pages) {
+		if (!pages || !page_descs) {
+			kfree(pages);
+			kfree(page_descs);
 			kmem_cache_free(fuse_req_cachep, req);
 			return NULL;
 		}
 
-		fuse_request_init(req, pages, npages);
+		fuse_request_init(req, pages, page_descs, npages);
 	}
 	return req;
 }
@@ -81,8 +91,10 @@ struct fuse_req *fuse_request_alloc_nofs(unsigned npages)
 
 void fuse_request_free(struct fuse_req *req)
 {
-	if (req->pages != req->inline_pages)
+	if (req->pages != req->inline_pages) {
 		kfree(req->pages);
+		kfree(req->page_descs);
+	}
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
@@ -186,7 +198,7 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
 	struct fuse_file *ff = file->private_data;
 
 	spin_lock(&fc->lock);
-	fuse_request_init(req, req->pages, req->max_pages);
+	fuse_request_init(req, req->pages, req->page_descs, req->max_pages);
 	BUG_ON(ff->reserved_req);
 	ff->reserved_req = req;
 	wake_up_all(&fc->reserved_req_waitq);
@@ -891,7 +903,7 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 {
 	unsigned i;
 	struct fuse_req *req = cs->req;
-	unsigned offset = req->page_offset;
+	unsigned offset = req->page_descs[0].offset;
 	unsigned count = min(nbytes, (unsigned) PAGE_SIZE - offset);
 
 	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
@@ -1599,7 +1611,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	req->in.h.nodeid = outarg->nodeid;
 	req->in.numargs = 2;
 	req->in.argpages = 1;
-	req->page_offset = offset;
+	req->page_descs[0].offset = offset;
 	req->end = fuse_retrieve_end;
 
 	index = outarg->offset >> PAGE_CACHE_SHIFT;
