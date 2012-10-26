@@ -38,7 +38,7 @@
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {
-	return intel_hdmi->base.base.dev;
+	return hdmi_to_dig_port(intel_hdmi)->base.base.dev;
 }
 
 static void
@@ -56,13 +56,14 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 {
-	return container_of(encoder, struct intel_hdmi, base.base);
+	struct intel_digital_port *intel_dig_port =
+		container_of(encoder, struct intel_digital_port, base.base);
+	return &intel_dig_port->hdmi;
 }
 
 static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
 {
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_hdmi, base);
+	return enc_to_intel_hdmi(&intel_attached_encoder(connector)->base);
 }
 
 void intel_dip_infoframe_csum(struct dip_infoframe *frame)
@@ -864,6 +865,8 @@ intel_hdmi_set_property(struct drm_connector *connector,
 			uint64_t val)
 {
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_digital_port *intel_dig_port =
+		hdmi_to_dig_port(intel_hdmi);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	int ret;
 
@@ -903,8 +906,8 @@ intel_hdmi_set_property(struct drm_connector *connector,
 	return -EINVAL;
 
 done:
-	if (intel_hdmi->base.base.crtc) {
-		struct drm_crtc *crtc = intel_hdmi->base.base.crtc;
+	if (intel_dig_port->base.base.crtc) {
+		struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
 		intel_set_mode(crtc, &crtc->mode,
 			       crtc->x, crtc->y, crtc->fb);
 	}
@@ -962,19 +965,21 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
+	struct intel_digital_port *intel_dig_port;
 	struct intel_hdmi *intel_hdmi;
 
-	intel_hdmi = kzalloc(sizeof(struct intel_hdmi), GFP_KERNEL);
-	if (!intel_hdmi)
+	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	if (!intel_dig_port)
 		return;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
-		kfree(intel_hdmi);
+		kfree(intel_dig_port);
 		return;
 	}
 
-	intel_encoder = &intel_hdmi->base;
+	intel_hdmi = &intel_dig_port->hdmi;
+	intel_encoder = &intel_dig_port->base;
 	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 
