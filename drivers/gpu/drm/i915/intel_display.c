@@ -2700,9 +2700,6 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
-	/* Write the TU size bits so error detection works */
-	I915_WRITE(FDI_RX_TUSIZE1(pipe),
-		   I915_READ(PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 	reg = FDI_RX_CTL(pipe);
@@ -3002,6 +2999,11 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	u32 reg, temp;
 
 	assert_transcoder_disabled(dev_priv, pipe);
+
+	/* Write the TU size bits before fdi link training, so that error
+	 * detection works. */
+	I915_WRITE(FDI_RX_TUSIZE1(pipe),
+		   I915_READ(PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
