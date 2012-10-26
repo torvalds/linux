@@ -47,6 +47,7 @@
 /* Function prototypes */
 static int  option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id);
+static int option_attach(struct usb_serial *serial);
 static void option_release(struct usb_serial *serial);
 static int option_send_setup(struct usb_serial_port *port);
 static void option_instat_callback(struct urb *urb);
@@ -1288,8 +1289,9 @@ static struct usb_serial_driver option_1port_device = {
 	.tiocmget          = usb_wwan_tiocmget,
 	.tiocmset          = usb_wwan_tiocmset,
 	.ioctl             = usb_wwan_ioctl,
-	.attach            = usb_wwan_startup,
+	.attach            = option_attach,
 	.release           = option_release,
+	.port_probe        = usb_wwan_port_probe,
 	.port_remove	   = usb_wwan_port_remove,
 	.read_int_callback = option_instat_callback,
 #ifdef CONFIG_PM
@@ -1335,8 +1337,6 @@ static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
 static int option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
-	struct usb_wwan_intf_private *data;
-	struct option_private *priv;
 	struct usb_interface_descriptor *iface_desc =
 				&serial->interface->cur_altsetting->desc;
 	struct usb_device_descriptor *dev_desc = &serial->dev->descriptor;
@@ -1374,6 +1374,19 @@ static int option_probe(struct usb_serial *serial,
 		iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
 
+	/* Store device id so we can use it during attach. */
+	usb_set_serial_data(serial, (void *)id);
+
+	return 0;
+}
+
+static int option_attach(struct usb_serial *serial)
+{
+	struct usb_interface_descriptor *iface_desc;
+	const struct usb_device_id *id;
+	struct usb_wwan_intf_private *data;
+	struct option_private *priv;
+
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -1383,6 +1396,10 @@ static int option_probe(struct usb_serial *serial,
 		kfree(data);
 		return -ENOMEM;
 	}
+
+	/* Retrieve device id stored at probe. */
+	id = usb_get_serial_data(serial);
+	iface_desc = &serial->interface->cur_altsetting->desc;
 
 	priv->bInterfaceNumber = iface_desc->bInterfaceNumber;
 	data->private = priv;

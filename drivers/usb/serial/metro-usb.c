@@ -179,16 +179,13 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dev_dbg(&port->dev, "%s\n", __func__);
 
-	if (port->serial->dev) {
-		/* Shutdown any interrupt in urbs. */
-		if (port->interrupt_in_urb) {
-			usb_unlink_urb(port->interrupt_in_urb);
-			usb_kill_urb(port->interrupt_in_urb);
-		}
+	usb_unlink_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
-		/* Send deactivate cmd to device */
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected)
 		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
-	}
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -271,51 +268,27 @@ static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int contr
 	return retval;
 }
 
-static void metrousb_shutdown(struct usb_serial *serial)
-{
-	int i = 0;
-
-	dev_dbg(&serial->dev->dev, "%s\n", __func__);
-
-	/* Stop reading and writing on all ports. */
-	for (i = 0; i < serial->num_ports; ++i) {
-		/* Close any open urbs. */
-		metrousb_cleanup(serial->port[i]);
-
-		/* Free memory. */
-		kfree(usb_get_serial_port_data(serial->port[i]));
-		usb_set_serial_port_data(serial->port[i], NULL);
-
-		dev_dbg(&serial->dev->dev, "%s - freed port number=%d\n",
-			__func__, serial->port[i]->number);
-	}
-}
-
-static int metrousb_startup(struct usb_serial *serial)
+static int metrousb_port_probe(struct usb_serial_port *port)
 {
 	struct metrousb_private *metro_priv;
-	struct usb_serial_port *port;
-	int i = 0;
 
-	dev_dbg(&serial->dev->dev, "%s\n", __func__);
+	metro_priv = kzalloc(sizeof(*metro_priv), GFP_KERNEL);
+	if (!metro_priv)
+		return -ENOMEM;
 
-	/* Loop through the serial ports setting up the private structures.
-	 * Currently we only use one port. */
-	for (i = 0; i < serial->num_ports; ++i) {
-		port = serial->port[i];
+	spin_lock_init(&metro_priv->lock);
 
-		/* Declare memory. */
-		metro_priv = kzalloc(sizeof(struct metrousb_private), GFP_KERNEL);
-		if (!metro_priv)
-			return -ENOMEM;
+	usb_set_serial_port_data(port, metro_priv);
 
-		/* Initialize memory. */
-		spin_lock_init(&metro_priv->lock);
-		usb_set_serial_port_data(port, metro_priv);
+	return 0;
+}
 
-		dev_dbg(&serial->dev->dev, "%s - port number=%d\n ",
-			__func__, port->number);
-	}
+static int metrousb_port_remove(struct usb_serial_port *port)
+{
+	struct metrousb_private *metro_priv;
+
+	metro_priv = usb_get_serial_port_data(port);
+	kfree(metro_priv);
 
 	return 0;
 }
@@ -414,8 +387,8 @@ static struct usb_serial_driver metrousb_device = {
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
 	.write_int_callback	= metrousb_write_int_callback,
-	.attach			= metrousb_startup,
-	.release		= metrousb_shutdown,
+	.port_probe		= metrousb_port_probe,
+	.port_remove		= metrousb_port_remove,
 	.throttle		= metrousb_throttle,
 	.unthrottle		= metrousb_unthrottle,
 	.tiocmget		= metrousb_tiocmget,
