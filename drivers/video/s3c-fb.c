@@ -330,6 +330,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 
 	default:
 		dev_err(sfb->dev, "invalid bpp\n");
+		return -EINVAL;
 	}
 
 	dev_dbg(sfb->dev, "%s: verified parameters\n", __func__);
