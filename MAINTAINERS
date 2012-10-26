@@ -2802,6 +2802,7 @@ F:	sound/usb/misc/ua101.c
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
 M:	Matt Fleming <matt.fleming@intel.com>
 L:	linux-efi@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
 F:	Documentation/x86/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
