@@ -410,7 +410,6 @@ __s32 TVE_get_dac_status(__u32 index)
     status = TVE_RUINT32(sel,TVE_038)>>(dac*8);
     status &= 0x3;
 
-    //OSAL_PRINTF("%x,%x,%x,%x\n", sel, dac, reg_000, status);
     return status;
 }
 
