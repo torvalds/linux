@@ -4110,8 +4110,8 @@ struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len)
 
 	return eb;
 err:
-	for (i--; i >= 0; i--)
-		__free_page(eb->pages[i]);
+	for (; i > 0; i--)
+		__free_page(eb->pages[i - 1]);
 	__free_extent_buffer(eb);
 	return NULL;
 }
