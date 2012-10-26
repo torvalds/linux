@@ -168,9 +168,10 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		kregs->gpr[20] = usp; /* fn, kernel thread */
 		kregs->gpr[22] = arg;
 	} else {
-		*userregs = *regs;
+		*userregs = *current_pt_regs();
 
-		userregs->sp = usp;
+		if (usp)
+			userregs->sp = usp;
 		userregs->gpr[11] = 0;	/* Result from fork() */
 
 		kregs->gpr[20] = 0;	/* Userspace thread */
