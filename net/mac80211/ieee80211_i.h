@@ -356,7 +356,7 @@ struct ieee80211_roc_work {
 
 	u32 duration, req_duration;
 	struct sk_buff *frame;
-	u64 mgmt_tx_cookie;
+	u64 cookie, mgmt_tx_cookie;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
@@ -1142,6 +1142,7 @@ struct ieee80211_local {
 	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;
+	u64 roc_cookie_counter;
 
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;

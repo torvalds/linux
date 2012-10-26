@@ -2382,13 +2382,22 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		list_add_tail(&roc->list, &local->roc_list);
 
 	/*
-	 * cookie is either the roc (for normal roc)
+	 * cookie is either the roc cookie (for normal roc)
 	 * or the SKB (for mgmt TX)
 	 */
-	if (txskb)
+	if (!txskb) {
+		/* local->mtx protects this */
+		local->roc_cookie_counter++;
+		roc->cookie = local->roc_cookie_counter;
+		/* wow, you wrapped 64 bits ... more likely a bug */
+		if (WARN_ON(roc->cookie == 0)) {
+			roc->cookie = 1;
+			local->roc_cookie_counter++;
+		}
+		*cookie = roc->cookie;
+	} else {
 		*cookie = (unsigned long)txskb;
-	else
-		*cookie = (unsigned long)roc;
+	}
 
 	return 0;
 }
@@ -2423,7 +2432,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 		struct ieee80211_roc_work *dep, *tmp2;
 
 		list_for_each_entry_safe(dep, tmp2, &roc->dependents, list) {
-			if (!mgmt_tx && (unsigned long)dep != cookie)
+			if (!mgmt_tx && dep->cookie != cookie)
 				continue;
 			else if (mgmt_tx && dep->mgmt_tx_cookie != cookie)
 				continue;
@@ -2435,7 +2444,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 			return 0;
 		}
 
-		if (!mgmt_tx && (unsigned long)roc != cookie)
+		if (!mgmt_tx && roc->cookie != cookie)
 			continue;
 		else if (mgmt_tx && roc->mgmt_tx_cookie != cookie)
 			continue;
