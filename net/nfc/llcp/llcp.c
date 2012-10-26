@@ -45,11 +45,37 @@ void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 	write_unlock(&l->lock);
 }
 
+static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
+{
+	struct nfc_llcp_local *local = sock->local;
+	struct sk_buff *s, *tmp;
+
+	pr_debug("%p\n", &sock->sk);
+
+	skb_queue_purge(&sock->tx_queue);
+	skb_queue_purge(&sock->tx_pending_queue);
+	skb_queue_purge(&sock->tx_backlog_queue);
+
+	if (local == NULL)
+		return;
+
+	/* Search for local pending SKBs that are related to this socket */
+	skb_queue_walk_safe(&local->tx_queue, s, tmp) {
+		if (s->sk != &sock->sk)
+			continue;
+
+		skb_unlink(s, &local->tx_queue);
+		kfree_skb(s);
+	}
+}
+
 static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 {
 	struct sock *sk;
 	struct hlist_node *node, *tmp;
 	struct nfc_llcp_sock *llcp_sock;
+
+	skb_queue_purge(&local->tx_queue);
 
 	write_lock(&local->sockets.lock);
 
@@ -57,6 +83,8 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 		llcp_sock = nfc_llcp_sock(sk);
 
 		bh_lock_sock(sk);
+
+		nfc_llcp_socket_purge(llcp_sock);
 
 		if (sk->sk_state == LLCP_CONNECTED)
 			nfc_put_device(llcp_sock->dev);
@@ -1002,6 +1030,9 @@ static void nfc_llcp_recv_disc(struct nfc_llcp_local *local,
 
 	sk = &llcp_sock->sk;
 	lock_sock(sk);
+
+	nfc_llcp_socket_purge(llcp_sock);
+
 	if (sk->sk_state == LLCP_CLOSED) {
 		release_sock(sk);
 		nfc_llcp_sock_put(llcp_sock);
