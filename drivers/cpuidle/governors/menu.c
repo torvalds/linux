@@ -245,36 +245,59 @@ static enum hrtimer_restart menu_hrtimer_notify(struct hrtimer *hrtimer)
  * of points is below a threshold. If it is... then use the
  * average of these 8 points as the estimated value.
  */
-static int detect_repeating_patterns(struct menu_device *data)
+static u32 get_typical_interval(struct menu_device *data)
 {
-	int i;
-	uint64_t avg = 0;
-	uint64_t stddev = 0; /* contains the square of the std deviation */
-	int ret = 0;
+	int i = 0, divisor = 0;
+	uint64_t max = 0, avg = 0, stddev = 0;
+	int64_t thresh = LLONG_MAX; /* Discard outliers above this value. */
+	unsigned int ret = 0;
+
+again:
 
 	/* first calculate average and standard deviation of the past */
-	for (i = 0; i < INTERVALS; i++)
-		avg += data->intervals[i];
-	avg = avg / INTERVALS;
+	max = avg = divisor = stddev = 0;
+	for (i = 0; i < INTERVALS; i++) {
+		int64_t value = data->intervals[i];
+		if (value <= thresh) {
+			avg += value;
+			divisor++;
+			if (value > max)
+				max = value;
+		}
+	}
+	do_div(avg, divisor);
 
-	/* if the avg is beyond the known next tick, it's worthless */
-	if (avg > data->expected_us)
-		return 0;
-
-	for (i = 0; i < INTERVALS; i++)
-		stddev += (data->intervals[i] - avg) *
-			  (data->intervals[i] - avg);
-
-	stddev = stddev / INTERVALS;
-
+	for (i = 0; i < INTERVALS; i++) {
+		int64_t value = data->intervals[i];
+		if (value <= thresh) {
+			int64_t diff = value - avg;
+			stddev += diff * diff;
+		}
+	}
+	do_div(stddev, divisor);
+	stddev = int_sqrt(stddev);
 	/*
-	 * now.. if stddev is small.. then assume we have a
-	 * repeating pattern and predict we keep doing this.
+	 * If we have outliers to the upside in our distribution, discard
+	 * those by setting the threshold to exclude these outliers, then
+	 * calculate the average and standard deviation again. Once we get
+	 * down to the bottom 3/4 of our samples, stop excluding samples.
+	 *
+	 * This can deal with workloads that have long pauses interspersed
+	 * with sporadic activity with a bunch of short pauses.
+	 *
+	 * The typical interval is obtained when standard deviation is small
+	 * or standard deviation is small compared to the average interval.
 	 */
-
-	if (avg && stddev < STDDEV_THRESH) {
+	if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
+							|| stddev <= 20) {
 		data->predicted_us = avg;
 		ret = 1;
+		return ret;
+
+	} else if ((divisor * 4) > INTERVALS * 3) {
+		/* Exclude the max interval */
+		thresh = max - 1;
+		goto again;
 	}
 
 	return ret;
@@ -330,7 +353,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	data->predicted_us = div_round64(data->expected_us * data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
 
-	repeat = detect_repeating_patterns(data);
+	repeat = get_typical_interval(data);
 
 	/*
 	 * We want to default to C1 (hlt), not to busy polling
