@@ -817,50 +817,49 @@ static int dt3000_attach_pci(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-
 	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = this_board->adchan;
-	s->insn_read = dt3k_ai_insn;
-	s->maxdata = (1 << this_board->adbits) - 1;
-	s->len_chanlist = 512;
-	s->range_table = &range_dt3000_ai;	/* XXX */
-	s->do_cmd = dt3k_ai_cmd;
-	s->do_cmdtest = dt3k_ai_cmdtest;
-	s->cancel = dt3k_ai_cancel;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan	= this_board->adchan;
+	s->insn_read	= dt3k_ai_insn;
+	s->maxdata	= (1 << this_board->adbits) - 1;
+	s->len_chanlist	= 512;
+	s->range_table	= &range_dt3000_ai;	/* XXX */
+	s->do_cmd	= dt3k_ai_cmd;
+	s->do_cmdtest	= dt3k_ai_cmdtest;
+	s->cancel	= dt3k_ai_cancel;
 
 	s = &dev->subdevices[1];
 	/* ao subsystem */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->insn_read = dt3k_ao_insn_read;
-	s->insn_write = dt3k_ao_insn;
-	s->maxdata = (1 << this_board->dabits) - 1;
-	s->len_chanlist = 1;
-	s->range_table = &range_bipolar10;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 2;
+	s->insn_read	= dt3k_ao_insn_read;
+	s->insn_write	= dt3k_ao_insn;
+	s->maxdata	= (1 << this_board->dabits) - 1;
+	s->len_chanlist	= 1;
+	s->range_table	= &range_bipolar10;
 
 	s = &dev->subdevices[2];
 	/* dio subsystem */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->insn_config = dt3k_dio_insn_config;
-	s->insn_bits = dt3k_dio_insn_bits;
-	s->maxdata = 1;
-	s->len_chanlist = 8;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->insn_config	= dt3k_dio_insn_config;
+	s->insn_bits	= dt3k_dio_insn_bits;
+	s->maxdata	= 1;
+	s->len_chanlist	= 8;
+	s->range_table	= &range_digital;
 
 	s = &dev->subdevices[3];
 	/* mem subsystem */
-	s->type = COMEDI_SUBD_MEMORY;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 0x1000;
-	s->insn_read = dt3k_mem_insn_read;
-	s->maxdata = 0xff;
-	s->len_chanlist = 1;
-	s->range_table = &range_unknown;
+	s->type		= COMEDI_SUBD_MEMORY;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 0x1000;
+	s->insn_read	= dt3k_mem_insn_read;
+	s->maxdata	= 0xff;
+	s->len_chanlist	= 1;
+	s->range_table	= &range_unknown;
 
 #if 0
 	s = &dev->subdevices[4];
