@@ -2683,38 +2683,25 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 		      I915_READ(PCH_PP_DIVISOR));
 }
 
-void
-intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
+static void
+intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
+			struct intel_connector *intel_connector)
 {
+	struct drm_connector *connector = &intel_connector->base;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_connector *connector;
-	struct intel_dp *intel_dp;
-	struct intel_encoder *intel_encoder;
-	struct intel_connector *intel_connector;
-	struct intel_digital_port *intel_dig_port;
 	struct drm_display_mode *fixed_mode = NULL;
+	enum port port = intel_dp->port;
 	const char *name = NULL;
 	int type;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
-	if (!intel_dig_port)
-		return;
-
-	intel_dp = &intel_dig_port->dp;
-	intel_dp->output_reg = output_reg;
-	intel_dp->port = port;
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
-
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
-	if (!intel_connector) {
-		kfree(intel_dig_port);
-		return;
-	}
-	intel_encoder = &intel_dig_port->base;
 	intel_dp->attached_connector = intel_connector;
 
-	if (HAS_PCH_SPLIT(dev) && output_reg == PCH_DP_D)
+	if (HAS_PCH_SPLIT(dev) && port == PORT_D)
 		if (intel_dpd_is_edp(dev))
 			intel_dp->is_pch_edp = true;
 
@@ -2722,10 +2709,10 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	 * FIXME : We need to initialize built-in panels before external panels.
 	 * For X0, DP_C is fixed as eDP. Revisit this as part of VLV eDP cleanup
 	 */
-	if (IS_VALLEYVIEW(dev) && output_reg == DP_C) {
+	if (IS_VALLEYVIEW(dev) && port == PORT_C) {
 		type = DRM_MODE_CONNECTOR_eDP;
 		intel_encoder->type = INTEL_OUTPUT_EDP;
-	} else if (output_reg == DP_A || is_pch_edp(intel_dp)) {
+	} else if (port == PORT_A || is_pch_edp(intel_dp)) {
 		type = DRM_MODE_CONNECTOR_eDP;
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 	} else {
@@ -2733,48 +2720,19 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	}
 
-	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	intel_encoder->cloneable = false;
+	connector->interlace_allowed = true;
+	connector->doublescan_allowed = 0;
 
 	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
 			  ironlake_panel_vdd_work);
 
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-
-	connector->interlace_allowed = true;
-	connector->doublescan_allowed = 0;
-
-	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
-
-	if (IS_HASWELL(dev))
-		drm_encoder_helper_add(&intel_encoder->base,
-				       &intel_dp_helper_funcs_hsw);
-	else
-		drm_encoder_helper_add(&intel_encoder->base,
-				       &intel_dp_helper_funcs);
-
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);
 
-	if (IS_HASWELL(dev)) {
-		intel_encoder->enable = intel_enable_ddi;
-		intel_encoder->pre_enable = intel_ddi_pre_enable;
-		intel_encoder->disable = intel_disable_ddi;
-		intel_encoder->post_disable = intel_ddi_post_disable;
-		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
-	} else {
-		intel_encoder->enable = intel_enable_dp;
-		intel_encoder->pre_enable = intel_pre_enable_dp;
-		intel_encoder->disable = intel_disable_dp;
-		intel_encoder->post_disable = intel_post_disable_dp;
-		intel_encoder->get_hw_state = intel_dp_get_hw_state;
-	}
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	/* Set up the DDC bus. */
@@ -2860,8 +2818,6 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		ironlake_edp_panel_vdd_off(intel_dp, false);
 	}
 
-	intel_encoder->hot_plug = intel_dp_hot_plug;
-
 	if (is_edp(intel_dp)) {
 		intel_panel_init(&intel_connector->panel, fixed_mode);
 		intel_panel_setup_backlight(connector);
@@ -2877,4 +2833,58 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
 		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
 	}
+}
+
+void
+intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
+{
+	struct intel_digital_port *intel_dig_port;
+	struct intel_encoder *intel_encoder;
+	struct drm_encoder *encoder;
+	struct intel_connector *intel_connector;
+
+	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	if (!intel_dig_port)
+		return;
+
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_dig_port);
+		return;
+	}
+
+	intel_encoder = &intel_dig_port->base;
+	encoder = &intel_encoder->base;
+
+	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
+			 DRM_MODE_ENCODER_TMDS);
+
+	if (IS_HASWELL(dev)) {
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_dp_helper_funcs_hsw);
+
+		intel_encoder->enable = intel_enable_ddi;
+		intel_encoder->pre_enable = intel_ddi_pre_enable;
+		intel_encoder->disable = intel_disable_ddi;
+		intel_encoder->post_disable = intel_ddi_post_disable;
+		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
+	} else {
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_dp_helper_funcs);
+
+		intel_encoder->enable = intel_enable_dp;
+		intel_encoder->pre_enable = intel_pre_enable_dp;
+		intel_encoder->disable = intel_disable_dp;
+		intel_encoder->post_disable = intel_post_disable_dp;
+		intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	}
+
+	intel_dig_port->dp.port = port;
+	intel_dig_port->dp.output_reg = output_reg;
+
+	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	intel_encoder->cloneable = false;
+	intel_encoder->hot_plug = intel_dp_hot_plug;
+
+	intel_dp_init_connector(intel_dig_port, intel_connector);
 }
