@@ -29,11 +29,7 @@ Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
 Updated: Mon, 14 Apr 2008 15:41:24 +0100
 Status: works
 
-Configuration Options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first supported
-  PCI device found will be used.
+Configuration Options: not applicable, uses PCI auto config
 
 There is code to support AI commands, but it may not work.
 
@@ -764,58 +760,41 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
-					   struct comedi_devconfig *it)
+static const void *dt3000_find_boardinfo(struct comedi_device *dev,
+					 struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
+	const struct dt3k_boardtype *this_board;
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_DT)
-			continue;
-		for (i = 0; i < ARRAY_SIZE(dt3k_boardtypes); i++) {
-			if (dt3k_boardtypes[i].device_id != pcidev->device)
-				continue;
-			dev->board_ptr = dt3k_boardtypes + i;
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(dt3k_boardtypes); i++) {
+		this_board = &dt3k_boardtypes[i];
+		if (this_board->device_id == pcidev->device)
+			return this_board;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int dt3000_attach_pci(struct comedi_device *dev,
+			     struct pci_dev *pcidev)
 {
 	const struct dt3k_boardtype *this_board;
 	struct dt3k_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	resource_size_t pci_base;
 	int ret = 0;
 
-	dev_dbg(dev->class_dev, "dt3000:\n");
+	this_board = dt3000_find_boardinfo(dev, pcidev);
+	if (!this_board)
+		return -ENODEV;
+	dev->board_ptr = this_board;
+	dev->board_name = this_board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	pcidev = dt3000_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	this_board = comedi_board(dev);
-
-	ret = comedi_pci_enable(pcidev, "dt3000");
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret < 0)
 		return ret;
 	dev->iobase = 1;	/* the "detach" needs this */
@@ -825,14 +804,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
-	dev->board_name = this_board->name;
-
-	if (request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
-			"dt3000", dev)) {
-		dev_err(dev->class_dev, "unable to allocate IRQ %u\n",
-			pcidev->irq);
-		return -EINVAL;
-	}
+	ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
+			  dev->board_name, dev);
+	if (ret)
+		return ret;
 	dev->irq = pcidev->irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -909,14 +884,13 @@ static void dt3000_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver dt3000_driver = {
 	.driver_name	= "dt3000",
 	.module		= THIS_MODULE,
-	.attach		= dt3000_attach,
+	.attach_pci	= dt3000_attach_pci,
 	.detach		= dt3000_detach,
 };
 
