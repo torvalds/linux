@@ -1930,6 +1930,7 @@ __u32 BSP_disp_get_cur_line(__u32 sel)
     return line;
 }
 
+#ifdef CONFIG_ARCH_SUN5I
 __s32 BSP_disp_close_lcd_backlight(__u32 sel)
 {
     user_gpio_set_t  gpio_info[1];
@@ -1979,6 +1980,8 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
     }
     return 0;
 }
+#endif /* CONFIG_ARCH_SUN5I */
+
 #ifdef __LINUX_OSAL__
 EXPORT_SYMBOL(LCD_OPEN_FUNC);
 EXPORT_SYMBOL(LCD_CLOSE_FUNC);

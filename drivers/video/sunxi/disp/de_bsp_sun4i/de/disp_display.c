@@ -80,6 +80,10 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     DE_IEP_Set_Reg_Base(0, para->base_iep);
 #endif
 
+#ifdef CONFIG_ARCH_SUN5I
+    BSP_disp_close_lcd_backlight(0);
+#endif
+
 	disp_pll_init();
 
     Scaler_Init(0);
