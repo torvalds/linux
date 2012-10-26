@@ -143,5 +143,15 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
+
+		rstmgr@ffd05000 {
+				compatible = "altr,rst-mgr";
+				reg = <0xffd05000 0x1000>;
+			};
+
+		sysmgr@ffd08000 {
+				compatible = "altr,sys-mgr";
+				reg = <0xffd08000 0x4000>;
+			};
 	};
 };
