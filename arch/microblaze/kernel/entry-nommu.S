@@ -559,14 +559,6 @@ no_work_pending:
 	rtid	r14, 0
 	nop
 
-sys_vfork:
-	brid	microblaze_vfork
-	addk	r5, r1, r0
-
-sys_clone:
-	brid	microblaze_clone
-	addk	r7, r1, r0
-
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0

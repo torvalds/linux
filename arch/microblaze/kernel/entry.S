@@ -442,18 +442,6 @@ TRAP_return:		/* Make global symbol for debugging */
 	nop;
 
 
-/* These syscalls need access to the struct pt_regs on the stack, so we
-   implement them in assembly (they're basically all wrappers anyway).  */
-
-C_ENTRY(sys_fork_wrapper):
-	addi	r5, r0, SIGCHLD			/* Arg 0: flags */
-	lwi	r6, r1, PT_R1	/* Arg 1: child SP (use parent's) */
-	addik	r7, r1, 0			/* Arg 2: parent context */
-	add	r8, r0, r0			/* Arg 3: (unused) */
-	add	r9, r0, r0;			/* Arg 4: (unused) */
-	brid	do_fork		/* Do real work (tail-call) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
-
 /* This the initial entry point for a new child thread, with an appropriate
    stack in place that makes it look the the child is in the middle of an
    syscall.  This function is actually `returned to' from switch_thread
@@ -474,20 +462,6 @@ C_ENTRY(ret_from_kernel_thread):
 	addk	r5, r0, r19	/* ... and argument - in r19 */
 	brid	ret_from_trap
 	add	r3, r0, r0
-
-C_ENTRY(sys_vfork):
-	brid	microblaze_vfork	/* Do real work (tail-call) */
-	addik	r5, r1, 0
-
-C_ENTRY(sys_clone):
-	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
-	lwi	r6, r1, PT_R1;	/* If so, use paret's stack ptr */
-1:	addik	r7, r1, 0;			/* Arg 2: parent context */
-	lwi     r9, r1, PT_R8;          /* parent tid.  */
-	lwi     r10, r1, PT_R9;         /* child tid.  */
-	/* do_fork will pick up TLS from regs->r10.  */
-	brid	do_fork		/* Do real work (tail-call) */
-	add     r8, r0, r0;             /* Arg 3: (unused) */
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	brid	sys_rt_sigreturn	/* Do real work */

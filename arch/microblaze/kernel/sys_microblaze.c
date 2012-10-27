@@ -34,20 +34,6 @@
 
 #include <asm/syscalls.h>
 
-asmlinkage long microblaze_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->r1,
-						regs, 0, NULL, NULL);
-}
-
-asmlinkage long microblaze_clone(int flags, unsigned long stack,
-							struct pt_regs *regs)
-{
-	if (!stack)
-		stack = regs->r1;
-	return do_fork(flags, stack, regs, 0, NULL, NULL);
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, off_t pgoff)
