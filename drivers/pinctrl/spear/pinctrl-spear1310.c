@@ -25,8 +25,8 @@ static const struct pinctrl_pin_desc spear1310_pins[] = {
 };
 
 /* registers */
-#define PERIP_CFG					0x32C
-	#define MCIF_SEL_SHIFT				3
+#define PERIP_CFG					0x3B0
+	#define MCIF_SEL_SHIFT				5
 	#define MCIF_SEL_SD				(0x1 << MCIF_SEL_SHIFT)
 	#define MCIF_SEL_CF				(0x2 << MCIF_SEL_SHIFT)
 	#define MCIF_SEL_XD				(0x3 << MCIF_SEL_SHIFT)
