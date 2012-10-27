@@ -41,6 +41,7 @@
 #include <linux/io.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/usb.h>
 
 #include "comedi.h"
 
@@ -192,8 +193,6 @@ struct comedi_async {
 	int (*inttrig) (struct comedi_device *dev, struct comedi_subdevice *s,
 			unsigned int x);
 };
-
-struct usb_interface;
 
 struct comedi_driver {
 	struct comedi_driver *next;
@@ -455,6 +454,12 @@ static inline void comedi_set_hw_dev(struct comedi_device *dev,
 static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
 {
 	return dev->hw_dev ? to_pci_dev(dev->hw_dev) : NULL;
+}
+
+static inline struct usb_interface *
+comedi_to_usb_interface(struct comedi_device *dev)
+{
+	return dev->hw_dev ? to_usb_interface(dev->hw_dev) : NULL;
 }
 
 int comedi_buf_put(struct comedi_async *async, short x);
