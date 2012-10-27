@@ -877,10 +877,13 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 }
 
 static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
-			      struct request_values *rvp)
+			     struct request_values *rvp)
 {
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
-	return tcp_v4_send_synack(sk, NULL, req, rvp, 0, false);
+	int res = tcp_v4_send_synack(sk, NULL, req, rvp, 0, false);
+
+	if (!res)
+		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return res;
 }
 
 /*
@@ -1386,7 +1389,8 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 	struct sock *child;
 	int err;
 
-	req->retrans = 0;
+	req->num_retrans = 0;
+	req->num_timeout = 0;
 	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
@@ -1740,7 +1744,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	tcp_initialize_rcv_mss(newsk);
 	tcp_synack_rtt_meas(newsk, req);
-	newtp->total_retrans = req->retrans;
+	newtp->total_retrans = req->num_retrans;
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Copy over the MD5 key from the original socket */
@@ -2638,7 +2642,7 @@ static void get_openreq4(const struct sock *sk, const struct request_sock *req,
 		0, 0, /* could print option size, but that is af dependent. */
 		1,    /* timers active (only the expire timer) */
 		jiffies_delta_to_clock_t(delta),
-		req->retrans,
+		req->num_timeout,
 		from_kuid_munged(seq_user_ns(f), uid),
 		0,  /* non standard timer */
 		0, /* open_requests have no inode */
