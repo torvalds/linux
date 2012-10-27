@@ -1209,9 +1209,10 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 }
 
 /* called via comedi_usb_auto_config() */
-static int vmk80xx_attach_usb(struct comedi_device *cdev,
-			      struct usb_interface *intf)
+static int vmk80xx_auto_attach(struct comedi_device *cdev,
+			       unsigned long context_unused)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(cdev);
 	int i;
 	int ret;
 
@@ -1246,7 +1247,7 @@ static struct comedi_driver vmk80xx_driver = {
 	.driver_name	= "vmk80xx",
 	.attach		= vmk80xx_attach,
 	.detach		= vmk80xx_detach,
-	.attach_usb	= vmk80xx_attach_usb,
+	.auto_attach	= vmk80xx_auto_attach,
 };
 
 static int vmk80xx_usb_probe(struct usb_interface *intf,
