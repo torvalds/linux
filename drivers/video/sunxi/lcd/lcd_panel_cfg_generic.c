@@ -20,6 +20,7 @@
  */
 
 #include "lcd_panel_cfg.h"
+#include "../disp/disp_lcd.h"
 
 #define CMD_WIRTE_DELAY 2
 

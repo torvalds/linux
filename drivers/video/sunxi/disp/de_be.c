@@ -368,8 +368,9 @@ __u32 fir_tab[FIR_TAB_SIZE] = {
 };
 
 #ifdef CONFIG_ARCH_SUN4I
+#ifdef UNUSED
 /* smooth for video */
-__u32 fir_tab_video[FIR_TAB_SIZE] = {
+static __u32 fir_tab_video[FIR_TAB_SIZE] = {
 	0x00053704, 0x00063703, 0x00073702, 0x00093601, 0x000b3500, 0x000c3400, 0x000e3200, 0x000f3100,
 	0x00112f00, 0x00132d00, 0x00152b00, 0x00162a00, 0x00182800, 0x001a2600, 0x001c2400, 0x001e2200,
 	0x00202000, 0x00211f00, 0x00231d00, 0x00251b00, 0x00271900, 0x00291700, 0x002a1600, 0x002c1400,
@@ -601,6 +602,7 @@ __u32 fir_tab_video[FIR_TAB_SIZE] = {
 	0x0c0a0603, 0x00080b0e, 0x0c0a0603, 0x00080b0e, 0x0c0a0603, 0x00090b0d, 0x0b0a0603, 0x00090c0d,
 	0x0b0a0603, 0x00090c0d, 0x0b0a0603, 0x00090c0d, 0x0c090602, 0x00090c0e, 0x0c090602, 0x00090c0e
 };
+#endif /* UNUSED */
 #endif /* CONFIG_ARCH_SUN4I */
 
 __s32 DE_Set_Reg_Base(__u32 sel, __u32 address)
@@ -776,12 +778,14 @@ __s32 DE_BE_Sprite_Enable(__u32 sel, __bool enable)
 	return 0;
 }
 
-__s32 DE_BE_Sprite_Disable(__u32 sel)
+#ifdef UNUSED
+static __s32 DE_BE_Sprite_Disable(__u32 sel)
 {
 	DE_BE_WUINT32(sel, DE_BE_SPRITE_EN_OFF,
 		      DE_BE_RUINT32(sel, DE_BE_SPRITE_EN_OFF) & 0xfffffffe);
 	return 0;
 }
+#endif
 
 __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format)
 {

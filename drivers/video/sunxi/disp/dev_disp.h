@@ -22,12 +22,6 @@
 #ifndef __DEV_DISP_H__
 #define __DEV_DISP_H__
 
-#include "drv_disp_i.h"
-
-#ifdef CONFIG_FB_SUNXI_UMP
-#include <ump/ump_kernel_interface.h>
-#endif
-
 #define SUNXI_MAX_FB 2
 
 struct info_mm {
@@ -36,44 +30,6 @@ struct info_mm {
 	/* (physical address) */
 	__u32 mem_len;		/* Length of frame buffer mem */
 };
-
-typedef struct {
-	struct device *dev;
-
-	__u32 base_image0;
-	__u32 base_image1;
-	__u32 base_scaler0;
-	__u32 base_scaler1;
-	__u32 base_lcdc0;
-	__u32 base_lcdc1;
-	__u32 base_tvec0;
-	__u32 base_tvec1;
-	__u32 base_hdmi;
-	__u32 base_ccmu;
-	__u32 base_sdram;
-	__u32 base_pioc;
-	__u32 base_pwm;
-#ifdef CONFIG_ARCH_SUN5I
-	__u32 base_iep;
-#endif
-	__disp_init_t disp_init;
-
-	__bool fb_enable[SUNXI_MAX_FB];
-	__fb_mode_t fb_mode[SUNXI_MAX_FB];
-	/*
-	 * [fb_id][0]: screen0 layer handle;
-	 * [fb_id][1]: screen1 layer handle
-	 */
-	__u32 layer_hdl[SUNXI_MAX_FB][2];
-	struct fb_info *fbinfo[SUNXI_MAX_FB];
-	__disp_fb_create_para_t fb_para[SUNXI_MAX_FB];
-	wait_queue_head_t wait[SUNXI_MAX_FB];
-	unsigned long wait_count[SUNXI_MAX_FB];
-	__u32 pseudo_palette[SUNXI_MAX_FB][16];
-#ifdef CONFIG_FB_SUNXI_UMP
-	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][2];
-#endif
-} fb_info_t;
 
 typedef struct {
 	__u32 mid;
@@ -115,17 +71,13 @@ extern __s32 DRV_disp_int_process(__u32 sel);
 extern __s32 DRV_DISP_Init(void);
 extern __s32 DRV_DISP_Exit(void);
 
-extern fb_info_t g_fbi;
-
 extern __disp_drv_t g_disp_drv;
 
 extern __s32 DRV_lcd_open(__u32 sel);
 extern __s32 DRV_lcd_close(__u32 sel);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 Fb_Exit(void);
-#ifdef CONFIG_FB_SUNXI_UMP
-extern int (*disp_get_ump_secure_id) (struct fb_info * info, fb_info_t * g_fbi,
-				      unsigned long arg, int buf);
-#endif
+
+__s32 disp_set_hdmi_func(__disp_hdmi_func * func);
 
 #endif

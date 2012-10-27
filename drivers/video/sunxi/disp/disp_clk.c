@@ -21,6 +21,7 @@
 
 #include "disp_display_i.h"
 #include "disp_display.h"
+#include "disp_lcd.h"
 #include "disp_clk.h"
 #include "OSAL_Clock.h"
 
@@ -55,23 +56,22 @@
 #define CLK_HDMI_MOD_ON		0x20000000
 //#define CLK_LVDS_MOD_ON
 
-__hdle h_debe0ahbclk, h_debe0mclk, h_debe0dramclk;
-__hdle h_debe1ahbclk, h_debe1mclk, h_debe1dramclk;
-__hdle h_defe0ahbclk, h_defe0mclk, h_defe0dramclk;
-__hdle h_defe1ahbclk, h_defe1mclk, h_defe1dramclk;
-__hdle h_tvenc0ahbclk;
-__hdle h_tvenc1ahbclk;
-__hdle h_lcd0ahbclk, h_lcd0ch0mclk0, h_lcd0ch1mclk1, h_lcd0ch1mclk2;
-__hdle h_lcd1ahbclk, h_lcd1ch0mclk0, h_lcd1ch1mclk1, h_lcd1ch1mclk2;
-__hdle h_lvdsmclk;		/* only for reset */
-__hdle h_hdmiahbclk, h_hdmimclk;
+static __hdle h_debe0ahbclk, h_debe0mclk, h_debe0dramclk;
+static __hdle h_debe1ahbclk, h_debe1mclk, h_debe1dramclk;
+static __hdle h_defe0ahbclk, h_defe0mclk, h_defe0dramclk;
+static __hdle h_defe1ahbclk, h_defe1mclk, h_defe1dramclk;
+static __hdle h_tvenc0ahbclk;
+static __hdle h_tvenc1ahbclk;
+static __hdle h_lcd0ahbclk, h_lcd0ch0mclk0, h_lcd0ch1mclk1, h_lcd0ch1mclk2;
+static __hdle h_lcd1ahbclk, h_lcd1ch0mclk0, h_lcd1ch1mclk1, h_lcd1ch1mclk2;
+static __hdle h_lvdsmclk;		/* only for reset */
+static __hdle h_hdmiahbclk, h_hdmimclk;
 
-__u32 g_clk_status = 0x0;
+__u32 g_clk_status;
 
 #define RESET_OSAL
 
 extern __disp_dev_t gdisp;
-extern __panel_para_t gpanel_info[2];
 
 /* record tv/vga/hdmi mode clock requirement */
 __disp_clk_tab clk_tab = {

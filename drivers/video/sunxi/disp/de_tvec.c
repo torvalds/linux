@@ -22,8 +22,8 @@
 #include "ebios_lcdc_tve.h"
 #include "de_tvec_i.h"
 
-__u32 tve_reg_base0;
-__u32 tve_reg_base1;
+static __u32 tve_reg_base0;
+static __u32 tve_reg_base1;
 
 __s32 TVE_set_reg_base(__u32 sel, __u32 address)
 {
@@ -626,14 +626,18 @@ __u8 TVE_csc_init(__u32 sel, __u8 type)
 		return 0;
 }
 
-__u8 TVE_csc_enable(__u32 sel)
+#ifdef UNUSED
+static __u8
+TVE_csc_enable(__u32 sel)
 {
 	TVE_SET_BIT(sel, TVE_040, (__u32) (0x1 << 31));
 	return 0;
 }
 
-__u8 TVE_csc_disable(__u32 sel)
+static __u8
+TVE_csc_disable(__u32 sel)
 {
 	TVE_CLR_BIT(sel, TVE_040, 0x1 << 31);
 	return 0;
 }
+#endif

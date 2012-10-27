@@ -19,13 +19,20 @@
  * MA 02111-1307 USA
  */
 
-#include "dev_disp.h"
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
-fb_info_t g_fbi;
+#ifdef CONFIG_FB_SUNXI_UMP
+#include <ump/ump_kernel_interface.h>
+#endif
+
+#include "drv_disp_i.h"
+#include "dev_disp.h"
+#include "disp_lcd.h"
+#include "dev_fb.h"
+
+
 __disp_drv_t g_disp_drv;
 
 /* alloc based on 4K byte */
@@ -302,7 +309,8 @@ __s32 DRV_DISP_Exit(void)
 	return 0;
 }
 
-int disp_mem_request(int sel, __u32 size)
+static int
+disp_mem_request(int sel, __u32 size)
 {
 #ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = 0;
@@ -354,7 +362,8 @@ int disp_mem_request(int sel, __u32 size)
 
 }
 
-int disp_mem_release(int sel)
+static int
+disp_mem_release(int sel)
 {
 #ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
@@ -528,7 +537,8 @@ static struct early_suspend backlight_early_suspend_handler = {
 
 #endif
 
-int disp_suspend(struct platform_device *pdev, pm_message_t state)
+static int
+disp_suspend(struct platform_device *pdev, pm_message_t state)
 {
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	int i = 0;
@@ -557,7 +567,8 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-int disp_resume(struct platform_device *pdev)
+static int
+disp_resume(struct platform_device *pdev)
 {
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	int i = 0;
@@ -586,7 +597,8 @@ int disp_resume(struct platform_device *pdev)
 	return 0;
 }
 
-void disp_shutdown(struct platform_device *pdev)
+static void
+disp_shutdown(struct platform_device *pdev)
 {
 	__u32 type = 0, i = 0;
 
@@ -1829,7 +1841,7 @@ static struct platform_driver disp_driver = {
 		   },
 };
 
-struct platform_device disp_device = {
+static struct platform_device disp_device = {
 	.name = "disp",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(disp_resource),
@@ -1837,7 +1849,7 @@ struct platform_device disp_device = {
 	.dev = {}
 };
 
-int __init disp_module_init(void)
+static int __init disp_module_init(void)
 {
 	int ret, err;
 

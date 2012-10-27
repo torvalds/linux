@@ -22,6 +22,8 @@
 #include "dev_lcd.h"
 #include "lcd_panel_cfg.h"
 
+#include "../disp/disp_lcd.h"
+
 static struct cdev *my_cdev;
 static dev_t devid ;
 static struct class *lcd_class;

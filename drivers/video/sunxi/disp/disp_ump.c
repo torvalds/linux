@@ -18,8 +18,15 @@
  * MA 02111-1307 USA
  */
 
-#include "dev_disp.h"
+#ifndef CONFIG_FB_SUNXI_UMP
+#error This file should not be built without UMP enabled
+#endif
+
 #include <ump/ump_kernel_interface_ref_drv.h>
+
+#include "drv_disp_i.h"
+#include "dev_disp.h"
+#include "dev_fb.h"
 
 static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 				   unsigned long arg, int buf)
@@ -48,7 +55,7 @@ static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 	return put_user((unsigned int)secure_id, psecureid);
 }
 
-int __init disp_ump_module_init(void)
+static int __init disp_ump_module_init(void)
 {
 	int ret = 0;
 

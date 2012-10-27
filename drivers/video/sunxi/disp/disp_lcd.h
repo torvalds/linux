@@ -22,11 +22,7 @@
 #ifndef __DISP_LCD_H__
 #define __DISP_LCD_H__
 
-#include "disp_display_i.h"
-
-#ifdef CONFIG_ARCH_SUN5I
 extern __panel_para_t gpanel_info[2];
-#endif
 
 __s32 Disp_lcdc_init(__u32 sel);
 __s32 Disp_lcdc_exit(__u32 sel);
@@ -42,7 +38,26 @@ __u32 vga_mode_to_height(__disp_vga_mode_t mode);
 void LCD_delay_ms(__u32 ms);
 void LCD_delay_us(__u32 ns);
 
-extern void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun);
-extern void LCD_get_panel_funs_1(__lcd_panel_fun_t * fun);
+void TCON_open(__u32 sel);
+void TCON_close(__u32 sel);
+__s32 LCD_PWM_EN(__u32 sel, __bool b_en);
+__s32 LCD_BL_EN(__u32 sel, __bool b_en);
+__s32 LCD_POWER_EN(__u32 sel, __bool b_en);
+
+__s32 LCD_GPIO_request(__u32 sel, __u32 io_index);
+__s32 LCD_GPIO_release(__u32 sel,__u32 io_index);
+__s32 LCD_GPIO_set_attr(__u32 sel,__u32 io_index, __bool b_output);
+__s32 LCD_GPIO_read(__u32 sel,__u32 io_index);
+__s32 LCD_GPIO_write(__u32 sel,__u32 io_index, __u32 data);
+
+__s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info);
+__s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
+
+void LCD_set_panel_funs(__lcd_panel_fun_t *lcd0_cfg,
+			__lcd_panel_fun_t *lcd1_cfg);
+
+void LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay);
+void LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay);
+__s32 LCD_POWER_EN(__u32 sel, __bool b_en);
 
 #endif

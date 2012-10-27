@@ -27,7 +27,9 @@
 #include "disp_lcd.h"
 #include "disp_clk.h"
 
-__s32 VGA_Init(void)
+#ifdef UNUSED
+static __s32
+VGA_Init(void)
 {
 	gdisp.screen[0].vga_mode = DISP_VGA_H1024_V768;
 	gdisp.screen[1].vga_mode = DISP_VGA_H1024_V768;
@@ -35,10 +37,12 @@ __s32 VGA_Init(void)
 	return DIS_SUCCESS;
 }
 
-__s32 VGA_Exit(void)
+static __s32
+VGA_Exit(void)
 {
 	return DIS_SUCCESS;
 }
+#endif /* UNUSED */
 
 __s32 BSP_disp_vga_open(__u32 sel)
 {
