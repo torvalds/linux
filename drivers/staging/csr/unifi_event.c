@@ -521,7 +521,6 @@ unifi_process_receive_event(void *ospriv,
                                     unifi_net_data_free(priv, (void *)&bulkdata->d[i]);
                                 }
                            }
-                           func_exit();
                            return;
                        }
                    } /* CSR_MA_PACKET_INDICATION_ID */
@@ -571,7 +570,6 @@ unifi_process_receive_event(void *ospriv,
             }
     }
 
-    func_exit();
 } /* unifi_process_receive_event() */
 
 
@@ -602,7 +600,6 @@ void unifi_rx_queue_flush(void *ospriv)
         }
         priv->rxSignalBuffer.readPointer = readPointer;
     }
-    func_exit();
 }
 
 void rx_wq_handler(struct work_struct *work)
@@ -691,6 +688,5 @@ unifi_receive_event(void *ospriv,
 #else
     unifi_process_receive_event(ospriv, sigdata, siglen, bulkdata);
 #endif
-    func_exit();
 } /* unifi_receive_event() */
 

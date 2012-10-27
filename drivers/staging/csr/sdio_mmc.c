@@ -479,7 +479,6 @@ CsrSdioInterruptEnable(CsrSdioFunction *function)
 #endif
     _sdio_release_host(func);
 
-    func_exit();
     if (err) {
         printk(KERN_ERR "unifi: %s: error %d writing IENx\n", __FUNCTION__, err);
         return ConvertSdioToCsrSdioResult(err);
@@ -506,7 +505,6 @@ CsrSdioInterruptDisable(CsrSdioFunction *function)
 #endif
     _sdio_release_host(func);
 
-    func_exit();
     if (err) {
         printk(KERN_ERR "unifi: %s: error %d writing IENx\n", __FUNCTION__, err);
         return ConvertSdioToCsrSdioResult(err);
@@ -548,7 +546,6 @@ CsrSdioFunctionEnable(CsrSdioFunction *function)
         unifi_error(NULL, "Failed to enable SDIO function %d\n", func->num);
     }
 
-    func_exit();
     return ConvertSdioToCsrSdioResult(err);
 } /* CsrSdioFunctionEnable() */
 
@@ -580,7 +577,6 @@ CsrSdioFunctionDisable(CsrSdioFunction *function)
         unifi_error(NULL, "Failed to disable SDIO function %d\n", func->num);
     }
 
-    func_exit();
     return ConvertSdioToCsrSdioResult(err);
 } /* CsrSdioFunctionDisable() */
 
@@ -1096,7 +1092,6 @@ uf_glue_sdio_probe(struct sdio_func *func,
     wake_lock(&unifi_sdio_wake_lock);
 #endif
 
-    func_exit();
     return 0;
 } /* uf_glue_sdio_probe() */
 
@@ -1139,8 +1134,6 @@ uf_glue_sdio_remove(struct sdio_func *func)
 
     kfree(sdio_ctx);
 
-    func_exit();
-
 } /* uf_glue_sdio_remove */
 
 
@@ -1176,7 +1169,6 @@ uf_glue_sdio_suspend(struct device *dev)
 {
     unifi_trace(NULL, UDBG1, "uf_glue_sdio_suspend");
 
-    func_exit();
     return 0;
 } /* uf_glue_sdio_suspend */
 
@@ -1204,7 +1196,6 @@ uf_glue_sdio_resume(struct device *dev)
     wake_lock(&unifi_sdio_wake_lock);
 #endif
 
-    func_exit();
     return 0;
 
 } /* uf_glue_sdio_resume */

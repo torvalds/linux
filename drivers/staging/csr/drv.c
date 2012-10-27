@@ -276,7 +276,6 @@ unifi_open(struct inode *inode, struct file *file)
     priv = uf_get_instance(devno);
     if (priv == NULL) {
         unifi_error(NULL, "unifi_open: No device present\n");
-        func_exit();
         return -ENODEV;
     }
 
@@ -288,7 +287,6 @@ unifi_open(struct inode *inode, struct file *file)
             /* Too many clients already using this device */
             unifi_error(priv, "Too many clients already open\n");
             uf_put_instance(devno);
-            func_exit();
             return -ENOSPC;
         }
         unifi_trace(priv, UDBG1, "Client is registered to /dev/unifiudi%d\n", devno);
@@ -308,7 +306,6 @@ unifi_open(struct inode *inode, struct file *file)
             uf_put_instance(devno);
 
             unifi_info(priv, "There is already a configuration client using the character device\n");
-            func_exit();
             return -EBUSY;
         }
 #endif /* CSR_SME_USERSPACE */
@@ -329,7 +326,6 @@ unifi_open(struct inode *inode, struct file *file)
             uf_put_instance(devno);
 
             unifi_error(priv, "Too many clients already open\n");
-            func_exit();
             return -ENOSPC;
         }
 
@@ -355,7 +351,6 @@ unifi_open(struct inode *inode, struct file *file)
      */
     file->private_data = udi_cli;
 
-    func_exit();
     return 0;
 } /* unifi_open() */
 
@@ -609,7 +604,6 @@ udi_send_signal_unpacked(unifi_priv_t *priv, unsigned char* data, uint data_len)
                 unifi_net_data_free(priv, &bulk_data.d[i]);
             }
         }
-        func_exit();
         return -EIO;
     }
 
@@ -660,7 +654,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     if ((signal_size <= 0) || (signal_size > buflen)) {
         unifi_error(priv, "udi_send_signal_raw - Couldn't find length of signal 0x%x\n",
                     sig_id);
-        func_exit();
         return -EINVAL;
     }
     unifi_trace(priv, UDBG2, "udi_send_signal_raw: signal 0x%.4X len:%d\n",
@@ -705,7 +698,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
 
     if (bytecount > buflen) {
         unifi_error(priv, "udi_send_signal_raw: Not enough data (%d instead of %d)\n", buflen, bytecount);
-        func_exit();
         return -EINVAL;
     }
 
@@ -713,7 +705,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     r = ul_send_signal_raw(priv, buf, signal_size, &data_ptrs);
     if (r < 0) {
         unifi_error(priv, "udi_send_signal_raw: send failed (%d)\n", r);
-        func_exit();
         return -EIO;
     }
 
@@ -802,7 +793,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], len);
         if (csrResult != CSR_RESULT_SUCCESS) {
             unifi_error(priv, "unifi_write: failed to allocate request_data.\n");
-            func_exit();
             return -ENOMEM;
         }
 
@@ -812,7 +802,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         if (copy_from_user((void*)user_data_buf, p, len)) {
             unifi_error(priv, "unifi_write: copy from user failed\n");
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -EFAULT;
         }
 
@@ -828,7 +817,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
             unifi_error(priv, "unifi_write - Couldn't find length of signal 0x%x\n",
                         sig_id);
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -EINVAL;
         }
 
@@ -839,7 +827,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         signal_buf = kmalloc(signal_size, GFP_KERNEL);
         if (!signal_buf) {
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -ENOMEM;
         }
 
@@ -1655,8 +1642,6 @@ unifi_poll(struct file *filp, poll_table *wait)
         mask |= POLLIN | POLLRDNORM;    /* readable */
     }
 
-    func_exit();
-
     return mask;
 } /* unifi_poll() */
 
@@ -1887,7 +1872,6 @@ udi_log_event(ul_client_t *pcli,
     if (down_interruptible(&pcli->udi_sem)) {
         printk(KERN_WARNING "udi_log_event_q: Failed to get udi sem\n");
         kfree(logptr);
-        func_exit();
         return;
     }
     list_add_tail(&logptr->q, &pcli->udi_log);
@@ -1896,7 +1880,6 @@ udi_log_event(ul_client_t *pcli,
     /* Wake any waiting user process */
     wake_up_interruptible(&pcli->udi_wq);
 
-    func_exit();
 } /* udi_log_event() */
 
 #ifdef CSR_SME_USERSPACE
@@ -1951,8 +1934,6 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
 
     /* It is our responsibility to free the buffer allocated in build_packed_*() */
     kfree(buffer);
-
-    func_exit();
 
     return 0;
 

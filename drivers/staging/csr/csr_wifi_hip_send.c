@@ -270,8 +270,6 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, u32 siglen,
         }
     }
 
-    func_exit();
-
     return CSR_RESULT_SUCCESS;
 } /*  send_signal() */
 

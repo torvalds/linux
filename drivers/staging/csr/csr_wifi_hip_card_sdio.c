@@ -146,7 +146,6 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
         }
     }
 #endif
-    func_exit();
     return card;
 } /* unifi_alloc_card() */
 
@@ -196,7 +195,6 @@ CsrResult unifi_init_card(card_t *card, s32 led_mask)
         return r;
     }
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 }
 
@@ -389,8 +387,6 @@ CsrResult unifi_download(card_t *card, s32 led_mask)
     /* Free the firmware file information. */
     unifi_fw_read_stop(card->ospriv, dlpriv);
 
-    func_exit();
-
     return CSR_RESULT_SUCCESS;
 } /* unifi_download() */
 
@@ -473,8 +469,6 @@ static CsrResult unifi_hip_init(card_t *card)
         func_exit_r(r);
         return r;
     }
-
-    func_exit();
 
     return CSR_RESULT_SUCCESS;
 } /* unifi_hip_init() */
@@ -967,7 +961,6 @@ static CsrResult card_hw_init(card_t *card)
      */
     unifi_read_panic(card);
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* card_hw_init() */
 
@@ -1094,7 +1087,6 @@ static CsrResult card_wait_for_unifi_to_reset(card_t *card)
         r = CSR_RESULT_FAILURE;
     }
 
-    func_exit();
     return r;
 } /* card_wait_for_unifi_to_reset() */
 
@@ -1128,7 +1120,6 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
         unifi_error(card->ospriv,
                     "Function reset method not supported for chip_id=%d\n",
                     card->chip_id);
-        func_exit();
         return CSR_RESULT_FAILURE;
     }
 
@@ -1195,7 +1186,6 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
         r = CSR_RESULT_FAILURE;
     }
 
-    func_exit();
     return r;
 } /* card_wait_for_unifi_to_reset() */
 
@@ -1319,7 +1309,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
 
     *paddr = (((u32)mbox1 << 16) | mbox0);
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* card_wait_for_firmware_to_start() */
 
@@ -1347,7 +1336,6 @@ CsrResult unifi_capture_panic(card_t *card)
      */
     if (!card->panic_data_phy_addr || !card->panic_data_mac_addr)
     {
-        func_exit();
         return CSR_RESULT_SUCCESS;
     }
 
@@ -1362,7 +1350,6 @@ CsrResult unifi_capture_panic(card_t *card)
         unifi_info(card->ospriv, "Unable to read panic codes");
     }
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 }
 
@@ -1562,7 +1549,6 @@ void unifi_read_panic(card_t *card)
         card->last_mac_panic_arg = p_arg;
     }
 
-    func_exit();
 }
 
 
@@ -1712,7 +1698,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
 
     card->memory_resources_allocated = 1;
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* card_allocate_memory_resources() */
 
@@ -1787,7 +1772,6 @@ static void card_free_memory_resources(card_t *card)
 
     card->memory_resources_allocated = 0;
 
-    func_exit();
 } /* card_free_memory_resources() */
 
 
@@ -1811,7 +1795,6 @@ static void card_init_soft_queues(card_t *card)
 #ifndef CSR_WIFI_HIP_TA_DISABLE
     unifi_ta_sampling_init(card);
 #endif
-    func_exit();
 }
 
 
@@ -1899,7 +1882,6 @@ void unifi_cancel_pending_signals(card_t *card)
 
     card_init_soft_queues(card);
 
-    func_exit();
 } /* unifi_cancel_pending_signals() */
 
 
@@ -1938,7 +1920,6 @@ void unifi_free_card(card_t *card)
 
     kfree(card);
 
-    func_exit();
 } /* unifi_free_card() */
 
 
@@ -2051,7 +2032,6 @@ static CsrResult card_init_slots(card_t *card)
 
     card->dynamic_slot_data.packets_interval = UNIFI_PACKETS_INTERVAL;
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* card_init_slots() */
 
@@ -2143,7 +2123,6 @@ static void CardReassignDynamicReservation(card_t *card)
     }
 
     card->dynamic_slot_data.total_packets_txed = 0;
-    func_exit();
 }
 
 
@@ -2180,7 +2159,6 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
     if (q_len <= card->dynamic_slot_data.from_host_reserved_slots[queue])
     {
         unifi_trace(card->ospriv, UDBG5, "queue %d q_len %d already has that many reserved slots, exiting\n", queue, q_len);
-        func_exit();
         return;
     }
 
@@ -2278,7 +2256,6 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
                     card->dynamic_slot_data.from_host_max_slots[i]);
     }
 
-    func_exit();
 }
 
 
@@ -2306,7 +2283,6 @@ void CardClearFromHostDataSlot(card_t *card, const s16 slot)
         unifi_warning(card->ospriv,
                       "Surprise: request to clear an already free FH data slot: %d\n",
                       slot);
-        func_exit();
         return;
     }
 
@@ -2342,7 +2318,6 @@ void CardClearFromHostDataSlot(card_t *card, const s16 slot)
 
     unifi_trace(card->ospriv, UDBG4, "CardClearFromHostDataSlot: slot %d recycled %p\n", slot, os_data_ptr);
 
-    func_exit();
 } /* CardClearFromHostDataSlot() */
 
 
@@ -2430,7 +2405,6 @@ u16 CardGetFreeFromHostDataSlots(card_t *card)
         }
     }
 
-    func_exit();
     return n;
 } /* CardGetFreeFromHostDataSlots() */
 
@@ -2490,7 +2464,6 @@ static CsrResult unifi_identify_hw(card_t *card)
                ChipHelper_MarketingName(card->helper),
                ChipHelper_FriendlyName(card->helper));
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* unifi_identify_hw() */
 
@@ -2572,7 +2545,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
         return r;
     }
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* unifi_prepare_hw() */
 
@@ -2842,7 +2814,6 @@ static CsrResult card_reset_method_io_enable(card_t *card)
         unifi_warning(card->ospriv, "card_reset_method_io_enable failed to reset UniFi\n");
     }
 
-    func_exit();
     return r;
 } /* card_reset_method_io_enable() */
 
@@ -2894,7 +2865,6 @@ static CsrResult card_reset_method_dbg_reset(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Can't stop processors\n");
-        func_exit();
         return r;
     }
 
@@ -2930,7 +2900,6 @@ static CsrResult card_reset_method_dbg_reset(card_t *card)
         unifi_warning(card->ospriv, "card_reset_method_dbg_reset failed to reset UniFi\n");
     }
 
-    func_exit();
     return r;
 } /* card_reset_method_dbg_reset() */
 
@@ -2976,7 +2945,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "unifi_card_hard_reset failed to identify h/w\n");
-        func_exit();
         return r;
     }
 
@@ -3006,7 +2974,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
         }
         if (r == CSR_RESULT_SUCCESS)
         {
-            func_exit();
             return r;
         }
     }
@@ -3069,7 +3036,6 @@ CsrResult CardGenInt(card_t *card)
 
     card->unifi_interrupt_seq++;
 
-    func_exit();
     return CSR_RESULT_SUCCESS;
 } /* CardGenInt() */
 
@@ -3414,7 +3380,6 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
             {
                 unifi_trace(card->ospriv, UDBG5, "fh data slot %d: %d\n", i, card->from_host_data[i].bd.data_length);
             }
-            func_exit();
             return CSR_RESULT_FAILURE;
         }
     }
@@ -3466,8 +3431,6 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
             }
         }
     }
-
-    func_exit();
 
     return CSR_RESULT_SUCCESS;
 } /*  CardWriteBulkData() */

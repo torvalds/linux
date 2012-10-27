@@ -202,7 +202,6 @@ netrx_radiotap(unifi_priv_t *priv,
     priv->stats.rx_packets++;
     priv->stats.rx_bytes += ind_data_len;
 
-    func_exit();
 } /* netrx_radiotap() */
 #endif /* RADIOTAP */
 
@@ -314,7 +313,6 @@ netrx_prism(unifi_priv_t *priv,
     priv->stats.rx_packets++;
     priv->stats.rx_bytes += ind_data_len;
 
-    func_exit();
 } /* netrx_prism() */
 #endif /* PRISM */
 
@@ -348,7 +346,6 @@ ma_sniffdata_ind(void *ospriv,
 
     if (bulkdata->d[0].data_length == 0) {
         unifi_warning(priv, "rx: MA-SNIFFDATA indication with zero bulk data\n");
-        func_exit();
         return;
     }
 

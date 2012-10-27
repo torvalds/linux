@@ -408,7 +408,6 @@ CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
         unifi_error(priv,
                 "Failed to allocate %d bytes for tx packet record\n",
                 sizeof(tx_buffered_packets_t));
-        func_exit();
         return CSR_RESULT_FAILURE;
     }
 
@@ -2131,7 +2130,6 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
         unifi_error(priv,
                     "uf_process_ma_vif_availibility_ind: Received unknown signal 0x%.4X.\n",
                     CSR_GET_UINT16_FROM_LITTLE_ENDIAN(sigdata));
-        func_exit();
         return;
     }
     ind = &signal.u.MaVifAvailabilityIndication;
@@ -2394,8 +2392,6 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
       }
   }
 
-  func_exit();
-
 }
 
 void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
@@ -2445,7 +2441,6 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
                interfacePriv->dtimActive = FALSE;
            }
         }
-        func_exit();
         return;
     }
     if(priv->pausedStaHandle[queue] > 7) {
@@ -2536,7 +2531,6 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
      */
     unifi_trace(priv, UDBG4, "csrWifiHipSendBufferedFrames: UAPSD Resume Q=%x\n", queue);
     resume_suspended_uapsd(priv, interfaceTag);
-    func_exit();
 }
 
 
@@ -2816,7 +2810,6 @@ void uf_send_qos_null(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
         unifi_net_data_free(priv, &bulkdata.d[0]);
     }
 
-    func_exit();
     return;
 
 }
@@ -2901,7 +2894,6 @@ void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
         srcStaInfo->nullDataHostTag = INVALID_HOST_TAG;
     }
 
-    func_exit();
     return;
 }
 
@@ -3347,7 +3339,6 @@ void uf_prepare_send_cfm_list_for_queued_pkts(unifi_priv_t * priv,
 
     spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
 
-    func_exit();
 }
 
 
@@ -3661,7 +3652,6 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, u16 interfaceTag)
           }
        }
     }
-    func_exit();
 }
 void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,u16 interfaceTag)
 {
@@ -3688,7 +3678,6 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,u16 interface
         }
         spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
     }
-    func_exit();
 }
 
 /*

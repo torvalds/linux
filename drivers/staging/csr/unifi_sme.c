@@ -80,20 +80,17 @@ sme_log_event(ul_client_t *pcli,
 
     /* Just a sanity check */
     if ((signal == NULL) || (signal_len <= 0)) {
-        func_exit();
         return;
     }
 
     priv = uf_find_instance(pcli->instance);
     if (!priv) {
         unifi_error(priv, "sme_log_event: invalid priv\n");
-        func_exit();
         return;
     }
 
     if (priv->smepriv == NULL) {
         unifi_error(priv, "sme_log_event: invalid smepriv\n");
-        func_exit();
         return;
     }
 
@@ -108,7 +105,6 @@ sme_log_event(ul_client_t *pcli,
         if ((unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_DEBUG_STRING_INDICATION_ID) ||
             (unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_DEBUG_WORD16_INDICATION_ID))
         {
-            func_exit();
             return;
         }
         if (unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_INDICATION_ID)
@@ -170,7 +166,6 @@ sme_log_event(ul_client_t *pcli,
             if (interfaceTag >= CSR_WIFI_NUM_INTERFACES)
             {
                 unifi_error(priv, "Bad MA_PACKET_CONFIRM interfaceTag %d\n", interfaceTag);
-                func_exit();
                 return;
             }
 
@@ -218,7 +213,6 @@ sme_log_event(ul_client_t *pcli,
                 } else {
                     unifi_trace(priv, UDBG1, "%s: M4 received from netdevice\n", __FUNCTION__);
                 }
-                func_exit();
                 return;
             }
         }
@@ -247,7 +241,6 @@ sme_log_event(ul_client_t *pcli,
             dataref1.length, dataref1.data,
             dataref2.length, dataref2.data);
 
-    func_exit();
 } /* sme_log_event() */
 
 
@@ -1168,8 +1161,6 @@ uf_send_m4_ready_wq(struct work_struct *work)
 	unifi_trace(priv, UDBG1, "M4ReadyToSendInd sent for peer %pMF\n",
 		peer.a);
 
-    func_exit();
-
 } /* uf_send_m4_ready_wq() */
 
 #if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
@@ -1226,7 +1217,6 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
 
         kfree(pktBulkData); /* Would have been copied over by the SME Handler */
 
-        func_exit();
     } else {
 	    unifi_warning(priv, "uf_send_pkt_to_encrypt() is NOT applicable for interface mode - %d\n",interfacePriv->interfaceMode);
     }

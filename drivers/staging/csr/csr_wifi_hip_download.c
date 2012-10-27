@@ -411,7 +411,6 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
     if (fwinfo == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for patches\n");
-        func_exit();
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
 
@@ -427,7 +426,6 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
     {
         kfree(fwinfo);
         unifi_error(card->ospriv, "Failed to read in patch file\n");
-        func_exit();
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
@@ -442,7 +440,6 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
                     card->build_id, fwinfo->build_id);
         kfree(fwinfo);
 #ifndef CSR_WIFI_IGNORE_PATCH_VERSION_MISMATCH
-        func_exit();
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
 #else
         fwinfo = NULL;

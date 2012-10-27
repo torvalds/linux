@@ -197,7 +197,6 @@ unifi_mlme_blocking_request(unifi_priv_t *priv, ul_client_t *pcli,
         return r;
     }
 
-    func_exit();
     return 0;
 } /* unifi_mlme_blocking_request() */
 

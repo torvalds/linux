@@ -477,8 +477,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
         return;
     }
 
-    func_exit();
-
 }
 #endif /* CSR_WIFI_SEND_GRATUITOUS_ARP */
 

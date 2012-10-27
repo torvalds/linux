@@ -774,7 +774,6 @@ CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers)
 
 done:
 #endif
-    func_exit();
     return CSR_RESULT_SUCCESS;
 
 #ifndef UNIFI_DISABLE_COREDUMP
@@ -782,7 +781,6 @@ fail:
     /* Unwind what we allocated so far */
     unifi_error(ospriv, "Out of memory allocating core dump node %d\n", i);
     unifi_coredump_free(card);
-    func_exit();
     return CSR_WIFI_HIP_RESULT_NO_MEMORY;
 #endif
 } /* unifi_coreump_init() */
@@ -841,8 +839,6 @@ void unifi_coredump_free(card_t *card)
     card->dump_buf = NULL;
     card->dump_next_write = NULL;
     card->dump_cur_read = NULL;
-
-    func_exit();
 } /* unifi_coredump_free() */
 
 

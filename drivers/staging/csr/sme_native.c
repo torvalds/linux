@@ -27,15 +27,11 @@ uf_sme_init(unifi_priv_t *priv)
     {
         int r = uf_init_wext_interface(priv);
         if (r != 0) {
-            func_exit();
             return r;
         }
     }
 #endif
 
-
-
-    func_exit();
     return 0;
 } /* uf_sme_init() */
 
@@ -54,8 +50,6 @@ uf_sme_deinit(unifi_priv_t *priv)
     uf_deinit_wext_interface(priv);
 #endif
 
-
-    func_exit();
 } /* uf_sme_deinit() */
 
 
@@ -327,8 +321,6 @@ sme_native_log_event(ul_client_t *pcli,
     /* Wake any waiting user process */
     wake_up_interruptible(&client->udi_wq);
 
-    func_exit();
-
 } /* sme_native_log_event() */
 
 
@@ -533,7 +525,6 @@ sme_native_mlme_event_handler(ul_client_t *pcli,
             break;
     }
 
-    func_exit();
 } /* sme_native_mlme_event_handler() */
 
 
@@ -570,7 +561,6 @@ unifi_reset_state(unifi_priv_t *priv, unsigned char *macaddr,
     priv->wext_conf.flag_associated = 0;
 #endif
 
-    func_exit();
     return r;
 } /* unifi_reset_state() */
 
