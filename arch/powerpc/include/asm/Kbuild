@@ -34,6 +34,5 @@ header-y += termios.h
 header-y += types.h
 header-y += ucontext.h
 header-y += unistd.h
-header-y += epapr_hcalls.h
 
 generic-y += rwsem.h
