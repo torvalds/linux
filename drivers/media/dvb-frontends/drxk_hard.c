@@ -65,16 +65,6 @@ static bool IsQAM(struct drxk_state *state)
 	    state->m_OperationMode == OM_QAM_ITU_C;
 }
 
-static bool IsA1WithPatchCode(struct drxk_state *state)
-{
-	return state->m_DRXK_A1_PATCH_CODE;
-}
-
-static bool IsA1WithRomCode(struct drxk_state *state)
-{
-	return state->m_DRXK_A1_ROM_CODE;
-}
-
 #define NOA1ROM 0
 
 #define DRXDAP_FASI_SHORT_FORMAT(addr) (((addr) & 0xFC30FF80) == 0)
@@ -720,11 +710,6 @@ static int init_state(struct drxk_state *state)
 
 	state->m_bPowerDown = (ulPowerDown != 0);
 
-	state->m_DRXK_A1_PATCH_CODE = false;
-	state->m_DRXK_A1_ROM_CODE = false;
-	state->m_DRXK_A2_ROM_CODE = false;
-	state->m_DRXK_A3_ROM_CODE = false;
-	state->m_DRXK_A2_PATCH_CODE = false;
 	state->m_DRXK_A3_PATCH_CODE = false;
 
 	/* Init AGC and PGA parameters */
