@@ -2343,6 +2343,29 @@ static void cpt_phase_pointer_enable(struct drm_device *dev, int pipe)
 	POSTING_READ(SOUTH_CHICKEN1);
 }
 
+static void ivb_modeset_global_resources(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *pipe_B_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
+	struct intel_crtc *pipe_C_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_C]);
+	uint32_t temp;
+
+	/* When everything is off disable fdi C so that we could enable fdi B
+	 * with all lanes. XXX: This misses the case where a pipe is not using
+	 * any pch resources and so doesn't need any fdi lanes. */
+	if (!pipe_B_crtc->base.enabled && !pipe_C_crtc->base.enabled) {
+		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_B)) & FDI_RX_ENABLE);
+		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_C)) & FDI_RX_ENABLE);
+
+		temp = I915_READ(SOUTH_CHICKEN1);
+		temp &= ~FDI_BC_BIFURCATION_SELECT;
+		DRM_DEBUG_KMS("disabling fdi C rx\n");
+		I915_WRITE(SOUTH_CHICKEN1, temp);
+	}
+}
+
 /* The FDI link training functions for ILK/Ibexpeak. */
 static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 {
@@ -2602,6 +2625,9 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(150);
 
+	DRM_DEBUG_KMS("FDI_RX_IIR before link train 0x%x\n",
+		      I915_READ(FDI_RX_IIR(pipe)));
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
@@ -2648,7 +2674,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 		if (temp & FDI_RX_BIT_LOCK ||
 		    (I915_READ(reg) & FDI_RX_BIT_LOCK)) {
 			I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
-			DRM_DEBUG_KMS("FDI train 1 done.\n");
+			DRM_DEBUG_KMS("FDI train 1 done, level %i.\n", i);
 			break;
 		}
 	}
@@ -2689,7 +2715,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 
 		if (temp & FDI_RX_SYMBOL_LOCK) {
 			I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
-			DRM_DEBUG_KMS("FDI train 2 done.\n");
+			DRM_DEBUG_KMS("FDI train 2 done, level %i.\n", i);
 			break;
 		}
 	}
@@ -5013,6 +5039,88 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	return true;
 }
 
+static void cpt_enable_fdi_bc_bifurcation(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t temp;
+
+	temp = I915_READ(SOUTH_CHICKEN1);
+	if (temp & FDI_BC_BIFURCATION_SELECT)
+		return;
+
+	WARN_ON(I915_READ(FDI_RX_CTL(PIPE_B)) & FDI_RX_ENABLE);
+	WARN_ON(I915_READ(FDI_RX_CTL(PIPE_C)) & FDI_RX_ENABLE);
+
+	temp |= FDI_BC_BIFURCATION_SELECT;
+	DRM_DEBUG_KMS("enabling fdi C rx\n");
+	I915_WRITE(SOUTH_CHICKEN1, temp);
+	POSTING_READ(SOUTH_CHICKEN1);
+}
+
+static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *pipe_B_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
+
+	DRM_DEBUG_KMS("checking fdi config on pipe %i, lanes %i\n",
+		      intel_crtc->pipe, intel_crtc->fdi_lanes);
+	if (intel_crtc->fdi_lanes > 4) {
+		DRM_DEBUG_KMS("invalid fdi lane config on pipe %i: %i lanes\n",
+			      intel_crtc->pipe, intel_crtc->fdi_lanes);
+		/* Clamp lanes to avoid programming the hw with bogus values. */
+		intel_crtc->fdi_lanes = 4;
+
+		return false;
+	}
+
+	if (dev_priv->num_pipe == 2)
+		return true;
+
+	switch (intel_crtc->pipe) {
+	case PIPE_A:
+		return true;
+	case PIPE_B:
+		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
+		    intel_crtc->fdi_lanes > 2) {
+			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %i: %i lanes\n",
+				      intel_crtc->pipe, intel_crtc->fdi_lanes);
+			/* Clamp lanes to avoid programming the hw with bogus values. */
+			intel_crtc->fdi_lanes = 2;
+
+			return false;
+		}
+
+		if (intel_crtc->fdi_lanes > 2)
+			WARN_ON(I915_READ(SOUTH_CHICKEN1) & FDI_BC_BIFURCATION_SELECT);
+		else
+			cpt_enable_fdi_bc_bifurcation(dev);
+
+		return true;
+	case PIPE_C:
+		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->fdi_lanes <= 2) {
+			if (intel_crtc->fdi_lanes > 2) {
+				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %i: %i lanes\n",
+					      intel_crtc->pipe, intel_crtc->fdi_lanes);
+				/* Clamp lanes to avoid programming the hw with bogus values. */
+				intel_crtc->fdi_lanes = 2;
+
+				return false;
+			}
+		} else {
+			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
+			return false;
+		}
+
+		cpt_enable_fdi_bc_bifurcation(dev);
+
+		return true;
+	default:
+		BUG();
+	}
+}
+
 static void ironlake_set_m_n(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode)
@@ -5211,7 +5319,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	u32 temp;
 	int ret;
-	bool dither;
+	bool dither, fdi_config_ok;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
@@ -5349,7 +5457,11 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
+	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
+	 * ironlake_check_fdi_lanes. */
 	ironlake_set_m_n(crtc, mode, adjusted_mode);
+
+	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
 	if (is_cpu_edp)
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
@@ -5368,7 +5480,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_update_linetime_watermarks(dev, pipe, adjusted_mode);
 
-	return ret;
+	return fdi_config_ok ? ret : -EINVAL;
 }
 
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
@@ -8331,6 +8443,8 @@ static void intel_init_display(struct drm_device *dev)
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 			dev_priv->display.write_eld = ironlake_write_eld;
+			dev_priv->display.modeset_global_resources =
+				ivb_modeset_global_resources;
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
