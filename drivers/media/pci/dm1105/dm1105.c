@@ -736,7 +736,7 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
+static int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct rc_dev *dev;
 	int err = -ENOMEM;
@@ -776,7 +776,7 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 	return 0;
 }
 
-void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)
+static void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)
 {
 	rc_unregister_device(dm1105->ir.dev);
 }
