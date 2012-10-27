@@ -25,21 +25,25 @@ config PINCTRL_SPEAR310
 	bool "ST Microelectronics SPEAr310 SoC pin controller driver"
 	depends on MACH_SPEAR310
 	select PINCTRL_SPEAR3XX
+	select PINCTRL_SPEAR_PLGPIO
 
 config PINCTRL_SPEAR320
 	bool "ST Microelectronics SPEAr320 SoC pin controller driver"
 	depends on MACH_SPEAR320
 	select PINCTRL_SPEAR3XX
+	select PINCTRL_SPEAR_PLGPIO
 
 config PINCTRL_SPEAR1310
 	bool "ST Microelectronics SPEAr1310 SoC pin controller driver"
 	depends on MACH_SPEAR1310
 	select PINCTRL_SPEAR
+	select PINCTRL_SPEAR_PLGPIO
 
 config PINCTRL_SPEAR1340
 	bool "ST Microelectronics SPEAr1340 SoC pin controller driver"
 	depends on MACH_SPEAR1340
 	select PINCTRL_SPEAR
+	select PINCTRL_SPEAR_PLGPIO
 
 config PINCTRL_SPEAR_PLGPIO
 	bool "SPEAr SoC PLGPIO Controller"

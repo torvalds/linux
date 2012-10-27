@@ -3431,6 +3431,8 @@ static int __devinit spear320_pinctrl_probe(struct platform_device *pdev)
 	spear3xx_machdata.npmx_modes = ARRAY_SIZE(spear320_pmx_modes);
 
 	pmx_init_addr(&spear3xx_machdata, PMX_CONFIG_REG);
+	pmx_init_gpio_pingroup_addr(spear3xx_machdata.gpio_pingroups,
+			spear3xx_machdata.ngpio_pingroups, PMX_CONFIG_REG);
 
 	ret = spear_pinctrl_probe(pdev, &spear3xx_machdata);
 	if (ret)
