@@ -17,4 +17,5 @@
 #endif
 #define __ARCH_WANT_SYS_NEWFSTATAT
 #define __ARCH_WANT_SYS_EXECVE
+#define __ARCH_WANT_SYS_CLONE
 #include <uapi/asm/unistd.h>

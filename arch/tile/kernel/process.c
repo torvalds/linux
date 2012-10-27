@@ -584,14 +584,6 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	panic("work_pending: bad flags %#x\n", thread_info_flags);
 }
 
-/* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
-SYSCALL_DEFINE4(clone, unsigned long, clone_flags, unsigned long, newsp,
-		void __user *, parent_tidptr, void __user *, child_tidptr)
-{
-	return do_fork(clone_flags, newsp, current_pt_regs(), 0,
-		       parent_tidptr, child_tidptr);
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct KBacktraceIterator kbt;
