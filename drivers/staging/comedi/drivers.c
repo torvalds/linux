@@ -1023,6 +1023,8 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
 
 	if (driver->attach_pci)
 		return comedi_new_pci_auto_config(pcidev, driver);
+	else if (driver->auto_attach)
+		return comedi_auto_config(&pcidev->dev, driver, 0);
 	else
 		return comedi_old_pci_auto_config(pcidev, driver);
 }
@@ -1093,6 +1095,8 @@ int comedi_usb_auto_config(struct usb_interface *intf,
 	BUG_ON(intf == NULL);
 	if (driver->attach_usb)
 		return comedi_new_usb_auto_config(intf, driver);
+	else if (driver->auto_attach)
+		return comedi_auto_config(&intf->dev, driver, 0);
 	else
 		return comedi_old_usb_auto_config(intf, driver);
 }
