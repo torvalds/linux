@@ -218,15 +218,14 @@ static void dma_callback(void *data)
 static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 				  int do_callback)
 {
-	struct deinterlace_q_data *s_q_data, *d_q_data;
+	struct deinterlace_q_data *s_q_data;
 	struct vb2_buffer *src_buf, *dst_buf;
 	struct deinterlace_dev *pcdev = ctx->dev;
 	struct dma_chan *chan = pcdev->dma_chan;
 	struct dma_device *dmadev = chan->device;
 	struct dma_async_tx_descriptor *tx;
 	unsigned int s_width, s_height;
-	unsigned int d_width, d_height;
-	unsigned int d_size, s_size;
+	unsigned int s_size;
 	dma_addr_t p_in, p_out;
 	enum dma_ctrl_flags flags;
 
@@ -237,11 +236,6 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 	s_width	= s_q_data->width;
 	s_height = s_q_data->height;
 	s_size = s_width * s_height;
-
-	d_q_data = get_q_data(V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	d_width = d_q_data->width;
-	d_height = d_q_data->height;
-	d_size = d_width * d_height;
 
 	p_in = (dma_addr_t)vb2_dma_contig_plane_dma_addr(src_buf, 0);
 	p_out = (dma_addr_t)vb2_dma_contig_plane_dma_addr(dst_buf, 0);
