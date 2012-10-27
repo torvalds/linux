@@ -2843,9 +2843,10 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pci230_attach_common(dev, pci_dev);
 }
 
-static int __devinit pci230_attach_pci(struct comedi_device *dev,
-				       struct pci_dev *pci_dev)
+static int __devinit pci230_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	int rc;
 
 	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
@@ -2891,7 +2892,7 @@ static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.attach		= pci230_attach,
-	.attach_pci	= pci230_attach_pci,
+	.auto_attach	= pci230_auto_attach,
 	.detach		= pci230_detach,
 	.board_name	= &pci230_boards[0].name,
 	.offset		= sizeof(pci230_boards[0]),
