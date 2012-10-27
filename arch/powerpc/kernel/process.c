@@ -1026,29 +1026,6 @@ int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
 }
 
-int sys_clone(unsigned long clone_flags, unsigned long usp,
-	      int __user *parent_tidp, void __user *child_threadptr,
-	      int __user *child_tidp, int p6,
-	      struct pt_regs *regs)
-{
- 	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
-}
-
-int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
-	     unsigned long p4, unsigned long p5, unsigned long p6,
-	     struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, 0, regs, 0, NULL, NULL);
-}
-
-int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
-	      unsigned long p4, unsigned long p5, unsigned long p6,
-	      struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
-			regs, 0, NULL, NULL);
-}
-
 static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 				  unsigned long nbytes)
 {
