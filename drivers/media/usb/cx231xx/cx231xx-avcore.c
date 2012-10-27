@@ -2631,11 +2631,6 @@ int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 			rc = cx231xx_stop_stream(dev, ep_mask);
 	}
 
-	if (dev->mode == CX231XX_ANALOG_MODE)
-		;/* do any in Analog mode */
-	else
-		;/* do any in digital mode */
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(cx231xx_capture_start);
