@@ -8269,16 +8269,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 		I915_WRITE(PFIT_CONTROL, 0);
 	}
 
-	if (HAS_PCH_SPLIT(dev)) {
-		dpd_is_edp = intel_dpd_is_edp(dev);
-
-		if (has_edp_a(dev))
-			intel_dp_init(dev, DP_A, PORT_A);
-
-		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
-			intel_dp_init(dev, PCH_DP_D, PORT_D);
-	}
-
 	intel_crt_init(dev);
 
 	if (IS_HASWELL(dev)) {
@@ -8302,6 +8292,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_ddi_init(dev, PORT_D);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
+		dpd_is_edp = intel_dpd_is_edp(dev);
+
+		if (has_edp_a(dev))
+			intel_dp_init(dev, DP_A, PORT_A);
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
@@ -8321,7 +8315,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C, PORT_C);
 
-		if (!dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
+		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
 		int found;
@@ -8397,6 +8391,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		ironlake_init_pch_refclk(dev);
+
+	drm_helper_move_panel_connectors_to_head(dev);
 }
 
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
