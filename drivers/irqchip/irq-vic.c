@@ -35,6 +35,8 @@
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
 
+#include "irqchip.h"
+
 #define VIC_IRQ_STATUS			0x00
 #define VIC_FIQ_STATUS			0x04
 #define VIC_INT_SELECT			0x0c	/* 1 = FIQ, 0 = IRQ */
@@ -481,4 +483,7 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 
 	return 0;
 }
+IRQCHIP_DECLARE(arm_pl190_vic, "arm,pl190-vic", vic_of_init);
+IRQCHIP_DECLARE(arm_pl192_vic, "arm,pl192-vic", vic_of_init);
+IRQCHIP_DECLARE(arm_versatile_vic, "arm,versatile-vic", vic_of_init);
 #endif /* CONFIG OF */
