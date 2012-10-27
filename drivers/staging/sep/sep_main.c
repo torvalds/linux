@@ -3431,7 +3431,7 @@ static ssize_t sep_create_dcb_dmatables_context(struct sep_device *sep,
 	if (copy_from_user(dcb_args,
 			user_dcb_args,
 			num_dcbs * sizeof(struct build_dcb_struct))) {
-		error = -EINVAL;
+		error = -EFAULT;
 		goto end_function;
 	}
 
@@ -3619,7 +3619,7 @@ static ssize_t sep_create_msgarea_context(struct sep_device *sep,
 
 	/* Copy input data to write() to allocated message buffer */
 	if (copy_from_user(*msg_region, msg_user, msg_len)) {
-		error = -EINVAL;
+		error = -EFAULT;
 		goto end_function;
 	}
 
