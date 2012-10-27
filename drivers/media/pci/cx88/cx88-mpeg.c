@@ -45,11 +45,15 @@ static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/2-mpeg: " fmt, dev->core->name, ## arg)
+#define dprintk(level, fmt, arg...) do {				       \
+	if (debug + 1 > level)						       \
+		printk(KERN_DEBUG "%s/2-mpeg: " fmt, dev->core->name, ## arg); \
+} while(0)
 
-#define mpeg_dbg(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/2-mpeg: " fmt, core->name, ## arg)
+#define mpeg_dbg(level, fmt, arg...) do {				  \
+	if (debug + 1 > level)						  \
+		printk(KERN_DEBUG "%s/2-mpeg: " fmt, core->name, ## arg); \
+} while(0)
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
 static void request_module_async(struct work_struct *work)

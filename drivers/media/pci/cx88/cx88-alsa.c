@@ -45,11 +45,15 @@
 #include "cx88.h"
 #include "cx88-reg.h"
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {				\
+	if (debug + 1 > level)						\
+		printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg);\
+} while(0)
 
-#define dprintk_core(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg)
+#define dprintk_core(level, fmt, arg...) do {				\
+	if (debug + 1 > level)						\
+		printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg);\
+} while(0)
 
 /****************************************************************************
 	Data type declarations - Can be moded to a header file later
