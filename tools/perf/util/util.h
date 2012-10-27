@@ -262,6 +262,7 @@ bool is_power_of_2(unsigned long n)
 }
 
 size_t hex_width(u64 v);
+int hex2u64(const char *ptr, u64 *val);
 
 char *rtrim(char *s);
 

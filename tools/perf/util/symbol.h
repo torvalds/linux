@@ -40,7 +40,6 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 #endif
 #endif
 
-int hex2u64(const char *ptr, u64 *val);
 char *strxfrchar(char *s, char from, char to);
 
 /*
