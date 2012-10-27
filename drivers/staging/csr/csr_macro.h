@@ -31,8 +31,6 @@
 /*------------------------------------------------------------------*/
 /* Misc */
 /*------------------------------------------------------------------*/
-#define CSRMIN(a, b)    (((a) < (b)) ? (a) : (b))
-
 /* Use this macro on unused local variables that cannot be removed (such as
    unused function parameters). This will quell warnings from certain compilers
    and static code analysis tools like Lint and Valgrind. */
