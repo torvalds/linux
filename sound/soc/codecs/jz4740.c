@@ -24,6 +24,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/tlv.h>
 
 #define JZ4740_REG_CODEC_1 0x0
 #define JZ4740_REG_CODEC_2 0x1
@@ -95,15 +96,27 @@ static int jz4740_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
+static const unsigned int jz4740_mic_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 2, TLV_DB_SCALE_ITEM(0, 600, 0),
+	3, 3, TLV_DB_SCALE_ITEM(2000, 0, 0),
+};
+
+static const DECLARE_TLV_DB_SCALE(jz4740_out_tlv, 0, 200, 0);
+static const DECLARE_TLV_DB_SCALE(jz4740_in_tlv, -3450, 150, 0);
+
 static const struct snd_kcontrol_new jz4740_codec_controls[] = {
-	SOC_SINGLE("Master Playback Volume", JZ4740_REG_CODEC_2,
-			JZ4740_CODEC_2_HEADPHONE_VOLUME_OFFSET, 3, 0),
-	SOC_SINGLE("Master Capture Volume", JZ4740_REG_CODEC_2,
-			JZ4740_CODEC_2_INPUT_VOLUME_OFFSET, 31, 0),
+	SOC_SINGLE_TLV("Master Playback Volume", JZ4740_REG_CODEC_2,
+			JZ4740_CODEC_2_HEADPHONE_VOLUME_OFFSET, 3, 0,
+			jz4740_out_tlv),
+	SOC_SINGLE_TLV("Master Capture Volume", JZ4740_REG_CODEC_2,
+			JZ4740_CODEC_2_INPUT_VOLUME_OFFSET, 31, 0,
+			jz4740_in_tlv),
 	SOC_SINGLE("Master Playback Switch", JZ4740_REG_CODEC_1,
 			JZ4740_CODEC_1_HEADPHONE_DISABLE_OFFSET, 1, 1),
-	SOC_SINGLE("Mic Capture Volume", JZ4740_REG_CODEC_2,
-			JZ4740_CODEC_2_MIC_BOOST_GAIN_OFFSET, 3, 0),
+	SOC_SINGLE_TLV("Mic Capture Volume", JZ4740_REG_CODEC_2,
+			JZ4740_CODEC_2_MIC_BOOST_GAIN_OFFSET, 3, 0,
+			jz4740_mic_tlv),
 };
 
 static const struct snd_kcontrol_new jz4740_codec_output_controls[] = {
