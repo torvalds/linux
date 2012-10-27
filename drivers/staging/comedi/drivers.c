@@ -837,7 +837,8 @@ static int
 comedi_auto_config_helper(struct device *hardware_device,
 			  struct comedi_driver *driver,
 			  int (*attach_wrapper) (struct comedi_device *,
-						 void *), void *context)
+						 unsigned long),
+			  unsigned long context)
 {
 	int minor;
 	struct comedi_device_file_info *dev_file_info;
@@ -878,9 +879,10 @@ comedi_auto_config_helper(struct device *hardware_device,
 	return ret;
 }
 
-static int comedi_auto_config_wrapper(struct comedi_device *dev, void *context)
+static int comedi_auto_config_wrapper(struct comedi_device *dev,
+				      unsigned long context)
 {
-	struct comedi_devconfig *it = context;
+	struct comedi_devconfig *it = (struct comedi_devconfig *)context;
 	struct comedi_driver *driv = dev->driver;
 
 	if (driv->num_names) {
@@ -916,7 +918,8 @@ static int comedi_auto_config(struct device *hardware_device,
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
 	return comedi_auto_config_helper(hardware_device, driver,
-					 comedi_auto_config_wrapper, &it);
+					 comedi_auto_config_wrapper,
+					 (unsigned long)&it);
 }
 
 static void comedi_auto_unconfig(struct device *hardware_device)
@@ -980,16 +983,18 @@ static int comedi_old_pci_auto_config(struct pci_dev *pcidev,
 				  options, ARRAY_SIZE(options));
 }
 
-static int comedi_pci_attach_wrapper(struct comedi_device *dev, void *pcidev)
+static int comedi_pci_attach_wrapper(struct comedi_device *dev,
+				     unsigned long context)
 {
-	return dev->driver->attach_pci(dev, pcidev);
+	return dev->driver->attach_pci(dev, (struct pci_dev *)context);
 }
 
 static int comedi_new_pci_auto_config(struct pci_dev *pcidev,
 				      struct comedi_driver *driver)
 {
 	return comedi_auto_config_helper(&pcidev->dev, driver,
-					 comedi_pci_attach_wrapper, pcidev);
+					 comedi_pci_attach_wrapper,
+					 (unsigned long)pcidev);
 }
 
 int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
@@ -1047,16 +1052,18 @@ static int comedi_old_usb_auto_config(struct usb_interface *intf,
 	return comedi_auto_config(&intf->dev, driver, NULL, 0);
 }
 
-static int comedi_usb_attach_wrapper(struct comedi_device *dev, void *intf)
+static int comedi_usb_attach_wrapper(struct comedi_device *dev,
+				     unsigned long context)
 {
-	return dev->driver->attach_usb(dev, intf);
+	return dev->driver->attach_usb(dev, (struct usb_interface *)context);
 }
 
 static int comedi_new_usb_auto_config(struct usb_interface *intf,
 				      struct comedi_driver *driver)
 {
 	return comedi_auto_config_helper(&intf->dev, driver,
-					 comedi_usb_attach_wrapper, intf);
+					 comedi_usb_attach_wrapper,
+					 (unsigned long)intf);
 }
 
 int comedi_usb_auto_config(struct usb_interface *intf,
