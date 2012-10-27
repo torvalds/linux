@@ -340,20 +340,11 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	bra	SYMBOL_NAME(syscall_trampoline):8
 	.endm
 
-SYMBOL_NAME_LABEL(sys_clone)	
-	call_sp	h8300_clone
-	
 SYMBOL_NAME_LABEL(sys_sigreturn)
 	call_sp	do_sigreturn
 
 SYMBOL_NAME_LABEL(sys_rt_sigreturn)
 	call_sp	do_rt_sigreturn
-
-SYMBOL_NAME_LABEL(sys_fork)
-	call_sp	h8300_fork
-
-SYMBOL_NAME_LABEL(sys_vfork)
-	call_sp	h8300_vfork
 
 SYMBOL_NAME_LABEL(syscall_trampoline)
 	mov.l	sp,er0

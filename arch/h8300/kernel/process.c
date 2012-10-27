@@ -127,40 +127,9 @@ void flush_thread(void)
 {
 }
 
-/*
- * "h8300_fork()".. By the time we get here, the
- * non-volatile registers have also been saved on the
- * stack. We do some ugly pointer stuff here.. (see
- * also copy_thread)
- */
-
-asmlinkage int h8300_fork(struct pt_regs *regs)
-{
-	return -EINVAL;
-}
-
-asmlinkage int h8300_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), regs, 0, NULL, NULL);
-}
-
-asmlinkage int h8300_clone(struct pt_regs *regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-
-	/* syscall2 puts clone_flags in er1 and usp in er2 */
-	clone_flags = regs->er1;
-	newsp = regs->er2;
-	if (!newsp)
-		newsp  = rdusp();
-	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
-
-}
-
 int copy_thread(unsigned long clone_flags,
                 unsigned long usp, unsigned long topstk,
-		 struct task_struct * p, struct pt_regs * regs)
+		 struct task_struct * p, struct pt_regs *unused)
 {
 	struct pt_regs * childregs;
 
@@ -173,11 +142,10 @@ int copy_thread(unsigned long clone_flags,
 		childregs->er5 = usp; /* fn */
 		p->thread.ksp = (unsigned long)childregs;
 	}
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 	childregs->retpc = (unsigned long) ret_from_fork;
 	childregs->er0 = 0;
-
-	p->thread.usp = usp;
+	p->thread.usp = usp ?: rdusp();
 	p->thread.ksp = (unsigned long)childregs;
 
 	return 0;
