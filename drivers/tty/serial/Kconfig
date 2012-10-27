@@ -1423,4 +1423,27 @@ config SERIAL_EFM32_UART_CONSOLE
 	depends on SERIAL_EFM32_UART=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_ARC
+	tristate "ARC UART driver support"
+	select SERIAL_CORE
+	help
+	  Driver for on-chip UART for ARC(Synopsys) for the legacy
+	  FPGA Boards (ML50x/ARCAngel4)
+
+config SERIAL_ARC_CONSOLE
+	bool "Console on ARC UART"
+	depends on SERIAL_ARC=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable system Console on ARC UART
+
+config SERIAL_ARC_NR_PORTS
+	int "Number of ARC UART ports"
+	depends on SERIAL_ARC
+	range 1 3
+	default "1"
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.
+
 endmenu

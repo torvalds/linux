@@ -215,5 +215,7 @@
 /* Energy Micro efm32 SoC */
 #define PORT_EFMUART   100
 
+/* ARC (Synopsys) on-chip UART */
+#define PORT_ARC       101
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */
