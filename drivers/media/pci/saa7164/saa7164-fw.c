@@ -37,7 +37,7 @@ struct fw_header {
 	u32	version;
 };
 
-int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
+static int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
 {
 	u32 timeout = SAA_DEVICE_TIMEOUT;
 	while ((saa7164_readl(reg) & 0x01) == 0) {
@@ -53,7 +53,7 @@ int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
 	return 0;
 }
 
-int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
+static int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 {
 	u32 timeout = SAA_DEVICE_TIMEOUT;
 	while (saa7164_readl(reg) & 0x01) {
@@ -71,8 +71,8 @@ int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 
 /* TODO: move dlflags into dev-> and change to write/readl/b */
 /* TODO: Excessive levels of debug */
-int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
-	u32 dlflags, u8 *dst, u32 dstsize)
+static int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
+				 u32 dlflags, u8 *dst, u32 dstsize)
 {
 	u32 reg, timeout, offset;
 	u8 *srcbuf = NULL;
