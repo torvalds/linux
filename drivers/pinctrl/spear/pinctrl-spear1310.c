@@ -461,7 +461,7 @@ static struct spear_pingroup clcd_high_res_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(clcd_high_res_modemux),
 };
 
-static const char *const clcd_grps[] = { "clcd_grp", "clcd_high_res" };
+static const char *const clcd_grps[] = { "clcd_grp", "clcd_high_res_grp" };
 static struct spear_function clcd_function = {
 	.name = "clcd",
 	.groups = clcd_grps,
