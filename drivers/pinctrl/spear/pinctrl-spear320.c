@@ -2240,6 +2240,10 @@ static struct spear_muxreg pwm2_pin_34_muxreg[] = {
 		.mask = PMX_SSP_CS_MASK,
 		.val = 0,
 	}, {
+		.reg = MODE_CONFIG_REG,
+		.mask = PMX_PWM_MASK,
+		.val = PMX_PWM_MASK,
+	}, {
 		.reg = IP_SEL_PAD_30_39_REG,
 		.mask = PMX_PL_34_MASK,
 		.val = PMX_PWM2_PL_34_VAL,
