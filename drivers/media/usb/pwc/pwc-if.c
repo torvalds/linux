@@ -155,7 +155,7 @@ static struct video_device pwc_template = {
 /***************************************************************************/
 /* Private functions */
 
-struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
+static struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
 {
 	unsigned long flags = 0;
 	struct pwc_frame_buf *buf = NULL;
