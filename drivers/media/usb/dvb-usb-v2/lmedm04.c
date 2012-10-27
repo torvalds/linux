@@ -799,7 +799,7 @@ static const char fw_c_rs2000[] = LME2510_C_RS2000;
 static const char fw_lg[] = LME2510_LG;
 static const char fw_s0194[] = LME2510_S0194;
 
-const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
+static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 {
 	struct lme2510_state *st = d->priv;
 	struct usb_device *udev = d->udev;
