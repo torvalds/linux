@@ -106,6 +106,19 @@ static struct pinctrl_dev *find_pinctrl_by_of_node(struct device_node *np)
 	return NULL;
 }
 
+struct pinctrl_dev *of_pinctrl_add_gpio_range(struct device_node *np,
+		struct pinctrl_gpio_range *range)
+{
+	struct pinctrl_dev *pctldev;
+
+	pctldev = find_pinctrl_by_of_node(np);
+	if (!pctldev)
+		return NULL;
+
+	pinctrl_add_gpio_range(pctldev, range);
+	return pctldev;
+}
+
 static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 				struct device_node *np_config)
 {

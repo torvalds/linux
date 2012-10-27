@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/slab.h>
 
 /* Private data structure for of_gpiochip_find_and_xlate */
@@ -216,6 +217,58 @@ err0:
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add);
 
+#ifdef CONFIG_PINCTRL
+void of_gpiochip_add_pin_range(struct gpio_chip *chip)
+{
+	struct device_node *np = chip->of_node;
+	struct gpio_pin_range *pin_range;
+	struct of_phandle_args pinspec;
+	int index = 0, ret;
+
+	if (!np)
+		return;
+
+	do {
+		ret = of_parse_phandle_with_args(np, "gpio-ranges",
+				"#gpio-range-cells", index, &pinspec);
+		if (ret)
+			break;
+
+		pin_range = devm_kzalloc(chip->dev, sizeof(*pin_range),
+				GFP_KERNEL);
+		if (!pin_range) {
+			pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
+					chip->label);
+			break;
+		}
+
+		pin_range->range.name = chip->label;
+		pin_range->range.base = chip->base;
+		pin_range->range.pin_base = pinspec.args[0];
+		pin_range->range.npins = pinspec.args[1];
+		pin_range->pctldev = of_pinctrl_add_gpio_range(pinspec.np,
+				&pin_range->range);
+
+		list_add_tail(&pin_range->node, &chip->pin_ranges);
+
+	} while (index++);
+}
+
+void of_gpiochip_remove_pin_range(struct gpio_chip *chip)
+{
+	struct gpio_pin_range *pin_range, *tmp;
+
+	list_for_each_entry_safe(pin_range, tmp, &chip->pin_ranges, node) {
+		list_del(&pin_range->node);
+		pinctrl_remove_gpio_range(pin_range->pctldev,
+				&pin_range->range);
+	}
+}
+#else
+void of_gpiochip_add_pin_range(struct gpio_chip *chip) {}
+void of_gpiochip_remove_pin_range(struct gpio_chip *chip) {}
+#endif
+
 void of_gpiochip_add(struct gpio_chip *chip)
 {
 	if ((!chip->of_node) && (chip->dev))
@@ -229,11 +282,14 @@ void of_gpiochip_add(struct gpio_chip *chip)
 		chip->of_xlate = of_gpio_simple_xlate;
 	}
 
+	of_gpiochip_add_pin_range(chip);
 	of_node_get(chip->of_node);
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
+	of_gpiochip_remove_pin_range(chip);
+
 	if (chip->of_node)
 		of_node_put(chip->of_node);
 }

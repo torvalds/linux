@@ -1083,6 +1083,10 @@ int gpiochip_add(struct gpio_chip *chip)
 		}
 	}
 
+#ifdef CONFIG_PINCTRL
+	INIT_LIST_HEAD(&chip->pin_ranges);
+#endif
+
 	of_gpiochip_add(chip);
 
 unlock:
@@ -1179,6 +1183,45 @@ struct gpio_chip *gpiochip_find(void *data,
 	return chip;
 }
 EXPORT_SYMBOL_GPL(gpiochip_find);
+
+#ifdef CONFIG_PINCTRL
+void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
+		unsigned int pin_base, unsigned int npins)
+{
+	struct gpio_pin_range *pin_range;
+
+	pin_range = devm_kzalloc(chip->dev, sizeof(*pin_range), GFP_KERNEL);
+	if (!pin_range) {
+		pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
+				chip->label);
+		return;
+	}
+
+	pin_range->range.name = chip->label;
+	pin_range->range.base = chip->base;
+	pin_range->range.pin_base = pin_base;
+	pin_range->range.npins = npins;
+	pin_range->pctldev = find_pinctrl_and_add_gpio_range(pinctl_name,
+			&pin_range->range);
+
+	list_add_tail(&pin_range->node, &chip->pin_ranges);
+}
+
+void gpiochip_remove_pin_ranges(struct gpio_chip *chip)
+{
+	struct gpio_pin_range *pin_range, *tmp;
+
+	list_for_each_entry_safe(pin_range, tmp, &chip->pin_ranges, node) {
+		list_del(&pin_range->node);
+		pinctrl_remove_gpio_range(pin_range->pctldev,
+				&pin_range->range);
+	}
+}
+#else
+void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
+		unsigned int pin_base, unsigned int npins) {}
+void gpiochip_remove_pin_ranges(struct gpio_chip *chip) {}
+#endif
 
 /* These "optional" allocation calls help prevent drivers from stomping
  * on each other, and help provide better diagnostics in debugfs.
