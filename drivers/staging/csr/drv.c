@@ -266,8 +266,6 @@ unifi_open(struct inode *inode, struct file *file)
     unifi_priv_t *priv;
     ul_client_t *udi_cli;
 
-    func_enter();
-
     devno = MINOR(inode->i_rdev) >> 1;
 
     /*
@@ -369,8 +367,6 @@ unifi_release(struct inode *inode, struct file *filp)
     int devno;
     unifi_priv_t *priv;
 
-    func_enter();
-
     priv = uf_find_instance(udi_cli->instance);
     if (!priv) {
         unifi_error(priv, "unifi_close: instance for device not found\n");
@@ -464,8 +460,6 @@ unifi_read(struct file *filp, char *p, size_t len, loff_t *poff)
     udi_msg_t *msgptr;
     struct list_head *l;
     int msglen;
-
-    func_enter();
 
     priv = uf_find_instance(pcli->instance);
     if (!priv) {
@@ -654,8 +648,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     int bytecount;
     CsrResult csrResult;
 
-    func_enter();
-
     /*
      * The signal is the first thing in buf, the signal id is the
      * first 16 bits of the signal.
@@ -783,8 +775,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
     int r;
     bulk_data_param_t bulkdata;
     CsrResult csrResult;
-
-    func_enter();
 
     priv = uf_find_instance(pcli->instance);
     if (!priv) {
@@ -1657,8 +1647,6 @@ unifi_poll(struct file *filp, poll_table *wait)
     unsigned int mask = 0;
     int ready;
 
-    func_enter();
-
     ready = !list_empty(&pcli->udi_log);
 
     poll_wait(filp, &pcli->udi_wq, wait);
@@ -1783,8 +1771,6 @@ udi_log_event(ul_client_t *pcli,
     unsigned long nanosec_rem;
     unsigned long n_1000;
 #endif
-
-    func_enter();
 
     /* Just a sanity check */
     if ((signal == NULL) || (signal_len <= 0)) {
@@ -1920,8 +1906,6 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     udi_log_t *logptr;
     udi_msg_t *msgptr;
     u8 *p;
-
-    func_enter();
 
     /* Just a sanity check */
     if ((buffer == NULL) || (length <= 0)) {

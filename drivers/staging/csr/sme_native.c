@@ -21,8 +21,6 @@ static const unsigned char wildcard_address[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00,
 int
 uf_sme_init(unifi_priv_t *priv)
 {
-    func_enter();
-
     sema_init(&priv->mlme_blocking_mutex, 1);
 
 #ifdef CSR_SUPPORT_WEXT
@@ -45,8 +43,6 @@ uf_sme_init(unifi_priv_t *priv)
 void
 uf_sme_deinit(unifi_priv_t *priv)
 {
-
-    func_enter();
 
     /* Free memory allocated for the scan table */
 /*    unifi_clear_scan_table(priv); */
@@ -220,8 +216,6 @@ sme_native_log_event(ul_client_t *pcli,
     udi_msg_t *msgptr;
     CSR_SIGNAL signal;
     ul_client_t *client = pcli;
-
-    func_enter();
 
     if (client == NULL) {
         unifi_error(NULL, "sme_native_log_event: client has exited\n");
@@ -460,8 +454,6 @@ sme_native_mlme_event_handler(ul_client_t *pcli,
     unifi_priv_t *priv = uf_find_instance(pcli->instance);
     int id, r;
 
-    func_enter();
-
     /* Just a sanity check */
     if ((sig_packed == NULL) || (sig_len <= 0)) {
         return;
@@ -572,8 +564,6 @@ unifi_reset_state(unifi_priv_t *priv, unsigned char *macaddr,
                   unsigned char set_default_mib)
 {
     int r = 0;
-
-    func_enter();
 
 #ifdef CSR_SUPPORT_WEXT
     /* The reset clears any 802.11 association. */

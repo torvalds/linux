@@ -327,8 +327,6 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
     xbv1_t *fwinfo;
     CsrResult r;
 
-    func_enter();
-
     fwinfo = kmalloc(sizeof(xbv1_t), GFP_KERNEL);
     if (fwinfo == NULL)
     {
@@ -406,8 +404,6 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
 {
     xbv1_t *fwinfo;
     CsrResult r;
-
-    func_enter();
 
     unifi_info(card->ospriv, "unifi_dl_patch %p %08x\n", dlpriv, boot_ctrl);
 

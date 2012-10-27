@@ -412,8 +412,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
                                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                          0xc0, 0xa8, 0x00, 0x02};
 
-    func_enter();
-
     csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], sizeof(arp_req));
     if (csrResult != CSR_RESULT_SUCCESS)
     {
@@ -2409,8 +2407,6 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
     u16 interfaceTag;
     struct list_head send_cfm_list;
     u8 j;
-
-    func_enter();
 
     if(!staInfo) {
         return;

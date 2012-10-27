@@ -2023,7 +2023,6 @@ u8 send_multicast_frames(unifi_priv_t *priv, u16 interfaceTag)
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     u32 hostTag = 0xffffffff;
 
-    func_enter();
     if(!isRouterBufferEnabled(priv,UNIFI_TRAFFIC_Q_VO)) {
         while((interfacePriv->dtimActive)&& (buffered_pkt=dequeue_tx_data_pdu(priv,&interfacePriv->genericMulticastOrBroadCastMgtFrames))) {
             buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK);
@@ -2123,7 +2122,6 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
     CSR_RESULT_CODE resultCode = CSR_RC_SUCCESS;
     netInterface_priv_t *interfacePriv;
 
-    func_enter();
     unifi_trace(priv, UDBG3,
             "uf_process_ma_vif_availibility_ind: Process signal 0x%.4X\n",
             *((u16*)sigdata));
@@ -2368,8 +2366,6 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
     u8 moreData = FALSE;
     s8 r =0;
 
-    func_enter();
-
     unifi_trace(priv,UDBG2,"uf_send_buffered_data_from_ac :\n");
 
     while(!isRouterBufferEnabled(priv,queue) &&
@@ -2415,7 +2411,6 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
     if(!((interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP) ||
         (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO)))
         return;
-    func_enter();
 
     queue = (q<=3)?q:0;
 
@@ -2769,7 +2764,6 @@ void uf_send_qos_null(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
     CSR_RATE transmitRate = 0;
 
 
-    func_enter();
     /* Send a Null Frame to Peer,
      * 32= size of mac header  */
     csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], MAC_HEADER_SIZE + QOS_CONTROL_HEADER_SIZE);
@@ -2841,7 +2835,6 @@ void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
     CSR_MA_PACKET_REQUEST *req = &signal.u.MaPacketRequest;
     unsigned long lock_flags;
 
-    func_enter();
     /* Send a Null Frame to Peer, size = 24 for MAC header */
     csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], MAC_HEADER_SIZE);
 
@@ -3326,8 +3319,6 @@ void uf_prepare_send_cfm_list_for_queued_pkts(unifi_priv_t * priv,
     struct list_head *placeHolder;
     unsigned long lock_flags;
 
-    func_enter();
-
     spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
 
     /* Search through the list and if confirmation required for any frames,
@@ -3594,7 +3585,6 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, u16 interfaceTag)
    int r;
    unsigned long lock_flags;
 
-   func_enter();
    while(!isRouterBufferEnabled(priv,3) &&
                             ((buffered_pkt=dequeue_tx_data_pdu(priv,&interfacePriv->genericMgtFrames))!=NULL)) {
         buffered_pkt->transmissionControl &=
@@ -3682,7 +3672,6 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,u16 interface
     struct list_head *placeHolder;
     tx_buffered_packets_t *tx_q_item;
 
-    func_enter();
     if (interfacePriv->noOfbroadcastPktQueued) {
 
         /* Update the EOSP to the HEAD of b/c list

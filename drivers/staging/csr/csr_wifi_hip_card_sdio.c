@@ -70,8 +70,6 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
     card_t *card;
     u32 i;
 
-    func_enter();
-
 
     card = kzalloc(sizeof(card_t), GFP_KERNEL);
     if (card == NULL)
@@ -171,7 +169,6 @@ CsrResult unifi_init_card(card_t *card, s32 led_mask)
 {
     CsrResult r;
 
-    func_enter();
 
     if (card == NULL)
     {
@@ -222,8 +219,6 @@ CsrResult unifi_init(card_t *card)
 {
     CsrResult r;
     CsrResult csrResult;
-
-    func_enter();
 
     if (card == NULL)
     {
@@ -363,8 +358,6 @@ CsrResult unifi_download(card_t *card, s32 led_mask)
     CsrResult r;
     void *dlpriv;
 
-    func_enter();
-
     if (card == NULL)
     {
         func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
@@ -424,8 +417,6 @@ static CsrResult unifi_hip_init(card_t *card)
 {
     CsrResult r;
     CsrResult csrResult;
-
-    func_enter();
 
     r = card_hw_init(card);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
@@ -608,8 +599,6 @@ static CsrResult card_hw_init(card_t *card)
     s16 major, minor;
     s16 search_4slut_again;
     CsrResult csrResult;
-
-    func_enter();
 
     /*
      * The device revision from the TPLMID_MANF and TPLMID_CARD fields
@@ -1004,8 +993,6 @@ static CsrResult card_wait_for_unifi_to_reset(card_t *card)
     u8 io_enable;
     CsrResult csrResult;
 
-    func_enter();
-
     r = CSR_RESULT_SUCCESS;
     for (i = 0; i < MAILBOX2_ATTEMPTS; i++)
     {
@@ -1136,8 +1123,6 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
     u8 io_enable;
     CsrResult csrResult;
 
-    func_enter();
-
     if (card->chip_id <= SDIO_CARD_ID_UNIFI_2)
     {
         unifi_error(card->ospriv,
@@ -1237,8 +1222,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
     s32 i;
     u16 mbox0, mbox1;
     CsrResult r;
-
-    func_enter();
 
     /*
      * Wait for UniFi to initialise its data structures by polling
@@ -1358,7 +1341,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
  */
 CsrResult unifi_capture_panic(card_t *card)
 {
-    func_enter();
 
     /* The firmware must have previously initialised to read the panic addresses
      * from the SLUT
@@ -1404,8 +1386,6 @@ static CsrResult card_access_panic(card_t *card)
     u16 data_u16 = 0;
     s32 i;
     CsrResult r, sr;
-
-    func_enter();
 
     /* A chip version of zero means that the version never got succesfully read
      * during reset. In this case give up because it will not be possible to
@@ -1536,8 +1516,6 @@ void unifi_read_panic(card_t *card)
     CsrResult r;
     u16 p_code, p_arg;
 
-    func_enter();
-
     /* The firmware must have previously initialised to read the panic addresses
      * from the SLUT
      */
@@ -1606,8 +1584,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
 {
     s16 n, i, k, r;
     sdio_config_data_t *cfg_data;
-
-    func_enter();
 
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
@@ -1781,7 +1757,6 @@ static void unifi_free_bulk_data(card_t *card, bulk_data_desc_t *bulk_data_slot)
  */
 static void card_free_memory_resources(card_t *card)
 {
-    func_enter();
 
     unifi_trace(card->ospriv, UDBG1, "Freeing card memory resources.\n");
 
@@ -1820,8 +1795,6 @@ static void card_init_soft_queues(card_t *card)
 {
     s16 i;
 
-    func_enter();
-
     unifi_trace(card->ospriv, UDBG1, "Initialising internal signal queues.\n");
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
@@ -1858,7 +1831,6 @@ static void card_init_soft_queues(card_t *card)
 void unifi_cancel_pending_signals(card_t *card)
 {
     s16 i, n, r;
-    func_enter();
 
     unifi_trace(card->ospriv, UDBG1, "Canceling pending signals.\n");
 
@@ -1951,7 +1923,6 @@ void unifi_cancel_pending_signals(card_t *card)
  */
 void unifi_free_card(card_t *card)
 {
-    func_enter();
 #ifdef CSR_PRE_ALLOC_NET_DATA
     prealloc_netdata_free(card);
 #endif
@@ -1988,8 +1959,6 @@ static CsrResult card_init_slots(card_t *card)
 {
     CsrResult r;
     u8 i;
-
-    func_enter();
 
     /* Allocate the buffers we need, only once. */
     if (card->memory_resources_allocated == 1)
@@ -2153,8 +2122,6 @@ static void CardReassignDynamicReservation(card_t *card)
 {
     u8 i;
 
-    func_enter();
-
     unifi_trace(card->ospriv, UDBG5, "Packets Txed %d %d %d %d\n",
                 card->dynamic_slot_data.packets_txed[0],
                 card->dynamic_slot_data.packets_txed[1],
@@ -2205,8 +2172,6 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
     s32 i;
     q_t *sigq;
     u16 num_data_slots = card->config_data.num_fromhost_data_slots - UNIFI_RESERVED_COMMAND_SLOTS;
-
-    func_enter();
 
     /* Calculate the pending queue length */
     sigq = &card->fh_traffic_queue[queue];
@@ -2336,8 +2301,6 @@ void CardClearFromHostDataSlot(card_t *card, const s16 slot)
     u8 queue = card->from_host_data[slot].queue;
     const void *os_data_ptr = card->from_host_data[slot].bd.os_data_ptr;
 
-    func_enter();
-
     if (card->from_host_data[slot].bd.data_length == 0)
     {
         unifi_warning(card->ospriv,
@@ -2457,8 +2420,6 @@ u16 CardGetFreeFromHostDataSlots(card_t *card)
 {
     u16 i, n = 0;
 
-    func_enter();
-
     /* First two slots reserved for MLME */
     for (i = 0; i < card->config_data.num_fromhost_data_slots; i++)
     {
@@ -2506,7 +2467,6 @@ u16 CardAreAllFromHostDataSlotsEmpty(card_t *card)
 
 static CsrResult unifi_identify_hw(card_t *card)
 {
-    func_enter();
 
     card->chip_id = card->sdio_if->sdioId.cardId;
     card->function = card->sdio_if->sdioId.sdioFunction;
@@ -2540,8 +2500,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
     CsrResult r;
     CsrResult csrResult;
     enum unifi_host_state old_state = card->host_state;
-
-    func_enter();
 
     r = unifi_identify_hw(card);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
@@ -2625,8 +2583,6 @@ static CsrResult unifi_read_chip_version(card_t *card)
     CsrResult r;
     u16 ver;
 
-    func_enter();
-
     gbl_chip_version = ChipHelper_GBL_CHIP_VERSION(card->helper);
 
     /* Try to read the chip version from register. */
@@ -2683,8 +2639,6 @@ static CsrResult unifi_reset_hardware(card_t *card)
     CsrResult r;
     u16 new_block_size = UNIFI_IO_BLOCK_SIZE;
     CsrResult csrResult;
-
-    func_enter();
 
     /* Errors returned by unifi_prepare_hw() are not critical at this point */
     r = unifi_prepare_hw(card);
@@ -2818,8 +2772,6 @@ static CsrResult card_reset_method_io_enable(card_t *card)
     CsrResult r;
     CsrResult csrResult;
 
-    func_enter();
-
     /*
      * This resets only function 1, so should be used in
      * preference to the method below (CSR_FUNC_EN)
@@ -2915,8 +2867,6 @@ static CsrResult card_reset_method_dbg_reset(card_t *card)
 {
     CsrResult r;
 
-    func_enter();
-
     /*
      * Prepare UniFi for h/w reset
      */
@@ -3008,8 +2958,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
     const struct chip_helper_reset_values *init_data;
     u32 chunks;
 
-    func_enter();
-
     /* Clear cache of page registers */
     card->proc_select = (u32)(-1);
     card->dmem_page = (u32)(-1);
@@ -3096,8 +3044,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
 CsrResult CardGenInt(card_t *card)
 {
     CsrResult r;
-
-    func_enter();
 
     if (card->chip_id > SDIO_CARD_ID_UNIFI_2)
     {
@@ -3387,8 +3333,6 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
     u8 *packed_sigptr, num_slots_required = 0;
     bulk_data_desc_t *bulkdata = csptr->bulkdata;
     s16 h, nslots;
-
-    func_enter();
 
     /* Count the number of slots required */
     for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; i++)

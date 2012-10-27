@@ -85,7 +85,6 @@ static int uf_read_proc(char *page, char **start, off_t offset, int count,
 static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
 {
     int i;
-    func_enter();
 
     priv->rxSignalBuffer.writePointer =
     priv->rxSignalBuffer.readPointer = 0;
@@ -263,8 +262,6 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     unifi_priv_t *priv = NULL;
     int r = -1;
     CsrResult csrResult;
-
-    func_enter();
 
     if ((bus_id < 0) || (bus_id >= MAX_UNIFI_DEVS)) {
         unifi_error(priv, "register_unifi_sdio: invalid device %d\n",
@@ -472,7 +469,6 @@ failed0:
 static void
 ask_unifi_sdio_cleanup(unifi_priv_t *priv)
 {
-    func_enter();
 
     /*
      * Now clear the flag that says the old instance is in use.
@@ -509,8 +505,6 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
     int priv_instance;
     int i;
     static const CsrWifiMacAddress broadcast_address = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-
-    func_enter();
 
     /* Remove the device nodes */
     uf_destroy_device_nodes(priv);

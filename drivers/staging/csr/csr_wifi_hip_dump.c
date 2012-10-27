@@ -104,8 +104,6 @@ CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable)
 {
     CsrResult r;
 
-    func_enter();
-
     if (enable)
     {
         unifi_trace(card->ospriv, UDBG2, "Mini-coredump requested after reset\n");
@@ -144,8 +142,6 @@ CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable)
 CsrResult unifi_coredump_handle_request(card_t *card)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
-
-    func_enter();
 
     if (card == NULL)
     {
@@ -193,8 +189,6 @@ CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req)
     CsrResult r = CSR_RESULT_SUCCESS;
     static u16 dump_seq_no = 1;
     u32 time_of_capture;
-
-    func_enter();
 
     if (card->dump_next_write == NULL)
     {
@@ -358,8 +352,6 @@ CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req)
     s32 i = 0;
     coredump_buffer *find_dump = NULL;
 
-    func_enter();
-
     if (req == NULL || card == NULL)
     {
         r = CSR_WIFI_HIP_RESULT_INVALID_VALUE;
@@ -481,8 +473,6 @@ static CsrResult unifi_coredump_read_zone(card_t *card, u16 *zonebuf, const stru
 {
     CsrResult r;
 
-    func_enter();
-
     if (zonebuf == NULL || def == NULL)
     {
         r = CSR_WIFI_HIP_RESULT_INVALID_VALUE;
@@ -551,8 +541,6 @@ static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_b
     CsrResult r = CSR_RESULT_SUCCESS;
     s32 i;
 
-    func_enter();
-
     /* Walk the table of coredump zone definitions and read them from the chip */
     for (i = 0;
          (i < HIP_CDUMP_NUM_ZONES) && (r == 0);
@@ -589,8 +577,6 @@ static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_bu
     u16 val;
     CsrResult r;
     u32 sdio_addr;
-
-    func_enter();
 
     if (dump_buf == NULL)
     {
@@ -743,8 +729,6 @@ CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers)
     u32 i = 0;
 #endif
 
-    func_enter();
-
     card->request_coredump_on_reset = 0;
     card->dump_next_write = NULL;
     card->dump_cur_read = NULL;
@@ -826,7 +810,6 @@ void unifi_coredump_free(card_t *card)
     s16 i = 0;
     s16 j;
 
-    func_enter();
     unifi_trace(ospriv, UDBG2, "Core dump de-configured\n");
 
     if (card->dump_buf == NULL)

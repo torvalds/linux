@@ -477,8 +477,6 @@ uf_free_netdevice(unifi_priv_t *priv)
     int i;
     unsigned long flags;
 
-    func_enter();
-
     unifi_trace(priv, UDBG1, "uf_free_netdevice\n");
 
     if (!priv) {
@@ -577,8 +575,6 @@ uf_net_open(struct net_device *dev)
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
 
-    func_enter();
-
     /* If we haven't finished UniFi initialisation, we can't start */
     if (priv->init_progress != UNIFI_INIT_COMPLETED) {
         unifi_warning(priv, "%s: unifi not ready, failing net_open\n", __FUNCTION__);
@@ -626,8 +622,6 @@ uf_net_stop(struct net_device *dev)
     netInterface_priv_t *interfacePriv = (netInterface_priv_t*)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
 
-    func_enter();
-
     /* Stop sniffing if in Monitor mode */
     if (priv->wext_conf.mode == IW_MODE_MONITOR) {
         if (priv->card) {
@@ -638,8 +632,6 @@ uf_net_stop(struct net_device *dev)
             }
         }
     }
-#else
-    func_enter();
 #endif
 
     netif_tx_stop_all_queues(dev);
@@ -674,7 +666,6 @@ static CSR_PRIORITY uf_get_packet_priority(unifi_priv_t *priv, netInterface_priv
 {
     CSR_PRIORITY priority = CSR_CONTENTION;
 
-    func_enter();
     priority = (CSR_PRIORITY) (skb->priority >> 5);
 
     if (priority == CSR_QOS_UP0) { /* 0 */
@@ -749,8 +740,6 @@ get_packet_priority(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
 
     u8 interfaceMode = interfacePriv->interfaceMode;
 
-    func_enter();
-
     /* Priority Mapping for all the Modes */
     switch(interfaceMode)
     {
@@ -814,8 +803,6 @@ uf_net_select_queue(struct net_device *dev, struct sk_buff *skb)
     unifi_TrafficQueue queue;
     int proto;
     CSR_PRIORITY priority;
-
-    func_enter();
 
     memcpy(&ehdr, skb->data, ETH_HLEN);
     proto = ntohs(ehdr.h_proto);
@@ -1759,8 +1746,6 @@ uf_net_xmit(struct sk_buff *skb, struct net_device *dev)
     CSR_PRIORITY priority;
     CsrWifiRouterCtrlPortAction port_action;
 
-    func_enter();
-
     unifi_trace(priv, UDBG5, "unifi_net_xmit: skb = %x\n", skb);
 
     memcpy(&ehdr, skb->data, ETH_HLEN);
@@ -1876,7 +1861,6 @@ unifi_pause_xmit(void *ospriv, unifi_TrafficQueue queue)
     unifi_priv_t *priv = ospriv;
     int i; /* used as a loop counter */
 
-    func_enter();
     unifi_trace(priv, UDBG2, "Stopping queue %d\n", queue);
 
     for(i=0;i<CSR_WIFI_NUM_INTERFACES;i++)
@@ -1906,7 +1890,6 @@ unifi_restart_xmit(void *ospriv, unifi_TrafficQueue queue)
     unifi_priv_t *priv = ospriv;
     int i=0; /* used as a loop counter */
 
-    func_enter();
     unifi_trace(priv, UDBG2, "Waking queue %d\n", queue);
 
     for(i=0;i<CSR_WIFI_NUM_INTERFACES;i++)
@@ -2176,8 +2159,6 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
     u16 frameControl;
     netInterface_priv_t *interfacePriv;
     struct ethhdr ehdr;
-
-    func_enter();
 
     interfaceTag = (pkt_ind->VirtualInterfaceIdentifier & 0xff);
     interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2455,7 +2436,6 @@ static void process_ma_packet_cfm(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     const CSR_MA_PACKET_CONFIRM *pkt_cfm = &signal->u.MaPacketConfirm;
     netInterface_priv_t *interfacePriv;
 
-    func_enter();
     interfaceTag = (pkt_cfm->VirtualInterfaceIdentifier & 0xff);
     interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -2526,8 +2506,6 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     u16 qosControl;
 
 #endif
-
-    func_enter();
 
     interfaceTag = (pkt_ind->VirtualInterfaceIdentifier & 0xff);
     interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2834,8 +2812,6 @@ netdev_mlme_event_handler(ul_client_t *pcli, const u8 *sig_packed, int sig_len,
     unifi_priv_t *priv = uf_find_instance(pcli->instance);
     int id, r;
     bulk_data_param_t bulkdata;
-
-    func_enter();
 
     /* Just a sanity check */
     if (sig_packed == NULL) {
@@ -3329,8 +3305,6 @@ static void process_ma_packet_error_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, 
     u8 ba_session_idx = 0;
     CSR_PRIORITY        UserPriority;
     CSR_SEQUENCE_NUMBER sn;
-
-    func_enter();
 
     interfaceTag = (pkt_err_ind->VirtualInterfaceIdentifier & 0xff);
 

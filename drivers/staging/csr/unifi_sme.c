@@ -78,7 +78,6 @@ sme_log_event(ul_client_t *pcli,
     CsrResult result = CSR_RESULT_SUCCESS;
     int r;
 
-    func_enter();
     /* Just a sanity check */
     if ((signal == NULL) || (signal_len <= 0)) {
         func_exit();
@@ -1158,8 +1157,6 @@ uf_send_m4_ready_wq(struct work_struct *work)
     CsrWifiMacAddress peer;
     unsigned long flags;
 
-    func_enter();
-
     /* The peer address was stored in the signal */
     spin_lock_irqsave(&priv->m4_lock, flags);
     memcpy(peer.a, req->Ra.x, sizeof(peer.a));
@@ -1203,8 +1200,6 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
     unsigned long flags;
 
     if (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_STA) {
-
-        func_enter();
 
         pktBulkDataLength = interfacePriv->wapi_unicast_bulk_data.data_length;
 

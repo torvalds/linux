@@ -540,8 +540,6 @@ CsrSdioFunctionEnable(CsrSdioFunction *function)
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
 
-    func_enter();
-
     /* Enable UniFi function 1 (the 802.11 part). */
     _sdio_claim_host(func);
     err = sdio_enable_func(func);
@@ -573,8 +571,6 @@ CsrSdioFunctionDisable(CsrSdioFunction *function)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
-
-    func_enter();
 
     /* Disable UniFi function 1 (the 802.11 part). */
     _sdio_claim_host(func);
@@ -1033,8 +1029,6 @@ uf_glue_sdio_probe(struct sdio_func *func,
     int instance;
     CsrSdioFunction *sdio_ctx;
 
-    func_enter();
-
     /* First of all claim the SDIO driver */
     sdio_claim_host(func);
 
@@ -1130,8 +1124,6 @@ uf_glue_sdio_remove(struct sdio_func *func)
         return;
     }
 
-    func_enter();
-
     unifi_info(NULL, "UniFi card removed\n");
 
     /* Clean up the SDIO function driver */
@@ -1182,8 +1174,6 @@ MODULE_DEVICE_TABLE(sdio, unifi_ids);
 static int
 uf_glue_sdio_suspend(struct device *dev)
 {
-    func_enter();
-
     unifi_trace(NULL, UDBG1, "uf_glue_sdio_suspend");
 
     func_exit();
@@ -1207,8 +1197,6 @@ uf_glue_sdio_suspend(struct device *dev)
 static int
 uf_glue_sdio_resume(struct device *dev)
 {
-    func_enter();
-
     unifi_trace(NULL, UDBG1, "uf_glue_sdio_resume");
 
 #ifdef ANDROID_BUILD
