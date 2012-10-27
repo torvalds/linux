@@ -204,9 +204,11 @@ static char *_modClkName[AW_MOD_CLK_CNT] = {
 	"ahb_ehci1",
 	"ahb_ohci1",
 
+#ifdef CONFIG_ARCH_SUN5I
 	"iep",
 	"ahb_iep",
 	"sdram_iep",
+#endif
 };
 
 __s32 OSAL_CCMU_SetSrcFreq(__u32 nSclkNo, __u32 nFreq)
