@@ -60,7 +60,7 @@
 #define fmdbg(format, ...) \
 	printk(KERN_DEBUG "fmdrv: " format, ## __VA_ARGS__)
 #else /* DEBUG */
-#define fmdbg(format, ...)
+#define fmdbg(format, ...) do {} while(0)
 #endif
 enum {
 	FM_MODE_OFF,
