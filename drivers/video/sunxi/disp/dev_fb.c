@@ -1500,7 +1500,7 @@ __s32 Fb_Init(__u32 from)
 			g_fbi.fbinfo[i]->fix.smem_len =
 				g_fbi.fbinfo[i]->fix.line_length *
 				g_fbi.fbinfo[i]->var.yres_virtual * 2;
-			g_fbi.fbinfo[i]->screen_base = 0x0;
+			g_fbi.fbinfo[i]->screen_base = NULL;
 			g_fbi.fbinfo[i]->pseudo_palette =
 				g_fbi.pseudo_palette[i];
 			g_fbi.fbinfo[i]->fix.smem_start = 0x0;

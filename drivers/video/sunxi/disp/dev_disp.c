@@ -112,7 +112,7 @@ __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize)
 	boot_heap_head.address = pHeapHead;
 	boot_heap_tail.address = pHeapHead + nHeapSize;
 	boot_heap_head.next = &boot_heap_tail;
-	boot_heap_tail.next = 0;
+	boot_heap_tail.next = NULL;
 
 	__inf("head:%x,tail:%x\n", boot_heap_head.address,
 	      boot_heap_tail.address);
@@ -125,7 +125,7 @@ void *disp_malloc(__u32 num_bytes)
 	__u32 actual_bytes;
 
 	if (!num_bytes) {
-		return 0;
+		return NULL;
 	}
 
 	/* translate the byte count to size of long type  */
@@ -146,14 +146,14 @@ void *disp_malloc(__u32 num_bytes)
 
 	if (!ptr->next) {
 		__wrn(" it has reached the boot_heap_tail of the heap now\n");
-		return 0;
+		return NULL;
 	}
 
 	newptr = (struct alloc_struct_t *)(ptr->address + ptr->size);
-	/* create a new node for the memory block             */
+	/* create a new node for the memory block */
 	if (!newptr) {
 		__wrn(" create the node failed, can't manage the block\n");
-		return 0;
+		return NULL;
 	}
 
 	/* set the memory block chain, insert the node to the chain */
@@ -376,7 +376,7 @@ disp_mem_release(int sel)
 		   get_order(page_size));
 	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
 #else
-	if (g_disp_mm[sel].info_base == 0)
+	if (g_disp_mm[sel].info_base == NULL)
 		return -EINVAL;
 
 	disp_free((void *)g_disp_mm[sel].info_base);
@@ -1800,12 +1800,12 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			pm_message_t state = { };
 
-			ret = disp_suspend(0, state);
+			ret = disp_suspend(NULL, state);
 			break;
 		}
 
 	case DISP_CMD_RESUME:
-		ret = disp_resume(0);
+		ret = disp_resume(NULL);
 		break;
 
 	case DISP_CMD_PRINT_REG:
