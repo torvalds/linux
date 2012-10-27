@@ -922,7 +922,27 @@ static int comedi_old_auto_config(struct device *hardware_device,
 					 (unsigned long)&it);
 }
 
-static void comedi_auto_unconfig(struct device *hardware_device)
+static int comedi_auto_config_wrapper(struct comedi_device *dev,
+				      unsigned long context)
+{
+	if (!dev->driver->auto_attach) {
+		dev_warn(dev->class_dev,
+			 "BUG! driver '%s' has no auto_attach handler\n",
+			 dev->driver->driver_name);
+		return -EINVAL;
+	}
+	return dev->driver->auto_attach(dev, context);
+}
+
+int comedi_auto_config(struct device *hardware_device,
+		       struct comedi_driver *driver, unsigned long context)
+{
+	return comedi_auto_config_helper(hardware_device, driver,
+					 comedi_auto_config_wrapper, context);
+}
+EXPORT_SYMBOL_GPL(comedi_auto_config);
+
+void comedi_auto_unconfig(struct device *hardware_device)
 {
 	int minor;
 
@@ -934,6 +954,7 @@ static void comedi_auto_unconfig(struct device *hardware_device)
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	comedi_free_board_minor(minor);
 }
+EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
 
 /**
  * comedi_pci_enable() - Enable the PCI device and request the regions.

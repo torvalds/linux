@@ -204,6 +204,7 @@ struct comedi_driver {
 	void (*detach) (struct comedi_device *);
 	int (*attach_pci) (struct comedi_device *, struct pci_dev *);
 	int (*attach_usb) (struct comedi_device *, struct usb_interface *);
+	int (*auto_attach) (struct comedi_device *, unsigned long);
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
@@ -510,6 +511,9 @@ static inline void *comedi_aux_data(int options[], int n)
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);
+int comedi_auto_config(struct device *hardware_device,
+		       struct comedi_driver *driver, unsigned long context);
+void comedi_auto_unconfig(struct device *hardware_device);
 int comedi_pci_auto_config(struct pci_dev *pcidev,
 			   struct comedi_driver *driver);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
