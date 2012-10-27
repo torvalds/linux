@@ -49,7 +49,7 @@ __asm__(".arch_extension	virt");
 #endif
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
-static struct vfp_hard_struct __percpu *kvm_host_vfp_state;
+static kvm_kernel_vfp_t __percpu *kvm_host_vfp_state;
 static unsigned long hyp_default_vectors;
 
 /* Per-CPU variable containing the currently running vcpu. */
@@ -908,7 +908,7 @@ static int init_hyp_mode(void)
 	/*
 	 * Map the host VFP structures
 	 */
-	kvm_host_vfp_state = alloc_percpu(struct vfp_hard_struct);
+	kvm_host_vfp_state = alloc_percpu(kvm_kernel_vfp_t);
 	if (!kvm_host_vfp_state) {
 		err = -ENOMEM;
 		kvm_err("Cannot allocate host VFP state\n");
@@ -916,7 +916,7 @@ static int init_hyp_mode(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		struct vfp_hard_struct *vfp;
+		kvm_kernel_vfp_t *vfp;
 
 		vfp = per_cpu_ptr(kvm_host_vfp_state, cpu);
 		err = create_hyp_mappings(vfp, vfp + 1);
