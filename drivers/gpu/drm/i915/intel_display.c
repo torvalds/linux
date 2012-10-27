@@ -3014,6 +3014,13 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
+	/* XXX: pch pll's can be enabled any time before we enable the PCH
+	 * transcoder, and we actually should do this to not upset any PCH
+	 * transcoder that already use the clock when we share it.
+	 *
+	 * Note that enable_pch_pll tries to do the right thing, but get_pch_pll
+	 * unconditionally resets the pll - we need that to have the right LVDS
+	 * enable sequence. */
 	intel_enable_pch_pll(intel_crtc);
 
 	if (HAS_PCH_LPT(dev)) {
