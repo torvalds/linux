@@ -19,11 +19,19 @@
  * MA 02111-1307 USA
  */
 
-#include "drv_disp_i.h"
-#include "dev_disp.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
+
+#ifdef CONFIG_FB_SUNXI_UMP
+#include <ump/ump_kernel_interface.h>
+#endif
+
+#include "drv_disp_i.h"
+#include "dev_disp.h"
+#include "dev_fb.h"
+
+fb_info_t g_fbi;
 
 #define FBHANDTOID(handle)  ((handle) - 100)
 #define FBIDTOHAND(ID)  ((ID) + 100)
@@ -33,7 +41,8 @@
  *     seq:  ARGB    BRGA    ARGB    BRGA
  * br_swqp:   0       0       1       1
  */
-__s32 parser_disp_init_para(__disp_init_t * init_para)
+static __s32
+parser_disp_init_para(__disp_init_t *init_para)
 {
 	int value;
 	int i;
@@ -202,8 +211,10 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
 	return 0;
 }
 
-__s32 fb_draw_colorbar(__u32 base, __u32 width, __u32 height,
-		       struct fb_var_screeninfo * var)
+#ifdef UNUSED
+static __s32
+fb_draw_colorbar(__u32 base, __u32 width, __u32 height,
+		 struct fb_var_screeninfo *var)
 {
 	__u32 i = 0, j = 0;
 
@@ -279,8 +290,9 @@ __s32 fb_draw_colorbar(__u32 base, __u32 width, __u32 height,
 	return 0;
 }
 
-__s32 fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
-			    struct fb_var_screeninfo * var)
+static __s32
+fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
+		      struct fb_var_screeninfo *var)
 {
 	__u32 time = 0;
 
@@ -302,6 +314,7 @@ __s32 fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 	}
 	return 0;
 }
+#endif /* UNUSED */
 
 static int __init Fb_map_video_memory(struct fb_info *info)
 {
@@ -347,8 +360,9 @@ static inline void Fb_unmap_video_memory(struct fb_info *info)
 /*
  * todo.
  */
-__s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq,
-		     __bool br_swap, struct fb_var_screeninfo *var)
+static __s32
+disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq,
+	       __bool br_swap, struct fb_var_screeninfo *var)
 {
 	if (format == DISP_FORMAT_ARGB8888) {
 		var->bits_per_pixel = 32;
@@ -511,8 +525,9 @@ __s32 disp_fb_to_var(__disp_pixel_fmt_t format, __disp_pixel_seq_t seq,
 /*
  * todo
  */
-__s32 var_to_disp_fb(__disp_fb_t * fb, struct fb_var_screeninfo * var,
-		     struct fb_fix_screeninfo * fix)
+static __s32
+var_to_disp_fb(__disp_fb_t *fb, struct fb_var_screeninfo *var,
+	       struct fb_fix_screeninfo *fix)
 {
 	if (var->nonstd == 0) { /* argb */
 		var->reserved[0] = DISP_MOD_INTERLEAVED;
@@ -1053,7 +1068,8 @@ static int Fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	return 0;
 }
 
-int Fb_blank(int blank_mode, struct fb_info *info)
+static int
+Fb_blank(int blank_mode, struct fb_info *info)
 {
 	__u32 sel = 0;
 

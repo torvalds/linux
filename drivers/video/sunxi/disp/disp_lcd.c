@@ -20,6 +20,7 @@
  */
 
 #include <linux/module.h>
+#include "disp_display_i.h"
 #include "disp_lcd.h"
 #include "disp_display.h"
 #include "disp_event.h"
@@ -32,7 +33,8 @@ static __lcd_flow_t close_flow[2];
 __panel_para_t gpanel_info[2];
 static __lcd_panel_fun_t lcd_panel_fun[2];
 
-void LCD_get_reg_bases(__reg_bases_t * para)
+static void
+LCD_get_reg_bases(__reg_bases_t *para)
 {
 	para->base_lcdc0 = gdisp.init_para.base_lcdc0;
 	para->base_lcdc1 = gdisp.init_para.base_lcdc1;
@@ -41,7 +43,8 @@ void LCD_get_reg_bases(__reg_bases_t * para)
 	para->base_pwm = gdisp.init_para.base_pwm;
 }
 
-void Lcd_Panel_Parameter_Check(__u32 sel)
+static void
+Lcd_Panel_Parameter_Check(__u32 sel)
 {
 	__panel_para_t *info;
 	__u32 cycle_num = 1;
@@ -253,7 +256,8 @@ void Lcd_Panel_Parameter_Check(__u32 sel)
 	}
 }
 
-__s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
+static __s32
+LCD_get_panel_para(__u32 sel, __panel_para_t *info)
 {
 	__s32 ret = 0;
 	char primary_key[20];
@@ -502,7 +506,8 @@ __s32 LCD_get_panel_para(__u32 sel, __panel_para_t * info)
 	return 0;
 }
 
-void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t * lcd_cfg)
+static void
+LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 {
 	char io_name[28][20] = {
 		"lcdd0", "lcdd1", "lcdd2", "lcdd3", "lcdd4", "lcdd5",
@@ -664,21 +669,24 @@ void LCD_delay_us(__u32 us)
 	udelay(us);
 }
 
-void LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
+void
+LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
 {
 	open_flow[sel].func[open_flow[sel].func_num].func = func;
 	open_flow[sel].func[open_flow[sel].func_num].delay = delay;
 	open_flow[sel].func_num++;
 }
 
-void LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
+void
+LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
 {
 	close_flow[sel].func[close_flow[sel].func_num].func = func;
 	close_flow[sel].func[close_flow[sel].func_num].delay = delay;
 	close_flow[sel].func_num++;
 }
 
-void TCON_open(__u32 sel)
+void
+TCON_open(__u32 sel)
 {
 	if (gpanel_info[sel].tcon_index == 0) {
 		TCON0_open(sel);
@@ -693,7 +701,8 @@ void TCON_open(__u32 sel)
 	}
 }
 
-void TCON_close(__u32 sel)
+void
+TCON_close(__u32 sel)
 {
 	if (gpanel_info[sel].lcd_if == 3) {
 		LCD_LVDS_close(sel);
@@ -728,7 +737,8 @@ static __s32 pwm_write_reg(__u32 offset, __u32 value)
 	return 0;
 }
 
-__s32 pwm_enable(__u32 channel, __bool b_en)
+static __s32
+pwm_enable(__u32 channel, __bool b_en)
 {
 	__u32 tmp = 0;
 	__hdle hdl;
@@ -950,7 +960,8 @@ __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info)
 	return 0;
 }
 
-__s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
+static __s32
+pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 {
 	__u32 active_cycle = 0;
 	__u32 tmp;
@@ -1031,7 +1042,8 @@ __s32 LCD_BL_EN(__u32 sel, __bool b_en)
 	return 0;
 }
 
-__s32 LCD_POWER_EN(__u32 sel, __bool b_en)
+__s32
+LCD_POWER_EN(__u32 sel, __bool b_en)
 {
 	user_gpio_set_t gpio_info[1];
 	__hdle hdl;
@@ -1051,17 +1063,20 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 	return 0;
 }
 
-__s32 LCD_GPIO_request(__u32 sel, __u32 io_index)
+__s32
+LCD_GPIO_request(__u32 sel, __u32 io_index)
 {
 	return 0;
 }
 
-__s32 LCD_GPIO_release(__u32 sel, __u32 io_index)
+__s32
+LCD_GPIO_release(__u32 sel, __u32 io_index)
 {
 	return 0;
 }
 
-__s32 LCD_GPIO_set_attr(__u32 sel, __u32 io_index, __bool b_output)
+__s32
+LCD_GPIO_set_attr(__u32 sel, __u32 io_index, __bool b_output)
 {
 	char gpio_name[20];
 
@@ -1071,7 +1086,8 @@ __s32 LCD_GPIO_set_attr(__u32 sel, __u32 io_index, __bool b_output)
 						gpio_name);
 }
 
-__s32 LCD_GPIO_read(__u32 sel, __u32 io_index)
+__s32
+LCD_GPIO_read(__u32 sel, __u32 io_index)
 {
 	char gpio_name[20];
 
@@ -1080,7 +1096,8 @@ __s32 LCD_GPIO_read(__u32 sel, __u32 io_index)
 					     gpio_hdl[io_index], gpio_name);
 }
 
-__s32 LCD_GPIO_write(__u32 sel, __u32 io_index, __u32 data)
+__s32
+LCD_GPIO_write(__u32 sel, __u32 io_index, __u32 data)
 {
 	char gpio_name[20];
 
@@ -1090,7 +1107,8 @@ __s32 LCD_GPIO_write(__u32 sel, __u32 io_index, __u32 data)
 					      gpio_name);
 }
 
-__s32 LCD_GPIO_init(__u32 sel)
+static __s32
+LCD_GPIO_init(__u32 sel)
 {
 	__u32 i = 0;
 
@@ -1111,7 +1129,8 @@ __s32 LCD_GPIO_init(__u32 sel)
 	return 0;
 }
 
-__s32 LCD_GPIO_exit(__u32 sel)
+static __s32
+LCD_GPIO_exit(__u32 sel)
 {
 	__u32 i = 0;
 
@@ -1124,7 +1143,8 @@ __s32 LCD_GPIO_exit(__u32 sel)
 	return 0;
 }
 
-void LCD_CPU_register_irq(__u32 sel, void (*Lcd_cpuisr_proc) (void))
+static void
+LCD_CPU_register_irq(__u32 sel, void (*Lcd_cpuisr_proc) (void))
 {
 	gdisp.screen[sel].LCD_CPUIF_ISR = Lcd_cpuisr_proc;
 }

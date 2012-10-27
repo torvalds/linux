@@ -22,8 +22,8 @@
 #include "ebios_lcdc_tve.h"
 #include "de_lcdc_i.h"
 
-__u32 lcdc_reg_base0 = 0;
-__u32 lcdc_reg_base1 = 0;
+static __u32 lcdc_reg_base0 = 0;
+static __u32 lcdc_reg_base1 = 0;
 
 #define ____SEPARATOR_LCDC____
 
@@ -1236,12 +1236,16 @@ __asm void my_stmia(int addr,int data1,int data2)
 }
 #endif
 
-void LCD_CPU_Burst_Write(__u32 sel, int addr, int data1, int data2)
+#ifdef UNUSED
+static void
+LCD_CPU_Burst_Write(__u32 sel, int addr, int data1, int data2)
 {
 	//my_stmia(LCDC_GET_REG_BASE(sel) + addr,data1,data2);
 }
+#endif /* UNUSED */
 
-__u32 LCD_CPU_Busy(__u32 sel)
+static __u32
+LCD_CPU_Busy(__u32 sel)
 {
 #ifdef CONFIG_ARCH_SUN4I
 	volatile __u32 i;
@@ -1267,7 +1271,8 @@ __u32 LCD_CPU_Busy(__u32 sel)
 #endif /* CONFIG_ARCH_SUN4I */
 }
 
-void LCD_CPU_WR_INDEX_24b(__u32 sel, __u32 index)
+static void
+LCD_CPU_WR_INDEX_24b(__u32 sel, __u32 index)
 {
 	while (LCD_CPU_Busy(sel)) /* check wr finish */
 		;
@@ -1283,7 +1288,8 @@ void LCD_CPU_WR_INDEX_24b(__u32 sel, __u32 index)
 #endif
 }
 
-void LCD_CPU_WR_DATA_24b(__u32 sel, __u32 data)
+static void
+LCD_CPU_WR_DATA_24b(__u32 sel, __u32 data)
 {
 	while (LCD_CPU_Busy(sel)) /* check wr finish */
 		;
@@ -1298,20 +1304,25 @@ void LCD_CPU_WR_DATA_24b(__u32 sel, __u32 data)
 #endif
 }
 
-void LCD_CPU_WR_24b(__u32 sel, __u32 index, __u32 data)
+static void
+LCD_CPU_WR_24b(__u32 sel, __u32 index, __u32 data)
 {
 	LCD_CPU_WR_INDEX_24b(sel, index);
 	LCD_CPU_WR_DATA_24b(sel, data);
 }
 
-void LCD_CPU_RD_24b(__u32 sel, __u32 index, __u32 * data)
+#ifdef UNUSED
+static void
+LCD_CPU_RD_24b(__u32 sel, __u32 index, __u32 *data)
 {
 }
+#endif
 
 /*
  * 16bit
  */
-__u32 LCD_CPU_IO_extend_16b(__u32 value)
+static __u32
+LCD_CPU_IO_extend_16b(__u32 value)
 {
 	return ((value & 0xfc00) << 8) |
 		((value & 0x0300) << 6) |
@@ -1319,13 +1330,16 @@ __u32 LCD_CPU_IO_extend_16b(__u32 value)
 		((value & 0x001f) << 3);
 }
 
-__u32 LCD_CPU_IO_shrink_16b(__u32 value)
+#ifdef UNUSED
+static __u32
+LCD_CPU_IO_shrink_16b(__u32 value)
 {
 	return ((value & 0xfc0000) >> 8) |
 		((value & 0x00c000) >> 6) |
 		((value & 0x001c00) >> 5) |
 		((value & 0x0000f8) >> 3);
 }
+#endif
 
 void LCD_CPU_WR(__u32 sel, __u32 index, __u32 data)
 {
@@ -1429,6 +1443,7 @@ __u8 TCON_set_tv_src(__u32 tv_index, __u8 src)
 }
 #endif /* CONFIG_ARCH_SUN4I */
 
+#ifdef UNUSED
 #define ____TCON_CEU____
 
 static __u32 range_cut(__s32 * x_value, __s32 x_min, __s32 x_max)
@@ -1631,7 +1646,6 @@ static void lcd_ceu(__u32 r2y_type, __u32 cen_type, __u32 y2r_type, __s32 b,
 		*(p_coff + i) = *(p_rect + i);
 }
 
-
 /*
  * lcdc color enhance
  *
@@ -1645,7 +1659,8 @@ static void lcd_ceu(__u32 r2y_type, __u32 cen_type, __u32 y2r_type, __s32 b,
  * s:    saturation [0:300]
  * h:    hue [0:360]
  */
-void LCDC_ceu(__u32 sel, __u32 func, __s32 b, __s32 c, __s32 s, __s32 h)
+static void
+LCDC_ceu(__u32 sel, __u32 func, __s32 b, __s32 c, __s32 s, __s32 h)
 {
 	__s32 ceu_coff[12];
 	__u32 error;
@@ -1724,3 +1739,4 @@ void LCDC_ceu(__u32 sel, __u32 func, __s32 b, __s32 c, __s32 s, __s32 h)
 		LCDC_CLR_BIT(sel, LCDC_CEU_OFF, (__u32) 1 << 31);
 	}
 }
+#endif

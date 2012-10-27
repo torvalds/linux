@@ -2,7 +2,7 @@
 #error IEP should only be used on sun5i
 #endif
 
-__u16 pwrsv_lgc_tab[128][256] = {
+static __u16 pwrsv_lgc_tab[128][256] = {
 	/* tab index : 128 */
 	{2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896,
 	 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896,
@@ -2949,14 +2949,13 @@ __u16 pwrsv_lgc_tab[128][256] = {
 	 2048, 2048, 2048, 2048}
 };
 
-__u8 spatial_coeff[9] = { 228, 241, 228, 241, 255, 241, 228, 241, 228 };
+static __u8 spatial_coeff[9] = { 228, 241, 228, 241, 255, 241, 228, 241, 228 };
 
-__u8 intensity_coeff[256] = {
+static __u8 intensity_coeff[256] = {
 	0xFF, 0xFE, 0xFE, 0xFD, 0xFB, 0xF9, 0xF7, 0xF5,
 	0xF2, 0xEE, 0xEB, 0xE7, 0xE3, 0xDE, 0xD9, 0xD4,
 	0xCF, 0xCA, 0xC4, 0xBF, 0xB9, 0xB3, 0xAD, 0xA7,
-	0xA0, 0x9A, 0x94, 0x8E,
-	    0x88, 0x82, 0x7C, 0x76,
+	0xA0, 0x9A, 0x94, 0x8E, 0x88, 0x82, 0x7C, 0x76,
 	0x70, 0x6A, 0x65, 0x5F, 0x5A, 0x55, 0x50, 0x4B,
 	0x46, 0x42, 0x3E, 0x3A, 0x36, 0x32, 0x2E, 0x2B,
 	0x28, 0x25, 0x22, 0x1F, 0x1D, 0x1A, 0x18, 0x16,
@@ -2987,8 +2986,11 @@ __u8 intensity_coeff[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-__u8 hist_thres_drc[8] = { 25, 30, 50, 70, 110, 180, 200, 255 };
-__u8 hist_thres_pwrsv[8] = { 128, 147, 175, 199, 219, 235, 247, 255 };
-__u8 drc_filter[IEP_LH_PWRSV_NUM] = { 9, 10, 11, 12, 14, 15, 17, 18,
-				      20, 22, 25, 27, 30, 33, 37, 41,
-				      45, 50, 55, 61, 67, 74, 82, 90 };
+#ifdef UNUSED
+static __u8 hist_thres_drc[8] = { 25, 30, 50, 70, 110, 180, 200, 255 };
+#endif
+
+static __u8 hist_thres_pwrsv[8] = { 128, 147, 175, 199, 219, 235, 247, 255 };
+static __u8 drc_filter[IEP_LH_PWRSV_NUM] = { 9, 10, 11, 12, 14, 15, 17, 18,
+					     20, 22, 25, 27, 30, 33, 37, 41,
+					     45, 50, 55, 61, 67, 74, 82, 90 };

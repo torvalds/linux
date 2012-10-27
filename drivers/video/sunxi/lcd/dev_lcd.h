@@ -54,7 +54,6 @@
 
 extern void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun);
 extern void LCD_get_panel_funs_1(__lcd_panel_fun_t * fun);
-extern void LCD_set_panel_funs(__lcd_panel_fun_t * lcd0_cfg, __lcd_panel_fun_t * lcd1_cfg);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 DRV_DISP_Init(void);
 

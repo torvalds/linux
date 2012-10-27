@@ -1120,6 +1120,7 @@ __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
 }
 #endif /* CONFIG_ARCH_SUN5I */
 
+#ifdef UNUSED
 /*
  * scaler input format get
  *
@@ -1131,7 +1132,8 @@ __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
  * 4: csirgb
  * 5: rgb888
  */
-__u8 DE_SCAL_Get_Input_Format(__u8 sel)
+static __u8
+DE_SCAL_Get_Input_Format(__u8 sel)
 {
 	__u8 fmt_ret;
 	fmt_ret = scal_dev[sel]->input_fmt.bits.data_fmt;
@@ -1149,7 +1151,8 @@ __u8 DE_SCAL_Get_Input_Format(__u8 sel)
  * 3 macro block plannar data
  * 4 macro block uv combined data
  */
-__u8 DE_SCAL_Get_Input_Mode(__u8 sel)
+static __u8
+DE_SCAL_Get_Input_Mode(__u8 sel)
 {
 	__u8 mode_ret;
 	mode_ret = scal_dev[sel]->input_fmt.bits.data_mod;
@@ -1168,7 +1171,8 @@ __u8 DE_SCAL_Get_Input_Mode(__u8 sel)
  * 6: plannar yuv422
  * 7: plannar yuv411
  */
-__u8 DE_SCAL_Get_Output_Format(__u8 sel)
+static __u8
+DE_SCAL_Get_Output_Format(__u8 sel)
 {
 	__u8 fmt_ret;
 	fmt_ret = scal_dev[sel]->output_fmt.bits.data_fmt;
@@ -1181,7 +1185,8 @@ __u8 DE_SCAL_Get_Output_Format(__u8 sel)
  *
  * returns width: [8-8192]
  */
-__u16 DE_SCAL_Get_Input_Width(__u8 sel)
+static __u16
+DE_SCAL_Get_Input_Width(__u8 sel)
 {
 	__u16 in_w;
 	in_w = scal_dev[sel]->ch0_insize.bits.in_width + 0x1;
@@ -1194,7 +1199,8 @@ __u16 DE_SCAL_Get_Input_Width(__u8 sel)
  *
  * returns height: [8-8192]
  */
-__u16 DE_SCAL_Get_Input_Height(__u8 sel)
+static __u16
+DE_SCAL_Get_Input_Height(__u8 sel)
 {
 	__u16 in_h;
 	in_h = scal_dev[sel]->ch0_insize.bits.in_height + 0x1;
@@ -1207,7 +1213,8 @@ __u16 DE_SCAL_Get_Input_Height(__u8 sel)
  *
  * returns width: [8-8192]
  */
-__u16 DE_SCAL_Get_Output_Width(__u8 sel)
+static __u16
+DE_SCAL_Get_Output_Width(__u8 sel)
 {
 	__u16 out_w;
 	out_w = scal_dev[sel]->ch0_outsize.bits.out_width + 0x1;
@@ -1220,7 +1227,8 @@ __u16 DE_SCAL_Get_Output_Width(__u8 sel)
  *
  * returns height: [8-8192]
  */
-__u16 DE_SCAL_Get_Output_Height(__u8 sel)
+static __u16
+DE_SCAL_Get_Output_Height(__u8 sel)
 {
 	__u16 out_h;
 	out_h = scal_dev[sel]->ch0_outsize.bits.out_height + 0x1;
@@ -1235,7 +1243,8 @@ __u16 DE_SCAL_Get_Output_Height(__u8 sel)
  *  0  scaler enable
  * -1 scaler disable
  */
-__s32 DE_SCAL_Get_Start_Status(__u8 sel)
+static __s32
+DE_SCAL_Get_Start_Status(__u8 sel)
 {
 	if (scal_dev[sel]->modl_en.bits.en &&
 	    scal_dev[sel]->frm_ctrl.bits.frm_start) {
@@ -1244,6 +1253,7 @@ __s32 DE_SCAL_Get_Start_Status(__u8 sel)
 		return -1;
 	}
 }
+#endif /* UNUSED */
 
 /*
  * lcd field status

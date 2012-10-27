@@ -19,6 +19,7 @@
  * MA 02111-1307 USA
  */
 
+#include "disp_display_i.h"
 #include "disp_hdmi.h"
 #include "disp_display.h"
 #include "disp_event.h"

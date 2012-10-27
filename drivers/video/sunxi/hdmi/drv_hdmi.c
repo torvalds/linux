@@ -23,7 +23,7 @@
 #include "drv_hdmi_i.h"
 #include "hdmi_hal.h"
 #include "dev_hdmi.h"
-
+#include "../disp/dev_disp.h"
 
 static struct semaphore *run_sem = NULL;
 static struct task_struct * HDMI_task;
@@ -241,7 +241,6 @@ int Hdmi_run_thread(void *parg)
 }
 
 extern void audio_set_hdmi_func(__audio_hdmi_func * hdmi_func);
-extern __s32 disp_set_hdmi_func(__disp_hdmi_func * func);
 
 __s32 Hdmi_init(void)
 {

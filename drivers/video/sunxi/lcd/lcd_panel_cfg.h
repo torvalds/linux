@@ -38,30 +38,6 @@ void LCD_get_panel_funs_generic(__lcd_panel_fun_t * fun);
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun);
 void LCD_get_panel_funs_1(__lcd_panel_fun_t * fun);
 
-extern void LCD_OPEN_FUNC(__u32 sel, LCD_FUNC func, __u32 delay/*ms*/);
-extern void LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay/*ms*/);
-extern void LCD_get_reg_bases(__reg_bases_t *para);
-extern void LCD_delay_ms(__u32 ms) ;
-extern void LCD_delay_us(__u32 ns);
-extern void TCON_open(__u32 sel);
-extern void TCON_close(__u32 sel);
-extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
-extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
-extern __s32 LCD_POWER_EN(__u32 sel, __bool b_en);
-extern void LCD_CPU_register_irq(__u32 sel, void (*Lcd_cpuisr_proc) (void));
-extern void LCD_CPU_WR(__u32 sel, __u32 index, __u32 data);
-extern void LCD_CPU_WR_INDEX(__u32 sel,__u32 index);
-extern void LCD_CPU_WR_DATA(__u32 sel, __u32 data);
-extern void LCD_CPU_AUTO_FLUSH(__u32 sel, __bool en);
-extern __s32 LCD_GPIO_request(__u32 sel, __u32 io_index);
-extern __s32 LCD_GPIO_release(__u32 sel,__u32 io_index);
-extern __s32 LCD_GPIO_set_attr(__u32 sel,__u32 io_index, __bool b_output);
-extern __s32 LCD_GPIO_read(__u32 sel,__u32 io_index);
-extern __s32 LCD_GPIO_write(__u32 sel,__u32 io_index, __u32 data);
-
-extern __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info);
-extern __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
-
 #define OSAL_Script_FetchParser_Data script_parser_fetch
 #define OSAL_GPIO_Request gpio_request
 #define OSAL_GPIO_Release gpio_release
