@@ -364,12 +364,3 @@ int dump_fpu(void)
 {
 	return 0;
 }
-
-asmlinkage
-long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
-                  void __user *parent_tid, void *child_tls,
-                  void __user *child_tid, long a5,
-                  struct pt_regs *regs)
-{
-        return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
-}
