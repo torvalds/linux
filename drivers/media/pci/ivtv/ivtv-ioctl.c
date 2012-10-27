@@ -1168,7 +1168,7 @@ void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
 	}
 }
 
-int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
+static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 

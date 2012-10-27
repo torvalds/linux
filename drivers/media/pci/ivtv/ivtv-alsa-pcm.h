@@ -21,7 +21,3 @@
  */
 
 int __init snd_ivtv_pcm_create(struct snd_ivtv_card *itvsc);
-
-/* Used by ivtv driver to announce the PCM data to the module */
-void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *card, u8 *pcm_data,
-				 size_t num_bytes);
