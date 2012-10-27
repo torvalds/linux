@@ -1068,12 +1068,12 @@ int cx231xx_unmute_audio(struct cx231xx *dev)
 }
 EXPORT_SYMBOL_GPL(cx231xx_unmute_audio);
 
-int stopAudioFirmware(struct cx231xx *dev)
+static int stopAudioFirmware(struct cx231xx *dev)
 {
 	return vid_blk_write_byte(dev, DL_CTL_CONTROL, 0x03);
 }
 
-int restartAudioFirmware(struct cx231xx *dev)
+static int restartAudioFirmware(struct cx231xx *dev)
 {
 	return vid_blk_write_byte(dev, DL_CTL_CONTROL, 0x13);
 }
