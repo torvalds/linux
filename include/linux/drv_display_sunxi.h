@@ -234,26 +234,6 @@ typedef enum
 
 typedef enum
 {
-    DISP_LCD_BRIGHT_LEVEL0  = 0,
-    DISP_LCD_BRIGHT_LEVEL1  = 1,
-    DISP_LCD_BRIGHT_LEVEL2  = 2,
-    DISP_LCD_BRIGHT_LEVEL3  = 3,
-    DISP_LCD_BRIGHT_LEVEL4  = 4,
-    DISP_LCD_BRIGHT_LEVEL5  = 5,
-    DISP_LCD_BRIGHT_LEVEL6  = 6,
-    DISP_LCD_BRIGHT_LEVEL7  = 7,
-    DISP_LCD_BRIGHT_LEVEL8  = 8,
-    DISP_LCD_BRIGHT_LEVEL9  = 9,
-    DISP_LCD_BRIGHT_LEVEL10 = 0xa,
-    DISP_LCD_BRIGHT_LEVEL11 = 0xb,
-    DISP_LCD_BRIGHT_LEVEL12 = 0xc,
-    DISP_LCD_BRIGHT_LEVEL13 = 0xd,
-    DISP_LCD_BRIGHT_LEVEL14 = 0xe,
-    DISP_LCD_BRIGHT_LEVEL15 = 0xf,
-}__disp_lcd_bright_t;
-
-typedef enum
-{
     DISP_LAYER_WORK_MODE_NORMAL     = 0,    //normal work mode
     DISP_LAYER_WORK_MODE_PALETTE    = 1,    //palette work mode
     DISP_LAYER_WORK_MODE_INTER_BUF  = 2,    //internal frame buffer work mode

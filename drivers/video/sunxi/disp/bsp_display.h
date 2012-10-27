@@ -236,7 +236,7 @@ extern __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode);
 extern __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 * gamtbl_addr,
 				      __u32 gamtbl_size);
 #ifdef CONFIG_ARCH_SUN4I
-extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __disp_lcd_bright_t bright);
+extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright);
 #else
 extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright, __u32 from_iep);
 #endif
