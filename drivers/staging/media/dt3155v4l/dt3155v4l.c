@@ -396,7 +396,9 @@ dt3155_open(struct file *filp)
 		pd->q->drv_priv = pd;
 		pd->curr_buf = NULL;
 		pd->field_count = 0;
-		vb2_queue_init(pd->q); /* cannot fail */
+		ret = vb2_queue_init(pd->q);
+		if (ret < 0)
+			return ret;
 		INIT_LIST_HEAD(&pd->dmaq);
 		spin_lock_init(&pd->lock);
 		/* disable all irqs, clear all irq flags */
