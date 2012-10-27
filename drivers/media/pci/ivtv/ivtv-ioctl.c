@@ -993,7 +993,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	v4l2_std_id std;
 	int i;
 
-	if (inp < 0 || inp >= itv->nof_inputs)
+	if (inp >= itv->nof_inputs)
 		return -EINVAL;
 
 	if (inp == itv->active_input) {
