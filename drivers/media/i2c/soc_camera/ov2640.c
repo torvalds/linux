@@ -896,12 +896,10 @@ static int ov2640_s_fmt(struct v4l2_subdev *sd,
 static int ov2640_try_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *mf)
 {
-	const struct ov2640_win_size *win;
-
 	/*
-	 * select suitable win
+	 * select suitable win, but don't store it
 	 */
-	win = ov2640_select_win(&mf->width, &mf->height);
+	ov2640_select_win(&mf->width, &mf->height);
 
 	mf->field	= V4L2_FIELD_NONE;
 
