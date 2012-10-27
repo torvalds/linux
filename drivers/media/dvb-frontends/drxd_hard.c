@@ -1748,7 +1748,8 @@ static int DRX_Stop(struct drxd_state *state)
 	return status;
 }
 
-int SetOperationMode(struct drxd_state *state, int oMode)
+#if 0	/* Currently unused */
+static int SetOperationMode(struct drxd_state *state, int oMode)
 {
 	int status;
 
@@ -1788,6 +1789,7 @@ int SetOperationMode(struct drxd_state *state, int oMode)
 		state->operation_mode = oMode;
 	return status;
 }
+#endif
 
 static int StartDiversity(struct drxd_state *state)
 {
@@ -2612,7 +2614,7 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	return 0;
 }
 
-int DRXD_init(struct drxd_state *state, const u8 * fw, u32 fw_size)
+static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 {
 	int status = 0;
 	u32 driverVersion;
@@ -2774,7 +2776,7 @@ int DRXD_init(struct drxd_state *state, const u8 * fw, u32 fw_size)
 	return status;
 }
 
-int DRXD_status(struct drxd_state *state, u32 * pLockStatus)
+static int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
 {
 	DRX_GetLockStatus(state, pLockStatus);
 
