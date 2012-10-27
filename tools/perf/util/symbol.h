@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <byteswap.h>
 #include <libgen.h>
+#include "build-id.h"
 
 #ifdef LIBELF_SUPPORT
 #include <libelf.h>
@@ -56,8 +57,6 @@ char *strxfrchar(char *s, char from, char to);
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
-
-#define BUILD_ID_SIZE 20
 
 /** struct symbol - symtab entry
  *
