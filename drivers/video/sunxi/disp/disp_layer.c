@@ -249,7 +249,7 @@ static __s32 Yuv_Channel_Release(__u32 sel, __u8 hid)
 	DE_BE_Layer_Yuv_Ch_Enable(sel, hid, FALSE);
 
 	gdisp.screen[sel].layer_manage[hid].byuv_ch = FALSE;
-	gdisp.screen[sel].status &= YUV_CH_USED_MASK;
+	gdisp.screen[sel].status &= ~YUV_CH_USED;
 
 	return DIS_SUCCESS;
 }
@@ -380,7 +380,7 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
 	BSP_disp_cfg_finish(sel);
 
 	layer_man->para.prio = IDLE_PRIO;
-	layer_man->status &= LAYER_USED_MASK & LAYER_OPEN_MASK;
+	layer_man->status &= ~(LAYER_USED | LAYER_OPENED);
 
 	return DIS_SUCCESS;
 }
@@ -420,7 +420,7 @@ __s32 BSP_disp_layer_close(__u32 sel, __u32 hid)
 			BSP_disp_cfg_start(sel);
 			DE_BE_Layer_Enable(sel, hid, FALSE);
 			BSP_disp_cfg_finish(sel);
-			layer_man->status &= LAYER_OPEN_MASK;
+			layer_man->status &= ~LAYER_OPENED;
 		}
 		return DIS_SUCCESS;
 	} else {

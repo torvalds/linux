@@ -700,10 +700,10 @@ void TCON_close(__u32 sel)
 
 	if (gpanel_info[sel].tcon_index == 0) {
 		TCON0_close(sel);
-		gdisp.screen[sel].lcdc_status &= LCDC_TCON0_USED_MASK;
+		gdisp.screen[sel].lcdc_status &= ~LCDC_TCON0_USED;
 	} else {
 		TCON1_close(sel);
-		gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
+		gdisp.screen[sel].lcdc_status &= ~LCDC_TCON1_USED;
 	}
 }
 
@@ -1660,7 +1660,7 @@ __s32 BSP_disp_lcd_close_befor(__u32 sel)
 	Disp_drc_enable(sel, 2);
 #endif
 
-	gdisp.screen[sel].status &= LCD_OFF;
+	gdisp.screen[sel].status &= ~LCD_ON;
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 	return DIS_SUCCESS;
 }
@@ -1675,7 +1675,7 @@ __s32 BSP_disp_lcd_close_after(__u32 sel)
 
 	gdisp.screen[sel].pll_use_status &=
 		(gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
-		VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK;
+		~VIDEO_PLL0_USED : ~VIDEO_PLL1_USED;
 
 	return DIS_SUCCESS;
 }

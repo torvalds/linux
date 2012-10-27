@@ -55,30 +55,6 @@
 #define CLK_HDMI_MOD_ON		0x20000000
 //#define CLK_LVDS_MOD_ON
 
-#define CLK_DEBE0_AHB_OFF	(~(CLK_DEBE0_AHB_ON))
-#define CLK_DEBE0_MOD_OFF	(~(CLK_DEBE0_MOD_ON))
-#define CLK_DEBE0_DRAM_OFF	(~(CLK_DEBE0_DRAM_ON))
-#define CLK_DEBE1_AHB_OFF	(~(CLK_DEBE1_AHB_ON))
-#define CLK_DEBE1_MOD_OFF	(~(CLK_DEBE1_MOD_ON))
-#define CLK_DEBE1_DRAM_OFF	(~(CLK_DEBE1_DRAM_ON))
-#define CLK_DEFE0_AHB_OFF	(~(CLK_DEFE0_AHB_ON))
-#define CLK_DEFE0_MOD_OFF	(~(CLK_DEFE0_MOD_ON))
-#define CLK_DEFE0_DRAM_OFF	(~(CLK_DEFE0_DRAM_ON))
-#define CLK_DEFE1_AHB_OFF	(~(CLK_DEFE1_AHB_ON))
-#define CLK_DEFE1_MOD_OFF	(~(CLK_DEFE1_MOD_ON))
-#define CLK_DEFE1_DRAM_OFF	(~(CLK_DEFE1_DRAM_ON))
-#define CLK_LCDC0_AHB_OFF	(~(CLK_LCDC0_AHB_ON))
-#define CLK_LCDC0_MOD0_OFF	(~(CLK_LCDC0_MOD0_ON))
-#define CLK_LCDC0_MOD1_OFF	(~(CLK_LCDC0_MOD1_ON))
-#define CLK_LCDC1_AHB_OFF	(~(CLK_LCDC1_AHB_ON))
-#define CLK_LCDC1_MOD0_OFF	(~(CLK_LCDC1_MOD0_ON))
-#define CLK_LCDC1_MOD1_OFF	(~(CLK_LCDC1_MOD1_ON))
-#define CLK_TVENC0_AHB_OFF	(~(CLK_TVENC0_AHB_ON))
-#define CLK_TVENC1_AHB_OFF	(~(CLK_TVENC1_AHB_ON))
-#define CLK_HDMI_AHB_OFF	(~(CLK_HDMI_AHB_ON))
-#define CLK_HDMI_MOD_OFF	(~(CLK_HDMI_MOD_ON))
-//#define CLK_LVDS_MOD_OFF	(~(CLK_LVDS_MOD_ON))
-
 __hdle h_debe0ahbclk, h_debe0mclk, h_debe0dramclk;
 __hdle h_debe1ahbclk, h_debe1mclk, h_debe1dramclk;
 __hdle h_defe0ahbclk, h_defe0mclk, h_defe0dramclk;
@@ -220,9 +196,8 @@ __s32 image_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_debe0dramclk);
 		OSAL_CCMU_CloseMclk(h_debe0mclk);
 
-		/* broken mask */
-		g_clk_status &= CLK_DEBE0_AHB_OFF & CLK_DEBE0_MOD_OFF &
-			CLK_DEBE0_DRAM_OFF;
+		g_clk_status &= ~(CLK_DEBE0_AHB_ON | CLK_DEBE0_MOD_ON |
+				  CLK_DEBE0_DRAM_ON);
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_debe1mclk, RST_VALID);
@@ -234,9 +209,8 @@ __s32 image_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_debe1dramclk);
 		OSAL_CCMU_CloseMclk(h_debe1mclk);
 
-		/* broken mask */
-		g_clk_status &= CLK_DEBE1_AHB_OFF & CLK_DEBE1_MOD_OFF &
-			CLK_DEBE1_DRAM_OFF;
+		g_clk_status &= ~(CLK_DEBE1_AHB_ON | CLK_DEBE1_MOD_ON |
+				  CLK_DEBE1_DRAM_ON);
 	}
 
 	return DIS_SUCCESS;
@@ -262,10 +236,10 @@ __s32 image_clk_off(__u32 sel)
 {
 	if (sel == 0) {
 		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_OFF);
-		g_clk_status &= CLK_DEBE0_DRAM_OFF;
+		g_clk_status &= ~CLK_DEBE0_DRAM_ON;
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
-		g_clk_status &= CLK_DEBE1_DRAM_OFF;
+		g_clk_status &= ~CLK_DEBE1_DRAM_ON;
 	}
 	return DIS_SUCCESS;
 }
@@ -327,8 +301,8 @@ __s32 scaler_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_defe0dramclk);
 		OSAL_CCMU_CloseMclk(h_defe0mclk);
 
-		g_clk_status &= CLK_DEFE0_AHB_OFF & CLK_DEFE0_MOD_OFF &
-			CLK_DEFE0_DRAM_OFF;
+		g_clk_status &= ~(CLK_DEFE0_AHB_ON | CLK_DEFE0_MOD_ON |
+				  CLK_DEFE0_DRAM_ON);
 
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
@@ -341,8 +315,8 @@ __s32 scaler_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_defe1dramclk);
 		OSAL_CCMU_CloseMclk(h_defe1mclk);
 
-		g_clk_status &= CLK_DEFE1_AHB_OFF & CLK_DEFE1_MOD_OFF &
-			CLK_DEFE1_DRAM_OFF;
+		g_clk_status &= ~(CLK_DEFE1_AHB_ON | CLK_DEFE1_MOD_ON |
+				  CLK_DEFE1_DRAM_ON);
 	}
 
 	return DIS_SUCCESS;
@@ -370,12 +344,12 @@ __s32 scaler_clk_off(__u32 sel)
 		OSAL_CCMU_MclkOnOff(h_defe0mclk, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_defe0dramclk, CLK_OFF);
 
-		g_clk_status &= (CLK_DEFE0_MOD_OFF & CLK_DEFE0_DRAM_OFF);
+		g_clk_status &= ~(CLK_DEFE0_MOD_ON | CLK_DEFE0_DRAM_ON);
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_defe1mclk, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_defe1dramclk, CLK_OFF);
 
-		g_clk_status &= (CLK_DEFE1_MOD_OFF & CLK_DEFE1_DRAM_OFF);
+		g_clk_status &= ~(CLK_DEFE1_MOD_ON | CLK_DEFE1_DRAM_ON);
 	}
 	return DIS_SUCCESS;
 }
@@ -469,8 +443,8 @@ __s32 lcdc_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_lcd0ch1mclk1);
 		OSAL_CCMU_CloseMclk(h_lcd0ch1mclk2);
 
-		g_clk_status &= CLK_LCDC0_AHB_OFF & CLK_LCDC0_MOD0_OFF &
-		     CLK_LCDC0_MOD1_OFF;
+		g_clk_status &= ~(CLK_LCDC0_AHB_ON | CLK_LCDC0_MOD0_ON |
+				  CLK_LCDC0_MOD1_ON);
 	} else if (sel == 1) {
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_lcd1ch0mclk0, RST_VALID);
@@ -484,8 +458,8 @@ __s32 lcdc_clk_exit(__u32 sel)
 		OSAL_CCMU_CloseMclk(h_lcd1ch1mclk1);
 		OSAL_CCMU_CloseMclk(h_lcd1ch1mclk2);
 
-		g_clk_status &= CLK_LCDC1_AHB_OFF & CLK_LCDC1_MOD0_OFF &
-			CLK_LCDC1_MOD1_OFF;
+		g_clk_status &= ~(CLK_LCDC1_AHB_ON | CLK_LCDC1_MOD0_ON |
+				  CLK_LCDC1_MOD1_ON);
 	}
 	return DIS_SUCCESS;
 }
@@ -497,13 +471,13 @@ __s32 lcdc_clk_on(__u32 sel)
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk1, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk2, CLK_ON);
 
-		g_clk_status |= (CLK_LCDC0_MOD0_ON | CLK_LCDC0_MOD1_ON);
+		g_clk_status |= CLK_LCDC0_MOD0_ON | CLK_LCDC0_MOD1_ON;
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_lcd1ch0mclk0, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_ON);
 
-		g_clk_status |= (CLK_LCDC1_MOD0_ON | CLK_LCDC1_MOD1_ON);
+		g_clk_status |= CLK_LCDC1_MOD0_ON | CLK_LCDC1_MOD1_ON;
 	}
 	return DIS_SUCCESS;
 }
@@ -515,13 +489,13 @@ __s32 lcdc_clk_off(__u32 sel)
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk1, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk2, CLK_OFF);
 
-		g_clk_status &= CLK_LCDC0_MOD0_OFF & CLK_LCDC0_MOD1_OFF;
+		g_clk_status &= ~(CLK_LCDC0_MOD0_ON | CLK_LCDC0_MOD1_ON);
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_lcd1ch0mclk0, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_OFF);
 		OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_OFF);
 
-		g_clk_status &= CLK_LCDC1_MOD0_OFF & CLK_LCDC1_MOD1_OFF;
+		g_clk_status &= ~(CLK_LCDC1_MOD0_ON | CLK_LCDC1_MOD1_ON);
 	}
 	return DIS_SUCCESS;
 }
@@ -554,12 +528,12 @@ __s32 tve_clk_exit(__u32 sel)
 		OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_VALID);
 #endif
 
-		g_clk_status &= CLK_TVENC0_AHB_OFF;
+		g_clk_status &= ~CLK_TVENC0_AHB_ON;
 	} else if (sel == 1) {
 		OSAL_CCMU_MclkOnOff(h_tvenc1ahbclk, CLK_OFF);
 		OSAL_CCMU_CloseMclk(h_tvenc1ahbclk);
 
-		g_clk_status &= CLK_TVENC1_AHB_OFF;
+		g_clk_status &= ~CLK_TVENC1_AHB_ON;
 	}
 	return DIS_SUCCESS;
 }
@@ -612,7 +586,7 @@ __s32 hdmi_clk_exit(void)
 	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
 #endif
 
-	g_clk_status &= CLK_HDMI_AHB_OFF & CLK_HDMI_MOD_OFF;
+	g_clk_status &= ~(CLK_HDMI_AHB_ON | CLK_HDMI_MOD_ON);
 
 	return DIS_SUCCESS;
 }
@@ -631,7 +605,7 @@ __s32 hdmi_clk_off(void)
 {
 #ifdef CONFIG_ARCH_SUN4I
 	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
-	g_clk_status &= CLK_HDMI_MOD_OFF;
+	g_clk_status &= ~CLK_HDMI_MOD_ON;
 #endif
 
 	return DIS_SUCCESS;

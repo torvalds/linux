@@ -364,7 +364,7 @@ __s32 BSP_disp_sprite_close(__u32 sel)
 		DE_BE_Sprite_Enable(sel, FALSE);
 
 		gsprite[sel].enable = FALSE;
-		gsprite[sel].status &= SPRITE_OPENED_MASK;
+		gsprite[sel].status &= ~SPRITE_OPENED;
 	}
 	return DIS_SUCCESS;
 }
@@ -677,7 +677,7 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			sprite_set_sprite_block_para(sel, id, 0, &para);
 		}
 
-		gsprite[sel].block_status[release_id] &= SPRITE_BLOCK_USED_MASK;
+		gsprite[sel].block_status[release_id] &= ~SPRITE_BLOCK_USED;
 		gsprite[sel].block_num--;
 
 		return DIS_SUCCESS;
@@ -1058,7 +1058,7 @@ __s32 BSP_disp_sprite_block_close(__u32 sel, __u32 hid)
 						    scn_win.height);
 			node->data->enable = FALSE;
 		}
-		gsprite[sel].block_status[id] &= SPRITE_BLOCK_OPEN_MASK;
+		gsprite[sel].block_status[id] &= ~SPRITE_BLOCK_OPENED;
 		return DIS_SUCCESS;
 	} else {
 		return DIS_OBJ_NOT_INITED;

@@ -34,9 +34,7 @@ if((__s32)(no) < DIS_SUCCESS || (no) >= (max))\
 #define IDLE_PRIO   0xff
 
 #define LAYER_OPENED        0x00000001
-#define LAYER_OPEN_MASK     (~LAYER_OPENED)
 #define LAYER_USED          0x00000002
-#define LAYER_USED_MASK     (~(LAYER_USED))
 
 typedef struct layer_man_t {
 	__u32 status;
