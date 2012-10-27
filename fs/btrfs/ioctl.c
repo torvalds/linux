@@ -1409,7 +1409,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		btrfs_commit_transaction(trans, root);
 	} else if (new_size < old_size) {
 		ret = btrfs_shrink_device(device, new_size);
-	}
+	} /* equal, nothing need to do */
 
 out_free:
 	kfree(vol_args);

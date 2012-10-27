@@ -3059,9 +3059,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	u64 old_size = device->total_bytes;
 	u64 diff = device->total_bytes - new_size;
 
-	if (new_size >= device->total_bytes)
-		return -EINVAL;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
