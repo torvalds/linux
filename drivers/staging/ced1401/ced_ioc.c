@@ -697,8 +697,7 @@ static int SetArea(DEVICE_EXTENSION * pdx, int nArea, char __user * puBuf,
 		return -EFAULT;	// ...then we are done
 
 	// Now allocate space to hold the page pointer and virtual address pointer tables
-	pPages =
-	    (struct page **)kmalloc(len * sizeof(struct page *), GFP_KERNEL);
+	pPages = kmalloc(len * sizeof(struct page *), GFP_KERNEL);
 	if (!pPages) {
 		iReturn = U14ERR_NOMEMORY;
 		goto error;
