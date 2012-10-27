@@ -329,7 +329,7 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 }
 
 /* Sense current received carrier */
-void ene_rx_sense_carrier(struct ene_device *dev)
+static void ene_rx_sense_carrier(struct ene_device *dev)
 {
 	DEFINE_IR_RAW_EVENT(ev);
 
