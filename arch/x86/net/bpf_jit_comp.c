@@ -11,6 +11,7 @@
 #include <asm/cacheflush.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
+#include <linux/if_vlan.h>
 
 /*
  * Conventions :
@@ -212,6 +213,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 		case BPF_S_ANC_MARK:
 		case BPF_S_ANC_RXHASH:
 		case BPF_S_ANC_CPU:
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
 		case BPF_S_ANC_QUEUE:
 		case BPF_S_LD_W_ABS:
 		case BPF_S_LD_H_ABS:
@@ -514,6 +517,24 @@ void bpf_jit_compile(struct sk_filter *fp)
 #else
 				CLEAR_A();
 #endif
+				break;
+			case BPF_S_ANC_VLAN_TAG:
+			case BPF_S_ANC_VLAN_TAG_PRESENT:
+				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+				if (is_imm8(offsetof(struct sk_buff, vlan_tci))) {
+					/* movzwl off8(%rdi),%eax */
+					EMIT4(0x0f, 0xb7, 0x47, offsetof(struct sk_buff, vlan_tci));
+				} else {
+					EMIT3(0x0f, 0xb7, 0x87); /* movzwl off32(%rdi),%eax */
+					EMIT(offsetof(struct sk_buff, vlan_tci), 4);
+				}
+				BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+				if (filter[i].code == BPF_S_ANC_VLAN_TAG) {
+					EMIT3(0x80, 0xe4, 0xef); /* and    $0xef,%ah */
+				} else {
+					EMIT3(0xc1, 0xe8, 0x0c); /* shr    $0xc,%eax */
+					EMIT3(0x83, 0xe0, 0x01); /* and    $0x1,%eax */
+				}
 				break;
 			case BPF_S_LD_W_ABS:
 				func = CHOOSE_LOAD_FUNC(K, sk_load_word);
