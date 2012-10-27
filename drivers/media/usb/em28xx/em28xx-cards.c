@@ -3306,7 +3306,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	dev->num_alt = interface->num_altsetting;
 
-	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
+	if ((unsigned)card[nr] < em28xx_bcount)
 		dev->model = card[nr];
 
 	/* save our data pointer in this interface device */
