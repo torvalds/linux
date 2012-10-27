@@ -383,7 +383,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		save_fpu(current);
 		disable_fpu();
 		last_task_used_math = NULL;
-		regs->sr |= SR_FD;
+		current_pt_regs()->sr |= SR_FD;
 	}
 #endif
 	/* Copy from sh version */
@@ -399,7 +399,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		return 0;
 	}
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 
 	/*
 	 * Sign extend the edited stack.
@@ -407,7 +407,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * 32-bit wide and context switch must take care
 	 * of NEFF sign extension.
 	 */
-	childregs->regs[15] = neff_sign_extend(usp);
+	if (usp)
+		childregs->regs[15] = neff_sign_extend(usp);
 	p->thread.uregs = childregs;
 
 	childregs->regs[9] = 0; /* Set return value for child */
@@ -416,42 +417,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.pc = (unsigned long) ret_from_fork;
 
 	return 0;
-}
-
-asmlinkage int sys_fork(unsigned long r2, unsigned long r3,
-			unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs *pregs)
-{
-	return do_fork(SIGCHLD, pregs->regs[15], pregs, 0, 0, 0);
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs *pregs)
-{
-	if (!newsp)
-		newsp = pregs->regs[15];
-	return do_fork(clone_flags, newsp, pregs, 0, 0, 0);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(unsigned long r2, unsigned long r3,
-			 unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs *pregs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, pregs->regs[15], pregs, 0, 0, 0);
 }
 
 #ifdef CONFIG_FRAME_POINTER

@@ -129,7 +129,7 @@ asmlinkage void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p, struct pt_regs *unused)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
@@ -164,9 +164,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->fpu_counter = 0;
 		return 0;
 	}
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 
-	childregs->regs[15] = usp;
+	if (usp)
+		childregs->regs[15] = usp;
 	ti->addr_limit = USER_DS;
 
 	if (clone_flags & CLONE_SETTLS)
@@ -215,51 +216,6 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 		__fpu_state_restore();
 
 	return prev;
-}
-
-asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs __regs)
-{
-#ifdef CONFIG_MMU
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	return do_fork(SIGCHLD, regs->regs[15], regs, 0, NULL, NULL);
-#else
-	/* fork almost works, enough to trick you into looking elsewhere :-( */
-	return -EINVAL;
-#endif
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr,
-			 struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	if (!newsp)
-		newsp = regs->regs[15];
-	return do_fork(clone_flags, newsp, regs, 0,
-			(int __user *)parent_tidptr,
-			(int __user *)child_tidptr);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->regs[15], regs,
-		       0, NULL, NULL);
 }
 
 unsigned long get_wchan(struct task_struct *p)
