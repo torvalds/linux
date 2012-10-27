@@ -41,4 +41,11 @@ config PINCTRL_SPEAR1340
 	depends on MACH_SPEAR1340
 	select PINCTRL_SPEAR
 
+config PINCTRL_SPEAR_PLGPIO
+	bool "SPEAr SoC PLGPIO Controller"
+	depends on GPIOLIB && PINCTRL_SPEAR
+	help
+	  Say yes here to support PLGPIO controller on ST Microelectronics SPEAr
+	  SoCs.
+
 endif
