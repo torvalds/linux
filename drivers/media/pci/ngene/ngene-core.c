@@ -752,8 +752,8 @@ void set_transfer(struct ngene_channel *chan, int state)
 		if (chan->mode & NGENE_IO_TSIN)
 			chan->pBufferExchange = tsin_exchange;
 		spin_unlock_irq(&chan->state_lock);
-	} else
-		;/* printk(KERN_INFO DEVICE_NAME ": lock=%08x\n",
+	}
+		/* else printk(KERN_INFO DEVICE_NAME ": lock=%08x\n",
 			   ngreadl(0x9310)); */
 
 	ret = ngene_command_stream_control(dev, chan->number,
