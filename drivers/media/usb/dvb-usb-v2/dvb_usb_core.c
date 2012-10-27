@@ -224,7 +224,7 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream, u8 *buf,
 	dvb_dmx_swfilter_raw(&adap->demux, buf, len);
 }
 
-int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -236,7 +236,7 @@ int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 	return usb_urb_initv2(&adap->stream, &adap->props->stream);
 }
 
-int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -369,7 +369,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed, -1);
 }
 
-int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	struct dvb_usb_device *d = adap_to_d(adap);
@@ -441,7 +441,7 @@ err_dvb_register_adapter:
 	return ret;
 }
 
-int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
@@ -457,7 +457,7 @@ int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	int ret;
 
@@ -554,7 +554,7 @@ err:
 	return ret;
 }
 
-int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i, count_registered = 0;
 	struct dvb_usb_device *d = adap_to_d(adap);
@@ -623,7 +623,7 @@ err:
 	return ret;
 }
 
-int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
 	int i;
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
