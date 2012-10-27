@@ -3227,6 +3227,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	is_pch_port = ironlake_crtc_driving_pch(crtc);
 
 	if (is_pch_port) {
+		/* Note: FDI PLL enabling _must_ be done before we enable the
+		 * cpu pipes, hence this is separate from all the other fdi/pch
+		 * enabling. */
 		ironlake_fdi_pll_enable(intel_crtc);
 	} else {
 		assert_fdi_tx_disabled(dev_priv, pipe);
