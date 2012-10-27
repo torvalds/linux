@@ -39,6 +39,24 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_edid.h>
 
+void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
+{
+	struct drm_connector *connector, *tmp;
+	struct list_head panel_list;
+
+	INIT_LIST_HEAD(&panel_list);
+
+	list_for_each_entry_safe(connector, tmp,
+				 &dev->mode_config.connector_list, head) {
+		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+			list_move_tail(&connector->head, &panel_list);
+	}
+
+	list_splice(&panel_list, &dev->mode_config.connector_list);
+}
+EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
+
 static bool drm_kms_helper_poll = true;
 module_param_named(poll, drm_kms_helper_poll, bool, 0600);
 
