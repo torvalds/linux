@@ -303,7 +303,7 @@ static struct sram_channel cx23887_sram_channels[] = {
 	},
 };
 
-void cx23885_irq_add(struct cx23885_dev *dev, u32 mask)
+static void cx23885_irq_add(struct cx23885_dev *dev, u32 mask)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);

@@ -24,6 +24,7 @@
 #include <media/v4l2-device.h>
 
 #include "cx23885.h"
+#include "cx23885-ir.h"
 #include "cx23885-input.h"
 
 #define CX23885_IR_RX_FIFO_SERVICE_REQ		0
