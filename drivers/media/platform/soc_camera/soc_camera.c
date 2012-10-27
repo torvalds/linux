@@ -1048,10 +1048,8 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
-			int ret;
-
 			icd->parent = ici->v4l2_dev.dev;
-			ret = soc_camera_probe(icd);
+			soc_camera_probe(icd);
 		}
 	}
 
