@@ -684,12 +684,12 @@ static struct pnp_driver fintek_driver = {
 	.shutdown	= fintek_shutdown,
 };
 
-int fintek_init(void)
+static int fintek_init(void)
 {
 	return pnp_register_driver(&fintek_driver);
 }
 
-void fintek_exit(void)
+static void fintek_exit(void)
 {
 	pnp_unregister_driver(&fintek_driver);
 }
