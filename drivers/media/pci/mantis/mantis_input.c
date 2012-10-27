@@ -18,6 +18,8 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#if 0 /* Currently unused */
+
 #include <media/rc-core.h>
 #include <linux/pci.h>
 
@@ -150,10 +152,11 @@ out:
 	return err;
 }
 
-int mantis_exit(struct mantis_pci *mantis)
+int mantis_init_exit(struct mantis_pci *mantis)
 {
 	rc_unregister_device(mantis->rc);
 	rc_map_unregister(&ir_mantis_map);
 	return 0;
 }
 
+#endif
