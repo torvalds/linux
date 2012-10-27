@@ -181,6 +181,10 @@
 			       status = "okay";
 			};
 
+			gpio@d8400000 {
+			       status = "okay";
+			};
+
 			i2c0: i2c@e0280000 {
 			       status = "okay";
 			};
