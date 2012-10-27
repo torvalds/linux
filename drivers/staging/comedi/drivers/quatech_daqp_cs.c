@@ -395,7 +395,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	 */
 
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
+		;
 	if (!counter) {
 		printk("daqp: couldn't clear interrupts in status register\n");
 		return -1;
@@ -732,7 +733,8 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 	counter = 100;
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
+		;
 	if (!counter) {
 		dev_err(dev->class_dev,
 			"couldn't clear interrupts in status register\n");
