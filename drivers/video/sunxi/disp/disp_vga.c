@@ -109,12 +109,12 @@ __s32 BSP_disp_vga_close(__u32 sel)
 		Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_VGA, 0);
 
 		gdisp.screen[sel].b_out_interlace = 0;
-		gdisp.screen[sel].status &= VGA_OFF;
-		gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
+		gdisp.screen[sel].status &= ~VGA_ON;
+		gdisp.screen[sel].lcdc_status &= ~LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &=
 			((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
-			 VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
+			 ~VIDEO_PLL0_USED : ~VIDEO_PLL1_USED);
 	}
 	return DIS_SUCCESS;
 }

@@ -352,12 +352,12 @@ __s32 BSP_disp_tv_close(__u32 sel)
 		}
 
 		gdisp.screen[sel].b_out_interlace = 0;
-		gdisp.screen[sel].status &= TV_OFF;
-		gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
+		gdisp.screen[sel].status &= ~TV_ON;
+		gdisp.screen[sel].lcdc_status &= ~LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
 		gdisp.screen[sel].pll_use_status &=
 		    ((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
-		     VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
+		     ~VIDEO_PLL0_USED : ~VIDEO_PLL1_USED);
 
 #ifdef CONFIG_ARCH_SUN4I
 		Disp_set_out_interlace(sel);

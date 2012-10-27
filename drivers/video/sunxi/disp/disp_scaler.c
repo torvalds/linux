@@ -284,7 +284,7 @@ __s32 Scaler_close(__u32 sel)
 	gdisp.scaler[sel].contrast = 32;
 	gdisp.scaler[sel].saturation = 32;
 	gdisp.scaler[sel].hue = 32;
-	gdisp.scaler[sel].status &= SCALER_USED_MASK;
+	gdisp.scaler[sel].status &= ~SCALER_USED;
 
 	return DIS_SUCCESS;
 }

@@ -184,7 +184,7 @@ __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en)
 		if (en) {
 			gdisp.screen[sel].iep_status |= DRC_REQUIRED;
 		} else {
-			gdisp.screen[sel].iep_status &= DRC_REQUIRED_MASK;
+			gdisp.screen[sel].iep_status &= ~DRC_REQUIRED;
 		}
 		Disp_drc_enable(sel, en);
 		return DIS_SUCCESS;
@@ -224,8 +224,7 @@ __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en)
 		if (en) {
 			gdisp.screen[sel].iep_status |= DE_FLICKER_REQUIRED;
 		} else {
-			gdisp.screen[sel].iep_status &=
-				DE_FLICKER_REQUIRED_MASK;
+			gdisp.screen[sel].iep_status &= ~DE_FLICKER_REQUIRED;
 		}
 		Disp_de_flicker_enable(sel, en);
 		return DIS_SUCCESS;
@@ -608,7 +607,7 @@ __s32 iep_clk_exit(__u32 sel)
 	OSAL_CCMU_CloseMclk(h_iepdramclk);
 	OSAL_CCMU_CloseMclk(h_iepmclk);
 
-	g_clk_status &= (CLK_IEP_AHB_OFF & CLK_IEP_MOD_OFF & CLK_IEP_DRAM_OFF);
+	g_clk_status &= ~(CLK_IEP_AHB_ON | CLK_IEP_MOD_ON | CLK_IEP_DRAM_ON);
 	return DIS_SUCCESS;
 }
 
@@ -617,7 +616,7 @@ __s32 iep_clk_open(__u32 sel)
 	OSAL_CCMU_MclkOnOff(h_iepmclk, CLK_ON);
 	OSAL_CCMU_MclkOnOff(h_iepdramclk, CLK_ON);
 
-	g_clk_status |= (CLK_IEP_MOD_ON | CLK_IEP_DRAM_ON);
+	g_clk_status |= CLK_IEP_MOD_ON | CLK_IEP_DRAM_ON;
 	return DIS_SUCCESS;
 }
 
@@ -626,7 +625,7 @@ __s32 iep_clk_close(__u32 sel)
 	OSAL_CCMU_MclkOnOff(h_iepmclk, CLK_OFF);
 	OSAL_CCMU_MclkOnOff(h_iepdramclk, CLK_OFF);
 
-	g_clk_status &= (CLK_IEP_MOD_OFF & CLK_IEP_DRAM_OFF);
+	g_clk_status &= ~(CLK_IEP_MOD_ON | CLK_IEP_DRAM_ON);
 	return DIS_SUCCESS;
 }
 
@@ -770,8 +769,7 @@ __s32 Disp_drc_close_proc(__u32 sel, __u32 tcon_index)
 		/* IEP clk */
 		iep_clk_close(sel);
 
-		gdisp.screen[sel].iep_status &= DRC_USED_MASK;
-		gdisp.screen[sel].iep_status &= DRC_NEED_CLOSED_MASK;
+		gdisp.screen[sel].iep_status &= ~(DRC_USED | DRC_NEED_CLOSED);
 
 		gdisp.screen[sel].lcd_bright_dimming = 256;
 		BSP_disp_lcd_set_bright(sel, BSP_disp_lcd_get_bright(sel), 1);
@@ -814,9 +812,9 @@ __s32 Disp_de_flicker_close_proc(__u32 sel, __u32 tcon_index)
 
 		/* IEP clk */
 		iep_clk_close(sel);
-		// is this right? --libv
-		gdisp.screen[sel].iep_status &= DE_FLICKER_NEED_CLOSED_MASK;
-		gdisp.screen[sel].iep_status &= DE_FLICKER_USED_MASK;
+
+		gdisp.screen[sel].iep_status &=
+			~(DE_FLICKER_NEED_CLOSED | DE_FLICKER_USED);
 
 		return 0;
 	} else {

@@ -69,7 +69,7 @@ __s32 Image_close(__u32 sel)
 {
 	DE_BE_Disable(sel);
 
-	gdisp.screen[sel].status &= IMAGE_USED_MASK;
+	gdisp.screen[sel].status &= ~IMAGE_USED;
 
 	return DIS_SUCCESS;
 }
@@ -303,11 +303,11 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
 #ifdef CONFIG_ARCH_SUN4I
 __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en)
 {
-	if (b_en) {
+	if (b_en)
 		gdisp.screen[sel].de_flicker_status |= DE_FLICKER_REQUIRED;
-	} else {
-		gdisp.screen[sel].de_flicker_status &= DE_FLICKER_REQUIRED_MASK;
-	}
+	else
+		gdisp.screen[sel].de_flicker_status &= ~DE_FLICKER_REQUIRED;
+
 	Disp_set_out_interlace(sel);
 	return DIS_SUCCESS;
 }
@@ -352,7 +352,7 @@ __s32 Disp_set_out_interlace(__u32 sel)
 				gdisp.scaler[i].b_reg_change = TRUE;
 			}
 		}
-		gdisp.screen[sel].de_flicker_status &= DE_FLICKER_USED_MASK;
+		gdisp.screen[sel].de_flicker_status &= ~DE_FLICKER_USED;
 	}
 	DE_BE_Set_Outitl_enable(sel, gdisp.screen[sel].b_out_interlace);
 

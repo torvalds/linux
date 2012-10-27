@@ -175,11 +175,9 @@ __s32 BSP_disp_close(void)
 		}
 	}
 
-	/* this bitmasking definitely is broken! --libv */
 	gdisp.screen[sel].status &=
-		(IMAGE_USED_MASK & LCD_OFF & TV_OFF & VGA_OFF & HDMI_OFF);
-	gdisp.screen[sel].lcdc_status &=
-		(LCDC_TCON0_USED_MASK & LCDC_TCON1_USED_MASK);
+		~(IMAGE_USED | LCD_ON | TV_ON | VGA_ON | HDMI_ON);
+	gdisp.screen[sel].lcdc_status &= ~(LCDC_TCON0_USED & LCDC_TCON1_USED);
 	return DIS_SUCCESS;
 }
 
