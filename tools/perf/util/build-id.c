@@ -70,6 +70,21 @@ struct perf_tool build_id__mark_dso_hit_ops = {
 	.build_id	 = perf_event__process_build_id,
 };
 
+int build_id__sprintf(const u8 *build_id, int len, char *bf)
+{
+	char *bid = bf;
+	const u8 *raw = build_id;
+	int i;
+
+	for (i = 0; i < len; ++i) {
+		sprintf(bid, "%02x", *raw);
+		++raw;
+		bid += 2;
+	}
+
+	return raw - build_id;
+}
+
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];

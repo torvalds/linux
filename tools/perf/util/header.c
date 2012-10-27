@@ -23,6 +23,7 @@
 #include "pmu.h"
 #include "vdso.h"
 #include "strbuf.h"
+#include "build-id.h"
 
 static bool no_buildid_cache = false;
 

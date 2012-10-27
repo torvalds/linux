@@ -13,7 +13,7 @@
 #include "util/header.h"
 #include "util/parse-options.h"
 #include "util/strlist.h"
-#include "util/symbol.h"
+#include "util/build-id.h"
 
 static int build_id_cache__add_file(const char *filename, const char *debugdir)
 {
