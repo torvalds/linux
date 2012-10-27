@@ -742,7 +742,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 		if ((meta_data & FM_RDS_STATUS_ERR_MASK) != 0)
 			break;
 
-		if (blk_idx < FM_RDS_BLK_IDX_A || blk_idx > FM_RDS_BLK_IDX_D) {
+		if (blk_idx > FM_RDS_BLK_IDX_D) {
 			fmdbg("Block sequence mismatch\n");
 			rds->last_blk_idx = -1;
 			break;
