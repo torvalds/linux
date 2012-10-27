@@ -56,7 +56,7 @@ static int vp702x_usb_in_op_unlocked(struct dvb_usb_device *d, u8 req,
 }
 
 int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
-			    u16 index, u8 *b, int blen)
+		     u16 index, u8 *b, int blen)
 {
 	int ret;
 
@@ -67,8 +67,8 @@ int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
 	return ret;
 }
 
-int vp702x_usb_out_op_unlocked(struct dvb_usb_device *d, u8 req, u16 value,
-				      u16 index, u8 *b, int blen)
+static int vp702x_usb_out_op_unlocked(struct dvb_usb_device *d, u8 req,
+				      u16 value, u16 index, u8 *b, int blen)
 {
 	int ret;
 	deb_xfer("out: req. %02x, val: %04x, ind: %04x, buffer: ",req,value,index);
@@ -86,7 +86,7 @@ int vp702x_usb_out_op_unlocked(struct dvb_usb_device *d, u8 req, u16 value,
 		return 0;
 }
 
-int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
+static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen)
 {
 	int ret;
