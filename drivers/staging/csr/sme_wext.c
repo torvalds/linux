@@ -2202,7 +2202,6 @@ unifi_siwencode(struct net_device *dev, struct iw_request_info *info,
             CSR_WIFI_SME_ENCRYPTION_CIPHER_NONE;
     }
 
-    func_exit_r(rc);
     return convert_sme_error(rc);
 
 } /* unifi_siwencode() */
@@ -2453,7 +2452,6 @@ unifi_siwmlme(struct net_device *dev, struct iw_request_info *info,
             UF_RTNL_LOCK();
             break;
         default:
-            func_exit_r(-EOPNOTSUPP);
             return -EOPNOTSUPP;
     }
 

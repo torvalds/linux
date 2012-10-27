@@ -516,7 +516,6 @@ unifi_read(struct file *filp, char *p, size_t len, loff_t *poff)
     /* It is our resposibility to free the message buffer. */
     kfree(logptr);
 
-    func_exit_r(msglen);
     return msglen;
 
 } /* unifi_read() */
@@ -729,8 +728,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     }
 #endif
 
-    func_exit_r(bytecount);
-
     return bytecount;
 } /* udi_send_signal_raw */
 
@@ -924,8 +921,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
     }
 
     kfree(buf);
-
-    func_exit_r(bytes_written);
 
     return bytes_written;
 } /* unifi_write() */

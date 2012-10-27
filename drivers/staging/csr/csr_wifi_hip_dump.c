@@ -119,7 +119,6 @@ CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable)
         r = CSR_RESULT_SUCCESS;
     }
 
-    func_exit_r(r);
     return r;
 }
 
@@ -156,7 +155,6 @@ CsrResult unifi_coredump_handle_request(card_t *card)
         }
     }
 
-    func_exit_r(r);
     return r;
 }
 
@@ -263,7 +261,6 @@ CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req)
     }
 
 done:
-    func_exit_r(r);
     return r;
 } /* unifi_coredump_capture() */
 
@@ -444,7 +441,6 @@ CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req)
     req->serial = find_dump->count;
 
 done:
-    func_exit_r(r);
     return r;
 } /* unifi_coredump_get_value() */
 
@@ -511,7 +507,6 @@ static CsrResult unifi_coredump_read_zone(card_t *card, u16 *zonebuf, const stru
     }
 
 done:
-    func_exit_r(r);
     return r;
 }
 
@@ -549,7 +544,6 @@ static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_b
         r = unifi_coredump_read_zone(card, dump_buf->zone[i], &zonedef_table[i]);
     }
 
-    func_exit_r(r);
     return r;
 }
 
@@ -620,7 +614,6 @@ static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_bu
     }
 
 done:
-    func_exit_r(r);
     return r;
 } /* unifi_coredump_from_sdio() */
 

@@ -68,7 +68,6 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Firmware hasn't started\n");
-            func_exit_r(r);
             return r;
         }
         *pslut = slut_address;
@@ -81,7 +80,6 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
         if (csrResult != CSR_RESULT_SUCCESS)
         {
             r = ConvertCsrSdioToCsrHipResult(card, csrResult);
-            func_exit_r(r);
             return r;
         }
         card->sdio_clock_speed = UNIFI_SDIO_CLOCK_INIT_HZ;
@@ -106,14 +104,12 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to read SLUT finger print\n");
-        func_exit_r(r);
         return r;
     }
 
     if (finger_print != SLUT_FINGERPRINT)
     {
         unifi_error(card->ospriv, "Failed to find SLUT fingerprint\n");
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
     }
 
@@ -128,7 +124,6 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
         r = unifi_card_read16(card, slut_address, &id);
         if (r != CSR_RESULT_SUCCESS)
         {
-            func_exit_r(r);
             return r;
         }
         slut_address += 2;
@@ -143,7 +138,6 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
         r = unifi_read32(card, slut_address, &obj);
         if (r != CSR_RESULT_SUCCESS)
         {
-            func_exit_r(r);
             return r;
         }
         slut_address += 4;
@@ -161,7 +155,6 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
         }
     }
 
-    func_exit_r(r);
     return r;
 }
 
@@ -279,7 +272,6 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Converted patch download failed\n");
-            func_exit_r(r);
             return r;
         }
         else
@@ -294,7 +286,6 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
             unifi_error(card->ospriv, "Failed to write loader restart cmd\n");
         }
 
-        func_exit_r(r);
         return r;
     }
 }
@@ -374,7 +365,6 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
     }
 
     kfree(fwinfo);
-    func_exit_r(r);
     return r;
 } /* unifi_dl_firmware() */
 
@@ -456,7 +446,6 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
 
     kfree(fwinfo);
 
-    func_exit_r(r);
     return r;
 } /* unifi_dl_patch() */
 

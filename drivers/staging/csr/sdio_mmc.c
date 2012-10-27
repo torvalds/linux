@@ -151,7 +151,6 @@ CsrSdioRead8(CsrSdioFunction *function, u32 address, u8 *data)
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 
@@ -169,7 +168,6 @@ CsrSdioWrite8(CsrSdioFunction *function, u32 address, u8 data)
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 
@@ -245,7 +243,6 @@ CsrSdioF0Read8(CsrSdioFunction *function, u32 address, u8 *data)
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 
@@ -267,7 +264,6 @@ CsrSdioF0Write8(CsrSdioFunction *function, u32 address, u8 data)
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 
@@ -286,7 +282,6 @@ CsrSdioRead(CsrSdioFunction *function, u32 address, void *data, u32 length)
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 
@@ -304,7 +299,6 @@ CsrSdioWrite(CsrSdioFunction *function, u32 address, const void *data, u32 lengt
     _sdio_release_host(func);
 
     if (err) {
-        func_exit_r(err);
         return ConvertSdioToCsrSdioResult(err);
     }
 

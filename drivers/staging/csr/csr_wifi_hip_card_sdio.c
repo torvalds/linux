@@ -171,27 +171,23 @@ CsrResult unifi_init_card(card_t *card, s32 led_mask)
 
     if (card == NULL)
     {
-        func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
     r = unifi_init(card);
     if (r != CSR_RESULT_SUCCESS)
     {
-        func_exit_r(r);
         return r;
     }
 
     r = unifi_hip_init(card);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {
-        func_exit_r(r);
         return r;
     }
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to start host protocol.\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -220,7 +216,6 @@ CsrResult unifi_init(card_t *card)
 
     if (card == NULL)
     {
-        func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
@@ -243,7 +238,6 @@ CsrResult unifi_init(card_t *card)
     if (csrResult != CSR_RESULT_SUCCESS)
     {
         r = ConvertCsrSdioToCsrHipResult(card, csrResult);
-        func_exit_r(r);
         return r;
     }
     card->sdio_clock_speed = UNIFI_SDIO_CLOCK_SAFE_HZ;
@@ -261,7 +255,6 @@ CsrResult unifi_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to reset UniFi\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -271,7 +264,6 @@ CsrResult unifi_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to set power save mode\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -291,7 +283,6 @@ CsrResult unifi_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to write SHARED_DMEM_PAGE\n");
-        func_exit_r(r);
         return r;
     }
     r = unifi_write_direct16(card, ChipHelper_HOST_WINDOW2_PAGE(card->helper) * 2, 0);
@@ -302,7 +293,6 @@ CsrResult unifi_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to write PROG_MEM2_PAGE\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -331,7 +321,6 @@ CsrResult unifi_init(card_t *card)
         unifi_error(card->ospriv, "Probe for Flash failed\n");
     }
 
-    func_exit_r(r);
     return r;
 } /* unifi_init() */
 
@@ -358,7 +347,6 @@ CsrResult unifi_download(card_t *card, s32 led_mask)
 
     if (card == NULL)
     {
-        func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
@@ -371,7 +359,6 @@ CsrResult unifi_download(card_t *card, s32 led_mask)
     dlpriv = unifi_dl_fw_read_start(card, UNIFI_FW_STA);
     if (dlpriv == NULL)
     {
-        func_exit_r(CSR_WIFI_HIP_RESULT_NOT_FOUND);
         return CSR_WIFI_HIP_RESULT_NOT_FOUND;
     }
 
@@ -380,7 +367,6 @@ CsrResult unifi_download(card_t *card, s32 led_mask)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to download firmware\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -422,7 +408,6 @@ static CsrResult unifi_hip_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to establish communication with UniFi\n");
-        func_exit_r(r);
         return r;
     }
 #ifdef CSR_PRE_ALLOC_NET_DATA
@@ -442,7 +427,6 @@ static CsrResult unifi_hip_init(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Init slots failed: %d\n", r);
-        func_exit_r(r);
         return r;
     }
 
@@ -451,7 +435,6 @@ static CsrResult unifi_hip_init(card_t *card)
     r = unifi_set_host_state(card, UNIFI_HOST_STATE_AWAKE);
     if (r != CSR_RESULT_SUCCESS)
     {
-        func_exit_r(r);
         return r;
     }
 
@@ -466,7 +449,6 @@ static CsrResult unifi_hip_init(card_t *card)
     r = CardGenInt(card);
     if (r != CSR_RESULT_SUCCESS)
     {
-        func_exit_r(r);
         return r;
     }
 
@@ -618,7 +600,6 @@ static CsrResult card_hw_init(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Firmware hasn't started\n");
-            func_exit_r(r);
             return r;
         }
         unifi_trace(card->ospriv, UDBG4, "SLUT addr 0x%lX\n", slut_address);
@@ -635,7 +616,6 @@ static CsrResult card_hw_init(card_t *card)
         if (csrResult != CSR_RESULT_SUCCESS)
         {
             r = ConvertCsrSdioToCsrHipResult(card, csrResult);
-            func_exit_r(r);
             return r;
         }
         card->sdio_clock_speed = UNIFI_SDIO_CLOCK_INIT_HZ;
@@ -654,14 +634,12 @@ static CsrResult card_hw_init(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to read SLUT finger print\n");
-            func_exit_r(r);
             return r;
         }
 
         if (finger_print != SLUT_FINGERPRINT)
         {
             unifi_error(card->ospriv, "Failed to find Symbol lookup table fingerprint\n");
-            func_exit_r(CSR_RESULT_FAILURE);
             return CSR_RESULT_FAILURE;
         }
 
@@ -679,7 +657,6 @@ static CsrResult card_hw_init(card_t *card)
             r = unifi_card_read16(card, slut_address, &s);
             if (r != CSR_RESULT_SUCCESS)
             {
-                func_exit_r(r);
                 return r;
             }
             slut_address += 2;
@@ -693,7 +670,6 @@ static CsrResult card_hw_init(card_t *card)
             r = unifi_read32(card, slut_address, &l);
             if (r != CSR_RESULT_SUCCESS)
             {
-                func_exit_r(r);
                 return r;
             }
             slut_address += 4;
@@ -722,7 +698,6 @@ static CsrResult card_hw_init(card_t *card)
                     if (r != CSR_RESULT_SUCCESS)
                     {
                         unifi_error(card->ospriv, "Failed to read config data\n");
-                        func_exit_r(r);
                         return r;
                     }
                     /* .. and then we copy the data to the host structure */
@@ -736,7 +711,6 @@ static CsrResult card_hw_init(card_t *card)
                     {
                         unifi_error(card->ospriv, "From host data slots %d\n", cfg_data->num_fromhost_data_slots);
                         unifi_error(card->ospriv, "need to be (queues * x + 2) (UNIFI_RESERVED_COMMAND_SLOTS for commands)\n");
-                        func_exit_r(CSR_RESULT_FAILURE);
                         return CSR_RESULT_FAILURE;
                     }
 
@@ -764,7 +738,6 @@ static CsrResult card_hw_init(card_t *card)
                         if ((card->sdio_io_block_size % cfg_data->sig_frag_size) != 0)
                         {
                             unifi_error(card->ospriv, "Configuration error: Can not pad to-host signals.\n");
-                            func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
                             return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
                         }
                         cfg_data->tohost_signal_padding = (u16) (card->sdio_io_block_size / cfg_data->sig_frag_size);
@@ -778,7 +751,6 @@ static CsrResult card_hw_init(card_t *card)
                         if (r != CSR_RESULT_SUCCESS)
                         {
                             unifi_error(card->ospriv, "Failed to write To-Host Signal Padding Fragments\n");
-                            func_exit_r(r);
                             return r;
                         }
                     }
@@ -801,7 +773,6 @@ static CsrResult card_hw_init(card_t *card)
                     if (r != CSR_RESULT_SUCCESS)
                     {
                         unifi_error(card->ospriv, "Failed to read build id\n");
-                        func_exit_r(r);
                         return r;
                     }
                     card->build_id = n;
@@ -818,7 +789,6 @@ static CsrResult card_hw_init(card_t *card)
                     if (r != CSR_RESULT_SUCCESS)
                     {
                         unifi_error(card->ospriv, "Failed to read build string\n");
-                        func_exit_r(r);
                         return r;
                     }
                     break;
@@ -836,7 +806,6 @@ static CsrResult card_hw_init(card_t *card)
                     if (r != CSR_RESULT_SUCCESS)
                     {
                         unifi_error(card->ospriv, "Failed to write loader load image command\n");
-                        func_exit_r(r);
                         return r;
                     }
 
@@ -854,7 +823,6 @@ static CsrResult card_hw_init(card_t *card)
                         if (r != CSR_RESULT_SUCCESS)
                         {
                             unifi_error(card->ospriv, "Failed to patch firmware\n");
-                            func_exit_r(r);
                             return r;
                         }
                     }
@@ -865,7 +833,6 @@ static CsrResult card_hw_init(card_t *card)
                     if (r != CSR_RESULT_SUCCESS)
                     {
                         unifi_error(card->ospriv, "Failed to write loader restart command\n");
-                        func_exit_r(r);
                         return r;
                     }
 
@@ -896,7 +863,6 @@ static CsrResult card_hw_init(card_t *card)
     if (cfg_data == NULL)
     {
         unifi_error(card->ospriv, "Failed to find SDIO_SLOT_CONFIG Symbol\n");
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
     }
 
@@ -913,12 +879,10 @@ static CsrResult card_hw_init(card_t *card)
     {
         unifi_error(card->ospriv, "Failed to read init flag at %08lx\n",
                     card->init_flag_addr);
-        func_exit_r(r);
         return r;
     }
     if (initialised != 0)
     {
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
     }
 
@@ -940,7 +904,6 @@ static CsrResult card_hw_init(card_t *card)
         unifi_error(card->ospriv, "UniFi f/w protocol major version (%d) is different from driver (v%d.%d)\n",
                     major, UNIFI_HIP_MAJOR_VERSION, UNIFI_HIP_MINOR_VERSION);
 #ifndef CSR_WIFI_DISABLE_HIP_VERSION_CHECK
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
 #endif
     }
@@ -950,7 +913,6 @@ static CsrResult card_hw_init(card_t *card)
                     major, minor,
                     UNIFI_HIP_MAJOR_VERSION, UNIFI_HIP_MINOR_VERSION);
 #ifndef CSR_WIFI_DISABLE_HIP_VERSION_CHECK
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
 #endif
     }
@@ -1250,7 +1212,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
             if (r != CSR_RESULT_SUCCESS)
             {
                 unifi_error(card->ospriv, "Failed to read UniFi Mailbox1 register for second time\n");
-                func_exit_r(r);
                 return r;
             }
             unifi_trace(card->ospriv, UDBG1, "MAILBOX1 value=0x%04X\n", mbox1);
@@ -1269,7 +1230,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
     {
         unifi_trace(card->ospriv, UDBG1, "Timeout waiting for firmware to start, Mailbox1 still 0 after %d ms\n",
                     MAILBOX1_ATTEMPTS * MAILBOX1_TIMEOUT);
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
     }
 
@@ -1285,7 +1245,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to write f/w startup handshake to MAILBOX2\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -1303,7 +1262,6 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to read UniFi Mailbox0 register\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -1480,7 +1438,6 @@ static CsrResult card_access_panic(card_t *card)
     }
 
     r = ConvertCsrSdioToCsrHipResult(card, sr);
-    func_exit_r(r);
     return r;
 }
 
@@ -1596,7 +1553,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     if (card->fh_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H signals\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
     card->fh_buffer.bufsize = UNIFI_FH_BUF_SIZE;
@@ -1607,7 +1563,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     if (card->th_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for T-H signals\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
     card->th_buffer.bufsize = UNIFI_FH_BUF_SIZE;
@@ -1629,7 +1584,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     if (card->from_host_data == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H bulk data array\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
 
@@ -1645,7 +1599,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     if (card->fh_slot_host_tag_record == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H slot host tag mapping array\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
 
@@ -1664,7 +1617,6 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     if (card->to_host_data == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for T-H bulk data array\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
     }
 
@@ -1957,14 +1909,12 @@ static CsrResult card_init_slots(card_t *card)
     {
         unifi_error(card->ospriv, "Failed to allocate card memory resources.\n");
         card_free_memory_resources(card);
-        func_exit_r(r);
         return r;
     }
 
     if (card->sdio_ctrl_addr == 0)
     {
         unifi_error(card->ospriv, "Failed to find config struct!\n");
-        func_exit_r(CSR_WIFI_HIP_RESULT_INVALID_VALUE);
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
@@ -1987,7 +1937,6 @@ static CsrResult card_init_slots(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to read from-host sig written count\n");
-            func_exit_r(r);
             return r;
         }
         card->from_host_signals_w = (s16)s;
@@ -2001,7 +1950,6 @@ static CsrResult card_init_slots(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to read to-host sig read count\n");
-            func_exit_r(r);
             return r;
         }
         card->to_host_signals_r = (s16)s;
@@ -2016,7 +1964,6 @@ static CsrResult card_init_slots(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to write initialised flag\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -2482,7 +2429,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to identify hw\n");
-        func_exit_r(r);
         return r;
     }
 
@@ -2507,7 +2453,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
         if (csrResult != CSR_RESULT_SUCCESS)
         {
             r = ConvertCsrSdioToCsrHipResult(card, csrResult);
-            func_exit_r(r);
             return r;
         }
         card->sdio_clock_speed = UNIFI_SDIO_CLOCK_INIT_HZ;
@@ -2527,7 +2472,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
         r = ConvertCsrSdioToCsrHipResult(card, csrResult);
         /* Can't enable WLAN function. Try resetting the SDIO block. */
         unifi_error(card->ospriv, "Failed to re-enable function %d.\n", card->function);
-        func_exit_r(r);
         return r;
     }
 
@@ -2541,7 +2485,6 @@ static CsrResult unifi_prepare_hw(card_t *card)
     r = unifi_read_chip_version(card);
     if (r != CSR_RESULT_SUCCESS)
     {
-        func_exit_r(r);
         return r;
     }
 
@@ -2568,7 +2511,6 @@ static CsrResult unifi_read_chip_version(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to read GBL_CHIP_VERSION\n");
-            func_exit_r(r);
             return r;
         }
         card->chip_version = ver;
@@ -2581,7 +2523,6 @@ static CsrResult unifi_read_chip_version(card_t *card)
 
     unifi_info(card->ospriv, "Chip Version 0x%04X\n", card->chip_version);
 
-    func_exit_r(r);
     return r;
 } /* unifi_read_chip_version() */
 
@@ -2635,7 +2576,6 @@ static CsrResult unifi_reset_hardware(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "unifi_prepare_hw failed after hard reset\n");
-            func_exit_r(r);
             return r;
         }
     }
@@ -2655,7 +2595,6 @@ static CsrResult unifi_reset_hardware(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "software hard reset failed\n");
-            func_exit_r(r);
             return r;
         }
 
@@ -2668,7 +2607,6 @@ static CsrResult unifi_reset_hardware(card_t *card)
             r = unifi_read_chip_version(card);
             if (r != CSR_RESULT_SUCCESS)
             {
-                func_exit_r(r);
                 return r;
             }
         }
@@ -2718,7 +2656,6 @@ static CsrResult unifi_reset_hardware(card_t *card)
     }
 
 
-    func_exit_r(r);
     return r;
 } /* unifi_reset_hardware() */
 
@@ -2793,7 +2730,6 @@ static CsrResult card_reset_method_io_enable(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_warning(card->ospriv, "SDIO error writing SDIO_CSR_FUNC_EN: %d\n", r);
-            func_exit_r(r);
             return r;
         }
         else
@@ -2851,7 +2787,6 @@ static CsrResult card_reset_method_dbg_reset(card_t *card)
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Failed to set UNIFI_HOST_STATE_DROWSY\n");
-            func_exit_r(r);
             return r;
         }
         CsrThreadSleep(5);
@@ -2883,7 +2818,6 @@ static CsrResult card_reset_method_dbg_reset(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_warning(card->ospriv, "SDIO error writing DBG_RESET: %d\n", r);
-        func_exit_r(r);
         return r;
     }
 
@@ -2955,7 +2889,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
         unifi_error(card->ospriv,
                     "Hard reset (Code download) is unsupported\n");
 
-        func_exit_r(CSR_RESULT_FAILURE);
         return CSR_RESULT_FAILURE;
     }
 
@@ -2981,7 +2914,6 @@ CsrResult unifi_card_hard_reset(card_t *card)
     /* Software hard reset */
     r = card_reset_method_dbg_reset(card);
 
-    func_exit_r(r);
     return r;
 } /* unifi_card_hard_reset() */
 
@@ -3030,7 +2962,6 @@ CsrResult CardGenInt(card_t *card)
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "SDIO error writing UNIFI_SHARED_IO_INTERRUPT: %d\n", r);
-        func_exit_r(r);
         return r;
     }
 
