@@ -2960,9 +2960,9 @@ static struct spear_function mii2_function = {
 };
 
 /* Pad multiplexing for cadence mii 1_2 as smii or rmii device */
-static const unsigned smii0_1_pins[] = { 10, 11, 13, 14, 15, 16, 17, 18, 19, 20,
+static const unsigned rmii0_1_pins[] = { 10, 11, 13, 14, 15, 16, 17, 18, 19, 20,
 	21, 22, 23, 24, 25, 26, 27 };
-static const unsigned rmii0_1_pins[] = { 10, 11, 21, 22, 23, 24, 25, 26, 27 };
+static const unsigned smii0_1_pins[] = { 10, 11, 21, 22, 23, 24, 25, 26, 27 };
 static struct spear_muxreg mii0_1_muxreg[] = {
 	{
 		.reg = PMX_CONFIG_REG,
