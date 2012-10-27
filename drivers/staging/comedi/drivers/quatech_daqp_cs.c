@@ -300,7 +300,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
 				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
-				printk("daqp: data lost\n");
+				dev_warn(dev->class_dev, "data lost\n");
 				daqp_ai_cancel(dev, s);
 				break;
 			}
@@ -398,7 +398,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
 		;
 	if (!counter) {
-		printk("daqp: couldn't clear interrupts in status register\n");
+		dev_err(dev->class_dev,
+			"couldn't clear interrupts in status register\n");
 		return -1;
 	}
 
@@ -824,8 +825,8 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
-		printk("comedi%d: No such daqp device %d\n",
-		       dev->minor, it->options[0]);
+		dev_err(dev->class_dev, "No such daqp device %d\n",
+			it->options[0]);
 		return -EIO;
 	}
 
