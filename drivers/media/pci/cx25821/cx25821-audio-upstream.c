@@ -44,7 +44,7 @@ MODULE_LICENSE("GPL");
 static int _intr_msk = FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF |
 			FLD_AUD_SRC_SYNC | FLD_AUD_SRC_OPC_ERR;
 
-int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
+static int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
 					      struct sram_channel *ch,
 					      unsigned int bpl, u32 risc)
 {
@@ -133,7 +133,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 	return rp;
 }
 
-int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
+static int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 				       struct pci_dev *pci,
 				       unsigned int bpl, unsigned int lines)
 {
@@ -197,7 +197,7 @@ int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 	return 0;
 }
 
-void cx25821_free_memory_audio(struct cx25821_dev *dev)
+static void cx25821_free_memory_audio(struct cx25821_dev *dev)
 {
 	if (dev->_risc_virt_addr) {
 		pci_free_consistent(dev->pci, dev->_audiorisc_size,
@@ -256,7 +256,7 @@ void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev)
 	cx25821_free_memory_audio(dev);
 }
 
-int cx25821_get_audio_data(struct cx25821_dev *dev,
+static int cx25821_get_audio_data(struct cx25821_dev *dev,
 			   struct sram_channel *sram_ch)
 {
 	struct file *myfile;
@@ -351,7 +351,7 @@ static void cx25821_audioups_handler(struct work_struct *work)
 			sram_channels);
 }
 
-int cx25821_openfile_audio(struct cx25821_dev *dev,
+static int cx25821_openfile_audio(struct cx25821_dev *dev,
 			   struct sram_channel *sram_ch)
 {
 	struct file *myfile;
@@ -490,7 +490,7 @@ error:
 	return ret;
 }
 
-int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
+static int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 			       u32 status)
 {
 	int i = 0;
@@ -634,8 +634,8 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 
 }
 
-int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
-				     struct sram_channel *sram_ch)
+static int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
+					    struct sram_channel *sram_ch)
 {
 	u32 tmp = 0;
 	int err = 0;

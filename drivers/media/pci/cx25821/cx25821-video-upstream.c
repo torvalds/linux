@@ -173,10 +173,10 @@ static __le32 *cx25821_risc_field_upstream(struct cx25821_dev *dev, __le32 * rp,
 	return rp;
 }
 
-int cx25821_risc_buffer_upstream(struct cx25821_dev *dev,
-				 struct pci_dev *pci,
-				 unsigned int top_offset,
-				 unsigned int bpl, unsigned int lines)
+static int cx25821_risc_buffer_upstream(struct cx25821_dev *dev,
+					struct pci_dev *pci,
+					unsigned int top_offset,
+					unsigned int bpl, unsigned int lines)
 {
 	__le32 *rp;
 	int fifo_enable = 0;
@@ -300,7 +300,8 @@ void cx25821_free_mem_upstream_ch1(struct cx25821_dev *dev)
 	}
 }
 
-int cx25821_get_frame(struct cx25821_dev *dev, struct sram_channel *sram_ch)
+static int cx25821_get_frame(struct cx25821_dev *dev,
+			     struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int frame_index_temp = dev->_frame_index;
@@ -405,7 +406,8 @@ static void cx25821_vidups_handler(struct work_struct *work)
 			sram_channels);
 }
 
-int cx25821_openfile(struct cx25821_dev *dev, struct sram_channel *sram_ch)
+static int cx25821_openfile(struct cx25821_dev *dev,
+			    struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int i = 0, j = 0;
@@ -486,8 +488,9 @@ int cx25821_openfile(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 	return 0;
 }
 
-int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
-				    struct sram_channel *sram_ch, int bpl)
+static int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
+					   struct sram_channel *sram_ch,
+					   int bpl)
 {
 	int ret = 0;
 	dma_addr_t dma_addr;
@@ -548,8 +551,8 @@ error:
 	return ret;
 }
 
-int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
-			       u32 status)
+static int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
+				      u32 status)
 {
 	u32 int_msk_tmp;
 	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
@@ -664,8 +667,9 @@ static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-void cx25821_set_pixelengine(struct cx25821_dev *dev, struct sram_channel *ch,
-			     int pix_format)
+static void cx25821_set_pixelengine(struct cx25821_dev *dev,
+				    struct sram_channel *ch,
+				    int pix_format)
 {
 	int width = WIDTH_D1;
 	int height = dev->_lines_count;
@@ -696,8 +700,8 @@ void cx25821_set_pixelengine(struct cx25821_dev *dev, struct sram_channel *ch,
 	cx_write(ch->vid_cdt_size, VID_CDT_SIZE >> 3);
 }
 
-int cx25821_start_video_dma_upstream(struct cx25821_dev *dev,
-				     struct sram_channel *sram_ch)
+static int cx25821_start_video_dma_upstream(struct cx25821_dev *dev,
+					    struct sram_channel *sram_ch)
 {
 	u32 tmp = 0;
 	int err = 0;
