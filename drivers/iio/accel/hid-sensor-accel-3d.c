@@ -306,10 +306,10 @@ static int __devinit hid_accel_3d_probe(struct platform_device *pdev)
 		goto error_free_dev;
 	}
 
-	channels = kmemdup(accel_3d_channels,
-					sizeof(accel_3d_channels),
-					GFP_KERNEL);
+	channels = kmemdup(accel_3d_channels, sizeof(accel_3d_channels),
+			   GFP_KERNEL);
 	if (!channels) {
+		ret = -ENOMEM;
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		goto error_free_dev;
 	}
