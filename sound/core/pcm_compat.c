@@ -190,8 +190,9 @@ struct snd_pcm_status32 {
 	u32 avail_max;
 	u32 overrange;
 	s32 suspended_state;
+	u32 reserved_alignment;
 	struct compat_timespec audio_tstamp;
-	unsigned char reserved[60-sizeof(struct compat_timespec)];
+	unsigned char reserved[56-sizeof(struct compat_timespec)];
 } __attribute__((packed));
 
 
