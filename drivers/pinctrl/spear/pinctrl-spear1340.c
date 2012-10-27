@@ -213,7 +213,7 @@ static const struct pinctrl_pin_desc spear1340_pins[] = {
  * Pad multiplexing for making all pads as gpio's. This is done to override the
  * values passed from bootloader and start from scratch.
  */
-static const unsigned pads_as_gpio_pins[] = { 251 };
+static const unsigned pads_as_gpio_pins[] = { 12, 88, 89, 251 };
 static struct spear_muxreg pads_as_gpio_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
