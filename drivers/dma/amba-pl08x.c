@@ -1096,15 +1096,9 @@ static void pl08x_free_txd_list(struct pl08x_driver_data *pl08x,
 				struct pl08x_dma_chan *plchan)
 {
 	LIST_HEAD(head);
-	struct pl08x_txd *txd;
 
 	vchan_get_all_descriptors(&plchan->vc, &head);
-
-	while (!list_empty(&head)) {
-		txd = list_first_entry(&head, struct pl08x_txd, vd.node);
-		list_del(&txd->vd.node);
-		pl08x_desc_free(&txd->vd);
-	}
+	vchan_dma_desc_free_list(&plchan->vc, &head);
 }
 
 /*
