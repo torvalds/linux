@@ -491,6 +491,16 @@
 					fsl,pull-up = <0>;
 				};
 
+				pwm3_pins_a: pwm3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x31c0 /* MX28_PAD_PWM3__PWM_3 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				pwm4_pins_a: pwm4@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
