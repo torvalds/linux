@@ -24,7 +24,6 @@
 
 #include "drv_hdmi_i.h"
 
-
 #define HDMI_State_Idle 			 0x00
 #define HDMI_State_Wait_Hpd			 0x02
 #define HDMI_State_Rx_Sense			 0x03
@@ -50,11 +49,9 @@
 #define HDMI720P_50_3D_FP   (HDMI720P_50  +0x80)
 #define HDMI720P_60_3D_FP   (HDMI720P_60  +0x80)
 
-
-
 extern void hdmi_delay_ms(__u32 t);
 
-extern void  Hdmi_set_reg_base(__u32 base);
+extern void Hdmi_set_reg_base(__u32 base);
 extern __s32 Hdmi_hal_init(void);
 extern __s32 Hdmi_hal_exit(void);
 extern __s32 Hdmi_hal_video_enable(__bool enable);
@@ -67,6 +64,4 @@ extern __s32 Hdmi_hal_get_state(void);
 extern __s32 Hdmi_hal_main_task(void);
 extern __s32 Hdmi_hal_set_pll(__u32 pll, __u32 clk);
 
-
 #endif
-
