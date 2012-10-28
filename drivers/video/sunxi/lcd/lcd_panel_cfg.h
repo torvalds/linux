@@ -37,18 +37,6 @@ void LCD_get_panel_funs_generic(__lcd_panel_fun_t *fun);
 void LCD_get_panel_funs_0(__lcd_panel_fun_t *fun);
 void LCD_get_panel_funs_1(__lcd_panel_fun_t *fun);
 
-#define OSAL_Script_FetchParser_Data script_parser_fetch
-#define OSAL_GPIO_Request gpio_request
-#define OSAL_GPIO_Release gpio_release
-#define OSAL_GPIO_Request_Ex gpio_request_ex
-#define OSAL_GPIO_DevGetAllPins_Status gpio_get_all_pin_status
-#define OSAL_GPIO_DevGetONEPins_Status gpio_get_one_pin_status
-#define OSAL_GPIO_DevSetONEPin_Status gpio_set_one_pin_status
-#define OSAL_GPIO_DevSetONEPIN_IO_STATUS gpio_set_one_pin_io_status
-#define OSAL_GPIO_DevSetONEPIN_PULL_STATUS gpio_set_one_pin_pull
-#define OSAL_GPIO_DevREAD_ONEPIN_DATA gpio_read_one_pin_value
-#define OSAL_GPIO_DevWRITE_ONEPIN_DATA gpio_write_one_pin_value
-
 #define BIT0	0x00000001
 #define BIT1	0x00000002
 #define BIT2	0x00000004
