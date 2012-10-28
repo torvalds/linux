@@ -41,7 +41,7 @@ ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[guard]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		modules
 
-ffffffc000000000	ffffffffffffffff	 256GB		memory
+ffffffc000000000	ffffffffffffffff	 256GB		kernel logical memory map
 
 
 Translation table lookup with 4KB pages:
