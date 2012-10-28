@@ -253,6 +253,19 @@ static struct clk clk_ipsec = {
 };
 
 /*
+ * PCIe clock
+ */
+
+static void pcie_set(struct clk *clk, int enable)
+{
+	bcm_hwclock_set(CKCTL_6328_PCIE_EN, enable);
+}
+
+static struct clk clk_pcie = {
+	.set	= pcie_set,
+};
+
+/*
  * Internal peripheral clock
  */
 static struct clk clk_periph = {
@@ -313,6 +326,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_pcm;
 	if (BCMCPU_IS_6368() && !strcmp(id, "ipsec"))
 		return &clk_ipsec;
+	if (BCMCPU_IS_6328() && !strcmp(id, "pcie"))
+		return &clk_pcie;
 	return ERR_PTR(-ENOENT);
 }
 

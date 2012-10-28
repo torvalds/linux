@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <asm/bootinfo.h>
 
 #include "pci-bcm63xx.h"
@@ -119,11 +120,6 @@ static void __init bcm63xx_reset_pcie(void)
 {
 	u32 val;
 
-	/* enable clock */
-	val = bcm_perf_readl(PERF_CKCTL_REG);
-	val |= CKCTL_6328_PCIE_EN;
-	bcm_perf_writel(val, PERF_CKCTL_REG);
-
 	/* enable SERDES */
 	val = bcm_misc_readl(MISC_SERDES_CTRL_REG);
 	val |= SERDES_PCIE_EN | SERDES_PCIE_EXD_EN;
@@ -150,9 +146,18 @@ static void __init bcm63xx_reset_pcie(void)
 	mdelay(200);
 }
 
+static struct clk *pcie_clk;
+
 static int __init bcm63xx_register_pcie(void)
 {
 	u32 val;
+
+	/* enable clock */
+	pcie_clk = clk_get(NULL, "pcie");
+	if (IS_ERR_OR_NULL(pcie_clk))
+		return -ENODEV;
+
+	clk_prepare_enable(pcie_clk);
 
 	bcm63xx_reset_pcie();
 
