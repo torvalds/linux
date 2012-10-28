@@ -22,9 +22,9 @@
 #ifndef  _DRV_HDMI_I_H_
 #define  _DRV_HDMI_I_H_
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/memory.h>
-#include <asm/unistd.h>
+#include <linux/unistd.h>
 #include "asm-generic/int-ll64.h"
 #include "linux/kernel.h"
 #include "linux/mm.h"
@@ -32,9 +32,9 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
-#include <linux/sched.h>	//wake_up_process()
-#include <linux/kthread.h>	//kthread_create(),kthread_run()
-#include <linux/err.h>		//IS_ERR(),PTR_ERR()
+#include <linux/sched.h> /* wake_up_process() */
+#include <linux/kthread.h> /* kthread_create(), kthread_run() */
+#include <linux/err.h> /* IS_ERR(), PTR_ERR() */
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>
@@ -73,7 +73,7 @@ __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode);
 __s32 Hdmi_mode_support(__disp_tv_mode_t mode);
 __s32 Hdmi_get_HPD_status(void);
 __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel);
-__s32 Hdmi_Set_Audio_Para(hdmi_audio_t * audio_para);
+__s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para);
 
 extern __s32 hdmi_i2c_add_driver(void);
 extern __s32 hdmi_i2c_del_driver(void);

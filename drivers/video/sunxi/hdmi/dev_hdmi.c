@@ -99,14 +99,14 @@ int hdmi_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t hdmi_read(struct file * file, char __user * buf, size_t count,
-		  loff_t * ppos)
+ssize_t hdmi_read(struct file *file, char __user *buf, size_t count,
+		  loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-ssize_t hdmi_write(struct file * file, const char __user * buf, size_t count,
-		   loff_t * ppos)
+ssize_t hdmi_write(struct file *file, const char __user *buf, size_t count,
+		   loff_t *ppos)
 {
 	return -EINVAL;
 }
@@ -157,9 +157,8 @@ int __init hdmi_module_init(void)
 
 	ret = platform_device_register(&hdmi_device);
 
-	if (ret == 0) {
+	if (ret == 0)
 		ret = platform_driver_register(&hdmi_driver);
-	}
 
 	return ret;
 }
