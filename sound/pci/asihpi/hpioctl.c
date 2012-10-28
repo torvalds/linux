@@ -326,7 +326,7 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 		pci_dev->subsystem_device, pci_dev->devfn);
 
 	if (pci_enable_device(pci_dev) < 0) {
-		dev_printk(KERN_ERR, &pci_dev->dev,
+		dev_err(&pci_dev->dev,
 			"pci_enable_device failed, disabling device\n");
 		return -EIO;
 	}
@@ -398,9 +398,8 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	mutex_init(&adapters[adapter_index].mutex);
 	pci_set_drvdata(pci_dev, &adapters[adapter_index]);
 
-	dev_printk(KERN_INFO, &pci_dev->dev,
-		"probe succeeded for ASI%04X HPI index %d\n",
-		adapter.adapter->type, adapter_index);
+	dev_info(&pci_dev->dev, "probe succeeded for ASI%04X HPI index %d\n",
+		 adapter.adapter->type, adapter_index);
 
 	return 0;
 
@@ -448,11 +447,11 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 
 	pci_set_drvdata(pci_dev, NULL);
 	if (1)
-		dev_printk(KERN_INFO, &pci_dev->dev,
-			"remove %04x:%04x,%04x:%04x,%04x," " HPI index %d.\n",
-			pci_dev->vendor, pci_dev->device,
-			pci_dev->subsystem_vendor, pci_dev->subsystem_device,
-			pci_dev->devfn, pa->adapter->index);
+		dev_info(&pci_dev->dev,
+			 "remove %04x:%04x,%04x:%04x,%04x, HPI index %d\n",
+			 pci_dev->vendor, pci_dev->device,
+			 pci_dev->subsystem_vendor, pci_dev->subsystem_device,
+			 pci_dev->devfn, pa->adapter->index);
 
 	memset(pa, 0, sizeof(*pa));
 }
