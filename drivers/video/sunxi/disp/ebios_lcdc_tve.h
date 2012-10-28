@@ -33,14 +33,14 @@
 #define LCDC_LTI_LCD_FLAG	0x00002000
 #define LCDC_LTI_HD_FLAG	0x00001000
 
-typedef enum {
+enum lcdc_src {
 	LCDC_SRC_DE1 = 0,
 	LCDC_SRC_DE2 = 1,
 	LCDC_SRC_DMA = 2,
 	LCDC_SRC_BLACK = 3,
 	LCDC_SRC_WHITE = 4,
 	LCDC_SRC_BLUE = 5,
-} __lcdc_src_t;
+};
 
 typedef enum {
 	LCDC_LCDIF_HV = 0,
@@ -160,7 +160,7 @@ void TCON0_cfg(__u32 sel, __panel_para_t *info);
 __s32 TCON0_get_width(__u32 sel);
 __s32 TCON0_get_height(__u32 sel);
 __s32 TCON0_set_dclk_div(__u32 sel, __u8 div);
-__s32 TCON0_select_src(__u32 sel, __u8 src);
+__s32 TCON0_select_src(__u32 sel, enum lcdc_src src);
 __u32 TCON0_get_dclk_div(__u32 sel);
 
 __u32 TCON1_open(__u32 sel);
@@ -170,7 +170,7 @@ __u32 TCON1_cfg_ex(__u32 sel, __panel_para_t *info);
 __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode);
 __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode);
 __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode);
-__s32 TCON1_select_src(__u32 sel, __u8 src);
+__s32 TCON1_select_src(__u32 sel, enum lcdc_src src);
 __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd);
 __s32 TCON1_get_width(__u32 sel);
 __s32 TCON1_get_height(__u32 sel);
