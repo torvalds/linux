@@ -16,15 +16,13 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
-
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include "at91_aic.h"
 #include "generic.h"
 
 
