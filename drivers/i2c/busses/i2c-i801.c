@@ -1062,7 +1062,7 @@ static unsigned int __devinit i801_get_adapter_class(struct i801_priv *priv)
 
 	id = dmi_first_match(mux_dmi_table);
 	if (id) {
-		/* Remove from branch classes from trunk */
+		/* Remove branch classes from trunk */
 		mux_config = id->driver_data;
 		for (i = 0; i < mux_config->n_values; i++)
 			class &= ~mux_config->classes[i];
