@@ -24,7 +24,7 @@
 #ifndef __DRV_DISP_I_H__
 #define __DRV_DISP_I_H__
 
-#include <linux/drv_display.h>
+#include "../drv_display.h"
 #include "bsp_display.h"
 
 #define __wrn printk
