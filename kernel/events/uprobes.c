@@ -1430,14 +1430,6 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	return uprobe;
 }
 
-void __weak arch_uprobe_enable_step(struct arch_uprobe *arch)
-{
-}
-
-void __weak arch_uprobe_disable_step(struct arch_uprobe *arch)
-{
-}
-
 /*
  * Run handler and ask thread to singlestep.
  * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
@@ -1491,7 +1483,6 @@ static void handle_swbp(struct pt_regs *regs)
 		goto out;
 
 	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
-		arch_uprobe_enable_step(&uprobe->arch);
 		utask->active_uprobe = uprobe;
 		utask->state = UTASK_SSTEP;
 		return;
@@ -1523,7 +1514,6 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 	else
 		WARN_ON_ONCE(1);
 
-	arch_uprobe_disable_step(&uprobe->arch);
 	put_uprobe(uprobe);
 	utask->active_uprobe = NULL;
 	utask->state = UTASK_RUNNING;
