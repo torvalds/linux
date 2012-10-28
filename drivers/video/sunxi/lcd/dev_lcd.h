@@ -57,10 +57,7 @@ extern void LCD_get_panel_funs_1(__lcd_panel_fun_t *fun);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 DRV_DISP_Init(void);
 
-#define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[LCD] ");printk(msg);}
-#define __inf(msg...)       {printk(KERN_WARNING "[LCD] ");printk(msg);}
-#define __msg(msg...)       {printk(KERN_WARNING "[LCD] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
-#define __wrn(msg...)       {printk(KERN_WARNING "[LCD WRN] file:%s,line:%d:    ",__FILE__,__LINE__); printk(msg);}
-#define __here__            {printk(KERN_WARNING "[LCD] file:%s,line:%d\n",__FILE__,__LINE__);}
+#define __inf(msg, ...) pr_debug("[DISP] " msg, ##__VA_ARGS__)
+#define __wrn(msg, ...) pr_warn("[DISP] " msg, ##__VA_ARGS__)
 
 #endif
