@@ -36,11 +36,11 @@
 
 struct bcm_packet_class_rules {
 	/* 16bit UserPriority Of The Service Flow */
-	B_UINT16 u16UserPriority;
+	u16 u16UserPriority;
 	/* 16bit VLANID Of The Service Flow */
-	B_UINT16 u16VLANID;
+	u16 u16VLANID;
 	/* 16bit Packet Classification RuleIndex Of The Service Flow */
-	B_UINT16 u16PacketClassificationRuleIndex;
+	u16 u16PacketClassificationRuleIndex;
 	/* 8bit Classifier Rule Priority Of The Service Flow */
 	B_UINT8 u8ClassifierRulePriority;
 	/* Length of IP TypeOfService field */
@@ -89,7 +89,7 @@ struct bcm_packet_class_rules {
 	B_UINT8 u8IPv6FlowLable[NUM_IPV6_FLOWLABLE_BYTES];
 	/* Action associated with the classifier rule */
 	B_UINT8 u8ClassifierActionRule;
-	B_UINT16 u16ValidityBitMap;
+	u16 u16ValidityBitMap;
 };
 
 struct bcm_phs_rules {
@@ -141,38 +141,38 @@ struct bcm_connect_mgr_params {
 	/* 32bit Maximum Latency of the Service Flow */
 	u32 u32MaximumLatency;
 	/* 16bitCID Of The Service Flow */
-	B_UINT16 u16CID;
+	u16 u16CID;
 	/* 16bit SAID on which the service flow being set up shall be mapped */
-	B_UINT16 u16TargetSAID;
+	u16 u16TargetSAID;
 	/* 16bit  ARQ window size negotiated */
-	B_UINT16 u16ARQWindowSize;
+	u16 u16ARQWindowSize;
 	/* 16bit Total Tx delay incl sending, receiving & processing delays */
-	B_UINT16 u16ARQRetryTxTimeOut;
+	u16 u16ARQRetryTxTimeOut;
 	/* 16bit Total Rx delay incl sending, receiving & processing delays */
-	B_UINT16 u16ARQRetryRxTimeOut;
+	u16 u16ARQRetryRxTimeOut;
 	/* 16bit ARQ block lifetime */
-	B_UINT16 u16ARQBlockLifeTime;
+	u16 u16ARQBlockLifeTime;
 	/* 16bit ARQ Sync loss timeout */
-	B_UINT16 u16ARQSyncLossTimeOut;
+	u16 u16ARQSyncLossTimeOut;
 	/* 16bit ARQ Purge timeout */
-	B_UINT16 u16ARQRxPurgeTimeOut;
+	u16 u16ARQRxPurgeTimeOut;
 	/* TODO::Remove this once we move to a new CORR2 driver
 	 * brief Size of an ARQ block
 	 */
-	B_UINT16 u16ARQBlockSize;
+	u16 u16ARQBlockSize;
 	/* #endif */
 	/* 16bit Nominal interval b/w consecutive SDU arrivals at MAC SAP */
-	B_UINT16 u16SDUInterArrivalTime;
+	u16 u16SDUInterArrivalTime;
 	/* 16bit Specifies the time base for rate measurement */
-	B_UINT16 u16TimeBase;
+	u16 u16TimeBase;
 	/* 16bit Interval b/w Successive Grant oppurtunities */
-	B_UINT16 u16UnsolicitedGrantInterval;
+	u16 u16UnsolicitedGrantInterval;
 	/* 16bit Interval b/w Successive Polling grant oppurtunities */
-	B_UINT16 u16UnsolicitedPollingInterval;
+	u16 u16UnsolicitedPollingInterval;
 	/* internal var to get the overhead */
-	B_UINT16 u16MacOverhead;
+	u16 u16MacOverhead;
 	/* MBS contents Identifier */
-	B_UINT16 u16MBSContentsID[MBS_CONTENTS_ID_LENGTH];
+	u16 u16MBSContentsID[MBS_CONTENTS_ID_LENGTH];
 	/* MBS contents Identifier length */
 	B_UINT8 u8MBSContentsIDLength;
 	/* ServiceClassName Length Of The Service Flow */
@@ -251,11 +251,11 @@ struct bcm_add_request {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 eConnectionDir; /* < Connection direction */
 	/* brief 16 bit TID */
-	B_UINT16 u16TID; /* < 16bit TID */
+	u16 u16TID; /* < 16bit TID */
 	/* brief 16bitCID */
-	B_UINT16 u16CID; /* < 16bit CID */
+	u16 u16CID; /* < 16bit CID */
 	/* brief 16bitVCID */
-	B_UINT16 u16VCID; /* < 16bit VCID */
+	u16 u16VCID; /* < 16bit VCID */
 	struct bcm_connect_mgr_params *psfParameterSet; /* < connection manager parameters */
 };
 
@@ -263,23 +263,23 @@ struct bcm_add_indication {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 eConnectionDir;	/* < Connection Direction */
 	/* brief 16 bit TID */
-	B_UINT16 u16TID; /* < TID */
+	u16 u16TID; /* < TID */
 	/* brief 16bitCID */
-	B_UINT16 u16CID; /* < 16bitCID */
+	u16 u16CID; /* < 16bitCID */
 	/* brief 16bitVCID */
-	B_UINT16 u16VCID; /* < 16bitVCID */
+	u16 u16VCID; /* < 16bitVCID */
 	struct bcm_connect_mgr_params *psfAuthorizedSet; /* Authorized set of connection manager parameters */
 	struct bcm_connect_mgr_params *psfAdmittedSet; /* Admitted set of connection manager parameters */
 	struct bcm_connect_mgr_params *psfActiveSet; /* Activeset of connection manager parameters */
 	B_UINT8 u8CC; /* <Confirmation Code */
 	B_UINT8 u8Padd; /* < 8-bit Padding */
-	B_UINT16 u16Padd; /* < 16 bit Padding */
+	u16 u16Padd; /* < 16 bit Padding */
 };
 
 struct bcm_del_request {
 	B_UINT8 u8Type; /* < Type */
 	B_UINT8 u8Padding; /* < Padding byte */
-	B_UINT16 u16TID; /* < TID */
+	u16 u16TID; /* < TID */
 	/* brief 32bitSFID */
 	u32 u32SFID; /* < SFID */
 };
@@ -287,11 +287,11 @@ struct bcm_del_request {
 struct bcm_del_indication {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 u8Padding; /* < Padding */
-	B_UINT16 u16TID; /* < TID */
+	u16 u16TID; /* < TID */
 	/* brief 16bitCID */
-	B_UINT16 u16CID; /* < CID */
+	u16 u16CID; /* < CID */
 	/* brief 16bitVCID */
-	B_UINT16 u16VCID; /* < VCID */
+	u16 u16VCID; /* < VCID */
 	/* brief 32bitSFID */
 	u32 u32SFID; /* < SFID */
 	/* brief 8bit Confirmation code */
@@ -301,11 +301,11 @@ struct bcm_del_indication {
 
 struct bcm_stim_sfhostnotify {
 	u32 SFID; /* SFID of the service flow */
-	B_UINT16 newCID; /* the new/changed CID */
-	B_UINT16 VCID; /* Get new Vcid if the flow has been made active in CID update TLV, but was inactive earlier or the orig vcid */
+	u16 newCID; /* the new/changed CID */
+	u16 VCID; /* Get new Vcid if the flow has been made active in CID update TLV, but was inactive earlier or the orig vcid */
 	B_UINT8 RetainSF; /* Indication to Host if the SF is to be retained or deleted; if TRUE-retain else delete */
 	B_UINT8 QoSParamSet; /* QoS paramset of the retained SF */
-	B_UINT16 u16reserved; /* For byte alignment */
+	u16 u16reserved; /* For byte alignment */
 };
 
 #endif
