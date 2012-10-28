@@ -14,6 +14,8 @@
 #include <linux/clk.h>
 #include <asm/bootinfo.h>
 
+#include <bcm63xx_reset.h>
+
 #include "pci-bcm63xx.h"
 
 /*
@@ -126,23 +128,14 @@ static void __init bcm63xx_reset_pcie(void)
 	bcm_misc_writel(val, MISC_SERDES_CTRL_REG);
 
 	/* reset the PCIe core */
-	val = bcm_perf_readl(PERF_SOFTRESET_6328_REG);
-
-	val &= ~SOFTRESET_6328_PCIE_MASK;
-	val &= ~SOFTRESET_6328_PCIE_CORE_MASK;
-	val &= ~SOFTRESET_6328_PCIE_HARD_MASK;
-	val &= ~SOFTRESET_6328_PCIE_EXT_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE, 1);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE_EXT, 1);
 	mdelay(10);
 
-	val |= SOFTRESET_6328_PCIE_MASK;
-	val |= SOFTRESET_6328_PCIE_CORE_MASK;
-	val |= SOFTRESET_6328_PCIE_HARD_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE, 0);
 	mdelay(10);
 
-	val |= SOFTRESET_6328_PCIE_EXT_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE_EXT, 0);
 	mdelay(200);
 }
 
