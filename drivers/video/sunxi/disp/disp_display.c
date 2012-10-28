@@ -266,7 +266,7 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 	}
 
 	if (b_force_on) {
-		OSAL_PRINTF("%s", str);
+		DE_WRN("%s", str);
 	} else {
 		DE_INF("%s", str);
 	}
@@ -280,8 +280,8 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 		reg[3] = sys_get_wvalue(base + i + 12);
 
 		if (b_force_on) {
-			OSAL_PRINTF("0x%08x:%08x,%08x:%08x,%08x\n", base + i,
-				    reg[0], reg[1], reg[2], reg[3]);
+			DE_WRN("0x%08x:%08x,%08x:%08x,%08x\n", base + i,
+			       reg[0], reg[1], reg[2], reg[3]);
 		} else {
 			DE_INF("0x%08x:%08x,%08x:%08x,%08x\n", base + i, reg[0],
 			       reg[1], reg[2], reg[3]);

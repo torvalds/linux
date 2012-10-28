@@ -26,8 +26,8 @@
 #include "ebios_lcdc_tve.h"
 
 #define DE_INF __inf
-#define DE_MSG __msg
 #define DE_WRN __wrn
+
 #define OSAL_IRQ_RETURN IRQ_HANDLED
 
 #define HANDTOID(handle)  ((handle) - 100)
