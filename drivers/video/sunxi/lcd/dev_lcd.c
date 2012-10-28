@@ -39,14 +39,14 @@ int lcd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t lcd_read(struct file * file, char __user * buf, size_t count,
-		 loff_t * ppos)
+ssize_t lcd_read(struct file *file, char __user *buf, size_t count,
+		 loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-ssize_t lcd_write(struct file * file, const char __user * buf, size_t count,
-		  loff_t * ppos)
+ssize_t lcd_write(struct file *file, const char __user *buf, size_t count,
+		  loff_t *ppos)
 {
 	return -EINVAL;
 }

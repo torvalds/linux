@@ -19,95 +19,91 @@
  * MA 02111-1307 USA
  */
 
-/**********************************************************************
- *
- *  cpu_320x240_kgm281i0.c
- *
- **********************************************************************/
-
 #include "lcd_panel_cfg.h"
 #include "../disp/ebios_lcdc_tve.h"
 
-//delete this line if you want to use the lcd para define in sys_config1.fex
-#define LCD_PARA_USE_CONFIG
+/*
+ * comment out this line if you want to use the lcd para define in
+ * sys_config1.fex
+ */
+//#define LCD_PARA_USE_CONFIG
 
 #ifdef LCD_PARA_USE_CONFIG
-/*********************************************************
- *
- *  tcon parameters
- *
- *********************************************************/
-static void LCD_cfg_panel_info(__panel_para_t * info)
+
+static void LCD_cfg_panel_info(__panel_para_t *info)
 {
 	memset(info, 0, sizeof(__panel_para_t));
 
-	//interface
-	info->lcd_if = 1;	//0:hv;                 1:cpu/8080;     2:reserved;     3:lvds
-	info->lcd_cpu_if = 0;	//0:18bit               4:16bit
+	info->lcd_x = 320;
+	info->lcd_y = 240;
+	info->lcd_dclk_freq = 6; /* MHz */
 
-	//timing
-	info->lcd_x = 320;	//Hor Pixels
-	info->lcd_y = 240;	//Ver Pixels
-	info->lcd_dclk_freq = 6;	//Pixel Data Cycle
-	info->lcd_ht = 320 + 30;	//Hor Total Time
-	info->lcd_hbp = 20;	//Hor Back Porch
-	info->lcd_vt = (240 + 30) * 2;	//Ver Total Time*2
-	info->lcd_vbp = 20;	//Ver Back Porch
-	info->lcd_hv_hspw = 10;	//Hor Sync Time
-	info->lcd_hv_vspw = 10;	//Ver Sync Time
-	info->lcd_io_cfg0 = 0x10000000;	//Clock Phase
+	info->lcd_ht = 320 + 30; /* htotal */
+	info->lcd_hbp = 20; /* h back porch */
+	info->lcd_hv_hspw = 10;	/* hsync */
+	info->lcd_vt = (240 + 30) * 2; /* vtotal * 2 */
+	info->lcd_vbp = 20; /* v back porch */
+	info->lcd_hv_vspw = 10;	/* vsync */
 
-	//color
-	info->lcd_frm = 1;	//0: direct;    1: rgb666 dither;       2:rgb656 dither
-	info->lcd_gamma_correction_en = 0;
+	info->lcd_if = 1; /* 0:hv(sync+de); 1:cpu/8080; 2:ttl; 3:lvds */
 
-	//backlight
+	info->lcd_cpu_if = 0; /* 0:18bit 4:16bit */
+	info->lcd_frm = 1; /* 0:direct; 1:rgb666 dither; 2:rgb656 dither */
+
 	info->lcd_pwm_not_used = 0;
 	info->lcd_pwm_ch = 0;
-	info->lcd_pwm_freq = 12500;	//Hz
+	info->lcd_pwm_freq = 12500; /* Hz */
 	info->lcd_pwm_pol = 0;
+
+	info->lcd_io_cfg0 = 0x10000000; /* clock phase */
+
+	info->lcd_gamma_correction_en = 0;
 }
 #endif
 
-/*********************************************************
- *
- *  lcd flow function
- *	CPU Panel:first TCON_open,than lcd_panel_init
- *
- *********************************************************/
+/*
+ * lcd flow function
+ * CPU Panel:first TCON_open,than lcd_panel_init
+ */
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);	/* open lcd power, than delay 50ms */
-	LCD_OPEN_FUNC(sel, TCON_open, 500);	//open lcd controller, than delay 500ms
-	LCD_OPEN_FUNC(sel, LCD_panel_init, 50);	//lcd panel initial, than delay 50ms
-	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);	/* open lcd backlight, than delay 0ms */
+	/* open lcd power, than delay 50ms */
+	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);
+	/* open lcd controller, than delay 500ms */
+	LCD_OPEN_FUNC(sel, TCON_open, 500);
+	/* lcd panel initial, than delay 50ms */
+	LCD_OPEN_FUNC(sel, LCD_panel_init, 50);
+	/* open lcd backlight, than delay 0ms */
+	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);
 
 	return 0;
 }
 
 static __s32 LCD_close_flow(__u32 sel)
 {
-	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);	/* close lcd backlight, than delay 0ms */
-	LCD_CLOSE_FUNC(sel, LCD_panel_exit, 0);	//lcd panel exit, than delay 0ms
-	LCD_CLOSE_FUNC(sel, TCON_close, 0);	//close lcd controller, than delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);	/* close lcd power, than delay 1000ms */
+	/* close lcd backlight, than delay 0ms */
+	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);
+	/* lcd panel exit, than delay 0ms */
+	LCD_CLOSE_FUNC(sel, LCD_panel_exit, 0);
+	/* close lcd controller, than delay 0ms */
+	LCD_CLOSE_FUNC(sel, TCON_close, 0);
+	/* close lcd power, than delay 1000ms */
+	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);
 
 	return 0;
 }
 
-/*********************************************************
- *
- *  lcd panel initial
- *	cpu 8080 bus initial
- *
- *********************************************************/
-#define kgm281i0_rs(sel,data)	LCD_GPIO_write(sel,0,data)
+/*
+ * lcd panel initial
+ * cpu 8080 bus initial
+ */
+#define kgm281i0_rs(sel, data) LCD_GPIO_write(sel, 0, data)
 
 static void kgm281i0_write_gram_origin(__u32 sel)
 {
-	LCD_CPU_WR(sel, 0x0020, 0);	// GRAM horizontal Address
-	LCD_CPU_WR(sel, 0x0021, 319);	// GRAM Vertical Address
-	LCD_CPU_WR_INDEX(sel, 0x22);	// Write Memery Start
+	LCD_CPU_WR(sel, 0x0020, 0); /* GRAM horizontal Address */
+	LCD_CPU_WR(sel, 0x0021, 319); /* GRAM Vertical Address */
+	LCD_CPU_WR_INDEX(sel, 0x22); /* Write Memery Start */
 }
 
 static void kgm281i0_init(__u32 sel)
@@ -182,17 +178,20 @@ static void kgm281i0_init(__u32 sel)
 	LCD_CPU_WR(sel, 0x0007, 0x0173);
 }
 
-static void Lcd_cpuisr_proc(void)	//irq func
+/*
+ * irq func
+ */
+static void Lcd_cpuisr_proc(void)
 {
 	kgm281i0_write_gram_origin(0);
 }
 
 static void LCD_panel_init(__u32 sel)
 {
-	kgm281i0_init(sel);	//initial lcd panel
-	kgm281i0_write_gram_origin(sel);	//set gram origin
-	LCD_CPU_register_irq(sel, Lcd_cpuisr_proc);	//resgister cpu irq func
-	LCD_CPU_AUTO_FLUSH(sel, 1);	//start sent gram data
+	kgm281i0_init(sel); /* initial lcd panel */
+	kgm281i0_write_gram_origin(sel); /* set gram origin */
+	LCD_CPU_register_irq(sel, Lcd_cpuisr_proc); /* register cpu irq func */
+	LCD_CPU_AUTO_FLUSH(sel, 1); /* start sent gram data */
 }
 
 static void LCD_panel_exit(__u32 sel)
@@ -200,12 +199,7 @@ static void LCD_panel_exit(__u32 sel)
 
 }
 
-/*********************************************************
- *
- *  do not modify
- *
- *********************************************************/
-void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
+void LCD_get_panel_funs_0(__lcd_panel_fun_t *fun)
 {
 #ifdef LCD_PARA_USE_CONFIG
 	fun->cfg_panel_info = LCD_cfg_panel_info;

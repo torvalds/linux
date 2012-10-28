@@ -19,140 +19,131 @@
  * MA 02111-1307 USA
  */
 
-/**********************************************************************
- *
- *  hv_800x480_td043.c
- *
- **********************************************************************/
-
 #include "lcd_panel_cfg.h"
 
-//delete this line if you want to use the lcd para define in sys_config1.fex
-#define LCD_PARA_USE_CONFIG
+/*
+ * comment out this line if you want to use the lcd para define in
+ * sys_config1.fex
+ */
+//#define LCD_PARA_USE_CONFIG
 
 #ifdef LCD_PARA_USE_CONFIG
+static __u8 g_gamma_tbl[][2] = {
+	/* {input value, corrected value} */
+	{0, 0},
+	{15, 15},
+	{30, 30},
+	{45, 45},
+	{60, 60},
+	{75, 75},
+	{90, 90},
+	{105, 105},
+	{120, 120},
+	{135, 135},
+	{150, 150},
+	{165, 165},
+	{180, 180},
+	{195, 195},
+	{210, 210},
+	{225, 225},
+	{240, 240},
+	{255, 255},
+};
 
-/**********************************************************************
- *
- *  tcon parameters
- *
- **********************************************************************/
-static void lcd_gamma_gen(__panel_para_t * info);
-static void LCD_cfg_panel_info(__panel_para_t * info)
+static void lcd_gamma_gen(__panel_para_t *info)
+{
+	__u32 items = sizeof(g_gamma_tbl) / 2;
+	__u32 i, j;
+
+	for (i = 0; i < items - 1; i++) {
+		__u32 num = g_gamma_tbl[i + 1][0] - g_gamma_tbl[i][0];
+
+		for (j = 0; j < num; j++) {
+			__u32 value = 0;
+
+			value = g_gamma_tbl[i][1] +
+				((g_gamma_tbl[i + 1][1] -
+				  g_gamma_tbl[i][1]) * j) / num;
+			info->lcd_gamma_tbl[g_gamma_tbl[i][0] + j] =
+				(value << 16) + (value << 8) + value;
+		}
+	}
+	info->lcd_gamma_tbl[255] = (g_gamma_tbl[items - 1][1] << 16) +
+		(g_gamma_tbl[items - 1][1] << 8) + g_gamma_tbl[items - 1][1];
+}
+
+static void LCD_cfg_panel_info(__panel_para_t *info)
 {
 	memset(info, 0, sizeof(__panel_para_t));
 
-	//interface
-	info->lcd_if = 0;	//0:hv;                 1:cpu/8080;     2:reserved;     3:lvds
-	info->lcd_hv_if = 0;	//0:hv para;    1:hv serial;    2:ccir656
+	info->lcd_x = 800;
+	info->lcd_y = 480;
+	info->lcd_dclk_freq = 33; /* MHz */
 
-	//timing
-	info->lcd_x = 800;	//Hor Pixels
-	info->lcd_y = 480;	//Ver Pixels
-	info->lcd_dclk_freq = 33;	//Pixel Data Cycle,in MHz
-	info->lcd_ht = 1056;	//Hor Total Time
-	info->lcd_hbp = 216;	//Hor Back Porch
-	info->lcd_vt = 525 * 2;	//Ver Total Time*2
-	info->lcd_vbp = 35;	//Ver Back Porch
-	info->lcd_hv_hspw = 10;	//Hor Sync Time
-	info->lcd_hv_vspw = 10;	//Ver Sync Time
-	info->lcd_io_cfg0 = 0x10000000;	//Clock Phase
+	info->lcd_ht = 1056; /* htotal */
+	info->lcd_hbp = 216; /* h back porch */
+	info->lcd_hv_hspw = 10; /* hsync */
+	info->lcd_vt = 525 * 2; /* vtotal * 2 */
+	info->lcd_vbp = 35; /* v back porch */
+	info->lcd_hv_vspw = 10;	/* vsync */
 
-	//color
-	info->lcd_frm = 0;	//0: direct;    1: rgb666 dither;       2:rgb656 dither
-	info->lcd_gamma_correction_en = 0;	//Gamma Table enable
-	lcd_gamma_gen(info);	//Gamma Table Generation Func
+	info->lcd_if = 0; /* 0:hv(sync+de); 1:cpu/8080; 2:ttl; 3:lvds */
+
+	info->lcd_hv_if = 0; /* 0:hv parallel; 1:hv serial; 2:ccir656 */
+
+	info->lcd_frm = 0; /* 0:direct; 1:rgb666 dither; 2:rgb656 dither */
 
 	info->lcd_pwm_not_used = 0;
 	info->lcd_pwm_ch = 0;
-	info->lcd_pwm_freq = 12500;	//Hz
+	info->lcd_pwm_freq = 12500; /* Hz */
 	info->lcd_pwm_pol = 0;
-}
 
-static void lcd_gamma_gen(__panel_para_t * info)
-{
-	const __u8 g_gamma_tbl[][2] = {
-		//{input value, corrected value}
-		{0, 0},
-		{15, 15},
-		{30, 30},
-		{45, 45},
-		{60, 60},
-		{75, 75},
-		{90, 90},
-		{105, 105},
-		{120, 120},
-		{135, 135},
-		{150, 150},
-		{165, 165},
-		{180, 180},
-		{195, 195},
-		{210, 210},
-		{225, 225},
-		{240, 240},
-		{255, 255},
-	};
+	info->lcd_io_cfg0 = 0x10000000; /* clock phase */
 
-	//insert value
-	{
-		__u32 items = sizeof(g_gamma_tbl) / 2;
-		__u32 i, j;
-		for (i = 0; i < items - 1; i++) {
-			__u32 num = g_gamma_tbl[i + 1][0] - g_gamma_tbl[i][0];
-			for (j = 0; j < num; j++) {
-				__u32 value = 0;
-
-				value = g_gamma_tbl[i][1]
-				    +
-				    ((g_gamma_tbl[i + 1][1] -
-				      g_gamma_tbl[i][1]) * j) / num;
-				info->lcd_gamma_tbl[g_gamma_tbl[i][0] + j]
-				    = (value << 16) + (value << 8) + value;
-			}
-		}
-		info->lcd_gamma_tbl[255] = (g_gamma_tbl[items - 1][1] << 16)
-		    + (g_gamma_tbl[items - 1][1] << 8)
-		    + (g_gamma_tbl[items - 1][1]);
-	}
-
+	info->lcd_gamma_correction_en = 0;
+	lcd_gamma_gen(info);
 }
 #endif
 
-/**********************************************************************
- *
- *  lcd flow function
- *	hv panel:first lcd_panel_init,than TCON_open
- *
- **********************************************************************/
+/*
+ * lcd flow function
+ * hv panel:first lcd_panel_init,than TCON_open
+ */
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);	/* open lcd power, than delay 50ms */
-	LCD_OPEN_FUNC(sel, LCD_panel_init, 50);	//lcd panel initial, than delay 50ms
-	LCD_OPEN_FUNC(sel, TCON_open, 500);	//open lcd controller, than delay 500ms
-	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);	/* open lcd backlight, than delay 0ms */
+	/* open lcd power, than delay 50ms */
+	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);
+	/* lcd panel initial, than delay 50ms */
+	LCD_OPEN_FUNC(sel, LCD_panel_init, 50);
+	/* open lcd controller, than delay 500ms */
+	LCD_OPEN_FUNC(sel, TCON_open, 500);
+	/* open lcd backlight, than delay 0ms */
+	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);
 
 	return 0;
 }
 
 static __s32 LCD_close_flow(__u32 sel)
 {
-	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);	/* close lcd backlight, and delay 0ms */
-	LCD_CLOSE_FUNC(sel, TCON_close, 0);	//close lcd controller, and delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_panel_exit, 0);	//lcd panel exit, and delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);	/* close lcd power, and delay 1000ms */
+	/* close lcd backlight, and delay 0ms */
+	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);
+	/* close lcd controller, and delay 0ms */
+	LCD_CLOSE_FUNC(sel, TCON_close, 0);
+	/* lcd panel exit, and delay 0ms */
+	LCD_CLOSE_FUNC(sel, LCD_panel_exit, 0);
+	/* close lcd power, and delay 1000ms */
+	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);
 
 	return 0;
 }
 
-/**********************************************************************
- *
- *  lcd panel initial
- *	serial io initial
- *
- **********************************************************************/
-#define td043_spi_scen(sel,data)		LCD_GPIO_write(sel,2,data)
-#define td043_spi_scl(sel,data)			LCD_GPIO_write(sel,1,data)
-#define td043_spi_sda(sel,data)			LCD_GPIO_write(sel,0,data)
+/*
+ * lcd panel initial
+ * serial io initial
+ */
+#define td043_spi_scen(sel, data) LCD_GPIO_write(sel, 2, data)
+#define td043_spi_scl(sel, data) LCD_GPIO_write(sel, 1, data)
+#define td043_spi_sda(sel, data) LCD_GPIO_write(sel, 0, data)
 
 static void td043_spi_wr(__u32 sel, __u32 addr, __u32 value)
 {
@@ -220,12 +211,7 @@ static void LCD_panel_exit(__u32 sel)
 
 }
 
-/**********************************************************************
- *
- *  do not modify
- *
- **********************************************************************/
-void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
+void LCD_get_panel_funs_0(__lcd_panel_fun_t *fun)
 {
 #ifdef LCD_PARA_USE_CONFIG
 	fun->cfg_panel_info = LCD_cfg_panel_info;
