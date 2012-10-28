@@ -50,7 +50,7 @@
 #include <mach/platform.h>
 #include <mach/sys_config.h>
 
-#include <linux/drv_display.h>
+#include "../drv_display.h"
 
 extern void LCD_get_panel_funs_0(__lcd_panel_fun_t *fun);
 extern void LCD_get_panel_funs_1(__lcd_panel_fun_t *fun);

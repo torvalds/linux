@@ -50,7 +50,7 @@
 #include <linux/cdev.h>
 #include <linux/types.h>
 
-#include <linux/drv_display.h>
+#include "../drv_display.h"
 #include <linux/drv_hdmi.h>
 
 #define __err(msg...) printk(msg)
