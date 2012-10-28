@@ -502,6 +502,7 @@ comment "Generic Board Type"
 
 config MACH_AT91SAM_DT
 	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
+	depends on SOC_AT91SAM9
 	select USE_OF
 	help
 	  Select this if you want to experiment device-tree with
