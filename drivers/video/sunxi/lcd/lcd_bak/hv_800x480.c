@@ -39,32 +39,32 @@
  **********************************************************************/
 static void LCD_cfg_panel_info(__panel_para_t * info)
 {
-    memset(info,0,sizeof(__panel_para_t));
+	memset(info, 0, sizeof(__panel_para_t));
 
 	//interface
-    info->lcd_if            = 0;        	//0:hv; 		1:cpu/8080; 	2:reserved; 	3:lvds
-    info->lcd_hv_if         = 0;        	//0:hv para;	1:hv serial; 	2:ccir656
+	info->lcd_if = 0;	//0:hv;                 1:cpu/8080;     2:reserved;     3:lvds
+	info->lcd_hv_if = 0;	//0:hv para;    1:hv serial;    2:ccir656
 
-    //timing
-    info->lcd_x             = 800;			//Hor Pixels
-    info->lcd_y             = 480;			//Ver Pixels
-    info->lcd_dclk_freq     = 33;       	//Pixel Data Cycle,in MHz
-    info->lcd_ht            = 1056;     	//Hor Total Time
-    info->lcd_hbp           = 216;      	//Hor Back Porch
-    info->lcd_vt            = 525*2;  		//Ver Total Time*2
-    info->lcd_vbp           = 35;       	//Ver Back Porch
-    info->lcd_hv_hspw       = 10;       	//Hor Sync Time
-    info->lcd_hv_vspw       = 10;       	//Ver Sync Time
-    info->lcd_io_cfg0       = 0x10000000;	//Clock Phase
+	//timing
+	info->lcd_x = 800;	//Hor Pixels
+	info->lcd_y = 480;	//Ver Pixels
+	info->lcd_dclk_freq = 33;	//Pixel Data Cycle,in MHz
+	info->lcd_ht = 1056;	//Hor Total Time
+	info->lcd_hbp = 216;	//Hor Back Porch
+	info->lcd_vt = 525 * 2;	//Ver Total Time*2
+	info->lcd_vbp = 35;	//Ver Back Porch
+	info->lcd_hv_hspw = 10;	//Hor Sync Time
+	info->lcd_hv_vspw = 10;	//Ver Sync Time
+	info->lcd_io_cfg0 = 0x10000000;	//Clock Phase
 
 	//color
-    info->lcd_frm           = 0;        	//0: direct; 	1: rgb666 dither;	2:rgb656 dither
-    info->lcd_gamma_correction_en = 0;
+	info->lcd_frm = 0;	//0: direct;    1: rgb666 dither;       2:rgb656 dither
+	info->lcd_gamma_correction_en = 0;
 
-    info->lcd_pwm_not_used  = 0;
-    info->lcd_pwm_ch        = 0;
-    info->lcd_pwm_freq      = 12500;		//Hz
-    info->lcd_pwm_pol       = 0;
+	info->lcd_pwm_not_used = 0;
+	info->lcd_pwm_ch = 0;
+	info->lcd_pwm_freq = 12500;	//Hz
+	info->lcd_pwm_pol = 0;
 }
 
 #endif
@@ -77,7 +77,6 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
 {
 #ifdef LCD_PARA_USE_CONFIG
-    fun->cfg_panel_info = LCD_cfg_panel_info;
+	fun->cfg_panel_info = LCD_cfg_panel_info;
 #endif
 }
-
