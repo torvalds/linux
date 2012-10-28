@@ -309,7 +309,7 @@ fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 				sys_put_wvalue(addr, value);
 			}
 		}
-		OSAL_PRINTF("----%d\n", time * 15);
+		DE_WRN("----%d\n", time * 15);
 		msleep(1000 * 5);
 	}
 	return 0;

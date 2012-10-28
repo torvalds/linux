@@ -134,98 +134,95 @@ Lcd_Panel_Parameter_Check(__u32 sel)
 		if (Lcd_Panel_Err_Flag != 0) {
 			__u32 i;
 			for (i = 0; i < 200; i++) {
-				OSAL_PRINTF("*** Lcd in danger...\n");
+				DE_WRN("*** Lcd in danger...\n");
 			}
 		}
 
-		OSAL_PRINTF("*************************************************"
-			    "****************\n");
-		OSAL_PRINTF("***\n");
-		OSAL_PRINTF("*** LCD Panel Parameter Check\n");
-		OSAL_PRINTF("***\n");
-		OSAL_PRINTF("***             by dulianping\n");
-		OSAL_PRINTF("***\n");
-		OSAL_PRINTF("*************************************************"
-			    "****************\n");
+		DE_WRN("********************************************************"
+		       "*********\n");
+		DE_WRN("***\n");
+		DE_WRN("*** LCD Panel Parameter Check\n");
+		DE_WRN("***\n");
+		DE_WRN("***             by dulianping\n");
+		DE_WRN("***\n");
+		DE_WRN("********************************************************"
+		       "*********\n");
 
-		OSAL_PRINTF("***\n");
-		OSAL_PRINTF("*** Interface:");
+		DE_WRN("***\n");
+		DE_WRN("*** Interface:");
 		if (info->lcd_if == 0 && info->lcd_hv_if == 0) {
-			OSAL_PRINTF("*** Parallel HV Panel\n");
+			DE_WRN("*** Parallel HV Panel\n");
 		} else if (info->lcd_if == 0 && info->lcd_hv_if == 1) {
-			OSAL_PRINTF("*** Serial HV Panel\n");
+			DE_WRN("*** Serial HV Panel\n");
 		} else if (info->lcd_if == 0 && info->lcd_hv_if == 2) {
-			OSAL_PRINTF("*** Serial YUV Panel\n");
+			DE_WRN("*** Serial YUV Panel\n");
 		} else if (info->lcd_if == 3 && info->lcd_lvds_bitwidth == 0) {
-			OSAL_PRINTF("*** 24Bit LVDS Panel\n");
+			DE_WRN("*** 24Bit LVDS Panel\n");
 		} else if (info->lcd_if == 3 && info->lcd_lvds_bitwidth == 1) {
-			OSAL_PRINTF("*** 18Bit LVDS Panel\n");
+			DE_WRN("*** 18Bit LVDS Panel\n");
 		} else if (info->lcd_if == 1 && info->lcd_cpu_if == 0) {
-			OSAL_PRINTF("*** 18Bit CPU Panel\n");
+			DE_WRN("*** 18Bit CPU Panel\n");
 		} else if (info->lcd_if == 1 && info->lcd_cpu_if == 4) {
-			OSAL_PRINTF("*** 16Bit CPU Panel\n");
+			DE_WRN("*** 16Bit CPU Panel\n");
 		} else {
-			OSAL_PRINTF("\n");
-			OSAL_PRINTF("*** lcd_if:     %d\n", info->lcd_if);
-			OSAL_PRINTF("*** lcd_hv_if:  %d\n", info->lcd_hv_if);
-			OSAL_PRINTF("*** lcd_cpu_if: %d\n", info->lcd_cpu_if);
+			DE_WRN("\n");
+			DE_WRN("*** lcd_if:     %d\n", info->lcd_if);
+			DE_WRN("*** lcd_hv_if:  %d\n", info->lcd_hv_if);
+			DE_WRN("*** lcd_cpu_if: %d\n", info->lcd_cpu_if);
 		}
 
 		if (info->lcd_frm == 0) {
-			OSAL_PRINTF("*** Lcd Frm Disable\n");
+			DE_WRN("*** Lcd Frm Disable\n");
 		} else if (info->lcd_frm == 1) {
-			OSAL_PRINTF("*** Lcd Frm to RGB666\n");
+			DE_WRN("*** Lcd Frm to RGB666\n");
 		} else if (info->lcd_frm == 2) {
-			OSAL_PRINTF("*** Lcd Frm to RGB565\n");
+			DE_WRN("*** Lcd Frm to RGB565\n");
 		}
 
-		OSAL_PRINTF("***\n");
-		OSAL_PRINTF("*** Timing:\n");
-		OSAL_PRINTF("*** lcd_x:      %d\n", info->lcd_x);
-		OSAL_PRINTF("*** lcd_y:      %d\n", info->lcd_y);
-		OSAL_PRINTF("*** lcd_ht:     %d\n", info->lcd_ht);
-		OSAL_PRINTF("*** lcd_hbp:    %d\n", info->lcd_hbp);
-		OSAL_PRINTF("*** lcd_vt:     %d\n", info->lcd_vt);
-		OSAL_PRINTF("*** lcd_vbp:    %d\n", info->lcd_vbp);
-		OSAL_PRINTF("*** lcd_hspw:   %d\n", info->lcd_hv_hspw);
-		OSAL_PRINTF("*** lcd_vspw:   %d\n", info->lcd_hv_vspw);
-		OSAL_PRINTF("*** lcd_frame_frq:  %dHz\n", lcd_fclk_frq);
+		DE_WRN("***\n");
+		DE_WRN("*** Timing:\n");
+		DE_WRN("*** lcd_x:      %d\n", info->lcd_x);
+		DE_WRN("*** lcd_y:      %d\n", info->lcd_y);
+		DE_WRN("*** lcd_ht:     %d\n", info->lcd_ht);
+		DE_WRN("*** lcd_hbp:    %d\n", info->lcd_hbp);
+		DE_WRN("*** lcd_vt:     %d\n", info->lcd_vt);
+		DE_WRN("*** lcd_vbp:    %d\n", info->lcd_vbp);
+		DE_WRN("*** lcd_hspw:   %d\n", info->lcd_hv_hspw);
+		DE_WRN("*** lcd_vspw:   %d\n", info->lcd_hv_vspw);
+		DE_WRN("*** lcd_frame_frq:  %dHz\n", lcd_fclk_frq);
 
 		/* Print Error */
-		OSAL_PRINTF("***\n");
+		DE_WRN("***\n");
 		if (Lcd_Panel_Err_Flag & BIT0) {
-			OSAL_PRINTF("*** Err01: Violate \"lcd_hbp > "
-				    "lcd_hspw\"\n");
+			DE_WRN("*** Err01: Violate \"lcd_hbp > lcd_hspw\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT1) {
-			OSAL_PRINTF("*** Err02: Violate \"lcd_vbp > "
-				    "lcd_vspw\"\n");
+			DE_WRN("*** Err02: Violate \"lcd_vbp > lcd_vspw\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT2) {
-			OSAL_PRINTF("*** Err03: Violate \"lcd_ht >= "
-				    "(lcd_hbp+lcd_x*%d+4)\"\n", cycle_num);
+			DE_WRN("*** Err03: Violate \"lcd_ht >= "
+			       "(lcd_hbp+lcd_x*%d+4)\"\n", cycle_num);
 		}
 		if (Lcd_Panel_Err_Flag & BIT3) {
-			OSAL_PRINTF("*** Err04: Violate \"(lcd_vt/2) >= "
-				    "(lcd_vbp+lcd_y+2)\"\n");
+			DE_WRN("*** Err04: Violate \"(lcd_vt/2) >= "
+			       "(lcd_vbp+lcd_y+2)\"\n");
 		}
 		if (Lcd_Panel_Err_Flag & BIT10) {
-			OSAL_PRINTF("*** Err10: Violate \"lcd_io_cfg0\", "
-				    "use \"0x00000000\" or \"0x04000000\"");
+			DE_WRN("*** Err10: Violate \"lcd_io_cfg0\", "
+			       "use \"0x00000000\" or \"0x04000000\"");
 		}
 		if (Lcd_Panel_Wrn_Flag & BIT0) {
-			OSAL_PRINTF("*** WRN01: Recommend \"lcd_frm = 1\"\n");
+			DE_WRN("*** WRN01: Recommend \"lcd_frm = 1\"\n");
 		}
 		if (Lcd_Panel_Wrn_Flag & BIT1) {
-			OSAL_PRINTF("*** WRN02: Recommend \"lcd_frm = 2\"\n");
+			DE_WRN("*** WRN02: Recommend \"lcd_frm = 2\"\n");
 		}
 		if (Lcd_Panel_Wrn_Flag & BIT2) {
-			OSAL_PRINTF("*** WRN03: Recommend \"lcd_dclk_frq = "
-				    "%d\"\n",
-				    ((info->lcd_vt / 2) * info->lcd_ht) *
-				    60 / (1000 * 1000));
+			DE_WRN("*** WRN03: Recommend \"lcd_dclk_frq = %d\"\n",
+			       ((info->lcd_vt / 2) * info->lcd_ht) * 60 /
+			       (1000 * 1000));
 		}
-		OSAL_PRINTF("***\n");
+		DE_WRN("***\n");
 
 		if (Lcd_Panel_Err_Flag != 0) {
 			__u32 image_base_addr;
@@ -247,12 +244,11 @@ Lcd_Panel_Parameter_Check(__u32 sel)
 			/* open layer */
 			sys_put_wvalue(image_base_addr + 0x800, reg_value);
 
-			OSAL_PRINTF("*** Try new parameters,you can make it "
-				    "pass!\n");
+			DE_WRN("*** Try new parameters,you can make it pass!\n");
 		}
-		OSAL_PRINTF("*** LCD Panel Parameter Check End\n");
-		OSAL_PRINTF("*************************************************"
-			    "****************\n");
+		DE_WRN("*** LCD Panel Parameter Check End\n");
+		DE_WRN("********************************************************"
+		       "*********\n");
 	}
 }
 

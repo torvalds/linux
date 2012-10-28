@@ -646,7 +646,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    cmd != DISP_CMD_GET_OUTPUT_TYPE && cmd != DISP_CMD_SCN_GET_WIDTH &&
 	    cmd != DISP_CMD_SCN_GET_HEIGHT && cmd != DISP_CMD_VIDEO_SET_FB &&
 	    cmd != DISP_CMD_VIDEO_GET_FRAME_ID) {
-		OSAL_PRINTF("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
+		DE_WRN("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
 	}
 #endif
 

@@ -1381,8 +1381,8 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range,
 		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 4 * i,
 			      *(pt + 8 + i));
 #if 0
-		OSAL_PRINTF("R:%x,\tG:%x,\tB:%x\n", *(pt + i), *(pt + 4 + i),
-			    *(pt + 8 + i));
+		DE_WRN("R:%x,\tG:%x,\tB:%x\n", *(pt + i), *(pt + 4 + i),
+		       *(pt + 8 + i));
 #endif
 	}
 
