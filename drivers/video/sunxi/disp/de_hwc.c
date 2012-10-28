@@ -32,7 +32,7 @@ __s32 DE_BE_HWC_Enable(__u32 sel, __bool enable)
 	return 0;
 }
 
-__s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t * pos)
+__s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t *pos)
 {
 	__u32 tmp;
 
@@ -43,7 +43,7 @@ __s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t * pos)
 	return 0;
 }
 
-__s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t * pos)
+__s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t *pos)
 {
 	__u32 readval;
 
@@ -72,7 +72,7 @@ __s32 DE_BE_HWC_Set_Palette(__u32 sel, __u32 address, __u32 offset, __u32 size)
 	return 0;
 }
 
-__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t * hwc_pat)
+__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t *hwc_pat)
 {
 	__u32 tmp;
 	__u32 x_size = 0, y_size = 0, pixel_fmt = 0;

@@ -9,13 +9,11 @@
 #error IEP should only be used on sun5i
 #endif
 
-extern __u32 g_clk_status;
-
 static __hdle h_iepahbclk, h_iepdramclk, h_iepmclk;
 static __disp_iep_t giep[2]; /* IEP module parameters */
 static __disp_pwrsv_t gpwrsv[2]; /* Power Saving algorithm parameters */
 static __u32 *pttab; /* POINTER of LGC tab */
-static __u32 printf_cnt = 0; /* for test */
+static __u32 printf_cnt; /* for test */
 
 /* power save core */
 #define SCENE_CHNG_THR 45
@@ -43,7 +41,7 @@ static __u32 printf_cnt = 0; /* for test */
 *  - Add HANG-UP DETECT: When use PWRSAVE_CORE in LOW referential backlight
 * condiction, backlight will flicker. So STOP use PWRSAVE_CORE.
 */
-static __inline __s32 PWRSAVE_CORE(__u32 sel)
+static inline __s32 PWRSAVE_CORE(__u32 sel)
 {
 	__u32 i;
 	__u32 hist_region_num = 8;
@@ -74,16 +72,15 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 		/* read histogram result */
 		DE_IEP_Lh_Get_Cnt_Rec(sel, histcnt);
 
-		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++) {
+		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++)
 			size += histcnt[i];
-		}
+
 		size = (size == 0) ? 1 : size;
 
 		/* calculate some var */
 		hist[0] = (histcnt[0] * 100) / size;
-		for (i = 1; i < hist_region_num; i++) {
+		for (i = 1; i < hist_region_num; i++)
 			hist[i] = (histcnt[i] * 100) / size + hist[i - 1];
-		}
 
 		for (i = 0; i < hist_region_num; i++) {
 			if (hist[i] >= 95) {
@@ -181,11 +178,11 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en)
 {
 	if (sel == 0) {
-		if (en) {
+		if (en)
 			gdisp.screen[sel].iep_status |= DRC_REQUIRED;
-		} else {
+		else
 			gdisp.screen[sel].iep_status &= ~DRC_REQUIRED;
-		}
+
 		Disp_drc_enable(sel, en);
 		return DIS_SUCCESS;
 	} else {
@@ -221,11 +218,11 @@ __s32 BSP_disp_iep_get_drc_enable(__u32 sel)
 __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en)
 {
 	if (sel == 0) {
-		if (en) {
+		if (en)
 			gdisp.screen[sel].iep_status |= DE_FLICKER_REQUIRED;
-		} else {
+		else
 			gdisp.screen[sel].iep_status &= ~DE_FLICKER_REQUIRED;
-		}
+
 		Disp_de_flicker_enable(sel, en);
 		return DIS_SUCCESS;
 	} else {
@@ -239,17 +236,16 @@ __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel)
 	__u32 ret;
 
 	if (sel == 0) {
-		if (gdisp.screen[sel].iep_status & DE_FLICKER_USED) {
+		if (gdisp.screen[sel].iep_status & DE_FLICKER_USED)
 			/* used (ON) */
 			ret = 1;
-		} else if (!(gdisp.screen[sel].iep_status & DE_FLICKER_USED) &&
+		else if (!(gdisp.screen[sel].iep_status & DE_FLICKER_USED) &&
 			   (gdisp.screen[sel].iep_status &
-			    DE_FLICKER_REQUIRED)) {
+			    DE_FLICKER_REQUIRED))
 			/* required but not used(ON) */
 			ret = 2;
-		} else { /* not required and not used (OFF) */
+		else /* not required and not used (OFF) */
 			ret = 0;
-		}
 
 		return ret;
 	} else {
@@ -257,7 +253,7 @@ __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel)
 	}
 }
 
-__s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t * regn)
+__s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *regn)
 {
 	__u32 scn_width, scn_height;
 
@@ -303,56 +299,51 @@ __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t * regn)
  */
 __s32 Disp_drc_enable(__u32 sel, __u32 en)
 {
-	if (sel == 0) {
-		switch (en) {
-		case 0:
+	if (sel)
+		return -1;
 
-			if (gdisp.screen[sel].iep_status & DRC_USED) {
-				gdisp.screen[sel].iep_status |= DRC_NEED_CLOSED;
-			} else {
-				DE_INF("de: DRC hasn't opened yet !\n");
-			}
-			break;
+	switch (en) {
+	case 0:
+		if (gdisp.screen[sel].iep_status & DRC_USED)
+			gdisp.screen[sel].iep_status |= DRC_NEED_CLOSED;
+		else
+			DE_INF("de: DRC hasn't opened yet !\n");
+		break;
 
-		case 1:
-			if (gdisp.screen[sel].iep_status & DRC_REQUIRED) {
-				if ((gdisp.screen[sel].output_type ==
-				     DISP_OUTPUT_TYPE_LCD) &&
-				    (gdisp.screen[sel].status & LCD_ON)) {
-					if (!
-					    (gdisp.screen[sel].
-					     iep_status & DRC_USED)) {
-						Disp_drc_init(sel);
-						gdisp.screen[sel].iep_status |=
-						    DRC_USED;
-						DE_INF("de: DRC open now!\n");
-					} else {
-						DE_INF("de: DRC has already "
-						       "opened before !\n");
-					}
+	case 1:
+		if (gdisp.screen[sel].iep_status & DRC_REQUIRED) {
+			if ((gdisp.screen[sel].output_type ==
+			     DISP_OUTPUT_TYPE_LCD) &&
+			    (gdisp.screen[sel].status & LCD_ON)) {
+				if (!(gdisp.screen[sel].iep_status &
+				      DRC_USED)) {
+					Disp_drc_init(sel);
+					gdisp.screen[sel].iep_status |=
+						DRC_USED;
+					DE_INF("de: DRC open now!\n");
 				} else {
-					DE_INF("de: Will OPEN DRC when output "
-					       "to LCD !\n");
+					DE_INF("de: DRC has already opened "
+					       "before!\n");
 				}
 			} else {
-				DE_INF("de: Run DISP_CMD_DRC_ON will open "
-				       "DRC!\n");
+				DE_INF("de: Will OPEN DRC when output to "
+				       "LCD!\n");
 			}
-			break;
-
-		case 2:
-			if (gdisp.screen[sel].iep_status & DRC_USED) {
-				Disp_drc_close_proc(sel, 0);
-			} else {
-				DE_INF("de: DRC hasn't opened yet !\n");
-			}
-			break;
-
+		} else {
+			DE_INF("de: Run DISP_CMD_DRC_ON will open DRC!\n");
 		}
-		return 0;
-	} else {
-		return -1;
+		break;
+
+	case 2:
+		if (gdisp.screen[sel].iep_status & DRC_USED)
+			Disp_drc_close_proc(sel, 0);
+		else
+			DE_INF("de: DRC hasn't opened yet !\n");
+
+		break;
 	}
+
+	return 0;
 }
 
 __s32 Disp_drc_init(__u32 sel)
@@ -422,9 +413,11 @@ __s32 Disp_drc_init(__u32 sel)
 	}
 }
 
-//en : 0-close when vbi
-//en : 1- open when vbi
-//en : 2-close immediately
+/*
+ * en : 0-close when vbi
+ * en : 1- open when vbi
+ * en : 2-close immediately
+ */
 __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 {
 	__disp_tv_mode_t tv_mode;
@@ -476,7 +469,7 @@ __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 				      DE_FLICKER_USED)) {
 					BSP_disp_cfg_start(sel);
 
-					//config defe to fit de-flicker
+					/* config defe to fit de-flicker */
 					for (scaler_index = 0;
 					     scaler_index < 2;
 					     scaler_index++) {
@@ -593,13 +586,11 @@ __s32 iep_clk_exit(__u32 sel)
 {
 	OSAL_CCMU_MclkReset(h_iepmclk, RST_VALID);
 
-	if (g_clk_status & CLK_IEP_DRAM_ON) {
+	if (g_clk_status & CLK_IEP_DRAM_ON)
 		OSAL_CCMU_MclkOnOff(h_iepdramclk, CLK_OFF);
-	}
 
-	if (g_clk_status & CLK_IEP_MOD_ON) {
+	if (g_clk_status & CLK_IEP_MOD_ON)
 		OSAL_CCMU_MclkOnOff(h_iepmclk, CLK_OFF);
-	}
 
 	OSAL_CCMU_MclkOnOff(h_iepahbclk, CLK_OFF);
 

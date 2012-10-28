@@ -33,7 +33,7 @@
 
 __disp_dev_t gdisp;
 
-__s32 BSP_disp_init(__disp_bsp_init_para * para)
+__s32 BSP_disp_init(__disp_bsp_init_para *para)
 {
 	__u32 i = 0, screen_id = 0;
 
@@ -41,10 +41,10 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
 
 	for (screen_id = 0; screen_id < 2; screen_id++) {
 		gdisp.screen[screen_id].max_layers = 4;
-		for (i = 0; i < gdisp.screen[screen_id].max_layers; i++) {
+		for (i = 0; i < gdisp.screen[screen_id].max_layers; i++)
 			gdisp.screen[screen_id].layer_manage[i].para.prio =
 			    IDLE_PRIO;
-		}
+
 		gdisp.screen[screen_id].image_output_type = IMAGE_OUTPUT_LCDC;
 
 		gdisp.screen[screen_id].bright = 50;
@@ -161,9 +161,9 @@ __s32 BSP_disp_close(void)
 
 	for (sel = 0; sel < 2; sel++) {
 		Image_close(sel);
-		if (gdisp.scaler[sel].status & SCALER_USED) {
+		if (gdisp.scaler[sel].status & SCALER_USED)
 			Scaler_close(sel);
-		}
+
 		if (gdisp.screen[sel].lcdc_status & LCDC_TCON0_USED) {
 			TCON0_close(sel);
 			LCDC_close(sel);
@@ -265,11 +265,10 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 		return DIS_FAIL;
 	}
 
-	if (b_force_on) {
+	if (b_force_on)
 		DE_WRN("%s", str);
-	} else {
+	else
 		DE_INF("%s", str);
-	}
 
 	for (i = 0; i < size; i += 16) {
 		__u32 reg[4];
@@ -279,13 +278,12 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 		reg[2] = sys_get_wvalue(base + i + 8);
 		reg[3] = sys_get_wvalue(base + i + 12);
 
-		if (b_force_on) {
+		if (b_force_on)
 			DE_WRN("0x%08x:%08x,%08x:%08x,%08x\n", base + i,
 			       reg[0], reg[1], reg[2], reg[3]);
-		} else {
+		else
 			DE_INF("0x%08x:%08x,%08x:%08x,%08x\n", base + i, reg[0],
 			       reg[1], reg[2], reg[3]);
-		}
 	}
 
 	return DIS_SUCCESS;

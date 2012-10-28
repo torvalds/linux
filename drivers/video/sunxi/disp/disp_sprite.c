@@ -39,23 +39,21 @@ static __s32 Sprite_Get_Idle_Block_id(__u32 sel)
 
 static __s32 Sprite_Id_To_Hid(__u32 sel, __s32 id)
 {
-	if (id == -1) {
+	if (id == -1)
 		return 0;
-	} else {
+	else
 		return gsprite[sel].sprite_hid[id];
-	}
 }
 
 static __s32 Sprite_Hid_To_Id(__u32 sel, __s32 hid)
 {
-	if (hid == 0) {
+	if (hid == 0)
 		return -1;
-	} else {
+	else {
 		__s32 i = 0;
 		for (i = 0; i < MAX_SPRITE_BLOCKS; i++) {
-			if (gsprite[sel].sprite_hid[i] == hid) {
+			if (gsprite[sel].sprite_hid[i] == hid)
 				return i;
-			}
 		}
 		return -1;
 	}
@@ -64,7 +62,7 @@ static __s32 Sprite_Hid_To_Id(__u32 sel, __s32 hid)
 /*
  * With this premise: prev, next must be there, otherwise collapse.
  */
-static __inline void ___list_add(list_head_t *node, list_head_t *prev,
+static inline void ___list_add(list_head_t *node, list_head_t *prev,
 				 list_head_t *next)
 {
 	node->next = next;
@@ -76,19 +74,18 @@ static __inline void ___list_add(list_head_t *node, list_head_t *prev,
 /*
  * Node is added to the list of the last surface, also both front
  */
-static __inline void list_add_node_tail(list_head_t *node, list_head_t **head)
+static inline void list_add_node_tail(list_head_t *node, list_head_t **head)
 {
-	if (*head == NULL) {
+	if (*head == NULL)
 		*head = node;
-	} else {
+	else
 		___list_add(node, (*head)->prev, *head);
-	}
 }
 
 /*
  * Delete the entry from the list in
  */
-static __inline void list_del_node(list_head_t *entry)
+static inline void list_del_node(list_head_t *entry)
 {
 	entry->prev->next = entry->next;
 	entry->next->prev = entry->prev;
@@ -99,11 +96,11 @@ static __inline void list_del_node(list_head_t *entry)
 /*
  * Internal function, the release space of the node
  */
-static __inline void list_free_node(list_head_t *node)
+static inline void list_free_node(list_head_t *node)
 {
 	if (node != NULL) {
-		vfree((void *)(node->data));
-		vfree((void *)node);
+		vfree((void *) node->data);
+		vfree((void *) node);
 		node = NULL;
 	}
 }
@@ -171,12 +168,11 @@ static list_head_t *List_Find_Sprite_Block(__u32 sel, __s32 id)
 
 	if (guard != NULL) {
 		do {
-			if (guard->data->id == id) {
+			if (guard->data->id == id)
 				return guard;
-			}
+
 			guard = guard->next;
-		}
-		while (guard != gsprite[sel].header);
+		} while (guard != gsprite[sel].header);
 	}
 
 	return NULL;
@@ -218,9 +214,8 @@ static list_head_t *List_Delete_Sprite_Block(__u32 sel, list_head_t *node)
 		list_del_node(node);
 
 		return node;
-	} else {
+	} else
 		return NULL;
-	}
 }
 
 /*
@@ -264,9 +259,9 @@ static __s32 List_Assert_Sprite_Block(__u32 sel, list_head_t *dst_node,
 		gsprite[sel].header = node;
 
 		dst_node = next_node->prev;
-	} else {
+	} else
 		next_node = dst_node->next;
-	}
+
 	___list_add(node, dst_node, next_node);
 
 	return DIS_SUCCESS;
@@ -274,20 +269,18 @@ static __s32 List_Assert_Sprite_Block(__u32 sel, list_head_t *dst_node,
 
 static __s32 List_Get_First_Sprite_Block_Id(__u32 sel)
 {
-	if (gsprite[sel].header == NULL) {
+	if (gsprite[sel].header == NULL)
 		return -1;
-	} else {
+	else
 		return gsprite[sel].header->data->id;
-	}
 }
 
 static __s32 List_Get_Last_Sprite_Block_Id(__u32 sel)
 {
-	if (gsprite[sel].header == NULL) {
+	if (gsprite[sel].header == NULL)
 		return -1;
-	} else {
+	else
 		return gsprite[sel].header->prev->data->id;
-	}
 }
 
 static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id,
@@ -297,9 +290,9 @@ static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id,
 
 	bpp = de_format_to_bpp(gsprite[sel].format);
 
-	addr =
-	    DE_BE_Offset_To_Addr((__u32) para->fb.addr[0], para->fb.size.width,
-				 para->src_win.x, para->src_win.y, bpp);
+	addr = DE_BE_Offset_To_Addr((__u32) para->fb.addr[0],
+				    para->fb.size.width,
+				    para->src_win.x, para->src_win.y, bpp);
 	DE_BE_Sprite_Block_Set_fb(sel, id, addr,
 				  para->fb.size.width * (bpp >> 3));
 	DE_BE_Sprite_Block_Set_Pos(sel, id, para->scn_win.x, para->scn_win.y);
@@ -414,7 +407,7 @@ __s32 BSP_disp_sprite_set_format(__u32 sel, __disp_pixel_fmt_t format,
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_sprite_set_palette_table(__u32 sel, __u32 * buffer, __u32 offset,
+__s32 BSP_disp_sprite_set_palette_table(__u32 sel, __u32 *buffer, __u32 offset,
 					__u32 size)
 {
 	if ((buffer == NULL) || ((offset + size) > 1024)) {
@@ -442,31 +435,27 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid, __s32 dst_hid)
 	if ((gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) &&
 	    (dst_id == -1 ||
 	     (gsprite[sel].block_status[dst_id] & SPRITE_BLOCK_USED))) {
-		if (id == dst_id) { /* same block,not need to move */
+		if (id == dst_id) /* same block,not need to move */
 			return DIS_SUCCESS;
-		}
+
 		if (dst_id != -1) {
 			dst_node = List_Find_Sprite_Block(sel, dst_id);
 			/* it is the order,not need to move */
-			if (dst_node->next->data->id == id && id != 0) {
+			if (dst_node->next->data->id == id && id != 0)
 				return DIS_SUCCESS;
-			}
-		} else {
+		} else
 			dst_node = NULL;
-		}
 
 		node = List_Find_Sprite_Block(sel, id);
-		if (id == 0) { /* the block is the first block */
+		if (id == 0) /* the block is the first block */
 			chg_node0 = node->next;
-		} else {
+		else
 			chg_node0 = node->prev;
-		}
 
-		if (dst_id == -1) { /* move to the front of the list */
+		if (dst_id == -1) /* move to the front of the list */
 			chg_node1 = gsprite[sel].header;
-		} else {
+		else
 			chg_node1 = List_Find_Sprite_Block(sel, dst_id);
-		}
 
 		List_Delete_Sprite_Block(sel, node);
 		List_Assert_Sprite_Block(sel, dst_node, node);
@@ -477,9 +466,9 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid, __s32 dst_hid)
 		para.src_win.y = node->data->src_win.y;
 		memcpy(&para.scn_win, &node->data->scn_win,
 		       sizeof(__disp_rect_t));
-		if (node->data->enable == FALSE) {
+		if (node->data->enable == FALSE)
 			para.scn_win.y = -2000;
-		}
+
 		sprite_set_sprite_block_para(sel, node->data->id,
 					     node->next->data->id, &para);
 
@@ -489,9 +478,9 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid, __s32 dst_hid)
 		para.src_win.y = chg_node0->data->src_win.y;
 		memcpy(&para.scn_win, &chg_node0->data->scn_win,
 		       sizeof(__disp_rect_t));
-		if (chg_node0->data->enable == FALSE) {
+		if (chg_node0->data->enable == FALSE)
 			para.scn_win.y = -2000;
-		}
+
 		sprite_set_sprite_block_para(sel, chg_node0->data->id,
 					     chg_node0->next->data->id, &para);
 
@@ -501,9 +490,9 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid, __s32 dst_hid)
 		para.src_win.y = chg_node1->data->src_win.y;
 		memcpy(&para.scn_win, &chg_node1->data->scn_win,
 		       sizeof(__disp_rect_t));
-		if (chg_node1->data->enable == FALSE) {
+		if (chg_node1->data->enable == FALSE)
 			para.scn_win.y = -2000;
-		}
+
 		sprite_set_sprite_block_para(sel, chg_node1->data->id,
 					     chg_node1->next->data->id, &para);
 
@@ -563,9 +552,8 @@ BSP_disp_sprite_block_request(__u32 sel, __disp_sprite_block_para_t *para)
 	}
 
 	node = List_Add_Sprite_Block(sel, para);
-	if (node == NULL) {
+	if (node == NULL)
 		return (__s32) NULL;
-	}
 
 	id = node->data->id;
 	node->data->address = (__u32) para->fb.addr[0];
@@ -628,11 +616,11 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			para.src_win.x = next_node->data->src_win.x;
 			para.src_win.y = next_node->data->src_win.y;
 			para.scn_win.x = next_node->data->scn_win.x;
-			if (next_node->data->enable == FALSE) {
+			if (next_node->data->enable == FALSE)
 				para.scn_win.y = -2000;
-			} else {
+			else
 				para.scn_win.y = next_node->data->scn_win.y;
-			}
+
 			para.scn_win.width = next_node->data->scn_win.width;
 			para.scn_win.height = next_node->data->scn_win.height;
 			sprite_set_sprite_block_para(sel, 0,
@@ -656,11 +644,11 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			para.src_win.x = pre_node->data->src_win.x;
 			para.src_win.y = pre_node->data->src_win.y;
 			para.scn_win.x = pre_node->data->scn_win.x;
-			if (node->data->enable == FALSE) {
+			if (node->data->enable == FALSE)
 				para.scn_win.y = -2000;
-			} else {
+			else
 				para.scn_win.y = pre_node->data->scn_win.y;
-			}
+
 			para.scn_win.width = pre_node->data->scn_win.width;
 			para.scn_win.height = pre_node->data->scn_win.height;
 			sprite_set_sprite_block_para(sel, pre_id, next_id,
@@ -690,7 +678,7 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
  * setting srceen window(x,y,width,height)
  */
 __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid,
-					   __disp_rect_t * scn_win)
+					   __disp_rect_t *scn_win)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -716,18 +704,17 @@ __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid,
 		}
 
 		node = List_Find_Sprite_Block(sel, id);
-		if (node == NULL) {
+		if (node == NULL)
 			return DIS_PARA_FAILED;
-		}
 
 		cur_scn.x = scn_win->x;
 		cur_scn.y = scn_win->y;
 		cur_scn.width = scn_win->width;
 		cur_scn.height = scn_win->height;
 
-		if (node->data->enable == FALSE) {
+		if (node->data->enable == FALSE)
 			cur_scn.y = -2000;
-		}
+
 		DE_BE_Sprite_Block_Set_Pos(sel, id, cur_scn.x, cur_scn.y);
 		DE_BE_Sprite_Block_Set_Size(sel, id, cur_scn.width,
 					    cur_scn.height);
@@ -744,7 +731,7 @@ __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid,
 }
 
 __s32 BSP_disp_sprite_block_get_srceen_win(__u32 sel, __s32 hid,
-					   __disp_rect_t * scn_win)
+					   __disp_rect_t *scn_win)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -768,7 +755,7 @@ __s32 BSP_disp_sprite_block_get_srceen_win(__u32 sel, __s32 hid,
  * setting source x/y offset
  */
 __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid,
-					__disp_rect_t * src_win)
+					__disp_rect_t *src_win)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -797,7 +784,7 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid,
 }
 
 __s32 BSP_disp_sprite_block_get_src_win(__u32 sel, __s32 hid,
-					__disp_rect_t * src_win)
+					__disp_rect_t *src_win)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -821,7 +808,7 @@ __s32 BSP_disp_sprite_block_get_src_win(__u32 sel, __s32 hid,
  * setting fb address,fb width,fb height;keep the source x/y offset
  */
 __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid,
-					    __disp_fb_t * fb)
+					    __disp_fb_t *fb)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -851,7 +838,7 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid,
 }
 
 __s32 BSP_disp_sprite_block_get_framebufer(__u32 sel, __s32 hid,
-					   __disp_fb_t * fb)
+					   __disp_fb_t *fb)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -876,7 +863,7 @@ __s32 BSP_disp_sprite_block_get_framebufer(__u32 sel, __s32 hid,
  * setting fb address,fb width,fb height,source x/y offset,screen window
  */
 __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,
-				     __disp_sprite_block_para_t * para)
+				     __disp_sprite_block_para_t *para)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -887,9 +874,8 @@ __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,
 		node = List_Find_Sprite_Block(sel, id);
 
 		memcpy(&cur_para, para, sizeof(__disp_sprite_block_para_t));
-		if (node->data->enable == FALSE) {
+		if (node->data->enable == FALSE)
 			cur_para.scn_win.y = -2000;
-		}
 
 		sprite_set_sprite_block_para(sel, id, node->next->data->id,
 					     &cur_para);
@@ -904,13 +890,12 @@ __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,
 		node->data->scn_win.width = para->scn_win.width;
 		node->data->scn_win.height = para->scn_win.height;
 		return DIS_SUCCESS;
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,
-				     __disp_sprite_block_para_t * para)
+				     __disp_sprite_block_para_t *para)
 {
 	__s32 id = 0;
 	list_head_t *node = NULL;
@@ -933,9 +918,8 @@ __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,
 		para->scn_win.height = node->data->scn_win.height;
 
 		return DIS_SUCCESS;
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_set_top(__u32 sel, __u32 hid)
@@ -960,14 +944,13 @@ __s32 BSP_disp_sprite_block_get_pre_block(__u32 sel, __u32 hid)
 
 	if (gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) {
 		node = List_Find_Sprite_Block(sel, id);
-		if (node == gsprite[sel].header)	//the block is the first
-		{
+		/* the block is the first */
+		if (node == gsprite[sel].header)
 			return 0;
-		}
+
 		return Sprite_Id_To_Hid(sel, node->prev->data->id);
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_get_next_block(__u32 sel, __u32 hid)
@@ -979,14 +962,13 @@ __s32 BSP_disp_sprite_block_get_next_block(__u32 sel, __u32 hid)
 
 	if (gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) {
 		node = List_Find_Sprite_Block(sel, id);
-		if (node == gsprite[sel].header->prev)	//the block is the last
-		{
+		/* the block is the last */
+		if (node == gsprite[sel].header->prev)
 			return 0;
-		}
+
 		return Sprite_Id_To_Hid(sel, node->next->data->id);
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_get_prio(__u32 sel, __u32 hid)
@@ -1001,17 +983,16 @@ __s32 BSP_disp_sprite_block_get_prio(__u32 sel, __u32 hid)
 		guard = gsprite[sel].header;
 		if (guard != NULL) {
 			do {
-				if (guard->data->id == id) {
+				if (guard->data->id == id)
 					return prio;
-				}
+
 				guard = guard->next;
 				prio++;
 			} while (guard != gsprite[sel].header);
 		}
 		return DIS_FAIL;
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_open(__u32 sel, __u32 hid)
@@ -1033,9 +1014,8 @@ __s32 BSP_disp_sprite_block_open(__u32 sel, __u32 hid)
 		}
 		gsprite[sel].block_status[id] |= SPRITE_BLOCK_OPENED;
 		return DIS_SUCCESS;
-	} else {
+	} else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_sprite_block_close(__u32 sel, __u32 hid)

@@ -98,9 +98,9 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 
 		TCON1_set_hdmi_mode(sel, tv_mod);
 		TCON1_open(sel);
-		if (gdisp.init_para.Hdmi_open) {
+		if (gdisp.init_para.Hdmi_open)
 			gdisp.init_para.Hdmi_open();
-		} else {
+		else {
 			DE_WRN("Hdmi_open is NULL\n");
 			return -1;
 		}
@@ -238,7 +238,7 @@ __s32 BSP_disp_hdmi_set_src(__u32 sel, __disp_lcdc_src_t src)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_set_hdmi_func(__disp_hdmi_func * func)
+__s32 BSP_disp_set_hdmi_func(__disp_hdmi_func *func)
 {
 	gdisp.init_para.Hdmi_open = func->Hdmi_open;
 	gdisp.init_para.Hdmi_close = func->Hdmi_close;

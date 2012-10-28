@@ -71,8 +71,6 @@ __u32 g_clk_status;
 
 #define RESET_OSAL
 
-extern __disp_dev_t gdisp;
-
 /* record tv/vga/hdmi mode clock requirement */
 __disp_clk_tab clk_tab = {
 	/* { LCDx_CH1_CLK2, CLK2/CLK1, HDMI_CLK, PLL_CLK, PLLX2 req}, MODE, INDEX (FOLLOW enum order) */
@@ -140,11 +138,11 @@ __s32 image_clk_init(__u32 sel)
 		OSAL_CCMU_SetMclkSrc(h_debe0mclk, AW_SYS_CLK_PLL5P);
 
 		dram_pll = OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL5P);
-		if (dram_pll < 300000000) {
+		if (dram_pll < 300000000)
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 1);
-		} else {
+		else
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
-		}
+
 		OSAL_CCMU_MclkOnOff(h_debe0ahbclk, CLK_ON);
 #ifdef CONFIG_ARCH_SUN4I
 		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
@@ -165,11 +163,10 @@ __s32 image_clk_init(__u32 sel)
 		OSAL_CCMU_SetMclkSrc(h_debe1mclk, AW_SYS_CLK_PLL5P);
 
 		dram_pll = OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL5P);
-		if (dram_pll < 300000000) {
+		if (dram_pll < 300000000)
 			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 1);
-		} else {
+		else
 			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 2);
-		}
 
 		OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_ON);
 #ifdef CONFIG_ARCH_SUN4I
@@ -655,7 +652,7 @@ __s32 disp_pll_init(void)
  * 2. support all lvds panels, when pll can't reach  (pixel clk x7),
  *    set pll to 381MHz(pllx1), which will depress the frame rate.
  */
-static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 * divider)
+static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t *info, __u32 *divider)
 {
 	__u32 lcd_dclk_freq; /* Hz */
 	__s32 pll_freq = -1;
@@ -676,25 +673,24 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 * divider)
 	} else if (info->lcd_if == 3) {	/* lvds panel */
 		__u32 clk_max;
 
-		if (!sunxi_is_version_A()) {
+		if (!sunxi_is_version_A())
 			clk_max = 150000000;
-		} else {
+		else
 			/*
 			 * pixel clock can't be larger than 108MHz,
 			 * limited by Video pll frequency
 			 */
 			clk_max = 108000000;
-		}
-		if (lcd_dclk_freq > clk_max) {
+
+		if (lcd_dclk_freq > clk_max)
 			lcd_dclk_freq = clk_max;
-		}
+
 
 		if (lcd_dclk_freq > 4000000) { /* pixel clk */
 			pll_freq = lcd_dclk_freq * 7;
 			*divider = 7;
-		} else {
+		} else
 			return -1;
-		}
 	}
 	return pll_freq;
 }
@@ -732,30 +728,26 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 
 	if (pll_clk >= 250000000 && pll_clk <= 300000000) {
 		if ((!(another_pll_use_status & VIDEO_PLL1_USED)) ||
-		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk)) {
+		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk))
 			ret = 1;
-		} else if ((!(another_pll_use_status & VIDEO_PLL0_USED)) ||
-			   (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk)) {
+		else if ((!(another_pll_use_status & VIDEO_PLL0_USED)) ||
+			 (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk))
 			ret = 0;
-		}
 	} else if (pll_clk <= (381000000 * 2)) {
 		if ((!(another_pll_use_status & VIDEO_PLL0_USED)) ||
-		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk)) {
+		    (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL3) == pll_clk))
 			ret = 0;
-		} else if ((!(another_pll_use_status & VIDEO_PLL1_USED)) ||
-			   (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk)) {
+		else if ((!(another_pll_use_status & VIDEO_PLL1_USED)) ||
+			 (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk))
 			ret = 1;
-		}
 	} else if (pll_clk <= 1200000000) {
-		if (!sunxi_is_version_A()) {
+		if (!sunxi_is_version_A())
 			ret = 2; /* sata pll */
-		}
 	}
 
-	if (ret == -1) {
+	if (ret == -1)
 		DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n", sel,
 		       pll_clk);
-	}
 
 	DE_INF("====disp_pll_assign====: sel:%d,pll_clk:%d,pll_sel:%d\n", sel,
 	       pll_clk, ret);
@@ -767,12 +759,11 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 {
 	__s32 ret = -1;
 
-	if (pll_clk <= (381000000 * 2)) {
+	if (pll_clk <= (381000000 * 2))
 		ret = 0;
-	} else {
+	else
 		DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n", sel,
 		       pll_clk);
-	}
 
 	return ret;
 }
@@ -811,9 +802,8 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 #endif
 		} else { /* video pll0 or video pll1 */
 			pll_2x_req = (pll_freq > 381000000) ? 1 : 0;
-			if (pll_2x_req) {
+			if (pll_2x_req)
 				pll_freq /= 2;
-			}
 
 			/* in 3M unit */
 			pll_freq = (pll_freq + 1500000) / 3000000;
@@ -822,10 +812,9 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 			videopll = (videopll_sel == 0) ?
 				AW_SYS_CLK_PLL3 : AW_SYS_CLK_PLL7;
 			OSAL_CCMU_SetSrcFreq(videopll, pll_freq);
-			if (pll_2x_req) {
+			if (pll_2x_req)
 				videopll = (videopll == AW_SYS_CLK_PLL3) ?
 					AW_SYS_CLK_PLL3X2 : AW_SYS_CLK_PLL7X2;
-			}
 		}
 
 		if (gpanel_info[sel].tcon_index == 0) {
@@ -881,17 +870,15 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 
 			if (gdisp.init_para.hdmi_set_pll != NULL) {
 				if ((videopll == AW_SYS_CLK_PLL3X2) ||
-				    (videopll == AW_SYS_CLK_PLL3)) {
+				    (videopll == AW_SYS_CLK_PLL3))
 					gdisp.init_para.hdmi_set_pll(0,
 								     pll_freq);
-				} else {
+				else
 					gdisp.init_para.hdmi_set_pll(1,
 								     pll_freq);
-				}
-			} else {
+			} else
 				DE_WRN("gdisp.init_para.hdmi_set_pll is "
 				       "NULL\n");
-			}
 		}
 	}
 
@@ -922,24 +909,23 @@ __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 		pll_2x = clk_tab.vga_clk_tab[mode].pll_2x;
 	} else if (type == DISP_OUTPUT_TYPE_LCD) {
 		pll_freq =
-		    LCD_PLL_Calc(sel, (__panel_para_t *) & gpanel_info[sel],
+		    LCD_PLL_Calc(sel, (__panel_para_t *) &gpanel_info[sel],
 				 &lcd_clk_div);
 		pre_scale = 1;
 	} else {
 		return DIS_SUCCESS;
 	}
 
-	if ((videopll_sel = disp_pll_assign(sel, pll_freq)) == -1) {
+	videopll_sel = disp_pll_assign(sel, pll_freq);
+	if (videopll_sel == -1)
 		return DIS_FAIL;
-	}
 
 	disp_pll_set(sel, videopll_sel, pll_freq, tve_freq, pre_scale,
 		     lcd_clk_div, hdmi_freq, pll_2x, type);
-	if (videopll_sel == 0) {
+	if (videopll_sel == 0)
 		gdisp.screen[sel].pll_use_status |= VIDEO_PLL0_USED;
-	} else if (videopll_sel == 1) {
+	else if (videopll_sel == 1)
 		gdisp.screen[sel].pll_use_status |= VIDEO_PLL1_USED;
-	}
 
 	return DIS_SUCCESS;
 }
@@ -953,89 +939,84 @@ __s32 BSP_disp_clk_on(__u32 type)
 {
 	if (type & 1) {
 		/* AHB CLK */
-		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON) {
+		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0ahbclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEFE1_AHB_ON) == CLK_DEFE1_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_AHB_ON) == CLK_DEFE1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1ahbclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEBE0_AHB_ON) == CLK_DEBE0_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEBE0_AHB_ON) == CLK_DEBE0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0ahbclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_ON);
-		}
 
 		// OK?? REG wont clear?
-		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON) {
+		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd0ahbclk, CLK_ON);
-		}
 
 		// OK?? REG wont clear?
-		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON) {
+		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd1ahbclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON) {
+
+		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_ON);
-		}
+
 		//OSAL_CCMU_MclkOnOff(h_tveahbclk, CLK_ON);
 
 		/* MODULE CLK */
-		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1mclk, CLK_ON);
-		}
 	}
 
 	if (type & 2) {
 		/* DRAM CLK */
-		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON) {
+		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0dramclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEFE1_DRAM_ON) == CLK_DEFE1_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_DRAM_ON) == CLK_DEFE1_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1dramclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEBE0_DRAM_ON) == CLK_DEBE0_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEBE0_DRAM_ON) == CLK_DEBE0_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_ON);
-		}
+
 		/* MODULE CLK */
-		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0mclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_DEFE1_MOD_ON) == CLK_DEFE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_MOD_ON) == CLK_DEFE1_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1mclk, CLK_ON);
-		}
-		if ((g_clk_status & CLK_LCDC0_MOD0_ON) == CLK_LCDC0_MOD0_ON) {
+
+		if ((g_clk_status & CLK_LCDC0_MOD0_ON) == CLK_LCDC0_MOD0_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd0ch0mclk0, CLK_ON);
-		}
+
 		if ((g_clk_status & CLK_LCDC0_MOD1_ON) == CLK_LCDC0_MOD1_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk1, CLK_ON);
 			OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk2, CLK_ON);
 		}
-		if ((g_clk_status & CLK_LCDC1_MOD0_ON) == CLK_LCDC1_MOD0_ON) {
+		if ((g_clk_status & CLK_LCDC1_MOD0_ON) == CLK_LCDC1_MOD0_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd1ch0mclk0, CLK_ON);
-		}
+
 		if ((g_clk_status & CLK_LCDC1_MOD1_ON) == CLK_LCDC1_MOD1_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_ON);
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_ON);
 		}
-		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON) {
+		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
-		}
 	}
 
 	if (type == 2) {
-		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON)
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
-		}
-		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON)
 			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 2);
-		}
 	}
 
 	return DIS_SUCCESS;
@@ -1050,90 +1031,84 @@ __s32 BSP_disp_clk_off(__u32 type)
 {
 	if (type & 1) {
 		/* AHB CLK */
-		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON) {
+		if ((g_clk_status & CLK_DEFE0_AHB_ON) == CLK_DEFE0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0ahbclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEFE1_AHB_ON) == CLK_DEFE1_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_AHB_ON) == CLK_DEFE1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1ahbclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEBE0_AHB_ON) == CLK_DEBE0_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEBE0_AHB_ON) == CLK_DEBE0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0ahbclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_AHB_ON) == CLK_DEBE1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_OFF);
-		}
 
 		//OK?? REG wont clear?
-		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON) {
+		if ((g_clk_status & CLK_LCDC0_AHB_ON) == CLK_LCDC0_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd0ahbclk, CLK_OFF);
-		}
 
 		//OK?? REG wont clear?
-		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON) {
+		if ((g_clk_status & CLK_LCDC1_AHB_ON) == CLK_LCDC1_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd1ahbclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON) {
+
+		if ((g_clk_status & CLK_HDMI_AHB_ON) == CLK_HDMI_AHB_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_OFF);
-		}
+
 		//OSAL_CCMU_MclkOnOff(h_tveahbclk, CLK_OFF);
 
 		/* MODULE CLK */
-		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1mclk, CLK_OFF);
-		}
 	}
 
 	if (type & 2) {
 		/* DRAM CLK */
-		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON) {
+		if ((g_clk_status & CLK_DEFE0_DRAM_ON) == CLK_DEFE0_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0dramclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEFE1_DRAM_ON) == CLK_DEFE1_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_DRAM_ON) == CLK_DEFE1_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1dramclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEBE0_DRAM_ON) == CLK_DEBE0_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEBE0_DRAM_ON) == CLK_DEBE0_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_DRAM_ON) == CLK_DEBE1_DRAM_ON)
 			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
-		}
 
 		/* MODULE CLK */
-		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEFE0_MOD_ON) == CLK_DEFE0_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_defe0mclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_DEFE1_MOD_ON) == CLK_DEFE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEFE1_MOD_ON) == CLK_DEFE1_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_defe1mclk, CLK_OFF);
-		}
-		if ((g_clk_status & CLK_LCDC0_MOD0_ON) == CLK_LCDC0_MOD0_ON) {
+
+		if ((g_clk_status & CLK_LCDC0_MOD0_ON) == CLK_LCDC0_MOD0_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd0ch0mclk0, CLK_OFF);
-		}
+
 		if ((g_clk_status & CLK_LCDC0_MOD1_ON) == CLK_LCDC0_MOD1_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk1, CLK_OFF);
 			OSAL_CCMU_MclkOnOff(h_lcd0ch1mclk2, CLK_OFF);
 		}
-		if ((g_clk_status & CLK_LCDC1_MOD0_ON) == CLK_LCDC1_MOD0_ON) {
+		if ((g_clk_status & CLK_LCDC1_MOD0_ON) == CLK_LCDC1_MOD0_ON)
 			OSAL_CCMU_MclkOnOff(h_lcd1ch0mclk0, CLK_OFF);
-		}
+
 		if ((g_clk_status & CLK_LCDC1_MOD1_ON) == CLK_LCDC1_MOD1_ON) {
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_OFF);
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_OFF);
 		}
-		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON) {
+		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
-		}
 	}
 
 	if (type == 2) {
-		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON) {
+		if ((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON)
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 16);
-		}
-		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON) {
+
+		if ((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON)
 			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 16);
-		}
 	}
 
 	return DIS_SUCCESS;

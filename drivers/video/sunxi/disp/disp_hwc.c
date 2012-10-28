@@ -29,27 +29,27 @@ __s32 BSP_disp_hwc_enable(__u32 sel, __bool enable)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_hwc_set_pos(__u32 sel, __disp_pos_t * pos)
+__s32 BSP_disp_hwc_set_pos(__u32 sel, __disp_pos_t *pos)
 {
 	DE_BE_HWC_Set_Pos(sel, pos);
 
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_hwc_get_pos(__u32 sel, __disp_pos_t * pos)
+__s32 BSP_disp_hwc_get_pos(__u32 sel, __disp_pos_t *pos)
 {
 	DE_BE_HWC_Get_Pos(sel, pos);
 
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_hwc_set_framebuffer(__u32 sel, __disp_hwc_pattern_t * patmem)
+__s32 BSP_disp_hwc_set_framebuffer(__u32 sel, __disp_hwc_pattern_t *patmem)
 {
 	de_hwc_src_t hsrc;
 
-	if (patmem == NULL) {
+	if (patmem == NULL)
 		return DIS_PARA_FAILED;
-	}
+
 	hsrc.mode = patmem->pat_mode;
 	hsrc.paddr = patmem->addr;
 	DE_BE_HWC_Set_Src(sel, &hsrc);

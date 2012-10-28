@@ -18,8 +18,8 @@
  * MA 02111-1307 USA
  */
 
-#ifndef  __OSAL_CLOCK_H__
-#define  __OSAL_CLOCK_H__
+#ifndef __OSAL_CLOCK_H__
+#define __OSAL_CLOCK_H__
 
 __s32 OSAL_CCMU_SetSrcFreq(__u32 nSclkNo, __u32 nFreq);
 __u32 OSAL_CCMU_GetSrcFreq(__u32 nSclkNo);

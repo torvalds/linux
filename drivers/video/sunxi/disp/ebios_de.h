@@ -284,8 +284,8 @@ typedef struct _SCAL_SCAN_MOD {
 
 __s32 DE_SCAL_Set_Reg_Base(__u8 sel, __u32 base);
 __u32 DE_SCAL_Get_Reg_Base(__u8 sel);
-__s32 DE_SCAL_Config_Src(__u8 sel, __scal_buf_addr_t * addr,
-			 __scal_src_size_t * size, __scal_src_type_t * type,
+__s32 DE_SCAL_Config_Src(__u8 sel, __scal_buf_addr_t *addr,
+			 __scal_src_size_t *size, __scal_src_type_t *type,
 			 __u8 field, __u8 dien);
 __s32 DE_SCAL_Set_Fb_Addr(__u8 sel, __scal_buf_addr_t *addr);
 __s32 DE_SCAL_Set_Init_Phase(__u8 sel, __scal_scan_mod_t *in_scan,
@@ -309,10 +309,10 @@ __s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan,
 __s32 DE_SCAL_Set_CSC_Coef(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode,
 			   __u8 incs, __u8 outcs, __u32 in_br_swap,
 			   __u32 out_br_swap);
-__s32 DE_SCAL_Set_Out_Format(__u8 sel, __scal_out_type_t * out_type);
-__s32 DE_SCAL_Set_Out_Size(__u8 sel, __scal_scan_mod_t * out_scan,
-			   __scal_out_type_t * out_type,
-			   __scal_out_size_t * out_size);
+__s32 DE_SCAL_Set_Out_Format(__u8 sel, __scal_out_type_t *out_type);
+__s32 DE_SCAL_Set_Out_Size(__u8 sel, __scal_scan_mod_t *out_scan,
+			   __scal_out_type_t *out_type,
+			   __scal_out_size_t *out_size);
 __s32 DE_SCAL_Set_Trig_Line(__u8 sel, __u32 line);
 __s32 DE_SCAL_Set_Int_En(__u8 sel, __u32 int_num);
 __s32 DE_SCAL_Set_Di_Ctrl(__u8 sel, __u8 en, __u8 mode, __u8 diagintp_en,
@@ -323,7 +323,7 @@ __s32 DE_SCAL_Set_Filtercoef_Ready(__u8 sel);
 __s32 DE_SCAL_Output_Select(__u8 sel, __u8 out);
 __s32 DE_SCAL_Writeback_Enable(__u8 sel);
 __s32 DE_SCAL_Writeback_Disable(__u8 sel);
-__s32 DE_SCAL_Set_Writeback_Addr(__u8 sel, __scal_buf_addr_t * addr);
+__s32 DE_SCAL_Set_Writeback_Addr(__u8 sel, __scal_buf_addr_t *addr);
 #ifdef CONFIG_ARCH_SUN5I
 __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel);
 #endif
@@ -333,22 +333,22 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode,
 				   __s32 saturation, __s32 hue,
 				   __u32 in_br_swap, __u32 out_br_swap);
 __s32 DE_SCAL_Get_3D_In_Single_Size(__scal_3d_inmode_t inmode,
-				    __scal_src_size_t * fullsize,
-				    __scal_src_size_t * singlesize);
+				    __scal_src_size_t *fullsize,
+				    __scal_src_size_t *singlesize);
 __s32 DE_SCAL_Get_3D_Out_Single_Size(__scal_3d_outmode_t outmode,
-				     __scal_out_size_t * singlesize,
-				     __scal_out_size_t * fullsize);
+				     __scal_out_size_t *singlesize,
+				     __scal_out_size_t *fullsize);
 __s32 DE_SCAL_Get_3D_Out_Full_Size(__scal_3d_outmode_t outmode,
-				   __scal_out_size_t * singlesize,
-				   __scal_out_size_t * fullsize);
-__s32 DE_SCAL_Set_3D_Fb_Addr(__u8 sel, __scal_buf_addr_t * addr,
-			     __scal_buf_addr_t * addrtrd);
+				   __scal_out_size_t *singlesize,
+				   __scal_out_size_t *fullsize);
+__s32 DE_SCAL_Set_3D_Fb_Addr(__u8 sel, __scal_buf_addr_t *addr,
+			     __scal_buf_addr_t *addrtrd);
 __s32 DE_SCAL_Set_3D_Ctrl(__u8 sel, __u8 trden, __scal_3d_inmode_t inmode,
 			  __scal_3d_outmode_t outmode);
-__s32 DE_SCAL_Config_3D_Src(__u8 sel, __scal_buf_addr_t * addr,
-			    __scal_src_size_t * size, __scal_src_type_t * type,
+__s32 DE_SCAL_Config_3D_Src(__u8 sel, __scal_buf_addr_t *addr,
+			    __scal_src_size_t *size, __scal_src_type_t *type,
 			    __scal_3d_inmode_t trdinmode,
-			    __scal_buf_addr_t * addrtrd);
+			    __scal_buf_addr_t *addrtrd);
 __s32 DE_SCAL_Input_Port_Select(__u8 sel, __u8 port);
 
 __s32 DE_SCAL_Vpp_Enable(__u8 sel, __u32 enable);
@@ -378,9 +378,9 @@ __s32 DE_BE_Set_BkColor(__u32 sel, __disp_color_t bkcolor);
 __s32 DE_BE_Set_ColorKey(__u32 sel, __disp_color_t ck_max,
 			 __disp_color_t ck_min, __u32 ck_red_match,
 			 __u32 ck_green_match, __u32 ck_blue_match);
-__s32 DE_BE_Set_SystemPalette(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 DE_BE_Set_SystemPalette(__u32 sel, __u32 *pbuffer, __u32 offset,
 			      __u32 size);
-__s32 DE_BE_Get_SystemPalette(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 DE_BE_Get_SystemPalette(__u32 sel, __u32 *pbuffer, __u32 offset,
 			      __u32 size);
 __s32 DE_BE_Cfg_Ready(__u32 sel);
 __s32 DE_BE_EnableINT(__u8 sel, __u32 irqsrc);
@@ -393,8 +393,8 @@ __s32 DE_BE_Layer_Enable(__u32 sel, __u8 layidx, __bool enable);
 __s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __u8 format,
 			     __bool br_swap, __u8 order);
 __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
-				  layer_src_t * layer_fb);
-__s32 DE_BE_Layer_Set_Screen_Win(__u32 sel, __u8 layidx, __disp_rect_t * win);
+				  layer_src_t *layer_fb);
+__s32 DE_BE_Layer_Set_Screen_Win(__u32 sel, __u8 layidx, __disp_rect_t *win);
 __s32 DE_BE_Layer_Video_Enable(__u32 sel, __u8 layidx, __bool video_en);
 __s32 DE_BE_Layer_Video_Ch_Sel(__u32 sel, __u8 layidx, __bool scaler_index);
 __s32 DE_BE_Layer_Yuv_Ch_Enable(__u32 sel, __u8 layidx, __bool yuv_en);
@@ -406,14 +406,14 @@ __s32 DE_BE_Layer_ColorKey_Enable(__u32 sel, __u8 layidx, __bool enable);
 __s32 DE_BE_Layer_Set_Work_Mode(__u32 sel, __u8 layidx, __u8 mode);
 
 __s32 DE_BE_YUV_CH_Enable(__u32 sel, __bool enable);
-__s32 DE_BE_YUV_CH_Set_Src(__u32 sel, de_yuv_ch_src_t * in_src);
+__s32 DE_BE_YUV_CH_Set_Src(__u32 sel, de_yuv_ch_src_t *in_src);
 
 __s32 DE_BE_HWC_Enable(__u32 sel, __bool enable);
-__s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t * pos);
-__s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t * pos);
+__s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t *pos);
+__s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t *pos);
 __s32 DE_BE_HWC_Set_Palette(__u32 sel, __u32 address, __u32 offset, __u32 size);
 __s32 DE_BE_HWC_Get_Format(void);
-__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t * hwc_pat);
+__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t *hwc_pat);
 
 __s32 DE_BE_Sprite_Enable(__u32 sel, __bool enable);
 __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format);
@@ -449,6 +449,6 @@ __s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr, __u32 width, __u32 x, __u32 y,
 			   __u32 bpp);
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr, __u32 off_addr, __u32 width,
-			   __u32 bpp, __disp_pos_t * pos);
+			   __u32 bpp, __disp_pos_t *pos);
 
 #endif /* __EBIOS_DE_H__ */

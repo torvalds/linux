@@ -35,82 +35,82 @@
  */
 __s32 Scaler_sw_para_to_reg(__u8 type, __u8 value)
 {
-	if (type == 0) { /* scaler input  pixel format */
-		if (value == DISP_FORMAT_YUV444) {
+	if (type == 0) { /* scaler input pixel format */
+		if (value == DISP_FORMAT_YUV444)
 			return DE_SCAL_INYUV444;
-		} else if (value == DISP_FORMAT_YUV420) {
+		else if (value == DISP_FORMAT_YUV420)
 			return DE_SCAL_INYUV420;
-		} else if (value == DISP_FORMAT_YUV422) {
+		else if (value == DISP_FORMAT_YUV422)
 			return DE_SCAL_INYUV422;
-		} else if (value == DISP_FORMAT_YUV411) {
+		else if (value == DISP_FORMAT_YUV411)
 			return DE_SCAL_INYUV411;
-		} else if (value == DISP_FORMAT_CSIRGB) {
+		else if (value == DISP_FORMAT_CSIRGB)
 			return DE_SCAL_INCSIRGB;
-		} else if (value == DISP_FORMAT_ARGB8888) {
+		else if (value == DISP_FORMAT_ARGB8888)
 			return DE_SCAL_INRGB888;
-		} else if (value == DISP_FORMAT_RGB888) {
+		else if (value == DISP_FORMAT_RGB888)
 			return DE_SCAL_INRGB888;
-		} else {
+		else
 			DE_WRN("not supported scaler input pixel format:%d in "
 			       "Scaler_sw_para_to_reg\n", value);
-		}
+
 	} else if (type == 1) { /* scaler input mode */
-		if (value == DISP_MOD_INTERLEAVED) {
+		if (value == DISP_MOD_INTERLEAVED)
 			return DE_SCAL_INTER_LEAVED;
-		} else if (value == DISP_MOD_MB_PLANAR) {
+		else if (value == DISP_MOD_MB_PLANAR)
 			return DE_SCAL_PLANNARMB;
-		} else if (value == DISP_MOD_NON_MB_PLANAR) {
+		else if (value == DISP_MOD_NON_MB_PLANAR)
 			return DE_SCAL_PLANNAR;
-		} else if (value == DISP_MOD_NON_MB_UV_COMBINED) {
+		else if (value == DISP_MOD_NON_MB_UV_COMBINED)
 			return DE_SCAL_UVCOMBINED;
-		} else if (value == DISP_MOD_MB_UV_COMBINED) {
+		else if (value == DISP_MOD_MB_UV_COMBINED)
 			return DE_SCAL_UVCOMBINEDMB;
-		} else {
+		else
 			DE_WRN("not supported scaler input mode:%d in "
 			       "Scaler_sw_para_to_reg\n", value);
-		}
+
 	} else if (type == 2) { /* scaler input pixel sequence */
-		if (value == DISP_SEQ_UYVY) {
+		if (value == DISP_SEQ_UYVY)
 			return DE_SCAL_UYVY;
-		} else if (value == DISP_SEQ_YUYV) {
+		else if (value == DISP_SEQ_YUYV)
 			return DE_SCAL_YUYV;
-		} else if (value == DISP_SEQ_VYUY) {
+		else if (value == DISP_SEQ_VYUY)
 			return DE_SCAL_VYUY;
-		} else if (value == DISP_SEQ_YVYU) {
+		else if (value == DISP_SEQ_YVYU)
 			return DE_SCAL_YVYU;
-		} else if (value == DISP_SEQ_AYUV) {
+		else if (value == DISP_SEQ_AYUV)
 			return DE_SCAL_AYUV;
-		} else if (value == DISP_SEQ_UVUV) {
+		else if (value == DISP_SEQ_UVUV)
 			return DE_SCAL_UVUV;
-		} else if (value == DISP_SEQ_VUVU) {
+		else if (value == DISP_SEQ_VUVU)
 			return DE_SCAL_VUVU;
-		} else if (value == DISP_SEQ_ARGB) {
+		else if (value == DISP_SEQ_ARGB)
 			return DE_SCAL_ARGB;
-		} else if (value == DISP_SEQ_BGRA) {
+		else if (value == DISP_SEQ_BGRA)
 			return DE_SCAL_BGRA;
-		} else if (value == DISP_SEQ_P3210) {
+		else if (value == DISP_SEQ_P3210)
 			return 0;
-		} else {
+		else
 			DE_WRN("not supported scaler input pixel sequence:%d "
 			       "in Scaler_sw_para_to_reg\n", value);
-		}
+
 	} else if (type == 3) { /* scaler output value */
-		if (value == DISP_FORMAT_YUV444) {
+		if (value == DISP_FORMAT_YUV444)
 			return DE_SCAL_OUTPYUV444;
-		} else if (value == DISP_FORMAT_YUV422) {
+		else if (value == DISP_FORMAT_YUV422)
 			return DE_SCAL_OUTPYUV422;
-		} else if (value == DISP_FORMAT_YUV420) {
+		else if (value == DISP_FORMAT_YUV420)
 			return DE_SCAL_OUTPYUV420;
-		} else if (value == DISP_FORMAT_YUV411) {
+		else if (value == DISP_FORMAT_YUV411)
 			return DE_SCAL_OUTPYUV411;
-		} else if (value == DISP_FORMAT_ARGB8888) {
+		else if (value == DISP_FORMAT_ARGB8888)
 			return DE_SCAL_OUTI0RGB888;
-		} else if (value == DISP_FORMAT_RGB888) {
+		else if (value == DISP_FORMAT_RGB888)
 			return DE_SCAL_OUTPRGB888;
-		} else {
+		else
 			DE_WRN("not supported scaler output value:%d in "
 			       "Scaler_sw_para_to_reg\n", value);
-		}
+
 	}
 	DE_WRN("not supported type:%d in Scaler_sw_para_to_reg\n", type);
 	return DIS_FAIL;
@@ -165,11 +165,10 @@ __s32 Scaler_3d_sw_para_to_reg(__u32 type, __u32 mode, __bool b_out_interlace)
 			return DE_SCAL_3DOUT_HDMI_TB;
 
 		case DISP_3D_OUT_MODE_FP:
-			if (b_out_interlace == TRUE) {
+			if (b_out_interlace == TRUE)
 				return DE_SCAL_3DOUT_HDMI_FPI;
-			} else {
+			else
 				return DE_SCAL_3DOUT_HDMI_FPP;
-			}
 
 		case DISP_3D_OUT_MODE_SSF:
 			return DE_SCAL_3DOUT_HDMI_SSF;
@@ -206,9 +205,8 @@ static irqreturn_t Scaler_event_proc(int irq, void *parg)
 	DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel,
 	       fe_intflags);
 
-	if (be_intflags & DE_IMG_REG_LOAD_FINISH) {
+	if (be_intflags & DE_IMG_REG_LOAD_FINISH)
 		LCD_line_event_proc(sel);
-	}
 
 	if (fe_intflags & DE_WB_END_IE) {
 		DE_SCAL_DisableINT(sel, DE_FE_INTEN_ALL);
@@ -217,10 +215,9 @@ static irqreturn_t Scaler_event_proc(int irq, void *parg)
 		    (&gdisp.scaler[sel].scaler_queue != NULL)) {
 			gdisp.scaler[sel].b_scaler_finished = 2;
 			wake_up_interruptible(&gdisp.scaler[sel].scaler_queue);
-		} else {
+		} else
 			__wrn("not scaler %d begin in DRV_scaler_finish\n",
 			      sel);
-		}
 	}
 
 	return OSAL_IRQ_RETURN;
@@ -233,13 +230,13 @@ __s32 Scaler_Init(__u32 sel)
 	scaler_clk_init(sel);
 	DE_SCAL_EnableINT(sel, DE_WB_END_IE);
 
-	if (sel == 0) {
+	if (sel == 0)
 		ret = request_irq(INTC_IRQNO_SCALER0, Scaler_event_proc,
 				  IRQF_DISABLED, "sunxi scaler0", (void *)sel);
-	} else if (sel == 1) {
+	else if (sel == 1)
 		ret = request_irq(INTC_IRQNO_SCALER1, Scaler_event_proc,
 				  IRQF_DISABLED, "sunxi scaler1", (void *)sel);
-	}
+
 	return DIS_SUCCESS;
 }
 
@@ -300,28 +297,25 @@ __s32 Scaler_Request(__u32 sel)
 #endif
 
 	if (sel == 0) { /* request scaler0 */
-		if (!(gdisp.scaler[0].status & SCALER_USED)) {
+		if (!(gdisp.scaler[0].status & SCALER_USED))
 			ret = 0;
-		}
 	} else if (sel == 1) { /* request scaler1 */
-		if (!(gdisp.scaler[1].status & SCALER_USED)) {
+		if (!(gdisp.scaler[1].status & SCALER_USED))
 			ret = 1;
-		}
 	} else { /* request any scaler */
-		if (!(gdisp.scaler[0].status & SCALER_USED)) {
+		if (!(gdisp.scaler[0].status & SCALER_USED))
 			ret = 0;
-		} else if (!(gdisp.scaler[1].status & SCALER_USED)) {
+		else if (!(gdisp.scaler[1].status & SCALER_USED))
 			ret = 1;
-		}
 	}
 
 	if (ret == 0 || ret == 1) {
 		Scaler_open(ret);
 		gdisp.scaler[ret].b_close = FALSE;
 		gdisp.scaler[ret].status |= SCALER_USED;
-	} else {
+	} else
 		DE_WRN("request scaler fail\n");
-	}
+
 	return ret;
 }
 
@@ -423,21 +417,20 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 		DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
 		DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type,
 				      inmode, &scal_addr_right);
-	} else {
+	} else
 		DE_SCAL_Config_Src(sel, &scal_addr, &in_size, &in_type, FALSE,
 				   FALSE);
-	}
+
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan,
 				   &out_size, &out_type);
-	if (scaler->enhance_en == TRUE) {
+	if (scaler->enhance_en == TRUE)
 		Scaler_Set_Enhance(sel, scaler->bright, scaler->contrast,
 				   scaler->saturation, scaler->hue);
-	} else {
+	else
 		DE_SCAL_Set_CSC_Coef(sel, scaler->in_fb.cs_mode, DISP_BT601,
 				     get_fb_type(scaler->in_fb.format),
 				     DISP_FB_TYPE_RGB, scaler->in_fb.br_swap,
 				     0);
-	}
 
 #ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
@@ -449,25 +442,23 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 	return DIS_SUCCESS;
 }
 
-__s32 Scaler_Get_Framebuffer(__u32 sel, __disp_fb_t * pfb)
+__s32 Scaler_Get_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 {
 	__disp_scaler_t *scaler;
 
-	if (pfb == NULL) {
+	if (pfb == NULL)
 		return DIS_PARA_FAILED;
-	}
 
 	scaler = &(gdisp.scaler[sel]);
-	if (scaler->status & SCALER_USED) {
+	if (scaler->status & SCALER_USED)
 		memcpy(pfb, &scaler->in_fb, sizeof(__disp_fb_t));
-	} else {
+	else
 		return DIS_PARA_FAILED;
-	}
 
 	return DIS_SUCCESS;
 }
 
-__s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t * size)
+__s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 {
 	__disp_scaler_t *scaler;
 	__scal_src_size_t in_size;
@@ -518,15 +509,14 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t * size)
 
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan,
 				   &out_size, &out_type);
-	if (scaler->enhance_en == TRUE) {
+	if (scaler->enhance_en == TRUE)
 		Scaler_Set_Enhance(sel, scaler->bright, scaler->contrast,
 				   scaler->saturation, scaler->hue);
-	} else {
+	else
 		DE_SCAL_Set_CSC_Coef(sel, scaler->in_fb.cs_mode, DISP_BT601,
 				     get_fb_type(scaler->in_fb.format),
 				     DISP_FB_TYPE_RGB, scaler->in_fb.br_swap,
 				     0);
-	}
 
 #ifdef CONFIG_ARCH_SUN4I
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
@@ -540,7 +530,7 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t * size)
 	return DIS_SUCCESS;
 }
 
-__s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t * scl_rect)
+__s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 {
 	__disp_scaler_t *scaler;
 	__scal_buf_addr_t scal_addr;
@@ -596,9 +586,8 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t * scl_rect)
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
 #endif
 
-	if (scaler->in_fb.cs_mode > DISP_VXYCC) {
+	if (scaler->in_fb.cs_mode > DISP_VXYCC)
 		scaler->in_fb.cs_mode = DISP_BT601;
-	}
 
 	if (scaler->in_fb.b_trd_src) {
 		__scal_3d_inmode_t inmode;
@@ -640,13 +629,12 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t * scl_rect)
 	return DIS_SUCCESS;
 }
 
-__s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t * scl_rect)
+__s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 {
 	__disp_scaler_t *scaler;
 
-	if (scl_rect == NULL) {
+	if (scl_rect == NULL)
 		return DIS_PARA_FAILED;
-	}
 
 	scaler = &(gdisp.scaler[sel]);
 	if (scaler->status & SCALER_USED) {
@@ -654,14 +642,13 @@ __s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t * scl_rect)
 		scl_rect->y = scaler->src_win.y;
 		scl_rect->width = scaler->src_win.width;
 		scl_rect->height = scaler->src_win.height;
-	} else {
+	} else
 		return DIS_PARA_FAILED;
-	}
 
 	return DIS_SUCCESS;
 }
 
-__s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t * scl)
+__s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 {
 	__disp_scaler_t *scaler;
 	__scal_buf_addr_t scal_addr;
@@ -716,9 +703,8 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t * scl)
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
 #endif
 
-	if (scaler->in_fb.cs_mode > DISP_VXYCC) {
+	if (scaler->in_fb.cs_mode > DISP_VXYCC)
 		scaler->in_fb.cs_mode = DISP_BT601;
-	}
 
 	if (scaler->in_fb.b_trd_src) {
 		__scal_3d_inmode_t inmode;
@@ -910,7 +896,7 @@ __s32 BSP_disp_scaler_release(__u32 handle)
 	return Scaler_Release(sel, FALSE);
 }
 
-__s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t * para)
+__s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 {
 	__scal_buf_addr_t in_addr;
 	__scal_buf_addr_t out_addr;
@@ -1135,7 +1121,7 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t * para)
 	return ret;
 }
 
-__s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
+__s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t *para)
 {
 	__scal_buf_addr_t in_addr;
 	__scal_buf_addr_t out_addr;

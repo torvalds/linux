@@ -309,7 +309,8 @@ __s32 BSP_disp_tv_close(__u32 sel)
 		lcdc_clk_off(sel);
 
 #ifdef CONFIG_ARCH_SUN5I
-		Disp_de_flicker_enable(sel, 2);	//must close immediately, because vbi may not come
+		/* must close immediately, because vbi may not come */
+		Disp_de_flicker_enable(sel, 2);
 		DE_BE_Set_Outitl_enable(sel, FALSE);
 		{
 			int scaler_index;
@@ -422,9 +423,8 @@ __s32 BSP_disp_tv_set_dac_source(__u32 sel, __u32 index,
 {
 	gdisp.screen[sel].dac_source[index] = source;
 
-	if (gdisp.screen[sel].status & TV_ON) {
+	if (gdisp.screen[sel].status & TV_ON)
 		Disp_TVEC_DacCfg(sel, gdisp.screen[sel].tv_mode);
-	}
 
 	return 0;
 }

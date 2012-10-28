@@ -72,9 +72,8 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 	IEP_Operation_In_Vblanking(sel, tcon_index);
 #endif
 
-	if (gdisp.screen[sel].LCD_CPUIF_ISR) {
+	if (gdisp.screen[sel].LCD_CPUIF_ISR)
 		(*gdisp.screen[sel].LCD_CPUIF_ISR) ();
-	}
 
 	if (gdisp.screen[sel].cache_flag == FALSE &&
 	    gdisp.screen[sel].cfg_cnt == 0) {
@@ -155,9 +154,8 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 #if 0
 	cur_line = LCDC_get_cur_line(sel, tcon_index);
 
-	if (cur_line > 5) {
+	if (cur_line > 5)
 		DE_INF("%d\n", cur_line);
-	}
 #endif
 
 	return;
