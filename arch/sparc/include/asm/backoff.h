@@ -13,7 +13,10 @@
 
 #define BACKOFF_SPIN(reg, tmp, label)	\
 	mov	reg, tmp; \
-88:	brnz,pt	tmp, 88b; \
+88:	rd	%ccr, %g0; \
+	rd	%ccr, %g0; \
+	rd	%ccr, %g0; \
+	brnz,pt	tmp, 88b; \
 	 sub	tmp, 1, tmp; \
 	set	BACKOFF_LIMIT, tmp; \
 	cmp	reg, tmp; \

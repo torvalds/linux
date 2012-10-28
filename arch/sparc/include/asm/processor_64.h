@@ -196,7 +196,10 @@ extern unsigned long get_wchan(struct task_struct *task);
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
-#define cpu_relax()	barrier()
+#define cpu_relax()	asm volatile("rd	%%ccr, %%g0\n\t" \
+				     "rd	%%ccr, %%g0\n\t" \
+				     "rd	%%ccr, %%g0" \
+				     ::: "memory")
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
  * UltraSPARC-I will treat these as nops, and UltraSPARC-II has
