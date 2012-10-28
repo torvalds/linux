@@ -27,35 +27,33 @@
 //#define SPI_DATA_PRINT
 
 #ifdef SPI_DATA_PRINT
-#define lcd_spi_dbg(x,arg...) printk(KERN_INFO"[LCD_SPI]"x,##arg)
+#define lcd_spi_dbg(msg, ...) pr_info("[LCD_SPI]" msg, ##__VA_ARGS__)
 #else
-#define lcd_spi_dbg(x,arg...)
+#define lcd_spi_dbg(msg, ...)
 #endif
 
-static __s32 lcd_spi_cs = 0;
-static __s32 lcd_spi_clk = 0;
-static __s32 lcd_spi_mosi = 0;
-static __s32 lcd_spi_used = 0;
+static __s32 lcd_spi_cs;
+static __s32 lcd_spi_clk;
+static __s32 lcd_spi_mosi;
+static __s32 lcd_spi_used;
 static __s32 lcd_spi_module = -1;
 
 static void check_spi_used_value()
 {
-	if (SCRIPT_PARSER_OK
-	    != OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_used",
-					    &lcd_spi_used, 1)) {
+	if (SCRIPT_PARSER_OK !=
+	    OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_used",
+					 &lcd_spi_used, 1))
 		__inf("LCD SPI doesn't use.\n");
-	}
 
-	if (0 == lcd_spi_used) {
+	if (!lcd_spi_used)
 		__inf("LCD SPI doesn't use.\n");
-	}
 }
 
 void LCD_SPI_Init(__u32 sel)
 {
-	if (SCRIPT_PARSER_OK
-	    != OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_module",
-					    &lcd_spi_module, 1)) {
+	if (SCRIPT_PARSER_OK !=
+	    OSAL_Script_FetchParser_Data("lcd_spi_para", "lcd_spi_module",
+					 &lcd_spi_module, 1)) {
 		__wrn("There is no LCD SPI module input.\n");
 		return;
 	}
@@ -110,64 +108,24 @@ void LCD_SPI_Write(__u32 sel)
 	     lcd_spi_module);
 
 	switch (lcd_spi_module) {
-	case 0:{		/* rili 7inch */
-			for (i = 0; i < 8; i++) {
-				OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_cs, 0,
-							       "lcd_spi_cs");
-				lcd_spi_dbg("write data[%d]:", i);
-
-				for (j = 0; j < 16; j++) {
-					OSAL_GPIO_DevWRITE_ONEPIN_DATA
-					    (lcd_spi_clk, 0, "lcd_spi_clk");
-					offset = 15 - j;
-					bit_val =
-					    (0x0001 & (data[i] >> offset));
-					ret =
-					    OSAL_GPIO_DevWRITE_ONEPIN_DATA
-					    (lcd_spi_mosi, bit_val,
-					     "lcd_spi_mosi");
-#ifdef SPI_DATA_PRINT
-					if (ret == 0) {
-						lcd_spi_dbg("%d-", bit_val);
-					} else {
-						lcd_spi_dbg("write[bit:%d]ERR",
-							    j);
-					}
-#endif
-					LCD_delay_us(CMD_WIRTE_DELAY);
-					OSAL_GPIO_DevWRITE_ONEPIN_DATA
-					    (lcd_spi_clk, 1, "lcd_spi_clk");
-					LCD_delay_us(CMD_WIRTE_DELAY);
-				}
-
-				lcd_spi_dbg("\n");
-				OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_cs, 1,
-							       "lcd_spi_cs");
-				OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 1,
-							       "lcd_spi_clk");
-				LCD_delay_us(CMD_WIRTE_DELAY);
-			}
-			LCD_delay_ms(50);
+	case 0: /* rili 7inch */
+		for (i = 0; i < 8; i++) {
 			OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_cs, 0,
 						       "lcd_spi_cs");
-
-			lcd_spi_dbg("write data[8]:");
+			lcd_spi_dbg("write data[%d]:", i);
 
 			for (j = 0; j < 16; j++) {
 				OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 0,
 							       "lcd_spi_clk");
 				offset = 15 - j;
-				bit_val = (0x0001 & (data[i] >> offset));
-				ret =
-				    OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_mosi,
-								   bit_val,
-								   "lcd_spi_mosi");
+				bit_val = 0x0001 & (data[i] >> offset);
+				ret = OSAL_GPIO_DevWRITE_ONEPIN_DATA
+					(lcd_spi_mosi, bit_val, "lcd_spi_mosi");
 #ifdef SPI_DATA_PRINT
-				if (ret == 0) {
+				if (ret == 0)
 					lcd_spi_dbg("%d-", bit_val);
-				} else {
+				else
 					lcd_spi_dbg("write[bit:%d]ERR", j);
-				}
 #endif
 				LCD_delay_us(CMD_WIRTE_DELAY);
 				OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 1,
@@ -181,81 +139,115 @@ void LCD_SPI_Write(__u32 sel)
 			OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 1,
 						       "lcd_spi_clk");
 			LCD_delay_us(CMD_WIRTE_DELAY);
-			lcd_spi_dbg
-			    ("========== LCD SPI data translation finished ===========\n");
-			break;
 		}
-	default:{
-			lcd_spi_dbg("%s Unknow lcd_spi_module\n", __func__);
-			break;
+		LCD_delay_ms(50);
+		OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_cs, 0, "lcd_spi_cs");
+
+		lcd_spi_dbg("write data[8]:");
+
+		for (j = 0; j < 16; j++) {
+			OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 0,
+						       "lcd_spi_clk");
+			offset = 15 - j;
+			bit_val = (0x0001 & (data[i] >> offset));
+			ret = OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_mosi,
+							     bit_val,
+							     "lcd_spi_mosi");
+#ifdef SPI_DATA_PRINT
+			if (ret == 0)
+				lcd_spi_dbg("%d-", bit_val);
+			else
+				lcd_spi_dbg("write[bit:%d]ERR", j);
+#endif
+			LCD_delay_us(CMD_WIRTE_DELAY);
+			OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 1,
+						       "lcd_spi_clk");
+			LCD_delay_us(CMD_WIRTE_DELAY);
 		}
+
+		lcd_spi_dbg("\n");
+		OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_cs, 1, "lcd_spi_cs");
+		OSAL_GPIO_DevWRITE_ONEPIN_DATA(lcd_spi_clk, 1, "lcd_spi_clk");
+		LCD_delay_us(CMD_WIRTE_DELAY);
+		lcd_spi_dbg("LCD SPI data translation finished\n");
+		break;
+	default:
+		lcd_spi_dbg("%s Unknow lcd_spi_module\n", __func__);
+		break;
 	}
 }
 
 void LCD_SPI_Dinit(__u32 sel)
 {
 	lcd_spi_dbg("release GPIO src : lcd_spi_mosi\n");
-	if (lcd_spi_mosi) {
+	if (lcd_spi_mosi)
 		OSAL_GPIO_Release(lcd_spi_mosi, 2);
-	}
 
 	lcd_spi_dbg("release GPIO src : lcd_spi_clk\n");
-	if (lcd_spi_clk) {
+	if (lcd_spi_clk)
 		OSAL_GPIO_Release(lcd_spi_clk, 2);
-	}
 
 	lcd_spi_dbg("release GPIO src : lcd_spi_cs\n");
-	if (lcd_spi_cs) {
+	if (lcd_spi_cs)
 		OSAL_GPIO_Release(lcd_spi_cs, 2);
-	}
 }
 
 void LCD_power_on_generic(__u32 sel)
 {
-	LCD_POWER_EN(sel, 1);	/* config lcd_power pin to open lcd power */
+	LCD_POWER_EN(sel, 1); /* config lcd_power pin to open lcd power */
 }
 
 void LCD_power_off_generic(__u32 sel)
 {
-	LCD_POWER_EN(sel, 0);	/* config lcd_power pin to close lcd power */
+	LCD_POWER_EN(sel, 0); /* config lcd_power pin to close lcd power */
 }
 
 void LCD_bl_open_generic(__u32 sel)
 {
-	LCD_PWM_EN(sel, 1);	/* open pwm module */
-	LCD_BL_EN(sel, 1);	/* config lcd_bl_en pin to open lcd backlight */
+	LCD_PWM_EN(sel, 1); /* open pwm module */
+	LCD_BL_EN(sel, 1); /* config lcd_bl_en pin to open lcd backlight */
 }
 
 void LCD_bl_close_generic(__u32 sel)
 {
-	LCD_BL_EN(sel, 0);	/* config lcd_bl_en pin to close lcd backlight */
-	LCD_PWM_EN(sel, 0);	/* close pwm module */
+	LCD_BL_EN(sel, 0); /* config lcd_bl_en pin to close lcd backlight */
+	LCD_PWM_EN(sel, 0); /* close pwm module */
 }
 
 __s32 LCD_open_flow_generic(__u32 sel)
 {
 	check_spi_used_value();
-	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);	/* open lcd power, and delay 50ms */
+	/* open lcd power, and delay 50ms */
+	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 50);
 	if (lcd_spi_used) {
 		/* request and init gpio, and delay 20ms */
 		LCD_OPEN_FUNC(sel, LCD_SPI_Init, 20);
-		/* use gpio to config lcd module to the  work mode, and delay 10ms */
+		/*
+		 * use gpio to config lcd module to the work mode,
+		 * and delay 10ms
+		 */
 		LCD_OPEN_FUNC(sel, LCD_SPI_Write, 10);
 	}
-	LCD_OPEN_FUNC(sel, TCON_open, 500);	/* open lcd controller, and delay 500ms */
-	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);	/* open lcd backlight, and delay 0ms */
+	/* open lcd controller, and delay 500ms */
+	LCD_OPEN_FUNC(sel, TCON_open, 500);
+	/* open lcd backlight, and delay 0ms */
+	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 0);
 
 	return 0;
 }
 
 __s32 LCD_close_flow_generic(__u32 sel)
 {
-	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);	/* close lcd backlight, and delay 0ms */
-	LCD_CLOSE_FUNC(sel, TCON_close, 0);	/* close lcd controller, and delay 0ms */
-	if (lcd_spi_used) {
-		LCD_CLOSE_FUNC(sel, LCD_SPI_Dinit, 0);	/* release gpio, and delay 0ms */
-	}
-	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);	/* close lcd power, and delay 1000ms */
+	/* close lcd backlight, and delay 0ms */
+	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 0);
+	/* close lcd controller, and delay 0ms */
+	LCD_CLOSE_FUNC(sel, TCON_close, 0);
+	if (lcd_spi_used)
+		/* release gpio, and delay 0ms */
+		LCD_CLOSE_FUNC(sel, LCD_SPI_Dinit, 0);
+
+	/* close lcd power, and delay 1000ms */
+	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 1000);
 
 	return 0;
 }
@@ -267,9 +259,9 @@ __s32 LCD_user_defined_func_generic(__u32 sel, __u32 para1, __u32 para2,
 	return 0;
 }
 
-void LCD_get_panel_funs_generic(__lcd_panel_fun_t * fun)
+void LCD_get_panel_funs_generic(__lcd_panel_fun_t *fun)
 {
-	fun->cfg_panel_info = 0;	/* lcd panel info defined in sys_config1.fex */
+	fun->cfg_panel_info = 0; /* lcd panel info defined in sys_config1.fex */
 	fun->cfg_open_flow = LCD_open_flow_generic;
 	fun->cfg_close_flow = LCD_close_flow_generic;
 	fun->lcd_user_defined_func = LCD_user_defined_func_generic;
