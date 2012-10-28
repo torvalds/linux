@@ -196,9 +196,16 @@ extern unsigned long get_wchan(struct task_struct *task);
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
-#define cpu_relax()	asm volatile("rd	%%ccr, %%g0\n\t" \
-				     "rd	%%ccr, %%g0\n\t" \
-				     "rd	%%ccr, %%g0" \
+#define cpu_relax()	asm volatile("\n99:\n\t"			\
+				     "rd	%%ccr, %%g0\n\t"	\
+				     "rd	%%ccr, %%g0\n\t"	\
+				     "rd	%%ccr, %%g0\n\t"	\
+				     ".section	.pause_patch,\"ax\"\n\t"\
+				     ".word	99b\n\t"		\
+				     "wr	%%g0, 128, %%asr27\n\t"	\
+				     "nop\n\t"				\
+				     "nop\n\t"				\
+				     ".previous"			\
 				     ::: "memory")
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
