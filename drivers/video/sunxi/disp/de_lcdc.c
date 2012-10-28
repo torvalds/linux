@@ -57,8 +57,8 @@ __s32 LCDC_init(__u32 sel)
 	LCDC_enable_int(sel, LCDC_LTI_LCD_EN);
 	LCDC_enable_int(sel, LCDC_LTI_HD_EN);
 
-	TCON0_select_src(sel, 0);
-	TCON1_select_src(sel, 0);
+	TCON0_select_src(sel, LCDC_SRC_DE1);
+	TCON1_select_src(sel, LCDC_SRC_DE1);
 
 	LCDC_open(sel);
 
@@ -391,33 +391,34 @@ void TCON0_cfg(__u32 sel, __panel_para_t *info)
 	LCDC_set_int_line(sel, 0, info->start_delay + 2);
 }
 
-__s32 TCON0_select_src(__u32 sel, __u8 src)
+__s32 TCON0_select_src(__u32 sel, enum lcdc_src src)
 {
 	__u32 tmp;
 
 	tmp = LCDC_RUINT32(sel, LCDC_CTL_OFF);
 	tmp = tmp & 0xffbffffc;
+
 	switch (src) {
 	case LCDC_SRC_DE1:
 		tmp = tmp | 0x00;
 		break;
-
 	case LCDC_SRC_DE2:
 		tmp = tmp | 0x01;
 		break;
-
 	case LCDC_SRC_DMA:
 		tmp = tmp | 0x02;
 		break;
-
 	case LCDC_SRC_WHITE:
 		tmp = tmp | 0x00400003;
 		break;
-
 	case LCDC_SRC_BLACK:
 		tmp = tmp | 0x03;
 		break;
+	default:
+		pr_warn("%s: unknown source %d\n", __func__, src);
+		break;
 	}
+
 	LCDC_WUINT32(sel, LCDC_CTL_OFF, tmp);
 	return 0;
 }
@@ -1124,19 +1125,28 @@ __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode)
 	return 0;
 }
 
-__s32 TCON1_select_src(__u32 sel, __u8 src)
+__s32 TCON1_select_src(__u32 sel, enum lcdc_src src)
 {
 	__u32 tv_tmp;
 
 	tv_tmp = LCDC_RUINT32(sel, LCDC_HDTVIF_OFF);
 
 	tv_tmp = tv_tmp & 0xfffffffc;
-	if (src == LCDC_SRC_DE1)
+
+	switch (src) {
+	case LCDC_SRC_DE1:
 		tv_tmp = tv_tmp | 0x00;
-	else if (src == LCDC_SRC_DE2)
+		break;
+	case LCDC_SRC_DE2:
 		tv_tmp = tv_tmp | 0x01;
-	else if (src == LCDC_SRC_BLUE)
+		break;
+	case LCDC_SRC_BLUE:
 		tv_tmp = tv_tmp | 0x02;
+		break;
+	default:
+		pr_warn("%s: unknown source %d\n", __func__, src);
+		break;
+	}
 
 	LCDC_WUINT32(sel, LCDC_HDTVIF_OFF, tv_tmp);
 
