@@ -22,6 +22,14 @@
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 
+/*
+ * We directly use the kernel VA for the HYP, as we can directly share
+ * the mapping (HTTBR "covers" TTBR1).
+ */
+#define HYP_PAGE_OFFSET_MASK	(~0UL)
+#define HYP_PAGE_OFFSET		PAGE_OFFSET
+#define KERN_TO_HYP(kva)	(kva)
+
 int create_hyp_mappings(void *from, void *to);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
 void free_hyp_pmds(void);
