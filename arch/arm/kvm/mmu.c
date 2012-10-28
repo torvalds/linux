@@ -200,8 +200,13 @@ static int __create_hyp_mappings(void *from, void *to, unsigned long *pfn_base)
 	unsigned long addr, next;
 	int err = 0;
 
-	BUG_ON(start > end);
-	if (start < PAGE_OFFSET)
+	if (start >= end)
+		return -EINVAL;
+	/* Check for a valid kernel memory mapping */
+	if (!pfn_base && (!virt_addr_valid(from) || !virt_addr_valid(to - 1)))
+		return -EINVAL;
+	/* Check for a valid kernel IO mapping */
+	if (pfn_base && (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1)))
 		return -EINVAL;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
