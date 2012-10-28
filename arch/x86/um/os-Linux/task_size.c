@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
-#include "longjmp.h"
+#include <longjmp.h>
 
 #ifdef __i386__
 

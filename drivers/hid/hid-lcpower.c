@@ -24,7 +24,7 @@ static int ts_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	if ((usage->hid & HID_USAGE_PAGE) != 0x0ffbc0000)
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
 		return 0;
 
 	switch (usage->hid & HID_USAGE) {

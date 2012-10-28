@@ -69,9 +69,6 @@ static int bfin_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long period, duty;
 	unsigned long long val;
 
-	if (duty_ns < 0 || duty_ns > period_ns)
-		return -EINVAL;
-
 	val = (unsigned long long)get_sclk() * period_ns;
 	do_div(val, NSEC_PER_SEC);
 	period = val;

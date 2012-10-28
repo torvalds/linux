@@ -535,7 +535,7 @@ static int snd_atiixp_aclink_reset(struct atiixp *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_atiixp_aclink_down(struct atiixp *chip)
 {
 	// if (atiixp_read(chip, MODEM_MIRROR) & 0x1) /* modem running, too? */
@@ -1250,6 +1250,7 @@ static struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
 static int __devinit snd_atiixp_pcm_new(struct atiixp *chip)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_chmap *chmap;
 	struct snd_ac97_bus *pbus = chip->ac97_bus;
 	int err, i, num_pcms;
 
@@ -1292,6 +1293,14 @@ static int __devinit snd_atiixp_pcm_new(struct atiixp *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, 128*1024);
+
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, chip->max_channels, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+	chmap->channel_mask = SND_PCM_CHMAP_MASK_2468;
+	chip->ac97[0]->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
 
 	/* no SPDIF support on codec? */
 	if (chip->pcms[ATI_PCM_SPDIF] && ! chip->pcms[ATI_PCM_SPDIF]->rates)
@@ -1458,7 +1467,7 @@ static int __devinit snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -1533,7 +1542,7 @@ static SIMPLE_DEV_PM_OPS(snd_atiixp_pm, snd_atiixp_suspend, snd_atiixp_resume);
 #define SND_ATIIXP_PM_OPS	&snd_atiixp_pm
 #else
 #define SND_ATIIXP_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 
 #ifdef CONFIG_PROC_FS

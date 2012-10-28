@@ -1359,7 +1359,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 			}
 		}
 	
-		if ( (info->port.flags & ASYNC_CTS_FLOW) && 
+		if (tty_port_cts_enabled(&info->port) &&
 		     (status & MISCSTATUS_CTS_LATCHED) ) {
 			if (info->port.tty->hw_stopped) {
 				if (status & MISCSTATUS_CTS) {
@@ -1840,22 +1840,22 @@ static void shutdown(struct mgsl_struct * info)
 	usc_DisableInterrupts(info,RECEIVE_DATA + RECEIVE_STATUS +
 		TRANSMIT_DATA + TRANSMIT_STATUS + IO_PIN + MISC );
 	usc_DisableDmaInterrupts(info,DICR_MASTER + DICR_TRANSMIT + DICR_RECEIVE);
-	
+
 	/* Disable DMAEN (Port 7, Bit 14) */
 	/* This disconnects the DMA request signal from the ISA bus */
 	/* on the ISA adapter. This has no effect for the PCI adapter */
 	usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT15) | BIT14));
-	
+
 	/* Disable INTEN (Port 6, Bit12) */
 	/* This disconnects the IRQ request signal to the ISA bus */
 	/* on the ISA adapter. This has no effect for the PCI adapter */
 	usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) | BIT12));
-	
- 	if (!info->port.tty || info->port.tty->termios->c_cflag & HUPCL) {
+
+	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
  		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
 		usc_set_serial_signals(info);
 	}
-	
+
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
 	mgsl_release_resources(info);	
@@ -1895,7 +1895,7 @@ static void mgsl_program_hw(struct mgsl_struct *info)
 	usc_EnableInterrupts(info, IO_PIN);
 	usc_get_serial_signals(info);
 		
-	if (info->netcount || info->port.tty->termios->c_cflag & CREAD)
+	if (info->netcount || info->port.tty->termios.c_cflag & CREAD)
 		usc_start_receiver(info);
 		
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
@@ -1908,14 +1908,14 @@ static void mgsl_change_params(struct mgsl_struct *info)
 	unsigned cflag;
 	int bits_per_char;
 
-	if (!info->port.tty || !info->port.tty->termios)
+	if (!info->port.tty)
 		return;
 		
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_change_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
-	cflag = info->port.tty->termios->c_cflag;
+	cflag = info->port.tty->termios.c_cflag;
 
 	/* if B0 rate (hangup) specified then negate DTR and RTS */
 	/* otherwise assert DTR and RTS */
@@ -2367,8 +2367,8 @@ static void mgsl_throttle(struct tty_struct * tty)
 	
 	if (I_IXOFF(tty))
 		mgsl_send_xchar(tty, STOP_CHAR(tty));
- 
- 	if (tty->termios->c_cflag & CRTSCTS) {
+
+	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->irq_spinlock,flags);
 		info->serial_signals &= ~SerialSignal_RTS;
 	 	usc_set_serial_signals(info);
@@ -2401,8 +2401,8 @@ static void mgsl_unthrottle(struct tty_struct * tty)
 		else
 			mgsl_send_xchar(tty, START_CHAR(tty));
 	}
-	
- 	if (tty->termios->c_cflag & CRTSCTS) {
+
+	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->irq_spinlock,flags);
 		info->serial_signals |= SerialSignal_RTS;
 	 	usc_set_serial_signals(info);
@@ -3045,7 +3045,7 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
 
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
-	    !(tty->termios->c_cflag & CBAUD)) {
+	    !(tty->termios.c_cflag & CBAUD)) {
 		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
 		spin_lock_irqsave(&info->irq_spinlock,flags);
 	 	usc_set_serial_signals(info);
@@ -3054,9 +3054,9 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
 	
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) &&
-	    tty->termios->c_cflag & CBAUD) {
+	    tty->termios.c_cflag & CBAUD) {
 		info->serial_signals |= SerialSignal_DTR;
- 		if (!(tty->termios->c_cflag & CRTSCTS) || 
+ 		if (!(tty->termios.c_cflag & CRTSCTS) || 
  		    !test_bit(TTY_THROTTLED, &tty->flags)) {
 			info->serial_signals |= SerialSignal_RTS;
  		}
@@ -3067,7 +3067,7 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
 	
 	/* Handle turning off CRTSCTS */
 	if (old_termios->c_cflag & CRTSCTS &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		mgsl_start(tty);
 	}
@@ -3287,7 +3287,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		return 0;
 	}
 
-	if (tty->termios->c_cflag & CLOCAL)
+	if (tty->termios.c_cflag & CLOCAL)
 		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
@@ -3313,7 +3313,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	port->blocked_open++;
 	
 	while (1) {
-		if (tty->termios->c_cflag & CBAUD)
+		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 		
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -3338,9 +3338,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			printk("%s(%d):block_til_ready blocking on %s count=%d\n",
 				 __FILE__,__LINE__, tty->driver->name, port->count );
 				 
-		tty_unlock();
+		tty_unlock(tty);
 		schedule();
-		tty_lock();
+		tty_lock(tty);
 	}
 	
 	set_current_state(TASK_RUNNING);
@@ -3362,6 +3362,29 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	
 }	/* end of block_til_ready() */
 
+static int mgsl_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct mgsl_struct *info;
+	int line = tty->index;
+
+	/* verify range of specified line number */
+	if (line >= mgsl_device_count) {
+		printk("%s(%d):mgsl_open with invalid line #%d.\n",
+			__FILE__, __LINE__, line);
+		return -ENODEV;
+	}
+
+	/* find the info structure for the specified line */
+	info = mgsl_device_list;
+	while (info && info->line != line)
+		info = info->next_device;
+	if (mgsl_paranoia_check(info, tty->name, "mgsl_open"))
+		return -ENODEV;
+	tty->driver_data = info;
+
+	return tty_port_install(&info->port, driver, tty);
+}
+
 /* mgsl_open()
  *
  *	Called when a port is opened.  Init and enable port.
@@ -3374,26 +3397,10 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
  */
 static int mgsl_open(struct tty_struct *tty, struct file * filp)
 {
-	struct mgsl_struct	*info;
-	int 			retval, line;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
+	int retval;
 
-	/* verify range of specified line number */	
-	line = tty->index;
-	if (line >= mgsl_device_count) {
-		printk("%s(%d):mgsl_open with invalid line #%d.\n",
-			__FILE__,__LINE__,line);
-		return -ENODEV;
-	}
-
-	/* find the info structure for the specified line */
-	info = mgsl_device_list;
-	while(info && info->line != line)
-		info = info->next_device;
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_open"))
-		return -ENODEV;
-	
-	tty->driver_data = info;
 	info->port.tty = tty;
 		
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -4297,6 +4304,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 }	/* end of mgsl_allocate_device()*/
 
 static const struct tty_operations mgsl_ops = {
+	.install = mgsl_install,
 	.open = mgsl_open,
 	.close = mgsl_close,
 	.write = mgsl_write,

@@ -1,4 +1,5 @@
 #include <linux/pm.h>
+#include <linux/acpi.h>
 
 struct dev_state;
 
@@ -115,6 +116,7 @@ extern struct bus_type usb_bus_type;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
 extern struct device_type usb_ep_device_type;
+extern struct device_type usb_port_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)
@@ -130,6 +132,11 @@ static inline int is_usb_interface(const struct device *dev)
 static inline int is_usb_endpoint(const struct device *dev)
 {
 	return dev->type == &usb_ep_device_type;
+}
+
+static inline int is_usb_port(const struct device *dev)
+{
+	return dev->type == &usb_port_device_type;
 }
 
 /* Do the same for device drivers and interface drivers. */
@@ -162,10 +169,16 @@ extern void usb_notify_add_device(struct usb_device *udev);
 extern void usb_notify_remove_device(struct usb_device *udev);
 extern void usb_notify_add_bus(struct usb_bus *ubus);
 extern void usb_notify_remove_bus(struct usb_bus *ubus);
+extern enum usb_port_connect_type
+	usb_get_hub_port_connect_type(struct usb_device *hdev, int port1);
+extern void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
+	enum usb_port_connect_type type);
 
 #ifdef CONFIG_ACPI
 extern int usb_acpi_register(void);
 extern void usb_acpi_unregister(void);
+extern acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
+	int port1);
 #else
 static inline int usb_acpi_register(void) { return 0; };
 static inline void usb_acpi_unregister(void) { };

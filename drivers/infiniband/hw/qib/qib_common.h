@@ -285,7 +285,6 @@ struct qib_base_info {
 
 #ifndef QIB_KERN_TYPE
 #define QIB_KERN_TYPE 0
-#define QIB_IDSTR "QLogic kernel.org driver"
 #endif
 
 /*
@@ -300,6 +299,19 @@ struct qib_base_info {
  * check for compatibility with the kernel.
 */
 #define QIB_KERN_SWVERSION ((QIB_KERN_TYPE << 31) | QIB_USER_SWVERSION)
+
+/*
+ * Define the driver version number.  This is something that refers only
+ * to the driver itself, not the software interfaces it supports.
+ */
+#define QIB_DRIVER_VERSION_BASE "1.11"
+
+/* create the final driver version string */
+#ifdef QIB_IDSTR
+#define QIB_DRIVER_VERSION QIB_DRIVER_VERSION_BASE " " QIB_IDSTR
+#else
+#define QIB_DRIVER_VERSION QIB_DRIVER_VERSION_BASE
+#endif
 
 /*
  * If the unit is specified via open, HCA choice is fixed.  If port is

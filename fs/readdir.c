@@ -106,22 +106,20 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 		struct old_linux_dirent __user *, dirent, unsigned int, count)
 {
 	int error;
-	struct file * file;
+	struct fd f = fdget(fd);
 	struct readdir_callback buf;
-	int fput_needed;
 
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	if (!f.file)
 		return -EBADF;
 
 	buf.result = 0;
 	buf.dirent = dirent;
 
-	error = vfs_readdir(file, fillonedir, &buf);
+	error = vfs_readdir(f.file, fillonedir, &buf);
 	if (buf.result)
 		error = buf.result;
 
-	fput_light(file, fput_needed);
+	fdput(f);
 	return error;
 }
 
@@ -191,17 +189,16 @@ efault:
 SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		struct linux_dirent __user *, dirent, unsigned int, count)
 {
-	struct file * file;
+	struct fd f;
 	struct linux_dirent __user * lastdirent;
 	struct getdents_callback buf;
-	int fput_needed;
 	int error;
 
 	if (!access_ok(VERIFY_WRITE, dirent, count))
 		return -EFAULT;
 
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	f = fdget(fd);
+	if (!f.file)
 		return -EBADF;
 
 	buf.current_dir = dirent;
@@ -209,17 +206,17 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, filldir, &buf);
+	error = vfs_readdir(f.file, filldir, &buf);
 	if (error >= 0)
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		if (put_user(file->f_pos, &lastdirent->d_off))
+		if (put_user(f.file->f_pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
 	}
-	fput_light(file, fput_needed);
+	fdput(f);
 	return error;
 }
 
@@ -272,17 +269,16 @@ efault:
 SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 		struct linux_dirent64 __user *, dirent, unsigned int, count)
 {
-	struct file * file;
+	struct fd f;
 	struct linux_dirent64 __user * lastdirent;
 	struct getdents_callback64 buf;
-	int fput_needed;
 	int error;
 
 	if (!access_ok(VERIFY_WRITE, dirent, count))
 		return -EFAULT;
 
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	f = fdget(fd);
+	if (!f.file)
 		return -EBADF;
 
 	buf.current_dir = dirent;
@@ -290,17 +286,17 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, filldir64, &buf);
+	error = vfs_readdir(f.file, filldir64, &buf);
 	if (error >= 0)
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		typeof(lastdirent->d_off) d_off = file->f_pos;
+		typeof(lastdirent->d_off) d_off = f.file->f_pos;
 		if (__put_user(d_off, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
 	}
-	fput_light(file, fput_needed);
+	fdput(f);
 	return error;
 }

@@ -30,18 +30,9 @@
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
-#include <asm/abs_addr.h>
 
 #include "powernv.h"
 #include "pci.h"
-
-struct resource_wrap {
-	struct list_head	link;
-	resource_size_t		size;
-	resource_size_t		align;
-	struct pci_dev		*dev;	/* Set if it's a device */
-	struct pci_bus		*bus;	/* Set if it's a bridge */
-};
 
 static int __pe_printk(const char *level, const struct pnv_ioda_pe *pe,
 		       struct va_format *vaf)
@@ -78,273 +69,6 @@ define_pe_printk_level(pe_err, KERN_ERR);
 define_pe_printk_level(pe_warn, KERN_WARNING);
 define_pe_printk_level(pe_info, KERN_INFO);
 
-
-/* Calculate resource usage & alignment requirement of a single
- * device. This will also assign all resources within the device
- * for a given type starting at 0 for the biggest one and then
- * assigning in decreasing order of size.
- */
-static void __devinit pnv_ioda_calc_dev(struct pci_dev *dev, unsigned int flags,
-					resource_size_t *size,
-					resource_size_t *align)
-{
-	resource_size_t start;
-	struct resource *r;
-	int i;
-
-	pr_devel("  -> CDR %s\n", pci_name(dev));
-
-	*size = *align = 0;
-
-	/* Clear the resources out and mark them all unset */
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		r = &dev->resource[i];
-		if (!(r->flags & flags))
-		    continue;
-		if (r->start) {
-			r->end -= r->start;
-			r->start = 0;
-		}
-		r->flags |= IORESOURCE_UNSET;
-	}
-
-	/* We currently keep all memory resources together, we
-	 * will handle prefetch & 64-bit separately in the future
-	 * but for now we stick everybody in M32
-	 */
-	start = 0;
-	for (;;) {
-		resource_size_t max_size = 0;
-		int max_no = -1;
-
-		/* Find next biggest resource */
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-			r = &dev->resource[i];
-			if (!(r->flags & IORESOURCE_UNSET) ||
-			    !(r->flags & flags))
-				continue;
-			if (resource_size(r) > max_size) {
-				max_size = resource_size(r);
-				max_no = i;
-			}
-		}
-		if (max_no < 0)
-			break;
-		r = &dev->resource[max_no];
-		if (max_size > *align)
-			*align = max_size;
-		*size += max_size;
-		r->start = start;
-		start += max_size;
-		r->end = r->start + max_size - 1;
-		r->flags &= ~IORESOURCE_UNSET;
-		pr_devel("  ->     R%d %016llx..%016llx\n",
-			 max_no, r->start, r->end);
-	}
-	pr_devel("  <- CDR %s size=%llx align=%llx\n",
-		 pci_name(dev), *size, *align);
-}
-
-/* Allocate a resource "wrap" for a given device or bridge and
- * insert it at the right position in the sorted list
- */
-static void __devinit pnv_ioda_add_wrap(struct list_head *list,
-					struct pci_bus *bus,
-					struct pci_dev *dev,
-					resource_size_t size,
-					resource_size_t align)
-{
-	struct resource_wrap *w1, *w = kzalloc(sizeof(*w), GFP_KERNEL);
-
-	w->size = size;
-	w->align = align;
-	w->dev = dev;
-	w->bus = bus;
-
-	list_for_each_entry(w1, list, link) {
-		if (w1->align < align) {
-			list_add_tail(&w->link, &w1->link);
-			return;
-		}
-	}
-	list_add_tail(&w->link, list);
-}
-
-/* Offset device resources of a given type */
-static void __devinit pnv_ioda_offset_dev(struct pci_dev *dev,
-					  unsigned int flags,
-					  resource_size_t offset)
-{
-	struct resource *r;
-	int i;
-
-	pr_devel("  -> ODR %s [%x] +%016llx\n", pci_name(dev), flags, offset);
-
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		r = &dev->resource[i];
-		if (r->flags & flags) {
-			dev->resource[i].start += offset;
-			dev->resource[i].end += offset;
-		}
-	}
-
-	pr_devel("  <- ODR %s [%x] +%016llx\n", pci_name(dev), flags, offset);
-}
-
-/* Offset bus resources (& all children) of a given type */
-static void __devinit pnv_ioda_offset_bus(struct pci_bus *bus,
-					  unsigned int flags,
-					  resource_size_t offset)
-{
-	struct resource *r;
-	struct pci_dev *dev;
-	struct pci_bus *cbus;
-	int i;
-
-	pr_devel("  -> OBR %s [%x] +%016llx\n",
-		 bus->self ? pci_name(bus->self) : "root", flags, offset);
-
-	pci_bus_for_each_resource(bus, r, i) {
-		if (r && (r->flags & flags)) {
-			r->start += offset;
-			r->end += offset;
-		}
-	}
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		pnv_ioda_offset_dev(dev, flags, offset);
-	list_for_each_entry(cbus, &bus->children, node)
-		pnv_ioda_offset_bus(cbus, flags, offset);
-
-	pr_devel("  <- OBR %s [%x]\n",
-		 bus->self ? pci_name(bus->self) : "root", flags);
-}
-
-/* This is the guts of our IODA resource allocation. This is called
- * recursively for each bus in the system. It calculates all the
- * necessary size and requirements for children and assign them
- * resources such that:
- *
- *   - Each function fits in it's own contiguous set of IO/M32
- *     segment
- *
- *   - All segments behind a P2P bridge are contiguous and obey
- *     alignment constraints of those bridges
- */
-static void __devinit pnv_ioda_calc_bus(struct pci_bus *bus, unsigned int flags,
-					resource_size_t *size,
-					resource_size_t *align)
-{
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pnv_phb *phb = hose->private_data;
-	resource_size_t dev_size, dev_align, start;
-	resource_size_t min_align, min_balign;
-	struct pci_dev *cdev;
-	struct pci_bus *cbus;
-	struct list_head head;
-	struct resource_wrap *w;
-	unsigned int bres;
-
-	*size = *align = 0;
-
-	pr_devel("-> CBR %s [%x]\n",
-		 bus->self ? pci_name(bus->self) : "root", flags);
-
-	/* Calculate alignment requirements based on the type
-	 * of resource we are working on
-	 */
-	if (flags & IORESOURCE_IO) {
-		bres = 0;
-		min_align = phb->ioda.io_segsize;
-		min_balign = 0x1000;
-	} else {
-		bres = 1;
-		min_align = phb->ioda.m32_segsize;
-		min_balign = 0x100000;
-	}
-
-	/* Gather all our children resources ordered by alignment */
-	INIT_LIST_HEAD(&head);
-
-	/*   - Busses */
-	list_for_each_entry(cbus, &bus->children, node) {
-		pnv_ioda_calc_bus(cbus, flags, &dev_size, &dev_align);
-		pnv_ioda_add_wrap(&head, cbus, NULL, dev_size, dev_align);
-	}
-
-	/*   - Devices */
-	list_for_each_entry(cdev, &bus->devices, bus_list) {
-		pnv_ioda_calc_dev(cdev, flags, &dev_size, &dev_align);
-		/* Align them to segment size */
-		if (dev_align < min_align)
-			dev_align = min_align;
-		pnv_ioda_add_wrap(&head, NULL, cdev, dev_size, dev_align);
-	}
-	if (list_empty(&head))
-		goto empty;
-
-	/* Now we can do two things: assign offsets to them within that
-	 * level and get our total alignment & size requirements. The
-	 * assignment algorithm is going to be uber-trivial for now, we
-	 * can try to be smarter later at filling out holes.
-	 */
-	if (bus->self) {
-		/* No offset for downstream bridges */
-		start = 0;
-	} else {
-		/* Offset from the root */
-		if (flags & IORESOURCE_IO)
-			/* Don't hand out IO 0 */
-			start = hose->io_resource.start + 0x1000;
-		else
-			start = hose->mem_resources[0].start;
-	}
-	while(!list_empty(&head)) {
-		w = list_first_entry(&head, struct resource_wrap, link);
-		list_del(&w->link);
-		if (w->size) {
-			if (start) {
-				start = ALIGN(start, w->align);
-				if (w->dev)
-					pnv_ioda_offset_dev(w->dev,flags,start);
-				else if (w->bus)
-					pnv_ioda_offset_bus(w->bus,flags,start);
-			}
-			if (w->align > *align)
-				*align = w->align;
-		}
-		start += w->size;
-		kfree(w);
-	}
-	*size = start;
-
-	/* Align and setup bridge resources */
-	*align = max_t(resource_size_t, *align,
-		       max_t(resource_size_t, min_align, min_balign));
-	*size = ALIGN(*size,
-		      max_t(resource_size_t, min_align, min_balign));
- empty:
-	/* Only setup P2P's, not the PHB itself */
-	if (bus->self) {
-		struct resource *res = bus->resource[bres];
-
-		if (WARN_ON(res == NULL))
-			return;
-
-		/*
-		 * FIXME: We should probably export and call
-		 * pci_bridge_check_ranges() to properly re-initialize
-		 * the PCI portion of the flags here, and to detect
-		 * what the bridge actually supports.
-		 */
-		res->start = 0;
-		res->flags = (*size) ? flags : 0;
-		res->end = (*size) ? (*size - 1) : 0;
-	}
-
-	pr_devel("<- CBR %s [%x] *size=%016llx *align=%016llx\n",
-		 bus->self ? pci_name(bus->self) : "root", flags,*size,*align);
-}
-
 static struct pci_dn *pnv_ioda_get_pdn(struct pci_dev *dev)
 {
 	struct device_node *np;
@@ -353,172 +77,6 @@ static struct pci_dn *pnv_ioda_get_pdn(struct pci_dev *dev)
 	if (!np)
 		return NULL;
 	return PCI_DN(np);
-}
-
-static void __devinit pnv_ioda_setup_pe_segments(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
-	unsigned int pe, i;
-	resource_size_t pos;
-	struct resource io_res;
-	struct resource m32_res;
-	struct pci_bus_region region;
-	int rc;
-
-	/* Anything not referenced in the device-tree gets PE#0 */
-	pe = pdn ? pdn->pe_number : 0;
-
-	/* Calculate the device min/max */
-	io_res.start = m32_res.start = (resource_size_t)-1;
-	io_res.end = m32_res.end = 0;
-	io_res.flags = IORESOURCE_IO;
-	m32_res.flags = IORESOURCE_MEM;
-
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		struct resource *r = NULL;
-		if (dev->resource[i].flags & IORESOURCE_IO)
-			r = &io_res;
-		if (dev->resource[i].flags & IORESOURCE_MEM)
-			r = &m32_res;
-		if (!r)
-			continue;
-		if (dev->resource[i].start < r->start)
-			r->start = dev->resource[i].start;
-		if (dev->resource[i].end > r->end)
-			r->end = dev->resource[i].end;
-	}
-
-	/* Setup IO segments */
-	if (io_res.start < io_res.end) {
-		pcibios_resource_to_bus(dev, &region, &io_res);
-		pos = region.start;
-		i = pos / phb->ioda.io_segsize;
-		while(i < phb->ioda.total_pe && pos <= region.end) {
-			if (phb->ioda.io_segmap[i]) {
-				pr_err("%s: Trying to use IO seg #%d which is"
-				       " already used by PE# %d\n",
-				       pci_name(dev), i,
-				       phb->ioda.io_segmap[i]);
-				/* XXX DO SOMETHING TO DISABLE DEVICE ? */
-				break;
-			}
-			phb->ioda.io_segmap[i] = pe;
-			rc = opal_pci_map_pe_mmio_window(phb->opal_id, pe,
-							 OPAL_IO_WINDOW_TYPE,
-							 0, i);
-			if (rc != OPAL_SUCCESS) {
-				pr_err("%s: OPAL error %d setting up mapping"
-				       " for IO seg# %d\n",
-				       pci_name(dev), rc, i);
-				/* XXX DO SOMETHING TO DISABLE DEVICE ? */
-				break;
-			}
-			pos += phb->ioda.io_segsize;
-			i++;
-		};
-	}
-
-	/* Setup M32 segments */
-	if (m32_res.start < m32_res.end) {
-		pcibios_resource_to_bus(dev, &region, &m32_res);
-		pos = region.start;
-		i = pos / phb->ioda.m32_segsize;
-		while(i < phb->ioda.total_pe && pos <= region.end) {
-			if (phb->ioda.m32_segmap[i]) {
-				pr_err("%s: Trying to use M32 seg #%d which is"
-				       " already used by PE# %d\n",
-				       pci_name(dev), i,
-				       phb->ioda.m32_segmap[i]);
-				/* XXX DO SOMETHING TO DISABLE DEVICE ? */
-				break;
-			}
-			phb->ioda.m32_segmap[i] = pe;
-			rc = opal_pci_map_pe_mmio_window(phb->opal_id, pe,
-							 OPAL_M32_WINDOW_TYPE,
-							 0, i);
-			if (rc != OPAL_SUCCESS) {
-				pr_err("%s: OPAL error %d setting up mapping"
-				       " for M32 seg# %d\n",
-				       pci_name(dev), rc, i);
-				/* XXX DO SOMETHING TO DISABLE DEVICE ? */
-				break;
-			}
-			pos += phb->ioda.m32_segsize;
-			i++;
-		}
-	}
-}
-
-/* Check if a resource still fits in the total IO or M32 range
- * for a given PHB
- */
-static int __devinit pnv_ioda_resource_fit(struct pci_controller *hose,
-					   struct resource *r)
-{
-	struct resource *bounds;
-
-	if (r->flags & IORESOURCE_IO)
-		bounds = &hose->io_resource;
-	else if (r->flags & IORESOURCE_MEM)
-		bounds = &hose->mem_resources[0];
-	else
-		return 1;
-
-	if (r->start >= bounds->start && r->end <= bounds->end)
-		return 1;
-	r->flags = 0;
-	return 0;
-}
-
-static void __devinit pnv_ioda_update_resources(struct pci_bus *bus)
-{
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pci_bus *cbus;
-	struct pci_dev *cdev;
-	unsigned int i;
-
-	/* We used to clear all device enables here. However it looks like
-	 * clearing MEM enable causes Obsidian (IPR SCS) to go bonkers,
-	 * and shoot fatal errors to the PHB which in turns fences itself
-	 * and we can't recover from that ... yet. So for now, let's leave
-	 * the enables as-is and hope for the best.
-	 */
-
-	/* Check if bus resources fit in our IO or M32 range */
-	for (i = 0; bus->self && (i < 2); i++) {
-		struct resource *r = bus->resource[i];
-		if (r && !pnv_ioda_resource_fit(hose, r))
-			pr_err("%s: Bus %d resource %d disabled, no room\n",
-			       pci_name(bus->self), bus->number, i);
-	}
-
-	/* Update self if it's not a PHB */
-	if (bus->self)
-		pci_setup_bridge(bus);
-
-	/* Update child devices */
-	list_for_each_entry(cdev, &bus->devices, bus_list) {
-		/* Check if resource fits, if not, disabled it */
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-			struct resource *r = &cdev->resource[i];
-			if (!pnv_ioda_resource_fit(hose, r))
-				pr_err("%s: Resource %d disabled, no room\n",
-				       pci_name(cdev), i);
-		}
-
-		/* Assign segments */
-		pnv_ioda_setup_pe_segments(cdev);
-
-		/* Update HW BARs */
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
-			pci_update_resource(cdev, i);
-	}
-
-	/* Update child busses */
-	list_for_each_entry(cbus, &bus->children, node)
-		pnv_ioda_update_resources(cbus);
 }
 
 static int __devinit pnv_ioda_alloc_pe(struct pnv_phb *phb)
@@ -548,7 +106,7 @@ static void __devinit pnv_ioda_free_pe(struct pnv_phb *phb, int pe)
  * but in the meantime, we need to protect them to avoid warnings
  */
 #ifdef CONFIG_PCI_MSI
-static struct pnv_ioda_pe * __devinit __pnv_ioda_get_one_pe(struct pci_dev *dev)
+static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -559,19 +117,6 @@ static struct pnv_ioda_pe * __devinit __pnv_ioda_get_one_pe(struct pci_dev *dev)
 	if (pdn->pe_number == IODA_INVALID_PE)
 		return NULL;
 	return &phb->ioda.pe_array[pdn->pe_number];
-}
-
-static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
-{
-	struct pnv_ioda_pe *pe = __pnv_ioda_get_one_pe(dev);
-
-	while (!pe && dev->bus->self) {
-		dev = dev->bus->self;
-		pe = __pnv_ioda_get_one_pe(dev);
-		if (pe)
-			pe = pe->bus_pe;
-	}
-	return pe;
 }
 #endif /* CONFIG_PCI_MSI */
 
@@ -589,7 +134,11 @@ static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
 		dcomp = OPAL_IGNORE_RID_DEVICE_NUMBER;
 		fcomp = OPAL_IGNORE_RID_FUNCTION_NUMBER;
 		parent = pe->pbus->self;
-		count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+		if (pe->flags & PNV_IODA_PE_BUS_ALL)
+			count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+		else
+			count = 1;
+
 		switch(count) {
 		case  1: bcomp = OpalPciBusAll;		break;
 		case  2: bcomp = OpalPciBus7Bits;	break;
@@ -666,13 +215,13 @@ static void __devinit pnv_ioda_link_pe_by_weight(struct pnv_phb *phb,
 {
 	struct pnv_ioda_pe *lpe;
 
-	list_for_each_entry(lpe, &phb->ioda.pe_list, link) {
+	list_for_each_entry(lpe, &phb->ioda.pe_dma_list, dma_link) {
 		if (lpe->dma_weight < pe->dma_weight) {
-			list_add_tail(&pe->link, &lpe->link);
+			list_add_tail(&pe->dma_link, &lpe->dma_link);
 			return;
 		}
 	}
-	list_add_tail(&pe->link, &phb->ioda.pe_list);
+	list_add_tail(&pe->dma_link, &phb->ioda.pe_dma_list);
 }
 
 static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
@@ -699,6 +248,7 @@ static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
 	return 10;
 }
 
+#if 0
 static struct pnv_ioda_pe * __devinit pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
@@ -767,6 +317,7 @@ static struct pnv_ioda_pe * __devinit pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 
 	return pe;
 }
+#endif /* Useful for SRIOV case */
 
 static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 {
@@ -784,34 +335,33 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 		pdn->pcidev = dev;
 		pdn->pe_number = pe->pe_number;
 		pe->dma_weight += pnv_ioda_dma_weight(dev);
-		if (dev->subordinate)
+		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
 			pnv_ioda_setup_same_PE(dev->subordinate, pe);
 	}
 }
 
-static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
-					    struct pnv_ioda_pe *ppe)
+/*
+ * There're 2 types of PCI bus sensitive PEs: One that is compromised of
+ * single PCI bus. Another one that contains the primary PCI bus and its
+ * subordinate PCI devices and buses. The second type of PE is normally
+ * orgiriated by PCIe-to-PCI bridge or PLX switch downstream ports.
+ */
+static void __devinit pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 {
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct pci_bus *bus = dev->subordinate;
 	struct pnv_ioda_pe *pe;
 	int pe_num;
 
-	if (!bus) {
-		pr_warning("%s: Bridge without a subordinate bus !\n",
-			   pci_name(dev));
-		return;
-	}
 	pe_num = pnv_ioda_alloc_pe(phb);
 	if (pe_num == IODA_INVALID_PE) {
-		pr_warning("%s: Not enough PE# available, disabling bus\n",
-			   pci_name(dev));
+		pr_warning("%s: Not enough PE# available for PCI bus %04x:%02x\n",
+			__func__, pci_domain_nr(bus), bus->number);
 		return;
 	}
 
 	pe = &phb->ioda.pe_array[pe_num];
-	ppe->bus_pe = pe;
+	pe->flags = (all ? PNV_IODA_PE_BUS_ALL : PNV_IODA_PE_BUS);
 	pe->pbus = bus;
 	pe->pdev = NULL;
 	pe->tce32_seg = -1;
@@ -819,8 +369,12 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
 	pe->rid = bus->busn_res.start << 8;
 	pe->dma_weight = 0;
 
-	pe_info(pe, "Secondary busses %pR associated with PE\n",
-		&bus->busn_res);
+	if (all)
+		pe_info(pe, "Secondary bus %d..%d associated with PE#%d\n",
+			bus->busn_res.start, bus->busn_res.end, pe_num);
+	else
+		pe_info(pe, "Secondary bus %d associated with PE#%d\n",
+			bus->busn_res.start, pe_num);
 
 	if (pnv_ioda_configure_pe(phb, pe)) {
 		/* XXX What do we do here ? */
@@ -832,6 +386,9 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
 
 	/* Associate it with all child devices */
 	pnv_ioda_setup_same_PE(bus, pe);
+
+	/* Put PE to the list */
+	list_add_tail(&pe->list, &phb->ioda.pe_list);
 
 	/* Account for one DMA PE if at least one DMA capable device exist
 	 * below the bridge
@@ -848,17 +405,33 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
 static void __devinit pnv_ioda_setup_PEs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
-	struct pnv_ioda_pe *pe;
+
+	pnv_ioda_setup_bus_PE(bus, 0);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		pe = pnv_ioda_setup_dev_PE(dev);
-		if (pe == NULL)
-			continue;
-		/* Leaving the PCIe domain ... single PE# */
-		if (dev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
-			pnv_ioda_setup_bus_PE(dev, pe);
-		else if (dev->subordinate)
-			pnv_ioda_setup_PEs(dev->subordinate);
+		if (dev->subordinate) {
+			if (pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE)
+				pnv_ioda_setup_bus_PE(dev->subordinate, 1);
+			else
+				pnv_ioda_setup_PEs(dev->subordinate);
+		}
+	}
+}
+
+/*
+ * Configure PEs so that the downstream PCI buses and devices
+ * could have their associated PE#. Unfortunately, we didn't
+ * figure out the way to identify the PLX bridge yet. So we
+ * simply put the PCI bus and the subordinate behind the root
+ * port to PE# here. The game rule here is expected to be changed
+ * as soon as we can detected PLX bridge correctly.
+ */
+static void __devinit pnv_pci_ioda_setup_PEs(void)
+{
+	struct pci_controller *hose, *tmp;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pnv_ioda_setup_PEs(hose->bus);
 	}
 }
 
@@ -1000,7 +573,7 @@ static void __devinit pnv_ioda_setup_dma(struct pnv_phb *phb)
 	remaining = phb->ioda.tce32_count;
 	tw = phb->ioda.dma_weight;
 	base = 0;
-	list_for_each_entry(pe, &phb->ioda.pe_list, link) {
+	list_for_each_entry(pe, &phb->ioda.pe_dma_list, dma_link) {
 		if (!pe->dma_weight)
 			continue;
 		if (!remaining) {
@@ -1109,34 +682,151 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 static void pnv_pci_init_ioda_msis(struct pnv_phb *phb) { }
 #endif /* CONFIG_PCI_MSI */
 
-/* This is the starting point of our IODA specific resource
- * allocation process
+/*
+ * This function is supposed to be called on basis of PE from top
+ * to bottom style. So the the I/O or MMIO segment assigned to
+ * parent PE could be overrided by its child PEs if necessary.
  */
-static void __devinit pnv_pci_ioda_fixup_phb(struct pci_controller *hose)
+static void __devinit pnv_ioda_setup_pe_seg(struct pci_controller *hose,
+				struct pnv_ioda_pe *pe)
 {
-	resource_size_t size, align;
-	struct pci_bus *child;
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_bus_region region;
+	struct resource *res;
+	int i, index;
+	int rc;
 
-	/* Associate PEs per functions */
-	pnv_ioda_setup_PEs(hose->bus);
+	/*
+	 * NOTE: We only care PCI bus based PE for now. For PCI
+	 * device based PE, for example SRIOV sensitive VF should
+	 * be figured out later.
+	 */
+	BUG_ON(!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)));
 
-	/* Calculate all resources */
-	pnv_ioda_calc_bus(hose->bus, IORESOURCE_IO, &size, &align);
-	pnv_ioda_calc_bus(hose->bus, IORESOURCE_MEM, &size, &align);
-
-	/* Apply then to HW */
-	pnv_ioda_update_resources(hose->bus);
-
-	/* Setup DMA */
-	pnv_ioda_setup_dma(hose->private_data);
-
-	/* Configure PCI Express settings */
-	list_for_each_entry(child, &hose->bus->children, node) {
-		struct pci_dev *self = child->self;
-		if (!self)
+	pci_bus_for_each_resource(pe->pbus, res, i) {
+		if (!res || !res->flags ||
+		    res->start > res->end)
 			continue;
-		pcie_bus_configure_settings(child, self->pcie_mpss);
+
+		if (res->flags & IORESOURCE_IO) {
+			region.start = res->start - phb->ioda.io_pci_base;
+			region.end   = res->end - phb->ioda.io_pci_base;
+			index = region.start / phb->ioda.io_segsize;
+
+			while (index < phb->ioda.total_pe &&
+			       region.start <= region.end) {
+				phb->ioda.io_segmap[index] = pe->pe_number;
+				rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+					pe->pe_number, OPAL_IO_WINDOW_TYPE, 0, index);
+				if (rc != OPAL_SUCCESS) {
+					pr_err("%s: OPAL error %d when mapping IO "
+					       "segment #%d to PE#%d\n",
+					       __func__, rc, index, pe->pe_number);
+					break;
+				}
+
+				region.start += phb->ioda.io_segsize;
+				index++;
+			}
+		} else if (res->flags & IORESOURCE_MEM) {
+			region.start = res->start -
+				       hose->pci_mem_offset -
+				       phb->ioda.m32_pci_base;
+			region.end   = res->end -
+				       hose->pci_mem_offset -
+				       phb->ioda.m32_pci_base;
+			index = region.start / phb->ioda.m32_segsize;
+
+			while (index < phb->ioda.total_pe &&
+			       region.start <= region.end) {
+				phb->ioda.m32_segmap[index] = pe->pe_number;
+				rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+					pe->pe_number, OPAL_M32_WINDOW_TYPE, 0, index);
+				if (rc != OPAL_SUCCESS) {
+					pr_err("%s: OPAL error %d when mapping M32 "
+					       "segment#%d to PE#%d",
+					       __func__, rc, index, pe->pe_number);
+					break;
+				}
+
+				region.start += phb->ioda.m32_segsize;
+				index++;
+			}
+		}
 	}
+}
+
+static void __devinit pnv_pci_ioda_setup_seg(void)
+{
+	struct pci_controller *tmp, *hose;
+	struct pnv_phb *phb;
+	struct pnv_ioda_pe *pe;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		phb = hose->private_data;
+		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+			pnv_ioda_setup_pe_seg(hose, pe);
+		}
+	}
+}
+
+static void __devinit pnv_pci_ioda_setup_DMA(void)
+{
+	struct pci_controller *hose, *tmp;
+	struct pnv_phb *phb;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pnv_ioda_setup_dma(hose->private_data);
+
+		/* Mark the PHB initialization done */
+		phb = hose->private_data;
+		phb->initialized = 1;
+	}
+}
+
+static void __devinit pnv_pci_ioda_fixup(void)
+{
+	pnv_pci_ioda_setup_PEs();
+	pnv_pci_ioda_setup_seg();
+	pnv_pci_ioda_setup_DMA();
+}
+
+/*
+ * Returns the alignment for I/O or memory windows for P2P
+ * bridges. That actually depends on how PEs are segmented.
+ * For now, we return I/O or M32 segment size for PE sensitive
+ * P2P bridges. Otherwise, the default values (4KiB for I/O,
+ * 1MiB for memory) will be returned.
+ *
+ * The current PCI bus might be put into one PE, which was
+ * create against the parent PCI bridge. For that case, we
+ * needn't enlarge the alignment so that we can save some
+ * resources.
+ */
+static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
+						unsigned long type)
+{
+	struct pci_dev *bridge;
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	struct pnv_phb *phb = hose->private_data;
+	int num_pci_bridges = 0;
+
+	bridge = bus->self;
+	while (bridge) {
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE) {
+			num_pci_bridges++;
+			if (num_pci_bridges >= 2)
+				return 1;
+		}
+
+		bridge = bridge->bus->self;
+	}
+
+	/* We need support prefetchable memory window later */
+	if (type & IORESOURCE_MEM)
+		return phb->ioda.m32_segsize;
+
+	return phb->ioda.io_segsize;
 }
 
 /* Prevent enabling devices for which we couldn't properly
@@ -1144,10 +834,22 @@ static void __devinit pnv_pci_ioda_fixup_phb(struct pci_controller *hose)
  */
 static int __devinit pnv_pci_enable_device_hook(struct pci_dev *dev)
 {
-	struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn;
 
+	/* The function is probably called while the PEs have
+	 * not be created yet. For example, resource reassignment
+	 * during PCI probe period. We just skip the check if
+	 * PEs isn't ready.
+	 */
+	if (!phb->initialized)
+		return 0;
+
+	pdn = pnv_ioda_get_pdn(dev);
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return -EINVAL;
+
 	return 0;
 }
 
@@ -1238,9 +940,9 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	/* Allocate aux data & arrays */
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
-	size += phb->ioda.total_pe;
+	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
 	iomap_off = size;
-	size += phb->ioda.total_pe;
+	size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
 	aux = alloc_bootmem(size);
@@ -1251,6 +953,7 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(0, phb->ioda.pe_alloc);
 
+	INIT_LIST_HEAD(&phb->ioda.pe_dma_list);
 	INIT_LIST_HEAD(&phb->ioda.pe_list);
 
 	/* Calculate how many 32-bit TCE segments we have */
@@ -1299,14 +1002,17 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
 
-	/* We set both PCI_PROBE_ONLY and PCI_REASSIGN_ALL_RSRC. This is an
-	 * odd combination which essentially means that we skip all resource
-	 * fixups and assignments in the generic code, and do it all
-	 * ourselves here
+	/*
+	 * We pass the PCI probe flag PCI_REASSIGN_ALL_RSRC here
+	 * to let the PCI core do resource assignment. It's supposed
+	 * that the PCI core will do correct I/O and MMIO alignment
+	 * for the P2P bridge bars so that each PCI bus (excluding
+	 * the child P2P bridges) can form individual PE.
 	 */
-	ppc_md.pcibios_fixup_phb = pnv_pci_ioda_fixup_phb;
+	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
-	pci_add_flags(PCI_PROBE_ONLY | PCI_REASSIGN_ALL_RSRC);
+	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
+	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
 	rc = opal_pci_reset(phb_id, OPAL_PCI_IODA_TABLE_RESET, OPAL_ASSERT_RESET);

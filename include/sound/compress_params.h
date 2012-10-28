@@ -72,6 +72,7 @@
 #define SND_AUDIOCODEC_IEC61937              ((__u32) 0x0000000B)
 #define SND_AUDIOCODEC_G723_1                ((__u32) 0x0000000C)
 #define SND_AUDIOCODEC_G729                  ((__u32) 0x0000000D)
+#define SND_AUDIOCODEC_MAX                   SND_AUDIOCODEC_G729
 
 /*
  * Profile and modes are listed with bit masks. This allows for a

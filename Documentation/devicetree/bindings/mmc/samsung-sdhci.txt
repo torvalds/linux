@@ -1,0 +1,53 @@
+* Samsung's SDHCI Controller device tree bindings
+
+Samsung's SDHCI controller is used as a connectivity interface with external
+MMC, SD and eMMC storage mediums. This file documents differences between the
+core mmc properties described by mmc.txt and the properties used by the
+Samsung implmentation of the SDHCI controller.
+
+Note: The mmc core bindings documentation states that if none of the core
+card-detect bindings are used, then the standard sdhci card detect mechanism
+is used. The Samsung's SDHCI controller bindings extends this as listed below.
+
+[A] The property "samsung,cd-pinmux-gpio" can be used as stated in the
+    "Optional Board Specific Properties" section below.
+
+[B] If core card-detect bindings and "samsung,cd-pinmux-gpio" property
+    is not specified, it is assumed that there is no card detection
+    mechanism used.
+
+Required SoC Specific Properties:
+- compatible: should be one of the following
+  - "samsung,s3c6410-sdhci": For controllers compatible with s3c6410 sdhci
+    controller.
+  - "samsung,exynos4210-sdhci": For controllers compatible with Exynos4 sdhci
+    controller.
+
+Required Board Specific Properties:
+- gpios: Should specify the gpios used for clock, command and data lines. The
+  gpio specifier format depends on the gpio controller.
+
+Optional Board Specific Properties:
+- samsung,cd-pinmux-gpio: Specifies the card detect line that is routed
+  through a pinmux to the card-detect pin of the card slot. This property
+  should be used only if none of the mmc core card-detect properties are
+  used.
+
+Example:
+	sdhci@12530000 {
+		compatible = "samsung,exynos4210-sdhci";
+		reg = <0x12530000 0x100>;
+		interrupts = <0 75 0>;
+		bus-width = <4>;
+		cd-gpios = <&gpk2 2 2 3 3>;
+		gpios = <&gpk2 0 2 0 3>,  /* clock line */
+			<&gpk2 1 2 0 3>,  /* command line */
+			<&gpk2 3 2 3 3>,  /* data line 0 */
+			<&gpk2 4 2 3 3>,  /* data line 1 */
+			<&gpk2 5 2 3 3>,  /* data line 2 */
+			<&gpk2 6 2 3 3>;  /* data line 3 */
+	};
+
+	Note: This example shows both SoC specific and board specific properties
+	in a single device node. The properties can be actually be seperated
+	into SoC specific node and board specific node.

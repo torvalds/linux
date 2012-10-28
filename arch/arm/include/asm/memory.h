@@ -275,14 +275,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
 
-/*
- * Optional coherency support.  Currently used only by selected
- * Intel XSC3-based systems.
- */
-#ifndef arch_is_coherent
-#define arch_is_coherent()		0
-#endif
-
 #endif
 
 #include <asm-generic/memory_model.h>

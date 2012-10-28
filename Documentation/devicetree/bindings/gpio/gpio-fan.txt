@@ -1,0 +1,25 @@
+Bindings for fan connected to GPIO lines
+
+Required properties:
+- compatible : "gpio-fan"
+- gpios: Specifies the pins that map to bits in the control value,
+  ordered MSB-->LSB.
+- gpio-fan,speed-map: A mapping of possible fan RPM speeds and the
+  control value that should be set to achieve them. This array
+  must have the RPM values in ascending order.
+
+Optional properties:
+- alarm-gpios: This pin going active indicates something is wrong with
+  the fan, and a udev event will be fired.
+
+Examples:
+
+	gpio_fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio1 14 1
+			 &gpio1 13 1>;
+		gpio-fan,speed-map = <0    0
+				      3000 1
+				      6000 2>;
+		alarm-gpios = <&gpio1 15 1>;
+	};

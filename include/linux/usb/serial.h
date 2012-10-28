@@ -301,17 +301,13 @@ extern void usb_serial_port_softint(struct usb_serial_port *port);
 extern int usb_serial_suspend(struct usb_interface *intf, pm_message_t message);
 extern int usb_serial_resume(struct usb_interface *intf);
 
-extern int ezusb_writememory(struct usb_serial *serial, int address,
-			     unsigned char *data, int length, __u8 bRequest);
-extern int ezusb_set_reset(struct usb_serial *serial, unsigned char reset_bit);
-
 /* USB Serial console functions */
 #ifdef CONFIG_USB_SERIAL_CONSOLE
-extern void usb_serial_console_init(int debug, int minor);
+extern void usb_serial_console_init(int minor);
 extern void usb_serial_console_exit(void);
 extern void usb_serial_console_disconnect(struct usb_serial *serial);
 #else
-static inline void usb_serial_console_init(int debug, int minor) { }
+static inline void usb_serial_console_init(int minor) { }
 static inline void usb_serial_console_exit(void) { }
 static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 #endif
@@ -333,7 +329,7 @@ extern void usb_serial_generic_throttle(struct tty_struct *tty);
 extern void usb_serial_generic_unthrottle(struct tty_struct *tty);
 extern void usb_serial_generic_disconnect(struct usb_serial *serial);
 extern void usb_serial_generic_release(struct usb_serial *serial);
-extern int usb_serial_generic_register(int debug);
+extern int usb_serial_generic_register(void);
 extern void usb_serial_generic_deregister(void);
 extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,
 						 gfp_t mem_flags);
@@ -355,29 +351,13 @@ extern struct usb_serial_driver usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 
-static inline void usb_serial_debug_data(int debug,
-					 struct device *dev,
+static inline void usb_serial_debug_data(struct device *dev,
 					 const char *function, int size,
 					 const unsigned char *data)
 {
-	int i;
-
-	if (debug) {
-		dev_printk(KERN_DEBUG, dev, "%s - length = %d, data = ",
-			   function, size);
-		for (i = 0; i < size; ++i)
-			printk("%.2x ", data[i]);
-		printk("\n");
-	}
+	dev_dbg(dev, "%s - length = %d, data = %*ph\n",
+		function, size, size, data);
 }
-
-/* Use our own dbg macro */
-#undef dbg
-#define dbg(format, arg...)						\
-do {									\
-	if (debug)							\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
-} while (0)
 
 /*
  * Macro for reporting errors in write path to avoid inifinite loop

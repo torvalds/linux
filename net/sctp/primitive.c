@@ -57,7 +57,7 @@
 
 #define DECLARE_PRIMITIVE(name) \
 /* This is called in the code as sctp_primitive_ ## name.  */ \
-int sctp_primitive_ ## name(struct sctp_association *asoc, \
+int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
 			    void *arg) { \
 	int error = 0; \
 	sctp_event_t event_type; sctp_subtype_t subtype; \
@@ -69,7 +69,7 @@ int sctp_primitive_ ## name(struct sctp_association *asoc, \
 	state = asoc ? asoc->state : SCTP_STATE_CLOSED; \
 	ep = asoc ? asoc->ep : NULL; \
 	\
-	error = sctp_do_sm(event_type, subtype, state, ep, asoc, \
+	error = sctp_do_sm(net, event_type, subtype, state, ep, asoc,	\
 			   arg, GFP_KERNEL); \
 	return error; \
 }

@@ -85,6 +85,9 @@ OPTIONS
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--objdump=<path>::
+        Path to objdump binary.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]

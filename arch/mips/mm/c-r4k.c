@@ -786,6 +786,25 @@ static inline void rm7k_erratum31(void)
 	}
 }
 
+static inline void alias_74k_erratum(struct cpuinfo_mips *c)
+{
+	/*
+	 * Early versions of the 74K do not update the cache tags on a
+	 * vtag miss/ptag hit which can occur in the case of KSEG0/KUSEG
+	 * aliases. In this case it is better to treat the cache as always
+	 * having aliases.
+	 */
+	if ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(2, 4, 0))
+		c->dcache.flags |= MIPS_CACHE_VTAG;
+	if ((c->processor_id & 0xff) == PRID_REV_ENCODE_332(2, 4, 0))
+		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+	if (((c->processor_id & 0xff00) == PRID_IMP_1074K) &&
+	    ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(1, 1, 0))) {
+		c->dcache.flags |= MIPS_CACHE_VTAG;
+		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+	}
+}
+
 static char *way_string[] __cpuinitdata = { NULL, "direct mapped", "2-way",
 	"3-way", "4-way", "5-way", "6-way", "7-way", "8-way"
 };
@@ -1056,6 +1075,8 @@ static void __cpuinit probe_pcache(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+		if (c->cputype == CPU_74K)
+			alias_74k_erratum(c);
 		if ((read_c0_config7() & (1 << 16))) {
 			/* effectively physically indexed dcache,
 			   thus no virtual aliases. */

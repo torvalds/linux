@@ -1,0 +1,32 @@
+/* The pxa3xx skeleton simply augments the 2xx version */
+/include/ "pxa2xx.dtsi"
+
+/ {
+	model = "Marvell PXA3xx familiy SoC";
+	compatible = "marvell,pxa3xx";
+
+	pxabus {
+		pwri2c: i2c@40f500c0 {
+			compatible = "mrvl,pwri2c";
+			reg = <0x40f500c0 0x30>;
+			interrupts = <6>;
+			#address-cells = <0x1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		nand0: nand@43100000 {
+			compatible = "marvell,pxa3xx-nand";
+			reg = <0x43100000 90>;
+			interrupts = <45>;
+			#address-cells = <1>;
+			#size-cells = <1>;	
+			status = "disabled";
+		};
+
+		pxairq: interrupt-controller@40d00000 {
+			marvell,intc-priority;
+			marvell,intc-nr-irqs = <56>;
+		};
+	};
+};

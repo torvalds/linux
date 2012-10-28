@@ -219,7 +219,7 @@ static const struct map_l4_peripheral l4_peripheral_table[] = {
 /* MBX_PM_MAX_RESOURCES: CORE 2 Clock Resources. */
 #define MBX_CORE2_RESOURCES 1
 
-/* MBX_PM_MAX_RESOURCES: TOTAL Clock Reosurces. */
+/* MBX_PM_MAX_RESOURCES: TOTAL Clock Resources. */
 #define MBX_PM_MAX_RESOURCES 11
 
 /*  Power Management Commands */

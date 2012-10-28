@@ -150,7 +150,7 @@ config SUN3_82586
 
 config ZNET
 	tristate "Zenith Z-Note support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ISA_DMA_API
+	depends on EXPERIMENTAL && ISA_DMA_API && X86
 	---help---
 	  The Zenith Z-Note notebook computer has a built-in network
 	  (Ethernet) card, and this is the Linux driver for it. Note that the

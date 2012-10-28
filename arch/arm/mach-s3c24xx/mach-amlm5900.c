@@ -53,7 +53,7 @@
 #include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/gpio-cfg.h>

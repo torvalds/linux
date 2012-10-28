@@ -122,12 +122,53 @@
 #define REG_U32 4
 #define REG_U64 8
 
+/*
+ * As we look at expanding the KVP functionality to include
+ * IP injection functionality, we need to maintain binary
+ * compatibility with older daemons.
+ *
+ * The KVP opcodes are defined by the host and it was unfortunate
+ * that I chose to treat the registration operation as part of the
+ * KVP operations defined by the host.
+ * Here is the level of compatibility
+ * (between the user level daemon and the kernel KVP driver) that we
+ * will implement:
+ *
+ * An older daemon will always be supported on a newer driver.
+ * A given user level daemon will require a minimal version of the
+ * kernel driver.
+ * If we cannot handle the version differences, we will fail gracefully
+ * (this can happen when we have a user level daemon that is more
+ * advanced than the KVP driver.
+ *
+ * We will use values used in this handshake for determining if we have
+ * workable user level daemon and the kernel driver. We begin by taking the
+ * registration opcode out of the KVP opcode namespace. We will however,
+ * maintain compatibility with the existing user-level daemon code.
+ */
+
+/*
+ * Daemon code not supporting IP injection (legacy daemon).
+ */
+
+#define KVP_OP_REGISTER	4
+
+/*
+ * Daemon code supporting IP injection.
+ * The KVP opcode field is used to communicate the
+ * registration information; so define a namespace that
+ * will be distinct from the host defined KVP opcode.
+ */
+
+#define KVP_OP_REGISTER1 100
+
 enum hv_kvp_exchg_op {
 	KVP_OP_GET = 0,
 	KVP_OP_SET,
 	KVP_OP_DELETE,
 	KVP_OP_ENUMERATE,
-	KVP_OP_REGISTER,
+	KVP_OP_GET_IP_INFO,
+	KVP_OP_SET_IP_INFO,
 	KVP_OP_COUNT /* Number of operations, must be last. */
 };
 
@@ -139,6 +180,39 @@ enum hv_kvp_exchg_pool {
 	KVP_POOL_AUTO_INTERNAL,
 	KVP_POOL_COUNT /* Number of pools, must be last. */
 };
+
+/*
+ * Some Hyper-V status codes.
+ */
+
+#define HV_S_OK				0x00000000
+#define HV_E_FAIL			0x80004005
+#define HV_S_CONT			0x80070103
+#define HV_ERROR_NOT_SUPPORTED		0x80070032
+#define HV_ERROR_MACHINE_LOCKED		0x800704F7
+#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
+#define HV_INVALIDARG			0x80070057
+#define HV_GUID_NOTFOUND		0x80041002
+
+#define ADDR_FAMILY_NONE	0x00
+#define ADDR_FAMILY_IPV4	0x01
+#define ADDR_FAMILY_IPV6	0x02
+
+#define MAX_ADAPTER_ID_SIZE	128
+#define MAX_IP_ADDR_SIZE	1024
+#define MAX_GATEWAY_SIZE	512
+
+
+struct hv_kvp_ipaddr_value {
+	__u16	adapter_id[MAX_ADAPTER_ID_SIZE];
+	__u8	addr_family;
+	__u8	dhcp_enabled;
+	__u16	ip_addr[MAX_IP_ADDR_SIZE];
+	__u16	sub_net[MAX_IP_ADDR_SIZE];
+	__u16	gate_way[MAX_GATEWAY_SIZE];
+	__u16	dns_addr[MAX_IP_ADDR_SIZE];
+} __attribute__((packed));
+
 
 struct hv_kvp_hdr {
 	__u8 operation;
@@ -181,14 +255,24 @@ struct hv_kvp_register {
 };
 
 struct hv_kvp_msg {
-	struct hv_kvp_hdr	kvp_hdr;
+	union {
+		struct hv_kvp_hdr	kvp_hdr;
+		int error;
+	};
 	union {
 		struct hv_kvp_msg_get		kvp_get;
 		struct hv_kvp_msg_set		kvp_set;
 		struct hv_kvp_msg_delete	kvp_delete;
 		struct hv_kvp_msg_enumerate	kvp_enum_data;
+		struct hv_kvp_ipaddr_value      kvp_ip_val;
 		struct hv_kvp_register		kvp_register;
 	} body;
+} __attribute__((packed));
+
+struct hv_kvp_ip_msg {
+	__u8 operation;
+	__u8 pool;
+	struct hv_kvp_ipaddr_value      kvp_ip_val;
 } __attribute__((packed));
 
 #ifdef __KERNEL__
@@ -405,7 +489,7 @@ struct vmtransfer_page_range {
 struct vmtransfer_page_packet_header {
 	struct vmpacket_descriptor d;
 	u16 xfer_pageset_id;
-	bool sender_owns_set;
+	u8  sender_owns_set;
 	u8 reserved;
 	u32 range_cnt;
 	struct vmtransfer_page_range ranges[1];
@@ -559,7 +643,7 @@ struct vmbus_channel_query_vmbus_version {
 /* VMBus Version Supported parameters */
 struct vmbus_channel_version_supported {
 	struct vmbus_channel_message_header header;
-	bool version_supported;
+	u8 version_supported;
 } __packed;
 
 /* Offer Channel parameters */
@@ -568,7 +652,7 @@ struct vmbus_channel_offer_channel {
 	struct vmbus_channel_offer offer;
 	u32 child_relid;
 	u8 monitorid;
-	bool monitor_allocated;
+	u8 monitor_allocated;
 } __packed;
 
 /* Rescind Offer parameters */
@@ -704,7 +788,7 @@ struct vmbus_channel_initiate_contact {
 
 struct vmbus_channel_version_response {
 	struct vmbus_channel_message_header header;
-	bool version_supported;
+	u8 version_supported;
 } __packed;
 
 enum vmbus_channel_state {
@@ -977,11 +1061,6 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 #define ICMSGHDRFLAG_REQUEST		2
 #define ICMSGHDRFLAG_RESPONSE		4
 
-#define HV_S_OK				0x00000000
-#define HV_E_FAIL			0x80004005
-#define HV_S_CONT			0x80070103
-#define HV_ERROR_NOT_SUPPORTED		0x80070032
-#define HV_ERROR_MACHINE_LOCKED		0x800704F7
 
 /*
  * While we want to handle util services as regular devices,

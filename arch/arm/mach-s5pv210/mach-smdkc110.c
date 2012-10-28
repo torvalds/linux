@@ -27,8 +27,8 @@
 #include <plat/regs-serial.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/ata.h>
-#include <plat/iic.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
 #include <plat/s5p-time.h>
 #include <plat/mfc.h>

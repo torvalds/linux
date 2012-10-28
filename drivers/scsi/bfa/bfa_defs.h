@@ -159,10 +159,13 @@ enum bfa_status {
 	BFA_STATUS_BEACON_ON    = 72,   /* Port Beacon already on */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */
+	BFA_STATUS_ERROR_TRL_ENABLED  = 87,   /* TRL is enabled */
+	BFA_STATUS_ERROR_QOS_ENABLED  = 88,   /* QoS is enabled */
 	BFA_STATUS_NO_SFP_DEV = 89,	/* No SFP device check or replace SFP */
 	BFA_STATUS_MEMTEST_FAILED = 90, /* Memory test failed contact support */
 	BFA_STATUS_LEDTEST_OP = 109, /* LED test is operating */
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
+	BFA_STATUS_CMD_NOTSUPP_CNA = 146, /* Command not supported for CNA */
 	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
 					*  configuration */
 	BFA_STATUS_BAD_FWCFG = 156,	/* Bad firmware configuration */
@@ -184,6 +187,17 @@ enum bfa_status {
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
+	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
+	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
+					    * on mezz cards */
+	BFA_STATUS_INVALID_BW = 233,	/* Invalid bandwidth value */
+	BFA_STATUS_QOS_BW_INVALID = 234,   /* Invalid QOS bandwidth
+					    * configuration */
+	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
+	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
+	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
+	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
+	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -249,6 +263,10 @@ struct bfa_adapter_attr_s {
 
 	u8		is_mezz;
 	u8		trunk_capable;
+	u8		mfg_day;	/* manufacturing day */
+	u8		mfg_month;	/* manufacturing month */
+	u16		mfg_year;	/* manufacturing year */
+	u16		rsvd;
 };
 
 /*
@@ -499,6 +517,17 @@ struct bfa_ioc_aen_data_s {
 };
 
 /*
+ *	D-port states
+ *
+*/
+enum bfa_dport_state {
+	BFA_DPORT_ST_DISABLED	= 0,	/* D-port is Disabled */
+	BFA_DPORT_ST_DISABLING	= 1,	/* D-port is Disabling */
+	BFA_DPORT_ST_ENABLING	= 2,	/* D-port is Enabling */
+	BFA_DPORT_ST_ENABLED	= 3,	/* D-port is Enabled */
+};
+
+/*
  * ---------------------- mfg definitions ------------
  */
 
@@ -722,7 +751,8 @@ struct bfa_ablk_cfg_pf_s {
 	u8	rsvd[1];
 	u16	num_qpairs;
 	u16	num_vectors;
-	u32	bw;
+	u16	bw_min;
+	u16	bw_max;
 };
 
 struct bfa_ablk_cfg_port_s {
@@ -889,11 +919,40 @@ struct sfp_diag_ext_s {
 	u8	ext_status_ctl[2];
 };
 
+/*
+ * Diagnostic: Data Fields -- Address A2h
+ * General Use Fields: User Writable Table - Features's Control Registers
+ * Total 32 bytes
+ */
+struct sfp_usr_eeprom_s {
+	u8	rsvd1[2];       /* 128-129 */
+	u8	ewrap;          /* 130 */
+	u8	rsvd2[2];       /*  */
+	u8	owrap;          /* 133 */
+	u8	rsvd3[2];       /*  */
+	u8	prbs;           /* 136: PRBS 7 generator */
+	u8	rsvd4[2];       /*  */
+	u8	tx_eqz_16;      /* 139: TX Equalizer (16xFC) */
+	u8	tx_eqz_8;       /* 140: TX Equalizer (8xFC) */
+	u8	rsvd5[2];       /*  */
+	u8	rx_emp_16;      /* 143: RX Emphasis (16xFC) */
+	u8	rx_emp_8;       /* 144: RX Emphasis (8xFC) */
+	u8	rsvd6[2];       /*  */
+	u8	tx_eye_adj;     /* 147: TX eye Threshold Adjust */
+	u8	rsvd7[3];       /*  */
+	u8	tx_eye_qctl;    /* 151: TX eye Quality Control */
+	u8	tx_eye_qres;    /* 152: TX eye Quality Result */
+	u8	rsvd8[2];       /*  */
+	u8	poh[3];         /* 155-157: Power On Hours */
+	u8	rsvd9[2];       /*  */
+};
+
 struct sfp_mem_s {
 	struct sfp_srlid_base_s	srlid_base;
 	struct sfp_srlid_ext_s	srlid_ext;
 	struct sfp_diag_base_s	diag_base;
 	struct sfp_diag_ext_s	diag_ext;
+	struct sfp_usr_eeprom_s usr_eeprom;
 };
 
 /*

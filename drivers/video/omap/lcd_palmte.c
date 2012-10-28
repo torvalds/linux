@@ -23,7 +23,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <plat/fpga.h>
 #include "omapfb.h"
 
 static int palmte_panel_init(struct lcd_panel *panel,

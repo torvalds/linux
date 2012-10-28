@@ -1118,7 +1118,7 @@ mixer_set_input_right(struct ct_mixer *mixer,
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mixer_resume(struct ct_mixer *mixer)
 {
 	int i, state;
@@ -1188,7 +1188,7 @@ int ct_mixer_create(struct ct_atc *atc, struct ct_mixer **rmixer)
 	mixer->get_output_ports = mixer_get_output_ports;
 	mixer->set_input_left = mixer_set_input_left;
 	mixer->set_input_right = mixer_set_input_right;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	mixer->resume = mixer_resume;
 #endif
 

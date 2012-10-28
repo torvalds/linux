@@ -272,10 +272,168 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
+		pmic: tps6586x@34 {
+			compatible = "ti,tps6586x";
+			reg = <0x34>;
+			interrupts = <0 86 0x4>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			sys-supply = <&p5valw_reg>;
+			vin-sm0-supply = <&sys_reg>;
+			vin-sm1-supply = <&sys_reg>;
+			vin-sm2-supply = <&sys_reg>;
+			vinldo01-supply = <&sm2_reg>;
+			vinldo23-supply = <&sm2_reg>;
+			vinldo4-supply = <&sm2_reg>;
+			vinldo678-supply = <&sm2_reg>;
+			vinldo9-supply = <&sm2_reg>;
+
+			regulators {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sys_reg: regulator@0 {
+					reg = <0>;
+					regulator-compatible = "sys";
+					regulator-name = "vdd_sys";
+					regulator-always-on;
+				};
+
+				regulator@1 {
+					reg = <1>;
+					regulator-compatible = "sm0";
+					regulator-name = "+1.2vs_sm0,vdd_core";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				regulator@2 {
+					reg = <2>;
+					regulator-compatible = "sm1";
+					regulator-name = "+1.0vs_sm1,vdd_cpu";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+
+				sm2_reg: regulator@3 {
+					reg = <3>;
+					regulator-compatible = "sm2";
+					regulator-name = "+3.7vs_sm2,vin_ldo*";
+					regulator-min-microvolt = <3700000>;
+					regulator-max-microvolt = <3700000>;
+					regulator-always-on;
+				};
+
+				/* LDO0 is not connected to anything */
+
+				regulator@5 {
+					reg = <5>;
+					regulator-compatible = "ldo1";
+					regulator-name = "+1.1vs_ldo1,avdd_pll*";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
+				};
+
+				regulator@6 {
+					reg = <6>;
+					regulator-compatible = "ldo2";
+					regulator-name = "+1.2vs_ldo2,vdd_rtc";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				regulator@7 {
+					reg = <7>;
+					regulator-compatible = "ldo3";
+					regulator-name = "+3.3vs_ldo3,avdd_usb*";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+
+				regulator@8 {
+					reg = <8>;
+					regulator-compatible = "ldo4";
+					regulator-name = "+1.8vs_ldo4,avdd_osc,vddio_sys";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				regulator@9 {
+					reg = <9>;
+					regulator-compatible = "ldo5";
+					regulator-name = "+2.85vs_ldo5,vcore_mmc";
+					regulator-min-microvolt = <2850000>;
+					regulator-max-microvolt = <2850000>;
+					regulator-always-on;
+				};
+
+				regulator@10 {
+					reg = <10>;
+					regulator-compatible = "ldo6";
+					/*
+					 * Research indicates this should be
+					 * 1.8v; other boards that use this
+					 * rail for the same purpose need it
+					 * set to 1.8v. The schematic signal
+					 * name is incorrect; perhaps copied
+					 * from an incorrect NVIDIA reference.
+					 */
+					regulator-name = "+2.85vs_ldo6,avdd_vdac";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				regulator@11 {
+					reg = <11>;
+					regulator-compatible = "ldo7";
+					regulator-name = "+3.3vs_ldo7,avdd_hdmi";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				regulator@12 {
+					reg = <12>;
+					regulator-compatible = "ldo8";
+					regulator-name = "+1.8vs_ldo8,avdd_hdmi_pll";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				regulator@13 {
+					reg = <13>;
+					regulator-compatible = "ldo9";
+					regulator-name = "+2.85vs_ldo9,vdd_ddr_rx";
+					regulator-min-microvolt = <2850000>;
+					regulator-max-microvolt = <2850000>;
+					regulator-always-on;
+				};
+
+				regulator@14 {
+					reg = <14>;
+					regulator-compatible = "ldo_rtc";
+					regulator-name = "+3.3vs_rtc";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+			};
+		};
+
 		adt7461@4c {
 			compatible = "adi,adt7461";
 			reg = <0x4c>;
 		};
+	};
+
+	pmc {
+		nvidia,invert-interrupt;
 	};
 
 	usb@c5000000 {
@@ -322,6 +480,21 @@
 			label = "wifi-led";
 			gpios = <&gpio 24 0>; /* gpio PD0 */
 			linux,default-trigger = "rfkill0";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		p5valw_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "+5valw";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
 		};
 	};
 

@@ -64,14 +64,7 @@ __setup("pcie_ports=", pcie_port_setup);
  */
 void pcie_clear_root_pme_status(struct pci_dev *dev)
 {
-	int rtsta_pos;
-	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
-
-	pci_read_config_dword(dev, rtsta_pos, &rtsta);
-	rtsta |= PCI_EXP_RTSTA_PME;
-	pci_write_config_dword(dev, rtsta_pos, rtsta);
+	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
 }
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
@@ -95,7 +88,7 @@ static int pcie_port_resume_noirq(struct device *dev)
 	 * which breaks ACPI-based runtime wakeup on PCI Express, so clear those
 	 * bits now just in case (shouldn't hurt).
 	 */
-	if(pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT)
 		pcie_clear_root_pme_status(pdev);
 	return 0;
 }
@@ -195,9 +188,9 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 	int status;
 
 	if (!pci_is_pcie(dev) ||
-	    ((dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_UPSTREAM) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
+	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
 	if (!dev->irq && dev->pin) {
@@ -385,11 +378,11 @@ static const struct pci_device_id port_pci_ids[] = { {
 };
 MODULE_DEVICE_TABLE(pci, port_pci_ids);
 
-static struct pci_error_handlers pcie_portdrv_err_handler = {
-		.error_detected = pcie_portdrv_error_detected,
-		.mmio_enabled = pcie_portdrv_mmio_enabled,
-		.slot_reset = pcie_portdrv_slot_reset,
-		.resume = pcie_portdrv_err_resume,
+static const struct pci_error_handlers pcie_portdrv_err_handler = {
+	.error_detected = pcie_portdrv_error_detected,
+	.mmio_enabled = pcie_portdrv_mmio_enabled,
+	.slot_reset = pcie_portdrv_slot_reset,
+	.resume = pcie_portdrv_err_resume,
 };
 
 static struct pci_driver pcie_portdriver = {

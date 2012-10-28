@@ -31,11 +31,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
-#include <plat/flash.h>
+#include <mach/mux.h>
+#include <mach/flash.h>
 #include <plat/fpga.h>
 #include <plat/tc.h>
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <plat/mmc.h>
 
 #include <mach/hardware.h>

@@ -87,6 +87,19 @@ static int s3c2440_camif_upll_setrate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static unsigned long s3c2440_camif_upll_getrate(struct clk *clk)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	unsigned long camdivn =  __raw_readl(S3C2440_CAMDIVN);
+
+	if (!(camdivn & S3C2440_CAMDIVN_CAMCLK_SEL))
+		return parent_rate;
+
+	camdivn &= S3C2440_CAMDIVN_CAMCLK_MASK;
+
+	return parent_rate / (camdivn + 1) / 2;
+}
+
 /* Extra S3C2440 clocks */
 
 static struct clk s3c2440_clk_cam = {
@@ -99,6 +112,7 @@ static struct clk s3c2440_clk_cam_upll = {
 	.name		= "camif-upll",
 	.ops		= &(struct clk_ops) {
 		.set_rate	= s3c2440_camif_upll_setrate,
+		.get_rate	= s3c2440_camif_upll_getrate,
 		.round_rate	= s3c2440_camif_upll_round,
 	},
 };
@@ -149,7 +163,7 @@ static struct clk_lookup s3c2440_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &s3c2440_clk_fclk_n),
 };
 
-static int s3c2440_clk_add(struct device *dev, struct subsys_interface *sif)
+static int __init_refok s3c2440_clk_add(struct device *dev, struct subsys_interface *sif)
 {
 	struct clk *clock_upll;
 	struct clk *clock_h;

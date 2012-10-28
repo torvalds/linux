@@ -41,22 +41,14 @@ Configuration options:
 
     If bus/slot is not specified, the first available PCI
     device will be used.
-
-The 2600 requires a firmware upload, which can be accomplished
-using the -i or --init-data option of comedi_config.
-The firmware can be
-found in the comedi_nonfree_firmware tarball available
-from http://www.comedi.org
-
 */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/firmware.h>
 #include "../comedidev.h"
 
-/*#include "me2600_fw.h" */
-
-#define ME_DRIVER_NAME		"me_daq"
+#define ME2600_FIRMWARE		"me2600_firmware.bin"
 
 #define PCI_VENDOR_ID_MEILHAUS	0x1402
 #define ME2000_DEVICE_ID	0x2000
@@ -198,8 +190,7 @@ struct me_board {
 
 static const struct me_board me_boards[] = {
 	{
-	 /* -- ME-2600i -- */
-	 .name = ME_DRIVER_NAME,
+	 .name = "me-2600i",
 	 .device_id = ME2600_DEVICE_ID,
 	 /* Analog Output */
 	 .ao_channel_nbr = 4,
@@ -214,8 +205,7 @@ static const struct me_board me_boards[] = {
 	 .dio_channel_nbr = 32,
 	 },
 	{
-	 /* -- ME-2000i -- */
-	 .name = ME_DRIVER_NAME,
+	 .name = "me-2000i",
 	 .device_id = ME2000_DEVICE_ID,
 	 /* Analog Output */
 	 .ao_channel_nbr = 0,
@@ -341,7 +331,7 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 
 /* Analog instant input */
 static int me_ai_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *subdevice,
+			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
@@ -435,7 +425,7 @@ static int me_ai_do_cmd_test(struct comedi_device *dev,
 
 /* Analog input command */
 static int me_ai_do_cmd(struct comedi_device *dev,
-			struct comedi_subdevice *subdevice)
+			struct comedi_subdevice *s)
 {
 	return 0;
 }
@@ -524,8 +514,7 @@ static int me_ao_insn_read(struct comedi_device *dev,
 
 /* Xilinx firmware download for card: ME-2600i */
 static int me2600_xilinx_download(struct comedi_device *dev,
-				  unsigned char *me2600_firmware,
-				  unsigned int length)
+				  const u8 *data, size_t size)
 {
 	unsigned int value;
 	unsigned int file_length;
@@ -552,19 +541,20 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	 * Byte 8-11:  date
 	 * Byte 12-15: reserved
 	 */
-	if (length < 16)
+	if (size < 16)
 		return -EINVAL;
-	file_length = (((unsigned int)me2600_firmware[0] & 0xff) << 24) +
-	    (((unsigned int)me2600_firmware[1] & 0xff) << 16) +
-	    (((unsigned int)me2600_firmware[2] & 0xff) << 8) +
-	    ((unsigned int)me2600_firmware[3] & 0xff);
+
+	file_length = (((unsigned int)data[0] & 0xff) << 24) +
+	    (((unsigned int)data[1] & 0xff) << 16) +
+	    (((unsigned int)data[2] & 0xff) << 8) +
+	    ((unsigned int)data[3] & 0xff);
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
 	 * Firmware data start at offfset 16
 	 */
 	for (i = 0; i < file_length; i++)
-		writeb((me2600_firmware[16 + i] & 0xff),
+		writeb((data[16 + i] & 0xff),
 		       dev_private->me_regbase + 0x0);
 
 	/* Write 5 dummy values to xilinx */
@@ -590,6 +580,22 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	return 0;
 }
 
+static int me2600_upload_firmware(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, ME2600_FIRMWARE, &pcidev->dev);
+	if (ret)
+		return ret;
+
+	ret = me2600_xilinx_download(dev, fw->data, fw->size);
+	release_firmware(fw);
+
+	return ret;
+}
+
 /* Reset device */
 static int me_reset(struct comedi_device *dev)
 {
@@ -607,44 +613,24 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
-				       struct comedi_devconfig *it)
+static const void *me_find_boardinfo(struct comedi_device *dev,
+				     struct pci_dev *pcidev)
 {
 	const struct me_board *board;
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (pcidev->bus->number != bus ||
-			    PCI_SLOT(pcidev->devfn) != slot)
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_MEILHAUS)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
-			board = &me_boards[i];
-			if (board->device_id != pcidev->device)
-				continue;
-
-			dev->board_ptr = board;
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
+		board = &me_boards[i];
+		if (board->device_id == pcidev->device)
+			return board;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 {
-	struct pci_dev *pci_device;
-	struct comedi_subdevice *subdevice;
-	struct me_board *board;
+	const struct me_board *board;
+	struct comedi_subdevice *s;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
 	resource_size_t me_regbase_tmp;
@@ -654,29 +640,28 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t regbase_tmp;
 	int result, error;
 
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	board = me_find_boardinfo(dev, pcidev);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
 	/* Allocate private memory */
 	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
 		return -ENOMEM;
 
-	pci_device = me_find_pci_dev(dev, it);
-	if (!pci_device)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pci_device->dev);
-	board = (struct me_board *)dev->board_ptr;
-
 	/* Enable PCI device and request PCI regions */
-	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
+	if (comedi_pci_enable(pcidev, dev->board_name) < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and "
 		       "request regions\n", dev->minor);
 		return -EIO;
 	}
 
-	/* Set data in device structure */
-	dev->board_name = board->name;
-
 	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
-	plx_regbase_tmp = pci_resource_start(pci_device, 0);
-	plx_regbase_size_tmp = pci_resource_len(pci_device, 0);
+	plx_regbase_tmp = pci_resource_start(pcidev, 0);
+	plx_regbase_size_tmp = pci_resource_len(pcidev, 0);
 	dev_private->plx_regbase =
 	    ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 	dev_private->plx_regbase_size = plx_regbase_size_tmp;
@@ -687,8 +672,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Read Swap base address [PCI_BASE_ADDRESS #5]. */
 
-	swap_regbase_tmp = pci_resource_start(pci_device, 5);
-	swap_regbase_size_tmp = pci_resource_len(pci_device, 5);
+	swap_regbase_tmp = pci_resource_start(pcidev, 5);
+	swap_regbase_size_tmp = pci_resource_len(pcidev, 5);
 
 	if (!swap_regbase_tmp)
 		printk(KERN_ERR "comedi%d: Swap not present\n", dev->minor);
@@ -702,20 +687,20 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			plx_regbase_tmp = swap_regbase_tmp;
 			swap_regbase_tmp = regbase_tmp;
 
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_5,
 							swap_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		} else {
 			plx_regbase_tmp -= 0x80;
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
@@ -726,8 +711,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Read Meilhaus register base address [PCI_BASE_ADDRESS #2]. */
 
-	me_regbase_tmp = pci_resource_start(pci_device, 2);
-	me_regbase_size_tmp = pci_resource_len(pci_device, 2);
+	me_regbase_tmp = pci_resource_start(pcidev, 2);
+	me_regbase_size_tmp = pci_resource_len(pcidev, 2);
 	dev_private->me_regbase_size = me_regbase_size_tmp;
 	dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 	if (!dev_private->me_regbase) {
@@ -735,64 +720,55 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		       dev->minor);
 		return -ENOMEM;
 	}
+
 	/* Download firmware and reset card */
 	if (board->device_id == ME2600_DEVICE_ID) {
-		unsigned char *aux_data;
-		int aux_len;
-
-		aux_data = comedi_aux_data(it->options, 0);
-		aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-
-		if (!aux_data || aux_len < 1) {
-			comedi_error(dev, "You must provide me2600 firmware "
-				     "using the --init-data option of "
-				     "comedi_config");
-			return -EINVAL;
-		}
-		me2600_xilinx_download(dev, aux_data, aux_len);
+		result = me2600_upload_firmware(dev);
+		if (result < 0)
+			return result;
 	}
-
 	me_reset(dev);
 
 	error = comedi_alloc_subdevices(dev, 3);
 	if (error)
 		return error;
 
-	subdevice = dev->subdevices + 0;
-	subdevice->type = COMEDI_SUBD_AI;
-	subdevice->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
-	subdevice->n_chan = board->ai_channel_nbr;
-	subdevice->maxdata = board->ai_resolution_mask;
-	subdevice->len_chanlist = board->ai_channel_nbr;
-	subdevice->range_table = board->ai_range_list;
-	subdevice->cancel = me_ai_cancel;
-	subdevice->insn_read = me_ai_insn_read;
-	subdevice->do_cmdtest = me_ai_do_cmd_test;
-	subdevice->do_cmd = me_ai_do_cmd;
+	s = &dev->subdevices[0];
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->n_chan = board->ai_channel_nbr;
+	s->maxdata = board->ai_resolution_mask;
+	s->len_chanlist = board->ai_channel_nbr;
+	s->range_table = board->ai_range_list;
+	s->cancel = me_ai_cancel;
+	s->insn_read = me_ai_insn_read;
+	s->do_cmdtest = me_ai_do_cmd_test;
+	s->do_cmd = me_ai_do_cmd;
 
-	subdevice = dev->subdevices + 1;
-	subdevice->type = COMEDI_SUBD_AO;
-	subdevice->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
-	subdevice->n_chan = board->ao_channel_nbr;
-	subdevice->maxdata = board->ao_resolution_mask;
-	subdevice->len_chanlist = board->ao_channel_nbr;
-	subdevice->range_table = board->ao_range_list;
-	subdevice->insn_read = me_ao_insn_read;
-	subdevice->insn_write = me_ao_insn_write;
+	s = &dev->subdevices[1];
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
+	s->n_chan = board->ao_channel_nbr;
+	s->maxdata = board->ao_resolution_mask;
+	s->len_chanlist = board->ao_channel_nbr;
+	s->range_table = board->ao_range_list;
+	s->insn_read = me_ao_insn_read;
+	s->insn_write = me_ao_insn_write;
 
-	subdevice = dev->subdevices + 2;
-	subdevice->type = COMEDI_SUBD_DIO;
-	subdevice->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-	subdevice->n_chan = board->dio_channel_nbr;
-	subdevice->maxdata = 1;
-	subdevice->len_chanlist = board->dio_channel_nbr;
-	subdevice->range_table = &range_digital;
-	subdevice->insn_bits = me_dio_insn_bits;
-	subdevice->insn_config = me_dio_insn_config;
-	subdevice->io_bits = 0;
+	s = &dev->subdevices[2];
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
+	s->n_chan = board->dio_channel_nbr;
+	s->maxdata = 1;
+	s->len_chanlist = board->dio_channel_nbr;
+	s->range_table = &range_digital;
+	s->insn_bits = me_dio_insn_bits;
+	s->insn_config = me_dio_insn_config;
+	s->io_bits = 0;
 
-	printk(KERN_INFO "comedi%d: " ME_DRIVER_NAME " attached.\n",
-	       dev->minor);
+	dev_info(dev->class_dev, "%s: %s attached\n",
+		dev->driver->driver_name, dev->board_name);
+
 	return 0;
 }
 
@@ -818,7 +794,7 @@ static void me_detach(struct comedi_device *dev)
 static struct comedi_driver me_daq_driver = {
 	.driver_name	= "me_daq",
 	.module		= THIS_MODULE,
-	.attach		= me_attach,
+	.attach_pci	= me_attach_pci,
 	.detach		= me_detach,
 };
 
@@ -851,3 +827,4 @@ module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(ME2600_FIRMWARE);

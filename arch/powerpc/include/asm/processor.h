@@ -74,9 +74,6 @@ struct task_struct;
 void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp);
 void release_thread(struct task_struct *);
 
-/* Create a new kernel thread. */
-extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 /* Lazy FPU handling on uni-processor */
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *last_task_used_altivec;
@@ -97,8 +94,8 @@ extern struct task_struct *last_task_used_spe;
 #endif
 
 #ifdef CONFIG_PPC64
-/* 64-bit user address space is 44-bits (16TB user VM) */
-#define TASK_SIZE_USER64 (0x0000100000000000UL)
+/* 64-bit user address space is 46-bits (64TB user VM) */
+#define TASK_SIZE_USER64 (0x0000400000000000UL)
 
 /* 
  * 32-bit user address space is 4GB - 1 page 
@@ -219,6 +216,8 @@ struct thread_struct {
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 	unsigned long	dabr;		/* Data address breakpoint register */
+	unsigned long	dabrx;		/*      ... extension  */
+	unsigned long	trap_nr;	/* last trap # on this thread */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
 	vector128	vr[32] __attribute__((aligned(16)));
@@ -389,9 +388,9 @@ extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 extern void power7_nap(void);
 
 #ifdef CONFIG_PSERIES_IDLE
-extern void update_smt_snooze_delay(int snooze);
+extern void update_smt_snooze_delay(int cpu, int residency);
 #else
-static inline void update_smt_snooze_delay(int snooze) {}
+static inline void update_smt_snooze_delay(int cpu, int residency) {}
 #endif
 
 extern void flush_instruction_cache(void);

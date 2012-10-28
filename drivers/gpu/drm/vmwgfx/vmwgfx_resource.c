@@ -26,10 +26,10 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "vmwgfx_drm.h"
-#include "ttm/ttm_object.h"
-#include "ttm/ttm_placement.h"
-#include "drmP.h"
+#include <drm/vmwgfx_drm.h>
+#include <drm/ttm/ttm_object.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/drmP.h>
 
 struct vmw_user_context {
 	struct ttm_base_object base;

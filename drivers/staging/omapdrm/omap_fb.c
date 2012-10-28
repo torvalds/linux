@@ -18,6 +18,7 @@
  */
 
 #include "omap_drv.h"
+#include "omap_dmm_tiler.h"
 
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -137,30 +138,100 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.dirty = omap_framebuffer_dirty,
 };
 
+static uint32_t get_linear_addr(struct plane *plane,
+		const struct format *format, int n, int x, int y)
+{
+	uint32_t offset;
+
+	offset = plane->offset +
+			(x * format->planes[n].stride_bpp) +
+			(y * plane->pitch / format->planes[n].sub_y);
+
+	return plane->paddr + offset;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
-void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
-		struct omap_overlay_info *info)
+void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
+		struct omap_drm_window *win, struct omap_overlay_info *info)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct format *format = omap_fb->format;
 	struct plane *plane = &omap_fb->planes[0];
-	unsigned int offset;
+	uint32_t x, y, orient = 0;
 
-	offset = plane->offset +
-			(x * format->planes[0].stride_bpp) +
-			(y * plane->pitch / format->planes[0].sub_y);
+	info->color_mode = format->dss_format;
 
-	info->color_mode   = format->dss_format;
-	info->paddr        = plane->paddr + offset;
-	info->screen_width = plane->pitch / format->planes[0].stride_bpp;
+	info->pos_x      = win->crtc_x;
+	info->pos_y      = win->crtc_y;
+	info->out_width  = win->crtc_w;
+	info->out_height = win->crtc_h;
+	info->width      = win->src_w;
+	info->height     = win->src_h;
+
+	x = win->src_x;
+	y = win->src_y;
+
+	if (omap_gem_flags(plane->bo) & OMAP_BO_TILED) {
+		uint32_t w = win->src_w;
+		uint32_t h = win->src_h;
+
+		switch (win->rotation & 0xf) {
+		default:
+			dev_err(fb->dev->dev, "invalid rotation: %02x",
+					(uint32_t)win->rotation);
+			/* fallthru to default to no rotation */
+		case 0:
+		case BIT(DRM_ROTATE_0):
+			orient = 0;
+			break;
+		case BIT(DRM_ROTATE_90):
+			orient = MASK_XY_FLIP | MASK_X_INVERT;
+			break;
+		case BIT(DRM_ROTATE_180):
+			orient = MASK_X_INVERT | MASK_Y_INVERT;
+			break;
+		case BIT(DRM_ROTATE_270):
+			orient = MASK_XY_FLIP | MASK_Y_INVERT;
+			break;
+		}
+
+		if (win->rotation & BIT(DRM_REFLECT_X))
+			orient ^= MASK_X_INVERT;
+
+		if (win->rotation & BIT(DRM_REFLECT_Y))
+			orient ^= MASK_Y_INVERT;
+
+		/* adjust x,y offset for flip/invert: */
+		if (orient & MASK_XY_FLIP)
+			swap(w, h);
+		if (orient & MASK_Y_INVERT)
+			y += h - 1;
+		if (orient & MASK_X_INVERT)
+			x += w - 1;
+
+		omap_gem_rotated_paddr(plane->bo, orient, x, y, &info->paddr);
+		info->rotation_type = OMAP_DSS_ROT_TILER;
+		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
+	} else {
+		info->paddr         = get_linear_addr(plane, format, 0, x, y);
+		info->rotation_type = OMAP_DSS_ROT_DMA;
+		info->screen_width  = plane->pitch;
+	}
+
+	/* convert to pixels: */
+	info->screen_width /= format->planes[0].stride_bpp;
 
 	if (format->dss_format == OMAP_DSS_COLOR_NV12) {
 		plane = &omap_fb->planes[1];
-		offset = plane->offset +
-				(x * format->planes[1].stride_bpp) +
-				(y * plane->pitch / format->planes[1].sub_y);
-		info->p_uv_addr = plane->paddr + offset;
+
+		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
+			WARN_ON(!(omap_gem_flags(plane->bo) & OMAP_BO_TILED));
+			omap_gem_rotated_paddr(plane->bo, orient,
+					x/2, y/2, &info->p_uv_addr);
+		} else {
+			info->p_uv_addr = get_linear_addr(plane, format, 1, x, y);
+		}
 	} else {
 		info->p_uv_addr = 0;
 	}
@@ -377,7 +448,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 		size = pitch * mode_cmd->height / format->planes[i].sub_y;
 
-		if (size > (bos[i]->size - mode_cmd->offsets[i])) {
+		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
 			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
 					bos[i]->size - mode_cmd->offsets[i], size);
 			ret = -EINVAL;

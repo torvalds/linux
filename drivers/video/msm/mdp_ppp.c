@@ -16,7 +16,7 @@
 #include <linux/file.h>
 #include <linux/delay.h>
 #include <linux/msm_mdp.h>
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 
 #include "mdp_hw.h"
 #include "mdp_scale_tables.h"

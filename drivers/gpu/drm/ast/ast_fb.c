@@ -37,10 +37,9 @@
 #include <linux/init.h>
 
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 #include "ast_drv.h"
 
 static void ast_dirty_update(struct ast_fbdev *afbdev,

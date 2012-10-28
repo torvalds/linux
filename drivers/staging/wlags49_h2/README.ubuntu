@@ -46,12 +46,12 @@ If you have a card using the HERMES II.5 chip you have to make
 changes to the Makefile and uncomment -DHERMES25. This will build
 driver wlags49_h25_cs.
 
-Note: You can detemine the type with command "pccardctrl info"
+Note: You can determine the type with command "pccardctrl info"
         MANIFID: 0156,0002 = HERMES - not supported by this driver
         MANIFID: 0156,0003 = HERMES II   (Wireless B)
         MANIFID: 0156,0004 = HERMES II.5 (Wireless B/G)
 
-After succesfull compile type command
+After successful compile type command
 
 sudo make install
 
@@ -81,7 +81,7 @@ The linux driver files (wl_xxxx.c) are changed in the following ways:
 - Addaptations of Andrey Borzenkov applied to 7.22 source
 - Alterations to avoid most HCF_ASSERTs
 -- Switching interrupts off and on in the HCF
--- Bugfixes, things that were aparently wrong like reporting link status
+-- Bugfixes, things that were apparently wrong like reporting link status
    change which checked a variable that was not changed in HCF anymore.
 -- Used on WEP but setting keys via SIOCSIWENCODEEXT was not supported
 -- Recovery actions added
@@ -93,7 +93,7 @@ have to "open" the device first to get a handle and after "close" no
 changed; the former ioctl functions are now called before "open" and
 after "close", which was not expected. One of the problems was enable/
 disable of interrupts in the HCF. Interrupt handling starts at "open"
-so if a former "ioctl" routinge is called before "open" or after "close"
+so if a former "ioctl" routine is called before "open" or after "close"
 then nothing should be done with interrupt switching in the HCF. Once
 this was solved most HCF_ASSERTS went away.
 
@@ -120,8 +120,8 @@ include the man page. Even though setting parameters on the module
 does not work anymore but it provides some information about all the
 settings.
 
-I have not have personal contact with Agere, but others have. Agere
-agreed to make their software available under the BSD licence.
+I have no personal contact with Agere, but others have. Agere
+agreed to make their software available under the BSD license.
 This driver is based on the 7.22 version.
 
 The following was mailed by Agere to Andrey Borzenkov about this:

@@ -99,6 +99,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr = NULL;
 	struct sctp_sockaddr_entry *temp;
+	struct net *net = dev_net(ifa->idev->dev);
 	int found = 0;
 
 	switch (ev) {
@@ -110,27 +111,27 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 			addr->a.v6.sin6_addr = ifa->addr;
 			addr->a.v6.sin6_scope_id = ifa->idev->dev->ifindex;
 			addr->valid = 1;
-			spin_lock_bh(&sctp_local_addr_lock);
-			list_add_tail_rcu(&addr->list, &sctp_local_addr_list);
-			sctp_addr_wq_mgmt(addr, SCTP_ADDR_NEW);
-			spin_unlock_bh(&sctp_local_addr_lock);
+			spin_lock_bh(&net->sctp.local_addr_lock);
+			list_add_tail_rcu(&addr->list, &net->sctp.local_addr_list);
+			sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_NEW);
+			spin_unlock_bh(&net->sctp.local_addr_lock);
 		}
 		break;
 	case NETDEV_DOWN:
-		spin_lock_bh(&sctp_local_addr_lock);
+		spin_lock_bh(&net->sctp.local_addr_lock);
 		list_for_each_entry_safe(addr, temp,
-					&sctp_local_addr_list, list) {
+					&net->sctp.local_addr_list, list) {
 			if (addr->a.sa.sa_family == AF_INET6 &&
 					ipv6_addr_equal(&addr->a.v6.sin6_addr,
 						&ifa->addr)) {
-				sctp_addr_wq_mgmt(addr, SCTP_ADDR_DEL);
+				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
 				break;
 			}
 		}
-		spin_unlock_bh(&sctp_local_addr_lock);
+		spin_unlock_bh(&net->sctp.local_addr_lock);
 		if (found)
 			kfree_rcu(addr, rcu);
 		break;
@@ -154,6 +155,7 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct ipv6_pinfo *np;
 	sk_buff_data_t saveip, savesctp;
 	int err;
+	struct net *net = dev_net(skb->dev);
 
 	idev = in6_dev_get(skb->dev);
 
@@ -162,12 +164,12 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	savesctp = skb->transport_header;
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, offset);
-	sk = sctp_err_lookup(AF_INET6, skb, sctp_hdr(skb), &asoc, &transport);
+	sk = sctp_err_lookup(net, AF_INET6, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original pointers. */
 	skb->network_header   = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {
-		ICMP6_INC_STATS_BH(dev_net(skb->dev), idev, ICMP6_MIB_INERRORS);
+		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_INERRORS);
 		goto out;
 	}
 
@@ -241,7 +243,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 			  __func__, skb, skb->len,
 			  &fl6.saddr, &fl6.daddr);
 
-	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
+	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->local_df = 1;
@@ -580,7 +582,7 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
-	return ipv6_chk_addr(&init_net, in6, NULL, 0);
+	return ipv6_chk_addr(sock_net(&sp->inet.sk), in6, NULL, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -857,14 +859,14 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 		struct net_device *dev;
 
 		if (type & IPV6_ADDR_LINKLOCAL) {
+			struct net *net;
 			if (!addr->v6.sin6_scope_id)
 				return 0;
+			net = sock_net(&opt->inet.sk);
 			rcu_read_lock();
-			dev = dev_get_by_index_rcu(&init_net,
-						   addr->v6.sin6_scope_id);
+			dev = dev_get_by_index_rcu(net, addr->v6.sin6_scope_id);
 			if (!dev ||
-			    !ipv6_chk_addr(&init_net, &addr->v6.sin6_addr,
-					   dev, 0)) {
+			    !ipv6_chk_addr(net, &addr->v6.sin6_addr, dev, 0)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -897,7 +899,7 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			if (!addr->v6.sin6_scope_id)
 				return 0;
 			rcu_read_lock();
-			dev = dev_get_by_index_rcu(&init_net,
+			dev = dev_get_by_index_rcu(sock_net(&opt->inet.sk),
 						   addr->v6.sin6_scope_id);
 			rcu_read_unlock();
 			if (!dev)

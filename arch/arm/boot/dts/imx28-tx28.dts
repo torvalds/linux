@@ -25,10 +25,28 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x40a3 /* MX28_PAD_ENET0_RXD3__GPIO_4_10 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				mac0_pins_gpio: mac0-gpio-mode@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x4003 /* MX28_PAD_ENET0_MDC__GPIO_4_0 */
+						0x4013 /* MX28_PAD_ENET0_MDIO__GPIO_4_1 */
+						0x4023 /* MX28_PAD_ENET0_RX_EN__GPIO_4_2 */
+						0x4033 /* MX28_PAD_ENET0_RXD0__GPIO_4_3 */
+						0x4043 /* MX28_PAD_ENET0_RXD1__GPIO_4_4 */
+						0x4063 /* MX28_PAD_ENET0_TX_EN__GPIO_4_6 */
+						0x4073 /* MX28_PAD_ENET0_TXD0__GPIO_4_7 */
+						0x4083 /* MX28_PAD_ENET0_TXD1__GPIO_4_8 */
+						0x4103 /* MX28_PAD_ENET_CLK__GPIO_4_16 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -72,8 +90,9 @@
 	ahb@80080000 {
 		mac0: ethernet@800f0000 {
 			phy-mode = "rmii";
-			pinctrl-names = "default";
+			pinctrl-names = "default", "gpio_mode";
 			pinctrl-0 = <&mac0_pins_a>;
+			pinctrl-1 = <&mac0_pins_gpio>;
 			status = "okay";
 		};
 	};

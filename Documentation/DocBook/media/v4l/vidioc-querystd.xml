@@ -62,5 +62,13 @@ current video input or output.</para>
 
   <refsect1>
     &return-value;
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Standard video timings are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
   </refsect1>
 </refentry>

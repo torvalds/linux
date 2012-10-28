@@ -9,13 +9,21 @@
  * published by the Free Software Foundation.
  */
 
+#if defined(CONFIG_DEBUG_MMP_UART2)
+#define MMP_UART_OFFSET	0x00017000
+#elif defined(CONFIG_DEBUG_MMP_UART3)
+#define MMP_UART_OFFSET	0x00018000
+#else
+#error "Select uart for DEBUG_LL"
+#endif
+
 #include <mach/addr-map.h>
 
 		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =APB_PHYS_BASE		@ physical
 		ldr	\rv, =APB_VIRT_BASE		@ virtual
-		orr	\rp, \rp, #0x00017000
-		orr	\rv, \rv, #0x00017000
+		orr	\rp, \rp, #MMP_UART_OFFSET
+		orr	\rv, \rv, #MMP_UART_OFFSET
 		.endm
 
 #define UART_SHIFT	2

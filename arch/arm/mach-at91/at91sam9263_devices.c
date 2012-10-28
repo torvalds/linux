@@ -218,9 +218,9 @@ void __init at91_add_device_eth(struct macb_platform_data *data) {}
  *  MMC / SD
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_MMC_AT91) || defined(CONFIG_MMC_AT91_MODULE)
+#if IS_ENABLED(CONFIG_MMC_ATMELMCI)
 static u64 mmc_dmamask = DMA_BIT_MASK(32);
-static struct at91_mmc_data mmc0_data, mmc1_data;
+static struct mci_platform_data mmc0_data, mmc1_data;
 
 static struct resource mmc0_resources[] = {
 	[0] = {
@@ -236,7 +236,7 @@ static struct resource mmc0_resources[] = {
 };
 
 static struct platform_device at91sam9263_mmc0_device = {
-	.name		= "at91_mci",
+	.name		= "atmel_mci",
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &mmc_dmamask,
@@ -261,7 +261,7 @@ static struct resource mmc1_resources[] = {
 };
 
 static struct platform_device at91sam9263_mmc1_device = {
-	.name		= "at91_mci",
+	.name		= "atmel_mci",
 	.id		= 1,
 	.dev		= {
 				.dma_mask		= &mmc_dmamask,
@@ -272,85 +272,110 @@ static struct platform_device at91sam9263_mmc1_device = {
 	.num_resources	= ARRAY_SIZE(mmc1_resources),
 };
 
-void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 {
+	unsigned int i;
+	unsigned int slot_count = 0;
+
 	if (!data)
 		return;
 
-	/* input/irq */
-	if (gpio_is_valid(data->det_pin)) {
-		at91_set_gpio_input(data->det_pin, 1);
-		at91_set_deglitch(data->det_pin, 1);
-	}
-	if (gpio_is_valid(data->wp_pin))
-		at91_set_gpio_input(data->wp_pin, 1);
-	if (gpio_is_valid(data->vcc_pin))
-		at91_set_gpio_output(data->vcc_pin, 0);
+	for (i = 0; i < ATMCI_MAX_NR_SLOTS; i++) {
 
-	if (mmc_id == 0) {		/* MCI0 */
-		/* CLK */
-		at91_set_A_periph(AT91_PIN_PA12, 0);
+		if (!data->slot[i].bus_width)
+			continue;
 
-		if (data->slot_b) {
-			/* CMD */
-			at91_set_A_periph(AT91_PIN_PA16, 1);
+		/* input/irq */
+		if (gpio_is_valid(data->slot[i].detect_pin)) {
+			at91_set_gpio_input(data->slot[i].detect_pin,
+					1);
+			at91_set_deglitch(data->slot[i].detect_pin,
+					1);
+		}
+		if (gpio_is_valid(data->slot[i].wp_pin))
+			at91_set_gpio_input(data->slot[i].wp_pin, 1);
 
-			/* DAT0, maybe DAT1..DAT3 */
-			at91_set_A_periph(AT91_PIN_PA17, 1);
-			if (data->wire4) {
-				at91_set_A_periph(AT91_PIN_PA18, 1);
-				at91_set_A_periph(AT91_PIN_PA19, 1);
-				at91_set_A_periph(AT91_PIN_PA20, 1);
+		if (mmc_id == 0) {				/* MCI0 */
+			switch (i) {
+			case 0:					/* slot A */
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA1, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA0, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA3, 1);
+					at91_set_A_periph(AT91_PIN_PA4, 1);
+					at91_set_A_periph(AT91_PIN_PA5, 1);
+				}
+				slot_count++;
+				break;
+			case 1:					/* slot B */
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA16, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA17, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA18, 1);
+					at91_set_A_periph(AT91_PIN_PA19, 1);
+					at91_set_A_periph(AT91_PIN_PA20, 1);
+				}
+				slot_count++;
+				break;
+			default:
+				printk(KERN_ERR
+				       "AT91: SD/MMC slot %d not available\n", i);
+				break;
 			}
-		} else {
-			/* CMD */
-			at91_set_A_periph(AT91_PIN_PA1, 1);
+			if (slot_count) {
+				/* CLK */
+				at91_set_A_periph(AT91_PIN_PA12, 0);
 
-			/* DAT0, maybe DAT1..DAT3 */
-			at91_set_A_periph(AT91_PIN_PA0, 1);
-			if (data->wire4) {
-				at91_set_A_periph(AT91_PIN_PA3, 1);
-				at91_set_A_periph(AT91_PIN_PA4, 1);
-				at91_set_A_periph(AT91_PIN_PA5, 1);
+				mmc0_data = *data;
+				platform_device_register(&at91sam9263_mmc0_device);
+			}
+		} else if (mmc_id == 1) {			/* MCI1 */
+			switch (i) {
+			case 0:					/* slot A */
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA7, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA8, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA9, 1);
+					at91_set_A_periph(AT91_PIN_PA10, 1);
+					at91_set_A_periph(AT91_PIN_PA11, 1);
+				}
+				slot_count++;
+				break;
+			case 1:					/* slot B */
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA21, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA22, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA23, 1);
+					at91_set_A_periph(AT91_PIN_PA24, 1);
+					at91_set_A_periph(AT91_PIN_PA25, 1);
+				}
+				slot_count++;
+				break;
+			default:
+				printk(KERN_ERR
+				       "AT91: SD/MMC slot %d not available\n", i);
+				break;
+			}
+			if (slot_count) {
+				/* CLK */
+				at91_set_A_periph(AT91_PIN_PA6, 0);
+
+				mmc1_data = *data;
+				platform_device_register(&at91sam9263_mmc1_device);
 			}
 		}
-
-		mmc0_data = *data;
-		platform_device_register(&at91sam9263_mmc0_device);
-	} else {			/* MCI1 */
-		/* CLK */
-		at91_set_A_periph(AT91_PIN_PA6, 0);
-
-		if (data->slot_b) {
-			/* CMD */
-			at91_set_A_periph(AT91_PIN_PA21, 1);
-
-			/* DAT0, maybe DAT1..DAT3 */
-			at91_set_A_periph(AT91_PIN_PA22, 1);
-			if (data->wire4) {
-				at91_set_A_periph(AT91_PIN_PA23, 1);
-				at91_set_A_periph(AT91_PIN_PA24, 1);
-				at91_set_A_periph(AT91_PIN_PA25, 1);
-			}
-		} else {
-			/* CMD */
-			at91_set_A_periph(AT91_PIN_PA7, 1);
-
-			/* DAT0, maybe DAT1..DAT3 */
-			at91_set_A_periph(AT91_PIN_PA8, 1);
-			if (data->wire4) {
-				at91_set_A_periph(AT91_PIN_PA9, 1);
-				at91_set_A_periph(AT91_PIN_PA10, 1);
-				at91_set_A_periph(AT91_PIN_PA11, 1);
-			}
-		}
-
-		mmc1_data = *data;
-		platform_device_register(&at91sam9263_mmc1_device);
 	}
 }
 #else
-void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data) {}
 #endif
 
 /* --------------------------------------------------------------------
@@ -574,7 +599,7 @@ static struct resource twi_resources[] = {
 };
 
 static struct platform_device at91sam9263_twi_device = {
-	.name		= "at91_i2c",
+	.name		= "i2c-at91sam9260",
 	.id		= -1,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),

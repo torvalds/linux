@@ -21,7 +21,7 @@
 #ifndef __XEN_PUBLIC_HVM_PARAMS_H__
 #define __XEN_PUBLIC_HVM_PARAMS_H__
 
-#include "hvm_op.h"
+#include <xen/interface/hvm/hvm_op.h>
 
 /*
  * Parameter space for HVMOP_{set,get}_param.

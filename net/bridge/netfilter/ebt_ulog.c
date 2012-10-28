@@ -298,8 +298,7 @@ static int __init ebt_ulog_init(void)
 		spin_lock_init(&ulog_buffers[i].lock);
 	}
 
-	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
-					  THIS_MODULE, &cfg);
+	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG, &cfg);
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = xt_register_target(&ebt_ulog_tg_reg)) != 0)

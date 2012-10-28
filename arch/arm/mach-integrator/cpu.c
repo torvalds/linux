@@ -25,10 +25,10 @@
 
 static struct cpufreq_driver integrator_driver;
 
-#define CM_ID  	IO_ADDRESS(INTEGRATOR_HDR_ID)
-#define CM_OSC	IO_ADDRESS(INTEGRATOR_HDR_OSC)
-#define CM_STAT IO_ADDRESS(INTEGRATOR_HDR_STAT)
-#define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
+#define CM_ID  	__io_address(INTEGRATOR_HDR_ID)
+#define CM_OSC	__io_address(INTEGRATOR_HDR_OSC)
+#define CM_STAT __io_address(INTEGRATOR_HDR_STAT)
+#define CM_LOCK __io_address(INTEGRATOR_HDR_LOCK)
 
 static const struct icst_params lclk_params = {
 	.ref		= 24000000,

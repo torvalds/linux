@@ -26,12 +26,12 @@
  **************************************************************************/
 #include <linux/module.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_object.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_object.h>
+#include <drm/ttm/ttm_module.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
@@ -438,7 +438,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed allocating a device private struct.\n");
 		return -ENOMEM;
 	}
-	memset(dev_priv, 0, sizeof(*dev_priv));
 
 	pci_set_master(dev->pdev);
 

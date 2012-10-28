@@ -17,7 +17,7 @@
 #include <linux/radix-tree.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
-#include "pinctrl-state.h"
+#include <linux/pinctrl/pinctrl-state.h>
 
 struct device;
 struct pinctrl_dev;

@@ -17,3 +17,9 @@ obj-$(CONFIG_DASD_ECKD) += dasd_eckd_mod.o
 obj-$(CONFIG_DASD_FBA)  += dasd_fba_mod.o
 obj-$(CONFIG_BLK_DEV_XPRAM) += xpram.o
 obj-$(CONFIG_DCSSBLK) += dcssblk.o
+
+scm_block-objs := scm_drv.o scm_blk.o
+ifdef CONFIG_SCM_BLOCK_CLUSTER_WRITE
+scm_block-objs += scm_blk_cluster.o
+endif
+obj-$(CONFIG_SCM_BLOCK) += scm_block.o

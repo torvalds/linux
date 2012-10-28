@@ -817,6 +817,30 @@ void __cpuinit mdesc_populate_present_mask(cpumask_t *mask)
 	mdesc_iterate_over_cpus(record_one_cpu, NULL, mask);
 }
 
+static void * __init check_one_pgsz(struct mdesc_handle *hp, u64 mp, int cpuid, void *arg)
+{
+	const u64 *pgsz_prop = mdesc_get_property(hp, mp, "mmu-page-size-list", NULL);
+	unsigned long *pgsz_mask = arg;
+	u64 val;
+
+	val = (HV_PGSZ_MASK_8K | HV_PGSZ_MASK_64K |
+	       HV_PGSZ_MASK_512K | HV_PGSZ_MASK_4MB);
+	if (pgsz_prop)
+		val = *pgsz_prop;
+
+	if (!*pgsz_mask)
+		*pgsz_mask = val;
+	else
+		*pgsz_mask &= val;
+	return NULL;
+}
+
+void __init mdesc_get_page_sizes(cpumask_t *mask, unsigned long *pgsz_mask)
+{
+	*pgsz_mask = 0;
+	mdesc_iterate_over_cpus(check_one_pgsz, pgsz_mask, mask);
+}
+
 static void * __cpuinit fill_in_one_cpu(struct mdesc_handle *hp, u64 mp, int cpuid, void *arg)
 {
 	const u64 *cfreq = mdesc_get_property(hp, mp, "clock-frequency", NULL);

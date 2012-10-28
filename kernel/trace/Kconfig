@@ -49,6 +49,11 @@ config HAVE_SYSCALL_TRACEPOINTS
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_FENTRY
+	bool
+	help
+	  Arch supports the gcc options -pg with -mfentry
+
 config HAVE_C_RECORDMCOUNT
 	bool
 	help
@@ -57,8 +62,12 @@ config HAVE_C_RECORDMCOUNT
 config TRACER_MAX_TRACE
 	bool
 
+config TRACE_CLOCK
+	bool
+
 config RING_BUFFER
 	bool
+	select TRACE_CLOCK
 
 config FTRACE_NMI_ENTER
        bool
@@ -109,6 +118,7 @@ config TRACING
 	select NOP_TRACER
 	select BINARY_PRINTF
 	select EVENT_TRACING
+	select TRACE_CLOCK
 
 config GENERIC_TRACER
 	bool

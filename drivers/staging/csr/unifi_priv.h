@@ -29,9 +29,7 @@
 #include <linux/wireless.h>
 #include <linux/cdev.h>
 #include <linux/kthread.h>
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,19)
 #include <linux/freezer.h>
-#endif
 
 #ifdef CSR_WIFI_SUPPORT_MMC_DRIVER
 #include <linux/mmc/core.h>
@@ -72,33 +70,6 @@ extern struct wake_lock unifi_sdio_wake_lock;
 #endif
 
 #include "unifi_clients.h"
-
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-#include <linux/workqueue.h>
-
-#undef INIT_WORK
-#define INIT_WORK(_work, _func)                                         \
-    do {                                                                \
-        INIT_LIST_HEAD(&(_work)->entry);                                \
-        (_work)->pending = 0;                                           \
-        PREPARE_WORK((_work), (_func), (_work));                        \
-        init_timer(&(_work)->timer);                                    \
-    } while(0)
-
-#endif  /* Linux kernel < 2.6.20 */
-
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-#define UF_NETIF_TX_WAKE_ALL_QUEUES(_netdev)    netif_tx_wake_all_queues(_netdev)
-#define UF_NETIF_TX_START_ALL_QUEUES(_netdev)   netif_tx_start_all_queues(_netdev)
-#define UF_NETIF_TX_STOP_ALL_QUEUES(_netdev)    netif_tx_stop_all_queues(_netdev)
-#else
-#define UF_NETIF_TX_WAKE_ALL_QUEUES(_netdev)    netif_wake_queue(_netdev)
-#define UF_NETIF_TX_START_ALL_QUEUES(_netdev)   netif_start_queue(_netdev)
-#define UF_NETIF_TX_STOP_ALL_QUEUES(_netdev)    netif_stop_queue(_netdev)
-#endif  /* Linux kernel >= 2.6.27 */
-
 
 #ifdef CSR_NATIVE_LINUX
 #include "sme_native/unifi_native.h"
@@ -634,12 +605,10 @@ struct unifi_priv {
     spinlock_t wapi_lock;
 #endif
 
-#ifndef ALLOW_Q_PAUSE
     /* Array to indicate if a particular Tx queue is paused, this may not be
      * required in a multiqueue implementation since we can directly stop kernel
      * queues */
     u8 tx_q_paused_flag[UNIFI_TRAFFIC_Q_MAX];
-#endif
 
 #ifdef CSR_WIFI_RX_PATH_SPLIT
     struct workqueue_struct *rx_workqueue;
@@ -797,12 +766,6 @@ typedef struct netInterface_priv
     u8 bcTimSetReqPendingFlag;
     u8 bcTimSetReqQueued;
 } netInterface_priv_t;
-
-#ifndef ALLOW_Q_PAUSE
-#define net_is_tx_q_paused(priv, q)   (priv->tx_q_paused_flag[q])
-#define net_tx_q_unpause(priv, q)   (priv->tx_q_paused_flag[q] = 0)
-#define net_tx_q_pause(priv, q)   (priv->tx_q_paused_flag[q] = 1)
-#endif
 
 #ifdef CSR_SUPPORT_SME
 #define routerStartBuffering(priv,queue) priv->routerBufferEnable[(queue)] = TRUE;
@@ -1087,9 +1050,6 @@ CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_p
 
 void uf_update_sta_activity(unifi_priv_t *priv, u16 interfaceTag, const u8 *peerMacAddress);
 void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,u16 interfaceTag, const CSR_MA_PACKET_CONFIRM *pkt_cfm);
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-int uf_install_qdisc(struct net_device *dev);
 #endif
 
 void uf_resume_data_plane(unifi_priv_t *priv, int queue,

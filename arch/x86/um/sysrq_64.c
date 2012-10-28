@@ -10,7 +10,7 @@
 #include <linux/utsname.h>
 #include <asm/current.h>
 #include <asm/ptrace.h>
-#include "sysrq.h"
+#include <asm/sysrq.h>
 
 void __show_regs(struct pt_regs *regs)
 {

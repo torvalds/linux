@@ -21,7 +21,7 @@ char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
 	len = vsnprintf(NULL, 0, fmt, aq);
 	va_end(aq);
 
-	p = kmalloc(len+1, gfp);
+	p = kmalloc_track_caller(len+1, gfp);
 	if (!p)
 		return NULL;
 

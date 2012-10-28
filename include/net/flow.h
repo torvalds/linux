@@ -21,6 +21,7 @@ struct flowi_common {
 	__u8	flowic_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
 #define FLOWI_FLAG_CAN_SLEEP		0x02
+#define FLOWI_FLAG_KNOWN_NH		0x04
 	__u32	flowic_secid;
 };
 

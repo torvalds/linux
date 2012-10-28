@@ -58,8 +58,8 @@ static inline int of_irq_map_oldworld(struct device_node *device, int index,
 #endif /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 
 
-extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
-			  u32 ointsize, const u32 *addr,
+extern int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
+			  u32 ointsize, const __be32 *addr,
 			  struct of_irq *out_irq);
 extern int of_irq_map_one(struct device_node *device, int index,
 			  struct of_irq *out_irq);
@@ -82,6 +82,11 @@ static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
 						int index)
 {
 	return 0;
+}
+
+static inline void *of_irq_find_parent(struct device_node *child)
+{
+	return NULL;
 }
 #endif /* !CONFIG_OF */
 

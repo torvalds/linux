@@ -220,6 +220,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 
 	sock_init_data(sock, sk);
 	sk->sk_backlog_rcv = backlog_rcv;
+	sk->sk_rcvbuf = TIPC_FLOW_CONTROL_WIN * 2 * TIPC_MAX_USER_MSG_SIZE * 2;
 	tipc_sk(sk)->p = tp_ptr;
 	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
 

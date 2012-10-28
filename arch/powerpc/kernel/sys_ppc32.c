@@ -143,70 +143,17 @@ long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t pt
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long compat_sys_sendfile(u32 out_fd, u32 in_fd, compat_off_t __user * offset, u32 count)
+asmlinkage long compat_sys_sendfile_wrapper(u32 out_fd, u32 in_fd,
+					    compat_off_t __user *offset, u32 count)
 {
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	off_t __user *up;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	/* The __user pointer cast is valid because of the set_fs() */		
-	set_fs(KERNEL_DS);
-	up = offset ? (off_t __user *) &of : NULL;
-	ret = sys_sendfile((int)out_fd, (int)in_fd, up, count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
+	return compat_sys_sendfile((int)out_fd, (int)in_fd, offset, count);
 }
 
-asmlinkage int compat_sys_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset, s32 count)
+asmlinkage long compat_sys_sendfile64_wrapper(u32 out_fd, u32 in_fd,
+					      compat_loff_t __user *offset, u32 count)
 {
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	loff_t __user *up;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	/* The __user pointer cast is valid because of the set_fs() */		
-	set_fs(KERNEL_DS);
-	up = offset ? (loff_t __user *) &lof : NULL;
-	ret = sys_sendfile64(out_fd, in_fd, up, count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
-		  unsigned long a3, unsigned long a4, unsigned long a5,
-		  struct pt_regs *regs)
-{
-	int error;
-	char * filename;
-	
-	filename = getname((char __user *) a0);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-
-	error = compat_do_execve(filename, compat_ptr(a1), compat_ptr(a2), regs);
-
-	putname(filename);
-
-out:
-	return error;
+	return sys_sendfile((int)out_fd, (int)in_fd,
+			    (off_t __user *)offset, count);
 }
 
 /* Note: it is necessary to treat option as an unsigned int, 

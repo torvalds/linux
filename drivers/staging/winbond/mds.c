@@ -569,7 +569,7 @@ Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pT02)
 	unsigned char	SendOK = true;
 	u8	RetryCount, TxRate;
 
-	if (pT02->T02_IgnoreResult) /* Don't care the result */
+	if (pT02->T02_IgnoreResult) /* Don't care about the result */
 		return;
 	if (pT02->T02_IsLastMpdu) {
 		/* TODO: DTO -- get the retry count and fragment count */

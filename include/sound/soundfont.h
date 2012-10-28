@@ -22,8 +22,8 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include "sfnt_info.h"
-#include "util_mem.h"
+#include <sound/sfnt_info.h>
+#include <sound/util_mem.h>
 
 #define SF_MAX_INSTRUMENTS	128	/* maximum instrument number */
 #define SF_MAX_PRESETS  256	/* drums are mapped from 128 to 256 */

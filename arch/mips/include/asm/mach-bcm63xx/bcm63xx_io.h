@@ -1,7 +1,7 @@
 #ifndef BCM63XX_IO_H_
 #define BCM63XX_IO_H_
 
-#include "bcm63xx_cpu.h"
+#include <asm/mach-bcm63xx/bcm63xx_cpu.h>
 
 /*
  * Physical memory map, RAM is mapped at 0x0.

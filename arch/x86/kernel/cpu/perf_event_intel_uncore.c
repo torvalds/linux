@@ -118,22 +118,24 @@ static void snbep_uncore_pci_disable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
 	int box_ctl = uncore_pci_box_ctl(box);
-	u32 config;
+	u32 config = 0;
 
-	pci_read_config_dword(pdev, box_ctl, &config);
-	config |= SNBEP_PMON_BOX_CTL_FRZ;
-	pci_write_config_dword(pdev, box_ctl, config);
+	if (!pci_read_config_dword(pdev, box_ctl, &config)) {
+		config |= SNBEP_PMON_BOX_CTL_FRZ;
+		pci_write_config_dword(pdev, box_ctl, config);
+	}
 }
 
 static void snbep_uncore_pci_enable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
 	int box_ctl = uncore_pci_box_ctl(box);
-	u32 config;
+	u32 config = 0;
 
-	pci_read_config_dword(pdev, box_ctl, &config);
-	config &= ~SNBEP_PMON_BOX_CTL_FRZ;
-	pci_write_config_dword(pdev, box_ctl, config);
+	if (!pci_read_config_dword(pdev, box_ctl, &config)) {
+		config &= ~SNBEP_PMON_BOX_CTL_FRZ;
+		pci_write_config_dword(pdev, box_ctl, config);
+	}
 }
 
 static void snbep_uncore_pci_enable_event(struct intel_uncore_box *box, struct perf_event *event)
@@ -156,7 +158,7 @@ static u64 snbep_uncore_pci_read_counter(struct intel_uncore_box *box, struct pe
 {
 	struct pci_dev *pdev = box->pci_dev;
 	struct hw_perf_event *hwc = &event->hw;
-	u64 count;
+	u64 count = 0;
 
 	pci_read_config_dword(pdev, hwc->event_base, (u32 *)&count);
 	pci_read_config_dword(pdev, hwc->event_base + 4, (u32 *)&count + 1);
@@ -603,11 +605,12 @@ static struct pci_driver snbep_uncore_pci_driver = {
 /*
  * build pci bus to socket mapping
  */
-static void snbep_pci2phy_map_init(void)
+static int snbep_pci2phy_map_init(void)
 {
 	struct pci_dev *ubox_dev = NULL;
 	int i, bus, nodeid;
-	u32 config;
+	int err = 0;
+	u32 config = 0;
 
 	while (1) {
 		/* find the UBOX device */
@@ -618,10 +621,14 @@ static void snbep_pci2phy_map_init(void)
 			break;
 		bus = ubox_dev->bus->number;
 		/* get the Node ID of the local register */
-		pci_read_config_dword(ubox_dev, 0x40, &config);
+		err = pci_read_config_dword(ubox_dev, 0x40, &config);
+		if (err)
+			break;
 		nodeid = config;
 		/* get the Node ID mapping */
-		pci_read_config_dword(ubox_dev, 0x54, &config);
+		err = pci_read_config_dword(ubox_dev, 0x54, &config);
+		if (err)
+			break;
 		/*
 		 * every three bits in the Node ID mapping register maps
 		 * to a particular node.
@@ -633,7 +640,11 @@ static void snbep_pci2phy_map_init(void)
 			}
 		}
 	};
-	return;
+
+	if (ubox_dev)
+		pci_dev_put(ubox_dev);
+
+	return err ? pcibios_err_to_errno(err) : 0;
 }
 /* end of Sandy Bridge-EP uncore support */
 
@@ -1547,7 +1558,6 @@ void nhmex_rbox_alter_er(struct intel_uncore_box *box, struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
-	int port;
 
 	/* adjust the main event selector and extra register index */
 	if (reg1->idx % 2) {
@@ -1559,7 +1569,6 @@ void nhmex_rbox_alter_er(struct intel_uncore_box *box, struct perf_event *event)
 	}
 
 	/* adjust extra register config */
-	port = reg1->idx / 6 + box->pmu->pmu_idx * 4;
 	switch (reg1->idx % 6) {
 	case 2:
 		/* shift the 8~15 bits to the 0~7 bits */
@@ -1950,7 +1959,7 @@ struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type, int cp
 static struct intel_uncore_box *
 uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu)
 {
-	static struct intel_uncore_box *box;
+	struct intel_uncore_box *box;
 
 	box = *per_cpu_ptr(pmu->box, cpu);
 	if (box)
@@ -2347,6 +2356,27 @@ int uncore_pmu_event_init(struct perf_event *event)
 	return ret;
 }
 
+static ssize_t uncore_get_attr_cpumask(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int n = cpulist_scnprintf(buf, PAGE_SIZE - 2, &uncore_cpu_mask);
+
+	buf[n++] = '\n';
+	buf[n] = '\0';
+	return n;
+}
+
+static DEVICE_ATTR(cpumask, S_IRUGO, uncore_get_attr_cpumask, NULL);
+
+static struct attribute *uncore_pmu_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL,
+};
+
+static struct attribute_group uncore_pmu_attr_group = {
+	.attrs = uncore_pmu_attrs,
+};
+
 static int __init uncore_pmu_register(struct intel_uncore_pmu *pmu)
 {
 	int ret;
@@ -2384,8 +2414,8 @@ static void __init uncore_type_exit(struct intel_uncore_type *type)
 		free_percpu(type->pmus[i].box);
 	kfree(type->pmus);
 	type->pmus = NULL;
-	kfree(type->attr_groups[1]);
-	type->attr_groups[1] = NULL;
+	kfree(type->events_group);
+	type->events_group = NULL;
 }
 
 static void __init uncore_types_exit(struct intel_uncore_type **types)
@@ -2437,9 +2467,10 @@ static int __init uncore_type_init(struct intel_uncore_type *type)
 		for (j = 0; j < i; j++)
 			attrs[j] = &type->event_descs[j].attr.attr;
 
-		type->attr_groups[1] = events_group;
+		type->events_group = events_group;
 	}
 
+	type->pmu_group = &uncore_pmu_attr_group;
 	type->pmus = pmus;
 	return 0;
 fail:
@@ -2556,9 +2587,11 @@ static int __init uncore_pci_init(void)
 
 	switch (boot_cpu_data.x86_model) {
 	case 45: /* Sandy Bridge-EP */
+		ret = snbep_pci2phy_map_init();
+		if (ret)
+			return ret;
 		pci_uncores = snbep_pci_uncores;
 		uncore_pci_driver = &snbep_uncore_pci_driver;
-		snbep_pci2phy_map_init();
 		break;
 	default:
 		return 0;
@@ -2902,6 +2935,9 @@ static int __init intel_uncore_init(void)
 	int ret;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return -ENODEV;
+
+	if (cpu_has_hypervisor)
 		return -ENODEV;
 
 	ret = uncore_pci_init();

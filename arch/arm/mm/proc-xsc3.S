@@ -337,6 +337,9 @@ ENTRY(xsc3_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(xsc3_dma_unmap_area)
 
+	.globl	xsc3_flush_kern_cache_louis
+	.equ	xsc3_flush_kern_cache_louis, xsc3_flush_kern_cache_all
+
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions xsc3
 

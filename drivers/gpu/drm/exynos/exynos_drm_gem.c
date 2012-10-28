@@ -23,8 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include <linux/shmem_fs.h>
 #include <drm/exynos_drm.h>
@@ -501,7 +500,7 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	vma->vm_flags |= (VM_IO | VM_RESERVED);
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	update_vm_cache_attr(exynos_gem_obj, vma);
 

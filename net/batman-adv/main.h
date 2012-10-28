@@ -26,7 +26,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2012.3.0"
+#define BATADV_SOURCE_VERSION "2012.4.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -41,13 +41,14 @@
  * -> TODO: check influence on BATADV_TQ_LOCAL_WINDOW_SIZE
  */
 #define BATADV_PURGE_TIMEOUT 200000 /* 200 seconds */
-#define BATADV_TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
-#define BATADV_TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
+#define BATADV_TT_LOCAL_TIMEOUT 3600000 /* in milliseconds */
+#define BATADV_TT_CLIENT_ROAM_TIMEOUT 600000 /* in milliseconds */
+#define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
 #define BATADV_TQ_LOCAL_WINDOW_SIZE 64
-/* miliseconds we have to keep pending tt_req */
+/* milliseconds we have to keep pending tt_req */
 #define BATADV_TT_REQUEST_TIMEOUT 3000
 
 #define BATADV_TQ_GLOBAL_WINDOW_SIZE 5
@@ -59,7 +60,7 @@
 #define BATADV_TT_OGM_APPEND_MAX 3
 
 /* Time in which a client can roam at most ROAMING_MAX_COUNT times in
- * miliseconds
+ * milliseconds
  */
 #define BATADV_ROAMING_MAX_TIME 20000
 #define BATADV_ROAMING_MAX_COUNT 5
@@ -123,15 +124,6 @@ enum batadv_uev_type {
 /* Append 'batman-adv: ' before kernel messages */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/* all messages related to routing / flooding / broadcasting / etc */
-enum batadv_dbg_level {
-	BATADV_DBG_BATMAN = 1 << 0,
-	BATADV_DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
-	BATADV_DBG_TT	  = 1 << 2, /* translation table operations */
-	BATADV_DBG_BLA    = 1 << 3, /* bridge loop avoidance */
-	BATADV_DBG_ALL    = 15,
-};
-
 /* Kernel headers */
 
 #include <linux/mutex.h>	/* mutex */
@@ -172,6 +164,15 @@ void batadv_recv_handler_unregister(uint8_t packet_type);
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
+
+/* all messages related to routing / flooding / broadcasting / etc */
+enum batadv_dbg_level {
+	BATADV_DBG_BATMAN = BIT(0),
+	BATADV_DBG_ROUTES = BIT(1), /* route added / changed / deleted */
+	BATADV_DBG_TT	  = BIT(2), /* translation table operations */
+	BATADV_DBG_BLA    = BIT(3), /* bridge loop avoidance */
+	BATADV_DBG_ALL    = 15,
+};
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)

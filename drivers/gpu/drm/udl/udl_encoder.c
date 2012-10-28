@@ -10,13 +10,13 @@
  * more details.
  */
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
 /* dummy encoder */
-void udl_enc_destroy(struct drm_encoder *encoder)
+static void udl_enc_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);

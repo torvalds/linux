@@ -26,6 +26,9 @@
 #include "11n.h"
 #include "cfg80211.h"
 
+static int disconnect_on_suspend = 1;
+module_param(disconnect_on_suspend, int, 0644);
+
 /*
  * Copies the multicast address list from device to driver.
  *
@@ -192,6 +195,44 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	return ret;
 }
 
+static int mwifiex_process_country_ie(struct mwifiex_private *priv,
+				      struct cfg80211_bss *bss)
+{
+	u8 *country_ie, country_ie_len;
+	struct mwifiex_802_11d_domain_reg *domain_info =
+					&priv->adapter->domain_reg;
+
+	country_ie = (u8 *)ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+
+	if (!country_ie)
+		return 0;
+
+	country_ie_len = country_ie[1];
+	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
+		return 0;
+
+	domain_info->country_code[0] = country_ie[2];
+	domain_info->country_code[1] = country_ie[3];
+	domain_info->country_code[2] = ' ';
+
+	country_ie_len -= IEEE80211_COUNTRY_STRING_LEN;
+
+	domain_info->no_of_triplet =
+		country_ie_len / sizeof(struct ieee80211_country_ie_triplet);
+
+	memcpy((u8 *)domain_info->triplet,
+	       &country_ie[2] + IEEE80211_COUNTRY_STRING_LEN, country_ie_len);
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
+				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(priv->adapter->wiphy,
+			  "11D: setting domain info in FW\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * In Ad-Hoc mode, the IBSS is created if not found in scan list.
  * In both Ad-Hoc and infra mode, an deauthentication is performed
@@ -207,6 +248,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	priv->scan_block = false;
 
 	if (bss) {
+		mwifiex_process_country_ie(priv, bss);
+
 		/* Allocate and fill new bss descriptor */
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
 				GFP_KERNEL);
@@ -408,6 +451,16 @@ EXPORT_SYMBOL_GPL(mwifiex_cancel_hs);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_ds_hs_cfg hscfg;
+	struct mwifiex_private *priv;
+	int i;
+
+	if (disconnect_on_suspend) {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (priv)
+				mwifiex_deauthenticate(priv, NULL);
+		}
+	}
 
 	if (adapter->hs_activated) {
 		dev_dbg(adapter->dev, "cmd: HS Already actived\n");
@@ -942,20 +995,26 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
  * This function allocates the IOCTL request buffer, fills it
  * with requisite parameters and calls the IOCTL handler.
  */
-int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
-			int key_len, u8 key_index,
-			const u8 *mac_addr, int disable)
+int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
+		       const u8 *key, int key_len, u8 key_index,
+		       const u8 *mac_addr, int disable)
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
 	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
 	encrypt_key.key_len = key_len;
+
+	if (kp && kp->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		encrypt_key.is_igtk_key = true;
+
 	if (!disable) {
 		encrypt_key.key_index = key_index;
 		if (key_len)
 			memcpy(encrypt_key.key_material, key, key_len);
 		if (mac_addr)
 			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
+		if (kp && kp->seq && kp->seq_len)
+			memcpy(encrypt_key.pn, kp->seq, kp->seq_len);
 	} else {
 		encrypt_key.key_disable = true;
 		if (mac_addr)
@@ -982,6 +1041,65 @@ mwifiex_get_ver_ext(struct mwifiex_private *priv)
 		return -1;
 
 	return 0;
+}
+
+int
+mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
+			   struct ieee80211_channel *chan,
+			   enum nl80211_channel_type *ct,
+			   unsigned int duration)
+{
+	struct host_cmd_ds_remain_on_chan roc_cfg;
+	u8 sc;
+
+	memset(&roc_cfg, 0, sizeof(roc_cfg));
+	roc_cfg.action = cpu_to_le16(action);
+	if (action == HostCmd_ACT_GEN_SET) {
+		roc_cfg.band_cfg = chan->band;
+		sc = mwifiex_chan_type_to_sec_chan_offset(*ct);
+		roc_cfg.band_cfg |= (sc << 2);
+
+		roc_cfg.channel =
+			ieee80211_frequency_to_channel(chan->center_freq);
+		roc_cfg.duration = cpu_to_le32(duration);
+	}
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_REMAIN_ON_CHAN,
+				  action, 0, &roc_cfg)) {
+		dev_err(priv->adapter->dev, "failed to remain on channel\n");
+		return -1;
+	}
+
+	return roc_cfg.status;
+}
+
+int
+mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role)
+{
+	if (GET_BSS_ROLE(priv) == bss_role) {
+		dev_dbg(priv->adapter->dev,
+			"info: already in the desired role.\n");
+		return 0;
+	}
+
+	mwifiex_free_priv(priv);
+	mwifiex_init_priv(priv);
+
+	priv->bss_role = bss_role;
+	switch (bss_role) {
+	case MWIFIEX_BSS_ROLE_UAP:
+		priv->bss_mode = NL80211_IFTYPE_AP;
+		break;
+	case MWIFIEX_BSS_ROLE_STA:
+	case MWIFIEX_BSS_ROLE_ANY:
+	default:
+		priv->bss_mode = NL80211_IFTYPE_STATION;
+		break;
+	}
+
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_SET_BSS_MODE,
+			      HostCmd_ACT_GEN_SET, 0, NULL);
+
+	return mwifiex_sta_init_cmd(priv, false);
 }
 
 /*

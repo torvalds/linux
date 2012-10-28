@@ -7,8 +7,8 @@
 #include <fcntl.h>
 #include <termios.h>
 #include "chan_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <os.h>
+#include <um_malloc.h>
 
 struct tty_chan {
 	char *dev;

@@ -10,6 +10,7 @@
 #include "util/event.h"
 #include "util/hist.h"
 #include "util/evsel.h"
+#include "util/evlist.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/sort.h"
@@ -24,11 +25,6 @@ static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
 
-struct perf_diff {
-	struct perf_tool tool;
-	struct perf_session *session;
-};
-
 static int hists__add_entry(struct hists *self,
 			    struct addr_location *al, u64 period)
 {
@@ -37,14 +33,12 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(struct perf_tool *tool,
+static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel __used,
+				      struct perf_evsel *evsel,
 				      struct machine *machine)
 {
-	struct perf_diff *_diff = container_of(tool, struct perf_diff, tool);
-	struct perf_session *session = _diff->session;
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample, NULL) < 0) {
@@ -56,30 +50,28 @@ static int diff__process_sample_event(struct perf_tool *tool,
 	if (al.filtered || al.sym == NULL)
 		return 0;
 
-	if (hists__add_entry(&session->hists, &al, sample->period)) {
+	if (hists__add_entry(&evsel->hists, &al, sample->period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static struct perf_diff diff = {
-	.tool = {
-		.sample	= diff__process_sample_event,
-		.mmap	= perf_event__process_mmap,
-		.comm	= perf_event__process_comm,
-		.exit	= perf_event__process_task,
-		.fork	= perf_event__process_task,
-		.lost	= perf_event__process_lost,
-		.ordered_samples = true,
-		.ordering_requires_timestamps = true,
-	},
+static struct perf_tool tool = {
+	.sample	= diff__process_sample_event,
+	.mmap	= perf_event__process_mmap,
+	.comm	= perf_event__process_comm,
+	.exit	= perf_event__process_task,
+	.fork	= perf_event__process_task,
+	.lost	= perf_event__process_lost,
+	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
-static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
-						    struct hist_entry *he)
+static void insert_hist_entry_by_name(struct rb_root *root,
+				      struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -98,7 +90,7 @@ static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 }
 
-static void hists__resort_entries(struct hists *self)
+static void hists__name_resort(struct hists *self, bool sort)
 {
 	unsigned long position = 1;
 	struct rb_root tmp = RB_ROOT;
@@ -108,12 +100,16 @@ static void hists__resort_entries(struct hists *self)
 		struct hist_entry *n = rb_entry(next, struct hist_entry, rb_node);
 
 		next = rb_next(&n->rb_node);
-		rb_erase(&n->rb_node, &self->entries);
 		n->position = position++;
-		perf_session__insert_hist_entry_by_name(&tmp, n);
+
+		if (sort) {
+			rb_erase(&n->rb_node, &self->entries);
+			insert_hist_entry_by_name(&tmp, n);
+		}
 	}
 
-	self->entries = tmp;
+	if (sort)
+		self->entries = tmp;
 }
 
 static struct hist_entry *hists__find_entry(struct hists *self,
@@ -129,7 +125,7 @@ static struct hist_entry *hists__find_entry(struct hists *self,
 			n = n->rb_left;
 		else if (cmp > 0)
 			n = n->rb_right;
-		else 
+		else
 			return iter;
 	}
 
@@ -146,34 +142,81 @@ static void hists__match(struct hists *older, struct hists *newer)
 	}
 }
 
+static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
+				      struct perf_evlist *evlist)
+{
+	struct perf_evsel *e;
+
+	list_for_each_entry(e, &evlist->entries, node)
+		if (perf_evsel__match2(evsel, e))
+			return e;
+
+	return NULL;
+}
+
+static void perf_evlist__resort_hists(struct perf_evlist *evlist, bool name)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		struct hists *hists = &evsel->hists;
+
+		hists__output_resort(hists);
+
+		/*
+		 * The hists__name_resort only sets possition
+		 * if name is false.
+		 */
+		if (name || ((!name) && show_displacement))
+			hists__name_resort(hists, name);
+	}
+}
+
 static int __cmd_diff(void)
 {
 	int ret, i;
 #define older (session[0])
 #define newer (session[1])
 	struct perf_session *session[2];
+	struct perf_evlist *evlist_new, *evlist_old;
+	struct perf_evsel *evsel;
+	bool first = true;
 
 	older = perf_session__new(input_old, O_RDONLY, force, false,
-				  &diff.tool);
+				  &tool);
 	newer = perf_session__new(input_new, O_RDONLY, force, false,
-				  &diff.tool);
+				  &tool);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < 2; ++i) {
-		diff.session = session[i];
-		ret = perf_session__process_events(session[i], &diff.tool);
+		ret = perf_session__process_events(session[i], &tool);
 		if (ret)
 			goto out_delete;
-		hists__output_resort(&session[i]->hists);
 	}
 
-	if (show_displacement)
-		hists__resort_entries(&older->hists);
+	evlist_old = older->evlist;
+	evlist_new = newer->evlist;
 
-	hists__match(&older->hists, &newer->hists);
-	hists__fprintf(&newer->hists, &older->hists,
-		       show_displacement, true, 0, 0, stdout);
+	perf_evlist__resort_hists(evlist_old, true);
+	perf_evlist__resort_hists(evlist_new, false);
+
+	list_for_each_entry(evsel, &evlist_new->entries, node) {
+		struct perf_evsel *evsel_old;
+
+		evsel_old = evsel_match(evsel, evlist_old);
+		if (!evsel_old)
+			continue;
+
+		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
+			perf_evsel__name(evsel));
+
+		first = false;
+
+		hists__match(&evsel_old->hists, &evsel->hists);
+		hists__fprintf(&evsel->hists, true, 0, 0, stdout);
+	}
+
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);
@@ -213,7 +256,22 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_diff(int argc, const char **argv, const char *prefix __used)
+static void ui_init(void)
+{
+	perf_hpp__init();
+
+	/* No overhead column. */
+	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
+
+	/* Display baseline/delta/displacement columns. */
+	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
+	perf_hpp__column_enable(PERF_HPP__DELTA, true);
+
+	if (show_displacement)
+		perf_hpp__column_enable(PERF_HPP__DISPL, true);
+}
+
+int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	sort_order = diff__default_sort_order;
 	argc = parse_options(argc, argv, options, diff_usage, 0);
@@ -234,6 +292,8 @@ int cmd_diff(int argc, const char **argv, const char *prefix __used)
 	symbol_conf.exclude_other = false;
 	if (symbol__init() < 0)
 		return -1;
+
+	ui_init();
 
 	setup_sorting(diff_usage, options);
 	setup_pager();

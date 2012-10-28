@@ -21,6 +21,12 @@
 	model = "Marvell Armada 370 family SoC";
 	compatible = "marvell,armada370", "marvell,armada-370-xp";
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+	};
+
 	mpic: interrupt-controller@d0020000 {
 	      reg = <0xd0020a00 0x1d0>,
 		    <0xd0021870 0x58>;
@@ -30,6 +36,44 @@
 		system-controller@d0018200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0xd0018200 0x100>;
+		};
+
+		pinctrl {
+			compatible = "marvell,mv88f6710-pinctrl";
+			reg = <0xd0018000 0x38>;
+	        };
+
+		gpio0: gpio@d0018100 {
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018100 0x40>;
+			ngpios = <32>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupts-cells = <2>;
+			interrupts = <82>, <83>, <84>, <85>;
+		};
+
+		gpio1: gpio@d0018140 {
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018140 0x40>;
+			ngpios = <32>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupts-cells = <2>;
+			interrupts = <87>, <88>, <89>, <90>;
+		};
+
+		gpio2: gpio@d0018180 {
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018180 0x40>;
+			ngpios = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupts-cells = <2>;
+			interrupts = <91>;
 		};
 	};
 };

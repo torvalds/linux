@@ -1019,7 +1019,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -1076,7 +1076,7 @@ static SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume
 #define SND_VIA82XX_PM_OPS	&snd_via82xx_pm
 #else
 #define SND_VIA82XX_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int snd_via82xx_free(struct via82xx_modem *chip)
 {

@@ -33,8 +33,6 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
-
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
 static bool omapfb_lcd_configured;

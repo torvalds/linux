@@ -36,19 +36,9 @@
  */
 static struct map_desc iop13xx_std_desc[] __initdata = {
 	{    /* mem mapped registers */
-		.virtual = IOP13XX_PMMR_VIRT_MEM_BASE,
+		.virtual = (unsigned long)IOP13XX_PMMR_VIRT_MEM_BASE,
 		.pfn 	 = __phys_to_pfn(IOP13XX_PMMR_PHYS_MEM_BASE),
 		.length  = IOP13XX_PMMR_SIZE,
-		.type	 = MT_DEVICE,
-	}, { /* PCIE IO space */
-		.virtual = IOP13XX_PCIE_LOWER_IO_VA,
-		.pfn 	 = __phys_to_pfn(IOP13XX_PCIE_LOWER_IO_PA),
-		.length  = IOP13XX_PCIX_IO_WINDOW_SIZE,
-		.type	 = MT_DEVICE,
-	}, { /* PCIX IO space */
-		.virtual = IOP13XX_PCIX_LOWER_IO_VA,
-		.pfn 	 = __phys_to_pfn(IOP13XX_PCIX_LOWER_IO_PA),
-		.length  = IOP13XX_PCIX_IO_WINDOW_SIZE,
 		.type	 = MT_DEVICE,
 	},
 };
@@ -81,8 +71,8 @@ static struct resource iop13xx_uart1_resources[] = {
 
 static struct plat_serial8250_port iop13xx_uart0_data[] = {
 	{
-       .membase     = (char*)(IOP13XX_UART0_VIRT),
-       .mapbase     = (IOP13XX_UART0_PHYS),
+       .membase     = IOP13XX_UART0_VIRT,
+       .mapbase     = IOP13XX_UART0_PHYS,
        .irq         = IRQ_IOP13XX_UART0,
        .uartclk     = IOP13XX_UART_XTAL,
        .regshift    = 2,
@@ -94,8 +84,8 @@ static struct plat_serial8250_port iop13xx_uart0_data[] = {
 
 static struct plat_serial8250_port iop13xx_uart1_data[] = {
 	{
-       .membase     = (char*)(IOP13XX_UART1_VIRT),
-       .mapbase     = (IOP13XX_UART1_PHYS),
+       .membase     = IOP13XX_UART1_VIRT,
+       .mapbase     = IOP13XX_UART1_PHYS,
        .irq         = IRQ_IOP13XX_UART1,
        .uartclk     = IOP13XX_UART_XTAL,
        .regshift    = 2,

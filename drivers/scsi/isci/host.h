@@ -473,7 +473,7 @@ void sci_controller_remote_device_stopped(struct isci_host *ihost,
 
 enum sci_status sci_controller_continue_io(struct isci_request *ireq);
 int isci_host_scan_finished(struct Scsi_Host *, unsigned long);
-void isci_host_scan_start(struct Scsi_Host *);
+void isci_host_start(struct Scsi_Host *);
 u16 isci_alloc_tag(struct isci_host *ihost);
 enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag);
 void isci_tci_free(struct isci_host *ihost, u16 tci);

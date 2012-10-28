@@ -57,5 +57,6 @@ enum iio_modifier {
 #define IIO_VAL_INT_PLUS_MICRO 2
 #define IIO_VAL_INT_PLUS_NANO 3
 #define IIO_VAL_INT_PLUS_MICRO_DB 4
+#define IIO_VAL_FRACTIONAL 10
 
 #endif /* _IIO_TYPES_H_ */

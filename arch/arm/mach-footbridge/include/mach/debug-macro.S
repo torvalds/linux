@@ -17,7 +17,8 @@
 	/* For NetWinder debugging */
 		.macro	addruart, rp, rv, tmp
 		mov	\rp, #0x000003f8
-		orr	\rv, \rp, #0xff000000	@ virtual
+		orr	\rv, \rp, #0xfe000000	@ virtual
+		orr	\rv, \rv, #0x00e00000	@ virtual
 		orr	\rp, \rp, #0x7c000000	@ physical
 		.endm
 

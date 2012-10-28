@@ -734,8 +734,7 @@ static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 
 	ring = &priv->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
-		kfree_skb(pskb);
+	kfree_skb(pskb);
 
 	pnewskb = rtllib_get_beacon(priv->rtllib);
 	if (!pnewskb)
@@ -3125,6 +3124,9 @@ MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(RTL8192E_BOOT_IMG_FW);
+MODULE_FIRMWARE(RTL8192E_MAIN_IMG_FW);
+MODULE_FIRMWARE(RTL8192E_DATA_IMG_FW);
 
 module_param(ifname, charp, S_IRUGO|S_IWUSR);
 module_param(hwwep, int, S_IRUGO|S_IWUSR);

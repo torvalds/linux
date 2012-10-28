@@ -34,6 +34,7 @@
 #define NEXTHDR_IPV6		41	/* IPv6 in IPv6 */
 #define NEXTHDR_ROUTING		43	/* Routing header. */
 #define NEXTHDR_FRAGMENT	44	/* Fragmentation/reassembly header. */
+#define NEXTHDR_GRE		47	/* GRE header. */
 #define NEXTHDR_ESP		50	/* Encapsulating security payload. */
 #define NEXTHDR_AUTH		51	/* Authentication header. */
 #define NEXTHDR_ICMP		58	/* ICMP for IPv6. */
@@ -222,7 +223,10 @@ struct ip6_flowlabel {
 	struct ipv6_txoptions	*opt;
 	unsigned long		linger;
 	u8			share;
-	u32			owner;
+	union {
+		struct pid *pid;
+		kuid_t uid;
+	} owner;
 	unsigned long		lastuse;
 	unsigned long		expires;
 	struct net		*fl_net;
@@ -267,8 +271,17 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 extern bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb);
 
-int ip6_frag_nqueues(struct net *net);
-int ip6_frag_mem(struct net *net);
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int ip6_frag_nqueues(struct net *net)
+{
+	return net->ipv6.frags.nqueues;
+}
+
+static inline int ip6_frag_mem(struct net *net)
+{
+	return atomic_read(&net->ipv6.frags.mem);
+}
+#endif
 
 #define IPV6_FRAG_HIGH_THRESH	(256 * 1024)	/* 262144 */
 #define IPV6_FRAG_LOW_THRESH	(192 * 1024)	/* 196608 */
@@ -406,6 +419,25 @@ struct ip6_create_arg {
 
 void ip6_frag_init(struct inet_frag_queue *q, void *a);
 bool ip6_frag_match(struct inet_frag_queue *q, void *a);
+
+/*
+ *	Equivalent of ipv4 struct ip
+ */
+struct frag_queue {
+	struct inet_frag_queue	q;
+
+	__be32			id;		/* fragment id		*/
+	u32			user;
+	struct in6_addr		saddr;
+	struct in6_addr		daddr;
+
+	int			iif;
+	unsigned int		csum;
+	__u16			nhoffset;
+};
+
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
+			   struct inet_frags *frags);
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {

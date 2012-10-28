@@ -74,10 +74,15 @@ static inline int audit_hash_ino(u32 ino)
 	return (ino & (AUDIT_INODE_BUCKETS-1));
 }
 
+/* Indicates that audit should log the full pathname. */
+#define AUDIT_NAME_FULL -1
+
 extern int audit_match_class(int class, unsigned syscall);
 extern int audit_comparator(const u32 left, const u32 op, const u32 right);
-extern int audit_compare_dname_path(const char *dname, const char *path,
-				    int *dirlen);
+extern int audit_uid_comparator(kuid_t left, u32 op, kuid_t right);
+extern int audit_gid_comparator(kgid_t left, u32 op, kgid_t right);
+extern int parent_len(const char *path);
+extern int audit_compare_dname_path(const char *dname, const char *path, int plen);
 extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     const void *payload, int size);
@@ -144,7 +149,7 @@ extern void audit_kill_trees(struct list_head *);
 extern char *audit_unpack_string(void **, size_t *, size_t);
 
 extern pid_t audit_sig_pid;
-extern uid_t audit_sig_uid;
+extern kuid_t audit_sig_uid;
 extern u32 audit_sig_sid;
 
 #ifdef CONFIG_AUDITSYSCALL

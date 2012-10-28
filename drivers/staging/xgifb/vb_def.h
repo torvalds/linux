@@ -3,9 +3,7 @@
 #include "../../video/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
-#define VB_YPbPr1080i   0x03
 
-#define LVDSCRT1Len     15
 #define SupportCRT2in301C       0x0100  /* for 301C */
 #define SetCHTVOverScan         0x8000
 
@@ -21,15 +19,6 @@
 #define YPbPr525iVCLK_2         0x03A
 
 #define XGI_CRT2_PORT_00        (0x00 - 0x030)
-
-/* =============================================================
-   for 310
-============================================================== */
-#define ModeSoftSetting              0x04
-
-/* ---------------- SetMode Stack */
-#define CRT1Len           15
-#define VCLKLen           4
 
 #define SupportAllCRT2      0x0078
 #define NoSupportTV         0x0070
@@ -114,16 +103,6 @@
 #define ActiveSCART           0x04
 #define ActiveHiTV            0x08
 #define ActiveYPbPr           0x10
-
-/* --------------------------------------------------------- */
-/* translated from asm code 301def.h */
-/*  */
-/* --------------------------------------------------------- */
-#define LVDSCRT1Len_H        8
-#define LVDSCRT1Len_V        7
-#define LCDDesDataLen        6
-#define LVDSDesDataLen2      8
-#define LCDDesDataLen2       8
 
 #define NTSC1024x768HT       1908
 

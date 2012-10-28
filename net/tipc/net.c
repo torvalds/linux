@@ -171,7 +171,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	tipc_link_send(buf, dnode, msg_link_selector(msg));
 }
 
-int tipc_net_start(u32 addr)
+void tipc_net_start(u32 addr)
 {
 	char addr_string[16];
 
@@ -187,7 +187,6 @@ int tipc_net_start(u32 addr)
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
-	return 0;
 }
 
 void tipc_net_stop(void)

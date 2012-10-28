@@ -320,10 +320,8 @@ static bool mxt_object_writable(unsigned int type)
 static void mxt_dump_message(struct device *dev,
 			     struct mxt_message *message)
 {
-	dev_dbg(dev, "reportid: %u\tmessage: %02x %02x %02x %02x %02x %02x %02x\n",
-		message->reportid, message->message[0], message->message[1],
-		message->message[2], message->message[3], message->message[4],
-		message->message[5], message->message[6]);
+	dev_dbg(dev, "reportid: %u\tmessage: %*ph\n",
+		message->reportid, 7, message->message);
 }
 
 static int mxt_check_bootloader(struct i2c_client *client,
@@ -1152,7 +1150,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 
 	/* For multi touch */
 	num_mt_slots = data->T9_reportid_max - data->T9_reportid_min + 1;
-	error = input_mt_init_slots(input_dev, num_mt_slots);
+	error = input_mt_init_slots(input_dev, num_mt_slots, 0);
 	if (error)
 		goto err_free_object;
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,

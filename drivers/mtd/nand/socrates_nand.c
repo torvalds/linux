@@ -98,24 +98,6 @@ static uint16_t socrates_nand_read_word(struct mtd_info *mtd)
 	return word;
 }
 
-/**
- * socrates_nand_verify_buf -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- */
-static int socrates_nand_verify_buf(struct mtd_info *mtd, const u8 *buf,
-		int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != socrates_nand_read_byte(mtd))
-			return -EFAULT;
-	}
-	return 0;
-}
-
 /*
  * Hardware specific access to control-lines
  */
@@ -201,7 +183,6 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->read_word = socrates_nand_read_word;
 	nand_chip->write_buf = socrates_nand_write_buf;
 	nand_chip->read_buf = socrates_nand_read_buf;
-	nand_chip->verify_buf = socrates_nand_verify_buf;
 	nand_chip->dev_ready = socrates_nand_device_ready;
 
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */

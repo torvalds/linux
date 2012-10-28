@@ -357,8 +357,7 @@ acpi_status acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 ac
 		goto unlock_and_exit;
 	}
 
-	register_bit =
-	    acpi_hw_get_gpe_register_bit(gpe_event_info, gpe_register_info);
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
 	/* Perform the action */
 

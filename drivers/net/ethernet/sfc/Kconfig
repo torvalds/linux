@@ -34,3 +34,10 @@ config SFC_SRIOV
 	  This enables support for the SFC9000 I/O Virtualization
 	  features, allowing accelerated network performance in
 	  virtualized environments.
+config SFC_PTP
+	bool "Solarflare SFC9000-family PTP support"
+	depends on SFC && PTP_1588_CLOCK && !(SFC=y && PTP_1588_CLOCK=m)
+	default y
+	---help---
+	  This enables support for the Precision Time Protocol (PTP)
+	  on SFC9000-family NICs

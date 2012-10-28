@@ -235,7 +235,7 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 		u8 *iv, u8 *icv);
 
 int wlan_setup(wlandevice_t *wlandev, struct device *physdev);
-int wlan_unsetup(wlandevice_t *wlandev);
+void wlan_unsetup(wlandevice_t *wlandev);
 int register_wlandev(wlandevice_t *wlandev);
 int unregister_wlandev(wlandevice_t *wlandev);
 void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);

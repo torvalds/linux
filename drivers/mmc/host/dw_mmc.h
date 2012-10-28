@@ -182,4 +182,28 @@ extern int dw_mci_suspend(struct dw_mci *host);
 extern int dw_mci_resume(struct dw_mci *host);
 #endif
 
+/**
+ * dw_mci driver data - dw-mshc implementation specific driver data.
+ * @caps: mmc subsystem specified capabilities of the controller(s).
+ * @init: early implementation specific initialization.
+ * @setup_clock: implementation specific clock configuration.
+ * @prepare_command: handle CMD register extensions.
+ * @set_ios: handle bus specific extensions.
+ * @parse_dt: parse implementation specific device tree properties.
+ * @setup_bus: initialize io-interface
+ *
+ * Provide controller implementation specific extensions. The usage of this
+ * data structure is fully optional and usage of each member in this structure
+ * is optional as well.
+ */
+struct dw_mci_drv_data {
+	unsigned long	*caps;
+	int		(*init)(struct dw_mci *host);
+	int		(*setup_clock)(struct dw_mci *host);
+	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);
+	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
+	int		(*parse_dt)(struct dw_mci *host);
+	int		(*setup_bus)(struct dw_mci *host,
+				struct device_node *slot_np, u8 bus_width);
+};
 #endif /* _DW_MMC_H_ */

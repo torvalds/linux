@@ -812,6 +812,21 @@
 #define	PACKET3_DRAW_INDEX_OFFSET_2			0x35
 #define	PACKET3_DRAW_INDEX_MULTI_ELEMENT		0x36
 #define	PACKET3_WRITE_DATA				0x37
+#define		WRITE_DATA_DST_SEL(x)                   ((x) << 8)
+                /* 0 - register
+		 * 1 - memory (sync - via GRBM)
+		 * 2 - tc/l2
+		 * 3 - gds
+		 * 4 - reserved
+		 * 5 - memory (async - direct)
+		 */
+#define		WR_ONE_ADDR                             (1 << 16)
+#define		WR_CONFIRM                              (1 << 20)
+#define		WRITE_DATA_ENGINE_SEL(x)                ((x) << 30)
+                /* 0 - me
+		 * 1 - pfp
+		 * 2 - ce
+		 */
 #define	PACKET3_DRAW_INDEX_INDIRECT_MULTI		0x38
 #define	PACKET3_MEM_SEMAPHORE				0x39
 #define	PACKET3_MPEG_INDEX				0x3A

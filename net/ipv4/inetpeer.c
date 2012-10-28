@@ -194,7 +194,7 @@ void __init inet_initpeers(void)
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
 			NULL);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&gc_work, inetpeer_gc_worker);
+	INIT_DEFERRABLE_WORK(&gc_work, inetpeer_gc_worker);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,

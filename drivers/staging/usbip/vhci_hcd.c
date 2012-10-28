@@ -220,7 +220,7 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 
 	pr_info("changed %d\n", changed);
 
-	if (hcd->state == HC_STATE_SUSPENDED)
+	if ((hcd->state == HC_STATE_SUSPENDED) && (changed == 1))
 		usb_hcd_resume_root_hub(hcd);
 
 done:
@@ -749,6 +749,7 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 {
 	struct vhci_unlink *unlink, *tmp;
 
+	spin_lock(&the_controller->lock);
 	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
@@ -757,8 +758,11 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 		kfree(unlink);
 	}
 
-	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
+	while (!list_empty(&vdev->unlink_rx)) {
 		struct urb *urb;
+
+		unlink = list_first_entry(&vdev->unlink_rx, struct vhci_unlink,
+			list);
 
 		/* give back URB of unanswered unlink request */
 		pr_info("unlink cleanup rx %lu\n", unlink->unlink_seqnum);
@@ -774,18 +778,24 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 
 		urb->status = -ENODEV;
 
-		spin_lock(&the_controller->lock);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
+
+		list_del(&unlink->list);
+
+		spin_unlock(&vdev->priv_lock);
 		spin_unlock(&the_controller->lock);
 
 		usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb,
 				     urb->status);
 
-		list_del(&unlink->list);
+		spin_lock(&the_controller->lock);
+		spin_lock(&vdev->priv_lock);
+
 		kfree(unlink);
 	}
 
 	spin_unlock(&vdev->priv_lock);
+	spin_unlock(&the_controller->lock);
 }
 
 /*
@@ -804,11 +814,14 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* kill threads related to this sdev, if v.c. exists */
-	if (vdev->ud.tcp_rx)
+	if (vdev->ud.tcp_rx) {
 		kthread_stop_put(vdev->ud.tcp_rx);
-	if (vdev->ud.tcp_tx)
+		vdev->ud.tcp_rx = NULL;
+	}
+	if (vdev->ud.tcp_tx) {
 		kthread_stop_put(vdev->ud.tcp_tx);
-
+		vdev->ud.tcp_tx = NULL;
+	}
 	pr_info("stop threads\n");
 
 	/* active connection is closed */
@@ -828,11 +841,11 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	 *	disable endpoints. pending urbs are unlinked(dequeued).
 	 *
 	 * NOTE: After calling rh_port_disconnect(), the USB device drivers of a
-	 * deteched device should release used urbs in a cleanup function(i.e.
+	 * detached device should release used urbs in a cleanup function (i.e.
 	 * xxx_disconnect()). Therefore, vhci_hcd does not need to release
 	 * pushed urbs and their private data in this function.
 	 *
-	 * NOTE: vhci_dequeue() must be considered carefully. When shutdowning
+	 * NOTE: vhci_dequeue() must be considered carefully. When shutting down
 	 * a connection, vhci_shutdown_connection() expects vhci_dequeue()
 	 * gives back pushed urbs and frees their private data by request of
 	 * the cleanup function of a USB driver. When unlinking a urb with an

@@ -73,4 +73,36 @@ static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *subd)
 	return num_samples * bytes_per_sample(subd);
 }
 
+/**
+ * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
+ * @src: pointer to the trigger source to validate
+ * @flags: bitmask of valid TRIG_* for the trigger
+ *
+ * This is used in "step 1" of the do_cmdtest functions of comedi drivers
+ * to vaildate the comedi_cmd triggers. The mask of the @src against the
+ * @flags allows the userspace comedilib to pass all the comedi_cmd
+ * triggers as TRIG_ANY and get back a bitmask of the valid trigger sources.
+ */
+static inline int cfc_check_trigger_src(unsigned int *src, unsigned int flags)
+{
+	unsigned int orig_src = *src;
+
+	*src = orig_src & flags;
+	if (*src == TRIG_INVALID || *src != orig_src)
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * cfc_check_trigger_is_unique() - make sure a trigger source is unique
+ * @src: the trigger source to check
+ */
+static inline int cfc_check_trigger_is_unique(unsigned int src)
+{
+	/* this test is true if more than one _src bit is set */
+	if ((src & (src - 1)) != 0)
+		return -EINVAL;
+	return 0;
+}
+
 #endif /* _COMEDI_FC_H */

@@ -1,0 +1,10 @@
+TODO:
+	- coding syle fixes
+	- build warning fixups
+	- ioctl auditing
+	- usb api auditing
+	- proper USB minor number (it's stomping on an existing one right now.)
+
+Please send patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org> and Cc:
+Alois Schlögl <alois.schloegl@ist.ac.at>
+

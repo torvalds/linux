@@ -12,7 +12,6 @@ config USB_MUSB_HDRC
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
 	select USB_OTG_UTILS
-	select USB_GADGET_DUALSPEED
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on the Mentor Graphics silicon IP.  Then
@@ -20,7 +19,7 @@ config USB_MUSB_HDRC
 	  it's being used with, including the USB peripheral role,
 	  or the USB host role, or both.
 
-	  Texas Instruments familiies using this IP include DaVinci
+	  Texas Instruments families using this IP include DaVinci
 	  (35x, 644x ...), OMAP 243x, OMAP 3, and TUSB 6010.
 
 	  Analog Devices parts using this IP include Blackfin BF54x,

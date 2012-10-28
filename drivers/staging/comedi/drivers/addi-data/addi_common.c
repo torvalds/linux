@@ -1669,7 +1669,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return ret;
 
 		/*  Allocate and Initialise AI Subdevice Structures */
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		if ((devpriv->s_EeParameters.i_NbrAiChannel)
 			|| (this_board->i_NbrAiChannelDiff)) {
 			dev->read_subdev = s;
@@ -1705,7 +1705,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise AO Subdevice Structures */
-		s = dev->subdevices + 1;
+		s = &dev->subdevices[1];
 		if (devpriv->s_EeParameters.i_NbrAoChannel) {
 			s->type = COMEDI_SUBD_AO;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -1720,7 +1720,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 		/*  Allocate and Initialise DI Subdevice Structures */
-		s = dev->subdevices + 2;
+		s = &dev->subdevices[2];
 		if (devpriv->s_EeParameters.i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
 			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -1738,7 +1738,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 		/*  Allocate and Initialise DO Subdevice Structures */
-		s = dev->subdevices + 3;
+		s = &dev->subdevices[3];
 		if (devpriv->s_EeParameters.i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
 			s->subdev_flags =
@@ -1760,7 +1760,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise Timer Subdevice Structures */
-		s = dev->subdevices + 4;
+		s = &dev->subdevices[4];
 		if (devpriv->s_EeParameters.i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -1778,7 +1778,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/*  Allocate and Initialise TTL */
-		s = dev->subdevices + 5;
+		s = &dev->subdevices[5];
 		if (this_board->i_NbrTTLChannel) {
 			s->type = COMEDI_SUBD_TTLIO;
 			s->subdev_flags =
@@ -1797,7 +1797,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		/* EEPROM */
-		s = dev->subdevices + 6;
+		s = &dev->subdevices[6];
 		if (this_board->i_PCIEeprom) {
 			s->type = COMEDI_SUBD_MEMORY;
 			s->subdev_flags = SDF_READABLE | SDF_INTERNAL;

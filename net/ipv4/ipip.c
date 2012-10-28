@@ -120,6 +120,10 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
+static bool log_ecn_error = true;
+module_param(log_ecn_error, bool, 0644);
+MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
+
 static int ipip_net_id __read_mostly;
 struct ipip_net {
 	struct ip_tunnel __rcu *tunnels_r_l[HASH_SIZE];
@@ -365,8 +369,6 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	}
 
 	err = -ENOENT;
-
-	rcu_read_lock();
 	t = ipip_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL)
 		goto out;
@@ -398,34 +400,22 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		t->err_count = 1;
 	t->err_time = jiffies;
 out:
-	rcu_read_unlock();
+
 	return err;
-}
-
-static inline void ipip_ecn_decapsulate(const struct iphdr *outer_iph,
-					struct sk_buff *skb)
-{
-	struct iphdr *inner_iph = ip_hdr(skb);
-
-	if (INET_ECN_is_ce(outer_iph->tos))
-		IP_ECN_set_ce(inner_iph);
 }
 
 static int ipip_rcv(struct sk_buff *skb)
 {
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph = ip_hdr(skb);
+	int err;
 
-	rcu_read_lock();
 	tunnel = ipip_tunnel_lookup(dev_net(skb->dev), iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
 
-		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-			rcu_read_unlock();
-			kfree_skb(skb);
-			return 0;
-		}
+		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
 
 		secpath_reset(skb);
 
@@ -434,24 +424,35 @@ static int ipip_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
 
+		__skb_tunnel_rx(skb, tunnel->dev);
+
+		err = IP_ECN_decapsulate(iph, skb);
+		if (unlikely(err)) {
+			if (log_ecn_error)
+				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+						     &iph->saddr, iph->tos);
+			if (err > 1) {
+				++tunnel->dev->stats.rx_frame_errors;
+				++tunnel->dev->stats.rx_errors;
+				goto drop;
+			}
+		}
+
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
-		__skb_tunnel_rx(skb, tunnel->dev);
-
-		ipip_ecn_decapsulate(iph, skb);
-
 		netif_rx(skb);
-
-		rcu_read_unlock();
 		return 0;
 	}
-	rcu_read_unlock();
 
 	return -1;
+
+drop:
+	kfree_skb(skb);
+	return 0;
 }
 
 /*

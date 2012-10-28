@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
@@ -25,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <memory/jedec_ddr.h>
 #include "emif.h"
+#include "of_memory.h"
 
 /**
  * struct emif_data - Per device static data for driver's use
@@ -49,6 +51,7 @@
  *				frequency in effect at the moment)
  * @plat_data:			Pointer to saved platform data.
  * @debugfs_root:		dentry to the root folder for EMIF in debugfs
+ * @np_ddr:			Pointer to ddr device tree node
  */
 struct emif_data {
 	u8				duplicate;
@@ -63,6 +66,7 @@ struct emif_data {
 	struct emif_regs		*curr_regs;
 	struct emif_platform_data	*plat_data;
 	struct dentry			*debugfs_root;
+	struct device_node		*np_ddr;
 };
 
 static struct emif_data *emif1;
@@ -71,6 +75,7 @@ static unsigned long	irq_state;
 static u32		t_ck; /* DDR clock period in ps */
 static LIST_HEAD(device_list);
 
+#ifdef CONFIG_DEBUG_FS
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	struct emif_regs *regs)
 {
@@ -162,23 +167,23 @@ static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 	int		ret;
 
 	dentry = debugfs_create_dir(dev_name(emif->dev), NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err0;
 	}
 	emif->debugfs_root = dentry;
 
 	dentry = debugfs_create_file("regcache_dump", S_IRUGO,
 			emif->debugfs_root, emif, &emif_regdump_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	dentry = debugfs_create_file("mr4", S_IRUGO,
 			emif->debugfs_root, emif, &emif_mr4_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
@@ -194,6 +199,16 @@ static void __exit emif_debugfs_exit(struct emif_data *emif)
 	debugfs_remove_recursive(emif->debugfs_root);
 	emif->debugfs_root = NULL;
 }
+#else
+static inline int __init_or_module emif_debugfs_init(struct emif_data *emif)
+{
+	return 0;
+}
+
+static inline void __exit emif_debugfs_exit(struct emif_data *emif)
+{
+}
+#endif
 
 /*
  * Calculate the period of DDR clock from frequency value
@@ -1148,6 +1163,168 @@ static int is_custom_config_valid(struct emif_custom_configs *cust_cfgs,
 	return valid;
 }
 
+#if defined(CONFIG_OF)
+static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
+		struct emif_data *emif)
+{
+	struct emif_custom_configs	*cust_cfgs = NULL;
+	int				len;
+	const int			*lpmode, *poll_intvl;
+
+	lpmode = of_get_property(np_emif, "low-power-mode", &len);
+	poll_intvl = of_get_property(np_emif, "temp-alert-poll-interval", &len);
+
+	if (lpmode || poll_intvl)
+		cust_cfgs = devm_kzalloc(emif->dev, sizeof(*cust_cfgs),
+			GFP_KERNEL);
+
+	if (!cust_cfgs)
+		return;
+
+	if (lpmode) {
+		cust_cfgs->mask |= EMIF_CUSTOM_CONFIG_LPMODE;
+		cust_cfgs->lpmode = *lpmode;
+		of_property_read_u32(np_emif,
+				"low-power-mode-timeout-performance",
+				&cust_cfgs->lpmode_timeout_performance);
+		of_property_read_u32(np_emif,
+				"low-power-mode-timeout-power",
+				&cust_cfgs->lpmode_timeout_power);
+		of_property_read_u32(np_emif,
+				"low-power-mode-freq-threshold",
+				&cust_cfgs->lpmode_freq_threshold);
+	}
+
+	if (poll_intvl) {
+		cust_cfgs->mask |=
+				EMIF_CUSTOM_CONFIG_TEMP_ALERT_POLL_INTERVAL;
+		cust_cfgs->temp_alert_poll_interval_ms = *poll_intvl;
+	}
+
+	if (!is_custom_config_valid(cust_cfgs, emif->dev)) {
+		devm_kfree(emif->dev, cust_cfgs);
+		return;
+	}
+
+	emif->plat_data->custom_configs = cust_cfgs;
+}
+
+static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
+		struct device_node *np_ddr,
+		struct ddr_device_info *dev_info)
+{
+	u32 density = 0, io_width = 0;
+	int len;
+
+	if (of_find_property(np_emif, "cs1-used", &len))
+		dev_info->cs1_used = true;
+
+	if (of_find_property(np_emif, "cal-resistor-per-cs", &len))
+		dev_info->cal_resistors_per_cs = true;
+
+	if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s4"))
+		dev_info->type = DDR_TYPE_LPDDR2_S4;
+	else if (of_device_is_compatible(np_ddr , "jedec,lpddr2-s2"))
+		dev_info->type = DDR_TYPE_LPDDR2_S2;
+
+	of_property_read_u32(np_ddr, "density", &density);
+	of_property_read_u32(np_ddr, "io-width", &io_width);
+
+	/* Convert from density in Mb to the density encoding in jedc_ddr.h */
+	if (density & (density - 1))
+		dev_info->density = 0;
+	else
+		dev_info->density = __fls(density) - 5;
+
+	/* Convert from io_width in bits to io_width encoding in jedc_ddr.h */
+	if (io_width & (io_width - 1))
+		dev_info->io_width = 0;
+	else
+		dev_info->io_width = __fls(io_width) - 1;
+}
+
+static struct emif_data * __init_or_module of_get_memory_device_details(
+		struct device_node *np_emif, struct device *dev)
+{
+	struct emif_data		*emif = NULL;
+	struct ddr_device_info		*dev_info = NULL;
+	struct emif_platform_data	*pd = NULL;
+	struct device_node		*np_ddr;
+	int				len;
+
+	np_ddr = of_parse_phandle(np_emif, "device-handle", 0);
+	if (!np_ddr)
+		goto error;
+	emif	= devm_kzalloc(dev, sizeof(struct emif_data), GFP_KERNEL);
+	pd	= devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	dev_info = devm_kzalloc(dev, sizeof(*dev_info), GFP_KERNEL);
+
+	if (!emif || !pd || !dev_info) {
+		dev_err(dev, "%s: Out of memory!!\n",
+			__func__);
+		goto error;
+	}
+
+	emif->plat_data		= pd;
+	pd->device_info		= dev_info;
+	emif->dev		= dev;
+	emif->np_ddr		= np_ddr;
+	emif->temperature_level	= SDRAM_TEMP_NOMINAL;
+
+	if (of_device_is_compatible(np_emif, "ti,emif-4d"))
+		emif->plat_data->ip_rev = EMIF_4D;
+	else if (of_device_is_compatible(np_emif, "ti,emif-4d5"))
+		emif->plat_data->ip_rev = EMIF_4D5;
+
+	of_property_read_u32(np_emif, "phy-type", &pd->phy_type);
+
+	if (of_find_property(np_emif, "hw-caps-ll-interface", &len))
+		pd->hw_caps |= EMIF_HW_CAPS_LL_INTERFACE;
+
+	of_get_ddr_info(np_emif, np_ddr, dev_info);
+	if (!is_dev_data_valid(pd->device_info->type, pd->device_info->density,
+			pd->device_info->io_width, pd->phy_type, pd->ip_rev,
+			emif->dev)) {
+		dev_err(dev, "%s: invalid device data!!\n", __func__);
+		goto error;
+	}
+	/*
+	 * For EMIF instances other than EMIF1 see if the devices connected
+	 * are exactly same as on EMIF1(which is typically the case). If so,
+	 * mark it as a duplicate of EMIF1. This will save some memory and
+	 * computation.
+	 */
+	if (emif1 && emif1->np_ddr == np_ddr) {
+		emif->duplicate = true;
+		goto out;
+	} else if (emif1) {
+		dev_warn(emif->dev, "%s: Non-symmetric DDR geometry\n",
+			__func__);
+	}
+
+	of_get_custom_configs(np_emif, emif);
+	emif->plat_data->timings = of_get_ddr_timings(np_ddr, emif->dev,
+					emif->plat_data->device_info->type,
+					&emif->plat_data->timings_arr_size);
+
+	emif->plat_data->min_tck = of_get_min_tck(np_ddr, emif->dev);
+	goto out;
+
+error:
+	return NULL;
+out:
+	return emif;
+}
+
+#else
+
+static struct emif_data * __init_or_module of_get_memory_device_details(
+		struct device_node *np_emif, struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static struct emif_data *__init_or_module get_device_details(
 		struct platform_device *pdev)
 {
@@ -1267,7 +1444,11 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	struct resource		*res;
 	int			irq;
 
-	emif = get_device_details(pdev);
+	if (pdev->dev.of_node)
+		emif = of_get_memory_device_details(pdev->dev.of_node, &pdev->dev);
+	else
+		emif = get_device_details(pdev);
+
 	if (!emif) {
 		pr_err("%s: error getting device data\n", __func__);
 		goto error;
@@ -1644,11 +1825,21 @@ static void __attribute__((unused)) freq_post_notify_handling(void)
 	spin_unlock_irqrestore(&emif_lock, irq_state);
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id emif_of_match[] = {
+		{ .compatible = "ti,emif-4d" },
+		{ .compatible = "ti,emif-4d5" },
+		{},
+};
+MODULE_DEVICE_TABLE(of, emif_of_match);
+#endif
+
 static struct platform_driver emif_driver = {
 	.remove		= __exit_p(emif_remove),
 	.shutdown	= emif_shutdown,
 	.driver = {
 		.name = "emif",
+		.of_match_table = of_match_ptr(emif_of_match),
 	},
 };
 

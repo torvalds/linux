@@ -544,7 +544,6 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci,
 	int i;
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
-	struct xhci_slot_ctx *slot_ctx;
 	dma_addr_t dma = ctx->dma;
 	int csz = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 
@@ -570,7 +569,6 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci,
 			dbg_rsvd64(xhci, (u64 *)ctrl_ctx, dma);
 	}
 
-	slot_ctx = xhci_get_slot_ctx(xhci, ctx);
 	xhci_dbg_slot_ctx(xhci, ctx);
 	xhci_dbg_ep_ctx(xhci, ctx, last_ep);
 }

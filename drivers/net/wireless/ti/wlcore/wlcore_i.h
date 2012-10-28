@@ -66,6 +66,7 @@
 #define WLCORE_NUM_BANDS           2
 
 #define WL12XX_MAX_RATE_POLICIES 16
+#define WLCORE_MAX_KLV_TEMPLATES 4
 
 /* Defined by FW as 0. Will not be freed or allocated. */
 #define WL12XX_SYSTEM_HLID         0
@@ -83,11 +84,10 @@
 #define WL1271_AP_BSS_INDEX        0
 #define WL1271_AP_DEF_BEACON_EXP   20
 
-#define WL1271_AGGR_BUFFER_SIZE (5 * PAGE_SIZE)
-
-enum wl1271_state {
-	WL1271_STATE_OFF,
-	WL1271_STATE_ON,
+enum wlcore_state {
+	WLCORE_STATE_OFF,
+	WLCORE_STATE_RESTARTING,
+	WLCORE_STATE_ON,
 };
 
 enum wl12xx_fw_type {
@@ -124,6 +124,7 @@ struct wl1271_chip {
 	u32 id;
 	char fw_ver_str[ETHTOOL_BUSINFO_LEN];
 	unsigned int fw_ver[NUM_FW_VER];
+	char phy_fw_ver_str[ETHTOOL_BUSINFO_LEN];
 };
 
 #define NUM_TX_QUEUES              4
@@ -336,6 +337,8 @@ struct wl12xx_vif {
 			u8 basic_rate_idx;
 			u8 ap_rate_idx;
 			u8 p2p_rate_idx;
+
+			u8 klv_template_id;
 
 			bool qos;
 		} sta;

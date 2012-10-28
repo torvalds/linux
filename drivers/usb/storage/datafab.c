@@ -86,7 +86,7 @@ static int datafab_determine_lun(struct us_data *us,
 		    vendorName, productName, useProtocol, useTransport, \
 		    initFunction, flags) \
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
-  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+  .driver_info = (flags) }
 
 static struct usb_device_id datafab_usb_ids[] = {
 #	include "unusual_datafab.h"

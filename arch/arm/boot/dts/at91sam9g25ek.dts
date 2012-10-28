@@ -32,6 +32,18 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+
+			i2c0: i2c@f8010000 {
+				status = "okay";
+			};
+
+			i2c1: i2c@f8014000 {
+				status = "okay";
+			};
+
+			i2c2: i2c@f8018000 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00600000 {

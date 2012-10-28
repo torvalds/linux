@@ -15,7 +15,6 @@
 #include <asm/ccwdev.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
-#include <linux/blkdev.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtio.h>

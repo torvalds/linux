@@ -478,7 +478,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 		pr_err("no resource\n");
 		goto no_resource;
 	}
-	if (request_resource(&ioport_resource, etsects->rsrc)) {
+	if (request_resource(&iomem_resource, etsects->rsrc)) {
 		pr_err("resource busy\n");
 		goto no_resource;
 	}
@@ -510,7 +510,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 
 	spin_unlock_irqrestore(&etsects->lock, flags);
 
-	etsects->clock = ptp_clock_register(&etsects->caps);
+	etsects->clock = ptp_clock_register(&etsects->caps, &dev->dev);
 	if (IS_ERR(etsects->clock)) {
 		err = PTR_ERR(etsects->clock);
 		goto no_clock;

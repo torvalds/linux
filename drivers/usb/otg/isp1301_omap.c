@@ -36,7 +36,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 
 #include <mach/usb.h>
 
@@ -1230,7 +1230,7 @@ static int __exit isp1301_remove(struct i2c_client *i2c)
 	isp->timer.data = 0;
 	set_bit(WORK_STOP, &isp->todo);
 	del_timer_sync(&isp->timer);
-	flush_work_sync(&isp->work);
+	flush_work(&isp->work);
 
 	put_device(&i2c->dev);
 	the_transceiver = NULL;

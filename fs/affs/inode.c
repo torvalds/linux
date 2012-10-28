@@ -80,17 +80,17 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (id == 0 || sbi->s_flags & SF_SETUID)
 		inode->i_uid = sbi->s_uid;
 	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
-		inode->i_uid = 0;
+		i_uid_write(inode, 0);
 	else
-		inode->i_uid = id;
+		i_uid_write(inode, id);
 
 	id = be16_to_cpu(tail->gid);
 	if (id == 0 || sbi->s_flags & SF_SETGID)
 		inode->i_gid = sbi->s_gid;
 	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
-		inode->i_gid = 0;
+		i_gid_write(inode, 0);
 	else
-		inode->i_gid = id;
+		i_gid_write(inode, id);
 
 	switch (be32_to_cpu(tail->stype)) {
 	case ST_ROOT:
@@ -193,13 +193,13 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		tail->size = cpu_to_be32(inode->i_size);
 		secs_to_datestamp(inode->i_mtime.tv_sec,&tail->change);
 		if (!(inode->i_ino == AFFS_SB(sb)->s_root_block)) {
-			uid = inode->i_uid;
-			gid = inode->i_gid;
+			uid = i_uid_read(inode);
+			gid = i_gid_read(inode);
 			if (AFFS_SB(sb)->s_flags & SF_MUFS) {
-				if (inode->i_uid == 0 || inode->i_uid == 0xFFFF)
-					uid = inode->i_uid ^ ~0;
-				if (inode->i_gid == 0 || inode->i_gid == 0xFFFF)
-					gid = inode->i_gid ^ ~0;
+				if (uid == 0 || uid == 0xFFFF)
+					uid = uid ^ ~0;
+				if (gid == 0 || gid == 0xFFFF)
+					gid = gid ^ ~0;
 			}
 			if (!(AFFS_SB(sb)->s_flags & SF_SETUID))
 				tail->uid = cpu_to_be16(uid);

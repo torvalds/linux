@@ -1158,6 +1158,7 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 		usb_anchor_urb(urb, &dev->deferred);
 		/* no use to process more packets */
 		netif_stop_queue(net);
+		usb_put_urb(urb);
 		spin_unlock_irqrestore(&dev->txq.lock, flags);
 		netdev_dbg(dev->net, "Delaying transmission for resumption\n");
 		goto deferred;
@@ -1309,6 +1310,8 @@ void usbnet_disconnect (struct usb_interface *intf)
 	unregister_netdev (net);
 
 	cancel_work_sync(&dev->kevent);
+
+	usb_scuttle_anchored_urbs(&dev->deferred);
 
 	if (dev->driver_info->unbind)
 		dev->driver_info->unbind (dev, intf);
@@ -1588,10 +1591,27 @@ int usbnet_resume (struct usb_interface *intf)
 			tasklet_schedule (&dev->bh);
 		}
 	}
+
+	if (test_and_clear_bit(EVENT_DEVICE_REPORT_IDLE, &dev->flags))
+		usb_autopm_get_interface_no_resume(intf);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_resume);
 
+/*
+ * Either a subdriver implements manage_power, then it is assumed to always
+ * be ready to be suspended or it reports the readiness to be suspended
+ * explicitly
+ */
+void usbnet_device_suggests_idle(struct usbnet *dev)
+{
+	if (!test_and_set_bit(EVENT_DEVICE_REPORT_IDLE, &dev->flags)) {
+		dev->intf->needs_remote_wakeup = 1;
+		usb_autopm_put_interface_async(dev->intf);
+	}
+}
+EXPORT_SYMBOL(usbnet_device_suggests_idle);
 
 /*-------------------------------------------------------------------------*/
 

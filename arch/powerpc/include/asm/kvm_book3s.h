@@ -59,7 +59,7 @@ struct hpte_cache {
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
 	struct rcu_head rcu_head;
-	u64 host_va;
+	u64 host_vpn;
 	u64 pfn;
 	ulong slot;
 	struct kvmppc_pte pte;

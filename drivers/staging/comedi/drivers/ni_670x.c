@@ -187,37 +187,22 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
+static const struct ni_670x_board *
+ni_670x_find_boardinfo(struct pci_dev *pcidev)
 {
-	struct ni_670x_private *devpriv = dev->private;
-	struct mite_struct *mite;
-	int i;
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
 
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number
-			    || slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-
-		for (i = 0; i < ARRAY_SIZE(ni_670x_boards); i++) {
-			if (mite_device_id(mite) == ni_670x_boards[i].dev_id) {
-				dev->board_ptr = ni_670x_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
-			}
-		}
+	for (n = 0; n < ARRAY_SIZE(ni_670x_boards); n++) {
+		const struct ni_670x_board *board = &ni_670x_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
 	}
-	dev_warn(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
+	return NULL;
 }
 
-static int ni_670x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	const struct ni_670x_board *thisboard;
 	struct ni_670x_private *devpriv;
@@ -229,10 +214,12 @@ static int ni_670x_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
-
-	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	devpriv->mite = mite_alloc(pcidev);
+	if (!devpriv->mite)
+		return -ENOMEM;
 	thisboard = comedi_board(dev);
 
 	ret = mite_setup(devpriv->mite);
@@ -241,13 +228,12 @@ static int ni_670x_attach(struct comedi_device *dev,
 		return ret;
 	}
 	dev->board_name = thisboard->name;
-	dev->irq = mite_irq(devpriv->mite);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -271,7 +257,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	s->insn_write = &ni_670x_ao_winsn;
 	s->insn_read = &ni_670x_ao_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -298,20 +284,20 @@ static void ni_670x_detach(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 
 	if (dev->n_subdevices) {
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		if (s)
 			kfree(s->range_table_list);
 	}
-	if (devpriv && devpriv->mite)
+	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+		mite_free(devpriv->mite);
+	}
 }
 
 static struct comedi_driver ni_670x_driver = {
 	.driver_name	= "ni_670x",
 	.module		= THIS_MODULE,
-	.attach		= ni_670x_attach,
+	.attach_pci	= ni_670x_attach_pci,
 	.detach		= ni_670x_detach,
 };
 

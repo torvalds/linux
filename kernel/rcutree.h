@@ -102,6 +102,10 @@ struct rcu_dynticks {
 				    /* idle-period nonlazy_posted snapshot. */
 	int tick_nohz_enabled_snap; /* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+#ifdef CONFIG_RCU_USER_QS
+	bool ignore_user_qs;	    /* Treat userspace as extended QS or not */
+	bool in_user;		    /* Is the CPU in userland from RCU POV? */
+#endif
 };
 
 /* RCU's kthread states for tracing. */
@@ -196,12 +200,7 @@ struct rcu_node {
 				/* Refused to boost: not sure why, though. */
 				/*  This can happen due to race conditions. */
 #endif /* #ifdef CONFIG_RCU_BOOST */
-	struct task_struct *node_kthread_task;
-				/* kthread that takes care of this rcu_node */
-				/*  structure, for example, awakening the */
-				/*  per-CPU kthreads as needed. */
-	unsigned int node_kthread_status;
-				/* State of node_kthread_task for tracing. */
+	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -245,8 +244,6 @@ struct rcu_data {
 					/*  in order to detect GP end. */
 	unsigned long	gpnum;		/* Highest gp number that this CPU */
 					/*  is aware of having started. */
-	unsigned long	passed_quiesce_gpnum;
-					/* gpnum at time of quiescent state. */
 	bool		passed_quiesce;	/* User-mode/idle loop etc. */
 	bool		qs_pending;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
@@ -312,11 +309,13 @@ struct rcu_data {
 	unsigned long n_rp_cpu_needs_gp;
 	unsigned long n_rp_gp_completed;
 	unsigned long n_rp_gp_started;
-	unsigned long n_rp_need_fqs;
 	unsigned long n_rp_need_nothing;
 
-	/* 6) _rcu_barrier() callback. */
+	/* 6) _rcu_barrier() and OOM callbacks. */
 	struct rcu_head barrier_head;
+#ifdef CONFIG_RCU_FAST_NO_HZ
+	struct rcu_head oom_head;
+#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
 	int cpu;
 	struct rcu_state *rsp;
@@ -375,20 +374,17 @@ struct rcu_state {
 
 	u8	fqs_state ____cacheline_internodealigned_in_smp;
 						/* Force QS state. */
-	u8	fqs_active;			/* force_quiescent_state() */
-						/*  is running. */
-	u8	fqs_need_gp;			/* A CPU was prevented from */
-						/*  starting a new grace */
-						/*  period because */
-						/*  force_quiescent_state() */
-						/*  was running. */
 	u8	boost;				/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
+	struct task_struct *gp_kthread;		/* Task for grace periods. */
+	wait_queue_head_t gp_wq;		/* Where GP task waits. */
+	int gp_flags;				/* Commands for GP task. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	raw_spinlock_t onofflock;		/* exclude on/offline and */
+	raw_spinlock_t onofflock ____cacheline_internodealigned_in_smp;
+						/* exclude on/offline and */
 						/*  starting new GP. */
 	struct rcu_head *orphan_nxtlist;	/* Orphaned callbacks that */
 						/*  need a grace period. */
@@ -398,16 +394,17 @@ struct rcu_state {
 	struct rcu_head **orphan_donetail;	/* Tail of above. */
 	long qlen_lazy;				/* Number of lazy callbacks. */
 	long qlen;				/* Total number of callbacks. */
-	struct task_struct *rcu_barrier_in_progress;
-						/* Task doing rcu_barrier(), */
-						/*  or NULL if no barrier. */
+	/* End of fields guarded by onofflock. */
+
+	struct mutex onoff_mutex;		/* Coordinate hotplug & GPs. */
+
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
 	unsigned long n_barrier_done;		/* ++ at start and end of */
 						/*  _rcu_barrier(). */
-	raw_spinlock_t fqslock;			/* Only one task forcing */
-						/*  quiescent states. */
+	/* End of fields guarded by barrier_mutex. */
+
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
 	unsigned long n_force_qs;		/* Number of calls to */
@@ -425,6 +422,10 @@ struct rcu_state {
 	char *name;				/* Name of structure. */
 	struct list_head flavors;		/* List of RCU flavors. */
 };
+
+/* Values for rcu_state structure's gp_flags field. */
+#define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
+#define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 
 extern struct list_head rcu_struct_flavors;
 #define for_each_rcu_flavor(rsp) \
@@ -468,7 +469,6 @@ static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
 				      unsigned long flags);
-static void rcu_stop_cpu_kthread(int cpu);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static int rcu_print_task_stall(struct rcu_node *rnp);
@@ -491,15 +491,9 @@ static void invoke_rcu_callbacks_kthread(void);
 static bool rcu_is_callbacks_kthread(void);
 #ifdef CONFIG_RCU_BOOST
 static void rcu_preempt_do_callbacks(void);
-static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
-					  cpumask_var_t cm);
 static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
-						 struct rcu_node *rnp,
-						 int rnp_index);
-static void invoke_rcu_node_kthread(struct rcu_node *rnp);
-static void rcu_yield(void (*f)(unsigned long), unsigned long arg);
+						 struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_RCU_BOOST */
-static void rcu_cpu_kthread_setrt(int cpu, int to_rt);
 static void __cpuinit rcu_prepare_kthreads(int cpu);
 static void rcu_prepare_for_idle_init(int cpu);
 static void rcu_cleanup_after_idle(int cpu);

@@ -32,11 +32,7 @@ Authors: Gianluca Palli <gpalli@deis.unibo.it>,
 Updated: Fri, 15 Feb 2008 10:28:42 +0000
 Status: experimental
 
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first supported
-  PCI device found will be used.
+Configuration options: not applicable, uses PCI auto config
 
 INSN_CONFIG instructions:
   analog input:
@@ -82,45 +78,8 @@ INSN_CONFIG instructions:
 #define PCI_SUBVENDOR_ID_S626 0x6000
 #define PCI_SUBDEVICE_ID_S626 0x0272
 
-struct s626_board {
-	const char *name;
-	int vendor_id;
-	int device_id;
-	int subvendor_id;
-	int subdevice_id;
-	int ai_chans;
-	int ai_bits;
-	int ao_chans;
-	int ao_bits;
-	int dio_chans;
-	int dio_banks;
-	int enc_chans;
-};
-
-static const struct s626_board s626_boards[] = {
-	{
-	 .name = "s626",
-	 .vendor_id = PCI_VENDOR_ID_S626,
-	 .device_id = PCI_DEVICE_ID_S626,
-	 .subvendor_id = PCI_SUBVENDOR_ID_S626,
-	 .subdevice_id = PCI_SUBDEVICE_ID_S626,
-	 .ai_chans = S626_ADC_CHANNELS,
-	 .ai_bits = 14,
-	 .ao_chans = S626_DAC_CHANNELS,
-	 .ao_bits = 13,
-	 .dio_chans = S626_DIO_CHANNELS,
-	 .dio_banks = S626_DIO_BANKS,
-	 .enc_chans = S626_ENCODER_CHANNELS,
-	 }
-};
-
-#define thisboard ((const struct s626_board *)dev->board_ptr)
-
 struct s626_private {
-	struct pci_dev *pdev;
 	void __iomem *base_addr;
-	int got_regions;
-	short allocatedBuf;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
 	uint8_t ai_continous;	/*  continous acquisition */
 	int ai_sample_count;	/*  number of samples to acquire */
@@ -139,9 +98,7 @@ struct s626_private {
 	/* Pointer to logical adrs of DMA buffer used to hold DAC  data. */
 	uint16_t Dacpol;	/* Image of DAC polarity register. */
 	uint8_t TrimSetpoint[12];	/* Images of TrimDAC setpoints */
-	uint16_t ChargeEnabled;	/* Image of MISC2 Battery */
 	/* Charge Enabled (0 or WRMISC2_CHARGE_ENABLE). */
-	uint16_t WDInterval;	/* Image of MISC2 watchdog interval control bits. */
 	uint32_t I2CAdrs;
 	/* I2C device address for onboard EEPROM (board rev dependent). */
 	/*   short         I2Cards; */
@@ -1548,56 +1505,28 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.  Using
-	 * the cmdtest ioctl, a user can create a valid cmd and then have it
-	 * executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests the
-	 * command passes. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* step 1: make sure trigger sources are trivially valid */
-
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT | TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src,
+					TRIG_NOW | TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT | TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually
-	   compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT
-	    && cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-	    cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1847,6 +1776,9 @@ static int s626_dio_insn_config(struct comedi_device *dev,
 /* Now this function initializes the value of the counter (data[0])
    and set the subdevice. To complete with trigger and interrupt
    configuration */
+/* FIXME: data[0] is supposed to be an INSN_CONFIG_xxx constant indicating
+ * what is being configured, but this function appears to be using data[0]
+ * as a variable. */
 static int s626_enc_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -1868,7 +1800,7 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 	/*   (data==NULL) ? (Preloadvalue=0) : (Preloadvalue=data[0]); */
 
 	k->SetMode(dev, k, Setup, TRUE);
-	Preload(dev, k, *(insn->data));
+	Preload(dev, k, data[0]);
 	k->PulseIndex(dev, k);
 	SetLatchSource(dev, k, valueSrclatch);
 	k->SetEnable(dev, k, (uint16_t) (enab != 0));
@@ -1920,6 +1852,7 @@ static void WriteMISC2(struct comedi_device *dev, uint16_t NewImage)
 static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 		      size_t bsize)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	void *vbptr;
 	dma_addr_t vpptr;
 
@@ -1930,7 +1863,7 @@ static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 	vbptr = pdma->LogicalBase;
 	vpptr = pdma->PhysicalBase;
 	if (vbptr) {
-		pci_free_consistent(devpriv->pdev, bsize, vbptr, vpptr);
+		pci_free_consistent(pcidev, bsize, vbptr, vpptr);
 		pdma->LogicalBase = NULL;
 		pdma->PhysicalBase = 0;
 	}
@@ -2476,133 +2409,306 @@ static void CountersInit(struct comedi_device *dev)
 	}
 }
 
-static struct pci_dev *s626_find_pci(struct comedi_device *dev,
-				     struct comedi_devconfig *it)
+static int s626_allocate_dma_buffers(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-	int i;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	void *addr;
+	dma_addr_t appdma;
 
-	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pcidev; i++) {
-		do {
-			pcidev = pci_get_subsys(s626_boards[i].vendor_id,
-						s626_boards[i].device_id,
-						s626_boards[i].subvendor_id,
-						s626_boards[i].subdevice_id,
-						pcidev);
+	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+	if (!addr)
+		return -ENOMEM;
+	devpriv->ANABuf.LogicalBase = addr;
+	devpriv->ANABuf.PhysicalBase = appdma;
 
-			if ((bus || slot) && pcidev) {
-				/* matches requested bus/slot */
-				if (pcidev->bus->number == bus &&
-				    PCI_SLOT(pcidev->devfn) == slot)
-					break;
-			} else {
-				break;
-			}
-		} while (1);
-	}
-	return pcidev;
+	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+	if (!addr)
+		return -ENOMEM;
+	devpriv->RPSBuf.LogicalBase = addr;
+	devpriv->RPSBuf.PhysicalBase = appdma;
+
+	return 0;
 }
 
-static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static void s626_initialize(struct comedi_device *dev)
 {
-/*   uint8_t	PollList; */
-/*   uint16_t	AdcData; */
-/*   uint16_t	StartVal; */
-/*   uint16_t	index; */
-/*   unsigned int data[16]; */
-	int result;
+	dma_addr_t pPhysBuf;
+	uint16_t chan;
 	int i;
-	int ret;
-	resource_size_t resourceStart;
-	dma_addr_t appdma;
+
+	/* Enable DEBI and audio pins, enable I2C interface */
+	MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
+
+	/*
+	 *  Configure DEBI operating mode
+	 *
+	 *   Local bus is 16 bits wide
+	 *   Declare DEBI transfer timeout interval
+	 *   Set up byte lane steering
+	 *   Intel-compatible local bus (DEBI never times out)
+	 */
+	WR7146(P_DEBICFG, DEBI_CFG_SLAVE16 |
+			  (DEBI_TOUT << DEBI_CFG_TOUT_BIT) |
+			  DEBI_SWAP | DEBI_CFG_INTEL);
+
+	/* Disable MMU paging */
+	WR7146(P_DEBIPAGE, DEBI_PAGE_DISABLE);
+
+	/* Init GPIO so that ADC Start* is negated */
+	WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
+
+	/* I2C device address for onboard eeprom (revb) */
+	devpriv->I2CAdrs = 0xA0;
+
+	/*
+	 * Issue an I2C ABORT command to halt any I2C
+	 * operation in progress and reset BUSY flag.
+	 */
+	WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
+	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+	while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
+		;
+
+	/*
+	 * Per SAA7146 data sheet, write to STATUS
+	 * reg twice to reset all  I2C error flags.
+	 */
+	for (i = 0; i < 2; i++) {
+		WR7146(P_I2CSTAT, I2C_CLKSEL);
+		MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+		while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
+			;
+	}
+
+	/*
+	 * Init audio interface functional attributes: set DAC/ADC
+	 * serial clock rates, invert DAC serial clock so that
+	 * DAC data setup times are satisfied, enable DAC serial
+	 * clock out.
+	 */
+	WR7146(P_ACON2, ACON2_INIT);
+
+	/*
+	 * Set up TSL1 slot list, which is used to control the
+	 * accumulation of ADC data: RSD1 = shift data in on SD1.
+	 * SIB_A1  = store data uint8_t at next available location
+	 * in FB BUFFER1 register.
+	 */
+	WR7146(P_TSL1, RSD1 | SIB_A1);
+	WR7146(P_TSL1 + 4, RSD1 | SIB_A1 | EOS);
+
+	/* Enable TSL1 slot list so that it executes all the time */
+	WR7146(P_ACON1, ACON1_ADCSTART);
+
+	/*
+	 * Initialize RPS registers used for ADC
+	 */
+
+	/* Physical start of RPS program */
+	WR7146(P_RPSADDR1, (uint32_t)devpriv->RPSBuf.PhysicalBase);
+	/* RPS program performs no explicit mem writes */
+	WR7146(P_RPSPAGE1, 0);
+	/* Disable RPS timeouts */
+	WR7146(P_RPS1_TOUT, 0);
+
+#if 0
+	/*
+	 * SAA7146 BUG WORKAROUND
+	 *
+	 * Initialize SAA7146 ADC interface to a known state by
+	 * invoking ADCs until FB BUFFER 1 register shows that it
+	 * is correctly receiving ADC data. This is necessary
+	 * because the SAA7146 ADC interface does not start up in
+	 * a defined state after a PCI reset.
+	 */
+
+	{
+	uint8_t PollList;
+	uint16_t AdcData;
+	uint16_t StartVal;
+	uint16_t index;
+	unsigned int data[16];
+
+	/* Create a simple polling list for analog input channel 0 */
+	PollList = EOPL;
+	ResetADC(dev, &PollList);
+
+	/* Get initial ADC value */
+	s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+	StartVal = data[0];
+
+	/*
+	 * VERSION 2.01 CHANGE: TIMEOUT ADDED TO PREVENT HANGED EXECUTION.
+	 *
+	 * Invoke ADCs until the new ADC value differs from the initial
+	 * value or a timeout occurs.  The timeout protects against the
+	 * possibility that the driver is restarting and the ADC data is a
+	 * fixed value resulting from the applied ADC analog input being
+	 * unusually quiet or at the rail.
+	 */
+	for (index = 0; index < 500; index++) {
+		s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+		AdcData = data[0];
+		if (AdcData != StartVal)
+			break;
+	}
+
+	}
+#endif	/* SAA7146 BUG WORKAROUND */
+
+	/*
+	 * Initialize the DAC interface
+	 */
+
+	/*
+	 * Init Audio2's output DMAC attributes:
+	 *   burst length = 1 DWORD
+	 *   threshold = 1 DWORD.
+	 */
+	WR7146(P_PCI_BT_A, 0);
+
+	/*
+	 * Init Audio2's output DMA physical addresses.  The protection
+	 * address is set to 1 DWORD past the base address so that a
+	 * single DWORD will be transferred each time a DMA transfer is
+	 * enabled.
+	 */
+	pPhysBuf = devpriv->ANABuf.PhysicalBase +
+		   (DAC_WDMABUF_OS * sizeof(uint32_t));
+	WR7146(P_BASEA2_OUT, (uint32_t) pPhysBuf);
+	WR7146(P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)));
+
+	/*
+	 * Cache Audio2's output DMA buffer logical address.  This is
+	 * where DAC data is buffered for A2 output DMA transfers.
+	 */
+	devpriv->pDacWBuf = (uint32_t *)devpriv->ANABuf.LogicalBase +
+			    DAC_WDMABUF_OS;
+
+	/*
+	 * Audio2's output channels does not use paging.  The
+	 * protection violation handling bit is set so that the
+	 * DMAC will automatically halt and its PCI address pointer
+	 * will be reset when the protection address is reached.
+	 */
+	WR7146(P_PAGEA2_OUT, 8);
+
+	/*
+	 * Initialize time slot list 2 (TSL2), which is used to control
+	 * the clock generation for and serialization of data to be sent
+	 * to the DAC devices.  Slot 0 is a NOP that is used to trap TSL
+	 * execution; this permits other slots to be safely modified
+	 * without first turning off the TSL sequencer (which is
+	 * apparently impossible to do).  Also, SD3 (which is driven by a
+	 * pull-up resistor) is shifted in and stored to the MSB of
+	 * FB_BUFFER2 to be used as evidence that the slot sequence has
+	 * not yet finished executing.
+	 */
+
+	/* Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2 */
+	SETVECT(0, XSD2 | RSD3 | SIB_A2 | EOS);
+
+	/*
+	 * Initialize slot 1, which is constant.  Slot 1 causes a
+	 * DWORD to be transferred from audio channel 2's output FIFO
+	 * to the FIFO's output buffer so that it can be serialized
+	 * and sent to the DAC during subsequent slots.  All remaining
+	 * slots are dynamically populated as required by the target
+	 * DAC device.
+	 */
+
+	/* Slot 1: Fetch DWORD from Audio2's output FIFO */
+	SETVECT(1, LF_A2);
+
+	/* Start DAC's audio interface (TSL2) running */
+	WR7146(P_ACON1, ACON1_DACSTART);
+
+	/*
+	 * Init Trim DACs to calibrated values.  Do it twice because the
+	 * SAA7146 audio channel does not always reset properly and
+	 * sometimes causes the first few TrimDAC writes to malfunction.
+	 */
+	LoadTrimDACs(dev);
+	LoadTrimDACs(dev);
+
+	/*
+	 * Manually init all gate array hardware in case this is a soft
+	 * reset (we have no way of determining whether this is a warm
+	 * or cold start).  This is necessary because the gate array will
+	 * reset only in response to a PCI hard reset; there is no soft
+	 * reset function.
+	 */
+
+	/*
+	 * Init all DAC outputs to 0V and init all DAC setpoint and
+	 * polarity images.
+	 */
+	for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
+		SetDAC(dev, chan, 0);
+
+	/* Init counters */
+	CountersInit(dev);
+
+	/*
+	 * Without modifying the state of the Battery Backup enab, disable
+	 * the watchdog timer, set DIO channels 0-5 to operate in the
+	 * standard DIO (vs. counter overflow) mode, disable the battery
+	 * charger, and reset the watchdog interval selector to zero.
+	 */
+	WriteMISC2(dev, (uint16_t)(DEBIread(dev, LP_RDMISC2) &
+				   MISC2_BATT_ENABLE));
+
+	/* Initialize the digital I/O subsystem */
+	s626_dio_init(dev);
+
+	/* enable interrupt test */
+	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->base_addr + P_IER); */
+}
+
+static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+{
 	struct comedi_subdevice *s;
+	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	devpriv->pdev = s626_find_pci(dev, it);
-	if (!devpriv->pdev) {
-		printk(KERN_ERR "s626_attach: Board not present!!!\n");
-		return -ENODEV;
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+	dev->iobase = 1;	/* detach needs this */
+
+	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
+				     pci_resource_len(pcidev, 0));
+	if (!devpriv->base_addr)
+		return -ENOMEM;
+
+	/* disable master interrupt */
+	writel(0, devpriv->base_addr + P_IER);
+
+	/* soft reset */
+	writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
+
+	/* DMA FIXME DMA// */
+
+	ret = s626_allocate_dma_buffers(dev);
+	if (ret)
+		return ret;
+
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, s626_irq_handler, IRQF_SHARED,
+				  dev->board_name, dev);
+
+		if (ret == 0)
+			dev->irq = pcidev->irq;
 	}
-
-	result = comedi_pci_enable(devpriv->pdev, "s626");
-	if (result < 0) {
-		printk(KERN_ERR "s626_attach: comedi_pci_enable fails\n");
-		return -ENODEV;
-	}
-	devpriv->got_regions = 1;
-
-	resourceStart = pci_resource_start(devpriv->pdev, 0);
-
-	devpriv->base_addr = ioremap(resourceStart, SIZEOF_ADDRESS_SPACE);
-	if (devpriv->base_addr == NULL) {
-		printk(KERN_ERR "s626_attach: IOREMAP failed\n");
-		return -ENODEV;
-	}
-
-	if (devpriv->base_addr) {
-		/* disable master interrupt */
-		writel(0, devpriv->base_addr + P_IER);
-
-		/* soft reset */
-		writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
-
-		/* DMA FIXME DMA// */
-
-		/* adc buffer allocation */
-		devpriv->allocatedBuf = 0;
-
-		devpriv->ANABuf.LogicalBase =
-		    pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE, &appdma);
-
-		if (devpriv->ANABuf.LogicalBase == NULL) {
-			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-			return -ENOMEM;
-		}
-
-		devpriv->ANABuf.PhysicalBase = appdma;
-
-		devpriv->allocatedBuf++;
-
-		devpriv->RPSBuf.LogicalBase =
-		    pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE, &appdma);
-
-		if (devpriv->RPSBuf.LogicalBase == NULL) {
-			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-			return -ENOMEM;
-		}
-
-		devpriv->RPSBuf.PhysicalBase = appdma;
-
-		devpriv->allocatedBuf++;
-
-	}
-
-	dev->board_ptr = s626_boards;
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
 		return ret;
-
-	dev->iobase = (unsigned long)devpriv->base_addr;
-	dev->irq = devpriv->pdev->irq;
-
-	/* set up interrupt handler */
-	if (dev->irq == 0) {
-		printk(KERN_ERR " unknown irq (bad)\n");
-	} else {
-		ret = request_irq(dev->irq, s626_irq_handler, IRQF_SHARED,
-				  "s626", dev);
-
-		if (ret < 0) {
-			printk(KERN_ERR " irq not available\n");
-			dev->irq = 0;
-		}
-	}
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
@@ -2610,12 +2716,10 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* we support single-ended (ground) and differential */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = thisboard->ai_chans;
+	s->n_chan = S626_ADC_CHANNELS;
 	s->maxdata = (0xffff >> 2);
 	s->range_table = &s626_range_table;
-	s->len_chanlist = thisboard->ai_chans;	/* This is the maximum chanlist
-						   length that the board can
-						   handle */
+	s->len_chanlist = S626_ADC_CHANNELS;
 	s->insn_config = s626_ai_insn_config;
 	s->insn_read = s626_ai_insn_read;
 	s->do_cmd = s626_ai_cmd;
@@ -2626,7 +2730,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = thisboard->ao_chans;
+	s->n_chan = S626_DAC_CHANNELS;
 	s->maxdata = (0x3fff);
 	s->range_table = &range_bipolar10;
 	s->insn_write = s626_ao_winsn;
@@ -2672,7 +2776,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* encoder (counter) subdevice */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = thisboard->enc_chans;
+	s->n_chan = S626_ENCODER_CHANNELS;
 	s->private = enc_private_data;
 	s->insn_config = s626_enc_insn_config;
 	s->insn_read = s626_enc_insn_read;
@@ -2680,269 +2784,17 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 0xffffff;
 	s->range_table = &range_unknown;
 
-	/* stop ai_command */
-	devpriv->ai_cmd_running = 0;
+	s626_initialize(dev);
 
-	if (devpriv->base_addr && (devpriv->allocatedBuf == 2)) {
-		dma_addr_t pPhysBuf;
-		uint16_t chan;
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
-		/*  enab DEBI and audio pins, enable I2C interface. */
-		MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
-		/*  Configure DEBI operating mode. */
-		WR7146(P_DEBICFG, DEBI_CFG_SLAVE16	/*  Local bus is 16 */
-		       /*  bits wide. */
-		       | (DEBI_TOUT << DEBI_CFG_TOUT_BIT)
-
-		       /*  Declare DEBI */
-		       /*  transfer timeout */
-		       /*  interval. */
-		       |DEBI_SWAP	/*  Set up byte lane */
-		       /*  steering. */
-		       | DEBI_CFG_INTEL);	/*  Intel-compatible */
-		/*  local bus (DEBI */
-		/*  never times out). */
-
-		/* DEBI INIT S626 WR7146( P_DEBICFG, DEBI_CFG_INTEL | DEBI_CFG_TOQ */
-		/* | DEBI_CFG_INCQ| DEBI_CFG_16Q); //end */
-
-		/*  Paging is disabled. */
-		WR7146(P_DEBIPAGE, DEBI_PAGE_DISABLE);	/*  Disable MMU paging. */
-
-		/*  Init GPIO so that ADC Start* is negated. */
-		WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
-
-		/* IsBoardRevA is a boolean that indicates whether the board is RevA.
-		 *
-		 * VERSION 2.01 CHANGE: REV A & B BOARDS NOW SUPPORTED BY DYNAMIC
-		 * EEPROM ADDRESS SELECTION.  Initialize the I2C interface, which
-		 * is used to access the onboard serial EEPROM.  The EEPROM's I2C
-		 * DeviceAddress is hardwired to a value that is dependent on the
-		 * 626 board revision.  On all board revisions, the EEPROM stores
-		 * TrimDAC calibration constants for analog I/O.  On RevB and
-		 * higher boards, the DeviceAddress is hardwired to 0 to enable
-		 * the EEPROM to also store the PCI SubVendorID and SubDeviceID;
-		 * this is the address at which the SAA7146 expects a
-		 * configuration EEPROM to reside.  On RevA boards, the EEPROM
-		 * device address, which is hardwired to 4, prevents the SAA7146
-		 * from retrieving PCI sub-IDs, so the SAA7146 uses its built-in
-		 * default values, instead.
-		 */
-
-		/*     devpriv->I2Cards= IsBoardRevA ? 0xA8 : 0xA0; // Set I2C EEPROM */
-		/*  DeviceType (0xA0) */
-		/*  and DeviceAddress<<1. */
-
-		devpriv->I2CAdrs = 0xA0;	/*  I2C device address for onboard */
-		/*  eeprom(revb) */
-
-		/*  Issue an I2C ABORT command to halt any I2C operation in */
-		/* progress and reset BUSY flag. */
-		WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
-		/*  Write I2C control: abort any I2C activity. */
-		MC_ENABLE(P_MC2, MC2_UPLD_IIC);
-		/*  Invoke command  upload */
-		while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
-			;
-		/*  and wait for upload to complete. */
-
-		/* Per SAA7146 data sheet, write to STATUS reg twice to
-		 * reset all  I2C error flags. */
-		for (i = 0; i < 2; i++) {
-			WR7146(P_I2CSTAT, I2C_CLKSEL);
-			/*  Write I2C control: reset  error flags. */
-			MC_ENABLE(P_MC2, MC2_UPLD_IIC);	/*  Invoke command upload */
-			while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
-				;
-			/* and wait for upload to complete. */
-		}
-
-		/* Init audio interface functional attributes: set DAC/ADC
-		 * serial clock rates, invert DAC serial clock so that
-		 * DAC data setup times are satisfied, enable DAC serial
-		 * clock out.
-		 */
-
-		WR7146(P_ACON2, ACON2_INIT);
-
-		/* Set up TSL1 slot list, which is used to control the
-		 * accumulation of ADC data: RSD1 = shift data in on SD1.
-		 * SIB_A1  = store data uint8_t at next available location in
-		 * FB BUFFER1  register. */
-		WR7146(P_TSL1, RSD1 | SIB_A1);
-		/*  Fetch ADC high data uint8_t. */
-		WR7146(P_TSL1 + 4, RSD1 | SIB_A1 | EOS);
-		/*  Fetch ADC low data uint8_t; end of TSL1. */
-
-		/*  enab TSL1 slot list so that it executes all the time. */
-		WR7146(P_ACON1, ACON1_ADCSTART);
-
-		/*  Initialize RPS registers used for ADC. */
-
-		/* Physical start of RPS program. */
-		WR7146(P_RPSADDR1, (uint32_t) devpriv->RPSBuf.PhysicalBase);
-
-		WR7146(P_RPSPAGE1, 0);
-		/*  RPS program performs no explicit mem writes. */
-		WR7146(P_RPS1_TOUT, 0);	/*  Disable RPS timeouts. */
-
-		/* SAA7146 BUG WORKAROUND.  Initialize SAA7146 ADC interface
-		 * to a known state by invoking ADCs until FB BUFFER 1
-		 * register shows that it is correctly receiving ADC data.
-		 * This is necessary because the SAA7146 ADC interface does
-		 * not start up in a defined state after a PCI reset.
-		 */
-
-/*     PollList = EOPL;		// Create a simple polling */
-/*				// list for analog input */
-/*				// channel 0. */
-/*     ResetADC( dev, &PollList ); */
-
-/*     s626_ai_rinsn(dev,dev->subdevices,NULL,data); //( &AdcData ); // */
-/*							//Get initial ADC */
-/*							//value. */
-
-/*     StartVal = data[0]; */
-
-/*     // VERSION 2.01 CHANGE: TIMEOUT ADDED TO PREVENT HANGED EXECUTION. */
-/*     // Invoke ADCs until the new ADC value differs from the initial */
-/*     // value or a timeout occurs.  The timeout protects against the */
-/*     // possibility that the driver is restarting and the ADC data is a */
-/*     // fixed value resulting from the applied ADC analog input being */
-/*     // unusually quiet or at the rail. */
-
-/*     for ( index = 0; index < 500; index++ ) */
-/*       { */
-/*	s626_ai_rinsn(dev,dev->subdevices,NULL,data); */
-/*	AdcData = data[0];	//ReadADC(  &AdcData ); */
-/*	if ( AdcData != StartVal ) */
-/*		break; */
-/*       } */
-
-		/*  end initADC */
-
-		/*  init the DAC interface */
-
-		/* Init Audio2's output DMAC attributes: burst length = 1
-		 * DWORD,  threshold = 1 DWORD.
-		 */
-		WR7146(P_PCI_BT_A, 0);
-
-		/* Init Audio2's output DMA physical addresses.  The protection
-		 * address is set to 1 DWORD past the base address so that a
-		 * single DWORD will be transferred each time a DMA transfer is
-		 * enabled. */
-
-		pPhysBuf =
-		    devpriv->ANABuf.PhysicalBase +
-		    (DAC_WDMABUF_OS * sizeof(uint32_t));
-
-		WR7146(P_BASEA2_OUT, (uint32_t) pPhysBuf);	/*  Buffer base adrs. */
-		WR7146(P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)));	/*  Protection address. */
-
-		/* Cache Audio2's output DMA buffer logical address.  This is
-		 * where DAC data is buffered for A2 output DMA transfers. */
-		devpriv->pDacWBuf =
-		    (uint32_t *) devpriv->ANABuf.LogicalBase + DAC_WDMABUF_OS;
-
-		/* Audio2's output channels does not use paging.  The protection
-		 * violation handling bit is set so that the DMAC will
-		 * automatically halt and its PCI address pointer will be reset
-		 * when the protection address is reached. */
-
-		WR7146(P_PAGEA2_OUT, 8);
-
-		/* Initialize time slot list 2 (TSL2), which is used to control
-		 * the clock generation for and serialization of data to be sent
-		 * to the DAC devices.  Slot 0 is a NOP that is used to trap TSL
-		 * execution; this permits other slots to be safely modified
-		 * without first turning off the TSL sequencer (which is
-		 * apparently impossible to do).  Also, SD3 (which is driven by a
-		 * pull-up resistor) is shifted in and stored to the MSB of
-		 * FB_BUFFER2 to be used as evidence that the slot sequence has
-		 * not yet finished executing.
-		 */
-
-		SETVECT(0, XSD2 | RSD3 | SIB_A2 | EOS);
-		/*  Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2. */
-
-		/* Initialize slot 1, which is constant.  Slot 1 causes a
-		 * DWORD to be transferred from audio channel 2's output FIFO
-		 * to the FIFO's output buffer so that it can be serialized
-		 * and sent to the DAC during subsequent slots.  All remaining
-		 * slots are dynamically populated as required by the target
-		 * DAC device.
-		 */
-		SETVECT(1, LF_A2);
-		/*  Slot 1: Fetch DWORD from Audio2's output FIFO. */
-
-		/*  Start DAC's audio interface (TSL2) running. */
-		WR7146(P_ACON1, ACON1_DACSTART);
-
-		/* end init DAC interface */
-
-		/* Init Trim DACs to calibrated values.  Do it twice because the
-		 * SAA7146 audio channel does not always reset properly and
-		 * sometimes causes the first few TrimDAC writes to malfunction.
-		 */
-
-		LoadTrimDACs(dev);
-		LoadTrimDACs(dev);	/*  Insurance. */
-
-		/* Manually init all gate array hardware in case this is a soft
-		 * reset (we have no way of determining whether this is a warm
-		 * or cold start).  This is necessary because the gate array will
-		 * reset only in response to a PCI hard reset; there is no soft
-		 * reset function. */
-
-		/* Init all DAC outputs to 0V and init all DAC setpoint and
-		 * polarity images.
-		 */
-		for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
-			SetDAC(dev, chan, 0);
-
-		/* Init image of WRMISC2 Battery Charger Enabled control bit.
-		 * This image is used when the state of the charger control bit,
-		 * which has no direct hardware readback mechanism, is queried.
-		 */
-		devpriv->ChargeEnabled = 0;
-
-		/* Init image of watchdog timer interval in WRMISC2.  This image
-		 * maintains the value of the control bits of MISC2 are
-		 * continuously reset to zero as long as the WD timer is disabled.
-		 */
-		devpriv->WDInterval = 0;
-
-		/* Init Counter Interrupt enab mask for RDMISC2.  This mask is
-		 * applied against MISC2 when testing to determine which timer
-		 * events are requesting interrupt service.
-		 */
-		devpriv->CounterIntEnabs = 0;
-
-		/*  Init counters. */
-		CountersInit(dev);
-
-		/* Without modifying the state of the Battery Backup enab, disable
-		 * the watchdog timer, set DIO channels 0-5 to operate in the
-		 * standard DIO (vs. counter overflow) mode, disable the battery
-		 * charger, and reset the watchdog interval selector to zero.
-		 */
-		WriteMISC2(dev, (uint16_t) (DEBIread(dev,
-						     LP_RDMISC2) &
-					    MISC2_BATT_ENABLE));
-
-		/*  Initialize the digital I/O subsystem. */
-		s626_dio_init(dev);
-
-		/* enable interrupt test */
-		/*  writel(IRQ_GPIO3 | IRQ_RPS1,devpriv->base_addr+P_IER); */
-	}
-
-	return 1;
+	return 0;
 }
 
 static void s626_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (devpriv) {
 		/* stop ai_command */
 		devpriv->ai_cmd_running = 0;
@@ -2967,18 +2819,17 @@ static void s626_detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
-		if (devpriv->pdev) {
-			if (devpriv->got_regions)
-				comedi_pci_disable(devpriv->pdev);
-			pci_dev_put(devpriv->pdev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 	}
 }
 
 static struct comedi_driver s626_driver = {
 	.driver_name	= "s626",
 	.module		= THIS_MODULE,
-	.attach		= s626_attach,
+	.attach_pci	= s626_attach_pci,
 	.detach		= s626_detach,
 };
 

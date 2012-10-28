@@ -251,25 +251,11 @@
 #include <linux/freezer.h>
 #include <linux/utsname.h>
 
+#include <linux/usb/composite.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
-
-
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
-/*-------------------------------------------------------------------------*/
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
@@ -3213,7 +3199,6 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 static int __init check_parameters(struct fsg_dev *fsg)
 {
 	int	prot;
-	int	gcnum;
 
 	/* Store the default values */
 	mod_data.transport_type = USB_PR_BULK;
@@ -3228,16 +3213,8 @@ static int __init check_parameters(struct fsg_dev *fsg)
 	if (gadget_is_at91(fsg->gadget))
 		mod_data.can_stall = 0;
 
-	if (mod_data.release == 0xffff) {	// Parameter wasn't set
-		gcnum = usb_gadget_controller_number(fsg->gadget);
-		if (gcnum >= 0)
-			mod_data.release = 0x0300 + gcnum;
-		else {
-			WARNING(fsg, "controller '%s' not recognized\n",
-				fsg->gadget->name);
-			mod_data.release = 0x0399;
-		}
-	}
+	if (mod_data.release == 0xffff)
+		mod_data.release = get_default_bcdDevice();
 
 	prot = simple_strtol(mod_data.protocol_parm, NULL, 0);
 
@@ -3331,7 +3308,8 @@ static int __init check_parameters(struct fsg_dev *fsg)
 }
 
 
-static int __init fsg_bind(struct usb_gadget *gadget)
+static int __init fsg_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	struct fsg_dev		*fsg = the_fsg;
 	int			rc;
@@ -3603,9 +3581,10 @@ static void fsg_resume(struct usb_gadget *gadget)
 
 /*-------------------------------------------------------------------------*/
 
-static struct usb_gadget_driver		fsg_driver = {
+static __refdata struct usb_gadget_driver		fsg_driver = {
 	.max_speed	= USB_SPEED_SUPER,
 	.function	= (char *) fsg_string_product,
+	.bind		= fsg_bind,
 	.unbind		= fsg_unbind,
 	.disconnect	= fsg_disconnect,
 	.setup		= fsg_setup,
@@ -3653,7 +3632,8 @@ static int __init fsg_init(void)
 	if ((rc = fsg_alloc()) != 0)
 		return rc;
 	fsg = the_fsg;
-	if ((rc = usb_gadget_probe_driver(&fsg_driver, fsg_bind)) != 0)
+	rc = usb_gadget_probe_driver(&fsg_driver);
+	if (rc != 0)
 		kref_put(&fsg->ref, fsg_release);
 	return rc;
 }

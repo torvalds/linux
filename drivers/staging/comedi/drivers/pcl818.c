@@ -107,6 +107,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #include <linux/io.h>
 #include <asm/dma.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 /* #define PCL818_MODE13_AO 1 */
@@ -477,7 +478,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low;
 	int timeout = 50;	/* wait max 50us */
 
@@ -536,7 +537,7 @@ conv_finish:
 static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
 	short *ptr;
@@ -615,7 +616,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long tmp;
 	unsigned int top1, top2, i, bufptr;
 	long ofs_dats;
@@ -720,7 +721,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
@@ -811,7 +812,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			   being reprogrammed while a DMA transfer is in
 			   progress.
 			 */
-			struct comedi_subdevice *s = dev->subdevices + 0;
+			struct comedi_subdevice *s = &dev->subdevices[0];
 			devpriv->ai_act_scan = 0;
 			devpriv->neverending_ai = 0;
 			pcl818_ai_cancel(dev, s);
@@ -1261,43 +1262,23 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1763,7 +1744,7 @@ no_dma:
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (!board->n_aichan_se) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1829,7 +1810,7 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (!board->n_aochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1862,7 +1843,7 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (!board->n_dichan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1875,7 +1856,7 @@ no_dma:
 		s->insn_bits = pcl818_di_insn_bits;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	if (!board->n_dochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {

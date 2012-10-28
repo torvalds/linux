@@ -312,7 +312,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 
 			fe->is_local = f->is_local;
 			if (!f->is_static)
-				fe->ageing_timer_value = jiffies_to_clock_t(jiffies - f->updated);
+				fe->ageing_timer_value = jiffies_delta_to_clock_t(jiffies - f->updated);
 			++fe;
 			++num;
 		}
@@ -467,14 +467,14 @@ static int fdb_to_nud(const struct net_bridge_fdb_entry *fdb)
 
 static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 			 const struct net_bridge_fdb_entry *fdb,
-			 u32 pid, u32 seq, int type, unsigned int flags)
+			 u32 portid, u32 seq, int type, unsigned int flags)
 {
 	unsigned long now = jiffies;
 	struct nda_cacheinfo ci;
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
 
-	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), flags);
+	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
@@ -555,7 +555,7 @@ int br_fdb_dump(struct sk_buff *skb,
 				goto skip;
 
 			if (fdb_fill_info(skb, br, f,
-					  NETLINK_CB(cb->skb).pid,
+					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq,
 					  RTM_NEWNEIGH,
 					  NLM_F_MULTI) < 0)
@@ -608,8 +608,9 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 }
 
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
-int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
-	       unsigned char *addr, u16 nlh_flags)
+int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+	       struct net_device *dev,
+	       const unsigned char *addr, u16 nlh_flags)
 {
 	struct net_bridge_port *p;
 	int err = 0;
@@ -639,7 +640,7 @@ int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
 	return err;
 }
 
-static int fdb_delete_by_addr(struct net_bridge_port *p, u8 *addr)
+static int fdb_delete_by_addr(struct net_bridge_port *p, const u8 *addr)
 {
 	struct net_bridge *br = p->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
@@ -655,7 +656,7 @@ static int fdb_delete_by_addr(struct net_bridge_port *p, u8 *addr)
 
 /* Remove neighbor entry with RTM_DELNEIGH */
 int br_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
-		  unsigned char *addr)
+		  const unsigned char *addr)
 {
 	struct net_bridge_port *p;
 	int err;

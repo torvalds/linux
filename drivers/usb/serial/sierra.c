@@ -46,7 +46,6 @@
    allocations > PAGE_SIZE and the number of packets in a page
    is an integer 512 is the largest possible packet on EHCI */
 
-static bool debug;
 static bool nmea;
 
 /* Used in interface blacklisting */
@@ -162,7 +161,6 @@ static int sierra_probe(struct usb_serial *serial,
 {
 	int result = 0;
 	struct usb_device *udev;
-	struct sierra_intf_private *data;
 	u8 ifnum;
 
 	udev = serial->dev;
@@ -188,11 +186,6 @@ static int sierra_probe(struct usb_serial *serial,
 			"Ignoring blacklisted interface #%d\n", ifnum);
 		return -ENODEV;
 	}
-
-	data = serial->private = kzalloc(sizeof(struct sierra_intf_private), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-	spin_lock_init(&data->susp_lock);
 
 	return result;
 }
@@ -382,7 +375,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 static void sierra_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	sierra_send_setup(port);
 }
 
@@ -518,7 +511,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	memcpy(buffer, buf, writesize);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, writesize, buffer);
+	usb_serial_debug_data(&port->dev, __func__, writesize, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev,
@@ -595,8 +588,8 @@ static void sierra_indat_callback(struct urb *urb)
 				tty_flip_buffer_push(tty);
 
 				tty_kref_put(tty);
-				usb_serial_debug_data(debug, &port->dev,
-					__func__, urb->actual_length, data);
+				usb_serial_debug_data(&port->dev, __func__,
+						      urb->actual_length, data);
 			}
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
@@ -765,7 +758,6 @@ static struct urb *sierra_setup_urb(struct usb_serial *serial, int endpoint,
 			usb_sndbulkpipe(serial->dev, endpoint) | dir,
 			buf, len, callback, ctx);
 
-		/* debug */
 		dev_dbg(&serial->dev->dev, "%s %c u : %p d:%p\n", __func__,
 				dir == USB_DIR_IN ? 'i' : 'o', urb, buf);
 	} else {
@@ -886,11 +878,15 @@ static void sierra_dtr_rts(struct usb_serial_port *port, int on)
 
 static int sierra_startup(struct usb_serial *serial)
 {
-	struct usb_serial_port *port;
-	struct sierra_port_private *portdata;
-	struct sierra_iface_info *himemoryp = NULL;
-	int i;
-	u8 ifnum;
+	struct sierra_intf_private *intfdata;
+
+	intfdata = kzalloc(sizeof(*intfdata), GFP_KERNEL);
+	if (!intfdata)
+		return -ENOMEM;
+
+	spin_lock_init(&intfdata->susp_lock);
+
+	usb_set_serial_data(serial, intfdata);
 
 	/* Set Device mode to D0 */
 	sierra_set_power_state(serial->dev, 0x0000);
@@ -899,68 +895,71 @@ static int sierra_startup(struct usb_serial *serial)
 	if (nmea)
 		sierra_vsc_set_nmea(serial->dev, 1);
 
-	/* Now setup per port private data */
-	for (i = 0; i < serial->num_ports; i++) {
-		port = serial->port[i];
-		portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
-		if (!portdata) {
-			dev_dbg(&port->dev, "%s: kmalloc for "
-				"sierra_port_private (%d) failed!\n",
-				__func__, i);
-			return -ENOMEM;
-		}
-		spin_lock_init(&portdata->lock);
-		init_usb_anchor(&portdata->active);
-		init_usb_anchor(&portdata->delayed);
-		ifnum = i;
-		/* Assume low memory requirements */
-		portdata->num_out_urbs = N_OUT_URB;
-		portdata->num_in_urbs  = N_IN_URB;
-
-		/* Determine actual memory requirements */
-		if (serial->num_ports == 1) {
-			/* Get interface number for composite device */
-			ifnum = sierra_calc_interface(serial);
-			himemoryp =
-			    (struct sierra_iface_info *)&typeB_interface_list;
-			if (is_himemory(ifnum, himemoryp)) {
-				portdata->num_out_urbs = N_OUT_URB_HM;
-				portdata->num_in_urbs  = N_IN_URB_HM;
-			}
-		}
-		else {
-			himemoryp =
-			    (struct sierra_iface_info *)&typeA_interface_list;
-			if (is_himemory(i, himemoryp)) {
-				portdata->num_out_urbs = N_OUT_URB_HM;
-				portdata->num_in_urbs  = N_IN_URB_HM;
-			}
-		}
-		dev_dbg(&serial->dev->dev,
-			"Memory usage (urbs) interface #%d, in=%d, out=%d\n",
-			ifnum,portdata->num_in_urbs, portdata->num_out_urbs );
-		/* Set the port private data pointer */
-		usb_set_serial_port_data(port, portdata);
-	}
-
 	return 0;
 }
 
 static void sierra_release(struct usb_serial *serial)
 {
-	int i;
-	struct usb_serial_port *port;
+	struct sierra_intf_private *intfdata;
+
+	intfdata = usb_get_serial_data(serial);
+	kfree(intfdata);
+}
+
+static int sierra_port_probe(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct sierra_port_private *portdata;
+	const struct sierra_iface_info *himemoryp;
+	u8 ifnum;
+
+	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
+	if (!portdata)
+		return -ENOMEM;
+
+	spin_lock_init(&portdata->lock);
+	init_usb_anchor(&portdata->active);
+	init_usb_anchor(&portdata->delayed);
+
+	/* Assume low memory requirements */
+	portdata->num_out_urbs = N_OUT_URB;
+	portdata->num_in_urbs  = N_IN_URB;
+
+	/* Determine actual memory requirements */
+	if (serial->num_ports == 1) {
+		/* Get interface number for composite device */
+		ifnum = sierra_calc_interface(serial);
+		himemoryp = &typeB_interface_list;
+	} else {
+		/* This is really the usb-serial port number of the interface
+		 * rather than the interface number.
+		 */
+		ifnum = port->number - serial->minor;
+		himemoryp = &typeA_interface_list;
+	}
+
+	if (is_himemory(ifnum, himemoryp)) {
+		portdata->num_out_urbs = N_OUT_URB_HM;
+		portdata->num_in_urbs  = N_IN_URB_HM;
+	}
+
+	dev_dbg(&port->dev,
+			"Memory usage (urbs) interface #%d, in=%d, out=%d\n",
+			ifnum, portdata->num_in_urbs, portdata->num_out_urbs);
+
+	usb_set_serial_port_data(port, portdata);
+
+	return 0;
+}
+
+static int sierra_port_remove(struct usb_serial_port *port)
+{
 	struct sierra_port_private *portdata;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		port = serial->port[i];
-		if (!port)
-			continue;
-		portdata = usb_get_serial_port_data(port);
-		if (!portdata)
-			continue;
-		kfree(portdata);
-	}
+	portdata = usb_get_serial_port_data(port);
+	kfree(portdata);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1064,6 +1063,8 @@ static struct usb_serial_driver sierra_device = {
 	.tiocmset          = sierra_tiocmset,
 	.attach            = sierra_startup,
 	.release           = sierra_release,
+	.port_probe        = sierra_port_probe,
+	.port_remove       = sierra_port_remove,
 	.suspend	   = sierra_suspend,
 	.resume		   = sierra_resume,
 	.read_int_callback = sierra_instat_callback,
@@ -1082,6 +1083,3 @@ MODULE_LICENSE("GPL");
 
 module_param(nmea, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nmea, "NMEA streaming");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug messages");

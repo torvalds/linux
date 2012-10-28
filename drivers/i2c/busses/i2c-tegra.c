@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/i2c-tegra.h>
 #include <linux/of_i2c.h>
+#include <linux/of_device.h>
 #include <linux/module.h>
 
 #include <asm/unaligned.h>
@@ -114,11 +115,21 @@ enum msg_end_type {
 };
 
 /**
+ * struct tegra_i2c_hw_feature : Different HW support on Tegra
+ * @has_continue_xfer_support: Continue transfer supports.
+ */
+
+struct tegra_i2c_hw_feature {
+	bool has_continue_xfer_support;
+};
+
+/**
  * struct tegra_i2c_dev	- per device i2c context
  * @dev: device reference for power management
+ * @hw: Tegra i2c hw feature.
  * @adapter: core i2c layer adapter information
- * @clk: clock reference for i2c controller
- * @i2c_clk: clock reference for i2c bus
+ * @div_clk: clock reference for div clock of i2c controller.
+ * @fast_clk: clock reference for fast clock of i2c controller.
  * @base: ioremapped registers cookie
  * @cont_id: i2c controller id, used for for packet header
  * @irq: irq number of transfer complete interrupt
@@ -133,9 +144,10 @@ enum msg_end_type {
  */
 struct tegra_i2c_dev {
 	struct device *dev;
+	const struct tegra_i2c_hw_feature *hw;
 	struct i2c_adapter adapter;
-	struct clk *clk;
-	struct clk *i2c_clk;
+	struct clk *div_clk;
+	struct clk *fast_clk;
 	void __iomem *base;
 	int cont_id;
 	int irq;
@@ -351,16 +363,40 @@ static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 	dvc_writel(i2c_dev, val, DVC_CTRL_REG1);
 }
 
+static inline int tegra_i2c_clock_enable(struct tegra_i2c_dev *i2c_dev)
+{
+	int ret;
+	ret = clk_prepare_enable(i2c_dev->fast_clk);
+	if (ret < 0) {
+		dev_err(i2c_dev->dev,
+			"Enabling fast clk failed, err %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(i2c_dev->div_clk);
+	if (ret < 0) {
+		dev_err(i2c_dev->dev,
+			"Enabling div clk failed, err %d\n", ret);
+		clk_disable_unprepare(i2c_dev->fast_clk);
+	}
+	return ret;
+}
+
+static inline void tegra_i2c_clock_disable(struct tegra_i2c_dev *i2c_dev)
+{
+	clk_disable_unprepare(i2c_dev->div_clk);
+	clk_disable_unprepare(i2c_dev->fast_clk);
+}
+
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val;
 	int err = 0;
 
-	clk_prepare_enable(i2c_dev->clk);
+	tegra_i2c_clock_enable(i2c_dev);
 
-	tegra_periph_reset_assert(i2c_dev->clk);
+	tegra_periph_reset_assert(i2c_dev->div_clk);
 	udelay(2);
-	tegra_periph_reset_deassert(i2c_dev->clk);
+	tegra_periph_reset_deassert(i2c_dev->div_clk);
 
 	if (i2c_dev->is_dvc)
 		tegra_dvc_init(i2c_dev);
@@ -369,7 +405,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		(0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
-	clk_set_rate(i2c_dev->clk, i2c_dev->bus_clk_rate * 8);
+	clk_set_rate(i2c_dev->div_clk, i2c_dev->bus_clk_rate * 8);
 
 	if (!i2c_dev->is_dvc) {
 		u32 sl_cfg = i2c_readl(i2c_dev, I2C_SL_CNFG);
@@ -387,7 +423,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	if (tegra_i2c_flush_fifos(i2c_dev))
 		err = -ETIMEDOUT;
 
-	clk_disable_unprepare(i2c_dev->clk);
+	tegra_i2c_clock_disable(i2c_dev);
 
 	if (i2c_dev->irq_disabled) {
 		i2c_dev->irq_disabled = 0;
@@ -563,7 +599,7 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	if (i2c_dev->is_suspended)
 		return -EBUSY;
 
-	clk_prepare_enable(i2c_dev->clk);
+	tegra_i2c_clock_enable(i2c_dev);
 	for (i = 0; i < num; i++) {
 		enum msg_end_type end_type = MSG_END_STOP;
 		if (i < (num - 1)) {
@@ -576,14 +612,19 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		if (ret)
 			break;
 	}
-	clk_disable_unprepare(i2c_dev->clk);
+	tegra_i2c_clock_disable(i2c_dev);
 	return ret ?: i;
 }
 
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-		I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_NOSTART;
+	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
+	u32 ret = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
+				I2C_FUNC_PROTOCOL_MANGLING;
+
+	if (i2c_dev->hw->has_continue_xfer_support)
+		ret |= I2C_FUNC_NOSTART;
+	return ret;
 }
 
 static const struct i2c_algorithm tegra_i2c_algo = {
@@ -591,13 +632,32 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 	.functionality	= tegra_i2c_func,
 };
 
+static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
+	.has_continue_xfer_support = false,
+};
+
+static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
+	.has_continue_xfer_support = true,
+};
+
+#if defined(CONFIG_OF)
+/* Match table for of_platform binding */
+static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra30-i2c", .data = &tegra30_i2c_hw, },
+	{ .compatible = "nvidia,tegra20-i2c", .data = &tegra20_i2c_hw, },
+	{ .compatible = "nvidia,tegra20-i2c-dvc", .data = &tegra20_i2c_hw, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
+#endif
+
 static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
 	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
-	struct clk *clk;
-	struct clk *i2c_clk;
+	struct clk *div_clk;
+	struct clk *fast_clk;
 	const unsigned int *prop;
 	void __iomem *base;
 	int irq;
@@ -622,16 +682,16 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
+	div_clk = devm_clk_get(&pdev->dev, "div-clk");
+	if (IS_ERR(div_clk)) {
 		dev_err(&pdev->dev, "missing controller clock");
-		return PTR_ERR(clk);
+		return PTR_ERR(div_clk);
 	}
 
-	i2c_clk = devm_clk_get(&pdev->dev, "i2c");
-	if (IS_ERR(i2c_clk)) {
+	fast_clk = devm_clk_get(&pdev->dev, "fast-clk");
+	if (IS_ERR(fast_clk)) {
 		dev_err(&pdev->dev, "missing bus clock");
-		return PTR_ERR(i2c_clk);
+		return PTR_ERR(fast_clk);
 	}
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
@@ -641,8 +701,8 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c_dev->base = base;
-	i2c_dev->clk = clk;
-	i2c_dev->i2c_clk = i2c_clk;
+	i2c_dev->div_clk = div_clk;
+	i2c_dev->fast_clk = fast_clk;
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
@@ -659,11 +719,18 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 			i2c_dev->bus_clk_rate = be32_to_cpup(prop);
 	}
 
-	if (pdev->dev.of_node)
+	i2c_dev->hw = &tegra20_i2c_hw;
+
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_device(of_match_ptr(tegra_i2c_of_match),
+						&pdev->dev);
+		i2c_dev->hw = match->data;
 		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						"nvidia,tegra20-i2c-dvc");
-	else if (pdev->id == 3)
+	} else if (pdev->id == 3) {
 		i2c_dev->is_dvc = 1;
+	}
 	init_completion(&i2c_dev->msg_complete);
 
 	platform_set_drvdata(pdev, i2c_dev);
@@ -681,8 +748,6 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(i2c_dev->i2c_clk);
-
 	i2c_set_adapdata(&i2c_dev->adapter, i2c_dev);
 	i2c_dev->adapter.owner = THIS_MODULE;
 	i2c_dev->adapter.class = I2C_CLASS_HWMON;
@@ -696,7 +761,6 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add I2C adapter\n");
-		clk_disable_unprepare(i2c_dev->i2c_clk);
 		return ret;
 	}
 
@@ -749,16 +813,6 @@ static SIMPLE_DEV_PM_OPS(tegra_i2c_pm, tegra_i2c_suspend, tegra_i2c_resume);
 #define TEGRA_I2C_PM	(&tegra_i2c_pm)
 #else
 #define TEGRA_I2C_PM	NULL
-#endif
-
-#if defined(CONFIG_OF)
-/* Match table for of_platform binding */
-static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
-	{ .compatible = "nvidia,tegra20-i2c", },
-	{ .compatible = "nvidia,tegra20-i2c-dvc", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 #endif
 
 static struct platform_driver tegra_i2c_driver = {

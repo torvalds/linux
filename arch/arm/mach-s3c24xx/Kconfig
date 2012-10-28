@@ -17,10 +17,10 @@ config CPU_S3C2410
 	bool "SAMSUNG S3C2410"
 	default y
 	select CPU_ARM920T
-	select S3C2410_CLOCK
 	select CPU_LLSERIAL_S3C2410
-	select S3C2410_PM if PM
+	select S3C2410_CLOCK
 	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
+	select S3C2410_PM if PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -30,8 +30,8 @@ config CPU_S3C2412
 	depends on ARCH_S3C24XX
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
-	select S3C2412_PM if PM
 	select S3C2412_DMA if S3C24XX_DMA
+	select S3C2412_PM if PM
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
@@ -40,10 +40,10 @@ config CPU_S3C2416
 	depends on ARCH_S3C24XX
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
-	select SAMSUNG_CLKSRC
+	select S3C2416_PM if PM
 	select S3C2443_COMMON
 	select S3C2443_DMA if S3C24XX_DMA
-	select S3C2416_PM if PM
+	select SAMSUNG_CLKSRC
 	help
 	  Support for the S3C2416 SoC from the S3C24XX line
 
@@ -75,9 +75,9 @@ config CPU_S3C2443
 	depends on ARCH_S3C24XX
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
-	select SAMSUNG_CLKSRC
 	select S3C2443_COMMON
 	select S3C2443_DMA if S3C24XX_DMA
+	select SAMSUNG_CLKSRC
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
@@ -156,16 +156,16 @@ config MACH_AML_M5900
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
-	select S3C2410_IOTIMING if S3C2410_CPUFREQ
-	select S3C24XX_SIMTEC_PM if PM
-	select S3C24XX_SIMTEC_NOR
-	select S3C24XX_SIMTEC_USB
-	select MACH_BAST_IDE
-	select S3C24XX_DCLK
 	select ISA
+	select MACH_BAST_IDE
+	select S3C2410_IOTIMING if S3C2410_CPUFREQ
+	select S3C24XX_DCLK
+	select S3C24XX_SIMTEC_NOR
+	select S3C24XX_SIMTEC_PM if PM
+	select S3C24XX_SIMTEC_USB
 	select S3C_DEV_HWMON
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
 	  development board (also known as BAST)
@@ -181,9 +181,9 @@ config BAST_PC104_IRQ
 config ARCH_H1940
 	bool "IPAQ H1940"
 	select PM_H1940 if PM
-	select S3C_DEV_USB_HOST
-	select S3C_DEV_NAND
 	select S3C24XX_SETUP_TS
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -203,23 +203,23 @@ config PM_H1940
 config MACH_N30
 	bool "Acer N30 family"
 	select MACH_N35
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you want suppt for the Acer N30, Acer N35,
 	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
 
 config MACH_OTOM
 	bool "NexVision OTOM Board"
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Nex Vision OTOM board
 
 config MACH_QT2410
 	bool "QT2410"
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Armzone QT2410
 
@@ -239,12 +239,12 @@ config MACH_TCT_HAMMER
 
 config MACH_VR1000
 	bool "Thorcom VR1000"
-	select S3C24XX_SIMTEC_PM if PM
+	select MACH_BAST_IDE
 	select S3C24XX_DCLK
 	select S3C24XX_SIMTEC_NOR
-	select MACH_BAST_IDE
-	select S3C_DEV_USB_HOST
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C24XX_SIMTEC_USB
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
 
@@ -285,8 +285,8 @@ comment "S3C2412 Boards"
 
 config MACH_JIVE
 	bool "Logitech Jive"
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Logitech Jive.
 
@@ -314,15 +314,15 @@ config MACH_SMDK2413
 	bool "SMDK2413"
 	select MACH_S3C2413
 	select S3C24XX_SMDK
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using an SMDK2413
 
 config MACH_VSTMS
 	bool "VMSTMS"
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using an VSTMS board
 
@@ -351,13 +351,13 @@ comment "S3C2416 Boards"
 
 config MACH_SMDK2416
 	bool "SMDK2416"
+	select S3C2416_SETUP_SDHCI
 	select S3C24XX_SMDK
 	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
-	select S3C2416_SETUP_SDHCI
 	help
 	  Say Y here if you are using an SMDK2416
 
@@ -379,11 +379,11 @@ comment "S3C2440 Boards"
 
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
-	select S3C24XX_DCLK
-	select S3C24XX_SIMTEC_PM if PM
 	select HAVE_PATA_PLATFORM
-	select S3C24XX_GPIO_EXTRA64
 	select S3C2440_XTAL_12000000
+	select S3C24XX_DCLK
+	select S3C24XX_GPIO_EXTRA64
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
@@ -391,18 +391,18 @@ config MACH_ANUBIS
 
 config MACH_AT2440EVB
 	bool "Avantech AT2440EVB development board"
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the AT2440EVB development board
 
 config MACH_MINI2440
 	bool "MINI2440 development board"
 	select EEPROM_AT24
-	select NEW_LEDS
 	select LEDS_CLASS
 	select LEDS_TRIGGER
 	select LEDS_TRIGGER_BACKLIGHT
+	select NEW_LEDS
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	help
@@ -412,20 +412,20 @@ config MACH_MINI2440
 config MACH_NEXCODER_2440
 	bool "NexVision NEXCODER 2440 Light Board"
 	select S3C2440_XTAL_12000000
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
 
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
-	select S3C24XX_DCLK
-	select S3C24XX_SIMTEC_PM if PM
-	select S3C24XX_GPIO_EXTRA128
-	select S3C2440_XTAL_12000000
 	select S3C2410_IOTIMING if S3C2440_CPUFREQ
-	select S3C_DEV_USB_HOST
+	select S3C2440_XTAL_12000000
+	select S3C24XX_DCLK
+	select S3C24XX_GPIO_EXTRA128
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
 	  known as the Osiris.
@@ -445,8 +445,8 @@ config MACH_OSIRIS_DVS
 
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
-	select S3C2440_XTAL_16934400
 	select PM_H1940 if PM
+	select S3C2440_XTAL_16934400
 	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the HP iPAQ rx3715.
@@ -455,8 +455,8 @@ config ARCH_S3C2440
 	bool "SMDK2440"
 	select S3C2440_XTAL_16934400
 	select S3C24XX_SMDK
-	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the SMDK2440.
 
@@ -478,11 +478,11 @@ comment "S3C2442 Boards"
 
 config MACH_NEO1973_GTA02
 	bool "Openmoko GTA02 / Freerunner phone"
+	select I2C
+	select MACH_NEO1973
 	select MFD_PCF50633
 	select PCF50633_GPIO
-	select I2C
 	select POWER_SUPPLY
-	select MACH_NEO1973
 	select S3C24XX_PWM
 	select S3C_DEV_USB_HOST
 	help
@@ -490,13 +490,13 @@ config MACH_NEO1973_GTA02
 
 config MACH_RX1950
 	bool "HP iPAQ rx1950"
-	select S3C24XX_DCLK
-	select PM_H1940 if PM
 	select I2C
-	select S3C24XX_PWM
-	select S3C_DEV_NAND
+	select PM_H1940 if PM
 	select S3C2410_IOTIMING if S3C2440_CPUFREQ
 	select S3C2440_XTAL_16934400
+	select S3C24XX_DCLK
+	select S3C24XX_PWM
+	select S3C_DEV_NAND
 	help
 	   Say Y here if you're using HP iPAQ rx1950
 

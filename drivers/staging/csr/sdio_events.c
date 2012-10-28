@@ -66,7 +66,7 @@ void unifi_suspend(void *ospriv)
                 unifi_trace(priv, UDBG1, "unifi_suspend: netif_carrier_off");
                 netif_carrier_off(priv->netdev[interfaceTag]);
             }
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[interfaceTag]);
+            netif_tx_stop_all_queues(priv->netdev[interfaceTag]);
         }
     }
 
@@ -119,7 +119,7 @@ void unifi_resume(void *ospriv)
             if (interfacePriv->netdev_registered == 1)
             {
                 netif_carrier_on(priv->netdev[interfaceTag]);
-                UF_NETIF_TX_START_ALL_QUEUES(priv->netdev[interfaceTag]);
+                netif_tx_start_all_queues(priv->netdev[interfaceTag]);
             }
         }
 

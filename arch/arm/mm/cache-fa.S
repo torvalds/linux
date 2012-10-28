@@ -240,6 +240,9 @@ ENTRY(fa_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(fa_dma_unmap_area)
 
+	.globl	fa_flush_kern_cache_louis
+	.equ	fa_flush_kern_cache_louis, fa_flush_kern_cache_all
+
 	__INITDATA
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)

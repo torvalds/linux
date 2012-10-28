@@ -194,11 +194,9 @@ _send_michaelmicfailure_event(struct net_device *dev,
     union iwreq_data wrqu;
     char buf[128];
 
-    sprintf(buf,
-            "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr=%02x:%02x:%02x:%02x:%02x:%02x)",
-            key_idx, (key_type == CSR_GROUP) ? "broad" : "uni",
-            macaddr[0], macaddr[1], macaddr[2],
-            macaddr[3], macaddr[4], macaddr[5]);
+	sprintf(buf,
+		"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr=%pM)",
+		key_idx, (key_type == CSR_GROUP) ? "broad" : "uni", macaddr);
     memset(&wrqu, 0, sizeof(wrqu));
     wrqu.data.length = strlen(buf);
     wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);

@@ -66,7 +66,7 @@ supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET
 
 <para>The usage of this field is deprecated, as it doesn't report all supported standards, and
 will provide an incomplete information for frontends that support multiple delivery systems.
-Please use <link linkend="DTV_ENUM_DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
+Please use <link linkend="DTV-ENUM-DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
 </section>
 
 <section id="fe-caps-t">
@@ -101,6 +101,7 @@ a specific frontend type.</para>
 	FE_CAN_8VSB                   = 0x200000,
 	FE_CAN_16VSB                  = 0x400000,
 	FE_HAS_EXTENDED_CAPS          = 0x800000,
+	FE_CAN_MULTISTREAM            = 0x4000000,
 	FE_CAN_TURBO_FEC              = 0x8000000,
 	FE_CAN_2G_MODULATION          = 0x10000000,
 	FE_NEEDS_BENDING              = 0x20000000,
@@ -207,18 +208,44 @@ spec.</para>
 <para>Several functions of the frontend device use the fe_status data type defined
 by</para>
 <programlisting>
- typedef enum fe_status {
-	 FE_HAS_SIGNAL     = 0x01,   /&#x22C6;  found something above the noise level &#x22C6;/
-	 FE_HAS_CARRIER    = 0x02,   /&#x22C6;  found a DVB signal  &#x22C6;/
-	 FE_HAS_VITERBI    = 0x04,   /&#x22C6;  FEC is stable  &#x22C6;/
-	 FE_HAS_SYNC       = 0x08,   /&#x22C6;  found sync bytes  &#x22C6;/
-	 FE_HAS_LOCK       = 0x10,   /&#x22C6;  everything's working... &#x22C6;/
-	 FE_TIMEDOUT       = 0x20,   /&#x22C6;  no lock within the last ~2 seconds &#x22C6;/
-	 FE_REINIT         = 0x40    /&#x22C6;  frontend was reinitialized,  &#x22C6;/
- } fe_status_t;                      /&#x22C6;  application is recommned to reset &#x22C6;/
+typedef enum fe_status {
+	FE_HAS_SIGNAL		= 0x01,
+	FE_HAS_CARRIER		= 0x02,
+	FE_HAS_VITERBI		= 0x04,
+	FE_HAS_SYNC		= 0x08,
+	FE_HAS_LOCK		= 0x10,
+	FE_TIMEDOUT		= 0x20,
+	FE_REINIT		= 0x40,
+} fe_status_t;
 </programlisting>
-<para>to indicate the current state and/or state changes of the frontend hardware.
+<para>to indicate the current state and/or state changes of the frontend hardware:
 </para>
+
+<informaltable><tgroup cols="2"><tbody>
+<row>
+<entry align="char">FE_HAS_SIGNAL</entry>
+<entry align="char">The frontend has found something above the noise level</entry>
+</row><row>
+<entry align="char">FE_HAS_CARRIER</entry>
+<entry align="char">The frontend has found a DVB signal</entry>
+</row><row>
+<entry align="char">FE_HAS_VITERBI</entry>
+<entry align="char">The frontend FEC code is stable</entry>
+</row><row>
+<entry align="char">FE_HAS_SYNC</entry>
+<entry align="char">Syncronization bytes was found</entry>
+</row><row>
+<entry align="char">FE_HAS_LOCK</entry>
+<entry align="char">The DVB were locked and everything is working</entry>
+</row><row>
+<entry align="char">FE_TIMEDOUT</entry>
+<entry align="char">no lock within the last about 2 seconds</entry>
+</row><row>
+<entry align="char">FE_REINIT</entry>
+<entry align="char">The frontend was reinitialized, application is
+recommended to reset DiSEqC, tone and parameters</entry>
+</row>
+</tbody></tgroup></informaltable>
 
 </section>
 
@@ -238,7 +265,7 @@ and to add newer delivery systems.</para>
 <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></link> instead, in
 order to be able to support the newer System Delivery like  DVB-S2, DVB-T2,
 DVB-C2, ISDB, etc.</para>
-<para>All kinds of parameters are combined as an union in the FrontendParameters structure:</para>
+<para>All kinds of parameters are combined as an union in the FrontendParameters structure:
 <programlisting>
 struct dvb_frontend_parameters {
 	uint32_t frequency;     /&#x22C6; (absolute) frequency in Hz for QAM/OFDM &#x22C6;/
@@ -251,12 +278,13 @@ struct dvb_frontend_parameters {
 		struct dvb_vsb_parameters  vsb;
 	} u;
 };
-</programlisting>
+</programlisting></para>
 <para>In the case of QPSK frontends the <constant>frequency</constant> field specifies the intermediate
 frequency, i.e. the offset which is effectively added to the local oscillator frequency (LOF) of
 the LNB. The intermediate frequency has to be specified in units of kHz. For QAM and
 OFDM frontends the <constant>frequency</constant> specifies the absolute frequency and is given in Hz.
 </para>
+
 <section id="dvb-qpsk-parameters">
 <title>QPSK parameters</title>
 <para>For satellite QPSK frontends you have to use the <constant>dvb_qpsk_parameters</constant> structure:</para>
@@ -321,8 +349,8 @@ itself.
 <section id="fe-code-rate-t">
 <title>frontend code rate</title>
 <para>The possible values for the <constant>fec_inner</constant> field used on
-<link refend="dvb-qpsk-parameters"><constant>struct dvb_qpsk_parameters</constant></link> and
-<link refend="dvb-qam-parameters"><constant>struct dvb_qam_parameters</constant></link> are:
+<link linkend="dvb-qpsk-parameters"><constant>struct dvb_qpsk_parameters</constant></link> and
+<link linkend="dvb-qam-parameters"><constant>struct dvb_qam_parameters</constant></link> are:
 </para>
 <programlisting>
 typedef enum fe_code_rate {
@@ -347,9 +375,9 @@ detection.
 <section id="fe-modulation-t">
 <title>frontend modulation type for QAM, OFDM and VSB</title>
 <para>For cable and terrestrial frontends, e. g. for
-<link refend="dvb-qam-parameters"><constant>struct dvb_qpsk_parameters</constant></link>,
-<link refend="dvb-ofdm-parameters"><constant>struct dvb_qam_parameters</constant></link> and
-<link refend="dvb-vsb-parameters"><constant>struct dvb_qam_parameters</constant></link>,
+<link linkend="dvb-qam-parameters"><constant>struct dvb_qpsk_parameters</constant></link>,
+<link linkend="dvb-ofdm-parameters"><constant>struct dvb_qam_parameters</constant></link> and
+<link linkend="dvb-vsb-parameters"><constant>struct dvb_qam_parameters</constant></link>,
 it needs to specify the quadrature modulation mode which can be one of the following:
 </para>
 <programlisting>
@@ -370,8 +398,8 @@ it needs to specify the quadrature modulation mode which can be one of the follo
  } fe_modulation_t;
 </programlisting>
 </section>
-<para>Finally, there are several more parameters for OFDM:
-</para>
+<section>
+<title>More OFDM parameters</title>
 <section id="fe-transmit-mode-t">
 <title>Number of carriers per channel</title>
 <programlisting>
@@ -426,6 +454,7 @@ typedef enum fe_hierarchy {
 	 HIERARCHY_AUTO
  } fe_hierarchy_t;
 </programlisting>
+</section>
 </section>
 
 </section>

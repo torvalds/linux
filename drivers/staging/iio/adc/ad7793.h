@@ -41,6 +41,7 @@
 
 /* Mode Register Bit Designations (AD7793_REG_MODE) */
 #define AD7793_MODE_SEL(x)	(((x) & 0x7) << 13) /* Operation Mode Select */
+#define AD7793_MODE_SEL_MASK	(0x7 << 13) /* Operation Mode Select mask */
 #define AD7793_MODE_CLKSRC(x)	(((x) & 0x3) << 6) /* ADC Clock Source Select */
 #define AD7793_MODE_RATE(x)	((x) & 0xF) /* Filter Update Rate Select */
 
@@ -69,7 +70,8 @@
 #define AD7793_CONF_GAIN(x)	(((x) & 0x7) << 8) /* Gain Select */
 #define AD7793_CONF_REFSEL	(1 << 7) /* INT/EXT Reference Select */
 #define AD7793_CONF_BUF		(1 << 4) /* Buffered Mode Enable */
-#define AD7793_CONF_CHAN(x)	((x) & 0x7) /* Channel select */
+#define AD7793_CONF_CHAN(x)	((x) & 0xf) /* Channel select */
+#define AD7793_CONF_CHAN_MASK	0xf /* Channel select mask */
 
 #define AD7793_CH_AIN1P_AIN1M	0 /* AIN1(+) - AIN1(-) */
 #define AD7793_CH_AIN2P_AIN2M	1 /* AIN2(+) - AIN2(-) */
@@ -78,9 +80,15 @@
 #define AD7793_CH_TEMP		6 /* Temp Sensor */
 #define AD7793_CH_AVDD_MONITOR	7 /* AVDD Monitor */
 
+#define AD7795_CH_AIN4P_AIN4M	4 /* AIN4(+) - AIN4(-) */
+#define AD7795_CH_AIN5P_AIN5M	5 /* AIN5(+) - AIN5(-) */
+#define AD7795_CH_AIN6P_AIN6M	6 /* AIN6(+) - AIN6(-) */
+#define AD7795_CH_AIN1M_AIN1M	8 /* AIN1(-) - AIN1(-) */
+
 /* ID Register Bit Designations (AD7793_REG_ID) */
 #define AD7792_ID		0xA
 #define AD7793_ID		0xB
+#define AD7795_ID		0xF
 #define AD7793_ID_MASK		0xF
 
 /* IO (Excitation Current Sources) Register Bit Designations (AD7793_REG_IO) */

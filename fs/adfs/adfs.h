@@ -46,8 +46,8 @@ struct adfs_sb_info {
 	struct adfs_discmap *s_map;	/* bh list containing map		 */
 	struct adfs_dir_ops *s_dir;	/* directory operations			 */
 
-	uid_t		s_uid;		/* owner uid				 */
-	gid_t		s_gid;		/* owner gid				 */
+	kuid_t		s_uid;		/* owner uid				 */
+	kgid_t		s_gid;		/* owner gid				 */
 	umode_t		s_owner_mask;	/* ADFS owner perm -> unix perm		 */
 	umode_t		s_other_mask;	/* ADFS other perm -> unix perm		 */
 	int		s_ftsuffix;	/* ,xyz hex filetype suffix option */

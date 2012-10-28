@@ -73,7 +73,7 @@ void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
 {
 	struct map_desc *desc = &sram_desc[bank];
 
-	desc->virtual = AT91_IO_VIRT_BASE - length;
+	desc->virtual = (unsigned long)AT91_IO_VIRT_BASE - length;
 	if (bank > 0)
 		desc->virtual -= sram_desc[bank - 1].length;
 
@@ -87,8 +87,8 @@ void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
 	iotable_init(desc, 1);
 }
 
-static struct map_desc at91_io_desc __initdata = {
-	.virtual	= AT91_VA_BASE_SYS,
+static struct map_desc at91_io_desc __initdata __maybe_unused = {
+	.virtual	= (unsigned long)AT91_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_BASE_SYS),
 	.length		= SZ_16K,
 	.type		= MT_DEVICE,

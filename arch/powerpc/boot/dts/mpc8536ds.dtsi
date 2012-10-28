@@ -132,6 +132,10 @@
 			reg = <0x68>;
 			interrupts = <0 0x1 0 0>;
 		};
+		adt7461@4c {
+			compatible = "adi,adt7461";
+			reg = <0x4c>;
+		};
 	};
 
 	spi@7000 {

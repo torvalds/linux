@@ -302,26 +302,41 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
 		    container_of(node, struct acpi_device, wakeup_list);
-		struct device *ldev;
+		struct acpi_device_physical_node *entry;
 
 		if (!dev->wakeup.flags.valid)
 			continue;
 
-		ldev = acpi_get_physical_device(dev->handle);
-		seq_printf(seq, "%s\t  S%d\t%c%-8s  ",
+		seq_printf(seq, "%s\t  S%d\t",
 			   dev->pnp.bus_id,
-			   (u32) dev->wakeup.sleep_state,
-			   dev->wakeup.flags.run_wake ? '*' : ' ',
-			   (device_may_wakeup(&dev->dev)
-			     || (ldev && device_may_wakeup(ldev))) ?
-			       "enabled" : "disabled");
-		if (ldev)
-			seq_printf(seq, "%s:%s",
-				   ldev->bus ? ldev->bus->name : "no-bus",
-				   dev_name(ldev));
-		seq_printf(seq, "\n");
-		put_device(ldev);
+			   (u32) dev->wakeup.sleep_state);
 
+		if (!dev->physical_node_count)
+			seq_printf(seq, "%c%-8s\n",
+				dev->wakeup.flags.run_wake ?
+				'*' : ' ', "disabled");
+		else {
+			struct device *ldev;
+			list_for_each_entry(entry, &dev->physical_node_list,
+					node) {
+				ldev = get_device(entry->dev);
+				if (!ldev)
+					continue;
+
+				if (&entry->node !=
+						dev->physical_node_list.next)
+					seq_printf(seq, "\t\t");
+
+				seq_printf(seq, "%c%-8s  %s:%s\n",
+					dev->wakeup.flags.run_wake ? '*' : ' ',
+					(device_may_wakeup(&dev->dev) ||
+					(ldev && device_may_wakeup(ldev))) ?
+					"enabled" : "disabled",
+					ldev->bus ? ldev->bus->name :
+					"no-bus", dev_name(ldev));
+				put_device(ldev);
+			}
+		}
 	}
 	mutex_unlock(&acpi_device_lock);
 	return 0;
@@ -329,12 +344,14 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
-	struct device *dev = acpi_get_physical_device(adev->handle);
+	struct acpi_device_physical_node *entry;
 
-	if (dev && device_can_wakeup(dev)) {
-		bool enable = !device_may_wakeup(dev);
-		device_set_wakeup_enable(dev, enable);
-	}
+	list_for_each_entry(entry,
+		&adev->physical_node_list, node)
+		if (entry->dev && device_can_wakeup(entry->dev)) {
+			bool enable = !device_may_wakeup(entry->dev);
+			device_set_wakeup_enable(entry->dev, enable);
+		}
 }
 
 static ssize_t

@@ -59,7 +59,9 @@ static int media_device_get_info(struct media_device *dev,
 	info.hw_revision = dev->hw_revision;
 	info.driver_version = dev->driver_version;
 
-	return copy_to_user(__info, &info, sizeof(*__info));
+	if (copy_to_user(__info, &info, sizeof(*__info)))
+		return -EFAULT;
+	return 0;
 }
 
 static struct media_entity *find_entity(struct media_device *mdev, u32 id)

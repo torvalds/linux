@@ -14,18 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
-#include <linux/of.h>
 #include <linux/gpio.h>
-#include <linux/input.h>
-#include <linux/gpio-fan.h>
-#include <linux/leds.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <mach/kirkwood.h>
-#include <mach/bridge-regs.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -67,29 +57,6 @@ static unsigned int dnskw_mpp_config[] __initdata = {
 	0
 };
 
-/* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
-static struct gpio_fan_speed dnskw_fan_speed[] = {
-	{    0,  0 },
-	{ 3000,	 1 },
-	{ 6000,	 2 },
-};
-static unsigned dnskw_fan_pins[] = {46, 45};
-
-static struct gpio_fan_platform_data dnskw_fan_data = {
-	.num_ctrl	= ARRAY_SIZE(dnskw_fan_pins),
-	.ctrl		= dnskw_fan_pins,
-	.num_speed	= ARRAY_SIZE(dnskw_fan_speed),
-	.speed		= dnskw_fan_speed,
-};
-
-static struct platform_device dnskw_fan_device = {
-	.name	= "gpio-fan",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &dnskw_fan_data,
-	},
-};
-
 static void dnskw_power_off(void)
 {
 	gpio_set_value(36, 1);
@@ -113,8 +80,6 @@ void __init dnskw_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
-
-	platform_device_register(&dnskw_fan_device);
 
 	/* Register power-off GPIO. */
 	if (gpio_request(36, "dnskw:power:off") == 0

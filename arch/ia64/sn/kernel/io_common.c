@@ -229,7 +229,6 @@ void sn_pci_fixup_slot(struct pci_dev *dev, struct pcidev_info *pcidev_info,
 {
 	int segment = pci_domain_nr(dev->bus);
 	struct pcibus_bussoft *bs;
-	struct pci_bus *host_pci_bus;
 	struct pci_dev *host_pci_dev;
 	unsigned int bus_no, devfn;
 
@@ -245,8 +244,7 @@ void sn_pci_fixup_slot(struct pci_dev *dev, struct pcidev_info *pcidev_info,
 
 	bus_no = (pcidev_info->pdi_slot_host_handle >> 32) & 0xff;
 	devfn = pcidev_info->pdi_slot_host_handle & 0xffffffff;
- 	host_pci_bus = pci_find_bus(segment, bus_no);
- 	host_pci_dev = pci_get_slot(host_pci_bus, devfn);
+	host_pci_dev = pci_get_domain_bus_and_slot(segment, bus_no, devfn);
 
 	pcidev_info->host_pci_dev = host_pci_dev;
 	pcidev_info->pdi_linux_pcidev = dev;

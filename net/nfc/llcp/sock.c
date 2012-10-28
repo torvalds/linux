@@ -142,6 +142,60 @@ error:
 	return ret;
 }
 
+static int llcp_raw_sock_bind(struct socket *sock, struct sockaddr *addr,
+			      int alen)
+{
+	struct sock *sk = sock->sk;
+	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	struct nfc_llcp_local *local;
+	struct nfc_dev *dev;
+	struct sockaddr_nfc_llcp llcp_addr;
+	int len, ret = 0;
+
+	if (!addr || addr->sa_family != AF_NFC)
+		return -EINVAL;
+
+	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
+
+	memset(&llcp_addr, 0, sizeof(llcp_addr));
+	len = min_t(unsigned int, sizeof(llcp_addr), alen);
+	memcpy(&llcp_addr, addr, len);
+
+	lock_sock(sk);
+
+	if (sk->sk_state != LLCP_CLOSED) {
+		ret = -EBADFD;
+		goto error;
+	}
+
+	dev = nfc_get_device(llcp_addr.dev_idx);
+	if (dev == NULL) {
+		ret = -ENODEV;
+		goto error;
+	}
+
+	local = nfc_llcp_find_local(dev);
+	if (local == NULL) {
+		ret = -ENODEV;
+		goto put_dev;
+	}
+
+	llcp_sock->dev = dev;
+	llcp_sock->local = nfc_llcp_local_get(local);
+	llcp_sock->nfc_protocol = llcp_addr.nfc_protocol;
+
+	nfc_llcp_sock_link(&local->raw_sockets, sk);
+
+	sk->sk_state = LLCP_BOUND;
+
+put_dev:
+	nfc_put_device(dev);
+
+error:
+	release_sock(sk);
+	return ret;
+}
+
 static int llcp_sock_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
@@ -300,9 +354,6 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 	pr_debug("%p %d %d %d\n", sk, llcp_sock->target_idx,
 		 llcp_sock->dsap, llcp_sock->ssap);
 
-	if (llcp_sock == NULL || llcp_sock->dev == NULL)
-		return -EBADFD;
-
 	uaddr->sa_family = AF_NFC;
 
 	*len = sizeof(struct sockaddr_nfc_llcp);
@@ -421,7 +472,10 @@ static int llcp_sock_release(struct socket *sock)
 
 	release_sock(sk);
 
-	nfc_llcp_sock_unlink(&local->sockets, sk);
+	if (sock->type == SOCK_RAW)
+		nfc_llcp_sock_unlink(&local->raw_sockets, sk);
+	else
+		nfc_llcp_sock_unlink(&local->sockets, sk);
 
 out:
 	sock_orphan(sk);
@@ -443,15 +497,11 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	pr_debug("sock %p sk %p flags 0x%x\n", sock, sk, flags);
 
 	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-	    addr->sa_family != AF_NFC) {
-		pr_err("Invalid socket\n");
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
-	}
 
-	if (addr->service_name_len == 0 && addr->dsap == 0) {
-		pr_err("Missing service name or dsap\n");
+	if (addr->service_name_len == 0 && addr->dsap == 0)
 		return -EINVAL;
-	}
 
 	pr_debug("addr dev_idx=%u target_idx=%u protocol=%u\n", addr->dev_idx,
 		 addr->target_idx, addr->nfc_protocol);
@@ -617,7 +667,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!(flags & MSG_PEEK)) {
 
 		/* SOCK_STREAM: re-queue skb if it contains unreceived data */
-		if (sk->sk_type == SOCK_STREAM) {
+		if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_RAW) {
 			skb_pull(skb, copied);
 			if (skb->len) {
 				skb_queue_head(&sk->sk_receive_queue, skb);
@@ -654,6 +704,26 @@ static const struct proto_ops llcp_sock_ops = {
 	.setsockopt     = sock_no_setsockopt,
 	.getsockopt     = sock_no_getsockopt,
 	.sendmsg        = llcp_sock_sendmsg,
+	.recvmsg        = llcp_sock_recvmsg,
+	.mmap           = sock_no_mmap,
+};
+
+static const struct proto_ops llcp_rawsock_ops = {
+	.family         = PF_NFC,
+	.owner          = THIS_MODULE,
+	.bind           = llcp_raw_sock_bind,
+	.connect        = sock_no_connect,
+	.release        = llcp_sock_release,
+	.socketpair     = sock_no_socketpair,
+	.accept         = sock_no_accept,
+	.getname        = llcp_sock_getname,
+	.poll           = llcp_sock_poll,
+	.ioctl          = sock_no_ioctl,
+	.listen         = sock_no_listen,
+	.shutdown       = sock_no_shutdown,
+	.setsockopt     = sock_no_setsockopt,
+	.getsockopt     = sock_no_getsockopt,
+	.sendmsg        = sock_no_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
 	.mmap           = sock_no_mmap,
 };
@@ -735,10 +805,15 @@ static int llcp_sock_create(struct net *net, struct socket *sock,
 
 	pr_debug("%p\n", sock);
 
-	if (sock->type != SOCK_STREAM && sock->type != SOCK_DGRAM)
+	if (sock->type != SOCK_STREAM &&
+	    sock->type != SOCK_DGRAM &&
+	    sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
 
-	sock->ops = &llcp_sock_ops;
+	if (sock->type == SOCK_RAW)
+		sock->ops = &llcp_rawsock_ops;
+	else
+		sock->ops = &llcp_sock_ops;
 
 	sk = nfc_llcp_sock_alloc(sock, sock->type, GFP_ATOMIC);
 	if (sk == NULL)

@@ -72,7 +72,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->maxdata = 1;
@@ -81,7 +81,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DOA;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->maxdata = 1;
@@ -90,7 +90,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DOB;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->maxdata = 1;
@@ -99,7 +99,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DOC;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->maxdata = 1;
@@ -108,7 +108,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DIA;
 
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->maxdata = 1;
@@ -117,7 +117,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DIB;
 
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->maxdata = 1;

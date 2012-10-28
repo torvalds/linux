@@ -317,6 +317,8 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	struct recent_table *t;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
+	kuid_t uid;
+	kgid_t gid;
 #endif
 	unsigned int i;
 	int ret = -EINVAL;
@@ -372,6 +374,13 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
+	uid = make_kuid(&init_user_ns, ip_list_uid);
+	gid = make_kgid(&init_user_ns, ip_list_gid);
+	if (!uid_valid(uid) || !gid_valid(gid)) {
+		kfree(t);
+		ret = -EINVAL;
+		goto out;
+	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
@@ -379,8 +388,8 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		ret = -ENOMEM;
 		goto out;
 	}
-	pde->uid = ip_list_uid;
-	pde->gid = ip_list_gid;
+	pde->uid = uid;
+	pde->gid = gid;
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);

@@ -23,8 +23,8 @@
 #include <asm/mach/arch.h>
 #include <mach/csb726.h>
 #include <mach/pxa27x.h>
-#include <mach/mmc.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/audio.h>
 #include <mach/smemc.h>
 

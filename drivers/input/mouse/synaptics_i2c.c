@@ -376,12 +376,7 @@ static void synaptics_i2c_reschedule_work(struct synaptics_i2c *touch,
 
 	spin_lock_irqsave(&touch->lock, flags);
 
-	/*
-	 * If work is already scheduled then subsequent schedules will not
-	 * change the scheduled time that's why we have to cancel it first.
-	 */
-	__cancel_delayed_work(&touch->dwork);
-	schedule_delayed_work(&touch->dwork, delay);
+	mod_delayed_work(system_wq, &touch->dwork, delay);
 
 	spin_unlock_irqrestore(&touch->lock, flags);
 }

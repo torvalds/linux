@@ -7,8 +7,8 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include "chan.h"
-#include "os.h"
-#include "irq_kern.h"
+#include <os.h>
+#include <irq_kern.h>
 
 #ifdef CONFIG_NOCONFIG_CHAN
 static void *not_configged_init(char *str, int device,

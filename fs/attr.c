@@ -14,6 +14,7 @@
 #include <linux/fcntl.h>
 #include <linux/security.h>
 #include <linux/evm.h>
+#include <linux/ima.h>
 
 /**
  * inode_change_ok - check if attribute changes to an inode are allowed
@@ -247,6 +248,7 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);
+		ima_inode_post_setattr(dentry);
 		evm_inode_post_setattr(dentry, ia_valid);
 	}
 

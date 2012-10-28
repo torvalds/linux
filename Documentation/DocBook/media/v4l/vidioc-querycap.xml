@@ -90,11 +90,13 @@ ambiguities.</entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>bus_info</structfield>[32]</entry>
 	    <entry>Location of the device in the system, a
-NUL-terminated ASCII string. For example: "PCI Slot 4". This
+NUL-terminated ASCII string. For example: "PCI:0000:05:06.0". This
 information is intended for users, to distinguish multiple
-identical devices. If no such information is available the field may
-simply count the devices controlled by the driver, or contain the
-empty string (<structfield>bus_info</structfield>[0] = 0).<!-- XXX pci_dev->slot_name example --></entry>
+identical devices. If no such information is available the field must
+simply count the devices controlled by the driver ("platform:vivi-000").
+The bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI Express boards,
+"usb-" for USB devices, "I2C:" for i2c devices, "ISA:" for ISA devices,
+"parport" for parallel port devices and "platform:" for platform devices.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

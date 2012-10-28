@@ -287,27 +287,28 @@ ENTRY(startup_32_smp)
 	leal -__PAGE_OFFSET(%ecx),%esp
 
 default_entry:
-
 /*
  *	New page tables may be in 4Mbyte page mode and may
  *	be using the global pages. 
  *
  *	NOTE! If we are on a 486 we may have no cr4 at all!
- *	So we do not try to touch it unless we really have
- *	some bits in it to set.  This won't work if the BSP
- *	implements cr4 but this AP does not -- very unlikely
- *	but be warned!  The same applies to the pse feature
- *	if not equally supported. --macro
- *
- *	NOTE! We have to correct for the fact that we're
- *	not yet offset PAGE_OFFSET..
+ *	Specifically, cr4 exists if and only if CPUID exists,
+ *	which in turn exists if and only if EFLAGS.ID exists.
  */
-#define cr4_bits pa(mmu_cr4_features)
-	movl cr4_bits,%edx
-	andl %edx,%edx
-	jz 6f
-	movl %cr4,%eax		# Turn on paging options (PSE,PAE,..)
-	orl %edx,%eax
+	movl $X86_EFLAGS_ID,%ecx
+	pushl %ecx
+	popfl
+	pushfl
+	popl %eax
+	pushl $0
+	popfl
+	pushfl
+	popl %edx
+	xorl %edx,%eax
+	testl %ecx,%eax
+	jz 6f			# No ID flag = no CPUID = no CR4
+
+	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
 
 	testb $X86_CR4_PAE, %al		# check if PAE is enabled

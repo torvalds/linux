@@ -352,13 +352,14 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	struct extent_buffer *eb;
 	struct btrfs_extent_item *ei;
 	struct scrub_warning swarn;
-	u32 item_size;
-	int ret;
-	u64 ref_root;
-	u8 ref_level;
 	unsigned long ptr = 0;
-	const int bufsize = 4096;
 	u64 extent_item_pos;
+	u64 flags = 0;
+	u64 ref_root;
+	u32 item_size;
+	u8 ref_level;
+	const int bufsize = 4096;
+	int ret;
 
 	path = btrfs_alloc_path();
 
@@ -375,7 +376,8 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	if (!path || !swarn.scratch_buf || !swarn.msg_buf)
 		goto out;
 
-	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key);
+	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key,
+				  &flags);
 	if (ret < 0)
 		goto out;
 
@@ -387,7 +389,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
 	btrfs_release_path(path);
 
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		do {
 			ret = tree_backref_for_extent(&ptr, eb, ei, item_size,
 							&ref_root, &ref_level);
@@ -1029,6 +1031,7 @@ static int scrub_setup_recheck_block(struct scrub_dev *sdev,
 				spin_lock(&sdev->stat_lock);
 				sdev->stat.malloc_errors++;
 				spin_unlock(&sdev->stat_lock);
+				kfree(bbio);
 				return -ENOMEM;
 			}
 			sblock->page_count++;
@@ -1664,21 +1667,6 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 		if (atomic_dec_and_test(&sblock->outstanding_pages))
 			scrub_block_complete(sblock);
 		scrub_block_put(sblock);
-	}
-
-	if (sbio->err) {
-		/* what is this good for??? */
-		sbio->bio->bi_flags &= ~(BIO_POOL_MASK - 1);
-		sbio->bio->bi_flags |= 1 << BIO_UPTODATE;
-		sbio->bio->bi_phys_segments = 0;
-		sbio->bio->bi_idx = 0;
-
-		for (i = 0; i < sbio->page_count; i++) {
-			struct bio_vec *bi;
-			bi = &sbio->bio->bi_io_vec[i];
-			bi->bv_offset = 0;
-			bi->bv_len = PAGE_SIZE;
-		}
 	}
 
 	bio_put(sbio->bio);

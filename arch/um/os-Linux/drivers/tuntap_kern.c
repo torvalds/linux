@@ -7,7 +7,7 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <asm/errno.h>
-#include "net_kern.h"
+#include <net_kern.h>
 #include "tuntap.h"
 
 struct tuntap_init {

@@ -41,7 +41,7 @@
 #define RECV_BLK_SZ 512
 #define RECV_BLK_CNT 16
 #define RECV_BLK_TH RECV_BLK_CNT
-#define MAX_RECVBUF_SZ (30720) /* 30K */
+#define MAX_RECVBUF_SZ 9100
 #define RECVBUFF_ALIGN_SZ 512
 #define RSVD_ROOM_SZ (0)
 /*These definition is used for Rx packet reordering.*/

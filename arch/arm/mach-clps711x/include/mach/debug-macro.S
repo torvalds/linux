@@ -28,17 +28,11 @@
 		.endm
 
 		.macro	waituart,rd,rx
-1001:		ldr	\rd, [\rx, #0x0140]	@ SYSFLGx
-		tst	\rd, #1 << 11		@ UBUSYx
-		bne	1001b
 		.endm
 
 		.macro	busyuart,rd,rx
-		tst	\rx, #0x1000		@ UART2 does not have CTS here
-		bne	1002f
 1001:		ldr	\rd, [\rx, #0x0140]	@ SYSFLGx
-		tst	\rd, #1 << 8		@ CTS
+		tst	\rd, #1 << 11		@ UBUSYx
 		bne	1001b
-1002:
 		.endm
 

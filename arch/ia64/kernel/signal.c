@@ -220,7 +220,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	si.si_errno = 0;
 	si.si_code = SI_KERNEL;
 	si.si_pid = task_pid_vnr(current);
-	si.si_uid = current_uid();
+	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 	si.si_addr = sc;
 	force_sig_info(SIGSEGV, &si, current);
 	return retval;
@@ -317,7 +317,7 @@ force_sigsegv_info (int sig, void __user *addr)
 	si.si_errno = 0;
 	si.si_code = SI_KERNEL;
 	si.si_pid = task_pid_vnr(current);
-	si.si_uid = current_uid();
+	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 	si.si_addr = addr;
 	force_sig_info(SIGSEGV, &si, current);
 	return 0;
@@ -436,14 +436,6 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 	siginfo_t info;
 	long restart = in_syscall;
 	long errno = scr->pt.r8;
-
-	/*
-	 * In the ia64_leave_kernel code path, we want the common case to go fast, which
-	 * is why we may in certain cases get here from kernel mode. Just return without
-	 * doing anything if so.
-	 */
-	if (!user_mode(&scr->pt))
-		return;
 
 	/*
 	 * This only loops in the rare cases of handle_signal() failing, in which case we

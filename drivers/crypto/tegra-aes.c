@@ -969,6 +969,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	aes_wq = alloc_workqueue("tegra_aes_wq", WQ_HIGHPRI | WQ_UNBOUND, 1);
 	if (!aes_wq) {
 		dev_err(dev, "alloc_workqueue failed\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -1004,8 +1005,6 @@ static int tegra_aes_probe(struct platform_device *pdev)
 
 	aes_dev = dd;
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
-		INIT_LIST_HEAD(&algs[i].cra_list);
-
 		algs[i].cra_priority = 300;
 		algs[i].cra_ctxsize = sizeof(struct tegra_aes_ctx);
 		algs[i].cra_module = THIS_MODULE;

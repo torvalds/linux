@@ -2473,7 +2473,8 @@ scsi_internal_device_unblock(struct scsi_device *sdev,
 	 * Try to transition the scsi device to SDEV_RUNNING or one of the
 	 * offlined states and goose the device queue if successful.
 	 */
-	if (sdev->sdev_state == SDEV_BLOCK)
+	if ((sdev->sdev_state == SDEV_BLOCK) ||
+	    (sdev->sdev_state == SDEV_TRANSPORT_OFFLINE))
 		sdev->sdev_state = new_state;
 	else if (sdev->sdev_state == SDEV_CREATED_BLOCK) {
 		if (new_state == SDEV_TRANSPORT_OFFLINE ||

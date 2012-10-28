@@ -31,6 +31,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <asm/fsl_ifc.h>
 
+#define FSL_IFC_V1_1_0	0x01010000
 #define ERR_BYTE		0xFF /* Value returned for read
 					bytes when read failed	*/
 #define IFC_TIMEOUT_MSECS	500  /* Maximum number of mSecs to wait
@@ -193,7 +194,7 @@ static int is_blank(struct mtd_info *mtd, unsigned int bufnum)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_ifc_mtd *priv = chip->priv;
 	u8 __iomem *addr = priv->vbase + bufnum * (mtd->writesize * 2);
-	u32 __iomem *mainarea = (u32 *)addr;
+	u32 __iomem *mainarea = (u32 __iomem *)addr;
 	u8 __iomem *oob = addr + mtd->writesize;
 	int i;
 
@@ -591,8 +592,8 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 	 * next byte.
 	 */
 	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
-		data = in_be16((uint16_t *)&ifc_nand_ctrl->
-					addr[ifc_nand_ctrl->index]);
+		data = in_be16((uint16_t __iomem *)&ifc_nand_ctrl->
+			       addr[ifc_nand_ctrl->index]);
 		ifc_nand_ctrl->index += 2;
 		return (uint8_t) data;
 	}
@@ -624,46 +625,6 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 		dev_err(priv->dev,
 			"%s: beyond end of buffer (%d requested, %d available)\n",
 			__func__, len, avail);
-}
-
-/*
- * Verify buffer against the IFC Controller Data Buffer
- */
-static int fsl_ifc_verify_buf(struct mtd_info *mtd,
-			       const u_char *buf, int len)
-{
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
-	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
-	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
-	int i;
-
-	if (len < 0) {
-		dev_err(priv->dev, "%s: write_buf of %d bytes", __func__, len);
-		return -EINVAL;
-	}
-
-	if ((unsigned int)len > nctrl->read_bytes - nctrl->index) {
-		dev_err(priv->dev,
-			"%s: beyond end of buffer (%d requested, %u available)\n",
-			__func__, len, nctrl->read_bytes - nctrl->index);
-
-		nctrl->index = nctrl->read_bytes;
-		return -EINVAL;
-	}
-
-	for (i = 0; i < len; i++)
-		if (in_8(&nctrl->addr[nctrl->index + i]) != buf[i])
-			break;
-
-	nctrl->index += len;
-
-	if (i != len)
-		return -EIO;
-	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
-		return -EIO;
-
-	return 0;
 }
 
 /*
@@ -721,11 +682,13 @@ static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 /* ECC will be calculated automatically, and errors will be detected in
  * waitfunc.
  */
-static void fsl_ifc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+static int fsl_ifc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			       const uint8_t *buf, int oob_required)
 {
 	fsl_ifc_write_buf(mtd, buf, mtd->writesize);
 	fsl_ifc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
 }
 
 static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
@@ -773,13 +736,62 @@ static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
 	return 0;
 }
 
+static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
+{
+	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
+	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
+	uint32_t csor = 0, csor_8k = 0, csor_ext = 0;
+	uint32_t cs = priv->bank;
+
+	/* Save CSOR and CSOR_ext */
+	csor = in_be32(&ifc->csor_cs[cs].csor);
+	csor_ext = in_be32(&ifc->csor_cs[cs].csor_ext);
+
+	/* chage PageSize 8K and SpareSize 1K*/
+	csor_8k = (csor & ~(CSOR_NAND_PGS_MASK)) | 0x0018C000;
+	out_be32(&ifc->csor_cs[cs].csor, csor_8k);
+	out_be32(&ifc->csor_cs[cs].csor_ext, 0x0000400);
+
+	/* READID */
+	out_be32(&ifc->ifc_nand.nand_fir0,
+			(IFC_FIR_OP_CMD0 << IFC_NAND_FIR0_OP0_SHIFT) |
+			(IFC_FIR_OP_UA  << IFC_NAND_FIR0_OP1_SHIFT) |
+			(IFC_FIR_OP_RB << IFC_NAND_FIR0_OP2_SHIFT));
+	out_be32(&ifc->ifc_nand.nand_fcr0,
+			NAND_CMD_READID << IFC_NAND_FCR0_CMD0_SHIFT);
+	out_be32(&ifc->ifc_nand.row3, 0x0);
+
+	out_be32(&ifc->ifc_nand.nand_fbcr, 0x0);
+
+	/* Program ROW0/COL0 */
+	out_be32(&ifc->ifc_nand.row0, 0x0);
+	out_be32(&ifc->ifc_nand.col0, 0x0);
+
+	/* set the chip select for NAND Transaction */
+	out_be32(&ifc->ifc_nand.nand_csel, cs << IFC_NAND_CSEL_SHIFT);
+
+	/* start read seq */
+	out_be32(&ifc->ifc_nand.nandseq_strt, IFC_NAND_SEQ_STRT_FIR_STRT);
+
+	/* wait for command complete flag or timeout */
+	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
+			   IFC_TIMEOUT_MSECS * HZ/1000);
+
+	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
+		printk(KERN_ERR "fsl-ifc: Failed to Initialise SRAM\n");
+
+	/* Restore CSOR and CSOR_ext */
+	out_be32(&ifc->csor_cs[cs].csor, csor);
+	out_be32(&ifc->csor_cs[cs].csor_ext, csor_ext);
+}
+
 static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 {
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	struct nand_chip *chip = &priv->chip;
 	struct nand_ecclayout *layout;
-	u32 csor;
+	u32 csor, ver;
 
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
@@ -794,7 +806,6 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	chip->write_buf = fsl_ifc_write_buf;
 	chip->read_buf = fsl_ifc_read_buf;
-	chip->verify_buf = fsl_ifc_verify_buf;
 	chip->select_chip = fsl_ifc_select_chip;
 	chip->cmdfunc = fsl_ifc_cmdfunc;
 	chip->waitfunc = fsl_ifc_wait;
@@ -805,7 +816,6 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	out_be32(&ifc->ifc_nand.ncfgr, 0x0);
 
 	/* set up nand options */
-	chip->options = NAND_NO_READRDY;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 
@@ -873,6 +883,10 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
+
+	ver = in_be32(&ifc->ifc_rev);
+	if (ver == FSL_IFC_V1_1_0)
+		fsl_ifc_sram_init(priv);
 
 	return 0;
 }

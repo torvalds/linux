@@ -13,7 +13,7 @@ imx5-pm-$(CONFIG_PM) += pm-imx5.o
 obj-$(CONFIG_SOC_IMX5) += cpu-imx5.o mm-imx5.o clk-imx51-imx53.o ehci-imx5.o $(imx5-pm-y) cpu_op-mx51.o
 
 obj-$(CONFIG_COMMON_CLK) += clk-pllv1.o clk-pllv2.o clk-pllv3.o clk-gate2.o \
-			    clk-pfd.o clk-busy.o
+			    clk-pfd.o clk-busy.o clk.o
 
 # Support for CMOS sensor interface
 obj-$(CONFIG_MX1_VIDEO) += mx1-camera-fiq.o mx1-camera-fiq-ksym.o
@@ -83,16 +83,9 @@ endif
 # i.MX5 based machines
 obj-$(CONFIG_MACH_MX51_BABBAGE) += mach-mx51_babbage.o
 obj-$(CONFIG_MACH_MX51_3DS) += mach-mx51_3ds.o
-obj-$(CONFIG_MACH_MX53_EVK) += mach-mx53_evk.o
-obj-$(CONFIG_MACH_MX53_SMD) += mach-mx53_smd.o
-obj-$(CONFIG_MACH_MX53_LOCO) += mach-mx53_loco.o
-obj-$(CONFIG_MACH_MX53_ARD) += mach-mx53_ard.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX51SD) += mach-cpuimx51sd.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD51_BASEBOARD) += eukrea_mbimxsd51-baseboard.o
-obj-$(CONFIG_MX51_EFIKA_COMMON) += mx51_efika.o
-obj-$(CONFIG_MACH_MX51_EFIKAMX) += mach-mx51_efikamx.o
-obj-$(CONFIG_MACH_MX51_EFIKASB) += mach-mx51_efikasb.o
 obj-$(CONFIG_MACH_MX50_RDP) += mach-mx50_rdp.o
 
 obj-$(CONFIG_MACH_IMX51_DT) += imx51-dt.o
-obj-$(CONFIG_MACH_IMX53_DT) += imx53-dt.o
+obj-$(CONFIG_SOC_IMX53) += mach-imx53.o

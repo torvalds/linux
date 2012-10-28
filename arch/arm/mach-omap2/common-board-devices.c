@@ -24,9 +24,10 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/mcspi.h>
-#include <plat/nand.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 
+#include "common.h"
 #include "common-board-devices.h"
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
@@ -119,8 +120,7 @@ void __init omap_nand_flash_init(int options, struct mtd_partition *parts,
 	}
 
 	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
+		pr_info("NAND: Unable to find configuration in GPMC\n");
 		return;
 	}
 

@@ -1,165 +1,117 @@
 /*
- * arch/arm/mach-shark/leds.c
- * by Alexander Schulz
- *
- * derived from:
- * arch/arm/kernel/leds-footbridge.c
- * Copyright (C) 1998-1999 Russell King
- *
  * DIGITAL Shark LED control routines.
  *
- * The leds use is as follows:
- *  - Green front - toggles state every 50 timer interrupts
- *  - Amber front - Unused, this is a dual color led (Amber/Green)
- *  - Amber back  - On if system is not idle
+ * Driver for the 3 user LEDs found on the Shark
+ * Based on Versatile and RealView machine LED code
  *
- * Changelog:
+ * License terms: GNU General Public License (GPL) version 2
+ * Author: Bryan Wu <bryan.wu@canonical.com>
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/ioport.h>
 #include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
-#include <asm/leds.h>
+#include <asm/mach-types.h>
 
-#define LED_STATE_ENABLED	1
-#define LED_STATE_CLAIMED	2
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct shark_led {
+	struct led_classdev cdev;
+	u8 mask;
+};
 
-#define SEQUOIA_LED_GREEN       (1<<6)
-#define SEQUOIA_LED_AMBER       (1<<5)
-#define SEQUOIA_LED_BACK        (1<<7)
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} shark_leds[] = {
+	{ "shark:amber0", "default-on", },	/* Bit 5 */
+	{ "shark:green", "heartbeat", },	/* Bit 6 */
+	{ "shark:amber1", "cpu0" },		/* Bit 7 */
+};
 
-static char led_state;
-static short hw_led_state;
-static short saved_state;
-
-static DEFINE_RAW_SPINLOCK(leds_lock);
-
-short sequoia_read(int addr) {
-  outw(addr,0x24);
-  return inw(0x26);
-}
-
-void sequoia_write(short value,short addr) {
-  outw(addr,0x24);
-  outw(value,0x26);
-}
-
-static void sequoia_leds_event(led_event_t evt)
+static u16 led_reg_read(void)
 {
-	unsigned long flags;
+	outw(0x09, 0x24);
+	return inw(0x26);
+}
 
-	raw_spin_lock_irqsave(&leds_lock, flags);
+static void led_reg_write(u16 value)
+{
+	outw(0x09, 0x24);
+	outw(value, 0x26);
+}
 
-	hw_led_state = sequoia_read(0x09);
+static void shark_led_set(struct led_classdev *cdev,
+			      enum led_brightness b)
+{
+	struct shark_led *led = container_of(cdev,
+						 struct shark_led, cdev);
+	u16 reg = led_reg_read();
 
-	switch (evt) {
-	case led_start:
-		hw_led_state |= SEQUOIA_LED_GREEN;
-		hw_led_state |= SEQUOIA_LED_AMBER;
-#ifdef CONFIG_LEDS_CPU
-		hw_led_state |= SEQUOIA_LED_BACK;
-#else
-		hw_led_state &= ~SEQUOIA_LED_BACK;
-#endif
-		led_state |= LED_STATE_ENABLED;
-		break;
+	if (b != LED_OFF)
+		reg |= led->mask;
+	else
+		reg &= ~led->mask;
 
-	case led_stop:
-		hw_led_state &= ~SEQUOIA_LED_BACK;
-		hw_led_state |= SEQUOIA_LED_GREEN;
-		hw_led_state |= SEQUOIA_LED_AMBER;
-		led_state &= ~LED_STATE_ENABLED;
-		break;
+	led_reg_write(reg);
+}
 
-	case led_claim:
-		led_state |= LED_STATE_CLAIMED;
-		saved_state = hw_led_state;
-		hw_led_state &= ~SEQUOIA_LED_BACK;
-		hw_led_state |= SEQUOIA_LED_GREEN;
-		hw_led_state |= SEQUOIA_LED_AMBER;
-		break;
+static enum led_brightness shark_led_get(struct led_classdev *cdev)
+{
+	struct shark_led *led = container_of(cdev,
+						 struct shark_led, cdev);
+	u16 reg = led_reg_read();
 
-	case led_release:
-		led_state &= ~LED_STATE_CLAIMED;
-		hw_led_state = saved_state;
-		break;
+	return (reg & led->mask) ? LED_FULL : LED_OFF;
+}
 
-#ifdef CONFIG_LEDS_TIMER
-	case led_timer:
-		if (!(led_state & LED_STATE_CLAIMED))
-			hw_led_state ^= SEQUOIA_LED_GREEN;
-		break;
-#endif
+static int __init shark_leds_init(void)
+{
+	int i;
+	u16 reg;
 
-#ifdef CONFIG_LEDS_CPU
-	case led_idle_start:
-		if (!(led_state & LED_STATE_CLAIMED))
-			hw_led_state &= ~SEQUOIA_LED_BACK;
-		break;
+	if (!machine_is_shark())
+		return -ENODEV;
 
-	case led_idle_end:
-		if (!(led_state & LED_STATE_CLAIMED))
-			hw_led_state |= SEQUOIA_LED_BACK;
-		break;
-#endif
+	for (i = 0; i < ARRAY_SIZE(shark_leds); i++) {
+		struct shark_led *led;
 
-	case led_green_on:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state &= ~SEQUOIA_LED_GREEN;
-		break;
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
 
-	case led_green_off:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state |= SEQUOIA_LED_GREEN;
-		break;
+		led->cdev.name = shark_leds[i].name;
+		led->cdev.brightness_set = shark_led_set;
+		led->cdev.brightness_get = shark_led_get;
+		led->cdev.default_trigger = shark_leds[i].trigger;
 
-	case led_amber_on:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state &= ~SEQUOIA_LED_AMBER;
-		break;
+		/* Count in 5 bits offset */
+		led->mask = BIT(i + 5);
 
-	case led_amber_off:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state |= SEQUOIA_LED_AMBER;
-		break;
-
-	case led_red_on:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state |= SEQUOIA_LED_BACK;
-		break;
-
-	case led_red_off:
-		if (led_state & LED_STATE_CLAIMED)
-			hw_led_state &= ~SEQUOIA_LED_BACK;
-		break;
-
-	default:
-		break;
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
 	}
 
-	if  (led_state & LED_STATE_ENABLED)
-		sequoia_write(hw_led_state,0x09);
-
-	raw_spin_unlock_irqrestore(&leds_lock, flags);
-}
-
-static int __init leds_init(void)
-{
-	extern void (*leds_event)(led_event_t);
-	short temp;
-	
-	leds_event = sequoia_leds_event;
-
 	/* Make LEDs independent of power-state */
-	request_region(0x24,4,"sequoia");
-	temp = sequoia_read(0x09);
-	temp |= 1<<10;
-	sequoia_write(temp,0x09);
-	leds_event(led_start);
+	request_region(0x24, 4, "led_reg");
+	reg = led_reg_read();
+	reg |= 1 << 10;
+	led_reg_write(reg);
+
 	return 0;
 }
 
-__initcall(leds_init);
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(shark_leds_init);
+#endif

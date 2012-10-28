@@ -203,10 +203,7 @@ struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *actions)
 	int actions_len = nla_len(actions);
 	struct sw_flow_actions *sfa;
 
-	/* At least DP_MAX_PORTS actions are required to be able to flood a
-	 * packet to every port.  Factor of 2 allows for setting VLAN tags,
-	 * etc. */
-	if (actions_len > 2 * DP_MAX_PORTS * nla_total_size(4))
+	if (actions_len > MAX_ACTIONS_BUFSIZE)
 		return ERR_PTR(-EINVAL);
 
 	sfa = kmalloc(sizeof(*sfa) + actions_len, GFP_KERNEL);
@@ -427,19 +424,11 @@ void ovs_flow_deferred_free(struct sw_flow *flow)
 	call_rcu(&flow->rcu, rcu_free_flow_callback);
 }
 
-/* RCU callback used by ovs_flow_deferred_free_acts. */
-static void rcu_free_acts_callback(struct rcu_head *rcu)
-{
-	struct sw_flow_actions *sf_acts = container_of(rcu,
-			struct sw_flow_actions, rcu);
-	kfree(sf_acts);
-}
-
 /* Schedules 'sf_acts' to be freed after the next RCU grace period.
  * The caller must hold rcu_read_lock for this to be sensible. */
 void ovs_flow_deferred_free_acts(struct sw_flow_actions *sf_acts)
 {
-	call_rcu(&sf_acts->rcu, rcu_free_acts_callback);
+	kfree_rcu(sf_acts, rcu);
 }
 
 static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
@@ -1000,7 +989,7 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 		swkey->phy.in_port = in_port;
 		attrs &= ~(1 << OVS_KEY_ATTR_IN_PORT);
 	} else {
-		swkey->phy.in_port = USHRT_MAX;
+		swkey->phy.in_port = DP_MAX_PORTS;
 	}
 
 	/* Data attributes. */
@@ -1143,7 +1132,7 @@ int ovs_flow_metadata_from_nlattrs(u32 *priority, u16 *in_port,
 	const struct nlattr *nla;
 	int rem;
 
-	*in_port = USHRT_MAX;
+	*in_port = DP_MAX_PORTS;
 	*priority = 0;
 
 	nla_for_each_nested(nla, attr, rem) {
@@ -1180,7 +1169,7 @@ int ovs_flow_to_nlattrs(const struct sw_flow_key *swkey, struct sk_buff *skb)
 	    nla_put_u32(skb, OVS_KEY_ATTR_PRIORITY, swkey->phy.priority))
 		goto nla_put_failure;
 
-	if (swkey->phy.in_port != USHRT_MAX &&
+	if (swkey->phy.in_port != DP_MAX_PORTS &&
 	    nla_put_u32(skb, OVS_KEY_ATTR_IN_PORT, swkey->phy.in_port))
 		goto nla_put_failure;
 

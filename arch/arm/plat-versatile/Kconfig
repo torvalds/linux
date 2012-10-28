@@ -16,8 +16,10 @@ config PLAT_VERSATILE_FPGA_IRQ_NR
        depends on PLAT_VERSATILE_FPGA_IRQ
 
 config PLAT_VERSATILE_LEDS
-	def_bool y if LEDS_CLASS
+	def_bool y if NEW_LEDS
 	depends on ARCH_REALVIEW || ARCH_VERSATILE
+	select LEDS_CLASS
+	select LEDS_TRIGGER
 
 config PLAT_VERSATILE_SCHED_CLOCK
 	def_bool y

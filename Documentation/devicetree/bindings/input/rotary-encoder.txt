@@ -1,0 +1,36 @@
+Rotary encoder DT bindings
+
+Required properties:
+- gpios: a spec for two GPIOs to be used
+
+Optional properties:
+- linux,axis: the input subsystem axis to map to this rotary encoder.
+  Defaults to 0 (ABS_X / REL_X)
+- rotary-encoder,steps: Number of steps in a full turnaround of the
+  encoder. Only relevant for absolute axis. Defaults to 24 which is a
+  typical value for such devices.
+- rotary-encoder,relative-axis: register a relative axis rather than an
+  absolute one. Relative axis will only generate +1/-1 events on the input
+  device, hence no steps need to be passed.
+- rotary-encoder,rollover: Automatic rollove when the rotary value becomes
+  greater than the specified steps or smaller than 0. For absolute axis only.
+- rotary-encoder,half-period: Makes the driver work on half-period mode.
+
+See Documentation/input/rotary-encoder.txt for more information.
+
+Example:
+
+		rotary@0 {
+			compatible = "rotary-encoder";
+			gpios = <&gpio 19 1>, <&gpio 20 0>; /* GPIO19 is inverted */
+			linux,axis = <0>; /* REL_X */
+			rotary-encoder,relative-axis;
+		};
+
+		rotary@1 {
+			compatible = "rotary-encoder";
+			gpios = <&gpio 21 0>, <&gpio 22 0>;
+			linux,axis = <1>; /* ABS_Y */
+			rotary-encoder,steps = <24>;
+			rotary-encoder,rollover;
+		};

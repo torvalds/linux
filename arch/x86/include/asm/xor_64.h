@@ -34,41 +34,7 @@
  * no advantages to be gotten from x86-64 here anyways.
  */
 
-typedef struct {
-	unsigned long a, b;
-} __attribute__((aligned(16))) xmm_store_t;
-
-/* Doesn't use gcc to save the XMM registers, because there is no easy way to
-   tell it to do a clts before the register saving. */
-#define XMMS_SAVE				\
-do {						\
-	preempt_disable();			\
-	asm volatile(				\
-		"movq %%cr0,%0		;\n\t"	\
-		"clts			;\n\t"	\
-		"movups %%xmm0,(%1)	;\n\t"	\
-		"movups %%xmm1,0x10(%1)	;\n\t"	\
-		"movups %%xmm2,0x20(%1)	;\n\t"	\
-		"movups %%xmm3,0x30(%1)	;\n\t"	\
-		: "=&r" (cr0)			\
-		: "r" (xmm_save) 		\
-		: "memory");			\
-} while (0)
-
-#define XMMS_RESTORE				\
-do {						\
-	asm volatile(				\
-		"sfence			;\n\t"	\
-		"movups (%1),%%xmm0	;\n\t"	\
-		"movups 0x10(%1),%%xmm1	;\n\t"	\
-		"movups 0x20(%1),%%xmm2	;\n\t"	\
-		"movups 0x30(%1),%%xmm3	;\n\t"	\
-		"movq 	%0,%%cr0	;\n\t"	\
-		:				\
-		: "r" (cr0), "r" (xmm_save)	\
-		: "memory");			\
-	preempt_enable();			\
-} while (0)
+#include <asm/i387.h>
 
 #define OFFS(x)		"16*("#x")"
 #define PF_OFFS(x)	"256+16*("#x")"
@@ -91,10 +57,8 @@ static void
 xor_sse_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 {
 	unsigned int lines = bytes >> 8;
-	unsigned long cr0;
-	xmm_store_t xmm_save[4];
 
-	XMMS_SAVE;
+	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -135,7 +99,7 @@ xor_sse_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 	: [inc] "r" (256UL)
 	: "memory");
 
-	XMMS_RESTORE;
+	kernel_fpu_end();
 }
 
 static void
@@ -143,11 +107,8 @@ xor_sse_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	  unsigned long *p3)
 {
 	unsigned int lines = bytes >> 8;
-	xmm_store_t xmm_save[4];
-	unsigned long cr0;
 
-	XMMS_SAVE;
-
+	kernel_fpu_begin();
 	asm volatile(
 #undef BLOCK
 #define BLOCK(i) \
@@ -194,7 +155,7 @@ xor_sse_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	  [p1] "+r" (p1), [p2] "+r" (p2), [p3] "+r" (p3)
 	: [inc] "r" (256UL)
 	: "memory");
-	XMMS_RESTORE;
+	kernel_fpu_end();
 }
 
 static void
@@ -202,10 +163,8 @@ xor_sse_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	  unsigned long *p3, unsigned long *p4)
 {
 	unsigned int lines = bytes >> 8;
-	xmm_store_t xmm_save[4];
-	unsigned long cr0;
 
-	XMMS_SAVE;
+	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -261,7 +220,7 @@ xor_sse_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	: [inc] "r" (256UL)
 	: "memory" );
 
-	XMMS_RESTORE;
+	kernel_fpu_end();
 }
 
 static void
@@ -269,10 +228,8 @@ xor_sse_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	  unsigned long *p3, unsigned long *p4, unsigned long *p5)
 {
 	unsigned int lines = bytes >> 8;
-	xmm_store_t xmm_save[4];
-	unsigned long cr0;
 
-	XMMS_SAVE;
+	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -336,7 +293,7 @@ xor_sse_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	: [inc] "r" (256UL)
 	: "memory");
 
-	XMMS_RESTORE;
+	kernel_fpu_end();
 }
 
 static struct xor_block_template xor_block_sse = {
@@ -349,7 +306,7 @@ static struct xor_block_template xor_block_sse = {
 
 
 /* Also try the AVX routines */
-#include "xor_avx.h"
+#include <asm/xor_avx.h>
 
 #undef XOR_TRY_TEMPLATES
 #define XOR_TRY_TEMPLATES			\

@@ -20,13 +20,10 @@
  * Authors: Rafał Miłecki <zajec5@gmail.com>
  *          Alex Deucher <alexdeucher@gmail.com>
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "avivod.h"
 #include "atom.h"
-#ifdef CONFIG_ACPI
-#include <linux/acpi.h>
-#endif
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -36,7 +33,7 @@
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 
 static const char *radeon_pm_state_type_name[5] = {
-	"Default",
+	"",
 	"Powersave",
 	"Battery",
 	"Balanced",
@@ -49,8 +46,6 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev);
 static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_update_profile(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
-
-#define ACPI_AC_CLASS           "ac_adapter"
 
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,
@@ -70,33 +65,17 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 	return rdev->pm.default_power_state_index;
 }
 
-#ifdef CONFIG_ACPI
-static int radeon_acpi_event(struct notifier_block *nb,
-			     unsigned long val,
-			     void *data)
+void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 {
-	struct radeon_device *rdev = container_of(nb, struct radeon_device, acpi_nb);
-	struct acpi_bus_event *entry = (struct acpi_bus_event *)data;
-
-	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
-		if (power_supply_is_system_supplied() > 0)
-			DRM_DEBUG_DRIVER("pm: AC\n");
-		else
-			DRM_DEBUG_DRIVER("pm: DC\n");
-
-		if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
-			if (rdev->pm.profile == PM_PROFILE_AUTO) {
-				mutex_lock(&rdev->pm.mutex);
-				radeon_pm_update_profile(rdev);
-				radeon_pm_set_clocks(rdev);
-				mutex_unlock(&rdev->pm.mutex);
-			}
+	if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
+		if (rdev->pm.profile == PM_PROFILE_AUTO) {
+			mutex_lock(&rdev->pm.mutex);
+			radeon_pm_update_profile(rdev);
+			radeon_pm_set_clocks(rdev);
+			mutex_unlock(&rdev->pm.mutex);
 		}
 	}
-
-	return NOTIFY_OK;
 }
-#endif
 
 static void radeon_pm_update_profile(struct radeon_device *rdev)
 {
@@ -188,8 +167,21 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		if (sclk > rdev->pm.default_sclk)
 			sclk = rdev->pm.default_sclk;
 
-		mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
-			clock_info[rdev->pm.requested_clock_mode_index].mclk;
+		/* starting with BTC, there is one state that is used for both
+		 * MH and SH.  Difference is that we always use the high clock index for
+		 * mclk.
+		 */
+		if ((rdev->pm.pm_method == PM_METHOD_PROFILE) &&
+		    (rdev->family >= CHIP_BARTS) &&
+		    rdev->pm.active_crtc_count &&
+		    ((rdev->pm.profile_index == PM_PROFILE_MID_MH_IDX) ||
+		     (rdev->pm.profile_index == PM_PROFILE_LOW_MH_IDX)))
+			mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
+				clock_info[rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx].mclk;
+		else
+			mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
+				clock_info[rdev->pm.requested_clock_mode_index].mclk;
+
 		if (mclk > rdev->pm.default_mclk)
 			mclk = rdev->pm.default_mclk;
 
@@ -253,18 +245,13 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
-	/* gui idle int has issues on older chips it seems */
-	if (rdev->family >= CHIP_R600) {
-		if (rdev->irq.installed) {
-			/* wait for GPU to become idle */
-			radeon_irq_kms_wait_gui_idle(rdev);
-		}
-	} else {
-		struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-		if (ring->ready) {
-			radeon_fence_wait_empty_locked(rdev, RADEON_RING_TYPE_GFX_INDEX);
-		}
+	/* wait for the rings to drain */
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		struct radeon_ring *ring = &rdev->ring[i];
+		if (ring->ready)
+			radeon_fence_wait_empty_locked(rdev, i);
 	}
+
 	radeon_unmap_vram_bos(rdev);
 
 	if (rdev->irq.installed) {
@@ -320,17 +307,15 @@ static void radeon_pm_print_states(struct radeon_device *rdev)
 		for (j = 0; j < power_state->num_clock_modes; j++) {
 			clock_info = &(power_state->clock_info[j]);
 			if (rdev->flags & RADEON_IS_IGP)
-				DRM_DEBUG_DRIVER("\t\t%d e: %d%s\n",
-					j,
-					clock_info->sclk * 10,
-					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+				DRM_DEBUG_DRIVER("\t\t%d e: %d\n",
+						 j,
+						 clock_info->sclk * 10);
 			else
-				DRM_DEBUG_DRIVER("\t\t%d e: %d\tm: %d\tv: %d%s\n",
-					j,
-					clock_info->sclk * 10,
-					clock_info->mclk * 10,
-					clock_info->voltage.voltage,
-					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+				DRM_DEBUG_DRIVER("\t\t%d e: %d\tm: %d\tv: %d\n",
+						 j,
+						 clock_info->sclk * 10,
+						 clock_info->mclk * 10,
+						 clock_info->voltage.voltage);
 		}
 	}
 }
@@ -547,7 +532,9 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 void radeon_pm_resume(struct radeon_device *rdev)
 {
 	/* set up the default clocks if the MC ucode is loaded */
-	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+	if ((rdev->family >= CHIP_BARTS) &&
+	    (rdev->family <= CHIP_CAYMAN) &&
+	    rdev->mc_fw) {
 		if (rdev->pm.default_vddc)
 			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
 						SET_VOLTAGE_TYPE_ASIC_VDDC);
@@ -602,7 +589,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 		radeon_pm_print_states(rdev);
 		radeon_pm_init_profile(rdev);
 		/* set up the default clocks if the MC ucode is loaded */
-		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+		if ((rdev->family >= CHIP_BARTS) &&
+		    (rdev->family <= CHIP_CAYMAN) &&
+		    rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
 				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
 							SET_VOLTAGE_TYPE_ASIC_VDDC);
@@ -632,10 +621,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 		if (ret)
 			DRM_ERROR("failed to create device file for power method\n");
 
-#ifdef CONFIG_ACPI
-		rdev->acpi_nb.notifier_call = radeon_acpi_event;
-		register_acpi_notifier(&rdev->acpi_nb);
-#endif
 		if (radeon_debugfs_pm_init(rdev)) {
 			DRM_ERROR("Failed to register debugfs file for PM!\n");
 		}
@@ -666,9 +651,6 @@ void radeon_pm_fini(struct radeon_device *rdev)
 
 		device_remove_file(rdev->dev, &dev_attr_power_profile);
 		device_remove_file(rdev->dev, &dev_attr_power_method);
-#ifdef CONFIG_ACPI
-		unregister_acpi_notifier(&rdev->acpi_nb);
-#endif
 	}
 
 	if (rdev->pm.power_state)

@@ -6,7 +6,7 @@
 #ifndef __CHAN_USER_H__
 #define __CHAN_USER_H__
 
-#include "init.h"
+#include <init.h>
 
 struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);

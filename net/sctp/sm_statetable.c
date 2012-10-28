@@ -59,7 +59,8 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES];
 static const sctp_sm_table_entry_t
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES];
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(sctp_cid_t cid,
+static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
+							    sctp_cid_t cid,
 							    sctp_state_t state);
 
 
@@ -82,13 +83,14 @@ static const sctp_sm_table_entry_t bug = {
 	rtn;								\
 })
 
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
+						  sctp_event_t event_type,
 						  sctp_state_t state,
 						  sctp_subtype_t event_subtype)
 {
 	switch (event_type) {
 	case SCTP_EVENT_T_CHUNK:
-		return sctp_chunk_event_lookup(event_subtype.chunk, state);
+		return sctp_chunk_event_lookup(net, event_subtype.chunk, state);
 	case SCTP_EVENT_T_TIMEOUT:
 		return DO_LOOKUP(SCTP_EVENT_TIMEOUT_MAX, timeout,
 				 timeout_event_table);
@@ -906,7 +908,8 @@ static const sctp_sm_table_entry_t timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][S
 	TYPE_SCTP_EVENT_TIMEOUT_AUTOCLOSE,
 };
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(sctp_cid_t cid,
+static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
+							    sctp_cid_t cid,
 							    sctp_state_t state)
 {
 	if (state > SCTP_STATE_MAX)
@@ -915,12 +918,12 @@ static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(sctp_cid_t cid,
 	if (cid <= SCTP_CID_BASE_MAX)
 		return &chunk_event_table[cid][state];
 
-	if (sctp_prsctp_enable) {
+	if (net->sctp.prsctp_enable) {
 		if (cid == SCTP_CID_FWD_TSN)
 			return &prsctp_chunk_event_table[0][state];
 	}
 
-	if (sctp_addip_enable) {
+	if (net->sctp.addip_enable) {
 		if (cid == SCTP_CID_ASCONF)
 			return &addip_chunk_event_table[0][state];
 
@@ -928,7 +931,7 @@ static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(sctp_cid_t cid,
 			return &addip_chunk_event_table[1][state];
 	}
 
-	if (sctp_auth_enable) {
+	if (net->sctp.auth_enable) {
 		if (cid == SCTP_CID_AUTH)
 			return &auth_chunk_event_table[0][state];
 	}

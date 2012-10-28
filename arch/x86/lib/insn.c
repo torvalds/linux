@@ -18,7 +18,11 @@
  * Copyright (C) IBM Corporation, 2002, 2004, 2009
  */
 
+#ifdef __KERNEL__
 #include <linux/string.h>
+#else
+#include <string.h>
+#endif
 #include <asm/inat.h>
 #include <asm/insn.h>
 

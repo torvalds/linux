@@ -418,8 +418,8 @@ config APPLICOM
 	  If unsure, say N.
 
 config SONYPI
-	tristate "Sony Vaio Programmable I/O Control Device support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && X86 && PCI && INPUT && !64BIT
+	tristate "Sony Vaio Programmable I/O Control Device support"
+	depends on X86 && PCI && INPUT && !64BIT
 	---help---
 	  This driver enables access to the Sony Programmable I/O Control
 	  Device which can be found in many (all ?) Sony Vaio laptops.
@@ -566,7 +566,7 @@ source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK
 	tristate "Telecom clock driver for ATCA SBC"
-	depends on EXPERIMENTAL && X86
+	depends on X86
 	default n
 	help
 	  The telecom clock device is specific to the MPCBL0010 and MPCBL0050

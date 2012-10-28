@@ -16,10 +16,10 @@
 #include "session.h"
 #include "tool.h"
 
-static int build_id__mark_dso_hit(struct perf_tool *tool __used,
+static int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 				  union perf_event *event,
-				  struct perf_sample *sample __used,
-				  struct perf_evsel *evsel __used,
+				  struct perf_sample *sample __maybe_unused,
+				  struct perf_evsel *evsel __maybe_unused,
 				  struct machine *machine)
 {
 	struct addr_location al;
@@ -41,9 +41,10 @@ static int build_id__mark_dso_hit(struct perf_tool *tool __used,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(struct perf_tool *tool __used,
+static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 				       union perf_event *event,
-				       struct perf_sample *sample __used,
+				       struct perf_sample *sample
+				       __maybe_unused,
 				       struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);

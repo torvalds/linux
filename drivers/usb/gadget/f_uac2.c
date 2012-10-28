@@ -463,7 +463,7 @@ snd_fail:
 	return err;
 }
 
-static int __devexit snd_uac2_remove(struct platform_device *pdev)
+static int snd_uac2_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 

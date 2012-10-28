@@ -26,7 +26,7 @@
 
 #include <asm/irq.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 
 #include <mach/usb.h>
 

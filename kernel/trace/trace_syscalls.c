@@ -487,7 +487,7 @@ int __init init_ftrace_syscalls(void)
 
 	return 0;
 }
-core_initcall(init_ftrace_syscalls);
+early_initcall(init_ftrace_syscalls);
 
 #ifdef CONFIG_PERF_EVENTS
 

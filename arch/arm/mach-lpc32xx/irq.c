@@ -283,30 +283,31 @@ static int lpc32xx_set_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_RISING:
 		/* Rising edge sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 1, 1);
+		__irq_set_handler_locked(d->hwirq, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
 		/* Falling edge sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 0, 1);
+		__irq_set_handler_locked(d->hwirq, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
 		/* Low level sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 0, 0);
+		__irq_set_handler_locked(d->hwirq, handle_level_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		/* High level sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 1, 0);
+		__irq_set_handler_locked(d->hwirq, handle_level_irq);
 		break;
 
 	/* Other modes are not supported */
 	default:
 		return -EINVAL;
 	}
-
-	/* Ok to use the level handler for all types */
-	irq_set_handler(d->hwirq, handle_level_irq);
 
 	return 0;
 }

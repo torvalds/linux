@@ -263,7 +263,7 @@ struct km_event {
 	} data;
 
 	u32	seq;
-	u32	pid;
+	u32	portid;
 	u32	event;
 	struct net *net;
 };
@@ -313,7 +313,7 @@ extern void km_state_notify(struct xfrm_state *x, const struct km_event *c);
 
 struct xfrm_tmpl;
 extern int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
-extern void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
+extern void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
@@ -576,7 +576,7 @@ struct xfrm_mgr {
 	struct list_head	list;
 	char			*id;
 	int			(*notify)(struct xfrm_state *x, const struct km_event *c);
-	int			(*acquire)(struct xfrm_state *x, struct xfrm_tmpl *, struct xfrm_policy *xp, int dir);
+	int			(*acquire)(struct xfrm_state *x, struct xfrm_tmpl *, struct xfrm_policy *xp);
 	struct xfrm_policy	*(*compile_policy)(struct sock *sk, int opt, u8 *data, int len, int *dir);
 	int			(*new_mapping)(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
 	int			(*notify_policy)(struct xfrm_policy *x, int dir, const struct km_event *c);
@@ -671,7 +671,7 @@ struct xfrm_spi_skb_cb {
 /* Audit Information */
 struct xfrm_audit {
 	u32	secid;
-	uid_t	loginuid;
+	kuid_t	loginuid;
 	u32	sessionid;
 };
 
@@ -690,13 +690,14 @@ static inline struct audit_buffer *xfrm_audit_start(const char *op)
 	return audit_buf;
 }
 
-static inline void xfrm_audit_helper_usrinfo(uid_t auid, u32 ses, u32 secid,
+static inline void xfrm_audit_helper_usrinfo(kuid_t auid, u32 ses, u32 secid,
 					     struct audit_buffer *audit_buf)
 {
 	char *secctx;
 	u32 secctx_len;
 
-	audit_log_format(audit_buf, " auid=%u ses=%u", auid, ses);
+	audit_log_format(audit_buf, " auid=%u ses=%u",
+			 from_kuid(&init_user_ns, auid), ses);
 	if (secid != 0 &&
 	    security_secid_to_secctx(secid, &secctx, &secctx_len) == 0) {
 		audit_log_format(audit_buf, " subj=%s", secctx);
@@ -706,13 +707,13 @@ static inline void xfrm_audit_helper_usrinfo(uid_t auid, u32 ses, u32 secid,
 }
 
 extern void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 ses, u32 secid);
+				  kuid_t auid, u32 ses, u32 secid);
 extern void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 ses, u32 secid);
+				  kuid_t auid, u32 ses, u32 secid);
 extern void xfrm_audit_state_add(struct xfrm_state *x, int result,
-				 u32 auid, u32 ses, u32 secid);
+				 kuid_t auid, u32 ses, u32 secid);
 extern void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-				    u32 auid, u32 ses, u32 secid);
+				    kuid_t auid, u32 ses, u32 secid);
 extern void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 					     struct sk_buff *skb);
 extern void xfrm_audit_state_replay(struct xfrm_state *x,
@@ -725,22 +726,22 @@ extern void xfrm_audit_state_icvfail(struct xfrm_state *x,
 #else
 
 static inline void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 ses, u32 secid)
+				  kuid_t auid, u32 ses, u32 secid)
 {
 }
 
 static inline void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 ses, u32 secid)
+				  kuid_t auid, u32 ses, u32 secid)
 {
 }
 
 static inline void xfrm_audit_state_add(struct xfrm_state *x, int result,
-				 u32 auid, u32 ses, u32 secid)
+				 kuid_t auid, u32 ses, u32 secid)
 {
 }
 
 static inline void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-				    u32 auid, u32 ses, u32 secid)
+				    kuid_t auid, u32 ses, u32 secid)
 {
 }
 
@@ -1557,7 +1558,7 @@ extern int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 #endif
 
 extern int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
-extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid);
+extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 portid);
 extern int km_report(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
 
 extern void xfrm_input_init(void);

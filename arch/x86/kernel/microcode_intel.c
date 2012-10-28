@@ -405,7 +405,8 @@ static int get_ucode_fw(void *to, const void *from, size_t n)
 	return 0;
 }
 
-static enum ucode_state request_microcode_fw(int cpu, struct device *device)
+static enum ucode_state request_microcode_fw(int cpu, struct device *device,
+					     bool refresh_fw)
 {
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);

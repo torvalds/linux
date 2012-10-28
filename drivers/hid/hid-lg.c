@@ -5,7 +5,6 @@
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  *  Copyright (c) 2010 Hendrik Iben
  */
@@ -109,7 +108,7 @@ static __u8 dfp_rdesc_fixed[] = {
 static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
@@ -278,7 +277,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		  0,  0,  0,  0,  0,183,184,185,186,187,
 		188,189,190,191,192,193,194,  0,  0,  0
 	};
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	unsigned int hid = usage->hid;
 
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_RECEIVER &&
@@ -319,7 +318,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_BAD_RELATIVE_KEYS) && usage->type == EV_KEY &&
 			(field->flags & HID_MAIN_ITEM_RELATIVE))
@@ -335,12 +334,15 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static int lg_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_INVERT_HWHEEL) && usage->code == REL_HWHEEL) {
 		input_event(field->hidinput->input, usage->type, usage->code,
 				-value);
 		return 1;
+	}
+	if (drv_data->quirks & LG_FF4) {
+		return lg4ff_adjust_input_event(hdev, field, usage, value, drv_data);
 	}
 
 	return 0;
@@ -358,7 +360,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	}
 	drv_data->quirks = id->driver_data;
-	
+
 	hid_set_drvdata(hdev, (void *)drv_data);
 
 	if (drv_data->quirks & LG_NOGET)
@@ -380,7 +382,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	/* Setup wireless link with Logitech Wii wheel */
-	if(hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
+	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
 		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
@@ -416,7 +418,7 @@ err_free:
 
 static void lg_remove(struct hid_device *hdev)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
 
@@ -476,7 +478,7 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_NOGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
 		.driver_data = LG_FF4 },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG ),
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
 		.driver_data = LG_FF2 },

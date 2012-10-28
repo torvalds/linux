@@ -982,7 +982,7 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 
 	if (adap->nr == -1) /* -1 means dynamically assign bus id */
 		return i2c_add_adapter(adap);
-	if (adap->nr & ~MAX_ID_MASK)
+	if (adap->nr & ~MAX_IDR_MASK)
 		return -EINVAL;
 
 retry:
@@ -1989,12 +1989,22 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
 	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
 	int num = read_write == I2C_SMBUS_READ ? 2 : 1;
-	struct i2c_msg msg[2] = { { addr, flags, 1, msgbuf0 },
-	                          { addr, flags | I2C_M_RD, 0, msgbuf1 }
-	                        };
 	int i;
 	u8 partial_pec = 0;
 	int status;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = addr,
+			.flags = flags,
+			.len = 1,
+			.buf = msgbuf0,
+		}, {
+			.addr = addr,
+			.flags = flags | I2C_M_RD,
+			.len = 0,
+			.buf = msgbuf1,
+		},
+	};
 
 	msgbuf0[0] = command;
 	switch (size) {

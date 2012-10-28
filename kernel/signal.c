@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
+#include <linux/coredump.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>
@@ -1971,13 +1972,8 @@ static void ptrace_do_notify(int signr, int exit_code, int why)
 void ptrace_notify(int exit_code)
 {
 	BUG_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
-	if (unlikely(current->task_works)) {
-		if (test_and_clear_ti_thread_flag(current_thread_info(),
-						   TIF_NOTIFY_RESUME)) {
-			smp_mb__after_clear_bit();
-			task_work_run();
-		}
-	}
+	if (unlikely(current->task_works))
+		task_work_run();
 
 	spin_lock_irq(&current->sighand->siglock);
 	ptrace_do_notify(SIGTRAP, exit_code, CLD_TRAPPED);
@@ -2198,13 +2194,8 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 	struct signal_struct *signal = current->signal;
 	int signr;
 
-	if (unlikely(current->task_works)) {
-		if (test_and_clear_ti_thread_flag(current_thread_info(),
-						   TIF_NOTIFY_RESUME)) {
-			smp_mb__after_clear_bit();
-			task_work_run();
-		}
-	}
+	if (unlikely(current->task_works))
+		task_work_run();
 
 	if (unlikely(uprobe_deny_signal()))
 		return 0;
@@ -2369,7 +2360,7 @@ relock:
 			 * first and our do_group_exit call below will use
 			 * that value and ignore the one we pass it.
 			 */
-			do_coredump(info->si_signo, info->si_signo, regs);
+			do_coredump(info, regs);
 		}
 
 		/*

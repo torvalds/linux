@@ -549,7 +549,7 @@ static struct ttm_backend_func radeon_backend_func = {
 	.destroy = &radeon_ttm_backend_destroy,
 };
 
-struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 				    unsigned long size, uint32_t page_flags,
 				    struct page *dummy_read_page)
 {

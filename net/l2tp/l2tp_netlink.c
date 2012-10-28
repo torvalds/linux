@@ -78,7 +78,7 @@ static int l2tp_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
+	hdr = genlmsg_put(msg, info->snd_portid, info->snd_seq,
 			  &l2tp_nl_family, 0, L2TP_CMD_NOOP);
 	if (!hdr) {
 		ret = -EMSGSIZE;
@@ -87,7 +87,7 @@ static int l2tp_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(msg, hdr);
 
-	return genlmsg_unicast(genl_info_net(info), msg, info->snd_pid);
+	return genlmsg_unicast(genl_info_net(info), msg, info->snd_portid);
 
 err_out:
 	nlmsg_free(msg);
@@ -235,7 +235,7 @@ out:
 	return ret;
 }
 
-static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
+static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 			       struct l2tp_tunnel *tunnel)
 {
 	void *hdr;
@@ -248,7 +248,7 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 	struct l2tp_stats stats;
 	unsigned int start;
 
-	hdr = genlmsg_put(skb, pid, seq, &l2tp_nl_family, flags,
+	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags,
 			  L2TP_CMD_TUNNEL_GET);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -359,12 +359,12 @@ static int l2tp_nl_cmd_tunnel_get(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	ret = l2tp_nl_tunnel_send(msg, info->snd_pid, info->snd_seq,
+	ret = l2tp_nl_tunnel_send(msg, info->snd_portid, info->snd_seq,
 				  NLM_F_ACK, tunnel);
 	if (ret < 0)
 		goto err_out;
 
-	return genlmsg_unicast(net, msg, info->snd_pid);
+	return genlmsg_unicast(net, msg, info->snd_portid);
 
 err_out:
 	nlmsg_free(msg);
@@ -384,7 +384,7 @@ static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback 
 		if (tunnel == NULL)
 			goto out;
 
-		if (l2tp_nl_tunnel_send(skb, NETLINK_CB(cb->skb).pid,
+		if (l2tp_nl_tunnel_send(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					tunnel) <= 0)
 			goto out;
@@ -604,7 +604,7 @@ out:
 	return ret;
 }
 
-static int l2tp_nl_session_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
+static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 				struct l2tp_session *session)
 {
 	void *hdr;
@@ -616,7 +616,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 pid, u32 seq, int flags
 
 	sk = tunnel->sock;
 
-	hdr = genlmsg_put(skb, pid, seq, &l2tp_nl_family, flags, L2TP_CMD_SESSION_GET);
+	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags, L2TP_CMD_SESSION_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -705,12 +705,12 @@ static int l2tp_nl_cmd_session_get(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	ret = l2tp_nl_session_send(msg, info->snd_pid, info->snd_seq,
+	ret = l2tp_nl_session_send(msg, info->snd_portid, info->snd_seq,
 				   0, session);
 	if (ret < 0)
 		goto err_out;
 
-	return genlmsg_unicast(genl_info_net(info), msg, info->snd_pid);
+	return genlmsg_unicast(genl_info_net(info), msg, info->snd_portid);
 
 err_out:
 	nlmsg_free(msg);
@@ -742,7 +742,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 			continue;
 		}
 
-		if (l2tp_nl_session_send(skb, NETLINK_CB(cb->skb).pid,
+		if (l2tp_nl_session_send(skb, NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 session) <= 0)
 			break;

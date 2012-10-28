@@ -22,11 +22,11 @@
  *
  */
 
-#include "pcm.h"
-#include "rawmidi.h"
-#include "timer.h"
-#include "seq_midi_emul.h"
-#include "seq_device.h"
+#include <sound/pcm.h>
+#include <sound/rawmidi.h>
+#include <sound/timer.h>
+#include <sound/seq_midi_emul.h>
+#include <sound/seq_device.h>
 #include <asm/io.h>
 
 /* IO ports */

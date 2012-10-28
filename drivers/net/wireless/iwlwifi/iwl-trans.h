@@ -184,14 +184,20 @@ struct iwl_rx_packet {
  * @CMD_SYNC: The caller will be stalled until the fw responds to the command
  * @CMD_ASYNC: Return right away and don't want for the response
  * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
- *	response.
+ *	response. The caller needs to call iwl_free_resp when done.
+ * @CMD_WANT_HCMD: The caller needs to get the HCMD that was sent in the
+ *	response handler. Chunks flagged by %IWL_HCMD_DFL_NOCOPY won't be
+ *	copied. The pointer passed to the response handler is in the transport
+ *	ownership and don't need to be freed by the op_mode. This also means
+ *	that the pointer is invalidated after the op_mode's handler returns.
  * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
  */
 enum CMD_MODE {
 	CMD_SYNC = 0,
 	CMD_ASYNC = BIT(0),
 	CMD_WANT_SKB = BIT(1),
-	CMD_ON_DEMAND = BIT(2),
+	CMD_WANT_HCMD = BIT(2),
+	CMD_ON_DEMAND = BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -459,6 +465,8 @@ struct iwl_trans {
 	struct kmem_cache *dev_cmd_pool;
 	size_t dev_cmd_headroom;
 	char dev_cmd_pool_name[50];
+
+	struct dentry *dbgfs_dir;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

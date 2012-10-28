@@ -1,0 +1,222 @@
+* Clock bindings for Freescale i.MX6 Quad
+
+Required properties:
+- compatible: Should be "fsl,imx6q-ccm"
+- reg: Address and length of the register set
+- interrupts: Should contain CCM interrupt
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.  The following is a full list of i.MX6Q
+clocks and IDs.
+
+	Clock			ID
+	---------------------------
+	dummy			0
+	ckil			1
+	ckih			2
+	osc			3
+	pll2_pfd0_352m		4
+	pll2_pfd1_594m		5
+	pll2_pfd2_396m		6
+	pll3_pfd0_720m		7
+	pll3_pfd1_540m		8
+	pll3_pfd2_508m		9
+	pll3_pfd3_454m		10
+	pll2_198m		11
+	pll3_120m		12
+	pll3_80m		13
+	pll3_60m		14
+	twd			15
+	step			16
+	pll1_sw			17
+	periph_pre		18
+	periph2_pre		19
+	periph_clk2_sel		20
+	periph2_clk2_sel	21
+	axi_sel			22
+	esai_sel		23
+	asrc_sel		24
+	spdif_sel		25
+	gpu2d_axi		26
+	gpu3d_axi		27
+	gpu2d_core_sel		28
+	gpu3d_core_sel		29
+	gpu3d_shader_sel	30
+	ipu1_sel		31
+	ipu2_sel		32
+	ldb_di0_sel		33
+	ldb_di1_sel		34
+	ipu1_di0_pre_sel	35
+	ipu1_di1_pre_sel	36
+	ipu2_di0_pre_sel	37
+	ipu2_di1_pre_sel	38
+	ipu1_di0_sel		39
+	ipu1_di1_sel		40
+	ipu2_di0_sel		41
+	ipu2_di1_sel		42
+	hsi_tx_sel		43
+	pcie_axi_sel		44
+	ssi1_sel		45
+	ssi2_sel		46
+	ssi3_sel		47
+	usdhc1_sel		48
+	usdhc2_sel		49
+	usdhc3_sel		50
+	usdhc4_sel		51
+	enfc_sel		52
+	emi_sel			53
+	emi_slow_sel		54
+	vdo_axi_sel		55
+	vpu_axi_sel		56
+	cko1_sel		57
+	periph			58
+	periph2			59
+	periph_clk2		60
+	periph2_clk2		61
+	ipg			62
+	ipg_per			63
+	esai_pred		64
+	esai_podf		65
+	asrc_pred		66
+	asrc_podf		67
+	spdif_pred		68
+	spdif_podf		69
+	can_root		70
+	ecspi_root		71
+	gpu2d_core_podf		72
+	gpu3d_core_podf		73
+	gpu3d_shader		74
+	ipu1_podf		75
+	ipu2_podf		76
+	ldb_di0_podf		77
+	ldb_di1_podf		78
+	ipu1_di0_pre		79
+	ipu1_di1_pre		80
+	ipu2_di0_pre		81
+	ipu2_di1_pre		82
+	hsi_tx_podf		83
+	ssi1_pred		84
+	ssi1_podf		85
+	ssi2_pred		86
+	ssi2_podf		87
+	ssi3_pred		88
+	ssi3_podf		89
+	uart_serial_podf	90
+	usdhc1_podf		91
+	usdhc2_podf		92
+	usdhc3_podf		93
+	usdhc4_podf		94
+	enfc_pred		95
+	enfc_podf		96
+	emi_podf		97
+	emi_slow_podf		98
+	vpu_axi_podf		99
+	cko1_podf		100
+	axi			101
+	mmdc_ch0_axi_podf	102
+	mmdc_ch1_axi_podf	103
+	arm			104
+	ahb			105
+	apbh_dma		106
+	asrc			107
+	can1_ipg		108
+	can1_serial		109
+	can2_ipg		110
+	can2_serial		111
+	ecspi1			112
+	ecspi2			113
+	ecspi3			114
+	ecspi4			115
+	ecspi5			116
+	enet			117
+	esai			118
+	gpt_ipg			119
+	gpt_ipg_per		120
+	gpu2d_core		121
+	gpu3d_core		122
+	hdmi_iahb		123
+	hdmi_isfr		124
+	i2c1			125
+	i2c2			126
+	i2c3			127
+	iim			128
+	enfc			129
+	ipu1			130
+	ipu1_di0		131
+	ipu1_di1		132
+	ipu2			133
+	ipu2_di0		134
+	ldb_di0			135
+	ldb_di1			136
+	ipu2_di1		137
+	hsi_tx			138
+	mlb			139
+	mmdc_ch0_axi		140
+	mmdc_ch1_axi		141
+	ocram			142
+	openvg_axi		143
+	pcie_axi		144
+	pwm1			145
+	pwm2			146
+	pwm3			147
+	pwm4			148
+	per1_bch		149
+	gpmi_bch_apb		150
+	gpmi_bch		151
+	gpmi_io			152
+	gpmi_apb		153
+	sata			154
+	sdma			155
+	spba			156
+	ssi1			157
+	ssi2			158
+	ssi3			159
+	uart_ipg		160
+	uart_serial		161
+	usboh3			162
+	usdhc1			163
+	usdhc2			164
+	usdhc3			165
+	usdhc4			166
+	vdo_axi			167
+	vpu_axi			168
+	cko1			169
+	pll1_sys		170
+	pll2_bus		171
+	pll3_usb_otg		172
+	pll4_audio		173
+	pll5_video		174
+	pll6_mlb		175
+	pll7_usb_host		176
+	pll8_enet		177
+	ssi1_ipg		178
+	ssi2_ipg		179
+	ssi3_ipg		180
+	rom			181
+	usbphy1			182
+	usbphy2			183
+	ldb_di0_div_3_5		184
+	ldb_di1_div_3_5		185
+
+Examples:
+
+clks: ccm@020c4000 {
+	compatible = "fsl,imx6q-ccm";
+	reg = <0x020c4000 0x4000>;
+	interrupts = <0 87 0x04 0 88 0x04>;
+	#clock-cells = <1>;
+	clock-output-names = ...
+			     "uart_ipg",
+			     "uart_serial",
+			     ...;
+};
+
+uart1: serial@02020000 {
+	compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
+	reg = <0x02020000 0x4000>;
+	interrupts = <0 26 0x04>;
+	clocks = <&clks 160>, <&clks 161>;
+	clock-names = "ipg", "per";
+	status = "disabled";
+};

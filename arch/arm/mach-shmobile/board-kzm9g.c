@@ -133,8 +133,8 @@ static struct platform_device usb_host_device = {
 
 /* USB Func CN17 */
 struct usbhs_private {
-	unsigned int phy;
-	unsigned int cr2;
+	void __iomem *phy;
+	void __iomem *cr2;
 	struct renesas_usbhs_platform_info info;
 };
 
@@ -232,8 +232,8 @@ static u32 usbhs_pipe_cfg[] = {
 };
 
 static struct usbhs_private usbhs_private = {
-	.phy	= 0xe60781e0,		/* USBPHYINT */
-	.cr2	= 0xe605810c,		/* USBCR2 */
+	.phy	= IOMEM(0xe60781e0),		/* USBPHYINT */
+	.cr2	= IOMEM(0xe605810c),		/* USBCR2 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs_hardware_init,
@@ -482,12 +482,10 @@ static struct gpio_keys_button gpio_buttons[] = {
 static struct gpio_keys_platform_data gpio_key_info = {
 	.buttons	= gpio_buttons,
 	.nbuttons	= ARRAY_SIZE(gpio_buttons),
-	.poll_interval	= 250, /* poling at this point */
 };
 
 static struct platform_device gpio_keys_device = {
-	/* gpio-pcf857x.c driver doesn't support gpio_to_irq() */
-	.name	= "gpio-keys-polled",
+	.name	= "gpio-keys",
 	.dev	= {
 		.platform_data  = &gpio_key_info,
 	},
@@ -550,6 +548,7 @@ static struct platform_device fsi_ak4648_device = {
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
+	.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 };
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -763,12 +762,20 @@ static void __init kzm_init(void)
 	platform_add_devices(kzm_devices, ARRAY_SIZE(kzm_devices));
 }
 
+static void kzm9g_restart(char mode, const char *cmd)
+{
+#define RESCNT2 IOMEM(0xe6188020)
+	/* Do soft power on reset */
+	writel((1 << 31), RESCNT2);
+}
+
 static const char *kzm9g_boards_compat_dt[] __initdata = {
 	"renesas,kzm9g",
 	NULL,
 };
 
 DT_MACHINE_START(KZM9G_DT, "kzm9g")
+	.smp		= smp_ops(sh73a0_smp_ops),
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
@@ -777,5 +784,6 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g")
 	.init_machine	= kzm_init,
 	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
+	.restart	= kzm9g_restart,
 	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END

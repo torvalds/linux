@@ -1289,7 +1289,7 @@ static void gdlm_unmount(struct gfs2_sbd *sdp)
 	spin_lock(&ls->ls_recover_spin);
 	set_bit(DFL_UNMOUNT, &ls->ls_recover_flags);
 	spin_unlock(&ls->ls_recover_spin);
-	flush_delayed_work_sync(&sdp->sd_control_work);
+	flush_delayed_work(&sdp->sd_control_work);
 
 	/* mounted_lock and control_lock will be purged in dlm recovery */
 release:

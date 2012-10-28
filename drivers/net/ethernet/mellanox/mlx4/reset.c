@@ -141,16 +141,16 @@ int mlx4_reset(struct mlx4_dev *dev)
 	/* Now restore the PCI headers */
 	if (pcie_cap) {
 		devctl = hca_header[(pcie_cap + PCI_EXP_DEVCTL) / 4];
-		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_DEVCTL,
-					   devctl)) {
+		if (pcie_capability_write_word(dev->pdev, PCI_EXP_DEVCTL,
+					       devctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "
 				 "Device Control register, aborting.\n");
 			goto out;
 		}
 		linkctl = hca_header[(pcie_cap + PCI_EXP_LNKCTL) / 4];
-		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_LNKCTL,
-					   linkctl)) {
+		if (pcie_capability_write_word(dev->pdev, PCI_EXP_LNKCTL,
+					       linkctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "
 				 "Link control register, aborting.\n");

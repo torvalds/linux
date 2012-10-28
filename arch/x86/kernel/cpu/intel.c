@@ -648,6 +648,10 @@ static void __cpuinit intel_detect_tlb(struct cpuinfo_x86 *c)
 	int i, j, n;
 	unsigned int regs[4];
 	unsigned char *desc = (unsigned char *)regs;
+
+	if (c->cpuid_level < 2)
+		return;
+
 	/* Number of times to iterate */
 	n = cpuid_eax(2) & 0xFF;
 

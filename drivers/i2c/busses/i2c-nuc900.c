@@ -29,7 +29,7 @@
 #include <linux/io.h>
 
 #include <mach/mfp.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-nuc900.h>
 
 /* nuc900 i2c registers offset */
 

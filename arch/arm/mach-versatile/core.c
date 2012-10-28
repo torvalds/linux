@@ -37,7 +37,6 @@
 #include <linux/mtd/physmap.h>
 
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
 #include <asm/hardware/vic.h>
@@ -168,11 +167,6 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.virtual	=  (unsigned long)VERSATILE_PCI_CFG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_CFG_BASE),
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	=  (unsigned long)VERSATILE_PCI_VIRT_MEM_BASE0,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE0),
-		.length		= IO_SPACE_LIMIT,
 		.type		= MT_DEVICE
 	},
 #endif
@@ -763,10 +757,6 @@ void __init versatile_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = versatile_leds_event;
-#endif
 }
 
 /*

@@ -23,6 +23,8 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/sizes.h>
@@ -62,9 +64,26 @@ void __init autcpu12_map_io(void)
         iotable_init(autcpu12_io_desc, ARRAY_SIZE(autcpu12_io_desc));
 }
 
+static struct resource autcpu12_nvram_resource[] __initdata = {
+	DEFINE_RES_MEM_NAMED(AUTCPU12_PHYS_NVRAM, SZ_128K, "SRAM"),
+};
+
+static struct platform_device autcpu12_nvram_pdev __initdata = {
+	.name		= "autcpu12_nvram",
+	.id		= -1,
+	.resource	= autcpu12_nvram_resource,
+	.num_resources	= ARRAY_SIZE(autcpu12_nvram_resource),
+};
+
+static void __init autcpu12_init(void)
+{
+	platform_device_register(&autcpu12_nvram_pdev);
+}
+
 MACHINE_START(AUTCPU12, "autronix autcpu12")
 	/* Maintainer: Thomas Gleixner */
 	.atag_offset	= 0x20000,
+	.init_machine	= autcpu12_init,
 	.map_io		= autcpu12_map_io,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,

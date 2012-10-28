@@ -1,0 +1,17 @@
+USB PHY
+
+OMAP USB2 PHY
+
+Required properties:
+ - compatible: Should be "ti,omap-usb2"
+ - reg : Address and length of the register set for the device. Also
+add the address of control module dev conf register until a driver for
+control module is added
+
+This is usually a subnode of ocp2scp to which it is connected.
+
+usb2phy@4a0ad080 {
+	compatible = "ti,omap-usb2";
+	reg = <0x4a0ad080 0x58>,
+	      <0x4a002300 0x4>;
+};

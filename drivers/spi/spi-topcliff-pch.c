@@ -1536,8 +1536,6 @@ static int __devexit pch_spi_pd_remove(struct platform_device *plat_dev)
 
 	pci_iounmap(board_dat->pdev, data->io_remap_addr);
 	spi_unregister_master(data->master);
-	spi_master_put(data->master);
-	platform_set_drvdata(plat_dev, NULL);
 
 	return 0;
 }

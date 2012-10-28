@@ -10,7 +10,7 @@ data from LCD controller (FIMD) through the SoC internal writeback data
 path.  There are multiple FIMC instances in the SoCs (up to 4), having
 slightly different capabilities, like pixel alignment constraints, rotator
 availability, LCD writeback support, etc. The driver is located at
-drivers/media/video/s5p-fimc directory.
+drivers/media/platform/s5p-fimc directory.
 
 1. Supported SoCs
 =================
@@ -36,21 +36,21 @@ Not currently supported:
 =====================
 
 - media device driver
-  drivers/media/video/s5p-fimc/fimc-mdevice.[ch]
+  drivers/media/platform/s5p-fimc/fimc-mdevice.[ch]
 
  - camera capture video device driver
-  drivers/media/video/s5p-fimc/fimc-capture.c
+  drivers/media/platform/s5p-fimc/fimc-capture.c
 
  - MIPI-CSI2 receiver subdev
-  drivers/media/video/s5p-fimc/mipi-csis.[ch]
+  drivers/media/platform/s5p-fimc/mipi-csis.[ch]
 
  - video post-processor (mem-to-mem)
-  drivers/media/video/s5p-fimc/fimc-core.c
+  drivers/media/platform/s5p-fimc/fimc-core.c
 
  - common files
-  drivers/media/video/s5p-fimc/fimc-core.h
-  drivers/media/video/s5p-fimc/fimc-reg.h
-  drivers/media/video/s5p-fimc/regs-fimc.h
+  drivers/media/platform/s5p-fimc/fimc-core.h
+  drivers/media/platform/s5p-fimc/fimc-reg.h
+  drivers/media/platform/s5p-fimc/regs-fimc.h
 
 4. User space interfaces
 ========================

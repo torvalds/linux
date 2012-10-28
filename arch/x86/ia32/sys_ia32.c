@@ -287,7 +287,7 @@ asmlinkage long sys32_sigaction(int sig, struct old_sigaction32 __user *act,
 	return ret;
 }
 
-asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr,
+asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int __user *stat_addr,
 			      int options)
 {
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
@@ -383,21 +383,6 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 	if (offset && put_user(of, offset))
 		return -EFAULT;
 	return ret;
-}
-
-asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
-			     compat_uptr_t __user *envp, struct pt_regs *regs)
-{
-	long error;
-	char *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = compat_do_execve(filename, argv, envp, regs);
-	putname(filename);
-	return error;
 }
 
 asmlinkage long sys32_clone(unsigned int clone_flags, unsigned int newsp,

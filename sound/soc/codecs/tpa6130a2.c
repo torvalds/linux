@@ -487,19 +487,8 @@ static struct i2c_driver tpa6130a2_i2c_driver = {
 	.id_table = tpa6130a2_id,
 };
 
-static int __init tpa6130a2_init(void)
-{
-	return i2c_add_driver(&tpa6130a2_i2c_driver);
-}
-
-static void __exit tpa6130a2_exit(void)
-{
-	i2c_del_driver(&tpa6130a2_i2c_driver);
-}
+module_i2c_driver(tpa6130a2_i2c_driver);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_DESCRIPTION("TPA6130A2 Headphone amplifier driver");
 MODULE_LICENSE("GPL");
-
-module_init(tpa6130a2_init);
-module_exit(tpa6130a2_exit);

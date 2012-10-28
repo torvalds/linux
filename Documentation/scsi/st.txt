@@ -112,10 +112,8 @@ attempted).
 
 MINOR NUMBERS
 
-The tape driver currently supports 128 drives by default. This number
-can be increased by editing st.h and recompiling the driver if
-necessary. The upper limit is 2^17 drives if 4 modes for each drive
-are used.
+The tape driver currently supports up to 2^17 drives if 4 modes for
+each drive are used.
 
 The minor numbers consist of the following bit fields:
 

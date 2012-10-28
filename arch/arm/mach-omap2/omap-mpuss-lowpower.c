@@ -50,9 +50,8 @@
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <plat/omap44xx.h>
-
 #include "common.h"
+#include "omap44xx.h"
 #include "omap4-sar-layout.h"
 #include "pm.h"
 #include "prcm_mpu44xx.h"

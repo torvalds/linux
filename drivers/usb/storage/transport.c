@@ -1331,7 +1331,7 @@ int usb_stor_port_reset(struct us_data *us)
 	int result;
 
 	/*for these devices we must use the class specific method */
-	if (us->pusb_dev->quirks & USB_QUIRK_RESET_MORPHS)
+	if (us->pusb_dev->quirks & USB_QUIRK_RESET)
 		return -EPERM;
 
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);

@@ -276,6 +276,33 @@ machine_device_initcall(mpc85xx_cds, mpc85xx_cds_8259_attach);
 
 #endif /* CONFIG_PPC_I8259 */
 
+static void mpc85xx_cds_pci_assign_primary(void)
+{
+#ifdef CONFIG_PCI
+	struct device_node *np;
+
+	if (fsl_pci_primary)
+		return;
+
+	/*
+	 * MPC85xx_CDS has ISA bridge but unfortunately there is no
+	 * isa node in device tree. We now looking for i8259 node as
+	 * a workaround for such a broken device tree. This routine
+	 * is for complying to all device trees.
+	 */
+	np = of_find_node_by_name(NULL, "i8259");
+	while ((fsl_pci_primary = of_get_parent(np))) {
+		of_node_put(np);
+		np = fsl_pci_primary;
+
+		if ((of_device_is_compatible(np, "fsl,mpc8540-pci") ||
+		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) &&
+		    of_device_is_available(np))
+			return;
+	}
+#endif
+}
+
 /*
  * Setup the architecture
  */
@@ -309,21 +336,12 @@ static void __init mpc85xx_cds_setup_arch(void)
 	}
 
 #ifdef CONFIG_PCI
-	for_each_node_by_type(np, "pci") {
-		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
-		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) {
-			struct resource rsrc;
-			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == 0x8000)
-				fsl_add_bridge(np, 1);
-			else
-				fsl_add_bridge(np, 0);
-		}
-	}
-
 	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
+
+	mpc85xx_cds_pci_assign_primary();
+	fsl_pci_assign_primary();
 }
 
 static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
@@ -355,7 +373,7 @@ static int __init mpc85xx_cds_probe(void)
         return of_flat_dt_is_compatible(root, "MPC85xxCDS");
 }
 
-machine_device_initcall(mpc85xx_cds, mpc85xx_common_publish_devices);
+machine_arch_initcall(mpc85xx_cds, mpc85xx_common_publish_devices);
 
 define_machine(mpc85xx_cds) {
 	.name		= "MPC85xx CDS",

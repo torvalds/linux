@@ -31,8 +31,8 @@
 #define PBDDR		(0x0041)
 #define PCDDR		(0x0042)
 #define PDDDR		(0x0043)
-#define PEDR		(0x0080)
-#define PEDDR		(0x00c0)
+#define PEDR		(0x0083)
+#define PEDDR		(0x00c3)
 #define SYSCON1		(0x0100)
 #define SYSFLG1		(0x0140)
 #define MEMCFG1		(0x0180)
@@ -77,7 +77,7 @@
 #define KBDEOI		(0x1700)
 
 #define DAIR		(0x2000)
-#define DAIR0		(0x2040)
+#define DAIDR0		(0x2040)
 #define DAIDR1		(0x2080)
 #define DAIDR2		(0x20c0)
 #define DAISR		(0x2100)
@@ -191,8 +191,7 @@
 #define UBRLCR_WRDLEN8		(3 << 17)
 #define UBRLCR_WRDLEN_MASK	(3 << 17)
 
-#define SYNCIO_FRMLEN(x)	(((x) & 0x3f) << 7)
-#define SYNCIO_CFGLEN(x)	((x) & 0x7f)
+#define SYNCIO_FRMLEN(x)	(((x) & 0x1f) << 8)
 #define SYNCIO_SMCKEN		(1 << 13)
 #define SYNCIO_TXFRMEN		(1 << 14)
 

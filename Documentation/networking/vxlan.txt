@@ -1,0 +1,47 @@
+Virtual eXtensible Local Area Networking documentation
+======================================================
+
+The VXLAN protocol is a tunnelling protocol that is designed to
+solve the problem of limited number of available VLAN's (4096).
+With VXLAN identifier is expanded to 24 bits.
+
+It is a draft RFC standard, that is implemented by Cisco Nexus,
+Vmware and Brocade. The protocol runs over UDP using a single
+destination port (still not standardized by IANA).
+This document describes the Linux kernel tunnel device,
+there is also an implantation of VXLAN for Openvswitch.
+
+Unlike most tunnels, a VXLAN is a 1 to N network, not just point
+to point. A VXLAN device can either dynamically learn the IP address
+of the other end, in a manner similar to a learning bridge, or the
+forwarding entries can be configured statically.
+
+The management of vxlan is done in a similar fashion to it's
+too closest neighbors GRE and VLAN. Configuring VXLAN requires
+the version of iproute2 that matches the kernel release
+where VXLAN was first merged upstream.
+
+1. Create vxlan device
+  # ip li add vxlan0 type vxlan id 42 group 239.1.1.1 dev eth1
+
+This creates a new device (vxlan0). The device uses the
+the multicast group 239.1.1.1 over eth1 to handle packets where
+no entry is in the forwarding table.
+
+2. Delete vxlan device
+  # ip link delete vxlan0
+
+3. Show vxlan info
+  # ip -d show vxlan0
+
+It is possible to create, destroy and display the vxlan
+forwarding table using the new bridge command.
+
+1. Create forwarding table entry
+  # bridge fdb add to 00:17:42:8a:b4:05 dst 192.19.0.2 dev vxlan0
+
+2. Delete forwarding table entry
+  # bridge fdb delete 00:17:42:8a:b4:05
+
+3. Show forwarding table
+  # bridge fdb show dev vxlan0

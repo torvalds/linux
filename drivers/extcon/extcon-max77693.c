@@ -239,25 +239,19 @@ const char *max77693_extcon_cable[] = {
 static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		enum max77693_muic_adc_debounce_time time)
 {
-	int ret = 0;
-	u8 ctrl3;
+	int ret;
 
 	switch (time) {
 	case ADC_DEBOUNCE_TIME_5MS:
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = max77693_read_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, &ctrl3);
-		ctrl3 &= ~CONTROL3_ADCDBSET_MASK;
-		ctrl3 |= (time << CONTROL3_ADCDBSET_SHIFT);
-
-		ret = max77693_write_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, ctrl3);
-		if (ret) {
+		ret = max77693_update_reg(info->max77693->regmap_muic,
+					  MAX77693_MUIC_REG_CTRL3,
+					  time << CONTROL3_ADCDBSET_SHIFT,
+					  CONTROL3_ADCDBSET_MASK);
+		if (ret)
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			ret = -EINVAL;
-		}
 		break;
 	default:
 		dev_err(info->dev, "invalid ADC debounce time\n");
@@ -356,7 +350,7 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info,
 		extcon_set_cable_state(info->edev, "MHL", attached);
 		break;
 	default:
-		dev_err(info->dev, "faild to detect %s accessory\n",
+		dev_err(info->dev, "failed to detect %s accessory\n",
 			attached ? "attached" : "detached");
 		dev_err(info->dev, "- adc:0x%x, adclow:0x%x, adc1k:0x%x\n",
 			adc, adclow, adc1k);
@@ -548,7 +542,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		curr_adc = info->status[0] & STATUS1_ADC_MASK;
 		curr_adc >>= STATUS1_ADC_SHIFT;
 
-		/* Check accossory state which is either detached or attached */
+		/* Check accessory state which is either detached or attached */
 		if (curr_adc == MAX77693_MUIC_ADC_OPEN)
 			attached = false;
 
@@ -564,7 +558,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		curr_chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
 		curr_chg_type >>= STATUS2_CHGTYP_SHIFT;
 
-		/* Check charger accossory state which
+		/* Check charger accessory state which
 		   is either detached or attached */
 		if (curr_chg_type == MAX77693_CHARGER_TYPE_NONE)
 			attached = false;
@@ -657,6 +651,8 @@ out:
 static int __devinit max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
+	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
 	int ret, i;
 	u8 id;
@@ -699,7 +695,7 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 
 		ret = request_threaded_irq(virq, NULL,
 				max77693_muic_irq_handler,
-				0, muic_irq->name, info);
+				IRQF_ONESHOT, muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed: irq request (IRQ: %d,"
@@ -725,6 +721,31 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_extcon;
+	}
+
+	/* Initialize MUIC register by using platform data */
+	for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
+		enum max77693_irq_source irq_src = MAX77693_IRQ_GROUP_NR;
+
+		max77693_write_reg(info->max77693->regmap_muic,
+				muic_pdata->init_data[i].addr,
+				muic_pdata->init_data[i].data);
+
+		switch (muic_pdata->init_data[i].addr) {
+		case MAX77693_MUIC_REG_INTMASK1:
+			irq_src = MUIC_INT1;
+			break;
+		case MAX77693_MUIC_REG_INTMASK2:
+			irq_src = MUIC_INT2;
+			break;
+		case MAX77693_MUIC_REG_INTMASK3:
+			irq_src = MUIC_INT3;
+			break;
+		}
+
+		if (irq_src < MAX77693_IRQ_GROUP_NR)
+			info->max77693->irq_masks_cur[irq_src]
+				= muic_pdata->init_data[i].data;
 	}
 
 	/* Check revision number of MUIC device*/
@@ -762,6 +783,7 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	extcon_dev_unregister(info->edev);
+	kfree(info->edev);
 	kfree(info);
 
 	return 0;

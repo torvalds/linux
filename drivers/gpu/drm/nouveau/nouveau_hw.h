@@ -23,8 +23,10 @@
 #ifndef __NOUVEAU_HW_H__
 #define __NOUVEAU_HW_H__
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <drm/drmP.h>
+#include "nv04_display.h"
+
+#include <subdev/bios/pll.h>
 
 #define MASK(field) ( \
 	(0xffffffff >> (31 - ((1 ? field) - (0 ? field)))) << (0 ? field))
@@ -38,12 +40,10 @@ void NVWriteVgaGr(struct drm_device *, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(struct drm_device *, int head, uint8_t index);
 void NVSetOwner(struct drm_device *, int owner);
 void NVBlankScreen(struct drm_device *, int head, bool blank);
-void nouveau_hw_setpll(struct drm_device *, uint32_t reg1,
-		       struct nouveau_pll_vals *pv);
-int nouveau_hw_get_pllvals(struct drm_device *, enum pll_types plltype,
+int nouveau_hw_get_pllvals(struct drm_device *, enum nvbios_pll_type plltype,
 			   struct nouveau_pll_vals *pllvals);
 int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
-int nouveau_hw_get_clock(struct drm_device *, enum pll_types plltype);
+int nouveau_hw_get_clock(struct drm_device *, enum nvbios_pll_type plltype);
 void nouveau_hw_save_vga_fonts(struct drm_device *, bool save);
 void nouveau_hw_save_state(struct drm_device *, int head,
 			   struct nv04_mode_state *state);
@@ -55,115 +55,51 @@ void nouveau_hw_load_state_palette(struct drm_device *, int head,
 /* nouveau_calc.c */
 extern void nouveau_calc_arb(struct drm_device *, int vclk, int bpp,
 			     int *burst, int *lwm);
-extern int nouveau_calc_pll_mnp(struct drm_device *, struct pll_lims *pll_lim,
-				int clk, struct nouveau_pll_vals *pv);
-
-static inline uint32_t
-nvReadMC(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(MC, dev, "reg %08x val %08x\n", reg, val);
-	return val;
-}
-
-static inline void
-nvWriteMC(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	NV_REG_DEBUG(MC, dev, "reg %08x val %08x\n", reg, val);
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadVIDEO(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(VIDEO, dev, "reg %08x val %08x\n", reg, val);
-	return val;
-}
-
-static inline void
-nvWriteVIDEO(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	NV_REG_DEBUG(VIDEO, dev, "reg %08x val %08x\n", reg, val);
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadFB(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(FB, dev, "reg %08x val %08x\n", reg, val);
-	return val;
-}
-
-static inline void
-nvWriteFB(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	NV_REG_DEBUG(FB, dev, "reg %08x val %08x\n", reg, val);
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadEXTDEV(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(EXTDEV, dev, "reg %08x val %08x\n", reg, val);
-	return val;
-}
-
-static inline void
-nvWriteEXTDEV(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	NV_REG_DEBUG(EXTDEV, dev, "reg %08x val %08x\n", reg, val);
-	nv_wr32(dev, reg, val);
-}
 
 static inline uint32_t NVReadCRTC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	uint32_t val;
 	if (head)
 		reg += NV_PCRTC0_SIZE;
-	val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(CRTC, dev, "head %d reg %08x val %08x\n", head, reg, val);
+	val = nv_rd32(device, reg);
 	return val;
 }
 
 static inline void NVWriteCRTC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	if (head)
 		reg += NV_PCRTC0_SIZE;
-	NV_REG_DEBUG(CRTC, dev, "head %d reg %08x val %08x\n", head, reg, val);
-	nv_wr32(dev, reg, val);
+	nv_wr32(device, reg, val);
 }
 
 static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	uint32_t val;
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
-	val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(RAMDAC, dev, "head %d reg %08x val %08x\n",
-							head, reg, val);
+	val = nv_rd32(device, reg);
 	return val;
 }
 
 static inline void NVWriteRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
-	NV_REG_DEBUG(RAMDAC, dev, "head %d reg %08x val %08x\n",
-							head, reg, val);
-	nv_wr32(dev, reg, val);
+	nv_wr32(device, reg, val);
 }
 
 static inline uint8_t nv_read_tmds(struct drm_device *dev,
 					int or, int dl, uint8_t address)
 {
-	int ramdac = (or & OUTPUT_C) >> 2;
+	int ramdac = (or & DCB_OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8,
 	NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | address);
@@ -174,7 +110,7 @@ static inline void nv_write_tmds(struct drm_device *dev,
 					int or, int dl, uint8_t address,
 					uint8_t data)
 {
-	int ramdac = (or & OUTPUT_C) >> 2;
+	int ramdac = (or & DCB_OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_DATA + dl * 8, data);
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8, address);
@@ -183,20 +119,18 @@ static inline void nv_write_tmds(struct drm_device *dev,
 static inline void NVWriteVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	NV_REG_DEBUG(VGACRTC, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, value);
-	nv_wr08(dev, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
-	nv_wr08(dev, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
+	struct nouveau_device *device = nouveau_dev(dev);
+	nv_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
+	nv_wr08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
 }
 
 static inline uint8_t NVReadVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	uint8_t val;
-	nv_wr08(dev, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
-	val = nv_rd08(dev, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGACRTC, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, val);
+	nv_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
+	val = nv_rd08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
 	return val;
 }
 
@@ -230,75 +164,74 @@ static inline uint8_t NVReadVgaCrtc5758(struct drm_device *dev, int head, uint8_
 static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t val;
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
 	 * NVSetOwner for the relevant head to be programmed */
-	if (head && dev_priv->card_type == NV_40)
+	if (head && nv_device(drm->device)->card_type == NV_40)
 		reg += NV_PRMVIO_SIZE;
 
-	val = nv_rd08(dev, reg);
-	NV_REG_DEBUG(RMVIO, dev, "head %d reg %08x val %02x\n", head, reg, val);
+	val = nv_rd08(device, reg);
 	return val;
 }
 
 static inline void NVWritePRMVIO(struct drm_device *dev,
 					int head, uint32_t reg, uint8_t value)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
 	 * NVSetOwner for the relevant head to be programmed */
-	if (head && dev_priv->card_type == NV_40)
+	if (head && nv_device(drm->device)->card_type == NV_40)
 		reg += NV_PRMVIO_SIZE;
 
-	NV_REG_DEBUG(RMVIO, dev, "head %d reg %08x val %02x\n",
-						head, reg, value);
-	nv_wr08(dev, reg, value);
+	nv_wr08(device, reg, value);
 }
 
 static inline void NVSetEnablePalette(struct drm_device *dev, int head, bool enable)
 {
-	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	nv_wr08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
+	struct nouveau_device *device = nouveau_dev(dev);
+	nv_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	nv_wr08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
 }
 
 static inline bool NVGetEnablePalette(struct drm_device *dev, int head)
 {
-	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	return !(nv_rd08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
+	struct nouveau_device *device = nouveau_dev(dev);
+	nv_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	return !(nv_rd08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
 }
 
 static inline void NVWriteVgaAttr(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGAATTR, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, value);
-	nv_wr08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
-	nv_wr08(dev, NV_PRMCIO_AR__WRITE + head * NV_PRMCIO_SIZE, value);
+	nv_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	nv_wr08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
+	nv_wr08(device, NV_PRMCIO_AR__WRITE + head * NV_PRMCIO_SIZE, value);
 }
 
 static inline uint8_t NVReadVgaAttr(struct drm_device *dev,
 					int head, uint8_t index)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
 	uint8_t val;
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	nv_wr08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
-	val = nv_rd08(dev, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGAATTR, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, val);
+	nv_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	nv_wr08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
+	val = nv_rd08(device, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE);
 	return val;
 }
 
@@ -325,10 +258,11 @@ static inline void NVVgaProtect(struct drm_device *dev, int head, bool protect)
 static inline bool
 nv_heads_tied(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (dev_priv->chipset == 0x11)
-		return !!(nvReadMC(dev, NV_PBUS_DEBUG_1) & (1 << 28));
+	if (nv_device(drm->device)->chipset == 0x11)
+		return !!(nv_rd32(device, NV_PBUS_DEBUG_1) & (1 << 28));
 
 	return NVReadVgaCrtc(dev, 0, NV_CIO_CRE_44) & 0x4;
 }
@@ -377,13 +311,13 @@ nv_lock_vga_crtc_shadow(struct drm_device *dev, int head, int lock)
 static inline bool
 NVLockVgaCrtcs(struct drm_device *dev, bool lock)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	bool waslocked = !NVReadVgaCrtc(dev, 0, NV_CIO_SR_LOCK_INDEX);
 
 	NVWriteVgaCrtc(dev, 0, NV_CIO_SR_LOCK_INDEX,
 		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 	/* NV11 has independently lockable extended crtcs, except when tied */
-	if (dev_priv->chipset == 0x11 && !nv_heads_tied(dev))
+	if (nv_device(drm->device)->chipset == 0x11 && !nv_heads_tied(dev))
 		NVWriteVgaCrtc(dev, 1, NV_CIO_SR_LOCK_INDEX,
 			       lock ? NV_CIO_SR_LOCK_VALUE :
 				      NV_CIO_SR_UNLOCK_RW_VALUE);
@@ -398,9 +332,9 @@ NVLockVgaCrtcs(struct drm_device *dev, bool lock)
 
 static inline int nv_cursor_width(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	return dev_priv->card_type >= NV_10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	return nv_device(drm->device)->card_type >= NV_10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 }
 
 static inline void
@@ -418,11 +352,11 @@ nv_fix_nv40_hw_cursor(struct drm_device *dev, int head)
 static inline void
 nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NVWriteCRTC(dev, head, NV_PCRTC_START, offset);
 
-	if (dev_priv->card_type == NV_04) {
+	if (nv_device(drm->device)->card_type == NV_04) {
 		/*
 		 * Hilarious, the 24th bit doesn't want to stick to
 		 * PCRTC_START...
@@ -437,9 +371,9 @@ nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
 static inline void
 nv_show_cursor(struct drm_device *dev, int head, bool show)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t *curctl1 =
-		&dev_priv->mode_reg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
+		&nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
 
 	if (show)
 		*curctl1 |= MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
@@ -447,14 +381,14 @@ nv_show_cursor(struct drm_device *dev, int head, bool show)
 		*curctl1 &= ~MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, *curctl1);
 
-	if (dev_priv->card_type == NV_40)
+	if (nv_device(drm->device)->card_type == NV_40)
 		nv_fix_nv40_hw_cursor(dev, head);
 }
 
 static inline uint32_t
 nv_pitch_align(struct drm_device *dev, uint32_t width, int bpp)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	int mask;
 
 	if (bpp == 15)
@@ -463,7 +397,7 @@ nv_pitch_align(struct drm_device *dev, uint32_t width, int bpp)
 		bpp = 8;
 
 	/* Alignment requirements taken from the Haiku driver */
-	if (dev_priv->card_type == NV_04)
+	if (nv_device(drm->device)->card_type == NV_04)
 		mask = 128 / bpp - 1;
 	else
 		mask = 512 / bpp - 1;

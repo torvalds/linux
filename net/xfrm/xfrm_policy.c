@@ -42,13 +42,12 @@ static DEFINE_SPINLOCK(xfrm_policy_sk_bundle_lock);
 static struct dst_entry *xfrm_policy_sk_bundles;
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
-static DEFINE_RWLOCK(xfrm_policy_afinfo_lock);
-static struct xfrm_policy_afinfo *xfrm_policy_afinfo[NPROTO];
+static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
+static struct xfrm_policy_afinfo __rcu *xfrm_policy_afinfo[NPROTO]
+						__read_mostly;
 
 static struct kmem_cache *xfrm_dst_cache __read_mostly;
 
-static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
-static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
 static int xfrm_bundle_ok(struct xfrm_dst *xdst);
@@ -93,6 +92,24 @@ bool xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl
 		return __xfrm6_selector_match(sel, fl);
 	}
 	return false;
+}
+
+static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
+{
+	struct xfrm_policy_afinfo *afinfo;
+
+	if (unlikely(family >= NPROTO))
+		return NULL;
+	rcu_read_lock();
+	afinfo = rcu_dereference(xfrm_policy_afinfo[family]);
+	if (unlikely(!afinfo))
+		rcu_read_unlock();
+	return afinfo;
+}
+
+static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo)
+{
+	rcu_read_unlock();
 }
 
 static inline struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos,
@@ -2421,7 +2438,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock_bh(&xfrm_policy_afinfo_lock);
+	spin_lock(&xfrm_policy_afinfo_lock);
 	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
@@ -2442,9 +2459,9 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->neigh_lookup = xfrm_neigh_lookup;
 		if (likely(afinfo->garbage_collect == NULL))
 			afinfo->garbage_collect = xfrm_garbage_collect_deferred;
-		xfrm_policy_afinfo[afinfo->family] = afinfo;
+		rcu_assign_pointer(xfrm_policy_afinfo[afinfo->family], afinfo);
 	}
-	write_unlock_bh(&xfrm_policy_afinfo_lock);
+	spin_unlock(&xfrm_policy_afinfo_lock);
 
 	rtnl_lock();
 	for_each_net(net) {
@@ -2477,21 +2494,26 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock_bh(&xfrm_policy_afinfo_lock);
+	spin_lock(&xfrm_policy_afinfo_lock);
 	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
-		else {
-			struct dst_ops *dst_ops = afinfo->dst_ops;
-			xfrm_policy_afinfo[afinfo->family] = NULL;
-			dst_ops->kmem_cachep = NULL;
-			dst_ops->check = NULL;
-			dst_ops->negative_advice = NULL;
-			dst_ops->link_failure = NULL;
-			afinfo->garbage_collect = NULL;
-		}
+		else
+			RCU_INIT_POINTER(xfrm_policy_afinfo[afinfo->family],
+					 NULL);
 	}
-	write_unlock_bh(&xfrm_policy_afinfo_lock);
+	spin_unlock(&xfrm_policy_afinfo_lock);
+	if (!err) {
+		struct dst_ops *dst_ops = afinfo->dst_ops;
+
+		synchronize_rcu();
+
+		dst_ops->kmem_cachep = NULL;
+		dst_ops->check = NULL;
+		dst_ops->negative_advice = NULL;
+		dst_ops->link_failure = NULL;
+		afinfo->garbage_collect = NULL;
+	}
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
@@ -2500,33 +2522,16 @@ static void __net_init xfrm_dst_ops_init(struct net *net)
 {
 	struct xfrm_policy_afinfo *afinfo;
 
-	read_lock_bh(&xfrm_policy_afinfo_lock);
-	afinfo = xfrm_policy_afinfo[AF_INET];
+	rcu_read_lock();
+	afinfo = rcu_dereference(xfrm_policy_afinfo[AF_INET]);
 	if (afinfo)
 		net->xfrm.xfrm4_dst_ops = *afinfo->dst_ops;
 #if IS_ENABLED(CONFIG_IPV6)
-	afinfo = xfrm_policy_afinfo[AF_INET6];
+	afinfo = rcu_dereference(xfrm_policy_afinfo[AF_INET6]);
 	if (afinfo)
 		net->xfrm.xfrm6_dst_ops = *afinfo->dst_ops;
 #endif
-	read_unlock_bh(&xfrm_policy_afinfo_lock);
-}
-
-static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	if (unlikely(family >= NPROTO))
-		return NULL;
-	read_lock(&xfrm_policy_afinfo_lock);
-	afinfo = xfrm_policy_afinfo[family];
-	if (unlikely(!afinfo))
-		read_unlock(&xfrm_policy_afinfo_lock);
-	return afinfo;
-}
-
-static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo)
-{
-	read_unlock(&xfrm_policy_afinfo_lock);
+	rcu_read_unlock();
 }
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -2633,12 +2638,12 @@ static void xfrm_policy_fini(struct net *net)
 
 	flush_work(&net->xfrm.policy_hash_work);
 #ifdef CONFIG_XFRM_SUB_POLICY
-	audit_info.loginuid = -1;
+	audit_info.loginuid = INVALID_UID;
 	audit_info.sessionid = -1;
 	audit_info.secid = 0;
 	xfrm_policy_flush(net, XFRM_POLICY_TYPE_SUB, &audit_info);
 #endif
-	audit_info.loginuid = -1;
+	audit_info.loginuid = INVALID_UID;
 	audit_info.sessionid = -1;
 	audit_info.secid = 0;
 	xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
@@ -2745,7 +2750,7 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 }
 
 void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-			   uid_t auid, u32 sessionid, u32 secid)
+			   kuid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 
@@ -2760,7 +2765,7 @@ void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
 EXPORT_SYMBOL_GPL(xfrm_audit_policy_add);
 
 void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-			      uid_t auid, u32 sessionid, u32 secid)
+			      kuid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 

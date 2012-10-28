@@ -291,7 +291,7 @@ static const struct ide_dma_ops sc1200_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info sc1200_chipset __devinitdata = {
+static const struct ide_port_info sc1200_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.port_ops	= &sc1200_port_ops,
 	.dma_ops	= &sc1200_dma_ops,

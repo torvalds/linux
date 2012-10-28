@@ -1,6 +1,7 @@
 config PPC64
 	bool "64-bit kernel"
 	default n
+	select HAVE_VIRT_CPU_ACCOUNTING
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
@@ -336,21 +337,6 @@ config PPC_MM_SLICES
 	bool
 	default y if (!PPC_FSL_BOOK3E && PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
 	default n
-
-config VIRT_CPU_ACCOUNTING
-	bool "Deterministic task and CPU time accounting"
-	depends on PPC64
-	default y
-	help
-	  Select this option to enable more accurate task and CPU time
-	  accounting.  This is done by reading a CPU counter on each
-	  kernel entry and exit and on transitions within the kernel
-	  between system, softirq and hardirq state, so there is a
-	  small performance impact.  This also enables accounting of
-	  stolen time on logically-partitioned systems running on
-	  IBM POWER5-based machines.
-
-	  If in doubt, say Y here.
 
 config PPC_HAVE_PMU_SUPPORT
        bool

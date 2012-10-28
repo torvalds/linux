@@ -8,7 +8,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/mfd/db8500-prcmu.h>
 #include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/sys_soc.h>
@@ -17,6 +16,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/platform_data/clk-ux500.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
@@ -24,8 +24,6 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
-
-#include "clock.h"
 
 void __iomem *_PRCMU_BASE;
 
@@ -51,7 +49,9 @@ void __init ux500_init_irq(void)
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
 
-	if (cpu_is_u8500_family()) {
+	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+
+	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else
@@ -70,13 +70,17 @@ void __init ux500_init_irq(void)
 	 */
 	if (cpu_is_u8500_family())
 		db8500_prcmu_early_init();
-	clk_init();
+
+	if (cpu_is_u8500_family())
+		u8500_clk_init();
+	else if (cpu_is_u9540())
+		u9540_clk_init();
+	else if (cpu_is_u8540())
+		u8540_clk_init();
 }
 
 void __init ux500_init_late(void)
 {
-	clk_debugfs_init();
-	clk_init_smp_twd_cpufreq();
 }
 
 static const char * __init ux500_get_machine(void)

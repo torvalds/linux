@@ -57,7 +57,7 @@ struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
 }
 
 /*
- * Default policy table (RFC3484 + extensions)
+ * Default policy table (RFC6724 + extensions)
  *
  * prefix		addr_type	label
  * -------------------------------------------------------------------------
@@ -69,13 +69,17 @@ struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
  * fc00::/7		N/A		5		ULA (RFC 4193)
  * 2001::/32		N/A		6		Teredo (RFC 4380)
  * 2001:10::/28		N/A		7		ORCHID (RFC 4843)
+ * fec0::/10		N/A		11		Site-local
+ *							(deprecated by RFC3879)
+ * 3ffe::/16		N/A		12		6bone
  *
  * Note: 0xffffffff is used if we do not have any policies.
+ * Note: Labels for ULA and 6to4 are different from labels listed in RFC6724.
  */
 
 #define IPV6_ADDR_LABEL_DEFAULT	0xffffffffUL
 
-static const __net_initdata struct ip6addrlbl_init_table
+static const __net_initconst struct ip6addrlbl_init_table
 {
 	const struct in6_addr *prefix;
 	int prefixlen;
@@ -88,10 +92,18 @@ static const __net_initdata struct ip6addrlbl_init_table
 		.prefix = &(struct in6_addr){{{ 0xfc }}},
 		.prefixlen = 7,
 		.label = 5,
+	},{	/* fec0::/10 */
+		.prefix = &(struct in6_addr){{{ 0xfe, 0xc0 }}},
+		.prefixlen = 10,
+		.label = 11,
 	},{	/* 2002::/16 */
 		.prefix = &(struct in6_addr){{{ 0x20, 0x02 }}},
 		.prefixlen = 16,
 		.label = 2,
+	},{	/* 3ffe::/16 */
+		.prefix = &(struct in6_addr){{{ 0x3f, 0xfe }}},
+		.prefixlen = 16,
+		.label = 12,
 	},{	/* 2001::/32 */
 		.prefix = &(struct in6_addr){{{ 0x20, 0x01 }}},
 		.prefixlen = 32,
@@ -470,10 +482,10 @@ static void ip6addrlbl_putmsg(struct nlmsghdr *nlh,
 static int ip6addrlbl_fill(struct sk_buff *skb,
 			   struct ip6addrlbl_entry *p,
 			   u32 lseq,
-			   u32 pid, u32 seq, int event,
+			   u32 portid, u32 seq, int event,
 			   unsigned int flags)
 {
-	struct nlmsghdr *nlh = nlmsg_put(skb, pid, seq, event,
+	struct nlmsghdr *nlh = nlmsg_put(skb, portid, seq, event,
 					 sizeof(struct ifaddrlblmsg), flags);
 	if (!nlh)
 		return -EMSGSIZE;
@@ -503,7 +515,7 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		    net_eq(ip6addrlbl_net(p), net)) {
 			if ((err = ip6addrlbl_fill(skb, p,
 						   ip6addrlbl_table.seq,
-						   NETLINK_CB(cb->skb).pid,
+						   NETLINK_CB(cb->skb).portid,
 						   cb->nlh->nlmsg_seq,
 						   RTM_NEWADDRLABEL,
 						   NLM_F_MULTI)) <= 0)
@@ -574,7 +586,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 	}
 
 	err = ip6addrlbl_fill(skb, p, lseq,
-			      NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
+			      NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
 			      RTM_NEWADDRLABEL, 0);
 
 	ip6addrlbl_put(p);
@@ -585,7 +597,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 		goto out;
 	}
 
-	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).pid);
+	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 out:
 	return err;
 }

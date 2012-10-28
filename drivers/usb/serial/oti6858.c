@@ -66,8 +66,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static bool debug;
-
 /* requests */
 #define	OTI6858_REQ_GET_STATUS		(USB_DIR_IN | USB_TYPE_VENDOR | 0x00)
 #define	OTI6858_REQ_T_GET_STATUS	0x01
@@ -139,8 +137,8 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty);
 static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
-static int oti6858_startup(struct usb_serial *serial);
-static void oti6858_release(struct usb_serial *serial);
+static int oti6858_port_probe(struct usb_serial_port *port);
+static int oti6858_port_remove(struct usb_serial_port *port);
 
 /* device info */
 static struct usb_serial_driver oti6858_device = {
@@ -163,8 +161,8 @@ static struct usb_serial_driver oti6858_device = {
 	.write_bulk_callback =	oti6858_write_bulk_callback,
 	.write_room =		oti6858_write_room,
 	.chars_in_buffer =	oti6858_chars_in_buffer,
-	.attach =		oti6858_startup,
-	.release =		oti6858_release,
+	.port_probe =		oti6858_port_probe,
+	.port_remove =		oti6858_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -256,11 +254,11 @@ static void setup_line(struct work_struct *work)
 	priv->setup_done = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s(): submitting interrupt urb", __func__);
+	dev_dbg(&port->dev, "%s(): submitting interrupt urb\n", __func__);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result != 0) {
-		dev_err(&port->dev, "%s(): usb_submit_urb() failed"
-				" with error %d\n", __func__, result);
+		dev_err(&port->dev, "%s(): usb_submit_urb() failed with error %d\n",
+			__func__, result);
 	}
 }
 
@@ -310,11 +308,11 @@ static void send_data(struct work_struct *work)
 	if (count == 0) {
 		priv->flags.write_urb_in_use = 0;
 
-		dbg("%s(): submitting interrupt urb", __func__);
+		dev_dbg(&port->dev, "%s(): submitting interrupt urb\n", __func__);
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
 		if (result != 0) {
-			dev_err(&port->dev, "%s(): usb_submit_urb() failed"
-				" with error %d\n", __func__, result);
+			dev_err(&port->dev, "%s(): usb_submit_urb() failed with error %d\n",
+				__func__, result);
 		}
 		return;
 	}
@@ -325,44 +323,41 @@ static void send_data(struct work_struct *work)
 	port->write_urb->transfer_buffer_length = count;
 	result = usb_submit_urb(port->write_urb, GFP_NOIO);
 	if (result != 0) {
-		dev_err_console(port, "%s(): usb_submit_urb() failed"
-			       " with error %d\n", __func__, result);
+		dev_err_console(port, "%s(): usb_submit_urb() failed with error %d\n",
+				__func__, result);
 		priv->flags.write_urb_in_use = 0;
 	}
 
 	usb_serial_port_softint(port);
 }
 
-static int oti6858_startup(struct usb_serial *serial)
+static int oti6858_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct oti6858_private *priv;
-	int i;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct oti6858_private), GFP_KERNEL);
-		if (!priv)
-			break;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		spin_lock_init(&priv->lock);
-		init_waitqueue_head(&priv->intr_wait);
-/*		INIT_WORK(&priv->setup_work, setup_line, serial->port[i]); */
-/*		INIT_WORK(&priv->write_work, send_data, serial->port[i]); */
-		priv->port = port;
-		INIT_DELAYED_WORK(&priv->delayed_setup_work, setup_line);
-		INIT_DELAYED_WORK(&priv->delayed_write_work, send_data);
+	spin_lock_init(&priv->lock);
+	init_waitqueue_head(&priv->intr_wait);
+	priv->port = port;
+	INIT_DELAYED_WORK(&priv->delayed_setup_work, setup_line);
+	INIT_DELAYED_WORK(&priv->delayed_write_work, send_data);
 
-		usb_set_serial_port_data(serial->port[i], priv);
-	}
-	if (i == serial->num_ports)
-		return 0;
+	usb_set_serial_port_data(port, priv);
 
-	for (--i; i >= 0; --i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	return -ENOMEM;
+	return 0;
+}
+
+static int oti6858_port_remove(struct usb_serial_port *port)
+{
+	struct oti6858_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 static int oti6858_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -404,10 +399,10 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty)
 
 static void oti6858_init_termios(struct tty_struct *tty)
 {
-	*(tty->termios) = tty_std_termios;
-	tty->termios->c_cflag = B38400 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty->termios->c_ispeed = 38400;
-	tty->termios->c_ospeed = 38400;
+	tty->termios = tty_std_termios;
+	tty->termios.c_cflag = B38400 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty->termios.c_ispeed = 38400;
+	tty->termios.c_ospeed = 38400;
 }
 
 static void oti6858_set_termios(struct tty_struct *tty,
@@ -420,12 +415,10 @@ static void oti6858_set_termios(struct tty_struct *tty,
 	__le16 divisor;
 	int br;
 
-	if (!tty) {
-		dbg("%s(): no tty structures", __func__);
+	if (!tty)
 		return;
-	}
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	divisor = priv->pending_setup.divisor;
@@ -560,11 +553,11 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	kfree(buf);
 
-	dbg("%s(): submitting interrupt urb", __func__);
+	dev_dbg(&port->dev, "%s(): submitting interrupt urb\n", __func__);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result != 0) {
-		dev_err(&port->dev, "%s(): usb_submit_urb() failed"
-			       " with error %d\n", __func__, result);
+		dev_err(&port->dev, "%s(): usb_submit_urb() failed with error %d\n",
+			__func__, result);
 		oti6858_close(port);
 		return result;
 	}
@@ -586,14 +579,14 @@ static void oti6858_close(struct usb_serial_port *port)
 	kfifo_reset_out(&port->write_fifo);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	dbg("%s(): after buf_clear()", __func__);
+	dev_dbg(&port->dev, "%s(): after buf_clear()\n", __func__);
 
 	/* cancel scheduled setup */
 	cancel_delayed_work_sync(&priv->delayed_setup_work);
 	cancel_delayed_work_sync(&priv->delayed_write_work);
 
 	/* shutdown our urbs */
-	dbg("%s(): shutting down urbs", __func__);
+	dev_dbg(&port->dev, "%s(): shutting down urbs\n", __func__);
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->interrupt_in_urb);
@@ -607,8 +600,8 @@ static int oti6858_tiocmset(struct tty_struct *tty,
 	unsigned long flags;
 	u8 control;
 
-	dbg("%s(port = %d, set = 0x%08x, clear = 0x%08x)",
-				__func__, port->number, set, clear);
+	dev_dbg(&port->dev, "%s(set = 0x%08x, clear = 0x%08x)\n",
+		__func__, set, clear);
 
 	/* FIXME: check if this is correct (active high/low) */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -655,7 +648,7 @@ static int oti6858_tiocmget(struct tty_struct *tty)
 	if ((pin_state & PIN_DCD) != 0)
 		result |= TIOCM_CD;
 
-	dbg("%s() = 0x%08x", __func__, result);
+	dev_dbg(&port->dev, "%s() = 0x%08x\n", __func__, result);
 
 	return result;
 }
@@ -700,27 +693,17 @@ static int oti6858_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dbg("%s(port = %d, cmd = 0x%04x, arg = 0x%08lx)",
-				__func__, port->number, cmd, arg);
+	dev_dbg(&port->dev, "%s(cmd = 0x%04x, arg = 0x%08lx)\n", __func__, cmd, arg);
 
 	switch (cmd) {
 	case TIOCMIWAIT:
-		dbg("%s(): TIOCMIWAIT", __func__);
+		dev_dbg(&port->dev, "%s(): TIOCMIWAIT\n", __func__);
 		return wait_modem_info(port, arg);
 	default:
-		dbg("%s(): 0x%04x not supported", __func__, cmd);
+		dev_dbg(&port->dev, "%s(): 0x%04x not supported\n", __func__, cmd);
 		break;
 	}
 	return -ENOIOCTLCMD;
-}
-
-
-static void oti6858_release(struct usb_serial *serial)
-{
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i)
-		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
 static void oti6858_read_int_callback(struct urb *urb)
@@ -738,12 +721,12 @@ static void oti6858_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s(): urb shutting down with status: %d",
-					__func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s(): nonzero urb status received: %d",
-					__func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): nonzero urb status received: %d\n",
+			__func__, status);
 		break;
 	}
 
@@ -759,8 +742,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 					priv->transient = 4;
 					priv->setup_done = 0;
 					resubmit = 0;
-					dbg("%s(): scheduling setup_line()",
-					    __func__);
+					dev_dbg(&port->dev, "%s(): scheduling setup_line()\n", __func__);
 					schedule_delayed_work(&priv->delayed_setup_work, 0);
 				}
 			}
@@ -774,8 +756,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 					priv->transient = 4;
 					priv->setup_done = 0;
 					resubmit = 0;
-					dbg("%s(): scheduling setup_line()",
-					    __func__);
+					dev_dbg(&port->dev, "%s(): scheduling setup_line()\n", __func__);
 					schedule_delayed_work(&priv->delayed_setup_work, 0);
 				}
 			}
@@ -826,7 +807,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 	if (resubmit) {
 		int result;
 
-/*		dbg("%s(): submitting interrupt urb", __func__); */
+/*		dev_dbg(&urb->dev->dev, "%s(): submitting interrupt urb\n", __func__); */
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result != 0) {
 			dev_err(&urb->dev->dev,
@@ -851,7 +832,7 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (status != 0) {
-		dbg("%s(): unable to handle the error, exiting", __func__);
+		dev_dbg(&urb->dev->dev, "%s(): unable to handle the error, exiting\n", __func__);
 		return;
 	}
 
@@ -885,15 +866,13 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s(): urb shutting down with status: %d",
-					__func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): urb shutting down with status: %d\n", __func__, status);
 		priv->flags.write_urb_in_use = 0;
 		return;
 	default:
 		/* error in the urb, so we have to resubmit it */
-		dbg("%s(): nonzero write bulk status received: %d",
-					__func__, status);
-		dbg("%s(): overflow in write", __func__);
+		dev_dbg(&urb->dev->dev, "%s(): nonzero write bulk status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): overflow in write\n", __func__);
 
 		port->write_urb->transfer_buffer_length = 1;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -908,7 +887,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 	priv->flags.write_urb_in_use = 0;
 
 	/* schedule the interrupt urb if we are still open */
-	dbg("%s(): submitting interrupt urb", __func__);
+	dev_dbg(&port->dev, "%s(): submitting interrupt urb\n", __func__);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result != 0) {
 		dev_err(&port->dev, "%s(): failed submitting int urb,"
@@ -922,7 +901,3 @@ MODULE_DESCRIPTION(OTI6858_DESCRIPTION);
 MODULE_AUTHOR(OTI6858_AUTHOR);
 MODULE_VERSION(OTI6858_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "enable debug output");
-

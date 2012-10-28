@@ -24,7 +24,7 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/audio-simtec.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
 #include <plat/devs.h>
 
 #include "simtec.h"

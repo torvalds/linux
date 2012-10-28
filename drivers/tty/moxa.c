@@ -169,6 +169,7 @@ static DEFINE_SPINLOCK(moxa_lock);
 static unsigned long baseaddr[MAX_BOARDS];
 static unsigned int type[MAX_BOARDS];
 static unsigned int numports[MAX_BOARDS];
+static struct tty_port moxa_service_port;
 
 MODULE_AUTHOR("William Chen");
 MODULE_DESCRIPTION("MOXA Intellio Family Multiport Board Device Driver");
@@ -367,10 +368,10 @@ static int moxa_ioctl(struct tty_struct *tty,
 					tmp.dcd = 1;
 
 				ttyp = tty_port_tty_get(&p->port);
-				if (!ttyp || !ttyp->termios)
+				if (!ttyp)
 					tmp.cflag = p->cflag;
 				else
-					tmp.cflag = ttyp->termios->c_cflag;
+					tmp.cflag = ttyp->termios.c_cflag;
 				tty_kref_put(ttyp);
 copy:
 				if (copy_to_user(argm, &tmp, sizeof(tmp)))
@@ -834,7 +835,7 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	const struct firmware *fw;
 	const char *file;
 	struct moxa_port *p;
-	unsigned int i;
+	unsigned int i, first_idx;
 	int ret;
 
 	brd->ports = kcalloc(MAX_PORTS_PER_BOARD, sizeof(*brd->ports),
@@ -887,6 +888,11 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 		mod_timer(&moxaTimer, jiffies + HZ / 50);
 	spin_unlock_bh(&moxa_lock);
 
+	first_idx = (brd - moxa_boards) * MAX_PORTS_PER_BOARD;
+	for (i = 0; i < brd->numPorts; i++)
+		tty_port_register_device(&brd->ports[i].port, moxaDriver,
+				first_idx + i, dev);
+
 	return 0;
 err_free:
 	kfree(brd->ports);
@@ -896,7 +902,7 @@ err:
 
 static void moxa_board_deinit(struct moxa_board_conf *brd)
 {
-	unsigned int a, opened;
+	unsigned int a, opened, first_idx;
 
 	mutex_lock(&moxa_openlock);
 	spin_lock_bh(&moxa_lock);
@@ -924,6 +930,10 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 		msleep(50);
 		mutex_lock(&moxa_openlock);
 	}
+
+	first_idx = (brd - moxa_boards) * MAX_PORTS_PER_BOARD;
+	for (a = 0; a < brd->numPorts; a++)
+		tty_unregister_device(moxaDriver, first_idx + a);
 
 	iounmap(brd->basemem);
 	brd->basemem = NULL;
@@ -967,6 +977,7 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 	board->basemem = ioremap_nocache(pci_resource_start(pdev, 2), 0x4000);
 	if (board->basemem == NULL) {
 		dev_err(&pdev->dev, "can't remap io space 2\n");
+		retval = -ENOMEM;
 		goto err_reg;
 	}
 
@@ -1031,9 +1042,14 @@ static int __init moxa_init(void)
 
 	printk(KERN_INFO "MOXA Intellio family driver version %s\n",
 			MOXA_VERSION);
-	moxaDriver = alloc_tty_driver(MAX_PORTS + 1);
-	if (!moxaDriver)
-		return -ENOMEM;
+
+	tty_port_init(&moxa_service_port);
+
+	moxaDriver = tty_alloc_driver(MAX_PORTS + 1,
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(moxaDriver))
+		return PTR_ERR(moxaDriver);
 
 	moxaDriver->name = "ttyMX";
 	moxaDriver->major = ttymajor;
@@ -1044,8 +1060,9 @@ static int __init moxa_init(void)
 	moxaDriver->init_termios.c_cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	moxaDriver->init_termios.c_ispeed = 9600;
 	moxaDriver->init_termios.c_ospeed = 9600;
-	moxaDriver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(moxaDriver, &moxa_ops);
+	/* Having one more port only for ioctls is ugly */
+	tty_port_link_device(&moxa_service_port, moxaDriver, MAX_PORTS);
 
 	if (tty_register_driver(moxaDriver)) {
 		printk(KERN_ERR "can't register MOXA Smartio tty driver!\n");
@@ -1178,7 +1195,7 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&ch->port.mutex);
 	if (!(ch->port.flags & ASYNC_INITIALIZED)) {
 		ch->statusflags = 0;
-		moxa_set_tty_param(tty, tty->termios);
+		moxa_set_tty_param(tty, &tty->termios);
 		MoxaPortLineCtrl(ch, 1, 1);
 		MoxaPortEnable(ch);
 		MoxaSetFifo(ch, ch->type == PORT_16550A);
@@ -1193,7 +1210,7 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 static void moxa_close(struct tty_struct *tty, struct file *filp)
 {
 	struct moxa_port *ch = tty->driver_data;
-	ch->cflag = tty->termios->c_cflag;
+	ch->cflag = tty->termios.c_cflag;
 	tty_port_close(&ch->port, tty, filp);
 }
 
@@ -1464,7 +1481,7 @@ static void moxa_poll(unsigned long ignored)
 
 static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	register struct ktermios *ts = tty->termios;
+	register struct ktermios *ts = &tty->termios;
 	struct moxa_port *ch = tty->driver_data;
 	int rts, cts, txflow, rxflow, xany, baud;
 

@@ -354,7 +354,9 @@ out:
 	return ret;
 }
 
-static void wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl1251_op_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct wl1251 *wl = hw->priv;
 	unsigned long flags;

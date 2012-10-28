@@ -99,8 +99,10 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	ri->ino = cpu_to_je32(inode->i_ino);
 	ri->version = cpu_to_je32(++f->highest_version);
 
-	ri->uid = cpu_to_je16((ivalid & ATTR_UID)?iattr->ia_uid:inode->i_uid);
-	ri->gid = cpu_to_je16((ivalid & ATTR_GID)?iattr->ia_gid:inode->i_gid);
+	ri->uid = cpu_to_je16((ivalid & ATTR_UID)?
+		from_kuid(&init_user_ns, iattr->ia_uid):i_uid_read(inode));
+	ri->gid = cpu_to_je16((ivalid & ATTR_GID)?
+		from_kgid(&init_user_ns, iattr->ia_gid):i_gid_read(inode));
 
 	if (ivalid & ATTR_MODE)
 		ri->mode = cpu_to_jemode(iattr->ia_mode);
@@ -147,8 +149,8 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	inode->i_ctime = ITIME(je32_to_cpu(ri->ctime));
 	inode->i_mtime = ITIME(je32_to_cpu(ri->mtime));
 	inode->i_mode = jemode_to_cpu(ri->mode);
-	inode->i_uid = je16_to_cpu(ri->uid);
-	inode->i_gid = je16_to_cpu(ri->gid);
+	i_uid_write(inode, je16_to_cpu(ri->uid));
+	i_gid_write(inode, je16_to_cpu(ri->gid));
 
 
 	old_metadata = f->metadata;
@@ -276,8 +278,8 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		return ERR_PTR(ret);
 	}
 	inode->i_mode = jemode_to_cpu(latest_node.mode);
-	inode->i_uid = je16_to_cpu(latest_node.uid);
-	inode->i_gid = je16_to_cpu(latest_node.gid);
+	i_uid_write(inode, je16_to_cpu(latest_node.uid));
+	i_gid_write(inode, je16_to_cpu(latest_node.gid));
 	inode->i_size = je32_to_cpu(latest_node.isize);
 	inode->i_atime = ITIME(je32_to_cpu(latest_node.atime));
 	inode->i_mtime = ITIME(je32_to_cpu(latest_node.mtime));
@@ -440,14 +442,14 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 
 	memset(ri, 0, sizeof(*ri));
 	/* Set OS-specific defaults for new inodes */
-	ri->uid = cpu_to_je16(current_fsuid());
+	ri->uid = cpu_to_je16(from_kuid(&init_user_ns, current_fsuid()));
 
 	if (dir_i->i_mode & S_ISGID) {
-		ri->gid = cpu_to_je16(dir_i->i_gid);
+		ri->gid = cpu_to_je16(i_gid_read(dir_i));
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else {
-		ri->gid = cpu_to_je16(current_fsgid());
+		ri->gid = cpu_to_je16(from_kgid(&init_user_ns, current_fsgid()));
 	}
 
 	/* POSIX ACLs have to be processed now, at least partly.
@@ -467,8 +469,8 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 	set_nlink(inode, 1);
 	inode->i_ino = je32_to_cpu(ri->ino);
 	inode->i_mode = jemode_to_cpu(ri->mode);
-	inode->i_gid = je16_to_cpu(ri->gid);
-	inode->i_uid = je16_to_cpu(ri->uid);
+	i_gid_write(inode, je16_to_cpu(ri->gid));
+	i_uid_write(inode, je16_to_cpu(ri->uid));
 	inode->i_atime = inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(inode->i_mtime));
 

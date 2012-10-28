@@ -409,7 +409,7 @@ extern struct apic *apic;
  * to enforce the order with in them.
  */
 #define apic_driver(sym)					\
-	static struct apic *__apicdrivers_##sym __used		\
+	static const struct apic *__apicdrivers_##sym __used		\
 	__aligned(sizeof(struct apic *))			\
 	__section(.apicdrivers) = { &sym }
 

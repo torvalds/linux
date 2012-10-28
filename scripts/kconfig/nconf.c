@@ -721,7 +721,7 @@ again:
 		dialog_input += strlen(CONFIG_);
 
 	sym_arr = sym_re_search(dialog_input);
-	res = get_relations_str(sym_arr);
+	res = get_relations_str(sym_arr, NULL);
 	free(sym_arr);
 	show_scroll_win(main_window,
 			_("Search Results"), str_get(&res));

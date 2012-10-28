@@ -60,7 +60,7 @@
 
 #elif defined(CONFIG_M5272)
 .macro GET_MEM_SIZE
-	movel	MCF_MBAR+MCFSIM_CSOR7,%d0 /* get SDRAM address mask */
+	movel	MCFSIM_CSOR7,%d0	/* get SDRAM address mask */
 	andil	#0xfffff000,%d0		/* mask out chip select options */
 	negl	%d0			/* negate bits */
 .endm

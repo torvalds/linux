@@ -118,11 +118,20 @@ static int udf_adinicb_write_end(struct file *file,
 	return simple_write_end(file, mapping, pos, len, copied, page, fsdata);
 }
 
+static ssize_t udf_adinicb_direct_IO(int rw, struct kiocb *iocb,
+				     const struct iovec *iov,
+				     loff_t offset, unsigned long nr_segs)
+{
+	/* Fallback to buffered I/O. */
+	return 0;
+}
+
 const struct address_space_operations udf_adinicb_aops = {
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
 	.write_begin	= udf_adinicb_write_begin,
 	.write_end	= udf_adinicb_write_end,
+	.direct_IO	= udf_adinicb_direct_IO,
 };
 
 static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,

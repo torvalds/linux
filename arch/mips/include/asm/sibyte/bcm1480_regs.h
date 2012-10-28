@@ -32,14 +32,14 @@
 #ifndef _BCM1480_REGS_H
 #define _BCM1480_REGS_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*  *********************************************************************
     *  Pull in the BCM1250's registers since a great deal of the 1480's
     *  functions are the same as the BCM1250.
     ********************************************************************* */
 
-#include "sb1250_regs.h"
+#include <asm/sibyte/sb1250_regs.h>
 
 
 /*  *********************************************************************

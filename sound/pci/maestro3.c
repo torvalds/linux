@@ -789,7 +789,7 @@ struct snd_m3 {
 
 	unsigned int in_suspend;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u16 *suspend_mem;
 #endif
 
@@ -2368,7 +2368,7 @@ static int snd_m3_free(struct snd_m3 *chip)
 		outw(0, chip->iobase + HOST_INT_CTRL); /* disable ints */
 	}
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	vfree(chip->suspend_mem);
 #endif
 
@@ -2390,7 +2390,7 @@ static int snd_m3_free(struct snd_m3 *chip)
 /*
  * APM support
  */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int m3_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -2485,7 +2485,7 @@ static SIMPLE_DEV_PM_OPS(m3_pm, m3_suspend, m3_resume);
 #define M3_PM_OPS	&m3_pm
 #else
 #define M3_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SND_MAESTRO3_INPUT
 static int __devinit snd_m3_input_register(struct snd_m3 *chip)
@@ -2656,7 +2656,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	}
 	chip->irq = pci->irq;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->suspend_mem = vmalloc(sizeof(u16) * (REV_B_CODE_MEMORY_LENGTH + REV_B_DATA_MEMORY_LENGTH));
 	if (chip->suspend_mem == NULL)
 		snd_printk(KERN_WARNING "can't allocate apm buffer\n");

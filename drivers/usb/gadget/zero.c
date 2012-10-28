@@ -42,7 +42,6 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 
 #include "g_zero.h"
@@ -58,15 +57,11 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #include "f_sourcesink.c"
 #include "f_loopback.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_VERSION		"Cinco de Mayo 2008"
 
@@ -141,20 +136,13 @@ const struct usb_descriptor_header *otg_desc[] = {
 #endif
 
 /* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_SERIAL_IDX		2
-
-static char manufacturer[50];
-
 /* default serial number takes at least two packets */
 static char serial[] = "0123456789.0123456789.0123456789";
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = longname,
-	[STRING_SERIAL_IDX].s = serial,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = longname,
+	[USB_GADGET_SERIAL_IDX].s = serial,
 	{  }			/* end of list */
 };
 
@@ -265,30 +253,18 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 static int __init zero_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
-	struct usb_gadget	*gadget = cdev->gadget;
-	int			id;
+	int			status;
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_MANUFACTURER_IDX].id = id;
-	device_desc.iManufacturer = id;
+	status = usb_string_ids_tab(cdev, strings_dev);
+	if (status < 0)
+		return status;
 
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_PRODUCT_IDX].id = id;
-	device_desc.iProduct = id;
-
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_SERIAL_IDX].id = id;
-	device_desc.iSerialNumber = id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
+	device_desc.iSerialNumber = strings_dev[USB_GADGET_SERIAL_IDX].id;
 
 	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
 
@@ -303,27 +279,9 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 		loopback_add(cdev, autoresume != 0);
 	}
 
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	else {
-		/* gadget zero is so simple (for now, no altsettings) that
-		 * it SHOULD NOT have problems with bulk-capable hardware.
-		 * so just warn about unrcognized controllers -- don't panic.
-		 *
-		 * things like configuration and altsetting numbering
-		 * can need hardware-specific attention though.
-		 */
-		pr_warning("%s: controller '%s' not recognized\n",
-			longname, gadget->name);
-		device_desc.bcdDevice = cpu_to_le16(0x9999);
-	}
+	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", longname);
-
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
 
 	return 0;
 }
@@ -334,11 +292,12 @@ static int zero_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static struct usb_composite_driver zero_driver = {
+static __refdata struct usb_composite_driver zero_driver = {
 	.name		= "zero",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= zero_bind,
 	.unbind		= zero_unbind,
 	.suspend	= zero_suspend,
 	.resume		= zero_resume,
@@ -349,7 +308,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&zero_driver, zero_bind);
+	return usb_composite_probe(&zero_driver);
 }
 module_init(init);
 

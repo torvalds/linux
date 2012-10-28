@@ -37,7 +37,6 @@
 #include "recv_osdep.h"
 #include "xmit_osdep.h"
 #include "rtl8712_efuse.h"
-#include "usb_vendor_req.h"
 #include "usb_ops.h"
 #include "usb_osintf.h"
 

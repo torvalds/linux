@@ -140,9 +140,9 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->updating = 0;
 		vfree(vol->upd_buf);
 	} else if (vol->changing_leb) {
-		dbg_gen("only %lld of %lld bytes received for atomic LEB change"
-			" for volume %d:%d, cancel", vol->upd_received,
-			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
+		dbg_gen("only %lld of %lld bytes received for atomic LEB change for volume %d:%d, cancel",
+			vol->upd_received, vol->upd_bytes, vol->ubi->ubi_num,
+			vol->vol_id);
 		vol->changing_leb = 0;
 		vfree(vol->upd_buf);
 	}
@@ -189,7 +189,8 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return new_offset;
 }
 
-static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_device *ubi = desc->vol->ubi;
@@ -753,7 +754,7 @@ static int rename_volumes(struct ubi_device *ubi,
 		re->new_name_len = name_len;
 		memcpy(re->new_name, name, name_len);
 		list_add_tail(&re->list, &rename_list);
-		dbg_msg("will rename volume %d from \"%s\" to \"%s\"",
+		dbg_gen("will rename volume %d from \"%s\" to \"%s\"",
 			vol_id, re->desc->vol->name, name);
 	}
 
@@ -811,7 +812,7 @@ static int rename_volumes(struct ubi_device *ubi,
 		re1->remove = 1;
 		re1->desc = desc;
 		list_add(&re1->list, &rename_list);
-		dbg_msg("will remove volume %d, name \"%s\"",
+		dbg_gen("will remove volume %d, name \"%s\"",
 			re1->desc->vol->vol_id, re1->desc->vol->name);
 	}
 
@@ -942,7 +943,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 	{
 		struct ubi_rnvol_req *req;
 
-		dbg_msg("re-name volumes");
+		dbg_gen("re-name volumes");
 		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
 		if (!req) {
 			err = -ENOMEM;
@@ -1010,7 +1011,8 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 		 * 'ubi_attach_mtd_dev()'.
 		 */
 		mutex_lock(&ubi_devices_mutex);
-		err = ubi_attach_mtd_dev(mtd, req.ubi_num, req.vid_hdr_offset);
+		err = ubi_attach_mtd_dev(mtd, req.ubi_num, req.vid_hdr_offset,
+					 req.max_beb_per1024);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0)
 			put_mtd_device(mtd);

@@ -138,8 +138,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 		udelay(1);
 	}
 	if (timeout >= VP_TRANXDONE_TIMEOUT) {
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded."
-			"Voltage change aborted", __func__, voltdm->name);
+		pr_warn("%s: vdd_%s TRANXDONE timeout exceeded. Voltage change aborted",
+			__func__, voltdm->name);
 		return -ETIMEDOUT;
 	}
 
@@ -157,9 +157,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	omap_test_timeout(vp->common->ops->check_txdone(vp->id),
 			  VP_TRANXDONE_TIMEOUT, timeout);
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_err("%s: vdd_%s TRANXDONE timeout exceeded."
-			"TRANXDONE never got set after the voltage update\n",
-			__func__, voltdm->name);
+		pr_err("%s: vdd_%s TRANXDONE timeout exceeded. TRANXDONE never got set after the voltage update\n",
+		       __func__, voltdm->name);
 
 	omap_vc_post_scale(voltdm, target_volt, target_vsel, current_vsel);
 
@@ -176,8 +175,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	}
 
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded while trying"
-			"to clear the TRANXDONE status\n",
+		pr_warn("%s: vdd_%s TRANXDONE timeout exceeded while trying to clear the TRANXDONE status\n",
 			__func__, voltdm->name);
 
 	/* Clear force bit */
@@ -257,8 +255,8 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 
 	/* If VP is already disabled, do nothing. Return */
 	if (!vp->enabled) {
-		pr_warning("%s: Trying to disable VP for vdd_%s when"
-			"it is already disabled\n", __func__, voltdm->name);
+		pr_warn("%s: Trying to disable VP for vdd_%s when it is already disabled\n",
+			__func__, voltdm->name);
 		return;
 	}
 

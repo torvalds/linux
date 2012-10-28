@@ -15,11 +15,6 @@
 #include <asm/cp15.h>
 #include <mach/common.h>
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	return 1;
-}
-
 static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;
@@ -47,7 +42,7 @@ static inline void cpu_enter_lowpower(void)
  *
  * Called with IRQs disabled
  */
-void platform_cpu_die(unsigned int cpu)
+void imx_cpu_die(unsigned int cpu)
 {
 	cpu_enter_lowpower();
 	imx_enable_cpu(cpu, false);
@@ -55,13 +50,4 @@ void platform_cpu_die(unsigned int cpu)
 	/* spin here until hardware takes it down */
 	while (1)
 		;
-}
-
-int platform_cpu_disable(unsigned int cpu)
-{
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
 }

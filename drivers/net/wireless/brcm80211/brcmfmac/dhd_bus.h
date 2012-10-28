@@ -103,7 +103,7 @@ extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
 extern void brcmf_detach(struct device *dev);
 
 /* Indication from bus module to change flow-control state */
-extern void brcmf_txflowcontrol(struct device *dev, int ifidx, bool on);
+extern void brcmf_txflowblock(struct device *dev, bool state);
 
 /* Notify tx completion */
 extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,

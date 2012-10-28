@@ -14,7 +14,7 @@
 
 #include <linux/list.h>
 #include <linux/seq_file.h>
-#include "pinctrl.h"
+#include <linux/pinctrl/pinctrl.h>
 
 #ifdef CONFIG_PINMUX
 

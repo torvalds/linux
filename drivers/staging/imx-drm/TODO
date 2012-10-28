@@ -1,0 +1,22 @@
+TODO:
+- get DRM Maintainer review for this code
+- Factor out more code to common helper functions
+- decide where to put the base driver. It is not specific to a subsystem
+  and would be used by DRM/KMS and media/V4L2
+- convert irq driver to irq_domain_add_linear
+
+Missing features (not necessarily for moving out of staging):
+
+- Add KMS plane support for CRTC driver
+- Add LDB (LVDS Display Bridge) support
+- Add i.MX6 HDMI support
+- Add support for IC (Image converter)
+- Add support for CSI (CMOS Sensor interface)
+- Add support for VDIC (Video Deinterlacer)
+
+Many work-in-progress patches for the above features exist. Contact
+Sascha Hauer <kernel@pengutronix.de> if you are interested in working
+on a specific feature.
+
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org> and
+Sascha Hauer <kernel@pengutronix.de>

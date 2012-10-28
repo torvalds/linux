@@ -30,7 +30,7 @@
 #include <linux/workqueue.h>
 
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
-#include "seq_device.h"
+#include <sound/seq_device.h>
 #endif
 
 /*

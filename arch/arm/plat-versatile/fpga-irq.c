@@ -5,6 +5,8 @@
 #include <linux/io.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
@@ -14,11 +16,17 @@
 #define IRQ_RAW_STATUS		0x04
 #define IRQ_ENABLE_SET		0x08
 #define IRQ_ENABLE_CLEAR	0x0c
+#define INT_SOFT_SET		0x10
+#define INT_SOFT_CLEAR		0x14
+#define FIQ_STATUS		0x20
+#define FIQ_RAW_STATUS		0x24
+#define FIQ_ENABLE		0x28
+#define FIQ_ENABLE_SET		0x28
+#define FIQ_ENABLE_CLEAR	0x2C
 
 /**
  * struct fpga_irq_data - irq data container for the FPGA IRQ controller
  * @base: memory offset in virtual memory
- * @irq_start: first IRQ number handled by this instance
  * @chip: chip container for this instance
  * @domain: IRQ domain for this instance
  * @valid: mask for valid IRQs on this controller
@@ -26,7 +34,6 @@
  */
 struct fpga_irq_data {
 	void __iomem *base;
-	unsigned int irq_start;
 	struct irq_chip chip;
 	u32 valid;
 	struct irq_domain *domain;
@@ -125,34 +132,79 @@ static struct irq_domain_ops fpga_irqdomain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
-			  int parent_irq, u32 valid, struct device_node *node)
-{
+static __init struct fpga_irq_data *
+fpga_irq_prep_struct(void __iomem *base, const char *name, u32 valid) {
 	struct fpga_irq_data *f;
 
 	if (fpga_irq_id >= ARRAY_SIZE(fpga_irq_devices)) {
 		printk(KERN_ERR "%s: too few FPGA IRQ controllers, increase CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR\n", __func__);
-		return;
+		return NULL;
 	}
-
 	f = &fpga_irq_devices[fpga_irq_id];
 	f->base = base;
-	f->irq_start = irq_start;
 	f->chip.name = name;
 	f->chip.irq_ack = fpga_irq_mask;
 	f->chip.irq_mask = fpga_irq_mask;
 	f->chip.irq_unmask = fpga_irq_unmask;
 	f->valid = valid;
+	fpga_irq_id++;
+
+	return f;
+}
+
+void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
+			  int parent_irq, u32 valid, struct device_node *node)
+{
+	struct fpga_irq_data *f;
+
+	f = fpga_irq_prep_struct(base, name, valid);
+	if (!f)
+		return;
 
 	if (parent_irq != -1) {
 		irq_set_handler_data(parent_irq, f);
 		irq_set_chained_handler(parent_irq, fpga_irq_handle);
 	}
 
-	f->domain = irq_domain_add_legacy(node, fls(valid), f->irq_start, 0,
+	f->domain = irq_domain_add_legacy(node, fls(valid), irq_start, 0,
 					  &fpga_irqdomain_ops, f);
 	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs\n",
 		fpga_irq_id, name, base, f->used_irqs);
-
-	fpga_irq_id++;
 }
+
+#ifdef CONFIG_OF
+int __init fpga_irq_of_init(struct device_node *node,
+			    struct device_node *parent)
+{
+	struct fpga_irq_data *f;
+	void __iomem *base;
+	u32 clear_mask;
+	u32 valid_mask;
+
+	if (WARN_ON(!node))
+		return -ENODEV;
+
+	base = of_iomap(node, 0);
+	WARN(!base, "unable to map fpga irq registers\n");
+
+	if (of_property_read_u32(node, "clear-mask", &clear_mask))
+		clear_mask = 0;
+
+	if (of_property_read_u32(node, "valid-mask", &valid_mask))
+		valid_mask = 0;
+
+	f = fpga_irq_prep_struct(base, node->name, valid_mask);
+	if (!f)
+		return -ENOMEM;
+
+	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
+	writel(clear_mask, base + FIQ_ENABLE_CLEAR);
+
+	f->domain = irq_domain_add_linear(node, fls(valid_mask), &fpga_irqdomain_ops, f);
+	f->used_irqs = hweight32(valid_mask);
+
+	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs\n",
+		fpga_irq_id, node->name, base, f->used_irqs);
+	return 0;
+}
+#endif

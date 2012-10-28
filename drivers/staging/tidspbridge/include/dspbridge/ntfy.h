@@ -78,7 +78,7 @@ static inline void ntfy_init(struct ntfy_object *no)
  * ntfy_delete() - delete list of nofy events registered.
  * @ntfy_obj:	Pointer to the ntfy object structure.
  *
- * This function is used to remove all the notify events  registered.
+ * This function is used to remove all the notify events registered.
  * unregister function is not needed in this function, to unregister
  * a ntfy_event please look at ntfy_register function.
  *

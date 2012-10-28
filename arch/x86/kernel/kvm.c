@@ -247,7 +247,10 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
+		rcu_irq_enter();
+		exit_idle();
 		kvm_async_pf_task_wait((u32)read_cr2());
+		rcu_irq_exit();
 		break;
 	case KVM_PV_REASON_PAGE_READY:
 		rcu_irq_enter();
@@ -354,6 +357,7 @@ static void kvm_pv_guest_cpu_reboot(void *unused)
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
 	kvm_pv_disable_apf();
+	kvm_disable_steal_time();
 }
 
 static int kvm_pv_reboot_notify(struct notifier_block *nb,
@@ -396,9 +400,7 @@ void kvm_disable_steal_time(void)
 #ifdef CONFIG_SMP
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
-#ifdef CONFIG_KVM_CLOCK
 	WARN_ON(kvm_register_clock("primary cpu clock"));
-#endif
 	kvm_guest_cpu_init();
 	native_smp_prepare_boot_cpu();
 }

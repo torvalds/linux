@@ -91,6 +91,11 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 				struct net_device *dev, const u8 *mac_addr,
 				gfp_t gfp);
 
+void nl80211_send_conn_failed_event(struct cfg80211_registered_device *rdev,
+				    struct net_device *dev, const u8 *mac_addr,
+				    enum nl80211_connect_failed_reason reason,
+				    gfp_t gfp);
+
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct wireless_dev *wdev, u32 nlpid,
 		      int freq, int sig_dbm,

@@ -346,7 +346,6 @@ static int sm_write_sector(struct sm_ftl *ftl,
 	ret = mtd_write_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
 	/* Now we assume that hardware will catch write bitflip errors */
-	/* If you are paranoid, use CONFIG_MTD_NAND_VERIFY_WRITE */
 
 	if (ret) {
 		dbg("write to block %d at zone %d, failed with error %d",

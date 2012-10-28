@@ -64,29 +64,6 @@ static int px_raw_event(struct hid_device *hid, struct hid_report *report,
 	return 0;
 }
 
-static int px_probe(struct hid_device *hid, const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(hid);
-	if (ret) {
-		hid_err(hid, "parse failed\n");
-		goto fail;
-	}
-
-	ret = hid_hw_start(hid, HID_CONNECT_DEFAULT);
-	if (ret)
-		hid_err(hid, "hw start failed\n");
-
-fail:
-	return ret;
-}
-
-static void px_remove(struct hid_device *hid)
-{
-	hid_hw_stop(hid);
-}
-
 static const struct hid_device_id px_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PRIMAX, USB_DEVICE_ID_PRIMAX_KEYBOARD) },
 	{ }
@@ -97,8 +74,6 @@ static struct hid_driver px_driver = {
 	.name = "primax",
 	.id_table = px_devices,
 	.raw_event = px_raw_event,
-	.probe = px_probe,
-	.remove = px_remove,
 };
 
 static int __init px_init(void)

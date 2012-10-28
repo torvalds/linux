@@ -49,15 +49,15 @@
 #include <plat/clock.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-iic.h>
-#include <plat/mci.h>
-#include <plat/udc.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/irq.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <sound/uda1380.h>
 

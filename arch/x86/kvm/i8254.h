@@ -24,8 +24,12 @@ struct kvm_kpit_channel_state {
 struct kvm_kpit_state {
 	struct kvm_kpit_channel_state channels[3];
 	u32 flags;
-	struct kvm_timer pit_timer;
 	bool is_periodic;
+	s64 period; 				/* unit: ns */
+	struct hrtimer timer;
+	atomic_t pending;			/* accumulated triggered timers */
+	bool reinject;
+	struct kvm *kvm;
 	u32    speaker_data_on;
 	struct mutex lock;
 	struct kvm_pit *pit;

@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <ctype.h>
@@ -109,6 +110,7 @@ struct data data_insert_at_marker(struct data d, struct marker *m,
 				  const void *p, int len);
 struct data data_merge(struct data d1, struct data d2);
 struct data data_append_cell(struct data d, cell_t word);
+struct data data_append_integer(struct data d, uint64_t word, int bits);
 struct data data_append_re(struct data d, const struct fdt_reserve_entry *re);
 struct data data_append_addr(struct data d, uint64_t addr);
 struct data data_append_byte(struct data d, uint8_t byte);
@@ -126,11 +128,13 @@ int data_is_one_string(struct data d);
 
 /* Live trees */
 struct label {
+	int deleted;
 	char *label;
 	struct label *next;
 };
 
 struct property {
+	int deleted;
 	char *name;
 	struct data val;
 
@@ -140,6 +144,7 @@ struct property {
 };
 
 struct node {
+	int deleted;
 	char *name;
 	struct property *proplist;
 	struct node *children;
@@ -156,28 +161,47 @@ struct node {
 	struct label *labels;
 };
 
-#define for_each_label(l0, l) \
+#define for_each_label_withdel(l0, l) \
 	for ((l) = (l0); (l); (l) = (l)->next)
 
-#define for_each_property(n, p) \
+#define for_each_label(l0, l) \
+	for_each_label_withdel(l0, l) \
+		if (!(l)->deleted)
+
+#define for_each_property_withdel(n, p) \
 	for ((p) = (n)->proplist; (p); (p) = (p)->next)
 
-#define for_each_child(n, c)	\
+#define for_each_property(n, p) \
+	for_each_property_withdel(n, p) \
+		if (!(p)->deleted)
+
+#define for_each_child_withdel(n, c) \
 	for ((c) = (n)->children; (c); (c) = (c)->next_sibling)
 
+#define for_each_child(n, c) \
+	for_each_child_withdel(n, c) \
+		if (!(c)->deleted)
+
 void add_label(struct label **labels, char *label);
+void delete_labels(struct label **labels);
 
 struct property *build_property(char *name, struct data val);
+struct property *build_property_delete(char *name);
 struct property *chain_property(struct property *first, struct property *list);
 struct property *reverse_properties(struct property *first);
 
 struct node *build_node(struct property *proplist, struct node *children);
+struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
 
 void add_property(struct node *node, struct property *prop);
+void delete_property_by_name(struct node *node, char *name);
+void delete_property(struct property *prop);
 void add_child(struct node *parent, struct node *child);
+void delete_node_by_name(struct node *parent, char *name);
+void delete_node(struct node *node);
 
 const char *get_unitname(struct node *node);
 struct property *get_property(struct node *node, const char *propname);
@@ -224,6 +248,7 @@ void sort_tree(struct boot_info *bi);
 
 /* Checks */
 
+void parse_checks_option(bool warn, bool error, const char *optarg);
 void process_checks(int force, struct boot_info *bi);
 
 /* Flattened trees */

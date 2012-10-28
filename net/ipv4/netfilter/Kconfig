@@ -143,25 +143,22 @@ config IP_NF_TARGET_ULOG
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # NAT + specific targets: nf_conntrack
-config NF_NAT
-	tristate "Full NAT"
+config NF_NAT_IPV4
+	tristate "IPv4 NAT"
 	depends on NF_CONNTRACK_IPV4
 	default m if NETFILTER_ADVANCED=n
+	select NF_NAT
 	help
-	  The Full NAT option allows masquerading, port forwarding and other
+	  The IPv4 NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation.  It is controlled by
 	  the `nat' table in iptables: see the man page for iptables(8).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NF_NAT_NEEDED
-	bool
-	depends on NF_NAT
-	default y
+if NF_NAT_IPV4
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	depends on NF_NAT
 	default m if NETFILTER_ADVANCED=n
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
@@ -174,30 +171,27 @@ config IP_NF_TARGET_MASQUERADE
 
 config IP_NF_TARGET_NETMAP
 	tristate "NETMAP target support"
-	depends on NF_NAT
 	depends on NETFILTER_ADVANCED
-	help
-	  NETMAP is an implementation of static 1:1 NAT mapping of network
-	  addresses. It maps the network address part, while keeping the host
-	  address part intact.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	select NETFILTER_XT_TARGET_NETMAP
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_NETMAP.
 
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
-	depends on NF_NAT
 	depends on NETFILTER_ADVANCED
-	help
-	  REDIRECT is a special case of NAT: all incoming connections are
-	  mapped onto the incoming interface's address, causing the packets to
-	  come to the local machine instead of passing through.  This is
-	  useful for transparent proxies.
+	select NETFILTER_XT_TARGET_REDIRECT
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_REDIRECT.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+endif
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
-	depends on NF_CONNTRACK_SNMP && NF_NAT
+	depends on NF_CONNTRACK_SNMP && NF_NAT_IPV4
 	depends on NETFILTER_ADVANCED
 	default NF_NAT && NF_CONNTRACK_SNMP
 	---help---
@@ -219,61 +213,21 @@ config NF_NAT_SNMP_BASIC
 #           <expr> '&&' <expr>                   (6)
 #
 # (6) Returns the result of min(/expr/, /expr/).
-config NF_NAT_PROTO_DCCP
-	tristate
-	depends on NF_NAT && NF_CT_PROTO_DCCP
-	default NF_NAT && NF_CT_PROTO_DCCP
 
 config NF_NAT_PROTO_GRE
 	tristate
-	depends on NF_NAT && NF_CT_PROTO_GRE
-
-config NF_NAT_PROTO_UDPLITE
-	tristate
-	depends on NF_NAT && NF_CT_PROTO_UDPLITE
-	default NF_NAT && NF_CT_PROTO_UDPLITE
-
-config NF_NAT_PROTO_SCTP
-	tristate
-	default NF_NAT && NF_CT_PROTO_SCTP
-	depends on NF_NAT && NF_CT_PROTO_SCTP
-	select LIBCRC32C
-
-config NF_NAT_FTP
-	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_FTP
-
-config NF_NAT_IRC
-	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_IRC
-
-config NF_NAT_TFTP
-	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_TFTP
-
-config NF_NAT_AMANDA
-	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_AMANDA
+	depends on NF_NAT_IPV4 && NF_CT_PROTO_GRE
 
 config NF_NAT_PPTP
 	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_PPTP
+	depends on NF_CONNTRACK && NF_NAT_IPV4
+	default NF_NAT_IPV4 && NF_CONNTRACK_PPTP
 	select NF_NAT_PROTO_GRE
 
 config NF_NAT_H323
 	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_H323
-
-config NF_NAT_SIP
-	tristate
-	depends on NF_CONNTRACK && NF_NAT
-	default NF_NAT && NF_CONNTRACK_SIP
+	depends on NF_CONNTRACK && NF_NAT_IPV4
+	default NF_NAT_IPV4 && NF_CONNTRACK_H323
 
 # mangle + specific targets
 config IP_NF_MANGLE

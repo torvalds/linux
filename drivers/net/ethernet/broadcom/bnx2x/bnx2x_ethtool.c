@@ -905,6 +905,7 @@ static int bnx2x_nway_reset(struct net_device *dev)
 
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -1606,7 +1607,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
+static const char bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF][ETH_GSTRING_LEN] = {
 	"register_test (offline)    ",
 	"memory_test (offline)      ",
 	"int_loopback_test (offline)",
@@ -1653,7 +1654,7 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+	eee_cfg = bp->link_vars.eee_status;
 
 	edata->supported =
 		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
@@ -1690,7 +1691,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+	eee_cfg = bp->link_vars.eee_status;
 
 	if (!(eee_cfg & SHMEM_EEE_SUPPORTED_MASK)) {
 		DP(BNX2X_MSG_ETHTOOL, "Board does not support EEE!\n");
@@ -1739,6 +1740,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	/* Restart link to propogate changes */
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -2038,8 +2040,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
-	struct eth_tx_parse_bd_e1x  *pbd_e1x = NULL;
-	struct eth_tx_parse_bd_e2  *pbd_e2 = NULL;
 	dma_addr_t mapping;
 	union eth_rx_cqe *cqe;
 	u8 cqe_fp_flags, cqe_fp_type;
@@ -2131,21 +2131,32 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
 	SET_FLAG(tx_start_bd->general_data,
-		 ETH_TX_START_BD_ETH_ADDR_TYPE,
-		 UNICAST_ADDRESS);
-	SET_FLAG(tx_start_bd->general_data,
 		 ETH_TX_START_BD_HDR_NBDS,
 		 1);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_PARSE_NBDS,
+		 0);
 
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 
-	pbd_e1x = &txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
-	pbd_e2 = &txdata->tx_desc_ring[bd_prod].parse_bd_e2;
-
-	memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
-	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
-
+	if (CHIP_IS_E1x(bp)) {
+		u16 global_data = 0;
+		struct eth_tx_parse_bd_e1x  *pbd_e1x =
+			&txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
+		memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
+		SET_FLAG(global_data,
+			 ETH_TX_PARSE_BD_E1X_ETH_ADDR_TYPE, UNICAST_ADDRESS);
+		pbd_e1x->global_data = cpu_to_le16(global_data);
+	} else {
+		u32 parsing_data = 0;
+		struct eth_tx_parse_bd_e2  *pbd_e2 =
+			&txdata->tx_desc_ring[bd_prod].parse_bd_e2;
+		memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
+		SET_FLAG(parsing_data,
+			 ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE, UNICAST_ADDRESS);
+		pbd_e2->parsing_data = cpu_to_le32(parsing_data);
+	}
 	wmb();
 
 	txdata->tx_db.data.prod += 2;
@@ -2263,7 +2274,7 @@ static int bnx2x_test_ext_loopback(struct bnx2x *bp)
 	if (!netif_running(bp->dev))
 		return BNX2X_EXT_LOOPBACK_FAILED;
 
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 	rc = bnx2x_nic_load(bp, LOAD_LOOPBACK_EXT);
 	if (rc) {
 		DP(BNX2X_MSG_ETHTOOL,
@@ -2414,7 +2425,7 @@ static void bnx2x_self_test(struct net_device *dev,
 
 		link_up = bp->link_vars.link_up;
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 		rc = bnx2x_nic_load(bp, LOAD_DIAG);
 		if (rc) {
 			etest->flags |= ETH_TEST_FL_FAILED;
@@ -2446,7 +2457,7 @@ static void bnx2x_self_test(struct net_device *dev,
 			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
 		}
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 
 		/* restore input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, val);
@@ -2534,7 +2545,7 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, j, k, offset, start;
+	int i, j, k, start;
 	char queue_name[MAX_QUEUE_NAME_LEN+1];
 
 	switch (stringset) {
@@ -2570,13 +2581,8 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			start = 0;
 		else
 			start = 4;
-		for (i = 0, j = start; j < (start + BNX2X_NUM_TESTS(bp));
-		     i++, j++) {
-			offset = sprintf(buf+32*i, "%s",
-					 bnx2x_tests_str_arr[j]);
-			*(buf+offset) = '\0';
-		}
-		break;
+		memcpy(buf, bnx2x_tests_str_arr + start,
+		       ETH_GSTRING_LEN * BNX2X_NUM_TESTS(bp));
 	}
 }
 
@@ -2940,7 +2946,7 @@ static int bnx2x_set_channels(struct net_device *dev,
 		bnx2x_change_num_queues(bp, channels->combined_count);
 		return 0;
 	}
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 	bnx2x_change_num_queues(bp, channels->combined_count);
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }

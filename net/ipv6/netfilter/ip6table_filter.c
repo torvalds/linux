@@ -61,9 +61,7 @@ static int __net_init ip6table_filter_net_init(struct net *net)
 	net->ipv6.ip6table_filter =
 		ip6t_register_table(net, &packet_filter, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv6.ip6table_filter))
-		return PTR_ERR(net->ipv6.ip6table_filter);
-	return 0;
+	return PTR_RET(net->ipv6.ip6table_filter);
 }
 
 static void __net_exit ip6table_filter_net_exit(struct net *net)

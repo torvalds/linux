@@ -26,10 +26,17 @@
 #define __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H
 #ifndef __ASSEMBLER__
 
+#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/i2c/twl.h>
-#include <plat/common.h>
+
 #include <asm/proc-fns.h>
+
+#include <plat/cpu.h>
+#include <plat/serial.h>
+#include <plat/common.h>
+
+#define OMAP_INTC_START		NR_IRQS
 
 #ifdef CONFIG_SOC_OMAP2420
 extern void omap242x_map_common_io(void);
@@ -278,6 +285,11 @@ extern void omap_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);
+
+extern void omap4_cpu_die(unsigned int cpu);
+
+extern struct smp_operations omap4_smp_ops;
+
 extern void omap5_secondary_startup(void);
 #endif
 

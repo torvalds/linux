@@ -21,7 +21,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include "kirkwood.h"
 
 #define DRV_NAME	"kirkwood-i2s"

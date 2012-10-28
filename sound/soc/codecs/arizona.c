@@ -119,6 +119,24 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"DSP1.4",
 	"DSP1.5",
 	"DSP1.6",
+	"DSP2.1",
+	"DSP2.2",
+	"DSP2.3",
+	"DSP2.4",
+	"DSP2.5",
+	"DSP2.6",
+	"DSP3.1",
+	"DSP3.2",
+	"DSP3.3",
+	"DSP3.4",
+	"DSP3.5",
+	"DSP3.6",
+	"DSP4.1",
+	"DSP4.2",
+	"DSP4.3",
+	"DSP4.4",
+	"DSP4.5",
+	"DSP4.6",
 	"ASRC1L",
 	"ASRC1R",
 	"ASRC2L",
@@ -180,6 +198,24 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x6b,
 	0x6c,
 	0x6d,
+	0x70,  /* DSP2.1 */
+	0x71,
+	0x72,
+	0x73,
+	0x74,
+	0x75,
+	0x78,  /* DSP3.1 */
+	0x79,
+	0x7a,
+	0x7b,
+	0x7c,
+	0x7d,
+	0x80,  /* DSP4.1 */
+	0x81,
+	0x82,
+	0x83,
+	0x84,
+	0x85,
 	0x90,  /* ASRC1L */
 	0x91,
 	0x92,
@@ -229,6 +265,75 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(arizona_out_ev);
 
+static unsigned int arizona_sysclk_48k_rates[] = {
+	6144000,
+	12288000,
+	22579200,
+	49152000,
+	73728000,
+	98304000,
+	147456000,
+};
+
+static unsigned int arizona_sysclk_44k1_rates[] = {
+	5644800,
+	11289600,
+	24576000,
+	45158400,
+	67737600,
+	90316800,
+	135475200,
+};
+
+static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
+			     unsigned int freq)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int reg;
+	unsigned int *rates;
+	int ref, div, refclk;
+
+	switch (clk) {
+	case ARIZONA_CLK_OPCLK:
+		reg = ARIZONA_OUTPUT_SYSTEM_CLOCK;
+		refclk = priv->sysclk;
+		break;
+	case ARIZONA_CLK_ASYNC_OPCLK:
+		reg = ARIZONA_OUTPUT_ASYNC_CLOCK;
+		refclk = priv->asyncclk;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (refclk % 8000)
+		rates = arizona_sysclk_44k1_rates;
+	else
+		rates = arizona_sysclk_48k_rates;
+
+	for (ref = 0; ref < ARRAY_SIZE(arizona_sysclk_48k_rates) &&
+		     rates[ref] <= refclk; ref++) {
+		div = 1;
+		while (rates[ref] / div >= freq && div < 32) {
+			if (rates[ref] / div == freq) {
+				dev_dbg(codec->dev, "Configured %dHz OPCLK\n",
+					freq);
+				snd_soc_update_bits(codec, reg,
+						    ARIZONA_OPCLK_DIV_MASK |
+						    ARIZONA_OPCLK_SEL_MASK,
+						    (div <<
+						     ARIZONA_OPCLK_DIV_SHIFT) |
+						    ref);
+				return 0;
+			}
+			div++;
+		}
+	}
+
+	dev_err(codec->dev, "Unable to generate %dHz OPCLK\n", freq);
+	return -EINVAL;
+}
+
 int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		       int source, unsigned int freq, int dir)
 {
@@ -252,6 +357,9 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		reg = ARIZONA_ASYNC_CLOCK_1;
 		clk = &priv->asyncclk;
 		break;
+	case ARIZONA_CLK_OPCLK:
+	case ARIZONA_CLK_ASYNC_OPCLK:
+		return arizona_set_opclk(codec, clk_id, freq);
 	default:
 		return -EINVAL;
 	}
@@ -666,7 +774,7 @@ static irqreturn_t arizona_fll_lock(int irq, void *data)
 {
 	struct arizona_fll *fll = data;
 
-	arizona_fll_dbg(fll, "Locked\n");
+	arizona_fll_dbg(fll, "Lock status changed\n");
 
 	complete(&fll->lock);
 

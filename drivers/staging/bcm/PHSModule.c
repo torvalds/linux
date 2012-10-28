@@ -66,7 +66,7 @@ Input parameters:		IN struct bcm_mini_adapter *Adapter         - Miniport Adapte
 						BOOLEAN bHeaderSuppressionEnabled - indicates if header suprression is enabled for SF.
 
 Return:					STATUS_SUCCESS - If the send was successful.
-						Other          - If an error occured.
+						Other  - If an error occurred.
 */
 
 int PHSTransmit(struct bcm_mini_adapter *Adapter,
@@ -346,7 +346,7 @@ int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension, struct bcm_mini_adapter 
 
 
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n phs_init Successfull");
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n phs_init Successful");
 	return STATUS_SUCCESS;
 }
 

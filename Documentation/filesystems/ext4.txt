@@ -375,6 +375,16 @@ dioread_nolock		locking. If the dioread_nolock option is specified
 			Because of the restrictions this options comprises
 			it is off by default (e.g. dioread_lock).
 
+max_dir_size_kb=n	This limits the size of directories so that any
+			attempt to expand them beyond the specified
+			limit in kilobytes will cause an ENOSPC error.
+			This is useful in memory constrained
+			environments, where a very large directory can
+			cause severe performance problems or even
+			provoke the Out Of Memory killer.  (For example,
+			if there is only 512mb memory available, a 176mb
+			directory may seriously cramp the system's style.)
+
 i_version		Enable 64-bit inode version support. This option is
 			off by default.
 

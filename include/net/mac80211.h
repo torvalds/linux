@@ -171,6 +171,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_IDLE: Idle changed for this BSS/interface.
  * @BSS_CHANGED_SSID: SSID changed for this BSS (AP mode)
  * @BSS_CHANGED_AP_PROBE_RESP: Probe Response changed for this BSS (AP mode)
+ * @BSS_CHANGED_PS: PS changed for this BSS (STA mode)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -190,6 +191,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_IDLE		= 1<<14,
 	BSS_CHANGED_SSID		= 1<<15,
 	BSS_CHANGED_AP_PROBE_RESP	= 1<<16,
+	BSS_CHANGED_PS			= 1<<17,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -266,6 +268,8 @@ enum ieee80211_rssi_event {
  * @idle: This interface is idle. There's also a global idle flag in the
  *	hardware config which may be more appropriate depending on what
  *	your driver/device needs to do.
+ * @ps: power-save mode (STA only). This flag is NOT affected by
+ *	offchannel/dynamic_ps operations.
  * @ssid: The SSID of the current vif. Only valid in AP-mode.
  * @ssid_len: Length of SSID given in @ssid.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
@@ -296,6 +300,7 @@ struct ieee80211_bss_conf {
 	bool arp_filter_enabled;
 	bool qos;
 	bool idle;
+	bool ps;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	size_t ssid_len;
 	bool hidden_ssid;
@@ -522,9 +527,6 @@ struct ieee80211_tx_rate {
  *  (2) driver internal use (if applicable)
  *  (3) TX status information - driver tells mac80211 what happened
  *
- * The TX control's sta pointer is only valid during the ->tx call,
- * it may be NULL.
- *
  * @flags: transmit info flags, defined above
  * @band: the band to transmit on (use for checking for races)
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
@@ -555,6 +557,7 @@ struct ieee80211_tx_info {
 					struct ieee80211_tx_rate rates[
 						IEEE80211_TX_MAX_RATES];
 					s8 rts_cts_rate_idx;
+					/* 3 bytes free */
 				};
 				/* only needed before rate control */
 				unsigned long jiffies;
@@ -562,7 +565,7 @@ struct ieee80211_tx_info {
 			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
-			struct ieee80211_sta *sta;
+			/* 8 bytes free */
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
@@ -673,21 +676,41 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT_GF: This frame was received in a HT-greenfield transmission, if
  *	the driver fills this value it should add %IEEE80211_RADIOTAP_MCS_HAVE_FMT
  *	to hw.radiotap_mcs_details to advertise that fact
+ * @RX_FLAG_AMPDU_DETAILS: A-MPDU details are known, in particular the reference
+ *	number (@ampdu_reference) must be populated and be a distinct number for
+ *	each A-MPDU
+ * @RX_FLAG_AMPDU_REPORT_ZEROLEN: driver reports 0-length subframes
+ * @RX_FLAG_AMPDU_IS_ZEROLEN: This is a zero-length subframe, for
+ *	monitoring purposes only
+ * @RX_FLAG_AMPDU_LAST_KNOWN: last subframe is known, should be set on all
+ *	subframes of a single A-MPDU
+ * @RX_FLAG_AMPDU_IS_LAST: this subframe is the last subframe of the A-MPDU
+ * @RX_FLAG_AMPDU_DELIM_CRC_ERROR: A delimiter CRC error has been detected
+ *	on this subframe
+ * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
+ *	is stored in the @ampdu_delimiter_crc field)
  */
 enum mac80211_rx_flags {
-	RX_FLAG_MMIC_ERROR	= 1<<0,
-	RX_FLAG_DECRYPTED	= 1<<1,
-	RX_FLAG_MMIC_STRIPPED	= 1<<3,
-	RX_FLAG_IV_STRIPPED	= 1<<4,
-	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
-	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
-	RX_FLAG_MACTIME_MPDU	= 1<<7,
-	RX_FLAG_SHORTPRE	= 1<<8,
-	RX_FLAG_HT		= 1<<9,
-	RX_FLAG_40MHZ		= 1<<10,
-	RX_FLAG_SHORT_GI	= 1<<11,
-	RX_FLAG_NO_SIGNAL_VAL	= 1<<12,
-	RX_FLAG_HT_GF		= 1<<13,
+	RX_FLAG_MMIC_ERROR		= BIT(0),
+	RX_FLAG_DECRYPTED		= BIT(1),
+	RX_FLAG_MMIC_STRIPPED		= BIT(3),
+	RX_FLAG_IV_STRIPPED		= BIT(4),
+	RX_FLAG_FAILED_FCS_CRC		= BIT(5),
+	RX_FLAG_FAILED_PLCP_CRC 	= BIT(6),
+	RX_FLAG_MACTIME_MPDU		= BIT(7),
+	RX_FLAG_SHORTPRE		= BIT(8),
+	RX_FLAG_HT			= BIT(9),
+	RX_FLAG_40MHZ			= BIT(10),
+	RX_FLAG_SHORT_GI		= BIT(11),
+	RX_FLAG_NO_SIGNAL_VAL		= BIT(12),
+	RX_FLAG_HT_GF			= BIT(13),
+	RX_FLAG_AMPDU_DETAILS		= BIT(14),
+	RX_FLAG_AMPDU_REPORT_ZEROLEN	= BIT(15),
+	RX_FLAG_AMPDU_IS_ZEROLEN	= BIT(16),
+	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(17),
+	RX_FLAG_AMPDU_IS_LAST		= BIT(18),
+	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
+	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(20),
 };
 
 /**
@@ -711,17 +734,22 @@ enum mac80211_rx_flags {
  *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
  * @rx_flags: internal RX flags for mac80211
+ * @ampdu_reference: A-MPDU reference number, must be a different value for
+ *	each A-MPDU but the same for each subframe within one A-MPDU
+ * @ampdu_delimiter_crc: A-MPDU delimiter CRC
  */
 struct ieee80211_rx_status {
 	u64 mactime;
 	u32 device_timestamp;
-	u16 flag;
+	u32 ampdu_reference;
+	u32 flag;
 	u16 freq;
 	u8 rate_idx;
 	u8 rx_flags;
 	u8 band;
 	u8 antenna;
 	s8 signal;
+	u8 ampdu_delimiter_crc;
 };
 
 /**
@@ -945,21 +973,29 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  *	generation in software.
  * @IEEE80211_KEY_FLAG_PAIRWISE: Set by mac80211, this flag indicates
  *	that the key is pairwise rather then a shared key.
- * @IEEE80211_KEY_FLAG_SW_MGMT: This flag should be set by the driver for a
+ * @IEEE80211_KEY_FLAG_SW_MGMT_TX: This flag should be set by the driver for a
  *	CCMP key if it requires CCMP encryption of management frames (MFP) to
  *	be done in software.
  * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
  *	if space should be prepared for the IV, but the IV
  *	itself should not be generated. Do not set together with
  *	@IEEE80211_KEY_FLAG_GENERATE_IV on the same key.
+ * @IEEE80211_KEY_FLAG_RX_MGMT: This key will be used to decrypt received
+ *	management frames. The flag can help drivers that have a hardware
+ *	crypto implementation that doesn't deal with management frames
+ *	properly by allowing them to not upload the keys to hardware and
+ *	fall back to software crypto. Note that this flag deals only with
+ *	RX, if your crypto engine can't deal with TX you can also set the
+ *	%IEEE80211_KEY_FLAG_SW_MGMT_TX flag to encrypt such frames in SW.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_WMM_STA	= 1<<0,
 	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
 	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
 	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
-	IEEE80211_KEY_FLAG_SW_MGMT	= 1<<4,
+	IEEE80211_KEY_FLAG_SW_MGMT_TX	= 1<<4,
 	IEEE80211_KEY_FLAG_PUT_IV_SPACE = 1<<5,
+	IEEE80211_KEY_FLAG_RX_MGMT	= 1<<6,
 };
 
 /**
@@ -1071,6 +1107,16 @@ struct ieee80211_sta {
  */
 enum sta_notify_cmd {
 	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
+};
+
+/**
+ * struct ieee80211_tx_control - TX control data
+ *
+ * @sta: station table entry, this sta pointer may be NULL and
+ * 	it is not allowed to copy the pointer, due to RCU.
+ */
+struct ieee80211_tx_control {
+	struct ieee80211_sta *sta;
 };
 
 /**
@@ -1203,6 +1249,10 @@ enum sta_notify_cmd {
  *	queue mapping in order to use different queues (not just one per AC)
  *	for different virtual interfaces. See the doc section on HW queue
  *	control for more details.
+ *
+ * @IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF: Use the P2P Device address for any
+ *	P2P Interface. This will be honoured even if more than one interface
+ *	is supported.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1230,6 +1280,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
 	IEEE80211_HW_SCAN_WHILE_IDLE			= 1<<24,
+	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
 };
 
 /**
@@ -1884,10 +1935,14 @@ enum ieee80211_frame_release_type {
  * @IEEE80211_RC_BW_CHANGED: The bandwidth that can be used to transmit
  *	to this station changed.
  * @IEEE80211_RC_SMPS_CHANGED: The SMPS state of the station changed.
+ * @IEEE80211_RC_SUPP_RATES_CHANGED: The supported rate set of this peer
+ *	changed (in IBSS mode) due to discovering more information about
+ *	the peer.
  */
 enum ieee80211_rate_control_changed {
 	IEEE80211_RC_BW_CHANGED		= BIT(0),
 	IEEE80211_RC_SMPS_CHANGED	= BIT(1),
+	IEEE80211_RC_SUPP_RATES_CHANGED	= BIT(2),
 };
 
 /**
@@ -2264,7 +2319,9 @@ enum ieee80211_rate_control_changed {
  *	The callback is optional and can (should!) sleep.
  */
 struct ieee80211_ops {
-	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	void (*tx)(struct ieee80211_hw *hw,
+		   struct ieee80211_tx_control *control,
+		   struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 #ifdef CONFIG_PM

@@ -38,7 +38,7 @@
 #define _TTM_OBJECT_H_
 
 #include <linux/list.h>
-#include "drm_hashtab.h"
+#include <drm/drm_hashtab.h>
 #include <linux/kref.h>
 #include <ttm/ttm_memory.h>
 

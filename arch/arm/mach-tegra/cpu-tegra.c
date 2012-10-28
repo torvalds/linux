@@ -49,6 +49,8 @@ static struct cpufreq_frequency_table freq_table[] = {
 #define NUM_CPUS	2
 
 static struct clk *cpu_clk;
+static struct clk *pll_x_clk;
+static struct clk *pll_p_clk;
 static struct clk *emc_clk;
 
 static unsigned long target_cpu_speed[NUM_CPUS];
@@ -69,6 +71,42 @@ static unsigned int tegra_getspeed(unsigned int cpu)
 
 	rate = clk_get_rate(cpu_clk) / 1000;
 	return rate;
+}
+
+static int tegra_cpu_clk_set_rate(unsigned long rate)
+{
+	int ret;
+
+	/*
+	 * Take an extra reference to the main pll so it doesn't turn
+	 * off when we move the cpu off of it
+	 */
+	clk_prepare_enable(pll_x_clk);
+
+	ret = clk_set_parent(cpu_clk, pll_p_clk);
+	if (ret) {
+		pr_err("Failed to switch cpu to clock pll_p\n");
+		goto out;
+	}
+
+	if (rate == clk_get_rate(pll_p_clk))
+		goto out;
+
+	ret = clk_set_rate(pll_x_clk, rate);
+	if (ret) {
+		pr_err("Failed to change pll_x to %lu\n", rate);
+		goto out;
+	}
+
+	ret = clk_set_parent(cpu_clk, pll_x_clk);
+	if (ret) {
+		pr_err("Failed to switch cpu to clock pll_x\n");
+		goto out;
+	}
+
+out:
+	clk_disable_unprepare(pll_x_clk);
+	return ret;
 }
 
 static int tegra_update_cpu_speed(unsigned long rate)
@@ -101,7 +139,7 @@ static int tegra_update_cpu_speed(unsigned long rate)
 	       freqs.old, freqs.new);
 #endif
 
-	ret = clk_set_rate(cpu_clk, freqs.new * 1000);
+	ret = tegra_cpu_clk_set_rate(freqs.new * 1000);
 	if (ret) {
 		pr_err("cpu-tegra: Failed to set cpu frequency to %d kHz\n",
 			freqs.new);
@@ -182,6 +220,14 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	cpu_clk = clk_get_sys(NULL, "cpu");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
+
+	pll_x_clk = clk_get_sys(NULL, "pll_x");
+	if (IS_ERR(pll_x_clk))
+		return PTR_ERR(pll_x_clk);
+
+	pll_p_clk = clk_get_sys(NULL, "pll_p");
+	if (IS_ERR(pll_p_clk))
+		return PTR_ERR(pll_p_clk);
 
 	emc_clk = clk_get_sys("cpu", "emc");
 	if (IS_ERR(emc_clk)) {

@@ -95,7 +95,8 @@ static void perf_top__update_print_entries(struct perf_top *top)
 		top->print_entries -= 9;
 }
 
-static void perf_top__sig_winch(int sig __used, siginfo_t *info __used, void *arg)
+static void perf_top__sig_winch(int sig __maybe_unused,
+				siginfo_t *info __maybe_unused, void *arg)
 {
 	struct perf_top *top = arg;
 
@@ -315,7 +316,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(&top->sym_evsel->hists,
 				     top->winsize.ws_row - 3);
 	putchar('\n');
-	hists__fprintf(&top->sym_evsel->hists, NULL, false, false,
+	hists__fprintf(&top->sym_evsel->hists, false,
 		       top->winsize.ws_row - 4 - printed, win_width, stdout);
 }
 
@@ -509,7 +510,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->nr_entries) {
-					top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+					top->sym_evsel = perf_evlist__first(top->evlist);
 					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
@@ -518,7 +519,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
-				top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+				top->sym_evsel = perf_evlist__first(top->evlist);
 			break;
 		case 'f':
 			prompt_integer(&top->count_filter, "Enter display event count filter");
@@ -663,7 +664,7 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct map *map __used, struct symbol *sym)
+static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 {
 	const char *name = sym->name;
 	int i;
@@ -783,8 +784,10 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = machine__resolve_callchain(machine, al.thread,
-							 sample->callchain, &parent);
+			err = machine__resolve_callchain(machine, evsel,
+							 al.thread, sample,
+							 &parent);
+
 			if (err)
 				return;
 		}
@@ -820,7 +823,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	int ret;
 
 	while ((event = perf_evlist__mmap_read(top->evlist, idx)) != NULL) {
-		ret = perf_evlist__parse_sample(top->evlist, event, &sample, false);
+		ret = perf_evlist__parse_sample(top->evlist, event, &sample);
 		if (ret) {
 			pr_err("Can't parse sample, err = %d\n", ret);
 			continue;
@@ -884,17 +887,14 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
-	struct perf_evsel *counter, *first;
+	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	if (top->group)
+		perf_evlist__set_leader(evlist);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
-		struct xyarray *group_fd = NULL;
-
-		if (top->group && counter != first)
-			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -925,8 +925,7 @@ retry_sample_id:
 		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
-				     top->evlist->threads, top->group,
-				     group_fd) < 0) {
+				     top->evlist->threads) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
@@ -1160,12 +1159,7 @@ setup:
 	return 0;
 }
 
-static const char * const top_usage[] = {
-	"perf top [<options>]",
-	NULL
-};
-
-int cmd_top(int argc, const char **argv, const char *prefix __used)
+int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_evsel *pos;
 	int status;
@@ -1251,6 +1245,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	OPT_STRING('u', "uid", &top.target.uid_str, "user", "user to profile"),
 	OPT_END()
 	};
+	const char * const top_usage[] = {
+		"perf top [<options>]",
+		NULL
+	};
 
 	top.evlist = perf_evlist__new(NULL, NULL);
 	if (top.evlist == NULL)
@@ -1328,7 +1326,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 			pos->attr.sample_period = top.default_interval;
 	}
 
-	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
+	top.sym_evsel = perf_evlist__first(top.evlist);
 
 	symbol_conf.priv_size = sizeof(struct annotation);
 

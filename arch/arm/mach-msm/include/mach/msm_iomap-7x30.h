@@ -100,8 +100,4 @@
 #define MSM_HSUSB_PHYS        0xA3600000
 #define MSM_HSUSB_SIZE        SZ_1K
 
-#ifndef __ASSEMBLY__
-extern void msm_map_msm7x30_io(void);
-#endif
-
 #endif
