@@ -61,7 +61,7 @@ ffffffbe00000000	ffffffbffbffffff	  ~8GB		[防护页，未来用于 vmmemap]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		模块
 
-ffffffc000000000	ffffffffffffffff	 256GB		内存空间
+ffffffc000000000	ffffffffffffffff	 256GB		内核逻辑内存映射
 
 
 4KB 页大小的转换表查找：
