@@ -4,7 +4,7 @@
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
  * Copyright (C) 2010--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * Based on smiapp driver by Vimarsh Zutshi
  * Based on jt8ev1.c by Vimarsh Zutshi
@@ -991,7 +991,7 @@ static int smiapp_setup_flash_strobe(struct smiapp_sensor *sensor)
 	 * do not change, or if you do at least know what you're
 	 * doing. :-)
 	 *
-	 * Sakari Ailus <sakari.ailus@maxwell.research.nokia.com> 2010-10-25
+	 * Sakari Ailus <sakari.ailus@iki.fi> 2010-10-25
 	 *
 	 * flash_strobe_length [us] / 10^6 = (tFlash_strobe_width_ctrl
 	 *	/ EXTCLK freq [Hz]) * flash_strobe_adjustment
@@ -2887,6 +2887,6 @@ static struct i2c_driver smiapp_i2c_driver = {
 
 module_i2c_driver(smiapp_i2c_driver);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
 MODULE_DESCRIPTION("Generic SMIA/SMIA++ camera module driver");
 MODULE_LICENSE("GPL");

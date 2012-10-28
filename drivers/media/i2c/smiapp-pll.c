@@ -4,7 +4,7 @@
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
  * Copyright (C) 2011--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -438,6 +438,6 @@ int smiapp_pll_calculate(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(smiapp_pll_calculate);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
 MODULE_DESCRIPTION("Generic SMIA/SMIA++ PLL calculator");
 MODULE_LICENSE("GPL");
