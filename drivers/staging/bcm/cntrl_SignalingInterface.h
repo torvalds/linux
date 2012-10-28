@@ -129,17 +129,17 @@ struct bcm_convergence_types {
 
 struct bcm_connect_mgr_params {
 	/* 32bitSFID Of The Service Flow */
-	B_UINT32 u32SFID;
+	u32 u32SFID;
 	/* 32bit Maximum Sustained Traffic Rate of the Service Flow */
-	B_UINT32 u32MaxSustainedTrafficRate;
+	u32 u32MaxSustainedTrafficRate;
 	/* 32bit Maximum Traffic Burst allowed for the Service Flow */
-	B_UINT32 u32MaxTrafficBurst;
+	u32 u32MaxTrafficBurst;
 	/* 32bit Minimum Reserved Traffic Rate of the Service Flow */
-	B_UINT32 u32MinReservedTrafficRate;
+	u32 u32MinReservedTrafficRate;
 	/* 32bit Tolerated Jitter of the Service Flow */
-	B_UINT32 u32ToleratedJitter;
+	u32 u32ToleratedJitter;
 	/* 32bit Maximum Latency of the Service Flow */
-	B_UINT32 u32MaximumLatency;
+	u32 u32MaximumLatency;
 	/* 16bitCID Of The Service Flow */
 	B_UINT16 u16CID;
 	/* 16bit SAID on which the service flow being set up shall be mapped */
@@ -281,7 +281,7 @@ struct bcm_del_request {
 	B_UINT8 u8Padding; /* < Padding byte */
 	B_UINT16 u16TID; /* < TID */
 	/* brief 32bitSFID */
-	B_UINT32 u32SFID; /* < SFID */
+	u32 u32SFID; /* < SFID */
 };
 
 struct bcm_del_indication {
@@ -293,14 +293,14 @@ struct bcm_del_indication {
 	/* brief 16bitVCID */
 	B_UINT16 u16VCID; /* < VCID */
 	/* brief 32bitSFID */
-	B_UINT32 u32SFID; /* < SFID */
+	u32 u32SFID; /* < SFID */
 	/* brief 8bit Confirmation code */
 	B_UINT8 u8ConfirmationCode; /* < Confirmation code */
 	B_UINT8 u8Padding1[3]; /* < 3 byte Padding */
 };
 
 struct bcm_stim_sfhostnotify {
-	B_UINT32 SFID; /* SFID of the service flow */
+	u32 SFID; /* SFID of the service flow */
 	B_UINT16 newCID; /* the new/changed CID */
 	B_UINT16 VCID; /* Get new Vcid if the flow has been made active in CID update TLV, but was inactive earlier or the orig vcid */
 	B_UINT8 RetainSF; /* Indication to Host if the SF is to be retained or deleted; if TRUE-retain else delete */
