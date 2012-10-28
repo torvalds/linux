@@ -19,12 +19,22 @@
  * MA 02111-1307 USA
  */
 
+/*
+ * Semaphore stuff seems quite broken in here. --libv
+ */
 #include "drv_hdmi_i.h"
 #include "hdmi_hal.h"
 #include "dev_hdmi.h"
 #include "../disp/dev_disp.h"
 
-static struct semaphore *run_sem = NULL;
+/*
+ * Bad separation!
+ * symbol from sound/soc/sun[45]i/hdmiaudio/sndhdmi.c
+ */
+extern void audio_set_hdmi_func(__audio_hdmi_func *hdmi_func);
+
+
+static struct semaphore *run_sem;
 static struct task_struct *HDMI_task;
 
 void hdmi_delay_ms(__u32 t)
@@ -40,10 +50,12 @@ __s32 Hdmi_open(void)
 	__inf("[Hdmi_open]\n");
 
 	Hdmi_hal_video_enable(1);
-	//if(ghdmi.bopen == 0)
-	//{
-	//      up(run_sem);
-	//}
+
+#if 0
+	if (ghdmi.bopen == 0)
+		up(run_sem);
+#endif
+
 	ghdmi.bopen = 1;
 
 	return 0;
@@ -139,7 +151,7 @@ __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 	return Hdmi_hal_audio_enable(mode, channel);
 }
 
-__s32 Hdmi_Set_Audio_Para(hdmi_audio_t * audio_para)
+__s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 {
 	__inf("[Hdmi_Set_Audio_Para]\n");
 
@@ -236,8 +248,6 @@ int Hdmi_run_thread(void *parg)
 	return 0;
 }
 
-extern void audio_set_hdmi_func(__audio_hdmi_func * hdmi_func);
-
 __s32 Hdmi_init(void)
 {
 	__audio_hdmi_func audio_func;
@@ -279,14 +289,13 @@ __s32 Hdmi_exit(void)
 {
 	Hdmi_hal_exit();
 
-	if (run_sem) {
-		kfree(run_sem);
-		run_sem = 0;
-	}
+	kfree(run_sem);
+	run_sem = NULL;
 
 	if (HDMI_task) {
 		kthread_stop(HDMI_task);
 		HDMI_task = 0;
 	}
+
 	return 0;
 }
