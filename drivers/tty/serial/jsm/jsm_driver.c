@@ -107,8 +107,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 
 	brd->irq = pdev->irq;
 
-	jsm_printk(INIT, INFO, &brd->pci_dev,
-		"jsm_found_board - NEO adapter\n");
+	jsm_dbg(INIT, &brd->pci_dev, "jsm_found_board - NEO adapter\n");
 
 	/* get the PCI Base Address Registers */
 	brd->membase	= pci_resource_start(pdev, 0);
