@@ -1037,7 +1037,7 @@ void ptrace_disable(struct task_struct *child)
 }
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-static long set_intruction_bp(struct task_struct *child,
+static long set_instruction_bp(struct task_struct *child,
 			      struct ppc_hw_breakpoint *bp_info)
 {
 	int slot;
@@ -1371,7 +1371,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 		if ((bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_EXECUTE) ||
 		    (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE))
 			return -EINVAL;
-		return set_intruction_bp(child, bp_info);
+		return set_instruction_bp(child, bp_info);
 	}
 	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_EXACT)
 		return set_dac(child, bp_info);
