@@ -6794,8 +6794,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
 
+	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
+
 	if (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) {
-		bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 
 		if (IS_MF(bp))
 			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
