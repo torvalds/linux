@@ -173,8 +173,8 @@ static void LCD_vcc_on(__u32 sel)
 	gpio_list.drv_level = 0;
 	gpio_list.data = 1;
 
-	hdl = OSAL_GPIO_Request(&gpio_list, 1);
-	OSAL_GPIO_Release(hdl, 2);
+	hdl = gpio_request(&gpio_list, 1);
+	gpio_release(hdl, 2);
 }
 
 static void LCD_vcc_off(__u32 sel)
@@ -189,8 +189,8 @@ static void LCD_vcc_off(__u32 sel)
 	gpio_list.drv_level = 0;
 	gpio_list.data = 0;
 
-	hdl = OSAL_GPIO_Request(&gpio_list, 1);
-	OSAL_GPIO_Release(hdl, 2);
+	hdl = gpio_request(&gpio_list, 1);
+	gpio_release(hdl, 2);
 }
 
 #define IIC_SCLB_LOW()		LCD_GPIO_write(0, 0, 0)
