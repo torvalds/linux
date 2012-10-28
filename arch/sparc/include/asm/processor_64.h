@@ -196,11 +196,16 @@ extern unsigned long get_wchan(struct task_struct *task);
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
+/* Please see the commentary in asm/backoff.h for a description of
+ * what these instructions are doing and how they have been choosen.
+ * To make a long story short, we are trying to yield the current cpu
+ * strand during busy loops.
+ */
 #define cpu_relax()	asm volatile("\n99:\n\t"			\
 				     "rd	%%ccr, %%g0\n\t"	\
 				     "rd	%%ccr, %%g0\n\t"	\
 				     "rd	%%ccr, %%g0\n\t"	\
-				     ".section	.pause_patch,\"ax\"\n\t"\
+				     ".section	.pause_3insn_patch,\"ax\"\n\t"\
 				     ".word	99b\n\t"		\
 				     "wr	%%g0, 128, %%asr27\n\t"	\
 				     "nop\n\t"				\

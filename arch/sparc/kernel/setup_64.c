@@ -320,8 +320,8 @@ static void __init pause_patch(void)
 {
 	struct pause_patch_entry *p;
 
-	p = &__pause_patch;
-	while (p < &__pause_patch_end) {
+	p = &__pause_3insn_patch;
+	while (p < &__pause_3insn_patch_end) {
 		unsigned long i, addr = p->addr;
 
 		for (i = 0; i < 3; i++) {
