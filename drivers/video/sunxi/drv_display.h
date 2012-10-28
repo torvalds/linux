@@ -54,7 +54,7 @@ typedef enum {
 	DISP_FORMAT_RGB556 = 0x6,
 	DISP_FORMAT_ARGB1555 = 0x7,
 	DISP_FORMAT_RGBA5551 = 0x8,
-	DISP_FORMAT_ARGB888 = 0x9,	/*alpha padding to 0xff */
+	DISP_FORMAT_ARGB888 = 0x9, /* alpha padding to 0xff */
 	DISP_FORMAT_ARGB8888 = 0xa,
 	DISP_FORMAT_RGB888 = 0xb,
 	DISP_FORMAT_ARGB4444 = 0xc,
@@ -69,7 +69,9 @@ typedef enum {
 typedef enum {
 	/* interleaved,1 address */
 	DISP_MOD_INTERLEAVED = 0x1,
-	/* No macroblock plane mode, 3 address, RGB/YUV each channel were stored */
+	/*
+	 * No macroblock plane mode, 3 address, RGB/YUV each channel were stored
+	 */
 	DISP_MOD_NON_MB_PLANAR = 0x0,
 	/* No macroblock UV packaged mode, 2 address, Y and UV were stored */
 	DISP_MOD_NON_MB_UV_COMBINED = 0x2,
@@ -146,26 +148,26 @@ typedef enum {
 } __disp_pixel_seq_t;
 
 typedef enum {
-	DISP_3D_SRC_MODE_TB = 0x0,	/* top bottom */
-	DISP_3D_SRC_MODE_FP = 0x1,	/* frame packing */
-	DISP_3D_SRC_MODE_SSF = 0x2,	/* side by side full */
-	DISP_3D_SRC_MODE_SSH = 0x3,	/* side by side half */
-	DISP_3D_SRC_MODE_LI = 0x4,	/* line interleaved */
+	DISP_3D_SRC_MODE_TB = 0x0, /* top bottom */
+	DISP_3D_SRC_MODE_FP = 0x1, /* frame packing */
+	DISP_3D_SRC_MODE_SSF = 0x2, /* side by side full */
+	DISP_3D_SRC_MODE_SSH = 0x3, /* side by side half */
+	DISP_3D_SRC_MODE_LI = 0x4, /* line interleaved */
 } __disp_3d_src_mode_t;
 
 typedef enum {
-	DISP_3D_OUT_MODE_CI_1 = 0x5,	/* column interlaved 1 */
-	DISP_3D_OUT_MODE_CI_2 = 0x6,	/* column interlaved 2 */
-	DISP_3D_OUT_MODE_CI_3 = 0x7,	/* column interlaved 3 */
-	DISP_3D_OUT_MODE_CI_4 = 0x8,	/* column interlaved 4 */
-	DISP_3D_OUT_MODE_LIRGB = 0x9,	/* line interleaved rgb */
+	DISP_3D_OUT_MODE_CI_1 = 0x5, /* column interlaved 1 */
+	DISP_3D_OUT_MODE_CI_2 = 0x6, /* column interlaved 2 */
+	DISP_3D_OUT_MODE_CI_3 = 0x7, /* column interlaved 3 */
+	DISP_3D_OUT_MODE_CI_4 = 0x8, /* column interlaved 4 */
+	DISP_3D_OUT_MODE_LIRGB = 0x9, /* line interleaved rgb */
 
-	DISP_3D_OUT_MODE_TB = 0x0,	/* top bottom */
-	DISP_3D_OUT_MODE_FP = 0x1,	/* frame packing */
-	DISP_3D_OUT_MODE_SSF = 0x2,	/* side by side full */
-	DISP_3D_OUT_MODE_SSH = 0x3,	/* side by side half */
-	DISP_3D_OUT_MODE_LI = 0x4,	/* line interleaved */
-	DISP_3D_OUT_MODE_FA = 0xa,	/* field alternative */
+	DISP_3D_OUT_MODE_TB = 0x0, /* top bottom */
+	DISP_3D_OUT_MODE_FP = 0x1, /* frame packing */
+	DISP_3D_OUT_MODE_SSF = 0x2, /* side by side full */
+	DISP_3D_OUT_MODE_SSH = 0x3, /* side by side half */
+	DISP_3D_OUT_MODE_LI = 0x4, /* line interleaved */
+	DISP_3D_OUT_MODE_FA = 0xa, /* field alternative */
 } __disp_3d_out_mode_t;
 
 typedef enum {
@@ -240,8 +242,8 @@ typedef enum {
 	DISP_VGA_H1024_V768 = 4,
 	DISP_VGA_H800_V600 = 5,
 	DISP_VGA_H640_V480 = 6,
-	DISP_VGA_H1440_V900_RB = 7,	/* not support yet */
-	DISP_VGA_H1680_V1050_RB = 8,	/* not support yet */
+	DISP_VGA_H1440_V900_RB = 7, /* not support yet */
+	DISP_VGA_H1680_V1050_RB = 8, /* not support yet */
 	DISP_VGA_H1920_V1080_RB = 9,
 	DISP_VGA_H1920_V1080 = 0xa,
 	DISP_VGA_H1280_V720 = 0xb,
@@ -258,11 +260,12 @@ typedef enum {
 } __disp_lcdc_src_t;
 
 typedef enum {
-	DISP_LAYER_WORK_MODE_NORMAL = 0,	/* normal work mode */
-	DISP_LAYER_WORK_MODE_PALETTE = 1,	/* palette work mode */
-	DISP_LAYER_WORK_MODE_INTER_BUF = 2,	/* internal frame buffer work mode */
-	DISP_LAYER_WORK_MODE_GAMMA = 3,	/* gamma correction work mode */
-	DISP_LAYER_WORK_MODE_SCALER = 4,	/* scaler work mode */
+	DISP_LAYER_WORK_MODE_NORMAL = 0, /* normal work mode */
+	DISP_LAYER_WORK_MODE_PALETTE = 1, /* palette work mode */
+	/* internal frame buffer work mode */
+	DISP_LAYER_WORK_MODE_INTER_BUF = 2,
+	DISP_LAYER_WORK_MODE_GAMMA = 3, /* gamma correction work mode */
+	DISP_LAYER_WORK_MODE_SCALER = 4, /* scaler work mode */
 } __disp_layer_work_mode_t;
 
 typedef enum {
@@ -282,11 +285,11 @@ typedef enum {
 
 typedef enum {
 	DISP_EXIT_MODE_CLEAN_ALL = 0,
-	DISP_EXIT_MODE_CLEAN_PARTLY = 1,	/* only clean interrupt temply */
+	DISP_EXIT_MODE_CLEAN_PARTLY = 1, /* only clean interrupt temply */
 } __disp_exit_mode_t;
 
-typedef enum {			/* only for debug!!! */
-	    DISP_REG_SCALER0 = 0,
+typedef enum { /* only for debug!!! */
+	DISP_REG_SCALER0 = 0,
 	DISP_REG_SCALER1 = 1,
 	DISP_REG_IMAGE0 = 2,
 	DISP_REG_IMAGE1 = 3,
@@ -301,54 +304,77 @@ typedef enum {			/* only for debug!!! */
 
 typedef struct {
 	/*
-	 * The way these are treated today, these are physical addresses. Are there
-	 * any actual userspace applications out there that use this? -- libv.
+	 * The way these are treated today, these are physical addresses. Are
+	 * there any actual userspace applications out there that use this?
+	 * -- libv.
 	 */
-	/* the contents of the frame buffer address for rgb type only addr [0] valid */
+	/*
+	 * the contents of the frame buffer address for rgb type only addr[0]
+	 * valid
+	 */
 	__u32 addr[3];
-	__disp_rectsz_t size;	/* unit is pixel */
+	__disp_rectsz_t size; /* unit is pixel */
 	__disp_pixel_fmt_t format;
 	__disp_pixel_seq_t seq;
 	__disp_pixel_mod_t mode;
-	__bool br_swap;		/*  blue red color swap flag, FALSE:RGB; TRUE:BGR,only used in rgb format */
-	__disp_cs_mode_t cs_mode;	/* color space */
-	__bool b_trd_src;	/* if 3d source, used for scaler mode layer */
-	__disp_3d_src_mode_t trd_mode;	/* source 3d mode, used for scaler mode layer */
-	__u32 trd_right_addr[3];	/* used when in frame packing 3d mode */
+	/*
+	 * blue red color swap flag, FALSE:RGB; TRUE:BGR,only used in rgb format
+	 */
+	__bool br_swap;
+	__disp_cs_mode_t cs_mode; /* color space */
+	__bool b_trd_src; /* if 3d source, used for scaler mode layer */
+	/* source 3d mode, used for scaler mode layer */
+	__disp_3d_src_mode_t trd_mode;
+	__u32 trd_right_addr[3]; /* used when in frame packing 3d mode */
 } __disp_fb_t;
 
 typedef struct {
-	__disp_layer_work_mode_t mode;	/* layer work mode */
+	__disp_layer_work_mode_t mode; /* layer work mode */
 	__bool b_from_screen;
-	__u8 pipe;		/* layer pipe,0/1,if in scaler mode, scaler0 must be pipe0, scaler1 must be pipe1 */
-	__u8 prio;		/* layer priority,can get layer prio,but never set layer prio, From bottom to top, priority from low to high */
-	__bool alpha_en;	/* layer global alpha enable */
-	__u16 alpha_val;	/* layer global alpha value */
-	__bool ck_enable;	/* layer color key enable */
-	__disp_rect_t src_win;	/*  framebuffer source window,only care x,y if is not scaler mode */
-	__disp_rect_t scn_win;	/*  screen window */
-	__disp_fb_t fb;		/* framebuffer */
-	__bool b_trd_out;	/* if output 3d mode, used for scaler mode layer */
-	__disp_3d_out_mode_t out_trd_mode;	/* output 3d mode, used for scaler mode layer */
+	 /*
+	  * layer pipe,0/1,if in scaler mode, scaler0 must be pipe0,
+	  * scaler1 must be pipe1
+	  */
+	__u8 pipe;
+	/*
+	 * layer priority,can get layer prio,but never set layer prio.
+	 * From bottom to top, priority from low to high
+	 */
+	__u8 prio;
+	__bool alpha_en; /* layer global alpha enable */
+	__u16 alpha_val; /* layer global alpha value */
+	__bool ck_enable; /* layer color key enable */
+	/*  framebuffer source window,only care x,y if is not scaler mode */
+	__disp_rect_t src_win;
+	__disp_rect_t scn_win; /* screen window */
+	__disp_fb_t fb; /* framebuffer */
+	__bool b_trd_out; /* if output 3d mode, used for scaler mode layer */
+	/* output 3d mode, used for scaler mode layer */
+	__disp_3d_out_mode_t out_trd_mode;
 } __disp_layer_info_t;
 
 typedef struct {
 	__disp_color_t ck_max;
 	__disp_color_t ck_min;
-	__u32 red_match_rule;	/* 0/1:always match; 2:match if min<=color<=max; 3:match if color>max or color<min */
-	__u32 green_match_rule;	/* 0/1:always match; 2:match if min<=color<=max; 3:match if color>max or color<min */
-	__u32 blue_match_rule;	/* 0/1:always match; 2:match if min<=color<=max; 3:match if color>max or color<min */
+	/*
+	 * 0/1:always match;
+	 * 2:match if min<=color<=max;
+	 * 3:match if color>max or color<min
+	 */
+	__u32 red_match_rule;
+	__u32 green_match_rule;
+	__u32 blue_match_rule;
 } __disp_colorkey_t;
 
 typedef struct {
 	__s32 id;
 	__u32 addr[3];
-	__u32 addr_right[3];	/* used when in frame packing 3d mode */
+	__u32 addr_right[3]; /* used when in frame packing 3d mode */
 	__bool interlace;
 	__bool top_field_first;
-	__u32 frame_rate;	/*  *FRAME_RATE_BASE(now scheduled for 1000) */
-	__u32 flag_addr;	/* dit maf flag address */
-	__u32 flag_stride;	/* dit maf flag line stride */
+	__u32 frame_rate; /*  *FRAME_RATE_BASE(now scheduled for 1000) */
+	__u32 flag_addr; /* dit maf flag address */
+	__u32 flag_stride; /* dit maf flag line stride */
 	__bool maf_valid;
 	__bool pre_frame_valid;
 } __disp_video_fb_t;
@@ -372,12 +398,17 @@ typedef struct {
 
 typedef struct {
 	__disp_fb_t fb;
-	__disp_rect_t src_win;	/* source region,only care x,y because of not scaler */
-	__disp_rect_t scn_win;	/*  sceen region */
+	/* source region,only care x,y because of not scaler */
+	__disp_rect_t src_win;
+	__disp_rect_t scn_win; /*  sceen region */
 } __disp_sprite_block_para_t;
 
 typedef struct {
-	__disp_rectsz_t screen_size;	/* used when the screen is not displaying on any output device(lcd/hdmi/vga/tv) */
+	/*
+	 * used when the screen is not displaying on any output device
+	 * (lcd/hdmi/vga/tv)
+	 */
+	__disp_rectsz_t screen_size;
 	__disp_fb_t output_fb;
 } __disp_capture_screen_para_t;
 
@@ -401,7 +432,7 @@ typedef struct {
 	__u32 lcd_srgb;
 	__u32 lcd_swap;
 
-	__u32 lcd_if;		/* 0:hv(sync+de); 1:8080; 2:ttl; 3:lvds */
+	__u32 lcd_if; /* 0:hv(sync+de); 1:8080; 2:ttl; 3:lvds */
 
 	__u32 lcd_uf;
 	__u32 lcd_vt;
@@ -437,12 +468,22 @@ typedef struct {
 	__u32 lcd_ttl_datainv_en;
 	__u32 lcd_ttl_datainv_sel;
 
-	__u32 lcd_lvds_ch;	/*  0: single channel; 1:dual channel */
-	__u32 lcd_lvds_mode;	/*  0:NS mode; 1:JEIDA mode */
-	__u32 lcd_lvds_bitwidth;	/*  0:24bit; 1:18bit */
-	__u32 lcd_lvds_io_cross;	/*  0:normal; 1:pn cross */
+	__u32 lcd_lvds_ch; /*  0: single channel; 1:dual channel */
+	__u32 lcd_lvds_mode; /*  0:NS mode; 1:JEIDA mode */
+	__u32 lcd_lvds_bitwidth; /*  0:24bit; 1:18bit */
+	__u32 lcd_lvds_io_cross; /*  0:normal; 1:pn cross */
 
-	__u32 lcd_cpu_if;	/* 0:18bit; 1:16bit mode0; 2:16bit mode1; 3:16bit mode2; 4:16bit mode3; 5:9bit; 6:8bit 256K; 7:8bit 65K */
+	/*
+	 * 0:18bit;
+	 * 1:16bit mode0;
+	 * 2:16bit mode1;
+	 * 3:16bit mode2;
+	 * 4:16bit mode3;
+	 * 5:9bit;
+	 * 6:8bit 256K;
+	 * 7:8bit 65K
+	 */
+	__u32 lcd_cpu_if;
 	__u32 lcd_cpu_da;
 	__u32 lcd_frm;
 
@@ -459,12 +500,12 @@ typedef struct {
 	__u32 lcd_hv_syuv_fdly;
 
 	__u32 port_index;
-	__u32 start_delay;	/* not need to config for user */
-	__u32 tcon_index;	/* not need to config for user */
+	__u32 start_delay; /* not need to config for user */
+	__u32 tcon_index; /* not need to config for user */
 } __panel_para_t;
 
 typedef struct {
-	__u32 pixel_clk;	/* khz */
+	__u32 pixel_clk; /* khz */
 	__u32 hor_pixels;
 	__u32 ver_pixels;
 	__u32 hor_total_time;
@@ -488,7 +529,7 @@ typedef struct {
 typedef void (*LCD_FUNC) (__u32 sel);
 typedef struct lcd_function {
 	LCD_FUNC func;
-	__u32 delay;		/* ms */
+	__u32 delay; /* ms */
 } __lcd_function_t;
 
 typedef struct lcd_flow {
@@ -497,7 +538,7 @@ typedef struct lcd_flow {
 } __lcd_flow_t;
 
 typedef struct {
-	void (*cfg_panel_info) (__panel_para_t * info);
+	void (*cfg_panel_info) (__panel_para_t *info);
 	 __s32(*cfg_open_flow) (__u32 sel);
 	 __s32(*cfg_close_flow) (__u32 sel);
 	 __s32(*lcd_user_defined_func) (__u32 sel, __u32 para1, __u32 para2,
@@ -514,8 +555,10 @@ typedef struct {
 typedef enum {
 	FB_MODE_SCREEN0 = 0,
 	FB_MODE_SCREEN1 = 1,
-	FB_MODE_DUAL_SAME_SCREEN_TB = 2,	/* two screen, top buffer for screen0, bottom buffer for screen1 */
-	FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS = 3,	/* two screen, they have same contents; */
+	/* two screen, top buffer for screen0, bottom buffer for screen1 */
+	FB_MODE_DUAL_SAME_SCREEN_TB = 2,
+	/* two screen, they have same contents; */
+	FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS = 3,
 } __fb_mode_t;
 
 typedef struct {
@@ -525,31 +568,45 @@ typedef struct {
 	__u32 width;
 	__u32 height;
 
-	__u32 output_width;	/* used when scaler mode */
-	__u32 output_height;	/* used when scaler mode */
+	__u32 output_width; /* used when scaler mode */
+	__u32 output_height; /* used when scaler mode */
 
-	__u32 primary_screen_id;	/* used when FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS */
-	__u32 aux_output_width;	/* used when FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS */
-	__u32 aux_output_height;	/* used when FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS */
+	/* used when FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS */
+	__u32 primary_screen_id;
+	__u32 aux_output_width;
+	__u32 aux_output_height;
 
-/* maybe not used anymore */
-	__u32 line_length;	/* in byte unit */
+	/* maybe not used anymore */
+	__u32 line_length; /* in byte unit */
 	__u32 smem_len;
-	__u32 ch1_offset;	/* use when PLANAR or UV_COMBINED mode */
-	__u32 ch2_offset;	/* use when PLANAR mode */
+	__u32 ch1_offset; /* use when PLANAR or UV_COMBINED mode */
+	__u32 ch2_offset; /* use when PLANAR mode */
 } __disp_fb_create_para_t;
 
 typedef enum {
-	DISP_INIT_MODE_SCREEN0 = 0,	/* fb0 for screen0 */
-	DISP_INIT_MODE_SCREEN1 = 1,	/* fb0 for screen1 */
-	DISP_INIT_MODE_TWO_DIFF_SCREEN = 2,	/* fb0 for screen0 and fb1 for screen1 */
-	DISP_INIT_MODE_TWO_SAME_SCREEN = 3,	/* fb0(up buffer for screen0, down buffer for screen1) */
-	DISP_INIT_MODE_TWO_DIFF_SCREEN_SAME_CONTENTS = 4,	/* fb0 for two different screen(screen0 layer is normal layer, screen1 layer is scaler layer); */
+	DISP_INIT_MODE_SCREEN0 = 0, /* fb0 for screen0 */
+	DISP_INIT_MODE_SCREEN1 = 1, /* fb0 for screen1 */
+	/* fb0 for screen0 and fb1 for screen1 */
+	DISP_INIT_MODE_TWO_DIFF_SCREEN = 2,
+	/* fb0(up buffer for screen0, down buffer for screen1) */
+	DISP_INIT_MODE_TWO_SAME_SCREEN = 3,
+	/*
+	 * fb0 for two different screen(screen0 layer is normal layer,
+	 * screen1 layer is scaler layer);
+	 */
+	DISP_INIT_MODE_TWO_DIFF_SCREEN_SAME_CONTENTS = 4,
 } __disp_init_mode_t;
 
 typedef struct {
 	__bool b_init;
-	__disp_init_mode_t disp_mode;	/* 0:single screen0(fb0); 1:single screen1(fb0);  2:dual diff screen(fb0, fb1); 3:dual same screen(fb0 up and down); 4:dual diff screen same contents(fb0) */
+	/*
+	 * 0:single screen0(fb0);
+	 * 1:single screen1(fb0);
+	 * 2:dual diff screen(fb0, fb1);
+	 * 3:dual same screen(fb0 up and down);
+	 * 4:dual diff screen same contents(fb0)
+	 */
+	__disp_init_mode_t disp_mode;
 
 	/* for screen0 and screen1 */
 	__disp_output_type_t output_type[2];
@@ -565,10 +622,11 @@ typedef struct {
 } __disp_init_t;
 
 typedef enum tag_DISP_CMD {
-/* ----disp global---- */
+	/* ----disp global---- */
 	DISP_CMD_RESERVE0 = 0x00,
 	DISP_CMD_RESERVE1 = 0x01,
-	DISP_CMD_SET_BKCOLOR = 0x3f,	/* fail when the value is 0x02 in linux,why??? */
+	/* fail when the value is 0x02 in linux,why??? */
+	DISP_CMD_SET_BKCOLOR = 0x3f,
 	DISP_CMD_GET_BKCOLOR = 0x03,
 	DISP_CMD_SET_COLORKEY = 0x04,
 	DISP_CMD_GET_COLORKEY = 0x05,
@@ -594,7 +652,12 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_GET_ENHANCE_EN = 0x1c,
 	DISP_CMD_CLK_ON = 0x1d,
 	DISP_CMD_CLK_OFF = 0x1e,
-	DISP_CMD_SET_SCREEN_SIZE = 0x1f,	/* when the screen is not used to display(lcd/tv/vga/hdmi) directly, maybe capture the screen and scaler to dram, or as a layer of another screen */
+	/*
+	 * when the screen is not used to display(lcd/tv/vga/hdmi) directly,
+	 * maybe capture the screen and scaler to dram, or as a layer of
+	 * another screen
+	 */
+	DISP_CMD_SET_SCREEN_SIZE = 0x1f,
 	DISP_CMD_CAPTURE_SCREEN = 0x20,	/* caputre screen and scaler to dram */
 	DISP_CMD_DE_FLICKER_ON = 0x21,
 	DISP_CMD_DE_FLICKER_OFF = 0x22,
@@ -607,7 +670,7 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_DRC_ON = 0x29,
 	DISP_CMD_GET_DE_FLICKER_EN = 0x2a,
 
-/* ----layer---- */
+	/* ----layer---- */
 	DISP_CMD_LAYER_REQUEST = 0x40,
 	DISP_CMD_LAYER_RELEASE = 0x41,
 	DISP_CMD_LAYER_OPEN = 0x42,
@@ -635,10 +698,10 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_LAYER_GET_PRIO = 0x58,
 	DISP_CMD_LAYER_SET_SMOOTH = 0x59,
 	DISP_CMD_LAYER_GET_SMOOTH = 0x5a,
-	DISP_CMD_LAYER_SET_BRIGHT = 0x5b,	/* brightness */
-	DISP_CMD_LAYER_SET_CONTRAST = 0x5c,	/* contrast */
-	DISP_CMD_LAYER_SET_SATURATION = 0x5d,	/* saturation */
-	DISP_CMD_LAYER_SET_HUE = 0x5e,	/* hue, chroma */
+	DISP_CMD_LAYER_SET_BRIGHT = 0x5b, /* brightness */
+	DISP_CMD_LAYER_SET_CONTRAST = 0x5c, /* contrast */
+	DISP_CMD_LAYER_SET_SATURATION = 0x5d, /* saturation */
+	DISP_CMD_LAYER_SET_HUE = 0x5e, /* hue, chroma */
 	DISP_CMD_LAYER_GET_BRIGHT = 0x5f,
 	DISP_CMD_LAYER_GET_CONTRAST = 0x60,
 	DISP_CMD_LAYER_GET_SATURATION = 0x61,
@@ -658,12 +721,12 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_LAYER_SET_BLACK_EXTEN_LEVEL = 0x70,
 	DISP_CMD_LAYER_GET_BLACK_EXTEN_LEVEL = 0x71,
 
-/* ----scaler---- */
+	/* ----scaler---- */
 	DISP_CMD_SCALER_REQUEST = 0x80,
 	DISP_CMD_SCALER_RELEASE = 0x81,
 	DISP_CMD_SCALER_EXECUTE = 0x82,
 
-/* ----hwc---- */
+	/* ----hwc---- */
 	DISP_CMD_HWC_OPEN = 0xc0,
 	DISP_CMD_HWC_CLOSE = 0xc1,
 	DISP_CMD_HWC_SET_POS = 0xc2,
@@ -671,14 +734,14 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_HWC_SET_FB = 0xc4,
 	DISP_CMD_HWC_SET_PALETTE_TABLE = 0xc5,
 
-/* ----video---- */
+	/* ----video---- */
 	DISP_CMD_VIDEO_START = 0x100,
 	DISP_CMD_VIDEO_STOP = 0x101,
 	DISP_CMD_VIDEO_SET_FB = 0x102,
 	DISP_CMD_VIDEO_GET_FRAME_ID = 0x103,
 	DISP_CMD_VIDEO_GET_DIT_INFO = 0x104,
 
-/* ----lcd---- */
+	/* ----lcd---- */
 	DISP_CMD_LCD_ON = 0x140,
 	DISP_CMD_LCD_OFF = 0x141,
 	DISP_CMD_LCD_SET_BRIGHTNESS = 0x142,
@@ -689,7 +752,7 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_LCD_SET_SRC = 0x14c,
 	DISP_CMD_LCD_USER_DEFINED_FUNC = 0x14d,
 
-/* ----tv---- */
+	/* ----tv---- */
 	DISP_CMD_TV_ON = 0x180,
 	DISP_CMD_TV_OFF = 0x181,
 	DISP_CMD_TV_SET_MODE = 0x182,
@@ -702,7 +765,7 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_TV_SET_DAC_SOURCE = 0x189,
 	DISP_CMD_TV_GET_DAC_SOURCE = 0x18a,
 
-/* ----hdmi---- */
+	/* ----hdmi---- */
 	DISP_CMD_HDMI_ON = 0x1c0,
 	DISP_CMD_HDMI_OFF = 0x1c1,
 	DISP_CMD_HDMI_SET_MODE = 0x1c2,
@@ -711,14 +774,14 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_HDMI_GET_HPD_STATUS = 0x1c5,
 	DISP_CMD_HDMI_SET_SRC = 0x1c6,
 
-/* ----vga---- */
+	/* ----vga---- */
 	DISP_CMD_VGA_ON = 0x200,
 	DISP_CMD_VGA_OFF = 0x201,
 	DISP_CMD_VGA_SET_MODE = 0x202,
 	DISP_CMD_VGA_GET_MODE = 0x203,
 	DISP_CMD_VGA_SET_SRC = 0x204,
 
-/* ----sprite---- */
+	/* ----sprite---- */
 	DISP_CMD_SPRITE_OPEN = 0x240,
 	DISP_CMD_SPRITE_CLOSE = 0x241,
 	DISP_CMD_SPRITE_SET_FORMAT = 0x242,
@@ -750,13 +813,13 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_SPRITE_BLOCK_GET_NEXT_BLOCK = 0x255,
 	DISP_CMD_SPRITE_BLOCK_GET_PRIO = 0x256,
 
-/* ----framebuffer---- */
+	/* ----framebuffer---- */
 	DISP_CMD_FB_REQUEST = 0x280,
 	DISP_CMD_FB_RELEASE = 0x281,
 	DISP_CMD_FB_GET_PARA = 0x282,
 	DISP_CMD_GET_DISP_INIT_PARA = 0x283,
 
-/* ---for Displayer Test -------- */
+	/* ---for Displayer Test -------- */
 	DISP_CMD_MEM_REQUEST = 0x2c0,
 	DISP_CMD_MEM_RELASE = 0x2c1,
 	DISP_CMD_MEM_GETADR = 0x2c2,
@@ -767,7 +830,7 @@ typedef enum tag_DISP_CMD {
 
 	DISP_CMD_PRINT_REG = 0x2e0,
 
-/* ---pwm -------- */
+	/* ---pwm -------- */
 	DISP_CMD_PWM_SET_PARA = 0x300,
 	DISP_CMD_PWM_GET_PARA = 0x301,
 } __disp_cmd_t;
