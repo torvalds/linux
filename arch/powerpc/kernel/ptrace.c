@@ -1451,7 +1451,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 #endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */
 }
 
-static long ppc_del_hwdebug(struct task_struct *child, long addr, long data)
+static long ppc_del_hwdebug(struct task_struct *child, long data)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	int ret = 0;
@@ -1633,7 +1633,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	case PPC_PTRACE_DELHWDEBUG: {
-		ret = ppc_del_hwdebug(child, addr, data);
+		ret = ppc_del_hwdebug(child, data);
 		break;
 	}
 
