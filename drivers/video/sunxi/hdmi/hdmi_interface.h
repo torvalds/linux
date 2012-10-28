@@ -19,19 +19,9 @@
  * MA 02111-1307 USA
  */
 
+#ifndef __HDMI_INTERFACE_H__
+#define __HDMI_INTERFACE_H__
 
-#include "hdmi_interface.h"
+#include "hdmi_hal.h"
 
-
-__s32 hdmi_i2c_add_driver(void)
-{
-	return 0;
-}
-
-
-__s32 hdmi_i2c_del_driver(void)
-{
-    return 0;
-}
-
-
+#endif

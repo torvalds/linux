@@ -22,7 +22,7 @@
 #ifndef __HDMI_CORE_H__
 #define __HDMI_CORE_H__
 
-#include "../hdmi_hal.h"
+#include "hdmi_hal.h"
 #include "hdmi_interface.h"
 
 extern volatile __u32 HDMI_BASE;
@@ -43,8 +43,7 @@ extern volatile __u32 HDMI_BASE;
 #define Explicit_Offset_Address_E_DDC_Read	6
 #define Implicit_Offset_Address_E_DDC_Read	7
 
-typedef struct video_timing
-{
+typedef struct video_timing {
 	__s32 VIC;
 	__s32 PCLK;
 	__s32 AVI_PR;
@@ -60,21 +59,20 @@ typedef struct video_timing
 	__s32 VFP;
 	__s32 VPSW;
 
-}HDMI_VIDE_INFO;
+} HDMI_VIDE_INFO;
 
-typedef struct audio_timing
-{
+typedef struct audio_timing {
 
- 	__s32 audio_en;
- 	__s32 sample_rate;
- 	__s32 channel_num;
+	__s32 audio_en;
+	__s32 sample_rate;
+	__s32 channel_num;
 
 	__s32 CTS;
 	__s32 ACR_N;
 	__s32 CH_STATUS0;
 	__s32 CH_STATUS1;
 
-}HDMI_AUDIO_INFO;
+} HDMI_AUDIO_INFO;
 
 __s32 hdmi_core_initial(void);
 __s32 hdmi_core_open(void);
@@ -85,15 +83,13 @@ __s32 ParseEDID(void);
 __s32 video_config(__s32 vic);
 __s32 audio_config(void);
 
-extern __u32 hdmi_pll;//0:video pll 0; 1:video pll 1
+extern __u32 hdmi_pll;		//0:video pll 0; 1:video pll 1
 extern __u32 hdmi_clk;
-
 
 void DDC_Init(void);
 void send_ini_sequence(void);
-__s32 DDC_Read(char cmd,char pointer,char offset,int nbyte,char * pbuf);
-extern 	__u8		EDID_Buf[1024];
-extern 	__u8		Device_Support_VIC[512];
+__s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf);
+extern __u8 EDID_Buf[1024];
+extern __u8 Device_Support_VIC[512];
 
 #endif
-

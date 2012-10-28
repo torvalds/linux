@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef  _DRV_HDMI_I_H_
 #define  _DRV_HDMI_I_H_
 
@@ -33,9 +32,9 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
-#include <linux/sched.h>   //wake_up_process()
-#include <linux/kthread.h> //kthread_create(),kthread_run()
-#include <linux/err.h> //IS_ERR(),PTR_ERR()
+#include <linux/sched.h>	//wake_up_process()
+#include <linux/kthread.h>	//kthread_create(),kthread_run()
+#include <linux/err.h>		//IS_ERR(),PTR_ERR()
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>
@@ -65,7 +64,6 @@
 #define __here__            {printk(KERN_WARNING "[HDMI] file:%s,line:%d\n",__FILE__,__LINE__);}
 #endif
 
-
 __s32 Hdmi_init(void);
 __s32 Hdmi_exit(void);
 
@@ -77,12 +75,10 @@ __s32 Hdmi_get_HPD_status(void);
 __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel);
 __s32 Hdmi_Set_Audio_Para(hdmi_audio_t * audio_para);
 
-
 extern __s32 hdmi_i2c_add_driver(void);
 extern __s32 hdmi_i2c_del_driver(void);
 
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))          /* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
-
+#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
+#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
 
 #endif
