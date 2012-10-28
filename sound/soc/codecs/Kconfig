@@ -146,6 +146,11 @@ config SND_SOC_WM_HUBS
 	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
 	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
 
+config SND_SOC_WM_ADSP
+	tristate
+	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_WM2200=m
+
 config SND_SOC_AB8500_CODEC
 	tristate
 
