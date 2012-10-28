@@ -1432,12 +1432,10 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 
 void __weak arch_uprobe_enable_step(struct arch_uprobe *arch)
 {
-	user_enable_single_step(current);
 }
 
 void __weak arch_uprobe_disable_step(struct arch_uprobe *arch)
 {
-	user_disable_single_step(current);
 }
 
 /*
