@@ -19,12 +19,10 @@
  * MA 02111-1307 USA
  */
 
-
 #ifndef __LCD_PANNEL_CFG_H__
 #define __LCD_PANNEL_CFG_H__
 
 #include "dev_lcd.h"
-
 
 void LCD_power_on_generic(__u32 sel);
 void LCD_power_off_generic(__u32 sel);
@@ -32,7 +30,8 @@ void LCD_bl_open_generic(__u32 sel);
 void LCD_bl_close_generic(__u32 sel);
 __s32 LCD_open_flow_generic(__u32 sel);
 __s32 LCD_close_flow_generic(__u32 sel);
-__s32 LCD_user_defined_func_generic(__u32 sel, __u32 para1, __u32 para2, __u32 para3);
+__s32 LCD_user_defined_func_generic(__u32 sel, __u32 para1, __u32 para2,
+				    __u32 para3);
 void LCD_get_panel_funs_generic(__lcd_panel_fun_t * fun);
 
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun);
@@ -83,9 +82,7 @@ void LCD_get_panel_funs_1(__lcd_panel_fun_t * fun);
 #define BIT30		  0x40000000
 #define BIT31		  0x80000000
 
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))          /* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
-
+#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
+#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
 
 #endif
-

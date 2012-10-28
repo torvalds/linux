@@ -32,9 +32,9 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
-#include <linux/sched.h>   //wake_up_process()
-#include <linux/kthread.h> //kthread_create() / kthread_run()
-#include <linux/err.h> //IS_ERR() / PTR_ERR()
+#include <linux/sched.h>	//wake_up_process()
+#include <linux/kthread.h>	//kthread_create() / kthread_run()
+#include <linux/err.h>		//IS_ERR() / PTR_ERR()
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>
@@ -62,6 +62,5 @@ extern __s32 DRV_DISP_Init(void);
 #define __msg(msg...)       {printk(KERN_WARNING "[LCD] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __wrn(msg...)       {printk(KERN_WARNING "[LCD WRN] file:%s,line:%d:    ",__FILE__,__LINE__); printk(msg);}
 #define __here__            {printk(KERN_WARNING "[LCD] file:%s,line:%d\n",__FILE__,__LINE__);}
-
 
 #endif
