@@ -318,7 +318,7 @@ __u32 DE_IEP_Drc_Set_Int_Coeff(__u32 sel, __u8 inttab[IEP_DRC_INT_TAB_LEN]);
 __u32 DE_IEP_Lh_Set_Mode(__u32 sel, __u32 mod);
 __u32 DE_IEP_Lh_Clr_Rec(__u32 sel);
 __u32 DE_IEP_Lh_Set_Thres(__u32 sel, __u8 thres[IEP_LH_THRES_NUM]);
-__u32 DE_IEP_Lh_Get_Sum_Rec(__u32 sel, __u32 * sum);
-__u32 DE_IEP_Lh_Get_Cnt_Rec(__u32 sel, __u32 * cnt);
+__u32 DE_IEP_Lh_Get_Sum_Rec(__u32 sel, __u32 *sum);
+__u32 DE_IEP_Lh_Get_Cnt_Rec(__u32 sel, __u32 *cnt);
 #define ____SEPARATOR_DF____
 #endif

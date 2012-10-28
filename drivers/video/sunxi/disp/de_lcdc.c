@@ -22,28 +22,28 @@
 #include "ebios_lcdc_tve.h"
 #include "de_lcdc_i.h"
 
-static __u32 lcdc_reg_base0 = 0;
-static __u32 lcdc_reg_base1 = 0;
+static __u32 lcdc_reg_base0;
+static __u32 lcdc_reg_base1;
 
 #define ____SEPARATOR_LCDC____
 
 __s32 LCDC_set_reg_base(__u32 sel, __u32 address)
 {
-	if (sel == 0) {
+	if (sel == 0)
 		lcdc_reg_base0 = address;
-	} else if (sel == 1) {
+	else if (sel == 1)
 		lcdc_reg_base1 = address;
-	}
+
 	return 0;
 }
 
 __u32 LCDC_get_reg_base(__u32 sel)
 {
-	if (sel == 0) {
+	if (sel == 0)
 		return lcdc_reg_base0;
-	} else if (sel == 1) {
+	else if (sel == 1)
 		return lcdc_reg_base1;
-	}
+
 	return 0;
 }
 
@@ -67,9 +67,8 @@ __s32 LCDC_init(__u32 sel)
 
 __s32 LCDC_exit(__u32 sel)
 {
-	LCDC_disable_int(sel,
-			 LCDC_VBI_LCD_EN | LCDC_VBI_HD_EN | LCDC_LTI_LCD_EN |
-			 LCDC_LTI_HD_EN);
+	LCDC_disable_int(sel, LCDC_VBI_LCD_EN | LCDC_VBI_HD_EN |
+			 LCDC_LTI_LCD_EN | LCDC_LTI_HD_EN);
 	LCDC_close(sel);
 	return 0;
 }
@@ -183,7 +182,7 @@ __s32 LCDC_clear_int(__u32 sel, __u32 irqsrc)
 	return 0;
 }
 
-__s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t * tt)
+__s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t *tt)
 {
 	__u32 reg0, reg1, reg2, reg3;
 	__u32 x, y, ht, hbp, vt, vbp, hspw, vspw;
@@ -239,7 +238,7 @@ __s32 TCON0_close(__u32 sel)
 	return 0;
 }
 
-void TCON0_cfg(__u32 sel, __panel_para_t * info)
+void TCON0_cfg(__u32 sel, __panel_para_t *info)
 {
 	__u32 vblank_len;
 	__u32 lcd_if_reg = 0;
@@ -248,11 +247,10 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 
 	vblank_len = info->lcd_vt / 2 - info->lcd_y;
 
-	if (vblank_len >= 32) {
+	if (vblank_len >= 32)
 		info->start_delay = 30;
-	} else {
+	else
 		info->start_delay = vblank_len - 2;
-	}
 
 	switch (info->lcd_if) {
 	case LCDC_LCDIF_HV:
@@ -354,17 +352,14 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 		if (info->lcd_lvds_io_cross != 0)
 			LCDC_SET_BIT(sel, LCDC_LVDS_ANA1,
 				     (0x1f << 21) | (0x1f << 5));
-	} else {
-		;
 	}
 
-	if (info->lcd_frm == LCDC_FRM_RGB666) {
+	if (info->lcd_frm == LCDC_FRM_RGB666)
 		LCDC_CLR_BIT(sel, LCDC_FRM0_OFF, (__u32) 0x7 << 4);
-	} else if (info->lcd_frm == LCDC_FRM_RGB656) {
+	else if (info->lcd_frm == LCDC_FRM_RGB656)
 		LCDC_INIT_BIT(sel, LCDC_FRM0_OFF, 0x7 << 4, 0x5 << 4);
-	} else {
+	else
 		LCDC_CLR_BIT(sel, LCDC_FRM0_OFF, LCDC_BIT31);
-	}
 
 	if (info->lcd_frm == LCDC_FRM_RGB666 ||
 	    info->lcd_frm == LCDC_FRM_RGB656) {
@@ -479,29 +474,26 @@ __u32 TCON1_close(__u32 sel)
 	return 0;
 }
 
-__u32 TCON1_cfg(__u32 sel, __tcon1_cfg_t * cfg)
+__u32 TCON1_cfg(__u32 sel, __tcon1_cfg_t *cfg)
 {
 	__u32 vblank_len;
 	__u32 reg_val;
 
 	vblank_len = cfg->vt / 2 - cfg->src_y - 2;
-	if (vblank_len >= 32) {
+	if (vblank_len >= 32)
 		cfg->start_delay = 30;
-	} else {
+	else
 		cfg->start_delay = vblank_len - 2; /* was vblank_len - 1 */
-	}
 
-	if (cfg->b_remap_if) {
+	if (cfg->b_remap_if)
 		LCDC_SET_BIT(sel, LCDC_GCTL_OFF, LCDC_BIT0);
-	} else {
+	else
 		LCDC_CLR_BIT(sel, LCDC_GCTL_OFF, LCDC_BIT0);
-	}
 
 	reg_val = LCDC_RUINT32(sel, LCDC_HDTVIF_OFF);
 	reg_val &= 0xffeffe0f;
-	if (cfg->b_interlace) {
+	if (cfg->b_interlace)
 		reg_val |= (1 << 20);
-	}
 
 	reg_val |= ((cfg->start_delay & 0x1f) << 4);
 
@@ -527,7 +519,7 @@ __u32 TCON1_cfg(__u32 sel, __tcon1_cfg_t * cfg)
 	return 0;
 }
 
-__u32 TCON1_cfg_ex(__u32 sel, __panel_para_t * info)
+__u32 TCON1_cfg_ex(__u32 sel, __panel_para_t *info)
 {
 	__tcon1_cfg_t tcon1_cfg;
 
@@ -1139,13 +1131,12 @@ __s32 TCON1_select_src(__u32 sel, __u8 src)
 	tv_tmp = LCDC_RUINT32(sel, LCDC_HDTVIF_OFF);
 
 	tv_tmp = tv_tmp & 0xfffffffc;
-	if (src == LCDC_SRC_DE1) {
+	if (src == LCDC_SRC_DE1)
 		tv_tmp = tv_tmp | 0x00;
-	} else if (src == LCDC_SRC_DE2) {
+	else if (src == LCDC_SRC_DE2)
 		tv_tmp = tv_tmp | 0x01;
-	} else if (src == LCDC_SRC_BLUE) {
+	else if (src == LCDC_SRC_BLUE)
 		tv_tmp = tv_tmp | 0x02;
-	}
 
 	LCDC_WUINT32(sel, LCDC_HDTVIF_OFF, tv_tmp);
 
@@ -1167,11 +1158,11 @@ __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd)
 	readval = LCDC_RUINT32(sel, LCDC_DUBUG_OFF);
 	SY2 = (readval) & 0xfff;
 
-	if ((SY2 < juststd) || (SY2 > VT)) {
+	if ((SY2 < juststd) || (SY2 > VT))
 		return 1;
-	} else {
+	else
 		return 0;
-	}
+
 }
 
 __s32 TCON1_get_width(__u32 sel)
@@ -1204,9 +1195,8 @@ __s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size)
 	pmem_align_src = (__s32 *) address;
 	pmem_align_dest = pmem_dest_cur + (size >> 2);
 
-	while (pmem_dest_cur < pmem_align_dest) {
+	while (pmem_dest_cur < pmem_align_dest)
 		*(volatile __u32 *)pmem_dest_cur++ = *pmem_align_src++;
-	}
 
 	LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp);
 
@@ -1218,18 +1208,18 @@ __s32 TCON1_set_gamma_Enable(__u32 sel, __bool enable)
 	__u32 tmp;
 
 	tmp = LCDC_RUINT32(sel, LCDC_GCTL_OFF);
-	if (enable) {
+	if (enable)
 		LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp | (1 << 30));
-	} else {
+	else
 		LCDC_WUINT32(sel, LCDC_GCTL_OFF, tmp & (~(1 << 30)));
-	}
+
 	return 0;
 }
 
 #define ____SEPARATOR_CPU____
 
 #if 0
-__asm void my_stmia(int addr,int data1,int data2)
+__asm void my_stmia(int addr, int data1, int data2)
 {
 	stmia r0!, {r1,r2}
 	BX    lr
@@ -1253,7 +1243,8 @@ LCD_CPU_Busy(__u32 sel)
 	__u32 reg_val;
 
 	LCDC_SET_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT0);
-	for (i = 0; i < 80; i++) ;
+	for (i = 0; i < 80; i++)
+		;
 
 	while (1) {
 		reg_val = LCDC_RUINT32(sel, LCDC_CPUIF_OFF);
@@ -1267,7 +1258,7 @@ LCD_CPU_Busy(__u32 sel)
 		}
 	}
 #else
-	return (LCDC_RUINT32(sel, LCDC_CPUIF_OFF) & (LCDC_BIT23 | LCDC_BIT22));
+	return LCDC_RUINT32(sel, LCDC_CPUIF_OFF) & (LCDC_BIT23 | LCDC_BIT22);
 #endif /* CONFIG_ARCH_SUN4I */
 }
 
@@ -1346,18 +1337,21 @@ void LCD_CPU_WR(__u32 sel, __u32 index, __u32 data)
 	LCD_CPU_WR_24b(sel, LCD_CPU_IO_extend_16b(index),
 		       LCD_CPU_IO_extend_16b(data));
 }
+EXPORT_SYMBOL(LCD_CPU_WR);
 
 void LCD_CPU_WR_INDEX(__u32 sel, __u32 index)
 {
 	LCD_CPU_WR_INDEX_24b(sel, LCD_CPU_IO_extend_16b(index));
 }
+EXPORT_SYMBOL(LCD_CPU_WR_INDEX);
 
 void LCD_CPU_WR_DATA(__u32 sel, __u32 data)
 {
 	LCD_CPU_WR_DATA_24b(sel, LCD_CPU_IO_extend_16b(data));
 }
+EXPORT_SYMBOL(LCD_CPU_WR_DATA);
 
-void LCD_CPU_RD(__u32 sel, __u32 index, __u32 * data)
+void LCD_CPU_RD(__u32 sel, __u32 index, __u32 *data)
 {
 }
 
@@ -1368,6 +1362,7 @@ void LCD_CPU_AUTO_FLUSH(__u32 sel, __u8 en)
 	else
 		LCDC_SET_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT28);
 }
+EXPORT_SYMBOL(LCD_CPU_AUTO_FLUSH);
 
 void LCD_CPU_DMA_FLUSH(__u32 sel, __u8 en)
 {
@@ -1434,11 +1429,11 @@ __u8 TCON_set_hdmi_src(__u8 src)
 
 __u8 TCON_set_tv_src(__u32 tv_index, __u8 src)
 {
-	if (tv_index == 0) {
+	if (tv_index == 0)
 		LCDC_INIT_BIT(0, LCDC_MUX_CTRL, 0x3 << 4, src << 4);
-	} else {
+	else
 		LCDC_INIT_BIT(0, LCDC_MUX_CTRL, 0x3 << 0, src << 0);
-	}
+
 	return 0;
 }
 #endif /* CONFIG_ARCH_SUN4I */
@@ -1446,7 +1441,7 @@ __u8 TCON_set_tv_src(__u32 tv_index, __u8 src)
 #ifdef UNUSED
 #define ____TCON_CEU____
 
-static __u32 range_cut(__s32 * x_value, __s32 x_min, __s32 x_max)
+static __u32 range_cut(__s32 *x_value, __s32 x_min, __s32 x_max)
 {
 	if (*x_value > x_max) {
 		*x_value = x_max;
@@ -1458,7 +1453,7 @@ static __u32 range_cut(__s32 * x_value, __s32 x_min, __s32 x_max)
 		return 0;
 }
 
-static void rect_multi(__s32 * dest, __s32 * src1, __s32 * src2)
+static void rect_multi(__s32 *dest, __s32 *src1, __s32 *src2)
 {
 	__u32 x, y, z;
 	__s64 val_int64;
@@ -1482,7 +1477,7 @@ static __s32 reg_corr(__s32 val, __u32 bit)
 		return (bit) | (__u32) (-val);
 }
 
-static void rect_ceu_pro(__s32 * p_rect, __s32 b, __s32 c, __s32 s, __s32 h)
+static void rect_ceu_pro(__s32 *p_rect, __s32 b, __s32 c, __s32 s, __s32 h)
 {
 	const __u8 table_sin[91] = {
 		0, 2, 4, 7, 9, 11, 13, 16, 18, 20,
@@ -1542,7 +1537,7 @@ static void rect_ceu_pro(__s32 * p_rect, __s32 b, __s32 c, __s32 s, __s32 h)
 }
 
 static void lcd_ceu(__u32 r2y_type, __u32 cen_type, __u32 y2r_type, __s32 b,
-		    __s32 c, __s32 s, __s32 h, __s32 * p_coff)
+		    __s32 c, __s32 s, __s32 h, __s32 *p_coff)
 {
 	const __s32 rect_1[16] = {
 		1024, 0, 0, 0,

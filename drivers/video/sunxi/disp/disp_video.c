@@ -68,12 +68,12 @@ static __s32 video_enhancement_start(__u32 sel, __u32 id)
 	};
 
 	/* !!! assume open HDMI before video start */
-	if (gdisp.screen[sel].output_type == DISP_OUTPUT_TYPE_HDMI)
-	{
+	if (gdisp.screen[sel].output_type == DISP_OUTPUT_TYPE_HDMI) {
 		scaler_index = gdisp.screen[sel].layer_manage[id].scaler_index;
 		scaleuprate =
-		    gdisp.screen[sel].layer_manage[id].para.scn_win.width * 2 /
-		    gdisp.screen[sel].layer_manage[id].para.src_win.width;
+			gdisp.screen[sel].layer_manage[id].para.scn_win.width *
+			2 /
+			gdisp.screen[sel].layer_manage[id].para.src_win.width;
 
 		switch (scaleuprate) {
 		case 0:	/* scale down, do noting */
@@ -117,18 +117,17 @@ static __s32 video_enhancement_stop(__u32 sel, __u32 id)
 		DE_SCAL_Vpp_Enable(scaler_index, 0);
 		DE_SCAL_Vpp_Set_Luma_Sharpness_Level(scaler_index, 0);
 
-		if (gdisp.screen[sel].output_type != DISP_OUTPUT_TYPE_LCD) {
+		if (gdisp.screen[sel].output_type != DISP_OUTPUT_TYPE_LCD)
 			TCON1_set_gamma_Enable(sel, 0);
-		}
 
-		gdisp.screen[sel].layer_manage[id].video_enhancement_en = 0;;
+		gdisp.screen[sel].layer_manage[id].video_enhancement_en = 0;
 	}
 
 	return 0;
 }
 #endif /* CONFIG_ARCH_SUN4I */
 
-static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
+static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 {
 	__u32 cur_line = 0, start_delay = 0;
 
@@ -280,9 +279,8 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 			0 : gdisp.screen[sel].b_out_interlace;
 #endif
 
-		if (scaler->out_fb.cs_mode > DISP_VXYCC) {
+		if (scaler->out_fb.cs_mode > DISP_VXYCC)
 			scaler->out_fb.cs_mode = DISP_BT601;
-		}
 
 		if (scaler->in_fb.b_trd_src) {
 			__scal_3d_inmode_t inmode;
@@ -405,7 +403,7 @@ __s32 Video_Operation_In_Vblanking(__u32 sel, __u32 tcon_index)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_video_set_fb(__u32 sel, __u32 hid, __disp_video_fb_t * in_addr)
+__s32 BSP_disp_video_set_fb(__u32 sel, __u32 hid, __disp_video_fb_t *in_addr)
 {
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -417,9 +415,8 @@ __s32 BSP_disp_video_set_fb(__u32 sel, __u32 hid, __disp_video_fb_t * in_addr)
 		g_video[sel][hid].display_cnt = 0;
 
 		return DIS_SUCCESS;
-	} else {
+	} else
 		return DIS_FAIL;
-	}
 }
 
 /*
@@ -431,18 +428,16 @@ __s32 BSP_disp_video_get_frame_id(__u32 sel, __u32 hid)
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
 	if (g_video[sel][hid].enable) {
-		if (g_video[sel][hid].have_got_frame == TRUE) {
+		if (g_video[sel][hid].have_got_frame == TRUE)
 			return g_video[sel][hid].video_cur.id;
-		} else {
+		else
 			return DIS_FAIL;
-		}
-	} else {
+	} else
 		return DIS_FAIL;
-	}
 }
 
 __s32 BSP_disp_video_get_dit_info(__u32 sel, __u32 hid,
-				  __disp_dit_info_t * dit_info)
+				  __disp_dit_info_t *dit_info)
 {
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -452,17 +447,15 @@ __s32 BSP_disp_video_get_dit_info(__u32 sel, __u32 hid,
 		dit_info->pre_frame_enable = FALSE;
 
 		if (g_video[sel][hid].dit_enable) {
-			if (g_video[sel][hid].dit_mode == DIT_MODE_MAF) {
+			if (g_video[sel][hid].dit_mode == DIT_MODE_MAF)
 				dit_info->maf_enable = TRUE;
-			}
-			if (g_video[sel][hid].tempdiff_en) {
+
+			if (g_video[sel][hid].tempdiff_en)
 				dit_info->pre_frame_enable = TRUE;
-			}
 		}
 		return DIS_SUCCESS;
-	} else {
+	} else
 		return DIS_FAIL;
-	}
 }
 
 __s32 BSP_disp_video_start(__u32 sel, __u32 hid)

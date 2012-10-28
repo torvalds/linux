@@ -27,11 +27,11 @@ static __u32 tve_reg_base1;
 
 __s32 TVE_set_reg_base(__u32 sel, __u32 address)
 {
-	if (sel == 0) {
+	if (sel == 0)
 		tve_reg_base0 = address;
-	} else if (sel == 1) {
+	else if (sel == 1)
 		tve_reg_base1 = address;
-	}
+
 	return 0;
 }
 
@@ -478,17 +478,17 @@ __s32 TVE_dac_set_source(__u32 sel, __u32 index, __u32 source)
 
 	readval = TVE_RUINT32(sel, TVE_008);
 
-	if (index == 0) {
+	if (index == 0)
 		readval = (readval & 0xffffff8f) | ((source & 0x7) << 4);
-	} else if (index == 1) {
+	else if (index == 1)
 		readval = (readval & 0xfffffc7f) | ((source & 0x7) << 7);
-	} else if (index == 2) {
+	else if (index == 2)
 		readval = (readval & 0xffffe3ff) | ((source & 0x7) << 10);
-	} else if (index == 3) {
+	else if (index == 3)
 		readval = (readval & 0xffff1fff) | ((source & 0x7) << 13);
-	} else {
+	else
 		return 0;
-	}
+
 	TVE_WUINT32(sel, TVE_008, readval);
 
 	return 0;
@@ -500,15 +500,14 @@ __s32 TVE_dac_get_source(__u32 sel, __u32 index)
 
 	readval = TVE_RUINT32(sel, TVE_008);
 
-	if (index == 0) {
+	if (index == 0)
 		readval = (readval >> 4) & 0x7;
-	} else if (index == 1) {
+	else if (index == 1)
 		readval = (readval >> 7) & 0x7;
-	} else if (index == 2) {
+	else if (index == 2)
 		readval = (readval >> 10) & 0x7;
-	} else if (index == 3) {
+	else if (index == 3)
 		readval = (readval >> 13) & 0x7;
-	}
 
 	return readval;
 }
@@ -519,17 +518,17 @@ __u8 TVE_dac_set_de_bounce(__u32 sel, __u8 index, __u32 times)
 
 	readval = TVE_RUINT32(sel, TVE_03C);
 
-	if (index == 0) {
+	if (index == 0)
 		readval = (readval & 0xfffffff0) | (times & 0xf);
-	} else if (index == 1) {
+	else if (index == 1)
 		readval = (readval & 0xfffff0ff) | ((times & 0xf) << 8);
-	} else if (index == 2) {
+	else if (index == 2)
 		readval = (readval & 0xfff0ffff) | ((times & 0xf) << 16);
-	} else if (index == 3) {
+	else if (index == 3)
 		readval = (readval & 0xfff0ffff) | ((times & 0xf) << 20);
-	} else {
+	else
 		return 0;
-	}
+
 	TVE_WUINT32(sel, TVE_03C, readval);
 
 	return 0;
@@ -542,17 +541,16 @@ __u8 TVE_dac_get_de_bounce(__u32 sel, __u8 index)
 
 	readval = TVE_RUINT32(sel, TVE_03C);
 
-	if (index == 0) {
+	if (index == 0)
 		sts = readval & 0xf;
-	} else if (index == 1) {
+	else if (index == 1)
 		sts = (readval & 0xf00) >> 8;
-	} else if (index == 2) {
+	else if (index == 2)
 		sts = (readval & 0xf0000) >> 16;
-	} else if (index == 3) {
+	else if (index == 3)
 		sts = (readval & 0xf000000) >> 20;
-	} else {
+	else
 		return 0;
-	}
 
 	return sts;
 }

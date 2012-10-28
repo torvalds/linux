@@ -24,9 +24,9 @@
 
 #include "linux/kernel.h"
 #include "linux/mm.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/memory.h>
-#include <asm/unistd.h>
+#include <linux/unistd.h>
 #include "linux/semaphore.h"
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
@@ -89,20 +89,20 @@ typedef struct {
 
 extern __s32 BSP_disp_clk_on(__u32 type);
 extern __s32 BSP_disp_clk_off(__u32 type);
-extern __s32 BSP_disp_init(__disp_bsp_init_para * para);
+extern __s32 BSP_disp_init(__disp_bsp_init_para *para);
 extern __s32 BSP_disp_exit(__u32 mode);
 extern __s32 BSP_disp_open(void);
 extern __s32 BSP_disp_close(void);
 extern __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id);
 extern __s32 BSP_disp_cmd_cache(__u32 sel);
 extern __s32 BSP_disp_cmd_submit(__u32 sel);
-extern __s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t * color);
-extern __s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t * color);
-extern __s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t * ck_mode);
-extern __s32 BSP_disp_get_color_key(__u32 sel, __disp_colorkey_t * ck_mode);
-extern __s32 BSP_disp_set_palette_table(__u32 sel, __u32 * pbuffer,
+extern __s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t *color);
+extern __s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t *color);
+extern __s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t *ck_mode);
+extern __s32 BSP_disp_get_color_key(__u32 sel, __disp_colorkey_t *ck_mode);
+extern __s32 BSP_disp_set_palette_table(__u32 sel, __u32 *pbuffer,
 					__u32 offset, __u32 size);
-extern __s32 BSP_disp_get_palette_table(__u32 sel, __u32 * pbuffer,
+extern __s32 BSP_disp_get_palette_table(__u32 sel, __u32 *pbuffer,
 					__u32 offset, __u32 size);
 extern __s32 BSP_disp_get_screen_height(__u32 sel);
 extern __s32 BSP_disp_get_screen_width(__u32 sel);
@@ -123,8 +123,8 @@ extern __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable);
 extern __s32 BSP_disp_get_enhance_enable(__u32 sel);
 #endif
 extern __s32 BSP_disp_capture_screen(__u32 sel,
-				     __disp_capture_screen_para_t * para);
-extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size);
+				     __disp_capture_screen_para_t *para);
+extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t *size);
 #ifdef CONFIG_ARCH_SUN4I
 extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
@@ -136,21 +136,21 @@ extern __s32 BSP_disp_layer_release(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_layer_open(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_layer_close(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid,
-					    __disp_fb_t * fbinfo);
+					    __disp_fb_t *fbinfo);
 extern __s32 BSP_disp_layer_get_framebuffer(__u32 sel, __u32 hid,
-					    __disp_fb_t * fbinfo);
+					    __disp_fb_t *fbinfo);
 extern __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid,
-					   __disp_rect_t * regn);
+					   __disp_rect_t *regn);
 extern __s32 BSP_disp_layer_get_src_window(__u32 sel, __u32 hid,
-					   __disp_rect_t * regn);
+					   __disp_rect_t *regn);
 extern __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,
-					      __disp_rect_t * regn);
+					      __disp_rect_t *regn);
 extern __s32 BSP_disp_layer_get_screen_window(__u32 sel, __u32 hid,
-					      __disp_rect_t * regn);
+					      __disp_rect_t *regn);
 extern __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
-				     __disp_layer_info_t * layer_para);
+				     __disp_layer_info_t *layer_para);
 extern __s32 BSP_disp_layer_get_para(__u32 sel, __u32 hid,
-				     __disp_layer_info_t * layer_para);
+				     __disp_layer_info_t *layer_para);
 extern __s32 BSP_disp_layer_set_top(__u32 sel, __u32 handle);
 extern __s32 BSP_disp_layer_set_bottom(__u32 sel, __u32 handle);
 extern __s32 BSP_disp_layer_set_alpha_value(__u32 sel, __u32 hid, __u8 value);
@@ -197,21 +197,21 @@ extern __s32 BSP_disp_scaler_get_smooth(__u32 sel);
 extern __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode);
 extern __s32 BSP_disp_scaler_request(void);
 extern __s32 BSP_disp_scaler_release(__u32 handle);
-extern __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t * scl);
+extern __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *scl);
 
 extern __s32 BSP_disp_hwc_enable(__u32 sel, __bool enable);
-extern __s32 BSP_disp_hwc_set_pos(__u32 sel, __disp_pos_t * pos);
-extern __s32 BSP_disp_hwc_get_pos(__u32 sel, __disp_pos_t * pos);
+extern __s32 BSP_disp_hwc_set_pos(__u32 sel, __disp_pos_t *pos);
+extern __s32 BSP_disp_hwc_get_pos(__u32 sel, __disp_pos_t *pos);
 extern __s32 BSP_disp_hwc_set_framebuffer(__u32 sel,
-					  __disp_hwc_pattern_t * patmem);
+					  __disp_hwc_pattern_t *patmem);
 extern __s32 BSP_disp_hwc_set_palette(__u32 sel, void *palette, __u32 offset,
 				      __u32 palette_size);
 
 extern __s32 BSP_disp_video_set_fb(__u32 sel, __u32 hid,
-				   __disp_video_fb_t * in_addr);
+				   __disp_video_fb_t *in_addr);
 extern __s32 BSP_disp_video_get_frame_id(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_get_dit_info(__u32 sel, __u32 hid,
-					 __disp_dit_info_t * dit_info);
+					 __disp_dit_info_t *dit_info);
 extern __s32 BSP_disp_video_start(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_stop(__u32 sel, __u32 hid);
 
@@ -222,7 +222,7 @@ extern __s32 BSP_disp_lcd_close_befor(__u32 sel);
 extern __s32 BSP_disp_lcd_close_after(__u32 sel);
 extern __lcd_flow_t *BSP_disp_lcd_get_close_flow(__u32 sel);
 extern __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode);
-extern __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 * gamtbl_addr,
+extern __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 *gamtbl_addr,
 				      __u32 gamtbl_size);
 #ifdef CONFIG_ARCH_SUN4I
 extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright);
@@ -235,7 +235,7 @@ extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
 extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2,
 					    __u32 para3);
-extern __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t * tt);
+extern __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 #ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
@@ -261,7 +261,7 @@ extern __s32 BSP_disp_hdmi_get_mode(__u32 sel);
 extern __s32 BSP_disp_hdmi_check_support_mode(__u32 sel, __u8 mode);
 extern __s32 BSP_disp_hdmi_get_hpd_status(__u32 sel);
 extern __s32 BSP_disp_hdmi_set_src(__u32 sel, __disp_lcdc_src_t src);
-extern __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func * func);
+extern __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func *func);
 
 extern __s32 BSP_disp_vga_open(__u32 sel);
 extern __s32 BSP_disp_vga_close(__u32 sel);
@@ -280,27 +280,27 @@ extern __s32 BSP_disp_sprite_set_alpha_vale(__u32 sel, __u32 alpha);
 extern __s32 BSP_disp_sprite_get_alpha_value(__u32 sel);
 extern __s32 BSP_disp_sprite_set_format(__u32 sel, __disp_pixel_fmt_t format,
 					__disp_pixel_seq_t pixel_seq);
-extern __s32 BSP_disp_sprite_set_palette_table(__u32 sel, __u32 * buffer,
+extern __s32 BSP_disp_sprite_set_palette_table(__u32 sel, __u32 *buffer,
 					       __u32 offset, __u32 size);
 extern __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid, __s32 dst_hid);
 extern __s32 BSP_disp_sprite_get_top_block(__u32 sel);
 extern __s32 BSP_disp_sprite_get_bottom_block(__u32 sel);
 extern __s32 BSP_disp_sprite_get_block_number(__u32 sel);
 extern __s32 BSP_disp_sprite_block_request(__u32 sel,
-					   __disp_sprite_block_para_t * para);
+					   __disp_sprite_block_para_t *para);
 extern __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid);
 extern __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid,
-						  __disp_rect_t * scn_win);
+						  __disp_rect_t *scn_win);
 extern __s32 BSP_disp_sprite_block_get_srceen_win(__u32 sel, __s32 hid,
-						  __disp_rect_t * scn_win);
+						  __disp_rect_t *scn_win);
 extern __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid,
-					       __disp_rect_t * scn_win);
+					       __disp_rect_t *scn_win);
 extern __s32 BSP_disp_sprite_block_get_src_win(__u32 sel, __s32 hid,
-					       __disp_rect_t * scn_win);
+					       __disp_rect_t *scn_win);
 extern __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid,
-						   __disp_fb_t * fb);
+						   __disp_fb_t *fb);
 extern __s32 BSP_disp_sprite_block_get_framebufer(__u32 sel, __s32 hid,
-						  __disp_fb_t * fb);
+						  __disp_fb_t *fb);
 extern __s32 BSP_disp_sprite_block_set_top(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_sprite_block_set_bottom(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_sprite_block_get_pre_block(__u32 sel, __u32 hid);
@@ -309,9 +309,9 @@ extern __s32 BSP_disp_sprite_block_get_prio(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_sprite_block_open(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_sprite_block_close(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,
-					    __disp_sprite_block_para_t * para);
+					    __disp_sprite_block_para_t *para);
 extern __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,
-					    __disp_sprite_block_para_t * para);
+					    __disp_sprite_block_para_t *para);
 
 #ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en);
@@ -319,7 +319,7 @@ extern __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel);
 extern __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en);
 extern __s32 BSP_disp_iep_get_drc_enable(__u32 sel);
 extern __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode,
-				       __disp_rect_t * regn);
+				       __disp_rect_t *regn);
 #endif
 
 __s32 Display_set_fb_timing(__u32 sel);

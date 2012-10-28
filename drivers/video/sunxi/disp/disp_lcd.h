@@ -45,13 +45,13 @@ __s32 LCD_BL_EN(__u32 sel, __bool b_en);
 __s32 LCD_POWER_EN(__u32 sel, __bool b_en);
 
 __s32 LCD_GPIO_request(__u32 sel, __u32 io_index);
-__s32 LCD_GPIO_release(__u32 sel,__u32 io_index);
-__s32 LCD_GPIO_set_attr(__u32 sel,__u32 io_index, __bool b_output);
-__s32 LCD_GPIO_read(__u32 sel,__u32 io_index);
-__s32 LCD_GPIO_write(__u32 sel,__u32 io_index, __u32 data);
+__s32 LCD_GPIO_release(__u32 sel, __u32 io_index);
+__s32 LCD_GPIO_set_attr(__u32 sel, __u32 io_index, __bool b_output);
+__s32 LCD_GPIO_read(__u32 sel, __u32 io_index);
+__s32 LCD_GPIO_write(__u32 sel, __u32 io_index, __u32 data);
 
-__s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info);
-__s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
+__s32 pwm_set_para(__u32 channel, __pwm_info_t *pwm_info);
+__s32 pwm_get_para(__u32 channel, __pwm_info_t *pwm_info);
 
 void LCD_set_panel_funs(__lcd_panel_fun_t *lcd0_cfg,
 			__lcd_panel_fun_t *lcd1_cfg);

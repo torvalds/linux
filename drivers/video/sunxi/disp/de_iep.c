@@ -281,7 +281,7 @@ __u32 DE_IEP_Drc_Set_Lgc_Coeff(__u32 sel, __u16 lgctab[IEP_DRC_INT_TAB_LEN])
 {
 	__u32 i;
 
-	if(sel == 0)
+	if (sel == 0)
 		return 0;
 	else
 		return -1;
@@ -328,29 +328,26 @@ __u32 DE_IEP_Lh_Set_Thres(__u32 sel, __u8 thres[])
 	}
 }
 
-__u32 DE_IEP_Lh_Get_Sum_Rec(__u32 sel, __u32 * sum)
+__u32 DE_IEP_Lh_Get_Sum_Rec(__u32 sel, __u32 *sum)
 {
 	__u32 i;
 
 	if (sel == 0) {
-		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++) {
+		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++)
 			*sum++ = iep_dev->lhslum[i].bits.lh_lum_data;
-		}
 		return 0;
 	}
 
 	return -1;
 }
 
-__u32 DE_IEP_Lh_Get_Cnt_Rec(__u32 sel, __u32 * cnt)
+__u32 DE_IEP_Lh_Get_Cnt_Rec(__u32 sel, __u32 *cnt)
 {
 	__u32 i;
 
-	if (sel == 0) {
-		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++) {
+	if (sel == 0)
+		for (i = 0; i < IEP_LH_INTERVAL_NUM; i++)
 			*cnt++ = iep_dev->lhscnt[i].bits.lh_cnt_data;
-		}
-	}
 
 	return 0;
 }

@@ -36,11 +36,11 @@ static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 	u32 __user *psecureid = (u32 __user *) arg;
 	int buf_len = info->fix.smem_len;
 	ump_secure_id secure_id;
-	if (info->var.yres * 2 == info->var.yres_virtual) {
+
+	if (info->var.yres * 2 == info->var.yres_virtual)
 		buf_len = buf_len >> 1;	/* divide by two */
-	} else {
+	else
 		__wrn("UMP: Double-buffering not enabled");
-	}
 
 	if (!g_fbi->ump_wrapped_buffer[info->node][buf]) {
 		ump_dd_physical_block ump_memory_description;

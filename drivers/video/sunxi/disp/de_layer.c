@@ -82,7 +82,7 @@ __u32 DE_BE_Offset_To_Addr(__u32 src_addr, __u32 width, __u32 x, __u32 y,
 }
 
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr, __u32 off_addr, __u32 width,
-			   __u32 bpp, __disp_pos_t * pos)
+			   __u32 bpp, __disp_pos_t *pos)
 {
 	__u32 dist;
 	__disp_pos_t offset;
@@ -149,18 +149,18 @@ __s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __u8 format,
 }
 
 __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
-				  layer_src_t * layer_fb)
+				  layer_src_t *layer_fb)
 {
 	__s32 bpp;
 	__u32 addr;
 
 	bpp = DE_BE_Format_To_Bpp(sel, layer_fb->format);
-	if (bpp <= 0) {
+	if (bpp <= 0)
 		return -1;
-	}
-	addr =
-	    DE_BE_Offset_To_Addr(layer_fb->fb_addr, layer_fb->fb_width,
-				 layer_fb->offset_x, layer_fb->offset_y, bpp);
+
+	addr = DE_BE_Offset_To_Addr(layer_fb->fb_addr, layer_fb->fb_width,
+				    layer_fb->offset_x, layer_fb->offset_y,
+				    bpp);
 	DE_BE_Layer_Set_Format(sel, layidx, layer_fb->format, layer_fb->br_swap,
 			       layer_fb->pixseq);
 
@@ -170,7 +170,7 @@ __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 	return 0;
 }
 
-__s32 DE_BE_Layer_Set_Screen_Win(__u32 sel, __u8 layidx, __disp_rect_t * win)
+__s32 DE_BE_Layer_Set_Screen_Win(__u32 sel, __u8 layidx, __disp_rect_t *win)
 {
 	__u32 tmp;
 
@@ -384,7 +384,7 @@ static __s32 DE_BE_YUV_CH_Set_Line_Width(__u32 sel, __u8 ch_no, __u32 width)
 	return 0;
 }
 
-__s32 DE_BE_YUV_CH_Set_Src(__u32 sel, de_yuv_ch_src_t * in_src)
+__s32 DE_BE_YUV_CH_Set_Src(__u32 sel, de_yuv_ch_src_t *in_src)
 {
 	__u32 ch0_base, ch1_base, ch2_base;
 	__u32 image_w;

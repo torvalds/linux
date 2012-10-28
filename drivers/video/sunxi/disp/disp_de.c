@@ -196,7 +196,7 @@ __s32 BSP_disp_get_enhance_enable(__u32 sel)
 }
 #endif /* CONFIG_ARCH_SUN4I */
 
-__s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
+__s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t *size)
 {
 	DE_BE_set_display_size(sel, size->width, size->height);
 
@@ -288,9 +288,8 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
 		out_csc = 1;
 	}
 
-	if (drc_en) {
+	if (drc_en)
 		out_csc = 2;
-	}
 
 	DE_BE_Set_Enhance(sel, out_csc, out_color_range,
 			  gdisp.screen[sel].bright, gdisp.screen[sel].contrast,

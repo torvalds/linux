@@ -81,12 +81,12 @@ __s32 Scaler_open(__u32 sel);
 __s32 Scaler_close(__u32 sel);
 __s32 Scaler_Request(__u32 sel);
 __s32 Scaler_Release(__u32 sel, __bool b_display);
-__s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t * vfb_info);
-__s32 Scaler_Get_Framebuffer(__u32 sel, __disp_fb_t * vfb_info);
-__s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t * scl_rect);
-__s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t * scl_rect);
-__s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t * out_size);
-__s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t * scl);
+__s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *vfb_info);
+__s32 Scaler_Get_Framebuffer(__u32 sel, __disp_fb_t *vfb_info);
+__s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect);
+__s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t *scl_rect);
+__s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *out_size);
+__s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl);
 __s32 Scaler_Set_Outitl(__u32 sel, __bool enable);
 __s32 Scaler_sw_para_to_reg(__u8 type, __u8 value);
 __s32 Scaler_Set_Enhance(__u32 sel, __u32 bright, __u32 contrast,

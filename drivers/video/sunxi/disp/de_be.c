@@ -627,50 +627,44 @@ __u32 DE_BE_Reg_Init(__u32 sel)
 	return 0;
 }
 
-__s32 DE_BE_Set_SystemPalette(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 DE_BE_Set_SystemPalette(__u32 sel, __u32 *pbuffer, __u32 offset,
 			      __u32 size)
 {
 	__u32 *pdest_end;
 	__u32 *psrc_cur;
 	__u32 *pdest_cur;
 
-	if (size > DE_BE_PALETTE_TABLE_SIZE) {
+	if (size > DE_BE_PALETTE_TABLE_SIZE)
 		size = DE_BE_PALETTE_TABLE_SIZE;
-	}
 
 	psrc_cur = pbuffer;
-	pdest_cur =
-	    (__u32 *) (DE_Get_Reg_Base(sel) + DE_BE_PALETTE_TABLE_ADDR_OFF +
-		       offset);
+	pdest_cur = (__u32 *) (DE_Get_Reg_Base(sel) +
+			       DE_BE_PALETTE_TABLE_ADDR_OFF + offset);
 	pdest_end = pdest_cur + (size >> 2);
 
-	while (pdest_cur < pdest_end) {
+	while (pdest_cur < pdest_end)
 		*(volatile __u32 *)pdest_cur++ = *psrc_cur++;
-	}
 
 	return 0;
 }
 
-__s32 DE_BE_Get_SystemPalette(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 DE_BE_Get_SystemPalette(__u32 sel, __u32 *pbuffer, __u32 offset,
 			      __u32 size)
 {
 	__u32 *pdest_end;
 	__u32 *psrc_cur;
 	__u32 *pdest_cur;
 
-	if (size > DE_BE_PALETTE_TABLE_SIZE) {
+	if (size > DE_BE_PALETTE_TABLE_SIZE)
 		size = DE_BE_PALETTE_TABLE_SIZE;
-	}
 
-	psrc_cur =
-	    (__u32 *) (DE_Get_Reg_Base(sel) + DE_BE_PALETTE_TABLE_ADDR_OFF +
-		       offset);
+	psrc_cur = (__u32 *) (DE_Get_Reg_Base(sel) +
+			      DE_BE_PALETTE_TABLE_ADDR_OFF + offset);
 	pdest_cur = pbuffer;
 	pdest_end = pdest_cur + (size >> 2);
 
-	while (pdest_cur < pdest_end) {
+	while (pdest_cur < pdest_end)
 		*(volatile __u32 *)pdest_cur++ = *psrc_cur++;
-	}
 
 	return 0;
 }
@@ -715,11 +709,10 @@ __s32 DE_BE_Output_Select(__u32 sel, __u32 out_sel)
 		      (DE_BE_RUINT32(sel, DE_BE_MODE_CTL_OFF) & 0xff8fffff) |
 		      (out_sel << 20));
 
-	if ((out_sel == 6) || (out_sel == 7)) {
+	if ((out_sel == 6) || (out_sel == 7))
 		DE_BE_WUINT32(sel, DE_BE_ERROR_CORRECTION, 0xffffffff);
-	} else {
+	else
 		DE_BE_WUINT32(sel, DE_BE_ERROR_CORRECTION, 0);
-	}
 
 	return 0;
 }
@@ -727,7 +720,8 @@ __s32 DE_BE_Output_Select(__u32 sel, __u32 out_sel)
 __s32 DE_BE_Set_BkColor(__u32 sel, __disp_color_t bkcolor)
 {
 	DE_BE_WUINT32(sel, DE_BE_COLOR_CTL_OFF, (bkcolor.alpha << 24) |
-		      (bkcolor.red << 16) | (bkcolor.green << 8) | bkcolor.blue);
+		      (bkcolor.red << 16) | (bkcolor.green << 8) |
+		      bkcolor.blue);
 
 	return 0;
 }
@@ -861,18 +855,16 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset,
 	__u32 *psrc_cur;
 	__u32 *pdest_cur;
 
-	if (size > DE_BE_SPRITE_PALETTE_TABLE_SIZE) {
+	if (size > DE_BE_SPRITE_PALETTE_TABLE_SIZE)
 		size = DE_BE_SPRITE_PALETTE_TABLE_SIZE;
-	}
 
 	psrc_cur = (__u32 *) address;
 	pdest_cur = (__u32 *) (DE_Get_Reg_Base(sel) +
 			       DE_BE_SPRITE_PALETTE_TABLE_ADDR_OFF + offset);
 	pdest_end = pdest_cur + (size >> 2);
 
-	while (pdest_cur < pdest_end) {
+	while (pdest_cur < pdest_end)
 		*(volatile __u32 *)pdest_cur++ = *psrc_cur++;
-	}
 
 	return 0;
 }
@@ -910,7 +902,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 	sinv = image_enhance_tab[8 * 12 + (i_hue & 0x3f)];
 	cosv = image_enhance_tab[8 * 12 + 8 * 8 + (i_hue & 0x3f)];
 
-	//calculate enhance matrix
+	/* calculate enhance matrix */
 	matrixEn.x00 = i_contrast << 5;
 	matrixEn.x01 = 0;
 	matrixEn.x02 = 0;
@@ -939,13 +931,13 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 #elif 0
 				/* bt601 rgb2yuv coeff */
 				*((__s64 *) (&tmpcoeff.x00) + i) =
-					((__s64) *(image_enhance_tab + i) << 32 )
-					>> 32;
+					((__s64) *(image_enhance_tab + i) <<
+					 32) >> 32;
 #else
 				/* YCC rgb2yuv coeff */
 				*((__s64 *) (&tmpcoeff.x00) + i) =
 					((__s64) *(image_enhance_tab + 0x40 + i)
-					 << 32 ) >> 32;
+					 << 32) >> 32;
 #endif
 			}
 
@@ -958,7 +950,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 #if 1
 				/* bt709 yuv2rgb coeff */
 				*((__s64 *) (&tmpcoeff.x00) + i) =
-					((__s64) * (image_enhance_tab + 0x30 + i)
+					((__s64) *(image_enhance_tab + 0x30 + i)
 					 << 32) >> 32;
 #elif 0
 				/* bt601 yuv2rgb coeff */
@@ -1080,7 +1072,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 		for (i = 0; i < 16; i++) {
 			/* bt601 rgb2yuv coeff */
 			*((__s64 *) (&tmpcoeff.x00) + i) =
-				((__s64) * (image_enhance_tab + i) << 32) >> 32;
+				((__s64) *(image_enhance_tab + i) << 32) >> 32;
 		}
 
 		if (enhance_en == 1) {
@@ -1120,7 +1112,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 		for (i = 0; i < 16; i++) {
 			/* bt601 rgb2yuv coeff */
 			*((__s64 *) (&tmpcoeff.x00) + i) =
-				((__s64) * (image_enhance_tab + i) << 32) >> 32;
+				((__s64) *(image_enhance_tab + i) << 32) >> 32;
 		}
 
 		if (enhance_en == 1) {
@@ -1174,7 +1166,7 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -16383, 16383, 0, 32767);
 
 	/* write csc register */
-	pt = (__s64 *) & (matrixresult.x00);
+	pt = (__s64 *) &(matrixresult.x00);
 
 	for (i = 0; i < 4; i++) {
 		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 4 * i,

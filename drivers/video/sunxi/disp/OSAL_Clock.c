@@ -322,9 +322,8 @@ __s32 OSAL_CCMU_SetMclkDiv(__hdle hMclk, __s32 nDiv)
 	__inf("OSAL_CCMU_SetMclkDiv<p:%s,m:%s,%d>\n", hParentClk->clk->name,
 	      hModClk->clk->name, nDiv);
 
-	if (nDiv == 0) {
+	if (nDiv == 0)
 		return -1;
-	}
 
 	return clk_set_rate(hModClk, srcRate / nDiv);
 }
@@ -337,13 +336,11 @@ __s32 OSAL_CCMU_MclkOnOff(__hdle hMclk, __s32 bOnOff)
 	__inf("OSAL_CCMU_MclkOnOff<%s,%d>\n", hModClk->clk->name, bOnOff);
 
 	if (bOnOff) {
-		if (!hModClk->enable) {
+		if (!hModClk->enable)
 			ret = clk_enable(hModClk);
-		}
 	} else {
-		while (hModClk->enable) {
+		while (hModClk->enable)
 			clk_disable(hModClk);
-		}
 	}
 	return ret;
 }

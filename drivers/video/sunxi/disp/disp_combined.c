@@ -23,11 +23,10 @@
 #include "disp_combined.h"
 #include "disp_event.h"
 
-__s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t * color)
+__s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t *color)
 {
-	if (color == NULL) {
+	if (color == NULL)
 		return DIS_PARA_FAILED;
-	}
 
 	gdisp.screen[sel].bk_color.blue = color->blue;
 	gdisp.screen[sel].bk_color.red = color->red;
@@ -38,7 +37,7 @@ __s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t * color)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t * color)
+__s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t *color)
 {
 	if (color == NULL) {
 		DE_WRN("para invalid in BSP_disp_get_bk_color\n");
@@ -51,7 +50,7 @@ __s32 BSP_disp_get_bk_color(__u32 sel, __disp_color_t * color)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t * ck_mode)
+__s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t *ck_mode)
 {
 	if ((ck_mode == NULL) || (ck_mode->red_match_rule > 3) ||
 	    (ck_mode->green_match_rule > 3) || (ck_mode->blue_match_rule > 3)) {
@@ -67,7 +66,7 @@ __s32 BSP_disp_set_color_key(__u32 sel, __disp_colorkey_t * ck_mode)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_get_color_key(__u32 sel, __disp_colorkey_t * ck_mode)
+__s32 BSP_disp_get_color_key(__u32 sel, __disp_colorkey_t *ck_mode)
 {
 	memcpy(ck_mode, &(gdisp.screen[sel].color_key),
 	       sizeof(__disp_colorkey_t));
@@ -75,7 +74,7 @@ __s32 BSP_disp_get_color_key(__u32 sel, __disp_colorkey_t * ck_mode)
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_set_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 BSP_disp_set_palette_table(__u32 sel, __u32 *pbuffer, __u32 offset,
 				 __u32 size)
 {
 	if ((pbuffer == NULL) || ((offset + size) > 1024)) {
@@ -88,7 +87,7 @@ __s32 BSP_disp_set_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,
 	return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_get_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,
+__s32 BSP_disp_get_palette_table(__u32 sel, __u32 *pbuffer, __u32 offset,
 				 __u32 size)
 {
 	if ((pbuffer == NULL) || ((offset + size) > 1024)) {
@@ -113,10 +112,9 @@ __s32 BSP_disp_layer_set_top(__u32 sel, __u32 hid)
 	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
 		__u32 prio = gdisp.screen[sel].max_layers - 1;
 
-		for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
+		for (i = 0; i < gdisp.screen[sel].max_layers; i++)
 			layer_prio[i] =
 			    gdisp.screen[sel].layer_manage[i].para.prio;
-		}
 
 		layer_prio[hid] = prio--;
 
@@ -125,9 +123,8 @@ __s32 BSP_disp_layer_set_top(__u32 sel, __u32 hid)
 				if ((gdisp.screen[sel].layer_manage[i].status &
 				     LAYER_USED) && (i != hid) &&
 				    (gdisp.screen[sel].layer_manage[i].para.prio
-				     == j)) {
+				     == j))
 					layer_prio[i] = prio--;
-				}
 			}
 		}
 
@@ -158,10 +155,9 @@ __s32 BSP_disp_layer_set_bottom(__u32 sel, __u32 hid)
 	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
 		__u32 prio = 0;
 
-		for (i = 0; i < gdisp.screen[sel].max_layers; i++) {
+		for (i = 0; i < gdisp.screen[sel].max_layers; i++)
 			layer_prio[i] =
 				gdisp.screen[sel].layer_manage[i].para.prio;
-		}
 
 		layer_prio[hid] = prio++;
 		for (j = 0; j < gdisp.screen[sel].max_layers; j++) {
@@ -169,9 +165,8 @@ __s32 BSP_disp_layer_set_bottom(__u32 sel, __u32 hid)
 				if ((gdisp.screen[sel].layer_manage[i].status &
 				     LAYER_USED) && (i != hid) &&
 				    (gdisp.screen[sel].layer_manage[i].para.prio
-				     == j)) {
+				     == j))
 					layer_prio[i] = prio++;
-				}
 			}
 		}
 
@@ -212,11 +207,10 @@ __s32 BSP_disp_layer_get_alpha_value(__u32 sel, __u32 hid)
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
+	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED)
 		return gdisp.screen[sel].layer_manage[hid].para.alpha_val;
-	} else {
+	else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_layer_alpha_enable(__u32 sel, __u32 hid, __bool enable)
@@ -240,20 +234,18 @@ __s32 BSP_disp_layer_get_alpha_enable(__u32 sel, __u32 hid)
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
+	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED)
 		return gdisp.screen[sel].layer_manage[hid].para.alpha_en;
-	} else {
+	else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_layer_set_pipe(__u32 sel, __u32 hid, __u8 pipe)
 {
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
-	if (pipe != 0 && pipe != 1) {
+	if (pipe != 0 && pipe != 1)
 		return DIS_OBJ_NOT_INITED;
-	}
 
 	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
 		DE_BE_Layer_Set_Pipe(sel, hid, pipe);
@@ -271,11 +263,10 @@ __s32 BSP_disp_layer_get_pipe(__u32 sel, __u32 hid)
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
+	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED)
 		return gdisp.screen[sel].layer_manage[hid].para.pipe;
-	} else {
+	else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_layer_colorkey_enable(__u32 sel, __u32 hid, __bool enable)
@@ -299,11 +290,10 @@ __s32 BSP_disp_layer_get_colorkey_enable(__u32 sel, __u32 hid)
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
+	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED)
 		return gdisp.screen[sel].layer_manage[hid].para.ck_enable;
-	} else {
+	else
 		return DIS_OBJ_NOT_INITED;
-	}
 }
 
 __s32 BSP_disp_layer_get_piro(__u32 sel, __u32 hid)
@@ -311,9 +301,8 @@ __s32 BSP_disp_layer_get_piro(__u32 sel, __u32 hid)
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED) {
+	if (gdisp.screen[sel].layer_manage[hid].status & LAYER_USED)
 		return gdisp.screen[sel].layer_manage[hid].para.prio;
-	} else {
+	else
 		return DIS_OBJ_NOT_INITED;
-	}
 }

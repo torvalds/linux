@@ -1136,7 +1136,6 @@ typedef union {
 		 * 11: DI-MAF-BOB
 		 */
 		u32 mod:2; /* Default: 0 */
-		// 11: DI-MAF-BOB
 		u32 res1:6;
 		/*
 		 * DIAGINTP_EN: De-interlacing diagonal interpolate enable.
@@ -2093,8 +2092,8 @@ typedef struct __SCAL_MATRIX4X4 {
 } __scal_matrix4x4;
 
 extern __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2,
-				 __scal_matrix4x4 * result);
-extern __s32 iDE_SCAL_Csc_Lmt(__s64 * value, __s32 min, __s32 max, __s32 shift,
+				 __scal_matrix4x4 *result);
+extern __s32 iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift,
 			      __s32 validbit);
 #else
 typedef struct __SCAL_MATRIX4X4 {
@@ -2117,8 +2116,8 @@ typedef struct __SCAL_MATRIX4X4 {
 } __scal_matrix4x4;
 
 extern __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2,
-				 __scal_matrix4x4 * result);
-extern __s32 iDE_SCAL_Csc_Lmt(__s32 * value, __s32 min, __s32 max, __s32 shift,
+				 __scal_matrix4x4 *result);
+extern __s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift,
 			      __s32 validbit);
 #endif /* CONFIG_ARCH_SUN4I */
 
