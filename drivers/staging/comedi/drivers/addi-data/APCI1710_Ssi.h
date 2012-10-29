@@ -29,15 +29,3 @@
 #define APCI1710_SSI_SET_CHANNELOFF	1
 #define APCI1710_SSI_READ_1CHANNEL	2
 #define APCI1710_SSI_READ_ALLCHANNEL	3
-
-/*
- * SSI INISIALISATION FUNCTION
- */
-int i_APCI1710_InsnConfigInitSSI(struct comedi_device *dev, struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
-
-int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-
-int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
-				    struct comedi_insn *insn, unsigned int *data);
