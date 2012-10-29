@@ -56,7 +56,15 @@
 	};
 
 	i2c@12C80000 {
-		status = "disabled";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		gpios = <&gpa0 6 3 3 0>,
+			<&gpa0 7 3 3 0>;
+
+		hdmiddc@50 {
+			compatible = "samsung,exynos5-hdmiddc";
+			reg = <0x50>;
+		};
 	};
 
 	i2c@12C90000 {
