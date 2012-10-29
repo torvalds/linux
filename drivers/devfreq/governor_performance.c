@@ -10,6 +10,7 @@
  */
 
 #include <linux/devfreq.h>
+#include <linux/module.h>
 #include "governor.h"
 
 static int devfreq_performance_func(struct devfreq *df,
@@ -63,3 +64,4 @@ static void __exit devfreq_performance_exit(void)
 	return;
 }
 module_exit(devfreq_performance_exit);
+MODULE_LICENSE("GPL");

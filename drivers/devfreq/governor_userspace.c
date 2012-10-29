@@ -14,6 +14,7 @@
 #include <linux/devfreq.h>
 #include <linux/pm.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include "governor.h"
 
 struct userspace_data {
@@ -158,3 +159,4 @@ static void __exit devfreq_userspace_exit(void)
 	return;
 }
 module_exit(devfreq_userspace_exit);
+MODULE_LICENSE("GPL");

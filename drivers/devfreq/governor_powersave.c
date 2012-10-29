@@ -10,6 +10,7 @@
  */
 
 #include <linux/devfreq.h>
+#include <linux/module.h>
 #include "governor.h"
 
 static int devfreq_powersave_func(struct devfreq *df,
@@ -60,3 +61,4 @@ static void __exit devfreq_powersave_exit(void)
 	return;
 }
 module_exit(devfreq_powersave_exit);
+MODULE_LICENSE("GPL");
