@@ -631,7 +631,7 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
 	if (!chunk)
 		return;
 	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
-	kfree(chunk);
+	pcpu_mem_free(chunk, pcpu_chunk_struct_size);
 }
 
 /*
