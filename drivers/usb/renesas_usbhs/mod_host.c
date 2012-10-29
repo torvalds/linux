@@ -681,9 +681,9 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	}
 
 	if (usb_pipein(urb->pipe))
-		pipe->handler = &usbhs_fifo_pio_pop_handler;
+		pipe->handler = &usbhs_fifo_dma_pop_handler;
 	else
-		pipe->handler = &usbhs_fifo_pio_push_handler;
+		pipe->handler = &usbhs_fifo_dma_push_handler;
 
 	buf = (void *)(urb->transfer_buffer + urb->actual_length);
 	len = urb->transfer_buffer_length - urb->actual_length;
@@ -916,6 +916,19 @@ static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
  */
 static int usbhsh_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 {
+	if (map) {
+		struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
+		struct urb *urb = ureq->urb;
+
+		/* it can not use scatter/gather */
+		if (urb->num_sgs)
+			return -EINVAL;
+
+		pkt->dma = urb->transfer_dma;
+		if (!pkt->dma)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
