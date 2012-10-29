@@ -140,3 +140,21 @@ const struct devfreq_governor devfreq_userspace = {
 	.get_target_freq = devfreq_userspace_func,
 	.event_handler = devfreq_userspace_handler,
 };
+
+static int __init devfreq_userspace_init(void)
+{
+	return devfreq_add_governor(&devfreq_userspace);
+}
+subsys_initcall(devfreq_userspace_init);
+
+static void __exit devfreq_userspace_exit(void)
+{
+	int ret;
+
+	ret = devfreq_remove_governor(&devfreq_userspace);
+	if (ret)
+		pr_err("%s: failed remove governor %d\n", __func__, ret);
+
+	return;
+}
+module_exit(devfreq_userspace_exit);

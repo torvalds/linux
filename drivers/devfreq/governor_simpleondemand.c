@@ -125,3 +125,21 @@ const struct devfreq_governor devfreq_simple_ondemand = {
 	.get_target_freq = devfreq_simple_ondemand_func,
 	.event_handler = devfreq_simple_ondemand_handler,
 };
+
+static int __init devfreq_simple_ondemand_init(void)
+{
+	return devfreq_add_governor(&devfreq_simple_ondemand);
+}
+subsys_initcall(devfreq_simple_ondemand_init);
+
+static void __exit devfreq_simple_ondemand_exit(void)
+{
+	int ret;
+
+	ret = devfreq_remove_governor(&devfreq_simple_ondemand);
+	if (ret)
+		pr_err("%s: failed remove governor %d\n", __func__, ret);
+
+	return;
+}
+module_exit(devfreq_simple_ondemand_exit);
