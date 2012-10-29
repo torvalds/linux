@@ -252,24 +252,24 @@ static const struct comedi_lrange rtd_ao_range = {
 struct rtdBoard {
 	const char *name;
 	int device_id;
-	int aiMaxGain;
 	int range10Start;	/* start of +-10V range */
 	int rangeUniStart;	/* start of +10V range */
+	const struct comedi_lrange *ai_range;
 };
 
 static const struct rtdBoard rtd520Boards[] = {
 	{
 		.name		= "DM7520",
 		.device_id	= 0x7520,
-		.aiMaxGain	= 32,
 		.range10Start	= 6,
 		.rangeUniStart	= 12,
+		.ai_range	= &rtd_ai_7520_range,
 	}, {
 		.name		= "PCI4520",
 		.device_id	= 0x4520,
-		.aiMaxGain	= 128,
 		.range10Start	= 8,
 		.rangeUniStart	= 16,
+		.ai_range	= &rtd_ai_4520_range,
 	},
 };
 
@@ -1336,10 +1336,7 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	s->n_chan = 16;
 	s->maxdata = 0x0fff;
-	if (thisboard->aiMaxGain <= 32)
-		s->range_table = &rtd_ai_7520_range;
-	else
-		s->range_table = &rtd_ai_4520_range;
+	s->range_table = thisboard->ai_range;
 
 	s->len_chanlist = RTD_MAX_CHANLIST;	/* devpriv->fifoLen */
 	s->insn_read = rtd_ai_rinsn;
