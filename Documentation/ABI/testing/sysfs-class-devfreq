@@ -11,7 +11,7 @@ What:		/sys/class/devfreq/.../governor
 Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
-		The /sys/class/devfreq/.../governor shows the name of the
+		The /sys/class/devfreq/.../governor show or set the name of the
 		governor used by the corresponding devfreq object.
 
 What:		/sys/class/devfreq/.../cur_freq

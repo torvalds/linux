@@ -688,6 +688,49 @@ static ssize_t show_governor(struct device *dev,
 	return sprintf(buf, "%s\n", to_devfreq(dev)->governor->name);
 }
 
+static ssize_t store_governor(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	int ret;
+	char str_governor[DEVFREQ_NAME_LEN + 1];
+	struct devfreq_governor *governor;
+
+	ret = sscanf(buf, "%" __stringify(DEVFREQ_NAME_LEN) "s", str_governor);
+	if (ret != 1)
+		return -EINVAL;
+
+	mutex_lock(&devfreq_list_lock);
+	governor = find_devfreq_governor(str_governor);
+	if (IS_ERR(governor)) {
+		ret = PTR_ERR(governor);
+		goto out;
+	}
+	if (df->governor == governor)
+		goto out;
+
+	if (df->governor) {
+		ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
+		if (ret) {
+			dev_warn(dev, "%s: Governor %s not stopped(%d)\n",
+				 __func__, df->governor->name, ret);
+			goto out;
+		}
+	}
+	df->governor = governor;
+	strncpy(df->governor_name, governor->name, DEVFREQ_NAME_LEN);
+	ret = df->governor->event_handler(df, DEVFREQ_GOV_START, NULL);
+	if (ret)
+		dev_warn(dev, "%s: Governor %s not started(%d)\n",
+			 __func__, df->governor->name, ret);
+out:
+	mutex_unlock(&devfreq_list_lock);
+
+	if (!ret)
+		ret = count;
+	return ret;
+}
+
 static ssize_t show_freq(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -873,7 +916,7 @@ static ssize_t show_trans_table(struct device *dev, struct device_attribute *att
 }
 
 static struct device_attribute devfreq_attrs[] = {
-	__ATTR(governor, S_IRUGO, show_governor, NULL),
+	__ATTR(governor, S_IRUGO | S_IWUSR, show_governor, store_governor),
 	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
 	__ATTR(available_frequencies, S_IRUGO, show_available_freqs, NULL),
 	__ATTR(target_freq, S_IRUGO, show_target_freq, NULL),
