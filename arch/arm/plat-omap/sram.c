@@ -170,12 +170,9 @@ static void __init omap_detect_sram(void)
 /*
  * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
  */
-static void __init omap_map_sram(void)
+static void __init omap_fix_and_map_sram(void)
 {
 	int cached = 1;
-
-	if (omap_sram_size == 0)
-		return;
 
 #ifdef CONFIG_OMAP4_ERRATA_I688
 	if (cpu_is_omap44xx()) {
@@ -194,22 +191,8 @@ static void __init omap_map_sram(void)
 		cached = 0;
 	}
 
-	omap_sram_start = ROUND_DOWN(omap_sram_start, PAGE_SIZE);
-	omap_sram_base = __arm_ioremap_exec(omap_sram_start, omap_sram_size,
-						cached);
-	if (!omap_sram_base) {
-		pr_err("SRAM: Could not map\n");
-		return;
-	}
-
-	omap_sram_ceil = omap_sram_base + omap_sram_size;
-
-	/*
-	 * Looks like we need to preserve some bootloader code at the
-	 * beginning of SRAM for jumping to flash for reboot to work...
-	 */
-	memset_io(omap_sram_base + omap_sram_skip, 0,
-		  omap_sram_size - omap_sram_skip);
+	omap_map_sram(omap_sram_start, omap_sram_size,
+			omap_sram_skip, cached);
 }
 
 /*
@@ -235,6 +218,43 @@ void *omap_sram_push_address(unsigned long size)
 	omap_sram_ceil = IOMEM(new_ceil);
 
 	return (void *)omap_sram_ceil;
+}
+
+/*
+ * The SRAM context is lost during off-idle and stack
+ * needs to be reset.
+ */
+void omap_sram_reset(void)
+{
+	omap_sram_ceil = omap_sram_base + omap_sram_size;
+}
+
+/*
+ * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
+ */
+void __init omap_map_sram(unsigned long start, unsigned long size,
+				 unsigned long skip, int cached)
+{
+	if (size == 0)
+		return;
+
+	start = ROUND_DOWN(start, PAGE_SIZE);
+	omap_sram_size = size;
+	omap_sram_skip = skip;
+	omap_sram_base = __arm_ioremap_exec(start, size, cached);
+	if (!omap_sram_base) {
+		pr_err("SRAM: Could not map\n");
+		return;
+	}
+
+	omap_sram_reset();
+
+	/*
+	 * Looks like we need to preserve some bootloader code at the
+	 * beginning of SRAM for jumping to flash for reboot to work...
+	 */
+	memset_io(omap_sram_base + omap_sram_skip, 0,
+		  omap_sram_size - omap_sram_skip);
 }
 
 #ifdef CONFIG_ARCH_OMAP1
@@ -362,7 +382,7 @@ u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
 
 void omap3_sram_restore_context(void)
 {
-	omap_sram_ceil = omap_sram_base + omap_sram_size;
+	omap_sram_reset();
 
 	_omap3_sram_configure_core_dpll =
 		omap_sram_push(omap3_sram_configure_core_dpll,
@@ -390,7 +410,7 @@ static inline int am33xx_sram_init(void)
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
-	omap_map_sram();
+	omap_fix_and_map_sram();
 
 	if (!(cpu_class_is_omap2()))
 		omap1_sram_init();
