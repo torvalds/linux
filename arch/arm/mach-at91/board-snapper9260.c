@@ -32,9 +32,9 @@
 #include <asm/mach/arch.h>
 
 #include <mach/hardware.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
+#include "at91_aic.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"

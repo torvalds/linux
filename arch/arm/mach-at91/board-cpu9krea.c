@@ -40,11 +40,11 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91sam9260_matrix.h>
 #include <mach/at91_matrix.h>
 
+#include "at91_aic.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"

@@ -38,8 +38,8 @@
 #include <asm/mach/irq.h>
 
 #include <mach/cpu.h>
-#include <mach/at91_aic.h>
 
+#include "at91_aic.h"
 #include "board.h"
 #include "generic.h"
 
