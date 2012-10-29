@@ -566,15 +566,8 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 			continue;
 		}
-#if 0
-		if (!(readl(devpriv->las0 + LAS0_ADC) & FS_ADC_NOT_EMPTY)) {
-			DPRINTK("comedi: READ OOPS on %d of %d\n", ii + 1,
-				count);
-			break;
-		}
-#endif
-		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
+		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
 			/* convert to comedi unsigned data */
@@ -752,18 +745,6 @@ transferDone:
 	return IRQ_HANDLED;
 }
 
-#if 0
-/*
-  return the number of samples available
-*/
-static int rtd_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	/* TODO: This needs to mask interrupts, read_dregs, and then re-enable */
-	/* Not sure what to do if DMA is active */
-	return s->async->buf_write_count - s->async->buf_read_count;
-}
-#endif
-
 /*
   cmdtest tests a particular command to see if it is valid.
   Using the cmdtest ioctl, a user can create a valid cmd
@@ -884,12 +865,6 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 		}
 	}
 
-#if 0
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-#endif
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* TODO check for rounding error due to counter wrap */
 
@@ -1362,7 +1337,6 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 {
 	unsigned char pci_latency;
 	u16 revision;
-	/*uint32_t epld_version; */
 
 	pci_read_config_word(pcidev, PCI_REVISION_ID, &revision);
 	DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
@@ -1376,18 +1350,6 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 	} else {
 		DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
 	}
-
-#if 0
-	/*
-	 * Undocumented EPLD version (doesn't match RTD driver results)
-	 */
-	DPRINTK("rtd520: Reading epld from %p\n", devpriv->las0 + 0);
-	epld_version = readl(devpriv->las0 + 0);
-	if ((epld_version & 0xF0) >> 4 == 0x0F)
-		DPRINTK("rtd520: pre-v8 EPLD. (%x)\n", epld_version);
-	else
-		DPRINTK("rtd520: EPLD version %x.\n", epld_version >> 4);
-#endif
 }
 
 static const void *rtd_find_boardinfo(struct comedi_device *dev,
@@ -1460,7 +1422,6 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->do_cmd = rtd_ai_cmd;
 	s->do_cmdtest = rtd_ai_cmdtest;
 	s->cancel = rtd_ai_cancel;
-	/* s->poll = rtd_ai_poll; *//* not ready yet */
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
