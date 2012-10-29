@@ -579,7 +579,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	struct sk_buff *pdu;
 	struct nfc_llcp_local *local;
 	size_t frag_len = 0, remaining_len;
-	u8 *msg_ptr;
+	u8 *msg_ptr, *msg_data;
 	int err;
 
 	pr_debug("Send UI frame len %zd\n", len);
@@ -588,8 +588,17 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	if (local == NULL)
 		return -ENODEV;
 
+	msg_data = kzalloc(len, GFP_KERNEL);
+	if (msg_data == NULL)
+		return -ENOMEM;
+
+	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+		kfree(msg_data);
+		return -EFAULT;
+	}
+
 	remaining_len = len;
-	msg_ptr = (u8 *) msg->msg_iov;
+	msg_ptr = msg_data;
 
 	while (remaining_len > 0) {
 
@@ -615,6 +624,8 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 		remaining_len -= frag_len;
 		msg_ptr += frag_len;
 	}
+
+	kfree(msg_data);
 
 	return len;
 }
