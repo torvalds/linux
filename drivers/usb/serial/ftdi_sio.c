@@ -2330,7 +2330,14 @@ no_c_cflag_changes:
 	}
 }
 
-static int ftdi_tiocmget(struct tty_struct *tty)
+/*
+ * Get modem-control status.
+ *
+ * Returns the number of status bytes retrieved (device dependant), or
+ * negative error code.
+ */
+static int ftdi_get_modem_status(struct tty_struct *tty,
+						unsigned char status[2])
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -2371,17 +2378,42 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 			0, priv->interface,
 			buf, len, WDR_TIMEOUT);
 	if (ret < 0) {
+		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
 		ret = usb_translate_errors(ret);
 		goto out;
 	}
+
+	status[0] = buf[0];
+	if (ret > 1)
+		status[1] = buf[1];
+	else
+		status[1] = 0;
+
+	dev_dbg(&port->dev, "%s - 0x%02x%02x\n", __func__, status[0],
+								status[1]);
+out:
+	kfree(buf);
+
+	return ret;
+}
+
+static int ftdi_tiocmget(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	unsigned char buf[2];
+	int ret;
+
+	ret = ftdi_get_modem_status(tty, buf);
+	if (ret < 0)
+		return ret;
 
 	ret =	(buf[0] & FTDI_SIO_DSR_MASK  ? TIOCM_DSR : 0) |
 		(buf[0] & FTDI_SIO_CTS_MASK  ? TIOCM_CTS : 0) |
 		(buf[0] & FTDI_SIO_RI_MASK   ? TIOCM_RI  : 0) |
 		(buf[0] & FTDI_SIO_RLSD_MASK ? TIOCM_CD  : 0) |
 		priv->last_dtr_rts;
-out:
-	kfree(buf);
+
 	return ret;
 }
 
