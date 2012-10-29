@@ -242,8 +242,6 @@ static inline struct dummy *gadget_dev_to_dummy(struct device *dev)
 	return container_of(dev, struct dummy, gadget.dev);
 }
 
-static struct dummy			the_controller;
-
 /*-------------------------------------------------------------------------*/
 
 /* SLAVE/GADGET SIDE UTILITY ROUTINES */
@@ -977,9 +975,10 @@ static void init_dummy_udc_hw(struct dummy *dum)
 
 static int dummy_udc_probe(struct platform_device *pdev)
 {
-	struct dummy	*dum = &the_controller;
+	struct dummy	*dum;
 	int		rc;
 
+	dum = *((void **)dev_get_platdata(&pdev->dev));
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.max_speed = USB_SPEED_SUPER;
@@ -2402,10 +2401,13 @@ static int dummy_h_get_frame(struct usb_hcd *hcd)
 
 static int dummy_setup(struct usb_hcd *hcd)
 {
+	struct dummy *dum;
+
+	dum = *((void **)dev_get_platdata(hcd->self.controller));
 	hcd->self.sg_tablesize = ~0;
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		the_controller.hs_hcd = hcd_to_dummy_hcd(hcd);
-		the_controller.hs_hcd->dum = &the_controller;
+		dum->hs_hcd = hcd_to_dummy_hcd(hcd);
+		dum->hs_hcd->dum = dum;
 		/*
 		 * Mark the first roothub as being USB 2.0.
 		 * The USB 3.0 roothub will be registered later by
@@ -2414,8 +2416,8 @@ static int dummy_setup(struct usb_hcd *hcd)
 		hcd->speed = HCD_USB2;
 		hcd->self.root_hub->speed = USB_SPEED_HIGH;
 	} else {
-		the_controller.ss_hcd = hcd_to_dummy_hcd(hcd);
-		the_controller.ss_hcd->dum = &the_controller;
+		dum->ss_hcd = hcd_to_dummy_hcd(hcd);
+		dum->ss_hcd->dum = dum;
 		hcd->speed = HCD_USB3;
 		hcd->self.root_hub->speed = USB_SPEED_SUPER;
 	}
@@ -2528,11 +2530,13 @@ static struct hc_driver dummy_hcd = {
 
 static int dummy_hcd_probe(struct platform_device *pdev)
 {
+	struct dummy		*dum;
 	struct usb_hcd		*hs_hcd;
 	struct usb_hcd		*ss_hcd;
 	int			retval;
 
 	dev_info(&pdev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
+	dum = *((void **)dev_get_platdata(&pdev->dev));
 
 	if (!mod_data.is_super_speed)
 		dummy_hcd.flags = HCD_USB2;
@@ -2565,7 +2569,7 @@ dealloc_usb2_hcd:
 	usb_remove_hcd(hs_hcd);
 put_usb2_hcd:
 	usb_put_hcd(hs_hcd);
-	the_controller.hs_hcd = the_controller.ss_hcd = NULL;
+	dum->hs_hcd = dum->ss_hcd = NULL;
 	return retval;
 }
 
@@ -2583,8 +2587,8 @@ static int dummy_hcd_remove(struct platform_device *pdev)
 	usb_remove_hcd(dummy_hcd_to_hcd(dum->hs_hcd));
 	usb_put_hcd(dummy_hcd_to_hcd(dum->hs_hcd));
 
-	the_controller.hs_hcd = NULL;
-	the_controller.ss_hcd = NULL;
+	dum->hs_hcd = NULL;
+	dum->ss_hcd = NULL;
 
 	return 0;
 }
@@ -2631,7 +2635,7 @@ static struct platform_driver dummy_hcd_driver = {
 };
 
 /*-------------------------------------------------------------------------*/
-#define MAX_NUM_UDC	1
+#define MAX_NUM_UDC	2
 static struct platform_device *the_udc_pdev[MAX_NUM_UDC];
 static struct platform_device *the_hcd_pdev[MAX_NUM_UDC];
 
@@ -2639,6 +2643,7 @@ static int __init init(void)
 {
 	int	retval = -ENOMEM;
 	int	i;
+	struct	dummy *dum[MAX_NUM_UDC];
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -2651,6 +2656,7 @@ static int __init init(void)
 				MAX_NUM_UDC);
 		return -EINVAL;
 	}
+
 	for (i = 0; i < mod_data.num; i++) {
 		the_hcd_pdev[i] = platform_device_alloc(driver_name, i);
 		if (!the_hcd_pdev[i]) {
@@ -2669,10 +2675,23 @@ static int __init init(void)
 			goto err_alloc_udc;
 		}
 	}
+	for (i = 0; i < mod_data.num; i++) {
+		dum[i] = kzalloc(sizeof(struct dummy), GFP_KERNEL);
+		if (!dum[i])
+			goto err_add_pdata;
+		retval = platform_device_add_data(the_hcd_pdev[i], &dum[i],
+				sizeof(void *));
+		if (retval)
+			goto err_add_pdata;
+		retval = platform_device_add_data(the_udc_pdev[i], &dum[i],
+				sizeof(void *));
+		if (retval)
+			goto err_add_pdata;
+	}
 
 	retval = platform_driver_register(&dummy_hcd_driver);
 	if (retval < 0)
-		goto err_register_hcd_driver;
+		goto err_add_pdata;
 	retval = platform_driver_register(&dummy_udc_driver);
 	if (retval < 0)
 		goto err_register_udc_driver;
@@ -2686,16 +2705,17 @@ static int __init init(void)
 			goto err_add_hcd;
 		}
 	}
-	if (!the_controller.hs_hcd ||
-	    (!the_controller.ss_hcd && mod_data.is_super_speed)) {
-		/*
-		 * The hcd was added successfully but its probe function failed
-		 * for some reason.
-		 */
-		retval = -EINVAL;
-		goto err_add_udc;
+	for (i = 0; i < mod_data.num; i++) {
+		if (!dum[i]->hs_hcd ||
+				(!dum[i]->ss_hcd && mod_data.is_super_speed)) {
+			/*
+			 * The hcd was added successfully but its probe
+			 * function failed for some reason.
+			 */
+			retval = -EINVAL;
+			goto err_add_udc;
+		}
 	}
-
 
 	for (i = 0; i < mod_data.num; i++) {
 		retval = platform_device_add(the_udc_pdev[i]);
@@ -2729,7 +2749,9 @@ err_add_hcd:
 	platform_driver_unregister(&dummy_udc_driver);
 err_register_udc_driver:
 	platform_driver_unregister(&dummy_hcd_driver);
-err_register_hcd_driver:
+err_add_pdata:
+	for (i = 0; i < mod_data.num; i++)
+		kfree(dum[i]);
 	for (i = 0; i < mod_data.num; i++)
 		platform_device_put(the_udc_pdev[i]);
 err_alloc_udc:
@@ -2744,8 +2766,13 @@ static void __exit cleanup(void)
 	int i;
 
 	for (i = 0; i < mod_data.num; i++) {
+		struct dummy *dum;
+
+		dum = *((void **)dev_get_platdata(&the_udc_pdev[i]->dev));
+
 		platform_device_unregister(the_udc_pdev[i]);
 		platform_device_unregister(the_hcd_pdev[i]);
+		kfree(dum);
 	}
 	platform_driver_unregister(&dummy_udc_driver);
 	platform_driver_unregister(&dummy_hcd_driver);
