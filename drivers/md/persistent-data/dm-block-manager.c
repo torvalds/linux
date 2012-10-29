@@ -25,7 +25,7 @@
  * may be held at once.  This is just an implementation detail.
  *
  * ii) Recursive locking attempts are detected and return EINVAL.  A stack
- * trace is also emitted for the previous lock aquisition.
+ * trace is also emitted for the previous lock acquisition.
  *
  * iii) Priority is given to write locks.
  */
@@ -109,7 +109,7 @@ static int __check_holder(struct block_lock *lock)
 			DMERR("previously held here:");
 			print_stack_trace(lock->traces + i, 4);
 
-			DMERR("subsequent aquisition attempted here:");
+			DMERR("subsequent acquisition attempted here:");
 			t.nr_entries = 0;
 			t.max_entries = MAX_STACK;
 			t.entries = entries;
