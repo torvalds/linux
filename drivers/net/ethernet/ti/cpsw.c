@@ -76,6 +76,8 @@ do {								\
 #define CPSW_MINOR_VERSION(reg)		(reg & 0xff)
 #define CPSW_RTL_VERSION(reg)		((reg >> 11) & 0x1f)
 
+#define CPSW_VERSION_1		0x19010a
+#define CPSW_VERSION_2		0x19010c
 #define CPDMA_RXTHRESH		0x0c0
 #define CPDMA_RXFREE		0x0e0
 #define CPDMA_TXHDP		0x00
@@ -216,6 +218,7 @@ struct cpsw_priv {
 	struct cpsw_wr_regs __iomem	*wr_regs;
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
+	u32				version;
 	struct net_device_stats		stats;
 	int				rx_packet_max;
 	int				host_port;
@@ -540,6 +543,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	pm_runtime_get_sync(&priv->pdev->dev);
 
 	reg = __raw_readl(&priv->regs->id_ver);
+	priv->version = reg;
 
 	dev_info(priv->dev, "initializing cpsw version %d.%d (%d)\n",
 		 CPSW_MAJOR_VERSION(reg), CPSW_MINOR_VERSION(reg),
