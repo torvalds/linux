@@ -711,6 +711,50 @@ static struct clk tegra_clk_sclk = {
 	.num_parents = ARRAY_SIZE(mux_sclk),
 };
 
+static const char *tegra_hclk_parent_names[] = {
+	"tegra_sclk",
+};
+
+static struct clk *tegra_hclk_parents[] = {
+	&tegra_clk_sclk,
+};
+
+static struct clk tegra_hclk;
+static struct clk_tegra tegra_hclk_hw = {
+	.hw = {
+		.clk = &tegra_hclk,
+	},
+	.flags = DIV_BUS,
+	.reg = 0x30,
+	.reg_shift = 4,
+	.max_rate = 378000000,
+	.min_rate = 12000000,
+};
+DEFINE_CLK_TEGRA(hclk, 0, &tegra30_bus_ops, 0, tegra_hclk_parent_names,
+		tegra_hclk_parents, &tegra_clk_sclk);
+
+static const char *tegra_pclk_parent_names[] = {
+	"tegra_hclk",
+};
+
+static struct clk *tegra_pclk_parents[] = {
+	&tegra_hclk,
+};
+
+static struct clk tegra_pclk;
+static struct clk_tegra tegra_pclk_hw = {
+	.hw = {
+		.clk = &tegra_pclk,
+	},
+	.flags = DIV_BUS,
+	.reg = 0x30,
+	.reg_shift = 0,
+	.max_rate = 167000000,
+	.min_rate = 12000000,
+};
+DEFINE_CLK_TEGRA(pclk, 0, &tegra30_bus_ops, 0, tegra_pclk_parent_names,
+		tegra_pclk_parents, &tegra_hclk);
+
 static const char *mux_blink[] = {
 	"clk_32k",
 };
@@ -1325,6 +1369,8 @@ struct clk *tegra_ptr_clks[] = {
 	&tegra_cml1,
 	&tegra_pciex,
 	&tegra_clk_sclk,
+	&tegra_hclk,
+	&tegra_pclk,
 	&tegra_clk_blink,
 	&tegra30_clk_twd,
 };

@@ -104,6 +104,10 @@ static __initdata struct tegra_clk_init_table tegra30_clk_init_table[] = {
 	{ "clk_m",	NULL,		0,		true },
 	{ "pll_p",	"clk_m",	408000000,	true },
 	{ "pll_p_out1",	"pll_p",	9600000,	true },
+	{ "pll_p_out4",	"pll_p",	102000000,	true },
+	{ "sclk",	"pll_p_out4",	102000000,	true },
+	{ "hclk",	"sclk",		102000000,	true },
+	{ "pclk",	"hclk",		51000000,	true },
 	{ NULL,		NULL,		0,		0},
 };
 #endif
