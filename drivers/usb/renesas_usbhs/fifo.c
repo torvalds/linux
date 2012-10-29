@@ -192,8 +192,8 @@ void usbhs_pkt_start(struct usbhs_pipe *pipe)
 /*
  *		irq enable/disable function
  */
-#define usbhsf_irq_empty_ctrl(p, e) usbhsf_irq_callback_ctrl(p, bempsts, e)
-#define usbhsf_irq_ready_ctrl(p, e) usbhsf_irq_callback_ctrl(p, brdysts, e)
+#define usbhsf_irq_empty_ctrl(p, e) usbhsf_irq_callback_ctrl(p, irq_bempsts, e)
+#define usbhsf_irq_ready_ctrl(p, e) usbhsf_irq_callback_ctrl(p, irq_brdysts, e)
 #define usbhsf_irq_callback_ctrl(pipe, status, enable)			\
 	({								\
 		struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);	\
@@ -202,9 +202,9 @@ void usbhs_pkt_start(struct usbhs_pipe *pipe)
 		if (!mod)						\
 			return;						\
 		if (enable)						\
-			mod->irq_##status |= status;			\
+			mod->status |= status;				\
 		else							\
-			mod->irq_##status &= ~status;			\
+			mod->status &= ~status;				\
 		usbhs_irq_callback_update(priv, mod);			\
 	})
 
