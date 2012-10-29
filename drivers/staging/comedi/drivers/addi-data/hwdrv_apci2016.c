@@ -75,8 +75,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -113,8 +115,10 @@ int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_NoOfChannel;
@@ -270,8 +274,10 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
@@ -343,8 +349,10 @@ int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_ConfigWatchdog(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -387,8 +395,10 @@ int i_APCI2016_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev,
+					     struct comedi_subdevice *s,
+					     struct comedi_insn *insn,
+					     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -435,8 +445,10 @@ int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_s
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2016_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2016_ReadWatchdog(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -460,7 +472,7 @@ int i_APCI2016_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2016_Reset(struct comedi_device *dev)
+static int i_APCI2016_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 
