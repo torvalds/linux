@@ -241,7 +241,7 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 		case NL80211_IFTYPE_P2P_DEVICE:
 			if (!wdev->p2p_started)
 				break;
-			rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+			rdev_stop_p2p_device(rdev, wdev);
 			wdev->p2p_started = false;
 			rdev->opencount--;
 			break;
@@ -774,7 +774,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (!wdev->p2p_started)
 			break;
-		rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+		rdev_stop_p2p_device(rdev, wdev);
 		wdev->p2p_started = false;
 		rdev->opencount--;
 		break;

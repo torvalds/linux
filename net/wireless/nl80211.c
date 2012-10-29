@@ -6932,7 +6932,7 @@ static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	err = rdev->ops->start_p2p_device(&rdev->wiphy, wdev);
+	err = rdev_start_p2p_device(rdev, wdev);
 	if (err)
 		return err;
 
@@ -6958,7 +6958,7 @@ static int nl80211_stop_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (!wdev->p2p_started)
 		return 0;
 
-	rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+	rdev_stop_p2p_device(rdev, wdev);
 	wdev->p2p_started = false;
 
 	mutex_lock(&rdev->devlist_mtx);

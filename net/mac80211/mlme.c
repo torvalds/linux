@@ -2433,7 +2433,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
 	u32 changed = 0;
-	bool erp_valid, directed_tim = false;
+	bool erp_valid;
 	u8 erp_value = 0;
 	u32 ncrc;
 	u8 *bssid;
@@ -2564,11 +2564,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					  len - baselen, &elems,
 					  care_about_ies, ncrc);
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		directed_tim = ieee80211_check_tim(elems.tim, elems.tim_len,
-						   ifmgd->aid);
-
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
+		bool directed_tim = ieee80211_check_tim(elems.tim,
+							elems.tim_len,
+							ifmgd->aid);
 		if (directed_tim) {
 			if (local->hw.conf.dynamic_ps_timeout > 0) {
 				if (local->hw.conf.flags & IEEE80211_CONF_PS) {

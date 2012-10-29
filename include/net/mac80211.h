@@ -3223,6 +3223,19 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 			    struct sk_buff *skb, u8 *p2k);
 
 /**
+ * ieee80211_aes_cmac_calculate_k1_k2 - calculate the AES-CMAC sub keys
+ *
+ * This function computes the two AES-CMAC sub-keys, based on the
+ * previously installed master key.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @k1: a buffer to be filled with the 1st sub-key
+ * @k2: a buffer to be filled with the 2nd sub-key
+ */
+void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
+					u8 *k1, u8 *k2);
+
+/**
  * struct ieee80211_key_seq - key sequence counter
  *
  * @tkip: TKIP data, containing IV32 and IV16 in host byte order

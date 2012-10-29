@@ -858,4 +858,22 @@ static inline struct ieee80211_channel
 	return ret;
 }
 
+static inline int rdev_start_p2p_device(struct cfg80211_registered_device *rdev,
+					struct wireless_dev *wdev)
+{
+	int ret;
+
+	trace_rdev_start_p2p_device(&rdev->wiphy, wdev);
+	ret = rdev->ops->start_p2p_device(&rdev->wiphy, wdev);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline void rdev_stop_p2p_device(struct cfg80211_registered_device *rdev,
+					struct wireless_dev *wdev)
+{
+	trace_rdev_stop_p2p_device(&rdev->wiphy, wdev);
+	rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+	trace_rdev_return_void(&rdev->wiphy);
+}					
 #endif /* __CFG80211_RDEV_OPS */

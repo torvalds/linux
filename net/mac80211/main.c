@@ -751,7 +751,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			if (comb->num_different_channels > 1)
 				return -EINVAL;
 		}
-
+	} else {
 		/*
 		 * WDS is currently prohibited when channel contexts are used
 		 * because there's no clear definition of which channel WDS
