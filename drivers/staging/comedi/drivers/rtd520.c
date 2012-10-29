@@ -107,6 +107,8 @@ Configuration options:
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
+#include "rtd520.h"
+#include "plx9080.h"
 
 /*======================================================================
   Driver specific stuff (tunable)
@@ -154,9 +156,6 @@ Configuration options:
 #define RTD_MIN_SPEED	2097151875	/* (24bit counter) in nanoseconds */
 /* min speed when only 1 channel (no burst counter) */
 #define RTD_MIN_SPEED_1	5000000	/* 200Hz, in nanoseconds */
-
-#include "rtd520.h"
-#include "plx9080.h"
 
 /* Setup continuous ring of 1/2 FIFO transfers.  See RTD manual p91 */
 #define DMA_MODE_BITS (\
