@@ -188,7 +188,8 @@ struct nfs4_channel_attrs {
 struct nfs4_slot;
 struct nfs4_sequence_args {
 	struct nfs4_slot	*sa_slot;
-	u8			sa_cache_this;
+	u8			sa_cache_this : 1,
+				sa_privileged : 1;
 };
 
 struct nfs4_sequence_res {
