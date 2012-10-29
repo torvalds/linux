@@ -70,6 +70,8 @@ do {								\
 		dev_notice(priv->dev, format, ## __VA_ARGS__);	\
 } while (0)
 
+#define ALE_ALL_PORTS		0x7
+
 #define CPSW_MAJOR_VERSION(reg)		(reg >> 8 & 0x7)
 #define CPSW_MINOR_VERSION(reg)		(reg & 0xff)
 #define CPSW_RTL_VERSION(reg)		((reg >> 11) & 0x1f)
@@ -227,6 +229,30 @@ struct cpsw_priv {
 		for (idx = 0; idx < (priv)->data.slaves; idx++)	\
 			(func)((priv)->slaves + idx, ##arg);	\
 	} while (0)
+
+static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	if (ndev->flags & IFF_PROMISC) {
+		/* Enable promiscuous mode */
+		dev_err(priv->dev, "Ignoring Promiscuous mode\n");
+		return;
+	}
+
+	/* Clear all mcast from ALE */
+	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port);
+
+	if (!netdev_mc_empty(ndev)) {
+		struct netdev_hw_addr *ha;
+
+		/* program multicast address list into ALE register */
+		netdev_for_each_mc_addr(ha, ndev) {
+			cpsw_ale_add_mcast(priv->ale, (u8 *)ha->addr,
+				ALE_ALL_PORTS << priv->host_port, 0, 0);
+		}
+	}
+}
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
@@ -673,6 +699,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_tx_timeout		= cpsw_ndo_tx_timeout,
 	.ndo_get_stats		= cpsw_ndo_get_stats,
+	.ndo_set_rx_mode	= cpsw_ndo_set_rx_mode,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
