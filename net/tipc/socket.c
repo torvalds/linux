@@ -1595,10 +1595,11 @@ restart:
 
 	case SS_DISCONNECTING:
 
-		/* Discard any unreceived messages; wake up sleeping tasks */
+		/* Discard any unreceived messages */
 		discard_rx_queue(sk);
-		if (waitqueue_active(sk_sleep(sk)))
-			wake_up_interruptible(sk_sleep(sk));
+
+		/* Wake up anyone sleeping in poll */
+		sk->sk_state_change(sk);
 		res = 0;
 		break;
 
