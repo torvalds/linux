@@ -907,9 +907,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 
-	if (!dev->irq)	/* we need interrupts for this */
-		return -ENXIO;
-
 	/* start configuration */
 	/* load channel list and reset CGT */
 	rtd_load_channelgain_list(dev, cmd->chanlist_len, cmd->chanlist);
@@ -1328,16 +1325,21 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	rtd_pci_latency_quirk(dev, pcidev);
 
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, rtd_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags =
-	    SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	s->n_chan = thisboard->aiChans;
 	s->maxdata = (1 << thisboard->aiBits) - 1;
 	if (thisboard->aiMaxGain <= 32)
@@ -1347,9 +1349,13 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	s->len_chanlist = RTD_MAX_CHANLIST;	/* devpriv->fifoLen */
 	s->insn_read = rtd_ai_rinsn;
-	s->do_cmd = rtd_ai_cmd;
-	s->do_cmdtest = rtd_ai_cmdtest;
-	s->cancel = rtd_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->do_cmd = rtd_ai_cmd;
+		s->do_cmdtest = rtd_ai_cmdtest;
+		s->cancel = rtd_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
@@ -1380,13 +1386,6 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->maxdata = 0xffff;
 
 	rtd_init_board(dev);
-
-	/* check if our interrupt is available and get it */
-	ret = request_irq(pcidev->irq, rtd_interrupt, IRQF_SHARED,
-			  dev->board_name, dev);
-	if (ret < 0)
-		return ret;
-	dev->irq = pcidev->irq;
 
 	ret = rtd520_probe_fifo_depth(dev);
 	if (ret < 0)
