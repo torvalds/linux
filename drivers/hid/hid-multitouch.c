@@ -210,8 +210,7 @@ static struct mt_class mt_classes[] = {
 	},
 	{ .name	= MT_CLS_GENERALTOUCH_PWT_TENFINGERS,
 		.quirks	= MT_QUIRK_NOT_SEEN_MEANS_UP |
-			MT_QUIRK_SLOT_IS_CONTACTNUMBER,
-		.maxcontacts = 10
+			MT_QUIRK_SLOT_IS_CONTACTNUMBER
 	},
 
 	{ .name = MT_CLS_FLATFROG,
