@@ -285,34 +285,39 @@ void cmci_clear(void)
 	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
+static long cmci_rediscover_work_func(void *arg)
+{
+	int banks;
+
+	/* Recheck banks in case CPUs don't all have the same */
+	if (cmci_supported(&banks))
+		cmci_discover(banks);
+
+	return 0;
+}
+
 /*
  * After a CPU went down cycle through all the others and rediscover
  * Must run in process context.
  */
 void cmci_rediscover(int dying)
 {
-	int banks;
-	int cpu;
-	cpumask_var_t old;
+	int cpu, banks;
 
 	if (!cmci_supported(&banks))
 		return;
-	if (!alloc_cpumask_var(&old, GFP_KERNEL))
-		return;
-	cpumask_copy(old, &current->cpus_allowed);
 
 	for_each_online_cpu(cpu) {
 		if (cpu == dying)
 			continue;
-		if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
-			continue;
-		/* Recheck banks in case CPUs don't all have the same */
-		if (cmci_supported(&banks))
-			cmci_discover(banks);
-	}
 
-	set_cpus_allowed_ptr(current, old);
-	free_cpumask_var(old);
+		if (cpu == smp_processor_id()) {
+			cmci_rediscover_work_func(NULL);
+			continue;
+		}
+
+		work_on_cpu(cpu, cmci_rediscover_work_func, NULL);
+	}
 }
 
 /*
