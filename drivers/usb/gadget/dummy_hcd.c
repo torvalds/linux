@@ -63,16 +63,20 @@ MODULE_LICENSE("GPL");
 struct dummy_hcd_module_parameters {
 	bool is_super_speed;
 	bool is_high_speed;
+	unsigned int num;
 };
 
 static struct dummy_hcd_module_parameters mod_data = {
 	.is_super_speed = false,
 	.is_high_speed = true,
+	.num = 1,
 };
 module_param_named(is_super_speed, mod_data.is_super_speed, bool, S_IRUGO);
 MODULE_PARM_DESC(is_super_speed, "true to simulate SuperSpeed connection");
 module_param_named(is_high_speed, mod_data.is_high_speed, bool, S_IRUGO);
 MODULE_PARM_DESC(is_high_speed, "true to simulate HighSpeed connection");
+module_param_named(num, mod_data.num, uint, S_IRUGO);
+MODULE_PARM_DESC(num, "number of emulated controllers");
 /*-------------------------------------------------------------------------*/
 
 /* gadget side driver data structres */
@@ -2634,6 +2638,7 @@ static struct platform_device *the_hcd_pdev[MAX_NUM_UDC];
 static int __init init(void)
 {
 	int	retval = -ENOMEM;
+	int	i;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -2641,12 +2646,29 @@ static int __init init(void)
 	if (!mod_data.is_high_speed && mod_data.is_super_speed)
 		return -EINVAL;
 
-	the_hcd_pdev[0] = platform_device_alloc(driver_name, 0);
-	if (!the_hcd_pdev[0])
-		return retval;
-	the_udc_pdev[0] = platform_device_alloc(gadget_name, 0);
-	if (!the_udc_pdev[0])
-		goto err_alloc_udc;
+	if (mod_data.num < 1 || mod_data.num > MAX_NUM_UDC) {
+		pr_err("Number of emulated UDC must be in range of 1…%d\n",
+				MAX_NUM_UDC);
+		return -EINVAL;
+	}
+	for (i = 0; i < mod_data.num; i++) {
+		the_hcd_pdev[i] = platform_device_alloc(driver_name, i);
+		if (!the_hcd_pdev[i]) {
+			i--;
+			while (i >= 0)
+				platform_device_put(the_hcd_pdev[i--]);
+			return retval;
+		}
+	}
+	for (i = 0; i < mod_data.num; i++) {
+		the_udc_pdev[i] = platform_device_alloc(gadget_name, i);
+		if (!the_udc_pdev[i]) {
+			i--;
+			while (i >= 0)
+				platform_device_put(the_udc_pdev[i--]);
+			goto err_alloc_udc;
+		}
+	}
 
 	retval = platform_driver_register(&dummy_hcd_driver);
 	if (retval < 0)
@@ -2655,9 +2677,15 @@ static int __init init(void)
 	if (retval < 0)
 		goto err_register_udc_driver;
 
-	retval = platform_device_add(the_hcd_pdev[0]);
-	if (retval < 0)
-		goto err_add_hcd;
+	for (i = 0; i < mod_data.num; i++) {
+		retval = platform_device_add(the_hcd_pdev[i]);
+		if (retval < 0) {
+			i--;
+			while (i >= 0)
+				platform_device_del(the_hcd_pdev[i--]);
+			goto err_add_hcd;
+		}
+	}
 	if (!the_controller.hs_hcd ||
 	    (!the_controller.ss_hcd && mod_data.is_super_speed)) {
 		/*
@@ -2667,39 +2695,58 @@ static int __init init(void)
 		retval = -EINVAL;
 		goto err_add_udc;
 	}
-	retval = platform_device_add(the_udc_pdev[0]);
-	if (retval < 0)
-		goto err_add_udc;
-	if (!platform_get_drvdata(the_udc_pdev[0])) {
-		/*
-		 * The udc was added successfully but its probe function failed
-		 * for some reason.
-		 */
-		retval = -EINVAL;
-		goto err_probe_udc;
+
+
+	for (i = 0; i < mod_data.num; i++) {
+		retval = platform_device_add(the_udc_pdev[i]);
+		if (retval < 0) {
+			i--;
+			while (i >= 0)
+				platform_device_del(the_udc_pdev[i]);
+			goto err_add_udc;
+		}
+	}
+
+	for (i = 0; i < mod_data.num; i++) {
+		if (!platform_get_drvdata(the_udc_pdev[i])) {
+			/*
+			 * The udc was added successfully but its probe
+			 * function failed for some reason.
+			 */
+			retval = -EINVAL;
+			goto err_probe_udc;
+		}
 	}
 	return retval;
 
 err_probe_udc:
-	platform_device_del(the_udc_pdev[0]);
+	for (i = 0; i < mod_data.num; i++)
+		platform_device_del(the_udc_pdev[i]);
 err_add_udc:
-	platform_device_del(the_hcd_pdev[0]);
+	for (i = 0; i < mod_data.num; i++)
+		platform_device_del(the_hcd_pdev[i]);
 err_add_hcd:
 	platform_driver_unregister(&dummy_udc_driver);
 err_register_udc_driver:
 	platform_driver_unregister(&dummy_hcd_driver);
 err_register_hcd_driver:
-	platform_device_put(the_udc_pdev[0]);
+	for (i = 0; i < mod_data.num; i++)
+		platform_device_put(the_udc_pdev[i]);
 err_alloc_udc:
-	platform_device_put(the_hcd_pdev[0]);
+	for (i = 0; i < mod_data.num; i++)
+		platform_device_put(the_hcd_pdev[i]);
 	return retval;
 }
 module_init(init);
 
 static void __exit cleanup(void)
 {
-	platform_device_unregister(the_udc_pdev[0]);
-	platform_device_unregister(the_hcd_pdev[0]);
+	int i;
+
+	for (i = 0; i < mod_data.num; i++) {
+		platform_device_unregister(the_udc_pdev[i]);
+		platform_device_unregister(the_hcd_pdev[i]);
+	}
 	platform_driver_unregister(&dummy_udc_driver);
 	platform_driver_unregister(&dummy_hcd_driver);
 }
