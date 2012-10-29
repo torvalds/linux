@@ -73,7 +73,6 @@ struct ftdi_private {
 	char prev_status;        /* Used for TIOCMIWAIT */
 	bool dev_gone;        /* Used to abort TIOCMIWAIT */
 	char transmit_empty;	/* If transmitter is empty or not */
-	struct usb_serial_port *port;
 	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
 				   (0 for FT232/245) */
 
@@ -1692,7 +1691,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	if (quirk && quirk->port_probe)
 		quirk->port_probe(priv);
 
-	priv->port = port;
 	usb_set_serial_port_data(port, priv);
 
 	ftdi_determine_type(port);
