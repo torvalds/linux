@@ -66,7 +66,7 @@ struct evo {
 	} sem;
 };
 
-struct nvd0_display {
+struct nvd0_disp {
 	struct nouveau_gpuobj *mem;
 	struct nouveau_bo *sync;
 	struct evo evo[9];
@@ -79,8 +79,8 @@ struct nvd0_head {
 	struct nouveau_crtc base;
 };
 
-static struct nvd0_display *
-nvd0_display(struct drm_device *dev)
+static struct nvd0_disp *
+nvd0_disp(struct drm_device *dev)
 {
 	return nouveau_display(dev)->priv;
 }
@@ -113,7 +113,7 @@ evo_wait(struct drm_device *dev, int id, int nr)
 {
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	u32 put = nv_rd32(device, 0x640000 + (id * 0x1000)) / 4;
 
 	if (put + nr >= (PAGE_SIZE / 4)) {
@@ -135,7 +135,7 @@ static void
 evo_kick(u32 *push, struct drm_device *dev, int id)
 {
 	struct nouveau_device *device = nouveau_dev(dev);
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 
 	nv_wr32(device, 0x640000 + (id * 0x1000), (push - disp->evo[id].ptr) << 2);
 }
@@ -148,7 +148,7 @@ evo_init_dma(struct drm_device *dev, int ch)
 {
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	u32 flags;
 
 	flags = 0x00000000;
@@ -237,7 +237,7 @@ static int
 evo_sync(struct drm_device *dev, int ch)
 {
 	struct nouveau_device *device = nouveau_dev(dev);
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	u32 *push = evo_wait(dev, ch, 8);
 	if (push) {
 		nouveau_bo_wr32(disp->sync, EVO_MAST_NTFY, 0x00000000);
@@ -260,13 +260,13 @@ evo_sync(struct drm_device *dev, int ch)
 struct nouveau_bo *
 nvd0_display_crtc_sema(struct drm_device *dev, int crtc)
 {
-	return nvd0_display(dev)->sync;
+	return nvd0_disp(dev)->sync;
 }
 
 void
 nvd0_display_flip_stop(struct drm_crtc *crtc)
 {
-	struct nvd0_display *disp = nvd0_display(crtc->dev);
+	struct nvd0_disp *disp = nvd0_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct evo *evo = &disp->evo[EVO_FLIP(nv_crtc->index)];
 	u32 *push;
@@ -290,7 +290,7 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		       struct nouveau_channel *chan, u32 swap_interval)
 {
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
-	struct nvd0_display *disp = nvd0_display(crtc->dev);
+	struct nvd0_disp *disp = nvd0_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct evo *evo = &disp->evo[EVO_FLIP(nv_crtc->index)];
 	u64 offset;
@@ -1784,7 +1784,7 @@ nvd0_display_bh(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	u32 mask = 0, crtc = ~0;
 	int i;
 
@@ -1815,7 +1815,7 @@ nvd0_display_bh(unsigned long data)
 void
 nvd0_display_intr(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	u32 intr = nv_rd32(device, 0x610088);
@@ -1891,7 +1891,7 @@ nvd0_display_fini(struct drm_device *dev)
 int
 nvd0_display_init(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int ret, i;
@@ -1971,7 +1971,7 @@ error:
 void
 nvd0_display_destroy(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	struct pci_dev *pdev = dev->pdev;
 	int i;
 
@@ -1998,7 +1998,7 @@ nvd0_display_create(struct drm_device *dev)
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;
 	struct pci_dev *pdev = dev->pdev;
-	struct nvd0_display *disp;
+	struct nvd0_disp *disp;
 	struct dcb_output *dcbe;
 	int crtcs, ret, i;
 
