@@ -1401,54 +1401,6 @@ static const struct addi_board boardtypes[] = {
 #endif
 };
 
-static struct comedi_driver driver_addi = {
-	.driver_name = ADDIDATA_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = i_ADDI_Attach,
-	.detach = i_ADDI_Detach,
-	.num_names = ARRAY_SIZE(boardtypes),
-	.board_name = &boardtypes[0].pc_DriverName,
-	.offset = sizeof(struct addi_board),
-};
-
-static int __devinit driver_addi_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, &driver_addi);
-}
-
-static void __devexit driver_addi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_addi_pci_driver = {
-	.id_table = addi_apci_tbl,
-	.probe = &driver_addi_pci_probe,
-	.remove = __devexit_p(&driver_addi_pci_remove)
-};
-
-static int __init driver_addi_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_addi);
-	if (retval < 0)
-		return retval;
-
-	driver_addi_pci_driver.name = (char *)driver_addi.driver_name;
-	return pci_register_driver(&driver_addi_pci_driver);
-}
-
-static void __exit driver_addi_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_addi_pci_driver);
-	comedi_driver_unregister(&driver_addi);
-}
-
-module_init(driver_addi_init_module);
-module_exit(driver_addi_cleanup_module);
-
 /*
 +----------------------------------------------------------------------------+
 | Function name     :static int i_ADDI_Attach(struct comedi_device *dev,            |
@@ -1938,3 +1890,32 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_su
 	return insn->n;
 
 }
+
+static struct comedi_driver addi_driver = {
+	.driver_name	= ADDIDATA_DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= i_ADDI_Attach,
+	.detach		= i_ADDI_Detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].pc_DriverName,
+	.offset		= sizeof(struct addi_board),
+};
+
+static int __devinit addi_pci_probe(struct pci_dev *dev,
+				    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &addi_driver);
+}
+
+static void __devexit addi_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver addi_pci_driver = {
+	.name		= ADDIDATA_DRIVER_NAME,
+	.id_table	= addi_apci_tbl,
+	.probe		= &addi_pci_probe,
+	.remove		= __devexit_p(&addi_pci_remove),
+};
+module_comedi_pci_driver(addi_driver, addi_pci_driver);
