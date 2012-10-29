@@ -1542,6 +1542,40 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
+/* The RTD driver does this */
+static void rtd_pci_latency_quirk(struct comedi_device *dev,
+				  struct pci_dev *pcidev)
+{
+	unsigned char pci_latency;
+	u16 revision;
+	/*uint32_t epld_version; */
+
+	pci_read_config_word(pcidev, PCI_REVISION_ID, &revision);
+	DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
+
+	pci_read_config_byte(pcidev, PCI_LATENCY_TIMER, &pci_latency);
+	if (pci_latency < 32) {
+		dev_info(dev->class_dev,
+			"PCI latency changed from %d to %d\n",
+			pci_latency, 32);
+		pci_write_config_byte(pcidev, PCI_LATENCY_TIMER, 32);
+	} else {
+		DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
+	}
+
+#if 0
+	/*
+	 * Undocumented EPLD version (doesn't match RTD driver results)
+	 */
+	DPRINTK("rtd520: Reading epld from %p\n", devpriv->las0 + 0);
+	epld_version = readl(devpriv->las0 + 0);
+	if ((epld_version & 0xF0) >> 4 == 0x0F)
+		DPRINTK("rtd520: pre-v8 EPLD. (%x)\n", epld_version);
+	else
+		DPRINTK("rtd520: EPLD version %x.\n", epld_version >> 4);
+#endif
+}
+
 static struct pci_dev *rtd_find_pci(struct comedi_device *dev,
 				    struct comedi_devconfig *it)
 {
@@ -1622,39 +1656,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 
-	{			/* The RTD driver does this */
-		unsigned char pci_latency;
-		u16 revision;
-		/*uint32_t epld_version; */
-
-		pci_read_config_word(pcidev, PCI_REVISION_ID,
-				     &revision);
-		DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
-
-		pci_read_config_byte(pcidev,
-				     PCI_LATENCY_TIMER, &pci_latency);
-		if (pci_latency < 32) {
-			dev_info(dev->class_dev,
-				 "PCI latency changed from %d to %d\n",
-				 pci_latency, 32);
-			pci_write_config_byte(pcidev,
-					      PCI_LATENCY_TIMER, 32);
-		} else {
-			DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
-		}
-
-		/*
-		 * Undocumented EPLD version (doesn't match RTD driver results)
-		 */
-		/*DPRINTK ("rtd520: Reading epld from %p\n",
-		   devpriv->las0+0);
-		   epld_version = readl (devpriv->las0+0);
-		   if ((epld_version & 0xF0) >> 4 == 0x0F) {
-		   DPRINTK("rtd520: pre-v8 EPLD. (%x)\n", epld_version);
-		   } else {
-		   DPRINTK("rtd520: EPLD version %x.\n", epld_version >> 4);
-		   } */
-	}
+	rtd_pci_latency_quirk(dev, pcidev);
 
 	/* Show board configuration */
 	dev_info(dev->class_dev, "%s:", dev->board_name);
