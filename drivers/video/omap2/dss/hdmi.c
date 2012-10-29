@@ -910,7 +910,7 @@ int hdmi_audio_config(struct omap_dss_audio *audio)
 static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	const char *def_disp_name = dss_get_default_display_name();
+	const char *def_disp_name = omapdss_get_default_display_name();
 	struct omap_dss_device *def_dssdev;
 	int i;
 

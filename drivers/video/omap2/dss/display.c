@@ -394,7 +394,7 @@ int dss_init_device(struct platform_device *pdev,
 {
 	struct device_attribute *attr;
 	int i, r;
-	const char *def_disp_name = dss_get_default_display_name();
+	const char *def_disp_name = omapdss_get_default_display_name();
 	bool force;
 
 	force = def_disp_name && strcmp(def_disp_name, dssdev->name) == 0;

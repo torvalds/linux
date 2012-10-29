@@ -205,7 +205,7 @@ static int __init sdi_init_display(struct omap_dss_device *dssdev)
 static struct omap_dss_device * __init sdi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	const char *def_disp_name = dss_get_default_display_name();
+	const char *def_disp_name = omapdss_get_default_display_name();
 	struct omap_dss_device *def_dssdev;
 	int i;
 
