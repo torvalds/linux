@@ -450,6 +450,15 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (intel_plane->pipe != intel_crtc->pipe)
 		return -EINVAL;
 
+	/* Sprite planes can be linear or x-tiled surfaces */
+	switch (obj->tiling_mode) {
+		case I915_TILING_NONE:
+		case I915_TILING_X:
+			break;
+		default:
+			return -EINVAL;
+	}
+
 	/*
 	 * Clamp the width & height into the visible area.  Note we don't
 	 * try to scale the source if part of the visible region is offscreen.
