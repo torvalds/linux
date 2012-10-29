@@ -59,14 +59,14 @@ Examples:
 		mac_control = <0x20>;
 		slaves = <2>;
 		cpsw_emac0: slave@0 {
-			slave_reg_ofs = <0x208>;
+			slave_reg_ofs = <0x200>;
 			sliver_reg_ofs = <0xd80>;
 			phy_id = "davinci_mdio.16:00";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
 		cpsw_emac1: slave@1 {
-			slave_reg_ofs = <0x308>;
+			slave_reg_ofs = <0x300>;
 			sliver_reg_ofs = <0xdc0>;
 			phy_id = "davinci_mdio.16:01";
 			/* Filled in by U-Boot */
@@ -93,14 +93,14 @@ Examples:
 		mac_control = <0x20>;
 		slaves = <2>;
 		cpsw_emac0: slave@0 {
-			slave_reg_ofs = <0x208>;
+			slave_reg_ofs = <0x200>;
 			sliver_reg_ofs = <0xd80>;
 			phy_id = "davinci_mdio.16:00";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
 		cpsw_emac1: slave@1 {
-			slave_reg_ofs = <0x308>;
+			slave_reg_ofs = <0x300>;
 			sliver_reg_ofs = <0xdc0>;
 			phy_id = "davinci_mdio.16:01";
 			/* Filled in by U-Boot */

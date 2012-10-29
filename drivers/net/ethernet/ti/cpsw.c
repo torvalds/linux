@@ -160,18 +160,74 @@ struct cpsw_ss_regs {
 	u32	dlr_ltype;
 };
 
-struct cpsw_slave_regs {
-	u32	max_blks;
-	u32	blk_cnt;
-	u32	flow_thresh;
-	u32	port_vlan;
-	u32	tx_pri_map;
-	u32	ts_ctl;
-	u32	ts_seq_ltype;
-	u32	ts_vlan;
-	u32	sa_lo;
-	u32	sa_hi;
-};
+/* CPSW_PORT_V1 */
+#define CPSW1_MAX_BLKS      0x00 /* Maximum FIFO Blocks */
+#define CPSW1_BLK_CNT       0x04 /* FIFO Block Usage Count (Read Only) */
+#define CPSW1_TX_IN_CTL     0x08 /* Transmit FIFO Control */
+#define CPSW1_PORT_VLAN     0x0c /* VLAN Register */
+#define CPSW1_TX_PRI_MAP    0x10 /* Tx Header Priority to Switch Pri Mapping */
+#define CPSW1_TS_CTL        0x14 /* Time Sync Control */
+#define CPSW1_TS_SEQ_LTYPE  0x18 /* Time Sync Sequence ID Offset and Msg Type */
+#define CPSW1_TS_VLAN       0x1c /* Time Sync VLAN1 and VLAN2 */
+
+/* CPSW_PORT_V2 */
+#define CPSW2_CONTROL       0x00 /* Control Register */
+#define CPSW2_MAX_BLKS      0x08 /* Maximum FIFO Blocks */
+#define CPSW2_BLK_CNT       0x0c /* FIFO Block Usage Count (Read Only) */
+#define CPSW2_TX_IN_CTL     0x10 /* Transmit FIFO Control */
+#define CPSW2_PORT_VLAN     0x14 /* VLAN Register */
+#define CPSW2_TX_PRI_MAP    0x18 /* Tx Header Priority to Switch Pri Mapping */
+#define CPSW2_TS_SEQ_MTYPE  0x1c /* Time Sync Sequence ID Offset and Msg Type */
+
+/* CPSW_PORT_V1 and V2 */
+#define SA_LO               0x20 /* CPGMAC_SL Source Address Low */
+#define SA_HI               0x24 /* CPGMAC_SL Source Address High */
+#define SEND_PERCENT        0x28 /* Transmit Queue Send Percentages */
+
+/* CPSW_PORT_V2 only */
+#define RX_DSCP_PRI_MAP0    0x30 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP1    0x34 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP2    0x38 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP3    0x3c /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP4    0x40 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP5    0x44 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP6    0x48 /* Rx DSCP Priority to Rx Packet Mapping */
+#define RX_DSCP_PRI_MAP7    0x4c /* Rx DSCP Priority to Rx Packet Mapping */
+
+/* Bit definitions for the CPSW2_CONTROL register */
+#define PASS_PRI_TAGGED     (1<<24) /* Pass Priority Tagged */
+#define VLAN_LTYPE2_EN      (1<<21) /* VLAN LTYPE 2 enable */
+#define VLAN_LTYPE1_EN      (1<<20) /* VLAN LTYPE 1 enable */
+#define DSCP_PRI_EN         (1<<16) /* DSCP Priority Enable */
+#define TS_320              (1<<14) /* Time Sync Dest Port 320 enable */
+#define TS_319              (1<<13) /* Time Sync Dest Port 319 enable */
+#define TS_132              (1<<12) /* Time Sync Dest IP Addr 132 enable */
+#define TS_131              (1<<11) /* Time Sync Dest IP Addr 131 enable */
+#define TS_130              (1<<10) /* Time Sync Dest IP Addr 130 enable */
+#define TS_129              (1<<9)  /* Time Sync Dest IP Addr 129 enable */
+#define TS_BIT8             (1<<8)  /* ts_ttl_nonzero? */
+#define TS_ANNEX_D_EN       (1<<4)  /* Time Sync Annex D enable */
+#define TS_LTYPE2_EN        (1<<3)  /* Time Sync LTYPE 2 enable */
+#define TS_LTYPE1_EN        (1<<2)  /* Time Sync LTYPE 1 enable */
+#define TS_TX_EN            (1<<1)  /* Time Sync Transmit Enable */
+#define TS_RX_EN            (1<<0)  /* Time Sync Receive Enable */
+
+#define CTRL_TS_BITS \
+	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 | TS_BIT8 | \
+	 TS_ANNEX_D_EN | TS_LTYPE1_EN)
+
+#define CTRL_ALL_TS_MASK (CTRL_TS_BITS | TS_TX_EN | TS_RX_EN)
+#define CTRL_TX_TS_BITS  (CTRL_TS_BITS | TS_TX_EN)
+#define CTRL_RX_TS_BITS  (CTRL_TS_BITS | TS_RX_EN)
+
+/* Bit definitions for the CPSW2_TS_SEQ_MTYPE register */
+#define TS_SEQ_ID_OFFSET_SHIFT   (16)    /* Time Sync Sequence ID Offset */
+#define TS_SEQ_ID_OFFSET_MASK    (0x3f)
+#define TS_MSG_TYPE_EN_SHIFT     (0)     /* Time Sync Message Type Enable */
+#define TS_MSG_TYPE_EN_MASK      (0xffff)
+
+/* The PTP event messages - Sync, Delay_Req, Pdelay_Req, and Pdelay_Resp. */
+#define EVENT_MSG_BITS ((1<<0) | (1<<1) | (1<<2) | (1<<3))
 
 struct cpsw_host_regs {
 	u32	max_blks;
@@ -197,13 +253,23 @@ struct cpsw_sliver_regs {
 };
 
 struct cpsw_slave {
-	struct cpsw_slave_regs __iomem	*regs;
+	void __iomem			*regs;
 	struct cpsw_sliver_regs __iomem	*sliver;
 	int				slave_num;
 	u32				mac_control;
 	struct cpsw_slave_data		*data;
 	struct phy_device		*phy;
 };
+
+static inline u32 slave_read(struct cpsw_slave *slave, u32 offset)
+{
+	return __raw_readl(slave->regs + offset);
+}
+
+static inline void slave_write(struct cpsw_slave *slave, u32 val, u32 offset)
+{
+	__raw_writel(val, slave->regs + offset);
+}
 
 struct cpsw_priv {
 	spinlock_t			lock;
@@ -396,8 +462,8 @@ static inline void soft_reset(const char *module, void __iomem *reg)
 static void cpsw_set_slave_mac(struct cpsw_slave *slave,
 			       struct cpsw_priv *priv)
 {
-	__raw_writel(mac_hi(priv->mac_addr), &slave->regs->sa_hi);
-	__raw_writel(mac_lo(priv->mac_addr), &slave->regs->sa_lo);
+	slave_write(slave, mac_hi(priv->mac_addr), SA_HI);
+	slave_write(slave, mac_lo(priv->mac_addr), SA_LO);
 }
 
 static void _cpsw_adjust_link(struct cpsw_slave *slave,
@@ -483,7 +549,15 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 
 	/* setup priority mapping */
 	__raw_writel(RX_PRIORITY_MAPPING, &slave->sliver->rx_pri_map);
-	__raw_writel(TX_PRIORITY_MAPPING, &slave->regs->tx_pri_map);
+
+	switch (priv->version) {
+	case CPSW_VERSION_1:
+		slave_write(slave, TX_PRIORITY_MAPPING, CPSW1_TX_PRI_MAP);
+		break;
+	case CPSW_VERSION_2:
+		slave_write(slave, TX_PRIORITY_MAPPING, CPSW2_TX_PRI_MAP);
+		break;
+	}
 
 	/* setup max packet size, and mac address */
 	__raw_writel(priv->rx_packet_max, &slave->sliver->rx_maxlen);
