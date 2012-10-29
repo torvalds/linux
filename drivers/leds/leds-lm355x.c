@@ -411,7 +411,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(pattern, 0666, NULL, lm3556_indicator_pattern_store);
+static DEVICE_ATTR(pattern, S_IWUSR, NULL, lm3556_indicator_pattern_store);
 
 static const struct regmap_config lm355x_regmap = {
 	.reg_bits = 8,
