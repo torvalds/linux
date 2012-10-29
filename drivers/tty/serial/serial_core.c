@@ -2329,15 +2329,15 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 static ssize_t uart_get_attr_uartclk(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	int ret;
+	struct serial_struct tmp;
 	struct tty_port *port = dev_get_drvdata(dev);
 	struct uart_state *state = container_of(port, struct uart_state, port);
 
-	mutex_lock(&state->port.mutex);
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", state->uart_port->uartclk);
-	mutex_unlock(&state->port.mutex);
+	mutex_lock(&port->mutex);
+	uart_get_info(port, state, &tmp);
+	mutex_unlock(&port->mutex);
 
-	return ret;
+	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.baud_base * 16);
 }
 
 static DEVICE_ATTR(uartclk, S_IRUSR | S_IRGRP, uart_get_attr_uartclk, NULL);
