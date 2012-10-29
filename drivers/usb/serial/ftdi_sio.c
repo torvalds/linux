@@ -923,6 +923,8 @@ static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
 static int ftdi_chars_in_buffer(struct tty_struct *tty);
+static int ftdi_get_modem_status(struct tty_struct *tty,
+						unsigned char status[2]);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor(int baud);
@@ -2092,55 +2094,23 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 static int ftdi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int chars;
-	unsigned char *buf;
+	unsigned char buf[2];
 	int ret;
 
 	chars = usb_serial_generic_chars_in_buffer(tty);
 	if (chars)
-		return chars;
+		goto out;
 
-	/* Check hardware buffer */
-	switch (priv->chip_type) {
-	case FT8U232AM:
-	case FT232BM:
-	case FT2232C:
-	case FT232RL:
-	case FT2232H:
-	case FT4232H:
-	case FT232H:
-	case FTX:
-		break;
-	case SIO:
-	default:
-		return chars;
+	/* Check if hardware buffer is empty. */
+	ret = ftdi_get_modem_status(tty, buf);
+	if (ret == 2) {
+		if (!(buf[1] & FTDI_RS_TEMT))
+			chars = 1;
 	}
+out:
+	dev_dbg(&port->dev, "%s - %d\n", __func__, chars);
 
-	buf = kmalloc(2, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&port->dev, "kmalloc failed");
-		return chars;
-	}
-
-	ret = usb_control_msg(port->serial->dev,
-				usb_rcvctrlpipe(port->serial->dev, 0),
-				FTDI_SIO_GET_MODEM_STATUS_REQUEST,
-				FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
-				0, priv->interface,
-				buf, 2, WDR_TIMEOUT);
-
-	if (ret < 2) {
-		dev_err(&port->dev, "Unable to read modem and line status: "
-			"%i\n", ret);
-		goto chars_in_buffer_out;
-	}
-
-	if (!(buf[1] & FTDI_RS_TEMT))
-		chars++;
-
-chars_in_buffer_out:
-	kfree(buf);
 	return chars;
 }
 
