@@ -30,8 +30,6 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
 
-struct drm_device *drm_device;
-
 static int num_crtc = CONFIG_DRM_OMAP_NUM_CRTCS;
 
 MODULE_PARM_DESC(num_crtc, "Number of overlays to use as CRTCs");
@@ -561,8 +559,6 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	DBG("load: dev=%p", dev);
-
-	drm_device = dev;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
