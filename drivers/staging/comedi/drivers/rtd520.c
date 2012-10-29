@@ -524,12 +524,8 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 				break;
 			WAIT_QUIETLY;
 		}
-		if (ii >= RTD_ADC_TIMEOUT) {
-			DPRINTK
-			    ("rtd520: Error: ADC never finished! FifoStatus=0x%x\n",
-			     stat ^ 0x6666);
+		if (ii >= RTD_ADC_TIMEOUT)
 			return -ETIMEDOUT;
-		}
 
 		/* read data */
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
@@ -638,10 +634,8 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
 	/* check for FIFO full, this automatically halts the ADC! */
-	if (!(fifoStatus & FS_ADC_NOT_FULL)) {	/* 0 -> full */
-		DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);	/* should be all 0s */
+	if (!(fifoStatus & FS_ADC_NOT_FULL))	/* 0 -> full */
 		goto abortTransfer;
-	}
 
 	status = readw(devpriv->las0 + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
@@ -653,53 +647,29 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		   counter interrupt, even though we have already finished,
 		   we must handle the possibility that there is no data here */
 		if (!(fifoStatus & FS_ADC_HEMPTY)) {	/* 0 -> 1/2 full */
-			/*DPRINTK("rtd520: Sample int, reading 1/2FIFO.  fifo_status 0x%x\n",
-			   (fifoStatus ^ 0x6666) & 0x7777); */
-			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0) {
-				DPRINTK
-				    ("rtd520: comedi read buffer overflow (1/2FIFO) with %ld to go!\n",
-				     devpriv->aiCount);
+			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0)
 				goto abortTransfer;
-			}
-			if (0 == devpriv->aiCount) {	/* counted down */
-				DPRINTK("rtd520: Samples Done (1/2). fifo_status was 0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);	/* should be all 0s */
+
+			if (0 == devpriv->aiCount)
 				goto transferDone;
-			}
+
 			comedi_event(dev, s);
 		} else if (devpriv->transCount > 0) {	/* read often */
-			/*DPRINTK("rtd520: Sample int, reading %d  fifo_status 0x%x\n",
-			   devpriv->transCount, (fifoStatus ^ 0x6666) & 0x7777); */
 			if (fifoStatus & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
-				if (ai_read_n(dev, s, devpriv->transCount) < 0) {
-					DPRINTK
-					    ("rtd520: comedi read buffer overflow (N) with %ld to go!\n",
-					     devpriv->aiCount);
+				if (ai_read_n(dev, s, devpriv->transCount) < 0)
 					goto abortTransfer;
-				}
-				if (0 == devpriv->aiCount) {	/* counted down */
-					DPRINTK
-					    ("rtd520: Samples Done (N). fifo_status was 0x%x\n",
-					     (fifoStatus ^ 0x6666) & 0x7777);
+
+				if (0 == devpriv->aiCount)
 					goto transferDone;
-				}
+
 				comedi_event(dev, s);
 			}
-		} else {	/* wait for 1/2 FIFO (old) */
-			DPRINTK
-			    ("rtd520: Sample int.  Wait for 1/2. fifo_status 0x%x\n",
-			     (fifoStatus ^ 0x6666) & 0x7777);
 		}
-	} else {
-		DPRINTK("rtd520: unknown interrupt source!\n");
 	}
 
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
-	if (overrun) {
-		DPRINTK
-		    ("rtd520: Interrupt overrun with %ld to go! over_status=0x%x\n",
-		     devpriv->aiCount, overrun);
+	if (overrun)
 		goto abortTransfer;
-	}
 
 	/* clear the interrupt */
 	devpriv->intClearMask = status;
@@ -723,7 +693,6 @@ transferDone:
 
 	if (devpriv->aiCount > 0) {	/* there shouldn't be anything left */
 		fifoStatus = readl(devpriv->las0 + LAS0_ADC);
-		DPRINTK("rtd520: Finishing up. %ld remain, fifoStat=%x\n", devpriv->aiCount, (fifoStatus ^ 0x6666) & 0x7777);	/* should read all 0s */
 		ai_read_dregs(dev, s);	/* read anything left in FIFO */
 	}
 
@@ -738,9 +707,6 @@ transferDone:
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
-	DPRINTK
-	    ("rtd520: Acquisition complete. %ld ints, intStat=%x, overStat=%x\n",
-	     devpriv->intCount, status, overrun);
 
 	return IRQ_HANDLED;
 }
@@ -939,10 +905,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	devpriv->intCount = 0;
 
-	if (!dev->irq) {	/* we need interrupts for this */
-		DPRINTK("rtd520: ERROR! No interrupt available!\n");
+	if (!dev->irq)	/* we need interrupts for this */
 		return -ENXIO;
-	}
 
 	/* start configuration */
 	/* load channel list and reset CGT */
@@ -950,7 +914,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* setup the common case and override if needed */
 	if (cmd->chanlist_len > 1) {
-		/*DPRINTK ("rtd520: Multi channel setup\n"); */
 		/* pacer start source: SOFTWARE */
 		writel(0, devpriv->las0 + LAS0_PACER_START);
 		/* burst trigger source: PACER */
@@ -958,7 +921,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* ADC conversion trigger source: BURST */
 		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
-		/*DPRINTK ("rtd520: single channel setup\n"); */
 		/* pacer start source: SOFTWARE */
 		writel(0, devpriv->las0 + LAS0_PACER_START);
 		/* ADC conversion trigger source: PACER */
@@ -1001,11 +963,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			writel((devpriv->transCount - 1) & 0xffff,
 				devpriv->las0 + LAS0_ACNT);
 		}
-
-		DPRINTK
-		    ("rtd520: scanLen=%d transferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n",
-		     cmd->chanlist_len, devpriv->transCount, devpriv->fifoLen,
-		     cmd->scan_begin_arg, devpriv->flags);
 	} else {		/* unknown timing, just use 1/2 FIFO */
 		devpriv->transCount = 0;
 		devpriv->flags &= ~SEND_EOS;
@@ -1030,10 +987,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_NONE:	/* stop when cancel is called */
 		devpriv->aiCount = -1;	/* read forever */
 		break;
-
-	default:
-		DPRINTK("rtd520: Warning! ignoring stop_src mode %d\n",
-			cmd->stop_src);
 	}
 
 	/* Scan timing */
@@ -1042,7 +995,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
 					TRIG_ROUND_NEAREST);
 		/* set PACER clock */
-		/*DPRINTK ("rtd520: loading %d into pacer\n", timer); */
 		writel(timer & 0xffffff, devpriv->las0 + LAS0_PCLK);
 
 		break;
@@ -1051,10 +1003,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* pacer start source: EXTERNAL */
 		writel(1, devpriv->las0 + LAS0_PACER_START);
 		break;
-
-	default:
-		DPRINTK("rtd520: Warning! ignoring scan_begin_src mode %d\n",
-			cmd->scan_begin_src);
 	}
 
 	/* Sample timing within a scan */
@@ -1064,7 +1012,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_NEAREST);
 			/* setup BURST clock */
-			/*DPRINTK ("rtd520: loading %d into burst\n", timer); */
 			writel(timer & 0x3ff, devpriv->las0 + LAS0_BCLK);
 		}
 
@@ -1074,10 +1021,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* burst trigger source: EXTERNAL */
 		writel(2, devpriv->las0 + LAS0_BURST_START);
 		break;
-
-	default:
-		DPRINTK("rtd520: Warning! ignoring convert_src mode %d\n",
-			cmd->convert_src);
 	}
 	/* end configuration */
 
@@ -1091,11 +1034,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->transCount > 0) {	/* transfer every N samples */
 		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
 		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-		DPRINTK("rtd520: Transferring every %d\n", devpriv->transCount);
 	} else {		/* 1/2 FIFO transfers */
 		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
 		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-		DPRINTK("rtd520: Transferring every 1/2 FIFO\n");
 	}
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
@@ -1122,9 +1063,6 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 	status = readw(devpriv->las0 + LAS0_IT);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
-	DPRINTK
-	    ("rtd520: Acquisition canceled. %ld ints, intStat=%x, overStat=%x\n",
-	     devpriv->intCount, status, overrun);
 	return 0;
 }
 
@@ -1161,10 +1099,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			val = data[i] << 3;
 		}
 
-		DPRINTK
-		    ("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n",
-		     chan, range, data[i], val);
-
 		/* a typical programming sequence */
 		writew(val, devpriv->las1 +
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
@@ -1180,12 +1114,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 				break;
 			WAIT_QUIETLY;
 		}
-		if (ii >= RTD_DAC_TIMEOUT) {
-			DPRINTK
-			    ("rtd520: Error: DAC never finished! FifoStatus=0x%x\n",
-			     stat ^ 0x6666);
+		if (ii >= RTD_DAC_TIMEOUT)
 			return -ETIMEDOUT;
-		}
 	}
 
 	/* return the number of samples read/written */
@@ -1238,8 +1168,6 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 	 * input lines. */
 	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
 
-	/*DPRINTK("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]); */
-
 	return insn->n;
 }
 
@@ -1273,7 +1201,6 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	DPRINTK("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
 	/* TODO support digital match interrupts and strobes */
 	devpriv->dioStatus = 0x01;	/* set direction */
 	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
@@ -1336,10 +1263,6 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 				  struct pci_dev *pcidev)
 {
 	unsigned char pci_latency;
-	u16 revision;
-
-	pci_read_config_word(pcidev, PCI_REVISION_ID, &revision);
-	DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
 
 	pci_read_config_byte(pcidev, PCI_LATENCY_TIMER, &pci_latency);
 	if (pci_latency < 32) {
@@ -1347,8 +1270,6 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 			"PCI latency changed from %d to %d\n",
 			pci_latency, 32);
 		pci_write_config_byte(pcidev, PCI_LATENCY_TIMER, 32);
-	} else {
-		DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
 	}
 }
 
