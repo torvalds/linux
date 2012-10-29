@@ -1836,8 +1836,10 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane)
 {
-	I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
-	I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
+	if (dev_priv->info->gen >= 4)
+		I915_WRITE(DSPSURF(plane), I915_READ(DSPSURF(plane)));
+	else
+		I915_WRITE(DSPADDR(plane), I915_READ(DSPADDR(plane)));
 }
 
 /**
