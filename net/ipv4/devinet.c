@@ -1451,6 +1451,8 @@ static int inet_netconf_msgsize_devconf(int type)
 	/* type -1 is used for ALL */
 	if (type == -1 || type == NETCONFA_FORWARDING)
 		size += nla_total_size(4);
+	if (type == -1 || type == NETCONFA_RP_FILTER)
+		size += nla_total_size(4);
 
 	return size;
 }
@@ -1478,6 +1480,10 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if ((type == -1 || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING,
 			IPV4_DEVCONF(*devconf, FORWARDING)) < 0)
+		goto nla_put_failure;
+	if ((type == -1 || type == NETCONFA_RP_FILTER) &&
+	    nla_put_s32(skb, NETCONFA_RP_FILTER,
+			IPV4_DEVCONF(*devconf, RP_FILTER)) < 0)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -1515,6 +1521,7 @@ errout:
 static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
 	[NETCONFA_IFINDEX]	= { .len = sizeof(int) },
 	[NETCONFA_FORWARDING]	= { .len = sizeof(int) },
+	[NETCONFA_RP_FILTER]	= { .len = sizeof(int) },
 };
 
 static int inet_netconf_get_devconf(struct sk_buff *in_skb,
@@ -1647,6 +1654,23 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 		    i == IPV4_DEVCONF_ROUTE_LOCALNET - 1)
 			if ((new_value == 0) && (old_value != 0))
 				rt_cache_flush(net);
+		if (i == IPV4_DEVCONF_RP_FILTER - 1 &&
+		    new_value != old_value) {
+			int ifindex;
+
+			if (cnf == net->ipv4.devconf_dflt)
+				ifindex = NETCONFA_IFINDEX_DEFAULT;
+			else if (cnf == net->ipv4.devconf_all)
+				ifindex = NETCONFA_IFINDEX_ALL;
+			else {
+				struct in_device *idev =
+					container_of(cnf, struct in_device,
+						     cnf);
+				ifindex = idev->dev->ifindex;
+			}
+			inet_netconf_notify_devconf(net, NETCONFA_RP_FILTER,
+						    ifindex, cnf);
+		}
 	}
 
 	return ret;
