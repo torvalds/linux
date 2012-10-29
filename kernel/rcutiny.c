@@ -195,7 +195,7 @@ EXPORT_SYMBOL(rcu_is_cpu_idle);
  */
 int rcu_is_cpu_rrupt_from_idle(void)
 {
-	return rcu_dynticks_nesting <= 0;
+	return rcu_dynticks_nesting <= 1;
 }
 
 /*
