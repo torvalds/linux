@@ -314,7 +314,7 @@ static struct i2c_gpio_platform_data pdata = {
 
 static struct platform_device at91sam9rl_twi_device = {
 	.name			= "i2c-gpio",
-	.id			= -1,
+	.id			= 0,
 	.dev.platform_data	= &pdata,
 };
 
@@ -347,7 +347,7 @@ static struct resource twi_resources[] = {
 
 static struct platform_device at91sam9rl_twi_device = {
 	.name		= "i2c-at91sam9g20",
-	.id		= -1,
+	.id		= 0,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),
 };
