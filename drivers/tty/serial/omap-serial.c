@@ -671,19 +671,19 @@ serial_omap_configure_xonxoff
 
 	/*
 	 * IXON Flag:
-	 * Flow control for OMAP.TX
-	 * OMAP.RX should listen for XON/XOFF
+	 * Enable XON/XOFF flow control on output.
+	 * Transmit XON1, XOFF1
 	 */
 	if (termios->c_iflag & IXON)
-		up->efr |= OMAP_UART_SW_RX;
+		up->efr |= OMAP_UART_SW_TX;
 
 	/*
 	 * IXOFF Flag:
-	 * Flow control for OMAP.RX
-	 * OMAP.TX should send XON/XOFF
+	 * Enable XON/XOFF flow control on input.
+	 * Receiver compares XON1, XOFF1.
 	 */
 	if (termios->c_iflag & IXOFF)
-		up->efr |= OMAP_UART_SW_TX;
+		up->efr |= OMAP_UART_SW_RX;
 
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);

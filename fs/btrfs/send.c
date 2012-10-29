@@ -745,31 +745,36 @@ typedef int (*iterate_inode_ref_t)(int num, u64 dir, int index,
 				   void *ctx);
 
 /*
- * Helper function to iterate the entries in ONE btrfs_inode_ref.
+ * Helper function to iterate the entries in ONE btrfs_inode_ref or
+ * btrfs_inode_extref.
  * The iterate callback may return a non zero value to stop iteration. This can
  * be a negative value for error codes or 1 to simply stop it.
  *
- * path must point to the INODE_REF when called.
+ * path must point to the INODE_REF or INODE_EXTREF when called.
  */
 static int iterate_inode_ref(struct send_ctx *sctx,
 			     struct btrfs_root *root, struct btrfs_path *path,
 			     struct btrfs_key *found_key, int resolve,
 			     iterate_inode_ref_t iterate, void *ctx)
 {
-	struct extent_buffer *eb;
+	struct extent_buffer *eb = path->nodes[0];
 	struct btrfs_item *item;
 	struct btrfs_inode_ref *iref;
+	struct btrfs_inode_extref *extref;
 	struct btrfs_path *tmp_path;
 	struct fs_path *p;
-	u32 cur;
-	u32 len;
+	u32 cur = 0;
 	u32 total;
-	int slot;
+	int slot = path->slots[0];
 	u32 name_len;
 	char *start;
 	int ret = 0;
-	int num;
+	int num = 0;
 	int index;
+	u64 dir;
+	unsigned long name_off;
+	unsigned long elem_size;
+	unsigned long ptr;
 
 	p = fs_path_alloc_reversed(sctx);
 	if (!p)
@@ -781,24 +786,40 @@ static int iterate_inode_ref(struct send_ctx *sctx,
 		return -ENOMEM;
 	}
 
-	eb = path->nodes[0];
-	slot = path->slots[0];
-	item = btrfs_item_nr(eb, slot);
-	iref = btrfs_item_ptr(eb, slot, struct btrfs_inode_ref);
-	cur = 0;
-	len = 0;
-	total = btrfs_item_size(eb, item);
 
-	num = 0;
+	if (found_key->type == BTRFS_INODE_REF_KEY) {
+		ptr = (unsigned long)btrfs_item_ptr(eb, slot,
+						    struct btrfs_inode_ref);
+		item = btrfs_item_nr(eb, slot);
+		total = btrfs_item_size(eb, item);
+		elem_size = sizeof(*iref);
+	} else {
+		ptr = btrfs_item_ptr_offset(eb, slot);
+		total = btrfs_item_size_nr(eb, slot);
+		elem_size = sizeof(*extref);
+	}
+
 	while (cur < total) {
 		fs_path_reset(p);
 
-		name_len = btrfs_inode_ref_name_len(eb, iref);
-		index = btrfs_inode_ref_index(eb, iref);
+		if (found_key->type == BTRFS_INODE_REF_KEY) {
+			iref = (struct btrfs_inode_ref *)(ptr + cur);
+			name_len = btrfs_inode_ref_name_len(eb, iref);
+			name_off = (unsigned long)(iref + 1);
+			index = btrfs_inode_ref_index(eb, iref);
+			dir = found_key->offset;
+		} else {
+			extref = (struct btrfs_inode_extref *)(ptr + cur);
+			name_len = btrfs_inode_extref_name_len(eb, extref);
+			name_off = (unsigned long)&extref->name;
+			index = btrfs_inode_extref_index(eb, extref);
+			dir = btrfs_inode_extref_parent(eb, extref);
+		}
+
 		if (resolve) {
-			start = btrfs_iref_to_path(root, tmp_path, iref, eb,
-						found_key->offset, p->buf,
-						p->buf_len);
+			start = btrfs_ref_to_path(root, tmp_path, name_len,
+						  name_off, eb, dir,
+						  p->buf, p->buf_len);
 			if (IS_ERR(start)) {
 				ret = PTR_ERR(start);
 				goto out;
@@ -809,9 +830,10 @@ static int iterate_inode_ref(struct send_ctx *sctx,
 						p->buf_len + p->buf - start);
 				if (ret < 0)
 					goto out;
-				start = btrfs_iref_to_path(root, tmp_path, iref,
-						eb, found_key->offset, p->buf,
-						p->buf_len);
+				start = btrfs_ref_to_path(root, tmp_path,
+							  name_len, name_off,
+							  eb, dir,
+							  p->buf, p->buf_len);
 				if (IS_ERR(start)) {
 					ret = PTR_ERR(start);
 					goto out;
@@ -820,21 +842,16 @@ static int iterate_inode_ref(struct send_ctx *sctx,
 			}
 			p->start = start;
 		} else {
-			ret = fs_path_add_from_extent_buffer(p, eb,
-					(unsigned long)(iref + 1), name_len);
+			ret = fs_path_add_from_extent_buffer(p, eb, name_off,
+							     name_len);
 			if (ret < 0)
 				goto out;
 		}
 
-
-		len = sizeof(*iref) + name_len;
-		iref = (struct btrfs_inode_ref *)((char *)iref + len);
-		cur += len;
-
-		ret = iterate(num, found_key->offset, index, p, ctx);
+		cur += elem_size + name_len;
+		ret = iterate(num, dir, index, p, ctx);
 		if (ret)
 			goto out;
-
 		num++;
 	}
 
@@ -998,7 +1015,8 @@ static int get_inode_path(struct send_ctx *sctx, struct btrfs_root *root,
 	}
 	btrfs_item_key_to_cpu(p->nodes[0], &found_key, p->slots[0]);
 	if (found_key.objectid != ino ||
-		found_key.type != BTRFS_INODE_REF_KEY) {
+	    (found_key.type != BTRFS_INODE_REF_KEY &&
+	     found_key.type != BTRFS_INODE_EXTREF_KEY)) {
 		ret = -ENOENT;
 		goto out;
 	}
@@ -1551,8 +1569,8 @@ static int get_first_ref(struct send_ctx *sctx,
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
-	struct btrfs_inode_ref *iref;
 	int len;
+	u64 parent_dir;
 
 	path = alloc_path_for_send();
 	if (!path)
@@ -1568,27 +1586,41 @@ static int get_first_ref(struct send_ctx *sctx,
 	if (!ret)
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				path->slots[0]);
-	if (ret || found_key.objectid != key.objectid ||
-	    found_key.type != key.type) {
+	if (ret || found_key.objectid != ino ||
+	    (found_key.type != BTRFS_INODE_REF_KEY &&
+	     found_key.type != BTRFS_INODE_EXTREF_KEY)) {
 		ret = -ENOENT;
 		goto out;
 	}
 
-	iref = btrfs_item_ptr(path->nodes[0], path->slots[0],
-			struct btrfs_inode_ref);
-	len = btrfs_inode_ref_name_len(path->nodes[0], iref);
-	ret = fs_path_add_from_extent_buffer(name, path->nodes[0],
-			(unsigned long)(iref + 1), len);
+	if (key.type == BTRFS_INODE_REF_KEY) {
+		struct btrfs_inode_ref *iref;
+		iref = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				      struct btrfs_inode_ref);
+		len = btrfs_inode_ref_name_len(path->nodes[0], iref);
+		ret = fs_path_add_from_extent_buffer(name, path->nodes[0],
+						     (unsigned long)(iref + 1),
+						     len);
+		parent_dir = found_key.offset;
+	} else {
+		struct btrfs_inode_extref *extref;
+		extref = btrfs_item_ptr(path->nodes[0], path->slots[0],
+					struct btrfs_inode_extref);
+		len = btrfs_inode_extref_name_len(path->nodes[0], extref);
+		ret = fs_path_add_from_extent_buffer(name, path->nodes[0],
+					(unsigned long)&extref->name, len);
+		parent_dir = btrfs_inode_extref_parent(path->nodes[0], extref);
+	}
 	if (ret < 0)
 		goto out;
 	btrfs_release_path(path);
 
-	ret = get_inode_info(root, found_key.offset, NULL, dir_gen, NULL, NULL,
+	ret = get_inode_info(root, parent_dir, NULL, dir_gen, NULL, NULL,
 			NULL, NULL);
 	if (ret < 0)
 		goto out;
 
-	*dir = found_key.offset;
+	*dir = parent_dir;
 
 out:
 	btrfs_free_path(path);
@@ -2430,7 +2462,8 @@ verbose_printk("btrfs: send_create_inode %llu\n", ino);
 		TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH_LINK, p);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
-		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, rdev);
+		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, new_encode_dev(rdev));
+		TLV_PUT_U64(sctx, BTRFS_SEND_A_MODE, mode);
 	}
 
 	ret = send_cmd(sctx);
@@ -3226,7 +3259,8 @@ static int process_all_refs(struct send_ctx *sctx,
 		btrfs_item_key_to_cpu(eb, &found_key, slot);
 
 		if (found_key.objectid != key.objectid ||
-		    found_key.type != key.type)
+		    (found_key.type != BTRFS_INODE_REF_KEY &&
+		     found_key.type != BTRFS_INODE_EXTREF_KEY))
 			break;
 
 		ret = iterate_inode_ref(sctx, root, path, &found_key, 0, cb,
@@ -3987,7 +4021,7 @@ static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end)
 	if (sctx->cur_ino == 0)
 		goto out;
 	if (!at_end && sctx->cur_ino == sctx->cmp_key->objectid &&
-	    sctx->cmp_key->type <= BTRFS_INODE_REF_KEY)
+	    sctx->cmp_key->type <= BTRFS_INODE_EXTREF_KEY)
 		goto out;
 	if (list_empty(&sctx->new_refs) && list_empty(&sctx->deleted_refs))
 		goto out;
@@ -4033,22 +4067,21 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 	if (ret < 0)
 		goto out;
 
-	if (!S_ISLNK(sctx->cur_inode_mode)) {
-		if (!sctx->parent_root || sctx->cur_inode_new) {
+	if (!sctx->parent_root || sctx->cur_inode_new) {
+		need_chown = 1;
+		if (!S_ISLNK(sctx->cur_inode_mode))
 			need_chmod = 1;
-			need_chown = 1;
-		} else {
-			ret = get_inode_info(sctx->parent_root, sctx->cur_ino,
-					NULL, NULL, &right_mode, &right_uid,
-					&right_gid, NULL);
-			if (ret < 0)
-				goto out;
+	} else {
+		ret = get_inode_info(sctx->parent_root, sctx->cur_ino,
+				NULL, NULL, &right_mode, &right_uid,
+				&right_gid, NULL);
+		if (ret < 0)
+			goto out;
 
-			if (left_uid != right_uid || left_gid != right_gid)
-				need_chown = 1;
-			if (left_mode != right_mode)
-				need_chmod = 1;
-		}
+		if (left_uid != right_uid || left_gid != right_gid)
+			need_chown = 1;
+		if (!S_ISLNK(sctx->cur_inode_mode) && left_mode != right_mode)
+			need_chmod = 1;
 	}
 
 	if (S_ISREG(sctx->cur_inode_mode)) {
@@ -4335,7 +4368,8 @@ static int changed_cb(struct btrfs_root *left_root,
 
 	if (key->type == BTRFS_INODE_ITEM_KEY)
 		ret = changed_inode(sctx, result);
-	else if (key->type == BTRFS_INODE_REF_KEY)
+	else if (key->type == BTRFS_INODE_REF_KEY ||
+		 key->type == BTRFS_INODE_EXTREF_KEY)
 		ret = changed_ref(sctx, result);
 	else if (key->type == BTRFS_XATTR_ITEM_KEY)
 		ret = changed_xattr(sctx, result);
