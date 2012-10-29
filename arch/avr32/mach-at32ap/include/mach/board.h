@@ -34,13 +34,6 @@ extern struct platform_device *atmel_default_console_device;
 #define	ATMEL_USART_CTS		0x02
 #define	ATMEL_USART_CLK		0x04
 
-struct atmel_uart_data {
-	int		num;		/* port num */
-	short		use_dma_tx;	/* use transmit DMA? */
-	short		use_dma_rx;	/* use receive DMA? */
-	void __iomem	*regs;		/* virtual base address, if any */
-	struct serial_rs485	rs485;		/* rs485 settings */
-};
 void at32_map_usart(unsigned int hw_id, unsigned int line, int flags);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
