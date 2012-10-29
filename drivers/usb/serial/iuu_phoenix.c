@@ -1164,7 +1164,7 @@ static ssize_t store_vcc_mode(struct device *dev,
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned long v;
 
-	if (strict_strtoul(buf, 10, &v)) {
+	if (kstrtoul(buf, 10, &v)) {
 		dev_err(dev, "%s - vcc_mode: %s is not a unsigned long\n",
 				__func__, buf);
 		goto fail_store_vcc_mode;
