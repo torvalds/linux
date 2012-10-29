@@ -1684,7 +1684,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	kref_init(&priv->kref);
 	mutex_init(&priv->cfg_lock);
-	memset(&priv->icount, 0x00, sizeof(priv->icount));
 	init_waitqueue_head(&priv->delta_msr_wait);
 
 	priv->flags = ASYNC_LOW_LATENCY;
