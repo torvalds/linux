@@ -537,7 +537,9 @@ static void radeon_legacy_primary_dac_dpms(struct drm_encoder *encoder, int mode
 		break;
 	}
 
-	WREG32(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl);
+	/* handled in radeon_crtc_dpms() */
+	if (!(rdev->flags & RADEON_SINGLE_CRTC))
+		WREG32(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl);
 	WREG32(RADEON_DAC_CNTL, dac_cntl);
 	WREG32(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
 
@@ -1095,7 +1097,8 @@ static void radeon_legacy_tv_dac_dpms(struct drm_encoder *encoder, int mode)
 	} else {
 		if (is_tv)
 			WREG32(RADEON_TV_MASTER_CNTL, tv_master_cntl);
-		else
+		/* handled in radeon_crtc_dpms() */
+		else if (!(rdev->flags & RADEON_SINGLE_CRTC))
 			WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
 		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
 	}
