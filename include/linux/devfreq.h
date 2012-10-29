@@ -125,6 +125,7 @@ struct devfreq_governor {
  *		using devfreq.
  * @profile:	device-specific devfreq profile
  * @governor:	method how to choose frequency based on the usage.
+ * @governor_name:	devfreq governor name for use with this devfreq
  * @nb:		notifier block used to notify devfreq object that it should
  *		reevaluate operable frequencies. Devfreq users may use
  *		devfreq.nb to the corresponding register notifier call chain.
@@ -155,6 +156,7 @@ struct devfreq {
 	struct device dev;
 	struct devfreq_dev_profile *profile;
 	const struct devfreq_governor *governor;
+	char governor_name[DEVFREQ_NAME_LEN];
 	struct notifier_block nb;
 	struct delayed_work work;
 
@@ -176,7 +178,7 @@ struct devfreq {
 #if defined(CONFIG_PM_DEVFREQ)
 extern struct devfreq *devfreq_add_device(struct device *dev,
 				  struct devfreq_dev_profile *profile,
-				  const struct devfreq_governor *governor,
+				  const char *governor_name,
 				  void *data);
 extern int devfreq_remove_device(struct devfreq *devfreq);
 extern int devfreq_suspend_device(struct devfreq *devfreq);
@@ -190,17 +192,7 @@ extern int devfreq_register_opp_notifier(struct device *dev,
 extern int devfreq_unregister_opp_notifier(struct device *dev,
 					   struct devfreq *devfreq);
 
-#ifdef CONFIG_DEVFREQ_GOV_POWERSAVE
-extern const struct devfreq_governor devfreq_powersave;
-#endif
-#ifdef CONFIG_DEVFREQ_GOV_PERFORMANCE
-extern const struct devfreq_governor devfreq_performance;
-#endif
-#ifdef CONFIG_DEVFREQ_GOV_USERSPACE
-extern const struct devfreq_governor devfreq_userspace;
-#endif
 #ifdef CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND
-extern const struct devfreq_governor devfreq_simple_ondemand;
 /**
  * struct devfreq_simple_ondemand_data - void *data fed to struct devfreq
  *	and devfreq_add_device
@@ -223,7 +215,7 @@ struct devfreq_simple_ondemand_data {
 #else /* !CONFIG_PM_DEVFREQ */
 static struct devfreq *devfreq_add_device(struct device *dev,
 					  struct devfreq_dev_profile *profile,
-					  struct devfreq_governor *governor,
+					  const char *governor_name,
 					  void *data)
 {
 	return NULL;
@@ -261,11 +253,6 @@ static int devfreq_unregister_opp_notifier(struct device *dev,
 {
 	return -EINVAL;
 }
-
-#define devfreq_powersave	NULL
-#define devfreq_performance	NULL
-#define devfreq_userspace	NULL
-#define devfreq_simple_ondemand	NULL
 
 #endif /* CONFIG_PM_DEVFREQ */
 

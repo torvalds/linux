@@ -1040,7 +1040,7 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 	busfreq_mon_reset(data);
 
 	data->devfreq = devfreq_add_device(dev, &exynos4_devfreq_profile,
-					   &devfreq_simple_ondemand, NULL);
+					   "simple_ondemand", NULL);
 	if (IS_ERR(data->devfreq))
 		return PTR_ERR(data->devfreq);
 

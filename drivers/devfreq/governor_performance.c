@@ -40,7 +40,7 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-const struct devfreq_governor devfreq_performance = {
+static struct devfreq_governor devfreq_performance = {
 	.name = "performance",
 	.get_target_freq = devfreq_performance_func,
 	.event_handler = devfreq_performance_handler,

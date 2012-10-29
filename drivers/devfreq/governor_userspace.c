@@ -135,7 +135,7 @@ static int devfreq_userspace_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-const struct devfreq_governor devfreq_userspace = {
+static struct devfreq_governor devfreq_userspace = {
 	.name = "userspace",
 	.get_target_freq = devfreq_userspace_func,
 	.event_handler = devfreq_userspace_handler,
