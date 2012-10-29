@@ -331,9 +331,9 @@ struct rtdPrivate {
   Sets the original period to be the true value.
   Note: you have to check if the value is larger than the counter range!
 */
-static int rtd_ns_to_timer_base(unsigned int *nanosec,	/* desired period (in ns) */
+static int rtd_ns_to_timer_base(unsigned int *nanosec,
 				int round_mode, int base)
-{				/* clock period (in ns) */
+{
 	int divider;
 
 	switch (round_mode) {
@@ -386,18 +386,19 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 	r |= chan & 0xf;
 
 	/* Note: we also setup the channel list bipolar flag array */
-	if (range < thisboard->range10Start) {	/* first batch are +-5 */
-		r |= 0x000;	/* +-5 range */
-		r |= (range & 0x7) << 4;	/* gain */
+	if (range < thisboard->range10Start) {
+		/* +-5 range */
+		r |= 0x000;
+		r |= (range & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
-	} else if (range < thisboard->rangeUniStart) {	/* second batch are +-10 */
-		r |= 0x100;	/* +-10 range */
-		/* gain */
+	} else if (range < thisboard->rangeUniStart) {
+		/* +-10 range */
+		r |= 0x100;
 		r |= ((range - thisboard->range10Start) & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
-	} else {		/* last batch is +10 */
-		r |= 0x200;	/* +10 range */
-		/* gain */
+	} else {
+		/* +10 range */
+		r |= 0x200;
 		r |= ((range - thisboard->rangeUniStart) & 0x7) << 4;
 		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, chanIndex);
 	}
@@ -640,10 +641,14 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		return IRQ_HANDLED;
 
 	if (status & IRQM_ADC_ABOUT_CNT) {	/* sample count -> read FIFO */
-		/* since the priority interrupt controller may have queued a sample
-		   counter interrupt, even though we have already finished,
-		   we must handle the possibility that there is no data here */
-		if (!(fifoStatus & FS_ADC_HEMPTY)) {	/* 0 -> 1/2 full */
+		/*
+		 * since the priority interrupt controller may have queued
+		 * a sample counter interrupt, even though we have already
+		 * finished, we must handle the possibility that there is
+		 * no data here
+		 */
+		if (!(fifoStatus & FS_ADC_HEMPTY)) {
+			/* FIFO half full */
 			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0)
 				goto abortTransfer;
 
@@ -651,8 +656,9 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 				goto transferDone;
 
 			comedi_event(dev, s);
-		} else if (devpriv->transCount > 0) {	/* read often */
-			if (fifoStatus & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
+		} else if (devpriv->transCount > 0) {
+			if (fifoStatus & FS_ADC_NOT_EMPTY) {
+				/* FIFO not empty */
 				if (ai_read_n(dev, s, devpriv->transCount) < 0)
 					goto abortTransfer;
 
@@ -928,8 +934,11 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* scan_begin_arg is in nanoseconds */
 		/* find out how many samples to wait before transferring */
 		if (cmd->flags & TRIG_WAKE_EOS) {
-			/* this may generate un-sustainable interrupt rates */
-			/* the application is responsible for doing the right thing */
+			/*
+			 * this may generate un-sustainable interrupt rates
+			 * the application is responsible for doing the
+			 * right thing
+			 */
 			devpriv->transCount = cmd->chanlist_len;
 			devpriv->flags |= SEND_EOS;
 		} else {
@@ -1004,7 +1013,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Sample timing within a scan */
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:	/* periodic */
-		if (cmd->chanlist_len > 1) {	/* only needed for multi-channel */
+		if (cmd->chanlist_len > 1) {
+			/* only needed for multi-channel */
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_NEAREST);
 			/* setup BURST clock */
@@ -1098,7 +1108,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		/* a typical programming sequence */
 		writew(val, devpriv->las1 +
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
-		writew(0, devpriv->las0 + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
+		writew(0, devpriv->las0 +
+			((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
 		devpriv->aoValue[chan] = data[i];	/* save for read back */
 
