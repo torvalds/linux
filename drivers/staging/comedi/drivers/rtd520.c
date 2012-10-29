@@ -289,7 +289,6 @@ struct rtdPrivate {
 	void __iomem *las1;
 	void __iomem *lcfg;
 
-	unsigned long intCount;	/* interrupt count */
 	long aiCount;		/* total transfer size (samples) */
 	int transCount;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
@@ -630,8 +629,6 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	devpriv->intCount++;	/* DEBUG statistics */
-
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
 	/* check for FIFO full, this automatically halts the ADC! */
 	if (!(fifoStatus & FS_ADC_NOT_FULL))	/* 0 -> full */
@@ -903,7 +900,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
-	devpriv->intCount = 0;
 
 	if (!dev->irq)	/* we need interrupts for this */
 		return -ENXIO;
