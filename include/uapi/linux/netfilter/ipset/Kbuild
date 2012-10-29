@@ -1,1 +1,5 @@
 # UAPI Header export list
+header-y += ip_set.h
+header-y += ip_set_bitmap.h
+header-y += ip_set_hash.h
+header-y += ip_set_list.h

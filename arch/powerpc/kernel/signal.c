@@ -11,6 +11,7 @@
 
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/uprobes.h>
 #include <linux/key.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
@@ -130,7 +131,7 @@ static int do_signal(struct pt_regs *regs)
 	 * triggered inside the kernel.
 	 */
 	if (current->thread.dabr)
-		set_dabr(current->thread.dabr);
+		set_dabr(current->thread.dabr, current->thread.dabrx);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
@@ -157,6 +158,11 @@ static int do_signal(struct pt_regs *regs)
 
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
+	if (thread_info_flags & _TIF_UPROBE) {
+		clear_thread_flag(TIF_UPROBE);
+		uprobe_notify_resume(regs);
+	}
+
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 

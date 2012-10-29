@@ -380,14 +380,13 @@ static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
 static struct snd_soc_dai_driver imx_ssi_dai = {
 	.probe = imx_ssi_dai_probe,
 	.playback = {
-		/* The SSI does not support monaural audio. */
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -524,7 +523,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct snd_soc_dai_driver *dai;
 
-	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
+	ssi = devm_kzalloc(&pdev->dev, sizeof(*ssi), GFP_KERNEL);
 	if (!ssi)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, ssi);
@@ -537,7 +536,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	ssi->irq = platform_get_irq(pdev, 0);
 
-	ssi->clk = clk_get(&pdev->dev, NULL);
+	ssi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssi->clk)) {
 		ret = PTR_ERR(ssi->clk);
 		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
@@ -552,23 +551,18 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_get_resource;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), DRV_NAME)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
-		goto failed_get_resource;
-	}
-
-	ssi->base = ioremap(res->start, resource_size(res));
+	ssi->base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!ssi->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENODEV;
-		goto failed_ioremap;
+		goto failed_register;
 	}
 
 	if (ssi->flags & IMX_SSI_USE_AC97) {
 		if (ac97_ssi) {
+			dev_err(&pdev->dev, "AC'97 SSI already registered\n");
 			ret = -EBUSY;
-			goto failed_ac97;
+			goto failed_register;
 		}
 		ac97_ssi = ssi;
 		setup_channel_to_ac97(ssi);
@@ -637,15 +631,10 @@ failed_pdev_fiq_add:
 failed_pdev_fiq_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
 failed_register:
-failed_ac97:
-	iounmap(ssi->base);
-failed_ioremap:
 	release_mem_region(res->start, resource_size(res));
 failed_get_resource:
 	clk_disable_unprepare(ssi->clk);
-	clk_put(ssi->clk);
 failed_clk:
-	kfree(ssi);
 
 	return ret;
 }
@@ -663,11 +652,8 @@ static int __devexit imx_ssi_remove(struct platform_device *pdev)
 	if (ssi->flags & IMX_SSI_USE_AC97)
 		ac97_ssi = NULL;
 
-	iounmap(ssi->base);
 	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(ssi->clk);
-	clk_put(ssi->clk);
-	kfree(ssi);
 
 	return 0;
 }

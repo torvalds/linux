@@ -184,7 +184,7 @@ static int vx_set_format(struct vx_core *chip, struct vx_pipe *pipe,
 	default : 
 		snd_BUG();
 		return -EINVAL;
-        };
+	}
 
 	return vx_set_stream_format(chip, pipe, header);
 }

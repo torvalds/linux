@@ -535,13 +535,13 @@ void ipoib_drain_cq(struct net_device *dev);
 void ipoib_set_ethtool_ops(struct net_device *dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
-#ifdef CONFIG_INFINIBAND_IPOIB_CM
-
 #define IPOIB_FLAGS_RC		0x80
 #define IPOIB_FLAGS_UC		0x40
 
 /* We don't support UC connections at the moment */
 #define IPOIB_CM_SUPPORTED(ha)   (ha[0] & (IPOIB_FLAGS_RC))
+
+#ifdef CONFIG_INFINIBAND_IPOIB_CM
 
 extern int ipoib_max_conn_qp;
 

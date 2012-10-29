@@ -34,7 +34,7 @@ struct xen_memory_reservation {
     GUEST_HANDLE(xen_pfn_t) extent_start;
 
     /* Number of extents, and size/alignment of each (2^extent_order pages). */
-    unsigned long  nr_extents;
+    xen_ulong_t  nr_extents;
     unsigned int   extent_order;
 
     /*
@@ -92,7 +92,7 @@ struct xen_memory_exchange {
      *     command will be non-zero.
      *  5. THIS FIELD MUST BE INITIALISED TO ZERO BY THE CALLER!
      */
-    unsigned long nr_exchanged;
+    xen_ulong_t nr_exchanged;
 };
 
 DEFINE_GUEST_HANDLE_STRUCT(xen_memory_exchange);
@@ -148,8 +148,8 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mfn_list);
  */
 #define XENMEM_machphys_mapping     12
 struct xen_machphys_mapping {
-    unsigned long v_start, v_end; /* Start and end virtual addresses.   */
-    unsigned long max_mfn;        /* Maximum MFN that can be looked up. */
+    xen_ulong_t v_start, v_end; /* Start and end virtual addresses.   */
+    xen_ulong_t max_mfn;        /* Maximum MFN that can be looked up. */
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mapping_t);
 
@@ -172,35 +172,15 @@ struct xen_add_to_physmap {
     unsigned int space;
 
     /* Index into source mapping space. */
-    unsigned long idx;
+    xen_ulong_t idx;
 
     /* GPFN where the source mapping page should appear. */
     xen_pfn_t gpfn;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap);
 
-/*
- * Translates a list of domain-specific GPFNs into MFNs. Returns a -ve error
- * code on failure. This call only works for auto-translated guests.
- */
-#define XENMEM_translate_gpfn_list  8
-struct xen_translate_gpfn_list {
-    /* Which domain to translate for? */
-    domid_t domid;
-
-    /* Length of list. */
-    unsigned long nr_gpfns;
-
-    /* List of GPFNs to translate. */
-    GUEST_HANDLE(ulong) gpfn_list;
-
-    /*
-     * Output list to contain MFN translations. May be the same as the input
-     * list (in which case each input GPFN is overwritten with the output MFN).
-     */
-    GUEST_HANDLE(ulong) mfn_list;
-};
-DEFINE_GUEST_HANDLE_STRUCT(xen_translate_gpfn_list);
+/*** REMOVED ***/
+/*#define XENMEM_translate_gpfn_list  8*/
 
 /*
  * Returns the pseudo-physical memory map as it was when the domain

@@ -16,6 +16,13 @@ file systems on embedded devices.
  - #address-cells, #size-cells : Must be present if the device has
    sub-nodes representing partitions (see below).  In this case
    both #address-cells and #size-cells must be equal to 1.
+ - no-unaligned-direct-access: boolean to disable the default direct
+   mapping of the flash.
+   On some platforms (e.g. MPC5200) a direct 1:1 mapping may cause
+   problems with JFFS2 usage, as the local bus (LPB) doesn't support
+   unaligned accesses as implemented in the JFFS2 code via memcpy().
+   By defining "no-unaligned-direct-access", the flash will not be
+   exposed directly to the MTD users (e.g. JFFS2) any more.
 
 For JEDEC compatible devices, the following additional properties
 are defined:

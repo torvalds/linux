@@ -263,6 +263,16 @@ static __init void am3517_evm_musb_init(void)
 	usb_musb_init(&musb_board_data);
 }
 
+static __init void am3517_evm_mcbsp1_init(void)
+{
+	u32 devconf0;
+
+	/* McBSP1 CLKR/FSR signal to be connected to CLKX/FSX pin */
+	devconf0 = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	devconf0 |=  OMAP2_MCBSP1_CLKR_MASK | OMAP2_MCBSP1_FSR_MASK;
+	omap_ctrl_writel(devconf0, OMAP2_CONTROL_DEVCONF0);
+}
+
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 #if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
@@ -365,6 +375,9 @@ static void __init am3517_evm_init(void)
 
 	/* MUSB */
 	am3517_evm_musb_init();
+
+	/* McBSP1 */
+	am3517_evm_mcbsp1_init();
 
 	/* MMC init function */
 	omap_hsmmc_init(mmc);

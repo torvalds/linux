@@ -2957,9 +2957,13 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_shinfo(skb)->nr_frags +
 			BDS_PER_TX_PKT +
 			NEXT_CNT_PER_TX_PKT(MAX_BDS_PER_TX_PKT))) {
-		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
-		netif_tx_stop_queue(txq);
-		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+		/* Handle special storage cases separately */
+		if (txdata->tx_ring_size != 0) {
+			BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+			bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
+			netif_tx_stop_queue(txq);
+		}
+
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3523,15 +3527,18 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	} else
 #endif
 	if (!bp->rx_ring_size) {
-		u32 cfg = SHMEM_RD(bp,
-			     dev_info.port_hw_config[BP_PORT(bp)].default_cfg);
-
 		rx_ring_size = MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
 
-		/* Dercease ring size for 1G functions */
-		if ((cfg & PORT_HW_CFG_NET_SERDES_IF_MASK) ==
-		    PORT_HW_CFG_NET_SERDES_IF_SGMII)
-			rx_ring_size /= 10;
+		if (CHIP_IS_E3(bp)) {
+			u32 cfg = SHMEM_RD(bp,
+					   dev_info.port_hw_config[BP_PORT(bp)].
+					   default_cfg);
+
+			/* Decrease ring size for 1G functions */
+			if ((cfg & PORT_HW_CFG_NET_SERDES_IF_MASK) ==
+			    PORT_HW_CFG_NET_SERDES_IF_SGMII)
+				rx_ring_size /= 10;
+		}
 
 		/* allocate at least number of buffers required by FW */
 		rx_ring_size = max_t(int, bp->disable_tpa ? MIN_RX_SIZE_NONTPA :

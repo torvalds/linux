@@ -1,60 +1,10 @@
 #ifndef _LINUX_VIRTIO_CONFIG_H
 #define _LINUX_VIRTIO_CONFIG_H
-/* This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
- * anyone can use the definitions to implement compatible drivers/servers.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE. */
 
-/* Virtio devices use a standardized configuration space to define their
- * features and pass configuration information, but each implementation can
- * store and access that space differently. */
-#include <linux/types.h>
-
-/* Status byte for guest to report progress, and synchronize features. */
-/* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
-#define VIRTIO_CONFIG_S_ACKNOWLEDGE	1
-/* We have found a driver for the device. */
-#define VIRTIO_CONFIG_S_DRIVER		2
-/* Driver has used its parts of the config, and is happy */
-#define VIRTIO_CONFIG_S_DRIVER_OK	4
-/* We've given up on this device. */
-#define VIRTIO_CONFIG_S_FAILED		0x80
-
-/* Some virtio feature bits (currently bits 28 through 31) are reserved for the
- * transport being used (eg. virtio_ring), the rest are per-device feature
- * bits. */
-#define VIRTIO_TRANSPORT_F_START	28
-#define VIRTIO_TRANSPORT_F_END		32
-
-/* Do we get callbacks when the ring is completely used, even if we've
- * suppressed them? */
-#define VIRTIO_F_NOTIFY_ON_EMPTY	24
-
-#ifdef __KERNEL__
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/virtio.h>
+#include <uapi/linux/virtio_config.h>
 
 /**
  * virtio_config_ops - operations for configuring a virtio device
@@ -84,7 +34,9 @@
  *	nvqs: the number of virtqueues to find
  *	vqs: on success, includes new virtqueues
  *	callbacks: array of callbacks, for each virtqueue
+ *		include a NULL entry for vqs that do not need a callback
  *	names: array of virtqueue names (mainly for debugging)
+ *		include a NULL entry for vqs unused by driver
  *	Returns 0 on success or error status
  * @del_vqs: free virtqueues found by find_vqs().
  * @get_features: get the array of feature bits for this device.
@@ -98,6 +50,7 @@
  *	vdev: the virtio_device
  *      This returns a pointer to the bus name a la pci_name from which
  *      the caller can then copy.
+ * @set_vq_affinity: set the affinity for a virtqueue.
  */
 typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {
@@ -116,6 +69,7 @@ struct virtio_config_ops {
 	u32 (*get_features)(struct virtio_device *vdev);
 	void (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
+	int (*set_vq_affinity)(struct virtqueue *vq, int cpu);
 };
 
 /* If driver didn't advertise the feature, it will never appear. */
@@ -190,5 +144,23 @@ const char *virtio_bus_name(struct virtio_device *vdev)
 	return vdev->config->bus_name(vdev);
 }
 
-#endif /* __KERNEL__ */
+/**
+ * virtqueue_set_affinity - setting affinity for a virtqueue
+ * @vq: the virtqueue
+ * @cpu: the cpu no.
+ *
+ * Pay attention the function are best-effort: the affinity hint may not be set
+ * due to config support, irq type and sharing.
+ *
+ */
+static inline
+int virtqueue_set_affinity(struct virtqueue *vq, int cpu)
+{
+	struct virtio_device *vdev = vq->vdev;
+	if (vdev->config->set_vq_affinity)
+		return vdev->config->set_vq_affinity(vq, cpu);
+	return 0;
+}
+
+
 #endif /* _LINUX_VIRTIO_CONFIG_H */

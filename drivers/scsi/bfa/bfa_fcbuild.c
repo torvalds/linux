@@ -228,6 +228,10 @@ fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 
 	memcpy(plogi, &plogi_tmpl, sizeof(struct fc_logi_s));
 
+	/* For FC AL bb_cr is 0 and altbbcred is 1 */
+	if (!bb_cr)
+		plogi->csp.altbbcred = 1;
+
 	plogi->els_cmd.els_code = els_code;
 	if (els_code == FC_ELS_PLOGI)
 		fc_els_req_build(fchs, d_id, s_id, ox_id);

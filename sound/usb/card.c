@@ -646,6 +646,8 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			list_for_each(p, &chip->pcm_list) {
 				as = list_entry(p, struct snd_usb_stream, list);
 				snd_pcm_suspend_all(as->pcm);
+				as->substream[0].need_setup_ep =
+					as->substream[1].need_setup_ep = true;
 			}
  		}
 	} else {

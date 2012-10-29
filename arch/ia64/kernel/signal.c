@@ -438,14 +438,6 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 	long errno = scr->pt.r8;
 
 	/*
-	 * In the ia64_leave_kernel code path, we want the common case to go fast, which
-	 * is why we may in certain cases get here from kernel mode. Just return without
-	 * doing anything if so.
-	 */
-	if (!user_mode(&scr->pt))
-		return;
-
-	/*
 	 * This only loops in the rare cases of handle_signal() failing, in which case we
 	 * need to push through a forced SIGSEGV.
 	 */

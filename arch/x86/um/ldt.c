@@ -7,11 +7,11 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <asm/unistd.h>
-#include "os.h"
-#include "proc_mm.h"
-#include "skas.h"
-#include "skas_ptrace.h"
-#include "sysdep/tls.h"
+#include <os.h>
+#include <proc_mm.h>
+#include <skas.h>
+#include <skas_ptrace.h>
+#include <sysdep/tls.h>
 
 extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 

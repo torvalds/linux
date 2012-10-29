@@ -63,6 +63,7 @@ static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn);
 static void sctp_check_transmitted(struct sctp_outq *q,
 				   struct list_head *transmitted_queue,
 				   struct sctp_transport *transport,
+				   union sctp_addr *saddr,
 				   struct sctp_sackhdr *sack,
 				   __u32 *highest_new_tsn);
 
@@ -1139,9 +1140,10 @@ static void sctp_sack_update_unack_data(struct sctp_association *assoc,
  * Process the SACK against the outqueue.  Mostly, this just frees
  * things off the transmitted queue.
  */
-int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
+int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 {
 	struct sctp_association *asoc = q->asoc;
+	struct sctp_sackhdr *sack = chunk->subh.sack_hdr;
 	struct sctp_transport *transport;
 	struct sctp_chunk *tchunk = NULL;
 	struct list_head *lchunk, *transport_list, *temp;
@@ -1210,7 +1212,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	/* Run through the retransmit queue.  Credit bytes received
 	 * and free those chunks that we can.
 	 */
-	sctp_check_transmitted(q, &q->retransmit, NULL, sack, &highest_new_tsn);
+	sctp_check_transmitted(q, &q->retransmit, NULL, NULL, sack, &highest_new_tsn);
 
 	/* Run through the transmitted queue.
 	 * Credit bytes received and free those chunks which we can.
@@ -1219,7 +1221,8 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 */
 	list_for_each_entry(transport, transport_list, transports) {
 		sctp_check_transmitted(q, &transport->transmitted,
-				       transport, sack, &highest_new_tsn);
+				       transport, &chunk->source, sack,
+				       &highest_new_tsn);
 		/*
 		 * SFR-CACC algorithm:
 		 * C) Let count_of_newacks be the number of
@@ -1326,6 +1329,7 @@ int sctp_outq_is_empty(const struct sctp_outq *q)
 static void sctp_check_transmitted(struct sctp_outq *q,
 				   struct list_head *transmitted_queue,
 				   struct sctp_transport *transport,
+				   union sctp_addr *saddr,
 				   struct sctp_sackhdr *sack,
 				   __u32 *highest_new_tsn_in_sack)
 {
@@ -1633,8 +1637,9 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			/* Mark the destination transport address as
 			 * active if it is not so marked.
 			 */
-			if ((transport->state == SCTP_INACTIVE) ||
-			    (transport->state == SCTP_UNCONFIRMED)) {
+			if ((transport->state == SCTP_INACTIVE ||
+			     transport->state == SCTP_UNCONFIRMED) &&
+			    sctp_cmp_addr_exact(&transport->ipaddr, saddr)) {
 				sctp_assoc_control_transport(
 					transport->asoc,
 					transport,

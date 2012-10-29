@@ -79,6 +79,9 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 		return -EFAULT;
 	}
 
+	/* buffer count to framebuffer always is 1 at booting time. */
+	exynos_drm_fb_set_buf_cnt(fb, 1);
+
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
 	offset += fbi->var.yoffset * fb->pitches[0];
 

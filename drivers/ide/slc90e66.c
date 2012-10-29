@@ -132,7 +132,7 @@ static const struct ide_port_ops slc90e66_port_ops = {
 	.cable_detect		= slc90e66_cable_detect,
 };
 
-static const struct ide_port_info slc90e66_chipset __devinitdata = {
+static const struct ide_port_info slc90e66_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x43, 0x80, 0x80} },
 	.port_ops	= &slc90e66_port_ops,

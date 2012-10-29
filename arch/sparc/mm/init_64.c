@@ -276,7 +276,6 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 }
 
 unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
-unsigned long _PAGE_SZBITS __read_mostly;
 
 static void flush_dcache(unsigned long pfn)
 {
@@ -307,12 +306,24 @@ static void flush_dcache(unsigned long pfn)
 	}
 }
 
+/* mm->context.lock must be held */
+static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_index,
+				    unsigned long tsb_hash_shift, unsigned long address,
+				    unsigned long tte)
+{
+	struct tsb *tsb = mm->context.tsb_block[tsb_index].tsb;
+	unsigned long tag;
+
+	tsb += ((address >> tsb_hash_shift) &
+		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
+	tag = (address >> 22UL);
+	tsb_insert(tsb, tag, tte);
+}
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
+	unsigned long tsb_index, tsb_hash_shift, flags;
 	struct mm_struct *mm;
-	struct tsb *tsb;
-	unsigned long tag, flags;
-	unsigned long tsb_index, tsb_hash_shift;
 	pte_t pte = *ptep;
 
 	if (tlb_type != hypervisor) {
@@ -329,7 +340,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL) {
 		if ((tlb_type == hypervisor &&
 		     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
@@ -341,11 +352,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 	}
 #endif
 
-	tsb = mm->context.tsb_block[tsb_index].tsb;
-	tsb += ((address >> tsb_hash_shift) &
-		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
-	tag = (address >> 22UL);
-	tsb_insert(tsb, tag, pte_val(pte));
+	__update_mmu_tsb_insert(mm, tsb_index, tsb_hash_shift,
+				address, pte_val(pte));
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
@@ -2275,8 +2283,7 @@ static void __init sun4u_pgprot_init(void)
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4U) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ 0xfffff80000000000UL;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
 		0xfffff80000000000UL;
@@ -2287,7 +2294,6 @@ static void __init sun4u_pgprot_init(void)
 	for (i = 1; i < 4; i++)
 		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4U;
 	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
 			      _PAGE_SZ64K_4U | _PAGE_SZ8K_4U |
 			      _PAGE_SZ32MB_4U | _PAGE_SZ256MB_4U);
@@ -2324,8 +2330,7 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_CACHE = _PAGE_CACHE_4V;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ 0xfffff80000000000UL;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
 		0xfffff80000000000UL;
@@ -2339,7 +2344,6 @@ static void __init sun4v_pgprot_init(void)
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
 		     __ACCESS_BITS_4V | _PAGE_E_4V);
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4V;
 	_PAGE_ALL_SZ_BITS = (_PAGE_SZ16GB_4V | _PAGE_SZ2GB_4V |
 			     _PAGE_SZ256MB_4V | _PAGE_SZ32MB_4V |
 			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |
@@ -2472,3 +2476,281 @@ void __flush_tlb_all(void)
 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
 			     : : "r" (pstate));
 }
+
+static pte_t *get_from_cache(struct mm_struct *mm)
+{
+	struct page *page;
+	pte_t *ret;
+
+	spin_lock(&mm->page_table_lock);
+	page = mm->context.pgtable_page;
+	ret = NULL;
+	if (page) {
+		void *p = page_address(page);
+
+		mm->context.pgtable_page = NULL;
+
+		ret = (pte_t *) (p + (PAGE_SIZE / 2));
+	}
+	spin_unlock(&mm->page_table_lock);
+
+	return ret;
+}
+
+static struct page *__alloc_for_cache(struct mm_struct *mm)
+{
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+
+	if (page) {
+		spin_lock(&mm->page_table_lock);
+		if (!mm->context.pgtable_page) {
+			atomic_set(&page->_count, 2);
+			mm->context.pgtable_page = page;
+		}
+		spin_unlock(&mm->page_table_lock);
+	}
+	return page;
+}
+
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+			    unsigned long address)
+{
+	struct page *page;
+	pte_t *pte;
+
+	pte = get_from_cache(mm);
+	if (pte)
+		return pte;
+
+	page = __alloc_for_cache(mm);
+	if (page)
+		pte = (pte_t *) page_address(page);
+
+	return pte;
+}
+
+pgtable_t pte_alloc_one(struct mm_struct *mm,
+			unsigned long address)
+{
+	struct page *page;
+	pte_t *pte;
+
+	pte = get_from_cache(mm);
+	if (pte)
+		return pte;
+
+	page = __alloc_for_cache(mm);
+	if (page) {
+		pgtable_page_ctor(page);
+		pte = (pte_t *) page_address(page);
+	}
+
+	return pte;
+}
+
+void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+{
+	struct page *page = virt_to_page(pte);
+	if (put_page_testzero(page))
+		free_hot_cold_page(page, 0);
+}
+
+static void __pte_free(pgtable_t pte)
+{
+	struct page *page = virt_to_page(pte);
+	if (put_page_testzero(page)) {
+		pgtable_page_dtor(page);
+		free_hot_cold_page(page, 0);
+	}
+}
+
+void pte_free(struct mm_struct *mm, pgtable_t pte)
+{
+	__pte_free(pte);
+}
+
+void pgtable_free(void *table, bool is_page)
+{
+	if (is_page)
+		__pte_free(table);
+	else
+		kmem_cache_free(pgtable_cache, table);
+}
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot, bool for_modify)
+{
+	if (pgprot_val(pgprot) & _PAGE_VALID)
+		pmd_val(pmd) |= PMD_HUGE_PRESENT;
+	if (tlb_type == hypervisor) {
+		if (pgprot_val(pgprot) & _PAGE_WRITE_4V)
+			pmd_val(pmd) |= PMD_HUGE_WRITE;
+		if (pgprot_val(pgprot) & _PAGE_EXEC_4V)
+			pmd_val(pmd) |= PMD_HUGE_EXEC;
+
+		if (!for_modify) {
+			if (pgprot_val(pgprot) & _PAGE_ACCESSED_4V)
+				pmd_val(pmd) |= PMD_HUGE_ACCESSED;
+			if (pgprot_val(pgprot) & _PAGE_MODIFIED_4V)
+				pmd_val(pmd) |= PMD_HUGE_DIRTY;
+		}
+	} else {
+		if (pgprot_val(pgprot) & _PAGE_WRITE_4U)
+			pmd_val(pmd) |= PMD_HUGE_WRITE;
+		if (pgprot_val(pgprot) & _PAGE_EXEC_4U)
+			pmd_val(pmd) |= PMD_HUGE_EXEC;
+
+		if (!for_modify) {
+			if (pgprot_val(pgprot) & _PAGE_ACCESSED_4U)
+				pmd_val(pmd) |= PMD_HUGE_ACCESSED;
+			if (pgprot_val(pgprot) & _PAGE_MODIFIED_4U)
+				pmd_val(pmd) |= PMD_HUGE_DIRTY;
+		}
+	}
+
+	return pmd;
+}
+
+pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = (page_nr << ((PAGE_SHIFT - PMD_PADDR_SHIFT)));
+	pmd_val(pmd) |= PMD_ISHUGE;
+	pmd = pmd_set_protbits(pmd, pgprot, false);
+	return pmd;
+}
+
+pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	pmd_val(pmd) &= ~(PMD_HUGE_PRESENT |
+			  PMD_HUGE_WRITE |
+			  PMD_HUGE_EXEC);
+	pmd = pmd_set_protbits(pmd, newprot, true);
+	return pmd;
+}
+
+pgprot_t pmd_pgprot(pmd_t entry)
+{
+	unsigned long pte = 0;
+
+	if (pmd_val(entry) & PMD_HUGE_PRESENT)
+		pte |= _PAGE_VALID;
+
+	if (tlb_type == hypervisor) {
+		if (pmd_val(entry) & PMD_HUGE_PRESENT)
+			pte |= _PAGE_PRESENT_4V;
+		if (pmd_val(entry) & PMD_HUGE_EXEC)
+			pte |= _PAGE_EXEC_4V;
+		if (pmd_val(entry) & PMD_HUGE_WRITE)
+			pte |= _PAGE_W_4V;
+		if (pmd_val(entry) & PMD_HUGE_ACCESSED)
+			pte |= _PAGE_ACCESSED_4V;
+		if (pmd_val(entry) & PMD_HUGE_DIRTY)
+			pte |= _PAGE_MODIFIED_4V;
+		pte |= _PAGE_CP_4V|_PAGE_CV_4V;
+	} else {
+		if (pmd_val(entry) & PMD_HUGE_PRESENT)
+			pte |= _PAGE_PRESENT_4U;
+		if (pmd_val(entry) & PMD_HUGE_EXEC)
+			pte |= _PAGE_EXEC_4U;
+		if (pmd_val(entry) & PMD_HUGE_WRITE)
+			pte |= _PAGE_W_4U;
+		if (pmd_val(entry) & PMD_HUGE_ACCESSED)
+			pte |= _PAGE_ACCESSED_4U;
+		if (pmd_val(entry) & PMD_HUGE_DIRTY)
+			pte |= _PAGE_MODIFIED_4U;
+		pte |= _PAGE_CP_4U|_PAGE_CV_4U;
+	}
+
+	return __pgprot(pte);
+}
+
+void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+			  pmd_t *pmd)
+{
+	unsigned long pte, flags;
+	struct mm_struct *mm;
+	pmd_t entry = *pmd;
+	pgprot_t prot;
+
+	if (!pmd_large(entry) || !pmd_young(entry))
+		return;
+
+	pte = (pmd_val(entry) & ~PMD_HUGE_PROTBITS);
+	pte <<= PMD_PADDR_SHIFT;
+	pte |= _PAGE_VALID;
+
+	prot = pmd_pgprot(entry);
+
+	if (tlb_type == hypervisor)
+		pgprot_val(prot) |= _PAGE_SZHUGE_4V;
+	else
+		pgprot_val(prot) |= _PAGE_SZHUGE_4U;
+
+	pte |= pgprot_val(prot);
+
+	mm = vma->vm_mm;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL)
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, HPAGE_SHIFT,
+					addr, pte);
+
+	spin_unlock_irqrestore(&mm->context.lock, flags);
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+static void context_reload(void *__data)
+{
+	struct mm_struct *mm = __data;
+
+	if (mm == current->mm)
+		load_secondary_context(mm);
+}
+
+void hugetlb_setup(struct mm_struct *mm)
+{
+	struct tsb_config *tp = &mm->context.tsb_block[MM_TSB_HUGE];
+
+	if (likely(tp->tsb != NULL))
+		return;
+
+	tsb_grow(mm, MM_TSB_HUGE, 0);
+	tsb_context_switch(mm);
+	smp_tsb_sync(mm);
+
+	/* On UltraSPARC-III+ and later, configure the second half of
+	 * the Data-TLB for huge pages.
+	 */
+	if (tlb_type == cheetah_plus) {
+		unsigned long ctx;
+
+		spin_lock(&ctx_alloc_lock);
+		ctx = mm->context.sparc64_ctx_val;
+		ctx &= ~CTX_PGSZ_MASK;
+		ctx |= CTX_PGSZ_BASE << CTX_PGSZ0_SHIFT;
+		ctx |= CTX_PGSZ_HUGE << CTX_PGSZ1_SHIFT;
+
+		if (ctx != mm->context.sparc64_ctx_val) {
+			/* When changing the page size fields, we
+			 * must perform a context flush so that no
+			 * stale entries match.  This flush must
+			 * occur with the original context register
+			 * settings.
+			 */
+			do_flush_tlb_mm(mm);
+
+			/* Reload the context register of all processors
+			 * also executing in this address space.
+			 */
+			mm->context.sparc64_ctx_val = ctx;
+			on_each_cpu(context_reload, mm, 0);
+		}
+		spin_unlock(&ctx_alloc_lock);
+	}
+}
+#endif

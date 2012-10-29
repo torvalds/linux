@@ -34,6 +34,9 @@ static struct mfd_cell tps65217s[] = {
 	{
 		.name = "tps65217-pmic",
 	},
+	{
+		.name = "tps65217-bl",
+	},
 };
 
 /**

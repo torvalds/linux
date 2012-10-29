@@ -1296,7 +1296,7 @@ mwifiex_radio_type_to_band(u8 radio_type)
 int mwifiex_scan_networks(struct mwifiex_private *priv,
 			  const struct mwifiex_user_scan_cfg *user_scan_in)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmd_node;
 	union mwifiex_scan_cmd_config_tlv *scan_cfg_out;
@@ -1309,25 +1309,26 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	unsigned long flags;
 
 	if (adapter->scan_processing) {
-		dev_dbg(adapter->dev, "cmd: Scan already in process...\n");
-		return ret;
+		dev_err(adapter->dev, "cmd: Scan already in process...\n");
+		return -EBUSY;
+	}
+
+	if (priv->scan_block) {
+		dev_err(adapter->dev,
+			"cmd: Scan is blocked during association...\n");
+		return -EBUSY;
 	}
 
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->scan_processing = true;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 
-	if (priv->scan_block) {
-		dev_dbg(adapter->dev,
-			"cmd: Scan is blocked during association...\n");
-		return ret;
-	}
-
 	scan_cfg_out = kzalloc(sizeof(union mwifiex_scan_cmd_config_tlv),
 								GFP_KERNEL);
 	if (!scan_cfg_out) {
 		dev_err(adapter->dev, "failed to alloc scan_cfg_out\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto done;
 	}
 
 	buf_size = sizeof(struct mwifiex_chan_scan_param_set) *
@@ -1336,7 +1337,8 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	if (!scan_chan_list) {
 		dev_err(adapter->dev, "failed to alloc scan_chan_list\n");
 		kfree(scan_cfg_out);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto done;
 	}
 
 	mwifiex_config_scan(priv, user_scan_in, &scan_cfg_out->config,
@@ -1364,14 +1366,16 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 		}
-	} else {
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->scan_processing = true;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 	}
 
 	kfree(scan_cfg_out);
 	kfree(scan_chan_list);
+done:
+	if (ret) {
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		adapter->scan_processing = false;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+	}
 	return ret;
 }
 
@@ -1430,8 +1434,8 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 			ret = mwifiex_is_network_compatible(priv, bss_desc,
 							    priv->bss_mode);
 			if (ret)
-				dev_err(priv->adapter->dev, "cannot find ssid "
-					"%s\n", bss_desc->ssid.ssid);
+				dev_err(priv->adapter->dev,
+					"Incompatible network settings\n");
 			break;
 		default:
 			ret = 0;
@@ -1839,21 +1843,18 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 				      struct cfg80211_ssid *req_ssid)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
+	int ret;
 	struct mwifiex_user_scan_cfg *scan_cfg;
 
-	if (!req_ssid)
-		return -1;
-
 	if (adapter->scan_processing) {
-		dev_dbg(adapter->dev, "cmd: Scan already in process...\n");
-		return ret;
+		dev_err(adapter->dev, "cmd: Scan already in process...\n");
+		return -EBUSY;
 	}
 
 	if (priv->scan_block) {
-		dev_dbg(adapter->dev,
+		dev_err(adapter->dev,
 			"cmd: Scan is blocked during association...\n");
-		return ret;
+		return -EBUSY;
 	}
 
 	scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg), GFP_KERNEL);

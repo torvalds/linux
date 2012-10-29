@@ -17,26 +17,26 @@ dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb \
 	usb_a9263.dtb \
 	usb_a9g20.dtb
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
+dtb-$(CONFIG_ARCH_DOVE) += dove-cm-a510.dtb \
+	dove-cubox.dtb \
+	dove-dove-db.dtb
 dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
 	exynos4210-trats.dtb \
 	exynos5250-smdk5250.dtb
 dtb-$(CONFIG_ARCH_HIGHBANK) += highbank.dtb
-dtb-$(CONFIG_ARCH_IMX5) += imx51-babbage.dtb \
-	imx53-ard.dtb \
-	imx53-evk.dtb \
-	imx53-qsb.dtb \
-	imx53-smd.dtb
-dtb-$(CONFIG_SOC_IMX6Q) += imx6q-arm2.dtb \
-	imx6q-sabrelite.dtb \
-	imx6q-sabresd.dtb
+dtb-$(CONFIG_ARCH_INTEGRATOR) += integratorap.dtb \
+	integratorcp.dtb
 dtb-$(CONFIG_ARCH_LPC32XX) += ea3250.dtb phy3250.dtb
 dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-dns320.dtb \
 	kirkwood-dns325.dtb \
+	kirkwood-dockstar.dtb \
 	kirkwood-dreamplug.dtb \
 	kirkwood-goflexnet.dtb \
 	kirkwood-ib62x0.dtb \
 	kirkwood-iconnect.dtb \
+	kirkwood-iomega_ix2_200.dtb \
+	kirkwood-km_kirkwood.dtb \
 	kirkwood-lschlv2.dtb \
 	kirkwood-lsxhl.dtb \
 	kirkwood-ts219-6281.dtb \
@@ -70,7 +70,9 @@ dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	omap4-pandaES.dtb \
 	omap4-var_som.dtb \
 	omap4-sdp.dtb \
-	omap5-evm.dtb
+	omap5-evm.dtb \
+	am335x-evm.dtb \
+	am335x-bone.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += prima2-evb.dtb
 dtb-$(CONFIG_ARCH_U8500) += snowball.dtb
 dtb-$(CONFIG_ARCH_SHMOBILE) += emev2-kzm9d.dtb \
@@ -96,6 +98,10 @@ dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
 dtb-$(CONFIG_ARCH_VEXPRESS) += vexpress-v2p-ca5s.dtb \
 	vexpress-v2p-ca9.dtb \
 	vexpress-v2p-ca15-tc1.dtb \
-	vexpress-v2p-ca15_a7.dtb
+	vexpress-v2p-ca15_a7.dtb \
+	xenvm-4.2.dtb
+dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
+	wm8505-ref.dtb \
+	wm8650-mid.dtb
 
 endif

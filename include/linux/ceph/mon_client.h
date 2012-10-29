@@ -71,7 +71,6 @@ struct ceph_mon_client {
 	int cur_mon;                       /* last monitor i contacted */
 	unsigned long sub_sent, sub_renew_after;
 	struct ceph_connection con;
-	bool have_fsid;
 
 	/* pending generic requests */
 	struct rb_root generic_request_tree;

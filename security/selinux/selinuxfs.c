@@ -485,7 +485,7 @@ static int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
 			return -EACCES;
 	}
 
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &sel_mmap_policy_ops;
 
 	return 0;

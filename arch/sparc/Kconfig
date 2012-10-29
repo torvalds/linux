@@ -18,6 +18,7 @@ config SPARC
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
 	select HAVE_ARCH_TRACEHOOK
+	select SYSCTL_EXCEPTION_TRACE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
@@ -32,16 +33,19 @@ config SPARC
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
 	select HAVE_BPF_JIT
+	select HAVE_DEBUG_BUGVERBOSE
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select MODULES_USE_ELF_RELA
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
+	select HAVE_UID16
 
 config SPARC64
 	def_bool 64BIT
@@ -59,6 +63,7 @@ config SPARC64
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_DEBUG_KMEMLEAK
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
@@ -226,25 +231,6 @@ config EARLYFB
 	help
 	  Say Y here to enable a faster early framebuffer boot console.
 
-choice
-	prompt "Kernel page size" if SPARC64
-	default SPARC64_PAGE_SIZE_8KB
-
-config SPARC64_PAGE_SIZE_8KB
-	bool "8KB"
-	help
-	  This lets you select the page size of the kernel.
-
-	  8KB and 64KB work quite well, since SPARC ELF sections
-	  provide for up to 64KB alignment.
-
-	  If you don't know what to do, choose 8KB.
-
-config SPARC64_PAGE_SIZE_64KB
-	bool "64KB"
-
-endchoice
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on SPARC64 && PROC_FS
@@ -315,23 +301,6 @@ config GENERIC_LOCKBREAK
 	bool
 	default y
 	depends on SPARC64 && SMP && PREEMPT
-
-choice
-	prompt "SPARC64 Huge TLB Page Size"
-	depends on SPARC64 && HUGETLB_PAGE
-	default HUGETLB_PAGE_SIZE_4MB
-
-config HUGETLB_PAGE_SIZE_4MB
-	bool "4MB"
-
-config HUGETLB_PAGE_SIZE_512K
-	bool "512K"
-
-config HUGETLB_PAGE_SIZE_64K
-	depends on !SPARC64_PAGE_SIZE_64KB
-	bool "64K"
-
-endchoice
 
 config NUMA
 	bool "NUMA support"
@@ -571,6 +540,7 @@ config COMPAT
 	depends on SPARC64
 	default y
 	select COMPAT_BINFMT_ELF
+	select HAVE_UID16
 	select ARCH_WANT_OLD_COMPAT_IPC
 
 config SYSVIPC_COMPAT

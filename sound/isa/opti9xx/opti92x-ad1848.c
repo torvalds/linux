@@ -39,6 +39,7 @@
 #ifndef OPTi93X
 #include <sound/opl4.h>
 #endif
+#define SNDRV_LEGACY_FIND_FREE_IOPORT
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -184,19 +185,6 @@ static char * snd_opti9xx_names[] = {
 	"82C924",	"82C925",
 	"82C930",	"82C931",	"82C933"
 };
-
-
-static long __devinit snd_legacy_find_free_ioport(long *port_table, long size)
-{
-	while (*port_table != -1) {
-		if (request_region(*port_table, size, "ALSA test")) {
-			release_region(*port_table, size);
-			return *port_table;
-		}
-		port_table++;
-	}
-	return -1;
-}
 
 static int __devinit snd_opti9xx_init(struct snd_opti9xx *chip,
 				      unsigned short hardware)

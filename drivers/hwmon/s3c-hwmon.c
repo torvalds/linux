@@ -22,7 +22,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/err.h>

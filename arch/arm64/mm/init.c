@@ -301,10 +301,7 @@ void __init mem_init(void)
 	unsigned long reserved_pages, free_pages;
 	struct memblock_region *reg;
 
-#if CONFIG_SWIOTLB
-	extern void __init arm64_swiotlb_init(size_t max_size);
-	arm64_swiotlb_init(max_pfn << (PAGE_SHIFT - 1));
-#endif
+	arm64_swiotlb_init();
 
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 

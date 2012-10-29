@@ -24,6 +24,7 @@
 #include <bcm63xx_dev_flash.h>
 #include <bcm63xx_dev_pcmcia.h>
 #include <bcm63xx_dev_spi.h>
+#include <bcm63xx_dev_usb_usbd.h>
 #include <board_bcm963xx.h>
 
 #define PFX	"board_bcm963xx: "
@@ -42,6 +43,12 @@ static struct board_info __initdata board_96328avng = {
 
 	.has_uart0			= 1,
 	.has_pci			= 1,
+	.has_usbd			= 0,
+
+	.usbd = {
+		.use_fullspeed		= 0,
+		.port_no		= 0,
+	},
 
 	.leds = {
 		{
@@ -632,7 +639,7 @@ static struct board_info __initdata board_DWVS0 = {
 /*
  * all boards
  */
-static const struct board_info __initdata *bcm963xx_boards[] = {
+static const struct board_info __initconst *bcm963xx_boards[] = {
 #ifdef CONFIG_BCM63XX_CPU_6328
 	&board_96328avng,
 #endif
@@ -713,7 +720,7 @@ const char *board_get_name(void)
  */
 static int board_get_mac_address(u8 *mac)
 {
-	u8 *p;
+	u8 *oui;
 	int count;
 
 	if (mac_addr_used >= nvram.mac_addr_count) {
@@ -722,21 +729,23 @@ static int board_get_mac_address(u8 *mac)
 	}
 
 	memcpy(mac, nvram.mac_addr_base, ETH_ALEN);
-	p = mac + ETH_ALEN - 1;
+	oui = mac + ETH_ALEN/2 - 1;
 	count = mac_addr_used;
 
 	while (count--) {
+		u8 *p = mac + ETH_ALEN - 1;
+
 		do {
 			(*p)++;
 			if (*p != 0)
 				break;
 			p--;
-		} while (p != mac);
-	}
+		} while (p != oui);
 
-	if (p == mac) {
-		printk(KERN_ERR PFX "unable to fetch mac address\n");
-		return -ENODEV;
+		if (p == oui) {
+			printk(KERN_ERR PFX "unable to fetch mac address\n");
+			return -ENODEV;
+		}
 	}
 
 	mac_addr_used++;
@@ -887,6 +896,9 @@ int __init board_register_devices(void)
 	if (board.has_enet1 &&
 	    !board_get_mac_address(board.enet1.mac_addr))
 		bcm63xx_enet_register(1, &board.enet1);
+
+	if (board.has_usbd)
+		bcm63xx_usbd_register(&board.usbd);
 
 	if (board.has_dsp)
 		bcm63xx_dsp_register(&board.dsp);

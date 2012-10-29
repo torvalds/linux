@@ -344,7 +344,7 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 */
 			rtpi = get_unaligned_be16(ptr + 2);
 			/*
-			 * Locate the matching relative target port identifer
+			 * Locate the matching relative target port identifier
 			 * for the struct se_device storage object.
 			 */
 			spin_lock(&dev->se_port_lock);

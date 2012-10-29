@@ -30,14 +30,12 @@
 static void __init m54xx_uarts_init(void)
 {
 	/* enable io pins */
-	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
-		MCF_MBAR + MCF_PAR_PSC(0));
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD, MCFGPIO_PAR_PSC0);
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS,
-		MCF_MBAR + MCF_PAR_PSC(1));
+		MCFGPIO_PAR_PSC1);
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS |
-		MCF_PAR_PSC_CTS_CTS, MCF_MBAR + MCF_PAR_PSC(2));
-	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
-		MCF_MBAR + MCF_PAR_PSC(3));
+		MCF_PAR_PSC_CTS_CTS, MCFGPIO_PAR_PSC2);
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD, MCFGPIO_PAR_PSC3);
 }
 
 /***************************************************************************/
@@ -46,10 +44,10 @@ static void mcf54xx_reset(void)
 {
 	/* disable interrupts and enable the watchdog */
 	asm("movew #0x2700, %sr\n");
-	__raw_writel(0, MCF_MBAR + MCF_GPT_GMS0);
-	__raw_writel(MCF_GPT_GCIR_CNT(1), MCF_MBAR + MCF_GPT_GCIR0);
+	__raw_writel(0, MCF_GPT_GMS0);
+	__raw_writel(MCF_GPT_GCIR_CNT(1), MCF_GPT_GCIR0);
 	__raw_writel(MCF_GPT_GMS_WDEN | MCF_GPT_GMS_CE | MCF_GPT_GMS_TMS(4),
-						MCF_MBAR + MCF_GPT_GMS0);
+		MCF_GPT_GMS0);
 }
 
 /***************************************************************************/

@@ -12,7 +12,7 @@
 #include <byteswap.h>
 #include <libgen.h>
 
-#ifndef NO_LIBELF_SUPPORT
+#ifdef LIBELF_SUPPORT
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
@@ -46,10 +46,10 @@ char *strxfrchar(char *s, char from, char to);
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
  */
-#ifdef LIBELF_NO_MMAP
-# define PERF_ELF_C_READ_MMAP ELF_C_READ
-#else
+#ifdef LIBELF_MMAP
 # define PERF_ELF_C_READ_MMAP ELF_C_READ_MMAP
+#else
+# define PERF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
 #ifndef DMGL_PARAMS
@@ -233,7 +233,7 @@ struct symsrc {
 	int fd;
 	enum dso_binary_type type;
 
-#ifndef NO_LIBELF_SUPPORT
+#ifdef LIBELF_SUPPORT
 	Elf *elf;
 	GElf_Ehdr ehdr;
 

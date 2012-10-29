@@ -30,6 +30,20 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
+/*
+ * For the U8500 archs, use the PRCMU register interface, for the older
+ * Nomadik, provide some stubs. The functions using these will only be
+ * called on the U8500 series.
+ */
+#ifdef CONFIG_ARCH_U8500
+#include <linux/mfd/dbx500-prcmu.h>
+#else
+static inline u32 prcmu_read(unsigned int reg) {
+	return 0;
+}
+static inline void prcmu_write(unsigned int reg, u32 value) {}
+static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
+#endif
 
 #include <asm/mach/irq.h>
 
@@ -235,6 +249,89 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 	}
 
 	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
+}
+
+static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
+	unsigned offset, unsigned alt_num)
+{
+	int i;
+	u16 reg;
+	u8 bit;
+	u8 alt_index;
+	const struct prcm_gpiocr_altcx_pin_desc *pin_desc;
+	const u16 *gpiocr_regs;
+
+	if (alt_num > PRCM_IDX_GPIOCR_ALTC_MAX) {
+		dev_err(npct->dev, "PRCM GPIOCR: alternate-C%i is invalid\n",
+			alt_num);
+		return;
+	}
+
+	for (i = 0 ; i < npct->soc->npins_altcx ; i++) {
+		if (npct->soc->altcx_pins[i].pin == offset)
+			break;
+	}
+	if (i == npct->soc->npins_altcx) {
+		dev_dbg(npct->dev, "PRCM GPIOCR: pin %i is not found\n",
+			offset);
+		return;
+	}
+
+	pin_desc = npct->soc->altcx_pins + i;
+	gpiocr_regs = npct->soc->prcm_gpiocr_registers;
+
+	/*
+	 * If alt_num is NULL, just clear current ALTCx selection
+	 * to make sure we come back to a pure ALTC selection
+	 */
+	if (!alt_num) {
+		for (i = 0 ; i < PRCM_IDX_GPIOCR_ALTC_MAX ; i++) {
+			if (pin_desc->altcx[i].used == true) {
+				reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
+				bit = pin_desc->altcx[i].control_bit;
+				if (prcmu_read(reg) & BIT(bit)) {
+					prcmu_write_masked(reg, BIT(bit), 0);
+					dev_dbg(npct->dev,
+						"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
+						offset, i+1);
+				}
+			}
+		}
+		return;
+	}
+
+	alt_index = alt_num - 1;
+	if (pin_desc->altcx[alt_index].used == false) {
+		dev_warn(npct->dev,
+			"PRCM GPIOCR: pin %i: alternate-C%i does not exist\n",
+			offset, alt_num);
+		return;
+	}
+
+	/*
+	 * Check if any other ALTCx functions are activated on this pin
+	 * and disable it first.
+	 */
+	for (i = 0 ; i < PRCM_IDX_GPIOCR_ALTC_MAX ; i++) {
+		if (i == alt_index)
+			continue;
+		if (pin_desc->altcx[i].used == true) {
+			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
+			bit = pin_desc->altcx[i].control_bit;
+			if (prcmu_read(reg) & BIT(bit)) {
+				prcmu_write_masked(reg, BIT(bit), 0);
+				dev_dbg(npct->dev,
+					"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
+					offset, i+1);
+			}
+		}
+	}
+
+	reg = gpiocr_regs[pin_desc->altcx[alt_index].reg_index];
+	bit = pin_desc->altcx[alt_index].control_bit;
+	dev_dbg(npct->dev, "PRCM GPIOCR: pin %i: alternate-C%i has been selected\n",
+		offset, alt_index+1);
+	prcmu_write_masked(reg, BIT(bit), BIT(bit));
 }
 
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
@@ -959,7 +1056,7 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	return irq_find_mapping(nmk_chip->domain, offset);
+	return irq_create_mapping(nmk_chip->domain, offset);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1184,6 +1281,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
+	int irq_start = 0;
 	int irq;
 	int ret;
 
@@ -1287,9 +1385,11 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, nmk_chip);
 
-	nmk_chip->domain = irq_domain_add_legacy(np, NMK_GPIO_PER_CHIP,
-						NOMADIK_GPIO_TO_IRQ(pdata->first_gpio),
-						0, &nmk_gpio_irq_simple_ops, nmk_chip);
+	if (!np)
+		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
+	nmk_chip->domain = irq_domain_add_simple(np,
+				NMK_GPIO_PER_CHIP, irq_start,
+				&nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
@@ -1441,7 +1541,7 @@ static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 	 * IOFORCE will switch *all* ports to their sleepmode setting to as
 	 * to avoid glitches. (Not just one port!)
 	 */
-	glitch = (g->altsetting == NMK_GPIO_ALT_C);
+	glitch = ((g->altsetting & NMK_GPIO_ALT_C) == NMK_GPIO_ALT_C);
 
 	if (glitch) {
 		spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
@@ -1491,8 +1591,21 @@ static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 		 */
 		nmk_gpio_disable_lazy_irq(nmk_chip, bit);
 
-		__nmk_gpio_set_mode_safe(nmk_chip, bit, g->altsetting, glitch);
+		__nmk_gpio_set_mode_safe(nmk_chip, bit,
+			(g->altsetting & NMK_GPIO_ALT_C), glitch);
 		clk_disable(nmk_chip->clk);
+
+		/*
+		 * Call PRCM GPIOCR config function in case ALTC
+		 * has been selected:
+		 * - If selection is a ALTCx, some bits in PRCM GPIOCR registers
+		 *   must be set.
+		 * - If selection is pure ALTC and previous selection was ALTCx,
+		 *   then some bits in PRCM GPIOCR registers must be cleared.
+		 */
+		if ((g->altsetting & NMK_GPIO_ALT_C) == NMK_GPIO_ALT_C)
+			nmk_prcm_altcx_set_mode(npct, g->pins[i],
+				g->altsetting >> NMK_GPIO_ALT_CX_SHIFT);
 	}
 
 	/* When all pins are successfully reconfigured we get here */

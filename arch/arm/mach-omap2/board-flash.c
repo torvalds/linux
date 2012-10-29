@@ -218,7 +218,7 @@ void __init board_flash_init(struct flash_partitions partition_info[],
 			if (onenandcs > GPMC_CS_NUM)
 				onenandcs = cs;
 			break;
-		};
+		}
 		cs++;
 	}
 

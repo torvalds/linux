@@ -19,6 +19,9 @@
 #include <linux/clk.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_irq.h>
 
 #include "mv_cesa.h"
 
@@ -1062,7 +1065,10 @@ static int mv_probe(struct platform_device *pdev)
 		goto err_unmap_reg;
 	}
 
-	irq = platform_get_irq(pdev, 0);
+	if (pdev->dev.of_node)
+		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	else
+		irq = platform_get_irq(pdev, 0);
 	if (irq < 0 || irq == NO_IRQ) {
 		ret = irq;
 		goto err_unmap_sram;
@@ -1170,12 +1176,19 @@ static int mv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id mv_cesa_of_match_table[] = {
+	{ .compatible = "marvell,orion-crypto", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, mv_cesa_of_match_table);
+
 static struct platform_driver marvell_crypto = {
 	.probe		= mv_probe,
-	.remove		= mv_remove,
+	.remove		= __devexit_p(mv_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
+		.of_match_table = of_match_ptr(mv_cesa_of_match_table),
 	},
 };
 MODULE_ALIAS("platform:mv_crypto");

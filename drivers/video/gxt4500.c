@@ -156,7 +156,7 @@ struct gxt4500_par {
 static char *mode_option;
 
 /* default mode: 1280x1024 @ 60 Hz, 8 bpp */
-static const struct fb_videomode defaultmode __devinitdata = {
+static const struct fb_videomode defaultmode __devinitconst = {
 	.refresh = 60,
 	.xres = 1280,
 	.yres = 1024,
@@ -581,7 +581,7 @@ static int gxt4500_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static const struct fb_fix_screeninfo gxt4500_fix __devinitdata = {
+static const struct fb_fix_screeninfo gxt4500_fix __devinitconst = {
 	.id = "IBM GXT4500P",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_PSEUDOCOLOR,

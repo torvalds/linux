@@ -637,7 +637,7 @@ bad:
 /*
  * Do a synchronous pool op.
  */
-int ceph_monc_do_poolop(struct ceph_mon_client *monc, u32 op,
+static int do_poolop(struct ceph_mon_client *monc, u32 op,
 			u32 pool, u64 snapid,
 			char *buf, int len)
 {
@@ -687,7 +687,7 @@ out:
 int ceph_monc_create_snapid(struct ceph_mon_client *monc,
 			    u32 pool, u64 *snapid)
 {
-	return ceph_monc_do_poolop(monc,  POOL_OP_CREATE_UNMANAGED_SNAP,
+	return do_poolop(monc,  POOL_OP_CREATE_UNMANAGED_SNAP,
 				   pool, 0, (char *)snapid, sizeof(*snapid));
 
 }
@@ -696,7 +696,7 @@ EXPORT_SYMBOL(ceph_monc_create_snapid);
 int ceph_monc_delete_snapid(struct ceph_mon_client *monc,
 			    u32 pool, u64 snapid)
 {
-	return ceph_monc_do_poolop(monc,  POOL_OP_CREATE_UNMANAGED_SNAP,
+	return do_poolop(monc,  POOL_OP_CREATE_UNMANAGED_SNAP,
 				   pool, snapid, 0, 0);
 
 }
@@ -769,7 +769,6 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		monc->monmap->mon_inst[i].name.num = cpu_to_le64(i);
 	}
 	monc->monmap->num_mon = num_mon;
-	monc->have_fsid = false;
 	return 0;
 }
 

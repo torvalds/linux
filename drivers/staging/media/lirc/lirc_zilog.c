@@ -658,8 +658,7 @@ static int send_data_block(struct IR_tx *tx, unsigned char *data_block)
 		buf[0] = (unsigned char)(i + 1);
 		for (j = 0; j < tosend; ++j)
 			buf[1 + j] = data_block[i + j];
-		dprintk("%02x %02x %02x %02x %02x",
-			buf[0], buf[1], buf[2], buf[3], buf[4]);
+		dprintk("%*ph", 5, buf);
 		ret = i2c_master_send(tx->c, buf, tosend + 1);
 		if (ret != tosend + 1) {
 			zilog_error("i2c_master_send failed with %d\n", ret);

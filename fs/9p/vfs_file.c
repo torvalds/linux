@@ -738,6 +738,7 @@ v9fs_cached_file_write(struct file *filp, const char __user * data,
 static const struct vm_operations_struct v9fs_file_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = v9fs_vm_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
 };
 
 

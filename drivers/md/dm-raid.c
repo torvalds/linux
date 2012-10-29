@@ -338,6 +338,84 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 }
 
 /*
+ * validate_rebuild_devices
+ * @rs
+ *
+ * Determine if the devices specified for rebuild can result in a valid
+ * usable array that is capable of rebuilding the given devices.
+ *
+ * Returns: 0 on success, -EINVAL on failure.
+ */
+static int validate_rebuild_devices(struct raid_set *rs)
+{
+	unsigned i, rebuild_cnt = 0;
+	unsigned rebuilds_per_group, copies, d;
+
+	if (!(rs->print_flags & DMPF_REBUILD))
+		return 0;
+
+	for (i = 0; i < rs->md.raid_disks; i++)
+		if (!test_bit(In_sync, &rs->dev[i].rdev.flags))
+			rebuild_cnt++;
+
+	switch (rs->raid_type->level) {
+	case 1:
+		if (rebuild_cnt >= rs->md.raid_disks)
+			goto too_many;
+		break;
+	case 4:
+	case 5:
+	case 6:
+		if (rebuild_cnt > rs->raid_type->parity_devs)
+			goto too_many;
+		break;
+	case 10:
+		copies = raid10_md_layout_to_copies(rs->md.layout);
+		if (rebuild_cnt < copies)
+			break;
+
+		/*
+		 * It is possible to have a higher rebuild count for RAID10,
+		 * as long as the failed devices occur in different mirror
+		 * groups (i.e. different stripes).
+		 *
+		 * Right now, we only allow for "near" copies.  When other
+		 * formats are added, we will have to check those too.
+		 *
+		 * When checking "near" format, make sure no adjacent devices
+		 * have failed beyond what can be handled.  In addition to the
+		 * simple case where the number of devices is a multiple of the
+		 * number of copies, we must also handle cases where the number
+		 * of devices is not a multiple of the number of copies.
+		 * E.g.    dev1 dev2 dev3 dev4 dev5
+		 *          A    A    B    B    C
+		 *          C    D    D    E    E
+		 */
+		rebuilds_per_group = 0;
+		for (i = 0; i < rs->md.raid_disks * copies; i++) {
+			d = i % rs->md.raid_disks;
+			if (!test_bit(In_sync, &rs->dev[d].rdev.flags) &&
+			    (++rebuilds_per_group >= copies))
+				goto too_many;
+			if (!((i + 1) % copies))
+				rebuilds_per_group = 0;
+		}
+		break;
+	default:
+		DMERR("The rebuild parameter is not supported for %s",
+		      rs->raid_type->name);
+		rs->ti->error = "Rebuild not supported for this RAID type";
+		return -EINVAL;
+	}
+
+	return 0;
+
+too_many:
+	rs->ti->error = "Too many rebuild devices specified";
+	return -EINVAL;
+}
+
+/*
  * Possible arguments are...
  *	<chunk_size> [optional_args]
  *
@@ -365,7 +443,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 {
 	char *raid10_format = "near";
 	unsigned raid10_copies = 2;
-	unsigned i, rebuild_cnt = 0;
+	unsigned i;
 	unsigned long value, region_size = 0;
 	sector_t sectors_per_dev = rs->ti->len;
 	sector_t max_io_len;
@@ -461,31 +539,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 
 		/* Parameters that take a numeric value are checked here */
 		if (!strcasecmp(key, "rebuild")) {
-			rebuild_cnt++;
-
-			switch (rs->raid_type->level) {
-			case 1:
-				if (rebuild_cnt >= rs->md.raid_disks) {
-					rs->ti->error = "Too many rebuild devices specified";
-					return -EINVAL;
-				}
-				break;
-			case 4:
-			case 5:
-			case 6:
-				if (rebuild_cnt > rs->raid_type->parity_devs) {
-					rs->ti->error = "Too many rebuild devices specified for given RAID type";
-					return -EINVAL;
-				}
-				break;
-			case 10:
-			default:
-				DMERR("The rebuild parameter is not supported for %s", rs->raid_type->name);
-				rs->ti->error = "Rebuild not supported for this RAID type";
-				return -EINVAL;
-			}
-
-			if (value > rs->md.raid_disks) {
+			if (value >= rs->md.raid_disks) {
 				rs->ti->error = "Invalid rebuild index given";
 				return -EINVAL;
 			}
@@ -607,6 +661,9 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 		return -EINVAL;
 	}
 	rs->md.dev_sectors = sectors_per_dev;
+
+	if (validate_rebuild_devices(rs))
+		return -EINVAL;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
@@ -960,6 +1017,19 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 
 	freshest = NULL;
 	rdev_for_each_safe(rdev, tmp, mddev) {
+		/*
+		 * Skipping super_load due to DMPF_SYNC will cause
+		 * the array to undergo initialization again as
+		 * though it were new.  This is the intended effect
+		 * of the "sync" directive.
+		 *
+		 * When reshaping capability is added, we must ensure
+		 * that the "sync" directive is disallowed during the
+		 * reshape.
+		 */
+		if (rs->print_flags & DMPF_SYNC)
+			continue;
+
 		if (!rdev->meta_bdev)
 			continue;
 
@@ -1360,7 +1430,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 3, 0},
+	.version = {1, 3, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

@@ -74,7 +74,12 @@ not transmitted yet. I/O returns to the same state as after calling
 stream type. This is the same as &v4l2-requestbuffers;
 <structfield>type</structfield>.</para>
 
-    <para>Note applications can be preempted for unknown periods right
+    <para>If <constant>VIDIOC_STREAMON</constant> is called when streaming
+is already in progress, or if <constant>VIDIOC_STREAMOFF</constant> is called
+when streaming is already stopped, then the ioctl does nothing and 0 is
+returned.</para>
+
+    <para>Note that applications can be preempted for unknown periods right
 before or after the <constant>VIDIOC_STREAMON</constant> or
 <constant>VIDIOC_STREAMOFF</constant> calls, there is no notion of
 starting or stopping "now". Buffer timestamps can be used to

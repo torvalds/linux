@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/clk.h>
 #include <video/vga.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/arch.h>
@@ -182,18 +183,22 @@ static struct hw_pci dove_pci __initdata = {
 	.map_irq	= dove_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int index, unsigned long base)
+static void __init add_pcie_port(int index, void __iomem *base)
 {
 	printk(KERN_INFO "Dove PCIe port %d: ", index);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
+	if (orion_pcie_link_up(base)) {
 		struct pcie_port *pp = &pcie_port[num_pcie_ports++];
+		struct clk *clk = clk_get_sys("pcie", (index ? "1" : "0"));
+
+		if (!IS_ERR(clk))
+			clk_prepare_enable(clk);
 
 		printk(KERN_INFO "link up\n");
 
 		pp->index = index;
 		pp->root_bus_nr = -1;
-		pp->base = (void __iomem *)base;
+		pp->base = base;
 		spin_lock_init(&pp->conf_lock);
 		memset(&pp->res, 0, sizeof(pp->res));
 	} else {

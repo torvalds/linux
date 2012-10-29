@@ -100,35 +100,6 @@ void cpu_idle(void)
 
 extern void __kprobes kernel_thread_starter(void);
 
-asm(
-	".section .kprobes.text, \"ax\"\n"
-	".global kernel_thread_starter\n"
-	"kernel_thread_starter:\n"
-	"    la    2,0(10)\n"
-	"    basr  14,9\n"
-	"    la    2,0\n"
-	"    br    11\n"
-	".previous\n");
-
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.psw.mask = psw_kernel_bits |
-		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	regs.psw.addr = (unsigned long) kernel_thread_starter | PSW_ADDR_AMODE;
-	regs.gprs[9] = (unsigned long) fn;
-	regs.gprs[10] = (unsigned long) arg;
-	regs.gprs[11] = (unsigned long) do_exit;
-	regs.orig_gpr2 = -1;
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED,
-		       0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
 /*
  * Free current thread data structures etc..
  */
@@ -146,7 +117,7 @@ void release_thread(struct task_struct *dead_task)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
-		unsigned long unused,
+		unsigned long arg,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *ti;
@@ -158,20 +129,44 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 	frame = container_of(task_pt_regs(p), struct fake_frame, childregs);
 	p->thread.ksp = (unsigned long) frame;
-	/* Store access registers to kernel stack of new process. */
-	frame->childregs = *regs;
-	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
-	frame->childregs.gprs[15] = new_stackp;
-	frame->sf.back_chain = 0;
+	/* Save access registers to new thread structure. */
+	save_access_regs(&p->thread.acrs[0]);
+	/* start new process with ar4 pointing to the correct address space */
+	p->thread.mm_segment = get_fs();
+	/* Don't copy debug registers */
+	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
+	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
+	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(p, TIF_PER_TRAP);
+	/* Initialize per thread user and system timer values */
+	ti = task_thread_info(p);
+	ti->user_timer = 0;
+	ti->system_timer = 0;
 
+	frame->sf.back_chain = 0;
 	/* new return point is ret_from_fork */
 	frame->sf.gprs[8] = (unsigned long) ret_from_fork;
-
 	/* fake return stack for resume(), don't go back to schedule */
 	frame->sf.gprs[9] = (unsigned long) frame;
 
-	/* Save access registers to new thread structure. */
-	save_access_regs(&p->thread.acrs[0]);
+	/* Store access registers to kernel stack of new process. */
+	if (unlikely(!regs)) {
+		/* kernel thread */
+		memset(&frame->childregs, 0, sizeof(struct pt_regs));
+		frame->childregs.psw.mask = psw_kernel_bits | PSW_MASK_DAT |
+				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
+		frame->childregs.psw.addr = PSW_ADDR_AMODE |
+				(unsigned long) kernel_thread_starter;
+		frame->childregs.gprs[9] = new_stackp; /* function */
+		frame->childregs.gprs[10] = arg;
+		frame->childregs.gprs[11] = (unsigned long) do_exit;
+		frame->childregs.orig_gpr2 = -1;
+
+		return 0;
+	}
+	frame->childregs = *regs;
+	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
+	frame->childregs.gprs[15] = new_stackp;
 
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
@@ -202,17 +197,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		}
 	}
 #endif /* CONFIG_64BIT */
-	/* start new process with ar4 pointing to the correct address space */
-	p->thread.mm_segment = get_fs();
-	/* Don't copy debug registers */
-	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
-	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
-	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
-	clear_tsk_thread_flag(p, TIF_PER_TRAP);
-	/* Initialize per thread user and system timer values */
-	ti = task_thread_info(p);
-	ti->user_timer = 0;
-	ti->system_timer = 0;
 	return 0;
 }
 
@@ -255,31 +239,6 @@ asmlinkage void execve_tail(void)
 	current->thread.fp_regs.fpc = 0;
 	if (MACHINE_HAS_IEEE)
 		asm volatile("sfpc %0,%0" : : "d" (0));
-}
-
-/*
- * sys_execve() executes a new program.
- */
-SYSCALL_DEFINE3(execve, const char __user *, name,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	char *filename;
-	long rc;
-
-	filename = getname(name);
-	rc = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return rc;
-	rc = do_execve(filename, argv, envp, regs);
-	if (rc)
-		goto out;
-	execve_tail();
-	rc = regs->gprs[2];
-out:
-	putname(filename);
-	return rc;
 }
 
 /*

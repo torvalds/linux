@@ -203,7 +203,7 @@ static int vidioc_g_modulator(struct file *file, void *priv,
 }
 
 static int vidioc_s_modulator(struct file *file, void *priv,
-				struct v4l2_modulator *v)
+				const struct v4l2_modulator *v)
 {
 	struct keene_device *radio = video_drvdata(file);
 

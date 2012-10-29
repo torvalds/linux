@@ -295,7 +295,7 @@ MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
 static const struct chip_info {
 	const char *name;
 	int drv_flags;
-} netdrv_tbl[] __devinitdata = {
+} netdrv_tbl[] __devinitconst = {
 	{ "Adaptec Starfire 6915", CanHaveMII },
 };
 

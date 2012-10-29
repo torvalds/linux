@@ -683,27 +683,26 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 				      void *priv,
 				      struct i2c_adapter *i2c)
 {
-	struct cxd *ci = 0;
+	struct cxd *ci;
 	u8 val;
 
 	if (i2c_read_reg(i2c, cfg->adr, 0, &val) < 0) {
 		printk(KERN_INFO "No CXD2099 detected at %02x\n", cfg->adr);
-		return 0;
+		return NULL;
 	}
 
-	ci = kmalloc(sizeof(struct cxd), GFP_KERNEL);
+	ci = kzalloc(sizeof(struct cxd), GFP_KERNEL);
 	if (!ci)
-		return 0;
-	memset(ci, 0, sizeof(*ci));
+		return NULL;
 
 	mutex_init(&ci->lock);
-	memcpy(&ci->cfg, cfg, sizeof(struct cxd2099_cfg));
+	ci->cfg = *cfg;
 	ci->i2c = i2c;
 	ci->lastaddress = 0xff;
 	ci->clk_reg_b = 0x4a;
 	ci->clk_reg_f = 0x1b;
 
-	memcpy(&ci->en, &en_templ, sizeof(en_templ));
+	ci->en = en_templ;
 	ci->en.data = ci;
 	init(ci);
 	printk(KERN_INFO "Attached CXD2099AR at %02x\n", ci->cfg.adr);

@@ -122,13 +122,14 @@ int match_token(char *s, const match_table_t table, substring_t args[])
  *
  * Description: Given a &substring_t and a base, attempts to parse the substring
  * as a number in that base. On success, sets @result to the integer represented
- * by the string and returns 0. Returns either -ENOMEM or -EINVAL on failure.
+ * by the string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
  */
 static int match_number(substring_t *s, int *result, int base)
 {
 	char *endp;
 	char *buf;
 	int ret;
+	long val;
 	size_t len = s->to - s->from;
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
@@ -136,10 +137,15 @@ static int match_number(substring_t *s, int *result, int base)
 		return -ENOMEM;
 	memcpy(buf, s->from, len);
 	buf[len] = '\0';
-	*result = simple_strtol(buf, &endp, base);
+
 	ret = 0;
+	val = simple_strtol(buf, &endp, base);
 	if (endp == buf)
 		ret = -EINVAL;
+	else if (val < (long)INT_MIN || val > (long)INT_MAX)
+		ret = -ERANGE;
+	else
+		*result = (int) val;
 	kfree(buf);
 	return ret;
 }

@@ -247,7 +247,7 @@ static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 }
 #endif /* CONFIG_PPC_MPC512x */
 
-static struct of_device_id mpc5xxx_can_table[];
+static const struct of_device_id mpc5xxx_can_table[];
 static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -380,17 +380,17 @@ static int mpc5xxx_can_resume(struct platform_device *ofdev)
 }
 #endif
 
-static const struct mpc5xxx_can_data __devinitdata mpc5200_can_data = {
+static const struct mpc5xxx_can_data __devinitconst mpc5200_can_data = {
 	.type = MSCAN_TYPE_MPC5200,
 	.get_clock = mpc52xx_can_get_clock,
 };
 
-static const struct mpc5xxx_can_data __devinitdata mpc5121_can_data = {
+static const struct mpc5xxx_can_data __devinitconst mpc5121_can_data = {
 	.type = MSCAN_TYPE_MPC5121,
 	.get_clock = mpc512x_can_get_clock,
 };
 
-static struct of_device_id __devinitdata mpc5xxx_can_table[] = {
+static const struct of_device_id __devinitconst mpc5xxx_can_table[] = {
 	{ .compatible = "fsl,mpc5200-mscan", .data = &mpc5200_can_data, },
 	/* Note that only MPC5121 Rev. 2 (and later) is supported */
 	{ .compatible = "fsl,mpc5121-mscan", .data = &mpc5121_can_data, },

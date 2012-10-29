@@ -478,7 +478,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 		pr_err("no resource\n");
 		goto no_resource;
 	}
-	if (request_resource(&ioport_resource, etsects->rsrc)) {
+	if (request_resource(&iomem_resource, etsects->rsrc)) {
 		pr_err("resource busy\n");
 		goto no_resource;
 	}

@@ -6,6 +6,7 @@ Required properties:
 - interrupts: Should contain ERROR and DMA interrupts
 - clock-frequency: Desired I2C bus clock frequency in Hz.
                    Only 100000Hz and 400000Hz modes are supported.
+- fsl,i2c-dma-channel: APBX DMA channel for the I2C
 
 Examples:
 
@@ -16,4 +17,5 @@ i2c0: i2c@80058000 {
 	reg = <0x80058000 2000>;
 	interrupts = <111 68>;
 	clock-frequency = <100000>;
+	fsl,i2c-dma-channel = <6>;
 };

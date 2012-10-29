@@ -1892,8 +1892,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		max_speed = 4;
 	else if (phba->lmt & LMT_2Gb)
 		max_speed = 2;
-	else
+	else if (phba->lmt & LMT_1Gb)
 		max_speed = 1;
+	else
+		max_speed = 0;
 
 	vp = &phba->vpd;
 
@@ -2078,9 +2080,13 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	if (descp && descp[0] == '\0') {
 		if (oneConnect)
 			snprintf(descp, 255,
-				"Emulex OneConnect %s, %s Initiator, Port %s",
+				"Emulex OneConnect %s, %s Initiator %s",
 				m.name, m.function,
 				phba->Port);
+		else if (max_speed == 0)
+			snprintf(descp, 255,
+				"Emulex %s %s %s ",
+				m.name, m.bus, m.function);
 		else
 			snprintf(descp, 255,
 				"Emulex %s %d%s %s %s",
@@ -3502,6 +3508,119 @@ lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli_port_speed_get - Get sli3 link speed code to link speed
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to get an SLI3 FC port's link speed in Mbps.
+ *
+ * Return: link speed in terms of Mbps.
+ **/
+uint32_t
+lpfc_sli_port_speed_get(struct lpfc_hba *phba)
+{
+	uint32_t link_speed;
+
+	if (!lpfc_is_link_up(phba))
+		return 0;
+
+	switch (phba->fc_linkspeed) {
+	case LPFC_LINK_SPEED_1GHZ:
+		link_speed = 1000;
+		break;
+	case LPFC_LINK_SPEED_2GHZ:
+		link_speed = 2000;
+		break;
+	case LPFC_LINK_SPEED_4GHZ:
+		link_speed = 4000;
+		break;
+	case LPFC_LINK_SPEED_8GHZ:
+		link_speed = 8000;
+		break;
+	case LPFC_LINK_SPEED_10GHZ:
+		link_speed = 10000;
+		break;
+	case LPFC_LINK_SPEED_16GHZ:
+		link_speed = 16000;
+		break;
+	default:
+		link_speed = 0;
+	}
+	return link_speed;
+}
+
+/**
+ * lpfc_sli4_port_speed_parse - Parse async evt link speed code to link speed
+ * @phba: pointer to lpfc hba data structure.
+ * @evt_code: asynchronous event code.
+ * @speed_code: asynchronous event link speed code.
+ *
+ * This routine is to parse the giving SLI4 async event link speed code into
+ * value of Mbps for the link speed.
+ *
+ * Return: link speed in terms of Mbps.
+ **/
+static uint32_t
+lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
+			   uint8_t speed_code)
+{
+	uint32_t port_speed;
+
+	switch (evt_code) {
+	case LPFC_TRAILER_CODE_LINK:
+		switch (speed_code) {
+		case LPFC_EVT_CODE_LINK_NO_LINK:
+			port_speed = 0;
+			break;
+		case LPFC_EVT_CODE_LINK_10_MBIT:
+			port_speed = 10;
+			break;
+		case LPFC_EVT_CODE_LINK_100_MBIT:
+			port_speed = 100;
+			break;
+		case LPFC_EVT_CODE_LINK_1_GBIT:
+			port_speed = 1000;
+			break;
+		case LPFC_EVT_CODE_LINK_10_GBIT:
+			port_speed = 10000;
+			break;
+		default:
+			port_speed = 0;
+		}
+		break;
+	case LPFC_TRAILER_CODE_FC:
+		switch (speed_code) {
+		case LPFC_EVT_CODE_FC_NO_LINK:
+			port_speed = 0;
+			break;
+		case LPFC_EVT_CODE_FC_1_GBAUD:
+			port_speed = 1000;
+			break;
+		case LPFC_EVT_CODE_FC_2_GBAUD:
+			port_speed = 2000;
+			break;
+		case LPFC_EVT_CODE_FC_4_GBAUD:
+			port_speed = 4000;
+			break;
+		case LPFC_EVT_CODE_FC_8_GBAUD:
+			port_speed = 8000;
+			break;
+		case LPFC_EVT_CODE_FC_10_GBAUD:
+			port_speed = 10000;
+			break;
+		case LPFC_EVT_CODE_FC_16_GBAUD:
+			port_speed = 16000;
+			break;
+		default:
+			port_speed = 0;
+		}
+		break;
+	default:
+		port_speed = 0;
+	}
+	return port_speed;
+}
+
+/**
  * lpfc_sli4_async_link_evt - Process the asynchronous FCoE link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
@@ -3558,7 +3677,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
-				bf_get(lpfc_acqe_link_speed, acqe_link);
+			lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_LINK,
+				bf_get(lpfc_acqe_link_speed, acqe_link));
 	phba->sli4_hba.link_state.duplex =
 				bf_get(lpfc_acqe_link_duplex, acqe_link);
 	phba->sli4_hba.link_state.status =
@@ -3570,7 +3690,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_link);
 	phba->sli4_hba.link_state.logical_speed =
-			bf_get(lpfc_acqe_logical_link_speed, acqe_link);
+			bf_get(lpfc_acqe_logical_link_speed, acqe_link) * 10;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2900 Async FC/FCoE Link event - Speed:%dGBit "
 			"duplex:x%x LA Type:x%x Port Type:%d Port Number:%d "
@@ -3580,7 +3701,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
-			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.logical_speed,
 			phba->sli4_hba.link_state.fault);
 	/*
 	 * For FC Mode: issue the READ_TOPOLOGY mailbox command to fetch
@@ -3652,7 +3773,8 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	}
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
-				bf_get(lpfc_acqe_fc_la_speed, acqe_fc);
+			lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_FC,
+				bf_get(lpfc_acqe_fc_la_speed, acqe_fc));
 	phba->sli4_hba.link_state.duplex = LPFC_ASYNC_LINK_DUPLEX_FULL;
 	phba->sli4_hba.link_state.topology =
 				bf_get(lpfc_acqe_fc_la_topology, acqe_fc);
@@ -3665,7 +3787,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
 	phba->sli4_hba.link_state.logical_speed =
-				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc);
+				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
@@ -3675,7 +3797,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
-			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.logical_speed,
 			phba->sli4_hba.link_state.fault);
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -3783,14 +3905,18 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	case LPFC_SLI_EVENT_STATUS_VALID:
 		return; /* no message if the sfp is okay */
 	case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
-		sprintf(message, "Not installed");
+		sprintf(message, "Optics faulted/incorrectly installed/not " \
+				"installed - Reseat optics, if issue not "
+				"resolved, replace.");
 		break;
 	case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
 		sprintf(message,
-			"Optics of two types installed");
+			"Optics of two types installed - Remove one optic or " \
+			"install matching pair of optics.");
 		break;
 	case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
-		sprintf(message, "Incompatible optics");
+		sprintf(message, "Incompatible optics - Replace with " \
+				"compatible optics for card to function.");
 		break;
 	default:
 		/* firmware is reporting a status we don't know about */
@@ -4161,11 +4287,11 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 	phba->fcoe_eventtag = acqe_grp5->event_tag;
 	prev_ll_spd = phba->sli4_hba.link_state.logical_speed;
 	phba->sli4_hba.link_state.logical_speed =
-		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5));
+		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5)) * 10;
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2789 GRP5 Async Event: Updating logical link speed "
-			"from %dMbps to %dMbps\n", (prev_ll_spd * 10),
-			(phba->sli4_hba.link_state.logical_speed*10));
+			"from %dMbps to %dMbps\n", prev_ll_spd,
+			phba->sli4_hba.link_state.logical_speed);
 }
 
 /**
@@ -4947,7 +5073,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	phba->sli4_hba.msix_entries = kzalloc((sizeof(struct msix_entry) *
-				      phba->sli4_hba.cfg_eqn), GFP_KERNEL);
+				      phba->cfg_fcp_io_channel), GFP_KERNEL);
 	if (!phba->sli4_hba.msix_entries) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2573 Failed allocate memory for msi-x "
@@ -6559,7 +6685,8 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 		i++;
 	}
 	if (i < cfg_fcp_io_channel) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+		lpfc_printf_log(phba,
+				KERN_ERR, LOG_INIT,
 				"3188 Reducing IO channels to match number of "
 				"CPUs: from %d to %d\n", cfg_fcp_io_channel, i);
 		cfg_fcp_io_channel = i;
@@ -6567,8 +6694,8 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 
 	if (cfg_fcp_io_channel >
 	    phba->sli4_hba.max_cfg_param.max_eq) {
-		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
-		if (cfg_fcp_io_channel < LPFC_FCP_IO_CHAN_MIN) {
+		if (phba->sli4_hba.max_cfg_param.max_eq <
+		    LPFC_FCP_IO_CHAN_MIN) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2574 Not enough EQs (%d) from the "
 					"pci function for supporting FCP "
@@ -6577,13 +6704,12 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 					phba->cfg_fcp_io_channel);
 			goto out_error;
 		}
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2575 Not enough EQs (%d) from the pci "
-				"function for supporting the requested "
-				"FCP EQs (%d), the actual FCP EQs can "
-				"be supported: %d\n",
-				phba->sli4_hba.max_cfg_param.max_eq,
-				phba->cfg_fcp_io_channel, cfg_fcp_io_channel);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2575 Reducing IO channels to match number of "
+				"available EQs: from %d to %d\n",
+				cfg_fcp_io_channel,
+				phba->sli4_hba.max_cfg_param.max_eq);
+		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
 	}
 
 	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
@@ -6592,7 +6718,6 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	phba->cfg_fcp_eq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_wq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_io_channel = cfg_fcp_io_channel;
-	phba->sli4_hba.cfg_eqn = cfg_fcp_io_channel;
 
 	/* Get EQ depth from module parameter, fake the default for now */
 	phba->sli4_hba.eq_esize = LPFC_EQE_SIZE_4B;
@@ -8095,11 +8220,11 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	int vectors, rc, index;
 
 	/* Set up MSI-X multi-message vectors */
-	for (index = 0; index < phba->sli4_hba.cfg_eqn; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
 		phba->sli4_hba.msix_entries[index].entry = index;
 
 	/* Configure MSI-X capability structure */
-	vectors = phba->sli4_hba.cfg_eqn;
+	vectors = phba->cfg_fcp_io_channel;
 enable_msix_vectors:
 	rc = pci_enable_msix(phba->pcidev, phba->sli4_hba.msix_entries,
 			     vectors);
@@ -8142,8 +8267,14 @@ enable_msix_vectors:
 			goto cfg_fail_out;
 		}
 	}
-	phba->sli4_hba.msix_vec_nr = vectors;
 
+	if (vectors != phba->cfg_fcp_io_channel) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3238 Reducing IO channels to match number of "
+				"MSI-X vectors, requested %d got %d\n",
+				phba->cfg_fcp_io_channel, vectors);
+		phba->cfg_fcp_io_channel = vectors;
+	}
 	return rc;
 
 cfg_fail_out:
@@ -8171,7 +8302,7 @@ lpfc_sli4_disable_msix(struct lpfc_hba *phba)
 	int index;
 
 	/* Free up MSI-X multi-message vectors */
-	for (index = 0; index < phba->sli4_hba.msix_vec_nr; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
 
@@ -9304,22 +9435,27 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 
 /**
  * lpfc_write_firmware - attempt to write a firmware image to the port
- * @phba: pointer to lpfc hba data structure.
  * @fw: pointer to firmware image returned from request_firmware.
+ * @phba: pointer to lpfc hba data structure.
  *
- * returns the number of bytes written if write is successful.
- * returns a negative error value if there were errors.
- * returns 0 if firmware matches currently active firmware on port.
  **/
-int
-lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
+static void
+lpfc_write_firmware(const struct firmware *fw, void *context)
 {
+	struct lpfc_hba *phba = (struct lpfc_hba *)context;
 	char fwrev[FW_REV_STR_SIZE];
-	struct lpfc_grp_hdr *image = (struct lpfc_grp_hdr *)fw->data;
+	struct lpfc_grp_hdr *image;
 	struct list_head dma_buffer_list;
 	int i, rc = 0;
 	struct lpfc_dmabuf *dmabuf, *next;
 	uint32_t offset = 0, temp_offset = 0;
+
+	/* It can be null, sanity check */
+	if (!fw) {
+		rc = -ENXIO;
+		goto out;
+	}
+	image = (struct lpfc_grp_hdr *)fw->data;
 
 	INIT_LIST_HEAD(&dma_buffer_list);
 	if ((be32_to_cpu(image->magic_number) != LPFC_GROUP_OJECT_MAGIC_NUM) ||
@@ -9333,12 +9469,13 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 				be32_to_cpu(image->magic_number),
 				bf_get_be32(lpfc_grp_hdr_file_type, image),
 				bf_get_be32(lpfc_grp_hdr_id, image));
-		return -EINVAL;
+		rc = -EINVAL;
+		goto release_out;
 	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
 	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3023 Updating Firmware. Current Version:%s "
+				"3023 Updating Firmware, Current Version:%s "
 				"New Version:%s\n",
 				fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
@@ -9346,7 +9483,7 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 					 GFP_KERNEL);
 			if (!dmabuf) {
 				rc = -ENOMEM;
-				goto out;
+				goto release_out;
 			}
 			dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
 							  SLI4_PAGE_SIZE,
@@ -9355,7 +9492,7 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 			if (!dmabuf->virt) {
 				kfree(dmabuf);
 				rc = -ENOMEM;
-				goto out;
+				goto release_out;
 			}
 			list_add_tail(&dmabuf->list, &dma_buffer_list);
 		}
@@ -9375,23 +9512,24 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 			}
 			rc = lpfc_wr_object(phba, &dma_buffer_list,
 				    (fw->size - offset), &offset);
-			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"3024 Firmware update failed. "
-						"%d\n", rc);
-				goto out;
-			}
+			if (rc)
+				goto release_out;
 		}
 		rc = offset;
 	}
-out:
+
+release_out:
 	list_for_each_entry_safe(dmabuf, next, &dma_buffer_list, list) {
 		list_del(&dmabuf->list);
 		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 				  dmabuf->virt, dmabuf->phys);
 		kfree(dmabuf);
 	}
-	return rc;
+	release_firmware(fw);
+out:
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"3024 Firmware update done: %d.", rc);
+	return;
 }
 
 /**
@@ -9418,12 +9556,11 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct lpfc_hba   *phba;
 	struct lpfc_vport *vport = NULL;
 	struct Scsi_Host  *shost = NULL;
-	int error;
+	int error, ret;
 	uint32_t cfg_mode, intr_mode;
 	int mcnt;
 	int adjusted_fcp_io_channel;
-	const struct firmware *fw;
-	uint8_t file_name[16];
+	uint8_t file_name[ELX_MODEL_NAME_SIZE];
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -9525,9 +9662,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		/* Default to single EQ for non-MSI-X */
 		if (phba->intr_type != MSIX)
 			adjusted_fcp_io_channel = 1;
-		else if (phba->sli4_hba.msix_vec_nr <
-					phba->cfg_fcp_io_channel)
-			adjusted_fcp_io_channel = phba->sli4_hba.msix_vec_nr;
 		else
 			adjusted_fcp_io_channel = phba->cfg_fcp_io_channel;
 		phba->cfg_fcp_io_channel = adjusted_fcp_io_channel;
@@ -9572,12 +9706,12 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* check for firmware upgrade or downgrade (if_type 2 only) */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
 	    LPFC_SLI_INTF_IF_TYPE_2) {
-		snprintf(file_name, 16, "%s.grp", phba->ModelName);
-		error = request_firmware(&fw, file_name, &phba->pcidev->dev);
-		if (!error) {
-			lpfc_write_firmware(phba, fw);
-			release_firmware(fw);
-		}
+		snprintf(file_name, ELX_MODEL_NAME_SIZE, "%s.grp",
+			 phba->ModelName);
+		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+					file_name, &phba->pcidev->dev,
+					GFP_KERNEL, (void *)phba,
+					lpfc_write_firmware);
 	}
 
 	/* Check if there are static vports to be created. */

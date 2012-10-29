@@ -124,6 +124,16 @@ static void led_timer_function(unsigned long data)
 	mod_timer(&led_cdev->blink_timer, jiffies + msecs_to_jiffies(delay));
 }
 
+static void set_brightness_delayed(struct work_struct *ws)
+{
+	struct led_classdev *led_cdev =
+		container_of(ws, struct led_classdev, set_brightness_work);
+
+	led_stop_software_blink(led_cdev);
+
+	__led_set_brightness(led_cdev, led_cdev->delayed_set_value);
+}
+
 /**
  * led_classdev_suspend - suspend an led_classdev.
  * @led_cdev: the led_classdev to suspend.
@@ -191,6 +201,8 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 
 	led_update_brightness(led_cdev);
 
+	INIT_WORK(&led_cdev->set_brightness_work, set_brightness_delayed);
+
 	init_timer(&led_cdev->blink_timer);
 	led_cdev->blink_timer.function = led_timer_function;
 	led_cdev->blink_timer.data = (unsigned long)led_cdev;
@@ -221,7 +233,10 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	up_write(&led_cdev->trigger_lock);
 #endif
 
+	cancel_work_sync(&led_cdev->set_brightness_work);
+
 	/* Stop blinking */
+	led_stop_software_blink(led_cdev);
 	led_set_brightness(led_cdev, LED_OFF);
 
 	device_unregister(led_cdev->dev);

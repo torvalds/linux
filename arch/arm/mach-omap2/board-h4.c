@@ -265,9 +265,9 @@ static inline void __init h4_init_debug(void)
 		return;
 	}
 
-	clk_enable(gpmc_fck);
+	clk_prepare_enable(gpmc_fck);
 	rate = clk_get_rate(gpmc_fck);
-	clk_disable(gpmc_fck);
+	clk_disable_unprepare(gpmc_fck);
 	clk_put(gpmc_fck);
 
 	if (is_gpmc_muxed())
@@ -311,7 +311,7 @@ static inline void __init h4_init_debug(void)
 		gpmc_cs_free(eth_cs);
 
 out:
-	clk_disable(gpmc_fck);
+	clk_disable_unprepare(gpmc_fck);
 	clk_put(gpmc_fck);
 }
 

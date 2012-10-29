@@ -97,7 +97,6 @@ struct thread_info *current_thread_info(void)
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_RESTORE_SIGMASK	4	/* restore signal mask in do_signal() */
 
-#define TIF_POLLING_NRFLAG	16	/* true if polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		17	/* OOM killer killed process */
 
 #define TIF_WORK_MASK		0x00007FFE /* work on irq/exception return */

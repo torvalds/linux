@@ -1005,7 +1005,7 @@ static void __queue_cap_release(struct ceph_mds_session *session,
 
 	BUG_ON(msg->front.iov_len + sizeof(*item) > PAGE_CACHE_SIZE);
 	head = msg->front.iov_base;
-	head->num = cpu_to_le32(le32_to_cpu(head->num) + 1);
+	le32_add_cpu(&head->num, 1);
 	item = msg->front.iov_base + msg->front.iov_len;
 	item->ino = cpu_to_le64(ino);
 	item->cap_id = cpu_to_le64(cap_id);

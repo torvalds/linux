@@ -2,6 +2,7 @@ config PPC_MPC512x
 	bool "512x-based boards"
 	depends on 6xx
 	select FSL_SOC
+	select FB_FSL_DIU
 	select IPIC
 	select PPC_CLOCK
 	select PPC_PCI_CHOICE

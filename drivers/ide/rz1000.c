@@ -38,7 +38,7 @@ static int __devinit rz1000_disable_readahead(struct pci_dev *dev)
 	}
 }
 
-static const struct ide_port_info rz1000_chipset __devinitdata = {
+static const struct ide_port_info rz1000_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.host_flags	= IDE_HFLAG_NO_DMA,
 };

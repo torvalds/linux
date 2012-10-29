@@ -70,7 +70,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (!ev.pulse)
 			break;
 
-		if (eq_margin(ev.duration, NEC_HEADER_PULSE, NEC_UNIT / 2)) {
+		if (eq_margin(ev.duration, NEC_HEADER_PULSE, NEC_UNIT * 2)) {
 			data->is_nec_x = false;
 			data->necx_repeat = false;
 		} else if (eq_margin(ev.duration, NECX_HEADER_PULSE, NEC_UNIT / 2))
@@ -86,7 +86,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (ev.pulse)
 			break;
 
-		if (eq_margin(ev.duration, NEC_HEADER_SPACE, NEC_UNIT / 2)) {
+		if (eq_margin(ev.duration, NEC_HEADER_SPACE, NEC_UNIT)) {
 			data->state = STATE_BIT_PULSE;
 			return 0;
 		} else if (eq_margin(ev.duration, NEC_REPEAT_SPACE, NEC_UNIT / 2)) {

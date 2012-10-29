@@ -22,6 +22,10 @@ Required properties:
 - vinldo678-supply: The input supply for the LDO6, LDO7 and LDO8
 - vinldo9-supply: The input supply for the LDO9
 
+Optional properties:
+- ti,system-power-controller: Telling whether or not this pmic is controlling
+  the system power.
+
 Each regulator is defined using the standard binding for regulators.
 
 Note: LDO5 and LDO_RTC is supplied by SYS regulator internally and driver
@@ -36,6 +40,8 @@ Example:
 
 		#gpio-cells = <2>;
 		gpio-controller;
+
+		ti,system-power-controller;
 
 		sys-supply = <&some_reg>;
 		vin-sm0-supply = <&some_reg>;

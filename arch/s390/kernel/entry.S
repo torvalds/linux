@@ -331,45 +331,38 @@ ENTRY(ret_from_fork)
 	l	%r12,__LC_THREAD_INFO
 	l	%r13,__LC_SVC_NEW_PSW+4
 	tm	__PT_PSW+1(%r11),0x01	# forking a kernel thread ?
-	jo	0f
-	st	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
-0:	l	%r1,BASED(.Lschedule_tail)
+	je	1f
+	l	%r1,BASED(.Lschedule_tail)
 	basr	%r14,%r1		# call schedule_tail
 	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	j	sysc_tracenogo
 
+1:	# it's a kernel thread
+	st	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
+	l	%r1,BASED(.Lschedule_tail)
+	basr	%r14,%r1		# call schedule_tail
+	TRACE_IRQS_ON
+	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
+	lm	%r9,%r11,__PT_R9(%r11)	# load gprs
+ENTRY(kernel_thread_starter)
+	la	%r2,0(%r10)
+	basr	%r14,%r9
+	la	%r2,0
+	br	%r11			# do_exit
+
 #
 # kernel_execve function needs to deal with pt_regs that is not
 # at the usual place
 #
-ENTRY(kernel_execve)
-	stm	%r12,%r15,48(%r15)
-	lr	%r14,%r15
-	l	%r13,__LC_SVC_NEW_PSW+4
-	ahi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	st	%r14,__SF_BACKCHAIN(%r15)
-	la	%r12,STACK_FRAME_OVERHEAD(%r15)
-	xc	0(__PT_SIZE,%r12),0(%r12)
-	l	%r1,BASED(.Ldo_execve)
-	lr	%r5,%r12
-	basr	%r14,%r1		# call do_execve
-	ltr	%r2,%r2
-	je	0f
-	ahi	%r15,(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	lm	%r12,%r15,48(%r15)
-	br	%r14
-	# execve succeeded.
-0:	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
-	l	%r15,__LC_KERNEL_STACK	# load ksp
-	ahi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	mvc	0(__PT_SIZE,%r11),0(%r12)	# copy pt_regs
-	l	%r12,__LC_THREAD_INFO
+ENTRY(ret_from_kernel_execve)
+	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
+	lr	%r15,%r2
+	lr	%r11,%r2
+	ahi	%r15,-STACK_FRAME_OVERHEAD
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
+	l	%r12,__LC_THREAD_INFO
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	l	%r1,BASED(.Lexecve_tail)
-	basr	%r14,%r1		# call execve_tail
 	j	sysc_return
 
 /*
@@ -931,8 +924,6 @@ cleanup_idle_wait:
 .Ldo_signal:		.long	do_signal
 .Ldo_notify_resume:	.long	do_notify_resume
 .Ldo_per_trap:		.long	do_per_trap
-.Ldo_execve:		.long	do_execve
-.Lexecve_tail:		.long	execve_tail
 .Ljump_table:		.long	pgm_check_table
 .Lschedule:		.long	schedule
 #ifdef CONFIG_PREEMPT

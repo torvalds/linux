@@ -29,6 +29,20 @@
 
 #ifndef __GENALLOC_H__
 #define __GENALLOC_H__
+/**
+ * Allocation callback function type definition
+ * @map: Pointer to bitmap
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: optional additional data used by @genpool_algo_t
+ */
+typedef unsigned long (*genpool_algo_t)(unsigned long *map,
+			unsigned long size,
+			unsigned long start,
+			unsigned int nr,
+			void *data);
+
 /*
  *  General purpose special memory pool descriptor.
  */
@@ -36,6 +50,9 @@ struct gen_pool {
 	spinlock_t lock;
 	struct list_head chunks;	/* list of chunks in this pool */
 	int min_alloc_order;		/* minimum allocation order */
+
+	genpool_algo_t algo;		/* allocation function */
+	void *data;
 };
 
 /*
@@ -78,4 +95,14 @@ extern void gen_pool_for_each_chunk(struct gen_pool *,
 	void (*)(struct gen_pool *, struct gen_pool_chunk *, void *), void *);
 extern size_t gen_pool_avail(struct gen_pool *);
 extern size_t gen_pool_size(struct gen_pool *);
+
+extern void gen_pool_set_algo(struct gen_pool *pool, genpool_algo_t algo,
+		void *data);
+
+extern unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data);
+
+extern unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data);
+
 #endif /* __GENALLOC_H__ */

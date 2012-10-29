@@ -79,11 +79,6 @@ int disable_mpa_crc = 0;
 module_param(disable_mpa_crc, int, 0644);
 MODULE_PARM_DESC(disable_mpa_crc, "Disable checking of MPA CRC");
 
-unsigned int send_first = 0;
-module_param(send_first, int, 0644);
-MODULE_PARM_DESC(send_first, "Send RDMA Message First on Active Connection");
-
-
 unsigned int nes_drv_opt = NES_DRV_OPT_DISABLE_INT_MOD | NES_DRV_OPT_ENABLE_PAU;
 module_param(nes_drv_opt, int, 0644);
 MODULE_PARM_DESC(nes_drv_opt, "Driver option parameters");

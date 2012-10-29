@@ -60,7 +60,7 @@ SECTIONS
 	PROVIDE_HIDDEN(__rela_iplt_end = .);
   }
 
-  #include "asm/common.lds.S"
+  #include <asm/common.lds.S>
 
   init.data : { INIT_DATA }
   .data    :

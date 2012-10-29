@@ -6,6 +6,7 @@ config UNICORE32
 	select HAVE_DMA_ATTRS
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
+	select GENERIC_ATOMIC64
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -14,14 +15,12 @@ config UNICORE32
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_FRAME_POINTERS
 	select GENERIC_IOMAP
+	select MODULES_USE_ELF_REL
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
 	  designs licensed by PKUnity Ltd.
 	  Please see web page at <http://www.pkunity.com/>.
-
-config HAVE_PWM
-	bool
 
 config GENERIC_GPIO
 	def_bool y
@@ -105,7 +104,8 @@ config PUV3_DB0913
 
 config PUV3_NB0916
 	bool "NetBook board (0916)"
-	select HAVE_PWM
+	select PWM
+	select PWM_PUV3
 
 config PUV3_SMW0919
 	bool "Security Mini-Workstation board (0919)"
@@ -218,12 +218,6 @@ config PUV3_GPIO
 	select GENERIC_GPIO
 	select GPIO_SYSFS if EXPERIMENTAL
 	default y
-
-config PUV3_PWM
-	tristate
-	default BACKLIGHT_PWM
-	help
-	  Enable support for NB0916 PWM controllers
 
 if PUV3_NB0916
 

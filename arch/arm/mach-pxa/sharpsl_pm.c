@@ -55,7 +55,6 @@
 #ifdef CONFIG_PM
 static int sharpsl_off_charge_battery(void);
 static int sharpsl_check_battery_voltage(void);
-static int sharpsl_fatal_check(void);
 #endif
 static int sharpsl_check_battery_temp(void);
 static int sharpsl_ac_check(void);
@@ -683,53 +682,6 @@ static int corgi_pxa_pm_enter(suspend_state_t state)
 
 	dev_dbg(sharpsl_pm.dev, "SharpSL resuming...\n");
 
-	return 0;
-}
-
-/*
- * Check for fatal battery errors
- * Fatal returns -1
- */
-static int sharpsl_fatal_check(void)
-{
-	int buff[5], temp, i, acin;
-
-	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check entered\n");
-
-	/* Check AC-Adapter */
-	acin = sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN);
-
-	if (acin && (sharpsl_pm.charge_mode == CHRG_ON)) {
-		sharpsl_pm.machinfo->charge(0);
-		udelay(100);
-		sharpsl_pm.machinfo->discharge(1);	/* enable discharge */
-		mdelay(SHARPSL_WAIT_DISCHARGE_ON);
-	}
-
-	if (sharpsl_pm.machinfo->discharge1)
-		sharpsl_pm.machinfo->discharge1(1);
-
-	/* Check battery : check inserting battery ? */
-	for (i = 0; i < 5; i++) {
-		buff[i] = sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT);
-		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_VOLT);
-	}
-
-	if (sharpsl_pm.machinfo->discharge1)
-		sharpsl_pm.machinfo->discharge1(0);
-
-	if (acin && (sharpsl_pm.charge_mode == CHRG_ON)) {
-		udelay(100);
-		sharpsl_pm.machinfo->charge(1);
-		sharpsl_pm.machinfo->discharge(0);
-	}
-
-	temp = get_select_val(buff);
-	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %ld\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
-
-	if ((acin && (temp < sharpsl_pm.machinfo->fatal_acin_volt)) ||
-			(!acin && (temp < sharpsl_pm.machinfo->fatal_noacin_volt)))
-		return -1;
 	return 0;
 }
 

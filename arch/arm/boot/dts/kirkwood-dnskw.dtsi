@@ -25,6 +25,16 @@
 		};
 	};
 
+	gpio_fan {
+		/* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
+		compatible = "gpio-fan";
+		gpios = <&gpio1 14 1
+			 &gpio1 13 1>;
+		gpio-fan,speed-map = <0    0
+				      3000 1
+				      6000 2>;
+	};
+
 	ocp@f1000000 {
 		sata@80000 {
 			status = "okay";

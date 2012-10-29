@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 struct  ctl_table_header;
+struct  mempolicy;
 
 extern struct proc_dir_entry proc_root;
 #ifdef CONFIG_PROC_SYSCTL
@@ -74,6 +75,9 @@ struct proc_maps_private {
 #ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
 #endif
+#ifdef CONFIG_NUMA
+	struct mempolicy *task_mempolicy;
+#endif
 };
 
 void proc_init_inodecache(void);
@@ -103,7 +107,7 @@ static inline int task_dumpable(struct task_struct *task)
 	if (mm)
 		dumpable = get_dumpable(mm);
 	task_unlock(task);
-	if(dumpable == 1)
+	if (dumpable == SUID_DUMPABLE_ENABLED)
 		return 1;
 	return 0;
 }

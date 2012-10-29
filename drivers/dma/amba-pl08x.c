@@ -1892,6 +1892,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->pd = dev_get_platdata(&adev->dev);
 	if (!pl08x->pd) {
 		dev_err(&adev->dev, "no platform data supplied\n");
+		ret = -EINVAL;
 		goto out_no_platdata;
 	}
 
@@ -1943,6 +1944,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "%s failed to allocate "
 			"physical channel holders\n",
 			__func__);
+		ret = -ENOMEM;
 		goto out_no_phychans;
 	}
 

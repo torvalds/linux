@@ -922,6 +922,9 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 	if ((flags & ~O_CLOEXEC) != 0)
 		return -EINVAL;
 
+	if (unlikely(oldfd == newfd))
+		return -EINVAL;
+
 	if (newfd >= rlimit(RLIMIT_NOFILE))
 		return -EMFILE;
 

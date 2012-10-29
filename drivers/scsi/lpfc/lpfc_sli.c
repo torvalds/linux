@@ -3964,9 +3964,9 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	pci_write_config_word(phba->pcidev, PCI_COMMAND, (cfg_value &
 			      ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
 
-	/* Perform FCoE PCI function reset */
-	lpfc_sli4_queue_destroy(phba);
+	/* Perform FCoE PCI function reset before freeing queue memory */
 	rc = lpfc_pci_function_reset(phba);
+	lpfc_sli4_queue_destroy(phba);
 
 	/* Restore PCI cmd register */
 	pci_write_config_word(phba->pcidev, PCI_COMMAND, cfg_value);
@@ -7072,6 +7072,40 @@ lpfc_sli4_async_mbox_unblock(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_wait_bmbx_ready - Wait for bootstrap mailbox register ready
+ * @phba: Pointer to HBA context object.
+ * @mboxq: Pointer to mailbox object.
+ *
+ * The function waits for the bootstrap mailbox register ready bit from
+ * port for twice the regular mailbox command timeout value.
+ *
+ *      0 - no timeout on waiting for bootstrap mailbox register ready.
+ *      MBXERR_ERROR - wait for bootstrap mailbox register timed out.
+ **/
+static int
+lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	uint32_t db_ready;
+	unsigned long timeout;
+	struct lpfc_register bmbx_reg;
+
+	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
+				   * 1000) + jiffies;
+
+	do {
+		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
+		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
+		if (!db_ready)
+			msleep(2);
+
+		if (time_after(jiffies, timeout))
+			return MBXERR_ERROR;
+	} while (!db_ready);
+
+	return 0;
+}
+
+/**
  * lpfc_sli4_post_sync_mbox - Post an SLI4 mailbox to the bootstrap mailbox
  * @phba: Pointer to HBA context object.
  * @mboxq: Pointer to mailbox object.
@@ -7092,15 +7126,12 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	int rc = MBX_SUCCESS;
 	unsigned long iflag;
-	uint32_t db_ready;
 	uint32_t mcqe_status;
 	uint32_t mbx_cmnd;
-	unsigned long timeout;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_mqe *mb = &mboxq->u.mqe;
 	struct lpfc_bmbx_create *mbox_rgn;
 	struct dma_address *dma_address;
-	struct lpfc_register bmbx_reg;
 
 	/*
 	 * Only one mailbox can be active to the bootstrap mailbox region
@@ -7124,6 +7155,11 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	phba->sli.mbox_active = mboxq;
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
+	/* wait for bootstrap mbox register for readyness */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
+
 	/*
 	 * Initialize the bootstrap memory region to avoid stale data areas
 	 * in the mailbox post.  Then copy the caller's mailbox contents to
@@ -7138,35 +7174,18 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	dma_address = &phba->sli4_hba.bmbx.dma_address;
 	writel(dma_address->addr_hi, phba->sli4_hba.BMBXregaddr);
 
-	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
-				   * 1000) + jiffies;
-	do {
-		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
-		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
-		if (!db_ready)
-			msleep(2);
-
-		if (time_after(jiffies, timeout)) {
-			rc = MBXERR_ERROR;
-			goto exit;
-		}
-	} while (!db_ready);
+	/* wait for bootstrap mbox register for hi-address write done */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
 
 	/* Post the low mailbox dma address to the port. */
 	writel(dma_address->addr_lo, phba->sli4_hba.BMBXregaddr);
-	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
-				   * 1000) + jiffies;
-	do {
-		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
-		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
-		if (!db_ready)
-			msleep(2);
 
-		if (time_after(jiffies, timeout)) {
-			rc = MBXERR_ERROR;
-			goto exit;
-		}
-	} while (!db_ready);
+	/* wait for bootstrap mbox register for low address write done */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
 
 	/*
 	 * Read the CQ to ensure the mailbox has completed.
@@ -8090,6 +8109,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_lenloc, &wqe->fcp_icmd.wqe_com,
 		       LPFC_WQE_LENLOC_NONE);
 		bf_set(wqe_ebde_cnt, &wqe->fcp_icmd.wqe_com, 0);
+		bf_set(wqe_erp, &wqe->fcp_icmd.wqe_com,
+		       iocbq->iocb.ulpFCP2Rcvy);
 		break;
 	case CMD_GEN_REQUEST64_CR:
 		/* For this command calculate the xmit length of the
@@ -12099,6 +12120,7 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
 	struct lpfc_queue *eq;
 	int cnt, rc, length, status = 0;
 	uint32_t shdr_status, shdr_add_status;
+	uint32_t result;
 	int fcp_eqidx;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint16_t dmult;
@@ -12117,8 +12139,11 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	dmult = phba->cfg_fcp_imax / phba->cfg_fcp_io_channel;
-	dmult = LPFC_DMULT_CONST/dmult - 1;
+	result = phba->cfg_fcp_imax / phba->cfg_fcp_io_channel;
+	if (result > LPFC_DMULT_CONST)
+		dmult = 0;
+	else
+		dmult = LPFC_DMULT_CONST/result - 1;
 
 	cnt = 0;
 	for (fcp_eqidx = startq; fcp_eqidx < phba->cfg_fcp_io_channel;
@@ -12174,7 +12199,7 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
  * fails this function will return -ENXIO.
  **/
 uint32_t
-lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
+lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 {
 	struct lpfc_mbx_eq_create *eq_create;
 	LPFC_MBOXQ_t *mbox;
@@ -12206,7 +12231,10 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
 	       LPFC_EQE_SIZE);
 	bf_set(lpfc_eq_context_valid, &eq_create->u.request.context, 1);
 	/* Calculate delay multiper from maximum interrupt per second */
-	dmult = LPFC_DMULT_CONST/imax - 1;
+	if (imax > LPFC_DMULT_CONST)
+		dmult = 0;
+	else
+		dmult = LPFC_DMULT_CONST/imax - 1;
 	bf_set(lpfc_eq_context_delay_multi, &eq_create->u.request.context,
 	       dmult);
 	switch (eq->entry_count) {

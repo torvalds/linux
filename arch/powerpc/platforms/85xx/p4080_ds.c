@@ -81,7 +81,7 @@ define_machine(p4080_ds) {
 	.power_save		= e500_idle,
 };
 
-machine_device_initcall(p4080_ds, corenet_ds_publish_devices);
+machine_arch_initcall(p4080_ds, corenet_ds_publish_devices);
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(p4080_ds, swiotlb_setup_bus_notifier);
 #endif

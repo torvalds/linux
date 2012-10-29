@@ -782,7 +782,8 @@ static int tg3_ape_wait_for_event(struct tg3 *tp, u32 timeout_us)
 	return i == timeout_us / 10;
 }
 
-int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off, u32 len)
+static int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off,
+				   u32 len)
 {
 	int err;
 	u32 i, bufoff, msgoff, maxlen, apedata;
@@ -7763,7 +7764,7 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		sblk = tnapi->hw_status;
 
 		if (tg3_flag(tp, ENABLE_RSS)) {
-			u16 *prodptr = 0;
+			u16 *prodptr = NULL;
 
 			/*
 			 * When RSS is enabled, the status block format changes
@@ -8103,11 +8104,11 @@ static int tg3_chip_reset(struct tg3 *tp)
 		u16 val16;
 
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
-			int i;
+			int j;
 			u32 cfg_val;
 
 			/* Wait for link training to complete.  */
-			for (i = 0; i < 5000; i++)
+			for (j = 0; j < 5000; j++)
 				udelay(100);
 
 			pci_read_config_dword(tp->pdev, 0xc4, &cfg_val);
@@ -10206,7 +10207,7 @@ static u32 tg3_irq_count(struct tg3 *tp)
 static bool tg3_enable_msix(struct tg3 *tp)
 {
 	int i, rc;
-	struct msix_entry msix_ent[tp->irq_max];
+	struct msix_entry msix_ent[TG3_IRQ_MAX_VECS];
 
 	tp->txq_cnt = tp->txq_req;
 	tp->rxq_cnt = tp->rxq_req;

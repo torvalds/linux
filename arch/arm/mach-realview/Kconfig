@@ -21,8 +21,8 @@ config REALVIEW_EB_A9MP
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore Tile"
 	depends on MACH_REALVIEW_EB
-	select CPU_V6K
 	select ARCH_HAS_BARRIERS if SMP
+	select CPU_V6K
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -40,12 +40,12 @@ config REALVIEW_EB_ARM11MP_REVB
 
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView(R) Platform Baseboard for ARM11MPCore"
-	select CPU_V6K
+	select ARCH_HAS_BARRIERS if SMP
 	select ARM_GIC
+	select CPU_V6K
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
-	select ARCH_HAS_BARRIERS if SMP
 	help
 	  Include support for the ARM(R) RealView(R) Platform Baseboard for
 	  the ARM11MPCore.  This platform has an on-board ARM11MPCore and has
@@ -54,8 +54,8 @@ config MACH_REALVIEW_PB11MP
 # ARMv6 CPU without K extensions, but does have the new exclusive ops
 config MACH_REALVIEW_PB1176
 	bool "Support RealView(R) Platform Baseboard for ARM1176JZF-S"
-	select CPU_V6
 	select ARM_GIC
+	select CPU_V6
 	select HAVE_TCM
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -73,8 +73,8 @@ config REALVIEW_PB1176_SECURE_FLASH
 
 config MACH_REALVIEW_PBA8
 	bool "Support RealView(R) Platform Baseboard for Cortex(tm)-A8 platform"
-	select CPU_V7
 	select ARM_GIC
+	select CPU_V7
 	select HAVE_PATA_PLATFORM
 	help
 	  Include support for the ARM(R) RealView Platform Baseboard for
@@ -83,11 +83,11 @@ config MACH_REALVIEW_PBA8
 
 config MACH_REALVIEW_PBX
 	bool "Support RealView(R) Platform Baseboard Explore"
+	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !REALVIEW_HIGH_PHYS_OFFSET
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
-	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !REALVIEW_HIGH_PHYS_OFFSET
 	select ZONE_DMA if SPARSEMEM
 	help
 	  Include support for the ARM(R) RealView(R) Platform Baseboard

@@ -274,18 +274,43 @@ ARIZONA_MIXER_ENUMS(ASRC1R, ARIZONA_ASRC1RMIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(ASRC2L, ARIZONA_ASRC2LMIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(ASRC2R, ARIZONA_ASRC2RMIX_INPUT_1_SOURCE);
 
+
+static const char *wm5102_aec_loopback_texts[] = {
+	"HPOUT1L", "HPOUT1R", "HPOUT2L", "HPOUT2R", "EPOUT",
+	"SPKOUTL", "SPKOUTR", "SPKDAT1L", "SPKDAT1R",
+};
+
+static const unsigned int wm5102_aec_loopback_values[] = {
+	0, 1, 2, 3, 4, 6, 7, 8, 9,
+};
+
+static const struct soc_enum wm5102_aec_loopback =
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
+			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT,
+			      ARIZONA_AEC_LOOPBACK_SRC_MASK,
+			      ARRAY_SIZE(wm5102_aec_loopback_texts),
+			      wm5102_aec_loopback_texts,
+			      wm5102_aec_loopback_values);
+
+static const struct snd_kcontrol_new wm5102_aec_loopback_mux =
+	SOC_DAPM_VALUE_ENUM("AEC Loopback", wm5102_aec_loopback);
+
 static const struct snd_soc_dapm_widget wm5102_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
 		    0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
+		    ARIZONA_OPCLK_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", ARIZONA_OUTPUT_ASYNC_CLOCK,
+		    ARIZONA_OPCLK_ASYNC_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
-SND_SOC_DAPM_REGULATOR_SUPPLY("MICVDD", 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDL", 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDR", 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("MICVDD", 0, SND_SOC_DAPM_REGULATOR_BYPASS),
+SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDL", 0, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDR", 0, 0),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
@@ -421,6 +446,9 @@ SND_SOC_DAPM_AIF_IN("AIF3RX1", NULL, 0,
 SND_SOC_DAPM_AIF_IN("AIF3RX2", NULL, 0,
 		    ARIZONA_AIF3_RX_ENABLES, ARIZONA_AIF3RX2_ENA_SHIFT, 0),
 
+SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
+		       ARIZONA_AEC_LOOPBACK_ENA, 0, &wm5102_aec_loopback_mux),
+
 SND_SOC_DAPM_PGA_E("OUT1L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
@@ -516,6 +544,7 @@ SND_SOC_DAPM_OUTPUT("SPKDAT1R"),
 	{ name, "Noise Generator", "Noise Generator" }, \
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
+	{ name, "AEC", "AEC Loopback" }, \
 	{ name, "IN1L", "IN1L PGA" }, \
 	{ name, "IN1R", "IN1R PGA" }, \
 	{ name, "IN2L", "IN2L PGA" }, \
@@ -681,21 +710,30 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("ASRC2L", "ASRC2L"),
 	ARIZONA_MIXER_ROUTES("ASRC2R", "ASRC2R"),
 
+	{ "AEC Loopback", "HPOUT1L", "OUT1L" },
+	{ "AEC Loopback", "HPOUT1R", "OUT1R" },
 	{ "HPOUT1L", NULL, "OUT1L" },
 	{ "HPOUT1R", NULL, "OUT1R" },
 
+	{ "AEC Loopback", "HPOUT2L", "OUT2L" },
+	{ "AEC Loopback", "HPOUT2R", "OUT2R" },
 	{ "HPOUT2L", NULL, "OUT2L" },
 	{ "HPOUT2R", NULL, "OUT2R" },
 
+	{ "AEC Loopback", "EPOUT", "OUT3L" },
 	{ "EPOUTN", NULL, "OUT3L" },
 	{ "EPOUTP", NULL, "OUT3L" },
 
+	{ "AEC Loopback", "SPKOUTL", "OUT4L" },
 	{ "SPKOUTLN", NULL, "OUT4L" },
 	{ "SPKOUTLP", NULL, "OUT4L" },
 
+	{ "AEC Loopback", "SPKOUTR", "OUT4R" },
 	{ "SPKOUTRN", NULL, "OUT4R" },
 	{ "SPKOUTRP", NULL, "OUT4R" },
 
+	{ "AEC Loopback", "SPKDAT1L", "OUT5L" },
+	{ "AEC Loopback", "SPKDAT1R", "OUT5R" },
 	{ "SPKDAT1L", NULL, "OUT5L" },
 	{ "SPKDAT1R", NULL, "OUT5R" },
 };

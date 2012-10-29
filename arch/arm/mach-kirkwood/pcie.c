@@ -47,8 +47,8 @@ void kirkwood_enable_pcie(void)
 void kirkwood_pcie_id(u32 *dev, u32 *rev)
 {
 	kirkwood_enable_pcie();
-	*dev = orion_pcie_dev_id((void __iomem *)PCIE_VIRT_BASE);
-	*rev = orion_pcie_rev((void __iomem *)PCIE_VIRT_BASE);
+	*dev = orion_pcie_dev_id(PCIE_VIRT_BASE);
+	*rev = orion_pcie_rev(PCIE_VIRT_BASE);
 }
 
 struct pcie_port {
@@ -133,7 +133,7 @@ static struct pci_ops pcie_ops = {
 
 static void __init pcie0_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE_VIRT_BASE;
+	pp->base = PCIE_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE;
 
 	/*
@@ -147,7 +147,7 @@ static void __init pcie0_ioresources_init(struct pcie_port *pp)
 
 static void __init pcie1_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE1_VIRT_BASE;
+	pp->base = PCIE1_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE1;
 
 	/*
@@ -255,11 +255,11 @@ static struct hw_pci kirkwood_pci __initdata = {
 	.map_irq	= kirkwood_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int index, unsigned long base)
+static void __init add_pcie_port(int index, void __iomem *base)
 {
 	printk(KERN_INFO "Kirkwood PCIe port %d: ", index);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
+	if (orion_pcie_link_up(base)) {
 		printk(KERN_INFO "link up\n");
 		pcie_port_map[num_pcie_ports++] = index;
 	} else

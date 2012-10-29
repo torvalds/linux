@@ -332,6 +332,7 @@ struct intel_hdmi {
 };
 
 #define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_MAX_DOWNSTREAM_PORTS		0x10
 #define DP_LINK_CONFIGURATION_SIZE	9
 
 struct intel_dp {
@@ -346,6 +347,7 @@ struct intel_dp {
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
+	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	bool is_pch_edp;

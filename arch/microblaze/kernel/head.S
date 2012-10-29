@@ -109,20 +109,24 @@ no_fdt_arg:
 #ifndef CONFIG_CMDLINE_BOOL
 /*
  * handling command line
- * copy command line to __init_end. There is space for storing command line.
+ * copy command line directly to cmd_line placed in data section.
  */
+	beqid	r5, skip	/* Skip if NULL pointer */
 	or	r6, r0, r0		/* incremment */
-	ori	r4, r0, __init_end	/* load address of command line */
+	ori	r4, r0, cmd_line	/* load address of command line */
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	lbu	r2, r5, r6 /* r2=r5+r6 - r5 contain pointer to command line */
-	sb	r2, r4, r6		/* addr[r4+r6]= r2*/
+	/* r2=r5+r6 - r5 contain pointer to command line */
+	lbu		r2, r5, r6
+	beqid	r2, skip		/* Skip if no data */
+	sb		r2, r4, r6		/* addr[r4+r6]= r2*/
 	addik	r6, r6, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
-	addik	r3, r3, -1		/* descrement loop */
+	addik	r3, r3, -1		/* decrement loop */
 	addik	r5, r4, 0		/* add new space for command line */
 	tovirt(r5,r5)
+skip:
 #endif /* CONFIG_CMDLINE_BOOL */
 
 #ifdef NOT_COMPILE

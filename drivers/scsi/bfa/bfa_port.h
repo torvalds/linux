@@ -45,6 +45,7 @@ struct bfa_port_s {
 	bfa_status_t			endis_status;
 	struct bfa_ioc_notify_s		ioc_notify;
 	bfa_boolean_t			pbc_disabled;
+	bfa_boolean_t			dport_enabled;
 	struct bfa_mem_dma_s		port_dma;
 };
 
@@ -66,6 +67,8 @@ bfa_status_t bfa_port_disable(struct bfa_port_s *port,
 u32     bfa_port_meminfo(void);
 void	     bfa_port_mem_claim(struct bfa_port_s *port,
 				 u8 *dma_kva, u64 dma_pa);
+void	bfa_port_set_dportenabled(struct bfa_port_s *port,
+				  bfa_boolean_t enabled);
 
 /*
  * CEE declaration

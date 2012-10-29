@@ -435,6 +435,22 @@ ret_from_fork:
 	li	r3,0
 	b	ret_from_syscall
 
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	REST_NVGPRS(r1)
+	bl	schedule_tail
+	mtlr	r14
+	mr	r3,r15
+	PPC440EP_ERR42
+	blrl
+	li	r3,0
+	b	do_exit		# no return
+
+	.globl	__ret_from_kernel_execve
+__ret_from_kernel_execve:
+	addi	r1,r3,-STACK_FRAME_OVERHEAD
+	b	ret_from_syscall
+
 /* Traced system call support */
 syscall_dotrace:
 	SAVE_NVGPRS(r1)
@@ -831,19 +847,56 @@ restore_user:
 	bnel-	load_dbcr0
 #endif
 
-#ifdef CONFIG_PREEMPT
 	b	restore
 
 /* N.B. the only way to get here is from the beq following ret_from_except. */
 resume_kernel:
-	/* check current_thread_info->preempt_count */
+	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
 	CURRENT_THREAD_INFO(r9, r1)
+	lwz	r8,TI_FLAGS(r9)
+	andis.	r8,r8,_TIF_EMULATE_STACK_STORE@h
+	beq+	1f
+
+	addi	r8,r1,INT_FRAME_SIZE	/* Get the kprobed function entry */
+
+	lwz	r3,GPR1(r1)
+	subi	r3,r3,INT_FRAME_SIZE	/* dst: Allocate a trampoline exception frame */
+	mr	r4,r1			/* src:  current exception frame */
+	mr	r1,r3			/* Reroute the trampoline frame to r1 */
+
+	/* Copy from the original to the trampoline. */
+	li	r5,INT_FRAME_SIZE/4	/* size: INT_FRAME_SIZE */
+	li	r6,0			/* start offset: 0 */
+	mtctr	r5
+2:	lwzx	r0,r6,r4
+	stwx	r0,r6,r3
+	addi	r6,r6,4
+	bdnz	2b
+
+	/* Do real store operation to complete stwu */
+	lwz	r5,GPR1(r1)
+	stw	r8,0(r5)
+
+	/* Clear _TIF_EMULATE_STACK_STORE flag */
+	lis	r11,_TIF_EMULATE_STACK_STORE@h
+	addi	r5,r9,TI_FLAGS
+0:	lwarx	r8,0,r5
+	andc	r8,r8,r11
+#ifdef CONFIG_IBM405_ERR77
+	dcbt	0,r5
+#endif
+	stwcx.	r8,0,r5
+	bne-	0b
+1:
+
+#ifdef CONFIG_PREEMPT
+	/* check current_thread_info->preempt_count */
 	lwz	r0,TI_PREEMPT(r9)
 	cmpwi	0,r0,0		/* if non-zero, just restore regs and return */
 	bne	restore
-	lwz	r0,TI_FLAGS(r9)
-	andi.	r0,r0,_TIF_NEED_RESCHED
+	andi.	r8,r8,_TIF_NEED_RESCHED
 	beq+	restore
+	lwz	r3,_MSR(r1)
 	andi.	r0,r3,MSR_EE	/* interrupts off? */
 	beq	restore		/* don't schedule if so */
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -864,8 +917,6 @@ resume_kernel:
 	 */
 	bl	trace_hardirqs_on
 #endif
-#else
-resume_kernel:
 #endif /* CONFIG_PREEMPT */
 
 	/* interrupts are hard-disabled at this point */

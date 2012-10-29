@@ -16,7 +16,6 @@ obj-$(CONFIG_UNICORE_FPU_F64)	+= fpu-ucf64.o
 obj-$(CONFIG_ARCH_PUV3)		+= clock.o irq.o time.o
 
 obj-$(CONFIG_PUV3_GPIO)		+= gpio.o
-obj-$(CONFIG_PUV3_PWM)		+= pwm.o
 obj-$(CONFIG_PUV3_PM)		+= pm.o sleep.o
 obj-$(CONFIG_HIBERNATION)	+= hibernate.o hibernate_asm.o
 

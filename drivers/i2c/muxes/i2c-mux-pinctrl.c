@@ -221,7 +221,7 @@ static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
 				(mux->pdata->base_bus_num + i) : 0;
 
 		mux->busses[i] = i2c_add_mux_adapter(mux->parent, &pdev->dev,
-						     mux, bus, i,
+						     mux, bus, i, 0,
 						     i2c_mux_pinctrl_select,
 						     deselect);
 		if (!mux->busses[i]) {

@@ -93,7 +93,7 @@ static DECLARE_PCI_DEVICE_TABLE(aac_pci_tbl) = {
 #elif defined(__devinitconst)
 static const struct pci_device_id aac_pci_tbl[] __devinitconst = {
 #else
-static const struct pci_device_id aac_pci_tbl[] __devinitdata = {
+static const struct pci_device_id aac_pci_tbl[] __devinitconst = {
 #endif
 	{ 0x1028, 0x0001, 0x1028, 0x0001, 0, 0, 0 }, /* PERC 2/Si (Iguana/PERC2Si) */
 	{ 0x1028, 0x0002, 0x1028, 0x0002, 0, 0, 1 }, /* PERC 3/Di (Opal/PERC3Di) */

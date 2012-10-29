@@ -187,14 +187,18 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	u64 tmp;
 	struct ceph_object_layout ol;
 	struct ceph_pg pgid;
+	int r;
 
 	/* copy and validate */
 	if (copy_from_user(&dl, arg, sizeof(dl)))
 		return -EFAULT;
 
 	down_read(&osdc->map_sem);
-	ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, &len,
-				      &dl.object_no, &dl.object_offset, &olen);
+	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, &len,
+					  &dl.object_no, &dl.object_offset,
+					  &olen);
+	if (r < 0)
+		return -EIO;
 	dl.file_offset -= dl.object_offset;
 	dl.object_size = ceph_file_layout_object_size(ci->i_layout);
 	dl.block_size = ceph_file_layout_su(ci->i_layout);

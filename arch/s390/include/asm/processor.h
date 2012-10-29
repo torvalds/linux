@@ -35,6 +35,7 @@ static inline void get_cpu_id(struct cpuid *ptr)
 extern void s390_adjust_jiffies(void);
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
+extern void execve_tail(void);
 
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
@@ -126,6 +127,7 @@ struct stack_frame {
 	regs->psw.mask	= psw_user_bits | PSW_MASK_EA | PSW_MASK_BA;	\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
+	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
@@ -135,6 +137,7 @@ struct stack_frame {
 	__tlb_flush_mm(current->mm);					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
 	update_mm(current->mm, current);				\
+	execve_tail();							\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -150,7 +153,6 @@ static inline void show_cacheinfo(struct seq_file *m) { }
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /*
  * Return saved PC of a blocked thread.

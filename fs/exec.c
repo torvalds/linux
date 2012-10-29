@@ -59,10 +59,10 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-#include <asm/exec.h>
 
 #include <trace/events/task.h>
 #include "internal.h"
+#include "coredump.h"
 
 #include <trace/events/sched.h>
 
@@ -105,7 +105,7 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
-	char *tmp = getname(library);
+	struct filename *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 	static const struct open_flags uselib_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
@@ -391,7 +391,7 @@ struct user_arg_ptr {
 	union {
 		const char __user *const __user *native;
 #ifdef CONFIG_COMPAT
-		compat_uptr_t __user *compat;
+		const compat_uptr_t __user *compat;
 #endif
 	} ptr;
 };
@@ -602,7 +602,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	 * process cleanup to remove whatever mess we made.
 	 */
 	if (length != move_page_tables(vma, old_start,
-				       vma, new_start, length))
+				       vma, new_start, length, false))
 		return -ENOMEM;
 
 	lru_add_drain();
@@ -751,13 +751,14 @@ struct file *open_exec(const char *name)
 {
 	struct file *file;
 	int err;
+	struct filename tmp = { .name = name };
 	static const struct open_flags open_exec_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
 		.acc_mode = MAY_EXEC | MAY_OPEN,
 		.intent = LOOKUP_OPEN
 	};
 
-	file = do_filp_open(AT_FDCWD, name, &open_exec_flags, LOOKUP_FOLLOW);
+	file = do_filp_open(AT_FDCWD, &tmp, &open_exec_flags, LOOKUP_FOLLOW);
 	if (IS_ERR(file))
 		goto out;
 
@@ -877,9 +878,11 @@ static int de_thread(struct task_struct *tsk)
 		sig->notify_count--;
 
 	while (sig->notify_count) {
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
+		if (unlikely(__fatal_signal_pending(tsk)))
+			goto killed;
 		spin_lock_irq(lock);
 	}
 	spin_unlock_irq(lock);
@@ -897,9 +900,11 @@ static int de_thread(struct task_struct *tsk)
 			write_lock_irq(&tasklist_lock);
 			if (likely(leader->exit_state))
 				break;
-			__set_current_state(TASK_UNINTERRUPTIBLE);
+			__set_current_state(TASK_KILLABLE);
 			write_unlock_irq(&tasklist_lock);
 			schedule();
+			if (unlikely(__fatal_signal_pending(tsk)))
+				goto killed;
 		}
 
 		/*
@@ -993,6 +998,14 @@ no_thread_group:
 
 	BUG_ON(!thread_group_leader(tsk));
 	return 0;
+
+killed:
+	/* protects against exit_notify() and __exit_signal() */
+	read_lock(&tasklist_lock);
+	sig->group_exit_task = NULL;
+	sig->notify_count = 0;
+	read_unlock(&tasklist_lock);
+	return -EAGAIN;
 }
 
 char *get_task_comm(char *buf, struct task_struct *tsk)
@@ -1070,7 +1083,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	set_fs(USER_DS);
-	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD);
+	current->flags &=
+		~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD | PF_NOFREEZE);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
 
@@ -1096,7 +1110,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
 	if (uid_eq(current_euid(), current_uid()) && gid_eq(current_egid(), current_gid()))
-		set_dumpable(current->mm, 1);
+		set_dumpable(current->mm, SUID_DUMPABLE_ENABLED);
 	else
 		set_dumpable(current->mm, suid_dumpable);
 
@@ -1561,9 +1575,9 @@ int do_execve(const char *filename,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_do_execve(char *filename,
-	compat_uptr_t __user *__argv,
-	compat_uptr_t __user *__envp,
+int compat_do_execve(const char *filename,
+	const compat_uptr_t __user *__argv,
+	const compat_uptr_t __user *__envp,
 	struct pt_regs *regs)
 {
 	struct user_arg_ptr argv = {
@@ -1645,3 +1659,56 @@ int get_dumpable(struct mm_struct *mm)
 {
 	return __get_dumpable(mm->flags);
 }
+
+#ifdef __ARCH_WANT_SYS_EXECVE
+SYSCALL_DEFINE3(execve,
+		const char __user *, filename,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = do_execve(path->name, argv, envp, current_pt_regs());
+		putname(path);
+	}
+	return error;
+}
+#ifdef CONFIG_COMPAT
+asmlinkage long compat_sys_execve(const char __user * filename,
+	const compat_uptr_t __user * argv,
+	const compat_uptr_t __user * envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = compat_do_execve(path->name, argv, envp,
+							current_pt_regs());
+		putname(path);
+	}
+	return error;
+}
+#endif
+#endif
+
+#ifdef __ARCH_WANT_KERNEL_EXECVE
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
+{
+	struct pt_regs *p = current_pt_regs();
+	int ret;
+
+	ret = do_execve(filename,
+			(const char __user *const __user *)argv,
+			(const char __user *const __user *)envp, p);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We were successful.  We won't be returning to our caller, but
+	 * instead to user space by manipulating the kernel stack.
+	 */
+	ret_from_kernel_execve(p);
+}
+#endif

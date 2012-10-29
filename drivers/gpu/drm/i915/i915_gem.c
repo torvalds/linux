@@ -1399,10 +1399,18 @@ out:
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
+	case -EBUSY:
+		/*
+		 * EBUSY is ok: this just means that another thread
+		 * already did the job.
+		 */
 		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
 		return VM_FAULT_OOM;
+	case -ENOSPC:
+		return VM_FAULT_SIGBUS;
 	default:
+		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
 		return VM_FAULT_SIGBUS;
 	}
 }
@@ -1816,10 +1824,11 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, page, PAGE_SIZE, 0);
 	}
 
+	obj->pages = st;
+
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
-	obj->pages = st;
 	return 0;
 
 err_pages:
@@ -1949,11 +1958,12 @@ i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
 int
 i915_add_request(struct intel_ring_buffer *ring,
 		 struct drm_file *file,
-		 struct drm_i915_gem_request *request)
+		 u32 *out_seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	uint32_t seqno;
+	struct drm_i915_gem_request *request;
 	u32 request_ring_position;
+	u32 seqno;
 	int was_empty;
 	int ret;
 
@@ -1968,11 +1978,9 @@ i915_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	if (request == NULL) {
-		request = kmalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-	}
+	request = kmalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
 
 	seqno = i915_gem_next_request_seqno(ring);
 
@@ -2024,6 +2032,8 @@ i915_add_request(struct intel_ring_buffer *ring,
 		}
 	}
 
+	if (out_seqno)
+		*out_seqno = seqno;
 	return 0;
 }
 
@@ -3217,10 +3227,6 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	enum i915_cache_level level;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
 	switch (args->caching) {
 	case I915_CACHING_NONE:
 		level = I915_CACHE_NONE;
@@ -3231,6 +3237,10 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	default:
 		return -EINVAL;
 	}
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -3953,6 +3963,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (!intel_enable_gtt())
 		return -EIO;
 
+	if (IS_HASWELL(dev) && (I915_READ(0x120010) == 1))
+		I915_WRITE(0x9008, I915_READ(0x9008) | 0xf0000);
+
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
@@ -4092,7 +4105,6 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	}
 
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);

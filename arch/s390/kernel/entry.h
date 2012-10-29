@@ -58,9 +58,6 @@ long sys_fork(void);
 long sys_clone(unsigned long newsp, unsigned long clone_flags,
 	       int __user *parent_tidptr, int __user *child_tidptr);
 long sys_vfork(void);
-void execve_tail(void);
-long sys_execve(const char __user *name, const char __user *const __user *argv,
-		const char __user *const __user *envp);
 long sys_sigsuspend(int history0, int history1, old_sigset_t mask);
 long sys_sigaction(int sig, const struct old_sigaction __user *act,
 		   struct old_sigaction __user *oact);

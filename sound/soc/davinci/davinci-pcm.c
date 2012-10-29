@@ -23,7 +23,6 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
-#include <mach/edma.h>
 #include <mach/sram.h>
 
 #include "davinci-pcm.h"
@@ -864,28 +863,17 @@ static struct snd_soc_platform_driver davinci_soc_platform = {
 	.pcm_free = 	davinci_pcm_free,
 };
 
-static int __devinit davinci_soc_platform_probe(struct platform_device *pdev)
+int davinci_soc_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(&pdev->dev, &davinci_soc_platform);
+	return snd_soc_register_platform(dev, &davinci_soc_platform);
 }
+EXPORT_SYMBOL_GPL(davinci_soc_platform_register);
 
-static int __devexit davinci_soc_platform_remove(struct platform_device *pdev)
+void davinci_soc_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	snd_soc_unregister_platform(dev);
 }
-
-static struct platform_driver davinci_pcm_driver = {
-	.driver = {
-			.name = "davinci-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-
-	.probe = davinci_soc_platform_probe,
-	.remove = __devexit_p(davinci_soc_platform_remove),
-};
-
-module_platform_driver(davinci_pcm_driver);
+EXPORT_SYMBOL_GPL(davinci_soc_platform_unregister);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI PCM DMA module");
