@@ -272,7 +272,6 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	struct resource		*res;
 	struct device		*dev = &pdev->dev;
 
-	int			devid;
 	int			size;
 	int			ret = -ENOMEM;
 	int			irq;
@@ -315,14 +314,10 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	devid = dwc3_get_device_id();
-	if (devid < 0)
-		return -ENODEV;
-
-	dwc3 = platform_device_alloc("dwc3", devid);
+	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc3) {
 		dev_err(dev, "couldn't allocate dwc3 device\n");
-		goto err1;
+		return -ENOMEM;
 	}
 
 	context = devm_kzalloc(dev, resource_size(res), GFP_KERNEL);
@@ -423,10 +418,6 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 
 err2:
 	platform_device_put(dwc3);
-
-err1:
-	dwc3_put_device_id(devid);
-
 	return ret;
 }
 
@@ -437,9 +428,6 @@ static int __devexit dwc3_omap_remove(struct platform_device *pdev)
 	platform_device_unregister(omap->dwc3);
 	platform_device_unregister(omap->usb2_phy);
 	platform_device_unregister(omap->usb3_phy);
-
-	dwc3_put_device_id(omap->dwc3->id);
-
 	return 0;
 }
 

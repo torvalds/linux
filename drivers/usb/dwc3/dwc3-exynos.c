@@ -94,7 +94,6 @@ static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 	struct dwc3_exynos	*exynos;
 	struct clk		*clk;
 
-	int			devid;
 	int			ret = -ENOMEM;
 
 	exynos = kzalloc(sizeof(*exynos), GFP_KERNEL);
@@ -105,20 +104,16 @@ static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, exynos);
 
-	devid = dwc3_get_device_id();
-	if (devid < 0)
-		goto err1;
-
 	ret = dwc3_exynos_register_phys(exynos);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't register PHYs\n");
 		goto err1;
 	}
 
-	dwc3 = platform_device_alloc("dwc3", devid);
+	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc3) {
 		dev_err(&pdev->dev, "couldn't allocate dwc3 device\n");
-		goto err2;
+		goto err1;
 	}
 
 	clk = clk_get(&pdev->dev, "usbdrd30");
@@ -170,8 +165,6 @@ err4:
 	clk_put(clk);
 err3:
 	platform_device_put(dwc3);
-err2:
-	dwc3_put_device_id(devid);
 err1:
 	kfree(exynos);
 err0:
@@ -186,8 +179,6 @@ static int __devexit dwc3_exynos_remove(struct platform_device *pdev)
 	platform_device_unregister(exynos->dwc3);
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
-
-	dwc3_put_device_id(exynos->dwc3->id);
 
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, pdata->phy_type);

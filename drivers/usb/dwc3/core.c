@@ -66,45 +66,6 @@ MODULE_PARM_DESC(maximum_speed, "Maximum supported speed.");
 
 /* -------------------------------------------------------------------------- */
 
-#define DWC3_DEVS_POSSIBLE	32
-
-static DECLARE_BITMAP(dwc3_devs, DWC3_DEVS_POSSIBLE);
-
-int dwc3_get_device_id(void)
-{
-	int		id;
-
-again:
-	id = find_first_zero_bit(dwc3_devs, DWC3_DEVS_POSSIBLE);
-	if (id < DWC3_DEVS_POSSIBLE) {
-		int old;
-
-		old = test_and_set_bit(id, dwc3_devs);
-		if (old)
-			goto again;
-	} else {
-		pr_err("dwc3: no space for new device\n");
-		id = -ENOMEM;
-	}
-
-	return id;
-}
-EXPORT_SYMBOL_GPL(dwc3_get_device_id);
-
-void dwc3_put_device_id(int id)
-{
-	int			ret;
-
-	if (id < 0)
-		return;
-
-	ret = test_bit(id, dwc3_devs);
-	WARN(!ret, "dwc3: ID %d not in use\n", id);
-	smp_mb__before_clear_bit();
-	clear_bit(id, dwc3_devs);
-}
-EXPORT_SYMBOL_GPL(dwc3_put_device_id);
-
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 {
 	u32 reg;
