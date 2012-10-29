@@ -29,22 +29,16 @@
   LAS0 Runtime Area
   Local Address Space 0 Offset		Read Function	Write Function
 */
-#define LAS0_SPARE_00    0x0000	/*  -                               - */
-#define LAS0_SPARE_04    0x0004	/*  -                               - */
 #define LAS0_USER_IO     0x0008	/*  Read User Inputs                Write User Outputs */
-#define LAS0_SPARE_0C    0x000C	/*  -                               - */
 #define LAS0_ADC         0x0010	/*  Read FIFO Status                Software A/D Start */
 #define LAS0_DAC1        0x0014	/*  -                               Software D/A1 Update */
 #define LAS0_DAC2        0x0018	/*  -                               Software D/A2 Update */
-#define LAS0_SPARE_1C    0x001C	/*  -                               - */
-#define LAS0_SPARE_20    0x0020	/*  -                               - */
 #define LAS0_DAC         0x0024	/*  -                               Software Simultaneous D/A1 and D/A2 Update */
 #define LAS0_PACER       0x0028	/*  Software Pacer Start            Software Pacer Stop */
 #define LAS0_TIMER       0x002C	/*  Read Timer Counters Status      HDIN Software Trigger */
 #define LAS0_IT          0x0030	/*  Read Interrupt Status           Write Interrupt Enable Mask Register */
 #define LAS0_CLEAR       0x0034	/*  Clear ITs set by Clear Mask     Set Interrupt Clear Mask */
 #define LAS0_OVERRUN     0x0038	/*  Read pending interrupts         Clear Overrun Register */
-#define LAS0_SPARE_3C    0x003C	/*  -                               - */
 
 /*
   LAS0 Runtime Area Timer/Counter,Dig.IO
