@@ -402,7 +402,7 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	if (dev->flags & (IFF_NOARP | IFF_LOOPBACK))
 		ndev->cnf.accept_dad = -1;
 
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 	if (dev->type == ARPHRD_SIT && (dev->priv_flags & IFF_ISATAP)) {
 		pr_info("%s: Disabled Multicast RS\n", dev->name);
 		ndev->cnf.rtr_solicits = 0;
@@ -1838,7 +1838,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 	   This thing is done here expecting that the whole
 	   class of non-broadcast devices need not cloning.
 	 */
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 	if (dev->type == ARPHRD_SIT && (dev->flags & IFF_POINTOPOINT))
 		cfg.fc_flags |= RTF_NONEXTHOP;
 #endif
@@ -1898,7 +1898,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 	ip6_route_add(&cfg);
 }
 
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 static void sit_route_add(struct net_device *dev)
 {
 	struct fib6_config cfg = {
@@ -2250,7 +2250,7 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 	if (dev == NULL)
 		goto err_exit;
 
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 	if (dev->type == ARPHRD_SIT) {
 		const struct net_device_ops *ops = dev->netdev_ops;
 		struct ifreq ifr;
@@ -2461,7 +2461,7 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	}
 }
 
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 static void sit_add_v4_addrs(struct inet6_dev *idev)
 {
 	struct in6_addr addr;
@@ -2580,7 +2580,7 @@ static void addrconf_dev_config(struct net_device *dev)
 		addrconf_add_linklocal(idev, &addr);
 }
 
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 static void addrconf_sit_config(struct net_device *dev)
 {
 	struct inet6_dev *idev;
@@ -2617,7 +2617,7 @@ static void addrconf_sit_config(struct net_device *dev)
 }
 #endif
 
-#if defined(CONFIG_NET_IPGRE) || defined(CONFIG_NET_IPGRE_MODULE)
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 static void addrconf_gre_config(struct net_device *dev)
 {
 	struct inet6_dev *idev;
@@ -2747,12 +2747,12 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		}
 
 		switch (dev->type) {
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_SIT)
 		case ARPHRD_SIT:
 			addrconf_sit_config(dev);
 			break;
 #endif
-#if defined(CONFIG_NET_IPGRE) || defined(CONFIG_NET_IPGRE_MODULE)
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 		case ARPHRD_IPGRE:
 			addrconf_gre_config(dev);
 			break;
@@ -3340,7 +3340,7 @@ void if6_proc_exit(void)
 }
 #endif	/* CONFIG_PROC_FS */
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 /* Check if address is a home address configured on any interface. */
 int ipv6_chk_home_addr(struct net *net, const struct in6_addr *addr)
 {
