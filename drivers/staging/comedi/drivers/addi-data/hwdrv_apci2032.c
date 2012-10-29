@@ -79,8 +79,10 @@ static unsigned int ui_InterruptData, ui_Type;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command = 0;
@@ -136,8 +138,10 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp, ui_Temp1;
@@ -317,8 +321,10 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
@@ -386,8 +392,10 @@ int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_ConfigWatchdog(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -429,8 +437,10 @@ int i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice
     +----------------------------------------------------------------------------+
   */
 
-int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev,
+					     struct comedi_subdevice *s,
+					     struct comedi_insn *insn,
+					     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -476,8 +486,10 @@ int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_s
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_ReadWatchdog(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -504,7 +516,7 @@ int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-void v_APCI2032_Interrupt(int irq, void *d)
+static void v_APCI2032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
@@ -556,8 +568,10 @@ void v_APCI2032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	*data = ui_Type;
 	return insn->n;
@@ -579,7 +593,7 @@ int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_Reset(struct comedi_device *dev)
+static int i_APCI2032_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 
