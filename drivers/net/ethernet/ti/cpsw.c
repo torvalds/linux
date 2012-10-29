@@ -148,6 +148,14 @@ struct cpsw_ss_regs {
 	u32	soft_reset;
 	u32	stat_port_en;
 	u32	ptype;
+	u32	soft_idle;
+	u32	thru_rate;
+	u32	gap_thresh;
+	u32	tx_start_wds;
+	u32	flow_control;
+	u32	vlan_ltype;
+	u32	ts_ltype;
+	u32	dlr_ltype;
 };
 
 struct cpsw_slave_regs {
