@@ -147,18 +147,6 @@ Configuration options:
   Board specific stuff
 ======================================================================*/
 
-/*
-  The board has three memory windows: las0, las1, and lcfg (the PCI chip)
-  Las1 has the data and can be burst DMAed 32bits at a time.
-*/
-#define LCFG_PCIINDEX	0
-/* PCI region 1 is a 256 byte IO space mapping.  Use??? */
-#define LAS0_PCIINDEX	2	/* PCI memory resources */
-#define LAS1_PCIINDEX	3
-#define LCFG_PCISIZE	0x100
-#define LAS0_PCISIZE	0x200
-#define LAS1_PCISIZE	0x10
-
 #define RTD_CLOCK_RATE	8000000	/* 8Mhz onboard clock */
 #define RTD_CLOCK_BASE	125	/* clock period in ns */
 
@@ -1591,7 +1579,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rtdPrivate *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	resource_size_t pci_base;
 	int ret;
 #ifdef USE_DMA
 	int index;
@@ -1626,13 +1613,12 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = 1;	/* the "detach" needs this */
 
-	/* Initialize the base addresses */
-	pci_base = pci_resource_start(pcidev, LAS0_PCIINDEX);
-	devpriv->las0 = ioremap_nocache(pci_base, LAS0_PCISIZE);
-	pci_base = pci_resource_start(pcidev, LAS1_PCIINDEX);
-	devpriv->las1 = ioremap_nocache(pci_base, LAS1_PCISIZE);
-	pci_base = pci_resource_start(pcidev, LCFG_PCIINDEX);
-	devpriv->lcfg = ioremap_nocache(pci_base, LCFG_PCISIZE);
+	devpriv->las0 = ioremap_nocache(pci_resource_start(pcidev, 2),
+					pci_resource_len(pcidev, 2));
+	devpriv->las1 = ioremap_nocache(pci_resource_start(pcidev, 3),
+					pci_resource_len(pcidev, 3));
+	devpriv->lcfg = ioremap_nocache(pci_resource_start(pcidev, 0),
+					pci_resource_len(pcidev, 0));
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 
