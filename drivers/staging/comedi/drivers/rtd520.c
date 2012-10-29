@@ -113,8 +113,6 @@ Configuration options:
 /*======================================================================
   Driver specific stuff (tunable)
 ======================================================================*/
-/* Enable this to test the new DMA support. You may get hard lock ups */
-/*#define USE_DMA*/
 
 /* We really only need 2 buffers.  More than that means being much
    smarter about knowing which ones are full. */
@@ -314,21 +312,6 @@ struct rtdPrivate {
 	u16 intClearMask;	/* interrupt clear mask */
 	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
 	u8 dioStatus;		/* could be read back (dio0Ctrl) */
-#ifdef USE_DMA
-	/*
-	 * Always DMA 1/2 FIFO.  Buffer (dmaBuff?) is (at least) twice that
-	 * size.  After transferring, interrupt processes 1/2 FIFO and
-	 * passes to comedi
-	 */
-	s16 dma0Offset;		/* current processing offset (0, 1/2) */
-	uint16_t *dma0Buff[DMA_CHAIN_COUNT];	/* DMA buffers (for ADC) */
-	dma_addr_t dma0BuffPhysAddr[DMA_CHAIN_COUNT];	/* physical addresses */
-	struct plx_dma_desc *dma0Chain;	/* DMA descriptor ring for dmaBuff */
-	dma_addr_t dma0ChainPhysAddr;	/* physical addresses */
-	/* shadow registers */
-	u8 dma0Control;
-	u8 dma1Control;
-#endif				/* USE_DMA */
 	unsigned fifoLen;
 };
 
@@ -641,125 +624,6 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-#ifdef USE_DMA
-/*
-  Terminate a DMA transfer and wait for everything to quiet down
-*/
-void abort_dma(struct comedi_device *dev, unsigned int channel)
-{				/* DMA channel 0, 1 */
-	struct rtdPrivate *devpriv = dev->private;
-	unsigned long dma_cs_addr;	/* the control/status register */
-	uint8_t status;
-	unsigned int ii;
-	/* unsigned long flags; */
-
-	dma_cs_addr = (unsigned long)devpriv->lcfg
-	    + ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
-
-	/*  spinlock for plx dma control/status reg */
-	/* spin_lock_irqsave( &dev->spinlock, flags ); */
-
-	/*  abort dma transfer if necessary */
-	status = readb(dma_cs_addr);
-	if ((status & PLX_DMA_EN_BIT) == 0) {	/* not enabled (Error?) */
-		DPRINTK("rtd520: AbortDma on non-active channel %d (0x%x)\n",
-			channel, status);
-		goto abortDmaExit;
-	}
-
-	/* wait to make sure done bit is zero (needed?) */
-	for (ii = 0; (status & PLX_DMA_DONE_BIT) && ii < RTD_DMA_TIMEOUT; ii++) {
-		WAIT_QUIETLY;
-		status = readb(dma_cs_addr);
-	}
-	if (status & PLX_DMA_DONE_BIT) {
-		printk("rtd520: Timeout waiting for dma %i done clear\n",
-		       channel);
-		goto abortDmaExit;
-	}
-
-	/* disable channel (required) */
-	writeb(0, dma_cs_addr);
-	udelay(1);		/* needed?? */
-	/* set abort bit for channel */
-	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
-
-	/*  wait for dma done bit to be set */
-	status = readb(dma_cs_addr);
-	for (ii = 0;
-	     (status & PLX_DMA_DONE_BIT) == 0 && ii < RTD_DMA_TIMEOUT; ii++) {
-		status = readb(dma_cs_addr);
-		WAIT_QUIETLY;
-	}
-	if ((status & PLX_DMA_DONE_BIT) == 0) {
-		printk("rtd520: Timeout waiting for dma %i done set\n",
-		       channel);
-	}
-
-abortDmaExit:
-	/* spin_unlock_irqrestore( &dev->spinlock, flags ); */
-}
-
-/*
-  Process what is in the DMA transfer buffer and pass to comedi
-  Note: this is not re-entrant
-*/
-static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct rtdPrivate *devpriv = dev->private;
-	int ii, n;
-	s16 *dp;
-
-	if (devpriv->aiCount == 0)	/* transfer already complete */
-		return 0;
-
-	dp = devpriv->dma0Buff[devpriv->dma0Offset];
-	for (ii = 0; ii < devpriv->fifoLen / 2;) {	/* convert samples */
-		short sample;
-
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
-			sample = (*dp >> 3) + 2048;	/* convert to comedi unsigned data */
-		else
-			sample = *dp >> 3;	/* low 3 bits are marker lines */
-
-		*dp++ = sample;	/* put processed value back */
-
-		if (++s->async->cur_chan >= s->async->cmd.chanlist_len)
-			s->async->cur_chan = 0;
-
-		++ii;		/* number ready to transfer */
-		if (devpriv->aiCount > 0) {	/* < 0, means read forever */
-			if (--devpriv->aiCount == 0) {	/* done */
-				/*DPRINTK ("rtd520: Final %d samples\n", ii); */
-				break;
-			}
-		}
-	}
-
-	/* now pass the whole array to the comedi buffer */
-	dp = devpriv->dma0Buff[devpriv->dma0Offset];
-	n = comedi_buf_write_alloc(s->async, ii * sizeof(s16));
-	if (n < (ii * sizeof(s16))) {	/* any residual is an error */
-		DPRINTK("rtd520:ai_process_dma buffer overflow %d samples!\n",
-			ii - (n / sizeof(s16)));
-		s->async->events |= COMEDI_CB_ERROR;
-		return -1;
-	}
-	comedi_buf_memcpy_to(s->async, 0, dp, n);
-	comedi_buf_write_free(s->async, n);
-
-	/*
-	 * always at least 1 scan -- 1/2 FIFO is larger than our max scan list
-	 */
-	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-
-	if (++devpriv->dma0Offset >= DMA_CHAIN_COUNT) {	/* next buffer */
-		devpriv->dma0Offset = 0;
-	}
-	return 0;
-}
-#endif /* USE_DMA */
-
 /*
   Handle all rtd520 interrupts.
   Runs atomically and is never re-entered.
@@ -787,39 +651,6 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);	/* should be all 0s */
 		goto abortTransfer;
 	}
-#ifdef USE_DMA
-	if (devpriv->flags & DMA0_ACTIVE) {	/* Check DMA */
-		u32 istatus = readl(devpriv->lcfg + LCFG_ITCSR);
-
-		if (istatus & ICS_DMA0_A) {
-			if (ai_process_dma(dev, s) < 0) {
-				DPRINTK
-				    ("rtd520: comedi read buffer overflow (DMA) with %ld to go!\n",
-				     devpriv->aiCount);
-				devpriv->dma0Control &= ~PLX_DMA_START_BIT;
-				devpriv->dma0Control |= PLX_CLEAR_DMA_INTR_BIT;
-				writeb(devpriv->dma0Control,
-					devpriv->lcfg + LCFG_DMACSR0);
-				goto abortTransfer;
-			}
-
-			/*DPRINTK ("rtd520: DMA transfer: %ld to go, istatus %x\n",
-			   devpriv->aiCount, istatus); */
-			devpriv->dma0Control &= ~PLX_DMA_START_BIT;
-			devpriv->dma0Control |= PLX_CLEAR_DMA_INTR_BIT;
-			writeb(devpriv->dma0Control,
-				devpriv->lcfg + LCFG_DMACSR0);
-			if (0 == devpriv->aiCount) {	/* counted down */
-				DPRINTK("rtd520: Samples Done (DMA).\n");
-				goto transferDone;
-			}
-			comedi_event(dev, s);
-		} else {
-			/*DPRINTK ("rtd520: No DMA ready: istatus %x\n", istatus); */
-		}
-	}
-	/* Fall through and check for other interrupt sources */
-#endif /* USE_DMA */
 
 	status = readw(devpriv->las0 + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
@@ -898,19 +729,6 @@ transferDone:
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-#ifdef USE_DMA
-	if (devpriv->flags & DMA0_ACTIVE) {
-		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
-			devpriv->lcfg + LCFG_ITCSR);
-		abort_dma(dev, 0);
-		devpriv->flags &= ~DMA0_ACTIVE;
-		/* if Using DMA, then we should have read everything by now */
-		if (devpriv->aiCount > 0) {
-			DPRINTK("rtd520: Lost DMA data! %ld remain\n",
-				devpriv->aiCount);
-		}
-	}
-#endif /* USE_DMA */
 
 	if (devpriv->aiCount > 0) {	/* there shouldn't be anything left */
 		fifoStatus = readl(devpriv->las0 + LAS0_ADC);
@@ -1144,20 +962,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-#ifdef USE_DMA
-	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
-		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
-			devpriv->lcfg + LCFG_ITCSR);
-		abort_dma(dev, 0);
-		devpriv->flags &= ~DMA0_ACTIVE;
-		if (readl(devpriv->lcfg + LCFG_ITCSR) & ICS_DMA0_A) {
-			devpriv->dma0Control = PLX_CLEAR_DMA_INTR_BIT;
-			writeb(devpriv->dma0Control,
-				devpriv->lcfg + LCFG_DMACSR0);
-		}
-	}
-	writel(0, devpriv->las0 + LAS0_DMA0_RESET);
-#endif /* USE_DMA */
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	devpriv->intCount = 0;
@@ -1316,32 +1120,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 		DPRINTK("rtd520: Transferring every %d\n", devpriv->transCount);
 	} else {		/* 1/2 FIFO transfers */
-#ifdef USE_DMA
-		devpriv->flags |= DMA0_ACTIVE;
-
-		/* point to first transfer in ring */
-		devpriv->dma0Offset = 0;
-		writel(DMA_MODE_BITS, devpriv->lcfg + LCFG_DMAMODE0);
-		/* point to first block */
-		writel(devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next,
-			devpriv->lcfg + LCFG_DMADPR0);
-		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
-		writel(readl(devpriv->lcfg + LCFG_ITCSR) | ICS_DMA0_E,
-			devpriv->lcfg + LCFG_ITCSR);
-		/* Must be 2 steps.  See PLX app note about "Starting a DMA transfer" */
-		devpriv->dma0Control = PLX_DMA_EN_BIT;
-		writeb(devpriv->dma0Control,
-			devpriv->lcfg + LCFG_DMACSR0);
-		devpriv->dma0Control |= PLX_DMA_START_BIT;
-		writeb(devpriv->dma0Control,
-			devpriv->lcfg + LCFG_DMACSR0);
-		DPRINTK("rtd520: Using DMA0 transfers. plxInt %x RtdInt %x\n",
-			readl(devpriv->lcfg + LCFG_ITCSR), devpriv->intMask);
-#else /* USE_DMA */
 		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
 		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 		DPRINTK("rtd520: Transferring every 1/2 FIFO\n");
-#endif /* USE_DMA */
 	}
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
@@ -1366,14 +1147,6 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
-#ifdef USE_DMA
-	if (devpriv->flags & DMA0_ACTIVE) {
-		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
-			devpriv->lcfg + LCFG_ITCSR);
-		abort_dma(dev, 0);
-		devpriv->flags &= ~DMA0_ACTIVE;
-	}
-#endif /* USE_DMA */
 	status = readw(devpriv->las0 + LAS0_IT);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 	DPRINTK
@@ -1657,17 +1430,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
-#ifdef USE_DMA
-	int index;
-#endif
 
 	dev_info(dev->class_dev, "rtd520 attaching.\n");
-
-#if defined(CONFIG_COMEDI_DEBUG) && defined(USE_DMA)
-	/* You can set this a load time: modprobe comedi comedi_debug=1 */
-	if (0 == comedi_debug)	/* force DMA debug printks */
-		comedi_debug = 1;
-#endif
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1777,78 +1541,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->fifoLen = ret;
 	printk("( fifoLen=%d )", devpriv->fifoLen);
 
-#ifdef USE_DMA
-	if (dev->irq > 0) {
-		printk("( DMA buff=%d )\n", DMA_CHAIN_COUNT);
-		/*
-		 * The PLX9080 has 2 DMA controllers, but there could be
-		 * 4 sources: ADC, digital, DAC1, and DAC2.  Since only the
-		 * ADC supports cmd mode right now, this isn't an issue (yet)
-		 */
-		devpriv->dma0Offset = 0;
-
-		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
-			devpriv->dma0Buff[index] =
-			    pci_alloc_consistent(pcidev,
-						 sizeof(u16) *
-						 devpriv->fifoLen / 2,
-						 &devpriv->
-						 dma0BuffPhysAddr[index]);
-			if (devpriv->dma0Buff[index] == NULL) {
-				ret = -ENOMEM;
-				goto rtd_attach_die_error;
-			}
-			/*DPRINTK ("buff[%d] @ %p virtual, %x PCI\n",
-			   index,
-			   devpriv->dma0Buff[index],
-			   devpriv->dma0BuffPhysAddr[index]); */
-		}
-
-		/*
-		 * setup DMA descriptor ring (use cpu_to_le32 for byte
-		 * ordering?)
-		 */
-		devpriv->dma0Chain =
-		    pci_alloc_consistent(pcidev,
-					 sizeof(struct plx_dma_desc) *
-					 DMA_CHAIN_COUNT,
-					 &devpriv->dma0ChainPhysAddr);
-		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
-			devpriv->dma0Chain[index].pci_start_addr =
-			    devpriv->dma0BuffPhysAddr[index];
-			devpriv->dma0Chain[index].local_start_addr =
-			    DMALADDR_ADC;
-			devpriv->dma0Chain[index].transfer_size =
-			    sizeof(u16) * devpriv->fifoLen / 2;
-			devpriv->dma0Chain[index].next =
-			    (devpriv->dma0ChainPhysAddr + ((index +
-							    1) %
-							   (DMA_CHAIN_COUNT))
-			     * sizeof(devpriv->dma0Chain[0]))
-			    | DMA_TRANSFER_BITS;
-			/*DPRINTK ("ring[%d] @%lx PCI: %x, local: %x, N: 0x%x, next: %x\n",
-			   index,
-			   ((long)devpriv->dma0ChainPhysAddr
-			   + (index * sizeof(devpriv->dma0Chain[0]))),
-			   devpriv->dma0Chain[index].pci_start_addr,
-			   devpriv->dma0Chain[index].local_start_addr,
-			   devpriv->dma0Chain[index].transfer_size,
-			   devpriv->dma0Chain[index].next); */
-		}
-
-		if (devpriv->dma0Chain == NULL) {
-			ret = -ENOMEM;
-			goto rtd_attach_die_error;
-		}
-
-		writel(DMA_MODE_BITS, devpriv->lcfg + LCFG_DMAMODE0);
-		/* set DMA trigger source */
-		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
-	} else {
-		dev_info(dev->class_dev, "( no IRQ->no DMA )");
-	}
-#endif /* USE_DMA */
-
 	if (dev->irq)
 		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 
@@ -1861,46 +1553,11 @@ static void rtd_detach(struct comedi_device *dev)
 {
 	struct rtdPrivate *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-#ifdef USE_DMA
-	int index;
-#endif
 
 	if (devpriv) {
 		/* Shut down any board ops by resetting it */
-#ifdef USE_DMA
-		if (devpriv->lcfg) {
-			devpriv->dma0Control = 0;
-			devpriv->dma1Control = 0;
-			writeb(devpriv->dma0Control,
-				devpriv->lcfg + LCFG_DMACSR0);
-			writeb(devpriv->dma1Control,
-				devpriv->lcfg + LCFG_DMACSR1);
-			writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
-		}
-#endif /* USE_DMA */
 		if (devpriv->las0 && devpriv->lcfg)
 			rtd_reset(dev);
-#ifdef USE_DMA
-		/* release DMA */
-		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
-			if (NULL != devpriv->dma0Buff[index]) {
-				pci_free_consistent(pcidev,
-						    sizeof(u16) *
-						    devpriv->fifoLen / 2,
-						    devpriv->dma0Buff[index],
-						    devpriv->
-						    dma0BuffPhysAddr[index]);
-				devpriv->dma0Buff[index] = NULL;
-			}
-		}
-		if (NULL != devpriv->dma0Chain) {
-			pci_free_consistent(pcidev,
-					    sizeof(struct plx_dma_desc) *
-					    DMA_CHAIN_COUNT, devpriv->dma0Chain,
-					    devpriv->dma0ChainPhysAddr);
-			devpriv->dma0Chain = NULL;
-		}
-#endif /* USE_DMA */
 		if (dev->irq) {
 			writel(readl(devpriv->lcfg + LCFG_ITCSR) &
 				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
