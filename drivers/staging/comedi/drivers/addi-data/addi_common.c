@@ -50,6 +50,40 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
+{
+	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
+	unsigned short w_Address = CR_CHAN(insn->chanspec);
+	unsigned short w_Data;
+
+	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
+		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
+	data[0] = w_Data;
+
+	return insn->n;
+}
+
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	const struct addi_board *this_board = comedi_board(dev);
+
+	this_board->interrupt(irq, d);
+	return IRQ_RETVAL(1);
+}
+
+static int i_ADDI_Reset(struct comedi_device *dev)
+{
+	const struct addi_board *this_board = comedi_board(dev);
+
+	this_board->reset(dev);
+	return 0;
+}
+
 static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct addi_board *this_board = comedi_board(dev);
@@ -432,40 +466,6 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			pci_list_builded = 0;
 		}
 	}
-}
-
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->reset(dev);
-	return 0;
-}
-
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
-}
-
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
-	unsigned short w_Data;
-	unsigned short w_Address;
-	w_Address = CR_CHAN(insn->chanspec);	/*  address to be read as 0,1,2,3...255 */
-
-	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
-		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
-	data[0] = w_Data;
-	/* multiplied by 2 bcozinput will be like 0,1,2...255 */
-	return insn->n;
-
 }
 
 static struct comedi_driver addi_driver = {
