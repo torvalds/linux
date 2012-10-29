@@ -891,6 +891,9 @@ static int esd_usb2_set_bittiming(struct net_device *netdev)
 	u32 canbtr;
 
 	canbtr = ESD_USB2_UBR;
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		canbtr |= ESD_USB2_LOM;
+
 	canbtr |= (bt->brp - 1) & (ESD_USB2_BRP_MAX - 1);
 	canbtr |= ((bt->sjw - 1) & (ESD_USB2_SJW_MAX - 1))
 		<< ESD_USB2_SJW_SHIFT;
@@ -971,6 +974,7 @@ static int esd_usb2_probe_one_net(struct usb_interface *intf, int index)
 	priv->index = index;
 
 	priv->can.state = CAN_STATE_STOPPED;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY;
 	priv->can.clock.freq = ESD_USB2_CAN_CLOCK;
 	priv->can.bittiming_const = &esd_usb2_bittiming_const;
 	priv->can.do_set_bittiming = esd_usb2_set_bittiming;
