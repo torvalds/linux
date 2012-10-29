@@ -207,7 +207,7 @@ out_strtoint:
 	return ret;
 }
 
-static DEVICE_ATTR(torch_pin, 0666, NULL, lm3642_torch_pin_store);
+static DEVICE_ATTR(torch_pin, S_IWUSR, NULL, lm3642_torch_pin_store);
 
 static void lm3642_deferred_torch_brightness_set(struct work_struct *work)
 {
@@ -264,7 +264,7 @@ out_strtoint:
 	return ret;
 }
 
-static DEVICE_ATTR(strobe_pin, 0666, NULL, lm3642_strobe_pin_store);
+static DEVICE_ATTR(strobe_pin, S_IWUSR, NULL, lm3642_strobe_pin_store);
 
 static void lm3642_deferred_strobe_brightness_set(struct work_struct *work)
 {
