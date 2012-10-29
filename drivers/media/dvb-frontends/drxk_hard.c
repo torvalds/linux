@@ -5446,6 +5446,7 @@ static int QAMDemodulatorCommand(struct drxk_state *state,
 	} else {
 		printk(KERN_WARNING "drxk: Unknown QAM demodulator parameter "
 			"count %d\n", numberOfParameters);
+		status = -EINVAL;
 	}
 
 error:
