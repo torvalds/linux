@@ -19,7 +19,6 @@
 
 #include <linux/platform_data/at91_adc.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91sam9260.h>
 #include <mach/at91sam9260_matrix.h>
@@ -27,6 +26,7 @@
 #include <mach/at91sam9_smc.h>
 #include <mach/at91_adc.h>
 
+#include "board.h"
 #include "generic.h"
 
 

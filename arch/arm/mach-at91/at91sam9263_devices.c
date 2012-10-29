@@ -20,12 +20,12 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <mach/board.h>
 #include <mach/at91sam9263.h>
 #include <mach/at91sam9263_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
 
+#include "board.h"
 #include "generic.h"
 
 
