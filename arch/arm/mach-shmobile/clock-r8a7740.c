@@ -188,6 +188,22 @@ static struct clk pllc1_div2_clk = {
 };
 
 /* USB clock */
+/*
+ * USBCKCR is controlling usb24 clock
+ * bit[7] : parent clock
+ * bit[6] : clock divide rate
+ * And this bit[7] is used as a "usb24s" from other devices.
+ * (Video clock / Sub clock / SPU clock)
+ * You can controll this clock as a below.
+ *
+ * struct clk *usb24	= clk_get(dev,  "usb24");
+ * struct clk *usb24s	= clk_get(NULL, "usb24s");
+ * struct clk *system	= clk_get(NULL, "system_clk");
+ * int rate = clk_get_rate(system);
+ *
+ * clk_set_parent(usb24s, system);  // for bit[7]
+ * clk_set_rate(usb24, rate / 2);   // for bit[6]
+ */
 static struct clk *usb24s_parents[] = {
 	[0] = &system_clk,
 	[1] = &extal2_clk
