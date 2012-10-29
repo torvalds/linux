@@ -490,6 +490,8 @@ ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF),libelf),y)
 		LIBC_SUPPORT := 1
 	endif
 	ifeq ($(LIBC_SUPPORT),1)
+		msg := $(warning No libelf found, disables 'probe' tool, please install elfutils-libelf-devel/libelf-dev);
+
 		NO_LIBELF := 1
 		NO_DWARF := 1
 		NO_DEMANGLE := 1
