@@ -21,6 +21,7 @@
 #include <asm/i8259.h>
 #include <asm/io.h>
 #include <asm/io_apic.h>
+#include <asm/emergency-restart.h>
 
 static int ce4100_i8042_detect(void)
 {
@@ -150,6 +151,15 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = x86_init_noop;
 	x86_init.pci.init = ce4100_pci_init;
+
+	/*
+	 * By default, the reboot method is ACPI which is supported by the
+	 * CE4100 bootloader CEFDK using FADT.ResetReg Address and ResetValue
+	 * the bootloader will however issue a system power off instead of
+	 * reboot. By using BOOT_KBD we ensure proper system reboot as
+	 * expected.
+	 */
+	reboot_type = BOOT_KBD;
 
 #ifdef CONFIG_X86_IO_APIC
 	x86_init.pci.init_irq = sdv_pci_init;
