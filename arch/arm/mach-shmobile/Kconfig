@@ -50,11 +50,6 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_G3EVM
-	bool "G3EVM board"
-	depends on ARCH_SH7367
-	select ARCH_REQUIRE_GPIOLIB
-
 config MACH_G4EVM
 	bool "G4EVM board"
 	depends on ARCH_SH7377
@@ -147,7 +142,6 @@ menu "Memory configuration"
 
 config MEMORY_START
 	hex "Physical memory start address"
-	default "0x50000000" if MACH_G3EVM
 	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
 				MACH_MACKEREL || MACH_BONITO || \
 				MACH_ARMADILLO800EVA
@@ -160,7 +154,6 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size"
-	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
 	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
 				MACH_ARMADILLO800EVA
