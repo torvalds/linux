@@ -305,7 +305,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	unsigned long flags;
 
 	if (!udev->usbdev) {
-		printk(KERN_ERR "%s: No such device\n", __func__);
+		dev_err(&usbdev->dev, "%s: No such device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -484,7 +484,7 @@ static int gdm_usb_receive(void *priv_dev,
 	unsigned long flags;
 
 	if (!udev->usbdev) {
-		printk(KERN_ERR "%s: No such device\n", __func__);
+		dev_err(&usbdev->dev, "%s: No such device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -559,9 +559,9 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	idProduct = L2H(usbdev->descriptor.idProduct);
 	bcdDevice = L2H(usbdev->descriptor.bcdDevice);
 
-	printk(KERN_INFO "Found GDM USB VID = 0x%04x PID = 0x%04x...\n",
-		idVendor, idProduct);
-	printk(KERN_INFO "GCT WiMax driver version %s\n", DRIVER_VERSION);
+	dev_info(&intf->dev, "Found GDM USB VID = 0x%04x PID = 0x%04x...\n",
+		 idVendor, idProduct);
+	dev_info(&intf->dev, "GCT WiMax driver version %s\n", DRIVER_VERSION);
 
 
 	if (idProduct == EMERGENCY_PID) {
