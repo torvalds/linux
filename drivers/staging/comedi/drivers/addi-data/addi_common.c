@@ -54,66 +54,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
 /* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
 
-#if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
-/* BYTE b_SaveFPUReg [94]; */
-
-void fpu_begin(void)
-{
-	/* asm ("fstenv b_SaveFPUReg"); */
-	kernel_fpu_begin();
-}
-
-void fpu_end(void)
-{
-	/*  asm ("frstor b_SaveFPUReg"); */
-	kernel_fpu_end();
-}
-#endif
-
-#include "addi_eeprom.c"
-#if (defined (CONFIG_APCI_3120) || defined (CONFIG_APCI_3001))
-#include "hwdrv_apci3120.c"
-#endif
-#ifdef CONFIG_APCI_1032
-#include "hwdrv_apci1032.c"
-#endif
-#ifdef CONFIG_APCI_1516
-#include "hwdrv_apci1516.c"
-#endif
-#ifdef CONFIG_APCI_2016
-#include "hwdrv_apci2016.c"
-#endif
-#ifdef CONFIG_APCI_2032
-#include "hwdrv_apci2032.c"
-#endif
-#ifdef CONFIG_APCI_2200
-#include "hwdrv_apci2200.c"
-#endif
-#ifdef CONFIG_APCI_1564
-#include "hwdrv_apci1564.c"
-#endif
-#ifdef CONFIG_APCI_1500
-#include "hwdrv_apci1500.c"
-#endif
-#ifdef CONFIG_APCI_3501
-#include "hwdrv_apci3501.c"
-#endif
-#ifdef CONFIG_APCI_035
-#include "hwdrv_apci035.c"
-#endif
-#if (defined (CONFIG_APCI_3200) || defined (CONFIG_APCI_3300))
-#include "hwdrv_apci3200.c"
-#endif
-#ifdef CONFIG_APCI_1710
-#include "hwdrv_APCI1710.c"
-#endif
-#ifdef CONFIG_APCI_16XX
-#include "hwdrv_apci16xx.c"
-#endif
-#ifdef CONFIG_APCI_3XXX
-#include "hwdrv_apci3xxx.c"
-#endif
-
 #ifndef COMEDI_SUBD_TTLIO
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif

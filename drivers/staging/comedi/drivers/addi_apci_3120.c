@@ -8,6 +8,8 @@
 
 #define ADDIDATA_DRIVER_NAME	"addi_apci_3120"
 
+#include "addi-data/addi_eeprom.c"
+#include "addi-data/hwdrv_apci3120.c"
 #include "addi-data/addi_common.c"
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");

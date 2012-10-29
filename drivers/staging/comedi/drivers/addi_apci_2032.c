@@ -8,6 +8,8 @@
 
 #define ADDIDATA_DRIVER_NAME	"addi_apci_2032"
 
+#include "addi-data/addi_eeprom.c"
+#include "addi-data/hwdrv_apci2032.c"
 #include "addi-data/addi_common.c"
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
