@@ -165,15 +165,13 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "control");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for control\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_control = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "blink");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for blink\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_blink = res->start;
 	memset(data->name, 0, MFD_NAME_SIZE);
@@ -224,9 +222,6 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	}
 	pm860x_led_set(&data->cdev, 0);
 	return 0;
-out:
-	devm_kfree(&pdev->dev, data);
-	return ret;
 }
 
 static int pm860x_led_remove(struct platform_device *pdev)
