@@ -432,9 +432,8 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-
-	irq_ptr->schid = ccw_device_get_subchannel_id(init_data->cdev);
 	irq_ptr->cdev = init_data->cdev;
+	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
 	setup_qib(irq_ptr, init_data);
