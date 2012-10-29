@@ -634,10 +634,10 @@ static void uart_unthrottle(struct tty_struct *tty)
 		uart_set_mctrl(port, TIOCM_RTS);
 }
 
-static void uart_get_info(struct tty_port *port,
-                        struct uart_state *state,
+static void do_uart_get_info(struct tty_port *port,
 			struct serial_struct *retinfo)
 {
+	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
 
 	memset(retinfo, 0, sizeof(*retinfo));
@@ -662,17 +662,21 @@ static void uart_get_info(struct tty_port *port,
 	retinfo->iomem_base      = (void *)(unsigned long)uport->mapbase;
 }
 
-static int uart_get_info_user(struct uart_state *state,
-			 struct serial_struct __user *retinfo)
+static void uart_get_info(struct tty_port *port,
+			struct serial_struct *retinfo)
 {
-	struct tty_port *port = &state->port;
-	struct serial_struct tmp;
-
 	/* Ensure the state we copy is consistent and no hardware changes
 	   occur as we go */
 	mutex_lock(&port->mutex);
-	uart_get_info(port, state, &tmp);
+	do_uart_get_info(port, retinfo);
 	mutex_unlock(&port->mutex);
+}
+
+static int uart_get_info_user(struct tty_port *port,
+			 struct serial_struct __user *retinfo)
+{
+	struct serial_struct tmp;
+	uart_get_info(port, &tmp);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -1131,7 +1135,7 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd,
 	 */
 	switch (cmd) {
 	case TIOCGSERIAL:
-		ret = uart_get_info_user(state, uarg);
+		ret = uart_get_info_user(port, uarg);
 		break;
 
 	case TIOCSSERIAL:
@@ -2331,12 +2335,8 @@ static ssize_t uart_get_attr_uartclk(struct device *dev,
 {
 	struct serial_struct tmp;
 	struct tty_port *port = dev_get_drvdata(dev);
-	struct uart_state *state = container_of(port, struct uart_state, port);
 
-	mutex_lock(&port->mutex);
-	uart_get_info(port, state, &tmp);
-	mutex_unlock(&port->mutex);
-
+	uart_get_info(port, &tmp);
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.baud_base * 16);
 }
 
@@ -2355,6 +2355,7 @@ static const struct attribute_group *tty_dev_attr_groups[] = {
 	&tty_dev_attr_group,
 	NULL
 	};
+
 
 /**
  *	uart_add_one_port - attach a driver-defined port structure
