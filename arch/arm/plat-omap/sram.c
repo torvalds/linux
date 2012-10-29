@@ -26,8 +26,6 @@
 
 #include <asm/mach/map.h>
 
-#include "../mach-omap1/soc.h"
-#include "../mach-omap1/sram.h"
 #include "../mach-omap2/soc.h"
 #include "../mach-omap2/sram.h"
 
@@ -36,7 +34,6 @@
 #include "../mach-omap2/prm2xxx_3xxx.h"
 #include "../mach-omap2/sdrc.h"
 
-#define OMAP1_SRAM_PA		0x20000000
 #define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)
 #define OMAP3_SRAM_PUB_PA       (OMAP3_SRAM_PA + 0x8000)
 #ifdef CONFIG_OMAP4_ERRATA_I688
@@ -150,20 +147,6 @@ static void __init omap_detect_sram(void)
 					omap_sram_size = 0x10000; /* 64K */
 			}
 		}
-	} else {
-		omap_sram_start = OMAP1_SRAM_PA;
-
-		if (cpu_is_omap7xx())
-			omap_sram_size = 0x32000;	/* 200K */
-		else if (cpu_is_omap15xx())
-			omap_sram_size = 0x30000;	/* 192K */
-		else if (cpu_is_omap1610() || cpu_is_omap1611() ||
-				cpu_is_omap1621() || cpu_is_omap1710())
-			omap_sram_size = 0x4000;	/* 16K */
-		else {
-			pr_err("Could not detect SRAM size\n");
-			omap_sram_size = 0x4000;
-		}
 	}
 }
 
@@ -256,32 +239,6 @@ void __init omap_map_sram(unsigned long start, unsigned long size,
 	memset_io(omap_sram_base + omap_sram_skip, 0,
 		  omap_sram_size - omap_sram_skip);
 }
-
-#ifdef CONFIG_ARCH_OMAP1
-
-static void (*_omap_sram_reprogram_clock)(u32 dpllctl, u32 ckctl);
-
-void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
-{
-	BUG_ON(!_omap_sram_reprogram_clock);
-	/* On 730, bit 13 must always be 1 */
-	if (cpu_is_omap7xx())
-		ckctl |= 0x2000;
-	_omap_sram_reprogram_clock(dpllctl, ckctl);
-}
-
-static int __init omap1_sram_init(void)
-{
-	_omap_sram_reprogram_clock =
-			omap_sram_push(omap1_sram_reprogram_clock,
-					omap1_sram_reprogram_clock_sz);
-
-	return 0;
-}
-
-#else
-#define omap1_sram_init()	do {} while (0)
-#endif
 
 #if defined(CONFIG_ARCH_OMAP2)
 
@@ -407,14 +364,13 @@ static inline int am33xx_sram_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_OMAP2PLUS
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
 	omap_fix_and_map_sram();
 
-	if (!(cpu_class_is_omap2()))
-		omap1_sram_init();
-	else if (cpu_is_omap242x())
+	if (cpu_is_omap242x())
 		omap242x_sram_init();
 	else if (cpu_is_omap2430())
 		omap243x_sram_init();
@@ -425,3 +381,4 @@ int __init omap_sram_init(void)
 
 	return 0;
 }
+#endif
