@@ -12,6 +12,13 @@
 
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci035.c"
+
+static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA,  0x0300) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
+
 #include "addi-data/addi_common.c"
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
