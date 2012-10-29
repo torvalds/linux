@@ -54,8 +54,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
 /* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
 
-#define this_board ((const struct addi_board *)dev->board_ptr)
-
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 /* BYTE b_SaveFPUReg [94]; */
 
@@ -1401,6 +1399,7 @@ static const struct addi_board boardtypes[] = {
 
 static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
@@ -1748,6 +1747,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -1801,6 +1801,7 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 
 static int i_ADDI_Reset(struct comedi_device *dev)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 
 	this_board->reset(dev);
 	return 0;
@@ -1828,6 +1829,8 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	const struct addi_board *this_board = comedi_board(dev);
+
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
@@ -1856,6 +1859,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned short w_Data;
 	unsigned short w_Address;

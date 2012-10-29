@@ -147,6 +147,7 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev, struct comedi_su
 int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
@@ -482,6 +483,7 @@ int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_su
 int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	int err = 0;
 
@@ -684,6 +686,7 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 	struct comedi_subdevice *s)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned char b_Tmp;
 	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
@@ -1895,6 +1898,7 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 int i_APCI3120_InsnConfigTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2;
 	unsigned short us_TmpValue;
@@ -2053,6 +2057,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device *dev, struct comedi_subdevic
 int i_APCI3120_InsnWriteTimer(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2 = 0;
 	unsigned short us_TmpValue;
