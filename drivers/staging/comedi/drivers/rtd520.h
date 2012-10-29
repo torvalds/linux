@@ -106,13 +106,12 @@
 #define LAS0_DMA1_RESET		0x01d0	/* DMA1 Request state machine reset */
 
 /*
-  LAS1
-  Name			Local Address			Function
-*/
-#define LAS1_ADC_FIFO            0x0000	/*  Read A/D FIFO (16bit) - */
-#define LAS1_HDIO_FIFO           0x0004	/*  Read High Speed Digital Input FIFO (16bit) - */
-#define LAS1_DAC1_FIFO           0x0008	/*  - Write D/A1 FIFO (16bit) */
-#define LAS1_DAC2_FIFO           0x000C	/*  - Write D/A2 FIFO (16bit) */
+ * Local Address Space 1 Offsets
+ */
+#define LAS1_ADC_FIFO		0x0000	/* A/D FIFO (16bit) */
+#define LAS1_HDIO_FIFO		0x0004	/* HiSpd DI FIFO (16bit) */
+#define LAS1_DAC1_FIFO		0x0008	/* D/A1 FIFO (16bit) */
+#define LAS1_DAC2_FIFO		0x000c	/* D/A2 FIFO (16bit) */
 
 /*
   LCFG: PLX 9080 local config & runtime registers
