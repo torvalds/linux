@@ -610,6 +610,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
 	off_t row_offset = entry->row_offset;
+	bool first = true;
 
 	if (current_entry) {
 		browser->he_selection = entry;
@@ -633,10 +634,11 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			if (!perf_hpp__format[i].cond)
 				continue;
 
-			if (i) {
+			if (!first) {
 				slsmg_printf("  ");
 				width -= 2;
 			}
+			first = false;
 
 			if (perf_hpp__format[i].color) {
 				hpp.ptr = &percent;
@@ -645,7 +647,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 
 				ui_browser__set_percent_color(&browser->b, percent, current_entry);
 
-				if (i == 0 && symbol_conf.use_callchain) {
+				if (i == PERF_HPP__OVERHEAD && symbol_conf.use_callchain) {
 					slsmg_printf("%c ", folded_sign);
 					width -= 2;
 				}

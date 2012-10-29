@@ -469,7 +469,7 @@ static int parse_options(char *options, struct super_block *sb)
 			uid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(uid)) {
 				ext2_msg(sb, KERN_ERR, "Invalid uid value %d", option);
-				return -1;
+				return 0;
 
 			}
 			sbi->s_resuid = uid;
@@ -480,7 +480,7 @@ static int parse_options(char *options, struct super_block *sb)
 			gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(gid)) {
 				ext2_msg(sb, KERN_ERR, "Invalid gid value %d", option);
-				return -1;
+				return 0;
 			}
 			sbi->s_resgid = gid;
 			break;

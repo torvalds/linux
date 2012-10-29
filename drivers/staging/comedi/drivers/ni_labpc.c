@@ -778,6 +778,8 @@ void labpc_common_detach(struct comedi_device *dev)
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 
+	if (!thisboard)
+		return;
 	if (dev->subdevices) {
 		s = &dev->subdevices[2];
 		subdev_8255_cleanup(dev, s);

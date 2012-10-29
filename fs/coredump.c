@@ -450,11 +450,12 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 
 	cp->file = files[1];
 
-	replace_fd(0, files[0], 0);
+	err = replace_fd(0, files[0], 0);
+	fput(files[0]);
 	/* and disallow core files too */
 	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
 
-	return 0;
+	return err;
 }
 
 void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
