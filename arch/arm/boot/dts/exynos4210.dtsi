@@ -303,4 +303,11 @@
 			#gpio-cells = <4>;
 		};
 	};
+
+	tmu@100C0000 {
+		compatible = "samsung,exynos4210-tmu";
+		interrupt-parent = <&combiner>;
+		reg = <0x100C0000 0x100>;
+		interrupts = <2 4>;
+	};
 };
