@@ -730,6 +730,27 @@ out:
 		ret = count;
 	return ret;
 }
+static ssize_t show_available_governors(struct device *d,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct devfreq_governor *tmp_governor;
+	ssize_t count = 0;
+
+	mutex_lock(&devfreq_list_lock);
+	list_for_each_entry(tmp_governor, &devfreq_governor_list, node)
+		count += scnprintf(&buf[count], (PAGE_SIZE - count - 2),
+				   "%s ", tmp_governor->name);
+	mutex_unlock(&devfreq_list_lock);
+
+	/* Truncate the trailing space */
+	if (count)
+		count--;
+
+	count += sprintf(&buf[count], "\n");
+
+	return count;
+}
 
 static ssize_t show_freq(struct device *dev,
 			 struct device_attribute *attr, char *buf)
@@ -917,6 +938,7 @@ static ssize_t show_trans_table(struct device *dev, struct device_attribute *att
 
 static struct device_attribute devfreq_attrs[] = {
 	__ATTR(governor, S_IRUGO | S_IWUSR, show_governor, store_governor),
+	__ATTR(available_governors, S_IRUGO, show_available_governors, NULL),
 	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
 	__ATTR(available_frequencies, S_IRUGO, show_available_freqs, NULL),
 	__ATTR(target_freq, S_IRUGO, show_target_freq, NULL),
