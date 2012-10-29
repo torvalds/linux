@@ -2707,10 +2707,10 @@ F:	include/linux/edac.h
 
 EDAC-AMD64
 M:	Doug Thompson <dougthompson@xmission.com>
-M:	Borislav Petkov <borislav.petkov@amd.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
-S:	Supported
+S:	Maintained
 F:	drivers/edac/amd64_edac*
 
 EDAC-E752X
@@ -3703,7 +3703,7 @@ S:	Maintained
 F:	drivers/platform/x86/ideapad-laptop.c
 
 IDE/ATAPI DRIVERS
-M:	Borislav Petkov <petkovbb@gmail.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	Documentation/cdrom/ide-cd
@@ -8147,7 +8147,7 @@ F:	drivers/platform/x86
 
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
-M:	Borislav Petkov <bp@amd64.org>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*
