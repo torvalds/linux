@@ -5363,7 +5363,7 @@ S:	Maintained
 F:	sound/drivers/opl4/
 
 OPROFILE
-M:	Robert Richter <robert.richter@amd.com>
+M:	Robert Richter <rric@kernel.org>
 L:	oprofile-list@lists.sf.net
 S:	Maintained
 F:	arch/*/include/asm/oprofile*.h
