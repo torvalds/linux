@@ -65,6 +65,10 @@ static const char *ex_name(int ex)
 		return "Write protection fault";
 	case HVM_GE_C_XMAL:
 		return "Misaligned instruction";
+	case HVM_GE_C_WREG:
+		return "Multiple writes to same register in packet";
+	case HVM_GE_C_PCAL:
+		return "Program counter values that are not properly aligned";
 	case HVM_GE_C_RMAL:
 		return "Misaligned data load";
 	case HVM_GE_C_WMAL:
@@ -322,6 +326,12 @@ void do_genex(struct pt_regs *regs)
 		write_protection_fault(regs);
 		break;
 	case HVM_GE_C_XMAL:
+		misaligned_instruction(regs);
+		break;
+	case HVM_GE_C_WREG:
+		illegal_instruction(regs);
+		break;
+	case HVM_GE_C_PCAL:
 		misaligned_instruction(regs);
 		break;
 	case HVM_GE_C_RMAL:
