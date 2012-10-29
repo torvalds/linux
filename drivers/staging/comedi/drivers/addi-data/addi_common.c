@@ -46,37 +46,9 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-#ifndef ADDIDATA_DRIVER_NAME
-#define ADDIDATA_DRIVER_NAME	"addi_common"
-#endif
-
-/* Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>"); */
-/* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
-/* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
-
 #ifndef COMEDI_SUBD_TTLIO
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
-
-/*
-+----------------------------------------------------------------------------+
-| Function name     :static int i_ADDI_Attach(struct comedi_device *dev,            |
-|										struct comedi_devconfig *it)        |
-|                                        									 |
-+----------------------------------------------------------------------------+
-| Task              :Detects the card.                                       |
-|  			 Configure the driver for a particular board.            |
-|  			 This function does all the initializations and memory   |
-|			 allocation of data structures for the driver.	         |
-+----------------------------------------------------------------------------+
-| Input Parameters  :struct comedi_device *dev										 |
-|                    struct comedi_devconfig *it									 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      :  0            					                     |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
 
 static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -462,24 +434,6 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 	}
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function name     : static int i_ADDI_Reset(struct comedi_device *dev)			 |
-|                                        									 |
-+----------------------------------------------------------------------------+
-| Task              : Disables all interrupts, Resets digital output to low, |
-|				Set all analog output to low						 |
-|                     										                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev									 |
-|                     														 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      : 0           					                         |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
-
 static int i_ADDI_Reset(struct comedi_device *dev)
 {
 	const struct addi_board *this_board = comedi_board(dev);
@@ -487,25 +441,6 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 	this_board->reset(dev);
 	return 0;
 }
-
-/* Interrupt function */
-/*
-+----------------------------------------------------------------------------+
-| Function name     :                                                        |
-|static void v_ADDI_Interrupt(int irq, void *d)                 |
-|                                        									 |
-+----------------------------------------------------------------------------+
-| Task              : Registerd interrupt routine						     |
-|                     										                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : 	int irq												 |
-|                     														 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      :              					                         |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
@@ -515,27 +450,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
-
-/* EEPROM Read Function */
-/*
-+----------------------------------------------------------------------------+
-| Function name     :                                                        |
-|INT i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,struct comedi_subdevice *s,
-							struct comedi_insn *insn,unsigned int *data)
-|                                        									 |
-+----------------------------------------------------------------------------+
-| Task              : Read 256 words from EEPROM          				     |
-|                     										                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  :(struct comedi_device *dev,struct comedi_subdevice *s,
-			struct comedi_insn *insn,unsigned int *data) 						 |
-|                     														 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      :              					                         |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
 
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_insn *insn, unsigned int *data)
