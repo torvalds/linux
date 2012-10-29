@@ -1327,9 +1327,6 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&cam_vdda_fixed_rdev,
 	&cam_8m_12v_fixed_rdev,
 	&exynos4_bus_devfreq,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 };
 
 static void __init nuri_map_io(void)
