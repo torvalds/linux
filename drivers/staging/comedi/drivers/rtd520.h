@@ -114,24 +114,23 @@
 #define LAS1_DAC2_FIFO		0x000c	/* D/A2 FIFO (16bit) */
 
 /*
-  LCFG: PLX 9080 local config & runtime registers
-  Name			Local Address			Function
-*/
-#define LCFG_ITCSR              0x0068	/*  INTCSR, Interrupt Control/Status Register */
-#define LCFG_DMAMODE0           0x0080	/*  DMA Channel 0 Mode Register */
-#define LCFG_DMAPADR0           0x0084	/*  DMA Channel 0 PCI Address Register */
-#define LCFG_DMALADR0           0x0088	/*  DMA Channel 0 Local Address Reg */
-#define LCFG_DMASIZ0            0x008C	/*  DMA Channel 0 Transfer Size (Bytes) Register */
-#define LCFG_DMADPR0            0x0090	/*  DMA Channel 0 Descriptor Pointer Register */
-#define LCFG_DMAMODE1           0x0094	/*  DMA Channel 1 Mode Register */
-#define LCFG_DMAPADR1           0x0098	/*  DMA Channel 1 PCI Address Register */
-#define LCFG_DMALADR1           0x009C	/*  DMA Channel 1 Local Address Register */
-#define LCFG_DMASIZ1            0x00A0	/*  DMA Channel 1 Transfer Size (Bytes) Register */
-#define LCFG_DMADPR1            0x00A4	/*  DMA Channel 1 Descriptor Pointer Register */
-#define LCFG_DMACSR0            0x00A8	/*  DMA Channel 0 Command/Status Register */
-#define LCFG_DMACSR1            0x00A9	/*  DMA Channel 0 Command/Status Register */
-#define LCFG_DMAARB             0x00AC	/*  DMA Arbitration Register */
-#define LCFG_DMATHR             0x00B0	/*  DMA Threshold Register */
+ * PLX 9080 local config & runtime registers
+ */
+#define LCFG_ITCSR		0x0068	/* Interrupt Control/Status */
+#define LCFG_DMAMODE0		0x0080	/* DMA0 Mode */
+#define LCFG_DMAPADR0		0x0084	/* DMA0 PCI Address */
+#define LCFG_DMALADR0		0x0088	/* DMA0 Local Address */
+#define LCFG_DMASIZ0		0x008c	/* DMA0 Transfer Size (Bytes) */
+#define LCFG_DMADPR0		0x0090	/* DMA0 Descriptor Pointer */
+#define LCFG_DMAMODE1		0x0094	/* DMA1 Mode */
+#define LCFG_DMAPADR1		0x0098	/* DMA1 PCI Address */
+#define LCFG_DMALADR1		0x009c	/* DMA1 Local Address */
+#define LCFG_DMASIZ1		0x00a0	/* DMA1 Transfer Size (Bytes) */
+#define LCFG_DMADPR1		0x00a4	/* DMA1 Descriptor Pointer */
+#define LCFG_DMACSR0		0x00a8	/* DMA0 Command/Status */
+#define LCFG_DMACSR1		0x00a9	/* DMA0 Command/Status */
+#define LCFG_DMAARB		0x00ac	/* DMA Arbitration */
+#define LCFG_DMATHR		0x00b0	/* DMA Threshold */
 
 /*======================================================================
   Resister bit definitions
