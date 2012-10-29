@@ -54,6 +54,9 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
 	struct platform_device *pdev;
 	struct resource *res;
 
+	if (bus_id > 1)
+		return -EINVAL;
+
 	omap1_i2c_mux_pins(bus_id);
 
 	pdev = &omap_i2c_devices[bus_id - 1];

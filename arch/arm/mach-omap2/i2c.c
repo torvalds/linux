@@ -109,6 +109,19 @@ int omap_i2c_reset(struct omap_hwmod *oh)
 	return 0;
 }
 
+static int __init omap_i2c_nr_ports(void)
+{
+	int ports = 0;
+
+	if (cpu_is_omap24xx())
+		ports = 2;
+	else if (cpu_is_omap34xx())
+		ports = 3;
+	else if (cpu_is_omap44xx())
+		ports = 4;
+	return ports;
+}
+
 static const char name[] = "omap_i2c";
 
 int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
@@ -120,6 +133,9 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
 	char oh_name[MAX_OMAP_I2C_HWMOD_NAME_LEN];
 	struct omap_i2c_bus_platform_data *pdata;
 	struct omap_i2c_dev_attr *dev_attr;
+
+	if (bus_id > omap_i2c_nr_ports())
+		return -EINVAL;
 
 	omap2_i2c_mux_pins(bus_id);
 
