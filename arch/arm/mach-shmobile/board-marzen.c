@@ -36,6 +36,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 #include <linux/pm_runtime.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
@@ -255,9 +256,65 @@ static struct platform_device ehci1_device = {
 	.resource	= ehci1_resources,
 };
 
+static struct usb_ohci_pdata ohcix_pdata = {
+	.power_on	= usb_power_on,
+	.power_off	= usb_power_off,
+	.power_suspend	= usb_power_off,
+};
+
+static struct resource ohci0_resources[] = {
+	[0] = {
+		.start	= 0xffe70400,
+		.end	= 0xffe70800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(44),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ohci0_device = {
+	.name	= "ohci-platform",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= &ohci0_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ohcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ohci0_resources),
+	.resource	= ohci0_resources,
+};
+
+static struct resource ohci1_resources[] = {
+	[0] = {
+		.start	= 0xfff70400,
+		.end	= 0xfff70800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(45),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ohci1_device = {
+	.name	= "ohci-platform",
+	.id	= 1,
+	.dev	= {
+		.dma_mask		= &ohci1_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ohcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ohci1_resources),
+	.resource	= ohci1_resources,
+};
+
 static struct platform_device *marzen_late_devices[] __initdata = {
 	&ehci0_device,
 	&ehci1_device,
+	&ohci0_device,
+	&ohci1_device,
 };
 
 void __init marzen_init_late(void)
