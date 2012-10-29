@@ -23,24 +23,3 @@
 
 #define APCI1710_DIGIO_MEMORYONOFF	0x10
 #define APCI1710_DIGIO_INIT		0x11
-
-/*
- * DIGITAL I/O INISIALISATION FUNCTION
- */
-int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data);
-
-/*
- * INPUT OUTPUT  FUNCTIONS
- */
-int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn, unsigned int *data);
-
-int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn, unsigned int *data);
-
-int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn, unsigned int *data);

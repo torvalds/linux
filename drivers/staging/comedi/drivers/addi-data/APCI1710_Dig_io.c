@@ -99,8 +99,10 @@ Activates and deactivates the digital output memory.
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned char b_ModulNbr, b_ChannelAMode, b_ChannelBMode;
@@ -294,8 +296,10 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subd
 * unsigned char_ b_ModulNbr, unsigned char_ b_InputChannel,
 * unsigned char *_ pb_ChannelStatus)
 */
-int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
+						struct comedi_subdevice *s,
+						struct comedi_insn *insn,
+						unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
@@ -483,8 +487,10 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
 * _INT_ i_APCI1710_SetDigitalIOChlOn (unsigned char_ b_BoardHandle,
 * unsigned char_ b_ModulNbr, unsigned char_ b_OutputChannel)
 */
-int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
@@ -734,8 +740,10 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
  * b_BoardHandle, unsigned char_ b_ModulNbr, unsigned char_
  * b_PortValue)
 */
-int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
