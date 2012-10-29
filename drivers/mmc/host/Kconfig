@@ -270,26 +270,8 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
-choice
-	prompt "Atmel SD/MMC Driver"
-	depends on AVR32 || ARCH_AT91
-	default MMC_ATMELMCI if AVR32
-	help
-	  Choose which driver to use for the Atmel MCI Silicon
-
-config MMC_AT91
-	tristate "AT91 SD/MMC Card Interface support (DEPRECATED)"
-	depends on ARCH_AT91
-	help
-	  This selects the AT91 MCI controller. This driver will
-	  be removed soon (for more information have a look to
-	  Documentation/feature-removal-schedule.txt). Please use
-	  MMC_ATMEL_MCI.
-
-	  If unsure, say N.
-
 config MMC_ATMELMCI
-	tristate "Atmel Multimedia Card Interface support"
+	tristate "Atmel SD/MMC Driver (Multimedia Card Interface)"
 	depends on AVR32 || ARCH_AT91
 	help
 	  This selects the Atmel Multimedia Card Interface driver. If
@@ -297,8 +279,6 @@ config MMC_ATMELMCI
 	  Card slot, say Y or M here.
 
 	  If unsure, say N.
-
-endchoice
 
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support"

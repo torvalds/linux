@@ -1352,14 +1352,6 @@ S:	Maintained
 F:	drivers/atm/
 F:	include/linux/atm*
 
-ATMEL AT91 MCI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@atmel.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.atmel.com/products/AT91/
-W:	http://www.at91.com/
-S:	Maintained
-F:	drivers/mmc/host/at91_mci.c
-
 ATMEL AT91 / AT32 MCI DRIVER
 M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 S:	Maintained
