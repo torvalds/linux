@@ -44,7 +44,7 @@ EXPORT_SYMBOL_GPL(platform_bus);
  * be setup before the platform_notifier is called.  So if a user needs to
  * manipulate any relevant information in the pdev_archdata they can do:
  *
- * 	platform_devic_alloc()
+ *	platform_device_alloc()
  * 	... manipulate ...
  * 	platform_device_add()
  *
