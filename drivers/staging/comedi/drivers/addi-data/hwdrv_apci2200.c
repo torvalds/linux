@@ -73,8 +73,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2200_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_Read1DigitalInput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue = 0;
@@ -114,8 +116,10 @@ int i_APCI2200_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_ReadMoreDigitalInput(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   struct comedi_insn *insn,
+					   unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_PortValue = data[0];
@@ -171,8 +175,10 @@ int i_APCI2200_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2200_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -201,8 +207,10 @@ int i_APCI2200_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_WriteDigitalOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp, ui_Temp1;
@@ -360,8 +368,10 @@ int i_APCI2200_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_ReadDigitalOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
@@ -425,8 +435,10 @@ int i_APCI2200_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_ConfigWatchdog(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -473,8 +485,10 @@ int i_APCI2200_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice
     +----------------------------------------------------------------------------+
   */
 
-int i_APCI2200_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_StartStopWriteWatchdog(struct comedi_device *dev,
+					     struct comedi_subdevice *s,
+					     struct comedi_insn *insn,
+					     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -520,8 +534,10 @@ int i_APCI2200_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_s
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI2200_ReadWatchdog(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -546,7 +562,7 @@ int i_APCI2200_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2200_Reset(struct comedi_device *dev)
+static int i_APCI2200_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 
