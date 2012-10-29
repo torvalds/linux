@@ -604,9 +604,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 	int idx;
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
 	struct mv_xor_desc_slot *slot = NULL;
-	struct mv_xor_platform_data *plat_data =
-		mv_chan->device->pdev->dev.platform_data;
-	int num_descs_in_pool = plat_data->pool_size/MV_XOR_SLOT_SIZE;
+	int num_descs_in_pool = mv_chan->device->pool_size/MV_XOR_SLOT_SIZE;
 
 	/* Allocate descriptor slots */
 	idx = mv_chan->slots_allocated;
@@ -1084,11 +1082,10 @@ static int __devexit mv_xor_remove(struct platform_device *dev)
 	struct mv_xor_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 	struct mv_xor_chan *mv_chan;
-	struct mv_xor_platform_data *plat_data = dev->dev.platform_data;
 
 	dma_async_device_unregister(&device->common);
 
-	dma_free_coherent(&dev->dev, plat_data->pool_size,
+	dma_free_coherent(&dev->dev, device->pool_size,
 			device->dma_desc_pool_virt, device->dma_desc_pool);
 
 	list_for_each_entry_safe(chan, _chan, &device->common.channels,
@@ -1120,8 +1117,9 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 	 * note: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
 	 */
+	adev->pool_size = plat_data->pool_size;
 	adev->dma_desc_pool_virt = dma_alloc_writecombine(&pdev->dev,
-							  plat_data->pool_size,
+							  adev->pool_size,
 							  &adev->dma_desc_pool,
 							  GFP_KERNEL);
 	if (!adev->dma_desc_pool_virt)
