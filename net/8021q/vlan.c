@@ -294,7 +294,7 @@ static void vlan_transfer_features(struct net_device *dev,
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
 
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
 
