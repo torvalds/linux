@@ -1341,7 +1341,7 @@ static void __init filter_events(struct attribute **attrs)
 	}
 }
 
-ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+static ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page)
 {
 	struct perf_pmu_events_attr *pmu_attr = \
@@ -1373,7 +1373,7 @@ EVENT_ATTR(ref-cycles,			REF_CPU_CYCLES		);
 
 static struct attribute *empty_attrs;
 
-struct attribute *events_attr[] = {
+static struct attribute *events_attr[] = {
 	EVENT_PTR(CPU_CYCLES),
 	EVENT_PTR(INSTRUCTIONS),
 	EVENT_PTR(CACHE_REFERENCES),
