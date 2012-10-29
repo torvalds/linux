@@ -147,19 +147,11 @@
 #define FS_DIN_NOT_FULL		(1 << 14) /* DIN FIFO not full */
 
 /*  Timer Status Word Bits (GetTimerStatus) */
-#define TS_PCLK_GATE   0x0001
-/*  D0 - Pacer Clock Gate [0 - gated, 1 - enabled] */
-#define TS_BCLK_GATE   0x0002
-/*  D1 - Burst Clock Gate [0 - disabled, 1 - running] */
-#define TS_DCNT_GATE   0x0004
-/*  D2 - Pacer Clock Delayed Start Trigger [0 - delay over, 1 - delay in */
-/*  progress] */
-#define TS_ACNT_GATE   0x0008
-/*  D3 - Pacer Clock About Trigger [0 - completed, 1 - in progress] */
-#define TS_PCLK_RUN    0x0010
-/*  D4 - Pacer Clock Shutdown Flag [0 - Pacer Clock cannot be start */
-/*  triggered only by Software Pacer Start Command, 1 - Pacer Clock can */
-/*  be start triggered] */
+#define TS_PCLK_GATE		(1 << 0)  /* Pacer Clock Gate enabled */
+#define TS_BCLK_GATE		(1 << 1)  /* Burst Clock Gate running */
+#define TS_DCNT_GATE		(1 << 2)  /* Pacer Clock Delayed Start Trig. */
+#define TS_ACNT_GATE		(1 << 3)  /* Pacer Clock About Trig. */
+#define TS_PCLK_RUN		(1 << 4)  /* Pacer Clock Shutdown Flag */
 
 /*  External Trigger polarity select */
 /*  External Interrupt polarity select */
