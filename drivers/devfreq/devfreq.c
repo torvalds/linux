@@ -165,6 +165,7 @@ int update_devfreq(struct devfreq *devfreq)
 	devfreq->previous_freq = freq;
 	return err;
 }
+EXPORT_SYMBOL(update_devfreq);
 
 /**
  * devfreq_monitor() - Periodically poll devfreq objects.
