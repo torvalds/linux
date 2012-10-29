@@ -178,8 +178,9 @@ struct coda_ctx {
 	int				idx;
 };
 
-static u8 coda_filler_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x0c,
-				 0xff, 0xff, 0xff, 0xff, 0xff};
+static const u8 coda_filler_nal[14] = { 0x00, 0x00, 0x00, 0x01, 0x0c, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x80 };
+static const u8 coda_filler_size[8] = { 0, 7, 14, 13, 12, 11, 10, 9 };
 
 static inline void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
@@ -949,19 +950,14 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 
 static int coda_h264_padding(int size, char *p)
 {
-	int size_align = size & ~0x3;
-	int filler_size = ARRAY_SIZE(coda_filler_nal);
 	int nal_size;
 	int diff;
 
-	diff = size - size_align;
+	diff = size - (size & ~0x7);
 	if (diff == 0)
 		return 0;
 
-	nal_size = filler_size + 2 - diff;
-	if (nal_size > filler_size)
-		nal_size -= 4;
-
+	nal_size = coda_filler_size[diff];
 	memcpy(p, coda_filler_nal, nal_size);
 
 	/* Add rbsp stop bit and trailing at the end */
