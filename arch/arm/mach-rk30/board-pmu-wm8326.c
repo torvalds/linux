@@ -7,23 +7,6 @@
 #include <mach/sram.h>
 #include <linux/earlysuspend.h>
 
-#define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
-#define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
-
-#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
-
-#define CRU_CLKGATE5_CON_ADDR 0x00e4
-#define GRF_GPIO6L_DIR_ADDR 0x0030
-#define GRF_GPIO6L_DO_ADDR 0x0068
-#define GRF_GPIO6L_EN_ADDR 0x00a0
-#define CRU_CLKGATE5_GRFCLK_ON 0x00100000
-#define CRU_CLKGATE5_GRFCLK_OFF 0x00100010
-#define GPIO6_PB1_DIR_OUT  0x02000200
-#define GPIO6_PB1_DO_LOW  0x02000000
-#define GPIO6_PB1_DO_HIGH  0x02000200
-#define GPIO6_PB1_EN_MASK  0x02000200
-#define GPIO6_PB1_UNEN_MASK  0x02000000
 
 /* wm8326 pmu*/
 #if defined(CONFIG_GPIO_WM831X)
@@ -90,16 +73,33 @@ static struct rk29_gpio_expander_info wm831x_gpio_settinginfo[] = {
 
 #define UNLOCK_SECURITY_KEY     ~(0x1<<5)
 #define LOCK_SECURITY_KEY       0x00
-#define PMU_POWER_SLEEP 		RK30_PIN0_PA1 
+
 static struct wm831x *Wm831x;
 
 static int wm831x_pre_init(struct wm831x *parm)
 {
 	int ret;
 	Wm831x = parm;
-//	printk("%s\n", __func__);
+	printk("%s\n", __func__);
+
+	#ifdef CONFIG_RK_CONFIG
+	if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+	if(port_output_init(pmic_slp, 0, "pmic_slp") < 0){
+		printk(KERN_ERR "port_output_init failed\n");
+		return -EINVAL;
+	}
+	#else
+	if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+	#endif
 
 	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
 	#ifdef CONFIG_BATTERY_RK30_VOL3V8
@@ -182,141 +182,33 @@ int wm831x_post_init(struct wm831x *Wm831x)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
-
+	int i = 0;
 	
 	g_pmic_type = PMIC_TYPE_WM8326;
 	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
+
+	for(i = 0; i < ARRAY_SIZE(wm8326_dcdc_info); i++)
+	{
+	dcdc =regulator_get(NULL, wm8326_dcdc_info[i].name);
+	regulator_set_voltage(dcdc, wm8326_dcdc_info[i].min_uv, wm8326_dcdc_info[i].max_uv);
+	regulator_set_suspend_voltage(dcdc, wm8326_dcdc_info[i].suspend_vol);
+	regulator_enable(dcdc);
+	printk("%s  %s =%dmV end\n", __func__,wm8326_dcdc_info[i].name, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+	}
 	
-	ldo = regulator_get(NULL, "ldo6");	//vcc_33
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_set_suspend_voltage(ldo, 3300000);
+	for(i = 0; i < ARRAY_SIZE(wm8326_ldo_info); i++)
+	{
+	ldo =regulator_get(NULL, wm8326_ldo_info[i].name);
+	regulator_set_voltage(ldo, wm8326_ldo_info[i].min_uv, wm8326_ldo_info[i].max_uv);
+	regulator_set_suspend_voltage(ldo, wm8326_ldo_info[i].suspend_vol);
 	regulator_enable(ldo);
-//	printk("%s set ldo6 vcc_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	//printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
+	}
 	
-	ldo = regulator_get(NULL, "ldo4");	// vdd_11
-	regulator_set_voltage(ldo, 1000000, 1000000);
-	regulator_set_suspend_voltage(ldo, 900000);
-	regulator_enable(ldo);
-//	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo5");	//vcc_25
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_set_suspend_voltage(ldo,1800000);
-	regulator_enable(ldo);
-//	printk("%s set ldo5 vcc_25=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	dcdc = regulator_get(NULL, "dcdc4");	// vcc_io
-#ifdef CONFIG_MACH_RK3066_SDK
-	regulator_set_voltage(dcdc, 3300000, 3300000);
-	regulator_set_suspend_voltage(dcdc, 3100000);
-#else
-	regulator_set_voltage(dcdc, 3000000, 3000000);
-	regulator_set_suspend_voltage(dcdc, 2800000);
-#endif
-	regulator_enable(dcdc);
-//	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-
-	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
-	regulator_set_voltage(dcdc, 1000000, 1000000);
-	regulator_set_suspend_voltage(dcdc, 1000000);
-	regulator_enable(dcdc);
-	printk("%s set dcdc2 vdd_cpu(vdd_arm)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-
-	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
-	
-	/* Read avs value under logic 1.1V*/
-	/*
-	regulator_set_voltage(dcdc, 1100000, 1100000);
-	avs_init_val_get(1,1100000,"wm8326 init");
-	udelay(600);
-	avs_set_scal_val(AVS_BASE);
-	*/
-	regulator_set_voltage(dcdc, 1000000, 1000000);
-	regulator_set_suspend_voltage(dcdc, 1000000);
-	regulator_enable(dcdc);
-	printk("%s set dcdc1 vdd_core(vdd_log)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-
-	dcdc = regulator_get(NULL, "dcdc3");	// vcc_ddr
-	regulator_set_voltage(dcdc, 1150000, 1150000);
-	regulator_set_suspend_voltage(dcdc, 1150000);
-	regulator_enable(dcdc);
-//	printk("%s set dcdc3 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo7");	// vcc28_cif
-	regulator_set_voltage(ldo, 2800000, 2800000);
-	regulator_set_suspend_voltage(ldo, 2800000);
-	regulator_enable(ldo);
-//	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo1");	// vcc18_cif
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_set_suspend_voltage(ldo, 1800000);
-	regulator_enable(ldo);
-//	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo8");	// vcca_33
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_set_suspend_voltage(ldo, 3300000);
-	regulator_enable(ldo);
-//	printk("%s set ldo8 vcca_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo2");	//vccio_wl
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_set_suspend_voltage(ldo, 1800000);
-	regulator_enable(ldo);
-//	printk("%s set ldo2 vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo10");	//flash io
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_set_suspend_voltage(ldo, 1800000);
-	regulator_enable(ldo);
-//	printk("%s set ldo10 vcca_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-#ifdef CONFIG_MACH_RK3066_SDK
-	ldo = regulator_get(NULL, "ldo3");	//vdd11_hdmi
-	regulator_set_voltage(ldo, 1100000, 1100000);
-	regulator_set_suspend_voltage(ldo, 1100000);
-#else
-	ldo = regulator_get(NULL, "ldo3");	//vdd_12
-	regulator_set_voltage(ldo, 1200000, 1200000);
-	regulator_set_suspend_voltage(ldo, 1200000);
-#endif
-	regulator_enable(ldo);
-//	printk("%s set ldo3 vdd_12=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
-	ldo = regulator_get(NULL, "ldo9");	//vcc_tp
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_set_suspend_voltage(ldo, 3300000);
-	regulator_enable(ldo);
-//	printk("%s set ldo9 vcc_tp=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-	udelay(100);
-
 	wm831x_mask_interrupt(Wm831x);
 
 	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
@@ -883,25 +775,16 @@ void wm831x_pmu_early_resume(struct regulator_dev *rdev)
 
 void __sramfunc board_pmu_wm8326_suspend(void)
 {	
-#if 0
-	cru_writel(CRU_CLKGATE5_GRFCLK_ON,CRU_CLKGATE5_CON_ADDR); //open grf clk
-	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
-	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
-#endif
-}
+	#ifdef CONFIG_CLK_SWITCH_TO_32K
+	sram_gpio_set_value(pmic_sleep, GPIO_HIGH);  
+	#endif
+ }
 void __sramfunc board_pmu_wm8326_resume(void)
 {
-#if 0
-	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
-	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
-#ifdef CONFIG_CLK_SWITCH_TO_32K
-	sram_32k_udelay(10000);
-#else
-	sram_udelay(10000);
-#endif
-#endif
+	#ifdef CONFIG_CLK_SWITCH_TO_32K
+	sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
+	sram_udelay(2000);
+	#endif
 }
 static struct wm831x_pdata wm831x_platdata = {
 

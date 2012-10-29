@@ -15,7 +15,7 @@
 #include <asm/cacheflush.h>
 #include <mach/memory.h>
 #include <plat/sram.h>
-
+#include <mach/gpio.h>
 
 /* SRAM section definitions from the linker */
 extern char __sram_code_start, __ssram_code_text, __esram_code_text;
@@ -103,3 +103,40 @@ void __sramfunc sram_printhex(unsigned int hex)
 		hex <<= 4;
 	}
 }
+
+struct sram_gpio_data __sramdata pmic_sleep;
+#if defined(CONFIG_ARCH_RK2928)
+static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928_GPIO2_BASE, RK2928_GPIO3_BASE};
+#else if defined(CONFIG_ARCH_RK30)
+static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE,RK30_GPIO4_BASE,RK30_GPIO6_BASE};
+#endif
+
+int sram_gpio_init(int gpio, struct sram_gpio_data *data)
+{
+       unsigned index;
+
+       if(gpio == INVALID_GPIO)
+               return -EINVAL;
+       index = gpio - PIN_BASE;
+       if(index/NUM_GROUP >= ARRAY_SIZE(gpio_base))
+               return -EINVAL;
+
+       data->base = gpio_base[index/NUM_GROUP];
+       data->offset = index%NUM_GROUP;
+
+       return 0;
+}
+
+void __sramfunc sram_gpio_set_value(struct sram_gpio_data data, uint value)
+{
+       writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DDR)| (1<<data.offset),
+                       data.base + GPIO_SWPORTA_DDR);
+       if(value)
+               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) | (1<<data.offset),
+                               data.base + GPIO_SWPORTA_DR);
+       else
+               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) & ~(1<<data.offset),
+                               data.base + GPIO_SWPORTA_DR);
+}
+
+

@@ -9,43 +9,6 @@
 
 #ifdef CONFIG_MFD_TPS65910
 
-#define GPIO_SWPORTA_DR  0x0000
-#define GPIO_SWPORTA_DDR 0x0004
-struct sram_gpio_data {
-       void __iomem *base;
-       uint offset;
-};
-
-static __sramdata struct sram_gpio_data pmic_sleep;
-static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928_GPIO2_BASE, RK2928_GPIO3_BASE};
-
-static int sram_gpio_init(int gpio, struct sram_gpio_data *data)
-{
-       unsigned index;
-
-       if(gpio == INVALID_GPIO)
-               return -EINVAL;
-       index = gpio - PIN_BASE;
-       if(index/NUM_GROUP >= ARRAY_SIZE(gpio_base))
-               return -EINVAL;
-
-       data->base = gpio_base[index/NUM_GROUP];
-       data->offset = index%NUM_GROUP;
-
-       return 0;
-}
-
-static __sramfunc void sram_gpio_set_value(struct sram_gpio_data data, uint value)
-{
-       writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DDR)| (1<<data.offset),
-                       data.base + GPIO_SWPORTA_DDR);
-       if(value)
-               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) | (1<<data.offset),
-                               data.base + GPIO_SWPORTA_DR);
-       else
-               writel_relaxed(readl_relaxed(data.base + GPIO_SWPORTA_DR) & ~(1<<data.offset),
-                               data.base + GPIO_SWPORTA_DR);
-}
 extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
@@ -565,8 +528,7 @@ void __sramfunc board_pmu_tps65910_suspend(void)
 }
 void __sramfunc board_pmu_tps65910_resume(void)
 {
-	int ret;
-        sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
+       sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
 	sram_udelay(2000);
 }
 static struct tps65910_board tps65910_data = {

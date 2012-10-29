@@ -1415,11 +1415,182 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_WM831X_I2C
-#include "board-rk3066b-sdk-wm8326.c"
+
+#define PMU_POWER_SLEEP 		RK30_PIN0_PA1 
+
+static struct pmu_info  wm8326_dcdc_info[] = {
+	{
+		.name          = "vdd_core",   //logic
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  950000,
+	},
+	{
+		.name          = "vdd_cpu",    //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  950000,
+	},
+	{
+		.name          = "dcdc3",   //ddr
+		.min_uv          = 1150000,
+		.max_uv         = 1150000,
+		.suspend_vol  =  1150000,
+	},
+	#ifdef CONFIG_MACH_RK3066_SDK
+	{
+		.name          = "dcdc4",   //vcc_io
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3000000,
+	},
+	#else
+	{
+		.name          = "dcdc4",   //vcc_io
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+		.suspend_vol  =  2800000,
+	},
+	#endif
+};
+
+static struct pmu_info  wm8326_ldo_info[] = {
+	{
+		.name          = "ldo1",   //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		.suspend_vol  =  1800000,
+	},
+	{
+		.name          = "ldo2",    //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		.suspend_vol  =  1800000,
+	},
+	{
+		.name          = "ldo3",   //
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+		.suspend_vol  =  1100000,
+	},
+	{
+		.name          = "ldo4",   //vdd11
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  1000000,
+	},
+	{
+		.name          = "ldo5",   //vcc25
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		.suspend_vol  =  1800000,
+	},
+	{
+		.name          = "ldo6",   //vcc33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3300000,
+	},
+	{
+		.name          = "ldo7",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+		.suspend_vol  =  2800000,
+	},
+	{
+		.name          = "ldo8",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3300000,
+	},
+	{
+		.name          = "ldo9",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3300000,
+	},
+	{
+		.name          = "ldo10",   //flash_io
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		.suspend_vol  =  1800000,
+	},
+};
+
+#include "board-pmu-wm8326.c"
 #endif
+
 #ifdef CONFIG_MFD_TPS65910
+#ifdef CONFIG_ARCH_RK3066B
 #define TPS65910_HOST_IRQ        RK30_PIN0_PB3
-#include "board-rk3066b-sdk-tps65910.c"
+#else
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+#endif
+
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+
+static struct pmu_info  tps65910_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "vdd2",    //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vio",   //vcc_io
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+	},
+	
+};
+static  struct pmu_info  tps65910_ldo_info[] = {
+	{
+		.name          = "vpll",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "vaux1",   //vcc25_hdmi
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "vaux2",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vaux33",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vmmc",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "vdac",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+ };
+
+#include "board-pmu-tps65910.c"
 #endif
 
 static struct i2c_board_info __initdata i2c1_info[] = {
@@ -1469,6 +1640,9 @@ void __sramfunc board_pmu_resume(void)
 }
 
  int __sramdata gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
+
+#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
 
 void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 {

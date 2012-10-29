@@ -7,26 +7,8 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
-
-#define CRU_CLKGATE5_CON_ADDR 0x00e4
-#define GRF_GPIO6L_DIR_ADDR 0x0030
-#define GRF_GPIO6L_DO_ADDR 0x0068
-#define GRF_GPIO6L_EN_ADDR 0x00a0
-#define GPIO6_PB3_DIR_OUT  0x08000800
-#define GPIO6_PB3_DO_LOW  0x08000000
-#define GPIO6_PB3_DO_HIGH  0x08000800
-#define GPIO6_PB3_EN_MASK  0x08000800
-#define GPIO6_PB3_UNEN_MASK  0x08000000
-#define GPIO6_PB1_DIR_OUT  0x02000200
-#define GPIO6_PB1_DO_LOW  0x02000000
-#define GPIO6_PB1_DO_HIGH  0x02000200
-#define GPIO6_PB1_EN_MASK  0x02000200
-#define GPIO6_PB1_UNEN_MASK  0x02000000
-
 #ifdef CONFIG_MFD_TPS65910
-	
+
 extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
@@ -36,8 +18,26 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	int err = -1;
 		
 	printk("%s,line=%d\n", __func__,__LINE__);	
-	//gpio_request(PMU_POWER_SLEEP, "NULL");
-	//gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
+	
+	#ifdef CONFIG_RK_CONFIG
+	if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+	if(port_output_init(pmic_slp, 0, "pmic_slp") < 0){
+		printk(KERN_ERR "port_output_init failed\n");
+		return -EINVAL;
+	}
+	#else
+	if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+
+	gpio_request(PMU_POWER_SLEEP, "NULL");
+	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+	#endif
+
 
 	/*************set vdd11 (pll) voltage 1.0v********************/
 	val = tps65910_reg_read(tps65910, TPS65910_VDIG2);
@@ -540,26 +540,13 @@ static struct regulator_init_data tps65910_ldo8 = {
 
 void __sramfunc board_pmu_tps65910_suspend(void)
 {	
-#if 0 
-	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
-	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
-#endif
+	 sram_gpio_set_value(pmic_sleep, GPIO_HIGH);  
 }
 void __sramfunc board_pmu_tps65910_resume(void)
 {
-#if 0
-	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
-	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
-	#ifdef CONFIG_CLK_SWITCH_TO_32K                 //switch clk to 24M
-	sram_32k_udelay(10000);
-	#else
+ 	sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
 	sram_udelay(2000);
-	#endif
-#endif
 }
-
 static struct tps65910_board tps65910_data = {
 	.irq 	= (unsigned)TPS65910_HOST_IRQ,		
 	.irq_base = NR_GIC_IRQS + NR_GPIO_IRQS,

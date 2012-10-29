@@ -843,7 +843,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #elif defined(CONFIG_MACH_RK2926_TB)
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB1
 #endif
-#define PMU_POWER_SLEEP RK2928_PIN3_PD2
+#define PMU_POWER_SLEEP RK2928_PIN1_PA1
 
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
@@ -932,6 +932,23 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 
 };
 #endif
+
+void __sramfunc board_pmu_suspend(void)
+{      
+	#if defined (CONFIG_MFD_TPS65910)
+       if(pmic_is_tps65910() )
+        board_pmu_tps65910_suspend(); 
+   	#endif   
+}
+void __sramfunc board_pmu_resume(void)
+{      
+	#if defined (CONFIG_MFD_TPS65910)
+       if(pmic_is_tps65910() )
+        board_pmu_tps65910_resume(); 
+	#endif
+}
+
+
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
 #if defined (CONFIG_EETI_EGALAX)

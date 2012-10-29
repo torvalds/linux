@@ -278,6 +278,8 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK30_DDR_PCTL_BASE);
 	readl_relaxed(RK30_DDR_PUBL_BASE);
 	readl_relaxed(RK30_I2C1_BASE+SZ_4K);
+	readl_relaxed(RK30_GPIO0_BASE);
+	readl_relaxed(RK30_GPIO6_BASE);
 }
 
 static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_pwrdn_st)
