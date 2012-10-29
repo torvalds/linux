@@ -74,6 +74,8 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 				"exynos-gsc.3", NULL),
 	OF_DEV_AUXDATA("samsung,exynos5-hdmi", 0x14530000,
 				"exynos5-hdmi", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-mixer", 0x14450000,
+				"exynos5-mixer", NULL),
 	{},
 };
 
