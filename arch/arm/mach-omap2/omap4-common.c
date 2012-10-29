@@ -32,6 +32,7 @@
 #include "hsmmc.h"
 #include "omap4-sar-layout.h"
 #include "omap-secure.h"
+#include "sram.h"
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
