@@ -144,11 +144,32 @@ static struct platform_device hspi_device = {
 	.num_resources	= ARRAY_SIZE(hspi_resources),
 };
 
+/* USB PHY */
+static struct resource usb_phy_resources[] = {
+	[0] = {
+		.start		= 0xffe70000,
+		.end		= 0xffe70900 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= 0xfff70000,
+		.end		= 0xfff70900 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device usb_phy_device = {
+	.name		= "rcar_usb_phy",
+	.resource	= usb_phy_resources,
+	.num_resources	= ARRAY_SIZE(usb_phy_resources),
+};
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
 	&sdhi0_device,
 	&thermal_device,
 	&hspi_device,
+	&usb_phy_device,
 };
 
 static void __init marzen_init(void)
