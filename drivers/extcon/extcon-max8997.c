@@ -271,8 +271,6 @@ out:
 static int max8997_muic_handle_charger_type_detach(
 				struct max8997_muic_info *info)
 {
-	int ret = 0;
-
 	switch (info->pre_charger_type) {
 	case MAX8997_CHARGER_TYPE_USB:
 		extcon_set_cable_state(info->edev, "USB", false);
@@ -290,11 +288,11 @@ static int max8997_muic_handle_charger_type_detach(
 		extcon_set_cable_state(info->edev, "Fast-charger", false);
 		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int max8997_muic_handle_charger_type(struct max8997_muic_info *info,
