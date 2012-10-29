@@ -1057,13 +1057,13 @@ static int dgrp_net_release(struct inode *inode, struct file *file)
 
 	spin_unlock_irqrestore(&dgrp_poll_data.poll_lock, lock_flags);
 
-done:
 	down(&nd->nd_net_semaphore);
 
 	dgrp_monitor_message(nd, "Net Close");
 
 	up(&nd->nd_net_semaphore);
 
+done:
 	module_put(THIS_MODULE);
 	file->private_data = NULL;
 	return 0;
