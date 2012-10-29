@@ -130,8 +130,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       struct comedi_insn *insn,
+					       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
@@ -988,8 +990,10 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
+						       struct comedi_subdevice *s,
+						       struct comedi_insn *insn,
+						       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
@@ -1462,8 +1466,10 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
+							  struct comedi_subdevice *s,
+							  struct comedi_insn *insn,
+							  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
@@ -1703,8 +1709,10 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device *dev,
+								  struct comedi_subdevice *s,
+								  struct comedi_insn *insn,
+								  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
