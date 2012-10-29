@@ -1590,7 +1590,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 
 	ring->size = size;
 	ring->effective_size = ring->size;
-	if (IS_I830(ring->dev))
+	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
 	ring->virtual_start = ioremap_wc(start, size);
