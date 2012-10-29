@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.36 Kernel Configuration
+# Linux/arm 3.0.42 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_CHIP_ID=1120
@@ -909,7 +909,12 @@ CONFIG_MFD_SUPPORT=y
 #
 # CONFIG_DRM is not set
 # CONFIG_ION is not set
-# CONFIG_MALI is not set
+CONFIG_MALI=m
+CONFIG_MALI400=m
+# CONFIG_MALI400_DEBUG is not set
+# CONFIG_MALI400_GPU_UTILIZATION is not set
+CONFIG_UMP=m
+CONFIG_UMP_DEBUG=y
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
 CONFIG_FB=y
@@ -934,6 +939,10 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 
 #
 # Frame buffer hardware drivers
+#
+
+#
+# Display options for sun3i
 #
 CONFIG_LYCHEE_FB_SUN3I=m
 CONFIG_LYCHEE_HDMI_SUN3I=m
@@ -1006,6 +1015,7 @@ CONFIG_AC97_BUS=m
 CONFIG_HID_SUPPORT=y
 CONFIG_HID=y
 # CONFIG_HIDRAW is not set
+# CONFIG_UHID is not set
 # CONFIG_HID_PID is not set
 
 #
@@ -1121,7 +1131,9 @@ CONFIG_PROC_FS=y
 CONFIG_PROC_SYSCTL=y
 CONFIG_PROC_PAGE_MONITOR=y
 CONFIG_SYSFS=y
-# CONFIG_TMPFS is not set
+CONFIG_TMPFS=y
+# CONFIG_TMPFS_POSIX_ACL is not set
+# CONFIG_TMPFS_XATTR is not set
 # CONFIG_HUGETLB_PAGE is not set
 # CONFIG_CONFIGFS_FS is not set
 CONFIG_MISC_FILESYSTEMS=y
