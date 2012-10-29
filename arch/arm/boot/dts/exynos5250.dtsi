@@ -520,4 +520,10 @@
 		reg = <0x13e30000 0x1000>;
 		interrupts = <0 88 0>;
 	};
+
+	hdmi {
+		compatible = "samsung,exynos5-hdmi";
+		reg = <0x14530000 0x100000>;
+		interrupts = <0 95 0>;
+	};
 };

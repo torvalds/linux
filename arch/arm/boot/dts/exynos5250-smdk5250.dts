@@ -166,4 +166,8 @@
 	spi_2: spi@12d40000 {
 		status = "disabled";
 	};
+
+	hdmi {
+		hpd-gpio = <&gpx3 7 0xf 1 3>;
+	};
 };
