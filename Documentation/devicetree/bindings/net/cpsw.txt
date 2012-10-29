@@ -24,6 +24,8 @@ Required properties:
 			  for the specific platform
 - slaves		: Specifies number for slaves
 - cpts_active_slave	: Specifies the slave to use for time stamping
+- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
+- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
 - slave_reg_ofs		: Specifies slave register offset
 - sliver_reg_ofs	: Specifies slave sliver register offset
 - phy_id		: Specifies slave phy id
@@ -62,6 +64,8 @@ Examples:
 		mac_control = <0x20>;
 		slaves = <2>;
 		cpts_active_slave = <0>;
+		cpts_clock_mult = <0x80000000>;
+		cpts_clock_shift = <29>;
 		cpsw_emac0: slave@0 {
 			slave_reg_ofs = <0x200>;
 			sliver_reg_ofs = <0xd80>;
@@ -98,6 +102,8 @@ Examples:
 		mac_control = <0x20>;
 		slaves = <2>;
 		cpts_active_slave = <0>;
+		cpts_clock_mult = <0x80000000>;
+		cpts_clock_shift = <29>;
 		cpsw_emac0: slave@0 {
 			slave_reg_ofs = <0x200>;
 			sliver_reg_ofs = <0xd80>;

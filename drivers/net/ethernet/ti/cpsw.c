@@ -854,6 +854,20 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->cpts_active_slave = prop;
 
+	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
+		pr_err("Missing cpts_clock_mult property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->cpts_clock_mult = prop;
+
+	if (of_property_read_u32(node, "cpts_clock_shift", &prop)) {
+		pr_err("Missing cpts_clock_shift property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	data->cpts_clock_shift = prop;
+
 	data->slave_data = kzalloc(sizeof(struct cpsw_slave_data) *
 				   data->slaves, GFP_KERNEL);
 	if (!data->slave_data) {
