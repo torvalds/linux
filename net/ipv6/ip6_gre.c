@@ -1069,7 +1069,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 					dev->mtu = IPV6_MIN_MTU;
 			}
 		}
-		dst_release(&rt->dst);
+		ip6_rt_put(rt);
 	}
 
 	t->hlen = addend;

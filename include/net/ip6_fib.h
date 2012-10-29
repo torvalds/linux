@@ -213,6 +213,15 @@ static inline void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
 	dst_hold(new);
 }
 
+static inline void ip6_rt_put(struct rt6_info *rt)
+{
+	/* dst_release() accepts a NULL parameter.
+	 * We rely on dst being first structure in struct rt6_info
+	 */
+	BUILD_BUG_ON(offsetof(struct rt6_info, dst) != 0);
+	dst_release(&rt->dst);
+}
+
 struct fib6_walker_t {
 	struct list_head lh;
 	struct fib6_node *root, *node;

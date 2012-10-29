@@ -663,8 +663,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		icmpv6_send(skb2, rel_type, rel_code, rel_info);
 
-		if (rt)
-			dst_release(&rt->dst);
+		ip6_rt_put(rt);
 
 		kfree_skb(skb2);
 	}
@@ -1208,7 +1207,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 			if (dev->mtu < IPV6_MIN_MTU)
 				dev->mtu = IPV6_MIN_MTU;
 		}
-		dst_release(&rt->dst);
+		ip6_rt_put(rt);
 	}
 }
 

@@ -755,7 +755,7 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		if (err == 0) {
 			IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 				      IPSTATS_MIB_FRAGOKS);
-			dst_release(&rt->dst);
+			ip6_rt_put(rt);
 			return 0;
 		}
 
@@ -767,7 +767,7 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 			      IPSTATS_MIB_FRAGFAILS);
-		dst_release(&rt->dst);
+		ip6_rt_put(rt);
 		return err;
 
 slow_path_clean:
