@@ -1332,49 +1332,48 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
-	s->n_chan = 16;
-	s->maxdata = 0x0fff;
-	s->range_table = thisboard->ai_range;
-
-	s->len_chanlist = RTD_MAX_CHANLIST;	/* devpriv->fifoLen */
-	s->insn_read = rtd_ai_rinsn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
+	s->n_chan	= 16;
+	s->maxdata	= 0x0fff;
+	s->range_table	= thisboard->ai_range;
+	s->len_chanlist	= RTD_MAX_CHANLIST;
+	s->insn_read	= rtd_ai_rinsn;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmd = rtd_ai_cmd;
-		s->do_cmdtest = rtd_ai_cmdtest;
-		s->cancel = rtd_ai_cancel;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->do_cmd	= rtd_ai_cmd;
+		s->do_cmdtest	= rtd_ai_cmdtest;
+		s->cancel	= rtd_ai_cancel;
 	}
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->maxdata = 0x0fff;
-	s->range_table = &rtd_ao_range;
-	s->insn_write = rtd_ao_winsn;
-	s->insn_read = rtd_ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &rtd_ao_range;
+	s->insn_write	= rtd_ao_winsn;
+	s->insn_read	= rtd_ao_rinsn;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	/* we only support port 0 right now.  Ignoring port 1 and user IO */
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = rtd_dio_insn_bits;
-	s->insn_config = rtd_dio_insn_config;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= rtd_dio_insn_bits;
+	s->insn_config	= rtd_dio_insn_config;
 
 	/* timer/counter subdevices (not currently supported) */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 3;
-	s->maxdata = 0xffff;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 3;
+	s->maxdata	= 0xffff;
 
 	rtd_init_board(dev);
 
