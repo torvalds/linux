@@ -2128,8 +2128,12 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_MODIFY_DISPBASE(DSPSURF(plane),
 			     obj->gtt_offset + intel_crtc->dspaddr_offset);
-	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
-	I915_WRITE(DSPLINOFF(plane), linear_offset);
+	if (IS_HASWELL(dev)) {
+		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
+	} else {
+		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
+		I915_WRITE(DSPLINOFF(plane), linear_offset);
+	}
 	POSTING_READ(reg);
 
 	return 0;

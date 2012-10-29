@@ -3034,6 +3034,7 @@
 #define _DSPASIZE		0x70190
 #define _DSPASURF		0x7019C /* 965+ only */
 #define _DSPATILEOFF		0x701A4 /* 965+ only */
+#define _DSPAOFFSET		0x701A4 /* HSW */
 
 #define DSPCNTR(plane) _PIPE(plane, _DSPACNTR, _DSPBCNTR)
 #define DSPADDR(plane) _PIPE(plane, _DSPAADDR, _DSPBADDR)
@@ -3043,6 +3044,7 @@
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
 #define DSPLINOFF(plane) DSPADDR(plane)
+#define DSPOFFSET(plane) _PIPE(plane, _DSPAOFFSET, _DSPBOFFSET)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
@@ -3088,6 +3090,7 @@
 #define _DSPBSIZE		0x71190
 #define _DSPBSURF		0x7119C
 #define _DSPBTILEOFF		0x711A4
+#define _DSPBOFFSET		0x711A4
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
