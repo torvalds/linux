@@ -1542,6 +1542,39 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
+static void rtd_init_board(struct comedi_device *dev)
+{
+	struct rtdPrivate *devpriv = dev->private;
+
+	/* initialize board, per RTD spec */
+	/* also, initialize shadow registers */
+	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
+	udelay(100);		/* needed? */
+	writel(0, devpriv->lcfg + LCFG_ITCSR);
+	devpriv->intMask = 0;
+	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+	devpriv->intClearMask = ~0;
+	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
+	readw(devpriv->las0 + LAS0_CLEAR);
+	writel(0, devpriv->las0 + LAS0_OVERRUN);
+	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
+	writel(0, devpriv->las0 + LAS0_DAC1_RESET);
+	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
+	/* clear digital IO fifo */
+	devpriv->dioStatus = 0;
+	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
+	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
+	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
+	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
+	devpriv->utcCtrl[3] = (3 << 6) | 0x00;
+	writeb(devpriv->utcCtrl[0], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[1], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[2], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[3], devpriv->las0 + LAS0_UTC_CTRL);
+	/* TODO: set user out source ??? */
+}
+
 /* The RTD driver does this */
 static void rtd_pci_latency_quirk(struct comedi_device *dev,
 				  struct pci_dev *pcidev)
@@ -1713,33 +1746,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 3;
 	s->maxdata = 0xffff;
 
-	/* initialize board, per RTD spec */
-	/* also, initialize shadow registers */
-	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
-	udelay(100);		/* needed? */
-	writel(0, devpriv->lcfg + LCFG_ITCSR);
-	devpriv->intMask = 0;
-	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-	devpriv->intClearMask = ~0;
-	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
-	readw(devpriv->las0 + LAS0_CLEAR);
-	writel(0, devpriv->las0 + LAS0_OVERRUN);
-	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
-	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
-	writel(0, devpriv->las0 + LAS0_DAC1_RESET);
-	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
-	/* clear digital IO fifo */
-	devpriv->dioStatus = 0;
-	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
-	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
-	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
-	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
-	devpriv->utcCtrl[3] = (3 << 6) | 0x00;
-	writeb(devpriv->utcCtrl[0], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[1], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[2], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[3], devpriv->las0 + LAS0_UTC_CTRL);
-	/* TODO: set user out source ??? */
+	rtd_init_board(dev);
 
 	/* check if our interrupt is available and get it */
 	ret = request_irq(pcidev->irq, rtd_interrupt,
