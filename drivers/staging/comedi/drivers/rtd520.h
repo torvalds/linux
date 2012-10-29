@@ -132,23 +132,19 @@
 #define LCFG_DMAARB		0x00ac	/* DMA Arbitration */
 #define LCFG_DMATHR		0x00b0	/* DMA Threshold */
 
-/*======================================================================
-  Resister bit definitions
-======================================================================*/
-
 /*  FIFO Status Word Bits (RtdFifoStatus) */
-#define FS_DAC1_NOT_EMPTY    0x0001	/*  D0  - DAC1 FIFO not empty */
-#define FS_DAC1_HEMPTY   0x0002	/*  D1  - DAC1 FIFO half empty */
-#define FS_DAC1_NOT_FULL     0x0004	/*  D2  - DAC1 FIFO not full */
-#define FS_DAC2_NOT_EMPTY    0x0010	/*  D4  - DAC2 FIFO not empty */
-#define FS_DAC2_HEMPTY   0x0020	/*  D5  - DAC2 FIFO half empty */
-#define FS_DAC2_NOT_FULL     0x0040	/*  D6  - DAC2 FIFO not full */
-#define FS_ADC_NOT_EMPTY     0x0100	/*  D8  - ADC FIFO not empty */
-#define FS_ADC_HEMPTY    0x0200	/*  D9  - ADC FIFO half empty */
-#define FS_ADC_NOT_FULL      0x0400	/*  D10 - ADC FIFO not full */
-#define FS_DIN_NOT_EMPTY     0x1000	/*  D12 - DIN FIFO not empty */
-#define FS_DIN_HEMPTY    0x2000	/*  D13 - DIN FIFO half empty */
-#define FS_DIN_NOT_FULL      0x4000	/*  D14 - DIN FIFO not full */
+#define FS_DAC1_NOT_EMPTY	(1 << 0)  /* DAC1 FIFO not empty */
+#define FS_DAC1_HEMPTY		(1 << 1)  /* DAC1 FIFO half empty */
+#define FS_DAC1_NOT_FULL	(1 << 2)  /* DAC1 FIFO not full */
+#define FS_DAC2_NOT_EMPTY	(1 << 4)  /* DAC2 FIFO not empty */
+#define FS_DAC2_HEMPTY		(1 << 5)  /* DAC2 FIFO half empty */
+#define FS_DAC2_NOT_FULL	(1 << 6)  /* DAC2 FIFO not full */
+#define FS_ADC_NOT_EMPTY	(1 << 8)  /* ADC FIFO not empty */
+#define FS_ADC_HEMPTY		(1 << 9)  /* ADC FIFO half empty */
+#define FS_ADC_NOT_FULL		(1 << 10) /* ADC FIFO not full */
+#define FS_DIN_NOT_EMPTY	(1 << 12) /* DIN FIFO not empty */
+#define FS_DIN_HEMPTY		(1 << 13) /* DIN FIFO half empty */
+#define FS_DIN_NOT_FULL		(1 << 14) /* DIN FIFO not full */
 
 /*  Timer Status Word Bits (GetTimerStatus) */
 #define TS_PCLK_GATE   0x0001
