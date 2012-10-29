@@ -2406,7 +2406,7 @@ static int rcu_nocb_kthread(void *arg)
 		trace_rcu_batch_end(rdp->rsp->name, c, !!list, 0, 0, 1);
 		ACCESS_ONCE(rdp->nocb_p_count) -= c;
 		ACCESS_ONCE(rdp->nocb_p_count_lazy) -= cl;
-		rdp->n_cbs_invoked += c;
+		rdp->n_nocbs_invoked += c;
 	}
 	return 0;
 }
