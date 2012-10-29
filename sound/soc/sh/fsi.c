@@ -1333,12 +1333,17 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	/* fifo init */
 	fsi_fifo_init(fsi, io, dev);
 
+	/* start master clock */
+	if (fsi_is_clk_master(fsi))
+		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
+
 	return 0;
 }
 
 static void fsi_hw_shutdown(struct fsi_priv *fsi,
 			    struct device *dev)
 {
+	/* stop master clock */
 	if (fsi_is_clk_master(fsi))
 		fsi_set_master_clk(dev, fsi, fsi->rate, 0);
 }
@@ -1461,19 +1466,11 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	long rate = params_rate(params);
-	int ret;
 
-	if (!fsi_is_clk_master(fsi))
-		return 0;
+	if (fsi_is_clk_master(fsi))
+		fsi->rate = params_rate(params);
 
-	ret = fsi_set_master_clk(dai->dev, fsi, rate, 1);
-	if (ret < 0)
-		return ret;
-
-	fsi->rate = rate;
-
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_dai_ops fsi_dai_ops = {
@@ -1770,10 +1767,6 @@ static void __fsi_resume(struct fsi_priv *fsi,
 		return;
 
 	fsi_hw_startup(fsi, io, dev);
-
-	if (fsi_is_clk_master(fsi) && fsi->rate)
-		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
-
 	fsi_stream_start(fsi, io);
 }
 
