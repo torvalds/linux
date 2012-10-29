@@ -1542,12 +1542,10 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
-static void rtd_init_board(struct comedi_device *dev)
+static void rtd_reset(struct comedi_device *dev)
 {
 	struct rtdPrivate *devpriv = dev->private;
 
-	/* initialize board, per RTD spec */
-	/* also, initialize shadow registers */
 	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
 	writel(0, devpriv->lcfg + LCFG_ITCSR);
@@ -1556,6 +1554,18 @@ static void rtd_init_board(struct comedi_device *dev)
 	devpriv->intClearMask = ~0;
 	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
+}
+
+/*
+ * initialize board, per RTD spec
+ * also, initialize shadow registers
+ */
+static void rtd_init_board(struct comedi_device *dev)
+{
+	struct rtdPrivate *devpriv = dev->private;
+
+	rtd_reset(dev);
+
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
@@ -1868,15 +1878,8 @@ static void rtd_detach(struct comedi_device *dev)
 			writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 		}
 #endif /* USE_DMA */
-		if (devpriv->las0) {
-			writel(0, devpriv->las0 + LAS0_BOARD_RESET);
-			devpriv->intMask = 0;
-			writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-			devpriv->intClearMask = ~0;
-			writew(devpriv->intClearMask,
-				devpriv->las0 + LAS0_CLEAR);
-			readw(devpriv->las0 + LAS0_CLEAR);
-		}
+		if (devpriv->las0 && devpriv->lcfg)
+			rtd_reset(dev);
 #ifdef USE_DMA
 		/* release DMA */
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
