@@ -980,6 +980,105 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 }
 EXPORT_SYMBOL(cfg80211_calculate_bitrate);
 
+unsigned int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+				   u8 attr, u8 *buf, unsigned int bufsize)
+{
+	u8 *out = buf;
+	u16 attr_remaining = 0;
+	bool desired_attr = false;
+	u16 desired_len = 0;
+
+	while (len > 0) {
+		unsigned int iedatalen;
+		unsigned int copy;
+		const u8 *iedata;
+
+		if (len < 2)
+			return -EILSEQ;
+		iedatalen = ies[1];
+		if (iedatalen + 2 > len)
+			return -EILSEQ;
+
+		if (ies[0] != WLAN_EID_VENDOR_SPECIFIC)
+			goto cont;
+
+		if (iedatalen < 4)
+			goto cont;
+
+		iedata = ies + 2;
+
+		/* check WFA OUI, P2P subtype */
+		if (iedata[0] != 0x50 || iedata[1] != 0x6f ||
+		    iedata[2] != 0x9a || iedata[3] != 0x09)
+			goto cont;
+
+		iedatalen -= 4;
+		iedata += 4;
+
+		/* check attribute continuation into this IE */
+		copy = min_t(unsigned int, attr_remaining, iedatalen);
+		if (copy && desired_attr) {
+			desired_len += copy;
+			if (out) {
+				memcpy(out, iedata, min(bufsize, copy));
+				out += min(bufsize, copy);
+				bufsize -= min(bufsize, copy);
+			}
+
+
+			if (copy == attr_remaining)
+				return desired_len;
+		}
+
+		attr_remaining -= copy;
+		if (attr_remaining)
+			goto cont;
+
+		iedatalen -= copy;
+		iedata += copy;
+
+		while (iedatalen > 0) {
+			u16 attr_len;
+
+			/* P2P attribute ID & size must fit */
+			if (iedatalen < 3)
+				return -EILSEQ;
+			desired_attr = iedata[0] == attr;
+			attr_len = get_unaligned_le16(iedata + 1);
+			iedatalen -= 3;
+			iedata += 3;
+
+			copy = min_t(unsigned int, attr_len, iedatalen);
+
+			if (desired_attr) {
+				desired_len += copy;
+				if (out) {
+					memcpy(out, iedata, min(bufsize, copy));
+					out += min(bufsize, copy);
+					bufsize -= min(bufsize, copy);
+				}
+
+				if (copy == attr_len)
+					return desired_len;
+			}
+
+			iedata += copy;
+			iedatalen -= copy;
+			attr_remaining = attr_len - copy;
+		}
+
+ cont:
+		len -= ies[1] + 2;
+		ies += ies[1] + 2;
+	}
+
+	if (attr_remaining && desired_attr)
+		return -EILSEQ;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(cfg80211_get_p2p_attr);
+
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)
 {

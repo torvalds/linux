@@ -3617,6 +3617,25 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
 
+/**
+ * cfg80211_get_p2p_attr - find and copy a P2P attribute from IE buffer
+ * @ies: the input IE buffer
+ * @len: the input length
+ * @attr: the attribute ID to find
+ * @buf: output buffer, can be %NULL if the data isn't needed, e.g.
+ *	if the function is only called to get the needed buffer size
+ * @bufsize: size of the output buffer
+ *
+ * The function finds a given P2P attribute in the (vendor) IEs and
+ * copies its contents to the given buffer.
+ *
+ * The return value is a negative error code (-%EILSEQ or -%ENOENT) if
+ * the data is malformed or the attribute can't be found (respectively),
+ * or the length of the found attribute (which can be zero).
+ */
+unsigned int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+				   u8 attr, u8 *buf, unsigned int bufsize);
+
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
