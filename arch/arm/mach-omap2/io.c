@@ -27,8 +27,6 @@
 
 #include <plat-omap/dma-omap.h>
 
-#include "../plat-omap/sram.h"
-
 #include "omap_hwmod.h"
 #include "soc.h"
 #include "iomap.h"
@@ -43,6 +41,7 @@
 #include "omap-pm.h"
 #include "sdrc.h"
 #include "serial.h"
+#include "sram.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the

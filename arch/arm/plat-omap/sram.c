@@ -20,15 +20,16 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <asm/fncpy.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
 
 #include <asm/mach/map.h>
 
 #include "../mach-omap1/soc.h"
+#include "../mach-omap1/sram.h"
 #include "../mach-omap2/soc.h"
-
-#include "sram.h"
+#include "../mach-omap2/sram.h"
 
 /* XXX These "sideways" includes will disappear when sram.c becomes a driver */
 #include "../mach-omap2/iomap.h"
