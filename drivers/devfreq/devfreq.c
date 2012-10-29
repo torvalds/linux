@@ -36,6 +36,8 @@ static struct class *devfreq_class;
  */
 static struct workqueue_struct *devfreq_wq;
 
+/* The list of all device-devfreq governors */
+static LIST_HEAD(devfreq_governor_list);
 /* The list of all device-devfreq */
 static LIST_HEAD(devfreq_list);
 static DEFINE_MUTEX(devfreq_list_lock);
@@ -109,6 +111,32 @@ static int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 	devfreq->last_stat_updated = cur_time;
 
 	return 0;
+}
+
+/**
+ * find_devfreq_governor() - find devfreq governor from name
+ * @name:	name of the governor
+ *
+ * Search the list of devfreq governors and return the matched
+ * governor's pointer. devfreq_list_lock should be held by the caller.
+ */
+static struct devfreq_governor *find_devfreq_governor(const char *name)
+{
+	struct devfreq_governor *tmp_governor;
+
+	if (unlikely(IS_ERR_OR_NULL(name))) {
+		pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+	WARN(!mutex_is_locked(&devfreq_list_lock),
+	     "devfreq_list_lock must be locked.");
+
+	list_for_each_entry(tmp_governor, &devfreq_governor_list, node) {
+		if (!strncmp(tmp_governor->name, name, DEVFREQ_NAME_LEN))
+			return tmp_governor;
+	}
+
+	return ERR_PTR(-ENODEV);
 }
 
 /* Load monitoring helper functions for governors use */
@@ -514,6 +542,69 @@ int devfreq_resume_device(struct devfreq *devfreq)
 				DEVFREQ_GOV_RESUME, NULL);
 }
 EXPORT_SYMBOL(devfreq_resume_device);
+
+/**
+ * devfreq_add_governor() - Add devfreq governor
+ * @governor:	the devfreq governor to be added
+ */
+int devfreq_add_governor(struct devfreq_governor *governor)
+{
+	struct devfreq_governor *g;
+	int err = 0;
+
+	if (!governor) {
+		pr_err("%s: Invalid parameters.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&devfreq_list_lock);
+	g = find_devfreq_governor(governor->name);
+	if (!IS_ERR(g)) {
+		pr_err("%s: governor %s already registered\n", __func__,
+		       g->name);
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	list_add(&governor->node, &devfreq_governor_list);
+
+err_out:
+	mutex_unlock(&devfreq_list_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(devfreq_add_governor);
+
+/**
+ * devfreq_remove_device() - Remove devfreq feature from a device.
+ * @governor:	the devfreq governor to be removed
+ */
+int devfreq_remove_governor(struct devfreq_governor *governor)
+{
+	struct devfreq_governor *g;
+	int err = 0;
+
+	if (!governor) {
+		pr_err("%s: Invalid parameters.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&devfreq_list_lock);
+	g = find_devfreq_governor(governor->name);
+	if (IS_ERR(g)) {
+		pr_err("%s: governor %s not registered\n", __func__,
+		       g->name);
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	list_del(&governor->node);
+err_out:
+	mutex_unlock(&devfreq_list_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(devfreq_remove_governor);
 
 static ssize_t show_governor(struct device *dev,
 			     struct device_attribute *attr, char *buf)
