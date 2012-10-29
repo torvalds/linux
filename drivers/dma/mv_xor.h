@@ -26,6 +26,7 @@
 #define USE_TIMER
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
+#define MV_XOR_MAX_CHANNELS             2
 
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
@@ -53,9 +54,10 @@
 #define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
 
 struct mv_xor_shared_private {
-	void __iomem	*xor_base;
-	void __iomem	*xor_high_base;
-	struct clk	*clk;
+	void __iomem	     *xor_base;
+	void __iomem	     *xor_high_base;
+	struct clk	     *clk;
+	struct mv_xor_device *channels[MV_XOR_MAX_CHANNELS];
 };
 
 

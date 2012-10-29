@@ -1292,7 +1292,9 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram;
 	struct mv_xor_shared_private *msp;
+	struct mv_xor_shared_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
+	int i, ret;
 
 	dev_notice(&pdev->dev, "Marvell shared XOR driver\n");
 
@@ -1334,12 +1336,55 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 	if (!IS_ERR(msp->clk))
 		clk_prepare_enable(msp->clk);
 
+	if (pdata && pdata->channels) {
+		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+			struct mv_xor_platform_data *cd;
+			int irq;
+
+			cd = &pdata->channels[i];
+			if (!cd) {
+				ret = -ENODEV;
+				goto err_channel_add;
+			}
+
+			irq = platform_get_irq(pdev, i);
+			if (irq < 0) {
+				ret = irq;
+				goto err_channel_add;
+			}
+
+			msp->channels[i] =
+				mv_xor_channel_add(msp, pdev, cd->hw_id,
+						   cd->cap_mask,
+						   cd->pool_size, irq);
+			if (IS_ERR(msp->channels[i])) {
+				ret = PTR_ERR(msp->channels[i]);
+				goto err_channel_add;
+			}
+		}
+	}
+
 	return 0;
+
+err_channel_add:
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++)
+		if (msp->channels[i])
+			mv_xor_channel_remove(msp->channels[i]);
+
+	clk_disable_unprepare(msp->clk);
+	clk_put(msp->clk);
+	return ret;
 }
 
 static int mv_xor_shared_remove(struct platform_device *pdev)
 {
 	struct mv_xor_shared_private *msp = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		if (msp->channels[i])
+			mv_xor_channel_remove(msp->channels[i]);
+	}
 
 	if (!IS_ERR(msp->clk)) {
 		clk_disable_unprepare(msp->clk);

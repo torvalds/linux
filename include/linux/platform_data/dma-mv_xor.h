@@ -20,5 +20,8 @@ struct mv_xor_platform_data {
 	size_t				pool_size;
 };
 
+struct mv_xor_shared_platform_data {
+	struct mv_xor_platform_data    *channels;
+};
 
 #endif
