@@ -1817,6 +1817,17 @@ static void __devinit quirk_plx_pci9050(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 			 quirk_plx_pci9050);
+/*
+ * The following Meilhaus (vendor ID 0x1402) device IDs (amongst others)
+ * may be using the PLX PCI 9050: 0x0630, 0x0940, 0x0950, 0x0960, 0x100b,
+ * 0x1400, 0x140a, 0x140b, 0x14e0, 0x14ea, 0x14eb, 0x1604, 0x1608, 0x160c,
+ * 0x168f, 0x2000, 0x2600, 0x3000, 0x810a, 0x810b.
+ *
+ * Currently, device IDs 0x2000 and 0x2600 are used by the Comedi "me_daq"
+ * driver.
+ */
+DECLARE_PCI_FIXUP_HEADER(0x1402, 0x2000, quirk_plx_pci9050);
+DECLARE_PCI_FIXUP_HEADER(0x1402, 0x2600, quirk_plx_pci9050);
 
 static void __devinit quirk_netmos(struct pci_dev *dev)
 {
