@@ -26,7 +26,6 @@
 #ifndef __ARCH_ARM_MACH_OMAP1_COMMON_H
 #define __ARCH_ARM_MACH_OMAP1_COMMON_H
 
-#include "../plat-omap/common.h"
 #include <linux/mtd/mtd.h>
 #include <linux/i2c-omap.h>
 

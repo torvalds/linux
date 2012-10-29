@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
-#include "common.h"
 #include <plat-omap/dma-omap.h>
 
 void __init omap_init_consistent_dma_size(void)

@@ -45,6 +45,7 @@
 #include <asm/arch_timer.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
+#include <plat/counter-32k.h>
 #include <plat/dmtimer.h>
 #include "omap-pm.h"
 
