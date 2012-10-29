@@ -502,9 +502,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				if (code <= 0xf)
 					code += BTN_JOYSTICK;
 				else
-					code += BTN_TRIGGER_HAPPY;
+					code += BTN_TRIGGER_HAPPY - 0x10;
 				break;
-		case HID_GD_GAMEPAD:  code += BTN_GAMEPAD; break;
+		case HID_GD_GAMEPAD:
+				if (code <= 0xf)
+					code += BTN_GAMEPAD;
+				else
+					code += BTN_TRIGGER_HAPPY - 0x10;
+				break;
 		default:
 			switch (field->physical) {
 			case HID_GD_MOUSE:
