@@ -417,13 +417,14 @@ static void omap_modeset_free(struct drm_device *dev)
 static int ioctl_get_param(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_omap_param *args = data;
 
 	DBG("%p: param=%llu", dev, args->param);
 
 	switch (args->param) {
 	case OMAP_PARAM_CHIPSET_ID:
-		args->value = GET_OMAP_TYPE;
+		args->value = priv->omaprev;
 		break;
 	default:
 		DBG("unknown parameter %lld", args->param);
@@ -555,6 +556,7 @@ struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
  */
 static int dev_load(struct drm_device *dev, unsigned long flags)
 {
+	struct omap_drm_platform_data *pdata = dev->dev->platform_data;
 	struct omap_drm_private *priv;
 	int ret;
 
@@ -565,6 +567,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "could not allocate priv\n");
 		return -ENOMEM;
 	}
+
+	priv->omaprev = pdata->omaprev;
 
 	dev->dev_private = priv;
 

@@ -16,7 +16,6 @@
 #ifndef OMAP_DMM_TILER_H
 #define OMAP_DMM_TILER_H
 
-#include <plat/cpu.h>
 #include "omap_drv.h"
 #include "tcm.h"
 

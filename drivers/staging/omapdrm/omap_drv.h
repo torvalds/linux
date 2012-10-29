@@ -40,6 +40,8 @@
 #define MAX_MAPPERS 2
 
 struct omap_drm_private {
+	uint32_t omaprev;
+
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
 
