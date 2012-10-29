@@ -1091,6 +1091,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 			__func__,
 			(set & TIOCM_DTR) ? "HIGH" : (clear & TIOCM_DTR) ? "LOW" : "unchanged",
 			(set & TIOCM_RTS) ? "HIGH" : (clear & TIOCM_RTS) ? "LOW" : "unchanged");
+		rv = usb_translate_errors(rv);
 	} else {
 		dev_dbg(dev, "%s - DTR %s, RTS %s\n", __func__,
 			(set & TIOCM_DTR) ? "HIGH" : (clear & TIOCM_DTR) ? "LOW" : "unchanged",
@@ -2369,8 +2370,10 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 			FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
 			0, priv->interface,
 			buf, len, WDR_TIMEOUT);
-	if (ret < 0)
+	if (ret < 0) {
+		ret = usb_translate_errors(ret);
 		goto out;
+	}
 
 	ret =	(buf[0] & FTDI_SIO_DSR_MASK  ? TIOCM_DSR : 0) |
 		(buf[0] & FTDI_SIO_CTS_MASK  ? TIOCM_CTS : 0) |
