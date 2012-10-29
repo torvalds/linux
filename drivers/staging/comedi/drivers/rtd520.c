@@ -252,8 +252,6 @@ static const struct comedi_lrange rtd_ao_range = {
 struct rtdBoard {
 	const char *name;
 	int device_id;
-	int aiChans;
-	int aiBits;
 	int aiMaxGain;
 	int range10Start;	/* start of +-10V range */
 	int rangeUniStart;	/* start of +10V range */
@@ -263,16 +261,12 @@ static const struct rtdBoard rtd520Boards[] = {
 	{
 		.name		= "DM7520",
 		.device_id	= 0x7520,
-		.aiChans	= 16,
-		.aiBits		= 12,
 		.aiMaxGain	= 32,
 		.range10Start	= 6,
 		.rangeUniStart	= 12,
 	}, {
 		.name		= "PCI4520",
 		.device_id	= 0x4520,
-		.aiChans	= 16,
-		.aiBits		= 12,
 		.aiMaxGain	= 128,
 		.range10Start	= 8,
 		.rangeUniStart	= 16,
@@ -1340,8 +1334,8 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
-	s->n_chan = thisboard->aiChans;
-	s->maxdata = (1 << thisboard->aiBits) - 1;
+	s->n_chan = 16;
+	s->maxdata = 0x0fff;
 	if (thisboard->aiMaxGain <= 32)
 		s->range_table = &rtd_ai_7520_range;
 	else
@@ -1362,7 +1356,7 @@ static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
-	s->maxdata = (1 << thisboard->aiBits) - 1;
+	s->maxdata = 0x0fff;
 	s->range_table = &rtd_ao_range;
 	s->insn_write = rtd_ao_winsn;
 	s->insn_read = rtd_ao_rinsn;
