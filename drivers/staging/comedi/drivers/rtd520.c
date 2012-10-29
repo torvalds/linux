@@ -108,8 +108,6 @@ Configuration options:
 
 #include "comedi_fc.h"
 
-#define DRV_NAME "rtd520"
-
 /*======================================================================
   Driver specific stuff (tunable)
 ======================================================================*/
@@ -1392,59 +1390,39 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 #endif
 }
 
-static struct pci_dev *rtd_find_pci(struct comedi_device *dev,
-				    struct comedi_devconfig *it)
+static const void *rtd_find_boardinfo(struct comedi_device *dev,
+				      struct pci_dev *pcidev)
 {
 	const struct rtdBoard *thisboard;
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor != PCI_VENDOR_ID_RTD)
-			continue;
-		if (bus || slot) {
-			if (pcidev->bus->number != bus ||
-			    PCI_SLOT(pcidev->devfn) != slot)
-				continue;
-		}
-		for (i = 0; i < ARRAY_SIZE(rtd520Boards); i++) {
-			thisboard = &rtd520Boards[i];
-			if (pcidev->device == thisboard->device_id) {
-				dev->board_ptr = thisboard;
-				return pcidev;
-			}
-		}
+	for (i = 0; i < ARRAY_SIZE(rtd520Boards); i++) {
+		thisboard = &rtd520Boards[i];
+		if (pcidev->device == thisboard->device_id)
+			return thisboard;
 	}
-	dev_warn(dev->class_dev,
-		"no supported board found! (req. bus/slot: %d/%d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{				/* board name and options flags */
+static int rtd_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+{
 	const struct rtdBoard *thisboard;
 	struct rtdPrivate *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
+
+	thisboard = rtd_find_boardinfo(dev, pcidev);
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	pcidev = rtd_find_pci(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
-
-	ret = comedi_pci_enable(pcidev, DRV_NAME);
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
 	dev->iobase = 1;	/* the "detach" needs this */
@@ -1515,8 +1493,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	rtd_init_board(dev);
 
 	/* check if our interrupt is available and get it */
-	ret = request_irq(pcidev->irq, rtd_interrupt,
-			  IRQF_SHARED, DRV_NAME, dev);
+	ret = request_irq(pcidev->irq, rtd_interrupt, IRQF_SHARED,
+			  dev->board_name, dev);
 	if (ret < 0)
 		return ret;
 	dev->irq = pcidev->irq;
@@ -1559,14 +1537,13 @@ static void rtd_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver rtd520_driver = {
 	.driver_name	= "rtd520",
 	.module		= THIS_MODULE,
-	.attach		= rtd_attach,
+	.attach_pci	= rtd_attach_pci,
 	.detach		= rtd_detach,
 };
 
