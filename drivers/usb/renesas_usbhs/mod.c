@@ -151,7 +151,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 		goto mod_init_host_err;
 
 	/* irq settings */
-	ret = request_irq(priv->irq, usbhs_interrupt,
+	ret = devm_request_irq(dev, priv->irq, usbhs_interrupt,
 			  priv->irqflags, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "irq request err\n");
@@ -172,7 +172,6 @@ void usbhs_mod_remove(struct usbhs_priv *priv)
 {
 	usbhs_mod_host_remove(priv);
 	usbhs_mod_gadget_remove(priv);
-	free_irq(priv->irq, priv);
 }
 
 /*
