@@ -46,28 +46,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/pci.h>
-#include <linux/gfp.h>
-#include <linux/io.h>
-#include "../../comedidev.h"
-#if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
-#include <asm/i387.h>
-#endif
-#include "../comedi_fc.h"
-
-#include "addi_common.h"
-#include "addi_amcc_s5933.h"
-
 #ifndef ADDIDATA_DRIVER_NAME
 #define ADDIDATA_DRIVER_NAME	"addi_common"
 #endif
