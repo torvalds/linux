@@ -81,28 +81,3 @@ static struct comedi_lrange range_apci035_ai = { 8, {
 /* ADDIDATA Enable Disable */
 #define ADDIDATA_ENABLE				1
 #define ADDIDATA_DISABLE			0
-
-/* Hardware Layer functions for Apci035 */
-
-/* TIMER */
-/* timer value is passed as u seconds */
-int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn, unsigned int *data);
-int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-
-/* Temperature Related Defines (Analog Input Subdevice) */
-
-int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-
-/* Interrupt */
-static void v_APCI035_Interrupt(int irq, void *d);
-
-/* Reset functions */
-int i_APCI035_Reset(struct comedi_device *dev);
