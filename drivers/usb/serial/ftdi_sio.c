@@ -2093,16 +2093,11 @@ static int ftdi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 	int chars;
 	unsigned char *buf;
 	int ret;
 
-	/* Check software buffer (code from
-	 * usb_serial_generic_chars_in_buffer()) */
-	spin_lock_irqsave(&port->lock, flags);
-	chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
-	spin_unlock_irqrestore(&port->lock, flags);
+	chars = usb_serial_generic_chars_in_buffer(tty);
 
 	/* Check hardware buffer */
 	switch (priv->chip_type) {
