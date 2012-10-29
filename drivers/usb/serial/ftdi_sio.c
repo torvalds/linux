@@ -2372,10 +2372,10 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 	if (ret < 0)
 		goto out;
 
-	ret = (buf[0] & FTDI_SIO_DSR_MASK ? TIOCM_DSR : 0) |
-		(buf[0] & FTDI_SIO_CTS_MASK ? TIOCM_CTS : 0) |
-		(buf[0]  & FTDI_SIO_RI_MASK  ? TIOCM_RI  : 0) |
-		(buf[0]  & FTDI_SIO_RLSD_MASK ? TIOCM_CD  : 0) |
+	ret =	(buf[0] & FTDI_SIO_DSR_MASK  ? TIOCM_DSR : 0) |
+		(buf[0] & FTDI_SIO_CTS_MASK  ? TIOCM_CTS : 0) |
+		(buf[0] & FTDI_SIO_RI_MASK   ? TIOCM_RI  : 0) |
+		(buf[0] & FTDI_SIO_RLSD_MASK ? TIOCM_CD  : 0) |
 		priv->last_dtr_rts;
 out:
 	kfree(buf);
