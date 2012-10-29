@@ -1826,8 +1826,6 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	priv->scan_request = request;
-
 	if (priv->user_scan_cfg) {
 		dev_err(priv->adapter->dev, "cmd: Scan already in process..\n");
 		return -EBUSY;
@@ -1839,6 +1837,8 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
 		return -ENOMEM;
 	}
+
+	priv->scan_request = request;
 
 	priv->user_scan_cfg->num_ssids = request->n_ssids;
 	priv->user_scan_cfg->ssid_list = request->ssids;
@@ -1876,6 +1876,9 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	ret = mwifiex_scan_networks(priv, priv->user_scan_cfg);
 	if (ret) {
 		dev_err(priv->adapter->dev, "scan failed: %d\n", ret);
+		priv->scan_request = NULL;
+		kfree(priv->user_scan_cfg);
+		priv->user_scan_cfg = NULL;
 		return ret;
 	}
 
