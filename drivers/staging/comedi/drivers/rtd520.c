@@ -1431,8 +1431,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev_info(dev->class_dev, "rtd520 attaching.\n");
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -1447,11 +1445,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	ret = comedi_pci_enable(pcidev, DRV_NAME);
-	if (ret < 0) {
-		dev_info(dev->class_dev,
-			 "Failed to enable PCI device and request regions.\n");
+	if (ret)
 		return ret;
-	}
 	dev->iobase = 1;	/* the "detach" needs this */
 
 	devpriv->las0 = ioremap_nocache(pci_resource_start(pcidev, 2),
@@ -1464,9 +1459,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	rtd_pci_latency_quirk(dev, pcidev);
-
-	/* Show board configuration */
-	dev_info(dev->class_dev, "%s:", dev->board_name);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -1525,28 +1517,21 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* check if our interrupt is available and get it */
 	ret = request_irq(pcidev->irq, rtd_interrupt,
 			  IRQF_SHARED, DRV_NAME, dev);
-
-	if (ret < 0) {
-		printk("Could not get interrupt! (%u)\n",
-		       pcidev->irq);
+	if (ret < 0)
 		return ret;
-	}
 	dev->irq = pcidev->irq;
-	dev_info(dev->class_dev, "( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
 	if (ret < 0)
 		return ret;
-
 	devpriv->fifoLen = ret;
-	printk("( fifoLen=%d )", devpriv->fifoLen);
 
 	if (dev->irq)
 		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 
-	printk("\ncomedi%d: rtd520 driver attached.\n", dev->minor);
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
-	return 1;
+	return 0;
 }
 
 static void rtd_detach(struct comedi_device *dev)
