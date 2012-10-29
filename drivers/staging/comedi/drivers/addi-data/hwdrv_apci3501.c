@@ -73,8 +73,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ReadDigitalInput(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
@@ -123,8 +125,10 @@ int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevi
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -164,8 +168,10 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp, ui_Temp1;
@@ -253,8 +259,10 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
@@ -304,8 +312,10 @@ int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -344,8 +354,10 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
@@ -419,8 +431,10 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
@@ -522,8 +536,10 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
+							 struct comedi_subdevice *s,
+							 struct comedi_insn *insn,
+							 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
@@ -626,8 +642,10 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       struct comedi_insn *insn,
+					       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 
@@ -668,7 +686,7 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_Reset(struct comedi_device *dev)
+static int i_APCI3501_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_Count = 0, i_temp = 0;
@@ -721,7 +739,7 @@ int i_APCI3501_Reset(struct comedi_device *dev)
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-void v_APCI3501_Interrupt(int irq, void *d)
+static void v_APCI3501_Interrupt(int irq, void *d)
 {
 	int i_temp;
 	struct comedi_device *dev = d;
