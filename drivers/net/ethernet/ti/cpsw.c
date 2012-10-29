@@ -131,7 +131,7 @@ static int rx_packet_max = CPSW_MAX_PACKET_SIZE;
 module_param(rx_packet_max, int, 0);
 MODULE_PARM_DESC(rx_packet_max, "maximum receive packet size (bytes)");
 
-struct cpsw_ss_regs {
+struct cpsw_wr_regs {
 	u32	id_ver;
 	u32	soft_reset;
 	u32	control;
@@ -142,7 +142,7 @@ struct cpsw_ss_regs {
 	u32	misc_en;
 };
 
-struct cpsw_regs {
+struct cpsw_ss_regs {
 	u32	id_ver;
 	u32	control;
 	u32	soft_reset;
@@ -204,8 +204,8 @@ struct cpsw_priv {
 	struct napi_struct		napi;
 	struct device			*dev;
 	struct cpsw_platform_data	data;
-	struct cpsw_regs __iomem	*regs;
-	struct cpsw_ss_regs __iomem	*ss_regs;
+	struct cpsw_ss_regs __iomem	*regs;
+	struct cpsw_wr_regs __iomem	*wr_regs;
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
 	struct net_device_stats		stats;
@@ -256,8 +256,8 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
-	__raw_writel(0xFF, &priv->ss_regs->tx_en);
-	__raw_writel(0xFF, &priv->ss_regs->rx_en);
+	__raw_writel(0xFF, &priv->wr_regs->tx_en);
+	__raw_writel(0xFF, &priv->wr_regs->rx_en);
 
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	return;
@@ -265,8 +265,8 @@ static void cpsw_intr_enable(struct cpsw_priv *priv)
 
 static void cpsw_intr_disable(struct cpsw_priv *priv)
 {
-	__raw_writel(0, &priv->ss_regs->tx_en);
-	__raw_writel(0, &priv->ss_regs->rx_en);
+	__raw_writel(0, &priv->wr_regs->tx_en);
+	__raw_writel(0, &priv->wr_regs->rx_en);
 
 	cpdma_ctlr_int_ctrl(priv->dma, false);
 	return;
@@ -999,7 +999,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "unable to map i/o region\n");
 		goto clean_cpsw_ss_iores_ret;
 	}
-	priv->ss_regs = regs;
+	priv->wr_regs = regs;
 
 	for_each_slave(priv, cpsw_slave_init, priv);
 
