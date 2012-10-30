@@ -747,7 +747,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		sdhci_s3c_setup_card_detect_gpio(sc);
 
 #ifdef CONFIG_PM_RUNTIME
-	clk_disable_unprepare(sc->clk_io);
+	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
+		clk_disable_unprepare(sc->clk_io);
 #endif
 	return 0;
 
@@ -794,7 +795,8 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 		gpio_free(sc->ext_cd_gpio);
 
 #ifdef CONFIG_PM_RUNTIME
-	clk_prepare_enable(sc->clk_io);
+	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
+		clk_prepare_enable(sc->clk_io);
 #endif
 	sdhci_remove_host(host, 1);
 
