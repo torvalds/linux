@@ -1361,7 +1361,7 @@ static struct platform_driver mv_xor_shared_driver = {
 	.remove		= mv_xor_shared_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= MV_XOR_SHARED_NAME,
+		.name	= MV_XOR_NAME,
 	},
 };
 

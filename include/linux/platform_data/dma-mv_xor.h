@@ -10,7 +10,7 @@
 #include <linux/dmaengine.h>
 #include <linux/mbus.h>
 
-#define MV_XOR_SHARED_NAME	"mv_xor_shared"
+#define MV_XOR_NAME	"mv_xor"
 
 struct mv_xor_channel_data {
 	int				hw_id;

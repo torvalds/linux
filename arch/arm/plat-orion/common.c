@@ -641,7 +641,7 @@ static struct mv_xor_platform_data orion_xor0_pdata = {
 };
 
 static struct platform_device orion_xor0_shared = {
-	.name		= MV_XOR_SHARED_NAME,
+	.name		= MV_XOR_NAME,
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(orion_xor0_shared_resources),
 	.resource	= orion_xor0_shared_resources,
@@ -716,7 +716,7 @@ static struct mv_xor_platform_data orion_xor1_pdata = {
 };
 
 static struct platform_device orion_xor1_shared = {
-	.name		= MV_XOR_SHARED_NAME,
+	.name		= MV_XOR_NAME,
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(orion_xor1_shared_resources),
 	.resource	= orion_xor1_shared_resources,
